@@ -9,7 +9,7 @@ Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11
 | Zweig | Commit | Inhalt |
 |---|---|---|
 | `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (11)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
-| `feature/iphone` | `db3cf9d` (**WIP**) | Merge von develop **3e6de7d** (Stand Build 6) + begonnene iPhone-Anpassungen für Raumfinder, Uni-Mail, Zurück-Pfeil. **Tests nicht vollständig gelaufen** (Agent wegen Kontingent angehalten) |
+| `feature/iphone` | develop Build 11 gemergt (nach c26bd0f) | iPhone-Fassung auf Stand Build 11: alle Funktionen iPhone-gerecht, UniFlowTests 1289 auf iPhone- und iPad-Simulator grün; Stand und Echtgerät-Liste in `docs/IPHONE-STAND-2026-11-06.md` (auf feature/iphone). Noch nicht am echten iPhone getestet |
 | `main` | alt | nicht benutzt; Releases kommen aus develop |
 
 Arbeitsordner: iPad/develop `/Users/ahmadfakih/uniflow-ai`, iPhone `/Users/ahmadfakih/uniflow-ai-iphone` (eigener git worktree).
@@ -48,7 +48,7 @@ Demo ohne Dauer-Ladehinweis.
 
 ## 4. Offene Arbeit für die nächste Sitzung (Reihenfolge)
 
-1. **iPhone fertig machen** in `/Users/ahmadfakih/uniflow-ai-iphone`: Stand `db3cf9d` prüfen (bauen, IPhone*Tests, Breiten-Audit,
+1. **iPhone (fertig bis Build 11, 06.11.)**: am echten iPhone testen, dann Universal-Build nach `docs/IPHONE-STAND-2026-11-06.md` (erst nach der iPad-Freigabe). Früherer Plan: Stand `db3cf9d` prüfen (bauen, IPhone*Tests, Breiten-Audit,
    volle UniFlowTests auf iPhone- und iPad-Simulator), dann **develop `adb145a` + diese Datei nachmergen** (Build 7: Lehrende,
    Termin-Detail, Bescheinigungen, Automatisch anmelden, Logo überall, Dialog-Scroll, Hildesheim-Mail) und iPhone-gerecht machen.
 2. Nach dem Upload: ASC-Metadaten ausfüllen (Abschnitt 3.3), Plus-Abo anhängen, einreichen.
