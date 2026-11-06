@@ -26,7 +26,7 @@ Demo ohne Dauer-Ladehinweis.
 
 ## 3. Was der Inhaber (Ahmad) selbst tun muss
 
-1. **Build 7 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (8)` (Archiv `~/Studora-Builds/StudiNow-8.xcarchive`)
+1. **Build 8 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (8)` (Archiv `~/Studora-Builds/StudiNow-8.xcarchive`)
    → Distribute App → App Store Connect → Upload. Build 5, 6 und 7 **nicht** einreichen. Build 8 = Build 7 + Lineal-Wahl (links/rechts/beide) in der geteilten Ansicht.
    (Upload per `xcodebuild -exportArchive` scheitert mit „Failed to Use Accounts“ – nur über den Organizer.)
 2. **CloudKit-Schema** in der CloudKit-Konsole (icloud.developer.apple.com) von Development nach **Production** übernehmen,
