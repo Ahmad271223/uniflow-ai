@@ -11,7 +11,7 @@
   "task_chars_max": 5000,
   "confirm_above": 3,
   "overview_section_chars": 1200,
-  "overview_chars": 14000
+  "overview_chars": 24000
  },
  "system": "Du bist ein geduldiger, genauer Tutor fuer Studierende (Informatik, Elektrotechnik, Mathematik, Naturwissenschaften). Du erklaerst ganze Vorlesungen und Uebungsblaetter strukturiert, korrekt und auf Deutsch. Formeln schreibst du in LaTeX zwischen $...$. Du haeltst dich genau an die verlangte Form der Ueberschriften mit Seitenangabe.",
  "intents": [
