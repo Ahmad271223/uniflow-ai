@@ -64,6 +64,12 @@ struct MainView: View {
             case .uniMail:
                 // Uni-Mail und Uni-Kalender (SOGo der LUH, 05.11.2026): eigene Anmeldung, Mails nur auf dem iPad
                 UniMailPage().id(session.api?.base)
+            case .lecturers:
+                // Lehrende und Kontakte (LUH, 06.11.2026): Namen, Rollen, E-Mail, Sprechzeiten aus Stud.IP, nur auf dem iPad
+                LecturersPage().id(session.api?.base)
+            case .certificates:
+                // Bescheinigungen (06.11.2026): Liste aus QIS, Campusmanagement bzw. PLuS, PDF nur auf Tippen
+                UFServerGate(.services) { CertificatesPage() }.id(session.api?.base)
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }

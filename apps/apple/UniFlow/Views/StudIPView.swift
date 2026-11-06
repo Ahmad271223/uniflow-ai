@@ -296,6 +296,7 @@ struct StudIPLoginPane<Bottom: View>: View {
                         .background(UF.warnSoft)
                     }
                     UniversityLoginHint()
+                    UniRememberPasswordToggle(dataStore: dataStore)
                     bottom
                 }
             }
@@ -439,6 +440,9 @@ struct StudIPWebView: UIViewRepresentable {
         // einsetzen (`UniLoginHelper`, nie das Passwort); Stud.IP, QIS, Learnweb und LSF bleiben ohne Skript
         // (nicht fuer die lokale Nachbildung des Debug-Stubs: dort gibt es keinen Anbieter)
         if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }
+        // seit 06.11.2026 (Entscheidung des Inhabers): mit "Passwort auf diesem iPad merken" liest ein Skript in eigener
+        // Inhaltswelt beim Absenden Benutzername und Passwort des echten Formulars der Hochschule mit (`UniAutoLogin`)
+        if !url.isFileURL { UniCredentialCapture.install(in: config, dataStore: dataStore) }
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         load?.webView = view

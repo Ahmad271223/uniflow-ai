@@ -131,7 +131,12 @@ def test_privacy_policy_matches_the_implementation():
     assert "30 Tage nach Löschung" in t                       # accounts.purge_deleted(30)
     assert "scrypt" in t and "AES-256-GCM" in t and "SHA-256" in t
     assert f"Ab {'drei' if community.REPORTS_TO_HIDE == 3 else community.REPORTS_TO_HIDE} Meldungen" in t
-    assert "uniflow_session" in t and "lernapp_pin" in t and "08:00" in t and "15:00" in t
+    assert "uniflow_session" in t and "lernapp_pin" in t
+    # 06.11.2026: keine Hochschul-Passwoerter auf unseren Servern, kein Abgleich durch den Dienst (app/vault.py, app/jobs.py)
+    from app import jobs, vault
+    assert vault.users_with_credentials() == [] and jobs.HOSTED_UNI_SYNC is False
+    assert "speichern wir Hochschul-Passwörter nie" in t and "nie auf unseren Servern" in t
+    assert "um 8 und 15 Uhr" not in t and "verschlüsselt in deinem Konto" not in t
     from app import retention
     assert f"gelöscht nach {retention.ACCESS_DAYS} Tagen" in t and f"gelöscht nach\n  {retention.SYNC_DAYS} Tagen" in t.replace("\r", "")
     assert "keine Schriften von Google" in t and "Google Fonts" not in t, "Schrift wird selbst ausgeliefert (tests/test_fonts.py)"

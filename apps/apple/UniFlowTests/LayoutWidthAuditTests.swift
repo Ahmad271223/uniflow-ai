@@ -154,10 +154,28 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "raumfinder", route: .rooms, marker: "Hauptgebäude (Welfengarten)")
         // Uni-Mail (05.11.2026, SOGo der LUH): nicht verbunden, Karte "Uni-Mail verbinden" (kein Netz)
         report += audit(env, "uni-mail", route: .uniMail, marker: "Uni-Mail verbinden")
+        // Lehrende (06.11.2026, LUH/Stud.IP): ohne Abgleich leer mit Hinweis, Suchfeld
+        report += audit(env, "lehrende", route: .lecturers, marker: "Lehrende und Tutor/innen deiner Kurse")
+        // Bescheinigungen (06.11.2026): noch nicht gelesen, Hinweis "Liste aktualisieren" (kein Netz)
+        report += audit(env, "bescheinigungen", route: .certificates, marker: "Liste aktualisieren")
         report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
         report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")
         report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Erweitert")
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
+    /// Termin-Detail (06.11.2026): Termin aus dem Stundenplan antippen -> Panel mit Modul, Raum (Route zu Fuss) und Lehrenden
+    func testTerminDetail() throws {
+        let env = try host(MainView())
+        env.router.go(.timetable())
+        env.pump(0.6)
+        let api = container.api
+        let ev = try pumping { try await api.value("/api/timetable/events").items.first { !($0.s("room") ?? "").isEmpty } }
+        let e = try XCTUnwrap(ev, "kein Demo-Termin mit Raum")
+        let id = try XCTUnwrap(e.i("id"))
+        env.overlay.openDrawer { EventDrawer(eventID: id, date: UFFmt.todayISO()) }
+        let report = audit(env, "termin-detail", route: nil, marker: "Route zu Fuß starten")
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 

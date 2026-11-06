@@ -23,15 +23,15 @@ test("Schritte und Beschriftung wie auf dem iPad", () => {
 test("Anmeldung je Hochschule und Ort", () => {
   assert.equal(O.loginStep("luh", false).title, "Bei Stud.IP anmelden");
   assert.equal(O.loginStep("hildesheim", false).title, "Beim Learnweb anmelden");
-  assert.equal(O.loginStep("luh", true).title, "Hochschul-Zugang hinterlegen");
-  assert.match(O.loginStep("hildesheim", true).intro, /UNI-Account/);
+  assert.equal(O.loginStep("luh", true).title, "Hochschul-Zugang auf deinem Gerät");
+  assert.match(O.loginStep("hildesheim", true).intro, /speichert keine Hochschul-Passwörter auf dem Server/);
 });
 
 test("Hochschule Hannover: Moodle und Campusmanagement, nie Zugangsdaten", () => {
   assert.equal(O.loginStep("hsh", false).title, "Bei Moodle und im Campusmanagement anmelden");
   assert.match(O.loginStep("hsh", false).intro, /SSO-Account/);
   assert.doesNotMatch(O.loginStep("hsh", true).intro, /hinterlegst/);
-  assert.match(O.loginStep("hsh", true).intro, /nie dein Passwort/);
+  assert.match(O.loginStep("hsh", true).intro, /iPad oder in der Windows-App/);
 });
 
 test("Tarif-Schritt und Hochschulwechsel", () => {

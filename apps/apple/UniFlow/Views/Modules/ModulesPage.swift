@@ -15,6 +15,7 @@ struct ModulesPage: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.ufDemoActive) private var demo
     @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage("mod-mode") private var mode = "cards"
     @State private var mods: [JSONValue]?
@@ -69,7 +70,11 @@ struct ModulesPage: View {
                     router.go(.settings(tab: "modules"))
                 }
             }
-            if let hint = ModuleSemesters.hint(semesters) { ModuleSemesterHint(text: hint, busy: ModuleSemesters.stillLoading(semesters)) }
+            // Demo und noch nicht verbunden: kein Ladehinweis (Pruefbericht 06.11.2026: in der Demo drehte
+            // "Aktuelles Semester wird geladen …" dauerhaft, weil nie ein Abgleich laeuft)
+            if !demo, !studip.offersStudIP || studip.phase != .signedOut, let hint = ModuleSemesters.hint(semesters) {
+                ModuleSemesterHint(text: hint, busy: ModuleSemesters.stillLoading(semesters))
+            }
             if let head = ModuleSemesters.currentHead(split) { ModuleSemesterHead(title: head, count: mods.count) }
             if all.isEmpty, !courses.isEmpty {
                 LocalCoursesCard(courses: courses) { router.go(.files(path: LibraryCourses.path($0))) }
@@ -451,6 +456,8 @@ struct ModulePage: View {
             if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
             // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
             if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
+            // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
+            if session.api?.isLocal == true && studip.offersStudIP { ModuleLecturersCard(moduleID: id, moduleName: m.s("name")) }
             if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
             ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
         } else if tab == "recordings" {

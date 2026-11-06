@@ -76,7 +76,7 @@ struct UniFlowApp: App {
                     .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                     .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                     .environment(\.hsh, containers.hsh)                        // Moodle und Campusmanagement (nur HsH)
-                    .environment(\.uniMail, containers.uniMail)               // Uni-Mail und Uni-Kalender (SOGo, nur LUH)
+                    .environment(\.uniMail, containers.uniMail)               // Uni-Mail und Uni-Kalender (SOGo, LUH und Uni Hildesheim)
                     .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
                     .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"
                     .environment(\.ufShowHitAreas, UFHit.debugOverlay)        // nur Debug: Trefferflaechen sichtbar

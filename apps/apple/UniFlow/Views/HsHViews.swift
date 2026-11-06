@@ -46,6 +46,7 @@ struct HsHLoginPane<Bottom: View>: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
                     UniversityLoginHint()
+                    UniRememberPasswordToggle(dataStore: connection.websiteDataStore)
                     bottom
                 }
             }
@@ -92,7 +93,7 @@ struct HsHLoginView: View {
 struct HsHSourcesCard: View {
     @Environment(\.hsh) private var hsh
 
-    static let text = "Moodle (Kurse, Dateien, Fristen) und Campusmanagement (Stundenplan, Leistungen, angemeldete Prüfungen) der Hochschule Hannover. Du meldest dich zweimal mit deinem SSO-Account an (Moodle und Campusmanagement haben keine gemeinsame Anmeldung) und tippst selbst auf „Anmelden“; dein Passwort speichert StudiNow nicht (das kann iOS im Schlüsselbund übernehmen). Daten bleiben nur auf diesem iPad."
+    static let text = "Moodle (Kurse, Dateien, Fristen) und Campusmanagement (Stundenplan, Leistungen, angemeldete Prüfungen) der Hochschule Hannover. Du meldest dich zweimal mit deinem SSO-Account an (Moodle und Campusmanagement haben keine gemeinsame Anmeldung) und tippst selbst auf „Anmelden“; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad (dann meldet StudiNow dich selbst wieder an). Daten bleiben nur auf diesem iPad."
 
     var body: some View {
         if let hsh { Panel(connection: hsh) }

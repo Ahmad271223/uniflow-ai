@@ -211,7 +211,7 @@ struct HildesheimStatusLine: View {
 struct HildesheimSourcesCard: View {
     @Environment(\.hildesheim) private var hildesheim
 
-    static let text = "Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; dein Passwort speichert StudiNow nicht (das kann iOS im Schlüsselbund übernehmen). Dateien und Noten bleiben nur auf diesem iPad."
+    static let text = "Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad (dann meldet StudiNow dich selbst wieder an). Dateien und Noten bleiben nur auf diesem iPad."
     static let signOutMessage = "Der Learnweb-Schlüssel und die Anmeldung in der Webansicht der Universität Hildesheim werden gelöscht. Dateien, Stundenplan und Noten bleiben. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     var body: some View {
@@ -356,6 +356,7 @@ struct HildesheimLoginPane<Bottom: View>: View {
                         .background(UF.badSoft)
                     }
                     UniversityLoginHint()
+                    UniRememberPasswordToggle(dataStore: login.connection.websiteDataStore)
                     bottom
                 }
             }

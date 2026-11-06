@@ -381,15 +381,21 @@ struct UFModalHost: ViewModifier {
                         ZStack {
                             Color(red: 10 / 255, green: 12 / 255, blue: 24 / 255).opacity(0.45).ignoresSafeArea()
                                 .onTapGesture { overlay.close(l.id) }               // Klick auf die Abdunkelung schliesst
-                            ScrollView {
-                                l.content
-                                    .frame(maxWidth: l.wide ? 900 : 620)
-                                    .environment(\.ufClose, { overlay.close(l.id) })
-                                    .padding(16)
+                            // Kurzer Dialog: mittig. Hoher Dialog (z. B. "Wochentest erstellen" mit vielen Wochen,
+                            // 06.11.2026): scrollt, damit der Knopf unten erreichbar bleibt. Vorher hielt
+                            // .fixedSize die volle Inhaltshoehe fest, der Rest lag ausserhalb des Bildschirms.
+                            GeometryReader { g in
+                                ScrollView {
+                                    l.content
+                                        .frame(maxWidth: l.wide ? 900 : 620)
+                                        .environment(\.ufClose, { overlay.close(l.id) })
+                                        .padding(16)
+                                        .frame(maxWidth: .infinity, minHeight: g.size.height)
+                                        .background(Color.clear.contentShape(Rectangle()).onTapGesture { overlay.close(l.id) })
+                                }
+                                .scrollBounceBehavior(.basedOnSize)
                             }
-                            .scrollBounceBehavior(.basedOnSize)
                             .frame(maxWidth: l.wide ? 932 : 652)
-                            .fixedSize(horizontal: false, vertical: true)
                         }
                         .transition(.opacity)
                     }

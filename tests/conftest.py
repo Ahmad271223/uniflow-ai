@@ -16,6 +16,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pytest  # noqa: E402
 
 
+def legacy_vault(user_id, values):
+    """Altbestand im Tresor anlegen, wie ihn der Dienst bis 06.11.2026 schrieb (vault.set_values nimmt seitdem keine
+    Werte mehr an). Nur fuer Tests von Aufraeumen, Export und Kontoloeschung."""
+    from datetime import datetime, timezone
+
+    from app import vault
+    cm, conn = vault._conn()
+    try:
+        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        for name, value in values.items():
+            conn.execute("INSERT OR REPLACE INTO vault(user_id, name, value_enc, updated_at) VALUES (?,?,?,?)",
+                         (user_id, name, vault.encrypt(user_id, str(value)), now))
+    finally:
+        cm.__exit__(None, None, None)
+    vault._cache.pop(user_id, None)
+
+
 def asgi_call(app, method, path, client=("127.0.0.1", 5000), body=None, cookies=None, headers=None, host="test",
               content_type="application/json", raw_path=False):
     """Minimaler ASGI-Aufruf ohne httpx; liefert (status, headers, body_bytes).

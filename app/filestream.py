@@ -98,12 +98,20 @@ def save_studip_cookies(cookies: list[dict]) -> None:
     save_cookies("STUDIP_COOKIES", cookies)
 
 
+def _no_hosted_login() -> None:
+    """Im Dienst nie neu bei der Hochschule anmelden (Entscheidung 06.11.2026: keine Hochschul-Passwoerter auf dem Server)."""
+    if config.is_hosted():
+        from .vault import NOT_STORED_MESSAGE
+        raise StreamError("credentials_not_stored", NOT_STORED_MESSAGE, 410)
+
+
 def refresh_learnweb_session() -> str:
     """Ohne Learnweb-Schluessel: neu ueber das CAS anmelden (Playwright, Profil des Kontos), Cookies merken."""
     from playwright.sync_api import sync_playwright
 
     from . import cas, hildesheim, learnweb
     from .universities import HILDESHEIM_CAS
+    _no_hosted_login()
     user, pw = config.own_credentials("HILDESHEIM")
     if not (user and pw):
         raise StreamError("university_session_expired", "Learnweb-Sitzung abgelaufen und keine Zugangsdaten hinterlegt – bitte unter Zugang eintragen.", 409)
@@ -129,6 +137,7 @@ def refresh_studip_session() -> str:
     from playwright.sync_api import sync_playwright
 
     from . import studip_sync
+    _no_hosted_login()
     try:
         with sync_playwright() as p:
             ctx = p.chromium.launch_persistent_context(str(studip_sync._profile_dir()), headless=True, locale="de-DE")

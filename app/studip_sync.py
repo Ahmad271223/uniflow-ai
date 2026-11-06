@@ -1103,6 +1103,17 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                 sync_order.mark_current_ready(conn, db.now_iso())
                 conn.commit()
 
+                # Lehrende und Kontakte (app/studip_lecturers.py): erst nach Stufe (a), nur lokal und an der LUH,
+                # je Kurs hoechstens alle 7 Tage; Fehler halten den Abgleich nicht an
+                try:
+                    from . import studip_lecturers, study
+                    if studip_lecturers.lecturers_allowed():
+                        r = studip_lecturers.sync(lambda p: _api_get(page, p), conn, [c["id"] for c in courses], study.today(), db.now_iso())
+                        conn.commit()
+                        log(f"Lehrende: {r}")
+                except Exception as e:  # noqa: BLE001 - Ergaenzung
+                    log(f"Lehrende nicht gelesen: {e}")
+
                 # --- (c) naechstes Semester, falls Stud.IP es schon zeigt -----------------------------------------
                 if upcoming:
                     download_listed(list_courses(upcoming, "Nächstes Semester"), "Nächstes Semester")

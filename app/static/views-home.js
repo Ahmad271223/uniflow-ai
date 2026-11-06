@@ -5,7 +5,7 @@
 // Brett und die Karte "Nächste Klausuren" (GET /api/exams/upcoming, exams.js; nur wenn es welche gibt).
 import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=46";
 import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=50";
-import { openEvent } from "./views-tt.js?v=48";
+import { openEvent } from "./views-tt.js?v=49";
 import { installBanner, bindInstallBanner } from "./pwa.js?v=17";
 import { staggerOnce, countUp } from "./motion.js?v=2";
 import { newsCard, bindNews } from "./news.js?v=7";

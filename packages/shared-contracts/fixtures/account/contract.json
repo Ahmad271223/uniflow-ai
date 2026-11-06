@@ -279,9 +279,9 @@
    "status": 401,
    "message": "E-Mail-Adresse oder Passwort stimmt nicht."
   },
-  "credentials_missing": {
-   "status": 400,
-   "message": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang)."
+  "credentials_not_stored": {
+   "status": 410,
+   "message": "StudiNow speichert keine Hochschul-Passwörter auf dem Server. Der Abgleich läuft auf deinem iPad oder in der Windows-App."
   },
   "email_taken": {
    "status": 409,
@@ -533,15 +533,15 @@
    }
   },
   {
-   "step": "Abgleich ohne hinterlegte Hochschul-Zugangsdaten",
+   "step": "Abgleich im Dienst: keine Hochschul-Zugangsdaten auf dem Server (410)",
    "method": "POST",
    "path": "/api/sync",
    "auth": true,
    "request": null,
-   "status": 400,
+   "status": 410,
    "response": {
-    "detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).",
-    "code": "credentials_missing"
+    "detail": "StudiNow speichert keine Hochschul-Passwörter auf dem Server. Der Abgleich läuft auf deinem iPad oder in der Windows-App.",
+    "code": "credentials_not_stored"
    }
   },
   {

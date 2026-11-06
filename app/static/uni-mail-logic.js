@@ -1,5 +1,6 @@
-// Uni-Mail und Uni-Kalender (SOGo der LUH) in Web und Windows-App (docs/UNI-MAIL-2026-11-05.md): Regeln und Texte ohne
-// DOM (node: tests/js/uni-mail.test.mjs), wie UniMailViews.swift auf dem iPad. Daten: /api/sogo/... (app/sogo_api.py).
+// Uni-Mail und Uni-Kalender (SOGo der LUH bzw. der Uni Hildesheim, seit 06.11.2026) in Web und Windows-App
+// (docs/UNI-MAIL-2026-11-05.md): Regeln und Texte ohne DOM (node: tests/js/uni-mail.test.mjs), wie UniMailViews.swift
+// auf dem iPad. Daten: /api/sogo/... (app/sogo_api.py).
 
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -16,8 +17,33 @@ export const TEXTS = {
 export const badgeText = n => (n > 99 ? "99+" : n > 0 ? String(n) : "");
 export const badgeLabel = n => (n === 1 ? "1 ungelesene E-Mail" : `${n} ungelesene E-Mails`);
 
-/** Menüpunkt nur am PC an der LUH (Dienst: 404 der Route) */
+/** Menüpunkt nur am PC an einer Hochschule mit SOGo: LUH, Uni Hildesheim (HsH: nicht; Dienst: 404 der Route) */
 export const showsNavItem = st => !!(st && st.available);
+
+/** SOGo je Hochschule (wie sogo.SITES und SOGoSite): Anzeigename, Hochschule, Raumfinder-Links (nur LUH) */
+export const SITES = {
+  luh: { name: "Uni-Mail (LUH)", university: "Leibniz Universität Hannover", short: "LUH", host: "kalender.uni-hannover.de", roomLinks: true },
+  hildesheim: { name: "Uni-Mail (Uni Hildesheim)", university: "Universität Hildesheim", short: "Uni Hildesheim", host: "webmail.uni-hildesheim.de", roomLinks: false },
+};
+
+/** Hochschule aus /api/sogo/status; nur bekannte Schlüssel, sonst null (dann keine Uni-Mail) */
+export const site = st => (st && st.available && Object.hasOwn(SITES, st.university) ? SITES[st.university] : null);
+
+/** Texte der Seite für die Hochschule aus dem Status */
+export function texts(st) {
+  const s = site(st);
+  if (!s) return { ...TEXTS, name: TEXTS.title, sub: "E-Mails und Kalender deiner Hochschule (SOGo)", unavailable: "Uni-Mail gibt es für Studierende der Leibniz Universität Hannover und der Universität Hildesheim." };
+  return {
+    ...TEXTS, name: s.name, sub: `E-Mails und Kalender der ${s.university} (SOGo)`,
+    hint: `Melde dich auf der echten SOGo-Seite der ${s.short} an. StudiNow merkt sich nur die Sitzung, nie dein Passwort. E-Mails bleiben auf diesem PC und in deinem Uni-Postfach, nichts geht an StudiNow-Server.`,
+  };
+}
+
+/** Ort eines Termins als Link zum Raumfinder? Nur an der LUH (Standortfinder der LUH) */
+export const roomLinks = st => !!site(st)?.roomLinks;
+
+/** Knopf „Lehrende“ (Stud.IP, nur LUH) auf der Seite Uni-Mail */
+export const showsLecturers = st => site(st) === SITES.luh;
 
 /** Adresse anzeigen: "Name <a@b>" bzw. nur die Adresse */
 export const addressText = a => (a?.name ? (a.email && a.email !== a.name ? `${a.name} <${a.email}>` : a.name) : a?.email || "");

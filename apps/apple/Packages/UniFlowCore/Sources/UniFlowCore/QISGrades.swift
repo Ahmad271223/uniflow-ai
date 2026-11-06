@@ -9,7 +9,8 @@ import Foundation
 // Regeln: Der Sitzungsparameter `asi` lebt nur in den Adressen der naechsten Anfrage (`QISPage.url(for:)`) und wird
 // nie gespeichert (Adressen im Sammler sind ohne asi, Meldungen ohne Adresse). Stammdaten (Name, Geburtsdatum,
 // Anschrift, Matrikelnummer) verwirft schon `QISPage.parse`; sie stehen in keiner Zeile, keiner Meldung und keinem
-// Protokoll. Bescheinigungen (verpublish) werden nur gezaehlt, nie aufgerufen (jeder Aufruf erzeugt ein Dokument).
+// Protokoll. Bescheinigungen (verpublish) werden hier nur gezaehlt, nie aufgerufen (jeder Aufruf erzeugt ein Dokument);
+// Liste und Herunterladen auf Tippen: Certificates/ (Seite Bescheinigungen, docs/BESCHEINIGUNGEN-2026-11-06.md).
 // Leer ist kein Fehler: ein Notenspiegel ohne Leistungen ergibt 0 Leistungen und einen erfolgreichen Lauf.
 
 /// Fehler beim Lesen des QIS; Beschreibungen ohne Adressen (kein asi) und ohne Inhalte der Seiten

@@ -223,6 +223,7 @@ final class HildesheimConnection: ObservableObject {
         defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
         renewal.verified(at: clock.now)                         // neue Anmeldung: Ruecknahme der stillen Versuche zurueck
         let store = websiteDataStore
+        UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // CAS-Anmeldung ueber Neustarts merken
         // eine Anmeldung fuer beide Dienste: dieselbe CAS-Sitzung verbindet den anderen gleich mit (ohne Eingabe)
         if let other = Source.allCases.first(where: { $0 != s && !isConnected($0) }), silentLoginAllowed {
@@ -237,8 +238,8 @@ final class HildesheimConnection: ObservableObject {
     }
 
     /// Abmelden: Schluessel, Verbindungen und Anmeldungen der Webansicht (CAS, Learnweb, LSF) der Uni Hildesheim
-    /// dieses Kontos; heruntergeladene Dateien, Stundenplan und Noten bleiben. Ein Passwort hat die App nicht zu
-    /// loeschen (das merkt hoechstens iOS im Schluesselbund).
+    /// dieses Kontos; heruntergeladene Dateien, Stundenplan und Noten bleiben. Ein gemerktes Passwort (`UniAutoLogin`)
+    /// geht mit; eines, das iOS im Schluesselbund hat, bleibt.
     ///
     /// Ein laufender Abgleich wird zuerst angehalten und abgewartet (vorher lief er mit Schluessel und Cookies von
     /// vorher weiter, lud Dateien und schrieb danach seinen Stand). Teilfehler: Der Merker `Keys.signOutPending` steht,
@@ -257,6 +258,7 @@ final class HildesheimConnection: ObservableObject {
         }
         for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der CAS-Anmeldeseite
+        UniAutoLogin.forget(websiteDataStore)                    // gemerktes Passwort der Uni Hildesheim (Schluesselbund)
         renewal = UniRenewalState()
         for s in Source.allCases {
             defaults.removeObject(forKey: Keys.ok(s))
@@ -365,7 +367,21 @@ final class HildesheimConnection: ObservableObject {
     /// Eine Quelle unsichtbar anmelden (nur mit offener App und gueltiger CAS-Anmeldung)
     private func silentLogin(_ s: Source) async -> Bool {
         guard silentLoginAllowed, UIApplication.shared.applicationState == .active else { return false }
+        if await HildesheimSilentLogin.attempt(s, connection: self) { return true }
+        // das CAS will das Passwort: mit dem gespeicherten still anmelden (`UniAutoLogin`), dann genau einmal neu
+        guard await autoLoginCAS() else { return false }
         return await HildesheimSilentLogin.attempt(s, connection: self)
+    }
+
+    /// Automatisch anmelden am CAS (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): Einstieg des LSF, fertig, sobald das CAS
+    /// zum LSF weiterleitet (die CAS-Sitzung gilt danach auch fuer Learnweb und PLuS)
+    private func autoLoginCAS() async -> Bool {
+        guard let entry = URL(string: HildesheimCAS.lsfLoginURL), let lsfHost = UniversityProfile.hildesheimLSF.host?.lowercased() else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "cas", store: websiteDataStore, entry: entry) { url, _ in
+            url.host?.lowercased() == lsfHost && !HildesheimCAS.isCASPage(url.absoluteString)
+        }
+        return d == .retryOnce && signOuts == before && !stopped
     }
 
     /// Quellen, die ein Lauf bewertet: alle verbundenen; im Hintergrund nur die ohne bekannte abgelaufene Anmeldung
@@ -785,4 +801,12 @@ final class HildesheimLogin: ObservableObject {
             if connection.learnwebSignedIn(token: nil, base: base) { stage = .done }
         }
     }
+}
+
+// MARK: Bescheinigungen (CertificateCenter, docs/BESCHEINIGUNGEN-2026-11-06.md): PLuS mit eigener Anmeldung im
+// Datenspeicher dieses Containers (der Transport laesst *.uni-hildesheim.de zu); das LSF bleibt unberuehrt
+extension HildesheimConnection {
+    var certificateClock: UniFlowClock { clock }
+    func certificateTransport() async -> UniTransport { await makeTransport(websiteDataStore) }
+    var certificateHost: LocalBackendHost { host }
 }

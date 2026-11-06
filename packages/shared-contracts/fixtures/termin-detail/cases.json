@@ -1,0 +1,71 @@
+{
+  "about": "Termin-Detail (06.11.2026): Raum mit Route zu Fuss, Lehrende des Kurses, E-Mail ueber Uni-Mail. Gemeinsame Regeln fuer UniFlowCore/TerminDetail.swift (iPad) und app/static/termin-detail-logic.js (Web, Windows). Erfundene Personen, nur example.org. Handgeschrieben.",
+  "rooms": [
+    {"text": "1101 - F102", "want": [{"text": "1101 - F102", "link": true}]},
+    {"text": "1101 - F102 · Online", "want": [{"text": "1101 - F102", "link": true}, {"text": "Online", "link": false}]},
+    {"text": "F 303; 3403 - A001", "want": [{"text": "F 303", "link": true}, {"text": "3403 - A001", "link": true}]},
+    {"text": "Zoom", "want": [{"text": "Zoom", "link": false}]},
+    {"text": "  ", "want": []},
+    {"text": null, "want": []}
+  ],
+  "route": [
+    {"part": {"text": "1101 - F102", "status": "found", "maps": {"google_route": "https://www.google.com/maps/dir/?api=1&destination=52.38255%2C9.71785&travelmode=walking", "google_app_route": "comgooglemaps://?daddr=52.38255%2C9.71785&directionsmode=walking"}},
+     "app": false, "want": {"kind": "route", "url": "https://www.google.com/maps/dir/?api=1&destination=52.38255%2C9.71785&travelmode=walking"}},
+    {"part": {"text": "1101 - F102", "status": "found", "maps": {"google_route": "https://www.google.com/maps/dir/?api=1&destination=52.38255%2C9.71785&travelmode=walking", "google_app_route": "comgooglemaps://?daddr=52.38255%2C9.71785&directionsmode=walking"}},
+     "app": true, "want": {"kind": "route", "url": "comgooglemaps://?daddr=52.38255%2C9.71785&directionsmode=walking"}},
+    {"part": {"text": "1101 - F999", "status": "building", "maps": {"google_route": "https://www.google.com/maps/dir/?api=1&destination=52.382%2C9.718&travelmode=walking", "google_app_route": "comgooglemaps://?daddr=52.382%2C9.718&directionsmode=walking"}},
+     "app": false, "want": {"kind": "route", "url": "https://www.google.com/maps/dir/?api=1&destination=52.382%2C9.718&travelmode=walking"}},
+    {"part": {"text": "Hörsaal X", "query": "Hörsaal", "status": "not_found", "maps": {"google_route": "https://www.google.com/maps/dir/?api=1&destination=Hannover%20H%C3%B6rsaal%20X&travelmode=walking"}},
+     "app": false, "want": {"kind": "search", "query": "Hörsaal X"}},
+    {"part": {"text": "F102", "status": "ambiguous", "candidates": [{"title": "Raum F102"}, {"title": "Raum F102"}]},
+     "app": true, "want": {"kind": "search", "query": "F102"}},
+    {"part": {"text": "1101 - F102", "status": "offline", "maps": {"google_route": "https://www.google.com/maps/dir/?api=1&destination=x&travelmode=walking"}},
+     "app": false, "want": {"kind": "search", "query": "1101 - F102"}},
+    {"part": {"text": "1101 - F102", "status": "found", "maps": {"google_route": "javascript:alert(1)"}},
+     "app": false, "want": {"kind": "search", "query": "1101 - F102"}},
+    {"part": {"text": "Online", "status": "online"}, "app": false, "want": {"kind": "none"}}
+  ],
+  "people": [
+    {"id": "u-doz-a", "name": "Prof. Dr. Erika Beispiel", "email": "erika.beispiel@example.org", "roles": ["dozent"], "role_label": "Dozent/in"},
+    {"id": "u-tut", "name": "Erfundener Tutor", "email": "", "roles": ["tutor"], "role_label": "Tutor/in"},
+    {"id": "u-doz-b", "name": "Dr. Max Muster", "email": "max.muster@example.org", "roles": ["dozent", "tutor"], "role_label": "Dozent/in, Tutor/in"},
+    {"id": "u-doz-c", "name": "Dr. Ohne Adresse", "email": "", "roles": ["dozent"], "role_label": "Dozent/in"},
+    {"id": "u-doz-d", "name": "Prof. Doppelt", "email": "erika.beispiel@example.org", "roles": ["dozent"], "role_label": "Dozent/in"}
+  ],
+  "groups": {"lecturers": ["u-doz-a", "u-doz-b", "u-doz-c", "u-doz-d"], "tutors": ["u-tut"]},
+  "recipients": ["erika.beispiel@example.org", "max.muster@example.org"],
+  "subject": [
+    {"title": "Mathematik für Ingenieure I", "want": "Frage zu Mathematik für Ingenieure I"},
+    {"title": "  Programmieren I  ", "want": "Frage zu Programmieren I"},
+    {"title": "", "want": ""},
+    {"title": null, "want": ""}
+  ],
+  "mailto": [
+    {"to": ["erika.beispiel@example.org"], "subject": "Frage zu Mathematik für Ingenieure I",
+     "want": "mailto:erika.beispiel@example.org?subject=Frage%20zu%20Mathematik%20f%C3%BCr%20Ingenieure%20I"},
+    {"to": ["erika.beispiel@example.org", "max.muster@example.org"], "subject": "Frage zu Analysis (A & B)",
+     "want": "mailto:erika.beispiel@example.org,max.muster@example.org?subject=Frage%20zu%20Analysis%20%28A%20%26%20B%29"},
+    {"to": ["a@example.org"], "subject": "", "want": "mailto:a@example.org"},
+    {"to": [" ", ""], "subject": "x", "want": null}
+  ],
+  "mail_choice": [
+    {"to": ["a@example.org"], "unimail": "connected", "want": "compose"},
+    {"to": ["a@example.org"], "unimail": "disconnected", "want": "connect"},
+    {"to": ["a@example.org"], "unimail": "none", "want": "mailto"},
+    {"to": [], "unimail": "connected", "want": "studip"},
+    {"to": [""], "unimail": "none", "want": "studip"}
+  ],
+  "lecturers_query": [
+    {"event": {"course_id": "c-ma", "module_id": 1}, "want": "course_id=c-ma"},
+    {"event": {"course_id": "c ma/1", "module_id": 1}, "want": "course_id=c%20ma%2F1"},
+    {"event": {"course_id": null, "module_id": 3}, "want": "module_id=3"},
+    {"event": {"course_id": "", "module_id": null}, "want": null},
+    {"event": {}, "want": null}
+  ],
+  "shows_lecturers": [
+    {"university": "luh", "want": true},
+    {"university": "hsh", "want": false},
+    {"university": "hildesheim", "want": false},
+    {"university": null, "want": false}
+  ]
+}

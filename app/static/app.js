@@ -4,8 +4,8 @@ import { viewDashboard as viewHome } from "./views-home.js?v=21";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=70";
 import { viewFiles } from "./views-lib.js?v=69";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=50";
-import { viewTimetable, openEvent } from "./views-tt.js?v=48";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=88";
+import { viewTimetable, openEvent } from "./views-tt.js?v=49";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=90";
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=51";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=7";
@@ -21,7 +21,7 @@ import { createBackNav, backButtonHtml, showsBack } from "./back-nav.js?v=1";   
 // ---------------------------------------------------------------- Shell
 // Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
 function buildShell() {
-  $("#brandLogo").innerHTML = icon("graduation", 18);
+  $("#brandLogo").innerHTML = '<img src="logo.png" alt="" width="30" height="30">';   // Logo 06.11.2026 (wie das App-Icon)
   $("#nav").innerHTML = navHtml(icon);
   $("#navSettings").innerHTML = `${icon("settings", 18)}<span>Einstellungen</span>`; $("#navSettings").dataset.route = "settings"; $("#navSettings").className = "";
   $("#collapseBtn").innerHTML = `${icon("panel-left", 18)}<span> Einklappen</span>`;
@@ -124,9 +124,13 @@ routes.einladungen = routes.invites = (p, q, v) => import("./invites.js?v=3").th
 // Mensa: Speiseplaene LUH, Hochschule Hannover, Uni Hildesheim (mensa.js, 05.11.2026)
 routes.mensa = (p, q, v) => import("./mensa.js?v=4").then(m => m.viewMensa(p, q, v));
 // Uni-Mail und Uni-Kalender der LUH (SOGo, uni-mail.js, 05.11.2026): nur am PC, nie im Dienst
-routes.unimail = (p, q, v) => import("./uni-mail.js?v=1").then(m => m.viewUniMail(p, q, v));
+routes.unimail = (p, q, v) => import("./uni-mail.js?v=2").then(m => m.viewUniMail(p, q, v));
 // Raumfinder: Standortfinder der LUH mit Google-Maps-Link (rooms.js, 05.11.2026); Raum-Links ueberall (.room-link)
+// Lehrende und Kontakte (LUH, Stud.IP; lecturers.js, 06.11.2026): von Uni-Mail und der Modulseite erreichbar
+routes.lehrende = routes.lecturers = (p, q, v) => import("./lecturers.js?v=3").then(m => m.viewLecturers(p, q, v));
 routes.raumfinder = routes.rooms = (p, q, v) => import("./rooms.js?v=2").then(m => m.viewRooms(p, q, v));
+// Bescheinigungen (certificates.js, 06.11.2026): Liste aus QIS, Campusmanagement bzw. PLuS, PDF nur auf Klick
+routes.bescheinigungen = routes.certificates = (p, q, v) => import("./certificates.js?v=1").then(m => m.viewCertificates(p, q, v));
 document.addEventListener("click", e => {
   const b = e.target.closest?.(".room-link[data-room]");
   if (!b) return;
@@ -244,7 +248,7 @@ async function start() {
   // Erinnerungen an erkannte Fristen (Windows-Mitteilung, Browser oder Hinweis in der App; due-reminders.js, 05.11.2026)
   import("./due-reminders.js?v=1").then(m => m.init({ api, toast, icon, esc, state })).catch(() => {});
   // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
-  if (!state.hosted) { import("./demo-bar.js?v=3").then(m => m.init()).catch(() => {}); import("./messages.js?v=6").then(m => m.startNavItem()).catch(() => {}); import("./uni-mail.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
+  if (!state.hosted) { import("./demo-bar.js?v=3").then(m => m.init()).catch(() => {}); import("./messages.js?v=6").then(m => m.startNavItem()).catch(() => {}); import("./uni-mail.js?v=2").then(m => m.startNavItem()).catch(() => {}); }
   // Aufforderung "Tarif waehlen oder bei Free bleiben" nur ohne Abo-Pflicht; mit Pflicht (Web) zeigt die Leiste den Stand
   if (state.hosted && state.entitlements?.needs_plan_choice && !state.entitlements?.access?.account_required && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie

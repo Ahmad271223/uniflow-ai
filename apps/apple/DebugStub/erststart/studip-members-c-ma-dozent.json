@@ -1,0 +1,32 @@
+{
+ "data": [
+  {
+   "type": "course-memberships",
+   "id": "c-ma_u-stub-doz",
+   "attributes": {
+    "permission": "dozent",
+    "position": 0
+   },
+   "relationships": {
+    "user": {
+     "data": {
+      "type": "users",
+      "id": "u-stub-doz"
+     }
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "users",
+   "id": "u-stub-doz",
+   "attributes": {
+    "formatted-name": "Dr. Beispiel Dozentin",
+    "username": "bdozentin",
+    "email": "beispiel.dozentin@example.org",
+    "permission": "dozent"
+   }
+  }
+ ]
+}

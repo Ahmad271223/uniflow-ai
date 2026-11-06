@@ -4,7 +4,7 @@ import UniFlowCore
 import UniformTypeIdentifiers
 import WebKit
 
-// Uni-Mail und Uni-Kalender der LUH (SOGo), docs/UNI-MAIL-2026-11-05.md: Anmeldung auf der echten Seite in der
+// Uni-Mail und Uni-Kalender (SOGo der LUH bzw. der Uni Hildesheim, `SOGoSite`), docs/UNI-MAIL-2026-11-05.md: Anmeldung auf der echten Seite in der
 // Webansicht des Containers, Seite "Uni-Mail" (Ordner, Liste mit Seiten, Suche, Lesen, Antworten, Weiterleiten, Neue
 // E-Mail, Markieren, Papierkorb mit "Rückgängig"), Uni-Kalender in den Lernkalender, Karte in den Einstellungen.
 // Gesendet wird nur ueber den Knopf "Senden" und dessen Rueckfrage.
@@ -14,7 +14,7 @@ private struct UniMailKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// Uni-Mail des offenen LUH-Containers (`ContainerManager.uniMail`); sonst nil
+    /// Uni-Mail des offenen Containers der LUH oder der Uni Hildesheim (`ContainerManager.uniMail`); sonst nil
     var uniMail: UniMailConnection? {
         get { self[UniMailKey.self] }
         set { self[UniMailKey.self] = newValue }
@@ -54,25 +54,27 @@ struct UniMailLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
-        StudIPWebView(url: DebugUniStub.loginPage("sogo", real: SOGo.loginURL), dataStore: connection.websiteDataStore,
+        StudIPWebView(url: DebugUniStub.loginPage("sogo", real: connection.site.loginURL), dataStore: connection.websiteDataStore,
                       load: load, loginHelper: false) { webView in pageLoaded(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
                     UniversityLoginHint()
+                    UniRememberPasswordToggle(dataStore: connection.websiteDataStore)
                     bottom
                 }
             }
     }
 
-    /// Konto aus der Adresse der Webansicht (nur HTTPS auf dem Rechner von SOGo); Nachbildung im Debug-Stub
-    static func signedInUser(_ url: URL?) -> String? {
-        if DebugUniStub.isSignedIn(url, service: "sogo") { return "erika.muster@stud.uni-hannover.de" }
-        return SOGo.user(fromURL: url)
+    /// Konto aus der Adresse der Webansicht (nur HTTPS auf dem Rechner von SOGo dieser Hochschule); Nachbildung im
+    /// Debug-Stub (erfundenes Konto je Hochschule)
+    static func signedInUser(_ url: URL?, site: SOGoSite) -> String? {
+        if DebugUniStub.isSignedIn(url, service: "sogo") { return site == .luh ? "erika.muster@stud.uni-hannover.de" : "muster" }
+        return SOGo.user(fromURL: url, site: site)
     }
 
     private func pageLoaded(_ webView: WKWebView) {
-        guard !done, let user = Self.signedInUser(webView.url) else { return }
+        guard !done, let user = Self.signedInUser(webView.url, site: connection.site) else { return }
         done = true
         connection.signedIn(user: user)
         onSignedIn()
@@ -110,10 +112,10 @@ struct UniMailSourcesCard: View {
 
         var body: some View {
             UFCard {
-                UFCardHead("Uni-Mail & Uni-Kalender", icon: "mail") {
+                UFCardHead("\(connection.site.name) & Uni-Kalender", icon: "mail") {
                     UFBadge(UniMailConnection.statusText(connection.state), tone: Self.tone(connection.state)).fixedSize()
                 }
-                Text(UniMailConnection.hint).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                Text(connection.hint).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 if let u = connection.user, connection.isConnected {
                     Text("Konto: \(u)").ufFont(12.8).foregroundStyle(UF.text2).padding(.top, 4)
                 }
@@ -180,6 +182,9 @@ struct UniMailComposeRequest: Identifiable {
     var uid: Int?
     /// schon vorhandene Datei (PDF aus einem Dokument), wird nach dem Anlegen des Entwurfs hochgeladen
     var attachment: (name: String, data: Data, mime: String)?
+    /// vorbelegter Empfaenger und Betreff (Lehrende, 06.11.2026: Antippen der E-Mail-Adresse)
+    var to: String?
+    var subject: String?
 }
 
 struct UniMailPage: View {
@@ -190,8 +195,8 @@ struct UniMailPage: View {
             UniMailMain(connection: uniMail)
         } else {
             UFContent(maxWidth: 900) {
-                UFPageHead("Uni-Mail", sub: "E-Mails und Kalender der Leibniz Universität Hannover")
-                UFCard { UFEmpty(icon: "mail", text: "Uni-Mail gibt es für Studierende der Leibniz Universität Hannover auf dem iPad.") }
+                UFPageHead("Uni-Mail", sub: "E-Mails und Kalender deiner Hochschule")
+                UFCard { UFEmpty(icon: "mail", text: "Uni-Mail gibt es für Studierende der Leibniz Universität Hannover und der Universität Hildesheim auf dem iPad.") }
             }
         }
     }
@@ -200,6 +205,7 @@ struct UniMailPage: View {
 struct UniMailMain: View {
     @ObservedObject var connection: UniMailConnection
     @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
     @Environment(\.ufWindowWidth) private var windowWidth
     @State private var boxes: [JSONValue] = []
     @State private var folder = "INBOX"
@@ -218,7 +224,14 @@ struct UniMailMain: View {
 
     var body: some View {
         UFContent(maxWidth: 1200) {
-            UFPageHead("Uni-Mail", sub: "E-Mails und Kalender der Leibniz Universität Hannover (SOGo)")
+            UFPageHead(connection.site.name, sub: "E-Mails und Kalender der \(connection.site.universityName) (SOGo)") {
+                // Lehrende der eigenen Kurse mit E-Mail aus Stud.IP (06.11.2026, Views/Lecturers); Stud.IP nur an der LUH
+                if connection.site.university == .luh {
+                    UFButton(LecturersText.title, icon: "users", size: .small) { router.go(.lecturers) }
+                        .accessibilityHint("Lehrende deiner Kurse mit E-Mail-Adresse und Sprechstunde")
+                        .accessibilityIdentifier("unimail.lecturers")
+                }
+            }
             if !connection.isConnected {
                 connectCard
             } else {
@@ -260,7 +273,7 @@ struct UniMailMain: View {
     private var connectCard: some View {
         UFCard {
             UFCardHead("Uni-Mail verbinden", icon: "mail")
-            Text(UniMailConnection.hint).ufFont(13.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            Text(connection.hint).ufFont(13.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             UFButton("Bei Uni-Mail anmelden", icon: "arrow-right", kind: .primary) { login = true }
                 .padding(.top, 10)
                 .accessibilityIdentifier("unimail.connect")
@@ -775,6 +788,8 @@ struct UniMailComposeSheet: View {
             bcc = (d["bcc"]?.array ?? []).compactMap(\.string).joined(separator: ", ")
             subject = d.s("subject") ?? ""
             text = d.s("text") ?? ""
+            if let t = request.to, !t.isEmpty, to.isEmpty { to = t }
+            if let s = request.subject, !s.isEmpty, subject.isEmpty { subject = s }
             attachments = d.list("attachments")
             if let a = request.attachment {
                 attachments.append(try await connection.attach(d, name: a.name, data: a.data, mime: a.mime))
@@ -900,7 +915,12 @@ struct UniCalendarCard: View {
                     Text(Self.when(e)).ufFont(12.5, 600).foregroundStyle(UF.muted)
                     Text(e.s("title") ?? "Termin").ufFont(14, 600).foregroundStyle(e["cancelled"]?.bool == true ? UF.muted : UF.text)
                         .strikethrough(e["cancelled"]?.bool == true)
-                    if let loc = e.s("location"), !loc.isEmpty { UFRoomLink(text: loc, size: 12.8) }
+                    if let loc = e.s("location"), !loc.isEmpty {
+                        // Raumfinder nur an der LUH; an der Uni Hildesheim bleibt der Ort Text
+                        if connection.site.roomLinks { UFRoomLink(text: loc, size: 12.8) } else {
+                            Text(loc).ufFont(12.8).foregroundStyle(UF.text2).accessibilityIdentifier("unimail.event.location")
+                        }
+                    }
                 }
                 .padding(.vertical, 4)
                 .accessibilityIdentifier("unimail.event")

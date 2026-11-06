@@ -1017,7 +1017,7 @@ struct DocumentView: View {
                             .accessibilityIdentifier("doc.submitLearnweb")
                     }
                 }
-                // LUH: als PDF mit Notizen an eine neue Uni-Mail (SOGo), gesendet erst mit "Senden"
+                // LUH, Uni Hildesheim: als PDF mit Notizen an eine neue Uni-Mail (SOGo), gesendet erst mit "Senden"
                 if UniMailDocumentEntry.offered(api: api, connection: uniMailConnection) {
                     Section("Per E-Mail") {
                         Button { mailingDocument = true } label: { Label("Per Uni-Mail senden …", systemImage: "envelope") }

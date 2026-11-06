@@ -379,6 +379,11 @@ die Probe schließt Blubber-Kurs-Routen jetzt aus.
 
 ## 13. Angemeldet bleiben und Hochschul-Links in der App (04.11.2026, nur iPad)
 
+> **Neu seit 06.11.2026 (Entscheidung des Inhabers):** Die App darf das Hochschul-Passwort mit Zustimmung merken – nur
+> auf diesem Gerät (Schlüsselbund `ThisDeviceOnly`, nie iCloud) – und meldet sich damit still neu an, wenn Cookies und
+> SSO-Sitzung nicht mehr reichen. Das ersetzt die Regel „nie ein Hochschul-Passwort“ unten; Cookies und stille
+> Erneuerung ohne Passwort bleiben der erste Weg. Beschreibung und Testliste: docs/AUTOMATISCH-ANMELDEN-2026-11-06.md.
+
 Wunsch des Inhabers: „Wenn man sich mit Stud.IP usw. angemeldet hat, soll man beim nächsten Mal direkt angemeldet sein
 … und wenn man auf einen Stud.IP-Link tippt, soll man direkt in Stud.IP drin sein.“ Feste Entscheidung vom 03.11.2026
 bleibt: **die App speichert nie ein Hochschul-Passwort**, auch nicht mit Face ID. Erlaubt sind Cookies im

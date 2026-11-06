@@ -206,6 +206,7 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
 
     def expand(depth: int, title: str) -> None:
         nonlocal grades
+        _collect_offers(page, prof, store)
         if prof.get("documents", True):          # Hildesheim: keine Bescheinigungen/Transcripts speichern
             _click_pdf_links(page, title or "Notenspiegel", prof, store)
         found = _parse_tables(page, title)
@@ -245,6 +246,25 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
     return out
 
 
+def _collect_offers(page: Page, prof: dict, store: "DocStore") -> None:
+    """PDF-Links der Notenspiegel-Seite fuer die Seite Bescheinigungen merken (nur lesen, app/certificates.py)"""
+    try:
+        from urllib.parse import unquote
+
+        from . import certificates
+        h, u = page.content(), page.url
+        key = prof.get("key", "luh")
+        known = {o["id"] for o in store.offers}
+        for o in certificates.qis_offers(h, u, "notenspiegel", key, False):
+            if o["id"] not in known:
+                known.add(o["id"])
+                store.offers.append(o)
+        if store.target and not store.target_raw:
+            store.target_raw = next((a["raw"] for a in certificates.anchors(h, u) if unquote(a["address"]) == unquote(store.target)), None)
+    except Exception:  # noqa: BLE001 - die Noten gehen vor
+        pass
+
+
 DOC_KEYWORDS = ("bescheinigung", "transcript", "leistungsübersicht", "leistungsuebersicht", "notenspiegel", "datenkontrollblatt",
                 "studienverlauf", "immatrikulation", "zeugnis", "record", "leistungsnachweis", "studienbuch", "notenübersicht", "certificate", "enrolment", "enrollment")
 GENERIC = ("pdf", "drucken", "download", "herunterladen", "anzeigen", "öffnen", "oeffnen")
@@ -256,6 +276,11 @@ class DocStore:
     pruefsummen gegen Duplikate. Nur Dateinamen im Kontoordner, `local_path` ist relativ zu `_doc_dir()`."""
     docs: list[dict] = field(default_factory=list)
     hashes: set[str] = field(default_factory=set)
+    # Bescheinigungen (app/certificates.py): Links der Notenspiegel-Seiten (nur gelesen, nie aufgerufen) und beim
+    # Herunterladen die Adresse mit Sitzung des gesuchten Links (`target` ohne asi)
+    offers: list[dict] = field(default_factory=list)
+    target: str | None = None
+    target_raw: str | None = None
 
 
 def _clean_title(t: str) -> str:
@@ -559,6 +584,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
     started = db.now_iso()
     ok, msg, grades, docs = False, "", [], []
     store = DocStore()
+    offers: list[dict] | None = None
     user, pw = credentials_for(prof["key"])
     if not user or not pw:
         msg = "Keine Zugangsdaten fuer QIS (Einstellungen > Zugang)." if prof["key"] == "luh" else             "Keine Zugangsdaten fuer das LSF (Einstellungen > Zugang: UNI-Account)."
@@ -569,7 +595,15 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
                 page = ctx.new_page()
                 try:
                     login(page, user, pw, prof)
+                    # Bescheinigungen (app/certificates.py): Menues nach Links durchsehen, nichts aufrufen
+                    try:
+                        from . import certificates
+                        offers, _ = certificates._qis_walk(page, None, prof["key"])
+                    except Exception as e:  # noqa: BLE001 - die Noten gehen vor
+                        log(f"QIS: Bescheinigungen nicht gelesen: {type(e).__name__}")
                     grades = fetch_grades(page, prof, store)
+                    if offers is not None:
+                        offers += [o for o in store.offers if o["id"] not in {x["id"] for x in offers}]
                     # "Info über angemeldete Prüfungen" (LUH) bzw. "Meine POS-Anmeldungen" (LSF Hildesheim), nur lesend,
                     # nur am PC (app/qis_registrations.py)
                     if prof.get("key") in ("luh", "hildesheim") and not config.is_hosted():
@@ -592,6 +626,9 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
             msg = f"FEHLER: {e}"
     with db.cursor() as conn:
         store_grades(conn, grades)
+        if ok and offers is not None:
+            from . import certificates
+            certificates.store_offers(conn, offers, prof["key"], db.now_iso())
         if docs:
             conn.execute("DELETE FROM qis_documents")
             keep = {d["local_path"] for d in docs}

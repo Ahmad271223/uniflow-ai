@@ -1,0 +1,32 @@
+{
+ "data": [
+  {
+   "type": "course-memberships",
+   "id": "c-prog_u-stub-prog",
+   "attributes": {
+    "permission": "dozent",
+    "position": 0
+   },
+   "relationships": {
+    "user": {
+     "data": {
+      "type": "users",
+      "id": "u-stub-prog"
+     }
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "users",
+   "id": "u-stub-prog",
+   "attributes": {
+    "formatted-name": "Prof. Erfunden Programmierer",
+    "username": "eprog",
+    "email": "programmieren@example.org",
+    "permission": "dozent"
+   }
+  }
+ ]
+}

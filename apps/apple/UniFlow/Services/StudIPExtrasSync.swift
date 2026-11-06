@@ -34,6 +34,17 @@ struct StudIPExtrasSync {
         return await blubber(client: client, userID: userID, courses: courses, backend: backend)
     }
 
+    /// Lehrende und Kontakte der gewaehlten aktuellen Kurse (`StudIPLecturers`, 06.11.2026): Name, Rolle, E-Mail,
+    /// Sprechzeiten; nur an Hochschulen mit Stud.IP, je Kurs hoechstens alle 7 Tage, nur lesend, nur auf dem Geraet.
+    /// Liefert true bei abgelaufener Sitzung.
+    @MainActor
+    func lecturers(client: StudIPClient, courses: [StudIPCourse]) async -> Bool {
+        guard host.university.profile.studipBase != nil, let backend = try? await host.backend() else { return false }
+        let d = await StudIPLecturers.run(client: client, database: backend.context.database, courseIDs: courses.map(\.id),
+                                          clock: backend.context.clock, university: host.university.rawValue)
+        return d.sessionExpired
+    }
+
     /// Blubber der gewaehlten aktuellen Kurse (nur lesend, nur Liste und Kommentare, nie `courses/{id}/blubber-threads`,
     /// das in Stud.IP einen Thread anlegen kann). Liefert true bei abgelaufener Sitzung.
     @MainActor

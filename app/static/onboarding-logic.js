@@ -25,14 +25,13 @@ export const isDone = s => s?.onboarding_done === true || s?.onboarding_done ===
 /** Schritt "An der Hochschule anmelden" je Hochschule und Ort (PC: Anmeldefenster; Dienst: Zugangsdaten) */
 export function loginStep(uni, hosted) {
   const hi = uni === "hildesheim";
-  if (uni === "hsh") return hosted
-    ? { title: "Hochschul-Zugang verbinden", intro: "An der Hochschule Hannover meldest du dich in der StudiNow-App auf dem iPad bei Moodle und im Campusmanagement an (SSO-Account); StudiNow merkt sich nur die Sitzung, nie dein Passwort. Ohne Anmeldung lädst du deine Unterlagen selbst hoch.", action: "Weiter" }
-    : { title: "Bei Moodle und im Campusmanagement anmelden", intro: "StudiNow holt danach deine Moodle-Kurse und -Dateien sowie Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement auf diesen PC. Du meldest dich im Anmeldefenster selbst an (SSO-Account, erst Moodle, dann das Campusmanagement im selben Fenster); StudiNow merkt sich nur die Sitzung.", action: "Anmeldefenster öffnen" };
+  // Dienst (Entscheidung 06.11.2026): keine Hochschul-Passwörter auf dem Server, der Abgleich läuft auf dem Gerät
   if (hosted) return {
-    title: "Hochschul-Zugang hinterlegen",
-    intro: `Damit StudiNow deine ${hi ? "Learnweb-Kurse" : "Stud.IP-Kurse"}, Dateien und den Stundenplan holen kann, hinterlegst du deinen ${hi ? "UNI-Account" : "LUH-ID-Zugang"} in den Einstellungen – verschlüsselt in deinem Konto. Ohne Zugang lädst du deine Unterlagen selbst hoch.`,
-    action: "Zugang hinterlegen",
+    title: "Hochschul-Zugang auf deinem Gerät",
+    intro: "StudiNow speichert keine Hochschul-Passwörter auf dem Server. Der Abgleich läuft auf deinem iPad oder in der Windows-App; dort meldest du dich selbst an. Hier im Web lädst du deine Unterlagen selbst hoch.",
+    action: "Weiter",
   };
+  if (uni === "hsh") return { title: "Bei Moodle und im Campusmanagement anmelden", intro: "StudiNow holt danach deine Moodle-Kurse und -Dateien sowie Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement auf diesen PC. Du meldest dich im Anmeldefenster selbst an (SSO-Account, erst Moodle, dann das Campusmanagement im selben Fenster); StudiNow merkt sich nur die Sitzung.", action: "Anmeldefenster öffnen" };
   return hi
     ? { title: "Beim Learnweb anmelden", intro: "StudiNow holt danach deine Learnweb-Kurse und -Dateien sowie Stundenplan und Noten aus dem LSF auf diesen PC. Du meldest dich im Anmeldefenster selbst an (UNI-Account); StudiNow merkt sich nur die Sitzung.", action: "Anmeldefenster öffnen" }
     : { title: "Bei Stud.IP anmelden", intro: "StudiNow holt danach deine Kurse, Dateien und den Stundenplan auf diesen PC. Du meldest dich im Anmeldefenster selbst an (LUH-ID über das WebSSO); StudiNow merkt sich nur die Sitzung.", action: "Anmeldefenster öffnen" };

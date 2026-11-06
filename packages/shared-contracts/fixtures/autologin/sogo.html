@@ -1,0 +1,7 @@
+<!doctype html><!-- NACHGEBAUT: SOGo (Uni-Mail), Angular-Formular loginForm --><html lang="de"><head><meta charset="utf-8"></head><body>
+<form name="loginForm" ng-submit="app.login()" novalidate>
+<md-input-container><label>Benutzername</label><input type="text" name="userName" ng-model="app.creds.username" autocomplete="username"></md-input-container>
+<md-input-container><label>Passwort</label><input id="passwordField" type="password" name="password" ng-model="app.creds.password" autocomplete="current-password"></md-input-container>
+<input type="checkbox" name="rememberLogin" ng-model="app.creds.rememberLogin"><label>Angemeldet bleiben</label>
+<button type="submit" class="md-button">Anmelden</button>
+</form></body></html>

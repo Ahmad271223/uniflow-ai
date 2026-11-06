@@ -1,4 +1,4 @@
-"""Uni-Mail und Uni-Kalender der LUH (SOGo, docs/UNI-MAIL-2026-11-05.md): gemeinsame Faelle (fixtures/sogo), Abruf mit
+"""Uni-Mail und Uni-Kalender der LUH und der Uni Hildesheim (SOGo, docs/UNI-MAIL-2026-11-05.md): gemeinsame Faelle (fixtures/sogo), Abruf mit
 nachgebauten Antworten (nie ins Netz, nie ein Passwort), Senden nur auf ausdruecklichen Knopfdruck, Routen am PC, im
 Dienst nicht vorhanden, Termine im Stundenplan."""
 from __future__ import annotations
@@ -286,3 +286,117 @@ def test_login_window_target_and_session_name(monkeypatch):
     assert sogo.discover_user(COOKIES, http) == USER
     assert calls == ["https://kalender.uni-hannover.de/SOGo/so/"]
     assert sogo.discover_user([], http) is None
+
+
+# ---------------------------------------------------------------------------------------------- Uni Hildesheim (06.11.2026)
+
+HI = "webmail.uni-hildesheim.de"
+HI_USER = "muster"
+HI_COOKIES = [{"name": "0xHIGHFLYxSOGo", "value": "sitzung", "domain": HI, "path": "/SOGo"},
+              {"name": "XSRF-TOKEN", "value": "hi%2B2", "domain": HI, "path": "/SOGo"},
+              {"name": "0xHIGHFLYxSOGo", "value": "luh", "domain": "kalender.uni-hannover.de", "path": "/SOGo"}]
+
+
+def test_sites_from_cases():
+    from app import sogo
+    c = json.loads((FX / "cases.json").read_text(encoding="utf-8"))["sites"]
+    assert [s["host"] for s in c["list"]] == ["kalender.uni-hannover.de", HI]
+    assert [s["name"] for s in c["list"]] == ["Uni-Mail (LUH)", "Uni-Mail (Uni Hildesheim)"]
+    assert c["hsh"] is None and sogo.site("hsh") is None and sogo.site("unbekannt") is None
+    for key, chk in c["checks"].items():
+        host = sogo.SITES[key]["host"]
+        for x in chk["user_from_url"]:
+            assert sogo.user_from_url(x["url"], host) == x["user"], (key, x["url"])
+            if x["user"] is not None:
+                assert host in x["url"].lower(), "nur der eigene Rechner"
+        for x in chk["attachment_path"]:
+            assert sogo.attachment_path(x["in"], host) == x["out"], (key, x["in"])
+    hi = c["checks"]["hildesheim"]
+    assert [x["user"] for x in hi["user_from_url"][:3]] == [HI_USER, "erika.muster@uni-hildesheim.de", HI_USER]
+    assert all(x["user"] is None for x in hi["user_from_url"][3:]), "andere Rechner, http, Port, LUH abgelehnt"
+    assert [a["name"] for a in hi["message_attachments"]] == ["a.pdf", "hi.pdf"]
+    assert [a["name"] for a in c["checks"]["luh"]["message_attachments"]] == ["a.pdf", "luh.pdf"]
+    assert [x["expired"] for x in hi["expired"]] == [False, False, False, True]
+
+
+def test_hildesheim_client_only_talks_to_its_host():
+    from app import sogo
+    calls = []
+
+    def http(method, url, data, headers):
+        calls.append((url, headers))
+        return 200, json.dumps(raw("mailboxes.json")).encode(), url, {"content-type": "application/json"}
+    w = sogo.SOGoWeb(HI_USER, HI_COOKIES, http=http, host=HI)
+    assert w.base == f"https://{HI}/SOGo/so/{HI_USER}"
+    assert w.mailboxes()[0]["type"] == "inbox"
+    url, headers = calls[-1]
+    assert url == f"https://{HI}/SOGo/so/{HI_USER}/Mail/0/view"
+    assert headers["X-XSRF-TOKEN"] == "hi+2" and headers["Cookie"] == "0xHIGHFLYxSOGo=sitzung; XSRF-TOKEN=hi%2B2", "nur Cookies dieses Rechners"
+    with pytest.raises(sogo.SOGoError) as e:
+        w._req("GET", "https://kalender.uni-hannover.de/SOGo/so/x/Mail/0/view")
+    assert e.value.code == "bad"
+    # Anhang eines anderen Rechners wird nicht geladen
+    with pytest.raises(sogo.SOGoError):
+        w.attachment(f"https://kalender.uni-hannover.de/SOGo/so/{USER}/Mail/0/folderINBOX/1/2/asAttachment/a.pdf")
+    # Weiterleitung auf den Rechner der LUH gilt als abgelaufen (fremder Rechner)
+    w.http = lambda m, u, d, h: (200, b"{}", f"https://kalender.uni-hannover.de/SOGo/so/{USER}/Mail/0/view", {"content-type": "application/json"})
+    with pytest.raises(sogo.SOGoError) as e:
+        w.mailboxes()
+    assert e.value.code == "login"
+
+
+def test_hildesheim_login_window_status_and_live(app, monkeypatch, tmp_path):
+    from app import config, db, sogo, unilogin
+    monkeypatch.setattr(config, "UNIVERSITY", "hildesheim")
+    monkeypatch.setattr(config, "MODE", "single")
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "hi.db")
+    db.init_db()
+    key, name, url, check, _ = unilogin._target("sogo")
+    assert (key, name, url) == ("sogo", "SOGO_COOKIES", f"https://{HI}/SOGo/")
+
+    class P:
+        url = f"https://{HI}/SOGo/so/{HI_USER}/Mail/view"
+    assert check(P()) is True
+    P.url = f"{UB}/Calendar/view"
+    assert check(P()) is False, "LUH-Adresse zaehlt an der Uni Hildesheim nicht"
+    assert unilogin._cookie_urls("sogo") == [f"https://{HI}/SOGo/"]
+    calls = []
+
+    def http(method, u, data, headers):
+        calls.append(u)
+        return 200, b"<html>angemeldet</html>", f"https://{HI}/SOGo/so/{HI_USER}/Calendar/view", {}
+    assert sogo.discover_user(HI_COOKIES, http) == HI_USER
+    assert calls == [f"https://{HI}/SOGo/so/"]
+    st, d = _j(asgi_call(app, "GET", "/api/sogo/status"))
+    assert st == 200 and d["available"] is True and d["university"] == "hildesheim" and d["name"] == "Uni-Mail (Uni Hildesheim)"
+    assert d["room_links"] is False and d["host"] == HI and "Uni Hildesheim" in d["hint"]
+    monkeypatch.setattr(unilogin, "saved_cookies", lambda n: HI_COOKIES)
+    monkeypatch.setattr(sogo, "saved_user", lambda: HI_USER)
+    w = sogo.live(http=FakeSOGo())
+    assert w.host == HI and w.base.startswith(f"https://{HI}/")
+
+
+def test_hsh_has_no_uni_mail(app, monkeypatch, tmp_path):
+    from app import config, db, sogo
+    monkeypatch.setattr(config, "UNIVERSITY", "hsh")
+    monkeypatch.setattr(config, "MODE", "single")
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "hsh.db")
+    db.init_db()
+    st, d = _j(asgi_call(app, "GET", "/api/sogo/status"))
+    assert st == 200 and d["available"] is False and d["university"] is None and d["room_links"] is False
+    st, d = _j(asgi_call(app, "POST", "/api/sogo/login"))
+    assert st == 404 and d["code"] == "not_available"
+    with pytest.raises(sogo.SOGoError) as e:
+        sogo.live()
+    assert e.value.code == "refused"
+    assert sogo.discover_user(HI_COOKIES, lambda *a: (_ for _ in ()).throw(AssertionError("kein Abruf"))) is None
+
+
+def test_luh_status_names_luh(app, monkeypatch, tmp_path):
+    from app import config, db
+    monkeypatch.setattr(config, "UNIVERSITY", "luh")
+    monkeypatch.setattr(config, "MODE", "single")
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "luh.db")
+    db.init_db()
+    st, d = _j(asgi_call(app, "GET", "/api/sogo/status"))
+    assert d["available"] is True and d["university"] == "luh" and d["name"] == "Uni-Mail (LUH)" and d["room_links"] is True

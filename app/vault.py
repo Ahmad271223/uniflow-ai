@@ -10,6 +10,16 @@ anderen unterschieben.
 Warum ein Dienst-Schluessel und keiner aus dem Nutzerpasswort: der Abgleich laeuft zweimal taeglich ohne den Nutzer.
 Ein Datenbank-Abzug allein gibt die Zugangsdaten nicht preis; Geheimnis und Datenbank gehoeren getrennt aufbewahrt.
 Der Nutzer kann seine Zugangsdaten jederzeit loeschen (`delete`), damit endet auch der automatische Abgleich.
+
+ABGESCHALTET (Entscheidung 06.11.2026, "Ja, abschalten"): StudiNow speichert Hochschul-Passwoerter, -Schluessel und
+-Sitzungen nie auf dem Server, auch nicht fuer die Web-Version. `set_values` nimmt keine Werte mehr an (nur noch
+Loeschen), `purge_all` leert die Tabelle beim Start des Dienstes, `users_with_credentials` ist immer leer: der
+Hochschul-Abgleich laeuft auf dem iPad oder in der Windows-App. Die Windows-App (Einzelplatz, app/desktop.py) legt
+optional eingetragene Hochschul-Zugangsdaten in der .env im Benutzerprofil ab (LERNAPP_ENV_FILE, nur auf diesem PC),
+die Hochschul-Sitzung in der Sitzungsdatei des Datenordners (app/unilogin.py, 0600); nur das StudiNow-Konto-Token
+liegt in der Windows-Anmeldeinformationsverwaltung (app/token_store.py). Nichts davon erreicht den Dienst. Die Tabelle
+bleibt leer bestehen (Kontoloeschung und Datenexport lesen sie); `secret.key` bleibt, weil Pseudonyme (Community,
+Testbibliothek) daraus abgeleitet werden.
 """
 from __future__ import annotations
 
@@ -26,6 +36,15 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from . import accounts, config
 
 VERSION = "v1"
+NOT_STORED_MESSAGE = ("StudiNow speichert keine Hochschul-Passwörter auf dem Server. "
+                      "Der Abgleich läuft auf deinem iPad oder in der Windows-App.")
+
+
+class CredentialsNotStored(Exception):
+    """Ein Wert sollte im Tresor landen: im Dienst nie (Entscheidung 06.11.2026). Die API antwortet 410."""
+
+    def __init__(self):
+        super().__init__(NOT_STORED_MESSAGE)
 _master: bytes | None = None
 _cache: dict[str, dict[str, str]] = {}
 _stamps: dict[str, tuple] = {}          # Stand in der Datenbank je Konto beim Einlesen (P10)
@@ -108,7 +127,10 @@ def _conn():
 
 
 def set_values(user_id: str, values: dict[str, str | None]) -> None:
-    """None loescht den Wert. Namen wie in der .env (Grossbuchstaben, Unterstrich)."""
+    """None loescht den Wert. Namen wie in der .env (Grossbuchstaben, Unterstrich).
+    Seit 06.11.2026 nur noch Loeschen: ein nicht leerer Wert loest `CredentialsNotStored` aus, bevor etwas geschrieben wird."""
+    if any(v is not None and str(v).strip() != "" for v in values.values()):
+        raise CredentialsNotStored()
     cm, conn = _conn()
     try:
         now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -162,35 +184,41 @@ def delete_all(user_id: str) -> int:
     return n
 
 
-def has_university_credentials(user_id: str, university: str) -> bool:
-    """Reichen die gespeicherten Werte fuer den Abgleich dieser Hochschule?"""
-    env = env_for(user_id)
-    if university == "hildesheim":
-        return bool((env.get("HILDESHEIM_USER") and env.get("HILDESHEIM_PASSWORD")) or env.get("LEARNWEB_TOKEN")
-                    or _has_cookies(env.get("LEARNWEB_COOKIES")))
-    if university == "hsh":
-        return bool(env.get("HSH_MOODLE_TOKEN") or _has_cookies(env.get("HSH_COOKIES")))
-    return bool((env.get("STUDIP_USER") and env.get("STUDIP_PASSWORD")) or _has_cookies(env.get("STUDIP_COOKIES")))
-
-
-def _has_cookies(raw: str | None) -> bool:
-    """Sitzung, die die App auf dem Geraet nach der Anmeldung im Anmeldefenster hinterlegt hat (nicht abgelaufen)."""
-    import json
-    import time
+def purge_all() -> int:
+    """Beim Start des Dienstes (06.11.2026): alle Tresor-Eintraege aller Konten loeschen. Liefert nur die Anzahl."""
+    cm, conn = _conn()
     try:
-        cookies = json.loads(raw) if raw else []
-    except ValueError:
-        return False
-    now = time.time()
-    return any(isinstance(c, dict) and c.get("name") and (not c.get("expires") or c["expires"] < 0 or c["expires"] > now)
-               for c in cookies)
+        conn.execute("PRAGMA secure_delete=ON")          # geloeschte Chiffrate in der Datei mit Nullen ueberschreiben
+        n = conn.execute("DELETE FROM vault").rowcount
+    finally:
+        cm.__exit__(None, None, None)
+    if n:
+        import sqlite3
+        try:                                              # alte Seiten auch aus dem WAL holen
+            c = sqlite3.connect(accounts.db_path(), timeout=15)
+            c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            c.close()
+        except sqlite3.Error:
+            pass
+    _cache.clear()
+    _stamps.clear()
+    return n
+
+
+def purge_at_startup() -> int:
+    """Gehosteter Modus: Tresor leeren und die Anzahl protokollieren (keine Namen, keine Konten)."""
+    if not config.is_hosted():
+        return 0
+    n = purge_all()
+    print(f"[vault] Hochschul-Zugangsdaten werden nicht gespeichert: {n} Tresor-Eintraege geloescht", flush=True)
+    return n
+
+
+def has_university_credentials(user_id: str, university: str) -> bool:
+    """Seit 06.11.2026 immer False: der Dienst gleicht nie mit gespeicherten Zugangsdaten ab."""
+    return False
 
 
 def users_with_credentials() -> list[tuple[str, str]]:
-    """(Konto-ID, Hochschule) aller aktiven Konten, die Zugangsdaten fuer ihre Hochschule hinterlegt haben."""
-    cm, conn = _conn()
-    try:
-        rows = conn.execute("SELECT DISTINCT u.id, u.university FROM users u JOIN vault v ON v.user_id=u.id WHERE u.status='active'").fetchall()
-    finally:
-        cm.__exit__(None, None, None)
-    return [(r["id"], r["university"]) for r in rows if has_university_credentials(r["id"], r["university"])]
+    """Seit 06.11.2026 immer leer: kein Konto hat Zugangsdaten im Dienst, der Zeitplan legt keinen Hochschul-Abgleich an."""
+    return []

@@ -308,6 +308,18 @@ SAMPLES: dict[str, dict] = {
     "GET /api/rooms/search": {"path": "/api/rooms/search"},
     "GET /api/rooms/resolve": {"path": "/api/rooms/resolve?text=Seminarraum&university=luh"},
     "GET /api/rooms/campuses": {"path": "/api/rooms/campuses?university=hsh"},
+    # Lehrende und Kontakte (StudIPLecturersEndpoints, app/studip_lecturers_api.py, docs/LEHRENDE-KONTAKTE-2026-11-06.md):
+    # leere Datenbank, LUH: verfuegbar, ohne Abgleich leer mit Hinweis; gefuellte Faelle in lecturers.json
+    "GET /api/lecturers": {"path": "/api/lecturers?module_id=1"},
+    # Bescheinigungen (CertificatesEndpoints, app/certificates.py, docs/BESCHEINIGUNGEN-2026-11-06.md): leere Datenbank,
+    # Liste nie gelesen; gefuellte Faelle in fixtures/certificates/cases.json. Lesen und Laden auf dem iPad ueber
+    # CertificateCenter mit der Sitzung der Webansicht, die POST-Routen gibt es nur am eigenen Server
+    "GET /api/certificates": {"path": "/api/certificates"},
+    "GET /api/certificates/{}/file": {"path": "/api/certificates/0123456789ab/file"},
+    "POST /api/certificates/refresh": {"path": "/api/certificates/refresh", "python": False,
+                                       "expect": {"status": 404, "reason": "auf dem iPad liest CertificateCenter die Liste mit der Sitzung der Webansicht"}},
+    "POST /api/certificates/{}/download": {"path": "/api/certificates/0123456789ab/download", "python": False,
+                                           "expect": {"status": 404, "reason": "auf dem iPad laedt CertificateCenter die PDF mit der Sitzung der Webansicht"}},
     # Pruefungsanmeldung (ExamRegistrationEndpoints, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): nur im Kern; der PC liest
     # "Info über angemeldete Prüfungen" nicht, app/exam_registration.py hat nur Daten, Zuordnung und Phase
     "GET /api/exam-registration": {"path": "/api/exam-registration", "python": False,

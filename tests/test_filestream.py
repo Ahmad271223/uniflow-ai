@@ -87,6 +87,13 @@ def _fake_http(monkeypatch, answers):
     return calls
 
 
+def _session(monkeypatch, values):
+    """Hochschul-Sitzung bzw. -Schluessel fuer das Durchreichen vorgeben. Seit 06.11.2026 schreibt der Dienst nichts mehr
+    in den Tresor (vault.set_values -> CredentialsNotStored); getestet wird hier nur der Weg Cookie/Schluessel -> Abruf."""
+    from app import vault
+    monkeypatch.setattr(vault, "env_for", lambda uid: dict(values))
+
+
 def _h(headers, name):
     return [v.decode() for k, v in headers if k == name.encode()]
 
@@ -141,7 +148,7 @@ def test_sync_keeps_only_the_file_list_in_stream_mode(app, hosted):
 # ---------------------------------------------------------------- Durchreichen
 
 def test_content_is_streamed_hashed_indexed_and_cached(app, hosted, monkeypatch):
-    from app import config, vault
+    from app import config
     user, h = _user(hosted)
     _seed(user)
     # Dateiablage am PC (ausserhalb eines Kontos) teilen sich alle Tests der Sitzung: nur neue Dateien zaehlen
@@ -149,7 +156,7 @@ def test_content_is_streamed_hashed_indexed_and_cached(app, hosted, monkeypatch)
         dirs = (config.files_dir(), config.user_data_dir(user["id"], "luh") / "files")
         return {q for d in dirs if d.exists() for q in d.rglob("*") if q.is_file()}
     before = stored_files()
-    vault.set_values(user["id"], {"STUDIP_COOKIES": json.dumps([{"name": "Seminar_Session", "value": "abc", "domain": "studip.uni-hannover.de", "path": "/", "expires": -1}])})
+    _session(monkeypatch, {"STUDIP_COOKIES": json.dumps([{"name": "Seminar_Session", "value": "abc", "domain": "studip.uni-hannover.de", "path": "/", "expires": -1}])})
     calls = _fake_http(monkeypatch, [(MIN_PDF, "application/pdf")])
     st, hdr, body = asgi_call(hosted, "GET", "/api/files/f1/content", headers=h)
     assert st == 200 and body == MIN_PDF and _h(hdr, "content-type")[0].startswith("application/pdf")
@@ -173,10 +180,11 @@ def test_content_is_streamed_hashed_indexed_and_cached(app, hosted, monkeypatch)
 
 
 def test_expired_studip_session_logs_in_once_and_retries(app, hosted, monkeypatch):
-    from app import filestream, vault
+    from app import filestream
     user, h = _user(hosted)
     _seed(user)
-    vault.set_values(user["id"], {"STUDIP_COOKIES": json.dumps([{"name": "Seminar_Session", "value": "alt", "domain": "studip.uni-hannover.de", "path": "/", "expires": -1}])})
+    real_refresh = filestream.refresh_studip_session
+    _session(monkeypatch, {"STUDIP_COOKIES": json.dumps([{"name": "Seminar_Session", "value": "alt", "domain": "studip.uni-hannover.de", "path": "/", "expires": -1}])})
     calls = _fake_http(monkeypatch, [(LOGIN_HTML, "text/html"), (MIN_PDF, "application/pdf")])
     refreshed = []
     monkeypatch.setattr(filestream, "refresh_studip_session", lambda: refreshed.append(1) or "Seminar_Session=neu")
@@ -190,7 +198,7 @@ def test_expired_studip_session_logs_in_once_and_retries(app, hosted, monkeypatc
     assert (st, json.loads(body)["code"]) == (409, "university_session_expired")
     # ohne gemerkte Sitzung: direkt neu anmelden, kein Abruf mit leerem Cookie
     filestream.forget()
-    vault.set_values(user["id"], {"STUDIP_COOKIES": ""})
+    _session(monkeypatch, {})
     calls = _fake_http(monkeypatch, [(MIN_PDF, "application/pdf")])
     st, _, _ = asgi_call(hosted, "GET", "/api/files/f1/content", headers=h)
     assert st == 200 and [c["cookie"] for c in calls] == ["Seminar_Session=neu"]
@@ -202,13 +210,18 @@ def test_expired_studip_session_logs_in_once_and_retries(app, hosted, monkeypatc
     monkeypatch.setattr(filestream, "refresh_studip_session", boom)
     st, _, body = asgi_call(hosted, "GET", "/api/files/f1/content", headers=h)
     assert (st, json.loads(body)["code"]) == (502, "university_login_failed")
+    # echte Neuanmeldung im Dienst: nie (06.11.2026, keine Hochschul-Passwoerter auf dem Server), kein Chromium
+    filestream.forget()
+    monkeypatch.setattr(filestream, "refresh_studip_session", real_refresh)
+    _fake_http(monkeypatch, [(LOGIN_HTML, "text/html")])
+    st, _, body = asgi_call(hosted, "GET", "/api/files/f1/content", headers=h)
+    assert (st, json.loads(body)["code"]) == (410, "credentials_not_stored")
 
 
 def test_learnweb_file_uses_the_token_in_the_form(app, hosted, monkeypatch):
-    from app import vault
     user, h = _user(hosted, "h@beispiel.de", "hildesheim")
     _seed(user, "hildesheim", "lw-7", "https://learnweb.uni-hildesheim.de/pluginfile.php/7/mod_resource/content/1/Blatt.pdf")
-    vault.set_values(user["id"], {"LEARNWEB_TOKEN": "tok123"})
+    _session(monkeypatch, {"LEARNWEB_TOKEN": "tok123"})
     calls = _fake_http(monkeypatch, [(MIN_PDF, "application/pdf")])
     st, _, body = asgi_call(hosted, "GET", "/api/files/lw-7/content", headers=h)
     assert st == 200 and body == MIN_PDF
@@ -216,11 +229,10 @@ def test_learnweb_file_uses_the_token_in_the_form(app, hosted, monkeypatch):
 
 
 def test_learnweb_without_token_uses_cas_session_and_relogs_once(app, hosted, monkeypatch):
-    from app import filestream, vault
+    from app import filestream
     user, h = _user(hosted, "c@beispiel.de", "hildesheim")
     _seed(user, "hildesheim", "lw-8", "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/8/mod_resource/content/1/Blatt.pdf")
-    vault.set_values(user["id"], {"HILDESHEIM_USER": "peev", "HILDESHEIM_PASSWORD": "pw-pw-pw",
-                                  "LEARNWEB_COOKIES": json.dumps([{"name": "MoodleSession", "value": "alt", "domain": "www.uni-hildesheim.de", "path": "/", "expires": -1}])})
+    _session(monkeypatch, {"LEARNWEB_COOKIES": json.dumps([{"name": "MoodleSession", "value": "alt", "domain": "www.uni-hildesheim.de", "path": "/", "expires": -1}])})
     calls = _fake_http(monkeypatch, [(LOGIN_HTML, "text/html"), (MIN_PDF, "application/pdf")])
     relogged = []
     real_refresh = filestream.refresh_learnweb_session
@@ -228,13 +240,13 @@ def test_learnweb_without_token_uses_cas_session_and_relogs_once(app, hosted, mo
     st, _, body = asgi_call(hosted, "GET", "/api/files/lw-8/content", headers=h)
     assert st == 200 and body == MIN_PDF and relogged == [1]
     assert [c["cookie"] for c in calls] == ["MoodleSession=alt", "MoodleSession=neu"] and all(c["form"] is None for c in calls)
-    # ohne Zugangsdaten und ohne Sitzung: klare Meldung statt Anmeldeversuch (echte refresh-Funktion, kein Playwright)
+    # ohne Sitzung: im Dienst nie ein Anmeldeversuch (echte refresh-Funktion, kein Playwright), sondern 410
     filestream.forget()
-    vault.set_values(user["id"], {"HILDESHEIM_USER": "", "HILDESHEIM_PASSWORD": "", "LEARNWEB_COOKIES": ""})
+    _session(monkeypatch, {})
     monkeypatch.setattr(filestream, "refresh_learnweb_session", real_refresh)
     monkeypatch.setattr(filestream, "_http", lambda url, form=None, cookie="": (LOGIN_HTML, "text/html"))
     st, _, body = asgi_call(hosted, "GET", "/api/files/lw-8/content", headers=h)
-    assert (st, json.loads(body)["code"]) == (409, "university_session_expired")
+    assert (st, json.loads(body)["code"]) == (410, "credentials_not_stored")
 
 
 def test_store_mode_and_own_documents_are_unchanged(app, hosted, monkeypatch, tmp_path):

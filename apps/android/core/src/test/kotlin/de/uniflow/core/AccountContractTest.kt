@@ -104,7 +104,7 @@ class AccountContractTest {
         assertEquals(10, (rules["password_min"] as JsonPrimitive).content.toInt())
         assertEquals(30, (rules["session_days"] as JsonPrimitive).content.toInt())
         val errors = contract["errors"] as JsonObject
-        for (code in listOf("credentials_invalid", "unauthenticated", "email_taken", "locked", "provider_not_configured", "credentials_missing")) {
+        for (code in listOf("credentials_invalid", "unauthenticated", "email_taken", "locked", "provider_not_configured", "credentials_not_stored")) {
             assertTrue(errors.containsKey(code), code)
         }
         val endpoints = (contract["endpoints"] as JsonArray).map { (it as JsonObject)["path"]!!.jsonPrimitive.content }.toSet()

@@ -35,6 +35,11 @@ enum UFRoute: Hashable {
     case rooms
     /// Uni-Mail und Uni-Kalender der LUH (SOGo, 05.11.2026, Views/UniMail/UniMailViews.swift), nur auf dem iPad
     case uniMail
+    /// Lehrende und Kontakte (LUH, Stud.IP, 06.11.2026, Views/Lecturers/LecturersViews.swift): alle Lehrenden der eigenen
+    /// Kurse mit Suche, erreichbar von Uni-Mail und der Modulseite (kein eigener Menuepunkt)
+    case lecturers
+    /// Bescheinigungen (06.11.2026, Views/Services/CertificatesPage.swift): alle Dokumente des Portals, unter Uni & Noten
+    case certificates
 
     /// Menuepunkt, der markiert wird (Dokument -> "Dokumente & Notizen", wie route() in app.js)
     var navKey: String {
@@ -53,6 +58,8 @@ enum UFRoute: Hashable {
         case .mensa: return "mensa"
         case .rooms: return "rooms"
         case .uniMail: return "unimail"
+        case .lecturers: return "lecturers"
+        case .certificates: return "services"
         }
     }
 
@@ -86,6 +93,8 @@ enum UFRoute: Hashable {
         case .mensa: return "#/mensa"
         case .rooms: return "#/raumfinder"
         case .uniMail: return "#/unimail"
+        case .lecturers: return "#/lehrende"
+        case .certificates: return "#/bescheinigungen"
         }
     }
 
@@ -123,6 +132,8 @@ enum UFRoute: Hashable {
         case "mensa": self = .mensa
         case "raumfinder", "rooms": self = .rooms
         case "unimail", "uni-mail": self = .uniMail
+        case "lehrende", "lecturers": self = .lecturers
+        case "bescheinigungen", "certificates": self = .certificates
         default: self = .dashboard
         }
     }
@@ -556,9 +567,7 @@ struct UFLogoMenu: View {
             // Tipp: zurueck zur Uebersicht (Wunsch des Inhabers: aus dem Dokument immer wieder nach StudiNow); gedrueckt
             // halten: alle Bereiche
             Button { menu.go(.dashboard) } label: {
-                RoundedRectangle(cornerRadius: 8).fill(UF.logoGradient)
-                    .frame(width: 28, height: 28)
-                    .overlay(UFIcon("graduation", size: 16).foregroundStyle(.white))
+                UFLogoImage(size: 28)
                     .ufHitArea()                                            // 28 pt sichtbar, 44 pt antippbar
             }
             .buttonStyle(.plain)
@@ -714,9 +723,7 @@ struct UFSidebar: View {
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 9.6) {                                       // .brand
-                RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
-                    .frame(width: 30, height: 30)
-                    .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
+                UFLogoImage(size: 30)
                 if !collapsed { Text("StudiNow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
             .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 16, trailing: 8))

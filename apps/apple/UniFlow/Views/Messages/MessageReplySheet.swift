@@ -14,6 +14,14 @@ struct MessageReplySheet: View {
 
     static let notice = "Wird über Stud.IP unter deinem Namen gesendet. Die Empfänger sehen deinen Namen."
     static let fallbackTitle = "In Stud.IP antworten"
+    /// Neue Nachricht an Lehrende (06.11.2026): Ausweg im Schreibfenster von Stud.IP
+    static let directFallbackTitle = "In Stud.IP schreiben"
+
+    /// Titel des Fensters: Antwort, Allen antworten oder neue Nachricht an Lehrende
+    static func title(direct: StudIPPerson?, all: Bool) -> String {
+        if let p = direct { return "Nachricht an \(p.name)" }
+        return all ? "Allen antworten" : "Antworten"
+    }
 
     init(model: @autoclosure @escaping () -> MessageReplyModel, login: ((@escaping () -> Void) -> AnyView)? = nil) {
         _model = StateObject(wrappedValue: model())
@@ -23,7 +31,7 @@ struct MessageReplySheet: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(model.mode == .all ? "Allen antworten" : "Antworten")
+                .navigationTitle(Self.title(direct: model.original.directTo, all: model.mode == .all))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -70,9 +78,10 @@ struct MessageReplySheet: View {
             }
         case .unavailable(let text):
             VStack(spacing: 16) {
-                message(icon: "exclamationmark.bubble", title: "Antworten nicht möglich", text: text, id: "reply.unavailable")
+                message(icon: "exclamationmark.bubble", title: model.original.isDirect ? "Senden nicht möglich" : "Antworten nicht möglich",
+                        text: text, id: "reply.unavailable")
                 if model.offersWebFallback { fallbackButton }
-                if StudIPMessageReply.isReplyable(senderLabel: model.original.senderLabel) {
+                if model.original.isDirect || StudIPMessageReply.isReplyable(senderLabel: model.original.senderLabel) {
                     Button("Erneut versuchen") { Task { await model.start() } }
                         .accessibilityIdentifier("reply.retry")
                 }
@@ -99,9 +108,10 @@ struct MessageReplySheet: View {
 
     private var fallbackButton: some View {
         Button { openURL(model.replyWebURL) } label: {
-            Label(Self.fallbackTitle, systemImage: "arrow.up.right.square")
+            Label(model.original.isDirect ? Self.directFallbackTitle : Self.fallbackTitle, systemImage: "arrow.up.right.square")
         }
-        .accessibilityHint("Öffnet das Antwortfenster von Stud.IP im angemeldeten Browser")
+        .accessibilityHint(model.original.isDirect ? "Öffnet das Schreibfenster von Stud.IP im angemeldeten Browser"
+                                                   : "Öffnet das Antwortfenster von Stud.IP im angemeldeten Browser")
         .accessibilityIdentifier("reply.openInStudIP")
     }
 
@@ -142,10 +152,12 @@ struct MessageReplySheet: View {
             Section {
                 TextEditor(text: $model.text)
                     .frame(minHeight: 180)
-                    .accessibilityLabel("Deine Antwort")
+                    .accessibilityLabel(model.original.isDirect ? "Deine Nachricht" : "Deine Antwort")
                     .accessibilityIdentifier("reply.text")
-                Toggle("Original zitieren", isOn: $model.quote)
-                    .accessibilityIdentifier("reply.quote")
+                if !model.original.isDirect {
+                    Toggle("Original zitieren", isOn: $model.quote)
+                        .accessibilityIdentifier("reply.quote")
+                }
                 if let q = model.quoteText {
                     Text(q)
                         .font(.callout)
@@ -206,7 +218,8 @@ struct MessageReplySheet: View {
             Text("Gesendet").font(.title2.bold())
             Text("An \(model.recipients.map(\.name).joined(separator: ", ")) · \(record.line())")
                 .font(.callout).foregroundStyle(UF.muted).multilineTextAlignment(.center)
-            Text("Die Antwort liegt in Stud.IP unter Nachrichten → Gesendet.")
+            Text(model.original.isDirect ? "Die Nachricht liegt in Stud.IP unter Nachrichten → Gesendet."
+                                         : "Die Antwort liegt in Stud.IP unter Nachrichten → Gesendet.")
                 .font(.footnote).foregroundStyle(UF.muted).multilineTextAlignment(.center)
             Button("Fertig") { dismiss() }
                 .buttonStyle(.borderedProminent)
