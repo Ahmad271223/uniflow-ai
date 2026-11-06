@@ -67,6 +67,16 @@ Plus-Abo: Prüfanmerkung. Offen (Inhaber): Bildschirmfotos der Version, Prüf-Bi
 (Antworten in docs/release/APP-STORE.md „App-Datenschutz“), Datenschutz-URL unter App-Datenschutz, CloudKit Production,
 Händler-E-Mail, dann „Zur Prüfung hinzufügen“ → Einreichen.
 
+
+### Später (Inhaber hat „später“ gesagt, 07.11.2026): Windows-App und Konto über Geräte
+- Microsoft Store: Anleitung `docs/release/MICROSOFT-STORE.md` (Partner Center, drei Kennwerte in `apps/windows/msix/store.json`,
+  `store_ready`, Bildschirmfotos, Test auf echtem Windows-PC).
+- Damit ein iPad-Konto (mit Apple angelegt) am PC/Web geht: im Apple-Developer-Konto eine **Services ID** für „Sign in with Apple“
+  (Domain `app.studinow.app`, Rückkehr-URL laut `app/social_login.py`) anlegen, dann `LERNAPP_APPLE_WEB_CLIENT_ID` in der Server-`.env`.
+- Bezahlen am PC: **Stripe** (Konto des Inhabers, Schlüssel trägt er selbst ein: `LERNAPP_STRIPE_SECRET_KEY`, `_WEBHOOK_SECRET`,
+  `_PRICES`; `docs/START-DIENST-CHECKLISTE.md` 5.3). Bis dahin gilt am PC nur ein auf dem iPad gekauftes Abo.
+- Konto, Abo, KI-Credits und Notizen-Abgleich (G2) laufen über das StudiNow-Konto; zwischen zwei echten Geräten noch nicht getestet.
+
 ### Offen: Lineal nur auf einer Seite der geteilten Ansicht
 Inhaber-Wunsch 06.11.: Lineal links, rechts oder beide wählen. Zwei Versuche (Build 8: Leiste „Lineal: Links · Rechts · Beide“
 plus `canvas.isRulerActive` je Seite; Build 9: Seite ohne Lineal per `toolPicker.removeObserver` lösen) liefen am Gerät nicht
