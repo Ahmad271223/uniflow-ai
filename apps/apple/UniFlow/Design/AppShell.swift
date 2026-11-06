@@ -33,6 +33,8 @@ enum UFRoute: Hashable {
     case mensa
     /// Raumfinder (05.11.2026, Views/Rooms/RoomFinderViews.swift): Standortfinder der LUH mit Google-Maps-Link, frei
     case rooms
+    /// Uni-Mail und Uni-Kalender der LUH (SOGo, 05.11.2026, Views/UniMail/UniMailViews.swift), nur auf dem iPad
+    case uniMail
 
     /// Menuepunkt, der markiert wird (Dokument -> "Dokumente & Notizen", wie route() in app.js)
     var navKey: String {
@@ -50,6 +52,7 @@ enum UFRoute: Hashable {
         case .settings: return "settings"
         case .mensa: return "mensa"
         case .rooms: return "rooms"
+        case .uniMail: return "unimail"
         }
     }
 
@@ -82,6 +85,7 @@ enum UFRoute: Hashable {
         case .settings(let t): return "#/settings" + q([("tab", t)])
         case .mensa: return "#/mensa"
         case .rooms: return "#/raumfinder"
+        case .uniMail: return "#/unimail"
         }
     }
 
@@ -118,6 +122,7 @@ enum UFRoute: Hashable {
         case "settings": self = .settings(tab: q["tab"])
         case "mensa": self = .mensa
         case "raumfinder", "rooms": self = .rooms
+        case "unimail", "uni-mail": self = .uniMail
         default: self = .dashboard
         }
     }
@@ -215,6 +220,10 @@ struct UFNavItem: Identifiable {
     /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten)
     static let messages = UFNavItem(id: "messages", title: "Nachrichten", icon: "mail", route: .messages)
 
+    /// Uni-Mail (SOGo der LUH, 05.11.2026): nach "Nachrichten" in "Studium", nur an der LUH auf dem iPad
+    /// (`uniMail`: Verbindung des Containers vorhanden und lokales Backend)
+    static let uniMail = UFNavItem(id: "unimail", title: "Uni-Mail", icon: "mail", route: .uniMail)
+
     /// Eigene Karteikarten ohne PC: Eintrag an Stelle von "Tests & Wiederholung"
     static let cards = UFNavItem(id: "cards", title: "Karteikarten", icon: "cards", route: .cards)
 
@@ -229,7 +238,8 @@ struct UFNavItem: Identifiable {
     /// `messages`: "Nachrichten" direkt nach "Übersicht" (Stud.IP-Posteingang nur auf dem Geraet; der Aufrufer
     /// entscheidet mit `MessagesInbox.showsNavItem`, am eigenen Server und in Hildesheim ohne Nachrichten nie)
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
-                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false) -> [UFNavItem] {
+                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false,
+                        uniMail: Bool = false) -> [UFNavItem] {
         let base: [UFNavItem] = local ? main.flatMap { item -> [UFNavItem] in
             switch item.id {
             case "exams": return (ai ? [item] : []) + (flashcards ? [cards] : [])
@@ -238,8 +248,9 @@ struct UFNavItem: Identifiable {
             default: return [item]
             }
         } : main
-        guard messages else { return base }
-        return base.flatMap { $0.id == "dashboard" ? [$0, Self.messages] : [$0] }
+        let extra = (messages ? [Self.messages] : []) + (uniMail && local ? [Self.uniMail] : [])
+        guard !extra.isEmpty else { return base }
+        return base.flatMap { $0.id == "dashboard" ? [$0] + extra : [$0] }
     }
 
     /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
@@ -265,6 +276,7 @@ struct UFNavItem: Identifiable {
         switch key {
         case "community": return count == 1 ? "1 neuer Hinweis" : "\(count) neue Hinweise"
         case "messages": return count == 1 ? "1 neue Nachricht" : "\(count) neue Nachrichten"
+        case "unimail": return count == 1 ? "1 ungelesene E-Mail" : "\(count) ungelesene E-Mails"
         default: return "\(count) neu"
         }
     }
@@ -328,7 +340,7 @@ struct UFNavGroup: Identifiable, Equatable {
     /// Reihenfolge je Gruppe (Schluessel = `UFNavItem.id`); "aiStart" stuende in "Lernen", sobald der KI-Start ein
     /// eigener Menuepunkt wird
     static let layout: [(id: String, title: String, members: [String])] = [
-        ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "studyplan", "files", "services"]),
+        ("study", "Studium", ["dashboard", "messages", "unimail", "plan", "timetable", "modules", "studyplan", "files", "services"]),
         ("learn", "Lernen", ["aiStart", "exams", "cards"]),
         // Mensa (05.11.2026): Alltag neben dem Studium, auf jedem Geraet und in jedem Tarif
         // Raumfinder (05.11.2026) neben der Mensa
@@ -417,6 +429,7 @@ struct AppShell<Content: View>: View {
     @Environment(\.ufDemoBarHidden) private var demoBarHidden
     /// Stud.IP-Nachrichten: ob der Eintrag erscheint (`MessagesInbox.showsNavItem`)
     @ObservedObject private var inbox = MessagesInbox.shared
+    @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
 
@@ -488,7 +501,7 @@ struct AppShell<Content: View>: View {
             .environment(\.ufLogoMenu, UFLogoMenuTargets(
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                          community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                         messages: inbox.showsNavItem(api: session.api, studip: studip)).map { ($0.title, $0.route) },
+                                         messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil).map { ($0.title, $0.route) },
                 go: { [router] r in router.go(r) }))
         }
     }
@@ -552,6 +565,7 @@ struct UFSidebar: View {
     @EnvironmentObject private var studip: StudIPSync
     @ObservedObject private var ent = Entitlements.shared
     @ObservedObject private var inbox = MessagesInbox.shared
+    @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
@@ -561,7 +575,7 @@ struct UFSidebar: View {
         // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
         let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                       community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                      messages: inbox.showsNavItem(api: session.api, studip: studip))
+                                      messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil)
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 9.6) {                                       // .brand
@@ -816,12 +830,13 @@ struct UFMobileNav: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufAIEnabled) private var aiEnabled
     @ObservedObject private var inbox = MessagesInbox.shared
+    @Environment(\.uniMail) private var uniMail
     @State private var showMore = false
 
     private var moreItems: [UFNavItem] {
         let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                         community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                        messages: inbox.showsNavItem(api: session.api, studip: studip))
+                                        messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil)
         return UFNavItem.more(visible: visible)
     }
 

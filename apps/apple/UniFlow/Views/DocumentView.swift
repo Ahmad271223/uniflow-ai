@@ -200,6 +200,8 @@ struct DocumentView: View {
     @State private var submittingToStudIP = false
     /// Hochschule Hannover: Abgabe in einer Moodle-Aufgabe
     @State private var submittingToMoodle = false
+    @State private var mailingDocument = false
+    @Environment(\.uniMail) private var uniMailConnection
     @Environment(\.hsh) private var hshConnection
     @Environment(\.hildesheim) private var hildesheimConnection
     @State private var solutionSheet: SolutionSheet?
@@ -555,6 +557,9 @@ struct DocumentView: View {
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .sheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
         .sheet(isPresented: $submittingToMoodle) { MoodleSubmitEntry(store: store, api: api) }
+        .sheet(isPresented: $mailingDocument) {
+            if let uniMailConnection { UniMailDocumentEntry(store: store, api: api, connection: uniMailConnection) }
+        }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
@@ -1004,6 +1009,13 @@ struct DocumentView: View {
                     Section("Abgeben") {
                         Button { submittingToMoodle = true } label: { Label("Im Learnweb abgeben …", systemImage: "tray.and.arrow.up") }
                             .accessibilityIdentifier("doc.submitLearnweb")
+                    }
+                }
+                // LUH: als PDF mit Notizen an eine neue Uni-Mail (SOGo), gesendet erst mit "Senden"
+                if UniMailDocumentEntry.offered(api: api, connection: uniMailConnection) {
+                    Section("Per E-Mail") {
+                        Button { mailingDocument = true } label: { Label("Per Uni-Mail senden …", systemImage: "envelope") }
+                            .accessibilityIdentifier("doc.uniMail")
                     }
                 }
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }

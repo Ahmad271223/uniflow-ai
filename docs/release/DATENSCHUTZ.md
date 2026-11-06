@@ -75,6 +75,22 @@ Geschrieben wird nur, wenn du es ausdrücklich auslöst: Antwortest du in der Ap
 „Jetzt abgeben“ eine Datei ab, sendet StudiNow genau diese Antwort bzw. Datei mit deinem Zugang an das System deiner
 Hochschule. Darüber hinaus schreibt StudiNow nichts in die Hochschulsysteme.
 
+**Uni-Mail und Uni-Kalender (Leibniz Universität Hannover, nur iPad-App und Windows-App/PC):** Verbindest du
+Uni-Mail, meldest du dich selbst auf der SOGo-Seite der LUH (`kalender.uni-hannover.de`) an; StudiNow speichert dein
+Passwort nicht (das kann höchstens der Passwort-Manager deines Geräts), sondern nur die Sitzung (Cookies) im
+Schlüsselbund bzw. im Datenordner deines PCs und deinen Kontonamen aus der Adresse von SOGo. Die App ruft deine Ordner,
+die Kopfzeilen deiner E-Mails (Absender, Betreff, Datum), die E-Mails, die du öffnest, ihre Anhänge, die du antippst,
+und – nur wenn du „Termine übernehmen“ wählst – die Termine deines Uni-Kalenders direkt bei SOGo ab. **E-Mails, Anhänge
+und Termine bleiben auf deinem Gerät bzw. PC und in deinem Uni-Postfach; nichts davon geht an Server von StudiNow, auch
+nicht im gehosteten Dienst** (dort gibt es Uni-Mail nicht). Auf dem Gerät liegen nur die Kopfzeilen der ersten Seite des
+Posteingangs (Anzeige ohne Netz), die übernommenen Termine und geöffnete Anhänge in einem temporären Ordner. Beim
+Öffnen einer E-Mail markiert SOGo sie als gelesen. Geschrieben wird nur auf deinen ausdrücklichen Wunsch: Antworten,
+Weiterleiten, neue E-Mails und Anhänge legt StudiNow als Entwurf in deinem Postfach an; gesendet wird erst mit
+„Senden“ und deiner Bestätigung, genau einmal. „Als ungelesen“, „Markieren“ und „In den Papierkorb“ ändern nur diese
+E-Mail (endgültig gelöscht wird nie). Bilder aus dem Internet in E-Mails lädt die App nicht. Auf Wunsch („Bei neuen
+Uni-Mails benachrichtigen“, Vorgabe aus) zeigt das iPad eine Mitteilung mit der Zahl neuer E-Mails, ohne Absender und
+Betreff. „Abmelden“ löscht Sitzung, Zwischenspeicher und übernommene Termine auf dem Gerät.
+
 **Raumfinder (frei in jedem Tarif, ohne Anmeldung):** Suchst du im Raumfinder nach einem Raum, Gebäude oder einer
 Einrichtung oder tippst du auf eine Raumangabe (etwa im Stundenplan, Lernkalender oder bei einer Klausur), schickt die App
 – bzw. am PC und im Web unser Dienst – nur den Suchtext (z. B. „F102“ oder „1101“) an den öffentlichen Standortfinder der

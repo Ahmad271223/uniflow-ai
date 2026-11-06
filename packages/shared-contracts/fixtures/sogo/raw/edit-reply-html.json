@@ -1,0 +1,13 @@
+{
+ "locale": "de",
+ "isHTML": 1,
+ "from": "Erika Muster <erika.muster@stud.uni-hannover.de>",
+ "to": [
+  "Prof. Dr. Max Beispiel <max.beispiel@example.uni-hannover.de>"
+ ],
+ "cc": [
+  "tutor@example.uni-hannover.de"
+ ],
+ "subject": "Re: Übungsblatt 3 – Abgabe verschoben",
+ "text": "<p><br></p><p>Am 05.11.2026 um 10:42 schrieb Prof. Dr. Max Beispiel:</p><blockquote type=\"cite\"><p>Liebe Studierende,</p><p>die Abgabe ist am Freitag.</p></blockquote>"
+}

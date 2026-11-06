@@ -1,0 +1,67 @@
+[
+ [
+  "To",
+  "hasAttachment",
+  "isFlagged",
+  "Subject",
+  "From",
+  "isRead",
+  "Priority",
+  "RelativeDate",
+  "Size",
+  "Flags",
+  "uid",
+  "isAnswered",
+  "isForwarded"
+ ],
+ [
+  [
+   {
+    "name": "Erika Muster",
+    "email": "erika.muster@stud.uni-hannover.de"
+   }
+  ],
+  0,
+  0,
+  "Seite 2: Termin Sprechstunde",
+  [
+   {
+    "name": "Sekretariat",
+    "email": "sekretariat@example.uni-hannover.de"
+   }
+  ],
+  1,
+  {},
+  "20.10.2026",
+  "2 KB",
+  [],
+  78,
+  0,
+  0
+ ],
+ [
+  [
+   {
+    "name": "Erika Muster",
+    "email": "erika.muster@stud.uni-hannover.de"
+   }
+  ],
+  1,
+  0,
+  "Seite 2: Folien",
+  [
+   {
+    "name": "Sekretariat",
+    "email": "sekretariat@example.uni-hannover.de"
+   }
+  ],
+  0,
+  {},
+  "19.10.2026",
+  "800 KB",
+  [],
+  79,
+  0,
+  0
+ ]
+]

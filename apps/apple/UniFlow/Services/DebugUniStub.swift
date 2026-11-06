@@ -7,7 +7,7 @@ import WebKit
 /// nie eine echte Uni-Seite, nie ein Netz). Im Release-Build gibt es nichts davon.
 ///
 /// Im Ordner liegen:
-/// - `studip.html`, `qis.html`, `learnweb.html`, `lsf.html`: Anmeldeseiten, die die Anmeldeansichten statt der echten
+/// - `studip.html`, `qis.html`, `learnweb.html`, `lsf.html`, `sogo.html` (Uni-Mail): Anmeldeseiten, die die Anmeldeansichten statt der echten
 ///   Seite laden (file-URL). Eine Seite `<dienst>-angemeldet.html`
 ///   gilt als angemeldet, sobald die Webansicht sie zeigt (der Knopf "Anmelden" der Nachbildung fuehrt dorthin).
 /// - `routes.json`: Antworten der Abgleiche (Stud.IP JSON:API, Opencast, QIS, Learnweb, LSF): Liste von

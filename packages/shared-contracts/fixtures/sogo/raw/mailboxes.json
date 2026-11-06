@@ -1,0 +1,84 @@
+{
+ "mailboxes": [
+  {
+   "name": "INBOX",
+   "path": "INBOX",
+   "type": "inbox",
+   "flags": [],
+   "subscribed": 1,
+   "sievePath": "INBOX",
+   "children": [
+    {
+     "name": "Archiv 2026",
+     "path": "INBOX/Archiv 2026",
+     "type": "folder",
+     "flags": [],
+     "children": []
+    },
+    {
+     "name": "Übungen",
+     "path": "INBOX/&ANw-bungen",
+     "type": "folder",
+     "flags": [],
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Drafts",
+   "path": "Drafts",
+   "type": "draft",
+   "flags": [],
+   "children": []
+  },
+  {
+   "name": "Sent",
+   "path": "Sent",
+   "type": "sent",
+   "flags": [],
+   "children": []
+  },
+  {
+   "name": "Trash",
+   "path": "Trash",
+   "type": "trash",
+   "flags": [],
+   "children": []
+  },
+  {
+   "name": "Junk",
+   "path": "Junk",
+   "type": "junk",
+   "flags": [],
+   "children": []
+  },
+  {
+   "name": "Templates",
+   "path": "Templates",
+   "type": "templates",
+   "flags": [],
+   "children": []
+  },
+  {
+   "name": "Shared",
+   "path": "Shared",
+   "type": "additional",
+   "flags": [
+    "\\Noselect"
+   ],
+   "children": [
+    {
+     "name": "Fachschaft",
+     "path": "Shared/Fachschaft",
+     "type": "folder",
+     "flags": [],
+     "children": []
+    }
+   ]
+  }
+ ],
+ "quotas": {
+  "usedSpace": 1200,
+  "maxQuota": 2000000
+ }
+}

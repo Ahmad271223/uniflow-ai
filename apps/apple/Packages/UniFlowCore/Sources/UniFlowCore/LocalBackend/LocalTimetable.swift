@@ -134,8 +134,9 @@ enum LocalTimetable {
         let dated = try studipDated(c, from: start, to: end)
         if events.isEmpty {
             // dazu eigene Sprechstunden aus Stud.IP (`studip_extras.with_consultations`)
-            return try StudIPExtras.withConsultations(c, try Announcements.markCancellations(
-                c, dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" }), from: start, to: end)
+            return try SOGoCalendar.withCalendar(c, try StudIPExtras.withConsultations(c, try Announcements.markCancellations(
+                c, dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" }), from: start, to: end),
+                from: start, to: end)                                                   // + Termine des Uni-Kalenders (SOGo)
         }
         let ids = events.compactMap { $0["id"].flatMap(SQLiteValue.init(json:)) }
         // je Termin und Datum die Ausnahme; bei mehreren gilt wie im dict von Python die letzte
@@ -220,7 +221,8 @@ enum LocalTimetable {
         let merged = try mergeDated(c, out.compactMap(\.object), dated)
         // Absagen aus Ankuendigungen als Hinweis am Termin (`announcements.mark_cancellations`)
         let marked = try Announcements.markCancellations(c, includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" })
-        return try StudIPExtras.withConsultations(c, marked, from: start, to: end)   // eigene Sprechstunden (nur lesend)
+        let consult = try StudIPExtras.withConsultations(c, marked, from: start, to: end)   // eigene Sprechstunden (nur lesend)
+        return try SOGoCalendar.withCalendar(c, consult, from: start, to: end)          // Uni-Kalender (SOGo, nur lesend)
     }
 
     /// `studip_dated(conn, start, end)`: die Termine, die Stud.IP dem Nutzer selbst in der Woche zeigt. Alle

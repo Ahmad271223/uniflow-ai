@@ -152,6 +152,8 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "mensa", route: .mensa, marker: "Öffnungszeiten")
         // Raumfinder (05.11.2026): Suche und Standorte der LUH (Demo-Treffer unter XCTest, kein Netz)
         report += audit(env, "raumfinder", route: .rooms, marker: "Hauptgebäude (Welfengarten)")
+        // Uni-Mail (05.11.2026, SOGo der LUH): nicht verbunden, Karte "Uni-Mail verbinden" (kein Netz)
+        report += audit(env, "uni-mail", route: .uniMail, marker: "Uni-Mail verbinden")
         report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
         report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")
@@ -178,6 +180,7 @@ final class LayoutWidthAuditTests: XCTestCase {
             .environment(\.ufDemoActive, true)
             .environment(\.ufAIEnabled, ai)
             .environment(\.qis, qis)
+            .environment(\.uniMail, manager.uniMail)
             // wie UniFlowApp: ChatGPT (Erweitert), StudiNow-Konto (Zugang), Abgleich im Hintergrund
             .environment(\.ufChatGPTLink, manager.chatgpt)
             .environment(\.ufStudoraAccount, manager.account)

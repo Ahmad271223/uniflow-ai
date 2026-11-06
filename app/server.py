@@ -90,6 +90,8 @@ from . import rooms_api  # noqa: E402 - Raumfinder: Standortfinder der LUH, Kart
 app.include_router(rooms_api.router)
 from . import moodle_api  # noqa: E402 - Abgeben in Moodle am PC (HsH, Learnweb Hildesheim; app/moodle.py)
 app.include_router(moodle_api.router)
+from . import sogo_api  # noqa: E402 - Uni-Mail und Uni-Kalender der LUH (SOGo), nur PC/Windows (/api/sogo, docs/UNI-MAIL-2026-11-05.md)
+app.include_router(sogo_api.router)
 db.init_db()
 
 

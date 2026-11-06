@@ -702,6 +702,11 @@ struct DatedEventDialog: View {
     @Environment(\.ufClose) private var close
 
     static func text(_ date: String, source: String? = nil, cancelled: Bool = false) -> String {
+        if source == SOGo.source {                                   // Uni-Kalender (SOGo der LUH), nur lesend
+            return cancelled
+                ? "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))), dort abgesagt: die Zeit ist frei für deinen Lernplan."
+                : "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))). Ändern kannst du ihn nur im Uni-Kalender (SOGo); er zählt als belegte Zeit."
+        }
         if source == "studip-sprechstunde" {                         // eigene Buchung (StudIPExtras), nur lesend
             return "Deine gebuchte Sprechstunde aus Stud.IP (\(UFFmt.date(date))). Ändern oder absagen kannst du sie nur in Stud.IP; sie zählt als belegte Zeit."
         }

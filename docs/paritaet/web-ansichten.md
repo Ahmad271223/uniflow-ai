@@ -893,3 +893,12 @@ Raumplan und Gebäudeinfo der LUH, Barrierefreiheit; Standorte der eigenen Hochs
 Gewähr). Raumangaben im Termin-Panel des Stundenplans und in der Karte „Nächste Klausuren“ sind Links (`roomLink`,
 Klick → `openRoom`, `GET /api/rooms/resolve`). Daten `GET /api/rooms/search`, `/api/rooms/resolve`, `/api/rooms/campuses`
 (`app/rooms_api.py`), Quellen in docs/RAUMFINDER-2026-11-05.md. Tests `tests/js/rooms.test.mjs`, `tests/test_rooms.py`.
+
+## Uni-Mail `#/unimail` (Stand 05.11.2026, nur PC/Windows an der LUH)
+
+`uni-mail.js` mit Regeln in `uni-mail-logic.js` (wie `UniMailViews.swift`): Menüpunkt nach „Nachrichten“ mit Zahl der
+ungelesenen (`GET /api/sogo/status`, im Dienst 404), „Bei Uni-Mail anmelden“ (Anmeldefenster, `POST /api/sogo/login`),
+Ordnerwahl, Suche, Liste mit „Weitere laden“, Lesen im abgeschotteten Rahmen (`sandbox`, CSP ohne Netz), Anhänge,
+Antworten/Allen antworten/Weiterleiten/Neue E-Mail mit Datei, Entwurf speichern, Senden nur nach `confirm()` mit
+`"confirm": true`, Als ungelesen, Markieren, Papierkorb mit „Rückgängig“ (5 s), Wiederherstellen, Uni-Kalender
+übernehmen. Daten `app/sogo_api.py`, Quellen docs/UNI-MAIL-2026-11-05.md. Tests `tests/js/uni-mail.test.mjs`, `tests/test_sogo.py`.

@@ -306,6 +306,10 @@ final class BackgroundSyncController: ObservableObject {
     }
     /// Ergebnis des letzten Wochentest-Schritts eines Hintergrundlaufs in diesem Prozess (nil: noch keiner; Tests)
     private(set) var lastWeekly: WeeklyAutoTick.Outcome?
+    /// Uni-Mail des Containers (LUH, docs/UNI-MAIL-2026-11-05.md); Tests setzen eine eigene
+    var uniMail: (ActiveContainer) -> UniMailConnection?
+    /// Ergebnis des letzten Posteingang-Schritts (Tests)
+    private(set) var lastMail: UniMailConnection.InboxReport?
 
     private static var registered = false
 
@@ -317,6 +321,10 @@ final class BackgroundSyncController: ObservableObject {
         self.settings = settings
         self.scheduler = scheduler ?? SystemBackgroundScheduler()
         self.notifier = notifier ?? SystemBackgroundNotifier()
+        uniMail = { [weak containers] c in
+            guard let containers, containers.active === c else { return nil }
+            return containers.uniMail
+        }
         target = { [weak containers] c in
             guard let containers, containers.active === c else { return nil }
             if c.key.university == .hsh { return containers.hsh }
@@ -451,6 +459,12 @@ final class BackgroundSyncController: ObservableObject {
         return ok
     }
 
+    /// Schalter "Bei neuen Uni-Mails benachrichtigen": erst hier fragt iOS nach der Erlaubnis. false, wenn sie fehlt
+    func setMailNotify(_ on: Bool) async -> Bool {
+        guard on else { return true }
+        return await notifier.requestPermission()
+    }
+
     // MARK: Lauf
 
     private final class TaskBox: @unchecked Sendable {
@@ -484,6 +498,8 @@ final class BackgroundSyncController: ObservableObject {
 
     private func performRun(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool) async -> Bool {
         let c = containers.active
+        // Uni-Mail zuerst (docs/SYNC-REIHENFOLGE-2026-11-05.md: erste Seite des Posteingangs vor allem anderen)
+        if let c { await runUniMail(c, kind: kind, expired: expired) }
         let target = c.flatMap { self.target($0) }
         let situation = BackgroundSyncSituation(
             enabled: allowed() && settings.enabled,
@@ -540,6 +556,24 @@ final class BackgroundSyncController: ObservableObject {
         }
         revision += 1
         return report.skipped != nil || (!report.cancelled && report.failure == nil)
+    }
+
+    /// Uni-Mail im Hintergrund: Posteingang (erste Seite) und ungelesene, Mitteilung "N neue E-Mails" nur mit dem
+    /// eigenen Schalter und Erlaubnis von iOS (nie Absender oder Betreff); im langen Lauf die schon einmal
+    /// uebernommenen Termine des Uni-Kalenders erneuern (hoechstens alle 20 Stunden). Nur im passenden Container,
+    /// mit eingeschaltetem Abgleich, nie mit Demo-Inhalten und nie mit bekannter abgelaufener Anmeldung.
+    @discardableResult
+    func runUniMail(_ c: ActiveContainer, kind: BackgroundSyncKind, expired: @escaping () -> Bool = { false }) async -> UniMailConnection.InboxReport? {
+        guard allowed(), settings.enabled, c.key == account.containerKey, account.stage == .ready, containers.problem == nil,
+              !containers.demoActive, let mail = uniMail(c), mail.isConnected, mail.state != .needsLogin, !expired() else { return nil }
+        let r = await mail.refreshInbox(background: true)
+        lastMail = r
+        if r.newMessages > 0, mail.notify, owns(c), await notifier.isAllowed(), let n = BackgroundNotice.newUniMail(r.newMessages) {
+            let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
+            await notifier.post(n, id: prefix + "mail.\(container)", thread: prefix + container)
+        }
+        if kind == .processing, !r.needsLogin, mail.calendarDue, !expired() { await mail.importCalendar(days: mail.calendarDays) }
+        return r
     }
 
     /// Wochentests im langen Lauf (docs/WOCHENTESTS.md "Hintergrundlauf"): Entscheidung aus dem Stand der Plaene

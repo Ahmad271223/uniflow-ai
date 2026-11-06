@@ -183,6 +183,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var qis: QISConnection?
     /// Moodle und Campusmanagement des aktiven Containers der Hochschule Hannover (sonst nil)
     @Published private(set) var hsh: HsHConnection?
+    /// Uni-Mail und Uni-Kalender (SOGo) des aktiven LUH-Containers (sonst nil), docs/UNI-MAIL-2026-11-05.md
+    @Published private(set) var uniMail: UniMailConnection?
     /// Container laesst sich nicht oeffnen (andere Hochschule oder anderes Konto, Umzug gescheitert): Meldung
     @Published private(set) var problem: String?
     /// zaehlt jeden Wechsel; die Oberflaeche baut sich damit neu auf
@@ -207,6 +209,7 @@ final class ContainerManager: ObservableObject {
     /// Transport des QIS-Abrufs (nil: URLSession mit den Cookies des Containers; Tests und Debug-Stub: feste Antworten)
     private let qisTransport: QISConnection.TransportFactory?
     private let hshTransport: HsHConnection.TransportFactory?
+    private let uniMailTransport: UniMailConnection.TransportFactory?
     private var stores: [UUID: WKWebsiteDataStore] = [:]
     /// Abgleiche je Container, auch die eines abgeloesten (Wechsel der Hochschule waehrend eines Abgleichs). Schwach
     /// gehalten: ein laufender Abgleich haelt sich selbst, ein beendeter faellt weg.
@@ -223,7 +226,7 @@ final class ContainerManager: ObservableObject {
          keychain: UniversitySecretStoring = UniversityKeychain(), cookieService: String = StudIPCookieStore.service,
          defaults: UserDefaults = .standard, clock: UniFlowClock = .system, publishesCurrent: Bool = true,
          hildesheimTransport: HildesheimConnection.TransportFactory? = nil, qisTransport: QISConnection.TransportFactory? = nil,
-         hshTransport: HsHConnection.TransportFactory? = nil) {
+         hshTransport: HsHConnection.TransportFactory? = nil, uniMailTransport: UniMailConnection.TransportFactory? = nil) {
         self.base = base
         self.legacy = legacy
         self.keychain = keychain
@@ -234,6 +237,7 @@ final class ContainerManager: ObservableObject {
         self.hildesheimTransport = hildesheimTransport
         self.qisTransport = qisTransport
         self.hshTransport = hshTransport
+        self.uniMailTransport = uniMailTransport
         // Neuinstallation: Stud.IP-Sitzungen der geloeschten App nicht als Anmeldung uebernehmen (vor jedem Lesen)
         StudIPCookieStore.removeLeftoversOfEarlierInstallation(service: cookieService, defaults: defaults)
         // Bestandsnutzer: frueher von der App gemerkte Hochschul-Passwoerter einmal loeschen (alle Container)
@@ -369,11 +373,15 @@ final class ContainerManager: ObservableObject {
         hsh = key.university == .hsh
             ? HsHConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hshTransport)
             : nil
+        uniMail = key.university == .luh
+            ? UniMailConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport)
+            : nil
         syncs.removeAll { $0.sync == nil }
         syncs.append(SyncRef(key: key, sync: studip))
         if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }
         if let qis { syncs.append(SyncRef(key: key, sync: qis)) }
         if let hsh { syncs.append(SyncRef(key: key, sync: hsh)) }
+        if let uniMail { syncs.append(SyncRef(key: key, sync: uniMail)) }
         demoActive = false
         generation += 1
         onChange?(c)
@@ -396,6 +404,7 @@ final class ContainerManager: ObservableObject {
             self.hildesheim?.runIfDue()
             self.qis?.runIfDue()
             self.hsh?.runIfDue()
+            self.uniMail?.runIfDue()
         }
     }
 
@@ -426,6 +435,7 @@ final class ContainerManager: ObservableObject {
         hildesheim = nil
         qis = nil
         hsh = nil
+        uniMail = nil
         demoActive = false
         generation += 1
         onChange?(nil)

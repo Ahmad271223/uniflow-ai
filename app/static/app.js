@@ -110,6 +110,8 @@ routes.ki = viewAiStart;
 routes.einladungen = routes.invites = (p, q, v) => import("./invites.js?v=3").then(m => m.viewInvites(p, q, v));
 // Mensa: Speiseplaene LUH, Hochschule Hannover, Uni Hildesheim (mensa.js, 05.11.2026)
 routes.mensa = (p, q, v) => import("./mensa.js?v=4").then(m => m.viewMensa(p, q, v));
+// Uni-Mail und Uni-Kalender der LUH (SOGo, uni-mail.js, 05.11.2026): nur am PC, nie im Dienst
+routes.unimail = (p, q, v) => import("./uni-mail.js?v=1").then(m => m.viewUniMail(p, q, v));
 // Raumfinder: Standortfinder der LUH mit Google-Maps-Link (rooms.js, 05.11.2026); Raum-Links ueberall (.room-link)
 routes.raumfinder = routes.rooms = (p, q, v) => import("./rooms.js?v=2").then(m => m.viewRooms(p, q, v));
 document.addEventListener("click", e => {
@@ -228,7 +230,7 @@ async function start() {
   // Erinnerungen an erkannte Fristen (Windows-Mitteilung, Browser oder Hinweis in der App; due-reminders.js, 05.11.2026)
   import("./due-reminders.js?v=1").then(m => m.init({ api, toast, icon, esc, state })).catch(() => {});
   // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
-  if (!state.hosted) { import("./demo-bar.js?v=3").then(m => m.init()).catch(() => {}); import("./messages.js?v=6").then(m => m.startNavItem()).catch(() => {}); }
+  if (!state.hosted) { import("./demo-bar.js?v=3").then(m => m.init()).catch(() => {}); import("./messages.js?v=6").then(m => m.startNavItem()).catch(() => {}); import("./uni-mail.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
   // Aufforderung "Tarif waehlen oder bei Free bleiben" nur ohne Abo-Pflicht; mit Pflicht (Web) zeigt die Leiste den Stand
   if (state.hosted && state.entitlements?.needs_plan_choice && !state.entitlements?.access?.account_required && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie
