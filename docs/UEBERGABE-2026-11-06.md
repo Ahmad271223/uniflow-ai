@@ -56,6 +56,17 @@ Demo ohne Dauer-Ladehinweis.
 4. Mit wachsenden Nutzern: `LERNAPP_AI_BUDGET_EUR` (heute 50 €, Standard) und `LERNAPP_AI_TRIAL_BUDGET_EUR` anheben,
    Server vergrößern (Hetzner CX23 → 4/8 vCPU), Claude/Bedrock einschalten.
 
+
+### Stand App Store Connect (07.11.2026, im Browser ausgefüllt)
+Erledigt: Build 1.0 (11) hochgeladen und der iOS-Version 1.0 zugeordnet; Name „StudiNow – Studium & Notizen“, Untertitel,
+Kategorien Bildung/Produktivität; Werbetext, Beschreibung (Fassung nur Plus), Schlüsselwörter, Support-/Marketing-URL,
+Copyright; Prüfhinweis (nur Plus) + Kontakt (Telefon vom Inhaber), „Anmeldung erforderlich“ aus (Demo); manuell veröffentlichen;
+Altersfreigabe (berechnet 4+, überschrieben auf 16+ wegen Mindestalter 16 in Datenschutz/Nutzungsbedingungen);
+Plus-Abo: Prüfanmerkung. Offen (Inhaber): Bildschirmfotos der Version, Prüf-Bildschirmfoto der Tarifseite beim Plus-Abo
+(danach erscheint der Abo-Abschnitt auf der Versionsseite → Plus auswählen), Inhaltsrechte, App-Datenschutz
+(Antworten in docs/release/APP-STORE.md „App-Datenschutz“), Datenschutz-URL unter App-Datenschutz, CloudKit Production,
+Händler-E-Mail, dann „Zur Prüfung hinzufügen“ → Einreichen.
+
 ### Offen: Lineal nur auf einer Seite der geteilten Ansicht
 Inhaber-Wunsch 06.11.: Lineal links, rechts oder beide wählen. Zwei Versuche (Build 8: Leiste „Lineal: Links · Rechts · Beide“
 plus `canvas.isRulerActive` je Seite; Build 9: Seite ohne Lineal per `toolPicker.removeObserver` lösen) liefen am Gerät nicht
