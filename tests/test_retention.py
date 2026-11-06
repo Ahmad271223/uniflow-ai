@@ -87,7 +87,8 @@ def test_account_logs_sync_log_and_account_db_follow_the_deadlines(hosted, monke
     (logs / "login-fehler.png").write_bytes(b"png-alt"); _old(logs / "login-fehler.png", 120)
     (logs / "qis-fehler.png").write_bytes(b"png-neu")
     # accounts.db: alter und neuer Job, abgelaufene/beendete Sitzung, verbrauchtes Token, alter Zaehler, altes Merkmal
-    vault.set_values(u["id"], {"HILDESHEIM_USER": "x", "HILDESHEIM_PASSWORD": "y"})
+    from conftest import legacy_vault
+    legacy_vault(u["id"], {"HILDESHEIM_USER": "x", "HILDESHEIM_PASSWORD": "y"})          # Altbestand vor dem 06.11.2026
     j = jobs.enqueue(u["id"], "sync", "manual"); jobs._finish(j["id"], True, "ok")
     with accounts.cursor() as conn:
         conn.execute("UPDATE sync_jobs SET requested_at=? WHERE id=?", (accounts.iso(now - timedelta(days=91)), j["id"]))

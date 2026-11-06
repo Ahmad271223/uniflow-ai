@@ -306,7 +306,7 @@ final class BackgroundSyncController: ObservableObject {
     }
     /// Ergebnis des letzten Wochentest-Schritts eines Hintergrundlaufs in diesem Prozess (nil: noch keiner; Tests)
     private(set) var lastWeekly: WeeklyAutoTick.Outcome?
-    /// Uni-Mail des Containers (LUH, docs/UNI-MAIL-2026-11-05.md); Tests setzen eine eigene
+    /// Uni-Mail des Containers (LUH, Uni Hildesheim; docs/UNI-MAIL-2026-11-05.md); Tests setzen eine eigene
     var uniMail: (ActiveContainer) -> UniMailConnection?
     /// Ergebnis des letzten Posteingang-Schritts (Tests)
     private(set) var lastMail: UniMailConnection.InboxReport?

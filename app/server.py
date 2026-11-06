@@ -9,7 +9,7 @@ import uuid
 from datetime import date, timedelta
 from pathlib import Path
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
@@ -35,6 +35,7 @@ def wire_hosted_services() -> None:
 async def _lifespan(_app):
     """Gehosteter Modus: Mailversand einhaengen, Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
     wire_hosted_services()
+    vault.purge_at_startup()                    # Dienst: Hochschul-Zugangsdaten nie speichern, Altbestand loeschen (06.11.2026)
     jobs.start_background()
     doc_index.start_background()                # Loeschauftrag fuer Index-Uploads (15-Minuten-Regel, app/doc_index.py)
     if not config.is_hosted():
@@ -92,6 +93,8 @@ from . import moodle_api  # noqa: E402 - Abgeben in Moodle am PC (HsH, Learnweb 
 app.include_router(moodle_api.router)
 from . import sogo_api  # noqa: E402 - Uni-Mail und Uni-Kalender der LUH (SOGo), nur PC/Windows (/api/sogo, docs/UNI-MAIL-2026-11-05.md)
 app.include_router(sogo_api.router)
+from . import studip_lecturers_api  # noqa: E402 - Lehrende und Kontakte (LUH, Stud.IP), nur lokal (/api/lecturers, docs/LEHRENDE-KONTAKTE-2026-11-06.md)
+app.include_router(studip_lecturers_api.router)
 db.init_db()
 
 
@@ -108,6 +111,17 @@ async def _http_error(request, exc: HTTPException):
 async def _relay_error(request, exc: ai_relay.RelayError):
     """StudiNow-KI vom PC (app/ai_relay.py): Status, Code und Zusatzfelder des Dienstes unveraendert (402/403/429 ...)."""
     return JSONResponse(exc.body(), status_code=exc.status)
+
+
+def _credentials_not_stored():
+    """Dienst (Entscheidung 06.11.2026): keine Hochschul-Zugangsdaten, -Schluessel oder -Sitzungen auf dem Server."""
+    return HTTPException(410, {"detail": vault.NOT_STORED_MESSAGE, "code": "credentials_not_stored"})
+
+
+@app.exception_handler(vault.CredentialsNotStored)
+async def _not_stored_error(request, exc: vault.CredentialsNotStored):
+    """Letzte Sicherung: jeder Versuch, im Dienst etwas in den Tresor zu schreiben, endet mit 410."""
+    return JSONResponse({"detail": vault.NOT_STORED_MESSAGE, "code": "credentials_not_stored"}, status_code=410)
 
 # Gehosteter Modus (LERNAPP_MODE=hosted): diese Pfade gibt es dort noch nicht. Sie antworten 501 mit Grund (Regel G6),
 # statt im Dienst mit den Zugangsdaten der .env oder der KI-Kommandozeile des PCs zu arbeiten.
@@ -471,7 +485,7 @@ for _page in legal.PAGES:
     app.add_api_route(f"/{_page}", _legal_page(_page), methods=["GET"], include_in_schema=False)
 
 
-_FILE_PATHS = re.compile(r"^/api/(files/[^/]+/content|assets/|qis/documents/)")
+_FILE_PATHS = re.compile(r"^/api/(files/[^/]+/content|assets/|qis/documents/|certificates/[^/]+/file)")
 _INLINE_TYPES = ("application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "text/plain")
 
 
@@ -770,11 +784,7 @@ def overview():
 @app.post("/api/sync")
 def sync_now(ai: bool = True):
     if config.is_hosted():
-        uid = config.current_user_id()
-        if not vault.has_university_credentials(uid, config.university()):
-            raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
-        j = jobs.enqueue(uid, "sync", "manual")
-        return {"started": "Sync", "job_id": j["id"], "status": j["status"], "already": j["already"]}
+        raise _credentials_not_stored()         # 06.11.2026: kein Hochschul-Abgleich im Dienst (iPad/Windows-App)
     return _run_bg("Sync", _full_sync if ai else _sync_without_ai)
 
 
@@ -2360,26 +2370,19 @@ def put_settings(body: dict = Body(...)):
         return _public_settings(db.get_settings(conn))
 
 
-def _uni_consent(body: dict) -> None:
-    """Dienst (Entscheidung 30.10.2026): Hochschul-Zugangsdaten nur mit ausdruecklicher Zustimmung je Konto. Der Dienst
-    meldet sich damit von seiner Adresse bei der Hochschule an und laedt die Unterlagen in das Konto."""
-    if not config.is_hosted():
-        return
-    if body.get("consent") is not True:
-        raise HTTPException(400, {"detail": "Bitte zuerst zustimmen, dass der Dienst sich mit deinen Zugangsdaten bei der Hochschule "
-                                            "anmeldet und deine Unterlagen in dein Konto lädt.", "code": "consent_required"})
-    from . import vault
-    vault.set_values(config.current_user_id(), {"UNI_CONSENT_AT": datetime.now(timezone.utc).replace(microsecond=0).isoformat()})
+def _no_credentials_in_service() -> None:
+    """Dienst (Entscheidung 06.11.2026, ersetzt die Zustimmung vom 30.10.2026): Hochschul-Zugangsdaten werden auf dem
+    Server nie gespeichert, auch nicht mit Zustimmung. 410 credentials_not_stored; am eigenen PC unveraendert."""
+    if config.is_hosted():
+        raise _credentials_not_stored()
 
 
 @app.get("/api/credentials")
 def get_credentials():
-    user, pw = config.credentials()
-    out = {"user": user, "password_set": bool(pw)}
     if config.is_hosted():
-        from . import vault
-        out["consent_at"] = vault.env_for(config.current_user_id()).get("UNI_CONSENT_AT")
-    return out
+        return {"user": "", "password_set": False, "stored_on_server": False, "message": vault.NOT_STORED_MESSAGE}
+    user, pw = config.credentials()
+    return {"user": user, "password_set": bool(pw)}
 
 
 @app.post("/api/university/login")
@@ -2521,31 +2524,12 @@ def api_university_reset():
 
 @app.put("/api/university/session")
 def api_university_session_put(body: dict = Body(...)):
-    """Dienst: Die App auf dem Geraet (Android/iPad) hinterlegt nach der Anmeldung im Anmeldefenster die Sitzung
-    (Cookies, nie das Passwort) verschluesselt im Tresor des Kontos; der Abgleich im Dienst (Kurse, Termine, Dateiliste)
-    laeuft damit ohne gespeicherte Zugangsdaten. Nur Cookies fuer die Hosts der Hochschule des Kontos."""
-    from . import unilogin
+    """Frueher (Dienst): die App auf dem Geraet legte nach der Anmeldung die Hochschul-Sitzung (Cookies) im Tresor des
+    Kontos ab. Seit 06.11.2026 speichert der Dienst keine Hochschul-Zugangsdaten und -Sitzungen mehr: 410
+    credentials_not_stored; der Abgleich laeuft auf dem Geraet. Am PC gilt das Anmeldefenster (POST /api/university/login)."""
     if not config.is_hosted():
         raise HTTPException(400, {"detail": "Am PC meldest du dich im Browserfenster an (POST /api/university/login).", "code": "use_browser_login"})
-    cookies = body.get("cookies")
-    if not isinstance(cookies, list) or not cookies or len(cookies) > 50:
-        raise HTTPException(400, {"detail": "cookies: Liste mit 1 bis 50 Eintraegen (name, value, domain, path, expires)", "code": "cookies_invalid"})
-    key = universities.current_key()
-    allowed = [h for h in university_profile(key)["hosts"] if h] + ([urlsplit_host(universities.HILDESHEIM_CAS)] if key == "hildesheim" else [])
-    keep = []
-    for c in cookies:
-        if not isinstance(c, dict) or not c.get("name") or c.get("value") is None or not c.get("domain"):
-            raise HTTPException(400, {"detail": "Cookie braucht name, value und domain", "code": "cookies_invalid"})
-        dom = str(c["domain"]).lstrip(".").lower()
-        if not any(dom == h or h.endswith("." + dom) or dom.endswith("." + h) for h in allowed):
-            raise HTTPException(400, {"detail": f"Cookie fuer fremden Host: {dom}", "code": "cookies_foreign_host"})
-        if len(str(c["value"])) > 4096:
-            raise HTTPException(400, {"detail": "Cookie-Wert zu lang", "code": "cookies_invalid"})
-        keep.append({"name": str(c["name"])[:200], "value": str(c["value"]), "domain": str(c["domain"]), "path": str(c.get("path") or "/"),
-                     "expires": c.get("expires") if isinstance(c.get("expires"), (int, float)) else -1})
-    name = unilogin.session_name(key)
-    unilogin.save_session(name, keep)
-    return {"ok": True, "name": name, "cookies": len(keep)}
+    raise _credentials_not_stored()
 
 
 def urlsplit_host(url: str) -> str:
@@ -2558,7 +2542,7 @@ def clear_credentials():
     """Hochschul-Zugangsdaten entfernen (Dienst: aus dem Tresor des Kontos, samt Zustimmung); Unterlagen bleiben."""
     values = {"STUDIP_USER": None, "STUDIP_PASSWORD": None, "STUDIP_SAME_AS": None}
     if config.is_hosted():
-        values["UNI_CONSENT_AT"] = None
+        values["UNI_CONSENT_AT"] = None         # Altbestand (Zustimmung bis 06.11.2026); Loeschen bleibt erlaubt
     config.set_env(values)
     return {"ok": True, "user": "", "password_set": False}
 
@@ -2567,9 +2551,9 @@ def clear_credentials():
 def put_credentials(body: dict = Body(...)):
     user = (body.get("user") or "").strip()
     pw = body.get("password") or ""
+    _no_credentials_in_service()
     if not user:
         raise HTTPException(400, "LUH-ID fehlt")
-    _uni_consent(body)
     if not pw:
         # Passwort leer gelassen: nur Benutzer aktualisieren, altes Passwort behalten
         _, pw = config.credentials()
@@ -3318,10 +3302,11 @@ def api_services():
 
 @app.put("/api/learnweb/token")
 def put_learnweb_token(body: dict = Body(...)):
-    """Learnweb-Sicherheitsschluessel (Moodle mobile web service) lokal in der .env speichern oder loeschen."""
+    """Learnweb-Sicherheitsschluessel (Moodle mobile web service) lokal in der .env speichern oder loeschen (Dienst: nur loeschen)."""
     if body.get("clear"):
         config.set_env({"LEARNWEB_TOKEN": None})
         return {"ok": True, "token_set": False}
+    _no_credentials_in_service()
     token = (body.get("token") or "").strip()
     if not re.fullmatch(r"[A-Za-z0-9]{16,128}", token):
         raise HTTPException(400, "Der Schlüssel besteht aus Buchstaben und Ziffern (meist 32 Zeichen).")
@@ -3382,11 +3367,7 @@ def api_grades():
 def api_grades_sync(show: bool = False):
     from . import qis
     if config.is_hosted():
-        uid = config.current_user_id()
-        if not vault.has_university_credentials(uid, config.university()):
-            raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
-        j = jobs.enqueue(uid, "grades", "manual")
-        return {"started": "Notenspiegel", "job_id": j["id"], "status": j["status"], "already": j["already"]}
+        raise _credentials_not_stored()         # 06.11.2026: Notenspiegel holt das iPad bzw. die Windows-App
     def _grades_then_catalog():
         res = qis.run(show_browser=show)
         study_catalog.start_if_needed()         # neuer Studiengang aus QIS: Modulkatalog im Hintergrund suchen (Studienverlauf)
@@ -3405,6 +3386,52 @@ def api_qis_document(doc_id: int):
     return FileResponse(path, media_type="application/pdf", filename=path.name)
 
 
+# Bescheinigungen (app/certificates.py, docs/BESCHEINIGUNGEN-2026-11-06.md): Liste aus den Portalen, PDF nur auf Knopfdruck
+@app.get("/api/certificates")
+def api_certificates():
+    from . import certificates
+    with db.cursor() as conn:
+        return certificates.summary(conn)
+
+
+def _certificates_pc_only():
+    if config.is_hosted():
+        raise HTTPException(409, "Bescheinigungen lädt StudiNow am PC oder auf dem iPad mit deiner Anmeldung, nicht im Dienst.")
+
+
+@app.post("/api/certificates/refresh")
+def api_certificates_refresh():
+    from . import certificates
+    _certificates_pc_only()
+    return _run_bg("Bescheinigungen", lambda: certificates.refresh()["message"])
+
+
+@app.post("/api/certificates/{cert_id}/download")
+def api_certificates_download(cert_id: str, body: dict = Body(default={})):
+    from . import certificates
+    _certificates_pc_only()
+    if not re.fullmatch(r"[0-9a-f]{12}", cert_id):
+        raise HTTPException(404)
+    semester = body.get("semester") if isinstance(body, dict) and isinstance(body.get("semester"), str) else None
+
+    def work():
+        r = certificates.download(cert_id, semester)
+        if not r["ok"]:
+            raise RuntimeError(r["message"])
+        return r["message"]
+    return _run_bg("Bescheinigung", work)
+
+
+@app.get("/api/certificates/{cert_id}/file")
+def api_certificate_file(cert_id: str):
+    from . import certificates
+    with db.cursor() as conn:
+        path = certificates.file_for(conn, cert_id)       # nur Dateien im QIS-Ordner des eigenen Kontos
+    if not path:
+        raise HTTPException(404, "Keine gespeicherte Bescheinigung")
+    return FileResponse(path, media_type="application/pdf", filename=path.name)
+
+
 @app.put("/api/credentials/{service}")
 def put_service_credentials(service: str, body: dict = Body(...)):
     prefix = CRED_SERVICES.get(service)
@@ -3413,6 +3440,7 @@ def put_service_credentials(service: str, body: dict = Body(...)):
     if body.get("clear"):
         config.set_env({f"{prefix}_USER": None, f"{prefix}_PASSWORD": None, f"{prefix}_SAME_AS": None})
         return {"ok": True, "configured": False}
+    _no_credentials_in_service()
     same = (body.get("same_as") or "").strip().lower()
     if same:
         if same not in CRED_SERVICES or same == service:
@@ -3422,7 +3450,6 @@ def put_service_credentials(service: str, body: dict = Body(...)):
     user = (body.get("user") or "").strip(); pw = body.get("password") or ""
     if not user or not pw:
         raise HTTPException(400, "Benutzername und Passwort angeben")
-    _uni_consent(body)
     config.save_credentials(user, pw, prefix)
     return {"ok": True, "configured": True}
 

@@ -1,4 +1,7 @@
-"""Uni-Mail und Uni-Kalender der LUH (SOGo, https://kalender.uni-hannover.de/SOGo/), docs/UNI-MAIL-2026-11-05.md.
+"""Uni-Mail und Uni-Kalender (SOGo) der LUH (https://kalender.uni-hannover.de/SOGo/) und der Uni Hildesheim
+(https://webmail.uni-hildesheim.de/SOGo/, Wunsch des Inhabers 06.11.2026: dasselbe SOGo), docs/UNI-MAIL-2026-11-05.md.
+Rechner je Hochschule in SITES (wie `SOGoSite` im Swift-Kern); alles, was eine Adresse prueft, nimmt den Rechner
+(`host`, Vorgabe LUH). Die Hochschule Hannover hat kein SOGo: dort gibt es Uni-Mail nicht.
 
 Wunsch des Inhabers (05.11.2026): E-Mails der Uni empfangen, lesen, beantworten, weiterleiten, neu schreiben und die
 Termine des Uni-Kalenders im Lernkalender/Stundenplan sehen. Gleiche Regeln und gleiche JSON-Antworten wie der
@@ -19,6 +22,7 @@ UI/WebServerResources/js/Mailer/Message.service.js, Mailbox.service.js, Account.
                                              Suche: dazu "filters":[{"searchBy":"subject","searchInput":q},{"searchBy":"from",...}],
                                              sortingAttributes.match "OR" (wie "subject_or_from" der Weboberflaeche)
 - POST Mail/0/folderINBOX/headers           {"uids":[...]} -> Tabelle (Zeile 0 Feldnamen), seitenweise je 50
+                                             (live bestaetigt 06.11.2026 an der Uni Hildesheim, gleiches SOGo)
 - GET  Mail/0/folderINBOX/<uid>/view        Nachricht (parts, from, to, cc, date, isRead); markiert sie als gelesen (wie SOGo)
 - GET  .../<uid>/markMessageRead | markMessageUnread, POST .../<uid>/markMessageFlagged | markMessageUnflagged
 - POST Mail/0/folderINBOX/batchDelete       {"uids":[...]} verschiebt in den Papierkorb (nie "withoutTrash")
@@ -46,14 +50,35 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 BERLIN = ZoneInfo("Europe/Berlin")
-HOST = "kalender.uni-hannover.de"
+HOST = "kalender.uni-hannover.de"                   # LUH (Vorgabe der reinen Funktionen)
 BASE = f"https://{HOST}/SOGo"
+# SOGo je Hochschule (Schluessel wie universities.PROFILES); fehlt eine, gibt es dort keine Uni-Mail (HsH)
+SITES: dict[str, dict] = {
+    "luh": {"key": "luh", "host": HOST, "name": "Uni-Mail (LUH)", "university": "Leibniz Universität Hannover",
+            "short": "LUH", "room_links": True},
+    "hildesheim": {"key": "hildesheim", "host": "webmail.uni-hildesheim.de", "name": "Uni-Mail (Uni Hildesheim)",
+                   "university": "Universität Hildesheim", "short": "Uni Hildesheim", "room_links": False},
+}
+HOSTS = frozenset(s["host"] for s in SITES.values())
 SESSION = "SOGO_COOKIES"
 PAGE_SIZE = 50
 MAX_ATTACHMENT = 20 * 1024 * 1024
 SOURCE = "uni-kalender"
 COLOR = "#0e7490"
 NOT_AVAILABLE = "Uni-Mail gibt es nur in der App auf dem iPad und am PC (Windows-App); E-Mails gehen nie über den StudiNow-Dienst."
+NOT_AT_UNI = "Uni-Mail gibt es für Studierende der Leibniz Universität Hannover und der Universität Hildesheim."
+
+
+def site(key: str | None = None) -> dict | None:
+    """SOGo einer Hochschule (ohne Schluessel: die dieser App-Instanz); None, wo es keins gibt (HsH)"""
+    if key is None:
+        from . import universities
+        key = universities.current_key()
+    return SITES.get(key)
+
+
+def base_of(host: str) -> str:
+    return f"https://{host}/SOGo"
 
 # Reihenfolge der festen Ordner und ihre Namen in der App
 FOLDER_ORDER = ("inbox", "draft", "sent", "trash", "junk", "templates")
@@ -104,9 +129,9 @@ def move_target(path: str) -> str:
     return "/0/" + folder_path(path)
 
 
-def user_from_url(url: str | None) -> str | None:
-    """Konto aus einer angemeldeten Adresse https://kalender.uni-hannover.de/SOGo/so/<benutzer>/... (nur HTTPS, nur
-    dieser Rechner); sonst None"""
+def user_from_url(url: str | None, host: str = HOST) -> str | None:
+    """Konto aus einer angemeldeten Adresse https://<host>/SOGo/so/<benutzer>/... (nur HTTPS, nur der Rechner der
+    Hochschule); sonst None. Der Benutzername bleibt, wie er in der Adresse steht (LUH: E-Mail-Adresse)."""
     if not url:
         return None
     p = urllib.parse.urlsplit(str(url))
@@ -114,7 +139,7 @@ def user_from_url(url: str | None) -> str | None:
         port = p.port
     except ValueError:
         return None
-    if p.scheme.lower() != "https" or (p.hostname or "").lower() != HOST or port not in (None, 443):
+    if p.scheme.lower() != "https" or (p.hostname or "").lower() != host or port not in (None, 443):
         return None
     parts = p.path.split("/")
     # ["", "SOGo", "so", "<benutzer>", ...]
@@ -126,8 +151,8 @@ def user_from_url(url: str | None) -> str | None:
     return user
 
 
-def user_base(user: str) -> str:
-    return f"{BASE}/so/{urllib.parse.quote(user, safe='@')}"
+def user_base(user: str, host: str = HOST) -> str:
+    return f"{base_of(host)}/so/{urllib.parse.quote(user, safe='@')}"
 
 
 def looks_like_login(text: str | None) -> bool:
@@ -136,11 +161,11 @@ def looks_like_login(text: str | None) -> bool:
     return 'name="loginForm"' in t or "app.creds.username" in t or 'id="passwordField"' in t
 
 
-def expired(status: int, final_url: str | None, body: str | None) -> bool:
+def expired(status: int, final_url: str | None, body: str | None, host: str = HOST) -> bool:
     """Sitzung abgelaufen? 401/403, Weiterleitung aus /SOGo/so/ heraus (Anmeldeseite) oder Anmeldeformular im Inhalt"""
     if status in (401, 403):
         return True
-    if final_url and user_from_url(final_url) is None:
+    if final_url and user_from_url(final_url, host) is None:
         return True
     return looks_like_login(body)
 
@@ -470,14 +495,14 @@ def folder_request(query: str = "") -> dict:
 _BODY_TYPES = ("UIxMailPartHTMLViewer", "UIxMailPartTextViewer")
 
 
-def attachment_path(url) -> str | None:
+def attachment_path(url, host: str = HOST) -> str | None:
     """Pfad eines Anhangs (downloadURL) unter /SOGo/so/ dieses Rechners; sonst None"""
     u = _text(url).strip()
     if not u:
         return None
     if u.startswith("/"):
-        u = f"https://{HOST}" + u
-    if user_from_url(u) is None:
+        u = f"https://{host}" + u
+    if user_from_url(u, host) is None:
         return None
     p = urllib.parse.urlsplit(u)
     return p.path + (f"?{p.query}" if p.query else "")
@@ -488,10 +513,10 @@ def quote_path(path: str) -> str:
     return urllib.parse.quote(str(path or ""), safe="/@%?=&:+,;()!*'~$")
 
 
-def _walk_parts(node, bodies: list[str], files: list[dict]) -> None:
+def _walk_parts(node, bodies: list[str], files: list[dict], host: str = HOST) -> None:
     if isinstance(node, list):
         for x in node:
-            _walk_parts(x, bodies, files)
+            _walk_parts(x, bodies, files, host)
         return
     if not isinstance(node, dict):
         return
@@ -500,28 +525,28 @@ def _walk_parts(node, bodies: list[str], files: list[dict]) -> None:
     if typ == "UIxMailPartAlternativeViewer" and isinstance(content, list):
         want = _text(node.get("preferredPart")).lower()
         pick = next((c for c in content if isinstance(c, dict) and _text(c.get("contentType")).lower() == want), None)
-        _walk_parts(pick if pick is not None else (content[0] if content else None), bodies, files)
+        _walk_parts(pick if pick is not None else (content[0] if content else None), bodies, files, host)
         return
     if typ in _BODY_TYPES and isinstance(content, str):
         bodies.append(content)
         if not _text(node.get("filename")).strip():
             return
     elif isinstance(content, (list, dict)) and typ not in ("UIxMailPartImageViewer", "UIxMailPartLinkViewer"):
-        _walk_parts(content, bodies, files)
+        _walk_parts(content, bodies, files, host)
         return
-    path = attachment_path(node.get("downloadURL"))
+    path = attachment_path(node.get("downloadURL"), host)
     if path:
         files.append({"index": len(files), "name": _text(node.get("filename")).strip() or "Anhang",
                       "size": _text(node.get("size")).strip(), "type": _text(node.get("contentType")).strip().lower(),
                       "path": path})
 
 
-def parse_message(data, folder: str, uid: int) -> dict:
+def parse_message(data, folder: str, uid: int, host: str = HOST) -> dict:
     """Antwort von .../<uid>/view -> Nachricht zum Lesen (HTML bereinigt, Klartext, Anhaenge)"""
     data = data if isinstance(data, dict) else {}
     bodies: list[str] = []
     files: list[dict] = []
-    _walk_parts(data.get("parts"), bodies, files)
+    _walk_parts(data.get("parts"), bodies, files, host)
     raw = "\n".join(bodies)
     clean = sanitize_html(raw)
     return {"folder": folder, "uid": int(uid), "subject": _text(data.get("subject")).strip(), "date": _text(data.get("date")).strip(),
@@ -787,48 +812,52 @@ Http = Callable[[str, str, bytes | None, dict], tuple[int, bytes, str, dict]]
 
 
 def _urllib(method: str, url: str, data: bytes | None, headers: dict) -> tuple[int, bytes, str, dict]:
-    if urllib.parse.urlsplit(url).hostname != HOST or not url.startswith("https://"):
+    if urllib.parse.urlsplit(url).hostname not in HOSTS or not url.startswith("https://"):
         raise SOGoError("bad", "Anfrage außerhalb von SOGo abgelehnt")
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - fester Rechner der LUH
+        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - feste Rechner der Hochschulen (SITES)
             return r.status, r.read(MAX_ATTACHMENT + 1), r.geturl(), {k.lower(): v for k, v in r.headers.items()}
     except urllib.error.HTTPError as e:
         return e.code, e.read(200_000), e.geturl() or url, {k.lower(): v for k, v in (e.headers or {}).items()}
 
 
-def cookie_header(cookies: list[dict]) -> str:
+def cookie_header(cookies: list[dict], host: str = HOST) -> str:
     from . import unilogin
-    return unilogin._cookie_header(cookies, BASE + "/")
+    return unilogin._cookie_header(cookies, base_of(host) + "/")
 
 
-def xsrf_of(cookies: list[dict]) -> str:
+def xsrf_of(cookies: list[dict], host: str = HOST) -> str:
     for c in cookies or []:
         if isinstance(c, dict) and c.get("name") == "XSRF-TOKEN":
-            dom = str(c.get("domain") or HOST).lstrip(".").lower()
-            if HOST == dom or HOST.endswith("." + dom):
+            dom = str(c.get("domain") or host).lstrip(".").lower()
+            if host == dom or host.endswith("." + dom):
                 return urllib.parse.unquote(str(c.get("value") or ""))
     return ""
 
 
 class SOGoWeb:
-    """SOGo mit der gemerkten Sitzung. Jede Methode genau eine Anfrage (kein Wiederholen bei schreibenden)."""
+    """SOGo mit der gemerkten Sitzung. Jede Methode genau eine Anfrage (kein Wiederholen bei schreibenden). Anfragen
+    nur an `host` (Rechner der Hochschule)."""
 
-    def __init__(self, user: str, cookies: list[dict], http: Http | None = None):
+    def __init__(self, user: str, cookies: list[dict], http: Http | None = None, host: str = HOST):
         self.user = user
+        self.host = host
         self.cookies = cookies or []
         self.http = http or _urllib
-        self.base = user_base(user)
+        self.base = user_base(user, host)
         self.sent: list[tuple[str, str]] = []           # (Methode, Pfad) – Protokoll fuer Tests, ohne Inhalte
 
     def _req(self, method: str, path: str, body=None, raw: bytes | None = None, ctype: str | None = None,
              accept: str = "application/json") -> tuple[int, bytes, dict]:
-        cookie = cookie_header(self.cookies)
+        cookie = cookie_header(self.cookies, self.host)
         if not cookie:
             raise SOGoError("login")
-        url = path if path.startswith("https://") else (f"https://{HOST}{path}" if path.startswith("/") else f"{self.base}/{path}")
+        url = path if path.startswith("https://") else (f"https://{self.host}{path}" if path.startswith("/") else f"{self.base}/{path}")
+        if urllib.parse.urlsplit(url).hostname != self.host:
+            raise SOGoError("bad", "Anfrage außerhalb von SOGo abgelehnt")
         headers = {"Cookie": cookie, "Accept": accept, "User-Agent": "StudiNow"}
-        token = xsrf_of(self.cookies)
+        token = xsrf_of(self.cookies, self.host)
         if token:
             headers["X-XSRF-TOKEN"] = token
         data = raw
@@ -845,7 +874,7 @@ class SOGoWeb:
         except (urllib.error.URLError, OSError, TimeoutError):
             raise SOGoError("offline") from None
         text = content[:4000].decode("utf-8", "replace") if "json" not in (rh.get("content-type") or "") else ""
-        if expired(status, final, text):
+        if expired(status, final, text, self.host):
             raise SOGoError("login")
         return status, content, rh
 
@@ -871,13 +900,13 @@ class SOGoWeb:
         return ordered(parse_headers(self._json("POST", f"Mail/0/{folder_path(path)}/headers", {"uids": uids})), uids)
 
     def message(self, path: str, uid: int) -> dict:
-        return parse_message(self._json("GET", f"Mail/0/{folder_path(path)}/{int(uid)}/view"), path, uid)
+        return parse_message(self._json("GET", f"Mail/0/{folder_path(path)}/{int(uid)}/view"), path, uid, self.host)
 
     def unseen(self, path: str = "INBOX") -> int | None:
         return parse_unseen(self._json("POST", "Mail/unseenCount", {"mailboxes": [mailbox_id(path)]}), path)
 
     def attachment(self, att_path: str) -> tuple[bytes, str]:
-        if not attachment_path(att_path):
+        if not attachment_path(att_path, self.host):
             raise SOGoError("bad", "Anhang nicht von SOGo")
         status, content, rh = self._req("GET", quote_path(att_path), accept="*/*")
         if status != 200:
@@ -990,18 +1019,27 @@ def remember_user(user: str | None) -> None:
             conn.execute("DELETE FROM settings WHERE key='sogo_user'")
 
 
-def discover_user(cookies: list[dict], http: Http | None = None) -> str | None:
+def current_host() -> str | None:
+    """Rechner von SOGo dieser App-Instanz; None an einer Hochschule ohne SOGo"""
+    s = site()
+    return s["host"] if s else None
+
+
+def discover_user(cookies: list[dict], http: Http | None = None, host: str | None = None) -> str | None:
     """Mit den Cookies /SOGo/so/ aufrufen: angemeldet leitet SOGo auf /SOGo/so/<benutzer>/... weiter"""
-    header = cookie_header(cookies)
+    host = host or current_host()
+    if not host:
+        return None
+    header = cookie_header(cookies, host)
     if not header:
         return None
     try:
-        status, content, final, _ = (http or _urllib)("GET", f"{BASE}/so/", None, {"Cookie": header, "Accept": "text/html", "User-Agent": "StudiNow"})
+        status, content, final, _ = (http or _urllib)("GET", f"{base_of(host)}/so/", None, {"Cookie": header, "Accept": "text/html", "User-Agent": "StudiNow"})
     except (SOGoError, urllib.error.URLError, OSError, TimeoutError):
         return None
     if status != 200 or looks_like_login(content[:20000].decode("utf-8", "replace")):
         return None
-    return user_from_url(final)
+    return user_from_url(final, host)
 
 
 def live(http: Http | None = None) -> SOGoWeb:
@@ -1009,13 +1047,16 @@ def live(http: Http | None = None) -> SOGoWeb:
     from . import config, unilogin
     if config.is_hosted():
         raise SOGoError("refused", NOT_AVAILABLE)
+    host = current_host()
+    if not host:
+        raise SOGoError("refused", NOT_AT_UNI)
     cookies = unilogin.saved_cookies(SESSION)
     user = saved_user()
-    if not cookies or not cookie_header(cookies):
+    if not cookies or not cookie_header(cookies, host):
         raise SOGoError("login")
     if not user:
-        user = discover_user(cookies, http)
+        user = discover_user(cookies, http, host)
         if not user:
             raise SOGoError("login")
         remember_user(user)
-    return SOGoWeb(user, cookies, http)
+    return SOGoWeb(user, cookies, http, host)

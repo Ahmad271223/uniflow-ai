@@ -76,7 +76,7 @@ function show({ api, icon, esc, toast, state, settings }) {
       box.querySelector("#obNext")?.addEventListener("click", next);
       box.querySelector("#obLater")?.addEventListener("click", next);
       box.querySelector("#obLogin")?.addEventListener("click", async e => {
-        if (state.hosted) { finish("#/settings?tab=account"); return; }
+        if (state.hosted) { next(); return; }       // Dienst: kein Hochschul-Zugang im Web (06.11.2026)
         e.target.disabled = true;
         try { await api("/university/login", { method: "POST" }); toast("Anmeldefenster öffnet sich – dort anmelden", 4000); }
         catch (x) { toast(x.message, 5000); e.target.disabled = false; return; }

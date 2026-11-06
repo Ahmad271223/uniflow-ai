@@ -15,8 +15,14 @@ struct MessageReplyOriginal: Equatable, Sendable {
     let text: String
     let senderLabel: String
     let sentAt: String?
+    /// Neue Nachricht an eine bekannte Person statt einer Antwort (Lehrende, 06.11.2026,
+    /// docs/LEHRENDE-KONTAKTE-2026-11-06.md): Empfaenger fest aus der eigenen Kursliste, kein Original, kein Zitat
+    var directTo: StudIPPerson?
+    /// Stud.IP-Benutzername der Person (Ausweg "In Stud.IP schreiben" mit `rec_uname`)
+    var directUsername = ""
 
     var rawID: String { StudIPMessageReply.rawID(localID) }
+    var isDirect: Bool { directTo != nil }
 
     init(localID: String, subject: String, text: String, senderLabel: String, sentAt: String?) {
         self.localID = localID
@@ -24,6 +30,14 @@ struct MessageReplyOriginal: Equatable, Sendable {
         self.text = text
         self.senderLabel = senderLabel
         self.sentAt = sentAt
+    }
+
+    /// Neue Nachricht an Lehrende; Entwurf je Person unter "lect-<Kennung>"
+    static func direct(to person: StudIPPerson, username: String, subject: String = "") -> MessageReplyOriginal {
+        var o = MessageReplyOriginal(localID: "lect-\(person.id)", subject: subject, text: "", senderLabel: person.name, sentAt: nil)
+        o.directTo = person
+        o.directUsername = username
+        return o
     }
 
     init?(_ m: JSONValue) {
@@ -79,7 +93,7 @@ final class MessageReplyModel: ObservableObject {
         self.deps = dependencies
         let draft = StudIPReplyDrafts.load(dependencies.defaults).draft(for: original.localID)
         self.mode = draft?.mode ?? mode
-        self.subject = draft?.subject ?? StudIPMessageReply.replySubject(original.subject)
+        self.subject = draft?.subject ?? Self.startSubject(original)
         self.text = draft?.text ?? ""
         self.quote = draft?.quote ?? false
         self.restoredDraftAt = draft?.savedAt
@@ -95,14 +109,26 @@ final class MessageReplyModel: ObservableObject {
 
     /// Zitat des Originals (nur wenn der Schalter an ist)
     var quoteText: String? {
-        quote ? StudIPMessageReply.quote(original.text, senderName: context?.sender.name ?? original.senderLabel, sentAt: original.sentAt) : nil
+        quote && !original.isDirect ? StudIPMessageReply.quote(original.text, senderName: context?.sender.name ?? original.senderLabel, sentAt: original.sentAt) : nil
     }
 
     var canSend: Bool {
         phase == .ready && !recipients.isEmpty && !loadingOthers && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (!original.isDirect || !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
-    var replyWebURL: URL { StudIPMessageReply.replyWebURL(base: StudIPSync.base, messageID: original.rawID) }
+    var replyWebURL: URL {
+        if original.isDirect {
+            return URL(string: StudIPLecturers.messageURL(base: StudIPSync.base.absoluteString, username: original.directUsername))
+                ?? StudIPSync.base
+        }
+        return StudIPMessageReply.replyWebURL(base: StudIPSync.base, messageID: original.rawID)
+    }
+
+    /// Betreff zu Beginn: Antwort "RE: …", neue Nachricht der vorgeschlagene Betreff
+    static func startSubject(_ o: MessageReplyOriginal) -> String {
+        o.isDirect ? o.subject : StudIPMessageReply.replySubject(o.subject)
+    }
 
     // MARK: Ablauf
 
@@ -111,6 +137,19 @@ final class MessageReplyModel: ObservableObject {
         phase = .loading
         errorMessage = nil
         offersWebFallback = false
+        if let person = original.directTo {
+            // neue Nachricht: Empfaenger steht fest (Lehrende der eigenen Kurse), nur die Sitzung pruefen
+            guard deps.connected() else { phase = .notConnected; return }
+            switch await deps.ensureSession(.userAction) {
+            case .needsUser: phase = .needsLogin; return
+            case .notConnected: phase = .notConnected; return
+            case .ready, .renewed, .unknown: break
+            }
+            context = StudIPReplyContext(messageID: "", subject: subject, sender: person, otherRecipientIDs: [], recipientsKnown: true)
+            mode = .sender
+            phase = .ready
+            return
+        }
         guard StudIPMessageReply.isReplyable(senderLabel: original.senderLabel) else {
             phase = .unavailable(StudIPMessageError.systemMessage.errorDescription ?? "")
             return
@@ -196,7 +235,7 @@ final class MessageReplyModel: ObservableObject {
     func discardDraft() {
         text = ""
         quote = false
-        subject = StudIPMessageReply.replySubject(original.subject)
+        subject = Self.startSubject(original)
         restoredDraftAt = nil
         var drafts = StudIPReplyDrafts.load(deps.defaults)
         drafts.remove(original.localID)

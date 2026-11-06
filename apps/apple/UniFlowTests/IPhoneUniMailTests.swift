@@ -54,7 +54,7 @@ final class IPhoneUniMailTests: IPhoneLearnTestCase {
     private func connected() throws -> UniMailConnection {
         try install()
         let stub: @MainActor (WKWebsiteDataStore) async -> UniTransport = { store in
-            await URLSessionUniTransport.make(dataStore: store, allowedDomains: UniMailConnection.domains, configuration: UniStubProtocol.configuration())
+            await URLSessionUniTransport.make(dataStore: store, allowedDomains: SOGoSite.all.map(\.host), configuration: UniStubProtocol.configuration())
         }
         let m = ContainerManager(base: bed.containers,
                                  legacy: LegacyDataMigration.Sources(support: bed.appSupport.appendingPathComponent("UniFlow", isDirectory: true),

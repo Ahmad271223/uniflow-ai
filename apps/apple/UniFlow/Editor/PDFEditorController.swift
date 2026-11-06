@@ -576,6 +576,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         showLayout()
 
         toolPicker.addObserver(self)
+        observers.append(NotificationCenter.default.addObserver(forName: .ufRulerChoiceChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applyRuler() }
+        })
         toolPicker.colorUserInterfaceStyle = .light   // Farben wie auf dem hellen Papier; die Palette folgt dem System
         if ownsToolPicker {
             // gleicher Name = gleicher Stand (Auswahl, Farben) fuer alle Fenster; ein schon gesetzter Name bleibt (Tests)
@@ -910,6 +913,23 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht);
         // nicht im Modus "Blättern" am iPhone
         if writable, !paletteSuppressed { toolPicker.setVisible(true, forFirstResponder: c) }
+        c.isRulerActive = rulerWanted
+    }
+
+    // MARK: Lineal (geteilte Ansicht, `RulerChoice`)
+
+    /// Lineal auf dieser Seite: Palette hat es an und die Wahl (links/rechts/beide) trifft dieses Dokument
+    var rulerWanted: Bool { toolPicker.isRulerActive && RulerChoice.shared.applies(primary: ownsToolPicker) }
+
+    /// PencilKit schaltet das Lineal auf allen Zeichenflaechen der Palette; danach die Wahl durchsetzen
+    func toolPickerIsRulerActiveDidChange(_ toolPicker: PKToolPicker) {
+        if ownsToolPicker { RulerChoice.shared.rulerOn = toolPicker.isRulerActive }
+        DispatchQueue.main.async { [weak self] in self?.applyRuler() }
+    }
+
+    func applyRuler() {
+        let on = rulerWanted
+        for overlay in allOverlays where overlay.canvas.isRulerActive != on { overlay.canvas.isRulerActive = on }
     }
 
     /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).

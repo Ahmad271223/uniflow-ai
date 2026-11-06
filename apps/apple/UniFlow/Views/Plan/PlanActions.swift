@@ -712,8 +712,12 @@ struct DatedEventDialog: View {
         }
     }
 
+    @Environment(\.uniMail) private var uniMail
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var router: UFRouter
+
     static func text(_ date: String, source: String? = nil, cancelled: Bool = false) -> String {
-        if source == SOGo.source {                                   // Uni-Kalender (SOGo der LUH), nur lesend
+        if source == SOGo.source {                                   // Uni-Kalender (SOGo der LUH/Uni Hildesheim), nur lesend
             return cancelled
                 ? "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))), dort abgesagt: die Zeit ist frei für deinen Lernplan."
                 : "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))). Ändern kannst du ihn nur im Uni-Kalender (SOGo); er zählt als belegte Zeit."
@@ -733,8 +737,16 @@ struct DatedEventDialog: View {
                     UFBadge(Self.sourceLabel(e.s("source")), tone: e.s("source") == SOGo.source ? .info : .neutral).fixedSize()
                         .accessibilityIdentifier("event.source")
                 }
-                // Raumfinder (05.11.2026): Raum antippen -> Ort mit Google-Maps-Link
-                if let room = e.s("room"), !room.isEmpty { UFRoomLink(text: room) }
+                Text("\(UFKind.text(e.s("kind"))) · \(UFFmt.short(date))").ufFont(13.12).foregroundStyle(UF.muted)
+                if let m = e.i("module_id") {
+                    UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeAll(); router.go(.module(m)) }
+                        .accessibilityIdentifier("termin.module")
+                }
+                // Termin-Detail (06.11.2026): Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses. Ort aus
+                // dem Uni-Kalender: Raumfinder nur an der LUH (`SOGoSite.roomLinks`), sonst Text
+                TerminDetailSections(event: e, title: e.s("title") ?? "",
+                                     roomAsText: e.s("source") == SOGo.source && uniMail?.site.roomLinks != true)
+                    .padding(.vertical, 4)
                 UFSessionTopic(e: e)
                 // Absage aus einer Ankuendigung oder in Stud.IP: nur Hinweis mit Quelle (ohne Serie keine Ausnahme fuer den Tag)
                 UFCancelHintBox(e: e, decide: nil)

@@ -603,7 +603,7 @@ final class TimetableLocalAppTests: XCTestCase {
         XCTAssertFalse(all.contains("Keine passenden Unterlagen"), all)
         XCTAssertFalse(all.contains("VL01 Einführung.pdf"), "Woche 1 gehört nicht dazu: \(all)")
         XCTAssertFalse(all.contains("Lösung Blatt 1.pdf"), "Lehrwoche 1: \(all)")
-        XCTAssertTrue(all.contains("Modul öffnen"), all)
+        XCTAssertTrue(all.contains("Zum Modul"), all)
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
 
         // 6. Zweiter Abgleich: nichts doppelt geladen oder uebernommen, Zuordnung bleibt

@@ -1676,5 +1676,278 @@
    "2026-11-09",
    "2026-11-15"
   ]
+ },
+ "sites": {
+  "list": [
+   {
+    "key": "luh",
+    "host": "kalender.uni-hannover.de",
+    "name": "Uni-Mail (LUH)",
+    "university": "Leibniz Universität Hannover",
+    "short": "LUH",
+    "room_links": true
+   },
+   {
+    "key": "hildesheim",
+    "host": "webmail.uni-hildesheim.de",
+    "name": "Uni-Mail (Uni Hildesheim)",
+    "university": "Universität Hildesheim",
+    "short": "Uni Hildesheim",
+    "room_links": false
+   }
+  ],
+  "hsh": null,
+  "message": {
+   "subject": "Anhänge",
+   "parts": {
+    "type": "UIxMailPartMixedViewer",
+    "content": [
+     {
+      "type": "UIxMailPartTextViewer",
+      "content": "Hallo"
+     },
+     {
+      "type": "UIxMailPartLinkViewer",
+      "filename": "a.pdf",
+      "contentType": "application/pdf",
+      "downloadURL": "/SOGo/so/muster/Mail/0/folderINBOX/7/2/asAttachment/a.pdf"
+     },
+     {
+      "type": "UIxMailPartLinkViewer",
+      "filename": "hi.pdf",
+      "contentType": "application/pdf",
+      "downloadURL": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/0/folderINBOX/7/3/asAttachment/hi.pdf"
+     },
+     {
+      "type": "UIxMailPartLinkViewer",
+      "filename": "luh.pdf",
+      "contentType": "application/pdf",
+      "downloadURL": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/7/4/asAttachment/luh.pdf"
+     }
+    ]
+   }
+  },
+  "checks": {
+   "luh": {
+    "base": "https://kalender.uni-hannover.de/SOGo",
+    "user_base": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@uni-hildesheim.de",
+    "user_from_url": [
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/view",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/so/erika.muster%40uni-hildesheim.de/Calendar/view",
+      "user": null
+     },
+     {
+      "url": "https://WEBMAIL.Uni-Hildesheim.DE:443/SOGo/so/muster/Mail/view",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/so/",
+      "user": null
+     },
+     {
+      "url": "http://webmail.uni-hildesheim.de/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de:8443/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://www.uni-hildesheim.de/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://uni-hildesheim.de/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de.example/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/view",
+      "user": "erika.muster@stud.uni-hannover.de"
+     },
+     {
+      "url": "https://evil.example/SOGo/so/x/Mail",
+      "user": null
+     }
+    ],
+    "expired": [
+     {
+      "status": 200,
+      "final": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/view",
+      "expired": true
+     },
+     {
+      "status": 200,
+      "final": "https://webmail.uni-hildesheim.de/SOGo/so/erika.muster%40uni-hildesheim.de/Calendar/view",
+      "expired": true
+     },
+     {
+      "status": 200,
+      "final": "https://WEBMAIL.Uni-Hildesheim.DE:443/SOGo/so/muster/Mail/view",
+      "expired": true
+     },
+     {
+      "status": 200,
+      "final": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/view",
+      "expired": false
+     }
+    ],
+    "attachment_path": [
+     {
+      "in": "/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+      "out": "/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf"
+     },
+     {
+      "in": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+      "out": null
+     },
+     {
+      "in": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+      "out": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf"
+     },
+     {
+      "in": "https://evil.example/SOGo/so/x/a",
+      "out": null
+     }
+    ],
+    "message_attachments": [
+     {
+      "index": 0,
+      "name": "a.pdf",
+      "size": "",
+      "type": "application/pdf",
+      "path": "/SOGo/so/muster/Mail/0/folderINBOX/7/2/asAttachment/a.pdf"
+     },
+     {
+      "index": 1,
+      "name": "luh.pdf",
+      "size": "",
+      "type": "application/pdf",
+      "path": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/7/4/asAttachment/luh.pdf"
+     }
+    ]
+   },
+   "hildesheim": {
+    "base": "https://webmail.uni-hildesheim.de/SOGo",
+    "user_base": "https://webmail.uni-hildesheim.de/SOGo/so/erika.muster@uni-hildesheim.de",
+    "user_from_url": [
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/view",
+      "user": "muster"
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/so/erika.muster%40uni-hildesheim.de/Calendar/view",
+      "user": "erika.muster@uni-hildesheim.de"
+     },
+     {
+      "url": "https://WEBMAIL.Uni-Hildesheim.DE:443/SOGo/so/muster/Mail/view",
+      "user": "muster"
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de/SOGo/so/",
+      "user": null
+     },
+     {
+      "url": "http://webmail.uni-hildesheim.de/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de:8443/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://www.uni-hildesheim.de/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://uni-hildesheim.de/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://webmail.uni-hildesheim.de.example/SOGo/so/muster/Mail",
+      "user": null
+     },
+     {
+      "url": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/view",
+      "user": null
+     },
+     {
+      "url": "https://evil.example/SOGo/so/x/Mail",
+      "user": null
+     }
+    ],
+    "expired": [
+     {
+      "status": 200,
+      "final": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/view",
+      "expired": false
+     },
+     {
+      "status": 200,
+      "final": "https://webmail.uni-hildesheim.de/SOGo/so/erika.muster%40uni-hildesheim.de/Calendar/view",
+      "expired": false
+     },
+     {
+      "status": 200,
+      "final": "https://WEBMAIL.Uni-Hildesheim.DE:443/SOGo/so/muster/Mail/view",
+      "expired": false
+     },
+     {
+      "status": 200,
+      "final": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/view",
+      "expired": true
+     }
+    ],
+    "attachment_path": [
+     {
+      "in": "/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+      "out": "/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf"
+     },
+     {
+      "in": "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+      "out": "/SOGo/so/muster/Mail/0/folderINBOX/1/2/asAttachment/a.pdf"
+     },
+     {
+      "in": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+      "out": null
+     },
+     {
+      "in": "https://evil.example/SOGo/so/x/a",
+      "out": null
+     }
+    ],
+    "message_attachments": [
+     {
+      "index": 0,
+      "name": "a.pdf",
+      "size": "",
+      "type": "application/pdf",
+      "path": "/SOGo/so/muster/Mail/0/folderINBOX/7/2/asAttachment/a.pdf"
+     },
+     {
+      "index": 1,
+      "name": "hi.pdf",
+      "size": "",
+      "type": "application/pdf",
+      "path": "/SOGo/so/muster/Mail/0/folderINBOX/7/3/asAttachment/hi.pdf"
+     }
+    ]
+   }
+  }
  }
 }

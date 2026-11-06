@@ -18,7 +18,7 @@ Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; 
 | Was | Entscheidung / Quelle |
 |---|---|
 | Name und Domain | „StudiNow“ steht in der App; Domain muss dazu passen und frei sein (Plan, Abschnitt 4.4). Prüfen, ob der Name als Marke frei ist. |
-| Dienst darf Uni-Passwörter halten? | Entschieden 30.10.: **ja**, mit Zustimmung je Nutzer in der Oberfläche (ist gebaut). Deshalb gehört Chromium ins Image (Abschnitt 14). |
+| Dienst darf Uni-Passwörter halten? | Entschieden 06.11.2026 („Ja, abschalten“, ersetzt das Ja vom 30.10.): **nein, nie** – auch nicht für die Web-Version, auch nicht mit Zustimmung. Die API antwortet auf jedes Speichern von Hochschul-Zugangsdaten, -Schlüsseln oder -Sitzungen 410 `credentials_not_stored`, der Tresor in `accounts.db` wird beim Start geleert (Protokollzeile `[vault] … N Tresor-Einträge gelöscht`), der Zeitplan legt keinen Hochschul-Abgleich mehr an. Der Abgleich läuft auf dem iPad oder in der Windows-App (Zugangsdaten dort nur auf dem eigenen Gerät); im Web lädt man Unterlagen von Hand hoch. Chromium bleibt vorerst im Image (Abschnitt 14). |
 | Bezahlen zum Start? | Entschieden 30.10.: **erst Free** mit 7 Tagen Probe; Stripe ist gebaut und wird eingeschaltet, sobald du die Schlüssel einträgst. |
 | KI im Dienst? | Entschieden 30.10.: StudiNow-KI über deine Schlüssel (Pro AI); seit 05.11. als Mischung aus OpenAI (ChatGPT, etwa 75 %) und Claude Sonnet 5.5 (Bedrock Frankfurt, etwa 25 %); DeepSeek ist aus. Abschnitt 5.4. Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
 | Passwort-Manager | Für Dienst-Geheimnis, Server-Zugang, Stripe- und KI-Schlüssel. Nichts davon in Notizen oder Chats. |
@@ -149,7 +149,7 @@ Die Datei ist in der Reihenfolge aufgebaut, in der du die Werte brauchst. Alles,
 | `UNIFLOW_ACME_EMAIL` | deine E-Mail | für Warnungen von Let's Encrypt; ohne Wert startet Caddy nicht |
 | `LERNAPP_PUBLIC_URL` | `https://app.studinow.app` | dieselbe Domain mit `https://`, ohne Schrägstrich am Ende (Links in Mails, Rückkehr nach dem Stripe-Checkout) |
 | `LERNAPP_ALLOWED_HOSTS` | `app.studinow.app` | dieselbe Domain (docker compose setzt sie ohnehin aus `UNIFLOW_DOMAIN`) |
-| `LERNAPP_SECRET_KEY` | Ausgabe von `openssl rand -base64 32` | verschlüsselt die Hochschul-Zugangsdaten aller Konten. **Nie verlieren, nie ändern, nie ins Backup.** |
+| `LERNAPP_SECRET_KEY` | Ausgabe von `openssl rand -base64 32` | Dienst-Geheimnis: daraus leiten sich die Pseudonyme in Community und Testbibliothek ab. Hochschul-Zugangsdaten verschlüsselt es seit 06.11.2026 keine mehr (der Dienst speichert keine). **Nie verlieren, nie ändern, nie ins Backup.** |
 
 `LERNAPP_MODE=hosted`, `LERNAPP_FILES=stream`, `LERNAPP_HTTPS=1`, `LERNAPP_DATA_DIR`, `LERNAPP_LOG_DIR` stehen schon
 richtig in der Vorlage – nicht ändern.
@@ -279,8 +279,10 @@ warum.
 Google-/Apple-Anmeldung, App-Store-Kaufprüfung, Zeitfenster (`LERNAPP_SYNC_TIMES=08:00,15:00`), Arbeiter
 (`LERNAPP_JOB_WORKERS=2`), Löschfristen (`14`/`90` Tage): Standardwerte lassen. Die Löschfristen müssen zur
 Datenschutzerklärung passen – wer sie ändert, ändert beides. `LERNAPP_JOBS` hat mit Compose keine Wirkung: der
-API-Container bekommt in `docker-compose.yml` fest `off`, der Container `jobs` übernimmt Abgleich, Wochentests und
-Löschfristen (Abschnitt 1).
+API-Container bekommt in `docker-compose.yml` fest `off`, der Container `jobs` übernimmt Wochentests und
+Löschfristen (Abschnitt 1). Seit 06.11.2026 legt `LERNAPP_SYNC_TIMES` nur noch den Wochentest-Takt fest; einen
+Hochschul-Abgleich im Dienst gibt es nicht mehr (Abschnitt 0), `LERNAPP_UNI_PARALLEL`/`LERNAPP_UNI_GAP_S` sind damit
+ohne Wirkung.
 
 ---
 
@@ -310,12 +312,13 @@ Sagt `docker compose config` „UNIFLOW_DOMAIN ist leer“ oder „UNIFLOW_ACME_
 | `https://app.studinow.app/api/account/info` | eine Zeile JSON mit `"hosted":true` |
 
 Dann **registrieren** mit deiner eigenen E-Mail: Bestätigungsmail kommt an (sonst Abschnitt 12), Link klicken,
-anmelden. In den Einstellungen die Hochschule wählen, Zustimmung zum Abgleich geben, Zugangsdaten eintragen, „Jetzt
-abgleichen“. Dabei auf dem Server zusehen:
+anmelden. In den Einstellungen → Zugang steht statt eines Formulars der Hinweis „StudiNow speichert keine
+Hochschul-Passwörter auf dem Server …“ mit Links zur iPad- und Windows-App (seit 06.11.2026); eine Datei von Hand
+hochladen muss gehen. Auf dem Server prüfen:
 
 ```bash
-docker compose logs -f jobs        # Zeilen "[jobs] ..." zeigen den Abgleich (läuft im Container jobs, nicht in app)
-docker stats --no-stream           # Speicher des Containers uniflow-jobs während des Abgleichs (Chromium)
+docker compose logs app jobs | grep "\[vault\]"   # "[vault] ... 0 Tresor-Eintraege geloescht" (bzw. die Zahl beim ersten Start)
+docker compose logs -f jobs        # Zeilen "[jobs] ..." zeigen Wochentests und Löschfristen, keinen Hochschul-Abgleich
 ```
 
 Außerdem einmal „Passwort vergessen“ auf der Anmeldeseite: Mail mit Link muss kommen.
@@ -455,8 +458,8 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
      - AWS: DPA über die Service Terms.
      - Scaleway nur, falls DeepSeek später wieder eingeschaltet wird (AVV unter Organisation → Verträge).
    - Alle in der Datenschutzerklärung nennen (Abschnitte 8c, 11, 12).
-3. **Anfrage an LUH und Hildesheim**: Der Dienst meldet sich mit Nutzer-Zugangsdaten bei Stud.IP/Learnweb an. Die
-   Entscheidung vom 30.10. verlangt eine parallele Anfrage an die Hochschulen (`docs/ANFRAGE-STUDIP-ZUGANG.md` als
+3. **Anfrage an LUH und Hildesheim**: Seit 06.11.2026 meldet sich der Dienst nicht mehr mit Nutzer-Zugangsdaten bei
+   Stud.IP/Learnweb an (nur noch die Apps auf dem Gerät). Die Entscheidung vom 30.10. verlangte eine parallele Anfrage an die Hochschulen (`docs/ANFRAGE-STUDIP-ZUGANG.md` als
    Entwurf für die LUH, `elearning@uni-hannover.de`; für Hildesheim das Rechenzentrum). Bis zur Antwort: Abgleich
    vorsichtig lassen (`LERNAPP_UNI_PARALLEL=2`, `LERNAPP_UNI_GAP_S=15` sind die Standardwerte).
 4. **Monitoring von außen**: kostenloser Uptime-Check (UptimeRobot o. ä.) auf `https://app.studinow.app/login`,
@@ -468,20 +471,27 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
 
 ## 14. Chromium im Image – Abwägung
 
-Der Hochschul-Abgleich im Dienst (`app/studip_sync.py`, `app/hildesheim.py`, `app/qis.py`) steuert mit Playwright
-einen echten Chromium-Browser: Anmeldung am WebSSO, Kurslisten, Notenspiegel. Deshalb installiert `deploy/Dockerfile`
-Chromium samt Systembibliotheken (`playwright install --with-deps chromium`).
+Stand 06.11.2026: Der Dienst gleicht nicht mehr mit der Hochschule ab (Abschnitt 0, „Ja, abschalten“). Jobs `sync`
+und `grades` werden ohne Browser übersprungen (`app/jobs.py`, `HOSTED_UNI_SYNC = False`), `/api/sync` und
+`/api/grades/sync` antworten 410, das Durchreichen von Hochschuldateien meldet sich nie mehr per Chromium neu an
+(`app/filestream.py`). Im gehosteten Betrieb startet damit kein Chromium mehr.
 
-| | mit Chromium (heute) | ohne Chromium |
+Bis 06.11. steuerte der Hochschul-Abgleich im Dienst (`app/studip_sync.py`, `app/hildesheim.py`, `app/qis.py`) mit
+Playwright einen echten Chromium-Browser. Deshalb installiert `deploy/Dockerfile` Chromium samt Systembibliotheken
+(`playwright install --with-deps chromium`).
+
+| | mit Chromium (heute im Image) | ohne Chromium |
 |---|---|---|
 | Image | ca. 2 GB | ca. 0,5 GB |
-| RAM | +300–500 MB je gleichzeitigem Abgleich | nur die App (ca. 300 MB) |
-| Was geht | Abgleich durch den Dienst (Entscheidung 30.10.: ja), Notenspiegel | nur Upload von Hand; Windows-App und später iPad gleichen selbst ab |
-| Server | 2 vCPU / 4 GB mit `LERNAPP_JOB_WORKERS=2` | 1 vCPU / 2 GB würde reichen |
+| RAM | im Dienst kein Unterschied mehr (Chromium startet nicht) | nur die App (ca. 300 MB) |
+| Was geht | dasselbe: Upload von Hand, Wochentests, Konten; Abgleich nur auf iPad und in der Windows-App | dasselbe |
+| Server | 2 vCPU / 4 GB | 1 vCPU / 2 GB würde reichen |
 
-Empfehlung: **so lassen.** Die 1,5 GB Plattenplatz sind beim 40-GB-Server egal, und der Dienst-Abgleich ist die
-Grundlage der Web-Version für iPad und Mac. Wer Entscheidung 1 doch zurücknimmt, streicht die Zeile `playwright install`
-im Dockerfile und kann auf 2 GB RAM gehen.
+Empfehlung: **vorerst so lassen.** Die Zeile `playwright install` zu streichen ist möglich, aber noch nicht geprüft:
+`requirements.txt` (Playwright-Paket) teilt sich das Image mit Tests und der Windows-App, und Module wie
+`app/filestream.py` importieren Playwright erst beim Aufruf. Wer das Image verkleinern will: Zeile im Dockerfile
+streichen, neu bauen, die Tests im Container laufen lassen und einen Upload sowie die Wochentests prüfen; danach kann
+`jobs` mit weniger Speicher (`mem_limit`, `shm_size`) auskommen.
 
 ---
 

@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 154,
+ "count": 159,
  "paths": [
   {
    "method": "DELETE",
@@ -529,6 +529,94 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/certificates",
+   "sources": [
+    "UniFlow/Views/Services/CertificatesPage.swift"
+   ],
+   "request": {
+    "path": "/api/certificates"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "checked_at": {
+       "type": "null"
+      },
+      "documents": {
+       "type": "array",
+       "item": null
+      },
+      "kinds": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "key": {
+          "type": "string"
+         },
+         "label": {
+          "type": "string"
+         },
+         "offered": {
+          "type": "bool"
+         }
+        }
+       }
+      },
+      "message": {
+       "type": "string"
+      },
+      "note": {
+       "type": "string"
+      },
+      "offers": {
+       "type": "array",
+       "item": null
+      },
+      "portal": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string"
+      },
+      "university": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/certificates/{}/file",
+   "sources": [
+    "UniFlow/Views/Services/CertificatesPage.swift"
+   ],
+   "request": {
+    "path": "/api/certificates/0123456789ab/file"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -1310,6 +1398,56 @@
   },
   {
    "method": "GET",
+   "shape": "/api/lecturers",
+   "sources": [
+    "UniFlow/Views/Lecturers/LecturersViews.swift",
+    "UniFlow/Views/Timetable/TerminDetailViews.swift"
+   ],
+   "request": {
+    "path": "/api/lecturers?module_id=1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "available": {
+       "type": "bool"
+      },
+      "count": {
+       "type": "number"
+      },
+      "hint": {
+       "type": "string"
+      },
+      "loaded": {
+       "type": "bool"
+      },
+      "no_email": {
+       "type": "string"
+      },
+      "people": {
+       "type": "array",
+       "item": null
+      },
+      "total": {
+       "type": "number"
+      },
+      "university": {
+       "type": "string"
+      },
+      "updated_at": {
+       "type": "null"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/library",
    "sources": [
     "UniFlow/Views/AI/AIStartView.swift",
@@ -1744,6 +1882,7 @@
    "method": "GET",
    "shape": "/api/qis/documents/{}",
    "sources": [
+    "UniFlow/Views/Services/CertificatesPage.swift",
     "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
@@ -1839,7 +1978,8 @@
    "method": "GET",
    "shape": "/api/rooms/campuses",
    "sources": [
-    "UniFlow/Views/Rooms/RoomFinderViews.swift"
+    "UniFlow/Views/Rooms/RoomFinderViews.swift",
+    "UniFlow/Views/Timetable/TerminDetailViews.swift"
    ],
    "request": {
     "path": "/api/rooms/campuses?university=hsh"
@@ -3952,6 +4092,34 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/certificates/refresh",
+   "sources": [
+    "UniFlow/Views/Services/CertificatesPage.swift"
+   ],
+   "request": {
+    "path": "/api/certificates/refresh"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "auf dem iPad liest CertificateCenter die Liste mit der Sitzung der Webansicht"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/certificates/{}/download",
+   "sources": [
+    "UniFlow/Views/Services/CertificatesPage.swift"
+   ],
+   "request": {
+    "path": "/api/certificates/0123456789ab/download"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "auf dem iPad laedt CertificateCenter die PDF mit der Sitzung der Webansicht"
    }
   },
   {

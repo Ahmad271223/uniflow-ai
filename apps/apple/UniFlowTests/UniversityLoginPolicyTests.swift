@@ -4,8 +4,9 @@ import WebKit
 import XCTest
 @testable import UniFlow
 
-/// Entscheidung des Inhabers (27.10.2026): Hochschul-Passwoerter merkt sich nur das System (iOS-Passwort-Autofill bzw.
-/// iCloud-Schluesselbund im Anmeldefenster), nie UniFlow. Die Anmeldeansichten haben keine eigenen Skripte, keinen Kanal
+/// Entscheidung des Inhabers (27.10.2026; seit 06.11.2026 ersetzt durch "automatisch anmelden", `UniAutoLogin`, nur
+/// fuer Webansichten eines Containers, geprueft in UniAutoLoginAppTests): Hochschul-Passwoerter merkt sich nur das
+/// System (iOS-Passwort-Autofill bzw. iCloud-Schluesselbund im Anmeldefenster), nie UniFlow. Die Anmeldeansichten haben keine eigenen Skripte, keinen Kanal
 /// zur Seite, fuellen kein Feld, greifen nicht in `autocomplete` ein und legen nichts im Schluesselbund ab. Einzige
 /// Ausnahme seit 04.11.2026: `UniLoginHelper` auf der Anmeldeseite des WebSSO bzw. CAS (Benutzername, "Angemeldet
 /// bleiben"; nie das Passwort), geprueft in UniLoginKeepAppTests; die Konfiguration hier ist die ohne Container.
@@ -457,15 +458,19 @@ final class UniversityLoginPolicyTests: XCTestCase {
     func testAppSourcesHaveNoPasswordStoreAndNoFormScripts() throws {
         let sources = try Self.appSources()
         XCTAssertGreaterThan(sources.count, 50, "Quellen gefunden")
-        // einzige Stelle mit Skript und Kanal seit 04.11.2026: `UniLoginHelper` (nur Anmeldeseite des WebSSO bzw. CAS,
-        // eigene Inhaltswelt, nie das Passwortfeld; geprueft in UniLoginKeepAppTests)
+        // Stellen mit Skript und Kanal: `UniLoginHelper` (04.11.2026: nur Anmeldeseite des WebSSO bzw. CAS, eigene
+        // Inhaltswelt, nie das Passwortfeld; UniLoginKeepAppTests) und seit 06.11.2026 (Entscheidung des Inhabers,
+        // automatisch anmelden) `UniAutoLogin` (Mitlesen und Einfuellen nur auf den Formularen der eigenen Hochschule,
+        // eigene Inhaltswelt, Passwort nur als Argument; UniAutoLoginAppTests)
         let helperOnly: Set<String> = ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "messageHandlers"]
+        let autoLoginOnly: Set<String> = helperOnly.union(["callAsyncJavaScript"])
         for s in sources {
             let code = s.code.joined(separator: "\n")
             for forbidden in ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "callAsyncJavaScript", "messageHandlers",
                               "UniversityCredential", "UniversityLoginAutofill", "UniversityRememberBar", "prefillCredential",
                               "Auf diesem iPad merken", "füllt sie beim nächsten Mal", "setAttribute(", "autocomplete="]
-                where !(s.name == "UniLoginHelper.swift" && helperOnly.contains(forbidden)) {
+                where !(s.name == "UniLoginHelper.swift" && helperOnly.contains(forbidden))
+                    && !(s.name == "UniAutoLogin.swift" && autoLoginOnly.contains(forbidden)) {
                 XCTAssertFalse(code.contains(forbidden), "\(s.name): \(forbidden)")
             }
             // Seitenskripte nur zum Lesen des Seiteninhalts (Erkennung der angemeldeten Seite), nie zum Setzen von Werten
@@ -482,6 +487,11 @@ final class UniversityLoginPolicyTests: XCTestCase {
         XCTAssertTrue(helper.contains("forMainFrameOnly: true, in: Self.world"), "nur Hauptrahmen, eigene Inhaltswelt")
         XCTAssertTrue(helper.contains("contentWorld: Self.world"), "Kanal nur in der eigenen Welt")
         XCTAssertFalse(helper.lowercased().contains("type=\"password\"") || helper.contains("'password'"), "kein Passwortfeld")
+        let auto = try XCTUnwrap(sources.first { $0.name == "UniAutoLogin.swift" }).code.joined(separator: "\n")
+        XCTAssertTrue(auto.contains("forMainFrameOnly: true,") && auto.contains("in: UniAutoLogin.world"), "nur Hauptrahmen, eigene Inhaltswelt")
+        XCTAssertTrue(auto.contains("contentWorld: UniAutoLogin.world"), "Kanal und Einfuellen nur in der eigenen Welt")
+        XCTAssertTrue(auto.contains("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"), "nur dieses Geraet")
+        XCTAssertFalse(auto.contains("URLSession") || auto.contains("APIClient"), "das Passwort geht nie ins Netz der App")
         let tokens = try XCTUnwrap(sources.first { $0.name == "UniversityTokens.swift" })
         XCTAssertFalse(tokens.code.joined().contains("password:"), "der Speicher nimmt kein Passwort an")
     }

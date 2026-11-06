@@ -1,16 +1,16 @@
 import SwiftUI
 
 /// Hinweis unter dem Anmeldefenster einer Hochschule (Stud.IP, QIS, CAS fuer Learnweb und LSF; erster Start und
-/// Einstellungen). Entscheidung des Inhabers (27.10.2026): Hochschul-Passwoerter merkt sich nur iOS (Passwort-Autofill
-/// aus dem Schluesselbund im Anmeldefenster), nie UniFlow; es gibt keinen eigenen Schalter mehr. Seit 04.11.2026 merkt
+/// Einstellungen). Seit 06.11.2026 (Entscheidung des Inhabers, `UniAutoLogin`): darunter der Schalter "Passwort auf
+/// diesem iPad merken" (`UniRememberPasswordToggle`); vorher (27.10.2026) merkte nur iOS Passwoerter. Seit 04.11.2026 merkt
 /// die App den Benutzernamen (kein Geheimnis) fuer die Anmeldeseite des WebSSO bzw. CAS (`UniLoginHelper`). Ehrlich: In
 /// Webansichten von Apps bietet iOS das Sichern oft nicht von selbst an - der Text verspricht das nicht, sondern nennt
 /// den Weg ueber "Passwörter" (App unter iOS 18, Einstellungen unter iOS 17).
 /// Eingeklappt eine Zeile mit "Mehr" (Audit 03.11.2026, P3: im ersten Start stehen sonst zwei Hinweisleisten mit viel
 /// Text uebereinander, darunter noch "Später anmelden"); "Mehr" zeigt den ganzen Hinweis, "Weniger" klappt ihn zu.
 struct UniversityLoginHint: View {
-    static let text = "Passwörter merkt sich iOS (Schlüsselbund). Tippe auf das Schlüssel-Symbol über der Tastatur, um ein gespeichertes Passwort einzusetzen."
-    static let detail = "StudiNow speichert nie dein Passwort. Nur deinen Benutzernamen merkt sich StudiNow auf diesem \(UFDevice.name), damit er beim nächsten Anmelden schon dasteht, und „Angemeldet bleiben“ ist angekreuzt. Bietet iOS das Sichern des Passworts nicht von selbst an, kannst du es unter „Passwörter“ selbst hinzufügen."
+    static let text = "Mit dem Schalter unten merkt sich StudiNow dein Passwort nur auf diesem \(UFDevice.name). Auch iOS kann es einsetzen (Schlüssel-Symbol über der Tastatur)."
+    static let detail = "StudiNow speichert dein Passwort nur, wenn „Passwort auf diesem \(UFDevice.name) merken“ an ist: dann liegt es im Schlüsselbund dieses iPads (nicht in iCloud, nie auf StudiNow-Servern) und wird nur auf den Anmeldeseiten deiner Hochschule eingesetzt, wenn eine Sitzung abläuft. Abmelden oder „Gespeichertes Passwort löschen“ in den Einstellungen entfernt es. Deinen Benutzernamen merkt sich StudiNow, damit er beim nächsten Anmelden schon dasteht."
     static let more = "Mehr"
     static let less = "Weniger"
 

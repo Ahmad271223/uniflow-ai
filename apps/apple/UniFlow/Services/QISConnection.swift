@@ -55,7 +55,7 @@ final class QISConnection: ObservableObject {
     private var signOuts = 0
 
     /// Rueckfrage vor dem Abmelden (Einstellungen, Uni & Noten)
-    static let signOutMessage = "Die QIS-Anmeldung in der Webansicht wird gelöscht. Die geladenen Noten bleiben; Stud.IP bleibt angemeldet. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
+    static let signOutMessage = "Die QIS-Anmeldung in der Webansicht wird gelöscht, ebenso ein in StudiNow gemerktes Passwort der LUH. Die geladenen Noten bleiben; Stud.IP bleibt angemeldet. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     /// Rechner des QIS aus dem Profil (nur dorthin gehen Anfragen)
     static var qisDomains: [String] { [UniversityProfile.luhQISStart.host?.lowercased() ?? "qis.verwaltung.uni-hannover.de"] }
@@ -123,13 +123,14 @@ final class QISConnection: ObservableObject {
         defaults.set(true, forKey: Keys.connected)
         set(.connected)
         let store = websiteDataStore
+        UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // QIS-Sitzung ueber Neustarts merken (`UniWebSessions`)
         guard syncsAfterSignIn, !isRunning else { return }
         Task { await run(force: true) }
     }
 
     /// Abmelden: Verbindung, Stand und die QIS-Cookies der Webansicht (Stud.IP bleibt angemeldet); Noten in der
-    /// Datenbank bleiben. Ein Passwort hat die App nicht zu loeschen (das merkt hoechstens iOS).
+    /// Datenbank bleiben. Ein gemerktes Passwort der LUH (`UniAutoLogin`) geht mit.
     func signOut() async {
         signOuts += 1
         // laufenden Abruf zuerst anhalten und abwarten (er schriebe danach seinen Stand zurueck)
@@ -138,6 +139,7 @@ final class QISConnection: ObservableObject {
             _ = await task.value
         }
         for k in Keys.all { defaults.removeObject(forKey: k) }
+        UniAutoLogin.forget(websiteDataStore)                  // gemerktes Passwort der LUH (Schluesselbund)
         lastMessage = nil
         lastCount = nil
         set(.notConnected)
@@ -229,7 +231,10 @@ final class QISConnection: ObservableObject {
             r = QISRegistrationsSync.Report(message: LocalBackendHost.message(for: error))
         }
         if !r.cancelled { registrationsMessage = r.message }
-        if r.needsLogin { set(.needsLogin) }
+        if r.needsLogin {
+            set(.needsLogin)
+            Task { await self.autoLogin() }
+        }
         finishedRuns += 1                                       // offene Seiten laden neu (Haken)
         return r
     }
@@ -249,9 +254,33 @@ final class QISConnection: ObservableObject {
             StudyCatalogSync.trigger(host: host)     // Studiengang aus dem Notenspiegel -> Modulkatalog suchen (Hintergrund)
         } else if r.needsLogin {
             set(.needsLogin)
+            Task { await self.autoLogin() }                    // still mit dem gespeicherten Passwort, dann einmal neu
         } else {
             set(.failed(r.message))
         }
+    }
+
+    // MARK: Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md)
+
+    /// Abgelaufen: unsichtbar mit dem gespeicherten Passwort (nur mit Zustimmung, nur dieses Geraet) auf der QIS-Seite
+    /// anmelden, dann genau einmal neu abrufen (`signedIn`). Scheitert es (falsches Passwort), bleibt "Anmeldung nötig".
+    /// Nie waehrend des Abmeldens, nie im Hintergrund, nie in einer Schleife (`UniAutoLoginMachine`).
+    @discardableResult
+    func autoLogin(userAction: Bool = false) async -> Bool {
+        guard isConnected, state == .needsLogin, !stopped else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
+                                                userAction: userAction) { url, html in
+            // wie `QISLoginPane.isSignedIn`: Seite des QIS mit Abmelden-Link, ohne Anmeldeformular
+            guard url.scheme?.lowercased() == "https", QISConnection.qisDomains.contains(url.host?.lowercased() ?? "") else { return false }
+            let page = QISPage.parse(html: html, url: url)
+            return page.isLoggedIn && !page.hasLoginForm
+        }
+        guard d == .retryOnce, signOuts == before, isConnected, !stopped else { return false }
+        for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Abruf von eben zu Ende
+        guard signOuts == before, isConnected, !stopped else { return false }
+        signedIn()                                              // verbunden, ruft gleich (einmal) ab
+        return true
     }
 
     // MARK: Anzeige
@@ -283,3 +312,12 @@ final class QISConnection: ObservableObject {
 }
 
 extension QISConnection: ContainerSync {}
+
+// MARK: Bescheinigungen (CertificateCenter, docs/BESCHEINIGUNGEN-2026-11-06.md): dieselbe QIS-Sitzung der Webansicht
+extension QISConnection {
+    var certificateClock: UniFlowClock { clock }
+    func certificateTransport() async -> UniTransport { await makeTransport(websiteDataStore) }
+    var certificateHost: LocalBackendHost { host }
+    /// Sitzung beim Lesen der Bescheinigungen abgelaufen: "Anmeldung nötig" wie beim Notenabruf
+    func certificatesExpired() { if isConnected { set(.needsLogin) } }
+}

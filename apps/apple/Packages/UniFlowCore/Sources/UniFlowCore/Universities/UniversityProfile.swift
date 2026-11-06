@@ -4,8 +4,9 @@ import Foundation
 // Datenadressen. Die eine Quelle fuer Schluessel und Adressen der Hochschulen im Kern (HildesheimCAS, Learnweb,
 // LSFClient, Datenbank-Einstellung `university`, Container). Jede Hochschule hat einen eigenen Schluessel-Praefix fuer
 // den Schluesselbund ("hildesheim.learnweb.token"); es gibt keinen Rueckfall von einer Hochschule auf die andere.
-// Hochschul-Passwoerter merkt sich nur das System (iOS-Passwort-Autofill im Anmeldefenster), nie die App
-// (Entscheidung des Inhabers, 27.10.2026); fuer Benutzername und Passwort gibt es deshalb keinen Eintrag mehr.
+// Hochschul-Passwoerter: bis 06.11.2026 nur das System (iOS-Passwort-Autofill); seit 06.11.2026 darf die iPad-App
+// sie mit Zustimmung nur auf dem Geraet merken (eigener Dienst, `UniAutoLogin.swift`, Formulare in `UniLoginForms`).
+// Die alten Eintraege "<hochschule>.<dienst>.user|password" bleiben abgeschafft (`isRetiredLoginSecret`).
 //
 // luh        -> Stud.IP (WebSSO/Shibboleth) + QIS der Leibniz Universitaet Hannover
 // hildesheim -> Learnweb (Moodle) + LSF der Universitaet Hildesheim, Anmeldung ueber das zentrale CAS

@@ -1,8 +1,8 @@
-"""Uni-Mail und Uni-Kalender (SOGo der LUH) am PC (Windows-App, Einzelplatz), docs/UNI-MAIL-2026-11-05.md. Gleiche
+"""Uni-Mail und Uni-Kalender (SOGo der LUH bzw. der Uni Hildesheim, `sogo.SITES`) am PC (Windows-App, Einzelplatz), docs/UNI-MAIL-2026-11-05.md. Gleiche
 JSON-Antworten wie der Swift-Kern auf dem iPad (`SOGo`, `UniMailConnection`). Im Dienst (hosted) gibt es nichts davon:
 E-Mails gehen nie ueber StudiNow-Server.
 
-GET    /api/sogo/status                     verbunden?, Konto, ungelesene, Anmeldefenster
+GET    /api/sogo/status                     verfuegbar (LUH, Hildesheim)?, Name, Raum-Links?, verbunden?, Konto, ungelesene
 POST   /api/sogo/login                      Anmeldefenster oeffnen (der Mensch meldet sich selbst an)
 DELETE /api/sogo/session                    abmelden (Sitzung, Konto, Zwischenspeicher, Kalendertermine)
 GET    /api/sogo/mailboxes                  Ordner
@@ -82,15 +82,21 @@ def status():
     with db.cursor() as conn:
         c = sogo.cached(conn, "INBOX")
     window = unilogin.status()
-    from . import universities
-    return {"available": universities.current_key() == "luh", "connected": connected, "user": user, "unseen": (c or {}).get("unseen"), "checked_at": (c or {}).get("fetched_at"),
+    s = sogo.site()                                   # SOGo der Hochschule dieser Instanz; HsH: keins
+    return {"available": s is not None, "university": s["key"] if s else None, "name": s["name"] if s else "Uni-Mail",
+            "university_name": s["university"] if s else None, "host": s["host"] if s else None,
+            "room_links": bool(s and s["room_links"]),
+            "connected": connected, "user": user, "unseen": (c or {}).get("unseen"), "checked_at": (c or {}).get("fetched_at"),
             "window": window if window.get("university") == "sogo" else None,
-            "hint": "Melde dich auf der echten SOGo-Seite der LUH an. StudiNow merkt sich nur die Sitzung, nie dein Passwort."}
+            "hint": (f"Melde dich auf der echten SOGo-Seite der {s['short']} an. StudiNow merkt sich nur die Sitzung, nie dein Passwort."
+                     if s else sogo.NOT_AT_UNI)}
 
 
 @router.post("/login")
 def login():
     _guard()
+    if sogo.site() is None:
+        raise HTTPException(404, {"detail": sogo.NOT_AT_UNI, "code": "not_available"})
     from . import unilogin
     from .server import _run_bg
 
@@ -161,7 +167,7 @@ def message(uid: int, folder: str = "INBOX"):
 @router.get("/attachment")
 def attachment(path: str):
     web = _web()
-    if not sogo.attachment_path(path):
+    if not sogo.attachment_path(path, web.host):
         raise HTTPException(400, {"detail": "Anhang ungültig", "code": "sogo_input"})
     try:
         data, ctype = web.attachment(path)

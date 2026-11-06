@@ -1,6 +1,8 @@
 import Foundation
 
-// Uni-Mail und Uni-Kalender der LUH (SOGo, https://kalender.uni-hannover.de/SOGo/), docs/UNI-MAIL-2026-11-05.md.
+// Uni-Mail und Uni-Kalender (SOGo) der LUH (https://kalender.uni-hannover.de/SOGo/) und der Uni Hildesheim
+// (https://webmail.uni-hildesheim.de/SOGo/, seit 06.11.2026), docs/UNI-MAIL-2026-11-05.md. Rechner je Hochschule in
+// `SOGoSite`; alles, was eine Adresse prueft, nimmt die Hochschule (`site`, Vorgabe LUH wie in app/sogo.py).
 // Gleiche Regeln und gleiche JSON-Antworten wie app/sogo.py (gemeinsame Faelle in packages/shared-contracts/fixtures/sogo,
 // tools/gen-sogo-fixture.py, SOGoTests). Hier nur reine Funktionen (Pfade, Ablauf der Sitzung, Empfaenger, HTML,
 // Antworten lesen, Entwuerfe, Termine); Abruf in SOGoClient.swift, Speichern und Stundenplan in SOGoCalendar.swift.
@@ -9,10 +11,6 @@ import Foundation
 // stille Erneuerung. Senden nur auf ausdruecklichen Knopfdruck und genau einmal.
 
 public enum SOGo {
-    public static let host = "kalender.uni-hannover.de"
-    public static let base = "https://\(host)/SOGo"
-    /// Anmeldeseite (Webansicht)
-    public static let loginURL = URL(string: "https://kalender.uni-hannover.de/SOGo/")!
     public static let pageSize = 50
     public static let maxAttachment = 20 * 1024 * 1024
     /// Quelle der Termine im Stundenplan
@@ -114,9 +112,10 @@ public enum SOGo {
         return out
     }
 
-    /// Konto aus https://kalender.uni-hannover.de/SOGo/so/<benutzer>/...; sonst nil
-    public static func user(fromURL url: String?) -> String? {
-        guard let url, !url.isEmpty, let p = split(url), p.scheme == "https", p.host == host,
+    /// Konto aus https://<rechner der hochschule>/SOGo/so/<benutzer>/...; anderer Rechner oder sonst -> nil. Den
+    /// Benutzernamen nimmt es, wie er in der Adresse steht (LUH: E-Mail-Adresse, Hildesheim: wie SOGo ihn fuehrt).
+    public static func user(fromURL url: String?, site: SOGoSite = .luh) -> String? {
+        guard let url, !url.isEmpty, let p = split(url), p.scheme == "https", p.host == site.host,
               case .some(let port) = p.port, port == nil || port == 443 else { return nil }
         let parts = p.path.components(separatedBy: "/")
         guard parts.count >= 5, parts[1] == "SOGo", parts[2] == "so" else { return nil }
@@ -126,9 +125,9 @@ public enum SOGo {
         return user
     }
 
-    public static func user(fromURL url: URL?) -> String? { user(fromURL: url?.absoluteString) }
+    public static func user(fromURL url: URL?, site: SOGoSite = .luh) -> String? { user(fromURL: url?.absoluteString, site: site) }
 
-    public static func userBase(_ user: String) -> String { "\(base)/so/\(PyText.quote(user, safe: "@"))" }
+    public static func userBase(_ user: String, site: SOGoSite = .luh) -> String { "\(site.base)/so/\(PyText.quote(user, safe: "@"))" }
 
     /// Anmeldeseite von SOGo
     public static func looksLikeLogin(_ text: String?) -> Bool {
@@ -137,9 +136,9 @@ public enum SOGo {
     }
 
     /// Sitzung abgelaufen? 401/403, Weiterleitung aus /SOGo/so/ heraus oder Anmeldeformular
-    public static func expired(status: Int, finalURL: String?, body: String?) -> Bool {
+    public static func expired(status: Int, finalURL: String?, body: String?, site: SOGoSite = .luh) -> Bool {
         if status == 401 || status == 403 { return true }
-        if let f = finalURL, !f.isEmpty, user(fromURL: f) == nil { return true }
+        if let f = finalURL, !f.isEmpty, user(fromURL: f, site: site) == nil { return true }
         return looksLikeLogin(body)
     }
 
@@ -466,20 +465,20 @@ public enum SOGo {
     }
 
     /// Pfad eines Anhangs unter /SOGo/so/ dieses Rechners; sonst nil
-    public static func attachmentPath(_ url: JSONValue?) -> String? {
+    public static func attachmentPath(_ url: JSONValue?, site: SOGoSite = .luh) -> String? {
         var u = PyText.strip(text(url))
         guard !u.isEmpty else { return nil }
-        if u.hasPrefix("/") { u = "https://\(host)" + u }
-        guard user(fromURL: u) != nil, let p = split(u) else { return nil }
+        if u.hasPrefix("/") { u = "https://\(site.host)" + u }
+        guard user(fromURL: u, site: site) != nil, let p = split(u) else { return nil }
         return p.path + (p.query.isEmpty ? "" : "?\(p.query)")
     }
 
     static let bodyTypes: Set<String> = ["UIxMailPartHTMLViewer", "UIxMailPartTextViewer"]
 
-    static func walkParts(_ node: JSONValue?, _ bodies: inout [String], _ files: inout [JSONValue]) {
+    static func walkParts(_ node: JSONValue?, _ bodies: inout [String], _ files: inout [JSONValue], site: SOGoSite) {
         guard let node else { return }
         if let a = node.array {
-            for x in a { walkParts(x, &bodies, &files) }
+            for x in a { walkParts(x, &bodies, &files, site: site) }
             return
         }
         guard node.object != nil else { return }
@@ -488,17 +487,17 @@ public enum SOGo {
         if typ == "UIxMailPartAlternativeViewer", let list = content?.array {
             let want = PyText.lower(text(node["preferredPart"]))
             let pick = list.first { $0.object != nil && PyText.lower(text($0["contentType"])) == want }
-            walkParts(pick ?? list.first, &bodies, &files)
+            walkParts(pick ?? list.first, &bodies, &files, site: site)
             return
         }
         if bodyTypes.contains(typ), let s = content?.string {
             bodies.append(s)
             if PyText.strip(text(node["filename"])).isEmpty { return }
         } else if content?.array != nil || content?.object != nil, typ != "UIxMailPartImageViewer", typ != "UIxMailPartLinkViewer" {
-            walkParts(content, &bodies, &files)
+            walkParts(content, &bodies, &files, site: site)
             return
         }
-        if let path = attachmentPath(node["downloadURL"]) {
+        if let path = attachmentPath(node["downloadURL"], site: site) {
             let name = PyText.strip(text(node["filename"]))
             files.append(["index": .number(Double(files.count)), "name": .string(name.isEmpty ? "Anhang" : name),
                           "size": .string(PyText.strip(text(node["size"]))), "type": .string(PyText.lower(PyText.strip(text(node["contentType"])))),
@@ -507,10 +506,10 @@ public enum SOGo {
     }
 
     /// Antwort von .../<uid>/view -> Nachricht (HTML bereinigt, Klartext, Anhaenge)
-    public static func message(_ data: JSONValue?, folder: String, uid: Int) -> JSONValue {
+    public static func message(_ data: JSONValue?, folder: String, uid: Int, site: SOGoSite = .luh) -> JSONValue {
         let d = data?.object != nil ? data! : JSONValue.object([:])
         var bodies: [String] = [], files: [JSONValue] = []
-        walkParts(d["parts"], &bodies, &files)
+        walkParts(d["parts"], &bodies, &files, site: site)
         let raw = bodies.joined(separator: "\n")
         let clean = sanitize(raw)
         return ["folder": .string(folder), "uid": .number(Double(uid)), "subject": .string(PyText.strip(text(d["subject"]))),

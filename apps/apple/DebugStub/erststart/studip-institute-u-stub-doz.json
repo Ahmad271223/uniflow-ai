@@ -1,0 +1,30 @@
+{
+ "data": [
+  {
+   "type": "institute-memberships",
+   "id": "im-stub",
+   "attributes": {
+    "office-hours": "Mi 14–15 Uhr",
+    "location": "1101 - F102",
+    "is-default": true
+   },
+   "relationships": {
+    "institute": {
+     "data": {
+      "type": "institutes",
+      "id": "i-stub"
+     }
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "institutes",
+   "id": "i-stub",
+   "attributes": {
+    "name": "Institut für Beispielmathematik"
+   }
+  }
+ ]
+}

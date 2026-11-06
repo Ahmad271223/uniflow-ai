@@ -134,7 +134,7 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
         assert f'id="{anchor}"' in html, anchor
     for s in ("Stud.IP", "QIS", "Apple Pencil", "„Erkläre die ganze Vorlesung“", "„Erkläre alle Aufgaben“",
               "Wochentest", "Karteikarten", "Stapel", "Studienverlauf", "Prüfungsanmeldung", "Abgeben in Stud.IP und Moodle",
-              "Nachrichten beantworten", "Kein Uni-Passwort gespeichert", "Kein Tracking", "nicht mit den Hochschulen verbunden",
+              "Nachrichten beantworten", "Kein Uni-Passwort auf unseren Servern", "Kein Tracking", "nicht mit den Hochschulen verbunden",
               "Leibniz Universität Hannover", "support@studinow.app", "das aktuelle Semester zuerst"):
         assert s in flat, s
     # Wunsch des Inhabers 05.11.2026: ganz Deutschland ansprechen, aber ehrlich nur die drei angebundenen Hochschulen

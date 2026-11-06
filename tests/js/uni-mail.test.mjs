@@ -42,3 +42,26 @@ test("Route und Menüpunkt am PC", () => {
   assert.match(app, /routes\.unimail = .*uni-mail\.js\?v=\d+/);
   assert.match(app, /if \(!state\.hosted\) \{[^\n]*uni-mail\.js\?v=\d+"\)\.then\(m => m\.startNavItem\(\)\)/);
 });
+
+test("Uni Hildesheim: eigener Name, keine Raum-Links, kein „Lehrende“; HsH ohne Uni-Mail", () => {
+  const cases = JSON.parse(fs.readFileSync(new URL("../../packages/shared-contracts/fixtures/sogo/cases.json", import.meta.url), "utf8")).sites;
+  for (const s of cases.list) {                     // gleiche Rechner und Namen wie sogo.SITES / SOGoSite
+    assert.equal(L.SITES[s.key].host, s.host);
+    assert.equal(L.SITES[s.key].name, s.name);
+    assert.equal(L.SITES[s.key].roomLinks, s.room_links);
+  }
+  const hi = { available: true, university: "hildesheim", connected: true };
+  const luh = { available: true, university: "luh" };
+  assert.equal(L.texts(hi).name, "Uni-Mail (Uni Hildesheim)");
+  assert.equal(L.texts(hi).sub, "E-Mails und Kalender der Universität Hildesheim (SOGo)");
+  assert.match(L.texts(hi).hint, /SOGo-Seite der Uni Hildesheim/);
+  assert.equal(L.texts(luh).name, "Uni-Mail (LUH)");
+  assert.ok(L.roomLinks(luh) && !L.roomLinks(hi));
+  assert.ok(L.showsLecturers(luh) && !L.showsLecturers(hi));
+  const hsh = { available: false, university: null };
+  assert.ok(!L.showsNavItem(hsh) && L.site(hsh) === null && !L.roomLinks(hsh));
+  assert.equal(L.site({ available: true, university: "__proto__" }), null, "nur bekannte Hochschulen");
+  const src = read("uni-mail.js");
+  assert.match(src, /L\.roomLinks\(st\) \? `<button class="room-link"/, "Raum-Link nur mit roomLinks");
+  assert.match(src, /L\.showsLecturers\(st\) \?/);
+});

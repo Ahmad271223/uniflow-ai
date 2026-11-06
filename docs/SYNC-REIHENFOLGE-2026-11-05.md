@@ -120,3 +120,9 @@ Dateien bleiben an Kurs und Modul. Adapter muessen dafuer nur `courses.semester`
 Der Hintergrundlauf des iPads (`BackgroundSyncController.runUniMail`) liest **vor allem anderen** die erste Seite des
 Posteingangs (`POST Mail/0/folderINBOX/view`) und die Zahl der ungelesenen, danach erst den Stud.IP-Abgleich; im langen
 Lauf erneuert er übernommene Termine des Uni-Kalenders (höchstens alle 20 h). docs/UNI-MAIL-2026-11-05.md.
+
+## Lehrende (LUH, Stud.IP, 06.11.2026)
+
+Lehrende und Tutor/innen mit E-Mail und Sprechstunde (`studip_lecturers.sync` / `StudIPLecturers.run`) kommen erst nach
+`mark_current_ready` bzw. `SyncOrder.markCurrentReady`, nur im vollen Lauf, je Kurs höchstens alle 7 Tage; nie in Stufe
+(d). docs/LEHRENDE-KONTAKTE-2026-11-06.md.

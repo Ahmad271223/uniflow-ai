@@ -280,7 +280,9 @@ def run_grades_if_due(log=print, force: bool = False) -> str | None:
             last = db.row(conn, "SELECT finished_at FROM qis_runs WHERE ok=1 ORDER BY id DESC LIMIT 1")
         if not force and last and datetime.fromisoformat(last["finished_at"]) >= datetime.now() - timedelta(hours=20):
             return None
-        msg = qis.run()["message"]
+        # automatisch: Noten und die Liste der Bescheinigungen, aber keine PDF erzeugen (jeder Abruf im QIS erzeugt ein
+        # Dokument; geladen wird nur auf Knopfdruck, Seite Bescheinigungen, docs/BESCHEINIGUNGEN-2026-11-06.md)
+        msg = qis.run(with_documents=False)["message"]
         log(f"QIS: {msg}")
         return msg
     except Exception as e:  # noqa: BLE001 - Noten halten den Abgleich nie an

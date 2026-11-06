@@ -62,6 +62,10 @@ def _two_overlapping_runs(monkeypatch, acc_a, acc_b, docs=False):
     """Zwei Aufträge in zwei Threads, beide gleichzeitig in qis.run (Abstimmung per Barriere, gestreckte Zeiten wie in den Prüfskripten):
     erst nach use_profile/credentials_for, bei Bedarf nach dem Speichern der PDFs. Liefert die Aufzeichnungen."""
     from app import config, jobs, lsf, qis
+    # Seit 06.11.2026 laeuft im Dienst kein Notenspiegel-Job mehr (jobs.HOSTED_UNI_SYNC = False, keine gespeicherten
+    # Zugangsdaten). Der Weg bleibt im Code; diese Tests pruefen seine Trennung je Konto weiter, mit eingeschaltetem
+    # Schalter und Altbestand im Tresor (conftest.legacy_vault).
+    monkeypatch.setattr(jobs, "HOSTED_UNI_SYNC", True)
     rec = {"gotos": [], "lsf_login": [], "result": {}}
     gate = threading.Barrier(2, timeout=60)               # unter Last (ganze Suite parallel) reichen 20 s knapp
     orig_creds = qis.credentials_for
@@ -104,11 +108,13 @@ def _two_overlapping_runs(monkeypatch, acc_a, acc_b, docs=False):
 
 
 def test_concurrent_runs_keep_credentials_and_profile_per_account(hosted, monkeypatch):
-    from app import accounts, qis, vault
+    from conftest import legacy_vault
+
+    from app import accounts, qis
     a = accounts.register("qa@beispiel.de", PW, "luh")
     b = accounts.register("qb@beispiel.de", PW, "hildesheim")
-    vault.set_values(a["id"], {"STUDIP_USER": "luh-user-A", "STUDIP_PASSWORD": "luh-pw-A"})
-    vault.set_values(b["id"], {"HILDESHEIM_USER": "hil-user-B", "HILDESHEIM_PASSWORD": "hil-pw-B"})
+    legacy_vault(a["id"], {"STUDIP_USER": "luh-user-A", "STUDIP_PASSWORD": "luh-pw-A"})
+    legacy_vault(b["id"], {"HILDESHEIM_USER": "hil-user-B", "HILDESHEIM_PASSWORD": "hil-pw-B"})
     rec = _two_overlapping_runs(monkeypatch, a, b)
     assert all(r["ok"] for r in rec["result"].values()), rec["result"]
     # Hildesheim-Konto: eigene Zugangsdaten an das LSF-Login, die LUH-Zugangsdaten nie
@@ -118,11 +124,13 @@ def test_concurrent_runs_keep_credentials_and_profile_per_account(hosted, monkey
 
 
 def test_concurrent_runs_keep_documents_per_account(hosted, monkeypatch):
-    from app import accounts, config, db, vault
+    from conftest import legacy_vault
+
+    from app import accounts, config, db
     a = accounts.register("qc@beispiel.de", PW, "luh")
     b = accounts.register("qd@beispiel.de", PW, "luh")
     for acc in (a, b):
-        vault.set_values(acc["id"], {"STUDIP_USER": "u-" + acc["id"][:6], "STUDIP_PASSWORD": "pw-pw-pw-pw"})
+        legacy_vault(acc["id"], {"STUDIP_USER": "u-" + acc["id"][:6], "STUDIP_PASSWORD": "pw-pw-pw-pw"})
     rec = _two_overlapping_runs(monkeypatch, a, b, docs=True)
     assert all(r["ok"] for r in rec["result"].values()), rec["result"]
     for acc in (a, b):
