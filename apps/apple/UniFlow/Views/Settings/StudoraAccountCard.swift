@@ -28,6 +28,9 @@ struct StudoraAccountCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("account.ai")
             }
+            if link.aiAccess == .ready || link.aiConsentGrantedAt != nil {
+                AIConsentRow(link: link, center: link.consentCenter)
+            }
             if let u = link.user { signedIn(u) } else { signIn }
             if let m = link.message {
                 Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
@@ -181,5 +184,37 @@ struct StudoraAccountCard: View {
     private struct ExportItem: Identifiable {
         let url: URL
         var id: String { url.path }
+    }
+}
+
+/// Einwilligung zur StudiNow-KI (App Store 5.1.2(i), `AIConsentCenter`): Stand und "KI-Einwilligung widerrufen"
+struct AIConsentRow: View {
+    @ObservedObject var link: StudoraAccountLink
+    @ObservedObject var center: AIConsentCenter
+
+    /// "KI-Einwilligung erteilt am 6. November 2026" bzw. der Hinweis, dass vor der ersten Anfrage gefragt wird
+    static func text(grantedAt: Date?) -> String {
+        guard let d = grantedAt else {
+            return "KI-Einwilligung: noch nicht erteilt. Vor der ersten Anfrage an die StudiNow-KI fragt StudiNow, ob Seitentext und Frage an den KI-Anbieter gehen dürfen."
+        }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "de_DE")
+        f.timeZone = TimeZone(identifier: "Europe/Berlin")
+        f.dateFormat = "d. MMMM yyyy"
+        return "KI-Einwilligung erteilt am \(f.string(from: d)): Seitentext, Bereich und Frage gehen über den StudiNow-Dienst an OpenAI bzw. Claude (Amazon Bedrock, Frankfurt)."
+    }
+
+    var body: some View {
+        let granted = center.grantedAt(link.aiConsentAccount)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(Self.text(grantedAt: granted)).ufFont(12.8).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("account.aiConsent")
+            if granted != nil {
+                UFButton(AIConsentText.revokeButton, icon: "x", size: .small) { link.revokeAIConsent() }
+                    .accessibilityIdentifier("account.aiConsent.revoke")
+            }
+        }
+        .padding(.top, 4)
     }
 }

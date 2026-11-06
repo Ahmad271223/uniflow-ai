@@ -51,8 +51,9 @@ am Wochenende zeigt die Seite „Geschlossen“ und die Übersicht keine Mensa-K
 ## Store-Satz (Reihenfolge im Store)
 
 Bildunterschriften höchstens zwei Zeilen, als Vorschlag für App Store Connect. Bild 2 und 4 zeigen die KI (KI-Hilfe,
-Wochentest): nur mit Entscheidung B verwenden (`docs/release/APP-STORE.md`, „Offene Entscheidung KI“); bei A oder C
-statt 2 `reserve/12-editor-*.png` (Editor mit Handschrift) und statt 4 `reserve/11-bibliothek-*.png`.
+Wochentest): nur verwenden, wenn StudiNow Pro AI mit eingereicht wird (`docs/release/APP-STORE.md`, Abschnitt
+Bildschirmfotos); in der Fassung nur mit Plus statt 2 `reserve/12-editor-*.png` (Editor mit Handschrift) und statt 4
+`reserve/11-bibliothek-*.png`.
 
 | Nr. | Datei (Hochformat, hell) | Ansicht | Bildunterschrift |
 | --- | --- | --- | --- |
@@ -82,7 +83,7 @@ Reserve unter `reserve/` (nicht ohne Entscheidung hochladen):
 | `12-editor-*.png` | Editor mit Handschrift, ohne KI | Ersatz für 2 ohne KI („Skripte und Übungsblätter mit dem Apple Pencil – Marker, Stift, Formen, alles bleibt auf deinem iPad.“) |
 | `13-tarife-*.png` | Tarifseite (Free als Stand, Plus 1,99 €/Monat) | Plus-Karte nennt „Neue KI-Tests von StudiNow“ (in Vorbereitung) |
 | `14-einstellungen-*.png` | Einstellungen → Zugang & Darstellung | Reiter „Entwicklung“ (nur Debug) und die Hochschule; nur intern |
-| `15-ki-start-*.png` | KI-Start mit Beispielfrage und Antwort | nur mit Entscheidung B |
+| `15-ki-start-*.png` | KI-Start mit Beispielfrage und Antwort | nur mit Pro AI |
 | `16-stundenplan-*.png` | Stundenplan mit Terminen (bis 05.11.2026 Bild 10) | Ersatz („Stundenplan mit Räumen und Terminen – direkt aus deiner Hochschule.“) |
 
 Hinweise:

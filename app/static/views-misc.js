@@ -9,6 +9,7 @@ import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=5";
 import { mountBulletin } from "./bulletin.js?v=7";
 import { mountStudipTexts } from "./studip-texts.js?v=7";
 import { settingHtml } from "./older-semesters.js?v=4";
+import { consentCardHtml } from "./ai-consent.js?v=1";   // KI-Einwilligung in Einstellungen → Erweitert (06.11.2026)
 // Module je Semester und Hinweis "Aktuelles Semester ist da · ältere Semester …" (module-semesters.js)
 import * as MS from "./module-semesters.js?v=2";
 import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=7";
@@ -710,6 +711,7 @@ function chatgptCard(gpt, models) {
 
 export async function viewSettings(_, params, view) {
   const gpt = await api("/integrations/chatgpt").catch(() => null);
+  const aiConsent = await api("/ai/consent").catch(() => null);   // KI-Einwilligung (app/ai_consent.py, 06.11.2026)
   const gptModels = gpt?.connected && !gpt.needs_reauth ? await api("/integrations/chatgpt/models").then(r => r.models).catch(() => null) : null;
   const [s, courses, mods, log, cred, term, svc, sess, older] = await Promise.all([api("/settings"), api("/courses"), api("/modules"), api("/sync/status"), api("/credentials"), api("/terms"), api("/services"), state.hosted ? null : api("/university/session").catch(() => null), api("/older-semesters").catch(() => null)]);
   const uniKey = svc.university?.key || "luh";
@@ -769,13 +771,14 @@ export async function viewSettings(_, params, view) {
         <p class="muted small">Mit Schlüssel holt die App die Dateien direkt über die Moodle-Schnittstelle, ohne Browser-Anmeldung, und Moodle markiert nichts als angesehen. Erzeugen: im Learnweb Profil → Einstellungen → Sicherheitsschlüssel → „Moodle mobile web service“.</p>
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
     const inviteCard = state.gated ? `<div class="card"><div class="card-head"><h2>${icon("users", 18)} Freunde einladen</h2></div><p class="muted small">Einladungslinks mit QR-Code zum Teilen, mit deinem StudiNow-Konto.</p><a class="btn sm" href="#/einladungen">${icon("arrow-right", 14)} Einladungen öffnen</a></div>` : "";   // invites.js (05.11.2026)
-    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${state.hosted ? noCredCard : uniKey === "hildesheim" ? hiCard : uniKey === "hsh" ? "" : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
+    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${state.hosted ? noCredCard : uniKey === "hildesheim" ? hiCard : uniKey === "hsh" ? "" : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${consentCardHtml(aiConsent)}${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content set-page" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
       <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : planTab}</div></div></div>`;
     $$("[data-tab]", view).forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
     // ChatGPT verbinden: Browser oeffnet sich, danach den Stand abfragen, bis die Anmeldung durch ist
     const gptWait = () => { let n = 0; const t = setInterval(async () => { const g = await api("/integrations/chatgpt").catch(() => null); if (!g || ++n > 300 || (!g.pending && (g.connected || g.last_error))) { clearInterval(t); if (g?.connected) toast("ChatGPT verbunden"); else if (g?.last_error) toast(g.last_error, 5000); state.route(); } }, 2000); };
+    $("#aiConsentRevoke")?.addEventListener("click", async () => { try { await api("/ai/consent", { method: "DELETE" }); toast("KI-Einwilligung widerrufen – vor der nächsten KI-Anfrage fragen wir erneut.", 4000); state.route(); } catch (e) { toast(e.message, 5000); } });
     $("#gptConnect")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite öffnet sich im Browser", 4000); state.route(); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptReconnect")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite öffnet sich im Browser", 4000); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptReconsent")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: { reconsent: true } }); toast("Zustimmungsseite öffnet sich im Browser", 4000); gptWait(); } catch (e) { toast(e.message, 5000); } });

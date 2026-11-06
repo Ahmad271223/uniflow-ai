@@ -1,5 +1,5 @@
-"""Store- und Rechtstexte (docs/release): vollstaendig, ohne KI-Versprechen, innerhalb der Laengen der Stores,
-Platzhalter einheitlich markiert, alte KI-Formulierungen aus der Release-Doku entfernt."""
+"""Store- und Rechtstexte (docs/release): vollstaendig, innerhalb der Laengen der Stores, KI nur in der Fassung mit
+Pro AI, Platzhalter einheitlich markiert, Aussagen passend zum Build (Build 10, 06.11.2026)."""
 import json
 import re
 from pathlib import Path
@@ -8,13 +8,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 REL = ROOT / "docs" / "release"
+APPLE = ROOT / "apps" / "apple" / "UniFlow"
 FILES = ("README.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "IMPRESSUM.md", "KONTO-LOESCHEN.md", "APP-STORE.md", "PLAY-STORE.md")
 # Entscheidung des Inhabers (25.10.2026): keine KI-Funktionen anbieten oder bewerben. Seit 28.10.2026 verkauft V1 nur
 # StudiNow Free und Plus; "Pro AI" und andere englische Formen ("AI", "OpenAI", "ChatGPT") gehoeren erst mit dem
 # StudiNow-Dienst in die Store-Texte. "AI" nur in Grossbuchstaben (sonst traefe z. B. ein spanisches "ai").
 AI_WORDS = re.compile(r"\bKI\b|\bK\.I\.|künstliche[nr]? Intelligenz|\bClaude\b|\bGPT\b|\bLLM\b|Sprachmodell|KI-|Tutor"
                       r"|automatisch erstellte[nr]? (Test|Zusammenfassung)|(?-i:\bA\.?I\b)|artificial intelligence|OpenAI|ChatGPT", re.I)
-LIMITS = {"APP-STORE.md": {"name": 30, "subtitle": 30, "promo": 170, "description": 4000, "keywords": 100, "whats-new": 4000, "review-notes": 4000},
+LIMITS = {"APP-STORE.md": {"name": 30, "subtitle": 30, "promo": 170, "description": 4000, "description-proai": 4000,
+                          "keywords": 100, "whats-new": 4000, "review-notes": 4000, "review-notes-proai": 4000},
           "PLAY-STORE.md": {"title": 30, "short": 80, "full": 4000}}
 
 
@@ -51,30 +53,107 @@ def test_ai_words_catch_english_forms():
 
 
 # Nicht oeffentlich: die Hinweise fuer die App-Pruefung. Sie muessen den Build ehrlich beschreiben (Richtlinie 2.3.1,
-# keine versteckten Funktionen) - seit 03.11.2026 enthaelt die iPad-App die KI ueber das eigene ChatGPT des Nutzers
-# (ChatGPTLink.available). Werben (oeffentliche Felder) bleibt ausgeschlossen, bis der Inhaber anders entscheidet.
-NOT_PUBLIC = {"review-notes"}
+# keine versteckten Funktionen). Entscheidung 05./06.11.2026: StudiNow-KI nur ueber Pro AI (Dienst app.studinow.app),
+# eigenes ChatGPT aus ("bald verfuegbar", ChatGPTLink.isEnabled = false). Oeffentlich nennt nur die Beschreibung der
+# Fassung mit Pro AI die KI; die Fassung ohne Pro AI bleibt ohne KI, weil man sie dann nicht kaufen kann.
+NOT_PUBLIC = {"review-notes", "review-notes-proai"}
+PRO_AI_PUBLIC = {"description-proai"}
 
 
 def test_store_texts_promise_no_ai():
     for name in ("APP-STORE.md", "PLAY-STORE.md"):
         for field, text in fields(name).items():
-            if field in NOT_PUBLIC:
+            if field in NOT_PUBLIC | PRO_AI_PUBLIC:
                 continue
             hit = AI_WORDS.search(text.replace("Keine KI-Funktionen", ""))
             assert not hit, (name, field, hit.group(0))
 
 
-def test_review_notes_describe_the_ai_of_the_build_honestly():
-    """Die iPad-App bietet die KI ueber das eigene ChatGPT an: die Pruefhinweise verschweigen sie nicht, sagen, dass sie
-    freiwillig ist und nichts ueber einen Server von StudiNow laeuft, und nennen den Demo-Weg ohne Hochschulkonto: nur den
-    Link auf der Anmeldeseite und "Beenden" (Entscheidung 04.11.2026 "Nur fuer Pruefer", kein Weg ueber die Einstellungen)."""
-    notes = fields("APP-STORE.md")["review-notes"]
-    assert "Keine KI-Funktionen" not in notes and "No AI" not in notes
-    assert "ChatGPT" in notes and "optional" in notes and "consent" in notes and "OpenAI" in notes
-    assert "Ohne Hochschulkonto ansehen (Demo)" in notes and "Beenden" in notes
-    assert "Demo-Inhalte anlegen" not in notes and "Demo-Inhalte – erfunden, ohne Hochschule" in notes
-    assert "Konto löschen" in notes and "Melden" in notes and "support@studinow.app" in notes
+def test_pro_ai_description_is_honest_and_names_no_foreign_brand():
+    """Die Fassung mit Pro AI nennt Preis, Credits, Kontopflicht und Fehlerhinweis; keine fremden Marken (2.3.7) und kein
+    eigenes ChatGPT (im Build aus). Sonst sagt sie dasselbe wie die Fassung ohne Pro AI."""
+    f = fields("APP-STORE.md")
+    pro, plus = f["description-proai"], f["description"]
+    for s in ("StudiNow Pro AI (3,99 € pro Monat)", "100 Credits", "StudiNow-Konto (Anmelden mit Apple)",
+              "KI-Antworten können Fehler enthalten", "Ganze Vorlesung erklären", "StudiNow Plus (1,99 € pro Monat)"):
+        assert s in pro, s
+    assert not re.search(r"ChatGPT|OpenAI|Claude|Anthropic|\bGPT", pro)
+    for s in ("FÜR STUDIERENDE IN GANZ DEUTSCHLAND", "Uni-Mail und Uni-Kalender", "Immatrikulations- oder BAföG-Bescheinigung",
+              "Raumfinder", "Studentenwerk Hannover, Studierendenwerk OstNiedersachsen", "Passwort auf diesem iPad merken",
+              "nicht in iCloud", "An Server von StudiNow geht es nie", "Kein Tracking"):
+        assert s in pro and s in plus, s
+    assert "Pro AI" not in plus and "3,99" not in plus
+
+
+def _swift(rel: str) -> str:
+    return (APPLE / rel).read_text(encoding="utf-8")
+
+
+def test_review_notes_describe_the_build_honestly():
+    """Beide Fassungen der Pruefhinweise: Demo nur ueber den Link auf der Anmeldeseite und "Beenden" (Entscheidung
+    04.11.2026 "Nur fuer Pruefer"), Passwort nur im Schluesselbund dieses iPads, KI ueber den Dienst mit StudiNow-Konto,
+    eigenes ChatGPT "bald verfuegbar". Die zitierten Oberflaechen-Texte stehen so im Swift-Code."""
+    f = fields("APP-STORE.md")
+    demo = _swift("Views/DemoViews.swift")
+    assert 'firstStart = "Ohne Hochschulkonto ansehen (Demo)"' in demo and 'barTitle = "Demo-Inhalte – erfunden, ohne Hochschule"' in demo
+    assert "Passwort auf diesem iPad merken" in _swift("Views/Settings/UniAutoLoginViews.swift")
+    assert "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly" in _swift("Services/UniAutoLogin.swift")
+    link = _swift("Services/ChatGPTLink.swift")
+    assert "static let isEnabled = false" in link and "bald verfügbar" in link
+    assert 'defaultServiceURL = "https://app.studinow.app"' in _swift("Services/StudoraAccountLink.swift")
+    assert "„Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits" in _swift("Views/Settings/StudoraAccountCard.swift")
+    assert 'proAIMissingNote = "StudiNow Pro AI folgt mit dem StudiNow-Dienst."' in _swift("Purchases/Plans.swift")
+    for field in ("review-notes", "review-notes-proai"):
+        notes = f[field]
+        assert "Keine KI-Funktionen" not in notes and "No AI" not in notes, field
+        assert "Ohne Hochschulkonto ansehen (Demo)" in notes and "Beenden" in notes, field
+        assert "Demo-Inhalte anlegen" not in notes and "Demo-Inhalte – erfunden, ohne Hochschule" in notes, field
+        assert "Konto löschen" in notes and "Melden" in notes and "support@studinow.app" in notes, field
+        assert "Passwort auf diesem iPad merken" in notes and "not synced to iCloud" in notes, field
+        assert "never sent to our servers" in notes, field
+        assert '"StudiNow-Konto" → "Mit Apple anmelden"' in notes and "https://app.studinow.app" in notes, field
+        assert '"Eigenes ChatGPT verbinden" shows "bald verfügbar"' in notes, field
+        assert "Hochschule Hannover" in notes and "Universität Hildesheim" in notes, field
+        assert "Sign in with ChatGPT" not in notes and "consent" not in notes, field
+    assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI folgt mit dem StudiNow-Dienst." in f["review-notes"]
+    pro = f["review-notes-proai"]
+    assert "sandbox" in pro and "100 credits" in pro and "section 8c" in pro and "never name, e-mail or university credentials" in pro
+
+
+def test_no_store_text_says_the_university_password_is_never_stored():
+    """Seit 06.11.2026 (Automatisch anmelden) darf die App das Uni-Passwort im Schluesselbund dieses iPads merken: kein
+    Satz "speichert kein Passwort" mehr, weder in den Feldern noch in den Datenschutz-Angaben."""
+    text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
+    for bad in ("speichert StudiNow nicht", "speichert die iPad-App nicht", "speichert kein Passwort", "merken kann es auf Wunsch iOS"):
+        assert bad not in text, bad
+    assert "kSecAttrSynchronizable = false" in text and "nie an StudiNow-Server" in text
+
+
+def test_app_store_texts_match_current_build():
+    """Fertig zum Einfuegen: keine Platzhalter; Hochschulen nur als "angebunden heute"; kein Zeitmesser (ausgeblendet);
+    die genannten Zeichenzahlen stimmen; die Bildschirmfotos gibt es (falls der Ordner auf diesem Rechner liegt)."""
+    text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
+    f = fields("APP-STORE.md")
+    assert "[[" not in text and "]]" not in text
+    import re
+    build = re.search(r'CURRENT_PROJECT_VERSION: "(\d+)"', (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")).group(1)
+    assert f"Build {build}" in text, f"APP-STORE.md nennt nicht den aktuellen Build {build}"
+    assert "Offene Entscheidung KI" not in text
+    for field in ("description", "description-proai"):
+        d = f[field]
+        assert "Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS), Hochschule Hannover (Moodle, HISinOne, QIS) und Universität Hildesheim (Learnweb, LSF, PLuS). Weitere Hochschulen folgen." in d
+        assert "alle Hochschulen" not in d and "allen Hochschulen" not in d
+    assert "static let isEnabled = false" in _swift("Views/Timer/StudyTimer.swift")
+    for field, value in f.items():
+        assert "Zeitmesser" not in value and "Pomodoro" not in value, field
+    for field in ("description", "description-proai", "review-notes", "review-notes-proai", "keywords", "whats-new"):
+        assert f"– {len(f[field])} Zeichen" in text, field
+    shots = Path.home() / "Studora-Builds" / "appstore-screenshots"
+    names = set(re.findall(r"`((?:reserve/)?\d\d[a-z]?-[a-z-]+-light-portrait\.png)`", text))
+    assert len(names) >= 13
+    if shots.is_dir():
+        for n in names:
+            assert (shots / n).is_file(), n
 
 
 def test_store_texts_keep_the_universities_authoritative_and_no_tracking():

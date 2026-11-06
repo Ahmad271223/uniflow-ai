@@ -314,7 +314,7 @@ final class DocExplainTests: XCTestCase {
         let sheet = ["Übungsblatt 3\nAufgabe 1 (4 Punkte)\nBerechne die Determinante.", "Aufgabe 2\nLöse das LGS."]
         let (b, _) = try await seeded([("f-blatt", "Blatt 3.pdf", sheet)])
         let fake = FakeService()
-        b.context.ai.setService(StudiNowAI(base: "https://dienst.example", http: fake, tokens: MemoryTokenStore("tok")))
+        b.context.ai.setService(StudiNowAI(base: "https://dienst.example", http: fake, tokens: MemoryTokenStore("tok"), consent: FixedConsent(true)))
         b.context.docIndex.configure(cloud: nil, cipher: cipher, explainCloud: FakeExplainCloud())
         await fake.on("POST", "/api/ai/document/plan", 200, ["intent": true, "mode": "tasks", "steps": [["id": "1:tasks:1-2"]],
                                                              "message": "Kostet etwa 2 Credits, du hast 37.", "estimate": ["way": "credits", "credits": 2]])

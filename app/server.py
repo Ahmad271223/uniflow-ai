@@ -85,6 +85,8 @@ app.include_router(account_mode_api.router)     # Windows-App: Anmelden, Abo, Ex
 app.include_router(app_login_api.router)        # Dienst: Anmeldung der Windows-App ueber den Browser (/api/app-login)
 from . import ai_relay  # noqa: E402 - StudiNow-KI am PC ueber das Konto (/api/ai/relay im Dienst, /api/ai/source)
 app.include_router(ai_relay.router)
+from . import ai_consent  # noqa: E402 - Einwilligung vor der StudiNow-KI (Web, Windows), 06.11.2026
+app.include_router(ai_consent.router)
 from . import mensa_api  # noqa: E402 - Mensa: Speiseplaene LUH/HsH/Hildesheim, frei in jedem Tarif (/api/mensa, docs/MENSA-2026-11-05.md)
 app.include_router(mensa_api.router)
 from . import rooms_api  # noqa: E402 - Raumfinder: Standortfinder der LUH, Kartenlinks, frei in jedem Tarif (/api/rooms, docs/RAUMFINDER-2026-11-05.md)
@@ -266,6 +268,9 @@ async def hosted_guard(request, call_next):
             status, body = access.blocked(acc["state"])
             return JSONResponse(body, status_code=status)
     ctx = config.set_user_context(user["id"], user["university"])
+    # Web-Oberflaeche: KI nur mit Einwilligung des Kontos (app/ai_consent.py); iPad und Windows fragen selbst
+    from . import ai_consent
+    web = ai_consent.mark_web(client == "web")
     try:
         key = (user["id"], user["university"])
         if key not in _user_dbs_ready:
@@ -273,6 +278,7 @@ async def hosted_guard(request, call_next):
             _user_dbs_ready.add(key)
         return await call_next(request)
     finally:
+        ai_consent.unmark(web)
         config.reset_user_context(ctx)
 
 
@@ -2364,6 +2370,7 @@ def put_settings(body: dict = Body(...)):
             raise HTTPException(400, {"detail": "Die Hochschule gehoert zum Konto: POST /api/account/university", "code": "use_account"})
         # Nur fuer den naechsten Start vormerken: jede Uni hat ihren eigenen Datenordner
         config.set_env({"UNIVERSITY": uni})
+    body.pop("ai_consent", None)          # nur ueber /api/ai/consent (Stand und Konto setzt der Server)
     with db.cursor() as conn:
         for k, v in body.items():
             db.set_setting(conn, k, v)

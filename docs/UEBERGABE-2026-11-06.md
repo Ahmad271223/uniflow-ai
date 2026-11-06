@@ -8,7 +8,7 @@ Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11
 
 | Zweig | Commit | Inhalt |
 |---|---|---|
-| `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (10)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
+| `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (11)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
 | `feature/iphone` | `db3cf9d` (**WIP**) | Merge von develop **3e6de7d** (Stand Build 6) + begonnene iPhone-Anpassungen für Raumfinder, Uni-Mail, Zurück-Pfeil. **Tests nicht vollständig gelaufen** (Agent wegen Kontingent angehalten) |
 | `main` | alt | nicht benutzt; Releases kommen aus develop |
 
@@ -26,8 +26,8 @@ Demo ohne Dauer-Ladehinweis.
 
 ## 3. Was der Inhaber (Ahmad) selbst tun muss
 
-1. **Build 10 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (10)` (Archiv `~/Studora-Builds/StudiNow-10.xcarchive`)
-   → Distribute App → App Store Connect → Upload. Build 5 bis 9 **nicht** einreichen. Build 10 = Build 7 mit Apples Lineal wie vorher (gilt für beide Seiten der geteilten Ansicht).
+1. **Build 11 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (11)` (Archiv `~/Studora-Builds/StudiNow-11.xcarchive`)
+   → Distribute App → App Store Connect → Upload. Build 5 bis 10 **nicht** einreichen. Build 11 = Build 10 + KI-Einwilligung vor der ersten KI-Anfrage (Richtlinie 5.1.2(i)) + aktuelles PrivacyInfo.xcprivacy; App-Store-Texte in docs/release/APP-STORE.md (zwei Fassungen: Plus / mit Pro AI).
    (Upload per `xcodebuild -exportArchive` scheitert mit „Failed to Use Accounts“ – nur über den Organizer.)
 2. **CloudKit-Schema** in der CloudKit-Konsole (icloud.developer.apple.com) von Development nach **Production** übernehmen,
    sonst gehen Lösung teilen/Community im App Store nicht (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`).

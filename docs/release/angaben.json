@@ -48,7 +48,7 @@
   },
 
   "funktionen": {
-    "_hinweis": "Optionale Satzteile der Store-Texte: true = Satz bleibt, false = faellt weg. Entscheidung des Inhabers vor der Einreichung; bis dahin stehen die Satzteile als [[...]] in APP-STORE.md und PLAY-STORE.md. 05.11.2026: ipad_hildesheim und ipad_hsh an (Wunsch des Inhabers, alle angebundenen Hochschulen bewerben; Pruefung mit echtem Konto vor dem Einreichen, APP-STORE.md).",
+    "_hinweis": "Optionale Satzteile der Store-Texte: true = Satz bleibt, false = faellt weg. Entscheidung des Inhabers vor der Einreichung; bis dahin stehen die Satzteile als [[...]] in APP-STORE.md und PLAY-STORE.md. 05.11.2026: ipad_hildesheim und ipad_hsh an (Wunsch des Inhabers, alle angebundenen Hochschulen bewerben; Pruefung mit echtem Konto vor dem Einreichen, APP-STORE.md). Seit 06.11.2026 steht APP-STORE.md fertig zum Einfuegen ohne Platzhalter; die Schalter ipad_* wirken dort nicht mehr (nur noch in aelteren Fassungen), android_* weiter in PLAY-STORE.md.",
     "ipad_hildesheim": true,
     "ipad_fristen": false,
     "ipad_skriptsuche": false,

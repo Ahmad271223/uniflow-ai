@@ -125,7 +125,7 @@ final class StudiNowAIAppTests: XCTestCase {
         StubProtocol.on("/api/ai/relay", 200, ["answer": "Erklärung vom Dienst", "model": "claude-sonnet", "shared": false, "credits": credits])
         let box = Box()
         let ai = StudiNowAI(base: "https://dienst.example", http: URLSessionServiceTransport(session: StubProtocol.session()), tokens: Tokens("tok"),
-                            onCredits: { box.set($0) })
+                            consent: AIConsentAppTests.Fixed(true), onCredits: { box.set($0) })
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: .fixed(berlin: "2026-11-05T09:00:00")!)
         backend.context.ai.setService(ai)
         let r = await backend.handle(LocalRequest(method: "POST", url: URL(string: "uniflow-local://device/api/ai/tutor")!,
