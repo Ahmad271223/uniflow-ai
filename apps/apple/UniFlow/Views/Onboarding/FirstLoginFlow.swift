@@ -247,7 +247,7 @@ struct FirstLoginPage: View {
     private var later: some View { FirstLoginBottomBar(demo: demo, onLater: onLater, onDemo: onDemo) }
 
     static let laterHint = "Du kannst dich auch später anmelden – die Übersicht zeigt dann die Karte zum Verbinden."
-    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. StudiNow speichert sie nicht; merken kann sie iOS im Schlüsselbund."
+    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. Mit „Passwort auf diesem \(UFDevice.name) merken“ meldet StudiNow dich danach selbst wieder an; das Passwort bleibt nur auf diesem \(UFDevice.name)."
 }
 
 /// Unterer Rand jeder Anmeldeseite: Hinweis und "Später anmelden"; darunter, ganz unten, klein und zurueckhaltend der

@@ -19,8 +19,11 @@ struct ServicesPage: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.qis) private var qisConnection
+    @Environment(\.hsh) private var hshConnection
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
+    /// iPhone: "Bescheinigungen öffnen" in voller Breite unter dem Text
+    @Environment(\.ufCompact) private var phoneLayout
     @State private var svc: JSONValue?
     @State private var grades: JSONValue = .null
     @State private var tt: JSONValue?
@@ -103,8 +106,12 @@ struct ServicesPage: View {
         // Notenspiegel aus dem QIS, Zugaenge ueber Stud.IP & QIS
         let lsf = session.api?.isLocal == true ? hildesheim : nil
         let qisLocal = session.api?.isLocal == true ? qisConnection : nil
+        // HsH auf dem Geraet (Audit 06.11.2026: fiel bisher auf die Karte des PC-Servers mit "QIS-Zugang hinterlegen")
+        let hshLocal = session.api?.isLocal == true ? hshConnection : nil
         UFContent(maxWidth: 1120) {
-            UFPageHead("Uni & Noten", sub: lsf == nil
+            UFPageHead("Uni & Noten", sub: hshLocal != nil
+                       ? "Alle Dienste der Hochschule Hannover an einem Ort, Leistungen aus dem Campusmanagement direkt in der App."
+                       : lsf == nil
                        ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel" + (qisLocal == nil ? "" : " aus dem QIS") + " direkt in der App."
                        : "Alle Dienste der Universität Hildesheim an einem Ort, Notenspiegel aus dem LSF direkt in der App.")
             UFGrid(columns: 3) {
@@ -125,6 +132,12 @@ struct ServicesPage: View {
                         HildesheimSourcesCard()
                         HsHSourcesCard()
                     }
+                } else if let hshLocal {
+                    HsHGradesCard(connection: hshLocal, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)
+                    VStack(alignment: .leading, spacing: 8) {                              // .stack
+                        lsfTimetableCard
+                        HsHSourcesCard()
+                    }
                 } else if let qisLocal {
                     QISGradesCard(connection: qisLocal, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)
                     VStack(alignment: .leading, spacing: 8) {                              // .stack
@@ -139,6 +152,9 @@ struct ServicesPage: View {
                     }
                 }
             }
+
+            // Bescheinigungen (06.11.2026): eigene Seite mit allem, was das Portal anbietet
+            certificatesCard.padding(.top, 16)
 
             // Schwarzes Brett aus Stud.IP (nur Hochschulen mit dem Plugin, nur mit Anzeigen; sonst nichts)
             BulletinCard()
@@ -193,11 +209,31 @@ struct ServicesPage: View {
         }
     }
 
+    /// Karte "Bescheinigungen": Immatrikulations-, BAföG-, Studienbescheinigungen, Notenspiegel als PDF ... (CertificatesPage)
+    private var certificatesCard: some View {
+        UFCard {
+            UFCardHead("Bescheinigungen", icon: "file-text", wrap: true) {
+                if !phoneLayout {
+                    UFButton("Bescheinigungen öffnen", icon: "arrow-right", kind: .primary, size: .small) { router.go(.certificates) }
+                        .fixedSize()
+                        .accessibilityIdentifier("services.certificates")
+                }
+            }
+            Text("Immatrikulationsbescheinigung, BAföG-Bescheinigung, Notenspiegel als PDF und alles Weitere, was dein Portal anbietet – geladen nur, wenn du tippst, mit Datum gespeichert, zum Teilen oder Sichern in Dateien.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            if phoneLayout {
+                UFWideButton("Bescheinigungen öffnen", icon: "arrow-right", kind: .primary) { router.go(.certificates) }
+                    .padding(.top, 10)
+                    .accessibilityIdentifier("services.certificates")
+            }
+        }
+    }
+
     /// Stundenplan der Uni Hildesheim: Serien aus dem LSF-Export (HildesheimSync, UniStore.importPlan)
     private var lsfTimetableCard: some View {
         UFCard {
             UFCardHead("Stundenplan", icon: "clock")
-            Text("Die Termine deines LSF-Stundenplans werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten.")
+            Text(hshConnection != nil ? "Die Termine deines Stundenplans im Campusmanagement werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten." : "Die Termine deines LSF-Stundenplans werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten.")
                 .ufFont(13.12).foregroundStyle(UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 5.6)
@@ -448,6 +484,57 @@ private struct LSFGradesCard: View {
             Spacer(minLength: 0)
         }
         .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
+    }
+}
+
+/// Leistungen aus dem Campusmanagement der HsH (HISinOne, sonst altes QIS): nur die Leistungstabelle, abgerufen beim
+/// Abgleich hoechstens alle 20 Stunden, mit "Noten abrufen" sofort (Audit 06.11.2026: fehlte auf dem iPad)
+struct HsHGradesCard: View {
+    @ObservedObject var connection: HsHConnection
+    let rows: [JSONValue]
+    let last: JSONValue?
+    let lastOK: Bool
+    @State private var login = false
+
+    var body: some View {
+        let connected = connection.isConnected(.campus)
+        UFCard {
+            UFCardHead("Leistungen (Campusmanagement)", icon: "exam", wrap: true) {
+                if connected && connection.state(.campus) != .needsLogin {
+                    UFButton("Noten abrufen", icon: "sync", kind: .primary, size: .small) { Task { await connection.run(forceGrades: true) } }
+                        .disabled(connection.isRunning)
+                        .accessibilityIdentifier("hsh.grades.fetch")
+                } else {
+                    UFButton(connected ? "Erneut anmelden" : "Campusmanagement verbinden", icon: "arrow-right", kind: .primary, size: .small) { login = true }
+                        .accessibilityIdentifier("hsh.grades.connect")
+                }
+            }
+            if let last, !lastOK {
+                HStack(alignment: .top, spacing: 4) {
+                    UFIcon("alert", size: 14).padding(.top, 2)
+                    Text(last.s("message") ?? "").ufFont(14.5, 700).fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(UF.text)
+                .padding(.vertical, 17.6 + ufB).padding(.horizontal, 19.2 + ufB)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.badSoft))
+                .padding(.bottom, 9.6)
+            }
+            if rows.isEmpty {
+                UFEmpty(icon: "exam", text: connected
+                        ? "Noch keine Leistungen. Nach dem nächsten Abruf erscheinen hier alle Prüfungsleistungen aus dem Campusmanagement (alle Semester, mit Leistungspunkten)."
+                        : "Verbinde das Campusmanagement, damit StudiNow deine Leistungen holt.", small: true)
+                    .accessibilityIdentifier("hsh.grades.empty")
+            } else {
+                GradesTable(rows: rows)
+            }
+            Text("Die Leistungen liest StudiNow mit deiner Anmeldung im Campusmanagement (Mein Studium → Leistungen, bei älteren Studiengängen Prüfungen und Studium → Notenspiegel; nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem \(UFDevice.name).")
+                .ufFont(11.84).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12.8).padding(.bottom, 5.6)
+            Spacer(minLength: 0)
+        }
+        .sheet(isPresented: $login) { HsHLoginView(source: .campus, connection: connection) }
     }
 }
 

@@ -183,7 +183,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var qis: QISConnection?
     /// Moodle und Campusmanagement des aktiven Containers der Hochschule Hannover (sonst nil)
     @Published private(set) var hsh: HsHConnection?
-    /// Uni-Mail und Uni-Kalender (SOGo) des aktiven LUH-Containers (sonst nil), docs/UNI-MAIL-2026-11-05.md
+    /// Uni-Mail und Uni-Kalender (SOGo) des aktiven Containers der LUH oder der Uni Hildesheim (sonst nil),
+    /// docs/UNI-MAIL-2026-11-05.md
     @Published private(set) var uniMail: UniMailConnection?
     /// Container laesst sich nicht oeffnen (andere Hochschule oder anderes Konto, Umzug gescheitert): Meldung
     @Published private(set) var problem: String?
@@ -200,6 +201,8 @@ final class ContainerManager: ObservableObject {
     private let legacy: LegacyDataMigration.Sources
     private let keychain: UniversitySecretStoring
     private let cookieService: String
+    /// Dienst im Schluesselbund fuer gemerkte Hochschul-Passwoerter (`UniCredentialStore`; Tests: eigener)
+    let credentialService: String
     private let appDefaults: UserDefaults
     private let clock: UniFlowClock
     /// nur die App setzt den aktiven Container fuer alle (`ActiveContainer.current`); Tests nicht
@@ -231,6 +234,8 @@ final class ContainerManager: ObservableObject {
         self.legacy = legacy
         self.keychain = keychain
         self.cookieService = cookieService
+        // Tests geben einen eigenen Cookie-Dienst an: dann auch einen eigenen fuer Passwoerter (nie der echte)
+        self.credentialService = cookieService == StudIPCookieStore.service ? UniCredentialStore.service : cookieService + ".uni-login"
         self.appDefaults = defaults
         self.clock = clock
         self.publishesCurrent = publishesCurrent
@@ -373,9 +378,9 @@ final class ContainerManager: ObservableObject {
         hsh = key.university == .hsh
             ? HsHConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hshTransport)
             : nil
-        uniMail = key.university == .luh
-            ? UniMailConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport)
-            : nil
+        uniMail = SOGoSite.for(key.university).map {             // LUH, Uni Hildesheim; HsH ohne SOGo
+            UniMailConnection(container: c, site: $0, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport)
+        }
         syncs.removeAll { $0.sync == nil }
         syncs.append(SyncRef(key: key, sync: studip))
         if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }
@@ -477,6 +482,9 @@ final class ContainerManager: ObservableObject {
         // des WebSSO bzw. CAS (`UniLoginHelper`)
         UniWebSessions.attach(s, vault: UniWebSessions.vault(service: cookieService, container: c.layout.identifier),
                               domains: UniWebSessions.domains(c.key.university), defaults: c.defaults, university: c.key.university)
+        // Automatisch anmelden: gemerktes Passwort dieses Containers (nur dieses Geraet, `UniAutoLogin`)
+        UniAutoLogin.attach(s, university: c.key.university, defaults: c.defaults,
+                            vault: UniCredentialStore(service: credentialService, container: c.layout.identifier))
         return s
     }
 
@@ -498,6 +506,16 @@ final class ContainerManager: ObservableObject {
         }
         if let hildesheim {
             left += await hildesheim.renewSilently().map(\.rawValue)
+        }
+        // Dienste mit eigenem Formular: still mit dem gespeicherten Passwort (`UniAutoLogin`, nur mit Zustimmung)
+        if let qis, qis.state == .needsLogin, !(await qis.autoLogin()) { left.append("QIS") }
+        if let uniMail, uniMail.state == .needsLogin {
+            if await uniMail.autoLogin() { Task { await uniMail.refreshInbox() } } else { left.append("Uni-Mail") }
+        }
+        if let hsh {
+            for s in HsHConnection.Source.allCases where hsh.isConnected(s) && hsh.state(s) == .needsLogin {
+                if !(await hsh.autoLogin(s)) { left.append(s.rawValue) }
+            }
         }
         return left
     }
@@ -557,6 +575,7 @@ final class ContainerManager: ObservableObject {
     static let leftSession = "Stud.IP-Anmeldung"
     static let leftChatGPT = "ChatGPT-Verbindung"
     static let leftAccount = "StudiNow-Anmeldung"
+    static let leftPassword = "gemerktes Hochschul-Passwort"
 
     /// Meldung "Nicht alles liess sich loeschen ..." zu den Resten (nil ohne Reste)
     static func deletionProblem(_ left: [String]) -> String? {
@@ -579,6 +598,7 @@ final class ContainerManager: ObservableObject {
         await stopSyncs(key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniWebSessions.vault(service: cookieService, container: layout.identifier).clear()   // Uni-Anmeldung der Webansicht
+        UniCredentialStore(service: credentialService, container: layout.identifier).clear() // gemerktes Passwort
         UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
         AppTemp.remove(container: layout.identifier)                       // Teilen-Dateien dieses Containers in tmp
@@ -596,6 +616,7 @@ final class ContainerManager: ObservableObject {
         if key.university.profile.tokenServices.contains(where: { tokens.token(key.university, service: $0) != nil }) { left.append(Self.leftKey) }
         if !StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty
             || UniWebSessions.vault(service: cookieService, container: layout.identifier).loadRaw() != nil { left.append(Self.leftSession) }
+        if UniCredentialStore(service: credentialService, container: layout.identifier).load() != nil { left.append(Self.leftPassword) }
         return left
     }
 
@@ -604,6 +625,7 @@ final class ContainerManager: ObservableObject {
     private func removeWebsiteData(_ id: UUID) async {
         let store = stores.removeValue(forKey: id) ?? WKWebsiteDataStore(forIdentifier: id)
         UniWebSessions.detach(store)
+        UniAutoLogin.detach(store)
         await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         try? await WKWebsiteDataStore.remove(forIdentifier: id)
     }

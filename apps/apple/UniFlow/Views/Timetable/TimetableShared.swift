@@ -171,6 +171,8 @@ struct EventDrawer: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
+    /// kompakt (iPhone): Drawer als Blatt von unten, Knoepfe in voller Breite
+    @Environment(\.ufCompact) private var compactDrawer
     @State private var e: JSONValue?
     @State private var occ: JSONValue = .null
     @State private var mats: [JSONValue] = []
@@ -237,10 +239,21 @@ struct EventDrawer: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             UFButton(icon: "x", kind: .ghost) { close() }
         } content: {
-            // Raumfinder (05.11.2026): Raum antippen -> Ort, Raumplan und Google-Maps-Link
-            if let room = e.s("room"), !room.isEmpty, Rooms.mayLink(room) {
-                UFRoomLink(text: room).padding(.bottom, 9.6)
+            // Termin-Detail (06.11.2026): Modul, Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses
+            if let m = e.i("module_id") {
+                Group {
+                    // iPhone (Blatt von unten): in voller Breite
+                    if compactDrawer {
+                        UFWideButton(TerminDetailText.toModule, icon: "book") { overlay.closeDrawer(); router.go(.module(m)) }
+                    } else {
+                        UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeDrawer(); router.go(.module(m)) }
+                    }
+                }
+                .padding(.bottom, 9.6)
+                .accessibilityIdentifier("termin.module")
             }
+            TerminDetailSections(event: Self.detailEvent(e, occ: occ), title: e.s("title") ?? "")
+                .padding(.bottom, 12.8)
             // Sitzungsthema aus Stud.IP (eine Zeile, aufklappbar)
             UFSessionTopic(e: occ).padding(.bottom, UFSessionTopic.text(occ) == nil ? 0 : 9.6)
             // Absage aus einer Ankuendigung: Quelle und Entscheidung ("Fällt aus" / "Findet statt")
@@ -280,9 +293,6 @@ struct EventDrawer: View {
             } else {
                 ForEach(Row.rows(mats)) { row in UFEventDocRow(f: row.value) { overlay.closeAll(); router.go(.doc(row.value.s("id") ?? "")) } }
             }
-            if let m = e.i("module_id") {
-                UFButton("Modul öffnen", icon: "book", size: .small) { overlay.closeDrawer(); router.go(.module(m)) }.padding(.top, 8)
-            }
         } foot: {
             UFButton("Bearbeiten", icon: "pencil", size: .small) { actions.eventDialog(e, preset: ["date": .string(date)]) }
             UFButton("Lernblock danach", icon: "plus", size: .small) {
@@ -302,10 +312,17 @@ struct EventDrawer: View {
         }
     }
 
+    /// Raum, Kurs und Modul fuer das Termin-Detail: aus der Serie, der Kurs notfalls aus dem Vorkommen
+    static func detailEvent(_ e: JSONValue, occ: JSONValue) -> JSONValue {
+        var o = e.object ?? [:]
+        if o["course_id"]?.string?.isEmpty ?? true, let c = occ["course_id"], c != .null { o["course_id"] = c }
+        if o["module_id"] == nil || o["module_id"] == .null, let m = occ["module_id"], m != .null { o["module_id"] = m }
+        return .object(o)
+    }
+
     private func subline(_ e: JSONValue) -> String {
+        // der Raum steht im Bereich "Raum" darunter (TerminDetailSections)
         var s = "\(UFKind.text(e.s("kind"))) · \(UFFmt.short(date)) · \(occ.s("start") ?? "")–\(occ.s("end") ?? "")"
-        // der Raum steht als Link darunter (UFRoomLink); nur "Online" & Co. bleiben hier
-        if let r = e.s("room"), !r.isEmpty, !Rooms.mayLink(r) { s += " · \(r)" }
         if let l = e.s("lecturer"), !l.isEmpty { s += " · \(l)" }
         return s
     }

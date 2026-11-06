@@ -44,6 +44,8 @@ public final class LocalBackend: Sendable {
         StudyCatalogEndpoints.self,
         MensaEndpoints.self,
         RoomsEndpoints.self,
+        StudIPLecturersEndpoints.self,
+        CertificatesEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

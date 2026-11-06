@@ -40,7 +40,9 @@ final class IPhoneModuleSemestersTests: IPhoneLearnTestCase {
     private func terms(_ env: HostedEnvironment) -> [NSObject] { elements(env).filter { identifier($0) == "module-semester.term" } }
 
     func testCurrentExpandedOlderCollapsedWithHint() throws {
-        let env = try hostPhone(ModulesPage(), api: remote(transport()))
+        // develop 06.11.2026: der Ladehinweis erscheint nur mit laufendem Abgleich, nicht bei abgemeldetem Stud.IP (Demo-
+        // Hinweis-Fix); hier eine Hochschule ohne Stud.IP (HsH), deren Abgleich den Hinweis liefert
+        let env = try hostPhone(ModulesPage().environmentObject(StudIPSync(university: .hsh)), api: remote(transport()))
         XCTAssertTrue(env.wait(timeout: 15) { self.element(env, id: "module-semester-hint") != nil }, dump(env))
         // Hinweis zum Abgleich oben, aktuelles Semester mit Ueberschrift und seinen Modulen
         XCTAssertTrue(shows(env, "Aktuelles Semester ist da"), dump(env))

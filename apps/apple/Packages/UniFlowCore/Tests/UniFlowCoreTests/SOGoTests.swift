@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-/// Uni-Mail und Uni-Kalender der LUH (SOGo, docs/UNI-MAIL-2026-11-05.md): dieselben Faelle wie app/sogo.py
+/// Uni-Mail und Uni-Kalender der LUH und der Uni Hildesheim (SOGo, docs/UNI-MAIL-2026-11-05.md): dieselben Faelle wie app/sogo.py
 /// (packages/shared-contracts/fixtures/sogo/cases.json aus nachgebauten Antworten), Abruf gegen einen Transport mit
 /// festen Antworten (nie ins Netz), Senden nur ueber `send`, Termine im Stundenplan.
 final class SOGoTests: XCTestCase {
@@ -213,7 +213,66 @@ final class SOGoTests: XCTestCase {
     }
 
     private func client(_ t: FakeSOGo) -> SOGoClient {
-        SOGoClient(user: "erika.muster@stud.uni-hannover.de", transport: t, xsrf: "tok%2B1", retry: .none)
+        SOGoClient(user: "erika.muster@stud.uni-hannover.de", site: .luh, transport: t, xsrf: "tok%2B1", retry: .none)
+    }
+
+    // MARK: Hochschulen (Uni Hildesheim seit 06.11.2026)
+
+    func testSitesFromSharedCases() throws {
+        let c = try XCTUnwrap(try cases()["sites"])
+        XCTAssertEqual(SOGoSite.all.map(\.host), (c["list"]?.array ?? []).compactMap { $0["host"]?.string })
+        XCTAssertEqual(SOGoSite.all.map(\.name), (c["list"]?.array ?? []).compactMap { $0["name"]?.string })
+        XCTAssertEqual(SOGoSite.all.map(\.roomLinks), (c["list"]?.array ?? []).compactMap { $0["room_links"]?.bool })
+        XCTAssertEqual(SOGoSite.all.map(\.university.rawValue), (c["list"]?.array ?? []).compactMap { $0["key"]?.string })
+        XCTAssertNil(SOGoSite.for(.hsh), "HsH ohne SOGo")
+        XCTAssertNil(SOGoSite.for(university: "unbekannt"))
+        XCTAssertEqual(SOGoSite.for(university: "hildesheim"), .hildesheim)
+        XCTAssertEqual(SOGoSite.hildesheim.loginURL.absoluteString, "https://webmail.uni-hildesheim.de/SOGo/")
+        let message = try XCTUnwrap(c["message"])
+        for (key, chk) in c["checks"]?.object ?? [:] {
+            let site = try XCTUnwrap(SOGoSite.for(university: key))
+            XCTAssertEqual(site.base, chk["base"]?.string)
+            XCTAssertEqual(SOGo.userBase("erika.muster@uni-hildesheim.de", site: site), chk["user_base"]?.string)
+            for x in chk["user_from_url"]?.array ?? [] {
+                XCTAssertEqual(SOGo.user(fromURL: x["url"]?.string, site: site), x["user"]?.string, "\(key) \(x["url"]?.string ?? "")")
+            }
+            for x in chk["expired"]?.array ?? [] {
+                XCTAssertEqual(SOGo.expired(status: x["status"]?.int ?? 0, finalURL: x["final"]?.string, body: "{}", site: site), x["expired"]?.bool, "\(key) \(x)")
+            }
+            for x in chk["attachment_path"]?.array ?? [] { XCTAssertEqual(SOGo.attachmentPath(x["in"], site: site), x["out"]?.string, "\(key) \(x)") }
+            XCTAssertEqual(SOGo.message(message, folder: "INBOX", uid: 7, site: site)["attachments"], chk["message_attachments"], key)
+        }
+    }
+
+    func testHildesheimClientStaysOnItsHost() async throws {
+        let t = try fake()
+        let s = SOGoClient(user: "muster", site: .hildesheim, transport: t, xsrf: "hi%2B2", retry: .none)
+        let boxes = try await s.mailboxes()
+        XCTAssertEqual(boxes.first?["type"], "inbox")
+        XCTAssertEqual(t.seen.first?.url.absoluteString, "https://webmail.uni-hildesheim.de/SOGo/so/muster/Mail/0/view")
+        XCTAssertEqual(t.seen.first?.headers["X-XSRF-TOKEN"], "hi+2")
+        let msg = try await s.message("INBOX", uid: 128)
+        XCTAssertEqual(msg["attachments"]?.array?.map { $0["name"]?.string ?? "" }, ["Blatt3.pdf", "Anhang"], "Anhang mit Adresse der LUH faellt weg")
+        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("sogo-hi-\(UUID().uuidString).pdf")
+        defer { try? FileManager.default.removeItem(at: dest) }
+        try await s.download(msg["attachments"]?.array?.first?["path"]?.string ?? "", to: dest)
+        do {
+            try await s.download("https://kalender.uni-hannover.de/SOGo/so/x/Mail/0/folderINBOX/1/2/asAttachment/a.pdf", to: dest)
+            XCTFail("Rechner der LUH aus dem Hildesheimer Konto")
+        } catch {}
+        do {
+            _ = try await s.json("GET", "https://kalender.uni-hannover.de/SOGo/so/x/Mail/0/view")
+            XCTFail("fremder Rechner")
+        } catch let e as SOGoError {
+            if case .bad = e {} else { XCTFail("\(e)") }
+        }
+        for x in t.seen { XCTAssertEqual(x.url.host, "webmail.uni-hildesheim.de") }
+        let cookies = [("kalender.uni-hannover.de", "luh"), ("webmail.uni-hildesheim.de", "hi%2B3"), (".uni-hildesheim.de", "breit")].compactMap {
+            HTTPCookie(properties: [.name: "XSRF-TOKEN", .value: $0.1, .domain: $0.0, .path: "/SOGo"])
+        }
+        XCTAssertEqual(SOGoClient.xsrf(from: cookies, site: .hildesheim), "hi+3")
+        XCTAssertEqual(SOGoClient.xsrf(from: cookies, site: .luh), "luh")
+        XCTAssertNil(SOGoClient.xsrf(from: [cookies[0]], site: .hildesheim))
     }
 
     func testReadingWithXSRFAndPaging() async throws {

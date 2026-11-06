@@ -17,10 +17,9 @@ eingeschaltet hast.
   und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
   schaltest du einzeln ein (Abschnitte 6–8).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
-  liegen sie verschlüsselt auf deinem Gerät oder – für den automatischen Abgleich – verschlüsselt in deinem Konto.
-  Für den Abgleich durch den Dienst stimmst du vorher ausdrücklich zu: Der Dienst meldet sich dann um 8 und 15 Uhr
-  von seiner Adresse bei deiner Hochschule an und lädt neue Unterlagen in dein Konto. Du kannst die Zugangsdaten
-  jederzeit löschen; die Zustimmung endet damit, deine Unterlagen bleiben.
+  liegen sie nur auf deinem Gerät (iPad, PC). **Auf unseren Servern speichern wir Hochschul-Passwörter nie** – auch
+  nicht für die Web-Version (seit 06.11.2026; Abschnitt 6). Den Abgleich mit deiner Hochschule erledigt die iPad-App
+  oder die Windows-App auf deinem Gerät; in der Web-Version lädst du Unterlagen selbst hoch.
 - **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** KI gibt es nur für
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:
   - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
@@ -49,9 +48,10 @@ Die Apps arbeiten zuerst lokal. Auf dem Gerät gespeichert werden:
 - Hochschul-Zugangsdaten merkt sich – wenn du das beim Anmelden erlaubst – der Passwort-Manager deines Geräts
   (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Passwort-Autofill von iOS mit dem
   Schlüsselbund bzw. iCloud-Schlüsselbund, verantwortlich ist Apple; am PC das von der App geöffnete Browserfenster); die App
-  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an. Einzige Ausnahme: Die iPad-App
-  merkt sich auf dem Gerät deinen Hochschul-Benutzernamen (nie das Passwort), damit er beim nächsten Anmelden schon
-  eingetragen ist; Abmelden löscht ihn. Nach der Anmeldung behält die
+  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an. Ausnahme iPad-App: Sie merkt
+  sich auf dem Gerät deinen Hochschul-Benutzernamen, damit er beim nächsten Anmelden schon eingetragen ist, und – nur
+  wenn du „Passwort auf diesem iPad merken“ eingeschaltet lässt – dein Hochschul-Passwort, um dich nach Ablauf einer
+  Sitzung selbst wieder anzumelden („Automatisch anmelden“, Abschnitt 4); Abmelden löscht beides. Nach der Anmeldung behält die
   App nur die Sitzung (Cookies) der Hochschule, bei der Universität Hildesheim zusätzlich den Learnweb-Schlüssel, bis
   du dich abmeldest oder die Hochschule sie beendet. Nur wenn du es am PC ausdrücklich einträgst, liegen die
   Zugangsdaten für den Abgleich ohne Nachfrage in der Datei `.env` im Datenordner der App – jederzeit löschbar.
@@ -68,17 +68,24 @@ wird dabei nichts übertragen, deine Apple-Kennung bleibt auf dem iPad.
 ## 4. Systeme deiner Hochschule
 
 StudiNow liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
-QIS; Universität Hildesheim: Learnweb, LSF und CAS-Anmeldung. Die App (oder bei eingeschaltetem Abgleich unser
-Dienst in deinem Auftrag) meldet sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,
+QIS; Universität Hildesheim: Learnweb, LSF und CAS-Anmeldung. Die App auf deinem Gerät (nie unser Dienst) meldet
+sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,
 Fristen, Ankündigungen und – nur wenn du „Noten abrufen“ wählst – deinen Notenspiegel und Bescheinigungen ab.
 Geschrieben wird nur, wenn du es ausdrücklich auslöst: Antwortest du in der App auf eine Nachricht oder gibst du mit
 „Jetzt abgeben“ eine Datei ab, sendet StudiNow genau diese Antwort bzw. Datei mit deinem Zugang an das System deiner
 Hochschule. Darüber hinaus schreibt StudiNow nichts in die Hochschulsysteme.
 
-**Uni-Mail und Uni-Kalender (Leibniz Universität Hannover, nur iPad-App und Windows-App/PC):** Verbindest du
-Uni-Mail, meldest du dich selbst auf der SOGo-Seite der LUH (`kalender.uni-hannover.de`) an; StudiNow speichert dein
-Passwort nicht (das kann höchstens der Passwort-Manager deines Geräts), sondern nur die Sitzung (Cookies) im
-Schlüsselbund bzw. im Datenordner deines PCs und deinen Kontonamen aus der Adresse von SOGo. Die App ruft deine Ordner,
+**Lehrende (Leibniz Universität Hannover, Stud.IP):** Für deine aktuellen Kurse liest StudiNow Name, Rolle,
+E-Mail-Adresse und Sprechstunde der Lehrenden und Tutor/innen, so wie Stud.IP sie dir zeigt; diese Angaben bleiben auf
+deinem Gerät bzw. PC (nie im gehosteten Dienst), Daten anderer Studierender liest StudiNow nicht, und eine Nachricht an
+Lehrende geht nur hinaus, wenn du sie selbst mit „Senden“ abschickst.
+
+**Uni-Mail und Uni-Kalender (Leibniz Universität Hannover und Universität Hildesheim, nur iPad-App und
+Windows-App/PC):** Verbindest du Uni-Mail, meldest du dich selbst auf der SOGo-Seite deiner Hochschule an (LUH:
+`kalender.uni-hannover.de`, Uni Hildesheim: `webmail.uni-hildesheim.de`); die App spricht nur mit diesem Rechner deiner
+Hochschule, jede Hochschule hat ihre eigene Sitzung. StudiNow speichert die Sitzung (Cookies) im
+Schlüsselbund bzw. im Datenordner deines PCs und deinen Kontonamen aus der Adresse von SOGo; dein Passwort nur in der
+iPad-App und nur, wenn du es erlaubst („Automatisch anmelden“, unten), am PC nie. Die App ruft deine Ordner,
 die Kopfzeilen deiner E-Mails (Absender, Betreff, Datum), die E-Mails, die du öffnest, ihre Anhänge, die du antippst,
 und – nur wenn du „Termine übernehmen“ wählst – die Termine deines Uni-Kalenders direkt bei SOGo ab. **E-Mails, Anhänge
 und Termine bleiben auf deinem Gerät bzw. PC und in deinem Uni-Postfach; nichts davon geht an Server von StudiNow, auch
@@ -90,6 +97,19 @@ Weiterleiten, neue E-Mails und Anhänge legt StudiNow als Entwurf in deinem Post
 E-Mail (endgültig gelöscht wird nie). Bilder aus dem Internet in E-Mails lädt die App nicht. Auf Wunsch („Bei neuen
 Uni-Mails benachrichtigen“, Vorgabe aus) zeigt das iPad eine Mitteilung mit der Zahl neuer E-Mails, ohne Absender und
 Betreff. „Abmelden“ löscht Sitzung, Zwischenspeicher und übernommene Termine auf dem Gerät.
+
+**Automatisch anmelden (nur iPad-App, freiwillig):** Unter jeder Anmeldeseite deiner Hochschule steht der Schalter
+„Passwort auf diesem iPad merken – du wirst nicht erneut gefragt“ (voreingestellt an, jederzeit abschaltbar). Ist er an,
+liest die App beim Absenden des echten Anmeldeformulars deiner Hochschule deinen Benutzernamen und dein Passwort mit und
+legt sie nach erfolgreicher Anmeldung **nur auf diesem iPad im Schlüsselbund** ab (nur dieses Gerät, nicht in
+iCloud-Schlüsselbund oder Backups, ein Eintrag je Hochschule). Läuft später eine Sitzung ab (Stud.IP, QIS, Uni-Mail,
+Learnweb, LSF, PLuS, Moodle, Campusmanagement), meldet sich die App unsichtbar auf genau diesen Anmeldeseiten deiner
+Hochschule wieder an und wiederholt den Abruf einmal. Das Passwort geht nur an die Anmeldeseiten deiner Hochschule, nie
+an StudiNow-Server oder andere Rechner, und wird nicht protokolliert. Lehnt die Hochschule es ab (z. B. nach einem
+Passwortwechsel), fragt die App einmal „Anmeldung nötig“; die neue Anmeldung ersetzt das alte Passwort. „Abmelden“,
+„Gespeichertes Passwort löschen“ bzw. der Schalter „Automatisch anmelden“ in den Einstellungen, „Daten dieser Hochschule
+löschen“ und „Konto löschen“ entfernen den Eintrag. Rechtsgrundlage: deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO,
+§ 25 Abs. 1 TDDDG), widerrufbar mit dem Schalter.
 
 **Raumfinder (frei in jedem Tarif, ohne Anmeldung):** Suchst du im Raumfinder nach einem Raum, Gebäude oder einer
 Einrichtung oder tippst du auf eine Raumangabe (etwa im Stundenplan, Lernkalender oder bei einer Klausur), schickt die App
@@ -134,26 +154,22 @@ Windows-Anmeldeinformationsverwaltung (du löschst ihn mit „Abmelden“) und d
 Probe, Ablauf), damit die App bis zu 7 Tage ohne Internet weiter funktioniert. Beim Abruf erfährt der Dienst, dass die
 Anfrage von der Windows-App kommt.
 
-## 6. Hochschul-Zugangsdaten im Konto und automatischer Abgleich
+## 6. Keine Hochschul-Zugangsdaten auf unseren Servern
 
-Nur wenn du es in den Einstellungen einrichtest, speichern wir deine Hochschul-Zugangsdaten (Benutzername und
-Passwort, bei Hildesheim zusätzlich ein Learnweb-Token) in deinem Konto, damit unser Dienst zweimal täglich (08:00
-und 15:00 Uhr) die Liste neuer Dateien, Termine, Fristen und Ankündigungen für dich abruft, auch wenn kein Gerät läuft.
-**Die Dateien selbst (Skripte, Folien, Übungsblätter) speichert der Dienst nicht.** Öffnest du eine Datei auf einem
-Gerät, holt der Dienst sie in diesem Moment mit deiner Hochschulsitzung und reicht sie an dein Gerät durch; auf
-unseren Servern bleibt nur ein kurzlebiger Zwischenspeicher im Arbeitsspeicher (höchstens 15 Minuten), der
-Fingerabdruck der Datei (SHA-256, für die Community) und der Seitentext für die Suche – keine Kopie der Datei.
+**Deine Hochschul-Passwörter liegen nur auf deinem Gerät, nie auf unseren Servern.** Seit dem 06.11.2026 nimmt der
+StudiNow-Dienst Hochschul-Zugangsdaten (Benutzername und Passwort), Learnweb- oder Moodle-Schlüssel und
+Hochschul-Sitzungen (Cookies) nicht mehr an – auch nicht für die Web-Version und auch nicht mit deiner Zustimmung.
+Der Dienst meldet sich nie bei deiner Hochschule an und gleicht nicht selbst ab.
 
-- Die Zugangsdaten sind mit AES-256-GCM verschlüsselt; der Schlüssel wird je Konto aus einem Dienst-Geheimnis
-  abgeleitet, das getrennt von der Datenbank aufbewahrt wird. Niemand kann sie in der Datenbank lesen.
-- Für den Abruf hält der Dienst in deinem Kontoordner eine Browsersitzung bei deiner Hochschule (Cookies), damit er
-  sich nicht bei jedem Abruf neu anmelden muss. Mitarbeitende greifen darauf nicht zu; die Protokolle des Abgleichs
-  enthalten keine Passwörter und keine Dateiinhalte.
-- Du kannst die Zugangsdaten jederzeit in den Einstellungen löschen; der automatische Abgleich endet dann sofort.
+- Den Abgleich mit deiner Hochschule (Kurse, Dateien, Termine, Noten) macht die **iPad-App** oder die **Windows-App**
+  auf deinem Gerät. Wo sie Zugangsdaten oder Sitzungen ablegt, steht in Abschnitt 3.
+- In der **Web-Version** lädst du Unterlagen selbst hoch; sie liegen dann wie beschrieben in deinem Konto (Abschnitt 7).
+- Hochschul-Zugangsdaten, die Nutzer früher (Entscheidung vom 30.10.2026, mit Zustimmung) im Konto hinterlegt hatten,
+  haben wir beim Umstellen des Dienstes gelöscht (in der Datenbankdatei überschrieben); in Sicherungskopien
+  verschwinden sie, sobald diese turnusmäßig ersetzt werden.
 
-Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO auf deine ausdrückliche Einrichtung hin. Bitte prüfe, ob die
-Nutzungsregeln deiner Hochschule den Abruf durch eine App mit deinen Zugangsdaten erlauben (Abschnitt 4 der
-Nutzungsbedingungen).
+Bitte prüfe, ob die Nutzungsregeln deiner Hochschule den Abruf durch eine App mit deinen Zugangsdaten erlauben
+(Abschnitt 4 der Nutzungsbedingungen).
 
 ## 7. Deine Inhalte im Dienst und Abgleich zwischen Geräten
 

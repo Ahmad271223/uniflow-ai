@@ -385,6 +385,8 @@ struct RoomResultRow: View {
 }
 
 struct RoomFinderPage: View {
+    /// vorbelegte Suche (Termin-Detail: Raum nicht eindeutig aufgeloest); sucht beim Oeffnen sofort
+    var initialQuery: String?
     @EnvironmentObject private var session: Session
     /// iPhone: Suchfeld und "Suchen" in voller Breite untereinander, Beispiele als waagerecht scrollende Reihe
     @Environment(\.ufCompact) private var compact
@@ -411,7 +413,13 @@ struct RoomFinderPage: View {
             Text("Suche: \(Rooms.source.s("name") ?? "Standortfinder"). Die Karten-Links öffnen Google Maps oder Apple Karten erst, wenn du sie antippst.")
                 .ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 14)
         }
-        .task(id: session.api?.base) { await loadCampuses() }
+        .task(id: session.api?.base) {
+            if let q = initialQuery, !q.isEmpty, result == nil, query.isEmpty {
+                query = q
+                await search()
+            }
+            await loadCampuses()
+        }
         .sheet(item: $detail) { d in RoomDetailSheet(place: d.place, attribution: Rooms.source.s("attribution")) }
         .accessibilityIdentifier("rooms.page")
     }

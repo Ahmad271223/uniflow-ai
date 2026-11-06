@@ -199,7 +199,8 @@ def check_cookies(key: str, cookies: list[dict]) -> bool:
         html = _get_with_cookies(hsh.moodle_base() + "/my/", cookies)
         return bool(html) and "sesskey" in html and "notloggedin" not in html
     if key == "sogo":
-        # Uni-Mail/Uni-Kalender der LUH (eigenes Formular): angemeldet leitet /SOGo/so/ auf /SOGo/so/<benutzer>/ weiter
+        # Uni-Mail/Uni-Kalender (SOGo der LUH bzw. der Uni Hildesheim, eigenes Formular): angemeldet leitet /SOGo/so/
+        # auf /SOGo/so/<benutzer>/ weiter
         from . import sogo
         return sogo.discover_user(cookies) is not None
     from .config import STUDIP_BASE
@@ -221,7 +222,8 @@ def _cookie_urls(key: str) -> list[str]:
         return [hsh.moodle_base(), hisinone.HSH_CM_BASE, "https://idp.hs-hannover.de/"]
     if key == "sogo":
         from . import sogo
-        return [sogo.BASE + "/"]
+        host = sogo.current_host()
+        return [sogo.base_of(host) + "/"] if host else []
     from .config import STUDIP_BASE
     return [STUDIP_BASE, LUH_SSO_URL]
 
@@ -239,10 +241,12 @@ def _target(university: str | None) -> tuple[str, str, str, object, Path]:
         from . import hsh
         return key, hsh.SESSION, hsh.login_url(), hsh_window_check(), hsh._profile_dir()
     if key == "sogo":
-        # Uni-Mail (SOGo der LUH): eigenes Formular, fertig auf /SOGo/so/<benutzer>/... (docs/UNI-MAIL-2026-11-05.md)
+        # Uni-Mail (SOGo der Hochschule dieser Instanz: LUH oder Uni Hildesheim): eigenes Formular, fertig auf
+        # /SOGo/so/<benutzer>/... (docs/UNI-MAIL-2026-11-05.md); Profilordner liegt im Datenordner der Hochschule
         from . import sogo
+        host = sogo.current_host() or sogo.HOST
         profile = config.data_dir() / "browser-profile-sogo"
-        return key, sogo.SESSION, sogo.BASE + "/", lambda page: sogo.user_from_url(page.url) is not None, profile
+        return key, sogo.SESSION, sogo.base_of(host) + "/", lambda page: sogo.user_from_url(page.url, host) is not None, profile
     from . import studip_sync
     return key, "STUDIP_COOKIES", studip_sync.SHIB_LOGIN_URL, studip_sync._is_logged_in, studip_sync._profile_dir()
 

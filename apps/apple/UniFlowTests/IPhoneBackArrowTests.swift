@@ -15,7 +15,8 @@ final class IPhoneBackArrowTests: IPhoneLearnTestCase {
             XCTAssertFalse(UFRouter.showsCompactBackArrow(on: r, local: false), "Wurzel der Leiste: \(r)")
             XCTAssertTrue(UFRouter.showsCompactBackArrow(on: r, local: true), "mit Offenem in der Seite: \(r)")
         }
-        for r in [UFRoute.rooms, .uniMail, .mensa, .messages, .settings(), .module(3), .communitySpace("k"), .exam(1), .services, .timetable()] {
+        for r in [UFRoute.rooms, .uniMail, .mensa, .messages, .settings(), .module(3), .communitySpace("k"), .exam(1), .services, .timetable(),
+                  .lecturers, .certificates] {
             XCTAssertTrue(UFRouter.showsCompactBackArrow(on: r, local: false), "\(r)")
         }
     }

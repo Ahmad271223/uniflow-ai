@@ -135,7 +135,15 @@ final class LocalModulesAppTests: XCTestCase {
         let suite = "uniflow-s4-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        // Einstellungen zeigen seit 06.11.2026 "Automatisch anmelden" (UniAutoLoginCard), die den ContainerManager braucht
+        let bed = try ContainerTestBed(name: "s4-render", clock: .system)
+        let manager = ContainerManager(
+            base: bed.containers,
+            legacy: LegacyDataMigration.Sources(support: bed.appSupport.appendingPathComponent("UniFlow", isDirectory: true),
+                                                studip: bed.appSupport.appendingPathComponent("StudIP", isDirectory: true)),
+            keychain: bed.keychain, cookieService: bed.cookieService, defaults: bed.defaults, clock: bed.clock, publishesCurrent: false)
         let root = view
+            .environmentObject(manager)
             .environmentObject(Session(local: api, defaults: defaults))
             .environmentObject(UFRouter())
             .environmentObject(ShellState())

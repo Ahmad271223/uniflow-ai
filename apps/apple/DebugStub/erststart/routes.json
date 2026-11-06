@@ -1,5 +1,33 @@
 [
  {
+  "match": "jsonapi.php/v1/courses/c-ma/memberships?filter[permission]=dozent",
+  "file": "studip-members-c-ma-dozent.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-ma-ue/memberships?filter[permission]=dozent",
+  "file": "studip-members-c-ma-ue-dozent.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-ma-ue/memberships?filter[permission]=tutor",
+  "file": "studip-members-c-ma-ue-tutor.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-prog/memberships?filter[permission]=dozent",
+  "file": "studip-members-c-prog-dozent.json"
+ },
+ {
+  "match": "/memberships?filter[permission]=",
+  "file": "studip-empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/u-stub-doz/institute-memberships",
+  "file": "studip-institute-u-stub-doz.json"
+ },
+ {
+  "match": "/institute-memberships",
+  "file": "studip-empty.json"
+ },
+ {
   "match": "jsonapi.php/v1/users/me",
   "file": "studip-me.json"
  },
@@ -108,6 +136,14 @@
  {
   "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=change&type=1&moduleParameter=studyPOSMenu",
   "file": "qis-studium.html"
+ },
+ {
+  "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=change&type=1&moduleParameter=studentReportsMenu",
+  "file": "qis-bescheinigungen.html"
+ },
+ {
+  "match": "state=verpublish&publishContainer=bafoegbescheinigung",
+  "file": "qis-bescheinigung.pdf"
  },
  {
   "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=notenspiegelStudent&next=list.vm",

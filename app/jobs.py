@@ -4,8 +4,8 @@ Warteschlange `sync_jobs` in `accounts.db` (nie in einem Nutzerordner). Arbeiter
 hoechstens ein laufender Job je Konto; jeder Job laeuft im Kontext seines Kontos (Datenordner, Datenbank,
 Browser-Profil, Protokolle unter `users/<id>/`, Zugangsdaten aus dem Tresor `app/vault.py`), mit demselben Code wie
 im Einzelplatzmodus (`studip_sync.run_sync`, `qis.run`). Zeitplan: `LERNAPP_SYNC_TIMES` (Standard 08:00,15:00,
-Ortszeit des Servers) legt fuer jedes Konto mit Zugangsdaten einen Job an; jede Uhrzeit hoechstens einmal am Tag,
-auch nach einem Neustart (`schedule_marks`).
+Ortszeit des Servers) legte fuer jedes Konto mit Zugangsdaten einen Job an (seit 06.11.2026 nur noch `weekly`);
+jede Uhrzeit hoechstens einmal am Tag, auch nach einem Neustart (`schedule_marks`).
 
 Wochentests (30.10.2026, Entscheidung 2c): `weekly.tick()` laeuft je Konto nach jedem Abgleich und als eigener Job
 `weekly` zu den Zeitfenstern fuer Konten ohne Zugangsdaten (Upload von Hand); die KI ist die StudiNow-KI, jeder neue
@@ -17,6 +17,11 @@ deploy/Dockerfile), MUSS der Zeitplan getrennt laufen: `inproc` wuerde je Prozes
 `python -m app.jobs` (deploy/docker-compose.yml, Dienst `jobs`) beendet sich sauber auf SIGTERM/SIGINT: keine neuen
 Jobs mehr, laufende bis `STOP_GRACE_S` abwarten, den Rest als abgebrochen markieren; alle `HEARTBEAT_S` Sekunden
 schreibt er `heartbeat_path()` (Datei im Protokollordner) fuer den Healthcheck des Containers.
+
+Seit 06.11.2026 (Entscheidung "Ja, abschalten"): der Dienst speichert keine Hochschul-Zugangsdaten mehr
+(app/vault.py). Der Zeitplan legt nur noch `weekly` an; Jobs `sync`/`grades` (auch alte aus der Warteschlange) werden
+ohne Browser und ohne Anmeldung bei der Hochschule uebersprungen (`HOSTED_UNI_SYNC`). Der Abgleich laeuft auf dem iPad
+oder in der Windows-App.
 """
 from __future__ import annotations
 
@@ -31,6 +36,8 @@ from . import accounts, config, db, vault
 
 KINDS = {"sync": "Sync", "grades": "Notenspiegel", "weekly": "Wochentests"}
 BROWSER_KINDS = ("sync", "grades")     # nur diese belasten die Hochschule (uni_limits)
+HOSTED_UNI_SYNC = False                # 06.11.2026: kein Hochschul-Abgleich im Dienst (keine gespeicherten Zugangsdaten)
+SKIPPED_MESSAGE = "Übersprungen: " + vault.NOT_STORED_MESSAGE
 HEARTBEAT_S = 10                       # Abstand der Lebenszeichen von `python -m app.jobs` (Healthcheck: juenger als 120 s)
 STOP_GRACE_S = 25                      # unter dem stop_grace_period des Containers (30 s), damit wir selbst aufraeumen koennen
 SCHEMA = """
@@ -207,6 +214,9 @@ def run_job(job: dict) -> dict:
         _finish(job["id"], False, "Konto nicht gefunden")
         return {"ok": False, "message": "Konto nicht gefunden"}
     ok, message, new_files = False, "", 0
+    if job["kind"] in BROWSER_KINDS and not HOSTED_UNI_SYNC:
+        _finish(job["id"], False, SKIPPED_MESSAGE)           # kein Chromium, keine Anmeldung mit gespeicherten Daten
+        return {"ok": False, "message": SKIPPED_MESSAGE, "new_files": 0, "skipped": True}
     t_user = config.set_user_context(user["id"], user["university"])
     t_env = config.set_env_context(vault.env_for(user["id"]))
     try:
@@ -360,7 +370,7 @@ def schedule_due(now: datetime | None = None, times: list[str] | None = None) ->
                 continue
             conn.execute("INSERT INTO schedule_marks(slot, created_at) VALUES (?,?)", (slot, _now()))
             if with_creds is None:
-                with_creds = vault.users_with_credentials()
+                with_creds = vault.users_with_credentials() if HOSTED_UNI_SYNC else []
             for uid, _uni in with_creds:
                 if not _enqueue(conn, uid, "sync", "scheduled")["already"]:
                     n += 1
@@ -496,6 +506,7 @@ def main(argv: list[str] | None = None, stop_event: threading.Event | None = Non
     if not config.is_hosted():
         print("Nur im gehosteten Modus (LERNAPP_MODE=hosted).")
         return 2
+    vault.purge_at_startup()                          # 06.11.2026: keine Hochschul-Zugangsdaten im Dienst
     stop = stop_event or threading.Event()
     got: dict = {}
 

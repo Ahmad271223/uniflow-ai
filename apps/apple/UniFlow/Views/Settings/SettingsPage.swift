@@ -929,8 +929,8 @@ struct StudoraCreditsRow: View {
 enum DeleteAccountText {
     static func removed(ownServer: Bool) -> String {
         "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von StudiNow (Stud.IP-Sitzung, "
-            + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel) werden von diesem \(UFDevice.name) entfernt. Danach siehst du wieder die Begrüßung. "
-            + "Hochschul-Passwörter speichert StudiNow nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
+            + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel, gemerkte Hochschul-Passwörter) werden von diesem \(UFDevice.name) entfernt. Danach siehst du wieder die Begrüßung. "
+            + "Was iOS selbst gesichert hat, bleibt unter „Passwörter“."
     }
 
     static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses \(UFDevice.name)s. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des \(UFDevice.name)s: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
@@ -1023,6 +1023,7 @@ private struct LocalAccountTab: View {
                         HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
                         HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH
                     }
+                    UniAutoLoginCard()                                       // Automatisch anmelden (gemerktes Passwort)
                     if let term { UFCard { SemesterFields(term: term, reload: reload) } }
                     DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen
                 }

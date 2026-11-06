@@ -1,11 +1,13 @@
-"""Hochschul-Abgleich je Konto im gehosteten Modus: Tresor (verschluesselte Zugangsdaten), Zugangsdaten und Pfade aus
-dem Nutzerkontext, Job-Warteschlange mit Arbeitern und Zeitplan, Endpunkte."""
+"""Gehosteter Modus: Tresor, Zugangsdaten und Pfade aus dem Nutzerkontext, Job-Warteschlange mit Arbeitern und
+Zeitplan, Endpunkte. Seit 06.11.2026 ("Ja, abschalten"): der Dienst speichert keine Hochschul-Zugangsdaten mehr
+(410 credentials_not_stored, Tresor beim Start geleert, kein Hochschul-Abgleich im Zeitplan). Der Code fuer den
+Abgleich je Konto bleibt und wird mit `jobs.HOSTED_UNI_SYNC = True` und Altbestand (conftest.legacy_vault) geprueft."""
 import json
 import threading
 from datetime import datetime
 
 import pytest
-from conftest import asgi_call
+from conftest import asgi_call, legacy_vault
 
 
 @pytest.fixture
@@ -62,30 +64,58 @@ def test_vault_master_key_from_env_or_file(hosted, monkeypatch):
     vault.reset_master()
 
 
-def test_vault_values_encrypted_at_rest_and_env_for(hosted):
+def test_vault_is_never_written_and_legacy_values_are_ignored(hosted):
+    """06.11.2026: set_values nimmt keine Werte an (auch nicht teilweise), Loeschen geht; Altbestand liegt verschluesselt
+    und zaehlt nie als Zugangsdaten fuer einen Abgleich im Dienst."""
     from app import accounts, vault
     u = accounts.register("v@beispiel.de", "sehr-geheim-123", "luh")
-    vault.set_values(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "Pa$$wort#1", "QIS_SAME_AS": "STUDIP"})
+    with pytest.raises(vault.CredentialsNotStored) as e:
+        vault.set_values(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "Pa$$wort#1"})
+    assert "keine Hochschul-Passwörter auf dem Server" in str(e.value)
+    with pytest.raises(vault.CredentialsNotStored):
+        vault.set_values(u["id"], {"STUDIP_USER": None, "STUDIP_COOKIES": "[]"})          # gemischt: nichts geschrieben
+    assert vault.env_for(u["id"]) == {}
+    legacy_vault(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "Pa$$wort#1", "QIS_SAME_AS": "STUDIP"})
     with accounts.cursor() as conn:
         rows = conn.execute("SELECT name, value_enc FROM vault WHERE user_id=?", (u["id"],)).fetchall()
     assert {r["name"] for r in rows} == {"STUDIP_USER", "STUDIP_PASSWORD", "QIS_SAME_AS"}
     assert all("Pa$$wort" not in r["value_enc"] and "ab12cd" not in r["value_enc"] for r in rows)
-    assert vault.env_for(u["id"]) == {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "Pa$$wort#1", "QIS_SAME_AS": "STUDIP"}
-    vault.set_values(u["id"], {"STUDIP_PASSWORD": None})
-    assert "STUDIP_PASSWORD" not in vault.env_for(u["id"]) and not vault.has_university_credentials(u["id"], "luh")
-    vault.set_values(u["id"], {"STUDIP_PASSWORD": "neu-neu-neu"})
-    assert vault.has_university_credentials(u["id"], "luh") and not vault.has_university_credentials(u["id"], "hildesheim")
-    assert vault.users_with_credentials() == [(u["id"], "luh")]
-    assert vault.delete_all(u["id"]) == 3 and vault.env_for(u["id"]) == {}
+    assert not vault.has_university_credentials(u["id"], "luh") and vault.users_with_credentials() == []
+    vault.set_values(u["id"], {"STUDIP_PASSWORD": None})                                  # Loeschen bleibt erlaubt
+    assert "STUDIP_PASSWORD" not in vault.env_for(u["id"])
+    assert vault.delete_all(u["id"]) == 2 and vault.env_for(u["id"]) == {}
     with pytest.raises(ValueError):
-        vault.set_values(u["id"], {"klein": "x"})
+        vault.set_values(u["id"], {"klein": None})
+
+
+def test_vault_is_purged_at_startup_with_a_count_only(hosted, capsys):
+    from app import accounts, server, vault
+    a = accounts.register("pa@beispiel.de", "sehr-geheim-123", "luh")
+    b = accounts.register("pb@beispiel.de", "sehr-geheim-123", "hildesheim")
+    legacy_vault(a["id"], {"STUDIP_USER": "luh-id-a", "STUDIP_PASSWORD": "geheim-a", "STUDIP_COOKIES": "[]"})
+    legacy_vault(b["id"], {"HILDESHEIM_USER": "hil-b", "HILDESHEIM_PASSWORD": "geheim-b"})
+    assert vault.env_for(a["id"])["STUDIP_USER"] == "luh-id-a"           # im Zwischenspeicher
+    import asyncio
+
+    async def start_and_stop():
+        async with server._lifespan(server.app):
+            pass
+    asyncio.run(start_and_stop())
+    out = capsys.readouterr().out
+    assert "[vault]" in out and "5 Tresor-Eintraege geloescht" in out
+    assert "luh-id-a" not in out and "hil-b" not in out and a["id"] not in out and b["id"] not in out, "keine Namen im Protokoll"
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM vault").fetchone()[0] == 0
+    assert vault.env_for(a["id"]) == {} and vault.env_for(b["id"]) == {}
+    assert vault.purge_at_startup() == 0, "zweiter Start: nichts mehr da"
+    assert vault.key_file().exists(), "secret.key bleibt (Pseudonyme in Community und Testbibliothek)"
 
 
 def test_vault_cache_notices_changes_from_another_process(hosted):
     """P10 (28.10.2026): ein anderer Prozess (Arbeiter, zweiter API-Prozess) schreibt am Zwischenspeicher vorbei."""
     from app import accounts, vault
     u = accounts.register("p10@beispiel.de", "sehr-geheim-123", "luh")
-    vault.set_values(u["id"], {"STUDIP_USER": "alt"})
+    legacy_vault(u["id"], {"STUDIP_USER": "alt"})
     assert vault.env_for(u["id"])["STUDIP_USER"] == "alt"
     with accounts.cursor() as conn:                 # wie ein anderer Prozess: direkt in die Datenbank
         conn.execute("UPDATE vault SET value_enc=? WHERE user_id=? AND name='STUDIP_USER'", (vault.encrypt(u["id"], "neu"), u["id"]))
@@ -121,17 +151,18 @@ def test_session_last_seen_written_at_most_once_a_minute(hosted):
 def test_config_reads_credentials_and_paths_from_account_context(hosted):
     from app import accounts, config, hildesheim, qis, studip_sync, vault
     u = accounts.register("c@beispiel.de", "sehr-geheim-123", "hildesheim")
-    vault.set_values(u["id"], {"HILDESHEIM_USER": "peev", "HILDESHEIM_PASSWORD": "pw-pw-pw", "LEARNWEB_TOKEN": "tok123"})
+    legacy_vault(u["id"], {"HILDESHEIM_USER": "testkennung", "HILDESHEIM_PASSWORD": "pw-pw-pw", "LEARNWEB_TOKEN": "tok123"})
     assert config.own_credentials("HILDESHEIM") == ("", "") or True            # ausserhalb des Kontextes: .env (hier leer)
     t = config.set_user_context(u["id"], "hildesheim")
     try:
-        assert config.own_credentials("HILDESHEIM") == ("peev", "pw-pw-pw") and config.secret("LEARNWEB_TOKEN") == "tok123"
+        assert config.own_credentials("HILDESHEIM") == ("testkennung", "pw-pw-pw") and config.secret("LEARNWEB_TOKEN") == "tok123"
         assert config.credentials() == ("", "") and config.configured_university() == "hildesheim"
         d = config.user_data_dir(u["id"], "hildesheim")
         assert hildesheim._profile_dir() == d / "browser-profile-hildesheim" and studip_sync._profile_dir() == d / "browser-profile"
         assert qis._doc_dir() == d / "qis" and config.log_dir() == d / "logs"
-        config.set_env({"HILDESHEIM_PASSWORD": "geaendert-1"})                 # schreibt in den Tresor, nie in die .env
-        assert config.own_credentials("HILDESHEIM") == ("peev", "geaendert-1")
+        with pytest.raises(vault.CredentialsNotStored):                         # weder Tresor noch .env (06.11.2026)
+            config.set_env({"HILDESHEIM_PASSWORD": "geaendert-1"})
+        assert config.own_credentials("HILDESHEIM") == ("testkennung", "pw-pw-pw")
     finally:
         config.reset_user_context(t)
     assert not (config.ROOT / ".env").exists() or "geaendert-1" not in (config.ROOT / ".env").read_text(encoding="utf-8")
@@ -144,10 +175,28 @@ def test_config_reads_credentials_and_paths_from_account_context(hosted):
 
 # ---------------------------------------------------------------- Jobs
 
+def test_hosted_sync_and_grades_jobs_are_skipped_without_browser(hosted, monkeypatch):
+    """06.11.2026: alte Abgleich- oder Notenspiegel-Jobs in der Warteschlange laufen nicht, kein Chromium, keine Anmeldung."""
+    from app import accounts, jobs, qis, studip_sync
+    u = accounts.register("skip@beispiel.de", "sehr-geheim-123", "luh")
+    legacy_vault(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "pw-pw-pw-1"})
+
+    def never(*a, **k):
+        raise AssertionError("im Dienst kein Hochschul-Abgleich")
+    monkeypatch.setattr(studip_sync, "run_sync", never)
+    monkeypatch.setattr(qis, "run", never)
+    for kind in ("sync", "grades"):
+        jobs.enqueue(u["id"], kind, "scheduled")
+        assert jobs.work_once()
+        j = jobs.latest(u["id"])
+        assert (j["kind"], j["status"]) == (kind, "failed") and j["message"].startswith("Übersprungen: StudiNow speichert keine")
+
+
 def test_job_runs_in_account_context_and_records_result(hosted, monkeypatch):
-    from app import accounts, config, db, jobs, studip_sync, vault
+    from app import accounts, config, db, jobs, studip_sync
+    monkeypatch.setattr(jobs, "HOSTED_UNI_SYNC", True)           # der Weg bleibt im Code (abgeschaltet seit 06.11.2026)
     u = accounts.register("j@beispiel.de", "sehr-geheim-123", "luh")
-    vault.set_values(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "pw-pw-pw-1"})
+    legacy_vault(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "pw-pw-pw-1"})
     seen = {}
 
     def fake_sync(show_browser=False):
@@ -186,11 +235,9 @@ def test_job_runs_in_account_context_and_records_result(hosted, monkeypatch):
 
 
 def test_claim_is_atomic_and_one_job_per_account(hosted, monkeypatch):
-    from app import accounts, jobs, studip_sync, vault
+    from app import accounts, jobs
     a = accounts.register("a@beispiel.de", "sehr-geheim-123", "luh")
     b = accounts.register("b@beispiel.de", "sehr-geheim-123", "luh")
-    for u in (a, b):
-        vault.set_values(u["id"], {"STUDIP_USER": "x", "STUDIP_PASSWORD": "y-y-y-y-y"})
     jobs.enqueue(a["id"], "sync"); jobs.enqueue(a["id"], "grades"); jobs.enqueue(b["id"], "sync")
     j1 = jobs.claim_next()
     assert (j1["user_id"], j1["kind"]) == (a["id"], "sync")
@@ -217,16 +264,16 @@ def test_claim_is_atomic_and_one_job_per_account(hosted, monkeypatch):
 
 
 def test_schedule_due_once_per_slot(hosted, monkeypatch):
-    from app import accounts, jobs, vault
+    from app import accounts, jobs
     u = accounts.register("s@beispiel.de", "sehr-geheim-123", "hildesheim")
-    vault.set_values(u["id"], {"HILDESHEIM_USER": "peev", "HILDESHEIM_PASSWORD": "pw-pw-pw"})
-    o = accounts.register("ohne@beispiel.de", "sehr-geheim-123", "luh")  # ohne Zugangsdaten: statt Abgleich der Wochentest-Takt
+    legacy_vault(u["id"], {"HILDESHEIM_USER": "testkennung", "HILDESHEIM_PASSWORD": "pw-pw-pw"})   # Altbestand: trotzdem kein Abgleich
+    o = accounts.register("ohne@beispiel.de", "sehr-geheim-123", "luh")  # 06.11.2026: alle Konten bekommen nur den Wochentest-Takt
     monkeypatch.setenv("LERNAPP_SYNC_TIMES", "08:00, 15:00, kaputt")
     assert jobs.sync_times() == ["08:00", "15:00"]
     assert jobs.due_slots(datetime(2026, 10, 26, 7, 59)) == []
     assert jobs.due_slots(datetime(2026, 10, 26, 15, 30)) == ["2026-10-26T08:00", "2026-10-26T15:00"]
     assert jobs.schedule_due(datetime(2026, 10, 26, 9, 0)) == 2
-    assert jobs.latest(u["id"])["kind"] == "sync" and jobs.latest(o["id"])["kind"] == "weekly"
+    assert jobs.latest(u["id"])["kind"] == "weekly" and jobs.latest(o["id"])["kind"] == "weekly"
     assert jobs.schedule_due(datetime(2026, 10, 26, 9, 5)) == 0, "08:00 ist schon bearbeitet"
     assert jobs.schedule_due(datetime(2026, 10, 26, 15, 1)) == 0, "Jobs von 08:00 warten noch: kein zweiter"
     for uid in (u["id"], o["id"]):
@@ -239,15 +286,18 @@ def test_schedule_due_reads_vault_once_and_uses_one_connection_per_slot(hosted, 
     """Lasttest 30.10.2026, Fund 7: je Fenster EIN Tresor-Durchlauf (vorher zwei) und EINE Verbindung fuer Merkmal und
     alle Jobs (vorher eine je Konto); mehrere faellige Fenster in einem Aufruf teilen sich den Tresor-Durchlauf."""
     from app import accounts, jobs, vault
+    monkeypatch.setattr(jobs, "HOSTED_UNI_SYNC", True)           # der Weg bleibt im Code (abgeschaltet seit 06.11.2026)
     users = [accounts.register(f"k{i}@beispiel.de", "sehr-geheim-123", "luh") for i in range(4)]
     for u in users[:2]:
-        vault.set_values(u["id"], {"STUDIP_USER": "x", "STUDIP_PASSWORD": "y"})
+        legacy_vault(u["id"], {"STUDIP_USER": "x", "STUDIP_PASSWORD": "y"})
+    with_creds = [(u["id"], "luh") for u in users[:2]]
     calls = {"vault": 0, "conn": 0}
     real_vault, real_conn = vault.users_with_credentials, jobs._conn
 
     def counting_vault():
         calls["vault"] += 1
-        return real_vault()
+        assert real_vault() == [], "seit 06.11.2026 immer leer"
+        return list(with_creds)
 
     def counting_conn():
         calls["conn"] += 1
@@ -341,61 +391,64 @@ def test_jobs_main_writes_heartbeat_for_healthcheck_and_stops_cleanly(hosted, mo
 
 # ---------------------------------------------------------------- Endpunkte
 
+NOT_STORED = "StudiNow speichert keine Hochschul-Passwörter auf dem Server. Der Abgleich läuft auf deinem iPad oder in der Windows-App."
+
+
 def test_hosted_credentials_and_sync_endpoints(hosted, monkeypatch):
-    from app import config, jobs, studip_sync
-    _, h = _register(hosted, "e@beispiel.de", "luh")
-    st, _, b = asgi_call(hosted, "POST", "/api/sync", headers=h)
-    assert st == 400 and json.loads(b)["code"] == "credentials_missing"
-    st, _, b = asgi_call(hosted, "GET", "/api/credentials", headers=h)
-    assert st == 200 and json.loads(b) == {"user": "", "password_set": False, "consent_at": None}
-    # Dienst: ohne ausdrueckliche Zustimmung keine Zugangsdaten (Entscheidung 30.10.2026)
-    st, _, b = asgi_call(hosted, "PUT", "/api/credentials", headers=h, body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1"}))
-    assert st == 400 and json.loads(b)["code"] == "consent_required"
-    assert json.loads(asgi_call(hosted, "GET", "/api/credentials", headers=h)[2])["password_set"] is False
-    st, _, b = asgi_call(hosted, "PUT", "/api/credentials", headers=h, body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1", "consent": True}))
-    assert st == 200 and json.loads(b)["password_set"]
+    """06.11.2026: jedes Speichern von Hochschul-Zugangsdaten, -Schluesseln und -Sitzungen 410, auch mit Zustimmung;
+    Abgleich und Notenspiegel im Dienst ebenso; der Tresor bleibt leer, die .env unberuehrt."""
+    from app import config, jobs, vault
+    u, h = _register(hosted, "e@beispiel.de", "luh")
+    gone = lambda r: (r[0], json.loads(r[2]))                                                  # noqa: E731
+    for method, path, body in (
+            ("PUT", "/api/credentials", {"user": "ab12cd", "password": "Pa$$wort-1"}),
+            ("PUT", "/api/credentials", {"user": "ab12cd", "password": "Pa$$wort-1", "consent": True}),
+            ("PUT", "/api/credentials/qis", {"user": "ab12cd", "password": "qis-pw-1", "consent": True}),
+            ("PUT", "/api/credentials/hildesheim", {"user": "testkennung", "password": "pw-pw-pw", "consent": True}),
+            ("PUT", "/api/credentials/idm", {"same_as": "qis"}),
+            ("PUT", "/api/learnweb/token", {"token": "A" * 32}),
+            ("PUT", "/api/university/session", {"cookies": [{"name": "Seminar_Session", "value": "abc", "domain": "studip.uni-hannover.de"}]}),
+            ("POST", "/api/sync", None),
+            ("POST", "/api/grades/sync", None)):
+        st, d = gone(asgi_call(hosted, method, path, headers=h, body=json.dumps(body) if body is not None else None))
+        assert (st, d) == (410, {"detail": NOT_STORED, "code": "credentials_not_stored"}), (method, path, st, d)
+    assert vault.env_for(u["id"]) == {} and jobs.latest(u["id"]) is None, "nichts im Tresor, kein Job"
     assert not (config.ROOT / ".env").exists() or "ab12cd" not in (config.ROOT / ".env").read_text(encoding="utf-8")
     st, _, b = asgi_call(hosted, "GET", "/api/credentials", headers=h)
-    d = json.loads(b)
-    assert d["user"] == "ab12cd" and d["password_set"] and d["consent_at"] and d["consent_at"].startswith("20")
+    assert st == 200 and json.loads(b) == {"user": "", "password_set": False, "stored_on_server": False, "message": NOT_STORED}
     st, _, b = asgi_call(hosted, "GET", "/api/services", headers=h)
     d = json.loads(b)
-    assert st == 200 and d["credentials"]["studip"]["user"] == "ab12cd" and d["university_next"] == "luh"
-    st, _, b = asgi_call(hosted, "POST", "/api/sync", headers=h)
-    d = json.loads(b)
-    assert st == 200 and d["started"] == "Sync" and d["status"] == "queued"
+    assert st == 200 and not d["credentials"]["studip"]["configured"] and not d["credentials"]["qis"]["configured"] and d["university_next"] == "luh"
+    # Loeschen bleibt moeglich (Altbestand), Status und Hintergrund gehen weiter
+    for method, path, body in (("POST", "/api/credentials/clear", {}), ("PUT", "/api/credentials/qis", {"clear": True}),
+                               ("PUT", "/api/learnweb/token", {"clear": True}), ("DELETE", "/api/university/session", None)):
+        assert asgi_call(hosted, method, path, headers=h, body=json.dumps(body) if body is not None else None)[0] == 200, path
     st, _, b = asgi_call(hosted, "GET", "/api/sync/status", headers=h)
-    d = json.loads(b)
-    assert d["bg"]["running"] and d["bg"]["task"] == "Sync" and d["jobs"][0]["status"] == "queued"
-    st, _, b = asgi_call(hosted, "GET", "/api/bg", headers=h)
-    assert json.loads(b)["running"]
-    monkeypatch.setattr(studip_sync, "run_sync", lambda show_browser=False: {"ok": True, "new_files": [], "message": "0 neue Dateien"})
-    assert jobs.work_once()
-    st, _, b = asgi_call(hosted, "GET", "/api/sync/status", headers=h)
-    d = json.loads(b)
-    assert not d["bg"]["running"] and d["jobs"][0]["status"] == "done" and d["jobs"][0]["message"].startswith("0 neue Dateien · Wochentests:")
-    st, _, b = asgi_call(hosted, "POST", "/api/grades/sync", headers=h)
-    assert st == 200 and json.loads(b)["started"] == "Notenspiegel"
-    # Zugangsdaten anderer Konten bleiben getrennt
-    _, h2 = _register(hosted, "f@beispiel.de", "luh")
-    st, _, b = asgi_call(hosted, "GET", "/api/credentials", headers=h2)
-    assert json.loads(b) == {"user": "", "password_set": False, "consent_at": None}
-    st, _, b = asgi_call(hosted, "PUT", "/api/credentials/hildesheim", headers=h2, body=json.dumps({"user": "peev", "password": "pw-pw-pw"}))
-    assert st == 400 and json.loads(b)["code"] == "consent_required"
-    st, _, b = asgi_call(hosted, "PUT", "/api/credentials/hildesheim", headers=h2, body=json.dumps({"user": "peev", "password": "pw-pw-pw", "consent": True}))
-    assert st == 200
-    st, _, b = asgi_call(hosted, "GET", "/api/services", headers=h2)
-    assert json.loads(b)["credentials"]["hildesheim"]["configured"]
-    st, _, b = asgi_call(hosted, "PUT", "/api/credentials/hildesheim", headers=h2, body=json.dumps({"clear": True}))
-    assert st == 200 and not json.loads(b)["configured"]
+    assert st == 200 and not json.loads(b)["bg"]["running"]
+    assert asgi_call(hosted, "GET", "/api/bg", headers=h)[0] == 200
 
 
-def test_local_mode_unchanged(app):
-    """Einzelplatz: /api/sync startet weiter den Hintergrundlauf des PCs, Zugangsdaten kommen aus der .env."""
-    from app import config
+def test_local_mode_unchanged(app, monkeypatch, tmp_path):
+    """Einzelplatz (eigener PC, Windows-App): /api/sync startet weiter den Hintergrundlauf des PCs, Zugangsdaten liegen
+    in der .env auf diesem PC (LERNAPP_ENV_FILE im Benutzerprofil), nie im Tresor."""
+    from app import config, vault
     assert config.MODE == "local" and config.current_user_id() is None
     st, _, b = asgi_call(app, "GET", "/api/bg")
     assert st == 200 and "job" not in json.loads(b)
+    env = tmp_path / ".env"
+    monkeypatch.setenv("LERNAPP_ENV_FILE", str(env))
+    monkeypatch.setattr(vault, "set_values", lambda *a, **k: (_ for _ in ()).throw(AssertionError("am PC nie der Tresor")))
+    st, _, b = asgi_call(app, "PUT", "/api/credentials", body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1"}))
+    assert st == 200 and json.loads(b) == {"ok": True, "user": "ab12cd", "password_set": True}
+    assert 'STUDIP_PASSWORD="Pa$$wort-1"' in env.read_text(encoding="utf-8")
+    st, _, b = asgi_call(app, "GET", "/api/credentials")
+    assert json.loads(b) == {"user": "ab12cd", "password_set": True}
+    st, _, b = asgi_call(app, "PUT", "/api/credentials/qis", body=json.dumps({"user": "qis-u", "password": "qis-pw"}))
+    assert st == 200 and config.service_credentials("QIS") == ("qis-u", "qis-pw")
+    st, _, b = asgi_call(app, "PUT", "/api/learnweb/token", body=json.dumps({"token": "A" * 32}))
+    assert st == 200 and config.secret("LEARNWEB_TOKEN") == "A" * 32
+    assert asgi_call(app, "POST", "/api/credentials/clear", body="{}")[0] == 200 and config.credentials() == ("", "")
+    assert vault.has_university_credentials("a" * 32, "luh") is False
 
 
 def test_universities_are_spared_across_accounts(hosted, monkeypatch):
@@ -441,15 +494,14 @@ def test_api_requests_limited_per_account(hosted, monkeypatch):
 
 # ---------------------------------------------------------------- Zugangsdaten loeschen, Wochentests je Konto (30.10.2026)
 
-def test_clear_credentials_removes_vault_values_and_consent(hosted):
+def test_clear_credentials_removes_legacy_vault_values_and_consent(hosted):
     from app import vault
     u, h = _register(hosted, "loesch@beispiel.de", "luh")
-    asgi_call(hosted, "PUT", "/api/credentials", headers=h, body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1", "consent": True}))
-    assert vault.has_university_credentials(u["id"], "luh") and vault.env_for(u["id"]).get("UNI_CONSENT_AT")
+    legacy_vault(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "Pa$$wort-1", "UNI_CONSENT_AT": "2026-11-01T08:00:00+00:00"})
     st, _, b = asgi_call(hosted, "POST", "/api/credentials/clear", headers=h, body="{}")
     assert st == 200 and json.loads(b) == {"ok": True, "user": "", "password_set": False}
-    assert not vault.has_university_credentials(u["id"], "luh") and "UNI_CONSENT_AT" not in vault.env_for(u["id"])
-    assert json.loads(asgi_call(hosted, "GET", "/api/credentials", headers=h)[2]) == {"user": "", "password_set": False, "consent_at": None}
+    assert vault.env_for(u["id"]) == {}
+    assert json.loads(asgi_call(hosted, "GET", "/api/credentials", headers=h)[2])["password_set"] is False
 
 
 def test_weekly_quota_follows_the_plan(hosted):
@@ -475,7 +527,7 @@ def test_weekly_quota_follows_the_plan(hosted):
 
 
 def test_weekly_job_runs_in_account_context_with_quota_and_after_sync(hosted, monkeypatch):
-    from app import accounts, config, db, jobs, studip_sync, vault, weekly
+    from app import accounts, config, db, jobs, studip_sync, weekly
     u = accounts.register("wt@beispiel.de", "sehr-geheim-123", "luh")
     accounts.set_plan(u["id"], "plus")
     seen = []
@@ -492,8 +544,10 @@ def test_weekly_job_runs_in_account_context_with_quota_and_after_sync(hosted, mo
     done = jobs.latest(u["id"])
     assert done["status"] == "done" and done["message"] == "Wochentests: 1 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", done
     assert seen == [(u["id"], "HostedQuota", u["id"])] and weekly._QUOTA.get() is None and config.current_user_id() is None
-    # nach einem Abgleich laeuft der Takt mit (wie _full_sync am PC)
-    vault.set_values(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "pw-pw-pw-1"})
+    # nach einem Abgleich laeuft der Takt mit (wie _full_sync am PC); Abgleich im Dienst seit 06.11.2026 abgeschaltet,
+    # der Weg wird mit dem Schalter weiter geprueft
+    monkeypatch.setattr(jobs, "HOSTED_UNI_SYNC", True)
+    legacy_vault(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "pw-pw-pw-1"})
     monkeypatch.setattr(studip_sync, "run_sync", lambda show_browser=False: {"ok": True, "new_files": ["f1"], "message": "1 neue Datei"})
     jobs.enqueue(u["id"], "sync", "manual")
     assert jobs.work_once()
@@ -532,7 +586,9 @@ def test_weekly_jobs_are_not_throttled_like_browser_jobs_and_get_scheduled(hoste
     monkeypatch.setenv("LERNAPP_UNI_GAP_S", "3600")
     a = accounts.register("a@beispiel.de", "sehr-geheim-123", "luh")
     b = accounts.register("b@beispiel.de", "sehr-geheim-123", "luh")
-    vault.set_values(a["id"], {"STUDIP_USER": "x", "STUDIP_PASSWORD": "y"})
+    # seit 06.11.2026 abgeschaltet (kein Konto hat Zugangsdaten im Dienst); der Weg wird mit dem Schalter geprueft
+    monkeypatch.setattr(jobs, "HOSTED_UNI_SYNC", True)
+    monkeypatch.setattr(vault, "users_with_credentials", lambda: [(a["id"], "luh")])
     # Zeitplan: Konto mit Zugangsdaten -> sync, ohne -> weekly
     n = jobs.schedule_due(datetime(2026, 10, 30, 8, 5), ["08:00"])
     assert n == 2

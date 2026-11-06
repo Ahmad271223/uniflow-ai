@@ -90,7 +90,7 @@ def build() -> dict:
     call("Daten-Endpunkt mit Sitzung (leere Datenbank des Kontos)", "GET", "/api/modules", token=token)
     call("Im Dienst nicht verfuegbar (Wochentests mit der KI des PCs)", "POST", "/api/tests/generate-week", token=token)
     call("Bezahlfunktion ohne Tarif (StudiNow Free)", "PUT", "/api/files/f1/annotations", {"version": 2, "pages": {}}, token=token)
-    call("Abgleich ohne hinterlegte Hochschul-Zugangsdaten", "POST", "/api/sync", token=token)
+    call("Abgleich im Dienst: keine Hochschul-Zugangsdaten auf dem Server (410)", "POST", "/api/sync", token=token)
     st, login2 = call("Anmelden auf zweitem Geraet", "POST", "/api/account/login", {"email": "erika@beispiel.de", "password": pw, "device_id": "mac-1", "device_name": "MacBook"})
     call("Anmelden: falsches Passwort", "POST", "/api/account/login", {"email": "erika@beispiel.de", "password": "falsch"})
     call("Sitzungen des Kontos", "GET", "/api/account/me", token=login2["token"])

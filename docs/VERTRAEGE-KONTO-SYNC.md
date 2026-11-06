@@ -126,6 +126,12 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   QIS, `clear`, `same_as`), `PUT /api/learnweb/token`, `POST /api/sync` → `{started, job_id, status, already}` oder
   400 `credentials_missing`, `POST /api/grades/sync` ebenso, `GET /api/sync/status` → `{bg, log, jobs}`, `GET /api/bg`
   → `{running, task, message, job}`. Die Web-Oberfläche braucht dafür keine Änderung (gleiche Form wie am PC).
+- **Seit 06.11.2026 abgeschaltet** („Ja, abschalten“): Im Dienst antworten `PUT /api/credentials`,
+  `PUT /api/credentials/{service}` (außer `clear`), `PUT /api/learnweb/token` (außer `clear`), `PUT /api/university/session`,
+  `POST /api/sync` und `POST /api/grades/sync` mit 410 `{"detail": "StudiNow speichert keine Hochschul-Passwörter auf dem
+  Server. Der Abgleich läuft auf deinem iPad oder in der Windows-App.", "code": "credentials_not_stored"}`.
+  `GET /api/credentials` liefert `{user: "", password_set: false, stored_on_server: false, message}`. Der Tresor wird
+  beim Start geleert, der Zeitplan legt nur noch `weekly` an. Am eigenen PC (Windows-App) bleibt alles wie oben.
 
 ## G1 Konto
 

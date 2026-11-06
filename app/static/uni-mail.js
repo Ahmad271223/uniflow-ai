@@ -2,9 +2,10 @@
 // im Anmeldefenster (POST /api/sogo/login), Ordner, Liste mit Seiten, Suche, Lesen (HTML im abgeschotteten Rahmen ohne
 // Skripte und ohne Netz), Anhänge, Antworten/Allen antworten/Weiterleiten/Neue E-Mail, Entwurf speichern, Senden nur mit
 // Bestätigung ("confirm": true), Markieren, Papierkorb mit "Rückgängig" (Anfrage erst nach 5 s), Uni-Kalender übernehmen.
-// Menüpunkt nur am PC an der LUH (GET /api/sogo/status); im Dienst gibt es Uni-Mail nicht.
+// Menüpunkt nur am PC an der LUH und der Uni Hildesheim (GET /api/sogo/status, Hochschule in "university"); im Dienst
+// und an der HsH gibt es Uni-Mail nicht. Raum-Links (Raumfinder) und „Lehrende“ nur an der LUH.
 import { $, $$, api, icon, toast, modal } from "./core.js?v=46";
-import * as L from "./uni-mail-logic.js?v=1";
+import * as L from "./uni-mail-logic.js?v=2";
 
 const { esc } = L;
 
@@ -31,6 +32,15 @@ export async function refreshNav() {
   a.setAttribute("aria-label", `${L.TEXTS.title}, ${L.badgeLabel(st.unseen)}`);
 }
 
+// Neue E-Mail mit Empfaenger von aussen (Lehrende, lecturers.js, 06.11.2026): oeffnet Uni-Mail und das Schreibfenster
+let pendingCompose = null, openCompose = null;
+export function composeTo(to, subject = "") {
+  const preset = { to, subject };
+  if (openCompose && /^#\/unimail/.test(location.hash)) return openCompose(preset);
+  pendingCompose = preset;
+  location.hash = "#/unimail";
+}
+
 let started = false;
 export function startNavItem() {
   if (started) return; started = true;
@@ -42,13 +52,15 @@ export function startNavItem() {
 export async function viewUniMail(_, __, view) {
   let st;
   try { st = await api("/sogo/status"); } catch (e) { view.innerHTML = `<div class="content"><div class="card empty">${icon("alert", 32)}<div>${esc(e.message)}</div></div></div>`; return; }
+  const T = L.texts(st);
   view.innerHTML = `<div class="content um-page">
-    <div class="page-head"><div><h1>${esc(L.TEXTS.title)}</h1><div class="sub">${esc(L.TEXTS.sub)}</div></div></div>
+    <div class="page-head"><div><h1>${esc(T.name)}</h1><div class="sub">${esc(T.sub)}</div></div>
+      ${L.showsLecturers(st) ? `<div class="actions"><a class="btn sm" id="umLecturers" href="#/lehrende" title="Lehrende deiner Kurse mit E-Mail-Adresse und Sprechstunde">${icon("users", 14)} Lehrende</a></div>` : ""}</div>
     <div id="umBody"></div></div>`;
   const root = $("#umBody", view);
-  if (!st.available) { root.innerHTML = `<div class="card empty">${icon("mail", 32)}<div>Uni-Mail gibt es für Studierende der Leibniz Universität Hannover.</div></div>`; return; }
+  if (!L.site(st)) { root.innerHTML = `<div class="card empty">${icon("mail", 32)}<div>${esc(T.unavailable)}</div></div>`; return; }
   if (!st.connected) {
-    root.innerHTML = `<div class="card"><h3>${icon("mail", 18)} Uni-Mail verbinden</h3><p class="small muted">${esc(L.TEXTS.hint)}</p>
+    root.innerHTML = `<div class="card"><h3>${icon("mail", 18)} Uni-Mail verbinden</h3><p class="small muted">${esc(T.hint)}</p>
       <button class="btn primary" id="umLogin">Bei Uni-Mail anmelden</button></div>`;
     $("#umLogin", root).onclick = async () => {
       try { await api("/sogo/login", { method: "POST" }); toast("Anmeldefenster ist offen – bitte dort anmelden."); } catch (e) { toast(e.message, 5000); }
@@ -132,7 +144,7 @@ export async function viewUniMail(_, __, view) {
     const t = setTimeout(async () => { bar.remove(); try { await api("/sogo/trash", { method: "POST", body: { folder, uids: [uid] } }); refreshNav(); } catch (e) { messages = keep; renderList(); fail(e); } }, 5000);
     $("button", bar).onclick = () => { clearTimeout(t); bar.remove(); messages = keep; renderList(); };
   }
-  async function compose(action, uid) {
+  async function compose(action, uid, preset) {
     let draft;
     try { draft = await api("/sogo/draft", { method: "POST", body: { action, folder, uid } }); } catch (e) { return fail(e); }
     const md = modal(`<h3>${esc(L.composeTitle(action))}</h3><div class="small muted">Von: ${esc(draft.from)}</div>
@@ -145,6 +157,8 @@ export async function viewUniMail(_, __, view) {
     const fv = k => $(`[data-f="${k}"]`, md);
     fv("to").value = (draft.to || []).join(", "); fv("cc").value = (draft.cc || []).join(", "); fv("bcc").value = (draft.bcc || []).join(", ");
     fv("subject").value = draft.subject || ""; fv("text").value = draft.text || "";
+    if (preset?.to && !fv("to").value) fv("to").value = preset.to;
+    if (preset?.subject && !fv("subject").value) fv("subject").value = preset.subject;
     const fields = () => ({ to: fv("to").value, cc: fv("cc").value, bcc: fv("bcc").value, subject: fv("subject").value, text: fv("text").value });
     const msg = t => { $("[data-msg]", md).textContent = t || ""; };
     $("[data-file]", md).onchange = async e => {
@@ -165,7 +179,7 @@ export async function viewUniMail(_, __, view) {
     try { ev = (await api("/sogo/calendar/events?days=30")).events || []; } catch {}
     box.innerHTML = `<h3>${icon("calendar", 18)} Uni-Kalender</h3><p class="small muted">${esc(L.TEXTS.calendar)}</p>
       <button class="btn sm" data-d="7">Nächste 7 Tage übernehmen</button> <button class="btn sm" data-d="30">Nächste 30 Tage übernehmen</button>
-      ${ev.slice(0, 30).map(e => `<div style="margin-top:.5rem"><div class="small muted">${esc(L.when(e))}</div><b>${esc(e.title)}</b>${e.location ? `<div class="small"><button class="room-link" data-room="${esc(e.location)}">${icon("map-pin", 12)} ${esc(e.location)}</button></div>` : ""}</div>`).join("")}`;
+      ${ev.slice(0, 30).map(e => `<div style="margin-top:.5rem"><div class="small muted">${esc(L.when(e))}</div><b>${esc(e.title)}</b>${e.location ? `<div class="small">${L.roomLinks(st) ? `<button class="room-link" data-room="${esc(e.location)}">${icon("map-pin", 12)} ${esc(e.location)}</button>` : esc(e.location)}</div>` : ""}</div>`).join("")}`;
     $$("[data-d]", box).forEach(b => b.onclick = async () => {
       try { const r = await api("/sogo/calendar/import", { method: "POST", body: { days: +b.dataset.d } }); toast(`${r.events} Termine übernommen.`); calendar(); } catch (e) { fail(e); }
     });
@@ -174,7 +188,9 @@ export async function viewUniMail(_, __, view) {
   $("#umQ", root).onkeydown = e => { if (e.key === "Enter") { query = e.target.value; load(); } };
   $("#umRefresh", root).onclick = load;
   $("#umNew", root).onclick = () => compose("compose");
+  openCompose = preset => compose("compose", undefined, preset);
   await loadBoxes();
   await load();
+  if (pendingCompose) { const p = pendingCompose; pendingCompose = null; compose("compose", undefined, p); }
   calendar();
 }

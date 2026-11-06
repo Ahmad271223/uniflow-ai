@@ -43,34 +43,16 @@ final class UniFlowTestsPrincipal: NSObject, XCTestObservation {
             guard let w = note.object as? UIWindow else { return }
             MainActor.assumeIsolated { w.uf_regularForTests() }
         }
-        // Bildschirmtastatur: der iPad-Simulator hat die Hardware-Tastatur, der iPhone-Simulator blendet die
-        // Bildschirmtastatur ein. Ueber einem Testfenster in iPad-Groesse verkleinerte sie den sicheren Bereich so weit,
-        // dass Dialoge und Leisten nicht mehr gezeichnet wurden; je nach Zeitpunkt schlugen andere Tests fehl (voller
-        // Lauf 06.11.2026). Wie am iPad: Eingaben bekommen eine leere Eingabeansicht (Text setzen die Tests direkt).
-        for name in [UITextField.textDidBeginEditingNotification, UITextView.textDidBeginEditingNotification] {
-            keyboards.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { note in
-                MainActor.assumeIsolated {
-                    if let f = note.object as? UITextField, !(f.inputView is NoKeyboard) { f.inputView = NoKeyboard(); f.reloadInputViews() }
-                    if let v = note.object as? UITextView, !(v.inputView is NoKeyboard) { v.inputView = NoKeyboard(); v.reloadInputViews() }
-                }
-            })
-        }
-    }
-
-    /// Leere Eingabeansicht statt der Bildschirmtastatur (nur iPhone-Simulator, nur Tests)
-    final class NoKeyboard: UIView {
-        init() { super.init(frame: .zero) }
-        required init?(coder: NSCoder) { nil }
-        override var intrinsicContentSize: CGSize { .zero }
     }
 
     @MainActor private static var observer: NSObjectProtocol?
-    @MainActor private static var keyboards: [NSObjectProtocol] = []
 }
 
 extension UIWindow {
-    /// Groessenklassen wie am iPad (nur Tests auf dem iPhone-Simulator, `UniFlowTestsPrincipal`)
+    /// Groessenklassen wie am iPad (nur Tests auf dem iPhone-Simulator, `UniFlowTestsPrincipal`): ein Fenster ab 700 pt
+    /// Breite ist dort regular; schmaler (Split View, iPhone-Groesse) bleibt es kompakt wie am iPad
     func uf_regularForTests() {
+        guard frame.width >= 700 else { return }
         if traitOverrides.contains(UITraitHorizontalSizeClass.self), traitOverrides.horizontalSizeClass == .regular { return }
         traitOverrides.horizontalSizeClass = .regular
         traitOverrides.verticalSizeClass = .regular

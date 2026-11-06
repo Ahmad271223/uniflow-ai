@@ -1,18 +1,21 @@
 import Foundation
 
-/// Abruf bei SOGo (Uni-Mail, Uni-Kalender der LUH) mit der Sitzung der Webansicht, wie `SOGoWeb` in app/sogo.py.
+/// Abruf bei SOGo (Uni-Mail, Uni-Kalender der LUH bzw. der Uni Hildesheim, `SOGoSite`) mit der Sitzung der Webansicht,
+/// wie `SOGoWeb` in app/sogo.py. Anfragen gehen nur an den Rechner der eigenen Hochschule.
 /// Jede JSON-Anfrage traegt `X-XSRF-TOKEN` (Wert des Cookies XSRF-TOKEN; setzt SOGo ein neues, gilt ab dann das neue).
 /// Lesende Anfragen wiederholen bei Netzfehlern, 5xx und 429 (`UniRetry`); schreibende (Markieren, Papierkorb,
 /// Entwurf, Senden) gehen genau einmal. `send` nur nach dem Knopf "Senden". Endpunkte: docs/UNI-MAIL-2026-11-05.md.
 public final class SOGoClient: @unchecked Sendable {
     public let user: String
+    public let site: SOGoSite
     let transport: UniTransport
     let retry: UniRetry
     private let lock = NSLock()
     private var token: String?
 
-    public init(user: String, transport: UniTransport, xsrf: String?, retry: UniRetry = UniRetry()) {
+    public init(user: String, site: SOGoSite, transport: UniTransport, xsrf: String?, retry: UniRetry = UniRetry()) {
         self.user = user
+        self.site = site
         self.transport = transport
         self.retry = retry
         token = xsrf.map { $0.removingPercentEncoding ?? $0 }
@@ -21,18 +24,18 @@ public final class SOGoClient: @unchecked Sendable {
     /// aktueller Wert fuer X-XSRF-TOKEN
     public var xsrf: String? { lock.withLock { token } }
 
-    /// Wert des Cookies XSRF-TOKEN aus einer Liste (nur fuer den Rechner von SOGo)
-    public static func xsrf(from cookies: [HTTPCookie]) -> String? {
+    /// Wert des Cookies XSRF-TOKEN aus einer Liste (nur fuer den Rechner von SOGo dieser Hochschule)
+    public static func xsrf(from cookies: [HTTPCookie], site: SOGoSite) -> String? {
         cookies.first { c in
             let d = c.domain.lowercased().hasPrefix(".") ? String(c.domain.lowercased().dropFirst()) : c.domain.lowercased()
-            return c.name == "XSRF-TOKEN" && (SOGo.host == d || SOGo.host.hasSuffix("." + d))
+            return c.name == "XSRF-TOKEN" && (site.host == d || site.host.hasSuffix("." + d))
         }.map { $0.value.removingPercentEncoding ?? $0.value }
     }
 
     func url(_ path: String) throws -> URL {
         let s: String
-        if path.hasPrefix("https://") { s = path } else if path.hasPrefix("/") { s = "https://\(SOGo.host)" + path } else { s = SOGo.userBase(user) + "/" + path }
-        guard let u = URL(string: s), u.scheme == "https", u.host?.lowercased() == SOGo.host else { throw SOGoError.bad("Anfrage außerhalb von SOGo abgelehnt") }
+        if path.hasPrefix("https://") { s = path } else if path.hasPrefix("/") { s = "https://\(site.host)" + path } else { s = SOGo.userBase(user, site: site) + "/" + path }
+        guard let u = URL(string: s), u.scheme == "https", u.host?.lowercased() == site.host else { throw SOGoError.bad("Anfrage außerhalb von SOGo abgelehnt") }
         return u
     }
 
@@ -73,7 +76,7 @@ public final class SOGoClient: @unchecked Sendable {
         remember(resp)
         let isJSON = (resp.headers["content-type"] ?? "").lowercased().contains("json")
         let text = isJSON ? "" : String(decoding: resp.body.prefix(4000), as: UTF8.self)
-        if SOGo.expired(status: resp.status, finalURL: resp.finalURL?.absoluteString, body: text) { throw SOGoError.needsLogin }
+        if SOGo.expired(status: resp.status, finalURL: resp.finalURL?.absoluteString, body: text, site: site) { throw SOGoError.needsLogin }
         return resp
     }
 
@@ -102,7 +105,7 @@ public final class SOGoClient: @unchecked Sendable {
 
     /// Nachricht lesen (SOGo markiert sie dabei als gelesen, wie in der Weboberflaeche)
     public func message(_ path: String, uid: Int) async throws -> JSONValue {
-        SOGo.message(try await json("GET", "Mail/0/\(SOGo.folderPath(path))/\(uid)/view"), folder: path, uid: uid)
+        SOGo.message(try await json("GET", "Mail/0/\(SOGo.folderPath(path))/\(uid)/view"), folder: path, uid: uid, site: site)
     }
 
     public func unseen(_ path: String = "INBOX") async throws -> Int? {
@@ -111,7 +114,7 @@ public final class SOGoClient: @unchecked Sendable {
 
     /// Anhang direkt in eine Datei (nur Pfade unter /SOGo/so/ dieses Rechners)
     public func download(_ attachmentPath: String, to destination: URL) async throws {
-        guard let p = SOGo.attachmentPath(.string(attachmentPath)) else { throw SOGoError.bad("Anhang nicht von SOGo") }
+        guard let p = SOGo.attachmentPath(.string(attachmentPath), site: site) else { throw SOGoError.bad("Anhang nicht von SOGo") }
         var headers = ["Accept": "*/*"]
         if let t = xsrf, !t.isEmpty { headers["X-XSRF-TOKEN"] = t }
         let r: UniResponse
@@ -128,7 +131,7 @@ public final class SOGoClient: @unchecked Sendable {
             head = String(decoding: h.readData(ofLength: 4000), as: UTF8.self)
             try? h.close()
         }
-        if SOGo.expired(status: r.status, finalURL: r.finalURL?.absoluteString, body: head) {
+        if SOGo.expired(status: r.status, finalURL: r.finalURL?.absoluteString, body: head, site: site) {
             try? FileManager.default.removeItem(at: destination)
             throw SOGoError.needsLogin
         }

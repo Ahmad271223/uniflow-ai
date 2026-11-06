@@ -354,6 +354,7 @@ final class StudIPSync: ObservableObject {
             defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
             phase = .idle
             let store = websiteDataStore
+            UniAutoLogin.signedIn(store)                       // mitgelesenes Passwort jetzt merken (falls zugelassen)
             Task { await UniWebSessions.save(store) }          // Uni-Anmeldung (WebSSO) ueber Neustarts merken
             Task { await run() }
         } catch {
@@ -402,8 +403,12 @@ final class StudIPSync: ObservableObject {
         if phase != .needsLogin, !isRunning { phase = .needsLogin }   // abgelaufen gemerkt (Neustart): wie im Lauf
         let store = websiteDataStore
         let task = Task { @MainActor () -> Bool in
-            guard let fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store),
-                  self.sessionKnownExpired else { return false }
+            var fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store)
+            // WebSSO will das Passwort: mit dem gespeicherten still anmelden, dann genau einmal neu (`UniAutoLogin`)
+            if fresh == nil, await self.autoLogin(store: store) {
+                fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store)
+            }
+            guard let fresh, self.sessionKnownExpired else { return false }
             self.signedIn(cookies: fresh)                          // speichert (auch die Uni-Anmeldung) und startet den Abgleich
             return true
         }
@@ -412,6 +417,17 @@ final class StudIPSync: ObservableObject {
         renewing = nil
         renewal.attempted(at: Date(), ok: ok)
         return ok
+    }
+
+    /// Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): auf dem WebSSO mit dem gespeicherten Passwort
+    /// (nur mit Zustimmung, nur dieses Geraet); true, wenn danach Stud.IP erreicht ist
+    private func autoLogin(store: WKWebsiteDataStore) async -> Bool {
+        let host = Self.base.host?.lowercased() ?? ""
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL()) { url, _ in
+            url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
+        }
+        return d == .retryOnce && signOuts == before && hasStoredSession
     }
 
     /// Bereitschaft der gemerkten Sitzung vor einem Abgleich bzw. beim Oeffnen (`ensureSession`)
@@ -524,6 +540,7 @@ final class StudIPSync: ObservableObject {
         setFlag(Keys.sessionExpired, false)
         defaults.removeObject(forKey: LoginReminder.lastLoginKey)
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der Anmeldeseite
+        UniAutoLogin.forget(websiteDataStore)                    // gemerktes Passwort dieser Hochschule (Schluesselbund)
         renewal = UniRenewalState()
         await UniWebSessions.forget(websiteDataStore)            // gemerkte Uni-Anmeldung zuerst (nie wiederverwenden)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
@@ -616,6 +633,18 @@ final class StudIPSync: ObservableObject {
     func liveClient(_ cookies: [HTTPCookie]) -> StudIPClient {
         let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")
         return StudIPClient(base: Self.base, transport: transport)
+    }
+
+    /// Termin-Detail (06.11.2026): Lehrende eines Kurses, die noch nicht geladen sind, auf Wunsch nachholen (wie nach
+    /// Stufe (a) des Abgleichs, `StudIPExtrasSync.lecturers`: nur lesend, je Kurs hoechstens alle 7 Tage). Nur mit
+    /// gespeicherter Sitzung, nicht waehrend eines Abgleichs. Rueckgabe: ohne abgelaufene Sitzung gelaufen.
+    @discardableResult
+    func loadLecturers(courseID: String) async -> Bool {
+        guard offersStudIP, !isRunning, !stopped, !courseID.isEmpty else { return false }
+        let cookies = self.cookies.load()
+        guard !cookies.isEmpty else { return false }
+        let expired = await StudIPExtrasSync(host: host).lecturers(client: liveClient(cookies), courses: [StudIPCourse(id: courseID, title: "")])
+        return !expired
     }
 
     /// Ein Abgleich mit diesem Client (Tests: feste Antworten statt Stud.IP). Ablauf wie run_sync in
@@ -831,6 +860,11 @@ final class StudIPSync: ObservableObject {
             // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden, Brett, Blubber (StudIPExtrasSync)
             let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: chosen)
             try Task.checkCancellation()
+            // Lehrende und Kontakte (StudIPLecturers, 06.11.2026): erst nach Stufe (a), nur im vollen Lauf, je Kurs hoechstens
+            // alle 7 Tage; nur an Hochschulen mit Stud.IP. Fehler halten den Abgleich nicht an
+            let lecturersExpired = timetable.sessionExpired || extrasExpired || scope == .lists ? false
+                : await StudIPExtrasSync(host: host).lecturers(client: client, courses: chosen)
+            try Task.checkCancellation()
             // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
             // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen, im
             // kurzen Hintergrundlauf auch nicht (eine Seite je Kurs sprengte die rund 30 Sekunden)
@@ -857,6 +891,7 @@ final class StudIPSync: ObservableObject {
             parts += rec?.summary ?? []
             parts += texts?.summary ?? []
             let expired = timetable.sessionExpired || rec?.sessionExpired == true || texts?.sessionExpired == true || extrasExpired
+                || lecturersExpired
             if scope == .full {
                 finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
                 // alle Dateien geladen oder als Fehler gezaehlt: nichts wartet mehr auf den naechsten Abgleich

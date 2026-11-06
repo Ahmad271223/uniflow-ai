@@ -1,4 +1,6 @@
-"""Uni-Mail und Uni-Kalender (SOGo der LUH, docs/UNI-MAIL-2026-11-05.md): gemeinsame Faelle fuer Python und den Swift-Kern.
+"""Uni-Mail und Uni-Kalender (SOGo der LUH und der Uni Hildesheim, docs/UNI-MAIL-2026-11-05.md): gemeinsame Faelle fuer
+Python und den Swift-Kern. Abschnitt "sites": Rechner je Hochschule (sogo.SITES, SOGoSite) und dieselben Adressen gegen
+jede Hochschule geprueft (Konto, Ablauf, Anhaenge, Nachricht); erfundene Beispielkonten je Hochschule.
 
 Liest die nachgebauten Antworten in packages/shared-contracts/fixtures/sogo/raw (erfunden, keine persoenlichen Daten;
 Aufbau wie am 05.11.2026 gelesen bzw. aus dem Quelltext von SOGo abgeleitet) und schreibt
@@ -98,6 +100,55 @@ SEND = [
 ]
 
 
+# Uni Hildesheim (06.11.2026): Form des Benutzernamens unbekannt, daher beide erfundenen Formen (Kennung, Adresse)
+HI_USER = "muster"
+HI_MAIL = "erika.muster@uni-hildesheim.de"
+SITE_URLS = [
+    f"https://webmail.uni-hildesheim.de/SOGo/so/{HI_USER}/Mail/view",
+    "https://webmail.uni-hildesheim.de/SOGo/so/erika.muster%40uni-hildesheim.de/Calendar/view",
+    f"https://WEBMAIL.Uni-Hildesheim.DE:443/SOGo/so/{HI_USER}/Mail/view",
+    "https://webmail.uni-hildesheim.de/SOGo/",
+    "https://webmail.uni-hildesheim.de/SOGo/so/",
+    f"http://webmail.uni-hildesheim.de/SOGo/so/{HI_USER}/Mail",
+    f"https://webmail.uni-hildesheim.de:8443/SOGo/so/{HI_USER}/Mail",
+    f"https://www.uni-hildesheim.de/SOGo/so/{HI_USER}/Mail",
+    f"https://uni-hildesheim.de/SOGo/so/{HI_USER}/Mail",
+    f"https://webmail.uni-hildesheim.de.example/SOGo/so/{HI_USER}/Mail",
+    f"https://kalender.uni-hannover.de/SOGo/so/{USER}/Mail/view",
+    "https://evil.example/SOGo/so/x/Mail",
+]
+SITE_ATTACHMENTS = [
+    f"/SOGo/so/{HI_USER}/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+    f"https://webmail.uni-hildesheim.de/SOGo/so/{HI_USER}/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+    f"https://kalender.uni-hannover.de/SOGo/so/{USER}/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+    "https://evil.example/SOGo/so/x/a",
+]
+# Nachricht mit Anhaengen beider Rechner (erfunden): je Hochschule bleibt nur, was zu ihrem Rechner gehoert
+SITE_MESSAGE = {"subject": "Anhänge", "parts": {"type": "UIxMailPartMixedViewer", "content": [
+    {"type": "UIxMailPartTextViewer", "content": "Hallo"},
+    {"type": "UIxMailPartLinkViewer", "filename": "a.pdf", "contentType": "application/pdf",
+     "downloadURL": f"/SOGo/so/{HI_USER}/Mail/0/folderINBOX/7/2/asAttachment/a.pdf"},
+    {"type": "UIxMailPartLinkViewer", "filename": "hi.pdf", "contentType": "application/pdf",
+     "downloadURL": f"https://webmail.uni-hildesheim.de/SOGo/so/{HI_USER}/Mail/0/folderINBOX/7/3/asAttachment/hi.pdf"},
+    {"type": "UIxMailPartLinkViewer", "filename": "luh.pdf", "contentType": "application/pdf",
+     "downloadURL": f"https://kalender.uni-hannover.de/SOGo/so/{USER}/Mail/0/folderINBOX/7/4/asAttachment/luh.pdf"},
+]}}
+
+
+def sites() -> dict:
+    out = {"list": [dict(v) for v in sogo.SITES.values()], "hsh": sogo.site("hsh"), "message": SITE_MESSAGE, "checks": {}}
+    for key, s in sogo.SITES.items():
+        h = s["host"]
+        out["checks"][key] = {
+            "base": sogo.base_of(h), "user_base": sogo.user_base(HI_MAIL, h),
+            "user_from_url": [{"url": u, "user": sogo.user_from_url(u, h)} for u in SITE_URLS],
+            "expired": [{"status": 200, "final": u, "expired": sogo.expired(200, u, "{}", h)} for u in SITE_URLS[:3] + SITE_URLS[10:11]],
+            "attachment_path": [{"in": u, "out": sogo.attachment_path(u, h)} for u in SITE_ATTACHMENTS],
+            "message_attachments": sogo.parse_message(SITE_MESSAGE, "INBOX", 7, h)["attachments"],
+        }
+    return out
+
+
 def occurrences() -> dict:
     conn = sqlite3.connect(":memory:")
     events = sogo.parse_events(raw("events.json"))
@@ -187,6 +238,7 @@ def cases() -> dict:
                       "out": sogo.multipart("Blatt 3/Lösung \"final\".pdf", b"%PDF-1.4 x", "application/pdf")[0].decode("utf-8"),
                       "type": sogo.multipart("x", b"", "")[1]},
         "calendar": occurrences(),
+        "sites": sites(),
     }
 
 

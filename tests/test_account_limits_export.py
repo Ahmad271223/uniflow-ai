@@ -131,10 +131,11 @@ def test_login_lock_per_ip_is_higher_than_per_address(hosted):
 
 
 def test_export_contains_everything_but_no_secrets(hosted):
-    from app import accounts, community, config, db, test_library, vault
+    from app import accounts, community, config, db, test_library
     st, d = _register(hosted, "export@beispiel.de")
     uid, h = d["user"]["id"], {"Authorization": f"Bearer {d['token']}"}
-    vault.set_values(uid, {"STUDIP_USER": "luh-id-123", "STUDIP_PASSWORD": "streng-geheim", "STUDIP_COOKIES": "cookie-geheim"})
+    from conftest import legacy_vault
+    legacy_vault(uid, {"STUDIP_USER": "luh-id-123", "STUDIP_PASSWORD": "streng-geheim", "STUDIP_COOKIES": "cookie-geheim"})   # Altbestand
     t = config.set_user_context(uid, "luh")
     try:
         db.init_db()

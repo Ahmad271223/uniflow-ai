@@ -2,7 +2,9 @@ import Foundation
 import UniFlowCore
 import WebKit
 
-// Uni-Mail und Uni-Kalender der LUH (SOGo, https://kalender.uni-hannover.de/SOGo/), docs/UNI-MAIL-2026-11-05.md.
+// Uni-Mail und Uni-Kalender (SOGo) der LUH (https://kalender.uni-hannover.de/SOGo/) und der Uni Hildesheim
+// (https://webmail.uni-hildesheim.de/SOGo/, seit 06.11.2026), docs/UNI-MAIL-2026-11-05.md. Rechner, Namen und
+// Raum-Links aus `SOGoSite` der Hochschule des Containers; jeder Container hat seine eigenen Cookies (Webdaten).
 // Duenne Schicht ueber dem Kern (`SOGo`, `SOGoClient`, `SOGoCalendar`), wie `QISConnection` fuer das QIS: Anmeldung in
 // der Webansicht des Containers auf der echten SOGo-Seite (eigenes Formular; das Passwort tippt der Mensch, merken darf
 // es nur iOS), gespeichert werden nur die Cookies (`UniWebSessions`, Schluesselbund) und der Kontoname aus der Adresse
@@ -11,7 +13,7 @@ import WebKit
 // in der Datenbank des Containers, Inhalte nur im Arbeitsspeicher, Anhaenge in einem Temp-Ordner zum Oeffnen/Teilen.
 // Nichts geht an StudiNow-Server. Senden nur ueber `send` (Knopf "Senden" mit Rueckfrage), genau einmal.
 
-/// Verbindung zu Uni-Mail/Uni-Kalender fuer einen LUH-Container
+/// Verbindung zu Uni-Mail/Uni-Kalender fuer einen Container der LUH oder der Uni Hildesheim
 @MainActor
 final class UniMailConnection: ObservableObject {
     enum State: Equatable {
@@ -36,6 +38,8 @@ final class UniMailConnection: ObservableObject {
     typealias TransportFactory = @MainActor (WKWebsiteDataStore) async -> UniTransport
 
     let key: DataContainerKey
+    /// SOGo der Hochschule des Containers (Rechner, Anzeigename, Raum-Links)
+    let site: SOGoSite
     let websiteDataStore: WKWebsiteDataStore
     private let host: LocalBackendHost
     private let defaults: UserDefaults
@@ -46,9 +50,13 @@ final class UniMailConnection: ObservableObject {
     private(set) var stopped = false
     private var signOuts = 0
 
-    static let domains = [SOGo.host]
-    static let signOutMessage = "Die Anmeldung bei Uni-Mail wird in der Webansicht gelöscht, ebenso die zwischengespeicherte Liste des Posteingangs und die übernommenen Termine des Uni-Kalenders. Deine E-Mails bleiben in deinem Uni-Postfach. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
-    static let hint = "Uni-Mail und Uni-Kalender (SOGo) der Leibniz Universität Hannover: E-Mails lesen, beantworten, weiterleiten und schreiben, Termine im Lernkalender. Du meldest dich auf der echten SOGo-Seite an; dein Passwort speichert StudiNow nicht (das kann iOS übernehmen). E-Mails bleiben auf diesem \(UFDevice.name) und in deinem Uni-Postfach, nichts geht an StudiNow-Server."
+    /// Rechner, an die Anfragen gehen und deren Cookies "Abmelden" loescht: nur SOGo dieser Hochschule
+    var domains: [String] { [site.host] }
+    static let signOutMessage = "Die Anmeldung bei Uni-Mail wird in der Webansicht gelöscht, ebenso die zwischengespeicherte Liste des Posteingangs und die übernommenen Termine des Uni-Kalenders. Deine E-Mails bleiben in deinem Uni-Postfach. Ein in StudiNow gemerktes Passwort der Hochschule wird gelöscht; eines, das iOS gesichert hat, bleibt unter „Passwörter“."
+    static func hint(_ site: SOGoSite) -> String {
+        "Uni-Mail und Uni-Kalender (SOGo) der \(site.universityName): E-Mails lesen, beantworten, weiterleiten und schreiben, Termine im Lernkalender. Du meldest dich auf der echten SOGo-Seite an; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem \(UFDevice.name). E-Mails bleiben auf diesem \(UFDevice.name) und in deinem Uni-Postfach, nichts geht an StudiNow-Server."
+    }
+    var hint: String { Self.hint(site) }
 
     enum Keys {
         static let connected = "uniflow.sogo.connected"
@@ -63,15 +71,17 @@ final class UniMailConnection: ObservableObject {
         static let all = [connected, user, login, unseen, lastUID, lastCheck, notify, calendarRun, calendarDays]
     }
 
-    init(container c: ActiveContainer, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
+    init(container c: ActiveContainer, site: SOGoSite, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
          transport: TransportFactory? = nil, retry: UniRetry = UniRetry()) {
         key = c.key
+        self.site = site
         host = c.host
         defaults = c.defaults
         self.websiteDataStore = websiteDataStore
         self.clock = clock
         self.retry = retry
-        makeTransport = transport ?? { store in await URLSessionUniTransport.make(dataStore: store, allowedDomains: UniMailConnection.domains) }
+        let domains = [site.host]
+        makeTransport = transport ?? { store in await URLSessionUniTransport.make(dataStore: store, allowedDomains: domains) }
         user = defaults.string(forKey: Keys.user)
         unseen = defaults.integer(forKey: Keys.unseen)
         state = storedState()
@@ -114,13 +124,14 @@ final class UniMailConnection: ObservableObject {
 
     // MARK: Anmeldung
 
-    /// Angemeldete Seite erkannt (Adresse /SOGo/so/<benutzer>/...); Konto merken, Cookies sichern, Posteingang lesen
+    /// Angemeldete Seite erkannt (Adresse https://<rechner der hochschule>/SOGo/so/<benutzer>/...); Konto merken, Cookies sichern, Posteingang lesen
     func signedIn(user u: String) {
         defaults.set(true, forKey: Keys.connected)
         defaults.set(u, forKey: Keys.user)
         user = u
         set(.connected)
         let store = websiteDataStore
+        UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }
         guard refreshesAfterSignIn else { return }
         Task { await refreshInbox() }
@@ -130,6 +141,7 @@ final class UniMailConnection: ObservableObject {
     func signOut() async {
         signOuts += 1
         for k in Keys.all { defaults.removeObject(forKey: k) }
+        UniAutoLogin.forget(websiteDataStore)                  // gemerktes Passwort der Hochschule (Schluesselbund)
         user = nil
         setUnseen(0)
         calendarMessage = nil
@@ -142,7 +154,7 @@ final class UniMailConnection: ObservableObject {
         }
         await UniWebSessions.ready(websiteDataStore)
         let store = websiteDataStore.httpCookieStore
-        for c in await store.allCookies() where UniCookiePolicy.matches(c, Self.domains) {
+        for c in await store.allCookies() where UniCookiePolicy.matches(c, domains) {
             await store.deleteCookie(c)
         }
         await UniWebSessions.save(websiteDataStore)
@@ -160,7 +172,7 @@ final class UniMailConnection: ObservableObject {
         await UniWebSessions.ready(websiteDataStore)
         let cookies = await websiteDataStore.httpCookieStore.allCookies()
         let transport = await makeTransport(websiteDataStore)
-        return SOGoClient(user: user, transport: transport, xsrf: SOGoClient.xsrf(from: cookies), retry: retry)
+        return SOGoClient(user: user, site: site, transport: transport, xsrf: SOGoClient.xsrf(from: cookies, site: site), retry: retry)
     }
 
     /// Eine Aktion mit SOGo; abgelaufene Anmeldung setzt "Anmeldung nötig", Erfolg "ok"
@@ -172,9 +184,33 @@ final class UniMailConnection: ObservableObject {
             if signOuts == before { set(.ok(clock.now)) }
             return r
         } catch SOGoError.needsLogin {
+            // automatisch anmelden (gespeichertes Passwort, nur mit Zustimmung), dann genau einmal neu versuchen
+            if signOuts == before, await autoLogin(), signOuts == before, let again = await client() {
+                do {
+                    let r = try await op(again)
+                    if signOuts == before { set(.ok(clock.now)) }
+                    UniAutoLogin.succeeded(portal: "sogo", store: websiteDataStore)
+                    return r
+                } catch SOGoError.needsLogin {}
+            }
             if signOuts == before { set(.needsLogin) }
             throw SOGoError.needsLogin
         }
+    }
+
+    /// Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): unsichtbar auf der SOGo-Seite mit dem
+    /// gespeicherten Passwort; fertig, sobald SOGo das gemerkte Konto zeigt (/SOGo/so/<benutzer>/). Kein Abruf hier:
+    /// die gescheiterte Aktion wiederholt `perform` genau einmal.
+    @discardableResult
+    func autoLogin(userAction: Bool = false) async -> Bool {
+        guard isConnected, !stopped, let account = user else { return false }
+        let before = signOuts
+        let site = self.site
+        let d = await UniAutoLogin.handleExpiry(portal: "sogo", store: websiteDataStore, entry: site.loginURL,
+                                                userAction: userAction) { url, _ in SOGo.user(fromURL: url, site: site) == account }
+        guard d == .retryOnce, signOuts == before, isConnected else { return false }
+        set(.connected)
+        return true
     }
 
     struct InboxReport: Equatable {

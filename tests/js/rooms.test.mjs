@@ -62,7 +62,8 @@ test("Seitenleiste, Route, Raum-Links in Stundenplan und Klausuren", () => {
   assert.deepEqual(NAV_GROUPS.find(g => g.id === "alltag").items, [["mensa", "Mensa", "utensils"], ["raumfinder", "Raumfinder", "map-pin"]]);
   assert.match(read("app.js"), /routes\.raumfinder = routes\.rooms = /);
   assert.match(read("app.js"), /\.room-link\[data-room\]/);
-  assert.match(read("views-tt.js"), /roomLink\(e\.room, icon\)/);
+  // Termin-Panel: Raum im Termin-Detail (termin-detail.js, Route und "Im Raumfinder anzeigen" als .room-link)
+  assert.match(read("views-tt.js"), /mountTerminDetail\(\$\("\[data-termin-detail\]", d\)/);
   const html = examsCard([{ date: "2027-02-12", title: "Analysis", time: "09:00", end: "11:00", room: "Hörsaal F 303", in_days: "in 99 Tagen" }]);
   assert.match(html, /class="ov-exam-room"><button type="button" class="room-link" data-room="Hörsaal F 303"/);
   assert.match(html, /aria-label="Analysis, [^"]*09:00–11:00 Uhr · Hörsaal F 303/);

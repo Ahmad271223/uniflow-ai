@@ -45,15 +45,28 @@ struct OnboardingPage<Content: View>: View {
     }
 }
 
+/// Das StudiNow-Logo (06.11.2026: Doktorhut mit Netz, wie das App-Icon), abgerundet wie ein App-Icon. Ueberall in der
+/// App dieselbe Marke: Seitenleiste, Logo-Knopf im Editor, Anmeldung, Hochschulwahl, KI-Start.
+struct UFLogoImage: View {
+    var size: CGFloat
+
+    var body: some View {
+        Image("StudiNowLogo")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.2237, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
 /// Logo wie die Marke in der Seitenleiste (.brand), vergroessert
 struct UFLogoMark: View {
     var size: CGFloat = 64
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.3).fill(UF.logoGradient)
-            .frame(width: size, height: size)
-            .overlay(UFIcon("graduation", size: size * 0.6).foregroundStyle(.white))
+        UFLogoImage(size: size)
             .ufShadow(.sm)
-            .accessibilityHidden(true)
     }
 }

@@ -147,8 +147,11 @@ def test_api_login_window_and_session_endpoints(app, monkeypatch):
     assert st == 200 and not unilogin.has_session("STUDIP_COOKIES")
 
 
-def test_hosted_has_no_login_window_but_device_session_counts_as_credentials(app, monkeypatch):
-    from app import accounts, config, vault
+def test_hosted_has_no_login_window_and_never_counts_credentials(app, monkeypatch):
+    """Seit 06.11.2026: im Dienst kein Anmeldefenster und keine Zugangsdaten, auch nicht aus Altbestand im Tresor."""
+    from conftest import legacy_vault
+
+    from app import accounts, config, unilogin, vault
     monkeypatch.setattr(config, "MODE", "hosted")
     monkeypatch.setenv("LERNAPP_JOBS", "off")
     for suffix in ("", "-wal", "-shm"):
@@ -160,17 +163,24 @@ def test_hosted_has_no_login_window_but_device_session_counts_as_credentials(app
         st, _, b = asgi_call(app, "POST", "/api/university/login", headers=h)
         assert st == 400 and json.loads(b)["code"] == "use_app_login"
         assert not vault.has_university_credentials(uid, "luh")
-        vault.set_values(uid, {"STUDIP_COOKIES": json.dumps([COOKIE])})
-        assert vault.has_university_credentials(uid, "luh"), "Sitzung vom Geraet reicht fuer den Abgleich im Dienst"
-        vault.set_values(uid, {"STUDIP_COOKIES": json.dumps([{"name": "x", "value": "y", "domain": "d", "expires": time.time() - 1}])})
-        assert not vault.has_university_credentials(uid, "luh")
+        legacy_vault(uid, {"STUDIP_COOKIES": json.dumps([COOKIE])})
+        assert not vault.has_university_credentials(uid, "luh"), "Altbestand zaehlt nicht mehr"
+        t = config.set_user_context(uid, "luh")
+        try:
+            try:
+                unilogin.save_session("STUDIP_COOKIES", [COOKIE])
+                raise AssertionError("im Dienst darf keine Hochschul-Sitzung gespeichert werden")
+            except vault.CredentialsNotStored:
+                pass
+        finally:
+            config.reset_user_context(t)
     finally:
         accounts.db_path().unlink(missing_ok=True)
 
 
-def test_hosted_device_can_store_its_session_for_the_service_sync(app, monkeypatch):
-    """Android/iPad: nach der Anmeldung im Anmeldefenster legt die App die Sitzung (nie das Passwort) im Tresor ab;
-    damit laeuft der Abgleich im Dienst ohne Zugangsdaten. Fremde Hosts werden abgelehnt."""
+def test_hosted_rejects_device_sessions_with_410(app, monkeypatch):
+    """Frueher legte die App auf dem Geraet (Android/iPad) ihre Hochschul-Sitzung im Tresor ab. Seit 06.11.2026 speichert
+    der Dienst keine Hochschul-Zugangsdaten und -Sitzungen: 410 credentials_not_stored, nichts im Tresor, kein Abgleich."""
     from app import accounts, config, vault
     # am PC gibt es den Weg nicht (dort: Fenster)
     st, _, b = asgi_call(app, "PUT", "/api/university/session", body=json.dumps({"cookies": [COOKIE]}))
@@ -183,19 +193,13 @@ def test_hosted_device_can_store_its_session_for_the_service_sync(app, monkeypat
         st, _, b = asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": "u2@beispiel.de", "password": "sehr-geheim-123", "university": "luh"}))
         h = {"Authorization": f"Bearer {json.loads(b)['token']}"}
         uid = json.loads(asgi_call(app, "GET", "/api/account/me", headers=h)[2])["user"]["id"]
-        st, _, b = asgi_call(app, "PUT", "/api/university/session", headers=h, body=json.dumps({"cookies": [COOKIE, {"name": "shib", "value": "t", "domain": ".idm.uni-hannover.de"}]}))
-        assert st == 200 and json.loads(b) == {"ok": True, "name": "STUDIP_COOKIES", "cookies": 2}
-        assert vault.has_university_credentials(uid, "luh")
-        stored = json.loads(vault.env_for(uid)["STUDIP_COOKIES"])
-        assert [c["name"] for c in stored] == ["Seminar_Session", "shib"] and stored[1]["expires"] == -1 and stored[1]["path"] == "/"
-        assert "STUDIP_PASSWORD" not in vault.env_for(uid) or not vault.env_for(uid)["STUDIP_PASSWORD"]
-        st, _, b = asgi_call(app, "PUT", "/api/university/session", headers=h, body=json.dumps({"cookies": [{"name": "x", "value": "y", "domain": "example.org"}]}))
-        assert st == 400 and json.loads(b)["code"] == "cookies_foreign_host"
-        st, _, b = asgi_call(app, "PUT", "/api/university/session", headers=h, body=json.dumps({"cookies": []}))
-        assert st == 400 and json.loads(b)["code"] == "cookies_invalid"
+        st, _, b = asgi_call(app, "PUT", "/api/university/session", headers=h, body=json.dumps({"cookies": [COOKIE]}))
+        assert st == 410 and json.loads(b)["code"] == "credentials_not_stored"
+        assert "iPad oder in der Windows-App" in json.loads(b)["detail"]
+        assert vault.env_for(uid) == {}
         st, _, b = asgi_call(app, "POST", "/api/sync", headers=h)
-        assert st == 200 and json.loads(b)["started"] == "Sync", "Abgleich im Dienst startet mit der Sitzung vom Geraet"
+        assert st == 410 and json.loads(b)["code"] == "credentials_not_stored"
         st, _, _ = asgi_call(app, "DELETE", "/api/university/session", headers=h)
-        assert st == 200 and not vault.has_university_credentials(uid, "luh")
+        assert st == 200, "Vergessen (Loeschen) bleibt erlaubt"
     finally:
         accounts.db_path().unlink(missing_ok=True)

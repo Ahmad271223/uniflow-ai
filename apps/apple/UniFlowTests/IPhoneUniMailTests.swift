@@ -54,7 +54,7 @@ final class IPhoneUniMailTests: IPhoneLearnTestCase {
     private func connected() throws -> UniMailConnection {
         try install()
         let stub: @MainActor (WKWebsiteDataStore) async -> UniTransport = { store in
-            await URLSessionUniTransport.make(dataStore: store, allowedDomains: UniMailConnection.domains, configuration: UniStubProtocol.configuration())
+            await URLSessionUniTransport.make(dataStore: store, allowedDomains: SOGoSite.all.map(\.host), configuration: UniStubProtocol.configuration())
         }
         let m = ContainerManager(base: bed.containers,
                                  legacy: LegacyDataMigration.Sources(support: bed.appSupport.appendingPathComponent("UniFlow", isDirectory: true),
@@ -89,6 +89,8 @@ final class IPhoneUniMailTests: IPhoneLearnTestCase {
         XCTAssertGreaterThan(frame(element(env, id: "unimail.new")).width, width * 0.6, "Neue E-Mail breit")
         XCTAssertGreaterThan(frame(element(env, id: "unimail.search")).width, width * 0.7, "Suche breit")
         XCTAssertGreaterThan(frame(element(env, id: "unimail.calendar.7")).width, width * 0.3)
+        // Lehrende (develop Build 10): Zeile in voller Breite unter dem Kopf, fuehrt zur Seite "Lehrende"
+        XCTAssertGreaterThan(frame(element(env, id: "unimail.lecturers")).width, width * 0.8, "Lehrende als Zeile in voller Breite")
         XCTAssertFalse(env.router.hasLocalBack, "Liste: der Pfeil fuehrt aus der Seite")
         assertFitsOnAllPhones(env, "Uni-Mail Liste")
         shoot(env, "iphone-unimail-liste")

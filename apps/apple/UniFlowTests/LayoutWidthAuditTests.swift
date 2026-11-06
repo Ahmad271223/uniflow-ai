@@ -166,6 +166,10 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "raumfinder", route: .rooms, marker: "Hauptgebäude (Welfengarten)")
         // Uni-Mail (05.11.2026, SOGo der LUH): nicht verbunden, Karte "Uni-Mail verbinden" (kein Netz)
         report += audit(env, "uni-mail", route: .uniMail, marker: "Uni-Mail verbinden")
+        // Lehrende (06.11.2026, LUH/Stud.IP): ohne Abgleich leer mit Hinweis, Suchfeld
+        report += audit(env, "lehrende", route: .lecturers, marker: "Lehrende und Tutor/innen deiner Kurse")
+        // Bescheinigungen (06.11.2026): noch nicht gelesen, Hinweis "Liste aktualisieren" (kein Netz)
+        report += audit(env, "bescheinigungen", route: .certificates, marker: "Liste aktualisieren")
         report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
         report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")
@@ -495,6 +499,54 @@ final class LayoutWidthAuditTests: XCTestCase {
             _ = view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
         }
         do { try data.write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
+    }
+
+    /// Neu aus develop Build 10 (06.11.2026) auf den drei iPhones hoch und quer: Lehrende, Bescheinigungen (Seite und
+    /// Karte unter Uni & Noten), Termin-Detail als Blatt von unten (halb/ganz). Demo-Daten, kein Netz.
+    func testIPhoneBuild10() throws {
+        let env = try host(MainView())
+        var report: [String] = []
+        let v = Self.iphone
+        report += audit(env, "lehrende", route: .lecturers, marker: "Lehrende", variants: v)
+        report += audit(env, "bescheinigungen", route: .certificates, marker: "Bescheinigungen", variants: v)
+        report += audit(env, "uni-noten-bescheinigungen", route: .services, marker: "Bescheinigungen öffnen", variants: v)
+        env.router.go(.timetable())
+        env.pump(0.6)
+        let api = container.api
+        let ev = try pumping { try await api.value("/api/timetable/events").items.first { !($0.s("room") ?? "").isEmpty } }
+        let e = try XCTUnwrap(ev, "kein Demo-Termin mit Raum")
+        let id = try XCTUnwrap(e.i("id"))
+        // iPhone: Blatt von unten (eigene Darstellung im Fenster, nicht in der Seite): Inhalt im Fenster pruefen
+        env.hosting.traitOverrides.horizontalSizeClass = .compact
+        env.window.frame = CGRect(origin: .zero, size: v[1].size)
+        env.view.frame = env.window.bounds
+        env.pump(0.4)
+        env.overlay.openDrawer(half: true) { EventDrawer(eventID: id, date: UFFmt.todayISO()) }
+        XCTAssertTrue(env.wait(timeout: 15) { Self.texts(env.window).contains { $0.contains("Route zu Fuß starten") } },
+                      "Termin-Detail als Blatt: \(Self.texts(env.window).prefix(30))")
+        XCTAssertEqual(Set(env.hosting.presentedViewController?.sheetPresentationController?.detents.map(\.identifier) ?? []),
+                       [.medium, .large], "Termin-Detail halb und ganz")
+        report += audit(env, "termin-detail", route: nil, marker: nil, variants: Array(v.prefix(3)))
+        env.overlay.closeDrawer()
+        env.hosting.presentedViewController?.dismiss(animated: false)
+        env.pump(0.4)
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
+    /// Termin-Detail (06.11.2026): Termin aus dem Stundenplan antippen -> Panel mit Modul, Raum (Route zu Fuss) und Lehrenden
+    func testTerminDetail() throws {
+        let env = try host(MainView())
+        env.router.go(.timetable())
+        env.pump(0.6)
+        let api = container.api
+        let ev = try pumping { try await api.value("/api/timetable/events").items.first { !($0.s("room") ?? "").isEmpty } }
+        let e = try XCTUnwrap(ev, "kein Demo-Termin mit Raum")
+        let id = try XCTUnwrap(e.i("id"))
+        env.overlay.openDrawer { EventDrawer(eventID: id, date: UFFmt.todayISO()) }
+        // Split View 1/2 ist kompakt (iPhone-Fassung): dort ist der Drawer ein Blatt von unten, geprueft in testIPhoneBuild10
+        let report = audit(env, "termin-detail", route: nil, marker: "Route zu Fuß starten",
+                           variants: Self.variants.filter { $0.size.width >= 700 })
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
     /// Tarifseite (Blatt "Tarif wechseln" aus den Einstellungen und der Seitenleiste) mit allen drei Tarifen

@@ -319,6 +319,8 @@ final class UFOverlay: ObservableObject {
         let id = UUID()
         let wide: Bool
         let content: AnyView
+        /// Drawer kompakt als Blatt halb und ganz statt nur ganz (Termin-Detail, iPhone)
+        var half = false
     }
 
     enum Ask: Identifiable {
@@ -347,8 +349,10 @@ final class UFOverlay: ObservableObject {
     func close(_ id: UUID) { modals.removeAll { $0.id == id } }
 
     /// drawer(html): vorhandenen Drawer ersetzen (closeDrawer() + neu)
-    func openDrawer<V: View>(@ViewBuilder _ content: () -> V) {
-        drawer = Layer(wide: false, content: AnyView(content()))
+    /// `half`: kompakt (iPhone) als Blatt von unten halb und ganz (z. B. Termin-Detail: Raum und Route auf einen Blick,
+    /// Lehrende beim Aufziehen); sonst ganz wie alle Drawer. Breit (iPad) ohne Wirkung.
+    func openDrawer<V: View>(half: Bool = false, @ViewBuilder _ content: () -> V) {
+        drawer = Layer(wide: false, content: AnyView(content()), half: half)
     }
 
     func closeDrawer() { drawer = nil }
@@ -401,15 +405,21 @@ struct UFModalHost: ViewModifier {
                         ZStack {
                             Color(red: 10 / 255, green: 12 / 255, blue: 24 / 255).opacity(0.45).ignoresSafeArea()
                                 .onTapGesture { overlay.close(l.id) }               // Klick auf die Abdunkelung schliesst
-                            ScrollView {
-                                l.content
-                                    .frame(maxWidth: l.wide ? 900 : 620)
-                                    .environment(\.ufClose, { overlay.close(l.id) })
-                                    .padding(16)
+                            // Kurzer Dialog: mittig. Hoher Dialog (z. B. "Wochentest erstellen" mit vielen Wochen,
+                            // 06.11.2026): scrollt, damit der Knopf unten erreichbar bleibt. Vorher hielt
+                            // .fixedSize die volle Inhaltshoehe fest, der Rest lag ausserhalb des Bildschirms.
+                            GeometryReader { g in
+                                ScrollView {
+                                    l.content
+                                        .frame(maxWidth: l.wide ? 900 : 620)
+                                        .environment(\.ufClose, { overlay.close(l.id) })
+                                        .padding(16)
+                                        .frame(maxWidth: .infinity, minHeight: g.size.height)
+                                        .background(Color.clear.contentShape(Rectangle()).onTapGesture { overlay.close(l.id) })
+                                }
+                                .scrollBounceBehavior(.basedOnSize)
                             }
-                            .scrollBounceBehavior(.basedOnSize)
                             .frame(maxWidth: l.wide ? 932 : 652)
-                            .fixedSize(horizontal: false, vertical: true)
                         }
                         .transition(.opacity)
                     }
@@ -490,7 +500,7 @@ struct UFDrawerHost: ViewModifier {
         .sheet(item: Binding(get: { sheet ? overlay.drawer : nil }, set: { if $0 == nil { overlay.closeDrawer() } })) { d in
             d.content
                 .environment(\.ufClose, { overlay.closeDrawer() })
-                .ufSheetPresentation(wide: true)
+                .ufSheetPresentation(wide: !d.half)
         }
         .overlay {
             if !sheet, let d = overlay.drawer {

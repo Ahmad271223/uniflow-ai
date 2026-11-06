@@ -65,7 +65,7 @@ final class HsHConnection: ObservableObject {
     /// Rechner der HsH, zu denen Anfragen gehen duerfen (Moodle, HISinOne, IdP, altes QIS)
     static let domains = ["moodle.hs-hannover.de", "campusmanagement.hs-hannover.de", "idp.hs-hannover.de", "icms.hs-hannover.de"]
     static let icalService = "ical"
-    static let signOutMessage = "Die Anmeldungen bei Moodle und im Campusmanagement werden in der Webansicht gelöscht, die gemerkte Stundenplan-Adresse ebenso. Dateien, Stundenplan und Leistungen bleiben. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
+    static let signOutMessage = "Die Anmeldungen bei Moodle und im Campusmanagement werden in der Webansicht gelöscht, die gemerkte Stundenplan-Adresse ebenso. Dateien, Stundenplan und Leistungen bleiben. Ein in StudiNow gemerktes Passwort der HsH wird gelöscht; eines, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     init(container c: ActiveContainer, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
          transport: TransportFactory? = nil, retry: UniRetry = UniRetry()) {
@@ -146,6 +146,7 @@ final class HsHConnection: ObservableObject {
         defaults.set(true, forKey: Keys.connected(s))
         set(s, .connected)
         let store = websiteDataStore
+        UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // Sitzungen ueber Neustarts merken
         guard syncsAfterSignIn, !isRunning else { return }
         Task { await run(forceGrades: s == .campus) }
@@ -159,6 +160,7 @@ final class HsHConnection: ObservableObject {
             _ = await task.value
         }
         for k in Keys.all { defaults.removeObject(forKey: k) }
+        UniAutoLogin.forget(websiteDataStore)                  // gemerktes Passwort der HsH (Schluesselbund)
         tokens.deleteAll(for: .hsh)
         messages = []
         for s in Source.allCases { set(s, .notConnected) }
@@ -300,7 +302,28 @@ final class HsHConnection: ObservableObject {
         studyService = try? await database.withConnection { try HISinOneStudyService.stored($0) }
         if !report.cancelled { await StudIPSync.autoPlan(host: host, newFiles: report.newFiles.count, weekly: scope == .full) }
         apply(report, sources: sources, includeGrades: includeGrades)
+        // abgelaufen: still mit dem gespeicherten Passwort anmelden, dann genau einmal neu (`autoLogin`); im Hintergrund nie
+        if !background, !report.cancelled {
+            for s in Source.allCases where sources.contains(s) && state(s) == .needsLogin { Task { await self.autoLogin(s) } }
+        }
         return report
+    }
+
+    // MARK: Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md)
+
+    /// Unsichtbar mit dem gespeicherten SSO-Account anmelden (Moodle-Formular bzw. IdP der HsH); gelingt es, ist die
+    /// Quelle wieder verbunden und gleicht genau einmal neu ab (`signedIn`). Falsches Passwort: "Anmeldung nötig" bleibt.
+    @discardableResult
+    func autoLogin(_ s: Source, userAction: Bool = false) async -> Bool {
+        guard isConnected(s), state(s) == .needsLogin, !stopped else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: s.loginService, store: websiteDataStore, entry: UniversityProfile.hsh.loginService(s.loginService)?.entryURLs.first ?? UniversityProfile.hshMoodle,
+                                                userAction: userAction) { url, html in HsHConnection.isSignedIn(s, html: html, url: url) }
+        guard d == .retryOnce, signOuts == before, isConnected(s), !stopped else { return false }
+        for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Lauf von eben zu Ende
+        guard signOuts == before, isConnected(s), !stopped else { return false }
+        signedIn(s)
+        return true
     }
 
     private func apply(_ r: HildesheimSync.Report, sources: Set<Source>, includeGrades: Bool) {
@@ -405,4 +428,12 @@ extension HsHConnection: BackgroundSyncable {
         guard let backend = try? await host.backend() else { return nil }
         return try? await backend.context.database.withConnection { try UniStore.sourceFileIDs($0) }
     }
+}
+
+// MARK: Bescheinigungen (CertificateCenter, docs/BESCHEINIGUNGEN-2026-11-06.md): Sitzung des Campusmanagements
+extension HsHConnection {
+    var certificateClock: UniFlowClock { clock }
+    func certificateTransport() async -> UniTransport { await makeTransport(websiteDataStore) }
+    var certificateHost: LocalBackendHost { host }
+    func certificatesExpired() { if isConnected(.campus) { set(.campus, .needsLogin) } }
 }

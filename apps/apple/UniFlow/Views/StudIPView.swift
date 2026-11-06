@@ -43,7 +43,7 @@ struct StudIPView: View {
 
     // MARK: Konto und Abgleich
 
-    static let accountText = "Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. StudiNow speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck."
+    static let accountText = "Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. StudiNow speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses \(UFDevice.name)s (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck."
     static let signOutMessage = "Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     private var accountCard: some View {
@@ -296,6 +296,7 @@ struct StudIPLoginPane<Bottom: View>: View {
                         .background(UF.warnSoft)
                     }
                     UniversityLoginHint()
+                    UniRememberPasswordToggle(dataStore: dataStore)
                     bottom
                 }
             }
@@ -439,6 +440,9 @@ struct StudIPWebView: UIViewRepresentable {
         // einsetzen (`UniLoginHelper`, nie das Passwort); Stud.IP, QIS, Learnweb und LSF bleiben ohne Skript
         // (nicht fuer die lokale Nachbildung des Debug-Stubs: dort gibt es keinen Anbieter)
         if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }
+        // seit 06.11.2026 (Entscheidung des Inhabers): mit "Passwort auf diesem iPad merken" liest ein Skript in eigener
+        // Inhaltswelt beim Absenden Benutzername und Passwort des echten Formulars der Hochschule mit (`UniAutoLogin`)
+        if !url.isFileURL { UniCredentialCapture.install(in: config, dataStore: dataStore) }
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         load?.webView = view

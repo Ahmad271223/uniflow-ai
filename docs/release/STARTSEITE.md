@@ -38,7 +38,7 @@ testen, ohne Zahlungsdaten.</p>
 
 <section class="trust" aria-label="Was StudiNow verspricht">
 <ul class="wrap trust-list">
-<li>:i-lock: <span><strong>Kein Uni-Passwort gespeichert.</strong> Du meldest dich bei deiner Hochschule an, nicht bei uns.</span></li>
+<li>:i-lock: <span><strong>Kein Uni-Passwort auf unseren Servern.</strong> Du meldest dich bei deiner Hochschule an, nicht bei uns. Wenn du willst, merkt sich nur dein iPad das Passwort.</span></li>
 <li>:i-tablet: <span><strong>Deine Daten auf deinem iPad.</strong> Unterlagen, Notizen und Termine liegen lokal.</span></li>
 <li>:i-eye-off: <span><strong>Kein Tracking, keine Werbung.</strong> Keine Analyse-Werkzeuge Dritter.</span></li>
 <li>:i-cap: <span><strong>Heute für LUH, Hochschule Hannover und Uni Hildesheim.</strong> Weitere Hochschulen in Deutschland folgen.</span></li>

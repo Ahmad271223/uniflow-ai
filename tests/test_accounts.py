@@ -171,8 +171,9 @@ def test_delete_account_locks_and_retires_data(hosted, monkeypatch):
 def _seed_everything(uid: str):
     """Ein Konto mit allem, was am Konto haengt: Zugangsdaten, Abgleich-Auftrag, Tarif, KI-Kosten, Community-Loesung
     mit Paket und Meldung, eigene Meldung und Sperrliste, Fragen in der Testbibliothek."""
-    from app import accounts, community, jobs, test_library, vault
-    vault.set_values(uid, {"STUDIP_USER": "luh-id", "STUDIP_PASSWORD": "geheim"})
+    from app import accounts, community, jobs, test_library
+    from conftest import legacy_vault
+    legacy_vault(uid, {"STUDIP_USER": "luh-id", "STUDIP_PASSWORD": "geheim"})          # Altbestand vor dem 06.11.2026
     jobs.enqueue(uid, "sync", "manual")
     accounts.set_plan(uid, "plus")
     from app import billing
@@ -338,9 +339,9 @@ def test_hosted_local_only_paths_answer_501(hosted):
     st, data, _ = _json(asgi_call(hosted, "POST", "/api/ai/tutor", headers=_auth(token), body="{}"))
     assert st == 403 and data["code"] == "plan_required" and data["required_plan"] == "pro_ai", data
     assert asgi_call(hosted, "GET", "/api/sync/status", headers=_auth(token))[0] == 200
-    # Abgleich und Zugangsdaten gibt es im Dienst je Konto (tests/test_hosted_sync.py)
+    # Hochschul-Abgleich und Zugangsdaten gibt es im Dienst nicht mehr (06.11.2026, tests/test_hosted_sync.py)
     st, data, _ = _json(asgi_call(hosted, "POST", "/api/sync", headers=_auth(token), body="{}"))
-    assert st == 400 and data["code"] == "credentials_missing"
+    assert st == 410 and data["code"] == "credentials_not_stored"
     assert asgi_call(hosted, "GET", "/api/credentials", headers=_auth(token))[0] == 200
 
 

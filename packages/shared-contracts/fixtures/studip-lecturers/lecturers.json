@@ -1,0 +1,2274 @@
+{
+ "base": "https://studip.test",
+ "clean_email": [
+  {
+   "email": "a.b@example.org",
+   "value": "a.b@example.org"
+  },
+  {
+   "email": "a@example.org",
+   "value": " a@example.org "
+  },
+  {
+   "email": "",
+   "value": "keine Angabe"
+  },
+  {
+   "email": "",
+   "value": "a@b"
+  },
+  {
+   "email": "",
+   "value": "x@example.org, y@example.org"
+  },
+  {
+   "email": "",
+   "value": 7
+  },
+  {
+   "email": "",
+   "value": null
+  },
+  {
+   "email": "",
+   "value": "Erika <erika@example.org>"
+  },
+  {
+   "email": "ü@example.org",
+   "value": "ü@example.org"
+  }
+ ],
+ "constants": {
+  "max_courses": 30,
+  "max_profiles": 40,
+  "max_user_lookups": 20,
+  "no_email": "Nachricht über Stud.IP",
+  "refresh_days": 7
+ },
+ "db": {
+  "courses": [
+   [
+    "k-ana",
+    "Analysis I – Vorlesung",
+    1,
+    1
+   ],
+   [
+    "k-ue",
+    "Analysis I – Übung",
+    1,
+    1
+   ],
+   [
+    "k-prog",
+    "Programmieren",
+    2,
+    1
+   ],
+   [
+    "k-zu",
+    "Geschlossener Kurs",
+    null,
+    1
+   ],
+   [
+    "k-alt",
+    "Altes Seminar",
+    null,
+    0
+   ],
+   [
+    "k-neu",
+    "Frisch gelesen",
+    null,
+    1
+   ]
+  ],
+  "modules": [
+   [
+    1,
+    "Analysis I"
+   ],
+   [
+    2,
+    "Programmieren"
+   ]
+  ],
+  "preset": [
+   [
+    "k-alt",
+    "u-alt",
+    "dozent",
+    0,
+    "",
+    "Prof. Alt Beispiel",
+    "alt",
+    "alt@example.org",
+    "",
+    "",
+    "",
+    "2026-11-03T09:00:00+01:00"
+   ],
+   [
+    "k-neu",
+    "u-doz2",
+    "dozent",
+    0,
+    "",
+    "Dr. Jonas Muster",
+    "j.muster",
+    "",
+    "",
+    "",
+    "",
+    "2026-11-04T09:00:00+01:00"
+   ]
+  ],
+  "preset_courses": [
+   [
+    "k-alt",
+    "2026-11-03T09:00:00+01:00"
+   ],
+   [
+    "k-neu",
+    "2026-11-04T09:00:00+01:00"
+   ]
+  ]
+ },
+ "display_name": [
+  {
+   "attrs": {
+    "formatted-name": " Prof.  Dr. A  B "
+   },
+   "name": "Prof. Dr. A B"
+  },
+  {
+   "attrs": {
+    "family-name": "Ö",
+    "given-name": "Ä",
+    "name-suffix": "M.Sc."
+   },
+   "name": "Ä Ö M.Sc."
+  },
+  {
+   "attrs": {},
+   "name": ""
+  },
+  {
+   "attrs": null,
+   "name": ""
+  },
+  {
+   "attrs": {
+    "family-name": "Nur",
+    "formatted-name": 5
+   },
+   "name": "Nur"
+  }
+ ],
+ "due": [
+  {
+   "courses": [
+    "a",
+    "b",
+    "a"
+   ],
+   "due": [
+    "a",
+    "b"
+   ],
+   "known": {}
+  },
+  {
+   "courses": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "due": [
+    "a",
+    "c",
+    "d"
+   ],
+   "known": {
+    "a": "2026-10-30T09:00:00+01:00",
+    "b": "2026-10-31T00:00:00+01:00",
+    "c": "kaputt"
+   }
+  }
+ ],
+ "generator": "tools/gen-studip-lecturers-fixture.py",
+ "members": [
+  {
+   "items": [
+    {
+     "email": "erika.beispiel@example.org",
+     "label": "Modulverantwortliche",
+     "name": "Prof. Dr. Erika Beispiel",
+     "position": 0,
+     "role": "dozent",
+     "user_id": "u-prof",
+     "username": "beispiel"
+    },
+    {
+     "email": "",
+     "label": "",
+     "name": "Dr. Jonas Muster",
+     "position": 1,
+     "role": "dozent",
+     "user_id": "u-doz2",
+     "username": "j.muster"
+    }
+   ],
+   "path": "courses/k-ana/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "label": "Modulverantwortliche",
+       "permission": "dozent",
+       "position": 0
+      },
+      "id": "k-ana_u-prof",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-prof",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     },
+     {
+      "attributes": {
+       "permission": "dozent",
+       "position": 1
+      },
+      "id": "k-ana_u-doz2",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-doz2",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     },
+     {
+      "attributes": {
+       "permission": "autor",
+       "position": 2
+      },
+      "id": "k-ana_u-stud",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-stud",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     },
+     {
+      "attributes": {
+       "permission": "dozent",
+       "position": 3
+      },
+      "id": "k-ana_u-prof",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-prof",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     },
+     {
+      "attributes": {
+       "permission": "dozent",
+       "position": 4
+      },
+      "id": "k-ana_u-x",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-x",
+         "type": "users"
+        }
+       }
+      },
+      "type": "users"
+     }
+    ],
+    "included": [
+     {
+      "attributes": {
+       "email": "erika.beispiel@example.org",
+       "formatted-name": "Prof. Dr. Erika Beispiel",
+       "permission": "dozent",
+       "username": "beispiel"
+      },
+      "id": "u-prof",
+      "type": "users"
+     },
+     {
+      "attributes": {
+       "email": "",
+       "formatted-name": "Dr. Jonas Muster",
+       "permission": "dozent",
+       "username": "j.muster"
+      },
+      "id": "u-doz2",
+      "type": "users"
+     },
+     {
+      "attributes": {
+       "email": "kommi@example.org",
+       "formatted-name": "Erfundene Kommilitonin",
+       "username": "kommi"
+      },
+      "id": "u-stud",
+      "type": "users"
+     }
+    ]
+   }
+  },
+  {
+   "items": [
+    {
+     "email": "",
+     "label": "",
+     "name": "",
+     "position": 0,
+     "role": "tutor",
+     "user_id": "u-tut1",
+     "username": ""
+    }
+   ],
+   "path": "courses/k-ana/memberships?filter[permission]=tutor&page[limit]=100",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "permission": "tutor",
+       "position": "0"
+      },
+      "id": "k-ana_u-tut1",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-tut1",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     }
+    ]
+   }
+  },
+  {
+   "items": [
+    {
+     "email": "erika.beispiel@example.org",
+     "label": "",
+     "name": "Prof. Dr. Erika Beispiel",
+     "position": 0,
+     "role": "dozent",
+     "user_id": "u-prof",
+     "username": "beispiel"
+    }
+   ],
+   "path": "courses/k-ue/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "permission": "dozent"
+      },
+      "id": "k-ue_u-prof",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-prof",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     }
+    ],
+    "included": [
+     {
+      "attributes": {
+       "email": "erika.beispiel@example.org",
+       "formatted-name": "Prof. Dr. Erika Beispiel",
+       "permission": "dozent",
+       "username": "beispiel"
+      },
+      "id": "u-prof",
+      "type": "users"
+     }
+    ]
+   }
+  },
+  {
+   "items": [
+    {
+     "email": "tom.tutor@stud.example.org",
+     "label": "",
+     "name": "Tom Tutor",
+     "position": 0,
+     "role": "tutor",
+     "user_id": "u-tut2",
+     "username": "ttutor"
+    },
+    {
+     "email": "mia.uebung@example.org",
+     "label": "",
+     "name": "Mia Übungsleiterin",
+     "position": 1,
+     "role": "tutor",
+     "user_id": "u-tut1",
+     "username": "mia.ue"
+    }
+   ],
+   "path": "courses/k-ue/memberships?filter[permission]=tutor&page[limit]=100&include=user",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "permission": "tutor",
+       "position": 0
+      },
+      "id": "k-ue_u-tut2",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-tut2",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     },
+     {
+      "attributes": {
+       "permission": "tutor",
+       "position": 1
+      },
+      "id": "k-ue_u-tut1",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-tut1",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     }
+    ],
+    "included": [
+     {
+      "attributes": {
+       "email": "tom.tutor@stud.example.org",
+       "formatted-name": "  Tom   Tutor  ",
+       "permission": "autor",
+       "username": "ttutor"
+      },
+      "id": "u-tut2",
+      "type": "users"
+     },
+     {
+      "attributes": {
+       "email": "mia.uebung@example.org",
+       "formatted-name": "Mia Übungsleiterin",
+       "permission": "autor",
+       "username": "mia.ue"
+      },
+      "id": "u-tut1",
+      "type": "users"
+     }
+    ]
+   }
+  },
+  {
+   "items": [
+    {
+     "email": "",
+     "label": "",
+     "name": "Dr. Lena Probe",
+     "position": 0,
+     "role": "dozent",
+     "user_id": "u-doz3",
+     "username": "lprobe"
+    }
+   ],
+   "path": "courses/k-prog/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "permission": "dozent",
+       "position": 0
+      },
+      "id": "k-prog_u-doz3",
+      "relationships": {
+       "user": {
+        "data": {
+         "id": "u-doz3",
+         "type": "users"
+        }
+       }
+      },
+      "type": "course-memberships"
+     }
+    ],
+    "included": [
+     {
+      "attributes": {
+       "email": "keine Angabe",
+       "family-name": "Probe",
+       "given-name": "Lena",
+       "name-prefix": "Dr.",
+       "permission": "dozent",
+       "username": "lprobe"
+      },
+      "id": "u-doz3",
+      "type": "users"
+     }
+    ]
+   }
+  },
+  {
+   "items": [],
+   "path": "courses/k-prog/memberships?filter[permission]=tutor&page[limit]=100&include=user",
+   "response": {
+    "data": []
+   }
+  }
+ ],
+ "merge_user": {
+  "member": {
+   "email": "",
+   "label": "",
+   "name": "",
+   "position": 0,
+   "role": "tutor",
+   "user_id": "u-tut1",
+   "username": ""
+  },
+  "merged": {
+   "email": "mia.uebung@example.org",
+   "label": "",
+   "name": "Mia Übungsleiterin",
+   "position": 0,
+   "role": "tutor",
+   "user_id": "u-tut1",
+   "username": "mia.ue"
+  },
+  "response": {
+   "data": {
+    "attributes": {
+     "email": "mia.uebung@example.org",
+     "formatted-name": "Mia Übungsleiterin",
+     "permission": "autor",
+     "username": "mia.ue"
+    },
+    "id": "u-tut1",
+    "type": "users"
+   }
+  }
+ },
+ "message_url": [
+  {
+   "url": "https://studip.test/dispatch.php/messages/write?rec_uname=beispiel",
+   "username": "beispiel"
+  },
+  {
+   "url": "https://studip.test/dispatch.php/messages/write?rec_uname=j.muster",
+   "username": "j.muster"
+  },
+  {
+   "url": "https://studip.test/dispatch.php/messages/write",
+   "username": ""
+  },
+  {
+   "url": "https://studip.test/dispatch.php/messages/write?rec_uname=a%20b%2F%C3%A4",
+   "username": "a b/ä"
+  }
+ ],
+ "now": "2026-11-06T10:00:00+01:00",
+ "overview": [
+  {
+   "query": {
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 5,
+    "hint": null,
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-neu",
+        "module_id": null,
+        "module_name": null,
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Frisch gelesen"
+       }
+      ],
+      "email": "",
+      "has_email": false,
+      "id": "u-doz2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": null,
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=j.muster",
+      "name": "Dr. Jonas Muster",
+      "no_email": "Nachricht über Stud.IP",
+      "office_hours": "",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "j.muster"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-prog",
+        "module_id": 2,
+        "module_name": "Programmieren",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Programmieren"
+       }
+      ],
+      "email": "",
+      "has_email": false,
+      "id": "u-doz3",
+      "institute": "Institut für Testinformatik",
+      "label": "",
+      "location": "",
+      "mailto": null,
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=lprobe",
+      "name": "Dr. Lena Probe",
+      "no_email": "Nachricht über Stud.IP",
+      "office_hours": "",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "lprobe"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "mia.uebung@example.org",
+      "has_email": true,
+      "id": "u-tut1",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:mia.uebung@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=mia.ue",
+      "name": "Mia Übungsleiterin",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "mia.ue"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "erika.beispiel@example.org",
+      "has_email": true,
+      "id": "u-prof",
+      "institute": "Institut für Testmathematik",
+      "label": "Modulverantwortliche",
+      "location": "Raum F 303 (1101)",
+      "mailto": "mailto:erika.beispiel@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=beispiel",
+      "name": "Prof. Dr. Erika Beispiel",
+      "no_email": null,
+      "office_hours": "Di 10–11 Uhr\nund nach Vereinbarung",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "beispiel"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "tom.tutor@stud.example.org",
+      "has_email": true,
+      "id": "u-tut2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:tom.tutor@stud.example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=ttutor",
+      "name": "Tom Tutor",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "ttutor"
+     }
+    ],
+    "total": 5,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "course_id": "k-ana",
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 3,
+    "hint": null,
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       }
+      ],
+      "email": "erika.beispiel@example.org",
+      "has_email": true,
+      "id": "u-prof",
+      "institute": "Institut für Testmathematik",
+      "label": "Modulverantwortliche",
+      "location": "Raum F 303 (1101)",
+      "mailto": "mailto:erika.beispiel@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=beispiel",
+      "name": "Prof. Dr. Erika Beispiel",
+      "no_email": null,
+      "office_hours": "Di 10–11 Uhr\nund nach Vereinbarung",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "beispiel"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       }
+      ],
+      "email": "",
+      "has_email": false,
+      "id": "u-doz2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": null,
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=j.muster",
+      "name": "Dr. Jonas Muster",
+      "no_email": "Nachricht über Stud.IP",
+      "office_hours": "",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "j.muster"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Vorlesung"
+       }
+      ],
+      "email": "mia.uebung@example.org",
+      "has_email": true,
+      "id": "u-tut1",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:mia.uebung@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=mia.ue",
+      "name": "Mia Übungsleiterin",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "mia.ue"
+     }
+    ],
+    "total": 3,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "module_id": 1,
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 4,
+    "hint": null,
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "erika.beispiel@example.org",
+      "has_email": true,
+      "id": "u-prof",
+      "institute": "Institut für Testmathematik",
+      "label": "Modulverantwortliche",
+      "location": "Raum F 303 (1101)",
+      "mailto": "mailto:erika.beispiel@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=beispiel",
+      "name": "Prof. Dr. Erika Beispiel",
+      "no_email": null,
+      "office_hours": "Di 10–11 Uhr\nund nach Vereinbarung",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "beispiel"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       }
+      ],
+      "email": "",
+      "has_email": false,
+      "id": "u-doz2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": null,
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=j.muster",
+      "name": "Dr. Jonas Muster",
+      "no_email": "Nachricht über Stud.IP",
+      "office_hours": "",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "j.muster"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "mia.uebung@example.org",
+      "has_email": true,
+      "id": "u-tut1",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:mia.uebung@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=mia.ue",
+      "name": "Mia Übungsleiterin",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "mia.ue"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "tom.tutor@stud.example.org",
+      "has_email": true,
+      "id": "u-tut2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:tom.tutor@stud.example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=ttutor",
+      "name": "Tom Tutor",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "ttutor"
+     }
+    ],
+    "total": 4,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "module_id": 2,
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 1,
+    "hint": null,
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [
+     {
+      "courses": [
+       {
+        "course_id": "k-prog",
+        "module_id": 2,
+        "module_name": "Programmieren",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Programmieren"
+       }
+      ],
+      "email": "",
+      "has_email": false,
+      "id": "u-doz3",
+      "institute": "Institut für Testinformatik",
+      "label": "",
+      "location": "",
+      "mailto": null,
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=lprobe",
+      "name": "Dr. Lena Probe",
+      "no_email": "Nachricht über Stud.IP",
+      "office_hours": "",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "lprobe"
+     }
+    ],
+    "total": 1,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "q": "übung",
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 3,
+    "hint": null,
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "mia.uebung@example.org",
+      "has_email": true,
+      "id": "u-tut1",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:mia.uebung@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=mia.ue",
+      "name": "Mia Übungsleiterin",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "mia.ue"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "erika.beispiel@example.org",
+      "has_email": true,
+      "id": "u-prof",
+      "institute": "Institut für Testmathematik",
+      "label": "Modulverantwortliche",
+      "location": "Raum F 303 (1101)",
+      "mailto": "mailto:erika.beispiel@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=beispiel",
+      "name": "Prof. Dr. Erika Beispiel",
+      "no_email": null,
+      "office_hours": "Di 10–11 Uhr\nund nach Vereinbarung",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "beispiel"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "tom.tutor@stud.example.org",
+      "has_email": true,
+      "id": "u-tut2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:tom.tutor@stud.example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=ttutor",
+      "name": "Tom Tutor",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "ttutor"
+     }
+    ],
+    "total": 5,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "q": "ANALYSIS",
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 4,
+    "hint": null,
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-neu",
+        "module_id": null,
+        "module_name": null,
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Frisch gelesen"
+       }
+      ],
+      "email": "",
+      "has_email": false,
+      "id": "u-doz2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": null,
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=j.muster",
+      "name": "Dr. Jonas Muster",
+      "no_email": "Nachricht über Stud.IP",
+      "office_hours": "",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "j.muster"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "mia.uebung@example.org",
+      "has_email": true,
+      "id": "u-tut1",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:mia.uebung@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=mia.ue",
+      "name": "Mia Übungsleiterin",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "mia.ue"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ana",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Vorlesung"
+       },
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "dozent",
+        "role_label": "Dozent/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "erika.beispiel@example.org",
+      "has_email": true,
+      "id": "u-prof",
+      "institute": "Institut für Testmathematik",
+      "label": "Modulverantwortliche",
+      "location": "Raum F 303 (1101)",
+      "mailto": "mailto:erika.beispiel@example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=beispiel",
+      "name": "Prof. Dr. Erika Beispiel",
+      "no_email": null,
+      "office_hours": "Di 10–11 Uhr\nund nach Vereinbarung",
+      "role_label": "Dozent/in",
+      "roles": [
+       "dozent"
+      ],
+      "username": "beispiel"
+     },
+     {
+      "courses": [
+       {
+        "course_id": "k-ue",
+        "module_id": 1,
+        "module_name": "Analysis I",
+        "role": "tutor",
+        "role_label": "Tutor/in",
+        "title": "Analysis I – Übung"
+       }
+      ],
+      "email": "tom.tutor@stud.example.org",
+      "has_email": true,
+      "id": "u-tut2",
+      "institute": "",
+      "label": "",
+      "location": "",
+      "mailto": "mailto:tom.tutor@stud.example.org",
+      "message_url": "https://studip.test/dispatch.php/messages/write?rec_uname=ttutor",
+      "name": "Tom Tutor",
+      "no_email": null,
+      "office_hours": "",
+      "role_label": "Tutor/in",
+      "roles": [
+       "tutor"
+      ],
+      "username": "ttutor"
+     }
+    ],
+    "total": 5,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "q": "zzz",
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 0,
+    "hint": "Keine Lehrenden gefunden.",
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [],
+    "total": 5,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "course_id": "k-zu",
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 0,
+    "hint": "In Stud.IP sind für diese Kurse keine Lehrenden sichtbar.",
+    "loaded": true,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [],
+    "total": 0,
+    "university": "luh",
+    "updated_at": "2026-11-06T10:00:00+01:00"
+   }
+  },
+  {
+   "query": {
+    "course_id": "k-unbekannt",
+    "university": "luh"
+   },
+   "result": {
+    "available": true,
+    "count": 0,
+    "hint": "Die Lehrenden kommen mit dem nächsten Stud.IP-Abgleich (nach dem aktuellen Semester).",
+    "loaded": false,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [],
+    "total": 0,
+    "university": "luh",
+    "updated_at": null
+   }
+  },
+  {
+   "query": {
+    "university": "hsh"
+   },
+   "result": {
+    "available": false,
+    "count": 0,
+    "hint": null,
+    "loaded": false,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [],
+    "total": 0,
+    "university": "hsh",
+    "updated_at": null
+   }
+  },
+  {
+   "query": {
+    "course_id": "k-ana",
+    "university": "hildesheim"
+   },
+   "result": {
+    "available": false,
+    "count": 0,
+    "hint": null,
+    "loaded": false,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [],
+    "total": 0,
+    "university": "hildesheim",
+    "updated_at": null
+   }
+  },
+  {
+   "query": {
+    "allowed": false,
+    "university": "luh"
+   },
+   "result": {
+    "available": false,
+    "count": 0,
+    "hint": null,
+    "loaded": false,
+    "no_email": "Nachricht über Stud.IP",
+    "people": [],
+    "total": 0,
+    "university": "luh",
+    "updated_at": null
+   }
+  }
+ ],
+ "overview_empty": {
+  "available": true,
+  "count": 0,
+  "hint": "Die Lehrenden kommen mit dem nächsten Stud.IP-Abgleich (nach dem aktuellen Semester).",
+  "loaded": false,
+  "no_email": "Nachricht über Stud.IP",
+  "people": [],
+  "total": 0,
+  "university": "luh",
+  "updated_at": null
+ },
+ "profiles": [
+  {
+   "parsed": {
+    "institute": "Institut für Testmathematik",
+    "location": "Raum F 303 (1101)",
+    "office_hours": "Di 10–11 Uhr\nund nach Vereinbarung"
+   },
+   "path": "users/u-prof/institute-memberships?include=institute",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "is-default": false,
+       "location": "",
+       "office-hours": "nach Vereinbarung",
+       "permission": "dozent",
+       "priority": 1
+      },
+      "id": "im1",
+      "relationships": {
+       "institute": {
+        "data": {
+         "id": "i-alt",
+         "type": "institutes"
+        }
+       }
+      },
+      "type": "institute-memberships"
+     },
+     {
+      "attributes": {
+       "fax": null,
+       "is-default": true,
+       "location": "Raum F 303 (1101)",
+       "office-hours": "<p>Di 10&ndash;11 Uhr<br>und nach Vereinbarung</p>",
+       "permission": "dozent",
+       "phone": "+49 511 000000",
+       "priority": 0,
+       "visible": true
+      },
+      "id": "im2",
+      "relationships": {
+       "institute": {
+        "data": {
+         "id": "i-mat",
+         "type": "institutes"
+        }
+       }
+      },
+      "type": "institute-memberships"
+     }
+    ],
+    "included": [
+     {
+      "attributes": {
+       "city": "Hannover",
+       "name": "Institut für Testmathematik",
+       "url": "https://example.org/testmathematik"
+      },
+      "id": "i-mat",
+      "type": "institutes"
+     },
+     {
+      "attributes": {
+       "name": "Altes Institut"
+      },
+      "id": "i-alt",
+      "type": "institutes"
+     }
+    ]
+   }
+  },
+  {
+   "parsed": {
+    "institute": "",
+    "location": "",
+    "office_hours": ""
+   },
+   "path": "users/u-doz2/institute-memberships",
+   "response": {
+    "data": []
+   }
+  },
+  {
+   "parsed": {
+    "institute": "",
+    "location": "Gebäude 3403, Raum A003",
+    "office_hours": ""
+   },
+   "path": "users/u-tut2/institute-memberships",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "location": "Gebäude 3403, Raum A003",
+       "office-hours": ""
+      },
+      "id": "im3",
+      "type": "institute-memberships"
+     }
+    ]
+   }
+  },
+  {
+   "parsed": {
+    "institute": "Institut für Testinformatik",
+    "location": "",
+    "office_hours": ""
+   },
+   "path": "users/u-doz3/institute-memberships?include=institute",
+   "response": {
+    "data": [
+     {
+      "attributes": {
+       "location": "",
+       "office-hours": ""
+      },
+      "id": "im4",
+      "relationships": {
+       "institute": {
+        "data": {
+         "id": "i-inf",
+         "type": "institutes"
+        }
+       }
+      },
+      "type": "institute-memberships"
+     }
+    ],
+    "included": [
+     {
+      "attributes": {
+       "name": "Institut für Testinformatik"
+      },
+      "id": "i-inf",
+      "type": "institutes"
+     }
+    ]
+   }
+  }
+ ],
+ "sync": {
+  "after": {
+   "settings": [
+    [
+     "studip_missing_endpoints",
+     "{}"
+    ]
+   ],
+   "studip_lecturer_courses": [
+    [
+     "k-alt",
+     "2026-11-03T09:00:00+01:00"
+    ],
+    [
+     "k-ana",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-neu",
+     "2026-11-04T09:00:00+01:00"
+    ],
+    [
+     "k-prog",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-ue",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-zu",
+     "2026-11-06T10:00:00+01:00"
+    ]
+   ],
+   "studip_lecturers": [
+    [
+     "k-alt",
+     "u-alt",
+     "dozent",
+     0,
+     "",
+     "Prof. Alt Beispiel",
+     "alt",
+     "alt@example.org",
+     "",
+     "",
+     "",
+     "2026-11-03T09:00:00+01:00"
+    ],
+    [
+     "k-ana",
+     "u-doz2",
+     "dozent",
+     1,
+     "",
+     "Dr. Jonas Muster",
+     "j.muster",
+     "",
+     "",
+     "",
+     "",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-ana",
+     "u-prof",
+     "dozent",
+     0,
+     "Modulverantwortliche",
+     "Prof. Dr. Erika Beispiel",
+     "beispiel",
+     "erika.beispiel@example.org",
+     "Di 10–11 Uhr\nund nach Vereinbarung",
+     "Raum F 303 (1101)",
+     "Institut für Testmathematik",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-ana",
+     "u-tut1",
+     "tutor",
+     0,
+     "",
+     "Mia Übungsleiterin",
+     "mia.ue",
+     "mia.uebung@example.org",
+     "",
+     "",
+     "",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-neu",
+     "u-doz2",
+     "dozent",
+     0,
+     "",
+     "Dr. Jonas Muster",
+     "j.muster",
+     "",
+     "",
+     "",
+     "",
+     "2026-11-04T09:00:00+01:00"
+    ],
+    [
+     "k-prog",
+     "u-doz3",
+     "dozent",
+     0,
+     "",
+     "Dr. Lena Probe",
+     "lprobe",
+     "",
+     "",
+     "",
+     "Institut für Testinformatik",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-ue",
+     "u-prof",
+     "dozent",
+     0,
+     "",
+     "Prof. Dr. Erika Beispiel",
+     "beispiel",
+     "erika.beispiel@example.org",
+     "Di 10–11 Uhr\nund nach Vereinbarung",
+     "Raum F 303 (1101)",
+     "Institut für Testmathematik",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-ue",
+     "u-tut1",
+     "tutor",
+     1,
+     "",
+     "Mia Übungsleiterin",
+     "mia.ue",
+     "mia.uebung@example.org",
+     "",
+     "",
+     "",
+     "2026-11-06T10:00:00+01:00"
+    ],
+    [
+     "k-ue",
+     "u-tut2",
+     "tutor",
+     0,
+     "",
+     "Tom Tutor",
+     "ttutor",
+     "tom.tutor@stud.example.org",
+     "",
+     "",
+     "",
+     "2026-11-06T10:00:00+01:00"
+    ]
+   ]
+  },
+  "course_ids": [
+   "k-ana",
+   "k-ue",
+   "k-prog",
+   "k-zu",
+   "k-neu",
+   "k-ana"
+  ],
+  "requests": [
+   "courses/k-ana/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "courses/k-ana/memberships?filter[permission]=tutor&page[limit]=100&include=user",
+   "courses/k-ana/memberships?filter[permission]=tutor&page[limit]=100",
+   "users/u-tut1",
+   "courses/k-ue/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "courses/k-ue/memberships?filter[permission]=tutor&page[limit]=100&include=user",
+   "courses/k-prog/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "courses/k-prog/memberships?filter[permission]=tutor&page[limit]=100&include=user",
+   "courses/k-zu/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "users/u-prof/institute-memberships?include=institute",
+   "users/u-doz2/institute-memberships?include=institute",
+   "users/u-doz2/institute-memberships",
+   "users/u-doz3/institute-memberships?include=institute"
+  ],
+  "result": {
+   "courses": 4,
+   "people": 7,
+   "profiles": 3,
+   "requests": 13
+  },
+  "routes": {
+   "courses/k-ana/memberships?filter[permission]=dozent&page[limit]=100&include=user": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "label": "Modulverantwortliche",
+        "permission": "dozent",
+        "position": 0
+       },
+       "id": "k-ana_u-prof",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-prof",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      },
+      {
+       "attributes": {
+        "permission": "dozent",
+        "position": 1
+       },
+       "id": "k-ana_u-doz2",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-doz2",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      },
+      {
+       "attributes": {
+        "permission": "autor",
+        "position": 2
+       },
+       "id": "k-ana_u-stud",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-stud",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      },
+      {
+       "attributes": {
+        "permission": "dozent",
+        "position": 3
+       },
+       "id": "k-ana_u-prof",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-prof",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      },
+      {
+       "attributes": {
+        "permission": "dozent",
+        "position": 4
+       },
+       "id": "k-ana_u-x",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-x",
+          "type": "users"
+         }
+        }
+       },
+       "type": "users"
+      }
+     ],
+     "included": [
+      {
+       "attributes": {
+        "email": "erika.beispiel@example.org",
+        "formatted-name": "Prof. Dr. Erika Beispiel",
+        "permission": "dozent",
+        "username": "beispiel"
+       },
+       "id": "u-prof",
+       "type": "users"
+      },
+      {
+       "attributes": {
+        "email": "",
+        "formatted-name": "Dr. Jonas Muster",
+        "permission": "dozent",
+        "username": "j.muster"
+       },
+       "id": "u-doz2",
+       "type": "users"
+      },
+      {
+       "attributes": {
+        "email": "kommi@example.org",
+        "formatted-name": "Erfundene Kommilitonin",
+        "username": "kommi"
+       },
+       "id": "u-stud",
+       "type": "users"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "courses/k-ana/memberships?filter[permission]=tutor&page[limit]=100": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "permission": "tutor",
+        "position": "0"
+       },
+       "id": "k-ana_u-tut1",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-tut1",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "courses/k-ana/memberships?filter[permission]=tutor&page[limit]=100&include=user": {
+    "body": null,
+    "status": 400
+   },
+   "courses/k-prog/memberships?filter[permission]=dozent&page[limit]=100&include=user": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "permission": "dozent",
+        "position": 0
+       },
+       "id": "k-prog_u-doz3",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-doz3",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      }
+     ],
+     "included": [
+      {
+       "attributes": {
+        "email": "keine Angabe",
+        "family-name": "Probe",
+        "given-name": "Lena",
+        "name-prefix": "Dr.",
+        "permission": "dozent",
+        "username": "lprobe"
+       },
+       "id": "u-doz3",
+       "type": "users"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "courses/k-prog/memberships?filter[permission]=tutor&page[limit]=100&include=user": {
+    "body": {
+     "data": []
+    },
+    "status": 200
+   },
+   "courses/k-ue/memberships?filter[permission]=dozent&page[limit]=100&include=user": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "permission": "dozent"
+       },
+       "id": "k-ue_u-prof",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-prof",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      }
+     ],
+     "included": [
+      {
+       "attributes": {
+        "email": "erika.beispiel@example.org",
+        "formatted-name": "Prof. Dr. Erika Beispiel",
+        "permission": "dozent",
+        "username": "beispiel"
+       },
+       "id": "u-prof",
+       "type": "users"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "courses/k-ue/memberships?filter[permission]=tutor&page[limit]=100&include=user": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "permission": "tutor",
+        "position": 0
+       },
+       "id": "k-ue_u-tut2",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-tut2",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      },
+      {
+       "attributes": {
+        "permission": "tutor",
+        "position": 1
+       },
+       "id": "k-ue_u-tut1",
+       "relationships": {
+        "user": {
+         "data": {
+          "id": "u-tut1",
+          "type": "users"
+         }
+        }
+       },
+       "type": "course-memberships"
+      }
+     ],
+     "included": [
+      {
+       "attributes": {
+        "email": "tom.tutor@stud.example.org",
+        "formatted-name": "  Tom   Tutor  ",
+        "permission": "autor",
+        "username": "ttutor"
+       },
+       "id": "u-tut2",
+       "type": "users"
+      },
+      {
+       "attributes": {
+        "email": "mia.uebung@example.org",
+        "formatted-name": "Mia Übungsleiterin",
+        "permission": "autor",
+        "username": "mia.ue"
+       },
+       "id": "u-tut1",
+       "type": "users"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "courses/k-zu/memberships?filter[permission]=dozent&page[limit]=100&include=user": {
+    "body": null,
+    "status": 403
+   },
+   "users/u-doz2/institute-memberships": {
+    "body": {
+     "data": []
+    },
+    "status": 200
+   },
+   "users/u-doz2/institute-memberships?include=institute": {
+    "body": null,
+    "status": 400
+   },
+   "users/u-doz3/institute-memberships?include=institute": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "location": "",
+        "office-hours": ""
+       },
+       "id": "im4",
+       "relationships": {
+        "institute": {
+         "data": {
+          "id": "i-inf",
+          "type": "institutes"
+         }
+        }
+       },
+       "type": "institute-memberships"
+      }
+     ],
+     "included": [
+      {
+       "attributes": {
+        "name": "Institut für Testinformatik"
+       },
+       "id": "i-inf",
+       "type": "institutes"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "users/u-prof/institute-memberships?include=institute": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "is-default": false,
+        "location": "",
+        "office-hours": "nach Vereinbarung",
+        "permission": "dozent",
+        "priority": 1
+       },
+       "id": "im1",
+       "relationships": {
+        "institute": {
+         "data": {
+          "id": "i-alt",
+          "type": "institutes"
+         }
+        }
+       },
+       "type": "institute-memberships"
+      },
+      {
+       "attributes": {
+        "fax": null,
+        "is-default": true,
+        "location": "Raum F 303 (1101)",
+        "office-hours": "<p>Di 10&ndash;11 Uhr<br>und nach Vereinbarung</p>",
+        "permission": "dozent",
+        "phone": "+49 511 000000",
+        "priority": 0,
+        "visible": true
+       },
+       "id": "im2",
+       "relationships": {
+        "institute": {
+         "data": {
+          "id": "i-mat",
+          "type": "institutes"
+         }
+        }
+       },
+       "type": "institute-memberships"
+      }
+     ],
+     "included": [
+      {
+       "attributes": {
+        "city": "Hannover",
+        "name": "Institut für Testmathematik",
+        "url": "https://example.org/testmathematik"
+       },
+       "id": "i-mat",
+       "type": "institutes"
+      },
+      {
+       "attributes": {
+        "name": "Altes Institut"
+       },
+       "id": "i-alt",
+       "type": "institutes"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "users/u-tut1": {
+    "body": {
+     "data": {
+      "attributes": {
+       "email": "mia.uebung@example.org",
+       "formatted-name": "Mia Übungsleiterin",
+       "permission": "autor",
+       "username": "mia.ue"
+      },
+      "id": "u-tut1",
+      "type": "users"
+     }
+    },
+    "status": 200
+   },
+   "users/u-tut1/institute-memberships?include=institute": {
+    "body": null,
+    "status": 403
+   },
+   "users/u-tut2/institute-memberships": {
+    "body": {
+     "data": [
+      {
+       "attributes": {
+        "location": "Gebäude 3403, Raum A003",
+        "office-hours": ""
+       },
+       "id": "im3",
+       "type": "institute-memberships"
+      }
+     ]
+    },
+    "status": 200
+   },
+   "users/u-tut2/institute-memberships?include=institute": {
+    "body": null,
+    "status": 400
+   }
+  },
+  "second": {
+   "requests": [],
+   "result": {
+    "courses": 0,
+    "people": 0,
+    "profiles": 0,
+    "requests": 0
+   }
+  }
+ },
+ "sync_missing": {
+  "again": {
+   "courses": 0,
+   "people": 0,
+   "profiles": 0,
+   "requests": 0
+  },
+  "requests": [
+   "courses/k-ana/memberships?filter[permission]=dozent&page[limit]=100&include=user",
+   "courses/k-ue/memberships?filter[permission]=dozent&page[limit]=100&include=user"
+  ],
+  "result": {
+   "courses": 0,
+   "people": 0,
+   "profiles": 0,
+   "requests": 2
+  },
+  "settings": [
+   [
+    "studip_missing_endpoints",
+    "{\"course-memberships\": \"2026-11-06\"}"
+   ]
+  ]
+ },
+ "today": "2026-11-06"
+}

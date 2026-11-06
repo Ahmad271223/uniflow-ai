@@ -239,9 +239,9 @@ def test_accounts_only_report_their_own_files(hosted):
 # ---------------------------------------------------------------- Dateilisten: Quelle, Adresse, Fingerabdruck
 
 def test_library_and_files_lists_carry_source_url_and_fingerprint(hosted):
-    from app import vault
+    from conftest import legacy_vault
     user, h = _user(hosted, "l@beispiel.de", "hildesheim")
-    vault.set_values(user["id"], {"LEARNWEB_TOKEN": "tokGEHEIM123456", "HILDESHEIM_PASSWORD": "pwGEHEIM"})
+    legacy_vault(user["id"], {"LEARNWEB_TOKEN": "tokGEHEIM123456", "HILDESHEIM_PASSWORD": "pwGEHEIM"})
     _seed(user, "hildesheim", "f1", STUDIP_URL, sha=SHA_A)
     _seed(user, "hildesheim", "lw-7", LEARNWEB_URL, name="Folien 1.pdf")
     _seed(user, "hildesheim", "x9", LEARNWEB_URL.replace("/7/", "/9/"), name="Folien 2.pdf")   # ohne lw-, aber pluginfile.php
@@ -275,10 +275,10 @@ def _fixture_profile(key):
 
 
 def test_university_profile_matches_fixture_per_account(hosted):
-    from app import vault
+    from conftest import legacy_vault
     luh, hl = _user(hosted, "luh@beispiel.de", "luh")
     hi, hh = _user(hosted, "hi@beispiel.de", "hildesheim")
-    vault.set_values(hi["id"], {"HILDESHEIM_USER": "peev", "HILDESHEIM_PASSWORD": "pwGEHEIM", "LEARNWEB_TOKEN": "tokGEHEIM123456"})
+    legacy_vault(hi["id"], {"HILDESHEIM_USER": "testkennung", "HILDESHEIM_PASSWORD": "pwGEHEIM", "LEARNWEB_TOKEN": "tokGEHEIM123456"})
     st, d = _j(asgi_call(hosted, "GET", "/api/university/profile", headers=hl))
     assert (st, d) == (200, _fixture_profile("luh"))
     st, _, raw = asgi_call(hosted, "GET", "/api/university/profile", headers=hh)
@@ -286,7 +286,7 @@ def test_university_profile_matches_fixture_per_account(hosted):
     assert "GEHEIM" not in raw.decode() and "token" not in raw.decode().lower()
     assert d["launch_scheme"] == "uniflow" and d["learnweb_base"] is None and d["cas_base"] is None
     # Learnweb-Adresse des Kontos (HILDESHEIM_LEARNWEB_URL) ueberschreibt die Konstante, ohne Netz
-    vault.set_values(hi["id"], {"HILDESHEIM_LEARNWEB_URL": "https://www.uni-hildesheim.de/learnweb2027/"})
+    legacy_vault(hi["id"], {"HILDESHEIM_LEARNWEB_URL": "https://www.uni-hildesheim.de/learnweb2027/"})
     st, d = _j(asgi_call(hosted, "GET", "/api/university/profile", headers=hh))
     lw = "https://www.uni-hildesheim.de/learnweb2027"
     assert st == 200 and d["learnweb_base"] == lw and d["login_url"] == f"{lw}/login/index.php?authCAS=CAS" and d["logged_in_check_url"] == f"{lw}/my/"

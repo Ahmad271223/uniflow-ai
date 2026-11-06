@@ -206,7 +206,8 @@ final class RoomFinderAppTests: XCTestCase {
         }
     }
 
-    /// Termin im Stundenplan: Raum "1101 - F102" ist ein Link; Antippen loest ihn auf und zeigt den Google-Maps-Link
+    /// Termin im Stundenplan: Raum "1101 - F102" im Termin-Detail; "Im Raumfinder anzeigen" loest ihn auf und zeigt den
+    /// Google-Maps-Link (Antippen des Raums selbst startet die Route, TerminDetailAppTests)
     func testTimetableEntryWithTappableRoom() throws {
         XCTAssertTrue(Self.accessibilityAutomation(true))
         defer { Self.accessibilityAutomation(false) }
@@ -224,9 +225,9 @@ final class RoomFinderAppTests: XCTestCase {
         let before = rec.count("/api/rooms/resolve")
 
         let w = try show(EventDrawer(eventID: id, date: "2026-11-05"), api: api)
-        XCTAssertTrue(pump { self.shows(w, "Raum 1101 - F102") }, texts(w).joined(separator: "\n"))
+        XCTAssertTrue(pump { self.shows(w, "Raum 1101 - F102 im Raumfinder anzeigen") }, texts(w).joined(separator: "\n"))
         XCTAssertEqual(rec.count("/api/rooms/resolve"), before, "nichts wird vor dem Antippen aufgeloest")
-        XCTAssertTrue(tap("Raum 1101 - F102", in: w))
+        XCTAssertTrue(tap("Raum 1101 - F102 im Raumfinder anzeigen", in: w))
         XCTAssertTrue(pump { self.shows(w, "In Google Maps öffnen") }, texts(w).joined(separator: "\n"))
         XCTAssertTrue(shows(w, "Raum F102"))
         XCTAssertEqual(rec.count("/api/rooms/resolve"), before + 1)
