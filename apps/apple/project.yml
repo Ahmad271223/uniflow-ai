@@ -178,6 +178,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai.tests
         GENERATE_INFOPLIST_FILE: YES
+        # iPhone-Simulator: Szene regular wie am iPad, damit die Tests in iPad-Groesse die breite Fassung sehen
+        # (UniFlowTests/TestBundlePrincipal.swift); auf dem iPad ohne Wirkung
+        INFOPLIST_KEY_NSPrincipalClass: UniFlowTestsPrincipal
 schemes:
   UniFlow:
     build:

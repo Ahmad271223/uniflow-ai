@@ -42,7 +42,7 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
             Entitlements.shared.setPlanForTesting(.plus)
             addTeardownBlock { @MainActor in
                 Entitlements.shared.setPlanForTesting(before)
-                UFCompact.phoneOverride = nil
+                UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault
             }
         }
     }

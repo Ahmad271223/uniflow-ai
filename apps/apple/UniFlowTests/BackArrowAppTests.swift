@@ -154,6 +154,12 @@ final class BackArrowAppTests: XCTestCase {
             XCTAssertTrue(env.wait { self.count("Zurück", in: env) == 1 }, "genau ein Pfeil (\(size.width)): " + env.labels().joined(separator: " | "))
             XCTAssertTrue(activate("Zurück", in: env))
             XCTAssertTrue(env.wait { env.router.route == .modules }, "\(env.router.route)")
+            if size.width < 700 {
+                // schmal (iPhone-Fassung, docs/IPHONE-2026-11-04.md): "Module" ist eine Wurzel der unteren Leiste, ohne
+                // Pfeil; zur Startseite geht es ueber die Leiste (IPhoneBackArrowTests)
+                XCTAssertTrue(env.wait { self.count("Zurück", in: env) == 0 }, "Wurzel der Leiste ohne Pfeil (\(size.width))")
+                continue
+            }
             XCTAssertTrue(activate("Zurück", in: env))
             XCTAssertTrue(env.wait { env.router.route == .dashboard }, "\(env.router.route)")
             XCTAssertTrue(env.wait { self.count("Zurück", in: env) == 0 }, "wieder auf der Startseite ohne Pfeil")

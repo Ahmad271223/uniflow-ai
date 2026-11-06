@@ -59,7 +59,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
 
     override func tearDown() async throws {
         HostedEnvironment.accessibilityAutomation(false)
-        UFCompact.phoneOverride = nil
+        UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault
         CommunityRoute.shared.service = nil
         Entitlements.shared.setPlanForTesting(.free)
         MessagesInbox.shared.defaultsOverride = nil

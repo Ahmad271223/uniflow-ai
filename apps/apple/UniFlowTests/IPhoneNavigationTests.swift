@@ -34,6 +34,9 @@ final class IPhoneNavigationTests: XCTestCase {
              ["timetable", "studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
             ("iPhone mit KI und Nachrichten", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true, messages: true),
              ["messages", "timetable", "studyplan", "exams", "cards", "services", "mensa", "rooms", "community", "settings"]),
+            // Uni-Mail (LUH, 05.11.2026) und Raumfinder stehen in "Mehr" (nicht in der Leiste)
+            ("iPhone LUH mit Uni-Mail", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, messages: true, uniMail: true),
+             ["messages", "unimail", "timetable", "studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
             ("ohne iCloud", UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: true),
              ["timetable", "studyplan", "cards", "services", "mensa", "rooms", "settings"]),
             ("eigener Server", UFNavItem.visible(local: false, gradesOnDevice: true, community: true),

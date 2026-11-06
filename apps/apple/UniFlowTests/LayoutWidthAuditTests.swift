@@ -261,7 +261,7 @@ final class LayoutWidthAuditTests: XCTestCase {
     func testIPhoneDokumentNeu() throws {
         let doc = try host(MainView())
         UFCompact.phoneOverride = true
-        defer { UFCompact.phoneOverride = nil }
+        defer { UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault }
         doc.hosting.traitOverrides.horizontalSizeClass = .compact
         doc.hosting.traitOverrides.verticalSizeClass = .regular
         doc.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
