@@ -129,13 +129,15 @@ def test_no_store_text_says_the_university_password_is_never_stored():
     assert "kSecAttrSynchronizable = false" in text and "nie an StudiNow-Server" in text
 
 
-def test_app_store_texts_match_build_10():
+def test_app_store_texts_match_current_build():
     """Fertig zum Einfuegen: keine Platzhalter; Hochschulen nur als "angebunden heute"; kein Zeitmesser (ausgeblendet);
     die genannten Zeichenzahlen stimmen; die Bildschirmfotos gibt es (falls der Ordner auf diesem Rechner liegt)."""
     text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
     f = fields("APP-STORE.md")
     assert "[[" not in text and "]]" not in text
-    assert "Build 10" in text and 'CURRENT_PROJECT_VERSION: "10"' in (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")
+    import re
+    build = re.search(r'CURRENT_PROJECT_VERSION: "(\d+)"', (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")).group(1)
+    assert f"Build {build}" in text, f"APP-STORE.md nennt nicht den aktuellen Build {build}"
     assert "Offene Entscheidung KI" not in text
     for field in ("description", "description-proai"):
         d = f[field]
