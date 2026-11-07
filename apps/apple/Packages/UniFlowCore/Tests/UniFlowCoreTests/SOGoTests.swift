@@ -209,7 +209,33 @@ final class SOGoTests: XCTestCase {
             "/markMessageRead": (200, Data("{}".utf8)), "/markMessageUnread": (200, Data("{}".utf8)), "/markMessageFlagged": (200, Data("{}".utf8)),
             "/batchDelete": (200, Data("{}".utf8)), "/moveMessages": (200, Data("{}".utf8)), "/Mail/unseenCount": (200, try f("unseen.json")),
             "/Calendar/eventslist": (200, try f("events.json")),
+            // leere Ordner: SOGo antwortet 204 ohne Inhalt (Spam) bzw. 200 mit leerem Koerper (Vorlagen)
+            "/Mail/0/folderJunk/view": (204, Data()), "/Mail/0/folderJunk/headers": (204, Data()), "/Mail/0/folderTemplates/view": (200, Data()),
         ])
+    }
+
+    /// Echtes iPad 07.11.2026 (Uni Hildesheim): Spam und Vorlagen zeigten "Fehler 204". 204 und ein leerer Koerper sind
+    /// kein Fehler, sondern ein leerer Ordner: 0 Mails, Ordner der Antwort = der angefragte.
+    func testEmptyFolder204OrEmptyBodyIsZeroMailsNotAnError() async throws {
+        let t = try fake()
+        let s = client(t)
+        let junk = try await s.folder("Junk")
+        XCTAssertEqual(junk["folder"]?.string, "Junk")
+        XCTAssertEqual(junk["total"]?.int, 0)
+        XCTAssertEqual(junk["messages"]?.array?.count, 0)
+        XCTAssertEqual(junk["unseen"], .null)
+        let junkPage = try await s.headers("Junk", uids: [5])
+        XCTAssertEqual(junkPage.count, 0)
+        let tpl = try await s.folder("Templates")
+        XCTAssertEqual(tpl["total"]?.int, 0)
+        XCTAssertEqual(tpl["messages"]?.array?.count, 0)
+        XCTAssertEqual(t.last("/view")?.url.path, "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderTemplates/view")
+        // die Ordner Spam und Vorlagen aus Mail/0/view fuehren auf genau diese Pfade (type junk/templates, Pfad vom Server)
+        let boxes = try await s.mailboxes()
+        XCTAssertEqual(boxes.first { $0["name"]?.string == "Spam" }?["path"]?.string, "Junk")
+        XCTAssertEqual(boxes.first { $0["name"]?.string == "Vorlagen" }?["path"]?.string, "Templates")
+        XCTAssertEqual(SOGo.folderPath("Junk"), "folderJunk")
+        XCTAssertEqual(SOGo.folderPath("Templates"), "folderTemplates")
     }
 
     private func client(_ t: FakeSOGo) -> SOGoClient {

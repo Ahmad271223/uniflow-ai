@@ -73,6 +73,10 @@ class FakeSOGo:
             return j(raw("folder-inbox.json"))
         if path == f"{UB}/Mail/0/folderINBOX/headers":
             return j(raw("headers-page2.json"))
+        if path == f"{UB}/Mail/0/folderJunk/view" or path == f"{UB}/Mail/0/folderJunk/headers":
+            return 204, b"", url, {}                               # leerer Ordner: SOGo antwortet 204 ohne Inhalt
+        if path == f"{UB}/Mail/0/folderTemplates/view":
+            return 200, b"", url, {"content-type": "application/json"}
         if path == f"{UB}/Mail/0/folderINBOX/128/view":
             return j(raw("message-html.json"))
         if path.endswith("/128/reply") or path.endswith("/128/replyall") or path.endswith("/128/forward"):
@@ -138,6 +142,18 @@ def test_reading_uses_session_and_xsrf_header_only_for_sogo():
     from app import sogo
     with pytest.raises(sogo.SOGoError):
         w.attachment("https://evil.example/SOGo/so/x/a.pdf")
+
+
+def test_empty_folder_204_or_empty_body_is_zero_mails_not_an_error():
+    # echtes iPad 07.11.2026: Spam und Vorlagen meldeten "Fehler 204"; 204 / leerer Koerper = leerer Ordner
+    f = FakeSOGo()
+    w = web(f)
+    junk = w.folder("Junk")
+    assert junk["folder"] == "Junk" and junk["total"] == 0 and junk["messages"] == [] and junk["unseen"] is None
+    assert w.headers("Junk", [5]) == []
+    tpl = w.folder("Templates")
+    assert tpl["total"] == 0 and tpl["messages"] == []
+    assert f.paths("/view")[-2:] == [("POST", f"{UB}/Mail/0/folderJunk/view"), ("POST", f"{UB}/Mail/0/folderTemplates/view")]
 
 
 def test_expired_session_is_login_needed():

@@ -80,10 +80,13 @@ public final class SOGoClient: @unchecked Sendable {
         return resp
     }
 
-    func json(_ method: String, _ path: String, _ body: JSONValue? = nil, ok: Set<Int> = [200, 201], write: Bool = false) async throws -> JSONValue {
+    /// JSON-Antwort; 204 (No Content) und ein leerer Koerper sind kein Fehler, sondern `null` (SOGo antwortet so bei
+    /// leeren Ordnern wie Spam oder Vorlagen; die Parser machen daraus "0 Mails", echtes iPad 07.11.2026)
+    func json(_ method: String, _ path: String, _ body: JSONValue? = nil, ok: Set<Int> = [200, 201, 204], write: Bool = false) async throws -> JSONValue {
         let r = try await request(method, path, json: body, write: write)
         guard ok.contains(r.status) else { throw SOGoError.http(r.status) }
-        guard let v = try? JSONValue.parse(r.body.isEmpty ? Data("null".utf8) : r.body) else { throw SOGoError.bad("keine JSON-Antwort") }
+        if r.status == 204 || r.body.isEmpty { return .null }
+        guard let v = try? JSONValue.parse(r.body) else { throw SOGoError.bad("keine JSON-Antwort") }
         return v
     }
 

@@ -878,12 +878,15 @@ class SOGoWeb:
             raise SOGoError("login")
         return status, content, rh
 
-    def _json(self, method: str, path: str, body=None, ok=(200, 201)):
+    def _json(self, method: str, path: str, body=None, ok=(200, 201, 204)):
+        # 204 (No Content) und leerer Koerper sind kein Fehler, sondern None (leere Ordner wie Spam/Vorlagen -> "0 Mails")
         status, content, _ = self._req(method, path, body)
         if status not in ok:
             raise SOGoError("http", str(status))
+        if status == 204 or not content:
+            return None
         try:
-            return json.loads(content.decode("utf-8") or "null")
+            return json.loads(content.decode("utf-8"))
         except ValueError:
             raise SOGoError("bad", "keine JSON-Antwort") from None
 

@@ -56,6 +56,9 @@ final class UniMailAppTests: XCTestCase {
             if login { return UniStubProtocol.Reply(status: 200, headers: ["Content-Type": "text/html"], body: page) }
             let path = seen.url.absoluteString.components(separatedBy: "?")[0]
             if path.contains("/asAttachment/") { return .text("%PDF-1.4 erfunden", headers: ["Content-Type": "application/pdf"]) }
+            // leere Ordner (Spam: 204 ohne Inhalt, Vorlagen: 200 mit leerem Koerper), wie SOGo am 07.11.2026
+            if path.hasSuffix("/folderJunk/view") || path.hasSuffix("/folderJunk/headers") { return UniStubProtocol.Reply(status: 204, headers: [:], body: Data()) }
+            if path.hasSuffix("/folderTemplates/view") { return UniStubProtocol.Reply(status: 200, headers: json, body: Data()) }
             if path.hasSuffix("/save") { return .text(#"{"uid":40,"lastAttachmentAttrs":[{"filename":"Blatt.pdf","size":"1 KB"}]}"#, headers: json) }
             if ["/markMessageRead", "/markMessageUnread", "/markMessageFlagged", "/batchDelete", "/moveMessages"].contains(where: path.hasSuffix) {
                 return .text("{}", headers: json)
@@ -252,6 +255,32 @@ final class UniMailAppTests: XCTestCase {
         XCTAssertTrue(sends.isEmpty)
         let file = try await mail.download(msg["attachments"]?.array?.first ?? .null)
         XCTAssertEqual(file.lastPathComponent, "Blatt3.pdf")
+    }
+
+    /// Echtes iPad 07.11.2026: Ordner Spam/Vorlagen zeigten "Uni-Mail antwortet mit Fehler 204" und die Liste des
+    /// Posteingangs blieb stehen. Jetzt: 0 Mails, Ordner der Antwort = der angefragte, Posteingang-Stand unberuehrt.
+    func testEmptyFolderIsZeroMailsAndNeverShowsInboxMessages() async throws {
+        try install()
+        let (_, _, mail) = try await connected()
+        let inbox = try await mail.listing(folder: "INBOX")
+        XCTAssertEqual(inbox["total"]?.int, 64)
+        let boxes = try await mail.mailboxes()
+        let junk = SOGo.folder(ofType: "junk", in: boxes, fallback: "?"), templates = SOGo.folder(ofType: "templates", in: boxes, fallback: "?")
+        XCTAssertEqual(junk, "Junk")
+        XCTAssertEqual(templates, "Templates")
+        let spam = try await mail.listing(folder: junk)
+        XCTAssertEqual(spam["folder"]?.string, "Junk")
+        XCTAssertEqual(spam["total"]?.int, 0)
+        XCTAssertEqual(spam["messages"]?.array?.count, 0, "nie die Mails des Posteingangs")
+        let page = try await mail.page(folder: junk, uids: [5], page: 0)
+        XCTAssertTrue(page.isEmpty)
+        let tpl = try await mail.listing(folder: templates)
+        XCTAssertEqual(tpl["total"]?.int, 0)
+        if case .ok = mail.state {} else { XCTFail("kein Fehler: \(mail.state)") }
+        XCTAssertEqual(mail.unseen, 2, "Zaehler des Posteingangs bleibt")
+        let cached = await mail.cachedInbox()
+        XCTAssertEqual(cached?["total"]?.int, 64, "Zwischenspeicher nur fuer den Posteingang")
+        XCTAssertTrue(sends.isEmpty)
     }
 
     // MARK: Schreiben

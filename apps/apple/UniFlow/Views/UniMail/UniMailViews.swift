@@ -214,6 +214,8 @@ struct UniMailMain: View {
     @State private var messages: [JSONValue] = []
     @State private var page = 0
     @State private var loading = false
+    /// Suchtext, zu dem die gezeigte Liste gehoert
+    @State private var shownQuery = ""
     /// "Neue Mails prüfen" laeuft (Lade-Anzeige, Knopf gesperrt)
     @State private var checking = false
     @State private var error: String?
@@ -417,13 +419,24 @@ struct UniMailMain: View {
     private func reload() async {
         loading = true
         defer { loading = false }
+        let target = folder, q = query
+        // anderer Ordner oder andere Suche: die alte Liste sofort weg, nie die Mails eines anderen Ordners zeigen
+        // (echtes iPad 07.11.2026: im leeren Ordner Spam standen die 599 Mails des Posteingangs)
+        if listing?.s("folder") != target || shownQuery != q {
+            listing = nil
+            messages = []
+            page = 0
+        }
+        shownQuery = q
         do {
-            let l = try await connection.listing(folder: folder, query: query)
+            let l = try await connection.listing(folder: target, query: q)
+            guard folder == target, query == q else { return }   // inzwischen weitergeklickt: Antwort verwerfen
             listing = l
             messages = l.list("messages")
             page = 0
             error = nil
         } catch {
+            guard folder == target else { return }
             self.error = UniMailConnection.message(error)
         }
     }
