@@ -136,20 +136,38 @@ public actor LearnwebAPI {
         case .token:
             return Learnweb.filesFromContents(try await rest("core_course_get_contents", ["courseid": String(moodleID)]))
         case .session:
-            let data = try await ajax("core_courseformat_get_state", .object(["courseid": .number(Double(moodleID))]))
-            guard let text = data.string, let state = try? JSONValue.parse(text) else {
-                throw HildesheimError.badResponse("core_courseformat_get_state")
+            // Kurszustand (`core_courseformat_get_state`, wie die Kursindex-Leiste von Moodle). Liefert er keinen Datei-
+            // oder Ordner-Eintrag oder ist er nicht erlaubt (Fehlercode, kein Anmeldefehler), zaehlt die Kursseite
+            // selbst (`Learnweb.coursePageModules`): ein Kurs ohne Dateien kostet so eine Anfrage mehr, aber kein Moodle
+            // bleibt still bei "0 Dateien" (Befund HsH 07.11.2026). Die Kursseite dient danach auch den eingebetteten
+            // Ordnern (`coursePages`).
+            var modules: [Learnweb.ModuleRef] = []
+            var stateError: Error?
+            do {
+                let data = try await ajax("core_courseformat_get_state", .object(["courseid": .number(Double(moodleID))]))
+                guard let text = data.string, let state = try? JSONValue.parse(text) else {
+                    throw HildesheimError.badResponse("core_courseformat_get_state")
+                }
+                modules = Learnweb.stateModules(state)
+            } catch {
+                if HildesheimSync.isLoginError(error) || HildesheimSync.isCancellation(error) { throw error }
+                stateError = error
+            }
+            var coursePages: [String: String] = [:]
+            if modules.isEmpty {
+                guard let url = URL(string: "\(base)/course/view.php?id=\(moodleID)") else { throw HildesheimError.badResponse(base) }
+                let html: String
+                do { html = try await page(url) } catch { throw stateError ?? error }
+                modules = Learnweb.coursePageModules(html: html)
+                coursePages[url.absoluteString] = html
+                if modules.isEmpty, let stateError { throw stateError }
             }
             // Links vorab laden (Netz), dann rein rechnen; die Kursseite (eingebettete Ordner) nur einmal je Kurs
             var links: [String: [String]] = [:]
-            var coursePages: [String: String] = [:]
-            for cm in state["cm"]?.array ?? [] {
-                let module = cm["module"]?.string ?? ""
-                guard module == "resource" || module == "folder", cm["uservisible"]?.bool != false else { continue }
-                let cmid = cm["id"].map(Learnweb.idString) ?? ""
-                links[cmid] = module == "resource" ? try await resourceLink(cmid) : try await folderLinks(cmid, coursePages: &coursePages)
+            for m in modules {
+                links[m.cmid] = m.module == "resource" ? try await resourceLink(m.cmid) : try await folderLinks(m.cmid, coursePages: &coursePages)
             }
-            return Learnweb.filesFromState(state, resourceLinks: { links[$0] ?? [] }, folderLinks: { links[$0] ?? [] })
+            return Learnweb.filesFromModules(modules) { links[$0.cmid] ?? [] }
         }
     }
 

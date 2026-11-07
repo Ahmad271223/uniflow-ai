@@ -190,6 +190,53 @@ final class TestEndpointsTests: XCTestCase {
         XCTAssertEqual(done["questions"]?.array?.first?["answer"], "B", "nach der Abgabe sichtbar")
     }
 
+    /// KI antwortet nicht (07.11.2026, "Test erstellen haengt"): nach dem Zeitlimit endet der Auftrag mit einer
+    /// verstaendlichen Meldung, die Anfrage wird abgebrochen, ein neuer Auftrag ist sofort moeglich
+    func testSlowAITimesOutWithAReadableMessage() async throws {
+        final class SlowAI: AIProvider, @unchecked Sendable {
+            let lock = NSLock()
+            var cancelled = false
+            func answer(system: String, prompt: String) async throws -> String {
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { lock.withLock { cancelled = true }; throw error }
+                return TestEndpointsTests.validTest()
+            }
+        }
+        let b = try await backend()
+        try await seed(b)
+        let ai = SlowAI()
+        b.context.ai.set(ai)
+        let before = WeekTests.timeoutSeconds
+        WeekTests.timeoutSeconds = 0.3
+        defer { WeekTests.timeoutSeconds = before }
+        let r = await call(b, "POST", "/api/tests/generate", ["module_id": 7, "duration_min": 30, "count": 10])
+        XCTAssertEqual(r.status, 200)
+        let message = try await waitForJob(b)
+        XCTAssertEqual(message, "Test: FEHLER Die KI hat nach 0 Sekunden nicht geantwortet. Bitte erneut versuchen.")
+        XCTAssertTrue(WeekTestOptions.aiTimeoutHint().contains("90 Sekunden"), "im Betrieb 90 s")
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(ai.lock.withLock { ai.cancelled }, "die haengende Anfrage wird abgebrochen")
+        let count = try await b.context.database.scalar("SELECT COUNT(*) FROM tests")?.int
+        XCTAssertEqual(count, 0, "kein halber Test")
+        let again = await call(b, "POST", "/api/tests/generate", ["module_id": 7, "duration_min": 30, "count": 10])
+        XCTAssertEqual(again.status, 200, "kein 409: der alte Auftrag ist zu Ende")
+        _ = try await waitForJob(b)
+    }
+
+    /// Modul ohne Unterlagen: klare Meldung statt "Keine Materialien fuer X"
+    func testModuleWithoutFilesIsAReadableError() async throws {
+        let b = try await backend()
+        try await b.context.database.transaction { c in
+            _ = try c.execute("INSERT INTO modules(id, name, color, created_at, active) VALUES (8, 'Leer', '#123456', '2026-10-01', 1)")
+            _ = try c.execute("INSERT INTO courses(id, title, kind, created_at, module_id, active, subject) VALUES ('k8', 'Leer I', 'vorlesung', '2026-10-01', 8, 1, 'Leer')")
+        }
+        b.context.ai.set(ScriptedAI([Self.validTest()]))
+        let r = await call(b, "POST", "/api/tests/generate", ["module_id": 8, "duration_min": 30])
+        XCTAssertEqual(r.status, 200)
+        let message = try await waitForJob(b)
+        XCTAssertEqual(message, "Test: FEHLER Leer: \(WeekTestOptions.noMaterialsHint)")
+        XCTAssertTrue(WeekTestOptions.noMaterialsHint.hasPrefix("Für dieses Modul sind noch keine Unterlagen geladen."))
+    }
+
     func testSecondJobWhileOneRunsIs409() async throws {
         let b = try await backend()
         try await seed(b)

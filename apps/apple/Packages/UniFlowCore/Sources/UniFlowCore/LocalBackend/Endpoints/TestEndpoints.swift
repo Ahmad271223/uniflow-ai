@@ -315,14 +315,35 @@ enum WeekTests {
         var why: String?
         // StudiNow-KI: Aufgabe `week_test` mit den Optionen; der Dienst prueft die Form selbst (hoechstens zwei Versuche)
         let task = AIRelayTask("week_test", options: .object(options.json), exam: !examBlock.isEmpty)
+        let limit = timeoutSeconds
         for _ in 0..<2 {
             let res = try AIAnswers.parseJSON(try await AIRelayTask.run(task) {
-                try await ai.answer(system: AIPromptTexts.system, prompt: prompt)
+                // Zeitlimit (07.11.2026, "Test erstellen haengt"): nach `limit` Sekunden ein klarer Fehler statt eines
+                // Auftrags, der nie endet; die Anfrage selbst wird abgebrochen
+                try await withTimeout(limit) { try await ai.answer(system: AIPromptTexts.system, prompt: prompt) }
             }.value)
             why = AIAnswers.checkWeekTest(res, exam: !examBlock.isEmpty, options: options)
             if why == nil { return res }
         }
         throw AIError("ai_week_test_form", "Die KI hat den Wochentest zweimal nicht in der geforderten Form geliefert (\(why ?? "")). Bitte spaeter erneut versuchen.")
+    }
+
+    /// Zeitlimit je KI-Anfrage in Sekunden (`WeekTestOptions.aiTimeoutSeconds`); Tests setzen es kuerzer
+    nonisolated(unsafe) static var timeoutSeconds: Double = WeekTestOptions.aiTimeoutSeconds
+
+    /// `op` mit Zeitlimit: wer zuerst fertig ist, gewinnt; die andere Seite wird abgebrochen. Nach Ablauf
+    /// `AIError("ai_timeout")` mit verstaendlicher Meldung.
+    static func withTimeout<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await op() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+                throw AIError("ai_timeout", WeekTestOptions.aiTimeoutHint(seconds: seconds))
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else { throw AIError("ai_timeout", WeekTestOptions.aiTimeoutHint(seconds: seconds)) }
+            return first
+        }
     }
 
     /// `planning_week`: Mo–Do die laufende Woche, ab Freitag die naechste
@@ -364,7 +385,7 @@ enum WeekTests {
             ? WeeklyTestMaterial(university: pre.university, minutes: pre.minutes, contentHashes: (mats + (ex.map { [$0] } ?? [])).map { $0["content_sha256"]?.string })
             : nil
         let key = material?.key
-        guard !mats.isEmpty else { throw AIError("no_materials", "Keine Materialien fuer \(subject)") }
+        guard !mats.isEmpty else { throw AIError("no_materials", "\(subject): \(WeekTestOptions.noMaterialsHint)") }
         var title: String
         var questions: PyJSON
         var shareVariant: Int?, adoptedFrom: String?

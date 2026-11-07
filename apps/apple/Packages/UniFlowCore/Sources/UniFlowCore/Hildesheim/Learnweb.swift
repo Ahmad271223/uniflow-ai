@@ -102,10 +102,18 @@ public enum Learnweb {
     /// `mimetypes.guess_type(name)[0]`: die eine Tabelle des Kerns (`LocalFileResponse.guess`); sonst nil
     public static func guessMime(_ name: String) -> String? { LocalFileResponse.guess(name) }
 
+    private static let fileQueryRE = HText.regex("[?&]file=([^&#]+)")
+
     /// Pluginfile-Link -> Bereich, Revision (steigt beim Ersetzen), Pfad und Dateiname (dekodiert wie
     /// `urllib.parse.unquote`, NFC). Pfad wie `urlparse(url).path`, auch bei Adressen, die `URLComponents` ablehnt.
+    /// Ein Moodle ohne `slasharguments` schreibt `pluginfile.php?file=/<ctx>/mod_resource/content/<rev>/<Datei>`:
+    /// dann zaehlt der Wert von `file` als Pfad (vorher fiel jede solche Datei still aus der Liste).
     public static func parsePluginfile(_ url: String) -> Pluginfile? {
-        let path = HText.urlPath(url)
+        var path = HText.urlPath(url)
+        if path.hasSuffix("/pluginfile.php"), let q = HText.match(fileQueryRE, url)?.groups[1] ?? nil {
+            let file = PyText.unquote(q.replacingOccurrences(of: "+", with: " "))
+            path += file.hasPrefix("/") ? file : "/" + file
+        }
         guard let m = HText.match(pluginRE, path), let area = m.groups[1], let revText = m.groups[2], let rev = Int(revText),
               let rest = m.groups[3] else { return nil }
         let parts = rest.split(separator: "/").map { HText.nfc(PyText.unquote(String($0))) }
@@ -141,26 +149,116 @@ public enum Learnweb {
         return out
     }
 
-    /// `core_courseformat_get_state` (Sitzung) -> Dateien; Links liefern die Callbacks je cmid. Ohne Aenderungszeit
-    /// und Groesse, mit der Revision (siehe `File`).
-    public static func filesFromState(_ state: JSONValue, resourceLinks: (String) -> [String], folderLinks: (String) -> [String]) -> [File] {
+    /// Ein Eintrag "Datei" (mod_resource) oder "Ordner" (mod_folder) eines Kurses mit seinem Abschnitt, aus dem
+    /// Kurszustand (`core_courseformat_get_state`) oder von der Kursseite (`coursePageModules`)
+    public struct ModuleRef: Sendable, Equatable {
+        public let cmid: String
+        /// "resource" oder "folder"
+        public let module: String
+        public let name: String
+        /// Abschnitt als Ordnername (`sectionLabel`)
+        public let section: String
+        public init(cmid: String, module: String, name: String, section: String) {
+            self.cmid = cmid
+            self.module = module
+            self.name = name
+            self.section = section
+        }
+    }
+
+    /// Datei- und Ordner-Eintraege aus `core_courseformat_get_state` (nur sichtbare, in der Reihenfolge des Zustands)
+    public static func stateModules(_ state: JSONValue) -> [ModuleRef] {
         var sections: [String: JSONValue] = [:]
         for s in state["section"]?.array ?? [] { sections[s["id"].map(idString) ?? ""] = s }
-        var out: [File] = []
+        var out: [ModuleRef] = []
         for cm in state["cm"]?.array ?? [] {
             let module = cm["module"]?.string ?? ""
             guard module == "resource" || module == "folder", cm["uservisible"]?.bool != false else { continue }
-            let cmid = cm["id"].map(idString) ?? ""
             let sec = sections[cm["sectionid"].map(idString) ?? ""]
-            let secName = sectionLabel(sec?["title"]?.string, number: sec?["number"]?.int)
-            let links = module == "resource" ? resourceLinks(cmid) : folderLinks(cmid)
-            let base = module == "resource" ? secName : joinFolder(secName, cm["name"]?.string ?? "")
-            for url in links {
+            out.append(ModuleRef(cmid: cm["id"].map(idString) ?? "", module: module, name: cm["name"]?.string ?? "",
+                                 section: sectionLabel(sec?["title"]?.string, number: sec?["number"]?.int)))
+        }
+        return out
+    }
+
+    /// `core_courseformat_get_state` (Sitzung) -> Dateien; Links liefern die Callbacks je cmid. Ohne Aenderungszeit
+    /// und Groesse, mit der Revision (siehe `File`).
+    public static func filesFromState(_ state: JSONValue, resourceLinks: (String) -> [String], folderLinks: (String) -> [String]) -> [File] {
+        filesFromModules(stateModules(state)) { $0.module == "resource" ? resourceLinks($0.cmid) : folderLinks($0.cmid) }
+    }
+
+    /// Eintraege -> Dateien; `links` liefert die Pluginfile-Links je Eintrag (Datei: Weiterleitung von
+    /// mod/resource/view.php, Ordner: seine Seite)
+    public static func filesFromModules(_ modules: [ModuleRef], links: (ModuleRef) -> [String]) -> [File] {
+        var out: [File] = []
+        for m in modules {
+            let base = m.module == "resource" ? m.section : joinFolder(m.section, m.name)
+            for url in links(m) {
                 guard let p = parsePluginfile(url) else { continue }
-                out.append(File(id: fileID(cmid: cmid, filepath: p.filepath, filename: p.filename), name: p.filename, size: nil,
+                out.append(File(id: fileID(cmid: m.cmid, filepath: p.filepath, filename: p.filename), name: p.filename, size: nil,
                                 mime: guessMime(p.filename), chdate: nil, revision: p.revision, downloadURL: stripForceDownload(url),
-                                folder: joinFolder(base, p.filepath), moduleName: cm["name"]?.string, section: secName))
+                                folder: joinFolder(base, p.filepath), moduleName: m.name.isEmpty ? nil : m.name, section: m.section))
             }
+        }
+        return out
+    }
+
+    // MARK: Kursseite (course/view.php) als zweiter Weg
+
+    private static let sectionAnchorRE = HText.regex(#"<li\b[^>]*\bid\s*=\s*["']section-(\d+)["'][^>]*>"#, [.caseInsensitive])
+    private static let sectionNameAttrRE = HText.regex(#"\bdata-sectionname\s*=\s*["']([^"']*)["']"#, [.caseInsensitive])
+    private static let sectionHeadingRE = HText.regex(#"<h[1-6]\b[^>]*\bclass\s*=\s*["'][^"']*\bsectionname\b[^"']*["'][^>]*>(.*?)</h[1-6]>"#,
+                                                      [.caseInsensitive, .dotMatchesLineSeparators])
+    private static let moduleLinkRE = HText.regex(#"/mod/(resource|folder)/view\.php\?id=(\d+)"#, [.caseInsensitive])
+    private static let instanceNameRE = HText.regex(#"<span\b[^>]*\bclass\s*=\s*["'][^"']*\binstancename\b[^"']*["'][^>]*>(.*?)</span>\s*</a>"#,
+                                                    [.caseInsensitive, .dotMatchesLineSeparators])
+    private static let accessHideRE = HText.regex(#"<span\b[^>]*\baccesshide\b[^>]*>.*?</span>"#, [.caseInsensitive, .dotMatchesLineSeparators])
+    private static let tagRE = HText.regex("<[^>]+>")
+
+    /// Sichtbarer Text eines HTML-Stuecks (Tags weg, Entitaeten dekodiert, Leerraum zusammengefasst)
+    static func plainText(_ html: String) -> String {
+        HText.collapse(QISParser.decodeEntities(HText.replace(tagRE, in: html, with: " ")))
+    }
+
+    /// Datei- und Ordner-Eintraege von der Kursseite (Moodle 4/5, Theme boost/boost_union: `<li id="section-N"
+    /// data-sectionname="…">` mit `<h3 class="sectionname">`, Eintraege `<li id="module-<cmid>">` mit dem Link
+    /// `mod/resource/view.php?id=` bzw. `mod/folder/view.php?id=` und dem Namen in `span.instancename`). Zweiter Weg,
+    /// wenn `core_courseformat_get_state` keinen Eintrag liefert oder nicht erlaubt ist (Befund HsH 07.11.2026:
+    /// alle Kurse "0 Dateien"); die Reihenfolge ist die der Seite, versteckte Eintraege stehen dort nicht.
+    public static func coursePageModules(html: String) -> [ModuleRef] {
+        let ns = html as NSString
+        let full = NSRange(location: 0, length: ns.length)
+        let sections = sectionAnchorRE.matches(in: html, range: full)
+        var out: [ModuleRef] = []
+        var seen = Set<String>()
+        func scan(_ chunk: String, section: String) {
+            let cns = chunk as NSString
+            let anchors = moduleAnchorRE.matches(in: chunk, range: NSRange(location: 0, length: cns.length))
+            for (i, a) in anchors.enumerated() {
+                let from = a.range.location
+                let to = i + 1 < anchors.count ? anchors[i + 1].range.location : cns.length
+                let item = cns.substring(with: NSRange(location: from, length: to - from))
+                let cmid = cns.substring(with: a.range(at: 1))
+                guard !seen.contains(cmid), let link = HText.match(moduleLinkRE, item), let module = link.groups[1]?.lowercased(),
+                      link.groups[2] == cmid else { continue }
+                seen.insert(cmid)
+                let name = (HText.match(instanceNameRE, item)?.groups[1] ?? nil).map { plainText(HText.replace(accessHideRE, in: $0, with: "")) } ?? ""
+                out.append(ModuleRef(cmid: cmid, module: module, name: name, section: section))
+            }
+        }
+        guard !sections.isEmpty else {
+            scan(html, section: "")
+            return out
+        }
+        for (i, s) in sections.enumerated() {
+            let from = s.range.location
+            let to = i + 1 < sections.count ? sections[i + 1].range.location : ns.length
+            let chunk = ns.substring(with: NSRange(location: from, length: to - from))
+            let tag = ns.substring(with: s.range)
+            let number = Int(ns.substring(with: s.range(at: 1)))
+            var title = (HText.match(sectionNameAttrRE, tag)?.groups[1] ?? nil).map { QISParser.decodeEntities($0) }
+            if title == nil, let h = HText.match(sectionHeadingRE, chunk)?.groups[1] ?? nil { title = plainText(h) }
+            scan(chunk, section: sectionLabel(title, number: number))
         }
         return out
     }

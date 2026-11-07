@@ -143,6 +143,25 @@ struct ExamsPage: View {
             if let job = generation.job {
                 TestGeneratingCard(job: job).padding(.bottom, 16)
             }
+            // der Auftrag endete mit einem Fehler (Zeitlimit, keine Unterlagen, Dienst): sichtbar, mit "Erneut versuchen"
+            if generation.job == nil, let failed = generation.lastMessage {
+                UFCard {
+                    HStack(alignment: .top, spacing: 10) {
+                        UFIcon("alert", size: 18).foregroundStyle(UF.warn)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Wochentest nicht erstellt").ufFont(14.5, 600).foregroundStyle(UF.text)
+                            Text(failed).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 8) {
+                                UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { generation.finish(); openComposer() }
+                                    .accessibilityIdentifier("exams.retry")
+                                UFButton("Ausblenden", kind: .ghost, size: .small) { generation.finish() }
+                            }
+                        }
+                    }
+                }
+                .padding(.bottom, 16)
+                .accessibilityIdentifier("exams.generationFailed")
+            }
             if tests.isEmpty && generation.job == nil && !weeklyAllowed {
                 UFLockedCard(.weeklyTests, entitlements: ent)
             } else if tests.isEmpty && generation.job == nil {

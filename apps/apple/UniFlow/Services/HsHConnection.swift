@@ -37,6 +37,9 @@ final class HsHConnection: ObservableObject {
     @Published private(set) var messages: [String] = []
     @Published private(set) var lastRun: Date?
     @Published private(set) var finishedRuns = 0
+    /// Stand der Moodle-Dateien des letzten Laufs ("Dateien: 12 neu geladen, 48 in 7 Kursen, 3 Kurse ohne Dateien"
+    /// bzw. der Grund), `HildesheimSync.Report.filesStatus`; bleibt ueber Neustarts
+    @Published private(set) var filesStatus: String?
     /// Meldung des letzten Lesens der angemeldeten Pruefungen
     @Published private(set) var registrationsMessage: String?
     /// Meldung des letzten Abrufs der Moodle-Nachrichten
@@ -80,6 +83,7 @@ final class HsHConnection: ObservableObject {
         makeTransport = transport ?? { store in await URLSessionUniTransport.make(dataStore: store, allowedDomains: HsHConnection.domains) }
         lastRun = defaults.object(forKey: Keys.lastRun) as? Date
         messages = defaults.stringArray(forKey: Keys.messages) ?? []
+        filesStatus = defaults.string(forKey: Keys.files)
         moodle = storedState(.moodle)
         campus = storedState(.campus)
         StudyCatalogSync.attach(host: host)      // Studiengang aus den Leistungen -> Modulkatalog (Studienverlauf)
@@ -96,9 +100,10 @@ final class HsHConnection: ObservableObject {
         static func login(_ s: Source) -> String { "uniflow.hsh.\(s.loginService).login" }
         static let lastRun = "uniflow.hsh.lastRun"
         static let messages = "uniflow.hsh.messages"
+        static let files = "uniflow.hsh.files"
         static let gradesRun = "uniflow.hsh.grades.lastRun"
         static var all: [String] {
-            Source.allCases.flatMap { [connected($0), ok($0), login($0)] } + [lastRun, messages, gradesRun]
+            Source.allCases.flatMap { [connected($0), ok($0), login($0)] } + [lastRun, messages, files, gradesRun]
         }
     }
 
@@ -178,6 +183,7 @@ final class HsHConnection: ObservableObject {
         UniAutoLogin.forget(websiteDataStore)                  // gemerktes Passwort der HsH (Schluesselbund)
         tokens.deleteAll(for: .hsh)
         messages = []
+        filesStatus = nil
         for s in Source.allCases { set(s, .notConnected) }
         await UniWebSessions.ready(websiteDataStore)
         let store = websiteDataStore.httpCookieStore
@@ -365,7 +371,18 @@ final class HsHConnection: ObservableObject {
             defaults.set(r.messages, forKey: Keys.messages)
             lastRun = now
             defaults.set(now, forKey: Keys.lastRun)
+            // Stand der Dateien nur aus einem Lauf, der Moodle abgefragt hat (ein reiner Campus-Lauf laesst ihn stehen)
+            if sources.contains(.moodle), let line = r.filesStatus(source: Source.moodle.rawValue) {
+                filesStatus = line
+                defaults.set(line, forKey: Keys.files)
+            }
         }
+    }
+
+    /// Grund eines Fehlers je Quelle (Karte), nil ohne
+    func failureReason(_ s: Source) -> String? {
+        if case .failed(let m) = state(s) { return m }
+        return nil
     }
 
     // MARK: Nachrichten und Abgaben (Knopfdruck)

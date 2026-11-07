@@ -11,9 +11,10 @@ import UniFlowCore
 /// "Dateien laden": Kurse vormerken, dann den Abgleich der Hochschule nur fuer sie starten
 @MainActor
 enum OlderSemesterLoad {
-    static func run(_ courseIDs: [String], api: APIClient, studip: StudIPSync, hildesheim: HildesheimConnection?) async throws -> String? {
+    static func run(_ courseIDs: [String], api: APIClient, studip: StudIPSync, hildesheim: HildesheimConnection?,
+                    hsh: HsHConnection? = nil) async throws -> String? {
         _ = try await api.value("/api/older-semesters/request", method: "POST", body: ["course_ids": .array(courseIDs.map(JSONValue.string))])
-        return try await start(studip: studip, hildesheim: hildesheim)
+        return try await start(studip: studip, hildesheim: hildesheim, hsh: hsh)
     }
 
     /// Abgleich der Hochschule fuer die vorgemerkten Kurse (auch nach der Wahl "Frühere Semester auch laden")
@@ -50,6 +51,7 @@ struct OlderSemestersQuestionHost: ViewModifier {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     /// eine Pruefung zur Zeit (Oeffnen und Ende eines Abgleichs koennen zusammenfallen: sonst zwei Fragen)
     @State private var checking = false
 
@@ -58,6 +60,7 @@ struct OlderSemestersQuestionHost: ViewModifier {
             .task { await check() }
             .onChange(of: studip.finishedRuns) { _, _ in Task { await check() } }
             .onReceive(hildesheim?.$finishedRuns.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { _ in Task { await check() } }
+            .onReceive(hsh?.$finishedRuns.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { _ in Task { await check() } }
     }
 
     /// Frage zeigen? Nur ohne gespeicherte Wahl und mit mindestens einem Kurs eines frueheren Semesters
@@ -70,6 +73,7 @@ struct OlderSemestersQuestionHost: ViewModifier {
         checking = true
         defer { checking = false }
         guard !StudIPSync.isUnderTest(), let api = session.api, api.isLocal, !studip.isRunning, hildesheim?.isRunning != true,
+              hsh?.isRunning != true,
               let overview = try? await api.value("/api/older-semesters"), Self.shouldAsk(overview) else { return }
         // als gefragt merken, bevor die Frage erscheint (ein zweiter Abgleich zeigt sie nicht noch einmal)
         guard (try? await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": "wifi"])) != nil else { return }
@@ -134,6 +138,7 @@ struct LibrarySemestersSection: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     @State private var open: Set<String> = []
     @State private var loading: Set<String> = []
 
@@ -231,7 +236,7 @@ struct LibrarySemestersSection: View {
         Task {
             defer { loading.remove(key) }
             do {
-                if let note = try await OlderSemesterLoad.run(ids, api: api, studip: studip, hildesheim: hildesheim) { toast.show(note, seconds: 4) }
+                if let note = try await OlderSemesterLoad.run(ids, api: api, studip: studip, hildesheim: hildesheim, hsh: hsh) { toast.show(note, seconds: 4) }
             } catch {
                 toast.show("Dateien laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4)
             }
@@ -250,6 +255,7 @@ struct LibraryOlderCourseHeader: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     @State private var loading = false
     @State private var showAll = false
 
@@ -297,7 +303,7 @@ struct LibraryOlderCourseHeader: View {
         Task {
             defer { loading = false }
             do {
-                if let note = try await OlderSemesterLoad.run([courseID], api: api, studip: studip, hildesheim: hildesheim) { toast.show(note, seconds: 4) }
+                if let note = try await OlderSemesterLoad.run([courseID], api: api, studip: studip, hildesheim: hildesheim, hsh: hsh) { toast.show(note, seconds: 4) }
             } catch {
                 toast.show("Dateien laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4)
             }

@@ -11,6 +11,17 @@ import XCTest
 final class HsHAppTests: XCTestCase {
     private var bed: ContainerTestBed!
 
+    /// Bedienungshilfen-Baum der gehosteten Karte (wie QuizOptionsAppTests)
+    override class func setUp() {
+        super.setUp()
+        _ = HostedEnvironment.accessibilityAutomation(true)
+    }
+
+    override class func tearDown() {
+        _ = HostedEnvironment.accessibilityAutomation(false)
+        super.tearDown()
+    }
+
     override func setUp() async throws {
         bed = try ContainerTestBed(name: "hsh", clock: .fixed(berlin: "2026-11-05T10:00:00")!)
     }
@@ -152,10 +163,13 @@ final class HsHAppTests: XCTestCase {
         let r = try XCTUnwrap(report)
         XCTAssertNil(r.refused, r.messages.joined(separator: "; "))
         XCTAssertEqual(r.courses, 1, r.messages.joined(separator: "; "))
+        XCTAssertEqual(r.newFiles.count, 1, "die Datei des aktuellen Semesters kommt beim ersten Lauf: \(r.messages)")
         XCTAssertEqual(r.grades, 5)
         XCTAssertEqual(r.plan?.new, 2)
         if case .ok = hsh.state(.moodle) {} else { XCTFail("Moodle: \(hsh.state(.moodle))") }
         if case .ok = hsh.state(.campus) {} else { XCTFail("Campusmanagement: \(hsh.state(.campus))") }
+        XCTAssertEqual(hsh.filesStatus, "Dateien: 1 neu geladen, 1 in 1 Kurs", "klare Statuszeile fuer die Karte")
+        XCTAssertEqual(c.defaults.string(forKey: HsHConnection.Keys.files), hsh.filesStatus, "bleibt ueber Neustarts (Einstellungen des Containers)")
         XCTAssertEqual(hsh.registrationsMessage, "2 angemeldete Prüfungen gelesen.")
         // Abo-Adresse nur im Schluesselbund, nie in den Meldungen
         XCTAssertTrue(HISinOne.isExportURL(hsh.savedICal))
@@ -170,6 +184,115 @@ final class HsHAppTests: XCTestCase {
         let backend = try await c.host.backend()
         let events = try await backend.context.database.scalar("SELECT COUNT(*) FROM course_events")?.int
         XCTAssertEqual(events, 2)
+    }
+
+    /// Befund 07.11.2026 (echtes iPad): der Knopf "Sync" der Kopfzeile kannte nur Stud.IP und Hildesheim und sagte an
+    /// der HsH "Zuerst Learnweb oder LSF verbinden". Jetzt startet er den HsH-Abgleich; ohne Verbindung nennt er
+    /// Moodle und Campusmanagement.
+    func testSyncButtonStartsTheHsHAndNeverAsksForLearnweb() async throws {
+        try installCampusAndMoodle()
+        let m = manager()
+        _ = try bed.open(m, bed.account(.hsh))
+        let hsh = try XCTUnwrap(m.hsh)
+        hsh.syncsAfterSignIn = false
+        let before = m.startUniversitySync()
+        XCTAssertEqual(before, .notConnected("Zuerst Moodle oder Campusmanagement verbinden"))
+        XCTAssertFalse(before.text.contains("Learnweb"))
+        hsh.signedIn(.moodle)
+        let start = m.startUniversitySync()
+        XCTAssertEqual(start, .started("Moodle wird abgeglichen …"))
+        XCTAssertFalse(start.text.contains("Learnweb") || start.text.contains("Stud.IP"))
+        for _ in 0..<200 where hsh.finishedRuns == 0 { try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertEqual(hsh.finishedRuns, 1, "der HsH-Abgleich lief")
+        XCTAssertEqual(hsh.filesStatus, "Dateien: 1 neu geladen, 1 in 1 Kurs")
+        if case .ok = hsh.state(.moodle) {} else { XCTFail("Moodle: \(hsh.state(.moodle))") }
+        hsh.signedIn(.campus)
+        XCTAssertEqual(m.startUniversitySync(), .started("Moodle und Campusmanagement werden abgeglichen …"))
+        for _ in 0..<200 where hsh.finishedRuns == 1 { try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertEqual(hsh.finishedRuns, 2)
+        // "Dateien laden" in der Bibliothek geht an der HsH an die HsH (vorher an Hildesheim, also ins Leere)
+        let note = try await OlderSemesterLoad.start(studip: m.studip, hildesheim: m.hildesheim, hsh: m.hsh)
+        XCTAssertEqual(note, "0 Dateien aus früheren Semestern geladen")
+    }
+
+    /// Moodle 5 der HsH: liefert `core_courseformat_get_state` keinen Datei-Eintrag, zaehlt die Kursseite; die Karte
+    /// zeigt den Stand der Dateien und den Grund eines Fehlers
+    func testMoodle5CoursePageFallbackLoadsFilesAndTheCardSaysSo() async throws {
+        let page = try moodleFx("course-view-moodle5.html")
+        UniStubProtocol.install { seen in
+            let u = seen.url.absoluteString
+            if u.hasPrefix("https://moodle.hs-hannover.de/my/courses.php") { return .text(#"<script>M.cfg = {"sesskey":"k1"};</script>"#) }
+            if u.contains("info=core_course_get_enrolled_courses_by_timeline_classification") {
+                return Self.ajax(#"{"courses":[{"id":501,"fullname":"Programmieren 1, WiSe 2026/27, Prof. Muster"},{"id":502,"fullname":"Fakultät IV – Infos"}]}"#)
+            }
+            if u.contains("info=core_courseformat_get_state") { return Self.ajax(#""{\"section\":[],\"cm\":[]}""#) }
+            if u.contains("/lib/ajax/service.php") { return Self.ajax(#"{"events":[]}"#) }
+            if u == "https://moodle.hs-hannover.de/course/view.php?id=501" { return .text(page) }
+            if u == "https://moodle.hs-hannover.de/course/view.php?id=502" { return .text("<html><body class=\"path-course-view\"><ul class=\"topics\"></ul></body></html>") }
+            if u.hasPrefix("https://moodle.hs-hannover.de/mod/resource/view.php?id=901") {
+                return .redirect(303, to: "https://moodle.hs-hannover.de/pluginfile.php/4000/mod_resource/content/1/Orga.pdf")
+            }
+            if u.hasPrefix("https://moodle.hs-hannover.de/mod/resource/view.php?id=902") {
+                return .redirect(303, to: "https://moodle.hs-hannover.de/pluginfile.php?file=%2F4001%2Fmod_resource%2Fcontent%2F2%2FFolien.pdf")
+            }
+            if u.hasPrefix("https://moodle.hs-hannover.de/mod/folder/view.php?id=903") {
+                return .text(#"<a href="https://moodle.hs-hannover.de/pluginfile.php/4002/mod_folder/content/5/Blatt01.pdf?forcedownload=1">x</a>"#)
+            }
+            if u.hasPrefix("https://moodle.hs-hannover.de/pluginfile.php") { return .text("%PDF-1.4 erfunden", headers: ["Content-Type": "application/pdf"]) }
+            return UniStubProtocol.Reply(status: 404)
+        }
+        let m = manager()
+        let c = try bed.open(m, bed.account(.hsh))
+        let hsh = try XCTUnwrap(m.hsh)
+        hsh.syncsAfterSignIn = false
+        hsh.signedIn(.moodle)
+        let maybe = await hsh.run()
+        let report = try XCTUnwrap(maybe)
+        XCTAssertEqual(report.newFiles.count, 3, report.messages.joined(separator: "; "))
+        XCTAssertEqual(report.coursesWithoutFiles, ["Fakultät IV – Infos"])
+        XCTAssertEqual(hsh.filesStatus, "Dateien: 3 neu geladen, 3 in 2 Kursen, 1 Kurs ohne Dateien")
+        let backend = try await c.host.backend()
+        let folders = try await backend.context.database.rows("SELECT name, studip_folder FROM files ORDER BY name")
+        XCTAssertEqual(folders.map { $0["name"]?.string ?? "" }, ["Blatt01.pdf", "Folien.pdf", "Orga.pdf"])
+        XCTAssertEqual(folders.map { $0["studip_folder"]?.string ?? "" }, ["Woche 1 & 2/Übungsblätter", "Woche 1 & 2", "Allgemeines"])
+        XCTAssertFalse(UniStubProtocol.requests.contains { $0.url.host == "moodle.example.org" }, "Links der Seite fuehren nie zu fremden Rechnern")
+
+        // Karte: Statuszeile der Dateien und die Meldungen des Laufs
+        let env = try hostWithEnvironment(HsHSourcesCard().environment(\.hsh, hsh), size: CGSize(width: 900, height: 900))
+        env.pump(0.5)
+        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.contains("Dateien: 3 neu geladen, 3 in 2 Kursen, 1 Kurs ohne Dateien") } },
+                      labels(env.view).joined(separator: "\n"))
+        XCTAssertTrue(labels(env.view).contains { $0 == "Meldungen des letzten Abgleichs" })
+
+        // Kursliste nicht lesbar: der Grund steht in der Karte, nicht nur "Fehler"
+        UniStubProtocol.install { seen in
+            if seen.url.absoluteString.hasPrefix("https://moodle.hs-hannover.de/my/courses.php") { return .text(#"<script>M.cfg = {"sesskey":"k1"};</script>"#) }
+            return UniStubProtocol.Reply(status: 503)
+        }
+        _ = await hsh.run()
+        XCTAssertTrue(hsh.filesStatus?.hasPrefix("Dateien: Kursliste nicht lesbar – ") ?? false, hsh.filesStatus ?? "nil")
+        XCTAssertNotNil(hsh.failureReason(.moodle))
+        env.pump(0.5)
+        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.contains("Kursliste nicht lesbar") } }, labels(env.view).joined(separator: "\n"))
+    }
+
+    /// Beschriftungen aller Bedienungshilfen-Elemente der Ansicht
+    private func labels(_ view: UIView) -> [String] {
+        view.layoutIfNeeded()
+        var out: [String] = []
+        func visit(_ element: Any, depth: Int) {
+            guard depth < 40 else { return }
+            if let o = element as? NSObject {
+                if let l = o.accessibilityLabel, !l.isEmpty { out.append(l) }
+                if let v = o.accessibilityValue, !v.isEmpty { out.append(v) }
+                for e in o.accessibilityElements ?? [] { visit(e, depth: depth + 1) }
+                let n = o.accessibilityElementCount()
+                if n != NSNotFound, n > 0 { for i in 0..<min(n, 500) { if let e = o.accessibilityElement(at: i) { visit(e, depth: depth + 1) } } }
+            }
+            if let v = element as? UIView { for s in v.subviews { visit(s, depth: depth + 1) } }
+        }
+        visit(view, depth: 0)
+        return out
     }
 
     func testExpiredCampusSessionAsksForLogin() async throws {

@@ -23,6 +23,16 @@ public struct WeekTestOptions: Equatable, Sendable {
 
     /// `ai.WEEK_TEST_STANDARD`: die einzige Einstellung, die geteilt wird
     public static let standard = WeekTestOptions(count: AIPromptTexts.weekTestTotal, difficulty: "beliebig", types: AIPromptTexts.weekTestTypes, topic: "")
+
+    /// Hinweis ohne Unterlagen (Dialog "Wochentest erstellen" und `POST /api/tests/generate`, 07.11.2026: vorher lief
+    /// der Auftrag an und endete still mit "Keine Materialien", der Dialog war schon zu)
+    public static let noMaterialsHint = "Für dieses Modul sind noch keine Unterlagen geladen. Der Test entsteht aus den Dateien der Woche – erst Dateien laden bzw. abgleichen."
+    /// Zeitlimit je KI-Anfrage eines Wochentests in Sekunden (`WeekTests.generate`)
+    public static let aiTimeoutSeconds: Double = 90
+    /// Meldung nach dem Zeitlimit
+    public static func aiTimeoutHint(seconds: Double = aiTimeoutSeconds) -> String {
+        "Die KI hat nach \(Int(seconds.rounded())) Sekunden nicht geantwortet. Bitte erneut versuchen."
+    }
     /// `ai.WEEK_TEST_COUNTS`, `ai.WEEK_TEST_LEVELS`, `ai.WEEK_TEST_TYPES`, `ai.WEEK_TEST_TOPIC_CHARS`
     public static var counts: [Int] { AIPromptTexts.weekTestCounts }
     public static var levels: [String] { AIPromptTexts.weekTestLevels }

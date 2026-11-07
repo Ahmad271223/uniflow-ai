@@ -161,6 +161,14 @@ public actor HildesheimSync {
         public var newFiles: [String] = []
         public var failedFiles: [String] = []
         public var failedCourses: [String] = []
+        /// Grund je nicht lesbarem Kurs ("<Titel>: <Fehler>"), fuer die Statuszeile der Karte
+        public var courseErrors: [String] = []
+        /// Kurse dieses Laufs, deren Dateiliste leer war (Titel): im Portal keine Datei oder kein Ordner sichtbar
+        public var coursesWithoutFiles: [String] = []
+        /// Dateien in den Listen der abgefragten Kurse (geladen oder schon vorhanden)
+        public var filesListed = 0
+        /// Kursliste nicht lesbar (Fehler vor dem ersten Kurs), nil sonst
+        public var listError: String?
         public var plan: UniStore.PlanResult?
         public var grades: Int?
         /// "Meine POS-Anmeldungen" (Pruefungsanmeldung, nur lesend nach dem Notenspiegel): angemeldete Pruefungen, nil
@@ -200,6 +208,35 @@ public actor HildesheimSync {
 
         /// leerer Bericht (die App, wenn sie keinen Teil abfragen kann, z. B. Learnweb-Schluessel fehlt)
         public init() {}
+
+        /// Eine klare Zeile zum Stand der Dateien fuer die Karte der Hochschule (Befund HsH 07.11.2026: "0 Dateien"
+        /// ohne Grund): "Dateien: 12 neu geladen, 48 in 7 Kursen, 3 Kurse ohne Dateien", bei Problemen der Grund
+        /// ("Dateien: Kursliste nicht lesbar – …", "… 2 Kurse nicht lesbar: <Titel>: HTTP 500 …"). nil nach Abbruch
+        /// oder wenn die Quelle der Dateien gar nicht abgefragt wurde. `source`: "Moodle" bzw. "Learnweb".
+        public func filesStatus(source: String) -> String? {
+            if cancelled { return nil }
+            if let refused { return "Dateien: \(refused)" }
+            if needsLogin.contains(source) { return "Dateien: Anmeldung bei \(source) abgelaufen – bitte erneut anmelden." }
+            if let listError { return "Dateien: Kursliste nicht lesbar – \(listError)" }
+            guard completed.contains(Part.learnweb) || courses > 0 || !failedCourses.isEmpty else { return nil }
+            var parts = ["\(newFiles.count) neu geladen"]
+            if filesListed > 0 {
+                let n = max(1, courses - olderCourses.count - notAttempted.count)
+                parts.append("\(filesListed) in \(n) \(n == 1 ? "Kurs" : "Kursen")")
+            }
+            if !coursesWithoutFiles.isEmpty {
+                parts.append("\(coursesWithoutFiles.count) \(coursesWithoutFiles.count == 1 ? "Kurs" : "Kurse") ohne Dateien")
+            }
+            if !failedCourses.isEmpty {
+                parts.append("\(failedCourses.count) \(failedCourses.count == 1 ? "Kurs" : "Kurse") nicht lesbar" + (courseErrors.first.map { ": \($0)" } ?? ""))
+            }
+            if !failedFiles.isEmpty { parts.append("\(failedFiles.count) \(failedFiles.count == 1 ? "Datei" : "Dateien") später erneut") }
+            if waiting > 0 { parts.append("\(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download") }
+            if !olderCourses.isEmpty {
+                parts.append("\(olderCourses.count) \(olderCourses.count == 1 ? "Kurs" : "Kurse") früherer Semester ohne Dateien (Bibliothek → Dateien laden)")
+            }
+            return "Dateien: " + parts.joined(separator: ", ")
+        }
 
         /// Namen der Teile in `completed`
         public enum Part {
@@ -376,6 +413,7 @@ public actor HildesheimSync {
                 return nil
             }
             if Self.isLoginError(error) { report.needsLogin.append(names.files) }
+            report.listError = Self.describe(error)
             report.messages.append("\(names.files): \(Self.describe(error))")
             return nil
         }
@@ -400,6 +438,8 @@ public actor HildesheimSync {
             if Task.isCancelled, stop(CancellationError()) { break courseLoop }
             do {
                 let list = try await api.files(moodleID: c.moodleID)
+                report.filesListed += list.count
+                if list.isEmpty { report.coursesWithoutFiles.append(c.title) }
                 let now = clock.nowISO
                 let todo = try await db.transaction { conn in
                     try UniStore.storeFiles(conn, courseID: c.id, list.map(\.row), now: now, fileExists: { files.exists(stored: $0) })
@@ -439,6 +479,7 @@ public actor HildesheimSync {
             } catch {
                 if stop(error) { break courseLoop }
                 report.failedCourses.append(c.title)
+                report.courseErrors.append("\(c.title): \(Self.describe(error))")
             }
         }
         if report.cancelled {

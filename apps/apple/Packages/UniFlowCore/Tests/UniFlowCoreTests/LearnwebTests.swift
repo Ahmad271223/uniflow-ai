@@ -611,6 +611,147 @@ final class LearnwebTests: XCTestCase {
         XCTAssertNil(Learnweb.sesskey(fromPage: #"<body>"sesskey":"a\"b"</body>"#))
         XCTAssertNil(Learnweb.sesskey(fromPage: "<html>ohne</html>"))
     }
+
+    // MARK: Moodle 5 (Hochschule Hannover, 07.11.2026): Kursseite als zweiter Weg, Pluginfile ohne slasharguments
+
+    /// Nachgebaute Kursseite nach dem Aufbau von Moodle 4/5 (Theme boost_union): Abschnitte `li#section-N` mit
+    /// `data-sectionname` und `h3.sectionname`, Eintraege `li#module-<cmid>` mit `span.instancename`. Erfundene Daten.
+    static func moodle5CoursePage(base: String) -> String {
+        """
+        <!DOCTYPE html><html><head><title>Kurs: Programmieren 1, WiSe 2026/27, Prof. Muster</title>
+        <script>M.cfg = {"wwwroot":"\(base)","sesskey":"k1"};</script></head>
+        <body class="format-topics path-course-view theme-boost_union">
+        <ul class="topics" data-for="course_sectionlist">
+          <li id="section-0" class="section course-section main clearfix" data-sectionid="40" data-sectionname="Allgemeines" data-number="0" data-id="40">
+            <div class="course-section-header"><h3 class="sectionname course-content-item d-flex" id="sectionid-40-title">
+              <a href="\(base)/course/section.php?id=40">Allgemeines</a></h3></div>
+            <ul class="section m-0 p-0 img-text d-block" data-for="cmlist">
+              <li class="activity activity-wrapper forum modtype_forum" id="module-900" data-for="cmitem" data-id="900">
+                <a href="\(base)/mod/forum/view.php?id=900" class="aalink stretched-link"><span class="instancename">Ankündigungen<span class="accesshide "> Forum</span></span></a></li>
+              <li class="activity activity-wrapper resource modtype_resource" id="module-901" data-for="cmitem" data-id="901">
+                <a href="\(base)/mod/resource/view.php?id=901" class="aalink stretched-link"><span class="instancename">Organisatorisches<span class="accesshide "> Datei</span></span></a></li>
+            </ul>
+          </li>
+          <li id="section-1" class="section course-section main clearfix" data-sectionid="41" data-sectionname="Woche 1 &amp; 2" data-number="1" data-id="41">
+            <div class="course-section-header"><h3 class="sectionname course-content-item d-flex" id="sectionid-41-title">
+              <a href="\(base)/course/section.php?id=41">Woche 1 &amp; 2</a></h3></div>
+            <ul class="section m-0 p-0 img-text d-block" data-for="cmlist">
+              <li class="activity activity-wrapper resource modtype_resource" id="module-902" data-for="cmitem" data-id="902">
+                <a href="\(base)/mod/resource/view.php?id=902" class="aalink stretched-link"><span class="instancename">Folien Einführung<span class="accesshide "> Datei</span></span></a></li>
+              <li class="activity activity-wrapper folder modtype_folder" id="module-903" data-for="cmitem" data-id="903">
+                <a href="\(base)/mod/folder/view.php?id=903" class="aalink stretched-link"><span class="instancename">Übungsblätter<span class="accesshide "> Ordner</span></span></a></li>
+              <li class="activity activity-wrapper folder modtype_folder" id="module-904" data-for="cmitem" data-id="904">
+                <div class="foldertree"><a href="\(base)/pluginfile.php/4100/mod_folder/content/0/Loesungen/L01.pdf?forcedownload=1">L01.pdf</a></div>
+                <span class="instancename">Lösungen (auf der Kursseite)</span></li>
+              <li class="activity activity-wrapper url modtype_url" id="module-905" data-for="cmitem" data-id="905">
+                <a href="\(base)/mod/url/view.php?id=905" class="aalink"><span class="instancename">Link<span class="accesshide "> Link/URL</span></span></a></li>
+            </ul>
+          </li>
+        </ul></body></html>
+        """
+    }
+
+    func testCoursePageModulesFollowTheMoodle5Layout() {
+        let page = Self.moodle5CoursePage(base: "https://moodle.example.org")
+        let mods = Learnweb.coursePageModules(html: page)
+        XCTAssertEqual(mods.map(\.cmid), ["901", "902", "903"], "nur Datei und Ordner mit Link, keine Foren/URLs; Ordner 904 ohne Link zaehlt nicht")
+        XCTAssertEqual(mods.map(\.module), ["resource", "resource", "folder"])
+        XCTAssertEqual(mods.map(\.name), ["Organisatorisches", "Folien Einführung", "Übungsblätter"], "ohne den versteckten Zusatz ' Datei'")
+        XCTAssertEqual(mods.map(\.section), ["Allgemeines", "Woche 1 & 2", "Woche 1 & 2"], "Abschnittsname aus data-sectionname, dekodiert")
+        // ohne data-sectionname: die Ueberschrift h3.sectionname
+        let noAttr = page.replacingOccurrences(of: #" data-sectionname="Woche 1 &amp; 2""#, with: "")
+        XCTAssertEqual(Learnweb.coursePageModules(html: noAttr).map(\.section), ["Allgemeines", "Woche 1 & 2", "Woche 1 & 2"])
+        XCTAssertEqual(Learnweb.coursePageModules(html: "<html><body>Anmelden</body></html>"), [])
+    }
+
+    func testPluginfileWithoutSlashArguments() throws {
+        let p = try XCTUnwrap(Learnweb.parsePluginfile("https://moodle.example.org/pluginfile.php?file=%2F4100%2Fmod_resource%2Fcontent%2F3%2FKap%201%2FFolien%20A.pdf&forcedownload=1"))
+        XCTAssertEqual(p.area, "resource")
+        XCTAssertEqual(p.revision, 3)
+        XCTAssertEqual(p.filepath, "/Kap 1/")
+        XCTAssertEqual(p.filename, "Folien A.pdf")
+        XCTAssertNil(Learnweb.parsePluginfile("https://moodle.example.org/pluginfile.php?file=%2F4100%2Fmod_page%2Fcontent%2F1%2Fx.png"))
+        XCTAssertNil(Learnweb.parsePluginfile("https://moodle.example.org/pluginfile.php"))
+    }
+
+    /// Der Kurszustand (`core_courseformat_get_state`) nennt keinen Eintrag bzw. ist nicht erlaubt: die Kursseite
+    /// liefert Dateien und Ordner (Befund 07.11.2026: jeder HsH-Kurs "0 Dateien"). Ein Anmeldefehler bleibt ein
+    /// Anmeldefehler, ein Kurs ohne Eintraege auf beiden Wegen ist leer, nicht kaputt.
+    func testCoursePageIsTheSecondWayWhenTheStateHasNoFiles() async throws {
+        let base = "https://moodle.example.org"
+        let pf = "\(base)/pluginfile.php"
+        let page = Self.moodle5CoursePage(base: base)
+        let stateMode = Recorder<String>()
+        let net = FakeUniTransport { req in
+            let u = req.url.absoluteString
+            if u.hasPrefix("\(base)/my/courses.php") { return self.json(self.sessionPage) }
+            if u.contains("info=core_courseformat_get_state") {
+                switch stateMode.values.last ?? "empty" {
+                case "forbidden": return okJSON(.array([.object(["error": .bool(true), "exception": .object(["errorcode": .string("accessexception")])])]))
+                case "login": return okJSON(.array([.object(["error": .bool(true), "exception": .object(["errorcode": .string("servicerequireslogin")])])]))
+                default: return self.ajax(.string(#"{"section": [], "cm": [{"id": "900", "module": "forum", "name": "Ankündigungen", "sectionid": "40"}]}"#))
+                }
+            }
+            if u == "\(base)/course/view.php?id=77" { return self.json(stateMode.values.last == "noCourse" ? "<html><body>Kurs nicht gefunden</body></html>" : page) }
+            if u.contains("mod/resource/view.php?id=901&redirect=1") {
+                return UniResponse(status: 303, headers: ["Location": "\(pf)/4000/mod_resource/content/1/Orga.pdf"])
+            }
+            if u.contains("mod/resource/view.php?id=902&redirect=1") {
+                return UniResponse(status: 303, headers: ["Location": "\(pf)?file=%2F4001%2Fmod_resource%2Fcontent%2F2%2FFolien%20Einf%C3%BChrung.pdf"])
+            }
+            if u.contains("mod/folder/view.php?id=903") {
+                return self.json("<a href=\"\(pf)/4002/mod_folder/content/5/Blatt01.pdf?forcedownload=1\">x</a><a href=\"\(pf)/4002/mod_folder/content/5/Blatt02.pdf?forcedownload=1\">y</a>")
+            }
+            return UniResponse(status: 404)
+        }
+        let api = LearnwebAPI(base: base, mode: .session, transport: net, retry: noWait)
+        let files = try await api.files(moodleID: 77)
+        XCTAssertEqual(files.map(\.name), ["Orga.pdf", "Folien Einführung.pdf", "Blatt01.pdf", "Blatt02.pdf"])
+        XCTAssertEqual(files.map(\.folder), ["Allgemeines", "Woche 1 & 2", "Woche 1 & 2/Übungsblätter", "Woche 1 & 2/Übungsblätter"])
+        XCTAssertEqual(files.map(\.revision), [1, 2, 5, 5])
+        XCTAssertEqual(files.map(\.moduleName), ["Organisatorisches", "Folien Einführung", "Übungsblätter", "Übungsblätter"])
+        XCTAssertEqual(net.requests.filter { $0.url.absoluteString == "\(base)/course/view.php?id=77" }.count, 1, "Kursseite einmal je Kurs")
+        XCTAssertFalse(files.contains { $0.downloadURL.contains("forcedownload") })
+
+        stateMode.add("forbidden")
+        let again = try await api.files(moodleID: 77)
+        XCTAssertEqual(again.map(\.name), files.map(\.name), "Zustand nicht erlaubt: Kursseite")
+
+        stateMode.add("login")
+        do { _ = try await api.files(moodleID: 77); XCTFail("Anmeldefehler erwartet") } catch {
+            XCTAssertEqual(error as? HildesheimError, .sessionExpired("Learnweb"))
+        }
+
+        stateMode.add("noCourse")
+        let none = try await api.files(moodleID: 77)
+        XCTAssertEqual(none, [], "Kurs ohne Datei und Ordner auf beiden Wegen: leer, kein Fehler")
+    }
+
+    /// Die eine Zeile zum Dateistand fuer die Karte der Hochschule
+    func testFilesStatusLineNamesCountsAndReasons() {
+        var r = HildesheimSync.Report()
+        r.courses = 9
+        r.completed = [HildesheimSync.Report.Part.learnweb]
+        r.newFiles = ["lw-1-a", "lw-1-b", "lw-2-c"]
+        r.filesListed = 48
+        r.olderCourses = ["lw-8", "lw-9"]
+        r.coursesWithoutFiles = ["Fakultät IV – Infos", "Seminar", "Projekt"]
+        XCTAssertEqual(r.filesStatus(source: "Moodle"),
+                       "Dateien: 3 neu geladen, 48 in 7 Kursen, 3 Kurse ohne Dateien, 2 Kurse früherer Semester ohne Dateien (Bibliothek → Dateien laden)")
+        r.failedCourses = ["Mathe"]
+        r.courseErrors = ["Mathe: HTTP 500 bei https://moodle.example.org/mod/folder/view.php"]
+        XCTAssertTrue(r.filesStatus(source: "Moodle")?.contains("1 Kurs nicht lesbar: Mathe: HTTP 500") ?? false)
+        var login = HildesheimSync.Report()
+        login.needsLogin = ["Moodle"]
+        XCTAssertEqual(login.filesStatus(source: "Moodle"), "Dateien: Anmeldung bei Moodle abgelaufen – bitte erneut anmelden.")
+        var list = HildesheimSync.Report()
+        list.listError = "Unerwartete Antwort: core_course_get_enrolled_courses_by_timeline_classification: accessexception"
+        XCTAssertEqual(list.filesStatus(source: "Moodle"), "Dateien: Kursliste nicht lesbar – \(list.listError!)")
+        var cancelled = HildesheimSync.Report()
+        cancelled.cancelled = true
+        XCTAssertNil(cancelled.filesStatus(source: "Moodle"))
+        XCTAssertNil(HildesheimSync.Report().filesStatus(source: "Moodle"), "ohne Moodle-Teil keine Zeile")
+    }
 }
 
 final class Recorder<T>: @unchecked Sendable {

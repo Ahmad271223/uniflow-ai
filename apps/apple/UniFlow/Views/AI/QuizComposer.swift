@@ -189,9 +189,14 @@ struct QuizComposer: View {
     @Environment(\.ufAIAccess) private var aiAccess
     @Environment(\.ufChatGPTLink) private var chatgpt
     @ObservedObject private var generation: TestGenerationState
+    @EnvironmentObject private var containers: ContainerManager
     @State private var modules: [JSONValue] = []
     @State private var detail: JSONValue?
     @State private var loaded = false
+    /// Modulliste nicht lesbar (Meldung statt "Module werden geladen …" ohne Ende)
+    @State private var loadError: String?
+    /// Unterlagen des Moduls nicht lesbar
+    @State private var detailError: String?
     @State private var module = 0
     /// 0 = die neuesten Unterlagen des Moduls
     @State private var week = 0
@@ -199,6 +204,8 @@ struct QuizComposer: View {
     @State private var settings = QuizSettings()
     @State private var starting = false
     @State private var error: String?
+    /// Rueckmeldung von "Jetzt abgleichen" (Hochschule laeuft los, nichts verbunden)
+    @State private var syncNote: String?
 
     static let durations = [15, 30, 45, 60, 90]
     /// Standard nach der Regel vom 29.10.2026 (`WeekTestOptions.standard`): 15 Aufgaben, 4 leicht · 6 mittel · 5 schwer
@@ -224,6 +231,35 @@ struct QuizComposer: View {
         Array((week.list("vorlesungen") + week.list("skripte") + week.list("uebungen") + week.list("loesungen")).prefix(10))
     }
 
+    /// Hat das Modul Unterlagen, aus denen ein Test entstehen kann? Eine Lehrwoche mit Materialien oder (fuer "Neueste
+    /// Unterlagen") irgendeine Datei des Moduls ausser Organisatorischem, wie `WeekTests.materials` im Backend. Ohne:
+    /// klarer Hinweis statt eines Auftrags, der still mit "Keine Materialien" endet (Befund HsH 07.11.2026).
+    static func hasMaterials(_ detail: JSONValue?) -> Bool {
+        guard let detail else { return false }
+        if !weeks(detail).isEmpty { return true }
+        return detail.list("files").contains { ($0.s("doc_type") ?? "") != "organisatorisch" }
+    }
+
+    /// Hinweis ohne Unterlagen (derselbe Text wie im Backend)
+    static let noMaterialsHint = WeekTestOptions.noMaterialsHint
+
+    /// Warum die KI gerade nicht antwortet (Zeile ueber "ChatGPT verbinden"), damit der Dialog nie still bleibt
+    static func aiReason(access: StudiNowAIAccess, chatgpt: Bool) -> String {
+        switch access {
+        case .ready: return chatgpt ? "Die KI ist gerade ausgeschaltet oder nicht verbunden." : "Die StudiNow-KI ist bereit, aber noch nicht angeschlossen – bitte die App neu öffnen."
+        case .signInRequired: return "Melde dich einmal mit deinem StudiNow-Konto an, dann erstellt die StudiNow-KI den Test."
+        case .planRequired: return "Für Tests braucht es StudiNow Pro AI (oder die Probe) – oder dein eigenes ChatGPT."
+        case .unavailable: return "Diese Version hat keinen KI-Dienst. Verbinde dein eigenes ChatGPT."
+        }
+    }
+
+    /// Meldung des Hintergrundauftrags ohne das Praefix "Test: FEHLER " (`LocalBackgroundJob`), nil wenn kein Fehler
+    static func jobFailure(_ bg: JSONValue?) -> String? {
+        guard let bg, bg["running"]?.bool != true, let m = bg.s("message"), let r = m.range(of: "FEHLER ") else { return nil }
+        let text = String(m[r.upperBound...]).trimmingCharacters(in: .whitespaces)
+        return text.isEmpty ? "Der Test konnte nicht erstellt werden." : text
+    }
+
     static func docLabel(_ t: String?) -> String {
         switch t {
         case "vorlesung": return "Vorlesung"
@@ -239,8 +275,11 @@ struct QuizComposer: View {
     private var needsPlus: Bool { session.api?.isLocal != false }
     private var allowed: Bool { !needsPlus || ent.allows(.weeklyTests) }
 
-    /// Der Dialog lässt sich abschicken: Tarif passt, Modul gewaehlt, KI da, nichts laeuft
-    var canStart: Bool { allowed && module != 0 && aiEnabled && !starting && generation.job == nil }
+    /// Unterlagen des gewaehlten Moduls sind da (geladen und nicht leer)
+    private var materialsReady: Bool { module != 0 && detail != nil && Self.hasMaterials(detail) }
+
+    /// Der Dialog lässt sich abschicken: Tarif passt, Modul gewaehlt, Unterlagen da, KI da, nichts laeuft
+    var canStart: Bool { allowed && module != 0 && materialsReady && aiEnabled && !starting && generation.job == nil }
 
     private var selectedWeek: JSONValue? { Self.weeks(detail).first { $0.i("week") == week } }
 
@@ -256,8 +295,9 @@ struct QuizComposer: View {
         } foot: {
             UFButton("Abbrechen") { close() }.accessibilityIdentifier("quiz.cancel")
             if allowed {
-                UFButton(starting ? (settings.isStandard ? "Gemeinsamer Test wird gesucht …" : "Test wird erstellt …") : "Test erstellen",
-                         icon: starting ? nil : "sparkles", kind: .primary) {
+                UFButton(starting ? (settings.isStandard ? "Gemeinsamer Test wird gesucht …" : "Test wird erstellt …")
+                            : (error == nil ? "Test erstellen" : "Erneut versuchen"),
+                         icon: starting ? nil : (error == nil ? "sparkles" : "refresh"), kind: .primary) {
                     Task { await start() }
                 }
                 .disabled(!canStart)
@@ -268,21 +308,59 @@ struct QuizComposer: View {
         .onChange(of: module) { _, _ in Task { await loadDetail() } }
         // nach einem Kauf aus der Sperrkarte heraus die Module nachladen
         .onChange(of: allowed) { _, ok in if ok, !loaded { Task { await load() } } }
+        // ein Abgleich ist durch (z. B. "Jetzt abgleichen" von hier): Unterlagen neu lesen
+        .ufReload { await loadDetail() }
     }
 
     @ViewBuilder private var connect: some View {
-        if let chatgpt {
-            TutorConnectState(link: chatgpt) { close(); router.go(.settings(tab: ChatGPTLink.settingsTab)) }.padding(-16)
-        } else {
-            TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { close(); router.go(.settings(tab: ChatGPTLink.settingsTab)) }
-                .padding(-16)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(Self.aiReason(access: aiAccess, chatgpt: chatgpt != nil))
+                .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("quiz.aiReason")
+            if let chatgpt {
+                TutorConnectState(link: chatgpt) { close(); router.go(.settings(tab: ChatGPTLink.settingsTab)) }.padding(-16)
+            } else {
+                TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { close(); router.go(.settings(tab: ChatGPTLink.settingsTab)) }
+                    .padding(-16)
+            }
         }
+    }
+
+    /// Ohne Unterlagen: der Hinweis und "Jetzt abgleichen" (Hochschule des Containers), "Test erstellen" bleibt aus
+    private var noMaterials: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                UFIcon("info", size: 16).foregroundStyle(UF.warn)
+                Text(Self.noMaterialsHint).ufFont(13.12).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("quiz.noMaterials")
+            UFButton("Jetzt abgleichen", icon: "sync", size: .small) {
+                let start = containers.startUniversitySync()
+                syncNote = start.text
+                if case .notConnected = start { close(); router.go(.settings(tab: "account")) }
+            }
+            .accessibilityIdentifier("quiz.sync")
+            if let syncNote {
+                Text(syncNote).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("quiz.syncNote")
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
     }
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 4) {
             UFField("Modul") {
-                if !loaded {
+                if let loadError {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Module konnten nicht geladen werden: \(loadError)").ufFont(13.12).foregroundStyle(UF.bad)
+                            .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("quiz.loadError")
+                        UFButton("Erneut laden", icon: "refresh", size: .small) { Task { await load() } }
+                    }
+                } else if !loaded {
                     Text("Module werden geladen …").ufFont(13.12).foregroundStyle(UF.muted)
                 } else if modules.isEmpty {
                     Text("Noch keine Module. Verbinde zuerst Stud.IP bzw. Learnweb.").ufFont(13.12).foregroundStyle(UF.muted)
@@ -293,6 +371,9 @@ struct QuizComposer: View {
                              selection: $module, fill: true)
                         .accessibilityIdentifier("quiz.module")
                 }
+            }
+            if module != 0, detail != nil, !Self.hasMaterials(detail) {
+                noMaterials
             }
             UFField("Lehrwoche") {
                 let weeks = Self.weeks(detail)
@@ -366,6 +447,14 @@ struct QuizComposer: View {
     @ViewBuilder private var materialsList: some View {
         if module == 0 {
             Text("Wähle ein Modul.").ufFont(13.12).foregroundStyle(UF.muted)
+        } else if let detailError {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Unterlagen konnten nicht geladen werden: \(detailError)").ufFont(13.12).foregroundStyle(UF.bad)
+                    .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("quiz.detailError")
+                UFButton("Erneut laden", icon: "refresh", size: .small) { Task { await loadDetail() } }
+            }
+        } else if detail != nil, !Self.hasMaterials(detail) {
+            Text("Keine Unterlagen – siehe Hinweis oben.").ufFont(13.12).foregroundStyle(UF.muted)
         } else if week != 0, let w = selectedWeek {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(Row.rows(Self.materials(w))) { row in
@@ -391,24 +480,34 @@ struct QuizComposer: View {
         AICost.line(chatgpt: aiEnabled, plan: ent.plan, credits: 10) + (settings.isStandard ? " · bei gemeinsamem Test 0 Credits" : " · eigener Test")
     }
 
+    /// Modulliste; ein Fehler steht sichtbar im Feld "Modul" mit "Erneut laden" (vorher blieb "Module werden geladen …")
     private func load() async {
         guard let api = session.api, allowed else { return }
+        loadError = nil
         do {
             modules = try await api.value("/api/modules").items
             if module == 0, modules.count == 1, let only = modules.first?.i("id") { module = only }
             loaded = true
             await loadDetail()
-        } catch { self.error = error.localizedDescription }
+        } catch { loadError = error.localizedDescription }
     }
 
+    /// Unterlagen des Moduls; ein Fehler steht sichtbar bei den Unterlagen (vorher `try?`: still "werden geladen …")
     private func loadDetail() async {
         guard let api = session.api, module != 0 else { detail = nil; return }
-        detail = try? await api.value("/api/modules/\(module)")
+        detailError = nil
+        do { detail = try await api.value("/api/modules/\(module)") } catch {
+            detail = nil
+            detailError = error.localizedDescription
+            return
+        }
         if week != 0, !Self.weeks(detail).contains(where: { $0.i("week") == week }) { week = 0 }
         if week == 0, let newest = Self.weeks(detail).first?.i("week") { week = newest }
     }
 
-    /// `POST /api/tests/generate` mit genau den Parametern des Backends; danach beobachtet die Seite den Auftrag
+    /// `POST /api/tests/generate` mit genau den Parametern des Backends; danach beobachtet die Seite den Auftrag.
+    /// Endet der Auftrag sofort mit einem Fehler (keine Unterlagen, Zeitlimit, KI nicht erreichbar), bleibt der Dialog
+    /// offen und zeigt ihn mit "Erneut versuchen" (vorher schloss er sich, und die Seite zeigte nichts).
     private func start() async {
         guard let api = session.api, canStart else { return }
         starting = true
@@ -421,6 +520,19 @@ struct QuizComposer: View {
             self.error = error.localizedDescription
             return
         }
+        // sofortiges Ende (Fehler vor der ersten KI-Anfrage, z. B. keine Unterlagen) abfangen, solange der Dialog noch
+        // offen ist: bis zu 1,5 s zusehen, laeuft der Auftrag danach noch, beobachtet ihn die Seite
+        var probe: JSONValue? = try? await api.value("/api/bg")
+        var looks = 0
+        while probe?["running"]?.bool == true, looks < 6 {
+            looks += 1
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            probe = try? await api.value("/api/bg")
+        }
+        if let failed = Self.jobFailure(probe) {
+            self.error = failed
+            return
+        }
         let subject = modules.first { $0.i("id") == module }?.s("name") ?? "Modul"
         generation.start(subject: subject, weekNo: week != 0 ? week : nil, count: settings.count, shared: settings.isStandard)
         AIRecents.shared.count()
@@ -428,7 +540,8 @@ struct QuizComposer: View {
         router.go(.exams)
         Task {
             await shell.pollBackground(toast: toast)
-            generation.finish()
+            // Fehler des Auftrags (Zeitlimit, falsche Form, Dienst) bleibt auf der Seite mit "Erneut versuchen"
+            generation.finish(message: Self.jobFailure(try? await api.value("/api/bg")))
         }
     }
 }

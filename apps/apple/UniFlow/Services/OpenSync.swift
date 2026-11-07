@@ -67,4 +67,65 @@ extension ContainerManager {
         hsh?.runIfDue()
         uniMail?.runIfDue()
     }
+
+    /// Der eine Knopf "Sync" (Kopfzeile) und "Jetzt abgleichen" in Dialogen fuer jede Hochschule des Containers:
+    /// Hochschule Hannover (Moodle und Campusmanagement), Uni Hildesheim (Learnweb und LSF), LUH (Stud.IP). Befund
+    /// 07.11.2026: der Knopf kannte nur Stud.IP und Hildesheim und sagte an der HsH "Zuerst Learnweb oder LSF
+    /// verbinden". Demo prueft der Aufrufer. Nie zwei Laeufe zugleich (`isRunning`).
+    func startUniversitySync(forceGrades: Bool = true) -> UniversitySyncStart {
+        if let hsh {
+            let names = HsHConnection.Source.allCases.filter { hsh.isConnected($0) }.map(\.rawValue)
+            guard !names.isEmpty else { return .notConnected(UniversitySyncStart.connectHint(.hsh)) }
+            if hsh.isRunning { return .alreadyRunning }
+            Task { await hsh.run(forceGrades: forceGrades) }
+            return .started(UniversitySyncStart.startedText(names))
+        }
+        if let hildesheim {
+            let names = HildesheimConnection.Source.allCases.filter { hildesheim.isConnected($0) }.map(\.rawValue)
+            guard !names.isEmpty else { return .notConnected(UniversitySyncStart.connectHint(.hildesheim)) }
+            if hildesheim.isRunning { return .alreadyRunning }
+            Task { await hildesheim.run() }
+            return .started(UniversitySyncStart.startedText(names))
+        }
+        if studip.offersStudIP {
+            switch studip.phase {
+            case .signedOut, .needsLogin: return .notConnected(UniversitySyncStart.connectHint(.luh))
+            default:
+                if studip.isRunning { return .alreadyRunning }
+                Task { await studip.run() }
+                return .started(UniversitySyncStart.startedText(["Stud.IP"]))
+            }
+        }
+        return .notConnected(UniversitySyncStart.connectHint(active?.key.university))
+    }
+}
+
+/// Ergebnis von `ContainerManager.startUniversitySync` mit dem Text fuer die Leiste
+enum UniversitySyncStart: Equatable {
+    /// Abgleich laeuft los ("Moodle und Campusmanagement werden abgeglichen …")
+    case started(String)
+    /// nichts verbunden ("Zuerst Moodle oder Campusmanagement verbinden"): Weg zu den Einstellungen
+    case notConnected(String)
+    case alreadyRunning
+
+    var text: String {
+        switch self {
+        case .started(let t), .notConnected(let t): return t
+        case .alreadyRunning: return "Der Abgleich läuft bereits …"
+        }
+    }
+
+    static func startedText(_ names: [String]) -> String {
+        "\(names.joined(separator: " und ")) \(names.count == 1 ? "wird" : "werden") abgeglichen …"
+    }
+
+    /// Quellen der Hochschule, die zuerst verbunden sein muessen
+    static func connectHint(_ u: UniversityKey?) -> String {
+        switch u {
+        case .hsh?: return "Zuerst Moodle oder Campusmanagement verbinden"
+        case .hildesheim?: return "Zuerst Learnweb oder LSF verbinden"
+        case .luh?: return "Zuerst Stud.IP verbinden"
+        default: return "Zuerst die Hochschule verbinden"
+        }
+    }
 }

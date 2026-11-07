@@ -111,11 +111,15 @@ struct LibraryPage: View {
     /// Hochschule des Containers: Quelle der Dateien ("Stud.IP" bzw. "Learnweb") in den Beschriftungen
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     @Environment(\.ufDemoActive) private var demo
 
     private var newTitle: String { UFSourceText.newFiles(studip.university, demo: demo) }
-    /// Hochschule verbunden (Stud.IP bzw. Learnweb/LSF): sonst bietet die leere Bibliothek das Verbinden an
-    private var universityConnected: Bool { studip.offersStudIP ? studip.phase != .signedOut : hildesheim?.anyConnected == true }
+    /// Hochschule verbunden (Stud.IP, Learnweb/LSF bzw. Moodle/Campusmanagement): sonst bietet die leere Bibliothek
+    /// das Verbinden an
+    private var universityConnected: Bool {
+        studip.offersStudIP ? studip.phase != .signedOut : hildesheim?.anyConnected == true || hsh?.anyConnected == true
+    }
     @AppStorage("lib-mode") private var mode = "grid"
     @State private var lib: JSONValue?
     /// lokal: Kursliste fuer die Kursordner (`LibraryCourses`); mit eigenem Server leer

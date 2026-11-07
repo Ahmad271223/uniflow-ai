@@ -1112,8 +1112,8 @@ enum UFThemeMode: String {
 }
 
 struct UFHeader: View {
-    /// Sync-Knopf: Abgleich des eigenen Servers, sonst Stud.IP bzw. Learnweb und LSF direkt auf dem iPad oder der Weg
-    /// zur Anmeldung
+    /// Sync-Knopf: Abgleich des eigenen Servers, sonst die Hochschule des Containers direkt auf dem iPad (Stud.IP,
+    /// Learnweb und LSF, Moodle und Campusmanagement; `ContainerManager.startUniversitySync`) oder der Weg zur Anmeldung
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
         // Demo-Inhalte: kein Abgleich mit der Hochschule, nur der Hinweis auf "Beenden" in der Leiste darunter
@@ -1121,25 +1121,9 @@ struct UFHeader: View {
             toast.show(DemoTexts.syncBlocked, seconds: 4)
             return
         }
-        guard studip.offersStudIP else {
-            guard let hildesheim, hildesheim.anyConnected else {
-                toast.show("Zuerst Learnweb oder LSF verbinden")
-                router.go(.settings(tab: "account"))
-                return
-            }
-            let names = HildesheimConnection.Source.allCases.filter { hildesheim.isConnected($0) }.map(\.rawValue)
-            toast.show("\(names.joined(separator: " und ")) \(names.count == 1 ? "wird" : "werden") abgeglichen …")
-            Task { await hildesheim.run() }
-            return
-        }
-        switch studip.phase {
-        case .signedOut, .needsLogin:
-            toast.show("Zuerst Stud.IP verbinden")
-            router.go(.settings(tab: "account"))
-        default:
-            toast.show("Stud.IP wird abgeglichen …")
-            Task { await studip.run() }
-        }
+        let start = containers.startUniversitySync()
+        toast.show(start.text)
+        if case .notConnected = start { router.go(.settings(tab: "account")) }
     }
 
     let narrow: Bool
@@ -1150,7 +1134,7 @@ struct UFHeader: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
-    @Environment(\.hildesheim) private var hildesheim
+    @EnvironmentObject private var containers: ContainerManager
     @Environment(\.ufDemoActive) private var demo
     @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @State private var query = ""

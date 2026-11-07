@@ -213,9 +213,24 @@ struct HsHSourcesCard: View {
                                 .accessibilityIdentifier("hsh.connect.\(s.loginService)")
                             }
                         }
+                        // der Grund eines Fehlers steht dabei (vorher nur das Abzeichen "Fehler")
+                        if let why = connection.failureReason(s) {
+                            Text(why).ufFont(12.8).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                                .padding(.bottom, 6)
+                                .accessibilityIdentifier("hsh.failure.\(s.loginService)")
+                        }
                     }
                 }
                 .padding(.top, 8)
+                // Stand der Moodle-Dateien in einer klaren Zeile (07.11.2026: "0 Dateien" ohne Grund am Geraet)
+                if let files = connection.filesStatus {
+                    Text(files).ufFont(12.8).foregroundStyle(files.contains("nicht lesbar") || files.contains("abgelaufen") ? UF.bad : UF.text2)
+                        .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+                        .accessibilityIdentifier("hsh.files")
+                }
+                if !connection.messages.isEmpty {
+                    HsHMessagesDisclosure(messages: connection.messages)
+                }
                 if let note = connection.registrationsMessage {
                     Text(note).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 6)
                 }
@@ -268,5 +283,40 @@ struct HsHSourcesCard: View {
             case .connected, .notConnected: return .neutral
             }
         }
+    }
+}
+
+/// Meldungen des letzten Abgleichs ("0 neue/geänderte Dateien aus 7 Moodle-Kursen", "Stundenplan: …"), eingeklappt
+/// hinter einer Zeile wie bei der Uni Hildesheim (`HildesheimStatusLine`)
+struct HsHMessagesDisclosure: View {
+    let messages: [String]
+    @State private var open = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button { UFMotion.toggle { open.toggle() } } label: {
+                HStack(spacing: 4) {
+                    Text(open ? "Meldungen des letzten Abgleichs" : messages.joined(separator: " · "))
+                        .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1).truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    UFIcon("chevron-down", size: 14).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 180 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Meldungen des letzten Abgleichs")
+            .accessibilityHint(open ? "Zuklappen" : "Aufklappen")
+            .accessibilityIdentifier("hsh.messages")
+            if open {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(messages.indices, id: \.self) { i in
+                        Text(messages[i]).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.leading, 12)
+                .ufReveal()
+            }
+        }
+        .padding(.top, 6)
     }
 }

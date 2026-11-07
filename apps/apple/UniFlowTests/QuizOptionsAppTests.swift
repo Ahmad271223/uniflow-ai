@@ -188,6 +188,85 @@ final class QuizOptionsAppTests: XCTestCase {
         generation.finish()
     }
 
+    // MARK: Ohne Unterlagen, Fehler des Auftrags (Befund HsH 07.11.2026: "Test erstellen haengt mal, macht mal nichts")
+
+    func testJobFailureAndAIReasonAreReadable() {
+        XCTAssertNil(QuizComposer.jobFailure(["running": false, "task": .null, "message": ""]))
+        XCTAssertNil(QuizComposer.jobFailure(["running": true, "task": "Test", "message": ""]))
+        XCTAssertNil(QuizComposer.jobFailure(["running": false, "message": "Test: fertig (17)"]))
+        XCTAssertEqual(QuizComposer.jobFailure(["running": false, "message": .string("Test: FEHLER Leer: \(WeekTestOptions.noMaterialsHint)")]),
+                       "Leer: \(WeekTestOptions.noMaterialsHint)")
+        XCTAssertEqual(QuizComposer.jobFailure(["running": false, "message": "Test: FEHLER "]), "Der Test konnte nicht erstellt werden.")
+        XCTAssertNil(QuizComposer.jobFailure(nil))
+        XCTAssertTrue(QuizComposer.aiReason(access: .signInRequired, chatgpt: false).contains("StudiNow-Konto"))
+        XCTAssertTrue(QuizComposer.aiReason(access: .planRequired, chatgpt: false).contains("Pro AI"))
+        XCTAssertTrue(QuizComposer.aiReason(access: .unavailable, chatgpt: true).contains("keinen KI-Dienst"))
+        XCTAssertFalse(QuizComposer.hasMaterials(nil))
+        XCTAssertFalse(QuizComposer.hasMaterials(["id": 1, "weeks": [], "files": [["id": "f", "doc_type": "organisatorisch"]]]), "Organisatorisches zaehlt nicht")
+        XCTAssertTrue(QuizComposer.hasMaterials(["id": 1, "weeks": [], "files": [["id": "f", "doc_type": .null]]]), "Datei ohne Einordnung zaehlt (neueste Unterlagen)")
+        XCTAssertTrue(QuizComposer.hasMaterials(moduleDetail))
+    }
+
+    /// Modul ohne Unterlagen: Hinweis und "Jetzt abgleichen", "Test erstellen" bleibt aus, nichts geht ans Backend
+    func testWithoutMaterialsShowsHintAndSyncAndNeverStarts() throws {
+        let t = transport()
+        t.answer("/api/modules/1", ["id": 1, "name": "Testmathematik I", "weeks": [], "files": []])
+        let generation = TestGenerationState()
+        let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.proAI), generation: generation).environment(\.ufAIEnabled, true),
+                                          api: api(t), size: CGSize(width: 1180, height: 1400))
+        env.pump(0.8)
+        XCTAssertTrue(env.wait { self.shows(env.view, "Für dieses Modul sind noch keine Unterlagen geladen") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "erst Dateien laden bzw. abgleichen"))
+        XCTAssertNotNil(button("Jetzt abgleichen", in: env.view))
+        let start = try XCTUnwrap(button("Test erstellen", in: env.view))
+        XCTAssertTrue(start.accessibilityTraits.contains(.notEnabled), "ohne Unterlagen kein Start")
+        _ = tap("Test erstellen", in: env.view)
+        env.pump(0.5)
+        XCTAssertEqual(t.count("POST", "/api/tests/generate"), 0)
+        XCTAssertNil(generation.job)
+        // "Jetzt abgleichen" ohne verbundene Hochschule: Hinweis und der Weg zu den Einstellungen
+        XCTAssertTrue(tap("Jetzt abgleichen", in: env.view))
+        XCTAssertTrue(env.wait { env.router.route == .settings(tab: "account") }, "\(env.router.route)")
+    }
+
+    /// Der Auftrag endet sofort mit einem Fehler (z. B. keine Unterlagen im Backend, KI nicht erreichbar): der Dialog
+    /// bleibt offen, zeigt den Grund und "Erneut versuchen"; keine Platzhalterkarte, kein Wechsel der Seite
+    func testImmediateJobFailureStaysOpenWithRetry() throws {
+        let t = transport()
+        t.answer("/api/bg", ["running": false, "task": .null, "message": .string("Test: FEHLER \(WeekTestOptions.aiTimeoutHint())")])
+        let generation = TestGenerationState()
+        let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.proAI), generation: generation).environment(\.ufAIEnabled, true),
+                                          api: api(t), size: CGSize(width: 1180, height: 1400))
+        env.pump(0.8)
+        XCTAssertTrue(env.wait { self.shows(env.view, "VL03.pdf") || self.shows(env.view, "Folgen und Grenzwerte") })
+        XCTAssertTrue(tap("Test erstellen", in: env.view))
+        XCTAssertTrue(env.wait { t.count("POST", "/api/tests/generate") == 1 })
+        XCTAssertTrue(env.wait { self.shows(env.view, "Die KI hat nach 90 Sekunden nicht geantwortet") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("Erneut versuchen", in: env.view))
+        XCTAssertNil(generation.job, "keine Platzhalterkarte fuer einen gescheiterten Auftrag")
+        XCTAssertNotEqual(env.router.route, .exams)
+        XCTAssertTrue(tap("Erneut versuchen", in: env.view))
+        XCTAssertTrue(env.wait { t.count("POST", "/api/tests/generate") == 2 })
+    }
+
+    /// Ein spaeterer Fehler des Auftrags steht auf der Seite "Tests & Wiederholung" mit "Erneut versuchen"
+    func testExamsPageShowsAFailedGenerationWithRetry() throws {
+        let t = transport()
+        t.answer("/api/flashcards?due=true", [])
+        let generation = TestGenerationState()
+        generation.start(subject: "Testmathematik I", weekNo: 3)
+        generation.finish(message: WeekTestOptions.noMaterialsHint)
+        let env = try hostWithEnvironment(ExamsPage(generation: generation, entitlements: plan(.proAI)).environment(\.ufAIEnabled, true),
+                                          api: api(t), size: CGSize(width: 1180, height: 900))
+        env.pump(0.8)
+        XCTAssertTrue(env.wait { self.shows(env.view, "Wochentest nicht erstellt") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "noch keine Unterlagen geladen"))
+        XCTAssertNotNil(button("Erneut versuchen", in: env.view))
+        XCTAssertTrue(tap("Ausblenden", in: env.view))
+        XCTAssertTrue(env.wait { !self.shows(env.view, "Wochentest nicht erstellt") })
+        XCTAssertNil(generation.lastMessage)
+    }
+
     private var openTest: JSONValue {
         ["id": 17, "subject": "Testmathematik I", "title": "Wochentest Testmathematik I – Folgen", "duration_min": 15, "started_at": .null, "submitted_at": .null,
          "answers": [:], "feedback": .null, "week_no": 3, "auto": 0,
