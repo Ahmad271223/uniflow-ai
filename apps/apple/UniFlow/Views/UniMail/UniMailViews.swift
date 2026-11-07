@@ -214,6 +214,8 @@ struct UniMailMain: View {
     @State private var messages: [JSONValue] = []
     @State private var page = 0
     @State private var loading = false
+    /// "Neue Mails prüfen" laeuft (Lade-Anzeige, Knopf gesperrt)
+    @State private var checking = false
     @State private var error: String?
     @State private var selected: UniMailRef?
     @State private var compose: UniMailComposeRequest?
@@ -225,6 +227,7 @@ struct UniMailMain: View {
     var body: some View {
         UFContent(maxWidth: 1200) {
             UFPageHead(connection.site.name, sub: "E-Mails und Kalender der \(connection.site.universityName) (SOGo)") {
+                if connection.isConnected { checkButton }
                 // Lehrende der eigenen Kurse mit E-Mail aus Stud.IP (06.11.2026, Views/Lecturers); Stud.IP nur an der LUH
                 if connection.site.university == .luh {
                     UFButton(LecturersText.title, icon: "users", size: .small) { router.go(.lecturers) }
@@ -316,13 +319,38 @@ struct UniMailMain: View {
                     .accessibilityIdentifier("unimail.search")
             }
             .frame(maxWidth: 320)
-            UFButton("Aktualisieren", icon: "refresh", size: .small) { Task { await reload() } }
-                .disabled(loading)
-                .accessibilityIdentifier("unimail.refresh")
             UFButton("Neue E-Mail", icon: "pen", kind: .primary, size: .small) { compose = UniMailComposeRequest() }
                 .accessibilityIdentifier("unimail.new")
         }
         .padding(.bottom, 12)
+    }
+
+    /// "Neue Mails prüfen" (Entscheidung des Inhabers 07.11.2026, statt eines Takts): oben gut sichtbar, laedt sofort
+    /// den Posteingang (erste Seite, ungelesene); waehrend des Ladens Anzeige und gesperrt, also nie doppelt
+    private var checkButton: some View {
+        HStack(spacing: 8) {
+            if checking {
+                ProgressView().controlSize(.small)
+                    .accessibilityLabel("Prüfe neue Mails")
+                    .accessibilityIdentifier("unimail.checking")
+            }
+            UFButton(UniMailMain.checkTitle(checking: checking), icon: "refresh", kind: .primary, size: .small) {
+                Task { await checkNewMail() }
+            }
+            .disabled(checking || loading)
+            .accessibilityIdentifier("unimail.refresh")
+        }
+    }
+
+    static func checkTitle(checking: Bool) -> String { checking ? "Prüfe …" : "Neue Mails prüfen" }
+
+    private func checkNewMail() async {
+        guard !checking else { return }
+        checking = true
+        defer { checking = false }
+        folder = "INBOX"
+        query = ""
+        await reload()
     }
 
     private var folderName: String {

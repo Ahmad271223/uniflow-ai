@@ -240,7 +240,10 @@ final class UniMailConnection: ObservableObject {
         isRunning = true
         defer { isRunning = false; finishedRuns += 1 }
         do {
+            let before = signOuts
             let listing = try await perform { try await $0.folder("INBOX") }
+            // inzwischen abgemeldet: nichts mehr zwischenspeichern oder zaehlen
+            guard signOuts == before, isConnected else { return InboxReport() }
             await storeCache(listing)
             return apply(listing)
         } catch SOGoError.needsLogin {

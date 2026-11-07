@@ -405,11 +405,8 @@ final class ContainerManager: ObservableObject {
             // laeuft noch der Abgleich eines abgeloesten Objekts dieses Containers (Wechsel A → B → A waehrend eines
             // langen Abgleichs), keinen zweiten beginnen (P2-2); der naechste Wechsel in den Vordergrund holt ihn nach
             guard !self.isSyncing(key) else { return }
-            self.studip.runIfDue()
-            self.hildesheim?.runIfDue()
-            self.qis?.runIfDue()
-            self.hsh?.runIfDue()
-            self.uniMail?.runIfDue()
+            // neuer Container (nach der Anmeldung, Wahl der Hochschule): einmal alles, Uni-Mail zuerst (OpenSync)
+            self.syncAllOnOpen()
         }
     }
 

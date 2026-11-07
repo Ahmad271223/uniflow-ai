@@ -168,11 +168,9 @@ struct UniFlowApp: App {
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
             if phase == .active {
                 containers.removeRememberedPasswords()                     // einmalig, falls beim Start gesperrt
-                containers.studip.runIfDue()
-                containers.hildesheim?.runIfDue()
-                containers.qis?.runIfDue()
-                containers.hsh?.runIfDue()
-                containers.uniMail?.runIfDue()                             // Uni-Mail: Posteingang, ungelesene
+                // beim Oeffnen und nach mehr als 15 min im Hintergrund einmal alles (Uni-Mail zuerst), sonst die
+                // bisherigen Abstaende je Quelle (OpenSync, Entscheidung des Inhabers 07.11.2026)
+                containers.syncAllOnOpen()
                 weeklyTicker.resume()
                 askForLoginIfDue()
                 Task {

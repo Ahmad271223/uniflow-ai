@@ -389,4 +389,52 @@ final class UniMailAppTests: XCTestCase {
         let after = await b.runUniMail(c, kind: .refresh)
         XCTAssertNil(after, "abgemeldet: kein Lauf")
     }
+
+    // MARK: Abgleich beim Oeffnen und "Neue Mails prüfen" (07.11.2026, statt eines Takts alle 20 Minuten)
+
+    func testOpenSyncPolicyFifteenMinutes() {
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(OpenSyncPolicy.staleAfter, 15 * 60)
+        XCTAssertTrue(OpenSyncPolicy.due(last: nil, now: t0), "Oeffnen der App / neuer Container: immer")
+        XCTAssertFalse(OpenSyncPolicy.due(last: t0, now: t0.addingTimeInterval(5 * 60)))
+        XCTAssertFalse(OpenSyncPolicy.due(last: t0, now: t0.addingTimeInterval(15 * 60)))
+        XCTAssertTrue(OpenSyncPolicy.due(last: t0, now: t0.addingTimeInterval(15 * 60 + 1)))
+        XCTAssertTrue(OpenSyncPolicy.due(last: t0.addingTimeInterval(600), now: t0), "Uhr verstellt")
+        XCTAssertEqual(UniMailMain.checkTitle(checking: false), "Neue Mails prüfen")
+        XCTAssertEqual(UniMailMain.checkTitle(checking: true), "Prüfe …")
+    }
+
+    private var inboxReads: Int { UniStubProtocol.requests.filter { $0.url.path.hasSuffix("/Mail/0/folderINBOX/view") }.count }
+
+    func testSyncAllOnOpenOnceThenOnlyAfterFifteenMinutes() async throws {
+        try install()
+        let (m, c, _) = try await connected()
+        try await Task.sleep(nanoseconds: 100_000_000)          // Start-Aufgaben des Containers vorbei
+        let wasAllowed = OpenSync.allowed
+        OpenSync.allowed = { true }
+        OpenSync.last = [:]
+        defer {
+            OpenSync.allowed = wasAllowed
+            OpenSync.last = [:]
+        }
+        let t0 = bed.clock.now
+        XCTAssertEqual(inboxReads, 0)
+        // Oeffnen: einmal alles, Posteingang zuerst
+        XCTAssertTrue(m.syncAllOnOpen(now: t0))
+        try await bed.waitUntil("Posteingang beim Oeffnen") { self.inboxReads == 1 }
+        XCTAssertEqual(UniStubProtocol.requests.first?.url.path, "/SOGo/so/\(user)/Mail/0/folderINBOX/view")
+        XCTAssertEqual(OpenSync.last[c.key], t0)
+        // kurz im Hintergrund (5 min, genau 15 min): kein neuer Gesamt-Abgleich
+        XCTAssertFalse(m.syncAllOnOpen(now: t0.addingTimeInterval(5 * 60)))
+        XCTAssertFalse(m.syncAllOnOpen(now: t0.addingTimeInterval(15 * 60)))
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(inboxReads, 1, "nicht doppelt")
+        // mehr als 15 min: wieder einmal alles
+        XCTAssertTrue(m.syncAllOnOpen(now: t0.addingTimeInterval(16 * 60)))
+        try await bed.waitUntil("Posteingang nach 16 min") { self.inboxReads == 2 }
+        XCTAssertTrue(sends.isEmpty, "nur lesend")
+        // nicht erlaubt (XCTest-Vorgabe, Bildvergleiche): nichts
+        OpenSync.allowed = { false }
+        XCTAssertFalse(m.syncAllOnOpen(now: t0.addingTimeInterval(60 * 60)))
+    }
 }
