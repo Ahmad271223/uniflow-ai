@@ -567,8 +567,8 @@ struct OwnRecordingDetail: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(cards.indices, id: \.self) { i in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(cards[i].s("question") ?? "").ufFont(13.76, 650).foregroundStyle(UF.text)
-                            Text(cards[i].s("answer") ?? "").ufFont(13.12).foregroundStyle(UF.text2)
+                            Text(FormulaText.attributed(cards[i].s("question") ?? "", size: 13.76, weight: 650)).ufFont(13.76, 650).foregroundStyle(UF.text)
+                            Text(FormulaText.attributed(cards[i].s("answer") ?? "", size: 13.12)).ufFont(13.12).foregroundStyle(UF.text2)
                         }
                         .padding(8)
                         .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))

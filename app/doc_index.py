@@ -38,6 +38,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from . import config, entitlements
+from .math_style import MATH_STYLE_JSON
 
 router = APIRouter()
 
@@ -316,14 +317,15 @@ def record_name(file_key_hex: str, page: int) -> str:
 # ---------------------------------------------------------------- Prompt (wie DocIndexPrompts im Kern)
 
 SYSTEM = ("Du bist ein genauer Bibliothekar fuer Lernunterlagen eines Informatik-/Elektrotechnik-Studiums. "
-          "Du beschreibst, was auf einer Seite steht, erfindest nichts und antwortest ausschliesslich mit JSON nach dem Schema.")
+          "Du beschreibst, was auf einer Seite steht, erfindest nichts und antwortest ausschliesslich mit JSON nach dem Schema. "
+          + MATH_STYLE_JSON)
 
 
 def page_prompt(course: str, file_name: str, page: int, page_count: int, text: str, with_image: bool, with_solutions: bool = False) -> str:
     parts = [f"Kurs: {course}", f"Datei: {file_name}, Seite {page} von {page_count}", "",
              "AUFGABE: Erstelle den Index dieser Seite. Liste JEDES Element in Lesereihenfolge (order 1..n) mit Art "
              "(skizze, diagramm, tabelle, formel, definition, satz, beispiel, aufgabe, text), kurzem Titel, einer kurzen "
-             "Erklaerung (1-2 Saetze, Formeln als Text), Lage auf der Seite (oben, mitte, unten, links, rechts, ganz) und "
+             "Erklaerung (1-2 Saetze, Formeln mit Unicode-Zeichen), Lage auf der Seite (oben, mitte, unten, links, rechts, ganz) und "
              "uncertain=true, wenn du dir nicht sicher bist. Gehoert ein Element zu einer Aufgabe, nenne sie in task (z. B. \"Aufgabe 3b\"). "
              "Fuer jede Aufgabe auf der Seite: unter tasks, was genau verlangt ist (asks), knapp."]
     parts.append("Loesungen: solution ausfuellen (nachvollziehbar, kurz)." if with_solutions

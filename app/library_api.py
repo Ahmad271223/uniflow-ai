@@ -26,11 +26,12 @@ import uuid
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from . import ai_backend, config, db, entitlements, test_library
+from .math_style import MATH_STYLE_JSON
 
 router = APIRouter()
 
 GEN_SYSTEM = ("Du erstellst Übungsfragen für Studierende. Fachlich korrekt, eindeutig, ohne Bezug auf Personen. "
-              "Rechne jede Lösung selbst nach. Antworte ausschließlich mit JSON nach dem Schema.")
+              "Rechne jede Lösung selbst nach. Antworte ausschließlich mit JSON nach dem Schema. " + MATH_STYLE_JSON)
 GEN_SCHEMA = {
     "type": "object", "required": ["questions"],
     "properties": {"questions": {"type": "array", "items": {

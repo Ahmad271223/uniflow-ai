@@ -518,8 +518,8 @@ struct AIStartView: View {
     static func plain(_ markdown: String) -> String {
         AIMarkdown.blocks(markdown).map { b -> String in
             switch b {
-            case .heading(_, let t), .paragraph(let t): return String(AIMarkdown.inline(t).characters)
-            case .bullets(let items), .numbered(let items): return items.map { String(AIMarkdown.inline($0).characters) }.joined(separator: " · ")
+            case .heading(_, let t), .paragraph(let t): return String(AIMarkdown.inline(MathText.plain(t)).characters)
+            case .bullets(let items), .numbered(let items): return items.map { String(AIMarkdown.inline(MathText.plain($0)).characters) }.joined(separator: " · ")
             case .code(let c): return c
             }
         }.joined(separator: " ")

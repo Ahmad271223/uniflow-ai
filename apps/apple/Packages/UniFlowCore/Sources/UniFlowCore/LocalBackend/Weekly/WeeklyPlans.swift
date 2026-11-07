@@ -348,7 +348,7 @@ extension Weekly {
         return ctx
     }
 
-    static let system = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. Formeln als Text."
+    static let system = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. " + AIPromptTexts.mathStyleJSON
 
     /// `str(x)` wie Python fuer Zahlen in Texten (`(3.0 P.)`, `Aufgabe 2`)
     static func pyStr(_ v: PyJSON?) -> String {

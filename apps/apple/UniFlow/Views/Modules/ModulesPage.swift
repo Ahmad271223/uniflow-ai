@@ -601,6 +601,9 @@ struct UFIconSegmented<Value: Hashable>: View {
                         .ufShadow(active ? .sm : .none)
                 }
                 .buttonStyle(.plain)
+                // VoiceOver (Abnahme 07.11.2026): sonst unbeschriftete Symbol-Knoepfe
+                .accessibilityLabel(o.icon == "list" ? "Liste" : o.icon == "grid" ? "Kacheln" : o.icon)
+                .accessibilityAddTraits(active ? .isSelected : [])
             }
         }
         .padding(3)

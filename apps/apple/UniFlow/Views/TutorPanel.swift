@@ -355,9 +355,9 @@ struct TutorPanel: View {
                 if !msg.cards.isEmpty {
                     ForEach(msg.cards.indices, id: \.self) { i in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(msg.cards[i].s("question") ?? "").ufFont(14.5, 650, lh: 1.4).foregroundStyle(UF.text)
+                            Text(FormulaText.attributed(msg.cards[i].s("question") ?? "", size: 14.5, weight: 650)).ufFont(14.5, 650, lh: 1.4).foregroundStyle(UF.text)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text(msg.cards[i].s("answer") ?? "").ufFont(13.76, lh: 1.5).foregroundStyle(UF.text2)
+                            Text(FormulaText.attributed(msg.cards[i].s("answer") ?? "", size: 13.76)).ufFont(13.76, lh: 1.5).foregroundStyle(UF.text2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(12)

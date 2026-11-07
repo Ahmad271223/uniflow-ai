@@ -1,4 +1,5 @@
 import StoreKit
+import UniFlowCore
 import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
@@ -107,7 +108,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         switch self {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
-        case .uniGrades: return "Notenspiegel aus QIS bzw. LSF direkt in der App"
+        case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App"
         case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen und Lernplan-Vorschläge – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und im Editor ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"

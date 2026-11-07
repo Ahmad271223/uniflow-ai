@@ -363,7 +363,7 @@ struct QuizComposer: View {
                 } else if !loaded {
                     Text("Module werden geladen …").ufFont(13.12).foregroundStyle(UF.muted)
                 } else if modules.isEmpty {
-                    Text("Noch keine Module. Verbinde zuerst Stud.IP bzw. Learnweb.").ufFont(13.12).foregroundStyle(UF.muted)
+                    Text("Noch keine Module. Verbinde zuerst \(UFReleaseUniversities.filePlatforms).").ufFont(13.12).foregroundStyle(UF.muted)
                         .accessibilityIdentifier("quiz.noModules")
                 } else {
                     // nie eine leere Auswahl: ein Menü ohne Eintraege laesst den Bedienungshilfen-Baum dahinter leer

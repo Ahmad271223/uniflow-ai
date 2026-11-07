@@ -107,11 +107,11 @@ final class QuizOptionsAppTests: XCTestCase {
 
     func testFormulasBecomeReadableText() {
         XCTAssertEqual(FormulaText.render("x^2 + y^2 = r^2"), "x² + y² = r²")
-        XCTAssertEqual(FormulaText.render("a_n -> 0 fuer n -> unendlich"), "aₙ -> 0 fuer n -> unendlich")
-        XCTAssertEqual(FormulaText.render("$\\frac{1}{2}$"), "1/2")
+        XCTAssertEqual(FormulaText.render("a_n -> 0 fuer n -> unendlich"), "aₙ → 0 fuer n → unendlich")
+        XCTAssertEqual(FormulaText.render("$\\frac{1}{2}$"), "½")
         XCTAssertEqual(FormulaText.render("\\frac{n+1}{n^2}"), "(n+1)/n²")
-        XCTAssertEqual(FormulaText.render("\\sqrt{2} und sqrt(x+1)"), "√(2) und √(x+1)")
-        XCTAssertEqual(FormulaText.render("\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}"), "Σ_(i=1)ⁿ i = (n(n+1))/2", "Index mit = bleibt als Klammer")
+        XCTAssertEqual(FormulaText.render("\\sqrt{2} und sqrt(x+1)"), "√2 und √(x+1)")
+        XCTAssertEqual(FormulaText.render("\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}"), "∑ᵢ₌₁ⁿ i = n(n+1)/2", "Index mit = tiefgestellt (07.11.2026)")
         XCTAssertEqual(FormulaText.render("a_n^2 \\left( x \\right)"), "aₙ² ( x )")
         XCTAssertEqual(FormulaText.render("\\alpha \\le \\beta, x \\in \\mathbb{R}, \\pi \\cdot 2"), "α ≤ β, x ∈ ℝ, π · 2")
         XCTAssertEqual(FormulaText.render("\\leq ist nicht \\le q"), "≤ ist nicht ≤ q", "laengere Namen zuerst")
@@ -119,11 +119,11 @@ final class QuizOptionsAppTests: XCTestCase {
         XCTAssertEqual(FormulaText.render("x^{10} und x^{-1}"), "x¹⁰ und x⁻¹")
         XCTAssertEqual(FormulaText.render("10^3 m"), "10³ m")
         XCTAssertEqual(FormulaText.render("is_int(list_items)"), "is_int(list_items)", "Bezeichner bleiben")
-        XCTAssertEqual(FormulaText.render("2^k mit k = 3"), "2ᵏ mit k = 3")
+        XCTAssertEqual(FormulaText.render("2^k mit k = 3"), "2^k mit k = 3", "ohne Markierung lesbar; in der Ansicht echt hochgestellt (FormulaText.attributed)")
         XCTAssertEqual(FormulaText.render("Keine Formel hier."), "Keine Formel hier.")
         XCTAssertEqual(FormulaText.render("x^{a+b}"), "x^(a+b)", "nicht abbildbar bleibt lesbar")
         XCTAssertEqual(FormulaText.render("p \\lnot q, \\neg p"), "p ¬ q, ¬ p")
-        XCTAssertEqual(FormulaText.render("\\text{für alle } n"), "für alle  n")
+        XCTAssertEqual(FormulaText.render("\\text{für alle } n"), "für alle n")
     }
 
     // MARK: Ansichten

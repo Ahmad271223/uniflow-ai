@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .config import CLAUDE_MODEL, CLAUDE_MODEL_MATERIAL, DATA_DIR, LOG_DIR, is_hosted
+from .math_style import MATH_STYLE, MATH_STYLE_JSON
 
 # PDF-Eingabe: gekuerzte Kopien in einem eigenen Arbeitsordner. Claude darf nur dort lesen (Arbeitsordner der CLI),
 # alles ausserhalb verweigert die CLI; schreibende, ausfuehrende und Netz-Werkzeuge sind zusaetzlich gesperrt.
@@ -270,7 +271,8 @@ def ask_pdf(prompt: str, system: str, pdfs: list[tuple[str, int]], model: str | 
 
 
 SYSTEM = ("Du bist ein Lerncoach fuer ein Informatik-/Elektrotechnik-Studium (Leibniz Universitaet Hannover, "
-          "1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune.")
+          "1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune. "
+          + MATH_STYLE_JSON)
 
 
 # ----------------------------------------------------------------------------
@@ -335,7 +337,7 @@ def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | N
 
 TUTOR_SYSTEM = ("Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester "
                 "(Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen "
-                "Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt.")
+                "Absaetzen. Beziehe dich konkret auf den gegebenen Seiteninhalt. " + MATH_STYLE)
 
 TUTOR_MODES = {
     "ask": "Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.",
@@ -607,7 +609,7 @@ Gib ein JSON-Objekt zurueck:
   "title": "Wochentest {subject} – Thema(n)",
   "questions": [
     {{"nr": 1, "type": {" | ".join(f'"{t}"' for t in o["types"])}, "difficulty": "leicht" | "mittel" | "schwer",
-      "question": "Aufgabentext (LaTeX-frei, Formeln als Text)",
+      "question": "Aufgabentext (Formeln mit Unicode-Zeichen, ohne LaTeX)",
       "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc und tf
       "blank": "fehlendes Wort",                         // nur bei cloze
       "answer": "Musterloesung / richtige Option",
@@ -802,7 +804,7 @@ def flashcards_prompt(course: str, file_name: str, pages: list[int] | None, text
         where = f", Seite {pages[0]}" if len(pages) == 1 else f", Seiten {pages[0]}–{pages[-1]}"
     parts = [f"Kurs: {course}", f"Datei: {file_name}{where}", "",
              f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Inhalt. Vorn eine klare Frage, hinten eine kurze, "
-             "vollstaendige Antwort (1-3 Saetze, Formeln als Text). Decke die wichtigsten Begriffe, Zusammenhaenge und "
+             "vollstaendige Antwort (1-3 Saetze, Formeln mit Unicode-Zeichen). Decke die wichtigsten Begriffe, Zusammenhaenge und "
              "Rechenwege ab; keine Karte doppelt, nichts erfinden, was nicht im Inhalt steht."]
     if topic.strip():
         parts += ["", f"SCHWERPUNKT: {topic.strip()[:300]}"]

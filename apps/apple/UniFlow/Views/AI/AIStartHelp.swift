@@ -47,7 +47,8 @@ enum AIHelpContent {
 
     /// "Ohne Unterlagen": der Weg zu den Dateien fuehrt ueber den Abgleich mit der Hochschule
     static let without = Section(title: "Ohne Unterlagen", icon: "sync", items: [
-        "Noch keine Dokumente? Verbinde in den Einstellungen Stud.IP (an der Uni Hildesheim: Learnweb).",
+        UFReleaseUniversities.isShipped(.hildesheim) ? "Noch keine Dokumente? Verbinde in den Einstellungen Stud.IP (an der Uni Hildesheim: Learnweb)."
+            : "Noch keine Dokumente? Verbinde in den Einstellungen \(UFReleaseUniversities.filePlatforms).",
         "Der Abgleich holt die Kursdateien in deine Bibliothek; danach wählst du hier eines als Kontext.",
         "Eigene PDFs kommen über „Dokumente & Notizen“ dazu.",
     ])

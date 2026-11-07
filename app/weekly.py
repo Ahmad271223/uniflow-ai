@@ -32,6 +32,7 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
 from . import ai, config, db, entitlements, pageocr, scriptsearch, study
+from .math_style import MATH_STYLE_JSON
 
 LOCAL_USER = "local"
 LECTURE_TYPES = ("vorlesung", "skript")
@@ -1053,7 +1054,7 @@ def _parse(text: str):
 
 
 SYSTEM = ("Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. "
-          "Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. Formeln als Text.")
+          "Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. " + MATH_STYLE_JSON)
 
 
 def _materials_block(ctx: dict) -> str:

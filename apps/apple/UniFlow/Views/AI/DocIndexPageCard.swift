@@ -84,7 +84,7 @@ struct DocIndexPageCard: View {
             .accessibilityIdentifier("docIndex.ready")
             if expanded {
                 if let summary = entry.s("summary"), !summary.isEmpty {
-                    Text(summary).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    Text(FormulaText.attributed(summary, size: 13.12)).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                 }
                 // Platz im Regal (Hochschule › Studiengang › Semester › Modul › Woche › Art), aus den Kursdaten des Geraets
                 if let path = view?["shelf_path"]?.array?.compactMap(\.string), !path.isEmpty {
@@ -101,7 +101,7 @@ struct DocIndexPageCard: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Aufgaben").ufFont(12, 700).foregroundStyle(UF.muted)
                         ForEach(Array(tasks.enumerated()), id: \.offset) { _, t in
-                            Text("\(t.s("label") ?? ""): \(t.s("asks") ?? "")").ufFont(12.8).foregroundStyle(UF.text2)
+                            Text(FormulaText.attributed("\(t.s("label") ?? ""): \(t.s("asks") ?? "")", size: 12.8)).ufFont(12.8).foregroundStyle(UF.text2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -132,11 +132,11 @@ struct DocIndexPageCard: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(Self.typeLabels[e.s("type") ?? ""] ?? (e.s("type") ?? "")).ufFont(11.5, 700).foregroundStyle(UF.accentText)
-                Text(e.s("title") ?? "").ufFont(13.12, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                Text(FormulaText.attributed(e.s("title") ?? "", size: 13.12, weight: 600)).ufFont(13.12, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                 if e["uncertain"]?.bool == true { Text("unsicher").ufFont(11).foregroundStyle(UF.muted) }
             }
             if let x = e.s("explanation"), !x.isEmpty {
-                Text(x).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                Text(FormulaText.attributed(x, size: 12.8)).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             }
             ForEach(Array(refs.enumerated()), id: \.offset) { _, r in
                 Button { open(r.s("file_id") ?? fileID, r.i("page") ?? 1) } label: {

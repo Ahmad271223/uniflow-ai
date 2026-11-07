@@ -722,7 +722,7 @@ struct ExamQuestionCard: View {
                     .ufFont(13.12, feedback == nil ? 500 : 700).foregroundStyle(right == nil ? UF.muted : (right! ? UF.okText : UF.badText))
             }
             .padding(.bottom, 10)
-            Text(FormulaText.render(q.s("question") ?? "")).ufFont(17.6, 500).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.bottom, 14)
+            Text(FormulaText.attributed(q.s("question") ?? "", size: 17.6, weight: 500)).ufFont(17.6, 500).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.bottom, 14)
                 .textSelection(.enabled)
             if submitted {
                 review(options: options)
@@ -753,7 +753,7 @@ struct ExamQuestionCard: View {
         return Button { answer = o } label: {
             HStack(spacing: 10) {
                 UFRadio(on: on).foregroundStyle(on ? UF.ok : UF.muted)
-                Text(FormulaText.render(o)).ufFont(14.5, on ? 600 : 400).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                Text(FormulaText.attributed(o, size: 14.5, weight: on ? 600 : 400)).ufFont(14.5, on ? 600 : 400).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
             .padding(.vertical, 8 + ufB).padding(.horizontal, 11.2 + ufB)
@@ -772,7 +772,7 @@ struct ExamQuestionCard: View {
         return Button { answer = o } label: {
             VStack(spacing: 6) {
                 UFIcon(on ? "check" : "circle", size: 18).foregroundStyle(on ? UF.okText : UF.muted)
-                Text(FormulaText.render(o)).ufFont(15.2, 650).foregroundStyle(on ? UF.okText : UF.text).multilineTextAlignment(.center)
+                Text(FormulaText.attributed(o, size: 15.2, weight: 650)).ufFont(15.2, 650).foregroundStyle(on ? UF.okText : UF.text).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 14).padding(.horizontal, 12)
@@ -800,7 +800,7 @@ struct ExamQuestionCard: View {
                         if mine && right == false { UFIcon("x", size: 15).foregroundStyle(UF.bad) }
                         else if correct || (mine && right == true) { UFIcon("check", size: 15).foregroundStyle(UF.ok) }
                         else { UFIcon("circle", size: 15).foregroundStyle(UF.lineStrong) }
-                        Text(FormulaText.render(o)).ufFont(14.5, mine || correct ? 600 : 400)
+                        Text(FormulaText.attributed(o, size: 14.5, weight: mine || correct ? 600 : 400)).ufFont(14.5, mine || correct ? 600 : 400)
                             .foregroundStyle(mine && right == false ? UF.badText : (correct ? UF.okText : UF.text2))
                             .underline(mine && right == false, color: UF.bad)
                             .fixedSize(horizontal: false, vertical: true)
@@ -828,15 +828,15 @@ struct ExamQuestionCard: View {
                 .accessibilityElement(children: .combine)
             }
             if !model.isEmpty {
-                box(title: "Richtige Antwort", icon: "check", text: FormulaText.render(model), fill: UF.okSoft, tint: UF.okText)
+                box(title: "Richtige Antwort", icon: "check", text: model, fill: UF.okSoft, tint: UF.okText)
                     .accessibilityIdentifier("exam.answer.\(ExamRunPage.nrOf(q))")
             }
             if let e = texts.explanation {
-                box(title: "Erklärung", icon: "info", text: FormulaText.render(e), fill: UF.accentSoft, tint: UF.accentText)
+                box(title: "Erklärung", icon: "info", text: e, fill: UF.accentSoft, tint: UF.accentText)
                     .accessibilityIdentifier("exam.explanation.\(ExamRunPage.nrOf(q))")
             }
             if let f = texts.feedback {
-                box(title: texts.explanation == nil ? "Erklärung" : "Rückmeldung zur Antwort", icon: "sparkles", text: FormulaText.render(f), fill: UF.accentSoft, tint: UF.accentText)
+                box(title: texts.explanation == nil ? "Erklärung" : "Rückmeldung zur Antwort", icon: "sparkles", text: f, fill: UF.accentSoft, tint: UF.accentText)
                     .accessibilityIdentifier("exam.feedback.\(ExamRunPage.nrOf(q))")
             }
             if right == false, let onAskAI {
@@ -879,7 +879,7 @@ struct ExamQuestionCard: View {
     private func box(title: String, icon: String, text: String, fill: Color, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) { UFIcon(icon, size: 14).foregroundStyle(tint); Text(title).ufFont(12.8, 650).foregroundStyle(tint) }
-            Text(text).ufFont(14.08).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            Text(FormulaText.attributed(text, size: 14.08)).ufFont(14.08).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
         }
         .padding(.vertical, 9.6).padding(.horizontal, 11.2)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1102,7 +1102,7 @@ struct ExamAskPanel: View {
     /// Aufgabe, deine Antwort (rot), richtige Antwort (gruen)
     private var contextCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(FormulaText.render(context.question)).ufFont(14.08, 500).foregroundStyle(UF.text)
+            Text(FormulaText.attributed(context.question, size: 14.08, weight: 500)).ufFont(14.08, 500).foregroundStyle(UF.text)
                 .fixedSize(horizontal: false, vertical: true)
             answerLine(icon: "x", title: "Deine Antwort", text: context.given.isEmpty ? "[keine Antwort]" : context.given, fg: UF.badText, bg: UF.badSoft)
             if !context.correct.isEmpty {
@@ -1117,7 +1117,7 @@ struct ExamAskPanel: View {
     private func answerLine(icon: String, title: String, text: String, fg: Color, bg: Color) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             UFIcon(icon, size: 13).foregroundStyle(fg)
-            (Text(title + ": ").font(.uf(12.8, 650)) + Text(FormulaText.render(text)).font(.uf(13.6)))
+            (Text(title + ": ").font(.uf(12.8, 650)) + Text(FormulaText.attributed(text, size: 13.6)).font(.uf(13.6)))
                 .foregroundStyle(fg)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)

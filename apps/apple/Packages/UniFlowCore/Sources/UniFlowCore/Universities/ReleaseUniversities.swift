@@ -84,6 +84,24 @@ public enum UFReleaseUniversities {
     /// Fehlen in diesem Build bekannte Hochschulen? (Hinweis "Weitere Hochschulen folgen mit einem Update.")
     public static var moreToCome: Bool { shipped.count < UniversityKey.allCases.count }
 
+    /// Lernplattformen (Kurse, Dateien) der ausgelieferten Hochschulen fuer Texte ohne bestimmte Hochschule, in fester
+    /// Reihenfolge: Store-Build 1.0 "Stud.IP", mit allen "Stud.IP, Learnweb bzw. Moodle" (Abnahme 07.11.2026: im
+    /// Store-Build kein Learnweb/Moodle auf dem Bildschirm)
+    public static var filePlatforms: String { joined(shipped, ["luh": "Stud.IP", "hildesheim": "Learnweb", "hsh": "Moodle"]) }
+
+    /// Notenquellen der ausgelieferten Hochschulen: Store-Build 1.0 "QIS", mit allen "QIS, LSF bzw. HISinOne"
+    public static var gradePlatforms: String { joined(shipped, ["luh": "QIS", "hildesheim": "LSF", "hsh": "HISinOne"]) }
+
+    static func joined(_ set: Set<UniversityKey>, _ names: [String: String]) -> String {
+        var parts: [String] = []
+        for key in UniversityKey.allCases where set.contains(key) {
+            if let n = names[key.rawValue], !parts.contains(n) { parts.append(n) }
+        }
+        if parts.isEmpty { return names[UniversityKey.luh.rawValue] ?? "" }
+        if parts.count == 1 { return parts[0] }
+        return parts.dropLast().joined(separator: ", ") + " bzw. " + parts.last!
+    }
+
     /// Fuer Tests: waehrend `body` genau diese Hochschulen, danach wieder der vorige Stand.
     public static func withShipped<T>(_ set: Set<UniversityKey>, _ body: () throws -> T) rethrows -> T {
         let before = lock.withLock { current }

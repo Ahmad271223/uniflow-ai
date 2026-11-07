@@ -259,7 +259,7 @@ def stack_prompt(module: str, week: int | None, sources: list[dict], text: str, 
                                      f" (Seite {s['pages'][0]})" if s.get("pages") else "") for s in sources[:12])
     parts = [f"Modul: {module}", f"Umfang: {scope}", f"Quellen: {src or 'keine Angabe'}", "",
              f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Material. Vorn eine klare Frage, hinten eine kurze, "
-             "vollstaendige Antwort (1-3 Saetze, Formeln als Text). Decke die wichtigsten Begriffe, Definitionen, Saetze, "
+             "vollstaendige Antwort (1-3 Saetze, Formeln mit Unicode-Zeichen). Decke die wichtigsten Begriffe, Definitionen, Saetze, "
              "Zusammenhaenge und Rechenwege ab und verteile die Karten ueber alle Quellen; keine Karte doppelt, nichts "
              "erfinden, was nicht im Material steht."]
     if topic.strip():

@@ -13,7 +13,12 @@ enum DueTexts {
     static let emptyHint = "StudiNow sucht in Folien, Übungsblättern und Ankündigungen nach Abgaben, Tests und Klausuren."
     static let hiddenToast = "Ausgeblendet. Unter „ausgeblendete anzeigen“ holst du ihn zurück."
     static let reminderTitle = "Erinnerungen an Abgaben und Prüfungen"
-    static let reminderText = "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine, Fristen aus dem Learnweb-Kalender und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad."
+    /// "Fristen aus dem Learnweb-Kalender" nur, wenn der Build Hildesheim anbietet (Abnahme 1.0 nur LUH, 07.11.2026)
+    static var reminderText: String {
+        "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine"
+            + (UFReleaseUniversities.isShipped(.hildesheim) ? ", Fristen aus dem Learnweb-Kalender" : "")
+            + " und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad."
+    }
     static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte die Erinnerungen danach hier erneut ein."
 
     /// "Sa., 05.12. 23:59 · Kurzklausur · Analysis I"

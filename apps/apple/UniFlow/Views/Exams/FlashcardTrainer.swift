@@ -402,11 +402,11 @@ struct FlashcardFace: View {
             .accessibilityHidden(true)
             Spacer(minLength: 16)
             if let context, !context.isEmpty {
-                Text(FormulaText.render(context)).ufFont(14.5, 500).foregroundStyle(UF.muted)
+                Text(FormulaText.attributed(context, size: 14.5, weight: 500)).ufFont(14.5, 500).foregroundStyle(UF.muted)
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 14)
             }
-            Text(FormulaText.render(text))
+            Text(FormulaText.attributed(text, size: front ? 26 : 20.8, weight: front ? 650 : 450))
                 .ufFont(front ? 26 : 20.8, front ? 650 : 450, lh: 1.35, em: front ? -0.01 : 0)
                 .foregroundStyle(UF.text)
                 .multilineTextAlignment(.center)

@@ -1955,7 +1955,7 @@ struct FlashcardDeleteDialog: View {
 
     var body: some View {
         UFDialog("Karte löschen?", icon: "trash") {
-            Text(card.s("question") ?? "").ufFont(14.5, 650).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            Text(FormulaText.attributed(card.s("question") ?? "", size: 14.5, weight: 650)).ufFont(14.5, 650).foregroundStyle(UF.text).padding(.vertical, 5.6)
             Text("Die Karte und ihr Lernstand (Fach \(card.i("box") ?? 1)) werden gelöscht. Das lässt sich nicht rückgängig machen.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
                 .fixedSize(horizontal: false, vertical: true)

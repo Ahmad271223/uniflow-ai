@@ -338,8 +338,9 @@ enum AIMarkdown {
 
     /// Wie `inline`, aber Fett und Code mit ausdruecklicher Schrift (Inter als variable Schrift kennt kein
     /// automatisches Fett: ohne das blieb **fett** bei manchen Groessen normal). `size` ist die schon skalierte Groesse.
+    /// Formeln (07.11.2026) vorher lesbar: `MathText` (x², ε, ∫ …), Hoch-/Tiefstellung danach (`FormulaText.scripted`)
     static func styled(_ s: String, size: CGFloat) -> AttributedString {
-        var a = inline(s)
+        var a = inline(MathText.render(s))
         for run in a.runs {
             guard let intent = run.inlinePresentationIntent else { continue }
             if intent.contains(.code) {
@@ -348,7 +349,7 @@ enum AIMarkdown {
                 a[run.range].font = Font(UFTypeface.font(size, 700))
             }
         }
-        return a
+        return FormulaText.scripted(a, size: size)
     }
 }
 

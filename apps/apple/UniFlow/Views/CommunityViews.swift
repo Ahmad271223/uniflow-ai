@@ -12,7 +12,7 @@ import UniFlowCore
 /// Feste Texte (auch fuer Tests).
 enum CommunityTexts {
     static let copyright = "In der Community erscheinen nur deine eigenen Notizen – kein Originalmaterial deiner Hochschule (Folien, Aufgabenstellungen, Skripte). Mit dem Veröffentlichen bestätigst du, dass alles von dir stammt."
-    static let visibilityModule = "Sichtbar für alle an deiner Hochschule, die dasselbe Modul in Stud.IP bzw. Learnweb haben. Eine Bestätigung der Hochschule gibt es nicht."
+    static var visibilityModule: String { "Sichtbar für alle an deiner Hochschule, die dasselbe Modul in \(UFReleaseUniversities.filePlatforms) haben. Eine Bestätigung der Hochschule gibt es nicht." }
     static let visibilityGroup = "Sichtbar nur für Mitglieder der gewählten Lerngruppe (wer den Beitrittscode kennt)."
     static let visibilityAnonymous = "Sichtbar für alle an deiner Hochschule, die dieselbe PDF haben – ohne Pseudonym."
     static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Community und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Lesen können die Lösung die Mitglieder der Community."

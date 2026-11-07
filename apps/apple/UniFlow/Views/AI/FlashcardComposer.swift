@@ -287,8 +287,8 @@ struct FlashcardComposer: View {
                 HStack(alignment: .top, spacing: 8) {
                     Text("\(index + 1)").ufFont(12.8, 650).foregroundStyle(UF.accentText).monospacedDigit().frame(minWidth: 18, alignment: .trailing)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(c.question).ufFont(13.76, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
-                        Text(c.answer).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                        Text(FormulaText.attributed(c.question, size: 13.76, weight: 650)).ufFont(13.76, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                        Text(FormulaText.attributed(c.answer, size: 13.12)).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                     HStack(spacing: 2) {

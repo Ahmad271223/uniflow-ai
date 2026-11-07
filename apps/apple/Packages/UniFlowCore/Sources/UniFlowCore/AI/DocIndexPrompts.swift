@@ -4,7 +4,8 @@ import Foundation
 /// (packages/shared-contracts/fixtures/doc-index/cases.json, DocIndexTests). Fremde Texte sind Material (`untrusted`).
 public enum DocIndexPrompts {
     public static let system = "Du bist ein genauer Bibliothekar fuer Lernunterlagen eines Informatik-/Elektrotechnik-Studiums. "
-        + "Du beschreibst, was auf einer Seite steht, erfindest nichts und antwortest ausschliesslich mit JSON nach dem Schema."
+        + "Du beschreibst, was auf einer Seite steht, erfindest nichts und antwortest ausschliesslich mit JSON nach dem Schema. "
+        + AIPromptTexts.mathStyleJSON
 
     /// so viel Seitentext geht in den Prompt (Codepunkte, wie `text.strip()[:9000]`)
     public static let textChars = 9000
@@ -14,7 +15,7 @@ public enum DocIndexPrompts {
         var parts = ["Kurs: \(course)", "Datei: \(fileName), Seite \(page) von \(pageCount)", "",
                      "AUFGABE: Erstelle den Index dieser Seite. Liste JEDES Element in Lesereihenfolge (order 1..n) mit Art "
                      + "(skizze, diagramm, tabelle, formel, definition, satz, beispiel, aufgabe, text), kurzem Titel, einer kurzen "
-                     + "Erklaerung (1-2 Saetze, Formeln als Text), Lage auf der Seite (oben, mitte, unten, links, rechts, ganz) und "
+                     + "Erklaerung (1-2 Saetze, Formeln mit Unicode-Zeichen), Lage auf der Seite (oben, mitte, unten, links, rechts, ganz) und "
                      + "uncertain=true, wenn du dir nicht sicher bist. Gehoert ein Element zu einer Aufgabe, nenne sie in task (z. B. \"Aufgabe 3b\"). "
                      + "Fuer jede Aufgabe auf der Seite: unter tasks, was genau verlangt ist (asks), knapp."]
         parts.append(withSolutions ? "Loesungen: solution ausfuellen (nachvollziehbar, kurz)." : "KEINE Loesungen: solution bleibt null.")

@@ -265,7 +265,7 @@ public enum AIPrompts {
           "title": "Wochentest \(subject) – Thema(n)",
           "questions": [
             {"nr": 1, "type": \(typeList), "difficulty": "leicht" | "mittel" | "schwer",
-              "question": "Aufgabentext (LaTeX-frei, Formeln als Text)",
+              "question": "Aufgabentext (Formeln mit Unicode-Zeichen, ohne LaTeX)",
               "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc und tf
               "blank": "fehlendes Wort",                         // nur bei cloze
               "answer": "Musterloesung / richtige Option",
@@ -309,7 +309,7 @@ public enum AIPrompts {
         }
         var parts = ["Kurs: \(course)", "Datei: \(fileName)\(whereText)", "",
                      "AUFGABE: Erstelle genau \(count) Karteikarten aus dem Inhalt. Vorn eine klare Frage, hinten eine kurze, "
-                     + "vollstaendige Antwort (1-3 Saetze, Formeln als Text). Decke die wichtigsten Begriffe, Zusammenhaenge und "
+                     + "vollstaendige Antwort (1-3 Saetze, Formeln mit Unicode-Zeichen). Decke die wichtigsten Begriffe, Zusammenhaenge und "
                      + "Rechenwege ab; keine Karte doppelt, nichts erfinden, was nicht im Inhalt steht."]
         if !PyText.strip(topic).isEmpty {
             parts += ["", "SCHWERPUNKT: \(head(PyText.strip(topic), 300))"]

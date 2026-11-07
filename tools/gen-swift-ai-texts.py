@@ -51,6 +51,12 @@ enum AIPromptTexts {{
     /// `ai.TUTOR_SYSTEM`
     static let tutorSystem = {raw(ai.TUTOR_SYSTEM)}
 
+    /// `math_style.MATH_STYLE`: Formeln in Markdown-Antworten (LaTeX zwischen $...$; Anzeige: MathText)
+    static let mathStyle = {raw(ai.MATH_STYLE)}
+
+    /// `math_style.MATH_STYLE_JSON`: Formeln in JSON-Antworten (Unicode-Zeichen, ohne Backslash)
+    static let mathStyleJSON = {raw(ai.MATH_STYLE_JSON)}
+
     /// `ai.TUTOR_MODES` in der Reihenfolge von Python
     static let tutorModes: [(key: String, text: String)] = [
 {modes}

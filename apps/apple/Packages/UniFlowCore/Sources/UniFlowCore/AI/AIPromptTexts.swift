@@ -4,10 +4,16 @@
 /// Feste Texte der KI wie in app/ai.py (byte-gleich; Vertrag packages/shared-contracts/ai/contract.json).
 enum AIPromptTexts {
     /// `ai.SYSTEM`
-    static let system = #"Du bist ein Lerncoach fuer ein Informatik-/Elektrotechnik-Studium (Leibniz Universitaet Hannover, 1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune."#
+    static let system = #"Du bist ein Lerncoach fuer ein Informatik-/Elektrotechnik-Studium (Leibniz Universitaet Hannover, 1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune. Mathematik: Formeln direkt mit Unicode-Zeichen statt LaTeX, ohne Backslash (x², e⁻²ᵗ, 10⁻³, aₙ, √x, ∫, ∑, ∞, ≤, ≥, ≠, →, ·, Brueche als (a+b)/(c+d)). Griechische Buchstaben immer als Symbol (ε, α, δ, λ, σ, ω, π), nie ausgeschrieben; keine Umschreibungen wie "integral von ... bis ..." oder "x hoch 2"; kein ^ oder _ im Fliesstext."#
 
     /// `ai.TUTOR_SYSTEM`
-    static let tutorSystem = #"Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester (Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt."#
+    static let tutorSystem = #"Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester (Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen Absaetzen. Beziehe dich konkret auf den gegebenen Seiteninhalt. Mathematik: Formeln in LaTeX zwischen $...$, auch mitten im Satz (z. B. $x^2$, $e^{-2t}$, $\int_{-\infty}^{\infty} |x(t)|^2 \, dt$, $\frac{a}{b}$, $\varepsilon$). Griechische Buchstaben immer als Symbol (ε, α, δ, λ, σ, ω, π), nie ausgeschrieben; keine Umschreibungen wie "integral von ... bis ..." oder "x hoch 2"; kein ^ oder _ im Fliesstext."#
+
+    /// `math_style.MATH_STYLE`: Formeln in Markdown-Antworten (LaTeX zwischen $...$; Anzeige: MathText)
+    static let mathStyle = #"Mathematik: Formeln in LaTeX zwischen $...$, auch mitten im Satz (z. B. $x^2$, $e^{-2t}$, $\int_{-\infty}^{\infty} |x(t)|^2 \, dt$, $\frac{a}{b}$, $\varepsilon$). Griechische Buchstaben immer als Symbol (ε, α, δ, λ, σ, ω, π), nie ausgeschrieben; keine Umschreibungen wie "integral von ... bis ..." oder "x hoch 2"; kein ^ oder _ im Fliesstext."#
+
+    /// `math_style.MATH_STYLE_JSON`: Formeln in JSON-Antworten (Unicode-Zeichen, ohne Backslash)
+    static let mathStyleJSON = #"Mathematik: Formeln direkt mit Unicode-Zeichen statt LaTeX, ohne Backslash (x², e⁻²ᵗ, 10⁻³, aₙ, √x, ∫, ∑, ∞, ≤, ≥, ≠, →, ·, Brueche als (a+b)/(c+d)). Griechische Buchstaben immer als Symbol (ε, α, δ, λ, σ, ω, π), nie ausgeschrieben; keine Umschreibungen wie "integral von ... bis ..." oder "x hoch 2"; kein ^ oder _ im Fliesstext."#
 
     /// `ai.TUTOR_MODES` in der Reihenfolge von Python
     static let tutorModes: [(key: String, text: String)] = [

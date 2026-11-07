@@ -929,7 +929,7 @@ struct StudoraCreditsRow: View {
 enum DeleteAccountText {
     static func removed(ownServer: Bool) -> String {
         "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von StudiNow (Stud.IP-Sitzung, "
-            + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel, gemerkte Hochschul-Passwörter) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung. "
+            + (ownServer ? "Server-PIN, " : "") + (UFReleaseUniversities.isShipped(.hildesheim) ? "Learnweb-Schlüssel, " : "") + "gemerkte Hochschul-Passwörter) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung. "
             + "Was iOS selbst gesichert hat, bleibt unter „Passwörter“."
     }
 
