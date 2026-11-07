@@ -14,10 +14,10 @@ Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11
 - Tarifseite neu (Free/Plus/Pro AI ohne „in Vorbereitung“, ohne ChatGPT; Pro AI mit echten KI-Funktionen), Wochentests erst ab Pro AI,
   „Lernplan automatisch erstellen“ erst ab Plus, Probe = Pro-AI-Umfang 7 Tage mit Statuszeile, Probe einmal je Apple-ID UND je iPad
   (Schlüsselbund-Marke, DeviceCheck später). Prüf-Foto der Tarifseite: `~/Studora-Builds/appstore-pruefung/tarif-portrait.png`.
-- Ein Komplettest (pytest, node, swift test, alle UniFlowTests) lief beim Übergeben noch – **neu laufen lassen**.
+- Komplettest auf diesem Stand (53d4312) ist **grün**: pytest 1742, node 436, swift test 1249, UniFlowTests iPad 1201 (1184 ok, 17 übersprungen, 0 Fehler).
 
 **Nächste Schritte für das neue Konto:**
-1. Komplettest: `pytest -q`, `node --test tests/js/`, `swift test` (UniFlowCore), volle UniFlowTests auf iPad-Simulator (Klon von
+1. (Erledigt, grün – nur nach neuen Änderungen wiederholen) Komplettest: `pytest -q`, `node --test tests/js/`, `swift test` (UniFlowCore), volle UniFlowTests auf iPad-Simulator (Klon von
    4495AA80-7860-4F6F-9FCD-C83CCED19021). Fehler beheben.
 2. `CURRENT_PROJECT_VERSION` auf **15**, Build-Nummern in diesem Dokument und `docs/release/APP-STORE.md` (Test `test_release_texts.py`
    prüft die Nummer) anpassen, committen, pushen.
