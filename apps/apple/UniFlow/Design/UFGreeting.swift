@@ -24,8 +24,17 @@ enum UFGreeting {
     }
 
     static func text(name: String?, date: Date = Date(), calendar: Calendar = .current) -> String {
-        text(name: name, hour: calendar.component(.hour, from: date))
+        #if DEBUG
+        if let hour = hourOverride { return text(name: name, hour: hour) }
+        #endif
+        return text(name: name, hour: calendar.component(.hour, from: date))
     }
+
+    #if DEBUG
+    /// Nur Debug-Builds (Store-Bildschirmfotos, `StoreScreenshotFinalTests`: "Hallo Tobi" unabhaengig von der Uhrzeit
+    /// der Aufnahme): feste Stunde fuer die Anrede; nil = jetzt. Im Release gibt es den Schalter nicht.
+    static var hourOverride: Int?
+    #endif
 
     /// Name fuer die Anzeige: ohne Rand-Leerzeichen, leer = nil, laenger als `maxNameLength` mit "…" gekuerzt
     static func displayName(_ raw: String?) -> String? {

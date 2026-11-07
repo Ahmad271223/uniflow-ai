@@ -59,7 +59,7 @@ final class StoreScreenshotV11Tests: XCTestCase {
         _ = try await manager.setDemo(true)
         XCTAssertTrue(manager.demoActive)
         try await StoreScreenshotTests.installStoreExtras(container.host)
-        try await installV11Extras()
+        lectureID = try await Self.installV11Extras(container, now: bed.clock.nowISO)
         Rufname.write(Self.demoName, container.defaults)
         MessagesInbox.shared.defaultsOverride = container.defaults
         await MessagesInbox.shared.refresh(api: container.api)
@@ -103,10 +103,10 @@ final class StoreScreenshotV11Tests: XCTestCase {
     // MARK: - Erfundene Zusaetze (nur diese Bilder)
 
     /// Lehrende des Demo-Kurses (wie nach dem Stud.IP-Abgleich gespeichert) und die Liste der Bescheinigungen mit einer
-    /// gespeicherten Kopie; alles erfunden, Adressen unter example.org
-    private func installV11Extras() async throws {
+    /// gespeicherten Kopie; alles erfunden, Adressen unter example.org. Rueckgabe: Kennung der Demo-Vorlesung am
+    /// Donnerstag (Termin-Detail); auch fuer `StoreScreenshotFinalTests`
+    static func installV11Extras(_ container: ActiveContainer, now: String) async throws -> Int {
         let backend = try await container.host.backend()
-        let now = bed.clock.nowISO
         let today = String(now.prefix(10))
         try await backend.context.database.transaction { c in
             try c.execute("""
@@ -151,10 +151,11 @@ final class StoreScreenshotV11Tests: XCTestCase {
             try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES (?, ?)",
                           [.text(CertificatesSync.settingsKey), .text(state.jsonString())])
         }
-        lectureID = try await backend.context.database.withConnection { c in
+        let lectureID = try await backend.context.database.withConnection { c in
             try c.rows("SELECT id FROM course_events WHERE course_id='demo-vorlesung' AND weekday=3").first?["id"]?.int ?? 0
         }
         XCTAssertGreaterThan(lectureID, 0, "Demo-Vorlesung am Donnerstag")
+        return lectureID
     }
 
     // MARK: - Uni-Mail (SOGo nachgebaut, erfunden)

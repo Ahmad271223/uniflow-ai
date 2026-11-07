@@ -329,9 +329,12 @@ final class StoreScreenshotTests: XCTestCase {
     /// Seite nur noch schwarz), zusammengesetzt mit der Abdunklung wie in der App. `cornerRadius`: Ecken des Blatts.
     static func shoot(_ env: HostedEnvironment, _ name: String, folder: URL, sizes: [(CGSize, String)], scale: CGFloat, ink: Bool,
                       settle: Double, present: (() -> Void)? = nil, sheetReady: @escaping () -> Bool = { true },
-                      cornerRadius: CGFloat = 26, statusBar: Bool = false) {
-        let variants: [(size: CGSize, orientation: String, style: UIUserInterfaceStyle, tone: String)] = sizes.flatMap { size, o in
-            [(size, o, UIUserInterfaceStyle.light, "light"), (size, o, .dark, "dark")]
+                      cornerRadius: CGFloat = 26, statusBar: Bool = false, tones: [String] = ["light", "dark"],
+                      fileName: ((_ tone: String, _ orientation: String) -> String)? = nil) {
+        typealias Variant = (size: CGSize, orientation: String, style: UIUserInterfaceStyle, tone: String)
+        let variants: [Variant] = sizes.flatMap { size, o -> [Variant] in
+            let both: [Variant] = [(size, o, .light, "light"), (size, o, .dark, "dark")]
+            return both.filter { tones.contains($0.tone) }
         }
         func apply(_ v: (size: CGSize, orientation: String, style: UIUserInterfaceStyle, tone: String)) {
             env.window.overrideUserInterfaceStyle = v.style
@@ -359,7 +362,7 @@ final class StoreScreenshotTests: XCTestCase {
             if statusBar, let image = UIImage(data: data) {
                 data = withStatusBar(image, bounds: env.window.bounds, scale: scale, dark: v.style == .dark)
             }
-            let file = folder.appendingPathComponent("\(name)-\(v.tone)-\(v.orientation).png")
+            let file = folder.appendingPathComponent(fileName?(v.tone, v.orientation) ?? "\(name)-\(v.tone)-\(v.orientation).png")
             do { try data.write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
             if let cg = UIImage(data: data)?.cgImage {
                 XCTAssertEqual(CGSize(width: cg.width, height: cg.height), CGSize(width: v.size.width * scale, height: v.size.height * scale),

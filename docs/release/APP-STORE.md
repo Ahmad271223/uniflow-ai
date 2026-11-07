@@ -13,7 +13,7 @@ Sandbox-Kauf und eine KI-Frage über TestFlight geklappt haben, `docs/UEBERGABE-
 | Name, Untertitel, Werbetext, Schlüsselwörter, Neue Funktionen | gleich | gleich |
 | Beschreibung | `description` | `description-proai` |
 | Hinweise für die App-Prüfung | `review-notes` | `review-notes-proai` |
-| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, Abschnitt Bildschirmfotos) | bisheriger Satz mit KI-Motiven (`~/Studora-Builds/appstore-screenshots/`, `docs/release/SCREENSHOTS.md`) |
+| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, `docs/release/SCREENSHOTS.md`) | **endgültiger Satz mit Pro AI** (`~/Studora-Builds/appstore-screenshots-final/`, Abschnitt Bildschirmfotos) |
 
 Wird Pro AI später nachgereicht, Beschreibung und Prüfhinweise auf die Pro-AI-Fassung umstellen (die Beschreibung lässt
 sich nur mit einer neuen App-Version ändern).
@@ -355,27 +355,28 @@ No tracking, no ads, no third-party analytics. Not endorsed by universities; it 
 
 ## Bildschirmfotos (iPad Pro 13", 2064 × 2752)
 
-Fassung **nur mit Plus** (Version 1.0, Build 11): Satz ohne KI unter `~/Studora-Builds/appstore-screenshots-v11/`
-(Demo-Name „Tobi“, Stand 07.11.2026), Bildunterschriften, Erzeugen und Prüfung auf verbotene Inhalte:
-`docs/release/SCREENSHOTS.md`, Abschnitt „Satz Build 11“. Hochladen: der Satz hell und Hochformat, 10 Bilder in dieser
+**Endgültiger Satz mit Pro AI** (Version 1.0, Build 11; Entscheidung des Inhabers 07.11.2026: Pro AI wird mit
+eingereicht) unter `~/Studora-Builds/appstore-screenshots-final/`: genau zehn Bilder im Hochformat, je Motiv eine
+Fassung hell oder dunkel, ohne eingebrannte Beschriftung. Tobi hat den Tarif Pro AI (Seitenleiste „Pro AI“, kein
+„Pro AI holen“), die KI antwortet als StudiNow-KI mit Credits, nirgends ChatGPT. Erzeugen und Prüfung:
+`docs/release/SCREENSHOTS.md`, Abschnitt „Endgültiger Satz“. Hochladen (iPad 13"-Display, Deutsch) in dieser
 Reihenfolge:
 
 | Nr. | Datei | Motiv |
 |---|---|---|
-| 1 | `01-uebersicht-light-portrait.png` | Übersicht mit Prüfungsanmeldung |
-| 2 | `02-uni-mail-light-portrait.png` | Uni-Mail: Posteingang und geöffnete Mail |
-| 3 | `03-stundenplan-termin-light-portrait.png` | Stundenplan mit Termin-Detail (Raum mit Route, Lehrende mit E-Mail) |
-| 4 | `04-raumfinder-light-portrait.png` | Raumfinder mit Google Maps und Route |
-| 5 | `05-geteilt-light-portrait.png` | Skript und Übungsblatt nebeneinander mit Apple-Pencil-Notizen (Plus) |
-| 6 | `06-karteikarten-light-portrait.png` | Karteikarten |
-| 7 | `07-studienverlauf-light-portrait.png` | Studienverlauf mit Prüfungsanmeldung |
-| 8 | `08-bescheinigungen-light-portrait.png` | Bescheinigungen (Immatrikulationsbescheinigung) |
-| 9 | `09-mensa-light-portrait.png` | Mensa |
-| 10 | `10-community-light-portrait.png` | Community |
+| 1 | `01-uebersicht-light.png` | Übersicht „Hallo Tobi“ mit Prüfungsanmeldung |
+| 2 | `02-ki-frage-dark.png` | Skript mit KI-Hilfe: Frage zur Seite und Antwort der StudiNow-KI (Credits) |
+| 3 | `03-ki-karteikarten-light.png` | Karteikarten, von der KI aus dem Skript erstellt, eine Karte aufgedeckt |
+| 4 | `04-community-diskussion-dark.png` | Community des Moduls, Diskussion: Frage mit drei Antworten unter Pseudonym |
+| 5 | `05-uni-mail-light.png` | Uni-Mail: Posteingang und geöffnete Mail |
+| 6 | `06-stundenplan-termin-light.png` | Stundenplan mit Termin-Detail (Raum mit Route, Lehrende mit E-Mail) |
+| 7 | `07-skript-uebung-stift-dark.png` | Skript und Übungsblatt nebeneinander mit Apple-Pencil-Notizen |
+| 8 | `08-wochentest-ki-dark.png` | Wochentest mit Auswertung der KI |
+| 9 | `09-raumfinder-light.png` | Raumfinder mit Google Maps und Route |
+| 10 | `10-mensa-light.png` | Mensa |
 
-Im Ordner liegen je Motiv vier Dateien (`-light-`/`-dark-`, `-portrait`/`-landscape`). Kein Bild zeigt KI (keine
-KI-Hilfe, kein Wochentest, kein „Pro AI holen“). Der bisherige Satz mit den KI-Motiven (KI-Dokument, Wochentest) liegt
-unter `~/Studora-Builds/appstore-screenshots/` und gilt erst, wenn Pro AI mit eingereicht wird; dessen
-`reserve/13-tarife-light-portrait.png` bleibt der Prüf-Screenshot für Plus. Nur echte App-Inhalte mit erfundenen Daten,
-keine Uni-Logos, keine echten Namen oder Noten.
+Die Fassung nur mit Plus (ohne KI) liegt als Satz Build 11 unter `~/Studora-Builds/appstore-screenshots-v11/`; der
+frühere Satz mit KI-Motiven unter `~/Studora-Builds/appstore-screenshots/` ist überholt (er nennt „über dein
+ChatGPT“), nur dessen `reserve/13-tarife-light-portrait.png` bleibt der Prüf-Screenshot für Plus. Nur echte
+App-Inhalte mit erfundenen Daten, keine Uni-Logos, keine echten Namen oder Noten.
 

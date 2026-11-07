@@ -1,6 +1,72 @@
 # Bildschirmfotos für den App Store (iPad)
 
-## Satz Build 11 – Fassung nur mit Plus (Stand 07.11.2026, zum Hochladen)
+## Endgültiger Satz mit Pro AI (Stand 07.11.2026, zum Hochladen)
+
+Entscheidung des Inhabers 07.11.2026: **Pro AI wird mit Version 1.0 eingereicht**, die KI darf und soll gezeigt
+werden. Die früheren KI-Bilder (`~/Studora-Builds/appstore-screenshots/`, 05.11.2026) sind unbrauchbar: dort steht
+„über dein ChatGPT“ (das eigene ChatGPT ist abgeschaltet). Neu: zehn Bilder unter
+`~/Studora-Builds/appstore-screenshots-final/` (nicht im Repository), Hochformat 2064 × 2752, PNG ohne Transparenz,
+je Motiv **genau eine** Fassung hell oder dunkel (keine weiteren Varianten), ohne eingebrannte Beschriftung wie
+bisher. Hochladen (iPad 13"-Display, Deutsch) in dieser Reihenfolge:
+
+| Nr. | Datei | Ansicht | Bildunterschrift (Vorschlag) |
+| --- | --- | --- | --- |
+| 1 | `01-uebersicht-light.png` | Übersicht: „Hallo Tobi – lass uns gemeinsam lernen.“, Karte „Prüfungsanmeldung“ (3 offen, 1 angemeldet), Kennzahlen, Lernpaket heute, Abgaben; Seitenleiste mit Uni-Mail (2), Raumfinder, Profil „Tobi · Pro AI“ | Dein Tag auf einen Blick – und welche Prüfungen du jetzt anmelden solltest. |
+| 2 | `02-ki-frage-dark.png` | Skript „Kapitel 1: Zahlensysteme“ mit Handschrift, daneben KI-Hilfe: Frage „Warum ist 13 im Dualsystem 1101?“, Antwort der KI (Stellenwerte 8 · 4 · 2 · 1, Probe, hexadezimal D), Anschlussfragen; Fußzeile „Seite 1 · StudiNow-KI · – 2 Credits (86 übrig)“ | Frag die KI zu deiner Seite – Antworten direkt neben dem Skript. |
+| 3 | `03-ki-karteikarten-light.png` | Karteikarten: Stapel „KI-Karten aus Skript Kapitel 1“ (6 Karten, von der KI aus dem Skript), Wiederholung „Karte 1 von 6“, aufgedeckt: Zweierkomplement von −37 mit 8 Bit → 1101 1011, „Falsch“/„Richtig“ | Die KI macht Karteikarten aus deinem Skript – du lernst sie im Leitner-System. |
+| 4 | `04-community-diskussion-dark.png` | Community „Demo: Grundlagen der Informatik“, Reiter „Diskussion“; darüber das Blatt „Frage“: Frage von „Zahlenfuchs“ (7 Likes, „Beantwortet“) mit drei Antworten von „Bitwise_Bea“, „Lerneule“ und „Zahlenfuchs“ | Fragen stellen, Antworten bekommen – in der Community deines Moduls, unter Pseudonym. |
+| 5 | `05-uni-mail-light.png` | Uni-Mail (LUH): Posteingang mit acht erfundenen Mails, geöffnet die Mail von „Prof. Dr. Anna Beispiel“ mit Anhang „Probeklausur_GdI.pdf“ | Deine Uni-Mails in StudiNow: lesen, beantworten, Anhänge öffnen. |
+| 6 | `06-stundenplan-termin-light.png` | Stundenplan, Termin-Detail der Vorlesung: Raum „Hörsaal A“ mit „Route zu Fuß in Google Maps“, Lehrende mit E-Mail (example.org) und Sprechstunde, „Allen Lehrenden schreiben“ | Termin antippen: Raum mit Route zu Fuß und alle Lehrenden mit E-Mail. |
+| 7 | `07-skript-uebung-stift-dark.png` | Geteilte Ansicht: links das Skript, rechts das Übungsblatt, beide mit Apple-Pencil-Notizen (Marker, Unterstreichung, Kreis, Pfeil, Haken) | Skript und Übungsblatt nebeneinander – mit dem Apple Pencil direkt hineinschreiben. |
+| 8 | `08-wochentest-ki-dark.png` | Wochentest-Ergebnis „Zahlensysteme“ (KI-generiert): 75 %, 60/80 Punkte, „Bestanden“, Zusammenfassung, „Nochmal anschauen: Hexadezimalsystem“, je Aufgabe Erklärung und „Rückmeldung zur Antwort“, „Frag die KI zu Aufgabe 2“ | Wochentest aus deinen Unterlagen – die KI wertet aus und sagt, was du wiederholen solltest. |
+| 9 | `09-raumfinder-light.png` | Raumfinder: Suche „F102“, Detail mit „In Google Maps öffnen“, „Route“, „In Apple Karten“, Gebäude, Etage, Adresse | Räume finden und mit Google Maps hinlaufen – Gebäude, Etage und Adresse. |
+| 10 | `10-mensa-light.png` | Mensa: Speiseplan (Hauptmensa), Preise für Studierende, vegan/vegetarisch, Nährwerte, Filter, Öffnungszeiten | Was gibt’s heute in der Mensa? Preise, Nährwerte und Filter für vegan und vegetarisch. |
+
+**Tarif und KI in den Bildern:** Tobi hat **Pro AI** (Seitenleiste „Pro AI“, kein „Pro AI holen“). Die KI antwortet
+als **StudiNow-KI** mit Credits: Stand wie vom Dienst für Pro AI (100 im Monat, vor der Frage 88 übrig, die Antwort
+kostet 2, Fußzeile „– 2 Credits (86 übrig)“). Die Einwilligung gilt als gegeben, kein Einwilligungs-Blatt ist zu sehen.
+Nirgends steht ChatGPT.
+
+**Erzeugen** (Test `apps/apple/UniFlowTests/StoreScreenshotFinalTests.swift`, Technik wie Satz Build 11):
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate
+UDID=$(xcrun simctl clone 5483AC27-A4C2-4704-91A5-46D1A9E1DF47 SN-shots2)   # iPad Pro 13-inch (M5)
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-final \
+  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-shots2 -only-testing:UniFlowTests/StoreScreenshotFinalTests
+xcrun simctl delete "$UDID"
+```
+
+Ohne `UF_SCREENSHOT_DIR` prüft der Test nur die Ansichten und dass in keinem Bild „ChatGPT“, „Pro AI holen“, das
+Einwilligungs-Blatt („KI-Hilfe: Was wird gesendet?“) oder „wird geladen“ steht und die Seitenleiste „Pro AI“ nennt.
+Erfundene Inhalte nur im Test bzw. nur im Debug-Build (Release unverändert):
+
+- Alles aus Satz Build 11 (Demo-Inhalte, Store-Zusätze, `DemoSOGo`, Lehrende, Raumfinder, Mensa,
+  `installV11Extras`); Tarif über `setPlanForTesting(.proAI)`.
+- KI: Schein-Transport `StoreScreenshotTests.Intercept` vor dem lokalen Backend (`/api/ai/tutor`: erfundene Antwort mit
+  `credits`/`charged`, `/api/tests/18`: erfundener Wochentest); Umgebung wie die App mit StudiNow-KI (`ufAIEnabled`,
+  `ufStudiNowAI`, `ufAIAccess = .ready`) und ein `StudoraAccountLink` mit Credits aus einem Schein-Dienst
+  (`InviteAppTests.StubTransport`). Die Frage wird ins Eingabefeld getippt und gesendet wie in der App.
+- KI-Karteikarten: sechs erfundene Karten über `POST /api/flashcards` mit `stack_name` „KI-Karten aus Skript
+  Kapitel 1“ (Art Vorlesung), danach „Üben“ und „Antwort zeigen“.
+- Community-Diskussion: `DemoCommunity` im Test (Kurse wie CloudKit mit leerer Wolke, Demo-Kurs beigetreten, drei
+  erfundene Fragen mit Antworten unter Pseudonym, schreibt nichts); das Blatt „Frage“ wird über der Seite aufgenommen.
+- „Hallo Tobi“ unabhängig von der Uhrzeit: `UFGreeting.hourOverride` (nur `#if DEBUG`, die App setzt ihn nie);
+  Mensa am Wochenende über `UFFmt.todayOverride` wie bisher.
+
+Stand der Bilder: Samstag, 07.11.2026, gegen 9:30 Uhr (Anrede fest auf „Hallo“; „Samstag, 7. November“; Karte
+„Prüfungsanmeldung“, weil 7 Tage vor dem Meldezeitraum 09.–22.11.2026; Termin-Detail zeigt Do. 05.11.).
+
+**Geprüft (07.11.2026):** alle zehn Bilder einzeln angesehen, Größe mit `sips` (2064 × 2752): kein „ChatGPT“, kein
+„Pro AI holen“, kein Einwilligungs-Blatt, kein Ladekreis, kein Platzhalter, kein Fehler, keine Demo-Leiste, Text lesbar.
+Namen nur erfunden („Tobi Muster“, „Prof. Dr. Anna Beispiel“, „Dr. Jonas Muster“, „Lena Probe“, „Prof. Demo“, Pseudonyme
+„Zahlenfuchs“, „Bitwise_Bea“, „Lerneule“, „Mo_Info“, „Kaffeebit“), Adressen nur unter example.org. Echte, öffentliche
+Angaben wie bisher: Name der LUH, Raum F102 im Hauptgebäude (Welfengarten 1), Name, Adresse und Öffnungszeiten der
+Hauptmensa. Fachlich nachgerechnet: 13 = 8 + 4 + 1 = 1101 = D; −37 mit 8 Bit = 1101 1011 (−128 + 64 + 16 + 8 + 2 + 1).
+
+## Satz Build 11 – Fassung nur mit Plus (Stand 07.11.2026, überholt: Pro AI wird eingereicht)
 
 Version 1.0 wird **nur mit Plus** eingereicht (Pro AI nicht): darum zeigt dieser Satz keine KI (keine KI-Hilfe, kein
 KI-Dokument, kein Wochentest, kein Knopf „Pro AI holen“, kein KI-Knopf im Dokument), dafür die neuen Funktionen
@@ -77,7 +143,7 @@ Adresse und Öffnungszeiten der Hauptmensa.
 Seitenleiste und den Knopf „KI-Hilfe“ im Dokument, auch wenn Pro AI nicht im Store ist. Für eine Fassung nur mit Plus
 sollte das vor dem Einreichen entschieden werden.
 
-## Bisheriger Satz (Stand 05.11.2026, mit KI-Motiven)
+## Bisheriger Satz (Stand 05.11.2026, mit KI-Motiven – unbrauchbar: „über dein ChatGPT“)
 
 Stand 05.11.2026 (Rufname „Tobi“, Mensa als Bild 10). Erzeugt vom Test `apps/apple/UniFlowTests/StoreScreenshotTests.swift` aus den echten Ansichten der
 App (ganze Hülle mit Seitenleiste und Kopfzeile) mit den Demo-Inhalten (`DemoContent`, erfundenes Modul „Demo:
