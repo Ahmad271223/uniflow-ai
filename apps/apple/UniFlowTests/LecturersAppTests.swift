@@ -232,7 +232,13 @@ final class LecturersAppTests: XCTestCase {
         XCTAssertTrue(Self.accessibilityAutomation(true))
         defer { Self.accessibilityAutomation(false) }
         let (_, api) = try device()
+        UserDefaults.standard.removeObject(forKey: "module.lecturers.open")
+        defer { UserDefaults.standard.removeObject(forKey: "module.lecturers.open") }
         let w = try show(ScrollView { ModuleLecturersCard(moduleID: 1, moduleName: "Mathematik für Ingenieure I").padding(20) }, api: api)
+        // eingeklappt (07.11.2026): erst die Kopfzeile mit Zahl, nach dem Antippen die Liste
+        XCTAssertTrue(pump { self.shows(w, "Lehrende ausklappen") }, texts(w).joined(separator: "\n"))
+        XCTAssertFalse(shows(w, "E-Mail an beispiel.dozentin@example.org"), "eingeklappt keine Liste")
+        XCTAssertTrue(tap("Lehrende ausklappen", in: w, exact: false))
         XCTAssertTrue(pump { self.shows(w, "E-Mail an beispiel.dozentin@example.org") }, texts(w).joined(separator: "\n"))
         for t in ["Lehrende", "Alle Lehrenden", "Dr. Beispiel Dozentin", "Erfundener Tutor", "Nachricht über Stud.IP",
                   "Raum 1101 - F102", "Institut für Beispielmathematik", "Die Angaben bleiben auf diesem iPad."] {

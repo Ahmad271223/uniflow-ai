@@ -4,11 +4,12 @@ import SwiftUI
 // Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): Karten fuer
 // die Tarife aus `UFPlanCatalog` – StudiNow Free, Plus und Pro AI (Entscheidung des Inhabers vom 04.11.2026); die
 // Pro-AI-Karte nur, wenn StoreKit das Produkt liefert, sonst ein nicht anklickbarer Hinweis ohne Preis. Inhalt der
-// Karten aus `UFPlanCard`: enthalten ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht
-// unter "in Vorbereitung", die Pro-AI-Karte sagt, dass sie den Dienst braucht. Preise nur aus Product.displayPrice.
-// Kein Einfuehrungsangebot: die 7 Tage Probe laufen ohne Kauf auf dem iPad (LocalTrial.swift), der Kopf nennt sie.
-// Welche Karte "Aktueller Tarif" traegt, richtet sich nach dem Kauf (`purchasedPlan`), nicht nach der Probe. Wechsel
-// zwischen Abo-Tarifen regelt Apple in der Gruppe.
+// Karten aus `UFPlanCard`: nur, was auf dem iPad wirklich geht (auf dem Geraet oder mit StudiNow-Konto), nichts
+// "in Vorbereitung"; die Pro-AI-Karte nennt das StudiNow-Konto und die Credits. Preise nur aus Product.displayPrice.
+// Kein Einfuehrungsangebot: die 7 Tage Probe laufen ohne Kauf auf dem iPad (LocalTrial.swift, alles wie Pro AI). Waehrend
+// sie laeuft, steht oben "Probe aktiv: alle Funktionen von StudiNow Pro AI bis … (noch n Tage)", keine Karte traegt
+// "Aktueller Tarif" (auch Free nicht, 07.11.2026), die Pro-AI-Karte traegt "Probe". Sonst richtet sich "Aktueller Tarif"
+// nach dem Kauf (`purchasedPlan`). Wechsel zwischen Abo-Tarifen regelt Apple in der Gruppe.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
 
@@ -52,6 +53,10 @@ struct PlanPickerView: View {
     var body: some View {
         UFContent(maxWidth: 860) {
             UFPageHead(Self.title(context), sub: subtitle)
+            if let t = ent.runningLocalTrial { trialCard(t).padding(.bottom, 16) }
+            if !ent.loading, ent.purchasedPlan == .free, ent.localTrial?.deviceUsed == true {
+                infoCard(UFTrialTexts.usedOnDeviceTitle + ".").padding(.bottom, 16)
+            }
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
@@ -92,39 +97,70 @@ struct PlanPickerView: View {
         }
     }
 
-    private var subtitle: String {
-        Self.subtitle(proAI: store.loadedProductIDs.contains(UFPlan.proAI.productID ?? ""),
-                      trial: ent.purchasedPlan == .free ? ent.localTrial : nil)
-    }
+    private var proAIOffered: Bool { store.loadedProductIDs.contains(UFPlan.proAI.productID ?? "") }
 
-    /// Untertitel: die angebotenen Tarife (Pro AI nur mit Produkt aus dem Store) und die Probe auf dem iPad
-    /// (`UFTrialTexts.offer`, mit Pro-AI-Produkt `offerProAI`: alles wie Pro AI, 25 Credits), solange sie laeuft und
-    /// kein Tarif gekauft ist
-    static func subtitle(proAI: Bool, trial: UFLocalTrial.State?) -> String {
+    private var subtitle: String { Self.subtitle(proAI: proAIOffered) }
+
+    /// Untertitel: die angebotenen Tarife (Pro AI nur mit Produkt aus dem Store); die laufende Probe steht in eigener
+    /// Zeile darunter (`trialStatus`)
+    static func subtitle(proAI: Bool) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
         s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
         s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
-        if let trial, trial.isActive {
-            s += "\(proAI ? UFTrialTexts.offerProAI : UFTrialTexts.offer). \(UFTrialTexts.running(trial.daysLeft)). "
-        }
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
+    }
+
+    /// Stand der Probe auf dem iPad oben auf der Seite: bis wann alles frei ist und was danach gilt. Die StudiNow-KI
+    /// laeuft auch in der Probe nur mit StudiNow-Konto; dessen Probe gibt dem neuen Konto 25 Credits (plans.TRIAL).
+    /// Ohne Pro-AI-Produkt im Store (Build ohne Dienst) ohne Pro AI und ohne KI.
+    static func trialStatus(_ t: UFLocalTrial.State, proAI: Bool) -> (title: String, note: String) {
+        let date = t.endsAt.formatted(Date.FormatStyle(date: .numeric, time: .omitted).locale(Locale(identifier: "de_DE")))
+        let left = "noch \(t.daysLeft) \(t.daysLeft == 1 ? "Tag" : "Tage")"
+        let title = proAI ? "Probe aktiv: alle Funktionen von \(UFPlan.proAI.name) bis \(date) (\(left))"
+            : "Probe aktiv: alle Funktionen bis \(date) (\(left))"
+        var note = ""
+        if proAI {
+            note += "Für die StudiNow-KI brauchst du ein StudiNow-Konto (Anmelden mit Apple); neue Konten bekommen dort "
+            note += "\(UFTrialTexts.credits) Credits zum Ausprobieren. "
+        }
+        note += "Danach gilt \(UFPlan.free.name), wenn du keinen Tarif wählst – ohne Zahlungsdaten, deine Notizen bleiben erhalten."
+        return (title, note)
+    }
+
+    private func trialCard(_ t: UFLocalTrial.State) -> some View {
+        let s = Self.trialStatus(t, proAI: proAIOffered)
+        return UFCard(flat: true) {
+            HStack(alignment: .top, spacing: 12) {
+                UFIcon("sparkles", size: 18).foregroundStyle(UF.info).padding(.top, 1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(s.title).ufFont(14.5, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                    Text(s.note).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("plans.trial")
     }
 
     // MARK: Karten
 
     private func planCard(_ plan: UFPlan) -> some View {
-        // "Aktueller Tarif" ist der gekaufte (bzw. Free ohne Kauf), nie die laufende Probe
-        let current = !ent.loading && ent.purchasedPlan == plan
+        // "Aktueller Tarif" ist der gekaufte (bzw. Free ohne Kauf); waehrend der Probe ohne Kauf keiner, die Karte des
+        // Probe-Tarifs (Pro AI) traegt "Probe"
+        let trial = ent.runningLocalTrial != nil
+        let current = Self.isCurrent(plan, purchased: ent.purchasedPlan, loading: ent.loading, trial: trial)
         let showCurrent = current && context != .onboarding
         let included = UFPlanCard.included(plan)
-        let preparing = UFPlanCard.preparing(plan)
         return PlanCardFrame(highlight: showCurrent) {
             HStack(spacing: 8) {
                 Text(plan.name).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
                 Spacer(minLength: 0)
                 if showCurrent {
                     UFBadge("Aktueller Tarif", tone: .ok, icon: "check")
+                } else if trial && plan == UFLocalTrial.plan {
+                    UFBadge("Probe", tone: .info, icon: "clock")
                 } else if !ent.loading && ent.pendingPlan == plan {
                     UFBadge("Vorgemerkt", tone: .info, icon: "clock")
                 }
@@ -133,7 +169,7 @@ struct PlanPickerView: View {
                 Text(t).ufFont(13.12).foregroundStyle(UF.text2).padding(.top, 3.2)
             }
             if let s = UFPlanCatalog.serviceNote(plan) {
-                // ehrlich: Pro AI braucht den StudiNow-Dienst
+                // Pro AI: StudiNow-Konto und Credits
                 Text(s).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.top, 3.2)
             }
             priceBlock(plan).padding(.top, 6.4)
@@ -144,18 +180,8 @@ struct PlanPickerView: View {
                     ForEach(included, id: \.title) { featureRow($0) }
                 }
             }
-            if !preparing.isEmpty {
-                UFBadge("in Vorbereitung", tone: .neutral, icon: "clock")
-                    .padding(.top, included.isEmpty ? 2 : 14.4).padding(.bottom, 8)
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(preparing, id: \.title) { featureRow($0) }
-                }
-            }
-            if let note = UFPlanCard.note(plan) {
-                Text(note).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 9.6)
-            }
             Spacer(minLength: 16)
-            actionButton(plan, current: current)
+            actionButton(plan, current: current, trial: trial)
             if let n = buttonNote(plan, current: current) {
                 Text(n).ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
             }
@@ -164,22 +190,27 @@ struct PlanPickerView: View {
 
     private func featureRow(_ r: UFPlanCardRow) -> some View {
         HStack(alignment: .top, spacing: 8.8) {
-            UFIcon(r.preparing ? "clock" : "check", size: 16).foregroundStyle(r.preparing ? UF.muted : UF.ok).padding(.top, 2)
+            UFIcon("check", size: 16).foregroundStyle(UF.ok).padding(.top, 2)
             VStack(alignment: .leading, spacing: 1.6) {
-                Text(r.title).ufFont(14.5, r.preparing ? 400 : 500).foregroundStyle(r.preparing ? UF.text2 : UF.text)
+                Text(r.title).ufFont(14.5, 500).foregroundStyle(UF.text)
                 if let d = r.detail { Text(d).ufFont(12.8).foregroundStyle(UF.muted) }
             }
             // immer umbrechen statt kuerzen: die Karte ist so hoch wie die hoechste der Zeile (ufFillsCell), lange
-            // Zeilen wie "Intelligente Lernplanung (Empfehlungen fuer die Woche)" wurden sonst mit "…" abgeschnitten
+            // Zeilen wie die KI-Hilfe mit ihrem Zusatz wurden sonst mit "…" abgeschnitten
             .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Self.accessibilityLabel(r))
     }
 
-    /// VoiceOver: Titel, Zusatz und bei Zeilen in Vorbereitung die Marke (die Ueberschrift steht weiter oben)
+    /// Traegt die Karte "Aktueller Tarif"? Der gekaufte Tarif bzw. Free ohne Kauf, waehrend der Probe ohne Kauf keiner
+    static func isCurrent(_ plan: UFPlan, purchased: UFPlan, loading: Bool, trial: Bool) -> Bool {
+        !loading && purchased == plan && !(trial && purchased == .free)
+    }
+
+    /// VoiceOver: Titel und Zusatz (die Ueberschrift steht weiter oben)
     static func accessibilityLabel(_ r: UFPlanCardRow) -> String {
-        ([r.title] + (r.detail.map { [$0] } ?? []) + (r.preparing ? ["in Vorbereitung"] : [])).joined(separator: ", ")
+        ([r.title] + (r.detail.map { [$0] } ?? [])).joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -214,9 +245,12 @@ struct PlanPickerView: View {
     private var hasSubscription: Bool { !ent.loading && ent.purchasedPlan != .free }
 
     @ViewBuilder
-    private func actionButton(_ plan: UFPlan, current: Bool) -> some View {
+    private func actionButton(_ plan: UFPlan, current: Bool, trial: Bool) -> some View {
         if plan == .free {
-            if context == .settings && !current {
+            if context == .settings && trial {
+                // Probe ohne Kauf: nichts zu kuendigen, Free gilt nach der Probe von selbst
+                fullButton("Gilt nach der Probe", kind: .normal, enabled: false) {}
+            } else if context == .settings && !current {
                 // Wechsel auf Free = Abo bei Apple kuendigen; der Zugang endet mit dem laufenden Zeitraum
                 fullButton("Zu \(UFPlan.free.name) wechseln", kind: .normal) { manage = true }
             } else if context == .settings {
@@ -318,7 +352,8 @@ struct PlanPickerView: View {
                     Task { await store.restore() }
                 }
                 .disabled(store.busy)
-                if context != .settings && ent.plan != .free {
+                // nur mit gekauftem Abo (in der Probe gibt es nichts zu verwalten)
+                if context != .settings && !ent.loading && ent.purchasedPlan != .free {
                     UFButton("Abo verwalten", icon: "settings", kind: .ghost, size: .small) { manage = true }
                 }
                 UFFlexSpacer()

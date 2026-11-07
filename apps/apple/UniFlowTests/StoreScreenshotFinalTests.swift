@@ -542,8 +542,13 @@ final class StoreScreenshotFinalTests: XCTestCase {
                          "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt"] {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
-            for word in [plusButton, proAIButton, "Käufe wiederherstellen"] {
+            for word in [plusButton, proAIButton, "Käufe wiederherstellen", UFPlanCatalog.proAIServiceNote]
+                + UFPlanCard.included(.proAI).map(\.title) {
                 XCTAssertTrue(shows(env, word), "\(name): „\(word)“ fehlt:\n" + dump(env))
+            }
+            // App Review 07.11.2026: nichts "in Vorbereitung", kein ChatGPT, Pro AI nicht "wie Plus", keine Probe im Bild
+            for word in ["in Vorbereitung", "ChatGPT", "denselben Umfang", "Lernstatistik", "Probe aktiv"] {
+                XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
         }
         checkPage("tarif")

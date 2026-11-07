@@ -3,11 +3,14 @@ import UniFlowCore
 
 // Dialoge des Lernkalenders 1:1 nach app/static/views-plan.js: generatePlan(), configDialog(), suggestFlow().
 
-/// "Lernplan erstellen": Machbarkeit (GET /api/calendar/feasibility), Start, Tage, Ersetzen -> POST /api/calendar/generate
+/// "Lernplan erstellen": Machbarkeit (GET /api/calendar/feasibility), Start, Tage, Ersetzen -> POST /api/calendar/generate.
+/// Ohne PC (lokales Backend) ab Plus (`UFFeature.autoPlan`, Inhaber 07.11.2026): Free sieht die Sperrkarte; der
+/// Lernkalender von Hand bleibt frei. Mit Dienst entscheidet er.
 struct GeneratePlanDialog: View {
     let api: APIClient?
     let start: String
     let onClose: () -> Void
+    @ObservedObject private var ent: Entitlements = .shared
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
     @State private var feas: JSONValue?
@@ -18,7 +21,13 @@ struct GeneratePlanDialog: View {
     @State private var showConfig = false
 
     var body: some View {
-        if showConfig {
+        if api?.isLocal != false && !ent.allows(.autoPlan) {
+            UFDialog("Lernplan erstellen", icon: "sparkles") {
+                UFLockedCard(.autoPlan, entitlements: ent).padding(.vertical, 4)
+            } foot: {
+                UFButton("Schließen") { onClose() }
+            }
+        } else if showConfig {
             ConfigDialog(api: api) { saved in showConfig = false; if !saved { onClose() } }
         } else {
             UFDialog("Lernplan erstellen", icon: "sparkles") {

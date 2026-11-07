@@ -174,8 +174,9 @@ struct QuizSettings: Equatable {
 /// Kurzantwort, Rechnen/Programmieren), ein Thema oder Hinweis, die Unterlagen, die einfliessen, und die Kostenzeile.
 /// "Test erstellen" schickt genau die Parameter, die `POST /api/tests/generate` kennt; in der Standardeinstellung sucht
 /// das Backend erst einen gemeinsamen Test, bei eigenen Einstellungen entsteht ein eigener Test (so beschriftet).
-/// Ohne PC (lokales Backend, eigenes ChatGPT) ist der Dialog eine Plus-Funktion wie die Karteikarten (Entscheidung
-/// 04.11.2026): Free sieht die Sperrkarte `UFLockedCard(.weeklyTests)` mit dem Weg zu Plus; mit Dienst entscheidet er.
+/// Ohne PC (lokales Backend) braucht der Dialog eine KI, auf dem iPad die StudiNow-KI, und gehoert darum zu Pro AI
+/// (07.11.2026, vorher Plus mit dem eigenen ChatGPT, das aus ist): Free und Plus sehen die Sperrkarte
+/// `UFLockedCard(.weeklyTests)` mit dem Weg zu Pro AI; mit Dienst entscheidet er.
 struct QuizComposer: View {
     let initialModuleID: Int
     @ObservedObject private var ent: Entitlements
@@ -234,7 +235,7 @@ struct QuizComposer: View {
         }
     }
 
-    /// Ohne PC (lokales Backend) nur mit Plus; am eigenen Server bzw. mit Dienst ohne Sperre in der App
+    /// Ohne PC (lokales Backend) nur mit Pro AI (`UFFeature.weeklyTests`); am eigenen Server bzw. mit Dienst ohne Sperre in der App
     private var needsPlus: Bool { session.api?.isLocal != false }
     private var allowed: Bool { !needsPlus || ent.allows(.weeklyTests) }
 

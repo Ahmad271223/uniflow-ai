@@ -3,8 +3,8 @@ import os
 import UniFlowCore
 
 /// Automatische Wochentests ohne Dienst (Takt im Vordergrund, nach dem vollen Abgleich, im langen Hintergrundlauf):
-/// ab Plus wie "Wochentest erstellen" (`UFFeature.weeklyTests`, Entscheidung 04.11.2026). Free (auch nach der Probe)
-/// erzeugt und uebernimmt keine neuen Wochentests mehr; vorhandene Tests bleiben les- und durchfuehrbar. Der Kern
+/// ab Pro AI wie "Wochentest erstellen" (`UFFeature.weeklyTests`, 07.11.2026; braucht die StudiNow-KI). Free und Plus
+/// (auch nach der Probe) erzeugen und uebernehmen keine neuen Wochentests; vorhandene Tests bleiben les- und durchfuehrbar. Der Kern
 /// (`WeeklyAutoTick`) kennt keinen Tarif, darum prueft die App vor jedem Lauf. Tests setzen `allowed`.
 enum UFWeeklyAutoGate {
     @MainActor static var allowed: () -> Bool = { Entitlements.shared.allows(.weeklyTests) }

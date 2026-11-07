@@ -69,7 +69,8 @@ final class EntitlementTests: XCTestCase {
         for p in UFPlan.allCases {
             XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: p), .allowed, p.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(.uniflowEditor, plan: p), .comingSoon)
-            XCTAssertEqual(UFFeatureMatrix.access(.deviceSync, plan: p), .comingSoon)
+            // Notizen-Abgleich: mit StudiNow-Konto ab Pro AI (07.11.2026, vorher "bald")
+            XCTAssertEqual(UFFeatureMatrix.access(.deviceSync, plan: p), p == .proAI ? .allowed : .locked(.proAI))
         }
         // ohne Geraete-Funktion wieder "bald" (Schalter bleibt pruefbar)
         XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: false), .comingSoon)
@@ -94,12 +95,12 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(SolutionShareSheet.showsCommunityPublish(plan: .free))
     }
 
-    /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Loesung als Datei teilen); Pro AI noch nicht
-    /// mehr als Plus (seine Funktionen brauchen den Dienst, die Karte sagt es offen)
-    func testPlusHasExtras() {
+    /// Plus bietet mehr als Free (Schreiben, Uebung und Skript, Loesung teilen), Pro AI mehr als Plus (StudiNow-KI und
+    /// Notizen-Abgleich mit StudiNow-Konto, 07.11.2026)
+    func testEveryPlanHasExtras() {
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
-        XCTAssertFalse(UFFeatureMatrix.hasAvailableExtras(in: .proAI))
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .proAI))
     }
 
     func testDowngradeKeepsNotesReadableAndExportable() {
@@ -107,18 +108,20 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
-    /// Geraete-Funktionen der Tarifkarten (Abschnitt 4): keine davon ist KI (die StudiNow-KI braucht den Dienst und
-    /// steht nur unter "in Vorbereitung", PlanContractTests)
+    /// Funktionen der Tarifkarten (Abschnitt 4): KI nur bei Pro AI (StudiNow-KI mit Konto, PlanContractTests)
     func testPlanCards() {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
                        [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .viewNotes, .uniGrades])
                        // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
-                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .weeklyTests])
-        XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [])
-        for f in UFFeature.allCases {
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan])
+        XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync])
+        for f in UFFeature.allCases where f.minimumPlan < .proAI {
             XCTAssertFalse(f.title.contains("KI"), f.rawValue)
             XCTAssertFalse((f.detail ?? "").contains("KI"), f.rawValue)
+        }
+        for f in UFFeature.allCases {
+            XCTAssertFalse(f.title.contains("ChatGPT") || (f.detail ?? "").contains("ChatGPT"), f.rawValue)
         }
     }
 
@@ -189,7 +192,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(ent.loading)
         XCTAssertEqual(ent.access(.splitView), .locked(.plus))
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
-        XCTAssertEqual(ent.access(.weeklyTests), .locked(.plus), "Wochentest erstellen ohne PC: Plus wie die Karteikarten")
+        XCTAssertEqual(ent.access(.weeklyTests), .locked(.proAI), "Wochentest erstellen ohne PC: braucht die StudiNow-KI (Pro AI)")
         XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Enthalten ab StudiNow Plus."))
         XCTAssertFalse(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Bald"))
         XCTAssertTrue(ent.allows(.studyPlanning), "Lernplanung gehoert zu Free")

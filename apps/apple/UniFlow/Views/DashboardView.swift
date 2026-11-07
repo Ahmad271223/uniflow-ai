@@ -228,13 +228,18 @@ struct DashboardView: View {
 
     // MARK: Karten
 
+    /// "Lernplan erstellen": ohne PC ab Plus (`UFFeature.autoPlan`), Free sieht das Schloss
+    @ViewBuilder private var autoPlanButton: some View {
+        let b = UFButton("Lernplan erstellen", icon: "sparkles", kind: .primary, size: .small) { showGenerate = true }
+        if api?.isLocal != false { b.ufRequires(.autoPlan) } else { b }
+    }
+
     private func todayCard(pk: [JSONValue]) -> some View {
         UFCard {
             UFCardHead("Heute für dich geplant", icon: "play")
             if pk.isEmpty {
                 UFEmpty(icon: "calendar", text: "Für heute ist nichts geplant.") {
-                    UFButton("Lernplan erstellen", icon: "sparkles", kind: .primary, size: .small) { showGenerate = true }
-                        .padding(.top, 9.6)
+                    autoPlanButton.padding(.top, 9.6)
                 }
             } else {
                 ForEach(Row.rows(pk)) { row in PackageCard(p: row.value) }

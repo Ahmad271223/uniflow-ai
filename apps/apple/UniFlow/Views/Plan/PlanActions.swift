@@ -620,7 +620,7 @@ struct FreeWindowDialog: View {
                     choice("Passende Übung bearbeiten", icon: "pencil") { await material(lecture: false, mins: mins) }
                     choice("Vorlesung selbstständig nacharbeiten", icon: "book") { await material(lecture: true, mins: mins) }
                 }
-                choice("Lerneinheit automatisch einplanen", icon: "sparkles") {
+                autoPlanChoice("Lerneinheit automatisch einplanen", icon: "sparkles") {
                     // genau in dieses Fenster (die Planung fuer den Tag uebersprang jeden Tag mit einem Paket)
                     guard let api = session.api else { return }
                     if await toast.attempt("Einplanen", {
@@ -638,6 +638,16 @@ struct FreeWindowDialog: View {
                 Button { close() } label: { Text("Frei lassen").frame(maxWidth: .infinity) }.buttonStyle(UFButtonStyle(kind: .ghost))
             }
         } foot: { EmptyView() }
+    }
+
+    /// automatisch einplanen: ohne PC ab Plus (`UFFeature.autoPlan`), sonst Schloss mit dem Weg zur Tarifwahl
+    @ViewBuilder
+    private func autoPlanChoice(_ text: String, icon: String, action: @escaping () async -> Void) -> some View {
+        if session.api?.isLocal != false {
+            choice(text, icon: icon, action: action).ufRequires(.autoPlan)
+        } else {
+            choice(text, icon: icon, action: action)
+        }
     }
 
     private func choice(_ text: String, icon: String, action: @escaping () async -> Void) -> some View {

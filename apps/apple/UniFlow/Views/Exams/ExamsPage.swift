@@ -7,9 +7,10 @@ import UniFlowCore
 // Seit 04.11.2026: Wahr/Falsch und Lueckentext als Aufgabenarten, Erklaerung der KI je Aufgabe aus dem Test selbst,
 // eigene Tests sind als "Eigener Test, nicht geteilt" beschriftet, Formeln lesbar (FormulaText).
 
-// Tarif (04.11.2026): ohne Dienst sind "Fehlende Wochentests" (Woche erzeugen) und die automatischen Wochentests
-// (UFWeeklyAutoGate) Plus wie "Wochentest erstellen" (QuizComposer); Free sieht das Schloss bzw. ohne Tests die
-// Sperrkarte UFLockedCard(.weeklyTests). Vorhandene Tests lesen, durchfuehren und abgeben bleibt in jedem Tarif frei.
+// Tarif (07.11.2026, vorher Plus): ohne Dienst sind "Fehlende Wochentests" (Woche erzeugen) und die automatischen
+// Wochentests (UFWeeklyAutoGate) Pro AI wie "Wochentest erstellen" (QuizComposer, braucht die StudiNow-KI); Free und
+// Plus sehen das Schloss bzw. ohne Tests die Sperrkarte UFLockedCard(.weeklyTests). Vorhandene Tests lesen,
+// durchfuehren und abgeben bleibt in jedem Tarif frei.
 
 /// Tests & Wiederholung: Wochentest erstellen, KI-Start, Statusleiste, Testkarten, Löschen-Dialog.
 struct ExamsPage: View {

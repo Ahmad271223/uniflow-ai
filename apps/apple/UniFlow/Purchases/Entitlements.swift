@@ -3,10 +3,11 @@ import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
 // Entscheidung des Inhabers vom 04.11.2026: drei StudiNow-Tarife Free, Plus, Pro AI (Plans.swift, Vertrag plans.json).
-// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten und Wochentests (eigenes ChatGPT) zu Plus,
-// seit 05.11.2026 auch die Community (Lesen; Free ohne Community, "Community ab Plus"). Was den gehosteten Dienst
-// braucht (StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen Geraeten, ChatGPT), erscheint als
-// "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
+// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten zu Plus, seit 05.11.2026 auch die
+// Community (Lesen; Free ohne Community, "Community ab Plus"). Pro AI bringt die StudiNow-KI (KI-Hilfe, KI-Karteikarten,
+// Wochentests) und den Notizen-Abgleich ueber das StudiNow-Konto (Dienst app.studinow.app, Stand 07.11.2026). Was es auf
+// dem iPad nicht gibt (Testbibliothek, Lernstatistik, Empfehlungen, eigenes ChatGPT), steht auf keiner Tarifkarte, auch
+// nicht als "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
 // und geprueft, hoechster gueltiger Tarif). Dazu die Probe auf dem iPad (Entscheidung 04.11.2026, LocalTrial.swift):
 // 7 Tage alles wie Pro AI ohne Zahlungsdaten, Vorrang Dienst > App Store > Probe > Free (UFPlanPrecedence). Die
 // Pruefung im Dienst ist vorbereitet und abgeschaltet (BillingServiceLink.swift, V2).
@@ -21,7 +22,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case readDocuments       // Dokumente oeffnen, lesen und durchsuchen, Bibliothek, Ordner, Favoriten
     case modulesTimetable    // Meine Module (Faecher geordnet), Stundenplan ansehen
     case studyCalendar       // Lernkalender ansehen, Aufgaben abhaken
-    case studyPlanning       // Lernplan, Lernkombination, freie Zeitfenster, Nachholen, "Woche retten"
+    case studyPlanning       // Lernbloecke selbst eintragen, verschieben, nachholen, "Woche retten" (ohne Generator)
     case timer               // Stoppuhr, Countdown, Pomodoro
     case viewNotes           // vorhandene Notizen ansehen und als PDF exportieren
     case uniGrades           // Uni & Noten (QIS bzw. LSF auf dem Geraet, F4), Free
@@ -35,11 +36,19 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
-    case weeklyTests         // Wochentest erstellen mit dem eigenen ChatGPT (QuizComposer, lokales Backend),
-                             // Entscheidung 04.11.2026: Plus wie die Karteikarten
+    case autoPlan            // Lernplan automatisch erstellen (GeneratePlanDialog, POST /api/calendar/generate, auch
+                             // "Lerneinheit automatisch einplanen"): Plus (Inhaber 07.11.2026); Ausnahme mit eigenem
+                             // ChatGPT, erst wenn ChatGPTLink.isEnabled (UFFeatureMatrix.access `ownChatGPT`)
+    // Pro AI: StudiNow-KI und Abgleich ueber das StudiNow-Konto (UFDeviceSupport.withAccount). Die KI selbst gibt
+    // `StudiNowAIAccess` frei (Pro AI bzw. Probe und angemeldet), die Matrix sagt nur, ab welchem Tarif.
+    case aiHelp              // KI-Hilfe im Editor: Seite, markierter Bereich, ganzes Dokument (TutorPanel, TutorDocumentRun)
+    case aiFlashcards        // Karteikarten aus einem Dokument (FlashcardComposer, POST /api/ai/flashcards)
+    case weeklyTests         // Wochentest erstellen (QuizComposer, automatische Wochentests): braucht eine KI, auf dem
+                             // iPad die StudiNow-KI, darum Pro AI (07.11.2026; vorher Plus mit dem eigenen ChatGPT, das aus
+                             // ist). Wird das eigene ChatGPT freigegeben, hier neu entscheiden.
+    case deviceSync          // Notizen auf allen Geraeten (DeviceSync G2 mit StudiNow-Konto, can_sync_annotations)
     // ab V2
     case uniflowEditor
-    case deviceSync
 
     var id: String { rawValue }
 
@@ -50,16 +59,18 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
              .uniGrades:
             return .free
-        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests, .uniflowEditor, .deviceSync:
+        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor:
             return .plus
+        case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync:
+            return .proAI
         }
     }
 
     /// Teil der Community (beide haengen am iCloud-Container des Builds)
     var isCommunity: Bool { self == .communityRead || self == .shareSolutions }
 
-    /// erst ab V2 vorhanden (UniFlow-Editor, Abgleich zwischen Geraeten)
-    var isV2: Bool { self == .uniflowEditor || self == .deviceSync }
+    /// erst ab V2 vorhanden (UniFlow-Editor)
+    var isV2: Bool { self == .uniflowEditor }
 
     /// Bezeichnung auf der Abo-Seite und in der Sperrkarte
     var title: String {
@@ -68,7 +79,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .readDocuments: return "Dokumente öffnen, lesen und durchsuchen"
         case .modulesTimetable: return "Meine Module und Stundenplan"
         case .studyCalendar: return "Lernkalender ansehen, Aufgaben abhaken"
-        case .studyPlanning: return "Lernplanung"
+        case .studyPlanning: return "Lernblöcke selbst planen"
         case .timer: return "Zeitmesser (Stoppuhr, Countdown, Pomodoro)"
         case .viewNotes: return "Notizen ansehen und als PDF exportieren"
         case .uniGrades: return "Uni & Noten"
@@ -77,9 +88,12 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .autoPlan: return "Lernplan automatisch erstellen"
+        case .aiHelp: return "KI-Hilfe zu deinen Unterlagen"
+        case .aiFlashcards: return "Karteikarten aus deinen Unterlagen"
         case .weeklyTests: return "Wochentests erstellen"
+        case .deviceSync: return "Notizen auf allen deinen Geräten"
         case .uniflowEditor: return "StudiNow-Editor"
-        case .deviceSync: return "Abgleich zwischen deinen Geräten"
         }
     }
 
@@ -87,14 +101,18 @@ enum UFFeature: String, CaseIterable, Identifiable {
     var detail: String? {
         switch self {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
-        case .studyPlanning: return "Lernplan, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“"
+        case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel aus QIS bzw. LSF direkt in der App"
         case .communityRead: return "Lösungen anderer finden, laden und im Editor ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
-        case .weeklyTests: return "Aus deinen Unterlagen, mit deinem eigenen ChatGPT"
+        case .autoPlan: return "Lernslots in deinen freien Zeiten"
+        case .aiHelp: return "Zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“"
+        case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen"
+        case .weeklyTests: return "Aus deinen Unterlagen, mit der StudiNow-KI"
+        case .deviceSync: return "Abgleich über dein StudiNow-Konto"
         default: return nil
         }
     }
@@ -114,9 +132,12 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "users"
         case .splitView: return "columns"
         case .flashcards: return "cards"
+        case .autoPlan: return "calendar"
+        case .aiHelp: return "sparkles"
+        case .aiFlashcards: return "cards"
         case .weeklyTests: return "exam"
-        case .uniflowEditor: return "pen"
         case .deviceSync: return "refresh"
+        case .uniflowEditor: return "pen"
         }
     }
 }
@@ -158,11 +179,15 @@ enum UFFeatureMatrix {
     /// Richtlinie 3.1.2); der Schalter bleibt fuer Tests der Matrix.
     static let flashcardsOnDevice = true
 
+    /// - Parameter ownChatGPT: eigenes ChatGPT verbunden und freigegeben (`ChatGPTLink.isEnabled`, heute aus). Ausnahme
+    ///   des Inhabers vom 07.11.2026: dann gibt es den automatischen Lernplan auch ohne Plus.
     static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
-                       community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice) -> UFAccess {
+                       community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice,
+                       ownChatGPT: Bool = false) -> UFAccess {
         if f.isV2 || (f == .uniGrades && !uniGrades) || (f.isCommunity && !community) || (f == .flashcards && !flashcards) {
             return .comingSoon
         }
+        if f == .autoPlan && ownChatGPT { return .allowed }
         return plan >= f.minimumPlan ? .allowed : .locked(f.minimumPlan)
     }
 
@@ -270,67 +295,39 @@ struct UFNoteAccess: Equatable {
 
 // MARK: - Inhalt der Tarifkarten
 
-/// Eine Zeile auf einer Tarifkarte
+/// Eine Zeile auf einer Tarifkarte (immer "enthalten", mit Haken)
 struct UFPlanCardRow: Equatable {
     let title: String
     var detail: String?
     var icon: String
-    /// noch nicht auf dem iPad: steht unter der Marke "in Vorbereitung", nie bei "enthalten"
-    var preparing = false
 }
 
-/// Was die Tarifkarten zeigen (ohne StoreKit, testbar). Regel des Inhabers: nur als enthalten zeigen, was im Vertrag
-/// `available` ist und auf dem Geraet wirklich geht; alles andere traegt "in Vorbereitung". Die App verspricht nichts,
-/// was sie nicht kann.
+/// Was die Tarifkarten zeigen (ohne StoreKit, testbar). Regel des Inhabers: nur zeigen, was im Vertrag `available` ist
+/// und auf dem iPad wirklich geht (auf dem Geraet oder mit StudiNow-Konto ueber den Dienst). Was es auf dem iPad nicht
+/// gibt, steht gar nicht da, auch nicht als "in Vorbereitung" (App Review 07.11.2026: keine Versprechen).
 enum UFPlanCard {
-    /// heute auf dem iPad enthalten: Funktionen, die der Tarif mehr bietet als der naechstkleinere
+    /// enthalten: Funktionen, die der Tarif mehr bietet als der naechstkleinere
     static func included(_ plan: UFPlan) -> [UFPlanCardRow] {
         UFFeatureMatrix.added(in: plan).filter { !$0.isV2 && UFFeatureMatrix.access($0, plan: plan) == .allowed }.map {
             UFPlanCardRow(title: $0.title, detail: $0.detail, icon: $0.icon)
         }
     }
 
-    /// in Vorbereitung: Rechte ab diesem Tarif, die das iPad noch nicht hat (brauchen den Dienst oder sind im Vertrag
-    /// nicht `available`), dazu Geraete-Funktionen, deren Schalter noch aus ist
-    static func preparing(_ plan: UFPlan) -> [UFPlanCardRow] {
-        let features = UFFeatureMatrix.added(in: plan).filter { !$0.isV2 && UFFeatureMatrix.access($0, plan: plan) == .comingSoon }.map {
-            UFPlanCardRow(title: $0.title, detail: $0.detail, icon: "clock", preparing: true)
-        }
-        let rights = UFEntitlement.allCases.filter {
-            $0.from == plan && !$0.availableOnDevice
-        }.map { UFPlanCardRow(title: $0.cardLabel, icon: "clock", preparing: true) }
-        return features + rights
-    }
-
-    /// Tarif, dessen Umfang dieser Tarif auf dem iPad heute hat: der hoechste bis hierhin mit eigenen Funktionen
-    /// (Pro AI: Plus, solange seine Funktionen den Dienst brauchen)
-    static func sameScope(as plan: UFPlan) -> UFPlan {
-        UFPlan.allCases.filter { $0 <= plan && UFFeatureMatrix.hasAvailableExtras(in: $0) }.max() ?? .free
-    }
-
-    /// Kurzbeschreibung aus dem Vertrag nur, wenn der Tarif schon etwas Eigenes bietet
+    /// Kurzbeschreibung auf der Karte. Nicht wortgleich mit `UFPlan.tagline` (Vertrag): dort stehen fuer Plus die
+    /// Wochentests und fuer Pro AI das eigene ChatGPT, auf dem iPad gehoeren Wochentests zu Pro AI und ChatGPT ist aus.
     static func tagline(_ plan: UFPlan) -> String? {
-        UFFeatureMatrix.hasAvailableExtras(in: plan) ? plan.tagline : nil
+        guard UFFeatureMatrix.hasAvailableExtras(in: plan) else { return nil }
+        switch plan {
+        case .free: return plan.tagline
+        case .plus: return "Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community"
+        case .proAI: return "Die StudiNow-KI für deine Unterlagen inklusive"
+        }
     }
 
     /// Ueberschrift ueber den Zeilen
     static func intro(_ plan: UFPlan) -> String {
         guard let lower = plan.lower else { return "Alles für den Uni-Alltag:" }
         return included(plan).isEmpty ? "Alles aus \(lower.name)." : "Alles aus \(lower.name), dazu:"
-    }
-
-    static let chatgptNote = "Die Verbindung zu deinem eigenen ChatGPT folgt, sobald OpenAI sie für StudiNow freigibt."
-
-    /// Hinweis unter den Zeilen: woran "in Vorbereitung" haengt und, wenn der Tarif heute nichts Eigenes bietet, dass
-    /// er denselben Umfang hat wie ein kleinerer (Auftrag Abschnitt 2 Punkt 4: nichts vortaeuschen)
-    static func note(_ plan: UFPlan) -> String? {
-        let rows = preparing(plan)
-        guard !rows.isEmpty else { return nil }
-        // Free (05.11.2026): nur das eigene ChatGPT steht aus, und das haengt an OpenAI, nicht am Dienst
-        if rows.allSatisfy({ $0.title == UFEntitlement.chatgptConnectionPremium.cardLabel }) { return chatgptNote }
-        let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von StudiNow und folgt mit einem Update."
-        let same = sameScope(as: plan)
-        return same == plan ? base : base + " Bis dahin bietet \(plan.name) denselben Umfang wie \(same.name)."
     }
 }
 
@@ -428,7 +425,13 @@ final class Entitlements: ObservableObject {
 
     deinit { updates?.cancel() }
 
-    func access(_ f: UFFeature) -> UFAccess { UFFeatureMatrix.access(f, plan: plan) }
+    func access(_ f: UFFeature) -> UFAccess {
+        UFFeatureMatrix.access(f, plan: plan, ownChatGPT: ChatGPTLink.isEnabled && ownChatGPTConnected)
+    }
+
+    /// eigenes ChatGPT verbunden (setzt die App, sobald `ChatGPTLink.isEnabled` an ist; heute nie): schaltet den
+    /// automatischen Lernplan auch ohne Plus frei (`UFFeature.autoPlan`)
+    var ownChatGPTConnected = false
 
     func allows(_ f: UFFeature) -> Bool { access(f).isAllowed }
 
@@ -468,7 +471,7 @@ final class Entitlements: ObservableObject {
     /// Resttage neu rechnen (Vordergrund, Tageswechsel); am Ende der Probe faellt der Tarif von selbst auf Free
     func refreshLocalTrial(now: Date = Date()) {
         guard let t = localTrial else { return }
-        localTrial = UFLocalTrial.state(startedAt: t.startedAt, now: now)
+        localTrial = t.updated(now: now)
         recompute()
     }
 
@@ -476,6 +479,13 @@ final class Entitlements: ObservableObject {
     func stayOnFreeAfterLocalTrial() {
         localTrialChoiceMade = true
         if let scope = localTrialScope { localTrialRecords?.markChoice(scope) }
+    }
+
+    /// laufende Probe auf dem iPad ohne Kauf (die Tarifseite markiert dann keinen Tarif als "Aktueller Tarif"); nil mit
+    /// gekauftem Abo, vor der Anmeldung, nach der Probe und waehrend des ersten Abrufs
+    var runningLocalTrial: UFLocalTrial.State? {
+        guard !loading, !planIsForced, purchasedPlan == .free, let t = localTrial, t.isActive else { return nil }
+        return t
     }
 
     /// Beschriftung fuer den Tarif in den Einstellungen: waehrend der Probe ohne Kauf die Probe, sonst der Tarif
@@ -509,7 +519,7 @@ final class Entitlements: ObservableObject {
         if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil; planIsForced = true }
         #endif
         purchasedPlan = p
-        if let t = localTrial { localTrial = UFLocalTrial.state(startedAt: t.startedAt, now: now) }
+        if let t = localTrial { localTrial = t.updated(now: now) }
         recompute()
         expiresAt = p.productID.flatMap { active[$0]?.expirationDate }
         willRenew = renewal?.willAutoRenew

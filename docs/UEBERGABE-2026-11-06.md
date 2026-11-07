@@ -4,6 +4,39 @@ Lies diese Datei zuerst. Sie fasst zusammen, wo das Projekt steht, was offen ist
 Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11-05.md`, `docs/LEHRENDE-KONTAKTE-2026-11-06.md`,
 `docs/BESCHEINIGUNGEN-2026-11-06.md`, `docs/AUTOMATISCH-ANMELDEN-2026-11-06.md`, `docs/KI-GANZES-DOKUMENT-2026-11-05.md`.
 
+
+## 0. NEUESTER STAND (07.11.2026, Übergabe an das andere Konto) – zuerst lesen
+
+**Im Commit nach Build 14 (noch KEIN Build 15 gebaut):**
+- Diskussion in der Community: auf dem iPad läuft die Community jetzt immer über iCloud (`StudoraAccountLink.communityViaService = false`),
+  vorher schaltete das StudiNow-Konto auf den Dienst um, der keine Fragen/Antworten kennt („gibt es mit diesem Dienst noch nicht“).
+- Lehrende im Modul einklappbar (`ModuleLecturersCard`, je Modul gemerkt).
+- Tarifseite neu (Free/Plus/Pro AI ohne „in Vorbereitung“, ohne ChatGPT; Pro AI mit echten KI-Funktionen), Wochentests erst ab Pro AI,
+  „Lernplan automatisch erstellen“ erst ab Plus, Probe = Pro-AI-Umfang 7 Tage mit Statuszeile, Probe einmal je Apple-ID UND je iPad
+  (Schlüsselbund-Marke, DeviceCheck später). Prüf-Foto der Tarifseite: `~/Studora-Builds/appstore-pruefung/tarif-portrait.png`.
+- Ein Komplettest (pytest, node, swift test, alle UniFlowTests) lief beim Übergeben noch – **neu laufen lassen**.
+
+**Nächste Schritte für das neue Konto:**
+1. Komplettest: `pytest -q`, `node --test tests/js/`, `swift test` (UniFlowCore), volle UniFlowTests auf iPad-Simulator (Klon von
+   4495AA80-7860-4F6F-9FCD-C83CCED19021). Fehler beheben.
+2. `CURRENT_PROJECT_VERSION` auf **15**, Build-Nummern in diesem Dokument und `docs/release/APP-STORE.md` (Test `test_release_texts.py`
+   prüft die Nummer) anpassen, committen, pushen.
+3. Archiv aus `git archive HEAD`-Export bauen (`~/Studora-Builds/StudiNow-15.xcarchive`), aufs iPad installieren
+   (`xcrun devicectl device install app --device 00008120-000E309830814032 …/UniFlow.app`), Organizer öffnen (`open …xcarchive`).
+   Der Inhaber lädt hoch (Distribute App → App Store Connect → Upload).
+4. In App Store Connect (Browser-Fenster, Inhaber meldet sich an) auf der iOS-Version 1.0 **Build 15** statt 13 auswählen und sichern.
+5. Der Inhaber: 10 Fotos aus `~/Studora-Builds/appstore-screenshots-final/` hochladen, Tarif-Foto bei **beiden** Abos (Plus, Pro AI)
+   unter „Screenshot“, dann beide Abos auf der Versionsseite auswählen, CloudKit-Schema → Production, „Zur Prüfung hinzufügen“ → Einreichen
+   (nur nach seinem ausdrücklichen OK).
+6. Inhaber-Wünsche offen: KI-Lernplan für Free nur mit eigenem ChatGPT (Schalter vorhanden, aus bis OpenAI freigibt); später HsH-Mail,
+   Lehrende/Raumfinder für HsH/Hildesheim, Lineal je Seite, Windows-Store, Stripe, Apple-Anmeldung im Web, App-Vorschau-Videos.
+
+**Bereits in App Store Connect erledigt:** Texte (Fassung mit Pro AI), Name, Untertitel, Kategorien, Altersfreigabe 16+, Prüfhinweis +
+Kontakt, beide Abo-Prüfhinweise, App-Datenschutz (5 Datenarten, veröffentlicht), Datenschutz-URL, manuell veröffentlichen, Build 13 zugeordnet.
+
+**Werkzeug:** Den iPad-Bildschirm sieht man vom Mac mit
+`xcrun devicectl device capture screenshot --device 00008120-000E309830814032 --destination <datei>.png` (Bild ist gedreht).
+
 ## 1. Stand der Zweige
 
 | Zweig | Commit | Inhalt |

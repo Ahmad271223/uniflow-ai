@@ -169,8 +169,19 @@ final class StudoraAccountLink: ObservableObject {
         return r.applied + r.deleted > 0
     }
 
+    /// Community ueber den Dienst (G4) – vorerst AUS (07.11.2026, Geraetetest): Mit Konto wechselte die Community vom
+    /// iCloud-Kanal zum Dienst, der keine Fragen und Antworten je Modul kennt ("gibt es mit diesem Dienst noch nicht"),
+    /// und Pro-AI-Nutzer (Dienst) und Plus-Nutzer (iCloud) sahen getrennte Communitys. Auf dem iPad laeuft die Community
+    /// deshalb fuer alle ueber CloudKit; der Dienst-Weg kommt mit der Windows-App zurueck.
+    nonisolated static let communityViaService = false
+
     /// Community ueber den Dienst (G4) nur mit Konto derselben Hochschule, sonst bleibt CloudKit
     private func updateCommunityRoute() {
+        guard Self.communityViaService else {
+            if CommunityRoute.shared.service != nil { CommunityRoute.shared.service = nil; CommunityMatches.shared.invalidate() }
+            routedAccount = nil
+            return
+        }
         let id = user.map(\.id).flatMap { Self.canSync(user: user, university: university, blocked: false) ? $0 : nil }
         guard id != routedAccount else { return }
         routedAccount = id

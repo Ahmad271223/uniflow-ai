@@ -12,6 +12,13 @@ import UniFlowCore
 // iCloud-Schluessel-Wert-Speicher (zweites iPad derselben Apple-ID). Gelesen werden beide, der fruehere Beginn gilt;
 // ohne iCloud zaehlt der Schluesselbund allein. Der Dienst (StudoraAccountLink.planStatus) hat Vorrang, sobald ein
 // StudiNow-Konto verbunden ist (UFPlanPrecedence).
+//
+// Dazu je Geraet hoechstens eine Probe (Inhaber 07.11.2026, "jede iCloud maximal 1 Probe, besser noch jedes Geraet"):
+// beim Beginn jeder Probe setzt die App eine Marke im Schluesselbund, die an keiner Apple-ID haengt
+// (kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, nicht synchronisiert, ueberlebt die Neuinstallation). Eine weitere
+// Apple-ID auf demselben iPad bekommt keine neue Probe ("Auf diesem iPad wurde die Probe schon genutzt"). Das Zuruecksetzen
+// des Geraets loescht die Marke; staerker waere spaeter Apple DeviceCheck (zwei Bits je Geraet bei Apple, ueberlebt das
+// Zuruecksetzen, braucht einen Schluessel und eine Abfrage im StudiNow-Dienst).
 
 enum UFLocalTrial {
     /// Dauer in Tagen und Tarif waehrend der Probe, wie `plans.TRIAL` im Dienst
@@ -26,8 +33,19 @@ enum UFLocalTrial {
         /// Resttage, aufgerundet wie `billing.trial_info` im Dienst; 0 = vorbei
         let daysLeft: Int
 
+        /// keine eigene Probe: auf diesem Geraet lief schon eine (andere Apple-ID); bleibt vorbei
+        var deviceUsed = false
+
         var isActive: Bool { daysLeft > 0 }
         var isExpired: Bool { !isActive }
+
+        /// Stand zu einer neuen Zeit (Tageswechsel, Vordergrund); "auf diesem Geraet schon genutzt" bleibt, wie es ist
+        func updated(now: Date) -> State { deviceUsed ? self : UFLocalTrial.state(startedAt: startedAt, now: now) }
+
+        /// "schon genutzt": Beginn der Probe auf diesem Geraet, ohne Resttage
+        static func usedOnDevice(since start: Date) -> State {
+            State(startedAt: start, endsAt: start, daysLeft: 0, deviceUsed: true)
+        }
     }
 
     /// Stand aus dem Beginn und der aktuellen Zeit (reine Rechnung, Uhr von aussen)
@@ -57,13 +75,17 @@ enum UFLocalTrial {
     /// Schluessel je Apple-ID (Hash, nie die ID selbst)
     static func scope(userID: String) -> String { DataContainerKey.userScope(userID) }
 
-    /// Beginn ermitteln bzw. festhalten und den Stand liefern
+    /// Beginn ermitteln bzw. festhalten und den Stand liefern. Eine Apple-ID ohne eigene Probe bekommt keine, wenn auf
+    /// diesem Geraet schon eine lief (Geraete-Marke); eine Apple-ID mit Probe behaelt ihren Stand und markiert das Geraet.
     @discardableResult
     static func begin(userID: String, records: any UFTrialRecording, now: Date = Date()) -> State {
         let scope = scope(userID: userID)
         let known = records.load(scope)
         let r = resolve(keychain: known.keychain, cloud: known.cloud, now: now)
+        let device = records.deviceTrialStart()
+        if r.isNew, let device { return .usedOnDevice(since: device) }
         if r.writeKeychain || r.writeCloud { records.save(start: r.start, scope: scope, keychain: r.writeKeychain, cloud: r.writeCloud) }
+        if device == nil { records.markDeviceTrial(start: r.start) }
         return state(startedAt: r.start, now: now)
     }
 }
@@ -83,6 +105,9 @@ protocol UFTrialRecording {
     func load(_ scope: String) -> UFTrialRecords
     func save(start: Date, scope: String, keychain: Bool, cloud: Bool)
     func markChoice(_ scope: String)
+    /// Beginn der ersten Probe auf diesem Geraet, gleich fuer welche Apple-ID (nil = noch keine)
+    func deviceTrialStart() -> Date?
+    func markDeviceTrial(start: Date)
 }
 
 /// iCloud-Schluessel-Wert-Speicher (NSUbiquitousKeyValueStore), fuer Tests austauschbar
@@ -103,18 +128,31 @@ extension NSUbiquitousKeyValueStore: UFCloudKeyValue {
 /// UserDefaults. Werte: Beginn als Sekunden seit 1970, nie die Apple-ID.
 struct UFTrialRecordStore: UFTrialRecording {
     static let service = "de.uniflow.ai.trial"
+    /// Geraete-Marke: eigener Dienst und fester Schluessel, an keiner Apple-ID
+    static let deviceAccount = "device"
     static func cloudKey(_ scope: String) -> String { "uniflow.trial." + scope }
     static func choiceKey(_ scope: String) -> String { "uniflow.trial.choice." + scope }
 
     let keychain: KeychainStore
+    /// Geraete-Marke (Standard: Dienst des Schluesselbunds + ".device", ThisDeviceOnly, nicht synchronisiert)
+    let deviceKeychain: KeychainStore
     let cloud: (any UFCloudKeyValue)?
     let defaults: UserDefaults
 
-    init(keychain: KeychainStore = KeychainStore(service: UFTrialRecordStore.service),
+    init(keychain: KeychainStore = KeychainStore(service: UFTrialRecordStore.service), deviceKeychain: KeychainStore? = nil,
          cloud: (any UFCloudKeyValue)? = NSUbiquitousKeyValueStore.default, defaults: UserDefaults = .standard) {
         self.keychain = keychain
+        self.deviceKeychain = deviceKeychain ?? KeychainStore(service: keychain.service + ".device")
         self.cloud = cloud
         self.defaults = defaults
+    }
+
+    func deviceTrialStart() -> Date? {
+        deviceKeychain.string(Self.deviceAccount).flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
+    }
+
+    func markDeviceTrial(start: Date) {
+        try? deviceKeychain.write(String(start.timeIntervalSince1970), account: Self.deviceAccount)
     }
 
     func load(_ scope: String) -> UFTrialRecords {
@@ -140,6 +178,9 @@ struct UFTrialRecordStore: UFTrialRecording {
         keychain.remove(scope)
         defaults.removeObject(forKey: Self.choiceKey(scope))
     }
+
+    /// nur Tests: Geraete-Marke entfernen
+    func removeDeviceMark() { deviceKeychain.remove(Self.deviceAccount) }
 }
 
 /// Ablage im Speicher (Tests, Vorschauen)
@@ -147,6 +188,8 @@ final class UFMemoryTrialRecords: UFTrialRecording {
     var records: [String: UFTrialRecords] = [:]
     /// iCloud nicht verfuegbar: Schreiben dorthin geht verloren
     var cloudAvailable = true
+    /// Geraete-Marke (wie der Schluesselbund: bleibt bei Neuinstallation)
+    var device: Date?
 
     init(keychain: Date? = nil, cloud: Date? = nil, scope: String? = nil) {
         if let scope { records[scope] = UFTrialRecords(keychain: keychain, cloud: cloud) }
@@ -166,6 +209,9 @@ final class UFMemoryTrialRecords: UFTrialRecording {
         r.choiceMade = true
         records[scope] = r
     }
+
+    func deviceTrialStart() -> Date? { device }
+    func markDeviceTrial(start: Date) { device = start }
 }
 
 // MARK: - Vorrang der Quellen
@@ -189,6 +235,8 @@ enum UFTrialBannerContent: Equatable {
     enum Source: Equatable { case service, device }
     case running(daysLeft: Int, source: Source)
     case over(source: Source)
+    /// keine Probe fuer diese Apple-ID: auf diesem iPad lief schon eine (Geraete-Marke)
+    case usedOnDevice
 
     static func make(service: StudoraAccount.PlanStatus?, local: UFLocalTrial.State?, purchased: UFPlan,
                      choiceMade: Bool) -> UFTrialBannerContent? {
@@ -198,6 +246,7 @@ enum UFTrialBannerContent: Equatable {
             return nil
         }
         guard let local, purchased == .free else { return nil }
+        if local.deviceUsed { return choiceMade ? nil : .usedOnDevice }
         if local.isActive { return .running(daysLeft: local.daysLeft, source: .device) }
         return choiceMade ? nil : .over(source: .device)
     }
@@ -211,6 +260,7 @@ enum UFTrialBannerContent: Equatable {
         switch self {
         case .running(let days, _): return UFTrialTexts.running(days)
         case .over: return UFTrialTexts.overTitle
+        case .usedOnDevice: return UFTrialTexts.usedOnDeviceTitle
         }
     }
 
@@ -219,6 +269,7 @@ enum UFTrialBannerContent: Equatable {
         case .running(_, .service): return UFTrialTexts.runningTextService
         case .running: return UFTrialTexts.runningText
         case .over: return UFTrialTexts.overText
+        case .usedOnDevice: return UFTrialTexts.usedOnDeviceText
         }
     }
 }

@@ -205,20 +205,47 @@ struct ModuleLecturersCard: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @State private var data: JSONValue?
+    /// eingeklappt (Wunsch des Inhabers 07.11.2026), je Modul gemerkt
+    @AppStorage("module.lecturers.open") private var openIDs = ""
 
     private var people: [JSONValue] { data?["available"]?.bool == true ? data?.list("people") ?? [] : [] }
+    private var open: Bool { openIDs.split(separator: ",").contains(Substring(String(moduleID))) }
+
+    private func toggle() {
+        var ids = Set(openIDs.split(separator: ",").map(String.init))
+        if open { ids.remove(String(moduleID)) } else { ids.insert(String(moduleID)) }
+        withAnimation(UF.motion(.easeOut(duration: 0.18))) { openIDs = ids.sorted().joined(separator: ",") }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: 0)
             if !people.isEmpty {
                 UFCard {
-                    UFCardHead(LecturersText.title, icon: "users", wrap: true) {
+                    HStack(spacing: 10) {
+                        Button(action: toggle) {
+                            HStack(spacing: 8) {
+                                UFIcon("users", size: 18).foregroundStyle(UF.text2)
+                                Text(LecturersText.title).ufFont(16, 700).foregroundStyle(UF.text)
+                                Text("\(people.count)").ufFont(12.8, 600).foregroundStyle(UF.muted)
+                                    .padding(.horizontal, 7).padding(.vertical, 1).background(Capsule().fill(UF.surface2))
+                                Image(systemName: open ? "chevron.up" : "chevron.down").font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(UF.muted)
+                                Spacer(minLength: 0)
+                            }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(open ? "Lehrende einklappen" : "Lehrende ausklappen (\(people.count))")
+                        .accessibilityIdentifier("lecturers.toggle")
                         UFButton(LecturersText.allButton, icon: "arrow-right", size: .small) { router.go(.lecturers) }
                             .accessibilityIdentifier("lecturers.all")
                     }
-                    LecturerList(people: people, module: moduleName)
-                    Text(LecturersText.privacy).ufFont(11.5).foregroundStyle(UF.muted).padding(.top, 6)
+                    if open {
+                        LecturerList(people: people, module: moduleName)
+                        Text(LecturersText.privacy).ufFont(11.5).foregroundStyle(UF.muted).padding(.top, 6)
+                    }
                 }
                 .accessibilityIdentifier("lecturers.card")
                 .padding(.bottom, 14.4)

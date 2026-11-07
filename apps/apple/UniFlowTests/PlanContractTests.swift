@@ -6,8 +6,8 @@ import XCTest
 /// Swift-Tabelle der StudiNow-Tarife (Plans.swift) gegen den gemeinsamen Vertrag
 /// packages/shared-contracts/fixtures/plans/plans.json (aus app/plans.py, tools/gen-plans-fixture.py): Namen, Preise,
 /// Produkte, Rechte je Tarif und Stand. Dazu die Regel des Inhabers vom 27.10.2026: als enthalten zeigt das iPad nur,
-/// was im Vertrag `available` ist und auf dem Geraet wirklich geht; alles, was den Dienst braucht, steht unter
-/// "in Vorbereitung".
+/// was im Vertrag `available` ist und auf dem Geraet bzw. mit StudiNow-Konto wirklich geht; was es auf dem iPad nicht
+/// gibt, steht auf keiner Karte (07.11.2026: kein "in Vorbereitung").
 final class PlanContractTests: XCTestCase {
     private static let path = "packages/shared-contracts/fixtures/plans/plans.json"
 
@@ -41,7 +41,9 @@ final class PlanContractTests: XCTestCase {
             }
             XCTAssertEqual(p["apple_product_id"]?.string, plan.productID, plan.rawValue)
             XCTAssertEqual(p["tagline"]?.string, plan.tagline, plan.rawValue)
+            XCTAssertEqual(int(p["credits"]), plan.monthlyCredits, plan.rawValue)
         }
+        XCTAssertEqual(int(c["credits"]?["pro_ai"]), UFPlan.proAI.monthlyCredits)
         // Reihenfolge = Rang, jeder hoehere Tarif kostet mehr
         XCTAssertEqual(UFPlan.allCases.map(\.rank), [0, 1, 2])
         XCTAssertEqual(UFPlan.allCases.map(\.priceCents), UFPlan.allCases.map(\.priceCents).sorted())
@@ -145,19 +147,20 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: plusOnly, loading: true, current: .free))
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: [], loading: false, current: .free), "Fehlerkarte sagt es schon")
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: plusOnly, loading: false, current: .proAI))
-        // ehrliche Zeile nur auf der Pro-AI-Karte
+        // Konto-Hinweis nur auf der Pro-AI-Karte (07.11.2026), Credits wie im Vertrag
         XCTAssertEqual(UFPlanCatalog.serviceNote(.proAI), UFPlanCatalog.proAIServiceNote)
-        XCTAssertTrue(UFPlanCatalog.proAIServiceNote.contains("braucht den StudiNow-Dienst"))
+        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 100 Credits im Monat.")
+        XCTAssertFalse(UFPlanCatalog.proAIServiceNote.contains("denselben Umfang"))
         XCTAssertNil(UFPlanCatalog.serviceNote(.plus))
         XCTAssertNil(UFPlanCatalog.serviceNote(.free))
         // drei Tarife (Entscheidung 04.11.2026)
         XCTAssertEqual(UFPlan.allCases.count, 3)
         XCTAssertEqual(UFPlan(productID: "de.uniflow.proai.monthly"), .proAI)
         // Texte der Seite nennen Pro AI nur mit Produkt
-        let withProAI = PlanPickerView.subtitle(proAI: true, trial: nil)
+        let withProAI = PlanPickerView.subtitle(proAI: true)
         XCTAssertTrue(withProAI.contains(UFPlan.free.name) && withProAI.contains(UFPlan.plus.name) && withProAI.contains(UFPlan.proAI.name))
         XCTAssertTrue(withProAI.contains("über den StudiNow-Dienst"))
-        XCTAssertFalse(PlanPickerView.subtitle(proAI: false, trial: nil).contains("Pro"))
+        XCTAssertFalse(PlanPickerView.subtitle(proAI: false).contains("Pro"))
         XCTAssertTrue(PlanPickerView.legalText.contains("höheren Tarif"), "zwei Abo-Tarife in einer Gruppe: Wechselregel steht dabei")
         XCTAssertTrue(PlanPickerView.legalText.contains("24 Stunden"))
     }
@@ -202,10 +205,10 @@ final class PlanContractTests: XCTestCase {
 
     // MARK: Umsetzung auf dem iPad
 
-    /// Jedes Recht ist entweder auf dem Geraet umgesetzt, und zwar ab genau dem Tarif aus dem Vertrag (keine
-    /// Abweichung des iPads, Entscheidung 28.10.2026), oder braucht den Dienst. Was der Inhaber als Dienst-Funktion
-    /// nennt, ist nie "enthalten".
-    func testEveryContractRightIsOnDeviceOrPreparing() {
+    /// Jedes Recht ist auf dem Geraet umgesetzt, mit StudiNow-Konto ueber den Dienst (StudiNow-KI, Notizen-Abgleich)
+    /// oder auf dem iPad nicht gebaut; umgesetzt immer ab genau dem Tarif aus dem Vertrag (keine Abweichung des iPads,
+    /// Entscheidung 28.10.2026).
+    func testEveryContractRightIsOnDeviceWithAccountOrHidden() {
         XCTAssertEqual(UFEntitlement.canReadCommunity.onDevice, .onDevice([.communityRead]))
         // Entscheidung 05.11.2026: Community ab Plus, eigenes ChatGPT in jedem Tarif (Verbindung noch aus)
         XCTAssertEqual(UFEntitlement.canReadCommunity.from, .plus)
@@ -217,10 +220,16 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFEntitlement.canUseFlashcards.onDevice, .onDevice([.flashcards]))
         XCTAssertEqual(UFEntitlement.canUseFlashcards.from, .plus)
         XCTAssertEqual(UFEntitlement.canUseFlashcards.label, UFFeature.flashcards.title)
+        // Pro AI mit StudiNow-Konto (07.11.2026): StudiNow-KI und Notizen-Abgleich
+        XCTAssertEqual(UFEntitlement.canUseAIExplanations.onDevice, .withAccount([.aiHelp]))
+        XCTAssertEqual(UFEntitlement.canUseAISummaries.onDevice, .withAccount([.aiHelp]))
+        XCTAssertEqual(UFEntitlement.canUseAIGeneratedQuestions.onDevice, .withAccount([.aiFlashcards, .weeklyTests]))
+        XCTAssertEqual(UFEntitlement.canSyncAnnotations.onDevice, .withAccount([.deviceSync]))
         for e in UFEntitlement.allCases {
             switch e.onDevice {
-            case .onDevice(let features):
+            case .onDevice(let features), .withAccount(let features):
                 XCTAssertFalse(features.isEmpty, e.rawValue)
+                XCTAssertEqual(features, e.deviceFeatures, e.rawValue)
                 XCTAssertEqual(e.status, .available, "umgesetzt, aber im Vertrag nicht available: \(e.rawValue)")
                 XCTAssertTrue(e.availableOnDevice, e.rawValue)
                 let iPadFrom = features.map(\.minimumPlan).max()
@@ -229,122 +238,157 @@ final class PlanContractTests: XCTestCase {
                     XCTAssertFalse(f.isV2, "\(e.rawValue): \(f.rawValue)")
                     XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), .allowed, "\(e.rawValue): \(f.rawValue)")
                 }
+                if case .withAccount = e.onDevice { XCTAssertEqual(e.from, .proAI, "mit Konto nur die Pro-AI-Rechte: \(e.rawValue)") }
             case .needsService:
                 XCTAssertFalse(e.availableOnDevice, e.rawValue)
+                XCTAssertTrue(e.deviceFeatures.isEmpty, e.rawValue)
             }
         }
-        // Dienst-Funktionen laut Auftrag: StudiNow-KI, gemeinsame Testbibliothek, Lernstatistik/Empfehlungen,
-        // Geraete-Abgleich, ChatGPT
-        let service: [UFEntitlement] = [.canUseAIExplanations, .canUseAISummaries, .canUseAIGeneratedQuestions,
-                                        .canUseAIRecommendations, .canGenerateStudoraAITests, .canAccessSharedTests,
-                                        .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canGetRecommendations,
-                                        .canReviewWrongAnswers, .canUseExtendedTestHistory, .canSyncAnnotations,
-                                        .chatgptConnectionPremium, .canUsePreparedWeekSets]
-        for e in service { XCTAssertEqual(e.onDevice, .needsService, e.rawValue) }
+        // auf dem iPad nicht gebaut: Testbibliothek, KI-Tests von StudiNow, Lernstatistik/Empfehlungen, Testliste,
+        // fertige Wochenfragen der Bibliothek, Kommentare ueber den Dienst, ChatGPT
+        let hidden: [UFEntitlement] = [.canUseAIRecommendations, .canGenerateStudoraAITests, .canAccessSharedTests,
+                                       .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canGetRecommendations,
+                                       .canReviewWrongAnswers, .canUseExtendedTestHistory, .chatgptConnectionPremium,
+                                       .canUsePreparedWeekSets, .canWriteCommunityComments]
+        for e in hidden { XCTAssertEqual(e.onDevice, .needsService, e.rawValue) }
         // Kommentare sind im Vertrag seit PC d0d1c74 available, laufen aber ueber den Dienst (G4); das iPad V1 mit
         // CloudKit-Community gibt sie nicht als vorhanden aus (Umstellung D15)
         XCTAssertEqual(UFEntitlement.canWriteCommunityComments.status, .available)
-        XCTAssertEqual(UFEntitlement.canWriteCommunityComments.onDevice, .needsService)
         XCTAssertFalse(UFEntitlement.canWriteCommunityComments.availableOnDevice)
     }
 
-    /// Pro AI enthaelt alles aus Plus; die Rechte von Plus bleiben, wie sie waren (dazu Wochentest erstellen, 04.11.2026)
+    /// Pro AI enthaelt alles aus Plus; dazu kommen die StudiNow-KI (KI-Hilfe, KI-Karteikarten, Wochentests) und der
+    /// Notizen-Abgleich (07.11.2026, Wochentests vorher Plus mit dem eigenen ChatGPT, das aus ist)
     func testProPlansContainEverythingFromPlus() {
-        for f in UFFeature.allCases {
+        for f in UFFeature.allCases where f.minimumPlan <= .plus {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), UFFeatureMatrix.access(f, plan: .plus), f.rawValue)
         }
-        for f: UFFeature in [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .weeklyTests] {
+        for f: UFFeature in [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan] {
             XCTAssertEqual(f.minimumPlan, .plus, f.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
-        XCTAssertFalse(UFFeature.allCases.contains { $0.minimumPlan > .plus }, "keine Geraete-Funktion erst ab Pro")
+        let pro: [UFFeature] = [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync]
+        XCTAssertEqual(UFFeature.allCases.filter { $0.minimumPlan == .proAI }, pro)
+        for f in pro {
+            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), .allowed, f.rawValue)
+            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .locked(.proAI), f.rawValue)
+            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.proAI), f.rawValue)
+        }
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .proAI), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
     // MARK: Tarifkarten
 
-    func testPlanCardsListOnlyWhatWorksAndMarkTheRest() {
+    /// Karten (App Review 07.11.2026): Free und Plus ohne KI und ohne ChatGPT, Pro AI mit den gebauten KI-Funktionen;
+    /// nichts "in Vorbereitung", nichts, was es auf dem iPad nicht gibt
+    func testPlanCardsListOnlyWhatWorks() {
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
                         .viewNotes, .uniGrades].map(\.title))
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
-                       [UFFeature.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .weeklyTests].map(\.title))
-        XCTAssertEqual(UFPlanCard.included(.proAI), [], "Pro AI bietet auf dem iPad heute nichts Eigenes")
-
-        // Free (05.11.2026): eigenes ChatGPT verbinden, bis OpenAI freigibt "in Vorbereitung"
-        XCTAssertEqual(UFPlanCard.preparing(.free).map(\.title), ["Eigenes ChatGPT verbinden und zu Folien fragen"])
+                       ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
+                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung", "Lernplan automatisch erstellen"])
+        // Free (07.11.2026): Lernkalender von Hand, der automatische Lernplan gehoert zu Plus
+        XCTAssertFalse((UFPlanCard.included(.free).map { $0.title + " " + ($0.detail ?? "") }).joined().contains("automatisch"))
+        XCTAssertEqual(UFPlanCard.included(.plus).last?.detail, "Lernslots in deinen freien Zeiten")
+        XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title),
+                       ["KI-Hilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
+                        "Notizen auf allen deinen Geräten"])
+        let help = try? XCTUnwrap(UFPlanCard.included(.proAI).first)
+        XCTAssertTrue(help?.detail?.contains("„Ganze Vorlesung erklären“") == true)
+        XCTAssertTrue(help?.detail?.contains("„Alle Aufgaben erklären“") == true)
         XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title.contains("Community") }, "Free ohne Community")
-        XCTAssertEqual(UFPlanCard.preparing(.plus).map(\.title),
-                       ["Community-Kommentare schreiben", "Tests aus der StudiNow-Bibliothek", "Neue KI-Tests von StudiNow"])
-        // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect) und die StudiNow-KI
-        XCTAssertEqual(UFPlanCard.preparing(.proAI).map(\.title),
-                       ["Lernstatistik über alle Module", "Intelligente Lernplanung (Empfehlungen für die Woche)",
-                        "Automatische Wiederholung falscher Antworten", "Vollständige Testliste (Free und Plus: die letzten 10)",
-                        "Personalisierte Lernempfehlungen",
-                        "KI-Erklärungen zu Aufgaben", "Automatische Lernfragen und Wiederholungsaufgaben",
-                        "KI-Zusammenfassungen", "KI-gestützte Lernempfehlungen",
-                        // 04.11.2026: Notizen-Abgleich zwischen den Geraeten ab Pro AI, fertige Wochenfragen der Bibliothek
-                        "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)",
-                        "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen"])
 
+        // was es auf dem iPad nicht gibt, steht auf keiner Karte
+        let forbidden = #"ChatGPT|Vorbereitung|Statistik|Bibliothek|Empfehlung|Lernplanung \(|Testliste|Vorlesungswoche|denselben Umfang"#
         for plan in UFPlan.allCases {
             for r in UFPlanCard.included(plan) {
-                XCTAssertFalse(r.preparing, r.title)
-                XCTAssertNil(r.title.range(of: #"\bKI\b|KI-|ChatGPT|Statistik|Bibliothek|allen Geräten"#, options: .regularExpression),
-                             "enthalten, aber braucht den Dienst: \(r.title)")
-            }
-            for r in UFPlanCard.preparing(plan) {
-                XCTAssertTrue(r.preparing, r.title)
-                XCTAssertEqual(r.icon, "clock")
-                XCTAssertFalse(r.title.contains("in Vorbereitung"), "Zusatz steht schon in der Marke: \(r.title)")
-            }
-            // jedes Recht ab diesem Tarif steht auf der Karte: als Geraete-Funktion oder unter "in Vorbereitung"
-            for e in UFEntitlement.allCases where e.from == plan {
-                if e.availableOnDevice, case .onDevice(let fs) = e.onDevice {
-                    for f in fs { XCTAssertTrue(UFPlanCard.included(plan).contains { $0.title == f.title }, "\(e.rawValue): \(f.rawValue)") }
-                } else {
-                    XCTAssertTrue(UFPlanCard.preparing(plan).contains { $0.title == e.cardLabel }, e.rawValue)
+                XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: forbidden, options: .regularExpression), r.title)
+                if plan != .proAI {
+                    XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: #"\bKI\b|KI-|allen deinen Geräten"#, options: .regularExpression),
+                                 "KI und Abgleich gehoeren zu Pro AI: \(r.title)")
                 }
+            }
+            // jedes Recht ab diesem Tarif, das auf dem iPad geht, steht auf der Karte; die anderen nicht
+            let titles = UFPlanCard.included(plan).map(\.title)
+            for e in UFEntitlement.allCases where e.from == plan {
+                for f in e.deviceFeatures { XCTAssertTrue(titles.contains(f.title), "\(e.rawValue): \(f.rawValue)") }
+                if e.deviceFeatures.isEmpty { XCTAssertFalse(titles.contains(e.label), e.rawValue) }
+            }
+            for t in [UFPlanCard.tagline(plan), UFPlanCard.intro(plan), UFPlanCatalog.serviceNote(plan)].compactMap({ $0 }) {
+                XCTAssertNil(t.range(of: forbidden, options: .regularExpression), t)
             }
         }
     }
 
     func testPlanCardTextsAreHonest() throws {
-        XCTAssertEqual(UFPlanCard.sameScope(as: .free), .free)
-        XCTAssertEqual(UFPlanCard.sameScope(as: .plus), .plus)
-        XCTAssertEqual(UFPlanCard.sameScope(as: .proAI), .plus)
-        XCTAssertEqual(UFPlanCard.note(.free), UFPlanCard.chatgptNote)
-        XCTAssertTrue(UFPlanCard.chatgptNote.contains("OpenAI"))
-        let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von StudiNow und folgt mit einem Update."
-        XCTAssertEqual(UFPlanCard.note(.plus), base)
-        XCTAssertEqual(UFPlanCard.note(.proAI), base + " Bis dahin bietet StudiNow Pro AI denselben Umfang wie StudiNow Plus.")
         XCTAssertEqual(UFPlanCard.intro(.free), "Alles für den Uni-Alltag:")
         XCTAssertEqual(UFPlanCard.intro(.plus), "Alles aus StudiNow Free, dazu:")
-        XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus StudiNow Plus.")
-        // Kurzbeschreibung nur, wenn sie stimmt ("KI von StudiNow inklusive" waere heute ein Versprechen)
+        XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus StudiNow Plus, dazu:")
+        // Kurzbeschreibung der Karten: Plus ohne Wochentests (gehoeren zu Pro AI), Pro AI ohne ChatGPT
         XCTAssertEqual(UFPlanCard.tagline(.free), UFPlan.free.tagline)
-        XCTAssertEqual(UFPlanCard.tagline(.plus), UFPlan.plus.tagline)
-        XCTAssertNil(UFPlanCard.tagline(.proAI))
-        // Seitenkopf: die Probe auf dem iPad nur, solange sie laeuft; nie "gratis" (kein Einfuehrungsangebot)
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let running = PlanPickerView.subtitle(proAI: false, trial: UFLocalTrial.state(startedAt: now, now: now))
-        XCTAssertTrue(running.contains("7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten. Probe: noch 7 Tage alles frei."), running)
-        let runningWithProAI = PlanPickerView.subtitle(proAI: true, trial: UFLocalTrial.state(startedAt: now, now: now))
-        XCTAssertTrue(runningWithProAI.contains("7 Tage Probe: alles wie StudiNow Pro AI, mit 25 Credits für die StudiNow-KI, danach Free"), runningWithProAI)
-        let over = PlanPickerView.subtitle(proAI: false, trial: UFLocalTrial.state(startedAt: now, now: now.addingTimeInterval(8 * 86_400)))
-        XCTAssertFalse(over.contains("Probe"), over)
-        XCTAssertFalse(PlanPickerView.subtitle(proAI: true, trial: nil).contains("gratis"))
-        XCTAssertFalse(running.contains("gratis"))
+        XCTAssertEqual(UFPlanCard.tagline(.plus), "Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
+        XCTAssertEqual(UFPlanCard.tagline(.proAI), "Die StudiNow-KI für deine Unterlagen inklusive")
+        // Seitenkopf nie "gratis" (kein Einfuehrungsangebot); die Probe steht in eigener Zeile (testTrialStatusOnPlanPage)
+        XCTAssertFalse(PlanPickerView.subtitle(proAI: true).contains("gratis"))
+        XCTAssertFalse(PlanPickerView.subtitle(proAI: true).contains("Probe"))
         XCTAssertEqual(PlanPickerView.title(.onboarding), "Tarif wählen")
         XCTAssertEqual(PlanPickerView.title(.settings), "Tarif wechseln")
         XCTAssertEqual(PlanPickerView.title(.upgrade(.plus)), "Mehr mit StudiNow Plus")
         XCTAssertEqual(PlanPickerView.title(.upgrade(nil)), "Tarif wechseln")
-        // VoiceOver liest Zusatz und Marke mit
+        // VoiceOver liest den Zusatz mit
         XCTAssertEqual(PlanPickerView.accessibilityLabel(UFPlanCardRow(title: "Uni & Noten", detail: "Notenspiegel", icon: "check")),
                        "Uni & Noten, Notenspiegel")
-        XCTAssertEqual(PlanPickerView.accessibilityLabel(try XCTUnwrap(UFPlanCard.preparing(.proAI).first)),
-                       "Lernstatistik über alle Module, in Vorbereitung")
+        XCTAssertEqual(PlanPickerView.accessibilityLabel(UFPlanCardRow(title: "Stundenplan", icon: "check")), "Stundenplan")
+    }
 
+    /// Probe auf dem iPad (07.11.2026): oben "Probe aktiv: alle Funktionen von StudiNow Pro AI bis … (noch n Tage)",
+    /// ehrlich zur KI (StudiNow-Konto, 25 Credits beim Dienst); keine Karte "Aktueller Tarif", auch Free nicht; die
+    /// Probe schaltet alles wie Pro AI frei, danach Free
+    func testTrialStatusOnPlanPage() throws {
+        let start = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-07T10:00:00Z"))
+        let t = UFLocalTrial.state(startedAt: start, now: start)
+        let s = PlanPickerView.trialStatus(t, proAI: true)
+        XCTAssertEqual(s.title, "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 14.11.2026 (noch 7 Tage)")
+        XCTAssertTrue(s.note.contains("StudiNow-Konto (Anmelden mit Apple)"), s.note)
+        XCTAssertTrue(s.note.contains("25 Credits"), s.note)
+        XCTAssertTrue(s.note.contains("Danach gilt StudiNow Free"), s.note)
+        XCTAssertFalse(s.note.contains("ChatGPT") || s.note.contains("gratis"), s.note)
+        let last = UFLocalTrial.state(startedAt: start, now: start.addingTimeInterval(6.5 * 86_400))
+        XCTAssertEqual(PlanPickerView.trialStatus(last, proAI: true).title, "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 14.11.2026 (noch 1 Tag)")
+        // ohne Pro-AI-Produkt im Store weder Pro AI noch KI
+        let plain = PlanPickerView.trialStatus(t, proAI: false)
+        XCTAssertEqual(plain.title, "Probe aktiv: alle Funktionen bis 14.11.2026 (noch 7 Tage)")
+        XCTAssertFalse(plain.note.contains("KI") || plain.note.contains("Pro AI"), plain.note)
+        // "Aktueller Tarif": waehrend der Probe ohne Kauf keiner; mit Kauf der gekaufte
+        for p in UFPlan.allCases {
+            XCTAssertFalse(PlanPickerView.isCurrent(p, purchased: .free, loading: false, trial: true), p.rawValue)
+        }
+        XCTAssertTrue(PlanPickerView.isCurrent(.free, purchased: .free, loading: false, trial: false))
+        XCTAssertTrue(PlanPickerView.isCurrent(.plus, purchased: .plus, loading: false, trial: true))
+        XCTAssertFalse(PlanPickerView.isCurrent(.free, purchased: .free, loading: true, trial: false))
+        // Probe = Pro AI: alle Funktionen des iPads frei, danach Free
+        XCTAssertEqual(UFLocalTrial.plan, .proAI)
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: t), .proAI)
+        let over = UFLocalTrial.state(startedAt: start, now: start.addingTimeInterval(8 * 86_400))
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: over), .free)
+        for f in UFFeature.allCases where !f.isV2 && (f != .timer || StudyTimer.isEnabled) {
+            XCTAssertEqual(UFFeatureMatrix.access(f, plan: UFLocalTrial.plan), .allowed, f.rawValue)
+        }
+    }
+
+    @MainActor
+    func testRunningLocalTrialOnlyWithoutPurchase() {
+        let ent = Entitlements(observe: false, plan: .free)
+        let now = Date()
+        ent.useLocalTrial(startedAt: now, now: now)
+        XCTAssertEqual(ent.plan, .proAI, "Probe: alles wie Pro AI")
+        XCTAssertEqual(ent.runningLocalTrial?.daysLeft, 7)
+        ent.useLocalTrial(startedAt: now.addingTimeInterval(-8 * 86_400), now: now)
+        XCTAssertNil(ent.runningLocalTrial, "nach der Probe")
+        XCTAssertEqual(ent.plan, .free)
+        ent.useLocalTrial(startedAt: nil)
+        XCTAssertNil(ent.runningLocalTrial)
     }
 
     // MARK: Verknuepfung mit dem Dienst

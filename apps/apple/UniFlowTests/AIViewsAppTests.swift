@@ -534,7 +534,7 @@ final class AIViewsAppTests: XCTestCase {
         t.answer("/api/modules/1", moduleDetail)
         t.answer("/api/tests/generate", ["started": "Test"])
         let generation = TestGenerationState()
-        let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.plus), generation: generation).environment(\.ufAIEnabled, true), api: api(t))
+        let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.proAI), generation: generation).environment(\.ufAIEnabled, true), api: api(t))
         env.pump(0.8)                                                        // Module und Lehrwochen laden, Baum aufbauen
         // Unterlagen mit KI-Titel erscheinen unter dem Titel ("Folgen und Grenzwerte" statt VL03.pdf)
         XCTAssertTrue(env.wait { self.shows(env.view, "Blatt03.pdf") }, texts(env.view).joined(separator: "\n"))
@@ -561,7 +561,7 @@ final class AIViewsAppTests: XCTestCase {
     func testQuizComposerWithoutModulesCannotStart() throws {
         let t = transport()
         t.answer("/api/modules", [])
-        let env = try hostWithEnvironment(QuizComposer(moduleID: 0, entitlements: plan(.plus), generation: TestGenerationState()).environment(\.ufAIEnabled, true), api: api(t))
+        let env = try hostWithEnvironment(QuizComposer(moduleID: 0, entitlements: plan(.proAI), generation: TestGenerationState()).environment(\.ufAIEnabled, true), api: api(t))
         XCTAssertTrue(env.wait { self.shows(env.view, "Noch keine Module") }, texts(env.view).joined(separator: "\n"))
         XCTAssertEqual(enabled("Test erstellen", in: env.view), false)
         XCTAssertEqual(t.count("POST", "/api/tests/generate"), 0)
@@ -607,7 +607,7 @@ final class AIViewsAppTests: XCTestCase {
     /// KI-Hilfe im Editor, Reiter Test: "Wochentest erstellen" waehlt das Modul des offenen Dokuments vor (04.11.2026)
     func testTutorPanelWeeklyTestPreselectsTheDocumentsModule() throws {
         let before = Entitlements.shared.plan
-        Entitlements.shared.setPlanForTesting(.plus)
+        Entitlements.shared.setPlanForTesting(.proAI)                // Wochentest erstellen: Pro AI (07.11.2026)
         addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
         let t = transport()
         t.answer("/api/modules/2", ["id": 2, "name": "Testphysik", "weeks": [
@@ -824,7 +824,7 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(start.wait { self.shows(start.view, "Kurz gesagt") }, texts(start.view).joined(separator: "\n"))
         both(start, "ki-start")
 
-        let quiz = try hostWithEnvironment(dialogFrame(QuizComposer(moduleID: 1, entitlements: plan(.plus), generation: TestGenerationState())).environment(\.ufAIEnabled, true), api: api(t))
+        let quiz = try hostWithEnvironment(dialogFrame(QuizComposer(moduleID: 1, entitlements: plan(.proAI), generation: TestGenerationState())).environment(\.ufAIEnabled, true), api: api(t))
         quiz.pump(0.8)
         XCTAssertTrue(quiz.wait { self.shows(quiz.view, "Blatt03.pdf") }, texts(quiz.view).joined(separator: "\n"))
         both(quiz, "wochentest-erstellen")

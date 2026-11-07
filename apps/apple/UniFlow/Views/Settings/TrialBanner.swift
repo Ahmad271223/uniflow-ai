@@ -13,6 +13,9 @@ enum UFTrialTexts {
     static let runningTextService = "Alles wie StudiNow Pro AI, mit \(credits) Credits für die StudiNow-KI. " + runningText
     static let overTitle = "Deine Probe ist vorbei"
     static let overText = "Sieben Tage lang war alles frei. Wähle jetzt einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar."
+    /// weitere Apple-ID auf einem iPad, auf dem schon eine Probe lief (LocalTrial.swift, Geraete-Marke)
+    static let usedOnDeviceTitle = "Auf diesem iPad wurde die Probe schon genutzt"
+    static let usedOnDeviceText = "Die 7 Tage Probe gibt es einmal je iPad. Wähle einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten."
     static let plans = "Tarife ansehen"
     static let stayFree = "Bei Free bleiben"
     /// Angebotssatz auf der Tarifseite (ersetzt "1 Woche gratis, danach …" des Einfuehrungsangebots, 04.11.2026)
@@ -91,6 +94,9 @@ private struct TrialBannerCard: View {
                     if case .over(let source) = c {
                         UFButton(UFTrialTexts.stayFree, size: .small) { stayFree(source) }
                             .disabled(busy)
+                            .accessibilityIdentifier("trial.free")
+                    } else if c == .usedOnDevice {
+                        UFButton(UFTrialTexts.stayFree, size: .small) { stayFree(.device) }
                             .accessibilityIdentifier("trial.free")
                     }
                 }

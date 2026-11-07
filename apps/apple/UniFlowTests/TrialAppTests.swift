@@ -104,9 +104,60 @@ final class LocalTrialTests: XCTestCase {
         let onOther = UFLocalTrial.begin(userID: id, records: other, now: day(10))
         XCTAssertTrue(onOther.isExpired)
         XCTAssertEqual(other.load(scope).keychain, t0)
-        // andere Apple-ID: eigene Probe
-        XCTAssertEqual(UFLocalTrial.begin(userID: id + "-andere", records: records, now: day(10)).daysLeft, 7)
+        // andere Apple-ID auf demselben iPad: keine neue Probe (Geraete-Marke, 07.11.2026)
+        let second = UFLocalTrial.begin(userID: id + "-andere", records: records, now: day(10))
+        XCTAssertTrue(second.deviceUsed)
         XCTAssertEqual(records.load(scope).keychain, t0)
+    }
+
+    /// Je Geraet hoechstens eine Probe (Inhaber 07.11.2026): erste Probe ueberhaupt -> 7 Tage und Marke; weitere
+    /// Apple-ID auf demselben iPad -> keine Probe, auch nicht am selben Tag, auch nach Neuinstallation; dieselbe Apple-ID
+    /// behaelt ihre Probe; die Regel je Apple-ID (iCloud) gilt weiter
+    func testOneTrialPerDevice() {
+        let records = UFMemoryTrialRecords()
+        let a = "001234.geraet-a.\(UUID().uuidString.prefix(8))", b = "001234.geraet-b.\(UUID().uuidString.prefix(8))"
+        // erste Probe auf dem Geraet
+        let first = UFLocalTrial.begin(userID: a, records: records, now: t0)
+        XCTAssertEqual(first.daysLeft, 7)
+        XCTAssertFalse(first.deviceUsed)
+        XCTAssertEqual(records.device, t0, "Marke beim Beginn gesetzt")
+        // zweite Apple-ID noch am selben Tag: keine Probe, nichts fuer sie gespeichert
+        let second = UFLocalTrial.begin(userID: b, records: records, now: day(0.5))
+        XCTAssertTrue(second.deviceUsed)
+        XCTAssertFalse(second.isActive)
+        XCTAssertEqual(records.load(UFLocalTrial.scope(userID: b)), UFTrialRecords())
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: second), .free)
+        XCTAssertTrue(second.updated(now: day(1)).deviceUsed, "Tageswechsel macht daraus keine Probe")
+        // Neuinstallation: Schluesselbund (Apple-ID und Marke) bleibt, UserDefaults sind leer
+        let reinstalled = UFMemoryTrialRecords()
+        reinstalled.records = records.records.mapValues { UFTrialRecords(keychain: $0.keychain, cloud: $0.cloud) }
+        reinstalled.device = records.device
+        XCTAssertTrue(UFLocalTrial.begin(userID: b, records: reinstalled, now: day(2)).deviceUsed, "keine neue Probe nach Neuinstallation")
+        XCTAssertEqual(UFLocalTrial.begin(userID: a, records: reinstalled, now: day(2)).daysLeft, 5, "die erste Apple-ID behaelt ihre Probe")
+        // iCloud-Regel bleibt: Apple-ID A auf einem neuen iPad -> ihr alter Beginn, Marke dort gesetzt
+        let otherIPad = UFMemoryTrialRecords(cloud: t0, scope: UFLocalTrial.scope(userID: a))
+        XCTAssertEqual(UFLocalTrial.begin(userID: a, records: otherIPad, now: day(3)).daysLeft, 4)
+        XCTAssertEqual(otherIPad.device, t0)
+        // Hinweis auf der Uebersicht
+        XCTAssertEqual(UFTrialBannerContent.make(service: nil, local: second, purchased: .free, choiceMade: false), .usedOnDevice)
+        XCTAssertEqual(UFTrialBannerContent.usedOnDevice.title, "Auf diesem iPad wurde die Probe schon genutzt")
+        XCTAssertNil(UFTrialBannerContent.make(service: nil, local: second, purchased: .free, choiceMade: true))
+        XCTAssertNil(UFTrialBannerContent.make(service: nil, local: second, purchased: .plus, choiceMade: false))
+    }
+
+    func testEntitlementsGiveNoTrialToASecondAppleIDOnTheSameDevice() {
+        let records = UFMemoryTrialRecords()
+        let e = Entitlements(observe: false)
+        e.beginLocalTrial(userID: "001234.erste.\(UUID().uuidString.prefix(8))", records: records, now: t0)
+        XCTAssertEqual(e.plan, .proAI)
+        e.useLocalTrial(startedAt: nil)
+        e.beginLocalTrial(userID: "001234.zweite.\(UUID().uuidString.prefix(8))", records: records, now: day(1))
+        XCTAssertEqual(e.plan, .free)
+        XCTAssertEqual(e.localTrial?.deviceUsed, true)
+        XCTAssertNil(e.runningLocalTrial)
+        e.refreshLocalTrial(now: day(2))
+        XCTAssertEqual(e.plan, .free, "bleibt ohne Probe")
+        XCTAssertEqual(e.statusLabel, "StudiNow Free")
     }
 
     func testWithoutICloudTheKeychainAloneCounts() {
@@ -125,7 +176,7 @@ final class LocalTrialTests: XCTestCase {
         let store = UFTrialRecordStore(keychain: KeychainStore(service: "de.uniflow.ai.trial.test.\(UUID().uuidString)"),
                                        cloud: nil, defaults: UserDefaults(suiteName: "uniflow.tests.trial.\(UUID().uuidString)")!)
         let scope = UFLocalTrial.scope(userID: "001234.schluesselbund.\(UUID().uuidString.prefix(8))")
-        addTeardownBlock { store.remove(scope); store.keychain.removeAll() }
+        addTeardownBlock { store.remove(scope); store.keychain.removeAll(); store.removeDeviceMark() }
         XCTAssertEqual(store.load(scope), UFTrialRecords())
         store.save(start: t0, scope: scope, keychain: true, cloud: true)
         let loaded = store.load(scope)
@@ -138,6 +189,16 @@ final class LocalTrialTests: XCTestCase {
         let attrs = try XCTUnwrap(store.keychain.attributes(scope))
         XCTAssertEqual(attrs.accessible, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
         XCTAssertEqual(attrs.synchronizable, false)
+        // Geraete-Marke: eigener Dienst, an keiner Apple-ID, nur dieses Geraet, nicht synchronisiert
+        XCTAssertNil(store.deviceTrialStart())
+        store.markDeviceTrial(start: t0)
+        XCTAssertEqual(store.deviceTrialStart(), t0)
+        XCTAssertEqual(store.deviceKeychain.service, store.keychain.service + ".device")
+        let mark = try XCTUnwrap(store.deviceKeychain.attributes(UFTrialRecordStore.deviceAccount))
+        XCTAssertEqual(mark.accessible, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
+        XCTAssertEqual(mark.synchronizable, false)
+        // neue Instanz (wie nach Neuinstallation) liest dieselbe Marke
+        XCTAssertEqual(UFTrialRecordStore(keychain: store.keychain, cloud: nil, defaults: store.defaults).deviceTrialStart(), t0)
     }
 
     // MARK: Vorrang der Quellen

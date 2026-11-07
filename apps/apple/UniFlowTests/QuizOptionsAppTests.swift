@@ -152,7 +152,7 @@ final class QuizOptionsAppTests: XCTestCase {
     func testDialogTogglesMakeAPrivateTestAndSendTheOptions() throws {
         let t = transport()
         let generation = TestGenerationState()
-        let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.plus), generation: generation).environment(\.ufAIEnabled, true),
+        let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.proAI), generation: generation).environment(\.ufAIEnabled, true),
                                           api: api(t), size: CGSize(width: 1180, height: 1400))
         env.pump(0.8)
         XCTAssertTrue(env.wait { self.shows(env.view, "VL03.pdf") || self.shows(env.view, "Folgen und Grenzwerte") }, texts(env.view).joined(separator: "\n"))

@@ -277,9 +277,38 @@ final class StudyPlanLocalAppTests: XCTestCase {
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
     }
 
+    /// Tarif fuer diesen Test (Entitlements.shared), danach wieder der vorherige
+    private func usePlan(_ p: UFPlan) {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(p)
+        addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
+    }
+
+    /// Automatischer Lernplan ab Plus (Inhaber 07.11.2026): Free sieht im Dialog die Sperrkarte statt "Erstellen", in
+    /// "freie Zeit" das Schloss; nichts geht an /api/calendar/generate. Der Lernkalender von Hand bleibt frei.
+    func testAutomaticPlanNeedsPlus() throws {
+        usePlan(.free)
+        XCTAssertEqual(Entitlements.shared.access(.autoPlan), .locked(.plus))
+        XCTAssertEqual(UFFeatureMatrix.access(.autoPlan, plan: .free, ownChatGPT: true), .allowed, "Ausnahme mit eigenem ChatGPT (spaeter)")
+        XCTAssertFalse(ChatGPTLink.isEnabled, "heute aus: die Ausnahme greift nicht")
+        XCTAssertTrue(Entitlements.shared.allows(.studyPlanning) && Entitlements.shared.allows(.studyCalendar))
+        let (api, recorder) = try awaiting { try await self.seededAPI() }
+        let gen = try show(GeneratePlanDialog(api: api, start: "2026-10-26") {}, api: api)
+        XCTAssertTrue(pump { self.shows(gen, "Mit StudiNow Plus freischalten") }, texts(gen).joined(separator: "\n"))
+        XCTAssertTrue(shows(gen, "Lernplan automatisch erstellen"))
+        XCTAssertFalse(shows(gen, "Lernkombination ändern"))
+        let dialog = try show(FreeWindowDialog(date: "2026-10-26", start: 16 * 60, end: 18 * 60, materials: [], moduleID: nil), api: api)
+        XCTAssertTrue(pump { self.shows(dialog, "Wie möchtest du die Zeit nutzen?") })
+        XCTAssertTrue(shows(dialog, "Eigenen Lernblock anlegen"), "von Hand bleibt frei")
+        settle()
+        XCTAssertFalse(recorder.calls.contains { $0.path == "/api/calendar/generate" })
+        XCTAssertFalse(recorder.calls.contains { $0.path == "/api/calendar/feasibility" }, "gesperrt laedt nichts")
+    }
+
     /// "Plan erstellen" im Lernkalender -> Dialog (ohne Wochentest) -> "Erstellen": Lernpakete in den freien Fenstern
     /// neben Vorlesung, Uebung und Fahrtzeit, kein Konflikt; Termine und Lernbloecke stehen im Stundenplan
     func testGeneratePlanFillsFreeWindowsNextToEvents() throws {
+        usePlan(.plus)                                               // automatischer Lernplan ab Plus (07.11.2026)
         let (api, recorder) = try awaiting { try await self.seededAPI(thisWeek: true) }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
@@ -355,6 +384,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// "Plan erstellen" in der Wochenansicht am Mittwoch: "Ab" ist der Montag, geplant wird erst ab heute (vorher lagen
     /// die Unterlagen zuerst auf Montag und Dienstag und waren sofort nachzuholen)
     func testPlanFromMondaySkipsPastDays() throws {
+        usePlan(.plus)                                               // automatischer Lernplan ab Plus (07.11.2026)
         let (api, recorder) = try awaiting { try await self.seededAPI(now: "2026-10-28T07:30:00", thisWeek: true) }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
@@ -379,6 +409,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// Freie Zeit 16:00–18:00 → "Lerneinheit automatisch einplanen" legt ein Paket genau in dieses Fenster, obwohl am Tag
     /// schon ein Paket liegt (vorher "0 Lernpakete erstellt")
     func testFreeWindowPlansIntoTappedWindow() throws {
+        usePlan(.plus)                                               // automatischer Lernplan ab Plus (07.11.2026)
         let (api, recorder) = try awaiting { try await self.seededAPI() }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }

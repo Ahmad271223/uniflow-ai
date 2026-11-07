@@ -7,9 +7,9 @@ import Foundation
 // schreibt daraus packages/shared-contracts/fixtures/plans/plans.json, und PlanContractTests prueft diese Tabelle
 // Zeile fuer Zeile dagegen (Namen, Preise, Produkte, Rechte je Tarif, Stand). Aendert sich plans.py, hier nachziehen.
 //
-// Was davon auf dem iPad heute wirklich geht, steht nicht hier, sondern in `UFEntitlement.onDevice` (unten) und in
-// `UFFeature` (Entitlements.swift): V1 laeuft ohne Konto beim StudiNow-Dienst, alles, was den Dienst braucht,
-// erscheint als "in Vorbereitung".
+// Was davon auf dem iPad wirklich geht, steht nicht hier, sondern in `UFEntitlement.onDevice` (unten) und in
+// `UFFeature` (Entitlements.swift): auf dem Geraet, mit StudiNow-Konto ueber den Dienst (StudiNow-KI, Notizen-Abgleich;
+// Pro AI, Stand 07.11.2026) oder gar nicht. Was gar nicht geht, zeigt keine Tarifkarte (auch nicht "in Vorbereitung").
 
 // MARK: - Tarif
 
@@ -69,6 +69,14 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
+    /// Credits fuer die StudiNow-KI je Kalendermonat aus plans.json (`plans.<tarif>.credits`; 1 Credit = 1 Cent)
+    var monthlyCredits: Int {
+        switch self {
+        case .free, .plus: return 0
+        case .proAI: return 100
+        }
+    }
+
     /// Apple-Produkt (eine Abo-Gruppe, Apple regelt Upgrade und Downgrade); Free hat keins
     var productID: String? {
         switch self {
@@ -122,8 +130,9 @@ enum UFPlanCatalog {
     /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
     static let needsProduct: Set<UFPlan> = [.proAI]
 
-    /// ehrliche Zeile auf der Pro-AI-Karte: braucht den StudiNow-Dienst
-    static let proAIServiceNote = "StudiNow Pro AI braucht den StudiNow-Dienst. Ohne ihn bietet es auf dem iPad denselben Umfang wie StudiNow Plus."
+    /// Zeile auf der Pro-AI-Karte: die StudiNow-KI und der Abgleich laufen ueber das StudiNow-Konto (Anmeldung mit Apple
+    /// in den Einstellungen, StudoraAccountLink), dazu die Credits aus dem Vertrag
+    static let proAIServiceNote = "Braucht ein StudiNow-Konto (Anmelden mit Apple). \(UFPlan.proAI.monthlyCredits) Credits im Monat."
 
     /// dezenter, nicht anklickbarer Hinweis unter den Karten, solange der Store kein Pro-AI-Produkt liefert
     static let proAIMissingNote = "StudiNow Pro AI folgt mit dem StudiNow-Dienst."
@@ -253,19 +262,20 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     /// Hat der Tarif dieses Recht laut Vertrag? (wie plans.has)
     func included(in plan: UFPlan) -> Bool { plan >= from }
 
-    /// Text fuer die Zeile "in Vorbereitung": ohne den Zusatz "(in Vorbereitung)", den die Marke schon traegt
-    var cardLabel: String { label.replacingOccurrences(of: " (in Vorbereitung)", with: "") }
 }
 
-// MARK: - Umsetzung auf dem iPad (V1, ohne Konto beim Dienst)
+// MARK: - Umsetzung auf dem iPad
 
 /// Wie ein Recht aus dem Vertrag auf dem iPad umgesetzt ist
 enum UFDeviceSupport: Equatable {
     /// geht auf dem Geraet, ueber diese Funktionen der App (Sperren, Tarifkarten: `UFFeature`)
     case onDevice([UFFeature])
-    /// braucht den gehosteten StudiNow-Dienst (Konto, StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen
-    /// Geraeten, ChatGPT): bis der Dienst laeuft "in Vorbereitung", in keinem Tarif freigeschaltet. Kein KI-Schluessel
-    /// in der App.
+    /// geht auf dem iPad ueber den StudiNow-Dienst mit StudiNow-Konto (Anmeldung mit Apple), ueber diese Funktionen der
+    /// App: StudiNow-KI (`StudiNowAIAccess`: Pro AI bzw. Probe und angemeldet, Credits beim Dienst) und Notizen-Abgleich
+    /// (DeviceSync, der Dienst prueft can_sync_annotations). Auf der Tarifkarte enthalten, mit dem Konto-Hinweis.
+    case withAccount([UFFeature])
+    /// auf dem iPad nicht gebaut (Testbibliothek, Lernstatistik, Empfehlungen, Kommentare ueber den Dienst, ChatGPT):
+    /// in keinem Tarif freigeschaltet und auf keiner Tarifkarte. Kein KI-Schluessel in der App.
     case needsService
 }
 
@@ -284,17 +294,27 @@ extension UFEntitlement {
         case .canShareSolutions: return .onDevice([.shareSolutions])
         // eigene Karteikarten: CardsPage, "Als Karteikarte", FlashcardComposer; ohne Plus nur lesen (UFFlashcardAccess)
         case .canUseFlashcards: return .onDevice([.flashcards])
-        case .canSyncAnnotations, .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
+        // StudiNow-KI (Pro AI): KI-Hilfe mit Erklaeren und Zusammenfassen, KI-Karteikarten und Wochentests
+        case .canUseAIExplanations, .canUseAISummaries: return .withAccount([.aiHelp])
+        case .canUseAIGeneratedQuestions: return .withAccount([.aiFlashcards, .weeklyTests])
+        // Notizen-Abgleich G2 (Pro AI; Plus gilt je Geraet)
+        case .canSyncAnnotations: return .withAccount([.deviceSync])
+        case .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
              .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
-             .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,
-             .canUseAISummaries, .canUseAIRecommendations, .canUsePreparedWeekSets:
+             .canGetRecommendations, .chatgptConnectionPremium, .canUseAIRecommendations, .canUsePreparedWeekSets:
             return .needsService
         }
     }
 
-    /// Auf dem iPad heute nutzbar und als enthalten zu zeigen: im Vertrag `available` und auf dem Geraet umgesetzt
-    var availableOnDevice: Bool {
-        guard status == .available, case .onDevice = onDevice else { return false }
-        return true
+    /// Funktionen der App, die das Recht umsetzen (leer: auf dem iPad nicht gebaut)
+    var deviceFeatures: [UFFeature] {
+        switch onDevice {
+        case .onDevice(let f), .withAccount(let f): return f
+        case .needsService: return []
+        }
     }
+
+    /// Auf dem iPad nutzbar und als enthalten zu zeigen: im Vertrag `available` und auf dem Geraet oder mit
+    /// StudiNow-Konto umgesetzt
+    var availableOnDevice: Bool { status == .available && !deviceFeatures.isEmpty }
 }
