@@ -1,4 +1,5 @@
 import AuthenticationServices
+import Combine
 import Foundation
 import Network
 import SwiftUI
@@ -164,11 +165,12 @@ final class ChatGPTLink: ObservableObject {
     /// gespeicherte Verbindung bleibt im Schluesselbund, wird aber nicht benutzt. docs/KI-CHATGPT-PLAN.md Abschnitt 11.
     nonisolated static let isEnabled = false
 
-    /// Zeile der Karte in den Einstellungen, solange `isEnabled` aus ist
-    nonisolated static let soonText = "Eigenes ChatGPT verbinden – bald verfügbar"
+    /// Zeile der Karte in den Einstellungen, solange `isEnabled` aus ist ("Mit ChatGPT anmelden")
+    nonisolated static let soonText = "Mit ChatGPT anmelden – bald verfügbar"
 
-    /// Hinweis an den KI-Stellen ohne KI, solange `isEnabled` aus ist: wie es weitergeht, ohne Anmeldung anzubieten
-    nonisolated static let planHint = "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI. Eigenes ChatGPT verbinden ist bald verfügbar."
+    /// Hinweis an den KI-Stellen ohne KI: wie es weitergeht - StudiNow-KI (Pro AI) oder der eigene OpenAI-Schluessel
+    /// (Einstellungen → Erweitert, in jedem Tarif; 07.11.2026), ohne eine Anmeldung bei ChatGPT anzubieten
+    nonisolated static let planHint = "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI – oder mit deinem eigenen ChatGPT: OpenAI-Schlüssel unter Einstellungen → Erweitert → Eigenes ChatGPT eintragen (in jedem Tarif)."
 
     /// Ziel der Knoepfe an den KI-Stellen ohne KI: mit Schalter die ChatGPT-Karte (Erweitert), sonst die Tarife (Konto)
     nonisolated static var settingsTab: String { isEnabled ? "advanced" : "account" }
@@ -178,6 +180,11 @@ final class ChatGPTLink: ObservableObject {
     @Published private(set) var models: [String] = []
     @Published var message: String?
 
+    /// Eigenes ChatGPT ueber den eigenen OpenAI-Schluessel (07.11.2026, OpenAIKeyLink.swift): gehoert zum selben
+    /// Apple-Nutzer, haengt am selben Backend und zaehlt hier als "eigenes ChatGPT" (`enabled`, `ufAIEnabled`)
+    let apiKey = OpenAIKeyLink()
+    private var forward: AnyCancellable?
+
     private(set) var session: ChatGPTSession?
     private var scope: String?
     private var host: LocalBackendHost?
@@ -185,11 +192,23 @@ final class ChatGPTLink: ObservableObject {
     private var loopback: ChatGPTLoopback?
     private let presenter = AuthPresenter()
 
-    /// KI-Anfragen gerade moeglich (nie, solange `isEnabled` aus ist)
-    var enabled: Bool { Self.isEnabled && status?.enabledForAI == true }
+    init() {
+        forward = apiKey.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+
+    /// KI-Anfragen ueber das eigene ChatGPT gerade moeglich: ueber das Abo (nie, solange `isEnabled` aus ist) oder
+    /// ueber den eigenen Schluessel
+    var enabled: Bool { Self.isEnabled && status?.enabledForAI == true || apiKey.enabled }
+
+    /// Modell, das gerade antwortet (Kostenzeile): das des Abos vor dem des Schluessels (Reihenfolge wie `LocalAI`)
+    var activeModel: String? {
+        if Self.isEnabled, status?.enabledForAI == true { return status?.model }
+        return apiKey.enabled ? apiKey.status?.model : nil
+    }
 
     /// Container geoeffnet oder geschlossen: Verbindung des Apple-Nutzers laden und ins Backend haengen
     func use(userScope: String?, host: LocalBackendHost?) {
+        apiKey.use(userScope: userScope, host: host)
         self.host = host
         if userScope != scope {
             scope = userScope

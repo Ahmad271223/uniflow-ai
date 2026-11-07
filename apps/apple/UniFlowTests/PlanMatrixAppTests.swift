@@ -169,7 +169,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertEqual(UFFlashcardAccess.readOnlyHint, "Mit Plus übst und bearbeitest du deine Karten wieder.")
         XCTAssertEqual(UFFeature.allCases.map(\.rawValue),
                        ["studipSync", "readDocuments", "modulesTimetable", "studyCalendar", "studyPlanning", "timer", "viewNotes", "uniGrades",
-                        "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "autoPlan",
+                        "ownChatGPT", "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "autoPlan",
                         "aiHelp", "aiFlashcards", "weeklyTests", "deviceSync", "uniflowEditor"],
                        "keine Funktion fuer Testlauf oder Lernstand: auf dem Geraet ohne Schloss")
         for e: UFEntitlement in [.canAccessSharedTests, .canGenerateStudoraAITests, .canUseAdvancedAnalytics, .canUseExtendedTestHistory,
@@ -203,7 +203,7 @@ final class PlanMatrixAppTests: XCTestCase {
         }
         XCTAssertEqual(AICost.line(chatgpt: false, plan: .proAI, credits: 10), "≈ 10 Credits")
         for p: UFPlan in [.free, .plus] {
-            XCTAssertEqual(AICost.line(chatgpt: false, plan: p, credits: 10), "Kommt mit StudiNow Pro AI", p.rawValue)
+            XCTAssertEqual(AICost.line(chatgpt: false, plan: p, credits: 10), "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)", p.rawValue)
         }
         XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI (Pro AI)")
         XCTAssertTrue(AICost.status(chatgpt: false, model: nil, plan: .free, requestsThisMonth: 0).hasPrefix("KI kommt mit StudiNow Pro AI"))

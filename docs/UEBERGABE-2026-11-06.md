@@ -32,7 +32,8 @@ installiert (iPad war „unavailable“, nicht verbunden/gesperrt). Schritte 1�
 5. Der Inhaber: 10 Fotos aus `~/Studora-Builds/appstore-screenshots-final/` hochladen, Tarif-Foto bei **beiden** Abos (Plus, Pro AI)
    unter „Screenshot“, dann beide Abos auf der Versionsseite auswählen, CloudKit-Schema → Production, „Zur Prüfung hinzufügen“ → Einreichen
    (nur nach seinem ausdrücklichen OK).
-6. Inhaber-Wünsche offen: KI-Lernplan für Free nur mit eigenem ChatGPT (Schalter vorhanden, aus bis OpenAI freigibt); später HsH-Mail,
+6. Inhaber-Wünsche: KI-Lernplan mit eigenem ChatGPT seit 07.11.2026 gebaut (eigener OpenAI-Schlüssel in Einstellungen → Erweitert, jeder
+   Tarif; „Lernplan erstellen“ → „KI-Vorschlag“; docs/ABO-SYSTEM.md Abschnitt 4) – „Mit ChatGPT anmelden“ bleibt aus, bis OpenAI freigibt; offen: später HsH-Mail,
    Lehrende/Raumfinder für HsH/Hildesheim, Lineal je Seite, Windows-Store, Stripe, Apple-Anmeldung im Web, App-Vorschau-Videos.
 
 **Bereits in App Store Connect erledigt:** Texte (Fassung mit Pro AI), Name, Untertitel, Kategorien, Altersfreigabe 16+, Prüfhinweis +

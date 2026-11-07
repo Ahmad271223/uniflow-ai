@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 06.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 07.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -248,6 +248,17 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
   kannst; dabei werden Token und Profil vom Gerät gelöscht. „Konto löschen“ entfernt die Verbindung ebenfalls.
 - **Verantwortlich bei OpenAI:** Für die Verarbeitung bei OpenAI gelten deren Bedingungen und Datenschutzerklärung,
   auch deine Einstellung, ob Inhalte zum Training verwendet werden dürfen. Übermittlung in die USA: siehe Abschnitt 12.
+- **Eigenes ChatGPT mit deinem OpenAI-Schlüssel (iPad, seit 07.11.2026):** Statt der Anmeldung bei ChatGPT kannst du
+  in den Einstellungen (Erweitert → „Eigenes ChatGPT“) einen eigenen API-Schlüssel eintragen, den du bei
+  platform.openai.com selbst anlegst. Der Schlüssel liegt **nur im Schlüsselbund dieses iPads** (nicht übertragbar auf
+  andere Geräte), wird nie an StudiNow oder in dein StudiNow-Konto übertragen, nie protokolliert und nur in der
+  Anfrage an OpenAI mitgesendet. Die Anfragen gehen **direkt von deinem Gerät an die OpenAI-Schnittstelle**
+  (api.openai.com) und werden von OpenAI über dein Konto abgerechnet; es gelten die Bedingungen und die
+  Datenschutzerklärung von OpenAI für die API (laut OpenAI werden API-Inhalte standardmäßig nicht zum Training
+  verwendet). Gesendet wird, was oben unter „Was gesendet wird“ steht; beim **KI-Lernplan** zusätzlich nur Modultitel,
+  Lehrwochen, Dateinamen mit Art und Dauer, Klausurtermine, Daten und freie Minuten – keine Namen, keine Noten, keine
+  Seitentexte. Die KI schlägt vor, eingetragen wird erst nach deiner Bestätigung. „Schlüssel löschen“ oder „Konto
+  löschen“ entfernt den Schlüssel vom Gerät.
 
 ## 8b. iPad: Community, gemeinsame Wochentests und Bibliothek über Apple iCloud (CloudKit)
 

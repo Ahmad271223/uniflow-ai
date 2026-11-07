@@ -119,7 +119,8 @@ enum AICost {
         if adopted { return "0 Credits (gemeinsamer Test)" }
         if chatgpt { return calls == 1 ? "1 Anfrage über dein ChatGPT" : "\(calls) Anfragen über dein ChatGPT" }
         if plan == .proAI { return "≈ \(credits) Credits" }
-        return ChatGPTLink.isEnabled ? "Braucht dein ChatGPT (Einstellungen → Erweitert)" : "Kommt mit StudiNow Pro AI"
+        // ohne KI: der Weg dahin - StudiNow Pro AI oder der eigene OpenAI-Schluessel (07.11.2026)
+        return "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)"
     }
 
     /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)

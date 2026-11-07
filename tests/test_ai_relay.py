@@ -619,3 +619,30 @@ def test_relay_accepts_images_only_for_the_tutor(pc, monkeypatch):
     assert e.value.code == "image_invalid"
     d = ai_relay.complete("tutor:ask", "Frage zum Bild", image=JPEG, cache=True)
     assert "Grenzwert" in d["answer"] and fake.images[-1] == JPEG and d["shared"] is False
+
+
+# ---------------------------------------------------------------- KI-Lernplan (07.11.2026, iPad AIStudyPlan.swift)
+
+def test_study_plan_task_is_known_costs_credits_and_needs_pro_ai(pc, monkeypatch):
+    """`study_plan`: dieselbe Prompt-Logik wie mit dem eigenen ChatGPT, im Dienst mit Recht can_use_ai_explanations,
+    Kontingent ai_assist und Credits; Free und Plus bekommen plan_required, nichts geht an die KI."""
+    app, calls, fake = pc
+    from app import ai_backend, ai_relay
+    from app.ai_relay import RelayError
+    cheap_calls(monkeypatch)
+    assert ai_relay.known_task("study_plan") and ai_relay._tasks()["study_plan"].quota == "ai_assist"
+    assert ai_backend.charges_credits("study_plan"), "der KI-Lernplan kostet Credits wie Karteikarten"
+    prompt = "Erstelle einen Lernplan fuer die folgenden Tage. Heute ist 2026-11-09.\nLERNTAGE ...\nMODULE ...\n## Analysis (Prioritaet 2)"
+    account(app, "plan@beispiel.de")
+    link(app, "plan@beispiel.de")
+    d = ai_relay.complete("study_plan", prompt, request_id="sp1")
+    assert fake.calls == 1 and d["credits"]["charged"] == 8 and d["task"] == "study_plan"
+    assert fake.prompts[0] == prompt, "der Prompt kommt unveraendert vom Geraet (nur Titel, Wochen, Dateinamen, Zeiten)"
+    assert ("POST", "/api/ai/relay") in calls
+    for email, plan in (("plus-plan@beispiel.de", "plus"), ("frei-plan@beispiel.de", "free")):
+        account(app, email, plan=plan)
+        link(app, email)
+        with pytest.raises(RelayError) as e:
+            ai_relay.complete("study_plan", prompt)
+        assert e.value.status in (402, 403), plan
+    assert fake.calls == 1

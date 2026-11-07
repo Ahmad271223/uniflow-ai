@@ -558,6 +558,8 @@ final class ContainerManager: ObservableObject {
         }
         // Verbindung mit ChatGPT dieses Apple-Nutzers (Token im Schluesselbund)
         if !ChatGPTKeychainStore.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftChatGPT) }
+        // eigener OpenAI-Schluessel dieses Apple-Nutzers (07.11.2026, OpenAIKeyLink.swift)
+        if !OpenAIKeyKeychainStore.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftOpenAIKey) }
         // Anmeldung am StudiNow-Konto auf diesem Geraet (das Konto beim Dienst loescht "Konto löschen" dort)
         if !StudoraAccountKeychain.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftAccount) }
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
@@ -571,6 +573,7 @@ final class ContainerManager: ObservableObject {
     static let leftKey = "Learnweb-Schlüssel"
     static let leftSession = "Stud.IP-Anmeldung"
     static let leftChatGPT = "ChatGPT-Verbindung"
+    static let leftOpenAIKey = "OpenAI-Schlüssel"
     static let leftAccount = "StudiNow-Anmeldung"
     static let leftPassword = "gemerktes Hochschul-Passwort"
 

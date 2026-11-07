@@ -316,7 +316,7 @@ struct TutorPanel: View {
                     .accessibilityIdentifier("tutor.check.off")
                 }
             }
-            Text(Self.footer(page: attached?.page ?? page(), model: chatgpt?.status?.model, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
+            Text(Self.footer(page: attached?.page ?? page(), model: chatgpt?.activeModel, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
                              adopted: Self.storedLabel(messages.last?.explain) != nil, trial: studoraAccount?.planStatus?.trialActive ?? false,
                              studinow: studinowAI))
                 .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted)

@@ -27,7 +27,7 @@ und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält z
 | Fristen und Ankündigungen der Lehrenden, Feiertage und vorlesungsfreie Zeit im Kalender | ✓ | ✓ | ✓ |
 | Lernstand je Modul aus deinen eigenen Tests, Karteikarten und Aufgaben | ✓ | ✓ | ✓ |
 | Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ | ✓ |
-| Dein eigenes ChatGPT verbinden und zu deinen Unterlagen fragen (sobald verfügbar) | ✓ | ✓ | ✓ |
+| Dein eigenes ChatGPT verbinden und zu deinen Unterlagen fragen, dazu der KI-Lernplan (iPad: mit deinem eigenen OpenAI-Schlüssel, Abrechnung bei OpenAI; Datenschutz Abschnitt 8a) | ✓ | ✓ | ✓ |
 | Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
 | Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |

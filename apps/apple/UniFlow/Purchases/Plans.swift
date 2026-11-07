@@ -206,8 +206,9 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canImportDocuments = "can_import_documents"
     case canViewTimetable = "can_view_timetable"
     case canUseBasicPlanner = "can_use_basic_planner"
-    /// eigenes ChatGPT verbinden und zu Folien fragen: seit 05.11.2026 in jedem Tarif (Name historisch); die
-    /// Verbindung selbst ist aus, bis OpenAI sie freigibt (plans.json `integrations.chatgpt`)
+    /// eigenes ChatGPT verbinden: seit 05.11.2026 in jedem Tarif (Name historisch). Auf dem iPad ueber den eigenen
+    /// OpenAI-Schluessel (07.11.2026, `UFFeature.ownChatGPT`); "Mit ChatGPT anmelden" (plans.json `integrations.chatgpt`)
+    /// bleibt aus, bis OpenAI es freigibt
     case chatgptConnectionPremium = "chatgpt_connection_premium"
     // Plus
     /// Community lesen, beitreten und mitmachen: ab Plus (Entscheidung 05.11.2026, vorher Free)
@@ -275,7 +276,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canReviewWrongAnswers: return "Automatische Wiederholung falscher Antworten"
         case .canUseExtendedTestHistory: return "Vollständige Testliste (Free und Plus: die letzten 10)"
         case .canGetRecommendations: return "Personalisierte Lernempfehlungen"
-        case .chatgptConnectionPremium: return "Eigenes ChatGPT verbinden und zu Folien fragen (in Vorbereitung)"
+        case .chatgptConnectionPremium: return "Eigenes ChatGPT verbinden: Fragen zu Folien und KI-Lernplan"
         case .canUseAIExplanations: return "KI-Erklärungen zu Aufgaben"
         case .canUseAIGeneratedQuestions: return "Automatische Lernfragen und Wiederholungsaufgaben"
         case .canUseAISummaries: return "KI-Zusammenfassungen"
@@ -288,7 +289,6 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     /// `status` aus plans.json
     var status: UFContractStatus {
         switch self {
-        case .chatgptConnectionPremium: return .disabled
         // Endpunkte (/api/learning/*) ohne Oberflaeche bzw. noch gar nicht gebaut: nie als enthalten beworben
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canGetRecommendations,
              .canUseAIRecommendations:
@@ -325,6 +325,8 @@ extension UFEntitlement {
         case .canImportDocuments: return .onDevice([.studipSync])
         case .canViewTimetable: return .onDevice([.modulesTimetable])
         case .canUseBasicPlanner: return .onDevice([.studyCalendar, .studyPlanning])
+        // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel (07.11.2026): Einstellungen → Erweitert, jeder Tarif
+        case .chatgptConnectionPremium: return .onDevice([.ownChatGPT])
         // Lesen ab Plus wie im Vertrag und im Dienst (Entscheidung 05.11.2026); eigene Beitraege zurueckziehen geht
         // nach dem Herabstufen weiter (nichts wird geloescht)
         case .canReadCommunity: return .onDevice([.communityRead])
@@ -339,7 +341,7 @@ extension UFEntitlement {
         case .canSyncAnnotations: return .withAccount([.deviceSync])
         case .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
              .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
-             .canGetRecommendations, .chatgptConnectionPremium, .canUseAIRecommendations, .canUsePreparedWeekSets:
+             .canGetRecommendations, .canUseAIRecommendations, .canUsePreparedWeekSets:
             return .needsService
         }
     }

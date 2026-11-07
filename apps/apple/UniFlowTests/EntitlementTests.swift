@@ -113,8 +113,9 @@ final class EntitlementTests: XCTestCase {
     /// Funktionen der Tarifkarten (Abschnitt 4): KI nur bei Pro AI (StudiNow-KI mit Konto, PlanContractTests)
     func testPlanCards() {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
-                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .viewNotes, .uniGrades])
-                       // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026)
+                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .viewNotes, .uniGrades, .ownChatGPT])
+                       // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026);
+                       // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel in jedem Tarif (07.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
                        [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan])
         XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync])
@@ -122,9 +123,10 @@ final class EntitlementTests: XCTestCase {
             XCTAssertFalse(f.title.contains("KI"), f.rawValue)
             XCTAssertFalse((f.detail ?? "").contains("KI"), f.rawValue)
         }
-        for f in UFFeature.allCases {
+        for f in UFFeature.allCases where f != .ownChatGPT {
             XCTAssertFalse(f.title.contains("ChatGPT") || (f.detail ?? "").contains("ChatGPT"), f.rawValue)
         }
+        XCTAssertEqual(UFFeature.ownChatGPT.title, "Eigenes ChatGPT verbinden")
     }
 
     // MARK: Tarif aus Transaktionen

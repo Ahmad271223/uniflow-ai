@@ -76,10 +76,12 @@ final class PlanContractTests: XCTestCase {
             let has = UFPlan.allCases.map { e.included(in: $0) }
             XCTAssertEqual(has, has.sorted { !$0 && $1 }, e.rawValue)
         }
-        // ChatGPT: Integration aus, keine Kopplung an einen Tarif (ABO-SYSTEM.md, Abschnitt 4)
+        // ChatGPT: die offizielle Anmeldung aus, keine Kopplung an einen Tarif (ABO-SYSTEM.md, Abschnitt 4); das Recht
+        // selbst seit 07.11.2026 available (iPad: eigener OpenAI-Schluessel, PC: Sign in with ChatGPT lokal)
         XCTAssertEqual(c["integrations"]?["chatgpt"]?["status"]?.string, "disabled")
         XCTAssertEqual(c["integrations"]?["chatgpt"]?["plan_gating_allowed"]?.bool, false)
-        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.status, .disabled)
+        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.status, .available)
+        XCTAssertFalse(UFEntitlement.chatgptConnectionPremium.label.contains("Vorbereitung"))
     }
 
     /// Reihenfolge der Rechte wie im Vertrag (Reihenfolge der Zeilen auf den Tarifkarten). JSONValue kennt keine
@@ -231,11 +233,13 @@ final class PlanContractTests: XCTestCase {
     /// Entscheidung 28.10.2026).
     func testEveryContractRightIsOnDeviceWithAccountOrHidden() {
         XCTAssertEqual(UFEntitlement.canReadCommunity.onDevice, .onDevice([.communityRead]))
-        // Entscheidung 05.11.2026: Community ab Plus, eigenes ChatGPT in jedem Tarif (Verbindung noch aus)
+        // Entscheidung 05.11.2026: Community ab Plus, eigenes ChatGPT in jedem Tarif (07.11.2026: ueber den eigenen
+        // OpenAI-Schluessel, `UFFeature.ownChatGPT`)
         XCTAssertEqual(UFEntitlement.canReadCommunity.from, .plus)
         XCTAssertEqual(UFFeature.communityRead.minimumPlan, .plus)
         XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.from, .free)
-        XCTAssertFalse(UFEntitlement.chatgptConnectionPremium.availableOnDevice)
+        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.onDevice, .onDevice([.ownChatGPT]))
+        XCTAssertTrue(UFEntitlement.chatgptConnectionPremium.availableOnDevice)
         XCTAssertEqual(UFEntitlement.canShareSolutions.onDevice, .onDevice([.shareSolutions]))
         // eigene Karteikarten (04.11.2026): Recht des Vertrags ab Plus, auf dem iPad die Funktion `flashcards`
         XCTAssertEqual(UFEntitlement.canUseFlashcards.onDevice, .onDevice([.flashcards]))
@@ -266,10 +270,10 @@ final class PlanContractTests: XCTestCase {
             }
         }
         // auf dem iPad nicht gebaut: Testbibliothek, KI-Tests von StudiNow, Lernstatistik/Empfehlungen, Testliste,
-        // fertige Wochenfragen der Bibliothek, Kommentare ueber den Dienst, ChatGPT
+        // fertige Wochenfragen der Bibliothek, Kommentare ueber den Dienst
         let hidden: [UFEntitlement] = [.canUseAIRecommendations, .canGenerateStudoraAITests, .canAccessSharedTests,
                                        .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canGetRecommendations,
-                                       .canReviewWrongAnswers, .canUseExtendedTestHistory, .chatgptConnectionPremium,
+                                       .canReviewWrongAnswers, .canUseExtendedTestHistory,
                                        .canUsePreparedWeekSets, .canWriteCommunityComments]
         for e in hidden { XCTAssertEqual(e.onDevice, .needsService, e.rawValue) }
         // Kommentare sind im Vertrag seit PC d0d1c74 available, laufen aber ueber den Dienst (G4); das iPad V1 mit
@@ -300,12 +304,13 @@ final class PlanContractTests: XCTestCase {
 
     // MARK: Tarifkarten
 
-    /// Karten (App Review 07.11.2026): Free und Plus ohne KI und ohne ChatGPT, Pro AI mit den gebauten KI-Funktionen;
-    /// nichts "in Vorbereitung", nichts, was es auf dem iPad nicht gibt
+    /// Karten (App Review 07.11.2026): Free und Plus ohne KI, Pro AI mit den gebauten KI-Funktionen; das eigene ChatGPT
+    /// (eigener OpenAI-Schluessel, 07.11.2026) steht ehrlich auf der Free-Karte ("in jedem Tarif"); nichts
+    /// "in Vorbereitung", nichts, was es auf dem iPad nicht gibt
     func testPlanCardsListOnlyWhatWorks() {
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
-                        .viewNotes, .uniGrades].map(\.title))
+                        .viewNotes, .uniGrades, .ownChatGPT].map(\.title))
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
                         "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung", "Lernplan automatisch erstellen"])
@@ -320,11 +325,12 @@ final class PlanContractTests: XCTestCase {
         XCTAssertTrue(help?.detail?.contains("„Alle Aufgaben erklären“") == true)
         XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title.contains("Community") }, "Free ohne Community")
 
-        // was es auf dem iPad nicht gibt, steht auf keiner Karte
-        let forbidden = #"ChatGPT|Vorbereitung|Statistik|Bibliothek|Empfehlung|Lernplanung \(|Testliste|Vorlesungswoche|denselben Umfang"#
+        // was es auf dem iPad nicht gibt, steht auf keiner Karte; "ChatGPT" nur in der Zeile des eigenen Schluessels
+        let forbidden = #"Vorbereitung|Statistik|Bibliothek|Empfehlung|Lernplanung \(|Testliste|Vorlesungswoche|denselben Umfang"#
         for plan in UFPlan.allCases {
             for r in UFPlanCard.included(plan) {
                 XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: forbidden, options: .regularExpression), r.title)
+                if r.title != UFFeature.ownChatGPT.title { XCTAssertFalse((r.title + " " + (r.detail ?? "")).contains("ChatGPT"), r.title) }
                 if plan != .proAI {
                     XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: #"\bKI\b|KI-|allen deinen Geräten"#, options: .regularExpression),
                                  "KI und Abgleich gehoeren zu Pro AI: \(r.title)")

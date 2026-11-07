@@ -311,6 +311,22 @@ nur in bezahlten Tarifen anbieten. Bis OpenAI das für StudiNow schriftlich klä
   laufende Nutzung braucht keinen Antrag): `app/chatgpt_login.py`, Einstellungen → Erweitert, Token nur auf dem Rechner,
   ohne Tarif, ohne Zahlung an StudiNow. `chatgpt_state` liefert lokal `status: local`, `available: true`,
   `plan_gating_allowed: false`. Details `docs/KI-CHATGPT-PLAN.md`, Abschnitt 3a.
+- **iPad: eigener OpenAI-API-Schlüssel (seit 07.11.2026, Auftrag des Inhabers für 1.0):** „Eigenes ChatGPT“ heißt auf
+  dem iPad nicht die Anmeldung bei ChatGPT (die braucht die Freigabe von OpenAI und bleibt aus, `ChatGPTLink.isEnabled`),
+  sondern der eigene API-Schlüssel des Nutzers (BYOK): Einstellungen → Erweitert → „Eigenes ChatGPT“ (`OpenAIKeyCard`,
+  `OpenAIKeyLink`, Kern `OpenAIKeySession`). Schlüssel nur im Schlüsselbund des Geräts (ThisDeviceOnly, je Apple-Nutzer,
+  „Konto löschen“ entfernt ihn), nie beim Dienst, nie in Meldungen; Prüfung und Modellliste über `GET /v1/models`
+  (Standard `gpt-4o-mini`), Anfragen direkt an `POST /v1/responses`. In jedem Tarif, auch Free; `isMetered` (kostet den
+  Nutzer Geld bei OpenAI), darum nie im Hintergrund. Reihenfolge im lokalen Backend (`LocalAI.provider`): ChatGPT-Abo →
+  eigener Schlüssel → StudiNow-KI. Darum ist `chatgpt_connection_premium` seit 07.11.2026 `available` (Label „Eigenes
+  ChatGPT verbinden: Fragen zu Folien und KI-Lernplan“, iPad `UFFeature.ownChatGPT` auf der Free-Karte); der Dienst
+  liefert das Recht in `/api/entitlements` weiter als `false`, solange die offizielle Anmeldung aus ist.
+- **KI-Lernplan (07.11.2026):** „Lernplan erstellen“ → „KI-Vorschlag“ (`AIPlanSuggestDialog`): `POST /api/calendar/ai-suggest`
+  baut aus Modultiteln, offenen Lehrwochen mit Dateinamen, Klausurterminen, Lernzeit und freier Zeit je Tag den Prompt
+  (`AIStudyPlan`, keine Namen, keine Seitentexte), die KI schlägt Blöcke mit Thema und Dauer vor, der Nutzer wählt und
+  übernimmt (`POST /api/calendar/ai-apply`, nichts ungefragt). Mit eigenem ChatGPT in jedem Tarif (auch Free: dann ist
+  „Lernplan automatisch erstellen“ frei, `Entitlements.ownChatGPTConnected`), mit der StudiNow-KI ab Pro AI (Aufgabe
+  `study_plan` in `app/ai_relay.py`, Recht `can_use_ai_explanations`, Kontingent `ai_assist`, Credits).
 
 ## 5. Gemeinsame KI-Testbibliothek (`app/test_library.py`, `app/library_api.py`)
 

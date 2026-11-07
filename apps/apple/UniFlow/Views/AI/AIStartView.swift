@@ -373,7 +373,7 @@ struct AIStartView: View {
     /// Mit Konto beim Dienst der echte Credits-Stand (`credits`), sonst der Weg der KI
     private var statusLine: String {
         // ueber die StudiNow-KI nie "über dein ChatGPT": dann der Credits-Stand bzw. "StudiNow-KI (Pro AI)"
-        AICost.status(chatgpt: aiEnabled && !studinowAI, model: chatgpt?.status?.model, plan: studinowAI ? .proAI : ent.plan,
+        AICost.status(chatgpt: aiEnabled && !studinowAI, model: chatgpt?.activeModel, plan: studinowAI ? .proAI : ent.plan,
                       requestsThisMonth: recents.requestsThisMonth,
                       credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge, trial: studoraAccount?.planStatus?.trialActive ?? false)
     }

@@ -44,10 +44,10 @@ public struct AIRelayTask: Sendable, Equatable {
     /// Aufgabe der laufenden Anfrage (nil = keine; dann antwortet nur das eigene ChatGPT)
     @TaskLocal public static var current: AIRelayTask?
 
-    /// Aufgaben, die der Dienst kennt (`ai_relay._tasks`)
+    /// Aufgaben, die der Dienst kennt (`ai_relay._tasks`); `study_plan` = KI-Lernplan (07.11.2026, AIStudyPlan.swift)
     public static func isKnown(_ name: String) -> Bool {
         if name.hasPrefix("tutor:") { return AIPromptTexts.tutorModes.contains { "tutor:" + $0.key == name } }
-        return ["flashcards", "week_test", "weekly", "grade"].contains(name)
+        return ["flashcards", "week_test", "weekly", "grade", "study_plan"].contains(name)
     }
 
     /// `tutor:<modus>`; unbekannte Modi wie in app/ai.py als `explain`

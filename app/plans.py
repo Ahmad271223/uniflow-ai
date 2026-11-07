@@ -62,9 +62,13 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_import_documents": {"from": "free", "label": "Automatischer Dokumentimport aus Stud.IP bzw. Learnweb", "status": "available"},
     "can_view_timetable": {"from": "free", "label": "Stundenplan ansehen", "status": "available"},
     "can_use_basic_planner": {"from": "free", "label": "Lernkalender und Lernplanung", "status": "available"},
-    # Eigenes ChatGPT (Entscheidung 05.11.2026): in jedem Tarif, auch Free (Fragen zu Folien). Die OpenAI-Bedingungen
-    # verbieten ohnehin, die Nutzung an einen bezahlten Tarif zu koppeln (INTEGRATIONS, plan_gating_allowed False).
-    "chatgpt_connection_premium": {"from": "free", "label": "Eigenes ChatGPT verbinden und zu Folien fragen (in Vorbereitung)", "status": "disabled"},
+    # Eigenes ChatGPT (Entscheidung 05.11.2026): in jedem Tarif, auch Free (Fragen zu Folien, seit 07.11.2026 auch der
+    # KI-Lernplan). Seit 07.11.2026 `available`: auf dem iPad ueber den eigenen OpenAI-API-Schluessel des Nutzers (nur im
+    # Schluesselbund des Geraets, Anfragen direkt an OpenAI; OpenAIKeySession.swift), am PC ueber Sign in with ChatGPT
+    # (app/chatgpt_login.py, lokal). Die offizielle Anmeldung "Mit ChatGPT anmelden" im Dienst bleibt aus, bis OpenAI sie
+    # freigibt (INTEGRATIONS["chatgpt"]; entitlements.has liefert dafuer weiter False). Die OpenAI-Bedingungen verbieten
+    # ohnehin, die Nutzung an einen bezahlten Tarif zu koppeln (plan_gating_allowed False).
+    "chatgpt_connection_premium": {"from": "free", "label": "Eigenes ChatGPT verbinden: Fragen zu Folien und KI-Lernplan", "status": "available"},
     # Plus
     # Community (Entscheidung 05.11.2026): ab Plus auch das Lesen, Free sieht nur den Hinweis "Community ab Plus".
     # Eigene Beitraege lassen sich nach dem Herabstufen trotzdem zurueckziehen (nichts wird geloescht).

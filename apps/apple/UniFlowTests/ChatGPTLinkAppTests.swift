@@ -191,13 +191,15 @@ final class ChatGPTLinkAppTests: XCTestCase {
 
     func testSwitchOffOffersNoLoginAnywhere() async throws {
         XCTAssertFalse(ChatGPTLink.isEnabled, "bis zur Freigabe durch OpenAI aus (app/plans.py INTEGRATIONS chatgpt disabled)")
-        XCTAssertEqual(ChatGPTLink.soonText, "Eigenes ChatGPT verbinden – bald verfügbar")
+        XCTAssertEqual(ChatGPTLink.soonText, "Mit ChatGPT anmelden – bald verfügbar")
         XCTAssertEqual(ChatGPTLink.settingsTab, "account", "die KI-Stellen fuehren zu den Tarifen, nicht zur Anmeldung")
-        // KI-Hilfe, KI-Start, Dialoge: Tarif-Hinweis und "Tarife ansehen" statt "ChatGPT verbinden"
+        // KI-Hilfe, KI-Start, Dialoge: Tarif-Hinweis (mit dem Weg zum eigenen OpenAI-Schluessel, 07.11.2026) und
+        // "Tarife ansehen" statt "ChatGPT verbinden"
         XCTAssertEqual(TutorConnectState.Content.text(.notConnected).info, ChatGPTLink.planHint)
+        XCTAssertTrue(ChatGPTLink.planHint.contains("StudiNow Pro AI") && ChatGPTLink.planHint.contains("OpenAI-Schlüssel"))
         XCTAssertEqual(TutorConnectState.Content.buttonTitle(.notConnected), "Tarife ansehen")
         XCTAssertFalse(UFNoServerContent.examsText.contains("ChatGPT"))
-        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 5), "Kommt mit StudiNow Pro AI")
+        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 5), "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)")
 
         // eine frueher gespeicherte Verbindung wird nicht benutzt und bietet kein "Neu verbinden"
         let bed = try ContainerTestBed(name: "chatgpt-off", clock: .fixed(berlin: "2026-11-05T09:00:00")!)

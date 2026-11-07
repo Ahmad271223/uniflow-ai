@@ -21,6 +21,7 @@ public final class LocalBackend: Sendable {
         WeeklyEndpoints.self,
         ModulesEndpoints.self,
         StudyEndpoints.self,
+        AIPlanEndpoints.self,
         SearchEndpoints.self,
         FileVersionEndpoints.self,
         FlashcardEndpoints.self,

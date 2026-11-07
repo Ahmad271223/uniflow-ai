@@ -22,6 +22,8 @@ Aufgaben (`TASKS`):
 - `weekly`         Wochentest mit Vorlesungs-Seitenmarkern (app/weekly.py: Erzeugen, Pruefen, Korrigieren); ohne
                    Credits, nur mit einem Tarif mit Wochentests
 - `grade`          Bewertung eines abgegebenen Tests; ohne Credits, nur mit einem Tarif mit Wochentests
+- `study_plan`     KI-Lernplan (07.11.2026, iPad AIStudyPlan.swift): Lernbloecke aus Modultiteln, Lehrwochen, Dateinamen,
+                   Klausurterminen und Zeiten; Recht can_use_ai_explanations, Kontingent ai_assist, Credits
 
 Antwort: {answer, model, shared, replay, credits}; `shared` = Treffer im Zwischenspeicher der StudiNow-KI (0 Credits),
 `credits` = Stand des Kontos mit `charged` (wie /api/ai/tutor im Dienst). Fehler wie im Dienst: {detail, code, ...}
@@ -70,6 +72,7 @@ def _tasks() -> dict[str, Task]:
     out["week_test"] = Task("weekly_test", "json", 120_000, quota="ai_tests_new")
     out["weekly"] = Task("weekly_test", "weekly", 120_000, needs_tests=True)
     out["grade"] = Task("test_grading", "json", 60_000, needs_tests=True)
+    out["study_plan"] = Task("study_plan", "json", 40_000, "can_use_ai_explanations", "ai_assist")
     return out
 
 

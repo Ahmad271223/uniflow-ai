@@ -176,8 +176,8 @@
   },
   "chatgpt_connection_premium": {
    "from": "free",
-   "label": "Eigenes ChatGPT verbinden und zu Folien fragen (in Vorbereitung)",
-   "status": "disabled"
+   "label": "Eigenes ChatGPT verbinden: Fragen zu Folien und KI-Lernplan",
+   "status": "available"
   },
   "can_read_community": {
    "from": "plus",

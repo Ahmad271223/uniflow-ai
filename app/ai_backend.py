@@ -104,9 +104,9 @@ CACHE_DAYS = 30
 
 # Obergrenze der Ausgabe-Tokens je Zweck (Denk-Tokens zaehlen mit); ueberschreibbar mit LERNAPP_AI_MAX_OUTPUT
 MAX_OUTPUT = {"tutor": 2000, "flashcards": 3000, "doc_index_page": 3000, "week_test": 9000, "test_generation": 8000,
-              "weekly_test": 9000, "default": 2000}
+              "weekly_test": 9000, "study_plan": 4000, "default": 2000}
 # Zwecke, die das Konto Credits kosten (app/credits.py); alles mit "tutor:" am Anfang auch
-CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test")
+CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan")
 
 
 class AIUnavailable(Exception):

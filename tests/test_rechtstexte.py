@@ -105,9 +105,14 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # Nutzungsbedingungen 04.11.2026: drei Tarife, Probe wie Pro AI, Grenzen je Tarif (Abschnitt 5a)
     # 05.11.2026: Konto- und Abo-Pflicht in Web und Windows, Abschluss ueber Stripe (Datenschutz 5, 9, 12; Bedingungen 5)
     # 06.11.2026: Datenschutz passend zu Build 10 (StudiNow-Konto auf dem iPad, Kaufmeldung an den Dienst, HsH-Systeme)
-    # 07.11.2026: Bedingungen mit Jahresabos (Plus 21,99 €, Pro AI 41,99 €)
+    # 07.11.2026: Bedingungen mit Jahresabos (Plus 21,99 €, Pro AI 41,99 €); Datenschutz 8a mit "Eigenes ChatGPT" ueber
+    # den eigenen OpenAI-Schluessel (nur Schluesselbund des iPads, Anfragen direkt an OpenAI, KI-Lernplan ohne Namen)
     nb = (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
-    assert "Stand 06.11.2026 (26.10.2026)" in ds and "Stand 07.11.2026 (26.10.2026)" in nb
+    assert "Stand 07.11.2026 (26.10.2026)" in ds and "Stand 07.11.2026 (26.10.2026)" in nb
+    assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
+    assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
+    site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
+    assert "Stand 07.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
     assert "21,99 € pro Jahr" in nb and "41,99 € pro Jahr" in nb and "einen Monat bzw. ein Jahr" in nb
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl

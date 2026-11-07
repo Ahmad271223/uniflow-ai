@@ -5,7 +5,9 @@ import UniFlowCore
 
 /// "Lernplan erstellen": Machbarkeit (GET /api/calendar/feasibility), Start, Tage, Ersetzen -> POST /api/calendar/generate.
 /// Ohne PC (lokales Backend) ab Plus (`UFFeature.autoPlan`, Inhaber 07.11.2026): Free sieht die Sperrkarte; der
-/// Lernkalender von Hand bleibt frei. Mit Dienst entscheidet er.
+/// Lernkalender von Hand bleibt frei; mit eigenem ChatGPT (OpenAI-Schluessel) auch in Free. Mit Dienst entscheidet er.
+/// Dazu "KI-Vorschlag" (07.11.2026, AIPlanSuggestDialog), sobald eine KI antwortet (`ufAIEnabled`: eigenes ChatGPT in
+/// jedem Tarif, StudiNow-KI ab Pro AI).
 struct GeneratePlanDialog: View {
     let api: APIClient?
     let start: String
@@ -13,12 +15,17 @@ struct GeneratePlanDialog: View {
     @ObservedObject private var ent: Entitlements = .shared
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @State private var feas: JSONValue?
     @State private var startDate = ""
     @State private var days = 7
     @State private var replace = false
     @State private var busy = false
     @State private var showConfig = false
+    @State private var showAI = false
+
+    /// Hinweis unter dem Dialog ohne KI: wie es den KI-Vorschlag gibt
+    static let aiHint = "KI-Vorschlag: mit deinem eigenen ChatGPT (OpenAI-Schlüssel unter Einstellungen → Erweitert, in jedem Tarif) oder mit der StudiNow-KI ab StudiNow Pro AI."
 
     var body: some View {
         if api?.isLocal != false && !ent.allows(.autoPlan) {
@@ -29,6 +36,11 @@ struct GeneratePlanDialog: View {
             }
         } else if showConfig {
             ConfigDialog(api: api) { saved in showConfig = false; if !saved { onClose() } }
+        } else if showAI {
+            AIPlanSuggestDialog(api: api, start: startDate, days: days) { applied in
+                showAI = false
+                if applied { onClose(); router.go(.plan(view: "week", date: startDate)) }
+            }
         } else {
             UFDialog("Lernplan erstellen", icon: "sparkles") {
                 VStack(alignment: .leading, spacing: 0) {
@@ -57,10 +69,18 @@ struct GeneratePlanDialog: View {
                     }
                     // ersetzt werden nur automatisch erstellte, nicht begonnene und leere Pakete (study._replaceable)
                     UFCheckbox("Automatisch erstellte, noch nicht begonnene Pakete in diesem Zeitraum ersetzen", isOn: $replace)
+                    if !aiEnabled {
+                        Text(Self.aiHint).ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 4)
+                            .accessibilityIdentifier("plan.aiHint")
+                    }
                 }
             } foot: {
                 UFButton("Abbrechen") { onClose() }
                 UFButton("Lernkombination ändern") { showConfig = true }
+                if aiEnabled {
+                    UFButton("KI-Vorschlag", icon: "sparkles") { showAI = true }.disabled(busy)
+                        .accessibilityIdentifier("plan.aiSuggest")
+                }
                 UFButton("Erstellen", kind: .primary) { Task { await create() } }.disabled(busy)
             }
             .task {

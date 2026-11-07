@@ -288,9 +288,14 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// "freie Zeit" das Schloss; nichts geht an /api/calendar/generate. Der Lernkalender von Hand bleibt frei.
     func testAutomaticPlanNeedsPlus() throws {
         usePlan(.free)
+        let own = Entitlements.shared.ownChatGPTConnected
+        Entitlements.shared.ownChatGPTConnected = false
+        addTeardownBlock { @MainActor in Entitlements.shared.ownChatGPTConnected = own }
         XCTAssertEqual(Entitlements.shared.access(.autoPlan), .locked(.plus))
-        XCTAssertEqual(UFFeatureMatrix.access(.autoPlan, plan: .free, ownChatGPT: true), .allowed, "Ausnahme mit eigenem ChatGPT (spaeter)")
-        XCTAssertFalse(ChatGPTLink.isEnabled, "heute aus: die Ausnahme greift nicht")
+        XCTAssertEqual(UFFeatureMatrix.access(.autoPlan, plan: .free, ownChatGPT: true), .allowed, "Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel, 07.11.2026)")
+        Entitlements.shared.ownChatGPTConnected = true
+        XCTAssertEqual(Entitlements.shared.access(.autoPlan), .allowed, "mit eigenem Schluessel auch in Free")
+        Entitlements.shared.ownChatGPTConnected = false
         XCTAssertTrue(Entitlements.shared.allows(.studyPlanning) && Entitlements.shared.allows(.studyCalendar))
         let (api, recorder) = try awaiting { try await self.seededAPI() }
         let gen = try show(GeneratePlanDialog(api: api, start: "2026-10-26") {}, api: api)

@@ -26,6 +26,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case timer               // Stoppuhr, Countdown, Pomodoro
     case viewNotes           // vorhandene Notizen ansehen und als PDF exportieren
     case uniGrades           // Uni & Noten (QIS bzw. LSF auf dem Geraet, F4), Free
+    case ownChatGPT          // Eigenes ChatGPT ueber den eigenen OpenAI-Schluessel (OpenAIKeyLink, Einstellungen → Erweitert,
+                             // 07.11.2026): Fragen zu den Unterlagen, Karteikarten, Wochentests und KI-Lernplan in jedem
+                             // Tarif (Entscheidung 05.11.2026; Vertrag chatgpt_connection_premium ab Free)
     // Plus
     case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen/Papierkorb, Lesezeichen
     case communityRead       // Community lesen (can_read_community, ab Plus seit 05.11.2026, vorher Free): Loesungen
@@ -37,8 +40,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
     case autoPlan            // Lernplan automatisch erstellen (GeneratePlanDialog, POST /api/calendar/generate, auch
-                             // "Lerneinheit automatisch einplanen"): Plus (Inhaber 07.11.2026); Ausnahme mit eigenem
-                             // ChatGPT, erst wenn ChatGPTLink.isEnabled (UFFeatureMatrix.access `ownChatGPT`)
+                             // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
+                             // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
+                             // `Entitlements.ownChatGPTConnected`): dann auch in Free (UFFeatureMatrix.access `ownChatGPT`)
     // Pro AI: StudiNow-KI und Abgleich ueber das StudiNow-Konto (UFDeviceSupport.withAccount). Die KI selbst gibt
     // `StudiNowAIAccess` frei (Pro AI bzw. Probe und angemeldet), die Matrix sagt nur, ab welchem Tarif.
     case aiHelp              // KI-Hilfe im Editor: Seite, markierter Bereich, ganzes Dokument (TutorPanel, TutorDocumentRun)
@@ -57,7 +61,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
     var minimumPlan: UFPlan {
         switch self {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
-             .uniGrades:
+             .uniGrades, .ownChatGPT:
             return .free
         case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor:
             return .plus
@@ -83,6 +87,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .timer: return "Zeitmesser (Stoppuhr, Countdown, Pomodoro)"
         case .viewNotes: return "Notizen ansehen und als PDF exportieren"
         case .uniGrades: return "Uni & Noten"
+        case .ownChatGPT: return "Eigenes ChatGPT verbinden"
         case .communityRead: return "Community lesen, beitreten und mitmachen"
         case .pencilWriting: return "Schreiben mit Apple Pencil"
         case .shareSolutions: return "Eigene Lösungen teilen"
@@ -103,6 +108,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel aus QIS bzw. LSF direkt in der App"
+        case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen und Lernplan-Vorschläge – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und im Editor ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
@@ -127,6 +133,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .timer: return "clock"
         case .viewNotes: return "download"
         case .uniGrades: return "graduation"
+        case .ownChatGPT: return "sparkles"
         case .communityRead: return "search"
         case .pencilWriting: return "pencil"
         case .shareSolutions: return "users"
@@ -179,8 +186,9 @@ enum UFFeatureMatrix {
     /// Richtlinie 3.1.2); der Schalter bleibt fuer Tests der Matrix.
     static let flashcardsOnDevice = true
 
-    /// - Parameter ownChatGPT: eigenes ChatGPT verbunden und freigegeben (`ChatGPTLink.isEnabled`, heute aus). Ausnahme
-    ///   des Inhabers vom 07.11.2026: dann gibt es den automatischen Lernplan auch ohne Plus.
+    /// - Parameter ownChatGPT: eigenes ChatGPT arbeitet (eigener OpenAI-Schluessel eingetragen und eingeschaltet,
+    ///   `Entitlements.ownChatGPTConnected`; das Abo erst nach der Freigabe durch OpenAI). Ausnahme des Inhabers vom
+    ///   07.11.2026: dann gibt es den automatischen Lernplan (auch den KI-Lernplan) auch ohne Plus.
     static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
                        community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice,
                        ownChatGPT: Bool = false) -> UFAccess {
@@ -428,12 +436,12 @@ final class Entitlements: ObservableObject {
     deinit { updates?.cancel() }
 
     func access(_ f: UFFeature) -> UFAccess {
-        UFFeatureMatrix.access(f, plan: plan, ownChatGPT: ChatGPTLink.isEnabled && ownChatGPTConnected)
+        UFFeatureMatrix.access(f, plan: plan, ownChatGPT: ownChatGPTConnected)
     }
 
-    /// eigenes ChatGPT verbunden (setzt die App, sobald `ChatGPTLink.isEnabled` an ist; heute nie): schaltet den
-    /// automatischen Lernplan auch ohne Plus frei (`UFFeature.autoPlan`)
-    var ownChatGPTConnected = false
+    /// eigenes ChatGPT arbeitet (setzt `OpenAIKeyLink.refresh`, sobald der eigene OpenAI-Schluessel eingetragen und
+    /// eingeschaltet ist): schaltet den automatischen Lernplan auch ohne Plus frei (`UFFeature.autoPlan`)
+    @Published var ownChatGPTConnected = false
 
     func allows(_ f: UFFeature) -> Bool { access(f).isAllowed }
 

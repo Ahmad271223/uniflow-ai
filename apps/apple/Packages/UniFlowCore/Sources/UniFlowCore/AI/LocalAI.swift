@@ -30,28 +30,36 @@ extension ChatGPTSession: AIProvider {
     }
 }
 
-/// KI-Anschluss des lokalen Backends mit zwei Plaetzen in der Reihenfolge der Bezahlung: das eigene ChatGPT (`set`,
-/// sobald verbunden und eingeschaltet) und die StudiNow-KI (`setService`, angemeldet mit Pro AI oder Probe,
-/// StudiNowAI.swift). `provider` nimmt das eigene ChatGPT zuerst. Ohne beides antworten die KI-Endpunkte wie bisher
-/// "gibt es in dieser Version nicht" (nichts wird vorgetaeuscht, nichts gesendet).
+/// KI-Anschluss des lokalen Backends mit drei Plaetzen in der Reihenfolge der Bezahlung: das eigene ChatGPT-Abo
+/// (`set`, Sign in with ChatGPT, sobald verbunden, eingeschaltet und freigegeben), der eigene OpenAI-Schluessel
+/// (`setKey`, OpenAIKeySession.swift, 07.11.2026) und die StudiNow-KI (`setService`, angemeldet mit Pro AI oder Probe,
+/// StudiNowAI.swift). `provider` nimmt das eigene ChatGPT zuerst, dann den Schluessel. Ohne alles antworten die
+/// KI-Endpunkte wie bisher "gibt es in dieser Version nicht" (nichts wird vorgetaeuscht, nichts gesendet).
 public final class LocalAI: @unchecked Sendable {
     private let lock = NSLock()
     private var own: AIProvider?
+    private var key: AIProvider?
     private var service: AIProvider?
 
     public init() {}
 
-    /// KI fuer Anfragen nach Antippen: eigenes ChatGPT vor der StudiNow-KI
-    public var provider: AIProvider? { lock.withLock { own ?? service } }
+    /// KI fuer Anfragen nach Antippen: eigenes ChatGPT-Abo vor dem eigenen Schluessel vor der StudiNow-KI
+    public var provider: AIProvider? { lock.withLock { own ?? key ?? service } }
 
-    /// KI fuer Arbeit im Hintergrund (Vorab einordnen, Erklaerungen vorab): nie eine, die Credits kostet
-    public var backgroundProvider: AIProvider? { lock.withLock { [own, service].compactMap { $0 }.first { !$0.isMetered } } }
+    /// KI fuer Arbeit im Hintergrund (Vorab einordnen, Erklaerungen vorab): nie eine, die Credits oder Geld kostet
+    public var backgroundProvider: AIProvider? { lock.withLock { [own, key, service].compactMap { $0 }.first { !$0.isMetered } } }
 
     /// StudiNow-KI des Kontos (nil ohne Anmeldung, ohne Pro AI/Probe)
     public var serviceProvider: AIProvider? { lock.withLock { service } }
 
-    /// Eigenes ChatGPT setzen bzw. wegnehmen
+    /// KI ueber den eigenen OpenAI-Schluessel (nil ohne Schluessel oder ausgeschaltet)
+    public var keyProvider: AIProvider? { lock.withLock { key } }
+
+    /// Eigenes ChatGPT-Abo setzen bzw. wegnehmen
     public func set(_ provider: AIProvider?) { lock.withLock { own = provider } }
+
+    /// Eigenen OpenAI-Schluessel setzen bzw. wegnehmen
+    public func setKey(_ provider: AIProvider?) { lock.withLock { key = provider } }
 
     /// StudiNow-KI setzen bzw. wegnehmen
     public func setService(_ provider: AIProvider?) { lock.withLock { service = provider } }
