@@ -280,6 +280,8 @@ struct LibraryView: View {
             let api = session.api
             Task { _ = try? await api?.value("/api/files/\(new)/opened", method: "POST", body: [:]) }
         }
+        // nach jedem Abgleich die Liste neu lesen: Dateien, die der Abgleich geladen hat, gelten sofort als geladen
+        .onReceive(NotificationCenter.default.publisher(for: .uniflowSyncFinished)) { _ in Task { await load() } }
         .task {
             await load()
             if let o = openFile {

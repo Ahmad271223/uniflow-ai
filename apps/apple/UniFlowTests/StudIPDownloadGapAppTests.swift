@@ -353,6 +353,17 @@ final class StudIPDownloadGapAppTests: XCTestCase {
         XCTAssertFalse(seen.contains { $0.contains("Jetzt laden") || $0.contains("nächste Abgleich") }, "\(Set(seen))")
     }
 
+    /// Jeder Abgleich meldet sein Ende (`.uniflowSyncFinished`): die Bibliothek liest danach ihre Liste neu
+    func testRunPostsSyncFinishedNotification() throws {
+        let dev = try device()
+        let stud = portal()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        let posted = expectation(forNotification: .uniflowSyncFinished, object: nil)
+        let done = expectation(description: "Lauf")
+        Task { await sync.run(client: self.client(stud), scope: .lists); done.fulfill() }
+        wait(for: [posted, done], timeout: 20)
+    }
+
     /// Mit UF_SCREENSHOT_DIR: die Zustaende als Bild (hell und dunkel)
     func testScreenshots() throws {
         guard let path = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !path.isEmpty else {

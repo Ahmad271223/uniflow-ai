@@ -852,7 +852,10 @@ final class StudIPSync: ObservableObject {
     }
 
     private func perform(client: StudIPClient, scope: UniSyncScope, olderOnly: Bool = false, olderCourses: Set<String>? = nil) async -> RunEnd {
-        defer { finishedRuns += 1 }                       // nach der letzten Phase: Seiten laden neu
+        defer {                                           // nach der letzten Phase: Seiten laden neu
+            finishedRuns += 1
+            NotificationCenter.default.post(name: .uniflowSyncFinished, object: nil)
+        }
         await adoption?.value
         let started = clock.nowISO
         var loaded = 0
@@ -1242,4 +1245,10 @@ final class StudIPSync: ObservableObject {
         [.notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff, .cannotFindHost, .cannotConnectToHost,
          .dnsLookupFailed, .cancelled, .cannotWriteToFile, .cannotCreateFile].contains(e.code)
     }
+}
+
+extension Notification.Name {
+    /// Ein Abgleich (voll oder nur Listen) ist zu Ende: Seiten mit eigener Dateiliste (Bibliothek) lesen neu, damit
+    /// nachgeladene Dateien sofort als geladen gelten (vorher blieb die Liste der Bibliothek veraltet, 08.11.2026)
+    static let uniflowSyncFinished = Notification.Name("uniflow.syncFinished")
 }
