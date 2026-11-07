@@ -130,6 +130,11 @@ final class LocalBackendHost: @unchecked Sendable {
         if StudIPSync.isUnderTest() { backend.context.mensa.configure(http: MensaDemoHTTP(clock: clock), folder: nil) }
         // Raumfinder: unter XCTest sechs gespeicherte Treffer des Standortfinders (`RoomFinderDemoHTTP`), Cache nur im Speicher
         if StudIPSync.isUnderTest() { backend.context.rooms.configure(http: RoomFinderDemoHTTP(), folder: nil) }
+        // Raumfinder Uni Hildesheim (07.11.2026): Raumplan im oeffentlichen LSF (Hildesheim/HildesheimRooms.swift), Cache im
+        // selben Ordner wie der LUH-Raumfinder; unter XCTest nachgebaute Seiten mit erfundenen Raeumen (`HildesheimRoomsDemoHTTP`)
+        backend.context.rooms.configure(hildesheim: StudIPSync.isUnderTest()
+            ? HildesheimRoomFinder(http: HildesheimRoomsDemoHTTP(), folder: nil)
+            : HildesheimRoomFinder(http: URLSessionHildesheimRoomsHTTP(), folder: LocalRooms.defaultFolder))
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
     }

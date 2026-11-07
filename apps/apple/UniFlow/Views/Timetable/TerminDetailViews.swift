@@ -7,7 +7,8 @@ import UniFlowCore
 // - Raum (LUH): Antippen loest ihn im Raumfinder auf (GET /api/rooms/resolve) und startet sofort die Route zu Fuss in
 //   Google Maps (App `comgooglemaps://` mit directionsmode=walking, sonst Webadresse mit travelmode=walking); nicht
 //   eindeutig -> Raumfinder mit vorbelegter Suche. Daneben "Im Raumfinder anzeigen" (Etage, Gebaeude, Adresse).
-//   HsH und Uni Hildesheim (kein Raumfinder): Raum als Text und "In Karten suchen" (Standort bzw. Adresse der Hochschule).
+//   Uni Hildesheim (07.11.2026): genauso ueber den Raumplan des LSF (Raumcode "HC.I.1.Hörsaal 1" -> Gebaeudetabelle, Route
+//   ohne Anfrage). HsH (kein Raumfinder): Raum als Text und "In Karten suchen" (Standort der Hochschule).
 // - Lehrende (nur LUH, Stud.IP): alle Dozent/innen des Kurses, Tutor/innen zugeklappt; fehlen sie noch, werden sie fuer
 //   diesen Kurs nachgeladen (`StudIPSync.loadLecturers`). E-Mail antippen -> neue Uni-Mail an diese Person, Betreff
 //   "Frage zu <Kurs>", gesendet erst mit "Senden" vom eigenen Uni-Postfach (SOGo). "Allen Lehrenden schreiben": alle
@@ -178,7 +179,7 @@ struct TerminRoomSection: View {
         }
     }
 
-    /// HsH und Uni Hildesheim: Standort bzw. Adresse der Hochschule in Google Maps (Suche, keine Route)
+    /// HsH (ohne Raumfinder): Standort bzw. Adresse der Hochschule in Google Maps (Suche, keine Route)
     private func searchMaps(_ text: String) async {
         let part = await resolve(text)
         if let u = RoomUI.googleURL(part?["maps"], route: false, appInstalled: RoomUI.googleAppInstalled) {

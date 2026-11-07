@@ -77,14 +77,17 @@ public final class URLSessionRoomFinderHTTP: RoomFinderHTTP, @unchecked Sendable
 /// Raumfinder auf dem Geraet: Suche direkt beim Standortfinder, Antworten 30 Tage im Cache (Raeume ziehen selten um),
 /// "nichts gefunden" einen Tag; Datei im Ordner Application Support (bleibt erhalten). Ohne Netz: Cache mit `stale`
 /// oder ein einfacher Adress-Link. Gleiche Antworten wie app/rooms.py.
+/// Uni Hildesheim (07.11.2026): mit gesetztem `HildesheimRoomFinder` (Raumplan im LSF, Hildesheim/HildesheimRooms.swift)
+/// laufen Suche und Aufloesen dort; ohne ihn (PC, Python-Fixtures) bleibt es beim Standort der Hochschule.
 public final class LocalRooms: @unchecked Sendable {
     private let lock = NSLock()
     private var http: RoomFinderHTTP = URLSessionRoomFinderHTTP()
     private var folder: URL? = LocalRooms.defaultFolder
+    private var hildesheim: HildesheimRoomFinder?
 
     public init() {}
 
-    static var defaultFolder: URL? {
+    public static var defaultFolder: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appendingPathComponent("StudiNow-Rooms", isDirectory: true)
     }
@@ -97,7 +100,21 @@ public final class LocalRooms: @unchecked Sendable {
         }
     }
 
+    /// Raumfinder der Uni Hildesheim setzen (App: LSF ueber URLSession, Tests: nachgebaute Seiten); nil = Standorttabelle
+    public func configure(hildesheim: HildesheimRoomFinder?) {
+        lock.withLock { self.hildesheim = hildesheim }
+    }
+
     private var current: (RoomFinderHTTP, URL?) { lock.withLock { (http, folder) } }
+
+    /// Raumfinder der Hochschule: "standortfinder" (LUH), "lsf" (Hildesheim mit gesetztem Leser), sonst nil
+    public func finder(university: String) -> String? {
+        if university == "luh" { return "standortfinder" }
+        if university == HildesheimRooms.university, lock.withLock({ hildesheim }) != nil { return "lsf" }
+        return nil
+    }
+
+    var hildesheimFinder: HildesheimRoomFinder? { lock.withLock { hildesheim } }
 
     // MARK: Cache
 
@@ -151,8 +168,11 @@ public final class LocalRooms: @unchecked Sendable {
 
     // MARK: Antworten
 
-    /// Antwort von GET /api/rooms/search (Seite "Raumfinder")
-    public func search(_ q: String?, page: Int, clock: UniFlowClock) async -> JSONValue {
+    /// Antwort von GET /api/rooms/search (Seite "Raumfinder"); Hildesheim mit LSF-Leser sucht im Raumplan des LSF
+    public func search(_ q: String?, page: Int, clock: UniFlowClock, university: String = "luh") async -> JSONValue {
+        if university == HildesheimRooms.university, let h = hildesheimFinder {
+            return await h.search(q, page: page, clock: clock)
+        }
         let term = Rooms.prefix(Rooms.words(q ?? ""), Rooms.maxQuery)
         let page = max(0, page)
         var out: JSONValue = ["query": .string(term), "count": 0, "page": .number(Double(page)), "pages": 0, "items": [],
@@ -180,6 +200,9 @@ public final class LocalRooms: @unchecked Sendable {
         if part["online"]?.bool == true {
             out["status"] = "online"
             return (out, false)
+        }
+        if university == HildesheimRooms.university, let h = hildesheimFinder {
+            return await h.resolvePart(part, clock: clock)
         }
         if university != "luh" {
             let campuses = Rooms.data["universities"]?[university]?["campuses"]?.array ?? []
@@ -246,32 +269,69 @@ public final class LocalRooms: @unchecked Sendable {
             stale = stale || s
         }
         let hasPlace = parts.contains { ["found", "ambiguous", "building"].contains($0["status"]?.string ?? "") }
+        let finder = finder(university: uni)
+        let source: JSONValue = finder == "standortfinder" ? Rooms.source : finder == "lsf" ? HildesheimRooms.source : .null
+        let offline = finder == "lsf" ? HildesheimRooms.offline : Rooms.offline
+        let offlineEmpty = finder == "lsf" ? HildesheimRooms.offlineEmpty : Rooms.offlineEmpty
         return ["text": parsed["text"] ?? "", "university": .string(uni), "parts": .array(parts),
-                "source": uni == "luh" ? Rooms.source : .null, "stale": .bool(stale),
-                "message": stale ? .string(hasPlace ? Rooms.offline : Rooms.offlineEmpty) : .null]
+                "source": source, "stale": .bool(stale),
+                "message": stale ? .string(hasPlace ? offline : offlineEmpty) : .null]
+    }
+
+    /// Antwort von GET /api/rooms/campuses: Standorte; Hildesheim mit LSF-Leser dazu `finder: true`, Quelle und alle
+    /// Gebaeude des LSF (`buildings`)
+    public func campuses(university: String?) -> JSONValue {
+        var out = Rooms.campuses(university: university)
+        if out["university"]?.string == HildesheimRooms.university, hildesheimFinder != nil {
+            out["finder"] = true
+            out["note"] = .null
+            out["source"] = HildesheimRooms.source
+            out["buildings"] = .array(HildesheimRooms.buildingPlaces())
+        }
+        return out
     }
 }
 
 /// Raumfinder auf dem Geraet (frei in jedem Tarif):
-/// - `GET /api/rooms/search?q=&page=`: Suche im Standortfinder der LUH
+/// - `GET /api/rooms/search?q=&page=[&university=]`: Suche im Standortfinder der LUH bzw. im Raumplan des LSF (Hildesheim)
 /// - `GET /api/rooms/resolve?text=&university=`: Raumangabe aufloesen (Stundenplan, Lernkalender, Klausuren)
-/// - `GET /api/rooms/campuses[?university=]`: Standorte der Hochschule mit Kartenlinks
+/// - `GET /api/rooms/campuses[?university=]`: Standorte der Hochschule mit Kartenlinks (Hildesheim: dazu alle Gebaeude)
+/// - `GET /api/rooms/place?rgid=`: ein Raum des LSF Hildesheim mit Gebaeude, Etage, Raumart, Adresse
+/// - `GET /api/rooms/plan?rgid=&week=`: Belegung eines Raums des LSF Hildesheim in einer Woche ("45_2026")
 public enum RoomsEndpoints: LocalEndpointModule {
     public static let name = "Raumfinder"
 
+    static func university(_ req: LocalRequest, _ ctx: LocalContext) async throws -> String {
+        if let q = req.query("university"), !q.isEmpty { return q }
+        return try await MensaEndpoints.university(ctx)
+    }
+
+    static func rgid(_ req: LocalRequest) throws -> Int {
+        guard let v = Int(req.query("rgid") ?? ""), v > 0 else { throw LocalHTTPError(status: 422, message: "rgid: ganze Zahl erwartet") }
+        return v
+    }
+
+    static func hildesheim(_ ctx: LocalContext) throws -> HildesheimRoomFinder {
+        guard let h = ctx.rooms.hildesheimFinder else { throw LocalHTTPError(status: 404, message: "Kein Raumplan für diese Hochschule") }
+        return h
+    }
+
     public static func register(on router: LocalRouter) {
         router.get("/api/rooms/search") { req, ctx in
-            .json(await ctx.rooms.search(req.query("q"), page: Int(req.query("page") ?? "") ?? 0, clock: ctx.clock))
+            .json(await ctx.rooms.search(req.query("q"), page: Int(req.query("page") ?? "") ?? 0, clock: ctx.clock,
+                                         university: try await university(req, ctx)))
         }
         router.get("/api/rooms/resolve") { req, ctx in
-            let u: String
-            if let q = req.query("university"), !q.isEmpty { u = q } else { u = try await MensaEndpoints.university(ctx) }
-            return .json(await ctx.rooms.resolve(req.query("text"), university: u, clock: ctx.clock))
+            .json(await ctx.rooms.resolve(req.query("text"), university: try await university(req, ctx), clock: ctx.clock))
         }
         router.get("/api/rooms/campuses") { req, ctx in
-            let u: String
-            if let q = req.query("university"), !q.isEmpty { u = q } else { u = try await MensaEndpoints.university(ctx) }
-            return .json(Rooms.campuses(university: u))
+            .json(ctx.rooms.campuses(university: try await university(req, ctx)))
+        }
+        router.get("/api/rooms/place") { req, ctx in
+            .json(await try hildesheim(ctx).place(rgid: try rgid(req), clock: ctx.clock))
+        }
+        router.get("/api/rooms/plan") { req, ctx in
+            .json(await try hildesheim(ctx).plan(rgid: try rgid(req), week: req.query("week"), clock: ctx.clock))
         }
     }
 }

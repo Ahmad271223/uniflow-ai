@@ -8,7 +8,10 @@ import UniFlowCore
 // automatisch einem Link zu Google Maps ("In Google Maps öffnen", "Route" zu Fuss, "In Apple Karten"). Ueberall, wo ein Raum
 // steht (Stundenplan, Lernkalender, Klausuren, Modul), macht `UFRoomLink` den Text antippbar und loest ihn ueber
 // GET /api/rooms/resolve auf (lokal: Rooms/LocalRooms.swift mit Cache; am eigenen PC app/rooms_api.py).
-// HsH und Uni Hildesheim: Standort der Hochschule mit Adresse ("Ort laut Hochschule; genaue Lage ohne Gewähr").
+// Uni Hildesheim (07.11.2026): Raumplan im oeffentlichen LSF (Kern Hildesheim/HildesheimRooms.swift): Raum oder Gebaeude
+// suchen, Adresse und Lage aus den LSF-Gebaeudeseiten, Belegung der Woche auf Wunsch; Raumcodes des Stundenplans
+// ("HC.I.1.Hörsaal 1") fuehren ohne Anfrage zur Route. HsH: Standort der Hochschule mit Adresse ("Ort laut Hochschule;
+// genaue Lage ohne Gewähr"), Raumfinder folgt.
 // Datenschutz: An Google geht nichts von selbst, erst beim Antippen eines Karten-Links. Frei in jedem Tarif.
 
 // MARK: - Karten oeffnen
@@ -115,15 +118,13 @@ struct RoomPlaceView: View {
             }
             RoomMapsButtons(maps: place["maps"])
             section("Angaben") {
-                row("Gebäude", place.s("building").map { b in "\(b)" + (place.s("building_name").map { " (\($0))" } ?? "") })
-                row("Etage", place.s("floor_label").map { l in l + (place.s("floor").map { " (Etage \($0))" } ?? "") })
-                row("Raum", place.s("room").map { r in r + (place.s("room_name").map { " – \($0)" } ?? "") })
-                row("Adresse", place["address"]?.s("line"))
+                rows
                 if let d = place.s("description") { Text(d).ufFont(13.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true) }
             }
+            let lsf = place.s("source") == "lsf"
             let links: [(String, String, String)] = [("Raumplan ansehen", "floorplan_url", "rooms.floorplan"),
-                                                     ("Raum im Gebäudeinfo der LUH", "room_url", "rooms.roominfo"),
-                                                     ("Gebäudeinfo der LUH", "building_url", "rooms.buildinginfo"),
+                                                     (lsf ? "Raum im LSF" : "Raum im Gebäudeinfo der LUH", "room_url", "rooms.roominfo"),
+                                                     (lsf ? "Gebäude im LSF" : "Gebäudeinfo der LUH", "building_url", "rooms.buildinginfo"),
                                                      ("Website", "website", "rooms.website"),
                                                      ("Öffnungszeiten", "opening_hours_url", "rooms.hours")]
             let shown = links.filter { place.s($0.1).flatMap(URL.init(string:)) != nil }
@@ -138,12 +139,27 @@ struct RoomPlaceView: View {
                 }
             }
             accessibility
+            if lsf, let rgid = place.i("rgid") { RoomPlanSection(rgid: rgid, roomTitle: place.s("title") ?? "") }
             if let attribution {
                 Text("\(attribution). Angaben ohne Gewähr.").ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         }
         .sheet(item: $web) { t in RoomSafariView(url: t.url).ignoresSafeArea() }
         .accessibilityIdentifier("rooms.place")
+    }
+
+    /// Angaben-Zeilen: Gebaeude mit Kennung (LUH) bzw. Name (LSF Hildesheim), Etage, Raum, Raumart, Campus, Adresse
+    @ViewBuilder private var rows: some View {
+        if place.s("source") == "lsf" {
+            row("Gebäude", place.s("building_name"))
+            row("Campus", place.s("campus"))
+        } else {
+            row("Gebäude", place.s("building").map { b in "\(b)" + (place.s("building_name").map { " (\($0))" } ?? "") })
+        }
+        row("Etage", place.s("floor_label").map { l in l + (place.s("floor").map { " (Etage \($0))" } ?? "") })
+        row("Raum", place.s("room").map { r in r + (place.s("room_name").map { " – \($0)" } ?? "") })
+        row("Raumart", place.s("kind"))
+        row("Adresse", place["address"]?.s("line"))
     }
 
     @ViewBuilder private var accessibility: some View {
@@ -186,6 +202,102 @@ struct RoomPlaceView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+    }
+}
+
+/// Belegung eines LSF-Raums (Hildesheim) in der laufenden Woche, erst auf Antippen geladen (GET /api/rooms/plan);
+/// Wochenwechsel mit Pfeilen. Lehrpersonen zeigt das LSF dort, die App nicht.
+struct RoomPlanSection: View {
+    let rgid: Int
+    let roomTitle: String
+    @EnvironmentObject private var session: Session
+    @State private var week: String?
+    @State private var plan: JSONValue?
+    @State private var loading = false
+    @State private var error: String?
+
+    /// "45_2026" -> (45, 2026)
+    static func parts(_ w: String) -> (Int, Int)? {
+        let p = w.split(separator: "_")
+        guard p.count == 2, let a = Int(p[0]), let b = Int(p[1]) else { return nil }
+        return (a, b)
+    }
+
+    /// Naechste bzw. vorige Kalenderwoche (ISO, 52/53 Wochen je Jahr)
+    static func shift(_ w: String, by d: Int) -> String {
+        guard let (kw, y) = parts(w) else { return w }
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
+        var c = DateComponents(); c.weekOfYear = kw; c.yearForWeekOfYear = y; c.weekday = 2
+        guard let date = cal.date(from: c), let n = cal.date(byAdding: .weekOfYear, value: d, to: date) else { return w }
+        return HildesheimRooms.weekKey(n)
+    }
+
+    static func label(_ w: String) -> String { parts(w).map { "KW \($0.0) · \($0.1)" } ?? w }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("Belegung").ufFont(15, 650).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
+                if let w = week {
+                    UFButton(icon: "chevron-left", kind: .ghost, size: .small) { Task { await load(Self.shift(w, by: -1)) } }
+                        .accessibilityLabel("Vorige Woche")
+                    Text(Self.label(w)).ufFont(13, 600).foregroundStyle(UF.text2).accessibilityIdentifier("rooms.plan.week")
+                    UFButton(icon: "chevron-right", kind: .ghost, size: .small) { Task { await load(Self.shift(w, by: 1)) } }
+                        .accessibilityLabel("Nächste Woche")
+                }
+            }
+            if let plan {
+                if let m = plan.s("message") { Text(m).ufFont(13).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true) }
+                let entries = plan.list("entries")
+                if entries.isEmpty {
+                    if plan.s("message") == nil { Text("Keine Termine in dieser Woche.").ufFont(13.5).foregroundStyle(UF.text2) }
+                } else {
+                    ForEach(Array(entries.enumerated()), id: \.offset) { _, e in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text("\(e.s("day")?.prefix(2) ?? "") \(e.s("start") ?? "")–\(e.s("end") ?? "")").ufFont(13, 600).foregroundStyle(UF.text2)
+                                .frame(width: 112, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(e.s("title") ?? "").ufFont(13.5, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                let sub = [e.s("kind"), e.s("rhythm")].compactMap { $0 }.joined(separator: " · ")
+                                if !sub.isEmpty { Text(sub).ufFont(12.5).foregroundStyle(UF.muted) }
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("rooms.plan.entry")
+                    }
+                }
+            } else if loading {
+                ProgressView().frame(maxWidth: .infinity)
+            } else if let error {
+                Text(error).ufFont(13).foregroundStyle(UF.warnText)
+                UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await load(week) } }
+            } else {
+                UFButton("Belegung dieser Woche laden", icon: "calendar", size: .small) { Task { await load(nil) } }
+                    .accessibilityIdentifier("rooms.plan.load")
+                Text("Lädt den Belegungsplan von \(roomTitle) aus dem LSF.").ufFont(12.5).foregroundStyle(UF.muted)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+        .accessibilityIdentifier("rooms.plan")
+    }
+
+    private func load(_ w: String?) async {
+        guard let api = session.api else { error = "Keine Verbindung zur App-Datenquelle."; return }
+        loading = true
+        defer { loading = false }
+        do {
+            let r = try await api.value("/api/rooms/plan?rgid=\(rgid)" + (w.map { "&week=\(PyText.quote($0, safe: ""))" } ?? ""))
+            plan = r
+            week = r.s("week") ?? w
+            error = nil
+        } catch {
+            self.error = "Die Belegung ließ sich nicht laden."
+        }
     }
 }
 
@@ -362,27 +474,40 @@ struct RoomFinderPage: View {
     struct RoomDetailItem: Identifiable { let place: JSONValue; var id: String { place.s("id") ?? UUID().uuidString } }
 
     static let examples = ["F102", "1101", "Hauptgebäude", "Bibliothek", "Audimax"]
+    static let examplesHildesheim = ["Hörsaal", "HC.I", "Forum", "Bühler", "Seminarraum"]
+
+    /// Hochschulweiche: "standortfinder" (LUH), "lsf" (Hildesheim), nil (HsH: folgt) – erst nach GET /api/rooms/campuses bekannt
+    private var finderKey: String? { campuses.flatMap { $0["finder"]?.bool == true ? $0["source"]?.s("key") : nil } }
+    private var source: JSONValue? { campuses?["source"] ?? (campuses == nil ? Rooms.source : nil) }
+    private var examples: [String] { finderKey == "lsf" ? Self.examplesHildesheim : Self.examples }
+    private var placeholder: String {
+        finderKey == "lsf" ? "Raum oder Gebäude (z. B. Hörsaal 1, HC.I, Forum)" : "Raum, Gebäude oder Einrichtung (z. B. F102, 1101, Bibliothek)"
+    }
 
     var body: some View {
         UFContent(maxWidth: 1000) {
-            UFPageHead("Raumfinder", sub: "Räume, Gebäude und Einrichtungen finden – mit Link zu Google Maps")
-            searchBar
+            UFPageHead("Raumfinder", sub: finderKey == "lsf" ? "Räume und Gebäude der Universität Hildesheim finden – mit Link zu Google Maps"
+                       : "Räume, Gebäude und Einrichtungen finden – mit Link zu Google Maps")
+            if campuses == nil || finderKey != nil { searchBar }
             if let error {
                 UFCard { UFEmpty(icon: "alert", text: error) { UFButton("Erneut versuchen", icon: "refresh") { Task { await search() } } } }
             }
             if let r = result { results(r) } else if loading { ProgressView().frame(maxWidth: .infinity).padding(30) }
             if let c = campuses { campusList(c) }
-            Text("Suche: \(Rooms.source.s("name") ?? "Standortfinder"). Die Karten-Links öffnen Google Maps oder Apple Karten erst, wenn du sie antippst.")
-                .ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 14)
+            if let c = campuses, finderKey == "lsf" { buildingList(c) }
+            if let name = source?.s("name") {
+                Text("Suche: \(name). Die Karten-Links öffnen Google Maps oder Apple Karten erst, wenn du sie antippst.")
+                    .ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 14)
+            }
         }
         .task(id: session.api?.base) {
+            await loadCampuses()
             if let q = initialQuery, !q.isEmpty, result == nil, query.isEmpty {
                 query = q
                 await search()
             }
-            await loadCampuses()
         }
-        .sheet(item: $detail) { d in RoomDetailSheet(place: d.place, attribution: Rooms.source.s("attribution")) }
+        .sheet(item: $detail) { d in RoomDetailSheet(place: d.place, attribution: source?.s("attribution")) }
         .accessibilityIdentifier("rooms.page")
     }
 
@@ -390,7 +515,7 @@ struct RoomFinderPage: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 UFInputBox(focused: false) {
-                    TextField("Raum, Gebäude oder Einrichtung (z. B. F102, 1101, Bibliothek)", text: $query)
+                    TextField(placeholder, text: $query)
                         .submitLabel(.search)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
@@ -402,7 +527,7 @@ struct RoomFinderPage: View {
             }
             if result == nil {
                 UFFlexWrap(gap: 8) {
-                    ForEach(Self.examples, id: \.self) { e in
+                    ForEach(examples, id: \.self) { e in
                         UFButton(e, size: .small) { query = e; Task { await search() } }
                     }
                 }
@@ -436,12 +561,29 @@ struct RoomFinderPage: View {
         .padding(.bottom, 14)
     }
 
+    /// Alle Gebaeude des LSF (Hildesheim), nach Campus; Antippen zeigt Adresse, Lage und Kartenlinks
+    @ViewBuilder private func buildingList(_ c: JSONValue) -> some View {
+        let buildings = c.list("buildings")
+        if !buildings.isEmpty {
+            UFCard {
+                UFCardHead("Gebäude im LSF (\(buildings.count))", icon: "home")
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(buildings.enumerated()), id: \.offset) { _, p in
+                        Button { detail = RoomDetailItem(place: p) } label: { RoomResultRow(place: p) }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("rooms.building")
+                    }
+                }
+            }
+        }
+    }
+
     @ViewBuilder private func campusList(_ c: JSONValue) -> some View {
         UFCard {
-            UFCardHead(c["finder"]?.bool == true ? "Standorte der Leibniz Universität Hannover" : "Standorte: \(c.s("name") ?? "")", icon: "graduation")
+            UFCardHead(c["finder"]?.bool == true ? "Standorte der \(c.s("name") ?? "Hochschule")" : "Standorte: \(c.s("name") ?? "")", icon: "graduation")
             VStack(alignment: .leading, spacing: 12) {
                 if let note = c.s("note") {
-                    Text("\(c.s("name") ?? "") hat keinen öffentlichen Raumfinder. \(note).").ufFont(13).foregroundStyle(UF.text2)
+                    Text("\(c.s("name") ?? "") hat noch keinen Raumfinder in StudiNow (folgt). \(note).").ufFont(13).foregroundStyle(UF.text2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(Array(c.list("campuses").enumerated()), id: \.offset) { _, p in
