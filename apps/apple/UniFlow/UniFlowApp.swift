@@ -111,6 +111,27 @@ struct UniFlowApp: App {
                             }
                             return
                         }
+                        // PDF oder ZIP von aussen (Dateien-App, Safari-Download, Mail: "Teilen" -> StudiNow; 07.11.2026):
+                        // pruefen und in den Container kopieren, dann "In welches Modul?"; eine ZIP oeffnet sich danach als
+                        // Ordner, eine PDF im Editor (`ExternalFileImport`, Dateitypen in project.yml)
+                        if let kind = ExternalFileImport.kind(of: url) {
+                            guard containers.active != nil else {
+                                ExternalFileImport.discardSource(url)
+                                toast.show(ExternalFileImport.needsAccountText, seconds: 4)
+                                return
+                            }
+                            Task {
+                                // die Kopie in Documents/Inbox gehoert zu keinem Container: danach immer weg
+                                defer { ExternalFileImport.discardSource(url) }
+                                do {
+                                    let staged = try await ExternalFileImport.stageDetached(url, kind: kind)
+                                    overlay.modal { ExternalImportDialog(staged: staged) }
+                                } catch {
+                                    toast.show(ExternalFileImport.message(error), seconds: 5)
+                                }
+                            }
+                            return
+                        }
                         // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (Community ab Plus seit
                         // 05.11.2026; nur mit Container). Anlegen braucht Plus (CommunitySettingsCard).
                         if let code = CommunityJoinLink.code(from: url) {

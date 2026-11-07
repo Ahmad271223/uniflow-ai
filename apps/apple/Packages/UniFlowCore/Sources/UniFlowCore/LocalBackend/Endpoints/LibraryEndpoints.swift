@@ -92,7 +92,10 @@ public enum LibraryEndpoints: LocalEndpointModule {
         return v
     }
 
-    /// `POST /api/notebooks`: Notizbuch oder Whiteboard (leer, mit Vorlage) oder Import einer PDF bzw. eines Bilds.
+    /// `POST /api/notebooks`: Notizbuch oder Whiteboard (leer, mit Vorlage) oder Import einer PDF, eines Bilds oder einer
+    /// ZIP-Datei (`kind=zip`, 07.11.2026: von aussen ueber Teilen-Menue, Dateien-App oder Ablegen; nur eine lesbare ZIP
+    /// ohne Passwort innerhalb der Grenzen von `ZipArchive`, sonst 400 mit der Meldung daraus; abgelegt als `<id>.zip`,
+    /// in der Bibliothek `kind` "file" mit Namen `<Titel>.zip` wie eine ZIP aus Stud.IP, die Ansicht erkennt sie am Namen).
     /// `w`/`h`: Seitenformat der ersten Notizseite in PDF-Punkten (A6 ... A2, Whiteboards bis A0 quer), sonst A4 hoch
     /// bzw. A4 quer; ausserhalb von `pageMinPT`...`pageMaxPT` 400 `format_invalid` (Stand 1ca6154).
     static func createNotebook(_ req: LocalRequest, _ ctx: LocalContext) async throws -> LocalResponse {
@@ -117,7 +120,9 @@ public enum LibraryEndpoints: LocalEndpointModule {
         let module: Int? = try moduleID.isEmpty ? nil : LocalTerms.pyInt(.string(moduleID), field: "module_id")
         var local: String?
         var pageCount: Int?
-        if let upload = form.file("upload"), kind == "pdf" || kind == "image" {
+        /// Endung und Typ der abgelegten Datei (PDF; Bild wird zur PDF; ZIP bleibt ZIP)
+        var storedSuffix = ".pdf", storedMime = "application/pdf"
+        if let upload = form.file("upload"), kind == "pdf" || kind == "image" || kind == "zip" {
             let files = try ctx.requireFiles()
             let ext = LocalFileResponse.suffix(upload.filename.isEmpty ? "datei.pdf" : upload.filename)?.lowercased() ?? ".pdf"
             if kind == "image" && ![".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"].contains(ext) {
@@ -128,7 +133,19 @@ public enum LibraryEndpoints: LocalEndpointModule {
             guard data.count <= maxImportBytes else { return AnnotationEndpoints.tooLarge(maxImportBytes) }
             if kind == "pdf" && !data.starts(with: Array("%PDF".utf8)) { throw LocalHTTPError(status: 400, message: "Die Datei ist keine PDF") }
             let dir = files.ownDocumentsDirectory
-            if kind == "image" {
+            if kind == "zip" {
+                // ganzes Verzeichnis lesen: keine ZIP, beschaedigt, Passwort, zu viele Eintraege oder zu gross entpackt
+                // (ZIP-Bombe) scheitern hier mit der Meldung von `ZipArchive.Failure`, nichts wird abgelegt
+                guard ZipArchive.looksLikeZip(data) else { throw LocalHTTPError(status: 400, message: ZipArchive.Failure.notZip.errorDescription ?? "Die Datei ist keine ZIP-Datei.") }
+                do { _ = try ZipArchive.entries(data) } catch let f as ZipArchive.Failure {
+                    throw LocalHTTPError(status: 400, message: f.errorDescription ?? "Die ZIP-Datei ist nicht lesbar.")
+                }
+                local = dir + "/" + fid + ".zip"
+                _ = try files.write(data, to: local!)
+                storedSuffix = ".zip"
+                storedMime = "application/zip"
+                kind = "file"
+            } else if kind == "image" {
                 if let pdf = files.tools.pdfFromImage(data) {
                     // Bild als PDF-Seite (Pillow in Python)
                     local = dir + "/" + fid + ".pdf"
@@ -147,10 +164,12 @@ public enum LibraryEndpoints: LocalEndpointModule {
             }
             if title.isEmpty { title = stem(upload.filename.isEmpty ? "Dokument" : upload.filename) }
         }
+        // eine ZIP gibt es nur mit Datei (kein leeres "ZIP-Dokument")
+        if kind == "zip" { throw LocalHTTPError(status: 400, message: "ZIP-Datei fehlt") }
         let now = ctx.clock.nowISO
         let docTitle = title.isEmpty ? "Dokument" : title
         let values: [SQLiteValue] = [
-            .text(fid), .text(docTitle + (local != nil ? ".pdf" : "")), 0, local != nil ? .text("application/pdf") : .null, .text("Ich"),
+            .text(fid), .text(docTitle + (local != nil ? storedSuffix : "")), 0, local != nil ? .text(storedMime) : .null, .text("Ich"),
             .integer(unixNow(ctx)), .text(""), SQLiteValue(local), .text(now), .text(now), SQLiteValue(folder), .text(kind),
             .text(docTitle), SQLiteValue(pageCount),
         ]

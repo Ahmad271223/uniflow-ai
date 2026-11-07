@@ -111,6 +111,19 @@ targets:
             LSHandlerRank: Owner
             LSItemContentTypes:
               - de.uniflow.solution
+          # ZIP und PDF von aussen (07.11.2026): Dateien-App, Safari-Downloads, Mail ("Teilen" -> "In StudiNow öffnen");
+          # iOS kopiert nach Documents/Inbox, UniFlowApp.onOpenURL -> ExternalFileImport ("In welches Modul?")
+          - CFBundleTypeName: ZIP-Archiv
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.zip-archive
+              - com.pkware.zip-archive
+          - CFBundleTypeName: PDF-Dokument
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - com.adobe.pdf
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: de.uniflow.solution
             UTTypeDescription: StudiNow-Lösung

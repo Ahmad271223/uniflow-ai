@@ -146,6 +146,19 @@ struct LibraryPage: View {
         }
         .task(id: "\(section ?? "")|\(path ?? "")|\(q ?? "")") { query = q ?? ""; await load() }
         .ufReload { await load() }
+        // PDF und ZIP aus der Dateien-App hierher ziehen (07.11.2026): ins offene Modul bzw. den offenen Ordner
+        .modifier(LibraryDropTarget(moduleID: Self.dropModule(path), folderID: Self.dropFolder(path)))
+    }
+
+    /// Modul des offenen Pfads ("m<id>[/f<id>]"), fuer abgelegte Dateien; Kursordner und Wurzel: keins
+    static func dropModule(_ path: String?) -> Int? {
+        (path ?? "").components(separatedBy: "/").first.flatMap { $0.hasPrefix("m") ? Int($0.dropFirst()) : nil }
+    }
+
+    /// Eigener Ordner am Ende des Pfads ("f<id>")
+    static func dropFolder(_ path: String?) -> Int? {
+        guard let last = (path ?? "").components(separatedBy: "/").last, last.hasPrefix("f") else { return nil }
+        return Int(last.dropFirst())
     }
 
     private func load() async {
