@@ -408,16 +408,19 @@ public actor HildesheimSync {
                 // Hintergrundlauf mit Netz)
                 guard loadFiles else {
                     report.waiting += todo.count
+                    await assignWeeks(api, course: c, list: list, fetched: [:], network: false)
                     continue
                 }
                 var courseFailed = false
+                let fetched = HeaderDates()
                 for row in todo {
                     guard let f = list.first(where: { $0.id == row.id }) else { continue }
                     do {
                         try Task.checkCancellation()
                         let req = try await api.downloadRequest(f)
                         try await downloads.load(row, to: StudIPImport.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
-                                                 fetch: Self.fetch(req, name: row.name, shownURL: row.downloadURL, transport: transport, retry: retry))
+                                                 fetch: Self.fetch(req, name: row.name, shownURL: row.downloadURL, transport: transport, retry: retry,
+                                                                   onDate: { [id = row.id] in fetched.set(id, $0) }))
                         report.newFiles.append(row.id)
                     } catch {
                         if stop(error) { break courseLoop }
@@ -425,6 +428,8 @@ public actor HildesheimSync {
                         courseFailed = true
                     }
                 }
+                // Lehrwochen selbst bestimmen (`LectureWeeks`): einmal je Datei, danach gemerkt
+                if !Task.isCancelled { await assignWeeks(api, course: c, list: list, fetched: fetched.all, network: true) }
                 // Kurs eines frueheren Semesters vollstaendig: der naechste Abgleich fragt ihn nicht erneut ab
                 if olderIDs.contains(c.id), !courseFailed {
                     let now = clock.nowISO
@@ -538,13 +543,68 @@ public actor HildesheimSync {
     /// keine Anmelde- oder andere Webseite (`UniStore.isWebPage`), keine Fehlermeldung von Moodle statt der Datei
     /// (`Learnweb.downloadError`)
     private static func fetch(_ req: UniRequest, name: String, shownURL: String, transport: UniTransport,
-                              retry: UniRetry) -> @Sendable (URL) async throws -> Void {
+                              retry: UniRetry, onDate: @escaping @Sendable (Int?) -> Void = { _ in }) -> @Sendable (URL) async throws -> Void {
         { part in
             let resp = try await retry.run { try await transport.download(req, to: part) }
             if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
             guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
             if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
             if let e = Learnweb.downloadError(file: part, name: name) { throw e }
+            // Aenderungszeit der Datei fuer die Lehrwoche (ueber die Sitzung fehlt `timemodified`)
+            onDate(LectureWeeks.parseHTTPDate(resp.headers["last-modified"]))
+        }
+    }
+
+    /// Aenderungszeiten aus den Downloads eines Kurses (Datei-ID -> `Last-Modified`, nil ohne Kopf)
+    final class HeaderDates: @unchecked Sendable {
+        private let lock = NSLock()
+        private var dates: [String: Int?] = [:]
+        func set(_ id: String, _ date: Int?) { lock.lock(); dates[id] = date; lock.unlock() }
+        var all: [String: Int?] { lock.lock(); defer { lock.unlock() }; return dates }
+    }
+
+    /// Hoechstens so viele HEAD-Anfragen je Kurs und Lauf fuer Dateien, die schon vor dieser Fassung geladen wurden
+    static let maxWeekHeads = 300
+
+    /// Lehrwochen der Dateien eines Kurses bestimmen und merken (`LectureWeeks.assignCourse`); nur Dateien ohne
+    /// Zuordnung. Datum: `timemodified` (Schluessel), `Last-Modified` des Downloads, fuer schon frueher geladene Dateien
+    /// ohne Hinweis im Namen ein HEAD (nur mit `network`, nur ueber die Sitzung). Ohne Datum und solange es noch
+    /// kommen kann, bleibt die Datei offen (naechster Abgleich). Fehler hier stoeren den Abgleich nicht.
+    private func assignWeeks(_ api: LearnwebAPI, course c: Learnweb.Course, list: [Learnweb.File], fetched: [String: Int?],
+                             network: Bool) async {
+        let uni = names.university.rawValue
+        guard let known = try? await db.transaction({ conn -> (LectureWeeks.Term?, Set<String>) in
+            (try LectureWeeks.storedTerm(conn, courseID: c.id) ?? LectureWeeks.tableTerm(university: uni, semester: c.semester),
+             try LectureWeeks.assignedIDs(conn, courseID: c.id))
+        }) else { return }
+        let (term, done) = known
+        let token: Bool = { if case .token = api.mode { return true }; return false }()
+        var inputs: [LectureWeeks.Input] = []
+        var heads = 0
+        for f in list {
+            if done.contains(f.id) {
+                inputs.append(f.weekInput(date: nil, final: true))
+                continue
+            }
+            if let lm = fetched[f.id] {
+                inputs.append(f.weekInput(date: lm, final: true))
+                continue
+            }
+            var input = f.weekInput(date: nil, final: token)
+            if input.date != nil || LectureWeeks.hasHint(input, term: term) {
+                input.final = true
+            } else if network, !token, heads < Self.maxWeekHeads, !Task.isCancelled {
+                heads += 1
+                if let answer = await api.lastModified(f) {
+                    input.date = answer
+                    input.final = true
+                }
+            }
+            inputs.append(input)
+        }
+        let now = clock.nowISO, files = inputs
+        _ = try? await db.transaction {
+            try LectureWeeks.assignCourse($0, courseID: c.id, semester: c.semester, university: uni, files: files, now: now)
         }
     }
 

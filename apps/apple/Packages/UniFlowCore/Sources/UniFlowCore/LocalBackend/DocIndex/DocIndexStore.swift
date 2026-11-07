@@ -144,8 +144,11 @@ enum DocIndexStore {
         let enriched = StudyClassify.enrichFile(r.json)
         let docType = enriched["doc_type"]?.string ?? "sonstiges", subLabel = enriched["sub_label"]?.string ?? ""
         let chdate = r["chdate"] ?? .null
-        let week = try LocalModules.week(docType: docType, subLabel: subLabel, weekHint: enriched["week_hint"]?.int, chdate: chdate,
-                                         start: dates.start, today: dates.today)
+        // selbst bestimmte Lehrwoche (`LectureWeeks`) wie im Moduldetail, sonst Aenderungszeit und Hinweis im Namen
+        let storedWeek = (r["id"]?.string).flatMap { dates.stored[$0] }
+            .flatMap { docType == "klausur" || subLabel == "Klausur-Lösung" ? nil : LectureWeeks.displayWeek($0, start: dates.start) }
+        let week = try storedWeek ?? LocalModules.week(docType: docType, subLabel: subLabel, weekHint: enriched["week_hint"]?.int, chdate: chdate,
+                                                       start: dates.start, today: dates.today)
         let date = StudyWeeks.isEmpty(chdate: chdate) ? "" : BerlinClock.isoDate(try StudyWeeks.localDay(chdate: chdate))
         let courseTitle = r["course_title"]?.string ?? ""
         let moduleName = r["module_name"]?.string.flatMap { $0.isEmpty ? nil : $0 } ?? CommunityKeys.moduleName(courseTitle: courseTitle)
@@ -263,7 +266,7 @@ enum DocIndexStore {
                                          "files": .array(files.map { fileJSON($0.meta) })])
                     }
                     let days = weeks[w]!.map(\.meta.date).filter { !$0.isEmpty }
-                    weekJSON.append(["week": .number(Double(w)), "label": .string(StudyWeeks.weekLabel(start: dates.start, week: w)),
+                    weekJSON.append(["week": .number(Double(w)), "label": .string(dates.label(w)),
                                      "from": .string(days.min() ?? ""), "to": .string(days.max() ?? ""), "kinds": .array(kindJSON)])
                 }
                 let first = modules[name]!.first!

@@ -26,6 +26,14 @@ public enum Learnweb {
         public let downloadURL: String
         public let folder: String
         public var moduleName: String? = nil
+        /// Name des Moodle-Abschnitts (`sectionLabel`), fuer die Lehrwoche (`LectureWeeks`, Regel 1)
+        public var section: String? = nil
+
+        /// Eingabe fuer die Lehrwoche (`LectureWeeks`); `date` und `final` setzt der Abgleich
+        public func weekInput(date: Int?, final: Bool) -> LectureWeeks.Input {
+            LectureWeeks.Input(id: id, name: name, folder: folder, section: section, moduleName: moduleName,
+                               date: date ?? chdate.flatMap { $0 > 0 ? $0 : nil }, final: final)
+        }
 
         /// Zeile fuer `UniStore.storeFiles`; Ordner nur, wenn vorhanden (wie `folders` in hildesheim.sync_learnweb)
         public var row: UniStore.FileRow {
@@ -126,7 +134,7 @@ public enum Learnweb {
                                     size: c["filesize"]?.int ?? 0, mime: (c["mimetype"]?.string).flatMap { $0.isEmpty ? nil : $0 } ?? guessMime(name),
                                     author: c["author"]?.string, chdate: c["timemodified"]?.int ?? 0,
                                     revision: parsePluginfile(fileurl)?.revision, downloadURL: stripForceDownload(fileurl),
-                                    folder: HText.nfc(joinFolder(base, fp)), moduleName: mod["name"]?.string))
+                                    folder: HText.nfc(joinFolder(base, fp)), moduleName: mod["name"]?.string, section: secName))
                 }
             }
         }
@@ -151,7 +159,7 @@ public enum Learnweb {
                 guard let p = parsePluginfile(url) else { continue }
                 out.append(File(id: fileID(cmid: cmid, filepath: p.filepath, filename: p.filename), name: p.filename, size: nil,
                                 mime: guessMime(p.filename), chdate: nil, revision: p.revision, downloadURL: stripForceDownload(url),
-                                folder: joinFolder(base, p.filepath), moduleName: cm["name"]?.string))
+                                folder: joinFolder(base, p.filepath), moduleName: cm["name"]?.string, section: secName))
             }
         }
         return out

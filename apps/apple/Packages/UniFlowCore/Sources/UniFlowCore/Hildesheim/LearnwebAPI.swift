@@ -166,6 +166,19 @@ public actor LearnwebAPI {
                           body: HText.form([("token", t.token)]))
     }
 
+    /// Aenderungszeit einer schon geladenen Datei ueber die Sitzung (dort fehlt `timemodified`): HEAD auf den
+    /// Pluginfile-Link, Kopf `Last-Modified` (Moodle setzt ihn aus der gespeicherten Datei). Nur lesend, je Datei
+    /// einmal (danach ist die Lehrwoche gemerkt, `LectureWeeks`). nil: nicht beantwortet (spaeter erneut);
+    /// .some(nil): beantwortet, aber ohne Datum. Mit Schluessel nil (dort kommt `timemodified` mit der Liste).
+    public func lastModified(_ f: Learnweb.File) async -> Int?? {
+        guard case .session = mode, var req = try? downloadRequest(f) else { return nil }
+        req.method = "HEAD"
+        guard let resp = try? await transport.send(req), resp.status == 200 else { return nil }
+        let final = resp.finalURL?.absoluteString ?? ""
+        if isLogin(final) || HildesheimCAS.isCASPage(final) { return nil }
+        return .some(LectureWeeks.parseHTTPDate(resp.headers["last-modified"]))
+    }
+
     // MARK: Fristen und Ankuendigungen (learnweb.TokenClient/SessionClient.deadlines, .announcements)
 
     /// `call(fn, args)` fuer `fetch_deadline_events`: REST mit Schluessel, sonst AJAX mit der Sitzung

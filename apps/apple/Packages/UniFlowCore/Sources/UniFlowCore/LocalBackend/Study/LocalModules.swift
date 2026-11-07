@@ -91,8 +91,9 @@ public enum LocalModules {
             sql += " AND c.module_id=?"
             params.append(moduleID)
         }
+        let stored = try LectureWeeks.stored(c)
         return try c.query(sql + " ORDER BY f.chdate", params).map { r in
-            FileRow(json: StudyClassify.enrichFile(r.json), chdate: r["chdate"] ?? .null)
+            FileRow(json: LectureWeeks.withStoredType(StudyClassify.enrichFile(r.json), stored: stored), chdate: r["chdate"] ?? .null)
         }
     }
 
@@ -135,14 +136,29 @@ public enum LocalModules {
     static let groupOf = ["vorlesung": "vorlesungen", "uebung": "uebungen", "loesung": "loesungen", "skript": "skripte", "klausur": "klausuren"]
 
     /// Zeitpunkte, die das Moduldetail braucht: heute (Berlin) und der Semesterbeginn
+    /// Mit selbst bestimmten Lehrwochen (`LectureWeeks`, Moodle der HsH und Learnweb): Beginn des gemerkten Semesters
+    /// der aktiven Kurse statt der Schaetzung aus den Aenderungszeiten, dazu die gespeicherten Wochen je Datei. Ohne
+    /// (Stud.IP der LUH) wie bisher.
     struct Dates {
         let today: Int
         let start: Int
+        var term: LectureWeeks.Term? = nil
+        var stored: [String: LectureWeeks.Stored] = [:]
 
         init(_ c: SQLiteConnection, clock: UniFlowClock) throws {
             today = BerlinClock.parseISODate(clock.today) ?? 0
-            start = try StudyWeeks.semesterStart(c, today: today)
+            term = try LectureWeeks.currentTerm(c)
+            start = try term.map { $0.firstMonday } ?? StudyWeeks.semesterStart(c, today: today)
+            stored = try LectureWeeks.stored(c)
         }
+
+        init(today: Int, start: Int) {
+            self.today = today
+            self.start = start
+        }
+
+        /// Bezeichnung einer Woche (Lehrwochen ohne Pausenwochen, wenn das Semester gemerkt ist)
+        func label(_ w: Int) -> String { LectureWeeks.weekLabel(start: start, week: w, term: term) }
     }
 
     /// Lehrwoche einer Datei wie `file_week` in app/study.py, eine Regel fuer Moduldetail, Lernplan (`StudyPlan.units`),
@@ -151,7 +167,11 @@ public enum LocalModules {
     /// Datei aus diesem Semester ist, sonst die Woche der Aenderung (`StudyWeeks.weekIndex`). Vorher nahmen Lernplan und
     /// Termin nur die Woche der Aenderung ("Blatt 3", in Woche 5 hochgeladen: Moduldetail Woche 3, Lernplan Woche 5).
     static func week(_ f: FileRow, dates: Dates) throws -> Int {
-        try week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int, chdate: f.chdate,
+        if f.docType != "klausur", f.json["sub_label"]?.string != "Klausur-Lösung", let id = f.json["id"]?.string,
+           let s = dates.stored[id] {
+            return LectureWeeks.displayWeek(s, start: dates.start)
+        }
+        return try week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int, chdate: f.chdate,
                  start: dates.start, today: dates.today)
     }
 
@@ -176,7 +196,6 @@ public enum LocalModules {
 
     static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, dates: Dates) throws -> [String: JSONValue]? {
         guard let m = try c.queryOne("SELECT * FROM modules WHERE id=?", [moduleID]) else { return nil }
-        let start = dates.start
         let files = try fileRows(c, moduleID: moduleID)
         var weeks: [Int: [FileRow]] = [:]
         for f in files { weeks[try week(f, dates: dates), default: []].append(f) }
@@ -186,7 +205,7 @@ public enum LocalModules {
             let fl = weeks[w]!
             var grp: [String: [FileRow]] = Dictionary(uniqueKeysWithValues: groupKeys.map { ($0, []) })
             for f in fl { grp[groupOf[f.docType ?? ""] ?? "sonstiges"]!.append(f) }
-            var block: [String: JSONValue] = ["week": .number(Double(w)), "label": .string(StudyWeeks.weekLabel(start: start, week: w)),
+            var block: [String: JSONValue] = ["week": .number(Double(w)), "label": .string(dates.label(w)),
                                               "topic": .string(try weekTopic(fl)), "count": .number(Double(fl.count))]
             for k in groupKeys {
                 // sort(key=(sub_label or "", name or "")), stabil wie Python

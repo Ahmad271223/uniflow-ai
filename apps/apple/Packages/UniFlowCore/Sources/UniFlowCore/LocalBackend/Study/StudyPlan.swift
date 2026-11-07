@@ -199,7 +199,7 @@ enum StudyPlan {
         for w in weeks.keys.sorted() {
             let u = weeks[w]!
             if u.lectures.isEmpty && u.exercises.isEmpty { continue }
-            out.append(Unit(week: w, label: StudyWeeks.weekLabel(start: dates.start, week: w), topic: try LocalModules.weekTopic(u.files),
+            out.append(Unit(week: w, label: dates.label(w), topic: try LocalModules.weekTopic(u.files),
                             lectures: u.lectures, exercises: u.exercises))
         }
         return out

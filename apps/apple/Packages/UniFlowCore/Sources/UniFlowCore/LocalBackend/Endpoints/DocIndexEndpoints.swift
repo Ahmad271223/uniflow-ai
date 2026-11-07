@@ -93,7 +93,7 @@ enum DocIndexEndpoints: LocalEndpointModule {
             let dates = try LocalModules.Dates(c, clock: clock)
             o["catalog"] = catalog.json
             o["shelf_path"] = .array(DocIndexStore.shelfPath(university: uni.name, catalog: catalog,
-                                                              weekLabel: StudyWeeks.weekLabel(start: dates.start, week: meta.week)).map(JSONValue.string))
+                                                              weekLabel: dates.label(meta.week)).map(JSONValue.string))
             // eigene Notizen derselben Datei (nur lokal): die aktuelle Seite zuerst, dann die naechsten
             let notes = try DocIndexStore.ownNotes(c, fileID: fileID).sorted { a, b in
                 (a.page == page ? 0 : 1, abs(a.page - page), a.page) < (b.page == page ? 0 : 1, abs(b.page - page), b.page)
