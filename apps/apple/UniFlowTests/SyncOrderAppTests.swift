@@ -126,7 +126,9 @@ final class SyncOrderAppTests: XCTestCase {
         let status = try await dev.api.value("/api/sync-order")
         XCTAssertEqual(status["current"]?["label"]?.string, "WiSe 2026/27")
         XCTAssertEqual(status["current"]?["ready"]?.bool, true)
-        XCTAssertEqual(status["hint"]?.string, "Aktuelles Semester ist da · ältere Semester werden im Hintergrund geladen (0 von 6)")
+        // vor der Antwort auf "Auch frühere Semester laden?" (07.11.2026): nichts Altes steht an, kein Lade-Hinweis
+        XCTAssertTrue(status["hint"]?.isNull ?? false, "\(status["hint"] ?? .null)")
+        XCTAssertEqual(status["older"]?["pending"]?.int, 0)
 
         // Module je Semester: aktuelles zuerst, naechstes, dann sechs fruehere, neuestes zuerst, noch ohne Dateien
         let mods = try await dev.api.value("/api/modules").items
@@ -138,8 +140,71 @@ final class SyncOrderAppTests: XCTestCase {
         XCTAssertEqual(ModuleSemesters.currentHead(split), "Aktuelles Semester · WiSe 2026/27")
         XCTAssertEqual(ModuleSemesters.countLabel(split.older[0]), "1 Modul · Dateien noch nicht geladen")
         XCTAssertEqual(split.older[0]["items"]?.array?.first?.s("name"), "Regelungstechnik")
-        XCTAssertEqual(ModuleSemesters.hint(sem), "Aktuelles Semester ist da · ältere Semester werden im Hintergrund geladen (0 von 6)")
+        XCTAssertNil(ModuleSemesters.hint(sem), "vor der Antwort kein Hinweis „werden geladen“")
         XCTAssertFalse(ModuleSemesters.stillLoading(sem))
+    }
+
+    // MARK: Frage vor Stufe (d) (Wunsch des Inhabers 07.11.2026)
+
+    /// Stufe (d) vor der Antwort (auch im WLAN, `pause` erlaubt alles): kein Abruf eines frueheren Semesters; die Frage
+    /// steht an. Ja (`OlderSemestersQuestionHost.answer`) = Nur WLAN, dann neuestes zuerst; die Frage kommt nicht wieder.
+    func testNothingOlderBeforeTheAnswerThenYesLoadsNewestFirst() async throws {
+        let dev = try device()
+        let stud = portal()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        let db = try await dev.host.backend().context.database
+        let today = Self.clock.today
+        let load: (Set<String>) async -> Void = { ids in _ = await sync.run(client: self.client(stud), olderOnly: true, olderCourses: ids) }
+        stud.clear()
+        let none = await OlderSemesterLoader.runStage(db: db, today: today, perTerm: true, pause: { _ in nil }, load: load, wait: {})
+        XCTAssertEqual(none, 0, "vor der Antwort kein Lauf")
+        for old in 1...6 { XCTAssertFalse(stud.folders(of: old), "c\(old) vor der Antwort nicht abgefragt") }
+        let overview = try await dev.api.value("/api/older-semesters")
+        XCTAssertTrue(OlderSemestersQuestionHost.shouldAsk(overview), "Frage steht an")
+        XCTAssertEqual(overview["semesters"]?.array?.count, 6)
+        XCTAssertEqual(overview.s("mode"), "off", "Einstellungen zeigen vor der Antwort Aus")
+
+        let mode = try await OlderSemestersQuestionHost.answer(yes: true, api: dev.api)
+        XCTAssertEqual(mode, .wifi)
+        let after = try await dev.api.value("/api/older-semesters")
+        XCTAssertFalse(OlderSemestersQuestionHost.shouldAsk(after), "beantwortet: keine Frage mehr")
+        XCTAssertEqual(after.s("mode"), "wifi")
+        let sem = try await dev.api.value("/api/module-semesters")
+        XCTAssertEqual(ModuleSemesters.hint(sem), "Aktuelles Semester ist da · ältere Semester werden im Hintergrund geladen (0 von 6)")
+        stud.clear()
+        let runs = await OlderSemesterLoader.runStage(db: db, today: today, perTerm: true, pause: { _ in nil }, load: load, wait: {})
+        XCTAssertEqual(runs, 6)
+        XCTAssertEqual(stud.requested.filter { $0.hasSuffix("/folders?page[limit]=200") && $0.contains("/courses/") },
+                       [6, 5, 4, 3, 2, 1].map { "/jsonapi.php/v1/courses/c\($0)/folders?page[limit]=200" }, "neuestes Semester zuerst")
+        // alte Kurse bleiben aus (nicht im Lernplan/Stundenplan), ihre Dateien liegen in der Bibliothek
+        let courses = try await dev.api.value("/api/courses").items
+        XCTAssertEqual(Set(courses.filter { $0.i("active") == 1 }.compactMap { $0.s("id") }).subtracting(["__user__"]), ["c7", "c8"])
+        // Bibliothek, Ordner "Frühere Semester": Kurs des 1. Semesters mit geladener Datei
+        let old = try await dev.api.value("/api/older-semesters/courses/c1/files").items
+        XCTAssertEqual(old.map { $0.s("name") }, ["Blatt 1.pdf"])
+        XCTAssertEqual(old.first?.i("downloaded"), 1, "Unterlagen des 1. Semesters geladen")
+    }
+
+    /// Nein ("Nur aktuelles Semester" = Aus): nichts Altes, auch nach weiteren Abgleichen, keine erneute Frage
+    func testAnswerNoLoadsNothingAndAsksNoMore() async throws {
+        let dev = try device()
+        let stud = portal()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        let mode = try await OlderSemestersQuestionHost.answer(yes: false, api: dev.api)
+        XCTAssertEqual(mode, .off)
+        let db = try await dev.host.backend().context.database
+        stud.clear()
+        await sync.run(client: client(stud))
+        let runs = await OlderSemesterLoader.runStage(db: db, today: Self.clock.today, perTerm: true, pause: { _ in nil }, load: { ids in
+            _ = await sync.run(client: self.client(stud), olderOnly: true, olderCourses: ids)
+        }, wait: {})
+        XCTAssertEqual(runs, 0)
+        for old in 1...6 { XCTAssertFalse(stud.folders(of: old), "c\(old): Nein heisst nichts Altes") }
+        let overview = try await dev.api.value("/api/older-semesters")
+        XCTAssertFalse(OlderSemestersQuestionHost.shouldAsk(overview), "keine erneute Frage")
+        XCTAssertEqual(overview.s("mode"), "off")
     }
 
     // MARK: Stufe (d): neuestes zuerst, Pause, fortsetzbar
@@ -151,6 +216,8 @@ final class SyncOrderAppTests: XCTestCase {
         await sync.run(client: client(stud))
         let db = try await dev.host.backend().context.database
         let today = Self.clock.today
+        // Antwort "Frühere Semester auch laden" (vor der Antwort laedt Stufe d nichts, 07.11.2026)
+        _ = try await OlderSemestersQuestionHost.answer(yes: true, api: dev.api)
         stud.clear()
         var asked = 0
         let runs = await OlderSemesterLoader.runStage(db: db, today: today, perTerm: true, pause: { _ in

@@ -170,6 +170,8 @@ final class BackgroundSyncAppTests: XCTestCase {
         func download(_ url: URL, to file: URL) async throws -> HTTPReply {
             let path = url.path
             lock.withLock { log.append(path) }
+            // "Gesperrt.pdf" (is-downloadable false): der Abgleich fragt sie seit 07.11.2026, Stud.IP verweigert sie
+            if path.hasSuffix("/d2/content") { return HTTPReply(status: 403, contentType: "text/plain") }
             // die halbe Datei liegt schon im Zwischenordner, waehrend der Download noch laeuft
             try Data("%PDF-1.7 hal".utf8).write(to: file)
             if gated {
@@ -531,11 +533,11 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertNil(m.studip.lastRun, "der kurze Lauf setzt die 30-Minuten-Sperre nicht")
         XCTAssertEqual(b.lastRecord?.outcome, .done(newFiles: 2))
         let log = try await luh.host.backend().context.database.scalar("SELECT message FROM sync_log ORDER BY id DESC LIMIT 1")?.string
-        XCTAssertEqual(log, "Hintergrund: Listen abgeglichen, 1 Datei wartet auf den Download")
+        XCTAssertEqual(log, "Hintergrund: Listen abgeglichen, 2 Dateien warten auf den Download")
 
-        // langer Lauf: laedt die wartende Datei; nichts mehr neu, keine zweite Mitteilung
+        // langer Lauf: laedt die wartende Datei (die gesperrte verweigert Stud.IP); nichts mehr neu, keine zweite Mitteilung
         try await launch(b, .processing)
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"])
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
         XCTAssertFalse(m.studip.downloadsPending)
         XCTAssertNotNil(m.studip.lastRun)
         XCTAssertEqual(n.posts.count, 1, "jede neue Datei wird nur einmal gemeldet")

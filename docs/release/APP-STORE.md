@@ -12,8 +12,28 @@ Universität Hildesheim (Learnweb, LSF, PLuS) bleiben im Code, sind im Store-Bui
 `UFReleaseUniversities`) und kommen 1–2 Tage später mit Update 1.0.1 – dann die Texte unten wieder um beide Hochschulen
 ergänzen (Beschreibung, Schlüsselwörter „Moodle“, „Hildesheim“, Prüfhinweise „Connected today“, Website).
 
-**Zwei Fassungen, je nachdem, ob Pro AI mit eingereicht wird** (Entscheidung des Inhabers: Pro AI erst, wenn ein
-Sandbox-Kauf und eine KI-Frage über TestFlight geklappt haben, `docs/UEBERGABE-2026-11-06.md` Abschnitt 3):
+**1.0 wird mit Pro AI eingereicht (Entscheidung des Inhabers 07.11.2026, Dienst `app.studinow.app` läuft):** in App Store
+Connect gehören `description-proai` und `review-notes-proai` hinein, dazu alle vier Abos (Plus und Pro AI, je monatlich und
+jährlich). Die Fassungen „nur Plus“ bleiben nur als Rückfall stehen und sind **überholt – nicht verwenden**.
+
+**Stand 07.11.2026 abends, neu in den Texten:** (1) Probe 7 Tage im Umfang von Pro AI, höchstens einmal je iPad (auch nach
+Neuinstallation oder mit anderer Apple-ID); danach Bildschirm „Deine Probe ist vorbei“ (Free, Plus, Pro AI,
+Monatlich/Jährlich), der sich erst mit einer Wahl schließt – „Bei Free bleiben“ ist eine gültige Wahl ohne Kauf
+(`TrialBanner.swift`, `UFTrialDecision`; im Prüfhinweis für die Richtlinien 3.1.2/5.1.1 erklärt). (2) Erster Abgleich:
+erst aktuelles Semester samt Stundenplan, dann die Frage „Auch frühere Semester laden?“ („Nur aktuelles Semester“ /
+„Frühere Semester auch laden“, im Hintergrund, nur WLAN, `OlderSemestersViews.swift`); die Demo hat keine früheren
+Semester (`DemoContent.install`, Semester leer), darum steht die Frage kurz im Prüfhinweis. (3) Eigener API-Schlüssel in
+jedem Tarif für KI-Hilfe und KI-Lernplan (Karteikarten aus Unterlagen ab Plus, Wochentests ab Pro AI,
+`OpenAIKeyCard.introText`); die Beschreibung nennt ihn ohne fremde Marke, der Prüfhinweis mit OpenAI. Der KI-Lernplan
+ist in der Demo ohne geöffnete Dateien leer und wird darum im Prüfhinweis nicht als Schritt versprochen.
+
+**Mac (Hinweis für den Inhaber):** Die iPad-App läuft auf Macs mit Apple-Chip als „Designed for iPad“; es gibt **keine
+eigene macOS-Version**. In App Store Connect die Plattform **macOS nicht einreichen** (den alten macOS-1.0-Entwurf liegen
+lassen) und unter **Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“ = verfügbar** setzen. In
+Beschreibung und Werbetext steht dazu nichts.
+
+Frühere Übersicht der zwei Fassungen (Pro AI erst nach Sandbox-Kauf und KI-Frage über TestFlight,
+`docs/UEBERGABE-2026-11-06.md` Abschnitt 3 – durch die Entscheidung vom 07.11.2026 erledigt):
 
 | Feld | nur Plus (Pro AI nicht eingereicht) | Plus und Pro AI |
 |---|---|---|
@@ -22,8 +42,7 @@ Sandbox-Kauf und eine KI-Frage über TestFlight geklappt haben, `docs/UEBERGABE-
 | Hinweise für die App-Prüfung | `review-notes` | `review-notes-proai` |
 | Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, `docs/release/SCREENSHOTS.md`) | **endgültiger Satz mit Pro AI** (`~/Studora-Builds/appstore-screenshots-final-2026-11-07/`, Abschnitt Bildschirmfotos) |
 
-Wird Pro AI später nachgereicht, Beschreibung und Prüfhinweise auf die Pro-AI-Fassung umstellen (die Beschreibung lässt
-sich nur mit einer neuen App-Version ändern).
+Für 1.0 gilt die rechte Spalte (Plus und Pro AI).
 
 **Vor dem Einreichen prüfen – Aussagen, die vom Stand des Builds und echten Konten abhängen:**
 
@@ -37,7 +56,9 @@ sich nur mit einer neuen App-Version ändern).
 | Automatisch anmelden (Passwort nur im Schlüsselbund dieses iPads) | gebaut (`docs/AUTOMATISCH-ANMELDEN-2026-11-06.md`); Uni-Mail-Formular und HsH-IdP sind geraten | Absatz bleibt in jedem Fall (er beschreibt, was die App mit dem Passwort tut) |
 | Community deines Kurses (Plus) | gebaut (CloudKit `iCloud.de.uniflow.ai`, mit StudiNow-Konto über den Dienst) | Schema in Production übernommen (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`), sonst geht sie im App Store nicht |
 | Mensa | gebaut (`docs/MENSA-2026-11-05.md`), frei in jedem Tarif | – („ohne Gewähr“ steht in der App unter jedem Plan) |
-| StudiNow-KI mit Pro AI (nur `description-proai`) | gebaut (`StudoraAccountLink`, `/api/ai/relay`, `ChatGPTLink.isEnabled = false`) | Sandbox-Kauf, Anmeldung mit Apple beim StudiNow-Konto und eine KI-Frage über TestFlight geklappt |
+| StudiNow-KI mit Pro AI (nur `description-proai`) | gebaut (`StudoraAccountLink`, `/api/ai/relay`, `ChatGPTLink.isEnabled = false`); Pro AI wird mit 1.0 verkauft (07.11.2026) | Dienst `app.studinow.app` erreichbar |
+| Eigener API-Schlüssel in jedem Tarif (nur `description-proai`, ohne Marke) | gebaut (`OpenAIKeyCard`, `OpenAIKeySession`; KI-Hilfe und KI-Lernplan jeder Tarif, Karteikarten ab Plus, Wochentests ab Pro AI) | Karte in Einstellungen → Erweitert im Release-Build sichtbar |
+| Probe einmal je iPad, danach „Deine Probe ist vorbei“ mit „Bei Free bleiben“ | gebaut (`LocalTrial.swift`, `TrialBanner.swift`) | – |
 | „ohne Tracking“ | stimmt | solange kein Analyse-SDK eingebaut wird |
 
 Nicht in den Texten, weil nicht oder noch nicht nutzbar: Zeitmesser (`StudyTimer.isEnabled = false`), Anmeldung bei
@@ -63,7 +84,7 @@ Skripte, Termine, Uni-Mail und Noten deiner Hochschule auf dem iPad – mit Appl
 
 ## Beschreibung (max. 4000 Zeichen)
 
-### Fassung nur Plus (Pro AI nicht eingereicht) – 3784 Zeichen
+### Fassung nur Plus – ÜBERHOLT, nicht verwenden (1.0 wird mit Pro AI eingereicht) – 3818 Zeichen
 
 ```text description
 StudiNow bringt dein Studium an einen Ort: Unterlagen, Termine, Nachrichten, Uni-Mail und Noten deiner Hochschule, dazu Stundenplan, Lernkalender, Karteikarten und Handschrift mit dem Apple Pencil – auf dem iPad.
@@ -99,7 +120,7 @@ DEINE DATEN
 • Was du in der Community teilst, liegt verschlüsselt und unter Pseudonym, nie mit deinem Namen oder deiner E-Mail-Adresse.
 
 STUDINOW FREE UND PLUS
-StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten und Bescheinigungen, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start hast du 7 Tage Probe mit allem (einmal je iPad) – ohne Zahlungsdaten, danach gilt Free. StudiNow Plus (1,99 €/Monat oder 21,99 €/Jahr) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, den automatischen Lernplan und die Community deines Kurses frei. Das Abo verlängert sich automatisch um einen Monat bzw. ein Jahr, wenn es nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten und Bescheinigungen, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start hast du 7 Tage Probe mit allem (einmal je iPad) – ohne Zahlungsdaten, danach wählst du: Free bleibt kostenlos, oder Plus. StudiNow Plus (1,99 €/Monat oder 21,99 €/Jahr) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, den automatischen Lernplan und die Community deines Kurses frei. Das Abo verlängert sich automatisch um einen Monat bzw. ein Jahr, wenn es nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -107,7 +128,7 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – 3791 Zeichen
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 07.11.2026 abends) – 3969 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
@@ -117,16 +138,16 @@ Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI�
 StudiNow bringt dein Studium an einen Ort: Unterlagen, Termine, Nachrichten, Uni-Mail und Noten deiner Hochschule, dazu Lernkalender, Karteikarten, Handschrift mit dem Apple Pencil und KI-Hilfe – auf dem iPad.
 
 FÜR STUDIERENDE IN GANZ DEUTSCHLAND
-Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
+Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst, frühere auf Wunsch – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
 
 DEINE UNI AN EINEM ORT
 • Nachrichten aus Stud.IP beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
 • Uni-Mail und Uni-Kalender: lesen, antworten, weiterleiten, schreiben
 • Notenspiegel und Bescheinigungen wie Immatrikulations- oder BAföG-Bescheinigung als PDF
 • Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß
-• Termin antippen: Raum mit Route, Lehrende, E-Mail an einzelne oder alle
+• Termin antippen: Raum mit Route, Lehrende, E-Mail an alle
 • Studienverlauf mit Modulkatalogen von über 300 Studiengängen, Meldezeiträume der Prüfungsanmeldung mit Erinnerung
-• Speiseplan deiner Mensa mit Preisen, Allergenen und Filtern (Studentenwerk Hannover, Studierendenwerk OstNiedersachsen; ohne Gewähr)
+• Speiseplan deiner Mensa mit Preisen und Allergenen (Studentenwerk Hannover, Studierendenwerk OstNiedersachsen; ohne Gewähr)
 • Übersicht für heute, Wochenraster, Lernkalender; mit Plus Lernplan automatisch in freien Zeitfenstern
 
 LESEN, SCHREIBEN, LERNEN
@@ -137,16 +158,16 @@ LESEN, SCHREIBEN, LERNEN
 KI-HILFE MIT STUDINOW PRO AI
 • Frag zur Seite, zu einer Markierung oder einem eingekreisten Bereich: erklären, zusammenfassen, Aufgabe lösen, Lösung prüfen
 • Ganzes Dokument: „Ganze Vorlesung erklären“ oder „Alle Aufgaben erklären“ – ein Block je Abschnitt oder Aufgabe, mit Seitenangabe
-• Wochentests und Karteikarten aus deinen Unterlagen
+• Wochentests und Karteikarten aus deinen Unterlagen, KI-Lernplan als Vorschlag
 • Vor einem großen Lauf siehst du, was er kostet
-Die KI ist freiwillig und braucht ein StudiNow-Konto (Anmelden mit Apple). Nur was du ihr schickst, verlässt dein iPad. KI-Antworten können Fehler enthalten.
+Die KI ist freiwillig und braucht ein StudiNow-Konto (Anmelden mit Apple) – oder in jedem Tarif deinen eigenen API-Schlüssel (Einstellungen → Erweitert) für KI-Hilfe und KI-Lernplan. Nur was du ihr schickst, verlässt dein iPad. KI-Antworten können Fehler enthalten.
 
 DEINE DATEN
 • Dateien, Notizen und Pläne liegen auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
 • Dein Hochschul-Passwort gibst du nur auf der Anmeldeseite deiner Hochschule ein. Lässt du „Passwort auf diesem iPad merken“ an, liegt es nur im Schlüsselbund dieses iPads (nicht in iCloud) – abschaltbar, löschbar. An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
-StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je iPad), ohne Zahlungsdaten; danach gilt Free. StudiNow Plus (1,99 €/Monat oder 21,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, automatischer Lernplan, Community. StudiNow Pro AI (3,99 €/Monat oder 41,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Abos verlängern sich automatisch um einen Monat bzw. ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je iPad), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (1,99 €/Monat oder 21,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, automatischer Lernplan, Community. StudiNow Pro AI (3,99 €/Monat oder 41,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Abos verlängern sich automatisch um einen Monat bzw. ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -179,7 +200,7 @@ Erste Version von StudiNow für das iPad: Unterlagen, Termine, Nachrichten, Note
 
 | Feld | Wert |
 |---|---|
-| Plattform, Geräte | **nur die iOS-App** in App Store Connect (App-ID 6830632088); der alte macOS-1.0-Entwurf wird nicht eingereicht. iPad (iPadOS 17 oder neuer, `TARGETED_DEVICE_FAMILY` 2); Mac mit Apple-Chip über „Designed for iPad“ (Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“; am Mac noch nicht getestet, sonst abschalten); kein iPhone |
+| Plattform, Geräte | **nur die iOS-App** in App Store Connect (App-ID 6830632088); macOS nicht einreichen, der alte macOS-1.0-Entwurf bleibt liegen (Hinweis oben). iPad (iPadOS 17 oder neuer, `TARGETED_DEVICE_FAMILY` 2); Mac mit Apple-Chip über „Designed for iPad“ (Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“; am Mac noch nicht getestet, sonst abschalten); kein iPhone |
 | Primäre Sprache | Deutsch |
 | Kategorie | Bildung; zweite Kategorie: Produktivität |
 | Support-URL | `https://studinow.app/support` (Kontakt per E-Mail support@studinow.app) |
@@ -265,7 +286,8 @@ Warum so:
 Tarife nach `docs/ABO-SYSTEM.md`; Namen, Preise und Produkt-IDs aus `packages/shared-contracts/fixtures/plans/plans.json`
 (`app/plans.py`). **Die App bietet StudiNow Free, StudiNow Plus und StudiNow Pro AI an** (`UFPlanCatalog.sellable`).
 StudiNow Free hat kein Produkt. **Keine Einführungsangebote:** die 7-Tage-Probe läuft in der App selbst, ohne Kauf und
-ohne Zahlungsdaten (einmal je Apple-ID), danach gilt Free; wer sich beim StudiNow-Konto anmeldet, bekommt dort
+ohne Zahlungsdaten (einmal je Apple-ID und einmal je iPad), danach wählt man auf „Deine Probe ist vorbei“ Free, Plus
+oder Pro AI („Bei Free bleiben“ ohne Kauf); wer sich beim StudiNow-Konto anmeldet, bekommt dort
 zusätzlich 7 Tage Probe mit 25 Credits für die StudiNow-KI. Vier automatisch verlängerbare Abos in der Abo-Gruppe
 „StudiNow“ (je Tarif monatlich und jährlich, Jahresabos unten):
 
@@ -278,7 +300,7 @@ zusätzlich 7 Tage Probe mit 25 Credits für die StudiNow-KI. Vier automatisch v
 | Beschreibung (max. 45) | Stift, Karteikarten, Community, Lösungen | Alles aus Plus und die StudiNow-KI |
 | Preis | 1,99 € pro Monat | 3,99 € pro Monat |
 | Einführungsangebot | keins | keins |
-| Einreichen | **mit der ersten App-Version** (Version → In-App-Käufe und Abonnements → Produkt auswählen) | **erst, wenn ein Sandbox-Kauf und eine KI-Frage über TestFlight geklappt haben** (Inhaber entscheidet); dann mit der Version oder – nach der ersten Freigabe – einzeln zur Prüfung geben |
+| Einreichen | **mit der ersten App-Version** (Version → In-App-Käufe und Abonnements → Produkt auswählen) | **mit der ersten App-Version** (Entscheidung 07.11.2026, Dienst läuft) |
 | Prüf-Screenshot | Tarifseite mit allen drei Karten: `~/Studora-Builds/appstore-pruefung/tarif-portrait.png` (bzw. `tarif-landscape.png`; `StoreScreenshotFinalTests.testTarifPruefung`, Stand 07.11.2026) | dasselbe Bild (Pro-AI-Karte mit 3,99 €, KI-Funktionen und Konto-Hinweis) |
 | Prüfhinweis zum Abo | „Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, the course community (read and post) and sharing own solutions; StudiNow Free has no community. Buy and restore on the plan page: Einstellungen → Zugang & Darstellung → Tarif → Tarif wechseln.“ | „Pro AI includes everything in Plus plus the StudiNow AI (100 credits per month) and note sync between devices. The AI runs on our service and needs a StudiNow account: Einstellungen → Zugang & Darstellung → StudiNow-Konto → Mit Apple anmelden. Then open a PDF and use KI-Hilfe.“ |
 
@@ -303,9 +325,9 @@ Jahresabo liefert; Monatsbetrag und Ersparnis rechnet die App aus den Store-Prei
 
 Die KI-Credits gelten auch beim Jahresabo je Kalendermonat (100 Credits, `credit_months` im Dienst).
 
-Solange Pro AI in App Store Connect fehlt oder nicht freigegeben ist, liefert StoreKit das Produkt nicht; die
-Tarifseite zeigt dann nur Free und Plus und darunter „StudiNow Pro AI folgt mit dem StudiNow-Dienst.“ ohne Preis und
-ohne Kaufknopf. Mit Produkt erscheint die Pro-AI-Karte mit dem Preis aus dem Store. StudiNow Pro Connect gibt es nicht
+Liefert StoreKit Pro AI nicht (fehlt in App Store Connect, nicht freigegeben, kein Netz), zeigt die Tarifseite nur Free
+und Plus und darunter „StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden. Öffne die Seite später noch
+einmal.“ (`Plans.swift`, `proAIMissingNote`) ohne Preis und ohne Kaufknopf. Mit Produkt erscheint die Pro-AI-Karte mit dem Preis aus dem Store. StudiNow Pro Connect gibt es nicht
 mehr; `de.uniflow.proconnect.monthly` nicht anlegen.
 
 **Tarifkarten (Stand 07.11.2026, App-Prüfung):** nur, was auf dem iPad wirklich geht, nichts „in Vorbereitung“, kein
@@ -323,7 +345,9 @@ ChatGPT (`UFPlanCard`, `PlanContractTests`).
 **Probe auf dem iPad:** 7 Tage alles wie Pro AI, ohne Kauf, einmal je Apple-ID (Schlüsselbund + iCloud) **und einmal je
 iPad** (Geräte-Marke im Schlüsselbund, nur dieses Gerät, übersteht die Neuinstallation; eine weitere Apple-ID sieht
 „Auf diesem iPad wurde die Probe schon genutzt“). Die StudiNow-KI braucht auch in der Probe ein StudiNow-Konto (neue
-Konten: 25 Credits). Während der Probe steht auf der Tarifseite „Probe aktiv: alle Funktionen von StudiNow Pro AI bis
+Konten: 25 Credits). **Nach der Probe** liegt der Bildschirm „Deine Probe ist vorbei“ über der App (Free, Plus, Pro AI,
+Monatlich/Jährlich), nicht wegzuwischen; „Bei Free bleiben“ ist eine gültige Wahl ohne Kauf, wird je Apple-ID gemerkt und
+kommt danach nicht wieder (`UFTrialDecision`). Während der Probe steht auf der Tarifseite „Probe aktiv: alle Funktionen von StudiNow Pro AI bis
 … (noch n Tage)“, keine Karte trägt „Aktueller Tarif“, die Pro-AI-Karte trägt „Probe“. Stärker wäre später Apple
 DeviceCheck (übersteht das Zurücksetzen des Geräts, braucht einen Schlüssel und eine Abfrage im StudiNow-Dienst).
 
@@ -353,21 +377,21 @@ Web und Windows einmal „KI-Hilfe: Was wird gesendet?“ (was, an wen: StudiNow
 Bedrock Frankfurt, Link zur Datenschutzerklärung) und senden ohne „Zustimmen und fortfahren“ nichts (zentral in
 `StudiNowAI.json` bzw. `app/ai_consent.py`, je Konto, widerrufbar unter „KI-Einwilligung widerrufen“).
 
-### Fassung nur Plus (Pro AI nicht eingereicht) – 3952 Zeichen
+### Fassung nur Plus – ÜBERHOLT, nicht verwenden (1.0 wird mit Pro AI eingereicht) – 3972 Zeichen
 
 ```text review-notes
 StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features (files, timetable, messages, mail, grades) need the student's personal university account, which we cannot share. Please use the built-in demo content (no university account needed):
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It keeps the data of each Apple account and each university strictly separate on the device; it sends nothing to our servers.
-2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover" (the only one offered in this version). A 7-day trial with everything unlocked starts automatically, no purchase or payment details (once per Apple ID and device). Then "StudiNow Free" applies; nothing is lost.
+2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover" (the only one offered in this version). A 7-day trial with everything unlocked starts automatically, no purchase or payment details (once per iPad). Afterwards "Deine Probe ist vorbei" asks for a choice; "Bei Free bleiben" needs no purchase.
 3. On the university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all invented by us). Demo mode never contacts the university.
-While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" in that bar and confirm: all demo content is removed. The demo is offered nowhere else.
+While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" in that bar and confirm: all demo content is removed.
 
 University password: below each university login page, the switch "Passwort auf diesem iPad merken" (on by default, can be turned off) stores the university user name and password only in this iPad's Keychain (this device only, not synced to iCloud) to sign in again when a session expires. It is never sent to our servers. Delete it under "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden"; signing out also deletes it.
 
 Subscriptions: "StudiNow Plus" (monthly or yearly: switch "Monatlich · Jährlich" above the cards; no introductory offers) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, the course community and sharing own solutions. The trial is the app's own, not an App Store offer. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
-AI: the build contains AI help ("KI-Hilfe" in the editor, "KI-Start"). It is answered by our own service (https://app.studinow.app) and belongs to the plan "StudiNow Pro AI", which is not part of this submission; the plan page shows "StudiNow Pro AI folgt mit dem StudiNow-Dienst." without price or buy button. To try it anyway: "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden" creates a StudiNow account with a 7-day trial of 25 AI credits. Without account or plan the AI places explain this and send nothing; nothing is sent before "Zustimmen und fortfahren" in the notice "KI-Hilfe: Was wird gesendet?". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
+AI: the build contains AI help ("KI-Hilfe" in the editor, "KI-Start"). It is answered by our own service (https://app.studinow.app) and belongs to the plan "StudiNow Pro AI", which is not part of this submission; the plan page shows "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." without price or buy button. To try it anyway: "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden" creates a StudiNow account with a 7-day trial of 25 AI credits. Without account or plan the AI places explain this and send nothing; nothing is sent before "Zustimmen und fortfahren" in the notice "KI-Hilfe: Was wird gesendet?". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device); the "StudiNow-Konto" card has its own "Konto löschen" (online account).
 
@@ -376,32 +400,36 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – 3991 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 07.11.2026 abends) – 3994 Zeichen (max. 4000)
 
 ```text review-notes-proai
-StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features (files, timetable, messages, mail, grades) need the student's personal university account, which we cannot share. Please use the built-in demo (no university account needed):
+StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. University features (files, timetable, mail, grades) need a personal university account. Please use the built-in demo instead:
 
-1. Tap "Mit Apple anmelden" (Sign in with Apple). It keeps the data of each Apple account and each university strictly separate on the device; it sends nothing to our servers.
-2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover" (the only one in this version). A 7-day trial at Pro AI level starts automatically, no purchase or payment details (once per Apple ID and device). Then "StudiNow Free" applies; nothing is lost.
-3. On the university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, flashcards, a deadline and an announcement (all invented by us). Demo mode never contacts the university.
-While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" there and confirm: all demo content is removed.
+1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account on the device and sends nothing to our servers.
+2. Choose a plan ("StudiNow Free" is enough) and "Leibniz Universität Hannover" (the only university in this version). A 7-day trial at Pro AI level starts automatically, no purchase or payment details, once per iPad (also after reinstalling or with another Apple ID).
+3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". It adds an invented module with three PDFs, timetable, study calendar, flashcards, a deadline and an announcement. Demo mode never contacts the university.
+A slim bar "Demo-Inhalte – erfunden, ohne Hochschule" marks the demo; "Beenden" there removes all demo content.
 
-University password: below each university login page, the switch "Passwort auf diesem iPad merken" (on by default, switchable off) stores the university user name and password only in this iPad's Keychain (this device only, not synced to iCloud) for later sign-ins. It is never sent to our servers. Delete it under "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden".
+After the trial: a screen "Deine Probe ist vorbei" shows Free, Plus and Pro AI (monthly/yearly) and closes only after a choice. "Bei Free bleiben" is a valid choice without any purchase: Free stays usable at no cost, nothing is lost.
 
-Subscriptions (monthly or yearly: switch "Monatlich · Jährlich" above the cards; no introductory offers), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
-- "StudiNow Plus": Apple Pencil, exercise and script side by side, flashcards, automatic study plan, course community, sharing solutions.
+With a real account the first sync loads the current semester and timetable, then asks "Auch frühere Semester laden?" (background, Wi-Fi only). Not visible in the demo, which has no older semesters.
+
+University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this iPad's Keychain (not synced to iCloud) for later sign-ins; it is never sent to our servers. Delete: "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden".
+
+Subscriptions (switch "Monatlich · Jährlich" above the cards; no introductory offers), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
+- "StudiNow Plus": Apple Pencil, exercise and script side by side, flashcards, automatic study plan, course community.
 - "StudiNow Pro AI": everything in Plus, the StudiNow AI with 100 credits per month, note sync between devices.
 Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
 AI (Pro AI) runs on our own service (https://app.studinow.app) and needs a StudiNow account. Test:
 1. Buy "StudiNow Pro AI" in the sandbox (or skip it: a new StudiNow account has a 7-day trial with 25 credits).
-2. "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden". The app sends the signed App Store transaction to our service, which assigns the plan.
+2. "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden". Our service then verifies the signed transaction and assigns the plan.
 3. Open a demo PDF, tap "KI-Hilfe" and ask about the page, or choose "Ganzes Dokument" → "Ganze Vorlesung erklären".
-The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Zustimmen und fortfahren". Without account or plan the AI places explain it and send nothing. Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
+The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Zustimmen und fortfahren". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan for AI help and AI study plan; flashcards from a document need Plus, weekly tests Pro AI): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device); the "StudiNow-Konto" card has its own "Konto löschen" (online).
 
-Community (guideline 1.2): students of a course share notes on an exercise sheet, ask questions and comment, under a pseudonym; content is encrypted in our public CloudKit database (or our service with a StudiNow account). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours, remove content and ban users. Contact: support@studinow.app.
+Community (guideline 1.2): course members share notes on exercise sheets, ask and comment under a pseudonym (encrypted; CloudKit or our service). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours, remove content and ban users. Contact: support@studinow.app.
 
 No tracking, no ads, no third-party analytics. Not endorsed by universities; writes to them only on explicit user action.
 ```

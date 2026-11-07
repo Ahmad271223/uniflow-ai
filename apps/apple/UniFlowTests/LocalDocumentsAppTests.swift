@@ -104,6 +104,8 @@ final class LocalDocumentsAppTests: XCTestCase {
             """#)
         t.json("/jsonapi.php/v1/folders/r1/folders?page[limit]=200", #"{"data":[]}"#)
         t.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        // gesperrt: der Abgleich fragt sie (07.11.2026), Stud.IP verweigert sie
+        t.set("/jsonapi.php/v1/file-refs/d2/content", HTTPReply(status: 403, contentType: "text/plain"))
         return t
     }
 
@@ -149,7 +151,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
         await sync.run(client: client(stud))
         XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"], "gesperrte Datei wird nicht geladen")
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"], "auch mit is-downloadable false versucht (07.11.2026); Stud.IP verweigert sie")
 
         // Dokumente: beide Dateien, die PDF ist geladen und oeffnet sich im Editor
         let lib = try await dev.api.value("/api/library")
@@ -381,7 +383,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         let stud = fakeStudIP(pdf: pdf)
         await sync.run(client: client(stud))
         XCTAssertEqual(sync.phase, .idle)
-        XCTAssertEqual(stud.downloads, [])
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d2/content"], "nur die nie geladene (gesperrte) Datei wird erneut versucht")
     }
 
     /// Abgleich scheitert (Sitzung abgelaufen): Protokoll mit Fehler, vorhandene Dokumente bleiben
@@ -636,7 +638,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(sync.finishedRuns, 0)
         await sync.run(client: client(stud))
         XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
-        XCTAssertEqual(Set(stud.downloads), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d5/content"])
+        XCTAssertEqual(Set(stud.downloads), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content", "/jsonapi.php/v1/file-refs/d5/content"])
         XCTAssertEqual(sync.finishedRuns, 1)
 
         // Kurs 1 haengt (Zeitlimit), Kurs 2 hat eine neue Datei
@@ -681,7 +683,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(sync.finishedRuns, 1)
         XCTAssertEqual(UFDataMode.resolve(api: dev.api, studIP: StudIPLink(sync.phase, hasSession: true)), .local(.expired))
         XCTAssertTrue(UFDataMode.resolve(api: dev.api, studIP: StudIPLink(sync.phase, hasSession: true)).showsConnectCard, "Karte „Erneut anmelden“")
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"])
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
         let d1 = try await dev.api.value("/api/files/d1")
         XCTAssertEqual(d1["exists"], true, "Dateien bleiben")
         let summary = try XCTUnwrap(sync.lastSummary)
@@ -964,7 +966,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
         XCTAssertEqual(sync.selectedCourses, ["c1"], "Auswahl unveraendert: nur das aktuelle Semester")
         XCTAssertFalse(stud.requested.contains { $0.contains("/courses/c-alt/") }, "\(stud.requested)")
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"])
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
         let old = try await dev.api.value("/api/courses").items.first { $0.s("id") == "c-alt" }
         XCTAssertEqual(old?.i("active"), 0, "alter Kurs gespeichert, aber aus")
         XCTAssertNil(old?.i("module_id"), "kein Modul fuer den alten Kurs")
@@ -977,9 +979,9 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertTrue(LibraryPage.isOlderCourse("c-alt", older: overview))
         XCTAssertFalse(LibraryPage.isOlderCourse("c1", older: overview))
         XCTAssertEqual(OlderSemestersQuestion.text(current: "WiSe 2026/27", courses: 1),
-                       "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.")
+                       "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Sollen ihre Dateien auch geladen werden? Dann lädt StudiNow sie im Hintergrund, neuestes Semester zuerst und nur im WLAN. Ändern kannst du das jederzeit in den Einstellungen unter Module; einzelne Semester lädst du auch in der Bibliothek.")
 
-        // beim Zeigen gilt "Nur aktuelles Semester" (wie der Host es tut): danach nie wieder gefragt, auch nach Abgleichen
+        // Antwort "Nur aktuelles Semester" (fruehere Wahl `current` = Aus): danach nie wieder gefragt, auch nach Abgleichen
         _ = try await dev.api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "current"])
         await sync.run(client: client(stud))
         let again = try await dev.api.value("/api/older-semesters")

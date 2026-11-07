@@ -13,6 +13,10 @@ import UniFlowCore
 struct FileOutsideEditorView: View {
     let file: LibFile
     let api: APIClient
+    /// Datei inzwischen geladen ("Jetzt laden", `FileLoadPanel`): die Bibliothek liest sie neu
+    var onLoaded: (() async -> Void)? = nil
+    /// "Jetzt laden" hat die Datei geholt (fuer eine Datei, die sich nicht im Editor oeffnet: Vorschau)
+    @State private var loadedHere = false
     @State private var preview: URL?
     @State private var problem: String?
     @State private var loading = false
@@ -50,6 +54,13 @@ struct FileOutsideEditorView: View {
                 }
             } else if loading {
                 ProgressView("Vorschau wird geladen …").frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if file.downloaded_at == nil, !loadedHere, problem == nil {
+                // gelistet, aber nicht geladen: beim Oeffnen sofort laden statt "der naechste Abgleich" (07.11.2026)
+                FileLoadPanel(file: file) {
+                    loadedHere = true
+                    await onLoaded?()
+                    if preview == nil, file.kind != "pdf" { await open() }
+                }
             } else {
                 ContentUnavailableView(file.displayTitle, systemImage: file.downloaded_at == nil ? "icloud.and.arrow.down" : "doc",
                                        description: Text(problem ?? Self.message(for: file)))
@@ -205,7 +216,7 @@ struct LibraryView: View {
                         ZipFolderView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
                             .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }
                     } else {
-                        FileOutsideEditorView(file: f, api: api)
+                        FileOutsideEditorView(file: f, api: api, onLoaded: { await reloadAfterDownload(f.id) })
                             .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }
                     }
                 } else if let id = fileSelection, missing.contains(id) {
@@ -257,6 +268,13 @@ struct LibraryView: View {
                 columns = .detailOnly
             }
         }
+    }
+
+    /// "Jetzt laden" hat eine nicht geladene Datei geholt: Bibliothek und Einzeleintrag neu, dann oeffnet sie sich im
+    /// Editor (PDF) bzw. in der passenden Ansicht
+    private func reloadAfterDownload(_ id: String) async {
+        await load()
+        if extra[id] != nil { await loadSingle(id) }
     }
 
     /// Ein Dokument ueber GET /api/files/{id}; gibt es das nicht, steht es in `missing`

@@ -28,8 +28,8 @@ export const courseCount = overview => (overview?.semesters || []).reduce((n, s)
 export function questionText(current, courses) {
   return `StudiNow hat die Dateien deines aktuellen Semesters${current ? ` (${current})` : ""} geladen. `
     + `Dazu gibt es ${plural(courses, "Kurs", "Kurse")} aus früheren Semestern. `
-    + "StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. "
-    + "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.";
+    + "Sollen ihre Dateien auch geladen werden? Dann lädt StudiNow sie im Hintergrund, neuestes Semester zuerst und nur im WLAN. "
+    + "Ändern kannst du das jederzeit in den Einstellungen unter Module; einzelne Semester lädst du auch in der Bibliothek.";
 }
 
 /** Text zum Stand eines Kurses */

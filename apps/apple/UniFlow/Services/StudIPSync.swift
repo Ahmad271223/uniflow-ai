@@ -250,6 +250,16 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Fortschritt der Downloads ("3 neue Dateien" statt nur "Stud.IP-Abgleich")
+    /// Dateien eines Laufs, die geladen werden (07.11.2026, Befund vom iPad): alles ausser Links (Stud.IP-Datei ohne
+    /// Inhalt, nur Adresse) und Videodateien (nur auf Wunsch, Aufzeichnungen). Vorher fiel jede Datei mit
+    /// "is-downloadable": false still weg: an der LUH melden normale Veranstaltungen ihre Dateien so (Lizenz bzw.
+    /// Nutzungsbedingungen), waehrend der Inhalt ueber `file-refs/{id}/content` kommt (der PC-Abgleich app/studip_sync.py
+    /// fragt das Merkmal nie). Die Dateien standen als "erkannt" in `files`, ohne je geladen zu werden. Verweigert
+    /// Stud.IP den Inhalt wirklich, steht das als Fehler je Datei da (`DownloadFailures`).
+    static func downloadCandidates(_ wanted: [StudIPFile]) -> [StudIPFile] {
+        wanted.filter { $0.linkURL == nil && !OpencastFileVideos.isVideo(name: $0.name, mime: $0.mimeType) }
+    }
+
     static func downloadStep(_ i: Int, of n: Int, name: String) -> String {
         n == 1 ? "1 neue Datei wird geladen: \(name)" : "\(n) neue Dateien – lade \(i + 1) von \(n): \(name)"
     }
@@ -708,6 +718,85 @@ final class StudIPSync: ObservableObject {
         return !expired
     }
 
+    /// Ergebnis von "Jetzt laden" fuer eine einzelne Datei (Dateiansicht)
+    enum FileLoadOutcome: Equatable {
+        case loaded
+        /// keine oder abgelaufene Stud.IP-Anmeldung
+        case needsLogin
+        /// gescheitert, mit verstaendlichem Grund (steht auch je Datei in `DownloadFailures`)
+        case failed(String)
+        /// keine Stud.IP-Datei dieses Containers (eigener Upload, Learnweb, andere Hochschule)
+        case notStudIP
+    }
+
+    /// Nur Tests (Ansichtstest "Jetzt laden"): Client mit festen Antworten statt der gespeicherten Sitzung
+    var fileClientForTests: StudIPClient?
+
+    /// Stud.IP-Datei laut Datenbank (nur Originale mit Download-Adresse `…/file-refs/<id>/content`)
+    nonisolated static func storedFile(_ c: SQLiteConnection, id: String) throws -> UniStore.FileRow? {
+        guard let r = try c.queryOne("""
+            SELECT id, name, size, mime, chdate, revision, download_url, studip_folder FROM files
+            WHERE id=? AND course_id <> '__user__' AND instr(COALESCE(download_url, ''), '/file-refs/' || id || '/') > 0
+            """, [.text(id)]), let url = r["download_url"]?.string else { return nil }
+        return UniStore.FileRow(id: id, name: r["name"]?.string ?? id, size: r["size"]?.int, mime: r["mime"]?.string,
+                                chdate: r["chdate"]?.int, revision: r["revision"]?.int, downloadURL: url,
+                                folder: r["studip_folder"]?.string)
+    }
+
+    /// Gescheiterter Download dieser Datei (nil: keiner bekannt)
+    func downloadFailure(id: String) async -> DownloadFailures.Entry? {
+        guard let db = try? await host.backend().context.database else { return nil }
+        return try? await db.withConnection { try DownloadFailures.entry($0, fileID: id) }
+    }
+
+    /// "Jetzt laden" in der Dateiansicht (07.11.2026): genau diese gelistete, nicht geladene Datei sofort mit der
+    /// gespeicherten Stud.IP-Sitzung laden, auf demselben Weg wie der Abgleich (`UniDownloads`: Zwischenordner,
+    /// Pruefung, Hash, Eintrag). Darf neben einem laufenden Abgleich laufen (eigener Zwischenordner). Scheitert der
+    /// Download, steht der Grund je Datei in `DownloadFailures`. `client`: nur Tests.
+    func loadFile(id: String, client: StudIPClient? = nil) async -> FileLoadOutcome {
+        guard offersStudIP, !stopped else { return .notStudIP }
+        let client = client ?? fileClientForTests
+        let c: StudIPClient
+        if let client {
+            c = client
+        } else {
+            let cookies = self.cookies.load()
+            guard !cookies.isEmpty else { return .needsLogin }
+            c = liveClient(cookies)
+        }
+        if await demoActive() { return .failed("Im Beispielmodus lädt StudiNow keine Dateien von Stud.IP.") }
+        var database: SQLiteDatabase?
+        do {
+            let db = try await host.backend().context.database
+            database = db
+            guard let localFiles = host.files else { return .failed("Die Daten dieser Hochschule sind gerade nicht geöffnet.") }
+            guard let row = try await db.withConnection({ try Self.storedFile($0, id: id) }) else { return .notStudIP }
+            guard DeviceStorage.fits(Int64(row.size ?? 0), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
+            let downloads = UniDownloads(folder: root, files: localFiles, container: container, source: "Stud.IP")
+            try downloads.begin()
+            defer { downloads.end() }
+            _ = try await downloads.load(row, to: StudIPImport.relativePath(fileID: id, name: row.name), db: db, clock: clock) { part in
+                try await c.download(fileID: id, to: part, name: row.name)
+            }
+            await refreshEntries()
+            return .loaded
+        } catch StudIPError.sessionExpired {
+            if client == nil {
+                setFlag(Keys.sessionExpired, true)
+                if phase == .idle { phase = .needsLogin }
+                Task { await renewSilently(trigger: .requestFailed) }
+            }
+            return .needsLogin
+        } catch where DeviceStorage.isFull(error) {
+            return .failed("Auf diesem iPad ist nicht genug Speicher frei. Platz schaffen und erneut versuchen.")
+        } catch {
+            let d = DownloadFailures.describe(error)
+            let at = clock.nowISO
+            _ = try? await database?.transaction { try DownloadFailures.record($0, fileID: id, message: d.message, status: d.status, now: at) }
+            return .failed(d.message)
+        }
+    }
+
     /// Ein Abgleich mit diesem Client (Tests: feste Antworten statt Stud.IP). Ablauf wie run_sync in
     /// app/studip_sync.py: Kurse, je Kurs die Dateiliste in die Datenbank, dann die Downloads, danach der Stundenplan
     /// derselben Kurse (`StudIPScheduleSync` mit demselben lokalen Backend, wie `auto_import` am Ende von run_sync),
@@ -909,13 +998,31 @@ final class StudIPSync: ObservableObject {
                 stagesReady += 1
             }
             // Videodateien laedt der Abgleich nicht (Entscheidung 7: grosse Dateien nur auf Wunsch); sie stehen bei den
-            // Aufzeichnungen mit "Abspielen" (Stream) und "Laden"
-            let download = wanted.filter { $0.isDownloadable && !OpencastFileVideos.isVideo($0) }
+            // Aufzeichnungen mit "Abspielen" (Stream) und "Laden". Links ebenso nicht. Alles andere wird geladen, auch
+            // mit "is-downloadable": false (`downloadCandidates`, Befund 07.11.2026)
+            let download = Self.downloadCandidates(wanted)
             var failed = 0
+            /// davon ausdruecklich von Stud.IP verweigert (403/404): kein sofortiger neuer Lauf deswegen
+            var refused = 0
             /// Kurse mit einer nicht geladenen Datei (ein frueheres Semester gilt dann nicht als fertig geladen)
             var failedCourses = Set<String>()
+            // Absagen (403/404) fragt der automatische Abgleich erst nach `DownloadFailures.refusedRetryAfter` erneut;
+            // jede andere nicht geladene Datei bei jedem Lauf ("Jetzt laden" in der Dateiansicht fragt immer)
+            let failures = (try? await db.withConnection { try DownloadFailures.all($0) }) ?? [:]
+            let nowISO = clock.nowISO
+            let resting = download.filter { !DownloadFailures.dueForAutomaticRetry(failures[$0.id], now: nowISO) }
+            let restingIDs = Set(resting.map(\.id))
             // nur Listen (kurzer Hintergrundlauf): die Dateien laedt der naechste volle Lauf
-            let toLoad = scope == .full ? download : []
+            let toLoad = scope == .full ? download.filter { !restingIDs.contains($0.id) } : []
+            /// Fehlversuch je Datei sichtbar machen ("Nicht geladen – erneut versuchen" in der Dateiansicht)
+            func noteFailure(_ f: StudIPFile, _ error: Error) async {
+                failed += 1
+                failedCourses.insert(f.courseID)
+                let d = DownloadFailures.describe(error)
+                if d.status == 403 || d.status == 404 { refused += 1 }
+                let at = clock.nowISO
+                _ = try? await db.transaction { try DownloadFailures.record($0, fileID: f.id, message: d.message, status: d.status, now: at) }
+            }
             // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit
             // Notizen aufbewahren (S7), an ihren Platz, eintragen, Seitentexte und Notizen der neuen Fassung; ein Abbruch
             // hinterlaesst keine halbe Datei als "geladen". Vor jeder Datei der freie Platz: ein voller Speicher haelt
@@ -933,19 +1040,16 @@ final class StudIPSync: ObservableObject {
                     throw DeviceStorage.Full()
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
-                    failed += 1
-                    failedCourses.insert(f.courseID)
+                    await noteFailure(f, e)
                     continue
                 } catch let e as URLError where !Self.endsRun(e) {
                     // z. B. Zeitueberschreitung bei einer grossen Datei: nur diese Datei, die uebrigen kommen trotzdem
-                    failed += 1
-                    failedCourses.insert(f.courseID)
+                    await noteFailure(f, e)
                     continue
-                } catch is UniDownloads.Failure {
+                } catch let e as UniDownloads.Failure {
                     // leere Antwort statt der Datei oder alte Fassung mit Notizen nicht gesichert (S7): die alte Fassung
                     // bleibt, der naechste Abgleich laedt erneut
-                    failed += 1
-                    failedCourses.insert(f.courseID)
+                    await noteFailure(f, e)
                     continue
                 }
                 loaded += 1
@@ -997,15 +1101,14 @@ final class StudIPSync: ObservableObject {
             if rec != nil, texts != nil, rec?.sessionExpired != true, texts?.sessionExpired != true {
                 defaults.set(Date(), forKey: Keys.slowPartsAt)
             }
-            let notDownloadable = remote.filter { !$0.isDownloadable }.count
             let linkCount = remote.filter { $0.linkURL != nil }.count
-            let waiting = download.count - toLoad.count
+            let waiting = download.count - toLoad.count - resting.count
             let waitingText = "\(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download"
-            var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
+            var parts = ["\(loaded) neu/geändert", "\(max(0, remote.count - linkCount - download.count)) unverändert"]
             if waiting > 0 { parts.append(waitingText) }
             if linkCount > 0 { parts.append("\(linkCount) \(linkCount == 1 ? "Link" : "Links")") }
-            if notDownloadable > linkCount { parts.append("\(notDownloadable - linkCount) nicht herunterladbar") }
             if failed > 0 { parts.append("\(failed) nicht geladen (Fehler)") }
+            if !resting.isEmpty { parts.append("\(resting.count) von Stud.IP nicht freigegeben") }
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             if skippedFolders > 0 { parts.append("\(skippedFolders) Ordner nicht lesbar") }
@@ -1018,8 +1121,9 @@ final class StudIPSync: ObservableObject {
                 || lecturersExpired
             if scope == .full {
                 finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
-                // alle Dateien geladen oder als Fehler gezaehlt: nichts wartet mehr auf den naechsten Abgleich
-                setFlag(Keys.downloadsPending, false)
+                // Dateien, die an einem voruebergehenden Fehler scheiterten (Netz, Zeit, Stud.IP gestoert), holt der
+                // naechste Abgleich beim Oeffnen sofort (ohne die 30 Minuten); Absagen (403/404) nicht
+                setFlag(Keys.downloadsPending, failed > refused)
             } else if waiting > 0 {
                 setFlag(Keys.downloadsPending, true)
             }

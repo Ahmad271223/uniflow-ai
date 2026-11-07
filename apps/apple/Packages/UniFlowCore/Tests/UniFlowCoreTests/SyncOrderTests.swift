@@ -95,8 +95,22 @@ final class SyncOrderTests: XCTestCase {
         XCTAssertEqual(status["current"]?["label"]?.string, "WiSe 2026/27")
         XCTAssertEqual(status["current"]?["ready"]?.bool, true)
         XCTAssertEqual(status["older"]?["total"]?.int, 6)
-        XCTAssertEqual(status["older"]?["pending"]?.int, 6, "Vorgabe Nur WLAN: alle frueheren Semester stehen an")
-        XCTAssertEqual(status["hint"]?.string, "Aktuelles Semester ist da · ältere Semester werden im Hintergrund geladen (0 von 6)")
+        // vor der Antwort auf "Auch frühere Semester laden?" (07.11.2026): nichts steht an, auch nicht im WLAN
+        XCTAssertEqual(status["older"]?["pending"]?.int, 0, "nie gefragt: kein frueheres Semester steht an")
+        XCTAssertEqual(status["older"]?["mode"]?.string, "off")
+        XCTAssertTrue(status["hint"]?.isNull ?? false, "vor der Antwort kein Hinweis auf Laden: \(status["hint"] ?? .null)")
+        let ask = try await db.withConnection { try OlderSemesters.needsQuestion($0, today: self.clock.today) }
+        XCTAssertTrue(ask, "Frage steht an")
+        log.clear()
+        let before = await sync(db, layout, t, log).run(olderOnly: true)
+        XCTAssertTrue(log.all.filter { $0.hasPrefix("files-") || $0.hasPrefix("download-") }.isEmpty, "vor der Antwort nichts Altes: \(log.all)")
+        XCTAssertEqual(before.olderLoaded.count, 0)
+
+        // Antwort "Frühere Semester auch laden" (Nur WLAN): alle sechs stehen an
+        try await db.transaction { try OlderSemesters.setMode($0, OlderSemesters.yesMode, now: "2026-11-05T10:05:00") }
+        let asked = try await db.withConnection { try SyncOrder.status($0, today: self.clock.today) }
+        XCTAssertEqual(asked["older"]?["pending"]?.int, 6, "nach Ja: alle frueheren Semester stehen an")
+        XCTAssertEqual(asked["hint"]?.string, "Aktuelles Semester ist da · ältere Semester werden im Hintergrund geladen (0 von 6)")
 
         // Stufe (d): nur fruehere Semester, neuestes zuerst, ohne Stundenplan und Noten
         log.clear()
@@ -110,6 +124,30 @@ final class SyncOrderTests: XCTestCase {
         log.clear()
         _ = await sync(db, layout, t, log).run(olderOnly: true)
         XCTAssertTrue(log.all.filter { $0.hasPrefix("files-") }.isEmpty, "fortsetzbar: Geladenes nicht erneut")
+    }
+
+    /// Antwort "Nur aktuelles Semester" (Aus): Stufe (d) laedt nichts, auch nach weiteren vollen Abgleichen; die Frage
+    /// kommt nicht wieder; "Dateien laden" fuer ein Semester in der Bibliothek geht weiter
+    func testAnswerNoLoadsNothingAndDoesNotAskAgain() async throws {
+        let (db, layout) = try await container()
+        let log = CallLog()
+        let t = learnweb(log)
+        _ = await sync(db, layout, t, log).run()
+        try await db.transaction { try OlderSemesters.setMode($0, .off, now: "2026-11-05T10:05:00") }
+        log.clear()
+        _ = await sync(db, layout, t, log).run()
+        _ = await sync(db, layout, t, log).run(olderOnly: true)
+        XCTAssertTrue(Set(log.all).isDisjoint(with: (1...6).flatMap { ["files-\($0)", "download-\($0)"] }), "Nein: nichts Altes: \(log.all)")
+        let (ask, mode) = try await db.withConnection { (try OlderSemesters.needsQuestion($0, today: self.clock.today), try OlderSemesters.mode($0)) }
+        XCTAssertFalse(ask, "keine erneute Frage")
+        XCTAssertEqual(mode, .off)
+        let status = try await db.withConnection { try SyncOrder.status($0, today: self.clock.today) }
+        XCTAssertTrue(status["hint"]?.isNull ?? false)
+        // ein Semester von Hand nachladen (Bibliothek): nur dieser Kurs
+        try await db.transaction { _ = try OlderSemesters.request($0, courseIDs: ["lw-5"], today: self.clock.today, now: "2026-11-05T10:06:00") }
+        log.clear()
+        _ = await sync(db, layout, t, log).run(olderOnly: true)
+        XCTAssertEqual(log.all.filter { $0.hasPrefix("files-") }, ["files-5"])
     }
 
     func testModulesAreGroupedPerSemester() async throws {
@@ -144,7 +182,8 @@ final class SyncOrderTests: XCTestCase {
     func testModeAndPolicy() async throws {
         let (db, _) = try await container()
         try await db.transaction { c in
-            XCTAssertEqual(try OlderSemesters.mode(c), .wifi, "Vorgabe")
+            XCTAssertEqual(try OlderSemesters.mode(c), .off, "Vorgabe solange nie gefragt: Aus (07.11.2026, vorher Nur WLAN)")
+            XCTAssertEqual(OlderSemesters.yesMode, .wifi, "Ja auf die Frage: Nur WLAN")
             XCTAssertNil(try OlderSemesters.choice(c), "nie gefragt")
             try OlderSemesters.setChoice(c, .all, now: "2026-11-05T10:00:00")
             XCTAssertEqual(try OlderSemesters.mode(c), .auto, "fruehere Wahl 'alle' = Automatisch")

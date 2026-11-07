@@ -105,3 +105,44 @@ private struct TrialBannerCard: View {
         }
     }
 }
+
+// MARK: - Entscheidung nach der Probe
+
+/// Nach dem Ende der Probe muss sich die Person entscheiden (Inhaber 07.11.2026): ein Bildschirm ueber der ganzen App,
+/// der nicht wegzuwischen ist, mit Free ("Bei Free bleiben"), Plus und Pro AI (monatlich/jaehrlich, `PlanPickerView`
+/// im Kontext `.trialOver`). "Bei Free bleiben" ist eine gueltige Wahl und wird je Apple-ID gemerkt (UserDefaults und
+/// Schluesselbund, `UFTrialRecordStore.markChoice`), danach erscheint der Bildschirm nicht wieder, auch nicht nach einer
+/// Neuinstallation. Ein Kauf beendet ihn ebenso. Gilt fuer die Probe auf dem iPad; laeuft die Probe ueber den
+/// StudiNow-Dienst, bleibt dessen Hinweis auf der Uebersicht (TrialBanner).
+enum UFTrialDecision {
+    /// unter XCTest nur, wenn ein Test es einschaltet (der Testhost zeigt sonst nie den Bildschirm)
+    @MainActor static var enabledUnderTest = false
+
+    /// Muss jetzt entschieden werden? Probe auf diesem iPad vorbei, nichts gekauft, kein Tarif ueber den Dienst, noch
+    /// keine Wahl; eine weitere Apple-ID ohne eigene Probe ("schon genutzt") hat beim ersten Start schon die Tarifwahl
+    static func required(local: UFLocalTrial.State?, purchased: UFPlan, effective: UFPlan, choiceMade: Bool) -> Bool {
+        guard let local, !local.deviceUsed, local.isExpired, purchased == .free, effective == .free else { return false }
+        return !choiceMade
+    }
+}
+
+/// legt den Entscheidungs-Bildschirm ueber die Oberflaeche (`active`: Oberflaeche steht, erster Start ist vorbei)
+struct TrialDecisionCover: ViewModifier {
+    let active: Bool
+    @ObservedObject var ent: Entitlements = .shared
+
+    private var shown: Bool {
+        guard active, !ent.loading, UFTrialDecision.enabledUnderTest || !StudIPSync.isUnderTest() else { return false }
+        return UFTrialDecision.required(local: ent.localTrial, purchased: ent.purchasedPlan, effective: ent.plan,
+                                        choiceMade: ent.localTrialChoiceMade)
+    }
+
+    func body(content: Content) -> some View {
+        content.fullScreenCover(isPresented: Binding(get: { shown }, set: { _ in })) {
+            NavigationStack {
+                PlanPickerView(context: .trialOver, entitlements: ent) { ent.stayOnFreeAfterLocalTrial() }
+            }
+            .interactiveDismissDisabled()
+        }
+    }
+}

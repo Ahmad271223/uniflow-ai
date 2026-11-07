@@ -45,13 +45,14 @@ enum AIHelpContent {
         "Antworten bleiben unter „Zuletzt“ auf diesem Gerät.",
     ])
 
-    /// "Ohne Unterlagen": der Weg zu den Dateien fuehrt ueber den Abgleich mit der Hochschule
-    static let without = Section(title: "Ohne Unterlagen", icon: "sync", items: [
+    /// "Ohne Unterlagen": der Weg zu den Dateien fuehrt ueber den Abgleich mit der Hochschule (berechnet, nicht `let`:
+    /// folgt `UFReleaseUniversities.shipped`, sonst friert der erste Zugriff im Prozess den Stand ein)
+    static var without: Section { Section(title: "Ohne Unterlagen", icon: "sync", items: [
         UFReleaseUniversities.isShipped(.hildesheim) ? "Noch keine Dokumente? Verbinde in den Einstellungen Stud.IP (an der Uni Hildesheim: Learnweb)."
             : "Noch keine Dokumente? Verbinde in den Einstellungen \(UFReleaseUniversities.filePlatforms).",
         "Der Abgleich holt die Kursdateien in deine Bibliothek; danach wählst du hier eines als Kontext.",
         "Eigene PDFs kommen über „Dokumente & Notizen“ dazu.",
-    ])
+    ]) }
 
     static var sections: [Section] { [can, start, without] }
 

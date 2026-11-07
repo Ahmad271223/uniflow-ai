@@ -172,8 +172,9 @@ enum UFPlanCatalog {
     /// in den Einstellungen, StudoraAccountLink), dazu die Credits aus dem Vertrag
     static let proAIServiceNote = "Braucht ein StudiNow-Konto (Anmelden mit Apple). \(UFPlan.proAI.monthlyCredits) Credits im Monat."
 
-    /// dezenter, nicht anklickbarer Hinweis unter den Karten, solange der Store kein Pro-AI-Produkt liefert
-    static let proAIMissingNote = "StudiNow Pro AI folgt mit dem StudiNow-Dienst."
+    /// dezenter, nicht anklickbarer Hinweis unter den Karten, wenn der Store das Pro-AI-Produkt gerade nicht liefert
+    /// (Pro AI wird mit 1.0 verkauft, Entscheidung 07.11.2026: kein "folgt"/"kommt später", nur der ehrliche Grund)
+    static let proAIMissingNote = "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden. Öffne die Seite später noch einmal."
 
     /// Karten der Tarifwahl: Free und Plus immer, Pro AI nur mit Produkt aus dem Store (`loaded`), dazu ein laufender
     /// Tarif, der gerade nicht angeboten wird – wer ihn hat, sieht ihn mit "Abo verwalten" (nie eine Karte, die fehlt)

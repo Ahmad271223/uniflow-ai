@@ -26,7 +26,9 @@ public enum OlderSemesters {
     }
 
     /// "Ältere Semester laden" (seit 05.11.2026, `SyncOrder`, app/older_semesters.py `mode`): im selben Feld wie die
-    /// Wahl gespeichert; fruehere Werte gelten weiter (`all` = Automatisch, `current` = Aus, nie gefragt = Nur WLAN)
+    /// Wahl gespeichert; fruehere Werte gelten weiter (`all` = Automatisch, `current` = Aus). Nie gefragt = Aus
+    /// (07.11.2026, Wunsch des Inhabers): vor der Antwort auf "Auch frühere Semester laden?" laedt Stufe (d) nichts,
+    /// auch nicht im WLAN; "Frühere Semester auch laden" speichert Nur WLAN.
     public enum Mode: String, Sendable, Equatable, CaseIterable {
         case auto, wifi, off
 
@@ -39,8 +41,11 @@ public enum OlderSemesters {
         }
     }
 
-    /// Vorgabe, solange nie gefragt
-    public static let defaultMode = Mode.wifi
+    /// Vorgabe, solange nie gefragt: Aus (nichts Frueheres laden, bevor die Frage beantwortet ist; bis 07.11.2026
+    /// Nur WLAN, dann lud Stufe (d) im WLAN schon vor der Antwort)
+    public static let defaultMode = Mode.off
+    /// Wahl bei "Frühere Semester auch laden" (Frage nach dem ersten Abgleich): im Hintergrund, nur im WLAN
+    public static let yesMode = Mode.wifi
 
     static let tables = """
         CREATE TABLE IF NOT EXISTS older_semester_choice (
@@ -77,7 +82,7 @@ public enum OlderSemesters {
         try store(c, choice.rawValue, now: now)
     }
 
-    /// "Ältere Semester laden": Automatisch, Nur WLAN (Vorgabe, auch solange nie gefragt) oder Aus
+    /// "Ältere Semester laden": Automatisch, Nur WLAN oder Aus (auch solange nie gefragt, `defaultMode`)
     public static func mode(_ c: SQLiteConnection) throws -> Mode {
         switch try raw(c) {
         case nil: return defaultMode
@@ -148,8 +153,8 @@ public enum OlderSemesters {
         }
     }
 
-    /// Kurse frueherer Semester, deren Dateien Stufe (d) holen soll (`SyncOrder`): ausser bei "Aus" alle noch nicht
-    /// geladenen, sonst nur die angeforderten ("Dateien laden")
+    /// Kurse frueherer Semester, deren Dateien Stufe (d) holen soll (`SyncOrder`): bei Automatisch / Nur WLAN alle
+    /// noch nicht geladenen, bei "Aus" und solange nie gefragt nur die angeforderten ("Dateien laden")
     public static func pending(_ c: SQLiteConnection, today: String) throws -> Set<String> {
         let all = try mode(c) != .off
         return Set(try courses(c, today: today).filter { !$0.loaded && (all || $0.requested) }.map(\.id))

@@ -1,6 +1,6 @@
-# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026, angeglichen am 05.11.2026)
+# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026, angeglichen am 05.11. und 07.11.2026)
 
-Drei Tarife, Monatspreise inkl. USt. **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
+Drei Tarife, Preise inkl. USt. (monatlich, seit 07.11.2026 auch jährlich). **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
 `TRIAL`); `tools/gen-plans-fixture.py` schreibt daraus `packages/shared-contracts/fixtures/plans/plans.json`, gegen die
 Swift (`PlanContractTests`) und der Dienst (`tests/test_subscriptions.py`, `tests/test_tarif_matrix.py`) prüfen.
 Jeder Tarif enthält alles aus dem Tarif darunter. **Keine Einführungsangebote** (weder bei Apple noch bei Stripe,
@@ -13,9 +13,10 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 | | StudiNow Free | StudiNow Plus | StudiNow Pro AI |
 |---|:---:|:---:|:---:|
 | Preis | 0,00 € | 1,99 € | 3,99 € |
-| Apple-Produkt | – | `de.uniflow.plus.monthly` | `de.uniflow.proai.monthly` (erst mit dem StudiNow-Dienst im Store) |
+| Preis jährlich (`price_cents_yearly`) | – | 21,99 € | 41,99 € |
+| Apple-Produkte | – | `de.uniflow.plus.monthly`, `de.uniflow.plus.yearly` | `de.uniflow.proai.monthly`, `de.uniflow.proai.yearly` (mit Version 1.0 im Store, Dienst `app.studinow.app` läuft) |
 | PDFs lesen, Kurse, Abgleich mit Stud.IP/Learnweb, Stundenplan, Lernkalender | ✓ | ✓ | ✓ |
-| Eigenes ChatGPT verbinden und zu Folien fragen (Verbindung noch in Vorbereitung, nie an den Tarif gekoppelt) | ✓ | ✓ | ✓ |
+| Eigenes ChatGPT über den eigenen OpenAI-API-Schlüssel (`chatgpt_connection_premium`, `available` seit 07.11.2026; iPad: Einstellungen → Erweitert → „Eigenes ChatGPT“): KI-Hilfe zu den Unterlagen und KI-Lernplan in jedem Tarif, nie an den Tarif gekoppelt ² | ✓ | ✓ | ✓ |
 | Community lesen, beitreten und mitmachen (`can_read_community`, seit 05.11.2026 ab Plus) | – | ✓ | ✓ |
 | PDF bearbeiten, Stift, Textmarker, Apple Pencil (je Gerät) | – | ✓ | ✓ |
 | **Notizen auf allen Geräten** (Abgleich zwischen iPad, PC und Web, `can_sync_annotations`) | – | – (Plus gilt je Gerät) | ✓ |
@@ -23,7 +24,7 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 | Karteikarten-Stapel teilen und die anderer übernehmen (je Lernwoche oder „Allgemein“, 0 Credits) | – | ✓ | ✓ |
 | Wochenstapel „Karten für Woche n holen“ übernehmen (fertiger Satz aus dem Pool, 0 Credits) | – | ✓ | ✓ |
 | Karteikarten-Stapel von StudiNow übernehmen (Wochenstapel und geteilte Stapel, `card_stacks_adopted`; derselbe Stapel zählt im Monat einmal) | 0 | 4 / Monat | unbegrenzt (Fair Use 300) |
-| Wochentest erstellen (iPad ohne Dienst: über das eigene ChatGPT) | – | ✓ | ✓ |
+| Wochentest erstellen auf dem iPad (`UFFeature.weeklyTests`; mit der StudiNow-KI oder dem eigenen OpenAI-Schlüssel) | – | – | ✓ |
 | Lösungen teilen, Community schreiben | – | ✓ | ✓ |
 | Lernstand je Modul | ✓ | ✓ | ✓ |
 | Neue KI-Tests von StudiNow im Dienst (`ai_tests_new`) | 0 | 4 / Monat | 20 / Monat |
@@ -34,9 +35,14 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 | Credits für die StudiNow-KI (1 Credit = 1 Cent Kosten beim Anbieter) | 0 | 0 | 100 / Monat |
 | Testliste im Dienst (`GET /api/tests`) | letzte 10 | letzte 10 | alle |
 
-¹ Zählt auf `ai_assist` (150 / Monat) und kostet Credits; bestätigte E-Mail nötig. Über das **eigene** ChatGPT laufen
-„Karteikarten aus Dokument“ und Wochentests auf dem iPad in jedem Tarif, in dem das Speichern erlaubt ist (Plus); die
-Nutzung des eigenen ChatGPT-Abos stellen wir nie hinter eine Bezahlschranke (`docs/ABO-SYSTEM.md` 4).
+¹ Zählt auf `ai_assist` (150 / Monat) und kostet Credits; bestätigte E-Mail nötig.
+
+² Stand des Codes 07.11.2026 (`UFFeatureMatrix` in `apps/apple/UniFlow/Purchases/Entitlements.swift`,
+`OpenAIKeyCard.introText`): Mit dem eigenen OpenAI-Schlüssel laufen die KI-Hilfe im Editor und der KI-Lernplan
+(Vorschlag, erst „übernehmen“ trägt ein) in **jedem** Tarif, auch Free; „Karteikarten aus deinen Unterlagen“ ab Plus
+(Speichern eigener Karten ist Plus); Wochentests ab Pro AI. Der Schlüssel liegt nur im Schlüsselbund des iPads, die
+Anfragen gehen direkt an OpenAI und laufen über das OpenAI-Konto des Nutzers, nie über uns. Die offizielle Anmeldung
+„Mit ChatGPT anmelden“ bleibt aus, bis OpenAI sie freigibt (`plans.INTEGRATIONS["chatgpt"]`, `docs/ABO-SYSTEM.md` 4).
 
 **Plus gilt je Gerät** (Entscheidung vom 04.11.2026): Das Abo schaltet auf jedem Gerät mit derselben Apple-ID frei
 („Käufe wiederherstellen“), aber Notizen wandern erst mit Pro AI zwischen iPad, PC und Web (`POST /api/sync/push`
@@ -44,11 +50,16 @@ meldet für Plus `plan_required` mit `required_plan: pro_ai` für genau die Eint
 Karteikarten und alles andere gleichen weiter ab). Wer nur im Browser arbeitet, hat seine Notizen im Dienst und sieht
 sie in jedem Browser, in dem er angemeldet ist.
 
-**Probe:** jedes neue Konto bzw. jede Apple-ID einmal 7 Tage, alles wie Pro AI, mit 25 Credits (nur mit
-StudiNow-Konto; auf dem iPad ohne Dienst heißt „wie Pro AI“ heute der Umfang von Plus). Danach Free, Daten bleiben;
-nie automatisch kostenpflichtig; es gibt keine „1 Woche gratis“ bei Plus. Texte: Web `app/static/views-abo.js` („Probe: alles wie StudiNow Pro AI, mit 25
-Credits …“), iPad `UFTrialTexts.offerProAI` bzw. `runningTextService` (nur mit Dienst; ohne Dienst nennt das iPad Pro AI
-nicht, weil es die Karte nicht gibt).
+**Probe:** 7 Tage alles wie Pro AI, ohne Kauf und ohne Zahlungsdaten (`plans.TRIAL`, `UFLocalTrial.plan = .proAI`),
+höchstens einmal je Apple-ID **und einmal je iPad** (Geräte-Marke im Schlüsselbund, übersteht die Neuinstallation; eine
+weitere Apple-ID auf demselben iPad sieht „Auf diesem iPad wurde die Probe schon genutzt“). Die StudiNow-KI braucht auch
+in der Probe ein StudiNow-Konto (neue Konten: 25 Credits). **Nach der Probe** zeigt das iPad den Bildschirm „Deine Probe
+ist vorbei“ mit Free, Plus und Pro AI (Monatlich/Jährlich), der sich erst mit einer Wahl schließt; „Bei Free bleiben“ ist
+eine gültige Wahl ohne Kauf (`TrialBanner.swift`, `UFTrialTexts.stayFree`). Daten bleiben; nie automatisch
+kostenpflichtig; es gibt keine „1 Woche gratis“ bei Plus. Texte: Web `app/static/views-abo.js` („Probe: alles wie StudiNow Pro AI, mit 25
+Credits …“), iPad `UFTrialTexts.offerProAI` bzw. `runningTextService` (sobald StoreKit Pro AI liefert, in 1.0 der Normalfall),
+`UFTrialTexts.overTitle` / `overText` und `UFTrialDecision` (Bildschirm nach der Probe, je Apple-ID einmal beantwortet;
+eine weitere Apple-ID ohne eigene Probe bekommt beim ersten Start gleich die Tarifwahl).
 
 **Free gilt nur noch in der iPad-App (Entscheidung vom 05.11.2026, „anmelden immer muss ohne abo geht nichts“):** In
 der Web-App des Dienstes und in der Windows-App ist die Anmeldung mit dem StudiNow-Konto Pflicht; nach der Probe geht
@@ -115,9 +126,9 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | Community ab Plus, eigenes ChatGPT in jedem Tarif, Stapel-Kontingent `card_stacks_adopted` (05.11.2026) | umgestellt in `app/plans.py` und Prüfdaten; Dienst, Web/Windows und iPad ziehen nach (`docs/TARIF-MATRIX-2026-11-04.md`, Nachtrag 05.11.2026) |
 | Karteikarten mit Stapeln (Woche, Art), Bearbeiten, geschlossenes Üben | gebaut (iPad, Web, Windows, Dienst); im Dienst nur mit Plus (`can_use_flashcards`, auch neue Karten und Stapel beim Geräte-Abgleich) |
 | Stapel teilen, übernehmen, geteilte Kopie aktualisieren, Moderation | gebaut im Dienst, Web (Seite „Karteikarten“ und Reiter „Karteikarten“ im Community-Kanal) und iPad (CloudKit); Ersetzen und Moderation nur im Dienst |
-| KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ über das eigene ChatGPT) |
+| KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ mit der StudiNow-KI ab Pro AI oder mit dem eigenen OpenAI-Schlüssel ab Plus) |
 | Fertige Wochenfragen mit Erklärungen | gebaut im Dienst und Web/Windows (`docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad: nur im Vertrag („in Vorbereitung“) |
-| Pro AI im App Store | erst mit dem Online-Dienst; bis dahin auf der Tarifseite „kommt mit dem StudiNow-Dienst“, ohne Kaufknopf |
+| Pro AI im App Store | mit Version 1.0 (Entscheidung 07.11.2026, Dienst `app.studinow.app` läuft), monatlich und jährlich; liefert StoreKit das Produkt nicht, steht auf der iPad-Tarifseite „StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden …“ (`Plans.swift`, `proAIMissingNote`) |
 | Tarifseite Web (Dienst) | drei Karten aus `GET /api/billing/plans`; „Abschließen“ (Stripe) nur an Plus und Pro AI, nie an Free; in der Probe trägt Pro AI „Probe läuft“ statt „Dein Tarif“ und bleibt kaufbar; nach der Probe ohne Abo „Kein aktives Abo“ mit „Meine Daten ansehen“ und „Meine Daten exportieren“, kein „Bei Free bleiben“ (`app/static/views-abo.js`, `tests/test_web_abo.py`) |
 | Tarifseite Windows-App (seit 05.11.2026 mit Konto-Pflicht) | wie im Web: drei Karten, „Abschließen“ öffnet die Stripe-Bezahlseite des Dienstes im Systembrowser, „Abo verwalten“ das Kundenportal; mit Apple-Abo am Konto kein Kaufknopf, sondern „Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones“ (`app/account_mode.py`, `app/static/views-abo.js`) |
 | Tarifseite Einzelplatz ohne Konto-Pflicht (`serve.py`, Entwicklung) | drei Karten ohne jeden Kaufweg; Pro AI ohne Preis als „kommt mit dem StudiNow-Dienst“ |

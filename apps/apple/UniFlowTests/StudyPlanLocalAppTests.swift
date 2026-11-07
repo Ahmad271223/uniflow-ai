@@ -292,6 +292,8 @@ final class StudyPlanLocalAppTests: XCTestCase {
         Entitlements.shared.ownChatGPTConnected = false
         addTeardownBlock { @MainActor in Entitlements.shared.ownChatGPTConnected = own }
         XCTAssertEqual(Entitlements.shared.access(.autoPlan), .locked(.plus))
+        // der Lernplan nach dem Abgleich (auto_plan) fragt dieselbe Pruefung, die die App beim Start setzt
+        XCTAssertFalse(StudyAutoPlan.allowed(), "Free: kein automatischer Lernplan nach dem Abgleich")
         XCTAssertEqual(UFFeatureMatrix.access(.autoPlan, plan: .free, ownChatGPT: true), .allowed, "Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel, 07.11.2026)")
         Entitlements.shared.ownChatGPTConnected = true
         XCTAssertEqual(Entitlements.shared.access(.autoPlan), .allowed, "mit eigenem Schluessel auch in Free")

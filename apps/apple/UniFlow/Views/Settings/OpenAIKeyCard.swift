@@ -15,12 +15,16 @@ struct OpenAIKeyCard: View {
     @State private var agreed = false
 
     /// Satz am Haken; die Einzelheiten (was, an wen, Abrechnung) stehen direkt darueber (`OpenAIKeyLink.consentText`)
+    /// Was der eigene Schluessel freischaltet, ehrlich nach den Tarif-Regeln (UFFeatureMatrix, 07.11.2026): KI-Hilfe und
+    /// KI-Lernplan in jedem Tarif, Karteikarten speichern ab Plus, Wochentests ab Pro AI
+    static let introText = "Mit deinem eigenen OpenAI-Schlüssel antwortet die KI direkt von deinem iPad aus: die KI-Hilfe im Editor und der KI-Lernplan in jedem Tarif, Karteikarten aus deinen Unterlagen ab \(UFPlan.plus.name), Wochentests ab \(UFPlan.proAI.name). Der Schlüssel bleibt nur auf diesem iPad; OpenAI rechnet die Anfragen über dein Konto ab."
+
     static let agreeText = "Ich stimme zu, dass StudiNow die oben genannten Inhalte mit meinem Schlüssel direkt an OpenAI sendet."
 
     var body: some View {
         UFCard {
             UFCardHead("Eigenes ChatGPT", icon: "sparkles") { badge }
-            Text("Mit deinem eigenen OpenAI-Schlüssel antwortet die KI direkt von deinem iPad aus: Fragen im Editor, Karteikarten, Wochentests und der KI-Lernplan – in jedem Tarif. Der Schlüssel bleibt nur auf diesem iPad; OpenAI rechnet die Anfragen über dein Konto ab.")
+            Text(Self.introText)
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
             if let s = link.status, s.hasKey {

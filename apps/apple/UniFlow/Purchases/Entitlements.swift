@@ -599,6 +599,8 @@ extension View {
 }
 
 private struct UFRequiresModifier: ViewModifier {
+    /// so weit ragt das Schild von oben in die Flaeche des gesperrten Elements (kleiner als jeder Innenabstand der Knoepfe)
+    static let lockMarkInset: CGFloat = 4
     let feature: UFFeature
     @ObservedObject var ent: Entitlements
     @Environment(\.ufShowPlans) private var showPlans
@@ -612,7 +614,13 @@ private struct UFRequiresModifier: ViewModifier {
             content
                 .allowsHitTesting(false)
                 .opacity(0.55)
-                .overlay(alignment: .topTrailing) { UFLockMark(access: access).offset(x: 6, y: -6) }
+                // Schild ueber der oberen Kante (Unterkante 4 pt in der Knopf-Flaeche, im Innenabstand), nie ueber dem
+                // Text des Knopfs (vorher um 6 pt versetzt: verdeckte z. B. "Lernplan erstellen", Abnahme 07.11.2026)
+                .overlay(alignment: .topTrailing) {
+                    UFLockMark(access: access)
+                        .alignmentGuide(.top) { d in d[.bottom] - Self.lockMarkInset }
+                        .alignmentGuide(.trailing) { d in d[.trailing] - 6 }
+                }
                 .contentShape(Rectangle())
                 .onTapGesture { if case .locked = access { open() } }
                 .accessibilityElement(children: .combine)

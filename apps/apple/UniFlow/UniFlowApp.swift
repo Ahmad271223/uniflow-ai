@@ -31,6 +31,8 @@ struct UniFlowApp: App {
         // auf einem anderen Geraet) und unfertige Transaktionen abschliessen – nicht erst, wenn eine Ansicht mit
         // Tarifpruefung erscheint (Pruefpunkt 223)
         _ = Entitlements.shared
+        // Lernplan nach dem Abgleich (auto_plan) nur, wenn der Tarif automatisch planen darf (ab Plus; Free von Hand)
+        StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) }
         DueNotificationDelegate.install()                                 // Antippen einer Erinnerung oeffnet die Quelle; fragt nichts
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
@@ -69,6 +71,7 @@ struct UniFlowApp: App {
                     .environmentObject(containers)
                     .environmentObject(session)
                     .environmentObject(containers.studip)                     // Abgleich des offenen Containers
+                    .environment(\.studipFiles, containers.studip)            // "Jetzt laden" einzelner Dateien (FileLoadPanel)
                     .environment(\.ufChatGPTLink, containers.chatgpt)          // KI ueber das ChatGPT-Abo des Nutzers
                     .environment(\.ufStudoraAccount, containers.account)       // StudiNow-Konto (mit Dienst-Adresse)
                     // Weg der KI: eigenes ChatGPT, sonst StudiNow-KI des Kontos (Pro AI, Probe), sonst Anmeldung bzw. Tarif
@@ -352,6 +355,8 @@ struct RootView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Entitlements.shared.refreshLocalTrial() }   // Resttage nach dem Tageswechsel
             }
+            // nach dem Ende der Probe: Free, Plus oder Pro AI waehlen (TrialDecisionCover, Inhaber 07.11.2026)
+            .modifier(TrialDecisionCover(active: account.stage == .ready))
             // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
             // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto
             .onChange(of: containers.generation) { _, _ in overlay.closeAll() }

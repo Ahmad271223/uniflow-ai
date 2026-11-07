@@ -58,11 +58,22 @@ final class OlderSemestersTests: XCTestCase {
         let b = try await backend()
         let db = b.context.database
         let today = self.today
-        // seit 05.11.2026 (`SyncOrder`): Vorgabe "Nur WLAN", Stufe (d) holt alle frueheren Semester im Hintergrund
+        // seit 07.11.2026 (Wunsch des Inhabers): vor der Antwort laedt Stufe (d) nichts (nie gefragt = Aus; bis dahin
+        // galt "Nur WLAN", und im WLAN kamen fruehere Semester schon vor der Frage)
         var pending = try await db.withConnection { try OlderSemesters.pending($0, today: today) }
-        XCTAssertEqual(pending, ["s26a", "s26b", "w25"], "Vorgabe: fruehere Semester im Hintergrund")
+        XCTAssertEqual(pending, [], "nie gefragt: nichts Frueheres im Hintergrund")
+        var mode = try await db.withConnection { try OlderSemesters.mode($0) }
+        XCTAssertEqual(mode, .off)
         var ask = try await db.withConnection { try OlderSemesters.needsQuestion($0, today: today) }
         XCTAssertTrue(ask)
+        // "Frühere Semester auch laden" = Nur WLAN: jetzt stehen alle an, neuestes Semester zuerst (`groups`)
+        _ = try await json(b, "/api/older-semesters/mode", method: "POST", body: ["mode": .string(OlderSemesters.yesMode.rawValue)])
+        pending = try await db.withConnection { try OlderSemesters.pending($0, today: today) }
+        XCTAssertEqual(pending, ["s26a", "s26b", "w25"], "nach Ja: alle frueheren Semester im Hintergrund")
+        mode = try await db.withConnection { try OlderSemesters.mode($0) }
+        XCTAssertEqual(mode, .wifi)
+        ask = try await db.withConnection { try OlderSemesters.needsQuestion($0, today: today) }
+        XCTAssertFalse(ask, "beantwortet: keine Frage mehr")
 
         _ = try await json(b, "/api/older-semesters/choice", method: "POST", body: ["choice": "current"])
         pending = try await db.withConnection { try OlderSemesters.pending($0, today: today) }

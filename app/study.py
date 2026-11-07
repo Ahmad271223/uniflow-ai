@@ -424,7 +424,10 @@ def _units(conn, module_id: int, exclude_files: set[str], week: int | None = Non
     keine Vorlesungen frueherer Wochen) und davor der Rest eines Skripts nach einem Marker der Vorwochen
     (`_marker_rest`)."""
     start = semester_start(conn)
-    files = _file_rows(conn, module_id)
+    # Dateien im Papierkorb nicht einplanen (vorher kamen sie beim naechsten Planen wieder in den Lernplan;
+    # Abnahme Lernkalender vom 07.11.2026)
+    trashed = {r["id"] for r in db.rows(conn, "SELECT id FROM files WHERE deleted_at IS NOT NULL")}
+    files = [f for f in _file_rows(conn, module_id) if f["id"] not in trashed]
     weeks: dict[int, dict] = defaultdict(lambda: {"vorlesungen": [], "uebungen": [], "files": []})
     for f in files:
         if f["id"] in exclude_files or f["status"] == "erledigt":
@@ -592,6 +595,9 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
         d = start + timedelta(days=i)
         if d < t0 or d.weekday() not in s["learn_days"] or existing_days.get(d.isoformat()):
             continue
+        from . import timetable
+        if not timetable.free_windows(conn, d):
+            continue  # Tag ohne freie Zeit (Termine bis Lernende): nichts automatisch planen (Abnahme 07.11.2026)
         queues, rr = per_week.get(studip_terms.lecture_week(sem, d, free), ({}, []))
         picked: list[tuple[dict, int]] = []
         day_used = 0
@@ -645,8 +651,15 @@ def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None 
     if not pkgs:
         return
     windows = [dict(w) for w in timetable.free_windows(conn, d, s, include_packages=True)]
-    if not windows:  # kein freies Fenster: Lernbeginn als Fallback, hintereinander
-        windows = [{"start": timetable.hm(s["learn_start"]), "end": timetable.hm(s["learn_end"])}]
+    if not windows:
+        # kein freies Fenster: hinter dem letzten belegten Block (Termin samt Heimfahrt, Sperrzeit, Lernslot),
+        # hintereinander. Vorher ab Lernbeginn, also ueber den Terminen des Tages (Abnahme 07.11.2026).
+        blocks = timetable.busy_blocks(conn, d, s)
+        after = max([timetable.hm(s["learn_start"])] + [b["end"] for b in blocks])
+        campus = [b for b in blocks if b["kind"] == "event"]
+        if campus:
+            after = max(after, campus[-1]["end"] + s["travel_minutes"])
+        windows = [{"start": after, "end": after + 24 * 60}]
     brk = s["break_minutes"]
     free = [w["start"] for w in windows]          # naechste freie Minute je Fenster
     for p in pkgs:
@@ -939,6 +952,11 @@ def open_tasks(conn) -> list[dict]:
 # ----------------------------------------------------------------------------
 
 def _capacity(conn, d: date, s: dict) -> int:
+    """Freie Lernminuten eines Tages (Tageszeit minus geplante Pakete); ein Tag ohne freies Fenster hat keine
+    (vorher schlug "Woche retten" auch volle Tage vor; Abnahme 07.11.2026)"""
+    from . import timetable
+    if not timetable.free_windows(conn, d, s):
+        return 0
     used = db.row(conn, "SELECT COALESCE(SUM(planned_minutes),0) m FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen')", (d.isoformat(),))["m"]
     return max(0, s["minutes_per_day"] - used)
 
@@ -990,8 +1008,10 @@ def _suggest_text(moves: list[dict]) -> str:
 
 
 def apply_moves(conn, moves: list[dict]) -> int:
-    """Verschiebt Aufgaben in (neue) Pakete am Zieltag. Erledigte Aufgaben bleiben unberuehrt."""
+    """Verschiebt Aufgaben in (neue) Pakete am Zieltag. Erledigte Aufgaben bleiben unberuehrt. Danach bekommt jedes
+    Zielpaket eine Uhrzeit in einem freien Fenster (`_slot_target`)."""
     n = 0
+    targets: list[int] = []
     for mv in moves:
         if not mv.get("to"):
             continue
@@ -1011,9 +1031,46 @@ def apply_moves(conn, moves: list[dict]) -> int:
                      (t["id"], pid, t["status"], "geplant", t["date"], mv["to"], "verschoben", db.now_iso()))
         _recalc_package(conn, old_pid)
         _recalc_package(conn, pid)
+        if pid not in targets:
+            targets.append(pid)
         n += 1
+    for pid in targets:
+        _slot_target(conn, pid)
     refresh_statuses(conn)
     return n
+
+
+def _slot_target(conn, package_id: int) -> None:
+    """Uhrzeit eines Pakets, in das apply_moves Aufgaben gelegt hat. Frueher bekam ein neues Paket keine Uhrzeit
+    ("Lernpakete ohne Uhrzeit") und ein vorhandenes wurde nicht laenger: die nachgeholten Aufgaben behielten die
+    Uhrzeit ihres alten Tags und das Fenster dahinter galt als frei (Abnahme Lernkalender vom 07.11.2026). Hat das
+    Paket eine Uhrzeit und passt es ab seinem Beginn mit allen offenen Aufgaben in ein freies Fenster, bleibt der
+    Beginn; sonst kommt es wie ein verschobenes Paket in ein freies Fenster (assign_slots)."""
+    from . import timetable
+    p = db.row(conn, "SELECT * FROM study_packages WHERE id=?", (package_id,))
+    if not p:
+        return
+    try:
+        d = date.fromisoformat(p["date"])
+    except (TypeError, ValueError):
+        return
+    s = db.get_settings(conn)
+    tasks = db.rows(conn, "SELECT id, est_minutes FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort", (package_id,))
+    needs = [int(t["est_minutes"] or 45) for t in tasks]
+    conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (package_id,))
+    if p["start_time"] and p["end_time"] and needs:
+        brk = s["break_minutes"]
+        a = timetable.hm(p["start_time"])
+        b = max(timetable.hm(p["end_time"]), a + sum(needs) + brk * (len(needs) - 1))
+        if any(w["start"] <= a and b <= w["end"] for w in timetable.free_windows(conn, d)):
+            cur = a
+            for t, need in zip(tasks, needs):
+                conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(cur), timetable.mh(cur + need), t["id"]))
+                cur += need + brk
+            conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(a), timetable.mh(b), package_id))
+            return
+    conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben')", (package_id,))
+    assign_slots(conn, d, package_id=package_id)
 
 
 def _recalc_package(conn, pid: int) -> None:

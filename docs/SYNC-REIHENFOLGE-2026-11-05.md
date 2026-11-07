@@ -68,7 +68,11 @@ Learnweb und HsH-Moodle (Python `hildesheim.sync_learnweb`, `hildesheim.run_sync
 ## 3. "Ältere Semester laden: Automatisch / Nur WLAN / Aus"
 
 Gespeichert im Feld `older_semester_choice.choice` (nur dieses Geraet): `auto`, `wifi`, `off`; fruehere Werte gelten
-weiter (`all` = Automatisch, `current` = Aus). Nie gefragt = **Nur WLAN** (Vorgabe).
+weiter (`all` = Automatisch, `current` = Aus). Nie gefragt = **Aus** auf dem iPad (seit 07.11.2026, Wunsch des
+Inhabers: erst das aktuelle Semester, dann fragen "Auch frühere Semester laden?", vor der Antwort wird nichts Altes
+geladen, auch nicht im WLAN; bis dahin galt Nur WLAN, und Stufe (d) lud im WLAN schon vor der Antwort). Erst die
+Antwort wird gespeichert: "Frühere Semester auch laden" = Nur WLAN, "Nur aktuelles Semester" = Aus; danach keine Frage
+mehr, aendern in Einstellungen → Module (`OlderSemestersQuestionHost.answer`).
 
 - Automatisch / Nur WLAN: Stufe (d) holt alle noch nicht geladenen Kurse frueherer Semester.
 - Aus: nur, was der Nutzer in der Bibliothek vormerkt ("Dateien laden").

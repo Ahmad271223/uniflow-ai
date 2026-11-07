@@ -24,6 +24,9 @@ struct PlanPickerView: View {
         case settings
         /// aus einer gesperrten Funktion heraus; Tarif, der sie freischaltet
         case upgrade(UFPlan?)
+        /// nach dem Ende der Probe (TrialDecisionCover, Inhaber 07.11.2026): Free ("Bei Free bleiben"), Plus oder Pro AI
+        /// waehlen; "Bei Free bleiben" bzw. ein Kauf -> onDone
+        case trialOver
     }
 
     var context: Context = .onboarding
@@ -60,6 +63,7 @@ struct PlanPickerView: View {
     var body: some View {
         UFContent(maxWidth: 860) {
             UFPageHead(Self.title(context), sub: subtitle)
+            if context == .trialOver { infoCard(UFTrialTexts.overText).padding(.bottom, 16) }
             if let t = ent.runningLocalTrial { trialCard(t).padding(.bottom, 16) }
             if !ent.loading, ent.purchasedPlan == .free, ent.localTrial?.deviceUsed == true {
                 infoCard(UFTrialTexts.usedOnDeviceTitle + ".").padding(.bottom, 16)
@@ -102,6 +106,7 @@ struct PlanPickerView: View {
         case .onboarding: return "Tarif wählen"
         case .settings: return "Tarif wechseln"
         case .upgrade(let p): return p.map { "Mehr mit \($0.name)" } ?? "Tarif wechseln"
+        case .trialOver: return UFTrialTexts.overTitle
         }
     }
 
@@ -182,7 +187,7 @@ struct PlanPickerView: View {
         // Probe-Tarifs (Pro AI) traegt "Probe"
         let trial = ent.runningLocalTrial != nil
         let current = Self.isCurrent(plan, purchased: ent.purchasedPlan, loading: ent.loading, trial: trial)
-        let showCurrent = current && context != .onboarding
+        let showCurrent = current && context != .onboarding && context != .trialOver
         let included = UFPlanCard.included(plan)
         return PlanCardFrame(highlight: showCurrent) {
             HStack(spacing: 8) {
@@ -291,6 +296,8 @@ struct PlanPickerView: View {
                 fullButton("Zu \(UFPlan.free.name) wechseln", kind: .normal) { manage = true }
             } else if context == .settings {
                 fullButton("Aktueller Tarif", kind: .normal, enabled: false) {}
+            } else if context == .trialOver {
+                fullButton(UFTrialTexts.stayFree, kind: .normal) { onDone() }
             } else {
                 fullButton("\(UFPlan.free.name) nutzen", kind: .normal) { onDone() }
             }

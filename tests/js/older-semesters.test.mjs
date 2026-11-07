@@ -26,7 +26,7 @@ test("die Frage kommt nur ohne Wahl und mit Kursen frueherer Semester", () => {
 });
 
 test("Text der Frage", () => {
-  assert.equal(O.questionText("WiSe 2026/27", 1), "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.");
+  assert.equal(O.questionText("WiSe 2026/27", 1), "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Sollen ihre Dateien auch geladen werden? Dann lädt StudiNow sie im Hintergrund, neuestes Semester zuerst und nur im WLAN. Ändern kannst du das jederzeit in den Einstellungen unter Module; einzelne Semester lädst du auch in der Bibliothek.");
   assert.match(O.questionText("", 3), /^StudiNow hat die Dateien deines aktuellen Semesters geladen\. Dazu gibt es 3 Kurse aus/);
 });
 
@@ -136,12 +136,12 @@ test("die Texte sind dieselben wie auf dem iPad", () => {
     "Kurs aus einem früheren Semester", "Die Dateiliste ist noch nicht geladen.", "Vorgemerkt, kommt mit dem nächsten Abgleich", "Dateien noch nicht geladen",
     "StudiNow lädt die Dateien früherer Semester mit. Einzelne Kurse kannst du hier erneut laden.",
     "StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester kannst du hier je Semester oder je Kurs laden.",
-    "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs."]) assert.ok(views.includes(t), `Swift: ${t}`);
+    "Ändern kannst du das jederzeit in den Einstellungen unter Module; einzelne Semester lädst du auch in der Bibliothek."]) assert.ok(views.includes(t), `Swift: ${t}`);
   assert.ok(settings.includes("Ältere Semester laden"), "Swift: Ältere Semester laden");
   const core = read("apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/LocalBackend/Study/OlderSemesters.swift");
   for (const [, t] of O.OLDER_MODES) assert.ok(core.includes(`"${t}"`), `Swift: ${t}`);
   assert.ok(read("apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Sync/SyncOrder.swift").includes(O.OLDER_FILES_HINT), "Hinweis gleich auf dem iPad");
-  assert.ok(views.includes("StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. "), "Frage gleich auf dem iPad");
+  assert.ok(views.includes("Sollen ihre Dateien auch geladen werden? Dann lädt StudiNow sie im Hintergrund, neuestes Semester zuerst und nur im WLAN. "), "Frage gleich auf dem iPad");
   assert.ok(O.OLDER_FILES_HINT.endsWith("lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."));
   assert.ok(read("apps/apple/UniFlow/Services/StudIPSync.swift").includes(O.NOTE_QUEUED));
 });

@@ -135,7 +135,7 @@ enum AICost {
         }
         if chatgpt { return "\(count) · über dein ChatGPT\(m)" }
         if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
-        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · " : "KI kommt mit StudiNow Pro AI · ") + count
+        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · " : "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · ") + count
     }
 
     // MARK: Echter Stand vom Dienst (Credits, docs/ABO-SYSTEM.md Abschnitt 6a)

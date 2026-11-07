@@ -42,18 +42,24 @@ enum OlderSemesterLoad {
 
 // MARK: - Frage nach dem ersten Abgleich
 
-/// Zeigt die Frage einmal je Container: nach einem Abgleich (oder beim Oeffnen), wenn noch nie entschieden wurde und
-/// es Kurse frueherer Semester gibt. Schon beim Zeigen gilt die Vorgabe "Nur WLAN" als Wahl (05.11.2026: fruehere
-/// Semester kommen danach im Hintergrund, `SyncOrder`), die Frage kommt also nie wieder; "Nur aktuelles Semester"
-/// stellt auf Aus. Nicht unter XCTest (Logik: `shouldAsk`).
+/// Zeigt die Frage nach einem vollen Abgleich (oder beim Oeffnen), wenn noch nie entschieden wurde und es Kurse
+/// frueherer Semester gibt. Vor der Antwort laedt Stufe (d) nichts (Wunsch des Inhabers 07.11.2026: erst das aktuelle
+/// Semester, dann fragen, erst nach "Ja" Altes laden; nie gefragt = Aus, `OlderSemesters.defaultMode`). Gespeichert
+/// wird erst die Antwort (`answer`): "Frühere Semester auch laden" = Nur WLAN, "Nur aktuelles Semester" = Aus; danach
+/// kommt die Frage nie wieder, aendern geht in Einstellungen → Module. Bis 07.11.2026 speicherte schon das Zeigen
+/// "Nur WLAN", und Stufe (d) lud im WLAN vor (bzw. trotz) der Antwort. Je Container hoechstens einmal je App-Start
+/// (ohne Antwort geschlossen: beim naechsten Start erneut). Nicht unter XCTest (Logik: `shouldAsk`, `answer`).
 struct OlderSemestersQuestionHost: ViewModifier {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var containers: ContainerManager
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.hsh) private var hsh
     /// eine Pruefung zur Zeit (Oeffnen und Ende eines Abgleichs koennen zusammenfallen: sonst zwei Fragen)
     @State private var checking = false
+    /// Container, denen die Frage seit dem App-Start gezeigt wurde (ein weiterer Abgleich zeigt sie nicht noch einmal)
+    private static var shown: Set<String> = []
 
     func body(content: Content) -> some View {
         content
@@ -68,21 +74,31 @@ struct OlderSemestersQuestionHost: ViewModifier {
         (overview["choice"]?.isNull ?? true) && !(overview["semesters"]?.array ?? []).isEmpty
     }
 
+    /// Antwort speichern: `yes` = Nur WLAN (Stufe d laedt danach im Hintergrund), sonst Aus. Rueckgabe: gespeicherte Wahl
+    @discardableResult
+    static func answer(yes: Bool, api: APIClient) async throws -> OlderSemesters.Mode {
+        let mode = yes ? OlderSemesters.yesMode : .off
+        _ = try await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": .string(mode.rawValue)])
+        return mode
+    }
+
     private func check() async {
         guard !checking else { return }
         checking = true
         defer { checking = false }
-        guard !StudIPSync.isUnderTest(), let api = session.api, api.isLocal, !studip.isRunning, hildesheim?.isRunning != true,
-              hsh?.isRunning != true,
+        let key = containers.active?.layout.root.path ?? ""
+        guard !StudIPSync.isUnderTest(), !Self.shown.contains(key), let api = session.api, api.isLocal, !studip.isRunning,
+              hildesheim?.isRunning != true, hsh?.isRunning != true,
               let overview = try? await api.value("/api/older-semesters"), Self.shouldAsk(overview) else { return }
-        // als gefragt merken, bevor die Frage erscheint (ein zweiter Abgleich zeigt sie nicht noch einmal)
-        guard (try? await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": "wifi"])) != nil else { return }
+        // nichts speichern, bevor geantwortet ist: bis dahin laedt Stufe (d) nichts (nie gefragt = Aus)
+        Self.shown.insert(key)
         let courses = (overview["semesters"]?.array ?? []).reduce(0) { $0 + ($1["courses"]?.array?.count ?? 0) }
         overlay.modal { OlderSemestersQuestion(current: overview.s("current") ?? "", courses: courses) }
     }
 }
 
-/// "Auch frühere Semester laden?" – ruhig, Vorgabe "Frühere Semester auch laden" (im Hintergrund, nur im WLAN)
+/// "Auch frühere Semester laden?" – ruhig; "Frühere Semester auch laden" (im Hintergrund, nur im WLAN, neuestes zuerst)
+/// oder "Nur aktuelles Semester"; erst die Antwort wird gespeichert (`OlderSemestersQuestionHost.answer`)
 struct OlderSemestersQuestion: View {
     let current: String
     let courses: Int
@@ -96,8 +112,8 @@ struct OlderSemestersQuestion: View {
     static func text(current: String, courses: Int) -> String {
         "StudiNow hat die Dateien deines aktuellen Semesters\(current.isEmpty ? "" : " (\(current))") geladen. "
             + "Dazu gibt es \(courses) \(courses == 1 ? "Kurs" : "Kurse") aus früheren Semestern. "
-            + "StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. "
-            + "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs."
+            + "Sollen ihre Dateien auch geladen werden? Dann lädt StudiNow sie im Hintergrund, neuestes Semester zuerst und nur im WLAN. "
+            + "Ändern kannst du das jederzeit in den Einstellungen unter Module; einzelne Semester lädst du auch in der Bibliothek."
     }
 
     var body: some View {
@@ -105,22 +121,24 @@ struct OlderSemestersQuestion: View {
             Text(Self.text(current: current, courses: courses))
                 .ufFont(14.08).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
         } foot: {
-            UFButton("Nur aktuelles Semester") {
-                close()
-                Task {
-                    guard let api = session.api else { return }
-                    _ = await toast.attempt("Speichern", {
-                        _ = try await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": "off"])
-                    })
-                }
-            }
-            .frame(minHeight: 44)
-            // schon beim Zeigen gespeichert (Nur WLAN); laden beginnt im Hintergrund (`OlderSemesterLoader`)
-            UFButton("Frühere Semester auch laden", kind: .primary) {
-                close()
-                OlderSemesterLoader.shared.kick(containers)
-            }
-            .frame(minHeight: 44)
+            UFButton(Self.no) { answer(yes: false) }
+                .frame(minHeight: 44)
+            // erst jetzt gespeichert (Nur WLAN); laden beginnt danach im Hintergrund (`OlderSemesterLoader`)
+            UFButton(Self.yes, kind: .primary) { answer(yes: true) }
+                .frame(minHeight: 44)
+        }
+    }
+
+    static let yes = "Frühere Semester auch laden"
+    static let no = "Nur aktuelles Semester"
+
+    private func answer(yes: Bool) {
+        close()
+        Task {
+            guard let api = session.api, await toast.attempt("Speichern", {
+                _ = try await OlderSemestersQuestionHost.answer(yes: yes, api: api)
+            }) else { return }
+            if yes { OlderSemesterLoader.shared.kick(containers) }
         }
     }
 }

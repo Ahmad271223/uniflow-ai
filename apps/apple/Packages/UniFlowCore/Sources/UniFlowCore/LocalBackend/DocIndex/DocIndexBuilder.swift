@@ -36,6 +36,14 @@ public final class LocalDocIndex: @unchecked Sendable {
         return lock.withLock { _makeAI }(provider)
     }
 
+    /// Index-KI fuer Arbeit nach Antippen (eine Seite bauen, "Bereich an KI"): wie `ai(from:)`, dazu der eigene
+    /// OpenAI-Schluessel (kostet den Nutzer bei OpenAI, darum nie beim Vorwaermen, 07.11.2026). Die StudiNow-KI bleibt
+    /// aussen vor (keine Aufgabe dafuer beim Dienst).
+    public func aiOnTap(from provider: AIProvider?) -> DocIndexAI? {
+        if let key = provider as? OpenAIKeySession { return key }
+        return ai(from: provider)
+    }
+
     /// Hoechstens ein Aufbau je Datei zugleich (Vorwaermen und Oeffnen derselben Datei)
     func begin(_ fileID: String) -> Bool { lock.withLock { running.insert(fileID).inserted } }
     func end(_ fileID: String) { lock.withLock { _ = running.remove(fileID) } }

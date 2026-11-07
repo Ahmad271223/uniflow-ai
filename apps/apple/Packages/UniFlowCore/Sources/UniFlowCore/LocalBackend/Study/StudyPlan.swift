@@ -172,13 +172,16 @@ enum StudyPlan {
     }
 
     /// `_units(conn, module_id, exclude_files, week, done_weeks)`: je Lehrwoche ab 1 die offenen Vorlesungen und
-    /// Uebungen (ohne schon eingeplante, ohne erledigte Dateien); Wochen ohne beides fallen weg. Mit `week` nur die
+    /// Uebungen (ohne schon eingeplante, ohne erledigte Dateien und ohne Dateien im Papierkorb); Wochen ohne beides fallen weg. Mit `week` nur die
     /// Einheit dieser Lehrwoche (Regel des Inhabers vom 30.10.2026, zuerst in Python) und davor der Rest eines Skripts
     /// nach dem Marker der Vorwoche (`markerRest`).
     static func units(_ c: SQLiteConnection, moduleID: SQLiteValue, exclude: Set<String>, dates: LocalModules.Dates,
                       week: Int? = nil, doneWeeks: Set<FileWeek> = []) throws -> [Unit] {
         var weeks: [Int: (files: [LocalModules.FileRow], lectures: [LocalModules.FileRow], exercises: [LocalModules.FileRow])] = [:]
-        let files = try LocalModules.fileRows(c, moduleID: moduleID)
+        // Dateien im Papierkorb nicht einplanen (vorher kamen sie beim naechsten Planen wieder in den Lernplan;
+        // Abnahme Lernkalender vom 07.11.2026, zuerst in Python)
+        let trashed = Set(try c.query("SELECT id FROM files WHERE deleted_at IS NOT NULL").compactMap { $0[0].string })
+        let files = try LocalModules.fileRows(c, moduleID: moduleID).filter { f in f.id.string.map { !trashed.contains($0) } ?? true }
         for f in files {
             if let id = f.id.string, exclude.contains(id) { continue }
             if f.json["status"]?.string == "erledigt" { continue }
@@ -474,6 +477,8 @@ enum StudyPlan {
         for i in 0..<max(0, days) {
             let d = start + i
             if d < today || !s.isLearnDay(d) || existing.contains(iso(d)) { continue }
+            // Tag ohne freie Zeit (Termine bis Lernende): nichts automatisch planen (Abnahme 07.11.2026, zuerst in Python)
+            if try LocalFreeWindows.compute(c, day: d, settings: s.raw).isEmpty { continue }
             let lw = StudIPTerms.lectureWeek(semesterStart: sem, day: d, today: today, free: free)
             let queues = perWeek[lw]?.queues ?? [:]
             var rr = perWeek[lw]?.rr ?? []
@@ -538,8 +543,8 @@ enum StudyPlan {
 
     /// `assign_slots(conn, d, only_unset)`: Uhrzeiten fuer die Lernpakete eines Tages in den freien Fenstern
     /// (Hochschultermine, Sperrzeiten, Fahrtzeit, schon gelegte Lernslots). Ein Paket liegt am Stueck im ersten Fenster
-    /// mit genug Platz; passt es in keines, werden seine Aufgaben auf mehrere Fenster verteilt. Ohne freies Fenster ab
-    /// Lernbeginn hintereinander. Mit `packageID` nur dieses Paket (verschobenes Paket).
+    /// mit genug Platz; passt es in keines, werden seine Aufgaben auf mehrere Fenster verteilt. Ohne freies Fenster
+    /// hinter dem letzten belegten Block hintereinander. Mit `packageID` nur dieses Paket (verschobenes Paket).
     static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil) throws {
         let s = try Settings(c)
         var pkgs = try c.query("SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id",
@@ -549,7 +554,14 @@ enum StudyPlan {
         if pkgs.isEmpty { return }
         var windows = try LocalFreeWindows.compute(c, day: d, settings: s.raw).map { w in (start: w["start"]?.int ?? 0, end: w["end"]?.int ?? 0) }
         if windows.isEmpty {
-            windows = [(try LocalFreeWindows.hm(s.raw["learn_start"], key: "learn_start"), try LocalFreeWindows.hm(s.raw["learn_end"], key: "learn_end"))]
+            // kein freies Fenster: hinter dem letzten belegten Block (Termin samt Heimfahrt, Sperrzeit, Lernslot),
+            // hintereinander. Vorher ab Lernbeginn, also ueber den Terminen des Tages (Abnahme 07.11.2026, zuerst in Python)
+            let blocks = try LocalFreeWindows.busyBlocks(c, day: d, settings: s.raw)
+            var after = max(try LocalFreeWindows.hm(s.raw["learn_start"], key: "learn_start"), blocks.map(\.end).max() ?? 0)
+            if let last = blocks.last(where: { $0.kind == "event" }) {
+                after = max(after, last.end + (s.raw["travel_minutes"]?.int ?? 30))
+            }
+            windows = [(after, after + 24 * 60)]
         }
         let brk = s.breakMinutes
         var free = windows.map(\.start)               // naechste freie Minute je Fenster
@@ -715,8 +727,15 @@ enum StudyPlan {
 /// Lernplan nach einem Abgleich auf dem iPad (Stud.IP, Learnweb), wie `study.auto_plan_week` nach `_full_sync` am PC:
 /// mit `auto_plan` die laufende Woche planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche
 public enum StudyAutoPlan {
-    /// Ergebnis der Planung, nil = nichts geplant (aus, oder schon geplant und keine neuen Dateien)
+    /// Tarifpruefung der App (der Kern kennt keinen Tarif): automatisch planen erst ab Plus (`UFFeature.autoPlan`,
+    /// Free plant von Hand). Vorher plante jeder Abgleich auch in Free die Woche, weil `auto_plan` von Anfang an an
+    /// ist (Abnahme Lernkalender vom 07.11.2026). Ohne App (Kern-Tests, PC) immer erlaubt.
+    @MainActor public static var allowed: () -> Bool = { true }
+
+    /// Ergebnis der Planung, nil = nichts geplant (aus, Tarif ohne automatischen Lernplan, oder schon geplant und
+    /// keine neuen Dateien)
     public static func afterSync(_ backend: LocalBackend, newFiles: Int) async throws -> JSONValue? {
+        guard await MainActor.run(body: { allowed() }) else { return nil }
         let clock = backend.context.clock
         return try await backend.context.database.transaction { c in try StudyPlan.autoPlanWeek(c, newFiles: newFiles, clock: clock) }
     }

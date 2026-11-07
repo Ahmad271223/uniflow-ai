@@ -6,8 +6,10 @@ import Foundation
 enum StudyReschedule {
     typealias T = LocalTimetable
 
-    /// `_capacity(conn, d, s)`: freie Lernminuten eines Tages (Tageszeit minus geplante Pakete)
+    /// `_capacity(conn, d, s)`: freie Lernminuten eines Tages (Tageszeit minus geplante Pakete); ein Tag ohne freies
+    /// Fenster hat keine (vorher schlug "Woche retten" auch volle Tage vor; Abnahme 07.11.2026, zuerst in Python)
     static func capacity(_ c: SQLiteConnection, day: Int, settings s: StudyPlan.Settings) throws -> Double {
+        if try LocalFreeWindows.compute(c, day: day, settings: s.raw).isEmpty { return 0 }
         let used = try c.scalar("SELECT COALESCE(SUM(planned_minutes),0) m FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen')",
                                 [.text(T.iso(day))])
         return max(0, Double(s.minutesPerDay) - (try StudyPlan.number(used, "planned_minutes")))
@@ -89,9 +91,11 @@ enum StudyReschedule {
     }
 
     /// `apply_moves(conn, moves)`: Aufgaben in ein Paket desselben Moduls am Zieltag (sonst ein neues); erledigte und
-    /// schon dort liegende bleiben. Liefert die Zahl der verschobenen Aufgaben.
+    /// schon dort liegende bleiben. Danach bekommt jedes Zielpaket eine Uhrzeit in einem freien Fenster
+    /// (`slotTarget`). Liefert die Zahl der verschobenen Aufgaben.
     static func applyMoves(_ c: SQLiteConnection, _ moves: [JSONValue], clock: UniFlowClock) throws -> Int {
         var n = 0
+        var targets: [SQLiteValue] = []
         for mv in moves {
             guard let o = mv.object else { throw LocalHTTPError(status: 500, message: "Verschiebung ist kein Objekt") }
             guard LocalModules.truthy(o["to"]) else { continue }
@@ -118,10 +122,46 @@ enum StudyReschedule {
                           [t["id"] ?? .null, pid, t["status"] ?? .null, "geplant", t["date"] ?? .null, to, "verschoben", now])
             try StudyPlan.recalcPackage(c, old)
             try StudyPlan.recalcPackage(c, pid)
+            if !targets.contains(pid) { targets.append(pid) }
             n += 1
         }
+        for pid in targets { try slotTarget(c, id: pid) }
         try StudyPlan.refreshStatuses(c, today: T.today(clock))
         return n
+    }
+
+    /// `_slot_target(conn, package_id)`: Uhrzeit eines Pakets, in das `applyMoves` Aufgaben gelegt hat. Vorher bekam
+    /// ein neues Paket keine Uhrzeit ("Lernpakete ohne Uhrzeit") und ein vorhandenes wurde nicht laenger: die
+    /// nachgeholten Aufgaben behielten die Uhrzeit ihres alten Tags, das Fenster dahinter galt als frei (Abnahme
+    /// Lernkalender vom 07.11.2026, zuerst in Python). Mit Uhrzeit bleibt der Beginn, wenn das Paket ab dort mit allen
+    /// offenen Aufgaben in ein freies Fenster passt; sonst wie ein verschobenes Paket in ein freies Fenster.
+    static func slotTarget(_ c: SQLiteConnection, id: SQLiteValue) throws {
+        guard let p = try c.queryOne("SELECT * FROM study_packages WHERE id=?", [id]),
+              let text = p["date"]?.string, let d = BerlinClock.parseISODate(text) else { return }
+        let settings = try LocalSettings.read(c)
+        let brk = settings["break_minutes"]?.int ?? 0
+        let open = "status NOT IN ('erledigt','uebersprungen','verschoben')"
+        let tasks = try c.query("SELECT id, est_minutes FROM study_tasks WHERE package_id=? AND \(open) ORDER BY sort", [id])
+        let needs = try tasks.map { LocalModules.truthy($0["est_minutes"]) ? try StudyPlan.int($0["est_minutes"], "est_minutes") : 45 }
+        try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [id])
+        if LocalModules.truthy(p["start_time"]) && LocalModules.truthy(p["end_time"]) && !needs.isEmpty {
+            let a = try LocalFreeWindows.hm(p["start_time"]?.json, key: "start_time")
+            let b = max(try LocalFreeWindows.hm(p["end_time"]?.json, key: "end_time"), a + needs.reduce(0, +) + brk * (needs.count - 1))
+            let free = try LocalFreeWindows.compute(c, day: d, settings: settings)
+            if free.contains(where: { ($0["start"]?.int ?? 0) <= a && b <= ($0["end"]?.int ?? 0) }) {
+                var cur = a
+                for (t, need) in zip(tasks, needs) {
+                    try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
+                                  [.text(LocalFreeWindows.mh(cur)), .text(LocalFreeWindows.mh(cur + need)), t["id"] ?? .null])
+                    cur += need + brk
+                }
+                try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?",
+                              [.text(LocalFreeWindows.mh(a)), .text(LocalFreeWindows.mh(b)), id])
+                return
+            }
+        }
+        try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=? AND \(open)", [id])
+        try StudyPlan.assignSlots(c, day: d, packageID: id)
     }
 
     /// `move_package(conn, package_id, new_date)`: Paket auf einen anderen Tag; nachzuholende Aufgaben werden wieder

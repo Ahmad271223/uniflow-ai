@@ -143,7 +143,10 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCatalog.sellableProductIDs, ["de.uniflow.plus.monthly", "de.uniflow.plus.yearly",
                                                           "de.uniflow.proai.monthly", "de.uniflow.proai.yearly"])
         XCTAssertEqual(UFPlanCatalog.needsProduct, [.proAI])
-        XCTAssertEqual(UFPlanCatalog.proAIMissingNote, "StudiNow Pro AI folgt mit dem StudiNow-Dienst.")
+        XCTAssertEqual(UFPlanCatalog.proAIMissingNote, "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden. Öffne die Seite später noch einmal.")
+        for later in ["folgt", "kommt später", "bald", "in Vorbereitung"] {
+            XCTAssertFalse(UFPlanCatalog.proAIMissingNote.contains(later), "Pro AI wird mit 1.0 verkauft: kein „\(later)“")
+        }
         XCTAssertNil(UFPlanCatalog.proAIMissingNote.range(of: #"\d|€"#, options: .regularExpression), "kein Preis im Hinweis")
         let both: Set<String> = ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"]
         let plusOnly: Set<String> = ["de.uniflow.plus.monthly"]

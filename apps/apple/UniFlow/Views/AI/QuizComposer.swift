@@ -186,6 +186,8 @@ struct QuizComposer: View {
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufClose) private var close
     @Environment(\.ufAIEnabled) private var aiEnabled
+    /// StudiNow-KI (Pro AI, Probe) statt eigenem ChatGPT: die Kostenzeile nennt Credits, nie "über dein ChatGPT"
+    @Environment(\.ufStudiNowAI) private var studinowAI
     @Environment(\.ufAIAccess) private var aiAccess
     @Environment(\.ufChatGPTLink) private var chatgpt
     @ObservedObject private var generation: TestGenerationState
@@ -477,7 +479,7 @@ struct QuizComposer: View {
 
     /// Kostenzeile, ehrlich: nur ein gemeinsamer Test kann 0 Credits kosten, ein eigener Test braucht immer die KI
     private var costLine: String {
-        AICost.line(chatgpt: aiEnabled, plan: ent.plan, credits: 10) + (settings.isStandard ? " · bei gemeinsamem Test 0 Credits" : " · eigener Test")
+        AICost.line(chatgpt: aiEnabled && !studinowAI, plan: studinowAI ? .proAI : ent.plan, credits: 10) + (settings.isStandard ? " · bei gemeinsamem Test 0 Credits" : " · eigener Test")
     }
 
     /// Modulliste; ein Fehler steht sichtbar im Feld "Modul" mit "Erneut laden" (vorher blieb "Module werden geladen …")

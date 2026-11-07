@@ -26,7 +26,7 @@ enum DocIndexEndpoints: LocalEndpointModule {
             let fileID = req.param("file_id")
             guard let page = Int(req.param("page")), page >= 1 else { throw LocalHTTPError(status: 400, message: "page ungueltig") }
             let body = (try? req.jsonBody()) ?? .object([:])
-            guard let ai = ctx.docIndex.ai(from: ctx.ai.provider) else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
+            guard let ai = ctx.docIndex.aiOnTap(from: ctx.ai.provider) else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
             let options = DocIndexBuildOptions(force: body["force"]?.bool ?? false, withImage: body["image"]?.bool ?? true,
                                                fullImage: body["force"]?.bool ?? false, withSolutions: body["solutions"]?.bool ?? false,
                                                pages: [page])
@@ -51,7 +51,7 @@ enum DocIndexEndpoints: LocalEndpointModule {
             let e = try await ctx.database.withConnection { try PageExplainStore.counts($0) }
             return .json(["files": .number(Double(c.files)), "pages": .number(Double(c.pages)), "failed": .number(Double(c.failed)),
                           "unshared": .number(Double(c.unshared)), "library": .bool(ctx.docIndex.cloud != nil),
-                          "can_build": .bool(ctx.docIndex.ai(from: ctx.ai.provider) != nil),
+                          "can_build": .bool(ctx.docIndex.aiOnTap(from: ctx.ai.provider) != nil),
                           // Erklaerungsspeicher: Antworten im Zwischenspeicher, davon beim Dienst
                           "explanations": .number(Double(e.answers)), "explanations_shared": .number(Double(e.shared)),
                           "explain_library": .bool(ctx.docIndex.explainCloud != nil)])
@@ -84,7 +84,7 @@ enum DocIndexEndpoints: LocalEndpointModule {
             let sha = meta.sha ?? report?.fileSHA
             var o: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "status": "none", "known": false,
                                           "entry": .null, "cross_refs": [], "own_notes": [], "catalog": .null, "shelf_path": [],
-                                          "can_build": .bool(ctx.docIndex.ai(from: ctx.ai.provider) != nil), "library": .bool(ctx.docIndex.cloud != nil),
+                                          "can_build": .bool(ctx.docIndex.aiOnTap(from: ctx.ai.provider) != nil), "library": .bool(ctx.docIndex.cloud != nil),
                                           "file_complete": false, "pages_total": .number(Double(meta.pageCount ?? report?.pageCount ?? 0)),
                                           "pages_known": 0, "title": .string(meta.displayTitle)]
             if let report { o["report"] = reportJSON(report) }

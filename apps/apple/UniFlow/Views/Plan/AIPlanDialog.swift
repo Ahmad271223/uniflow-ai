@@ -78,7 +78,7 @@ struct AIPlanSuggestDialog: View {
                 UFButton("Erneut versuchen", icon: "sync") { Task { await load() } }
             }
             if !loading, error == nil {
-                UFButton(applying ? "Übernehme …" : "\(chosen.count) Blöcke übernehmen", icon: "check", kind: .primary) { Task { await apply() } }
+                UFButton(applying ? "Übernehme …" : (chosen.count == 1 ? "1 Block übernehmen" : "\(chosen.count) Blöcke übernehmen"), icon: "check", kind: .primary) { Task { await apply() } }
                     .disabled(chosen.isEmpty || applying)
                     .accessibilityIdentifier("aiPlan.apply")
             }

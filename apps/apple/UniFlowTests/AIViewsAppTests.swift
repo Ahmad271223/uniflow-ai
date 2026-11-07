@@ -194,7 +194,7 @@ final class AIViewsAppTests: XCTestCase {
                        "ohne KI: Pro AI oder der eigene OpenAI-Schluessel (07.11.2026)")
         XCTAssertEqual(AICost.status(chatgpt: true, model: "gpt-x", plan: .plus, requestsThisMonth: 1), "1 Anfrage diesen Monat · über dein ChatGPT · gpt-x")
         // ChatGPT ausgeschaltet (`ChatGPTLink.isEnabled`, 05.11.2026): kein "Noch kein ChatGPT verbunden", der Tarif-Hinweis
-        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0), "KI kommt mit StudiNow Pro AI · 0 Anfragen diesen Monat")
+        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0), "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · 0 Anfragen diesen Monat")
         XCTAssertEqual(AICost.status(chatgpt: true, model: nil, plan: .proAI, requestsThisMonth: 3, usage: (87, 100)), "87 von 100 Credits")
         // Zuletzt: hoechstens drei, neueste zuerst, je Container, Anfragen des Monats gezaehlt
         let d = try suite()

@@ -63,7 +63,7 @@ struct APIError: LocalizedError {
 
 /// Meldungen, wenn sich eine Datei nicht im Editor oeffnen laesst
 enum DocumentOpenText {
-    static let notLoaded = "Diese Datei ist noch nicht geladen. Der nächste Abgleich lädt sie auf dieses iPad."
+    static let notLoaded = "Diese Datei ist noch nicht auf diesem iPad. Jeder Abgleich versucht, sie zu laden; „Jetzt laden“ in der Datei holt sie sofort."
     static let notPDF = "Diese Datei ist keine PDF und öffnet sich nicht im Editor. Mit „Öffnen in …“ zeigst du sie in einer passenden App."
     static let notFound = "Dokument nicht gefunden. Es liegt im Papierkorb oder gehört zu einem abgewählten Kurs."
 
@@ -304,6 +304,8 @@ struct LibFile: Decodable, Identifiable, Hashable {
     let studip_folder: String?
     /// Kurs der Datei; eigene Uploads liegen in "__user__" (dort kein "Vorlesung bis hier", wie views-doc.js)
     var course_id: String? = nil
+    /// Groesse in Byte laut Quelle (Fortschritt beim "Jetzt laden"); fehlt in aelteren Antworten
+    var size: Int? = nil
 
     var displayTitle: String { ai_title ?? title ?? name }
     /// Geladene PDF: dieselbe Regel wie die Bibliothek (`kind == "pdf"`, das `UniRules.fileKind` auch bei mime

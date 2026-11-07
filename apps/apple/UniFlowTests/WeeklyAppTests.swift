@@ -187,6 +187,8 @@ extension LocalModulesAppTests {
     /// Nach einem Abgleich plant das iPad die laufende Woche wie der PC (`study.auto_plan_week`, Regel vom 30.10.2026):
     /// nur der Stoff dieser Lehrwoche (VL06), nicht die offenen Vorlesungen frueherer Wochen; mit auto_plan = 0 nichts
     func testAutoPlanAfterSyncPlansOnlyTheCurrentWeek() async throws {
+        StudyAutoPlan.allowed = { true }                                        // Plus: automatischer Lernplan
+        defer { StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) } }
         let (api, recorder) = try await seededAPI()                  // Freitag, 20.11.2026 = Lehrwoche 6
         let backend = try await recorder.inner.host.backend()
         let tuesday = ts("2026-11-17T10:00"), wednesday = ts("2026-11-18T10:00")
@@ -207,6 +209,23 @@ extension LocalModulesAppTests {
         await StudIPSync.autoPlan(host: recorder.inner.host, newFiles: 1)
         let again = try await api.value("/api/calendar?start=2026-11-20&end=2026-11-22")
         XCTAssertEqual(again.list("days").flatMap { $0.list("packages") }.flatMap { $0.list("tasks") }.compactMap { $0.s("title") }, ["VL06.pdf"])
+    }
+
+    /// Free plant von Hand: der Abgleich legt keinen Lernplan an, auch mit auto_plan (Standard an) und neuen Dateien;
+    /// die App verbindet die Pruefung mit `UFFeature.autoPlan` (Abnahme Lernkalender 07.11.2026)
+    func testAutoPlanAfterSyncNeedsPlus() async throws {
+        StudyAutoPlan.allowed = { false }                                       // Free
+        defer { StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) } }
+        let (api, recorder) = try await seededAPI()
+        let backend = try await recorder.inner.host.backend()
+        let tuesday = ts("2026-11-17T10:00")
+        try await backend.context.database.transaction { c in
+            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind) VALUES ('f-11', 'k-a-v', 'VL06.pdf', 'Vorlesung', ?, 'neu', 'pdf')",
+                          [tuesday])
+        }
+        await StudIPSync.autoPlan(host: recorder.inner.host, newFiles: 1)
+        let cal = try await api.value("/api/calendar?start=2026-11-16&end=2026-11-22")
+        XCTAssertTrue(cal.list("days").flatMap { $0.list("packages") }.isEmpty)
     }
 
     /// Nach einem vollen Abgleich laeuft auch der Takt der Wochentests wie `_full_sync` am PC: ohne KI nicht (kein

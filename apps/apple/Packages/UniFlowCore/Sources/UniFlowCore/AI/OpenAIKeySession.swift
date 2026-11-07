@@ -187,7 +187,7 @@ public actor OpenAIKeySession: AIProvider {
             r = try await http.send(AIHTTPRequest(method: "GET", url: ChatGPTConstants.modelsURL,
                                                   headers: ["Accept": "application/json", "Authorization": "Bearer \(state.apiKey)"]))
         } catch {
-            throw AIError("ai_provider_unreachable", "OpenAI ist nicht erreichbar.")
+            throw Self.unreachable(error)
         }
         guard (200..<300).contains(r.status) else {
             let e = Self.error(status: r.status, body: r.body)
@@ -220,17 +220,43 @@ public actor OpenAIKeySession: AIProvider {
     /// Antworttext der Responses API (Ereignisstrom wie mit dem ChatGPT-Abo); 401 = Schluessel ungueltig, 429 =
     /// Guthaben oder Rate, 404/400 mit Modell = Modell nicht verfuegbar (in den Einstellungen ein anderes waehlen)
     public func complete(system: String, prompt: String, schema: JSONValue? = nil) async throws -> String {
+        try ensureEnabled()
+        return try await send(ChatGPTProtocol.responsesBody(model: state.model, system: system, prompt: prompt, schema: schema))
+    }
+
+    /// Anfrage mit dem Bild eines Bereichs bzw. einer Seite ("Bereich an KI", Seiten-Index; 07.11.2026): das Bild geht als
+    /// `input_image` (data-URL, JPEG) mit, gespeichert wird es nirgends. Ohne Bild wie `complete`.
+    public func complete(system: String, prompt: String, schema: JSONValue?, imageJPEG: Data?) async throws -> String {
+        guard let imageJPEG else { return try await complete(system: system, prompt: prompt, schema: schema) }
+        try ensureEnabled()
+        return try await send(ChatGPTVisionAI.body(model: state.model, system: system, prompt: prompt, imageJPEG: imageJPEG, schema: schema ?? .null))
+    }
+
+    private func ensureEnabled() throws {
         guard status.enabledForAI else {
             throw AIError("openai_key_not_enabled", state.apiKey.isEmpty ? "Kein OpenAI-Schlüssel eingetragen."
                           : state.model.isEmpty ? "Bitte in den Einstellungen ein Modell wählen." : "KI über den eigenen Schlüssel ist ausgeschaltet.")
         }
-        let body = ChatGPTProtocol.responsesBody(model: state.model, system: system, prompt: prompt, schema: schema).serialized()
+    }
+
+    /// Fehler des Transports: Zeitueberschreitung bzw. kein Netz mit einem Satz, was zu tun ist
+    static func unreachable(_ error: Error) -> AIError {
+        if (error as? URLError)?.code == .timedOut {
+            return AIError("ai_provider_timeout", "OpenAI hat nicht rechtzeitig geantwortet. Bitte versuche es noch einmal.")
+        }
+        return AIError("ai_provider_unreachable", "OpenAI ist nicht erreichbar. Prüfe deine Internetverbindung und versuche es noch einmal.")
+    }
+
+    private func send(_ json: JSONValue) async throws -> String {
+        let body = json.serialized()
         let headers = ["Authorization": "Bearer \(state.apiKey)", "Content-Type": "application/json", "Accept": "text/event-stream"]
         let r: (status: Int, body: Data)
         do {
             r = try await http.send(AIHTTPRequest(method: "POST", url: ChatGPTConstants.responsesURL, headers: headers, body: body))
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
-            throw AIError("ai_provider_unreachable", "OpenAI ist nicht erreichbar.")
+            throw Self.unreachable(error)
         }
         guard (200..<300).contains(r.status) else {
             let e = Self.error(status: r.status, body: r.body, model: state.model)
@@ -270,4 +296,14 @@ public actor OpenAIKeySession: AIProvider {
             return AIError("ai_provider_error", "OpenAI antwortete mit Fehler \(status): \(PyText.slice(detail, 0, 200))")
         }
     }
+}
+
+/// Der eigene Schluessel als Index-KI (07.11.2026): mit Bild der Seite bzw. des Bereichs, immer das gewaehlte Modell (kein
+/// sparsames Modell, der Nutzer zahlt selbst). Nur nach Antippen (`LocalDocIndex.aiOnTap`), nie beim Vorwaermen.
+extension OpenAIKeySession: DocIndexAI {
+    public nonisolated func index(system: String, prompt: String, imageJPEG: Data?, schema: JSONValue, small: Bool) async throws -> String {
+        try await complete(system: system, prompt: prompt, schema: schema.isNull ? nil : schema, imageJPEG: imageJPEG)
+    }
+
+    public var modelName: String { state.model }
 }

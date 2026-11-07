@@ -1,4 +1,4 @@
-# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 05.11.2026)
+# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 05.11.2026, iPad-Teile 07.11.2026)
 
 Auftrag des Inhabers vom 27.10.2026, Tarife und Kontingente nach der Entscheidung vom 04.11.2026 (`docs/PREISLISTE.md`). Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
@@ -14,7 +14,8 @@ Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ 
 
 **Angleichung vom 05.11.2026** (`docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`): Free ohne Community (auch kein Lesen,
 `can_read_community` ab Plus) und ohne StudiNow-KI; das eigene ChatGPT darf in jedem Tarif verbunden werden (Fragen zu
-Folien, Schreiben erst ab Plus; Verbindung noch in Vorbereitung, Abschnitt 4). Neues Kontingent `card_stacks_adopted`
+Folien, Schreiben erst ab Plus). Seit 07.11.2026 auf dem iPad nutzbar über den eigenen OpenAI-API-Schlüssel
+(`chatgpt_connection_premium` = `available`); die offizielle Anmeldung „Mit ChatGPT anmelden“ bleibt aus (Abschnitt 4). Neues Kontingent `card_stacks_adopted`
 („Stapel von StudiNow“): fertige Wochenstapel aus dem Pool und geteilte Stapel der Community übernehmen, Plus 4 je
 Monat (Annahme), Pro AI unbegrenzt mit Fair Use 300; derselbe Stapel zählt im Monat einmal. Nach dem Verlust von Plus
 bleibt alles erhalten, eigene Community-Beiträge lassen sich weiter zurückziehen.
@@ -31,8 +32,12 @@ ihre Tabellen dagegen, `tests/test_subscriptions.py::test_plans_fixture_is_curre
 Kontingente nach der Tabelle des Inhabers vom 04.11.2026 (vorher Plus 3 und Pro AI 40 neue KI-Tests). Die Werte
 stehen nur in `app/plans.py` (`QUOTAS`) und lassen sich dort ändern.
 
-Apple-Produkte (eine Abo-Gruppe, damit Apple Upgrades, Downgrades und Doppel-Abos regelt):
-`de.uniflow.plus.monthly`, `de.uniflow.proai.monthly`. Die Kennungen bleiben bei `de.uniflow`, weil die Bundle-ID
+Apple-Produkte (eine Abo-Gruppe „StudiNow“, damit Apple Upgrades, Downgrades und Doppel-Abos regelt):
+`de.uniflow.plus.monthly` (1,99 €), `de.uniflow.proai.monthly` (3,99 €) und seit 07.11.2026 die Jahresabos
+`de.uniflow.plus.yearly` (21,99 €, Stufe wie Plus monatlich) und `de.uniflow.proai.yearly` (41,99 €, Stufe wie Pro AI
+monatlich; `apple_product_id_yearly`, `price_cents_yearly` in `app/plans.py`). Credits und Kontingente gelten auch beim
+Jahresabo je Kalendermonat. Alle vier werden mit Version 1.0 eingereicht (Pro AI ist in 1.0 im Store, Dienst
+`app.studinow.app` läuft). Die Kennungen bleiben bei `de.uniflow`, weil die Bundle-ID
 `de.uniflow.ai` ist. Ein früheres `de.uniflow.proconnect.monthly` gilt wie Pro AI, wird aber nicht angeboten.
 
 ## 2. Berechtigungen
@@ -144,38 +149,54 @@ Entscheidung des Inhabers (ersetzt „Apple-Einführungsangebot auf Plus, eigene
 `docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 5): Die iPad-App bietet **drei Tarife** an – Free, Plus 1,99 €/Monat
 (`de.uniflow.plus.monthly`) und Pro AI 3,99 €/Monat (`de.uniflow.proai.monthly`), **ohne Apple-Einführungsangebote**.
 Jede Person bekommt ab dem ersten Start **dieselbe Probe wie beim Dienst** (`TRIAL`: 7 Tage, alles wie Pro AI), ohne
-Zahlungsdaten, einmal je Apple-ID, danach automatisch Free – nur dass das iPad sie **ohne Dienst** führt.
+Zahlungsdaten, einmal je Apple-ID **und einmal je iPad** (07.11.2026), danach eine Pflicht-Entscheidung (Free, Plus
+oder Pro AI, unten) – nur dass das iPad sie **ohne Dienst** führt.
 
 - **Ablage** (`apps/apple/UniFlow/Purchases/LocalTrial.swift`, `UFLocalTrial`, `UFTrialRecordStore`): nur der Beginn,
   geschlüsselt mit einem Hash der Apple-Nutzer-ID (`DataContainerKey.userScope`), im Schlüsselbund des Geräts (Dienst
   `de.uniflow.ai.trial`, nur dieses Gerät; überlebt die Neuinstallation) und im iCloud-Schlüssel-Wert-Speicher
   (`NSUbiquitousKeyValueStore`, Schlüssel `uniflow.trial.<hash>`; zweites iPad). Beide werden gelesen, der frühere Beginn
   gilt und wird in die andere Ablage nachgetragen; ohne iCloud zählt der Schlüsselbund allein. Die Antwort „Bei Free
-  bleiben“ steht in den UserDefaults (`uniflow.trial.choice.<hash>`). Beim Löschen des Kontos bleibt der Eintrag
-  (einmal je Apple-ID; er enthält nur Hash und Datum).
+  bleiben“ steht in den UserDefaults (`uniflow.trial.choice.<hash>`) und im Schlüsselbund (`markChoice`). Beim Löschen
+  des Kontos bleibt der Eintrag (einmal je Apple-ID; er enthält nur Hash und Datum).
+- **Einmal je iPad** (Inhaber 07.11.2026): beim Beginn jeder Probe setzt die App eine Geräte-Marke im Schlüsselbund, die
+  an keiner Apple-ID hängt (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, nicht synchronisiert, übersteht die
+  Neuinstallation). Eine weitere Apple-ID auf demselben iPad bekommt keine Probe („Auf diesem iPad wurde die Probe schon
+  genutzt“, `UFLocalTrial.State.usedOnDevice`) und beim ersten Start gleich die Tarifwahl. Das Zurücksetzen des Geräts
+  löscht die Marke; stärker wäre später Apple DeviceCheck.
 - **Rechnung** (reine Funktionen, Uhr von außen): `state(startedAt:now:)` liefert Ende und Resttage (aufgerundet wie
   `billing.trial_info`, 0 = vorbei), `resolve(keychain:cloud:now:)` den gültigen Beginn. Werte wie `plans.TRIAL`
   (geprüft in `PlanContractTests.testLocalTrialMatchesContract`).
 - **Vorrang** (`UFPlanPrecedence`, in `Entitlements`): Dienst-Probe (`StudoraAccountLink.planStatus`, sobald ein
   StudiNow-Konto verbunden ist) > App Store (`Transaction.currentEntitlements`, `purchasedPlan`) > Probe auf dem iPad >
   Free. Wer Plus kauft, hat Plus; wer Pro AI kauft, Pro AI. Während der Probe gilt die Rechte-Tabelle von Pro AI
-  (dieselbe wie im Dienst, `plans.json`); auf dem iPad bedeutet das heute den Umfang von Plus.
-- **Oberfläche:** `TrialBanner` auf der Übersicht („Probe: noch n Tage alles frei“, danach „Deine Probe ist vorbei“ mit
-  „Tarife ansehen“ und „Bei Free bleiben“, Dienst vor iPad); Tarifseite mit Free, Plus und Pro AI – die Pro-AI-Karte nur,
-  wenn StoreKit das Produkt liefert (vor dem Dienst nicht im Store: dann nur Free und Plus und der Satz „StudiNow Pro AI
-  folgt mit dem StudiNow-Dienst.“), mit der Zeile „StudiNow Pro AI braucht den StudiNow-Dienst …“; Kopf „7 Tage Probe mit
+  (dieselbe wie im Dienst, `plans.json`, `UFLocalTrial.plan = .proAI`): Pro-AI-Umfang samt StudiNow-KI (diese braucht
+  auch in der Probe ein StudiNow-Konto, neue Konten 25 Credits) und Notizen-Abgleich.
+- **Oberfläche:** `TrialBanner` auf der Übersicht („Probe: noch n Tage alles frei“, „Danach wählst du einen Tarif oder
+  bleibst bei Free“). **Nach der Probe (07.11.2026):** Bildschirm „Deine Probe ist vorbei“ über der ganzen App
+  (`UFTrialDecision`, `TrialDecisionCover`, `PlanPickerView` im Kontext `.trialOver`) mit Free, Plus und Pro AI
+  (Monatlich/Jährlich); er lässt sich nicht wegwischen und schließt sich erst mit einer Wahl. „Bei Free bleiben“ ist eine
+  gültige Wahl ohne Kauf (Free bleibt dauerhaft kostenlos nutzbar, Richtlinien 3.1.2/5.1.1), wird je Apple-ID gemerkt und
+  erscheint danach nie wieder; ein Kauf beendet ihn ebenso. Läuft die Probe über den Dienst, bleibt dessen Hinweis auf der
+  Übersicht. Tarifseite mit Free, Plus und Pro AI – die Pro-AI-Karte, wenn StoreKit das Produkt liefert (in 1.0 der
+  Normalfall; sonst „StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden …“, `proAIMissingNote`), mit
+  der Zeile „Braucht ein StudiNow-Konto (Anmelden mit Apple). 100 Credits im Monat.“; Kopf „7 Tage Probe mit
   allem, danach Free – ohne Zahlungsdaten“ statt „1 Woche gratis, danach …“, mit Pro-AI-Produkt „7 Tage Probe: alles wie
   StudiNow Pro AI, mit 25 Credits für die StudiNow-KI, …“ (`UFTrialTexts.offerProAI`; die Probe-Karte des
   StudiNow-Kontos ebenso); Preise nur aus `Product.displayPrice`.
-- **Auf dem iPad ohne Dienst am Tarif (Plus):** eigene Karteikarten (`UFGate(.flashcards)`) und seit 04.11.2026
-  „Wochentest erstellen“ über das eigene ChatGPT (`UFFeature.weeklyTests`, Sperrkarte im Dialog `QuizComposer`).
-  Mit Dienst entscheidet der Dienst.
+- **Auf dem iPad am Tarif (Stand des Codes 07.11.2026, `UFFeatureMatrix`):** eigene Karteikarten und der automatische
+  Lernplan ab Plus (Free: Lernkalender von Hand; mit eigenem OpenAI-Schlüssel auch in Free der KI-Lernplan);
+  „Wochentest erstellen“ ab **Pro AI** (`UFFeature.weeklyTests`, Sperrkarte im Dialog `QuizComposer`), mit der
+  StudiNow-KI oder dem eigenen OpenAI-Schlüssel – nicht mehr ab Plus; „Karteikarten aus deinen Unterlagen“ mit der
+  StudiNow-KI ab Pro AI, mit dem eigenen Schlüssel ab Plus; KI-Hilfe im Editor mit der StudiNow-KI ab Pro AI, mit dem
+  eigenen Schlüssel in jedem Tarif. Mit Dienst entscheidet der Dienst.
 - **StoreKit-Testkonfigurationen:** `UniFlow.storekit` (Plus Stufe 2, Pro AI Stufe 1) und `UniFlowAlleTarife.storekit`
   ohne `introductoryOffer`. Tests: `LocalTrialTests`, `TrialAppTests`, `PurchaseTests`, `PurchaseV2PlanSwitchTests`,
   `PlanContractTests`, `EntitlementTests`.
 - Berechtigung `com.apple.developer.ubiquity-kvstore-identifier` steht in `UniFlow.entitlements` (04.11.2026; mit
   Personal Team oder im Simulator zählt nur der Schlüsselbund).
-- **Offen (Inhaber):** Produkte in App Store Connect ohne Einführungsangebot, Pro AI erst mit dem Dienst.
+- **Inhaber (07.11.2026):** alle vier Produkte (Plus und Pro AI, je monatlich und jährlich) in App Store Connect ohne
+  Einführungsangebot, eingereicht mit Version 1.0.
 
 ## 3c. Tarifseite in Web und Windows (05.11.2026)
 
@@ -303,7 +324,9 @@ nur in bezahlten Tarifen anbieten. Bis OpenAI das für StudiNow schriftlich klä
 
 - `plans.INTEGRATIONS["chatgpt"]`: `status = disabled`, `plan_gating_allowed = False`.
 - `GET /api/integrations/chatgpt` → `available: false`, `connected: false`; `POST …/connect` → `503 chatgpt_not_available`.
-- `chatgpt_connection_premium` ist überall `false`, solange die Integration aus ist; die Abo-Seite zeigt „in Vorbereitung“.
+- Im Dienst liefert `entitlements.has` für `chatgpt_connection_premium` weiter `false`, solange die Integration aus ist;
+  die Abo-Seite in Web/Windows zeigt dafür „in Vorbereitung“. Auf dem iPad ist das eigene ChatGPT über den eigenen
+  OpenAI-Schlüssel nutzbar (unten), darum steht das Recht im Vertrag seit 07.11.2026 auf `available`.
 - Keine inoffiziellen Sitzungen, keine Passwörter, keine Cookies. Plan und Antrag: `docs/KI-CHATGPT-PLAN.md`.
 - Tests aus dem eigenen ChatGPT kämen nur als `chatgpt_user` mit Stufe `private` in die Bibliothek und nur nach
   ausdrücklicher Freigabe in die Moderation (Abschnitt 5).

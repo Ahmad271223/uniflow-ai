@@ -106,7 +106,9 @@ def test_review_notes_describe_the_build_honestly():
     assert "ChatGPTSoonCard" not in _swift("Views/Settings/SettingsPage.swift")
     assert 'defaultServiceURL = "https://app.studinow.app"' in _swift("Services/StudoraAccountLink.swift")
     assert "„Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits" in _swift("Views/Settings/StudoraAccountCard.swift")
-    assert 'proAIMissingNote = "StudiNow Pro AI folgt mit dem StudiNow-Dienst."' in _swift("Purchases/Plans.swift")
+    # Pro AI wird mit 1.0 verkauft (Entscheidung 07.11.2026): fehlt das Produkt, nur der ehrliche Grund, kein "folgt"
+    assert 'proAIMissingNote = "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden.' in _swift("Purchases/Plans.swift")
+    assert "Pro AI folgt" not in _swift("Purchases/Plans.swift")
     for field in ("review-notes", "review-notes-proai"):
         notes = f[field]
         assert "Keine KI-Funktionen" not in notes and "No AI" not in notes, field
@@ -125,9 +127,27 @@ def test_review_notes_describe_the_build_honestly():
         assert "Connected today: Leibniz Universität Hannover" in notes, field
         assert "Hochschule Hannover" not in notes and "Hildesheim" not in notes, field
         assert "Sign in with ChatGPT" not in notes and "consent" not in notes, field
-    assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI folgt mit dem StudiNow-Dienst." in f["review-notes"]
+    # Fassung nur Plus ist ueberholt (1.0 mit Pro AI); sie zitiert den Satz, den die App ohne Pro-AI-Produkt wirklich zeigt
+    assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." in f["review-notes"]
+    assert "Pro AI folgt" not in f["review-notes"]
+    text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
+    assert "ÜBERHOLT, nicht verwenden" in text and "für 1.0 verwenden" in text
     pro = f["review-notes-proai"]
     assert "sandbox" in pro and "100 credits" in pro and "section 8c" in pro and "never name, e-mail or university credentials" in pro
+    # 07.11.2026 abends: Probe einmal je iPad, danach Pflicht-Entscheidung mit "Bei Free bleiben" ohne Kauf (3.1.2/5.1.1);
+    # Frage nach frueheren Semestern (Demo hat keine); eigener Schluessel praezise je Funktion
+    trial = _swift("Views/Settings/TrialBanner.swift")
+    assert 'overTitle = "Deine Probe ist vorbei"' in trial and 'stayFree = "Bei Free bleiben"' in trial
+    assert '"Deine Probe ist vorbei"' in pro and '"Bei Free bleiben" is a valid choice without any purchase' in pro and "once per iPad" in pro
+    assert "Auch frühere Semester laden?" in _swift("Views/Library/OlderSemestersViews.swift")
+    assert '"Auch frühere Semester laden?"' in pro and "Wi-Fi only" in pro
+    assert "flashcards from a document need Plus, weekly tests Pro AI" in pro
+    assert "Wochentests ab \\(UFPlan.proAI.name)" in _swift("Views/Settings/OpenAIKeyCard.swift")
+    desc = f["description-proai"]
+    assert "danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI" in desc and "danach gilt Free" not in desc
+    assert "mit Plus Lernplan automatisch" in desc and "Lernkalender" in desc
+    assert "eigenen API-Schlüssel" in desc
+    assert "„iPhone- und iPad-Apps auf Apple-Silicon-Macs“ = verfügbar" in text and "macOS nicht einreichen" in text
 
 
 def test_no_store_text_says_the_university_password_is_never_stored():

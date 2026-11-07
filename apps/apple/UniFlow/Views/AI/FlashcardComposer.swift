@@ -17,6 +17,8 @@ struct FlashcardComposer: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
     @Environment(\.ufAIEnabled) private var aiEnabled
+    /// StudiNow-KI (Pro AI, Probe) statt eigenem ChatGPT: die Kostenzeile nennt Credits, nie "über dein ChatGPT"
+    @Environment(\.ufStudiNowAI) private var studinowAI
     @Environment(\.ufAIAccess) private var aiAccess
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufWindowWidth) private var windowWidth
@@ -201,7 +203,7 @@ struct FlashcardComposer: View {
             }
             HStack(spacing: 8) {
                 UFIcon("sparkles", size: 14).foregroundStyle(UF.accent)
-                Text(AICost.line(chatgpt: aiEnabled, plan: ent.plan, credits: 5)).ufFont(12.8).foregroundStyle(UF.muted)
+                Text(AICost.line(chatgpt: aiEnabled && !studinowAI, plan: studinowAI ? .proAI : ent.plan, credits: 5)).ufFont(12.8).foregroundStyle(UF.muted)
                     .accessibilityIdentifier("cards.composer.cost")
             }
             .padding(.top, 4)

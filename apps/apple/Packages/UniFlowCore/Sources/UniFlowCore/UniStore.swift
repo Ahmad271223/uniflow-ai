@@ -168,6 +168,7 @@ public enum UniStore {
         try conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, revision=?, content_sha256=? WHERE id=?",
                          [.text(localPath), .text(now), .integer(Int64(f.size ?? 0)), SQLiteValue(f.mime), .integer(Int64(f.chdate ?? 0)),
                           SQLiteValue(f.revision.map(Int64.init)), SQLiteValue(sha256), .text(f.id)])
+        try DownloadFailures.clear(conn, fileID: f.id)                     // geladen: kein "nicht geladen" mehr
         for id in copies {
             try conn.execute("UPDATE files SET local_path=?, downloaded_at=? WHERE id=?", [.text(localPath), .text(now), .text(id)])
         }

@@ -85,7 +85,7 @@ enum AIEndpoints: LocalEndpointModule {
             do {
                 let finalPrompt = prompt
                 let r = try await AIRelayTask.run(task) {
-                    if let imageJPEG, let vision = ctx.docIndex.ai(from: ai) {
+                    if let imageJPEG, let vision = ctx.docIndex.aiOnTap(from: ai) {
                         // Bild und Text in einer Anfrage (`ChatGPTVisionAI`); eine KI ohne Bilder antwortet auf den Text
                         return try await vision.index(system: AIPromptTexts.tutorSystem, prompt: finalPrompt, imageJPEG: imageJPEG, schema: .null, small: false)
                     }

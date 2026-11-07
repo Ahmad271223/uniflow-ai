@@ -4342,8 +4342,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": null,
-        "end_time": null,
+        "start_time": "08:00",
+        "end_time": "09:55",
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -4361,8 +4361,8 @@
           "done_at": null,
           "moved_from": "2026-10-20",
           "created_at": "2026-10-19T08:00:00",
-          "start_time": "09:00",
-          "end_time": "09:45",
+          "start_time": "08:00",
+          "end_time": "08:45",
           "file_name": "VL01 Einführung.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -4566,8 +4566,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": null,
-        "end_time": null,
+        "start_time": "08:00",
+        "end_time": "08:45",
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -4585,8 +4585,8 @@
           "done_at": null,
           "moved_from": "2026-10-21",
           "created_at": "2026-10-19T08:00:00",
-          "start_time": "10:00",
-          "end_time": "10:45",
+          "start_time": "08:00",
+          "end_time": "08:45",
           "file_name": "Folien Einführung.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -4841,8 +4841,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": null,
-        "end_time": null,
+        "start_time": "11:50",
+        "end_time": "12:50",
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -4860,8 +4860,8 @@
           "done_at": null,
           "moved_from": "2026-10-23",
           "created_at": "2026-10-19T08:00:00",
-          "start_time": "09:55",
-          "end_time": "10:55",
+          "start_time": "11:50",
+          "end_time": "12:50",
           "file_name": "Blatt 1.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -5390,8 +5390,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": null,
-        "end_time": null,
+        "start_time": "08:00",
+        "end_time": "08:45",
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -5409,8 +5409,8 @@
           "done_at": null,
           "moved_from": "2026-10-21",
           "created_at": "2026-10-19T08:00:00",
-          "start_time": "10:00",
-          "end_time": "10:45",
+          "start_time": "08:00",
+          "end_time": "08:45",
           "file_name": "Folien Einführung.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -5643,8 +5643,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": null,
-        "end_time": null,
+        "start_time": "11:50",
+        "end_time": "12:50",
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -5662,8 +5662,8 @@
           "done_at": null,
           "moved_from": "2026-10-23",
           "created_at": "2026-10-19T08:00:00",
-          "start_time": "09:55",
-          "end_time": "10:55",
+          "start_time": "11:50",
+          "end_time": "12:50",
           "file_name": "Blatt 1.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -5958,8 +5958,8 @@
        "sort": 0,
        "generated": 0,
        "created_at": "2026-10-23T09:15:00",
-       "start_time": null,
-       "end_time": null,
+       "start_time": "08:00",
+       "end_time": "09:55",
        "color": "#111111",
        "module_name": "Testmathematik I",
        "tasks": [
@@ -5977,8 +5977,8 @@
          "done_at": null,
          "moved_from": "2026-10-20",
          "created_at": "2026-10-19T08:00:00",
-         "start_time": "09:00",
-         "end_time": "09:45",
+         "start_time": "08:00",
+         "end_time": "08:45",
          "file_name": "VL01 Einführung.pdf",
          "last_page": 1,
          "test_submitted": null,
@@ -6013,10 +6013,10 @@
      "notices": [],
      "free": [
       {
-       "start": 480,
+       "start": 595,
        "end": 700,
-       "minutes": 220,
-       "start_hm": "08:00",
+       "minutes": 105,
+       "start_hm": "09:55",
        "end_hm": "11:40",
        "campus": false
       },
@@ -8438,8 +8438,8 @@
        "sort": 0,
        "generated": 0,
        "created_at": "2026-10-23T09:15:00",
-       "start_time": null,
-       "end_time": null,
+       "start_time": "11:50",
+       "end_time": "12:50",
        "color": "#111111",
        "module_name": "Testmathematik I",
        "tasks": [
@@ -8457,8 +8457,8 @@
          "done_at": null,
          "moved_from": "2026-10-23",
          "created_at": "2026-10-19T08:00:00",
-         "start_time": "09:55",
-         "end_time": "10:55",
+         "start_time": "11:50",
+         "end_time": "12:50",
          "file_name": "Blatt 1.pdf",
          "last_page": 1,
          "test_submitted": null,
@@ -8512,10 +8512,10 @@
      "notices": [],
      "free": [
       {
-       "start": 710,
+       "start": 770,
        "end": 960,
-       "minutes": 250,
-       "start_hm": "11:50",
+       "minutes": 190,
+       "start_hm": "12:50",
        "end_hm": "16:00",
        "campus": false
       },
@@ -9503,8 +9503,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": "11:50",
-        "end_time": "12:30",
+        "start_time": "12:50",
+        "end_time": "13:30",
         "color": null,
         "module_name": null,
         "tasks": [
@@ -9522,8 +9522,8 @@
           "done_at": null,
           "moved_from": null,
           "created_at": "2026-10-23T09:15:00",
-          "start_time": "11:50",
-          "end_time": "12:30",
+          "start_time": "12:50",
+          "end_time": "13:30",
           "file_name": "Blatt 2.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -9544,8 +9544,8 @@
         "sort": 0,
         "generated": 0,
         "created_at": "2026-10-23T09:15:00",
-        "start_time": "12:40",
-        "end_time": "13:40",
+        "start_time": "11:50",
+        "end_time": "12:50",
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -9563,8 +9563,8 @@
           "done_at": null,
           "moved_from": "2026-10-23",
           "created_at": "2026-10-19T08:00:00",
-          "start_time": "12:40",
-          "end_time": "13:40",
+          "start_time": "11:50",
+          "end_time": "12:50",
           "file_name": "Blatt 1.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -10165,8 +10165,8 @@
      "done_at": null,
      "moved_from": "2026-10-20",
      "created_at": "2026-10-19T08:00:00",
-     "start_time": "09:00",
-     "end_time": "09:45",
+     "start_time": "08:00",
+     "end_time": "08:45",
      "date": "2026-10-23",
      "subject": "Testmathematik I",
      "package_title": "Woche 1 · 12.10. – 18.10.",
@@ -10234,8 +10234,8 @@
      "done_at": null,
      "moved_from": "2026-10-21",
      "created_at": "2026-10-19T08:00:00",
-     "start_time": "10:00",
-     "end_time": "10:45",
+     "start_time": "08:00",
+     "end_time": "08:45",
      "date": "2026-10-26",
      "subject": "Testphysik",
      "package_title": "Einführung Physik",
@@ -10280,8 +10280,8 @@
      "done_at": null,
      "moved_from": "2026-10-23",
      "created_at": "2026-10-19T08:00:00",
-     "start_time": "12:40",
-     "end_time": "13:40",
+     "start_time": "11:50",
+     "end_time": "12:50",
      "date": "2026-10-28",
      "subject": "Testmathematik I",
      "package_title": "Woche 1 · 12.10. – 18.10.",
@@ -10326,8 +10326,8 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-23T09:15:00",
-     "start_time": "11:50",
-     "end_time": "12:30",
+     "start_time": "12:50",
+     "end_time": "13:30",
      "date": "2026-10-28",
      "subject": "Eigenes",
      "package_title": "Eigenes",
@@ -10778,8 +10778,8 @@
        "sort": 0,
        "generated": 0,
        "created_at": "2026-10-23T09:15:00",
-       "start_time": "11:50",
-       "end_time": "12:30",
+       "start_time": "12:50",
+       "end_time": "13:30",
        "color": null,
        "module_name": null,
        "tasks": [
@@ -10797,8 +10797,8 @@
          "done_at": null,
          "moved_from": null,
          "created_at": "2026-10-23T09:15:00",
-         "start_time": "11:50",
-         "end_time": "12:30",
+         "start_time": "12:50",
+         "end_time": "13:30",
          "file_name": "Blatt 2.pdf",
          "last_page": 1,
          "test_submitted": null,
@@ -10819,8 +10819,8 @@
        "sort": 0,
        "generated": 0,
        "created_at": "2026-10-23T09:15:00",
-       "start_time": "12:40",
-       "end_time": "13:40",
+       "start_time": "11:50",
+       "end_time": "12:50",
        "color": "#111111",
        "module_name": "Testmathematik I",
        "tasks": [
@@ -10838,8 +10838,8 @@
          "done_at": null,
          "moved_from": "2026-10-23",
          "created_at": "2026-10-19T08:00:00",
-         "start_time": "12:40",
-         "end_time": "13:40",
+         "start_time": "11:50",
+         "end_time": "12:50",
          "file_name": "Blatt 1.pdf",
          "last_page": 1,
          "test_submitted": null,
@@ -10893,10 +10893,10 @@
      "notices": [],
      "free": [
       {
-       "start": 820,
+       "start": 810,
        "end": 960,
-       "minutes": 140,
-       "start_hm": "13:40",
+       "minutes": 150,
+       "start_hm": "13:30",
        "end_hm": "16:00",
        "campus": false
       },
@@ -11878,8 +11878,8 @@
     "sort": 0,
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
-    "start_time": "11:50",
-    "end_time": "12:30"
+    "start_time": "12:50",
+    "end_time": "13:30"
    },
    {
     "id": 11,
@@ -11923,8 +11923,8 @@
     "sort": 0,
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
-    "start_time": null,
-    "end_time": null
+    "start_time": "08:00",
+    "end_time": "09:55"
    },
    {
     "id": 14,
@@ -11938,8 +11938,8 @@
     "sort": 0,
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
-    "start_time": null,
-    "end_time": null
+    "start_time": "08:00",
+    "end_time": "08:45"
    },
    {
     "id": 15,
@@ -11953,8 +11953,8 @@
     "sort": 0,
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
-    "start_time": "12:40",
-    "end_time": "13:40"
+    "start_time": "11:50",
+    "end_time": "12:50"
    },
    {
     "id": 16,
@@ -12062,8 +12062,8 @@
     "done_at": null,
     "moved_from": "2026-10-20",
     "created_at": "2026-10-19T08:00:00",
-    "start_time": "09:00",
-    "end_time": "09:45"
+    "start_time": "08:00",
+    "end_time": "08:45"
    },
    {
     "id": 2,
@@ -12079,8 +12079,8 @@
     "done_at": null,
     "moved_from": "2026-10-23",
     "created_at": "2026-10-19T08:00:00",
-    "start_time": "12:40",
-    "end_time": "13:40"
+    "start_time": "11:50",
+    "end_time": "12:50"
    },
    {
     "id": 3,
@@ -12096,8 +12096,8 @@
     "done_at": null,
     "moved_from": "2026-10-21",
     "created_at": "2026-10-19T08:00:00",
-    "start_time": "10:00",
-    "end_time": "10:45"
+    "start_time": "08:00",
+    "end_time": "08:45"
    },
    {
     "id": 4,
@@ -12249,8 +12249,8 @@
     "done_at": null,
     "moved_from": null,
     "created_at": "2026-10-23T09:15:00",
-    "start_time": "11:50",
-    "end_time": "12:30"
+    "start_time": "12:50",
+    "end_time": "13:30"
    },
    {
     "id": 15,
@@ -14763,8 +14763,8 @@
           "sort": 0,
           "generated": 0,
           "created_at": "2026-10-28T09:00:00",
-          "start_time": null,
-          "end_time": null,
+          "start_time": "10:30",
+          "end_time": "11:30",
           "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
@@ -14782,8 +14782,8 @@
             "done_at": null,
             "moved_from": "2026-10-30",
             "created_at": "2026-10-28T09:00:00",
-            "start_time": "08:00",
-            "end_time": "09:00",
+            "start_time": "10:30",
+            "end_time": "11:30",
             "file_name": "Übung 3.pdf",
             "last_page": 1,
             "test_submitted": null,
@@ -15925,8 +15925,8 @@
       "sort": 0,
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
-      "start_time": null,
-      "end_time": null
+      "start_time": "08:00",
+      "end_time": "08:30"
      },
      {
       "id": 14,
@@ -15940,8 +15940,8 @@
       "sort": 0,
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
-      "start_time": null,
-      "end_time": null
+      "start_time": "10:30",
+      "end_time": "11:30"
      }
     ],
     "study_tasks": [
@@ -16146,8 +16146,8 @@
       "done_at": null,
       "moved_from": "2026-10-30",
       "created_at": "2026-10-28T09:00:00",
-      "start_time": "08:00",
-      "end_time": "09:00"
+      "start_time": "10:30",
+      "end_time": "11:30"
      },
      {
       "id": 13,
@@ -16197,8 +16197,8 @@
       "done_at": null,
       "moved_from": "2026-11-06",
       "created_at": "2026-10-28T09:00:00",
-      "start_time": "09:35",
-      "end_time": "10:05"
+      "start_time": "08:00",
+      "end_time": "08:30"
      }
     ],
     "task_history": [

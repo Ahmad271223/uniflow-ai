@@ -166,7 +166,7 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 <div class="wrap">
 <div class="section-head">
 <h2 id="preise-title">Preise</h2>
-<p>Zum Start testest du 7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten. Danach gilt Free, deine Daten bleiben.</p>
+<p>Zum Start testest du 7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten (einmal je iPad). Danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI – deine Daten bleiben.</p>
 </div>
 <div class="plans">
 <article class="plan" aria-labelledby="p-free">
@@ -224,8 +224,9 @@ Notizen lesbar und exportierbar. „Ohne Monatsgrenze“ heißt faire Nutzung, h
 <div class="faq-list">
 <details>
 <summary>Speichert StudiNow mein Uni-Passwort?</summary>
-<p>Nein. Du gibst es im Anmeldefenster deiner Hochschule ein. StudiNow behält nur die Sitzung, bis du dich abmeldest
-oder die Hochschule sie beendet. Auf Wunsch merkt sich iOS das Passwort im Schlüsselbund.</p>
+<p>Nicht auf unseren Servern. Du gibst es im Anmeldefenster deiner Hochschule ein. Lässt du „Passwort auf diesem iPad
+merken“ an, liegt es nur im Schlüsselbund dieses iPads (nicht in iCloud), damit StudiNow dich nach Ablauf einer Sitzung
+wieder anmeldet – abschaltbar und jederzeit löschbar.</p>
 </details>
 <details>
 <summary>Wo liegen meine Daten?</summary>
@@ -234,7 +235,7 @@ Hochschule liest das iPad direkt. Was die KI-Hilfe bekommt, steht in der <a href
 </details>
 <details>
 <summary>Was passiert nach den 7 Tagen?</summary>
-<p>Dann gilt StudiNow Free, ohne dass du etwas tun musst. Die Probe wird nie von selbst kostenpflichtig, und alles, was
+<p>Dann wählst du einmal: „Bei Free bleiben“ (kostenlos, ohne Kauf) oder Plus bzw. Pro AI. Die Probe wird nie von selbst kostenpflichtig, und alles, was
 du angelegt hast, bleibt da.</p>
 </details>
 <details>

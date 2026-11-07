@@ -159,7 +159,9 @@ struct UFTrialRecordStore: UFTrialRecording {
         let k = keychain.string(scope).flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
         cloud?.synchronize()
         let c = cloud?.number(forKey: Self.cloudKey(scope)).map { Date(timeIntervalSince1970: $0) }
-        return UFTrialRecords(keychain: k, cloud: c, choiceMade: defaults.bool(forKey: Self.choiceKey(scope)))
+        // Wahl nach der Probe: UserDefaults oder Schluesselbund (ueberlebt die Neuinstallation, 07.11.2026)
+        let choice = defaults.bool(forKey: Self.choiceKey(scope)) || keychain.string(Self.choiceAccount(scope)) == "1"
+        return UFTrialRecords(keychain: k, cloud: c, choiceMade: choice)
     }
 
     func save(start: Date, scope: String, keychain writeKeychain: Bool, cloud writeCloud: Bool) {
@@ -171,11 +173,20 @@ struct UFTrialRecordStore: UFTrialRecording {
         }
     }
 
-    func markChoice(_ scope: String) { defaults.set(true, forKey: Self.choiceKey(scope)) }
+    /// Wahl nach der Probe ("Bei Free bleiben" bzw. Kauf) auch im Schluesselbund: nach einer Neuinstallation erscheint
+    /// der Entscheidungs-Bildschirm (TrialDecisionCover) nicht noch einmal
+    func markChoice(_ scope: String) {
+        defaults.set(true, forKey: Self.choiceKey(scope))
+        try? keychain.write("1", account: Self.choiceAccount(scope))
+    }
+
+    /// Schluessel der Wahl im Schluesselbund (je Apple-ID, Hash)
+    static func choiceAccount(_ scope: String) -> String { "choice." + scope }
 
     /// nur Tests: Eintraege einer Apple-ID entfernen
     func remove(_ scope: String) {
         keychain.remove(scope)
+        keychain.remove(Self.choiceAccount(scope))
         defaults.removeObject(forKey: Self.choiceKey(scope))
     }
 
