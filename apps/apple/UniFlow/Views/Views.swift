@@ -200,6 +200,10 @@ struct LibraryView: View {
                         // Word, PowerPoint, Audio: Text je Seite mit KI-Hilfe daneben statt nur der Vorschau (docs/DATEIARTEN.md)
                         TextDocumentView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
                             .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }
+                    } else if f.downloaded_at != nil, ZipArchive.isZipName(f.name) {
+                        // ZIP (z. B. Uebungsblatt aus Stud.IP/Moodle): als Ordner ansehen und bearbeiten (07.11.2026)
+                        ZipFolderView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
+                            .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }
                     } else {
                         FileOutsideEditorView(file: f, api: api)
                             .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }

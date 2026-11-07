@@ -34,6 +34,8 @@ enum AppPaths {
         let journal = DataContainerLayout.Folder.journal.url(in: root)
             .appendingPathComponent(LocalJournal.directory(documentID: fileID, namespace: namespace), isDirectory: true)
         try? fm.removeItem(at: journal)
+        // entpackter Inhalt einer ZIP-Datei (ZipFolderView)
+        try? fm.removeItem(at: ZipFolderModel.root(fileID: fileID, namespace: namespace, base: root))
         removeThumbnails(fileIDs: [fileID], namespace: namespace, root: root)
     }
 
