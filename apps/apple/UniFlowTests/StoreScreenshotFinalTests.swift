@@ -523,27 +523,41 @@ final class StoreScreenshotFinalTests: XCTestCase {
     /// Pro AI darunter); damit alle drei Karten mit Knoepfen und "Käufe wiederherstellen" ganz im Bild sind, ist das
     /// Fenster so gross wie die ganze Seite im Seitenverhaeltnis 3:4 bzw. 4:3 und wird auf die Pixelgroesse gerechnet.
     func testTarifPruefung() throws {
+        try tarifPruefung(.monthly)
+    }
+
+    /// Dasselbe Blatt mit "Jährlich" (Jahresabos seit 07.11.2026, Plus 21,99 €, Pro AI 41,99 €): Bild fuer die App-Pruefung
+    /// der beiden Jahresabos, Dateien `tarif-jahr-portrait.png` und `tarif-jahr-landscape.png`
+    func testTarifPruefungJahr() throws {
+        try tarifPruefung(.yearly)
+    }
+
+    private func tarifPruefung(_ billing: UFBilling) throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "UniFlow", withExtension: "storekit"))
         let session = try SKTestSession(contentsOf: url)
         session.disableDialogs = true
         session.resetToDefaultState()
         defer { withExtendedLifetime(session) {} }
         Entitlements.shared.setPlanForTesting(.free)
-        let env = try host(ZStack { UF.bg.ignoresSafeArea(); PlanPickerView(context: .settings, entitlements: Entitlements.shared) {} })
-        let plusButton = UFPlan.plus.name + " für 1,99", proAIButton = UFPlan.proAI.name + " für 3,99"
+        let env = try host(ZStack { UF.bg.ignoresSafeArea(); PlanPickerView(context: .settings, entitlements: Entitlements.shared, billing: billing) {} })
+        let yearly = billing == .yearly
+        let plusButton = UFPlan.plus.name + (yearly ? " für 21,99" : " für 1,99")
+        let proAIButton = UFPlan.proAI.name + (yearly ? " für 41,99" : " für 3,99")
         expect(env, PlanPickerView.title(.settings))
         expect(env, UFPlan.free.name)
         expect(env, plusButton)
         expect(env, proAIButton)
         expect(env, "Käufe wiederherstellen")
         env.pump(1.0)
+        let prefix = yearly ? "tarif-jahr" : "tarif"
         func checkPage(_ name: String) {
             for word in [UFPlanCatalog.proAIMissingNote, "Preis zurzeit nicht verfügbar", "Tarife konnten nicht geladen werden",
                          "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt"] {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
-            for word in [plusButton, proAIButton, "Käufe wiederherstellen", UFPlanCatalog.proAIServiceNote]
-                + UFPlanCard.included(.proAI).map(\.title) {
+            var must = [plusButton, proAIButton, "Käufe wiederherstellen", UFPlanCatalog.proAIServiceNote, "Monatlich", "Jährlich"]
+            if yearly { must += ["/Jahr, jährlich kündbar", "günstiger als monatlich"] }
+            for word in must + UFPlanCard.included(.proAI).map(\.title) {
                 XCTAssertTrue(shows(env, word), "\(name): „\(word)“ fehlt:\n" + dump(env))
             }
             // App Review 07.11.2026: nichts "in Vorbereitung", kein ChatGPT, Pro AI nicht "wie Plus", keine Probe im Bild
@@ -551,7 +565,7 @@ final class StoreScreenshotFinalTests: XCTestCase {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
         }
-        checkPage("tarif")
+        checkPage(prefix)
         guard let outDir else { return }
         func scrollViews(_ v: UIView) -> [UIScrollView] { ((v as? UIScrollView).map { [$0] } ?? []) + v.subviews.flatMap(scrollViews) }
         let page = try XCTUnwrap(scrollViews(env.view).max { $0.contentSize.height < $1.contentSize.height }, "keine Seite")
@@ -565,13 +579,13 @@ final class StoreScreenshotFinalTests: XCTestCase {
             env.view.frame = env.window.bounds
             env.pump(1.5)
             XCTAssertLessThanOrEqual(page.contentSize.height, page.bounds.height + 0.5, "\(orientation): Seite passt nicht ganz ins Bild")
-            checkPage("tarif-\(orientation)")
+            checkPage("\(prefix)-\(orientation)")
             let image = StoreScreenshotTests.pageImage(env, scale: 688 / k, ink: false)
-            let file = outDir.appendingPathComponent("tarif-\(orientation).png")
+            let file = outDir.appendingPathComponent("\(prefix)-\(orientation).png")
             do { try XCTUnwrap(image.pngData()).write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
             let cg = try XCTUnwrap(image.cgImage)
             XCTAssertEqual(CGSize(width: cg.width, height: cg.height), CGSize(width: w * 688, height: h * 688), file.lastPathComponent)
-            print("tarif-\(orientation): Seite \(contentHeight) pt, Fenster \(size), Massstab \(688 / k)")
+            print("\(prefix)-\(orientation): Seite \(contentHeight) pt, Fenster \(size), Massstab \(688 / k)")
         }
         env.window.overrideUserInterfaceStyle = .unspecified
         env.window.frame = CGRect(origin: .zero, size: Self.portrait)

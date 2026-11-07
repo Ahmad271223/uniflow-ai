@@ -12,6 +12,9 @@ import SwiftUI
 // nach dem Kauf (`purchasedPlan`). Wechsel zwischen Abo-Tarifen regelt Apple in der Gruppe.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
+// Zahlweise (Entscheidung des Inhabers vom 07.11.2026): Umschalter "Monatlich · Jährlich" ueber den Karten, sobald StoreKit
+// ein Jahresabo liefert; Jahrespreis mit Monatsbetrag und Ersparnis, beides aus Product.price. Ein Wechsel der Zahlweise im
+// laufenden Tarif gilt bei Apple ab der naechsten Verlaengerung.
 
 struct PlanPickerView: View {
     enum Context: Equatable {
@@ -30,13 +33,17 @@ struct PlanPickerView: View {
     @ObservedObject private var ent: Entitlements
     @State private var manage = false
     @State private var info: String?
+    /// gewaehlte Zahlweise; ohne Jahresabo im Store immer monatlich
+    @State private var billing: UFBilling = .monthly
     @Environment(\.openURL) private var openURL
 
     /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6)
     @MainActor
-    init(context: Context = .onboarding, entitlements: Entitlements? = nil, onDone: @escaping () -> Void) {
+    init(context: Context = .onboarding, entitlements: Entitlements? = nil, billing: UFBilling = .monthly,
+         onDone: @escaping () -> Void) {
         let ent = entitlements ?? .shared
         self.context = context
+        _billing = State(initialValue: billing)
         self.onDone = onDone
         _store = StateObject(wrappedValue: PurchaseStore(entitlements: ent))
         _ent = ObservedObject(wrappedValue: ent)
@@ -59,6 +66,7 @@ struct PlanPickerView: View {
             }
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
+            if store.offersYearly { billingPicker.padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
                 ForEach(UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs)) { planCard($0) }
             }
@@ -83,8 +91,8 @@ struct PlanPickerView: View {
 
     /// Hinweis "Pro AI folgt mit dem Dienst": wenn die Produkte geladen sind, Pro AI fehlt und niemand es schon hat
     static func showsProAIMissingNote(loaded: Set<String>, loading: Bool, current: UFPlan) -> Bool {
-        guard !loading, !loaded.isEmpty, current != .proAI, let id = UFPlan.proAI.productID else { return false }
-        return !loaded.contains(id)
+        guard !loading, !loaded.isEmpty, current != .proAI else { return false }
+        return !UFPlan.proAI.productIDs.contains(where: loaded.contains)
     }
 
     // MARK: Kopf
@@ -97,7 +105,30 @@ struct PlanPickerView: View {
         }
     }
 
-    private var proAIOffered: Bool { store.loadedProductIDs.contains(UFPlan.proAI.productID ?? "") }
+    private var proAIOffered: Bool { UFPlan.proAI.productIDs.contains(where: store.loadedProductIDs.contains) }
+
+    /// Zahlweise, mit der die Karten Preis und Kaufknopf zeigen (ohne Jahresabo im Store: monatlich)
+    private var shownBilling: UFBilling { store.offersYearly ? billing : .monthly }
+
+    /// Umschalter "Monatlich · Jährlich"; die groesste Ersparnis der Jahresabos steht dabei
+    private var billingPicker: some View {
+        let best = UFPlan.paid.compactMap { plan -> Int? in
+            guard let m = store.product(for: plan), let y = store.product(for: plan, billing: .yearly) else { return nil }
+            return UFOfferText.yearlySavingPercent(monthly: m.price, yearly: y.price)
+        }.max()
+        return HStack(spacing: 12) {
+            Picker("Zahlweise", selection: $billing) {
+                ForEach(UFBilling.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 320)
+            .accessibilityIdentifier("plans.billing")
+            if let best {
+                UFBadge("Jährlich bis zu \(best) % günstiger", tone: .ok, icon: "sparkles")
+            }
+            Spacer(minLength: 0)
+        }
+    }
 
     private var subtitle: String { Self.subtitle(proAI: proAIOffered) }
 
@@ -220,11 +251,16 @@ struct PlanPickerView: View {
                 Text("0 €").ufFont(26, 700, lh: 1.2, em: -0.02).foregroundStyle(UF.text)
                 Text("dauerhaft kostenlos, ohne Abo").ufFont(13.12).foregroundStyle(UF.muted)
             }
-        } else if let p = store.product(for: plan) {
+        } else if let p = store.product(for: plan, billing: shownBilling) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 3.2) {
                     Text(p.displayPrice).ufFont(26, 700, lh: 1.2, em: -0.02).foregroundStyle(UF.text)
                     Text(UFOfferText.per(value: p.ufPeriod.0, unit: p.ufPeriod.1)).ufFont(14.5).foregroundStyle(UF.muted)
+                }
+                if shownBilling == .yearly {
+                    let saving = store.product(for: plan).flatMap { UFOfferText.yearlySavingPercent(monthly: $0.price, yearly: p.price) }
+                    Text(UFOfferText.yearlyNote(perMonth: p.priceFormatStyle.format(p.price / 12), saving: saving))
+                        .ufFont(13.12, 600).foregroundStyle(UF.ok)
                 }
                 Text(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod)).ufFont(13.12).foregroundStyle(UF.muted)
             }
@@ -258,6 +294,11 @@ struct PlanPickerView: View {
             } else {
                 fullButton("\(UFPlan.free.name) nutzen", kind: .normal) { onDone() }
             }
+        } else if current, let b = ent.purchasedBilling, b != shownBilling, let p = store.product(for: plan, billing: shownBilling) {
+            // laufender Tarif, andere Zahlweise gewaehlt: Wechsel der Zahlweise (Apple: ab der naechsten Verlaengerung)
+            fullButton(UFOfferText.billingSwitchButton(to: shownBilling), kind: .primary, enabled: !store.busy) {
+                Task { await buy(p, plan: plan) }
+            }
         } else if current {
             if context == .settings {
                 fullButton("Abo verwalten", icon: "settings", kind: .normal) { manage = true }
@@ -267,7 +308,7 @@ struct PlanPickerView: View {
         } else if !ent.loading && ent.pendingPlan == plan {
             // Downgrade schon vorgemerkt: kein zweiter Kauf; aendern geht ueber "Abo verwalten"
             fullButton("Vorgemerkt", icon: "clock", kind: .normal, enabled: false) {}
-        } else if let p = store.product(for: plan) {
+        } else if let p = store.product(for: plan, billing: shownBilling) {
             let label = hasSubscription
                 ? UFOfferText.switchButton(to: plan)
                 : UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod)
@@ -281,12 +322,15 @@ struct PlanPickerView: View {
     private func buttonNote(_ plan: UFPlan, current: Bool) -> String? {
         guard plan != .free, !ent.loading else { return nil }
         if current {
+            if let b = ent.purchasedBilling, b != shownBilling, store.product(for: plan, billing: shownBilling) != nil {
+                return UFOfferText.billingSwitchNote
+            }
             if let next = ent.pendingPlan { return UFOfferText.pendingNote(next, at: ent.expiresAt) }
             if ent.willRenew == false { return UFOfferText.cancelledNote(plan, endsAt: ent.expiresAt) }
             return nil
         }
         if ent.pendingPlan == plan { return UFOfferText.pendingNote(plan, at: ent.expiresAt) }
-        if hasSubscription && store.product(for: plan) != nil { return UFOfferText.switchNote(to: plan, from: ent.purchasedPlan) }
+        if hasSubscription && store.product(for: plan, billing: shownBilling) != nil { return UFOfferText.switchNote(to: plan, from: ent.purchasedPlan) }
         return nil
     }
 
@@ -306,9 +350,13 @@ struct PlanPickerView: View {
     private func buy(_ p: Product, plan: UFPlan) async {
         info = nil
         let before = ent.purchasedPlan
+        let beforeBilling = ent.purchasedBilling
         switch await store.purchase(p) {
         case .success:
-            if ent.purchasedPlan != plan, ent.pendingPlan == plan {
+            if before == plan, let b = beforeBilling, UFBilling(productID: p.id) != b {
+                // nur die Zahlweise gewechselt: Apple stellt zur naechsten Verlaengerung um
+                info = UFOfferText.billingSwitchNote
+            } else if ent.purchasedPlan != plan, ent.pendingPlan == plan {
                 // Downgrade: Apple stellt erst zur naechsten Verlaengerung um, die Seite bleibt offen und sagt es
                 info = UFOfferText.pendingNote(plan, at: ent.expiresAt) + " Bis dahin bleibt \(before.name)."
             } else {

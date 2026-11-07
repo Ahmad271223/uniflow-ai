@@ -105,7 +105,10 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # Nutzungsbedingungen 04.11.2026: drei Tarife, Probe wie Pro AI, Grenzen je Tarif (Abschnitt 5a)
     # 05.11.2026: Konto- und Abo-Pflicht in Web und Windows, Abschluss ueber Stripe (Datenschutz 5, 9, 12; Bedingungen 5)
     # 06.11.2026: Datenschutz passend zu Build 10 (StudiNow-Konto auf dem iPad, Kaufmeldung an den Dienst, HsH-Systeme)
-    assert "Stand 06.11.2026 (26.10.2026)" in ds and "Stand 05.11.2026 (26.10.2026)" in (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
+    # 07.11.2026: Bedingungen mit Jahresabos (Plus 21,99 €, Pro AI 41,99 €)
+    nb = (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
+    assert "Stand 06.11.2026 (26.10.2026)" in ds and "Stand 07.11.2026 (26.10.2026)" in nb
+    assert "21,99 € pro Jahr" in nb and "41,99 € pro Jahr" in nb and "einen Monat bzw. ein Jahr" in nb
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl
 

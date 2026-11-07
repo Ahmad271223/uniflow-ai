@@ -77,12 +77,32 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
-    /// Apple-Produkt (eine Abo-Gruppe, Apple regelt Upgrade und Downgrade); Free hat keins
-    var productID: String? {
+    /// Apple-Produkt fuer monatliche Zahlung (eine Abo-Gruppe, Apple regelt Upgrade und Downgrade); Free hat keins
+    var productID: String? { productID(.monthly) }
+
+    /// Apple-Produkt je Zahlweise (Entscheidung des Inhabers vom 07.11.2026: monatlich oder jaehrlich, Plus 21,99 €
+    /// und Pro AI 41,99 € im Jahr); beide Produkte eines Tarifs stehen in der Gruppe auf derselben Stufe, ein Wechsel
+    /// der Zahlweise gilt bei Apple ab der naechsten Verlaengerung
+    func productID(_ billing: UFBilling) -> String? {
+        switch (self, billing) {
+        case (.free, _): return nil
+        case (.plus, .monthly): return "de.uniflow.plus.monthly"
+        case (.plus, .yearly): return "de.uniflow.plus.yearly"
+        case (.proAI, .monthly): return "de.uniflow.proai.monthly"
+        case (.proAI, .yearly): return "de.uniflow.proai.yearly"
+        }
+    }
+
+    /// alle Apple-Produkte des Tarifs (monatlich, jaehrlich)
+    var productIDs: [String] { UFBilling.allCases.compactMap(productID) }
+
+    /// Listenpreis in Cent fuer ein Jahr (plans.json `price_cents_yearly`); nur Vertragsvergleich, angezeigt wird
+    /// `Product.displayPrice`
+    var yearlyPriceCents: Int? {
         switch self {
         case .free: return nil
-        case .plus: return "de.uniflow.plus.monthly"
-        case .proAI: return "de.uniflow.proai.monthly"
+        case .plus: return 2199
+        case .proAI: return 4199
         }
     }
 
@@ -105,12 +125,30 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     /// Produkt -> Tarif; fremde und nicht mehr angebotene Produkte (z. B. das fruehere de.uniflow.pro.monthly)
     /// geben keinen Tarif, das fruehere Pro-Connect-Produkt gilt wie Pro AI
     init?(productID: String) {
-        guard let p = UFPlan.allCases.first(where: { $0.productID == productID }) ?? UFPlan.legacyProductIDs[productID] else { return nil }
+        guard let p = UFPlan.allCases.first(where: { $0.productIDs.contains(productID) }) ?? UFPlan.legacyProductIDs[productID] else { return nil }
         self = p
     }
 
     /// Abo-Tarife in der Reihenfolge der Karten
     static var paid: [UFPlan] { allCases.filter { $0.productID != nil } }
+}
+
+/// Zahlweise eines Abos (Entscheidung des Inhabers vom 07.11.2026): monatlich oder fuer 12 Monate im Voraus
+enum UFBilling: String, CaseIterable, Identifiable {
+    case monthly
+    case yearly
+
+    var id: String { rawValue }
+
+    /// Beschriftung des Umschalters auf der Tarifseite
+    var label: String { self == .monthly ? "Monatlich" : "Jährlich" }
+
+    /// Zahlweise eines Apple-Produkts (unbekannt: nil)
+    init?(productID: String) {
+        guard let b = UFBilling.allCases.first(where: { b in UFPlan.allCases.contains { $0.productID(b) == productID } })
+        else { return nil }
+        self = b
+    }
 }
 
 // MARK: - Was das iPad anbietet
@@ -125,7 +163,7 @@ enum UFPlanCatalog {
     static let sellable: [UFPlan] = [.free, .plus, .proAI]
 
     /// Apple-Produkte, die die App laedt und anbietet
-    static var sellableProductIDs: [String] { sellable.compactMap(\.productID) }
+    static var sellableProductIDs: [String] { sellable.flatMap(\.productIDs) }
 
     /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
     static let needsProduct: Set<UFPlan> = [.proAI]
@@ -143,7 +181,7 @@ enum UFPlanCatalog {
         UFPlan.allCases.filter { p in
             guard p != current else { return true }
             guard sellable.contains(p) else { return false }
-            return !needsProduct.contains(p) || p.productID.map(loaded.contains) == true
+            return !needsProduct.contains(p) || p.productIDs.contains(where: loaded.contains)
         }
     }
 

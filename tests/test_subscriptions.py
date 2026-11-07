@@ -697,3 +697,17 @@ def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_
         conn.close()
     assert owners == sorted([ua["id"], ub["id"]]), "Zeilen von A und B bleiben bestehen"
     assert ent(hosted, ha)["quotas"]["ai_assist"]["used"] == 1
+
+
+def test_yearly_products_map_to_the_same_plan():
+    """Jahresabos (Entscheidung des Inhabers vom 07.11.2026) gelten wie der Monatstarif; Preise in der Vertragstabelle."""
+    from app import plans as P
+    assert P.plan_for_product("de.uniflow.plus.yearly") == "plus"
+    assert P.plan_for_product("de.uniflow.proai.yearly") == "pro_ai"
+    assert P.plan_for_product("de.uniflow.plus.monthly") == "plus"
+    assert P.plan_for_product("de.uniflow.free.yearly") is None
+    c = P.contract()["plans"]
+    assert (c["plus"]["price_cents_yearly"], c["pro_ai"]["price_cents_yearly"]) == (2199, 4199)
+    assert c["free"]["apple_product_id_yearly"] is None
+    for k in ("plus", "pro_ai"):
+        assert c[k]["price_cents_yearly"] < 12 * c[k]["price_cents"], k

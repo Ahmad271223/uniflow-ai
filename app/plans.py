@@ -1,7 +1,8 @@
 """StudiNow-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
 
 Entscheidung des Inhabers vom 04.11.2026 (docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free 0 EUR, Plus
-1,99 EUR, Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
+1,99 EUR, Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Seit 07.11.2026 auch jaehrlich: Plus 21,99 EUR, Pro AI
+41,99 EUR (`price_cents_yearly`, `apple_product_id_yearly`); Credits und Kontingente gelten weiter je Kalendermonat. Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
 Angleichung vom 05.11.2026 (docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md): Free ohne Community (auch kein Lesen) und ohne
 StudiNow-KI, das eigene ChatGPT darf in jedem Tarif verbunden werden (Fragen zu Folien; Schreiben erst ab Plus); Plus
 mit Community, Schreiben, eigenen Karteikarten und begrenzt Karteikarten-Stapeln von StudiNow (4/Monat); Pro AI mit
@@ -36,17 +37,20 @@ LEGACY_PLANS = {"pro_connect": "pro_ai"}
 
 PLANS: dict[str, dict] = {
     "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": "month",
-             "apple_product_id": None,
+             "apple_product_id": None, "apple_product_id_yearly": None, "price_cents_yearly": None,
              "tagline": "Studium organisieren und Unterlagen lesen"},
     "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 199, "currency": "EUR", "period": "month",
              "apple_product_id": "de.uniflow.plus.monthly",
+             "apple_product_id_yearly": "de.uniflow.plus.yearly", "price_cents_yearly": 2199,
              "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"},
     "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
                "apple_product_id": "de.uniflow.proai.monthly",
+               "apple_product_id_yearly": "de.uniflow.proai.yearly", "price_cents_yearly": 4199,
                "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},
     # nur fuer alte Zeilen (LEGACY_PLANS): Rang wie Pro AI, nicht in ORDER, nicht kaufbar, nicht sichtbar
     "pro_connect": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
                     "apple_product_id": "de.uniflow.proconnect.monthly",
+                    "apple_product_id_yearly": None, "price_cents_yearly": None,
                     "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig", "legacy": True},
 }
 
@@ -167,8 +171,9 @@ def quota_limit(plan: str, feature: str) -> int:
 
 
 def plan_for_product(product_id: str | None) -> str | None:
+    """Tarif zu einem Apple-Produkt, monatlich oder jaehrlich (Entscheidung des Inhabers vom 07.11.2026)."""
     for key, p in PLANS.items():
-        if product_id and p["apple_product_id"] == product_id:
+        if product_id and product_id in (p["apple_product_id"], p.get("apple_product_id_yearly")):
             return key
     return None
 

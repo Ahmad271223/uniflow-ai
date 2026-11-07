@@ -19,6 +19,8 @@
    "currency": "EUR",
    "period": "month",
    "apple_product_id": null,
+   "apple_product_id_yearly": null,
+   "price_cents_yearly": null,
    "tagline": "Studium organisieren und Unterlagen lesen",
    "entitlements": {
     "can_view_pdf": true,
@@ -62,6 +64,8 @@
    "currency": "EUR",
    "period": "month",
    "apple_product_id": "de.uniflow.plus.monthly",
+   "apple_product_id_yearly": "de.uniflow.plus.yearly",
+   "price_cents_yearly": 2199,
    "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests",
    "entitlements": {
     "can_view_pdf": true,
@@ -105,6 +109,8 @@
    "currency": "EUR",
    "period": "month",
    "apple_product_id": "de.uniflow.proai.monthly",
+   "apple_product_id_yearly": "de.uniflow.proai.yearly",
+   "price_cents_yearly": 4199,
    "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig",
    "entitlements": {
     "can_view_pdf": true,

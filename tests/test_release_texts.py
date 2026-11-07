@@ -74,8 +74,8 @@ def test_pro_ai_description_is_honest_and_names_no_foreign_brand():
     eigenes ChatGPT (im Build aus). Sonst sagt sie dasselbe wie die Fassung ohne Pro AI."""
     f = fields("APP-STORE.md")
     pro, plus = f["description-proai"], f["description"]
-    for s in ("StudiNow Pro AI (3,99 € pro Monat)", "100 Credits", "StudiNow-Konto (Anmelden mit Apple)",
-              "KI-Antworten können Fehler enthalten", "Ganze Vorlesung erklären", "StudiNow Plus (1,99 € pro Monat)"):
+    for s in ("StudiNow Pro AI (3,99 €/Monat oder 41,99 €/Jahr)", "100 Credits", "StudiNow-Konto (Anmelden mit Apple)",
+              "KI-Antworten können Fehler enthalten", "Ganze Vorlesung erklären", "StudiNow Plus (1,99 €/Monat oder 21,99 €/Jahr)"):
         assert s in pro, s
     assert not re.search(r"ChatGPT|OpenAI|Claude|Anthropic|\bGPT", pro)
     for s in ("FÜR STUDIERENDE IN GANZ DEUTSCHLAND", "Uni-Mail und Uni-Kalender", "Immatrikulations- oder BAföG-Bescheinigung",

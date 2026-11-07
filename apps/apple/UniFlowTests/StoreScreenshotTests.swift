@@ -805,7 +805,8 @@ final class StoreScreenshotTests: XCTestCase {
         var config = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: bundled)) as? [String: Any])
         config["subscriptionGroups"] = (config["subscriptionGroups"] as? [[String: Any]] ?? []).map { group -> [String: Any] in
             var g = group
-            g["subscriptions"] = (group["subscriptions"] as? [[String: Any]] ?? []).filter { ($0["productID"] as? String) != UFPlan.proAI.productID }
+            // beide Pro-AI-Produkte (monatlich und jaehrlich, 07.11.2026) weglassen
+            g["subscriptions"] = (group["subscriptions"] as? [[String: Any]] ?? []).filter { !UFPlan.proAI.productIDs.contains($0["productID"] as? String ?? "") }
             return g
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("shots-\(UUID().uuidString).storekit")

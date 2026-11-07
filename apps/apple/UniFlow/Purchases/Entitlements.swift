@@ -398,6 +398,8 @@ final class Entitlements: ObservableObject {
     @Published private(set) var expiresAt: Date?
     /// zur naechsten Verlaengerung vorgemerkter kleinerer Tarif (Downgrade), sonst nil
     @Published private(set) var pendingPlan: UFPlan?
+    /// Zahlweise des gekauften Abos (monatlich/jaehrlich); nil ohne Abo
+    @Published private(set) var purchasedBilling: UFBilling?
     /// verlaengert sich das gueltige Abo? false = gekuendigt, laeuft bis `expiresAt`; nil = unbekannt bzw. Free
     @Published private(set) var willRenew: Bool?
     /// Abo noch nicht geprueft (erster Abruf von currentEntitlements laeuft)
@@ -512,16 +514,19 @@ final class Entitlements: ObservableObject {
         }
         var p = UFEntitlementResolver.plan(from: entries, now: now)
         var renewal: (willAutoRenew: Bool, productID: String?)?
-        if let id = p.productID, let t = active[id] { renewal = await Self.renewal(of: t) }
+        // gueltige Transaktion des Tarifs, monatlich oder jaehrlich (UFPlan.productIDs)
+        var current = p.productIDs.lazy.compactMap { active[$0] }.first
+        if let t = current { renewal = await Self.renewal(of: t) }
         #if DEBUG
         // Startargument -UFPlan free|plus|pro_ai (alt: pro_connect = pro_ai): fester Tarif fuer Simulator-Ablaeufe ohne
         // StoreKit-Testkonfiguration
-        if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil; planIsForced = true }
+        if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil; current = nil; planIsForced = true }
         #endif
         purchasedPlan = p
         if let t = localTrial { localTrial = t.updated(now: now) }
         recompute()
-        expiresAt = p.productID.flatMap { active[$0]?.expirationDate }
+        expiresAt = current?.expirationDate
+        purchasedBilling = current.flatMap { UFBilling(productID: $0.productID) }
         willRenew = renewal?.willAutoRenew
         pendingPlan = renewal.flatMap {
             UFEntitlementResolver.pendingPlan(current: p, willAutoRenew: $0.willAutoRenew, autoRenewProductID: $0.productID)

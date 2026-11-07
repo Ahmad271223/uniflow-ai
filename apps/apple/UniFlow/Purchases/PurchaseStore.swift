@@ -35,9 +35,14 @@ final class PurchaseStore: ObservableObject {
         requestedProductIDs = productIDs
     }
 
-    func product(for plan: UFPlan) -> Product? {
-        products.first { $0.id == plan.productID }
+    /// Produkt des Tarifs in der Zahlweise (Standard monatlich); nil, wenn StoreKit es nicht geliefert hat
+    func product(for plan: UFPlan, billing: UFBilling = .monthly) -> Product? {
+        guard let id = plan.productID(billing) else { return nil }
+        return products.first { $0.id == id }
     }
+
+    /// Bietet der Store mindestens einen Tarif auch jaehrlich an? (sonst kein Umschalter auf der Tarifseite)
+    var offersYearly: Bool { UFPlan.paid.contains { product(for: $0, billing: .yearly) != nil } }
 
     /// Produkt-IDs, die der Store geliefert hat (Tarifkarten: Pro AI nur mit Produkt, `UFPlanCatalog.cards`)
     var loadedProductIDs: Set<String> { Set(products.map(\.id)) }
@@ -158,6 +163,30 @@ enum UFOfferText {
     static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
         "\(plan.name) für \(price)\(per(value: period.0, unit: period.1))"
     }
+
+    /// Ersparnis des Jahresabos gegenueber 12 Monatszahlungen in ganzen Prozent (abgerundet); nil ohne Ersparnis.
+    /// Beide Preise kommen aus StoreKit (`Product.price`), nie aus dem Code.
+    static func yearlySavingPercent(monthly: Decimal, yearly: Decimal) -> Int? {
+        let full = monthly * 12
+        guard full > 0, yearly < full else { return nil }
+        let pct = NSDecimalNumber(decimal: (full - yearly) / full * 100).doubleValue
+        let whole = Int(pct.rounded(.down))
+        return whole > 0 ? whole : nil
+    }
+
+    /// Zeile unter dem Jahrespreis: "entspricht 1,83 €/Monat, 8 % günstiger als monatlich" (Monatsbetrag aus dem
+    /// Jahrespreis im Format des Stores)
+    static func yearlyNote(perMonth: String, saving: Int?) -> String {
+        "entspricht \(perMonth)/Monat" + (saving.map { ", \($0) % günstiger als monatlich" } ?? "")
+    }
+
+    /// Knopf auf der Karte des laufenden Tarifs, wenn die andere Zahlweise gewaehlt ist
+    static func billingSwitchButton(to billing: UFBilling) -> String {
+        billing == .yearly ? "Zu jährlicher Zahlung wechseln" : "Zu monatlicher Zahlung wechseln"
+    }
+
+    /// Hinweis dazu: Apple stellt die Zahlweise erst zur naechsten Verlaengerung um
+    static let billingSwitchNote = "Gilt ab der nächsten Verlängerung, bis dahin läuft deine bisherige Zahlweise weiter."
 
     /// Kaufknopf bei laufendem Abo (Wechsel innerhalb der Abo-Gruppe); der Preis steht darueber auf der Karte
     static func switchButton(to plan: UFPlan) -> String { "Zu \(plan.name) wechseln" }

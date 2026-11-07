@@ -30,7 +30,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
         // die App selbst laedt auch hier nur, was das iPad anbietet (Plus, Pro AI)
         let app = PurchaseStore(entitlements: ent)
         await app.loadProducts()
-        XCTAssertEqual(app.products.map(\.id), UFPlanCatalog.sellableProductIDs)
+        XCTAssertEqual(Set(app.products.map(\.id)), Set(UFPlanCatalog.sellableProductIDs))
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: app.loadedProductIDs), [.free, .plus, .proAI])
     }
 

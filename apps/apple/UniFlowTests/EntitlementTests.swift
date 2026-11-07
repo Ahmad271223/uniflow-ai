@@ -19,7 +19,9 @@ final class EntitlementTests: XCTestCase {
         XCTAssertNil(UFPlan(productID: "fremd"))
         XCTAssertNil(UFPlan.free.productID)
         // das iPad bietet Plus und Pro AI an (UFPlanCatalog.sellable, Entscheidung 04.11.2026)
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
+        // je Tarif monatlich und jaehrlich (07.11.2026)
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.plus.yearly",
+                                                  "de.uniflow.proai.monthly", "de.uniflow.proai.yearly"])
         XCTAssertEqual(UFPlan.paid, [.plus, .proAI])
         XCTAssertLessThan(UFPlan.free, .plus)
         XCTAssertLessThan(UFPlan.plus, .proAI)

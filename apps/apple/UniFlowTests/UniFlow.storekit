@@ -56,6 +56,46 @@
           "referenceName": "StudiNow Pro AI monatlich",
           "subscriptionGroupID": "21500001",
           "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "21.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "6500000011",
+          "localizations": [
+            {
+              "description": "Stift, Karteikarten, Lösungen teilen",
+              "displayName": "StudiNow Plus",
+              "locale": "de"
+            }
+          ],
+          "productID": "de.uniflow.plus.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "StudiNow Plus jährlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "41.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6500000013",
+          "localizations": [
+            {
+              "description": "Alles aus Plus, KI über den StudiNow-Dienst",
+              "displayName": "StudiNow Pro AI",
+              "locale": "de"
+            }
+          ],
+          "productID": "de.uniflow.proai.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "StudiNow Pro AI jährlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription"
         }
       ]
     }
