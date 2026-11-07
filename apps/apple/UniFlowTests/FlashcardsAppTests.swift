@@ -991,7 +991,8 @@ final class FlashcardsAppTests: XCTestCase {
         let (api, rec, _) = try awaiting { try await self.seededAPI(cards: [("Frage A", "a", nil), ("Frage B", "b", "f-la")]) }
         let page = try show(gated(.plus), api: api)
         XCTAssertTrue(pump { self.shows(page.view, "Stapel öffnen: Ohne Modul") }, dump(page.view))
-        XCTAssertFalse(shows(page.view, "Lehrwoche"), "ohne Lehrwochen keine Filterzeile")
+        // seit 06.11.2026 steht "Alle · Allgemein" immer, sobald es Stapel gibt (das Teilen-Fenster nennt "Allgemein")
+        XCTAssertTrue(shows(page.view, "Allgemein, ohne Lehrwoche"), "Filterzeile mit Allgemein auch ohne Lehrwochen")
         XCTAssertTrue(tapSoon("Neuer Stapel", in: page.view), dump(page.view))
         XCTAssertTrue(pump { self.shows(page.view, "Neuer Stapel") && self.shows(page.view, "Name") }, dump(page.view))
         XCTAssertEqual(isEnabledButton("Anlegen", in: page.view), false, "ohne Namen gesperrt")

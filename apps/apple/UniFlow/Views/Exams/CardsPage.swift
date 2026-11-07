@@ -1034,7 +1034,8 @@ struct CardsPage: View {
         VStack(alignment: .leading, spacing: 0) {
             overviewBar.padding(.bottom, 14)
             // Filterzeile "Alle · Allgemein · W1 … Wn" nur mit Lehrwochen, die vorkommen
-            if !deck.weeks.isEmpty {
+            // "Alle · Allgemein" immer, sobald es Stapel gibt (das Teilen-Fenster nennt "Allgemein"); Wochen nur, wenn vorhanden
+            if !deck.stacks.isEmpty {
                 FlashcardWeekFilter(weeks: deck.weeks, selection: $weekFilter).padding(.bottom, 18)
             }
             let groups = deck.stackGroups(week: weekFilter)
@@ -1142,7 +1143,9 @@ struct CardsPage: View {
         .environment(\.ufFillsCell, true)
         // Geteilte Stapel anderer im Modul (Filter nach Woche): uebernehmen, liken, melden
         if let moduleID {
-            let sharedRows = Row.rows(deck.shared(module: moduleID, week: weekFilter).filter { $0["mine"]?.bool != true })
+            // auch die eigenen geteilten Stapel (Geraetetest 06.11.2026: "habe einen Stapel geteilt, sehe ihn nicht"),
+            // markiert mit "Von dir", ohne Uebernehmen/Melden
+            let sharedRows = Row.rows(deck.shared(module: moduleID, week: weekFilter))
             if !sharedRows.isEmpty {
                 sharedList(sharedRows).padding(.top, 12)
             }
@@ -1208,6 +1211,7 @@ struct CardsPage: View {
                 let name = sh.s("name") ?? ""
                 let adopted = sh["adopted"]?.bool ?? false
                 let liked = sh["liked_by_me"]?.bool ?? false
+                let mine = sh["mine"]?.bool ?? false
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
@@ -1215,12 +1219,18 @@ struct CardsPage: View {
                             Text(FlashcardDeck.badge(sh)).ufFont(11.5, 600).foregroundStyle(UF.text2)
                                 .padding(.horizontal, 7).padding(.vertical, 2)
                                 .background(Capsule().fill(UF.surface2))
+                            if mine {
+                                Text("Von dir").ufFont(11.5, 600).foregroundStyle(UF.accentText)
+                                    .padding(.horizontal, 7).padding(.vertical, 2)
+                                    .background(Capsule().fill(UF.accentSoft))
+                                    .accessibilityIdentifier("cards.shared.mine")
+                            }
                         }
                         Text(FlashcardDeck.sharedLine(sh)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
-                    HStack(spacing: 2) {
+                    if !mine { HStack(spacing: 2) {
                         plusOnly(UFButton(adopted ? "Übernommen" : "Übernehmen", icon: "download", kind: adopted ? .ghost : .primary, size: .small) { adopt(sh) }
                             .disabled(adopted)
                             .accessibilityLabel(adopted ? "Schon übernommen: \(name)" : "Übernehmen: \(name)"))
@@ -1234,7 +1244,7 @@ struct CardsPage: View {
                             .ufHitSlop(leading: 1)
                             .disabled(sh["reported_by_me"]?.bool == true)
                             .accessibilityLabel("Melden: \(name)")
-                    }
+                    } }
                 }
                 .padding(.vertical, 8)
                 .ufBorderBottom(row.id != rows.last?.id)
