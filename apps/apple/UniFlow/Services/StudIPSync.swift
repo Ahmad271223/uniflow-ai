@@ -186,6 +186,9 @@ final class StudIPSync: ObservableObject {
     @Published private(set) var lastSummary: String?
     /// Zahl der beendeten Abgleiche dieses App-Laufs; Seiten mit `ufReload` laden bei jeder Aenderung neu
     @Published private(set) var finishedRuns = 0
+    /// Zwischenstaende eines laufenden Abgleichs (07.11.2026): Stundenplan gespeichert, neue Dateien geladen. Seiten mit
+    /// `ufReload` laden dann schon neu, statt bis zum Ende des Laufs (Ergaenzungen, Aufzeichnungen, Lernstoff) zu warten
+    @Published private(set) var stagesReady = 0
     /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
     @Published private(set) var olderFilesNote: String?
     @Published var selectedCourses: Set<String> = [] {
@@ -206,6 +209,58 @@ final class StudIPSync: ObservableObject {
         static let sessionExpired = "uniflow.studip.sessionExpired"
         /// ein Lauf nur mit Listen fand Dateien zum Laden; weg nach einem vollen Lauf ohne Fehler
         static let downloadsPending = "uniflow.studip.downloadsPending"
+        /// Die flache Ordnerliste (`courses/{id}/folders`) stimmte beim letzten Vergleich mit dem Ordnerbaum ueberein:
+        /// Dateilisten ohne Unterordner-Abfrage je Ordner (`StudIPFolderMode.flat`). Weg bei der ersten Abweichung
+        static let flatFolders = "uniflow.studip.flatFolders"
+        /// Letzter Vergleich flache Liste gegen Baum (ein Kurs je Vergleich, reihum, `folderCheckInterval`)
+        static let folderCheckAt = "uniflow.studip.folderCheckAt"
+        static let folderCheckIndex = "uniflow.studip.folderCheckIndex"
+        /// Letzter Lauf mit Aufzeichnungen und Lernstoff (`slowPartsInterval`)
+        static let slowPartsAt = "uniflow.studip.slowPartsAt"
+    }
+
+    /// Aufzeichnungen (Opencast) und Lernstoff (Courseware, Wiki, Forum) fragen je Kurs mehrere Seiten ab; beim Oeffnen
+    /// der App (hoechstens alle 30 Minuten) reicht das alle zwei Stunden
+    static let slowPartsInterval: TimeInterval = 2 * 3600
+
+    static func slowPartsDue(last: Date?, now: Date) -> Bool {
+        last.map { now.timeIntervalSince($0) >= slowPartsInterval || $0 > now } ?? true
+    }
+
+    /// Der naechste Lauf holt Aufzeichnungen und Lernstoff sofort (ohne die zwei Stunden abzuwarten)
+    func refreshSlowPartsNextRun() { defaults.removeObject(forKey: Keys.slowPartsAt) }
+
+    /// Wie oft ein Lauf mit bestaetigter flacher Ordnerliste einen Kurs doch ueber den Baum liest (reihum): so faellt
+    /// eine Abweichung der flachen Liste spaetestens nach einem halben Tag auf
+    static let folderCheckInterval: TimeInterval = 12 * 3600
+    /// Kurse, deren Dateilisten zugleich gelesen werden (die Anfragen selbst begrenzt `StudIPClient.maxConcurrent`)
+    static let parallelCourses = 4
+
+    /// Ordnerlesart je Kurs fuer diesen Lauf: Baum, bis die flache Liste bestaetigt ist; danach flach, nur der faellige
+    /// Vergleichskurs (reihum, hoechstens alle `folderCheckInterval`) ueber den Baum. Rueckgabe: Lesart je Kurs und
+    /// Index des Vergleichskurses (nil: kein Vergleich faellig)
+    static func folderModes(count: Int, trusted: Bool, lastCheck: Date?, checkIndex: Int, now: Date) -> (modes: [StudIPFolderMode], checked: Int?) {
+        guard count > 0 else { return ([], nil) }
+        guard trusted else { return (Array(repeating: .walk, count: count), nil) }
+        var modes = [StudIPFolderMode](repeating: .flat, count: count)
+        guard lastCheck.map({ now.timeIntervalSince($0) >= folderCheckInterval }) ?? true else { return (modes, nil) }
+        let i = ((checkIndex % count) + count) % count
+        modes[i] = .walk
+        return (modes, i)
+    }
+
+    /// Fortschritt der Downloads ("3 neue Dateien" statt nur "Stud.IP-Abgleich")
+    static func downloadStep(_ i: Int, of n: Int, name: String) -> String {
+        n == 1 ? "1 neue Datei wird geladen: \(name)" : "\(n) neue Dateien – lade \(i + 1) von \(n): \(name)"
+    }
+
+    /// Kurzer Stand nach den Dateien fuer die weiteren Schritte
+    static func filesNote(loaded: Int) -> String {
+        switch loaded {
+        case 0: return "Keine neuen Dateien"
+        case 1: return "1 neue Datei"
+        default: return "\(loaded) neue Dateien"
+        }
     }
 
     /// Wie ein Lauf endete (Hintergrund: Stand und Benachrichtigung)
@@ -749,41 +804,94 @@ final class StudIPSync: ObservableObject {
             // ausgewaehlte Kurse frueherer Semester: nicht eingeplant (ihre Dateien kommen erst in Stufe d)
             let older = selectedNow.filter { !active.contains($0.id) }.count
             let fileCourses = olderOnly ? olderFiles : chosen
+            // Erstes Einrichten (noch kein voller Lauf, 07.11.2026): Kurse und Stundenplan zuerst zeigen, die Dateien
+            // danach. Spaetere Laeufe: Dateilisten zuerst (neue Dateien sind das, worauf man wartet), dann der Stundenplan
+            var timetable = StudIPScheduleSync.Outcome()
+            let scheduleFirst = !olderOnly && lastRun == nil
+            if scheduleFirst {
+                try Task.checkCancellation()
+                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+                stagesReady += 1                              // Stundenplan und Kurse schon zeigen
+            }
             var remote: [StudIPFile] = []
-            var wanted: [StudIPFile] = []
+            var wantedByCourse: [Int: [StudIPFile]] = [:]
             var checked = Set<String>()
             var unreadable: [Error] = []
             /// Unterordner, die Stud.IP nicht zeigt (403/404), und Kurse mit solchen Ordnern (nicht vollstaendig gelesen)
             var skippedFolders = 0, partial = Set<String>()
-            for (i, c) in fileCourses.enumerated() {
-                try Task.checkCancellation()
-                phase = .running("Dateiliste \(i + 1) von \(fileCourses.count): \(c.title)")
-                let files: [StudIPFile]
-                do {
-                    let listing = try await client.fileListing(courseID: c.id)
-                    files = listing.files
-                    skippedFolders += listing.unreadableFolders
-                    if listing.unreadableFolders > 0 { partial.insert(c.id) }
-                } catch let e as StudIPError where e.affectsOnlyItem {
-                    // wie run_sync ("Fehler bei Dateiliste"): naechster Kurs; seine Dateien bleiben unveraendert
-                    unreadable.append(e)
-                    continue
-                } catch let e as URLError where !Self.endsRun(e) {
-                    // z. B. Zeitueberschreitung oder WLAN-Wechsel bei diesem Kurs: wie oben, die uebrigen Kurse, ihre
-                    // Downloads und der Stundenplan kommen trotzdem
-                    unreadable.append(e)
-                    continue
+            // Tempo (07.11.2026): bis zu `parallelCourses` Kurse zugleich; bestaetigte flache Ordnerliste statt der
+            // Unterordner-Abfrage je Ordner (`folderModes`). Jede Dateiliste jedes Ordners wird weiter gelesen: neue,
+            // geaenderte und entfernte Dateien fallen bei jedem Lauf auf; Dateien vergleicht `storeFiles` nur ueber
+            // Kennung, chdate und Groesse, geladen wird nur, was neu, geaendert oder lokal fehlend ist
+            let plan = Self.folderModes(count: fileCourses.count, trusted: defaults.bool(forKey: Keys.flatFolders),
+                                        lastCheck: defaults.object(forKey: Keys.folderCheckAt) as? Date,
+                                        checkIndex: defaults.integer(forKey: Keys.folderCheckIndex), now: Date())
+            var checks: [StudIPFolderCheck] = []
+            var done = 0
+            if !fileCourses.isEmpty { phase = .running("Dateien werden geprüft: 0 von \(fileCourses.count) \(fileCourses.count == 1 ? "Kurs" : "Kursen")") }
+            try await withThrowingTaskGroup(of: (Int, Result<StudIPFileListing, Error>).self) { group in
+                var next = 0
+                func addNext() {
+                    guard next < fileCourses.count else { return }
+                    let i = next, id = fileCourses[i].id, mode = plan.modes[i]
+                    next += 1
+                    group.addTask {
+                        do { return (i, .success(try await client.fileListing(courseID: id, mode: mode))) } catch { return (i, .failure(error)) }
+                    }
                 }
-                remote += files
-                checked.insert(c.id)
-                // je Kurs sofort in die Datenbank: ein spaeterer Fehler verliert die schon gelesenen Kurse nicht
-                let complete = !partial.contains(c.id)
-                wanted += try await db.transaction {
-                    try StudIPLibrary.storeLinks($0, courseID: c.id, files, complete: complete, now: started)
-                    // Videodateien zusaetzlich als Aufzeichnungen (Stream und Laden auf Wunsch, `OpencastStore`)
-                    try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
-                    return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
+                for _ in 0..<Self.parallelCourses { addNext() }
+                while let (i, result) = try await group.next() {
+                    try Task.checkCancellation()
+                    let c = fileCourses[i]
+                    done += 1
+                    phase = .running("Dateien werden geprüft: \(done) von \(fileCourses.count) \(fileCourses.count == 1 ? "Kurs" : "Kursen")")
+                    let files: [StudIPFile]
+                    switch result {
+                    case .success(let listing):
+                        files = listing.files
+                        skippedFolders += listing.unreadableFolders
+                        if listing.unreadableFolders > 0 { partial.insert(c.id) }
+                        checks.append(listing.folderCheck)
+                    case .failure(let e as StudIPError) where e.affectsOnlyItem:
+                        // wie run_sync ("Fehler bei Dateiliste"): naechster Kurs; seine Dateien bleiben unveraendert
+                        unreadable.append(e)
+                        addNext()
+                        continue
+                    case .failure(let e as URLError) where !Self.endsRun(e):
+                        // z. B. Zeitueberschreitung oder WLAN-Wechsel bei diesem Kurs: wie oben, die uebrigen Kurse, ihre
+                        // Downloads und der Stundenplan kommen trotzdem
+                        unreadable.append(e)
+                        addNext()
+                        continue
+                    case .failure(let e):
+                        throw e                                   // abgelaufen, kein Netz, Anfragegrenze, Abbruch
+                    }
+                    addNext()
+                    remote += files
+                    checked.insert(c.id)
+                    // je Kurs sofort in die Datenbank: ein spaeterer Fehler verliert die schon gelesenen Kurse nicht
+                    let complete = !partial.contains(c.id)
+                    wantedByCourse[i] = try await db.transaction {
+                        try StudIPLibrary.storeLinks($0, courseID: c.id, files, complete: complete, now: started)
+                        // Videodateien zusaetzlich als Aufzeichnungen (Stream und Laden auf Wunsch, `OpencastStore`)
+                        try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
+                        return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
+                    }
                 }
+            }
+            // Downloads in der Reihenfolge der Kurse (aktuelles Semester zuerst), nicht in der Reihenfolge der Antworten
+            let wanted = wantedByCourse.sorted { $0.key < $1.key }.flatMap(\.value)
+            // Vergleich flache Ordnerliste gegen Baum: eine Abweichung schaltet die flache Liste ab, eine Bestaetigung an
+            if checks.contains(.mismatch) {
+                setFlag(Keys.flatFolders, false)
+            } else if checks.contains(.confirmed) {
+                // gerade erst bestaetigt (alle Kurse ueber den Baum gelesen): das gilt als Vergleich
+                if !defaults.bool(forKey: Keys.flatFolders) { defaults.set(Date(), forKey: Keys.folderCheckAt) }
+                setFlag(Keys.flatFolders, true)
+            }
+            if let i = plan.checked, checked.contains(fileCourses[i].id) {
+                defaults.set(Date(), forKey: Keys.folderCheckAt)
+                defaults.set(i + 1, forKey: Keys.folderCheckIndex)
             }
             // kein einziger Kurs lesbar (z. B. Stud.IP gestoert): Fehlerlauf statt "0 neue Dateien"
             if let first = unreadable.first, unreadable.count == fileCourses.count { throw first }
@@ -795,10 +903,10 @@ final class StudIPSync: ObservableObject {
             }
             // Stundenplan aus Stud.IP (S5) gleich nach den Dateilisten, vor den Downloads: wer die App oeffnet, sieht
             // seine Woche sofort (`SyncOrder` Stufe a); Fehler dort brechen den Datei-Abgleich nicht ab
-            var timetable = StudIPScheduleSync.Outcome()
-            if !olderOnly {
+            if !olderOnly && !scheduleFirst {
                 try Task.checkCancellation()
                 timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+                stagesReady += 1
             }
             // Videodateien laedt der Abgleich nicht (Entscheidung 7: grosse Dateien nur auf Wunsch); sie stehen bei den
             // Aufzeichnungen mit "Abspielen" (Stream) und "Laden"
@@ -815,7 +923,7 @@ final class StudIPSync: ObservableObject {
             for (i, f) in toLoad.enumerated() {
                 try Task.checkCancellation()
                 guard DeviceStorage.fits(Int64(f.size), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
-                phase = .running("Lade \(i + 1) von \(toLoad.count): \(f.name)")
+                phase = .running(Self.downloadStep(i, of: toLoad.count, name: f.name))
                 let rel = StudIPImport.relativePath(for: f)
                 do {
                     try await downloads.load(StudIPLibrary.fileRow(f, base: Self.base), to: rel, db: db, clock: clock) { part in
@@ -843,6 +951,9 @@ final class StudIPSync: ObservableObject {
                 loaded += 1
             }
             await refreshEntries()                            // Dateien schon zeigen, waehrend Ergaenzungen laden
+            if !olderOnly { stagesReady += 1 }
+            /// ehrlicher Stand fuer die weiteren Schritte ("3 neue Dateien · Aufzeichnungen …")
+            let note = Self.filesNote(loaded: loaded)
             // Kurse frueherer Semester mit vollstaendiger Liste und allen Dateien: der naechste Abgleich fragt sie nicht
             // erneut ab (alte Semester aendern sich kaum; "Dateien laden" holt sie wieder)
             let olderDone = scope == .full
@@ -864,6 +975,7 @@ final class StudIPSync: ObservableObject {
             let readyAt = clock.nowISO
             _ = try? await db.transaction { try SyncOrder.markCurrentReady($0, now: readyAt) }
             // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden, Brett, Blubber (StudIPExtrasSync)
+            phase = .running(note + " · Neuigkeiten werden geladen …")
             let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: chosen)
             try Task.checkCancellation()
             // Lehrende und Kontakte (StudIPLecturers, 06.11.2026): erst nach Stufe (a), nur im vollen Lauf, je Kurs hoechstens
@@ -874,11 +986,17 @@ final class StudIPSync: ObservableObject {
             // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
             // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen, im
             // kurzen Hintergrundlauf auch nicht (eine Seite je Kurs sprengte die rund 30 Sekunden)
-            let rec = timetable.sessionExpired || scope == .lists ? nil
-                : await recordings.refresh(client: client, courses: chosen) { phase = .running($0) }
+            // Aufzeichnungen und Lernstoff (viele Anfragen je Kurs, aendern sich selten binnen Minuten) hoechstens alle
+            // `slowPartsInterval` (07.11.2026); Dateien, Stundenplan und Nachrichten kommen bei jedem Lauf
+            let slowDue = Self.slowPartsDue(last: defaults.object(forKey: Keys.slowPartsAt) as? Date, now: Date())
+            let rec = timetable.sessionExpired || scope == .lists || !slowDue ? nil
+                : await recordings.refresh(client: client, courses: chosen) { phase = .running(note + " · " + $0) }
             // Lernstoff aus Stud.IP (Courseware-Fristen, Courseware, Wiki, Forum; StudIPTextsSync), nur im vollen Lauf
-            let texts = timetable.sessionExpired || rec?.sessionExpired == true || scope == .lists ? nil
-                : await StudIPTextsSync(host: host).run(client: client, courses: chosen) { phase = .running($0) }
+            let texts = timetable.sessionExpired || rec?.sessionExpired == true || scope == .lists || !slowDue ? nil
+                : await StudIPTextsSync(host: host).run(client: client, courses: chosen) { phase = .running(note + " · " + $0) }
+            if rec != nil, texts != nil, rec?.sessionExpired != true, texts?.sessionExpired != true {
+                defaults.set(Date(), forKey: Keys.slowPartsAt)
+            }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
             let linkCount = remote.filter { $0.linkURL != nil }.count
             let waiting = download.count - toLoad.count

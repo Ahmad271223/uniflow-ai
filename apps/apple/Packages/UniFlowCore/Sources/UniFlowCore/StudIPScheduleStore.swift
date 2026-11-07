@@ -260,31 +260,55 @@ public enum StudIPScheduleStore {
                 return d
             }
         }
-        for (i, c) in courses.enumerated() {
-            do {
-                let read = try await client.courseEventsRead(courseID: c.id)
-                d.events[c.id] = read.events
-                if !read.unreadableIDs.isEmpty { d.keptEvents[c.id] = Set(read.unreadableIDs) }
-                if !read.complete { d.incompleteCourses.insert(c.id) }
-                d.unreadable += read.unreadable
-            } catch StudIPError.sessionExpired {
-                d.sessionExpired = true
-                break
-            } catch {
-                d.failedCourses.append(c.id)
-                if stopsFetch(error) {
-                    d.unreachable = true
-                    d.failedCourses += courses[(i + 1)...].map(\.id)
-                    break
+        // Termine und Ankuendigungen je Kurs: bis zu `parallelCourses` Kurse zugleich (Tempo, 07.11.2026; die Anfragen
+        // selbst begrenzt der Client). Ausgewertet wird in Kursreihenfolge wie vorher nacheinander: nach abgelaufener
+        // Sitzung oder einem Netzfehler zaehlt kein spaeterer Kurs mehr
+        var start = 0
+        outer: while start < courses.count {
+            let chunk = Array(courses[start..<min(start + parallelCourses, courses.count)])
+            let reads = await withTaskGroup(of: (Int, Result<StudIPCourseEvent.Read, Error>, [JSONValue]?).self) { group in
+                for (k, c) in chunk.enumerated() {
+                    group.addTask {
+                        let read: Result<StudIPCourseEvent.Read, Error>
+                        do { read = .success(try await client.courseEventsRead(courseID: c.id)) } catch { read = .failure(error) }
+                        // Ankuendigungen je Kurs wie in run_sync, unabhaengig von den Terminen: ein Fehler laesst den
+                        // Bestand des Kurses stehen
+                        let news = try? await client.courseNews(courseID: c.id)
+                        return (k, read, news)
+                    }
                 }
+                var out = [(Result<StudIPCourseEvent.Read, Error>, [JSONValue]?)?](repeating: nil, count: chunk.count)
+                for await (k, r, n) in group { out[k] = (r, n) }
+                return out.compactMap { $0 }
             }
-            // Ankuendigungen je Kurs wie in run_sync, unabhaengig von den Terminen: eine Ergaenzung ("Ankuendigungen
-            // nicht gelesen"), ein Fehler laesst den Bestand des Kurses stehen; Abbruch und abgelaufene Sitzung
-            // bemerkt der naechste Kurs
-            if let news = try? await client.courseNews(courseID: c.id) { d.news[c.id] = news }
+            for (k, (result, news)) in reads.enumerated() {
+                let i = start + k, c = courses[i]
+                switch result {
+                case .success(let read):
+                    d.events[c.id] = read.events
+                    if !read.unreadableIDs.isEmpty { d.keptEvents[c.id] = Set(read.unreadableIDs) }
+                    if !read.complete { d.incompleteCourses.insert(c.id) }
+                    d.unreadable += read.unreadable
+                case .failure(StudIPError.sessionExpired):
+                    d.sessionExpired = true
+                    break outer
+                case .failure(let error):
+                    d.failedCourses.append(c.id)
+                    if stopsFetch(error) {
+                        d.unreachable = true
+                        d.failedCourses += courses[(i + 1)...].map(\.id)
+                        break outer
+                    }
+                }
+                if let news { d.news[c.id] = news }
+            }
+            start += chunk.count
         }
         return d
     }
+
+    /// Kurse, deren Termine zugleich gelesen werden
+    static let parallelCourses = 4
 
     /// Fehler, nach denen weitere Anfragen sinnlos sind: kein Netz, Server nicht erreichbar oder haengt (Zeitlimit),
     /// Abbruch der Aufgabe, Anfragegrenze des Durchgangs erreicht

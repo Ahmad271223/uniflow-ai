@@ -517,6 +517,7 @@ private struct UFReloadModifier: ViewModifier {
             .onChange(of: router.reloadToken) { _, _ in Task { await action() } }
             .onChange(of: shell.reloadToken) { _, _ in Task { await action() } }
             .onChange(of: studip.finishedRuns) { _, _ in Task { await action() } }
+            .onChange(of: studip.stagesReady) { _, _ in Task { await action() } }     // Zwischenstand des Abgleichs
             .onReceive(hildesheimRuns) { _ in Task { await action() } }
             .onReceive(hshRuns) { _ in Task { await action() } }
     }

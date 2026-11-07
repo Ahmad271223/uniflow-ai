@@ -163,6 +163,11 @@ public struct StudIPFile: Sendable, Equatable, Codable {
 public struct StudIPFileListing: Sendable, Equatable {
     public var files: [StudIPFile] = []
     public var unreadableFolders = 0
+    /// Vergleich der flachen Ordnerliste (`courses/{id}/folders`) mit dem Ordnerbaum, den der Lauf ueber die
+    /// Unterordner gelesen hat (nur `StudIPFolderMode.walk`); bestimmt, ob spaetere Laeufe die flache Liste nehmen
+    public var folderCheck: StudIPFolderCheck = .inconclusive
+    /// Gelesen ueber die flache Ordnerliste (ohne Unterordner-Abfrage je Ordner)
+    public var usedFlatList = false
 
     public init(files: [StudIPFile] = [], unreadableFolders: Int = 0) {
         self.files = files
@@ -170,8 +175,31 @@ public struct StudIPFileListing: Sendable, Equatable {
     }
 }
 
-/// Nur lesender Zugriff auf die Stud.IP-JSON:API. Anfragen laufen nacheinander mit kurzer Pause, damit der
-/// Abgleich die Hochschule nicht staerker belastet als ein Mensch, der durch die Ordner klickt.
+/// Wie die Dateiliste eines Kurses ihre Ordner findet (Tempo des Abgleichs, 07.11.2026)
+public enum StudIPFolderMode: Sendable, Equatable {
+    /// Ordnerbaum wie bisher: je Ordner Dateien und Unterordner (1 + 2 Anfragen je Ordner); vergleicht dabei den Baum
+    /// mit der flachen Ordnerliste (`StudIPFileListing.folderCheck`)
+    case walk
+    /// Ordner aus der flachen Liste `courses/{id}/folders` (Beziehung `parent`, Stud.IP-Doku): nur die Dateien je Ordner
+    /// (1 + 1 Anfrage je Ordner). Nur, wenn ein frueherer Lauf die flache Liste am Baum bestaetigt hat; passt die Liste
+    /// nicht zusammen (Elternordner fehlt, keine Wurzel, keine Beziehung), liest der Kurs wie `walk`
+    case flat
+}
+
+/// Ergebnis des Vergleichs flache Ordnerliste gegen Ordnerbaum
+public enum StudIPFolderCheck: Sendable, Equatable {
+    /// nichts zu sagen (kein Unterordner im Kurs oder nicht verglichen)
+    case inconclusive
+    /// jeder Ordner des Baums steht mit demselben Elternordner in der flachen Liste, und jede gelesene Unterordnerliste
+    /// stimmt mit der flachen ueberein
+    case confirmed
+    /// Abweichung: spaetere Laeufe lesen weiter den Baum
+    case mismatch
+}
+
+/// Nur lesender Zugriff auf die Stud.IP-JSON:API. Jede Anfrage mit kurzer Pause; seit 07.11.2026 (Tempo des Abgleichs)
+/// hoechstens `maxConcurrent` Anfragen zugleich (Standard 4) statt streng nacheinander, damit der Abgleich die Hochschule
+/// massvoll belastet, aber nicht jede Ordnerliste auf die vorige wartet. Wer nacheinander fragt, merkt keinen Unterschied.
 public actor StudIPClient {
     public let base: URL
     let transport: StudIPTransport
@@ -180,15 +208,33 @@ public actor StudIPClient {
     /// Downloads: abgerissene Verbindungen wiederholen wie `stream_download` (dieselbe Regel wie fuer Learnweb)
     private let retry: UniRetry
     public private(set) var requestCount = 0
+    /// Anfragen zugleich (Abgleich: Dateilisten mehrerer Kurse und Ordner)
+    public static let defaultConcurrency = 4
+    private let maxConcurrent: Int
+    private var inFlight = 0
+    private var waiting: [CheckedContinuation<Void, Never>] = []
 
     static let jsonAPI = "application/vnd.api+json"
 
-    public init(base: URL, transport: StudIPTransport, pauseMillis: UInt64 = 250, maxRequests: Int = 1500, retry: UniRetry = UniRetry()) {
+    public init(base: URL, transport: StudIPTransport, pauseMillis: UInt64 = 250, maxRequests: Int = 1500, retry: UniRetry = UniRetry(),
+                maxConcurrent: Int = StudIPClient.defaultConcurrency) {
         self.base = base
         self.transport = transport
         self.pauseNanos = pauseMillis * 1_000_000
         self.maxRequests = maxRequests
         self.retry = retry
+        self.maxConcurrent = max(1, maxConcurrent)
+    }
+
+    /// Platz fuer eine Anfrage (hoechstens `maxConcurrent` zugleich); ein freiwerdender Platz geht direkt an den
+    /// naechsten Wartenden
+    private func acquireSlot() async {
+        if inFlight < maxConcurrent { inFlight += 1; return }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    private func releaseSlot() {
+        if waiting.isEmpty { inFlight -= 1 } else { waiting.removeFirst().resume() }
     }
 
     // MARK: Anfragen
@@ -235,18 +281,22 @@ public actor StudIPClient {
                          _ call: (URL) async throws -> HTTPReply) async throws -> HTTPReply {
         var attempt = 0
         while true {
-            guard requestCount < maxRequests else { throw StudIPError.requestLimit }
-            if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
-            requestCount += 1
+            await acquireSlot()
             let failure: Error
             do {
-                let reply = try await call(try url(pathOrLink))
-                if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
-                if anyStatus || (200..<300).contains(reply.status) { return reply }
-                guard mode == .status else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
-                failure = StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink))
-            } catch let e as URLError where mode == .transport {
-                failure = e
+                defer { releaseSlot() }
+                guard requestCount < maxRequests else { throw StudIPError.requestLimit }
+                if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
+                requestCount += 1
+                do {
+                    let reply = try await call(try url(pathOrLink))
+                    if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
+                    if anyStatus || (200..<300).contains(reply.status) { return reply }
+                    guard mode == .status else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
+                    failure = StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink))
+                } catch let e as URLError where mode == .transport {
+                    failure = e
+                }
             }
             attempt += 1
             guard attempt < max(1, retry.attempts), UniRetry.isTransient(failure), !Task.isCancelled else { throw failure }
@@ -380,15 +430,26 @@ public actor StudIPClient {
     /// Dateien eines Kurses ueber den Ordnerbaum, alle Seiten (`links.next`). Ein Unterordner, den Stud.IP mit 403 oder
     /// 404 ablehnt (z. B. nur fuer Lehrende), wird uebersprungen und gezaehlt; der Rest des Kurses wird weiter gelesen
     /// (wie `if fr.ok` in fetch_folder_paths). Wurzelordner, abgelaufene Sitzung, Netz und andere Fehler wie bisher.
-    public func fileListing(courseID: String) async throws -> StudIPFileListing {
+    /// `mode` (07.11.2026): `.walk` liest den Baum (je Ordner Dateien und Unterordner) und vergleicht ihn mit der flachen
+    /// Ordnerliste; `.flat` nimmt die Ordner aus der flachen Liste und fragt je Ordner nur die Dateien. Beide lesen bei
+    /// jedem Lauf die Dateiliste jedes Ordners (neue, geaenderte und entfernte Dateien fallen also immer auf); nur die
+    /// Unterordner-Abfragen entfallen. Die Ordner einer Ebene laufen gleichzeitig (Grenze `maxConcurrent`).
+    public func fileListing(courseID: String, mode: StudIPFolderMode = .walk) async throws -> StudIPFileListing {
         let (tops, _) = try await list("jsonapi.php/v1/courses/\(courseID)/folders?page[limit]=200")
-        let roots = tops.filter { $0["attributes"]?["folder-type"]?.string == "RootFolder" }
-        var out = StudIPFileListing()
-        var seen = Set<String>()
-        for root in (roots.isEmpty ? Array(tops.prefix(1)) : roots) {
-            guard let id = root["id"]?.string else { continue }
-            try await walk(folderID: id, path: "", depth: 0, courseID: courseID, seen: &seen, into: &out)
+        let flat = FlatFolders(tops)
+        if mode == .flat, let flat {
+            var out = try await readLevels(courseID: courseID, roots: flat.roots.map { ($0, "") }) { id in flat.children[id, default: []] }
+            out.usedFlatList = true
+            return out
         }
+        let roots = tops.filter { $0["attributes"]?["folder-type"]?.string == "RootFolder" }
+        let rootIDs = (roots.isEmpty ? Array(tops.prefix(1)) : roots).compactMap { $0["id"]?.string }
+        // Baum: je gelesenem Ordner die Unterordner (in derselben Ebene gleichzeitig); gemerkt fuer den Vergleich
+        var subLists: [String: [String]] = [:]
+        var out = try await readLevels(courseID: courseID, roots: rootIDs.map { ($0, "") }, subfolders: { [self] id in
+            try await self.subfolders(id)
+        }, record: { subLists[$0] = $1.map(\.id) })
+        out.folderCheck = flat?.check(roots: rootIDs, subLists: subLists) ?? (subLists.values.contains { !$0.isEmpty } ? .mismatch : .inconclusive)
         return out
     }
 
@@ -398,16 +459,104 @@ public actor StudIPClient {
         return false
     }
 
-    private func walk(folderID: String, path: String, depth: Int, courseID: String,
-                      seen: inout Set<String>, into out: inout StudIPFileListing) async throws {
-        guard depth <= Self.maxFolderDepth, !seen.contains(folderID) else { return }
-        seen.insert(folderID)
+    /// Ordner aus der flachen Liste `courses/{id}/folders`: Wurzeln (`RootFolder`) und Kinder je Elternordner (Beziehung
+    /// `parent`), in der Reihenfolge der Liste. nil, wenn die Liste keinen Baum ergibt (keine Wurzel, ein Ordner ohne
+    /// Elternordner oder mit einem, der nicht in der Liste steht): dann liest der Kurs den Baum.
+    struct FlatFolders {
+        var roots: [String] = []
+        var children: [String: [(id: String, name: String)]] = [:]
+        var parent: [String: String] = [:]
+
+        init?(_ folders: [JSONValue]) {
+            var ids = Set<String>()
+            var items: [(id: String, name: String, parent: String?, root: Bool)] = []
+            for f in folders {
+                guard let id = f["id"]?.string else { return nil }
+                let root = f["attributes"]?["folder-type"]?.string == "RootFolder"
+                let p = f["relationships"]?["parent"]?["data"]?["id"]?.string
+                guard root || p != nil else { return nil }
+                ids.insert(id)
+                items.append((id, (f["attributes"]?["name"]?.string ?? "").trimmingCharacters(in: .whitespaces), p, root))
+            }
+            for i in items {
+                if i.root { roots.append(i.id); continue }
+                guard let p = i.parent, ids.contains(p) else { return nil }
+                parent[i.id] = p
+                children[p, default: []].append((i.id, i.name))
+            }
+            guard !roots.isEmpty else { return nil }
+        }
+
+        /// Stimmt der gelesene Baum mit der flachen Liste ueberein? Jede Unterordnerliste des Baums muss genau die
+        /// Kinder der flachen Liste haben (gleiche Kennungen), die Wurzeln muessen dieselben sein
+        func check(roots walkedRoots: [String], subLists: [String: [String]]) -> StudIPFolderCheck {
+            guard Set(walkedRoots) == Set(roots) else { return .mismatch }
+            for (folder, subs) in subLists where Set(subs) != Set(children[folder, default: []].map(\.id)) { return .mismatch }
+            return subLists.values.contains { !$0.isEmpty } ? .confirmed : .inconclusive
+        }
+    }
+
+    /// Unterordner eines Ordners (Kennung, Name)
+    private func subfolders(_ folderID: String) async throws -> [(id: String, name: String)] {
+        try await list("jsonapi.php/v1/folders/\(folderID)/folders?page[limit]=200").data.compactMap { s in
+            guard let id = s["id"]?.string else { return nil }
+            return (id, (s["attributes"]?["name"]?.string ?? "").trimmingCharacters(in: .whitespaces))
+        }
+    }
+
+    /// Dateien je Ordner, Ebene fuer Ebene (Ebene gleichzeitig, Ergebnis in Ordnerreihenfolge). `subfolders`: Kinder eines
+    /// gelesenen Ordners (Baum: Anfrage; flach: aus der Liste). Ordner tiefer als `maxFolderDepth` und schon gesehene
+    /// (Schleifen) nicht. 403/404 unterhalb der Wurzel: Ordner gezaehlt, weder Dateien noch Unterordner; ist nur die
+    /// Unterordnerliste gesperrt, bleiben die Dateien.
+    private func readLevels(courseID: String, roots: [(String, String)],
+                            subfolders: @escaping @Sendable (String) async throws -> [(id: String, name: String)],
+                            record: (String, [(id: String, name: String)]) -> Void = { _, _ in }) async throws -> StudIPFileListing {
+        var out = StudIPFileListing()
+        var seen = Set<String>()
+        var level = roots.filter { seen.insert($0.0).inserted }
+        var depth = 0
+        while !level.isEmpty, depth <= Self.maxFolderDepth {
+            let d = depth
+            let results = try await withThrowingTaskGroup(of: (Int, FolderRead).self) { group in
+                for (i, f) in level.enumerated() {
+                    group.addTask { (i, try await self.readFolder(f.0, path: f.1, depth: d, courseID: courseID, subfolders: subfolders)) }
+                }
+                var r = [FolderRead?](repeating: nil, count: level.count)
+                for try await (i, x) in group { r[i] = x }
+                return r.compactMap { $0 }
+            }
+            var next: [(String, String)] = []
+            for (f, r) in zip(level, results) {
+                out.files += r.files
+                out.unreadableFolders += r.unreadable
+                guard let subs = r.subs else { continue }
+                record(f.0, subs)
+                for s in subs where seen.insert(s.id).inserted {
+                    next.append((s.id, f.1.isEmpty ? s.name : "\(f.1)/\(s.name)"))
+                }
+            }
+            level = next
+            depth += 1
+        }
+        return out
+    }
+
+    /// Ein gelesener Ordner: Dateien, Unterordner (nil: nicht gelesen) und gezaehlte gesperrte Ordner
+    private struct FolderRead: Sendable {
+        var files: [StudIPFile] = []
+        var subs: [(id: String, name: String)]?
+        var unreadable = 0
+    }
+
+    private func readFolder(_ folderID: String, path: String, depth: Int, courseID: String,
+                            subfolders: @Sendable (String) async throws -> [(id: String, name: String)]) async throws -> FolderRead {
+        var out = FolderRead()
         let refs: [JSONValue]
         do {
             refs = try await list("jsonapi.php/v1/folders/\(folderID)/file-refs?page[limit]=500").data
         } catch where depth > 0 && Self.isUnreadableFolder(error) {
-            out.unreadableFolders += 1                    // Ordner gesperrt: weder Dateien noch Unterordner
-            return
+            out.unreadable = 1                            // Ordner gesperrt: weder Dateien noch Unterordner
+            return out
         }
         for r in refs {
             guard let id = r["id"]?.string else { continue }
@@ -418,19 +567,13 @@ public actor StudIPClient {
                                         mimeType: a?["mime-type"]?.string, changed: changed, isDownloadable: downloadable,
                                         folderPath: path, linkURL: downloadable ? nil : StudIPFile.linkURL(r)))
         }
-        let subs: [JSONValue]
+        guard depth < Self.maxFolderDepth else { return out }     // tiefere Ordner liest der Abgleich nicht
         do {
-            subs = try await list("jsonapi.php/v1/folders/\(folderID)/folders?page[limit]=200").data
+            out.subs = try await subfolders(folderID)
         } catch where depth > 0 && Self.isUnreadableFolder(error) {
-            out.unreadableFolders += 1                    // Dateien gelesen, Unterordner nicht
-            return
+            out.unreadable = 1                            // Dateien gelesen, Unterordner nicht
         }
-        for s in subs {
-            guard let id = s["id"]?.string else { continue }
-            let name = (s["attributes"]?["name"]?.string ?? "").trimmingCharacters(in: .whitespaces)
-            try await walk(folderID: id, path: path.isEmpty ? name : "\(path)/\(name)", depth: depth + 1,
-                           courseID: courseID, seen: &seen, into: &out)
-        }
+        return out
     }
 
     /// Inhalt einer Datei direkt nach `file` (grosse Dateien nicht im Arbeitsspeicher), wie `stream_download` in

@@ -163,6 +163,7 @@ final class RecordingSourcesAppTests: XCTestCase {
         XCTAssertEqual(link.week, 0)
 
         // zweiter Abgleich: nichts doppelt, Video weiterhin nicht geladen
+        s.refreshSlowPartsNextRun()
         await s.run(client: client(stud))
         let again = await s.recordings.blocks(moduleID: prog).flatMap(\.entries)
         XCTAssertEqual(again.count, entries.count)

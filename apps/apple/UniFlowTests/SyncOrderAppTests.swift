@@ -118,7 +118,8 @@ final class SyncOrderAppTests: XCTestCase {
         let schedule = try XCTUnwrap(stud.index { $0.hasPrefix("/jsonapi.php/v1/users/u1/schedule") })
         let download7 = try XCTUnwrap(stud.index { $0 == "/jsonapi.php/v1/file-refs/d7/content" })
         let download8 = try XCTUnwrap(stud.index { $0 == "/jsonapi.php/v1/file-refs/d8/content" })
-        XCTAssertLessThan(lists7, schedule)
+        // erstes Einrichten (07.11.2026): Kurse und Stundenplan zuerst, dann Dateilisten und Downloads
+        XCTAssertLessThan(schedule, lists7, "erster Lauf: Stundenplan vor den Dateilisten")
         XCTAssertLessThan(schedule, download7, "Stundenplan vor den Downloads")
         XCTAssertLessThan(download7, download8, "aktuelles vor naechstem Semester")
 

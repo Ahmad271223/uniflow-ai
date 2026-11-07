@@ -172,7 +172,9 @@ final class RecordingsAppTests: XCTestCase {
         XCTAssertTrue(s.recordings.states.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: s.recordings.root.path))
 
-        // zweiter Abgleich: nichts Neues, Programmierung (ohne Opencast) erst nach 7 Tagen wieder
+        // zweiter Abgleich: nichts Neues, Programmierung (ohne Opencast) erst nach 7 Tagen wieder (Aufzeichnungen sonst
+        // hoechstens alle zwei Stunden, `StudIPSync.slowPartsInterval`)
+        s.refreshSlowPartsNextRun()
         await s.run(client: client(stud))
         XCTAssertFalse(s.lastSummary?.contains("neue Aufzeichnung") ?? true, s.lastSummary ?? "")
         XCTAssertEqual(stud.requested.filter { $0.path.hasSuffix("/media/index") }.count, 3)
@@ -193,6 +195,7 @@ final class RecordingsAppTests: XCTestCase {
         // Anmeldeseite statt der Liste: Sitzung abgelaufen, die Dateien bleiben
         stud.set("/plugins.php/opencastpluginluh/media/index?cid=c-ana",
                  Self.page(#"<form action="/dispatch.php/login" method="post"><input type="password" name="password"></form>"#))
+        s.refreshSlowPartsNextRun()
         await s.run(client: client(stud))
         XCTAssertEqual(s.phase, .needsLogin)
         let files = try await dev.host.backend().context.database.scalar("SELECT COUNT(*) FROM files")?.int
