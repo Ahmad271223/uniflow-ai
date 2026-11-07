@@ -850,9 +850,11 @@ struct FlashcardWeekFilter: View {
     private func segment(_ value: Int?, _ label: String, spoken: String) -> some View {
         let on = selection == value
         return Button { selection = value } label: {
-            Text(label)
-                .ufFont(14.08, on ? 650 : 500)
-                .fixedSize()
+            // Breite immer die der fetten Schrift: beim Umschalten verrutscht nichts (Geraetetest 07.11.2026)
+            ZStack {
+                Text(label).ufFont(14.08, 650).fixedSize().hidden()
+                Text(label).ufFont(14.08, on ? 650 : 500).fixedSize()
+            }
                 .foregroundStyle(on ? UF.text : UF.text2)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 36)
@@ -1034,10 +1036,9 @@ struct CardsPage: View {
         VStack(alignment: .leading, spacing: 0) {
             overviewBar.padding(.bottom, 14)
             // Filterzeile "Alle · Allgemein · W1 … Wn" nur mit Lehrwochen, die vorkommen
-            // "Alle · Allgemein" immer, sobald es Stapel gibt (das Teilen-Fenster nennt "Allgemein"); Wochen nur, wenn vorhanden
-            if !deck.stacks.isEmpty {
-                FlashcardWeekFilter(weeks: deck.weeks, selection: $weekFilter).padding(.bottom, 18)
-            }
+            // "Alle · Allgemein" immer (das Teilen-Fenster nennt "Allgemein"), auch waehrend des Ladens: sonst tauchte die
+            // Zeile erst nach ein paar Sekunden auf und verschwand beim Neuladen kurz (Geraetetest 07.11.2026)
+            FlashcardWeekFilter(weeks: deck.weeks, selection: $weekFilter).padding(.bottom, 18)
             let groups = deck.stackGroups(week: weekFilter)
             if groups.isEmpty && !deck.stacks.isEmpty {
                 UFCard {

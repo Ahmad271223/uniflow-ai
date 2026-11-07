@@ -8,7 +8,7 @@ Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11
 
 | Zweig | Commit | Inhalt |
 |---|---|---|
-| `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (12)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
+| `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (13)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
 | `feature/iphone` | develop Build 11 gemergt (nach c26bd0f) | iPhone-Fassung auf Stand Build 11: alle Funktionen iPhone-gerecht, UniFlowTests 1289 auf iPhone- und iPad-Simulator grün; Stand und Echtgerät-Liste in `docs/IPHONE-STAND-2026-11-06.md` (auf feature/iphone). Noch nicht am echten iPhone getestet |
 | `main` | alt | nicht benutzt; Releases kommen aus develop |
 
@@ -26,8 +26,8 @@ Demo ohne Dauer-Ladehinweis.
 
 ## 3. Was der Inhaber (Ahmad) selbst tun muss
 
-1. **Build 12 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (12)` (Archiv `~/Studora-Builds/StudiNow-12.xcarchive`)
-   → Distribute App → App Store Connect → Upload. Build 5 bis 11 **nicht** einreichen. Build 12 = Build 11 + eigene geteilte Karteikarten-Stapel sichtbar („Von dir“) und Filter „Alle · Allgemein“ immer. Build 11 = Build 10 + KI-Einwilligung vor der ersten KI-Anfrage (Richtlinie 5.1.2(i)) + aktuelles PrivacyInfo.xcprivacy; App-Store-Texte in docs/release/APP-STORE.md (zwei Fassungen: Plus / mit Pro AI).
+1. **Build 13 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (13)` (Archiv `~/Studora-Builds/StudiNow-13.xcarchive`)
+   → Distribute App → App Store Connect → Upload. Build 5 bis 12 **nicht** einreichen. Build 13 = Build 11 + Wochenfilter ohne Flackern/Verrutschen + eigene geteilte Karteikarten-Stapel sichtbar („Von dir“) und Filter „Alle · Allgemein“ immer. Build 11 = Build 10 + KI-Einwilligung vor der ersten KI-Anfrage (Richtlinie 5.1.2(i)) + aktuelles PrivacyInfo.xcprivacy; App-Store-Texte in docs/release/APP-STORE.md (zwei Fassungen: Plus / mit Pro AI).
    (Upload per `xcodebuild -exportArchive` scheitert mit „Failed to Use Accounts“ – nur über den Organizer.)
 2. **CloudKit-Schema** in der CloudKit-Konsole (icloud.developer.apple.com) von Development nach **Production** übernehmen,
    sonst gehen Lösung teilen/Community im App Store nicht (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`).
@@ -58,7 +58,7 @@ Demo ohne Dauer-Ladehinweis.
 
 
 ### Stand App Store Connect (07.11.2026, im Browser ausgefüllt)
-Erledigt: Build 1.0 (12) hochgeladen und der iOS-Version 1.0 zugeordnet; Name „StudiNow – Studium & Notizen“, Untertitel,
+Erledigt: Build 1.0 (13) hochgeladen und der iOS-Version 1.0 zugeordnet; Name „StudiNow – Studium & Notizen“, Untertitel,
 Kategorien Bildung/Produktivität; Werbetext, Beschreibung (Fassung nur Plus), Schlüsselwörter, Support-/Marketing-URL,
 Copyright; Prüfhinweis (nur Plus) + Kontakt (Telefon vom Inhaber), „Anmeldung erforderlich“ aus (Demo); manuell veröffentlichen;
 Altersfreigabe (berechnet 4+, überschrieben auf 16+ wegen Mindestalter 16 in Datenschutz/Nutzungsbedingungen);

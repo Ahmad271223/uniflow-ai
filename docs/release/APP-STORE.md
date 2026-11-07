@@ -1,6 +1,6 @@
 # App Store Connect – Texte und Angaben (iPad, Mac „Designed for iPad“)
 
-**Entwurf, Stand 06.11.2026 (26.10.2026), Sprache de-DE, für StudiNow 1.0 (Build 12).** Die Felder stehen in
+**Entwurf, Stand 06.11.2026 (26.10.2026), Sprache de-DE, für StudiNow 1.0 (Build 13).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
@@ -20,7 +20,7 @@ sich nur mit einer neuen App-Version ändern).
 
 **Vor dem Einreichen prüfen – Aussagen, die vom Stand des Builds und echten Konten abhängen:**
 
-| Aussage im Text | Stand 06.11.2026 (Build 12) | Gilt nur, wenn – sonst im Text streichen |
+| Aussage im Text | Stand 06.11.2026 (Build 13) | Gilt nur, wenn – sonst im Text streichen |
 |---|---|---|
 | Universität Hildesheim (Learnweb, LSF, PLuS) | gebaut; Uni-Mail Hildesheim live bestätigt, Rest mit nachgebauten Seiten geprüft (`docs/HILDESHEIM-STAND-2026-11-05.md`) | mit einem echten Hildesheim-Konto am Gerät durchgespielt; sonst „Universität Hildesheim“, „Learnweb“, „LSF“ und „Hildesheim“ (Schlüsselwörter) streichen |
 | Hochschule Hannover (Moodle, HISinOne, QIS) | gebaut, mit nachgebauten Seiten geprüft (`docs/HSH-2026-11-05.md`) | Testliste in `docs/HSH-2026-11-05.md` mit einem echten Konto durchgespielt; sonst „Hochschule Hannover“, „Moodle“, „HISinOne“ streichen |
@@ -180,7 +180,7 @@ Erste Version von StudiNow für das iPad: Unterlagen, Termine, Nachrichten, Note
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0 (`MARKETING_VERSION`), **Build 12** (`CURRENT_PROJECT_VERSION`); Build 5 bis 11 nicht einreichen |
+| Version, Build | 1.0 (`MARKETING_VERSION`), **Build 13** (`CURRENT_PROJECT_VERSION`); Build 5 bis 12 nicht einreichen |
 | Mit Apple anmelden | Fähigkeit aktiv, an zwei Stellen: beim Start (trennt die Daten je Apple-Nutzer, bleibt auf dem Gerät) und freiwillig für das StudiNow-Konto (Einstellungen → Zugang & Darstellung → StudiNow-Konto; Token-Tausch beim Dienst). Konto löschen geht für beides in der App (Richtlinie 5.1.1(v)) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
