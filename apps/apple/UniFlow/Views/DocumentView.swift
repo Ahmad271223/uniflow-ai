@@ -168,6 +168,7 @@ struct DocumentView: View {
     @EnvironmentObject private var router: UFRouter
     /// KI ueber das ChatGPT-Abo verbunden (Vorlesungsmarker; die KI-Hilfe zeigt ohne Verbindung den Weg dorthin)
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @State private var showInfo = false
     @State private var showTrash = false
     @State private var choosingCompanion = false
@@ -940,13 +941,15 @@ struct DocumentView: View {
                 .accessibilityIdentifier("doc.lectureMarker")
             }
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
-            Button {
-                // markierter Text geht als Anhang mit (sichtbar im Eingabefeld), statt erst beim Senden gelesen zu werden
-                if !showTutor, let a = bridge.controller?.selectionAttachment() { bridge.tutorAttachment = a }
-                showTutor.toggle()
-            } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
-                .accessibilityIdentifier("doc.tutor")
-                .contextMenu { areaMenuItems }
+            if !proAIOfferHidden {                          // nur Store-Bilder der Fassung nur mit Plus blenden ihn aus
+                Button {
+                    // markierter Text geht als Anhang mit (sichtbar im Eingabefeld), statt erst beim Senden gelesen zu werden
+                    if !showTutor, let a = bridge.controller?.selectionAttachment() { bridge.tutorAttachment = a }
+                    showTutor.toggle()
+                } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
+                    .accessibilityIdentifier("doc.tutor")
+                    .contextMenu { areaMenuItems }
+            }
             Button {
                 if hasSidePane { companion = nil; solutionSide = nil }
                 else if entitlements.allows(.splitView) { choosingCompanion = true }

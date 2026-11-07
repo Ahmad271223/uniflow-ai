@@ -19,6 +19,10 @@ private struct UFDemoBarHiddenKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct UFProAIOfferHiddenKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     /// Demo-Inhalte im offenen Container aktiv (`ContainerManager.demoActive`, gesetzt in UniFlowApp)
     var ufDemoActive: Bool {
@@ -31,6 +35,13 @@ extension EnvironmentValues {
     var ufDemoBarHidden: Bool {
         get { self[UFDemoBarHiddenKey.self] }
         set { self[UFDemoBarHiddenKey.self] = newValue }
+    }
+
+    /// Nur Tests: kein "Pro AI holen" in der Seitenleiste und kein Knopf "KI-Hilfe" im Dokument (Store-Bildschirmfotos
+    /// der Fassung nur mit Plus, StoreScreenshotV11Tests: Pro AI ist dort nicht zu kaufen); die App setzt das nie
+    var ufProAIOfferHidden: Bool {
+        get { self[UFProAIOfferHiddenKey.self] }
+        set { self[UFProAIOfferHiddenKey.self] = newValue }
     }
 }
 

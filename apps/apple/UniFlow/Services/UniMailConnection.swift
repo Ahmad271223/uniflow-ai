@@ -165,10 +165,22 @@ final class UniMailConnection: ObservableObject {
 
     // MARK: Abruf
 
+    #if DEBUG
+    /// Nur Debug-Builds (Store-Bildschirmfotos, `StoreScreenshotV11Tests`): Uni-Mail auch mit Demo-Inhalten lesen,
+    /// gegen eine erfundene Nachbildung im Test (nie ein Netz). Im Release gibt es den Schalter nicht.
+    static var readsDemoForScreenshots = false
+    #endif
+
     /// Client mit den Cookies der Webansicht; nil ohne Verbindung, nach dem Anhalten oder mit Demo-Inhalten
     func client() async -> SOGoClient? {
         guard isConnected, !stopped, let user else { return nil }
-        if await host.demoActive() { return nil }
+        if await host.demoActive() {
+            #if DEBUG
+            if !Self.readsDemoForScreenshots { return nil }
+            #else
+            return nil
+            #endif
+        }
         await UniWebSessions.ready(websiteDataStore)
         let cookies = await websiteDataStore.httpCookieStore.allCookies()
         let transport = await makeTransport(websiteDataStore)

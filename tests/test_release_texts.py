@@ -148,12 +148,25 @@ def test_app_store_texts_match_current_build():
         assert "Zeitmesser" not in value and "Pomodoro" not in value, field
     for field in ("description", "description-proai", "review-notes", "review-notes-proai", "keywords", "whats-new"):
         assert f"– {len(f[field])} Zeichen" in text, field
-    shots = Path.home() / "Studora-Builds" / "appstore-screenshots"
-    names = set(re.findall(r"`((?:reserve/)?\d\d[a-z]?-[a-z-]+-light-portrait\.png)`", text))
-    assert len(names) >= 13
+    # Satz Build 11 (Fassung nur mit Plus): genau zehn Bilder ohne KI-Motiv im eigenen Ordner, je Bild auch quer;
+    # der Pruef-Screenshot (reserve/) liegt im bisherigen Satz
+    section = text[text.index("## Bildschirmfotos"):]
+    names = re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", section)
+    assert len(names) == 10 and len(set(names)) == 10, names
+    assert [n[:2] for n in names] == [f"{i:02d}" for i in range(1, 11)], names
+    for n in names:
+        assert "ki-" not in n and "wochentest" not in n, n
+    shots = Path.home() / "Studora-Builds" / "appstore-screenshots-v11"
     if shots.is_dir():
         for n in names:
             assert (shots / n).is_file(), n
+            assert (shots / n.replace("-portrait", "-landscape")).is_file(), n
+    old = Path.home() / "Studora-Builds" / "appstore-screenshots"
+    reserve = set(re.findall(r"`(reserve/\d\d[a-z]?-[a-z-]+-light-portrait\.png)`", text))
+    assert reserve
+    if old.is_dir():
+        for n in reserve:
+            assert (old / n).is_file(), n
 
 
 def test_store_texts_keep_the_universities_authoritative_and_no_tracking():

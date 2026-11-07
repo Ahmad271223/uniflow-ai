@@ -52,7 +52,18 @@ enum UFFmt {
     }
 
     /// Heute in Berlin wie das lokale Backend (`UniFlowClock.today`), nicht in der Zeitzone des Geraets
-    static func todayISO() -> String { Fmt.isoDay(Date()) }
+    static func todayISO() -> String {
+        #if DEBUG
+        if let day = todayOverride { return day }
+        #endif
+        return Fmt.isoDay(Date())
+    }
+
+    #if DEBUG
+    /// Nur Debug-Builds (Store-Bildschirmfotos am Wochenende, `StoreScreenshotV11Tests`): fester Tag fuer `todayISO`;
+    /// nil = heute. Im Release gibt es den Schalter nicht.
+    static var todayOverride: String?
+    #endif
 
     /// DAYS[(getDay()+6)%7]: Mo…So zum ISO-Datum
     static func weekdayShort(_ iso: String?) -> String {

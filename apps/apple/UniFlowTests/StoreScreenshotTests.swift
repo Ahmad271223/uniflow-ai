@@ -756,8 +756,10 @@ final class StoreScreenshotTests: XCTestCase {
 
     /// Mensa (05.11.2026, ersetzt den Stundenplan im Store-Satz): Speiseplan heute mit Preisen fuer Studierende,
     /// Kennzeichen und Naehrwerten aus dem erfundenen Plan (`MensaDemoHTTP`, kein Netz); an Wochenenden zeigt die Seite
-    /// "Geschlossen", darum an einem Werktag aufnehmen
+    /// "Geschlossen", darum an einem Werktag aufnehmen (am Wochenende gilt der naechste Montag als heute, nur Debug)
     func test10Mensa() throws {
+        UFFmt.todayOverride = StoreScreenshotV11Tests.nextServiceDay()
+        defer { UFFmt.todayOverride = nil }
         let env = try host(MainView())
         env.router.go(.mensa)
         expect(env, "Gemüse-Kichererbsen-Curry mit Reis")

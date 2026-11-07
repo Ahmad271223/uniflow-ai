@@ -706,6 +706,7 @@ struct UFSidebar: View {
     @EnvironmentObject private var account: AccountStore
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufShowPlans) private var showPlans
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @EnvironmentObject private var studip: StudIPSync
     @ObservedObject private var ent = Entitlements.shared
     @ObservedObject private var inbox = MessagesInbox.shared
@@ -838,7 +839,7 @@ struct UFSidebar: View {
             .accessibilityIdentifier("sidebar.profile")
             VStack(alignment: .leading, spacing: 8) {
                 info
-                if let title = p.upgradeTitle { upgradeButton(title) }
+                if let title = p.upgradeTitle, !(proAIOfferHidden && p.upgrade == .proAI) { upgradeButton(title) }
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))

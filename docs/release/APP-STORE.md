@@ -13,7 +13,7 @@ Sandbox-Kauf und eine KI-Frage über TestFlight geklappt haben, `docs/UEBERGABE-
 | Name, Untertitel, Werbetext, Schlüsselwörter, Neue Funktionen | gleich | gleich |
 | Beschreibung | `description` | `description-proai` |
 | Hinweise für die App-Prüfung | `review-notes` | `review-notes-proai` |
-| Bildschirmfotos 2 und 4 (KI) | durch `reserve/12-editor-…` und `reserve/11-bibliothek-…` ersetzen | wie im Store-Satz |
+| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, Abschnitt Bildschirmfotos) | bisheriger Satz mit KI-Motiven (`~/Studora-Builds/appstore-screenshots/`, `docs/release/SCREENSHOTS.md`) |
 
 Wird Pro AI später nachgereicht, Beschreibung und Prüfhinweise auf die Pro-AI-Fassung umstellen (die Beschreibung lässt
 sich nur mit einer neuen App-Version ändern).
@@ -355,24 +355,27 @@ No tracking, no ads, no third-party analytics. Not endorsed by universities; it 
 
 ## Bildschirmfotos (iPad Pro 13", 2064 × 2752)
 
-Bilder unter `~/Studora-Builds/appstore-screenshots/` (Demo-Name „Tobi“, Stand 05.11.2026), Bildunterschriften und
-Prüfung auf verbotene Inhalte: `docs/release/SCREENSHOTS.md`. Hochladen: der Satz hell und Hochformat, 10 Bilder in
-dieser Reihenfolge:
+Fassung **nur mit Plus** (Version 1.0, Build 11): Satz ohne KI unter `~/Studora-Builds/appstore-screenshots-v11/`
+(Demo-Name „Tobi“, Stand 07.11.2026), Bildunterschriften, Erzeugen und Prüfung auf verbotene Inhalte:
+`docs/release/SCREENSHOTS.md`, Abschnitt „Satz Build 11“. Hochladen: der Satz hell und Hochformat, 10 Bilder in dieser
+Reihenfolge:
 
-| Nr. | Datei | Fassung nur Plus |
+| Nr. | Datei | Motiv |
 |---|---|---|
-| 1 | `01-uebersicht-light-portrait.png` | gleich |
-| 2 | `02-ki-dokument-light-portrait.png` (KI-Hilfe, ganzes Dokument) | statt dessen `reserve/12-editor-light-portrait.png` |
-| 3 | `03-karteikarten-light-portrait.png` | gleich |
-| 4 | `04-wochentest-light-portrait.png` (KI-Wochentest) | statt dessen `reserve/11-bibliothek-light-portrait.png` |
-| 5 | `05-studienverlauf-light-portrait.png` | gleich |
-| 6 | `06-nachrichten-light-portrait.png` | gleich |
-| 7 | `07-abgeben-light-portrait.png` | gleich |
-| 8 | `08-community-light-portrait.png` | gleich |
-| 9 | `09-lernkalender-light-portrait.png` | gleich |
-| 10 | `10-mensa-light-portrait.png` | gleich |
+| 1 | `01-uebersicht-light-portrait.png` | Übersicht mit Prüfungsanmeldung |
+| 2 | `02-uni-mail-light-portrait.png` | Uni-Mail: Posteingang und geöffnete Mail |
+| 3 | `03-stundenplan-termin-light-portrait.png` | Stundenplan mit Termin-Detail (Raum mit Route, Lehrende mit E-Mail) |
+| 4 | `04-raumfinder-light-portrait.png` | Raumfinder mit Google Maps und Route |
+| 5 | `05-geteilt-light-portrait.png` | Skript und Übungsblatt nebeneinander mit Apple-Pencil-Notizen (Plus) |
+| 6 | `06-karteikarten-light-portrait.png` | Karteikarten |
+| 7 | `07-studienverlauf-light-portrait.png` | Studienverlauf mit Prüfungsanmeldung |
+| 8 | `08-bescheinigungen-light-portrait.png` | Bescheinigungen (Immatrikulationsbescheinigung) |
+| 9 | `09-mensa-light-portrait.png` | Mensa |
+| 10 | `10-community-light-portrait.png` | Community |
 
-Im Ordner liegen je Motiv vier Dateien (`-light-`/`-dark-`, `-portrait`/`-landscape`), Reserve unter `reserve/`
-(`11-bibliothek`, `11b-regal`, `12-editor`, `13-tarife`, `14-einstellungen`, `15-ki-start`, `16-stundenplan`).
-`reserve/13-tarife-light-portrait.png` ist der Prüf-Screenshot für Plus. Uni-Mail, Raumfinder, Lehrende und Bescheinigungen
-haben noch kein eigenes Bild. Nur echte App-Inhalte mit erfundenen Daten, keine Uni-Logos, keine echten Namen oder Noten.
+Im Ordner liegen je Motiv vier Dateien (`-light-`/`-dark-`, `-portrait`/`-landscape`). Kein Bild zeigt KI (keine
+KI-Hilfe, kein Wochentest, kein „Pro AI holen“). Der bisherige Satz mit den KI-Motiven (KI-Dokument, Wochentest) liegt
+unter `~/Studora-Builds/appstore-screenshots/` und gilt erst, wenn Pro AI mit eingereicht wird; dessen
+`reserve/13-tarife-light-portrait.png` bleibt der Prüf-Screenshot für Plus. Nur echte App-Inhalte mit erfundenen Daten,
+keine Uni-Logos, keine echten Namen oder Noten.
+

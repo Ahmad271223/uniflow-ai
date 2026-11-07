@@ -1,5 +1,84 @@
 # Bildschirmfotos für den App Store (iPad)
 
+## Satz Build 11 – Fassung nur mit Plus (Stand 07.11.2026, zum Hochladen)
+
+Version 1.0 wird **nur mit Plus** eingereicht (Pro AI nicht): darum zeigt dieser Satz keine KI (keine KI-Hilfe, kein
+KI-Dokument, kein Wochentest, kein Knopf „Pro AI holen“, kein KI-Knopf im Dokument), dafür die neuen Funktionen
+Uni-Mail, Termin-Detail mit Lehrenden, Raumfinder, geteilte Ansicht und Bescheinigungen. Bilder unter
+`~/Studora-Builds/appstore-screenshots-v11/` (nicht im Repository), je Motiv vier Dateien
+`<nn>-<name>-{light|dark}-{portrait|landscape}.png`, 2064 × 2752 (hoch) bzw. 2752 × 2064 (quer), PNG ohne
+Transparenz; alle 40 Dateien mit `sips -g pixelWidth -g pixelHeight` geprüft. Hochladen in App Store Connect
+(iPad 13"-Display, Deutsch): **hell, Hochformat**, die zehn Dateien in dieser Reihenfolge. Wie im bisherigen Satz
+reine App-Ansichten ohne eingebrannte Beschriftung; die Bildunterschriften sind Vorschläge (z. B. für eine spätere
+Fassung mit Rahmen).
+
+| Nr. | Datei (Hochformat, hell) | Ansicht | Bildunterschrift (Vorschlag) |
+| --- | --- | --- | --- |
+| 1 | `01-uebersicht-light-portrait.png` | Übersicht: „Guten Morgen, Tobi – lass uns gemeinsam lernen.“, Karte „Prüfungsanmeldung“ (3 offen, 1 angemeldet), Kennzahlen, Lernpaket heute; Seitenleiste mit Uni-Mail (2) und Raumfinder | Dein Tag auf einen Blick – und welche Prüfungen du jetzt anmelden solltest. |
+| 2 | `02-uni-mail-light-portrait.png` | Uni-Mail: Posteingang mit acht erfundenen Mails, daneben die Mail der erfundenen Dozentin „Prof. Dr. Anna Beispiel“ (Klausurtermin, Anhang „Probeklausur_GdI.pdf“), Antworten/Weiterleiten | Deine Uni-Mails in StudiNow: lesen, beantworten, Anhänge öffnen. |
+| 3 | `03-stundenplan-termin-light-portrait.png` | Stundenplan der Woche, Termin-Detail der Vorlesung: Raum „Hörsaal A“ mit „Route zu Fuß in Google Maps“, Lehrende „Prof. Dr. Anna Beispiel“ und „Dr. Jonas Muster“ mit E-Mail (example.org) und Sprechstunde, „Allen Lehrenden schreiben“ | Termin antippen: Raum mit Route zu Fuß und alle Lehrenden mit E-Mail. |
+| 4 | `04-raumfinder-light-portrait.png` | Raumfinder: Suche „F102“, 1 Treffer, darüber das Detail mit „In Google Maps öffnen“, „Route“, „In Apple Karten“, Gebäude, Etage, Adresse | Räume finden und mit Google Maps hinlaufen – Gebäude, Etage und Adresse. |
+| 5 | `05-geteilt-light-portrait.png` | Geteilte Ansicht (Plus): links das Skript, rechts das Übungsblatt, beide mit Apple-Pencil-Notizen (Marker, Unterstreichung, Kreis, Pfeil, Haken) | Skript und Übungsblatt nebeneinander – mit dem Apple Pencil direkt hineinschreiben. |
+| 6 | `06-karteikarten-light-portrait.png` | Karteikarten (zwei Stapel, 5 heute fällig, Lernstand) | Karteikarten je Modul im Leitner-System: richtig = seltener, falsch = morgen wieder. |
+| 7 | `07-studienverlauf-light-portrait.png` | Studienverlauf „Informatik B.Sc.“ (59 von 180 LP), Prüfungsanmeldung mit Zeiträumen und Vorschlägen | Studienverlauf mit Leistungspunkten und Prüfungsanmeldung – Zeiträume und passende Prüfungen. |
+| 8 | `08-bescheinigungen-light-portrait.png` | Bescheinigungen aus QIS: „Studienzeit- / Immatrikulationsbescheinigung / Bescheinigung nach § 9 BAföG“ (WiSe 2026/27, gespeicherte Kopie mit Stand, „Öffnen“), Enrolment Certificate, Notenspiegel deutsch/englisch, „Nicht im Portal gefunden“ | Immatrikulationsbescheinigung & Co. mit einem Tipp – gespeichert mit Datum auf deinem iPad. |
+| 9 | `09-mensa-light-portrait.png` | Mensa: Speiseplan heute (Hauptmensa), Preise für Studierende, vegan/vegetarisch, Nährwerte, Filter, Öffnungszeiten | Was gibt’s heute in der Mensa? Preise, Nährwerte, Allergene und Filter für vegan und vegetarisch. |
+| 10 | `10-community-light-portrait.png` | Community (Community des Demo-Moduls, Pseudonym, Lerngruppen) | Lösungen vergleichen – nur eigene Notizen, verschlüsselt, unter Pseudonym. |
+
+Uni-Mail (2), Lehrende (3), Raumfinder (4) und Bescheinigungen aus QIS (8) zeigen den Stand der LUH (Seitentitel
+„Uni-Mail (LUH)“ mit dem Namen der Leibniz Universität Hannover, Raum F102 im Hauptgebäude aus dem Standortfinder);
+das deckt sich mit der Beschreibung („Angebunden heute: …“). Querformat: dieselben Motive (`-landscape`), dunkel:
+`-dark-`; für den Store reicht der helle Hochformat-Satz.
+
+**Erzeugen** (Test `apps/apple/UniFlowTests/StoreScreenshotV11Tests.swift`, gleiche Technik wie unten beim bisherigen
+Satz: echte Ansichten der ganzen App-Hülle, Fenster 1032 × 1376 Punkte bei Maßstab 2):
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate
+UDID=$(xcrun simctl clone 5483AC27-A4C2-4704-91A5-46D1A9E1DF47 SN-shots)   # iPad Pro 13-inch (M5)
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-v11 \
+  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-shots -only-testing:UniFlowTests/StoreScreenshotV11Tests
+xcrun simctl delete "$UDID"
+```
+
+Ohne `UF_SCREENSHOT_DIR` prüft der Test nur, dass jede Ansicht mit den erfundenen Inhalten erscheint und dass in
+keinem Bild „KI-Hilfe“, „Pro AI“, „Wochentest“ oder „KI-Dokument“ steht. Erfundene Inhalte nur im Test bzw. nur im
+Debug-Build (Release unverändert):
+
+- Demo-Inhalte und Store-Zusätze wie beim bisherigen Satz (`DemoContent`, `installStoreExtras`, Rufname „Tobi“).
+- Uni-Mail: Nachbildung von SOGo im Speicher (`DemoSOGo` im Test: Posteingang mit acht erfundenen Mails, Adressen unter
+  example.org, Konto `tobi.muster@stud.example.org`); `UniMailConnection.readsDemoForScreenshots` (nur `#if DEBUG`)
+  erlaubt das Lesen trotz Demo-Inhalten. Lesen markiert die Mail als gelesen wie SOGo; gesendet wird nichts.
+- Lehrende: zwei erfundene Dozent/innen und eine Tutorin am Demo-Kurs (Tabelle `studip_lecturers` wie nach dem
+  Stud.IP-Abgleich).
+- Bescheinigungen: gespeicherte Liste des QIS (`settings.certificates`, erfunden) mit einer erfundenen PDF als Kopie;
+  der QIS gilt als verbunden, gelesen wird nichts (Liste frisch).
+- Raumfinder und Mensa: Testdaten des lokalen Backends (`RoomFinderDemoHTTP`, `MensaDemoHTTP`). Am Wochenende hat die
+  Mensa keinen Plan: der Test setzt dann `UFFmt.todayOverride` (nur `#if DEBUG`) auf den nächsten Montag, die Seite
+  zeigt „Heute“ mit dem Plan dieses Tages.
+- Geteilte Ansicht: über „Weitermachen wie zuvor“ (`ResumeState` mit zweitem Dokument), je Ausrichtung ein eigenes
+  Fenster (quer stünde sonst die Mitte der Seiten oben).
+- Ohne „Pro AI holen“ in der Seitenleiste und ohne den Knopf „KI-Hilfe“ im Dokument: Umgebungswert
+  `\.ufProAIOfferHidden` (nur Tests, die App setzt ihn nie).
+
+Stand der Bilder: Samstag, 07.11.2026, 01:00 Uhr (darum „Guten Morgen“, „Samstag, 7. November“, keine Mensa-Karte auf
+der Übersicht; Karte „Prüfungsanmeldung“ nur im Meldezeitraum 09.–22.11.2026 und 7 Tage davor).
+
+**Geprüft (07.11.2026):** alle zehn Motive hell hoch angesehen, dazu quer und dunkel stichprobenartig (Uni-Mail,
+Termin-Detail, Raumfinder, geteilte Ansicht, Bescheinigungen, Mensa, Übersicht): kein Platzhaltertext, kein
+„wird geladen“, kein Fehler, keine Demo-Leiste, keine KI. Namen nur erfunden („Tobi Muster“, „Prof. Dr. Anna
+Beispiel“, „Dr. Jonas Muster“, „Lena Probe“, „Prof. Demo“, Rollen wie „Prüfungsamt“), Adressen nur unter example.org.
+Echte, öffentliche Angaben: Name der LUH, Raum F102 im Hauptgebäude (Welfengarten 1) aus dem Standortfinder, Name,
+Adresse und Öffnungszeiten der Hauptmensa.
+
+**Hinweis für die App (nicht Teil der Bilder):** In der App sieht ein Plus-Kunde heute weiterhin „Pro AI holen“ in der
+Seitenleiste und den Knopf „KI-Hilfe“ im Dokument, auch wenn Pro AI nicht im Store ist. Für eine Fassung nur mit Plus
+sollte das vor dem Einreichen entschieden werden.
+
+## Bisheriger Satz (Stand 05.11.2026, mit KI-Motiven)
+
 Stand 05.11.2026 (Rufname „Tobi“, Mensa als Bild 10). Erzeugt vom Test `apps/apple/UniFlowTests/StoreScreenshotTests.swift` aus den echten Ansichten der
 App (ganze Hülle mit Seitenleiste und Kopfzeile) mit den Demo-Inhalten (`DemoContent`, erfundenes Modul „Demo:
 Grundlagen der Informatik“) und den Zusätzen nur für die Store-Bilder (`DemoContent.installStoreExtras`: erfundener
@@ -9,7 +88,7 @@ lokalen Backend, kein Netz). Bilder unter `~/Studora-Builds/appstore-screenshots
 Repository), die iPhone-Bilder unter `~/Studora-Builds/appstore-screenshots-iphone/` (Abschnitt iPhone im Worktree
 `feature/iphone`).
 
-## Größen für App Store Connect
+### Größen für App Store Connect
 
 | Gerät | Hochformat | Querformat | Pflicht |
 | --- | --- | --- | --- |
@@ -21,7 +100,7 @@ einem Fenster von 1032 × 1376 Punkten (der Test prüft die Pixelgröße jedes B
 `sips -g pixelWidth -g pixelHeight`). Hochladen: je Sprache (Deutsch) bis zu 10 Bilder je Gerätegröße, eine
 Ausrichtung je Satz; üblich ist Hochformat.
 
-## Erzeugen
+### Erzeugen
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -48,7 +127,7 @@ Die Bilder hängen vom Datum und der Uhrzeit ab (Lernpakete dieser Woche, „Gut
 am Wochenende zeigt die Seite „Geschlossen“ und die Übersicht keine Mensa-Karte). Stand der Bilder: Donnerstag,
 05.11.2026, 16:28 Uhr, darum „Hallo Tobi – lass uns gemeinsam lernen.“ statt „Guten Morgen“.
 
-## Store-Satz (Reihenfolge im Store)
+### Store-Satz (Reihenfolge im Store)
 
 Bildunterschriften höchstens zwei Zeilen, als Vorschlag für App Store Connect. Bild 2 und 4 zeigen die KI (KI-Hilfe,
 Wochentest): nur verwenden, wenn StudiNow Pro AI mit eingereicht wird (`docs/release/APP-STORE.md`, Abschnitt
@@ -99,7 +178,7 @@ Hinweise:
 - Geändert für die Bilder (wirkt in der App): Umfang der KI-Hilfe mit Segmenten nach Inhalt (`TutorScopeSegments`,
   vorher „Ganzes Doku…“ im iPad-Hochformat), „1 Uni-Termin“ statt „1 Uni-Termine“ auf der Übersicht.
 
-## Prüfung auf verbotene Inhalte
+### Prüfung auf verbotene Inhalte
 
 Jedes Bild wurde angesehen (Lauf 05.11.2026: alle 68 Dateien, Store-Satz und Reserve, hell/dunkel, hoch/quer): keine überlappenden Elemente,
 keine Debug-Leiste, kein Platzhaltertext, Pixelgröße mit `sips -g pixelWidth -g pixelHeight` geprüft (alle 2064 × 2752
