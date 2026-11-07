@@ -78,23 +78,28 @@ struct FileLoadPanel: View {
     let file: LibFile
     var onLoaded: (() async -> Void)?
     @Environment(\.studipFiles) private var studip
-    @State private var state: FileLoadState = .idle
+    /// beginnt mit "Wird geladen": beim Oeffnen laedt die Ansicht sofort selbst; vorher kurz "Noch nicht auf diesem
+    /// iPad" mit "Jetzt laden" zu zeigen, blitzte bei jedem Oeffnen auf (Befund vom iPad 07.11.2026, 23:35)
+    @State private var state: FileLoadState = .loading
     @State private var autoTried = false
 
     var body: some View {
-        FileLoadPanelContent(title: file.displayTitle, size: file.size, state: state) { Task { await load() } }
+        FileLoadPanelContent(title: file.displayTitle, size: file.size, state: state) { Task { await retry() } }
             .task(id: file.id) {
                 guard !autoTried else { return }
                 autoTried = true
-                // frueherer Fehler dieser Datei sofort zeigen, dann (automatisch beim Oeffnen) erneut versuchen
-                if let e = await studip?.downloadFailure(id: file.id) { state = .failed(e.message) }
-                await load()
+                await run()
             }
     }
 
-    private func load() async {
-        guard let studip else { state = .otherSource; return }
+    /// "Erneut versuchen" bzw. "Jetzt laden"
+    private func retry() async {
         guard state != .loading else { return }
+        await run()
+    }
+
+    private func run() async {
+        guard let studip else { state = .otherSource; return }
         state = .loading
         state = FileLoadState(await studip.loadFile(id: file.id))
         if state == .loaded { await onLoaded?() }

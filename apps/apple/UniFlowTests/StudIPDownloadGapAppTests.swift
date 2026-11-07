@@ -299,6 +299,10 @@ final class StudIPDownloadGapAppTests: XCTestCase {
         let file = LibFile(id: "v1b", name: "Beispiel_Kap_2.pdf", title: nil, kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
                            ai_title: nil, sub_label: nil, downloaded_at: nil, has_notes: nil, page_count: nil, studip_folder: "")
         let root = host(FileLoadPanel(file: file) { done += 1 }.environment(\.studipFiles, sync))
+        // erstes Bild: "Wird geladen", nie kurz "Noch nicht auf diesem iPad" mit "Jetzt laden" (Befund iPad 07.11., 23:35)
+        let first = labels(root)
+        XCTAssertFalse(first.contains("Noch nicht auf diesem iPad"), "\(first)")
+        XCTAssertFalse(first.contains("Jetzt laden"), "\(first)")
         // beim Oeffnen sofort versucht: Stud.IP gestoert, Grund sichtbar
         XCTAssertNotNil(waitFor(root, label: "Nicht geladen"), "\(labels(root))")
         XCTAssertTrue(labels(root).contains { $0.contains("500") }, "\(labels(root))")
