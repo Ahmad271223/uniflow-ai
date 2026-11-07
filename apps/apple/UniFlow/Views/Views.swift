@@ -141,6 +141,8 @@ struct LibraryView: View {
     @State private var extra: [String: LibFile] = [:]
     /// gibt es nicht (mehr)
     @State private var missing: Set<String> = []
+    /// wird gerade frisch nachgelesen (`ensureFresh`): bis dahin nichts zeigen
+    @State private var checking: Set<String> = []
     /// Dokument ist zum Abpausen eingefroren: keine Reiter darueber (Papier darf nichts antippen)
     @State private var editorTracing = false
 
@@ -162,7 +164,23 @@ struct LibraryView: View {
         return q.isEmpty ? byModule : byModule.filter { ($0.displayTitle + " " + ($0.subject ?? "") + " " + $0.name).lowercased().contains(q) }
     }
 
-    private func file(_ id: String) -> LibFile? { library?.files.first { $0.id == id } ?? extra[id] }
+    /// Eintrag der Liste; ein einzeln frisch gelesener Eintrag (`extra`) gilt vor einem veralteten Listeneintrag,
+    /// der die Datei noch als nicht geladen fuehrt
+    private func file(_ id: String) -> LibFile? {
+        let listed = library?.files.first { $0.id == id }
+        if let fresh = extra[id], fresh.downloaded_at != nil, listed?.downloaded_at == nil { return fresh }
+        return listed ?? extra[id]
+    }
+
+    /// Die Liste der Bibliothek kann veraltet sein: der Abgleich laedt Dateien, nachdem die Liste gelesen wurde.
+    /// Fuehrt sie die Datei als nicht geladen, einmal frisch nachsehen, bevor die Datei-Ansicht "nicht geladen"
+    /// erscheint (Befund iPad 08.11.2026: blitzte bei schon geladenen Dateien vor dem Dokument auf)
+    private func ensureFresh(_ id: String) async {
+        guard file(id)?.downloaded_at == nil else { checking.remove(id); return }
+        checking.insert(id)
+        await loadSingle(id)
+        checking.remove(id)
+    }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
@@ -205,7 +223,9 @@ struct LibraryView: View {
         } detail: {
             VStack(spacing: 0) {
                 if !openTabs.isEmpty, !editorTracing { tabStrip }
-                if let id = fileSelection, let f = file(id), let api = session.api {
+                if let id = fileSelection, checking.contains(id) {
+                    UF.bg
+                } else if let id = fileSelection, let f = file(id), let api = session.api {
                     if f.opensInEditor {
                         // Identitaet je Datenquelle: beim Wechsel lokal <-> Server entsteht der DocumentStore neu fuer
                         // die neue Quelle (updateAPI uebernimmt nur Verbindungen derselben Quelle)
@@ -255,6 +275,7 @@ struct LibraryView: View {
             guard let new else { return }
             if !openTabs.contains(new) { openTabs.append(new) }
             columns = .detailOnly
+            if file(new)?.downloaded_at == nil { checking.insert(new); Task { await ensureFresh(new) } }
             // wie viewDoc im Web: geoeffnet (Zuletzt, gilt als gesehen); Fehler sind egal
             let api = session.api
             Task { _ = try? await api?.value("/api/files/\(new)/opened", method: "POST", body: [:]) }
@@ -264,7 +285,7 @@ struct LibraryView: View {
             if let o = openFile {
                 // nicht in der Bibliothek (Papierkorb, abgewaehlter Kurs, Aufgabe auf eine solche Datei): einzeln laden
                 // statt "Dokument wählen" ohne Erklaerung
-                if file(o) == nil { await loadSingle(o) }
+                if file(o) == nil { await loadSingle(o) } else { await ensureFresh(o) }
                 fileSelection = o
                 // Beim Oeffnen ueber eine Route griff `.detailOnly` aus onChange noch vor dem ersten Bild nicht: die
                 // Dokumentliste lag hochkant ueber dem Dokument (und ueber der KI-Hilfe). Nach dem ersten Bild erneut.
