@@ -348,6 +348,10 @@ struct UFStudIPStatusCard: View {
                     }
                     Spacer(minLength: 8)
                     UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await studip.run() } }
+                    // schliessbar (07.11.2026); der naechste Fehler zeigt sich wieder
+                    UFButton(icon: "x", kind: .ghost, size: .small) { studip.dismissFailure() }
+                        .accessibilityLabel("Meldung schließen")
+                        .accessibilityIdentifier("studip.failure.dismiss")
                 }
             }
         }
@@ -360,9 +364,13 @@ struct UFStudIPStatusBar: View {
     let kind: UFNoServerPage.Kind
     let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var router: UFRouter
 
     var body: some View {
-        if let status = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase).status { UFStudIPStatusCard(status: status) }
+        // im laufenden Test (Fokus) keine Abgleich-Leiste: sie lag ueber dem Test und dem Zurueck (Geraetetest 07.11.2026)
+        if !router.examFocus, let status = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase).status {
+            UFStudIPStatusCard(status: status)
+        }
     }
 }
 

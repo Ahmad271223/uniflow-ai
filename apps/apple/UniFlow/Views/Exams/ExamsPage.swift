@@ -520,6 +520,10 @@ struct ExamRunPage: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if !submitted, !qs.isEmpty {
                 HStack(spacing: 18) {
+                    // Zurueck bleibt im Testlauf immer erreichbar (Geraetetest 07.11.2026: beim Scrollen war der Pfeil weg,
+                    // darueber lag die Stud.IP-Meldung); wie "Abbrechen" unten
+                    UFBackButton(compact: true) { leave() }
+                        .accessibilityIdentifier("exam.back")
                     progressBar(answered: answered, total: qs.count)
                     ExamTimer(startedAt: t.s("started_at"), minutes: t.i("duration_min") ?? 0)
                 }

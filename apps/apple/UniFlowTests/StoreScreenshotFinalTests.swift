@@ -1,4 +1,5 @@
 import PencilKit
+import StoreKitTest
 import SwiftUI
 import UIKit
 import UniFlowCore
@@ -511,5 +512,65 @@ final class StoreScreenshotFinalTests: XCTestCase {
         XCTAssertFalse(shows(env, "Geschlossen"), "Werktag mit Speiseplan:\n" + dump(env))
         env.pump(1.0)
         shoot(env, "10-mensa", tone: "light")
+    }
+
+    // MARK: - App Review (Abos in App Store Connect)
+
+    /// Bild fuer die App-Pruefung der beiden Abos: Blatt "Tarif wechseln" (Einstellungen -> Zugang & Darstellung ->
+    /// Tarif) hell, hoch und quer, Dateien `tarif-portrait.png` (2064 x 2752) und `tarif-landscape.png` (2752 x 2064).
+    /// Produkte aus der StoreKit-Testkonfiguration `UniFlow.storekit` (Plus 1,99 €, Pro AI 3,99 €), ohne Kauf: beide
+    /// Kaufknoepfe, kein Hinweis "Pro AI folgt …", nichts laedt. Die Seite ist hoeher als ein Bildschirm (zwei Spalten,
+    /// Pro AI darunter); damit alle drei Karten mit Knoepfen und "Käufe wiederherstellen" ganz im Bild sind, ist das
+    /// Fenster so gross wie die ganze Seite im Seitenverhaeltnis 3:4 bzw. 4:3 und wird auf die Pixelgroesse gerechnet.
+    func testTarifPruefung() throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "UniFlow", withExtension: "storekit"))
+        let session = try SKTestSession(contentsOf: url)
+        session.disableDialogs = true
+        session.resetToDefaultState()
+        defer { withExtendedLifetime(session) {} }
+        Entitlements.shared.setPlanForTesting(.free)
+        let env = try host(ZStack { UF.bg.ignoresSafeArea(); PlanPickerView(context: .settings, entitlements: Entitlements.shared) {} })
+        let plusButton = UFPlan.plus.name + " für 1,99", proAIButton = UFPlan.proAI.name + " für 3,99"
+        expect(env, PlanPickerView.title(.settings))
+        expect(env, UFPlan.free.name)
+        expect(env, plusButton)
+        expect(env, proAIButton)
+        expect(env, "Käufe wiederherstellen")
+        env.pump(1.0)
+        func checkPage(_ name: String) {
+            for word in [UFPlanCatalog.proAIMissingNote, "Preis zurzeit nicht verfügbar", "Tarife konnten nicht geladen werden",
+                         "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt"] {
+                XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
+            }
+            for word in [plusButton, proAIButton, "Käufe wiederherstellen"] {
+                XCTAssertTrue(shows(env, word), "\(name): „\(word)“ fehlt:\n" + dump(env))
+            }
+        }
+        checkPage("tarif")
+        guard let outDir else { return }
+        func scrollViews(_ v: UIView) -> [UIScrollView] { ((v as? UIScrollView).map { [$0] } ?? []) + v.subviews.flatMap(scrollViews) }
+        let page = try XCTUnwrap(scrollViews(env.view).max { $0.contentSize.height < $1.contentSize.height }, "keine Seite")
+        let contentHeight = page.contentSize.height
+        // Seitenverhaeltnis 3:4 bzw. 4:3 in Einheiten von k Punkten, 688 Pixel je Einheit (2064 = 3 · 688, 2752 = 4 · 688)
+        for (orientation, w, h) in [("portrait", 3.0, 4.0), ("landscape", 4.0, 3.0)] {
+            let k = max(344, ((contentHeight + 8) / h).rounded(.up))
+            let size = CGSize(width: w * k, height: h * k)
+            env.window.overrideUserInterfaceStyle = .light
+            env.window.frame = CGRect(origin: .zero, size: size)
+            env.view.frame = env.window.bounds
+            env.pump(1.5)
+            XCTAssertLessThanOrEqual(page.contentSize.height, page.bounds.height + 0.5, "\(orientation): Seite passt nicht ganz ins Bild")
+            checkPage("tarif-\(orientation)")
+            let image = StoreScreenshotTests.pageImage(env, scale: 688 / k, ink: false)
+            let file = outDir.appendingPathComponent("tarif-\(orientation).png")
+            do { try XCTUnwrap(image.pngData()).write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
+            let cg = try XCTUnwrap(image.cgImage)
+            XCTAssertEqual(CGSize(width: cg.width, height: cg.height), CGSize(width: w * 688, height: h * 688), file.lastPathComponent)
+            print("tarif-\(orientation): Seite \(contentHeight) pt, Fenster \(size), Massstab \(688 / k)")
+        }
+        env.window.overrideUserInterfaceStyle = .unspecified
+        env.window.frame = CGRect(origin: .zero, size: Self.portrait)
+        env.view.frame = env.window.bounds
+        env.pump(0.2)
     }
 }

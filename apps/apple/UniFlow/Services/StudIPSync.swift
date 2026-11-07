@@ -171,6 +171,12 @@ final class StudIPSync: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .signedOut
+
+    /// "Meldung schließen" an der Fehlermeldung (07.11.2026): Fehler ausblenden, bis der naechste Abgleich scheitert
+    func dismissFailure() {
+        guard case .failed = phase else { return }
+        phase = hasStoredSession ? .idle : .signedOut
+    }
     @Published private(set) var courses: [StudIPCourse] = []
     /// geladene Dateien aus der Datenbank (`StudIPLibrary.downloadedFiles`, das eine Register; vorher index.json)
     @Published private(set) var entries: [StudIPLibrary.DownloadedFile] = []
