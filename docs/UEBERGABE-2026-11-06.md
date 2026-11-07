@@ -16,6 +16,10 @@ Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11
   (Schlüsselbund-Marke, DeviceCheck später). Prüf-Foto der Tarifseite: `~/Studora-Builds/appstore-pruefung/tarif-portrait.png`.
 - Komplettest auf diesem Stand (53d4312) ist **grün**: pytest 1742, node 436, swift test 1249, UniFlowTests iPad 1201 (1184 ok, 17 übersprungen, 0 Fehler).
 
+**Update 07.11. (neues Konto):** Komplettest grün (pytest 1742, node 436, swift test 1249, UniFlowTests iPad 1184),
+Build 15 committet (844bc6c) und archiviert: `~/Studora-Builds/StudiNow-15.xcarchive`, Organizer geöffnet. Aufs iPad noch NICHT
+installiert (iPad war „unavailable“, nicht verbunden/gesperrt). Schritte 1–3 erledigt bis auf die iPad-Installation.
+
 **Nächste Schritte für das neue Konto:**
 1. (Erledigt, grün – nur nach neuen Änderungen wiederholen) Komplettest: `pytest -q`, `node --test tests/js/`, `swift test` (UniFlowCore), volle UniFlowTests auf iPad-Simulator (Klon von
    4495AA80-7860-4F6F-9FCD-C83CCED19021). Fehler beheben.
