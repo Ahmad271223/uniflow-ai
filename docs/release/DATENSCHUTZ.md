@@ -71,7 +71,8 @@ deinem Konto ab und meldet deine App-Store-Käufe an den Dienst. „Abmelden“ 
 
 ## 4. Systeme deiner Hochschule
 
-StudiNow liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
+StudiNow liest für dich aus den Systemen deiner Hochschule. Je nachdem, welche Hochschulen die jeweilige
+App-Version anbindet, sind das – Leibniz Universität Hannover: Stud.IP, WebSSO und
 QIS; Hochschule Hannover: Moodle, HISinOne (Campusmanagement), QIS und deren Anmeldung (SSO); Universität Hildesheim:
 Learnweb, LSF, PLuS (HISinOne) und CAS-Anmeldung. Die App auf deinem Gerät (nie unser Dienst) meldet
 sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,

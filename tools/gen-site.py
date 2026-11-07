@@ -42,7 +42,7 @@ DOMAIN = "studinow.app"
 # (Markdown, Ausgabe, Name in der Navigation, Beschreibung fuer <meta name="description">)
 PAGES = [
     ("STARTSEITE.md", "index.html", "Start",
-     "Für Studierende in ganz Deutschland, heute angebunden: LUH, Hochschule Hannover und Uni Hildesheim. StudiNow holt "
+     "Für Studierende in ganz Deutschland, heute angebunden: Leibniz Universität Hannover, weitere Hochschulen folgen. StudiNow holt "
      "Skripte, Termine und Nachrichten aufs iPad: Apple Pencil, KI-Hilfe fürs ganze Dokument, Wochentests, Karteikarten "
      "und Mensa. Ohne Tracking."),
     ("SUPPORT.md", "support.html", "Support",
@@ -197,6 +197,7 @@ main.home h3 { margin: .9rem 0 .35rem; font-size: 1.1rem; }
 .section-head p { color: var(--text-2); font-size: 1.1rem; margin: 0; }
 .systems { list-style: none; padding: 0; margin: 1.4rem 0 0; display: flex; flex-wrap: wrap; gap: .5rem; }
 .systems li { margin: 0; padding: .35rem .9rem; border: 1.5px solid var(--line-strong); border-radius: 999px; font-weight: 700; font-size: .92rem; background: var(--surface); }
+.systems li.soon { border-style: dashed; font-weight: 500; color: var(--muted); }
 .tiles { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2.6rem 2.2rem; }
 .tiles li { margin: 0; padding-top: 1.2rem; border-top: 2px solid var(--line-strong); }
 .tiles .ico { width: 1.6rem; height: 1.6rem; color: var(--accent-text); }

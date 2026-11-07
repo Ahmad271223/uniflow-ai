@@ -201,7 +201,9 @@ def test_store_texts_drop_optional_sentences_when_switches_are_false(tmp_path):
     ap = (out / "APP-STORE.md").read_text(encoding="utf-8")
     assert ap == (REL / "APP-STORE.md").read_text(encoding="utf-8")
     desc = ap.split("```text description\n")[1].split("```")[0]
-    assert "Hochschule Hannover (Moodle, HISinOne, QIS) und Universität Hildesheim (Learnweb, LSF, PLuS)" in desc
+    # 1.0 nur LUH (Entscheidung 07.11.2026); HsH und Hildesheim mit 1.0.1 wieder in der Beschreibung
+    assert "Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen." in desc
+    assert "Hochschule Hannover" not in desc and "Hildesheim" not in desc
     assert "• Speiseplan deiner Mensa" in desc
     assert "Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen" in ap and "Datenschutz: https://studinow.app/datenschutz" in ap
     assert "© 2026 IT solutions by Ahmad Fakih" in ap and "`https://studinow.app/support` (Kontakt per E-Mail support@studinow.app)" in ap

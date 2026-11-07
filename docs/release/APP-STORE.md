@@ -1,9 +1,16 @@
 # App Store Connect – Texte und Angaben (iPad, Mac „Designed for iPad“)
 
-**Entwurf, Stand 06.11.2026 (26.10.2026), Sprache de-DE, für StudiNow 1.0 (Build 16).** Die Felder stehen in
+**Entwurf, Stand 07.11.2026 (26.10.2026), Sprache de-DE, für StudiNow 1.0 (Build 16).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
+
+**1.0 nur LUH, 1.0.1 mit HsH und Hildesheim (Entscheidung des Inhabers 07.11.2026, 14:10):** Version 1.0 (Build 16)
+wird nur mit der Leibniz Universität Hannover (Stud.IP, QIS) eingereicht. Hochschule Hannover (Moodle, HISinOne) und
+Universität Hildesheim (Learnweb, LSF, PLuS) bleiben im Code, sind im Store-Build aber ausgeblendet (Build-Einstellung
+`UF_SHIPPED_UNIVERSITIES` = `luh` in `apps/apple/project.yml`, Info.plist `UFShippedUniversities`, Kern
+`UFReleaseUniversities`) und kommen 1–2 Tage später mit Update 1.0.1 – dann die Texte unten wieder um beide Hochschulen
+ergänzen (Beschreibung, Schlüsselwörter „Moodle“, „Hildesheim“, Prüfhinweise „Connected today“, Website).
 
 **Zwei Fassungen, je nachdem, ob Pro AI mit eingereicht wird** (Entscheidung des Inhabers: Pro AI erst, wenn ein
 Sandbox-Kauf und eine KI-Frage über TestFlight geklappt haben, `docs/UEBERGABE-2026-11-06.md` Abschnitt 3):
@@ -22,9 +29,9 @@ sich nur mit einer neuen App-Version ändern).
 
 | Aussage im Text | Stand 06.11.2026 (Build 16) | Gilt nur, wenn – sonst im Text streichen |
 |---|---|---|
-| Universität Hildesheim (Learnweb, LSF, PLuS) | gebaut; Uni-Mail Hildesheim live bestätigt, Rest mit nachgebauten Seiten geprüft (`docs/HILDESHEIM-STAND-2026-11-05.md`) | mit einem echten Hildesheim-Konto am Gerät durchgespielt; sonst „Universität Hildesheim“, „Learnweb“, „LSF“ und „Hildesheim“ (Schlüsselwörter) streichen |
-| Hochschule Hannover (Moodle, HISinOne, QIS) | gebaut, mit nachgebauten Seiten geprüft (`docs/HSH-2026-11-05.md`) | Testliste in `docs/HSH-2026-11-05.md` mit einem echten Konto durchgespielt; sonst „Hochschule Hannover“, „Moodle“, „HISinOne“ streichen |
-| Uni-Mail und Uni-Kalender (LUH, Uni Hildesheim) | gebaut, Lesen live bestätigt (`docs/UNI-MAIL-2026-11-05.md`) | Senden und Antworten mit einem echten Konto geklappt |
+| Universität Hildesheim (Learnweb, LSF, PLuS) | gebaut; Uni-Mail Hildesheim live bestätigt, Rest mit nachgebauten Seiten geprüft (`docs/HILDESHEIM-STAND-2026-11-05.md`). **Nicht in 1.0** (Entscheidung 07.11.2026): im Store-Build ausgeblendet, in den Texten gestrichen | erst mit 1.0.1: mit einem echten Hildesheim-Konto am Gerät durchgespielt, dann „Universität Hildesheim“, „Learnweb“, „LSF“ und „Hildesheim“ (Schlüsselwörter) wieder aufnehmen |
+| Hochschule Hannover (Moodle, HISinOne, QIS) | gebaut, mit nachgebauten Seiten geprüft (`docs/HSH-2026-11-05.md`). **Nicht in 1.0** (Entscheidung 07.11.2026): im Store-Build ausgeblendet, in den Texten gestrichen | erst mit 1.0.1: Testliste in `docs/HSH-2026-11-05.md` mit einem echten Konto durchgespielt, dann „Hochschule Hannover“, „Moodle“, „HISinOne“ wieder aufnehmen |
+| Uni-Mail und Uni-Kalender (LUH; Uni Hildesheim erst mit 1.0.1) | gebaut, Lesen live bestätigt (`docs/UNI-MAIL-2026-11-05.md`) | Senden und Antworten mit einem echten Konto geklappt |
 | Bescheinigungen (LUH QIS, HsH und Hildesheim über HISinOne/PLuS) | LUH gebaut; HsH/Hildesheim nie mit echtem Konto ausgelöst (`docs/BESCHEINIGUNGEN-2026-11-06.md`) | Text nennt keine Hochschule; mindestens LUH am Gerät geprüft |
 | Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route | nur LUH, Stud.IP live bestätigt (`docs/LEHRENDE-KONTAKTE-2026-11-06.md`, `docs/RAUMFINDER-2026-11-05.md`) | Google-Maps-Route am Gerät geöffnet |
 | Automatisch anmelden (Passwort nur im Schlüsselbund dieses iPads) | gebaut (`docs/AUTOMATISCH-ANMELDEN-2026-11-06.md`); Uni-Mail-Formular und HsH-IdP sind geraten | Absatz bleibt in jedem Fall (er beschreibt, was die App mit dem Passwort tut) |
@@ -55,19 +62,19 @@ Skripte, Termine, Uni-Mail und Noten deiner Hochschule auf dem iPad – mit Appl
 
 ## Beschreibung (max. 4000 Zeichen)
 
-### Fassung nur Plus (Pro AI nicht eingereicht) – 3984 Zeichen
+### Fassung nur Plus (Pro AI nicht eingereicht) – 3784 Zeichen
 
 ```text description
 StudiNow bringt dein Studium an einen Ort: Unterlagen, Termine, Nachrichten, Uni-Mail und Noten deiner Hochschule, dazu Stundenplan, Lernkalender, Karteikarten und Handschrift mit dem Apple Pencil – auf dem iPad.
 
 FÜR STUDIERENDE IN GANZ DEUTSCHLAND
-Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS), Hochschule Hannover (Moodle, HISinOne, QIS) und Universität Hildesheim (Learnweb, LSF, PLuS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
+Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
 
 DEINE UNI AN EINEM ORT
-• Nachrichten aus Stud.IP, Moodle und Learnweb beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
-• Uni-Mail und Uni-Kalender (Leibniz Universität Hannover, Universität Hildesheim): lesen, antworten, weiterleiten, schreiben
+• Nachrichten aus Stud.IP beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
+• Uni-Mail und Uni-Kalender: lesen, antworten, weiterleiten, schreiben
 • Notenspiegel und Bescheinigungen wie Immatrikulations- oder BAföG-Bescheinigung als PDF
-• Leibniz Universität Hannover: Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß in Google Maps oder Apple Karten
+• Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß in Google Maps oder Apple Karten
 • Termin antippen: Raum mit Route, alle Lehrenden, E-Mail an einzelne oder alle
 • Studienverlauf mit Modulkatalogen von über 300 Studiengängen, Meldezeiträume der Prüfungsanmeldung mit Erinnerung
 • Speiseplan deiner Mensa mit Preisen, Nährwerten, Allergenen und Filtern (Studentenwerk Hannover, Studierendenwerk OstNiedersachsen; ohne Gewähr)
@@ -99,7 +106,7 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – 3991 Zeichen
+### Fassung mit Pro AI – 3791 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
@@ -109,13 +116,13 @@ Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI�
 StudiNow bringt dein Studium an einen Ort: Unterlagen, Termine, Nachrichten, Uni-Mail und Noten deiner Hochschule, dazu Lernkalender, Karteikarten, Handschrift mit dem Apple Pencil und KI-Hilfe – auf dem iPad.
 
 FÜR STUDIERENDE IN GANZ DEUTSCHLAND
-Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS), Hochschule Hannover (Moodle, HISinOne, QIS) und Universität Hildesheim (Learnweb, LSF, PLuS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
+Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
 
 DEINE UNI AN EINEM ORT
-• Nachrichten aus Stud.IP, Moodle und Learnweb beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
-• Uni-Mail und Uni-Kalender (Leibniz Universität Hannover, Universität Hildesheim): lesen, antworten, weiterleiten, schreiben
+• Nachrichten aus Stud.IP beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
+• Uni-Mail und Uni-Kalender: lesen, antworten, weiterleiten, schreiben
 • Notenspiegel und Bescheinigungen wie Immatrikulations- oder BAföG-Bescheinigung als PDF
-• Leibniz Universität Hannover: Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß
+• Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß
 • Termin antippen: Raum mit Route, Lehrende, E-Mail an einzelne oder alle
 • Studienverlauf mit Modulkatalogen von über 300 Studiengängen, Meldezeiträume der Prüfungsanmeldung mit Erinnerung
 • Speiseplan deiner Mensa mit Preisen, Allergenen und Filtern (Studentenwerk Hannover, Studierendenwerk OstNiedersachsen; ohne Gewähr)
@@ -146,15 +153,16 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-## Schlüsselwörter (max. 100 Zeichen, durch Komma getrennt) – 100 Zeichen
+## Schlüsselwörter (max. 100 Zeichen, durch Komma getrennt) – 99 Zeichen
 
 Wörter aus Name und Untertitel (StudiNow, Studium, Notizen, Skripte, Handschrift, Lernplan) indiziert Apple ohnehin;
 sie stehen hier nicht noch einmal. Keine fremden Marken (z. B. ChatGPT) in Name, Untertitel oder Schlüsselwörtern
-(Richtlinie 2.3.7). „Hannover“ deckt LUH und Hochschule Hannover; „Uni“ steckt in „Uni-Mail“. Fällt Hildesheim weg (Tabelle oben), „Hildesheim“
-durch „Hochschule“ ersetzen.
+(Richtlinie 2.3.7). „Hannover“ deckt die LUH; „Uni“ steckt in „Uni-Mail“. 1.0 nur LUH (Entscheidung 07.11.2026): „Moodle“ und
+„Hildesheim“ sind durch „Hochschule“ und „Noten“ ersetzt; mit 1.0.1 (HsH, Hildesheim) „Moodle“ und „Hildesheim“ wieder
+aufnehmen (dann z. B. „Hochschule“ und „Noten“ weglassen, max. 100 Zeichen).
 
 ```text keywords
-Stud.IP,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Moodle,Hannover,Hildesheim
+Stud.IP,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Hannover,Hochschule,Noten
 ```
 
 ## Neue Funktionen in dieser Version (1.0) – 317 Zeichen
@@ -340,13 +348,13 @@ Web und Windows einmal „KI-Hilfe: Was wird gesendet?“ (was, an wen: StudiNow
 Bedrock Frankfurt, Link zur Datenschutzerklärung) und senden ohne „Zustimmen und fortfahren“ nichts (zentral in
 `StudiNowAI.json` bzw. `app/ai_consent.py`, je Konto, widerrufbar unter „KI-Einwilligung widerrufen“).
 
-### Fassung nur Plus (Pro AI nicht eingereicht) – 3992 Zeichen
+### Fassung nur Plus (Pro AI nicht eingereicht) – 3983 Zeichen
 
 ```text review-notes
-StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover, Hochschule Hannover and Universität Hildesheim. Its university features (course files, timetable, messages, university mail, grades) use the student's personal university account, which we cannot share. Please use the built-in demo content, which needs no university account:
+StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features (course files, timetable, messages, university mail, grades) use the student's personal university account, which we cannot share. Please use the built-in demo content, which needs no university account:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It keeps the data of each Apple account and each university strictly separate on the device; this sign-in sends nothing to a server of ours.
-2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover". A 7-day trial with everything unlocked starts automatically, no purchase or payment details (once per Apple ID and device). Afterwards the app falls back to "StudiNow Free"; nothing made in the trial is lost.
+2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover" (the only one offered in this version). A 7-day trial with everything unlocked starts automatically, no purchase or payment details (once per Apple ID and device). Afterwards the app falls back to "StudiNow Free"; nothing made in the trial is lost.
 3. On the university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us). In demo mode the app does not contact the university.
 While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" in that bar and confirm: all demo content is removed. The demo is offered nowhere else.
 
@@ -363,13 +371,13 @@ Community (user-generated content, guideline 1.2): students of the same course s
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action (reply, mail, submission).
 ```
 
-### Fassung mit Pro AI – 3978 Zeichen (max. 4000)
+### Fassung mit Pro AI – 3969 Zeichen (max. 4000)
 
 ```text review-notes-proai
-StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover, Hochschule Hannover and Universität Hildesheim. Its university features (course files, timetable, messages, university mail, grades) use the student's personal university account, which we cannot share. Please use the built-in demo content, which needs no university account:
+StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features (course files, timetable, messages, university mail, grades) use the student's personal university account, which we cannot share. Please use the built-in demo content, which needs no university account:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It keeps the data of each Apple account and each university strictly separate on the device; this sign-in sends nothing to a server of ours.
-2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover". A 7-day trial at Pro AI level starts automatically, no purchase or payment details (once per Apple ID and device). Then "StudiNow Free" applies; nothing is lost.
+2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover" (the only one offered in this version). A 7-day trial at Pro AI level starts automatically, no purchase or payment details (once per Apple ID and device). Then "StudiNow Free" applies; nothing is lost.
 3. On the university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us). In demo mode the app does not contact the university.
 While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" in that bar and confirm: all demo content is removed.
 

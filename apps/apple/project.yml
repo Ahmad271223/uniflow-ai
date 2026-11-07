@@ -42,6 +42,14 @@ targets:
         ENABLE_PREVIEWS: YES
         # die Skriptphase "Nur Debug: lokales Netz" schreibt in die Info.plist des Bundles (unten)
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+      configs:
+        # Ausgelieferte Hochschulen (Info.plist UFShippedUniversities, UFReleaseUniversities im Kern). Entscheidung des
+        # Inhabers 07.11.2026: Version 1.0 (Build 16) nur die LUH; HsH und Uni Hildesheim bleiben im Code und kommen mit
+        # 1.0.1 - dann Release auf "luh hildesheim hsh" setzen. Debug und Tests sehen alle drei.
+        Debug:
+          UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"
+        Release:
+          UF_SHIPPED_UNIVERSITIES: "luh"
     # Release fuer ein Geraet (Archiv fuer TestFlight/App Store) nur mit Team und Berechtigung "Mit Apple anmelden":
     # ohne Config/Team.xcconfig baute das Archiv still ohne die Berechtigung und die App blieb an der Begruessung haengen
     preBuildScripts:
@@ -96,6 +104,8 @@ targets:
           - UIInterfaceOrientationPortrait
         # iCloud-Container der Community (leer ohne Config/Team.xcconfig; dann "Community nicht verfügbar")
         UFCloudKitContainer: $(UF_CLOUDKIT_CONTAINER)
+        # Hochschulen zur Wahl in diesem Build (Release nur "luh", siehe UF_SHIPPED_UNIVERSITIES oben)
+        UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)
         # Schrift der Web-App (Inter, Google Fonts, SIL Open Font License: UniFlow/Resources/Fonts/Inter-OFL.txt)
         UIAppFonts:
           - Inter-Variable.ttf

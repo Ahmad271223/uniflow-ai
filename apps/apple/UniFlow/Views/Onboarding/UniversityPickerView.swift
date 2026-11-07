@@ -1,9 +1,10 @@
 import SwiftUI
 import UniFlowCore
 
-/// Schritt "Hochschule wählen" nach der Tarifwahl (docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1): Leibniz Universitaet
-/// Hannover oder Universitaet Hildesheim. Nichts ist vorausgewaehlt, nichts wird aus E-Mail oder Name geraten.
-/// Danach oeffnet die App den Container dieser Hochschule (ContainerManager); wechseln geht nur in den Einstellungen.
+/// Schritt "Hochschule wählen" nach der Tarifwahl (docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1): die Hochschulen, die
+/// dieser Build anbietet (`UFReleaseUniversities`; Version 1.0 nur die LUH, HsH und Uni Hildesheim mit 1.0.1). Nichts ist
+/// vorausgewaehlt, nichts wird aus E-Mail oder Name geraten. Danach oeffnet die App den Container dieser Hochschule
+/// (ContainerManager); wechseln geht nur in den Einstellungen.
 struct UniversityPickerView: View {
     let onChoose: (UniversityKey) -> Void
     @State private var selection: UniversityKey?
@@ -17,11 +18,18 @@ struct UniversityPickerView: View {
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 12.8) {
-                    ForEach(UniversityKey.allCases, id: \.self) { u in
+                    ForEach(Self.choices(), id: \.self) { u in
                         UniversityOption(university: u, selected: selection == u) { selection = u }
                     }
                 }
                 .padding(.top, 22.4)
+                if UFReleaseUniversities.moreToCome {
+                    Text(Self.moreNote)
+                        .ufFont(13.12).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 9.6)
+                        .accessibilityIdentifier("university.more")
+                }
                 HStack {
                     Spacer()
                     UFButton("Weiter", icon: "arrow-right", kind: .primary) { if let selection { onChoose(selection) } }
@@ -38,6 +46,11 @@ struct UniversityPickerView: View {
     }
 
     static let note = "Die Daten jeder Hochschule bleiben auf diesem iPad getrennt: eigene Datenbank, eigene Dateien und Notizen, eigene Anmeldungen. Wechseln kannst du später in den Einstellungen."
+    /// Solange dieser Build nicht alle bekannten Hochschulen anbietet (1.0: nur die LUH)
+    static let moreNote = "Weitere Hochschulen folgen mit einem Update."
+
+    /// Hochschulen zur Wahl beim ersten Start: nur die ausgelieferten dieses Builds (Release 1.0: Leibniz Universität Hannover)
+    static func choices() -> [UniversityKey] { UFReleaseUniversities.choices() }
 }
 
 /// Auswahlkarte einer Hochschule mit dem, was die App fuer sie heute kann (ehrlich, "folgt" fuer Fehlendes)

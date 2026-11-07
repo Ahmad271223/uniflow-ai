@@ -22,7 +22,9 @@ enum PendingServicesEndpoints: LocalEndpointModule {
             let profile = UniversityProfile.profile(forKey: uni) ?? UniversityKey.default.profile
             return .json(["services": .array(profile.services.map(\.json)), "credentials": .object(creds),
                           "university": profile.json,
-                          "universities": .array(UniversityProfile.all.map { ["key": .string($0.key.rawValue), "name": .string($0.name)] }),
+                          // nur die Hochschulen dieses Builds (1.0: LUH) und die dieser Datenbank (UFReleaseUniversities)
+                          "universities": .array(UFReleaseUniversities.choices(current: profile.key)
+                                                     .map { ["key": .string($0.rawValue), "name": .string($0.profile.name)] }),
                           "qis": ["configured": false, "same_as_studip": true, "last_run": .null],
                           "studip": ["configured": false]])
         }

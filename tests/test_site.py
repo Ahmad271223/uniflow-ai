@@ -133,22 +133,27 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     for anchor in ("laden", "uni", "funktionen", "so-gehts", "preise", "fragen"):
         assert f'id="{anchor}"' in html, anchor
     for s in ("Stud.IP", "QIS", "Apple Pencil", "„Erkläre die ganze Vorlesung“", "„Erkläre alle Aufgaben“",
-              "Wochentest", "Karteikarten", "Stapel", "Studienverlauf", "Prüfungsanmeldung", "Abgeben in Stud.IP und Moodle",
+              "Wochentest", "Karteikarten", "Stapel", "Studienverlauf", "Prüfungsanmeldung", "Abgeben in Stud.IP",
               "Nachrichten beantworten", "Kein Uni-Passwort auf unseren Servern", "Kein Tracking", "nicht mit den Hochschulen verbunden",
               "Leibniz Universität Hannover", "support@studinow.app", "das aktuelle Semester zuerst"):
         assert s in flat, s
-    # Wunsch des Inhabers 05.11.2026: ganz Deutschland ansprechen, aber ehrlich nur die drei angebundenen Hochschulen
-    # nennen (Richtlinie 2.3, keine irrefuehrende Werbung); Systeme als Chips; Mensa mit Quellen und "ohne Gewähr"
+    # Wunsch des Inhabers 05.11.2026: ganz Deutschland ansprechen, aber ehrlich nur die angebundenen Hochschulen nennen
+    # (Richtlinie 2.3, keine irrefuehrende Werbung); Systeme als Chips; Mensa mit Quellen und "ohne Gewähr".
+    # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1)
     assert '<p class="eyebrow">Für Studierende in ganz Deutschland</p>' in html
-    assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>, <strong>Hochschule Hannover</strong> und "
-                     r"<strong>Universität Hildesheim</strong>\. Weitere Hochschulen folgen\.", flat)
+    assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>\. In Kürze: Hochschule Hannover und "
+                     r"Universität Hildesheim\. Weitere Hochschulen folgen\.", flat)
+    assert "Heute für die Leibniz Universität Hannover." in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" in flat
     assert "Deine fehlt?" in flat and 'href="mailto:support@studinow.app">Schreib uns</a>' in flat
     assert not re.search(r"alle(n)? (deutschen )?Hochschulen|jede(r)? Hochschule|alle(n)? Unis", flat), "nicht alle Hochschulen angebunden"
     assert "Zuerst für die Leibniz Universität Hannover" not in flat
-    assert '<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Moodle</li><li>HISinOne</li><li>LSF</li></ul>' in html
+    assert not re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>, <strong>Hochschule Hannover", flat), "HsH erst 1.0.1"
+    assert ('<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li>'
+            '<li class="soon">In Kürze: Moodle, HISinOne, LSF</li></ul>') in html
+    assert "Abgeben in Stud.IP</h3>" in html and "(Moodle in Kürze)" in flat
     faq = flat.split("Für welche Hochschulen ist StudiNow?")[1].split("</details>")[0]
-    for s in ("ganz Deutschland", "Leibniz Universität Hannover", "Hochschule Hannover", "Universität Hildesheim",
-              "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
+    for s in ("ganz Deutschland", "Angebunden ist heute die Leibniz Universität Hannover", "In Kürze folgen die Hochschule Hannover",
+              "Universität Hildesheim", "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
         assert s in faq, s
     assert "Modulkatalogen von über 300 Studiengängen und Fächern" in flat or "Modulkataloge von über 300 Studiengängen und Fächern" in flat
     mensa = flat.split('id="mensa"')[1].split("</section>")[0]

@@ -113,7 +113,9 @@ def test_review_notes_describe_the_build_honestly():
         assert "never sent to our servers" in notes, field
         assert '"StudiNow-Konto" → "Mit Apple anmelden"' in notes and "https://app.studinow.app" in notes, field
         assert '"Eigenes ChatGPT verbinden" shows "bald verfügbar"' in notes, field
-        assert "Hochschule Hannover" in notes and "Universität Hildesheim" in notes, field
+        # 1.0 nur LUH (Entscheidung 07.11.2026): HsH und Hildesheim erst mit 1.0.1 wieder nennen
+        assert "Connected today: Leibniz Universität Hannover" in notes, field
+        assert "Hochschule Hannover" not in notes and "Hildesheim" not in notes, field
         assert "Sign in with ChatGPT" not in notes and "consent" not in notes, field
     assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI folgt mit dem StudiNow-Dienst." in f["review-notes"]
     pro = f["review-notes-proai"]
@@ -139,10 +141,23 @@ def test_app_store_texts_match_current_build():
     build = re.search(r'CURRENT_PROJECT_VERSION: "(\d+)"', (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")).group(1)
     assert f"Build {build}" in text, f"APP-STORE.md nennt nicht den aktuellen Build {build}"
     assert "Offene Entscheidung KI" not in text
+    # Entscheidung des Inhabers 07.11.2026: 1.0 (Build 16) nur mit der LUH; HsH und Hildesheim bleiben im Code, sind im
+    # Store-Build ausgeblendet (project.yml UF_SHIPPED_UNIVERSITIES, Release "luh") und kommen mit 1.0.1
+    assert "1.0 nur LUH, 1.0.1 mit HsH und Hildesheim" in text
+    yml = (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")
+    assert re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "luh"\n', yml), "Release-Build nur LUH"
+    assert re.search(r'Debug:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"\n', yml), "Debug und Tests alle drei"
+    assert "UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)" in yml
+    if (APPLE / "Info.plist").is_file():                 # von xcodegen erzeugt (gitignore), nur wo es liegt
+        assert "<key>UFShippedUniversities</key>" in (APPLE / "Info.plist").read_text(encoding="utf-8")
     for field in ("description", "description-proai"):
         d = f[field]
-        assert "Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS), Hochschule Hannover (Moodle, HISinOne, QIS) und Universität Hildesheim (Learnweb, LSF, PLuS). Weitere Hochschulen folgen." in d
+        assert "Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen." in d
         assert "alle Hochschulen" not in d and "allen Hochschulen" not in d
+    for field in ("description", "description-proai", "keywords", "promo", "whats-new", "subtitle", "name"):
+        v = f[field]
+        for bad in ("Hochschule Hannover", "Hildesheim", "Moodle", "Learnweb", "HISinOne", "PLuS", "Campusmanagement"):
+            assert bad not in v, (field, bad)
     assert "static let isEnabled = false" in _swift("Views/Timer/StudyTimer.swift")
     for field, value in f.items():
         assert "Zeitmesser" not in value and "Pomodoro" not in value, field

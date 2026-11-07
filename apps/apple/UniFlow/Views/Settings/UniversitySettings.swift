@@ -69,9 +69,19 @@ struct UniversitySettingsCard: View {
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
-            UFButton("Hochschule wechseln", icon: "refresh", size: .small) { overlay.modal { UniversitySwitchDialog() } }
-                .accessibilityIdentifier("settings.university.switch")
-                .padding(.top, 9.6)
+            // Wechseln nur, wenn dieser Build eine zweite Hochschule anbietet (1.0: nur die LUH, `UFReleaseUniversities`);
+            // sonst der ehrliche Hinweis statt eines Dialogs mit einer einzigen Karte
+            if Self.offersSwitch(current: uni) {
+                UFButton("Hochschule wechseln", icon: "refresh", size: .small) { overlay.modal { UniversitySwitchDialog() } }
+                    .accessibilityIdentifier("settings.university.switch")
+                    .padding(.top, 9.6)
+            } else {
+                Text(UniversityPickerView.moreNote)
+                    .ufFont(13.12).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 9.6)
+                    .accessibilityIdentifier("settings.university.more")
+            }
             // Loeschen abgesetzt unter einer Linie, nicht neben "Wechseln" (Befund 27.10.: beim Wechseln verwechselt)
             // gleicher abgesetzter Bereich wie "Konto löschen" (SettingsDangerZone)
             if let uni {
@@ -82,6 +92,11 @@ struct UniversitySettingsCard: View {
                 }
             }
         }
+    }
+
+    /// Gibt es neben der aktuellen Hochschule eine zweite zur Wahl? (Ohne gewaehlte Hochschule: sobald eine da ist.)
+    static func offersSwitch(current: UniversityKey?) -> Bool {
+        UniversitySwitchDialog.choices(current: current).contains { $0 != current }
     }
 }
 
@@ -98,8 +113,14 @@ struct UniversitySwitchDialog: View {
         let target = selection ?? current
         UFDialog("Hochschule wechseln", icon: "graduation") {
             VStack(alignment: .leading, spacing: 9.6) {
-                ForEach(UniversityKey.allCases, id: \.self) { u in
+                ForEach(Self.choices(current: current), id: \.self) { u in
                     UniversityOption(university: u, selected: target == u, current: current == u) { selection = u }
+                }
+                if UFReleaseUniversities.moreToCome {
+                    Text(UniversityPickerView.moreNote)
+                        .ufFont(13.12).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("university.switch.more")
                 }
                 if let current, let target, target != current {
                     Text(Self.notice(from: current, to: target))
@@ -128,6 +149,10 @@ struct UniversitySwitchDialog: View {
             }
         }
     }
+
+    /// Hochschulen im Wechsel-Dialog: die ausgelieferten dieses Builds und die aktuelle (ein verbundenes HsH-/Hildesheim-
+    /// Konto auf einem Entwickler-iPad bleibt auch im Store-Build sichtbar und nutzbar)
+    static func choices(current: UniversityKey?) -> [UniversityKey] { UFReleaseUniversities.choices(current: current) }
 
     /// Hinweis vor dem Wechsel: nichts wird geloescht oder uebertragen
     static func notice(from old: UniversityKey, to new: UniversityKey) -> String {
@@ -225,11 +250,13 @@ struct DeleteUniversityDataDialog: View {
     }
 
     static func explanation(_ u: UniversityKey) -> String {
-        let other = UniversityKey.allCases.first { $0 != u }?.profile.name ?? "anderen Hochschule"
+        // die andere Hochschule dieses Builds beim Namen; bietet er keine zweite an (1.0: nur LUH), allgemein
+        let others = "Die Daten " + (UniversitySwitchDialog.choices(current: u).first { $0 != u }.map { "der \($0.profile.name)" }
+                                     ?? "anderer Hochschulen") + " bleiben unberührt. "
         return "Auf diesem iPad werden für dein Konto alle Daten der \(u.profile.name) gelöscht: Kurse, Lernplan und Einstellungen, "
             + "heruntergeladene Dateien, eigene Dokumente und Notizen, Zwischenspeicher und die Anmeldung in der Webansicht"
             + (u.profile.tokenServices.isEmpty ? ". " : " samt Learnweb-Schlüssel. ")
-            + "Die Daten der \(other) bleiben unberührt. Das lässt sich nicht rückgängig machen. "
+            + others + "Das lässt sich nicht rückgängig machen. "
             + "Zum Wechseln der Hochschule musst du nichts löschen."
     }
 }
