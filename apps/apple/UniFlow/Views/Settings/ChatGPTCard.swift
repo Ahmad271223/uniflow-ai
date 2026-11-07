@@ -112,20 +112,3 @@ struct ChatGPTCard: View {
         .task { if link.models.isEmpty, !s.needsReauth { await link.loadModels() } }
     }
 }
-
-/// Einstellungen → Erweitert, solange `ChatGPTLink.isEnabled` aus ist: dieselbe Ueberschrift, "bald verfuegbar", kein
-/// Knopf und keine Anmeldung (Sign in with ChatGPT ist fuer StudiNow noch nicht freigegeben)
-struct ChatGPTSoonCard: View {
-    var body: some View {
-        UFCard {
-            UFCardHead("KI über mein ChatGPT", icon: "sparkles") { UFBadge("bald", tone: .info, icon: "clock") }
-            Text(ChatGPTLink.soonText).ufFont(14.5, 550).foregroundStyle(UF.text)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("chatgpt.soon")
-            Text("Sobald OpenAI die Anmeldung für StudiNow freigibt, kannst du hier dein ChatGPT-Abo (Plus oder Pro) verbinden. Bis dahin kommt die KI mit der StudiNow-KI in StudiNow Pro AI.")
-                .ufFont(13.12).foregroundStyle(UF.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
-        }
-    }
-}

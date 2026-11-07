@@ -257,6 +257,7 @@ final class AIConsentAppTests: XCTestCase {
         }
         XCTAssertEqual(reasons, ["NSPrivacyAccessedAPICategoryUserDefaults": ["CA92.1"],
                                  "NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1", "3B52.1"],
-                                 "NSPrivacyAccessedAPICategoryDiskSpace": ["E174.1"]])
+                                 "NSPrivacyAccessedAPICategoryDiskSpace": ["E174.1"],
+                                 "NSPrivacyAccessedAPICategorySystemBootTime": ["35F9.1"]])
     }
 }

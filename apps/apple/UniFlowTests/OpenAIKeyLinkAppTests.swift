@@ -165,6 +165,12 @@ final class OpenAIKeyLinkAppTests: XCTestCase {
         XCTAssertTrue(labels.contains { $0.contains("Schlüssel bei OpenAI erstellen") })
         XCTAssertTrue(labels.contains { $0.contains("bleibt im Schlüsselbund dieses iPads") })
         XCTAssertFalse(labels.contains { $0 == "ChatGPT verbinden" }, "keine Anmeldung bei ChatGPT")
+        // Einwilligung (5.1.2(i), 07.11.2026): der Hinweis nennt, was an OpenAI geht, der Haken holt die Zustimmung ein,
+        // die Datenschutzerklaerung ist verlinkt
+        XCTAssertTrue(labels.contains { $0.contains(OpenAIKeyCard.agreeText) }, labels.joined(separator: " | "))
+        XCTAssertTrue(OpenAIKeyCard.agreeText.contains("direkt an OpenAI"))
+        XCTAssertTrue(OpenAIKeyLink.consentText.contains("direkt an OpenAI") && OpenAIKeyLink.consentText.contains("Datenschutzerklärung von OpenAI"))
+        XCTAssertTrue(labels.contains { $0.contains("Datenschutzerklärung (Abschnitt 8a)") })
     }
 
     func testGeneratePlanDialogOffersTheAISuggestionOnlyWithAI() throws {

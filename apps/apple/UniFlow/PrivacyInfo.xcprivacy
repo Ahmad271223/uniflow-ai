@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Datenschutz-Manifest der App, Stand 06.11.2026. Muss mit dem Abschnitt "App-Datenschutz" in
+  Datenschutz-Manifest der App, Stand 07.11.2026. Muss mit dem Abschnitt "App-Datenschutz" in
   docs/release/APP-STORE.md uebereinstimmen; Test: AIConsentAppTests.testPrivacyManifestMatchesTheApp und
   tests/test_release_texts.py. Kein Tracking, keine Tracking-Domains, keine Werbung, keine Analyse-SDKs.
   Fremd-Pakete gibt es keine; UniFlowCore (eigenes Paket, statisch in die App gebaut) ist hier mit erfasst.
@@ -13,7 +13,9 @@
   - Kaufverlauf: signierte App-Store-Transaktion an /api/billing/apple/verify (nur mit Konto), keine Zahlungsdaten
   - Andere Nutzerinhalte: Community; KI-Anfragen (Seitentext bzw. Bild eines Bereichs, Frage, Kurs- und Dateiname) an
     den StudiNow-Dienst und weiter an OpenAI bzw. Claude ueber Amazon Bedrock (erst nach der Einwilligung
-    "KI-Hilfe: Was wird gesendet?", AIConsentCenter.swift); Geraeteabgleich mit Konto
+    "KI-Hilfe: Was wird gesendet?", AIConsentCenter.swift); mit eigenem OpenAI-Schluessel (Einstellungen → Erweitert,
+    OpenAIKeyCard.swift, Haken der Einwilligung vor dem Speichern) dieselben Inhalte direkt vom iPad an OpenAI ueber
+    das Konto des Nutzers; Geraeteabgleich mit Konto
   - Produktinteraktion: je KI-Anfrage Zeitpunkt, Art der Aufgabe und verbrauchte Credits
   Nie: Name, Hochschul-Zugangsdaten (nur im Schluesselbund dieses Geraets), Standort, Kontakte, Diagnose.
 
@@ -23,7 +25,9 @@
     Downloads, Diagnose, Groesse der App-Datei)
   - Datei-Groesse ausgewaehlter Dateien (3B52.1): Loesungspaket aus Dateien-App/Teilen (SolutionSharing.importFile)
   - Freier Speicher (E174.1): vor dem Schreiben pruefen, ob eine Datei Platz hat (DeviceStorage)
-  Keine Systemstartzeit, keine aktiven Tastaturen.
+  - Systemstartzeit / laufende Systemuhr (35F9.1): nur verstrichene Zeit innerhalb der App messen
+    (DispatchTime.uptimeNanoseconds in DocumentStore, CLOCK_MONOTONIC im Zeitmesser StudyTimer); nie als Kennung
+  Keine aktiven Tastaturen.
 -->
 <plist version="1.0">
 <dict>
@@ -119,6 +123,14 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>E174.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
 			</array>
 		</dict>
 	</array>

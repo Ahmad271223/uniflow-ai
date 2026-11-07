@@ -221,11 +221,12 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(m.chatgpt.message, ChatGPTLink.soonText + ".")
     }
 
-    func testSettingsShowSoonCardWithoutConnectButton() throws {
-        let was = HostedEnvironment.accessibilityAutomation(true)
-        defer { _ = HostedEnvironment.accessibilityAutomation(was) }
-        let env = try hostWithEnvironment(ChatGPTSoonCard())
-        XCTAssertTrue(env.wait { env.labels().contains { $0.contains("bald verfügbar") } }, env.labels().joined(separator: " | "))
-        XCTAssertFalse(env.labels().contains { $0 == "ChatGPT verbinden" })
+    /// App-Pruefung 07.11.2026 (Richtlinie 2.1): die Einstellungen zeigen keine Karte "bald verfügbar" mehr; die
+    /// Anmeldung bei ChatGPT kommt erst mit `isEnabled` (dann `ChatGPTCard`)
+    func testSettingsShowNoSoonCard() throws {
+        let settings = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("UniFlow/Views/Settings/SettingsPage.swift"), encoding: .utf8)
+        XCTAssertFalse(settings.contains("ChatGPTSoonCard"))
+        XCTAssertTrue(settings.contains("if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) }"))
     }
 }

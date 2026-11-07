@@ -92,7 +92,7 @@ def _swift(rel: str) -> str:
 def test_review_notes_describe_the_build_honestly():
     """Beide Fassungen der Pruefhinweise: Demo nur ueber den Link auf der Anmeldeseite und "Beenden" (Entscheidung
     04.11.2026 "Nur fuer Pruefer"), Passwort nur im Schluesselbund dieses iPads, KI ueber den Dienst mit StudiNow-Konto,
-    eigenes ChatGPT "bald verfuegbar". Die zitierten Oberflaechen-Texte stehen so im Swift-Code."""
+    eigener OpenAI-Schluessel mit Haken der Einwilligung, Jahresabos. Die zitierten Oberflaechen-Texte stehen so im Swift-Code."""
     f = fields("APP-STORE.md")
     demo = _swift("Views/DemoViews.swift")
     assert 'firstStart = "Ohne Hochschulkonto ansehen (Demo)"' in demo and 'barTitle = "Demo-Inhalte – erfunden, ohne Hochschule"' in demo
@@ -100,6 +100,10 @@ def test_review_notes_describe_the_build_honestly():
     assert "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly" in _swift("Services/UniAutoLogin.swift")
     link = _swift("Services/ChatGPTLink.swift")
     assert "static let isEnabled = false" in link and "bald verfügbar" in link
+    card = _swift("Views/Settings/OpenAIKeyCard.swift")
+    assert 'agreeText = "Ich stimme zu, dass StudiNow die oben genannten Inhalte mit meinem Schlüssel direkt an OpenAI sendet."' in card
+    assert ".disabled(!agreed ||" in card
+    assert "ChatGPTSoonCard" not in _swift("Views/Settings/SettingsPage.swift")
     assert 'defaultServiceURL = "https://app.studinow.app"' in _swift("Services/StudoraAccountLink.swift")
     assert "„Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits" in _swift("Views/Settings/StudoraAccountCard.swift")
     assert 'proAIMissingNote = "StudiNow Pro AI folgt mit dem StudiNow-Dienst."' in _swift("Purchases/Plans.swift")
@@ -112,7 +116,11 @@ def test_review_notes_describe_the_build_honestly():
         assert "Passwort auf diesem iPad merken" in notes and "not synced to iCloud" in notes, field
         assert "never sent to our servers" in notes, field
         assert '"StudiNow-Konto" → "Mit Apple anmelden"' in notes and "https://app.studinow.app" in notes, field
-        assert '"Eigenes ChatGPT verbinden" shows "bald verfügbar"' in notes, field
+        # eigener OpenAI-Schluessel (07.11.2026): nutzbar in jedem Tarif, Einwilligung per Haken, keine Anmeldung bei ChatGPT
+        assert '"Eigenes ChatGPT", every plan' in notes and "directly from the iPad to OpenAI" in notes, field
+        assert 'ticking "Ich stimme zu …"' in notes and "no ChatGPT login" in notes, field
+        assert 'switch "Monatlich · Jährlich"' in notes, field
+        assert len(notes) <= 4000, (field, len(notes))
         # 1.0 nur LUH (Entscheidung 07.11.2026): HsH und Hildesheim erst mit 1.0.1 wieder nennen
         assert "Connected today: Leibniz Universität Hannover" in notes, field
         assert "Hochschule Hannover" not in notes and "Hildesheim" not in notes, field
@@ -163,15 +171,16 @@ def test_app_store_texts_match_current_build():
         assert "Zeitmesser" not in value and "Pomodoro" not in value, field
     for field in ("description", "description-proai", "review-notes", "review-notes-proai", "keywords", "whats-new"):
         assert f"– {len(f[field])} Zeichen" in text, field
-    # Endgueltiger Satz mit Pro AI (07.11.2026): genau zehn Bilder im Hochformat, je Motiv eine Fassung hell oder
-    # dunkel, im eigenen Ordner; der Pruef-Screenshot (reserve/) liegt im frueheren Satz
+    # Endgueltiger Satz mit Pro AI (07.11.2026, zweiter Satz vom Nachmittag: flacher KI-Hilfe-Kopf, "Neue Mails
+    # pruefen", nur LUH): genau zehn Bilder im Hochformat, je Motiv eine Fassung hell oder dunkel, im eigenen Ordner;
+    # der Pruef-Screenshot (reserve/) liegt im frueheren Satz
     section = text[text.index("## Bildschirmfotos"):]
     names = re.findall(r"`(\d\d-[a-z-]+-(?:light|dark)\.png)`", section)
     assert len(names) == 10 and len(set(names)) == 10, names
     assert [n[:2] for n in names] == [f"{i:02d}" for i in range(1, 11)], names
     assert any("-ki-" in n for n in names), "Pro AI eingereicht: der Satz zeigt die KI"
-    assert "appstore-screenshots-final" in section
-    shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final"
+    assert "appstore-screenshots-final-2026-11-07" in section
+    shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final-2026-11-07"
     if shots.is_dir():
         assert sorted(p.name for p in shots.glob("*.png")) == sorted(names)
     old = Path.home() / "Studora-Builds" / "appstore-screenshots"

@@ -10,6 +10,12 @@ struct OpenAIKeyCard: View {
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.openURL) private var openURL
     @State private var draft = ""
+    /// Einwilligung (App Store Review Guideline 5.1.2(i), 07.11.2026): erst mit dem Haken geht ein Schluessel ins
+    /// Geraet und danach Seitentext, Frage und Dateinamen direkt an OpenAI; ohne Haken bleibt "Prüfen und speichern" aus
+    @State private var agreed = false
+
+    /// Satz am Haken; die Einzelheiten (was, an wen, Abrechnung) stehen direkt darueber (`OpenAIKeyLink.consentText`)
+    static let agreeText = "Ich stimme zu, dass StudiNow die oben genannten Inhalte mit meinem Schlüssel direkt an OpenAI sendet."
 
     var body: some View {
         UFCard {
@@ -41,12 +47,30 @@ struct OpenAIKeyCard: View {
         return UFBadge("nicht eingetragen", tone: .neutral)
     }
 
-    /// Ohne Schluessel: Feld, Hinweis, Link zur OpenAI-Seite, "Prüfen und speichern"
+    /// Ohne Schluessel: Hinweis (was wird gesendet, an wen, Abrechnung), Link zur Datenschutzerklaerung, Haken der
+    /// Einwilligung, Feld, Link zur OpenAI-Seite, "Prüfen und speichern" (erst mit Haken)
     private var enter: some View {
         VStack(alignment: .leading, spacing: 9.6) {
             Text(OpenAIKeyLink.consentText).ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("openaiKey.consent")
+            Button {
+                openURL(UFLegalLinks.privacy)
+            } label: {
+                HStack(spacing: 6) {
+                    UFIcon("info", size: 14)
+                    Text("Datenschutzerklärung (Abschnitt 8a)").underline()
+                }
+                .ufFont(13.12, 600).foregroundStyle(UF.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("openaiKey.privacy")
+            Toggle(isOn: $agreed) {
+                Text(Self.agreeText).ufFont(13.12, 550).foregroundStyle(UF.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .tint(UF.accent)
+            .accessibilityIdentifier("openaiKey.agree")
             UFTextField("OpenAI-API-Schlüssel (sk-…)", text: $draft, secure: true)
                 .textContentType(.password)
                 .textInputAutocapitalization(.never)
@@ -61,7 +85,7 @@ struct OpenAIKeyCard: View {
                         if link.status?.hasKey == true { draft = "" }
                     }
                 }
-                .disabled(link.busy || OpenAIKeyRules.normalize(draft) == nil || link.status == nil)
+                .disabled(!agreed || link.busy || OpenAIKeyRules.normalize(draft) == nil || link.status == nil)
                 .accessibilityIdentifier("openaiKey.save")
                 UFButton("Schlüssel bei OpenAI erstellen", icon: "share", size: .small) {
                     if let u = URL(string: OpenAIKeyRules.keysURL) { openURL(u) }

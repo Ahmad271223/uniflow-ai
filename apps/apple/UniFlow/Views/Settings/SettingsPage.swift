@@ -1199,9 +1199,10 @@ struct ConnectView: View {
 // MARK: - Erweitert
 
 /// "Erweitert" ohne Server: "Eigenes ChatGPT" ueber den eigenen OpenAI-Schluessel (OpenAIKeyCard, in jedem Tarif,
-/// 07.11.2026), dazu KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`, anmelden nur mit
-/// `ChatGPTLink.isEnabled`, sonst "bald verfügbar") und der Schalter "Vorab einordnen" (Erklaerungsspeicher); keine
-/// Demo-Inhalte (nur fuer Pruefer, Views/DemoViews.swift)
+/// 07.11.2026), dazu KI ueber das ChatGPT-Abo nur mit `ChatGPTLink.isEnabled` (solange OpenAI die Anmeldung nicht
+/// freigibt, gibt es dazu keine Karte - auch keinen Hinweis "bald verfügbar", App-Pruefung 07.11.2026: nichts
+/// versprechen, Richtlinie 2.1) und der Schalter "Vorab einordnen" (Erklaerungsspeicher); keine Demo-Inhalte (nur fuer
+/// Pruefer, Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
     @Environment(\.ufChatGPTLink) private var chatgpt
 
@@ -1210,8 +1211,8 @@ private struct LocalAdvancedTab: View {
             if ChatGPTLink.available, let chatgpt {
                 OpenAIKeyCard(link: chatgpt.apiKey)
                 // Anmelden mit dem ChatGPT-Abo erst nach der Freigabe durch OpenAI (`ChatGPTLink.isEnabled`); bis dahin
-                // "bald verfügbar"
-                if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) } else { ChatGPTSoonCard() }
+                // keine Karte
+                if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) }
                 DocIndexPrewarmCard()
             }
         }

@@ -138,7 +138,8 @@ def test_privacy_manifest_matches_the_app_store_privacy_section():
     reasons = {a["NSPrivacyAccessedAPIType"]: set(a["NSPrivacyAccessedAPITypeReasons"]) for a in m["NSPrivacyAccessedAPITypes"]}
     assert reasons == {"NSPrivacyAccessedAPICategoryUserDefaults": {"CA92.1"},
                        "NSPrivacyAccessedAPICategoryFileTimestamp": {"C617.1", "3B52.1"},
-                       "NSPrivacyAccessedAPICategoryDiskSpace": {"E174.1"}}
+                       "NSPrivacyAccessedAPICategoryDiskSpace": {"E174.1"},
+                       "NSPrivacyAccessedAPICategorySystemBootTime": {"35F9.1"}}
     # dieselben fuenf Zeilen stehen im Abschnitt App-Datenschutz (erfasst, verknuepft, kein Tracking)
     store = (ROOT / "docs/release/APP-STORE.md").read_text(encoding="utf-8")
     section = store.split("## App-Datenschutz", 1)[1].split("\n## ", 1)[0]

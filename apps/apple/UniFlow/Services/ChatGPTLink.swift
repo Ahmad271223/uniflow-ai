@@ -160,12 +160,14 @@ final class ChatGPTLink: ObservableObject {
     /// Schalter "Eigenes ChatGPT verbinden" (05.11.2026, wie `StudyTimer.isEnabled`): Sign in with ChatGPT ist fuer
     /// StudiNow von OpenAI noch nicht freigegeben (app/plans.py `INTEGRATIONS["chatgpt"].status = "disabled"`); am
     /// Geraet des Inhabers blieb die Anmeldung nach Kontowahl bzw. E-Mail haengen. Aus: keine Anmeldung, kein Knopf
-    /// "ChatGPT verbinden" (Einstellungen, KI-Hilfe, KI-Start, Tests), die Karte zeigt nur `soonText`; die KI-Wege
+    /// "ChatGPT verbinden" (Einstellungen, KI-Hilfe, KI-Start, Tests) und seit 07.11.2026 auch keine Karte "bald
+    /// verfügbar" mehr in den Einstellungen (App-Pruefung: nichts versprechen); `soonText` bleibt die Meldung von
+    /// `connect()`; die KI-Wege
     /// zeigen den Tarif-Hinweis (`planHint`) bzw. nutzen einen Server (eigener PC, StudiNow-Dienst). Eine frueher
     /// gespeicherte Verbindung bleibt im Schluesselbund, wird aber nicht benutzt. docs/KI-CHATGPT-PLAN.md Abschnitt 11.
     nonisolated static let isEnabled = false
 
-    /// Zeile der Karte in den Einstellungen, solange `isEnabled` aus ist ("Mit ChatGPT anmelden")
+    /// Meldung von `connect()`, solange `isEnabled` aus ist (keine Karte in den Einstellungen)
     nonisolated static let soonText = "Mit ChatGPT anmelden – bald verfügbar"
 
     /// Hinweis an den KI-Stellen ohne KI: wie es weitergeht - StudiNow-KI (Pro AI) oder der eigene OpenAI-Schluessel
