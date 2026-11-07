@@ -316,6 +316,43 @@ final class StudIPDownloadGapAppTests: XCTestCase {
         XCTAssertTrue(sync.entries.contains { $0.id == "v1b" })
     }
 
+    /// Ganze Datei-Ansicht: nach dem Laden, waehrend die Bibliothek neu liest, erscheint nie die alte Meldung
+    /// "noch nicht auf diesem iPad" (Befund iPad 08.11.2026: blitzte vor dem Dokument auf)
+    func testOutsideEditorViewShowsNoStaleMessageAfterLoad() throws {
+        Self.accessibilityAutomation(true)
+        addTeardownBlock { Self.accessibilityAutomation(false) }
+        let dev = try device()
+        let stud = portal()
+        stud.status("/jsonapi.php/v1/file-refs/v1b/content", 500)
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        let listed = expectation(description: "Listen")
+        Task { await sync.run(client: self.client(stud), scope: .lists); listed.fulfill() }
+        wait(for: [listed], timeout: 20)
+        stud.set("/jsonapi.php/v1/file-refs/v1b/content", HTTPReply(status: 200, contentType: "application/pdf", body: Self.pdf("v1b")))
+        sync.fileClientForTests = client(stud)
+        let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: dev.host))
+        let file = LibFile(id: "v1b", name: "Beispiel_Kap_2.pdf", title: nil, kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
+                           ai_title: nil, sub_label: nil, downloaded_at: nil, has_notes: nil, page_count: nil, studip_folder: "")
+        var reloaded = 0
+        // die Bibliothek braucht fuer das Neulesen einen Moment (wie am iPad): solange darf nichts Altes erscheinen
+        let started = Date()
+        var finished: Date?
+        let root = host(FileOutsideEditorView(file: file, api: api, onLoaded: {
+            await withCheckedContinuation { c in DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.resume() } }
+            reloaded += 1; finished = Date()
+        }).environment(\.studipFiles, sync))
+        let end = Date().addingTimeInterval(8)
+        var seen: [String] = []
+        while reloaded == 0, Date() < end {
+            pump(0.1)
+            seen += labels(root)
+        }
+        XCTAssertEqual(reloaded, 1)
+        XCTAssertGreaterThan((finished ?? started).timeIntervalSince(started), 1.4, "das Fenster vor dem Editorwechsel wurde beobachtet")
+        XCTAssertFalse(seen.contains { $0.lowercased().contains("noch nicht auf diesem ipad") }, "\(Set(seen))")
+        XCTAssertFalse(seen.contains { $0.contains("Jetzt laden") || $0.contains("nächste Abgleich") }, "\(Set(seen))")
+    }
+
     /// Mit UF_SCREENSHOT_DIR: die Zustaende als Bild (hell und dunkel)
     func testScreenshots() throws {
         guard let path = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !path.isEmpty else {

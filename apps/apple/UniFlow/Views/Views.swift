@@ -61,6 +61,10 @@ struct FileOutsideEditorView: View {
                     await onLoaded?()
                     if preview == nil, file.kind != "pdf" { await open() }
                 }
+            } else if loadedHere, problem == nil {
+                // geladen, die Bibliothek liest gerade neu und wechselt gleich in den Editor: bis dahin nichts zeigen
+                // (vorher blitzte hier die Meldung "noch nicht auf diesem iPad" auf, Befund iPad 08.11.2026)
+                UF.bg.ignoresSafeArea()
             } else {
                 ContentUnavailableView(file.displayTitle, systemImage: file.downloaded_at == nil ? "icloud.and.arrow.down" : "doc",
                                        description: Text(problem ?? Self.message(for: file)))
