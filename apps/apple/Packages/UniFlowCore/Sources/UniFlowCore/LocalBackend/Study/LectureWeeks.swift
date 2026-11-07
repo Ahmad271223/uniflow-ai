@@ -9,9 +9,14 @@ import Foundation
 /// Regeln, je Datei in dieser Reihenfolge (die erste, die etwas ergibt, gilt):
 /// 1. Abschnitt: Wochen-Abschnitt in Moodle ("Woche 3", "3. Woche", "KW 46", Wochenformat "21. September -
 ///    27. September" bzw. "21.09. - 27.09.").
-/// 2. Name: Nummer im Dateinamen, im Namen der Moodle-Ressource oder in einem Ordner (tiefster zuerst):
-///    "VL 3", "Vorlesung_03", "V03", "Folien 3", "Übung 2", "Übungsblatt 02", "Blatt 4", "Ü3", "Tutorium 5",
-///    "Lösung 2", "Skript Teil 4", "Kapitel 3", "Woche 5", "KW 46" (Kalenderwoche -> Lehrwoche), "01 Einleitung".
+/// 2. Name: Nummer mit Schluesselwort im Dateinamen, im Namen der Moodle-Ressource oder in einem Ordner (tiefster
+///    zuerst): "VL 3", "Vorlesung_03", "V03", "Folien 3", "Sitzung 3", "Übung 2", "Übungsblatt 02", "Blatt 4", "Ü3",
+///    "Tutorium 5", "Lösung 2", "Skript Teil 4", "Kapitel 3", "Woche 5", "KW 46" (Kalenderwoche -> Lehrwoche).
+///    Eine nackte Nummer am Anfang ("7_Literaturempfehlungen", "01 Einleitung") zaehlt NICHT: An der HsH ist das die
+///    Laufnummer der Moodle-Ressourcen (Reihenfolge im Kurs), keine Lehrwoche (Befund vom echten iPad, 07.11.2026).
+///    Allgemein-Material (Literatur, Errata, Hinweise, Organisatorisches, Modulbeschreibung, Formelsammlung,
+///    `generalWords`) und Klausuren bleiben ohne Woche, auch mit Nummer davor; nur ein Schluesselwort mit Nummer im
+///    Namen ("Hinweise zu Blatt 3") geht vor.
 ///    Zuordnung: Vorlesung/Kapitel/Teil n -> Lehrwoche n; Übungsblatt/Übung/Tutorium n -> Lehrwoche n (ein Blatt
 ///    wird meist in der Woche der passenden Vorlesung herausgegeben); Lösung n -> Lehrwoche n + 1 (die Lösung kommt
 ///    eine Woche nach dem Blatt). Beginnt eine Reihe eines Kurses mit 0 ("Blatt 0"), zaehlt sie ab Woche 1. Hat eine
@@ -146,8 +151,12 @@ public enum LectureWeeks {
     /// Art der Nummer im Namen
     public enum NumberKind: String, Sendable {
         case calendarWeek = "kw", week = "woche", solution = "loesung", sheet = "blatt", tutorial = "tutorium"
-        case lecture = "vl", part = "teil", chapter = "kapitel", leading = "nummer"
+        case lecture = "vl", part = "teil", chapter = "kapitel"
     }
+
+    /// Kennzeichen frueherer Zuordnungen ueber die nackte Nummer am Anfang (`detail` "nummer 7"); diese werden beim
+    /// naechsten Abgleich einmal neu bewertet (`assignCourse`), alles andere bleibt
+    static let legacyLeadingDetail = "nummer "
 
     public struct NameHint: Sendable, Equatable {
         public let kind: NumberKind
@@ -172,12 +181,19 @@ public enum LectureWeeks {
         (.sheet, HText.regex(#"\b(?:(?:übungs|uebungs|aufgaben)?blatt|haus(?:ü|ue)bung|(?:ü|ue)bungs?serie|(?:ü|ue)bung|ueb|serie|exercise|sheet|assignment)\s?(?:nr\.?\s?)?0?(\d{1,2})(?!\d)"#)),
         (.sheet, HText.regex(#"\b(?:ü|ue|ub)\s?0?(\d{1,2})(?!\d)"#)),
         (.tutorial, HText.regex(#"\b(?:tutorium|tut)\s?(?:nr\.?\s?)?0?(\d{1,2})(?!\d)"#)),
-        (.lecture, HText.regex(#"\b(?:vorlesung|vl|vo|folien|slides|lecture|lec)\s?(?:nr\.?\s?)?0?(\d{1,2})(?!\d)"#)),
+        (.lecture, HText.regex(#"\b(?:vorlesung|vl|vo|folien|slides|lecture|lec|sitzung|termin)\s?(?:nr\.?\s?)?0?(\d{1,2})(?!\d)"#)),
         (.lecture, HText.regex(#"\bv(\d{2})(?!\d)"#)),
         (.part, HText.regex(#"\b(?:teil|part)\s?0?(\d{1,2})(?!\d)"#)),
         (.chapter, HText.regex(#"\b(?:kapitel|kap\.?|chapter)\s?0?(\d{1,2})(?!\d)"#)),
-        (.leading, HText.regex(#"^0?(\d{1,2})(?:\s|\.(?!\d)|$)"#)),
     ]
+
+    /// Allgemein-Material ohne Lehrwoche (Dateiname oder Name der Moodle-Ressource), Regel 2 und 3 entfallen
+    static let generalWords = HText.regex(#"literatur|errat(?:a|um)|hinweis|organisat|modulbeschreibung|modulhandbuch|formelsammlung|merkblatt|ank(?:ü|ue)ndigung|\btermine\b|raumplan|lernziel|syllabus|leseliste|glossar|checkliste|\bfaq\b|ablaufplan|semesterplan|zeitplan"#)
+
+    /// Allgemein-Material nach Name oder Ressource (`generalWords`)
+    public static func isGeneral(_ f: Input) -> Bool {
+        [f.name, f.moduleName ?? ""].contains { HText.match(generalWords, HText.nfc($0).lowercased()) != nil }
+    }
 
     /// Wort fuer Loesung (fuer "Blatt 2 Lösung" / "Übung 3 (Musterlösung)")
     private static let solutionWordRE = HText.regex(#"l(?:ö|oe)sung|\blsg\b|solution"#)
@@ -314,10 +330,12 @@ public enum LectureWeeks {
         return nil
     }
 
-    /// Hat die Datei einen Abschnitts- oder Namenshinweis (dann braucht sie kein Datum)?
+    /// Hat die Datei einen Abschnitts- oder Namenshinweis oder ist sie Allgemein-Material (dann braucht sie kein Datum)?
     public static func hasHint(_ f: Input, term: Term?) -> Bool {
         if let term, sectionWeek(f.section, term: term) != nil { return true }
-        return nameHint(of: f) != nil || hintSources(f).contains { dateInName($0.text) != nil }
+        if nameHint(of: f) != nil { return true }
+        if isGeneral(f) { return true }
+        return hintSources(f).contains { dateInName($0.text) != nil }
     }
 
     /// Art der Datei (Vorlesung, Skript, Übung, Lösung, Sonstiges; Klausur bleibt Klausur)
@@ -395,6 +413,15 @@ public enum LectureWeeks {
                     out.append(make(monday, .name, detail))
                     continue
                 }
+            }
+            // Klausuren und Allgemein-Material ohne Schluesselwort: keine Lehrwoche, auch nicht ueber das Datum
+            if type == "klausur" {
+                out.append(make(nil, .general, "Klausur"))
+                continue
+            }
+            if isGeneral(f) {
+                out.append(make(nil, .general, "Allgemein-Material"))
+                continue
             }
             // 3. Datum: im Namen, sonst das der Datei
             if let d = hintSources(f).lazy.compactMap({ dateInName($0.text) }).first, let mon = term.weekMonday(forDay: d) {
@@ -518,6 +545,10 @@ public enum LectureWeeks {
     public static func assignCourse(_ c: SQLiteConnection, courseID: String, semester: String?, university: String,
                                     files: [Input], now: String) throws -> [Assignment] {
         try ensureTables(c)
+        // einmal neu bewerten: fruehere Zuordnungen ueber die nackte Nummer am Anfang ("7_Literatur" -> Woche 7);
+        // nur diese Zeilen (rule "name", detail "nummer N"), nie Abschnitt, Datum oder eine Wahl des Nutzers
+        try c.execute("DELETE FROM lecture_file_weeks WHERE course_id=? AND rule='name' AND detail LIKE ?",
+                      [.text(courseID), .text(legacyLeadingDetail + "%")])
         let done = try assignedIDs(c, courseID: courseID)
         var todo = files.filter { !done.contains($0.id) }
         guard !todo.isEmpty else { return [] }

@@ -98,7 +98,8 @@ final class LectureWeeksTests: XCTestCase {
             ("Tutorium 5.pdf", .tutorial, 5), ("Lösung 2.pdf", .solution, 2), ("Loesung_Blatt_03.pdf", .solution, 3),
             ("Musterlösung zu Übung 4.pdf", .solution, 4), ("Blatt 2 Lösung.pdf", .solution, 2), ("Übung 3 (Musterlösung).pdf", .solution, 3),
             ("Skript Teil 4.pdf", .part, 4), ("Woche 5.pdf", .week, 5), ("3. Woche.pdf", .week, 3), ("KW 46.pdf", .calendarWeek, 46),
-            ("KW46_Folien.pdf", .calendarWeek, 46), ("01 Einleitung.pdf", .leading, 1), ("07.pdf", .leading, 7),
+            ("KW46_Folien.pdf", .calendarWeek, 46), ("Sitzung 4.pdf", .lecture, 4), ("Termin 2 Folien.pdf", .lecture, 2),
+            ("9_Hinweise zu Blatt 3.pdf", .sheet, 3),
         ]
         for (name, kind, n) in cases {
             XCTAssertEqual(LectureWeeks.nameHint(name), LectureWeeks.NameHint(kind: kind, number: n), name)
@@ -107,9 +108,43 @@ final class LectureWeeksTests: XCTestCase {
 
     func testNamesWithoutWeekNumber() {
         for name in ["Skript_v2.pdf", "Formelsammlung.pdf", "Mathe 2 Folien.pdf", "Literatur 2026.pdf", "12.10.2026 Folien.pdf",
-                     "Programmieren2.pdf", "Klausur WS 2025.pdf", "3D-Modell.pdf"] {
+                     "Programmieren2.pdf", "Klausur WS 2025.pdf", "3D-Modell.pdf",
+                     // nackte Laufnummer der Moodle-Ressourcen (HsH, 07.11.2026): keine Lehrwoche
+                     "01 Einleitung.pdf", "07.pdf", "6_Internes Rechnungswesen_zusätzliche Übungsaufgaben.pdf", "7_Literaturempfehlungen.pdf",
+                     "10_Errata - Fehler gefunden.pdf", "8_Übungsklausur.pdf", "9_Hinweise Übungsklausuren.pdf"] {
             XCTAssertNil(LectureWeeks.nameHint(name), name)
         }
+    }
+
+    /// Befund vom echten iPad (HsH-Moodle, anonymisiert): "N_" am Anfang ist die Reihenfolge im Kurs, Literatur,
+    /// Errata und Hinweise sind Allgemein-Material, Übungsklausuren gehoeren zu den Klausuren
+    func testLeadingNumbersAndGeneralMaterialStayGeneral() {
+        let files = [
+            input("a", "6_Internes Rechnungswesen_zusätzliche Übungsaufgaben.pdf"),
+            input("b", "7_Literaturempfehlungen.pdf", date: "2026-11-02T10:00:00"),
+            input("c", "10_Errata - Fehler gefunden.pdf", date: "2026-11-02T10:00:00"),
+            input("d", "8_Übungsklausur.pdf", date: "2026-11-02T10:00:00"),
+            input("e", "9_Hinweise Übungsklausuren.pdf"),
+            input("f", "list.pdf", module: "Literaturempfehlungen", date: "2026-11-02T10:00:00"),
+            input("g", "3_Formelsammlung.pdf"),
+            input("h", "9_Hinweise zu Blatt 3.pdf"),
+            input("i", "5_Modulbeschreibung.pdf", section: "Woche 2"),
+            input("j", "4_Übungsaufgaben.pdf", date: "2026-11-02T10:00:00"),
+        ]
+        let a = byID(LectureWeeks.assign(files, term: luh))
+        XCTAssertEqual(a["a"]?.rule, .general, "ohne Schluesselwort und ohne Datum: Allgemein, nicht Woche 6")
+        XCTAssertEqual(a["b"]?.rule, .general, "Literatur bleibt Allgemein, auch mit Datum")
+        XCTAssertNil(a["b"]?.lectureWeek)
+        XCTAssertEqual(a["c"]?.rule, .general)
+        XCTAssertEqual(a["d"]?.docType, "klausur")
+        XCTAssertNil(a["d"]?.lectureWeek, "Klausuren ohne Woche")
+        XCTAssertEqual(a["e"]?.docType, "klausur")
+        XCTAssertEqual(a["f"]?.rule, .general, "Name der Moodle-Ressource zaehlt")
+        XCTAssertEqual(a["g"]?.rule, .general)
+        XCTAssertEqual(a["h"]?.lectureWeek, 3, "Schluesselwort mit Nummer geht vor")
+        XCTAssertEqual(a["i"]?.lectureWeek, 2, "ein Wochen-Abschnitt geht immer vor")
+        XCTAssertEqual(a["j"]?.lectureWeek, 4, "ohne Schluesselwort: Datum (02.11. -> Woche 4 der LUH)")
+        XCTAssertEqual(a["j"]?.rule, .date)
     }
 
     func testDateInName() {
@@ -155,7 +190,7 @@ final class LectureWeeksTests: XCTestCase {
             input("c", "loesung.pdf", module: "Lösung zu Blatt 3"),
             input("d", "kapitel-04.pdf", module: "Skript"),
             input("e", "folien_KW46.pdf"),
-            input("f", "Organisatorisches.pdf", date: "2026-10-14T09:00:00"),
+            input("f", "Handout.pdf", date: "2026-10-14T09:00:00"),
             input("g", "literatur.pdf"),
             input("h", "material.pdf", date: "2026-12-30T12:00:00"),
             input("i", "alt.pdf", date: "2024-10-14T09:00:00"),
@@ -179,6 +214,37 @@ final class LectureWeeksTests: XCTestCase {
         XCTAssertEqual(a["i"]?.rule, .general, "Datum ausserhalb des Semesters sagt nichts")
         XCTAssertNil(a["j"], "ohne Datum und nicht final: spaeter")
         XCTAssertEqual(a["k"]?.lectureWeek, 3, "Datum im Namen")
+    }
+
+    /// Schon gemerkte Zuordnungen ueber die nackte Nummer werden einmal neu bewertet; alles andere bleibt
+    func testLegacyLeadingNumberAssignmentsAreReevaluatedOnce() async throws {
+        let (db, clock) = try await database(university: "hsh", today: "2026-11-07T10:00:00")
+        let now = clock.nowISO
+        try await db.transaction { c in
+            try UniStore.upsertCourse(c, UniStore.CourseRow(id: "lw-2", title: "Rechnungswesen", number: nil, semester: "WiSe 2026/27"), now: now)
+            try LectureWeeks.ensureTables(c)
+            for (id, week, rule, detail) in [("lw-2-a", 7, "name", "nummer 7"), ("lw-2-b", 3, "name", "vl 3"), ("lw-2-c", 5, "datum", "Datum 2026-10-20"),
+                                             ("lw-2-d", 2, "abschnitt", "Abschnitt Woche 2")] {
+                let monday = BerlinClock.isoDate(self.hsh.monday(ofLectureWeek: week)!)
+                try c.execute("INSERT INTO lecture_file_weeks(file_id, course_id, week_monday, lecture_week, doc_type, rule, detail, assigned_at) VALUES (?,?,?,?,?,?,?,?)",
+                              [.text(id), .text("lw-2"), .text(monday), .integer(Int64(week)), .text("vorlesung"), .text(rule), .text(detail), .text(now)])
+            }
+        }
+        let files = [input("lw-2-a", "7_Literaturempfehlungen.pdf"), input("lw-2-b", "VL 3.pdf"), input("lw-2-c", "material.pdf"),
+                     input("lw-2-d", "5_Modulbeschreibung.pdf", section: "Woche 2")]
+        let redone = try await db.transaction { c in
+            try LectureWeeks.assignCourse(c, courseID: "lw-2", semester: "WiSe 2026/27", university: "hsh", files: files, now: now)
+        }
+        XCTAssertEqual(redone.map(\.fileID), ["lw-2-a"], "nur die Zuordnung ueber die nackte Nummer")
+        XCTAssertEqual(redone.first?.rule, .general)
+        let rows = try await db.rows("SELECT file_id, lecture_week, rule FROM lecture_file_weeks WHERE course_id='lw-2' ORDER BY file_id")
+        XCTAssertEqual(rows.map { $0["lecture_week"]?.int }, [nil, 3, 5, 2])
+        XCTAssertEqual(rows.map { $0["rule"]?.string }, ["allgemein", "name", "datum", "abschnitt"])
+        // zweiter Lauf: nichts mehr zu tun
+        let again = try await db.transaction { c in
+            try LectureWeeks.assignCourse(c, courseID: "lw-2", semester: "WiSe 2026/27", university: "hsh", files: files, now: now)
+        }
+        XCTAssertTrue(again.isEmpty)
     }
 
     func testSheetZeroAndTwoLecturesPerWeek() {
@@ -317,13 +383,13 @@ final class LectureWeeksTests: XCTestCase {
         t.on("\(base)/lib/ajax/service.php?sesskey=abc123&info=core_course_get_enrolled_courses_by_timeline_classification",
              okJSON(.array([.object(["error": .bool(false), "data": .object(["courses": .array([
                 .object(["id": .number(501), "fullname": .string("Mathematik 1, WiSe 2026/27, Dr. Beispiel")])])])])])))
-        var cms = [(7, "Vorlesung 3"), (8, "Übungsblatt 2"), (9, "Lösung zu Blatt 2"), (10, "Organisatorisches"), (12, "Literatur")]
+        var cms = [(7, "Vorlesung 3"), (8, "Übungsblatt 2"), (9, "Lösung zu Blatt 2"), (10, "Handout"), (12, "Literatur")]
         func route(_ cms: [(Int, String)]) {
             t.on("\(base)/lib/ajax/service.php?sesskey=abc123&info=core_courseformat_get_state",
                  okJSON(.array([.object(["error": .bool(false), "data": .string(state(cms).jsonString())])])))
         }
         route(cms)
-        let names = [7: "folien.pdf", 8: "aufgaben.pdf", 9: "loesung.pdf", 10: "hinweise.pdf", 12: "literatur.pdf", 13: "zusatz.pdf"]
+        let names = [7: "folien.pdf", 8: "aufgaben.pdf", 9: "loesung.pdf", 10: "handout.pdf", 12: "literatur.pdf", 13: "zusatz.pdf"]
         for (id, name) in names {
             let file = "\(base)/pluginfile.php/\(id)/mod_resource/content/1/\(name)"
             t.on("\(base)/mod/resource/view.php?id=\(id)", UniResponse(status: 303, headers: ["Location": file]))
@@ -344,8 +410,8 @@ final class LectureWeeksTests: XCTestCase {
         XCTAssertEqual(w1["folien.pdf"], 3)
         XCTAssertEqual(w1["aufgaben.pdf"], 2)
         XCTAssertEqual(w1["loesung.pdf"], 3)
-        XCTAssertEqual(w1["hinweise.pdf"], 4, "Last-Modified 14.10. -> Lehrwoche 4 der HsH")
-        XCTAssertEqual(w1["literatur.pdf"], .some(nil), "Allgemein")
+        XCTAssertEqual(w1["handout.pdf"], 4, "Last-Modified 14.10. -> Lehrwoche 4 der HsH")
+        XCTAssertEqual(w1["literatur.pdf"], .some(nil), "Allgemein-Material")
 
         // zweiter Lauf mit einer neuen Datei: Bekanntes bleibt, nur die neue wird zugeordnet, keine HEAD-Anfragen
         cms.append((13, "Zusatzmaterial"))
@@ -371,7 +437,7 @@ final class LectureWeeksTests: XCTestCase {
     /// Schon vor dieser Fassung geladene Dateien ohne Hinweis im Namen: einmal HEAD fuer `Last-Modified`
     func testAlreadyDownloadedFilesGetTheirDateOnce() async throws {
         let base = "https://moodle.example.org"
-        let file = LectureWeeksTests.sessionFile(base: base, id: 10, name: "hinweise.pdf")
+        let file = LectureWeeksTests.sessionFile(base: base, id: 10, name: "handout.pdf")
         let t = FakeUniTransport()
         t.on(file.downloadURL, UniResponse(status: 200, headers: ["Last-Modified": "Wed, 14 Oct 2026 07:28:00 GMT"]))
         let api = LearnwebAPI(base: base, mode: .session, transport: t, retry: UniRetry(attempts: 1, delayNanos: { _ in 0 }))
