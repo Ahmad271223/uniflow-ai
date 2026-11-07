@@ -337,9 +337,11 @@ enum AIMarkdown {
     }
 
     /// Wie `inline`, aber Fett und Code mit ausdruecklicher Schrift (Inter als variable Schrift kennt kein
-    /// automatisches Fett: ohne das blieb **fett** bei manchen Groessen normal). `size` ist die schon skalierte Groesse.
-    static func styled(_ s: String, size: CGFloat) -> AttributedString {
-        var a = inline(s)
+    /// automatisches Fett: ohne das blieb **fett** bei manchen Groessen normal). `size` ist die schon skalierte Groesse,
+    /// `weight` das Gewicht der Zeile (Titel 650/700). Formeln werden lesbar (07.11.2026): ε statt `\epsilon` oder
+    /// "epsilon", x² statt x^2, echte Hoch-/Tiefstellung auch fuer e^{-x/2} oder lim_{n→∞} (`FormulaText`, `raised`).
+    static func styled(_ s: String, size: CGFloat, weight: CGFloat = 400) -> AttributedString {
+        var a = inline(FormulaText.render(s, rich: true))
         for run in a.runs {
             guard let intent = run.inlinePresentationIntent else { continue }
             if intent.contains(.code) {
@@ -348,7 +350,53 @@ enum AIMarkdown {
                 a[run.range].font = Font(UFTypeface.font(size, 700))
             }
         }
-        return a
+        return raised(a, size: size, weight: weight)
+    }
+
+    /// Marken aus `FormulaText.render(_:rich:)` -> echte Hoch- und Tiefstellung: kleinere Schrift (72 %), Grundlinie
+    /// hoeher bzw. tiefer, verschachtelt (e^{x^{2}}) jede Stufe kleiner; die Marken selbst verschwinden. Ohne Marken
+    /// bleibt der Text, wie er ist.
+    static func raised(_ a: AttributedString, size: CGFloat, weight: CGFloat = 400) -> AttributedString {
+        let marks: Set<Character> = [FormulaText.supOpen, FormulaText.subOpen, FormulaText.scriptClose]
+        guard a.characters.contains(where: { marks.contains($0) }) else { return a }
+        var out = AttributedString()
+        var levels: [Bool] = []                                   // true = hoch, false = tief
+        for run in a.runs {
+            let intent = run.inlinePresentationIntent
+            let bold = intent?.contains(.stronglyEmphasized) == true
+            let code = intent?.contains(.code) == true
+            var buffer = ""
+            func flush() {
+                guard !buffer.isEmpty else { return }
+                var attributes = run.attributes
+                if !levels.isEmpty {
+                    var scale: CGFloat = 1
+                    var offset: CGFloat = 0
+                    for up in levels {
+                        offset += (up ? 0.36 : -0.16) * size * scale
+                        scale *= 0.72
+                    }
+                    let font = code ? Font.system(size: size * scale * 0.92, design: .monospaced) : Font(UFTypeface.font(size * scale, bold ? 700 : weight))
+                    attributes[AttributeScopes.SwiftUIAttributes.FontAttribute.self] = font
+                    attributes[AttributeScopes.SwiftUIAttributes.BaselineOffsetAttribute.self] = offset
+                }
+                out.append(AttributedString(buffer, attributes: attributes))
+                buffer = ""
+            }
+            for ch in a[run.range].characters {
+                if ch == FormulaText.supOpen || ch == FormulaText.subOpen {
+                    flush()
+                    levels.append(ch == FormulaText.supOpen)
+                } else if ch == FormulaText.scriptClose {
+                    flush()
+                    if !levels.isEmpty { levels.removeLast() }
+                } else {
+                    buffer.append(ch)
+                }
+            }
+            flush()
+        }
+        return out
     }
 }
 
@@ -356,6 +404,7 @@ enum AIMarkdown {
 /// Abschnittstitel (## = h2, ### = h3, tiefer = h4 der UF-Schriften), Aufzaehlungen mit Punkt, nummerierte Listen mit
 /// Zahl, Codebloecke in Festbreite auf --surface-2, Absaetze als Lesetext mit mehr Zeilenabstand (1.6) und Luft
 /// zwischen den Bloecken. Alles auswaehlbar. `size` ist die Lesegroesse; Titel werden nie kleiner als der Text.
+/// Formeln ausserhalb von Codebloecken lesbar wie im Lehrbuch (ε, x², aₙ, √2, ≤, →; `AIMarkdown.styled`).
 struct AIMarkdownText: View {
     let text: String
     var size: CGFloat = 13.76
@@ -385,9 +434,9 @@ struct AIMarkdownText: View {
         .textSelection(.enabled)
     }
 
-    /// Zeile mit Fett und Code in der skalierten Groesse (Dynamic Type wie `ufFont`)
-    private func rich(_ s: String, _ base: CGFloat) -> AttributedString {
-        AIMarkdown.styled(s, size: UFScaledFont.scaled(base, typeSize))
+    /// Zeile mit Fett, Code und lesbaren Formeln in der skalierten Groesse (Dynamic Type wie `ufFont`)
+    private func rich(_ s: String, _ base: CGFloat, _ weight: CGFloat = 400) -> AttributedString {
+        AIMarkdown.styled(s, size: UFScaledFont.scaled(base, typeSize), weight: weight)
     }
 
     private static func isHeading(_ b: AIMarkdown.Block) -> Bool {
@@ -398,7 +447,7 @@ struct AIMarkdownText: View {
     @ViewBuilder private func block(_ b: AIMarkdown.Block) -> some View {
         switch b {
         case .heading(let level, let t):
-            Text(rich(t, Self.headingSize(level: level, body: size))).ufFont(Self.headingSize(level: level, body: size), level <= 2 ? 700 : 650, lh: 1.3, em: -0.01)
+            Text(rich(t, Self.headingSize(level: level, body: size), level <= 2 ? 700 : 650)).ufFont(Self.headingSize(level: level, body: size), level <= 2 ? 700 : 650, lh: 1.3, em: -0.01)
                 .foregroundStyle(UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)

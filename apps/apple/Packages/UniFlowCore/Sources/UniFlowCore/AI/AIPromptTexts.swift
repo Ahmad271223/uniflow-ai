@@ -7,7 +7,7 @@ enum AIPromptTexts {
     static let system = #"Du bist ein Lerncoach fuer ein Informatik-/Elektrotechnik-Studium (Leibniz Universitaet Hannover, 1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune."#
 
     /// `ai.TUTOR_SYSTEM`
-    static let tutorSystem = #"Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester (Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt."#
+    static let tutorSystem = #"Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester (Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen Absaetzen. Formeln schreibst du lesbar mit echten Zeichen wie im Lehrbuch: ε statt epsilon, x² statt x^2, aₙ statt a_n, √2, ≤, ≥, ≠, ·, →, ∈, ∑, ∫, ∞, ℝ, Brueche als a/b; kein LaTeX, keine $-Zeichen. Beziehe dich konkret auf den gegebenen Seiteninhalt."#
 
     /// `ai.TUTOR_MODES` in der Reihenfolge von Python
     static let tutorModes: [(key: String, text: String)] = [

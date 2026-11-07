@@ -333,9 +333,13 @@ def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | N
 # 2) Tutor im Editor (freier Text, Markdown); der KI-Wochenplan ist entfallen (Lernplan in app/study.py, ohne KI)
 # ----------------------------------------------------------------------------
 
+# Formeln wie im Lehrbuch mit echten Zeichen (07.11.2026, Wunsch des Inhabers: "ε statt epsilon, das richtige hoch 2
+# statt ^2"); die Apps setzen Reste (LaTeX, ^, _) zusaetzlich lesbar um (FormulaText)
+FORMULA_RULE = ("Formeln schreibst du lesbar mit echten Zeichen wie im Lehrbuch: ε statt epsilon, x² statt x^2, aₙ statt "
+                "a_n, √2, ≤, ≥, ≠, ·, →, ∈, ∑, ∫, ∞, ℝ, Brueche als a/b; kein LaTeX, keine $-Zeichen.")
 TUTOR_SYSTEM = ("Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester "
                 "(Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen "
-                "Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt.")
+                "Absaetzen. " + FORMULA_RULE + " Beziehe dich konkret auf den gegebenen Seiteninhalt.")
 
 TUTOR_MODES = {
     "ask": "Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.",

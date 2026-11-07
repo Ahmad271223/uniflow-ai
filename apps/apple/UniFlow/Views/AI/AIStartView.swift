@@ -514,12 +514,12 @@ struct AIStartView: View {
         }
     }
 
-    /// Vorschau einer Antwort ohne Markdown-Zeichen (`**`, `#`, `- `) fuer die Karten unter "Zuletzt"
+    /// Vorschau einer Antwort ohne Markdown-Zeichen (`**`, `#`, `- `) fuer die Karten unter "Zuletzt", Formeln lesbar
     static func plain(_ markdown: String) -> String {
         AIMarkdown.blocks(markdown).map { b -> String in
             switch b {
-            case .heading(_, let t), .paragraph(let t): return String(AIMarkdown.inline(t).characters)
-            case .bullets(let items), .numbered(let items): return items.map { String(AIMarkdown.inline($0).characters) }.joined(separator: " · ")
+            case .heading(_, let t), .paragraph(let t): return String(AIMarkdown.inline(FormulaText.render(t)).characters)
+            case .bullets(let items), .numbered(let items): return items.map { String(AIMarkdown.inline(FormulaText.render($0)).characters) }.joined(separator: " · ")
             case .code(let c): return c
             }
         }.joined(separator: " ")
