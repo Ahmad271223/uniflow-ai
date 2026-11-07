@@ -40,6 +40,26 @@ public enum HISinOne {
         HText.match(logoutRE, html) == nil && HText.match(loginHintRE, html) != nil
     }
 
+    // MARK: Fehlerseite des SSO (IdP)
+
+    /// Eigene Anmeldeseite des Campusmanagements (Benutzerkennung/Passwort mit dem SSO-Account, ohne IdP): Ausweg,
+    /// wenn der IdP auf die SAML-Anfrage von HISinOne nur seine Fehlerseite zeigt
+    public static let ownLoginURL = UniversityProfile.hshCampusStart
+
+    private static let idpErrorRE = HText.regex("TrackID", [.caseInsensitive])
+    private static let idpErrorTextRE = HText.regex("Ein Fehler ist aufgetreten|An Error Occurred|class=\"error-(?:container|text)\"", [.caseInsensitive])
+
+    /// Fehlerseite des SSO der HsH (SimpleSAMLphp, "SSO Login – Ein Fehler ist aufgetreten … TrackID: …"). Am 07.11.2026
+    /// zeigte der IdP sie auf jede SAML-Anfrage des Campusmanagements, auch ohne App und ohne Cookies (fuer andere
+    /// Dienste der HsH kam das Anmeldeformular): ein Fehler der Hochschule, kein falsches Passwort. Nie mit Passwortfeld.
+    public static func isIdPErrorPage(html: String, url: URL?) -> Bool {
+        guard let url, url.scheme?.lowercased() == "https", url.host?.lowercased() == UniversityProfile.hshIdPHost,
+              url.path.hasPrefix("/simplesaml/") else { return false }
+        let h = html.lowercased()
+        if h.contains("type=\"password\"") || h.contains("type='password'") { return false }
+        return HText.match(idpErrorRE, html) != nil && HText.match(idpErrorTextRE, html) != nil
+    }
+
     // MARK: Stundenplan-Abo
 
     private static let textareaRE = HText.regex("<textarea\\b[^>]*\\bid=\"[^\"]*ical[^\"]*\"[^>]*>([^<]*)</textarea>", [.caseInsensitive])

@@ -75,6 +75,31 @@ final class UniAutoLoginTests: XCTestCase {
         XCTAssertFalse(UniLoginForms.luhQIS.appears(in: "<html><a href=\"x\">Abmelden</a></html>"), "ohne Passwortfeld kein Formular")
     }
 
+    /// HISinOne der HsH: "Zur Anmeldung" ist nur ein Oeffner (einmal je Seite), nie ein Absende-Knopf
+    func testHsHCampusOpenerIsOnlyUsedWhenNoFieldIsShown() {
+        let form = UniLoginForms.hshCampus
+        XCTAssertFalse(form.openers.isEmpty)
+        XCTAssertEqual(form.spec["open"] as? [String], form.openers)
+        XCTAssertTrue(UniLoginForms.fillFunctionBody.contains("__studinowOpened"))
+        XCTAssertTrue(UniLoginForms.luhQIS.openers.isEmpty, "andere Formulare ohne Oeffner")
+        XCTAssertFalse(form.openers.contains { form.submitButtons.contains($0) })
+    }
+
+    /// Echter Aufbau des HsH-IdP (07.11.2026): Knopf ohne `type` in form#f; die Fehlerseite ist kein Formular
+    func testHsHIdPRealLayoutIsFilledAndErrorPageIsNoForm() throws {
+        let form = UniLoginForms.hshIdP
+        let real = try fx("hsh-idp-echt.html"), error = try fx("hsh-idp-fehler.html")
+        let sso = u("https://idp.hs-hannover.de/simplesaml/module.php/core/loginuserpass?AuthState=x")
+        XCTAssertTrue(form.appears(in: real))
+        XCTAssertFalse(form.showsFailure(in: real))
+        XCTAssertTrue(form.submitButtons.contains("form#f button"), "Knopf ohne type")
+        XCTAssertTrue(form.confirmed)
+        let domains = ["hs-hannover.de"]
+        XCTAssertEqual(UniAutoLoginFlow.step(url: sso, html: real, university: .hsh, domains: domains, submitted: [], isDone: false), .fill(form))
+        XCTAssertFalse(form.appears(in: error))
+        XCTAssertEqual(UniAutoLoginFlow.step(url: sso, html: error, university: .hsh, domains: domains, submitted: [], isDone: false), .wait)
+    }
+
     /// `input[name="fdsa"]` -> `name="fdsa"`, `input#fdsa` -> `id="fdsa"`
     static func attr(_ selector: String) -> String? {
         if let r = selector.range(of: "[name=\"") {

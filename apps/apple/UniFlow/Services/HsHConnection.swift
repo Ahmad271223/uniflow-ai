@@ -152,6 +152,21 @@ final class HsHConnection: ObservableObject {
         Task { await run(forceGrades: s == .campus) }
     }
 
+    /// Frischer Beginn der Campus-Anmeldung: die Cookies von idp.hs-hannover.de (SimpleSAMLphp-Sitzung) und, ausser mit
+    /// `keepCampus`, von campusmanagement.hs-hannover.de (JSESSIONID der abgelaufenen HISinOne-Sitzung) weg; Moodle
+    /// bleibt. Die Fehlerseite des IdP haengt an seinem Sitzungs-Cookie (gleiches Cookie = gleiche TrackID): ohne dieses
+    /// Loeschen bliebe das Blatt im kaputten Zustand einer frueheren SAML-Anfrage.
+    static func resetCampusLogin(_ dataStore: WKWebsiteDataStore, keepCampus: Bool = false) async {
+        await UniWebSessions.ready(dataStore)
+        let store = dataStore.httpCookieStore
+        let idp = UniLoginForms.hshIdP.target.host                       // idp.hs-hannover.de
+        let hosts = keepCampus ? [idp] : [idp, HISinOne.host]
+        for c in await store.allCookies() {
+            let d = c.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            if hosts.contains(d) { await store.deleteCookie(c) }
+        }
+    }
+
     /// Abmelden: Verbindungen, Abo-Adresse und die Cookies der HsH in der Webansicht; Daten bleiben
     func signOut() async {
         signOuts += 1
@@ -317,6 +332,7 @@ final class HsHConnection: ObservableObject {
     func autoLogin(_ s: Source, userAction: Bool = false) async -> Bool {
         guard isConnected(s), state(s) == .needsLogin, !stopped else { return false }
         let before = signOuts
+        if s == .campus { await Self.resetCampusLogin(websiteDataStore) }    // nie im Zustand einer alten SAML-Anfrage
         let d = await UniAutoLogin.handleExpiry(portal: s.loginService, store: websiteDataStore, entry: UniversityProfile.hsh.loginService(s.loginService)?.entryURLs.first ?? UniversityProfile.hshMoodle,
                                                 userAction: userAction) { url, html in HsHConnection.isSignedIn(s, html: html, url: url) }
         guard d == .retryOnce, signOuts == before, isConnected(s), !stopped else { return false }

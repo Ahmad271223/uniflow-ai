@@ -35,10 +35,13 @@ public struct UniLoginForm: Sendable, Hashable, Identifiable {
     public let failureMarkers: [String]
     /// Feldnamen am echten Formular bzw. in vorhandenem Code bestaetigt (sonst: am Geraet pruefen)
     public let confirmed: Bool
+    /// Knoepfe, die ein Mensch zuerst antippt, damit die Felder erscheinen (HISinOne: "Zur Anmeldung" blendet die
+    /// Anmeldung ein); hoechstens einmal je Seite, nie ein Absenden
+    public let openers: [String]
 
     public init(id: String, university: UniversityKey, name: String, target: UniversityLoginTarget, userFields: [String],
                 passwordFields: [String], submitButtons: [String], ignoredContainers: [String] = [], markers: [String],
-                failureMarkers: [String] = [], confirmed: Bool) {
+                failureMarkers: [String] = [], confirmed: Bool, openers: [String] = []) {
         self.id = id
         self.university = university
         self.name = name
@@ -50,6 +53,7 @@ public struct UniLoginForm: Sendable, Hashable, Identifiable {
         self.markers = markers
         self.failureMarkers = failureMarkers
         self.confirmed = confirmed
+        self.openers = openers
     }
 
     /// Gilt das Formular fuer diese Adresse? (HTTPS, Rechner exakt, Pfad-Praefix)
@@ -71,7 +75,7 @@ public struct UniLoginForm: Sendable, Hashable, Identifiable {
     /// Beschreibung fuer die Seitenskripte (keine Geheimnisse)
     public var spec: [String: Any] {
         ["id": id, "host": target.host, "path": target.pathPrefix, "user": userFields, "pass": passwordFields,
-         "submit": submitButtons, "hidden": ignoredContainers]
+         "submit": submitButtons, "hidden": ignoredContainers, "open": openers]
     }
 }
 
@@ -159,16 +163,22 @@ public enum UniLoginForms {
         id: "hsh-idp", university: .hsh, name: "SSO der HsH (Campusmanagement)",
         target: UniversityLoginTarget(host: UniversityProfile.hshIdPHost, pathPrefix: "/simplesaml/"),
         userFields: ["input#username", "input[name=\"username\"]"], passwordFields: ["input#password", "input[name=\"password\"]"],
-        submitButtons: ["button#submit_button", "button#regularsubmit", "button[type=\"submit\"]", "input[type=\"submit\"]"],
+        // echter Aufbau (07.11.2026 ohne Anmeldung gelesen): form#f, input#username/#password, ein <button> ohne type
+        // ("Login", onclick: this.form.submit()); daher auch "form#f button"
+        submitButtons: ["button#submit_button", "button#regularsubmit", "button[type=\"submit\"]", "input[type=\"submit\"]",
+                        "form#f button", "form[name=\"f\"] button"],
         markers: ["name=\"password\"", "id=\"password\""],
-        failureMarkers: generalFailure + ["Incorrect username or password", "Falscher Benutzername oder Passwort"], confirmed: false)
+        failureMarkers: generalFailure + ["Incorrect username or password", "Falscher Benutzername oder Passwort"], confirmed: true)
 
+    /// Seit 07.11.2026 der Standardweg der HsH (der IdP zeigte auf jede SAML-Anfrage des Campusmanagements nur seine
+    /// Fehlerseite): Anmeldung auf der Startseite von HISinOne mit dem SSO-Account (asdf/fdsa). Schmal steht das Formular
+    /// `#mobileLoginForm` da, breit blendet "Zur Anmeldung" (`…:overlayShowButton`, JSF-Ajax) es ein.
     public static let hshCampus = UniLoginForm(
         id: "hsh-campus", university: .hsh, name: "Campusmanagement der HsH (eigenes Formular)",
         target: UniversityLoginTarget(host: UniversityProfile.hshCampus.host ?? "campusmanagement.hs-hannover.de", pathPrefix: "/qisserver/"),
         userFields: hisQISUser, passwordFields: hisQISPassword, submitButtons: hisQISSubmit,
         ignoredContainers: hisinoneHidden, markers: ["name=\"fdsa\"", "id=\"fdsa\""], failureMarkers: generalFailure,
-        confirmed: true)
+        confirmed: true, openers: ["button[id$=\"overlayShowButton\"]", "button.login_overlay_button"])
 
     public static let all: [UniLoginForm] = [luhWebSSO, luhQIS, luhSOGo, hildesheimCAS, hildesheimCASBare, hildesheimLSF,
                                              hildesheimPLuS, hildesheimSOGo, hshMoodle, hshIdP, hshCampus]
@@ -261,7 +271,8 @@ public enum UniLoginForms {
 
     /// Rumpf der Funktion zum Einfuellen und Absenden (`callAsyncJavaScript`, Argumente `spec`, `user`, `pass`; das
     /// Passwort steht nie im Quelltext). Prueft zuerst Rechner und Pfad der Seite selbst. Rueckgabe: "submitted",
-    /// "nofield" (Formular nicht sichtbar, z. B. schon angemeldet) oder "host" (falsche Seite: nichts eingefuellt).
+    /// "nofield" (Formular nicht sichtbar, z. B. schon angemeldet), "opened" (Knopf "Zur Anmeldung" einmal angetippt,
+    /// gleich noch einmal versuchen) oder "host" (falsche Seite: nichts eingefuellt).
     public static let fillFunctionBody = """
     var loc = window.location;
     if (loc.protocol !== 'https:' || (loc.port && loc.port !== '443')) return 'host';
@@ -285,7 +296,12 @@ public enum UniLoginForms {
       return null;
     }
     var u = first(spec.user), p = first(spec.pass);
-    if (!u || !p || String(p.type || '').toLowerCase() !== 'password') return 'nofield';
+    if (!u || !p) {
+      var o = first(spec.open || []);
+      if (o && !window.__studinowOpened) { window.__studinowOpened = true; o.click(); return 'opened'; }
+      return 'nofield';
+    }
+    if (String(p.type || '').toLowerCase() !== 'password') return 'nofield';
     if (u.form && p.form && u.form !== p.form) return 'nofield';
     var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
     function put(el, v) {

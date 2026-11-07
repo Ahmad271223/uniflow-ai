@@ -307,12 +307,14 @@ extension UniversityProfile {
                 key: "moodle", name: "Moodle", userLabel: "SSO-Account",
                 entryURLs: [hshMoodle.appendingPathComponent("login/index.php")],
                 targets: [UniversityLoginTarget(host: hshMoodle.host ?? "", pathPrefix: "/login/")]),
-            // Campusmanagement: SAML beim IdP der HsH; das versteckte Dialogfeld "Sitzung abgelaufen" auf jeder
-            // HISinOne-Seite ist kein Anmeldeort
+            // Campusmanagement: seit 07.11.2026 zuerst die Startseite von HISinOne mit ihrem eigenen Formular (SSO-Account,
+            // ohne IdP; der IdP zeigte auf jede SAML-Anfrage nur seine Fehlerseite), dort bleibt "Anmelden mit SSO" als
+            // zweiter Weg. Das versteckte Dialogfeld "Sitzung abgelaufen" auf jeder HISinOne-Seite ist kein Anmeldeort
             UniversityLoginService(
                 key: "campus", name: "Campusmanagement", userLabel: "SSO-Account",
-                entryURLs: [hshCampusLogin],
-                targets: [UniversityLoginTarget(host: hshIdPHost, pathPrefix: "/simplesaml/")]),
+                entryURLs: [hshCampusStart, hshCampusLogin],
+                targets: [UniversityLoginTarget(host: hshCampus.host ?? "", pathPrefix: "/qisserver/pages/cs/sys/portal/hisinoneStartPage.faces"),
+                          UniversityLoginTarget(host: hshIdPHost, pathPrefix: "/simplesaml/")]),
         ],
         // Abo-Adresse des Stundenplans (persoenlich, user+hash) wie ein Schluessel: "hsh.ical.token"
         tokenServices: ["ical"],

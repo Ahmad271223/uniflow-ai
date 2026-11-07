@@ -1,3 +1,4 @@
+import SwiftUI
 import UniFlowCore
 import WebKit
 import XCTest
@@ -72,6 +73,38 @@ final class HsHAppTests: XCTestCase {
         XCTAssertFalse(HsHConnection.isSignedIn(.campus, html: try fx("hisinone-start-abgemeldet.html"), url: start),
                        "das versteckte Dialogfeld zaehlt nicht")
         XCTAssertFalse(HsHConnection.isSignedIn(.campus, html: try fx("hisinone-start-angemeldet.html"), url: URL(string: "https://evil.example/")!))
+    }
+
+    // MARK: SSO-Fehlerseite (07.11.2026)
+
+    /// Der IdP zeigte "SSO Login – Ein Fehler ist aufgetreten … TrackID": die Anmeldung erkennt das nicht als angemeldet,
+    /// beginnt mit frischer IdP-/Campus-Sitzung (Moodle bleibt) und bietet sonst die eigene Anmeldeseite an
+    func testIdPErrorPageResetsOnlyTheIdPSessionAndOffersOwnLogin() async throws {
+        let error = try String(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/autologin/hsh-idp-fehler.html"), encoding: .utf8)
+        let sso = URL(string: "https://idp.hs-hannover.de/simplesaml/module.php/saml/idp/singleSignOnService?SAMLRequest=x")!
+        XCTAssertFalse(HsHConnection.isSignedIn(.campus, html: error, url: sso))
+        XCTAssertTrue(HISinOne.isIdPErrorPage(html: error, url: sso))
+        XCTAssertEqual(HsHLoginPane<EmptyView>.entry(.campus), UniversityProfile.hshCampusStart,
+                       "Start auf der Startseite von HISinOne (eigenes Formular), nie direkt beim IdP")
+        XCTAssertEqual(UniversityProfile.hsh.loginService("campus")?.entryURLs.last, UniversityProfile.hshCampusLogin, "SSO beim Dienst, nicht beim IdP")
+        XCTAssertTrue(HsHIdPErrorHint.title.contains("direkt in HISinOne anmelden"))
+        XCTAssertTrue(HsHIdPErrorHint.text.contains("nicht an deinem Passwort"))
+        XCTAssertEqual(HISinOne.ownLoginURL, UniversityProfile.hshCampusStart)
+
+        let store = WKWebsiteDataStore.nonPersistent()
+        func cookie(_ name: String, _ domain: String) -> HTTPCookie {
+            HTTPCookie(properties: [.name: name, .value: "erfunden", .domain: domain, .path: "/", .secure: "TRUE"])!
+        }
+        for c in [cookie("SimpleSAMLSessionID", "idp.hs-hannover.de"), cookie("SimpleSAMLAuthToken", ".idp.hs-hannover.de"),
+                  cookie("MoodleSession", "moodle.hs-hannover.de"), cookie("JSESSIONID", "campusmanagement.hs-hannover.de")] {
+            await store.httpCookieStore.setCookie(c)
+        }
+        await HsHConnection.resetCampusLogin(store, keepCampus: true)
+        var left = await store.httpCookieStore.allCookies().map(\.name).sorted()
+        XCTAssertEqual(left, ["JSESSIONID", "MoodleSession"], "nur die IdP-Sitzung")
+        await HsHConnection.resetCampusLogin(store)
+        left = await store.httpCookieStore.allCookies().map(\.name).sorted()
+        XCTAssertEqual(left, ["MoodleSession"], "Moodle bleibt immer")
     }
 
     // MARK: Abgleich

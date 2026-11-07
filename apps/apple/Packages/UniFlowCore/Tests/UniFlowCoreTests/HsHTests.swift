@@ -34,6 +34,9 @@ final class HsHTests: XCTestCase {
         // Anmeldeorte: Moodle-Formular und der SAML-IdP, nie das versteckte Dialogfeld von HISinOne
         XCTAssertTrue(p.loginService("moodle")!.allows(URL(string: "\(moodle)/login/index.php")))
         XCTAssertTrue(p.loginService("campus")!.allows(URL(string: "https://idp.hs-hannover.de/simplesaml/module.php/saml/idp/singleSignOnService?x=1")))
+        // seit 07.11.2026 zuerst die Startseite mit eigenem Formular, dann SSO beim Dienst (nie direkt beim IdP)
+        XCTAssertEqual(p.loginService("campus")!.entryURLs, [UniversityProfile.hshCampusStart, UniversityProfile.hshCampusLogin])
+        XCTAssertTrue(p.loginService("campus")!.allows(UniversityProfile.hshCampusStart))
         XCTAssertFalse(p.loginService("campus")!.allows(URL(string: "\(campus)/qisserver/rds?state=user&type=1&category=auth.login")))
         XCTAssertFalse(p.loginService("moodle")!.allows(URL(string: "http://moodle.hs-hannover.de/login/index.php")))
         // Dienste wie HSH_SERVICES in Python (Schluessel und Reihenfolge)
@@ -58,6 +61,27 @@ final class HsHTests: XCTestCase {
         XCTAssertEqual(hsh.first?.name, "WiSe 2026/27")
         XCTAssertEqual(hsh.first?.start, "2026-09-21")
         XCTAssertEqual(hsh.first?.end, "2027-01-31")
+    }
+
+    // MARK: SSO-Fehlerseite (07.11.2026)
+
+    /// Der IdP der HsH zeigte am 07.11.2026 auf jede SAML-Anfrage des Campusmanagements "SSO Login – Ein Fehler ist
+    /// aufgetreten … TrackID" (auch ohne App). Erkannt wird nur diese Seite auf dem IdP, nie ein Anmeldeformular.
+    func testIdPErrorPageIsRecognisedOnlyOnTheIdP() throws {
+        let error = try repo("packages/shared-contracts/fixtures/autologin/hsh-idp-fehler.html")
+        let form = try repo("packages/shared-contracts/fixtures/autologin/hsh-idp-echt.html")
+        let sso = URL(string: "https://idp.hs-hannover.de/simplesaml/module.php/saml/idp/singleSignOnService?SAMLRequest=x")!
+        XCTAssertTrue(HISinOne.isIdPErrorPage(html: error, url: sso))
+        XCTAssertTrue(HISinOne.isIdPErrorPage(html: "<h2>An Error Occurred</h2><p>TrackID: <code>1</code>", url: sso), "englische Fassung")
+        XCTAssertFalse(HISinOne.isIdPErrorPage(html: form, url: sso), "Anmeldeformular ist kein Fehler")
+        XCTAssertFalse(HISinOne.isIdPErrorPage(html: error + #"<input type="password">"#, url: sso))
+        XCTAssertFalse(HISinOne.isIdPErrorPage(html: error, url: URL(string: "http://idp.hs-hannover.de/simplesaml/x")))
+        XCTAssertFalse(HISinOne.isIdPErrorPage(html: error, url: URL(string: "https://evil.example/simplesaml/x")))
+        XCTAssertFalse(HISinOne.isIdPErrorPage(html: error, url: UniversityProfile.hshCampusStart))
+        XCTAssertFalse(HISinOne.isIdPErrorPage(html: error, url: nil))
+        // Ausweg: eigene Anmeldeseite des Campusmanagements (Benutzerkennung/Passwort), dort gilt das HISinOne-Formular
+        XCTAssertTrue(HISinOne.isCampusURL(HISinOne.ownLoginURL))
+        XCTAssertEqual(UniLoginForms.form(for: HISinOne.ownLoginURL, university: .hsh)?.id, "hsh-campus")
     }
 
     // MARK: HISinOne-Leser

@@ -1,0 +1,7 @@
+<!doctype html><!-- NACHGEBAUT: SSO der HsH (SimpleSAMLphp, Theme "hertie") im Aufbau der echten Seite vom 07.11.2026 (ohne Anmeldung gelesen): form#f, Felder username/password, ein Knopf ohne type mit onclick. AuthState erfunden. --><html lang="de"><head><meta charset="utf-8"><title>Hochschule Hannover</title></head><body>
+<div class="boxTitle">SSO Login</div>
+<form id="f" class="pure-form pure-form-aligned" action="?AuthState=erfunden" method="post" name="f" spellcheck="false"><div>
+<fieldset><label for="username" class="userpass-label">SSO Username</label><input id="username" class="userpass-input" type="text" name="username" tabindex="1" value="" placeholder="abc-123-sso" required="required"/></fieldset>
+<fieldset><label class="userpass-label">SSO Password</label><input id="password" class="userpass-input" type="password" tabindex="2" name="password" placeholder="password" required="required"/></fieldset>
+<div style="display:flex; justify-content: flex-end;"><button style="width: 10em;" onclick="this.value='Logging in...'; this.disabled=true; this.form.submit(); return true;" tabindex="6">Login</button></div>
+</div></form></body></html>

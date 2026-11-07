@@ -420,6 +420,8 @@ struct StudIPWebView: UIViewRepresentable {
     var load: UFWebLoadState? = nil
     /// Hilfe auf der Anmeldeseite des WebSSO bzw. CAS (`UniLoginHelper`); aus fuer das QIS (eigenes Formular, kein SSO)
     var loginHelper = true
+    /// erste Seite ohne Cache laden (HsH-Campus: eine Fehlerseite des IdP nie aus dem Cache zeigen)
+    var cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -448,7 +450,7 @@ struct StudIPWebView: UIViewRepresentable {
         load?.webView = view
         load?.lastURL = url
         // nur Debug mit -UFLoginStub: lokale Nachbildung der Anmeldeseite (DebugUniStub), Lesezugriff auf ihren Ordner
-        if url.isFileURL { view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent()) } else { view.load(URLRequest(url: url)) }
+        if url.isFileURL { view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent()) } else { view.load(URLRequest(url: url, cachePolicy: cachePolicy)) }
         return view
     }
 

@@ -354,7 +354,15 @@ enum UniAutoLoginWeb {
                 case .abort: return .blocked
                 case .rejected: return .wrongPassword
                 case .fill(let form):
-                    switch await fill(web, form: form, credential: r.credential) {
+                    var result = await fill(web, form: form, credential: r.credential)
+                    // HISinOne: "Zur Anmeldung" blendet das Formular per Ajax ein (ohne neue Seite): kurz warten, nochmals
+                    if result == "opened" {
+                        for _ in 0..<8 where result == "opened" || result == "nofield" {
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+                            result = await fill(web, form: form, credential: r.credential)
+                        }
+                    }
+                    switch result {
                     case "submitted":
                         submitted.append(form.id)
                         stable = nil

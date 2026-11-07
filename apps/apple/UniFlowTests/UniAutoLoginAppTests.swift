@@ -237,6 +237,7 @@ final class UniAutoLoginAppTests: XCTestCase {
             ("hildesheim-cas.html", "https://www.uni-hildesheim.de/sso/login?service=x", UniLoginForms.hildesheimCAS, "username", "password"),
             ("hsh-moodle.html", "https://moodle.hs-hannover.de/login/index.php", UniLoginForms.hshMoodle, "username", "password"),
             ("hsh-idp.html", "https://idp.hs-hannover.de/simplesaml/module.php/core/loginuserpass.php?AuthState=x", UniLoginForms.hshIdP, "username", "password"),
+            ("hsh-idp-echt.html", "https://idp.hs-hannover.de/simplesaml/module.php/core/loginuserpass?AuthState=x", UniLoginForms.hshIdP, "username", "password"),
             ("sogo.html", "https://kalender.uni-hannover.de/SOGo/", UniLoginForms.luhSOGo, "userName", "password"),
         ]
         let h = try await fillHarness()
@@ -258,6 +259,29 @@ final class UniAutoLoginAppTests: XCTestCase {
                 try await expectJS(h, "String(document.querySelector('[name=rememberLogin]').checked)", "true")
             }
         }
+    }
+
+    /// HsH seit 07.11.2026: Startseite von HISinOne, das Formular erscheint erst nach "Zur Anmeldung" (Ajax, ohne neue
+    /// Seite); das versteckte #mobileLoginForm und das Dialogfeld "Sitzung abgelaufen" bleiben leer
+    func testHsHCampusStartPageOpensTheLoginAndFillsTheOwnForm() async throws {
+        let cred = UniCredential(username: user, password: password, savedAt: Date())
+        let html = try String(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/hsh/hisinone-start-lokal.html"), encoding: .utf8)
+        let h = try await fillHarness()
+        try await loaded(h, html, UniversityProfile.hshCampusStart)
+        XCTAssertTrue(UniLoginForms.hshCampus.appears(in: html))
+        let n = h.submissions
+        let first = await UniAutoLoginWeb.fill(h.webView, form: UniLoginForms.hshCampus, credential: cred)
+        XCTAssertEqual(first, "opened", "erst \"Zur Anmeldung\" antippen")
+        XCTAssertEqual(h.submissions, n, "das Antippen sendet nichts ab")
+        let second = await UniAutoLoginWeb.fill(h.webView, form: UniLoginForms.hshCampus, credential: cred)
+        XCTAssertEqual(second, "submitted")
+        try await waitUntil("abgesendet") { h.submissions > n }
+        try await expectJS(h, "document.querySelector('#overlayPlaceholder [name=\"asdf\"]').value", user)
+        try await expectJS(h, "document.querySelector('#overlayPlaceholder [name=\"fdsa\"]').value", password)
+        try await expectJS(h, "document.querySelector('#mobileLoginForm [name=\"fdsa\"]').value", "", "verstecktes Formular leer")
+        try await expectJS(h, "document.querySelector('#sessionTimeoutDialog [name=\"fdsa\"]').value", "", "Dialogfeld leer")
+        let third = await UniAutoLoginWeb.fill(h.webView, form: UniLoginForms.hshCampus, credential: cred)
+        XCTAssertNotEqual(third, "opened", "hoechstens einmal je Seite antippen")
     }
 
     func testFillRefusesForeignHostsAndHiddenDialogs() async throws {

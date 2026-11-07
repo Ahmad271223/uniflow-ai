@@ -17,7 +17,8 @@ extension EnvironmentValues {
     }
 }
 
-/// Anmeldung auf der echten Seite (Moodle-Formular bzw. "Anmelden mit SSO Hochschule Hannover" beim IdP). Fertig,
+/// Anmeldung auf der echten Seite (Moodle-Formular bzw. Startseite des Campusmanagements mit eigenem Formular; dort
+/// bleibt "Anmelden mit SSO Hochschule Hannover" als zweiter Weg, seit 07.11.2026 nicht mehr der erste). Fertig,
 /// sobald eine angemeldete Seite erscheint (`HsHConnection.isSignedIn`); dann `signedIn` (gleicht gleich ab). Die App
 /// fuellt kein Passwort ein und speichert keins; ein gespeichertes setzt hoechstens iOS ein.
 struct HsHLoginPane<Bottom: View>: View {
@@ -27,6 +28,9 @@ struct HsHLoginPane<Bottom: View>: View {
     @ViewBuilder let bottom: Bottom
     @StateObject private var load = UFWebLoadState()
     @State private var done = false
+    /// Wie oft der IdP in diesem Blatt seine Fehlerseite zeigte (beim ersten Mal still einmal neu beim Dienst)
+    @State private var idpErrors = 0
+    @State private var showsIdPError = false
 
     init(source: HsHConnection.Source, connection: HsHConnection, onSignedIn: @escaping () -> Void, @ViewBuilder bottom: () -> Bottom) {
         self.source = source
@@ -39,12 +43,31 @@ struct HsHLoginPane<Bottom: View>: View {
         UniversityProfile.hsh.loginService(s.loginService)?.entryURLs.first ?? UniversityProfile.hshMoodle
     }
 
+    /// Campus: erst nach `HsHConnection.resetCampusLogin` laden (frische Sitzung, nie ein alter IdP-Zustand), ohne Cache
+    @State private var ready = false
+
     var body: some View {
-        StudIPWebView(url: DebugUniStub.loginPage("hsh-\(source.loginService)", real: Self.entry(source)),
-                      dataStore: connection.websiteDataStore, load: load) { webView in pageLoaded(webView) }
+        Group {
+            if source == .moodle || ready {
+                StudIPWebView(url: DebugUniStub.loginPage("hsh-\(source.loginService)", real: Self.entry(source)),
+                              dataStore: connection.websiteDataStore, load: load,
+                              cachePolicy: source == .campus ? .reloadIgnoringLocalAndRemoteCacheData : .useProtocolCachePolicy) { webView in pageLoaded(webView) }
+            } else {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+            .task {
+                guard source == .campus, !ready else { return }
+                await HsHConnection.resetCampusLogin(connection.websiteDataStore)
+                ready = true
+            }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
+                    if showsIdPError {
+                        HsHIdPErrorHint(ownLogin: { restart(HISinOne.ownLoginURL) },
+                                        retrySSO: { restart(UniversityProfile.hshCampusLogin) })
+                    }
                     UniversityLoginHint()
                     UniRememberPasswordToggle(dataStore: connection.websiteDataStore)
                     bottom
@@ -61,7 +84,31 @@ struct HsHLoginPane<Bottom: View>: View {
         guard let url = webView.url, HsHConnection.domains.contains(url.host?.lowercased() ?? "") else { return }
         webView.evaluateJavaScript("document.documentElement.outerHTML", in: nil, in: .defaultClient) { result in
             let html = (try? result.get()) as? String ?? ""
-            if HsHConnection.isSignedIn(source, html: html, url: url) { finish() }
+            if HsHConnection.isSignedIn(source, html: html, url: url) {
+                finish()
+            } else if source == .campus, HISinOne.isIdPErrorPage(html: html, url: url) {
+                idpErrorShown()
+            }
+        }
+    }
+
+    /// Fehlerseite des SSO ("SSO Login – Ein Fehler ist aufgetreten … TrackID"): unten im Blatt der Hinweis
+    /// `HsHIdPErrorHint` (direkt in HISinOne anmelden); beim ersten Mal zusaetzlich still einmal neu bei der
+    /// SP-Login-URL mit frischer IdP-Sitzung (gleiches IdP-Cookie = gleiche TrackID, nie im alten Zustand bleiben)
+    private func idpErrorShown() {
+        idpErrors += 1
+        if idpErrors == 1 { restart(UniversityProfile.hshCampusLogin, hint: true) } else { showsIdPError = true }
+    }
+
+    /// Neu laden (SP-Login-URL bzw. Startseite mit eigenem Formular), ohne Cache und mit frischer IdP-/Campus-Sitzung;
+    /// Moodle bleibt
+    private func restart(_ url: URL, hint: Bool = false) {
+        showsIdPError = hint
+        let store = connection.websiteDataStore
+        Task { @MainActor in
+            await HsHConnection.resetCampusLogin(store)
+            load.failure = nil
+            load.webView?.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData))
         }
     }
 
@@ -70,6 +117,42 @@ struct HsHLoginPane<Bottom: View>: View {
         done = true
         connection.signedIn(source)
         onSignedIn()
+    }
+}
+
+/// Hinweis unten im Anmeldeblatt, wenn der IdP der HsH auf die Anfrage des Campusmanagements nur seine Fehlerseite
+/// zeigt (07.11.2026: auch ohne App; fuer andere Dienste der HsH kam das Formular). Kein Passwortfehler, kein Fehler
+/// der App. Erster Knopf: Startseite des Campusmanagements mit eigenem Formular (derselbe SSO-Account, ohne IdP).
+struct HsHIdPErrorHint: View {
+    let ownLogin: () -> Void
+    let retrySSO: () -> Void
+
+    static let title = "SSO der Hochschule gestört – direkt in HISinOne anmelden"
+    static let text = "Die SSO-Seite der Hochschule Hannover meldet „Ein Fehler ist aufgetreten“. Das liegt an der Hochschule, nicht an deinem Passwort. Melde dich stattdessen direkt im Campusmanagement mit deinem SSO-Account an (Benutzerkennung und Passwort, ggf. erst „Zur Anmeldung“ tippen)."
+    static let ownLoginTitle = "Direkt in HISinOne anmelden"
+    static let retryTitle = "SSO erneut versuchen"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                UFIcon("alert", size: 15).foregroundStyle(UF.bad).padding(.top, 1.6)
+                VStack(alignment: .leading, spacing: 2.4) {
+                    Text(Self.title).ufFont(13.6, 650).foregroundStyle(UF.text)
+                    Text(Self.text).ufFont(12.8).foregroundStyle(UF.text2)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            UFFlexWrap(gap: 9.6) {
+                UFButton(Self.ownLoginTitle, icon: "arrow-right", kind: .primary, size: .small, action: ownLogin)
+                    .accessibilityIdentifier("hsh.idpError.ownLogin")
+                UFButton(Self.retryTitle, icon: "refresh", size: .small, action: retrySSO)
+                    .accessibilityIdentifier("hsh.idpError.retry")
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(UF.bg)
+        .accessibilityIdentifier("hsh.idpError")
     }
 }
 
