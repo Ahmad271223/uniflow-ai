@@ -26,6 +26,11 @@ import XCTest
 /// Mit UF_SCREENSHOT_DIR (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) schreibt der Test die PNGs dorthin; ohne prueft
 /// er nur, dass jede Ansicht mit den erfundenen Inhalten erscheint und dass nirgends "ChatGPT", "Pro AI holen" oder
 /// das Einwilligungs-Blatt steht.
+///
+/// Simulator: nur ein iPad, dessen Bildschirm das Fenster von 1032 x 1376 Punkten ganz fasst (iPad Pro 13", 1032 x 1376).
+/// Auf einem 11"-iPad (834 x 1210) ragt das Fenster 166 Punkte unter den Bildschirm; sobald in Bild 2 die Tastatur
+/// einmal da war, rechnet SwiftUI diese 166 Punkte als Tastatur-Rand weiter (KI-Hilfe endet ueber einem schwarzen
+/// Streifen, Seitenzahl-Pille rutscht hoch) - Lauf 07.11.2026 auf SN-shots vom 11"-iPad.
 @MainActor
 final class StoreScreenshotFinalTests: XCTestCase {
 
@@ -519,7 +524,8 @@ final class StoreScreenshotFinalTests: XCTestCase {
     /// Bild fuer die App-Pruefung der beiden Abos: Blatt "Tarif wechseln" (Einstellungen -> Zugang & Darstellung ->
     /// Tarif) hell, hoch und quer, Dateien `tarif-portrait.png` (2064 x 2752) und `tarif-landscape.png` (2752 x 2064).
     /// Produkte aus der StoreKit-Testkonfiguration `UniFlow.storekit` (Plus 1,99 €, Pro AI 3,99 €), ohne Kauf: beide
-    /// Kaufknoepfe, kein Hinweis "Pro AI folgt …", nichts laedt. Die Seite ist hoeher als ein Bildschirm (zwei Spalten,
+    /// Kaufknoepfe, kein Hinweis "Pro AI folgt …", nichts laedt; die Free-Karte nennt "Eigenes ChatGPT verbinden" (eigener
+    /// OpenAI-Schluessel, 07.11.2026). Die Seite ist hoeher als ein Bildschirm (zwei Spalten,
     /// Pro AI darunter); damit alle drei Karten mit Knoepfen und "Käufe wiederherstellen" ganz im Bild sind, ist das
     /// Fenster so gross wie die ganze Seite im Seitenverhaeltnis 3:4 bzw. 4:3 und wird auf die Pixelgroesse gerechnet.
     func testTarifPruefung() throws {
@@ -560,10 +566,15 @@ final class StoreScreenshotFinalTests: XCTestCase {
             for word in must + UFPlanCard.included(.proAI).map(\.title) {
                 XCTAssertTrue(shows(env, word), "\(name): „\(word)“ fehlt:\n" + dump(env))
             }
-            // App Review 07.11.2026: nichts "in Vorbereitung", kein ChatGPT, Pro AI nicht "wie Plus", keine Probe im Bild
-            for word in ["in Vorbereitung", "ChatGPT", "denselben Umfang", "Lernstatistik", "Probe aktiv"] {
+            // App Review 07.11.2026: nichts "in Vorbereitung" oder "bald verfügbar", keine KI "über dein ChatGPT", kein
+            // "Mit ChatGPT anmelden", Pro AI nicht "wie Plus", keine Probe im Bild. Das fruehere pauschale Verbot von
+            // "ChatGPT" galt der alten Zeile "in Vorbereitung"; die Free-Karte nennt seit 07.11.2026 (14:10) ehrlich
+            // "Eigenes ChatGPT verbinden" (eigener OpenAI-Schluessel in jedem Tarif, `UFFeature.ownChatGPT`): das gehoert ins Bild.
+            for word in ["in Vorbereitung", "bald verfügbar", "über dein ChatGPT", "Mit ChatGPT anmelden", "denselben Umfang", "Lernstatistik",
+                         "Probe aktiv"] {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
+            XCTAssertTrue(shows(env, UFFeature.ownChatGPT.title), "\(name): „\(UFFeature.ownChatGPT.title)“ fehlt:\n" + dump(env))
         }
         checkPage(prefix)
         guard let outDir else { return }

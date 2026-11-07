@@ -5,17 +5,19 @@
 Entscheidung des Inhabers 07.11.2026: **Pro AI wird mit Version 1.0 eingereicht**, die KI darf und soll gezeigt
 werden. Die früheren KI-Bilder (`~/Studora-Builds/appstore-screenshots/`, 05.11.2026) sind unbrauchbar: dort steht
 „über dein ChatGPT“ (das eigene ChatGPT ist abgeschaltet). Neu: zehn Bilder unter
-`~/Studora-Builds/appstore-screenshots-final/` (nicht im Repository), Hochformat 2064 × 2752, PNG ohne Transparenz,
-je Motiv **genau eine** Fassung hell oder dunkel (keine weiteren Varianten), ohne eingebrannte Beschriftung wie
-bisher. Hochladen (iPad 13"-Display, Deutsch) in dieser Reihenfolge:
+`~/Studora-Builds/appstore-screenshots-final-2026-11-07/` (nicht im Repository; der Satz vom Vormittag unter
+`~/Studora-Builds/appstore-screenshots-final/` bleibt liegen, ist aber überholt: flacher KI-Hilfe-Kopf und „Neue Mails
+prüfen“ fehlen dort), Hochformat 2064 × 2752, PNG ohne Transparenz, je Motiv **genau eine** Fassung hell oder dunkel
+(keine weiteren Varianten), ohne eingebrannte Beschriftung wie bisher. Hochladen (iPad 13"-Display, Deutsch) in
+dieser Reihenfolge:
 
 | Nr. | Datei | Ansicht | Bildunterschrift (Vorschlag) |
 | --- | --- | --- | --- |
 | 1 | `01-uebersicht-light.png` | Übersicht: „Hallo Tobi – lass uns gemeinsam lernen.“, Karte „Prüfungsanmeldung“ (3 offen, 1 angemeldet), Kennzahlen, Lernpaket heute, Abgaben; Seitenleiste mit Uni-Mail (2), Raumfinder, Profil „Tobi · Pro AI“ | Dein Tag auf einen Blick – und welche Prüfungen du jetzt anmelden solltest. |
-| 2 | `02-ki-frage-dark.png` | Skript „Kapitel 1: Zahlensysteme“ mit Handschrift, daneben KI-Hilfe: Frage „Warum ist 13 im Dualsystem 1101?“, Antwort der KI (Stellenwerte 8 · 4 · 2 · 1, Probe, hexadezimal D), Anschlussfragen; Fußzeile „Seite 1 · StudiNow-KI · – 2 Credits (86 übrig)“ | Frag die KI zu deiner Seite – Antworten direkt neben dem Skript. |
+| 2 | `02-ki-frage-dark.png` | Skript „Kapitel 1: Zahlensysteme“ mit Handschrift, daneben KI-Hilfe mit flachem Kopf (Reiter Erklären · Karteikarten · Test, Umfang „Diese Seite“, eine wischbare Zeile Aktionen): Frage „Warum ist 13 im Dualsystem 1101?“, Antwort der KI (Stellenwerte 8 · 4 · 2 · 1, Probe, hexadezimal D), Anschlussfragen in einer wischbaren Zeile; Fußzeile „Seite 1 · StudiNow-KI · – 2 Credits (86 übrig)“ | Frag die KI zu deiner Seite – Antworten direkt neben dem Skript. |
 | 3 | `03-ki-karteikarten-light.png` | Karteikarten: Stapel „KI-Karten aus Skript Kapitel 1“ (6 Karten, von der KI aus dem Skript), Wiederholung „Karte 1 von 6“, aufgedeckt: Zweierkomplement von −37 mit 8 Bit → 1101 1011, „Falsch“/„Richtig“ | Die KI macht Karteikarten aus deinem Skript – du lernst sie im Leitner-System. |
 | 4 | `04-community-diskussion-dark.png` | Community „Demo: Grundlagen der Informatik“, Reiter „Diskussion“; darüber das Blatt „Frage“: Frage von „Zahlenfuchs“ (7 Likes, „Beantwortet“) mit drei Antworten von „Bitwise_Bea“, „Lerneule“ und „Zahlenfuchs“ | Fragen stellen, Antworten bekommen – in der Community deines Moduls, unter Pseudonym. |
-| 5 | `05-uni-mail-light.png` | Uni-Mail (LUH): Posteingang mit acht erfundenen Mails, geöffnet die Mail von „Prof. Dr. Anna Beispiel“ mit Anhang „Probeklausur_GdI.pdf“ | Deine Uni-Mails in StudiNow: lesen, beantworten, Anhänge öffnen. |
+| 5 | `05-uni-mail-light.png` | Uni-Mail (LUH): oben „Neue Mails prüfen“ und „Lehrende“, Posteingang mit acht erfundenen Mails, geöffnet die Mail von „Prof. Dr. Anna Beispiel“ mit Anhang „Probeklausur_GdI.pdf“ | Deine Uni-Mails in StudiNow: lesen, beantworten, Anhänge öffnen. |
 | 6 | `06-stundenplan-termin-light.png` | Stundenplan, Termin-Detail der Vorlesung: Raum „Hörsaal A“ mit „Route zu Fuß in Google Maps“, Lehrende mit E-Mail (example.org) und Sprechstunde, „Allen Lehrenden schreiben“ | Termin antippen: Raum mit Route zu Fuß und alle Lehrenden mit E-Mail. |
 | 7 | `07-skript-uebung-stift-dark.png` | Geteilte Ansicht: links das Skript, rechts das Übungsblatt, beide mit Apple-Pencil-Notizen (Marker, Unterstreichung, Kreis, Pfeil, Haken) | Skript und Übungsblatt nebeneinander – mit dem Apple Pencil direkt hineinschreiben. |
 | 8 | `08-wochentest-ki-dark.png` | Wochentest-Ergebnis „Zahlensysteme“ (KI-generiert): 75 %, 60/80 Punkte, „Bestanden“, Zusammenfassung, „Nochmal anschauen: Hexadezimalsystem“, je Aufgabe Erklärung und „Rückmeldung zur Antwort“, „Frag die KI zu Aufgabe 2“ | Wochentest aus deinen Unterlagen – die KI wertet aus und sagt, was du wiederholen solltest. |
@@ -25,19 +27,34 @@ bisher. Hochladen (iPad 13"-Display, Deutsch) in dieser Reihenfolge:
 **Tarif und KI in den Bildern:** Tobi hat **Pro AI** (Seitenleiste „Pro AI“, kein „Pro AI holen“). Die KI antwortet
 als **StudiNow-KI** mit Credits: Stand wie vom Dienst für Pro AI (100 im Monat, vor der Frage 88 übrig, die Antwort
 kostet 2, Fußzeile „– 2 Credits (86 übrig)“). Die Einwilligung gilt als gegeben, kein Einwilligungs-Blatt ist zu sehen.
-Nirgends steht ChatGPT.
+Nirgends steht ChatGPT (die Karte „Eigenes ChatGPT“ in Einstellungen → Erweitert ist kein Motiv). **Nur die LUH:**
+Version 1.0 geht nur mit der Leibniz Universität Hannover in den Store (`UF_SHIPPED_UNIVERSITIES`, Release `luh`);
+der Test läuft mit dem Konto der LUH, keine andere Hochschule erscheint (Uni-Mail (LUH), Standortfinder der LUH,
+Community-Kopf „Leibniz Universität Hannover“).
 
-**Erzeugen** (Test `apps/apple/UniFlowTests/StoreScreenshotFinalTests.swift`, Technik wie Satz Build 11):
+**Erzeugen** (Test `apps/apple/UniFlowTests/StoreScreenshotFinalTests.swift`, Technik wie Satz Build 11; die zehn
+Motive und die Prüf-Fotos der Tarifseite schreiben in denselben `UF_SCREENSHOT_DIR`, darum zwei Läufe):
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 cd apps/apple && xcodegen generate
-UDID=$(xcrun simctl clone 5483AC27-A4C2-4704-91A5-46D1A9E1DF47 SN-shots2)   # iPad Pro 13-inch (M5)
-TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-final \
+UDID=$(xcrun simctl clone 5483AC27-A4C2-4704-91A5-46D1A9E1DF47 SN-shots)    # iPad Pro 13-inch (M5), siehe unten
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-final-2026-11-07 \
   xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
-  -derivedDataPath ~/Studora-Builds/dd-shots2 -only-testing:UniFlowTests/StoreScreenshotFinalTests
+  -derivedDataPath ~/Studora-Builds/dd-shots-0711 \
+  -only-testing:UniFlowTests/StoreScreenshotFinalTests/test01Uebersicht ... -only-testing:UniFlowTests/StoreScreenshotFinalTests/test10Mensa
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-pruefung \
+  xcodebuild test-without-building -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-shots-0711 \
+  -only-testing:UniFlowTests/StoreScreenshotFinalTests/testTarifPruefung -only-testing:UniFlowTests/StoreScreenshotFinalTests/testTarifPruefungJahr
 xcrun simctl delete "$UDID"
 ```
+
+**Nur das iPad Pro 13"** (1032 × 1376 Punkte) als Simulator: das Fenster des Tests ist genauso groß. Auf dem 11"-iPad
+(834 × 1210, Simulator „iPad“ 4495AA80-…) ragt das Fenster 166 Punkte unter den Bildschirm; sobald in Bild 2 die
+Tastatur einmal eingeblendet war, rechnet SwiftUI diese 166 Punkte als Tastatur-Rand weiter: die KI-Hilfe endet über
+einem schwarzen Streifen, die Seitenzahl-Pille rutscht hoch (Lauf 07.11.2026, 14:28 Uhr, verworfen). Die übrigen
+neun Motive sind davon unabhängig.
 
 Ohne `UF_SCREENSHOT_DIR` prüft der Test nur die Ansichten und dass in keinem Bild „ChatGPT“, „Pro AI holen“, das
 Einwilligungs-Blatt („KI-Hilfe: Was wird gesendet?“) oder „wird geladen“ steht und die Seitenleiste „Pro AI“ nennt.
@@ -56,11 +73,16 @@ Erfundene Inhalte nur im Test bzw. nur im Debug-Build (Release unverändert):
 - „Hallo Tobi“ unabhängig von der Uhrzeit: `UFGreeting.hourOverride` (nur `#if DEBUG`, die App setzt ihn nie);
   Mensa am Wochenende über `UFFmt.todayOverride` wie bisher.
 
-Stand der Bilder: Samstag, 07.11.2026, gegen 9:30 Uhr (Anrede fest auf „Hallo“; „Samstag, 7. November“; Karte
-„Prüfungsanmeldung“, weil 7 Tage vor dem Meldezeitraum 09.–22.11.2026; Termin-Detail zeigt Do. 05.11.).
+Stand der Bilder: Samstag, 07.11.2026, nachmittags (Anrede fest auf „Hallo“; „Samstag, 7. November“; Karte
+„Prüfungsanmeldung“, weil 7 Tage vor dem Meldezeitraum 09.–22.11.2026; Termin-Detail zeigt Do. 05.11.; Mensa zeigt den
+nächsten Werktag als „Heute“ mit „Stand hh:mm Uhr“ der Aufnahme). Stand der App: Commit 72dba228 (flacher KI-Hilfe-Kopf,
+„Neue Mails prüfen“, Jahresabos, eigenes ChatGPT, nur LUH).
 
-**Geprüft (07.11.2026):** alle zehn Bilder einzeln angesehen, Größe mit `sips` (2064 × 2752): kein „ChatGPT“, kein
-„Pro AI holen“, kein Einwilligungs-Blatt, kein Ladekreis, kein Platzhalter, kein Fehler, keine Demo-Leiste, Text lesbar.
+**Geprüft (07.11.2026, zweiter Satz):** alle zehn Bilder einzeln angesehen, Größe mit `sips` (2064 × 2752): kein
+„ChatGPT“, kein „Pro AI holen“, kein Einwilligungs-Blatt, kein Ladekreis, kein „wird geladen“, kein Platzhalter, kein
+Fehler, keine Demo-Leiste, keine Hochschule außer der LUH, Text lesbar. Bauartbedingt abgeschnitten (kein Fehler): in
+Bild 2 die wischbaren Zeilen des KI-Kopfs („Seiten …“, „Alle Aufg…“) und der Anschlussfragen („Ein Beispiel dazu“), in
+Bild 4 das Antwortfeld am unteren Rand des Blatts, in Bild 6 die Termin-Titel in den schmalen Stundenplan-Zellen.
 Namen nur erfunden („Tobi Muster“, „Prof. Dr. Anna Beispiel“, „Dr. Jonas Muster“, „Lena Probe“, „Prof. Demo“, Pseudonyme
 „Zahlenfuchs“, „Bitwise_Bea“, „Lerneule“, „Mo_Info“, „Kaffeebit“), Adressen nur unter example.org. Echte, öffentliche
 Angaben wie bisher: Name der LUH, Raum F102 im Hauptgebäude (Welfengarten 1), Name, Adresse und Öffnungszeiten der
