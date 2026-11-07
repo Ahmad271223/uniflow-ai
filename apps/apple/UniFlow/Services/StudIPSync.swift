@@ -733,6 +733,13 @@ final class StudIPSync: ObservableObject {
     var fileClientForTests: StudIPClient?
 
     /// Stud.IP-Datei laut Datenbank (nur Originale mit Download-Adresse `…/file-refs/<id>/content`)
+    /// relativer Ablageort einer schon geladenen Datei (nil: nicht geladen)
+    nonisolated static func storedPath(_ c: SQLiteConnection, id: String) throws -> String? {
+        guard let r = try c.queryOne("SELECT local_path FROM files WHERE id=? AND downloaded_at IS NOT NULL", [.text(id)]),
+              let p = r["local_path"]?.string, !p.isEmpty else { return nil }
+        return p
+    }
+
     nonisolated static func storedFile(_ c: SQLiteConnection, id: String) throws -> UniStore.FileRow? {
         guard let r = try c.queryOne("""
             SELECT id, name, size, mime, chdate, revision, download_url, studip_folder FROM files
@@ -771,6 +778,11 @@ final class StudIPSync: ObservableObject {
             database = db
             guard let localFiles = host.files else { return .failed("Die Daten dieser Hochschule sind gerade nicht geöffnet.") }
             guard let row = try await db.withConnection({ try Self.storedFile($0, id: id) }) else { return .notStudIP }
+            // schon da (die Liste der Bibliothek war nur veraltet, z. B. nach einem Abgleich im Hintergrund): nichts laden
+            if let present = try await db.withConnection({ try Self.storedPath($0, id: id) }), localFiles.exists(stored: present) {
+                await refreshEntries()
+                return .loaded
+            }
             guard DeviceStorage.fits(Int64(row.size ?? 0), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
             let downloads = UniDownloads(folder: root, files: localFiles, container: container, source: "Stud.IP")
             try downloads.begin()

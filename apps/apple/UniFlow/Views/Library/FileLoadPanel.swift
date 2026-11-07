@@ -82,14 +82,29 @@ struct FileLoadPanel: View {
     /// iPad" mit "Jetzt laden" zu zeigen, blitzte bei jedem Oeffnen auf (Befund vom iPad 07.11.2026, 23:35)
     @State private var state: FileLoadState = .loading
     @State private var autoTried = false
+    /// Die Ladeansicht erscheint erst, wenn das Laden laenger als einen Moment dauert: eine kleine Datei ist in
+    /// Sekundenbruchteilen da, und dann blitzte "Wird geladen" vor dem Dokument auf (Befund iPad 07.11., 23:50)
+    @State private var showWhileLoading = false
 
     var body: some View {
-        FileLoadPanelContent(title: file.displayTitle, size: file.size, state: state) { Task { await retry() } }
-            .task(id: file.id) {
-                guard !autoTried else { return }
-                autoTried = true
-                await run()
+        Group {
+            if state == .loading, !showWhileLoading {
+                UF.bg.ignoresSafeArea()
+            } else {
+                FileLoadPanelContent(title: file.displayTitle, size: file.size, state: state) { Task { await retry() } }
             }
+        }
+        .task(id: file.id) {
+            guard !autoTried else { return }
+            autoTried = true
+            let delay = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                if !Task.isCancelled { showWhileLoading = true }
+            }
+            await run()
+            delay.cancel()
+            showWhileLoading = true                                 // Fehler oder Anmeldung sofort zeigen
+        }
     }
 
     /// "Erneut versuchen" bzw. "Jetzt laden"
