@@ -76,10 +76,12 @@ final class TutorDocumentAppTests: XCTestCase {
         var scope = TutorDocScope.range, from = 5, to = 12
         var started: [String] = []
         let controls = TutorDocControls(scope: Binding(get: { scope }, set: { scope = $0 }), from: Binding(get: { from }, set: { from = $0 }),
-                                        to: Binding(get: { to }, set: { to = $0 }), busy: false) { started.append($0) }
+                                        to: Binding(get: { to }, set: { to = $0 }))
+        // die Schnellknoepfe stehen seit 07.11.2026 vorn in der Aktionsreihe (TutorHeadAppTests misst den Kopf)
+        let chips = HStack { TutorDocChips(busy: false) { started.append($0) } }
         let blocks = TutorDocBlocks(text: "## Eigenwerte [S. 5–7]\nKernideen.\n\n## Überblick [S. 1–40]\nRote Linie.", mode: "doc_lecture",
                                     explain: TutorDocRun.marker(cached: 2, total: 2)) { _ in }
-        for view in [AnyView(controls), AnyView(blocks)] {
+        for view in [AnyView(controls), AnyView(chips), AnyView(blocks)] {
             let host = UIHostingController(rootView: view.frame(width: 360))
             let size = host.sizeThatFits(in: CGSize(width: 360, height: 2000))
             XCTAssertGreaterThan(size.height, 40)

@@ -156,16 +156,15 @@ final class TutorDocRunner: ObservableObject {
     var canRepeat: Bool { plan != nil && !request.isEmpty }
 }
 
-/// Umfang und die beiden Schnellknoepfe ueber den Aktionen des Reiters "Erklären"
+/// Umfang ueber den Aktionen des Reiters "Erklären": eine Zeile Segmente, bei "Seiten …" darunter die beiden Felder.
+/// Die Schnellknoepfe stehen seit 07.11.2026 vorn in der Aktionsreihe (`TutorDocChips`), damit der Kopf flach bleibt.
 struct TutorDocControls: View {
     @Binding var scope: TutorDocScope
     @Binding var from: Int
     @Binding var to: Int
-    let busy: Bool
-    let start: (_ mode: String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             // Segmente nach Inhalt breit (Store-Bilder 05.11.2026: im iPad-Hochformat ist die Leiste 330 pt schmal, gleich
             // breite Segmente kuerzten "Ganzes Dokument" auf "Ganzes Doku…")
             TutorScopeSegments(scope: $scope)
@@ -176,13 +175,6 @@ struct TutorDocControls: View {
                     pageField($from, id: "tutor.scope.from")
                     Text("bis").ufFont(12.8).foregroundStyle(UF.muted)
                     pageField($to, id: "tutor.scope.to")
-                }
-            }
-            UFFlexWrap(gap: 6, rowGap: 6) {
-                ForEach(TutorDocRun.chips, id: \.mode) { c in
-                    AIModeChip(text: c.label, icon: c.icon, pair: CommunityPalette.mint) { start(c.mode) }
-                        .disabled(busy)
-                        .accessibilityIdentifier("tutor.doc.\(c.mode)")
                 }
             }
         }
@@ -200,14 +192,33 @@ struct TutorDocControls: View {
     }
 }
 
+/// Die beiden Schnellknoepfe "Ganze Vorlesung erklären" und "Alle Aufgaben erklären" (vorn in der Aktionsreihe des
+/// Reiters "Erklären"; Kennungen tutor.doc.lecture / tutor.doc.tasks)
+struct TutorDocChips: View {
+    let busy: Bool
+    let start: (_ mode: String) -> Void
+
+    var body: some View {
+        ForEach(TutorDocRun.chips, id: \.mode) { c in
+            AIModeChip(text: c.label, icon: c.icon, pair: CommunityPalette.mint) { start(c.mode) }
+                .disabled(busy)
+                .accessibilityIdentifier("tutor.doc.\(c.mode)")
+        }
+    }
+}
+
 /// Umfang als Segmente wie `Picker(.segmented)`, aber je Segment so breit wie sein Titel
-/// (`apportionsSegmentWidthsByContent`); der Rest der Breite verteilt sich anteilig
+/// (`apportionsSegmentWidthsByContent`); der Rest der Breite verteilt sich anteilig. Schrift etwas kleiner als die
+/// Vorgabe (Kopf der KI-Hilfe, 07.11.2026), waechst mit Dynamic Type.
 struct TutorScopeSegments: UIViewRepresentable {
     @Binding var scope: TutorDocScope
 
     func makeUIView(context: Context) -> UISegmentedControl {
         let control = UISegmentedControl(items: TutorDocScope.allCases.map(\.title))
         control.apportionsSegmentWidthsByContent = true
+        let font = UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .systemFont(ofSize: 12.5, weight: .medium))
+        control.setTitleTextAttributes([.font: font], for: .normal)
+        control.setTitleTextAttributes([.font: UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .systemFont(ofSize: 12.5, weight: .semibold))], for: .selected)
         control.accessibilityLabel = "Umfang"
         control.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
@@ -303,7 +314,7 @@ struct TutorDocBlocks: View {
                         .accessibilityLabel("Zu \(DocExplain.rangeWords(b.from, b.to)) springen")
                         .accessibilityIdentifier("tutor.doc.page.\(b.from)")
                     }
-                    if !b.text.isEmpty { AIMarkdownText(b.text, size: 14.5) }
+                    if !b.text.isEmpty { AIMarkdownText(b.text, size: TutorPanel.answerSize) }
                 }
                 .padding(b.kind == "overview" ? 10 : 0)
                 .background(b.kind == "overview" ? RoundedRectangle(cornerRadius: UF.r).fill(CommunityPalette.mint.bg.opacity(0.45)) : nil)

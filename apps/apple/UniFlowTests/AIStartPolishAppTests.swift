@@ -380,6 +380,8 @@ final class AIStartPolishAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.button("Bereich Erklären", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
         XCTAssertNotNil(button("Bereich Karteikarten", in: env.view))
         XCTAssertNotNil(button("Bereich Test", in: env.view))
+        // die Aktionsreihe (seit 07.11.2026 eine Reihe zum Wischen) meldet ihre Knoepfe einen Augenblick nach den Reitern
+        XCTAssertTrue(env.wait { self.button("Nur Hinweise", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
         for label in ["Erklären", "Einfach erklären", "Zusammenfassen", "Fachbegriffe", "Aufgabe lösen", "Nur Hinweise"] {
             XCTAssertNotNil(button(label, in: env.view), label)
         }
@@ -389,7 +391,7 @@ final class AIStartPolishAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.button("Ähnliche Aufgabe", in: env.view) != nil })
         XCTAssertNotNil(button("Lösung prüfen", in: env.view))
         XCTAssertNotNil(button("Wochentest erstellen", in: env.view))
-        XCTAssertNil(button("Nur Hinweise", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Nur Hinweise", in: env.view) == nil }, "liegt im Reiter Erklären")
         XCTAssertTrue(tap("Bereich Karteikarten", in: env.view))
         XCTAssertTrue(env.wait { self.button("Karteikarten zur Seite erstellen", in: env.view) != nil })
         XCTAssertTrue(tap("Bereich Erklären", in: env.view))
@@ -421,7 +423,7 @@ final class AIStartPolishAppTests: XCTestCase {
                                               .environment(\.ufAIEnabled, true).environment(\.dynamicTypeSize, .accessibility3).frame(width: 377),
                                           api: tutorAPI, size: CGSize(width: 377, height: 1000))
         XCTAssertTrue(big.wait { self.button("Bereich Test", in: big.view) != nil })
-        XCTAssertNotNil(button("Nur Hinweise", in: big.view))
+        XCTAssertTrue(big.wait { self.button("Nur Hinweise", in: big.view) != nil }, texts(big.view).joined(separator: "\n"))
         both(big, "ki-hilfe-grosse-schrift")
     }
 

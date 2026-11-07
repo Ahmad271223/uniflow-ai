@@ -569,25 +569,27 @@ struct AIModeChip: View {
 }
 
 /// Reiter der KI-Hilfe (Erklaeren gruen, Karteikarten orange, Test blau): Symbol und Titel, gewaehlt in der Flaeche
-/// der Farbe mit kraeftigem Rand, sonst nur der Rand. Mindestens 40 pt hoch, 44 pt antippbar.
+/// der Farbe mit kraeftigem Rand, sonst nur der Rand. Mindestens 40 pt hoch, 44 pt antippbar; `compact` (Kopf der
+/// KI-Hilfe, 07.11.2026): kleinere Schrift und 34 pt hoch, damit die Antwort den Platz bekommt.
 struct AITabButton: View {
     let title: String
     /// nil: nur der Titel (schmale Leiste)
     let icon: String?
     let pair: CommunityPair
     let selected: Bool
+    var compact = false
     let action: () -> Void
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 15
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                if let icon { UFIcon(icon, size: min(iconSize, 26)).foregroundStyle(pair.fg) }
-                Text(title).ufFont(13.6, selected ? 700 : 550, lh: 1.25).foregroundStyle(selected ? pair.fg : UF.text2)
+                if let icon { UFIcon(icon, size: min(compact ? iconSize - 1 : iconSize, 26)).foregroundStyle(pair.fg) }
+                Text(title).ufFont(compact ? 12.8 : 13.6, selected ? 700 : 550, lh: 1.25).foregroundStyle(selected ? pair.fg : UF.text2)
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.vertical, 8).padding(.horizontal, 10)
-            .frame(maxWidth: .infinity, minHeight: 40)
+            .padding(.vertical, compact ? 6 : 8).padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, minHeight: compact ? 34 : 40)
             .background(RoundedRectangle(cornerRadius: 12).fill(selected ? pair.bg : UF.surface))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? pair.solid : pair.solid.opacity(0.4), lineWidth: selected ? 1.5 : 1))
             .contentShape(RoundedRectangle(cornerRadius: 12))
@@ -626,6 +628,45 @@ struct AISpreadRow: Layout {
             let w = sizes[i].width + extra
             s.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading, proposal: ProposedViewSize(width: w, height: bounds.height))
             x += w + spacing
+        }
+    }
+}
+
+/// Eine Reihe Chips zum seitlichen Wischen (KI-Hilfe, 07.11.2026): statt umbrechender Zeilen, die den Kopf der Leiste
+/// fuellten, eine Zeile ohne Scrollbalken; die Chips brechen nie um (`fixedSize`). Rechts blendet ein weicher Rand aus,
+/// solange es weitergeht (ab iOS 18 nur dann, davor immer). VoiceOver erreicht jeden Chip wie zuvor, der Rand ist nur
+/// eine Maske.
+struct AIChipRail<Content: View>: View {
+    var spacing: CGFloat = 6
+    @ViewBuilder var content: Content
+    @State private var more = true
+
+    /// Breite des Ausblend-Rands
+    static var fade: CGFloat { 28 }
+
+    var body: some View {
+        let scroll = ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: spacing) { content }
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.vertical, 2)
+                .padding(.trailing, Self.fade)      // am Ende steht der letzte Chip vor dem Rand, nicht darunter
+        }
+        Group {
+            if #available(iOS 18, *) {
+                scroll.onScrollGeometryChange(for: Bool.self, of: { g in
+                    g.contentOffset.x + g.containerSize.width < g.contentSize.width - 1
+                }, action: { _, now in more = now })
+            } else {
+                scroll
+            }
+        }
+        .mask(alignment: .leading) {
+            HStack(spacing: 0) {
+                Color.black
+                if more {
+                    LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .leading, endPoint: .trailing).frame(width: Self.fade)
+                }
+            }
         }
     }
 }

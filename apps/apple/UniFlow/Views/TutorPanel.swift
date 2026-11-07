@@ -3,9 +3,11 @@ import UniFlowCore
 
 /// KI-Hilfe im Editor als Seitenleiste neben der PDF (`POST /api/ai/tutor`): ein Gespraech zur offenen Seite mit freier
 /// Frage und den Modi aus `ai.TUTOR_MODES`. Neugestaltung 04.11.2026 (Vorbild-Vergleich): oben drei farbige Reiter
-/// "Erklären" (gruen), "Karteikarten" (orange), "Test" (blau), darunter die Aktionen des Reiters (`Tab.modes`); Antworten
-/// als Markdown mit grossen Abschnittstiteln, Fragen als Blasen rechts; das Eingabefeld unten fest, die Kostenzeile klein
-/// darunter. Rueckfragen schicken die letzten Beitraege als `history` mit, markierter PDF-Text geht als `selection` mit.
+/// "Erklären" (gruen), "Karteikarten" (orange), "Test" (blau), darunter die Aktionen des Reiters (`Tab.modes`) - seit
+/// 07.11.2026 als flacher Kopf (`TutorPanelHead`) mit einer Reihe zum Wischen, damit die Antwort die Hoehe bekommt;
+/// Antworten als Markdown (15 pt, `answerSize`) mit grossen Abschnittstiteln, Fragen als Blasen rechts; das Eingabefeld
+/// unten fest, die Kostenzeile klein darunter. Rueckfragen schicken die letzten Beitraege als `history` mit,
+/// markierter PDF-Text geht als `selection` mit.
 /// Antworten mit Quellen aus den eigenen Unterlagen ([n] -> Seite). Laeuft ueber das ChatGPT-Abo des Nutzers (lokales
 /// Backend, `LocalContext.ai`) bzw. den Dienst; gesendet wird nur nach dem Antippen. Ohne verbundene KI erklaert die
 /// Leiste den Weg dorthin.
@@ -37,7 +39,6 @@ struct TutorPanel: View {
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.openURL) private var openURL
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Alle Modi in der Reihenfolge von `ai.TUTOR_MODES`; "ask" ist das Eingabefeld, die anderen liegen in den Reitern
     static let modes: [(key: String, label: String)] = [
@@ -134,6 +135,8 @@ struct TutorPanel: View {
     @State private var docFrom = 1
     @State private var docTo = 1
     @StateObject private var docRunner = TutorDocRunner()
+    /// Karten-Lauf fuers ganze Dokument (TutorCardsRun): welcher Teil gerade laeuft; nil = kein Lauf
+    @State private var cardsProgress: String?
     @FocusState private var inputFocused: Bool
     /// Anhang im Eingabefeld (05.11.2026): geht mit der naechsten Frage bzw. dem naechsten Modus mit, danach weg
     @State private var attached: TutorAttachment?
@@ -187,88 +190,29 @@ struct TutorPanel: View {
 
     // MARK: Reiter
 
-    /// Drei Reiter in einer Reihe (zu schmal: ohne Symbole, bei sehr grosser Schrift untereinander), darunter die
-    /// Aktionen des gewaehlten Reiters
+    /// Lesegroesse der Antworten (nie unter 15 pt, Entscheidung 07.11.2026); Titel darin sind groesser (`AIMarkdownText`)
+    static let answerSize: CGFloat = 15
+
+    /// Kopf der Leiste (`TutorPanelHead`): Reiter, Umfang und eine Reihe Aktionen zum seitlichen Wischen
     private var tabBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ViewThatFits(in: .horizontal) {
-                AISpreadRow(spacing: 6) { tabButtons(icons: true) }
-                AISpreadRow(spacing: 6) { tabButtons(icons: false) }
-                VStack(spacing: 6) { tabButtons(icons: true) }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Bereiche der KI-Hilfe")
-            .accessibilityIdentifier("tutor.tabs")
-            tabActions
-        }
-        .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 12)
-        .background(UF.surface)
-        .ufBorderBottom()
+        TutorPanelHead(tab: $tab, scope: $docScope, from: $docFrom, to: $docTo, busy: busy, checking: checking,
+                       mode: { activate(mode: $0) },
+                       doc: { mode in Task { await startDoc(mode: mode) } },
+                       cards: { Task { await startCards() } },
+                       weeklyTest: { overlay.modal { QuizComposer(moduleID: moduleID ?? 0) } })
     }
 
-    @ViewBuilder private func tabButtons(icons: Bool) -> some View {
-        ForEach(Tab.allCases) { t in
-            AITabButton(title: t.title, icon: icons ? t.icon : nil, pair: t.pair, selected: tab == t) {
-                withAnimation(UF.transition) { tab = t }
-            }
-            .accessibilityIdentifier("tutor.tab.\(t.rawValue)")
+    /// Knopf eines Modus: sendet sofort; "Lösung prüfen" schaltet stattdessen das Eingabefeld um; bei Umfang "Ganzes
+    /// Dokument"/"Seiten" laeuft ein Lauf statt der Frage zur Seite
+    private func activate(mode key: String) {
+        if key == "check" {
+            checking.toggle()
+            if checking { inputFocused = true }
+        } else if let doc = TutorDocRun.docMode(forTutorMode: key, scope: docScope) {
+            Task { await startDoc(mode: doc) }
+        } else {
+            Task { await send(mode: key) }
         }
-    }
-
-    @ViewBuilder private var tabActions: some View {
-        switch tab {
-        case .explain:
-            VStack(alignment: .leading, spacing: 10) {
-            TutorDocControls(scope: $docScope, from: $docFrom, to: $docTo, busy: busy) { mode in Task { await startDoc(mode: mode) } }
-            if typeSize.isAccessibilitySize {
-                // sehr grosse Schrift: eine Reihe zum seitlichen Schieben, damit das Gespraech Platz behaelt
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(Tab.explain.modes, id: \.self) { key in modeChip(key, icon: key == "explain" ? "sparkles" : nil) }
-                    }
-                    .padding(.vertical, 2)
-                }
-            } else {
-                UFFlexWrap(gap: 6, rowGap: 6) {
-                    ForEach(Tab.explain.modes, id: \.self) { key in modeChip(key, icon: key == "explain" ? "sparkles" : nil) }
-                }
-            }
-            }
-        case .cards:
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Karten aus der offenen Seite – du siehst jede Karte, bevor sie gespeichert wird.")
-                    .ufFont(12.8, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-                AIModeChip(text: "Karteikarten zur Seite erstellen", icon: "cards", pair: Tab.cards.pair) { Task { await send(mode: "flashcards") } }
-                    .disabled(busy)
-                    .accessibilityIdentifier("tutor.mode.flashcards")
-            }
-        case .test:
-            UFFlexWrap(gap: 6, rowGap: 6) {
-                modeChip("similar", icon: "refresh")
-                modeChip("check", icon: "check")
-                AIModeChip(text: "Wochentest erstellen", icon: "exam", pair: Tab.test.pair) {
-                    overlay.modal { QuizComposer(moduleID: moduleID ?? 0) }
-                }
-                .accessibilityIdentifier("tutor.weeklyTest")
-            }
-        }
-    }
-
-    /// Knopf eines Modus: sendet sofort; "Lösung prüfen" schaltet stattdessen das Eingabefeld um
-    private func modeChip(_ key: String, icon: String?) -> some View {
-        let label = Self.modes.first { $0.key == key }?.label ?? key
-        return AIModeChip(text: label, icon: icon, pair: (Tab.tab(for: key) ?? .explain).pair, on: key == "check" && checking) {
-            if key == "check" {
-                checking.toggle()
-                if checking { inputFocused = true }
-            } else if let doc = TutorDocRun.docMode(forTutorMode: key, scope: docScope) {
-                Task { await startDoc(mode: doc) }       // Umfang "Ganzes Dokument"/"Seiten": Lauf statt Seite
-            } else {
-                Task { await send(mode: key) }
-            }
-        }
-        .disabled(busy)
-        .accessibilityIdentifier("tutor.mode.\(key)")
     }
 
     /// Ohne KI: der Weg zur Verbindung - und darueber, was die Bibliothek zur offenen Seite schon weiss (lesen darf
@@ -305,8 +249,10 @@ struct TutorPanel: View {
                         // ganzes Dokument: Rueckfrage zu den Kosten bzw. Fortschritt "Teil 2 von 4"
                         TutorDocRunCard(runner: docRunner) { Task { await runDoc() } }
                         if busy && docRunner.phase != .running {
-                            HStack(spacing: 8) { ProgressView(); UFShimmerText("Die KI liest die Seite …") }   // dezenter Schimmer (text-shimmer)
+                            // dezenter Schimmer (text-shimmer); beim Karten-Lauf der Teil ("Karteikarten, Teil 2 von 3 …")
+                            HStack(spacing: 8) { ProgressView(); UFShimmerText(cardsProgress ?? "Die KI liest die Seite …") }
                                 .id("busy")
+                                .accessibilityIdentifier("tutor.busy")
                         }
                         if let error {
                             VStack(alignment: .leading, spacing: 8) {
@@ -430,7 +376,7 @@ struct TutorPanel: View {
                         // Lauf fuer das ganze Dokument: Bloecke mit Seiten als Knopf
                         TutorDocBlocks(text: msg.text, mode: msg.mode, explain: msg.explain) { open(fileID, $0) }
                     } else {
-                        AIMarkdownText(msg.text, size: 14.5).accessibilityIdentifier("tutor.answer")
+                        AIMarkdownText(msg.text, size: Self.answerSize).accessibilityIdentifier("tutor.answer")
                     }
                     // gespeicherte Antwort (Erklaerungsspeicher): Herkunft und der Weg zu einer frischen Antwort
                     if let stored = Self.storedLabel(msg.explain) {
@@ -447,10 +393,11 @@ struct TutorPanel: View {
                                 .accessibilityIdentifier("tutor.rebuild")
                         }
                     }
-                    // zwei bis drei Anschlussfragen je nach Modus (lokal; Antippen fragt im selben Gespraech nach)
+                    // zwei bis drei Anschlussfragen je nach Modus (lokal; Antippen fragt im selben Gespraech nach) in
+                    // einer Reihe zum Wischen, damit sie der Antwort keine Zeilen nehmen
                     let followUps = Self.showsFollowUps(at: index, in: messages) ? AIFollowUps.suggest(after: msg.mode) : []
                     if !followUps.isEmpty {
-                        UFFlexWrap(gap: 6, rowGap: 6) {
+                        AIChipRail {
                             ForEach(followUps) { s in
                                 UFChip(text: s.label, icon: "sparkles") { input = s.question; Task { await send(mode: s.mode) } }
                                     .disabled(busy)
@@ -647,6 +594,68 @@ struct TutorPanel: View {
         persistConversation()
     }
 
+    // MARK: Karteikarten nach Umfang
+
+    /// Reiter "Karteikarten" (07.11.2026): "Diese Seite" fragt wie bisher zur Seite; "Ganzes Dokument" und "Seiten …"
+    /// holen die Karten in Teilen ueber POST /api/ai/flashcards (`TutorCardsRun`), alle Karten in einer Antwort; der
+    /// Nutzer sieht sie und speichert erst mit "Als Karteikarten speichern"
+    private func startCards() async {
+        guard let range0 = TutorCardsRun.range(scope: docScope, from: docFrom, to: docTo, pageCount: nil) else {
+            await send(mode: "flashcards")
+            return
+        }
+        guard let api = session.api, !busy, docRunner.phase != .running else { return }
+        messages.append(Message(fromUser: true, text: TutorCardsRun.userLabel(scope: docScope, from: docFrom, to: docTo)))
+        input = ""
+        busy = true
+        error = nil
+        errorAction = nil
+        defer { busy = false; cardsProgress = nil }
+        // Seitenzahl aus der Bibliothek (ohne sie laufen die Teile bis zum erkannten Ende)
+        let range = docScope == .document ? (TutorCardsRun.range(scope: .document, from: 1, to: 1, pageCount: await pageCount(api)) ?? range0) : range0
+        let steps = TutorCardsRun.steps(from: range.lowerBound, to: range.upperBound)
+        let counts = TutorCardsRun.counts(total: TutorCardsRun.count(pages: range.count), steps: steps.count)
+        var cards: [JSONValue] = []
+        var pages: [Int] = []
+        var failure: Error?
+        for (i, step) in steps.enumerated() {
+            cardsProgress = TutorCardsRun.progress(step: i, total: steps.count, pages: step)
+            do {
+                let r = try await api.value("/api/ai/flashcards", method: "POST", body: TutorCardsRun.body(fileID: fileID, pages: step, count: counts[i]))
+                studoraAccount?.noteAIResponse(r)
+                let got = TutorCardsRun.pages(in: r)
+                guard TutorCardsRun.accepted(got, requested: step) else { break }     // hinter dem Ende des Dokuments
+                cards += r["cards"]?.array ?? []
+                pages += got
+                if !TutorCardsRun.continues(after: got, requested: step) { break }
+            } catch {
+                failure = error
+                break
+            }
+        }
+        if !cards.isEmpty {
+            messages.append(Message(fromUser: false, text: TutorCardsRun.answerText(cards: cards.count, pages: pages), cards: cards, mode: "flashcards"))
+            persistConversation()
+        } else if messages.last?.fromUser == true {
+            messages.removeLast()
+        }
+        if let failure {
+            // Teile davor bleiben stehen; der Fehler steht darunter
+            self.error = failure.localizedDescription
+            errorAction = StudoraAccountLink.errorAction(failure, account: studoraAccount)
+        } else if cards.isEmpty {
+            self.error = "In diesem Bereich gibt es keine Seiten mit Text."
+        }
+        await chatgpt?.refresh()
+    }
+
+    /// Seitenzahl des Dokuments aus der Bibliothek (`page_count`); nil, wenn sie dort fehlt
+    private func pageCount(_ api: APIClient) async -> Int? {
+        guard let lib = try? await api.value("/api/library") else { return nil }
+        let n = lib.list("files").first { $0.s("id") == fileID }?.i("page_count") ?? 0
+        return n > 0 ? n : nil
+    }
+
     /// Gemerktes Gespraech laden, solange hier noch keins laeuft
     private func restoreConversation() {
         guard messages.isEmpty else { return }
@@ -676,6 +685,89 @@ struct TutorPanel: View {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+/// Kopf der KI-Hilfe (flach, 07.11.2026 nach dem Foto vom iPad: die Knoepfe stapelten sich ueber sechs Zeilen und die
+/// Antwort blieb klein): die drei Reiter kompakt in einer Zeile (zu schmal: ohne Symbole, bei sehr grosser Schrift
+/// untereinander), im Reiter Erklären darunter der Umfang als Segmente und EINE Reihe Aktionen zum seitlichen Wischen
+/// (`AIChipRail`): vorn "Ganze Vorlesung erklären" und "Alle Aufgaben erklären", dann die Modi des Reiters. Eigener
+/// Baustein, damit ein Test seine Hoehe misst (UniFlowTests/TutorHeadAppTests.swift: unter 260 pt bei 640 pt Breite).
+/// Alle Kennungen (tutor.tabs, tutor.tab.*, tutor.scope, tutor.doc.*, tutor.mode.*, tutor.weeklyTest) wie zuvor.
+struct TutorPanelHead: View {
+    @Binding var tab: TutorPanel.Tab
+    @Binding var scope: TutorDocScope
+    @Binding var from: Int
+    @Binding var to: Int
+    let busy: Bool
+    /// "Lösung prüfen" ist an: der Chip erscheint gefuellt
+    let checking: Bool
+    /// ein Modus wurde angetippt (explain, steps, check, flashcards, similar …); die Leiste entscheidet, was passiert
+    let mode: (String) -> Void
+    /// Lauf fuer das Dokument (lecture, tasks)
+    let doc: (String) -> Void
+    /// Karteikarten im gewaehlten Umfang (Seite, ganzes Dokument, Seiten …)
+    let cards: () -> Void
+    let weeklyTest: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                AISpreadRow(spacing: 6) { tabButtons(icons: true) }
+                AISpreadRow(spacing: 6) { tabButtons(icons: false) }
+                VStack(spacing: 6) { tabButtons(icons: true) }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Bereiche der KI-Hilfe")
+            .accessibilityIdentifier("tutor.tabs")
+            actions
+        }
+        .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 8)
+        .background(UF.surface)
+        .ufBorderBottom()
+    }
+
+    @ViewBuilder private func tabButtons(icons: Bool) -> some View {
+        ForEach(TutorPanel.Tab.allCases) { t in
+            AITabButton(title: t.title, icon: icons ? t.icon : nil, pair: t.pair, selected: tab == t, compact: true) {
+                withAnimation(UF.transition) { tab = t }
+            }
+            .accessibilityIdentifier("tutor.tab.\(t.rawValue)")
+        }
+    }
+
+    @ViewBuilder private var actions: some View {
+        switch tab {
+        case .explain:
+            TutorDocControls(scope: $scope, from: $from, to: $to)
+            AIChipRail {
+                TutorDocChips(busy: busy) { doc($0) }
+                ForEach(TutorPanel.Tab.explain.modes, id: \.self) { key in modeChip(key, icon: key == "explain" ? "sparkles" : nil) }
+            }
+        case .cards:
+            // derselbe Umfang wie beim Erklaeren (07.11.2026: vorher nahm der Reiter immer nur die offene Seite)
+            TutorDocControls(scope: $scope, from: $from, to: $to)
+            AIChipRail {
+                AIModeChip(text: TutorCardsRun.chipLabel(scope: scope, from: from, to: to), icon: "cards", pair: TutorPanel.Tab.cards.pair) { cards() }
+                    .disabled(busy)
+                    .accessibilityIdentifier("tutor.mode.flashcards")
+                Text("Du siehst jede Karte, bevor sie gespeichert wird.").ufFont(12, lh: 1.3).foregroundStyle(UF.muted)
+            }
+        case .test:
+            AIChipRail {
+                modeChip("similar", icon: "refresh")
+                modeChip("check", icon: "check")
+                AIModeChip(text: "Wochentest erstellen", icon: "exam", pair: TutorPanel.Tab.test.pair) { weeklyTest() }
+                    .accessibilityIdentifier("tutor.weeklyTest")
+            }
+        }
+    }
+
+    private func modeChip(_ key: String, icon: String?) -> some View {
+        let label = TutorPanel.modes.first { $0.key == key }?.label ?? key
+        return AIModeChip(text: label, icon: icon, pair: (TutorPanel.Tab.tab(for: key) ?? .explain).pair, on: key == "check" && checking) { mode(key) }
+            .disabled(busy)
+            .accessibilityIdentifier("tutor.mode.\(key)")
     }
 }
 
