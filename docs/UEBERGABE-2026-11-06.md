@@ -35,7 +35,7 @@ Demo ohne Dauer-Ladehinweis.
    wird NICHT eingereicht. Beschreibung, Keywords, URLs (https://studinow.app/datenschutz, /support), Altersfreigabe,
    App-Datenschutz, Prüfhinweis (Demo: „Ohne Hochschulkonto ansehen (Demo)“), Bildschirmfotos `~/Studora-Builds/appstore-screenshots/`
    (Name „Tobi“), Abo **Plus** (de.uniflow.plus.monthly) mit Prüf-Bildschirmfoto + Hinweis anhängen.
-   **Pro AI** (de.uniflow.proai.monthly) erst einreichen, wenn ein Sandbox-Kauf + KI-Frage über TestFlight geklappt hat.
+   **Pro AI** (de.uniflow.proai.monthly) wird mit Version 1.0 eingereicht (Entscheidung 07.11.); Sandbox-Kauf + KI-Frage über TestFlight trotzdem bald prüfen.
 4. **E-Mail beim Händlerstatus** (Rechtsträger) in App Store Connect ändern (hat der Inhaber angekündigt).
 5. **Strato:** `studinow.ai` → A-Eintrag 75.2.60.5, AAAA löschen (oder Weiterleitung auf https://studinow.app); Alias
    `no-reply@studinow.app` am Postfach support@ anlegen.
@@ -62,7 +62,7 @@ Erledigt: Build 1.0 (11) hochgeladen und der iOS-Version 1.0 zugeordnet; Name �
 Kategorien Bildung/Produktivität; Werbetext, Beschreibung (Fassung nur Plus), Schlüsselwörter, Support-/Marketing-URL,
 Copyright; Prüfhinweis (nur Plus) + Kontakt (Telefon vom Inhaber), „Anmeldung erforderlich“ aus (Demo); manuell veröffentlichen;
 Altersfreigabe (berechnet 4+, überschrieben auf 16+ wegen Mindestalter 16 in Datenschutz/Nutzungsbedingungen);
-Plus-Abo: Prüfanmerkung. Offen (Inhaber): Bildschirmfotos der Version, Prüf-Bildschirmfoto der Tarifseite beim Plus-Abo
+Plus-Abo: Prüfanmerkung. 07.11. Entscheidung Inhaber: **Pro AI wird mit eingereicht** → Beschreibung und Prüfhinweis in ASC auf die Fassung „mit Pro AI“ umgestellt, Pro-AI-Abo mit Prüfanmerkung; KI-Bildschirmfotos neu (`~/Studora-Builds/appstore-screenshots-final/`). Offen (Inhaber): Bildschirmfotos der Version, Prüf-Bildschirmfoto der Tarifseite beim Plus-Abo
 (danach erscheint der Abo-Abschnitt auf der Versionsseite → Plus auswählen), Inhaltsrechte, App-Datenschutz
 (Antworten in docs/release/APP-STORE.md „App-Datenschutz“), Datenschutz-URL unter App-Datenschutz, CloudKit Production,
 Händler-E-Mail, dann „Zur Prüfung hinzufügen“ → Einreichen.
