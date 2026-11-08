@@ -8,7 +8,8 @@
   und die Tabelle `sync_log` in der Kontodatenbank: aelter als SYNC_DAYS (90) weg; sync.log/qis.log werden
   zeilenweise gekuerzt. Dazu `sync_jobs` und `schedule_marks` in accounts.db.
 - Konto: abgelaufene oder beendete Sitzungen, verbrauchte oder abgelaufene Reset-Token, alte Fehlversuchszaehler,
-  und `accounts.purge_deleted(30)` (Konten 30 Tage nach der Loeschung endgueltig weg).
+  und `accounts.purge_deleted(30)` (Konten 30 Tage nach der Loeschung endgueltig weg). Anfrage-IDs der Kontingente
+  (`usage_requests`) aelter als der Vormonat.
 
 Zeitplan: einmal taeglich ab RETENTION_TIME (`LERNAPP_RETENTION_TIME`, Standard 04:00, Ortszeit), gemerkt in
 `schedule_marks` wie die Abgleich-Zeitfenster. Von Hand: `python -m app.retention [--dry-run]`.
@@ -209,6 +210,12 @@ def purge_account_db(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False
             "verify_tokens": ("verify_tokens", "expires_at <= ? OR used_at IS NOT NULL", (now_iso,)),
             "rate_limits": ("rate_limits", "window_start < ?", (accounts.iso(now - timedelta(days=2)),)),
         }
+        # Anfrage-IDs der Kontingente (app/billing.py): gebraucht nur im laufenden Monat (Doppelte) und im vorigen
+        # (refund ueber die Monatsgrenze); die Zaehler in `usage` bleiben (Audit P21-05)
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='usage_requests'").fetchone():
+            first = now.astimezone(timezone.utc).replace(day=1)
+            prev = (first - timedelta(days=1)).strftime("%Y-%m")
+            rules["usage_requests"] = ("usage_requests", "period < ?", (prev,))
         for key, (table, where, params) in rules.items():
             n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]
             if n and not dry_run:
