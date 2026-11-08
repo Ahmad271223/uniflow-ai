@@ -155,13 +155,43 @@ def _login(page: Page) -> None:
 # Daten holen
 # ----------------------------------------------------------------------------
 
+# Hoechstens so viele Seiten je JSON:API-Liste (Kurse, Termine); wie api_list
+MAX_LIST_PAGES = 50
+
+
+class IncompleteList(RuntimeError):
+    """Eine Stud.IP-Liste kam nicht vollstaendig (HTTP-Fehler, Seitenlimit, Schleife, fremde Adresse in links.next)."""
+
+
+def next_page_url(j: dict, seen: set[str], limit: int = MAX_LIST_PAGES) -> str | None:
+    """`links.next` einer JSON:API-Antwort als absolute Adresse; None am Ende der Liste. Nur dasselbe Schema und derselbe
+    Host wie STUDIP_BASE (die Sitzung soll nie an eine fremde Adresse gehen), kein schon gelesener Link, hoechstens
+    `limit` Seiten - sonst IncompleteList (Audit 08.11.2026 P12-06/07/11)."""
+    nxt = (j.get("links") or {}).get("next") if isinstance(j, dict) else None
+    if not nxt:
+        return None
+    nxt = str(nxt)
+    # relativ wie bisher an STUDIP_BASE (mit dessen Pfad); "//host/..." ist absolut und wird unten geprueft
+    url = STUDIP_BASE + nxt if nxt.startswith("/") and not nxt.startswith("//") else urljoin(STUDIP_BASE + "/", nxt)
+    a, b = urlsplit(url), urlsplit(STUDIP_BASE)
+    if (a.scheme, a.netloc) != (b.scheme, b.netloc):
+        raise IncompleteList(f"Stud.IP: naechste Seite auf fremder Adresse ({a.scheme}://{a.netloc}), Abruf abgebrochen")
+    if url in seen:
+        raise IncompleteList("Stud.IP: naechste Seite verweist auf eine schon gelesene Seite")
+    if len(seen) >= limit:
+        raise IncompleteList(f"Stud.IP: mehr als {limit} Seiten, Liste unvollstaendig")
+    return url
+
+
 def fetch_courses(page: Page) -> list[dict]:
     me = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/me",
                           headers={"Accept": "application/vnd.api+json"}).json()
     uid = me["data"]["id"]
     out = []
     url = f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/courses?page[limit]=100&include=start-semester,end-semester"
+    seen: set[str] = set()
     while url:
+        seen.add(url)
         j = page.request.get(url, headers={"Accept": "application/vnd.api+json"}).json()
         sems = {i["id"]: i.get("attributes") or {} for i in j.get("included", []) if i["type"] == "semesters"}
         for c in j["data"]:
@@ -186,9 +216,7 @@ def fetch_courses(page: Page) -> list[dict]:
                 # Feld, bleibt der gespeicherte Text (None)
                 **course_texts(a),
             })
-        url = j.get("links", {}).get("next")
-        if url and url.startswith("/"):
-            url = STUDIP_BASE + url
+        url = next_page_url(j, seen)
     return out
 
 
@@ -200,6 +228,8 @@ def api_get(page: Page, url: str, headers: dict | None = None, attempts: int = 3
     Pause wiederholt (1,5 s, 3 s), dieselbe Regel wie `UniRetry` im Kern der iPad-App. Andere Antworten sofort.
     Riesentest 03.11.2026: ein einzelnes 429 mitten im Abgleich liess vorher einen Ordner (PC) bzw. den ganzen Kurs
     (iPad) fuer diesen Lauf aus."""
+    if attempts < 1:
+        raise ValueError("attempts muss mindestens 1 sein")             # sonst UnboundLocalError (Audit P12-12)
     for attempt in range(attempts):
         r = page.request.get(url, headers=headers if headers is not None else {"Accept": "application/vnd.api+json"})
         if r.status not in RETRY_STATUS or attempt == attempts - 1:
@@ -209,11 +239,13 @@ def api_get(page: Page, url: str, headers: dict | None = None, attempts: int = 3
 
 
 def api_list(page: Page, url: str, max_pages: int = 50) -> list[dict] | None:
-    """Alle Seiten einer JSON:API-Liste (`links.next`, wie StudIPClient.list im Swift-Kern). None, wenn eine Seite nicht
-    lesbar ist (HTTP-Fehler, keine Liste `data`): der Aufrufer laesst dann seinen Bestand stehen."""
+    """Alle Seiten einer JSON:API-Liste (`links.next`, wie StudIPClient.list im Swift-Kern). None, wenn die Liste nicht
+    vollstaendig lesbar ist (HTTP-Fehler, keine Liste `data`, mehr als max_pages Seiten, Schleife, fremde Adresse in
+    links.next - die letzten drei galten vorher als vollstaendig, Audit P12-07): der Aufrufer laesst dann seinen
+    Bestand stehen."""
     out: list[dict] = []
     seen: set[str] = set()
-    while url and url not in seen and len(seen) < max_pages:
+    while url:
         seen.add(url)
         r = api_get(page, url)
         if not r.ok:
@@ -222,9 +254,10 @@ def api_list(page: Page, url: str, max_pages: int = 50) -> list[dict] | None:
         if not isinstance(j.get("data"), list):
             return None
         out += j["data"]
-        url = (j.get("links") or {}).get("next")
-        if url and url.startswith("/"):
-            url = STUDIP_BASE + url
+        try:
+            url = next_page_url(j, seen, max_pages)
+        except IncompleteList:
+            return None
     return out
 
 
@@ -263,19 +296,21 @@ def event_from_studip(e: dict, course_id: str) -> dict:
 
 
 def fetch_events(page: Page, course_id: str) -> list[dict]:
-    """Termine (Sitzungen) eines Kurses aus der JSON-API: Titel, Beginn, Ende, Raum, Sitzungsthema, Ausfall."""
+    """Termine (Sitzungen) eines Kurses aus der JSON-API: Titel, Beginn, Ende, Raum, Sitzungsthema, Ausfall.
+    Unvollstaendig (HTTP-Fehler auch auf Seite 2, Seitenlimit, fremde Adresse): IncompleteList statt einer Teilliste,
+    die wie die ganze aussah (Audit P12-08); der Aufrufer protokolliert, gespeicherte Termine bleiben."""
     out = []
     url = f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/events?page[limit]=200"
+    seen: set[str] = set()
     while url:
+        seen.add(url)
         resp = api_get(page, url)
         if not resp.ok:
-            break
+            raise IncompleteList(f"Stud.IP-Termine: HTTP {resp.status}")
         j = resp.json()
         for e in j.get("data", []):
             out.append(event_from_studip(e, course_id))
-        url = j.get("links", {}).get("next")
-        if url and url.startswith("/"):
-            url = STUDIP_BASE + url
+        url = next_page_url(j, seen)
     return out
 
 
@@ -301,8 +336,8 @@ def _api_get(page: Page, path: str) -> tuple[int, dict | None]:
 def fetch_schedule_entries(page: Page, uid: str) -> list[dict]:
     """Persoenliche Eintraege aus dem Stud.IP-Stundenplan des Nutzers (selbst angelegte Termine)."""
     resp = api_get(page, f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/schedule")
-    if not resp.ok:
-        return []
+    if not resp.ok:                     # Fehler ist kein leerer Stundenplan (Audit P12-09); der Aufrufer protokolliert
+        raise IncompleteList(f"Stud.IP-Stundenplan: HTTP {resp.status}")
     out = []
     for e in resp.json().get("data", []):
         if e.get("type") != "schedule-entries":

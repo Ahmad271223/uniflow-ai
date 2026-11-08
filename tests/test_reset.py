@@ -35,6 +35,7 @@ def filled(app, monkeypatch, tmp_path):
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_bytes(b"%PDF")
     yield {"backups": backups, "profile": profile, "file": f}
+    monkeypatch.setattr(config, "MODE", "local")       # ein Test schaltet auf hosted: dort schreibt set_env nie (Audit P12-01)
     unilogin.forget()                                                      # falls ein Test vorher abbrach
 
 

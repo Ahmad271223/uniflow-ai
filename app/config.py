@@ -4,6 +4,8 @@ from __future__ import annotations
 import contextvars
 import os
 import re
+import tempfile
+import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -61,11 +63,18 @@ MODE = (os.getenv("LERNAPP_MODE") or "local").strip().lower() or "local"
 # Hochschuldateien: store = auf die Platte (PC); stream = nie speichern, beim Oeffnen mit der Hochschulsitzung des
 # Kontos durchreichen (app/filestream.py). Standard: stream im gehosteten Dienst, store am eigenen PC.
 FILES_MODE = (os.getenv("LERNAPP_FILES") or "").strip().lower()
+FILES_MODES = ("store", "stream")
+# Ein Tippfehler (LERNAPP_FILES=streem) fiel frueher still auf "store": im Dienst haette das Hochschuldateien auf die
+# Platte gelegt. Jetzt startet die App nicht (Audit 08.11.2026 P11-07).
+if FILES_MODE and FILES_MODE not in FILES_MODES:
+    raise RuntimeError(f"LERNAPP_FILES={FILES_MODE!r} ist ungueltig (erlaubt: store, stream oder leer)")
 
 
 def files_mode() -> str:
     m = FILES_MODE or ("stream" if is_hosted() else "store")
-    return m if m in ("store", "stream") else "store"
+    if m not in FILES_MODES:
+        raise ValueError(f"LERNAPP_FILES={m!r} ist ungueltig (erlaubt: store, stream oder leer)")
+    return m
 
 
 def streams_files() -> bool:
@@ -154,8 +163,10 @@ def retire_user_data_dir(user_id: str) -> Path | None:
     src = BASE_DATA_DIR / "users" / user_id
     if not src.exists():
         return None
+    import uuid
     from datetime import datetime
-    dst = BASE_DATA_DIR / "users-deleted" / f"{user_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # Zeit plus Zufall: zweimal in derselben Sekunde ergab sonst dasselbe Ziel (OSError, Audit P12-05)
+    dst = BASE_DATA_DIR / "users-deleted" / f"{user_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
     dst.parent.mkdir(parents=True, exist_ok=True)
     src.rename(dst)
     _made_dirs.discard(src)
@@ -187,23 +198,36 @@ def credentials() -> tuple[str, str]:
     return ("" if user in PLACEHOLDERS else user, "" if pw in PLACEHOLDERS else pw)
 
 
+_env_lock = threading.Lock()
+
+
 def set_env(values: dict) -> None:
     """Setzt/entfernt Schluessel in der .env (None = Zeile entfernen); andere Zeilen bleiben erhalten.
-    Im gehosteten Modus landen die Werte verschluesselt im Tresor des angemeldeten Kontos, nie in der .env."""
+    Im gehosteten Modus landen die Werte verschluesselt im Tresor des angemeldeten Kontos, nie in der .env; ohne
+    angemeldetes Konto gibt es dort nichts zu schreiben (Fehler statt globaler .env, Audit P12-01)."""
     uid = current_user_id()
-    if uid and is_hosted():
+    if is_hosted():
+        if not uid:
+            raise RuntimeError("Dienst: set_env ohne angemeldetes Konto - die .env wird im Dienst nie beschrieben")
         from . import vault
         vault.set_values(uid, values)
         if _ctx_env.get() is not None:
             _ctx_env.set(vault.env_for(uid))
         return
+    for k, v in values.items():
+        if v is not None and ("\n" in str(v) or "\r" in str(v)):
+            raise ValueError(f"{k}: Zeilenumbrueche sind nicht erlaubt")
+    # Lesen, Aendern, Schreiben unter einer Sperre: zwei gleichzeitige Aufrufe (Endpunkte im Threadpool, Hintergrund-
+    # Abgleich) ueberschrieben sich vorher gegenseitig bzw. stolperten ueber dieselbe .env.tmp (Audit P12-02)
+    with _env_lock:
+        _set_env_file(values)
+
+
+def _set_env_file(values: dict) -> None:
     path = env_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else \
         ((ROOT / ".env.example").read_text(encoding="utf-8").splitlines() if (ROOT / ".env.example").exists() else [])
-    for k, v in values.items():
-        if v is not None and ("\n" in str(v) or "\r" in str(v)):
-            raise ValueError(f"{k}: Zeilenumbrueche sind nicht erlaubt")
     out, seen = [], set()
     for line in lines:
         key = line.split("=", 1)[0].strip() if "=" in line and not line.lstrip().startswith("#") else None
@@ -216,10 +240,19 @@ def set_env(values: dict) -> None:
     for k, v in values.items():
         if k not in seen and v is not None:
             out.append(f"{k}={_env_quote(v)}")
-    # atomar: erst Temp-Datei, dann ersetzen (ein Absturz mitten im Schreiben darf die Zugangsdaten nicht loeschen)
-    tmp = path.with_name(".env.tmp")
-    tmp.write_text("\n".join(out) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    # atomar: erst Temp-Datei, dann ersetzen (ein Absturz mitten im Schreiben darf die Zugangsdaten nicht loeschen).
+    # mkstemp: eindeutiger Name und Rechte 0600 unter POSIX - die .env enthaelt Passwoerter (Audit P12-02/P12-03)
+    fd, tmp = tempfile.mkstemp(prefix=".env.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            f.write("\n".join(out) + "\n")
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _env_quote(v) -> str:

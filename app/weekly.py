@@ -176,14 +176,13 @@ END;
 
 
 def ensure_schema(conn) -> None:
-    conn.executescript(SCHEMA)
+    from . import db
+    db.run_script(conn, SCHEMA)          # nicht executescript: das schloss die Transaktion von db.init_db ab (Audit P11-01)
     for k, v in DEFAULTS.items():
         conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
 
     def add_col(table, col, decl):
-        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-        if col not in cols:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+        db.add_column(conn, table, col, decl)
     add_col("tests", "def_id", "INTEGER")
     add_col("tests", "user_id", "TEXT DEFAULT 'local'")
     add_col("tests", "duration_sec", "INTEGER")

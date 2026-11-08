@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import json
+import logging
+import math
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime
 
 from .config import DB_PATH
+
+_log = logging.getLogger(__name__)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS courses (
@@ -490,9 +495,20 @@ def wal_once(conn: sqlite3.Connection, path) -> None:
     if ident is not None and ident in _wal_done:
         return
     with _wal_lock:
-        mode = (conn.execute("PRAGMA journal_mode").fetchone() or [""])[0]
-        if str(mode).lower() != "wal":
-            conn.execute("PRAGMA journal_mode=WAL")
+        # Mehrere PROZESSE (12 uvicorn-Worker) auf einer frischen Datei: der Wechsel braucht die alleinige Sperre, und
+        # SQLite meldet 'database is locked' dann sofort, ohne busy_timeout (Audit 08.11.2026 P11-02, 12/12 Prozesse
+        # in tests/test_audit_paket_11_12.py). Die Python-Sperre gilt nur je Prozess: kurz warten und neu versuchen.
+        deadline = time.monotonic() + 15
+        while True:
+            try:
+                mode = (conn.execute("PRAGMA journal_mode").fetchone() or [""])[0]
+                if str(mode).lower() != "wal":
+                    conn.execute("PRAGMA journal_mode=WAL")
+                break
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e) and "busy" not in str(e) or time.monotonic() > deadline:
+                    raise
+                time.sleep(0.02)
         if ident is not None:
             _wal_done.add(ident)
             try:                                            # der Wechsel aendert die Zeit der Datei: auch den neuen Stand merken
@@ -515,10 +531,43 @@ def connect() -> sqlite3.Connection:
     # hosted: Datenbank des angemeldeten Kontos; sonst DB_PATH (Modulvariable, von Werkzeugen und Tests umlenkbar)
     p = config.db_path() if config.current_user_id() else DB_PATH
     conn = sqlite3.connect(p, check_same_thread=False, timeout=15)      # timeout = busy_timeout 15 s je Verbindung
-    conn.row_factory = sqlite3.Row
-    wal_once(conn, p)
-    conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        conn.row_factory = sqlite3.Row
+        wal_once(conn, p)
+        conn.execute("PRAGMA foreign_keys=ON")
+    except BaseException:
+        conn.close()                    # Audit P11-04: keine offene Verbindung (Dateigriff) nach einem Fehler
+        raise
     return conn
+
+
+def add_column(conn, table: str, col: str, decl: str) -> bool:
+    """Spalte anhaengen, wenn sie fehlt; True, wenn angehaengt. Hat ein anderer Prozess sie zwischen Pruefen und ALTER
+    angelegt (12 Dienst-Prozesse starten gleichzeitig), ist das kein Fehler (Audit 08.11.2026 P11-02)."""
+    if col in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
+        return False
+    try:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e).lower():
+            raise
+        return False
+    return True
+
+
+def run_script(conn, script: str) -> None:
+    """Anweisungen eines Skripts einzeln ausfuehren, in der Transaktion des Aufrufers. `conn.executescript` schliesst
+    eine offene Transaktion vorher still ab (COMMIT), damit war `init_db` nicht atomar (Audit P11-01). Trigger mit
+    BEGIN ... END trennt sqlite3.complete_statement richtig (wie ai_backend._run_statements)."""
+    buf = ""
+    for line in script.splitlines(keepends=True):
+        buf += line
+        if sqlite3.complete_statement(buf):
+            if buf.strip():
+                conn.execute(buf)
+            buf = ""
+    if buf.strip():
+        conn.execute(buf)
 
 
 class UniversityMismatch(RuntimeError):
@@ -526,19 +575,22 @@ class UniversityMismatch(RuntimeError):
 
 
 _FINGERPRINT: int | None = None
+# Alle Module, deren Code _init_db ausfuehrt (Audit P11-05: vorher nur db, weekly, sync - eine Migration z. B. in
+# scriptsearch.py lief mit init_db(fast=True) nicht). tests/test_audit_paket_11_12.py prueft die Liste gegen _init_db.
+SCHEMA_SOURCES = ("db.py", "weekly.py", "sync.py", "scriptsearch.py", "semesters.py", "colors.py", "study.py", "holidays.py")
 
 
 def schema_fingerprint() -> int:
-    """Kennzahl des Schema-Codes (db.py, weekly.py, sync.py als Bytes, CRC32, positiv): steht sie als `PRAGMA
+    """Kennzahl des Schema-Codes (SCHEMA_SOURCES als Bytes, CRC32, positiv): steht sie als `PRAGMA
     user_version` in einer Konto-Datenbank, hat genau dieser Code-Stand `_init_db` dort schon vollstaendig ausgefuehrt.
-    Jede Aenderung an einer der drei Dateien ergibt eine andere Zahl, dann laeuft die Schema-Arbeit wieder."""
+    Jede Aenderung an einer dieser Dateien ergibt eine andere Zahl, dann laeuft die Schema-Arbeit wieder."""
     global _FINGERPRINT
     if _FINGERPRINT is None:
         import os
         import zlib
         here = os.path.dirname(os.path.abspath(__file__))
         data = b""
-        for n in ("db.py", "weekly.py", "sync.py"):
+        for n in SCHEMA_SOURCES:
             p = os.path.join(here, n)
             if os.path.exists(p):
                 with open(p, "rb") as f:
@@ -565,16 +617,24 @@ def init_db(fast: bool = False) -> None:
                 raise UniversityMismatch(f"Der Datenordner {config.data_dir()} gehoert zur Hochschule '{owner[0]}', "
                                          f"die App laeuft fuer '{config.university()}'. Es werden keine Daten gemischt.")
             return
-        with conn:                      # Transaktion; schliesst die Verbindung NICHT (sqlite3), daher finally
+        # Eine Transaktion fuer die ganze Schemaarbeit samt Kennzahl (Audit P11-01): IMMEDIATE nimmt die Schreibsperre
+        # gleich am Anfang, starten mehrere Prozesse zugleich, wartet jeder (busy_timeout) und prueft danach den neuen
+        # Stand (P11-02). Ein Fehler mittendrin rollt alles zurueck, user_version bleibt alt.
+        conn.execute("BEGIN IMMEDIATE")
+        try:
             _init_db(conn)
-        conn.execute(f"PRAGMA user_version={mark}")
+            conn.execute(f"PRAGMA user_version={mark}")
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
     finally:
         conn.close()
 
 
 def _init_db(conn) -> None:
     from . import config
-    conn.executescript(SCHEMA)
+    run_script(conn, SCHEMA)
     # Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
     uni = config.university()
     # OR IGNORE: zwei API-Prozesse koennen die Datenbank beim ersten Start gleichzeitig anlegen (Server 06.11.2026)
@@ -587,9 +647,7 @@ def _init_db(conn) -> None:
         conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
     # Migrationen fuer bestehende Datenbanken
     def add_col(table, col, decl):
-        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-        if col not in cols:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+        add_column(conn, table, col, decl)
     add_col("annotations", "version", "INTEGER DEFAULT 1")
     add_col("files", "studip_folder", "TEXT")
     add_col("courses", "module_id", "INTEGER")
@@ -719,9 +777,29 @@ def row(conn: sqlite3.Connection, sql: str, params=()) -> dict | None:
 def get_settings(conn: sqlite3.Connection) -> dict:
     s = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM settings")}
     out = dict(s)
-    out["hours_per_day"] = float(s.get("hours_per_day", 4))
-    out["free_days"] = json.loads(s.get("free_days", "[6]"))
-    out["test_default_minutes"] = int(s.get("test_default_minutes", 90))
+    # Ungueltige gespeicherte Werte (z. B. PUT /api/settings mit "nan", free_days "{") liessen vorher jeden Aufruf mit
+    # ValueError/OverflowError/JSONDecodeError scheitern (Audit P11-03): dann gilt der Standard, mit Protokollzeile.
+    try:
+        h = float(s.get("hours_per_day", 4))
+        if not (math.isfinite(h) and 0 <= h <= 24):
+            raise ValueError(h)
+    except (TypeError, ValueError):
+        _log.warning("Einstellung hours_per_day ungueltig (%r): Standard 4", s.get("hours_per_day"))
+        h = 4.0
+    out["hours_per_day"] = h
+    try:
+        fd = json.loads(s.get("free_days", "[6]"))
+        if not (isinstance(fd, list) and all(type(d) is int and 0 <= d <= 6 for d in fd)):
+            raise ValueError(fd)
+    except (TypeError, ValueError):                 # json.JSONDecodeError ist ein ValueError
+        _log.warning("Einstellung free_days ungueltig (%r): Standard [6]", s.get("free_days"))
+        fd = [6]
+    out["free_days"] = fd
+    try:
+        out["test_default_minutes"] = int(s.get("test_default_minutes", 90))
+    except (TypeError, ValueError):
+        _log.warning("Einstellung test_default_minutes ungueltig (%r): Standard 90", s.get("test_default_minutes"))
+        out["test_default_minutes"] = 90
     out["auto_plan"] = s.get("auto_plan", "1") == "1"
     out["auto_tests"] = s.get("auto_tests", "1") == "1"
     for k, d in (("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 0),
