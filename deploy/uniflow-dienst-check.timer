@@ -1,0 +1,13 @@
+# Zeitplan fuer uniflow-dienst-check.service: alle 5 Minuten, erstmals 3 Minuten nach dem Start des Servers.
+# Alternative ohne systemd (Cron, als root):  */5 * * * * /srv/uniflow/app/deploy/dienst-check.sh >/dev/null 2>&1
+[Unit]
+Description=StudiNow: Dienstpruefung alle 5 Minuten
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

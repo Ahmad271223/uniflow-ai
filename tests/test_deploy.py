@@ -13,7 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = ROOT / "deploy"
 FILES = ("Dockerfile", "docker-compose.yml", "Caddyfile", ".env.example", "backup.sh", "backup_snapshot.py",
-         "uniflow-backup.service", "uniflow-backup.timer")
+         "uniflow-backup.service", "uniflow-backup.timer", "dienst-check.sh", "uniflow-dienst-check.service", "uniflow-dienst-check.timer")
 ENV_RE = re.compile(r"""os\.(?:environ\.get|getenv|environ)\s*[\(\[]\s*["'](LERNAPP_[A-Z0-9_]+)["']""")
 # weiter gefasst fuer ganz app/: jeder Variablenname als eigenes String-Literal (auch _env("LERNAPP_MAIL") in app/mail.py
 # oder die "env"-Eintraege in app/social_login.py); Erwaehnungen in Docstrings zaehlen nicht
@@ -187,7 +187,8 @@ def test_deploy_env_is_gitignored():
     assert ".env" in patterns or "deploy/.env" in patterns or "**/.env" in patterns
 
 
-@pytest.mark.parametrize("name", ["backup.sh", "backup_snapshot.py", "Caddyfile", "Dockerfile"])
+@pytest.mark.parametrize("name", ["backup.sh", "backup_snapshot.py", "Caddyfile", "Dockerfile", "dienst-check.sh",
+                                  "uniflow-dienst-check.service", "uniflow-dienst-check.timer"])
 def test_server_side_files_have_lf_line_endings(name):
     assert b"\r\n" not in (DEPLOY / name).read_bytes(), f"{name}: CRLF – auf dem Server (bash/Caddy) unbrauchbar"
 

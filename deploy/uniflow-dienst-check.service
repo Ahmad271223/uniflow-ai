@@ -1,0 +1,19 @@
+# systemd-Dienst fuer die Dienstpruefung (deploy/dienst-check.sh): Container, Platte, RAM, Fehlerquote, Zertifikat, Jobs,
+# Backup, http – alle 5 Minuten ueber uniflow-dienst-check.timer. Einrichten auf dem Server (als root):
+#   sudo cp /srv/uniflow/app/deploy/uniflow-dienst-check.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now uniflow-dienst-check.timer
+#   sudo systemctl start uniflow-dienst-check.service     # einmal von Hand; Befunde: /srv/uniflow/dienst-check.log
+#   journalctl -u uniflow-dienst-check.service -n 20
+# Eigene Grenzen (optional) in /srv/uniflow/dienst-check.env, z. B. DIENST_CHECK_DISK_PCT=85 oder DIENST_CHECK_MAIL=0.
+[Unit]
+Description=StudiNow: Dienstpruefung (Container, Platte, RAM, Fehlerquote, Zertifikat, Jobs, Backup)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/uniflow/app/deploy
+EnvironmentFile=-/srv/uniflow/dienst-check.env
+ExecStart=/usr/bin/env bash /srv/uniflow/app/deploy/dienst-check.sh
+# Exit 1 = Befunde (stehen im Protokoll und in der Mail), kein Fehler des Dienstes
+SuccessExitStatus=0 1
