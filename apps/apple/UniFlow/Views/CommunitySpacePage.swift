@@ -483,10 +483,19 @@ struct CommunitySpaceDiscussion: View {
     var tint: Color = UF.accent
     @State private var posts: [CommunityPost]?
     @State private var filter: CommunityPostFilter = .newest
-    @State private var draft = ""
+    @State private var draft: String
     @State private var busy = false
     @State private var error: String?
     @State private var thread: CommunityPost?
+    /// eigene Fragen, die schon in der Liste stehen und noch zum Dienst gehen (Kennung -> Zustand), 08.11.2026
+    @State private var pending: [String: CommunitySendState] = [:]
+
+    init(space: CommunitySpace, service: CommunityService, tint: Color = UF.accent, draft: String = "") {
+        self.space = space
+        self.service = service
+        self.tint = tint
+        _draft = State(initialValue: draft)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -508,8 +517,9 @@ struct CommunitySpaceDiscussion: View {
                     Text(CommunitySpaceTexts.discussionNotice).ufFont(12.48).foregroundStyle(UF.muted)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
-                    UFButton(busy ? "Wird gesendet …" : "Frage stellen", icon: "check", kind: .primary, size: .small) { ask() }
-                        .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    // die Frage steht sofort in der Liste (siehe `CommunityPendingSend`), der Knopf bleibt frei fuer die naechste
+                    UFButton("Frage stellen", icon: "check", kind: .primary, size: .small) { ask() }
+                        .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .accessibilityIdentifier("community.discussion.ask")
                 }
                 .padding(.top, 10).padding(.leading, 48)
@@ -529,7 +539,8 @@ struct CommunitySpaceDiscussion: View {
                     // je Frage eine eigene Karte: luftiger als eine lange Liste, erscheint beim ersten Mal leicht gestaffelt
                     VStack(spacing: 10) {
                         ForEach(Array(shown.enumerated()), id: \.element.id) { i, p in
-                            CommunityPostRow(post: p, busy: busy, open: { thread = p }, like: { like(p) })
+                            CommunityPostRow(post: p, busy: busy, pending: pending[p.id], open: { thread = p }, like: { like(p) },
+                                             retry: { resend(p) }, discard: { discard(p) })
                                 .ufAppear("community-posts", index: i)
                         }
                     }
@@ -539,27 +550,58 @@ struct CommunitySpaceDiscussion: View {
             }
         }
         .task(id: space.key) { await load() }
-        .sheet(item: $thread, onDismiss: { Task { await load() } }) { p in
-            CommunityThreadSheet(space: space, service: service, post: p) { thread = nil }
+        // die Frage kommt aus dem Blatt zurueck (Antworten, Likes, geloescht) statt die ganze Liste neu zu laden
+        .sheet(item: $thread) { p in
+            CommunityThreadSheet(space: space, service: service, post: p, close: { thread = nil },
+                                 changed: { fresh in
+                                     if let i = posts?.firstIndex(where: { $0.id == fresh.id }) { posts?[i] = fresh }
+                                 },
+                                 removed: { id in posts?.removeAll { $0.id == id } })
         }
     }
 
     private func load() async {
-        do { posts = try await service.posts(in: space); error = nil } catch { self.error = CommunityTexts.message(error) }
+        do {
+            let fresh = try await service.posts(in: space)
+            posts = CommunityPendingSend.merge(fresh: fresh, pending: (posts ?? []).filter { pending[$0.id] != nil })
+            error = nil
+        } catch { self.error = CommunityTexts.message(error) }
     }
 
+    /// Frage stellen: sofort oben in der Liste, der Save laeuft im Hintergrund und ersetzt nur diesen Eintrag
     private func ask() {
-        let text = draft
-        busy = true
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        let local = CommunityPost(question: CommunityPendingSend.comment(text: text, pseudonym: SolutionDisplayName.load()))
+        posts = [local] + (posts ?? [])
+        draft = ""
+        filter = .newest
+        error = nil
+        send(local)
+    }
+
+    private func send(_ local: CommunityPost) {
+        pending[local.id] = .sending
+        let text = local.question.text
         Task {
-            defer { busy = false }
             do {
-                _ = try await service.addPost(in: space, text: text, parentID: nil)
-                draft = ""
-                filter = .newest
-                await load()
-            } catch { self.error = CommunityTexts.message(error) }
+                let saved = try await service.addPost(in: space, text: text, parentID: nil)
+                if let i = posts?.firstIndex(where: { $0.id == local.id }) { posts?[i].question = saved }
+                pending[local.id] = nil
+            } catch {
+                pending[local.id] = .failed(CommunityTexts.message(error))
+            }
         }
+    }
+
+    private func resend(_ p: CommunityPost) {
+        guard case .failed = pending[p.id] else { return }
+        send(p)
+    }
+
+    private func discard(_ p: CommunityPost) {
+        pending[p.id] = nil
+        posts?.removeAll { $0.id == p.id }
     }
 
     private func like(_ p: CommunityPost) {
@@ -584,12 +626,16 @@ struct CommunitySpaceDiscussion: View {
 struct CommunityPostRow: View {
     let post: CommunityPost
     var busy = false
+    /// eigene Frage, die noch zum Dienst geht (kein Blatt, keine Likes; statt dessen der Zustand)
+    var pending: CommunitySendState?
     let open: () -> Void
     let like: () -> Void
+    var retry: () -> Void = {}
+    var discard: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Button(action: open) {
+            Button(action: { if pending == nil { open() } }) {
                 HStack(alignment: .top, spacing: 12) {
                     CommunityAvatar(name: post.question.pseudonym, size: 38, own: post.question.isMine)
                     VStack(alignment: .leading, spacing: 4) {
@@ -610,32 +656,37 @@ struct CommunityPostRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(CommunitySpaceTexts.postLabel(post))
-            .accessibilityHint("Öffnet die Antworten")
+            .accessibilityLabel(CommunitySpaceTexts.postLabel(post) + (pending == nil ? "" : ", \(CommunityPendingSend.sending)"))
+            .accessibilityHint(pending == nil ? "Öffnet die Antworten" : "")
             .accessibilityAddTraits(.isButton)
-            .accessibilityAction { open() }
+            .accessibilityAction { if pending == nil { open() } }
             .accessibilityIdentifier("community.post.\(post.id)")
-            HStack(spacing: 6) {
-                CommunityLikeButton(count: post.likes, liked: post.likedByMe, enabled: !post.question.isMine && !post.question.deleted && !busy,
-                                    id: "community.post.like.\(post.id)", action: like)
-                Button(action: open) {
-                    HStack(spacing: 7) {
-                        if post.replies.isEmpty {
-                            UFIcon("note", size: 15)
-                        } else {
-                            CommunityAvatarStack(names: Self.repliers(post), size: 20)
+            if let pending {
+                CommunitySendStateView(state: pending, id: "community.post.\(post.id)", retry: retry, discard: discard)
+                    .padding(.leading, 50).padding(.bottom, 10)
+            } else {
+                HStack(spacing: 6) {
+                    CommunityLikeButton(count: post.likes, liked: post.likedByMe, enabled: !post.question.isMine && !post.question.deleted && !busy,
+                                        id: "community.post.like.\(post.id)", action: like)
+                    Button(action: open) {
+                        HStack(spacing: 7) {
+                            if post.replies.isEmpty {
+                                UFIcon("note", size: 15)
+                            } else {
+                                CommunityAvatarStack(names: Self.repliers(post), size: 20)
+                            }
+                            Text(CommunitySpaceTexts.replies(post.replies.count))
                         }
-                        Text(CommunitySpaceTexts.replies(post.replies.count))
+                        .ufFont(13.12, 550).foregroundStyle(UF.text2)
+                        .padding(.horizontal, 10).frame(minHeight: 44).contentShape(Rectangle())
                     }
-                    .ufFont(13.12, 550).foregroundStyle(UF.text2)
-                    .padding(.horizontal, 10).frame(minHeight: 44).contentShape(Rectangle())
+                    .buttonStyle(UFPressStyle(scale: 0.96))
+                    .accessibilityLabel(CommunitySpaceTexts.replies(post.replies.count))
+                    .accessibilityHint("Öffnet die Antworten")
+                    .accessibilityIdentifier("community.post.replies.\(post.id)")
                 }
-                .buttonStyle(UFPressStyle(scale: 0.96))
-                .accessibilityLabel(CommunitySpaceTexts.replies(post.replies.count))
-                .accessibilityHint("Öffnet die Antworten")
-                .accessibilityIdentifier("community.post.replies.\(post.id)")
+                .padding(.leading, 40)
             }
-            .padding(.leading, 40)
         }
         .padding(.top, 14).padding(.bottom, 4).padding(.horizontal, 16)
         .background(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous).fill(UF.surface))
@@ -684,10 +735,27 @@ struct CommunityThreadSheet: View {
     let service: CommunityService
     @State var post: CommunityPost
     let close: () -> Void
-    @State private var draft = ""
+    /// die Frage hat sich geaendert (Antwort, Like, bearbeitet): die Liste ersetzt nur diesen Eintrag
+    var changed: (CommunityPost) -> Void = { _ in }
+    /// die Frage gibt es nicht mehr (ohne Antworten geloescht)
+    var removed: (String) -> Void = { _ in }
+    @State private var draft: String
     @State private var busy = false
     @State private var error: String?
     @State private var notice: String?
+    /// eigene Antworten, die schon unter der Frage stehen und noch zum Dienst gehen (08.11.2026)
+    @State private var pending: [String: CommunitySendState] = [:]
+
+    init(space: CommunitySpace, service: CommunityService, post: CommunityPost, close: @escaping () -> Void,
+         changed: @escaping (CommunityPost) -> Void = { _ in }, removed: @escaping (String) -> Void = { _ in }, draft: String = "") {
+        self.space = space
+        self.service = service
+        _post = State(initialValue: post)
+        self.close = close
+        self.changed = changed
+        self.removed = removed
+        _draft = State(initialValue: draft)
+    }
 
     var body: some View {
         NavigationStack {
@@ -719,10 +787,14 @@ struct CommunityThreadSheet: View {
                                         entryHead(r)
                                         Text(r.text).ufFont(14.5, lh: 1.55).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                                             .textSelection(.enabled)
+                                        if let state = pending[r.id] {
+                                            CommunitySendStateView(state: state, id: "community.thread.reply.\(r.id)",
+                                                                   retry: { resend(r) }, discard: { discard(r) })
+                                        }
                                     }
                                     .padding(.vertical, 10)
                                     .ufBorderBottom(r.id != post.replies.last?.id)
-                                    .accessibilityElement(children: .combine)
+                                    .accessibilityElement(children: pending[r.id] == nil ? .combine : .contain)
                                 }
                             }
                             .padding(.horizontal, 14)
@@ -731,8 +803,9 @@ struct CommunityThreadSheet: View {
                     if !post.question.deleted {
                         UFTextArea(placeholder: "Antworten …", text: $draft, minHeight: 60)
                             .accessibilityIdentifier("community.thread.field")
-                        UFButton(busy ? "Wird gesendet …" : "Antworten", icon: "check", kind: .primary, size: .small) { reply() }
-                            .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        // die Antwort steht sofort unter der Frage (`CommunityPendingSend`), der Knopf bleibt frei
+                        UFButton("Antworten", icon: "check", kind: .primary, size: .small) { reply() }
+                            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .accessibilityIdentifier("community.thread.send")
                     }
                 }
@@ -742,6 +815,7 @@ struct CommunityThreadSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .accessibilityIdentifier("community.thread")
+        .onChange(of: post) { _, p in changed(p) }
     }
 
     private func entryHead(_ c: CommunityComment) -> some View {
@@ -750,7 +824,7 @@ struct CommunityThreadSheet: View {
             Text(c.pseudonym + (c.edited ? " · bearbeitet" : "")).ufFont(13.6, 600).foregroundStyle(UF.text).lineLimit(1)
             Text(CommunitySpaceTexts.relative(c.createdAt)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
             Spacer(minLength: 8)
-            if !c.deleted {
+            if !c.deleted, pending[c.id] == nil {                     // unterwegs: noch nichts zum Loeschen oder Melden
                 Menu {
                     if c.isMine {
                         Button(role: .destructive) { act { try await service.deleteComment(id: c.id) } } label: { Label("Löschen", systemImage: "trash") }
@@ -770,11 +844,14 @@ struct CommunityThreadSheet: View {
         }
     }
 
+    /// Nach Loeschen oder Melden: die Frage neu holen (eigene, noch nicht gesendete Antworten bleiben stehen)
     private func reload() async throws {
-        if let fresh = try await service.posts(in: space).first(where: { $0.id == post.id }) {
+        if var fresh = try await service.posts(in: space).first(where: { $0.id == post.id }) {
+            fresh.replies = CommunityPendingSend.merge(fresh: fresh.replies, pending: post.replies.filter { pending[$0.id] != nil })
             post = fresh
         } else {
-            close()                                             // geloeschte Frage ohne Antworten
+            removed(post.id)                                    // geloeschte Frage ohne Antworten
+            close()
         }
     }
 
@@ -790,12 +867,38 @@ struct CommunityThreadSheet: View {
         }
     }
 
+    /// Antworten: sofort unter der Frage, der Save laeuft im Hintergrund und ersetzt nur diese Antwort
     private func reply() {
-        let text = draft
-        act {
-            _ = try await service.addPost(in: space, text: text, parentID: post.id)
-            draft = ""
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        let local = CommunityPendingSend.comment(text: text, parentID: post.id, pseudonym: SolutionDisplayName.load())
+        post.replies.append(local)
+        draft = ""
+        error = nil
+        send(local)
+    }
+
+    private func send(_ local: CommunityComment) {
+        pending[local.id] = .sending
+        Task {
+            do {
+                let saved = try await service.addPost(in: space, text: local.text, parentID: post.id)
+                CommunityPendingSend.replace(&post.replies, localID: local.id, with: saved)
+                pending[local.id] = nil
+            } catch {
+                pending[local.id] = .failed(CommunityTexts.message(error))
+            }
         }
+    }
+
+    private func resend(_ r: CommunityComment) {
+        guard case .failed = pending[r.id] else { return }
+        send(r)
+    }
+
+    private func discard(_ r: CommunityComment) {
+        pending[r.id] = nil
+        post.replies.removeAll { $0.id == r.id }
     }
 
     private func like() {

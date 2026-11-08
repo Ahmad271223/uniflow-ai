@@ -503,7 +503,7 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         record[Field.note] = .string(String((note ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(Self.maxNote)))
         record[Field.reporter] = .string(user)
         record[Field.createdAt] = .string(SolutionPackage.timestamp(Date()))
-        do { try await cloud.save(record, in: .publicDB) } catch { throw Self.serviceError(error) }
+        do { try await cloud.create(record, in: .publicDB) } catch { throw Self.serviceError(error) }
     }
 
     func block(owner: String) async throws {
@@ -807,7 +807,8 @@ extension CloudKitCommunityService {
         record[Field.payload] = .string(try CommunityDiscussion.seal(body, commentID: id, solutionID: sid, communitySecret: secret,
                                                                      cipher: SolutionSharing.cipher))
         record[Field.owner] = .string(user)
-        do { try await cloud.save(record, in: .publicDB) } catch { throw Self.serviceError(error) }
+        // frischer Name: anlegen ohne Nachschlagen (ein Umlauf weniger, 08.11.2026)
+        do { try await cloud.create(record, in: .publicDB) } catch { throw Self.serviceError(error) }
         let entry = CommunityDiscussion.Entry(id: id, parentID: parent, author: user, createdAt: now, body: body)
         return CommunityDiscussion.comment(entry, me: user, solutionAuthor: t.author)
     }
@@ -875,7 +876,7 @@ extension CloudKitCommunityService {
         removal[Field.removedID] = .string(record.name.lowercased())
         removal[Field.createdAt] = .string(now)
         removal[Field.owner] = .string(user)
-        do { try await cloud.save(removal, in: .publicDB) } catch { throw Self.serviceError(error) }
+        do { try await cloud.create(removal, in: .publicDB) } catch { throw Self.serviceError(error) }
     }
 
     func reportComment(id: String, reason: CommunityReportReason) async throws {
@@ -895,7 +896,7 @@ extension CloudKitCommunityService {
         report[Field.note] = .string("")
         report[Field.reporter] = .string(user)
         report[Field.createdAt] = .string(SolutionPackage.timestamp(Date()))
-        do { try await cloud.save(report, in: .publicDB) } catch { throw Self.serviceError(error) }
+        do { try await cloud.create(report, in: .publicDB) } catch { throw Self.serviceError(error) }
     }
 
     /// Gefaellt mir setzen oder entfernen (idempotent); Ergebnis ist die neue Anzahl
@@ -920,7 +921,7 @@ extension CloudKitCommunityService {
                 record[Field.solutionID] = .string(target)
                 record[Field.owner] = .string(user)
                 record[Field.createdAt] = .string(SolutionPackage.timestamp(Date()))
-                try await cloud.save(record, in: .publicDB)
+                try await cloud.create(record, in: .publicDB)
             } else if !liked {
                 for r in mine { try await cloud.delete(name: r.name, type: CommunityRecordType.like, in: .publicDB) }
             }

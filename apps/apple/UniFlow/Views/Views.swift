@@ -150,6 +150,11 @@ struct LibraryView: View {
         self.openFile = openFile
         self.openPage = openPage
         self.openTask = openTask
+        // Mit Ziel-Dokument ist es vom ersten Bild an ausgewaehlt: bis seine Zeile aus der Datenbank da ist, bleibt die
+        // Flaeche leer - vorher stand fuer einen Moment "Dokument wählen" (Befund iPad 08.11.2026, Build 24)
+        _fileSelection = State(initialValue: openFile)
+        _openTabs = State(initialValue: openFile.map { [$0] } ?? [])
+        _columns = State(initialValue: openFile == nil ? .all : .detailOnly)
     }
 
     private var files: [LibFile] {
@@ -291,6 +296,9 @@ struct LibraryView: View {
             await loadSingle(o)
             fileSelection = o
             columns = .detailOnly
+            // wie viewDoc im Web: geoeffnet (Zuletzt, gilt als gesehen); onChange feuert fuer den Startwert nicht
+            let api = session.api
+            Task { _ = try? await api?.value("/api/files/\(o)/opened", method: "POST", body: [:]) }
             async let list: Void = load()                 // die Liste fuer Seitenleiste und Reiter im Hintergrund
             // Beim Oeffnen ueber eine Route griff `.detailOnly` noch vor dem ersten Bild nicht: die Dokumentliste lag
             // hochkant ueber dem Dokument (und ueber der KI-Hilfe). Nach dem ersten Bild erneut.

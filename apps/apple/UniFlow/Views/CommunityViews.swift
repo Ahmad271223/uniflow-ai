@@ -119,6 +119,107 @@ struct CommunityLoading: View {
     }
 }
 
+// MARK: - Eigener Beitrag sofort in der Liste (08.11.2026)
+
+// Befund des Inhabers am iPad (08.11.2026): nach "Senden" dauerte es Sekunden, bis Frage, Antwort oder Kommentar
+// erschien – die Ansicht wartete erst auf den CloudKit-Save (Konto, Nutzerkennung, Datensatz) und holte dann die ganze
+// Liste neu (drei weitere Abfragen, dazu der verzoegerte Such-Index). Jetzt steht der eigene Beitrag sofort in der
+// Liste ("Wird gesendet …"), der Save laeuft im Hintergrund und ersetzt nur diesen einen Eintrag; scheitert er, bleibt
+// der Beitrag mit Hinweis stehen und laesst sich erneut senden oder verwerfen. Reine Logik hier, testbar ohne Ansicht.
+
+/// Zustand eines eigenen Beitrags, der schon in der Liste steht, waehrend er zum Dienst geht
+enum CommunitySendState: Equatable {
+    case sending
+    case failed(String)
+}
+
+enum CommunityPendingSend {
+    /// Kennungen lokaler Platzhalter; der Dienst vergibt UUIDs ohne dieses Praefix
+    static let prefix = "local-"
+    static let sending = "Wird gesendet …"
+    static let retry = "Erneut senden"
+    static let discard = "Verwerfen"
+
+    static func failed(_ message: String) -> String { "Nicht gesendet: \(message)" }
+
+    static func isLocal(_ id: String) -> Bool { id.hasPrefix(prefix) }
+
+    /// Der eigene Beitrag, wie er gleich in der Liste steht: lokale Kennung, Pseudonym wie beim Senden (leer = Anonym),
+    /// Zeitpunkt jetzt, eigener Eintrag
+    static func comment(text: String, parentID: String? = nil, pageKey: String? = nil, anchor: CommunityComment.Anchor? = nil,
+                        pseudonym: String, now: Date = Date()) -> CommunityComment {
+        let name = CommunityDiscussion.pseudonym(pseudonym)
+        return CommunityComment(id: prefix + UUID().uuidString.lowercased(), parentID: parentID,
+                                pseudonym: name.isEmpty ? CommunityDiscussion.anonymousName : name, pageKey: pageKey, anchor: anchor,
+                                text: text.trimmingCharacters(in: .whitespacesAndNewlines), createdAt: SolutionPackage.timestamp(now),
+                                isMine: true)
+    }
+
+    /// Neuen Eintrag in einen Verlauf (`CommunityDiscussion.thread`: aelteste zuerst, Antworten unter ihrem Kommentar)
+    /// einfuegen: Antwort hinter die letzte Antwort ihres Kommentars, sonst ans Ende
+    static func insert(_ c: CommunityComment, into list: inout [CommunityComment]) {
+        guard let parent = c.parentID, let p = list.firstIndex(where: { $0.id == parent }) else {
+            list.append(c)
+            return
+        }
+        var i = p + 1
+        while i < list.count, list[i].parentID == parent { i += 1 }
+        list.insert(c, at: i)
+    }
+
+    /// Nach dem Save: den Platzhalter an seiner Stelle durch den Datensatz des Dienstes ersetzen (keine neue Liste)
+    static func replace(_ list: inout [CommunityComment], localID: String, with saved: CommunityComment) {
+        if let i = list.firstIndex(where: { $0.id == localID }) { list[i] = saved }
+    }
+
+    /// Frisch geladener Verlauf plus die eigenen, noch nicht gesendeten Eintraege (sonst verschwaenden sie beim Neuladen)
+    static func merge(fresh: [CommunityComment], pending: [CommunityComment]) -> [CommunityComment] {
+        var out = fresh.filter { !isLocal($0.id) }
+        for c in pending {
+            // eine noch nicht gesendete Aenderung behaelt ihren Text, auch wenn der Dienst noch den alten liefert
+            if let i = out.firstIndex(where: { $0.id == c.id }) { out[i] = c } else { insert(c, into: &out) }
+        }
+        return out
+    }
+
+    /// Frisch geladene Fragen plus die eigenen, noch nicht gesendeten (sie sind die neuesten, also vorn)
+    static func merge(fresh: [CommunityPost], pending: [CommunityPost]) -> [CommunityPost] {
+        pending + fresh.filter { !isLocal($0.id) }
+    }
+}
+
+/// Etikett unter dem eigenen Beitrag: "Wird gesendet …" oder der Fehler mit "Erneut senden" und "Verwerfen"
+struct CommunitySendStateView: View {
+    let state: CommunitySendState
+    /// Kennung fuer Tests ("community.post.<id>")
+    let id: String
+    let retry: () -> Void
+    let discard: () -> Void
+
+    var body: some View {
+        switch state {
+        case .sending:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text(CommunityPendingSend.sending).ufFont(12.48, 550).foregroundStyle(UF.muted)
+            }
+            .frame(minHeight: 32)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("\(id).sending")
+        case .failed(let message):
+            VStack(alignment: .leading, spacing: 6) {
+                CommunityNotice(text: CommunityPendingSend.failed(message))
+                HStack(spacing: 4) {
+                    UFButton(CommunityPendingSend.retry, icon: "refresh", kind: .primary, size: .small, action: retry)
+                        .accessibilityIdentifier("\(id).retry")
+                    UFButton(CommunityPendingSend.discard, kind: .ghost, size: .small, action: discard)
+                        .accessibilityIdentifier("\(id).discard")
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Communities (je Modul und Lerngruppe)
 
 /// Alle Module aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen. Jede Community als

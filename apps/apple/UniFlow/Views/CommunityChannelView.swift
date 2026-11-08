@@ -934,6 +934,22 @@ struct CommunityPersonPane: View {
     @State private var editing: CommunityComment?
     @State private var spot: (page: String, anchor: CommunityComment.Anchor)?
     @State private var busy = false
+    /// eigene Kommentare, die schon im Verlauf stehen und noch zum Dienst gehen (Kennung -> Zustand), 08.11.2026
+    @State private var pending: [String: CommunitySendState] = [:]
+    /// was fuer einen noch nicht gesendeten Kommentar an den Dienst geht ("Erneut senden")
+    @State private var pendingSends: [String: PendingComment] = [:]
+
+    /// Auftrag eines Kommentars: neu (mit Antwort-auf, Seite, Stelle) oder Aenderung eines bestehenden
+    struct PendingComment {
+        var text: String
+        var parentID: String?
+        var pageKey: String?
+        var anchor: CommunityComment.Anchor?
+        /// Kennung des Kommentars beim Dienst, wenn es eine Aenderung ist
+        var editID: String?
+        /// der Kommentar vor der Aenderung (zum Zuruecknehmen bei "Verwerfen")
+        var previous: CommunityComment?
+    }
 
     private var discussion: Bool { service.supportsDiscussion }
     private var showsNotes: Bool { !discussion || tab == .notes }
@@ -1123,8 +1139,9 @@ struct CommunityPersonPane: View {
             UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70).padding(.top, 8)
                 .accessibilityIdentifier("community.reader.commentField")
             HStack(spacing: 8) {
+                // der Kommentar steht sofort im Verlauf (`CommunityPendingSend`), der Knopf bleibt frei
                 UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
-                    .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("community.reader.send")
                 if composerTitle != nil { UFButton("Abbrechen", size: .small) { resetComposer() } }
             }
@@ -1152,7 +1169,10 @@ struct CommunityPersonPane: View {
             Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.leading, 34)
-            if !c.deleted {
+            if let state = pending[c.id] {
+                CommunitySendStateView(state: state, id: "community.reader.comment.\(c.id)", retry: { resend(c.id) }, discard: { discard(c.id) })
+                    .padding(.leading, 34)
+            } else if !c.deleted {
                 HStack(spacing: 4) {
                     UFButton("Antworten", kind: .ghost, size: .small) { resetComposer(); replyTo = c }
                     if c.isMine {
@@ -1191,28 +1211,82 @@ struct CommunityPersonPane: View {
         } catch { failure = CommunityTexts.message(error) }
     }
 
+    /// Loeschen, Melden, Like: danach den Verlauf neu holen (eigene, noch nicht gesendete Kommentare bleiben stehen)
     private func act(_ op: @escaping () async throws -> Void) {
         busy = true
         Task {
             defer { busy = false }
             do {
                 try await op()
-                comments = try await service.comments(solutionID: solution.solutionID)
+                let fresh = try await service.comments(solutionID: solution.solutionID)
+                comments = CommunityPendingSend.merge(fresh: fresh, pending: comments.filter { pending[$0.id] != nil })
                 failure = nil
             } catch { failure = CommunityTexts.message(error) }
         }
     }
 
+    /// Senden oder Speichern: der Kommentar steht sofort im Verlauf, der Save laeuft im Hintergrund und ersetzt nur
+    /// diesen Eintrag (Befund iPad 08.11.2026: vorher Sekunden bis zum Erscheinen)
     private func send() {
-        let text = draft, parent = replyTo?.id, edit = editing?.id, place = spot
-        act {
-            if let edit {
-                _ = try await service.editComment(id: edit, text: text)
-            } else {
-                _ = try await service.addComment(solutionID: solution.solutionID, text: text, parentID: parent, pageKey: place?.page, anchor: place?.anchor)
-            }
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        let name = SolutionDisplayName.load()
+        if let edit = editing, pending[edit.id] == nil {
+            var changed = edit
+            changed.text = text
+            changed.edited = true
+            CommunityPendingSend.replace(&comments, localID: edit.id, with: changed)
+            pendingSends[edit.id] = PendingComment(text: text, editID: edit.id, previous: edit)
             resetComposer()
+            perform(edit.id)
+            return
         }
+        // Antwort auf eine Antwort haengt am ersten Kommentar, ohne eigene Stelle die des Kommentars (wie der Dienst)
+        let parent = replyTo.map { $0.parentID ?? $0.id }
+        let pageKey = spot?.page ?? replyTo?.pageKey, anchor = spot?.anchor ?? replyTo?.anchor
+        let local = CommunityPendingSend.comment(text: text, parentID: parent, pageKey: pageKey, anchor: anchor, pseudonym: name)
+        CommunityPendingSend.insert(local, into: &comments)
+        pendingSends[local.id] = PendingComment(text: text, parentID: parent, pageKey: pageKey, anchor: anchor)
+        resetComposer()
+        perform(local.id)
+    }
+
+    private func perform(_ id: String) {
+        guard let job = pendingSends[id] else { return }
+        pending[id] = .sending
+        Task {
+            do {
+                let saved: CommunityComment
+                if let edit = job.editID {
+                    saved = try await service.editComment(id: edit, text: job.text)
+                } else {
+                    saved = try await service.addComment(solutionID: solution.solutionID, text: job.text, parentID: job.parentID,
+                                                         pageKey: job.pageKey, anchor: job.anchor)
+                }
+                CommunityPendingSend.replace(&comments, localID: id, with: saved)
+                pending[id] = nil
+                pendingSends[id] = nil
+                failure = nil
+            } catch {
+                pending[id] = .failed(CommunityTexts.message(error))
+            }
+        }
+    }
+
+    private func resend(_ id: String) {
+        guard case .failed = pending[id] else { return }
+        perform(id)
+    }
+
+    /// Verwerfen: neuer Kommentar weg, eine Aenderung zurueck auf den Stand davor
+    private func discard(_ id: String) {
+        if let previous = pendingSends[id]?.previous {
+            CommunityPendingSend.replace(&comments, localID: id, with: previous)
+        } else {
+            comments.removeAll { $0.id == id }
+        }
+        pending[id] = nil
+        pendingSends[id] = nil
     }
 
     private func toggleLike() {

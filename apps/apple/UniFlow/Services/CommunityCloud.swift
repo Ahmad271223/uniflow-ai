@@ -98,10 +98,20 @@ protocol CommunityCloud: Sendable {
     /// Speichern (neu oder geaendert); Ergebnis mit Ersteller
     @discardableResult
     func save(_ record: CommunityRecord, in scope: CommunityScope) async throws -> CommunityRecord
+    /// Neuen Datensatz anlegen (Name ist frisch vergeben, z. B. eine UUID): wie `save`, aber ohne vorher nachzusehen,
+    /// ob es ihn schon gibt – ein Netz-Umlauf weniger je Kommentar, Frage, Like und Meldung (08.11.2026)
+    @discardableResult
+    func create(_ record: CommunityRecord, in scope: CommunityScope) async throws -> CommunityRecord
     /// Datensatz holen; nil, wenn es ihn nicht gibt
     func fetch(name: String, type: String, in scope: CommunityScope) async throws -> CommunityRecord?
     func query(_ q: CommunityQuery, in scope: CommunityScope) async throws -> [CommunityRecord]
     func delete(name: String, type: String, in scope: CommunityScope) async throws
+}
+
+extension CommunityCloud {
+    /// Nachbauten (Tests) brauchen keinen Unterschied: anlegen = speichern
+    @discardableResult
+    func create(_ record: CommunityRecord, in scope: CommunityScope) async throws -> CommunityRecord { try await save(record, in: scope) }
 }
 
 /// Woher der iCloud-Container kommt: Build-Einstellung `UF_CLOUDKIT_CONTAINER` (nur in Config/Team.xcconfig gesetzt)
@@ -164,18 +174,31 @@ final class CKCommunityCloud: CommunityCloud, @unchecked Sendable {
             } else {
                 ck = CKRecord(recordType: record.type, recordID: id)
             }
-            for (key, value) in record.fields {
-                switch value {
-                case .string(let s): ck[key] = s as CKRecordValue
-                case .int(let i): ck[key] = Int64(i) as CKRecordValue
-                case .asset(let url): ck[key] = CKAsset(fileURL: url)
-                }
-            }
-            let saved = try await db.save(ck)
-            return Self.record(saved)
+            return try await write(record, into: ck, db: db)
         } catch {
             throw Self.map(error)
         }
+    }
+
+    /// Neu anlegen ohne das Nachschlagen aus `save` (fuer einen frischen Namen schlug es immer fehl: ein Umlauf umsonst)
+    @discardableResult
+    func create(_ record: CommunityRecord, in scope: CommunityScope) async throws -> CommunityRecord {
+        do {
+            return try await write(record, into: CKRecord(recordType: record.type, recordID: CKRecord.ID(recordName: record.name)), db: database(scope))
+        } catch {
+            throw Self.map(error)
+        }
+    }
+
+    private func write(_ record: CommunityRecord, into ck: CKRecord, db: CKDatabase) async throws -> CommunityRecord {
+        for (key, value) in record.fields {
+            switch value {
+            case .string(let s): ck[key] = s as CKRecordValue
+            case .int(let i): ck[key] = Int64(i) as CKRecordValue
+            case .asset(let url): ck[key] = CKAsset(fileURL: url)
+            }
+        }
+        return Self.record(try await db.save(ck))
     }
 
     func fetch(name: String, type: String, in scope: CommunityScope) async throws -> CommunityRecord? {

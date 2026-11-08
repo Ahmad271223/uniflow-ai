@@ -23,6 +23,21 @@ final class CommunityChannelAppTests: XCTestCase {
         func communities() async throws -> [CommunitySpace] { [] }
         func join(_ space: CommunitySpace) async throws { joined.append(space.key) }
         func posts(in space: CommunitySpace) async throws -> [CommunityPost] { posts }
+        /// Schein-Cloud, die absichtlich so lange braucht (Sekunden) bzw. so scheitert (Beitrag erscheint trotzdem sofort)
+        var postDelay: TimeInterval = 0
+        var postFailure: CommunityServiceError?
+        var sent: [String] = []
+        func addPost(in space: CommunitySpace, text: String, parentID: String?) async throws -> CommunityComment {
+            if postDelay > 0 { try await Task.sleep(nanoseconds: UInt64(postDelay * 1_000_000_000)) }
+            if let postFailure { throw postFailure }
+            // Datum in der Vergangenheit: der Datensatz des Dienstes heisst "vor 6 Tagen", der Platzhalter "gerade eben"
+            let c = CommunityComment(id: "srv-\(sent.count + 1)", parentID: parentID, pseudonym: "Anonym", text: text,
+                                     createdAt: "2026-11-02T10:00:00Z", isMine: true)
+            sent.append(text)
+            if let parentID, let i = posts.firstIndex(where: { $0.id == parentID }) { posts[i].replies.append(c) }
+            else { posts.insert(CommunityPost(question: c), at: 0) }
+            return c
+        }
         func setPostLiked(in space: CommunitySpace, postID: String, _ liked: Bool) async throws -> Int {
             guard let i = posts.firstIndex(where: { $0.id == postID }) else { throw CommunityServiceError.notFound }
             posts[i].likes += liked ? 1 : -1
@@ -314,6 +329,154 @@ final class CommunityChannelAppTests: XCTestCase {
         XCTAssertTrue(pump { !self.shows(view, "Noch keine Kommentare.") })
         XCTAssertTrue(tap("Weitere Aktion", in: view), "Erweiterungspunkt der Leiste")
         XCTAssertTrue(extraTapped)
+    }
+
+    // MARK: Beitrag erscheint sofort (Befund iPad 08.11.2026)
+
+    /// Hoechstens so lange darf es von "Frage stellen" bis zur Frage in der Liste dauern, auch wenn die Cloud 2 s braucht
+    static let appearLimit: TimeInterval = 0.3
+
+    func testQuestionAppearsImmediatelyWhileCloudIsSlow() throws {
+        let service = FakeChannelService()
+        service.spaceDiscussion = true
+        service.postDelay = 2
+        service.posts = [post("q1", "Lea", "Wie geht 2b?", at: "2026-11-01T10:00:00Z")]
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
+        let view = try show(CommunitySpaceDiscussion(space: space, service: service, draft: "Wann ist die Klausur?"))
+        XCTAssertTrue(pump { self.shows(view, "Frage von Lea") }, "\(texts(view))")
+        XCTAssertEqual(postLabels(view).count, 1, "nur Leas Frage: \(postLabels(view))")
+
+        let start = Date()
+        XCTAssertTrue(tap("Frage stellen", in: view))
+        XCTAssertTrue(pump(timeout: 3) { self.shows(view, "Frage von Anonym, gerade eben: Wann ist die Klausur?") }, "\(texts(view))")
+        let elapsed = Date().timeIntervalSince(start)
+        print("MESSUNG Frage sichtbar nach \(String(format: "%.3f", elapsed)) s (Cloud braucht \(service.postDelay) s)")
+        XCTAssertLessThan(elapsed, Self.appearLimit, "die eigene Frage steht sofort in der Liste, nicht erst nach dem Save")
+        XCTAssertTrue(shows(view, CommunityPendingSend.sending), "\(texts(view))")
+        XCTAssertTrue(shows(view, "Frage von Lea"), "die anderen Fragen bleiben")
+        XCTAssertEqual(service.sent, [], "der Save laeuft noch")
+        screenshot(view, "frage-wird-gesendet")
+
+        // nach dem Save: nur dieser Eintrag ersetzt, kein Neuladen der Liste, keine Dublette
+        XCTAssertTrue(pump(timeout: 5) { !self.shows(view, CommunityPendingSend.sending) }, "\(texts(view))")
+        XCTAssertEqual(service.sent, ["Wann ist die Klausur?"])
+        let labels = postLabels(view)
+        XCTAssertEqual(labels.count, 2, "Leas Frage und die eigene, keine Dublette: \(labels)")
+        XCTAssertFalse(shows(view, "Frage von Anonym, gerade eben"), "der Platzhalter ist durch den Datensatz des Dienstes ersetzt: \(labels)")
+        XCTAssertTrue(shows(view, "Wann ist die Klausur?, 0 Antworten"))
+        XCTAssertTrue(shows(view, "Frage von Lea"))
+        screenshot(view, "frage-gesendet")
+    }
+
+    func testFailedSendShowsRetryAndKeepsTheQuestion() throws {
+        let service = FakeChannelService()
+        service.spaceDiscussion = true
+        service.postFailure = .offline
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
+        let view = try show(CommunitySpaceDiscussion(space: space, service: service, draft: "Gibt es Altklausuren?"))
+        XCTAssertTrue(pump { self.shows(view, "Noch keine Fragen") }, "\(texts(view))")
+        XCTAssertTrue(tap("Frage stellen", in: view))
+        XCTAssertTrue(pump(timeout: 3) { self.shows(view, CommunityPendingSend.retry) }, "\(texts(view))")
+        XCTAssertTrue(shows(view, "Frage von Anonym, gerade eben: Gibt es Altklausuren?"), "der Beitrag bleibt lokal stehen")
+        XCTAssertTrue(shows(view, CommunityPendingSend.failed(CommunityServiceError.offline.localizedDescription)), "\(texts(view))")
+        XCTAssertEqual(service.sent, [])
+        screenshot(view, "frage-nicht-gesendet")
+
+        // Netz wieder da: erneut senden ersetzt den Platzhalter
+        service.postFailure = nil
+        XCTAssertTrue(tap(CommunityPendingSend.retry, in: view))
+        XCTAssertTrue(pump(timeout: 3) { !self.shows(view, CommunityPendingSend.retry) && !self.shows(view, CommunityPendingSend.sending) }, "\(texts(view))")
+        XCTAssertEqual(service.sent, ["Gibt es Altklausuren?"])
+        XCTAssertTrue(shows(view, "Gibt es Altklausuren?"))
+        screenshot(view, "frage-erneut-gesendet")
+
+        // Verwerfen nimmt einen gescheiterten Beitrag wieder heraus
+        service.postFailure = .offline
+        let again = try show(CommunitySpaceDiscussion(space: space, service: service, draft: "Noch eine Frage"))
+        XCTAssertTrue(pump { self.shows(again, "Frage stellen") })
+        XCTAssertTrue(tap("Frage stellen", in: again))
+        XCTAssertTrue(pump(timeout: 3) { self.shows(again, CommunityPendingSend.discard) }, "\(texts(again))")
+        XCTAssertTrue(tap(CommunityPendingSend.discard, in: again))
+        XCTAssertTrue(pump { !self.shows(again, "Noch eine Frage") }, "\(texts(again))")
+    }
+
+    func testReplyAppearsImmediatelyInThread() throws {
+        let service = FakeChannelService()
+        service.spaceDiscussion = true
+        service.postDelay = 2
+        let question = post("q1", "Lea", "Wie geht 2b?", at: "2026-11-01T10:00:00Z")
+        service.posts = [question]
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
+        var changed: [CommunityPost] = []
+        let view = try show(CommunityThreadSheet(space: space, service: service, post: question, close: {}, changed: { changed.append($0) },
+                                                 draft: "Mit der Kettenregel."))
+        XCTAssertTrue(pump { self.shows(view, "Noch keine Antworten") }, "\(texts(view))")
+        let start = Date()
+        XCTAssertTrue(tap("Antworten", in: view))
+        XCTAssertTrue(pump(timeout: 3) { self.shows(view, "Mit der Kettenregel.") }, "\(texts(view))")
+        let elapsed = Date().timeIntervalSince(start)
+        print("MESSUNG Antwort sichtbar nach \(String(format: "%.3f", elapsed)) s (Cloud braucht \(service.postDelay) s)")
+        XCTAssertLessThan(elapsed, Self.appearLimit)
+        XCTAssertTrue(shows(view, "1 Antwort"))
+        XCTAssertTrue(shows(view, CommunityPendingSend.sending))
+        screenshot(view, "antwort-wird-gesendet")
+        XCTAssertTrue(pump(timeout: 5) { !self.shows(view, CommunityPendingSend.sending) })
+        XCTAssertEqual(service.sent, ["Mit der Kettenregel."])
+        XCTAssertTrue(pump(timeout: 2) { changed.last?.replies.map(\.id) == ["srv-1"] }, "die Liste bekommt nur diese Frage zurueck: \(changed.map { $0.replies.map(\.id) })")
+        XCTAssertTrue(shows(view, "1 Antwort"))
+    }
+
+    func testPendingSendHelpersKeepOrderAndReplacePlaceholders() {
+        let local = CommunityPendingSend.comment(text: "  Hallo  ", pseudonym: "  ", now: Date(timeIntervalSince1970: 1_800_000_000))
+        XCTAssertTrue(CommunityPendingSend.isLocal(local.id))
+        XCTAssertEqual(local.text, "Hallo")
+        XCTAssertEqual(local.pseudonym, "Anonym")
+        XCTAssertTrue(local.isMine)
+        XCTAssertEqual(CommunityPendingSend.comment(text: "x", pseudonym: " Lea ").pseudonym, "Lea")
+
+        // Antwort hinter die letzte Antwort ihres Kommentars, neuer Kommentar ans Ende
+        let a = CommunityComment(id: "a", pseudonym: "Lea", text: "A", createdAt: "1")
+        let a1 = CommunityComment(id: "a1", parentID: "a", pseudonym: "Ben", text: "A1", createdAt: "2")
+        let b = CommunityComment(id: "b", pseudonym: "Mia", text: "B", createdAt: "3")
+        var list = [a, a1, b]
+        let reply = CommunityPendingSend.comment(text: "A2", parentID: "a", pseudonym: "Du")
+        CommunityPendingSend.insert(reply, into: &list)
+        XCTAssertEqual(list.map(\.id), ["a", "a1", reply.id, "b"])
+        let top = CommunityPendingSend.comment(text: "C", pseudonym: "Du")
+        CommunityPendingSend.insert(top, into: &list)
+        XCTAssertEqual(list.map(\.id), ["a", "a1", reply.id, "b", top.id])
+
+        // Ersetzen an Ort und Stelle; Neuladen behaelt die offenen Eintraege und eine offene Aenderung
+        let saved = CommunityComment(id: "srv", parentID: "a", pseudonym: "Du", text: "A2", createdAt: "4", isMine: true)
+        CommunityPendingSend.replace(&list, localID: reply.id, with: saved)
+        XCTAssertEqual(list.map(\.id), ["a", "a1", "srv", "b", top.id])
+        var edited = b
+        edited.text = "B neu"
+        let merged = CommunityPendingSend.merge(fresh: [a, a1, saved, b], pending: [top, edited])
+        XCTAssertEqual(merged.map(\.id), ["a", "a1", "srv", "b", top.id])
+        XCTAssertEqual(merged.first { $0.id == "b" }?.text, "B neu")
+        XCTAssertEqual(CommunityPendingSend.merge(fresh: [a], pending: []).map(\.id), ["a"])
+        // Fragen: offene zuerst, lokale aus dem frischen Stand fallen weg
+        let q = CommunityPost(question: top)
+        XCTAssertEqual(CommunityPendingSend.merge(fresh: [CommunityPost(question: a), q], pending: [q]).map(\.id), [top.id, "a"])
+    }
+
+    /// Beschriftungen der Fragenkarten (ohne Doppelte aus der Baumdurchquerung)
+    private func postLabels(_ view: UIView) -> Set<String> {
+        Set(texts(view).filter { $0.hasPrefix("Frage von") })
+    }
+
+    /// Bildschirmfoto in UF_SCREENSHOT_DIR (Abnahme), sonst nichts
+    private func screenshot(_ view: UIView, _ name: String) {
+        guard let dir = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        pump(timeout: 0.3)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        let png = UIGraphicsImageRenderer(bounds: view.bounds, format: format).pngData { _ in
+            _ = view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+        }
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
     }
 
     // MARK: Werkzeuge (wie AuditRunde0910AppTests)
