@@ -43,6 +43,11 @@ async def _lifespan(_app):
         from . import sync_client
         sync_client.start_background()
     yield
+    # Herunterfahren (Neustart, Deploy): gesammelte "zuletzt gesehen" der letzten Sekunde noch schreiben (Audit P20-03/04)
+    try:
+        accounts.flush_seen()
+    except Exception as e:  # noqa: BLE001 - beim Beenden nie scheitern; verloren gehen hoechstens ~61 s Verlaengerung
+        print(f"[server] zuletzt gesehen beim Beenden nicht geschrieben: {e}")
 
 
 app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)

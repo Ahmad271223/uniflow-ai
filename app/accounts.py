@@ -242,31 +242,62 @@ def _public_or_404(u) -> dict:
 
 # ---------------------------------------------------------------- Fehlversuche
 
+def _parse_ts(value) -> datetime | None:
+    """Gespeicherter Zeitstempel (iso) oder None, wenn er fehlt oder kaputt ist (Audit P19-09, 08.11.2026): nur der
+    Dienst schreibt diese Spalten, ein kaputter Wert (Reparatur, Korruption) liess aber jeden Login dieser Adresse bzw.
+    jede Registrierung dieser IP dauerhaft mit 500 enden. Kaputt gilt als abgelaufen."""
+    if not value:
+        return None
+    try:
+        t = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
 def _locked(conn, key: str) -> bool:
     r = conn.execute("SELECT fails, last_fail_at FROM login_attempts WHERE key=?", (key,)).fetchone()
-    if not r or r["fails"] < (max_fails_ip() if key.startswith("ip:") else MAX_FAILS) or not r["last_fail_at"]:
+    if not r or r["fails"] < (max_fails_ip() if key.startswith("ip:") else MAX_FAILS):
         return False
-    last = datetime.fromisoformat(r["last_fail_at"].replace("Z", "+00:00"))
-    return now() - last < timedelta(minutes=LOCK_MINUTES)
+    last = _parse_ts(r["last_fail_at"])
+    return last is not None and now() - last < timedelta(minutes=LOCK_MINUTES)
+
+
+_warned_env: set[tuple[str, str]] = set()
+
+
+def _warn_env(name: str, raw: str, default) -> None:
+    """Ungueltige Grenze in der Umgebung: Standard gilt, einmal je Name und Wert protokolliert (Audit P19-10; vorher
+    still - eine falsch gesetzte Grenze im Dienst fiel niemandem auf). Nur Name und Wert, keine Geheimnisse."""
+    if (name, raw) in _warned_env:
+        return
+    _warned_env.add((name, raw))
+    import logging
+    logging.getLogger("uniflow.accounts").warning("%s=%r ist ungueltig, es gilt der Standard %s", name, raw, default)
 
 
 def max_fails_ip() -> int:
     """Fehlversuche je IP bis zur Sperre: LERNAPP_LOGIN_FAILS_IP (ganze Zahl > 0), sonst MAX_FAILS_IP."""
     import os
     raw = (os.environ.get("LERNAPP_LOGIN_FAILS_IP") or "").strip()
+    if not raw:
+        return MAX_FAILS_IP
     try:
         n = int(raw)
-        return n if n > 0 else MAX_FAILS_IP
     except ValueError:
-        return MAX_FAILS_IP
+        n = 0
+    if n > 0:
+        return n
+    _warn_env("LERNAPP_LOGIN_FAILS_IP", raw, MAX_FAILS_IP)
+    return MAX_FAILS_IP
 
 
 def _fail(conn, key: str) -> None:
     r = conn.execute("SELECT fails, last_fail_at FROM login_attempts WHERE key=?", (key,)).fetchone()
     fails = 1
-    if r and r["last_fail_at"]:
-        last = datetime.fromisoformat(r["last_fail_at"].replace("Z", "+00:00"))
-        fails = (r["fails"] + 1) if now() - last < timedelta(minutes=LOCK_MINUTES) else 1
+    last = _parse_ts(r["last_fail_at"]) if r else None
+    if last is not None and now() - last < timedelta(minutes=LOCK_MINUTES):
+        fails = r["fails"] + 1
     conn.execute("INSERT INTO login_attempts(key, fails, last_fail_at) VALUES (?,?,?) "
                  "ON CONFLICT(key) DO UPDATE SET fails=excluded.fails, last_fail_at=excluded.last_fail_at", (key, fails, iso(now())))
 
@@ -286,6 +317,7 @@ def _limit(name: str) -> tuple[int, int]:
                 return n, m
         except ValueError:
             pass
+        _warn_env(f"LERNAPP_LIMIT_{name.upper()}", raw, "/".join(map(str, LIMITS[name])))
     return LIMITS[name]
 
 
@@ -295,7 +327,7 @@ def _hit(conn, name: str, ident: str) -> None:
     limit, minutes = _limit(name)
     key, t = f"{name}:{ident}", now()
     r = conn.execute("SELECT count, window_start FROM rate_limits WHERE key=?", (key,)).fetchone()
-    start = datetime.fromisoformat(r["window_start"].replace("Z", "+00:00")) if r else None
+    start = _parse_ts(r["window_start"]) if r else None
     if start and t - start < timedelta(minutes=minutes):
         if r["count"] >= limit:
             wait = int((start + timedelta(minutes=minutes) - t).total_seconds()) + 1
@@ -454,7 +486,7 @@ def flush_seen() -> int:
         with cursor() as conn:
             conn.executemany("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=? AND revoked_at IS NULL",
                              [(seen, exp, sid) for sid, (seen, exp) in items.items()])
-    except sqlite3.Error:
+    except BaseException:                                 # jede Ausnahme, nicht nur sqlite3.Error (Audit P20-05)
         with _seen_lock:                                  # beim naechsten Mal noch einmal (neuere Werte gewinnen)
             for sid, v in items.items():
                 _seen_pending.setdefault(sid, v)
@@ -546,7 +578,11 @@ def request_password_reset(email: str, client_ip: str | None = None) -> str | No
         conn.execute("INSERT INTO reset_tokens(token_hash, user_id, created_at, expires_at) VALUES (?,?,?,?)",
                      (_token_hash(token), u["id"], iso(t), iso(t + timedelta(minutes=RESET_MINUTES))))
     if reset_sender:
-        reset_sender(email, token)
+        try:
+            reset_sender(email, token)
+        except Exception:  # noqa: BLE001 - gleiche Antwort wie ohne Konto (sonst Orakel fuer Konten, Audit P20-09)
+            import logging
+            logging.getLogger("uniflow.accounts").exception("Reset-Mail nicht uebergeben")
     return token
 
 
@@ -567,6 +603,8 @@ def reset_password(token: str, new_password: str) -> None:
         # der Link kam per Mail an genau diese Adresse: damit ist sie auch bestaetigt
         conn.execute("UPDATE users SET pw_hash=?, email_verified=1 WHERE id=?", (hash_password(new_password), r["user_id"]))
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (iso(now()), r["user_id"]))
+        # Nachweis ueber das Postfach: die Sperre der Adresse endet (Audit P19-11; vorher 429 mit dem NEUEN Passwort)
+        _clear_fails(conn, f"email:{u['email']}")
         # Anmeldewege (Google/Apple), die vor diesem Nachweis verknuepft wurden, gelten nicht weiter; wer die Adresse
         # besitzt, verknuepft sie danach neu (sonst behielte jemand, der das Konto vorab angelegt hat, einen Zugang)
         conn.execute("DELETE FROM identities WHERE user_id=?", (r["user_id"],))
@@ -606,8 +644,11 @@ def verify_email(token: str) -> dict:
         u = conn.execute("SELECT * FROM users WHERE id=? AND status='active'", (r["user_id"],)).fetchone() if r else None
         if not r or r["used_at"] or r["expires_at"] <= iso(now()) or not u or u["email"] != r["email"]:
             raise AccountError("verify_invalid", "Der Bestätigungslink ist ungültig oder abgelaufen.", 400)
+        # Einmal-Link auch bei gleichzeitigen Einloesungen (Audit P20-06, wie reset_password): nur wer used_at setzt
+        if conn.execute("UPDATE verify_tokens SET used_at=? WHERE token_hash=? AND used_at IS NULL",
+                        (iso(now()), r["token_hash"])).rowcount != 1:
+            raise AccountError("verify_invalid", "Der Bestätigungslink ist ungültig oder abgelaufen.", 400)
         conn.execute("UPDATE users SET email_verified=1 WHERE id=?", (u["id"],))
-        conn.execute("UPDATE verify_tokens SET used_at=? WHERE token_hash=?", (iso(now()), r["token_hash"]))
         return _public(conn.execute("SELECT * FROM users WHERE id=?", (u["id"],)).fetchone())
 
 
@@ -677,7 +718,15 @@ def unlink_provider(user_id: str, provider: str) -> bool:
         if not u["pw_hash"] and count <= 1:
             raise AccountError("last_login_method", "Das ist der einzige Anmeldeweg dieses Kontos. Bitte zuerst ein Passwort setzen "
                                                     "(Passwort zurücksetzen).", 409)
-        return conn.execute("DELETE FROM identities WHERE user_id=? AND provider=?", (user_id, provider)).rowcount > 0
+        removed = conn.execute("DELETE FROM identities WHERE user_id=? AND provider=?", (user_id, provider)).rowcount > 0
+        # unter der Schreibsperre noch einmal: zwei gleichzeitige Entfernungen lasen sonst beide COUNT=2 (Audit P21-04)
+        if removed:
+            pw = conn.execute("SELECT pw_hash FROM users WHERE id=?", (user_id,)).fetchone()
+            left = conn.execute("SELECT COUNT(*) FROM identities WHERE user_id=?", (user_id,)).fetchone()[0]
+            if not (pw and pw["pw_hash"]) and left == 0:
+                raise AccountError("last_login_method", "Das ist der einzige Anmeldeweg dieses Kontos. Bitte zuerst ein Passwort setzen "
+                                                        "(Passwort zurücksetzen).", 409)      # Ausnahme: cursor rollt zurueck
+        return removed
 
 
 def link_identity(user_id: str, provider: str, identity_token: str, nonce: str | None = None) -> dict:
@@ -787,10 +836,30 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
         if _has_table(conn, "sync_jobs"):                    # wartende Abgleiche laufen nicht mehr
             conn.execute("UPDATE sync_jobs SET status='failed', finished_at=?, message='Konto gelöscht' "
                          "WHERE user_id=? AND status='queued'", (t, user_id))
-    config.retire_user_data_dir(user_id)
-    from . import community
-    community.withdraw_all(user_id, "account_deleted")      # Community-Beitraege sofort nicht mehr sichtbar
+    _after_delete(user_id)
     return {"deleted": True, "purge_after_days": 30}
+
+
+def _after_delete(user_id: str) -> bool:
+    """Schritte ausserhalb von accounts.db: Datenordner beiseitelegen, Community-Beitraege zurueckziehen. Beide
+    idempotent. Ein Fehler wird protokolliert, die Loeschung gilt trotzdem (Audit P20-08/P21-01: vorher 500 nach dem
+    Commit, Wiederholung unmoeglich, ein nicht beiseitegelegter Ordner blieb fuer immer). Der Status `deleted` ist der
+    dauerhafte Auftrag: `purge_deleted` (taeglich) ruft das fuer jedes geloeschte Konto erneut auf."""
+    import logging
+    log = logging.getLogger("uniflow.accounts")
+    ok = True
+    try:
+        config.retire_user_data_dir(user_id)
+    except Exception:  # noqa: BLE001
+        ok = False
+        log.exception("Konto %s: Datenordner nicht beiseitegelegt (wird nachgeholt)", user_id)
+    try:
+        from . import community
+        community.withdraw_all(user_id, "account_deleted")  # Community-Beitraege sofort nicht mehr sichtbar
+    except Exception:  # noqa: BLE001
+        ok = False
+        log.exception("Konto %s: Community-Beitraege nicht zurueckgezogen (wird nachgeholt)", user_id)
+    return ok
 
 
 # Tabellen in accounts.db mit Spalte user_id, die beim endgueltigen Loeschen geleert werden (dazu jede Tabelle mit
@@ -845,6 +914,10 @@ def purge_deleted(days: int = 30) -> int:
     import shutil
     cutoff = iso(now() - timedelta(days=days))
     n = 0
+    with cursor() as conn:
+        deleted = [r["id"] for r in conn.execute("SELECT id FROM users WHERE status='deleted'").fetchall()]
+    for uid in deleted:                                     # Nachholen (Audit P20-08/P21-01), vor dem endgueltigen Loeschen
+        _after_delete(uid)
     with cursor() as conn:
         for r in conn.execute("SELECT id FROM users WHERE status='deleted' AND deleted_at<=?", (cutoff,)).fetchall():
             conn.execute("SAVEPOINT purge_user")
