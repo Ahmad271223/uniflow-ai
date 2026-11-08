@@ -140,8 +140,10 @@ def create_library_test(request: Request, body: dict = Body(...)):
 
     entitlements.require_verified_for_ai(request)            # erzeugen kostet StudiNow-KI-Budget: nur mit bestaetigter E-Mail
     lock = test_library.topic_lock_key(req)
+    token = None
     for _ in range(2):
-        if ai_backend.acquire(lock, user["id"]):
+        token = ai_backend.acquire(lock, user["id"])
+        if token:
             break
         # Gleiche Generierung laeuft schon (anderes Konto oder zweiter Tab): abwarten und deren Fragen nutzen
         ai_backend.wait_for(lock, timeout_s=float(body.get("wait_s") or 30))
@@ -174,7 +176,7 @@ def create_library_test(request: Request, body: dict = Body(...)):
                                       "code": "generation_failed"})
         return from_pool(found, req["count"], generated, "ai_tests_new")
     finally:
-        ai_backend.release(lock)
+        ai_backend.release(lock, token)              # nur die eigene Sperre (Audit P9-04)
 
 
 def _user_test(test_id: int) -> dict:
