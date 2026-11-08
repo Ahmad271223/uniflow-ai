@@ -201,8 +201,17 @@ def test_seed_resource_valid_small_and_matches_registry():
         assert "module_texts" not in c and all("content" not in m for m in c["modules"])
 
 
+def _needs_catalog_cache(tool) -> None:
+    """Die Werkzeuge bauen aus dem Zwischenspeicher der HsH-Handbuecher (~/Studora-Builds/hsh-catalog, nicht im
+    Repository). Ohne ihn (GitHub Actions) laesst sich der Stand nicht neu bauen: dort ueberspringen statt rot
+    (Audit P47, 08.11.2026: beide Tests scheiterten in jedem CI-Lauf mit "veraltet")."""
+    if not tool.CAT.DOCS.is_file():
+        pytest.skip(f"Zwischenspeicher {tool.CAT.BASE} fehlt (nur auf dem Mac des Inhabers)")
+
+
 def test_seed_is_current():
     build = _tool("build_hsh_seed_t", "build-hsh-seed.py")
+    _needs_catalog_cache(build)
     assert build.main(["--check"]) == 0
 
 
@@ -256,6 +265,7 @@ def test_registration_windows_from_faculty_texts():
 
 def test_exam_registration_data_current_and_shaped_like_luh():
     ex = _tool("hsh_exam_c", "hsh-exam-registration.py")
+    _needs_catalog_cache(ex)
     assert ex.main(["x", "--check"]) == 0
     data = json.loads((ROOT / "packages/shared-contracts/exam-registration-hsh.json").read_text(encoding="utf-8"))
     assert data["university"] == "hsh" and data["system"] == "HISinOne"
