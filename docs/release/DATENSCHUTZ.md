@@ -220,7 +220,7 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 - **Fragen und Antworten je Kurs:** Fragen, Antworten und „hilfreich“-Stimmen speichern wir mit deinem Pseudonym,
   Zeitpunkt und einem Kurs-Schlüssel (aus Hochschule und Kurs-ID berechnet, ohne Kursnamen). **Lesezeichen** sind
   privat. **Mitteilungen** (z. B. „hat deine Frage beantwortet“) liegen in deinem Konto; gelesene löschen wir nach
-  90 Tagen. Mit dem Konto wird alles gelöscht.
+  90 Tagen, ungelesene nach einem Jahr. Mit dem Konto wird alles gelöscht.
 - **Auswertung durch den Betreiber:** Wir sehen intern, welche Konten die meisten Likes bekommen haben (Rangliste mit
   E-Mail-Adresse), um hilfreiche Beiträge zu würdigen und Missbrauch zu erkennen. Andere Nutzer sehen das nie.
 - **Moderation:** Ab drei Meldungen verschiedener Konten ist eine Lösung verborgen, bis wir entscheiden; wir

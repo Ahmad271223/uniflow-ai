@@ -49,6 +49,8 @@ MAX_TITLE, MAX_BODY, MAX_ANSWER = 160, 4000, 4000
 PAGE = 30
 REPORTS_TO_HIDE = 3
 NOTIFY_KEEP_DAYS = 90
+NOTIFY_UNREAD_KEEP_DAYS = 365        # auch ungelesene nicht fuer immer (Liste 95 Nr. 74, 09.11.2026)
+MAX_MARK_IDS = 500                   # je Aufruf von mark_read; die Liste zeigt hoechstens 200 (Liste 95 Nr. 67)
 
 
 @contextmanager
@@ -135,6 +137,8 @@ def notifications(user: dict, unread_only: bool = False, limit: int = 50) -> dic
 
 
 def mark_read(user: dict, ids: list | None = None) -> dict:
+    if ids and len(ids) > MAX_MARK_IDS:      # sonst mehr Platzhalter, als SQLite im Dienst erlaubt (32.766): 500
+        raise CommunityError("ids_invalid", f"Höchstens {MAX_MARK_IDS} Mitteilungen auf einmal.", 422)
     with cursor() as conn:
         if ids:
             q = ",".join("?" * len(ids))
@@ -145,12 +149,16 @@ def mark_read(user: dict, ids: list | None = None) -> dict:
     return {"unread": unread}
 
 
-def prune(days: int = NOTIFY_KEEP_DAYS) -> int:
-    """Alte gelesene Benachrichtigungen loeschen (app/retention.py)."""
+def prune(days: int = NOTIFY_KEEP_DAYS, unread_days: int = NOTIFY_UNREAD_KEEP_DAYS) -> int:
+    """Alte Benachrichtigungen loeschen (app/retention.py): gelesene nach `days`, ungelesene nach `unread_days` - sonst
+    sammelte ein Konto, das die App nicht mehr oeffnet, jede Antwort und jeden Like fuer immer (Liste 95 Nr. 74)."""
     from datetime import datetime, timedelta, timezone
-    cut = (datetime.now(timezone.utc) - timedelta(days=days)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    def cut(d: int) -> str:
+        return (datetime.now(timezone.utc) - timedelta(days=d)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     with cursor() as conn:
-        return conn.execute("DELETE FROM notifications WHERE created_at < ? AND read_at IS NOT NULL", (cut,)).rowcount
+        return conn.execute("DELETE FROM notifications WHERE (created_at < ? AND read_at IS NOT NULL) OR created_at < ?",
+                            (cut(days), cut(unread_days))).rowcount
 
 
 # ---------------------------------------------------------------- Fragen und Antworten
@@ -191,14 +199,21 @@ def list_questions(user: dict, university: str, course_key: str, limit: int = PA
             args.append(fingerprint.lower())
         if unanswered:
             sql += " AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.question_id=questions.id AND a.status='active')"
-        if before:
+        # Cursor `last_activity|id` (Liste 95 Nr. 68): mit der Zeit allein fielen Fragen derselben Sekunde an der
+        # Seitengrenze weg. Ein alter Cursor (nur die Zeit) gilt weiter.
+        ts, _, after_id = (before or "").partition("|")
+        if ts and after_id:
+            sql += " AND (last_activity < ? OR (last_activity = ? AND id > ?))"
+            args += [ts, ts, after_id]
+        elif ts:
             sql += " AND last_activity < ?"
-            args.append(before)
-        rows = conn.execute(sql + " ORDER BY last_activity DESC, id LIMIT ?", (*args, limit + 1)).fetchall()
-        rows = [r for r in rows if r["pseudonym"] not in blocked and r["author_id"] not in banned]
-        more = len(rows) > limit
-        rows = rows[:limit]
-        return {"questions": [_q_out(conn, r, user["id"]) for r in rows], "next": rows[-1]["last_activity"] if more and rows else None}
+            args.append(ts)
+        raw = conn.execute(sql + " ORDER BY last_activity DESC, id LIMIT ?", (*args, limit + 1)).fetchall()
+        more = len(raw) > limit                  # vor dem Filtern: gesperrte Autoren beenden das Blaettern nicht
+        raw = raw[:limit]
+        rows = [r for r in raw if r["pseudonym"] not in blocked and r["author_id"] not in banned]
+        nxt = f"{raw[-1]['last_activity']}|{raw[-1]['id']}" if more and raw else None
+        return {"questions": [_q_out(conn, r, user["id"]) for r in rows], "next": nxt}
 
 
 def ask(user: dict, university: str, course_key: str, title, body, fingerprint=None, page=None) -> dict:

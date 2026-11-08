@@ -340,7 +340,7 @@ def notif_list(request: Request, unread: bool = False, limit: int = 50):
 def notif_read(request: Request, body: dict = Body(default={})):
     """{ids?: [...]} oder alles gelesen."""
     ids = body.get("ids") if isinstance(body, dict) else None
-    return community_qa.mark_read(_account(request), ids if isinstance(ids, list) else None)
+    return _run(community_qa.mark_read, _account(request), ids if isinstance(ids, list) else None)
 
 
 # ---------------------------------------------------------------- Korrekturvorschlaege (03.11.2026, app/community_corrections.py)

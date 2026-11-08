@@ -111,3 +111,120 @@ def test_04_huge_signed_date_is_read_before_the_signature_without_crashing(hoste
         assert apple_store.verify_jws(token)["signedDate"] == ms
         st, d = notify(hosted, token)
         assert st == 200 and d["applied"] is False, (ms, st, d)
+
+
+# ---------------------------------------------------------------- Nr. 66-68, 74: Fragen und Benachrichtigungen
+
+def _qa():
+    import test_community_qa as qa
+    return qa
+
+
+def _ask(app, h, title):
+    qa = _qa()
+    st, q = qa.call(app, "POST", f"/courses/{qa.KEY}/questions", h, {"title": title})
+    assert st == 201, q
+    return q
+
+
+def _set_activity(qid, ts):
+    from app import community
+    with community.cursor() as conn:
+        conn.execute("UPDATE questions SET last_activity=? WHERE id=?", (ts, qid))
+
+
+def _all_pages(app, h, limit):
+    qa, seen, before = _qa(), [], None
+    for _ in range(20):
+        path = f"/courses/{qa.KEY}/questions?limit={limit}" + (f"&before={before}" if before else "")
+        st, d = qa.call(app, "GET", path, h)
+        assert st == 200, d
+        seen += [q["title"] for q in d["questions"]]
+        before = d["next"]
+        if not before:
+            return seen
+    raise AssertionError("Seiten enden nicht")
+
+
+def test_68_questions_with_the_same_last_activity_are_not_skipped_between_pages(hosted):
+    """Vorher: Cursor = nur `last_activity`, Folgeseite mit `last_activity < before`. Fragen mit derselben Sekunde an
+    der Seitengrenze fielen weg (hier 3 von 5). Jetzt Cursor `(last_activity, id)`; ein alter Cursor (nur Zeit) bleibt
+    gueltig."""
+    qa = _qa()
+    _, a = qa._user(hosted, "l95-68@example.org")
+    for i in range(5):
+        _set_activity(_ask(hosted, a, f"F{i}")["id"], "2026-11-09T10:00:00Z")
+    got = _all_pages(hosted, a, 2)
+    assert sorted(got) == ["F0", "F1", "F2", "F3", "F4"], got
+    st, d = qa.call(hosted, "GET", f"/courses/{qa.KEY}/questions?limit=2&before=2026-11-09T10:00:01Z", a)
+    assert st == 200 and len(d["questions"]) == 2, "alter Cursor (nur Zeitstempel) gilt weiter"
+
+
+def test_68_blocked_authors_do_not_end_the_paging_early(hosted):
+    """Vorher: `more` wurde nach dem Herausfiltern gesperrter Autoren gezaehlt; war auf einer Seite einer gesperrt, kam
+    `next: null`, obwohl aeltere Fragen folgten."""
+    from app import community, community_qa
+    qa = _qa()
+    me, a = qa._user(hosted, "l95-68b@example.org")
+    other, b = qa._user(hosted, "l95-68c@example.org")
+    for i, h in enumerate([a, a, b, a]):
+        _set_activity(_ask(hosted, h, f"G{i}")["id"], f"2026-11-0{i + 1}T10:00:00Z")
+    with community.cursor() as conn:
+        conn.execute("INSERT INTO blocks(user_id, pseudonym, created_at) VALUES (?,?,?)",
+                     (me["id"], community_qa.pseudonym(other["id"]), "2026-11-09T00:00:00Z"))
+    assert _all_pages(hosted, a, 2) == ["G3", "G1", "G0"]
+
+
+def test_67_mark_read_takes_a_bounded_id_list(hosted):
+    """Vorher: beliebig lange ID-Liste in einem IN (...) - auf dem Server (SQLite von Debian: hoechstens 32.766
+    Platzhalter) endet eine laengere Liste mit 500. Die Liste zeigt hoechstens 200 Mitteilungen; mehr als 500 IDs je
+    Aufruf: 422. Ohne ids: alles gelesen (wie bisher)."""
+    qa = _qa()
+    _, a = qa._user(hosted, "l95-67@example.org")
+    st, d = qa.call(hosted, "POST", "/notifications/read", a, {"ids": [uuid.uuid4().hex for _ in range(500)]})
+    assert st == 200 and d["unread"] == 0, d
+    st, d = qa.call(hosted, "POST", "/notifications/read", a, {"ids": [uuid.uuid4().hex for _ in range(501)]})
+    assert st == 422 and d["code"] == "ids_invalid", d
+    st, d = qa.call(hosted, "POST", "/notifications/read", a, {"ids": [{"x": 1}, 5, None]})
+    assert st == 200, d
+
+
+def _notification(user_id, created_at, read_at=None):
+    from app import community
+    with community.cursor() as conn:
+        conn.execute("INSERT INTO notifications(id, user_id, kind, target_kind, target_id, created_at, read_at) VALUES (?,?,?,?,?,?,?)",
+                     (uuid.uuid4().hex, user_id, "answer", "question", "q", created_at, read_at))
+
+
+def test_74_unread_notifications_do_not_grow_forever(hosted):
+    """Vorher: `prune` loeschte nur gelesene Mitteilungen (nach 90 Tagen); ungelesene blieben fuer immer (ein Konto,
+    das die App nicht mehr oeffnet, sammelt jede Antwort und jeden Like). Jetzt: ungelesene nach 365 Tagen
+    (NOTIFY_UNREAD_KEEP_DAYS), gelesene weiter nach 90."""
+    from datetime import timedelta
+    from app import community, community_qa
+    qa = _qa()
+    me, _ = qa._user(hosted, "l95-74@example.org")
+    now = datetime.now(UTC)
+    iso = lambda d: d.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    _notification(me["id"], iso(now - timedelta(days=400)))                                   # ungelesen, alt -> weg
+    _notification(me["id"], iso(now - timedelta(days=200)))                                   # ungelesen, juenger -> bleibt
+    _notification(me["id"], iso(now - timedelta(days=100)), iso(now - timedelta(days=99)))    # gelesen, > 90 -> weg
+    _notification(me["id"], iso(now - timedelta(days=10)), iso(now - timedelta(days=9)))      # gelesen, frisch -> bleibt
+    assert community_qa.prune() == 2
+    with community.cursor() as conn:
+        left = sorted(r[0][:10] for r in conn.execute("SELECT created_at FROM notifications WHERE user_id=?", (me["id"],)))
+    assert left == sorted([iso(now - timedelta(days=200))[:10], iso(now - timedelta(days=10))[:10]])
+
+
+def test_66_notification_list_with_200_entries_is_fast(hosted):
+    """Nr. 66 (N+1 beim Aufloesen der Ziele): hoechstens 200 Eintraege je Abruf, je Eintrag eine Abfrage auf den
+    Primaerschluessel - gemessen weit unter einer Sekunde; kein Umbau."""
+    import time as _time
+    qa = _qa()
+    me, h = qa._user(hosted, "l95-66@example.org")
+    for i in range(250):
+        _notification(me["id"], f"2026-11-09T10:{i // 60:02d}:{i % 60:02d}Z")
+    t0 = _time.perf_counter()
+    st, d = qa.call(hosted, "GET", "/notifications?limit=200", h)
+    assert st == 200 and len(d["notifications"]) == 200 and d["unread"] == 250
+    assert _time.perf_counter() - t0 < 1.0
