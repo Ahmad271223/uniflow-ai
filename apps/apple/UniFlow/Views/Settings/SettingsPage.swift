@@ -933,7 +933,16 @@ enum DeleteAccountText {
             + "Was iOS selbst gesichert hat, bleibt unter „Passwörter“."
     }
 
-    static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
+    static let appleID = "Diese Anmeldung mit Apple speichert StudiNow nur auf diesem iPad. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
+
+    /// Mit angemeldetem StudiNow-Konto (Dienst): "Konto löschen" hier entfernt nur dessen Anmeldung auf diesem iPad
+    /// (`ContainerManager.deleteAllData`); das Konto beim Dienst loescht die Karte StudiNow-Konto (Audit 08.11.2026, P35-01)
+    static let service = "Dein StudiNow-Konto beim Dienst bleibt bestehen – mit allem, was dorthin abgeglichen wurde. Löschen kannst du es vorher unter Einstellungen → StudiNow-Konto → „Konto löschen“."
+
+    /// Saetze unter der Rueckfrage, die vom Stand abhaengen (StudiNow-Konto angemeldet)
+    static func shows(serviceSignedIn: Bool) -> [String] {
+        [appleID] + (serviceSignedIn ? [service] : [])
+    }
 
     /// Nur mit iCloud-Container im Build (Community ueber CloudKit, docs/release/DATENSCHUTZ.md Abschnitt 8b): was in der
     /// oeffentlichen Datenbank liegt, entfernt "Konto loeschen" auf dem iPad nicht von selbst - ehrlich sagen, wie es geht
@@ -960,7 +969,7 @@ private struct DeleteAccountDialog: View {
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
-                Text(DeleteAccountText.appleID)
+                ForEach(DeleteAccountText.shows(serviceSignedIn: containers.account.user != nil), id: \.self) { Text($0) }
                 if SolutionSharing.community.isConnected { Text(DeleteAccountText.community) }
                 ContainerSyncGate { syncing in
                     if syncing { ContainerSyncNotice() }

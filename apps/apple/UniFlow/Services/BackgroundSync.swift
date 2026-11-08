@@ -568,7 +568,10 @@ final class BackgroundSyncController: ObservableObject {
               !containers.demoActive, let mail = uniMail(c), mail.isConnected, mail.state != .needsLogin, !expired() else { return nil }
         let r = await mail.refreshInbox(background: true)
         lastMail = r
-        if r.newMessages > 0, mail.notify, owns(c), await notifier.isAllowed(), let n = BackgroundNotice.newUniMail(r.newMessages) {
+        // Mitteilung nur fuer den offenen Container (wie neue Dateien): nach einem Kontowechsel waehrend des Lesens gehoert
+        // sie zum vorigen Konto (Audit 08.11.2026, P35-07)
+        if r.newMessages > 0, mail.notify, owns(c), containers.active === c, await notifier.isAllowed(),
+           let n = BackgroundNotice.newUniMail(r.newMessages) {
             let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
             await notifier.post(n, id: prefix + "mail.\(container)", thread: prefix + container)
         }
