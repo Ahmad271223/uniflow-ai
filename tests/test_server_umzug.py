@@ -105,7 +105,7 @@ def test_trockenlauf_reihenfolge_der_schritte():
         "grep -cE '^(UNIFLOW_DOMAIN|UNIFLOW_ACME_EMAIL|LERNAPP_SECRET_KEY)=.+'",   # 2 Pflichtzeilen, ohne Werte
         f"ssh root@{NEU} -- cd /srv/uniflow/app/deploy && docker compose build",   # 3 Bauen
         "docker compose up --no-start",                                            # 3 Volumes anlegen
-        f"ssh root@{ALT} -- /srv/uniflow/app/deploy/backup.sh",                    # 4 Sicherung vor der Pause
+        f"ssh root@{ALT} -- bash /srv/uniflow/app/deploy/backup.sh",                    # 4 Sicherung vor der Pause
         f"ssh root@{ALT} -- cd /srv/uniflow/app/deploy && docker compose stop app jobs",
         f"ssh root@{ALT} -- docker run --rm -v uniflow_uniflow-data:/data:ro alpine tar -C /data -czf - . | "
         f"ssh root@{NEU} -- docker run --rm -i -v uniflow_uniflow-data:/data alpine",
