@@ -196,6 +196,22 @@ final class StudIPDownloadGapAppTests: XCTestCase {
         XCTAssertEqual(stud.contentRequests("v1a"), 1)
     }
 
+    /// Stufe d (nur fruehere Semester) zaehlt nicht als "letzter Abgleich": sonst war der volle Lauf beim Oeffnen nie
+    /// faellig (30-Minuten-Regel), solange die alten Semester im Hintergrund nachluden (Befund iPad 08.11.2026)
+    func testOlderOnlyRunDoesNotCountAsLastRun() async throws {
+        let dev = try device()
+        let stud = portal()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        let full = try XCTUnwrap(sync.lastRun)
+        let fullSummary = sync.lastSummary
+        try await Task.sleep(nanoseconds: 50_000_000)
+        _ = await sync.run(client: client(stud), scope: .full, olderOnly: true)
+        XCTAssertEqual(sync.lastRun, full, "Stufe d aendert den letzten Abgleich nicht")
+        XCTAssertEqual(sync.lastSummary, fullSummary)
+        XCTAssertFalse(sync.runningOlderOnly)
+    }
+
     // MARK: Fall "zweiter Abgleich holt nach"
 
     /// Erster Lauf: Stud.IP gestoert fuer die Veranstaltung (500). Die Dateien bleiben gelistet, der Fehler steht je

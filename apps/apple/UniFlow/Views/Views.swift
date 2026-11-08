@@ -168,7 +168,8 @@ struct LibraryView: View {
     /// der die Datei noch als nicht geladen fuehrt
     private func file(_ id: String) -> LibFile? {
         let listed = library?.files.first { $0.id == id }
-        if let fresh = extra[id], fresh.downloaded_at != nil, listed?.downloaded_at == nil { return fresh }
+        // der einzeln gelesene Eintrag ist immer juenger als die Liste: er gilt, sobald er geladen ist
+        if let fresh = extra[id], fresh.downloaded_at != nil || listed == nil { return fresh }
         return listed ?? extra[id]
     }
 
@@ -245,8 +246,8 @@ struct LibraryView: View {
                     }
                 } else if let id = fileSelection, missing.contains(id) {
                     ContentUnavailableView("Dokument nicht verfügbar", systemImage: "doc.questionmark", description: Text(DocumentOpenText.notFound))
-                } else if fileSelection != nil, library != nil {
-                    ProgressView()
+                } else if fileSelection != nil {
+                    UF.bg                                     // Eintrag kommt gerade (Einzelabruf): nichts zeigen
                 } else {
                     // 03.11.2026: hier gab es oben links kein Zurueck (nur die Seitenleiste)
                     ContentUnavailableView {
@@ -283,17 +284,19 @@ struct LibraryView: View {
         // nach jedem Abgleich die Liste neu lesen: Dateien, die der Abgleich geladen hat, gelten sofort als geladen
         .onReceive(NotificationCenter.default.publisher(for: .uniflowSyncFinished)) { _ in Task { await load() } }
         .task {
-            await load()
-            if let o = openFile {
-                // nicht in der Bibliothek (Papierkorb, abgewaehlter Kurs, Aufgabe auf eine solche Datei): einzeln laden
-                // statt "Dokument wählen" ohne Erklaerung
-                if file(o) == nil { await loadSingle(o) } else { await ensureFresh(o) }
-                fileSelection = o
-                // Beim Oeffnen ueber eine Route griff `.detailOnly` aus onChange noch vor dem ersten Bild nicht: die
-                // Dokumentliste lag hochkant ueber dem Dokument (und ueber der KI-Hilfe). Nach dem ersten Bild erneut.
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                columns = .detailOnly
-            }
+            guard let o = openFile else { await load(); return }
+            // Oeffnen ueber die Kennung (08.11.2026): eine Zeile aus der lokalen Datenbank, dann sofort das Dokument -
+            // ohne auf die ganze Dateiliste zu warten. Vorher lud erst die Liste (rund 1.000 Eintraege, neben einem
+            // laufenden Abgleich), und solange stand "Dokument wählen" statt des angetippten Dokuments.
+            await loadSingle(o)
+            fileSelection = o
+            columns = .detailOnly
+            async let list: Void = load()                 // die Liste fuer Seitenleiste und Reiter im Hintergrund
+            // Beim Oeffnen ueber eine Route griff `.detailOnly` noch vor dem ersten Bild nicht: die Dokumentliste lag
+            // hochkant ueber dem Dokument (und ueber der KI-Hilfe). Nach dem ersten Bild erneut.
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            columns = .detailOnly
+            _ = await list
         }
     }
 
