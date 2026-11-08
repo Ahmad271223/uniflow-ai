@@ -88,7 +88,7 @@ test("Pruefungsanmeldung: Phase, Karte, Block am Modul, nie selbst anmelden", ()
   assert.match(card, /Diese Prüfungen solltest du anmelden/); assert.match(card, /Prüfung am 15\.02\.2027, 09:00 · HS A/);
   assert.match(card, /Rücktritt bis 08\.02\.2027/); assert.match(card, /nicht angemeldet/); assert.match(card, />angemeldet</);
   assert.match(card, /target="_blank"/, "QIS im App-Fenster");
-  assert.match(card, /Im QIS anmelden/); assert.match(card, /Die Anmeldung endet in 2 Tagen/);
+  assert.match(card, /Im QIS zur Prüfung anmelden/); assert.match(card, /Die Anmeldung endet in 2 Tagen/);
   assert.doesNotMatch(card, /<form/i, "kein Formular, nichts wird abgeschickt");
   assert.equal(X.cardHtml({ supported: false }), "");
   assert.ok(X.showCard(RESP) && !X.showCard({ ...RESP, show_card: false }));
@@ -102,19 +102,20 @@ test("Pruefungsanmeldung: Phase, Karte, Block am Modul, nie selbst anmelden", ()
 
 test("Pruefungsanmeldung Uni Hildesheim: LSF statt QIS, Start ohne Ende, Hinweis statt 'nicht sicher'", () => {
   const HI = {
-    ...RESP, system: "LSF", open_label: "Im LSF anmelden", qis_url: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0",
+    ...RESP, system: "LSF", open_label: "Im LSF zur Prüfung anmelden", qis_url: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0",
     hint: "Im LSF: Meine Funktionen → POS-Management …", warnings: [],
     period_note: "Die Uni Hildesheim hat keine einheitliche Anmeldefrist.",
     window: { term: "WiSe 26/27", kind: "meldung", n: 1, start: "2026-11-11", end: "2027-03-31", phase: "soon", days_left: 146, days_until: 6, open_end: true },
   };
   assert.equal(X.systemOf(HI), "LSF"); assert.equal(X.systemOf(RESP), "QIS");
-  assert.equal(X.openLabel(HI), "Im LSF anmelden"); assert.equal(X.openLabel(RESP), "Im QIS anmelden");
+  assert.equal(X.openLabel(HI), "Im LSF zur Prüfung anmelden"); assert.equal(X.openLabel(RESP), "Im QIS zur Prüfung anmelden");
+  assert.equal(X.openLabel({ system: "LSF" }), "Im LSF zur Prüfung anmelden"); assert.equal(X.TEXTS.openQIS, "Im QIS zur Prüfung anmelden");
   assert.equal(X.phaseText(HI.window, "LSF"), "Anmeldung im LSF WiSe 26/27 beginnt am Mi, 11.11. (in 6 Tagen) – Fristen je Prüfung");
   assert.equal(X.phaseText({ ...HI.window, phase: "open", days_left: 1 }, "LSF"), "Anmeldung im LSF seit Mi, 11.11. – Fristen je Prüfung im LSF",
     "kein 'endet morgen' ohne bekanntes Ende");
   assert.equal(X.phaseText({ ...HI.window, phase: "later" }, "LSF"), "Nächste Anmeldung im LSF: ab 11.11.2026 (WiSe 26/27)");
   const card = X.cardHtml(HI);
-  assert.match(card, /Im LSF anmelden/); assert.doesNotMatch(card, /Im QIS/);
+  assert.match(card, /Im LSF zur Prüfung anmelden/); assert.doesNotMatch(card, /Im QIS/);
   assert.match(card, /lsf\.uni-hildesheim\.de/); assert.match(card, /keine einheitliche Anmeldefrist/);
   assert.doesNotMatch(card, /kennt StudiNow nicht sicher/);
   assert.match(X.cardHtml({ ...HI, window: null }), /keine einheitliche Anmeldefrist/);

@@ -10,7 +10,7 @@ import UniFlowCore
 //   Hinweisen eines Tages; Hinweise "Prüfung" aus Ankuendigungen desselben Moduls stehen dann nicht noch einmal da
 // - Modulseite: naechste Klausur im Kopf, `ModuleNextExam`
 // - Pruefungsanmeldung (05.11.2026, ExamRegistrationViews.swift): Abzeichen "angemeldet"/"nicht angemeldet" je Klausur
-//   und eine Zeile zum Meldezeitraum mit "Im QIS anmelden" in der Karte "Nächste Klausuren"
+//   und eine Zeile zum Meldezeitraum mit "Im QIS zur Prüfung anmelden" in der Karte "Nächste Klausuren"
 
 enum UFExam {
     /// Farbe der Klausur-Pins (kraeftiges Violett: von Fristen rot, Hinweisen blau und Ferien gruen klar zu trennen)

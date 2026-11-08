@@ -10,9 +10,11 @@ import UniFlowCore
 // - Studienverlauf: Abschnitt mit Zeitraeumen, allen Vorschlaegen, gelesenen Anmeldungen, Erinnerungen (`ExamRegistrationSection`)
 // - Karte "Nächste Klausuren": Abzeichen angemeldet/nicht angemeldet und eine Zeile zum Meldezeitraum
 // - Moduldetails im Studienverlauf und Modulseite: Block "Prüfung anmelden" (`ExamRegistrationModuleBlock`)
-// "Im QIS anmelden" oeffnet nur "Mein Studium" im In-App-Browser (`openURL` -> `UniWebBrowser`, gleiche Cookies wie
-// der Notenabruf); anmelden und bestaetigen tut der Mensch dort selbst. Die App fuellt nichts aus und schickt nichts ab.
-// Uni Hildesheim (`system` "LSF"): "Im LSF anmelden" oeffnet die Startseite des LSF (`UniversityProfile.hildesheimLSFStart`),
+// "Im QIS zur Prüfung anmelden" oeffnet nur "Mein Studium" im In-App-Browser (`openURL` -> `UniWebBrowser`, gleiche
+// Cookies wie der Notenabruf); anmelden und bestaetigen tut der Mensch dort selbst. Die App fuellt nichts aus und schickt
+// nichts ab. Nach dem Schliessen dieses Browsers ruft die App die angemeldeten Pruefungen einmal selbst ab
+// (`ExamRegistrationAutoFetch`, Befund des Inhabers 09.11.2026: er erwartete danach "angemeldet").
+// Uni Hildesheim (`system` "LSF"): "Im LSF zur Prüfung anmelden" oeffnet die Startseite des LSF (`UniversityProfile.hildesheimLSFStart`),
 // der Meldezeitraum hat kein Ende (`openEnd`: Start der POS-Anmeldung, Fristen je Pruefung im LSF), "Angemeldete Prüfungen
 // abrufen" liest "Meine POS-Anmeldungen" (`HildesheimConnection.fetchRegistrations`).
 
@@ -126,7 +128,7 @@ struct ExamRegistrationState: Equatable {
     let disclaimer: String
     /// "QIS" (LUH) oder "LSF" (Uni Hildesheim)
     let system: String
-    /// "Im QIS anmelden" / "Im LSF anmelden"
+    /// "Im QIS zur Prüfung anmelden" / "Im LSF zur Prüfung anmelden"
     let openLabel: String
     /// Hinweis statt der Zeitraeume (Uni Hildesheim: keine einheitliche Frist)
     let periodNote: String?
@@ -280,20 +282,73 @@ enum ExamRegistrationText {
 
 // MARK: - Knoepfe
 
-/// "Im QIS anmelden": oeffnet "Mein Studium" im In-App-Browser der Hochschule (`openURL` -> `UniWebBrowser`); Uni
-/// Hildesheim "Im LSF anmelden": Startseite des LSF
+/// "Im QIS zur Prüfung anmelden": oeffnet "Mein Studium" im In-App-Browser der Hochschule (`openURL` -> `UniWebBrowser`);
+/// Uni Hildesheim "Im LSF zur Prüfung anmelden": Startseite des LSF. Merkt sich das Oeffnen, damit nach dem Schliessen
+/// einmal abgerufen wird (`ExamRegistrationAutoFetch`)
 struct ExamRegistrationQISButton: View {
     let url: URL?
     var system: String = "QIS"
     var size: UFButtonSize = .regular
     @Environment(\.openURL) private var openURL
+    @Environment(\.qis) private var qis
+    @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.ufDemoActive) private var demo
 
     var body: some View {
         if let url {
-            UFButton(ExamRegistrationAPI.openLabel(system), icon: "arrow-right", kind: .primary, size: size) { openURL(url) }
+            UFButton(ExamRegistrationAPI.openLabel(system), icon: "arrow-right", kind: .primary, size: size) {
+                ExamRegistrationAutoFetch.shared.arm(url, qis: qis, hildesheim: hildesheim, demo: demo)
+                openURL(url)
+            }
                 .fixedSize()
-                .accessibilityHint("Öffnet das \(system). Anmelden und bestätigen tust du dort selbst.")
+                .accessibilityHint("Öffnet das \(system). Zur Prüfung anmelden und bestätigen tust du dort selbst; danach ruft StudiNow die angemeldeten Prüfungen ab.")
                 .accessibilityIdentifier("examreg.qis")
+        }
+    }
+}
+
+/// Nach dem Schliessen des In-App-Browsers, den "Im QIS/LSF zur Prüfung anmelden" geoeffnet hat: einmal die angemeldeten
+/// Pruefungen abrufen, derselbe Weg wie "Angemeldete Prüfungen abrufen" (`fetchRegistrations` erhoeht `finishedRuns`,
+/// die offenen Ansichten laden neu). Nur mit bestehender Verbindung (nicht "erneut anmelden"), nie in der Demo, hoechstens
+/// einmal je Schliessen (danach nicht mehr vorgemerkt). Andere geschlossene Seiten (anderer Rechner) zaehlen nicht.
+@MainActor
+final class ExamRegistrationAutoFetch {
+    static let shared = ExamRegistrationAutoFetch()
+
+    private struct Armed {
+        let host: String?
+        weak var qis: QISConnection?
+        weak var hildesheim: HildesheimConnection?
+    }
+
+    private var armed: Armed?
+    private var observer: NSObjectProtocol?
+
+    init(center: NotificationCenter = .default) {
+        // UniWebBrowser meldet auf dem Hauptthread (MainActor)
+        observer = center.addObserver(forName: UniWebBrowser.didClose, object: nil, queue: nil) { [weak self] n in
+            let url = n.userInfo?["url"] as? URL
+            MainActor.assumeIsolated { self?.browserClosed(url) }
+        }
+    }
+
+    /// Beim Tippen auf den Knopf (Demo: nichts vormerken)
+    func arm(_ url: URL, qis: QISConnection?, hildesheim: HildesheimConnection?, demo: Bool) {
+        armed = demo || (qis == nil && hildesheim == nil) ? nil : Armed(host: url.host?.lowercased(), qis: qis, hildesheim: hildesheim)
+    }
+
+    func disarm() { armed = nil }
+
+    /// Blatt geschlossen: gehoert es zum vorgemerkten Rechner, einmal abrufen
+    private func browserClosed(_ url: URL?) {
+        guard let a = armed, let host = url?.host?.lowercased(), host == a.host else { return }
+        armed = nil
+        if let qis = a.qis {
+            guard qis.isConnected, qis.state != .needsLogin else { return }
+            Task { await qis.fetchRegistrations() }
+        } else if let lsf = a.hildesheim {
+            guard lsf.isConnected(.lsf), lsf.lsf != .needsLogin else { return }
+            Task { await lsf.fetchRegistrations() }
         }
     }
 }

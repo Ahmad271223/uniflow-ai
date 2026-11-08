@@ -18,10 +18,14 @@ Prüfungsanmeldung/-abmeldung. Das Schreiben an die Hochschulen (docs/release/AN
    („laut deinem Plan im 3. Semester“, „nachholen – im WiSe 25/26 nicht abgelegt“, „Wiederholung – 2. Versuch“), passende
    Frist (VbP oder alle anderen Prüfungsformen) und Rücktrittsregel. Ohne Studienverlauf: die kommenden Klausuren der
    eigenen Module (Grund „Klausurtermin bekannt“).
-3. **„Im QIS anmelden“** öffnet die QIS-Seite „Mein Studium“ im In-App-Browser (gleiche Cookies wie der Notenabruf,
+3. **„Im QIS zur Prüfung anmelden“** (bis 09.11.2026 „Im QIS anmelden“) öffnet die QIS-Seite „Mein Studium“ im In-App-Browser (gleiche Cookies wie der Notenabruf,
    `UniLinks`/`UniWebBrowser`). Darunter der Hinweis: „Tippe dort auf ‚Prüfungsanmeldung/-abmeldung‘, wähle die Prüfung
    und bestätige selbst. StudiNow füllt nichts aus und schickt nichts ab.“ Ist die Sitzung abgelaufen, zeigt QIS die
    eigene Anmeldeseite; der Mensch meldet sich selbst an.
+   Seit 09.11.2026 (Befund des Inhabers am iPad: der Knopf wurde für den QIS-Login gehalten) heißt er „Im QIS zur
+   Prüfung anmelden“ bzw. „Im LSF zur Prüfung anmelden“, und nach dem Schließen dieses In-App-Browsers ruft die App die
+   angemeldeten Prüfungen einmal selbst ab (wie „Angemeldete Prüfungen abrufen“; nur mit bestehender QIS- bzw.
+   LSF-Verbindung, nie in der Demo; `ExamRegistrationAutoFetch`, `UniWebBrowser.didClose`).
 4. **Abhaken**: „Angemeldete Prüfungen abrufen“ (und jeder normale QIS-Abruf) liest nur lesend die Seite „Info über
    angemeldete Prüfungen“. Zusätzlich zählt der Vermerk **AN** im Notenspiegel (laut Prüfungsamt erscheinen angemeldete
    Prüfungen dort so; der Studienverlauf kennt das schon als Status „angemeldet“). Warnung, wenn der Meldezeitraum in
@@ -153,7 +157,7 @@ Gebaut nach dem bekannten HIS-QIS-Aufbau (wie Notenspiegel) mit erfundenen Seite
    Spaltenköpfe der Tabelle, Text bei keiner Anmeldung.
 3. Nach einer eigenen Anmeldung im QIS (selbst geklickt) erneut abrufen: das Modul muss „angemeldet“ zeigen. Prüfen,
    ob der Notenspiegel die Prüfung mit „AN“ führt (dann hakt schon der normale Notenabruf ab).
-4. „Im QIS anmelden“ tippen: Erwartung „Mein Studium“ mit dem Punkt „Prüfungsanmeldung/-abmeldung“ (QIS braucht dafür
+4. „Im QIS zur Prüfung anmelden“ tippen: Erwartung „Mein Studium“ mit dem Punkt „Prüfungsanmeldung/-abmeldung“ (QIS braucht dafür
    evtl. den Sitzungsparameter `asi`; kommt die Startseite, ist das nur ein Schritt mehr). Nichts davon füllt die App aus.
 5. Mitteilung: Einstellungen des iPad → StudiNow → Mitteilungen erlaubt; am 15.11. und 20.11.2026 um 9:00 Uhr kommen
    die Erinnerungen an das Ende am 22.11. (Schalter in der Karte).
@@ -231,7 +235,7 @@ Python `exam_registration.for_university`, `resolve_program`.
 
 ### Verhalten
 
-- Antwort mit `system: "LSF"`, `open_label: "Im LSF anmelden"`, `period_note`; `qis_url` = LSF-Startseite
+- Antwort mit `system: "LSF"`, `open_label: "Im LSF zur Prüfung anmelden"`, `period_note`; `qis_url` = LSF-Startseite
   (`UniversityProfile.hildesheimLSFStart`, im In-App-Browser). Fenster `open_end`: keine Warnung „endet in“, Karte auf der
   Übersicht nur 7 Tage vor bis 14 Tage nach dem Start (`ExamRegistrationAPI.openEndCardDays`), Erinnerung nur am ersten
   Tag (11.11.2026, 9:00), der Hinweis in der Web-App bis 14 Tage danach. Rücktritt: nur, was das LSF in „Meine
@@ -259,7 +263,7 @@ Python `exam_registration.for_university`, `resolve_program`.
    persönliche Daten): genauer Linktext beider Links, Parameter `state`/`moduleParameter`/`next` in der Adresse,
    Spaltenköpfe, Text der Statusspalte (zugelassen? AN?), Text ohne Anmeldung, ob die Seite einen Baum je Semester hat.
 2. Notenspiegel: Steht eine angemeldete, noch nicht bewertete Prüfung mit Status „angemeldet“ (oder „AN“) darin?
-3. „Im LSF anmelden“: Erwartung Startseite des LSF (Meine Funktionen); weiter über POS-Management selbst.
+3. „Im LSF zur Prüfung anmelden“: Erwartung Startseite des LSF (Meine Funktionen); weiter über POS-Management selbst.
 4. Ab 11.11.2026: Karte „Prüfungsanmeldung“ auf der Übersicht, Mitteilung um 9:00 Uhr; nach dem 25.11. keine Karte mehr,
    der Abschnitt im Studienverlauf bleibt.
 5. Neu lesen vor dem SoSe 27: FAQ von Prüfungsamt 2 und LSF-Termine (Start der POS-Anmeldung), dann

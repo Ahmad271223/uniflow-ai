@@ -370,11 +370,22 @@ enum UniWebBrowser {
         let controller = UniWebHostingController(rootView: view)
         controller.modalPresentationStyle = .pageSheet
         controller.onDismissed = {
-            Task { @MainActor in await finished(store: store, studip: studip, hildesheim: hildesheim) }
+            Task { @MainActor in
+                await finished(store: store, studip: studip, hildesheim: hildesheim)
+                announceClosed(url)
+            }
         }
         sheet = controller
         top.present(controller, animated: true)
         return true
+    }
+
+    /// Gemeldet, wenn ein Blatt geschlossen ist und seine Cookies gemerkt sind; `userInfo["url"]`: Start-Adresse.
+    /// Die Pruefungsanmeldung ruft danach einmal die angemeldeten Pruefungen ab (`ExamRegistrationAutoFetch`)
+    static let didClose = Notification.Name("de.uniflow.ai.uniWebBrowser.didClose")
+
+    static func announceClosed(_ url: URL) {
+        NotificationCenter.default.post(name: didClose, object: nil, userInfo: ["url": url])
     }
 
     /// Nach dem Schliessen: Cookies der Hochschule merken (`UniWebSessions`), eine neue Stud.IP-Sitzung an den Abgleich

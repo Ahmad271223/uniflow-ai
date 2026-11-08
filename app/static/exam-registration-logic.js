@@ -1,13 +1,13 @@
 // Pruefungsanmeldung im Web/Windows (05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): reine Regeln und Texte ohne DOM
 // (laeuft unter node, tests/js/exam-registration.test.mjs), nach ExamRegistrationViews.swift der iPad-App. Daten von
-// GET /api/exam-registration (app/exam_registration_api.py). StudiNow meldet nie selbst an: "Im QIS anmelden" oeffnet
+// GET /api/exam-registration (app/exam_registration_api.py). StudiNow meldet nie selbst an: "Im QIS zur Prüfung anmelden" oeffnet
 // nur die QIS-Seite "Mein Studium" im App-Fenster; der Mensch waehlt und bestaetigt selbst. Uni Hildesheim (`system`
-// "LSF"): "Im LSF anmelden" oeffnet die Startseite des LSF; das Fenster hat kein Ende (`open_end`: Start der
+// "LSF"): "Im LSF zur Prüfung anmelden" oeffnet die Startseite des LSF; das Fenster hat kein Ende (`open_end`: Start der
 // POS-Anmeldung, Fristen je Pruefung im LSF), dazu `period_note` statt "nicht sicher".
 
 export const TEXTS = {
   title: "Prüfungsanmeldung",
-  openQIS: "Im QIS anmelden",
+  openQIS: "Im QIS zur Prüfung anmelden",
   fetch: "Angemeldete Prüfungen abrufen",
   suggestions: "Diese Prüfungen solltest du anmelden",
   registered: "angemeldet",
@@ -41,8 +41,8 @@ export function dayFull(iso) {
 /** "QIS" (LUH) oder "LSF" (Uni Hildesheim) */
 export const systemOf = r => (r && r.system) || "QIS";
 
-/** "Im QIS anmelden" / "Im LSF anmelden" */
-export const openLabel = r => (r && r.open_label) || `Im ${systemOf(r)} anmelden`;
+/** "Im QIS zur Prüfung anmelden" / "Im LSF zur Prüfung anmelden" */
+export const openLabel = r => (r && r.open_label) || `Im ${systemOf(r)} zur Prüfung anmelden`;
 
 /** Zeile zur Phase des Meldezeitraums; ohne Ende (Uni Hildesheim) mit dem Pruefungssystem */
 export function phaseText(w, system = "QIS") {
