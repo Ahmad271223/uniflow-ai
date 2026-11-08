@@ -158,7 +158,7 @@ def test_checkout_creates_customer_once_and_returns_the_url(hosted, stripe):
     assert len(cust) == 1 and cust[0][2] == {"email": "kauf@beispiel.de", "metadata": {"user_id": u["id"]}} and cust[0][3] == f"customer-{u['id']}"
     sess = [c for c in stripe.calls if c[1] == "/checkout/sessions"][0][2]
     assert sess["mode"] == "subscription" and sess["customer"] == "cus_1" and sess["client_reference_id"] == u["id"]
-    assert sess["line_items"] == [{"price": "price_plus", "quantity": 1}] and sess["subscription_data"]["metadata"] == {"user_id": u["id"], "plan": "plus"}
+    assert sess["line_items"] == [{"price": "price_plus", "quantity": 1}] and sess["subscription_data"]["metadata"] == {"user_id": u["id"], "plan": "plus", "interval": "month"}
     assert sess["success_url"] == "https://app.studinow.example/#/abo?checkout=success" and sess["cancel_url"].endswith("checkout=cancel")
     # zweiter Checkout: Kunde wird nicht noch einmal angelegt; Tarif bleibt bis zum Webhook unveraendert
     _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "pro_ai"})))
