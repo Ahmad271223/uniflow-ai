@@ -580,16 +580,42 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
         if cur and cur["status"] in ("hidden", "removed"):
             raise CommunityError("solution_blocked", "Diese Lösung ist gesperrt und kann nicht erneut veröffentlicht werden.", 403)
         now = _now()
-        package_dir().mkdir(parents=True, exist_ok=True)
-        (package_dir() / f"{info['id']}.uniflowsolution").write_text(raw, encoding="utf-8")
-        conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at, published_at,
-                        page_count, pages, size, status, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?)
-                        ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, community_key=excluded.community_key, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
-                          created_at=excluded.created_at, published_at=excluded.published_at, page_count=excluded.page_count,
-                          pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL""",
-                     (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
-                      info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
+        # Audit P5-01 (08.11.2026): Paket neben die Zieldatei schreiben, Zeile eintragen, dann atomar an die Stelle
+        # setzen - alles vor dem Commit. Scheitert die Datenbank, bleibt keine Paketdatei ohne Zeile zurueck (vorher
+        # eine Leiche, die weder Zurueckziehen noch Loeschen je fand); ein Leser sieht beim erneuten Veroeffentlichen
+        # nie ein halb geschriebenes Paket.
+        with _staged_package(info["id"], raw) as install:
+            conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at, published_at,
+                            page_count, pages, size, status, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?)
+                            ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, community_key=excluded.community_key, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
+                              created_at=excluded.created_at, published_at=excluded.published_at, page_count=excluded.page_count,
+                              pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL""",
+                         (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
+                          info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
+            install()
     return {"solution_id": info["id"], "published_at": now, "pseudonym": pseudonym(user["id"]), "republished": bool(cur)}
+
+
+def _package_path(solution_id: str) -> Path:
+    return package_dir() / f"{solution_id}.uniflowsolution"
+
+
+@contextmanager
+def _staged_package(solution_id: str, raw: str):
+    """Paket in eine Temp-Datei mit eindeutigem Namen je Aufruf schreiben (`<id>.uniflowsolution.<zufall>.neu`); der
+    gelieferte Aufruf `install()` setzt sie atomar an die Stelle der Zieldatei (Path.replace, gleiche Platte). Bleibt
+    `install()` aus oder scheitert etwas, verschwindet die Temp-Datei. Audit P5-01/P5-02: vorher schrieb `publish`
+    direkt in die Zieldatei und `update` nutzte fuer alle Aufrufe denselben Namen `.neu` - zwei gleichzeitige
+    Aktualisierungen derselben Loesung ueberschrieben einander die Temp-Datei (FileNotFoundError beim Umbenennen oder
+    ein halbes Paket im Ziel)."""
+    package_dir().mkdir(parents=True, exist_ok=True)
+    target = _package_path(solution_id)
+    tmp = target.with_name(f"{target.name}.{uuid.uuid4().hex[:12]}.neu")
+    try:
+        tmp.write_text(raw, encoding="utf-8")
+        yield lambda: tmp.replace(target)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def own_solution(conn, author_id: str, fingerprint: str, community_key: str | None):
@@ -637,14 +663,19 @@ def update(user: dict, university: str, solution_id: str, pkg, title: str | None
     _limit("update_user", user["id"])
     title = (title or "").strip()[:MAX_TITLE] or None
     now = _now()
-    package_dir().mkdir(parents=True, exist_ok=True)
-    target = package_dir() / f"{sid}.uniflowsolution"
-    tmp = target.with_name(target.name + ".neu")
-    tmp.write_text(raw, encoding="utf-8")
-    tmp.replace(target)                                  # nie ein halb geschriebenes Paket beim Laden
-    with cursor() as conn:
-        conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?
-                        WHERE id=?""", (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, sid))
+    # Audit P5-02 (08.11.2026): eindeutige Temp-Datei je Aufruf; Zeile und Datei in EINER Transaktion, und nur solange
+    # die Loesung noch aktiv ist - hat die Moderation sie inzwischen verborgen oder entfernt (Paket geloescht), kommt
+    # kein neues Paket auf die Platte (vorher stand das Paket einer entfernten Loesung wieder da).
+    with _staged_package(sid, raw) as install, cursor() as conn:
+        n = conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?
+                            WHERE id=? AND author_id=? AND status='active'""",
+                         (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, sid, user["id"])).rowcount
+        if n != 1:
+            cur = conn.execute("SELECT status FROM solutions WHERE id=?", (sid,)).fetchone()
+            if cur and cur["status"] in ("hidden", "removed"):
+                raise CommunityError("solution_blocked", "Diese Lösung ist gesperrt und kann nicht aktualisiert werden.", 403)
+            raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
+        install()
     return {"solution_id": sid, "updated_at": now, "pages": info["pages"], "pseudonym": pseudonym(user["id"])}
 
 
