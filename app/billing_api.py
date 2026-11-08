@@ -10,7 +10,7 @@
                                           vorgetaeuschte Verbindung); auf dem eigenen PC: Sign in with ChatGPT starten
 - POST /api/integrations/chatgpt/disconnect, GET .../models, PUT .../settings {model, use_for_ai}  nur auf dem eigenen PC
 
-- POST /api/billing/stripe/checkout       {plan} -> Checkout-Adresse (Web, Windows; app/stripe_billing.py)
+- POST /api/billing/stripe/checkout       {plan, interval: month|year} -> Checkout-Adresse (Web, Windows; app/stripe_billing.py)
 - POST /api/billing/stripe/portal         Kundenportal (Wechsel, Kuendigung, Rechnungen)
 - POST /api/billing/stripe/webhook        Ereignisse von Stripe (oeffentlich, Signatur geprueft)
 - POST /api/billing/plan-choice           {plan} Antwort auf die Aufforderung nach der 7-Tage-Probe
@@ -49,7 +49,9 @@ def purchase_channels() -> dict:
                          "hier automatisch, sobald du mit demselben StudiNow-Konto angemeldet bist.") if stripe_billing.available() else
                         ("Im Web und unter Windows gibt es noch keinen Abschluss. Ein Abo aus der Apple-App gilt hier "
                          "automatisch, sobald du mit demselben StudiNow-Konto angemeldet bist."),
-                "plans": sorted(stripe_billing.prices(), key=plans.rank)},
+                "plans": sorted(stripe_billing.prices(), key=plans.rank),
+                # jaehrliche Zahlung je Tarif, sobald der Jahrespreis in LERNAPP_STRIPE_PRICES steht (08.11.2026)
+                "yearly_plans": sorted(stripe_billing.yearly_prices(), key=plans.rank), "intervals": list(stripe_billing.INTERVALS)},
         "android": {"available": False, "note": "Die Android-App ist pausiert."},
     }
 
@@ -129,7 +131,16 @@ def stripe_checkout(request: Request, body: dict = Body(...)):
     if not plans.is_sellable(plan):
         raise HTTPException(400, {"detail": "Bitte einen kostenpflichtigen Tarif angeben.", "code": "plan_invalid"})
     client = "windows" if body.get("client") == "windows" else None
-    return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan, client))
+    interval = _interval(body)
+    return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan, client, interval))
+
+
+def _interval(body: dict) -> str:
+    """Zahlungszeitraum aus dem Body: month (Standard) oder year; sonst 400."""
+    interval = str(body.get("interval") or "month").strip().lower()
+    if interval not in stripe_billing.INTERVALS:
+        raise HTTPException(400, {"detail": "Zahlungszeitraum: month oder year.", "code": "interval_invalid"})
+    return interval
 
 
 @router.post("/api/billing/stripe/portal")
@@ -158,13 +169,14 @@ def plan_choice(request: Request, body: dict = Body(...)):
     plan = str(body.get("plan") or "")
     if plan not in plans.ORDER:
         raise HTTPException(400, {"detail": "Unbekannter Tarif.", "code": "plan_invalid"})
+    interval = _interval(body)
     conn = billing.connect()
     try:
         billing.record_plan_choice(conn, u["id"], plan)
-        out = {"plan": plan, "checkout_url": None}
+        out = {"plan": plan, "checkout_url": None, "interval": interval}
         if plan != "free" and stripe_billing.available():
             try:
-                out["checkout_url"] = stripe_billing.checkout(conn, u, plan)["url"]
+                out["checkout_url"] = stripe_billing.checkout(conn, u, plan, interval=interval)["url"]
             except stripe_billing.StripeError as e:
                 out["checkout_error"] = e.message
     finally:

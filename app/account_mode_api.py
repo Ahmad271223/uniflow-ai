@@ -6,7 +6,7 @@
 - POST /api/app-account/browser-login       {mode: login|register, provider?: apple|google}: im Systembrowser anmelden
 - GET  /konto/rueckkehr?code&state          Rueckleitung aus dem Browser (HTML-Seite, ausserhalb von /api)
 - POST /api/app-account/logout              abmelden (Token weg, Daten bleiben)
-- POST /api/app-account/checkout            {plan}: Stripe-Checkout im Systembrowser; mit Apple-Abo 409
+- POST /api/app-account/checkout            {plan, interval: month|year}: Stripe-Checkout im Systembrowser; mit Apple-Abo 409
 - POST /api/app-account/portal              Stripe-Kundenportal (wechseln, kuendigen) im Systembrowser
 - GET  /api/app-account/export              eigene Daten dieses PCs als ZIP (auch ohne Abo)
 """
@@ -73,7 +73,8 @@ def logout():
 @router.post("/api/app-account/checkout")
 def checkout(request: Request, body: dict = Body(...)):
     _local(request, loopback=True)
-    return _call(account_mode.checkout, str(body.get("plan") or ""), open_browser=body.get("open_browser") is not False)
+    return _call(account_mode.checkout, str(body.get("plan") or ""), open_browser=body.get("open_browser") is not False,
+                 interval=str(body.get("interval") or "month"))
 
 
 @router.post("/api/app-account/portal")

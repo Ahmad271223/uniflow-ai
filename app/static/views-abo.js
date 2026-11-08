@@ -12,6 +12,7 @@
 // planChoicePrompt (Tarif wählen oder bei Free bleiben) gilt nur noch ohne Abo-Pflicht.
 import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=46";
 import { GATE_TEXTS, exportHref } from "./account-gate.js?v=1";
+import * as AL from "./abo-logic.js?v=1";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {
@@ -65,6 +66,9 @@ export async function viewAbo(_, params, view) {
   const gpt = contract.integrations.chatgpt;
   const web = contract.purchase.web || {}, viaStripe = me.source === "stripe" || (gated && !!me.subscriptions?.stripe);
   const tr = me.trial || {};
+  // Umschalter Monatlich/Jaehrlich (08.11.2026, wie auf dem iPad): gemerkt je Sitzung, Kaufknopf nur, wenn Stripe den Preis kennt
+  let interval = "month"; try { interval = AL.normalizeInterval(sessionStorage.getItem("abo-interval")); } catch {}
+  const showInterval = !local && AL.hasYearly(contract);
   // Während der Probe (Quelle "trial") ist kein Tarif "Dein Tarif": die Karte, die sie ausmacht, trägt "Probe läuft" und
   // bleibt kaufbar (wie auf dem iPad: aktuell ist nur, was gekauft ist, nie die Probe)
   const onTrial = !local && me.source === "trial";
@@ -102,13 +106,14 @@ export async function viewAbo(_, params, view) {
       : apple ? (isCur ? `<span class="badge ok">Dein Tarif</span> <span class="plan-hint">über Apple</span>` : `<span class="plan-hint">Wechseln in den Einstellungen deines iPads/iPhones</span>`)
       : isCur ? `<span class="badge ok">Dein Tarif</span>${viaStripe ? ` <button class="btn sm" id="aboPortal">Abo verwalten</button>` : ""}`
       : key === "free" ? `<span class="plan-hint">${viaStripe ? "Zurück zu Free: im Kundenportal kündigen (Abo verwalten)" : me.source === "app_store" ? "Zurück zu Free: Abo im App Store kündigen" : "Kostenlos, ohne Laufzeit"}</span>`
-      : (onTrial && key === current ? `<span class="badge info">Probe läuft</span> ` : "") + (web.available && (web.plans || []).includes(key) && !viaStripe ? `<button class="btn sm primary" data-buy="${key}">Abschließen</button>`
+      : (onTrial && key === current ? `<span class="badge info">Probe läuft</span> ` : "") + (AL.canBuy(web, key, interval) && !viaStripe ? `<button class="btn sm primary" data-buy="${key}" data-interval="${interval}">Abschließen</button>`
+      : AL.buyHint(web, key, interval) && !viaStripe ? `<span class="plan-hint">${esc(AL.buyHint(web, key, interval))}</span> <button class="btn sm" data-buy="${key}" data-interval="month">Monatlich abschließen</button>`
       : viaStripe ? `<button class="btn sm" data-portal="1">Wechseln (Abo verwalten)</button>`
       : `<button class="btn sm" disabled title="${esc(web.note || "")}">In der Apple-App abschließen</button>`);
     return `<article class="plan${isCur ? " is-current" : ""}${key === "pro_ai" ? " is-top" : ""}">
       <header><h2>${esc(p.name)}</h2></header>
       ${soon ? `<div class="plan-price"><b class="plan-soon" style="font-size:1.1rem;line-height:1.4">kommt mit dem StudiNow-Dienst</b></div>`
-        : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span> / Monat</span>${p.price_cents_yearly ? `<span> · oder ${euro(p.price_cents_yearly)} / Jahr</span>` : ""}</div>`}
+        : (() => { const pl = AL.priceLine(p, interval); return `<div class="plan-price"><b>${pl.main}</b><span>${pl.unit}</span>${pl.other ? `<span> · ${esc(pl.other)}</span>` : ""}</div>`; })()}
       ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">ohne eigenes ChatGPT</span></div>` : ""}
       ${action ? `<div class="plan-act">${action}</div>` : ""}
       <p class="plan-pos">${esc(POSITION[key] || p.tagline)}</p>
@@ -119,6 +124,7 @@ export async function viewAbo(_, params, view) {
     <div class="page-head"><div><h1>Abo & Tarife</h1><div class="sub">${local ? "Eigener PC" : locked ? esc(GATE_TEXTS.lockedTitle) : onTrial ? `Probe: alles wie ${esc(me.plan_name)}` : `Dein Tarif: ${esc(me.plan_name)}`}</div></div></div>
     <section class="abo-now" aria-label="Aktueller Stand">${lockNote}${appleNote}${trial}${afterCheckout}${term}${quotas ? `<div class="abo-quotas">${quotas}</div>` : ""}</section>
     <h2 class="abo-h">Tarif wählen</h2>
+    ${showInterval ? `<div class="seg pill" id="aboInterval" role="group" aria-label="Zahlungszeitraum" style="margin:0 0 .8rem">${AL.INTERVALS.map(k => `<button type="button" class="${k === interval ? "active" : ""}" data-interval="${k}">${AL.INTERVAL_TXT[k]}</button>`).join("")}</div>` : ""}
     <div class="plans">${cards}</div>
     <div class="abo-more">
       ${windows ? `<section class="abo-info"><header><h2>${icon("user", 18)} StudiNow-Konto</h2><span class="badge ${me.account?.offline ? "warn" : "ok"}">${me.account?.offline ? "Dienst nicht erreichbar" : "angemeldet"}</span></header>
@@ -133,16 +139,17 @@ export async function viewAbo(_, params, view) {
         <p>Auf diesem PC kannst du nichts kaufen, und es gibt hier keinen Link zu einem Bezahlsystem: alle Funktionen sind frei. Tarife gelten für StudiNow-Konten im Dienst; StudiNow Plus gibt es schon in der Apple-App, StudiNow Pro AI kommt mit dem StudiNow-Dienst. Jedes neue Konto im Dienst startet mit 7 Tagen Probe mit allem, ganz ohne Bezahlangaben, danach gilt Free.</p></section>`
       : `<section class="abo-info"><header><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></header>
         <p>${esc(contract.purchase.apple.note)} ${esc(contract.purchase.web.note)}${windows ? " Unter Windows öffnet „Abschließen“ die Bezahlseite in deinem Browser." : ""}</p>
-        <p>Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. ${gated ? "Bei Kündigung oder Ablauf bleiben deine Daten erhalten: im Web und unter Windows kannst du sie dann ansehen und exportieren, in der iPad-App weiter mit Free nutzen." : "Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt."}</p></section>`}
+        <p>Monatlich oder jährlich (Plus 21,99 €, Pro AI 41,99 € im Jahr); Credits und Kontingente gelten auch bei jährlicher Zahlung je Kalendermonat. Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Zeitraums. ${gated ? "Bei Kündigung oder Ablauf bleiben deine Daten erhalten: im Web und unter Windows kannst du sie dann ansehen und exportieren, in der iPad-App weiter mit Free nutzen." : "Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt."}</p></section>`}
     </div></div>`;
   if (state.gated) state.entitlements = me;
   if (params.checkout === "success" && me.source !== "stripe" && !viewAbo._retried) { viewAbo._retried = true; setTimeout(() => { if (location.hash.startsWith("#/abo")) state.route(); }, 4000); }
   // Windows: Bezahlseite und Kundenportal im Systembrowser, danach den Stand beim Dienst neu abfragen (alle 5 s, 10 Minuten)
   const watchAccount = () => { clearInterval(viewAbo._watch); const until = Date.now() + 10 * 60 * 1000;
     viewAbo._watch = setInterval(() => { if (Date.now() > until || !location.hash.startsWith("#/abo")) { clearInterval(viewAbo._watch); return; } window.refreshAppAccount?.(true, true); }, 5000); };
-  $$("[data-buy]", view).forEach(b => b.onclick = async () => { b.disabled = true;
-    if (windows) { try { await api("/app-account/checkout", { method: "POST", body: { plan: b.dataset.buy } }); toast(GATE_TEXTS.checkoutOpened, 7000); watchAccount(); } catch (e) { toast(e.message, 6000); } b.disabled = false; return; }
-    try { const r = await api("/billing/plan-choice", { method: "POST", body: { plan: b.dataset.buy } }); if (r.checkout_url) { location.href = r.checkout_url; return; } toast(r.checkout_error || "Abschluss zurzeit nur in der Apple-App", 5000); } catch (e) { toast(e.message, 5000); } b.disabled = false; });
+  $$("#aboInterval [data-interval]", view).forEach(b => b.onclick = () => { try { sessionStorage.setItem("abo-interval", b.dataset.interval); } catch {} state.route(); });
+  $$("[data-buy]", view).forEach(b => b.onclick = async () => { b.disabled = true; const body = AL.checkoutBody(b.dataset.buy, b.dataset.interval);
+    if (windows) { try { await api("/app-account/checkout", { method: "POST", body }); toast(GATE_TEXTS.checkoutOpened, 7000); watchAccount(); } catch (e) { toast(e.message, 6000); } b.disabled = false; return; }
+    try { const r = await api("/billing/plan-choice", { method: "POST", body }); if (r.checkout_url) { location.href = r.checkout_url; return; } toast(r.checkout_error || "Abschluss zurzeit nur in der Apple-App", 5000); } catch (e) { toast(e.message, 5000); } b.disabled = false; });
   const portal = async () => { try { if (windows) { await api("/app-account/portal", { method: "POST", body: {} }); toast("Das Kundenportal ist in deinem Browser geöffnet.", 5000); watchAccount(); return; } const r = await api("/billing/stripe/portal", { method: "POST", body: {} }); location.href = r.url; } catch (e) { toast(e.message, 5000); } };
   $("#aboBrowse", view)?.addEventListener("click", () => { try { sessionStorage.setItem("gate-browse", "1"); } catch {} location.hash = "#/dashboard"; });
   $("#aboRecheck", view)?.addEventListener("click", () => window.refreshAppAccount?.(true));

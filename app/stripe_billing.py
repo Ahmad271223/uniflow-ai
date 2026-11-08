@@ -8,7 +8,11 @@ Ohne Fremdpaket: die Stripe-API ist form-kodiertes HTTPS mit dem geheimen Schlue
 Konfiguration (Umgebung des Dienstes, nie in der App):
 - LERNAPP_STRIPE_SECRET_KEY      sk_live_… oder sk_test_…
 - LERNAPP_STRIPE_WEBHOOK_SECRET  whsec_… (Endpunkt POST /api/billing/stripe/webhook)
-- LERNAPP_STRIPE_PRICES          "plus=price_…,pro_ai=price_…" (monatliche Preise in Stripe; nur kaufbare Tarife)
+- LERNAPP_STRIPE_PRICES          "plus=price_…,pro_ai=price_…,plus_yearly=price_…,pro_ai_yearly=price_…": monatliche und
+                                 jaehrliche Preise in Stripe (nur kaufbare Tarife). Jahrespreise (08.11.2026, wie im App
+                                 Store de.uniflow.plus.yearly 21,99 EUR und de.uniflow.proai.yearly 41,99 EUR): Schluessel
+                                 `<tarif>_yearly`, `<tarif>.yearly` oder die Apple-Produkt-ID; ohne Jahrespreis gibt es
+                                 im Web nur die monatliche Zahlung (Umschalter zeigt den Jahrespreis dann ohne Knopf).
 - LERNAPP_PUBLIC_URL             Basis der Rueck-Adressen nach dem Checkout
 
 Regeln:
@@ -71,21 +75,60 @@ def webhook_secret() -> str:
     return _env("LERNAPP_STRIPE_WEBHOOK_SECRET")
 
 
-def prices() -> dict[str, str]:
-    """Tarif -> Stripe-Preis-ID aus LERNAPP_STRIPE_PRICES; nur bekannte, kaufbare Tarife."""
-    out = {}
+INTERVALS = ("month", "year")
+
+
+def _plan_interval(key: str) -> tuple[str, str] | None:
+    """Schluessel in LERNAPP_STRIPE_PRICES -> (Tarif, Zeitraum): `plus` monatlich, `plus_yearly`/`plus.yearly` oder die
+    Apple-Produkt-ID (`de.uniflow.plus.yearly`) jaehrlich; unbekannte und nicht kaufbare Schluessel: None."""
+    k = key.strip().lower()
+    if plans.is_sellable(k):
+        return k, "month"
+    for suffix in ("_yearly", ".yearly"):
+        if k.endswith(suffix) and plans.is_sellable(k[: -len(suffix)]):
+            return k[: -len(suffix)], "year"
+    plan = plans.plan_for_product(k)
+    if plan and plans.is_sellable(plan):
+        return plan, "year" if k.endswith(".yearly") else "month"
+    return None
+
+
+def all_prices() -> dict[tuple[str, str], str]:
+    """(Tarif, Zeitraum) -> Stripe-Preis-ID aus LERNAPP_STRIPE_PRICES; nur bekannte, kaufbare Tarife."""
+    out: dict[tuple[str, str], str] = {}
     for part in _env("LERNAPP_STRIPE_PRICES").split(","):
         k, _, v = part.partition("=")
-        k, v = k.strip(), v.strip()
-        if plans.is_sellable(k) and v:
-            out[k] = v
+        pi, v = _plan_interval(k), v.strip()
+        if pi and v:
+            out[pi] = v
     return out
 
 
+def prices() -> dict[str, str]:
+    """Tarif -> Stripe-Preis-ID der monatlichen Zahlung (wie bisher; `yearly_prices` fuer die jaehrliche)."""
+    return {plan: pid for (plan, interval), pid in all_prices().items() if interval == "month"}
+
+
+def yearly_prices() -> dict[str, str]:
+    return {plan: pid for (plan, interval), pid in all_prices().items() if interval == "year"}
+
+
+def price_for(plan: str, interval: str = "month") -> str | None:
+    return all_prices().get((plan, interval))
+
+
 def plan_for_price(price_id: str | None) -> str | None:
-    for plan, pid in prices().items():
+    """Tarif zu einer Preis-ID, monatlich oder jaehrlich (Webhook, geplanter Wechsel)."""
+    for (plan, _interval), pid in all_prices().items():
         if pid == price_id:
             return plan
+    return None
+
+
+def interval_for_price(price_id: str | None) -> str | None:
+    for (_plan, interval), pid in all_prices().items():
+        if pid == price_id:
+            return interval
     return None
 
 
@@ -204,25 +247,30 @@ def _returns(base: str, client: str | None) -> tuple[str, str]:
     return f"{base}/#/abo?checkout=success", f"{base}/#/abo?checkout=cancel"
 
 
-def checkout(conn, user: dict, plan: str, client: str | None = None) -> dict:
-    """Checkout-Sitzung fuer ein Monatsabo; die Oberflaeche leitet auf `url` weiter. `client` "windows": Rueckkehr auf
-    die schlichte Seite /abo-fertig statt in die Web-App. Mit aktivem Apple- oder Stripe-Abo: 409 (kein zweiter Kauf)."""
+def checkout(conn, user: dict, plan: str, client: str | None = None, interval: str = "month") -> dict:
+    """Checkout-Sitzung fuer ein Abo, monatlich oder jaehrlich (`interval`, 08.11.2026); die Oberflaeche leitet auf `url`
+    weiter. `client` "windows": Rueckkehr auf die schlichte Seite /abo-fertig statt in die Web-App. Mit aktivem Apple-
+    oder Stripe-Abo: 409 (kein zweiter Kauf)."""
     guard_second_purchase(conn, user["id"])
     if not available():
         raise StripeError("stripe_not_configured", "Im Web gibt es noch keinen Abschluss (Stripe nicht eingerichtet).", 503)
-    price = prices().get(plan)
-    if not price:
+    if interval not in INTERVALS:
+        raise StripeError("interval_invalid", "Zahlungszeitraum: month oder year.", 400)
+    if not prices().get(plan):
         raise StripeError("plan_not_sellable", f"Der Tarif {plan!r} ist im Web nicht abschließbar.", 400)
+    price = price_for(plan, interval)
+    if not price:
+        raise StripeError("interval_not_sellable", "Die jährliche Zahlung gibt es im Web noch nicht – bitte monatlich wählen.", 400)
     base = public_url()
     s = http_post_form("/checkout/sessions", {
         "mode": "subscription", "customer": customer_id(conn, user), "client_reference_id": user["id"], "locale": "de",
         "line_items": [{"price": price, "quantity": 1}],
-        "subscription_data": {"metadata": {"user_id": user["id"], "plan": plan}},
+        "subscription_data": {"metadata": {"user_id": user["id"], "plan": plan, "interval": interval}},
         "success_url": _returns(base, client)[0], "cancel_url": _returns(base, client)[1],
     })
     if not isinstance(s.get("url"), str):
         raise StripeError("stripe_error", "Stripe hat keine Checkout-Adresse geliefert.", 502)
-    return {"url": s["url"], "session_id": s.get("id"), "plan": plan}
+    return {"url": s["url"], "session_id": s.get("id"), "plan": plan, "interval": interval}
 
 
 def portal(conn, user: dict, client: str | None = None) -> dict:

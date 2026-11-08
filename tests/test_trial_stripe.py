@@ -153,7 +153,7 @@ def test_prices_and_channels(hosted, stripe):
 def test_checkout_creates_customer_once_and_returns_the_url(hosted, stripe):
     u, h = register(hosted, "kauf@beispiel.de")
     st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "plus"})))
-    assert st == 200 and d == {"url": "https://checkout.stripe.com/c/cs_1", "session_id": "cs_1", "plan": "plus"}, d
+    assert st == 200 and d == {"url": "https://checkout.stripe.com/c/cs_1", "session_id": "cs_1", "plan": "plus", "interval": "month"}, d
     cust = [c for c in stripe.calls if c[1] == "/customers"]
     assert len(cust) == 1 and cust[0][2] == {"email": "kauf@beispiel.de", "metadata": {"user_id": u["id"]}} and cust[0][3] == f"customer-{u['id']}"
     sess = [c for c in stripe.calls if c[1] == "/checkout/sessions"][0][2]
@@ -567,3 +567,66 @@ def test_event_order_is_tracked_per_subscription(hosted, stripe):
     finally:
         conn.close()
     assert rows == {"sub_a": t0 + 100, "sub_b": t0}
+
+
+# ================================================================ Jahresabos (08.11.2026, Punkt 3 der Windows-Fertigstellung)
+
+@pytest.fixture
+def stripe_yearly(stripe, monkeypatch):
+    """Dazu die Jahrespreise: Plus als `plus_yearly`, Pro AI ueber die Apple-Produkt-ID (beide Schreibweisen erlaubt)."""
+    monkeypatch.setenv("LERNAPP_STRIPE_PRICES", "plus=price_plus,pro_ai=price_ai,plus_yearly=price_plus_y,de.uniflow.proai.yearly=price_ai_y,free_yearly=price_nein")
+    return stripe
+
+
+def test_yearly_prices_are_known_but_optional(hosted, stripe, stripe_yearly):
+    sb = stripe.module
+    assert sb.prices() == {"plus": "price_plus", "pro_ai": "price_ai"}, "monatlich wie bisher"
+    assert sb.yearly_prices() == {"plus": "price_plus_y", "pro_ai": "price_ai_y"}
+    assert sb.price_for("plus", "year") == "price_plus_y" and sb.price_for("pro_ai", "year") == "price_ai_y"
+    assert sb.plan_for_price("price_ai_y") == "pro_ai" and sb.interval_for_price("price_ai_y") == "year"
+    assert sb.interval_for_price("price_plus") == "month" and sb.plan_for_price("price_nein") is None
+    st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
+    assert d["purchase"]["web"]["yearly_plans"] == ["plus", "pro_ai"] and d["purchase"]["web"]["intervals"] == ["month", "year"]
+    assert d["plans"]["plus"]["price_cents_yearly"] == 2199 and d["plans"]["pro_ai"]["price_cents_yearly"] == 4199
+
+
+def test_yearly_checkout_uses_the_yearly_price(hosted, stripe, stripe_yearly):
+    u, h = register(hosted, "jahr@beispiel.de")
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "pro_ai", "interval": "year"})))
+    assert st == 200 and d["interval"] == "year" and d["url"].startswith("https://checkout.stripe.com/"), d
+    sess = [c for c in stripe.calls if c[1] == "/checkout/sessions"][-1][2]
+    assert sess["line_items"] == [{"price": "price_ai_y", "quantity": 1}]
+    assert sess["subscription_data"]["metadata"]["interval"] == "year"
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "plus", "interval": "quartal"})))
+    assert (st, d["code"]) == (400, "interval_invalid")
+    # plan-choice mit Jahr
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/plan-choice", headers=h, body=json.dumps({"plan": "plus", "interval": "year"})))
+    assert st == 200 and d["interval"] == "year" and d["checkout_url"]
+    assert [c for c in stripe.calls if c[1] == "/checkout/sessions"][-1][2]["line_items"][0]["price"] == "price_plus_y"
+
+
+def test_without_yearly_price_only_monthly_is_sold(hosted, stripe):
+    u, h = register(hosted, "nurmonat@beispiel.de")
+    st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
+    assert d["purchase"]["web"]["yearly_plans"] == []
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "plus", "interval": "year"})))
+    assert (st, d["code"]) == (400, "interval_not_sellable")
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "plus"})))
+    assert st == 200 and d["interval"] == "month"
+
+
+def test_yearly_subscription_event_sets_the_plan(hosted, stripe, stripe_yearly):
+    from app import billing
+    u, h = register(hosted, "jahresabo@beispiel.de")
+    sub = subscription(sid="sub_y", price="price_ai_y", meta={"user_id": u["id"], "plan": "pro_ai", "interval": "year"},
+                       end=int(time.time()) + 365 * 86400)
+    payload, sig = event("evt_y1", "customer.subscription.created", sub)
+    st, d = webhook(hosted, payload, sig)
+    assert st == 200, d
+    e = ent(hosted, h)
+    assert e["plan"] == "pro_ai" and e["source"] == "stripe" and e["entitlements"]["can_use_ai_explanations"]
+    conn = billing.connect()
+    try:
+        assert billing.current_plan(conn, u["id"]) == "pro_ai"
+    finally:
+        conn.close()

@@ -415,20 +415,23 @@ def _service_json(method: str, path: str, body: dict | None = None) -> dict:
     return d if isinstance(d, dict) else {}
 
 
-def checkout(plan: str, open_browser: bool = True) -> dict:
-    """Stripe-Checkout im Systembrowser. Mit Apple-Abo am Konto: kein zweiter Kauf (409 apple_subscription_active)."""
+def checkout(plan: str, open_browser: bool = True, interval: str = "month") -> dict:
+    """Stripe-Checkout im Systembrowser, monatlich oder jaehrlich (`interval`, 08.11.2026). Mit Apple-Abo am Konto:
+    kein zweiter Kauf (409 apple_subscription_active)."""
     if not plans.is_sellable(plan):
         raise AccountModeError("plan_invalid", "Bitte StudiNow Plus oder StudiNow Pro AI wählen.", 400)
+    if interval not in ("month", "year"):
+        raise AccountModeError("interval_invalid", "Zahlungszeitraum: month oder year.", 400)
     subs = ((load_cache() or {}).get("entitlements") or {}).get("subscriptions") or {}
     if subs.get("app_store"):
         raise AccountModeError("apple_subscription_active", APPLE_NOTE, 409)
-    d = _service_json("POST", "/api/billing/stripe/checkout", {"plan": plan, "client": "windows"})
+    d = _service_json("POST", "/api/billing/stripe/checkout", {"plan": plan, "client": "windows", "interval": interval})
     url = d.get("url")
     if not isinstance(url, str) or not url.startswith("https://"):
         raise AccountModeError("stripe_error", "Der Dienst hat keine Bezahlseite geliefert.", 502)
     if open_browser:
         open_url(url)
-    return {"opened": open_browser, "url": url, "plan": plan}
+    return {"opened": open_browser, "url": url, "plan": plan, "interval": interval}
 
 
 def portal(open_browser: bool = True) -> dict:

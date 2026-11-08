@@ -588,3 +588,18 @@ def test_ui_wires_the_gate():
     assert "!(state.hosted || state.gated)" in core and "state.appAccount" in core
     assert "/app-account/checkout" in abo and "/app-account/portal" in abo and "GATE_TEXTS.apple" in abo
     assert "id=\"aboBrowse\"" in abo and "exportHref(me)" in abo
+
+
+def test_windows_checkout_passes_the_yearly_interval(svc, stripe, monkeypatch):
+    """Jahresabo aus der Windows-App (08.11.2026): der Dienst bekommt interval=year und nimmt den Jahrespreis."""
+    monkeypatch.setenv("LERNAPP_STRIPE_PRICES", "plus=price_plus,pro_ai=price_ai,plus_yearly=price_plus_y,pro_ai_yearly=price_ai_y")
+    app = svc.app
+    _register(app, "jahr@example.org")
+    _login(app, "jahr@example.org")
+    st, d = _local(app, "POST", "/api/app-account/checkout", {"plan": "pro_ai", "interval": "year"})
+    assert st == 200 and d["interval"] == "year" and d["url"].startswith("https://checkout.stripe.com/"), d
+    sess = [f for p, f in stripe if p == "/checkout/sessions"][-1]
+    assert sess["line_items"] == [{"price": "price_ai_y", "quantity": 1}]
+    assert _local(app, "POST", "/api/app-account/checkout", {"plan": "plus", "interval": "woche"})[1]["code"] == "interval_invalid"
+    st, d = _local(app, "POST", "/api/app-account/checkout", {"plan": "plus"})
+    assert st == 200 and d["interval"] == "month"
