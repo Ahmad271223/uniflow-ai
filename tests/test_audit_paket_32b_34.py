@@ -477,3 +477,34 @@ def test_p34_12_last_page_is_checked(hosted, page):
     st, d = call(hosted, "POST", "/api/files/f34/opened", {"last_page": page}, headers=h)
     assert st == 422, (st, d)
     assert call(hosted, "POST", "/api/files/f34/opened", {"last_page": "7"}, headers=h)[0] == 200
+
+
+# ---------------------------------------------------------------- Nachtrag: conflicts/reslot ohne Hoechstwert
+
+@pytest.mark.parametrize("days", [10**9, 3661, -1], ids=["riesig", "ueber-grenze", "negativ"])
+def test_nachtrag_conflicts_days_is_bounded(hosted, days):
+    """`days` lief ohne Hoechstwert in die Tagesschleife (10**9 = Thread endlos bzw. OverflowError); jetzt 0..3660."""
+    _, h = user(hosted, f"konflikt-{days}@beispiel.de")
+    st, d = call(hosted, "GET", f"/api/timetable/conflicts?days={days}", headers=h)
+    assert st == 422, (st, str(d)[:200])
+
+
+def test_nachtrag_conflicts_default_still_works(hosted):
+    _, h = user(hosted, "konflikt-ok@beispiel.de")
+    st, d = call(hosted, "GET", "/api/timetable/conflicts", headers=h)
+    assert st == 200 and isinstance(d, list), (st, str(d)[:200])
+
+
+@pytest.mark.parametrize("dates", [["gestern"], "2026-11-09", [None], ["2026-11-09"] * 4000],
+                         ids=["kein-datum", "kein-array", "null", "zu-viele"])
+def test_nachtrag_reslot_rejects_bad_dates(hosted, dates):
+    """Ungueltige Daten gaben 500, eine Liste war unbegrenzt (jede Angabe plant einen Tag neu)."""
+    _, h = user(hosted, f"reslot-{abs(hash(str(dates)[:40]))}@beispiel.de")
+    st, d = call(hosted, "POST", "/api/timetable/reslot", {"dates": dates}, headers=h)
+    assert st == 422, (st, str(d)[:200])
+
+
+def test_nachtrag_reslot_valid_dates_still_work(hosted):
+    _, h = user(hosted, "reslot-ok@beispiel.de")
+    st, d = call(hosted, "POST", "/api/timetable/reslot", {"dates": ["2026-11-09"], "only_unset": True}, headers=h)
+    assert st == 200 and d["reslotted"] == ["2026-11-09"], (st, str(d)[:200])

@@ -3776,6 +3776,9 @@ def api_tt_import_confirm(body: dict = Body(...)):
 
 @app.get("/api/timetable/conflicts")
 def api_tt_conflicts(days: int = 28):
+    """`days` 0..MAX_SPAN_DAYS (ohne Grenze lief die Tagesschleife bei 10**9 endlos bzw. warf OverflowError)."""
+    if not 0 <= days <= MAX_SPAN_DAYS:
+        raise HTTPException(422, f"days: 0 bis {MAX_SPAN_DAYS}")
     with db.cursor() as conn:
         return study.slot_conflicts(conn, date.today(), date.today() + timedelta(days=days))
 
@@ -3785,6 +3788,10 @@ def api_tt_reslot(body: dict = Body(default={})):
     """Lernslots der betroffenen Tage neu in freie Fenster legen. Mit only_unset ("Uhrzeiten vergeben") bekommen nur
     Pakete ohne Uhrzeit eine; von Hand gesetzte Uhrzeiten bleiben (frueher wurden sie ohne Rueckfrage neu vergeben)."""
     days = body.get("dates") or []
+    # Nur eine Liste gueltiger Tage, hoechstens MAX_SPAN_DAYS (vorher 500 bei ungueltigem Datum, Liste unbegrenzt)
+    if not isinstance(days, list) or len(days) > MAX_SPAN_DAYS:
+        raise HTTPException(422, f"dates: Liste mit höchstens {MAX_SPAN_DAYS} Tagen")
+    days = [_iso_day(d, "dates") for d in days]
     only_unset = bool(body.get("only_unset"))
     with db.cursor() as conn:
         if not days:
