@@ -208,3 +208,40 @@ def test_p5_02_update_after_moderation_removal_does_not_resurrect_the_package(ho
     assert _row(sid)["status"] == "removed" and _row(sid)["pages"] == 2
     assert not _file(sid).exists() and _leftovers() == []
 
+
+# ---------------------------------------------------------------- P5-03 moderate: restore nach remove
+
+def test_p5_03_restore_after_remove_does_not_offer_a_package_that_is_gone(hosted):  # noqa: F811
+    """`remove` loescht die Paketdatei; `restore` setzte die Loesung trotzdem auf aktiv: gelistet, aber Laden 404.
+    Entscheidung: ohne Paket wird sie zurueckgezogen (wie vom Autor), der Autor kann sie erneut veroeffentlichen."""
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    admin, hadm = _user(hosted, "admin@beispiel.de", admin=True)
+    pkg = _pkg()
+    sid = _publish(hosted, ha, pkg)
+    assert call(hosted, "POST", f"/solutions/{sid}/moderate", hadm, {"action": "remove", "reason": "x"})[1]["solution"]["status"] == "removed"
+    assert not _file(sid).exists()
+    st, d = call(hosted, "POST", f"/solutions/{sid}/moderate", hadm, {"action": "restore"})
+    assert st == 200
+    assert d["solution"]["status"] != "active", "aktiv ohne Paket"
+    assert d["solution"]["status"] == "withdrawn" and d.get("package_gone") is True
+    assert call(hosted, "GET", f"/communities/{KURS}/solutions", hl)[1]["solutions"] == []
+    assert call(hosted, "GET", f"/solutions/{sid}", hl)[0] == 404
+    # der Autor veroeffentlicht dieselbe Loesung erneut, danach ist sie wieder ladbar
+    st, d = call(hosted, "POST", "/solutions", ha, {"package": pkg, "title": "Blatt 3", "community_key": KURS})
+    assert (st, d["republished"]) == (201, True)
+    assert call(hosted, "GET", f"/solutions/{sid}", hl)[1]["package"] == pkg
+
+
+def test_p5_03_restore_after_hide_keeps_the_package_and_works(hosted):  # noqa: F811
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    admin, hadm = _user(hosted, "admin@beispiel.de", admin=True)
+    pkg = _pkg()
+    sid = _publish(hosted, ha, pkg)
+    assert call(hosted, "POST", f"/solutions/{sid}/moderate", hadm, {"action": "hide", "reason": "pruefen"})[1]["solution"]["status"] == "hidden"
+    assert _file(sid).exists()
+    st, d = call(hosted, "POST", f"/solutions/{sid}/moderate", hadm, {"action": "restore"})
+    assert (st, d["solution"]["status"], "package_gone" in d) == (200, "active", False)
+    assert call(hosted, "GET", f"/solutions/{sid}", hl)[1]["package"] == pkg
+

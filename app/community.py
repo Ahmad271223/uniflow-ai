@@ -873,7 +873,12 @@ def moderate(user: dict, solution_id: str, action: str, reason: str | None = Non
         if action == "hide":
             conn.execute("UPDATE solutions SET status='hidden', status_reason=? WHERE id=?", (reason or "moderation", r["id"]))
         elif action == "restore":
-            conn.execute("UPDATE solutions SET status='active', status_reason=NULL WHERE id=? AND status IN ('hidden','removed')", (r["id"],))
+            # Audit P5-03 (08.11.2026): `remove` und `ban_author` loeschen die Paketdatei; eine Wiederherstellung ohne
+            # Paket wurde "aktiv" gelistet, das Laden lief auf 404. Ohne Paket gilt die Loesung als zurueckgezogen
+            # (wie durch den Autor): der Autor veroeffentlicht sie erneut (gleiche ID, Likes und Kommentare bleiben).
+            gone = r["status"] in ("hidden", "removed") and not _package_path(r["id"]).exists()
+            conn.execute("UPDATE solutions SET status=?, status_reason=? WHERE id=? AND status IN ('hidden','removed')",
+                         ("withdrawn" if gone else "active", "package_gone" if gone else None, r["id"]))
             conn.execute("DELETE FROM reports WHERE solution_id=?", (r["id"],))
             conn.execute("UPDATE solutions SET report_count=0 WHERE id=?", (r["id"],))
         elif action == "remove":
@@ -889,7 +894,10 @@ def moderate(user: dict, solution_id: str, action: str, reason: str | None = Non
         else:
             raise CommunityError("action_invalid", "Unbekannte Aktion.")
         s = _summary(conn.execute("SELECT * FROM solutions WHERE id=?", (r["id"],)).fetchone(), user["id"])
-    return {"action": action, "solution": s}
+    out = {"action": action, "solution": s}
+    if action == "restore" and gone:
+        out["package_gone"] = True                       # Paket war geloescht: zurueckgezogen statt aktiv
+    return out
 
 
 # ---------------------------------------------------------------- Likes, Kommentare, Rangliste (28.10.2026)

@@ -346,7 +346,10 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   solution}` (zählt `downloads`, außer bei der eigenen); `DELETE /api/community/solutions/{id}` → `{withdrawn,
   already}` (403 `not_owner`); `GET /api/community/mine`; `POST …/{id}/report {reason, note}` → `{reported, hidden,
   reports}`; `POST …/{id}/block` → `{blocked}`; `DELETE /api/community/blocks/{pseudonym}`; `GET
-  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}`. Melden (auch
+  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}` → `{action,
+  solution}`; `restore` einer entfernten Lösung, deren Paket `remove`/`ban_author` gelöscht hat, setzt sie auf
+  `withdrawn` statt `active` und antwortet zusätzlich `package_gone: true` (Audit P5-03, 08.11.2026); der Autor
+  veröffentlicht sie dann erneut (gleiche ID, Likes und Kommentare bleiben). Melden (auch
   Kommentare, Fragen, Antworten) verlangt eine bestätigte E-Mail (403 `email_unverified`) und die Sichtbarkeit des
   Beitrags, höchstens 10 Meldungen je Konto und Tag (429 `rate_limited`). Die Moderation zeigt je Meldung `reporter`
   (`pseudonym`, `account_age_days`, `email_verified`) sowie `comments`, `questions`, `answers` (verborgen oder
