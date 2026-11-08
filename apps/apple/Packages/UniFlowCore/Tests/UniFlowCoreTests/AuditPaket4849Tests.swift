@@ -213,4 +213,16 @@ final class AuditPaket4849Tests: XCTestCase {
         // jede Aufgabe kommt noch mit Text und Loesung an
         XCTAssertTrue(ctx.tasks.allSatisfy { Weekly.len($0.text) >= 500 && Weekly.len($0.solution) >= 300 })
     }
+
+    /// Wenige Aufgaben (bis 14): Text und Loesung so lang wie bisher (1400/900), der gemeinsame Vertrag mit Python
+    /// (weekly.json) bleibt unveraendert
+    func testP49_FewTasksKeepTheirFullLength() {
+        XCTAssertEqual(Weekly.taskChars(14), 1400)
+        XCTAssertEqual(Weekly.solutionChars(14), 900)
+        XCTAssertEqual(Weekly.taskChars(1), 1400)
+        XCTAssertEqual(Weekly.taskChars(29), 689)
+        XCTAssertEqual(Weekly.solutionChars(29), 448)
+        XCTAssertEqual(Weekly.taskChars(100), 500)
+        XCTAssertEqual(Weekly.solutionChars(100), 300)
+    }
 }

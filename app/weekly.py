@@ -573,6 +573,12 @@ def _solution_key(name: str) -> str:
     return s
 
 
+def _numbers(key: str) -> list[int]:
+    """Nummern im Schluessel ("übungsblatt10" -> [10]): der Teilwort-Rueckfall darf "Blatt 1" nie mit "Blatt 10"
+    verbinden (Audit P49-06, 08.11.2026)"""
+    return [int(x) for x in re.findall(r"\d+", key)]
+
+
 def _difficulty(text: str, points: float | None, source: str) -> int:
     d = 2 + (len(text) > 700) + (len(text) > 1600) + (source == "altklausur") + ((points or 0) >= 10)
     return max(1, min(5, d))
@@ -665,7 +671,8 @@ def _link_solutions(conn, module_id: int) -> None:
     for t in db.rows(conn, """SELECT t.id, t.nr, f.name FROM task_index t JOIN files f ON f.id=t.file_id
                               WHERE t.module_id=? AND t.source!='loesung'""", (module_id,)):
         k = _solution_key(t["name"])
-        cand = by_key.get(k) or next((v for kk, v in by_key.items() if kk and k and (kk in k or k in kk) and min(len(kk), len(k)) >= 4), None)
+        cand = by_key.get(k) or next((v for kk, v in by_key.items() if kk and k and (kk in k or k in kk) and min(len(kk), len(k)) >= 4
+                                      and _numbers(kk) == _numbers(k)), None)
         s = (cand or {}).get(t["nr"])
         conn.execute("UPDATE task_index SET solution_file_id=?, solution_text=? WHERE id=?",
                      (s["file_id"] if s else None, s["text"][:5000] if s else None, t["id"]))
@@ -980,6 +987,17 @@ def _short(t: str, n: int) -> str:
     return t if len(t) <= n else t[:n].rsplit(" ", 1)[0] + " …"
 
 
+def _task_chars(n: int) -> int:
+    """Zeichen je Aufgabentext bei n Aufgaben: bis 14 wie bisher 1400, darueber weniger (mindestens 500), damit Entwurf und
+    Fachpruefung unter der Grenze der Aufgabe `weekly` bleiben (app/ai_relay.py, 120 000; Audit P49, 08.11.2026)"""
+    return max(500, min(1400, 20000 // max(1, n)))
+
+
+def _solution_chars(n: int) -> int:
+    """Zeichen je Musterloesung bei n Aufgaben: bis 14 wie bisher 900, darueber weniger (mindestens 300)"""
+    return max(300, min(900, 13000 // max(1, n)))
+
+
 def build_context(conn, plan: dict, cands: dict, missing: list[str], n_questions: int | None = None) -> dict:
     covj = json.loads(plan["coverage"])
     mod = db.row(conn, "SELECT * FROM modules WHERE id=?", (plan["module_id"],))
@@ -1009,8 +1027,8 @@ def build_context(conn, plan: dict, cands: dict, missing: list[str], n_questions
         per_src[c["source"]] += 1
         picked.append(c)
     tasks = [{"id": f"A{i + 1}", "task_id": c["id"], "source": c["source"], "label": c["label"], "is_new_week": c["is_new_week"],
-              "exam_term": c.get("exam_term"), "points": c.get("points"), "difficulty": c.get("difficulty"), "text": _short(c["text"], 1400),
-              "solution": _short(c.get("solution_text") or "", 900), "file_id": c["file_id"], "page_from": c["page_from"]} for i, c in enumerate(picked)]
+              "exam_term": c.get("exam_term"), "points": c.get("points"), "difficulty": c.get("difficulty"), "text": _short(c["text"], _task_chars(len(picked))),
+              "solution": _short(c.get("solution_text") or "", _solution_chars(len(picked))), "file_id": c["file_id"], "page_from": c["page_from"]} for i, c in enumerate(picked)]
     topic = " · ".join(dict.fromkeys(sg.get("topic") for sg in covj["new"] if sg.get("topic")))[:160]
     # ergaenzend: passende Courseware- und Wiki-Texte aus Stud.IP (app/studip_texts.py), gekuerzt, nicht im material_hash
     from . import studip_texts

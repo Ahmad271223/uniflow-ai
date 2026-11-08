@@ -101,6 +101,12 @@ extension Weekly {
     /// `_solution_key(name)`
     static func solutionKey(_ name: String) -> String { solWords.sub(solExt.sub(PyText.lower(name))) }
 
+    static let digitRuns = PyRegex(#"\d+"#)
+
+    /// `_numbers(key)`: Nummern im Schluessel ("übungsblatt10" -> [10]); der Teilwort-Rueckfall darf "Blatt 1" nie mit
+    /// "Blatt 10" verbinden (Audit P49-06, 08.11.2026)
+    static func numbers(_ key: String) -> [Int] { digitRuns.findAll(key).compactMap { Int($0) } }
+
     /// `_difficulty(text, points, source)`
     static func difficulty(_ text: String, _ points: Double?, _ source: String) -> Int {
         let n = len(text)
@@ -219,7 +225,9 @@ extension Weekly {
             let k = solutionKey(t["name"]?.string ?? "")
             var cand = byKey[k]
             if cand == nil || cand!.isEmpty {
-                cand = keys.first { kk in !kk.isEmpty && !k.isEmpty && (k.contains(kk) || kk.contains(k)) && min(len(kk), len(k)) >= 4 }.flatMap { byKey[$0] }
+                cand = keys.first { kk in
+                    !kk.isEmpty && !k.isEmpty && (k.contains(kk) || kk.contains(k)) && min(len(kk), len(k)) >= 4 && numbers(kk) == numbers(k)
+                }.flatMap { byKey[$0] }
             }
             let s = cand?[t["nr"]?.string ?? ""]
             try c.execute("UPDATE task_index SET solution_file_id=?, solution_text=? WHERE id=?",

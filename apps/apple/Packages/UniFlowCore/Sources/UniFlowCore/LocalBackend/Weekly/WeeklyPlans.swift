@@ -291,6 +291,14 @@ extension Weekly {
         return out.joined(separator: " · ")
     }
 
+    /// `_task_chars(n)`: Zeichen je Aufgabentext bei n Aufgaben; bis 14 wie bisher 1400, darueber weniger (mindestens
+    /// 500), damit Entwurf und Fachpruefung unter der Grenze der Aufgabe `weekly` bleiben (app/ai_relay.py, 120 000;
+    /// Audit P49, 08.11.2026)
+    static func taskChars(_ n: Int) -> Int { max(500, min(1400, 20000 / max(1, n))) }
+
+    /// `_solution_chars(n)`: Zeichen je Musterloesung; bis 14 wie bisher 900, darueber weniger (mindestens 300)
+    static func solutionChars(_ n: Int) -> Int { max(300, min(900, 13000 / max(1, n))) }
+
     /// `build_context(conn, plan, cands, missing, n_questions)`
     static func buildContext(_ c: SQLiteConnection, plan: [String: JSONValue], ok: [Candidate], excluded: [PyJSON], missing: [String],
                              questions: Int? = nil) throws -> Context {
@@ -331,7 +339,8 @@ extension Weekly {
             let r = cand.row
             return TaskRef(id: "A\(i + 1)", taskID: cand.id, source: cand.source, label: r["label"]?.string ?? "", isNewWeek: cand.isNewWeek,
                            examTerm: r["exam_term"]?.string, points: r["points"]?.double, difficulty: r["difficulty"]?.int,
-                           text: short(r["text"]?.string ?? "", 1400), solution: short(r["solution_text"]?.string ?? "", 900),
+                           text: short(r["text"]?.string ?? "", taskChars(picked.count)),
+                           solution: short(r["solution_text"]?.string ?? "", solutionChars(picked.count)),
                            fileID: r["file_id"]?.string ?? "", pageFrom: r["page_from"]?.int ?? 0)
         }
         let topic = String(joinedTopics(newSegs.map(\.topic)).unicodeScalars.prefix(160))
