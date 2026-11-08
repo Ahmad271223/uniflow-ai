@@ -18,7 +18,9 @@ Kontos (STUDIP_COOKIES / LEARNWEB_COOKIES), gesetzt vom Abgleich oder von der Ap
 from __future__ import annotations
 
 import json
+import math
 import os
+import tempfile
 import threading
 import time
 import urllib.error
@@ -37,6 +39,7 @@ POLL_S = 1.0
 
 _state: dict = {"state": "idle", "message": "", "since": None, "university": None}
 _lock = threading.Lock()
+_file_lock = threading.RLock()        # Lesen-Aendern-Schreiben der Sitzungsdatei (Audit 08.11.2026, P15-01)
 
 
 class LoginRequired(RuntimeError):
@@ -59,15 +62,22 @@ def _read_file() -> dict:
 
 
 def _write_file(data: dict) -> None:
+    """Atomar ueber eine eindeutige Temp-Datei (mkstemp: Rechte 0600 ab dem Anlegen, kein gemeinsamer .tmp-Name);
+    die Sitzung ist wie ein Schluessel: nur der Nutzer liest sie (unter Windows schuetzt das Profil %LOCALAPPDATA%)."""
     p = session_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    fd, tmp = tempfile.mkstemp(prefix=p.name + ".", suffix=".tmp", dir=p.parent)
     try:
-        os.chmod(tmp, 0o600)            # die Sitzung ist wie ein Schluessel: nur der Nutzer liest sie (unter Windows ohne Wirkung)
-    except OSError:
-        pass
-    os.replace(tmp, p)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False, indent=1))
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            pass
+        os.replace(tmp, p)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 # Cookies, deren Name nach einem Passwort aussieht, merkt die App nie (Schutz; die Hochschulen setzen solche Cookies nicht).
@@ -85,6 +95,35 @@ def _trim(cookies: list[dict]) -> list[dict]:
             if isinstance(c, dict) and c.get("name") and not looks_like_secret(c["name"])]
 
 
+def _valid_cookies(data) -> list[dict]:
+    """Nur Eintraege, die wie ein Cookie aussehen (Objekt mit Namen); beschaedigte werden uebersprungen (P15-03)."""
+    if not isinstance(data, list):
+        return []
+    return [c for c in data if isinstance(c, dict) and isinstance(c.get("name"), str) and c["name"]]
+
+
+def _expiry(c: dict) -> float | None:
+    """Ablauf eines Cookies: None = Sitzungs-Cookie (fehlt, 0 oder negativ), sonst Sekunden seit 1970.
+    Unlesbare Werte (Text, Liste, NaN, bool) gelten als abgelaufen: `-inf` (P15-04)."""
+    exp = c.get("expires")
+    if exp is None or exp == "":
+        return None
+    if isinstance(exp, bool):
+        return -math.inf
+    try:
+        v = float(exp)
+    except (TypeError, ValueError):
+        return -math.inf
+    if math.isnan(v):
+        return -math.inf
+    return None if v <= 0 else v
+
+
+def _alive(c: dict, now: float) -> bool:
+    exp = _expiry(c)
+    return exp is None or exp > now
+
+
 def saved_cookies(name: str) -> list[dict]:
     """Gemerkte Sitzung (JSON-Liste wie Playwright context.cookies()): Tresor im Dienst, sonst Datei im Datenordner."""
     if config.is_hosted():
@@ -93,9 +132,9 @@ def saved_cookies(name: str) -> list[dict]:
             data = json.loads(raw) if raw else []
         except ValueError:
             data = []
-        return data if isinstance(data, list) else []
+        return _valid_cookies(data)
     entry = _read_file().get(name) or {}
-    return entry.get("cookies") or [] if isinstance(entry, dict) else []
+    return _valid_cookies(entry.get("cookies")) if isinstance(entry, dict) else []
 
 
 def saved_at(name: str) -> str | None:
@@ -106,8 +145,10 @@ def saved_at(name: str) -> str | None:
 
 
 def has_session(name: str) -> bool:
+    """Eine gemerkte, nicht abgelaufene Sitzung liegt vor. Das heisst nur "Sitzung gespeichert", nicht "Anmeldung
+    geprueft": ob die Hochschule sie noch annimmt, zeigt erst der Abgleich bzw. `check_cookies` (P15-04)."""
     now = time.time()
-    return any(not c.get("expires") or c["expires"] < 0 or c["expires"] > now for c in saved_cookies(name))
+    return any(_alive(c, now) for c in saved_cookies(name))
 
 
 def save_session(name: str, cookies: list[dict]) -> None:
@@ -116,9 +157,10 @@ def save_session(name: str, cookies: list[dict]) -> None:
     if config.is_hosted():
         config.set_env({name: json.dumps(keep, ensure_ascii=False)})
         return
-    data = _read_file()
-    data[name] = {"cookies": keep, "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    _write_file(data)
+    with _file_lock:
+        data = _read_file()
+        data[name] = {"cookies": keep, "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        _write_file(data)
 
 
 def forget(name: str | None = None) -> None:
@@ -126,13 +168,14 @@ def forget(name: str | None = None) -> None:
     if config.is_hosted():
         config.set_env({n: None for n in names})
         return
-    data = _read_file()
-    for n in names:
-        data.pop(n, None)
-    if data:
-        _write_file(data)
-    else:
-        session_path().unlink(missing_ok=True)
+    with _file_lock:
+        data = _read_file()
+        for n in names:
+            data.pop(n, None)
+        if data:
+            _write_file(data)
+        else:
+            session_path().unlink(missing_ok=True)
 
 
 def restore(ctx, name: str) -> int:
@@ -159,18 +202,58 @@ def desktop_windows_available() -> bool:
     return os.environ.get("LERNAPP_DESKTOP") == "1" and desktop_windows.agent_connected()
 
 
+def _path_match(req_path: str, cookie_path: str) -> bool:
+    """RFC 6265 5.1.4: /studip passt auf /studip und /studip/x, nicht auf /studipx."""
+    if not cookie_path.startswith("/"):
+        cookie_path = "/"
+    if req_path == cookie_path:
+        return True
+    return req_path.startswith(cookie_path) and (cookie_path.endswith("/") or req_path[len(cookie_path)] == "/")
+
+
 def _cookie_header(cookies: list[dict], url: str) -> str:
-    host = urllib.parse.urlsplit(url).hostname or ""
+    """Cookie-Kopfzeile fuer `url` nach den Regeln des Browsers (P15-05): nur http(s), passende Domain (Cookies ohne
+    Domain nie: Tauri und Playwright liefern sie immer), Pfad, `secure` nur ueber https, nicht abgelaufen."""
+    u = urllib.parse.urlsplit(url)
+    scheme = (u.scheme or "").lower()
+    host = (u.hostname or "").lower()
+    if scheme not in ("http", "https") or not host:
+        return ""
+    path = u.path or "/"
     now = time.time()
     parts = []
     for c in cookies:
         if not isinstance(c, dict) or not c.get("name"):
             continue
-        dom = str(c.get("domain") or host).lstrip(".")
-        exp = c.get("expires")
-        if (host == dom or host.endswith("." + dom)) and (not exp or exp < 0 or exp > now):
+        dom = str(c.get("domain") or "").lower().lstrip(".")
+        if not dom or not (host == dom or host.endswith("." + dom)):    # ohne Domain: Herkunft unbekannt
+            continue
+        if c.get("secure") and scheme != "https":
+            continue
+        if not _path_match(path, str(c.get("path") or "/")):
+            continue
+        if _alive(c, now):
             parts.append(f"{c['name']}={c.get('value', '')}")
     return "; ".join(parts)
+
+
+class _CookieRedirect(urllib.request.HTTPRedirectHandler):
+    """Weiterleitungen: die Cookie-Kopfzeile wird fuer die neue Adresse neu berechnet (P15-06). urllib uebernimmt
+    sonst alle Kopfzeilen der ersten Anfrage, auch an einen fremden Host."""
+
+    def __init__(self, cookies: list[dict]):
+        super().__init__()
+        self.cookies = cookies
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is None:
+            return None
+        new.remove_header("Cookie")
+        h = _cookie_header(self.cookies, new.full_url)
+        if h:
+            new.add_header("Cookie", h)
+        return new
 
 
 def _get_with_cookies(url: str, cookies: list[dict], accept: str = "text/html,*/*", timeout: int = 20) -> str | None:
@@ -179,11 +262,24 @@ def _get_with_cookies(url: str, cookies: list[dict], accept: str = "text/html,*/
     if not header:
         return None
     req = urllib.request.Request(url, headers={"Cookie": header, "Accept": accept, "User-Agent": "UniFlow/1.0"})
+    opener = urllib.request.build_opener(_CookieRedirect(cookies))
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - feste Adresse der Hochschule
+        with opener.open(req, timeout=timeout) as r:  # noqa: S310 - feste Adresse der Hochschule
             return r.read(400_000).decode("utf-8", "replace")
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         return None
+
+
+def _studip_username(text: str | None) -> str | None:
+    """users/me der Stud.IP-JSON:API: data.attributes.username, sonst None (kein Treffer auf Anmelde-HTML, P15-07)."""
+    try:
+        d = json.loads(text or "")
+    except ValueError:
+        return None
+    data = d.get("data") if isinstance(d, dict) else None
+    attrs = data.get("attributes") if isinstance(data, dict) else None
+    u = attrs.get("username") if isinstance(attrs, dict) else None
+    return u if isinstance(u, str) and u.strip() else None
 
 
 def check_cookies(key: str, cookies: list[dict]) -> bool:
@@ -205,7 +301,7 @@ def check_cookies(key: str, cookies: list[dict]) -> bool:
         return sogo.discover_user(cookies) is not None
     from .config import STUDIP_BASE
     text = _get_with_cookies(f"{STUDIP_BASE}/jsonapi.php/v1/users/me", cookies, accept="application/vnd.api+json")
-    return bool(text) and '"username"' in text
+    return _studip_username(text) is not None
 
 
 def _cookie_urls(key: str) -> list[str]:
