@@ -98,3 +98,25 @@ def test_windows_credential_manager_roundtrip():
     assert s.get() is None
     s.delete()                                                           # zweites Loeschen ist kein Fehler
     assert isinstance(token_store.default_store(), token_store.WindowsCredentialStore)
+
+
+def test_store_json_placeholders_are_marked_until_partner_center_values_exist():
+    """apps/windows/msix/store.json (08.11.2026): bis der Inhaber die drei Werte aus Partner Center eintraegt, stehen dort
+    klar erkennbare Platzhalter und store_ready=false. Mit store_ready=true darf kein Platzhalter mehr drin sein, der
+    Publisher beginnt mit CN= und der Identity Name hat die Form des Stores."""
+    import json
+    store = json.loads((WIN / "msix" / "store.json").read_text(encoding="utf-8"))
+    keys = ("identity_name", "publisher", "publisher_display_name")
+    assert set(store["_inhaber_traegt_ein"]) == set(keys), "die Liste fuer den Inhaber nennt genau die drei Werte"
+    assert store["display_name"] == "StudiNow"
+    if store["store_ready"]:
+        assert all("PLATZHALTER" not in str(store[k]) for k in keys), "store_ready=true nur mit echten Werten"
+        assert store["publisher"].startswith("CN=") and re.fullmatch(r"[A-Za-z0-9.-]{3,50}", store["identity_name"])
+    else:
+        assert all("PLATZHALTER" in str(store[k]) for k in keys), "Platzhalter muessen als solche erkennbar sein"
+        assert "PLATZHALTER" in store["_hinweis"]
+    # das Manifest nutzt genau diese Werte, und build-msix.ps1 warnt ohne store_ready
+    manifest = (WIN / "msix" / "AppxManifest.xml.in").read_text(encoding="utf-8")
+    for ph in ("{{IDENTITY_NAME}}", "{{PUBLISHER}}", "{{PUBLISHER_DISPLAY_NAME}}", "{{DISPLAY_NAME}}"):
+        assert ph in manifest
+    assert "store_ready" in (WIN / "scripts" / "build-msix.ps1").read_text(encoding="utf-8")
