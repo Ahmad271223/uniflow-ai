@@ -125,6 +125,7 @@ docker compose exec app python -m app.accounts role <email> admin         # Roll
 docker compose exec app python -m app.accounts plan <email> plus 2027-03-31   # Tarif free|plus [bis Datum]
 docker compose exec app python -m app.accounts reset-token <email>        # Reset-Token, solange kein Mailversand läuft
 docker compose exec app python -m app.accounts purge                      # Konten >30 Tage nach Löschung entfernen (macht der Retention-Job täglich)
+docker compose exec app python -m app.tester_freischalten --email <email> --tage 14 --ausfuehren   # Probe des Kontos verlängern (TestFlight-Tester, docs/release/TESTFLIGHT-500-2026-11-08.md); ohne --ausfuehren Probelauf
 ```
 
 Den Reset-Token gibt man dem Nutzer als Link `https://app.example.de/login?reset=<TOKEN>` (gültig wie in
