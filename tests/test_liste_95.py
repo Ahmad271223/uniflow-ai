@@ -228,3 +228,67 @@ def test_66_notification_list_with_200_entries_is_fast(hosted):
     st, d = qa.call(hosted, "GET", "/notifications?limit=200", h)
     assert st == 200 and len(d["notifications"]) == 200 and d["unread"] == 250
     assert _time.perf_counter() - t0 < 1.0
+
+
+# ---------------------------------------------------------------- Nr. 33: Pakete bis ~65 MB, viele parallele Abrufe
+
+def _streamed(app, path, headers):
+    """ASGI-Aufruf, der den Koerper nicht sammelt: Status, groesstes Stueck, Gesamtlaenge, SHA-256, Content-Length."""
+    import asyncio
+    import hashlib
+    hdrs = [(b"host", b"test")] + [(k.lower().encode(), v.encode()) for k, v in headers.items()]
+    scope = {"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"}, "http_version": "1.1", "method": "GET",
+             "scheme": "http", "path": path, "raw_path": path.encode(), "query_string": b"", "headers": hdrs,
+             "client": ("127.0.0.1", 5000), "server": ("test", 80)}
+    out = {"status": None, "biggest": 0, "total": 0, "sha": hashlib.sha256(), "length": None}
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(m):
+        if m["type"] == "http.response.start":
+            out["status"] = m["status"]
+            out["length"] = dict(m["headers"]).get(b"content-length")
+        elif m["type"] == "http.response.body":
+            b = m.get("body", b"")
+            out["biggest"], out["total"] = max(out["biggest"], len(b)), out["total"] + len(b)
+            out["sha"].update(b)
+
+    asyncio.run(app(scope, receive, send))
+    return out
+
+
+def test_33_solution_download_streams_the_package_instead_of_holding_it_twice(hosted):
+    """Vorher: `get_package_raw` las die Paketdatei (bis ~65 MB) als Text, der Endpunkt baute daraus einen zweiten
+    Text und eine Bytes-Kopie - je Abruf rund das Dreifache im Speicher, ein Stueck. Ein Mitglied konnte mit einem grossen
+    Paket und parallelen Abrufen den App-Container (API_MEMORY=5G) an die Grenze bringen. Jetzt wird die Datei in
+    Stuecken zu 1 MiB gestreamt; Antwort und Downloadzaehler bleiben gleich."""
+    import shutil
+    from app import community
+    from test_community_groups import KURS, call, member, package
+    shutil.rmtree(community.package_dir(), ignore_errors=True)
+    author = member(hosted, "l95-33a@beispiel.de")
+    reader = member(hosted, "l95-33b@beispiel.de")
+    pkg = package()
+    st, d = call(hosted, "POST", "/solutions", author, {"package": pkg, "title": "Blatt 1", "community_key": KURS})
+    assert st == 201, d
+    sid = pkg["header"]["solutionId"]
+    path = community.package_dir() / f"{sid}.uniflowsolution"
+    small = path.read_bytes()
+    st, d = call(hosted, "GET", f"/solutions/{sid}", reader)
+    assert st == 200 and d["package"] == json.loads(small) and d["solution"]["solution_id"] == sid
+    # grosses Paket (8 MiB Text): wird in Stuecken geliefert, Inhalt und Laenge stimmen
+    big = json.dumps({**json.loads(small), "ciphertext": "A" * (8 << 20)}, separators=(",", ":")).encode()
+    path.write_bytes(big)
+    out = _streamed(hosted, f"/api/community/solutions/{sid}", reader)
+    assert out["status"] == 200
+    assert out["biggest"] <= (1 << 20), f"ein Stueck von {out['biggest']} Byte"
+    st, d = call(hosted, "GET", f"/solutions/{sid}", reader)
+    assert st == 200 and d["package"]["ciphertext"] == "A" * (8 << 20)
+    assert out["total"] > len(big) and out["length"] is not None and int(out["length"]) == out["total"]
+    # Datei fehlt: 404, Zaehler unveraendert
+    path.unlink()
+    st, d = call(hosted, "GET", f"/solutions/{sid}", reader)
+    assert (st, d["code"]) == (404, "not_found")
+    with community.cursor() as conn:
+        assert conn.execute("SELECT downloads FROM solutions WHERE id=?", (sid,)).fetchone()[0] == 3

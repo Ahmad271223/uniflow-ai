@@ -717,6 +717,15 @@ def get_package(user: dict, solution_id: str) -> tuple[dict, dict]:
 def get_package_raw(user: dict, solution_id: str) -> tuple[str, dict]:
     """Wie `get_package`, aber das Paket als gespeicherter JSON-Text (kompakt, von `publish` selbst geschrieben): spart beim
     Ansehen das Einlesen und erneute Schreiben von bis zu 65 MB je Anfrage (Messung 02.11.2026: Ansehen dreimal schneller)."""
+    f, summary = open_package_file(user, solution_id)
+    with f:
+        return f.read().decode("utf-8"), summary
+
+
+def open_package_file(user: dict, solution_id: str):
+    """Rechte und Downloadzaehler wie `get_package_raw`, aber die Paketdatei als offene Datei (binaer): der Endpunkt
+    streamt sie in Stuecken, statt bis zu ~65 MB je Abruf mehrfach im Speicher zu halten (Liste 95 Nr. 33). Die Datei
+    wird geoeffnet, bevor der Zaehler festgeschrieben wird; ein spaeteres Zurueckziehen loescht nur den Namen."""
     with cursor() as conn:
         r = conn.execute("SELECT * FROM solutions WHERE id=?", (solution_id.lower(),)).fetchone()
         if not r or (r["status"] != "active" and r["author_id"] != user["id"]):
@@ -727,9 +736,15 @@ def get_package_raw(user: dict, solution_id: str) -> tuple[str, dict]:
             _require_access(conn, user, r)
             conn.execute("UPDATE solutions SET downloads=downloads+1 WHERE id=?", (r["id"],))
         p = package_dir() / f"{r['id']}.uniflowsolution"
-        if not p.exists():
+        try:
+            f = open(p, "rb")
+        except FileNotFoundError:
             raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
-        return p.read_text(encoding="utf-8"), _summary(r, user["id"], None, conn)
+        try:
+            return f, _summary(r, user["id"], None, conn)
+        except BaseException:
+            f.close()
+            raise
 
 
 def mine(user: dict) -> list[dict]:
