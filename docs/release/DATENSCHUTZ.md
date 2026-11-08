@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 08.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 09.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -406,9 +406,13 @@ Apple, bietet die App keinen zweiten Kauf an.
   einem Versandfehler der Empfängeradresse, nie Passwörter, Sitzungs-Token oder Inhalte – zur Fehlersuche
   (Art. 6 Abs. 1 lit. f DSGVO); sie werden nach Größe rotiert (höchstens 30 MB je Dienst) und dabei überschrieben.
 - **Sicherungskopien**: Der Dienst sichert seine Datenbanken und Kontoordner (ohne die Protokolle) täglich auf
-  seinem Server in Nürnberg; Zugriff hat nur der Betreiber. Jede Sicherung wird nach 14 Tagen gelöscht. Was du
-  löschst, verschwindet daher spätestens 14 Tage danach auch aus den Sicherungen. Stellen wir nach einem Ausfall eine
-  Sicherung wieder her, wiederholen wir die Löschungen, die seit dieser Sicherung beauftragt wurden.
+  seinem Server in Nürnberg; Zugriff hat nur der Betreiber. Jede Sicherung wird nach 14 Tagen gelöscht. Damit ein
+  Ausfall des Servers nichts verliert, legen wir jede Sicherung zusätzlich verschlüsselt in einem Speicher von
+  Hetzner in Deutschland ab (Storage Box, Abschnitt 11). Entschlüsseln kann sie nur der Betreiber; der Schlüssel liegt
+  weder bei Hetzner noch auf dem Server. Diese Kopien werden nach 30 Tagen gelöscht. Was du löschst, verschwindet
+  daher spätestens 14 Tage danach aus den Sicherungen auf dem Server und spätestens 30 Tage danach aus den
+  verschlüsselten Kopien. Stellen wir nach einem Ausfall eine Sicherung wieder her, wiederholen wir die Löschungen,
+  die seit dieser Sicherung beauftragt wurden.
 - **Datenexport**: Die ZIP-Datei entsteht erst auf deine Anforderung, wird nach dem Herunterladen sofort gelöscht und
   sonst (etwa bei einem Abbruch) spätestens am nächsten Tag.
 - **Schriftart und andere Dateien der Oberfläche** liefert unser Server selbst aus; die Web-Oberfläche lädt nichts
@@ -417,7 +421,8 @@ Apple, bietet die App keinen zweiten Kauf an.
 ## 11. Hosting, E-Mail-Versand und Auftragsverarbeiter
 
 Der Dienst läuft bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen (Deutschland), Serverstandort Nürnberg, Deutschland (EU), auf Grundlage eines Vertrags zur
-Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
+Auftragsverarbeitung nach Art. 28 DSGVO. Unter demselben Vertrag liegen die verschlüsselten Sicherungskopien
+(Abschnitt 10) in einer Storage Box von Hetzner in Deutschland. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
 STRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland) in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind **OpenAI** und
 **Amazon Web Services EMEA SARL** (Amazon Bedrock, Region Frankfurt) Auftragsverarbeiter, jeweils mit einem Vertrag
 nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
@@ -471,7 +476,7 @@ Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
   E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; E-Mail-Adresse, Passwort-Hash
   und die Verknüpfung mit Apple bzw. Google entfernen wir sofort, deine Community-Beiträge ziehen wir sofort zurück.
   Alle übrigen Daten (Datenbereich, Mitgliedschaften, Kommentare, Fragen und Antworten, Käufe, Nutzung) werden nach
-  30 Tagen endgültig gelöscht, aus den Sicherungskopien spätestens 14 Tage später (Abschnitt 10). Rückgängig machen
+  30 Tagen endgültig gelöscht, aus den Sicherungskopien spätestens 30 Tage später (Abschnitt 10). Rückgängig machen
   lässt sich die Löschung nicht. Das Abo kündigst du zusätzlich bei Apple bzw. Google.
 - **iPad ohne StudiNow-Konto:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) entfernt sofort alle
   Daten auf dem iPad; was du in der Community, als Wochentest oder in der Bibliothek geteilt hast, löschen wir auf
