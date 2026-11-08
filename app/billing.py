@@ -148,8 +148,32 @@ def normalize_plan(plan: str | None) -> str | None:
     return plan if plan in PLANS else None
 
 
+def _parse_utc(value) -> datetime | None:
+    """ISO-Zeitpunkt (auch mit `Z`, anderem Versatz, ohne Zone = UTC, oder nur ein Datum) als UTC; sonst None."""
+    if not value:
+        return None
+    try:
+        d = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00").replace("z", "+00:00"))
+    except ValueError:
+        return None
+    return (d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d).astimezone(timezone.utc)
+
+
+def _utc_iso(value: str | None) -> str | None:
+    """Ablaufzeit einheitlich speichern (Audit P21-07): UTC, ISO mit +00:00. Unlesbares bleibt, wie es kam."""
+    d = _parse_utc(value)
+    return d.isoformat() if d else value
+
+
 def _row_active(status: str, expires: str | None, t: str) -> bool:
-    return status in ACTIVE_STATUSES and not (expires and expires <= t)
+    """Aktiv und nicht abgelaufen. Verglichen werden Zeitpunkte, nicht Zeichenketten (Audit P21-07): `Z`, andere
+    Versaetze oder alte Zeilen ohne Zone duerfen das Ende nicht verschieben."""
+    if status not in ACTIVE_STATUSES:
+        return False
+    if not expires:
+        return True
+    e, n = _parse_utc(expires), _parse_utc(t)
+    return e > n if e and n else not (expires <= t)
 
 
 def current_plan(conn: sqlite3.Connection, user_id, now: datetime | None = None, legacy: dict | None = None) -> str:
@@ -180,6 +204,7 @@ class ConsumeResult:
     used: int
     limit: int
     duplicate: bool = False
+    period: str | None = None          # gebuchter Monat (fuer refund, Audit P21-10)
 
 
 def used(conn: sqlite3.Connection, user_id, feature: str, now: datetime | None = None) -> int:
@@ -212,30 +237,35 @@ def consume(conn: sqlite3.Connection, user_id, feature: str, request_id: str,
         n = row[0] if row else 0
         if seen:
             conn.execute("COMMIT")
-            return ConsumeResult(ok=True, used=n, limit=limit, duplicate=True)
+            return ConsumeResult(ok=True, used=n, limit=limit, duplicate=True, period=period)
         conn.execute("INSERT OR IGNORE INTO usage(user_id, period, feature, count) VALUES (?,?,?,0)", (uid, period, feature))
         cur = conn.execute("UPDATE usage SET count = count + 1 WHERE user_id=? AND period=? AND feature=? AND count < ?",
                            (uid, period, feature, limit))
         if cur.rowcount == 0:
             conn.execute("ROLLBACK")
-            return ConsumeResult(ok=False, used=n, limit=limit)
+            return ConsumeResult(ok=False, used=n, limit=limit, period=period)
         conn.execute("INSERT INTO usage_requests(request_id, user_id, period, feature, created_at) VALUES (?,?,?,?,?)",
                      (request_id, uid, period, feature, t.isoformat()))
         conn.execute("COMMIT")
-        return ConsumeResult(ok=True, used=n + 1, limit=limit)
+        return ConsumeResult(ok=True, used=n + 1, limit=limit, period=period)
     except Exception:
         conn.execute("ROLLBACK")
         raise
 
 
-def refund(conn: sqlite3.Connection, user_id, feature: str, request_id: str) -> bool:
+def refund(conn: sqlite3.Connection, user_id, feature: str, request_id: str, period: str | None = None) -> bool:
     """Verbrauch zuruecknehmen, wenn die Leistung fehlschlug (z. B. KI-Test konnte nicht erstellt werden).
-    Beruehrt nur die Zeile dieses Kontos und dieser Funktion (juengster Zeitraum), nie die eines anderen Kontos."""
+    Beruehrt nur die Zeile dieses Kontos und dieser Funktion, nie die eines anderen Kontos. `period` (aus
+    ConsumeResult.period) trifft genau den gebuchten Monat (Audit P21-10); ohne Angabe der juengste Zeitraum."""
     uid = str(user_id)
     conn.execute("BEGIN IMMEDIATE")
     try:
-        r = conn.execute("SELECT period FROM usage_requests WHERE user_id=? AND feature=? AND request_id=? "
-                         "ORDER BY period DESC LIMIT 1", (uid, feature, request_id)).fetchone()
+        if period:
+            r = conn.execute("SELECT period FROM usage_requests WHERE user_id=? AND feature=? AND request_id=? AND period=?",
+                             (uid, feature, request_id, period)).fetchone()
+        else:
+            r = conn.execute("SELECT period FROM usage_requests WHERE user_id=? AND feature=? AND request_id=? "
+                             "ORDER BY period DESC LIMIT 1", (uid, feature, request_id)).fetchone()
         if not r:
             conn.execute("ROLLBACK")
             return False
@@ -259,10 +289,11 @@ class BillingError(Exception):
 def set_entitlement(conn: sqlite3.Connection, user_id, source: str, plan: str, *,
                     original_transaction_id: str | None = None, expires_at: str | None = None,
                     status: str = "active", will_renew: bool = True, pending_plan: str | None = None,
-                    environment: str | None = None, now: datetime | None = None) -> None:
+                    environment: str | None = None, now: datetime | None = None) -> bool:
     """Berechtigung setzen (z. B. nach gepruefter App-Store-Transaktion). Ein Downgrade loescht keine Daten.
     Eine Transaktion gehoert genau einem Konto: dieselbe original_transaction_id an einem anderen Konto -> Fehler
-    (verhindert, dass ein Abo mehrere Konten freischaltet oder ein Konto zwei Abos zaehlt)."""
+    (verhindert, dass ein Abo mehrere Konten freischaltet oder ein Konto zwei Abos zaehlt). Liefert False, wenn die
+    Zeile ein besseres anderes Abo derselben Quelle behaelt (siehe unten)."""
     p = normalize_plan(plan)
     if not p:
         raise ValueError(f"unbekannter Tarif {plan}")
@@ -274,6 +305,17 @@ def set_entitlement(conn: sqlite3.Connection, user_id, source: str, plan: str, *
             raise BillingError("subscription_owned_by_other_account",
                                "Dieses Abo gehört zu einem anderen StudiNow-Konto.", 409)
     pend = normalize_plan(pending_plan) if pending_plan else None
+    expires_at = _utc_iso(expires_at)
+    t = _now(now)
+    if original_transaction_id:
+        # Zwei Abos derselben Quelle (zwei Apple-IDs, zwei offene Stripe-Kassen): die Zeile je Quelle haelt das bessere.
+        # Eine spaete Meldung zum anderen, schlechteren Abo (abgelaufen, niedriger, frueher zu Ende) ueberschreibt ein
+        # laufendes nicht (Audit P22-06). Dasselbe Abo (gleiche Kennung) wird wie bisher immer uebernommen.
+        cur = conn.execute("SELECT plan, original_transaction_id, expires_at, status FROM entitlements WHERE user_id=? AND source=?",
+                           (uid, source)).fetchone()
+        if cur and cur[1] and cur[1] != original_transaction_id and \
+                _strength(cur[0], cur[2], cur[3], t) > _strength(p, expires_at, status, t):
+            return False
     conn.execute(
         """INSERT INTO entitlements(user_id, source, plan, original_transaction_id, expires_at, status, will_renew,
                                     pending_plan, environment, updated_at)
@@ -283,7 +325,15 @@ def set_entitlement(conn: sqlite3.Connection, user_id, source: str, plan: str, *
                status=excluded.status, will_renew=excluded.will_renew, pending_plan=excluded.pending_plan,
                environment=excluded.environment, updated_at=excluded.updated_at""",
         (uid, source, p, original_transaction_id, expires_at, status, 1 if will_renew else 0, pend, environment,
-         _now(now).isoformat()))
+         t.isoformat()))
+    return True
+
+
+def _strength(plan: str | None, expires: str | None, status: str, t: datetime) -> tuple:
+    """Rangfolge zweier Abos derselben Quelle: aktiv vor nicht aktiv, dann Tarifrang, dann spaeteres Ende."""
+    p = normalize_plan(plan)
+    end = (_parse_utc(expires) or t) if expires else datetime.max.replace(tzinfo=timezone.utc)
+    return (_row_active(status, expires, t.isoformat()), plans.rank(p) if p else -1, end)
 
 
 # ---------------------------------------------------------------- Probe und Tarifwahl
@@ -323,6 +373,9 @@ def end_trial(conn: sqlite3.Connection, user_id, now: datetime | None = None) ->
     t = _now(now).isoformat()
     cur = conn.execute("UPDATE entitlements SET status='expired', expires_at=?, updated_at=? WHERE user_id=? AND source='trial' AND expires_at > ?",
                        (t, t, str(user_id), t))
+    # schon von selbst abgelaufen, aber noch 'active' (Audit P22-08): Stand angleichen, das Ende bleibt, wie es war
+    conn.execute("UPDATE entitlements SET status='expired', updated_at=? WHERE user_id=? AND source='trial' AND status<>'expired' "
+                 "AND expires_at <= ?", (t, str(user_id), t))
     return cur.rowcount == 1
 
 
@@ -332,7 +385,9 @@ def trial_info(conn: sqlite3.Connection, user_id, now: datetime | None = None) -
     row = conn.execute("SELECT plan, expires_at, status FROM entitlements WHERE user_id=? AND source='trial'", (str(user_id),)).fetchone()
     if not row or not row[1]:
         return {"granted": False, "active": False, "ends_at": None, "days_left": 0, "expired": False, "plan": None}
-    ends = datetime.fromisoformat(row[1])
+    ends = _parse_utc(row[1])               # alte Zeilen ohne Zone gelten als UTC (Audit P22-04), statt TypeError
+    if ends is None:
+        return {"granted": True, "active": False, "ends_at": row[1], "plan": normalize_plan(row[0]), "days_left": 0, "expired": True}
     left = ends - t
     active = left.total_seconds() > 0 and row[2] in ACTIVE_STATUSES
     return {"granted": True, "active": active, "ends_at": row[1], "plan": normalize_plan(row[0]),
@@ -371,10 +426,22 @@ def entitlement_rows(conn: sqlite3.Connection, user_id) -> list[dict]:
 def status(conn: sqlite3.Connection, user: dict, now: datetime | None = None) -> dict:
     """Abo-Stand fuer GET /api/entitlements: Tarif, Rechte, Kontingente, Quelle, Ablauf und geplanter Wechsel."""
     t = _now(now)
+    with read_snapshot(conn):              # ein Stand fuer alle Lesezugriffe (Audit P22-09)
+        return _status(conn, user, t)
+
+
+def _source_order(r: dict) -> tuple:
+    """Bezahlt vor Probe, dann das spaeteste Ende (unbefristet zuerst), dann der Name der Quelle (Audit P22-03)."""
+    end = _parse_utc(r["expires_at"]) if r["expires_at"] else None
+    return (r["source"] == "trial", 0 if not r["expires_at"] else 1, -(end.timestamp() if end else 0), r["source"])
+
+
+def _status(conn: sqlite3.Connection, user: dict, t: datetime) -> dict:
     legacy = {"plan": user.get("plan"), "plan_until": user.get("plan_until")}
     plan = current_plan(conn, user["id"], t, legacy)
     rows = entitlement_rows(conn, user["id"])
-    active = [r for r in rows if normalize_plan(r["plan"]) == plan and _row_active(r["status"], r["expires_at"], t.isoformat())]
+    active = sorted((r for r in rows if normalize_plan(r["plan"]) == plan and _row_active(r["status"], r["expires_at"], t.isoformat())),
+                    key=_source_order)
     src = active[0] if active else None
     if not src and plan != "free":
         src = {"source": "manual", "expires_at": user.get("plan_until"), "will_renew": 0, "pending_plan": None}
@@ -400,6 +467,25 @@ def status(conn: sqlite3.Connection, user: dict, now: datetime | None = None) ->
         "subscriptions": {s: any(r["source"] == s and normalize_plan(r["plan"]) and _row_active(r["status"], r["expires_at"], t.isoformat())
                                  for r in rows) for s in ("app_store", "stripe")},
     }
+
+
+class read_snapshot:
+    """Mehrere Lesezugriffe aus einem Stand (Audit P22-09): BEGIN (aufgeschoben, nimmt keine Schreibsperre; in WAL
+    sieht die Transaktion einen festen Stand) bis zum Ende des Blocks. In einer laufenden Transaktion: nichts tun."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn, self.own = conn, False
+
+    def __enter__(self):
+        if not self.conn.in_transaction:
+            self.conn.execute("BEGIN")
+            self.own = True
+        return self.conn
+
+    def __exit__(self, *exc):
+        if self.own and self.conn.in_transaction:
+            self.conn.execute("COMMIT")
+        return False
 
 
 def _paid_plan(rows: list[dict], legacy: dict, t: datetime) -> str:

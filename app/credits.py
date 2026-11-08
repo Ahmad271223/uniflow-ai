@@ -5,6 +5,8 @@ Regeln:
   Credits je Monat (= hoechstens 1 EUR KI-Kosten je Konto), alle anderen Tarife 0; einstellbar je Tarif ueber
   LERNAPP_CREDITS_PRO_AI, LERNAPP_CREDITS_PLUS, LERNAPP_CREDITS_FREE und fuer die 7-Tage-Probe
   LERNAPP_CREDITS_TRIAL (Vorschlag 25, damit das Probe-Becken in app/ai_backend.py fuer viele Probekonten reicht).
+- Credit-Regel des Inhabers 08.11.2026: Probe ohne bezahltes Abo 25, Plus 0, Pro AI 100. Laufende Probe + Plus: 25, bis
+  die Probe endet, danach 0; laufende Probe + Pro AI: 100 (`ai_backend.is_trial_account`).
 - Nicht verbrauchte Credits verfallen am Monatsende. Der Monat ist der Kalendermonat in Europe/Berlin; der neue Monat
   beginnt "faul": die Zeile des Monats entsteht bei der ersten Nutzung (kein naechtlicher Lauf noetig).
 - Der Rahmen eines Monats folgt dem aktuellen Tarif: wer mitten im Monat Pro AI abschliesst, hat sofort 100.

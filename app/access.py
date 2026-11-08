@@ -113,9 +113,10 @@ def for_user(user: dict, client: str) -> dict:
     legacy = {"plan": user.get("plan"), "plan_until": user.get("plan_until")}
     conn = billing.connect()
     try:
-        plan = billing.current_plan(conn, user["id"], t, legacy)
-        tr = billing.trial_info(conn, user["id"], t)
-        paid = billing._paid_plan(billing.entitlement_rows(conn, user["id"]), legacy, t)
+        with billing.read_snapshot(conn):                # ein Stand fuer alle drei Lesezugriffe (Audit P22-09)
+            plan = billing.current_plan(conn, user["id"], t, legacy)
+            tr = billing.trial_info(conn, user["id"], t)
+            paid = billing._paid_plan(billing.entitlement_rows(conn, user["id"]), legacy, t)
     finally:
         conn.close()
     return evaluate(plan, source_kind(plan, paid), tr, client, user.get("role"), t)

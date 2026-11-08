@@ -131,8 +131,9 @@ def consume(request: Request, feature: str, request_id: str, once: bool = False)
     return r
 
 
-def refund(request: Request, feature: str, request_id: str) -> None:
-    """Verbrauch des angemeldeten Kontos zuruecknehmen (nur dessen eigene Zeile, nie die eines anderen Kontos)."""
+def refund(request: Request, feature: str, request_id: str, period: str | None = None) -> None:
+    """Verbrauch des angemeldeten Kontos zuruecknehmen (nur dessen eigene Zeile, nie die eines anderen Kontos).
+    `period` (ConsumeResult.period aus consume) trifft genau den gebuchten Monat (Audit P21-10)."""
     if not config.is_hosted():
         return
     user = user_of(request)
@@ -140,7 +141,7 @@ def refund(request: Request, feature: str, request_id: str) -> None:
         return
     conn = billing.connect()
     try:
-        billing.refund(conn, user["id"], feature, request_id)
+        billing.refund(conn, user["id"], feature, request_id, period)
     finally:
         conn.close()
 
