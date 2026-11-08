@@ -335,6 +335,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
     private(set) var shownLayoutVersion = -1
+    /// Ein Neuaufbau kam, waehrend der Stift auflag: er folgt beim Absetzen (`canvasViewDidEndUsingTool`, Audit P41-Z1)
+    private var layoutWaitsForPencil = false
     /// Seite, die nach dem naechsten Neuaufbau gezeigt werden soll (nach Einfuegen, Papierkorb, Wiederherstellen).
     private var pendingFocusKey: String?
 
@@ -734,6 +736,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Der Rueckgaengig-Verlauf haengt am Seitenschluessel und bleibt erhalten.
     func showLayout() {
         guard store.layoutVersion != shownLayoutVersion, let layout = store.layout else { return }
+        // Stift liegt auf: das neue Dokument nahme die Zeichenflaeche unter ihm weg, PencilKit braeche den laufenden
+        // Strich ab (verloren). Neue Seitenliste vom Server, fertig geladene Browser-Seite: erst nach dem Absetzen.
+        if live.values.contains(where: \.isDrawing) {
+            layoutWaitsForPencil = true
+            return
+        }
+        layoutWaitsForPencil = false
         // Fokus nur verbrauchen, wenn die Seite schon im Aufbau steht (ein fremder Neuaufbau waehrend einer
         // Seitenoperation kommt sonst vor der neuen Seite und wuerde den Sprung dorthin verschlucken)
         var keepKey = currentPageKey
@@ -754,6 +763,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         shownLayoutVersion = store.layoutVersion
         let pdf = layout.pdf
         pdfView.document = pdf
+        // fixiert: PDFKit legt mit dem neuen Dokument neue Seitenansichten samt Doppeltippen-Zoom an (Audit P41-09)
+        if freezeMode != .off { applyFreezeGestures() }
         mixedFormatFactor = ZoomPolicy.mixedFormatFactor(widths: (0..<pdf.pageCount).compactMap { i in
             pdf.page(at: i).map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize.width }
         })
@@ -1028,6 +1039,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             overlay.deferredReload = false
             loadContent(into: overlay, remote: true)
         }
+        if layoutWaitsForPencil, !live.values.contains(where: \.isDrawing) { showLayout() }
     }
 
     /// Formerkennung "zeichnen und halten" (`ShapeRecognizer`): Der eben beendete Strich (genau einer seit dem letzten
