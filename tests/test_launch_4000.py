@@ -143,40 +143,79 @@ def test_community_db_waits_like_accounts_db(monkeypatch, tmp_path):
     assert seen["timeout"] == 15
 
 
-def test_middleware_database_work_runs_off_the_event_loop(hosted, monkeypatch):  # noqa: F811
-    """accounts.authenticate, access.for_user und db.init_db liefen in der async-Middleware direkt in der Ereignisschleife:
-    wartete SQLite auf eine Schreibsperre (bis 15 s), stand der ganze Prozess. Jetzt laufen sie im Thread-Pool."""
-    from app import accounts, db, server
-    user, h = _user(hosted, "thread@beispiel.de")
-    loop_thread = threading.current_thread().ident           # asyncio.run laeuft im Thread des Tests
-    where = {}
-    real_auth, real_init = accounts.authenticate, db.init_db
+def test_authenticate_never_writes_in_the_request_path(hosted):  # noqa: F811
+    """accounts.authenticate laeuft in der async-Middleware bei jeder /api-Anfrage in der Ereignisschleife. Bis 08.11.2026
+    schrieb es einmal je Minute last_seen_at/expires_at - und konnte dabei bis busy_timeout (15 s) auf eine Schreibsperre
+    von accounts.db warten, mit dem ganzen Prozess. Jetzt liest es nur; der Sammler schreibt gebuendelt."""
+    import sqlite3
+    from app import accounts
+    user, h = _user(hosted, "lesend@beispiel.de")
+    accounts.flush_seen()
+    with accounts.cursor() as conn:
+        conn.execute("UPDATE sessions SET last_seen_at='2026-01-01T00:00:00Z' WHERE user_id=?", (user["id"],))
+    # waehrend der Anfrage haelt ein anderer Prozess die Schreibsperre von accounts.db: eine lesende Pruefung darf nicht warten
+    blocker = sqlite3.connect(accounts.db_path(), timeout=1)
+    blocker.execute("BEGIN IMMEDIATE")
+    try:
+        import time
+        t = time.perf_counter()
+        st, body = _j(asgi_call(hosted, "GET", "/api/account/me", headers=h))
+        dauer = time.perf_counter() - t
+    finally:
+        blocker.rollback()
+        blocker.close()
+    assert st == 200 and "lesend@beispiel.de" in json.dumps(body)
+    assert dauer < 1.0, f"Anfrage wartete {dauer:.1f} s auf die Schreibsperre - authenticate schreibt noch in der Anfrage"
+    assert accounts.pending_seen() >= 1
+    assert accounts.flush_seen() >= 1
+    with accounts.cursor() as conn:
+        seen = conn.execute("SELECT last_seen_at FROM sessions WHERE user_id=?", (user["id"],)).fetchone()[0]
+    assert seen > "2026-01-01T00:00:00Z", "der Sammler hat den Zeitstempel nachgetragen"
+    # abgemeldete Sitzung bekommt keinen Zeitstempel mehr (WHERE revoked_at IS NULL)
+    accounts._seen_later(999_999, accounts.now())
+    assert accounts.flush_seen() == 1
 
-    def auth(token):
-        where["authenticate"] = threading.current_thread().ident
-        return real_auth(token)
 
-    def init():
-        where["init_db"] = threading.current_thread().ident
-        return real_init()
-    monkeypatch.setattr(accounts, "authenticate", auth)
-    monkeypatch.setattr(db, "init_db", init)
-    server._user_dbs_ready.discard((user["id"], user["university"]))
-    st, body = _j(asgi_call(hosted, "GET", "/api/account/me", headers=h))
-    assert st == 200 and "thread@beispiel.de" in json.dumps(body)
-    assert where["authenticate"] != loop_thread, "Sitzungspruefung blockiert die Ereignisschleife"
-    assert where["init_db"] != loop_thread, "Schema der Konto-Datenbank blockiert die Ereignisschleife"
-    # Web-Client (Abo-Pflicht): auch die Tarifpruefung laeuft im Thread
-    from app import access
-    real_for_user = access.for_user
-
-    def for_user(u, client):
-        where["for_user"] = threading.current_thread().ident
-        return real_for_user(u, client)
-    monkeypatch.setattr(access, "for_user", for_user)
-    st, _ = _j(asgi_call(hosted, "GET", "/api/account/me", headers={**h, "X-StudiNow-Client": "web"}))
-    assert st == 200
-    assert where.get("for_user", loop_thread) != loop_thread or "for_user" not in where
+def test_init_db_fast_path_and_serialization(hosted, monkeypatch):  # noqa: F811
+    """Erster Kontakt eines Kontos je Prozess: db.init_db prueft PRAGMA user_version (Kennzahl des Schema-Codes) und
+    tut nichts mehr, wenn dieser Code-Stand das Schema schon angelegt hat; die Middleware ruft es je Konto genau einmal
+    und nacheinander (Lasttest 08.11.2026: 40 gleichzeitige init_db drueckten den Abgleich auf p95 4,3 s)."""
+    import sqlite3
+    import time
+    from app import config, db, server
+    user, h = _user(hosted, "schema@beispiel.de")
+    key = (user["id"], user["university"])
+    assert _j(asgi_call(hosted, "GET", "/api/account/me", headers=h))[0] == 200
+    assert key in server._user_dbs_ready, "erste Anfrage hat das Schema angelegt"
+    ctx = config.set_user_context(user["id"], user["university"])
+    try:
+        c = sqlite3.connect(config.db_path())
+        assert c.execute("PRAGMA user_version").fetchone()[0] == db.schema_fingerprint() > 0
+        c.close()
+        t = time.perf_counter()
+        for _ in range(20):
+            db.init_db(fast=True)
+        assert (time.perf_counter() - t) / 20 < 0.02, "Schnellpfad: deutlich unter 20 ms je Aufruf"
+        # fremde Kennzahl -> volle Schema-Arbeit laeuft wieder und setzt die Kennzahl neu
+        c = sqlite3.connect(config.db_path())
+        c.execute("PRAGMA user_version=7")
+        c.commit()
+        c.close()
+        db.init_db(fast=True)
+        c = sqlite3.connect(config.db_path())
+        assert c.execute("PRAGMA user_version").fetchone()[0] == db.schema_fingerprint()
+        c.close()
+    finally:
+        config.reset_user_context(ctx)
+    # die Middleware ruft init_db nach dem ersten Mal nicht mehr auf
+    calls = []
+    monkeypatch.setattr(db, "init_db", lambda **k: calls.append(k.get("fast")))
+    assert _j(asgi_call(hosted, "GET", "/api/account/me", headers=h))[0] == 200
+    assert calls == []
+    server._user_dbs_ready.discard(key)
+    assert _j(asgi_call(hosted, "GET", "/api/account/me", headers=h))[0] == 200
+    assert calls == [True] and key in server._user_dbs_ready, "die Middleware nutzt den Schnellpfad"
+    assert isinstance(server._INIT_DB_LOCK, type(threading.Lock()))
 
 
 def test_sync_push_body_is_capped(hosted, monkeypatch):  # noqa: F811

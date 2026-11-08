@@ -6,7 +6,7 @@
   "session_days": 30,
   "reset_minutes": 30,
   "max_fails": 8,
-  "max_fails_ip": 50,
+  "max_fails_ip": 200,
   "lock_minutes": 10,
   "verify_hours": 48,
   "limits": {
@@ -48,6 +48,10 @@
    },
    "question_user": {
     "count": 10,
+    "minutes": 60
+   },
+   "register_all": {
+    "count": 3000,
     "minutes": 60
    },
    "register_ip": {

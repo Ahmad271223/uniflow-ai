@@ -539,16 +539,19 @@ def schema_fingerprint() -> int:
     return _FINGERPRINT
 
 
-def init_db() -> None:
-    """Schema der (Konto-)Datenbank anlegen bzw. nachziehen. Schnellpfad (08.11.2026, Launch mit 4.000 Konten): tragt
-    die Datei die Kennzahl dieses Code-Stands (`schema_fingerprint`), ist nichts zu tun - nur die Hochschule wird
-    geprueft. Vorher kostete der erste Kontakt jedes Kontos in jedem API-Prozess die ganze Schema-Arbeit (41 Tabellen,
-    Migrationen, ~55 ms); bei 12 Prozessen und 4.000 Konten 48.000-mal nach jedem Neustart."""
+def init_db(fast: bool = False) -> None:
+    """Schema der (Konto-)Datenbank anlegen bzw. nachziehen (idempotent, inkl. Datenreparaturen wie
+    merge_duplicate_modules). `fast=True` (08.11.2026, Launch mit 4.000 Konten; nur die Middleware des Dienstes beim
+    ersten Kontakt eines Kontos je Prozess): tragt die Datei die Kennzahl dieses Code-Stands (`schema_fingerprint`), ist
+    nichts zu tun - nur die Hochschule wird geprueft. Vorher kostete dieser erste Kontakt die ganze Schema-Arbeit
+    (41 Tabellen, Migrationen, ~55 ms); bei 12 Prozessen und 4.000 Konten 48.000-mal nach jedem Neustart. Alle anderen
+    Aufrufer (Start am PC, Jobs je Konto, Werkzeuge, Tests) laufen weiter vollstaendig, Datenreparaturen also spaetestens
+    mit dem naechsten Wochentest-Job des Kontos."""
     from . import config
     conn = connect()
     try:
         mark = schema_fingerprint()
-        if (conn.execute("PRAGMA user_version").fetchone() or [0])[0] == mark:
+        if fast and (conn.execute("PRAGMA user_version").fetchone() or [0])[0] == mark:
             owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
             if owner is not None and owner[0] != config.university():
                 raise UniversityMismatch(f"Der Datenordner {config.data_dir()} gehoert zur Hochschule '{owner[0]}', "

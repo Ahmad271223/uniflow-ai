@@ -226,13 +226,25 @@ def _api_rate(user_id: str, now: float | None = None) -> int:
 _FASTAPI_DOC_PATHS = ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")
 
 
-async def _in_thread(fn, *args):
-    """Datenbankarbeit der Middleware (accounts.db, Konto-Datenbank) in den Thread-Pool statt in die Ereignisschleife
-    (08.11.2026, Pruefung fuer 4.000 Nutzer): accounts.authenticate liest je Anfrage die Sitzung und schreibt einmal je
-    Minute "zuletzt gesehen"; wartet SQLite dabei auf eine Schreibsperre (busy_timeout bis 15 s), stand vorher der ganze
-    Prozess mit allen offenen Anfragen - jetzt nur dieser eine Thread. Contextvars (Konto-Kontext) gehen mit."""
-    from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(fn, *args)
+# Datenbankarbeit der Middleware (08.11.2026, Pruefung fuer 4.000 Nutzer): hosted_guard ist async und laeuft in der
+# Ereignisschleife. Alles, was hier SQLite anfasst, darf NICHT auf Schreibsperren warten (busy_timeout bis 15 s haette
+# den ganzen Prozess mit allen offenen Anfragen angehalten). Darum: accounts.authenticate liest nur noch (WAL-Leser
+# warten nie), "zuletzt gesehen" schreibt ein Sammler im Hintergrund (accounts.flush_seen); access.for_user liest nur;
+# db.init_db hat einen Schnellpfad (PRAGMA user_version, ~1 ms) und laeuft je Konto und Prozess genau einmal.
+# Gemessen (tools/lasttest-anmeldung.py): die kurzen Lesezugriffe in den Thread-Pool zu verlagern halbierte den
+# Durchsatz des Abgleichs (GIL-Wechsel je Anfrage) - deshalb bleiben sie in der Schleife, aber ohne Schreibzugriff.
+_INIT_DB_LOCK = threading.Lock()
+
+
+def _init_user_db(key: tuple) -> None:
+    """Schema der Konto-Datenbank genau einmal je Konto und Prozess, nacheinander. Liefen 40 Threads gleichzeitig
+    `init_db` fuer verschiedene Konten, stritten sie um Platte und Dateisperren (Lasttest 08.11.2026: p95 des Abgleichs
+    4,3 s statt 0,45 s). Mit dem Schnellpfad von db.init_db kostet der Normalfall ~1 ms, ein neues Konto einmal ~55 ms."""
+    with _INIT_DB_LOCK:
+        if key in _user_dbs_ready:
+            return
+        db.init_db(fast=True)
+        _user_dbs_ready.add(key)
 
 
 @app.middleware("http")
@@ -248,7 +260,7 @@ async def hosted_guard(request, call_next):
     if path in ("/", "/index.html", "/login"):
         # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin - ausser die Windows-App holt
         # sich ueber die Anmeldeseite eine Anmeldung (/login?app=windows, app/app_login_api.py)
-        user = await _in_thread(accounts.authenticate, account_api.token_of(request))
+        user = accounts.authenticate(account_api.token_of(request))
         if path == "/login" and user and request.query_params.get("app") != "windows":
             return RedirectResponse("/", status_code=302)
         if path != "/login" and not user:
@@ -259,7 +271,7 @@ async def hosted_guard(request, call_next):
     why = hosted_unavailable(request.method, path)
     if why:
         return JSONResponse({"detail": why, "code": "not_available_hosted"}, status_code=501)
-    user = await _in_thread(accounts.authenticate, account_api.token_of(request))
+    user = accounts.authenticate(account_api.token_of(request))          # liest nur (siehe oben)
     if not user:
         return JSONResponse({"detail": "Anmeldung erforderlich.", "code": "unauthenticated"}, status_code=401)
     wait = _api_rate(user["id"])
@@ -272,7 +284,7 @@ async def hosted_guard(request, call_next):
     client = access.client_type(request)
     request.state.client = client
     if client in access.GATED_CLIENTS and not access.write_allowed_when_locked(request.method, path):
-        acc = await _in_thread(access.for_user, user, client)       # liest Tarif und Probe aus accounts.db
+        acc = access.for_user(user, client)                              # liest Tarif und Probe aus accounts.db
         if acc["locked"]:
             status, body = access.blocked(acc["state"])
             return JSONResponse(body, status_code=status)
@@ -283,11 +295,10 @@ async def hosted_guard(request, call_next):
     try:
         key = (user["id"], user["university"])
         if key not in _user_dbs_ready:
-            # erste Anfrage des Kontos in diesem Prozess: Schema der Konto-Datenbank (41 Tabellen, ~55 ms) - im Thread,
-            # sonst stehen waehrenddessen alle anderen Anfragen dieses Prozesses (bei 12 Prozessen und 4.000 Konten
-            # passiert das 48.000-mal nach jedem Neustart)
-            await _in_thread(db.init_db)
-            _user_dbs_ready.add(key)
+            # erste Anfrage des Kontos in diesem Prozess: Schema der Konto-Datenbank pruefen (db.init_db, Schnellpfad
+            # ueber PRAGMA user_version ~1 ms statt ~55 ms; bei 12 Prozessen und 4.000 Konten passiert das 48.000-mal
+            # nach jedem Neustart)
+            _init_user_db(key)
         return await call_next(request)
     finally:
         ai_consent.unmark(web)
