@@ -169,6 +169,14 @@ final class StudoraAccountLink: ObservableObject {
         return r.applied + r.deleted > 0
     }
 
+    #if DEBUG
+    /// nur Tests: Container (lokales Backend) und Hochschule wie `use`, ohne den Konto-Anschluss neu zu bauen
+    func attachHostForTesting(_ host: LocalBackendHost?, university: String?) {
+        self.host = host
+        self.university = university
+    }
+    #endif
+
     /// Community ueber den Dienst (G4) – vorerst AUS (07.11.2026, Geraetetest): Mit Konto wechselte die Community vom
     /// iCloud-Kanal zum Dienst, der keine Fragen und Antworten je Modul kennt ("gibt es mit diesem Dienst noch nicht"),
     /// und Pro-AI-Nutzer (Dienst) und Plus-Nutzer (iCloud) sahen getrennte Communitys. Auf dem iPad laeuft die Community
