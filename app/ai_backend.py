@@ -69,7 +69,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
-from . import ai_prices, billing, config, db
+from . import ai_prices, billing, config, db, plans
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ai_usage_log (
@@ -1093,14 +1093,19 @@ def connect() -> sqlite3.Connection:
 
 
 def is_trial_account(conn: sqlite3.Connection, user_id: str, t: datetime) -> bool:
-    """Probekonto: die Probe ist aktiv und kein bezahlter oder von Hand gesetzter Tarif (auch nicht aus `users.plan`)."""
+    """Probekonto: die Probe ist aktiv und kein bezahlter oder von Hand gesetzter Tarif mit StudiNow-KI (auch nicht aus
+    `users.plan`). Credit-Regel des Inhabers 08.11.2026: Probe + Plus bleibt Probe (25 Credits aus dem Probe-Becken, bis
+    die Probe endet; Plus selbst hat keine KI), Probe + Pro AI ist ein Pro-AI-Konto (100 Credits, bezahltes Becken).
+    Vorher beendete jeder bezahlte Tarif die Probe, und Probe + Plus bekam die 100 Credits von Pro AI."""
     now_iso = t.isoformat()
     trial = False
     for source, plan, expires, status in conn.execute("SELECT source, plan, expires_at, status FROM entitlements WHERE user_id=?",
                                                       (str(user_id),)):
         if billing.normalize_plan(plan) not in (None, "free") and billing._row_active(status, expires, now_iso):
             if source != "trial":
-                return False
+                if _paid_ai(plan):
+                    return False
+                continue
             trial = True
     if not trial:
         return False
@@ -1110,9 +1115,15 @@ def is_trial_account(conn: sqlite3.Connection, user_id: str, t: datetime) -> boo
         if "no such table" not in str(e):            # gesperrt, kaputtes Schema o. ae. bleibt sichtbar (Audit P8-05)
             raise
         u = None                                     # accounts.db ohne Konten-Tabelle (nur Abrechnung angelegt)
-    if u and billing.normalize_plan(u[0]) not in (None, "free") and (not u[1] or str(u[1])[:10] >= now_iso[:10]):
+    if u and _paid_ai(u[0]) and (not u[1] or str(u[1])[:10] >= now_iso[:10]):
         return False
     return True
+
+
+def _paid_ai(plan: str | None) -> bool:
+    """Bringt ein bezahlter bzw. gesetzter Tarif selbst die StudiNow-KI mit (Pro AI, alte pro/pro_connect)?"""
+    p = billing.normalize_plan(plan)
+    return bool(p) and plans.has(p, "can_use_ai_explanations")
 
 
 def _now(now: datetime | None = None) -> datetime:

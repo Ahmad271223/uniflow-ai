@@ -119,8 +119,11 @@ def test_account_with_paid_plan_during_trial_uses_the_paid_pool(hosted, monkeypa
     conn = billing.connect()
     try:
         assert ai_backend.is_trial_account(conn, u["id"], ai_backend._now())
+        # Credit-Regel 08.11.2026: Plus neben der Probe bleibt Probe (25 Credits, Probe-Becken); erst Pro AI ist bezahlt
         billing.set_entitlement(conn, u["id"], "stripe", "plus", expires_at=None, status="active", will_renew=True)
-        assert not ai_backend.is_trial_account(conn, u["id"], ai_backend._now()), "bezahlter Tarif neben der Probe"
+        assert ai_backend.is_trial_account(conn, u["id"], ai_backend._now()), "Plus neben der Probe: weiter Probe"
+        billing.set_entitlement(conn, u["id"], "stripe", "pro_ai", expires_at=None, status="active", will_renew=True)
+        assert not ai_backend.is_trial_account(conn, u["id"], ai_backend._now()), "Pro AI neben der Probe"
         assert not ai_backend.is_trial_account(conn, "gibt-es-nicht", ai_backend._now())
     finally:
         conn.close()
