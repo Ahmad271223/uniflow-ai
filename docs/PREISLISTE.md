@@ -32,7 +32,7 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 | **KI erstellt Karteikarten** auf Auftrag („Analysis I, Lernwoche 5, 30 Karten“) und „Karteikarten aus Dokument“ im Dienst | – | – | ✓ ¹ |
 | **Fertige Fragen zu jeder Vorlesungswoche** (2–3 Sätze à 15 Fragen, Lösungen und Erklärungen schon da, `can_use_prepared_week_sets`) | – | – | ✓ |
 | KI-Erklärungen, Lernfragen, Zusammenfassungen im Dienst (`ai_assist`) | 0 | 0 | 150 / Monat |
-| Credits für die StudiNow-KI (1 Credit = 1 Cent Kosten beim Anbieter) | 0 | 0 | 100 / Monat |
+| Credits für die StudiNow-KI (1 Credit = 0,9 Cent Kosten beim Anbieter (100 Credits = höchstens 0,90 €)) | 0 | 0 | 100 / Monat |
 | Testliste im Dienst (`GET /api/tests`) | letzte 10 | letzte 10 | alle |
 
 ¹ Zählt auf `ai_assist` (150 / Monat) und kostet Credits; bestätigte E-Mail nötig.
@@ -116,7 +116,7 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | nach 19 % MwSt | 1,67 € | 3,35 € |
 | nach Apple (15 %) | **1,42 €** | **2,85 €** |
 | nach Stripe (Web, ca. 1,5 % + 0,25 €) | **1,39 €** | **3,04 €** |
-| KI-Kosten | 0 € (eigenes ChatGPT) | höchstens 1 € (100 Credits), dazu der Anteil an der Bibliothek |
+| KI-Kosten | 0 € (eigenes ChatGPT) | höchstens 0,90 € (100 Credits), dazu der Anteil an der Bibliothek |
 
 ## Wo was heute steht
 

@@ -390,7 +390,7 @@ ohne Aufräumlauf zurück.
 ## 6a. Credits (04.11.2026, `app/credits.py`, `app/ai_prices.py`)
 
 Entscheidung des Inhabers: Fragen, Erklärungen, Karteikarten, Dokument-Index und Wochentests über den Dienst kosten das
-Konto **Credits**; 1 Credit = 1 Cent echter OpenAI-Kosten (Preistabelle je Modell in `app/ai_prices.py`, USD → EUR mit
+Konto **Credits**; 1 Credit = 0,9 Cent echter OpenAI-Kosten (Preistabelle je Modell in `app/ai_prices.py`, USD → EUR mit
 `LERNAPP_AI_USD_EUR`, Standard 1:1; Überschreibungen `LERNAPP_AI_PRICES`; ohne Preis für das Modell sperrt der Dienst).
 
 - **Rahmen je Kalendermonat (Europe/Berlin):** Pro AI 100 (`LERNAPP_CREDITS_PRO_AI`, höchstens 1 EUR Kosten je Konto),

@@ -78,7 +78,7 @@ def test_month_row_appears_lazily_on_first_use_and_follows_the_plan(hosted):
         assert conn.execute("SELECT COUNT(*) FROM credit_months").fetchone()[0] == 0, "kein naechtlicher Lauf, keine Vorab-Zeile"
         c = credits_of(hosted, h)
         assert (c["period"], c["allowance"], c["used"], c["reserved"], c["remaining"], c["plan"]) == (credits.period_of(), 100, 0, 0, 100, "pro_ai")
-        assert c["resets_at"] == credits.resets_at() and c["credit_eur"] == 0.01
+        assert c["resets_at"] == credits.resets_at() and c["credit_eur"] == 0.009
         assert conn.execute("SELECT COUNT(*) FROM credit_months WHERE user_id=?", (u["id"],)).fetchone()[0] == 1
         # neuer Monat = neue Zeile mit frischem Rahmen; die alte bleibt (Verfall am Monatsende)
         credits.reserve(conn, u["id"], "x", "tutor:explain", 3, now=T0)
@@ -200,13 +200,13 @@ def test_tutor_charges_credits_and_reports_the_balance(hosted, monkeypatch):
     st, d = ask(hosted, h, "Matrizen", "q1")
     assert st == 200, d
     c = d["credits"]
-    assert (c["allowance"], c["used"], c["reserved"], c["remaining"], c["charged"], c["replay"]) == (25, 8, 0, 17, 8, False)
-    assert credits_of(hosted, h)["remaining"] == 17
+    assert (c["allowance"], c["used"], c["reserved"], c["remaining"], c["charged"], c["replay"]) == (25, 9, 0, 16, 9, False)
+    assert credits_of(hosted, h)["remaining"] == 16
     conn = ledger_conn()
     try:
         row = conn.execute("SELECT purpose, funding, state, model, reserved, charged, cost_microeur, input_tokens, output_tokens, result "
                            "FROM credit_ledger WHERE user_id=? AND request_id='q1'", (u["id"],)).fetchone()
-        assert tuple(row) == ("tutor:explain", "credits", "settled", "fake", 10, 8, 80_000, 120, 40, d["answer"])
+        assert tuple(row) == ("tutor:explain", "credits", "settled", "fake", 10, 9, 80_000, 120, 40, d["answer"])
     finally:
         conn.close()
 
@@ -219,14 +219,14 @@ def test_exhausted_credits_answer_429_with_the_german_message(hosted, monkeypatc
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "25")
     _, h = user(hosted, "leer@beispiel.de", plan="pro_ai")
     assert ask(hosted, h, "eins", "e1")[0] == 200                       # 8 verbraucht, 17 uebrig
-    assert ask(hosted, h, "zwei", "e2")[0] == 200                       # 16 verbraucht, 9 uebrig < Schaetzung 10
+    assert ask(hosted, h, "zwei", "e2")[0] == 200                       # 18 verbraucht, 7 uebrig < Schaetzung 10
     st, d = ask(hosted, h, "drei", "e3")
     assert (st, d["code"]) == (429, "credits_exhausted")
     assert d["detail"] == credits.EXHAUSTED_MESSAGE == "Credits für diesen Monat aufgebraucht – am 1. gibt es neue."
-    assert (d["credits"]["remaining"], d["credits"]["needed"], d["credits"]["allowance"]) == (9, 10, 25)
+    assert (d["credits"]["remaining"], d["credits"]["needed"], d["credits"]["allowance"]) == (7, 10, 25)
     assert fake.calls == 2, "kein Aufruf des Anbieters ohne Credits"
     st, e = _j(asgi_call(hosted, "GET", "/api/entitlements", headers=h))
-    assert e["credits"]["used"] == 16 and e["quotas"]["ai_assist"]["used"] == 2, "Kontingent der abgewiesenen Anfrage zurueckgebucht"
+    assert e["credits"]["used"] == 18 and e["quotas"]["ai_assist"]["used"] == 2, "Kontingent der abgewiesenen Anfrage zurueckgebucht"
     # dieselbe ID darf nach dem Zurueckbuchen neu versucht werden - und scheitert wieder ehrlich
     assert ask(hosted, h, "drei", "e3")[0] == 429
     # anderes Konto, eigener Rahmen
@@ -241,13 +241,13 @@ def test_same_request_id_replays_within_24h_without_new_cost(hosted, monkeypatch
     cheap_calls(monkeypatch)
     u, h = user(hosted, "retry@beispiel.de", plan="pro_ai")
     st, first = ask(hosted, h, "Vektorraum", "same-id")
-    assert st == 200 and first["credits"]["charged"] == 8
+    assert st == 200 and first["credits"]["charged"] == 9
     # Wiederholung nach Netzfehler: anderer Text (kein Treffer im Zwischenspeicher), dieselbe ID
     st, second = ask(hosted, h, "Vektorraum (noch einmal)", "same-id")
     assert st == 200, second
     assert second["answer"] == first["answer"] and fake.calls == 1
-    assert (second["credits"]["charged"], second["credits"]["replay"], second["credits"]["used"]) == (0, True, 8)
-    assert credits_of(hosted, h)["used"] == 8
+    assert (second["credits"]["charged"], second["credits"]["replay"], second["credits"]["used"]) == (0, True, 9)
+    assert credits_of(hosted, h)["used"] == 9
     # laeuft die Anfrage noch, wird dieselbe ID abgewiesen
     from app import credits
     conn = ledger_conn()
@@ -276,7 +276,7 @@ def test_provider_error_refunds_the_reservation(hosted, monkeypatch):
         conn.close()
     ai_backend.set_provider(FakeAI())
     st, d = ask(hosted, h, "Kern", "f1")                         # derselbe Versuch noch einmal
-    assert st == 200 and d["credits"]["charged"] == 8 and d["credits"]["used"] == 8
+    assert st == 200 and d["credits"]["charged"] == 9 and d["credits"]["used"] == 9
 
 
 def test_cost_comes_only_from_usage_never_from_the_client(hosted, monkeypatch):
@@ -285,7 +285,7 @@ def test_cost_comes_only_from_usage_never_from_the_client(hosted, monkeypatch):
     cheap_calls(monkeypatch)
     _, h = user(hosted, "trick@beispiel.de", plan="pro_ai")
     st, d = ask(hosted, h, "Basis", "t1", credits=0, usage={"input_tokens": 0, "output_tokens": 0}, cost_microeur=0)
-    assert st == 200 and d["credits"]["charged"] == 8, "Angaben des Clients zaehlen nicht"
+    assert st == 200 and d["credits"]["charged"] == 9, "Angaben des Clients zaehlen nicht"
     # usage der Responses API: input_tokens enthaelt cached_tokens, output_tokens die Denk-Tokens
     data = {"model": "gpt-6-luna-2026-10-01", "usage": {"input_tokens": 1000, "input_tokens_details": {"cached_tokens": 400},
                                                         "output_tokens": 50, "output_tokens_details": {"reasoning_tokens": 20}}}
@@ -294,7 +294,7 @@ def test_cost_comes_only_from_usage_never_from_the_client(hosted, monkeypatch):
     monkeypatch.delenv("LERNAPP_AI_PRICE_IN_EUR")
     monkeypatch.delenv("LERNAPP_AI_PRICE_OUT_EUR")
     assert ai_prices.cost_microeur("gpt-6-luna-2026-10-01", 1000, 50, 400) == 600 * 0.10 + 400 * 0.01 + 50 * 0.50 == 89
-    assert ai_prices.credits_for(89) == 1 and ai_prices.credits_for(10_000) == 1 and ai_prices.credits_for(10_001) == 2
+    assert ai_prices.credits_for(89) == 1 and ai_prices.credits_for(9_000) == 1 and ai_prices.credits_for(9_001) == 2
     assert ai_prices.price("gibt-es-nicht") is None, "ohne Preis sperrt der Dienst"
     assert ai_backend.Completion.from_usage("x", {"output": []}, "m").input_tokens == 0
 
@@ -351,10 +351,10 @@ def test_admin_costs_view(hosted, monkeypatch):
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/ai-costs?days=7", headers=hadmin))
     assert st == 200, d
     assert d["month"]["period"] == credits.period_of()
-    assert (d["month"]["requests"], d["month"]["accounts"], d["month"]["credits"], d["month"]["cost_eur"]) == (2, 1, 16, 0.16)
-    assert d["month"]["cost_per_account_eur"] == 0.16 and d["month"]["accounts_exhausted"] == 0 and d["month"]["max_used_credits"] == 16
+    assert (d["month"]["requests"], d["month"]["accounts"], d["month"]["credits"], d["month"]["cost_eur"]) == (2, 1, 18, 0.16)
+    assert d["month"]["cost_per_account_eur"] == 0.16 and d["month"]["accounts_exhausted"] == 0 and d["month"]["max_used_credits"] == 18
     day = d["per_day_model"][0]
-    assert (day["day"], day["model"], day["requests"], day["credits"], day["input_tokens"], day["output_tokens"]) == (credits.day_of(), "fake", 2, 16, 240, 80)
+    assert (day["day"], day["model"], day["requests"], day["credits"], day["input_tokens"], day["output_tokens"]) == (credits.day_of(), "fake", 2, 18, 240, 80)
     assert d["prices_checked"] == "2026-11-05" and any(p["model"] == "gpt-6-luna" for p in d["prices"])
 
 
@@ -422,7 +422,7 @@ def test_parallel_reservations_never_exceed_the_allowance(hosted):
         states = dict(conn.execute("SELECT state, COUNT(*) FROM credit_ledger WHERE user_id=? GROUP BY state", (uid,)).fetchall())
         charged = conn.execute("SELECT COALESCE(SUM(charged), 0) FROM credit_ledger WHERE user_id=?", (uid,)).fetchone()[0]
         assert b["reserved"] == 0 and b["remaining"] >= 0
-        assert b["used"] == charged == 3 * states.get("settled", 0), (b, states)
+        assert b["used"] == charged == 4 * states.get("settled", 0), (b, states)
         assert states.get("settled", 0) + states.get("refunded", 0) == 10
         row = conn.execute("SELECT used, reserved FROM credit_months WHERE user_id=?", (uid,)).fetchone()
         assert row[0] >= 0 and row[1] >= 0

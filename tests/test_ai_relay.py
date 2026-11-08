@@ -161,7 +161,7 @@ def test_tutor_question_goes_to_the_service_and_returns_credits(pc, monkeypatch)
     assert st == 200, d
     assert "Grenzwert" in d["answer"] and fake.calls == 1
     assert ("POST", "/api/ai/relay") in calls
-    assert d["credits"]["charged"] == 8 and d["credits"]["remaining"] == 92 and d["credits"]["allowance"] == 100
+    assert d["credits"]["charged"] == 9 and d["credits"]["remaining"] == 91 and d["credits"]["allowance"] == 100
     assert "MEINE FRAGE: Warum ist der Grenzwert 0?" in fake.prompts[0], "der Prompt kommt vom PC wie fuer die eigene KI"
     # dieselbe request_id noch einmal: nicht doppelt berechnet
     st, d = tutor(app, mode="ask", page_text="Folge a_n = 1/n konvergiert gegen 0.", question="Warum ist der Grenzwert 0?", request_id="t1")
@@ -175,7 +175,7 @@ def test_whole_page_is_shared_and_costs_nothing_the_second_time(pc, monkeypatch)
     link(app, "erster@beispiel.de")
     page = "Satz von Bolzano: stetige Funktion mit Vorzeichenwechsel hat eine Nullstelle. " + uuid.uuid4().hex
     st, d = tutor(app, mode="explain", page_text=page)
-    assert st == 200 and d["credits"]["charged"] == 8 and d["explain"]["stored"] is False
+    assert st == 200 and d["credits"]["charged"] == 9 and d["explain"]["stored"] is False
     # derselbe PC: eigener Erklaerungsspeicher, ohne Dienst
     st, d = tutor(app, mode="explain", page_text=page)
     assert st == 200 and d["explain"] == {**d["explain"], "stored": True, "source": "local"} and fake.calls == 1
@@ -192,7 +192,7 @@ def test_whole_page_is_shared_and_costs_nothing_the_second_time(pc, monkeypatch)
     assert d["credits"]["charged"] == 0 and d["credits"]["remaining"] == 100
     # "Neu erklaeren lassen" fragt live
     st, d = tutor(app, mode="explain", page_text=page, force=True)
-    assert st == 200 and fake.calls == 2 and d["credits"]["charged"] == 8
+    assert st == 200 and fake.calls == 2 and d["credits"]["charged"] == 9
 
 
 @pytest.mark.parametrize("case,status,code", [
@@ -636,7 +636,7 @@ def test_study_plan_task_is_known_costs_credits_and_needs_pro_ai(pc, monkeypatch
     account(app, "plan@beispiel.de")
     link(app, "plan@beispiel.de")
     d = ai_relay.complete("study_plan", prompt, request_id="sp1")
-    assert fake.calls == 1 and d["credits"]["charged"] == 8 and d["task"] == "study_plan"
+    assert fake.calls == 1 and d["credits"]["charged"] == 9 and d["task"] == "study_plan"
     assert fake.prompts[0] == prompt, "der Prompt kommt unveraendert vom Geraet (nur Titel, Wochen, Dateinamen, Zeiten)"
     assert ("POST", "/api/ai/relay") in calls
     for email, plan in (("plus-plan@beispiel.de", "plus"), ("frei-plan@beispiel.de", "free")):

@@ -28,7 +28,7 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
                                Bibliothek frisst nie das Budget der Konten, die Konten nie das der Bibliothek.
 
 Credits (app/credits.py, 04.11.2026): Fragen, Erklaerungen, Karteikarten, Dokument-Index und Wochentests ueber den
-Dienst kosten das Konto Credits (1 Credit = 1 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
+Dienst kosten das Konto Credits (1 Credit = 0,9 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
 rechnet danach mit `usage` der Antwort ab. Erzeugen fuer den gemeinsamen Fragenpool der Bibliothek (test_generation) und
 die automatischen Wochentests (weekly_test) zaehlen weiter ueber die Kontingente des Tarifs (app/plans.py QUOTAS).
 

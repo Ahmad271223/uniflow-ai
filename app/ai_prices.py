@@ -2,7 +2,7 @@
 
 PRUEFEN VOR START (und bei jedem Modellwechsel): die Zahlen in PRICES mit den Preislisten vergleichen (SOURCE, Stand
 CHECKED). OpenAI und Anthropic/Bedrock rechnen in US-Dollar, Scaleway (DeepSeek in der EU) in Euro, jeweils je 1 Mio.
-Tokens; der Dienst rechnet in Euro-Cent (1 Credit = 1 Cent echter KI-Kosten, app/credits.py). Ohne Preis fuer das
+Tokens; der Dienst rechnet in Euro-Cent (1 Credit = 0,9 Cent echter KI-Kosten, app/credits.py). Ohne Preis fuer das
 Modell sperrt der Dienst die KI (fail closed). Modellmischung: docs/KI-MODELLMISCHUNG-2026-11-05.md, app/ai_router.py.
 
 Umgebung (deploy/.env, alles optional):
@@ -81,8 +81,9 @@ RECOMMENDED = "gpt-6-luna"
 # Empfehlung je Anbieter der Modellmischung (app/ai_router.py)
 RECOMMENDED_BY_PROVIDER = {"openai": "gpt-6-luna", "deepseek": "deepseek-v4.1-flash-1017", "anthropic": "claude-sonnet-5-5"}
 
-# 1 Credit = 1 Cent = 10.000 Millionstel Euro
-MICROEUR_PER_CREDIT = 10_000
+# 1 Credit = 0,9 Cent = 9.000 Millionstel Euro (Entscheidung des Inhabers 08.11.2026: Pro AI zeigt 100 Credits im Monat,
+# die echten KI-Kosten je Konto bleiben dabei unter 0,90 EUR; die Probe mit 25 Credits unter 0,23 EUR)
+MICROEUR_PER_CREDIT = 9_000
 # Schaetzung vor dem Aufruf: Zeichen je Token (deutscher Text liegt bei etwa 4; 3 ist vorsichtig) und Aufschlag je Anfrage
 CHARS_PER_TOKEN = 3
 OVERHEAD_TOKENS = 64

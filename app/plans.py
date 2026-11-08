@@ -123,7 +123,7 @@ QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Test
                 "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen",
                 "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)"}
 
-# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 1 Cent OpenAI-Kosten): Pro AI 100,
+# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 0,9 Cent OpenAI-Kosten): Pro AI 100,
 # sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.
 CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
 
