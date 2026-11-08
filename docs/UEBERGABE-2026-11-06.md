@@ -77,7 +77,7 @@ Demo ohne Dauer-Ladehinweis.
 4. **E-Mail beim Händlerstatus** (Rechtsträger) in App Store Connect ändern (hat der Inhaber angekündigt).
 5. **Strato:** `studinow.ai` → A-Eintrag 75.2.60.5, AAAA löschen (oder Weiterleitung auf https://studinow.app); Alias
    `no-reply@studinow.app` am Postfach support@ anlegen.
-6. **Website** neu hochladen: Netlify-Projekt `startling-longma-7d7cdf` → Deploys → Ordner `uniflow-ai/site` hineinziehen
+6. **Website** neu hochladen: `python tools/gen-site.py && tools/site-hochladen.sh` (Netlify-Schlüssel in `~/Studora-Builds/private_keys/netlify-token.txt`; Netlify-Projekt `startling-longma-7d7cdf`)
    (neues Logo, Texte zu Passwörtern).
 7. **Mit echten Konten testen** (Testlisten in den Docs aus Abschnitt 0): Uni-Mail senden/antworten (LUH, Hildesheim),
    Automatisch anmelden (Uni-Mail-Formular und HsH-IdP sind geraten), Bescheinigungen HsH/Hildesheim (Job+Poll nie ausgelöst),
