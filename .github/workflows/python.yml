@@ -1,0 +1,60 @@
+# Python-Testsuite (Dienst, Rechts- und Store-Texte, Vertraege zwischen Dienst, Web und iPad). Eigener Workflow ohne
+# Pfadfilter (Audit P47-03/05, 08.11.2026): viele Tests lesen Swift-Quellen, apps/apple/project.yml,
+# PrivacyInfo.xcprivacy und docs/release/*.md (z. B. tests/test_release_texts.py, test_ai_consent.py,
+# test_release_gate.py, test_release_build_provenance.py). Als Job in ci.yml liefen sie wegen
+# paths-ignore "apps/apple/**" und "**/*.md" genau bei diesen Aenderungen nicht. Linux, zaehlt 1x.
+name: Python
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: python-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: Python-Tests
+    runs-on: ubuntu-latest
+    # gemessen 4-7 min (Laeufe vom 08.11.2026); 20 min Luft fuer langsame Runner, ein Haenger bricht vorher ab
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Abhaengigkeiten
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Tests
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q -rs tests 2>&1 | tee pytest.log
+      - name: Zusammenfassung
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Python-Tests"
+            echo "Commit \`${GITHUB_SHA::8}\`, Python $(python --version 2>&1 | cut -d' ' -f2)"
+            echo
+            echo '```'
+            grep -E "^(FAILED|ERROR) " pytest.log | head -30 || true
+            tail -n 1 pytest.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Protokoll sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-log
+          path: pytest.log
+          retention-days: 30

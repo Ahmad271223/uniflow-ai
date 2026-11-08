@@ -241,8 +241,9 @@ final class AIConsentAppTests: XCTestCase {
         XCTAssertEqual((plist["NSPrivacyTrackingDomains"] as? [String])?.count, 0)
         let collected = try XCTUnwrap(plist["NSPrivacyCollectedDataTypes"] as? [[String: Any]])
         let types = Set(collected.compactMap { $0["NSPrivacyCollectedDataType"] as? String })
+        // Geraete-ID seit Audit P46-04 (08.11.2026): zufaellige Installationskennung als device_id beim Dienst
         XCTAssertEqual(types, ["NSPrivacyCollectedDataTypeEmailAddress", "NSPrivacyCollectedDataTypeUserID",
-                               "NSPrivacyCollectedDataTypePurchaseHistory", "NSPrivacyCollectedDataTypeOtherUserContent",
+                               "NSPrivacyCollectedDataTypeDeviceID", "NSPrivacyCollectedDataTypePurchaseHistory", "NSPrivacyCollectedDataTypeOtherUserContent",
                                "NSPrivacyCollectedDataTypeProductInteraction"])
         for t in collected {
             XCTAssertEqual(t["NSPrivacyCollectedDataTypeLinked"] as? Bool, true)

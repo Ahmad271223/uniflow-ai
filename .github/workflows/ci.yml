@@ -1,4 +1,4 @@
-# Server und Weboberflaeche: Tests, Abhaengigkeits-Sicherheitspruefung, Syntaxpruefung der JS-Module.
+# Server und Weboberflaeche: Abhaengigkeits-Sicherheitspruefung, Syntaxpruefung der JS-Module (Python-Tests: python.yml).
 # Laeuft auf Linux (1x Minuten). Echte Daten und Zugangsdaten werden nie benutzt (Temp-Datenordner in den Tests).
 name: CI
 
@@ -19,21 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Python-Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-          cache: pip
-      - name: Abhaengigkeiten
-        run: pip install -r requirements.txt -r requirements-dev.txt
-      - name: Tests
-        run: python -m pytest -q tests
-
+  # Die Python-Tests laufen seit Audit P47 (08.11.2026) im eigenen Workflow python.yml ohne Pfadfilter: sie lesen auch
+  # Swift-Quellen und docs/release/*.md, die dieser Workflow per paths-ignore auslaesst.
   security:
     name: Sicherheitspruefung
     runs-on: ubuntu-latest

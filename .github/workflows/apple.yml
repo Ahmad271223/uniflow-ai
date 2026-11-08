@@ -1,6 +1,12 @@
 # iPad-App: gemeinsamer Swift-Kern unter Linux (guenstig), danach App-Build und Tests im iOS-Simulator (macOS).
 # Kosten: Linux-Minuten zaehlen 1x, macOS-Minuten 10x gegen das Freikontingent privater Repos. Darum laeuft der
 # macOS-Job nur, wenn der Linux-Job gruen ist, und nur bei Aenderungen unter apps/apple. Kein Signieren.
+# Audit P47 (08.11.2026): Ausloeser auch fuer die gemeinsamen Vertraege/Fixtures und die einzige Datei unter app/, die
+# die Swift-Tests lesen (app/static/formats.js, PageFormatsTests); Paritaet mit app/*.py pruefen die Python-Tests
+# (python.yml, ohne Pfadfilter). Manuell gestartet und auf main laeuft der iPad-Job auch, wenn der Linux-Job rot ist
+# (der Linux-Kern uebersetzt seit dem 07.11. nicht: FoundationNetworking/HTTPCookie, Typpruefung; das ist kein
+# iOS-Fehler). Zusammenfassung je Lauf: Commit, Build-Nummer aus project.yml, Zahl der ausgefuehrten Tests.
+# Ein gruener Lauf hier ist kein Nachweis fuer das signierte Archiv (docs/release/BUILD-HERKUNFT.md).
 name: Apple
 
 on:
@@ -9,10 +15,13 @@ on:
     paths:
       - "apps/apple/**"
       - "packages/shared-contracts/**"
+      - "app/static/formats.js"
       - ".github/workflows/apple.yml"
   pull_request:
     paths:
       - "apps/apple/**"
+      - "packages/shared-contracts/**"
+      - "app/static/formats.js"
       - ".github/workflows/apple.yml"
   workflow_dispatch:
 
@@ -37,21 +46,44 @@ jobs:
         run: apt-get update -qq && apt-get install -y -qq libsqlite3-dev
       - name: Tests
         shell: bash
+        timeout-minutes: 15
         working-directory: apps/apple/Packages/UniFlowCore
-        run: swift test 2>&1 | tee swift-test-linux.log
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee swift-test-linux.log
+      - name: Zusammenfassung
+        if: always()
+        shell: bash
+        working-directory: apps/apple/Packages/UniFlowCore
+        run: |
+          {
+            echo "### UniFlowCore unter Linux"
+            echo "Commit ${SHA:0:8}"
+            echo '```'
+            grep -E "Executed [0-9]+ tests" swift-test-linux.log | tail -n 1 || true
+            grep -E "error:" swift-test-linux.log | sed -E 's/.*Sources\/UniFlowCore\///' | sort -u | head -15 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SHA: ${{ github.sha }}
       - name: Protokoll sichern
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: swift-test-linux
           path: apps/apple/Packages/UniFlowCore/swift-test-linux.log
-          retention-days: 7
+          retention-days: 30
 
   ios:
     name: iPad-App (Xcode, Simulator)
     needs: core-linux
+    # Push auf develop: nur nach gruenem Linux-Job (macOS zaehlt 10x). Manuell und auf main: auch bei rotem Linux-Job,
+    # damit ein Linux-Fehler den iPad-Nachweis nicht verdeckt (P47-07)
+    if: ${{ !cancelled() && (needs.core-linux.result == 'success' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: macos-15
-    timeout-minutes: 45
+    # volle Suite lokal ~13 min (1252 Tests, Mac mit Apple-Chip); Runner langsamer, dazu Bauen: 90 min fuer den Job,
+    # Schritte einzeln begrenzt, damit ein Haenger am Schritt erkennbar ist (P47-09)
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash            # bash -eo pipefail: ein Fehler vor "| tee" faellt auf
@@ -62,8 +94,10 @@ jobs:
           xcodebuild -version
           xcrun simctl list runtimes available
       - name: XcodeGen installieren
+        timeout-minutes: 10
         run: brew install xcodegen
       - name: Kern auch auf macOS testen
+        timeout-minutes: 20
         working-directory: apps/apple/Packages/UniFlowCore
         run: swift test 2>&1 | tee swift-test-macos.log
       - name: Xcode-Projekt erzeugen
@@ -88,6 +122,7 @@ jobs:
           xcrun simctl list devices | grep "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
       - name: Bauen und testen
+        timeout-minutes: 60
         working-directory: apps/apple
         run: |
           set -o pipefail
@@ -98,13 +133,38 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*(deprecated|unused)|Test Case|Executed|BUILD|\*\*" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" xcodebuild.log
-      - name: Ergebnisse sichern
+      - name: Zusammenfassung
+        if: always()
+        working-directory: apps/apple
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          BUILD=$(sed -nE 's/^ *CURRENT_PROJECT_VERSION: "([0-9]+)"/\1/p' project.yml)
+          VERSION=$(sed -nE 's/^ *MARKETING_VERSION: "([^"]+)"/\1/p' project.yml)
+          {
+            echo "### iPad-App"
+            echo "Commit ${SHA:0:8}, Version $VERSION, Build $BUILD (project.yml; Debug, Simulator, ohne Signierung)"
+            echo '```'
+            echo "Kern macOS: $(grep -E 'Executed [0-9]+ tests' Packages/UniFlowCore/swift-test-macos.log 2>/dev/null | tail -n 1 | sed -E 's/^[[:space:]]+//')"
+            echo "UniFlowTests: $(grep -E 'Executed [0-9]+ tests' xcodebuild.log 2>/dev/null | tail -n 1 | sed -E 's/^[[:space:]]+//')"
+            grep -E "\*\* TEST (SUCCEEDED|FAILED) \*\*" xcodebuild.log 2>/dev/null | tail -n 1 || echo "kein Testergebnis im Protokoll"
+            grep -E "error:|: failed \(" xcodebuild.log 2>/dev/null | head -20 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Protokolle klein und 90 Tage (Release-Nachweis je Commit, P47-08), das grosse .xcresult 7 Tage
+      - name: Protokolle sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-logs
+          path: |
+            apps/apple/xcodebuild.log
+            apps/apple/Packages/UniFlowCore/swift-test-macos.log
+          retention-days: 90
+      - name: Ergebnisbuendel sichern
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
-          path: |
-            apps/apple/xcodebuild.log
-            apps/apple/TestResults.xcresult
-            apps/apple/Packages/UniFlowCore/swift-test-macos.log
+          path: apps/apple/TestResults.xcresult
           retention-days: 7

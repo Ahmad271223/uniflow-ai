@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Datenschutz-Manifest der App, Stand 07.11.2026. Muss mit dem Abschnitt "App-Datenschutz" in
+  Datenschutz-Manifest der App, Stand 08.11.2026 (Build 27; Build 25 traegt den Stand vom 07.11. ohne Geraete-ID). Muss mit dem Abschnitt "App-Datenschutz" in
   docs/release/APP-STORE.md uebereinstimmen; Test: AIConsentAppTests.testPrivacyManifestMatchesTheApp und
   tests/test_release_texts.py. Kein Tracking, keine Tracking-Domains, keine Werbung, keine Analyse-SDKs.
   Fremd-Pakete gibt es keine; UniFlowCore (eigenes Paket, statisch in die App gebaut) ist hier mit erfasst.
@@ -10,6 +10,10 @@
   - E-Mail-Adresse: nur mit StudiNow-Konto (Mit Apple anmelden bzw. Registrierung), StudoraAccountLink.swift
   - Nutzer-ID: Konto-ID und Apple-Kennung beim StudiNow-Dienst; CloudKit-Nutzerkennung in Community-, Wochentest- und
     Bibliotheks-Datensaetzen
+  - Geraete-ID (seit Audit P46-04, 08.11.2026): zufaellige Kennung dieser Installation ("ipad-<UUID>",
+    StudoraAccountLink.deviceID) geht mit Anmeldung und Geraeteabgleich als device_id an den Dienst und steht dort bei
+    der Sitzung des Kontos (Geraeteliste, andere Geraete abmelden); nur mit StudiNow-Konto, keine Werbe- oder
+    Hardware-Kennung (kein identifierForVendor, keine IDFA)
   - Kaufverlauf: signierte App-Store-Transaktion an /api/billing/apple/verify (nur mit Konto), keine Zahlungsdaten
   - Andere Nutzerinhalte: Community; KI-Anfragen (Seitentext bzw. Bild eines Bereichs, Frage, Kurs- und Dateiname) an
     den StudiNow-Dienst und weiter an OpenAI bzw. Claude ueber Amazon Bedrock (erst nach der Einwilligung
@@ -52,6 +56,18 @@
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
