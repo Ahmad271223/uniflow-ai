@@ -262,7 +262,7 @@ schritt_3() {
 schritt_4() {
   schritt 4 "Pause: Daten von ALT nach NEU (einzige Ausfallzeit)"
   sag "Vorher eine Sicherung auf ALT (backup.sh, Dienst laeuft dabei weiter) ..."
-  ssh_alt "$DEPLOY_DIR/backup.sh"
+  ssh_alt "bash $DEPLOY_DIR/backup.sh"
 
   frage_ja "Jetzt beginnt die Pause: der Dienst auf ALT wird angehalten, bis NEU laeuft (einige Minuten). Weiter?"
   local start_pause; start_pause="$(date +%s)"
