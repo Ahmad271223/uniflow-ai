@@ -39,8 +39,9 @@ enum UFLocalTrial {
         var isActive: Bool { daysLeft > 0 }
         var isExpired: Bool { !isActive }
 
-        /// Stand zu einer neuen Zeit (Tageswechsel, Vordergrund); "auf diesem Geraet schon genutzt" bleibt, wie es ist
-        func updated(now: Date) -> State { deviceUsed ? self : UFLocalTrial.state(startedAt: startedAt, now: now) }
+        /// Stand zu einer neuen Zeit (Tageswechsel, Vordergrund); "auf diesem Geraet schon genutzt" und eine vorbei
+        /// Probe bleiben, wie sie sind (Uhr zurueckgestellt holt sie nicht zurueck, Audit P44-12)
+        func updated(now: Date) -> State { deviceUsed || isExpired ? self : UFLocalTrial.state(startedAt: startedAt, now: now) }
 
         /// "schon genutzt": Beginn der Probe auf diesem Geraet, ohne Resttage
         static func usedOnDevice(since start: Date) -> State {
@@ -51,7 +52,8 @@ enum UFLocalTrial {
     /// Stand aus dem Beginn und der aktuellen Zeit (reine Rechnung, Uhr von aussen)
     static func state(startedAt: Date, now: Date) -> State {
         let ends = startedAt.addingTimeInterval(length)
-        let left = ends.timeIntervalSince(now)
+        // Beginn in der Zukunft (Uhr eines anderen Geraets): hoechstens 7 Resttage, nie "noch 372 Tage" (Audit P44-12)
+        let left = min(ends.timeIntervalSince(now), length)
         let days = left > 0 ? Int((left + 86_399) / 86_400) : 0
         return State(startedAt: startedAt, endsAt: ends, daysLeft: days)
     }
@@ -79,14 +81,26 @@ enum UFLocalTrial {
     /// diesem Geraet schon eine lief (Geraete-Marke); eine Apple-ID mit Probe behaelt ihren Stand und markiert das Geraet.
     @discardableResult
     static func begin(userID: String, records: any UFTrialRecording, now: Date = Date()) -> State {
-        let scope = scope(userID: userID)
+        begin(scope: scope(userID: userID), records: records, now: now)
+    }
+
+    /// wie `begin(userID:)`, mit dem Schluessel der Apple-ID (Vordergrund, Tageswechsel: `Entitlements.refreshLocalTrial`).
+    /// Uhr verstellt (Audit P44-12): ein Beginn in der Zukunft zaehlt ab jetzt und wird so gespeichert (Uhr beim ersten
+    /// Start vorgestellt, danach richtig: vorher lief die Probe bis zum falschen Datum plus 7 Tage); ein einmal
+    /// gesehenes Ende bleibt (Marke im Schluesselbund), auch wenn die Uhr danach zurueckgestellt wird.
+    @discardableResult
+    static func begin(scope: String, records: any UFTrialRecording, now: Date = Date()) -> State {
         let known = records.load(scope)
-        let r = resolve(keychain: known.keychain, cloud: known.cloud, now: now)
+        var r = resolve(keychain: known.keychain, cloud: known.cloud, now: now)
         let device = records.deviceTrialStart()
         if r.isNew, let device { return .usedOnDevice(since: device) }
+        if r.start > now { r = Resolution(start: now, writeKeychain: true, writeCloud: true, isNew: r.isNew) }
         if r.writeKeychain || r.writeCloud { records.save(start: r.start, scope: scope, keychain: r.writeKeychain, cloud: r.writeCloud) }
         if device == nil { records.markDeviceTrial(start: r.start) }
-        return state(startedAt: r.start, now: now)
+        if known.endedSeen { return State(startedAt: r.start, endsAt: r.start.addingTimeInterval(length), daysLeft: 0) }
+        let s = state(startedAt: r.start, now: now)
+        if s.isExpired { records.markEnded(scope) }
+        return s
     }
 }
 
@@ -98,6 +112,8 @@ struct UFTrialRecords: Equatable {
     var cloud: Date?
     /// "Bei Free bleiben" nach dem Ende der Probe wurde schon beantwortet (Hinweis nicht erneut zeigen)
     var choiceMade = false
+    /// Ende der Probe wurde schon einmal gesehen: bleibt vorbei, auch mit zurueckgestellter Uhr (Audit P44-12)
+    var endedSeen = false
 }
 
 /// Ablage des Probe-Beginns (Geraet: Schluesselbund und iCloud; Tests: Speicher)
@@ -105,6 +121,8 @@ protocol UFTrialRecording {
     func load(_ scope: String) -> UFTrialRecords
     func save(start: Date, scope: String, keychain: Bool, cloud: Bool)
     func markChoice(_ scope: String)
+    /// Ende der Probe gesehen (Schluesselbund, ueberlebt die Neuinstallation)
+    func markEnded(_ scope: String)
     /// Beginn der ersten Probe auf diesem Geraet, gleich fuer welche Apple-ID (nil = noch keine)
     func deviceTrialStart() -> Date?
     func markDeviceTrial(start: Date)
@@ -161,7 +179,7 @@ struct UFTrialRecordStore: UFTrialRecording {
         let c = cloud?.number(forKey: Self.cloudKey(scope)).map { Date(timeIntervalSince1970: $0) }
         // Wahl nach der Probe: UserDefaults oder Schluesselbund (ueberlebt die Neuinstallation, 07.11.2026)
         let choice = defaults.bool(forKey: Self.choiceKey(scope)) || keychain.string(Self.choiceAccount(scope)) == "1"
-        return UFTrialRecords(keychain: k, cloud: c, choiceMade: choice)
+        return UFTrialRecords(keychain: k, cloud: c, choiceMade: choice, endedSeen: keychain.string(Self.endedAccount(scope)) == "1")
     }
 
     func save(start: Date, scope: String, keychain writeKeychain: Bool, cloud writeCloud: Bool) {
@@ -180,6 +198,15 @@ struct UFTrialRecordStore: UFTrialRecording {
         try? keychain.write("1", account: Self.choiceAccount(scope))
     }
 
+    /// Ende der Probe gesehen: nur im Schluesselbund dieses Geraets (nicht iCloud: ein zweites iPad rechnet selbst)
+    func markEnded(_ scope: String) {
+        guard keychain.string(Self.endedAccount(scope)) != "1" else { return }
+        try? keychain.write("1", account: Self.endedAccount(scope))
+    }
+
+    /// Schluessel der Marke "Ende gesehen" im Schluesselbund (je Apple-ID, Hash)
+    static func endedAccount(_ scope: String) -> String { "ended." + scope }
+
     /// Schluessel der Wahl im Schluesselbund (je Apple-ID, Hash)
     static func choiceAccount(_ scope: String) -> String { "choice." + scope }
 
@@ -187,6 +214,7 @@ struct UFTrialRecordStore: UFTrialRecording {
     func remove(_ scope: String) {
         keychain.remove(scope)
         keychain.remove(Self.choiceAccount(scope))
+        keychain.remove(Self.endedAccount(scope))
         defaults.removeObject(forKey: Self.choiceKey(scope))
     }
 
@@ -218,6 +246,12 @@ final class UFMemoryTrialRecords: UFTrialRecording {
     func markChoice(_ scope: String) {
         var r = records[scope] ?? UFTrialRecords()
         r.choiceMade = true
+        records[scope] = r
+    }
+
+    func markEnded(_ scope: String) {
+        var r = records[scope] ?? UFTrialRecords()
+        r.endedSeen = true
         records[scope] = r
     }
 
@@ -282,5 +316,22 @@ enum UFTrialBannerContent: Equatable {
         case .over: return UFTrialTexts.overText
         case .usedOnDevice: return UFTrialTexts.usedOnDeviceText
         }
+    }
+}
+
+// MARK: - Ablauf bei offener App
+
+/// Wann sich der Tarif ohne ein Ereignis von aussen aendert (Audit P44-11): Resttage der Probe (Tageswechsel), Ende der
+/// Probe, Ende des Abos bzw. seiner Kulanzfrist. Apple schickt beim Ablauf eines gekuendigten Abos keine Transaktion,
+/// die App blieb vorher im Vordergrund im alten Tarif, bis zum naechsten Wechsel in den Vordergrund bzw. Neustart.
+enum UFPlanExpiry {
+    /// naechster Zeitpunkt nach `now`, nil = keiner
+    static func next(localTrial: UFLocalTrial.State?, rightsEnd: Date?, now: Date) -> Date? {
+        var at: [Date] = []
+        if let t = localTrial, t.isActive, !t.deviceUsed {
+            at.append(t.endsAt.addingTimeInterval(-Double(t.daysLeft - 1) * 86_400))
+        }
+        if let rightsEnd { at.append(rightsEnd) }
+        return at.filter { $0 > now }.min()
     }
 }

@@ -348,6 +348,9 @@ struct UFEntitlementEntry: Equatable {
     var expirationDate: Date?
     var revocationDate: Date?
     var isUpgraded = false
+    /// Ende der Kulanzfrist (Billing Grace Period), wenn Apple das Abo nach gescheiterter Zahlung weiter zaehlt
+    /// (`Product.SubscriptionInfo.RenewalState.inGracePeriod`); `expirationDate` ist dann schon vorbei
+    var graceUntil: Date?
 }
 
 extension UFEntitlementEntry {
@@ -360,12 +363,16 @@ extension UFEntitlementEntry {
 }
 
 enum UFEntitlementResolver {
-    /// gueltig = nicht erstattet/widerrufen, nicht abgelaufen, nicht durch ein hoeheres Abo ersetzt
+    /// gueltig = nicht erstattet/widerrufen, nicht abgelaufen (oder in der Kulanzfrist), nicht durch ein hoeheres Abo
+    /// ersetzt
     static func isActive(_ e: UFEntitlementEntry, now: Date) -> Bool {
         guard e.revocationDate == nil, !e.isUpgraded else { return false }
-        if let exp = e.expirationDate, exp <= now { return false }
+        if let exp = e.expirationDate, exp <= now { return (e.graceUntil ?? exp) > now }
         return true
     }
+
+    /// Ende des Rechts: Ende der Kulanzfrist, sonst Ablauf des Zeitraums (nil = unbefristet)
+    static func rightsEnd(_ e: UFEntitlementEntry) -> Date? { e.graceUntil ?? e.expirationDate }
 
     /// hoechster gueltiger Tarif wie current_plan() in app/billing.py, sonst Free
     static func plan(from entries: [UFEntitlementEntry], now: Date = Date()) -> UFPlan {
@@ -405,6 +412,12 @@ final class Entitlements: ObservableObject {
     private var planIsForced = false
     /// Ablauf bzw. naechste Verlaengerung des gueltigen Abos
     @Published private(set) var expiresAt: Date?
+    /// Ende der Kulanzfrist, solange Apple das Abo nach gescheiterter Zahlung weiter zaehlt (sonst nil)
+    @Published private(set) var graceUntil: Date?
+    /// Ende des Rechts aus dem Kauf (Kulanzfrist, sonst Ablauf); dann prueft die App neu (Audit P44-11)
+    private var rightsEnd: Date?
+    /// Wecker fuer das naechste Ende ohne Ereignis (Probe, Abo), `UFPlanExpiry`
+    private var expiryCheck: Task<Void, Never>?
     /// zur naechsten Verlaengerung vorgemerkter kleinerer Tarif (Downgrade), sonst nil
     @Published private(set) var pendingPlan: UFPlan?
     /// Zahlweise des gekauften Abos (monatlich/jaehrlich); nil ohne Abo
@@ -434,7 +447,7 @@ final class Entitlements: ObservableObject {
         Task { await refresh() }
     }
 
-    deinit { updates?.cancel() }
+    deinit { updates?.cancel(); expiryCheck?.cancel() }
 
     func access(_ f: UFFeature) -> UFAccess {
         UFFeatureMatrix.access(f, plan: plan, ownChatGPT: ownChatGPTConnected)
@@ -467,23 +480,31 @@ final class Entitlements: ObservableObject {
         let scope = UFLocalTrial.scope(userID: userID)
         localTrialScope = scope
         localTrialRecords = records
-        localTrial = UFLocalTrial.begin(userID: userID, records: records, now: now)
+        localTrial = UFLocalTrial.begin(scope: scope, records: records, now: now)
         localTrialChoiceMade = records.load(scope).choiceMade
-        recompute()
+        recompute(now: now)
     }
 
     /// Stand der Probe setzen, ohne etwas zu speichern (Abmeldung: nil; Tests und Vorschauen)
     func useLocalTrial(startedAt: Date?, now: Date = Date()) {
         localTrial = startedAt.map { UFLocalTrial.state(startedAt: $0, now: now) }
         if startedAt == nil { localTrialScope = nil; localTrialRecords = nil; localTrialChoiceMade = false }
-        recompute()
+        recompute(now: now)
     }
 
-    /// Resttage neu rechnen (Vordergrund, Tageswechsel); am Ende der Probe faellt der Tarif von selbst auf Free
+    /// Resttage neu rechnen (Vordergrund, Tageswechsel, Wecker `UFPlanExpiry`); am Ende der Probe faellt der Tarif von
+    /// selbst auf Free. Mit Ablage ueber `UFLocalTrial.begin` (Uhr verstellt, Ende gesehen: Audit P44-12). Ist das Recht
+    /// aus dem Kauf vorbei, liest die App die Transaktionen neu (Apple meldet den Ablauf nicht, Audit P44-11).
     func refreshLocalTrial(now: Date = Date()) {
-        guard let t = localTrial else { return }
-        localTrial = t.updated(now: now)
-        recompute()
+        if let t = localTrial {
+            if let scope = localTrialScope, let records = localTrialRecords {
+                localTrial = UFLocalTrial.begin(scope: scope, records: records, now: now)
+            } else {
+                localTrial = t.updated(now: now)
+            }
+        }
+        recompute(now: now)
+        if !planIsForced, let end = rightsEnd, end <= now { Task { await refresh() } }
     }
 
     /// "Bei Free bleiben" nach dem Ende der Probe: der Hinweis verschwindet, Free bleibt nutzbar
@@ -505,21 +526,42 @@ final class Entitlements: ObservableObject {
         return plan.name
     }
 
-    /// wirksamen Tarif aus den Quellen bestimmen (UFPlanPrecedence); mit -UFPlan nur der feste Tarif
-    private func recompute() {
+    /// wirksamen Tarif aus den Quellen bestimmen (UFPlanPrecedence); mit -UFPlan nur der feste Tarif. Danach den
+    /// Wecker fuer das naechste Ende stellen (`now` = Uhr des Aufrufers, in Tests fest)
+    private func recompute(now: Date = Date()) {
         plan = planIsForced ? purchasedPlan
             : UFPlanPrecedence.effective(service: serviceTrial, purchased: purchasedPlan, localTrial: localTrial)
+        scheduleExpiryCheck(now: now)
+    }
+
+    /// Wecker auf das naechste Ende ohne Ereignis (Probe, Abo, Kulanzfrist; Audit P44-11). Ein spaeter Wecker (Geraet
+    /// schlief) schadet nicht: jeder Wechsel in den Vordergrund rechnet ohnehin neu und stellt ihn neu.
+    private func scheduleExpiryCheck(now: Date) {
+        expiryCheck?.cancel()
+        expiryCheck = nil
+        guard !planIsForced, let at = UFPlanExpiry.next(localTrial: localTrial, rightsEnd: rightsEnd, now: now) else { return }
+        let wait = min(at.timeIntervalSince(now) + 1, 7 * 86_400)
+        expiryCheck = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.refreshLocalTrial()
+        }
     }
 
     func refresh() async {
         var entries: [UFEntitlementEntry] = []
         var active: [String: StoreKit.Transaction] = [:]
+        var activeEntries: [String: UFEntitlementEntry] = [:]
         let now = Date()
         for await result in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let t) = result else { continue }
-            let e = UFEntitlementEntry(t)
+            var e = UFEntitlementEntry(t)
+            // Zeitraum vorbei, aber noch in currentEntitlements: Kulanzfrist? (Audit P44-14)
+            if let exp = t.expirationDate, exp <= now, t.revocationDate == nil, !t.isUpgraded {
+                e.graceUntil = await Self.gracePeriodEnd(of: t, now: now)
+            }
             entries.append(e)
-            if UFEntitlementResolver.isActive(e, now: now) { active[t.productID] = t }
+            if UFEntitlementResolver.isActive(e, now: now) { active[t.productID] = t; activeEntries[t.productID] = e }
         }
         var p = UFEntitlementResolver.plan(from: entries, now: now)
         var renewal: (willAutoRenew: Bool, productID: String?)?
@@ -535,12 +577,24 @@ final class Entitlements: ObservableObject {
         if let t = localTrial { localTrial = t.updated(now: now) }
         recompute()
         expiresAt = current?.expirationDate
+        let currentEntry = current.flatMap { activeEntries[$0.productID] }
+        graceUntil = currentEntry?.graceUntil
+        rightsEnd = currentEntry.flatMap(UFEntitlementResolver.rightsEnd)
         purchasedBilling = current.flatMap { UFBilling(productID: $0.productID) }
         willRenew = renewal?.willAutoRenew
         pendingPlan = renewal.flatMap {
             UFEntitlementResolver.pendingPlan(current: p, willAutoRenew: $0.willAutoRenew, autoRenewProductID: $0.productID)
         }
         loading = false
+        scheduleExpiryCheck(now: now)
+    }
+
+    /// Ende der Kulanzfrist, wenn Apple das Abo darin fuehrt (Status inGracePeriod); ohne Datum einen Tag trauen und
+    /// dann neu fragen
+    private static func gracePeriodEnd(of t: StoreKit.Transaction, now: Date) async -> Date? {
+        guard let status = await t.subscriptionStatus, status.state == .inGracePeriod else { return nil }
+        if case .verified(let info) = status.renewalInfo, let end = info.gracePeriodExpirationDate, end > now { return end }
+        return now.addingTimeInterval(86_400)
     }
 
     /// Verlaengerung des gueltigen Abos (RenewalInfo der Abo-Gruppe): verlaengert es sich, und mit welchem Produkt?
