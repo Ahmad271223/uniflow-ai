@@ -166,6 +166,36 @@ final class StudIPDownloadGapAppTests: XCTestCase {
         XCTAssertEqual(before["v1b"], true, "\(before)")
     }
 
+    /// Nachholen unabhaengig von der Dateiliste (Befund iPad 08.11.2026): Dateien stehen im Register ohne Ablageort,
+    /// die Liste dieses Laufs nennt sie aber nicht (mehr). Der volle Lauf laedt sie trotzdem.
+    func testFullRunCatchesUpFilesMissingFromListing() async throws {
+        let dev = try device()
+        let stud = portal()
+        let db = try await dev.host.backend().context.database
+        let rows = Self.files["v1"]!.map { f in
+            StudIPFile(id: f.id, courseID: "v1", name: f.name, size: Self.pdf(f.id).count, mimeType: "application/pdf",
+                       changed: "2026-10-19T10:00:00+02:00", isDownloadable: false)
+        }
+        try await db.transaction { c in
+            try StudIPLibrary.storeCourses(c, [StudIPCourse(id: "v1", title: "Grundlagen Beispiel", number: "10001", semesterTitle: "WiSe 2026/27",
+                                                            semesterStart: "2026-10-01T00:00:00+02:00", semesterEnd: "WiSe 2026/27",
+                                                            semesterEndsAt: "2027-03-31T23:59:59+02:00")],
+                                           startedAt: "2026-11-07T21:59:08", today: "2026-11-07")
+            _ = try StudIPLibrary.storeFiles(c, rows, startedAt: "2026-11-07T21:59:08", base: StudIPSync.base, localFiles: nil)
+        }
+        // die Liste des Kurses ist in diesem Lauf leer (Stud.IP zeigt die Dateien gerade nicht in der Ordnerliste)
+        stud.json("/jsonapi.php/v1/folders/rv1/file-refs?page[limit]=500", #"{"data":[]}"#)
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        let after = try await loaded(dev)
+        XCTAssertEqual(after["v1a"], true, "\(after)")
+        XCTAssertEqual(after["v1b"], true, "\(after)")
+        XCTAssertEqual(stud.contentRequests("v1a"), 1)
+        // ein zweiter Lauf laedt nichts doppelt
+        await sync.run(client: client(stud))
+        XCTAssertEqual(stud.contentRequests("v1a"), 1)
+    }
+
     // MARK: Fall "zweiter Abgleich holt nach"
 
     /// Erster Lauf: Stud.IP gestoert fuer die Veranstaltung (500). Die Dateien bleiben gelistet, der Fehler steht je

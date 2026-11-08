@@ -733,6 +733,34 @@ final class StudIPSync: ObservableObject {
     var fileClientForTests: StudIPClient?
 
     /// Stud.IP-Datei laut Datenbank (nur Originale mit Download-Adresse `…/file-refs/<id>/content`)
+    /// Stud.IP-Datei ohne Ablageort (Kurs, Zeile fuer den Download)
+    struct NotLoaded: Sendable {
+        let id: String, courseID: String, name: String, size: Int?, mime: String?
+        let row: UniStore.FileRow
+    }
+
+    /// Dateien dieser Kurse, die im Register stehen, aber nie (oder nicht mehr) auf dem Geraet liegen: keine Links,
+    /// keine Videos, nicht im Papierkorb; Reihenfolge wie die Liste (Kurs, Ordner, Name)
+    nonisolated static func notLoadedFiles(_ c: SQLiteConnection, courseIDs: Set<String>) throws -> [NotLoaded] {
+        guard !courseIDs.isEmpty else { return [] }
+        let marks = Array(repeating: "?", count: courseIDs.count).joined(separator: ",")
+        let rows = try c.rows("""
+            SELECT id, course_id, name, size, mime, chdate, revision, download_url, studip_folder FROM files
+            WHERE course_id IN (\(marks)) AND (local_path IS NULL OR local_path = '') AND deleted_at IS NULL
+              AND instr(COALESCE(download_url, ''), '/file-refs/' || id || '/') > 0
+              AND COALESCE(kind, '') NOT IN ('link', 'video')
+            ORDER BY course_id, studip_folder, name
+            """, courseIDs.sorted().map { .text($0) })
+        return rows.compactMap { r in
+            guard let id = r["id"]?.string, let course = r["course_id"]?.string, let url = r["download_url"]?.string else { return nil }
+            let name = r["name"]?.string ?? id
+            guard !OpencastFileVideos.isVideo(name: name, mime: r["mime"]?.string) else { return nil }
+            let row = UniStore.FileRow(id: id, name: name, size: r["size"]?.int, mime: r["mime"]?.string, chdate: r["chdate"]?.int,
+                                       revision: r["revision"]?.int, downloadURL: url, folder: r["studip_folder"]?.string)
+            return NotLoaded(id: id, courseID: course, name: name, size: r["size"]?.int, mime: r["mime"]?.string, row: row)
+        }
+    }
+
     /// relativer Ablageort einer schon geladenen Datei (nil: nicht geladen)
     nonisolated static func storedPath(_ c: SQLiteConnection, id: String) throws -> String? {
         guard let r = try c.queryOne("SELECT local_path FROM files WHERE id=? AND downloaded_at IS NOT NULL", [.text(id)]),
@@ -1068,6 +1096,35 @@ final class StudIPSync: ObservableObject {
                     continue
                 }
                 loaded += 1
+            }
+            // Nachholen unabhaengig von der Dateiliste (Befund iPad 08.11.2026): Dateien der aktuellen Kurse, die im
+            // Register stehen, aber keinen Ablageort haben, laedt jeder volle Lauf - auch wenn die Liste dieses Laufs
+            // sie nicht (mehr) nannte. Absagen (403/404) ruhen wie oben; alles andere wird erneut versucht.
+            if scope == .full, !olderOnly {
+                let tried = Set(toLoad.map(\.id)).union(restingIDs)
+                let courseIDs = Set(fileCourses.map(\.id))
+                let missing = (try? await db.withConnection { try Self.notLoadedFiles($0, courseIDs: courseIDs) }) ?? []
+                let catchUp = missing.filter { !tried.contains($0.id) && DownloadFailures.dueForAutomaticRetry(failures[$0.id], now: nowISO) }
+                for (i, row) in catchUp.enumerated() {
+                    try Task.checkCancellation()
+                    guard DeviceStorage.fits(Int64(row.size ?? 0), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
+                    phase = .running(Self.downloadStep(i, of: catchUp.count, name: row.name))
+                    let f = StudIPFile(id: row.id, courseID: row.courseID, name: row.name, size: row.size ?? 0, mimeType: row.mime, changed: "")
+                    do {
+                        try await downloads.load(row.row, to: StudIPImport.relativePath(fileID: row.id, name: row.name), db: db, clock: clock) { part in
+                            try await client.download(fileID: row.id, to: part, name: row.name)
+                        }
+                    } catch where DeviceStorage.isFull(error) {
+                        throw DeviceStorage.Full()
+                    } catch let e as StudIPError where e.affectsOnlyItem {
+                        await noteFailure(f, e); continue
+                    } catch let e as URLError where !Self.endsRun(e) {
+                        await noteFailure(f, e); continue
+                    } catch let e as UniDownloads.Failure {
+                        await noteFailure(f, e); continue
+                    }
+                    loaded += 1
+                }
             }
             await refreshEntries()                            // Dateien schon zeigen, waehrend Ergaenzungen laden
             if !olderOnly { stagesReady += 1 }
