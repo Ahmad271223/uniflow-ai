@@ -91,14 +91,14 @@ final class StudoraAccountLink: ObservableObject {
     }
 
     @Published private(set) var user: StudoraAccount.User? {
-        didSet { updateCommunityRoute(); updateAI() }
+        didSet { updateCommunityRoute(); updateAI(); updateAccountToken() }
     }
     @Published private(set) var sessions: [StudoraAccount.Session] = []
     /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
         didSet {
             Entitlements.shared.useServiceTrial(planStatus?.trialPlan.flatMap(UFPlan.init(rawValue:)))
-            UFBillingServiceLink.accountToken = planStatus?.appleAccountToken
+            updateAccountToken()
             updateAI()
         }
     }
@@ -384,34 +384,67 @@ final class StudoraAccountLink: ObservableObject {
         }
     }
 
+    /// `appAccountToken` fuer den naechsten Kauf: das vom Dienst gemeldete Token, sonst die UniFlow-ID des angemeldeten
+    /// Kontos als UUID (wie `apple_store.account_token`). So traegt ein Kauf mit Anmeldung das Konto auch dann, wenn
+    /// `GET /api/entitlements` gerade nicht geantwortet hat (Audit P36-04); ohne Anmeldung kein Token.
+    private func updateAccountToken() {
+        UFBillingServiceLink.accountToken = UFBillingServiceLink.accountToken(service: planStatus?.appleAccountToken,
+                                                                              userID: user?.id)
+    }
+
+    /// Gilt eine Antwort noch fuer dieses Konto? Nach einem Wechsel (anderer Apple-Nutzer: neues `account`; Abmelden und
+    /// anderes Konto: andere `user.id`) wird ein spaetes Ergebnis verworfen, sonst landeten Tarif, Credits und
+    /// `appAccountToken` des alten Kontos beim neuen (Audit P36-03).
+    private func isCurrent(_ account: StudoraAccount, _ userID: String) -> Bool {
+        self.account === account && user?.id == userID
+    }
+
     /// Alle gueltigen Abos dieser Apple-ID einmal je Anmeldung melden (Wiederherstellen beim Dienst), danach den Stand
     /// neu laden; ohne Abo keine Anfrage
     func reportPurchases() async {
-        guard let id = user?.id else { return }
+        guard let account, let id = user?.id else { return }
         reportedPurchasesFor = id
         var sent = false
         for await result in StoreKit.Transaction.currentEntitlements {
+            guard isCurrent(account, id) else { return }
             guard case .verified = result else { continue }
             await reportTransaction(result.jwsRepresentation, reload: false)
             sent = true
         }
-        if sent, let account { planStatus = (try? await account.planStatus()) ?? planStatus; await refreshCredits() }
+        guard sent, isCurrent(account, id) else { return }
+        let status = try? await account.planStatus()
+        guard isCurrent(account, id) else { return }
+        planStatus = status ?? planStatus
+        await refreshCredits()
     }
 
     /// Eine signierte Transaktion an `POST /api/billing/apple/verify`; 409 (Abo gehoert zu einem anderen Konto) zeigt die
-    /// Karte, 503 `apple_not_configured` und Netzfehler bleiben still (das Abo gilt auf dem iPad trotzdem)
+    /// Karte, 503 `apple_not_configured` und Netzfehler bleiben still (das Abo gilt auf dem iPad trotzdem). Hat in der
+    /// Zwischenzeit das Konto gewechselt, bleibt die Antwort ohne Folgen.
     func reportTransaction(_ jws: String, reload: Bool = true) async {
-        guard let account, user != nil, !jws.isEmpty else { return }
+        guard let account, let id = user?.id, !jws.isEmpty else { return }
         do {
             try await account.verifyApple(signedTransaction: jws)
-            if reload { planStatus = (try? await account.planStatus()) ?? planStatus; await refreshCredits() }
+            guard reload, isCurrent(account, id) else { return }
+            let status = try? await account.planStatus()
+            guard isCurrent(account, id) else { return }
+            planStatus = status ?? planStatus
+            await refreshCredits()
         } catch let e as AccountError where e.code == "subscription_owned_by_other_account" {
-            message = e.userMessage
+            if isCurrent(account, id) { message = e.userMessage }
         } catch {
             // nicht erreichbar oder Pruefung im Dienst nicht eingerichtet: beim naechsten Start erneut
-            reportedPurchasesFor = nil
+            if isCurrent(account, id) { reportedPurchasesFor = nil }
         }
     }
+
+    #if DEBUG
+    /// nur Tests: Konto ueber einen Schein-Dienst statt der Dienst-Adresse
+    func attachForTesting(account: StudoraAccount, scope: String) {
+        self.scope = scope
+        self.account = account
+    }
+    #endif
 
     // MARK: Mit Apple anmelden
 

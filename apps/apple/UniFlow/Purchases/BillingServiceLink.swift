@@ -21,6 +21,16 @@ enum UFBillingServiceLink {
     /// `apple_account_token` des angemeldeten Kontos (nil ohne Anmeldung)
     @MainActor static var accountToken: String?
 
+    /// Token fuer den Kauf: das vom Dienst gemeldete (`apple_account_token`), sonst die UniFlow-ID (32 Hex) des
+    /// angemeldeten Kontos als UUID, wie `apple_store.account_token` im Dienst; ohne Konto nil (Audit P36-04)
+    static func accountToken(service: String?, userID: String?) -> String? {
+        if let service, UUID(uuidString: service) != nil { return service }
+        guard let hex = userID?.lowercased(), hex.count == 32, hex.allSatisfy(\.isHexDigit) else { return nil }
+        let c = Array(hex)
+        let parts = [0..<8, 8..<12, 12..<16, 16..<20, 20..<32].map { String(c[$0]) }
+        return UUID(uuidString: parts.joined(separator: "-"))?.uuidString
+    }
+
     /// Pfad der Server-Pruefung im Dienst
     static let verifyPath = "/api/billing/apple/verify"
 
