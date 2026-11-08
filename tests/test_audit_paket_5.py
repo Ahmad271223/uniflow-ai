@@ -246,6 +246,43 @@ def test_p5_03_restore_after_hide_keeps_the_package_and_works(hosted):  # noqa: 
     assert call(hosted, "GET", f"/solutions/{sid}", hl)[1]["package"] == pkg
 
 
+# ---------------------------------------------------------------- P5-04 get_package_raw: Downloadzaehler
+
+def test_p5_04_missing_file_does_not_count_as_download(hosted):  # noqa: F811
+    """Die Erhoehung steht vor der Dateipruefung, aber in derselben Transaktion: der Fehler verwirft sie (kein Commit
+    im Fehlerfall, community.cursor). Befund widerlegt, Verhalten festgenagelt."""
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    assert call(hosted, "GET", f"/solutions/{sid}", hl)[0] == 200
+    assert call(hosted, "GET", f"/solutions/{sid}", ha)[0] == 200, "eigene Loesung zaehlt nicht"
+    assert _row(sid)["downloads"] == 1
+    _file(sid).unlink()
+    st, d = call(hosted, "GET", f"/solutions/{sid}", hl)
+    assert (st, d["code"]) == (404, "not_found")
+    assert _row(sid)["downloads"] == 1, "fehlende Datei als Download gezaehlt"
+
+
+def test_p5_04_parallel_downloads_count_each(hosted):  # noqa: F811
+    from app import community
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    errors = []
+
+    def dl():
+        try:
+            for _ in range(5):
+                community.get_package_raw(leser, sid)
+        except Exception as e:                                     # noqa: BLE001
+            errors.append(repr(e))
+    ts = [threading.Thread(target=dl) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert errors == []
+    assert _row(sid)["downloads"] == 20
+
+
 # ---------------------------------------------------------------- P5-05 withdraw_all / forget_author: Wiederholung
 
 def _fail_first_unlink(monkeypatch):
@@ -312,3 +349,196 @@ def test_p5_05_forget_author_removes_packages_left_by_an_interrupted_withdraw(ho
     assert community.forget_author(autor["id"]) == 1
     assert not _file(sid).exists() and _row(sid) is None
 
+
+# ---------------------------------------------------------------- P5-06 comments: viele Kommentare
+
+def test_p5_06_comments_with_1200_entries_stay_fast(hosted):  # noqa: F811
+    from app import community
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    with community.cursor() as conn:
+        rows, tops = [], []
+        for i in range(600):
+            cid = str(uuid.uuid4())
+            tops.append(cid)
+            rows.append((cid, sid, leser["id"], "Studi-leser", None, "p1", 0.5, 0.5, f"Kommentar {i}", f"2026-11-01T10:{i // 60:02d}:{i % 60:02d}Z"))
+        for i, parent in enumerate(tops):
+            rows.append((str(uuid.uuid4()), sid, autor["id"], "Studi-autor", parent, "p1", 0.5, 0.5, f"Antwort {i}", "2026-11-02T00:00:00Z"))
+        conn.executemany("""INSERT INTO comments(id, solution_id, author_id, pseudonym, parent_id, page_key, anchor_x, anchor_y, text, created_at)
+                            VALUES (?,?,?,?,?,?,?,?,?,?)""", rows)
+    t0 = time.perf_counter()
+    out = community.comments(leser, sid)
+    dt = time.perf_counter() - t0
+    print(f"\nP5-06 comments(): {len(out)} Kommentare in {dt * 1000:.0f} ms")
+    assert len(out) == 1200
+    assert [c["parent_id"] is None for c in out[:2]] == [True, False], "Antwort direkt unter ihrem Kommentar"
+    assert dt < 1.0, f"{dt:.2f} s"
+
+
+# ---------------------------------------------------------------- P5-07 _anchor: NaN / Infinity
+
+@pytest.mark.parametrize("x", ["NaN", "Infinity", "-Infinity", "1e400"])
+def test_p5_07_non_finite_anchor_is_rejected_over_the_api(hosted, x):  # noqa: F811
+    """Pythons json.loads nimmt NaN/Infinity an (kein gueltiges JSON, aber Starlette reicht es durch). Der Vergleich
+    0 <= x <= 1 ist fuer NaN und Unendlich falsch: anchor_invalid. Widerlegt, festgenagelt."""
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    body = '{"text": "hier", "page_key": "p1", "anchor": {"x": %s, "y": 0.5}}' % x
+    st, _, b = asgi_call(hosted, "POST", f"/api/community/solutions/{sid}/comments", body=body, headers=hl)
+    d = json.loads(b)
+    assert (st, d["code"]) == (400, "anchor_invalid"), d
+    assert call(hosted, "GET", f"/solutions/{sid}/comments", hl)[1]["comments"] == []
+
+
+def test_p5_07_anchor_edge_values():
+    from app import community
+    assert community._anchor("p1", {"x": 0, "y": 1}) == ("p1", 0.0, 1.0)
+    assert community._anchor(None, None) == (None, None, None)
+    for bad in ({"x": math.nan, "y": 0.5}, {"x": math.inf, "y": 0.5}, {"x": 0.5, "y": -math.inf}, {"x": "a", "y": 0},
+                {"x": None, "y": 0}, [0.5, 0.5], "0.5", {"x": 1.0001, "y": 0}):
+        with pytest.raises(community.CommunityError) as e:
+            community._anchor("p1", bad)
+        assert e.value.code == "anchor_invalid"
+    with pytest.raises(community.CommunityError):
+        community._anchor(None, {"x": 0.5, "y": 0.5})            # Stelle ohne Seite
+
+
+# ---------------------------------------------------------------- Paket 6/7: report_comment, leaderboard, info, Rechte
+
+def _comment(app, sid, h, text="Frage"):
+    st, d = call(app, "POST", f"/solutions/{sid}/comments", h, {"text": text})
+    assert st == 201, d
+    return d["id"]
+
+
+def test_p7_08_three_reports_hide_a_comment_and_repeat_is_refused(hosted):  # noqa: F811
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    cid = _comment(hosted, sid, hl)
+    melder = [_member_user(hosted, f"m{i}@beispiel.de")[1] for i in range(3)]
+    assert call(hosted, "POST", f"/comments/{cid}/report", hl, {"reason": "spam"})[1]["code"] == "own_comment"
+    assert call(hosted, "POST", f"/comments/{cid}/report", melder[0], {"reason": "quatsch"})[1]["code"] == "reason_invalid"
+    r1 = call(hosted, "POST", f"/comments/{cid}/report", melder[0], {"reason": "spam"})[1]
+    assert (r1["hidden"], r1["reports"]) == (False, 1)
+    assert call(hosted, "POST", f"/comments/{cid}/report", melder[0], {"reason": "spam"})[0] == 409
+    assert call(hosted, "POST", f"/comments/{cid}/report", melder[1], {"reason": "spam"})[1]["hidden"] is False
+    r3 = call(hosted, "POST", f"/comments/{cid}/report", melder[2], {"reason": "spam"})[1]
+    assert (r3["hidden"], r3["reports"]) == (True, 3)
+    assert call(hosted, "GET", f"/solutions/{sid}/comments", ha)[1]["comments"] == [], "verborgen fuer alle"
+    assert call(hosted, "POST", f"/comments/{cid}/report", ha, {"reason": "spam"})[0] == 404, "verborgen = nicht mehr meldbar"
+    assert call(hosted, "POST", f"/solutions/{sid}/comments", ha, {"text": "re", "parent_id": cid})[1]["code"] == "parent_invalid"
+
+
+def test_p7_08_parallel_reports_end_consistent(hosted):  # noqa: F811
+    from app import community
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    cid = _comment(hosted, sid, hl)
+    melder = [_member_user(hosted, f"m{i}@beispiel.de")[0] for i in range(4)]
+    results, errors = [], []
+    start = threading.Barrier(4)
+
+    def rep(u):
+        try:
+            start.wait()
+            results.append(community.report_comment(u, cid, "spam"))
+        except Exception as e:                                     # noqa: BLE001
+            errors.append(repr(e))
+    ts = [threading.Thread(target=rep, args=(u,)) for u in melder]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    with community.cursor() as conn:
+        c = conn.execute("SELECT status, report_count FROM comments WHERE id=?", (cid,)).fetchone()
+        n = conn.execute("SELECT COUNT(*) FROM comment_reports WHERE comment_id=?", (cid,)).fetchone()[0]
+    assert errors == [], errors
+    assert (c["status"], c["report_count"], n) == ("hidden", 4, 4)
+    assert sorted(r["reports"] for r in results) == [1, 2, 3, 4], "jede Meldung sieht ihren eigenen Stand"
+
+
+def test_p6_152_leaderboard_with_10000_solutions_and_100000_likes(hosted):  # noqa: F811
+    from app import community
+    admin, hadm = _user(hosted, "admin@beispiel.de", admin=True)
+    admin = _fresh(admin)
+    authors = [f"a{i:04d}" for i in range(500)]
+    with community.cursor() as conn:
+        sols = [(f"{i:08x}-0000-4000-8000-000000000000", "f" * 64, "luh", authors[i % 500], f"Studi-{i % 500:04d}", "x.pdf",
+                 "2026-11-01T00:00:00Z", f"2026-11-0{1 + i % 8}T00:00:00Z", 12, 2, 100, "active", i % 7, KURS) for i in range(10_000)]
+        conn.executemany("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, created_at,
+                            published_at, page_count, pages, size, status, downloads, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", sols)
+        likes = [(sols[i % 10_000][0], f"u{i // 10_000}-{i % 10_000}", "2026-11-02T00:00:00Z") for i in range(100_000)]
+        conn.executemany("INSERT INTO likes(solution_id, user_id, created_at) VALUES (?,?,?)", likes)
+        comments = [(str(uuid.uuid4()), sols[i][0], "leser", "Studi-l", None, None, None, None, "x", "2026-11-03T00:00:00Z") for i in range(5_000)]
+        conn.executemany("""INSERT INTO comments(id, solution_id, author_id, pseudonym, parent_id, page_key, anchor_x, anchor_y, text, created_at)
+                            VALUES (?,?,?,?,?,?,?,?,?,?)""", comments)
+    t0 = time.perf_counter()
+    rows = community.leaderboard(admin, 50)
+    dt = time.perf_counter() - t0
+    print(f"\nP6-152 leaderboard(): 10.000 Loesungen, 100.000 Likes, 500 Autoren in {dt * 1000:.0f} ms")
+    assert len(rows) == 50 and rows[0]["rank"] == 1 and rows[0]["likes"] == 200 and rows[0]["solutions"] == 20
+    assert rows[0]["account_status"] == "deleted" and rows[0]["email"] is None, "unbekanntes Konto ohne E-Mail"
+    assert dt < 1.0, f"{dt:.2f} s"
+    st, d = call(hosted, "GET", "/admin/leaderboard?limit=5", hadm)
+    assert st == 200 and len(d["authors"]) == 5
+
+
+def test_p7_08_read_and_comment_rights_are_enforced_in_the_endpoints(hosted):  # noqa: F811
+    """`_can_read`/`_can_comment` sind nicht nur Anzeige in `info`: ohne Plus (can_read_community) antworten die
+    Lese-Endpunkte 403 plan_required; Kommentieren prueft can_write_community_comments zusaetzlich in add_comment."""
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    frei, hf = _user(hosted, "frei@beispiel.de", plus=False)
+    st, d = call(hosted, "GET", "/info", hf)
+    assert st == 200 and (d["can_read"], d["can_comment"], d["can_share"]) == (False, False, False)
+    assert set(d) <= {"enabled", "plan_required", "plan_ok", "can_read", "can_share", "reasons", "reports_to_hide", "format", "format_version",
+                      "max_package_bytes", "pseudonym", "admin", "can_comment", "max_comment"}, "keine weiteren (vertraulichen) Felder"
+    for method, path, body in (("GET", f"/solutions?fingerprint={FP}", None), ("GET", f"/communities/{KURS}/solutions", None),
+                               ("GET", f"/solutions/{sid}", None), ("GET", f"/solutions/{sid}/comments", None),
+                               ("POST", f"/solutions/{sid}/comments", {"text": "hi"}), ("POST", f"/solutions/{sid}/like", None),
+                               ("POST", f"/solutions/{sid}/report", {"reason": "spam"}), ("POST", "/solutions", {"package": _pkg(), "community_key": KURS}),
+                               ("PUT", f"/solutions/{sid}", {"package": _pkg(sid=sid)}), ("POST", f"/communities/{KURS}/join", {"kind": "course"}),
+                               ("GET", "/communities", None), ("POST", f"/comments/x/report", {"reason": "spam"}), ("PATCH", "/comments/x", {"text": "x"})):
+        st, d = call(hosted, method, path, hf, body)
+        assert (st, d["code"]) == (403, "plan_required"), (method, path, st, d)
+    # eigene Daten und Moderation ohne Tarif erreichbar (bewusst: _account)
+    assert call(hosted, "GET", "/mine", hf)[0] == 200 and call(hosted, "GET", "/blocks", hf)[0] == 200
+    assert call(hosted, "GET", "/moderation", hf)[1]["code"] == "forbidden"
+    # Plus-Konto ohne bestaetigte Adresse: lesen ja, kommentieren nein
+    _, hu = _user(hosted, "unbestaetigt@beispiel.de", verified=False)
+    call(hosted, "POST", "/claims", hu, {"fingerprints": [], "course_keys": [KURS]})
+    from app import community
+    uid = json.loads(asgi_call(hosted, "GET", "/api/account/me", headers=hu)[2])["user"]["id"]
+    with community.cursor() as conn:
+        conn.execute("INSERT OR IGNORE INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,'luh','course','2026-11-04T00:00:00Z')",
+                     (uid, KURS))
+    assert call(hosted, "GET", f"/solutions/{sid}/comments", hu)[0] == 200
+    assert call(hosted, "POST", f"/solutions/{sid}/comments", hu, {"text": "hi"})[1]["code"] == "email_unverified"
+    assert call(hosted, "POST", f"/solutions/{sid}/like", hu)[1]["code"] == "email_unverified"
+
+
+def test_comment_rights_matrix_owner_author_admin(hosted):  # noqa: F811
+    """Nr. 148-150: Verfasser aendert und loescht; Autor der Loesung und Moderation loeschen, aendern nicht; nach dem
+    Loeschen ist der Kommentar fuer Aendern, Loeschen und Melden weg; Antworten bleiben unter dem Platzhalter."""
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    dritte, hd = _member_user(hosted, "dritte@beispiel.de")
+    admin, hadm = _user(hosted, "admin@beispiel.de", admin=True)
+    sid = _publish(hosted, ha, _pkg())
+    c1, c2, c3 = _comment(hosted, sid, hl, "eins"), _comment(hosted, sid, hl, "zwei"), _comment(hosted, sid, hl, "drei")
+    reply = call(hosted, "POST", f"/solutions/{sid}/comments", hd, {"text": "Antwort", "parent_id": c1})[1]["id"]
+    assert call(hosted, "PATCH", f"/comments/{c1}", hd, {"text": "fremd"})[1]["code"] == "not_owner"
+    assert call(hosted, "PATCH", f"/comments/{c1}", ha, {"text": "Autor der Loesung"})[1]["code"] == "not_owner"
+    assert call(hosted, "PATCH", f"/comments/{c1}", hadm, {"text": "Moderation"})[1]["code"] == "not_owner"
+    assert call(hosted, "PATCH", f"/comments/{c1}", hl, {"text": "geaendert"})[1]["text"] == "geaendert"
+    assert call(hosted, "DELETE", f"/comments/{c1}", hd)[1]["code"] == "not_owner"
+    assert call(hosted, "DELETE", f"/comments/{c1}", hl)[0] == 200
+    assert call(hosted, "DELETE", f"/comments/{c2}", ha)[0] == 200, "Autor der Loesung raeumt auf"
+    assert call(hosted, "DELETE", f"/comments/{c3}", hadm)[0] == 200, "Moderation"
+    assert call(hosted, "PATCH", f"/comments/{c1}", hl, {"text": "nochmal"})[1]["code"] == "not_found"
+    assert call(hosted, "DELETE", f"/comments/{c1}", hl)[1]["code"] == "not_found"
+    assert call(hosted, "POST", f"/comments/{c1}/report", hd, {"reason": "spam"})[1]["code"] == "not_found"
+    out = call(hosted, "GET", f"/solutions/{sid}/comments", hd)[1]["comments"]
+    assert [(c["id"], c["deleted"], c["text"]) for c in out] == [(c1, True, ""), (reply, False, "Antwort")], "nur der geloeschte mit Antwort bleibt"
