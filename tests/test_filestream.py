@@ -220,7 +220,7 @@ def test_expired_studip_session_logs_in_once_and_retries(app, hosted, monkeypatc
 
 def test_learnweb_file_uses_the_token_in_the_form(app, hosted, monkeypatch):
     user, h = _user(hosted, "h@beispiel.de", "hildesheim")
-    _seed(user, "hildesheim", "lw-7", "https://learnweb.uni-hildesheim.de/pluginfile.php/7/mod_resource/content/1/Blatt.pdf")
+    _seed(user, "hildesheim", "lw-7", "https://www.uni-hildesheim.de/learnweb2025/pluginfile.php/7/mod_resource/content/1/Blatt.pdf")
     _session(monkeypatch, {"LEARNWEB_TOKEN": "tok123"})
     calls = _fake_http(monkeypatch, [(MIN_PDF, "application/pdf")])
     st, _, body = asgi_call(hosted, "GET", "/api/files/lw-7/content", headers=h)

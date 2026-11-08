@@ -38,6 +38,31 @@ def is_learnweb(file_row) -> bool:
 
 # ---------------------------------------------------------------- HTTP
 
+def _origin(url: str) -> tuple[str, str, int | None]:
+    parts = urllib.parse.urlsplit(url)
+    port = parts.port
+    if port is None:
+        port = {"https": 443, "http": 80}.get(parts.scheme)
+    return parts.scheme, (parts.hostname or "").lower(), port
+
+
+class _SameOriginRedirect(urllib.request.HTTPRedirectHandler):
+    """Weiterleitungen nur auf denselben Ursprung (Schema, Host, Port) wie die geprueften Adresse (Audit 08.11.2026,
+    P14-01): urllib nimmt die Cookie-Kopfzeile sonst zu jedem Ziel mit."""
+
+    def __init__(self, url: str):
+        self.origin = _origin(url)
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        try:
+            same = _origin(newurl) == self.origin
+        except ValueError:
+            same = False
+        if not same:
+            raise StreamError("redirect_refused", "Die Hochschule leitet die Datei an eine fremde Adresse weiter.", 502)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _http(url: str, form: dict | None = None, cookie: str = "") -> tuple[bytes, str]:
     """GET (oder POST mit Formular) mit der Hochschulsitzung; liefert (Bytes, Content-Type). In Tests ersetzt."""
     headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
@@ -48,7 +73,8 @@ def _http(url: str, form: dict | None = None, cookie: str = "") -> tuple[bytes, 
         data = urllib.parse.urlencode(form).encode()
         headers["Content-Type"] = "application/x-www-form-urlencoded"
     req = urllib.request.Request(url, data=data, headers=headers, method="POST" if form else "GET")
-    with urllib.request.urlopen(req, timeout=180) as r:
+    opener = urllib.request.build_opener(_SameOriginRedirect(url))
+    with opener.open(req, timeout=180) as r:  # noqa: S310 - Adresse geprueft (fetch: _allowed_source)
         ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         chunks, total = [], 0
         while True:
@@ -76,9 +102,13 @@ def cookie_header(name: str, base: str) -> str:
     cookies = unilogin.saved_cookies(name)
     if not cookies:
         return ""
-    host = urllib.parse.urlsplit(base).hostname or ""
+    host = (urllib.parse.urlsplit(base).hostname or "").lower()
     now = time.time()
-    keep = [c for c in cookies if isinstance(c, dict) and c.get("name") and host.endswith(str(c.get("domain") or host).lstrip("."))
+    def domain_ok(c) -> bool:
+        # Punktgrenze (Audit 08.11.2026, P14-03): "annover.de" passt nicht auf "uni-hannover.de"
+        dom = str(c.get("domain") or host).lstrip(".").lower()
+        return bool(dom) and (host == dom or host.endswith("." + dom))
+    keep = [c for c in cookies if isinstance(c, dict) and c.get("name") and domain_ok(c)
             and (not c.get("expires") or c["expires"] < 0 or c["expires"] > now)]
     return "; ".join(f"{c['name']}={c['value']}" for c in keep)
 
@@ -158,11 +188,25 @@ def refresh_studip_session() -> str:
 
 # ---------------------------------------------------------------- Abruf
 
+def _allowed_source(url: str, learnweb: bool) -> bool:
+    """Nur https:// (Port 443) auf dem Host der Hochschule (Audit 08.11.2026, P14-02): eine Adresse aus der Datenbank
+    bekommt nie die Sitzung, wenn sie woanders hinzeigt (kein Abruf interner oder fremder Ziele)."""
+    from . import studip_sync
+    if learnweb:
+        from . import hildesheim
+        hosts = hildesheim.download_hosts()
+    else:
+        hosts = studip_sync.download_hosts()
+    return studip_sync.download_allowed(url, hosts)
+
+
 def fetch(file_row) -> tuple[bytes, str]:
     """Inhalt einer Hochschuldatei mit der Sitzung des Kontos; (Bytes, Content-Type)."""
     url = file_row["download_url"] or ""
     if not url:
         raise StreamError("no_source", "Für diese Datei gibt es keine Quelle bei der Hochschule.", 404)
+    if not _allowed_source(url, is_learnweb(file_row)):
+        raise StreamError("source_not_allowed", "Die Adresse dieser Datei liegt nicht auf dem Server der Hochschule.", 403)
     if is_learnweb(file_row):
         from . import learnweb
         token = config.secret("LEARNWEB_TOKEN")
@@ -193,10 +237,12 @@ def fetch(file_row) -> tuple[bytes, str]:
 
 def content(conn, file_id: str) -> tuple[bytes, str, str]:
     """(Bytes, Mime, SHA-256) einer Hochschuldatei; merkt Fingerabdruck und Seitentext, speichert die Datei nicht."""
-    f = db.row(conn, "SELECT id, name, mime, size, chdate, download_url, course_id, content_sha256 FROM files WHERE id=?", (file_id,))
+    f = db.row(conn, "SELECT id, name, mime, size, chdate, revision, download_url, course_id, content_sha256 FROM files WHERE id=?", (file_id,))
     if not f:
         raise StreamError("not_found", "Datei nicht gefunden.", 404)
-    key = (config.current_user_id(), file_id, f["chdate"])
+    # Fassung = Aenderungszeit, Revision und Quelladresse (Audit 08.11.2026, P14-05): eine neue Learnweb-Revision bei
+    # gleichem chdate liefert nicht mehr den alten Inhalt. Ein ETag merkt sich der Abgleich nicht.
+    key = (config.current_user_id(), file_id, f["chdate"], f["revision"], f["download_url"])
     with _lock:
         hit = _cache.get(key)
         if hit and time.time() - hit[0] < CACHE_SECONDS:
