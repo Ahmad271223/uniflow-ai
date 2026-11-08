@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_bundle ON notifications(user_id, bundle) WHERE bundle IS NOT NULL;
 """
-HEX64 = re.compile(r"^[0-9a-f]{64}$")
+HEX64 = re.compile(r"^[0-9a-f]{64}\Z")          # \Z statt $: kein Zeilenende am Schluss (Audit 08.11.2026, Nr. 114)
 MAX_TITLE, MAX_BODY, MAX_ANSWER = 160, 4000, 4000
 PAGE = 30
 REPORTS_TO_HIDE = 3

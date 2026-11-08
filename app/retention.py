@@ -42,11 +42,22 @@ def access_log_dir() -> Path:
     return config.BASE_LOG_DIR / "access"
 
 
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def _field(s) -> str:
+    """Ein Feld des Zugriffsprotokolls: Steuerzeichen (Zeilenumbrueche, Tabs) werden zu einem Leerzeichen. Der Pfad
+    kommt prozent-dekodiert an (%0A = Zeilenumbruch), eine Anfrage konnte so eine gefaelschte Zeile anhaengen
+    (Audit 08.11.2026, Paket 3 Nr. 86)."""
+    return _CONTROL.sub(" ", str(s or ""))
+
+
 def log_access(ip: str, method: str, path: str, status: int, ms: float, user_agent: str = "", now: datetime | None = None) -> None:
     """Eine Zeile ins Tagesprotokoll; der Pfad ohne Abfrageteil (keine Fingerabdruecke oder Suchbegriffe)."""
     now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
-    ua = (user_agent or "").replace("\n", " ").replace('"', "'")[:120]
-    line = f'{now.strftime("%Y-%m-%dT%H:%M:%SZ")} {ip or "-"} {method} {path.split("?")[0]} {status} {ms:.0f}ms "{ua}"\n'
+    ua = _field(user_agent).replace('"', "'")[:120]
+    line = (f'{now.strftime("%Y-%m-%dT%H:%M:%SZ")} {_field(ip) or "-"} {_field(method)} {_field(path.split("?")[0])} '
+            f'{status} {ms:.0f}ms "{ua}"\n')
     d = access_log_dir()
     with _lock:
         d.mkdir(parents=True, exist_ok=True)
@@ -64,7 +75,11 @@ def purge_access_logs(today: date, days: int = ACCESS_DAYS, dry_run: bool = Fals
         m = _ACCESS_NAME.match(p.name)
         if not m:
             continue
-        if date.fromisoformat(m.group(1)) < cutoff:
+        try:
+            day = date.fromisoformat(m.group(1))
+        except ValueError:                      # z. B. access-2026-99-99.log: kein Datum, nicht unsere Datei (Audit Nr. 87)
+            continue
+        if day < cutoff:
             if not dry_run:
                 p.unlink(missing_ok=True)
             n += 1
@@ -98,37 +113,54 @@ def trim_dated_log(path: Path, cutoff_day: date, dry_run: bool = False) -> int:
     for line in lines:
         m = _DATED_LINE.match(line)
         if m:
-            dropping = date.fromisoformat(m.group(1)) < cutoff_day
+            try:
+                dropping = date.fromisoformat(m.group(1)) < cutoff_day
+            except ValueError:
+                pass                            # sieht aus wie ein Datum, ist keins: gehoert zur vorigen Zeile (Audit Nr. 89)
         if dropping:
             drop += 1
         else:
             keep.append(line)
     if drop and not dry_run:
         tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text("".join(keep), encoding="utf-8")
-        os.replace(tmp, path)
+        try:
+            tmp.write_text("".join(keep), encoding="utf-8")
+            os.replace(tmp, path)
+        except OSError:
+            tmp.unlink(missing_ok=True)         # keine .tmp-Leiche; das Original bleibt unveraendert
+            raise
     return drop
 
 
 def purge_account_logs(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False) -> dict:
+    """Je Konto: Logdateien kuerzen bzw. loeschen und sync_log/sync_ops bereinigen. Ein Fehler in einem Konto wird
+    protokolliert und gezaehlt (`errors`), die uebrigen Konten laufen weiter (Audit 08.11.2026, Paket 3 Nr. 90)."""
+    import logging
     cutoff_day = (now - timedelta(days=days)).date()
     cutoff_ts = now - timedelta(days=days)
-    out = {"files": 0, "lines": 0, "rows": 0}
+    # Stichtag fuer die Datenbank in UTC (naiv): run() liefert UTC; ein anderer Aufrufer mit Zeitzone wird umgerechnet
+    cutoff_utc = cutoff_ts.astimezone(timezone.utc) if cutoff_ts.tzinfo else cutoff_ts
+    cutoff_iso = cutoff_utc.replace(tzinfo=None).isoformat(timespec="seconds")
+    out = {"files": 0, "lines": 0, "rows": 0, "errors": 0}
     for d in account_dirs():
-        logs = d / "logs"
-        if logs.exists():
-            for p in logs.iterdir():
-                if not p.is_file():
-                    continue
-                if p.suffix == ".log":
-                    out["lines"] += trim_dated_log(p, cutoff_day, dry_run)
-                elif datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc) < cutoff_ts:
-                    if not dry_run:
-                        p.unlink(missing_ok=True)
-                    out["files"] += 1
-        db_file = d / "lernapp.db"
-        if db_file.exists():
-            out["rows"] += _purge_sync_log(db_file, cutoff_ts.replace(tzinfo=None).isoformat(timespec="seconds"), dry_run)
+        try:
+            logs = d / "logs"
+            if logs.exists():
+                for p in logs.iterdir():
+                    if not p.is_file():
+                        continue
+                    if p.suffix == ".log":
+                        out["lines"] += trim_dated_log(p, cutoff_day, dry_run)
+                    elif datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc) < cutoff_ts:
+                        if not dry_run:
+                            p.unlink(missing_ok=True)
+                        out["files"] += 1
+            db_file = d / "lernapp.db"
+            if db_file.exists():
+                out["rows"] += _purge_sync_log(db_file, cutoff_iso, dry_run)
+        except Exception:  # noqa: BLE001 - ein Konto haelt die anderen nicht auf
+            out["errors"] += 1
+            logging.getLogger("uniflow.retention").exception("Loeschfristen fuer %s nicht angewendet", d)
     return out
 
 
@@ -222,22 +254,43 @@ def _parse_time(t: str) -> tuple[int, int]:
     return 4, 0
 
 
+RETRY_AFTER_MIN = 60     # nach einem fehlgeschlagenen Tageslauf: so lange Pause, dann erneut am selben Tag
+
+
 def schedule_due(now: datetime | None = None) -> dict | None:
-    """Einmal am Tag ab RETENTION_TIME (Ortszeit) laufen; Merkmal `retention:YYYY-MM-DD` in schedule_marks."""
+    """Einmal am Tag ab RETENTION_TIME (Ortszeit) laufen; Merkmal `retention:YYYY-MM-DD` in schedule_marks.
+
+    Das Merkmal steht vor `run()` (Reservierung gegen Doppellaeufe). Wirft `run()` eine Ausnahme, faellt es wieder
+    und `retention:YYYY-MM-DD:failed` merkt den Fehlversuch: nach RETRY_AFTER_MIN Minuten laeuft der Tag erneut statt
+    erst am naechsten Tag (Audit 08.11.2026, P4-01) - und nicht alle 30 s im Takt des Zeitplans."""
     from . import jobs
     local = now or datetime.now()
     h, m = _parse_time(RETENTION_TIME)
     if (local.hour, local.minute) < (h, m):
         return None
     slot = f"retention:{local.strftime('%Y-%m-%d')}"
+    stamp = accounts.iso(local.astimezone(timezone.utc))
+    retry_from = accounts.iso((local - timedelta(minutes=RETRY_AFTER_MIN)).astimezone(timezone.utc))
     cm, conn = jobs._conn()
     try:
         if conn.execute("SELECT 1 FROM schedule_marks WHERE slot=?", (slot,)).fetchone():
             return None
-        conn.execute("INSERT INTO schedule_marks(slot, created_at) VALUES (?,?)", (slot, jobs._now()))
+        failed = conn.execute("SELECT created_at FROM schedule_marks WHERE slot=?", (slot + ":failed",)).fetchone()
+        if failed and failed["created_at"] > retry_from:
+            return None
+        conn.execute("INSERT OR REPLACE INTO schedule_marks(slot, created_at) VALUES (?,?)", (slot, stamp))
     finally:
         cm.__exit__(None, None, None)
-    result = run()
+    try:
+        result = run()
+    except BaseException:
+        cm, conn = jobs._conn()
+        try:
+            conn.execute("DELETE FROM schedule_marks WHERE slot=?", (slot,))
+            conn.execute("INSERT OR REPLACE INTO schedule_marks(slot, created_at) VALUES (?,?)", (slot + ":failed", stamp))
+        finally:
+            cm.__exit__(None, None, None)
+        raise
     print(f"[retention] {json.dumps(result, ensure_ascii=False)}")
     return result
 
