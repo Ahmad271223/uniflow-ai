@@ -33,8 +33,6 @@ find "$BACKUP_DIR" -maxdepth 1 -name 'uniflow-*.tar.gz' -type f -mmin "+$((KEEP_
 
 echo "Backup geschrieben: $OUT ($(du -h "$OUT" | cut -f1)); behalten: $(ls -1 "$BACKUP_DIR"/uniflow-*.tar.gz | wc -l) Archive"
 
-# Optional: Kopie ausser Haus (ein Server allein ist kein Backup). Beispiele, eines einkommentieren:
-#   rclone copy "$OUT" hetzner-storagebox:uniflow-backups/          # rclone config vorher einrichten (SFTP/WebDAV)
-#   scp -q "$OUT" backup@storagebox.example:uniflow-backups/        # SSH-Schluessel ohne Passwort hinterlegen
-# Die Archive enthalten personenbezogene Daten: Zielspeicher in der EU, Zugang nur fuer den Inhaber, selbst
-# verschluesseln (z. B. `age -r <key>` oder `gpg -c`), wenn der Zielspeicher nicht vertrauenswuerdig ist.
+# Kopie ausser Haus (ein Server allein ist kein Backup): deploy/backup-ausser-haus.sh verschluesselt die Archive mit age
+# und laedt sie auf die Hetzner Storage Box. Es laeuft als ExecStartPost in uniflow-backup.service, also nur nach einem
+# gelungenen Lauf dieses Skripts; mit Cron:  backup.sh && backup-ausser-haus.sh. Einrichtung: BETRIEB.md Abschnitt 9.
