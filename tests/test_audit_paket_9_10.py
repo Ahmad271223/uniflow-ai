@@ -308,6 +308,8 @@ def test_p9_07_cancelled_async_request_releases_its_reservation(hosted, table_pr
         with pytest.raises(asyncio.CancelledError):
             await task
     asyncio.run(run())
+    from app import ai_async
+    ai_async.wait_detached()      # Freigeben laeuft seit 08.11. in eigenem Thread (ai_async.db_detached)
     led, log = _ledger(u["id"])
     assert led == [("refunded", led[0][1], 0)] and log == [("failed", 0)], (led, log)
     assert month(u["id"])[1:] == (0, 0), "keine Reservierung bleibt bis zum Aufraeumen stehen"

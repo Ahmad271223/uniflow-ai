@@ -72,6 +72,30 @@ async def db(fn, *args, **kwargs):
     return await anyio.to_thread.run_sync(partial(fn, *args, **kwargs), limiter=db_limiter())
 
 
+_detached: list = []
+
+
+def db_detached(fn, *args, **kwargs):
+    """Aufraeumen nach einem Abbruch (Credits/Kontingent zurueck): in einem eigenen Thread, unabhaengig von der Ereignisschleife.
+    `await asyncio.shield(db(...))` im `except CancelledError` reicht nicht: Starlette laeuft in einem anyio-Cancel-Scope, der
+    jedes weitere await sofort erneut abbricht; der abgeschirmte Schritt blieb dann als lose Aufgabe liegen und ging bei
+    Prozessende verloren (unter Python 3.12 des Dienstes nachgestellt, 08.11.2026). Der Kontext (Konto) geht mit."""
+    import contextvars
+    import threading
+    ctx = contextvars.copy_context()
+    t = threading.Thread(target=ctx.run, args=(partial(fn, *args, **kwargs),), name="ai-aufraeumen", daemon=False)
+    t.start()
+    _detached.append(t)
+    del _detached[:-64]
+    return t
+
+
+def wait_detached(timeout: float = 10.0) -> None:
+    """Fuer Tests und das Herunterfahren: auf laufende Aufraeum-Threads warten."""
+    for t in list(_detached):
+        t.join(timeout)
+
+
 def overloaded() -> HTTPException:
     return HTTPException(503, {"detail": OVERLOADED_MESSAGE, "code": OVERLOADED_CODE, "retry_after": OVERLOADED_RETRY_AFTER_S},
                          headers={"Retry-After": str(OVERLOADED_RETRY_AFTER_S)})

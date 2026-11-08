@@ -1760,7 +1760,7 @@ async def _flashcards_complete_async(request: Request, hosted: bool, prompt: str
             except asyncio.CancelledError:
                 # abgebrochen, waehrend der Anbieter antwortete (Client weg): das Kontingent zurueck wie die Credits
                 # (ai_backend, P9-07); sonst blieb ai_assist belegt und dieselbe request_id endete mit 409 (Audit P30-09)
-                await asyncio.shield(ai_async.db(entitlements.refund, request, "ai_assist", rid))
+                ai_async.db_detached(entitlements.refund, request, "ai_assist", rid)
                 raise
             except Exception:
                 await ai_async.db(entitlements.refund, request, "ai_assist", rid)
@@ -1913,7 +1913,7 @@ async def _tutor_hosted_async(request: Request, body: dict, mode: str, text: str
         raise ai_async.http_error(e)
     except asyncio.CancelledError:
         # Abbruch waehrend der Anbieter antwortet: Kontingent zurueck (Audit P30-09, wie die Credits in P9-07)
-        await asyncio.shield(ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"]))
+        ai_async.db_detached(entitlements.refund, request, "ai_assist", pre["rid"])   # eigener Thread, siehe ai_async.db_detached
         raise
     except Exception:
         await ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"])

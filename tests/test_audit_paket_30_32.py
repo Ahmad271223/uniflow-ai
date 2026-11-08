@@ -266,6 +266,8 @@ def _cancel_midway(app, h, path, body, fake):
         with pytest.raises(asyncio.CancelledError):
             await task
     asyncio.run(run())
+    from app import ai_async
+    ai_async.wait_detached()      # Aufraeumen laeuft unabhaengig von der Schleife in eigenem Thread
     fake.entered = None
 
 

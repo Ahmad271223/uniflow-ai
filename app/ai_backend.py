@@ -1573,8 +1573,8 @@ async def complete_async(user_id: str | None, purpose: str, system: str, prompt:
             except asyncio.CancelledError:
                 # abgebrochen, waehrend der Anbieter antwortete (Client weg, Zeitlimit): wie crashed sofort freigeben, statt die
                 # Reservierung bis zum Aufraeumen (credits.STALE_MINUTES) und die Protokollzeile fuer immer stehen zu lassen
-                # (Audit P9-07); shield: das Freigeben laeuft auch bei einem zweiten Abbruch zu Ende
-                await asyncio.shield(ai_async.db(call.crashed))
+                # (Audit P9-07); eigener Thread, weil ein await hier im anyio-Cancel-Scope sofort erneut abbricht
+                ai_async.db_detached(call.crashed)
                 raise
             except Exception:
                 await ai_async.db(call.crashed)
