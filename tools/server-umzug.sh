@@ -170,6 +170,9 @@ systemctl enable --now docker
 systemctl enable --now unattended-upgrades
 ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 443/udp && ufw --force enable
 timedatectl set-timezone Europe/Berlin
+# SSH nur mit Schluessel (Hetzner-Image laesst Passwoerter fuer Nicht-root zu); fail2ban gegen Rateversuche (Befund 08.11.: Dutzende je Minute)
+printf "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin prohibit-password\n" > /etc/ssh/sshd_config.d/90-studinow.conf && sshd -t && systemctl reload ssh
+apt-get install -y -qq fail2ban && printf "[sshd]\nenabled = true\nmaxretry = 5\nfindtime = 10m\nbantime = 1h\n" > /etc/fail2ban/jail.d/sshd.local && systemctl enable --now fail2ban
 mkdir -p /srv/uniflow/backups /srv/uniflow/app/deploy && chmod 700 /srv/uniflow/backups
 docker --version && docker compose version
 echo "Einrichtung fertig: $(hostname) $(date)"'

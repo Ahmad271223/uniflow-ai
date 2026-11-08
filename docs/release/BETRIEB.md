@@ -62,6 +62,9 @@ curl -fsSL https://get.docker.com | sh
 systemctl enable --now docker
 # Firewall: nur SSH, HTTP, HTTPS
 ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 443/udp && ufw --force enable
+# SSH nur mit Schlüssel, Rateversuche sperren (seit 08.11.2026 Teil von tools/server-umzug.sh Schritt 1)
+printf "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin prohibit-password\n" > /etc/ssh/sshd_config.d/90-studinow.conf && sshd -t && systemctl reload ssh
+apt install -y fail2ban && printf "[sshd]\nenabled = true\nmaxretry = 5\nfindtime = 10m\nbantime = 1h\n" > /etc/fail2ban/jail.d/sshd.local && systemctl enable --now fail2ban
 # Zeitzone (Zeitplan 08:00/15:00 und Löschfristen 04:00 gelten in Ortszeit des Containers, TZ=Europe/Berlin)
 timedatectl set-timezone Europe/Berlin
 mkdir -p /srv/uniflow/backups && chmod 700 /srv/uniflow/backups
