@@ -129,8 +129,9 @@ def test_privacy_manifest_matches_the_app_store_privacy_section():
     m = plistlib.loads((ROOT / "apps/apple/UniFlow/PrivacyInfo.xcprivacy").read_bytes())
     assert m["NSPrivacyTracking"] is False and m["NSPrivacyTrackingDomains"] == []
     kinds = {t["NSPrivacyCollectedDataType"]: t for t in m["NSPrivacyCollectedDataTypes"]}
+    # Geraete-ID seit Audit P46-04 (08.11.2026): die zufaellige Installationskennung geht als device_id an den Dienst
     assert set(kinds) == {"NSPrivacyCollectedDataTypeEmailAddress", "NSPrivacyCollectedDataTypeUserID",
-                          "NSPrivacyCollectedDataTypePurchaseHistory", "NSPrivacyCollectedDataTypeOtherUserContent",
+                          "NSPrivacyCollectedDataTypeDeviceID", "NSPrivacyCollectedDataTypePurchaseHistory", "NSPrivacyCollectedDataTypeOtherUserContent",
                           "NSPrivacyCollectedDataTypeProductInteraction"}
     for t in kinds.values():
         assert t["NSPrivacyCollectedDataTypeLinked"] is True and t["NSPrivacyCollectedDataTypeTracking"] is False
@@ -140,10 +141,10 @@ def test_privacy_manifest_matches_the_app_store_privacy_section():
                        "NSPrivacyAccessedAPICategoryFileTimestamp": {"C617.1", "3B52.1"},
                        "NSPrivacyAccessedAPICategoryDiskSpace": {"E174.1"},
                        "NSPrivacyAccessedAPICategorySystemBootTime": {"35F9.1"}}
-    # dieselben fuenf Zeilen stehen im Abschnitt App-Datenschutz (erfasst, verknuepft, kein Tracking)
+    # dieselben sechs Zeilen stehen im Abschnitt App-Datenschutz (erfasst, verknuepft, kein Tracking)
     store = (ROOT / "docs/release/APP-STORE.md").read_text(encoding="utf-8")
     section = store.split("## App-Datenschutz", 1)[1].split("\n## ", 1)[0]
-    for label in ("E-Mail-Adresse", "Nutzer-ID", "Kaufverlauf", "Andere Nutzerinhalte", "Produktinteraktion"):
+    for label in ("E-Mail-Adresse", "Nutzer-ID", "Geräte-ID", "Kaufverlauf", "Andere Nutzerinhalte", "Produktinteraktion"):
         assert re.search(rf"\| [^|\n]*{label} \| ja \| ja \| nein \| App-Funktionalität \|", section), label
     # keine weiteren Required-Reason-APIs im Code als die erklaerten
     code = "\n".join(p.read_text(encoding="utf-8") for base in ("apps/apple/UniFlow", "apps/apple/Packages/UniFlowCore/Sources")

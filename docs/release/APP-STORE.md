@@ -210,7 +210,7 @@ Erste Version von StudiNow für das iPad: Unterlagen, Termine, Nachrichten, Note
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0 (`MARKETING_VERSION`), **Build 27** (`CURRENT_PROJECT_VERSION`; Build 25 in der Prüfung, Build 26 nie hochgeladen); Build 5 bis 24 nicht einreichen |
+| Version, Build | 1.0 (`MARKETING_VERSION`), **Build 27** (`CURRENT_PROJECT_VERSION`; Build 25 in der Prüfung, Build 26 nie hochgeladen); Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv, an zwei Stellen: beim Start (trennt die Daten je Apple-Nutzer, bleibt auf dem Gerät) und freiwillig für das StudiNow-Konto (Einstellungen → Zugang & Darstellung → StudiNow-Konto; Token-Tausch beim Dienst). Konto löschen geht für beides in der App (Richtlinie 5.1.1(v)) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -244,6 +244,7 @@ Frage „Erfassen Sie oder Ihre Drittanbieter Daten aus dieser App?“ → **Ja*
 |---|---|---|---|---|---|
 | Kontaktinformationen → E-Mail-Adresse | ja | ja | nein | App-Funktionalität | nur mit StudiNow-Konto: die Adresse, die Apple bei „Mit Apple anmelden“ übermittelt (ggf. Weiterleitungsadresse), bzw. die bei der Registrierung angegebene; Mitteilungen zum Konto |
 | Kennungen → Nutzer-ID | ja | ja | nein | App-Funktionalität | Konto-ID und Apple-Kennung beim StudiNow-Dienst; CloudKit-Nutzerkennung (zufällig, nur für StudiNow) in jedem Community-, Wochentest- und Bibliotheks-Datensatz (Zurückziehen, Melden, Blockieren, Moderation) |
+| Kennungen → Geräte-ID | ja | ja | nein | App-Funktionalität | nur mit StudiNow-Konto: zufällige Kennung dieser Installation (`ipad-<UUID>`, `StudoraAccountLink.deviceID`, keine Werbe- oder Hardware-Kennung) als `device_id` bei Anmeldung und Geräteabgleich; der Dienst führt sie bei der Sitzung (Geräteliste, andere Geräte abmelden). **Neu seit Audit P46-04 (08.11.2026), gilt ab Build 27; in App Store Connect vom Inhaber nachzutragen** |
 | Käufe → Kaufverlauf | ja | ja | nein | App-Funktionalität | nur mit StudiNow-Konto: die von Apple signierte Transaktion (Produkt, Laufzeit, Transaktionskennung) geht an `/api/billing/apple/verify`, damit Tarif und Credits am Konto stimmen; keine Zahlungsdaten |
 | Nutzerinhalte → Andere Nutzerinhalte | ja | ja | nein | App-Funktionalität | Community (Lösungen verschlüsselt, Fragen, Antworten, Kommentare, Meldungen; CloudKit bzw. mit Konto im Dienst); KI-Anfragen (Seitentext bzw. Bild eines Bereichs, Frage, Kurs- und Dateiname) an den Dienst und weiter an den KI-Anbieter; Geräteabgleich mit Konto (Module, Termine, Lernpakete, Karteikarten, Einstellungen; Notizen ab Pro AI) |
 | Nutzungsdaten → Produktinteraktion | ja | ja | nein | App-Funktionalität | je KI-Anfrage Zeitpunkt, Art der Aufgabe und verbrauchte Credits (Abrechnung der Credits, Monatsgrenze) |
@@ -275,8 +276,9 @@ Warum so:
 - **Diagnose:** keine Absturz- oder Analyse-SDKs; Absturzberichte über Apple (TestFlight, Xcode Organizer) sind Apples
   eigene Erfassung. Zugriffsprotokolle des Servers (IP-Adresse, 14 Tage, nur Sicherheit) werden nicht ausgewertet und
   keiner Person zugeordnet.
-- **Datenschutz-Manifest:** `apps/apple/UniFlow/PrivacyInfo.xcprivacy` nennt seit 06.11.2026 dieselben fünf Datenarten
-  wie die Tabelle (verknüpft, kein Tracking, App-Funktionalität) und die Gründe der genutzten APIs (UserDefaults CA92.1,
+- **Datenschutz-Manifest:** `apps/apple/UniFlow/PrivacyInfo.xcprivacy` nennt dieselben Datenarten wie die Tabelle
+  (verknüpft, kein Tracking, App-Funktionalität; seit 06.11.2026 fünf, seit 08.11.2026 sechs mit der Geräte-ID,
+  Audit P46-04, Build 25 trägt noch die fünf) und die Gründe der genutzten APIs (UserDefaults CA92.1,
   Datei-Zeitstempel C617.1 und 3B52.1, freier Speicher E174.1, seit Build 16 Systemstartzeit 35F9.1 für verstrichene
   Zeit in der App: `DispatchTime.uptimeNanoseconds`, `CLOCK_MONOTONIC`); geprüft in `tests/test_ai_consent.py` und
   `AIConsentAppTests`. Gilt ab Build 11.
