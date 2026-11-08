@@ -582,7 +582,13 @@ _MULTIPART_SLACK = 1 << 20                   # Formularfelder und Trenner
 _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/files/[^/]+/recordings$"), MAX_RECORDING_BYTES),
                   (re.compile(r"^/api/notebooks$"), MAX_IMPORT_BYTES),
-                  (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES))
+                  (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES),
+                  # KI-Index (app/doc_index.py bricht nach 60 MB ab - Starlette haette vorher bis 320 MB zwischengespeichert)
+                  (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES))
+# PUT mit JSON-Koerper, der ganz gelesen wird (Audit 08.11.2026, P28-01/P29-04): Notizen wie in sync/push, Seitentexte
+# vom Geraet; vorher galt fuer PUT nur die Caddy-Grenze von 320 MB.
+_PUT_LIMITS = ((re.compile(r"^/api/files/[^/]+/annotations$"), MAX_SYNC_BYTES),
+               (re.compile(r"^/api/files/[^/]+/pagetext$"), MAX_SYNC_BYTES))
 try:
     from PIL import Image as _PILImage  # type: ignore
     _PILImage.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
@@ -607,7 +613,9 @@ def _disk_min_free_bytes() -> int:
         mb = int(os.environ.get("LERNAPP_DISK_MIN_FREE_MB") or DISK_MIN_FREE_MB)
     except ValueError:
         mb = DISK_MIN_FREE_MB
-    return max(0, mb) << 20
+    if mb < 0:                      # Tippfehler wie "-5120" schaltete die Reserve still ab (Audit P28-11); 0 = bewusst aus
+        mb = DISK_MIN_FREE_MB
+    return mb << 20
 
 
 def disk_free_bytes(path: Path) -> int | None:
@@ -634,9 +642,10 @@ class UploadLimit:
         self.app = app_
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope.get("method") != "POST":
+        if scope["type"] != "http" or scope.get("method") not in ("POST", "PUT"):
             return await self.app(scope, receive, send)
-        limit = next((n for rx, n in _UPLOAD_LIMITS if rx.match(scope.get("path") or "")), None)
+        table = _UPLOAD_LIMITS if scope["method"] == "POST" else _PUT_LIMITS
+        limit = next((n for rx, n in table if rx.match(scope.get("path") or "")), None)
         if limit is None:
             return await self.app(scope, receive, send)
         cap = limit + _MULTIPART_SLACK
@@ -686,11 +695,16 @@ def _upload_quota_bytes() -> int:
     return max(0, mb) << 20
 
 
+def _upload_roots() -> tuple[Path, Path]:
+    return config.data_dir() / "files" / "Eigene Dokumente", _assets_dir()
+
+
 def _own_upload_bytes() -> int:
-    """Belegter Platz eigener Uploads des Kontos (Eigene Dokumente und Assets)."""
+    """Belegter Platz eigener Uploads des Kontos (Eigene Dokumente und Assets), auch halb geschriebene Dateien
+    laufender Uploads (anderer Anfragen oder Prozesse)."""
     import os
     total = 0
-    for root in (config.data_dir() / "files" / "Eigene Dokumente", _assets_dir()):
+    for root in _upload_roots():
         for dirpath, _dirs, names in os.walk(root):
             for n in names:
                 try:
@@ -709,19 +723,38 @@ def _upload_error(code: str, limit: int = 0) -> HTTPException:
     return HTTPException(413, {"detail": f"Die Datei ist zu groß (höchstens {limit >> 20} MB).", "code": "too_large"})
 
 
+# Nachpruefung waehrend des Schreibens (Audit 08.11.2026, P28-03/P28-04): das Kontingent bestimmte nur ein Scan vor dem
+# Upload, parallele Uploads (auch anderer Prozesse) sahen denselben Rest; die Platten-Reserve ebenso. Alle so viele Bytes
+# und am Ende wird erneut gezaehlt - die Teil-Dateien laufender Uploads liegen schon im Kontoordner und zaehlen mit.
+_QUOTA_RECHECK_BYTES = 8 << 20
+
+
 async def _save_upload(upload: UploadFile, target: Path, limit: int, head: bytes | None = None) -> int:
-    """Upload stueckweise nach `target` schreiben: Grenze je Datei und (im Dienst) Speicherkontingent des Kontos,
-    beides vor bzw. waehrend des Lesens; bei Ueberschreitung bleibt nichts liegen. `head`: erwartete Anfangsbytes."""
+    """Upload stueckweise nach `target` schreiben: Grenze je Datei und (im Dienst) Speicherkontingent des Kontos und
+    Platten-Reserve, vor, waehrend und nach dem Lesen; bei Ueberschreitung bleibt nichts liegen. `head`: erwartete
+    Anfangsbytes. Volle Platte beim Schreiben (ENOSPC) -> 507 statt 500."""
+    import errno
+    from starlette.concurrency import run_in_threadpool
     if upload.size is not None and upload.size > limit:
         raise _upload_error("too_large", limit)
-    budget = None
+    budget = quota = None
     if config.is_hosted() and config.current_user_id():
-        budget = _upload_quota_bytes() - _own_upload_bytes()
+        quota = _upload_quota_bytes()
+        budget = quota - await run_in_threadpool(_own_upload_bytes)      # Scan nicht in der Ereignisschleife
         if upload.size is not None and upload.size > budget:
             raise _upload_error("storage_quota")
         if _disk_full(target, upload.size or 0):             # Reserve der ganzen Platte, nicht nur das Kontingent des Kontos
             raise _upload_error("storage_full")
-    n = 0
+    counted = quota is not None and any(r.resolve() in target.resolve().parents for r in _upload_roots())
+
+    async def recheck(out, n):
+        out.flush()
+        used = await run_in_threadpool(_own_upload_bytes) + (0 if counted else n)   # enthaelt die eigene Teil-Datei, wenn sie im Kontoordner liegt
+        if used > quota:
+            raise _upload_error("storage_quota")
+        if _disk_full(target):
+            raise _upload_error("storage_full")
+    n = since = 0
     try:
         with open(target, "wb") as out:
             while chunk := await upload.read(1 << 20):
@@ -733,8 +766,19 @@ async def _save_upload(upload: UploadFile, target: Path, limit: int, head: bytes
                 if budget is not None and n > budget:
                     raise _upload_error("storage_quota")
                 out.write(chunk)
+                since += len(chunk)
+                if quota is not None and since >= _QUOTA_RECHECK_BYTES:
+                    since = 0
+                    await recheck(out, n)
+            if quota is not None:
+                await recheck(out, n)
         if n == 0 and head is not None:
             raise HTTPException(400, "Die Datei ist keine PDF")
+    except OSError as e:
+        target.unlink(missing_ok=True)
+        if e.errno in (errno.ENOSPC, getattr(errno, "EDQUOT", -1)):
+            raise _upload_error("storage_full")
+        raise
     except BaseException:
         target.unlink(missing_ok=True)
         raise
@@ -760,8 +804,9 @@ def _found(row, what: str = "Eintrag"):
 
 
 def _safe_id(value: str) -> str:
-    """Datei-IDs werden fuer Pfade benutzt: keine Punkte, Schraegstriche oder Backslashes (Pfad-Traversal)."""
-    if not _SAFE_ID.match(value or ""):
+    """Datei-IDs werden fuer Pfade benutzt: keine Punkte, Schraegstriche oder Backslashes (Pfad-Traversal). fullmatch:
+    `$` liess einen abschliessenden Zeilenumbruch durch (%0A, Audit P28-12)."""
+    if not isinstance(value, str) or not _SAFE_ID.fullmatch(value):
         raise HTTPException(400, "Ungueltige ID")
     return value
 
@@ -783,14 +828,18 @@ _bg_state: dict = {"running": False, "task": None, "message": ""}
 
 
 def _run_bg(name: str, fn):
+    """Ein Hintergrundlauf je Prozess. Der Job laeuft im Kontext der Anfrage (contextvars: Konto, Umgebung) - ein
+    nackter Thread haette ihn nicht und schriebe im Dienst in den Datenordner des Dienstes (Audit P28-06)."""
+    import contextvars
     if not _bg_lock.acquire(blocking=False):
         raise HTTPException(409, f"Es laeuft bereits: {_bg_state['task']}")
     _bg_state.update(running=True, task=name, message="")
     progress.clear()
+    ctx = contextvars.copy_context()
 
     def worker():
         try:
-            out = fn()
+            out = ctx.run(fn)
             _bg_state["message"] = f"{name}: fertig" + (f" ({out})" if out else "")
         except Exception as e:  # noqa: BLE001
             _bg_state["message"] = f"{name}: FEHLER {e}"
@@ -799,7 +848,12 @@ def _run_bg(name: str, fn):
             _bg_state.update(running=False, task=None)
             _bg_lock.release()
 
-    threading.Thread(target=worker, daemon=True).start()
+    try:
+        threading.Thread(target=worker, daemon=True).start()
+    except BaseException:                   # z. B. "can't start new thread": sonst bliebe die Sperre bis zum Neustart belegt
+        _bg_state.update(running=False, task=None)
+        _bg_lock.release()
+        raise
     return {"started": name}
 
 
@@ -980,13 +1034,36 @@ def courses():
             FROM courses c ORDER BY c.subject, c.kind, c.title""")
 
 
+def _invalid(field: str, what: str) -> HTTPException:
+    return HTTPException(400, {"detail": f"{field}: {what}", "code": "value_invalid"})
+
+
+def _int_value(field: str, v, lo: int, hi: int) -> int:
+    """Ganze Zahl in [lo, hi]; 1.0 (Zahl als Double, iPad) zaehlt als 1, true/false und Text nicht (Audit P29-06)."""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
+        raise _invalid(field, f"ganze Zahl von {lo} bis {hi} erwartet")
+    return v
+
+
+def _course_value(k: str, v):
+    if k == "active":
+        return (1 if v else 0) if isinstance(v, bool) else _int_value(k, v, 0, 1)
+    if k == "test_minutes":
+        return _int_value(k, v, 0, 600)
+    if v is None or (isinstance(v, str) and len(v) <= 200):          # subject, kind
+        return v
+    raise _invalid(k, "Text bis 200 Zeichen erwartet")
+
+
 @app.patch("/api/courses/{course_id}")
 def patch_course(course_id: str, body: dict = Body(...)):
     allowed = {"subject", "kind", "active", "test_minutes"}
+    values = {k: _course_value(k, v) for k, v in body.items() if k in allowed}      # erst alles pruefen, dann schreiben
     with db.cursor() as conn:
-        for k, v in body.items():
-            if k in allowed:
-                conn.execute(f"UPDATE courses SET {k}=? WHERE id=?", (v, course_id))
+        for k, v in values.items():
+            conn.execute(f"UPDATE courses SET {k}=? WHERE id=?", (v, course_id))
         if "active" in body:
             conn.execute("UPDATE courses SET active_custom=1 WHERE id=?", (course_id,))   # app/semesters.py laesst es
         return _found(db.row(conn, "SELECT * FROM courses WHERE id=?", (course_id,)), "Kurs")
@@ -1066,6 +1143,8 @@ def file_docx(file_id: str):
         f = _found(db.row(conn, "SELECT id, name, local_path, download_url, course_id FROM files WHERE id=?", (file_id,)), "Datei")
         data = None
         if f["local_path"] and Path(f["local_path"]).is_file():
+            if Path(f["local_path"]).stat().st_size > docx_view.MAX_BYTES:       # nicht erst ganz einlesen (Audit P29-05)
+                raise HTTPException(422, {"detail": "Das Word-Dokument ist zu groß für die Vorschau.", "code": "docx_unreadable"})
             data = Path(f["local_path"]).read_bytes()
         elif config.streams_files() and f["download_url"] and f["course_id"] != "__user__":
             try:
@@ -1162,7 +1241,7 @@ def patch_file(file_id: str, body: dict = Body(...)):
         if "status" in body and body["status"] in ("neu", "gelesen", "erledigt"):
             conn.execute("UPDATE files SET status=?, seen_by_user=1 WHERE id=?", (body["status"], file_id))
         if "difficulty" in body:
-            conn.execute("UPDATE analysis SET difficulty=? WHERE file_id=?", (int(body["difficulty"]), file_id))
+            conn.execute("UPDATE analysis SET difficulty=? WHERE file_id=?", (_int_value("difficulty", body["difficulty"], 1, 5), file_id))
         return _found(db.row(conn, "SELECT * FROM files WHERE id=?", (file_id,)), "Datei")
 
 
@@ -1287,7 +1366,7 @@ async def upload_asset(request: Request, file_id: str, upload: UploadFile = File
 @app.get("/api/assets/{file_id}/{name}")
 def get_asset(file_id: str, name: str):
     _safe_id(file_id)
-    if not _SAFE_NAME.match(name or ""):
+    if not _SAFE_NAME.fullmatch(name or ""):
         raise HTTPException(400, "Ungueltiger Dateiname")
     p = _inside(_assets_dir(), _assets_dir() / file_id / name)
     if not p.is_file():
@@ -1304,8 +1383,9 @@ def page_text(file_id: str, page: int = 1):
         try:
             # nur die gefragte Seite erkennen, wenn ihre Textebene fast leer ist (beim Oeffnen fragt die App Seite 1, nicht alle)
             pages = scriptsearch.page_texts(conn, file_id, pageocr.Scope.only(page))
-        except Exception as e:  # noqa: BLE001
-            return {"text": "", "error": str(e)}
+        except Exception as e:  # noqa: BLE001 - Details ins Log, nicht an den Client (Audit P29-10: Pfade, SQL)
+            print(f"[pagetext] {file_id}: {type(e).__name__}: {e}")
+            return {"text": "", "error": "Der Seitentext konnte nicht gelesen werden.", "code": "pagetext_failed"}
     if not pages:
         raise HTTPException(404, {"detail": "Kein Seitentext vorhanden.", "code": "no_content"})
     # `kind` (pdf | docx | pptx | audio) seit 04.11.2026 (docs/DATEIARTEN.md): Word und PowerPoint liefern Seiten wie PDF
@@ -3834,6 +3914,36 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
         return db.row(conn, "SELECT * FROM files WHERE id=?", (fid,))
 
 
+_ASSET_REF = re.compile(r"/api/assets/([A-Za-z0-9][A-Za-z0-9_-]{0,79})/")
+
+
+def _asset_refs(conn, file_id: str) -> set[str]:
+    """Asset-Ordner, auf die Notizen und Verlauf eines Dokuments verweisen (ein Duplikat verweist auf die des Originals)."""
+    out: set[str] = set()
+    for t in ("annotations", "annotation_versions"):
+        for r in db.rows(conn, f"SELECT data FROM {t} WHERE file_id=?", (file_id,)):
+            out.update(_ASSET_REF.findall(r["data"] or ""))
+    return out
+
+
+def _drop_unused_assets(conn, ids: set[str]) -> None:
+    """Endgueltig geloescht (Audit P29-03): Bilder und Aufnahmen bleiben sonst fuer immer liegen und belegen im Dienst
+    das Kontingent ohne Weg, den Platz freizugeben. Ein Ordner geht nur, wenn sein Dokument weg ist und keine
+    Notiz, Version oder Aufnahme mehr auf ihn verweist."""
+    import shutil
+    for aid in ids:
+        if not _SAFE_ID.fullmatch(aid) or db.row(conn, "SELECT 1 FROM files WHERE id=?", (aid,)):
+            continue
+        like = f"%/api/assets/{aid}/%"
+        if any(db.row(conn, f"SELECT 1 FROM {t} WHERE {c} LIKE ? LIMIT 1", (like,))
+               for t, c in (("annotations", "data"), ("annotation_versions", "data"), ("recordings", "url"))):
+            continue
+        try:
+            shutil.rmtree(_inside(_assets_dir(), _assets_dir() / aid), ignore_errors=True)
+        except HTTPException:
+            pass
+
+
 @app.patch("/api/library/files/{file_id}")
 def api_library_file_patch(file_id: str, body: dict = Body(...)):
     with db.cursor() as conn:
@@ -3859,6 +3969,7 @@ def api_library_file_patch(file_id: str, body: dict = Body(...)):
             f = db.row(conn, "SELECT local_path, course_id FROM files WHERE id=?", (file_id,))
             if f and f["course_id"] != "__user__":
                 raise HTTPException(400, "Stud.IP-Dokumente können nur in den Papierkorb, nicht endgültig gelöscht werden.")
+            asset_dirs = _asset_refs(conn, file_id) | {file_id}         # vor dem Loeschen: welche Asset-Ordner nutzt es
             for t in ("annotation_versions", "annotations", "analysis", "flashcards", "recordings"):
                 conn.execute(f"DELETE FROM {t} WHERE file_id=?", (file_id,))
             # Stapel des Dokuments: leer -> weg, sonst bleibt er ohne Quelle (Karten aus anderen Dokumenten darin)
@@ -3873,6 +3984,7 @@ def api_library_file_patch(file_id: str, body: dict = Body(...)):
                     Path(f["local_path"]).unlink()
                 except OSError:
                     pass
+            _drop_unused_assets(conn, asset_dirs)
             return {"ok": True}
     return {"ok": True}
 
