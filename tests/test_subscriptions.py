@@ -162,11 +162,11 @@ class AppleSigner:
         r, s = decode_dss_signature(der)
         return f"{head}.{body}.{enc(r.to_bytes(32, 'big') + s.to_bytes(32, 'big'))}"
 
-    def tx(self, user_id, product, expires, otid="2000000000000001", revoked=False, token=True):
+    def tx(self, user_id, product, expires, otid="2000000000000001", revoked=False, token=True, environment="Sandbox"):
         self.seq += 1
         ms = lambda d: int(d.timestamp() * 1000)
         p = {"transactionId": f"{otid}-{self.seq}", "originalTransactionId": otid, "productId": product, "bundleId": "de.uniflow.ai",
-             "type": "Auto-Renewable Subscription", "expiresDate": ms(expires), "environment": "Sandbox",
+             "type": "Auto-Renewable Subscription", "expiresDate": ms(expires), "environment": environment,
              "signedDate": ms(dt.datetime.now(UTC)) + self.seq}
         if token:
             p["appAccountToken"] = str(uuid.UUID(hex=user_id))
@@ -395,6 +395,48 @@ def test_apple_signatures_are_checked(hosted, apple, tmp_path, monkeypatch):
     monkeypatch.setenv("LERNAPP_APPLE_ROOT_CERTS", "")
     st, d = verify(hosted, h, good)
     assert (st, d["code"]) == (503, "apple_not_configured")
+
+
+def test_sandbox_purchase_unlocks_pro_ai_like_production_but_is_labelled(hosted, apple):
+    """TestFlight kauft immer in Apples Sandbox (kein Geld, Monatsabo laeuft 5 Minuten): der Dienst nimmt die signierte
+    Sandbox-Transaktion wie eine echte an (gleiche Apple-Wurzel), schaltet Pro AI mit denselben 100 Credits frei und
+    kennzeichnet die Umgebung in GET /api/entitlements. Laeuft das Sandbox-Abo aus, faellt das Konto auch ohne
+    Server-Benachrichtigung auf Free zurueck (expires_at); ein spaeterer Production-Kauf ersetzt die Zeile."""
+    from app import billing, plans
+    u, h = user(hosted, "testflight@beispiel.de")
+    in_5 = dt.datetime.now(UTC) + dt.timedelta(minutes=5)
+    st, d = verify(hosted, h, apple.tx(u["id"], "de.uniflow.proai.monthly", in_5, otid="2000000000000020", environment="Sandbox"))
+    assert st == 200 and d["plan"] == "pro_ai" and d["status"] == "active" and d["environment"] == "Sandbox", d
+    e = ent(hosted, h)
+    assert e["plan"] == "pro_ai" and e["source"] == "app_store" and e["environment"] == "Sandbox"
+    assert e["entitlements"]["can_use_ai_explanations"] and e["paid_plan"] == "pro_ai"
+    assert e["credits"]["allowance"] == plans.CREDITS["pro_ai"] == 100, "Sandbox-Konten bekommen genau die echten Credits, nicht mehr"
+    conn = billing.connect()
+    try:
+        assert billing.current_plan(conn, u["id"], in_5 + dt.timedelta(seconds=1)) == "free", "abgelaufenes Sandbox-Abo gilt nicht weiter"
+    finally:
+        conn.close()
+    # Store-Fassung auf demselben iPad: echter Kauf mit neuer Transaktion
+    st, d = verify(hosted, h, apple.tx(u["id"], "de.uniflow.proai.monthly", IN_30, otid="2000000000000021", environment="Production"))
+    assert st == 200 and d["environment"] == "Production"
+    e = ent(hosted, h)
+    assert e["plan"] == "pro_ai" and e["environment"] == "Production"
+
+
+def test_sandbox_notifications_are_handled_like_production(hosted, apple):
+    """App Store Server Notifications aus der Sandbox (eigene URL in App Store Connect, zeigt auf denselben Endpunkt):
+    Verlaengerung und Ablauf eines Sandbox-Abos werden angewandt; die Umgebung bleibt gekennzeichnet."""
+    u, h = user(hosted, "tf-notify@beispiel.de")
+    otid = "2000000000000022"
+    in_5 = dt.datetime.now(UTC) + dt.timedelta(minutes=5)
+    st, d = notify(hosted, apple.notification("SUBSCRIBED", apple.tx(u["id"], "de.uniflow.plus.monthly", in_5, otid=otid), subtype="INITIAL_BUY"))
+    assert st == 200 and d["applied"] and d["plan"] == "plus" and d["environment"] == "Sandbox", d
+    assert ent(hosted, h)["plan"] == "plus"
+    st, d = notify(hosted, apple.notification("DID_RENEW", apple.tx(u["id"], "de.uniflow.plus.monthly", in_5 + dt.timedelta(minutes=5), otid=otid)))
+    assert st == 200 and d["applied"] and d["status"] == "active"
+    past = dt.datetime.now(UTC) - dt.timedelta(minutes=1)
+    st, d = notify(hosted, apple.notification("EXPIRED", apple.tx(u["id"], "de.uniflow.plus.monthly", past, otid=otid), subtype="VOLUNTARY"))
+    assert st == 200 and d["status"] == "expired" and ent(hosted, h)["plan"] == "free"
 
 
 # ---------------------------------------------------------------- 11, 12, 13: Testbibliothek

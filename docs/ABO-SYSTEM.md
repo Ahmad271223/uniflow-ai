@@ -98,6 +98,12 @@ Feld `users.plan`). Es gilt der höchste aktive Tarif.
   ES256-Signatur, Bundle-ID, Produkt. Ohne Wurzel: `503 apple_not_configured`.
 - Upgrade sofort, Downgrade zur nächsten Verlängerung, Kündigung läuft bis zum Ablauf, Ablauf/Erstattung schaltet ab.
   Eine `originalTransactionId` gehört genau einem Konto (`409 subscription_owned_by_other_account`).
+- **Sandbox (TestFlight, 08.11.2026):** Dieselbe Apple-Wurzel signiert Production- und Sandbox-Transaktionen; der Dienst
+  nimmt beide an, speichert `environment` (`Production | Sandbox | Xcode`) an der Berechtigung und nennt es in
+  `GET /api/entitlements` und in der Antwort von `verify`. Sandbox-Abos schalten mit denselben Kontingenten und Credits frei
+  und laufen über `expires_at` von selbst aus (Monat = 5 Minuten). In App Store Connect beide Notification-URLs (Production
+  und Sandbox) auf denselben Endpunkt setzen. Probe für Tester verlängern: `python -m app.tester_freischalten`
+  (`docs/release/TESTFLIGHT-500-2026-11-08.md`).
 - Daten bleiben bei Kündigung und Ablauf: Notizen lesbar und exportierbar, nur Speichern wird gesperrt.
 
 **Web, Windows, Android:** Web und Windows schließen über Stripe ab (Abschnitte 3a und 3d), sobald Schlüssel und Preise im

@@ -300,6 +300,24 @@ def start_trial(conn: sqlite3.Connection, user_id, now: datetime | None = None) 
     return {"plan": plans.TRIAL["plan"], "ends_at": ends}
 
 
+def extend_trial(conn: sqlite3.Connection, user_id, until: datetime, now: datetime | None = None) -> dict:
+    """Probe eines Kontos bis `until` laufen lassen (Betrieb: TestFlight-Tester, app/tester_freischalten.py). Legt die
+    Probe an, wenn das Konto noch keine hat, und verlaengert eine laufende oder abgelaufene Probe; sie verlaengert sich
+    weiter nie von selbst. Die Probe gilt in der App und im Dienst wie plans.TRIAL (Pro-AI-Umfang mit den Probe-Credits
+    LERNAPP_CREDITS_TRIAL) – das iPad uebernimmt eine laufende Probe des Dienstes mit Vorrang vor der eigenen
+    (UFPlanPrecedence). Ein bezahltes Abo bleibt unberuehrt; es gilt weiter der hoechste aktive Tarif."""
+    t = _now(now)
+    ends = _now(until).replace(microsecond=0)
+    if ends <= t:
+        raise ValueError("Das Ende der Probe muss in der Zukunft liegen.")
+    uid = str(user_id)
+    before = trial_info(conn, uid, t)
+    set_entitlement(conn, uid, "trial", plans.TRIAL["plan"], expires_at=ends.isoformat(), status="active", will_renew=False, now=t)
+    return {"user_id": uid, "plan": plans.TRIAL["plan"], "ends_at": ends.isoformat(),
+            "days_left": int(((ends - t).total_seconds() + 86399) // 86400),
+            "previous": "none" if not before["granted"] else ("active" if before["active"] else "expired")}
+
+
 def end_trial(conn: sqlite3.Connection, user_id, now: datetime | None = None) -> bool:
     """Probe sofort beenden (Betrieb, Tests): der Eintrag bleibt als "vorbei" stehen, damit sie nicht erneut startet."""
     t = _now(now).isoformat()
@@ -369,6 +387,9 @@ def status(conn: sqlite3.Connection, user: dict, now: datetime | None = None) ->
         "plan": plan, "plan_name": PLANS[plan]["name"], "source": src["source"] if src else None,
         "expires_at": src["expires_at"] if src else None, "will_renew": bool(src["will_renew"]) if src else False,
         "pending_plan": src.get("pending_plan") if src else None,
+        # Umgebung des App-Store-Abos (Production | Sandbox | Xcode; TestFlight kauft immer in der Sandbox, ohne Geld):
+        # der Server nimmt beide an, kennzeichnet sie aber, damit Betrieb und Apps Sandbox-Abos erkennen (08.11.2026)
+        "environment": src.get("environment") if src else None,
         "entitlements": plans.entitlements(plan), "quotas": quotas,
         "integrations": plans.contract()["integrations"], "mode": "hosted",
         "trial": trial_info(conn, user["id"], t), "plan_choice": plan_choice(conn, user["id"]),
