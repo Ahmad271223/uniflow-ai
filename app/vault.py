@@ -26,6 +26,7 @@ from __future__ import annotations
 import base64
 import os
 import secrets
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -75,18 +76,58 @@ def master_key() -> bytes:
             raise RuntimeError("LERNAPP_SECRET_KEY muss 32 Byte lang sein")
     else:
         p = key_file()
-        if p.exists():
-            key = base64.b64decode(p.read_text(encoding="ascii").strip())
-        else:
-            key = secrets.token_bytes(32)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(base64.b64encode(key).decode("ascii"), encoding="ascii")
-            try:
-                os.chmod(p, 0o600)
-            except OSError:
-                pass
+        if not p.exists():
+            _create_key_file(p)
+        key = _read_key_file(p)
     _master = key
     return key
+
+
+def _create_key_file(p: Path) -> None:
+    """secret.key einmalig anlegen, auch wenn mehrere Prozesse gleichzeitig starten (Audit 08.11.2026, P16-01/P16-07):
+    der Schluessel geht zuerst vollstaendig in eine eindeutige Temp-Datei (O_EXCL, Rechte 0600 ab dem Anlegen), dann
+    per Hardlink an den Zielnamen - das gelingt genau einem Prozess, die anderen lesen danach die gewinnende Datei.
+    Ein Leser sieht nie eine halb geschriebene Datei. Ohne Hardlinks (z. B. FAT) direkt mit O_EXCL."""
+    p.parent.mkdir(parents=True, exist_ok=True)
+    data = base64.b64encode(secrets.token_bytes(32))
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.{secrets.token_hex(6)}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+    try:
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        try:
+            os.link(tmp, p)
+        except FileExistsError:
+            pass                                          # ein anderer Prozess war schneller: dessen Datei gilt
+        except OSError:
+            try:
+                fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+            except FileExistsError:
+                return
+            try:
+                os.write(fd, data)
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _read_key_file(p: Path) -> bytes:
+    """Gewinnende Datei lesen; eine leere oder kaputte Datei ist ein Fehler, nie ein leerer Schluessel. Kurz
+    wiederholen fuer den Fall ohne Hardlinks, in dem ein anderer Prozess gerade noch schreibt."""
+    for _ in range(50):
+        try:
+            key = base64.b64decode(p.read_text(encoding="ascii").strip(), validate=True)
+        except (OSError, ValueError):
+            key = b""
+        if len(key) == 32:
+            return key
+        time.sleep(0.02)
+    raise RuntimeError(f"{p.name} ist unlesbar oder nicht 32 Byte lang; Datei pruefen oder LERNAPP_SECRET_KEY setzen")
 
 
 def key_file() -> Path:
@@ -98,6 +139,7 @@ def reset_master() -> None:
     global _master
     _master = None
     _cache.clear()
+    _stamps.clear()
 
 
 def user_key(user_id: str) -> bytes:
@@ -165,11 +207,15 @@ def env_for(user_id: str) -> dict[str, str]:
         cm.__exit__(None, None, None)
     _stamps[user_id] = st
     out = {}
+    broken = []
     for r in rows:
         try:
             out[r["name"]] = decrypt(user_id, r["value_enc"])
         except Exception:  # noqa: BLE001 - anderes Geheimnis oder manipuliert: Wert gilt als nicht gesetzt
-            continue
+            broken.append(r["name"])
+    if broken:                                            # P16-09: nur Namen und Anzahl, nie Wert oder Konto
+        print(f"[vault] {len(broken)} Tresor-Eintrag/-Eintraege nicht entschluesselbar (anderes Geheimnis oder "
+              f"beschaedigt), gelten als nicht gesetzt: {', '.join(sorted(broken))}", flush=True)
     _cache[user_id] = out
     return dict(out)
 
