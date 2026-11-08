@@ -1,6 +1,7 @@
 """FastAPI-Backend der Lern-App."""
 from __future__ import annotations
 
+import asyncio
 import json
 import mimetypes
 import re
@@ -1324,6 +1325,37 @@ async def ai_tutor(request: Request, body: dict = Body(...)):
         return await ai_async.db(_tutor_finish, body, pre, answer, c, credits_state)
 
 
+# Seitenzahl des Tutors (Audit P30-01): ganze Zahl 1..TUTOR_PAGE_MAX, auch als Ziffernfolge; fehlt = Seite 1
+TUTOR_PAGE_MAX = 100_000
+TUTOR_TEXT_FIELDS = ("page_text", "selection", "question", "own_solution")
+
+
+def _tutor_inputs(body: dict) -> tuple[str, int]:
+    """Typen der Tutor-Anfrage vor jeder Arbeit pruefen (Audit P30-01/05/06): mode, page_text, selection, question und
+    own_solution sind Text oder null, file_id Text, module_id Zahl, page eine Seitenzahl. Vorher wurden Zahlen, Listen
+    und "abc" erst bei .strip()/int() zum 500. Liefert (mode, page); 422 bei falschen Typen."""
+    mode = body.get("mode") or "explain"
+    if not isinstance(mode, str):
+        raise HTTPException(422, "mode: Text erwartet")
+    for k in TUTOR_TEXT_FIELDS:
+        if body.get(k) is not None and not isinstance(body[k], str):
+            raise HTTPException(422, f"{k}: Text oder null erwartet")
+    if body.get("file_id") is not None and not isinstance(body["file_id"], str):
+        raise HTTPException(422, "file_id: Text oder null erwartet")
+    mid = body.get("module_id")
+    if mid is not None and (isinstance(mid, bool) or not isinstance(mid, (int, str))):
+        raise HTTPException(422, "module_id: Zahl erwartet")
+    raw = body.get("page")
+    if raw is None or raw == "":
+        return mode, 1
+    if isinstance(raw, bool) or not (isinstance(raw, int) or (isinstance(raw, str) and raw.strip().isdigit())):
+        raise HTTPException(422, "page: ganze Zahl ab 1 erwartet")
+    page = int(raw)
+    if not 1 <= page <= TUTOR_PAGE_MAX:
+        raise HTTPException(422, f"page: zwischen 1 und {TUTOR_PAGE_MAX} erwartet")
+    return mode, page
+
+
 def _tutor_prepare(request: Request, body: dict) -> dict:
     """Synchroner Teil vor dem Anbieter: Rechte, Bild, Seitentext, Kurs, Erklaerungsspeicher (0 Credits), Quellen.
     Liefert die Zutaten fuer den Aufruf oder {"early": Antwort}, wenn eine gespeicherte Antwort reicht."""
@@ -1331,15 +1363,15 @@ def _tutor_prepare(request: Request, body: dict) -> dict:
     mode = body.get("mode") or "explain"
     hosted = config.is_hosted()
     if hosted:
-        entitlements.require(request, TUTOR_ENTITLEMENT.get(mode, "can_use_ai_explanations"))
+        entitlements.require(request, TUTOR_ENTITLEMENT.get(mode, "can_use_ai_explanations") if isinstance(mode, str) else "can_use_ai_explanations")
         entitlements.require_verified_for_ai(request)
+    mode, page = _tutor_inputs(body)
     # "Bereich an KI" (05.11.2026): Ausschnitt der Seite als Bild; persoenlich, nie aus einem Speicher und nie hinein
     try:
         image = ai.tutor_image(body.get("image"))
     except ai.TutorImageError as e:
         raise HTTPException(413 if "groß" in str(e) else 400, {"detail": str(e), "code": "image_invalid"})
     file_id = body.get("file_id")
-    page = int(body.get("page") or 1)
     text = body.get("page_text") or ""
     course, fname, studip = "", "", ""
     if file_id:
@@ -1422,9 +1454,12 @@ def _tutor_finish(body: dict, pre: dict, answer: str, c, credits_state) -> dict:
     if pre["shareable"]:
         # gemeinsame Antwort im Dienst = Treffer im Zwischenspeicher der StudiNow-KI (gleiche Anfrage), sonst frisch erzeugt
         cloud = bool(c is not None and getattr(c, "model", "") == "cache")
-        with db.cursor() as conn:
-            variant = explain_local.store(conn, text, page, mode, answer, "cloud" if cloud else "ai")
-        explain = explain_local.descriptor(stored=cloud, source="cloud", variant=variant)
+        try:
+            with db.cursor() as conn:
+                variant = explain_local.store(conn, text, page, mode, answer, "cloud" if cloud else "ai")
+            explain = explain_local.descriptor(stored=cloud, source="cloud", variant=variant)
+        except Exception as e:  # noqa: BLE001 - der Speicher ist Zusatz: die bezahlte Antwort geht trotzdem raus (Audit P30-08)
+            print(f"Erklaerungsspeicher: {e}")
         if not hosted and not cloud:
             from . import explain_service
             explain_service.publish_later(pre["file_id"], page, mode, text, answer)     # einmal erklaeren, alle profitieren
@@ -1438,17 +1473,23 @@ FLASHCARD_PAGES_MAX = 20
 
 def _page_list(raw, total: int) -> list[int]:
     """Seiten aus der Anfrage: ganze Zahlen 1..total, aufsteigend ohne Doppelte, hoechstens FLASHCARD_PAGES_MAX;
-    leer oder unbrauchbar = die ersten Seiten."""
+    ohne Angabe (null oder []) die ersten Seiten. Eine ausdrueckliche Auswahl ohne eine einzige gueltige Seite (oder
+    keine Liste) ist 422 statt still der ersten Seiten (Audit P30-10)."""
+    if raw is None or raw == []:
+        return list(range(1, min(total, FLASHCARD_PAGES_MAX) + 1))
+    if not isinstance(raw, list):
+        raise HTTPException(422, {"detail": "pages: Liste von Seitenzahlen erwartet.", "code": "pages_invalid"})
     pages = []
-    for p in (raw if isinstance(raw, list) else []):
+    for p in raw:
         try:
             v = int(p)
         except (TypeError, ValueError):
             continue
         if 1 <= v <= total and v not in pages:
             pages.append(v)
-    pages = sorted(pages)[:FLASHCARD_PAGES_MAX] or list(range(1, min(total, FLASHCARD_PAGES_MAX) + 1))
-    return pages
+    if not pages:
+        raise HTTPException(422, {"detail": f"Keine der gewählten Seiten gibt es in diesem Dokument (1–{total}).", "code": "pages_invalid"})
+    return sorted(pages)[:FLASHCARD_PAGES_MAX]
 
 
 @app.post("/api/ai/flashcards")
@@ -1580,7 +1621,20 @@ def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict
         answer, credits_state = c.text, _credits_state(request, c)
     else:
         answer, credits_state = _flashcards_local(prompt, body, cache)
-    return _flashcards_finish(request, hosted, rid, answer, credits_state, parse)
+    try:
+        return _flashcards_finish(request, hosted, rid, answer, credits_state, parse)
+    except HTTPException:
+        _forget_unusable(hosted, cache, prompt)
+        raise
+
+
+def _forget_unusable(hosted: bool, cache: bool, prompt: str) -> None:
+    """Keine brauchbaren Karten (502 ai_no_cards): die Antwort aus dem gemeinsamen Zwischenspeicher der StudiNow-KI
+    nehmen. Sonst bekam jedes Konto mit demselben Dokument CACHE_DAYS lang dieselbe unbrauchbare Antwort, ohne dass die
+    KI noch einmal gefragt wurde (Audit P30-03). Die Wiederholung derselben request_id bleibt (credits.py)."""
+    if hosted and cache:
+        from . import ai, ai_backend
+        ai_backend.forget_cached("flashcards", ai.SYSTEM, prompt, ai.FLASHCARDS_SCHEMA)
 
 
 async def _flashcards_complete_async(request: Request, hosted: bool, prompt: str, body: dict, parse=None,
@@ -1598,13 +1652,22 @@ async def _flashcards_complete_async(request: Request, hosted: bool, prompt: str
             except ai_backend.AIUnavailable as e:
                 await ai_async.db(entitlements.refund, request, "ai_assist", rid)
                 raise ai_async.http_error(e)
+            except asyncio.CancelledError:
+                # abgebrochen, waehrend der Anbieter antwortete (Client weg): das Kontingent zurueck wie die Credits
+                # (ai_backend, P9-07); sonst blieb ai_assist belegt und dieselbe request_id endete mit 409 (Audit P30-09)
+                await asyncio.shield(ai_async.db(entitlements.refund, request, "ai_assist", rid))
+                raise
             except Exception:
                 await ai_async.db(entitlements.refund, request, "ai_assist", rid)
                 raise
         answer, credits_state = c.text, await ai_async.db(_credits_state, request, c)
     else:
         answer, credits_state = await ai_async.db(_flashcards_local, prompt, body, cache)
-    return await ai_async.db(_flashcards_finish, request, hosted, rid, answer, credits_state, parse)
+    try:
+        return await ai_async.db(_flashcards_finish, request, hosted, rid, answer, credits_state, parse)
+    except HTTPException:
+        await ai_async.db(_forget_unusable, hosted, cache, prompt)
+        raise
 
 
 def _flashcards_prepare(request: Request, hosted: bool, body: dict):
@@ -1743,6 +1806,10 @@ async def _tutor_hosted_async(request: Request, body: dict, mode: str, text: str
     except ai_backend.AIUnavailable as e:
         await ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"])
         raise ai_async.http_error(e)
+    except asyncio.CancelledError:
+        # Abbruch waehrend der Anbieter antwortet: Kontingent zurueck (Audit P30-09, wie die Credits in P9-07)
+        await asyncio.shield(ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"]))
+        raise
     except Exception:
         await ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"])
         raise
@@ -1801,9 +1868,15 @@ def _kind_value(v) -> str:
     return v
 
 
+# hoechstens so lang wie ein geteilter Stapel (community_cards, Fixture flashcards/stacks.json max_name; Audit P30-11)
+STACK_NAME_MAX = 120
+
+
 def _stack_name(v) -> str:
     if not isinstance(v, str) or not v.strip():
         raise HTTPException(422, "Name des Stapels fehlt")
+    if len(v.strip()) > STACK_NAME_MAX:
+        raise HTTPException(422, f"Name des Stapels: höchstens {STACK_NAME_MAX} Zeichen")
     return v.strip()
 
 
@@ -2022,6 +2095,31 @@ def week_stack_get_or_generate(request: Request, module_id: int, week: int, kind
         cards, state["credits"] = _flashcards_complete(request, hosted, prompt, body)
         return cards
 
+    # Dienst: ein Erzeugen je Konto und Wochenstapel (Audit P31-02). Zwei gleichzeitige Anfragen (Doppelklick, zwei
+    # Geraete, 12 Prozesse) fragten sonst beide die KI und zahlten zweimal; die zweite wartet und bekommt den Stapel.
+    lock_key, lock = None, None
+    if hosted:
+        from . import ai_backend
+        lock_key = f"weekstack:{config.current_user_id()}:{module_id}:{week}:{kind}"
+        lock = ai_backend.acquire(lock_key, config.current_user_id())
+        if lock is None:
+            ai_backend.wait_for(lock_key, ai_backend.WAIT_MAX_S)
+            with db.cursor() as conn:
+                ex = _week_stack(conn, m["name"], week, kind)
+            if ex:
+                return {"stack": ex, "status": "exists", "variant": None, "of": cardshare.MAX_VARIANTS, "credits": None}
+            raise HTTPException(409, {"detail": "Der Stapel dieser Woche wird gerade erstellt. Bitte gleich noch einmal.", "code": "generation_running"})
+    try:
+        return _week_stack_obtain(request, hosted, m, module_id, week, kind, key, files, generate, state, can_generate)
+    finally:
+        if lock:
+            ai_backend.release(lock_key, lock)
+
+
+def _week_stack_obtain(request: Request, hosted: bool, m: dict, module_id: int, week: int, kind: str, key, files, generate, state: dict,
+                       can_generate: bool) -> dict:
+    """Wochenstapel aus dem Pool holen oder erzeugen und als eigenen Stapel anlegen (Rest von week_stack_get_or_generate)"""
+    from . import cardshare
     if key:
         with db.cursor() as conn:
             from . import testshare
@@ -2176,9 +2274,56 @@ def delete_flashcard(request: Request, card_id: int):
 # Wochenplan
 # ----------------------------------------------------------------------------
 
+def _iso_day(v, name: str) -> str:
+    """Datum JJJJ-MM-TT (Audit P31-05): sonst 422 statt ValueError/500 aus date.fromisoformat"""
+    if not isinstance(v, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+        raise HTTPException(422, f"{name}: Datum JJJJ-MM-TT erwartet")
+    try:
+        return date.fromisoformat(v).isoformat()
+    except ValueError:
+        raise HTTPException(422, f"{name}: Datum JJJJ-MM-TT erwartet")
+
+
+def _int_in(v, name: str, lo: int, hi: int) -> int:
+    """Ganze Zahl lo..hi (auch als Ziffernfolge, nie bool), sonst 422"""
+    if isinstance(v, bool) or not (isinstance(v, int) or (isinstance(v, str) and v.strip().lstrip("-").isdigit())):
+        raise HTTPException(422, f"{name}: ganze Zahl erwartet")
+    n = int(v)
+    if not lo <= n <= hi:
+        raise HTTPException(422, f"{name}: zwischen {lo} und {hi} erwartet")
+    return n
+
+
+def _plan_value(k: str, v):
+    """Felder eines Planeintrags (Audit P31-06): Tag 0-6, Startzeit HH:MM, Dauer 1-1440 Minuten, Texte als Text"""
+    if k == "day":
+        return _int_in(v, "day", 0, 6)
+    if k == "duration_min":
+        return _int_in(v, "duration_min", 1, 24 * 60)
+    if k == "sort_order":
+        return _int_in(v, "sort_order", -10 ** 9, 10 ** 9)
+    if k == "start_time":
+        if not isinstance(v, str) or not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
+            raise HTTPException(422, "start_time: Uhrzeit HH:MM erwartet")
+        return v
+    if k == "done":
+        if v not in (True, False, 0, 1):
+            raise HTTPException(422, "done: true oder false erwartet")
+        return 1 if v else 0
+    if k in ("title", "kind"):
+        if not isinstance(v, str) or not v.strip():
+            raise HTTPException(422, f"{k}: Text erwartet")
+        return v.strip()[:300]
+    if k == "subject":
+        if v is not None and not isinstance(v, str):
+            raise HTTPException(422, "subject: Text oder null erwartet")
+        return v
+    return v
+
+
 @app.get("/api/plan")
 def get_plan(week: str | None = None):
-    ws = week or planner.planning_week().isoformat()
+    ws = _iso_day(week, "week") if week else planner.planning_week().isoformat()
     with db.cursor() as conn:
         plan = db.row(conn, "SELECT * FROM plans WHERE week_start=?", (ws,))
         items = db.rows(conn, """SELECT p.*, f.name AS file_name, t.submitted_at AS test_submitted, t.score AS test_score
@@ -2192,23 +2337,31 @@ def get_plan(week: str | None = None):
 
 @app.post("/api/plan/items")
 def add_item(body: dict = Body(...)):
-    ws = body.get("week_start") or planner.planning_week().isoformat()
+    ws = _iso_day(body["week_start"], "week_start") if body.get("week_start") else planner.planning_week().isoformat()
+    vals = {k: _plan_value(k, v) for k, v in (("day", body.get("day", 0)), ("start_time", body.get("start_time") or "09:00"),
+                                             ("duration_min", body.get("duration_min") or 60), ("subject", body.get("subject")),
+                                             ("title", body.get("title") or "Lernen"), ("kind", body.get("kind") or "lernen"))}
+    if body.get("file_id") is not None and not isinstance(body["file_id"], str):
+        raise HTTPException(422, "file_id: Text oder null erwartet")
     with db.cursor() as conn:
+        # plan_items.week_start verweist auf plans: ohne Planzeile der Woche scheiterte jeder eigene Eintrag am
+        # Fremdschluessel (500, Audit P31-06)
+        conn.execute("INSERT OR IGNORE INTO plans(week_start) VALUES (?)", (ws,))
         cur = conn.execute(
             """INSERT INTO plan_items(week_start, day, start_time, duration_min, subject, file_id, title, kind, manual, sort_order)
                VALUES (?,?,?,?,?,?,?,?,1,999)""",
-            (ws, int(body.get("day", 0)), body.get("start_time") or "09:00", int(body.get("duration_min") or 60),
-             body.get("subject"), body.get("file_id"), body.get("title") or "Lernen", body.get("kind") or "lernen"))
+            (ws, vals["day"], vals["start_time"], vals["duration_min"], vals["subject"], body.get("file_id"), vals["title"], vals["kind"]))
         return db.row(conn, "SELECT * FROM plan_items WHERE id=?", (cur.lastrowid,))
 
 
 @app.patch("/api/plan/items/{item_id}")
 def patch_item(item_id: int, body: dict = Body(...)):
     allowed = {"day", "start_time", "duration_min", "title", "kind", "done", "subject", "sort_order"}
+    sets = {k: _plan_value(k, v) for k, v in body.items() if k in allowed}
     with db.cursor() as conn:
-        for k, v in body.items():
-            if k in allowed:
-                conn.execute(f"UPDATE plan_items SET {k}=? WHERE id=?", (v, item_id))
+        _found(db.row(conn, "SELECT id FROM plan_items WHERE id=?", (item_id,)), "Planeintrag")      # 404 statt null (P31-12)
+        for k, v in sets.items():
+            conn.execute(f"UPDATE plan_items SET {k}=? WHERE id=?", (v, item_id))
         return db.row(conn, "SELECT * FROM plan_items WHERE id=?", (item_id,))
 
 
@@ -2259,9 +2412,12 @@ def tests(request: Request):
 @app.post("/api/tests/generate")
 def gen_test(body: dict = Body(...)):
     """Manueller Zusatztest fuer ein Modul (nicht an die Ein-Test-pro-Woche-Regel gebunden)."""
-    dur = int(body["duration_min"]) if body.get("duration_min") else None
+    # Zahlen geprueft (Audit P31-07): "xyz" war ValueError/500; 0/leer = keine Angabe wie bisher
+    dur = _int_in(body["duration_min"], "duration_min", 1, 24 * 60) if body.get("duration_min") else None
     # Lehrwoche (03.11.2026, Dialog "Wochentest erstellen"): dann nur die Materialien dieser Woche, sonst die neuesten
-    week = int(body["week_no"]) if body.get("week_no") else None
+    week = _int_in(body["week_no"], "week_no", 1, 60) if body.get("week_no") else None
+    if body.get("module_id"):
+        body = {**body, "module_id": _int_in(body["module_id"], "module_id", 1, 2 ** 62)}
     # Zahl, Schwierigkeit, Aufgabenarten, Thema (04.11.2026); nur die Standardeinstellung wird geteilt
     from . import ai
     try:
@@ -2340,7 +2496,26 @@ def delete_test(test_id: int):
 # ----------------------------------------------------------------------------
 
 def _werr(e: Exception):
-    raise HTTPException(400 if isinstance(e, weekly.WeeklyError) else 500, str(e))
+    """Fehler der Seitenmarker und Wochentests (Audit P32-05): Regel verletzt 400 mit Grund, falsche Eingabe (ValueError,
+    TypeError, z. B. page "abc" oder ein Datum, das keines ist) 422, alles andere 500 ohne interne Einzelheiten
+    (die stehen im Protokoll). Eine schon fertige HTTPException geht unveraendert durch."""
+    if isinstance(e, HTTPException):
+        raise e
+    if isinstance(e, weekly.WeeklyError):
+        raise HTTPException(400, str(e))
+    if isinstance(e, (ValueError, TypeError)):
+        raise HTTPException(422, f"Ungültige Eingabe: {e}"[:300])
+    print(f"Wochentests/Marker: {type(e).__name__}: {e}")
+    raise HTTPException(500, "Interner Fehler bei Seitenmarkern oder Wochentests.")
+
+
+def _marker_fields(body: dict) -> None:
+    """lecture_date, topic, page_key: Text oder null (vorher topic=5 -> AttributeError/500)"""
+    for k in ("lecture_date", "topic", "page_key"):
+        if body.get(k) is not None and not isinstance(body[k], str):
+            raise HTTPException(422, f"{k}: Text oder null erwartet")
+    if body.get("lecture_date"):
+        _iso_day(body["lecture_date"], "lecture_date")
 
 
 @app.get("/api/markers")
@@ -2363,6 +2538,9 @@ def api_marker_preview(file_id: str, page: int, lecture_date: str | None = None)
 @app.post("/api/markers")
 def api_marker_create(body: dict = Body(...)):
     try:
+        _marker_fields(body)
+        if "page" in body:
+            _int_in(body["page"], "page", 1, 100_000)
         with db.cursor() as conn:
             return weekly.create_marker(conn, body["file_id"], int(body["page"]), lecture_date=body.get("lecture_date"),
                                         topic=body.get("topic"), page_key=body.get("page_key"))
@@ -2375,6 +2553,9 @@ def api_marker_create(body: dict = Body(...)):
 @app.patch("/api/markers/{marker_id}")
 def api_marker_update(marker_id: int, body: dict = Body(...)):
     try:
+        _marker_fields(body)
+        if body.get("page") is not None:
+            _int_in(body["page"], "page", 1, 100_000)
         with db.cursor() as conn:
             return weekly.update_marker(conn, marker_id, page=body.get("page"), lecture_date=body.get("lecture_date"),
                                         topic=body.get("topic"), page_key=body.get("page_key"))
@@ -2396,7 +2577,8 @@ def api_marker_delete(marker_id: int):
 def api_marker_release(marker_id: int, body: dict = Body(default={})):
     try:
         with db.cursor() as conn:
-            return weekly.release_marker(conn, marker_id, confirm=bool(body.get("confirm")))
+            # nur ein echtes true gibt frei: "false" (Text) war wahr (Audit P32-01)
+            return weekly.release_marker(conn, marker_id, confirm=body.get("confirm") is True)
     except Exception as e:  # noqa: BLE001
         _werr(e)
 
@@ -2446,8 +2628,14 @@ def api_weekly_tick():
 
 @app.post("/api/weekly/mock-exam")
 def api_weekly_mock(body: dict = Body(...)):
-    mid = int(body.get("module_id") or 0)
-    full = bool(body.get("full"))
+    if config.is_hosted():
+        # Dienst (Audit P32-04): _run_bg liefe in einem Thread des Prozesses ohne Konto-Kontext (Datenbank des
+        # Einzelplatzes, keine StudiNow-KI) und mit EINER Sperre fuer alle Konten; wie /api/tests/generate noch nicht
+        raise HTTPException(501, {"detail": "Probeklausuren kommen im Dienst mit dem KI-Update.", "code": "not_available_hosted"})
+    mid = _int_in(body.get("module_id"), "module_id", 1, 2 ** 62)
+    if not (body.get("full") is None or isinstance(body["full"], bool)):
+        raise HTTPException(422, "full: true oder false erwartet")
+    full = body.get("full") is True
     try:   # Vorpruefung sofort (z. B. "noch nicht alles markiert"), Erzeugung im Hintergrund
         with db.cursor() as conn:
             if not weekly.coverage(conn, mid)["segments"]:
@@ -2535,6 +2723,10 @@ def put_settings(body: dict = Body(...)):
         # Nur fuer den naechsten Start vormerken: jede Uni hat ihren eigenen Datenordner
         config.set_env({"UNIVERSITY": uni})
     body.pop("ai_consent", None)          # nur ueber /api/ai/consent (Stand und Konto setzt der Server)
+    # PIN des WLAN-Zugangs und Kennung der Installation setzt nur der Server (Audit P32-07): sonst stellte ein Geraet
+    # mit PIN die PIN beliebig um (auch "1") bzw. gaebe sich eine fremde Varianten-Kennung
+    for k in ("lan_pin", "share_user_id"):
+        body.pop(k, None)
     with db.cursor() as conn:
         for k, v in body.items():
             db.set_setting(conn, k, v)

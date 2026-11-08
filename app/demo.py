@@ -141,6 +141,10 @@ def remove(conn, thorough: bool = False) -> dict:
     conn.execute("DELETE FROM annotations WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM analysis WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM flashcards WHERE file_id LIKE 'demo-%'")
+    # eigene Karten in einem Stapel eines Demo-Dokuments bleiben (Audit P32-03): ohne Stapel ordnet sie
+    # db.ensure_flashcard_stacks beim naechsten Lesen dem eigenen Stapel bzw. "Allgemein" zu; vorher zeigte ihre
+    # stack_id auf den geloeschten Stapel und sie standen in keiner Stapel-Liste mehr
+    conn.execute("UPDATE flashcards SET stack_id=NULL WHERE stack_id IN (SELECT id FROM flashcard_stacks WHERE file_id LIKE 'demo-%')")
     conn.execute("DELETE FROM flashcard_stacks WHERE file_id LIKE 'demo-%'")
     try:
         conn.execute("DELETE FROM page_texts WHERE file_id LIKE 'demo-%'")
