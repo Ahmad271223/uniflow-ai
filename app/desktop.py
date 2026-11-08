@@ -20,9 +20,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -53,7 +55,8 @@ def ensure_dir(path: Path, attempts: int = 20, wait_seconds: float = 0.25) -> No
     """Ordner anlegen, auch wenn er gerade kurz nicht zugreifbar ist. Windows meldet beim Anlegen eines vorhandenen
     Ordners WinError 183, und pathlib wirft das trotz exist_ok weiter, wenn der Ordner in dem Moment nicht abfragbar
     ist (Virenscanner, Installer oder Deinstallierer halten ihn, Ordner wird gerade geloescht). Dann kurz warten und
-    erneut versuchen; liegt dort eine Datei statt eines Ordners, sofort ein klarer Fehler."""
+    erneut versuchen; liegt dort eine Datei statt eines Ordners, sofort ein klarer Fehler. Zugriff verweigert ist
+    nur unter Windows oft voruebergehend (Virenscanner, Deinstallierer); sonst gleich der Fehler (Audit P17-12)."""
     for _ in range(max(1, attempts) - 1):
         try:
             path.mkdir(parents=True, exist_ok=True)
@@ -62,7 +65,8 @@ def ensure_dir(path: Path, attempts: int = 20, wait_seconds: float = 0.25) -> No
             if path.is_file():
                 raise FileExistsError(f"{path} ist eine Datei, kein Ordner – bitte umbenennen oder loeschen") from None
         except PermissionError:
-            pass
+            if sys.platform != "win32":
+                raise
         time.sleep(wait_seconds)
     path.mkdir(parents=True, exist_ok=True)
 
@@ -71,22 +75,42 @@ def migrate_legacy(base: Path, legacy: Path | None) -> Path:
     """Daten aus dem alten Ordner (bis 0.3.0) einmal in den neuen umziehen: `data` und `.env` werden verschoben,
     `logs` bleibt liegen. Nur wenn der neue Ordner noch keine Daten hat und der alte welche. Klappt das Verschieben
     nicht (z. B. laeuft noch ein altes Backend und haelt die Datenbank offen), arbeitet dieser Start mit dem alten
-    Ordner weiter – Daten werden nie versteckt oder geloescht. Liefert den Ordner, mit dem gestartet wird."""
+    Ordner weiter – Daten werden nie versteckt oder geloescht. Liefert den Ordner, mit dem gestartet wird.
+
+    `.env` ist ein eigener, wiederaufnehmbarer Schritt (Audit P17-01): klappt das Verschieben nicht, wird sie kopiert;
+    ist sie bei einem frueheren Start liegen geblieben (Daten schon umgezogen), zieht sie jetzt nach. Gleichzeitige
+    Erststarts (P17-08): `rename` ist atomar, wer verliert, findet `base/data` und startet dort."""
     if legacy is None or legacy == base:
         return base
     old_data = legacy / "data"
-    if (base / "data").exists() or not old_data.is_dir() or not any(old_data.iterdir()):
+    old_has_data = old_data.is_dir() and any(old_data.iterdir())
+    if (base / "data").exists() or not old_has_data:
+        if (base / "data").exists() and not old_has_data:
+            _move_env(base, legacy)            # Rest einer frueheren Teilmigration
         return base
     try:
         ensure_dir(base)
         old_data.rename(base / "data")
-        if (legacy / ".env").is_file() and not (base / ".env").exists():
-            (legacy / ".env").rename(base / ".env")
-        return base
     except OSError:
-        if (base / "data").exists():          # Daten sind schon umgezogen, nur .env nicht: neuer Ordner gilt
-            return base
-        return legacy
+        if not (base / "data").exists():
+            return legacy
+    _move_env(base, legacy)                   # Daten sind umgezogen: neuer Ordner gilt, .env folgt
+    return base
+
+
+def _move_env(base: Path, legacy: Path) -> None:
+    """`.env` aus dem alten Ordner in den neuen, nie ueber eine vorhandene; Verschieben, sonst Kopieren. Wirft nie."""
+    src, dst = legacy / ".env", base / ".env"
+    try:
+        if not src.is_file() or dst.exists():
+            return
+        try:
+            src.rename(dst)
+        except OSError:
+            if not dst.exists():
+                shutil.copy2(src, dst)
+    except OSError:
+        pass
 
 
 def exe_dir() -> Path:
@@ -98,10 +122,14 @@ def exe_dir() -> Path:
 
 def browsers_path(base: Path, exe_folder: Path | None = None) -> Path | None:
     """Chromium fuer Playwright: neben der exe mitgeliefert, sonst unter dem Datenordner (von `playwright install`),
-    sonst None (Playwright-Standard, z. B. in der Entwicklung)."""
+    sonst None (Playwright-Standard, z. B. in der Entwicklung). Gilt nur mit einem Ordner `chromium*` darin (wie
+    apps/windows/scripts/check-installer.ps1 prueft), nicht mit beliebigem Inhalt (Audit P17-11)."""
     for p in ((exe_folder or exe_dir()) / "ms-playwright", base / "ms-playwright"):
-        if p.is_dir() and any(p.iterdir()):
-            return p
+        try:
+            if p.is_dir() and any(c.is_dir() and c.name.startswith("chromium") for c in p.iterdir()):
+                return p
+        except OSError:
+            continue
     return None
 
 
@@ -138,19 +166,52 @@ def bind_socket(port: int = 0, host: str = "127.0.0.1", backlog: int = 128) -> s
 
 
 def write_state(path: Path, port: int, pid: int | None = None) -> dict:
+    """Eindeutige Temp-Datei je Schreiber, dann atomar ersetzen (Audit P17-09: frueher fester Name `.part`)."""
     state = {"port": port, "pid": pid or os.getpid(), "url": f"http://127.0.0.1:{port}/", "started_at": time.time()}
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".part")
-    tmp.write_text(json.dumps(state), encoding="utf-8")
-    os.replace(tmp, path)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".part", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(state))
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
     return state
 
 
+def _valid_state(d) -> bool:
+    if not isinstance(d, dict):
+        return False
+    port, pid = d.get("port"), d.get("pid")
+    if type(port) is not int or not 1 <= port <= 65535 or type(pid) is not int or pid <= 0:
+        return False
+    return d.get("url") == f"http://127.0.0.1:{port}/"
+
+
 def read_state(path: Path) -> dict | None:
+    """Nur ein Zustand in genau der Form, die write_state schreibt (Loopback, Port 1-65535, PID > 0; Audit P17-10).
+    Heute liest ihn nur das Tauri-Fenster (Rust); hier fuer remove_state, Tests und Werkzeuge."""
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        d = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+    return d if _valid_state(d) else None
+
+
+def remove_state(path: Path, pid: int | None = None) -> None:
+    """Zustandsdatei beim Ende entfernen, aber nur die eigene (Audit P17-09): hat inzwischen ein anderes Backend sie
+    geschrieben, bleibt sie stehen."""
+    d = read_state(path)
+    if d is not None and d.get("pid") != (pid or os.getpid()):
+        return
+    try:
+        path.unlink()
+    except OSError:
+        pass
 
 
 def _unix_process_state(pid: int) -> str | None:
@@ -203,7 +264,11 @@ def process_alive(pid: int) -> bool:
 
 def watch_parent(pid: int, on_exit, poll_seconds: float = 1.0) -> threading.Thread:
     """Beendet das Backend (on_exit), sobald der Elternprozess (das Fenster) weg ist. Windows: Warten auf das
-    Prozess-Handle; sonst regelmaessige Pruefung."""
+    Prozess-Handle (dort keine Verwechslung durch wiederverwendete PIDs). Sonst regelmaessige Pruefung; ist das
+    Fenster unser direkter Elternprozess (onedir-Paket), zaehlt zusaetzlich `getppid()`: nach seinem Ende uebernimmt
+    init/launchd das Backend, auch wenn die PID schon wieder vergeben ist (Audit P18-07)."""
+    direct = sys.platform != "win32" and os.getppid() == pid
+
     def run():
         if sys.platform == "win32":
             import ctypes
@@ -214,7 +279,7 @@ def watch_parent(pid: int, on_exit, poll_seconds: float = 1.0) -> threading.Thre
                 ctypes.windll.kernel32.CloseHandle(h)
                 on_exit()
                 return
-        while process_alive(pid):
+        while process_alive(pid) and (not direct or os.getppid() == pid):
             time.sleep(poll_seconds)
         on_exit()
     t = threading.Thread(target=run, name="uniflow-parent-watch", daemon=True)
@@ -263,10 +328,7 @@ def serve(args: argparse.Namespace, state_path: Path, log_path: Path) -> None:
         server.run(sockets=[sock])                           # uvicorn hoert auf dem schon offenen Socket
     finally:
         sock.close()
-        try:
-            state_path.unlink()
-        except OSError:
-            pass
+        remove_state(state_path)
 
 
 BACKUP_FOLDER = "UniFlow-Sicherungen"     # neben dem Datenordner in %LOCALAPPDATA%, ausserhalb des Ordners der App
@@ -291,34 +353,62 @@ def _backups_of(dest: Path, tag: str) -> list[tuple[float, Path]]:
     return sorted(out)
 
 
-def backup_databases(base: Path, now: float | None = None, keep: int = BACKUP_KEEP, min_hours: float = BACKUP_MIN_HOURS) -> list[Path]:
+def _private(p: Path, mode: int) -> None:
+    """POSIX: nur fuer den eigenen Benutzer (Audit P18-01); unter Windows gilt die ACL von %LOCALAPPDATA%."""
+    if sys.platform != "win32":
+        try:
+            os.chmod(p, mode)
+        except OSError:
+            pass
+
+
+def backup_databases(base: Path, now: float | None = None, keep: int = BACKUP_KEEP, min_hours: float = BACKUP_MIN_HOURS,
+                     on_error=None) -> list[Path]:
     """Sicherung jeder Datenbank (data/lernapp.db, data/unis/<key>/lernapp.db) beim Start, hoechstens alle `min_hours`
     Stunden, die neuesten `keep` je Datenbank bleiben (auch eine frisch angelegte: aeltere Sicherungen bleiben daneben). Ziel ist %LOCALAPPDATA%\\UniFlow-Sicherungen, bewusst ausserhalb
     des Ordners der App: "Anwendungsdaten loeschen" beim Deinstallieren leert den Datenordner (Befund 27.10.2026),
     die Sicherungen bleiben. Konsistent ueber die SQLite-Backup-API, auch waehrend das Backend laeuft.
-    Wiederherstellen: App beenden, die gewuenschte Sicherung nach data\\lernapp.db kopieren. Wirft nie."""
+    Wiederherstellen: App beenden, die gewuenschte Sicherung nach data\\lernapp.db kopieren. Wirft nie; Fehler gehen
+    ohne Inhalt an `on_error` (Backend-Protokoll, Audit P18-04). Eindeutige Temp-Datei je Lauf (P18-05), `keep`
+    mindestens 1: die gerade angelegte Sicherung bleibt immer (P18-06). Dateien 0600, Ordner 0700 (P18-01, POSIX)."""
     import sqlite3
     out: list[Path] = []
     t = time.time() if now is None else now
+    keep = max(1, int(keep))
+
+    def report(what: str, e: BaseException) -> None:
+        if on_error is not None:
+            try:
+                on_error(f"Sicherung fehlgeschlagen ({what}): {type(e).__name__}: {e}")
+            except Exception:                                # noqa: BLE001
+                pass
     try:
         data = base / "data"
         sources = ([data / "lernapp.db"] if (data / "lernapp.db").is_file() else []) + sorted((data / "unis").glob("*/lernapp.db"))
         dest = backup_dir(base)
         for src in sources:
             tag = "lernapp" if src.parent == data else f"lernapp-{src.parent.name}"
+            tmp = None
             try:
                 ensure_dir(dest, attempts=2, wait_seconds=0.1)
+                _private(dest, 0o700)
                 existing = _backups_of(dest, tag)
                 if existing and t - existing[-1][0] < min_hours * 3600:
                     continue
                 target = dest / f"{tag}-{time.strftime('%Y%m%d-%H%M%S', time.localtime(t))}.db"
-                tmp = target.with_suffix(".part")
+                fd, name = tempfile.mkstemp(prefix=target.stem + ".", suffix=".part", dir=dest)     # 0600
+                os.close(fd)
+                tmp = Path(name)
                 s = sqlite3.connect(src.resolve().as_uri() + "?mode=ro", uri=True)     # file:///C:/... auch unter Windows
-                d = sqlite3.connect(str(tmp))
                 try:
-                    s.backup(d)
+                    d = sqlite3.connect(str(tmp))
+                    try:
+                        s.backup(d)
+                    finally:
+                        d.close()
                 finally:
-                    d.close(); s.close()
+                    s.close()
+                _private(tmp, 0o600)
                 os.replace(tmp, target)
                 out.append(target)
                 for _, old in _backups_of(dest, tag)[:-keep]:
@@ -326,24 +416,29 @@ def backup_databases(base: Path, now: float | None = None, keep: int = BACKUP_KE
                         old.unlink(missing_ok=True)
                     except OSError:
                         pass                                 # gerade geoeffnet (Windows): beim naechsten Mal
-            except Exception:                                # noqa: BLE001 - eine Sicherung darf den Start nie verhindern
-                try:
-                    tmp.unlink(missing_ok=True)              # type: ignore[possibly-undefined]
-                except Exception:                            # noqa: BLE001
-                    pass
-    except Exception:                                        # noqa: BLE001
-        pass
+            except Exception as e:                           # noqa: BLE001 - eine Sicherung darf den Start nie verhindern
+                report(tag, e)
+                if tmp is not None:
+                    try:
+                        tmp.unlink(missing_ok=True)
+                    except Exception:                        # noqa: BLE001
+                        pass
+    except Exception as e:                                   # noqa: BLE001
+        report("alle", e)
     return out
 
 
 def emergency_log(base: Path | None, text: str) -> None:
     """Letzter Ausweg vor dem Ende mit Code 1: ins Backend-Protokoll, sonst nach %TEMP%. Wirft nie (sonst zeigt
-    PyInstaller wieder sein Fehlerfenster)."""
-    targets = ([base / "logs" / "backend.log"] if base else []) + [Path(os.environ.get("TEMP") or "/tmp") / FALLBACK_LOG]
+    PyInstaller wieder sein Fehlerfenster). Die Datei entsteht nur fuer den eigenen Benutzer (0600) und folgt keinem
+    untergeschobenen Symlink; ohne TEMP gilt das Temp-Verzeichnis des Systems (Audit P18-12: frueher /tmp, 0644)."""
+    targets = ([base / "logs" / "backend.log"] if base else []) + [Path(os.environ.get("TEMP") or tempfile.gettempdir()) / FALLBACK_LOG]
     for p in targets:
         try:
             ensure_dir(p.parent, attempts=2, wait_seconds=0.1)
-            log(p, text)
+            fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as f:
+                f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {text}\n")
             return
         except Exception:                                    # noqa: BLE001 - naechstes Ziel versuchen
             continue
@@ -372,7 +467,7 @@ def _run(args: argparse.Namespace, base: Path) -> int:
     log_path = base / "logs" / "backend.log"
     ensure_dir(log_path.parent)
     redirect_std_streams(log_path)
-    for b in backup_databases(base):
+    for b in backup_databases(base, on_error=lambda m: log(log_path, m)):
         log(log_path, f"Sicherung: {b}")
     try:
         serve(args, state_path, log_path)

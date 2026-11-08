@@ -25,9 +25,12 @@ Jede Anfrage an den Dienst traegt `X-StudiNow-Client: windows` (Abo-Pflicht je C
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import secrets
+import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -44,8 +47,18 @@ CLIENT_NAME = "windows"
 TIMEOUT = 30
 UPLOAD_TIMEOUT = 180
 MAX_BODY = 80 << 20                    # groesser als das groesste Paket des Dienstes (community.MAX_PACKAGE_BYTES)
-MAX_CLAIMS = 5_000
+MAX_CLAIMS = 5_000                     # je Meldung (= community.MAX_CLAIMS des Dienstes); mehr gehen in Seiten
+MAX_CLAIM_PAGES = 20                   # hoechstens 100 000 Fingerabdruecke je Abgleich
+CLAIM_LOG_EVERY_S = 3600               # dieselbe Fehlerart beim stillen Melden hoechstens einmal je Stunde protokollieren
+MAX_QUERY = 4096
 _PATH_RE = re.compile(r"^[A-Za-z0-9_\-/.]{0,200}$")
+# Zeichen einer schon kodierten Abfrage (RFC 3986 query); kein Leer-, Steuer- oder Nicht-ASCII-Zeichen (Audit P19-05)
+_QUERY_RE = re.compile(r"[A-Za-z0-9\-._~%!$&'()*+,;=:@/?]*")
+log = logging.getLogger("uniflow.service_link")
+# Zustandsdatei und Token-Ablage gehoeren zusammen: Lesen, Schreiben und das Vergessen bei 401 laufen nacheinander
+# (Audit P18-08). RLock, weil save_state aus call() heraus und load_state in save_state-Ablaeufen vorkommt.
+_state_lock = threading.RLock()
+_claim_log: dict[str, float] = {}
 
 
 class LinkError(Exception):
@@ -69,38 +82,56 @@ def _read_file() -> dict:
 
 
 def _write_file(d: dict) -> None:
+    """Eindeutige Temp-Datei (mkstemp: O_EXCL, 0600), dann atomar ersetzen (Audit P18-08: frueher fester Name)."""
     p = state_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(json.dumps({k: v for k, v in d.items() if k != "token"}, ensure_ascii=False, indent=1), encoding="utf-8")
+    fd, tmp = tempfile.mkstemp(prefix=p.name + ".", suffix=".tmp", dir=p.parent)
     try:
-        os.chmod(tmp, 0o600)
-    except OSError:
-        pass
-    os.replace(tmp, p)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps({k: v for k, v in d.items() if k != "token"}, ensure_ascii=False, indent=1))
+        os.replace(tmp, p)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def load_state() -> dict:
     """Zustand aus der Datei, dazu das Token aus der Ablage (app/token_store.py). Ein Token aus einer Datei bis 0.5
-    (stand frueher in service-account.json) zieht dabei einmal in die Ablage um und verschwindet aus der Datei."""
-    d = _read_file()
-    legacy = d.pop("token", None)
-    if legacy:
-        if not token_store.get():
-            token_store.put(str(legacy))
-        _write_file(d)
-    tok = token_store.get()
-    if tok:
-        d["token"] = tok
-    return d
+    (stand frueher in service-account.json) zieht dabei einmal in die Ablage um und verschwindet aus der Datei, aber
+    nur, wenn die Ablage es dauerhaft haelt (Audit P18-09: beim Notbehelf im Speicher war es nach dem Neustart weg)."""
+    with _state_lock:
+        d = _read_file()
+        legacy = d.pop("token", None)
+        if legacy:
+            persisted = True
+            if not token_store.get():
+                try:
+                    persisted = token_store.put(str(legacy))
+                except token_store.TokenInvalid:
+                    persisted = True          # unbrauchbar: darf aus der Datei verschwinden
+            elif not token_store.persistent():
+                persisted = False
+            if persisted:
+                _write_file(d)
+        tok = token_store.get()
+        if tok:
+            d["token"] = tok
+        return d
 
 
 def save_state(d: dict) -> None:
-    """Datei ohne Token schreiben; das Token (oder sein Fehlen) gilt fuer die Ablage."""
-    _write_file(d)
+    """Datei ohne Token schreiben; das Token (oder sein Fehlen) gilt fuer die Ablage. Ein ungueltiges Token wird
+    nicht gespeichert (Audit P17-04, P18-11)."""
     tok = d.get("token") or None
-    if tok != token_store.get():
-        token_store.put(tok)
+    if tok is not None and not token_store.valid_token(tok):
+        raise LinkError("service_error", "Unerwartete Antwort des Dienstes (ungültige Sitzung).", 502)
+    with _state_lock:
+        _write_file(d)
+        if tok != token_store.get():
+            token_store.put(tok)
 
 
 def _device_id(st: dict) -> str:
@@ -124,8 +155,16 @@ def normalize_url(url: str | None) -> str:
 
 
 def service_url(st: dict | None = None) -> str:
+    """Gespeicherte Adresse, sonst LERNAPP_SERVICE_URL, sonst DEFAULT_SERVICE_URL; jede wird erneut wie beim Anmelden
+    geprueft (Audit P18-03). Ungueltig -> "" (call: nicht verbunden), nie stilles Ausweichen auf eine andere."""
     st = load_state() if st is None else st
-    return (st.get("url") or os.environ.get("LERNAPP_SERVICE_URL") or DEFAULT_SERVICE_URL).strip().rstrip("/")
+    for cand in (st.get("url"), os.environ.get("LERNAPP_SERVICE_URL"), DEFAULT_SERVICE_URL):
+        if cand and str(cand).strip():
+            try:
+                return normalize_url(str(cand))
+            except LinkError:
+                return ""
+    return ""
 
 
 def linked(st: dict | None = None) -> bool:
@@ -135,10 +174,21 @@ def linked(st: dict | None = None) -> bool:
 
 # ---------------------------------------------------------------- HTTP (austauschbar fuer Tests)
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Keiner Weiterleitung folgen (Audit P18-02): urllib reicht sonst `Authorization` an jeden neuen Host weiter,
+    auch von https auf http. Die API des Dienstes leitet nie weiter; ein 3xx kommt als Status zurueck."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirect)
+
+
 def _urllib_transport(method: str, url: str, headers: dict, body: bytes | None, timeout: float) -> tuple[int, dict, bytes]:
     req = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - Adresse geprueft (normalize_url)
+        with _opener.open(req, timeout=timeout) as r:  # noqa: S310 - Adresse geprueft (normalize_url)
             return r.status, {k.lower(): v for k, v in r.headers.items()}, r.read(MAX_BODY + 1)
     except urllib.error.HTTPError as e:
         return e.code, {k.lower(): v for k, v in (e.headers or {}).items()}, e.read(MAX_BODY + 1)
@@ -150,7 +200,7 @@ transport = _urllib_transport
 def call(method: str, path: str, body: bytes | None = None, *, query: str = "", content_type: str = "application/json",
          st: dict | None = None, url: str | None = None, token: str | None = None, timeout: float = TIMEOUT) -> tuple[int, dict, bytes]:
     st = load_state() if st is None else st
-    base = url or service_url(st)
+    base = normalize_url(url) if url else service_url(st)
     if not base:
         raise LinkError("not_linked", "Die App ist mit keinem StudiNow-Konto verbunden.", 409)
     headers = {"Accept": "application/json", "User-Agent": f"{DEVICE_NAME} (StudiNow)", CLIENT_HEADER: CLIENT_NAME}
@@ -167,11 +217,14 @@ def call(method: str, path: str, body: bytes | None = None, *, query: str = "", 
                                                "Internetverbindung prüfen und später erneut versuchen.", 502)
     if len(data) > MAX_BODY:
         raise LinkError("service_response_too_large", "Antwort des Dienstes ist zu groß.", 502)
-    if status == 401 and tok and st.get("token") == tok:
-        # Sitzung abgelaufen oder widerrufen: Token vergessen, Adresse und E-Mail bleiben fuer die neue Anmeldung
-        st.pop("token", None)
-        st["expired_at"] = int(time.time())
-        save_state(st)
+    if status == 401 and tok and st.get("token") == tok and _detail(data, "")[0] == "unauthenticated":
+        # Sitzung abgelaufen oder widerrufen: Token vergessen, Adresse und E-Mail bleiben fuer die neue Anmeldung.
+        # Nur bei "unauthenticated", dem Zeichen des Dienstes fuer eine ungueltige Sitzung (server.py, *_api.py);
+        # ein 401 aus anderem Grund (z. B. falsches bisheriges Passwort: credentials_invalid) meldet nicht ab (P18-10)
+        with _state_lock:
+            st.pop("token", None)
+            st["expired_at"] = int(time.time())
+            save_state(st)
     return status, hdrs, data
 
 
@@ -208,7 +261,8 @@ def login(url: str | None, email: str, password: str) -> dict:
         code, msg = _detail(data, "Anmeldung fehlgeschlagen.")
         raise LinkError(code, msg, status if status in (400, 401, 403, 423, 429) else 502)
     d = _json(data)
-    if not d.get("token") or not isinstance(d.get("user"), dict):
+    if not token_store.valid_token(d.get("token")) or not isinstance(d.get("user"), dict):
+        # Typ, Laenge und Zeichen vor dem Speichern (Audit P18-11); sonst haette die Ablage ein Token, das get() verwirft
         raise LinkError("service_error", "Unerwartete Antwort des Dienstes.", 502)
     st.update({"url": base, "token": d["token"], "user": d["user"], "linked_at": int(time.time())})
     st.pop("expired_at", None)
@@ -234,7 +288,7 @@ def university_mismatch(st: dict) -> str | None:
 def status_info(st: dict | None = None, refresh: bool = True) -> dict:
     st = load_state() if st is None else st
     out = {"linked": linked(st), "url": service_url(st) or None, "env_url": bool(os.environ.get("LERNAPP_SERVICE_URL")),
-           "url_fixed": True, "token_store": token_store.kind(),
+           "url_fixed": True, "token_store": token_store.kind(), "token_persistent": token_store.persistent(),
            "user": _public_user(st.get("user")), "linked_at": st.get("linked_at"), "claims": st.get("claims"),
            "expired": bool(st.get("expired_at") and not st.get("token")), "offline": False,
            "last_email": st.get("last_email") or (st.get("user") or {}).get("email")}
@@ -253,18 +307,33 @@ def status_info(st: dict | None = None, refresh: bool = True) -> dict:
     return out
 
 
+LOGOUT_LOCAL_HINT = ("Nur auf diesem PC abgemeldet: Der StudiNow-Dienst war nicht erreichbar, die Sitzung gilt dort "
+                     "noch. Beende sie auf einem anderen Gerät unter StudiNow-Konto → Geräte oder melde dich hier neu "
+                     "an und wieder ab.")
+
+
 def logout() -> dict:
+    """Beim Dienst abmelden und das Token vergessen. Ohne Antwort des Dienstes (offline, 5xx) wird trotzdem lokal
+    abgemeldet, das Ergebnis sagt es aber (`logout_local_only`, `logout_hint`; Audit P19-01): die Sitzung bleibt im
+    Dienst bis zum Ablauf gueltig und laesst sich auf einem anderen Geraet unter "Geraete" beenden."""
     st = load_state()
+    local_only = False
     if st.get("token"):
+        local_only = True
         try:
-            call("POST", "/api/account/logout", b"{}", st=st)
+            status, _, _ = call("POST", "/api/account/logout", b"{}", st=st)
+            local_only = not (200 <= status < 300 or status == 401)
         except LinkError:
             pass                        # offline: das Token wird trotzdem vergessen
     keep = {k: st[k] for k in ("url", "device_id") if st.get(k)}
-    if st.get("user", {}).get("email"):
+    if (st.get("user") or {}).get("email"):
         keep["last_email"] = st["user"]["email"]
     save_state(keep)
-    return status_info(keep, refresh=False)
+    out = status_info(keep, refresh=False)
+    out["logout_local_only"] = local_only
+    if local_only:
+        out["logout_hint"] = LOGOUT_LOCAL_HINT
+    return out
 
 
 def devices() -> dict:
@@ -297,28 +366,35 @@ def resend_verification() -> dict:
 
 # ---------------------------------------------------------------- eigene Hochschul-PDFs melden
 
-def local_fingerprints(limit: int = MAX_CLAIMS) -> list[str]:
+def local_fingerprints(limit: int | None = None) -> list[str]:
     """SHA-256 der Hochschul-PDFs aus dem eigenen Abgleich (Stud.IP, Learnweb), fehlende werden aus der Datei auf
-    der Platte berechnet und gemerkt. Eigene Dokumente (`__user__`) und geloeschte Dateien zaehlen nicht."""
+    der Platte berechnet und gemerkt. Eigene Dokumente (`__user__`) und geloeschte Dateien zaehlen nicht.
+    Gehasht wird ausserhalb jeder Transaktion, die neuen Werte gehen danach in einem kurzen Schreibvorgang in die
+    Datenbank (Audit P19-02: frueher hielt die erste UPDATE-Zeile die Schreibsperre, solange weitere PDFs gelesen
+    wurden). Ohne `limit` alle (P19-03: claim_local_files meldet in Seiten)."""
     from .testshare import file_sha256
-    out: list[str] = []
     with db.cursor() as conn:
         rows = db.rows(conn, """SELECT id, local_path, content_sha256, name, mime FROM files
                                 WHERE course_id<>'__user__' AND download_url IS NOT NULL AND download_url<>''
                                   AND deleted_at IS NULL ORDER BY id""")
-        for r in rows:
-            if len(out) >= limit:
-                break
-            is_pdf = (r.get("mime") or "").endswith("pdf") or (r.get("name") or "").lower().endswith(".pdf")
-            sha = r.get("content_sha256")
-            if not sha and is_pdf and r.get("local_path") and Path(r["local_path"]).is_file():
-                try:
-                    sha = file_sha256(Path(r["local_path"]))
-                    conn.execute("UPDATE files SET content_sha256=? WHERE id=?", (sha, r["id"]))
-                except OSError:
-                    sha = None
-            if sha and is_pdf and re.fullmatch(r"[0-9a-f]{64}", sha):
-                out.append(sha)
+    out: list[str] = []
+    new: list[tuple[str, str]] = []
+    for r in rows:
+        if limit is not None and len(out) >= limit:
+            break
+        is_pdf = (r.get("mime") or "").endswith("pdf") or (r.get("name") or "").lower().endswith(".pdf")
+        sha = r.get("content_sha256")
+        if not sha and is_pdf and r.get("local_path") and Path(r["local_path"]).is_file():
+            try:
+                sha = file_sha256(Path(r["local_path"]))
+                new.append((sha, r["id"]))
+            except OSError:
+                sha = None
+        if sha and is_pdf and re.fullmatch(r"[0-9a-f]{64}", sha):
+            out.append(sha)
+    if new:
+        with db.cursor() as conn:
+            conn.executemany("UPDATE files SET content_sha256=? WHERE id=? AND content_sha256 IS NULL", new)
     return sorted(set(out))
 
 
@@ -329,13 +405,18 @@ def claim_local_files() -> dict:
     if (msg := university_mismatch(st)):
         raise LinkError("university_mismatch", msg, 409)
     fps = local_fingerprints()
-    status, _, data = call("POST", "/api/community/claims", json.dumps({"fingerprints": fps}).encode(), st=st)
-    if status >= 400:
-        code, msg = _detail(data, "PDFs konnten nicht gemeldet werden.")
-        raise LinkError(code, msg, status)
-    d = _json(data)
+    # Seiten zu MAX_CLAIMS (Grenze des Dienstes je Meldung); Meldungen ergaenzen sich (replace=False), so kommen auch
+    # PDFs nach der 5000. an (Audit P19-03). Hoechstens MAX_CLAIM_PAGES Seiten je Abgleich.
+    pages = [fps[i:i + MAX_CLAIMS] for i in range(0, len(fps), MAX_CLAIMS)][:MAX_CLAIM_PAGES] or [[]]
+    d: dict = {}
+    for page in pages:
+        status, _, data = call("POST", "/api/community/claims", json.dumps({"fingerprints": page}).encode(), st=st)
+        if status >= 400:
+            code, msg = _detail(data, "PDFs konnten nicht gemeldet werden.")
+            raise LinkError(code, msg, status)
+        d = _json(data)
     st = load_state()
-    st["claims"] = {"at": int(time.time()), "sent": len(fps), "total": d.get("total")}
+    st["claims"] = {"at": int(time.time()), "sent": sum(len(p) for p in pages), "total": d.get("total")}
     save_state(st)
     return st["claims"]
 
@@ -345,8 +426,13 @@ def claim_quietly() -> None:
     try:
         if linked():
             claim_local_files()
-    except LinkError:
-        pass
+    except LinkError as e:
+        # Audit P19-04: frueher still verschluckt. Protokolliert werden Code und Status, nie Fingerabdruecke; dieselbe
+        # Fehlerart hoechstens einmal je CLAIM_LOG_EVERY_S (ein Abgleich laeuft oft)
+        now = time.monotonic()
+        if now - _claim_log.get(e.code, float("-inf")) >= CLAIM_LOG_EVERY_S:
+            _claim_log[e.code] = now
+            log.warning("PDFs nicht an den StudiNow-Dienst gemeldet: %s (Status %s)", e.code, e.status)
 
 
 # ---------------------------------------------------------------- Weiterleitung /api/community/... an den Dienst
@@ -355,6 +441,10 @@ def proxy(method: str, subpath: str, query: str, body: bytes | None, content_typ
     """Anfrage der Oberflaeche an den Dienst weiterreichen. Liefert (Status, Inhaltstyp, Daten)."""
     if not _PATH_RE.match(subpath) or ".." in subpath:
         raise LinkError("path_invalid", "Ungültiger Pfad.", 400)
+    # Abfrage unveraendert weiter (Schluessel und Werte prueft der Dienst je Endpunkt), aber begrenzt und nur aus
+    # URL-Zeichen: Steuerzeichen liessen http.client sonst mit InvalidURL (500) scheitern (Audit P19-05)
+    if len(query or "") > MAX_QUERY or not _QUERY_RE.fullmatch(query or ""):
+        raise LinkError("query_invalid", "Ungültige Anfrage.", 400)
     if body is not None and len(body) > MAX_BODY:
         raise LinkError("too_large", "Die Lösung ist zu groß.", 413)
     st = load_state()

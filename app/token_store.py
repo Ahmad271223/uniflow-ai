@@ -17,26 +17,43 @@ Datenordner (`service-token`). Tests tauschen die Ablage ueber `use()` gegen `Me
 """
 from __future__ import annotations
 
+import logging
 import os
+import re
 import sys
+import tempfile
 import threading
 from pathlib import Path
 
 TARGET = "StudiNow/dienst-sitzung"
 FILE_NAME = "service-token"
 MAX_TOKEN = 2048
+CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512   # Windows: groesster Inhalt eines generischen Eintrags (Byte)
+# Zeichen eines Bearer-Tokens (RFC 6750 b64token); der Dienst vergibt secrets.token_urlsafe(32), 43 Zeichen. Kein
+# Leer- oder Steuerzeichen: das Token steht spaeter in "Authorization: Bearer ..." (Audit P17-04, P18-11)
+_TOKEN_RE = re.compile(r"[A-Za-z0-9._~+/=-]{1,%d}" % MAX_TOKEN)
+log = logging.getLogger("uniflow.token_store")
 
 
 class StoreError(Exception):
     """Die Ablage ist nicht nutzbar (z. B. Anmeldeinformationsverwaltung gesperrt)."""
 
 
+class TokenInvalid(ValueError):
+    """Kein gueltiges Sitzungs-Token (Typ, Laenge, Zeichen); wird nicht gespeichert."""
+
+
+def valid_token(token) -> bool:
+    return isinstance(token, str) and bool(_TOKEN_RE.fullmatch(token))
+
+
 class MemoryStore:
     """Nur im Speicher (Tests; Notbehelf, wenn die Windows-Ablage versagt: dann gilt die Anmeldung bis zum Beenden)."""
     kind = "memory"
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None, fallback: bool = False):
         self._token = token
+        self.fallback = fallback          # True = Notbehelf statt der dauerhaften Ablage (nach Neustart weg)
 
     def get(self) -> str | None:
         return self._token
@@ -54,6 +71,7 @@ class FileStore:
 
     def __init__(self, path: Path | None = None):
         self._path = path
+        self._lock = threading.Lock()
 
     def path(self) -> Path:
         if self._path is not None:
@@ -62,20 +80,34 @@ class FileStore:
         return config.DATA_DIR / FILE_NAME
 
     def get(self) -> str | None:
+        """Fehlt die Datei: None (nicht angemeldet). Ist sie nicht lesbar: StoreError, damit das nicht wie eine
+        Abmeldung aussieht (Audit P17-07)."""
         try:
             t = self.path().read_text(encoding="utf-8").strip()
-        except OSError:
+        except FileNotFoundError:
             return None
+        except (OSError, UnicodeDecodeError) as e:
+            raise StoreError(f"Token-Datei nicht lesbar ({type(e).__name__})") from None
         return t or None
 
     def set(self, token: str) -> None:
+        """Eindeutige Temp-Datei (mkstemp: O_EXCL, 0600) im selben Ordner, dann atomar ersetzen; ein Schreiber je
+        Ablage zugleich (Audit P17-02, P17-03: frueher fester Name `service-token.tmp`, Rechte einer schon vorhandenen
+        Datei blieben stehen)."""
         p = self.path()
-        p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_name(p.name + ".tmp")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(token)
-        os.replace(tmp, p)
+        with self._lock:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(prefix=p.name + ".", suffix=".tmp", dir=p.parent)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(token)
+                os.replace(tmp, p)
+            except BaseException:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
 
     def delete(self) -> None:
         self.path().unlink(missing_ok=True)
@@ -136,6 +168,8 @@ class WindowsCredentialStore:
     def set(self, token: str) -> None:
         ct = self._ct
         blob = token.encode("utf-8")
+        if len(blob) > CRED_MAX_CREDENTIAL_BLOB_SIZE:          # Audit P17-05: vor CredWriteW pruefen
+            raise StoreError(f"Token zu gross fuer die Anmeldeinformationsverwaltung ({len(blob)} Byte)")
         buf = (ct.c_ubyte * len(blob)).from_buffer_copy(blob)
         cred = self._CRED()
         cred.Type = self.CRED_TYPE_GENERIC
@@ -164,8 +198,10 @@ def default_store():
     if sys.platform == "win32":
         try:
             return WindowsCredentialStore()
-        except (OSError, AttributeError):
-            return MemoryStore()
+        except (OSError, AttributeError) as e:
+            log.warning("Anmeldeinformationsverwaltung nicht nutzbar (%s): Anmeldung gilt nur im Speicher bis zum "
+                        "Beenden", type(e).__name__)
+            return MemoryStore(fallback=True)
     return FileStore()
 
 
@@ -188,25 +224,41 @@ def kind() -> str:
     return getattr(store(), "kind", "unknown")
 
 
+def persistent() -> bool:
+    """Ueberlebt das Token einen Neustart? False beim Notbehelf im Speicher (Audit P17-06, P18-09); fuer die Anzeige
+    (`service_link.status_info`: token_persistent) und damit ein altes Token nicht aus seiner Datei verschwindet."""
+    return not getattr(store(), "fallback", False)
+
+
 def get() -> str | None:
     try:
         t = store().get()
-    except StoreError:
+    except StoreError as e:
+        log.warning("Sitzungs-Token nicht lesbar: %s", e)          # nie der Inhalt
         return None
-    return t if t and len(t) <= MAX_TOKEN else None
+    return t if valid_token(t) else None
 
 
-def put(token: str | None) -> None:
-    """Token speichern (None oder leer = loeschen). Versagt die Windows-Ablage, gilt das Token bis zum Beenden im
-    Speicher; geschrieben wird es dann nirgends."""
+def put(token: str | None) -> bool:
+    """Token speichern (None oder leer = loeschen); ein ungueltiges Token wirft TokenInvalid, das alte bleibt
+    (Audit P17-04: frueher gespeichert und nach dem Neustart von get() verworfen). Versagt die Windows-Ablage, gilt
+    das Token bis zum Beenden im Speicher; geschrieben wird es dann nirgends. Liefert True, wenn der Stand dauerhaft
+    ist, False beim Notbehelf."""
     global _store
+    if token and not valid_token(token):
+        raise TokenInvalid("Ungueltiges Sitzungs-Token")
     s = store()
     try:
         if token:
             s.set(token)
         else:
             s.delete()
-    except StoreError:
-        if token:
-            with _lock:
-                _store = MemoryStore(token)
+    except StoreError as e:
+        if not token:
+            log.warning("Sitzungs-Token nicht geloescht: %s", e)
+            return False
+        log.warning("Sitzungs-Token nicht gespeichert (%s): gilt nur im Speicher bis zum Beenden", e)
+        with _lock:
+            _store = MemoryStore(token, fallback=True)
+        return False
+    return not getattr(s, "fallback", False)
