@@ -715,6 +715,11 @@ enum StudyPlanEdit {
 enum StudyPlanText {
     static let title = "Studienverlauf"
     static let disclaimer = "Verbindlich ist die Prüfungsordnung deiner Hochschule."
+    /// Warum ein Modul nicht verschiebbar ist (Menue, Details, VoiceOver, Ablegen; 09.11.2026). Der Kern uebergeht fuer
+    /// Bestandenes und zur Pruefung Angemeldetes jede eigene Lage (Semester aus dem Notenspiegel)
+    static let lockedPassed = "Bestanden – bleibt in dem Semester, in dem du es bestanden hast."
+    static let lockedRegistered = "Zur Prüfung angemeldet – bleibt im aktuellen Semester. Nach einer Abmeldung lässt es sich verschieben."
+    static let lockedCustom = "Eigener Eintrag – liegt im Fachsemester, das du beim Eintragen gewählt hast."
     static let noQIS = "Verbinde QIS, damit StudiNow deinen Studiengang kennt"
     /// Quelle des Notenspiegels: "LSF" an der Uni Hildesheim, "Campusmanagement" (HISinOne) an der HsH, sonst "QIS" (LUH)
     static func gradeSource(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "Campusmanagement" : hildesheim ? "LSF" : "QIS" }
