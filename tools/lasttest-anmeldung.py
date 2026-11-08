@@ -5,11 +5,13 @@ Registrieren, Anmelden, Geraete-Abgleich (POST /api/sync/push) gegen einen echte
     .venv/bin/python tools/lasttest-anmeldung.py --label nachher
     .venv/bin/python tools/lasttest-anmeldung.py --repo /pfad/zum/alten/stand --env LERNAPP_LIMIT_REGISTER_IP=300/60 --label vorher
     .venv/bin/python tools/lasttest-anmeldung.py --register 1000 --logins 4000 --syncs 4000 --workers 4 --parallel 64 --json ergebnis.json
+    .venv/bin/python tools/lasttest-anmeldung.py --register 500 --logins 0 --syncs 0 --mixed 0 --uploads 2000 --upload-mb 5
 
 Ablauf: Dienst starten (uvicorn --workers N, Temp-Datenordner, Mail nur ins Protokoll) -> `--register` Konten anlegen,
 ALLE mit derselben Client-Adresse (X-Forwarded-For; uvicorn laeuft wie im Container mit --proxy-headers) -> `--logins`
 Anmeldungen (davon `--wrong-pct` Prozent mit falschem Passwort, wie Tippfehler im Hoersaal) -> `--syncs` Abgleiche mit
-Sitzungstoken -> Mischphase (alles gleichzeitig) -> Tabelle mit p50/p95/max, Fehler je Status und Speicher der Prozesse.
+Sitzungstoken -> Mischphase (alles gleichzeitig) -> optional `--uploads` PDF-Uploads (POST /api/notebooks, je
+`--upload-mb`, Audit Paket 50-54) -> Tabelle mit p50/p95/max, Fehler je Status und Speicher der Prozesse.
 Nur Standardbibliothek (urllib, Threads) + requirements.txt des Dienstes. Ergebnisse: docs/release/LAUNCH-4000-2026-11-08.md.
 Mit --repo laeuft ein anderer Code-Stand (z. B. `git archive develop | tar -x -C /tmp/vorher`), damit vorher/nachher
 mit demselben Werkzeug gemessen werden; --env NAME=WERT setzt Umgebungswerte des Dienstes (mehrfach erlaubt).
@@ -144,10 +146,11 @@ class Dienst:
         assert self.proc is not None
         return children(self.proc.pid) or [self.proc.pid]
 
-    def call(self, method: str, path: str, body: dict | None = None, token: str | None = None, ip: str = CAMPUS_IP) -> tuple[int, float, bytes]:
-        data = json.dumps(body).encode() if body is not None else None
+    def call(self, method: str, path: str, body: dict | None = None, token: str | None = None, ip: str = CAMPUS_IP,
+             raw: bytes | None = None, ctype: str = "application/json") -> tuple[int, float, bytes]:
+        data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
         req = urllib.request.Request(self.base + path, data=data, method=method)
-        req.add_header("Content-Type", "application/json")
+        req.add_header("Content-Type", ctype)
         req.add_header("X-Forwarded-For", ip)                   # Campus-NAT: alle hinter einer Adresse
         if token:
             req.add_header("Authorization", f"Bearer {token}")
@@ -239,6 +242,34 @@ class Lauf:
         return st, dt, (200,)
     mixed_one.expected = (200, 401)
 
+    # -- Hochladen: eigene PDF als Notizbuch (Platten-Reserve, Kontingent, Nachpruefung alle 8 MB - Audit P28)
+    def upload_one(self, i: int):
+        if not self.tokens:
+            return 0, 0.0, (200,)
+        if not hasattr(self, "_pdf"):
+            size = max(1, int(self.a.upload_mb * (1 << 20)))
+            if self.a.upload_kind == "kaputt":           # beginnt mit %PDF, Rest Datenmuell (abgebrochener Download, Absicht)
+                self._pdf = b"%PDF-1.4\n" + os.urandom(size)
+            else:                                        # gueltige PDF mit 20 Seiten und einem Anhang dieser Groesse
+                import io
+                from pypdf import PdfWriter
+                w = PdfWriter()
+                for _ in range(20):
+                    w.add_blank_page(width=595, height=842)
+                w.add_attachment("daten.bin", os.urandom(size))
+                buf = io.BytesIO()
+                w.write(buf)
+                self._pdf = buf.getvalue()
+        boundary = "----lasttest" + uuid.uuid4().hex
+        body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"kind\"\r\n\r\npdf\r\n"
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nSkript {i}\r\n"
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"s{i}.pdf\"\r\n"
+                f"Content-Type: application/pdf\r\n\r\n").encode() + self._pdf + f"\r\n--{boundary}--\r\n".encode()
+        st, dt, _ = self.d.call("POST", "/api/notebooks", token=self.tokens[i % len(self.tokens)], raw=body,
+                                ctype=f"multipart/form-data; boundary={boundary}")
+        return st, dt, (200,)
+    upload_one.expected = (200,)
+
     def run(self) -> dict:
         a = self.a
         print(f"Dienst: {self.d.repo} auf {self.d.base}, {a.workers} Prozesse, Datenordner {self.d.tmp}", flush=True)
@@ -249,6 +280,26 @@ class Lauf:
         phases.append(self.phase(f"2 Anmelden ({a.logins}, {a.wrong_pct:g} % falsch)", a.logins, self.login_one, a.parallel))
         phases.append(self.phase(f"3 Abgleich push ({a.syncs})", a.syncs, self.sync_one, a.parallel))
         phases.append(self.phase(f"4 Gemischt ({a.mixed})", a.mixed, self.mixed_one, a.parallel))
+        if a.uploads:
+            # waehrenddessen alle 50 ms eine normale Anfrage (Abo-Stand): merkt man die Uploads im Rest des Dienstes?
+            import threading
+            probe: list[float] = []
+            stop = threading.Event()
+
+            def probing():
+                tok = self.tokens[0] if self.tokens else None
+                while not stop.wait(0.05):
+                    st, dt, _ = self.d.call("GET", "/api/entitlements", token=tok)
+                    if st == 200:
+                        probe.append(dt)
+            t = threading.Thread(target=probing, daemon=True)
+            t.start()
+            phases.append(self.phase(f"5 Hochladen ({a.uploads} x {a.upload_mb:g} MB)", a.uploads, self.upload_one, a.parallel))
+            stop.set()
+            t.join(70)
+            phases[-1]["probe"] = {"n": len(probe), "p50_ms": round(pct(probe, 0.5) * 1000), "p95_ms": round(pct(probe, 0.95) * 1000),
+                                   "max_ms": round(max(probe or [0]) * 1000)}
+            print(f"  waehrenddessen GET /api/entitlements: {phases[-1]['probe']}", flush=True)
         data_mb = sum(f.stat().st_size for f in (self.d.tmp / "data").rglob("*") if f.is_file()) / 1024 / 1024
         return {"label": a.label, "repo": str(self.d.repo), "workers": a.workers, "parallel": a.parallel, "env": a.env,
                 "accounts": len(self.tokens), "phases": phases, "rss_start_mb": base_rss, "data_dir_mb": round(data_mb, 1),
@@ -277,6 +328,9 @@ def main() -> int:
     ap.add_argument("--wrong-pct", type=float, default=3.0, help="Anteil falscher Passwoerter beim Anmelden")
     ap.add_argument("--syncs", type=int, default=4000)
     ap.add_argument("--mixed", type=int, default=3000)
+    ap.add_argument("--uploads", type=int, default=0, help="PDF-Uploads (POST /api/notebooks) nach den anderen Phasen")
+    ap.add_argument("--upload-mb", type=float, default=5.0, help="Groesse je Upload in MB")
+    ap.add_argument("--upload-kind", choices=("gueltig", "kaputt"), default="gueltig", help="gueltige PDF oder %%PDF + Datenmuell")
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--label", default="nachher")
     ap.add_argument("--json", default=None)

@@ -432,3 +432,54 @@ def test_p54_09_accounts_db_wal_stays_bounded_under_sustained_multi_process_load
     assert errors == 0
     assert total > 1000
     assert biggest < 64 << 20, f"WAL {biggest / 1e6:.1f} MB"
+
+
+# ================================================================== P53-07: Ereignisschleife bei Uploads
+
+def test_p53_07_pdf_page_count_of_an_upload_does_not_block_the_event_loop(hosted, monkeypatch):  # noqa: F811
+    """POST /api/notebooks ist async; danach zaehlte `len(PdfReader(p).pages)` die Seiten IN der Ereignisschleife.
+    Gemessen (pypdf, Mac): 2.000 Seiten 0,3 s, eine kaputte 50-MB-"PDF" (beginnt mit %PDF, Rest Datenmuell) 2,5-9,6 s - so
+    lange standen alle Anfragen dieses Prozesses (bei 12 Prozessen ~1/12 aller Nutzer)."""
+    import pypdf
+    from app import db, server
+    monkeypatch.setattr(server, "disk_free_bytes", lambda p: 500 << 30)
+    _, h = _user(hosted, "seiten@beispiel.de")
+    where = []
+    real = pypdf.PdfReader
+
+    class Spy(real):
+        def __init__(self, *a, **k):
+            try:
+                asyncio.get_running_loop()
+                where.append("schleife")
+            except RuntimeError:
+                where.append("thread")
+            super().__init__(*a, **k)
+    monkeypatch.setattr(pypdf, "PdfReader", Spy)
+    body, ctype = _multipart("upload", "s.pdf", _pdf(), {"kind": "pdf", "title": "Skript"})
+    st, _, b = asgi_call(hosted, "POST", "/api/notebooks", body=body, headers=h, content_type=ctype)
+    assert st == 200, b[:300]
+    assert where == ["thread"], where
+    fid = json.loads(b)["id"]
+    from app import config, accounts
+    u = accounts.authenticate(h["Authorization"].split()[1])
+    tok = config.set_user_context(u["id"], u["university"])
+    try:
+        with db.cursor() as conn:
+            assert conn.execute("SELECT page_count FROM files WHERE id=?", (fid,)).fetchone()[0] == 1
+    finally:
+        config.reset_user_context(tok)
+
+
+def test_p53_07_truncated_pdf_is_not_searched_through(tmp_path):
+    """Kaputte "PDF" ohne %%EOF (abgebrochener Download): pypdf suchte die Marke rueckwaerts durch die ganze Datei
+    (50 MB: 2,5 s CPU unter dem GIL). Jetzt sofort None; gueltige PDFs zaehlen wie bisher."""
+    from app import server
+    junk = tmp_path / "kaputt.pdf"
+    junk.write_bytes(b"%PDF-1.4\n" + os.urandom(20 << 20))
+    t0 = time.perf_counter()
+    assert server._pdf_page_count(junk) is None
+    assert time.perf_counter() - t0 < 0.5
+    good = tmp_path / "gut.pdf"
+    good.write_bytes(_pdf())
+    assert server._pdf_page_count(good) == 1

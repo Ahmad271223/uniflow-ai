@@ -4175,6 +4175,37 @@ def api_folder_delete(folder_id: int):
 PAGE_MIN_PT, PAGE_MAX_PT = 100, 3400      # wie formats.js: A6 (298 x 420) bis Whiteboard A0 quer (3370 x 2384)
 
 
+PDF_COUNT_THREADS = 2
+_PDF_LIMITER = None
+
+
+def _pdf_limiter():
+    """Hoechstens PDF_COUNT_THREADS Seitenzaehlungen je Prozess gleichzeitig: pypdf ist reines Python und haelt das GIL;
+    16 parallele Zaehlungen in 40 Threads liessen der Ereignisschleife nur jeden 17. Zeitschlitz (gemessen: Abo-Stand
+    waehrend kaputter Uploads max 3 s). Mehr Threads machen es nicht schneller - ein Prozess rechnet auf einem Kern."""
+    global _PDF_LIMITER
+    if _PDF_LIMITER is None:
+        import anyio
+        _PDF_LIMITER = anyio.CapacityLimiter(PDF_COUNT_THREADS)
+    return _PDF_LIMITER
+
+
+def _pdf_page_count(p: Path) -> int | None:
+    """Seitenzahl oder None (unlesbar). Ohne `%%EOF` am Ende (PDF-Vorgabe: in den letzten 1.024 Bytes; hier grosszuegig
+    64 KB) gar nicht erst parsen: pypdf sucht die Marke sonst rueckwaerts durch die ganze Datei - gemessen 2,5 s fuer
+    50 MB Datenmuell, mit Marke 58 ms (Audit P53-07). Abgebrochene Downloads haben keine Marke."""
+    try:
+        with open(p, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - (64 << 10)))
+            if b"%%EOF" not in f.read():
+                return None
+        from pypdf import PdfReader
+        return len(PdfReader(str(p)).pages)
+    except Exception:  # noqa: BLE001 - unlesbar: Seitenzahl unbekannt, das Dokument bleibt
+        return None
+
+
 @app.post("/api/notebooks")
 async def api_notebook_create(kind: str = Form(default="notebook"), title: str = Form(default="Neues Notizbuch"), module_id: str = Form(default=""),
                               folder_id: str = Form(default=""), template: str = Form(default="blank"), upload: UploadFile | None = File(default=None),
@@ -4218,11 +4249,10 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
             p = d / f"{fid}.pdf"
             await _save_upload(upload, p, MAX_IMPORT_BYTES, head=b"%PDF")
             local = str(p)
-            try:
-                from pypdf import PdfReader
-                page_count = len(PdfReader(str(p)).pages)
-            except Exception:  # noqa: BLE001
-                page_count = None
+            # Seiten zaehlen in einem Thread, nie in der Ereignisschleife (Audit P53-07, 08.11.2026): pypdf braucht fuer
+            # 2.000 Seiten ~0,3 s und fuer eine kaputte 50-MB-Datei 2,5-10 s - so lange standen sonst alle Anfragen des Prozesses
+            import anyio
+            page_count = await anyio.to_thread.run_sync(_pdf_page_count, p, limiter=_pdf_limiter())
             title = title or Path(upload.filename or "Dokument").stem
     with db.cursor() as conn:
         conn.execute("""INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, local_path, downloaded_at, first_seen, status, seen_by_user,
