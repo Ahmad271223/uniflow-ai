@@ -76,6 +76,9 @@ final class AuditPaket40x45AppTests: XCTestCase {
                            "sessions": .array([])])
             case ("GET", "/api/entitlements"):
                 return ok(["plan": isA ? "pro_ai" : "plus", "trial": ["active": false]])
+            case ("GET", "/api/account/export"):
+                if isA, meDelayA > 0 { try await Task.sleep(nanoseconds: meDelayA) }
+                return ServiceHTTPResponse(status: 200, body: Data("PK-export-\(isA ? "a" : "b")".utf8))
             case ("POST", "/api/account/login"):
                 return ok(["token": "tok-b", "user": Self.user(AuditPaket40x45AppTests.userB, "b@beispiel.de")])
             case ("POST", "/api/sync/push"):
@@ -161,6 +164,22 @@ final class AuditPaket40x45AppTests: XCTestCase {
         XCTAssertEqual(l.user?.id, Self.userB, "spaete Antwort fuer A ersetzt B nicht")
         XCTAssertEqual(l.user?.email, "b@beispiel.de")
         XCTAssertEqual(l.planStatus?.plan, "plus")
+    }
+
+    /// Datenexport von A endet erst nach dem Wechsel zu einem anderen Apple-Nutzer: die ZIP mit den Kontodaten von A
+    /// wird nicht mehr abgelegt und nicht zum Teilen angeboten (vorher im Teilen-Ordner des dann offenen Containers)
+    func testExportFinishingAfterAnAccountSwitchHandsNothingToTheNewUser() async throws {
+        let stub = ServiceStub()
+        stub.meDelayA = 500_000_000
+        let l = link(stub)
+        let export = Task { await l.export() }
+        try await Task.sleep(nanoseconds: 150_000_000)
+        l.use(userScope: "p45-b-\(UUID().uuidString)")
+        let url = await export.value
+        XCTAssertNil(url, "keine Datei mit den Daten von A: \(url?.path ?? "")")
+        if let url { try? FileManager.default.removeItem(at: url) }
+        XCTAssertNil(l.message)
+        l.use(userScope: nil)
     }
 
     // MARK: P45-01 / P37-02: spaetes Ende des Geraete-Abgleichs
