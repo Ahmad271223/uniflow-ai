@@ -585,7 +585,9 @@ _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/notebooks$"), MAX_IMPORT_BYTES),
                   (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES),
                   # KI-Index (app/doc_index.py bricht nach 60 MB ab - Starlette haette vorher bis 320 MB zwischengespeichert)
-                  (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES))
+                  (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES),
+                  # Stundenplan als PDF/Bild (nur PC; Audit P34-02: vorher ohne Grenze ganz in den Speicher)
+                  (re.compile(r"^/api/timetable/import/preview$"), MAX_IMPORT_BYTES))
 # PUT mit JSON-Koerper, der ganz gelesen wird (Audit 08.11.2026, P28-01/P29-04): Notizen wie in sync/push, Seitentexte
 # vom Geraet; vorher galt fuer PUT nur die Caddy-Grenze von 320 MB.
 _PUT_LIMITS = ((re.compile(r"^/api/files/[^/]+/annotations$"), MAX_SYNC_BYTES),
@@ -2385,7 +2387,9 @@ def _iso_day(v, name: str) -> str:
 
 
 def _int_in(v, name: str, lo: int, hi: int) -> int:
-    """Ganze Zahl lo..hi (auch als Ziffernfolge, nie bool), sonst 422"""
+    """Ganze Zahl lo..hi (auch als Ziffernfolge oder 5.0, nie bool), sonst 422"""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
     if isinstance(v, bool) or not (isinstance(v, int) or (isinstance(v, str) and v.strip().lstrip("-").isdigit())):
         raise HTTPException(422, f"{name}: ganze Zahl erwartet")
     n = int(v)
@@ -2940,8 +2944,14 @@ def api_studora_sync_now():
 
 @app.post("/api/studora/sync/enabled")
 def api_studora_sync_enabled(body: dict = Body(...)):
+    """Abgleich der Windows-App an/aus. Nur echtes true/false (Audit P33-01: "false" schaltete ihn ein); im Dienst gibt
+    es den Schalter nicht (schrieb sonst service-account.json in den Datenordner des Dienstes)."""
     from . import sync_client
-    return sync_client.set_enabled(bool(body.get("on")))
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst gleicht das Konto selbst ab.", "code": "already_hosted"})
+    if not isinstance(body.get("on"), bool):
+        raise HTTPException(422, "on: true oder false erwartet")
+    return sync_client.set_enabled(body["on"])
 
 
 @app.post("/api/studora/verify-email/resend")
@@ -2970,7 +2980,7 @@ def api_university_reset():
     """Hochschul-Konto entfernen (Einzelplatz/Windows-App): Sitzung, Zugangsdaten, Browser-Profile, Datenbank, Dateien,
     ChatGPT-Verbindung, Sicherungen und (Windows-App) die Cookies des App-Fensters loeschen – danach kann sich ein
     anderer Account anmelden, von der vorigen Person bleibt nichts (app/reset.py). Nicht waehrend eines Abgleichs."""
-    from . import reset, unilogin
+    from . import reset, sync_client, unilogin
     if config.is_hosted():
         raise HTTPException(400, {"detail": "Im Dienst loeschst du dein Konto unter Konto → Konto loeschen.", "code": "use_account"})
     if (unilogin.status() or {}).get("state") == "open":
@@ -2980,7 +2990,15 @@ def api_university_reset():
     try:
         if _bg_state.get("running"):
             raise HTTPException(409, f"Es laeuft gerade: {_bg_state.get('task') or 'Abgleich'} – bitte warten, bis es fertig ist.")
-        return reset.wipe()
+        # Abgleich mit dem StudiNow-Konto (app/sync_client.py, Audit P33-02): liefe er waehrend oder kurz nach dem
+        # Loeschen, holte er die Daten der vorigen Person in die neue Datenbank zurueck. Seine Sperre bleibt bis zum
+        # Ende belegt; danach ist die Anmeldung am Konto entfernt.
+        if not sync_client._lock.acquire(blocking=False):
+            raise HTTPException(409, "Es laeuft gerade: Abgleich mit dem StudiNow-Konto – bitte warten, bis es fertig ist.")
+        try:
+            return reset.wipe()
+        finally:
+            sync_client._lock.release()
     finally:
         _bg_lock.release()
 
@@ -3012,9 +3030,11 @@ def clear_credentials():
 
 @app.put("/api/credentials")
 def put_credentials(body: dict = Body(...)):
+    _no_credentials_in_service()                         # zuerst: im Dienst immer 410, auch bei falschen Typen (Audit P33-04)
+    if not isinstance(body.get("user"), (str, type(None))) or not isinstance(body.get("password"), (str, type(None))):
+        raise HTTPException(422, "user und password als Text erwartet")
     user = (body.get("user") or "").strip()
     pw = body.get("password") or ""
-    _no_credentials_in_service()
     if not user:
         raise HTTPException(400, "LUH-ID fehlt")
     if not pw:
@@ -3146,9 +3166,29 @@ def api_modules_auto_assign():
     return {"assigned": assigned, "uncertain": uncertain}
 
 
+MODULE_NAME_MAX = 200
+
+
+def _module_name(v) -> str:
+    """Modulname (Audit P33-03/P33-12): Text ohne Rand, nicht leer, hoechstens MODULE_NAME_MAX Zeichen; sonst 400.
+    Vorher: null -> 500 (NOT NULL), Zahl -> 500 beim Anlegen, Leerzeichen als Name beim Umbenennen."""
+    name = v.strip() if isinstance(v, str) else ""
+    if not name:
+        raise HTTPException(400, "Name fehlt")
+    if len(name) > MODULE_NAME_MAX:
+        raise HTTPException(400, f"Name zu lang (höchstens {MODULE_NAME_MAX} Zeichen).")
+    return name
+
+
 @app.patch("/api/modules/{module_id}")
 def api_module_patch(module_id: int, body: dict = Body(...)):
     allowed = {"name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes", "expected_materials", "exam_reuse"}
+    if "name" in body:
+        body = {**body, "name": _module_name(body["name"])}
+    # Liste (Kern-Vertrag study-modules.json: Text und Objekt werden wie in Python gefiltert); Zahl/Wahrheitswert -> 400
+    # statt 500 (Audit P33-09)
+    if body.get("expected_materials") is not None and not isinstance(body["expected_materials"], (list, str, dict)):
+        raise HTTPException(400, "expected_materials: Liste erwartet")
     with db.cursor() as conn:
         before = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,))
         if body.get("color") not in (None, "") and not timetable.COLOR_RE.fullmatch(str(body["color"])):
@@ -3156,7 +3196,7 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
         for k, v in body.items():
             if k in allowed:
                 if k == "expected_materials":
-                    v = json.dumps([x for x in (v or []) if x in weekly.EXPECTABLE])
+                    v = json.dumps([x for x in (v or []) if isinstance(x, str) and x in weekly.EXPECTABLE])
                 if k == "exam_reuse" and v not in ("original", "paraphrase"):
                     raise HTTPException(400, "exam_reuse: original oder paraphrase")
                 conn.execute(f"UPDATE modules SET {k}=? WHERE id=?", (v or None if k == "exam_date" else v, module_id))
@@ -3175,9 +3215,7 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
 
 @app.post("/api/modules")
 def api_module_create(body: dict = Body(...)):
-    name = (body.get("name") or "").strip()
-    if not name:
-        raise HTTPException(400, "Name fehlt")
+    name = _module_name(body.get("name"))
     if body.get("color") not in (None, "") and not timetable.COLOR_RE.fullmatch(str(body["color"])):
         raise HTTPException(400, "Farbe als #rrggbb.")
     with db.cursor() as conn:
@@ -3211,10 +3249,28 @@ def api_course_module(course_id: str, body: dict = Body(...)):
     return {"ok": True}
 
 
+# Laengster Zeitraum in Tagen fuer Kalender und Planung, wie im iPad-Kern (LocalTimetable.maxDays). Vorher ohne Grenze:
+# /api/calendar?start=0001-01-01&end=9999-12-31 baute 3,6 Mio. Tage, `days`/`horizon` von 10**9 planten endlos (Audit P33-06/07).
+MAX_SPAN_DAYS = 3660
+
+
+def _date_q(v, name: str) -> date:
+    """Datum aus Anfrage (Query oder Koerper) -> date, sonst 422 (Audit P33-06, P34-07; wie LocalTimetable.queryDay)"""
+    return date.fromisoformat(_iso_day(v, name))
+
+
+def _span(n: int, name: str = "Zeitraum") -> int:
+    if n > MAX_SPAN_DAYS:
+        raise HTTPException(422, f"{name}: höchstens {MAX_SPAN_DAYS} Tage")
+    return n
+
+
 @app.get("/api/calendar")
 def api_calendar(start: str, end: str):
+    a, b = _date_q(start, "start"), _date_q(end, "end")
+    _span((b - a).days)                                  # Ende vor Beginn: leer wie bisher (Kern-Vertrag study-plan.json)
     with db.cursor() as conn:
-        c = study.calendar(conn, date.fromisoformat(start), date.fromisoformat(end))
+        c = study.calendar(conn, a, b)
     if isinstance(c, dict) and isinstance(c.get("settings"), dict):
         c["settings"] = _public_settings(c["settings"])
     return c
@@ -3222,7 +3278,11 @@ def api_calendar(start: str, end: str):
 
 @app.post("/api/calendar/generate")
 def api_calendar_generate(body: dict = Body(default={})):
-    start = date.fromisoformat(body["start"]) if body.get("start") else None
+    start = _date_q(body["start"], "start") if body.get("start") else None
+    # `replace: "false"` ersetzte geplante Pakete (Audit P33-07): nur true/false/null
+    if body.get("replace") is not None and not isinstance(body["replace"], bool):
+        raise HTTPException(422, "replace: true oder false erwartet")
+    days = _span(_int_in(body.get("days") or 7, "days", -MAX_SPAN_DAYS, MAX_SPAN_DAYS), "days")
     with db.cursor() as conn:
         if body.get("window_start") or body.get("window_end"):
             # "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster
@@ -3230,7 +3290,7 @@ def api_calendar_generate(body: dict = Body(default={})):
                 return study.plan_window(conn, start or study.today(), body.get("window_start"), body.get("window_end"))
             except ValueError as e:
                 raise HTTPException(400, str(e))
-        return study.generate_packages(conn, start, int(body.get("days") or 7), bool(body.get("replace")))
+        return study.generate_packages(conn, start, days, bool(body.get("replace")))
 
 
 @app.get("/api/calendar/feasibility")
@@ -3245,21 +3305,42 @@ def api_open_tasks():
         return study.open_tasks(conn)
 
 
+TASK_NOTE_MAX = 2000
+
+
 @app.post("/api/tasks/{task_id}/status")
 def api_task_status(task_id: int, body: dict = Body(...)):
     st = body.get("status")
     if st not in ("geplant", "in_bearbeitung", "erledigt", "nachholen", "uebersprungen"):
         raise HTTPException(400, "Ungültiger Status")
+    # Audit P33-10: Minuten 0-1440 (auch "40"), Notiz Text bis TASK_NOTE_MAX; vorher Text/Listen/riesige Werte ungeprueft
+    minutes = None if body.get("actual_minutes") is None else _int_in(body["actual_minutes"], "actual_minutes", 0, 24 * 60)
+    note = body.get("note") or ""
+    if not isinstance(note, str) or len(note) > TASK_NOTE_MAX:
+        raise HTTPException(422, f"note: Text bis {TASK_NOTE_MAX} Zeichen erwartet")
     with db.cursor() as conn:
         try:
-            return study.set_task_status(conn, task_id, st, body.get("actual_minutes"), body.get("note") or "")
+            return study.set_task_status(conn, task_id, st, minutes, note)
         except ValueError as e:
             raise HTTPException(404, str(e))
 
 
+_START_TEST_LOCKS: dict[int, threading.Lock] = {}
+_START_TEST_GUARD = threading.Lock()
+
+
 @app.post("/api/tasks/{task_id}/start-test")
 def api_task_start_test(task_id: int):
-    """Erzeugt (falls noetig) den Wissenstest zu einer Testaufgabe und liefert die Test-ID."""
+    """Erzeugt (falls noetig) den Wissenstest zu einer Testaufgabe und liefert die Test-ID. Nur PC (im Dienst 501).
+    Eine Sperre je Aufgabe (Audit P34-01): zwei gleichzeitige Klicks erzeugten zwei Tests mit zwei KI-Laeufen; der
+    zweite wartet jetzt und bekommt den Test des ersten."""
+    with _START_TEST_GUARD:
+        lock = _START_TEST_LOCKS.setdefault(task_id, threading.Lock())
+    with lock:
+        return _task_start_test(task_id)
+
+
+def _task_start_test(task_id: int) -> dict:
     with db.cursor() as conn:
         t = db.row(conn, "SELECT t.*, p.subject, p.week_no, p.module_id FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.id=?", (task_id,))
         if not t or t["type"] != "test":
@@ -3290,9 +3371,33 @@ def api_task_start_test(task_id: int):
     return {"test_id": tid}
 
 
+def _task_minutes(v, default: int, name: str = "est_minutes") -> int:
+    """Geplante Minuten einer Aufgabe (Audit P34-05): leer -> Standard, sonst 1-1440 (auch "25"), sonst 422"""
+    return default if v in (None, "", 0) else _int_in(v, name, 1, 24 * 60)
+
+
+def _task_text(v, name: str, default: str | None = None):
+    if v in (None, "") and default is not None:
+        return default
+    if not isinstance(v, str) or len(v) > 500:
+        raise HTTPException(422, f"{name}: Text bis 500 Zeichen erwartet")
+    return v
+
+
+def _task_value(k: str, v):
+    """Felder einer Aufgabe beim Bearbeiten: vorher ungeprueft (Liste -> 500, Minuten negativ/Text)"""
+    if k == "est_minutes":
+        return _int_in(v, k, 1, 24 * 60)
+    if k == "sort":
+        return _int_in(v, k, -10 ** 9, 10 ** 9)
+    return _task_text(v, k)
+
+
 @app.patch("/api/tasks/{task_id}")
 def api_task_patch(task_id: int, body: dict = Body(...)):
     allowed = {"title", "est_minutes", "sort", "type"}
+    # erst alles pruefen, dann schreiben; leere Minuten (Feld geleert: 0) lassen den Wert wie er ist
+    body = {k: _task_value(k, v) for k, v in body.items() if k in allowed and not (k == "est_minutes" and v in (None, "", 0))}
     with db.cursor() as conn:
         for k, v in body.items():
             if k in allowed:
@@ -3313,12 +3418,18 @@ def api_task_delete(task_id: int):
 
 @app.post("/api/packages")
 def api_package_create(body: dict = Body(...)):
-    """Manuelles Lernpaket mit Aufgaben anlegen."""
+    """Manuelles Lernpaket mit Aufgaben anlegen. Eingaben werden vorher geprueft (Audit P34-04/05, wie im iPad-Kern 422):
+    Datum JJJJ-MM-TT, Aufgaben als Liste von Objekten, Minuten 1-1440."""
+    day = _date_q(body.get("date"), "date")
+    tasks = body.get("tasks") or []
+    if not isinstance(tasks, list) or not all(isinstance(t, dict) for t in tasks):
+        raise HTTPException(422, "tasks: Liste von Aufgaben erwartet")
+    tl = [{"type": _task_text(t.get("type"), "type", "frei"), "file_id": t.get("file_id"), "title": _task_text(t.get("title"), "title", "Lernen"),
+           "est": _task_minutes(t.get("est_minutes"), 45)} for t in tasks] or [
+        {"type": "frei", "file_id": None, "title": body.get("title") or "Lernen", "est": _task_minutes(body.get("minutes"), 60, "minutes")}]
     with db.cursor() as conn:
         m = db.row(conn, "SELECT * FROM modules WHERE id=?", (body.get("module_id"),)) if body.get("module_id") else None
-        tasks = body.get("tasks") or []
-        tl = [{"type": t.get("type") or "frei", "file_id": t.get("file_id"), "title": t.get("title") or "Lernen", "est": int(t.get("est_minutes") or 45)} for t in tasks] or [{"type": "frei", "file_id": None, "title": body.get("title") or "Lernen", "est": int(body.get("minutes") or 60)}]
-        pid = study._insert_package(conn, date.fromisoformat(body["date"]), m or {"id": None, "name": body.get("subject") or "Allgemein"}, tl, {"topic": body.get("title")})
+        pid = study._insert_package(conn, day, m or {"id": None, "name": body.get("subject") or "Allgemein"}, tl, {"topic": body.get("title")})
         conn.execute("UPDATE study_packages SET generated=0 WHERE id=?", (pid,))
         return db.row(conn, "SELECT * FROM study_packages WHERE id=?", (pid,))
 
@@ -3337,12 +3448,13 @@ def api_package_get(package_id: int):
 
 @app.post("/api/packages/{package_id}/tasks")
 def api_package_add_task(package_id: int, body: dict = Body(...)):
+    est = _task_minutes(body.get("est_minutes"), 45)                     # Audit P34-05
     with db.cursor() as conn:
         if not db.row(conn, "SELECT 1 FROM study_packages WHERE id=?", (package_id,)):
             raise HTTPException(404)
         n = db.row(conn, "SELECT COUNT(*) n FROM study_tasks WHERE package_id=?", (package_id,))["n"]
         conn.execute("INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?, 'geplant', ?)",
-                     (package_id, body.get("type") or "frei", body.get("file_id") or None, None, body.get("title") or "Lernen", n, int(body.get("est_minutes") or 45), db.now_iso()))
+                     (package_id, body.get("type") or "frei", body.get("file_id") or None, None, body.get("title") or "Lernen", n, est, db.now_iso()))
         study._recalc_package(conn, package_id)
         study.refresh_statuses(conn)
     return {"ok": True}
@@ -3381,7 +3493,8 @@ def api_suggest(body: dict = Body(default={})):
     with db.cursor() as conn:
         if body.get("rescue"):
             return study.rescue_week(conn)
-        return study.suggest_reschedule(conn, body.get("task_ids"), body.get("package_id"), int(body.get("horizon") or 10))
+        horizon = _int_in(body.get("horizon") or 10, "horizon", -MAX_SPAN_DAYS, MAX_SPAN_DAYS)    # Audit P33-07: wie days
+        return study.suggest_reschedule(conn, body.get("task_ids"), body.get("package_id"), horizon)
 
 
 @app.post("/api/calendar/apply")
@@ -3403,7 +3516,8 @@ def api_skip(body: dict = Body(...)):
 
 
 @app.get("/api/tasks/history")
-def api_history(limit: int = 50):
+def api_history(limit: int = Query(50, ge=1, le=500)):
+    """Verlauf der Aufgaben; `limit` 1-500 (Audit P34-08: -1 hiess in SQLite "alles")."""
     with db.cursor() as conn:
         return db.rows(conn, "SELECT h.*, t.title FROM task_history h LEFT JOIN study_tasks t ON t.id=h.task_id ORDER BY h.id DESC LIMIT ?", (limit,))
 
@@ -3412,7 +3526,8 @@ def api_history(limit: int = 50):
 def api_file_opened(file_id: str, body: dict = Body(default={})):
     with db.cursor() as conn:
         if "last_page" in body:
-            cur = conn.execute("UPDATE files SET last_page=? WHERE id=?", (int(body["last_page"]), file_id))
+            # Seite 1-100000, auch "7" (Kern-Vertrag library-files.json); vorher "abc" -> 500, -1 gespeichert (Audit P34-12)
+            cur = conn.execute("UPDATE files SET last_page=? WHERE id=?", (_int_in(body["last_page"], "last_page", 1, 100_000), file_id))
         else:
             cur = conn.execute("UPDATE files SET last_opened=?, opened_count=COALESCE(opened_count,0)+1, seen_by_user=1 WHERE id=?", (db.now_iso(), file_id))
         _changed(cur, "Datei")
@@ -3457,13 +3572,13 @@ def api_search(q: str):
 @app.get("/api/timetable/week")
 def api_tt_week(start: str):
     with db.cursor() as conn:
-        return timetable.week_grid(conn, date.fromisoformat(start))
+        return timetable.week_grid(conn, _date_q(start, "start"))
 
 
 @app.get("/api/timetable/day")
 def api_tt_day(date_: str = Query(alias="date")):
     with db.cursor() as conn:
-        return timetable.day_timeline(conn, date.fromisoformat(date_))
+        return timetable.day_timeline(conn, _date_q(date_, "date"))
 
 
 @app.get("/api/timetable/events")
@@ -3518,6 +3633,9 @@ def api_tt_event_patch(event_id: int, body: dict = Body(...)):
                                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                (merged["module_id"], e["course_id"], merged["title"], merged["kind"], merged["weekday"], merged["start_time"], merged["end_time"], merged["room"], merged["lecturer"],
                                 merged["rrule"], merged["date_from"], merged["date_to"], merged["attend"], e["source"], merged["color"], db.now_iso()))
+            # Ausnahmen ab dem Stichtag (Ausfall, Verschiebung, nicht hingehen) gehoeren zur neuen Serie; an der alten,
+            # die am Vortag endet, galten sie nicht mehr und waren verloren (Audit P34-03)
+            conn.execute("UPDATE event_exceptions SET event_id=? WHERE event_id=? AND date>=?", (cur.lastrowid, event_id, d))
             return {"ok": True, "scope": "future", "new_id": cur.lastrowid}
         for k, v in body.items():
             if k in allowed:
@@ -3541,7 +3659,7 @@ def api_tt_attendance(body: dict = Body(...)):
         e = db.row(conn, "SELECT * FROM course_events WHERE id=?", (body.get("event_id"),))
         if not e:
             raise HTTPException(404)
-        d = body.get("date") or date.today().isoformat()
+        d = _iso_day(body["date"], "date") if body.get("date") else date.today().isoformat()
         before = timetable.free_windows(conn, date.fromisoformat(d))
         timetable.set_attendance(conn, e["id"], d, body.get("mode"))
         after = timetable.free_windows(conn, date.fromisoformat(d))
@@ -3561,7 +3679,7 @@ def api_tt_exception(body: dict = Body(...)):
 @app.get("/api/timetable/free")
 def api_tt_free(date_: str = Query(alias="date")):
     with db.cursor() as conn:
-        return timetable.free_windows(conn, date.fromisoformat(date_))
+        return timetable.free_windows(conn, _date_q(date_, "date"))
 
 
 @app.get("/api/timetable/event-materials/{event_id}")
@@ -3570,7 +3688,7 @@ def api_tt_materials(event_id: int, date_: str = Query(alias="date")):
         e = db.row(conn, "SELECT * FROM course_events WHERE id=?", (event_id,))
         if not e:
             raise HTTPException(404)
-        return timetable.materials_for_event(conn, e, date.fromisoformat(date_))
+        return timetable.materials_for_event(conn, e, _date_q(date_, "date"))
 
 
 @app.post("/api/timetable/import/preview")
@@ -3578,6 +3696,7 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
     """Quelle: studip | ics | text | pdf | image | manual. Liefert bearbeitbare Vorschau + Vergleich mit vorhandenem Plan."""
     raw = text or ""
     entries: list[dict] = []
+    p: Path | None = None                                # Zwischendatei (PDF/Bild); wird immer entfernt (Audit P34-02)
     with db.cursor() as conn:
         try:
             if source == "studip":
@@ -3609,6 +3728,9 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
             raise
         except Exception as e:  # noqa: BLE001
             raise HTTPException(500, _public_error("Import fehlgeschlagen", e))
+        finally:
+            if p is not None:
+                p.unlink(missing_ok=True)
         entries = timetable.enrich(conn, entries)
         diff = timetable.diff_against_existing(conn, entries)
         cur = conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
@@ -3639,8 +3761,11 @@ def api_tt_import_confirm(body: dict = Body(...)):
     with db.cursor() as conn:
         # Von Hand bestaetigte Stud.IP-Vorschau: 'studip-manual', damit der Abgleich sie nie als fremde Gruppe entfernt
         src = body.get("source") or "manual"
+        entries = body.get("entries") or []
+        if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+            raise HTTPException(400, "entries: Liste von Terminen erwartet")      # vorher 500 (Audit P34-10)
         try:
-            res = timetable.apply_import(conn, body.get("entries") or [], "studip-manual" if src == "studip" else src, body.get("remove_ids") or [])
+            res = timetable.apply_import(conn, entries, "studip-manual" if src == "studip" else src, body.get("remove_ids") or [])
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
         if body.get("import_id"):
