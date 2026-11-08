@@ -17,6 +17,7 @@ erklärung, die Nutzungsbedingungen und das Impressum; die Store-Texte prüft de
 | `PLAY-STORE.md` | Play Console: Titel, Kurz- und Vollbeschreibung, Datensicherheit, Inhaltseinstufung, Zielgruppe, Abo-Produkt | Play Console (de-DE) |
 | `BETRIEB.md` | Betriebsanleitung für den gehosteten Dienst (Hosting-Paket `deploy/`: Docker, Caddy/TLS, `.env`, Backups, Updates, Löschfristen, Monitoring) | Inhaber, Server |
 | `angaben.json` | Angaben des Inhabers (Firma, Anschrift, USt-IdNr., E-Mail, Domain) – zur Veröffentlichung bestimmt, darum im Repository | `tools/rechtstexte-fuellen.py --check` |
+| `TESTFLIGHT-500-2026-11-08.md` | TestFlight-Beta „LUH-Tester“ (bis 500): Einladungstext, Testinfos, Tester-FAQ, Grenzen von 1.0, Ablaufplan; Befund zu Sandbox-Käufen und Probe, Tester freischalten (`python -m app.tester_freischalten`) | Inhaber (Versand), Support |
 
 **Website:** `tools/gen-site.py` baut aus `STARTSEITE.md`, `SUPPORT.md`, `DATENSCHUTZ.md`, `IMPRESSUM.md`,
 `NUTZUNGSBEDINGUNGEN.md` und `KONTO-LOESCHEN.md` die statischen Seiten in `site/` (reines HTML, eine CSS-Datei, hell

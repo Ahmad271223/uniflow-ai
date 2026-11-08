@@ -356,6 +356,10 @@ einen Kauf. Ist ein StudiNow-Konto angemeldet, kauft die App mit `appAccountToke
 signierte Transaktion nach Kauf, Verlängerung und einmal je Anmeldung an `POST /api/billing/apple/verify`
 (`UFBillingServiceLink`); erst damit kennt der Dienst Pro AI und gibt Credits. Ohne Konto geht keine Kaufmeldung hinaus.
 
+**TestFlight (Beta „LUH-Tester“, 08.11.2026):** Käufe in TestFlight laufen in Apples Sandbox (kein Geld; Monatsabo =
+5 Minuten, höchstens 12 Verlängerungen). Der Dienst nimmt Sandbox-Transaktionen an, kennzeichnet sie (`environment`) und gibt
+dieselben 100 Credits wie bei echten Pro-AI-Abos; Einladungstext, Tester-FAQ und Ablaufplan in `TESTFLIGHT-500-2026-11-08.md`.
+
 Pflichttexte auf der Tarifseite in der App: Preis und Laufzeit, automatische Verlängerung, Kündigung in den
 Einstellungen, Links zu Nutzungsbedingungen und Datenschutzerklärung, „Käufe wiederherstellen“.
 
