@@ -184,8 +184,9 @@ extension LocalModulesAppTests {
 
     // MARK: Lernplan nach dem Abgleich
 
-    /// Nach einem Abgleich plant das iPad die laufende Woche wie der PC (`study.auto_plan_week`, Regel vom 30.10.2026):
-    /// nur der Stoff dieser Lehrwoche (VL06), nicht die offenen Vorlesungen frueherer Wochen; mit auto_plan = 0 nichts
+    /// Erster Abgleich ohne Plan: das iPad plant die laufende Woche (Regel vom 30.10.2026): nur der Stoff dieser
+    /// Lehrwoche (VL06), nicht die offenen Vorlesungen frueherer Wochen; mit auto_plan = 0 nichts. Danach ordnet ein
+    /// Abgleich nur neue Dokumente ein (08.11.2026, LernplanEinordnenTests im Kern)
     func testAutoPlanAfterSyncPlansOnlyTheCurrentWeek() async throws {
         StudyAutoPlan.allowed = { true }                                        // Plus: automatischer Lernplan
         defer { StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) } }

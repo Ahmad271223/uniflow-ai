@@ -1281,8 +1281,8 @@ final class StudIPSync: ObservableObject {
         }
     }
 
-    /// Lernplan nach dem Abgleich wie am PC (`study.auto_plan_week` nach run_sync): mit `auto_plan` die laufende Woche
-    /// planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche. Danach die gemeinsamen
+    /// Lernplan nach dem Abgleich: mit `auto_plan` nur neue Dokumente in den bestehenden Plan einordnen
+    /// (`StudyAutoPlan.afterSync`, Entscheidung des Inhabers vom 08.11.2026; vorher die laufende Woche neu). Danach die gemeinsamen
     /// Wochentests wie `_full_sync` am PC (`WeeklyAutoTick.run`: nur mit `auto_tests`, verbundener KI und ohne anderen
     /// Hintergrundauftrag; hat er etwas veroeffentlicht, laden offene Boxen neu), nur nach einem vollen Abgleich
     /// (`weekly`), nicht im kurzen Hintergrundlauf. Nicht nach einem Abbruch (der Container wird vielleicht gerade
@@ -1298,6 +1298,14 @@ final class StudIPSync: ObservableObject {
         // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden
         guard !Task.isCancelled else { return }
         await DocIndexPrewarm.run(backend.context)
+    }
+
+    /// Beim Oeffnen der App: Dokumente, die ein Hintergrundabgleich gebracht hat, in den bestehenden Lernplan
+    /// einordnen, falls danach nicht eingeordnet wurde (`StudyAutoPlan.catchUp`, Entscheidung des Inhabers vom
+    /// 08.11.2026). Sonst bleibt der Plan, wie er ist; nicht in der Demo, nie unter XCTest.
+    nonisolated static func placeNewDocumentsOnOpen(host: LocalBackendHost) async {
+        guard !isUnderTest(), !(await host.demoActive()), let backend = try? await host.backend() else { return }
+        _ = try? await StudyAutoPlan.catchUp(backend)
     }
 
     private func finish(summary: String) {
