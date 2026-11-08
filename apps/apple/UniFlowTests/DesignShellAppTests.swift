@@ -113,8 +113,8 @@ final class DesignShellAppTests: XCTestCase {
         XCTAssertEqual(t.planAccessibility, "Probe, noch 5 Tage")
         XCTAssertEqual(t.upgradeTitle, "Plus holen", "die Probe endet: weiter mit Plus")
         XCTAssertEqual(UFSidebarProfile.make(plan: .proAI, purchased: .free, trialDaysLeft: 1).planLabel, "Probe · noch 1 Tag")
-        // gekauft schlaegt Probe; abgelaufene Probe = Free
-        XCTAssertEqual(UFSidebarProfile.make(plan: .plus, purchased: .plus, trialDaysLeft: 4).planLabel, "Plus")
+        // gekauft schlaegt iPad-Probe: dann zeigt `Entitlements.shownTrial` keine (TrialDisplayAppTests); abgelaufene Probe = Free
+        XCTAssertEqual(UFSidebarProfile.make(plan: .plus, purchased: .plus, trialDaysLeft: nil).planLabel, "Plus")
         XCTAssertEqual(UFSidebarProfile.make(plan: .free, purchased: .free, trialDaysLeft: 0).planLabel, "Free")
 
         // aus Entitlements: laufende Probe auf dem iPad

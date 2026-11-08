@@ -477,19 +477,21 @@ final class Entitlements: ObservableObject {
         return t
     }
 
-    /// angezeigte Probe (Entscheidung 09.11.2026, `UFShownTrial`): GERUEST, altes Verhalten
+    /// angezeigte Probe (Entscheidung 09.11.2026, `UFShownTrial`): dieselbe Quelle wie die Freischaltung; Seitenleiste,
+    /// Einstellungen, Probe-Karte und Tarifseite zeigen sie. Mit -UFPlan zaehlen Proben nicht, dann keine.
     var shownTrial: UFShownTrial? {
-        UFShownTrial.make(service: serviceTrial, serviceDaysLeft: serviceTrialDaysLeft, serviceEndsAt: serviceTrialEndsAt,
+        guard !planIsForced else { return nil }
+        return UFShownTrial.make(service: serviceTrial, serviceDaysLeft: serviceTrialDaysLeft, serviceEndsAt: serviceTrialEndsAt,
                           local: localTrial, purchased: purchasedPlan)
     }
 
     /// Tarifseite: die angezeigte Probe, erst nach dem ersten Abruf
     var runningTrial: UFShownTrial? { loading ? nil : shownTrial }
 
-    /// Beschriftung fuer den Tarif in den Einstellungen: waehrend der Probe ohne Kauf die Probe, sonst der Tarif
+    /// Beschriftung fuer den Tarif in den Einstellungen: waehrend der angezeigten Probe (Konto, sonst iPad ohne Kauf)
+    /// deren Resttage, sonst der Tarif
     var statusLabel: String {
-        if let t = localTrial, t.isActive, purchasedPlan == .free, serviceTrial == nil { return UFTrialTexts.running(t.daysLeft) }
-        return plan.name
+        shownTrial.map { UFTrialTexts.running($0.daysLeft) } ?? plan.name
     }
 
     /// wirksamen Tarif aus den Quellen bestimmen (UFPlanPrecedence); mit -UFPlan nur der feste Tarif. Danach den

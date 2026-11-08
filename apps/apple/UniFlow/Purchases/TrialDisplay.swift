@@ -15,18 +15,26 @@ struct UFShownTrial: Equatable {
     /// Ende der Probe; nil, wenn der Dienst es nicht meldet
     let endsAt: Date?
 
-    /// GERUEST (altes Verhalten): nur die iPad-Probe, ohne Dienst-Probe und ohne Kauf
+    /// Reihenfolge wie `UFPlanPrecedence.effective`: laufende Probe des Kontos (Resttage und Ende laut Dienst) > Kauf
+    /// (keine Probe zu zeigen, ausser der des Kontos) > laufende iPad-Probe > keine. Gilt die Probe des Kontos, zeigt
+    /// die App nie die Tage der iPad-Probe, auch wenn der Dienst keine Resttage meldet.
     static func make(service: UFPlan?, serviceDaysLeft: Int, serviceEndsAt: Date?, local: UFLocalTrial.State?,
                      purchased: UFPlan) -> UFShownTrial? {
-        guard service == nil, purchased == .free, let local, local.isActive else { return nil }
+        if let service, service != .free {
+            return serviceDaysLeft > 0 ? UFShownTrial(source: .service, daysLeft: serviceDaysLeft, endsAt: serviceEndsAt) : nil
+        }
+        guard purchased == .free, let local, local.isActive else { return nil }
         return UFShownTrial(source: .device, daysLeft: local.daysLeft, endsAt: local.endsAt)
     }
 }
 
 extension UFTrialBannerContent {
-    /// GERUEST (altes Verhalten): wie bisher allein aus dem Stand des Kontos und der iPad-Probe
+    /// Probe-Karte: laeuft die angezeigte Probe (`shown`), deren Resttage; sonst nur noch der Hinweis nach der Probe
+    /// (Konto bzw. iPad, wie bisher `make(service:local:purchased:choiceMade:)`), nie eine andere laufende Probe
     static func make(shown: UFShownTrial?, service: StudoraAccount.PlanStatus?, local: UFLocalTrial.State?, purchased: UFPlan,
                      choiceMade: Bool) -> UFTrialBannerContent? {
-        make(service: service, local: local, purchased: purchased, choiceMade: choiceMade)
+        if let shown { return .running(daysLeft: shown.daysLeft, source: shown.source == .service ? .service : .device) }
+        let c = make(service: service, local: local, purchased: purchased, choiceMade: choiceMade)
+        return c?.isRunning == true ? nil : c
     }
 }

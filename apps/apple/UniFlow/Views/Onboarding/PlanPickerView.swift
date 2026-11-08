@@ -154,8 +154,9 @@ struct PlanPickerView: View {
         trialStatus(UFShownTrial(source: .device, daysLeft: t.daysLeft, endsAt: t.endsAt), proAI: proAI)
     }
 
-    /// dasselbe fuer die angezeigte Probe (`Entitlements.runningTrial`: Probe des Kontos oder des iPads)
-    static func trialStatus(_ t: UFShownTrial, proAI: Bool) -> (title: String, note: String) {
+    /// dasselbe fuer die angezeigte Probe (`Entitlements.runningTrial`: Probe des Kontos oder des iPads); `after`:
+    /// gekaufter Tarif, der nach der Probe des Kontos weiter gilt
+    static func trialStatus(_ t: UFShownTrial, proAI: Bool, after: UFPlan = .free) -> (title: String, note: String) {
         let until = t.endsAt.map {
             " bis " + $0.formatted(Date.FormatStyle(date: .numeric, time: .omitted).locale(Locale(identifier: "de_DE")))
         } ?? ""
@@ -163,16 +164,22 @@ struct PlanPickerView: View {
         let title = proAI ? "Probe aktiv: alle Funktionen von \(UFPlan.proAI.name)\(until) (\(left))"
             : "Probe aktiv: alle Funktionen\(until) (\(left))"
         var note = ""
-        if proAI {
+        if proAI && t.source == .service {
+            note += "Die StudiNow-KI läuft über dein StudiNow-Konto, mit \(UFTrialTexts.credits) Credits zum Ausprobieren. "
+        } else if proAI {
             note += "Für die StudiNow-KI brauchst du ein StudiNow-Konto (Anmelden mit Apple); neue Konten bekommen dort "
             note += "\(UFTrialTexts.credits) Credits zum Ausprobieren. "
         }
-        note += "Danach gilt \(UFPlan.free.name), wenn du keinen Tarif wählst – ohne Zahlungsdaten, deine Notizen bleiben erhalten."
+        if after != .free {
+            note += "Danach gilt wieder \(after.name), deine Notizen bleiben erhalten."
+        } else {
+            note += "Danach gilt \(UFPlan.free.name), wenn du keinen Tarif wählst – ohne Zahlungsdaten, deine Notizen bleiben erhalten."
+        }
         return (title, note)
     }
 
     private func trialCard(_ t: UFShownTrial) -> some View {
-        let s = Self.trialStatus(t, proAI: proAIOffered)
+        let s = Self.trialStatus(t, proAI: proAIOffered, after: ent.purchasedPlan)
         return UFCard(flat: true) {
             HStack(alignment: .top, spacing: 12) {
                 UFIcon("sparkles", size: 18).foregroundStyle(UF.info).padding(.top, 1)

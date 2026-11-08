@@ -432,16 +432,19 @@ struct UFSidebarProfile: Equatable {
         }
     }
 
-    /// `plan`: wirksamer Tarif, `purchased`: gekaufter Tarif, `trialDaysLeft`: laufende Probe auf dem iPad (nil = keine).
-    /// Die Probe zaehlt nur ohne Kauf (wie `Entitlements.statusLabel`); danach geht es zu Plus, weil die Probe endet.
+    /// `plan`: wirksamer Tarif, `purchased`: gekaufter Tarif, `trialDaysLeft`: angezeigte Probe (`Entitlements.shownTrial`:
+    /// Konto vor iPad, die iPad-Probe nur ohne Kauf; nil = keine). Der Knopf fuehrt ueber den Kauf hinaus, weil die
+    /// Probe endet (ohne Kauf zu Plus).
     static func make(plan: UFPlan, purchased: UFPlan, trialDaysLeft: Int?) -> UFSidebarProfile {
-        if let d = trialDaysLeft, d > 0, purchased == .free {
+        if let d = trialDaysLeft, d > 0 {
             let days = d == 1 ? "1 Tag" : "\(d) Tage"
-            return UFSidebarProfile(planLabel: "Probe · noch \(days)", planAccessibility: "Probe, noch \(days)", upgrade: .plus)
+            return UFSidebarProfile(planLabel: "Probe · noch \(days)", planAccessibility: "Probe, noch \(days)", upgrade: next(purchased))
         }
-        let next: UFPlan? = plan == .free ? .plus : plan == .plus ? .proAI : nil
-        return UFSidebarProfile(planLabel: short(plan), planAccessibility: "Tarif \(short(plan))", upgrade: next)
+        return UFSidebarProfile(planLabel: short(plan), planAccessibility: "Tarif \(short(plan))", upgrade: next(plan))
     }
+
+    /// naechsthoeherer Tarif; nil auf dem hoechsten
+    private static func next(_ p: UFPlan) -> UFPlan? { p == .free ? .plus : p == .plus ? .proAI : nil }
 
     @MainActor
     static func make(_ ent: Entitlements) -> UFSidebarProfile {

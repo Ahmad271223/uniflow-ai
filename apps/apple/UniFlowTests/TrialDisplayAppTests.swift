@@ -96,6 +96,11 @@ final class TrialDisplayAppTests: XCTestCase {
         let p = UFSidebarProfile.make(plan: .proAI, purchased: .plus, trialDaysLeft: 2)
         XCTAssertEqual(p.planLabel, "Probe · noch 2 Tage")
         XCTAssertEqual(p.upgrade, .proAI)
+        // Tarifseite: Konto-Probe nennt das Konto als Weg zur KI, mit Kauf gilt danach wieder der Kauf
+        let s = PlanPickerView.trialStatus(UFShownTrial(source: .service, daysLeft: 2, endsAt: nil), proAI: true, after: .plus)
+        XCTAssertTrue(s.note.contains("über dein StudiNow-Konto"), s.note)
+        XCTAssertTrue(s.note.contains("Danach gilt wieder StudiNow Plus"), s.note)
+        XCTAssertFalse(s.note.contains("Anmelden mit Apple"), s.note)
     }
 
     /// Ende der Probe aus dem Dienst (`trial.ends_at`, Python `isoformat()`)
