@@ -72,7 +72,7 @@ def test_z4_annotations_for_an_unknown_file_are_404_not_500(world):
     """PUT /api/files/{id}/annotations fuer eine Datei, die es im eigenen Konto nicht gibt (z. B. A's Datei-ID): 500
     `FOREIGN KEY constraint failed`. Lesen gab schon 404 (G6)."""
     st, d = call(world["app"], world["hb"], "PUT", "/api/files/r-files/annotations", {"version": 2, "pages": {}})
-    assert (st, d.get("code")) == (404, "not_found"), (st, d)
+    assert (st, d) == (404, {"detail": "Datei nicht gefunden"}), (st, d)        # wie GET (server._found)
     # A's Notizen und eigene Dateien von B wie bisher
     assert call(world["app"], world["ha"], "PUT", "/api/files/r-files/annotations", {"version": 2, "pages": {}})[0] == 200
 
