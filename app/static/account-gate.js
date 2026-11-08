@@ -115,7 +115,7 @@ export function mountLogin(root, info, { icon, esc } = {}) {
   };
   wrap.querySelectorAll("[data-browser]").forEach(el => el.addEventListener("click", async e => {
     e.preventDefault();
-    try { await post("/browser-login", { mode: el.dataset.browser, provider: el.dataset.provider || undefined }); say(GATE_TEXTS.browserWait, true); waitForLogin(); }
+    try { const r = await post("/browser-login", { mode: el.dataset.browser, provider: el.dataset.provider || undefined }); say(r && r.opened === false ? `Der Browser ließ sich nicht öffnen. Bitte diese Adresse im Browser aufrufen: ${r.url}` : GATE_TEXTS.browserWait, true); waitForLogin(); }
     catch (x) { say(x.message); }
   }));
   return wrap;
