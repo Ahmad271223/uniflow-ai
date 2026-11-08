@@ -7,9 +7,10 @@ import XCTest
 
 /// Pruefungsanmeldung in der App (docs/PRUEFUNGSANMELDUNG-2026-11-05.md): Karte auf der Uebersicht nur rund um den
 /// Meldezeitraum, Abschnitt im Studienverlauf, Block "Prüfung anmelden" am Modul, Abzeichen in "Nächste Klausuren",
-/// "Im QIS anmelden" oeffnet nur die QIS-Seite im In-App-Browser, "Angemeldete Prüfungen abrufen" liest ueber den
-/// QIS-Stub (kein Netz) und hakt ab - nie wird eine Seite der Pruefungsanmeldung aufgerufen. Erfundene Daten,
-/// eingefrorene Uhr.
+/// "Im QIS zur Prüfung anmelden" oeffnet nur die QIS-Seite im In-App-Browser, "Angemeldete Prüfungen abrufen" liest ueber
+/// den QIS-Stub (kein Netz) und hakt ab - nie wird eine Seite der Pruefungsanmeldung aufgerufen. Nach dem Schliessen des
+/// so geoeffneten Browsers ruft die App die angemeldeten Pruefungen einmal selbst ab (Befund des Inhabers 09.11.2026).
+/// Erfundene Daten, eingefrorene Uhr.
 @MainActor
 final class ExamRegistrationAppTests: XCTestCase {
 
@@ -21,6 +22,11 @@ final class ExamRegistrationAppTests: XCTestCase {
     override class func tearDown() {
         HostedEnvironment.accessibilityAutomation(false)
         super.tearDown()
+    }
+
+    override func setUp() {
+        super.setUp()
+        MainActor.assumeIsolated { ExamRegistrationAutoFetch.shared.disarm() }
     }
 
     private func tempDir() throws -> URL {
@@ -137,7 +143,7 @@ final class ExamRegistrationAppTests: XCTestCase {
         // Klausur der Liste "Nächste Klausuren" -> Vorschlag (Abzeichen "nicht angemeldet")
         XCTAssertEqual(exams.count, 1)
         XCTAssertEqual(s.suggestion(exam: try XCTUnwrap(exams.first))?.id, "algorithmen")
-        // "Im QIS anmelden": Mein Studium des QIS, im In-App-Browser der LUH (nicht Safari, keine Formulardaten)
+        // "Im QIS zur Prüfung anmelden": Mein Studium des QIS, im In-App-Browser der LUH (nicht Safari, keine Formulardaten)
         let url = try XCTUnwrap(s.qisURL)
         XCTAssertEqual(url.host, "qis.verwaltung.uni-hannover.de")
         XCTAssertTrue(url.absoluteString.contains("moduleParameter=studyPOSMenu"))
@@ -163,7 +169,7 @@ final class ExamRegistrationAppTests: XCTestCase {
         let st = try awaiting { await ExamRegistrationState.load(try await self.hildesheimAPI(now: "2026-11-05T10:00:00")) }
         let s = try XCTUnwrap(st)
         XCTAssertEqual(s.system, "LSF")
-        XCTAssertEqual(s.openLabel, "Im LSF anmelden")
+        XCTAssertEqual(s.openLabel, "Im LSF zur Prüfung anmelden")
         XCTAssertTrue(s.showCard, "POS-Anmeldung beginnt in 6 Tagen")
         XCTAssertTrue(s.warnings.isEmpty)
         let w = try XCTUnwrap(s.window)
@@ -176,7 +182,7 @@ final class ExamRegistrationAppTests: XCTestCase {
         XCTAssertFalse(s.hint.contains("QIS"), s.hint)
         XCTAssertFalse(s.disclaimer.contains("QIS"), s.disclaimer)
         XCTAssertFalse(s.rules.contains { $0.contains("QIS") })
-        // "Im LSF anmelden": Startseite des LSF im In-App-Browser der Uni Hildesheim
+        // "Im LSF zur Prüfung anmelden": Startseite des LSF im In-App-Browser der Uni Hildesheim
         let url = try XCTUnwrap(s.qisURL)
         XCTAssertEqual(url, UniversityProfile.hildesheimLSFStart)
         XCTAssertEqual(UniLinks.route(url, university: .hildesheim), .inApp(url))
@@ -194,7 +200,7 @@ final class ExamRegistrationAppTests: XCTestCase {
         XCTAssertFalse(labels.contains { $0.hasPrefix("Die Zeiträume für") }, "kein 'nicht sicher' fuer die Uni Hildesheim")
         XCTAssertTrue(labels.contains("Im LSF angemeldet"), labels.joined(separator: " | "))
         XCTAssertFalse(labels.contains { $0.contains("Im QIS") }, labels.joined(separator: " | "))
-        let button = try XCTUnwrap(element(env.view, label: "Im LSF anmelden"))
+        let button = try XCTUnwrap(element(env.view, label: "Im LSF zur Prüfung anmelden"))
         XCTAssertTrue(button.accessibilityActivate())
         env.pump()
         XCTAssertEqual(opened, [UniversityProfile.hildesheimLSFStart])
@@ -217,7 +223,7 @@ final class ExamRegistrationAppTests: XCTestCase {
         XCTAssertTrue(labels.contains { $0.hasPrefix("Grundlagen der Datenbanksysteme, angemeldet") })
         XCTAssertTrue(labels.contains(ExamRegistrationAPI.hint), "Hinweis: selbst anmelden")
         XCTAssertTrue(labels.contains("Im Studienverlauf"))
-        let button = try XCTUnwrap(element(env.view, label: "Im QIS anmelden"))
+        let button = try XCTUnwrap(element(env.view, label: "Im QIS zur Prüfung anmelden"))
         XCTAssertTrue(button.accessibilityActivate())
         env.pump()
         XCTAssertEqual(opened.count, 1)
@@ -262,9 +268,11 @@ final class ExamRegistrationAppTests: XCTestCase {
 
     // MARK: Angemeldete Pruefungen ueber den QIS-Stub
 
-    func testFetchRegistrationsReadsInfoPageAndTicksOff() async throws {
+    /// LUH-Container mit QIS-Stub (Seiten der Info-Seite aus den Fixtures, Anmeldeseite ohne Sitzungs-Cookie); mit
+    /// `cookie` liegt die Sitzung der Webansicht schon im Datenspeicher
+    private func qisBed(_ name: String, cookie: Bool = true) async throws -> (ContainerManager, ActiveContainer, QISConnection) {
         let clock = UniFlowClock.fixed(berlin: "2026-11-20T10:00:00")!
-        let bed = try ContainerTestBed(name: "examreg", clock: clock)
+        let bed = try ContainerTestBed(name: name, clock: clock)
         addTeardownBlock { await bed.tearDown() }
         let m = bed.manager()
         let c = try bed.open(m, bed.account(.luh))
@@ -290,7 +298,14 @@ final class ExamRegistrationAppTests: XCTestCase {
             }
             return .text("", status: 404)
         }
-        await m.websiteDataStore(for: c).httpCookieStore.setCookie(bed.cookie("JSESSIONID", "qis-sitzung-test", domain: "qis.verwaltung.uni-hannover.de"))
+        if cookie {
+            await m.websiteDataStore(for: c).httpCookieStore.setCookie(bed.cookie("JSESSIONID", "qis-sitzung-test", domain: "qis.verwaltung.uni-hannover.de"))
+        }
+        return (m, c, q)
+    }
+
+    func testFetchRegistrationsReadsInfoPageAndTicksOff() async throws {
+        let (_, c, q) = try await qisBed("examreg")
         q.signedIn()
         let runs = q.finishedRuns
         let report = await q.fetchRegistrations()
@@ -312,6 +327,83 @@ final class ExamRegistrationAppTests: XCTestCase {
         let db = try await c.host.backend().context.database
         let dump = JSONValue.array(try await db.rows("SELECT * FROM exam_registrations").map(JSONValue.object)).jsonString()
         for secret in ["Erika", "7654321", "Beispielweg", "S1abcDEF"] { XCTAssertFalse(dump.contains(secret), secret) }
+    }
+
+    // MARK: Nach dem Schliessen des In-App-Browsers einmal abrufen (Befund 09.11.2026)
+
+    /// Knopf "Im QIS zur Prüfung anmelden" mit der Verbindung `q` hosten und antippen; gibt die geoeffnete Adresse zurueck
+    private func qisURL(_ c: ActiveContainer) throws -> URL {
+        try XCTUnwrap(try awaiting { await ExamRegistrationState.load(c.api) }?.qisURL)
+    }
+
+    private func tapQISButton(_ c: ActiveContainer, _ q: QISConnection, url: URL, demo: Bool = false) throws -> HostedEnvironment {
+        var opened: [URL] = []
+        let view = ExamRegistrationQISButton(url: url, system: "QIS", size: .small)
+            .environment(\.qis, q)
+            .environment(\.ufDemoActive, demo)
+            .environment(\.openURL, OpenURLAction { u in opened.append(u); return .handled })
+        let env = try hostWithEnvironment(view, api: c.api)
+        XCTAssertTrue(env.wait { self.element(env.view, label: "Im QIS zur Prüfung anmelden") != nil }, env.labels().joined(separator: " | "))
+        let button = try XCTUnwrap(element(env.view, label: "Im QIS zur Prüfung anmelden"))
+        XCTAssertTrue(button.accessibilityActivate())
+        env.pump()
+        XCTAssertEqual(opened, [url])
+        return env
+    }
+
+    private func infoListRequests() -> Int { UniStubProtocol.requests.filter { $0.url.absoluteString.contains("next=list.vm") }.count }
+
+    func testClosingTheBrowserOpenedByTheButtonFetchesRegistrationsOnce() throws {
+        let (_, c, q) = try awaiting { try await self.qisBed("examreg-close") }
+        q.signedIn()
+        let url = try qisURL(c)
+        let env = try tapQISButton(c, q, url: url)
+        let runs = q.finishedRuns
+        // anderer Rechner (Stud.IP): kein Abruf, der Knopf bleibt vorgemerkt
+        UniWebBrowser.announceClosed(URL(string: "https://studip.uni-hannover.de/dispatch.php/start")!)
+        env.pump()
+        XCTAssertEqual(q.finishedRuns, runs)
+        // QIS geschlossen, zweimal gemeldet: genau ein Abruf
+        UniWebBrowser.announceClosed(url)
+        UniWebBrowser.announceClosed(url)
+        XCTAssertTrue(env.wait { q.finishedRuns > runs }, "Abruf nach dem Schliessen")
+        env.pump(1)
+        XCTAssertEqual(q.finishedRuns, runs + 1, "hoechstens einmal je Schliessen")
+        XCTAssertEqual(infoListRequests(), 1)
+        XCTAssertEqual(q.registrationsMessage, "2 angemeldete Prüfungen gelesen.")
+        XCTAssertFalse(UniStubProtocol.requests.contains { $0.url.absoluteString.contains("prfAnmStudent") }, "nie die Anmeldung selbst")
+        // weiteres Schliessen ohne erneutes Tippen: kein Abruf
+        UniWebBrowser.announceClosed(url)
+        env.pump(1)
+        XCTAssertEqual(q.finishedRuns, runs + 1)
+        let st = try XCTUnwrap(try awaiting { await ExamRegistrationState.load(c.api) })
+        XCTAssertEqual(st.suggestion(catalogID: "rechnernetze")?.registered, true, "angemeldet nach dem Schliessen")
+    }
+
+    func testClosingTheBrowserWithoutQISConnectionFetchesNothing() throws {
+        let (_, c, q) = try awaiting { try await self.qisBed("examreg-ohne", cookie: false) }
+        XCTAssertFalse(q.isConnected)
+        let url = try qisURL(c)
+        let env = try tapQISButton(c, q, url: url)
+        let runs = q.finishedRuns
+        UniWebBrowser.announceClosed(url)
+        env.pump(1)
+        XCTAssertEqual(q.finishedRuns, runs, "ohne QIS-Verbindung kein Abruf")
+        XCTAssertTrue(UniStubProtocol.requests.isEmpty, UniStubProtocol.requests.map(\.url.absoluteString).joined(separator: " "))
+    }
+
+    func testClosingTheBrowserInDemoFetchesNothing() throws {
+        let (m, c, q) = try awaiting { try await self.qisBed("examreg-demo") }
+        q.signedIn()
+        let url = try qisURL(c)
+        _ = try awaiting { try await m.setDemo(true) }
+        XCTAssertTrue(m.demoActive)
+        let env = try tapQISButton(c, q, url: url, demo: true)
+        let runs = q.finishedRuns
+        UniWebBrowser.announceClosed(url)
+        env.pump(1)
+        XCTAssertEqual(q.finishedRuns, runs, "Demo: nie zur Hochschule")
+        XCTAssertEqual(infoListRequests(), 0)
     }
 
     // MARK: Erinnerungen

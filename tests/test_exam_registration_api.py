@@ -355,6 +355,7 @@ def test_route_answers_luh_hildesheim_and_others_unsupported(app, plan_db, monke
     st, _, b = asgi_call(app, "GET", "/api/exam-registration")
     v = json.loads(b)
     assert st == 200 and v["window"]["days_left"] == 2 and v["open_count"] == 4
+    assert v["system"] == "QIS" and v["open_label"] == "Im QIS zur Prüfung anmelden"
     # gleiche Schluessel wie der Kern (app-paths.json)
     keys = json.loads((ROOT / "packages/shared-contracts/fixtures/local-backend/app-paths.json").read_text(encoding="utf-8"))
     want = next(e for e in keys["paths"] if e["shape"] == "/api/exam-registration")["expect"]["keys"]
@@ -363,7 +364,7 @@ def test_route_answers_luh_hildesheim_and_others_unsupported(app, plan_db, monke
         conn.execute("UPDATE settings SET value='hildesheim' WHERE key='university'")
     st, _, b = asgi_call(app, "GET", "/api/exam-registration")
     hi = json.loads(b)
-    assert hi["supported"] is True and hi["system"] == "LSF" and hi["open_label"] == "Im LSF anmelden"
+    assert hi["supported"] is True and hi["system"] == "LSF" and hi["open_label"] == "Im LSF zur Prüfung anmelden"
     assert hi["qis_url"] == "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0"
     with db.cursor() as conn:
         conn.execute("UPDATE settings SET value='tu-berlin' WHERE key='university'")
@@ -381,7 +382,7 @@ def test_hildesheim_pos_start_without_deadline(plan_db):
         qis_registrations.store(conn, [{"pruefungsnr": "4711", "text": "Rechnernetze", "semester": "WiSe 26/27", "datum": "01.03.2027",
                                         "time": "09:00", "status": "zugelassen", "raw": ""}], "t")
     v = _resp("2026-11-05", plan_db)
-    assert v["supported"] is True and v["system"] == "LSF" and v["open_label"] == "Im LSF anmelden"
+    assert v["supported"] is True and v["system"] == "LSF" and v["open_label"] == "Im LSF zur Prüfung anmelden"
     assert v["program"]["slug"] == "alle-bachelor-und-masterstudiengaenge" and v["program"]["all_programs"] is True
     assert v["source"]["url"].startswith("https://www.uni-hildesheim.de/") and v["source"]["checked_at"] == "2026-11-05"
     w = v["window"]
