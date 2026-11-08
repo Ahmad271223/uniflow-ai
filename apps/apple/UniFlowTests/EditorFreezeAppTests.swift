@@ -226,6 +226,44 @@ final class EditorFreezeAppTests: XCTestCase {
         await store.close()
     }
 
+    /// Audit Paket 41, P41-09: fixiert und dann ein neuer Seitenaufbau (Seite eingefuegt, wie vom Server oder einem
+    /// anderen Geraet): Gesten bleiben aus, Zoom und Stelle bleiben; nach dem Loesen ist alles wieder an.
+    func testViewLockSurvivesLayoutRebuild() async throws {
+        let store = try await makeStore(pages: 4)
+        let shown = show(store)
+        let e = shown.editor
+        await pump()
+        e.goToPage(1)
+        await pump()
+        let scrollView = try scroll(e)
+        let tapsBefore = enabledZoomTaps(e)
+        let index = e.currentPageIndex
+        let scale = e.pdfView.scaleFactor
+        let before = try corner(e, page: index)
+        e.freezeMode = .view
+        let version = e.shownLayoutVersion
+
+        await store.addBlankPage(afterKey: nil, template: "grid")       // ans Ende, die fixierte Seite bleibt Index 1
+        e.showLayout()
+        await pump()
+        XCTAssertNotEqual(e.shownLayoutVersion, version, "neu aufgebaut")
+        XCTAssertEqual(e.pageCount, 5)
+        let scrollNow = try scroll(e)
+        XCTAssertFalse(scrollNow.isScrollEnabled, "kein Scrollen nach dem Neuaufbau")
+        XCTAssertEqual(scrollNow.pinchGestureRecognizer?.isEnabled, false, "kein Pinch-Zoom nach dem Neuaufbau")
+        XCTAssertEqual(enabledZoomTaps(e), 0, "kein Doppeltippen nach dem Neuaufbau")
+        XCTAssertEqual(e.pdfView.scaleFactor, scale, accuracy: 0.001, "Zoom bleibt")
+        XCTAssertEqual(e.currentPageIndex, index, "Seite bleibt")
+        try assertStays(e, page: index, point: before, "nach dem Neuaufbau")
+
+        e.freezeMode = .off
+        XCTAssertTrue(scrollNow.isScrollEnabled)
+        XCTAssertEqual(scrollNow.pinchGestureRecognizer?.isEnabled, true)
+        XCTAssertGreaterThanOrEqual(enabledZoomTaps(e), min(1, tapsBefore), "Doppeltippen wieder an")
+        _ = scrollView
+        await store.close()
+    }
+
     /// Gedrehte Seiten (/Rotate 90): fixiert bleibt die Stelle bei neuer Fensterbreite, der Strich landet auf der Seite
     func testViewLockOnRotatedPages() async throws {
         let store = try await makeStore(pages: 3, rotate: 90)
