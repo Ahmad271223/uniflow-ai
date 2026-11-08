@@ -99,6 +99,10 @@ final class DocIndexTests: XCTestCase {
     func testFixtureCasesMatchPython() throws {
         let cases = try JSONValue.parse(Data(contentsOf: contractsDir().appendingPathComponent("fixtures/doc-index/cases.json")))
         XCTAssertEqual(cases["schema_version"]?.int, DocIndexSchema.version)
+        // Mindestzahlen: ein umbenannter Schluessel liesse die Schleifen sonst leer laufen (Audit P48)
+        for (k, n) in [("file_key", 3), ("page_hash", 6), ("record_name", 3), ("catalog_kind", 12), ("prompt", 3)] {
+            XCTAssertGreaterThanOrEqual(cases[k]?.array?.count ?? 0, n, k)
+        }
         for c in cases["file_key"]?.array ?? [] {
             XCTAssertEqual(DocIndexFingerprint.fileKey(fileSHA: c["sha"]?.string ?? ""), c["key"]?.string, c["sha"]?.string ?? "")
         }

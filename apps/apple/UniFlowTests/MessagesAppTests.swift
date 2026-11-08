@@ -83,7 +83,8 @@ final class MessagesAppTests: XCTestCase {
         }
         let end = Date().addingTimeInterval(30)
         while result == nil && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
-        guard let result else { throw XCTSkip("Zeitueberschreitung") }
+        // Zeitueberschreitung ist ein Fehler, kein Ueberspringen (Audit P48, 08.11.2026: ein Haenger blieb sonst gruen)
+        guard let result else { XCTFail("Zeitueberschreitung"); throw CancellationError() }
         return try result.get()
     }
 
@@ -132,14 +133,15 @@ final class MessagesAppTests: XCTestCase {
         XCTAssertTrue(UFNavItem.more(visible: local).contains { $0.id == "messages" })
     }
 
-    func testVisibilityRule() {
+    func testVisibilityRule() throws {
         XCTAssertTrue(MessagesInbox.showsNavItem(local: true, studipConnected: true, stored: 0), "LUH verbunden, noch nichts geladen")
         XCTAssertTrue(MessagesInbox.showsNavItem(local: true, studipConnected: false, stored: 2), "abgemeldet, Nachrichten noch da")
         XCTAssertFalse(MessagesInbox.showsNavItem(local: true, studipConnected: false, stored: 0), "Hildesheim, Demo, nicht verbunden")
         XCTAssertFalse(MessagesInbox.showsNavItem(local: false, studipConnected: true, stored: 3), "eigener Server: kein Posteingang")
         // Hochschule ohne Stud.IP (Hildesheim) gilt nie als verbunden
-        let hosted = try? hostWithEnvironment(EmptyView())
-        if let s = hosted?.studip { XCTAssertFalse(MessagesInbox.studipConnected(s), "leerer Abgleich ohne Sitzung") }
+        // vorher `try?` + `if let`: scheiterte das Hosting, fiel die Pruefung still weg (Audit P48)
+        let hosted = try hostWithEnvironment(EmptyView())
+        XCTAssertFalse(MessagesInbox.studipConnected(hosted.studip), "leerer Abgleich ohne Sitzung")
     }
 
     func testNewSinceLastVisitAndBadgeText() {
