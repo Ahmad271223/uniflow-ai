@@ -151,8 +151,10 @@ Jobs als abgebrochen, der nächste Zeitpunkt (08:00/15:00) holt ihn nach.
 
 Was gesichert wird: `accounts.db` (Konten, Sitzungen, Tresor verschlüsselt, Jobs), je Nutzer `lernapp.db`
 (Notizen, Kalender, Karteikarten, …), `assets/`, `qis/`-Dokumente, auch `users-deleted/` (30-Tage-Frist). Nicht:
-Browser-Profile (Hochschul-Sitzungen), `files/` (im Dienst leer, Dateien werden nur durchgereicht), Protokolle,
-`secret.key`. Der Dienst läuft während des Backups weiter (SQLite-Backup-API, keine halben Schreibvorgänge).
+Browser-Profile (Hochschul-Sitzungen), `files/` (im Dienst leer, Dateien werden nur durchgereicht), `index-uploads/`
+(höchstens 15 Minuten beim Dienst), Protokolle, `secret.key`. Der Dienst läuft während des Backups weiter (SQLite-Backup-API
+in einem Schritt, keine halben Schreibvorgänge; gemessen 83 ms für eine 56-MB-accounts.db unter Dauerlast aus 12 Prozessen,
+Audit 50–54). Dateien, die der Dienst währenddessen löscht, werden übersprungen statt das Backup abzubrechen.
 
 ```bash
 # einmal von Hand
