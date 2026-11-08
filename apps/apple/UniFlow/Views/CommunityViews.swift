@@ -39,6 +39,35 @@ enum CommunityTexts {
 
     static func privacy(_ service: CommunityService) -> String { service.isAccountService ? privacyAccount : privacy }
 
+    // MARK: Kommentar entfernen (Audit P42-05, Entscheidung des Inhabers 08.11.2026)
+
+    /// Was "entfernen" bei einem Kommentar wirklich tut: der eigene wird geloescht (Text weg). Einen fremden Kommentar
+    /// unter der eigenen Loesung blendet der Autor ueber iCloud nur aus: er legt einen eigenen Entfernungs-Datensatz an,
+    /// der verschluesselte Text des Verfassers bleibt in CloudKit (nur der Ersteller darf einen Datensatz aendern). Im
+    /// StudiNow-Dienst loescht der Autor wirklich (app/community.py `delete_comment`: Status `deleted`, Text leer).
+    enum CommentRemoval: Equatable {
+        case delete, hide
+        var title: String { self == .delete ? "Löschen" : "Ausblenden" }
+    }
+
+    /// nil = kein Knopf (fremder Kommentar unter fremder Loesung: nur Melden)
+    static func commentRemoval(isMine: Bool, ownSolution: Bool, accountService: Bool) -> CommentRemoval? {
+        if isMine { return .delete }
+        guard ownSolution else { return nil }
+        return accountService ? .delete : .hide
+    }
+
+    static let hideCommentTitle = "Kommentar ausblenden?"
+    /// Verhalten ueber iCloud: fuer alle (auch den Verfasser) nur noch der Platzhalter; der Verfasser kann ihn in der App
+    /// weder bearbeiten noch loeschen (nicht mehr aktiv); Antworten bleiben (eine Ebene, Audit P42-06)
+    static let hideCommentMessage = "Der Kommentar verschwindet unter deiner Lösung für alle, auch für die Person, die ihn geschrieben hat; sie kann ihn danach nicht mehr bearbeiten oder löschen. Gelöscht wird er nicht: Der verschlüsselte Text bleibt in iCloud gespeichert. Antworten darauf bleiben sichtbar."
+    /// VoiceOver-Hinweis am Knopf "Ausblenden"
+    static let hideCommentHint = "Blendet den Kommentar für alle aus. Gelöscht wird er nicht."
+
+    /// Platzhalter eines entfernten Kommentars: ueber iCloud geloescht oder ausgeblendet (die App unterscheidet es dort
+    /// nicht), im Dienst wirklich geloescht
+    static func removedComment(accountService: Bool) -> String { accountService ? "Kommentar gelöscht" : "Kommentar entfernt" }
+
     @MainActor @ViewBuilder static func badge(_ service: CommunityService) -> some View {
         if service.isConnected {
             UFBadge(service.isAccountService ? "StudiNow-Konto" : "iCloud", tone: .ok)          // nicht "CloudKit" (Fachwort)
@@ -400,6 +429,8 @@ struct CommunityReaderSheet: View {
     @State private var editing: CommunityComment?
     @State private var spot: (page: String, anchor: CommunityComment.Anchor)?
     @State private var busy = false
+    /// fremder Kommentar, der nach der Rueckfrage ausgeblendet wird (P42-05)
+    @State private var hiding: CommunityComment?
 
     var body: some View {
         NavigationStack {
@@ -434,6 +465,10 @@ struct CommunityReaderSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
+        .alert(CommunityTexts.hideCommentTitle, isPresented: Binding(get: { hiding != nil }, set: { if !$0 { hiding = nil } }), presenting: hiding) { c in
+            Button(CommunityTexts.CommentRemoval.hide.title, role: .destructive) { remove(c) }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { _ in Text(CommunityTexts.hideCommentMessage) }
         .task { await load() }
     }
 
@@ -484,7 +519,7 @@ struct CommunityReaderSheet: View {
                 Text(c.pseudonym + (c.byAuthor ? " · Autor" : "") + (c.edited ? " · bearbeitet" : "")).ufFont(12.8, 600).foregroundStyle(UF.text2)
                 Text(ForeignSolutionLayer.date(c.createdAt)).ufFont(11.84).foregroundStyle(UF.muted)
             }
-            Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
+            Text(c.deleted ? CommunityTexts.removedComment(accountService: service.isAccountService) : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
                 .fixedSize(horizontal: false, vertical: true)
             if !c.deleted {
                 // Aktionen je Kommentar zurueckhaltend (ohne Rahmen), damit der Text fuehrt
@@ -502,7 +537,10 @@ struct CommunityReaderSheet: View {
                     } else {
                         UFButton("Melden", kind: .ghost, size: .small) { report(c) }
                     }
-                    if c.isMine || solution.isOwn { UFButton("Löschen", kind: .danger, size: .small) { remove(c) } }
+                    if let removal = CommunityTexts.commentRemoval(isMine: c.isMine, ownSolution: solution.isOwn, accountService: service.isAccountService) {
+                        UFButton(removal.title, kind: .danger, size: .small) { if removal == .hide { hiding = c } else { remove(c) } }
+                            .accessibilityHint(removal == .hide ? CommunityTexts.hideCommentHint : "")
+                    }
                 }
                 .padding(.leading, -8)                                     // Text der Geisterknoepfe fluchtet mit dem Kommentar
             }

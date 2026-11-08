@@ -938,6 +938,8 @@ struct CommunityPersonPane: View {
     @State private var pending: [String: CommunitySendState] = [:]
     /// was fuer einen noch nicht gesendeten Kommentar an den Dienst geht ("Erneut senden")
     @State private var pendingSends: [String: PendingComment] = [:]
+    /// fremder Kommentar, der nach der Rueckfrage ausgeblendet wird (P42-05)
+    @State private var hiding: CommunityComment?
 
     /// Auftrag eines Kommentars: neu (mit Antwort-auf, Seite, Stelle) oder Aenderung eines bestehenden
     struct PendingComment {
@@ -990,6 +992,10 @@ struct CommunityPersonPane: View {
             }
             .overlay(alignment: .bottom) { floatingBar }
         }
+        .alert(CommunityTexts.hideCommentTitle, isPresented: Binding(get: { hiding != nil }, set: { if !$0 { hiding = nil } }), presenting: hiding) { c in
+            Button(CommunityTexts.CommentRemoval.hide.title, role: .destructive) { act { try await service.deleteComment(id: c.id) } }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { _ in Text(CommunityTexts.hideCommentMessage) }
         .task { await load() }
     }
 
@@ -1166,7 +1172,7 @@ struct CommunityPersonPane: View {
                 Text(c.pseudonym + (c.byAuthor ? " · Autor" : "") + (c.edited ? " · bearbeitet" : "")).ufFont(12.8, 650).foregroundStyle(UF.text)
                 Text(ForeignSolutionLayer.date(c.createdAt)).ufFont(11.84).foregroundStyle(UF.muted)
             }
-            Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
+            Text(c.deleted ? CommunityTexts.removedComment(accountService: service.isAccountService) : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.leading, 34)
             if let state = pending[c.id] {
@@ -1180,8 +1186,11 @@ struct CommunityPersonPane: View {
                     } else {
                         UFButton("Melden", kind: .ghost, size: .small) { act { try await service.reportComment(id: c.id, reason: .other) } }
                     }
-                    if c.isMine || solution.isOwn {
-                        UFButton("Löschen", kind: .danger, size: .small) { act { try await service.deleteComment(id: c.id) } }
+                    if let removal = CommunityTexts.commentRemoval(isMine: c.isMine, ownSolution: solution.isOwn, accountService: service.isAccountService) {
+                        UFButton(removal.title, kind: .danger, size: .small) {
+                            if removal == .hide { hiding = c } else { act { try await service.deleteComment(id: c.id) } }
+                        }
+                        .accessibilityHint(removal == .hide ? CommunityTexts.hideCommentHint : "")
                     }
                 }
                 .padding(.leading, 26)
