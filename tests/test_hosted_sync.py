@@ -135,15 +135,19 @@ def test_session_last_seen_written_at_most_once_a_minute(hosted):
     with accounts.cursor() as conn:
         conn.execute("UPDATE sessions SET last_seen_at='2026-01-01T00:00:00Z'")
     assert accounts.authenticate(token)["id"] == u["id"]
+    # seit 08.11.2026 liest authenticate nur; den Zeitstempel schreibt der Sammler (flush_seen, sonst alle 1 s im Hintergrund)
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0] == "2026-01-01T00:00:00Z", "nicht in der Anfrage"
+    assert accounts.pending_seen() == 1 and accounts.flush_seen() == 1
     with accounts.cursor() as conn:
         first = conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0]
     assert first > "2026-01-01T00:00:00Z", "alt: wird geschrieben"
     with accounts.cursor() as conn:
         conn.execute("UPDATE sessions SET last_seen_at=?", (first,))
-        changes_before = conn.total_changes
     accounts.authenticate(token)
+    assert accounts.pending_seen() == 0 and accounts.flush_seen() == 0, "frisch: kein neues UPDATE"
     with accounts.cursor() as conn:
-        assert conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0] == first, "frisch: kein neues UPDATE"
+        assert conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0] == first
 
 
 # ---------------------------------------------------------------- Kontext: Zugangsdaten und Pfade je Konto

@@ -10,7 +10,10 @@ Passwoerter: scrypt (Standardbibliothek, n=2^14, r=8, p=1, 16-Byte-Salz), nur de
 Sitzungen: zufaellige Tokens (32 Byte), gespeichert als SHA-256; Ablauf nach 30 Tagen ohne Nutzung; Abmelden auf
 allen Geraeten. Passwort-Reset: Einmal-Token, 30 Minuten, kommt nie ueber die API zurueck (nur ueber den
 eingestellten Versandweg, siehe `reset_sender`). Fehlversuche je Konto und je Adresse werden in der Datenbank
-gezaehlt (gilt auch nach Neustart und mit mehreren Serverprozessen).
+gezaehlt (gilt auch nach Neustart und mit mehreren Serverprozessen). Die Sperre je IP (MAX_FAILS_IP bzw.
+LERNAPP_LOGIN_FAILS_IP) blockt seit 08.11.2026 nur weitere falsche Passwoerter, nie ein richtiges: hinter Campus-NAT
+(tausende Nutzer, eine Adresse) darf niemand alle anderen aussperren koennen (docs/release/LAUNCH-4000-2026-11-08.md).
+Registrierungen zaehlen je Adresse (LERNAPP_LIMIT_REGISTER_IP) und in Summe (register_all).
 """
 from __future__ import annotations
 
@@ -20,6 +23,8 @@ import json
 import re
 import secrets
 import sqlite3
+import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -31,7 +36,12 @@ from . import config
 SESSION_DAYS = 30
 RESET_MINUTES = 30
 MAX_FAILS = 8
-MAX_FAILS_IP = 50          # je IP spaeter als je Adresse: an der Hochschule sitzen viele hinter wenigen IPs (NAT, eduroam)
+# Fehlversuche je IP, bis die Adresse LOCK_MINUTES gesperrt ist. Viel spaeter als je Adresse: an der Hochschule sitzen
+# hunderte Geraete hinter wenigen Adressen (NAT, eduroam). 50 (bis 08.11.2026) haette am Launch-Tag den ganzen Campus
+# gesperrt: 4.000 Nutzer hinter einer Adresse tippen in 10 Minuten leicht 50-mal daneben, und dann war fuer ALLE dort
+# 10 Minuten Schluss (429 locked). Standard jetzt 200; LERNAPP_LOGIN_FAILS_IP ueberschreibt (deploy/.env.example: 500).
+# Das Konto selbst schuetzt weiter MAX_FAILS=8 je Adresse; die IP-Sperre ist nur die zweite Linie gegen Durchprobieren.
+MAX_FAILS_IP = 200
 LOCK_MINUTES = 10
 VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
 # Grenzen (Anzahl, Minuten) je Schluessel; jeder Versuch zaehlt (28.10.2026). IP-Grenzen grosszuegig wegen NAT im
@@ -39,6 +49,11 @@ VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
 # register_ip 30/h ist der vorsichtige Code-Standard (Einzelplatz, Tests); im Dienst reicht das hinter eduroam/Hoersaal-NAT
 # nicht (Lasttest 30.10.2026, Fund 6) – deploy/.env.example setzt LERNAPP_LIMIT_REGISTER_IP=300/60 (docs/START-DIENST-CHECKLISTE.md 5.5).
 LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60), "verify_user": (5, 60), "export_user": (3, 1440),
+          # Registrierungen insgesamt je Stunde (08.11.2026, Launch mit 4.000 Nutzern): die Grenze je IP muss hinter
+          # Campus-NAT hoch sein (deploy/.env.example 2000/60) - damit ein Skript mit vielen Adressen trotzdem nicht
+          # tausende Konten je Stunde anlegt, zaehlt zusaetzlich EIN Zaehler fuer alle. 3000/h ist weit ueber dem
+          # erwarteten Andrang (500 Tester am ersten Tag) und bremst nur Massen-Skripte. LERNAPP_LIMIT_REGISTER_ALL.
+          "register_all": (3000, 60),
           "comment_user": (30, 60), "like_user": (120, 60),
           # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)
           "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440),
@@ -224,10 +239,21 @@ def _public(u) -> dict:
 
 def _locked(conn, key: str) -> bool:
     r = conn.execute("SELECT fails, last_fail_at FROM login_attempts WHERE key=?", (key,)).fetchone()
-    if not r or r["fails"] < (MAX_FAILS_IP if key.startswith("ip:") else MAX_FAILS) or not r["last_fail_at"]:
+    if not r or r["fails"] < (max_fails_ip() if key.startswith("ip:") else MAX_FAILS) or not r["last_fail_at"]:
         return False
     last = datetime.fromisoformat(r["last_fail_at"].replace("Z", "+00:00"))
     return now() - last < timedelta(minutes=LOCK_MINUTES)
+
+
+def max_fails_ip() -> int:
+    """Fehlversuche je IP bis zur Sperre: LERNAPP_LOGIN_FAILS_IP (ganze Zahl > 0), sonst MAX_FAILS_IP."""
+    import os
+    raw = (os.environ.get("LERNAPP_LOGIN_FAILS_IP") or "").strip()
+    try:
+        n = int(raw)
+        return n if n > 0 else MAX_FAILS_IP
+    except ValueError:
+        return MAX_FAILS_IP
 
 
 def _fail(conn, key: str) -> None:
@@ -291,6 +317,7 @@ def register(email: str, password: str, university: str, client_ip: str | None =
     if university not in config.known_universities():
         raise AccountError("university_unknown", "Unbekannte Hochschule.")
     with cursor() as conn:
+        _hit(conn, "register_all", "all")                 # alle Adressen zusammen (Massen-Skripte, 08.11.2026)
         if client_ip:
             _hit(conn, "register_ip", client_ip)          # begrenzt auch das Ausprobieren vergebener Adressen
         if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
@@ -334,24 +361,89 @@ def create_session(conn, user_id: str, device_id: str | None, device_name: str |
 
 def login(email: str, password: str, device_id: str | None = None, device_name: str | None = None,
           client_ip: str | None = None) -> tuple[dict, str]:
+    """Anmelden. Sperren: je Adresse nach MAX_FAILS Fehlversuchen (sperrt das Konto 10 Minuten, auch mit richtigem
+    Passwort). Je IP nach max_fails_ip() Fehlversuchen am Stueck - seit 08.11.2026 sperrt das nur weitere FALSCHE
+    Passwoerter von dieser Adresse (429 locked statt 401), ein richtiges Passwort meldet weiter an: hinter Campus-NAT
+    (4.000 Nutzer, eine Adresse) konnte sonst jeder mit ein paar hundert falschen Versuchen den ganzen Campus 10 Minuten
+    aussperren. Gegen Durchprobieren schuetzt die Sperre je Adresse; die IP-Sperre spart nur noch das scrypt fuer
+    offensichtliche Skripte. Eine erfolgreiche Anmeldung loescht beide Zaehler."""
     email = normalize_email(email)
     keys = [f"email:{email}"] + ([f"ip:{client_ip}"] if client_ip else [])
     with cursor() as conn:
-        if any(_locked(conn, k) for k in keys):
+        if _locked(conn, keys[0]):
             raise AccountError("locked", f"Zu viele Fehlversuche. Bitte {LOCK_MINUTES} Minuten warten.", 429)
+        ip_locked = len(keys) > 1 and _locked(conn, keys[1])
         u = conn.execute("SELECT * FROM users WHERE email=? AND status='active'", (email,)).fetchone()
         if not u or not verify_password(password, u["pw_hash"]):
             for k in keys:
                 _fail(conn, k)
             conn.commit()                  # der Fehlversuch zaehlt auch, wenn gleich die Ausnahme folgt
+            if ip_locked:
+                raise AccountError("locked", f"Zu viele Fehlversuche. Bitte {LOCK_MINUTES} Minuten warten.", 429)
             raise AccountError("credentials_invalid", "E-Mail-Adresse oder Passwort stimmt nicht.", 401)
         _clear_fails(conn, *keys)
         token = create_session(conn, u["id"], device_id, device_name)
         return _public(u), token
 
 
+# "Zuletzt gesehen" (08.11.2026, Launch mit 4.000 Nutzern): authenticate laeuft in der async-Middleware bei JEDER
+# /api-Anfrage. Es liest nur noch (WAL-Leser warten nie auf Schreiber); das UPDATE von last_seen_at/expires_at
+# (hoechstens einmal je Minute je Sitzung) sammelt ein Hintergrund-Thread je Prozess und schreibt es gebuendelt in EINER
+# Transaktion je SEEN_FLUSH_S. Vorher konnte dieses UPDATE bis busy_timeout (15 s) auf eine Schreibsperre von accounts.db
+# warten - und zwar in der Ereignisschleife, also mit allen offenen Anfragen des Prozesses. Gemessen: die Verlagerung
+# der ganzen Pruefung in den Thread-Pool kostete im Lasttest die Haelfte des Durchsatzes (GIL-Wechsel), das Sammeln nichts.
+SEEN_FLUSH_S = 1.0
+_seen_pending: dict[int, tuple[str, str]] = {}
+_seen_lock = threading.Lock()
+_seen_thread: threading.Thread | None = None
+
+
+def _seen_later(session_id: int, t: datetime) -> None:
+    global _seen_thread
+    with _seen_lock:
+        _seen_pending[int(session_id)] = (iso(t), iso(t + timedelta(days=SESSION_DAYS)))
+        if _seen_thread is None or not _seen_thread.is_alive():
+            _seen_thread = threading.Thread(target=_seen_worker, name="uniflow-seen", daemon=True)
+            _seen_thread.start()
+
+
+def _seen_worker() -> None:
+    while True:
+        time.sleep(SEEN_FLUSH_S)
+        try:
+            flush_seen()
+        except Exception as e:  # noqa: BLE001 - der Thread darf nie sterben; naechste Runde versucht es wieder
+            print(f"[accounts] zuletzt gesehen nicht geschrieben: {e}")
+
+
+def pending_seen() -> int:
+    """Noch nicht geschriebene Sitzungs-Zeitstempel dieses Prozesses (Tests, Betrieb)."""
+    with _seen_lock:
+        return len(_seen_pending)
+
+
+def flush_seen() -> int:
+    """Gesammelte last_seen_at/expires_at in einer Transaktion schreiben; liefert die Zahl der Sitzungen."""
+    with _seen_lock:
+        items = dict(_seen_pending)
+        _seen_pending.clear()
+    if not items:
+        return 0
+    try:
+        with cursor() as conn:
+            conn.executemany("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=? AND revoked_at IS NULL",
+                             [(seen, exp, sid) for sid, (seen, exp) in items.items()])
+    except sqlite3.Error:
+        with _seen_lock:                                  # beim naechsten Mal noch einmal (neuere Werte gewinnen)
+            for sid, v in items.items():
+                _seen_pending.setdefault(sid, v)
+        raise
+    return len(items)
+
+
 def authenticate(token: str | None) -> dict | None:
-    """Nutzer zur Sitzung; verlaengert die Sitzung bei Nutzung (gleitend, hoechstens SESSION_DAYS seit der letzten Nutzung)."""
+    """Nutzer zur Sitzung; verlaengert die Sitzung bei Nutzung (gleitend, hoechstens SESSION_DAYS seit der letzten Nutzung).
+    Liest nur; das Schreiben von "zuletzt gesehen" uebernimmt der Sammler (_seen_later/flush_seen)."""
     if not token:
         return None
     with cursor() as conn:
@@ -360,12 +452,11 @@ def authenticate(token: str | None) -> dict | None:
         if not s or s["revoked_at"] or s["status"] != "active" or s["expires_at"] <= iso(now()):
             return None
         t = now()
-        # "zuletzt gesehen" und die gleitende Frist hoechstens einmal je Minute schreiben (P8: vorher bei jeder
-        # Anfrage ein UPDATE auf accounts.db, die Datei aller Konten)
-        if (s["last_seen_at"] or "") < iso(t - timedelta(seconds=SEEN_EVERY_S)):
-            conn.execute("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?",
-                         (iso(t), iso(t + timedelta(days=SESSION_DAYS)), s["id"]))
-        return _public(conn.execute("SELECT * FROM users WHERE id=?", (s["user_id"],)).fetchone())
+        user = _public(conn.execute("SELECT * FROM users WHERE id=?", (s["user_id"],)).fetchone())
+    # "zuletzt gesehen" und die gleitende Frist hoechstens einmal je Minute (P8), gesammelt statt sofort
+    if (s["last_seen_at"] or "") < iso(t - timedelta(seconds=SEEN_EVERY_S)):
+        _seen_later(s["id"], t)
+    return user
 
 
 def logout(token: str | None) -> bool:

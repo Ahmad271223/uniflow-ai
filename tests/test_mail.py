@@ -139,6 +139,7 @@ def test_smtp_errors_are_logged_without_secrets_and_never_raise(mail_env, monkey
             self.fail_on = "send"
     monkeypatch.setattr(smtplib, "SMTP", Broken)
     assert mail.send_reset("max@beispiel.de", "tok-geheim") is None
+    assert mail.flush(5), "Hintergrundversand (send_later, 08.11.2026) muss die Mail innerhalb von 5 s abarbeiten"
     log = (mail_env / "mail.log").read_text(encoding="utf-8")
     assert "FEHLER" in log and "Postausgang kaputt" in log and "tok-geheim" not in log
     # Verbindungsfehler (OSError) ebenso

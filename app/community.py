@@ -216,7 +216,9 @@ def package_dir() -> Path:
 def cursor():
     p = db_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(p, check_same_thread=False)
+    # timeout = busy_timeout: community.db teilen sich ALLE Konten und alle API-Prozesse (wie accounts.db); mit den
+    # 5 s Standard meldete ein Schreibstau bei Last "database is locked" (08.11.2026, Pruefung fuer 4.000 Nutzer)
+    conn = sqlite3.connect(p, check_same_thread=False, timeout=15)
     conn.row_factory = sqlite3.Row
     db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
     conn.execute("PRAGMA foreign_keys=ON")

@@ -208,6 +208,16 @@ Jobs-Container (`python -m app.jobs`) läuft.
 
 ## 12. Monitoring (minimal)
 
+- **Dienstprüfung alle 5 Minuten auf dem Server (seit 08.11.2026):** `deploy/dienst-check.sh` prüft Container
+  (healthy), Platte (> 80 %), RAM (> 90 %), Zugriffsprotokoll der letzten 5 Minuten (5xx-Anteil, Fehlerquote, p95,
+  429 bei Registrierung/Anmeldung = Campus-NAT), Zertifikat (< 14 Tage), Lebenszeichen der Jobs, Alter des Backups und
+  `GET /login` über Caddy. Befunde stehen in `/srv/uniflow/dienst-check.log` (`PROBLEM kennung …`, später `ERHOLT kennung`);
+  eine Mail geht über das SMTP-Setup des Dienstes (`python -m app.mail send`, Passwort bleibt in `deploy/.env`) an
+  `support@studinow.app`, höchstens eine je Kennung und 6 Stunden. Einrichten (als root):
+  `sudo cp /srv/uniflow/app/deploy/uniflow-dienst-check.{service,timer} /etc/systemd/system/ && sudo systemctl daemon-reload
+  && sudo systemctl enable --now uniflow-dienst-check.timer`; einmal von Hand `bash deploy/dienst-check.sh --verbose`.
+  Eigene Grenzen in `/srv/uniflow/dienst-check.env` (`DIENST_CHECK_DISK_PCT=85`, `DIENST_CHECK_MAIL=0`, …; Liste im
+  Skriptkopf). Details und Launch-Checkliste: docs/release/LAUNCH-4000-2026-11-08.md.
 - **Healthcheck** im Container: `docker compose ps` zeigt `healthy`; bei `unhealthy` startet Docker den
   Container nicht automatisch neu – `docker compose restart app` und Protokolle lesen.
 - **Uptime-Check von außen** (kostenlos: Uptime Kuma selbst gehostet, UptimeRobot, Hetzner-Konsole hat keinen):

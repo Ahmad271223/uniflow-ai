@@ -268,11 +268,14 @@ nennen (Beispielzeile in `deploy/.env.example`), und Scaleway müsste mit AVV in
 Der Dienst zählt Registrierungen je Client-IP (`app/accounts.py`, Grenze `register_ip`); im Code stehen 30 je Stunde.
 Hinter eduroam, im Hörsaal oder in der Bibliothek teilen sich aber hunderte Geräte wenige Adressen (NAT) – nach dem
 ersten Hörsaal, in dem jemand die App vorstellt, bekämen alle weiteren „Zu viele Versuche“ (429). Die Vorlage setzt
-deshalb **`LERNAPP_LIMIT_REGISTER_IP=300/60`** (300 je Stunde, Lasttest Empfehlung 3). So lassen; in den ersten Wochen
-beobachten, ob in `docker compose logs app` oder im Zugriffsprotokoll 429 bei `/api/account/register` auftauchen – dann
-den ersten Wert erhöhen (`600/60`), `docker compose up -d` genügt. Missbrauch bremsen weiterhin die Grenze je
-E-Mail-Adresse, die Bestätigungsmail und das Passwort-Hashing. Nur einen zweiten Wert (Minuten) ändern, wenn du weißt,
-warum.
+deshalb seit 08.11.2026 **`LERNAPP_LIMIT_REGISTER_IP=2000/60`** (2000 je Stunde je Adresse; bis dahin 300/60 nach dem
+Lasttest vom 30.10., was für 500 TestFlight-Tester hinter einer Campus-Adresse nicht reicht – docs/release/LAUNCH-4000-2026-11-08.md).
+Massen-Skripte bremst stattdessen die Summe über alle Adressen (`LERNAPP_LIMIT_REGISTER_ALL`, Standard 3000/60), dazu die
+Grenze je E-Mail-Adresse, die Bestätigungsmail und das Passwort-Hashing. In den ersten Wochen beobachten, ob im
+Zugriffsprotokoll 429 bei `/api/account/register` auftauchen (`deploy/dienst-check.sh` zählt sie) – dann den ersten Wert
+erhöhen, `docker compose up -d` genügt. Dieselbe Überlegung gilt für die Anmeldesperre je Adresse
+(`LERNAPP_LOGIN_FAILS_IP=500`, vorher fest 50) und das Zurücksetzen (`LERNAPP_LIMIT_RESET_IP=300/60`). Nur einen zweiten
+Wert (Minuten) ändern, wenn du weißt, warum.
 
 ### 5.6 Rest
 
@@ -522,7 +525,8 @@ streichen, neu bauen, die Tests im Container laufen lassen und einen Upload sowi
   Volumes und `.env`; API fest `LERNAPP_JOBS=off`). `python -m app.jobs` beendet sich auf `docker stop` geordnet
   (laufende Jobs 25 s abwarten, Rest als abgebrochen markieren) und schreibt alle 10 s das Lebenszeichen
   `/logs/jobs.heartbeat`, das der Healthcheck (`python -m app.jobs --healthcheck`) prüft.
-- `LERNAPP_LIMIT_REGISTER_IP=300/60` in der Vorlage (Abschnitt 5.5).
+- `LERNAPP_LIMIT_REGISTER_IP=300/60` in der Vorlage (Abschnitt 5.5); seit 08.11.2026 `2000/60` plus Summe über alle
+  Adressen (`LERNAPP_LIMIT_REGISTER_ALL`), siehe docs/release/LAUNCH-4000-2026-11-08.md.
 - Zeitplan (`jobs.schedule_due`): ein Tresor-Durchlauf und eine Datenbankverbindung je Zeitfenster statt einer je Konto.
 - `mail.log` ist ein zentrales Protokoll (`/logs/mail.log`), auch für Mails aus dem Kontext eines Kontos.
 - Geprüft in der Cloud-Sitzung: `docker compose config -q` mit Test-`.env` (drei Dienste, `jobs` mit Healthcheck,
