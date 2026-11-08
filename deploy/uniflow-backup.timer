@@ -1,5 +1,6 @@
 # Zeitplan fuer uniflow-backup.service: taeglich 03:30 Ortszeit, vor den Loeschfristen des Dienstes (04:00).
-# Alternative ohne systemd (Cron, als root):  30 3 * * * /srv/uniflow/app/deploy/backup.sh >> /var/log/uniflow-backup.log 2>&1
+# Alternative ohne systemd (Cron, als root):
+#   30 3 * * * (/srv/uniflow/app/deploy/backup.sh && /srv/uniflow/app/deploy/backup-ausser-haus.sh) >> /var/log/uniflow-backup.log 2>&1
 [Unit]
 Description=UniFlow: Backup taeglich 03:30
 

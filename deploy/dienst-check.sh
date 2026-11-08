@@ -17,6 +17,8 @@
 #   zertifikat  TLS-Zertifikat von https://DOMAIN laeuft in weniger als DIENST_CHECK_CERT_DAYS (14) Tagen ab
 #   jobs        Lebenszeichen /logs/jobs.heartbeat aelter als DIENST_CHECK_HEARTBEAT_S (180 s)
 #   backup      neuestes Archiv in /srv/uniflow/backups aelter als DIENST_CHECK_BACKUP_H (30 h)
+#   ausser_haus letzte erfolgreiche Kopie auf die Storage Box (OFFSITE_STATE_DIR/letzte-kopie, deploy/backup-ausser-haus.sh)
+#               aelter als DIENST_CHECK_OFFSITE_H (30 h) - nur, wenn OFFSITE_HOST/OFFSITE_USER/OFFSITE_RECIPIENT gesetzt sind
 #   http        GET https://DOMAIN/login ueber 127.0.0.1:443 antwortet nicht mit 200 (curl, wenn vorhanden)
 #
 # Befunde: je eine Zeile "ZEIT PROBLEM kennung Text" in DIENST_CHECK_LOG (/srv/uniflow/dienst-check.log); ist ein Problem
@@ -30,7 +32,8 @@
 #   DIENST_CHECK_LOG DIENST_CHECK_STATE DIENST_CHECK_MAIL(1|0) DIENST_CHECK_MAIL_TO DIENST_CHECK_MAIL_EVERY_H DIENST_CHECK_DOMAIN
 #   DIENST_CHECK_DISK_PCT DIENST_CHECK_RAM_PCT DIENST_CHECK_5XX_PCT DIENST_CHECK_ERR_PCT DIENST_CHECK_P95_MS DIENST_CHECK_MIN_REQ
 #   DIENST_CHECK_CERT_DAYS DIENST_CHECK_HEARTBEAT_S DIENST_CHECK_BACKUP_H DIENST_CHECK_WINDOW_S DIENST_CHECK_DISK_PATHS
-#   DIENST_CHECK_BACKUP_DIR DIENST_CHECK_LOGS_VOLUME COMPOSE_DIR
+#   DIENST_CHECK_BACKUP_DIR DIENST_CHECK_LOGS_VOLUME DIENST_CHECK_OFFSITE_H COMPOSE_DIR
+#   OFFSITE_HOST OFFSITE_USER OFFSITE_RECIPIENT OFFSITE_STATE_DIR (sonst aus deploy/.env, nur diese Namen)
 # Test ohne Server: tests/test_dienst_check.py (bash -n, Trockenlauf mit Attrappen fuer docker/df/free/openssl/curl).
 set -euo pipefail
 
@@ -52,6 +55,7 @@ MIN_REQ="${DIENST_CHECK_MIN_REQ:-50}"
 CERT_DAYS="${DIENST_CHECK_CERT_DAYS:-14}"
 HEARTBEAT_S="${DIENST_CHECK_HEARTBEAT_S:-180}"
 BACKUP_H="${DIENST_CHECK_BACKUP_H:-30}"
+OFFSITE_H="${DIENST_CHECK_OFFSITE_H:-30}"
 WINDOW_S="${DIENST_CHECK_WINDOW_S:-300}"
 DISK_PATHS="${DIENST_CHECK_DISK_PATHS:-/srv/uniflow /var/lib/docker}"
 BACKUP_DIR="${DIENST_CHECK_BACKUP_DIR:-/srv/uniflow/backups}"
@@ -62,7 +66,7 @@ TROCKEN=0
 VERBOSE=0
 
 hilfe() {
-	sed -n '2,34p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+	sed -n '2,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -283,6 +287,35 @@ pruefe_backup() {
 	fi
 }
 
+# ---------------------------------------------------------------- 7b. Kopie ausser Haus (nur wenn eingerichtet)
+
+# Wert aus der Umgebung, sonst aus deploy/.env - nur der genannte Name, nie andere Werte ausgeben
+env_wert() {
+	local v="${!1:-}"
+	if [ -z "$v" ] && [ -r "$COMPOSE_DIR/.env" ]; then
+		v="$(grep -E "^$1=" "$COMPOSE_DIR/.env" | tail -n1 | cut -d= -f2- | tr -d '"'"'"' \r' || true)"
+	fi
+	printf '%s' "$v"
+}
+
+pruefe_ausser_haus() {
+	local konf merk alter
+	konf="$(env_wert OFFSITE_HOST)$(env_wert OFFSITE_USER)$(env_wert OFFSITE_RECIPIENT)"
+	[ -n "$konf" ] || { ok ausser_haus "nicht eingerichtet (OFFSITE_* in deploy/.env leer)"; return 0; }
+	merk="$(env_wert OFFSITE_STATE_DIR)"
+	merk="${merk:-/srv/uniflow/ausser-haus}/letzte-kopie"
+	if [ ! -f "$merk" ]; then
+		befund ausser_haus "noch keine erfolgreiche Kopie auf die Storage Box ($merk fehlt): journalctl -u uniflow-backup.service, bash deploy/backup-ausser-haus.sh"
+		return
+	fi
+	alter=$(((NOW - $(file_mtime "$merk")) / 3600))
+	if [ "$alter" -ge "$OFFSITE_H" ]; then
+		befund ausser_haus "letzte erfolgreiche Kopie auf die Storage Box ist $alter h alt (Grenze $OFFSITE_H h): journalctl -u uniflow-backup.service, bash deploy/backup-ausser-haus.sh"
+	else
+		ok ausser_haus "letzte Kopie $alter h alt"
+	fi
+}
+
 # ---------------------------------------------------------------- 8. HTTP von aussen (ueber Caddy, ohne DNS)
 
 pruefe_http() {
@@ -305,6 +338,7 @@ pruefe_zugriff
 pruefe_zertifikat
 pruefe_jobs
 pruefe_backup
+pruefe_ausser_haus
 pruefe_http
 
 # Erholung melden: Merkdatei vorhanden, Kennung heute nicht mehr betroffen
