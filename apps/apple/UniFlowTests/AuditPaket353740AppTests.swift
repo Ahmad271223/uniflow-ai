@@ -244,6 +244,34 @@ final class AuditPaket353740AppTests: XCTestCase {
         XCTAssertFalse(bobNames.contains("Vom-Dienst-fuer-Ada"), "\(bobNames)")
     }
 
+    /// P37-03 (Rest): Der Geraete-Abgleich des Konto-Anschlusses steht nicht in der Liste der Abgleiche, auf die das
+    /// Loeschen wartet. Endet er erst nach "Daten dieser Hochschule löschen", gehoert seine Antwort zur geloeschten
+    /// Datenbank: im leer neu geoeffneten Container (gleicher Ort) steht nichts davon (festgenagelt; SQLite schreibt
+    /// ueber die alte Verbindung nie in die neue Datei).
+    func testDeviceSyncEndingAfterTheContainerWasDeletedLeavesNothingInTheFreshOne() async throws {
+        let m = manager()
+        let a = accountStore()
+        let ada = try signIn(a, m, bed.user)
+        let changes: JSONValue = ["modules": .array([["id": .number(1), "name": "Nach-dem-Loeschen", "sync_version": .number(1),
+                                                      "sync_updated_at": "2026-11-09T06:00:00.000Z", "sync_device": "windows"]])]
+        let service = FakeDeviceService(changes: changes, gated: true)
+        let db = try await ada.host.backend().context.database
+        let run = Task { await DeviceSync(database: db, transport: service, device: "ipad-test").run(account: "konto-a") }
+        try await bed.waitUntil("Abgleich wartet auf den Dienst") { service.gate.wasReached }
+        let left = await m.deleteUniversityData(ada.key)
+        XCTAssertNil(left)
+        let fresh = try XCTUnwrap(m.active)
+        XCTAssertEqual(fresh.layout.root, ada.layout.root, "gleicher Ort, leer neu angelegt")
+        service.gate.release()
+        _ = await run.value
+        let names = try await moduleNames(fresh)
+        XCTAssertFalse(names.contains("Nach-dem-Loeschen"), "\(names)")
+        let state = try await fresh.host.backend().context.database.withConnection { c in
+            try c.query("SELECT name FROM sqlite_master WHERE name='sync_link_state'").count
+        }
+        XCTAssertEqual(state, 0, "kein Abgleich-Stand im neuen Container")
+    }
+
     // MARK: P35-07: Hintergrundlauf beim Kontowechsel
 
     /// Ein Hintergrundlauf von A endet erst, nachdem das iPad zu B gewechselt hat: sein Stand landet im Container von A,
