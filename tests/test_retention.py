@@ -108,7 +108,7 @@ def test_account_logs_sync_log_and_account_db_follow_the_deadlines(hosted, monke
             conn.execute("UPDATE users SET deleted_at=? WHERE id=?", (accounts.iso(now - timedelta(days=days)), d["id"]))
 
     probe = retention.run(now, dry_run=True)
-    assert probe["dry_run"] and probe["account_logs"] == {"files": 1, "lines": 2, "rows": 1}
+    assert probe["dry_run"] and probe["account_logs"] == {"files": 1, "lines": 2, "rows": 1, "errors": 0}
     assert (probe["jobs"], probe["marks"], probe["sessions"], probe["reset_tokens"], probe["login_attempts"], probe["accounts_purged"]) == (1, 1, 2, 1, 1, 1)
     assert (logs / "login-fehler.png").exists() and "alt 1" in (logs / "sync.log").read_text(encoding="utf-8"), "Probelauf aendert nichts"
 
@@ -127,7 +127,7 @@ def test_account_logs_sync_log_and_account_db_follow_the_deadlines(hosted, monke
         assert conn.execute("SELECT COUNT(*) FROM schedule_marks").fetchone()[0] == 0
     line = (config.BASE_LOG_DIR / "retention.log").read_text(encoding="utf-8").splitlines()[-1]
     assert json.loads(line)["accounts_purged"] == 1
-    assert retention.run(now)["account_logs"] == {"files": 0, "lines": 0, "rows": 0}, "zweiter Lauf findet nichts mehr"
+    assert retention.run(now)["account_logs"] == {"files": 0, "lines": 0, "rows": 0, "errors": 0}, "zweiter Lauf findet nichts mehr"
 
 
 def test_trim_dated_log_keeps_undated_continuation_lines(tmp_path):
