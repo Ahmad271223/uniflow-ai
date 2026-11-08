@@ -60,8 +60,8 @@ MAX_GROUP_NAME = 60
 REPORT_REASONS = ("foreignMaterial", "gradedSubmission", "offensive", "spam", "other")
 HEADER_KEYS = {"solutionId", "createdAt", "displayName", "document", "contents", "encryption"}
 TOP_KEYS = {"format", "formatVersion", "header", "ciphertext"}
-HEX64 = re.compile(r"^[0-9a-f]{64}$")
-UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+HEX64 = re.compile(r"^[0-9a-f]{64}\Z")          # \Z statt $: kein Zeilenende am Schluss (Audit 08.11.2026, Nr. 114)
+UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\Z")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS solutions (
