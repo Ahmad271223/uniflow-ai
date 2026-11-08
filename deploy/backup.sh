@@ -27,8 +27,9 @@ chmod 600 "$OUT"
 LIST="$(tar -tzf "$OUT")"
 grep -q 'uniflow-data/accounts.db$' <<<"$LIST" || { echo "Backup unvollstaendig: accounts.db fehlt in $OUT" >&2; exit 1; }
 
-# Aufbewahrung: aeltere Archive loeschen
-find "$BACKUP_DIR" -maxdepth 1 -name 'uniflow-*.tar.gz' -type f -mtime "+$KEEP_DAYS" -delete
+# Aufbewahrung: Archive aelter als KEEP_DAYS*24 h loeschen. Minuten statt `-mtime +N`: das zaehlt ganze Tage abgerundet
+# und behielt jedes Archiv einen Tag laenger, als die Datenschutzerklaerung sagt (Audit 08.11.2026, P57-06)
+find "$BACKUP_DIR" -maxdepth 1 -name 'uniflow-*.tar.gz' -type f -mmin "+$((KEEP_DAYS * 1440 - 30))" -delete
 
 echo "Backup geschrieben: $OUT ($(du -h "$OUT" | cut -f1)); behalten: $(ls -1 "$BACKUP_DIR"/uniflow-*.tar.gz | wc -l) Archive"
 

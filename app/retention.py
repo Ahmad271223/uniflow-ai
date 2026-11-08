@@ -10,6 +10,11 @@
 - Konto: abgelaufene oder beendete Sitzungen, verbrauchte oder abgelaufene Reset-Token, alte Fehlversuchszaehler,
   und `accounts.purge_deleted(30)` (Konten 30 Tage nach der Loeschung endgueltig weg). Anfrage-IDs der Kontingente
   (`usage_requests`) aelter als der Vormonat.
+- KI (Audit 08.11.2026, P57-10; vorher nur beim Lesen bzw. bei der naechsten Anfrage desselben Kontos beachtet):
+  `ai_cache` aelter als ai_backend.CACHE_DAYS (30), gespeicherte Antworten in `credit_ledger.result` aelter als
+  credits.REPLAY_HOURS (24).
+- `mail.log` (Empfaenger und Betreff je Mail): Zeilen aelter als MAIL_DAYS (14). Liegengebliebene Export-ZIPs
+  (`studora-export-*.zip` im Temp-Ordner, Verbindungsabbruch oder Absturz) nach EXPORT_MAX_AGE_S (1 h).
 
 Zeitplan: einmal taeglich ab RETENTION_TIME (`LERNAPP_RETENTION_TIME`, Standard 04:00, Ortszeit), gemerkt in
 `schedule_marks` wie die Abgleich-Zeitfenster. Von Hand: `python -m app.retention [--dry-run]`.
@@ -30,6 +35,8 @@ from . import accounts, config
 ACCESS_DAYS = int(os.environ.get("LERNAPP_RETENTION_ACCESS_DAYS") or 14)
 SYNC_DAYS = int(os.environ.get("LERNAPP_RETENTION_SYNC_DAYS") or 90)
 PURGE_DAYS = 30                                        # wie accounts.purge_deleted
+MAIL_DAYS = int(os.environ.get("LERNAPP_RETENTION_MAIL_DAYS") or 14)
+EXPORT_MAX_AGE_S = 3600                                # ein Download, der laenger als eine Stunde laeuft, gilt als tot
 ATTEMPT_HOURS = 24                                     # Fehlversuchszaehler (wirksam nur 10 Minuten) spaetestens dann weg
 RETENTION_TIME = (os.environ.get("LERNAPP_RETENTION_TIME") or "04:00").strip()
 _ACCESS_NAME = re.compile(r"^access-(\d{4}-\d{2}-\d{2})\.log$")
@@ -230,6 +237,50 @@ def purge_account_db(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False
     return out
 
 
+# ---------------------------------------------------------------- KI-Zwischenspeicher, Mail-Log, Export-Reste
+
+def purge_ai(now: datetime, dry_run: bool = False) -> dict:
+    """ai_cache nach CACHE_DAYS weg, gespeicherte Antworten (credit_ledger.result) nach REPLAY_HOURS geleert - fuer alle
+    Konten, nicht nur fuer das, das gerade fragt (Audit P57-10)."""
+    from . import ai_backend, credits
+    cache_cut = (now - timedelta(days=ai_backend.CACHE_DAYS)).isoformat()
+    replay_cut = (now - timedelta(hours=credits.REPLAY_HOURS)).isoformat()
+    out = {"ai_cache": 0, "ai_answers": 0}
+    with accounts.cursor() as conn:
+        if accounts._has_table(conn, "ai_cache"):
+            out["ai_cache"] = conn.execute("SELECT COUNT(*) FROM ai_cache WHERE created_at < ?", (cache_cut,)).fetchone()[0]
+            if out["ai_cache"] and not dry_run:
+                conn.execute("DELETE FROM ai_cache WHERE created_at < ?", (cache_cut,))
+        if accounts._has_table(conn, "credit_ledger"):
+            where = "result IS NOT NULL AND settled_at IS NOT NULL AND settled_at < ?"
+            out["ai_answers"] = conn.execute(f"SELECT COUNT(*) FROM credit_ledger WHERE {where}", (replay_cut,)).fetchone()[0]
+            if out["ai_answers"] and not dry_run:
+                conn.execute(f"UPDATE credit_ledger SET result=NULL WHERE {where}", (replay_cut,))
+    return out
+
+
+def purge_mail_log(now: datetime, days: int = MAIL_DAYS, dry_run: bool = False) -> int:
+    from . import mail
+    p = mail.log_path()
+    return trim_dated_log(p, (now - timedelta(days=days)).date(), dry_run) if p.exists() else 0
+
+
+def purge_export_zips(now: datetime, dry_run: bool = False) -> int:
+    """Export-ZIPs (account_export.build) im Temp-Ordner, die die Antwort nach einem Abbruch nicht geloescht hat."""
+    import tempfile
+    cutoff = now.timestamp() - EXPORT_MAX_AGE_S
+    n = 0
+    for p in Path(tempfile.gettempdir()).glob("studora-export-*.zip"):
+        try:
+            if p.is_file() and not p.is_symlink() and p.stat().st_mtime < cutoff:
+                if not dry_run:
+                    p.unlink(missing_ok=True)
+                n += 1
+        except OSError:
+            continue
+    return n
+
+
 # ---------------------------------------------------------------- Lauf und Zeitplan
 
 def run(now: datetime | None = None, dry_run: bool = False) -> dict:
@@ -238,7 +289,9 @@ def run(now: datetime | None = None, dry_run: bool = False) -> dict:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     result = {"at": accounts.iso(now), "dry_run": dry_run, "access_files": purge_access_logs(now.date(), dry_run=dry_run),
-              "account_logs": purge_account_logs(now, dry_run=dry_run), **purge_account_db(now, dry_run=dry_run)}
+              "account_logs": purge_account_logs(now, dry_run=dry_run), **purge_account_db(now, dry_run=dry_run),
+              **purge_ai(now, dry_run=dry_run), "mail_log_lines": purge_mail_log(now, dry_run=dry_run),
+              "export_zips": purge_export_zips(now, dry_run=dry_run)}
     if not dry_run and (config.BASE_DATA_DIR / "community.db").exists():
         from . import community_qa                     # gelesene Benachrichtigungen nach 90 Tagen (Community Teil 2)
         result["notifications"] = community_qa.prune()

@@ -264,8 +264,8 @@ def welcome_text(email: str, link: str | None = None) -> str:
             f"dein {APP_NAME}-Konto für {email} ist angelegt. Du kannst dich damit auf allen deinen Geräten anmelden:\n\n"
             f"{public_url()}/login\n\n"
             f"{confirm}"
-            f"Die Zugangsdaten deiner Hochschule gibst du erst in der App ein; sie liegen verschlüsselt am Konto und werden "
-            f"nur für den Abgleich genutzt.\n\n"
+            f"Die Zugangsdaten deiner Hochschule gibst du nur in der App auf deinem Gerät ein; sie bleiben dort und liegen "
+            f"nie auf unseren Servern.\n\n"
             f"Wenn du dieses Konto nicht angelegt hast, antworte bitte kurz auf diese Mail oder lösche das Konto in der App "
             f"unter Konto → Konto löschen.\n\n"
             f"{APP_NAME}")

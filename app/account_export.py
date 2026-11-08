@@ -10,7 +10,8 @@ und loescht sie danach. Inhalt:
 - `daten/`: der Nutzerordner je Hochschule: Datenbanken (`lernapp.db`, konsistent ueber die SQLite-Sicherung kopiert)
   mit Kursen, Notizen, Kalender, Lernpaketen, Karteikarten samt Stapeln, Tests, dazu eigene Dateien und Protokolle. Ohne
   Browser-Profile (Sitzungs-Cookies der Hochschule) und ohne Arbeitsordner der KI.
-- `community/`: eigene Loesungen (Liste und Pakete), eigene Korrekturvorschlaege, eigene Karteikarten-Stapel, eigene Meldungen und Sperrliste
+- `community/`: eigene Loesungen (Liste und Pakete), eigene Korrekturvorschlaege, eigene Karteikarten-Stapel, eigene Meldungen und Sperrliste,
+  `meine-beitraege.json` (Kommentare, Fragen/Antworten, Likes, Lesezeichen, Mitteilungen, Mitgliedschaften, Claims)
 - `testbibliothek.json`: eigene Fragen in der gemeinsamen Testbibliothek
 """
 from __future__ import annotations
@@ -55,6 +56,12 @@ def _account(user: dict) -> dict:
             "einladungen": _invites(conn, uid),
             "abgleich_auftraege": _rows(conn, "SELECT kind, trigger, status, requested_at, started_at, finished_at, message, new_files "
                                               "FROM sync_jobs WHERE user_id=? ORDER BY id", (uid,)),
+            # Audit 08.11.2026, P57-11: Tarifauswahl nach der Probe, Stripe-Kennungen, eigene Seiten-Erklaerungen
+            "tarif_auswahl": _rows(conn, "SELECT plan, chosen_at FROM plan_choices WHERE user_id=?", (uid,)),
+            "stripe": {"kunde": _rows(conn, "SELECT customer_id, created_at FROM stripe_customers WHERE user_id=?", (uid,)),
+                       "abos": _rows(conn, "SELECT subscription_id, event_created FROM stripe_subscription_state WHERE user_id=?", (uid,))},
+            "seiten_erklaerungen": _rows(conn, "SELECT record_name, file_key, page, mode, variant, payload, version, created_at "
+                                               "FROM page_explain WHERE owner_id=? ORDER BY created_at", (uid,)),
         }
     creds = {}
     for name, value in sorted(vault.env_for(uid).items()):
@@ -118,11 +125,43 @@ def _community(z: zipfile.ZipFile, user: dict) -> int:
     z.writestr("community/meine-korrekturen.json", json.dumps(community_corrections.exported(user), ensure_ascii=False, indent=1))
     from . import community_cards
     z.writestr("community/meine-karteikarten.json", json.dumps(community_cards.exported(user), ensure_ascii=False, indent=1))
+    z.writestr("community/meine-beitraege.json", json.dumps(_contributions(user["id"]), ensure_ascii=False, indent=1))
     for s in sols:
         p = community.package_dir() / f"{s['solution_id']}.uniflowsolution"
         if p.exists():
             z.write(p, f"community/pakete/{p.name}")
     return len(sols)
+
+
+def _contributions(uid: str) -> dict:
+    """Alles Weitere, was community.db zum Konto speichert (Audit 08.11.2026, P57-11: fehlte im Export). Nur eigene
+    Zeilen und nie fremde Konto-IDs (bei Mitteilungen steht der Ausloeser nur als Pseudonym)."""
+    from . import community
+    q = (uid,)
+    with community.cursor() as conn:
+        return {
+            "kommentare": _rows(conn, "SELECT id, solution_id, parent_id, page_key, anchor_x, anchor_y, text, pseudonym, created_at, "
+                                      "edited_at, status FROM comments WHERE author_id=? ORDER BY created_at", q),
+            "likes_loesungen": _rows(conn, "SELECT solution_id, created_at FROM likes WHERE user_id=? ORDER BY created_at", q),
+            "kommentar_meldungen": _rows(conn, "SELECT comment_id, reason, created_at FROM comment_reports WHERE reporter_id=?", q),
+            "fragen": _rows(conn, "SELECT id, course_key, university, title, body, fingerprint, page, pseudonym, created_at, edited_at, "
+                                  "status, accepted_answer FROM questions WHERE author_id=? ORDER BY created_at", q),
+            "antworten": _rows(conn, "SELECT id, question_id, body, pseudonym, created_at, edited_at, status FROM answers "
+                                     "WHERE author_id=? ORDER BY created_at", q),
+            "hilfreich_stimmen": _rows(conn, "SELECT answer_id, created_at FROM answer_votes WHERE user_id=?", q),
+            "likes_fragen": _rows(conn, "SELECT question_id, created_at FROM question_likes WHERE user_id=?", q),
+            "meldungen_fragen_antworten": _rows(conn, "SELECT kind, target_id, reason, created_at FROM qa_reports WHERE reporter_id=?", q),
+            "lesezeichen": _rows(conn, "SELECT kind, target_id, created_at FROM bookmarks WHERE user_id=?", q),
+            "mitteilungen": _rows(conn, "SELECT kind, target_kind, target_id, context_id, text, count, created_at, read_at "
+                                        "FROM notifications WHERE user_id=? ORDER BY created_at", q),
+            "mitgliedschaften": _rows(conn, "SELECT community_key, university, kind, joined_at FROM community_members WHERE user_id=?", q),
+            "lerngruppen_angelegt": _rows(conn, "SELECT group_key, university, name, created_at FROM study_groups WHERE created_by=?", q),
+            "pdf_fingerabdruecke": _rows(conn, "SELECT fingerprint, university, claimed_at FROM claims WHERE user_id=? ORDER BY claimed_at", q),
+            "kurs_schluessel": _rows(conn, "SELECT course_key, university, claimed_at FROM course_claims WHERE user_id=? ORDER BY claimed_at", q),
+            "karteikarten_likes": _rows(conn, "SELECT stack_id, created_at FROM card_stack_likes WHERE user_id=?", q),
+            "karteikarten_meldungen": _rows(conn, "SELECT stack_id, reason, note, created_at FROM card_stack_reports WHERE reporter_id=?", q),
+            "korrektur_meldungen": _rows(conn, "SELECT correction_id, reason, created_at FROM correction_reports WHERE reporter_id=?", q),
+        }
 
 
 def _library(user: dict) -> list[dict]:
@@ -145,7 +184,9 @@ daten/                Deine Daten je Hochschule. lernapp.db ist eine SQLite-Date
                       for SQLite“): Kurse, Module, Notizen (Tabelle annotations), Stundenplan, Lernpakete, Aufgaben,
                       Karteikarten mit ihren Stapeln (flashcards, flashcard_stacks), Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule
                       speichert der Dienst nicht; sie bleiben in Stud.IP bzw. im Learnweb.
-community/            Deine veröffentlichten Lösungen (Liste und Pakete), deine geteilten Karteikarten, deine Korrekturvorschläge, deine Meldungen und deine Sperrliste.
+community/            Deine veröffentlichten Lösungen (Liste und Pakete), deine geteilten Karteikarten, deine Korrekturvorschläge, deine Meldungen und deine Sperrliste;
+                      in meine-beitraege.json Kommentare, Fragen, Antworten, Likes und Stimmen, Lesezeichen, Mitteilungen,
+                      Mitgliedschaften, angelegte Lerngruppen und die gemeldeten Fingerabdrücke und Kurs-Schlüssel.
 testbibliothek.json   Deine Fragen in der gemeinsamen Testbibliothek.
 
 Fragen zum Export oder zur Löschung: siehe /datenschutz.

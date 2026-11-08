@@ -171,6 +171,12 @@ der Zielspeicher nicht allein vom Inhaber kontrolliert wird. Monatlich eine Wied
 
 ### Wiederherstellung
 
+0. **Löschungen merken** (Datenschutzerklärung Abschnitt 10): solange die aktuelle `accounts.db` noch lesbar ist,
+   `docker compose exec -T app python -m app.accounts deleted > /root/geloescht.txt` (Konto-ID und Löschzeitpunkt).
+   Nach Schritt 5 jede Zeile erneut anwenden:
+   `while read id t; do docker compose exec -T app python -m app.accounts redelete "$id" "$t"; done < /root/geloescht.txt`
+   – sonst wären Konten, die nach der Sicherung gelöscht wurden, wieder aktiv. Ist `accounts.db` verloren, die
+   Löschanfragen aus dem Support-Postfach (support@studinow.app) seit dem Datum der Sicherung von Hand nachholen.
 1. Dienst anhalten: `cd /srv/uniflow/app/deploy && docker compose stop app`
 2. Archiv auswählen: `ls /srv/uniflow/backups` (Inhalt ansehen: `tar -tzf <Archiv> | head`)
 3. Daten-Volume leeren und befüllen (das Archiv enthält den Ordner `uniflow-data/`):

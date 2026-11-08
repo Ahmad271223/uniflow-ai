@@ -30,6 +30,11 @@ def wire_hosted_services() -> None:
     if config.is_hosted():
         accounts.reset_sender = mail.send_reset
         accounts.verify_sender = mail.send_verify
+        if mail.mode() == "log":            # Audit 08.11.2026, P57-01: Reset-Links landen dann in mail.log - laut melden
+            import logging
+            logging.getLogger("uniflow.mail").warning(
+                "LERNAPP_MAIL=log im Dienst (kein LERNAPP_SMTP_HOST): Mails mit Reset- und Bestaetigungslinks gehen nicht "
+                "hinaus, sondern stehen vollstaendig in %s. Fuer den Betrieb LERNAPP_SMTP_* in deploy/.env setzen.", mail.log_path())
 
 
 @asynccontextmanager
@@ -828,12 +833,53 @@ mimetypes.add_type("text/javascript", ".js")
 
 _bg_lock = threading.Lock()
 _bg_state: dict = {"running": False, "task": None, "message": ""}
+# Dienst: ein Hintergrundlauf je Konto statt je Prozess (Audit 08.11.2026, P56-04: vorher bekam jedes andere Konto im
+# selben Prozess 409, solange bei einem Konto z. B. eine Probeklausur lief). Konto-ID -> Name des Laufs.
+_bg_users: dict[str, str] = {}
+_bg_users_lock = threading.Lock()
+
+
+def _bg_running_any() -> bool:
+    with _bg_users_lock:
+        return bool(_bg_state["running"] or _bg_users)
+
+
+def _run_bg_hosted(uid: str, name: str, fn):
+    import contextvars
+    with _bg_users_lock:
+        if uid in _bg_users:
+            raise HTTPException(409, f"Es laeuft bereits: {_bg_users[uid]}")
+        _bg_users[uid] = name
+    progress.clear()
+    ctx = contextvars.copy_context()
+
+    def worker():
+        try:
+            ctx.run(fn)
+        except Exception as e:  # noqa: BLE001
+            print(f"Hintergrundlauf {name}: FEHLER {e}")
+        finally:
+            ctx.run(progress.clear)
+            with _bg_users_lock:
+                _bg_users.pop(uid, None)
+
+    try:
+        threading.Thread(target=worker, daemon=True).start()
+    except BaseException:
+        with _bg_users_lock:
+            _bg_users.pop(uid, None)
+        raise
+    return {"started": name}
 
 
 def _run_bg(name: str, fn):
-    """Ein Hintergrundlauf je Prozess. Der Job laeuft im Kontext der Anfrage (contextvars: Konto, Umgebung) - ein
-    nackter Thread haette ihn nicht und schriebe im Dienst in den Datenordner des Dienstes (Audit P28-06)."""
+    """Ein Hintergrundlauf je Prozess (PC) bzw. je Konto (Dienst). Der Job laeuft im Kontext der Anfrage (contextvars:
+    Konto, Umgebung) - ein nackter Thread haette ihn nicht und schriebe im Dienst in den Datenordner des Dienstes
+    (Audit P28-06)."""
     import contextvars
+    uid = config.current_user_id() if config.is_hosted() else None
+    if uid:
+        return _run_bg_hosted(uid, name, fn)
     if not _bg_lock.acquire(blocking=False):
         raise HTTPException(409, f"Es laeuft bereits: {_bg_state['task']}")
     _bg_state.update(running=True, task=name, message="")

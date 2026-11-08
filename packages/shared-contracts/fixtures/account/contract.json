@@ -812,6 +812,7 @@
    "content_type": "application/zip",
    "zip_entries_ohne_daten": [
     "LIESMICH.txt",
+    "community/meine-beitraege.json",
     "community/meine-karteikarten.json",
     "community/meine-korrekturen.json",
     "community/meine-loesungen.json",

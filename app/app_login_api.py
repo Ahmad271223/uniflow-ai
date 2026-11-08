@@ -26,7 +26,9 @@ from fastapi import APIRouter, Body, HTTPException, Request
 
 from . import accounts, config
 
-router = APIRouter(prefix="/api/app-login", tags=["app-login"])
+from .account_api import NoStoreRoute  # noqa: E402 - Antworten mit Einmal-Code bzw. Sitzung nie zwischenspeichern (P55-11)
+
+router = APIRouter(prefix="/api/app-login", tags=["app-login"], route_class=NoStoreRoute)
 PUBLIC = {"/api/app-login/token"}
 CODE_SECONDS = 120
 REDIRECT_RE = re.compile(r"^http://(127\.0\.0\.1|localhost|\[::1\]):(\d{1,5})/konto/rueckkehr$")
