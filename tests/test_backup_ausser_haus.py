@@ -518,7 +518,5 @@ def test_einbindung_service_env_und_doku():
     for must in ("### Sicherung außer Haus", "BX11", "install-ssh-key", "tools/sicherung-ausser-haus-einrichten.sh",
                  "--pruefen", "age -d", "ExecStartPost", "ausser_haus", "Auftragsverarbeitung", "Port 23"):
         assert must in bet, must
-    ds = (ROOT / "docs" / "release" / "DATENSCHUTZ.md").read_text(encoding="utf-8")
-    assert "Storage Box" in ds and "nach 30 Tagen gelöscht" in ds and "aus den Sicherungskopien spätestens 30 Tage später" in ds
-    kl = (ROOT / "docs" / "release" / "KONTO-LOESCHEN.md").read_text(encoding="utf-8")
-    assert "aus den Sicherungskopien spätestens 30 Tage später" in kl and "spätestens 14 Tage später" not in kl
+    # Rechtstexte (Storage Box, 30 Tage) gehen erst live, wenn die Kopie wirklich eingerichtet ist: Commit 6ffc94f7 auf
+    # Zweig betrieb/sicherung-ausser-haus (Entscheidung 09.11.2026), samt seinen Pruefungen hier.

@@ -29,7 +29,9 @@ Grundlage: `docs/VERTRAEGE-KONTO-SYNC.md` (Betrieb, Tresor, Jobs, Löschfristen)
 | `deploy/Caddyfile` | Domain aus `UNIFLOW_DOMAIN`, HSTS, `X-Content-Type-Options`, Referrer-Policy (nur wo die App keine setzt), Upload-Grenze 320 MB (App: 300 MB), lange Timeouts für Abgleich und große Dateien, kein Caddy-Zugriffsprotokoll |
 | `deploy/.env.example` | alle Variablen mit Erklärung → nach `deploy/.env` kopieren (ist per `.gitignore` ausgeschlossen) |
 | `deploy/backup.sh`, `deploy/backup_snapshot.py` | tägliches Backup als `tar.gz` nach `/srv/uniflow/backups`, Datenbanken konsistent über die SQLite-Backup-API, 14 Tage Aufbewahrung |
-| `deploy/uniflow-backup.service`, `.timer` | systemd-Zeitplan 03:30 (vor den Löschfristen um 04:00) |
+| `deploy/uniflow-backup.service`, `.timer` | systemd-Zeitplan 03:30 (vor den Löschfristen um 04:00), danach die Kopie außer Haus (`ExecStartPost`) |
+| `deploy/backup-ausser-haus.sh` | Kopie außer Haus: Archive mit `age` verschlüsseln, per rsync (SSH, Port 23) auf die Hetzner Storage Box, dort 30 Tage (Abschnitt 9) |
+| `tools/sicherung-ausser-haus-einrichten.sh` | auf dem Mac: age-Schlüsselpaar erzeugen, Befehle für den Server zeigen/ausführen, Probe-Wiederherstellung (`--pruefen`) |
 | `tests/test_deploy.py` | prüft das Paket ohne Docker (Variablen, Ports, Ausschlüsse, Backup-Skript) |
 
 ## 1. Server bestellen
@@ -167,9 +169,114 @@ systemctl list-timers uniflow-backup.timer
 journalctl -u uniflow-backup.service -n 20
 ```
 
-Aufbewahrung 14 Tage (`BACKUP_KEEP_DAYS`). **Ein Server allein ist kein Backup:** in `backup.sh` die Zeile für
-`rclone` (Hetzner Storage Box per SFTP) oder `scp` einkommentieren, Ziel in der EU, Archive verschlüsseln, wenn
-der Zielspeicher nicht allein vom Inhaber kontrolliert wird. Monatlich eine Wiederherstellung probeweise durchspielen.
+Aufbewahrung 14 Tage (`BACKUP_KEEP_DAYS`). **Ein Server allein ist kein Backup:** die verschlüsselte Kopie außer
+Haus (nächster Abschnitt) einrichten. Monatlich eine Wiederherstellung probeweise durchspielen.
+
+### Sicherung außer Haus
+
+> **Erst nach der Einrichtung:** Datenschutzerklärung und `KONTO-LOESCHEN.md` nennen die Kopie außer Haus (Storage Box, 30 Tage) erst mit Commit `6ffc94f7` auf Zweig `betrieb/sicherung-ausser-haus`. Diesen Commit nach dem ersten erfolgreichen Lauf übernehmen (`git cherry-pick 6ffc94f7`), `tools/gen-site.py` und `tools/site-hochladen.sh` ausführen.
+
+Seit 09.11.2026 vorbereitet, aktiv erst nach Bestellung und Einrichtung. Ziel: eine **Hetzner Storage Box BX11**
+(1 TB, ca. 4 € im Monat, Standort Deutschland). Liegt der Server in Nürnberg, ist ein anderes Rechenzentrum wie
+Falkenstein besser, damit ein Ausfall nicht beide trifft. Nie Helsinki (Finnland): die Datenschutzerklärung nennt
+Deutschland.
+
+**Wie es läuft:** `uniflow-backup.service` startet nach `backup.sh` (03:30) als zweiten Schritt (`ExecStartPost`)
+`deploy/backup-ausser-haus.sh`. Das Skript
+
+1. liest `OFFSITE_HOST`, `OFFSITE_USER` und `OFFSITE_RECIPIENT` aus `deploy/.env`. Sind alle drei leer, meldet es
+   „nicht eingerichtet“ und endet mit Exit 0, der Dienst bleibt grün;
+2. verschlüsselt jedes lokale Archiv, das auf der Box noch fehlt, mit `age` für den **öffentlichen** Schlüssel
+   (`age1…`). Hochgeladen werden nur `.tar.gz.age`-Dateien mit geprüfter age-Kopfzeile, nie ein Klartext-Archiv;
+3. lädt sie per rsync über SSH (**Port 23**, eigener Schlüssel `/root/.ssh/storagebox` nur für diesen Zweck, eigene
+   `known_hosts`) nach `studinow/` auf der Box und gleicht danach die Größen ab;
+4. löscht auf der Box die Kopien, deren Datum im Namen älter als 30 Tage ist (`OFFSITE_KEEP_DAYS`);
+5. schreibt bei Erfolg `/srv/uniflow/ausser-haus/letzte-kopie`. `dienst-check.sh` meldet die Kennung `ausser_haus`,
+   wenn diese Marke älter als 30 h ist oder fehlt (nur wenn eingerichtet).
+
+Ein Fehler (Box nicht erreichbar, Hochladen, Aufräumen, `age` fehlt) endet mit Exit ≠ 0: Der Dienst steht dann in
+`systemctl --failed`, das lokale Archiv bleibt unberührt, und der nächste Lauf lädt alle fehlenden Archive nach.
+Warum `ExecStartPost` und kein eigener Timer: Die Kopie läuft nur nach einem gelungenen lokalen Backup, also nie
+gegen ein halbes oder altes Archiv. Zwei Zeitpläne müssen nicht zueinander passen, und es gibt nur einen Dienst,
+den man prüfen muss. Was ein eigener Timer zusätzlich hätte (ein Nachholversuch am selben Tag), deckt hier der
+nächste Lauf ab, weil er jedes fehlende Archiv mitnimmt.
+
+**Schlüssel:** Der private age-Schlüssel entsteht auf dem Mac des Inhabers
+(`~/Studora-Builds/private_keys/studinow-sicherung-age.txt`, 0600) und gehört zusätzlich in den Passwort-Manager.
+Er kommt **nie** auf den Server (das Skript verweigert einen `AGE-SECRET-KEY` in `OFFSITE_RECIPIENT`). Wer den Server
+oder die Box übernimmt, kann die Kopien also nicht lesen. Geht der private Schlüssel verloren, sind alle Kopien
+außer Haus unlesbar: dann sofort ein neues Paar erzeugen und Schritt 3 der Einrichtung wiederholen.
+
+#### 1. Bestellen (Inhaber, einmalig)
+
+1. Hetzner Console (console.hetzner.com, dasselbe Kundenkonto wie der Server) → **Storage Boxes** → „Storage Box
+   erstellen“ (im älteren Hetzner Robot: robot.hetzner.com → Storage Box → bestellen) → **BX11** → Standort in
+   **Deutschland** (Falkenstein, wenn angeboten) → Name `studinow-sicherung` → bestellen.
+2. In den Einstellungen der Box: **SSH-Unterstützung** einschalten (für rsync über Port 23), **Externe Erreichbarkeit**
+   einschalten (der Server liegt nicht im selben Netz). Samba/WebDAV bleiben aus. Ein **Passwort** setzen („Passwort
+   zurücksetzen“); es wird genau einmal gebraucht, um den SSH-Schlüssel des Servers zu hinterlegen.
+3. Den Benutzernamen notieren (`u123456`; Host ist dann `u123456.your-storagebox.de`).
+
+#### 2. Einrichten (Mac, ein Befehl)
+
+```bash
+brew install age                                   # einmalig, falls `age` fehlt
+bash tools/sicherung-ausser-haus-einrichten.sh     # fragt den Benutzer u123456, dann je Schritt j/N
+```
+
+Das Skript erzeugt das age-Schlüsselpaar lokal (vorhandenes wird weiterverwendet, nie überschrieben). Danach zeigt
+es sechs Befehle der Form `ssh -i ~/.ssh/studinow_server root@46.225.32.3 '...'` und führt jeden nur nach „j“ aus.
+Mit `--nur-anzeigen` (oder ohne Terminal) zeigt es sie nur:
+
+1. Server: `apt-get install -y age rsync`, `ssh-keygen -t ed25519 -f /root/.ssh/storagebox` (ohne Passphrase, nur für
+   die Box). Voraussetzung: der Code-Stand mit `deploy/backup-ausser-haus.sh` liegt auf dem Server (Abschnitt 8).
+2. Den öffentlichen Teil in der Box hinterlegen, so wie Hetzner es beschreibt (Hetzner Docs, Storage Box, „SSH-Keys“):
+   `cat /root/.ssh/storagebox.pub | ssh -p 23 u123456@u123456.your-storagebox.de install-ssh-key` (läuft mit `ssh -t`
+   und fragt einmal nach dem Passwort der Box). Alternativ den Inhalt von `/root/.ssh/storagebox.pub` in der Hetzner
+   Console bei der Storage Box unter SSH-Keys eintragen.
+3. In `deploy/.env` `OFFSITE_HOST`, `OFFSITE_USER` und `OFFSITE_RECIPIENT` (öffentlicher Schlüssel `age1…`) setzen;
+   alte OFFSITE-Zeilen werden vorher entfernt, sonst ändert sich nichts an der Datei.
+4. `uniflow-backup.service` nach `/etc/systemd/system/` kopieren und `systemctl daemon-reload` ausführen
+   (der Zeitplan bleibt `uniflow-backup.timer`).
+5. Probe-Lauf: `bash deploy/backup-ausser-haus.sh` lädt alle vorhandenen Archive hoch (beim ersten Mal bis zu 14),
+   danach muss `dienst-check.sh --dry-run --verbose` die Zeile `OK ausser_haus letzte Kopie 0 h alt` zeigen.
+6. Probe-Wiederherstellung (siehe unten).
+
+Nach einem Server-Umzug (`tools/server-umzug.sh`) kommt `deploy/.env` mit, der SSH-Schlüssel `/root/.ssh/storagebox`
+aber nicht: auf dem neuen Server die Schritte 1, 2, 4 und 5 wiederholen.
+
+#### 3. Probe-Wiederherstellung (monatlich, und nach der Einrichtung)
+
+Schritt 6 des Einrichtungsskripts holt die neueste Kopie über den Server auf den Mac. Sie bleibt dabei verschlüsselt,
+denn der Server hat den privaten Schlüssel nicht. Danach prüft er sie:
+
+```bash
+bash tools/sicherung-ausser-haus-einrichten.sh            # nur bei Schritt 6 "j"
+bash tools/sicherung-ausser-haus-einrichten.sh --pruefen ~/Downloads/studinow-probe-JJJJ-MM-TT.tar.gz.age
+```
+
+`--pruefen` entschlüsselt mit `age -d -i ~/Studora-Builds/private_keys/studinow-sicherung-age.txt` in einen
+Arbeitsordner und prüft das Format von `deploy/backup_snapshot.py`: `uniflow-data/BACKUP-INFO.txt` mit `created=`,
+`uniflow-data/accounts.db` mit `PRAGMA integrity_check` = `ok` und Zahl der Konten, Zahl der `users/*/lernapp.db`,
+kein `secret.key` und keine WAL-Dateien. Danach löscht es den Arbeitsordner mit dem Klartext. Ergebnis
+`ERGEBNIS: Kopie lesbar und vollstaendig`.
+Von Hand geht es auch ohne Server, mit dem Passwort der Box:
+`sftp -P 23 u123456@u123456.your-storagebox.de:studinow/uniflow-JJJJ-MM-TT_HHMM.tar.gz.age .`, dann
+`age -d -i <privater Schlüssel> -o archiv.tar.gz <datei>.age` und `tar -tzf archiv.tar.gz | head`.
+
+**Ernstfall** (Server und lokale Backups verloren): neuen Server aufsetzen (Abschnitte 3–6), eine Kopie wie oben auf
+den Mac holen und entschlüsseln, das Klartext-Archiv mit
+`scp -i ~/.ssh/studinow_server archiv.tar.gz root@<server>:/srv/uniflow/backups/` hochladen und die
+Wiederherstellung unten ab Schritt 0 durchführen. Danach die Klartext-Datei auf dem Mac löschen.
+
+**Datenschutz:** Die Archive enthalten personenbezogene Daten. Die Storage Box ist ein Produkt von Hetzner Online GmbH
+im selben Kundenkonto. Der Vertrag zur **Auftragsverarbeitung** mit Hetzner (Art. 28 DSGVO, für das
+Kundenkonto abgeschlossen) gilt für alle Produkte des Kontos, ein neuer Auftragsverarbeiter kommt nicht dazu.
+Die Datenschutzerklärung (Abschnitte 10, 11 und 15) und die Seite „Konto löschen“ nennen seit 09.11.2026 die
+verschlüsselte Kopie in Deutschland und die Frist: Gelöschtes verschwindet spätestens 14 Tage danach aus den Backups
+auf dem Server und spätestens 30 Tage danach aus der Kopie außer Haus. Ändert sich `OFFSITE_KEEP_DAYS`, müssen
+diese Texte mitgeändert werden (`tools/gen-site.py`). Bei der Wiederherstellung gilt Schritt 0 unten auch für eine
+Kopie von der Box: Löschungen seit dem Datum der Kopie wiederholen.
 
 ### Wiederherstellung
 
@@ -247,7 +354,8 @@ Jobs-Container (`python -m app.jobs`) läuft.
 2. Mailversand einrichten (Variablen `LERNAPP_MAIL*`, `LERNAPP_SMTP_*`, `LERNAPP_PUBLIC_URL` in `.env.example` sind
    vorgesehen, die Anbindung in `app/mail.py` entsteht parallel); bis dahin Reset-Token per CLI (Abschnitt 7).
 3. Vertrag zur Auftragsverarbeitung mit dem Hoster und ggf. dem Mail-Anbieter.
-4. Backup-Ziel außer Haus (Abschnitt 9) und einmal die Wiederherstellung üben.
+4. Sicherung außer Haus: Storage Box BX11 bestellen, `bash tools/sicherung-ausser-haus-einrichten.sh` ausführen
+   und einmal die Probe-Wiederherstellung machen (Abschnitt 9, „Sicherung außer Haus“).
 5. Den Abgleich mit einem echten Hochschulkonto auf dem Server beobachten (erster Lauf nach 08:00/15:00 oder per
    „Jetzt abgleichen“ in der App) und `docker stats` dabei ansehen.
 
