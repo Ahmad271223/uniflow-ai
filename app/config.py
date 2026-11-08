@@ -197,6 +197,8 @@ def set_env(values: dict) -> None:
         if _ctx_env.get() is not None:
             _ctx_env.set(vault.env_for(uid))
         return
+    from . import local_secrets
+    values = local_secrets.protect_values(values)       # Passwoerter, Cookies, Schluessel nie im Klartext in der .env (Windows-App)
     path = env_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else \
@@ -242,7 +244,8 @@ def _env() -> dict:
         from . import vault
         return vault.env_for(uid)
     from dotenv import dotenv_values
-    return dotenv_values(env_file(), interpolate=False) if env_file().exists() else {}
+    from . import local_secrets
+    return local_secrets.unprotect_values(dotenv_values(env_file(), interpolate=False)) if env_file().exists() else {}
 
 
 def service_status(prefix: str) -> dict:

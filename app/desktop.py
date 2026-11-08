@@ -374,6 +374,13 @@ def _run(args: argparse.Namespace, base: Path) -> int:
     redirect_std_streams(log_path)
     for b in backup_databases(base):
         log(log_path, f"Sicherung: {b}")
+    try:                                                     # 08.11.2026: Passwoerter in der .env nur noch verschluesselt (DPAPI)
+        from app import local_secrets                        # erst jetzt: liest die Umgebung oben
+        n = local_secrets.migrate_env_file(base / ".env")
+        if n:
+            log(log_path, f"{n} Geheimnis(se) in der .env verschluesselt ({local_secrets.backend()})")
+    except Exception:                                        # noqa: BLE001 - die App soll trotzdem starten
+        log(log_path, f"Verschluesseln der .env fehlgeschlagen:\n{traceback.format_exc()}")
     try:
         serve(args, state_path, log_path)
     except Exception:                                        # ins Protokoll und Ende mit 1, statt PyInstallers Fehlerfenster

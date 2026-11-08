@@ -2393,8 +2393,9 @@ def _no_credentials_in_service() -> None:
 def get_credentials():
     if config.is_hosted():
         return {"user": "", "password_set": False, "stored_on_server": False, "message": vault.NOT_STORED_MESSAGE}
+    from . import local_secrets
     user, pw = config.credentials()
-    return {"user": user, "password_set": bool(pw)}
+    return {"user": user, "password_set": bool(pw), "storage": local_secrets.storage_label()}
 
 
 @app.post("/api/university/login")

@@ -512,8 +512,7 @@ def test_visible_name_is_studinow_and_internal_names_stay():
     assert 'set_message(&win, "StudiNow startet …")' in rs and 'unwrap_or("StudiNow")' in rs
     assert "uniflow-backend.exe" in rs and "de.uniflow.desktop" in rs, "Dateiname und Datenordner bleiben"
     store = json.loads((WIN / "msix" / "store.json").read_text(encoding="utf-8"))
-    assert store["display_name"] == "StudiNow" and store["publisher_display_name"].startswith("StudiNow")
-    assert store["identity_name"].startswith("UniFlow") and store["publisher"].startswith("CN="), "Identität aus Partner Center bleibt"
+    assert store["display_name"] == "StudiNow" and store["publisher"].startswith("CN="), "Anzeigename StudiNow; Herausgeber aus Partner Center (bis dahin Platzhalter, tests/test_windows_package.py)"
     assert (WIN / "README.md").read_text(encoding="utf-8").startswith("# StudiNow für Windows")
 
 
