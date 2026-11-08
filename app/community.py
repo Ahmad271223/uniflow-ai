@@ -192,11 +192,9 @@ def _schema(conn) -> None:
     conn.executescript(SCHEMA)
     conn.executescript(community_qa.SCHEMA)
     conn.executescript(community_corrections.SCHEMA)
-    if "community_key" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
-        conn.execute("ALTER TABLE solutions ADD COLUMN community_key TEXT")
+    db.add_column(conn, "solutions", "community_key", "TEXT")     # mehrere Prozesse zugleich (Audit P11-02)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_community ON solutions(community_key, status)")
-    if "updated_at" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
-        conn.execute("ALTER TABLE solutions ADD COLUMN updated_at TEXT")     # letztes Ersetzen des Pakets (update), sonst NULL
+    db.add_column(conn, "solutions", "updated_at", "TEXT")        # letztes Ersetzen des Pakets (update), sonst NULL
     conn.execute("INSERT OR IGNORE INTO community_kinds(community_key, kind, created_at) SELECT group_key, 'group', created_at FROM study_groups")
 
 

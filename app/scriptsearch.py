@@ -79,8 +79,7 @@ def ensure_table(conn) -> None:
         file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER, search TEXT,
         PRIMARY KEY (file_id, page))""")
     # Suchform (search_form) kam spaeter dazu; aeltere Zeilen bekommen sie in find_pages
-    if "search" not in {r[1] for r in conn.execute("PRAGMA table_info(page_texts)")}:
-        conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
+    db.add_column(conn, "page_texts", "search", "TEXT")
 
 
 def is_text_source(name: str | None) -> bool:

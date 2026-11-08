@@ -85,8 +85,7 @@ def _schema(conn) -> None:
 def ensure_schema(conn) -> None:
     """Tabellen anlegen; aeltere community.db bekommt die Spalte updated_at (Ersetzen, 04.11.2026)."""
     conn.executescript(SCHEMA)
-    if "updated_at" not in {r[1] for r in conn.execute("PRAGMA table_info(card_stacks)")}:
-        conn.execute("ALTER TABLE card_stacks ADD COLUMN updated_at TEXT")
+    db.add_column(conn, "card_stacks", "updated_at", "TEXT")      # mehrere Prozesse zugleich (Audit P11-02)
 
 
 # ---------------------------------------------------------------- Pruefungen

@@ -990,13 +990,10 @@ def _run_statements(conn: sqlite3.Connection, script: str) -> None:
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
     _run_statements(conn, SCHEMA)
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(ai_usage_log)")}
-    if "trial" not in cols:                                       # Tabelle aus aelterem Stand
-        conn.execute("ALTER TABLE ai_usage_log ADD COLUMN trial INTEGER NOT NULL DEFAULT 0")
-    if "library" not in cols:
-        conn.execute("ALTER TABLE ai_usage_log ADD COLUMN library INTEGER NOT NULL DEFAULT 0")
-    if "model" not in {r[1] for r in conn.execute("PRAGMA table_info(ai_cache)")}:
-        conn.execute("ALTER TABLE ai_cache ADD COLUMN model TEXT")
+    # Tabellen aus aelterem Stand; db.add_column, weil mehrere Prozesse zugleich migrieren (Audit P11-02)
+    db.add_column(conn, "ai_usage_log", "trial", "INTEGER NOT NULL DEFAULT 0")
+    db.add_column(conn, "ai_usage_log", "library", "INTEGER NOT NULL DEFAULT 0")
+    db.add_column(conn, "ai_cache", "model", "TEXT")
     _run_statements(conn, TRIGGERS)
     _rebuild_once(conn)
 

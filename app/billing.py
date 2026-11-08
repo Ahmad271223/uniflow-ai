@@ -124,10 +124,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.commit()
     _migrate_usage_requests(conn)
     conn.executescript(SCHEMA)
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(entitlements)")}
+    from . import db
     for col, decl in (("will_renew", "INTEGER NOT NULL DEFAULT 1"), ("pending_plan", "TEXT"), ("environment", "TEXT")):
-        if col not in cols:
-            conn.execute(f"ALTER TABLE entitlements ADD COLUMN {col} {decl}")
+        db.add_column(conn, "entitlements", col, decl)          # mehrere Prozesse zugleich (Audit P11-02)
 
 
 def connect() -> sqlite3.Connection:

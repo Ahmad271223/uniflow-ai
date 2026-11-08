@@ -163,11 +163,9 @@ def db_path() -> Path:
 
 def _migrate(conn) -> None:
     """Spalten fuer bestehende Datenbanken (Muster wie db.init_db): fehlt eine, wird sie angehaengt."""
-    def add_col(table, col, decl):
-        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-        if col not in cols:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-    add_col("identities", "email", "TEXT")          # vom Anbieter gelieferte Adresse (Apple: Relay), nur zur Anzeige
+    from . import db
+    # db.add_column: alle Dienst-Prozesse migrieren accounts.db beim Start gleichzeitig (Audit P11-02)
+    db.add_column(conn, "identities", "email", "TEXT")          # vom Anbieter gelieferte Adresse (Apple: Relay), nur zur Anzeige
 
 
 @contextmanager

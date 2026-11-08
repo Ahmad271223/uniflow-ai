@@ -110,7 +110,8 @@ def test_files_mode_defaults_and_override(app, monkeypatch):
     monkeypatch.setattr(config, "FILES_MODE", "store")
     assert config.files_mode() == "store"
     monkeypatch.setattr(config, "FILES_MODE", "unsinn")
-    assert config.files_mode() == "store"
+    with pytest.raises(ValueError):                    # Audit P11-07: Tippfehler ist ein Fehler, nicht still "store"
+        config.files_mode()
 
 
 # ---------------------------------------------------------------- Abgleich ohne Dateien

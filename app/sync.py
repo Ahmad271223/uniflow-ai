@@ -88,7 +88,8 @@ def ensure_schema(conn) -> None:
             continue
         for col, decl in (("sync_version", "INTEGER DEFAULT 1"), ("sync_updated_at", "TEXT"), ("sync_device", "TEXT")):
             if col not in cols:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                from . import db
+                db.add_column(conn, table, col, decl)           # mehrere Prozesse zugleich (Audit P11-02)
         pk = meta["pk"]
         # Einfuegen durch die App (ohne Zeitstempel): Zeitstempel setzen. Der Push fuegt mit Zeitstempel ein, dann nichts.
         conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_ins_{table} AFTER INSERT ON {table}
