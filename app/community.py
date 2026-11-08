@@ -580,16 +580,42 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
         if cur and cur["status"] in ("hidden", "removed"):
             raise CommunityError("solution_blocked", "Diese Lösung ist gesperrt und kann nicht erneut veröffentlicht werden.", 403)
         now = _now()
-        package_dir().mkdir(parents=True, exist_ok=True)
-        (package_dir() / f"{info['id']}.uniflowsolution").write_text(raw, encoding="utf-8")
-        conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at, published_at,
-                        page_count, pages, size, status, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?)
-                        ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, community_key=excluded.community_key, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
-                          created_at=excluded.created_at, published_at=excluded.published_at, page_count=excluded.page_count,
-                          pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL""",
-                     (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
-                      info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
+        # Audit P5-01 (08.11.2026): Paket neben die Zieldatei schreiben, Zeile eintragen, dann atomar an die Stelle
+        # setzen - alles vor dem Commit. Scheitert die Datenbank, bleibt keine Paketdatei ohne Zeile zurueck (vorher
+        # eine Leiche, die weder Zurueckziehen noch Loeschen je fand); ein Leser sieht beim erneuten Veroeffentlichen
+        # nie ein halb geschriebenes Paket.
+        with _staged_package(info["id"], raw) as install:
+            conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at, published_at,
+                            page_count, pages, size, status, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?)
+                            ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, community_key=excluded.community_key, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
+                              created_at=excluded.created_at, published_at=excluded.published_at, page_count=excluded.page_count,
+                              pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL""",
+                         (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
+                          info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
+            install()
     return {"solution_id": info["id"], "published_at": now, "pseudonym": pseudonym(user["id"]), "republished": bool(cur)}
+
+
+def _package_path(solution_id: str) -> Path:
+    return package_dir() / f"{solution_id}.uniflowsolution"
+
+
+@contextmanager
+def _staged_package(solution_id: str, raw: str):
+    """Paket in eine Temp-Datei mit eindeutigem Namen je Aufruf schreiben (`<id>.uniflowsolution.<zufall>.neu`); der
+    gelieferte Aufruf `install()` setzt sie atomar an die Stelle der Zieldatei (Path.replace, gleiche Platte). Bleibt
+    `install()` aus oder scheitert etwas, verschwindet die Temp-Datei. Audit P5-01/P5-02: vorher schrieb `publish`
+    direkt in die Zieldatei und `update` nutzte fuer alle Aufrufe denselben Namen `.neu` - zwei gleichzeitige
+    Aktualisierungen derselben Loesung ueberschrieben einander die Temp-Datei (FileNotFoundError beim Umbenennen oder
+    ein halbes Paket im Ziel)."""
+    package_dir().mkdir(parents=True, exist_ok=True)
+    target = _package_path(solution_id)
+    tmp = target.with_name(f"{target.name}.{uuid.uuid4().hex[:12]}.neu")
+    try:
+        tmp.write_text(raw, encoding="utf-8")
+        yield lambda: tmp.replace(target)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def own_solution(conn, author_id: str, fingerprint: str, community_key: str | None):
@@ -637,14 +663,19 @@ def update(user: dict, university: str, solution_id: str, pkg, title: str | None
     _limit("update_user", user["id"])
     title = (title or "").strip()[:MAX_TITLE] or None
     now = _now()
-    package_dir().mkdir(parents=True, exist_ok=True)
-    target = package_dir() / f"{sid}.uniflowsolution"
-    tmp = target.with_name(target.name + ".neu")
-    tmp.write_text(raw, encoding="utf-8")
-    tmp.replace(target)                                  # nie ein halb geschriebenes Paket beim Laden
-    with cursor() as conn:
-        conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?
-                        WHERE id=?""", (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, sid))
+    # Audit P5-02 (08.11.2026): eindeutige Temp-Datei je Aufruf; Zeile und Datei in EINER Transaktion, und nur solange
+    # die Loesung noch aktiv ist - hat die Moderation sie inzwischen verborgen oder entfernt (Paket geloescht), kommt
+    # kein neues Paket auf die Platte (vorher stand das Paket einer entfernten Loesung wieder da).
+    with _staged_package(sid, raw) as install, cursor() as conn:
+        n = conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?
+                            WHERE id=? AND author_id=? AND status='active'""",
+                         (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, sid, user["id"])).rowcount
+        if n != 1:
+            cur = conn.execute("SELECT status FROM solutions WHERE id=?", (sid,)).fetchone()
+            if cur and cur["status"] in ("hidden", "removed"):
+                raise CommunityError("solution_blocked", "Diese Lösung ist gesperrt und kann nicht aktualisiert werden.", 403)
+            raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
+        install()
     return {"solution_id": sid, "updated_at": now, "pages": info["pages"], "pseudonym": pseudonym(user["id"])}
 
 
@@ -699,15 +730,20 @@ def mine(user: dict) -> list[dict]:
 
 
 def withdraw_all(author_id: str, reason: str) -> int:
-    """Alle Loesungen eines Kontos zurueckziehen (Konto geloescht): nicht mehr sichtbar, Pakete weg."""
+    """Alle Loesungen eines Kontos zurueckziehen (Konto geloescht): nicht mehr sichtbar, Pakete weg. Audit P5-05
+    (08.11.2026): die Pakete verschwinden innerhalb der Transaktion - scheitert ein Loeschen, bleibt die Datenbank
+    unveraendert und die Wiederholung (spaetestens `forget_author` beim endgueltigen Loeschen) erledigt alles; vorher
+    war die Datenbank schon festgeschrieben und die Wiederholung fand nichts mehr, die Pakete blieben liegen."""
     with cursor() as conn:
+        from . import community_cards
+        # zuerst: legt beim ersten Aufruf je Prozess sein Schema per executescript an, und das committet still alles
+        # davor - danach gehoeren Statuswechsel und Dateiloeschung zu EINER Transaktion
+        community_cards.withdraw_all(conn, author_id)                # geteilte Karteikarten-Stapel ebenso
         rows = conn.execute("SELECT id FROM solutions WHERE author_id=? AND status IN ('active','hidden')", (author_id,)).fetchall()
         conn.execute("UPDATE solutions SET status='withdrawn', status_reason=? WHERE author_id=? AND status IN ('active','hidden')",
                      (reason, author_id))
-        from . import community_cards
-        community_cards.withdraw_all(conn, author_id)                # geteilte Karteikarten-Stapel ebenso
-    for r in rows:
-        (package_dir() / f"{r['id']}.uniflowsolution").unlink(missing_ok=True)
+        for r in rows:
+            _package_path(r["id"]).unlink(missing_ok=True)
     return len(rows)
 
 
@@ -731,10 +767,10 @@ def forget_author(user_id: str) -> int:
         conn.execute("DELETE FROM reports WHERE reporter_id=?", (user_id,))
         conn.execute("DELETE FROM blocks WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM bans WHERE author_id=?", (user_id,))
+        for sid in ids:                                           # alle Pakete des Kontos, auch liegen gebliebene (P5-05)
+            _package_path(sid).unlink(missing_ok=True)
     from . import community_qa
     community_qa.forget(user_id)
-    for sid in ids:
-        (package_dir() / f"{sid}.uniflowsolution").unlink(missing_ok=True)
     return len(ids)
 
 
@@ -842,7 +878,12 @@ def moderate(user: dict, solution_id: str, action: str, reason: str | None = Non
         if action == "hide":
             conn.execute("UPDATE solutions SET status='hidden', status_reason=? WHERE id=?", (reason or "moderation", r["id"]))
         elif action == "restore":
-            conn.execute("UPDATE solutions SET status='active', status_reason=NULL WHERE id=? AND status IN ('hidden','removed')", (r["id"],))
+            # Audit P5-03 (08.11.2026): `remove` und `ban_author` loeschen die Paketdatei; eine Wiederherstellung ohne
+            # Paket wurde "aktiv" gelistet, das Laden lief auf 404. Ohne Paket gilt die Loesung als zurueckgezogen
+            # (wie durch den Autor): der Autor veroeffentlicht sie erneut (gleiche ID, Likes und Kommentare bleiben).
+            gone = r["status"] in ("hidden", "removed") and not _package_path(r["id"]).exists()
+            conn.execute("UPDATE solutions SET status=?, status_reason=? WHERE id=? AND status IN ('hidden','removed')",
+                         ("withdrawn" if gone else "active", "package_gone" if gone else None, r["id"]))
             conn.execute("DELETE FROM reports WHERE solution_id=?", (r["id"],))
             conn.execute("UPDATE solutions SET report_count=0 WHERE id=?", (r["id"],))
         elif action == "remove":
@@ -858,7 +899,10 @@ def moderate(user: dict, solution_id: str, action: str, reason: str | None = Non
         else:
             raise CommunityError("action_invalid", "Unbekannte Aktion.")
         s = _summary(conn.execute("SELECT * FROM solutions WHERE id=?", (r["id"],)).fetchone(), user["id"])
-    return {"action": action, "solution": s}
+    out = {"action": action, "solution": s}
+    if action == "restore" and gone:
+        out["package_gone"] = True                       # Paket war geloescht: zurueckgezogen statt aktiv
+    return out
 
 
 # ---------------------------------------------------------------- Likes, Kommentare, Rangliste (28.10.2026)
