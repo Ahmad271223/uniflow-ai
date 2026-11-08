@@ -32,9 +32,12 @@ enum StudyPlanEditRef: Identifiable, Equatable {
 }
 
 /// Ziehen und Ablegen auf dem Board: die Spalte meldet (Modul-ids, Semester) hierher, die Seite verschiebt. Eigene
-/// Klasse, damit Tests das Ablegen ohne echte Geste ausloesen koennen.
+/// Klasse, damit Tests das Ablegen ohne echte Geste ausloesen koennen. MainView baut die Seite bei jeder Aenderung der
+/// Sitzung neu und damit auch eine neue Ablage (Standardwert); die Seite verbindet jede neue Ablage (`id`), sonst
+/// verpuffte das Ablegen am iPad still (Befund 09.11.2026).
 @MainActor
 final class StudyPlanDropHub {
+    nonisolated let id = UUID()
     var perform: (([String], String) async -> Bool)?
 
     nonisolated init() {}
@@ -589,9 +592,10 @@ struct StudyPlanOverview: View {
                 Button { actions(m, .move) } label: { Label("Verschieben nach …", systemImage: "arrow.left.arrow.right") }
                 Button(role: .destructive) { actions(m, .drop) } label: { Label("Nicht belegen", systemImage: "minus.circle") }
             }
+            StudyPlanLockedMenuItem(module: m, editable: actions != nil)
         }
         .accessibilityLabel(StudyPlanText.accessibility(m))
-        .accessibilityHint("Zeigt Details zum Modul")
+        .accessibilityHint(StudyPlanText.cardHint(m, editable: actions != nil))
         .modifier(StudyPlanCardActions(module: m, actions: actions))
         .accessibilityIdentifier("studyplan.chip.\(m.id)")
         if dropHub != nil && m.movable { chip.draggable(m.id) } else { chip }

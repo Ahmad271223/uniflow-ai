@@ -174,6 +174,42 @@ final class StudyPlanEngineTests: XCTestCase {
         XCTAssertEqual(count.slots["labore"], [5])
     }
 
+    /// Verschieben ueber die Endpunkte wie am iPad (Befund 09.11.2026): POST `placements`, danach GET. Geplantes und
+    /// Nicht-Bestandenes landen im Ziel; Bestandenes und zur Pruefung Angemeldetes bleiben im Semester aus QIS (die
+    /// Ansicht sperrt genau diese, StudyPlanModule.lockReason)
+    func testMoveThroughEndpointsOnlyWhatIsMovable() async throws {
+        let fx = try studyPlanFixture("endpoints.json")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: UniFlowClock.fixed(berlin: "2026-11-09T10:00:00")!)
+        try await run(backend, (fx["seed"]?.array ?? []) + (fx["steps"]?.array ?? []).flatMap { $0["sql"]?.array ?? [] })
+        try await run(backend, [["sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                                 "params": ["Signale und Systeme", "WiSe 26/27", "angemeldet", "", "1", "", "", "", "Technische Informatik (PO-Version 2017)",
+                                            .null, "2026-11-09T08:00:00"]]])
+        func terms() async throws -> [String: (term: String, status: String)] {
+            let r = await backend.handle(request(["method": "GET", "path": "/api/study-plan"]))
+            XCTAssertEqual(r.status, 200)
+            var out: [String: (String, String)] = [:]
+            for s in r.json?["semesters"]?.array ?? [] {
+                for m in s["modules"]?.array ?? [] { out[m["id"]?.string ?? ""] = (s["term"]?.string ?? "", m["status"]?.string ?? "") }
+            }
+            return out
+        }
+        let before = try await terms()
+        XCTAssertEqual(before["stochastik"]?.term, "SoSe 27")
+        XCTAssertEqual(before["stochastik"]?.status, "geplant")
+        XCTAssertEqual(before["programmieren-2"]?.status, "nicht_bestanden")
+        XCTAssertEqual(before["signale-systeme"]?.term, "WiSe 26/27")
+        XCTAssertEqual(before["signale-systeme"]?.status, "angemeldet")
+        XCTAssertEqual(before["programmieren-1"]?.status, "bestanden")
+        let all: JSONValue = ["stochastik": "SoSe 28", "programmieren-2": "SoSe 28", "signale-systeme": "SoSe 28", "programmieren-1": "SoSe 28"]
+        let saved = await backend.handle(request(["method": "POST", "path": "/api/study-plan/settings", "body": ["placements": all]]))
+        XCTAssertEqual(saved.status, 200, String(decoding: saved.body, as: UTF8.self))
+        let after = try await terms()
+        XCTAssertEqual(after["stochastik"]?.term, "SoSe 28", "geplant: verschoben")
+        XCTAssertEqual(after["programmieren-2"]?.term, "SoSe 28", "nicht bestanden: Nachholen folgt der Lage")
+        XCTAssertEqual(after["signale-systeme"]?.term, "WiSe 26/27", "angemeldet: bleibt im aktuellen Semester")
+        XCTAssertEqual(after["programmieren-1"]?.term, "WiSe 25/26", "bestanden: bleibt im QIS-Semester")
+    }
+
     /// Katalog aus dem Speicher statt aus der Tabelle (Quelle austauschbar, solange der Katalog-Abruf fehlt)
     func testMemoryCatalogSource() async throws {
         let fx = try studyPlanFixture("engine.json")

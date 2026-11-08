@@ -139,7 +139,7 @@ final class StudyPlanMoveAppTests: XCTestCase {
 
     private func dump(_ v: UIView?) -> String { v.map { labels($0).joined(separator: "\n") } ?? "(keine Ansicht)" }
 
-    private let rechnernetze = "Grundlagen der Rechnernetze,"
+    private let stochastik = "Stochastik für Ingenieure,"
     private let signale = "Signale und Systeme,"
     private let programmieren = "Programmieren I,"
 
@@ -148,13 +148,13 @@ final class StudyPlanMoveAppTests: XCTestCase {
     func testMoveViaMenuLandsInTargetSemesterThroughLocalBackend() throws {
         let api = try localAPISync()
         let env = try hostWithEnvironment(StudyPlanPage(), api: api)
-        XCTAssertEqual(termOf("rechnernetze", api: api, env: env), "SoSe 27")
-        XCTAssertTrue(env.wait { self.find(env.view, label: self.rechnernetze) != nil }, dump(env.view))
-        XCTAssertTrue(perform(env.view, rechnernetze, action: "Verschieben nach …"), actionNames(env.view, rechnernetze).joined(separator: ", "))
+        XCTAssertEqual(termOf("stochastik", api: api, env: env), "SoSe 27")
+        XCTAssertTrue(env.wait { self.find(env.view, label: self.stochastik) != nil }, dump(env.view))
+        XCTAssertTrue(perform(env.view, stochastik, action: "Verschieben nach …"), actionNames(env.view, stochastik).joined(separator: ", "))
         XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "SoSe 28") != nil } ?? false }, dump(sheet(env)))
         XCTAssertTrue(tap(try XCTUnwrap(sheet(env)), "SoSe 28"))
-        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Grundlagen der Rechnernetze verschoben nach SoSe 28") } }, dump(env.view))
-        XCTAssertEqual(termOf("rechnernetze", api: api, env: env), "SoSe 28", "liegt laut Kern im Zielsemester")
+        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Stochastik für Ingenieure verschoben nach SoSe 28") } }, dump(env.view))
+        XCTAssertEqual(termOf("stochastik", api: api, env: env), "SoSe 28", "liegt laut Kern im Zielsemester")
     }
 
     // MARK: Ziehen und Ablegen nach einem Neuaufbau der Seite
@@ -179,18 +179,18 @@ final class StudyPlanMoveAppTests: XCTestCase {
         let api = try localAPISync()
         let box = Redraw()
         let env = try hostWithEnvironment(RedrawingHost(box: box), api: api)
-        XCTAssertTrue(env.wait { self.find(env.view, label: self.rechnernetze) != nil }, dump(env.view))
+        XCTAssertTrue(env.wait { self.find(env.view, label: self.stochastik) != nil }, dump(env.view))
         let first = box.hubs.count
         box.tick += 1
         XCTAssertTrue(env.wait { box.hubs.count > first }, "Seite neu aufgebaut")
         env.pump(0.3)
         var ok: Bool?
         let hub = try XCTUnwrap(box.hubs.last)
-        Task { ok = await hub.drop(["rechnernetze"], on: "SoSe 28") }
+        Task { ok = await hub.drop(["stochastik"], on: "SoSe 28") }
         XCTAssertTrue(env.wait { ok != nil })
         XCTAssertEqual(ok, true, "Ablegen nach dem Neuaufbau verschiebt")
-        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Grundlagen der Rechnernetze verschoben nach SoSe 28") } }, dump(env.view))
-        XCTAssertEqual(termOf("rechnernetze", api: api, env: env), "SoSe 28")
+        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Stochastik für Ingenieure verschoben nach SoSe 28") } }, dump(env.view))
+        XCTAssertEqual(termOf("stochastik", api: api, env: env), "SoSe 28")
     }
 
     // MARK: Nicht verschiebbar: Grund statt Stille
@@ -201,7 +201,7 @@ final class StudyPlanMoveAppTests: XCTestCase {
         let env = try hostWithEnvironment(StudyPlanPage(dropHub: hub), api: api)
         XCTAssertTrue(env.wait { self.find(env.view, label: self.signale) != nil && self.find(env.view, label: self.programmieren) != nil }, dump(env.view))
         // geplant: verschiebbar
-        XCTAssertTrue(actionNames(env.view, rechnernetze).contains("Verschieben nach …"))
+        XCTAssertTrue(actionNames(env.view, stochastik).contains("Verschieben nach …"))
         // bestanden und angemeldet: keine Aktion, Grund im Hinweis (VoiceOver)
         for (card, reason) in [(programmieren, StudyPlanText.lockedPassed), (signale, StudyPlanText.lockedRegistered)] {
             XCTAssertFalse(actionNames(env.view, card).contains("Verschieben nach …"), card)

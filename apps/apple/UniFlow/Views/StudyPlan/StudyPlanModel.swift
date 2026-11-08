@@ -110,8 +110,18 @@ struct StudyPlanModule: Identifiable, Equatable {
     }
 
     var status: StudyPlanStatus { StudyPlanStatus.from(rawStatus, movedFrom: movedFrom) }
-    /// verschiebbar: alles ausser Bestandenem (liegt im Semester aus QIS) und eigenen Eintraegen
-    var movable: Bool { status != .passed && !custom }
+    /// verschiebbar: alles ausser Bestandenem und zur Pruefung Angemeldetem (beides liegt im Semester aus QIS, der Kern
+    /// uebergeht dafuer jede eigene Lage, StudyPlanEngine.compute) und eigenen Eintraegen
+    var movable: Bool { lockReason == nil }
+    /// Grund, warum das Modul nicht verschiebbar ist (Menue, Details, VoiceOver, Ablegen); nil: verschiebbar
+    var lockReason: String? {
+        if custom { return StudyPlanText.lockedCustom }
+        switch status {
+        case .passed: return StudyPlanText.lockedPassed
+        case .registered: return StudyPlanText.lockedRegistered
+        default: return nil
+        }
+    }
     /// gewaehltes Wahlmodul, das sich gegen ein anderes tauschen laesst (nicht bestanden, nicht angemeldet)
     var replaceable: Bool { elective && movable && status != .registered && status != .failed }
     var elective: Bool { kind == "wahlpflicht" || kind == "wahl" }
@@ -978,6 +988,17 @@ enum StudyPlanText {
             head = "\(title) verschoben nach \(term)"
         }
         return free.map { "\(head) – \($0)" } ?? head
+    }
+
+    /// VoiceOver-Hinweis je Karte; ein gesperrtes Modul nennt den Grund
+    static func cardHint(_ m: StudyPlanModule, editable: Bool) -> String {
+        guard editable, let why = m.lockReason else { return "Zeigt Details zum Modul" }
+        return "Zeigt Details zum Modul. Nicht verschiebbar: \(why)"
+    }
+
+    /// Der Kern hat das Modul nicht ins Ziel gelegt (z. B. Nachholen erst nach dem letzten Versuch)
+    static func moveRefused(title: String, staysIn term: String, target: String) -> String {
+        "\(title) bleibt in \(term) – StudiNow konnte es nicht nach \(target) legen."
     }
 
     /// Hinweis beim Ziel: Turnus passt nicht
