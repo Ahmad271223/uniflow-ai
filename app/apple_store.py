@@ -230,7 +230,11 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
     ntype, subtype = notification or (None, None)
     if tx.get("revocationDate") or ntype in REVOKING:
         status = "revoked"
-    elif ntype == "DID_FAIL_TO_RENEW" and subtype == "GRACE_PERIOD" and renewal and renewal.get("gracePeriodExpiresDate"):
+    elif renewal and renewal.get("gracePeriodExpiresDate") and (
+            (ntype == "DID_FAIL_TO_RENEW" and subtype == "GRACE_PERIOD")
+            # Meldung der App mit Verlaengerungsinfo in der Frist (Audit P44-14)
+            or (ntype is None and renewal.get("isInBillingRetryPeriod")
+                and _ms_iso(renewal["gracePeriodExpiresDate"]) > t.isoformat())):
         status, expires = "grace", _ms_iso(renewal["gracePeriodExpiresDate"])
     elif ntype == "DID_FAIL_TO_RENEW" or (renewal and renewal.get("isInBillingRetryPeriod")):
         status = "billing_retry"
@@ -238,6 +242,14 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
         status = "expired"
     else:
         status = "active"
+    # Kulanzfrist (Audit P44-14): die App meldet beim Start die Transaktion des abgelaufenen Zeitraums neu (ohne
+    # Verlaengerungsinfo). Das ist kein Ablauf, solange die Frist aus DID_FAIL_TO_RENEW/GRACE_PERIOD fuer dieses Abo
+    # laeuft; erst GRACE_PERIOD_EXPIRED bzw. das Ende der Frist beendet sie.
+    if status == "expired" and ntype is None:
+        cur = conn.execute("SELECT status, expires_at FROM entitlements WHERE user_id=? AND source='app_store' "
+                           "AND original_transaction_id=?", (uid, otid)).fetchone()
+        if cur and cur[0] == "grace" and billing._row_active(cur[0], cur[1], t.isoformat()):
+            stale = True
     will_renew = bool(renewal.get("autoRenewStatus", 1)) if renewal else True
     pending = None
     if renewal and renewal.get("autoRenewProductId"):
