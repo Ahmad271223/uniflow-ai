@@ -174,7 +174,7 @@ Haus (nächster Abschnitt) einrichten. Monatlich eine Wiederherstellung probewei
 
 ### Sicherung außer Haus
 
-> **Erst nach der Einrichtung:** Datenschutzerklärung und `KONTO-LOESCHEN.md` nennen die Kopie außer Haus (Storage Box, 30 Tage) erst mit Commit `6ffc94f7` auf Zweig `betrieb/sicherung-ausser-haus`. Diesen Commit nach dem ersten erfolgreichen Lauf übernehmen (`git cherry-pick 6ffc94f7`), `tools/gen-site.py` und `tools/site-hochladen.sh` ausführen.
+> **Eingerichtet am 09.11.2026:** Storage Box `u713735` (BX21, Falkenstein), Ziel `studinow/`, erste Kopie und Probe-Wiederherstellung erfolgreich (integrity_check ok).
 
 Seit 09.11.2026 vorbereitet, aktiv erst nach Bestellung und Einrichtung. Ziel: eine **Hetzner Storage Box BX11**
 (1 TB, ca. 4 € im Monat, Standort Deutschland). Liegt der Server in Nürnberg, ist ein anderes Rechenzentrum wie
