@@ -142,7 +142,11 @@ def plan_and_trial(conn: sqlite3.Connection, user_id: str, now: datetime | None 
     try:
         r = conn.execute("SELECT plan, plan_until FROM users WHERE id=?", (str(user_id),)).fetchone()
         legacy = {"plan": r[0], "plan_until": r[1]} if r else None
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as e:
+        # Nur eine fehlende Tabelle/Spalte (reine Billing-Datei in Tests und Werkzeugen) heisst "kein Altbestand". Ein
+        # echter Datenbankfehler (gesperrt, Platte) bleibt sichtbar, statt still als Tarif free zu enden (Audit B03, 08.11.2026).
+        if "no such table" not in str(e) and "no such column" not in str(e):
+            raise
         legacy = None
     plan = billing.current_plan(conn, str(user_id), _now(now), legacy)
     from . import ai_backend
