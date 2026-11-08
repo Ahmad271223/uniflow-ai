@@ -195,6 +195,8 @@ struct UniFlowApp: App {
                 // beim Oeffnen und nach mehr als 15 min im Hintergrund einmal alles (Uni-Mail zuerst), sonst die
                 // bisherigen Abstaende je Quelle (OpenSync, Entscheidung des Inhabers 07.11.2026)
                 containers.syncAllOnOpen()
+                // Lernplan: neue Dokumente eines Hintergrundabgleichs einordnen, sonst nichts am Plan aendern
+                if let host = containers.active?.host { Task.detached { await StudIPSync.placeNewDocumentsOnOpen(host: host) } }
                 weeklyTicker.resume()
                 askForLoginIfDue()
                 Task {

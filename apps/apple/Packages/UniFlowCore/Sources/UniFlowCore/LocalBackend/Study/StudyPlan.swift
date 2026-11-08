@@ -724,19 +724,33 @@ enum StudyPlan {
     }
 }
 
-/// Lernplan nach einem Abgleich auf dem iPad (Stud.IP, Learnweb), wie `study.auto_plan_week` nach `_full_sync` am PC:
-/// mit `auto_plan` die laufende Woche planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche
+/// Lernplan nach einem Abgleich auf dem iPad (Stud.IP, Learnweb) und beim Oeffnen der App: mit `auto_plan` nur neue
+/// Dokumente in den bestehenden Plan einordnen (`StudyPlan.insertNewFiles`, Entscheidung des Inhabers vom 08.11.2026),
+/// keine Neuplanung der Woche mehr. Am PC plant `study.auto_plan_week` weiter die Woche (`StudyPlan.autoPlanWeek`).
 public enum StudyAutoPlan {
     /// Tarifpruefung der App (der Kern kennt keinen Tarif): automatisch planen erst ab Plus (`UFFeature.autoPlan`,
     /// Free plant von Hand). Vorher plante jeder Abgleich auch in Free die Woche, weil `auto_plan` von Anfang an an
     /// ist (Abnahme Lernkalender vom 07.11.2026). Ohne App (Kern-Tests, PC) immer erlaubt.
     @MainActor public static var allowed: () -> Bool = { true }
 
-    /// Ergebnis der Planung, nil = nichts geplant (aus, Tarif ohne automatischen Lernplan, oder schon geplant und
-    /// keine neuen Dateien)
+    /// Ergebnis der Einordnung, nil = am Plan nichts geaendert (aus, Tarif ohne automatischen Lernplan, keine neuen
+    /// Dokumente). `newFiles` ist nur noch ein Hinweis des Abgleichs: welche Dokumente neu sind, weiss der Planer
+    /// selbst (`study_plan_seen_files`), darum zaehlt eine doppelt gemeldete Datei einmal. Ohne Tarif werden die
+    /// Dateien nur gemerkt (spaeter Plus plant dann nicht alles Alte auf einmal ein).
     public static func afterSync(_ backend: LocalBackend, newFiles: Int) async throws -> JSONValue? {
-        guard await MainActor.run(body: { allowed() }) else { return nil }
+        let ok = await MainActor.run(body: { allowed() })
         let clock = backend.context.clock
-        return try await backend.context.database.transaction { c in try StudyPlan.autoPlanWeek(c, newFiles: newFiles, clock: clock) }
+        return try await backend.context.database.transaction { c in
+            guard ok else {
+                try StudyPlan.markAllSeen(c, clock: clock)
+                return nil
+            }
+            return try StudyPlan.insertNewFiles(c, clock: clock)
+        }
+    }
+
+    /// Beim Oeffnen der App: Dokumente, die ein Hintergrundabgleich gebracht hat, ohne dass danach eingeordnet wurde
+    public static func catchUp(_ backend: LocalBackend) async throws -> JSONValue? {
+        try await afterSync(backend, newFiles: 0)
     }
 }

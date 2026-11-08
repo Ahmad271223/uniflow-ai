@@ -106,12 +106,14 @@ final class LocalStudyPlanTests: XCTestCase {
     }
 
     /// Schritte nacheinander an das lokale Backend; liefert die Abweichungen von Status und Antwort. "auto"-Schritte
-    /// planen wie nach einem Abgleich (`StudyAutoPlan.afterSync`, am PC `study.auto_plan_week`).
+    /// planen wie am PC nach einem Abgleich (`StudyPlan.autoPlanWeek`, `study.auto_plan_week`).
     private func replay(_ steps: [JSONValue], on backend: LocalBackend, now: Now) async throws -> [String] {
         var problems: [String] = []
         for (i, s) in steps.enumerated() {
             if let n = s["auto"]?.int {
-                let r = try await StudyAutoPlan.afterSync(backend, newFiles: n) ?? .null
+                // die Python-Regel (`study.auto_plan_week`); die App ordnet seit 08.11.2026 nur neue Dokumente ein
+                let clock = now.clock
+                let r = try await backend.context.database.transaction { c in try StudyPlan.autoPlanWeek(c, newFiles: n, clock: clock) } ?? .null
                 if let d = jsonDiff(r, s["result"] ?? .null) { problems.append("\(i) auto \(n): \(d)") }
                 continue
             }
