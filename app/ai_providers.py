@@ -43,6 +43,9 @@ DEADLINE_S = 600
 SCALEWAY_URL = "https://api.scaleway.ai/v1"
 DEEPSEEK_DEFAULT = "deepseek-v4.1-flash-1017"
 BLOCKED_HOST_SUFFIXES = ("deepseek.com", ".cn")       # DeepSeek nur ueber einen Anbieter in der EU (Inhaber, 05.11.2026)
+# Im Dienst nur diese OpenAI-kompatiblen Adressen (EU-Verarbeitung nachgewiesen: Scaleway Paris). Ein neuer EU-Anbieter
+# kommt hier dazu, nicht per Umgebung - sonst ginge der Schluessel samt Studieninhalten an jede https-Adresse (Audit P9-05)
+EU_COMPAT_HOSTS = ("api.scaleway.ai",)
 
 
 def _n(v) -> int:
@@ -84,7 +87,9 @@ BUSY_RETRY_AFTER_S = 5
 # ---------------------------------------------------------------- OpenAI-kompatibel (DeepSeek in der EU)
 
 def check_eu_base_url(url: str) -> str:
-    """https-Adresse, nie DeepSeek selbst (Server in China). Wirft AIUnavailable ai_not_configured."""
+    """https-Adresse, nie DeepSeek selbst (Server in China); im Dienst nur EU_COMPAT_HOSTS (Audit P9-05). Wirft
+    AIUnavailable ai_not_configured."""
+    from . import config
     u = urlparse((url or "").strip())
     host = (u.hostname or "").lower()
     if u.scheme != "https" or not host:
@@ -92,6 +97,9 @@ def check_eu_base_url(url: str) -> str:
     if any(host == s.lstrip(".") or host.endswith(s if s.startswith(".") else "." + s) for s in BLOCKED_HOST_SUFFIXES):
         raise AIUnavailable("ai_not_configured", "DeepSeek nur über einen Anbieter in der EU, nie über die Server von DeepSeek.",
                             503, retryable=True)
+    if config.is_hosted() and host not in EU_COMPAT_HOSTS:
+        raise AIUnavailable("ai_not_configured", "LERNAPP_DEEPSEEK_BASE_URL muss im Dienst eine freigegebene EU-Adresse sein "
+                            f"({', '.join(EU_COMPAT_HOSTS)}).", 503, retryable=True)
     return url.strip().rstrip("/")
 
 
@@ -172,7 +180,7 @@ class OpenAICompatProvider:
             async with client.stream("POST", self.base_url + "/chat/completions", headers=headers, content=json.dumps(body).encode("utf-8"),
                                      timeout=httpx.Timeout(float(self.timeout), connect=10.0, write=30.0, pool=30.0)) as r:
                 if r.status_code >= 400:
-                    raw = (await r.aread()).decode("utf-8", "replace")[:4000]
+                    raw = (await ai_backend.aread_limited(r)).decode("utf-8", "replace")[:4000]     # Audit P9-06
                     raise http_error(who, r.status_code, scrub(_error_message(raw)))
                 started = True
                 async for line in r.aiter_lines():
@@ -205,6 +213,7 @@ class _CompatState:
     def __init__(self, provider: "OpenAICompatProvider", who: str, images: int, on_delta) -> None:
         self.p, self.who, self.images, self.on_delta = provider, who, images, on_delta
         self.deltas: list[str] = []
+        self.chars = 0
         self.usage, self.finish_reason, self.model = None, None, provider.model
 
     def feed(self, event: str) -> None:
@@ -228,9 +237,20 @@ class _CompatState:
             piece = str(((ch.get("delta") or {}).get("content")) or "")
             if piece:
                 self.deltas.append(piece)
+                self.chars += len(piece)
                 if self.on_delta:
                     self.on_delta(piece)
+                self._check_size()
             self.finish_reason = ch.get("finish_reason") or self.finish_reason
+
+    def _check_size(self) -> None:
+        """Ein Anbieter, der ohne Ende Text schickt: abbrechen statt den Speicher zu fuellen (Audit P9-06). Angenommen ->
+        started, abgerechnet wird die Nutzung oder die Obergrenze."""
+        from . import ai_backend
+        if self.chars > ai_backend.MAX_STREAM_TEXT_CHARS:
+            raise AIUnavailable("ai_provider_error", f"{self.who} hat eine zu lange Antwort geschickt.", 502,
+                                billed=self.p._completion("".join(self.deltas), self.usage, self.model, self.images) if self.usage else None,
+                                started=True)
 
     def broken(self) -> AIUnavailable:
         return AIUnavailable("ai_provider_unreachable", f"{self.who} hat die Antwort abgebrochen.", 502,
@@ -244,6 +264,10 @@ class _CompatState:
                                 billed=c if self.usage else None, started=True)
         if self.finish_reason is None and not self.deltas:
             raise AIUnavailable("ai_provider_error", f"{self.who} antwortete unlesbar.", 502, started=True)
+        if self.finish_reason is None:
+            # Text ohne Abschluss (finish_reason): der Strom brach ab, die Antwort ist nicht vollstaendig (Audit P9-08)
+            raise AIUnavailable("ai_provider_error", f"{self.who} hat die Antwort nicht beendet.", 502,
+                                billed=c if self.usage else None, started=True)
         return c
 
 

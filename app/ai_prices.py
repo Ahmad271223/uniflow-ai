@@ -97,6 +97,9 @@ WORST_OVERHEAD_TOKENS = 512
 IMAGE_TOKENS_WORST = 8000
 PATCH = 32
 PATCH_BUDGET_HIGH = 2500
+# Hoechster Preis, den der Dienst glaubt (EUR bzw. USD je 1 Mio. Tokens; das teuerste Modell der Tabelle liegt bei 50).
+# Darueber oder nicht endlich (inf/nan aus der Umgebung): kein Preis -> die KI bleibt zu (fail closed, Audit P10-03/04)
+MAX_PRICE_PER_MTOK = 10_000.0
 
 
 @dataclass(frozen=True)
@@ -114,10 +117,16 @@ class Price:
 
 
 def _env_float(name: str, default: float) -> float:
+    """Zahl aus der Umgebung; unlesbar oder nicht endlich (nan, inf, 1e400) -> Standard (Audit P10-03)."""
     try:
-        return float(os.environ.get(name, default) or default)
+        v = float(os.environ.get(name, default) or default)
     except ValueError:
         return default
+    return v if math.isfinite(v) else default
+
+
+def _sane_price(v) -> bool:
+    return isinstance(v, float | int) and not isinstance(v, bool) and math.isfinite(v) and 0 <= v <= MAX_PRICE_PER_MTOK
 
 
 def usd_to_eur() -> float:
@@ -150,7 +159,7 @@ def table() -> dict[str, dict]:
             if "vision" in p:
                 entry["vision"] = bool(p["vision"])
             entry.setdefault("cached_input", entry.get("input"))
-            if all(isinstance(entry.get(k), float | int) and entry[k] >= 0 for k in ("input", "cached_input", "output")):
+            if all(_sane_price(entry.get(k)) for k in ("input", "cached_input", "output")):      # endlich, >= 0 (P10-04)
                 out[str(name)] = entry
     return out
 
@@ -209,14 +218,19 @@ def price(model: str | None) -> Price | None:
         image = hit[1].get("image", ("patch", 1.2)) if hit else ("patch", 1.2)
         reasoning = bool(hit[1].get("reasoning")) if hit else False
         vision = bool(hit[1].get("vision", True)) if hit else True
-        return Price(model or "", legacy[0], legacy[0], legacy[1], tuple(image), reasoning, "legacy", prov, vision)
-    if not hit:
+        out = Price(model or "", legacy[0], legacy[0], legacy[1], tuple(image), reasoning, "legacy", prov, vision)
+    else:
+        if not hit:
+            return None
+        name, p = hit
+        # Euro-Preise (Scaleway) bleiben Euro; Dollar zaehlen nach LERNAPP_AI_USD_EUR (Standard 1:1, vorsichtig)
+        r = (1.0 if str(p.get("currency") or "USD").upper() == "EUR" else usd_to_eur()) * provider_factor(prov)
+        out = Price(name, p["input"] * r, p.get("cached_input", p["input"]) * r, p["output"] * r, tuple(p.get("image") or ("patch", 1.2)),
+                    bool(p.get("reasoning")), "env" if p.get("_env") else "table", prov, bool(p.get("vision", True)))
+    # nach Umrechnung: nicht endlich oder absurd hoch (Kurs 1e300) -> kein Preis, die KI bleibt zu (Audit P10-03)
+    if not all(_sane_price(v) for v in (out.input_eur, out.cached_eur, out.output_eur)):
         return None
-    name, p = hit
-    # Euro-Preise (Scaleway) bleiben Euro; Dollar zaehlen nach LERNAPP_AI_USD_EUR (Standard 1:1, vorsichtig)
-    r = (1.0 if str(p.get("currency") or "USD").upper() == "EUR" else usd_to_eur()) * provider_factor(prov)
-    return Price(name, p["input"] * r, p.get("cached_input", p["input"]) * r, p["output"] * r, tuple(p.get("image") or ("patch", 1.2)),
-                 bool(p.get("reasoning")), "env" if p.get("_env") else "table", prov, bool(p.get("vision", True)))
+    return out
 
 
 def known(model: str | None) -> bool:
@@ -299,14 +313,14 @@ def image_tokens(model: str | None, size: tuple[int, int] | None, detail: str = 
     factor = float(rule[1])
     if detail == "low":
         s = min(1.0, 512 / max(w, h))
-        w, h = int(w * s), int(h * s)
+        w, h = max(1, int(w * s)), max(1, int(h * s))
     else:
         s = min(1.0, 2048 / max(w, h))
-        w, h = int(w * s), int(h * s)
+        w, h = max(1, int(w * s)), max(1, int(h * s))     # sehr schmale Bilder: nie 0 Kacheln (Audit P10-08)
     patches = math.ceil(w / PATCH) * math.ceil(h / PATCH)
     if detail != "low" and patches > PATCH_BUDGET_HIGH:
         s = math.sqrt(PATCH_BUDGET_HIGH / patches)
-        w, h = int(w * s), int(h * s)
+        w, h = max(1, int(w * s)), max(1, int(h * s))
         patches = min(PATCH_BUDGET_HIGH, math.ceil(w / PATCH) * math.ceil(h / PATCH))
     return math.ceil(patches * factor)
 

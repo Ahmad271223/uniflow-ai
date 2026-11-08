@@ -53,6 +53,7 @@ Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr al
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
@@ -144,7 +145,11 @@ END;
            pool_old=_POOL_SQL.format(r="OLD"), cost_old=_COST_SQL.format(r="OLD"))
 
 RESERVE_MICROEUR = 20_000           # Reservierung je Anfrage vor dem Aufruf (2 Cent), danach echte Kosten
-INFLIGHT_STALE_S = 600
+# Sperre gegen doppelte Generierung: verwaist erst nach 30 min - deutlich ueber der Frist einer Antwort (DEADLINE_S 600 s,
+# dazu Ersatzanbieter und Wiederholungen); vorher galt eine noch laufende Generierung nach 600 s schon als verwaist (Audit P9-04)
+INFLIGHT_STALE_S = 1800
+WAIT_MAX_S = 60.0          # wait_for wartet hoechstens so lange (library_api reicht `wait_s` des Clients durch)
+WAIT_POLL_MIN_S = 0.05     # und fragt hoechstens 20-mal je Sekunde
 CACHE_DAYS = 30
 
 # Obergrenze der Ausgabe-Tokens je Zweck (Denk-Tokens zaehlen mit); ueberschreibbar mit LERNAPP_AI_MAX_OUTPUT
@@ -400,6 +405,19 @@ def scrub(text: str) -> str:
 
 ERROR_BODY_BYTES = 16_384            # hoechstens so viel eines Fehlerkoerpers lesen (Audit P7-05)
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024  # ChatGPT-Abo am PC: ganze Antwort im Speicher, aber nie unbegrenzt
+MAX_STREAM_TEXT_CHARS = 4_000_000      # hoechstens so viel Text einer gestreamten Antwort (64 000 Tokens sind ~250 000 Zeichen)
+
+
+async def aread_limited(r, limit: int | None = None) -> bytes:
+    """Fehlerkoerper einer httpx-Antwort lesen, hoechstens `limit` Bytes (Standard ERROR_BODY_BYTES; Audit P9-06: vorher
+    `aread()` ohne Grenze, gekuerzt erst danach)."""
+    limit = ERROR_BODY_BYTES if limit is None else limit
+    buf = bytearray()
+    async for chunk in r.aiter_bytes():
+        buf += chunk
+        if len(buf) >= limit:
+            break
+    return bytes(buf[:limit])
 
 
 def urllib_transport(url: str, headers: dict, body: bytes, timeout: float):
@@ -567,7 +585,7 @@ async def stream_responses_async(url: str, headers: dict, body: dict, *, timeout
         async with client.stream("POST", url, headers=headers, content=json.dumps(body).encode("utf-8"),
                                  timeout=httpx.Timeout(float(timeout), connect=10.0, write=30.0, pool=30.0)) as r:
             if r.status_code >= 400:
-                raw = (await r.aread()).decode("utf-8", "replace")[:4000]
+                raw = (await aread_limited(r)).decode("utf-8", "replace")[:4000]          # Audit P9-06
                 raise http_error(who, r.status_code, scrub(_error_message(raw)))
             started = True
             head: list[str] = []
@@ -761,6 +779,7 @@ class _ResponsesConsumer:
     def __init__(self, on_delta=None, who: str = "ChatGPT", model: str = "", images: int = 0) -> None:
         self.on_delta, self.who, self.model, self.images = on_delta, who, model, images
         self.deltas: list[str] = []
+        self.chars = 0
         self.completed: dict | None = None
         self.saw = False
         self.result: tuple[str, dict] | None = None
@@ -779,6 +798,9 @@ class _ResponsesConsumer:
         if t == "response.output_text.delta":
             piece = str(j.get("delta") or "")
             self.deltas.append(piece)
+            self.chars += len(piece)
+            if self.chars > MAX_STREAM_TEXT_CHARS:       # Audit P9-06: nie unbegrenzt Text puffern
+                raise AIUnavailable("ai_provider_error", f"{who} hat eine zu lange Antwort geschickt.", 502)
             if self.on_delta and piece:
                 self.on_delta(piece)
         elif t == "response.completed":
@@ -1308,7 +1330,9 @@ class _Call:
             self.chain, self.models = [self.chain[i] for i in keep], [self.models[i] for i in keep]
         self.requested = self.models[0]
         self.charge = bool(user_id) and (credits if credits is not None else (self.hosted and charges_credits(purpose)))
-        self.max_out = int(max_output_tokens or max_output(purpose))
+        # Ausgabegrenze positiv und hoechstens 64 000 (wie LERNAPP_AI_MAX_OUTPUT), sonst die des Zwecks (Audit #242)
+        mo = int(max_output_tokens or 0)
+        self.max_out = mo if 0 < mo <= 64_000 else max_output(purpose)
         self.images = [image] if image else None
         self.key: str | None = None
         self.held = None
@@ -1523,6 +1547,12 @@ async def complete_async(user_id: str | None, purpose: str, system: str, prompt:
                 if await ai_async.db(call.failed, e, i):
                     break
                 raise
+            except asyncio.CancelledError:
+                # abgebrochen, waehrend der Anbieter antwortete (Client weg, Zeitlimit): wie crashed sofort freigeben, statt die
+                # Reservierung bis zum Aufraeumen (credits.STALE_MINUTES) und die Protokollzeile fuer immer stehen zu lassen
+                # (Audit P9-07); shield: das Freigeben laeuft auch bei einem zweiten Abbruch zu Ende
+                await asyncio.shield(ai_async.db(call.crashed))
+                raise
             except Exception:
                 await ai_async.db(call.crashed)
                 raise
@@ -1532,18 +1562,21 @@ async def complete_async(user_id: str | None, purpose: str, system: str, prompt:
 
 # ---------------------------------------------------------------- Sperre gegen doppelte Generierung
 
-def acquire(key: str, user_id: str | None = None, now: datetime | None = None) -> bool:
-    """True: diese Anfrage generiert; False: eine gleiche Generierung laeuft schon (nicht aelter als 10 Minuten)."""
+def acquire(key: str, user_id: str | None = None, now: datetime | None = None) -> str | None:
+    """Besitz-Marke (wahr): diese Anfrage generiert, mit der Marke an release() zurueckgeben; None: eine gleiche
+    Generierung laeuft schon (nicht aelter als INFLIGHT_STALE_S). Die Marke verhindert, dass ein verspaeteter alter
+    Arbeiter die Sperre eines neuen loescht (Audit P9-04)."""
     t = _now(now)
     conn = connect()
     try:
         conn.execute("BEGIN IMMEDIATE")
         try:
             conn.execute("DELETE FROM ai_inflight WHERE key=? AND started_at<?", (key, (t - timedelta(seconds=INFLIGHT_STALE_S)).isoformat()))
+            token = t.isoformat() + "|" + uuid.uuid4().hex
             got = conn.execute("INSERT OR IGNORE INTO ai_inflight(key, user_id, started_at) VALUES (?,?,?)",
-                               (key, user_id, t.isoformat())).rowcount == 1
+                               (key, user_id, token)).rowcount == 1
             conn.execute("COMMIT")
-            return got
+            return token if got else None
         except Exception:
             conn.execute("ROLLBACK")
             raise
@@ -1551,21 +1584,30 @@ def acquire(key: str, user_id: str | None = None, now: datetime | None = None) -
         conn.close()
 
 
-def release(key: str) -> None:
+def release(key: str, token: str | None = None) -> None:
+    """Sperre freigeben; mit der Marke aus acquire nur die eigene (Vergleichen und Loeschen in einem Schritt)."""
     conn = connect()
     try:
-        conn.execute("DELETE FROM ai_inflight WHERE key=?", (key,))
+        if token is None:
+            conn.execute("DELETE FROM ai_inflight WHERE key=?", (key,))
+        else:
+            conn.execute("DELETE FROM ai_inflight WHERE key=? AND started_at=?", (key, token))
     finally:
         conn.close()
 
 
 def wait_for(key: str, timeout_s: float = 30.0, poll_s: float = 0.1) -> bool:
-    """Wartet, bis die laufende Generierung fertig ist. True, wenn sie in der Zeit fertig wurde."""
+    """Wartet, bis die laufende Generierung fertig ist (oder ihre Sperre verwaist). True: Sperre weg - ob es ein Ergebnis
+    gibt, prueft der Aufrufer selbst. Hoechstens WAIT_MAX_S, frühestens alle WAIT_POLL_MIN_S (nan/inf/negativ -> Grenzen;
+    Audit P9-04)."""
+    timeout_s = min(WAIT_MAX_S, max(0.0, timeout_s)) if math.isfinite(timeout_s) else WAIT_MAX_S
+    poll_s = max(WAIT_POLL_MIN_S, poll_s) if math.isfinite(poll_s) else WAIT_POLL_MIN_S
     end = time.monotonic() + timeout_s
     while time.monotonic() < end:
+        stale = (_now() - timedelta(seconds=INFLIGHT_STALE_S)).isoformat()
         conn = connect()
         try:
-            busy = conn.execute("SELECT 1 FROM ai_inflight WHERE key=?", (key,)).fetchone()
+            busy = conn.execute("SELECT 1 FROM ai_inflight WHERE key=? AND started_at>=?", (key, stale)).fetchone()
         finally:
             conn.close()
         if not busy:
