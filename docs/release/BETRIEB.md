@@ -228,3 +228,99 @@ Jobs-Container (`python -m app.jobs`) läuft.
 4. Backup-Ziel außer Haus (Abschnitt 9) und einmal die Wiederherstellung üben.
 5. Den Abgleich mit einem echten Hochschulkonto auf dem Server beobachten (erster Lauf nach 08:00/15:00 oder per
    „Jetzt abgleichen“ in der App) und `docker stats` dabei ansehen.
+
+## 14. Kapazität und Lastgrenzen (Stand 08.11.2026)
+
+Ziel des Inhabers: „Alle sollen gleichzeitig anmelden, abgleichen, fragen, hochladen können“ – TestFlight mit bis zu
+500 Testern, später 5.000 Nutzer, und bis zu **4.000 KI-Fragen gleichzeitig**, ohne dass etwas hängt. Dieser Abschnitt
+nennt, was der Dienst auf dem heutigen Server (Hetzner CX23, 2 vCPU, 4 GB) trägt, welche Schalter es gibt und was von
+außen begrenzt (OpenAI, Servergröße, Caddy, Dateideskriptoren). Nichts davon wurde gegen den echten Server gemessen;
+alle Zahlen stammen aus `tools/lasttest-ki.py` (lokal, 4 Prozesse, Schein-Anbieter mit 10 s Antwortzeit).
+
+### Was geändert wurde (Zweig `server/lastfest`)
+
+| Vorher | Nachher |
+| --- | --- |
+| KI-Endpunkte waren synchrone Funktionen: jede Frage belegte 5–30 s einen der **40 Threads** je Prozess (anyio-Standard). Ab ~80 gleichzeitigen Fragen warteten **alle** Endpunkte (Anmelden, Abo-Stand, Abgleich). | `/api/ai/tutor`, `/api/ai/flashcards`, `/api/ai/relay`, `/api/ai/document/step` sind `async def` (`app/ai_async.py`). Der Anbieter wird asynchron gefragt (httpx bzw. Async-SDK, Ereignisstrom Zeile für Zeile, nichts gepuffert): eine offene Frage ist **nur eine wartende Verbindung**, kein Thread. Kurze Datenbankschritte laufen in einem eigenen kleinen Begrenzer (8 Threads), nie im allgemeinen Pool. |
+| Budgetprüfung summierte je Frage den ganzen Monat unter Schreibsperre (19 ms bei 100k, 62 ms bei 300k Zeilen). | Laufende Monatssummen `ai_usage_month` / `ai_usage_user_month` (Trigger auf `ai_usage_log`, Neuaufbau beim Start). Eine Zeile lesen statt summieren; gleiche Antworten wie vorher (Tests). |
+| Während der Anbieter antwortete, hielt jede Frage eine SQLite-Verbindung offen. | Keine Datenbankverbindung während der Antwort (bei 4.000 Fragen wären das 12.000 Dateideskriptoren). |
+| Zeitlimit zum Anbieter 120 s, keine Wiederholung; Anbieter-429 als Fehler „antwortete mit Fehler 429“. | 90 s (`LERNAPP_AI_TIMEOUT_S`); Netzfehler/5xx vor der Antwort werden **einmal** sofort wiederholt (nur wenn der Fehler schnell kam, nie nach einem Zeitlimit), dann übernimmt der nächste Anbieter der Mischung. Anbieter-429 → 503 `ai_provider_busy` „Die KI ist gerade ausgelastet, bitte gleich noch einmal.“ mit `Retry-After: 5`. |
+| 2 API-Prozesse, 768 MB, 1.024 Dateideskriptoren. | **4 API-Prozesse** (`UVICORN_WORKERS`), `API_MEMORY=1536M`, `jobs` 1536M, `ulimits nofile 65536`, `--backlog 4096`. Healthcheck unverändert. |
+| – | Notbremse `LERNAPP_AI_CONCURRENCY` (Standard **5000 je Prozess**): darüber antwortet der Dienst sofort mit 503 `ai_overloaded` + `Retry-After: 3` statt endlos zu warten. |
+| accounts.db: WAL, busy_timeout 15 s. | zusätzlich `synchronous=NORMAL` (kein fsync je Commit; im WAL-Modus bleibt die Datei bei Absturz konsistent). |
+
+### Messung (lokal, 4 Prozesse, Schein-Anbieter 10 s)
+
+LASTTEST_TABELLE
+
+Lesart: „normale Anfragen“ sind je ein Drittel `POST /api/account/login`, `GET /api/entitlements`, `POST /api/sync/push`,
+abgeschickt 3 s nach dem Start der KI-Fragen. Vorher warteten sie hinter den KI-Fragen (p95 17 s bei 300 Fragen);
+nachher bleiben sie im Bereich der Messung ohne Last. Der Lasttest läuft auf einem Mac mit `kern.ipc.somaxconn=128`;
+Verbindungsspitzen beim Abschicken tausender Fragen in 2–4 s stauen sich dort kurz – auf dem Server steht `--backlog 4096`
+und Caddy hält die Verbindungen zu den Clients.
+
+### Was der Dienst jetzt trägt – und was von außen begrenzt
+
+**Der Dienst selbst.** 4.000 gleichzeitig offene KI-Fragen sind 4.000 wartende Verbindungen zum Client und 4.000 zum
+Anbieter, verteilt auf 4 Prozesse (je 1.000). Speicher je 1.000 offene Fragen und Prozess: siehe Tabelle (Spitze minus
+Ruhewert). Die Rechenlast einer Frage ist klein (Prompt bauen, Credits reservieren, Antwort abrechnen: ~5 kurze
+Schreibtransaktionen auf accounts.db); 4.000 Fragen in 20 s sind ~1.000 Transaktionen/s – WAL mit `synchronous=NORMAL`
+trägt das (Mikro-Messung im Bericht zum Lasttest, `tools/lasttest-ki.py --json`). Wird es eng, zuerst
+`LERNAPP_AI_DB_THREADS` nicht erhöhen (mehr Threads streiten nur um dieselbe Datei), sondern mehr Prozesse/Kerne.
+
+**OpenAI (Stufe des Inhaber-Kontos, Stand 08.11.2026, nach 319 EUR Aufladung; nachsehen unter platform.openai.com →
+Settings → Limits):** `gpt-6-luna` 10.000.000 Tokens/Minute, 10.000 Anfragen/Minute, 1.000.000.000 Tokens/Tag;
+`gpt-6-astra`, `gpt-6.1-sol` u. a. 4.000.000 Tokens/Minute, 10.000 Anfragen/Minute. 4.000 Fragen mit je ~2.500 Tokens
+(Eingabe + Ausgabe) sind ~10 Mio. Tokens – das ist **genau die Minutengrenze von gpt-6-luna**; kommen die 4.000 Fragen
+innerhalb einer Minute, antwortet OpenAI für einen Teil mit 429 → bei uns „Die KI ist gerade ausgelastet“ (`Retry-After 5`),
+die Clients fragen mit derselben `request_id` noch einmal (nie doppelt berechnet). Claude über Bedrock (etwa 25 % der
+Mischung) hat eigene Grenzen (AWS-Konsole → Bedrock → Quotas).
+
+**Kostenbremse.** Das Ausgabenlimit der Organisation bei OpenAI (500 USD) ist **nicht erzwungen** (nur Alarm bei
+80 %/100 %), und Auto-Reload ist an (bei 5 USD wird auf 100 USD aufgeladen). Die einzige harte Kostenbremse ist darum
+**unser** `LERNAPP_AI_BUDGET_EUR` (zahlende Konten je Monat) mit `LERNAPP_AI_TRIAL_BUDGET_EUR` (Probekonten) und
+`LERNAPP_AI_LIBRARY_BUDGET_EUR` (Bibliothek). Die Prüfung reserviert **vor** dem Aufruf des Anbieters in einer
+`BEGIN IMMEDIATE`-Transaktion (laufende Summe + Reservierung ≤ Budget, sonst 503 `ai_budget_exhausted`); gleichzeitige
+Anfragen – auch 4.000 – können das Budget nie gemeinsam überschreiten (Test
+`test_reservation_happens_before_the_provider_and_blocks_the_budget_under_concurrency`). Dazu je Konto die Credits
+(`app/credits.py`, Obergrenze je Anfrage reserviert) und die Rate-Limits `LERNAPP_AI_RATE_PER_MINUTE` (6) /
+`LERNAPP_AI_RATE_PER_HOUR` (60).
+
+**Servergröße.** CX23 (2 vCPU, 4 GB): 4 API-Prozesse à ~150–300 MB plus offene Fragen plus `jobs` (Chromium-Abgleiche)
+plus Caddy. Ab etwa 2.000 gleichzeitig offenen KI-Fragen oder dauerhaft >70 % CPU (`docker stats`) auf **CX33 (4 vCPU,
+8 GB)** wechseln: `UVICORN_WORKERS=8`, `API_MEMORY=3G`, `jobs` 2560M, `LERNAPP_JOB_WORKERS=3`. Ab ~4.000 offenen Fragen
+mit viel gleichzeitigem Abgleich (Chromium) **CX43 (8 vCPU, 16 GB)**: `UVICORN_WORKERS=12`, `API_MEMORY=5G`,
+`LERNAPP_JOB_WORKERS=4`. Die Entscheidung hängt am gemessenen Speicher je 1.000 offene Fragen (Tabelle) – vorher
+`docker stats --no-stream` im Betrieb ansehen.
+
+**Caddy.** `deploy/Caddyfile` setzt keine Verbindungsgrenze (`max_conns` nicht gesetzt = unbegrenzt) und lange Zeitlimits
+(`response_header_timeout 10m`, `read/write 15m`); 4.000 offene Verbindungen sind für Caddy kein Problem, solange die
+Dateideskriptoren reichen (Docker-Standard 1.048.576 für den Caddy-Container, nicht ändern).
+
+**Dateideskriptoren.** Jede offene Frage = 1 Verbindung Caddy→App + 1 App→Anbieter (+ kurz SQLite). Der `app`-Container
+hat jetzt `ulimits nofile 65536`; prüfen mit `docker compose exec app sh -c 'ulimit -n'`. Der Host (Ubuntu) erlaubt
+Standard 1.048.576.
+
+### Schalter in `deploy/.env` (alle optional)
+
+| Schalter | Standard | Bedeutung |
+| --- | --- | --- |
+| `UVICORN_WORKERS` / `API_MEMORY` | 4 / 1536M | API-Prozesse und ihre Speichergrenze (2 je Kern) |
+| `LERNAPP_AI_CONCURRENCY` | 5000 | gleichzeitige KI-Fragen je Prozess; darüber 503 `ai_overloaded` + `Retry-After: 3` (Notbremse) |
+| `LERNAPP_AI_TIMEOUT_S` | 90 | Zeitlimit je Verbindung zum Anbieter |
+| `LERNAPP_AI_DB_THREADS` | 8 | Threads je Prozess für die Datenbankschritte der KI-Fragen |
+| `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_TRIAL_BUDGET_EUR` | 50 / 5 (heute 400 / 100 gesetzt) | harte Kostenbremse je Monat, zahlende Konten / Probekonten |
+| `LERNAPP_AI_RATE_PER_MINUTE` / `_PER_HOUR` | 6 / 60 | Fragen je Konto |
+| `LERNAPP_LIMIT_API_PER_MIN` | 600 | alle API-Anfragen je Konto und Prozess |
+| `LERNAPP_LIMIT_REGISTER_IP` | 30/60 (Vorlage 300/60) | Registrierungen je Adresse (eduroam-NAT!) |
+
+### Was bei Wachstum zu tun ist
+
+1. **500 Tester (TestFlight):** nichts weiter; `LERNAPP_AI_TRIAL_BUDGET_EUR=200` setzen (Probekonten sind in der
+   TestFlight-Phase die Regel) und täglich `python -m app.ai_backend`-Monatsbericht bzw. `docker stats` ansehen.
+2. **1.000–2.000 Nutzer:** CX33, `UVICORN_WORKERS=8`, `API_MEMORY=3G`; `LERNAPP_AI_BUDGET_EUR` am erwarteten Verbrauch
+   ausrichten (100 Credits = 0,90 EUR je Pro-AI-Konto und Monat als Obergrenze).
+3. **5.000 Nutzer:** CX43 oder zwei Server (Caddy vor zwei App-Containern geht erst, wenn accounts.db nicht mehr SQLite ist –
+   docs/SKALIERUNG-GROSS.md); OpenAI-Stufe prüfen (Tokens/Minute), ggf. zweites Modell in `LERNAPP_AI_ROUTES`.
+4. **Immer:** vor Änderungen `tools/lasttest-ki.py` lokal laufen lassen (`--ai 2000 --normal 200`), Tabelle hier
+   aktualisieren.
