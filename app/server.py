@@ -226,6 +226,15 @@ def _api_rate(user_id: str, now: float | None = None) -> int:
 _FASTAPI_DOC_PATHS = ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")
 
 
+async def _in_thread(fn, *args):
+    """Datenbankarbeit der Middleware (accounts.db, Konto-Datenbank) in den Thread-Pool statt in die Ereignisschleife
+    (08.11.2026, Pruefung fuer 4.000 Nutzer): accounts.authenticate liest je Anfrage die Sitzung und schreibt einmal je
+    Minute "zuletzt gesehen"; wartet SQLite dabei auf eine Schreibsperre (busy_timeout bis 15 s), stand vorher der ganze
+    Prozess mit allen offenen Anfragen - jetzt nur dieser eine Thread. Contextvars (Konto-Kontext) gehen mit."""
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(fn, *args)
+
+
 @app.middleware("http")
 async def hosted_guard(request, call_next):
     """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
@@ -239,7 +248,7 @@ async def hosted_guard(request, call_next):
     if path in ("/", "/index.html", "/login"):
         # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin - ausser die Windows-App holt
         # sich ueber die Anmeldeseite eine Anmeldung (/login?app=windows, app/app_login_api.py)
-        user = accounts.authenticate(account_api.token_of(request))
+        user = await _in_thread(accounts.authenticate, account_api.token_of(request))
         if path == "/login" and user and request.query_params.get("app") != "windows":
             return RedirectResponse("/", status_code=302)
         if path != "/login" and not user:
@@ -250,7 +259,7 @@ async def hosted_guard(request, call_next):
     why = hosted_unavailable(request.method, path)
     if why:
         return JSONResponse({"detail": why, "code": "not_available_hosted"}, status_code=501)
-    user = accounts.authenticate(account_api.token_of(request))
+    user = await _in_thread(accounts.authenticate, account_api.token_of(request))
     if not user:
         return JSONResponse({"detail": "Anmeldung erforderlich.", "code": "unauthenticated"}, status_code=401)
     wait = _api_rate(user["id"])
@@ -263,7 +272,7 @@ async def hosted_guard(request, call_next):
     client = access.client_type(request)
     request.state.client = client
     if client in access.GATED_CLIENTS and not access.write_allowed_when_locked(request.method, path):
-        acc = access.for_user(user, client)
+        acc = await _in_thread(access.for_user, user, client)       # liest Tarif und Probe aus accounts.db
         if acc["locked"]:
             status, body = access.blocked(acc["state"])
             return JSONResponse(body, status_code=status)
@@ -274,7 +283,10 @@ async def hosted_guard(request, call_next):
     try:
         key = (user["id"], user["university"])
         if key not in _user_dbs_ready:
-            db.init_db()
+            # erste Anfrage des Kontos in diesem Prozess: Schema der Konto-Datenbank (41 Tabellen, ~55 ms) - im Thread,
+            # sonst stehen waehrenddessen alle anderen Anfragen dieses Prozesses (bei 12 Prozessen und 4.000 Konten
+            # passiert das 48.000-mal nach jedem Neustart)
+            await _in_thread(db.init_db)
             _user_dbs_ready.add(key)
         return await call_next(request)
     finally:
@@ -532,12 +544,14 @@ async def file_response_headers(request, call_next):
 MAX_ASSET_BYTES = 15 << 20                   # Bild/Screenshot/PDF im Editor
 MAX_RECORDING_BYTES = 200 << 20              # Audio-Aufnahme (90 Minuten AAC 128 kbit/s rund 85 MB)
 MAX_IMPORT_BYTES = 100 << 20                 # PDF-Import bzw. Bild als Notizbuch
+MAX_SYNC_BYTES = 32 << 20                    # POST /api/sync/push: JSON wird ganz gelesen; ohne Grenze liesse Caddy 320 MB durch (08.11.2026)
 MAX_IMAGE_PIXELS = 40_000_000                # Bild als PDF-Seite: groessere Bilder lehnen wir ab (Dekompressionsbombe)
 UPLOAD_QUOTA_MB = 2048                       # Standard je Konto im Dienst
 _MULTIPART_SLACK = 1 << 20                   # Formularfelder und Trenner
 _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/files/[^/]+/recordings$"), MAX_RECORDING_BYTES),
-                  (re.compile(r"^/api/notebooks$"), MAX_IMPORT_BYTES))
+                  (re.compile(r"^/api/notebooks$"), MAX_IMPORT_BYTES),
+                  (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES))
 try:
     from PIL import Image as _PILImage  # type: ignore
     _PILImage.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
@@ -547,6 +561,39 @@ except ImportError:  # pragma: no cover - Pillow ist optional
 
 def _too_large(limit: int) -> JSONResponse:
     return JSONResponse({"detail": f"Die Datei ist zu groß (höchstens {limit >> 20} MB).", "code": "too_large"}, status_code=413)
+
+
+# Platten-Reserve des Dienstes (08.11.2026): 4.000 Konten x LERNAPP_UPLOAD_QUOTA_MB waeren rechnerisch Terabytes - die
+# Grenze je Konto schuetzt die Platte nicht. Unter LERNAPP_DISK_MIN_FREE_MB freiem Platz (Standard 5 GB) auf dem
+# Datenlaufwerk nimmt der Dienst keine Uploads mehr an (507 storage_full), damit accounts.db, Konto-Datenbanken und
+# Protokolle weiter schreiben koennen. deploy/dienst-check.sh warnt schon ab 80 % Belegung.
+DISK_MIN_FREE_MB = 5120
+
+
+def _disk_min_free_bytes() -> int:
+    import os
+    try:
+        mb = int(os.environ.get("LERNAPP_DISK_MIN_FREE_MB") or DISK_MIN_FREE_MB)
+    except ValueError:
+        mb = DISK_MIN_FREE_MB
+    return max(0, mb) << 20
+
+
+def disk_free_bytes(path: Path) -> int | None:
+    """Freier Platz des Laufwerks, auf dem `path` (oder der naechste vorhandene Elternordner) liegt; None, wenn unbekannt."""
+    import shutil
+    p = Path(path)
+    while not p.exists() and p.parent != p:
+        p = p.parent
+    try:
+        return shutil.disk_usage(p).free
+    except OSError:
+        return None
+
+
+def _disk_full(target: Path, incoming: int = 0) -> bool:
+    free = disk_free_bytes(target)
+    return free is not None and free - max(0, incoming) < _disk_min_free_bytes()
 
 
 class UploadLimit:
@@ -625,6 +672,9 @@ def _own_upload_bytes() -> int:
 def _upload_error(code: str, limit: int = 0) -> HTTPException:
     if code == "storage_quota":
         return HTTPException(413, {"detail": "Dein Speicherplatz für eigene Dateien ist voll.", "code": "storage_quota"})
+    if code == "storage_full":
+        return HTTPException(507, {"detail": "Der Speicher des Dienstes ist gerade voll. Bitte später noch einmal versuchen.",
+                                   "code": "storage_full"})
     return HTTPException(413, {"detail": f"Die Datei ist zu groß (höchstens {limit >> 20} MB).", "code": "too_large"})
 
 
@@ -638,6 +688,8 @@ async def _save_upload(upload: UploadFile, target: Path, limit: int, head: bytes
         budget = _upload_quota_bytes() - _own_upload_bytes()
         if upload.size is not None and upload.size > budget:
             raise _upload_error("storage_quota")
+        if _disk_full(target, upload.size or 0):             # Reserve der ganzen Platte, nicht nur das Kontingent des Kontos
+            raise _upload_error("storage_full")
     n = 0
     try:
         with open(target, "wb") as out:

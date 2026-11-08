@@ -517,11 +517,46 @@ class UniversityMismatch(RuntimeError):
     """Der Datenordner gehoert zu einer anderen Hochschule: lieber nicht starten als Daten vermischen."""
 
 
+_FINGERPRINT: int | None = None
+
+
+def schema_fingerprint() -> int:
+    """Kennzahl des Schema-Codes (db.py, weekly.py, sync.py als Bytes, CRC32, positiv): steht sie als `PRAGMA
+    user_version` in einer Konto-Datenbank, hat genau dieser Code-Stand `_init_db` dort schon vollstaendig ausgefuehrt.
+    Jede Aenderung an einer der drei Dateien ergibt eine andere Zahl, dann laeuft die Schema-Arbeit wieder."""
+    global _FINGERPRINT
+    if _FINGERPRINT is None:
+        import os
+        import zlib
+        here = os.path.dirname(os.path.abspath(__file__))
+        data = b""
+        for n in ("db.py", "weekly.py", "sync.py"):
+            p = os.path.join(here, n)
+            if os.path.exists(p):
+                with open(p, "rb") as f:
+                    data += f.read()
+        _FINGERPRINT = (zlib.crc32(data) & 0x7FFFFFFF) or 1
+    return _FINGERPRINT
+
+
 def init_db() -> None:
+    """Schema der (Konto-)Datenbank anlegen bzw. nachziehen. Schnellpfad (08.11.2026, Launch mit 4.000 Konten): tragt
+    die Datei die Kennzahl dieses Code-Stands (`schema_fingerprint`), ist nichts zu tun - nur die Hochschule wird
+    geprueft. Vorher kostete der erste Kontakt jedes Kontos in jedem API-Prozess die ganze Schema-Arbeit (41 Tabellen,
+    Migrationen, ~55 ms); bei 12 Prozessen und 4.000 Konten 48.000-mal nach jedem Neustart."""
+    from . import config
     conn = connect()
     try:
+        mark = schema_fingerprint()
+        if (conn.execute("PRAGMA user_version").fetchone() or [0])[0] == mark:
+            owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
+            if owner is not None and owner[0] != config.university():
+                raise UniversityMismatch(f"Der Datenordner {config.data_dir()} gehoert zur Hochschule '{owner[0]}', "
+                                         f"die App laeuft fuer '{config.university()}'. Es werden keine Daten gemischt.")
+            return
         with conn:                      # Transaktion; schliesst die Verbindung NICHT (sqlite3), daher finally
             _init_db(conn)
+        conn.execute(f"PRAGMA user_version={mark}")
     finally:
         conn.close()
 

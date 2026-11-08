@@ -129,14 +129,18 @@ def test_dockerfile_runs_two_api_workers_and_compose_moves_jobs_to_own_service()
 
 def test_env_example_raises_register_limit_for_campus_nat():
     """Lasttest 30.10.2026, Fund 6: 30 Registrierungen je IP und Stunde reichen hinter eduroam-NAT nicht. Die Vorlage
-    setzt 300/60, und app/accounts._limit liest genau diesen Wert."""
+    setzte 300/60; seit 08.11.2026 (Launch mit bis zu 500 Testern am Tag hinter einer Campus-Adresse) 2000/60 plus die
+    Summe ueber alle Adressen (register_all). app/accounts._limit liest genau diesen Wert."""
     from app import accounts
     text = read(".env.example")
     m = re.search(r"^LERNAPP_LIMIT_REGISTER_IP=(\d+)/(\d+)$", text, re.M)
     assert m, "LERNAPP_LIMIT_REGISTER_IP fehlt in .env.example"
     n, minutes = int(m.group(1)), int(m.group(2))
-    assert n >= 300 and minutes == 60 and n > accounts.LIMITS["register_ip"][0]
+    assert n >= 2000 and minutes == 60 and n > accounts.LIMITS["register_ip"][0]
     assert "NAT" in text and "eduroam" in text, "Begruendung steht dabei"
+    assert re.search(r"^LERNAPP_LIMIT_REGISTER_ALL=", text, re.M) and "register_all" in accounts.LIMITS
+    assert accounts.LIMITS["register_all"][0] >= n, "die Summe ueber alle Adressen darf nicht unter der Grenze je Adresse liegen"
+    assert re.search(r"^LERNAPP_LOGIN_FAILS_IP=(\d+)$", text, re.M) and re.search(r"^LERNAPP_LIMIT_RESET_IP=\d+/60$", text, re.M)
     import os
     old = os.environ.get("LERNAPP_LIMIT_REGISTER_IP")
     os.environ["LERNAPP_LIMIT_REGISTER_IP"] = m.group(0).split("=", 1)[1]
@@ -148,7 +152,7 @@ def test_env_example_raises_register_limit_for_campus_nat():
         else:
             os.environ["LERNAPP_LIMIT_REGISTER_IP"] = old
     doc = (ROOT / "docs" / "START-DIENST-CHECKLISTE.md").read_text(encoding="utf-8")
-    assert "LERNAPP_LIMIT_REGISTER_IP=300/60" in doc and "python -m app.jobs" in doc and "jobs.heartbeat" in doc
+    assert f"LERNAPP_LIMIT_REGISTER_IP={n}/{minutes}" in doc and "python -m app.jobs" in doc and "jobs.heartbeat" in doc
 
 
 def test_compose_mounts_volumes_and_keeps_app_internal():

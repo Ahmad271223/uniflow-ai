@@ -66,7 +66,9 @@ def main() -> int:
                     continue
                 if name.endswith(".db"):
                     n_db += 1
-                    tar.add(snapshot_db(p, tmpdir, n_db), arcname=f"{PREFIX}/{rel}")
+                    snap = snapshot_db(p, tmpdir, n_db)
+                    tar.add(snap, arcname=f"{PREFIX}/{rel}")
+                    snap.unlink(missing_ok=True)       # sonst liegen bis zum Ende ALLE Kopien im Container (4.000 Konten: >1 GB)
                 else:
                     tar.add(p, arcname=f"{PREFIX}/{rel}", recursive=False)
                     n_files += 1
