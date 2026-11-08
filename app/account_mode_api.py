@@ -84,8 +84,13 @@ def portal(request: Request, body: dict = Body(default={})):
 
 
 @router.get("/api/app-account/export")
-def export():
+def export(request: Request):
+    """Eine fremde Seite darf den Export nicht anstossen (GET prueft der Herkunftsschutz nicht; jede Anfrage baute ein
+    ZIP aller Daten dieses PCs): wie /api/account/export abgewiesen (Audit P26-01, 08.11.2026)."""
     _local()
+    from .account_api import _from_foreign_site
+    if _from_foreign_site(request):
+        raise HTTPException(403, {"detail": "Anfrage von fremder Seite abgelehnt.", "code": "cross_site"})
     path = account_mode.export_zip()
     from datetime import date
     return FileResponse(path, media_type="application/zip", filename=f"studinow-daten-pc-{date.today().isoformat()}.zip",

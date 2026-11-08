@@ -326,6 +326,19 @@ async def account_gate(request, call_next):
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
 _PIN_FAILS: dict[str, list] = {}
+# Obergrenze der Tabelle (Audit P27-07, 08.11.2026): Eintraege nur fuer falsche PINs; bei mehr Adressen (IPv6 im LAN
+# laesst sich beliebig wechseln) fallen zuerst abgelaufene, dann die aeltesten weg - der Speicher waechst nicht mit.
+PIN_FAILS_MAX = 4096
+
+
+def _prune_pin_fails(now: float) -> None:
+    if len(_PIN_FAILS) <= PIN_FAILS_MAX:
+        return
+    for k in [k for k, v in _PIN_FAILS.items() if now - v[1] >= 600]:
+        _PIN_FAILS.pop(k, None)
+    if len(_PIN_FAILS) > PIN_FAILS_MAX:
+        for k in sorted(_PIN_FAILS, key=lambda k: _PIN_FAILS[k][1])[:len(_PIN_FAILS) - PIN_FAILS_MAX]:
+            _PIN_FAILS.pop(k, None)
 PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>StudiNow – PIN</title>
 <style>body{font:16px/1.5 Inter,system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}form{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(360px,92vw);box-shadow:0 4px 16px rgba(20,24,40,.06)}h1{font-size:1.2rem;margin:0 0 .3rem}p{color:#7a8199;margin:0 0 1rem;font-size:.9rem}input{width:100%;font-size:1.4rem;letter-spacing:.3em;text-align:center;padding:.6rem;border:1px solid #d3d8e4;border-radius:10px;box-sizing:border-box}button{margin-top:.8rem;width:100%;padding:.7rem;border:0;border-radius:10px;background:#4f5bd5;color:#fff;font-weight:600;font-size:1rem}</style></head>
 <body><form method="get" action="/"><h1>StudiNow</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
@@ -380,11 +393,13 @@ async def lan_pin_guard(request, call_next):
     pin = _lan_pin()
     given = request.query_params.get("pin") or request.cookies.get("lernapp_pin")
     import time as _time
-    fails = _PIN_FAILS.setdefault(host, [0, 0.0])
+    fails = _PIN_FAILS.get(host) or [0, 0.0]
     if fails[0] >= 8 and _time.time() - fails[1] < 600:
         return JSONResponse({"detail": "Zu viele falsche PIN-Eingaben. Bitte 10 Minuten warten."}, status_code=429)
     if given and given != pin:
         fails[0] = fails[0] + 1 if _time.time() - fails[1] < 600 else 1; fails[1] = _time.time()
+        _PIN_FAILS[host] = fails
+        _prune_pin_fails(_time.time())
     if given == pin:
         _PIN_FAILS.pop(host, None)
         response = await call_next(request)

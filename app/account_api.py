@@ -146,6 +146,12 @@ def _verified(provider: str, body: dict) -> dict:
         except social_login.TokenError as e:
             raise HTTPException(401, {"detail": f"Die Anmeldung bei {provider.capitalize()} konnte nicht geprüft werden: {e}",
                                       "code": "token_invalid"})
+        except OSError as e:
+            # Schluessel des Anbieters nicht ladbar (Netz, Zeitlimit): 503 statt 500, ohne URL im Text (Audit P25-07)
+            import logging
+            logging.getLogger("uniflow.account").warning("Schluessel von %s nicht ladbar: %s: %s", provider, type(e).__name__, e)
+            raise HTTPException(503, {"detail": f"{provider.capitalize()} ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.",
+                                      "code": "provider_unavailable"}, headers={"Retry-After": "30"})
     try:
         return accounts.verify_identity(provider, token, nonce)
     except accounts.AccountError as e:
