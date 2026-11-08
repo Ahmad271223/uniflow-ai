@@ -11,11 +11,33 @@ import os
 
 from fastapi import APIRouter, Body, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.routing import APIRoute
 from starlette.background import BackgroundTask
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import accounts, config, mail, social_login
 
-router = APIRouter(prefix="/api/account", tags=["account"])
+
+class NoStoreRoute(APIRoute):
+    """Jede Antwort (auch Fehler) mit `Cache-Control: no-store`: Antworten tragen Sitzungs-Token (login, register,
+    RFC 6749 5.1) oder personenbezogene Daten (me, Export). Vorher ohne Angabe (Audit 08.11.2026, P55-11)."""
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def no_store(request):
+            try:
+                response = await handler(request)
+            except StarletteHTTPException as e:
+                headers = dict(e.headers or {})
+                headers.setdefault("Cache-Control", "no-store")
+                raise HTTPException(e.status_code, e.detail, headers=headers) from None
+            response.headers.setdefault("Cache-Control", "no-store")
+            return response
+        return no_store
+
+
+router = APIRouter(prefix="/api/account", tags=["account"], route_class=NoStoreRoute)
 COOKIE = "uniflow_session"
 # Pfade ohne Sitzung (alles andere unter /api braucht im gehosteten Modus eine Sitzung)
 PUBLIC_PATHS = {"/api/account/register", "/api/account/login", "/api/account/login/apple", "/api/account/login/google",

@@ -340,9 +340,16 @@ def exported(user: dict) -> list[dict]:
 
 
 def forget_author(user_id: str) -> int:
-    """Konto loeschen: eigene geteilte Stapel, Likes und Meldungen entfernen."""
+    """Konto endgueltig geloescht: eigene geteilte Stapel samt Likes und Meldungen dazu, eigene Likes und Meldungen
+    entfernen. Vorher blieben die zurueckgezogenen Stapel mit Name, Pseudonym und Konto-ID stehen (Audit 08.11.2026,
+    P57-05); ein zurueckgezogener Stapel verhaelt sich fuer andere wie ein fehlender."""
     with cursor() as conn:
-        n = conn.execute("UPDATE card_stacks SET status='withdrawn', cards='[]' WHERE author_id=? AND status<>'withdrawn'", (user_id,)).rowcount
+        ids = [r[0] for r in conn.execute("SELECT id FROM card_stacks WHERE author_id=?", (user_id,))]
+        n = conn.execute("SELECT COUNT(*) FROM card_stacks WHERE author_id=? AND status<>'withdrawn'", (user_id,)).fetchone()[0]
+        for sid in ids:
+            conn.execute("DELETE FROM card_stack_likes WHERE stack_id=?", (sid,))
+            conn.execute("DELETE FROM card_stack_reports WHERE stack_id=?", (sid,))
+        conn.execute("DELETE FROM card_stacks WHERE author_id=?", (user_id,))
         conn.execute("DELETE FROM card_stack_likes WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM card_stack_reports WHERE reporter_id=?", (user_id,))
     return n

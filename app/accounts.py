@@ -827,17 +827,33 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
             raise AccountError("not_found", "Konto nicht gefunden.", 404)
         if u["pw_hash"] and not verify_password(password or "", u["pw_hash"]):
             raise AccountError("credentials_invalid", "Zum Löschen bitte das Passwort angeben.", 401)
-        t = iso(now())
-        conn.execute("UPDATE users SET status='deleted', deleted_at=?, email=?, pw_hash=NULL WHERE id=?",
-                     (t, f"deleted-{user_id}@invalid", user_id))
-        conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (t, user_id))
-        conn.execute("DELETE FROM identities WHERE user_id=?", (user_id,))
-        conn.execute("DELETE FROM reset_tokens WHERE user_id=?", (user_id,))
-        if _has_table(conn, "sync_jobs"):                    # wartende Abgleiche laufen nicht mehr
-            conn.execute("UPDATE sync_jobs SET status='failed', finished_at=?, message='Konto gelöscht' "
-                         "WHERE user_id=? AND status='queued'", (t, user_id))
+        _mark_deleted(conn, user_id, iso(now()))
     _after_delete(user_id)
     return {"deleted": True, "purge_after_days": 30}
+
+
+def redelete(user_id: str, deleted_at: str | None = None) -> bool:
+    """Betrieb nach dem Zurueckspielen einer Sicherung (docs/release/BETRIEB.md, Wiederherstellung): ein Konto, das
+    nach der Sicherung geloescht wurde, erneut loeschen - ohne Passwort, mit dem urspruenglichen Loeschzeitpunkt, damit
+    die 30-Tage-Frist nicht neu beginnt (Audit 08.11.2026, P57-06). False, wenn das Konto nicht (mehr) aktiv ist."""
+    with cursor() as conn:
+        if not conn.execute("SELECT 1 FROM users WHERE id=? AND status='active'", (user_id,)).fetchone():
+            return False
+        _mark_deleted(conn, user_id, deleted_at or iso(now()))
+    _after_delete(user_id)
+    return True
+
+
+def _mark_deleted(conn, user_id: str, t: str) -> None:
+    """Sperren, abmelden, Adresse freigeben (umbenannt), Passwort-Hash, Anmeldewege und Reset-Token sofort weg."""
+    conn.execute("UPDATE users SET status='deleted', deleted_at=?, email=?, pw_hash=NULL WHERE id=?",
+                 (t, f"deleted-{user_id}@invalid", user_id))
+    conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (t, user_id))
+    conn.execute("DELETE FROM identities WHERE user_id=?", (user_id,))
+    conn.execute("DELETE FROM reset_tokens WHERE user_id=?", (user_id,))
+    if _has_table(conn, "sync_jobs"):                        # wartende Abgleiche laufen nicht mehr
+        conn.execute("UPDATE sync_jobs SET status='failed', finished_at=?, message='Konto gelöscht' "
+                     "WHERE user_id=? AND status='queued'", (t, user_id))
 
 
 def _after_delete(user_id: str) -> bool:
@@ -864,9 +880,12 @@ def _after_delete(user_id: str) -> bool:
 
 # Tabellen in accounts.db mit Spalte user_id, die beim endgueltigen Loeschen geleert werden (dazu jede Tabelle mit
 # Fremdschluessel auf users, siehe _purge_user). ai_usage_log bleibt ohne Konto-Bezug fuer die Kostenrechnung.
+# Audit 08.11.2026, Paket 57 (P57-05): Tarifauswahl, Stripe-Kunde und -Abo, App-Anmeldecodes und die Monatssumme der
+# KI-Kosten je Konto blieben vorher mit der Konto-ID stehen (tests/test_audit_paket_55_57.py).
 ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
                   "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months",
-                  "invites", "invite_redemptions", "invite_rewards")
+                  "invites", "invite_redemptions", "invite_rewards",
+                  "plan_choices", "stripe_customers", "stripe_subscription_state", "app_login_codes", "ai_usage_user_month")
 
 
 def _has_table(conn, name: str) -> bool:
@@ -970,8 +989,18 @@ def get_user(user_id: str) -> dict | None:
 # ---------------------------------------------------------------- Kommandozeile (Betrieb)
 
 def main(argv: list[str]) -> int:
-    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
+    """python -m app.accounts reset-token <email> | purge | list | deleted | redelete <id> [geloescht_am] |
+    plan <email> free|plus|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
     cmd = argv[0] if argv else ""
+    if cmd == "deleted":                                    # vor dem Zurueckspielen einer Sicherung sichern (BETRIEB.md)
+        with cursor() as conn:
+            for r in conn.execute("SELECT id, deleted_at FROM users WHERE status='deleted' ORDER BY deleted_at"):
+                print(f"{r['id']} {r['deleted_at']}")
+        return 0
+    if cmd == "redelete" and len(argv) in (2, 3):
+        ok = redelete(argv[1], argv[2] if len(argv) == 3 else None)
+        print("erneut gelöscht" if ok else "kein aktives Konto mit dieser ID (schon gelöscht oder nie vorhanden)")
+        return 0
     if cmd in ("plan", "role") and len(argv) >= 3:
         u = user_by_email(argv[1])
         if not u:

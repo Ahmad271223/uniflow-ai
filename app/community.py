@@ -776,6 +776,12 @@ def forget_author(user_id: str) -> int:
         conn.execute("DELETE FROM reports WHERE reporter_id=?", (user_id,))
         conn.execute("DELETE FROM blocks WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM bans WHERE author_id=?", (user_id,))
+        # Mitgliedschaften, Kurs-Meldungen und Erstmeldungen; angelegte Lerngruppen bleiben fuer die anderen Mitglieder,
+        # nur ohne Ersteller (Audit 08.11.2026, P57-05: vorher blieben alle vier mit der Konto-ID)
+        conn.execute("DELETE FROM course_claims WHERE user_id=?", (user_id,))
+        conn.execute("DELETE FROM community_members WHERE user_id=?", (user_id,))
+        conn.execute("DELETE FROM course_key_history WHERE user_id=?", (user_id,))
+        conn.execute("UPDATE study_groups SET created_by='deleted' WHERE created_by=?", (user_id,))
         for sid in ids:                                           # alle Pakete des Kontos, auch liegen gebliebene (P5-05)
             _package_path(sid).unlink(missing_ok=True)
     from . import community_qa

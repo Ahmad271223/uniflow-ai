@@ -109,6 +109,14 @@ def shared_info(row: dict | None) -> dict | None:
 
 # ---------------------------------------------------------------- Pool des Dienstes (wie test_library.shared_*)
 
+def forget_owner(owner: str) -> None:
+    """Konto endgueltig geloescht (test_library.forget_owner): leere Belegungen weg, fertige Stapel bleiben fuer die
+    anderen ohne Besitzer ('' statt des Kurzwerts; die Spalte ist NOT NULL, '' trifft nie einen echten Kurzwert)."""
+    with cursor() as conn:
+        conn.execute("DELETE FROM shared_card_stacks WHERE owner_hash=? AND status='pending'", (owner,))
+        conn.execute("UPDATE shared_card_stacks SET owner_hash='' WHERE owner_hash=?", (owner,))
+
+
 @contextmanager
 def cursor():
     from . import db, test_library
