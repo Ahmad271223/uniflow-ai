@@ -19,7 +19,7 @@
   "domain": "studinow.app",
   "_hinweis_dienst": "Datenschutzerklaerung Abschnitt 11: Hoster mit Rechtsform, Serverstandort (Stadt, Land), Anbieter fuer den Mailversand - Hosting ist noch nicht entschieden (docs/release/BETRIEB.md), darum leer und in den Texten als [[Hoster]], [[Serverstandort]], [[Mail-Anbieter]] markiert.",
   "hoster": "Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen (Deutschland)",
-  "hoster_ort": "Helsinki, Finnland (EU)",
+  "hoster_ort": "Nürnberg, Deutschland (EU)",
   "mail_anbieter": "STRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland)",
   "_hinweis_aufsicht": "Sitz Hannover -> Niedersachsen.",
   "aufsichtsbehoerde": "Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover",

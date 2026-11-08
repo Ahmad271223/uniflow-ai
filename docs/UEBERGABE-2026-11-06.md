@@ -124,11 +124,11 @@ Lineal-Ebene (UIView über einer Seite, Striche einrasten) oder je Seite eine ei
 
 ## 5. Server (KI-Dienst)
 
-- `https://app.studinow.app` = Hetzner CX23 Helsinki, IPv4 2.29.122.54, Ubuntu 26.04, Docker Compose (app, jobs, caddy).
-- Zugang vom Mac: `ssh -i ~/.ssh/studinow_server root@2.29.122.54` (Schlüssel liegt nur auf dem Mac).
+- `https://app.studinow.app` = Hetzner CPX42 Nürnberg (8 vCPU, 16 GB), IPv4 46.225.32.3 (bis 08.11.2026: CX23 Helsinki 2.29.122.54, 7 Tage als Reserve), Ubuntu 26.04, Docker Compose (app, jobs, caddy).
+- Zugang vom Mac: `ssh -i ~/.ssh/studinow_server root@46.225.32.3` (Schlüssel liegt nur auf dem Mac).
 - Code liegt unter `/srv/uniflow/app` (per `git archive HEAD | ssh … tar -x`), Stand in `/srv/uniflow/app/VERSION-COMMIT`.
 - Ausrollen: lokal committen, dann
-  `git archive HEAD | ssh -i ~/.ssh/studinow_server root@2.29.122.54 'tar -x -C /srv/uniflow/app'` und auf dem Server
+  `git archive HEAD | ssh -i ~/.ssh/studinow_server root@46.225.32.3 'tar -x -C /srv/uniflow/app'` und auf dem Server
   `cd /srv/uniflow/app/deploy && ./backup.sh && docker compose up -d --build`.
 - `.env` liegt nur auf dem Server (`/srv/uniflow/app/deploy/.env`, 600). Der Inhaber hat OpenAI-Schlüssel und STRATO-Passwort
   **selbst** eingetragen – nie anzeigen, nie in Chat/Repo/Log. Prüfen nur mit `grep -c "^NAME=.\+"`.
