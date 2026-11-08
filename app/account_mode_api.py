@@ -86,7 +86,7 @@ def portal(request: Request, body: dict = Body(default={})):
 @router.get("/api/app-account/export")
 def export(request: Request):
     """Export am PC: im WLAN nur mit PIN (server.lan_pin_guard), nie aus dem Netz; eine fremde Webseite darf ihn
-    nicht anstossen (wie /api/account/export im Dienst, Audit P24-02)."""
+    nicht anstossen (wie /api/account/export im Dienst, Audit P24-02/P26-01)."""
     _local()
     from .account_api import _from_foreign_site
     if _from_foreign_site(request):

@@ -54,7 +54,7 @@ def _bad(detail: str, code: str = "request_invalid") -> HTTPException:
 
 
 def valid_redirect(uri: str) -> bool:
-    m = REDIRECT_RE.match(uri or "")
+    m = REDIRECT_RE.fullmatch(uri or "")              # fullmatch: "$" liesse ein angehaengtes "\n" durch (Audit P26-11)
     return bool(m and 0 < int(m.group(2)) < 65536)
 
 
@@ -103,9 +103,13 @@ def exchange(request: Request, body: dict = Body(...)):
         r = conn.execute("SELECT * FROM app_login_codes WHERE code_hash=?", (_hash(code),)).fetchone()
         if not r or r["used_at"] or r["expires_at"] <= accounts.iso(t):
             raise invalid
-        # jeder Versuch verbraucht den Code, auch ein falscher Verifier (kein Raten)
-        conn.execute("UPDATE app_login_codes SET used_at=? WHERE code_hash=?", (accounts.iso(t), r["code_hash"]))
+        # jeder Versuch verbraucht den Code, auch ein falscher Verifier (kein Raten). Nur wer ihn wirklich verbraucht
+        # (rowcount 1), darf weiter: zwei gleichzeitige Einloesungen ergaben sonst zwei Sitzungen (Audit P26-04).
+        used = conn.execute("UPDATE app_login_codes SET used_at=? WHERE code_hash=? AND used_at IS NULL",
+                            (accounts.iso(t), r["code_hash"])).rowcount
         conn.commit()
+        if used != 1:
+            raise invalid
         expect = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
         if not secrets.compare_digest(expect, r["challenge"]) or redirect != r["redirect_uri"]:
             raise invalid

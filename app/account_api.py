@@ -64,8 +64,19 @@ def _user(request: Request) -> dict:
     return u
 
 
+def _text(body: dict, key: str) -> str:
+    """Textfeld aus dem JSON-Koerper: fehlt/null -> "", Text -> unveraendert, alles andere (Zahl, Liste, Objekt,
+    true) -> 400 invalid_input statt 500 (Audit P25-06, 08.11.2026). Laengen prueft app/accounts.py."""
+    value = body.get(key)
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise HTTPException(400, {"detail": f"Das Feld „{key}“ muss Text sein.", "code": "invalid_input"})
+    return value
+
+
 def _device(body: dict, request: Request) -> tuple[str | None, str | None]:
-    return (body.get("device_id") or None, body.get("device_name") or (request.headers.get("user-agent") or "")[:120] or None)
+    return (_text(body, "device_id") or None, _text(body, "device_name") or (request.headers.get("user-agent") or "")[:120] or None)
 
 
 @router.get("/info")
@@ -86,15 +97,21 @@ def providers():
 def register(request: Request, body: dict = Body(...)):
     _hosted_only()
     try:
-        user = accounts.register(body.get("email"), body.get("password"), (body.get("university") or "").strip().lower(),
+        user = accounts.register(_text(body, "email"), _text(body, "password"), _text(body, "university").strip().lower(),
                                  client_ip=_ip(request))
         # Sitzung direkt anlegen statt ueber login(): spart das zweite scrypt (Lasttest 30.10.: Registrieren = 2x Hash)
         with accounts.cursor() as conn:
             token = accounts.create_session(conn, user["id"], *_device(body, request))
     except accounts.AccountError as e:
         raise _err(e)
-    # Willkommensmail mit Bestaetigungslink; ein Fehler beim Versand aendert die Antwort nicht
-    mail.send_welcome(user["email"], accounts.request_email_verification(user["id"], send=False, count=False))
+    # Willkommensmail mit Bestaetigungslink; ein Fehler beim Versand aendert die Antwort nicht. Konto und Sitzung
+    # stehen hier schon: eine Ausnahme (DB gesperrt, Warteschlange) ergab 500 und beim erneuten Versuch 409
+    # email_taken (Audit P25-04). Den Link holt "Bestaetigung erneut senden" nach.
+    try:
+        mail.send_welcome(user["email"], accounts.request_email_verification(user["id"], send=False, count=False))
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger("uniflow.account").warning("Willkommensmail nicht vorbereitet: %s: %s", type(e).__name__, e)
     resp = JSONResponse({"user": user, "token": token}, status_code=201)
     _set_cookie(resp, token)
     return resp
@@ -105,7 +122,7 @@ def login(request: Request, body: dict = Body(...)):
     _hosted_only()
     ip = request.client.host if request.client else None
     try:
-        user, token = accounts.login(body.get("email"), body.get("password") or "", *_device(body, request), client_ip=ip)
+        user, token = accounts.login(_text(body, "email"), _text(body, "password"), *_device(body, request), client_ip=ip)
     except accounts.AccountError as e:
         raise _err(e)
     resp = JSONResponse({"user": user, "token": token})
@@ -114,7 +131,7 @@ def login(request: Request, body: dict = Body(...)):
 
 
 def _id_token(body: dict) -> str:
-    return (body.get("id_token") or body.get("identity_token") or "").strip()
+    return (_text(body, "id_token") or _text(body, "identity_token")).strip()
 
 
 def _verified(provider: str, body: dict) -> dict:
@@ -122,13 +139,19 @@ def _verified(provider: str, body: dict) -> dict:
     accounts.identity_verifiers (Tests, Fixtures). Ohne beides 501 provider_not_configured; Fehler 401 token_invalid."""
     if provider not in ("apple", "google"):
         raise HTTPException(404, {"detail": "Unbekannter Anbieter", "code": "provider_unknown"})
-    token, nonce = _id_token(body), (body.get("nonce") or "").strip() or None
+    token, nonce = _id_token(body), _text(body, "nonce").strip() or None
     if social_login.configured(provider):
         try:
             return social_login.verify(provider, token, nonce)
         except social_login.TokenError as e:
             raise HTTPException(401, {"detail": f"Die Anmeldung bei {provider.capitalize()} konnte nicht geprüft werden: {e}",
                                       "code": "token_invalid"})
+        except OSError as e:
+            # Schluessel des Anbieters nicht ladbar (Netz, Zeitlimit): 503 statt 500, ohne URL im Text (Audit P25-07)
+            import logging
+            logging.getLogger("uniflow.account").warning("Schluessel von %s nicht ladbar: %s: %s", provider, type(e).__name__, e)
+            raise HTTPException(503, {"detail": f"{provider.capitalize()} ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.",
+                                      "code": "provider_unavailable"}, headers={"Retry-After": "30"})
     try:
         return accounts.verify_identity(provider, token, nonce)
     except accounts.AccountError as e:
@@ -143,8 +166,8 @@ def login_provider(provider: str, request: Request, body: dict = Body(...)):
     try:
         user, token, created = accounts.login_with_provider(
             provider, info["subject"], info.get("email"), bool(info.get("email_verified")),
-            (body.get("university") or "").strip().lower() or None, *_device(body, request),
-            fallback_email=(body.get("email") or "").strip() or None)
+            _text(body, "university").strip().lower() or None, *_device(body, request),
+            fallback_email=_text(body, "email").strip() or None)
     except accounts.AccountError as e:
         raise _err(e)
     resp = JSONResponse({"user": user, "token": token, "created": created}, status_code=201 if created else 200)
@@ -227,7 +250,7 @@ def change_password(request: Request, body: dict = Body(...)):
     _hosted_only()
     u = _user(request)
     try:
-        accounts.change_password(u["id"], body.get("old_password") or "", body.get("new_password") or "")
+        accounts.change_password(u["id"], _text(body, "old_password"), _text(body, "new_password"))
     except accounts.AccountError as e:
         raise _err(e)
     accounts.logout_all(u["id"], keep_token=token_of(request))
@@ -239,7 +262,7 @@ def reset_request(request: Request, body: dict = Body(...)):
     """Antwort immer gleich: verraet nicht, ob es das Konto gibt. Das Token geht nur ueber den Versandweg."""
     _hosted_only()
     try:
-        accounts.request_password_reset(body.get("email") or "", client_ip=_ip(request))
+        accounts.request_password_reset(_text(body, "email"), client_ip=_ip(request))
     except accounts.AccountError as e:
         raise _err(e)
     return {"ok": True, "message": "Wenn es ein Konto mit dieser Adresse gibt, wurde ein Link zum Zurücksetzen verschickt."}
@@ -250,7 +273,7 @@ def verify_email(body: dict = Body(...)):
     """E-Mail-Adresse bestaetigen: {token} aus dem Link der Mail (/login?verify=<token>); ohne Sitzung moeglich."""
     _hosted_only()
     try:
-        return {"ok": True, "user": accounts.verify_email(body.get("token") or "")}
+        return {"ok": True, "user": accounts.verify_email(_text(body, "token"))}
     except accounts.AccountError as e:
         raise _err(e)
 
@@ -307,7 +330,7 @@ def export(request: Request):
 def reset(body: dict = Body(...)):
     _hosted_only()
     try:
-        accounts.reset_password(body.get("token") or "", body.get("new_password") or "")
+        accounts.reset_password(_text(body, "token"), _text(body, "new_password"))
     except accounts.AccountError as e:
         raise _err(e)
     return {"ok": True}
@@ -319,7 +342,7 @@ def set_university(request: Request, body: dict = Body(...)):
     _hosted_only()
     u = _user(request)
     try:
-        return {"user": accounts.set_university(u["id"], (body.get("university") or "").strip().lower())}
+        return {"user": accounts.set_university(u["id"], _text(body, "university").strip().lower())}
     except accounts.AccountError as e:
         raise _err(e)
 
@@ -330,7 +353,7 @@ def delete(request: Request, body: dict = Body(default={})):
     _hosted_only()
     u = _user(request)
     try:
-        out = accounts.delete_account(u["id"], body.get("password"))
+        out = accounts.delete_account(u["id"], _text(body, "password") or None)
     except accounts.AccountError as e:
         raise _err(e)
     resp = JSONResponse(out)
