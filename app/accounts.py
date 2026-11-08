@@ -235,6 +235,13 @@ def _public(u) -> dict:
             "plan": u["plan"], "plan_until": u["plan_until"], "role": u["role"], "created_at": u["created_at"]}
 
 
+def _public_or_404(u) -> dict:
+    """Wie _public; eine unbekannte Nutzer-ID ergibt 404 statt TypeError (Audit 08.11.2026, Paket 3 Nr. 62/67/68)."""
+    if u is None:
+        raise AccountError("not_found", "Konto nicht gefunden.", 404)
+    return _public(u)
+
+
 # ---------------------------------------------------------------- Fehlversuche
 
 def _locked(conn, key: str) -> bool:
@@ -731,7 +738,7 @@ def set_university(user_id: str, university: str) -> dict:
         raise AccountError("university_unknown", "Unbekannte Hochschule.")
     with cursor() as conn:
         conn.execute("UPDATE users SET university=? WHERE id=? AND status='active'", (university, user_id))
-        return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
+        return _public_or_404(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
 
 
 def delete_account(user_id: str, password: str | None = None) -> dict:
@@ -802,7 +809,10 @@ def _purge_user(conn, user_id: str) -> None:
 
 def purge_deleted(days: int = 30) -> int:
     """Endgueltig loeschen: Konten, die seit `days` Tagen geloescht sind, mit allen Daten (_purge_user) und dem
-    beiseitegelegten Datenordner. Ein Fehler bei einem Konto haelt die anderen nicht auf (Sicherungspunkt je Konto)."""
+    beiseitegelegten Datenordner. Ein Fehler bei einem Konto haelt die anderen nicht auf (Sicherungspunkt je Konto).
+    Der Ordner kommt zuerst und ohne `ignore_errors` (Audit 08.11.2026, Paket 3 Nr. 66): scheitert er, bleibt die
+    Kontozeile stehen und der naechste Lauf versucht es erneut; vorher blieb ein nicht loeschbarer Ordner fuer immer
+    liegen, weil die Zeile schon weg war."""
     import logging
     import shutil
     cutoff = iso(now() - timedelta(days=days))
@@ -811,6 +821,8 @@ def purge_deleted(days: int = 30) -> int:
         for r in conn.execute("SELECT id FROM users WHERE status='deleted' AND deleted_at<=?", (cutoff,)).fetchall():
             conn.execute("SAVEPOINT purge_user")
             try:
+                for d in config.retired_user_data_dirs(r["id"]):
+                    shutil.rmtree(d)
                 _purge_user(conn, r["id"])
             except Exception:  # noqa: BLE001 - beim naechsten Lauf erneut, die uebrigen Konten laufen weiter
                 conn.execute("ROLLBACK TO purge_user")
@@ -818,8 +830,6 @@ def purge_deleted(days: int = 30) -> int:
                 logging.getLogger("uniflow.accounts").exception("Konto %s nicht endgueltig geloescht", r["id"])
                 continue
             conn.execute("RELEASE purge_user")
-            for d in config.retired_user_data_dirs(r["id"]):
-                shutil.rmtree(d, ignore_errors=True)
             n += 1
     return n
 
@@ -833,7 +843,7 @@ def set_plan(user_id: str, plan: str, until: str | None = None) -> dict:
         raise AccountError("plan_invalid", "Unbekannter Tarif (free, plus, pro_ai).")
     with cursor() as conn:
         conn.execute("UPDATE users SET plan=?, plan_until=? WHERE id=?", (plan, until, user_id))
-        return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
+        return _public_or_404(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
 
 
 def set_role(user_id: str, role: str) -> dict:
@@ -841,7 +851,7 @@ def set_role(user_id: str, role: str) -> dict:
         raise AccountError("role_invalid", "Unbekannte Rolle.")
     with cursor() as conn:
         conn.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
-        return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
+        return _public_or_404(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
 
 
 def user_by_email(email: str) -> dict | None:
