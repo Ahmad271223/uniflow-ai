@@ -17,6 +17,7 @@ from . import config, db, extract, pageocr, study
 
 import logging
 logging.getLogger("pypdf").setLevel(logging.ERROR)
+log = logging.getLogger("uniflow.scriptsearch")
 
 STOP = set("""
 aber alle allem allen aller alles also als am an andere anderen auch auf aus bei beide beiden beim bereits bestimmen
@@ -173,6 +174,12 @@ def _drop_cache() -> None:
         _CACHE.clear()
 
 
+def _unreadable(file_id: str, e: BaseException) -> None:
+    """Quelle ohne Seitentext: weiter ohne sie (KI und Suche antworten mit den uebrigen), aber mit Spur im Protokoll -
+    nur Datei-ID und Fehlerart, kein Pfad, kein Inhalt (Liste 95 Nr. 28; vorher still)."""
+    log.warning("Seitentexte von %s nicht lesbar (%s); die Quelle fehlt bis zum naechsten Versuch", file_id, type(e).__name__)
+
+
 def _page_texts(conn, file_id: str) -> list[str]:
     ensure_table(conn)
     f = db.row(conn, "SELECT local_path, chdate, name, download_url, course_id FROM files WHERE id=?", (file_id,))
@@ -187,13 +194,15 @@ def _page_texts(conn, file_id: str) -> list[str]:
             from . import filestream
             try:
                 filestream.content(conn, file_id)
-            except Exception:  # noqa: BLE001 - keine Sitzung, keine Datei: dann eben kein Text
+            except Exception as e:  # noqa: BLE001 - keine Sitzung, keine Datei: dann eben kein Text
+                _unreadable(file_id, e)
                 return []
             return [r["text"] or "" for r in db.rows(conn, "SELECT text FROM page_texts WHERE file_id=? ORDER BY page", (file_id,))]
         return []
     try:
         pages = _extract_pages(f["local_path"])
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _unreadable(file_id, e)
         return []
     store_pages(conn, file_id, pages, f["chdate"] or 0)
     return pages

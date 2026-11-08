@@ -292,3 +292,132 @@ def test_33_solution_download_streams_the_package_instead_of_holding_it_twice(ho
     assert (st, d["code"]) == (404, "not_found")
     with community.cursor() as conn:
         assert conn.execute("SELECT downloads FROM solutions WHERE id=?", (sid,)).fetchone()[0] == 3
+
+
+# ---------------------------------------------------------------- Nr. 70: Korrekturen erst nach dem Abruf begrenzt
+
+def test_70_corrections_list_stops_reading_at_the_size_limit(hosted, monkeypatch):
+    """Vorher: `for_solution` holte mit fetchall alle aktiven Korrekturen samt Chiffrat (bis 50 x 750.000 Zeichen = 37,5 MB)
+    und schnitt erst danach bei MAX_LIST_CHARS ab. Jetzt liest es Zeile fuer Zeile und hoert an der Grenze auf.
+    Gemessen mit tracemalloc bei verkleinerter Grenze (2 MB) und 20 Korrekturen zu je 1 MB."""
+    import shutil
+    import tracemalloc
+    from app import accounts, community, community_corrections as cc
+    from test_community_groups import KURS, call, member, package
+    shutil.rmtree(community.package_dir(), ignore_errors=True)
+    author = member(hosted, "l95-70a@beispiel.de")
+    reader = member(hosted, "l95-70b@beispiel.de")
+    pkg = package()
+    assert call(hosted, "POST", "/solutions", author, {"package": pkg, "title": "Blatt", "community_key": KURS})[0] == 201
+    sid = pkg["header"]["solutionId"]
+    with community.cursor() as conn:
+        owner = conn.execute("SELECT author_id FROM solutions WHERE id=?", (sid,)).fetchone()[0]
+        for i in range(20):
+            conn.execute("INSERT INTO corrections(id, solution_id, author_id, pseudonym, owner_id, payload, created_at) VALUES (?,?,?,?,?,?,?)",
+                         (uuid.uuid4().hex, sid, "x" * 32, "Studi-x", owner, chr(65 + i) * 1_000_000, f"2026-11-09T10:00:{i:02d}Z"))
+    monkeypatch.setattr(cc, "MAX_LIST_CHARS", 2_000_000)
+    st, me = _j(__import__("conftest").asgi_call(hosted, "GET", "/api/account/me", headers=reader))
+    u = accounts.get_user(me["user"]["id"])
+    tracemalloc.start()
+    try:
+        out = cc.for_solution(u, sid)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert [c["payload"][0] for c in out] == ["T", "S"], "neueste zuerst, bis zur Grenze"
+    assert peak < 8_000_000, f"Spitze {peak / 1e6:.1f} MB"
+
+
+# ---------------------------------------------------------------- Nr. 38: Aufraeumen der Index-Auftraege in 12 Prozessen
+
+def test_38_meta_writes_of_parallel_processes_do_not_collide(app, tmp_path, monkeypatch):
+    """Vorher: `_write_meta` schrieb immer nach `meta.json.tmp`. Die Sperre `_lock` gilt nur je Prozess; im Dienst laufen
+    12 API-Prozesse mit je einem Loeschauftrag (alle 60 s) und den Uploads. Zwei Schreiber im selben Auftragsordner
+    teilten die Temp-Datei: `os.replace` warf FileNotFoundError, der Lauf brach ab (Wiederholung erst nach 60 s). Hier
+    Threads ohne gemeinsame Sperre wie getrennte Prozesse."""
+    import threading
+    from app import doc_index
+    d = tmp_path / "auftrag"
+    d.mkdir()
+    errors = []
+
+    def writer(n):
+        for i in range(150):
+            try:
+                doc_index._write_meta(d, {"job_id": "x", "status": "queued", "n": n, "i": i})
+            except OSError as e:          # FileNotFoundError beim os.replace der gemeinsamen Temp-Datei
+                errors.append(repr(e))
+    threads = [threading.Thread(target=writer, args=(n,)) for n in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors, errors[:3]
+    assert json.loads((d / "meta.json").read_text())["job_id"] == "x"
+    assert sorted(p.name for p in d.iterdir()) == ["meta.json"], "keine Temp-Reste"
+
+
+# ---------------------------------------------------------------- Nr. 94: verspaetete Abrechnung nach Ablauf der Reservierung
+
+def test_94_reservation_outlives_the_longest_possible_provider_chain(monkeypatch):
+    """Eine Reservierung verfaellt (Housekeeping) nach credits.stale_minutes(). Sie darf nie verfallen, solange die
+    Anfrage noch laufen kann: Ersatz-Anbieter (bis len(PROVIDERS)) duerfen nach einem Fehler vor der Antwort weiter-
+    machen, jeder bis zum Verbindungs-Zeitlimit, der letzte bis DEADLINE_S. Vorher fest 15 min - mit
+    LERNAPP_AI_TIMEOUT_S=600 (erlaubt: 5-600) ging die Kette bis ~30 min; die verspaetete Abrechnung durfte dann nur
+    noch das freie Guthaben belasten (Anbieterkosten > Credits). Mit dem Standard (90 s) bleibt es bei 15 min."""
+    from app import ai_backend, ai_providers, ai_router, credits
+    monkeypatch.delenv("LERNAPP_AI_TIMEOUT_S", raising=False)
+    assert credits.stale_minutes() == credits.STALE_MINUTES == 15
+    for t in ("90", "300", "600", "100000"):
+        monkeypatch.setenv("LERNAPP_AI_TIMEOUT_S", t)
+        longest = (len(ai_router.PROVIDERS) - 1) * (ai_backend.timeout_s() + 10) + ai_providers.DEADLINE_S
+        assert credits.stale_minutes() * 60 > longest, (t, credits.stale_minutes(), longest)
+
+
+def test_94_late_settlement_after_expiry_is_capped_by_the_free_credits(hosted, monkeypatch):
+    """Festgenagelt (bewusst, docstring von credits.settle): verfaellt eine Reservierung doch (Prozess haengt), belastet
+    die spaete Abrechnung hoechstens das freie Guthaben; die echten Kosten stehen im Protokoll (cost_microeur) und
+    zaehlen im Gesamtbudget. Das Konto ueberschreitet seine Credits nie."""
+    from datetime import timedelta
+    from app import credits
+    monkeypatch.delenv("LERNAPP_AI_TIMEOUT_S", raising=False)
+    u, _ = user(hosted, "l95-94@beispiel.de", plan="pro_ai")
+    t0 = datetime(2026, 11, 10, 10, 0, tzinfo=UTC)
+    conn = credits.connect()
+    try:
+        credits.reserve(conn, u["id"], "a", "tutor:ask", 40, now=t0)
+        later = t0 + timedelta(minutes=credits.stale_minutes() + 1)
+        assert credits.balance(conn, u["id"], now=later)["reserved"] == 0          # verfallen
+        credits.reserve(conn, u["id"], "b", "tutor:ask", 90, now=later)             # Rest fast verbraucht
+        assert credits.settle(conn, u["id"], "b", 90 * 9_000, now=later) == 90
+        charged = credits.settle(conn, u["id"], "a", 40 * 9_000, now=later)        # verspaetet: nur noch 10 frei
+        assert charged == 10
+        b = credits.balance(conn, u["id"], now=later)
+        assert (b["used"], b["remaining"]) == (100, 0)
+        cost = conn.execute("SELECT cost_microeur, state FROM credit_ledger WHERE user_id=? AND request_id='a'", (u["id"],)).fetchone()
+        assert tuple(cost) == (360_000, "settled"), "echte Kosten bleiben im Protokoll"
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------- Nr. 28: Fehler beim Nachladen von Skript-Seitentexten
+
+def test_28_unreadable_script_is_logged_not_silently_empty(tmp_path, caplog):
+    """Vorher: `_page_texts` fing jeden Fehler beim Lesen einer Skript-PDF still ab (Rueckgabe []); die KI-Erklaerung
+    und die Skriptsuche liefen dann ohne diese Quelle, ohne Spur im Protokoll. Jetzt eine Warnung mit Datei-ID und
+    Fehlerart (kein Inhalt, kein Pfad); das Ergebnis bleibt [] und wird nicht gespeichert (naechster Aufruf versucht es
+    erneut)."""
+    import logging
+    import sqlite3
+    from app import scriptsearch
+    bad = tmp_path / "skript.pdf"
+    bad.write_bytes(b"%PDF-1.7 kaputt")
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE files (id TEXT PRIMARY KEY, local_path TEXT, chdate INTEGER, name TEXT, download_url TEXT, course_id TEXT)")
+    conn.execute("INSERT INTO files VALUES ('f-skript', ?, 1, 'skript.pdf', NULL, 'c1')", (str(bad),))
+    with caplog.at_level(logging.WARNING, logger="uniflow.scriptsearch"):
+        assert scriptsearch.page_texts(conn, "f-skript") == []
+    msgs = [r.getMessage() for r in caplog.records if r.name == "uniflow.scriptsearch"]
+    assert msgs and "f-skript" in msgs[0] and str(tmp_path) not in msgs[0], msgs
+    assert conn.execute("SELECT COUNT(*) FROM page_texts").fetchone()[0] == 0
