@@ -1303,6 +1303,9 @@ def _put_annotations(file_id: str, body: dict, base_version: int | None = None, 
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")      # Versionspruefung und Schreiben atomar: zwei Geraete koennen nicht beide gewinnen
         cur = db.row(conn, "SELECT version, data, updated_at FROM annotations WHERE file_id=?", (file_id,))
+        if not cur:
+            # wie Lesen (G6): unbekannte Datei -> 404 statt 500 am Fremdschluessel (Audit 38/39, z. B. ID eines anderen Kontos)
+            _found(db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)), "Datei")
         cur_v = (cur["version"] or 1) if cur else 0
         cur_updated = cur["updated_at"] if cur else None
         if base_version is not None and cur and cur_v != base_version:

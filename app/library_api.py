@@ -459,5 +459,5 @@ def shared_test_publish(request: Request, key: str, variant: int, body: dict = B
 def shared_test_release(request: Request, key: str, variant: int):
     user = _hosted(request)
     key, variant = _share_key(key), _share_variant(variant)
-    test_library.shared_release(key, variant, user["id"])
-    return {"key": key, "variant": variant, "released": True}
+    # `released`: ob ein eigener leerer Platz frei wurde (vorher immer true, Audit P39-11); weiterhin 200 (idempotent)
+    return {"key": key, "variant": variant, "released": test_library.shared_release(key, variant, user["id"])}

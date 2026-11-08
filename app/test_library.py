@@ -490,11 +490,12 @@ def shared_publish(key: str, variant: int, user_id: str, title: str | None, ques
         raise KeyError("Platz nicht belegt oder nicht der eigene")
 
 
-def shared_release(key: str, variant: int, user_id: str) -> None:
-    """Eigenen, noch leeren Platz wieder freigeben (Erzeugen gescheitert)."""
+def shared_release(key: str, variant: int, user_id: str) -> bool:
+    """Eigenen, noch leeren Platz wieder freigeben (Erzeugen gescheitert). True, wenn er frei wurde; fremde, fertige
+    oder schon freie Plaetze bleiben unberuehrt (False, Audit P39-11)."""
     with cursor() as conn:
-        conn.execute("DELETE FROM shared_tests WHERE share_key=? AND variant=? AND owner_hash=? AND status='pending'",
-                     (key, int(variant), owner_hash(user_id)))
+        return conn.execute("DELETE FROM shared_tests WHERE share_key=? AND variant=? AND owner_hash=? AND status='pending'",
+                            (key, int(variant), owner_hash(user_id))).rowcount == 1
 
 
 def shared_get(key: str, variant: int, count_use: bool = True) -> dict | None:

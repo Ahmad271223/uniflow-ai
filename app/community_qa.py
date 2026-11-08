@@ -430,6 +430,15 @@ def moderate_post(user: dict, kind: str, target_id: str, action: str) -> dict:
 
 # ---------------------------------------------------------------- Lesezeichen
 
+def _visible_solution_or_none(conn, user: dict, solution_id: str):
+    """Aktive Loesung, die das Konto sehen darf (Mitglied der Community bzw. PDF im eigenen Abgleich), sonst None."""
+    try:
+        s = community._visible_solution(conn, user, solution_id)
+    except CommunityError:
+        return None
+    return s if s["status"] == "active" else None
+
+
 def bookmarks(user: dict) -> dict:
     with cursor() as conn:
         rows = conn.execute("SELECT * FROM bookmarks WHERE user_id=? ORDER BY created_at DESC", (user["id"],)).fetchall()
@@ -440,7 +449,8 @@ def bookmarks(user: dict) -> dict:
                 if q and (q["author_id"] == user["id"] or user.get("role") == "admin" or community._member(conn, user, q["course_key"])):
                     out.append({"kind": "question", "id": q["id"], "title": q["title"], "course_key": q["course_key"], "created_at": b["created_at"]})
             else:
-                s = conn.execute("SELECT * FROM solutions WHERE id=? AND status='active'", (b["target_id"],)).fetchone()
+                # Audit 38/39 (08.11.2026): nur sichtbare Loesungen (vorher Titel und Fingerabdruck jeder bekannten ID)
+                s = _visible_solution_or_none(conn, user, b["target_id"])
                 if s:
                     out.append({"kind": "solution", "id": s["id"], "title": s["title"] or s["display_name"] or "Lösung", "fingerprint": s["fingerprint"],
                                 "created_at": b["created_at"]})
@@ -457,6 +467,8 @@ def bookmark(user: dict, kind: str, target_id: str, on: bool = True) -> dict:
                 raise CommunityError("not_found", "Nicht gefunden.", 404)
             if kind == "question":
                 _visible_question(conn, user, str(target_id))
+            else:
+                community._visible_solution(conn, user, str(target_id))       # wie Fragen: nur was das Konto sieht
             conn.execute("INSERT OR IGNORE INTO bookmarks(user_id, kind, target_id, created_at) VALUES (?,?,?,?)",
                          (user["id"], kind, str(target_id).lower() if kind == "solution" else str(target_id), _now()))
         else:
