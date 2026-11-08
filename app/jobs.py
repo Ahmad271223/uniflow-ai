@@ -359,12 +359,15 @@ def schedule_due(now: datetime | None = None, times: list[str] | None = None) ->
     """Fuer jedes erreichte, noch nicht bearbeitete Zeitfenster einen Abgleich je Konto mit Zugangsdaten anlegen
     (Konten ohne Zugangsdaten: den Wochentest-Job). Je Fenster ein Tresor-Durchlauf (`vault.users_with_credentials`)
     und eine Verbindung fuer Merkmal und alle Jobs (Lasttest 30.10.2026, Fund 7); das Merkmal `schedule_marks` wird mit
-    den Jobs zusammen festgeschrieben, ein Abbruch dazwischen laesst das Fenster also unbearbeitet statt leer."""
+    den Jobs zusammen festgeschrieben, ein Abbruch dazwischen laesst das Fenster also unbearbeitet statt leer.
+    (Liste 95 Nr. 60: vorher schloss `finally: cm.__exit__(None, None, None)` die Verbindung auch nach einer Ausnahme wie
+    nach Erfolg - mit COMMIT; Marke und die halbe Jobliste standen fest, der Rest des Fensters kam nie.)"""
     now = now or datetime.now()
     n = 0
     with_creds: list[tuple[str, str]] | None = None
     for slot in due_slots(now, times):
         cm, conn = _conn()
+        failed: BaseException | None = None
         try:
             if conn.execute("SELECT 1 FROM schedule_marks WHERE slot=?", (slot,)).fetchone():
                 continue
@@ -377,8 +380,12 @@ def schedule_due(now: datetime | None = None, times: list[str] | None = None) ->
             for uid in active_users_without_credentials(with_creds, conn):
                 if not _enqueue(conn, uid, "weekly", "scheduled")["already"]:
                     n += 1
+        except BaseException as e:
+            failed = e
+            raise
         finally:
-            cm.__exit__(None, None, None)
+            # mit der Ausnahme schliessen: accounts.cursor committet dann nicht (Rollback von Marke und Jobs)
+            cm.__exit__(*((type(failed), failed, failed.__traceback__) if failed else (None, None, None)))
     return n
 
 

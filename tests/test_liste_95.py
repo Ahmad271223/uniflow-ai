@@ -421,3 +421,241 @@ def test_28_unreadable_script_is_logged_not_silently_empty(tmp_path, caplog):
     msgs = [r.getMessage() for r in caplog.records if r.name == "uniflow.scriptsearch"]
     assert msgs and "f-skript" in msgs[0] and str(tmp_path) not in msgs[0], msgs
     assert conn.execute("SELECT COUNT(*) FROM page_texts").fetchone()[0] == 0
+
+
+# ================================================================ festnagelnde Tests (schon behoben/widerlegt, ohne eigenen Test)
+
+def _sync_conn(tmp_path):
+    import sqlite3
+    from app import db
+    c = sqlite3.connect(tmp_path / "sync.db", check_same_thread=False)
+    c.row_factory = sqlite3.Row
+    c.execute("PRAGMA foreign_keys=ON")
+    db._init_db(c)
+    c.execute("INSERT INTO courses(id, title, kind, active, created_at) VALUES ('c1', 'Kurs', 'vorlesung', 1, '2026-10-26')")
+    c.execute("INSERT INTO files(id, course_id, name, kind, status) VALUES ('f1', 'c1', 'x.pdf', 'pdf', 'neu')")
+    c.commit()
+    return c
+
+
+def test_54_same_op_id_with_other_content_repeats_the_first_result(app, tmp_path):
+    """Nr. 54 (Entscheidung, festgenagelt): `op_id` ist der Wiederholungsschluessel eines Eintrags. Kommt dieselbe op_id
+    mit anderem Inhalt, gilt das als Wiederholung: dasselbe Ergebnis mit `repeated: true`, der zweite Inhalt wird nicht
+    geschrieben. Die eigenen Clients bilden die op_id aus Geraet, Tabelle, lokaler ID und Version
+    (DeviceSync.swift, sync_client.py) - anderer Inhalt hat dort immer eine andere op_id."""
+    from app import db, sync
+    conn = _sync_conn(tmp_path)
+    try:
+        a = sync.push(conn, "ipad-1", [{"entity": "modules", "local_id": -1, "op_id": "op-l95-0054", "data": {"name": "Erst"}}])
+        b = sync.push(conn, "ipad-1", [{"entity": "modules", "local_id": -1, "op_id": "op-l95-0054", "data": {"name": "Anders"}}])
+        assert b["results"][0]["repeated"] is True and b["results"][0]["id"] == a["results"][0]["id"]
+        assert [r["name"] for r in db.rows(conn, "SELECT name FROM modules")] == ["Erst"]
+    finally:
+        conn.close()
+
+
+def test_55_settings_are_last_writer_wins_per_key(app, tmp_path):
+    """Nr. 55 (Entscheidung, festgenagelt): Einstellungen sind kleine Werte je Schluessel; zwei Geraete, die denselben
+    Schluessel aendern: der spaetere Push gilt (ON CONFLICT DO UPDATE), die Version zaehlt hoch, beide Geraete holen
+    den Stand mit dem naechsten Abruf. Private Schluessel (PIN, Hochschule) synchronisiert der Dienst nie."""
+    from app import db, sync
+    conn = _sync_conn(tmp_path)
+    try:
+        first = sync.push(conn, "ipad-1", [{"entity": "settings", "local_id": "hours_per_day", "data": {"value": "4"}}])
+        r = sync.push(conn, "mac-1", [{"entity": "settings", "local_id": "hours_per_day", "data": {"value": "6"}}])
+        assert r["results"][0]["status"] == "applied" and r["results"][0]["version"] == first["results"][0]["version"] + 1
+        assert db.row(conn, "SELECT value, sync_device FROM settings WHERE key='hours_per_day'") == {"value": "6", "sync_device": "mac-1"}
+        assert [s["value"] for s in sync.changes(conn, None)["changes"]["settings"] if s["key"] == "hours_per_day"] == ["6"]
+    finally:
+        conn.close()
+
+
+def test_56_thirty_versions_never_cost_strokes_after_a_conflict(app, tmp_path):
+    """Nr. 56 (widerlegt als Datenverlust): die Grenze von 30 betrifft nur den Versionsverlauf. Der aktuelle Stand ist immer
+    vollstaendig; ein Push mit altem base_version ueberschreibt nichts, sondern bekommt den vollstaendigen Serverstand
+    (Konflikt), das Geraet fuehrt drei-Wege zusammen (AnnotationMerge.mergeDocument) und sendet erneut. Nach 40 Pushes:
+    30 Versionen, der neueste Stand hat alle Striche."""
+    from app import db, sync
+    conn = _sync_conn(tmp_path)
+    try:
+        strokes = []
+        v = None
+        for i in range(40):
+            strokes.append({"id": f"s{i}"})
+            r = sync.push(conn, "ipad-1", [{"entity": "annotations", "id": "f1", "base_version": v,
+                                            "data": {"pages": {"1": {"objects": list(strokes)}}}}])["results"][0]
+            assert r["status"] == "applied", r
+            v = r["version"]
+        assert db.row(conn, "SELECT COUNT(*) n FROM annotation_versions WHERE file_id='f1'")["n"] == 30
+        stale = sync.push(conn, "mac-1", [{"entity": "annotations", "id": "f1", "base_version": 3,
+                                           "data": {"pages": {"1": {"objects": [{"id": "nur-mac"}]}}}}])["results"][0]
+        assert stale["status"] == "conflict" and len(stale["data"]["pages"]["1"]["objects"]) == 40
+        cur = json.loads(db.row(conn, "SELECT data FROM annotations WHERE file_id='f1'")["data"])
+        assert [o["id"] for o in cur["pages"]["1"]["objects"]] == [f"s{i}" for i in range(40)]
+        merged = cur["pages"]["1"]["objects"] + [{"id": "nur-mac"}]
+        r = sync.push(conn, "mac-1", [{"entity": "annotations", "id": "f1", "base_version": stale["version"],
+                                       "data": {"pages": {"1": {"objects": merged}}}}])["results"][0]
+        assert r["status"] == "applied"
+        cur = json.loads(db.row(conn, "SELECT data FROM annotations WHERE file_id='f1'")["data"])
+        assert len(cur["pages"]["1"]["objects"]) == 41
+    finally:
+        conn.close()
+
+
+def test_57_new_job_joins_the_waiting_one_of_the_same_kind(hosted):
+    """Nr. 57 (Absicht, festgenagelt): je Konto und Art hoechstens ein wartender oder laufender Auftrag; ein weiterer
+    Anstoss bekommt denselben Auftrag (`already`), nach dessen Ende entsteht ein neuer. Ein Konto kann die Schlange so
+    nicht fuellen."""
+    from app import jobs
+    u, _ = user(hosted, "l95-57@beispiel.de")
+    a = jobs.enqueue(u["id"], "weekly", "manual")
+    b = jobs.enqueue(u["id"], "weekly", "scheduled")
+    assert not a["already"] and b["already"] and b["id"] == a["id"]
+    jobs._finish(a["id"], True, "fertig")
+    c = jobs.enqueue(u["id"], "weekly", "manual")
+    assert not c["already"] and c["id"] != a["id"]
+
+
+def test_60_schedule_mark_and_jobs_are_one_transaction(hosted, monkeypatch):
+    """Nr. 60 (widerlegt, wie der Verfasser selbst vermutet): `schedule_marks` und die Jobs eines Fensters stehen in
+    EINER Transaktion (accounts.cursor committet erst am Ende). Bricht das Anlegen ab, fehlt auch die Marke - das
+    Fenster wird beim naechsten Takt vollstaendig nachgeholt, nie leer als erledigt markiert."""
+    from app import jobs
+    for i in range(3):
+        user(hosted, f"l95-60-{i}@beispiel.de")
+    real, calls = jobs._enqueue, []
+
+    def flaky(conn, uid, kind, trigger):
+        calls.append(uid)
+        if len(calls) == 2:
+            raise RuntimeError("Abbruch mitten im Fenster")
+        return real(conn, uid, kind, trigger)
+    monkeypatch.setattr(jobs, "_enqueue", flaky)
+    now = datetime(2026, 11, 9, 8, 5)
+    with pytest.raises(RuntimeError):
+        jobs.schedule_due(now, ["08:00"])
+    cm, conn = jobs._conn()
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM schedule_marks WHERE slot='2026-11-09T08:00'").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM sync_jobs").fetchone()[0] == 0
+    finally:
+        cm.__exit__(None, None, None)
+    monkeypatch.setattr(jobs, "_enqueue", real)
+    assert jobs.schedule_due(now, ["08:00"]) == 3
+    assert jobs.schedule_due(now, ["08:00"]) == 0
+
+
+def test_62_shared_cards_are_cut_to_2000_characters_as_in_the_contract(app):
+    """Nr. 62 (Entscheidung, festgenagelt): Frage und Antwort eines geteilten Stapels werden auf MAX_CARD_CHARS (2.000,
+    Vertrag fixtures/flashcards/stacks.json `max_card_chars`) gekuerzt, nicht abgewiesen. Der eigene Stapel bleibt
+    ungekuerzt; nur die geteilte Kopie ist kurz."""
+    from app import community_cards
+    out = community_cards.clean_cards([{"question": "F" * 2500, "answer": "A" * 2001}, {"question": " q ", "answer": " a "}])
+    assert [len(c["question"]) for c in out] == [2000, 1] and [len(c["answer"]) for c in out] == [2000, 1]
+    contract = json.loads((__import__("pathlib").Path(__file__).resolve().parents[1]
+                           / "packages/shared-contracts/fixtures/flashcards/stacks.json").read_text())
+    assert contract["rules"]["shared"]["max_card_chars"] == community_cards.MAX_CARD_CHARS
+
+
+def test_72_pseudonyms_follow_the_service_secret(app, monkeypatch):
+    """Nr. 72 (Entscheidung, festgenagelt): das Pseudonym ist HMAC(LERNAPP_SECRET_KEY, Konto) - stabil, solange der
+    Schluessel bleibt; ein Schluesselwechsel gaebe jedem Konto fuer neue Beitraege ein neues Pseudonym (alte Beitraege
+    behalten das gespeicherte, Sperrlisten nach Pseudonym griffen nicht mehr). Der Schluessel wird deshalb nie
+    gewechselt (BETRIEB.md); ein eigener Pseudonym-Schluessel waere der Weg, falls doch."""
+    from app import community, vault
+    uid = "0123456789abcdef0123456789abcdef"
+    try:
+        monkeypatch.setenv("LERNAPP_SECRET_KEY", "11" * 32)
+        vault.reset_master()
+        a = community.pseudonym(uid)
+        assert a == community.pseudonym(uid) and a.startswith("Studi-") and len(a) == 14
+        monkeypatch.setenv("LERNAPP_SECRET_KEY", "22" * 32)
+        vault.reset_master()
+        assert community.pseudonym(uid) != a
+        monkeypatch.setenv("LERNAPP_SECRET_KEY", "11" * 32)
+        vault.reset_master()
+        assert community.pseudonym(uid) == a
+    finally:
+        vault.reset_master()
+
+
+def test_79_broken_package_fields_never_open(app):
+    """Nr. 79 (festgenagelt): kaputtes Base64 in Salz, Nonce oder Chiffrat, falsche Nonce-Laenge, fehlende oder falsch
+    typisierte Kopffelder: `open_package` wirft, liefert nie Inhalt. (Der Dienst entschluesselt nie; die Funktion ist
+    die Referenz fuer die Testvektoren der Apps. Zip-Bombe, veraenderter Kopf und Chiffrat: fixtures/solutions/vectors.json.)"""
+    import copy
+    from cryptography.exceptions import InvalidTag
+    from app import solution_format as sf
+    v = json.loads((__import__("pathlib").Path(__file__).resolve().parents[1]
+                    / "packages/shared-contracts/fixtures/solutions/vectors.json").read_text())
+    case = v["cases"][0]
+    pdf = base64.b64decode(case["pdf"])
+    assert sf.open_package(case["package"], pdf) == case["opened"]
+
+    def broken(change):
+        p = copy.deepcopy(case["package"])
+        change(p)
+        return p
+    variants = {
+        "Nonce kein Base64": lambda p: p["header"]["encryption"].__setitem__("nonce", "%%%"),
+        "Salz kein Base64": lambda p: p["header"]["encryption"].__setitem__("salt", "@@@="),
+        "Chiffrat kein Base64": lambda p: p.__setitem__("ciphertext", "nicht base64!"),
+        "Nonce zu kurz": lambda p: p["header"]["encryption"].__setitem__("nonce", base64.b64encode(b"123").decode()),
+        "Nonce anders": lambda p: p["header"]["encryption"].__setitem__("nonce", base64.b64encode(b"x" * 12).decode()),
+        "Chiffrat gekuerzt": lambda p: p.__setitem__("ciphertext", p["ciphertext"][:16]),
+        "Kopf ohne encryption": lambda p: p["header"].pop("encryption"),
+        "plaintextBytes Text": lambda p: p["header"]["encryption"].__setitem__("plaintextBytes", "100"),
+        "Version unbekannt": lambda p: p.__setitem__("formatVersion", 3),
+        "Version bool": lambda p: p.__setitem__("formatVersion", True),
+    }
+    for name, change in variants.items():
+        with pytest.raises((ValueError, KeyError, TypeError, InvalidTag)):
+            sf.open_package(broken(change), pdf)
+            raise AssertionError(name)
+
+
+def test_80_token_cleanup_runs_again_after_a_database_error(hosted, monkeypatch):
+    """Nr. 80 (schon behoben mit P4-01): scheitert das Aufraeumen von Sitzungen/Tokens an der Datenbank (gesperrt), wirft
+    der Tageslauf, die Tagesmarke faellt und nach RETRY_AFTER_MIN laeuft er am selben Tag erneut - dann sind die
+    abgelaufenen Eintraege weg."""
+    import sqlite3
+    from app import accounts, retention
+    u, _ = user(hosted, "l95-80@beispiel.de")
+    with accounts.cursor() as conn:
+        conn.execute("UPDATE sessions SET expires_at='2000-01-01T00:00:00Z' WHERE user_id=?", (u["id"],))
+    real, calls = retention.purge_account_db, []
+
+    def locked_once(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return real(*a, **k)
+    monkeypatch.setattr(retention, "purge_account_db", locked_once)
+    with pytest.raises(sqlite3.OperationalError):
+        retention.schedule_due(datetime(2026, 11, 9, 4, 0))
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sessions WHERE user_id=?", (u["id"],)).fetchone()[0] == 1
+    assert retention.schedule_due(datetime(2026, 11, 9, 4, 30)) is None
+    out = retention.schedule_due(datetime(2026, 11, 9, 5, 1))
+    assert out["sessions"] >= 1
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sessions WHERE user_id=?", (u["id"],)).fetchone()[0] == 0
+
+
+def test_37_index_purge_retries_a_job_folder_it_could_not_remove(app, monkeypatch):
+    """Nr. 37 (widerlegt als Datenrest): `rmtree(ignore_errors=True)` betrifft nur leere Auftragsordner (ohne PDF, aelter
+    als ein Tag). Bleibt einer liegen, findet ihn der naechste Lauf (alle 60 s) wieder. Die PDF selbst loescht
+    `delete_upload` ohne ignore_errors; ein Fehler dort bricht den Lauf ab und der naechste versucht es erneut."""
+    import shutil
+    from datetime import timedelta
+    from app import doc_index
+    base = doc_index.upload_dir()
+    d = base / uuid.uuid4().hex
+    d.mkdir(parents=True)
+    old = datetime.now(UTC) - timedelta(days=2)
+    doc_index._write_meta(d, {"job_id": d.name, "status": "done", "received_at": old.isoformat()})
+    real = shutil.rmtree
+    monkeypatch.setattr(doc_index.shutil, "rmtree", lambda *a, **k: None)          # Platte weigert sich einmal
+    assert doc_index.purge_expired()["jobs_removed"] >= 1 and d.exists()
+    monkeypatch.setattr(doc_index.shutil, "rmtree", real)
+    assert doc_index.purge_expired()["jobs_removed"] >= 1 and not d.exists()
