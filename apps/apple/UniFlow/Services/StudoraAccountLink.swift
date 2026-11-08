@@ -136,6 +136,14 @@ final class StudoraAccountLink: ObservableObject {
 
     private(set) var account: StudoraAccount?
     private var scope: String?
+    /// Steigt bei jedem Wechsel des Kontos (anderer Apple-Nutzer, Abmelden, Konto geloescht): eine Antwort, die fuer
+    /// ein frueheres Konto unterwegs war, wird danach verworfen (Audit P37-01, gleiche Ursache wie P36-03)
+    private var accountEpoch = 0
+
+    /// Gilt eine Antwort noch fuer das Konto, fuer das sie angefragt wurde?
+    private func stillCurrent(_ account: StudoraAccount, _ epoch: Int) -> Bool {
+        self.account === account && accountEpoch == epoch
+    }
 
     /// `entitlements`: Tarif auf dem iPad (App Store, Probe); Tests geben einen eigenen
     init(entitlements: Entitlements? = nil) {
@@ -155,19 +163,37 @@ final class StudoraAccountLink: ObservableObject {
     @discardableResult
     func syncNow(force: Bool = false) async -> Bool {
         guard !syncing, let account, let host, let id = user?.id,
-              force || lastSyncAt.map({ Date().timeIntervalSince($0) >= Self.autoSyncInterval }) ?? true,
-              let backend = try? await host.backend() else { return false }
-        // Demo-Inhalte gehoeren nicht ins Konto; direkt aus der Datenbank, `demoActive` kommt beim Start erst spaeter
-        let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
-        guard Self.canSync(user: user, university: university, blocked: demo) else { return false }
+              force || lastSyncAt.map({ Date().timeIntervalSince($0) >= Self.autoSyncInterval }) ?? true else { return false }
+        // sofort belegt: zwei Anstoesse kurz nacheinander (Vordergrund, Knopf) starteten sonst zwei Laeufe, die beide
+        // dieselben neuen Zeilen senden
         syncing = true
         defer { syncing = false }
+        let epoch = accountEpoch
+        // nach jedem Warten: noch dasselbe Konto, derselbe Container? Sonst gehoert das Ergebnis nicht hierher (P45-01)
+        func current() -> Bool { stillCurrent(account, epoch) && self.host === host && user?.id == id }
+        guard let backend = try? await host.backend(), current() else { return false }
+        // Demo-Inhalte gehoeren nicht ins Konto; direkt aus der Datenbank, `demoActive` kommt beim Start erst spaeter
+        let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
+        guard current(), Self.canSync(user: user, university: university, blocked: demo) else { return false }
         let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID).run(account: id)
+        // die Daten liegen in der Datenbank vom Start (eigener Container); Stand und Meldung gelten nur fuer ihn
+        guard current() else { return false }
         lastSync = r
-        lastSyncAt = Date()
-        if r.applied + r.deleted + r.notesMerged > 0 { NotificationCenter.default.post(name: .uniflowAccountSynced, object: nil) }
-        return r.applied + r.deleted > 0
+        // nur ein gelungener Lauf zaehlt fuer die 3 Minuten; nach einem Fehler versucht es der naechste Anstoss (P37-09)
+        if r.ok { lastSyncAt = Date() }
+        // auch eine reine Zusammenfuehrung von Notizen ist eine Aenderung: offene Fenster laden neu (P37-05)
+        let changed = r.applied + r.deleted + r.notesMerged > 0
+        if changed { NotificationCenter.default.post(name: .uniflowAccountSynced, object: nil) }
+        return changed
     }
+
+    #if DEBUG
+    /// nur Tests: Container (lokales Backend) und Hochschule wie `use`, ohne den Konto-Anschluss neu zu bauen
+    func attachHostForTesting(_ host: LocalBackendHost?, university: String?) {
+        self.host = host
+        self.university = university
+    }
+    #endif
 
     /// Community ueber den Dienst (G4) – vorerst AUS (07.11.2026, Geraetetest): Mit Konto wechselte die Community vom
     /// iCloud-Kanal zum Dienst, der keine Fragen und Antworten je Modul kennt ("gibt es mit diesem Dienst noch nicht"),
@@ -202,11 +228,17 @@ final class StudoraAccountLink: ObservableObject {
     }
 
     func use(userScope: String?, host: LocalBackendHost? = nil, university: String? = nil) {
+        // anderer Container (Hochschule) beim gleichen Konto: Stand und 3-Minuten-Sperre gehoeren zum alten (P37-04)
+        if host !== self.host {
+            lastSync = nil
+            lastSyncAt = nil
+        }
         self.host = host
         self.university = university
         defer { updateCommunityRoute(); updateAI() }
         guard userScope != scope else { return }
         scope = userScope
+        accountEpoch += 1
         lastSync = nil
         lastSyncAt = nil
         user = nil
@@ -302,7 +334,10 @@ final class StudoraAccountLink: ObservableObject {
     /// Stand neu laden (`GET /api/entitlements`); ein Fehler laesst den letzten Stand stehen, abgemeldet wird er nil
     func refreshCredits() async {
         guard let creditsClient else { clearCredits(); return }
-        if let c = try? await creditsClient.fetch() { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
+        let epoch = accountEpoch
+        let c = try? await creditsClient.fetch()
+        guard accountEpoch == epoch else { return }                 // inzwischen anderes Konto: der Stand gehoert nicht hierher
+        if let c { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
     }
 
     /// Antwort von `/api/ai/tutor` oder `/api/ai/flashcards`: neuer Stand und was sie gekostet hat (`charged`,
@@ -340,32 +375,49 @@ final class StudoraAccountLink: ObservableObject {
 
     private func run(_ op: @escaping (StudoraAccount) async throws -> Void) async {
         guard let account else { return }
+        let epoch = accountEpoch
         busy = true
         message = nil
         defer { busy = false }
         messageAction = nil
         do { try await op(account) } catch let e as AccountError {
+            // der Fehler eines frueheren Kontos zeigt nichts und meldet das jetzige nicht ab
+            guard stillCurrent(account, epoch) else { return }
             // Texte der Fehlercodes: ServiceErrorText (UniFlowCore), mit Retry-After
             message = e.userMessage
             messageAction = e.action
             if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil }
         } catch {
+            guard stillCurrent(account, epoch) else { return }
             message = error.localizedDescription
         }
     }
 
+    /// Konto, Geraete, Tarif und Credits neu laden. Nach jedem Warten auf den Dienst: gilt die Antwort noch fuer dieses
+    /// Konto? Sonst wird sie verworfen - vorher landeten Name, E-Mail, Tarif und Credits von A bei B, wenn A sich
+    /// abmeldete bzw. ein anderer Apple-Nutzer kam, waehrend die Antwort noch unterwegs war (Audit P37-01).
     func refresh() async {
-        guard let account, await account.isSignedIn else {
+        guard let account else {
+            user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
+        }
+        let epoch = accountEpoch
+        let signedIn = await account.isSignedIn
+        guard stillCurrent(account, epoch) else { return }
+        guard signedIn else {
             user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
         }
         await run { a in
             let me = try await a.me()
+            guard self.stillCurrent(a, epoch) else { return }
             self.user = me.user
             self.sessions = me.sessions
-            self.planStatus = try await a.planStatus()
+            let plan = try await a.planStatus()
+            guard self.stillCurrent(a, epoch) else { return }
+            self.planStatus = plan
             // Credits-Stand aus derselben Antwort (`credits`); ohne Stand bleibt die Zeile weg
             await self.refreshCredits()
         }
+        guard stillCurrent(account, epoch) else { return }
         updateAI()
         guard user != nil else { return }
         hookPurchases()
@@ -521,7 +573,9 @@ final class StudoraAccountLink: ObservableObject {
     func resendVerification() async {
         notice = nil
         var text: String?
+        let (a0, epoch) = (account, accountEpoch)
         await run { a in text = try await a.resendVerification() }
+        guard let a0, stillCurrent(a0, epoch) else { return }
         notice = text
         // nur nach Erfolg neu laden: refresh() setzt die Fehlermeldung zurueck
         if text != nil { await refresh() }
@@ -538,7 +592,15 @@ final class StudoraAccountLink: ObservableObject {
     }
 
     func logout() async {
-        if let account { await account.logout() }
+        // ab jetzt gilt keine Antwort mehr, die fuer dieses Konto unterwegs ist
+        accountEpoch += 1
+        let epoch = accountEpoch
+        if let account {
+            await account.logout()
+            guard stillCurrent(account, epoch) else { return }      // inzwischen anderer Apple-Nutzer: dessen Stand bleibt
+        }
+        lastSync = nil
+        lastSyncAt = nil
         user = nil
         sessions = []
         planStatus = nil
@@ -551,9 +613,13 @@ final class StudoraAccountLink: ObservableObject {
     /// ZIP in eine temporaere Datei (zum Teilen); nil bei Fehler
     func export() async -> URL? {
         var out: URL?
+        // Ablage im Container dieses Kontos; nach einem Wechsel waehrend des Downloads landet nichts beim neuen
+        let container = ActiveContainer.current?.layout.identifier
+        let (a0, epoch) = (account, accountEpoch)
         await run { a in
             let data = try await a.export()
-            let url = try Self.exportFileURL()
+            guard let a0, self.stillCurrent(a0, epoch) else { return }
+            let url = try Self.exportFileURL(container: container)
             try data.write(to: url, options: [.atomic, .completeFileProtection])
             out = url
         }
@@ -570,9 +636,13 @@ final class StudoraAccountLink: ObservableObject {
     func delete(password: String?) async -> Bool {
         var ok = false
         let consentAccount = aiConsentAccount
+        let (a0, epoch) = (account, accountEpoch)
         await run { a in _ = try await a.delete(password: password); ok = true }
         if ok { consentCenter.revoke(consentAccount) }
-        if ok { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI() }
+        // geloescht ist das Konto, mit dem es begann; der Stand eines inzwischen anderen Kontos bleibt
+        guard ok, let a0, stillCurrent(a0, epoch) else { return ok }
+        accountEpoch += 1
+        user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI()
         return ok
     }
 }

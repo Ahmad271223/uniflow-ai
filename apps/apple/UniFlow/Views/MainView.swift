@@ -34,7 +34,9 @@ struct MainView: View {
                 UFServerGate(.library) { LibraryPage(section: s, path: p, q: q) }             // 1:1
             case .doc(let id, let task, let page):
                 // mit der Aufgabe des Lernplans ("Erledigt" im Editor, wie views-doc.js)
-                UFServerGate(.document) { LibraryView(openFile: id, openPage: page, openTask: task) }  // Editor ohne Leiste darueber
+                // je Dokument eine eigene Ansicht: von Dokument zu Dokument (Import aus der Dateien-App, Community)
+                // blieb sonst das vorige offen (Audit P40-07)
+                UFServerGate(.document) { LibraryView(openFile: id, openPage: page, openTask: task).id(id) }  // Editor ohne Leiste darueber
             case .exams:
                 UFServerGate(aiEnabled ? .examsWithAI : .exams) { ExamsPage() }               // 1:1
             case .exam(let id, let task):

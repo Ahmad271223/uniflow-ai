@@ -44,15 +44,18 @@ final class OlderSemesterLoader {
     /// Stufe (d) fuer den offenen Container. `expired`: im Hintergrund die Zeit von iOS. Rueckgabe: Zahl der Laeufe.
     @discardableResult
     func run(_ containers: ContainerManager, expired: @escaping () -> Bool = { false }) async -> Int {
-        guard !isLoading, let c = containers.active, !containers.demoActive,
-              let db = try? await c.host.backend().context.database else { return 0 }
+        guard !isLoading, let c = containers.active, !containers.demoActive else { return 0 }
+        // Abgleich-Objekte dieses Containers vor dem ersten Warten festhalten (danach koennte schon ein anderer offen sein)
+        let studip = containers.studip, hsh = containers.hsh, hildesheim = containers.hildesheim
+        guard let db = try? await c.host.backend().context.database, containers.active === c else { return 0 }
         isLoading = true
         defer { isLoading = false }
-        let studip = containers.studip, hsh = containers.hsh, hildesheim = containers.hildesheim
         let perTerm = studip.offersStudIP
         return await Self.runStage(db: db, today: UniFlowClock.system.today, perTerm: perTerm,
                                    pause: { [weak self] mode in
-                                       guard let self, !expired() else { return .closed }
+                                       // abgemeldet bzw. anderes Konto oder andere Hochschule offen: kein weiteres
+                                       // Semester mit der Sitzung des alten Containers; weiter, wenn er wieder offen ist
+                                       guard let self, !expired(), containers.active === c else { return .closed }
                                        return OlderLoadPolicy.decide(mode: mode, lowPower: self.lowPower(), onWiFi: self.onWiFi)
                                    },
                                    load: { ids in
