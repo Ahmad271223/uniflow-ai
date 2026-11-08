@@ -111,10 +111,15 @@ def verify_jws(token: str, roots: list[x509.Certificate] | None = None, at: date
         sig = _b64url(sig_b64)
     except (ValueError, json.JSONDecodeError):
         raise AppleError("jws_invalid", "Die signierten Kaufdaten sind beschädigt.")
-    if header.get("alg") != "ES256" or not isinstance(header.get("x5c"), list) or len(header["x5c"]) < 2:
+    # Kopf und Nutzdaten muessen Objekte sein, die Kette Texte: sonst endete der oeffentliche Benachrichtigungs-Endpunkt
+    # mit 500 (AttributeError/TypeError; Liste 95 Nr. 4, 09.11.2026)
+    if not isinstance(header, dict) or not isinstance(payload, dict):
+        raise AppleError("jws_invalid", "Die signierten Kaufdaten haben keinen gültigen Kopf.")
+    x5c = header.get("x5c")
+    if header.get("alg") != "ES256" or not isinstance(x5c, list) or len(x5c) < 2 or not all(isinstance(c, str) for c in x5c):
         raise AppleError("jws_invalid", "Die signierten Kaufdaten haben keinen gültigen Kopf.")
     try:
-        chain = [x509.load_der_x509_certificate(base64.b64decode(c)) for c in header["x5c"]]
+        chain = [x509.load_der_x509_certificate(base64.b64decode(c)) for c in x5c]
     except ValueError:
         raise AppleError("jws_invalid", "Die Zertifikate der Kaufdaten sind beschädigt.")
     leaf, inter = chain[0], chain[1]
@@ -161,7 +166,12 @@ def verify_jws(token: str, roots: list[x509.Certificate] | None = None, at: date
 
 def _signed_at(payload: dict) -> datetime | None:
     ms = payload.get("signedDate")
-    return datetime.fromtimestamp(ms / 1000, timezone.utc) if isinstance(ms, (int, float)) else None
+    if isinstance(ms, bool) or not isinstance(ms, (int, float)):
+        return None
+    try:                         # wird vor der Signaturpruefung gelesen: ein riesiger Wert ist kein 500 (Liste 95 Nr. 4)
+        return datetime.fromtimestamp(ms / 1000, timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 def _ms_iso(ms) -> str | None:
@@ -179,13 +189,22 @@ def account_token(user_id: str) -> str:
     return str(uuid.UUID(hex=user_id))
 
 
-def _owner(conn: sqlite3.Connection, tx: dict) -> str | None:
+def token_owner(tx: dict) -> str | None:
+    """Konto aus `appAccountToken` (UniFlow-ID als UUID) oder None. Ein ungueltiges Token (keine UUID, kein Text) gilt
+    als „kein Token“ - wie bisher in `_owner`; vorher warf `verify_purchase` dabei ValueError -> 500 (Liste 95 Nr. 1)."""
     tok = tx.get("appAccountToken")
+    if not isinstance(tok, str) or not tok:
+        return None
+    try:
+        return uuid.UUID(tok).hex
+    except ValueError:
+        return None
+
+
+def _owner(conn: sqlite3.Connection, tx: dict) -> str | None:
+    tok = token_owner(tx)
     if tok:
-        try:
-            return uuid.UUID(str(tok)).hex
-        except ValueError:
-            return None
+        return tok
     r = conn.execute("SELECT user_id FROM apple_transactions WHERE original_transaction_id=?",
                      (str(tx.get("originalTransactionId") or ""),)).fetchone()
     return r[0] if r else None
@@ -278,8 +297,8 @@ def verify_purchase(conn: sqlite3.Connection, user_id: str, signed_transaction: 
     """Kauf oder Wiederherstellung aus der App (POST /api/billing/apple/verify)."""
     tx = verify_jws(signed_transaction, roots)
     renewal = verify_jws(signed_renewal, roots) if signed_renewal else None
-    tok = tx.get("appAccountToken")
-    if tok and uuid.UUID(str(tok)).hex != user_id:
+    tok = token_owner(tx)
+    if tok and tok != user_id:
         raise AppleError("subscription_owned_by_other_account", "Dieses Abo wurde mit einem anderen StudiNow-Konto gekauft.", 409)
     ensure_schema(conn)
     conn.execute("BEGIN IMMEDIATE")

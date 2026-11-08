@@ -1,0 +1,113 @@
+"""Externe Review-Liste mit 87 Pruefstellen (Nr. 1-80, 89-95), gegen den Stand 6937095a erstellt und am 09.11.2026 gegen
+develop geprueft (docs/audit/LISTE-95-2026-11-09.md). Hier stehen die Tests der Nummern, die neu behoben wurden
+(zuerst rot), und festnagelnde Tests fuer Nummern, die schon behoben oder widerlegt waren, aber keinen eigenen Test
+hatten. Testnamen beginnen mit der Nummer der Liste."""
+from __future__ import annotations
+
+import base64
+import json
+import uuid
+from datetime import datetime, timezone
+
+import pytest
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+
+from test_subscriptions import IN_30, _j, apple, ent, hosted, notify, user, verify  # noqa: F401 (Fixtures)
+
+UTC = timezone.utc
+PLUS, PRO = "de.uniflow.plus.monthly", "de.uniflow.proai.monthly"
+
+
+def _enc(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _sign_raw(signer, header: object, payload: object) -> str:
+    """JWS mit beliebigem Kopf und beliebigen Nutzdaten (auch Liste statt Objekt), signiert mit dem Testblatt."""
+    head = _enc(json.dumps(header).encode())
+    body = _enc(json.dumps(payload).encode())
+    der = signer.leaf_key.sign(f"{head}.{body}".encode(), ec.ECDSA(hashes.SHA256()))
+    r, s = decode_dss_signature(der)
+    return f"{head}.{body}.{_enc(r.to_bytes(32, 'big') + s.to_bytes(32, 'big'))}"
+
+
+def _chain(signer) -> list[str]:
+    return [base64.b64encode(c.public_bytes(serialization.Encoding.DER)).decode() for c in (signer.leaf, signer.inter, signer.root)]
+
+
+def _tx(signer, product, otid, token):
+    signer.seq += 1
+    ms = lambda d: int(d.timestamp() * 1000)
+    return signer.sign({"transactionId": f"{otid}-{signer.seq}", "originalTransactionId": otid, "productId": product,
+                        "bundleId": "de.uniflow.ai", "type": "Auto-Renewable Subscription", "expiresDate": ms(IN_30),
+                        "environment": "Sandbox", "signedDate": ms(datetime.now(UTC)) + signer.seq, "appAccountToken": token})
+
+
+# ---------------------------------------------------------------- Nr. 1: ungueltige appAccountToken-UUID
+
+@pytest.mark.parametrize("n, token", [(1, "kein-uuid"), (2, 12345), (3, "0123456789abcdef0123456789abcdeg"), (4, ["x"])])
+def test_01_invalid_app_account_token_is_no_server_error(hosted, apple, n, token):
+    """Vorher: `uuid.UUID(str(tok))` in verify_purchase warf ValueError -> 500. Ein ungueltiges Token gilt jetzt wie in
+    `_owner` (Server-Benachrichtigung) als „kein Token“: das meldende Konto bekommt den Kauf, ein zweites Konto nie."""
+    a, ha = user(hosted, f"l95-01a{n}@beispiel.de")
+    b, hb = user(hosted, f"l95-01b{n}@beispiel.de")
+    otid = f"950100000000000{n}"
+    st, d = verify(hosted, ha, _tx(apple, PLUS, otid, token))
+    assert st == 200, d
+    assert ent(hosted, ha)["plan"] == "plus"
+    st, d = verify(hosted, hb, _tx(apple, PLUS, otid, token))
+    assert (st, d["code"]) == (409, "subscription_owned_by_other_account")
+    assert ent(hosted, hb)["plan"] == "free"
+
+
+def test_01_valid_foreign_token_is_still_409(hosted, apple):
+    a, _ = user(hosted, "l95-01c@beispiel.de")
+    _, hb = user(hosted, "l95-01d@beispiel.de")
+    st, d = verify(hosted, hb, _tx(apple, PLUS, "9501000000000099", str(uuid.UUID(hex=a["id"]))))
+    assert (st, d["code"]) == (409, "subscription_owned_by_other_account")
+
+
+# ---------------------------------------------------------------- Nr. 4: fehlerhafte Zertifikatsketten kontrolliert abweisen
+
+def _bad_tokens(signer) -> dict[str, str]:
+    good = {"alg": "ES256", "x5c": _chain(signer)}
+    return {
+        "x5c mit Zahlen": _sign_raw(signer, {"alg": "ES256", "x5c": [1, 2, 3]}, {"a": 1}),
+        "x5c mit null": _sign_raw(signer, {"alg": "ES256", "x5c": [None, None]}, {"a": 1}),
+        "Kopf ist eine Liste": _sign_raw(signer, ["ES256"], {"a": 1}),
+        "Kopf ist eine Zahl": _sign_raw(signer, 5, {"a": 1}),
+        "Nutzdaten sind eine Liste": _sign_raw(signer, good, [1, 2]),
+        "x5c kein Base64": _sign_raw(signer, {"alg": "ES256", "x5c": ["%%%", "&&&"]}, {"a": 1}),
+        "x5c kein Zertifikat": _sign_raw(signer, {"alg": "ES256", "x5c": [base64.b64encode(b"kein zert").decode()] * 2}, {"a": 1}),
+        "Kette ohne Apple-Kennzeichnung (Wurzel als Blatt)": _sign_raw(
+            signer, {"alg": "ES256", "x5c": [_chain(signer)[2], _chain(signer)[1], _chain(signer)[2]]}, {"a": 1}),
+        "nur zwei Teile": "abc.def",
+        "Nicht-ASCII": "äöü.äöü.äöü",
+    }
+
+
+def test_04_broken_chains_headers_and_payloads_are_refused_with_400(hosted, apple):
+    """Vorher: x5c mit Nicht-Text (TypeError), Kopf als Liste/Zahl (AttributeError), Nutzdaten als Liste oder ein riesiges
+    signedDate (vor der Signaturpruefung ausgewertet: AttributeError/OverflowError) endeten am oeffentlichen
+    Benachrichtigungs-Endpunkt mit 500. Jetzt immer 400 (jws_invalid/jws_untrusted), nie eine Ausnahme."""
+    from app import apple_store
+    for label, token in _bad_tokens(apple).items():
+        with pytest.raises(apple_store.AppleError) as e:
+            apple_store.verify_jws(token)
+        assert e.value.status == 400 and e.value.code in ("jws_invalid", "jws_untrusted"), label
+        st, d = notify(hosted, token)
+        assert st == 400 and d["code"] in ("jws_invalid", "jws_untrusted"), (label, st, d)
+
+
+def test_04_huge_signed_date_is_read_before_the_signature_without_crashing(hosted, apple):
+    """signedDate wird vor der Signaturpruefung gelesen (Gueltigkeit der Zertifikate zum Signaturzeitpunkt). Ein riesiger
+    Wert warf OverflowError (500); jetzt gilt er als unbekannt, die Pruefung laeuft mit der aktuellen Zeit weiter."""
+    from app import apple_store
+    good = {"alg": "ES256", "x5c": _chain(apple)}
+    for ms in (1e300, -1e20, True, "2026"):
+        token = _sign_raw(apple, good, {"signedDate": ms, "notificationType": "TEST"})
+        assert apple_store.verify_jws(token)["signedDate"] == ms
+        st, d = notify(hosted, token)
+        assert st == 200 and d["applied"] is False, (ms, st, d)
