@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 07.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 08.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -138,12 +138,13 @@ Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 
 | Daten | Zweck | Speicherdauer |
 |---|---|---|
-| E-Mail-Adresse, Hochschule, Zeitpunkt der Registrierung | Konto führen, Anmeldung, Zuordnung der Hochschule, Mitteilungen zum Konto | bis 30 Tage nach Löschung des Kontos |
+| E-Mail-Adresse, Hochschule, Zeitpunkt der Registrierung | Konto führen, Anmeldung, Zuordnung der Hochschule, Mitteilungen zum Konto | E-Mail-Adresse bis zur Löschung des Kontos (beim Löschen sofort entfernt), der Rest bis 30 Tage nach Löschung des Kontos |
 | Passwort – nur als Hash (scrypt mit zufälligem Salz), nie im Klartext | Anmeldung | wie das Konto |
 | „Mit Apple anmelden“ / „Mit Google anmelden“: Kennung des Anbieters und die von ihm übermittelte E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse) | Anmeldeweg mit dem Konto verknüpfen | wie das Konto |
-| Sitzungen: Token nur als Hash, Gerätename (oder Browser-Kennung), eine zufällige Kennung der App-Installation (keine Werbe- oder Hardware-Kennung), Zeitpunkt der Anmeldung und letzten Nutzung | angemeldet bleiben (30 Tage, verlängert sich bei Nutzung), andere Geräte abmelden | bis Abmeldung oder Ablauf |
-| Fehlgeschlagene Anmeldeversuche je Konto und Adresse | Schutz vor Passwortraten (Sperre nach 8 Versuchen für 10 Minuten) | 10 Minuten |
-| Token für „Passwort vergessen“ (nur als Hash) | Passwort zurücksetzen | 30 Minuten oder bis zur Nutzung |
+| Sitzungen: Token nur als Hash, Gerätename (oder Browser-Kennung), eine zufällige Kennung der App-Installation (keine Werbe- oder Hardware-Kennung), Zeitpunkt der Anmeldung und letzten Nutzung | angemeldet bleiben (30 Tage, verlängert sich bei Nutzung), andere Geräte abmelden | bis Abmeldung oder Ablauf, danach spätestens am nächsten Tag gelöscht |
+| Fehlgeschlagene Anmeldeversuche je E-Mail-Adresse und je IP-Adresse (Anzahl, Zeitpunkt des letzten) | Schutz vor Passwortraten (Sperre nach 8 Versuchen für 10 Minuten; je IP-Adresse erst nach sehr vielen Versuchen, weil an der Hochschule viele Geräte eine Adresse teilen) | wirksam 10 Minuten, gelöscht spätestens nach 24 Stunden |
+| Zähler gegen Missbrauch: Registrierungen und Anfragen „Passwort vergessen“ je IP-Adresse bzw. E-Mail-Adresse, Datenexporte, Bestätigungsmails und Community-Aktionen je Konto (Anzahl, Beginn des Zeitfensters) | Schutz vor Massen-Registrierungen und Spam (Art. 6 Abs. 1 lit. f DSGVO) | höchstens 2 Tage |
+| Token für „Passwort vergessen“ und für die Bestätigung der E-Mail-Adresse (nur als Hash) | Passwort zurücksetzen, Adresse bestätigen | 30 Minuten bzw. 48 Stunden oder bis zur Nutzung |
 | Tarif (Free, Plus, Pro AI) und Rolle | Funktionen freischalten, Moderation | wie das Konto |
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von StudiNow); für die Schutzmaßnahmen gegen
@@ -356,8 +357,10 @@ ohne sie funktioniert StudiNow genauso.
   - **Amazon Web Services EMEA SARL** (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
     Modell „Claude Sonnet“ von Anthropic.
 - **Was StudiNow speichert:**
-  - je Anfrage Zeitpunkt, Zweck, Modell, Anzahl der Tokens und Kosten (für Credits und Budget);
-  - die Antwort 24 Stunden lang, damit eine wiederholte Anfrage nicht doppelt kostet;
+  - je Anfrage Zeitpunkt, Zweck, Modell, Anzahl der Tokens und Kosten (für Credits und Budget), solange das Konto
+    besteht; nach dem endgültigen Löschen des Kontos nur noch ohne Bezug zu dir (Kostenrechnung);
+  - die Antwort 24 Stunden lang, damit eine wiederholte Anfrage nicht doppelt kostet (danach spätestens am
+    folgenden Tag gelöscht);
   - Antworten ohne eigene Notizen bis zu 30 Tage ohne Bezug zu deinem Konto, damit eine gleiche Anfrage sofort
     beantwortet wird;
   - Erklärungen ganzer Dokumente ohne Namen, für alle mit derselben Datei.
@@ -392,10 +395,22 @@ Apple, bietet die App keinen zweiten Kauf an.
   zuletzt geöffnete Ansicht). Keine Kennungen für Werbung oder Analyse.
 - **Zugriffsprotokolle des Servers**: IP-Adresse, Zeitpunkt, aufgerufene Adresse, Status, Browser-Kennung – zur
   Abwehr von Angriffen und zur Fehlersuche (Art. 6 Abs. 1 lit. f DSGVO), gelöscht nach 14 Tagen.
-- **Protokolle des Abgleichs** je Konto: Zeitpunkt, Erfolg, Fehlermeldung ohne Inhalte und Passwörter, bei
-  fehlgeschlagener Anmeldung ein Bildschirmfoto der Anmeldeseite deiner Hochschule zur Fehlersuche – gelöscht nach
-  90 Tagen. Abgelaufene oder beendete Sitzungen, verbrauchte Reset-Links und Fehlversuchszähler werden täglich
-  entfernt.
+- **Protokolle des Abgleichs** je Konto (Geräteabgleich, Hintergrundaufgaben wie die Wochentest-Vorbereitung):
+  Zeitpunkt, Erfolg, Fehlermeldung ohne Inhalte und Passwörter – gelöscht nach
+  90 Tagen. Ältere Protokolle aus der Zeit, als der Dienst selbst mit deiner Hochschule abglich (bis 06.11.2026;
+  damals bei fehlgeschlagener Anmeldung mit einem Bildschirmfoto der Anmeldeseite), fallen unter dieselbe Frist.
+  Abgelaufene oder beendete Sitzungen, verbrauchte Reset-Links und Fehlversuchszähler werden täglich entfernt.
+- **Protokoll des Mailversands**: Empfängeradresse, Betreff, Zeitpunkt und ob die Mail hinausging (nie der Inhalt
+  oder Links) – zur Kontrolle der Zustellung (Art. 6 Abs. 1 lit. f DSGVO), gelöscht nach 14 Tagen.
+- **Fehlerprotokolle des Dienstes**: technische Fehlermeldungen mit Zeitpunkt, ggf. der internen Konto-Kennung und bei
+  einem Versandfehler der Empfängeradresse, nie Passwörter, Sitzungs-Token oder Inhalte – zur Fehlersuche
+  (Art. 6 Abs. 1 lit. f DSGVO); sie werden nach Größe rotiert (höchstens 30 MB je Dienst) und dabei überschrieben.
+- **Sicherungskopien**: Der Dienst sichert seine Datenbanken und Kontoordner (ohne die Protokolle) täglich auf
+  seinem Server in Nürnberg; Zugriff hat nur der Betreiber. Jede Sicherung wird nach 14 Tagen gelöscht. Was du
+  löschst, verschwindet daher spätestens 14 Tage danach auch aus den Sicherungen. Stellen wir nach einem Ausfall eine
+  Sicherung wieder her, wiederholen wir die Löschungen, die seit dieser Sicherung beauftragt wurden.
+- **Datenexport**: Die ZIP-Datei entsteht erst auf deine Anforderung, wird nach dem Herunterladen sofort gelöscht und
+  sonst (etwa bei einem Abbruch) spätestens am nächsten Tag.
 - **Schriftart und andere Dateien der Oberfläche** liefert unser Server selbst aus; die Web-Oberfläche lädt nichts
   von Dritten (auch keine Schriften von Google), es werden keine Daten an Dritte übertragen.
 
@@ -453,14 +468,20 @@ Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
 ## 15. Konto löschen, Daten mitnehmen
 
 - **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen, Bestätigung mit Passwort) oder per
-  E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; die Daten werden nach 30 Tagen
-  endgültig gelöscht (Frist für versehentliche Löschung). Das Abo kündigst du zusätzlich bei Apple bzw. Google.
+  E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; E-Mail-Adresse, Passwort-Hash
+  und die Verknüpfung mit Apple bzw. Google entfernen wir sofort, deine Community-Beiträge ziehen wir sofort zurück.
+  Alle übrigen Daten (Datenbereich, Mitgliedschaften, Kommentare, Fragen und Antworten, Käufe, Nutzung) werden nach
+  30 Tagen endgültig gelöscht, aus den Sicherungskopien spätestens 14 Tage später (Abschnitt 10). Rückgängig machen
+  lässt sich die Löschung nicht. Das Abo kündigst du zusätzlich bei Apple bzw. Google.
 - **iPad ohne StudiNow-Konto:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) entfernt sofort alle
   Daten auf dem iPad; was du in der Community, als Wochentest oder in der Bibliothek geteilt hast, löschen wir auf
   Anfrage (Abschnitt 8b).
 - **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
   (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
-  Notizen, Kalender, Lernpakete, Karteikarten, Tests, eigene Dateien und Community-Beiträge. Gespeicherte Passwörter
+  Notizen, Kalender, Lernpakete, Karteikarten, Tests, eigene Dateien und Community-Beiträge (Lösungen, Kommentare,
+  Fragen und Antworten, Likes, Lesezeichen, Mitteilungen, Mitgliedschaften, Lerngruppen, gemeldete Fingerabdrücke).
+  Nicht darin sind die kurzlebigen Schutzdaten (Fehlversuchs- und Missbrauchszähler, Protokolle); Auskunft darüber
+  erhältst du auf Anfrage. Gespeicherte Passwörter
   und Sitzungen deiner Hochschule stehen aus Sicherheitsgründen nur als „gespeichert“ darin. Notizen lassen sich
   außerdem als PDF exportieren.
 - **E-Mail-Adresse bestätigen:** Nach der Registrierung schicken wir einen Link zur Bestätigung. Bis dahin kannst du

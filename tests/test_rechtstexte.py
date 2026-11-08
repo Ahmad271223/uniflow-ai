@@ -108,11 +108,12 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # 07.11.2026: Bedingungen mit Jahresabos (Plus 21,99 €, Pro AI 41,99 €); Datenschutz 8a mit "Eigenes ChatGPT" ueber
     # den eigenen OpenAI-Schluessel (nur Schluesselbund des iPads, Anfragen direkt an OpenAI, KI-Lernplan ohne Namen)
     nb = (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
-    assert "Stand 07.11.2026 (26.10.2026)" in ds and "Stand 07.11.2026 (26.10.2026)" in nb
+    # 08.11.2026: Datenschutz mit den Fristen aus dem Code (Audit Paket 55-57: Protokolle, Sicherungen, Loeschung)
+    assert "Stand 08.11.2026 (26.10.2026)" in ds and "Stand 07.11.2026 (26.10.2026)" in nb
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
-    assert "Stand 07.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
+    assert "Stand 08.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
     assert "21,99 € pro Jahr" in nb and "41,99 € pro Jahr" in nb and "einen Monat bzw. ein Jahr" in nb
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl
