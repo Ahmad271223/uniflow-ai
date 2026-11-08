@@ -561,8 +561,9 @@ export const overloaded = s => (Number(s?.lp) || 0) > LP_LIMIT + 0.01;
 
 /** Wahl(pflicht)modul? */
 export const isElective = m => ["wahlpflicht", "wahl"].includes(key(m?.kind));
-/** verschiebbar: alles ausser Bestandenem (liegt im Semester aus QIS) und eigenen Eintraegen */
-export const movable = m => !!m && moduleStatus(m) !== "passed" && !m.custom;
+/** verschiebbar: alles ausser Bestandenem und zur Pruefung Angemeldetem (beides liegt im Semester aus QIS, der Kern
+ * uebergeht dafuer jede eigene Lage, app/study_plan.py) und eigenen Eintraegen; wie StudyPlanModule.movable am iPad */
+export const movable = m => !!m && !["passed", "registered"].includes(moduleStatus(m)) && !m.custom;
 /** gewaehltes Wahlmodul, das sich tauschen laesst (nicht bestanden, nicht angemeldet) */
 export const replaceable = m => isElective(m) && movable(m) && !["registered", "failed"].includes(moduleStatus(m));
 
