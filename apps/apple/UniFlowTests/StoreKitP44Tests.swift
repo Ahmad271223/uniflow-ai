@@ -174,8 +174,11 @@ final class LocalTrialP44Tests: XCTestCase {
         e.useLocalTrial(startedAt: t0, now: day(1))
         XCTAssertEqual(e.statusLabel, "Probe: noch 6 Tage alles frei")
         XCTAssertEqual(UFSidebarProfile.make(e).planLabel, "Probe · noch 6 Tage")
-        // Probe des Kontos (Dienst): Beschriftung "StudiNow Pro AI" (PlanMatrixAppTests, Produktentscheidung P44-13);
-        // die Resttage des Kontos zeigt die Karte auf der Uebersicht (TrialBanner)
+        // Probe des Kontos (Dienst): deren Resttage ueberall, auch in Einstellungen und Seitenleiste (Entscheidung des
+        // Inhabers 09.11.2026, TrialDisplayAppTests); ohne gemeldete Resttage der Tarif
+        e.useServiceTrial(.proAI, daysLeft: 2)
+        XCTAssertEqual(e.statusLabel, "Probe: noch 2 Tage alles frei")
+        XCTAssertEqual(UFSidebarProfile.make(e).planLabel, "Probe · noch 2 Tage")
         e.useServiceTrial(.proAI)
         XCTAssertEqual(e.statusLabel, "StudiNow Pro AI")
         e.useServiceTrial(nil)

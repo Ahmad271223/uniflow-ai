@@ -97,7 +97,8 @@ final class StudoraAccountLink: ObservableObject {
     /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
         didSet {
-            Entitlements.shared.useServiceTrial(planStatus?.trialPlan.flatMap(UFPlan.init(rawValue:)))
+            // Probe des Kontos: Freischaltung und Anzeige (Resttage, Ende) aus demselben Stand (Entscheidung 09.11.2026)
+            Entitlements.shared.useServiceStatus(planStatus)
             updateAccountToken()
             updateAI()
         }
