@@ -521,6 +521,12 @@ def main(argv: list[str] | None = None, stop_event: threading.Event | None = Non
         except (ValueError, OSError):                 # nicht im Haupt-Thread (Tests): dann nur ueber stop_event
             pass
     r = Runner(workers=int(os.environ.get("LERNAPP_JOB_WORKERS") or 2))
+    # Genau EIN Job-Prozess (deploy/docker-compose.yml): was beim Start noch 'running' ist, gehoert einem hart beendeten
+    # Vorgaenger (OOM, SIGKILL, Stromausfall - Runner.stop lief nicht). Mit der 6-h-Frist von recover_stale bekam so ein
+    # Konto bis zum naechsten Neustart keinen Job mehr (claim_next ueberspringt Konten mit laufendem Job; Audit P51-08).
+    freed = recover_stale(max_hours=0)
+    if freed:
+        print(f"[jobs] {freed} Jobs eines beendeten Vorgaengers als abgebrochen markiert (werden beim naechsten Zeitfenster nachgeholt)", flush=True)
     try:
         r.start()
         par, gap = uni_limits()
