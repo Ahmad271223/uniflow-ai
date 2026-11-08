@@ -227,61 +227,7 @@ enum UFFeatureMatrix {
     }
 }
 
-/// Karteikarten-Stapel von StudiNow uebernehmen (Entscheidung 05.11.2026, Kontingent `card_stacks_adopted` in
-/// plans.json): fertige Wochenstapel aus dem Pool und geteilte Stapel der Modul-Community, Plus 4 je Kalendermonat, Pro AI
-/// (und die Probe) unbegrenzt. Mit StudiNow-Dienst zaehlt der Dienst (429 quota_exhausted); auf dem iPad ohne Dienst
-/// (lokales Backend ohne Tarif) zaehlt dieses Geraet in UserDefaults, je Monat ein Schluessel. Derselbe Stapel zaehlt im
-/// Monat nur einmal; selbst erzeugte Stapel (eigenes ChatGPT) zaehlen nicht.
-struct UFAdoptQuota {
-    static let feature = "card_stacks_adopted"
-    static let label = "Karteikarten-Stapel von StudiNow"
-
-    var defaults: UserDefaults = .standard
-    var now: () -> Date = Date.init
-
-    /// Grenze je Monat; nil = unbegrenzt (Pro AI, Fair Use nur im Dienst)
-    static func limit(_ plan: UFPlan) -> Int? {
-        switch plan {
-        case .free: return 0
-        case .plus: return 4
-        case .proAI: return nil
-        }
-    }
-
-    static func exhaustedMessage(limit: Int) -> String {
-        "\(label): Kontingent für diesen Monat aufgebraucht (\(limit) von \(limit))."
-    }
-
-    private var key: String {
-        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: now())
-        return String(format: "uf.quota.%@.%04d-%02d", Self.feature, c.year ?? 0, c.month ?? 0)
-    }
-
-    /// in diesem Monat schon gezaehlte Stapel
-    var used: [String] { defaults.stringArray(forKey: key) ?? [] }
-
-    /// Darf dieser Stapel im Tarif noch uebernommen werden? (schon gezaehlt = ja)
-    func allows(_ id: String, plan: UFPlan) -> Bool {
-        guard let limit = Self.limit(plan) else { return true }
-        let ids = used
-        return ids.contains(id) || ids.count < limit
-    }
-
-    /// Fehler fuer die Meldung, wenn `allows` nein sagt
-    func error(plan: UFPlan) -> APIError {
-        var e = APIError(status: 429, message: "", text: Self.exhaustedMessage(limit: Self.limit(plan) ?? 0))
-        e.code = "quota_exhausted"
-        return e
-    }
-
-    /// Uebernahme zaehlen (einmal je Stapel und Monat)
-    func record(_ id: String) {
-        var ids = used
-        guard !ids.contains(id) else { return }
-        ids.append(id)
-        defaults.set(ids, forKey: key)
-    }
-}
+// UFAdoptQuota (Kontingent "Karteikarten-Stapel von StudiNow") steht seit 08.11.2026 in Services/AdoptQuota.swift.
 
 /// Was mit vorhandenen Karteikarten im aktuellen Tarif moeglich ist
 struct UFFlashcardAccess: Equatable {

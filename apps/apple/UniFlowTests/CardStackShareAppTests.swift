@@ -50,7 +50,8 @@ final class CardStackShareAppTests: XCTestCase {
         let name = "uf-adopt-\(UUID().uuidString)"
         let d = try XCTUnwrap(UserDefaults(suiteName: name))
         addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
-        return UFAdoptQuota(defaults: d, now: { self.clock.now })
+        // iCloud-Schluessel-Wert-Speicher je Test im Speicher (P43-06, 08.11.2026), nie der echte
+        return UFAdoptQuota(defaults: d, now: { self.clock.now }, cloud: CommunityEntscheidungenAppTests.MemoryAdoptCloud())
     }
 
     private func deck(_ api: APIClient) throws -> FlashcardDeck {
@@ -406,7 +407,7 @@ final class CardStackShareAppTests: XCTestCase {
         XCTAssertTrue(q.allows("e", plan: .proAI))
         XCTAssertEqual(q.error(plan: .plus).errorDescription,
                        "Karteikarten-Stapel von StudiNow: Kontingent für diesen Monat aufgebraucht (4 von 4).")
-        let december = UFAdoptQuota(defaults: q.defaults, now: { UniFlowClock.fixed(berlin: "2026-12-01T10:00:00")!.now })
+        let december = UFAdoptQuota(defaults: q.defaults, now: { UniFlowClock.fixed(berlin: "2026-12-01T10:00:00")!.now }, cloud: q.cloud)
         XCTAssertTrue(december.allows("e", plan: .plus), "neuer Monat, neues Kontingent")
     }
 
@@ -441,5 +442,37 @@ final class CardStackShareAppTests: XCTestCase {
         Entitlements.shared.setPlanForTesting(.proAI)
         _ = try await ben.adopt(seen[4])
         XCTAssertEqual(ben.stacks.count, 5, "Pro AI unbegrenzt")
+    }
+
+    /// P43-06 (08.11.2026): mit StudiNow-Konto fragt "Übernehmen" vorher den Dienst (Kontingent des Kontos ueber alle
+    /// Geraete); sagt er "aufgebraucht", bleibt es beim bisherigen Text und es entsteht kein Stapel
+    func testP43_06AdoptWithStudiNowAccountCountsInTheService() async throws {
+        let store = Store()
+        let adaCommunity = CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ada"), pseudonym: { "Ada" })
+        let ada = try deck(try await host(community: adaCommunity).1)
+        try await ada.load()
+        for n in 1...2 {
+            let sid = try await ada.createStack(name: "Stapel \(n)", subject: "Analysis I", week: .some(n), kind: "vorlesung")
+            try await ada.create(question: "Q\(n)", answer: "A\(n)", fileID: nil, stackID: sid)
+            _ = try await ada.share(try XCTUnwrap(ada.stacks.first { $0.i("id") == sid }))
+        }
+        let ben = try deck(try await host(files: false, community: CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ben"))).1)
+        let service = CommunityEntscheidungenAppTests.FakeAdoptService()
+        ben.adoptService = { service }
+        try await ben.load()
+        await ben.loadShared()
+        let seen = ben.shared(module: 7, week: nil)
+        XCTAssertEqual(seen.count, 2)
+        _ = try await ben.adopt(seen[0])
+        XCTAssertEqual(service.counted, ["community:\(try XCTUnwrap(seen[0].s("id")))"])
+        service.answer = StudoraAccount.AdoptQuota(ok: false, counted: false, used: 4, limit: 4)
+        do {
+            _ = try await ben.adopt(seen[1])
+            XCTFail("Kontingent des Kontos aufgebraucht")
+        } catch let e as APIError {
+            XCTAssertEqual(e.code, "quota_exhausted")
+            XCTAssertEqual(e.errorDescription, "Karteikarten-Stapel von StudiNow: Kontingent für diesen Monat aufgebraucht (4 von 4).")
+        }
+        XCTAssertEqual(ben.stacks.count, 1)
     }
 }

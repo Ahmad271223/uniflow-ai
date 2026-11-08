@@ -92,9 +92,18 @@ final class FlashcardDeck: ObservableObject {
     private var rated: Set<Int> = []
     /// zaehlt Wechsel der Datenquelle; Antworten einer frueheren Quelle aendern nichts mehr
     private var generation = 0
-    /// Kontingent "Karteikarten-Stapel von StudiNow" ohne Dienst (Plus 4 je Monat, 05.11.2026); Tests geben eigene
-    /// UserDefaults
+    /// Kontingent "Karteikarten-Stapel von StudiNow" ohne Dienst (Plus 4 je Monat, 05.11.2026), seit 08.11.2026 je
+    /// Konto (P43-06): Apple-Konto und Geraet, mit StudiNow-Konto der Dienst; Tests geben eigene UserDefaults
     var adoptQuota = UFAdoptQuota()
+    /// angemeldetes StudiNow-Konto (zaehlt das Kontingent des Kontos im Dienst); nil ohne Anmeldung
+    var adoptService: @MainActor () -> (any UFAdoptQuotaService)? = { nil }
+
+    /// Kontingent mit dem Konto, das gerade angemeldet ist
+    private var quotaWithAccount: UFAdoptQuota {
+        var q = adoptQuota
+        q.service = adoptService()
+        return q
+    }
     /// Tarif fuer Community und Kontingent ohne Dienst; die Seite setzt ihre eigenen Berechtigungen
     var entitlements: Entitlements = .shared
 
@@ -267,10 +276,10 @@ final class FlashcardDeck: ObservableObject {
         var out: [WeekFetch] = []
         // Kontingent `card_stacks_adopted` (Plus 4 je Monat) ohne Dienst: aufgebraucht = diese Art wird nicht geholt;
         // gezaehlt wird nur ein aus dem Pool uebernommener Stapel (nicht der mit dem eigenen ChatGPT erzeugte)
-        let quota = api.isLocal ? adoptQuota : nil, plan = entitlements.plan
+        let quota = api.isLocal ? quotaWithAccount : nil, plan = entitlements.plan
         for kind in Self.weekKinds {
             let qid = "week:\(moduleID):\(week):\(kind)"
-            if let quota, !quota.allows(qid, plan: plan) {
+            if let quota, await !quota.check(qid, plan: plan) {
                 let name = kind == "vorlesung" ? "Vorlesung" : "Übung"
                 out.append(WeekFetch(kind: kind, status: "quota_exhausted", cards: 0,
                                      message: "\(name): " + UFAdoptQuota.exhaustedMessage(limit: UFAdoptQuota.limit(plan) ?? 0)))
@@ -279,7 +288,7 @@ final class FlashcardDeck: ObservableObject {
             do {
                 let r = try await api.value("/api/flashcard-stacks/week/\(moduleID)/\(week)/\(kind)", method: "POST", body: .object([:]))
                 let status = r.s("status") ?? "", cards = r["stack"]?.i("cards") ?? 0
-                if status == "adopted" { quota?.record(qid) }
+                if status == "adopted" { await quota?.recordAdopted(qid) }
                 out.append(WeekFetch(kind: kind, status: status, cards: cards, message: Self.fetchLabel(kind: kind, status: status, cards: cards, variant: r.i("variant"))))
             } catch let e as APIError where e.code == "no_materials" {
                 out.append(WeekFetch(kind: kind, status: "no_materials", cards: 0, message: Self.fetchLabel(kind: kind, status: "no_materials", cards: 0, variant: nil)))
@@ -352,9 +361,10 @@ final class FlashcardDeck: ObservableObject {
     @discardableResult
     func adopt(_ sharedStack: JSONValue) async throws -> (stack: JSONValue, already: Bool) {
         guard let api, let id = sharedStack.s("id") else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
-        // Kontingent `card_stacks_adopted` (Plus 4 je Monat): ohne Dienst zaehlt das Geraet, mit Dienst der Dienst
-        let quota = api.isLocal ? adoptQuota : nil, plan = entitlements.plan, qid = "community:\(id)"
-        if let quota, !quota.allows(qid, plan: plan) { throw quota.error(plan: plan) }
+        // Kontingent `card_stacks_adopted` (Plus 4 je Monat): ohne eigenen Server zaehlen Apple-Konto und Geraet, mit
+        // StudiNow-Konto zusaetzlich der Dienst (je Konto, P43-06); mit eigenem Server zaehlt der Server
+        let quota = api.isLocal ? quotaWithAccount : nil, plan = entitlements.plan, qid = "community:\(id)"
+        if let quota, await !quota.reserve(qid, plan: plan) { throw quota.error(plan: plan) }
         let mine = generation
         let r = try await api.value("/api/community/card-stacks/\(id)/adopt", method: "POST", body: .object([:]))
         if r["already"]?.bool != true { quota?.record(qid) }
@@ -878,6 +888,8 @@ struct CardsPage: View {
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// StudiNow-Konto: zaehlt das Uebernahme-Kontingent je Konto (P43-06)
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     @StateObject private var deck = FlashcardDeck()
     @StateObject private var trainer = FlashcardTrainer()
     @ObservedObject private var ent: Entitlements
@@ -974,6 +986,7 @@ struct CardsPage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: session.api.map(ObjectIdentifier.init)) {
             deck.entitlements = ent
+            deck.adoptService = { [weak link = studoraAccount] in link?.user != nil ? link?.account : nil }
             deck.attach(session.api)
             trainer.attach(session.api)
             if await deck.reload(toast: toast) { await deck.loadShared() }
