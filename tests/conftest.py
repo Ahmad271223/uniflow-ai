@@ -10,6 +10,7 @@ os.environ["LERNAPP_DATA_DIR"] = str(Path(_TMP) / "data")
 os.environ["LERNAPP_LOG_DIR"] = str(Path(_TMP) / "logs")
 os.environ["LERNAPP_ALLOWED_HOSTS"] = "test"        # Host-Kopfzeile der Test-Aufrufe
 os.environ["LERNAPP_NO_SCHEDULER"] = "1"           # keine Hintergrund-Zeitplaene (app/weekly.py) in Tests
+os.environ.setdefault("LERNAPP_SHIPPED_UNIVERSITIES", "all")   # Tests: alle drei Hochschulen (Auslieferung: nur LUH, app/universities.shipped)
 os.environ.setdefault("LERNAPP_OCR", "off")         # keine echte Texterkennung (tesseract) in Tests, nur Fake-Motoren (tests/test_pageocr.py)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 

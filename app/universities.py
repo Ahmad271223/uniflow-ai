@@ -7,7 +7,16 @@ hsh        -> Moodle + Campusmanagement (HISinOne) der Hochschule Hannover, je e
 """
 from __future__ import annotations
 
+import os
+
 DEFAULT = "luh"
+
+# Ausgelieferte Hochschulen (08.11.2026, wie UFReleaseUniversities auf dem iPad): Version 1.0 bietet nur die LUH an.
+# LERNAPP_SHIPPED_UNIVERSITIES = "luh" | "luh,hildesheim" | "all". Ohne Angabe: im gehosteten Dienst und in der
+# Windows-App (LERNAPP_DESKTOP=1) nur die LUH, in der Entwicklung (serve.py) und in Tests alle drei.
+SHIPPED_ENV = "LERNAPP_SHIPPED_UNIVERSITIES"
+STORE_DEFAULT: tuple[str, ...] = ("luh",)
+MORE_NOTE = "Weitere Hochschulen folgen mit einem Update."
 
 HILDESHEIM_CAS = "https://www.uni-hildesheim.de/sso"
 # Nur fuer Links in der Oberflaeche; der Sync ermittelt die Instanz des Semesters selbst (learnweb.discover_base)
@@ -87,6 +96,39 @@ def services(key: str) -> list[dict] | None:
 
 def valid(key: str | None) -> bool:
     return (key or "") in PROFILES
+
+
+def shipped() -> tuple[str, ...]:
+    """Hochschulen, die diese Auslieferung zur Wahl stellt (Registrierung, Hochschulwahl in Web und Windows-App).
+    Alle Profile bleiben bekannt (bestehende Konten, Abgleich); nur die Auswahl ist eingeschraenkt."""
+    from . import config
+    raw = (os.environ.get(SHIPPED_ENV) or "").strip().lower()
+    if raw == "all":
+        return tuple(PROFILES)
+    if raw:
+        keys = tuple(k for k in (part.strip() for part in raw.split(",")) if k in PROFILES)
+        if keys:
+            return keys
+    if config.is_hosted() or os.environ.get("LERNAPP_DESKTOP") == "1":
+        return STORE_DEFAULT
+    return tuple(PROFILES)
+
+
+def is_shipped(key: str | None) -> bool:
+    return (key or "") in shipped()
+
+
+def choices(current: str | None = None) -> list[dict]:
+    """Hochschulwahl fuer die Oberflaeche: ausgelieferte Hochschulen, die laufende immer dabei (bestehende Daten)."""
+    keys = list(shipped())
+    if current in PROFILES and current not in keys:
+        keys.insert(0, current)
+    return [{"key": k, "name": PROFILES[k]["name"]} for k in keys]
+
+
+def more_note() -> str | None:
+    """Hinweis unter der Hochschulwahl, sobald nicht alle Hochschulen ausgeliefert sind."""
+    return MORE_NOTE if len(shipped()) < len(PROFILES) else None
 
 
 def current_key() -> str:

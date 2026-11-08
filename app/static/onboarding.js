@@ -30,7 +30,7 @@ function show({ api, icon, esc, toast, state, settings }) {
   const st = { i: 0, rufname: settings.rufname || pending || "", uni: settings.university, running: settings.university, unis: [], loggedIn: false, polling: null };
   const box = document.createElement("div"); box.className = "ob-overlay"; box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-label", "Erster Start");
   document.body.append(box);
-  api("/services").then(s => { st.unis = s.universities || []; if (O.STEPS[st.i].id === "university") draw(); }).catch(() => {});
+  api("/services").then(s => { st.unis = s.universities || []; st.unisNote = s.universities_note || ""; if (O.STEPS[st.i].id === "university") draw(); }).catch(() => {});
   const close = () => { clearInterval(st.polling); box.remove(); };
   const finish = async (hash = "#/dashboard") => {
     try { await api("/settings", { method: "PUT", body: { onboarding_done: "1", rufname: st.rufname.trim() } }); } catch {}
@@ -57,6 +57,7 @@ function show({ api, icon, esc, toast, state, settings }) {
       page(`${dots()}<h1>Hochschule wählen</h1><p class="ob-lead">An welcher Hochschule studierst du? StudiNow richtet danach die passenden Zugänge ein.</p>
         <div class="ob-choices" role="radiogroup" aria-label="Hochschule">${list.map(u => `<label class="ob-choice"><input type="radio" name="obUni" value="${esc(u.key)}"${u.key === st.uni ? " checked" : ""}${state.hosted && u.key !== st.running ? " disabled" : ""}> <span>${esc(u.name)}</span></label>`).join("")}</div>
         ${state.hosted ? `<p class="muted small" style="margin:-.6rem 0 1.2rem">Die Hochschule gehört zu deinem StudiNow-Konto.</p>` : ""}
+        ${st.unisNote ? `<p class="muted small" style="margin:-.6rem 0 1.2rem">${esc(st.unisNote)}</p>` : ""}
         <div class="ob-foot"><button class="btn" id="obBack">Zurück</button><span class="spacer"></span><button class="btn primary" id="obNext">Weiter ${icon("arrow-right", 15)}</button></div>`);
       box.querySelector("#obBack").onclick = () => { st.i--; draw(); };
       box.querySelector("#obNext").onclick = async () => {

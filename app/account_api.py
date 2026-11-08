@@ -13,7 +13,7 @@ from fastapi import APIRouter, Body, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.background import BackgroundTask
 
-from . import accounts, config, mail, social_login
+from . import accounts, config, mail, social_login, universities
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 COOKIE = "uniflow_session"
@@ -72,8 +72,8 @@ def _device(body: dict, request: Request) -> tuple[str | None, str | None]:
 def info():
     """Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."""
     return {"mode": config.MODE, "hosted": config.is_hosted(), "password_min": accounts.PASSWORD_MIN,
-            "session_days": accounts.SESSION_DAYS, "universities": list(config.known_universities()),
-            "providers": _providers()}
+            "session_days": accounts.SESSION_DAYS, "universities": list(universities.shipped()),
+            "universities_note": universities.more_note(), "providers": _providers()}
 
 
 @router.get("/providers")
@@ -85,9 +85,12 @@ def providers():
 @router.post("/register", status_code=201)
 def register(request: Request, body: dict = Body(...)):
     _hosted_only()
+    uni = (body.get("university") or "").strip().lower()
+    if universities.valid(uni) and not universities.is_shipped(uni):
+        raise HTTPException(400, {"detail": f"Diese Hochschule gibt es in StudiNow noch nicht. {universities.MORE_NOTE}",
+                                  "code": "university_not_shipped"})
     try:
-        user = accounts.register(body.get("email"), body.get("password"), (body.get("university") or "").strip().lower(),
-                                 client_ip=_ip(request))
+        user = accounts.register(body.get("email"), body.get("password"), uni, client_ip=_ip(request))
         # Sitzung direkt anlegen statt ueber login(): spart das zweite scrypt (Lasttest 30.10.: Registrieren = 2x Hash)
         with accounts.cursor() as conn:
             token = accounts.create_session(conn, user["id"], *_device(body, request))

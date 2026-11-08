@@ -2368,6 +2368,9 @@ def put_settings(body: dict = Body(...)):
             raise HTTPException(400, "Unbekannte Hochschule")
         if config.is_hosted():
             raise HTTPException(400, {"detail": "Die Hochschule gehoert zum Konto: POST /api/account/university", "code": "use_account"})
+        if not universities.is_shipped(uni) and uni != config.configured_university():
+            raise HTTPException(400, {"detail": f"Diese Hochschule gibt es in dieser Fassung noch nicht. {universities.MORE_NOTE}",
+                                      "code": "university_not_shipped"})
         # Nur fuer den naechsten Start vormerken: jede Uni hat ihren eigenen Datenordner
         config.set_env({"UNIVERSITY": uni})
     body.pop("ai_consent", None)          # nur ueber /api/ai/consent (Stand und Konto setzt der Server)
@@ -3299,7 +3302,7 @@ def api_services():
     hi = uni["key"] == "hildesheim"
     return {"services": universities.services(uni["key"]) or SERVICES, "credentials": creds,
             "university": {k: uni[k] for k in ("key", "name", "short", "files_source", "grades_source", "login", "user_label")},
-            "universities": [{"key": k, "name": v["name"]} for k, v in universities.PROFILES.items()],
+            "universities": universities.choices(uni["key"]), "universities_note": universities.more_note(),
             "university_next": config.configured_university(),
             "learnweb": {"token_set": bool(config.secret("LEARNWEB_TOKEN"))},
             "qis": {"configured": qis.configured("hsh") if uni["key"] == "hsh" else (creds["hildesheim"]["configured"] if hi else q["configured"]),

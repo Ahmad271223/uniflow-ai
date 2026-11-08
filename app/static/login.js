@@ -50,6 +50,7 @@ if (!info || !info.hosted) {
   location.replace("/");                                   // am PC gibt es keine Anmeldung
 } else {
   $("#uniSelect").innerHTML = info.universities.map(k => `<option value="${k}">${UNI[k] || k}</option>`).join("");
+  if (info.universities_note) $("#uniNote").textContent = info.universities_note;   // Version 1.0: nur die LUH (app/universities.shipped)
   $$("#pwHint, #pwHint2").forEach(h => h.textContent = `(mindestens ${info.password_min} Zeichen)`);
   $$('input[name="password"]').forEach(i => i.minLength = info.password_min);
   const token = new URLSearchParams(location.search).get("reset");
