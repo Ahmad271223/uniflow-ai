@@ -251,7 +251,17 @@ alle Zahlen stammen aus `tools/lasttest-ki.py` (lokal, 4 Prozesse, Schein-Anbiet
 
 ### Messung (lokal, 4 Prozesse, Schein-Anbieter 10 s)
 
-LASTTEST_TABELLE
+| Lauf | KI-Fragen gleichzeitig | beantwortet / Fehler | KI-Dauer p50 / p95 | KI-Durchsatz | normale Anfragen **unter Last** p50 / p95 / max | ohne Last p50 / p95 | Speicher je Prozess Ruhe → Spitze |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| vorher (develop, 4 Prozesse) | 300 | 300 / 0 | 19,2 s / 38,6 s | 7/s | 6 ms / **17,3 s** / 27,8 s | 51 / 97 ms | 80–162 → 151–182 MB |
+| vorher | 2.000 | 2.000 / 0 | 68 s / 157 s | 11/s | 9 ms / **166 s** / 166 s | 49 / 103 ms | 80–166 → 196–283 MB |
+| **nachher** (server/lastfest) | 300 | 300 / 0 | 10,0 s / 10,2 s | 25/s | 31 ms / **66 ms** / 85 ms | 57 / 143 ms | 80–217 → 129–232 MB |
+| nachher | 2.000 | 2.000 / 0 | 15,7 s / 19,8 s | 94/s | 45 ms / **177 ms** / 781 ms | 51 / 100 ms | 80–150 → 222–258 MB |
+| nachher (Anbieter 10–20 s) | 4.000 | 4.000 / 0 | 27,3 s / 32,8 s | 115/s | 29 ms / **832 ms** / 1,8 s | 29 / 154 ms | 80–217 → 278–420 MB |
+
+Speicher je 1.000 gleichzeitig offene KI-Fragen und Prozess: etwa **+200 bis +250 MB** (Lauf mit 4.000 = 1.000 je
+Prozess). Die KI-Dauer über der Antwortzeit des Anbieters (nachher 2.000: ~5 s, 4.000: ~7 s) ist die Warteschlange beim
+Abschicken (Verbindungsaufbau, Reservierung in accounts.db über 8 Threads je Prozess) – kein Thread-Stau mehr wie vorher.
 
 Lesart: „normale Anfragen“ sind je ein Drittel `POST /api/account/login`, `GET /api/entitlements`, `POST /api/sync/push`,
 abgeschickt 3 s nach dem Start der KI-Fragen. Vorher warteten sie hinter den KI-Fragen (p95 17 s bei 300 Fragen);
@@ -262,8 +272,8 @@ und Caddy hält die Verbindungen zu den Clients.
 ### Was der Dienst jetzt trägt – und was von außen begrenzt
 
 **Der Dienst selbst.** 4.000 gleichzeitig offene KI-Fragen sind 4.000 wartende Verbindungen zum Client und 4.000 zum
-Anbieter, verteilt auf 4 Prozesse (je 1.000). Speicher je 1.000 offene Fragen und Prozess: siehe Tabelle (Spitze minus
-Ruhewert). Die Rechenlast einer Frage ist klein (Prompt bauen, Credits reservieren, Antwort abrechnen: ~5 kurze
+Anbieter, verteilt auf 4 Prozesse (je 1.000). Speicher je 1.000 offene Fragen und Prozess: ~200–250 MB (Tabelle, Spitze minus
+Ruhewert); 4 Prozesse mit je 1.000 offenen Fragen brauchen damit ~1,2–1,7 GB – `API_MEMORY=1536M` reicht knapp, siehe Servergröße. Die Rechenlast einer Frage ist klein (Prompt bauen, Credits reservieren, Antwort abrechnen: ~5 kurze
 Schreibtransaktionen auf accounts.db); 4.000 Fragen in 20 s sind ~1.000 Transaktionen/s – WAL mit `synchronous=NORMAL`
 trägt das (Mikro-Messung im Bericht zum Lasttest, `tools/lasttest-ki.py --json`). Wird es eng, zuerst
 `LERNAPP_AI_DB_THREADS` nicht erhöhen (mehr Threads streiten nur um dieselbe Datei), sondern mehr Prozesse/Kerne.
