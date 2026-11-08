@@ -16,7 +16,9 @@ public enum ExamRegistrationAPI {
     public static let openEndCardDays = 14
 
     /// Texte je Pruefungssystem ("QIS" der LUH, "LSF" der Uni Hildesheim)
-    public static func openLabel(_ system: String) -> String { "Im \(system) anmelden" }
+    /// Knopf "Im QIS zur Prüfung anmelden" / "Im LSF zur Prüfung anmelden": "zur Prüfung", damit niemand ihn fuer die
+    /// Anmeldung am QIS haelt (Befund des Inhabers 09.11.2026)
+    public static func openLabel(_ system: String) -> String { "Im \(system) zur Prüfung anmelden" }
     static let suggestStatuses: Set<String> = ["offen", "geplant", "nicht_bestanden", "angemeldet"]
 
     static func vbp(_ exam: String?) -> Bool {

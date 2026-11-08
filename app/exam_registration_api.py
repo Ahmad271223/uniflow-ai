@@ -82,7 +82,9 @@ def _university(conn) -> str:
 
 
 def open_label(system: str) -> str:
-    return f"Im {system} anmelden"
+    """Knopf "Im QIS zur Prüfung anmelden" / "Im LSF zur Prüfung anmelden" ("zur Prüfung", damit niemand ihn fuer die
+    Anmeldung am QIS haelt, Befund des Inhabers 09.11.2026)."""
+    return f"Im {system} zur Prüfung anmelden"
 
 
 def response(conn, today: str, data: dict | None = None, source=None) -> dict:
