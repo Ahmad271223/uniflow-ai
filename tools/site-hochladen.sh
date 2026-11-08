@@ -16,7 +16,7 @@ rm -f "$ZIP"
 ID="$(printf '%s' "$ANTWORT" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id") or ""); import os; os._exit(0 if d.get("id") else 1)')" \
   || { echo "Upload fehlgeschlagen: $ANTWORT" >&2; exit 1; }
 for i in $(seq 1 24); do
-  STATE="$(curl -sS -H "Authorization: Bearer $(cat "$TOKEN_DATEI")" "https://api.netlify.com/api/v1/deploys/$ID" | python3 -c 'import sys,json; print(json.load(sys.stdin)["state"])')"
+  STATE="$(curl -sS -H "Authorization: Bearer $(cat "$TOKEN_DATEI")" "https://api.netlify.com/api/v1/deploys/$ID" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("state", "unbekannt"))')"
   [ "$STATE" = "ready" ] && break
   [ "$STATE" = "error" ] && { echo "Deploy $ID fehlgeschlagen" >&2; exit 1; }
   sleep 5
