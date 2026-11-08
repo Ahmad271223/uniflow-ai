@@ -484,6 +484,34 @@ final class AuditPaket353740AppTests: XCTestCase {
         let again = await sync.loadFile(id: "d1", client: studIPClient(stud))
         XCTAssertEqual(again, .notStudIP, "das alte Abgleich-Objekt laedt nichts mehr")
     }
+
+    /// Paket 40 Test 2: "Jetzt laden" derselben Datei, waehrend der volle Abgleich sie gerade laedt. Jeder Lauf hat einen
+    /// eigenen Zwischenordner, das Ersetzen ist atomar (`UniDownloads`): danach liegt genau eine vollstaendige Datei da,
+    /// ein Eintrag mit Ablageort, kein Zwischenordner (festgenagelt).
+    func testSingleFileLoadNextToTheFullSyncOfTheSameFileLeavesOneCompleteFile() async throws {
+        let m = manager()
+        let luh = try signIn(accountStore(), m, bed.user)
+        try luh.cookies.save([cookie("Seminar_Session", "sitzung-ada", domain: "studip.uni-hannover.de")])
+        let stud = OneFileStudIP()
+        let sync = m.studip
+        _ = await sync.run(client: studIPClient(stud), scope: .lists)
+        let full = Task { await sync.run(client: self.studIPClient(stud)) }
+        try await bed.waitUntil("Abgleich laedt die Datei") { stud.gate.wasReached }
+        let single = Task { await sync.loadFile(id: "d1", client: self.studIPClient(stud)) }
+        try await bed.waitUntil("Einzel-Download laeuft auch") { stud.downloadCount == 2 }
+        stud.gate.release()
+        let outcome = await single.value
+        _ = await full.value
+        XCTAssertEqual(outcome, .loaded)
+        let files = luh.layout.studip.appendingPathComponent("files")
+        let stored = FileManager.default.enumerator(at: files, includingPropertiesForKeys: nil)?.allObjects
+            .compactMap { $0 as? URL }.filter { !$0.hasDirectoryPath } ?? []
+        XCTAssertEqual(stored.count, 1, "\(stored.map(\.lastPathComponent))")
+        XCTAssertEqual(try stored.first.map { try Data(contentsOf: $0) }, Data("%PDF-1.7 LUH".utf8))
+        let rows = try await luh.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE id='d1' AND local_path IS NOT NULL")?.int
+        XCTAssertEqual(rows, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: UniDownloads.partial(in: luh.layout.studip).path), "kein Zwischenordner")
+    }
 }
 
 // MARK: - Attrappen
