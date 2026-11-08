@@ -246,7 +246,7 @@ def test_legal_texts_carry_the_owner_data_and_only_hosting_is_open():
     im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
     assert "USt-IdNr. nach § 27a UStG: DE462836430" in im and "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV" in im
     assert "Ahmad Fakih, Anschrift wie oben" in im and "[[" not in im and "Variante" not in im
-    assert set(re.findall(r"\[\[([^\]]+)\]\]", (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8"))) == {"Hoster", "Serverstandort"}
+    assert set(re.findall(r"\[\[([^\]]+)\]\]", (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8"))) == set()
     for f in ("NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md", "SUPPORT.md", "STARTSEITE.md"):
         text = (REL / f).read_text(encoding="utf-8")
         assert "[[" not in text and "support@studinow.app" in text, f

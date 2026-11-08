@@ -401,7 +401,7 @@ Apple, bietet die App keinen zweiten Kauf an.
 
 ## 11. Hosting, E-Mail-Versand und Auftragsverarbeiter
 
-Der Dienst läuft bei [[Hoster]], Serverstandort [[Serverstandort]], auf Grundlage eines Vertrags zur
+Der Dienst läuft bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen (Deutschland), Serverstandort Helsinki, Finnland (EU), auf Grundlage eines Vertrags zur
 Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
 STRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland) in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind **OpenAI** und
 **Amazon Web Services EMEA SARL** (Amazon Bedrock, Region Frankfurt) Auftragsverarbeiter, jeweils mit einem Vertrag

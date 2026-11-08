@@ -21,7 +21,7 @@ ANGABEN = REL / "angaben.json"
 FILES = ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md", "APP-STORE.md", "PLAY-STORE.md")
 LEGAL = ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md")
 TODAY = dt.date.today().strftime("%d.%m.%Y")
-OPEN_KEYS = ("hoster", "hoster_ort", "telefon")       # in angaben.json noch leer
+OPEN_KEYS = ("telefon",)  # Hosting seit 08.11.2026 eingetragen (Hetzner, Helsinki)       # in angaben.json noch leer
 COMPANY = "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)"
 
 
@@ -96,7 +96,7 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
         assert "support@studinow.app" in text and "Entwurf" in text and "26.10.2026" in text, name
         assert "[[Name]]" not in text and "[[E-Mail]]" not in text and "[[Domain]]" not in text and "[[Datum]]" not in text, name
     ds = (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
-    assert set(re.findall(r"\[\[([^\]]+)\]\]", ds)) == {"Hoster", "Serverstandort"}
+    assert set(re.findall(r"\[\[([^\]]+)\]\]", ds)) == set(), "Hosting seit 08.11.2026 eingetragen (Hetzner, Helsinki)"
     for name in ("IMPRESSUM.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
         assert "[[" not in (REL / name).read_text(encoding="utf-8"), name
     im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
@@ -123,8 +123,7 @@ def test_check_with_owner_values_lists_only_what_is_open_and_exits_1():
     assert code == 1
     for name in ("IMPRESSUM.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
         assert f"{name}: keine offenen Platzhalter" in log, name
-    assert "DATENSCHUTZ.md: 2 offen" in log
-    assert "[[Hoster]]  -> hoster" in log and "[[Serverstandort]]  -> hoster_ort" in log
+    assert "DATENSCHUTZ.md: keine offenen Platzhalter" in log
     assert "[[Telefon]]  -> telefon" in log
     # APP-STORE.md ist seit 06.11.2026 fertig zum Einfuegen (keine Schalter, keine Pruefhinweise mehr)
     assert "APP-STORE.md: keine offenen Platzhalter" in log
@@ -136,7 +135,7 @@ def test_check_with_owner_values_lists_only_what_is_open_and_exits_1():
         assert f"{k}: leer" in log, k
     assert re.search(r"\n\d+ Platzhalter offen", log)
     # --check schreibt nichts
-    assert "[[Hoster]]" in (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
+    assert "Hetzner Online GmbH" in (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
 
 
 def test_fill_into_out_dir_leaves_sources_untouched_and_no_placeholders(filled):
@@ -149,14 +148,14 @@ def test_fill_into_out_dir_leaves_sources_untouched_and_no_placeholders(filled):
             assert word not in text, (name, word)
         assert "Entwurf" in text and "26.10.2026" in text, "Vorbehalt der Vorlage bleibt (tests/test_release_texts.py)"
     # Quelle unveraendert: dort stehen die offenen Platzhalter noch
-    assert "[[Hoster]]" in (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
+    assert "Hetzner Online GmbH" in (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
     assert "Dateien geschrieben" in log and "Datum: heute" not in log, "datum steht fest in angaben.json"
 
 
 def test_hosting_and_phone_values_are_inserted_and_owner_data_stays(filled):
     out, _ = filled
     ds = (out / "DATENSCHUTZ.md").read_text(encoding="utf-8")
-    assert "läuft bei Beispiel-Hosting GmbH, Serverstandort Beispielstadt, Deutschland" in ds and "versendet\nSTRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland)" in ds
+    assert "läuft bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen (Deutschland), Serverstandort Helsinki, Finnland (EU)" in ds and "versendet\nSTRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland)" in ds
     assert "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Baldurstraße 5, 30657 Hannover, Deutschland,\nE-Mail: support@studinow.app" in ds
     assert "Behörde: Die Landesbeauftragte für den\nDatenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover." in ds
     assert "gibt es nicht, weil die\ngesetzlichen Voraussetzungen dafür nicht vorliegen." in ds and "Falls doch benannt" not in ds

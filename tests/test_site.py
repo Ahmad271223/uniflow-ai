@@ -27,7 +27,7 @@ AASA = ".well-known/apple-app-site-association"
 NESTED = ("i/index.html",) + IMAGES + (AASA,)
 TEAM_ID = re.compile(r"(?:\b[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
 COMPANY = ("IT solutions by Ahmad Fakih", "Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
-OPEN_ALLOWED = {"Hoster", "Serverstandort"}      # Hosting des Dienstes ist nicht entschieden
+OPEN_ALLOWED: set[str] = set()                    # Hosting entschieden (08.11.2026): Hetzner, Helsinki (EU)
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")
 
 
@@ -37,7 +37,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert f"{16 + len(IMAGES)} Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
+    assert f"{16 + len(IMAGES)} Dateien" in p.stdout and "Platzhalter offen" not in p.stdout   # Hosting seit 08.11.2026 eingetragen
     return out
 
 
@@ -82,11 +82,7 @@ def test_only_the_hoster_placeholders_are_open():
         html = page(name)
         found = set(PLACEHOLDER.findall(html))
         assert found <= OPEN_ALLOWED, (name, found - OPEN_ALLOWED)
-        if name == "datenschutz.html":
-            assert found == OPEN_ALLOWED
-            assert html.count('<mark class="todo"') == 2, "offene Stellen sichtbar markiert"
-        else:
-            assert not found and "todo" not in html
+        assert not found and "todo" not in html, name
 
 
 def test_impressum_has_the_sole_trader_data():
