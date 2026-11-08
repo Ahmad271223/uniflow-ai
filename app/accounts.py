@@ -317,6 +317,7 @@ def register(email: str, password: str, university: str, client_ip: str | None =
     if university not in config.known_universities():
         raise AccountError("university_unknown", "Unbekannte Hochschule.")
     with cursor() as conn:
+        _billing_schema(conn)                             # vor dem ersten Schreiben: die Probe unten braucht entitlements
         _hit(conn, "register_all", "all")                 # alle Adressen zusammen (Massen-Skripte, 08.11.2026)
         if client_ip:
             _hit(conn, "register_ip", client_ip)          # begrenzt auch das Ausprobieren vergebener Adressen
@@ -325,13 +326,28 @@ def register(email: str, password: str, university: str, client_ip: str | None =
         uid = uuid.uuid4().hex
         conn.execute("INSERT INTO users(id, email, pw_hash, university, created_at) VALUES (?,?,?,?,?)",
                      (uid, email, hash_password(password), university, iso(now())))
+        _grant_trial_in(conn, uid)                        # dieselbe Transaktion: Konto und Probe oder nichts (Audit B02-02)
         user = _public(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
-    grant_trial(uid)
     return user
 
 
+def _billing_schema(conn) -> None:
+    """Tabellen von app/billing.py (entitlements) auf dieser Verbindung sicherstellen (einmal je Prozess und Datei,
+    db.schema_once). VOR dem ersten Schreiben des Blocks aufrufen: die Schemaarbeit beendet eine offene Transaktion."""
+    from . import billing, db
+    db.schema_once(conn, "billing", db_path(), billing.ensure_schema)
+
+
+def _grant_trial_in(conn, user_id: str) -> None:
+    """Probe fuer ein neues Konto (app/billing.py, plans.TRIAL) in der laufenden Transaktion des Aufrufers: scheitert
+    sie, bleibt kein Konto ohne Probe zurueck (Audit B02-02/B02-08, 08.11.2026; vorher eigene Verbindung danach)."""
+    from . import billing
+    billing.start_trial(conn, user_id)
+
+
 def grant_trial(user_id: str) -> None:
-    """Probe fuer ein neues Konto (app/billing.py, plans.TRIAL); eigene Verbindung, nach der Schreibtransaktion."""
+    """Probe nachtraeglich fuer ein bestehendes Konto (Betrieb, Werkzeuge); eigene Verbindung. Registrierung und
+    erste Anbieter-Anmeldung nutzen _grant_trial_in in ihrer eigenen Transaktion."""
     from . import billing
     conn = billing.connect()
     try:
@@ -538,9 +554,13 @@ def reset_password(token: str, new_password: str) -> None:
         if not u:
             raise AccountError("reset_invalid", "Der Link ist ungültig oder abgelaufen.", 400)
         validate_password(new_password, u["email"])
+        # Einmal-Token auch bei gleichzeitigen Einloesungen: nur der Aufruf, der used_at setzt, setzt das Passwort (die
+        # anderen warten auf die Schreibsperre und treffen dann keine Zeile mehr; Audit 08.11.2026, Funktion 51)
+        if conn.execute("UPDATE reset_tokens SET used_at=? WHERE token_hash=? AND used_at IS NULL",
+                        (iso(now()), r["token_hash"])).rowcount != 1:
+            raise AccountError("reset_invalid", "Der Link ist ungültig oder abgelaufen.", 400)
         # der Link kam per Mail an genau diese Adresse: damit ist sie auch bestaetigt
         conn.execute("UPDATE users SET pw_hash=?, email_verified=1 WHERE id=?", (hash_password(new_password), r["user_id"]))
-        conn.execute("UPDATE reset_tokens SET used_at=? WHERE token_hash=?", (iso(now()), r["token_hash"]))
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (iso(now()), r["user_id"]))
         # Anmeldewege (Google/Apple), die vor diesem Nachweis verknuepft wurden, gelten nicht weiter; wer die Adresse
         # besitzt, verknuepft sie danach neu (sonst behielte jemand, der das Konto vorab angelegt hat, einen Zugang)
@@ -675,9 +695,10 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
     if not subject:
         raise AccountError("identity_invalid", f"Die Anmeldung bei {provider.capitalize()} konnte nicht geprüft werden.", 401)
     email = normalize_email(email)
+    by_subject = "SELECT u.* FROM identities i JOIN users u ON u.id=i.user_id WHERE i.provider=? AND i.subject=? AND u.status='active'"
     with cursor() as conn:
-        row = conn.execute("SELECT u.* FROM identities i JOIN users u ON u.id=i.user_id WHERE i.provider=? AND i.subject=? AND u.status='active'",
-                           (provider, subject)).fetchone()
+        _billing_schema(conn)                             # vor dem ersten Schreiben: die Probe unten braucht entitlements
+        row = conn.execute(by_subject, (provider, subject)).fetchone()
         created = False
         if not row and email and email_verified:
             existing = conn.execute("SELECT * FROM users WHERE email=? AND status='active'", (email,)).fetchone()
@@ -702,16 +723,25 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
             if university not in config.known_universities():
                 raise AccountError("university_unknown", "Bitte die Hochschule angeben.")
             uid = uuid.uuid4().hex
-            conn.execute("INSERT INTO users(id, email, email_verified, pw_hash, university, created_at) VALUES (?,?,?,?,?,?)",
-                         (uid, new_email, 1 if (email and email_verified) else 0, None, university, iso(now())))
-            conn.execute("INSERT INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
-                         (provider, subject, uid, email or None, iso(now())))
-            row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-            created = True
+            try:
+                conn.execute("INSERT INTO users(id, email, email_verified, pw_hash, university, created_at) VALUES (?,?,?,?,?,?)",
+                             (uid, new_email, 1 if (email and email_verified) else 0, None, university, iso(now())))
+                conn.execute("INSERT INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
+                             (provider, subject, uid, email or None, iso(now())))
+            except sqlite3.IntegrityError:
+                # Doppeltipp: zwei gleichzeitige erste Anmeldungen derselben Kennung - der andere Aufruf hat das Konto
+                # gerade angelegt. Vorher fiel dieser Aufruf mit 500 aus; jetzt meldet er die Person dort an (Audit 08.11.2026).
+                conn.rollback()
+                row = conn.execute(by_subject, (provider, subject)).fetchone()
+                if not row:
+                    raise AccountError("email_taken", "Für diese E-Mail-Adresse gibt es schon ein Konto. Bitte dort anmelden und die "
+                                                      f"{provider.capitalize()}-Anmeldung verknüpfen.", 409)
+            else:
+                _grant_trial_in(conn, uid)                # dieselbe Transaktion: Konto und Probe oder nichts (Audit B02-08)
+                row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+                created = True
         token = create_session(conn, row["id"], device_id, device_name)
         user = _public(row)
-    if created:
-        grant_trial(user["id"])
     return user, token, created
 
 
