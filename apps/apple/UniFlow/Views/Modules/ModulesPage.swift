@@ -353,9 +353,14 @@ struct ModulePage: View {
     @State private var focusWeek: Int?
     @EnvironmentObject private var studip: StudIPSync
 
+    /// Gehoert die Antwort zu diesem Modul? Wechselt die Route direkt von einem Modul zum naechsten (Seitenleiste), behaelt
+    /// SwiftUI den Zustand der Seite (gleicher Zweig in `MainView`): ohne diese Pruefung stand das vorige Modul unter der
+    /// neuen Adresse, bis die neue Antwort kam, nach einem Fehler beim Laden dauerhaft (Audit 08.11.2026, Paket 40)
+    nonisolated static func shows(_ d: JSONValue?, moduleID: Int) -> Bool { d?["module"]?.i("id") == moduleID }
+
     var body: some View {
         Group {
-            if let d { content(d) } else if let error {
+            if let d, Self.shows(d, moduleID: id) { content(d) } else if let error {
                 UFContent { UFCard { UFEmpty(icon: "alert", text: error) { UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await load() } } } } }
             } else {
                 // Platzhalter in der Form der Seite: Kopf, Kennzahlenleiste, Reiter, erster Block
@@ -377,6 +382,8 @@ struct ModulePage: View {
     }
 
     private func load() async {
+        // anderes Modul als die angezeigte Antwort: deren Stand gilt hier nicht (Fehler, Aufzeichnungen, Sprung zur Woche)
+        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do {
             let v = try await api.value("/api/modules/\(id)")
@@ -388,7 +395,10 @@ struct ModulePage: View {
             guard !Task.isCancelled else { return }
             if d == nil { self.error = error.localizedDescription } else { toast.show("Neu laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4) }
         }
-        if api.isLocal { recordingCounts = await studip.recordings.weekCounts(moduleID: id) }
+        if api.isLocal {
+            let counts = await studip.recordings.weekCounts(moduleID: id)
+            if !Task.isCancelled { recordingCounts = counts }
+        }
     }
 
     @ViewBuilder private func content(_ d: JSONValue) -> some View {

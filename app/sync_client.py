@@ -120,8 +120,11 @@ def natural_key(table: str, row: dict, fk_local: dict | None = None) -> tuple | 
 
 
 class Client:
-    def __init__(self, conn, device: str):
+    def __init__(self, conn, device: str, token: str | None = None, url: str | None = None):
         self.conn, self.device = conn, device
+        # Konto des Laufs (Token und Adresse vom Start): ein Wechsel des Kontos waehrend des Laufs trifft ihn nicht
+        # (Audit 08.11.2026, P37-02); None = jeweils der gespeicherte Stand (nur Tests ohne Lauf)
+        self.token, self.url = token, url
         self.retry_notes = False
         self._nk: dict[str, dict] = {}
         self.stats = {"pulled": 0, "applied": 0, "pushed": 0, "deleted": 0, "conflicts": 0, "pending": 0, "notes_merged": 0,
@@ -312,7 +315,7 @@ class Client:
         cursor = _state(self.conn, "cursor")
         for _ in range(200):
             q = "limit=%d&device_id=%s" % (PAGE, self.device) + (f"&since={cursor}" if cursor else "")
-            d = _call("GET", "/api/sync/changes", query=q)
+            d = _call("GET", "/api/sync/changes", query=q, token=self.token, url=self.url)
             self.conn.execute("BEGIN IMMEDIATE")
             try:
                 mark = service_now_sql(self.conn)
@@ -428,7 +431,7 @@ class Client:
         for i, batch in enumerate(batches):
             body = {"device_id": self.device, "items": [{k: v for k, v in it.items() if not k.startswith("_")} for it in batch],
                     "deletes": [{k: v for k, v in d.items() if not k.startswith("_")} for d in deletes] if i == len(batches) - 1 else []}
-            res = _call("POST", "/api/sync/push", body)
+            res = _call("POST", "/api/sync/push", body, token=self.token, url=self.url)
             self.conn.execute("BEGIN IMMEDIATE")
             try:
                 self.handle_results(batch, deletes if i == len(batches) - 1 else [], res)
@@ -552,9 +555,11 @@ def service_now_sql(conn) -> str:
     return conn.execute("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')").fetchone()[0]
 
 
-def _call(method, path, body=None, query=""):
+def _call(method, path, body=None, query="", *, token: str | None = None, url: str | None = None):
+    """Anfrage an den Dienst; `token`/`url`: die des Laufs (sonst der gespeicherte Stand). Ein 401 vergisst das Token
+    nur, wenn es noch das gespeicherte ist (`service_link.call`), nie das eines inzwischen angemeldeten Kontos."""
     status, _, data = service_link.call(method, path, json.dumps(body).encode() if body is not None else None, query=query,
-                                        timeout=service_link.UPLOAD_TIMEOUT)
+                                        token=token, url=url, timeout=service_link.UPLOAD_TIMEOUT)
     try:
         d = json.loads(data or b"{}")
     except ValueError:
@@ -604,7 +609,7 @@ def run(force: bool = False) -> dict:
             if _state(conn, "account") != account:
                 reset(conn)
                 _set_state(conn, "account", account)
-            c = Client(conn, st.get("device_id") or "win")
+            c = Client(conn, st.get("device_id") or "win", token=st.get("token") or "", url=service_link.service_url(st) or None)
             c.retry_notes = False
             c.pull()
             c.push()
@@ -628,6 +633,8 @@ def run(force: bool = False) -> dict:
     _last = out
     try:
         s = service_link.load_state()
+        if (s.get("user") or {}).get("id") != (st.get("user") or {}).get("id"):
+            return out                                          # inzwischen anderes Konto: dessen Stand bleibt, wie er ist
         s["sync_last"] = {k: out[k] for k in out if k in ("ok", "at", "pulled", "applied", "pushed", "deleted", "conflicts", "pending",
                                                           "notes_merged", "plan_required", "error")}
         service_link.save_state(s)

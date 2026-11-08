@@ -161,7 +161,14 @@ final class UniMailConnection: ObservableObject {
         finishedRuns += 1
     }
 
-    func stop() async { stopped = true }
+    /// Anhalten, bevor der Container geloescht wird. Ein laufender Abruf (Posteingang, Kalender) endet danach wie nach
+    /// dem Abmelden ohne zu schreiben (`signOuts`): vorher setzte er nach dem Loeschen "zuletzt geprueft", ungelesene und
+    /// Kalendertermine wieder in die geloeschte Einstellungs-Suite bzw. den leer neu geoeffneten Container (Audit
+    /// 08.11.2026, P37-03)
+    func stop() async {
+        stopped = true
+        signOuts += 1
+    }
 
     // MARK: Abruf
 
@@ -189,8 +196,9 @@ final class UniMailConnection: ObservableObject {
 
     /// Eine Aktion mit SOGo; abgelaufene Anmeldung setzt "Anmeldung nötig", Erfolg "ok"
     func perform<T>(_ op: (SOGoClient) async throws -> T) async throws -> T {
-        guard let c = await client() else { throw SOGoError.needsLogin }
+        // vor dem Client: wer waehrend seines Aufbaus abmeldet oder anhaelt, bekommt keinen Stand geschrieben
         let before = signOuts
+        guard let c = await client() else { throw SOGoError.needsLogin }
         do {
             let r = try await op(c)
             if signOuts == before { set(.ok(clock.now)) }
@@ -365,8 +373,11 @@ final class UniMailConnection: ObservableObject {
     func importCalendar(days: Int) async -> String {
         let d = days > 7 ? 30 : 7
         let today = SOGo.berlinDay(clock)
+        let before = signOuts
         do {
             let events = try await perform { try await $0.events(day: today, days: d) }
+            // inzwischen abgemeldet oder angehalten (Container geloescht): nichts mehr uebernehmen
+            guard signOuts == before else { return "" }
             let db = try await host.backend().context.database
             let now = clock.nowISO
             let n = try await db.transaction { try SOGoCalendar.store($0, events, first: today, last: today + d, fetchedAt: now) }

@@ -184,6 +184,40 @@ final class AuditPaket353740AppTests: XCTestCase {
         XCTAssertEqual(again.defaults.string(forKey: "uniflow.audit.marker"), "ada")
     }
 
+    // MARK: P35-01: "Konto löschen" auf dem iPad und das StudiNow-Konto beim Dienst
+
+    /// "Konto löschen" in den Einstellungen loescht die Daten auf diesem iPad und die Anmeldung am StudiNow-Konto hier,
+    /// nicht das Konto beim Dienst (das loescht "Konto löschen" in der Karte StudiNow-Konto, Richtlinie 5.1.1(v)). Die
+    /// Rueckfrage sagt das ehrlich, sobald ein StudiNow-Konto angemeldet ist; vorher hiess es nur, StudiNow speichere das
+    /// Apple-Konto nirgends ausserhalb des iPads – mit StudiNow-Konto (Mit Apple angemeldet) stimmte das nicht.
+    func testDeleteAccountDialogNamesTheServiceAccountThatStays() {
+        XCTAssertFalse(DeleteAccountText.appleID.contains("nirgends außerhalb"), DeleteAccountText.appleID)
+        XCTAssertTrue(DeleteAccountText.appleID.contains("Mit Apple anmelden"))
+        let service = DeleteAccountText.service
+        XCTAssertTrue(service.contains("StudiNow-Konto"), service)
+        XCTAssertTrue(service.contains("bleibt"), service)
+        XCTAssertTrue(service.contains("„Konto löschen“"), "Weg zum Loeschen beim Dienst: \(service)")
+        XCTAssertFalse(DeleteAccountText.shows(serviceSignedIn: false).contains(service))
+        XCTAssertTrue(DeleteAccountText.shows(serviceSignedIn: true).contains(service))
+    }
+
+    // MARK: Paket 40 Test 5: Modulwechsel waehrend der Antwort
+
+    /// Direkter Wechsel von einem Modul zum naechsten (Seitenleiste): SwiftUI behaelt den Zustand der Seite (gleicher Zweig
+    /// in `MainView`). Die Seite zeigt eine Antwort nur, wenn sie zu ihrem Modul gehoert; vorher stand das vorige Modul
+    /// unter der neuen Adresse, bis die neue Antwort kam, und nach einem Fehler beim Laden dauerhaft.
+    func testModulePageShowsOnlyTheResponseOfItsOwnModule() async throws {
+        let m = manager()
+        let c = try signIn(accountStore(), m, bed.user)
+        let a = try await c.api.value("/api/modules", method: "POST", body: ["name": "Analysis"])
+        let b = try await c.api.value("/api/modules", method: "POST", body: ["name": "Chemie"])
+        let first = try XCTUnwrap(a["id"]?.int), second = try XCTUnwrap(b["id"]?.int)
+        let d = try await c.api.value("/api/modules/\(first)")
+        XCTAssertTrue(ModulePage.shows(d, moduleID: first))
+        XCTAssertFalse(ModulePage.shows(d, moduleID: second), "Antwort von Analysis nie unter Chemie")
+        XCTAssertFalse(ModulePage.shows(nil, moduleID: first))
+    }
+
     // MARK: P37-02: Geraete-Abgleich laeuft beim Kontowechsel
 
     /// Der Abgleich von A haelt seine Datenbank ab dem Start fest (StudoraAccountLink.syncNow liest `backend` vor dem
@@ -419,9 +453,10 @@ final class AuditPaket353740AppTests: XCTestCase {
         StudIPClient(base: StudIPSync.base, transport: t, pauseMillis: 0, retry: UniRetry(attempts: 1, delayNanos: { _ in 0 }))
     }
 
-    /// "Jetzt laden" einer einzelnen Datei laeuft, als "Daten dieser Hochschule löschen" kommt: das Loeschen haelt den
-    /// Download an und wartet auf ihn; die Datei landet weder im leer neu geoeffneten Container noch irgendwo sonst
-    /// (vorher wartete `stop` nur auf den grossen Abgleich, der Einzel-Download schrieb danach in den neuen Container).
+    /// "Jetzt laden" einer einzelnen Datei laeuft, als "Daten dieser Hochschule löschen" kommt. `stop` wartet zwar nur
+    /// auf den grossen Abgleich, aber die Zwischendatei des Einzel-Downloads liegt im Container (`UniDownloads.partial`)
+    /// und geht mit ihm: der Download scheitert, nichts landet im leer neu geoeffneten Container, das alte
+    /// Abgleich-Objekt laedt danach nichts mehr (festgenagelt, Paket 40 Test 1).
     func testDeletingDuringASingleFileLoadLeavesNoFileInTheFreshContainer() async throws {
         let m = manager()
         let a = accountStore()
