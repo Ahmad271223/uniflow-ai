@@ -911,11 +911,32 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     if "model" not in {r[1] for r in conn.execute("PRAGMA table_info(ai_cache)")}:
         conn.execute("ALTER TABLE ai_cache ADD COLUMN model TEXT")
     conn.executescript(TRIGGERS)
+    _rebuild_once(conn)
+
+
+_rebuilt: set = set()
+
+
+def _rebuild_once(conn: sqlite3.Connection) -> None:
+    """Neuaufbau der Monatssummen einmal je Prozess und Datei (Pfad + Dateinummer). db.schema_once allein reicht nicht:
+    sein Merkmal enthaelt die Aenderungszeit der Datei, die sich bei jedem Checkpoint aendert - dann liefe der Neuaufbau
+    (GROUP BY ueber den ganzen Monat unter Schreibsperre) bei jeder Verbindung noch einmal (Ledger-Messung 08.11.2026:
+    47 statt 1.300 Fragen/s bei 100k Zeilen)."""
+    try:
+        row = conn.execute("PRAGMA database_list").fetchone()
+        path = row[2] if row else ""
+        ident = (path, os.stat(path).st_ino) if path else None
+    except (OSError, sqlite3.Error):
+        ident = None
+    if ident is not None and ident in _rebuilt:
+        return
     rebuild_month_totals(conn)
+    if ident is not None:
+        _rebuilt.add(ident)
 
 
 def rebuild_month_totals(conn: sqlite3.Connection) -> None:
-    """Monatssummen aus ai_usage_log neu aufbauen (einmal je Prozess beim Schema, s. db.schema_once): danach stimmen sie
+    """Monatssummen aus ai_usage_log neu aufbauen (einmal je Prozess beim Start, _rebuild_once): danach stimmen sie
     auch, wenn jemand die Tabelle von Hand geaendert oder einen alten Stand eingespielt hat; ab dann halten die Trigger
     sie aktuell."""
     own = not conn.in_transaction

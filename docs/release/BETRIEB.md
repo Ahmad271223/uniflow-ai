@@ -274,9 +274,14 @@ und Caddy hält die Verbindungen zu den Clients.
 **Der Dienst selbst.** 4.000 gleichzeitig offene KI-Fragen sind 4.000 wartende Verbindungen zum Client und 4.000 zum
 Anbieter, verteilt auf 4 Prozesse (je 1.000). Speicher je 1.000 offene Fragen und Prozess: ~200–250 MB (Tabelle, Spitze minus
 Ruhewert); 4 Prozesse mit je 1.000 offenen Fragen brauchen damit ~1,2–1,7 GB – `API_MEMORY=1536M` reicht knapp, siehe Servergröße. Die Rechenlast einer Frage ist klein (Prompt bauen, Credits reservieren, Antwort abrechnen: ~5 kurze
-Schreibtransaktionen auf accounts.db); 4.000 Fragen in 20 s sind ~1.000 Transaktionen/s – WAL mit `synchronous=NORMAL`
-trägt das (Mikro-Messung im Bericht zum Lasttest, `tools/lasttest-ki.py --json`). Wird es eng, zuerst
-`LERNAPP_AI_DB_THREADS` nicht erhöhen (mehr Threads streiten nur um dieselbe Datei), sondern mehr Prozesse/Kerne.
+Schreibtransaktionen auf accounts.db); 4.000 Fragen in 20 s sind ~200 Fragen/s. Mikro-Messung `tools/lasttest-ki-ledger.py`
+(4 Prozesse gleichzeitig, nur der Schreibweg einer Frage: Credits + Budget reservieren, Protokoll + Credits abrechnen):
+leere Tabelle **1.293 Fragen/s** (5.172 Transaktionen/s, Reservierung p95 4 ms), 100.000 Zeilen im Monat 968 Fragen/s,
+300.000 Zeilen **748 Fragen/s** (p95 1,7 ms; einzelne Ausreißer bis ~1 s = Checkpoint des WAL). Die alte Summe über den
+Monat kostete bei 300.000 Zeilen 19 ms je Frage unter Schreibsperre, die laufende Summe 0,03 ms. WAL + kurze
+Transaktionen + `synchronous=NORMAL` tragen also das Drei- bis Sechsfache des Ziels; Reservierungen zusammenzufassen
+(Batch) ist nicht nötig. Wird es eng, `LERNAPP_AI_DB_THREADS` nicht erhöhen (mehr Threads streiten nur um dieselbe
+Datei), sondern mehr Prozesse/Kerne – oder accounts.db auf PostgreSQL (docs/SKALIERUNG-GROSS.md).
 
 **OpenAI (Stufe des Inhaber-Kontos, Stand 08.11.2026, nach 319 EUR Aufladung; nachsehen unter platform.openai.com →
 Settings → Limits):** `gpt-6-luna` 10.000.000 Tokens/Minute, 10.000 Anfragen/Minute, 1.000.000.000 Tokens/Tag;
