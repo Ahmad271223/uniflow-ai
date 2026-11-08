@@ -306,6 +306,10 @@ final class StudIPSync: ObservableObject {
     private let container: DataContainerLayout?
     /// laufender Abgleich (zum Anhalten vor dem Loeschen des Containers)
     private var current: Task<RunEnd, Never>?
+    /// Der laufende Lauf holt nur fruehere Semester (Stufe d, `OlderSemesterLoader`): ein voller Lauf (Sync, Oeffnen)
+    /// darf ihn unterbrechen; er setzt spaeter fort. Vorher blockierte die Stufe d den vollen Lauf stundenlang, und
+    /// ihre Laeufe zaehlten als "letzter Abgleich" (Befund iPad 08.11.2026: aktuelle Dateien kamen nicht mehr)
+    private(set) var runningOlderOnly = false
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
     private(set) var stopped = false
     /// zaehlt jedes Abmelden: ein Lauf, der vorher begann und noch auf die Demo-Pruefung wartete (noch ohne `current`,
@@ -847,6 +851,10 @@ final class StudIPSync: ObservableObject {
     /// nur diese.
     @discardableResult
     func run(client: StudIPClient, scope: UniSyncScope = .full, olderOnly: Bool = false, olderCourses: Set<String>? = nil) async -> RunEnd? {
+        if isRunning, runningOlderOnly, !olderOnly, let older = current {
+            older.cancel()                                    // Stufe d weicht dem vollen Lauf und setzt spaeter fort
+            _ = await older.value
+        }
         guard !isRunning, !stopped else { return nil }
         let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
@@ -859,8 +867,10 @@ final class StudIPSync: ObservableObject {
         phase = .running("Kurse werden geladen …")
         let task = Task { await self.perform(client: client, scope: scope, olderOnly: olderOnly, olderCourses: olderCourses) }
         current = task
+        runningOlderOnly = olderOnly
         let end = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
+        runningOlderOnly = false
         return end
     }
 
@@ -1192,7 +1202,9 @@ final class StudIPSync: ObservableObject {
             let expired = timetable.sessionExpired || rec?.sessionExpired == true || texts?.sessionExpired == true || extrasExpired
                 || lecturersExpired
             if scope == .full {
-                finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
+                // nur der volle Lauf der aktuellen Kurse zaehlt als "letzter Abgleich" (30-Minuten-Regel, Anzeige);
+                // Stufe d hat ihren eigenen Stand (`olderFilesNote`)
+                if !olderOnly { finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse") }
                 // Dateien, die an einem voruebergehenden Fehler scheiterten (Netz, Zeit, Stud.IP gestoert), holt der
                 // naechste Abgleich beim Oeffnen sofort (ohne die 30 Minuten); Absagen (403/404) nicht
                 setFlag(Keys.downloadsPending, failed > refused)

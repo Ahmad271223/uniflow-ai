@@ -147,8 +147,10 @@ enum DocIndexStore {
         // selbst bestimmte Lehrwoche (`LectureWeeks`) wie im Moduldetail, sonst Aenderungszeit und Hinweis im Namen
         let storedWeek = (r["id"]?.string).flatMap { dates.stored[$0] }
             .flatMap { docType == "klausur" || subLabel == "Klausur-Lösung" ? nil : LectureWeeks.displayWeek($0, start: dates.start) }
-        let week = try storedWeek ?? LocalModules.week(docType: docType, subLabel: subLabel, weekHint: enriched["week_hint"]?.int, chdate: chdate,
-                                                       start: dates.start, today: dates.today)
+        // zuerst die von Hand gesetzte Woche (`ModuleSections`, 07.11.2026): sie gewinnt immer
+        let week = try dates.manualWeek(fileID: r["id"]?.string) ?? storedWeek
+            ?? LocalModules.week(docType: docType, subLabel: subLabel, weekHint: enriched["week_hint"]?.int, chdate: chdate,
+                                 start: dates.start, today: dates.today)
         let date = StudyWeeks.isEmpty(chdate: chdate) ? "" : BerlinClock.isoDate(try StudyWeeks.localDay(chdate: chdate))
         let courseTitle = r["course_title"]?.string ?? ""
         let moduleName = r["module_name"]?.string.flatMap { $0.isEmpty ? nil : $0 } ?? CommunityKeys.moduleName(courseTitle: courseTitle)
@@ -242,7 +244,8 @@ enum DocIndexStore {
                     "sha": m.sha.map(JSONValue.string) ?? .null, "page_count": m.pageCount.map { .number(Double($0)) } ?? .null,
                     "indexed_pages": .number(Double(s.ok)), "failed_pages": .number(Double(s.failed)), "status": .string(s.status),
                     "kind": .string(m.kind.kind), "kind_label": .string(m.kind.label),
-                    "note_pages": .number(Double(notes[m.fileID] ?? 0)), "downloaded": .bool(!(m.localPath ?? "").isEmpty)]
+                    "note_pages": .number(Double(notes[m.fileID] ?? 0)), "downloaded": .bool(!(m.localPath ?? "").isEmpty),
+                    "week_manual": .bool(dates.manualWeek(fileID: m.fileID) != nil)]
         }
         let states = metas.map { state($0).status }
         let semesters = Dictionary(grouping: leaves, by: \.semester)
@@ -255,9 +258,12 @@ enum DocIndexStore {
             let modules = Dictionary(grouping: semesters[s]!, by: \.module)
             var moduleJSON: [JSONValue] = []
             for name in modules.keys.sorted(by: PyText.less) {
-                let weeks = Dictionary(grouping: modules[name]!, by: \.week)
+                var weeks = Dictionary(grouping: modules[name]!, by: \.week)
+                // eigene Abschnitte des Moduls (`ModuleSections`) auch leer, als Ziel zum Verschieben
+                let moduleID = modules[name]!.first!.moduleID
+                for s in dates.sections.values where s.moduleID == moduleID && weeks[s.week] == nil { weeks[s.week] = [] }
                 var weekJSON: [JSONValue] = []
-                for w in weeks.keys.sorted(by: LocalModules.weekOrder) {
+                for w in weeks.keys.sorted(by: dates.order) {
                     let kinds = Dictionary(grouping: weeks[w]!, by: \.kind)
                     var kindJSON: [JSONValue] = []
                     for k in DocIndexCatalog.kindOrder where kinds[k] != nil {
@@ -266,13 +272,16 @@ enum DocIndexStore {
                                          "files": .array(files.map { fileJSON($0.meta) })])
                     }
                     let days = weeks[w]!.map(\.meta.date).filter { !$0.isEmpty }
-                    weekJSON.append(["week": .number(Double(w)), "label": .string(dates.label(w)),
+                    weekJSON.append(["week": .number(Double(w)), "label": .string(dates.label(w)), "custom": .bool(ModuleSections.sectionID(week: w) != nil),
                                      "from": .string(days.min() ?? ""), "to": .string(days.max() ?? ""), "kinds": .array(kindJSON)])
                 }
                 let first = modules[name]!.first!
+                // Wochenliste fuer "In Woche verschieben" (nur mit Modul)
+                let choices = moduleID.map { ModuleSections.choices(moduleID: $0, dates: dates, presentWeeks: Array(weeks.keys)) } ?? []
                 moduleJSON.append(["name": .string(name), "module_id": first.moduleID.map { .number(Double($0)) } ?? .null,
                                    "key": .string(CommunityKeys.courseKey(university: uni.key, courseName: name) ?? ""),
-                                   "color": first.moduleID.flatMap { colors[$0] }.map(JSONValue.string) ?? .null, "weeks": .array(weekJSON)])
+                                   "color": first.moduleID.flatMap { colors[$0] }.map(JSONValue.string) ?? .null, "weeks": .array(weekJSON),
+                                   "week_choices": .array(choices.map(\.json))])
             }
             semesterJSON.append(["name": .string(s), "modules": .array(moduleJSON)])
         }

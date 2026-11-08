@@ -192,6 +192,32 @@ public struct StudySources: Sendable {
         return known
     }
 
+    /// Studiengaenge des Registers zur Auswahl ("Studiengang waehlen", wie `programs` in app/study_catalog.py):
+    /// [{id, program, degree, faculty, regular_semesters, total_lp, pos: [{po, code, catalog_terms, loadable}]}] nach
+    /// Name; Eintraege ohne Katalog haben `pos: []`. `loadable`: ein Download-Muster oder der Grundstock der App
+    /// (Quellen "...-grundstock") liefert den Katalog. Ein `q` filtert nach Name und Abschluss.
+    public func programs(university: String, query: String = "") -> [JSONValue] {
+        guard let uni = self.university(university) else { return [] }
+        let sources = Dictionary((uni["sources"]?.array ?? []).compactMap { s in s["id"]?.string.map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
+        let q = StudyCatalogText.nameKey(query)
+        var out: [(key: String, degree: String, json: JSONValue)] = []
+        for p in uni["programs"]?.array ?? [] {
+            let name = Self.text(p["program"]), degree = Self.text(p["degree"])
+            let key = StudyCatalogText.nameKey(name)
+            if !q.isEmpty, !key.contains(q), !StudyCatalogText.nameKey(name + " " + degree).contains(q),
+               !(p["qis_names"]?.array ?? []).contains(where: { StudyCatalogText.nameKey(Self.text($0)).contains(q) }) { continue }
+            let pos: [JSONValue] = (p["pos"]?.array ?? []).map { x in
+                let src = x["source"]?.string.flatMap { sources[$0] }
+                let loadable = !(src?["url_pattern"]?.string ?? "").isEmpty || (src?["id"]?.string ?? "").hasSuffix("-grundstock")
+                return ["po": .string(Self.text(x["po"])), "code": .string(Self.text(x["code"])),
+                        "catalog_terms": .array((x["catalog_terms"]?.array ?? []).filter { $0.string != nil }), "loadable": .bool(loadable)]
+            }
+            out.append((key, degree, ["id": p["id"] ?? .null, "program": .string(name), "degree": .string(degree), "faculty": p["faculty"] ?? .null,
+                                      "regular_semesters": p["regular_semesters"] ?? .null, "total_lp": p["total_lp"] ?? .null, "pos": .array(pos)]))
+        }
+        return out.sorted { ($0.key, $0.degree) < ($1.key, $1.degree) }.map(\.json)
+    }
+
     /// Angaben des Studiengangs fuer den Parser (Kopf des Katalogs)
     public func meta(university: String, code: String, term: String) -> StudyCatalogMeta? {
         guard let (_, prog, po) = entry(university: university, code: code) else { return nil }

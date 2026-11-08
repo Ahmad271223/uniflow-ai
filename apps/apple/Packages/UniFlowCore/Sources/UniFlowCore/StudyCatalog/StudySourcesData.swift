@@ -6196,7 +6196,8 @@ enum StudySourcesData {
      "program": "Sozialpädagogik",
      "degree": "B.A.",
      "qis_names": [
-      "Sozialpädagogik"
+      "Sozialpädagogik",
+      "Sozial- und Organisationspädagogik"
      ],
      "regular_semesters": 6,
      "total_lp": 180,

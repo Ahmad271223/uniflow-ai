@@ -423,6 +423,70 @@
    "po": null,
    "university": "hildesheim",
    "result": null
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [117] B.A. Sozialpädagogik PO-Version: 2025",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "sozialpaedagogik-b-a",
+    "program": "Sozialpädagogik",
+    "degree": "B.A.",
+    "po": "2025",
+    "code": "sozialpaedagogik|b.a.|2025",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [117] B.A. Sozialpädagogik PO-Version: 2025",
+    "qis_po": "2025",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [118] B.A. Sozial- und Organisationspädagogik PO-Version: 2022",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "sozialpaedagogik-b-a",
+    "program": "Sozialpädagogik",
+    "degree": "B.A.",
+    "po": "2025",
+    "code": "sozialpaedagogik|b.a.|2025",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [118] B.A. Sozial- und Organisationspädagogik PO-Version: 2022",
+    "qis_po": "2022",
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Abschluss: [88] Master Studiengang: [118] M.A. Sozial- und Organisationspädagogik PO-Version: 2025",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "sozial-und-organisationspaedagogik-m-a",
+    "program": "Sozial- und Organisationspädagogik",
+    "degree": "M.A.",
+    "po": "2025",
+    "code": "sozial-und-organisationspaedagogik|m.a.|2025",
+    "qis_label": "Abschluss: [88] Master Studiengang: [118] M.A. Sozial- und Organisationspädagogik PO-Version: 2025",
+    "qis_po": "2025",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2022",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "erziehungswissenschaft-b-a",
+    "program": "Erziehungswissenschaft",
+    "degree": "B.A.",
+    "po": "2023",
+    "code": "erziehungswissenschaft|b.a.|2023",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2022",
+    "qis_po": "2022",
+    "needs_confirmation": true
+   }
   }
  ],
  "keys": [

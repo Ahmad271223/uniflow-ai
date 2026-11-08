@@ -436,6 +436,13 @@ struct LibraryDocMenu: View {
                     }
                 }
                 UFMenuButton(text: "In Ordner verschieben", icon: "move") { close(); overlay.modal { LibraryMoveDialog(id: id, lib: lib) } }
+                // Wochen von Hand (07.11.2026, WeekMoveViews): nur lokal und nur fuer Dokumente eines Moduls
+                if session.api?.isLocal == true, !own, let mid = f.i("module_id") {
+                    UFMenuButton(text: "In Woche verschieben", icon: "calendar") {
+                        close()
+                        overlay.modal { MoveToWeekDialog(fileIDs: [id], moduleID: mid, manual: f["week_manual"]?.bool, done: { router.reload() }) }
+                    }
+                }
                 UFMenuButton(text: "Duplizieren", icon: "copy") {
                     close()
                     Task { await patch("Duplizieren") { try await $0.value("/api/library/files/\(id)", method: "PATCH", body: ["duplicate": true]) } }

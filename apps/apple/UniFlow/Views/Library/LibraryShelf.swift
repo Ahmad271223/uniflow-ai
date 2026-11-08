@@ -26,6 +26,8 @@ struct ShelfTree: Equatable {
         /// Seiten mit eigenen Notizen (nur lokal)
         let notePages: Int
         let downloaded: Bool
+        /// Woche von Hand gesetzt (`ModuleSections`, 07.11.2026)
+        let manual: Bool
 
         var explained: Bool { status == "ready" }
         var partial: Bool { status == "partial" }
@@ -42,6 +44,7 @@ struct ShelfTree: Equatable {
             kindLabel = j.s("kind_label") ?? DocIndexCatalog.kindLabels[kind] ?? kind
             notePages = j.i("note_pages") ?? 0
             downloaded = j["downloaded"]?.bool ?? true
+            manual = j["week_manual"]?.bool ?? false
         }
     }
 
@@ -59,6 +62,8 @@ struct ShelfTree: Equatable {
         let from: String
         let to: String
         let kinds: [Kind]
+        /// eigener Abschnitt des Moduls (`ModuleSections`), auch leer im Regal
+        var custom = false
         var id: Int { week }
         var files: [File] { kinds.flatMap(\.files) }
 
@@ -80,6 +85,8 @@ struct ShelfTree: Equatable {
         /// Fachfarbe "#rrggbb", nil ohne Modul
         let color: String?
         let weeks: [Week]
+        /// Wochen fuer "In Woche verschieben" (leer ohne Modul)
+        var choices: [WeekChoice] = []
         var id: String { moduleID.map { "m\($0)" } ?? (key.isEmpty ? "n:" + name : key) }
         var files: [File] { weeks.flatMap(\.files) }
     }
@@ -113,8 +120,8 @@ struct ShelfTree: Equatable {
                                Week(week: w.i("week") ?? 0, label: w.s("label") ?? "", from: w.s("from") ?? "", to: w.s("to") ?? "",
                                     kinds: (w["kinds"]?.array ?? []).map { k in
                                         Kind(kind: k.s("kind") ?? "sonstiges", label: k.s("label") ?? "", files: (k["files"]?.array ?? []).map(File.init))
-                                    })
-                           })
+                                    }, custom: w["custom"]?.bool ?? false)
+                           }, choices: WeekChoice.list(m["week_choices"]))
                 })
             })
         }
@@ -168,6 +175,7 @@ struct ShelfTree: Equatable {
         if f.explained { parts.append("erklärt") } else if f.partial { parts.append("teilweise erklärt") }
         if f.notePages > 0 { parts.append(notesText(f.notePages)) }
         if !f.downloaded { parts.append("nicht geladen") }
+        if f.manual { parts.append(WeekMove.manualHint) }
         return parts.joined(separator: ", ")
     }
 
@@ -276,7 +284,9 @@ struct LibraryShelfView: View {
                     ForEach(p.semesters) { s in
                         semesterHeader(program: p.name, semester: s.name)
                         VStack(alignment: .leading, spacing: 16) {
-                            ForEach(s.modules) { m in ShelfModuleShelf(module: m) { router.go(.doc($0.id)) } }
+                            ForEach(s.modules) { m in
+                                ShelfModuleShelf(module: m, moved: { Task { await load() } }) { router.go(.doc($0.id)) }
+                            }
                         }
                         .padding(.bottom, 28)
                     }
@@ -335,6 +345,8 @@ struct LibraryShelfView: View {
 /// Regal eines Moduls: blasse Flaeche in der Fachfarbe, Kopf mit Kuerzel-Kachel und Zahlen, je Lehrwoche ein Brett
 struct ShelfModuleShelf: View {
     let module: ShelfTree.Module
+    /// nach "In Woche verschieben" oder Ablegen: Regal neu laden
+    var moved: () -> Void = {}
     let open: (ShelfTree.File) -> Void
 
     private var tint: Color {
@@ -362,7 +374,8 @@ struct ShelfModuleShelf: View {
             .accessibilityAddTraits(.isHeader)
             .accessibilityIdentifier("shelf.module.\(module.id)")
             ForEach(Array(module.weeks.enumerated()), id: \.element.id) { i, w in
-                ShelfWeekRow(week: w, tint: c, moduleID: module.id, last: i == module.weeks.count - 1, open: open)
+                ShelfWeekRow(week: w, tint: c, moduleID: module.id, last: i == module.weeks.count - 1,
+                             move: module.moduleID.map { ShelfWeekRow.Move(moduleID: $0, choices: module.choices, moved: moved) }, open: open)
             }
         }
         .padding(.top, 16).padding(.horizontal, 18).padding(.bottom, 10)
@@ -374,10 +387,18 @@ struct ShelfModuleShelf: View {
 
 /// Brett einer Lehrwoche: links Woche und Datum, rechts je Art Etikett und Buecher, darunter das Brett in der Fachfarbe
 struct ShelfWeekRow: View {
+    /// Wochen von Hand (07.11.2026): Modul, Wochenliste und Neuladen fuer Kontextmenue und Ablegen; nil ohne Modul
+    struct Move {
+        let moduleID: Int
+        let choices: [WeekChoice]
+        let moved: () -> Void
+    }
+
     let week: ShelfTree.Week
     let tint: Color
     let moduleID: String
     var last = false
+    var move: Move? = nil
     let open: (ShelfTree.File) -> Void
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -388,17 +409,21 @@ struct ShelfWeekRow: View {
         // schmal oder sehr grosse Schrift: Woche ueber den Buechern statt daneben
         let stacked = windowWidth <= 760 || typeSize.isAccessibilitySize
         let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
-        VStack(alignment: .leading, spacing: 0) {
+        let row = VStack(alignment: .leading, spacing: 0) {
             layout {
                 weekLabel.frame(width: stacked ? nil : labelWidth, alignment: .leading)
                 // die Arten nebeneinander wie Abschnitte eines Bretts (Etikett ueber ihren Buechern), umbrechend
                 ShelfFlow(spacing: 22, rowSpacing: 14) {
+                    if week.kinds.isEmpty {
+                        Text("Noch leer – Dokumente hierher ziehen oder über „In Woche verschieben“ einordnen.")
+                            .ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    }
                     ForEach(week.kinds) { k in
                         VStack(alignment: .leading, spacing: 8) {
                             ShelfKindTag(kind: k.kind, label: k.label, count: k.files.count)
                                 .accessibilityIdentifier("shelf.kind.\(moduleID).\(week.week).\(k.kind)")
                             ShelfFlow(spacing: 10, rowSpacing: 10) {
-                                ForEach(k.files) { f in ShelfBook(file: f) { open(f) }.frame(width: bookWidth) }
+                                ForEach(k.files) { f in book(f) }
                             }
                         }
                         // VoiceOver liest je Art Etikett und Buecher zusammen (nicht erst alle Etiketten der Zeile)
@@ -413,11 +438,33 @@ struct ShelfWeekRow: View {
                 .accessibilityHidden(true)
         }
         .padding(.vertical, 10)
+        if let move {
+            row.ufWeekDropTarget(week: week.week, label: week.label, radius: 10, done: move.moved)
+        } else {
+            row
+        }
+    }
+
+    /// Ein Buch; mit Modul dazu Kontextmenue "In Woche verschieben …" und Ziehen auf ein anderes Brett
+    @ViewBuilder private func book(_ f: ShelfTree.File) -> some View {
+        let base = ShelfBook(file: f) { open(f) }.frame(width: bookWidth)
+        if let move {
+            base
+                .contextMenu {
+                    FileWeekMenuItems(fileIDs: [f.id], choices: move.choices, current: week.week, manual: f.manual, moduleID: move.moduleID, done: move.moved)
+                }
+                .draggable(WeekMove.payload([f.id]))
+        } else {
+            base
+        }
     }
 
     private var weekLabel: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(week.title).ufFont(13.6, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 5) {
+                if week.custom { UFIcon("layers", size: 12).foregroundStyle(UF.accentText) }
+                Text(week.title).ufFont(13.6, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+            }
             if !week.dates.isEmpty {
                 Text(week.dates).ufFont(12.48, lh: 1.3).foregroundStyle(UF.muted).monospacedDigit()
             }
@@ -529,11 +576,12 @@ struct ShelfBook: View {
                         .lineLimit(3).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Spacer(minLength: 0)
-                    if file.explained || file.partial || file.notePages > 0 {
+                    if file.explained || file.partial || file.notePages > 0 || file.manual {
                         UFFlexWrap(gap: 4, rowGap: 4) {
                             if file.explained { UFBadge("erklärt", tone: .ok, icon: "check") }
                             else if file.partial { UFBadge("teilweise erklärt", tone: .neutral, icon: "sparkles") }
                             if file.notePages > 0 { UFBadge(file.notePages == 1 ? "1 Seite Notizen" : "\(file.notePages) Seiten Notizen", tone: .accent, icon: "pencil") }
+                            if file.manual { UFBadge("von Hand", tone: .neutral, icon: "hand") }
                         }
                     }
                     if !meta.isEmpty || sourceIcon != nil {

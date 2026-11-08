@@ -46,6 +46,8 @@ struct StudyPlanPage: View {
     @State private var linkBusy = false
     @State private var poBusy = false
     @State private var poError: String?
+    /// "Studiengang waehlen" (07.11.2026): Register der Hochschule, auch ohne Notenspiegel
+    @State private var showPrograms = false
     /// Bearbeiten (05.11.2026): offenes Blatt, nach dem Detail zu oeffnendes Blatt, Rueckmeldung, Rueckfrage
     @State private var edit: StudyPlanEditRef?
     @State private var pendingEdit: StudyPlanEditRef?
@@ -122,6 +124,9 @@ struct StudyPlanPage: View {
         .sheet(isPresented: $showSettings) {
             StudyPlanSettingsSheet(api: session.api, plan: plan) { await load() }
         }
+        .sheet(isPresented: $showPrograms) {
+            StudyProgramPickerSheet(api: session.api, current: plan?.programLine) { await load() }
+        }
         .accessibilityIdentifier("studyplan.page")
     }
 
@@ -194,10 +199,12 @@ struct StudyPlanPage: View {
                         VStack(alignment: .leading, spacing: 10) { filterRow(p); viewToggle }
                     }
                     board(p, layout: layout, pad: pad)
+                    if !p.previousStudies.isEmpty { StudyPlanPreviousStudiesCard(studies: p.previousStudies) }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     gapCard(p)
+                    if !p.previousStudies.isEmpty { StudyPlanPreviousStudiesCard(studies: p.previousStudies) }
                     ExamRegistrationSection(api: session.api)
                 }
             }
@@ -326,8 +333,11 @@ struct StudyPlanPage: View {
         switch p.gap ?? .other("") {
         case .noQIS:
             StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: StudyPlanText.noQIS(hildesheim: hildesheim != nil, hsh: hsh != nil), text: StudyPlanText.noQISSub) {
-                UFButton("Zu Uni & Noten", icon: "arrow-right", kind: .primary) { router.go(.services) }
-                    .accessibilityIdentifier("studyplan.qis")
+                UFFlexWrap(gap: 8) {
+                    UFButton("Zu Uni & Noten", icon: "arrow-right", kind: .primary) { router.go(.services) }
+                        .accessibilityIdentifier("studyplan.qis")
+                    programButton
+                }
             }
             .accessibilityIdentifier("studyplan.gap.qis")
         case .catalogLoading:
@@ -401,6 +411,7 @@ struct StudyPlanPage: View {
                     }
                     Text(StudyPlanText.noCatalogSub).ufFont(13.12, lh: 1.45).foregroundStyle(UF.text2)
                         .fixedSize(horizontal: false, vertical: true)
+                    programButton.padding(.top, 2)
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 8) { linkField.frame(minWidth: 280); linkButton }
                         VStack(alignment: .leading, spacing: 8) { linkField; linkButton }
@@ -418,6 +429,14 @@ struct StudyPlanPage: View {
         }
         .frame(maxWidth: 720, alignment: .leading)
         .accessibilityIdentifier("studyplan.gap.catalog")
+    }
+
+    /// Studiengang aus dem Register waehlen (ohne Notenspiegel, nach einem Wechsel oder wenn die Bezeichnung des
+    /// Notenspiegels keinen Eintrag trifft)
+    private var programButton: some View {
+        UFButton(StudyPlanText.chooseProgram, icon: "list") { showPrograms = true }
+            .fixedSize()
+            .accessibilityIdentifier("studyplan.programs")
     }
 
     private var linkField: some View {

@@ -91,7 +91,8 @@ extension ContainerManager {
             switch studip.phase {
             case .signedOut, .needsLogin: return .notConnected(UniversitySyncStart.connectHint(.luh))
             default:
-                if studip.isRunning { return .alreadyRunning }
+                // ein Lauf nur fuer fruehere Semester (Stufe d) weicht dem Sync; er setzt spaeter fort
+                if studip.isRunning, !studip.runningOlderOnly { return .alreadyRunning }
                 Task { await studip.run() }
                 return .started(UniversitySyncStart.startedText(["Stud.IP"]))
             }

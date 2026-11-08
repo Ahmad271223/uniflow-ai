@@ -47,6 +47,9 @@ public enum ModulesEndpoints: LocalEndpointModule {
     }
 
     public static func register(on router: LocalRouter) {
+        // Wochen von Hand und eigene Abschnitte (07.11.2026, `WeekAssignmentEndpoints`)
+        WeekAssignmentEndpoints.register(on: router)
+
         router.get("/api/modules") { _, ctx in
             let clock = ctx.clock
             return .json(.array(try await ctx.database.transaction { try LocalModules.overview($0, clock: clock) }))

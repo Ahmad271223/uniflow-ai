@@ -320,22 +320,114 @@ public enum StudyPlanEngine {
 
     static func validCatalog(_ c: JSONValue) -> Bool { c["modules"]?.array != nil }
 
-    /// Haeufigster Wert (bei Gleichstand der zuerst gesehene), wie `Counter` + `next(...)`
-    private static func mostCommon(_ names: [String]) -> String? {
-        guard !names.isEmpty else { return nil }
-        var counts: [[UInt32]: Int] = [:]
-        for n in names { counts[n.unicodeScalars.map(\.value), default: 0] += 1 }
-        let best = counts.values.max() ?? 0
-        return names.first { counts[$0.unicodeScalars.map(\.value)] == best }
-    }
-
-    /// Studiengang aus QIS `abschluss` ohne Klammerzusatz
+    /// Studiengang aus QIS `abschluss` ohne Klammerzusatz (der aktuelle, `currentAbschluss`)
+    /// LSF Hildesheim ("Abschluss: [82] Bachelor Studiengang: [117] B.A. Sozialpädagogik PO-Version: 2025"): nur der
+    /// Name des Fachs (`StudySources.hisAbschluss`), sonst passte kein Katalog dem Namen nach (07.11.2026)
     static func programOf(_ grades: [[String: JSONValue]]) -> String? {
-        mostCommon(grades.map { PyText.strip(programRE.sub(textOf($0["abschluss"]))) }.filter { !$0.isEmpty })
+        currentAbschluss(grades).map { label in
+            if let his = StudySources.hisAbschluss(label, po: nil), !his.name.isEmpty { return his.name }
+            return PyText.strip(programRE.sub(label))
+        }.flatMap { $0.isEmpty ? nil : $0 }
     }
 
-    static func abschlussOf(_ grades: [[String: JSONValue]]) -> String? {
-        mostCommon(grades.map { PyText.strip(textOf($0["abschluss"])) }.filter { !$0.isEmpty })
+    static func abschlussOf(_ grades: [[String: JSONValue]]) -> String? { currentAbschluss(grades) }
+
+    private static let dayRE = PyRegex(#"^\s*(\d{1,2})\.(\d{1,2})\.(\d{4})"#)
+
+    /// Semester eines Pruefungsdatums "dd.mm.yyyy" (Oktober bis Maerz WS), sonst nil
+    static func termOfDate(_ v: JSONValue?) -> Int? {
+        guard let m = dayRE.match(textOf(v)), let month = PyText.int(digits: m.group(2) ?? ""), let year = PyText.int(digits: m.group(3) ?? "") else { return nil }
+        if month >= 10 { return year * 2 + 1 }
+        if month <= 3 { return (year - 1) * 2 + 1 }
+        return year * 2
+    }
+
+    /// Semester im Status "angemeldet (SoSe 26)" bzw. "AN (WiSe 26/27)" (Hildesheimer Notenspiegel ohne Semesterspalte)
+    private static let statusTermRE = PyRegex(#"\(\s*((?:WiSe|SoSe|WS|SS)\s*\d{2,4}(?:\s*/\s*\d{2,4})?)\s*\)"#, ignoreCase: true)
+
+    /// Juengstes Semester einer Leistung: Spalte `semester`, sonst das Pruefungsdatum, sonst das Semester im Status
+    static func termOfRow(_ r: [String: JSONValue]) -> Int? {
+        if let t = parseTerm(r["semester"]) ?? termOfDate(r["datum"]) { return t }
+        return statusTermRE.search(textOf(r["status"])).flatMap { parseTerm($0.group(1)) }
+    }
+
+    /// Kennzahlen je `abschluss` (Reihenfolge wie gespeichert): juengstes Semester, PO-Version, Zahl der Leistungen
+    struct AbschlussGroup { var label: String; var term = -1; var po = -1; var count = 0; var order: Int }
+
+    static func abschlussGroups(_ grades: [[String: JSONValue]]) -> [AbschlussGroup] {
+        var groups: [[UInt32]: AbschlussGroup] = [:]
+        for r in grades {
+            let label = PyText.strip(textOf(r["abschluss"]))
+            guard !label.isEmpty else { continue }
+            let key = label.unicodeScalars.map(\.value)
+            var g = groups[key] ?? AbschlussGroup(label: label, po: PyText.int(digits: StudySources.parseAbschluss(label).po ?? "") ?? -1, order: groups.count)
+            g.count += 1
+            if let t = termOfRow(r) { g.term = max(g.term, t) }
+            groups[key] = g
+        }
+        return groups.values.sorted { $0.order < $1.order }
+    }
+
+    /// Der aktuelle Studiengang, wenn der Notenspiegel mehrere nennt (Wechsel des Studiengangs, Master nach dem
+    /// Bachelor, Begleitfach; das LSF der Uni Hildesheim zeigt je Abschluss eine eigene Liste, die QIS-Spalte
+    /// `abschluss` steht an jeder Zeile). Je `abschluss` zaehlt zuerst das juengste Semester seiner Leistungen
+    /// (`semester`, sonst das Pruefungsdatum, sonst das Semester einer Anmeldung im Status - die laufende Anmeldung
+    /// gehoert zum aktuellen Studiengang), dann die hoechste PO-Version in der Bezeichnung (der neue Studiengang hat
+    /// in der Regel die neuere Ordnung), dann die Zahl der Leistungen; bei Gleichstand der zuerst gespeicherte.
+    /// Bis 07.11.2026 gewann immer der haeufigste - nach einem Wechsel also der alte Studiengang mit den meisten
+    /// Leistungen, und der Studienverlauf zeigte den falschen Katalog oder blieb leer.
+    public static func currentAbschluss(_ grades: [[String: JSONValue]]) -> String? {
+        abschlussGroups(grades).max { a, b in
+            if a.term != b.term { return a.term < b.term }
+            if a.po != b.po { return a.po < b.po }
+            if a.count != b.count { return a.count < b.count }
+            return a.order > b.order
+        }?.label
+    }
+
+    /// Fruehere Studiengaenge (alle `abschluss` ausser dem aktuellen) mit ihren Leistungen fuer die Karte "Frueheres
+    /// Studium": `{abschluss, program, degree, po, count, passed, credits, counted, grades: [{text, note, status,
+    /// credits, semester, pruefungsnr, counted}]}`; `counted` = die Leistung trifft ein Modul des Katalogs und zaehlt
+    /// im neuen Verlauf (anerkannt). Reihenfolge: juengstes Semester zuerst, dann die meisten Leistungen.
+    public static func previousStudies(_ grades: [[String: JSONValue]], catalog: JSONValue?) -> [JSONValue] {
+        guard let current = currentAbschluss(grades) else { return [] }
+        let groups = abschlussGroups(grades).filter { !$0.label.unicodeScalars.elementsEqual(current.unicodeScalars) }
+        guard !groups.isEmpty else { return [] }
+        let mods = (catalog?["modules"]?.array ?? []).compactMap(\.object)
+        let (byCode, byKey) = index(mods)
+        return groups.sorted { a, b in a.term != b.term ? a.term > b.term : (a.count != b.count ? a.count > b.count : a.order < b.order) }.map { g in
+            let parsed = StudySources.parseAbschluss(g.label)
+            var rows: [JSONValue] = [], passed = 0, credits = 0.0, counted = 0
+            for r in grades where PyText.strip(textOf(r["abschluss"])).unicodeScalars.elementsEqual(g.label.unicodeScalars) && !isBereich(r) {
+                let hit = !mods.isEmpty && rowModule(r, byCode, byKey) != nil
+                let result = rowResult(r)
+                if result == "passed" { passed += 1; credits += Double(textOf(r["credits"]).replacingOccurrences(of: ",", with: ".")) ?? 0 }
+                if hit { counted += 1 }
+                rows.append(["text": r["text"] ?? .null, "note": r["note"] ?? .null, "status": r["status"] ?? .null,
+                             "credits": r["credits"] ?? .null, "semester": r["semester"] ?? .null,
+                             "pruefungsnr": r["pruefungsnr"] ?? .null, "counted": .bool(hit)])
+            }
+            let degree: String? = parsed.degree == "M" ? "Master" : (parsed.degree == "B" ? "Bachelor" : nil)
+            return ["abschluss": .string(g.label), "program": opt(parsed.name.isEmpty ? nil : parsed.name), "degree": opt(degree),
+                    "po": opt(parsed.po), "count": .number(Double(rows.count)), "passed": .number(Double(passed)),
+                    "credits": .number(credits), "counted": .number(Double(counted)), "grades": .array(rows)]
+        }
+    }
+
+    /// Leistungen fuer den Verlauf eines Katalogs: alle des aktuellen Studiengangs (und ohne Bezeichnung); aus einem
+    /// frueheren Studiengang nur die, die ein Modul des Katalogs treffen (anerkannte Leistungen zaehlen, der Rest
+    /// stoert nicht als "nicht zugeordnet"). Ohne Katalog nur der aktuelle Studiengang.
+    public static func gradesForPlan(_ grades: [[String: JSONValue]], catalog: JSONValue?) -> [[String: JSONValue]] {
+        guard let current = currentAbschluss(grades) else { return grades }
+        let own = grades.filter { let l = PyText.strip(textOf($0["abschluss"])); return l.isEmpty || l.unicodeScalars.elementsEqual(current.unicodeScalars) }
+        if own.count == grades.count { return grades }
+        guard let catalog else { return own }
+        let mods = (catalog["modules"]?.array ?? []).compactMap(\.object)
+        let (byCode, byKey) = index(mods)
+        return grades.filter { r in
+            let l = PyText.strip(textOf(r["abschluss"]))
+            return l.isEmpty || l.unicodeScalars.elementsEqual(current.unicodeScalars) || (!isBereich(r) && rowModule(r, byCode, byKey) != nil)
+        }
     }
 
     private static func rankGreater(_ a: JSONValue, _ b: JSONValue) -> Bool {
@@ -352,11 +444,26 @@ public enum StudyPlanEngine {
         var cands = catalogs.filter(validCatalog)
         if cands.isEmpty { return (nil, "no_catalog") }
         let po = PyText.strip(textOf(settings["po"]))
+        let program = programOf(grades)
         if !po.isEmpty {
-            cands = cands.filter { pyStr($0["po"]) == po || textOf($0["code"]) == po }
-            if cands.isEmpty { return (nil, "no_catalog_po") }
+            let withPO = cands.filter { pyStr($0["po"]) == po || textOf($0["code"]) == po }
+            // Studiengangwechsel (07.11.2026): eine bestaetigte PO als Jahr ("2023") stammt womoeglich aus dem frueheren
+            // Studiengang. Liegt ein Katalog des aktuellen Studiengangs (Notenspiegel) vor, aber keiner mit diesem Jahr,
+            // gilt das Jahr nicht (sonst bliebe der Verlauf leer oder zeigte den alten Katalog). Ein Kuerzel
+            // ("Studiengang waehlen") gilt immer.
+            // Veraltet heisst: ein Jahr, das nur zu Katalogen anderer Studiengaenge passt, waehrend ein Katalog des
+            // aktuellen Studiengangs vorliegt (eine bestaetigte PO ganz ohne Katalog bleibt "no_catalog_po")
+            let key = program.map(nameKey) ?? ""
+            let isYear = po.count == 4 && po.allSatisfy(\.isNumber)
+            if isYear, !key.isEmpty, !withPO.isEmpty, !withPO.contains(where: { nameKey($0["program"]) == key }),
+               cands.contains(where: { nameKey($0["program"]) == key }) {
+                cands = cands.filter { nameKey($0["program"]) == key }
+            } else {
+                cands = withPO
+                if cands.isEmpty { return (nil, "no_catalog_po") }
+            }
         }
-        if let program = programOf(grades) {
+        if let program {
             let key = nameKey(program)
             let same = cands.filter { nameKey($0["program"]) == key }
             if !same.isEmpty { cands = same }
@@ -467,7 +574,9 @@ public enum StudyPlanEngine {
         if let s = parseTerm(settings["start_term"]) {
             start = s
         } else {
-            let known = grades.filter { !isBereich($0) }.compactMap { parseTerm($0["semester"]) }
+            // Studienbeginn aus den Leistungen des aktuellen Studiengangs (anerkannte aus einem frueheren tragen
+            // dessen Semester und wuerden den Beginn zurueckziehen)
+            let known = gradesForPlan(grades, catalog: nil).filter { !isBereich($0) }.compactMap { parseTerm($0["semester"]) }
             start = known.min() ?? current
         }
         var regular = 6

@@ -92,8 +92,12 @@ public enum LocalModules {
             params.append(moduleID)
         }
         let stored = try LectureWeeks.stored(c)
+        let manual = try ModuleSections.overrides(c)
         return try c.query(sql + " ORDER BY f.chdate", params).map { r in
-            FileRow(json: LectureWeeks.withStoredType(StudyClassify.enrichFile(r.json), stored: stored), chdate: r["chdate"] ?? .null)
+            var json = LectureWeeks.withStoredType(StudyClassify.enrichFile(r.json), stored: stored)
+            // von Hand gesetzte Woche (`ModuleSections`): Kennzeichen fuer "Zurueck auf automatisch"
+            if let id = r["id"]?.string, manual[id] != nil { json["week_manual"] = .bool(true) }
+            return FileRow(json: json, chdate: r["chdate"] ?? .null)
         }
     }
 
@@ -139,17 +143,23 @@ public enum LocalModules {
     /// Mit selbst bestimmten Lehrwochen (`LectureWeeks`, Moodle der HsH und Learnweb): Beginn des gemerkten Semesters
     /// der aktiven Kurse statt der Schaetzung aus den Aenderungszeiten, dazu die gespeicherten Wochen je Datei. Ohne
     /// (Stud.IP der LUH) wie bisher.
-    struct Dates {
-        let today: Int
-        let start: Int
-        var term: LectureWeeks.Term? = nil
+    /// Dazu (07.11.2026, `ModuleSections`): die von Hand gesetzten Wochen (`overrides`, gewinnen immer) und die eigenen
+    /// Abschnitte aller Module (`sections`, Wochenbloecke mit der Nummer `ModuleSections.weekCode`).
+    public struct Dates {
+        public let today: Int
+        public let start: Int
+        public var term: LectureWeeks.Term? = nil
         var stored: [String: LectureWeeks.Stored] = [:]
+        public var sections: [Int: ModuleSections.Section] = [:]
+        public var overrides: [String: ModuleSections.Override] = [:]
 
-        init(_ c: SQLiteConnection, clock: UniFlowClock) throws {
+        public init(_ c: SQLiteConnection, clock: UniFlowClock) throws {
             today = BerlinClock.parseISODate(clock.today) ?? 0
             term = try LectureWeeks.currentTerm(c)
             start = try term.map { $0.firstMonday } ?? StudyWeeks.semesterStart(c, today: today)
             stored = try LectureWeeks.stored(c)
+            sections = try ModuleSections.allSections(c)
+            overrides = try ModuleSections.overrides(c)
         }
 
         init(today: Int, start: Int) {
@@ -157,8 +167,21 @@ public enum LocalModules {
             self.start = start
         }
 
-        /// Bezeichnung einer Woche (Lehrwochen ohne Pausenwochen, wenn das Semester gemerkt ist)
-        func label(_ w: Int) -> String { LectureWeeks.weekLabel(start: start, week: w, term: term) }
+        /// Bezeichnung einer Woche (Lehrwochen ohne Pausenwochen, wenn das Semester gemerkt ist; eigene Abschnitte
+        /// mit ihrem Namen)
+        public func label(_ w: Int) -> String {
+            if let id = ModuleSections.sectionID(week: w) { return sections[id]?.name ?? "Abschnitt" }
+            return LectureWeeks.weekLabel(start: start, week: w, term: term)
+        }
+
+        /// Reihenfolge der Wochenbloecke: Lehrwochen wie `weekOrder`, eigene Abschnitte an ihrer Position
+        public func order(_ a: Int, _ b: Int) -> Bool { ModuleSections.order(a, b, sections: sections) }
+
+        /// Von Hand gesetzte Woche einer Datei, nil ohne (oder wenn ihr Abschnitt geloescht ist)
+        public func manualWeek(fileID: String?) -> Int? {
+            guard let fileID, let o = overrides[fileID] else { return nil }
+            return ModuleSections.week(of: o, sections: sections)
+        }
     }
 
     /// Lehrwoche einer Datei wie `file_week` in app/study.py, eine Regel fuer Moduldetail, Lernplan (`StudyPlan.units`),
@@ -166,7 +189,9 @@ public enum LocalModules {
     /// eigener Block (-2, keine Lehrwoche), sonst der Hinweis aus Name/Ordner (Blatt 3 / VL03 -> Lehrwoche 3), wenn die
     /// Datei aus diesem Semester ist, sonst die Woche der Aenderung (`StudyWeeks.weekIndex`). Vorher nahmen Lernplan und
     /// Termin nur die Woche der Aenderung ("Blatt 3", in Woche 5 hochgeladen: Moduldetail Woche 3, Lernplan Woche 5).
+    /// Seit 07.11.2026 zuerst die von Hand gesetzte Woche (`ModuleSections`, auch fuer Klausuren): sie gewinnt immer.
     static func week(_ f: FileRow, dates: Dates) throws -> Int {
+        if let w = dates.manualWeek(fileID: f.json["id"]?.string) { return w }
         if f.docType != "klausur", f.json["sub_label"]?.string != "Klausur-Lösung", let id = f.json["id"]?.string,
            let s = dates.stored[id] {
             return LectureWeeks.displayWeek(s, start: dates.start)
@@ -199,7 +224,11 @@ public enum LocalModules {
         let files = try fileRows(c, moduleID: moduleID)
         var weeks: [Int: [FileRow]] = [:]
         for f in files { weeks[try week(f, dates: dates), default: []].append(f) }
-        let order = weeks.keys.sorted(by: weekOrder)
+        // eigene Abschnitte des Moduls auch leer (Ziel zum Verschieben); Reihenfolge nach Position
+        let mid = moduleID.int ?? m["id"]?.int
+        let own = dates.sections.values.filter { $0.moduleID == mid }.sorted(by: ModuleSections.sectionOrder)
+        for s in own where weeks[s.week] == nil { weeks[s.week] = [] }
+        let order = weeks.keys.sorted(by: dates.order)
         var outWeeks: [JSONValue] = []
         for w in order {
             let fl = weeks[w]!
@@ -207,6 +236,7 @@ public enum LocalModules {
             for f in fl { grp[groupOf[f.docType ?? ""] ?? "sonstiges"]!.append(f) }
             var block: [String: JSONValue] = ["week": .number(Double(w)), "label": .string(dates.label(w)),
                                               "topic": .string(try weekTopic(fl)), "count": .number(Double(fl.count))]
+            if let sid = ModuleSections.sectionID(week: w) { block["custom"] = .bool(true); block["section_id"] = .number(Double(sid)) }
             for k in groupKeys {
                 // sort(key=(sub_label or "", name or "")), stabil wie Python
                 let sorted = grp[k]!.enumerated().sorted { x, y in
@@ -238,7 +268,10 @@ public enum LocalModules {
         let next = try c.queryOne("""
             SELECT date, title FROM study_packages WHERE module_id=? AND date>=? AND status IN ('geplant','in_bearbeitung') ORDER BY date LIMIT 1
             """, [moduleID, .text(BerlinClock.isoDate(dates.today))])
+        // Wochen von Hand (`ModuleSections`): eigene Abschnitte und die Wochenliste fuer "In Woche verschieben"
+        let choices = mid.map { ModuleSections.choices(moduleID: $0, dates: dates, presentWeeks: order) } ?? []
         return ["module": .object(m.json), "courses": .array(courses.map(JSONValue.object)), "weeks": .array(outWeeks),
+                "sections": .array(own.map(\.json)), "week_choices": .array(choices.map(\.json)),
                 "files": .array(files.map { .object($0.json) }), "progress": .number(Double(progress)),
                 // Lernstand (docs/LERNSTAND-2026-11-04.md): aus Wochentests, Karteikarten und Aufgaben, null ohne Signal
                 "mastery": try Mastery.forModule(c, moduleID: moduleID, name: m["name"] ?? .null),

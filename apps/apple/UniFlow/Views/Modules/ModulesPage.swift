@@ -351,7 +351,20 @@ struct ModulePage: View {
     /// Opencast-Aufzeichnungen je Block (nur lokal) und Woche, zu der aus der Uebersicht gesprungen wurde
     @State private var recordingCounts: [Int: Int] = [:]
     @State private var focusWeek: Int?
+    /// Wochen von Hand (07.11.2026, WeekMoveViews): Mehrfachauswahl in der Uebersicht
+    @State private var selecting = false
+    @State private var selected: Set<String> = []
     @EnvironmentObject private var studip: StudIPSync
+
+    /// Nur lokal: Dokumente verschieben, eigene Abschnitte (der PC-Server kennt das nicht)
+    private var canMove: Bool { session.api?.isLocal == true }
+    private var choices: [WeekChoice] { WeekChoice.list(d?["week_choices"]) }
+
+    /// Nach einer Aenderung der Wochen: Seite neu laden, Auswahl leeren
+    private func afterMove() { selected = []; Task { await load() } }
+
+    /// IDs fuer Menue und Ziehen: in der Auswahl alle gewaehlten, sonst nur diese Datei
+    private func targetIDs(_ fid: String) -> [String] { selecting && selected.contains(fid) ? Array(selected) : [fid] }
 
     var body: some View {
         Group {
@@ -459,6 +472,9 @@ struct ModulePage: View {
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
             if session.api?.isLocal == true && studip.offersStudIP { ModuleLecturersCard(moduleID: id, moduleName: m.s("name")) }
             if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
+            // Wochen von Hand (07.11.2026): Auswaehlen und Abschnitte verwalten; Zeilen haben ein Kontextmenue, Bloecke
+            // nehmen gezogene Dokumente an
+            if canMove, !d.list("files").isEmpty { weekTools(d) }
             ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
         } else if tab == "recordings" {
             RecordingsPanel(moduleID: id, focusWeek: focusWeek)
@@ -528,16 +544,76 @@ struct ModulePage: View {
         }
     }
 
+    /// Werkzeugzeile ueber den Wochenbloecken: Auswahlleiste (Mehrfachauswahl) oder die Knoepfe "Abschnitte" und
+    /// "Auswählen"
+    @ViewBuilder private func weekTools(_ d: JSONValue) -> some View {
+        if selecting {
+            let files = d.list("files")
+            let anyManual = files.contains { selected.contains($0.s("id") ?? "") && $0["week_manual"]?.bool == true }
+            WeekSelectionBar(moduleID: id, selected: Array(selected), choices: choices, anyManual: anyManual,
+                             done: afterMove, finish: { UFMotion.toggle { selecting = false; selected = [] } })
+        } else {
+            HStack(spacing: 8) {
+                Text("Nach Lehrwoche").ufFont(13.6, 600).foregroundStyle(UF.text2)
+                Text("· gedrückt halten für „In Woche verschieben“, oder ziehen").ufFont(12.48).foregroundStyle(UF.muted).lineLimit(1)
+                Spacer(minLength: 0)
+                UFButton("Abschnitte", icon: "layers", size: .small) {
+                    overlay.modal { SectionsManageDialog(moduleID: id, done: afterMove) }
+                }
+                .accessibilityIdentifier("module.sections")
+                UFButton("Auswählen", icon: "check", size: .small) { UFMotion.toggle { selecting = true } }
+                    .accessibilityIdentifier("module.select")
+            }
+            .padding(.bottom, 10)
+        }
+    }
+
+    /// Eine Dokumentzeile im Wochenblock: in der Auswahl mit Haekchen (antippen waehlt), sonst oeffnet sie; Kontextmenue
+    /// "In Woche verschieben …" und Ziehen; Hand-Symbol, wenn die Woche von Hand gesetzt ist
+    private func fileRow(_ f: JSONValue, week wk: Int) -> some View {
+        let fid = f.s("id") ?? ""
+        let manual = f["week_manual"]?.bool == true
+        let chosen = selected.contains(fid)
+        return HStack(spacing: 0) {
+            if selecting {
+                Image(systemName: chosen ? "checkmark.circle.fill" : "circle").font(.system(size: 20))
+                    .foregroundStyle(chosen ? UF.accent : UF.muted).frame(width: 32)
+                    .accessibilityHidden(true)
+            }
+            UFDocRow(f: f) {
+                if selecting { UFMotion.toggle { if chosen { selected.remove(fid) } else { selected.insert(fid) } } } else { router.go(.doc(fid)) }
+            }
+            .accessibilityValue(selecting ? (chosen ? "ausgewählt" : "nicht ausgewählt") : "")
+            if manual {
+                UFIcon("hand", size: 13).foregroundStyle(UF.muted).padding(.trailing, 8)
+                    .help(WeekMove.manualHint)
+                    .accessibilityElement(children: .ignore).accessibilityLabel(WeekMove.manualHint)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(chosen && selecting ? UF.accentSoft : .clear))
+        .contextMenu {
+            if canMove {
+                FileWeekMenuItems(fileIDs: targetIDs(fid), choices: choices, current: wk, manual: manual, moduleID: id, done: afterMove)
+            }
+        }
+        .draggable(WeekMove.payload(targetIDs(fid)))
+    }
+
     /// .card.week-block: Kopf klappt ein/aus, Gruppen nach sub_label, "Zusammenfassen" bei Vorlesungen (nur PC-Server)
     private func weekBlock(_ w: JSONValue, m: JSONValue) -> some View {
         let wk = w.i("week") ?? 0
         let open = !collapsed.contains(wk)
+        let custom = w["custom"]?.bool == true
         let groupsOrder = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"]
         let fallback = ["vorlesungen": "Vorlesung", "uebungen": "Übung", "loesungen": "Lösung", "skripte": "Skript", "klausuren": "Klausur", "sonstiges": "Sonstiges"]
         return UFCard {
             HStack(spacing: 9.6) {
                 // Pfeil zeigt den Zustand: nach unten offen, nach rechts zugeklappt
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 90 : 0))
+                if custom {
+                    UFIcon("layers", size: 15).foregroundStyle(UF.accentText)
+                        .accessibilityElement(children: .ignore).accessibilityLabel("Eigener Abschnitt")
+                }
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)
                     .foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
                 if let n = recordingCounts[wk], n > 0 {
@@ -558,6 +634,10 @@ struct ModulePage: View {
             .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
             if open {
                 VStack(alignment: .leading, spacing: 0) {
+                    if custom, (w.i("count") ?? 0) == 0 {
+                        Text("Noch leer – Dokumente hierher ziehen oder über „In Woche verschieben“ einordnen.")
+                            .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 10).padding(.leading, 8)
+                    }
                     ForEach(groupsOrder, id: \.self) { k in
                         let fs = w.list(k)
                         if !fs.isEmpty {
@@ -571,7 +651,9 @@ struct ModulePage: View {
                                 (Text(lab) + Text(group.count > 1 ? " · \(group.count)" : "").font(.uf(12.8, 400)).foregroundColor(UF.muted))
                                     .ufFont(12.8, 600).foregroundStyle(UF.text2)
                                     .padding(.top, 12).padding(.bottom, 2).padding(.leading, 8)
-                                ForEach(Row.rows(group)) { row in UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
+                                ForEach(Row.rows(group)) { row in
+                                    if canMove { fileRow(row.value, week: wk) } else { UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
+                                }
                             }
                         }
                     }
@@ -579,6 +661,7 @@ struct ModulePage: View {
                 .ufReveal()                                                 // Aufklappen wie disclosure (UFMotion)
             }
         }
+        .ufWeekDropTarget(week: wk, label: w.s("label") ?? "", done: afterMove)
         .padding(.bottom, 14.4)
     }
 }

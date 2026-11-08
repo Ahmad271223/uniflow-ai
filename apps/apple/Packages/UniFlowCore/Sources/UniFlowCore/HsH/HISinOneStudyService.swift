@@ -130,14 +130,44 @@ public struct HISinOneStudyService: Sendable, Equatable {
 extension HISinOneStudyService {
     public static let settingsKey = "campus_study_service"
 
-    /// Stand in den Einstellungen der Datenbank (nur Geraet); bei genau einem Studiengang wird er als `abschluss` der
-    /// Leistungen gesetzt, damit der Studienverlauf Studiengang und PO erkennt
+    private static let finishedRE = HText.regex("abgeschlossen|beendet|exmatrikul|ehemalig", [.caseInsensitive])
+
+    /// Der aktuelle Studiengang bei mehreren Zeilen in "Meine Studiengaenge" (Zweitstudium, Haupt- und Nebenfach,
+    /// Wechsel): nicht abgeschlossen (Gruppe ohne "abgeschlossen/beendet/exmatrikuliert"), Hauptfach vor Nebenfach,
+    /// hoechstes Fachsemester, dann die neuere PO-Version, sonst die erste Zeile; nil ohne Zeile
+    public static func current(_ programs: [Program]) -> Program? {
+        func rank(_ p: Program) -> (Int, Int, Int, Int) {
+            let open = HText.match(finishedRE, p.group) == nil ? 1 : 0
+            let kind = p.code.lowercased()
+            let main = kind.contains("haupt") ? 1 : (kind.contains("neben") || kind.contains("begleit") ? -1 : 0)
+            return (open, main, p.semester ?? -1, Int(p.po.filter(\.isNumber)) ?? -1)
+        }
+        guard var best = programs.first else { return nil }
+        for p in programs.dropFirst() where rank(p) > rank(best) { best = p }
+        return best
+    }
+
+    /// Stand in den Einstellungen der Datenbank (nur Geraet); der (aktuelle) Studiengang wird als `abschluss` der
+    /// Leistungen gesetzt, damit der Studienverlauf Studiengang und PO erkennt: bei genau einem fuer alle Leistungen,
+    /// bei mehreren (`current`) nur fuer Leistungen ohne Bezeichnung oder mit dem Namen dieses Fachs - Leistungen
+    /// eines anderen Studiengangs behalten ihre Bezeichnung (der Studienverlauf haelt sie auseinander)
     public static func store(_ c: SQLiteConnection, _ s: HISinOneStudyService, now: String) throws {
         var j = s.json
-        if case .object(var o) = j { o["checked_at"] = .string(now); j = .object(o) }
+        if case .object(var o) = j {
+            o["checked_at"] = .string(now)
+            if s.programs.count > 1, let cur = current(s.programs) { o["current"] = .string(cur.label) }
+            j = .object(o)
+        }
         try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES (?, ?)", [.text(settingsKey), .text(j.jsonString())])
         if s.programs.count == 1, let p = s.programs.first, !p.subject.isEmpty {
             try c.execute("UPDATE grades SET abschluss=?", [.text(p.label)])
+        } else if s.programs.count > 1, let p = current(s.programs), !p.subject.isEmpty {
+            let key = StudyCatalogText.nameKey(p.subject)
+            for r in try c.query("SELECT id, abschluss FROM grades") {
+                let have = r["abschluss"]?.string ?? ""
+                guard have.trimmingCharacters(in: .whitespaces).isEmpty || StudyCatalogText.nameKey(have).contains(key), let id = r["id"] else { continue }
+                try c.execute("UPDATE grades SET abschluss=? WHERE id=?", [.text(p.label), id])
+            }
         }
     }
 

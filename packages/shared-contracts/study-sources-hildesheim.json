@@ -3056,7 +3056,9 @@
    "total_lp": 180,
    "qis_labels": [
     "Abschluss: Bachelor Studiengang: B.A. Sozialpädagogik PO-Version: 2025",
-    "Sozialpädagogik"
+    "Sozialpädagogik",
+    "Abschluss: Bachelor Studiengang: B.A. Sozial- und Organisationspädagogik PO-Version: 2025",
+    "Sozial- und Organisationspädagogik"
    ],
    "qis_labels_source": "geraten"
   },

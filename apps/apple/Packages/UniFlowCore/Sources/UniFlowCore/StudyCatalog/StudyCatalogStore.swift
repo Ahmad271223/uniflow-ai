@@ -158,5 +158,17 @@ public enum StudyCatalogEndpoints: LocalEndpointModule {
             }
             return .json(status)
         }
+        // Register der Hochschule des Containers zum Waehlen ("Studiengang waehlen", auch ohne Notenspiegel oder wenn
+        // die Bezeichnung des Notenspiegels keinen Eintrag trifft); ein Kuerzel als `settings.study_plan.po` waehlt
+        router.get("/api/study-catalog/programs") { req, ctx in
+            let q = req.query("q") ?? ""
+            let (uni, po) = try await ctx.database.withConnection { c in
+                (try StudyCatalogPipeline.university(c), try StudyCatalogPipeline.planSettings(c)["po"]?.string ?? "")
+            }
+            let programs = StudySources.bundled.programs(university: uni, query: q)
+            let chosen = StudySources.bundled.entry(university: uni, code: po) != nil ? po : ""
+            return .json(["university": .string(uni), "programs": .array(programs), "count": .number(Double(programs.count)),
+                          "chosen": chosen.isEmpty ? .null : .string(chosen)])
+        }
     }
 }

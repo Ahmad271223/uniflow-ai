@@ -485,27 +485,33 @@ public actor LSFClient {
         return entries
     }
 
-    /// Leistungen aus dem Notenspiegel (alle Studiengaenge) wie `qis.parse_grade_rows` (`GradeRows`). Stammdaten-Tabellen
-    /// werden nie gelesen.
+    /// Leistungen aus dem Notenspiegel (alle Abschluesse/Studiengaenge) wie `qis.parse_grade_rows` (`GradeRows`).
+    /// Echter Aufbau (Strukturnotiz 05.11.2026): der Menuepunkt "Studien-/Pruefungsleistungen (Notenspiegel)" springt
+    /// mit `nodeID=auswahlBaum|abschluss:abschl=<n>,stgnr=<n>,semester=<JJJJS>` direkt in die Liste eines Abschlusses;
+    /// weitere Abschluesse (Wechsel des Studiengangs, Begleitfach) stehen als eigene Menuepunkte oder als Auswahl
+    /// (`auswahlBaum`) auf der Liste. Gelesen werden alle (hoechstens 6 Seiten), jede Tabelle mit ihrer Zeile
+    /// "Abschluss: ...". Stammdaten-Tabellen werden nie gelesen.
     public func grades() async throws -> [QISGrade] {
         let start = try await page(Self.startURL)
-        guard let link = HTMLScanner.scan(start).anchors.first(where: { $0.label.contains("Notenspiegel") }) else {
-            throw HildesheimError.badResponse("Link zum Notenspiegel fehlt")
+        let links = HTMLScanner.scan(start).anchors.filter { $0.label.contains("Notenspiegel") || $0.href.contains("notenspiegelStudent") }
+        guard !links.isEmpty else { throw HildesheimError.badResponse("Link zum Notenspiegel fehlt") }
+        var pages: [String] = [], seen = Set<String>(), out: [QISGrade] = []
+        for l in links {
+            let u = absolute(l.href)
+            if seen.insert(u).inserted { pages.append(u) }
         }
-        let first = absolute(link.href)
-        var pages = [first], seen = Set([first]), out: [QISGrade] = []
         var i = 0
         while i < pages.count && i < 6 {
             let html = try await page(pages[i])
             let scan = HTMLScanner.scan(html)
-            for table in scan.tables where !QISParser.isStammdaten(table) {
-                out += GradeRows.parse(rows: table.rows.map { $0.map(\.text) }, abschluss: "")
+            let headings = Self.abschlussHeadings(html: html, tables: scan.tables.count)
+            for (k, table) in scan.tables.enumerated() where !QISParser.isStammdaten(table) {
+                out += GradeRows.parse(rows: table.rows.map { $0.map(\.text) }, abschluss: k < headings.count ? headings[k] : "")
             }
-            if i == 0 {      // Reiter der Studiengaenge auf der ersten Seite
-                for a in scan.anchors where a.href.contains("notenspiegelStudent") && a.href.contains("nodeID=") {
-                    let u = absolute(a.href)
-                    if seen.insert(u).inserted { pages.append(u) }
-                }
+            // Auswahl der Abschluesse auf jeder gelesenen Seite (Reiter bzw. auswahlBaum)
+            for a in scan.anchors where a.href.contains("notenspiegelStudent") && a.href.contains("nodeID=") {
+                let u = absolute(a.href)
+                if seen.insert(u).inserted { pages.append(u) }
             }
             i += 1
         }
@@ -515,4 +521,45 @@ public actor LSFClient {
 
     /// Links aus `HTMLScanner` sind schon dekodiert (`HildesheimCAS.lsfAbsolute`)
     private func absolute(_ href: String) -> String { HildesheimCAS.lsfAbsolute(href) }
+
+    private static let tableOpenRE = HText.regex(#"<table\b"#, [.caseInsensitive])
+    private static let tableCloseRE = HText.regex(#"</table\s*>"#, [.caseInsensitive])
+    private static let tagRE = HText.regex(#"<[^>]*>"#, [.dotMatchesLineSeparators])
+    private static let headingRE = HText.regex(#"(Abschluss:.*?PO-Version:\s*\d{4})"#, [.caseInsensitive])
+
+    /// Bezeichnung "Abschluss: … PO-Version: nnnn" je Tabelle der Seite, wenn sie **ausserhalb** der Tabelle steht
+    /// (Ueberschrift vor der Tabelle; `GradeRows` liest sie sonst aus der Zeile in der Tabelle). Je Tabelle (in der
+    /// Reihenfolge ihres Beginns, wie `HTMLScanner.tables`) die letzte Ueberschrift im Text davor; sie gilt auch fuer
+    /// die folgenden Tabellen, bis eine neue kommt. Stimmt die Zahl der `<table` nicht mit `tables` ueberein
+    /// (ungewoehnliches HTML), gilt die erste Ueberschrift der Seite fuer alle oder keine (leer). Ohne Ueberschrift
+    /// bleiben die Eintraege leer (dann zaehlt nur die Zeile in der Tabelle).
+    static func abschlussHeadings(html: String, tables: Int) -> [String] {
+        let ns = html as NSString
+        let opens = tableOpenRE.matches(in: html, range: NSRange(location: 0, length: ns.length)).map(\.range.location)
+        func headings(in raw: String) -> [String] {
+            let text = HText.collapse(QISParser.decodeEntities(HText.replace(tagRE, in: raw, with: " ")))
+            return HText.allMatches(headingRE, text).map { HText.collapse($0) }
+        }
+        guard opens.count == tables, !opens.isEmpty else {
+            let all = headings(in: html.components(separatedBy: "<table").first ?? "")
+            return Array(repeating: all.first ?? "", count: tables)
+        }
+        var out: [String] = []
+        var current = ""
+        var last = 0
+        for start in opens {
+            // Text vor dieser Tabelle ab dem Ende der vorigen (ohne den Inhalt der vorigen Tabelle)
+            let before = ns.substring(with: NSRange(location: last, length: start - last))
+            let tail: String
+            if let close = tableCloseRE.matches(in: before, range: NSRange(location: 0, length: (before as NSString).length)).last {
+                tail = (before as NSString).substring(from: close.range.location + close.range.length)
+            } else {
+                tail = last == 0 ? before : ""
+            }
+            if let h = headings(in: tail).last { current = h }
+            out.append(current)
+            last = start
+        }
+        return out
+    }
 }

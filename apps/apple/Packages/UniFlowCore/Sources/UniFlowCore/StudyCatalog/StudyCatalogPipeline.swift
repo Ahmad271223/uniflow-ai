@@ -104,17 +104,16 @@ public enum StudyCatalogPipeline {
 
     // MARK: Eingaben aus der Datenbank
 
-    /// Haeufigster QIS-Studiengang (`grades.abschluss`), bei Gleichstand der zuerst gespeicherte
+    /// Aktueller QIS-Studiengang (`grades.abschluss`): nennt der Notenspiegel mehrere (Wechsel, Master nach dem
+    /// Bachelor), gewinnt der mit dem juengsten Semester (Spalte, Datum oder Anmeldung im Status), dann der hoechsten
+    /// PO-Version, dann der haeufigste (`StudyPlanEngine.currentAbschluss`; bis 07.11.2026 immer der haeufigste, nach
+    /// einem Wechsel also der alte)
     static func qisLabel(_ c: SQLiteConnection) throws -> String? {
-        var counts: [String: Int] = [:]
-        var order: [String] = []
-        for r in try c.query("SELECT abschluss FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id") {
-            guard let a = r["abschluss"]?.string?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty else { continue }
-            if counts[a] == nil { order.append(a) }
-            counts[a, default: 0] += 1
-        }
-        let best = counts.values.max() ?? 0
-        return order.first { counts[$0] == best }
+        let rows = try c.query("SELECT abschluss, semester, datum, status FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id")
+        return StudyPlanEngine.currentAbschluss(rows.map { r in
+            ["abschluss": .string(r["abschluss"]?.string ?? ""), "semester": .string(r["semester"]?.string ?? ""),
+             "datum": .string(r["datum"]?.string ?? ""), "status": .string(r["status"]?.string ?? "")]
+        })
     }
 
     /// `settings.study_plan` (po, start_term, electives, catalog_url)
@@ -180,8 +179,10 @@ public enum StudyCatalogPipeline {
             return try await runCustom(url: custom, db: db, env: env, base: base, university: uni, label: label, force: force)
         }
         let po = settings["po"]?.string.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
-        var match = label.flatMap { env.sources.match(label: $0, university: uni, po: po) }
-        if match == nil, let po { match = env.sources.match(code: po, university: uni, qisLabel: label) }
+        // Ein selbst gewaehlter Studiengang (Kuerzel des Registers als `po`, "Studiengang waehlen") geht vor der
+        // Bezeichnung aus dem Notenspiegel; eine bestaetigte PO (Jahr) ordnet nur innerhalb des erkannten Studiengangs
+        var match = po.flatMap { env.sources.match(code: $0, university: uni, qisLabel: label) }
+        if match == nil { match = label.flatMap { env.sources.match(label: $0, university: uni, po: po) } }
         guard let m = match else {
             let reason = label == nil ? "no_program" : "no_source"
             return try await save(db, merged(base, ["state": "not_found", "reason": .string(reason),

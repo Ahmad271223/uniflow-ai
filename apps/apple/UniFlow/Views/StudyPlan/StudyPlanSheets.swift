@@ -452,6 +452,8 @@ struct StudyPlanSettingsSheet: View {
     /// Schwerpunkt je Gruppe ("" = noch offen) und entfernte eigene Eintraege
     @State private var tracks: [String: String] = [:]
     @State private var removedCustom: Set<String> = []
+    /// "Studiengang waehlen" aus den Einstellungen (07.11.2026)
+    @State private var showPrograms = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -494,20 +496,41 @@ struct StudyPlanSettingsSheet: View {
         }
         .background(UF.bg)
         .task { if settings == nil { await load() } }
+        .sheet(isPresented: $showPrograms) {
+            // nach der Wahl: Plan neu lesen und dieses Blatt schliessen (die Einstellungen gehoeren zum neuen Katalog)
+            StudyProgramPickerSheet(api: api, current: plan?.programLine) {
+                await saved()
+                dismiss()
+            }
+        }
         .accessibilityIdentifier("studyplan.settings.sheet")
     }
 
     @ViewBuilder private func form(_ s: StudyPlanSettings) -> some View {
         VStack(alignment: .leading, spacing: 20) {
+            StudyPlanSection(title: "Studiengang", icon: "graduation") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let line = plan?.programLine, !line.isEmpty {
+                        Text(line).ufFont(14.5, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("studyplan.settings.program")
+                    } else {
+                        Text("Noch kein Studiengang bekannt.").ufFont(13.12).foregroundStyle(UF.muted)
+                    }
+                    UFButton(StudyPlanText.chooseProgram, icon: "list", size: .small) { showPrograms = true }
+                        .accessibilityIdentifier("studyplan.settings.programs")
+                    Text("Nach einem Studiengangwechsel oder wenn \(StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil)) einen anderen Namen nennt: Studiengang aus dem Register wählen.")
+                        .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
+            }
             StudyPlanSection(title: "Prüfungsordnung", icon: "file-text") {
                 VStack(alignment: .leading, spacing: 8) {
                     if s.poOptions.isEmpty {
                         Text("Für deinen Studiengang ist nur eine Ordnung bekannt.").ufFont(13.12).foregroundStyle(UF.muted)
                     } else if s.poOptions.count <= 4 {
-                        UFSegmented(options: s.poOptions.map { ($0, "PO \($0)") }, selection: $po)
+                        UFSegmented(options: s.poOptions.map { ($0, s.poLabel($0)) }, selection: $po)
                             .accessibilityIdentifier("studyplan.settings.po")
                     } else {
-                        UFSelect(options: s.poOptions.map { ($0, "PO \($0)") }, selection: $po)
+                        UFSelect(options: s.poOptions.map { ($0, s.poLabel($0)) }, selection: $po)
                             .accessibilityIdentifier("studyplan.settings.po")
                     }
                     Text("Bestimmt den Modulkatalog und den Verlaufsplan. Verbindlich ist die Ordnung, nach der du eingeschrieben bist.")
@@ -684,6 +707,187 @@ struct StudyPlanSettingsSheet: View {
                 }
             }
             _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
+            error = nil
+            await saved()
+            dismiss()
+        } catch {
+            self.error = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - Studiengang waehlen (07.11.2026)
+
+/// Blatt "Studiengang waehlen": das Register der Hochschule des Containers (GET /api/study-catalog/programs), Suche,
+/// je Studiengang die Pruefungsordnungen mit Katalog; die Wahl wird als Kuerzel in `settings.study_plan.po`
+/// gespeichert (POST /api/study-plan/settings) und gilt vor der Bezeichnung des Notenspiegels. Anlass: nach einem
+/// Studiengangwechsel (Uni Hildesheim, 07.11.2026) blieb der Studienverlauf leer, weil der Notenspiegel den alten
+/// Studiengang haeufiger nannte bzw. der neue Name keinen Registereintrag traf.
+struct StudyProgramPickerSheet: View {
+    let api: APIClient?
+    /// aktueller Studiengang (Kopfzeile), nil ohne
+    var current: String?
+    /// nach dem Speichern: Plan neu lesen
+    let saved: () async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var programs: [StudyProgramOption]?
+    @State private var chosenCode: String?
+    @State private var query = ""
+    @State private var error: String?
+    /// Studiengang mit mehreren Ordnungen: zweiter Schritt (PO waehlen)
+    @State private var selected: StudyProgramOption?
+    @State private var po = ""
+    @State private var saving = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            StudyPlanSheetHeader(title: StudyPlanText.chooseProgram, back: selected == nil ? nil : { selected = nil }, close: { dismiss() })
+            ScrollView {
+                Group {
+                    if let selected {
+                        poStep(selected)
+                    } else if let programs {
+                        list(programs)
+                    } else if let error {
+                        StudyPlanNoticeCard(icon: "alert", tone: .bad, title: "Register nicht lesbar", text: error) {
+                            UFButton("Erneut laden", icon: "refresh") { Task { await load() } }
+                        }
+                    } else {
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                    }
+                }
+                .padding(EdgeInsets(top: 18, leading: 20, bottom: 24, trailing: 20))
+                .frame(maxWidth: 720, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .background(UF.bg)
+        .task { if programs == nil { await load() } }
+        .accessibilityIdentifier("studyplan.programs.sheet")
+    }
+
+    private var visible: [StudyProgramOption] { (programs ?? []).filter { $0.matches(query) } }
+
+    @ViewBuilder private func list(_ all: [StudyProgramOption]) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(StudyPlanText.chooseProgramSub).ufFont(13.12, lh: 1.45).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            if let current, !current.isEmpty {
+                Text("Bisher: \(current)").ufFont(12.8, 600).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("studyplan.programs.current")
+            }
+            UFTextField(StudyPlanText.programSearch, text: $query)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityLabel(StudyPlanText.programSearch)
+                .accessibilityIdentifier("studyplan.programs.search")
+            if let error {
+                Text(error).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("studyplan.programs.error")
+            }
+            let rows = visible
+            if rows.isEmpty {
+                UFCard(flat: true) { UFEmpty(icon: "search", text: all.isEmpty ? "Für deine Hochschule kennt StudiNow noch kein Register." : StudyPlanText.programsEmpty) }
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { i, p in
+                        row(p).ufBorderBottom(i < rows.count - 1)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+                .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+                .accessibilityIdentifier("studyplan.programs.list")
+            }
+        }
+    }
+
+    private func row(_ p: StudyProgramOption) -> some View {
+        let chosen = p.choices.contains { $0.code == chosenCode }
+        let sub = [p.faculty, p.hasCatalog ? (p.choices.count == 1 ? "PO \(p.choices[0].po)" : "\(p.choices.count) Prüfungsordnungen") : StudyPlanText.programNoCatalog]
+            .compactMap { $0 }.joined(separator: " · ")
+        return Button {
+            guard p.hasCatalog, !saving else { return }
+            if p.choices.count == 1 {
+                Task { await save(p.choices[0].code) }
+            } else {
+                po = p.choices.first { $0.code == chosenCode }?.code ?? p.choices[0].code
+                selected = p
+            }
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(p.title).ufFont(14.5, 600, lh: 1.3).foregroundStyle(p.hasCatalog ? UF.text : UF.muted)
+                        .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    if !sub.isEmpty {
+                        Text(sub).ufFont(12.48, lh: 1.35).foregroundStyle(UF.muted).multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if chosen {
+                    UFIcon("check", size: 16).foregroundStyle(UF.okText)
+                } else if p.hasCatalog {
+                    UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted)
+                }
+            }
+            .padding(.vertical, 10)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!p.hasCatalog)
+        .accessibilityLabel(p.title + (sub.isEmpty ? "" : ", " + sub) + (chosen ? ", gewählt" : ""))
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+        .accessibilityIdentifier("studyplan.programs.row.\(p.id)")
+    }
+
+    @ViewBuilder private func poStep(_ p: StudyProgramOption) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(p.title).ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            StudyPlanSection(title: "Prüfungsordnung", icon: "file-text") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if p.choices.count <= 4 {
+                        UFSegmented(options: p.choices.map { ($0.code, "PO \($0.po)") }, selection: $po)
+                            .accessibilityIdentifier("studyplan.programs.po")
+                    } else {
+                        UFSelect(options: p.choices.map { ($0.code, "PO \($0.po)") }, selection: $po)
+                            .accessibilityIdentifier("studyplan.programs.po")
+                    }
+                    Text("Verbindlich ist die Ordnung, nach der du eingeschrieben bist (steht im Notenspiegel als PO-Version).")
+                        .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if let error {
+                Text(error).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("studyplan.programs.error")
+            }
+            UFButton(saving ? "Speichert …" : "Übernehmen", icon: "check", kind: .primary) { Task { await save(po) } }
+                .disabled(saving || po.isEmpty)
+                .accessibilityIdentifier("studyplan.programs.save")
+        }
+    }
+
+    private func load() async {
+        guard let api else { error = "Keine Datenquelle."; return }
+        do {
+            let v = try await api.value("/api/study-catalog/programs")
+            programs = StudyProgramOption.list(v)
+            chosenCode = v.s("chosen")
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func save(_ code: String) async {
+        guard let api, !code.isEmpty else { return }
+        saving = true
+        defer { saving = false }
+        do {
+            _ = try await api.value("/api/study-plan/settings", method: "POST", body: ["po": .string(code)])
+            chosenCode = code
             error = nil
             await saved()
             dismiss()

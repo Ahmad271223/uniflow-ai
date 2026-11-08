@@ -521,7 +521,7 @@ PROGRAMS: dict[int, dict] = {
     33: {"it": [5142], "po_study": 65, "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik"},
     34: {"study": 17},
     35: {"study": 25, "so": 5131, "variant": True},
-    36: {"study": 69},
+    36: {"study": 69, "extra_aliases": ["Sozial- und Organisationspädagogik"]},   # B.A. hiess bis zur PO 2025 so (LSF-Zeile alter PO)
     37: {"study": 58},
     38: {"split": [("B.A.", 25), ("B.Sc.", 26)], "so": 5317, "umbrella": True},
     39: {"study": 33},
@@ -717,6 +717,7 @@ def build_register() -> dict:
             sid = sid if sid is not None else spec.get("po_study")
             pos = _pos_of(docs, sid) if sid else []
             aliases = [_qm_label(studies[a])[0] for a in spec.get("aliases") or [] if a in studies]
+            aliases += [a for a in spec.get("extra_aliases") or [] if a not in aliases]
             kind = "vertiefung" if spec.get("variant") else "studiengang"
             more = []
             if spec.get("it"):

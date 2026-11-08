@@ -546,6 +546,11 @@ HILDESHEIM_LABELS = [
     ("Psychologie (PO-Version 2021)", None),
     ("Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022", None),
     ("Abschluss: [82] Bachelor", None),
+    # Studiengangwechsel (07.11.2026): alter und neuer Name des Bachelors, Master desselben Instituts
+    ("Abschluss: [82] Bachelor Studiengang: [117] B.A. Sozialpädagogik PO-Version: 2025", None),
+    ("Abschluss: [82] Bachelor Studiengang: [118] B.A. Sozial- und Organisationspädagogik PO-Version: 2022", None),
+    ("Abschluss: [88] Master Studiengang: [118] M.A. Sozial- und Organisationspädagogik PO-Version: 2025", None),
+    ("Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2022", None),
 ]
 
 TEXTS = [

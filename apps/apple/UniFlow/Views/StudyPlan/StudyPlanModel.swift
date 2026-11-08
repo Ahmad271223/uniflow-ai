@@ -326,14 +326,18 @@ struct StudyPlan: Equatable {
     let options: [StudyPlanOption]
     let excluded: [StudyPlanOption]
     let placements: [String: String]
+    /// Fruehere Studiengaenge aus dem Notenspiegel (Studiengangwechsel, 07.11.2026), leer ohne
+    let previousStudies: [StudyPlanPreviousStudy]
 
     init(_ v: JSONValue) {
         available = v["available"]?.bool ?? !v.list("semesters").isEmpty
         message = v.s("message").flatMap { $0.isEmpty ? nil : $0 }
         var gap = available ? nil : StudyPlanGap.from(reason: v.s("reason"), message: v.s("message"))
         // Der Kern nennt ohne Notenspiegel nur "no_catalog"; fehlt dazu der Studiengang aus QIS (`qis_program` null),
-        // kennt StudiNow den Studiengang noch nicht: QIS verbinden
-        if gap == .noCatalog, let q = v["qis_program"], q.isNull || q.string?.isEmpty == true, v.s("program") == nil { gap = .noQIS }
+        // kennt StudiNow den Studiengang noch nicht: QIS verbinden - ausser jemand hat den Studiengang selbst gewaehlt
+        // (`po_confirmed`, Kuerzel als PO; der Katalog kommt dann aus der Suche)
+        if gap == .noCatalog, let q = v["qis_program"], q.isNull || q.string?.isEmpty == true, v.s("program") == nil,
+           v["po_confirmed"]?.bool != true { gap = .noQIS }
         self.gap = gap
         program = v.s("program")
         degree = v.s("degree")
@@ -357,6 +361,7 @@ struct StudyPlan: Equatable {
         var pl: [String: String] = [:]
         for (k, t) in v["placements"]?.object ?? [:] { if let t = t.string { pl[k] = t } }
         placements = pl
+        previousStudies = StudyPlanPreviousStudy.list(v)
     }
 
     func area(_ id: String?) -> StudyPlanArea? { id.flatMap { i in areas.first { $0.id == i } } }
@@ -574,6 +579,10 @@ struct StudyPlanSettings: Equatable {
     var electiveOptions: [Elective]
     var electiveLPRequired: Double?
     var catalogURL: String?
+    struct Catalog: Equatable { let po: String; let code: String; let program: String }
+    /// Kataloge auf dem Geraet (po, Kuerzel, Studiengang): ein Kuerzel als `po` (selbst gewaehlter Studiengang) wird
+    /// damit lesbar beschriftet
+    var catalogs: [Catalog] = []
 
     init(_ v: JSONValue, today: Date = Date()) {
         po = v.s("po") ?? v.i("po").map(String.init)
@@ -581,6 +590,10 @@ struct StudyPlanSettings: Equatable {
             .compactMap { $0.string ?? $0.s("po") ?? $0.int.map(String.init) }
         if let p = po, !pos.contains(p) { pos.append(p) }
         poOptions = pos
+        catalogs = v.list("catalogs").compactMap { c in
+            guard let code = c.s("code") else { return nil }
+            return Catalog(po: c.s("po") ?? c.i("po").map(String.init) ?? "", code: code, program: c.s("program") ?? "")
+        }
         startTerm = v.s("start_term")
         var terms = v.list("term_options").compactMap(\.string)
         if terms.isEmpty { terms = StudyPlanText.recentTerms(today: today) }
@@ -593,6 +606,14 @@ struct StudyPlanSettings: Equatable {
         }
         electiveLPRequired = v.n("elective_lp_required") ?? v.n("elective_lp")
         catalogURL = v.s("catalog_url")
+    }
+
+    /// "PO 2022"; ein Kuerzel (gewaehlter Studiengang) als "PO 2025 · Sozialpädagogik"
+    func poLabel(_ value: String) -> String {
+        if let c = catalogs.first(where: { $0.code == value }), !c.po.isEmpty {
+            return c.program.isEmpty ? "PO \(c.po)" : "PO \(c.po) · \(c.program)"
+        }
+        return value.contains("|") ? value.split(separator: "|").map(String.init).joined(separator: " · ") : "PO \(value)"
     }
 
     /// LP der gewaehlten Wahlpflichtmodule
@@ -611,6 +632,55 @@ struct StudyPlanSettings: Equatable {
         ]
         if let catalogURL { o["catalog_url"] = .string(catalogURL) }
         return .object(o)
+    }
+}
+
+// MARK: - Studiengang waehlen (Register, GET /api/study-catalog/programs)
+
+/// Ein Studiengang des Registers mit seinen Pruefungsordnungen (Kuerzel = `settings.study_plan.po`)
+struct StudyProgramOption: Equatable, Identifiable {
+    struct PO: Equatable, Identifiable {
+        let po: String
+        let code: String
+        let loadable: Bool
+        var id: String { code }
+    }
+
+    let id: String
+    let program: String
+    let degree: String
+    let faculty: String?
+    let pos: [PO]
+
+    init?(_ v: JSONValue) {
+        guard let program = v.s("program"), !program.isEmpty else { return nil }
+        self.program = program
+        degree = v.s("degree") ?? ""
+        faculty = v.s("faculty").flatMap { $0.isEmpty ? nil : $0 }
+        pos = v.list("pos").compactMap { p in
+            guard let code = p.s("code"), !code.isEmpty else { return nil }
+            return PO(po: p.s("po") ?? p.i("po").map(String.init) ?? "", code: code, loadable: p["loadable"]?.bool ?? true)
+        }
+        id = v.s("id") ?? (pos.first?.code ?? StudyPlanText.normalized(program + degree))
+    }
+
+    /// "Sozialpädagogik B.A."
+    var title: String { [program, degree].filter { !$0.isEmpty }.joined(separator: " ") }
+    /// Kataloge gibt es nur fuer `pos` mit `loadable`
+    var choices: [PO] { pos.filter(\.loadable) }
+    var hasCatalog: Bool { !choices.isEmpty }
+
+    /// Treffer der Suche (Name, Abschluss, Fachbereich), leer = alle
+    func matches(_ query: String) -> Bool {
+        let q = StudyPlanText.normalized(query)
+        guard !q.isEmpty else { return true }
+        return StudyPlanText.normalized(title).contains(q) || StudyPlanText.normalized(faculty ?? "").contains(q)
+    }
+
+    /// Liste aus der Antwort des Kerns: nach Name, mit Katalog zuerst
+    static func list(_ v: JSONValue) -> [StudyProgramOption] {
+        let all = v.list("programs").compactMap(StudyProgramOption.init)
+        return all.filter(\.hasCatalog) + all.filter { !$0.hasCatalog }
     }
 }
 
@@ -726,9 +796,20 @@ enum StudyPlanText {
         hsh ? "Melde dich im Campusmanagement an, damit StudiNow deinen Studiengang kennt"
             : hildesheim ? "Verbinde das LSF, damit StudiNow deinen Studiengang kennt" : noQIS
     }
-    static let noQISSub = "Aus deinem Notenspiegel liest StudiNow Studiengang und Prüfungsordnung. Deine Noten bleiben auf diesem Gerät."
+    static let noQISSub = "Aus deinem Notenspiegel liest StudiNow Studiengang und Prüfungsordnung. Deine Noten bleiben auf diesem Gerät. Du kannst den Studiengang auch selbst wählen."
     static let noCatalog = "Noch kein Katalog für deinen Studiengang"
-    static let noCatalogSub = "Für deinen Studiengang kennt StudiNow noch keinen Modulkatalog. Hast du einen Link zum Modulhandbuch (PDF)? Dann lädt StudiNow ihn wie ein Browser."
+    static let noCatalogSub = "Für deinen Studiengang kennt StudiNow noch keinen Modulkatalog. Wähle deinen Studiengang aus der Liste – oder hast du einen Link zum Modulhandbuch (PDF)? Dann lädt StudiNow ihn wie ein Browser."
+    /// "Studiengang waehlen" (07.11.2026): Register der Hochschule, auch ohne Notenspiegel oder wenn dessen Bezeichnung
+    /// keinen Eintrag trifft (z. B. nach einem Studiengangwechsel)
+    static let chooseProgram = "Studiengang wählen"
+    /// Karte "Früheres Studium" (Studiengangwechsel, 07.11.2026)
+    static let previousStudies = "Früheres Studium"
+    static let previousStudiesSub = "Dein Notenspiegel nennt noch einen anderen Studiengang. Der Verlauf oben gilt für deinen aktuellen; Leistungen von früher, die zu einem Modul passen, sind dort berücksichtigt."
+    static let chooseProgramSub = "Alle Studiengänge deiner Hochschule, für die StudiNow einen Modulkatalog kennt. Deine Wahl gilt, bis du sie änderst; der Notenspiegel ordnet dann nur noch die Leistungen zu."
+    static let programSearch = "Studiengang suchen"
+    static let programNoCatalog = "noch kein Katalog"
+    static let programSaved = "Gespeichert. StudiNow sucht jetzt den Modulkatalog."
+    static let programsEmpty = "Kein Studiengang passt zur Suche."
     static let linkField = "Link zum Modulhandbuch einfügen"
     static let linkSaved = "Gespeichert. StudiNow sucht jetzt den Katalog unter diesem Link."
     static let linkInvalid = "Bitte einen vollständigen Link mit https:// einfügen."

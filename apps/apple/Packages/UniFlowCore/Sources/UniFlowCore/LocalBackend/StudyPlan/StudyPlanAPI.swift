@@ -77,7 +77,9 @@ public enum StudyPlanAPI {
         let picked = StudyPlanEngine.pickCatalog(catalogs, settings: settings.json, grades: grades)
         var out: [String: JSONValue]
         if let cat = picked.catalog {
-            out = StudyPlanEngine.compute(catalog: cat, grades: grades, settings: settings.json, today: today).plan
+            // nach einem Studiengangwechsel: Leistungen des alten Studiengangs nur, wenn sie ein Modul treffen
+            out = StudyPlanEngine.compute(catalog: cat, grades: StudyPlanEngine.gradesForPlan(grades, catalog: cat),
+                                          settings: settings.json, today: today).plan
         } else {
             out = StudyPlanEngine.unavailable(picked.reason ?? "no_catalog", po: settings.po)
         }
@@ -85,6 +87,10 @@ public enum StudyPlanAPI {
         out["suggested_po"] = suggested.map { $0["po"] ?? .null } ?? .null
         out["po_confirmed"] = .bool(settings.po != nil)
         out["qis_program"] = StudyPlanEngine.opt(StudyPlanEngine.abschlussOf(grades))
+        // nach einem Studiengangwechsel (07.11.2026): die Leistungen des frueheren Studiengangs bleiben sichtbar
+        // (nur mit einem frueheren Studiengang; sonst fehlt der Schluessel wie am PC)
+        let previous = StudyPlanEngine.previousStudies(grades, catalog: picked.catalog)
+        if !previous.isEmpty { out["previous_studies"] = .array(previous) }
         return .object(out)
     }
 
@@ -96,7 +102,8 @@ public enum StudyPlanAPI {
         guard let cat = StudyPlanEngine.pickCatalog(try source.catalogs(), settings: settings.json, grades: grades).catalog else {
             throw LocalHTTPError(status: 404, message: "Kein Katalog")
         }
-        let full = StudyPlanEngine.compute(catalog: cat, grades: grades, settings: settings.json, today: today)
+        let full = StudyPlanEngine.compute(catalog: cat, grades: StudyPlanEngine.gradesForPlan(grades, catalog: cat),
+                                           settings: settings.json, today: today)
         guard let m = full.byID[moduleID] else { throw LocalHTTPError(status: 404, message: "Modul nicht im Katalog") }
         let textOf = StudyPlanEngine.textOf, opt = StudyPlanEngine.opt as (String?) -> JSONValue
         var areas: [String: [String: JSONValue]] = [:]
@@ -163,9 +170,13 @@ public enum StudyPlanAPI {
         let catalogs = try source.catalogs()
         let suggested = StudyPlanEngine.pickCatalog(catalogs, settings: [:], grades: grades).catalog
         let cat = StudyPlanEngine.pickCatalog(catalogs, settings: s.json, grades: grades).catalog
-        let known = grades.filter { !StudyPlanEngine.isBereich($0) }.compactMap { StudyPlanEngine.parseTerm($0["semester"]) }
+        let known = StudyPlanEngine.gradesForPlan(grades, catalog: nil).filter { !StudyPlanEngine.isBereich($0) }
+            .compactMap { StudyPlanEngine.parseTerm($0["semester"]) }
+        // Pruefungsordnungen zur Wahl: nur die des gewaehlten Studiengangs (nach einem Wechsel liegt auch der Katalog
+        // des alten Studiengangs noch auf dem Geraet)
+        let programKey = cat.map { StudyPlanEngine.nameKey($0["program"]) } ?? ""
         var pos: [String] = []
-        for c in catalogs {
+        for c in catalogs where programKey.isEmpty || StudyPlanEngine.nameKey(c["program"]) == programKey {
             let p = StudyPlanEngine.pyStr(c["po"])
             if !p.isEmpty, !pos.contains(p) { pos.append(p) }
         }
