@@ -58,12 +58,14 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 # --proxy-headers/--forwarded-allow-ips: Caddy haengt X-Forwarded-For/-Proto an (Client-IP im Zugriffsprotokoll);
 # das Secure-Flag des Sitzungs-Cookies kommt aus LERNAPP_HTTPS=1 (app/account_api.py), nicht aus dem Proto-Header.
 # --no-access-log: das eigene Zugriffsprotokoll (app/retention.py) gilt 14 Tage, das von uvicorn kennt keine Frist.
-# --workers 2 (Lasttest vom 30.10., docs/LASTTEST-DIENST-*.md Empfehlung 1): zwei API-Prozesse fuer 2 Kerne. Folgen: Zustand je Prozess
-# (Sperre _bg_lock, Cache _user_dbs_ready, LERNAPP_LIMIT_API_PER_MIN zaehlt je Prozess) – unkritisch, denn alles
-# Gemeinsame (Sitzungen, Warteschlange, Zeitplan-Merkmale) steht in accounts.db. ABER: LERNAPP_JOBS=inproc wuerde den
-# Job-Runner in jedem Prozess starten, darum setzt docker-compose.yml fuer die API LERNAPP_JOBS=off und startet die
-# Jobs aus demselben Image als eigenen Dienst `jobs` (python -m app.jobs). Ohne Compose: --workers 1 oder Jobs getrennt.
-# Zahl der API-Prozesse: uvicorn liest sie aus WEB_CONCURRENCY (Standard 2); docker-compose.yml setzt sie aus UVICORN_WORKERS in
-# deploy/.env (docs/SKALIERUNG-GROSS.md: ca. ein Prozess je Rechenkern, 95 Anfragen je Sekunde und Prozess gemessen).
-ENV WEB_CONCURRENCY=2
-CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8765", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]
+# --workers 4 (seit 08.11.26, vorher 2 nach dem Lasttest vom 30.10.): vier API-Prozesse fuer 2 Kerne - die KI-Fragen
+# warten asynchron auf den Anbieter und rechnen nicht, zwei Prozesse je Kern halten Anmelden/Abgleich fluessig. Folgen:
+# Zustand je Prozess (Sperre _bg_lock, Cache _user_dbs_ready, LERNAPP_LIMIT_API_PER_MIN und LERNAPP_AI_CONCURRENCY zaehlen
+# je Prozess) – unkritisch, denn alles Gemeinsame (Sitzungen, Warteschlange, Zeitplan-Merkmale, KI-Budget) steht in
+# accounts.db. ABER: LERNAPP_JOBS=inproc wuerde den Job-Runner in jedem Prozess starten, darum setzt docker-compose.yml fuer
+# die API LERNAPP_JOBS=off und startet die Jobs aus demselben Image als eigenen Dienst `jobs` (python -m app.jobs).
+# Ohne Compose: --workers 1 oder Jobs getrennt. Zahl der API-Prozesse: uvicorn liest sie aus WEB_CONCURRENCY (Standard 4);
+# docker-compose.yml setzt sie aus UVICORN_WORKERS in deploy/.env (docs/release/BETRIEB.md "Kapazitaet und Lastgrenzen").
+# --backlog 4096: Verbindungsstau beim gleichzeitigen Start vieler KI-Fragen (Caddy -> App) nicht abweisen.
+ENV WEB_CONCURRENCY=4
+CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8765", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log", "--backlog", "4096"]

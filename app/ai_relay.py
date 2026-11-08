@@ -99,9 +99,46 @@ def _plan_has_tests(user: dict) -> bool:
 
 
 @router.post("/api/ai/relay")
-def relay(request: Request, body: dict = Body(...)):
+async def relay(request: Request, body: dict = Body(...)):
     """StudiNow-KI fuer die Windows-App (nur im Dienst). Rumpf {task, prompt, request_id?, cache?, fresh?,
-    second_opinion?, route_text?, options?, exam?, image? (nur tutor:*, Base64 JPEG/PNG)}."""
+    second_opinion?, route_text?, options?, exam?, image? (nur tutor:*, Base64 JPEG/PNG)}. Asynchron wie /api/ai/tutor
+    (app/ai_async.py): Pruefungen und Kontingent kurz im eigenen Thread-Begrenzer, der Anbieter asynchron."""
+    from . import ai_async, ai_backend
+    async with ai_async.slot():
+        pre = await ai_async.db(_relay_prepare, request, body)
+        user, task, name, prompt, rid, image, c = (pre[k] for k in ("user", "task", "name", "prompt", "rid", "image", "c"))
+        if c is None:
+            if task.quota:
+                await ai_async.db(entitlements_consume, request, task.quota, rid)
+            try:
+                c = await _complete_async(user, task, name, prompt, rid, body, image)
+            except HTTPException:
+                if task.quota:
+                    await ai_async.db(entitlements_refund, request, task.quota, rid)
+                raise
+            except ai_backend.AIUnavailable as e:
+                if task.quota:
+                    await ai_async.db(entitlements_refund, request, task.quota, rid)
+                raise ai_async.http_error(e)
+            except Exception:
+                if task.quota:
+                    await ai_async.db(entitlements_refund, request, task.quota, rid)
+                raise
+        return await ai_async.db(_relay_answer, user, name, c)
+
+
+def entitlements_consume(request: Request, quota: str, rid: str) -> None:
+    from . import entitlements
+    entitlements.consume(request, quota, rid)
+
+
+def entitlements_refund(request: Request, quota: str, rid: str) -> None:
+    from . import entitlements
+    entitlements.refund(request, quota, rid)
+
+
+def _relay_prepare(request: Request, body: dict) -> dict:
+    """Synchroner Teil: Dienst, Konto, Aufgabe, Prompt-Groesse, Bild, Recht, bestaetigte E-Mail, Wiederholung (replay)."""
     from . import ai, ai_backend, entitlements
     if not config.is_hosted():
         raise _err(501, "not_hosted", "Diese Schnittstelle gibt es nur im StudiNow-Dienst.")
@@ -133,36 +170,23 @@ def relay(request: Request, body: dict = Body(...)):
         raise _err(403, "plan_required", "Wochentests mit der StudiNow-KI gibt es ab StudiNow Plus.", required_plan="plus")
     entitlements.require_verified_for_ai(request)
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
-    c = None
     try:
         c = ai_backend.replay(user["id"], rid)
     except ai_backend.AIUnavailable as e:
         raise _err(e.status, e.code, e.message, **e.extra)
-    if c is None:
-        if task.quota:
-            entitlements.consume(request, task.quota, rid)
-        try:
-            c = _complete(user, task, name, prompt, rid, body, image)
-        except HTTPException:
-            if task.quota:
-                entitlements.refund(request, task.quota, rid)
-            raise
-        except ai_backend.AIUnavailable as e:
-            if task.quota:
-                entitlements.refund(request, task.quota, rid)
-            raise _err(e.status, e.code, e.message, **e.extra)
-        except Exception:
-            if task.quota:
-                entitlements.refund(request, task.quota, rid)
-            raise
+    return {"user": user, "task": task, "name": name, "prompt": prompt, "rid": rid, "image": image, "c": c}
+
+
+def _relay_answer(user: dict, name: str, c) -> dict:
+    from . import ai_backend
     state = ai_backend.credits_balance(user["id"])
     credits = {**state, "charged": int(getattr(c, "credits_charged", 0) or 0), "replay": bool(getattr(c, "replay", False))} if state else None
     return {"answer": c.text, "model": "cache" if c.model == "cache" else (c.source_model or c.model), "shared": c.model == "cache",
             "replay": bool(c.replay), "credits": credits, "task": name}
 
 
-def _complete(user: dict, task: Task, name: str, prompt: str, rid: str, body: dict, image: bytes | None = None):
-    from . import ai, ai_backend
+def _complete_kwargs(task: Task, name: str, rid: str, body: dict, image: bytes | None) -> tuple[str, dict | None, dict]:
+    from . import ai
     system = _systems()[task.system]
     schema = ai.FLASHCARDS_SCHEMA if task.schema == "flashcards" else None
     second = bool(body.get("second_opinion"))
@@ -170,6 +194,26 @@ def _complete(user: dict, task: Task, name: str, prompt: str, rid: str, body: di
     route_text = str(body.get("route_text") or "")[:2000]
     kw = dict(schema=schema, cache=cache, request_id=rid, keep_result=True, fresh=bool(body.get("fresh")),
               route_hint="second_opinion" if second else None, route_text=route_text or None)
+    return system, schema, kw
+
+
+def _week_test_check(c, body: dict, options) -> str | None:
+    from . import ai
+    try:
+        return ai.check_week_test(ai.parse_json(c.text), exam=bool(body.get("exam")), options=options)
+    except ai.AIError as e:
+        return str(e)
+
+
+def _week_test_failed(why) -> HTTPException:
+    return _err(502, "week_test_form", f"Die KI hat den Wochentest zweimal nicht in der geforderten Form geliefert ({why}). "
+                                       "Bitte später erneut versuchen.")
+
+
+def _complete(user: dict, task: Task, name: str, prompt: str, rid: str, body: dict, image: bytes | None = None):
+    """Synchron (Tests, Werkzeuge); der Endpunkt nutzt _complete_async."""
+    from . import ai, ai_backend
+    system, _schema, kw = _complete_kwargs(task, name, rid, body, image)
     if name != "week_test":
         return ai_backend.complete(user["id"], task.purpose, system, prompt, image=image, **kw)
     # Wochentest: Form im Dienst pruefen (wie ai.generate_test), hoechstens zwei Versuche
@@ -178,14 +222,26 @@ def _complete(user: dict, task: Task, name: str, prompt: str, rid: str, body: di
     for attempt in range(2):
         c = ai_backend.complete(user["id"], task.purpose, system, prompt, **{**kw, "request_id": rid if attempt == 0 else f"{rid}#2",
                                                                               "keep_result": attempt == 0})
-        try:
-            why = ai.check_week_test(ai.parse_json(c.text), exam=bool(body.get("exam")), options=options)
-        except ai.AIError as e:
-            why = str(e)
+        why = _week_test_check(c, body, options)
         if why is None:
             return c
-    raise _err(502, "week_test_form", f"Die KI hat den Wochentest zweimal nicht in der geforderten Form geliefert ({why}). "
-                                      "Bitte später erneut versuchen.")
+    raise _week_test_failed(why)
+
+
+async def _complete_async(user: dict, task: Task, name: str, prompt: str, rid: str, body: dict, image: bytes | None = None):
+    from . import ai, ai_async, ai_backend
+    system, _schema, kw = _complete_kwargs(task, name, rid, body, image)
+    if name != "week_test":
+        return await ai_backend.complete_async(user["id"], task.purpose, system, prompt, image=image, **kw)
+    options = ai.week_test_options(body.get("options") if isinstance(body.get("options"), dict) else None)
+    why = None
+    for attempt in range(2):
+        c = await ai_backend.complete_async(user["id"], task.purpose, system, prompt,
+                                            **{**kw, "request_id": rid if attempt == 0 else f"{rid}#2", "keep_result": attempt == 0})
+        why = await ai_async.db(_week_test_check, c, body, options)
+        if why is None:
+            return c
+    raise _week_test_failed(why)
 
 
 # ================================================================== PC: Weg der KI und Aufruf des Dienstes

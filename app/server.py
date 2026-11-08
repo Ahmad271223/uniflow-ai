@@ -1241,7 +1241,29 @@ TUTOR_ENTITLEMENT = {"summary": "can_use_ai_summaries", "flashcards": "can_use_a
 
 
 @app.post("/api/ai/tutor")
-def ai_tutor(request: Request, body: dict = Body(...)):
+async def ai_tutor(request: Request, body: dict = Body(...)):
+    """KI-Hilfe zu einer Seite. Asynchron (08.11.2026, app/ai_async.py): Vorarbeit (Seitentext, Quellen, Erklaerungsspeicher,
+    Kontingent) kurz in eigenen Threads, der Anbieter asynchron - eine offene Frage belegt keinen Platz des allgemeinen
+    Thread-Pools, Anmelden/Abgleich laufen daneben weiter. Ueber LERNAPP_AI_CONCURRENCY hinaus 503 ai_overloaded."""
+    from . import ai_async
+    async with ai_async.slot():
+        pre = await ai_async.db(_tutor_prepare, request, body)
+        if "early" in pre:
+            return pre["early"]
+        hosted, mode = pre["hosted"], pre["mode"]
+        c, credits_state = None, None
+        if hosted:
+            c = await _tutor_hosted_async(request, body, mode, pre["text"], pre["course"], pre["fname"], pre["page"], pre["sources"],
+                                          pre["studip"], fresh=pre["force"], image=pre["image"])
+            answer, credits_state = c.text, await ai_async.db(_credits_state, request, c)
+        else:
+            answer, c, credits_state = await ai_async.db(_tutor_local, body, pre)
+        return await ai_async.db(_tutor_finish, body, pre, answer, c, credits_state)
+
+
+def _tutor_prepare(request: Request, body: dict) -> dict:
+    """Synchroner Teil vor dem Anbieter: Rechte, Bild, Seitentext, Kurs, Erklaerungsspeicher (0 Credits), Quellen.
+    Liefert die Zutaten fuer den Aufruf oder {"early": Antwort}, wenn eine gespeicherte Antwort reicht."""
     from . import ai, ai_backend
     mode = body.get("mode") or "explain"
     hosted = config.is_hosted()
@@ -1285,37 +1307,47 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             hit = explain_local.lookup(conn, text, page, mode)
         if hit:
             state = ai_backend.credits_balance(request.state.user["id"]) if hosted else None
-            return {"answer": hit["answer"], "cards": None, "sources": [],
-                    "explain": explain_local.descriptor(stored=True, source=hit["source"], variant=hit["variant"], created_at=hit["created_at"]),
-                    "credits": {**state, "charged": 0, "replay": False} if state else None}
+            return {"early": {"answer": hit["answer"], "cards": None, "sources": [],
+                              "explain": explain_local.descriptor(stored=True, source=hit["source"], variant=hit["variant"], created_at=hit["created_at"]),
+                              "credits": {**state, "charged": 0, "replay": False} if state else None}}
         # Windows-App mit Konto: Erklaerungsspeicher des Dienstes (verschluesselt, app/explain_service.py), 0 Credits
         from . import explain_service
         if not hosted and (got := explain_service.lookup(file_id, page, mode, text)):
             with db.cursor() as conn:
                 variant = explain_local.store(conn, text, page, mode, got["answer"], "cloud")
-            return {"answer": got["answer"], "cards": None, "sources": [], "credits": None,
-                    "explain": explain_local.descriptor(stored=True, source="cloud", variant=got["variant"], created_at=got["created_at"])}
+            return {"early": {"answer": got["answer"], "cards": None, "sources": [], "credits": None,
+                              "explain": explain_local.descriptor(stored=True, source="cloud", variant=got["variant"], created_at=got["created_at"])}}
     sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
-    credits_state = None
-    c = None
-    if hosted:
-        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip, fresh=force, image=image)
-        answer, credits_state = c.text, _credits_state(request, c)
-    else:
-        try:
-            answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
-                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip,
-                              own_notes=_own_notes(body),
-                              relay={"request_id": body.get("request_id"), "cache": shareable, "fresh": force,
-                                     "second_opinion": bool(body.get("second_opinion"))}, image=image)
-        except ai.AIError as e:
-            raise HTTPException(500, str(e))
-        # StudiNow-KI ueber das Konto (app/ai_relay.py): Credits-Stand und "gemeinsame" Antwort wie im Dienst
-        relayed = ai_relay.take()
-        if relayed:
-            credits_state = relayed.get("credits")
-            if relayed.get("shared"):
-                c = type("Relayed", (), {"model": "cache"})()
+    return {"mode": mode, "hosted": hosted, "image": image, "file_id": file_id, "page": page, "text": text, "course": course,
+            "fname": fname, "studip": studip, "force": force, "shareable": shareable, "sources": sources}
+
+
+def _tutor_local(body: dict, pre: dict):
+    """Einzelplatz (Windows-App): KI des PCs oder StudiNow-KI ueber das Konto (app/ai_relay.py). Liefert (answer, c, credits)."""
+    from . import ai
+    mode, text, page = pre["mode"], pre["text"], pre["page"]
+    try:
+        answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
+                          body.get("own_solution") or "", pre["course"], pre["fname"], page, pre["sources"],
+                          ai.tutor_history(body.get("history")), pre["studip"], own_notes=_own_notes(body),
+                          relay={"request_id": body.get("request_id"), "cache": pre["shareable"], "fresh": pre["force"],
+                                 "second_opinion": bool(body.get("second_opinion"))}, image=pre["image"])
+    except ai.AIError as e:
+        raise HTTPException(500, str(e))
+    # StudiNow-KI ueber das Konto (app/ai_relay.py): Credits-Stand und "gemeinsame" Antwort wie im Dienst
+    c, credits_state = None, None
+    relayed = ai_relay.take()
+    if relayed:
+        credits_state = relayed.get("credits")
+        if relayed.get("shared"):
+            c = type("Relayed", (), {"model": "cache"})()
+    return answer, c, credits_state
+
+
+def _tutor_finish(body: dict, pre: dict, answer: str, c, credits_state) -> dict:
+    """Synchroner Teil nach dem Anbieter: Karten lesen, Quellen markieren, Antwort in den Erklaerungsspeicher."""
+    from . import ai, explain_local
+    hosted, mode, text, page, sources = pre["hosted"], pre["mode"], pre["text"], pre["page"], pre["sources"]
     cards = None
     if (body.get("mode") == "flashcards"):
         try:
@@ -1324,7 +1356,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             cards = None
     cited = {int(n) for n in re.findall(r"\[(\d{1,2})\]", answer or "")}
     explain = None
-    if shareable:
+    if pre["shareable"]:
         # gemeinsame Antwort im Dienst = Treffer im Zwischenspeicher der StudiNow-KI (gleiche Anfrage), sonst frisch erzeugt
         cloud = bool(c is not None and getattr(c, "model", "") == "cache")
         with db.cursor() as conn:
@@ -1332,7 +1364,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
         explain = explain_local.descriptor(stored=cloud, source="cloud", variant=variant)
         if not hosted and not cloud:
             from . import explain_service
-            explain_service.publish_later(file_id, page, mode, text, answer)     # einmal erklaeren, alle profitieren
+            explain_service.publish_later(pre["file_id"], page, mode, text, answer)     # einmal erklaeren, alle profitieren
     return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state,
             "explain": explain}
 
@@ -1357,13 +1389,25 @@ def _page_list(raw, total: int) -> list[int]:
 
 
 @app.post("/api/ai/flashcards")
-def ai_flashcards(request: Request, body: dict = Body(...)):
+async def ai_flashcards(request: Request, body: dict = Body(...)):
     """Karteikarten aus den Seiten eines Dokuments: {file_id, pages?: [int], count?, topic?} -> {cards, pages, count}.
     Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file).
-    Ohne file_id, mit module_id: KI-Auftrag nach Modul und Lernwoche (`_ai_flashcards_order`, app/flashcard_order.py)."""
+    Ohne file_id, mit module_id: KI-Auftrag nach Modul und Lernwoche (`_ai_flashcards_order`, app/flashcard_order.py).
+    Asynchron wie /api/ai/tutor (app/ai_async.py)."""
+    from . import ai_async
+    async with ai_async.slot():
+        if not body.get("file_id") and body.get("module_id") is not None:
+            pre = await ai_async.db(_ai_flashcards_order_prepare, request, body)
+            raw, credits_state = await _flashcards_complete_async(request, pre["hosted"], pre["prompt"], pre["body"],
+                                                                  parse=pre["parse"], cache=pre["cache"])
+            return await ai_async.db(_ai_flashcards_order_finish, request, pre, raw, credits_state)
+        pre = await ai_async.db(_ai_flashcards_prepare, request, body)
+        cards, credits_state = await _flashcards_complete_async(request, pre["hosted"], pre["prompt"], body)
+        return {"cards": cards, "pages": pre["pages"], "count": pre["count"], "credits": credits_state}
+
+
+def _ai_flashcards_prepare(request: Request, body: dict) -> dict:
     from . import ai, scriptsearch
-    if not body.get("file_id") and body.get("module_id") is not None:
-        return _ai_flashcards_order(request, body)
     hosted = config.is_hosted()
     if hosted:
         entitlements.require(request, "can_use_ai_generated_questions")
@@ -1385,8 +1429,7 @@ def ai_flashcards(request: Request, body: dict = Body(...)):
     count = ai.flashcards_count(body.get("count"))
     topic = str(body.get("topic") or "")
     prompt = ai.flashcards_prompt(f["course_title"], f["name"], pages, text, count, topic)
-    cards, credits_state = _flashcards_complete(request, hosted, prompt, body)
-    return {"cards": cards, "pages": pages, "count": count, "credits": credits_state}
+    return {"hosted": hosted, "prompt": prompt, "pages": pages, "count": count}
 
 
 @app.get("/api/ai/flashcards/weeks")
@@ -1404,12 +1447,13 @@ def ai_flashcards_weeks(module_id: int):
         return {"module_id": module_id, "weeks": fo.module_weeks(conn, module_id, start), "current_week": current if current >= 1 else None}
 
 
-def _ai_flashcards_order(request: Request, body: dict) -> dict:
+def _ai_flashcards_order_prepare(request: Request, body: dict) -> dict:
     """KI-Karteikarten auf Auftrag (04.11.2026, app/flashcard_order.py): {module_id, week (oder lecture_week; null =
     ganzes Modul), count (5-50), topic?, request_id?, material?: [{title, text}], again?} -> {cards, count, module_id,
     module_name, week, sources, duplicates_removed, existing, credits}. Nur ein Vorschlag: gespeichert wird in einen
     Stapel des Moduls (POST /api/flashcard-stacks, dann POST /api/flashcards mit stack_id). Im Dienst Pro AI
-    (can_use_ai_generated_questions), bestaetigte E-Mail, Kontingent ai_assist und Credits wie "Karteikarten aus Dokument"."""
+    (can_use_ai_generated_questions), bestaetigte E-Mail, Kontingent ai_assist und Credits wie "Karteikarten aus Dokument".
+    Vorbereitung (synchron): Material, Prompt, Auswertung; den Anbieter fragt ai_flashcards asynchron."""
     from . import flashcard_order as fo
     hosted = config.is_hosted()
     if hosted:
@@ -1434,32 +1478,33 @@ def _ai_flashcards_order(request: Request, body: dict) -> dict:
                                             "Gleiche zuerst deine Hochschule ab oder wähle eine andere Woche.", "code": "no_content"})
     prompt = fo.stack_prompt(m["name"], week, mat["sources"], mat["text"], count, topic, existing)
     body = {**body, "request_id": str(body.get("request_id") or uuid.uuid4().hex)[:80]}
-    raw, credits_state = _flashcards_complete(request, hosted, prompt, body, parse=lambda a: fo.parse_answer(a, count),
-                                              cache=not body.get("again"))
-    cards, dropped = fo.without_duplicates(raw, existing)
+    return {"hosted": hosted, "prompt": prompt, "body": body, "parse": lambda a: fo.parse_answer(a, count), "cache": not body.get("again"),
+            "count": count, "mid": mid, "name": m["name"], "week": week, "sources": mat["sources"], "existing": existing}
+
+
+def _ai_flashcards_order_finish(request: Request, pre: dict, raw: list[dict], credits_state) -> dict:
+    from . import flashcard_order as fo
+    cards, dropped = fo.without_duplicates(raw, pre["existing"])
     if not cards:
-        if hosted:
-            entitlements.refund(request, "ai_assist", body["request_id"])   # nur Doppel: nicht auf das Kontingent
+        if pre["hosted"]:
+            entitlements.refund(request, "ai_assist", pre["body"]["request_id"])   # nur Doppel: nicht auf das Kontingent
         raise HTTPException(502, {"detail": "Die KI hat keine neuen Karteikarten geliefert. Bitte erneut versuchen oder "
                                             "einen anderen Schwerpunkt wählen.", "code": "ai_no_cards"})
-    return {"cards": cards, "count": count, "module_id": mid, "module_name": m["name"], "week": week, "sources": mat["sources"],
-            "duplicates_removed": dropped, "existing": len(existing), "credits": credits_state}
+    return {"cards": cards, "count": pre["count"], "module_id": pre["mid"], "module_name": pre["name"], "week": pre["week"],
+            "sources": pre["sources"], "duplicates_removed": dropped, "existing": len(pre["existing"]), "credits": credits_state}
 
 
 def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict, parse=None,
                          cache: bool = True) -> tuple[list[dict], dict | None]:
     """Karteikarten von der KI: im Dienst die StudiNow-KI (Kontingent ai_assist, Credits, request_id-Wiederholung,
     Rueckbuchung bei Fehlern), am Einzelplatz die KI des PCs. Liefert (Karten, Credits-Stand); ohne Karten 502.
-    Auch fuer die geteilten Wochenstapel (`week_stack_get_or_generate`) und den KI-Auftrag (`_ai_flashcards_order`,
-    eigene Auswertung `parse` mit bis zu 50 Karten): dieselbe Anfrage, derselbe Preis."""
+    Synchron nur noch fuer die geteilten Wochenstapel (`week_stack_get_or_generate`, Rueckruf in cardshare.obtain; ein
+    Erzeugen je Woche und Hochschule, selten); /api/ai/flashcards nutzt _flashcards_complete_async."""
     from . import ai
-    credits_state = None
+    rid, c = _flashcards_prepare(request, hosted, body)
     if hosted:
-        from . import ai_backend
-        rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
-        c = _ai_replay(request, rid)
         if c is None:
-            entitlements.consume(request, "ai_assist", rid)
+            from . import ai_backend
             try:
                 c = ai_backend.complete(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA, cache=cache,
                                         request_id=rid, keep_result=True)
@@ -1471,12 +1516,57 @@ def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict
                 raise
         answer, credits_state = c.text, _credits_state(request, c)
     else:
-        try:
-            with ai.for_task("flashcards", request_id=body.get("request_id"), cache=cache):
-                answer = ai.ask(prompt, ai.SYSTEM, schema=ai.FLASHCARDS_SCHEMA)
-        except ai.AIError as e:
-            raise HTTPException(500, str(e))
-        credits_state = ai_relay.take_credits()
+        answer, credits_state = _flashcards_local(prompt, body, cache)
+    return _flashcards_finish(request, hosted, rid, answer, credits_state, parse)
+
+
+async def _flashcards_complete_async(request: Request, hosted: bool, prompt: str, body: dict, parse=None,
+                                     cache: bool = True) -> tuple[list[dict], dict | None]:
+    """Wie _flashcards_complete, asynchron (app/ai_async.py): Kontingent und Auswertung kurz im eigenen Thread-Begrenzer,
+    der Anbieter ueber ai_backend.complete_async."""
+    from . import ai, ai_async
+    rid, c = await ai_async.db(_flashcards_prepare, request, hosted, body)
+    if hosted:
+        if c is None:
+            from . import ai_backend
+            try:
+                c = await ai_backend.complete_async(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA,
+                                                    cache=cache, request_id=rid, keep_result=True)
+            except ai_backend.AIUnavailable as e:
+                await ai_async.db(entitlements.refund, request, "ai_assist", rid)
+                raise ai_async.http_error(e)
+            except Exception:
+                await ai_async.db(entitlements.refund, request, "ai_assist", rid)
+                raise
+        answer, credits_state = c.text, await ai_async.db(_credits_state, request, c)
+    else:
+        answer, credits_state = await ai_async.db(_flashcards_local, prompt, body, cache)
+    return await ai_async.db(_flashcards_finish, request, hosted, rid, answer, credits_state, parse)
+
+
+def _flashcards_prepare(request: Request, hosted: bool, body: dict):
+    """request_id, Wiederholung aus dem Speicher (replay) und Kontingent ai_assist (Dienst). Liefert (rid, Completion | None)."""
+    rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
+    if not hosted:
+        return rid, None
+    c = _ai_replay(request, rid)
+    if c is None:
+        entitlements.consume(request, "ai_assist", rid)
+    return rid, c
+
+
+def _flashcards_local(prompt: str, body: dict, cache: bool):
+    from . import ai
+    try:
+        with ai.for_task("flashcards", request_id=body.get("request_id"), cache=cache):
+            answer = ai.ask(prompt, ai.SYSTEM, schema=ai.FLASHCARDS_SCHEMA)
+    except ai.AIError as e:
+        raise HTTPException(500, str(e))
+    return answer, ai_relay.take_credits()
+
+
+def _flashcards_finish(request: Request, hosted: bool, rid: str, answer: str, credits_state, parse=None):
+    from . import ai
     try:
         cards = parse(answer) if parse else ai.check_flashcards(ai.parse_json(answer))
     except ai.AIError:
@@ -1550,16 +1640,15 @@ def _own_notes(body: dict) -> str:
     return v.strip()[:ai.OWN_NOTES_CHARS] if isinstance(v, str) else ""
 
 
-def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
-                  sources: list[dict] | None = None, studip: str = "", fresh: bool = False, image: bytes | None = None):
-    """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
-    zurueckgebucht. Liefert die Completion (Text und berechnete Credits); mit request_id des Clients wird dieselbe
-    Anfrage nie zweimal berechnet (Wiederholung aus dem Speicher, app/credits.py)."""
-    from . import ai, ai_backend
+def _tutor_hosted_prepare(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
+                          sources: list[dict] | None, studip: str, image: bytes | None) -> dict:
+    """StudiNow-KI (Pro AI), synchroner Teil: Wiederholung aus dem Speicher (replay), Kontingent ai_assist, Prompt und
+    die Argumente fuer ai_backend.complete_async. {"c": Completion} bei Wiederholung."""
+    from . import ai
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     c = _ai_replay(request, rid)
     if c is not None:
-        return c
+        return {"c": c, "rid": rid}
     entitlements.consume(request, "ai_assist", rid)
     notes = _own_notes(body)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
@@ -1570,17 +1659,29 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     # Modellmischung (app/ai_router.py): "Antwort war falsch" -> Zweitmeinung von Sonnet, nie aus dem Zwischenspeicher;
     # Rechnen und Herleiten erkennt der Router an Frage und Markierung
     second = bool(body.get("second_opinion"))
+    # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
+    return {"rid": rid, "prompt": prompt, "kw": dict(image=image, cache=not notes and not second and not image, request_id=rid,
+                                                     keep_result=True, route_hint="second_opinion" if second else None,
+                                                     route_text=" ".join(str(body.get(k) or "") for k in ("selection", "question")))}
+
+
+async def _tutor_hosted_async(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
+                              sources: list[dict] | None = None, studip: str = "", fresh: bool = False, image: bytes | None = None):
+    """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
+    zurueckgebucht. Liefert die Completion (Text und berechnete Credits); mit request_id des Clients wird dieselbe
+    Anfrage nie zweimal berechnet (Wiederholung aus dem Speicher, app/credits.py). Asynchron (app/ai_async.py)."""
+    from . import ai, ai_async, ai_backend
+    pre = await ai_async.db(_tutor_hosted_prepare, request, body, mode, text, course, fname, page, sources, studip, image)
+    if "c" in pre:
+        return pre["c"]
     try:
-        # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
-        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, image=image,
-                                   cache=not notes and not second and not image,
-                                   request_id=rid, keep_result=True, fresh=fresh, route_hint="second_opinion" if second else None,
-                                   route_text=" ".join(str(body.get(k) or "") for k in ("selection", "question")))
+        return await ai_backend.complete_async(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, pre["prompt"], fresh=fresh,
+                                               **pre["kw"])
     except ai_backend.AIUnavailable as e:
-        entitlements.refund(request, "ai_assist", rid)
-        raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
+        await ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"])
+        raise ai_async.http_error(e)
     except Exception:
-        entitlements.refund(request, "ai_assist", rid)
+        await ai_async.db(entitlements.refund, request, "ai_assist", pre["rid"])
         raise
 
 

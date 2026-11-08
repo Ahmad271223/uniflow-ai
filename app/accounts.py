@@ -163,6 +163,7 @@ def cursor():
     conn.row_factory = sqlite3.Row
     from . import db
     db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
+    db.fast_commits(conn)                   # synchronous=NORMAL wie billing.connect (dieselbe Datei)
     conn.execute("PRAGMA foreign_keys=ON")
     db.schema_once(conn, "accounts", p, lambda c: (c.executescript(SCHEMA), _migrate(c)))
     try:

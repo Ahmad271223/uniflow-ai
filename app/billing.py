@@ -139,6 +139,7 @@ def connect() -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout=15000")
     from . import db
     db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
+    db.fast_commits(conn)                   # synchronous=NORMAL: kurze Transaktionen ohne fsync je Commit (08.11.2026)
     db.schema_once(conn, "billing", p, ensure_schema)
     return conn
 

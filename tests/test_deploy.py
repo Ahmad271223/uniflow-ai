@@ -81,7 +81,7 @@ def test_ports_agree_between_config_dockerfile_compose_and_caddy():
     assert f'- "{port}"' in read("docker-compose.yml"), "expose in docker-compose.yml"
     assert f"reverse_proxy app:{port}" in read("Caddyfile"), "Caddy -> app"
     for other in re.findall(r"\b(\d{4,5})\b", read("Dockerfile")):
-        assert other in (port, "1000"), f"fremde Port-Nummer im Dockerfile: {other}"
+        assert other in (port, "1000", "4096"), f"fremde Port-Nummer im Dockerfile: {other}"      # 1000 = UID, 4096 = --backlog
 
 
 def test_dockerfile_runs_unprivileged_with_chromium_and_hosted_defaults():
@@ -93,17 +93,24 @@ def test_dockerfile_runs_unprivileged_with_chromium_and_hosted_defaults():
     assert "--proxy-headers" in df and "--no-access-log" in df and "HEALTHCHECK" in df
 
 
-def test_dockerfile_runs_two_api_workers_and_compose_moves_jobs_to_own_service():
-    """Lasttest 30.10.2026, Empfehlung 1: uvicorn --workers 2; weil LERNAPP_JOBS=inproc den Runner je Prozess starten
-    wuerde, bekommt die API in docker-compose.yml fest LERNAPP_JOBS=off und `jobs` laeuft als eigener Dienst aus demselben
-    Image mit denselben Volumes, der .env, Chromium-/dev/shm und einem Healthcheck ueber das Lebenszeichen."""
+def test_dockerfile_runs_four_api_workers_and_compose_moves_jobs_to_own_service():
+    """Lasttest 30.10.2026 (Empfehlung 1) und Lastfestigkeit 08.11.2026: uvicorn --workers 4 (KI-Fragen warten asynchron,
+    zwei Prozesse je Kern); weil LERNAPP_JOBS=inproc den Runner je Prozess starten wuerde, bekommt die API in
+    docker-compose.yml fest LERNAPP_JOBS=off und `jobs` laeuft als eigener Dienst aus demselben Image mit denselben
+    Volumes, der .env, Chromium-/dev/shm und einem Healthcheck ueber das Lebenszeichen. API-Speicher ~1,5 GB fuer 4 GB,
+    Dateideskriptoren >= 65536 (jede offene KI-Frage = 2 Verbindungen), Healthcheck unveraendert."""
     import yaml
     df = read("Dockerfile")
-    assert "ENV WEB_CONCURRENCY=2" in df and '"--workers"' not in df, "zwei API-Prozesse ueber WEB_CONCURRENCY (einstellbar)"
+    assert "ENV WEB_CONCURRENCY=4" in df and '"--workers"' not in df, "vier API-Prozesse ueber WEB_CONCURRENCY (einstellbar)"
+    assert '"--backlog", "4096"' in df
+    assert "urlopen('http://127.0.0.1:8765/login', timeout=4)" in df, "Healthcheck unveraendert"
     c = yaml.safe_load(read("docker-compose.yml"))
     app, jobs = c["services"]["app"], c["services"]["jobs"]
-    assert app["environment"]["WEB_CONCURRENCY"] == "${UVICORN_WORKERS:-2}", "Prozesszahl aus deploy/.env"
-    assert app["deploy"]["resources"]["limits"]["memory"] == "${API_MEMORY:-768M}", "Speichergrenze waechst mit"
+    assert app["environment"]["WEB_CONCURRENCY"] == "${UVICORN_WORKERS:-4}", "Prozesszahl aus deploy/.env"
+    assert app["deploy"]["resources"]["limits"]["memory"] == "${API_MEMORY:-1536M}", "Speichergrenze waechst mit"
+    assert app["ulimits"]["nofile"] == {"soft": 65536, "hard": 65536}
+    env = read(".env.example")
+    assert "UVICORN_WORKERS=4" in env and "API_MEMORY=1536M" in env, "Vorlage nennt dieselben Standardwerte"
     assert str(app["environment"]["LERNAPP_JOBS"]).lower() == "off", "API-Prozesse ohne Job-Runner"
     assert jobs["image"] == app["image"] and "build" not in jobs and jobs.get("pull_policy") == "never"
     assert jobs["command"] == ["python", "-m", "app.jobs"]
