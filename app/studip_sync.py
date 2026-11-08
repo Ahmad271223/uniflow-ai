@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import unicodedata
 import urllib.request
@@ -363,11 +364,27 @@ def store_course_texts(conn, c: dict) -> None:
                      (c.get("description"), c.get("miscellaneous"), c["id"]))
 
 
+class FileListUnreadable(RuntimeError):
+    """Statt der Dateiliste kam eine Anmeldeseite (Sitzung abgelaufen): nicht mit einer leeren Liste verwechseln
+    (Audit 08.11.2026, P13-11). Aufrufer lassen den Kurs dann aus, fruehere Semester bleiben offen."""
+
+
+def _looks_like_login(resp, text: str) -> bool:
+    url = str(getattr(resp, "url", "") or "")
+    host = (urlsplit(url).hostname or "").lower() if url else ""
+    if url and (host and host not in download_hosts() or "/dispatch.php/login" in url or "Shibboleth.sso" in url):
+        return True
+    return bool(re.search(r'type=["\']?password|Shibboleth\.sso/Login', text[:200000], re.I))
+
+
 def fetch_files(page: Page, course_id: str) -> list[dict]:
     resp = api_get(page, f"{STUDIP_BASE}/dispatch.php/course/files/flat?cid={course_id}", headers={})
     text = resp.text()
     m = re.search(r'data-files="([^"]*)"', text)
     if not m:
+        # Kurs ohne Dateibereich: leer wie bisher; eine Anmeldeseite ist dagegen ein Fehler (P13-11)
+        if _looks_like_login(resp, text):
+            raise FileListUnreadable("Dateiliste nicht lesbar: Stud.IP zeigt die Anmeldeseite (Sitzung abgelaufen?)")
         return []
     data = json.loads(html.unescape(m.group(1)))
     files = []
@@ -449,7 +466,18 @@ def file_kind(name: str, mime: str | None = None) -> str:
 def safe_name(s: str) -> str:
     s = unicodedata.normalize("NFC", s or "")      # 'a' + U+0308 -> 'ä' (Mac-/Moodle-Dateinamen)
     s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s)
-    return s.strip(" .")[:120] or "datei"
+    s = s.strip(" .")
+    if len(s) > SAFE_NAME_MAX:
+        # Endung behalten (Audit 08.11.2026, P13-09): sonst verliert "<sehr langer Name>.pdf" ihr ".pdf"
+        stem, dot, ext = s.rpartition(".")
+        if dot and stem and 0 < len(ext) <= 10 and " " not in ext:
+            s = stem[:SAFE_NAME_MAX - len(ext) - 1].rstrip(" .") + "." + ext
+        else:
+            s = s[:SAFE_NAME_MAX]
+    return s or "datei"
+
+
+SAFE_NAME_MAX = 120
 
 
 HTML_STARTS = (b"<!doctype html", b"<html")
@@ -465,9 +493,26 @@ def download_allowed(url: str, hosts: set[str] | None = None) -> bool:
     Antwort der Hochschule darf die Sitzungs-Cookies nie an einen fremden Host oder unverschluesselt schicken."""
     try:
         parts = urlsplit(url)
+        port = parts.port                                # ValueError bei ungueltigem Port
     except ValueError:
         return False
-    return parts.scheme == "https" and (parts.hostname or "").lower() in (hosts if hosts is not None else download_hosts())
+    # Port nur 443 bzw. ohne Angabe (Audit 08.11.2026, P13-07): ein anderer Dienst auf demselben Host bekommt die
+    # Cookies nicht
+    return (parts.scheme == "https" and port in (None, 443)
+            and (parts.hostname or "").lower() in (hosts if hosts is not None else download_hosts()))
+
+
+def log_url(url: str) -> str:
+    """Adresse fuer Meldungen und Protokoll: ohne Anmeldedaten, Abfrage und Fragment (Audit 08.11.2026, P13-08),
+    damit Schluessel oder signierte Links nie im Protokoll landen."""
+    try:
+        parts = urlsplit(url or "")
+        host = parts.hostname or ""
+        if parts.port:
+            host += f":{parts.port}"
+    except ValueError:
+        return "?"
+    return f"{parts.scheme}://{host}{parts.path}" if parts.scheme else (parts.path or "?")
 
 
 def empty_download(first: bytes, target: Path, expected_size: int = 0) -> bool:
@@ -490,7 +535,7 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
     import shutil
     import urllib.parse
     import urllib.request
-    shown = shown_url or url
+    shown = log_url(shown_url or url)
     # nur https:// auf dem Stud.IP-Host bzw. `allowed_hosts` (Learnweb), auch fuer Weiterleitungen
     if not download_allowed(url, allowed_hosts):
         raise RuntimeError(f"Download-Adresse nicht erlaubt (nur https:// auf dem Hochschul-Server): {shown}")
@@ -542,53 +587,95 @@ def _stream_once(req, target: Path, shown: str, timeout: int, expected_size: int
             raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {shown}")
         if empty_download(first, target, expected_size):
             raise RuntimeError(f"Leere Antwort statt der Datei: {shown}")
+        expected = _content_length(resp.headers)
         target.parent.mkdir(parents=True, exist_ok=True)
-        part = target.with_name(target.name + ".part")
+        part = _temp_part(target)                         # eindeutig je Lauf (P13-03)
         try:
             with open(part, "wb") as f:
                 f.write(first)
                 shutil.copyfileobj(resp, f, 1 << 20)
+                written = f.tell()
+            if expected is not None and written != expected:
+                # abgerissene Antwort ohne Fehler der Verbindung (P13-06): nichts ersetzen
+                raise RuntimeError(f"Download unvollständig ({written} von {expected} Bytes): {shown}")
             os.replace(part, target)
         finally:
             part.unlink(missing_ok=True)
 
 
+def _content_length(headers) -> int | None:
+    """Content-Length der Antwort, wenn sie die Bytes auf der Leitung angibt (nicht bei Content-Encoding)."""
+    try:
+        if headers is None or (headers.get("Content-Encoding") or headers.get("content-encoding") or "identity") != "identity":
+            return None
+        raw = headers.get("Content-Length") or headers.get("content-length")
+        n = int(raw) if raw is not None and str(raw).strip() != "" else None
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return n if n is not None and n >= 0 else None
+
+
+def _temp_part(target: Path) -> Path:
+    """Eindeutige Temp-Datei neben dem Ziel (Audit 08.11.2026, P13-03): zwei gleichzeitige Laeufe ueberschreiben sich
+    die halbe Datei nicht; ersetzt wird erst am Ende atomar (os.replace)."""
+    import tempfile
+    fd, name = tempfile.mkstemp(prefix=f".{target.name[:60]}.", suffix=".part", dir=str(target.parent))
+    os.close(fd)
+    return Path(name)
+
+
 _UA: dict[int, str] = {}
+UA_CACHE_MAX = 16          # ein Eintrag je Browser-Kontext; begrenzt fuer lang laufende Prozesse (P13-12)
 
 
 def _user_agent(page) -> str:
     try:
         key = id(page.context)
         if key not in _UA:
+            if len(_UA) >= UA_CACHE_MAX:
+                _UA.clear()
             _UA[key] = page.evaluate("() => navigator.userAgent")
         return _UA[key]
     except Exception:  # noqa: BLE001
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UniFlow-Lernapp"
 
 
+FALLBACK_MAX_BYTES = 300 << 20          # Browser-Weg (ganz im Speicher): hoechstens so viel, wie app/filestream.py durchreicht
+
+
 def download(page: Page, url: str, target: Path, expected_size: int = 0) -> None:
     """Stud.IP: gestreamt; falls das scheitert (z. B. Cookie-Eigenheiten), einmal der alte Weg ueber
     page.request, mit sofortiger Freigabe des Antwortspeichers (dispose)."""
+    shown = log_url(url)
     try:
         stream_download(page, url, target, expected_size=expected_size)
         return
     except Exception as e:  # noqa: BLE001
         log(f"Gestreamter Download fehlgeschlagen ({e}); versuche den Browser-Weg.")
     if not download_allowed(url):
-        raise RuntimeError(f"Download-Adresse nicht erlaubt (nur https:// auf dem Hochschul-Server): {url}")
+        raise RuntimeError(f"Download-Adresse nicht erlaubt (nur https:// auf dem Hochschul-Server): {shown}")
     resp = page.request.get(url)
     try:
         if not resp.ok:
-            raise RuntimeError(f"Download fehlgeschlagen ({resp.status}): {url}")
+            raise RuntimeError(f"Download fehlgeschlagen ({resp.status}): {shown}")
+        # page.request haelt die Antwort ganz im Speicher: grosse Dateien gar nicht erst lesen (P13-05)
+        announced = _content_length(getattr(resp, "headers", None))
+        if max(announced or 0, expected_size or 0) > FALLBACK_MAX_BYTES:
+            raise RuntimeError(f"Datei zu groß für den Browser-Weg ({max(announced or 0, expected_size or 0)} Bytes): {shown}")
         body = resp.body()
         if body.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
-            raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {url}")
+            raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {shown}")
         if empty_download(body, target, expected_size):
-            raise RuntimeError(f"Leere Antwort statt der Datei: {url}")
+            raise RuntimeError(f"Leere Antwort statt der Datei: {shown}")
+        if announced is not None and len(body) != announced:
+            raise RuntimeError(f"Download unvollständig ({len(body)} von {announced} Bytes): {shown}")
         target.parent.mkdir(parents=True, exist_ok=True)
-        part = target.with_name(target.name + ".part")
-        part.write_bytes(body)
-        os.replace(part, target)
+        part = _temp_part(target)
+        try:
+            part.write_bytes(body)
+            os.replace(part, target)
+        finally:
+            part.unlink(missing_ok=True)
     finally:
         try:
             resp.dispose()
@@ -732,8 +819,40 @@ def version_stamp(existing: dict | None, f: dict, now: int) -> tuple[int, bool]:
     return old or now, False
 
 
+_claim_lock = threading.Lock()
+_claimed_targets: set[str] = set()      # Zielpfade, die ein laufender Download gerade belegt (P13-03)
+
+
+def _claim_target(conn, target: Path, file_id: str) -> Path:
+    """Zielpfad fuer den Download einer Datei belegen. Gehoert der Pfad schon einer anderen Datei (Datenbank) oder
+    laedt ein gleichzeitiger Lauf gerade dorthin, kommt die Datei-ID in den Namen (Audit 08.11.2026, P13-03/P13-09).
+    Die Sperre gilt nur fuer die Mengen-Operation, nie waehrend Datenbank oder Netz (keine Verklemmung mit SQLite)."""
+    other = db.row(conn, "SELECT id FROM files WHERE local_path=? AND id<>?", (str(target), file_id))
+    suffix = safe_name(file_id)[-8:] if str(file_id).startswith("lw-") else str(file_id)[:6]
+    with _claim_lock:
+        if other or str(target) in _claimed_targets:
+            # Name-Kollision (gleicher Dateiname in zwei Ordnern): Dateiid anhaengen
+            target = target.with_name(f"{target.stem}_{suffix}{target.suffix}")
+        _claimed_targets.add(str(target))
+    return target
+
+
+def _release_target(target: Path) -> None:
+    with _claim_lock:
+        _claimed_targets.discard(str(target))
+
+
+def _real_pdf(target: Path) -> bool:
+    """PDF-Signatur in den ersten 1024 Bytes (wie PDF-Leser sie suchen); Audit 08.11.2026, P13-10."""
+    try:
+        with open(target, "rb") as fh:
+            return b"%PDF" in fh.read(1024)
+    except OSError:
+        return False
+
+
 def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str, str], download_fn, started: str,
-                       new_files: list[str], pause: float = 0.2, now: int | None = None) -> None:
+                       new_files: list[str], pause: float = 0.2, now: int | None = None) -> dict:
     """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target, size) holen
     (size = Groesse laut Quelle, fuer `empty_download`).
     Geaendert = neuere Fassung (version_stamp: Aenderungszeit, beim Learnweb ueber die Sitzung die Revision), ohne
@@ -741,9 +860,12 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
     nach dem Download gilt die der geladenen Datei.
     Reihenfolge je Datei (Vertrag G5, gleich im Swift-Kern): alte Datei behalten -> neue schreiben (.part) -> Hash ->
     Datenbank bestaetigen (Commit) -> erst dann die alte Datei entfernen. Scheitert etwas dazwischen, kommt die alte
-    Datei zurueck und die Datenbank bleibt bei der alten Fassung."""
+    Datei zurueck und die Datenbank bleibt bei der alten Fassung.
+    Rueckgabe (Audit 08.11.2026, P13-01): {"downloaded", "failed", "failed_ids"}; ein Fehler einer Datei haelt die
+    anderen nicht an, gilt aber nicht als Erfolg."""
     now = int(time.time()) if now is None else now
     stream = config.streams_files()                   # Dienst: nur die Liste, Inhalt holt app/filestream.py bei Bedarf
+    result: dict = {"downloaded": 0, "failed": 0, "failed_ids": []}
     for f in files:
         existing = db.row(conn, "SELECT chdate, local_path, revision, first_seen, download_url FROM files WHERE id=?", (f["id"],))
         if existing and existing["local_path"]:
@@ -764,11 +886,14 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 (f["id"], c["id"], f["name"], f["size"] or 0, f["mime"], f["author"], f["chdate"],
                  f["download_url"], started, file_kind(f["name"], f["mime"]), f["revision"]),
             )
-        elif changed:
-            # neue Fassung (Groesse, Typ, Aenderungszeit, Revision) erst mit dem Download uebernehmen: scheitert
-            # er, gilt die Datei beim naechsten Abgleich weiter als geaendert und wird erneut geladen
+        elif changed and stream:
             conn.execute("UPDATE files SET name=?, author=?, download_url=? WHERE id=?",
                          (f["name"], f["author"], f["download_url"], f["id"]))
+        elif changed:
+            # neue Fassung (Name, Adresse, Groesse, Typ, Aenderungszeit, Revision) erst mit dem Download uebernehmen
+            # (Audit 08.11.2026, P13-04): scheitert er, bleibt die Zeile bei der alten Fassung und die Datei gilt beim
+            # naechsten Abgleich weiter als geaendert
+            pass
         else:
             conn.execute(
                 "UPDATE files SET name=?, size=COALESCE(?, size), mime=?, author=?, chdate=?, download_url=?, revision=? WHERE id=?",
@@ -790,12 +915,7 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
             log(f"Neu: {c['title'][:40]} / {f['name']}")
             continue
         if changed:
-            target = _files_dir() / safe_name(subject_dir(c["title"])) / safe_name(f["name"])
-            other = db.row(conn, "SELECT id FROM files WHERE local_path=? AND id<>?", (str(target), f["id"]))
-            if other:
-                # Name-Kollision (gleicher Dateiname in zwei Ordnern): Dateiid anhaengen
-                suffix = safe_name(f["id"])[-8:] if str(f["id"]).startswith("lw-") else f["id"][:6]
-                target = target.with_name(f"{target.stem}_{suffix}{target.suffix}")
+            target = _claim_target(conn, _files_dir() / safe_name(subject_dir(c["title"])) / safe_name(f["name"]), f["id"])
             backup = None
             try:
                 backup = keep_previous(target)
@@ -804,16 +924,23 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 sha = file_sha256(target)
                 if not sha:
                     raise RuntimeError("Datei nach dem Download nicht lesbar")
+                # Groesse laut Quelle, sonst die der geladenen Datei (Vertrag wie bisher, P13-06: Designfrage im Bericht);
+                # die Vollstaendigkeit prueft der Download selbst (Content-Length)
                 size = f["size"] if f["size"] is not None else target.stat().st_size
+                kind = file_kind(f["name"], f["mime"])
+                if kind == "pdf" and not _real_pdf(target):
+                    kind = "file"                            # nur echte PDFs in den PDF-Editor (P13-10)
                 conn.execute("SAVEPOINT dl")
-                conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, revision=?, "
-                             "content_sha256=? WHERE id=?",
-                             (str(target), db.now_iso(), size, f["mime"], f["chdate"], f["revision"], sha, f["id"]))
+                conn.execute("UPDATE files SET name=?, author=?, download_url=?, local_path=?, downloaded_at=?, size=?, "
+                             "mime=?, chdate=?, revision=?, content_sha256=?, kind=? WHERE id=?",
+                             (f["name"], f["author"], f["download_url"], str(target), db.now_iso(), size, f["mime"],
+                              f["chdate"], f["revision"], sha, kind, f["id"]))
                 conn.execute("RELEASE dl")
                 conn.commit()                      # erst jetzt ist die neue Fassung gueltig
                 if backup:
                     backup.unlink(missing_ok=True)
                 new_files.append(f["id"])
+                result["downloaded"] += 1
                 log(f"Neu: {c['title'][:40]} / {f['name']}")
             except Exception as e:  # noqa: BLE001
                 try:
@@ -821,9 +948,14 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 except Exception:  # noqa: BLE001 - kein offener Sicherungspunkt (Fehler vor dem UPDATE)
                     pass
                 restore_previous(target, backup)
+                result["failed"] += 1
+                result["failed_ids"].append(f["id"])
                 log(f"Download-Fehler {f['name']}: {e}")
+            finally:
+                _release_target(target)
             if pause:
                 time.sleep(pause)
+    return result
 
 
 # ----------------------------------------------------------------------------
@@ -868,7 +1000,10 @@ def sync_older_files(page: Page, conn, courses: list[dict], started: str, new_fi
             done["n"] += 1
             progress.report(f"Frühere Semester ({c.get('semester') or 'ohne Angabe'}), Datei {done['n']} von {total} – {c['title'][:50]}")
             download(page, url, target, size)
-        store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+        res = store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+        if res and res.get("failed"):
+            complete = False                            # Downloadfehler: der naechste Abgleich versucht es erneut (P13-02)
+            log(f"Frühere Semester: {res['failed']} Dateien nicht geladen ({c['title'][:50]}), Kurs bleibt offen.")
         if complete:
             older_semesters.finish(conn, [c["id"]], db.now_iso())
         conn.commit()                                   # fortsetzbar: jeder fertige Kurs bleibt gemerkt
@@ -954,6 +1089,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
     message = ""
     ok = False
     tt: dict = {"new": 0}
+    failed = {"downloads": 0, "lists": 0}             # Audit 08.11.2026, P14-04: Teilfehler zaehlen und melden
     try:
         with sync_playwright() as p:
             ctx: BrowserContext = p.chromium.launch_persistent_context(
@@ -1024,6 +1160,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                             files = fetch_files(page, c["id"])
                         except Exception as e:  # noqa: BLE001
                             log(f"Fehler bei Dateiliste {c['title']}: {e}")
+                            failed["lists"] += 1
                             continue
                         try:
                             folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
@@ -1040,7 +1177,8 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                             done["n"] += 1
                             progress.report(f"{label}: Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
                             download(page, url, target, size)
-                        store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+                        res = store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+                        failed["downloads"] += (res or {}).get("failed", 0)
                         conn.commit()                           # Datei fuer Datei sichtbar
 
                 # --- (a) aktuelles Semester -----------------------------------------------------------------------
@@ -1124,6 +1262,11 @@ def run_studip_sync(show_browser: bool = False) -> dict:
             message += f", {tt['new']} Stundenplan-Termine"
         if tt.get("removed"):
             message += f", {tt['removed']} Serien entfernt (nicht in deinem Stud.IP-Kalender)"
+        if failed["downloads"]:
+            n = failed["downloads"]
+            message += f", {n} Datei{'' if n == 1 else 'en'} nicht geladen (nächster Abgleich versucht es erneut)"
+        if failed["lists"]:
+            message += f", Dateiliste von {failed['lists']} Kurs{'' if failed['lists'] == 1 else 'en'} nicht gelesen"
     except Exception as e:  # noqa: BLE001
         message = f"FEHLER: {e}"
         log(message)
@@ -1133,7 +1276,8 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                 "INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES (?,?,?,?,?)",
                 (started, db.now_iso(), int(ok), len(new_files), message),
             )
-    return {"ok": ok, "new_files": new_files, "message": message}
+    return {"ok": ok, "new_files": new_files, "message": message, "failed_downloads": failed["downloads"],
+            "failed_lists": failed["lists"]}
 
 
 def subject_dir(course_title: str) -> str:
