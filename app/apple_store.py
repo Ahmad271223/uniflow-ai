@@ -38,6 +38,12 @@ from . import billing, plans
 OID_LEAF = x509.ObjectIdentifier("1.2.840.113635.100.6.11.1")
 OID_INTERMEDIATE = x509.ObjectIdentifier("1.2.840.113635.100.6.2.1")
 
+# Meldungen, die das Recht entziehen (Erstattung; Familienfreigabe entzogen), auch falls revocationDate fehlt
+REVOKING = {"REFUND", "REVOKE"}
+# Meldungen nur zur Information: sie tragen die Transaktion, zu der eine Erstattung angefragt bzw. abgelehnt wurde
+# (auch eine aeltere Periode) und aendern den Abo-Stand nicht (Audit P36-R4)
+INFORMATIONAL = {"TEST", "CONSUMPTION_REQUEST", "REFUND_DECLINED"}
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS apple_notifications (
     notification_uuid TEXT PRIMARY KEY,
@@ -209,16 +215,20 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
     if not uid:
         raise AppleError("unknown_account", "Zu diesem Abo gibt es kein StudiNow-Konto.", 404)
     t = billing._now(now)
+    # Verlaengerungsinfo nur zum selben Abo (Audit P36-R2)
+    if renewal and str(renewal.get("originalTransactionId") or "") != otid:
+        renewal = None
+    # Alter der Meldung = Signaturzeit der Transaktion. Eine frisch signierte Verlaengerungsinfo macht eine alte
+    # Transaktion nicht neu: sonst holte eine vor der Erstattung signierte Transaktion das Recht zurueck (Audit P36-R1).
     signed = int(tx.get("signedDate") or 0)
-    if renewal and int(renewal.get("signedDate") or 0) > signed:
-        signed = int(renewal["signedDate"])
     seen = conn.execute("SELECT user_id, last_signed_date FROM apple_transactions WHERE original_transaction_id=?", (otid,)).fetchone()
     if seen and seen[0] != uid:
         raise AppleError("subscription_owned_by_other_account", "Dieses Abo gehört zu einem anderen StudiNow-Konto.", 409)
-    stale = bool(seen and signed and signed < seen[1])
+    # Durch ein Upgrade ersetzte Transaktion (isUpgraded): gilt nicht mehr, setzt den Tarif nie zurueck (Audit P36-R3)
+    stale = bool(seen and signed and signed < seen[1]) or bool(tx.get("isUpgraded"))
     expires = _ms_iso(tx.get("expiresDate"))
     ntype, subtype = notification or (None, None)
-    if tx.get("revocationDate"):
+    if tx.get("revocationDate") or ntype in REVOKING:
         status = "revoked"
     elif ntype == "DID_FAIL_TO_RENEW" and subtype == "GRACE_PERIOD" and renewal and renewal.get("gracePeriodExpiresDate"):
         status, expires = "grace", _ms_iso(renewal["gracePeriodExpiresDate"])
@@ -244,6 +254,9 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
                      (otid, uid, signed, tx.get("productId"), t.isoformat()))
     row = conn.execute("SELECT plan, status, expires_at, will_renew, pending_plan, environment FROM entitlements "
                        "WHERE user_id=? AND source='app_store'", (uid,)).fetchone()
+    if row is None:              # nur eine ersetzte Transaktion gemeldet, noch kein Abo-Stand
+        return {"plan": None, "status": None, "expires_at": None, "will_renew": False, "pending_plan": None,
+                "original_transaction_id": otid, "environment": None, "stale": stale}
     return {"plan": row[0], "status": row[1], "expires_at": row[2], "will_renew": bool(row[3]), "pending_plan": row[4],
             "original_transaction_id": otid, "environment": row[5], "stale": stale}
 
@@ -277,7 +290,7 @@ def handle_notification(conn: sqlite3.Connection, signed_payload: str, roots: li
     ensure_schema(conn)
     nid = str(note.get("notificationUUID") or "")
     ntype, subtype = note.get("notificationType"), note.get("subtype")
-    if ntype == "TEST" or not data.get("signedTransactionInfo"):
+    if ntype in INFORMATIONAL or not data.get("signedTransactionInfo"):
         return {"ok": True, "type": ntype, "applied": False}
     tx = verify_jws(data["signedTransactionInfo"], roots)
     renewal = verify_jws(data["signedRenewalInfo"], roots) if data.get("signedRenewalInfo") else None
