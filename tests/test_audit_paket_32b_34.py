@@ -74,6 +74,8 @@ def test_p33_02_reset_waits_for_the_account_sync(app, filled):  # noqa: F811
     assert st == 409, (st, d)
     with db.cursor() as conn:
         assert db.row(conn, "SELECT 1 AS ok FROM courses WHERE id='k1'"), "nichts geloescht"
+    from app import reset
+    reset.wipe(clear_webview=False)                                       # aufraeumen wie die anderen Reset-Tests
 
 
 def test_p33_02_no_account_sync_starts_while_wiping(app, filled, monkeypatch):  # noqa: F811
@@ -120,7 +122,7 @@ def test_p33_03_module_rename_is_checked(hosted, name):
     in_user(hosted, h, lambda c: c.execute("INSERT INTO courses(id, title, kind, active, module_id, subject) VALUES ('k33', 'Analysis VL', 'vorlesung', 1, ?, 'Analysis')", (m["id"],)))
     st, d = call(hosted, "PATCH", f"/api/modules/{m['id']}", {"name": name}, headers=h)
     assert st == 400, (name, st, d)
-    assert in_user(hosted, h, lambda c: c.execute("SELECT m.name, c.subject FROM modules m JOIN courses c ON c.module_id=m.id").fetchone()) == ("Analysis", "Analysis")
+    assert in_user(hosted, h, lambda c: tuple(c.execute("SELECT m.name, c.subject FROM modules m JOIN courses c ON c.module_id=m.id").fetchone())) == ("Analysis", "Analysis")
 
 
 def test_p33_03_module_rename_trims_and_carries_the_name_along(hosted):
@@ -364,8 +366,8 @@ def test_p34_03_splitting_a_series_keeps_later_exceptions(hosted):
     assert st == 200, d
     rows = in_user(hosted, h, lambda c: c.execute("SELECT event_id, date FROM event_exceptions ORDER BY date").fetchall())
     assert [tuple(r) for r in rows] == [(e["id"], "2026-11-02"), (d["new_id"], "2026-11-30"), (d["new_id"], "2026-12-07")], rows
-    week = call(hosted, "GET", "/api/timetable/day?date=2026-11-30", headers=h)[1]
-    assert not [x for x in week.get("events", []) if x.get("title") == "Analysis" and not x.get("cancelled")], week.get("events")
+    day = call(hosted, "GET", "/api/timetable/day?date=2026-11-30", headers=h)[1]
+    assert [(x["event_id"], x["status"]) for x in day["events"]] == [(d["new_id"], "ausfall")], day["events"]
 
 
 # ---------------------------------------------------------------- P34-04 / P34-05: Lernpakete und Minuten
@@ -387,7 +389,7 @@ def test_p34_05_add_task_and_patch_task_check_minutes(hosted, value):
     assert st == 422, (st, d)
     st, d = call(hosted, "PATCH", f"/api/tasks/{tid}", {"est_minutes": value, "title": "nicht gespeichert"}, headers=h)
     assert st == 422, (st, d)
-    assert in_user(hosted, h, lambda c: c.execute("SELECT COUNT(*), MAX(title) FROM study_tasks").fetchone()) == (1, "Audit 33")
+    assert in_user(hosted, h, lambda c: tuple(c.execute("SELECT COUNT(*), MAX(title) FROM study_tasks").fetchone())) == (1, "Audit 33")
 
 
 def test_p34_05_minutes_as_numeric_text_still_work(hosted):
@@ -397,6 +399,9 @@ def test_p34_05_minutes_as_numeric_text_still_work(hosted):
     assert call(hosted, "POST", f"/api/packages/{pid}/tasks", {"title": "neu", "est_minutes": "25"}, headers=h)[0] == 200
     st, d = call(hosted, "PATCH", f"/api/tasks/{tid}", {"est_minutes": 30, "title": "Lesen"}, headers=h)
     assert st == 200 and d["est_minutes"] == 30 and d["title"] == "Lesen"
+    # Weboberflaeche mit geleertem Minutenfeld sendet 0: Wert bleibt
+    st, d = call(hosted, "PATCH", f"/api/tasks/{tid}", {"est_minutes": 0, "title": "Lesen 2"}, headers=h)
+    assert st == 200 and d["est_minutes"] == 30 and d["title"] == "Lesen 2"
 
 
 # ---------------------------------------------------------------- P34-06 / P34-11: Vertrag

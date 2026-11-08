@@ -109,6 +109,12 @@ def wipe(clear_webview: bool = True) -> dict:
     try:
         from . import account_mode
         account_mode.logout()
+        # die Abmeldung behaelt die E-Mail als Vorschlag fuers Anmeldefeld (last_email); hier soll von der vorigen
+        # Person nichts bleiben (Audit P33-02). Adresse des Dienstes und Rechnerkennung bleiben.
+        from . import service_link
+        st = service_link.load_state()
+        if st.pop("last_email", None) is not None:
+            service_link.save_state(st)
         out["studinow_account"] = True
     except Exception:  # noqa: BLE001 - offline oder Ablage gesperrt: der Rest soll trotzdem laufen
         out["studinow_account"] = False
