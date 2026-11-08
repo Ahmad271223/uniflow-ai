@@ -35,7 +35,7 @@ import urllib.error
 from urllib.parse import urlparse
 
 from . import ai_prices
-from .ai_backend import AIUnavailable, Completion, _error_message, _iter_sse, scrub, urllib_transport
+from .ai_backend import AIUnavailable, Completion, _error_message, _iter_sse, scrub, timeout_s, urllib_transport
 
 # Hoechstens so lange darf eine Antwort laufen (unter credits.STALE_MINUTES, damit eine Reservierung nie verfaellt, solange
 # der Anbieter noch schreibt)
@@ -65,11 +65,20 @@ def http_error(who: str, status: int, detail: str) -> AIUnavailable:
     """HTTP-Fehler vor der Antwort: der Anbieter hat nichts berechnet. 5xx, 401/403 (Schluessel), 408 und 429 -> Ersatz."""
     retry = status >= 500 or status in (401, 403, 408, 429)
     if status == 429:
-        return AIUnavailable("ai_provider_busy", f"{who} ist gerade ausgelastet. Bitte gleich noch einmal.", 503, retryable=True)
-    if status == 401:
-        return AIUnavailable("ai_provider_error", f"{who} hat den Schlüssel des Dienstes abgelehnt.", 502, retryable=True)
-    return AIUnavailable("ai_provider_error", f"{who} antwortete mit Fehler {status}." + (f" {detail[:200]}" if detail else ""), 502,
-                         retryable=retry)
+        # Rate-Limit des Anbieters (Stufe des Kontos bei OpenAI): fuer den Nutzer eine verstaendliche Meldung statt eines
+        # Fehlers; der Dienst versucht erst den naechsten Anbieter der Kette (retryable), dann 503 mit Retry-After
+        e = AIUnavailable("ai_provider_busy", BUSY_MESSAGE, 503, retryable=True, extra={"retry_after": BUSY_RETRY_AFTER_S})
+    elif status == 401:
+        e = AIUnavailable("ai_provider_error", f"{who} hat den Schlüssel des Dienstes abgelehnt.", 502, retryable=True)
+    else:
+        e = AIUnavailable("ai_provider_error", f"{who} antwortete mit Fehler {status}." + (f" {detail[:200]}" if detail else ""), 502,
+                          retryable=retry)
+    e.http_status = int(status)
+    return e
+
+
+BUSY_MESSAGE = "Die KI ist gerade ausgelastet, bitte gleich noch einmal."
+BUSY_RETRY_AFTER_S = 5
 
 
 # ---------------------------------------------------------------- OpenAI-kompatibel (DeepSeek in der EU)
@@ -93,10 +102,10 @@ class OpenAICompatProvider:
     app/ai_backend die Reservierung ab (usage_known=False). `transport` ist fuer Tests austauschbar."""
     supports_options = True
 
-    def __init__(self, base_url: str, api_key: str, model_name: str, *, label: str = "deepseek", timeout: int = 120,
+    def __init__(self, base_url: str, api_key: str, model_name: str, *, label: str = "deepseek", timeout: int | None = None,
                  transport=None, reasoning_effort: str | None = None):
         self.base_url = check_eu_base_url(base_url)
-        self.api_key, self.model, self.label, self.timeout = api_key, model_name, label, timeout
+        self.api_key, self.model, self.label, self.timeout = api_key, model_name, label, timeout or timeout_s()
         self.transport = transport or urllib_transport
         self.reasoning_effort = reasoning_effort
 
@@ -132,45 +141,54 @@ class OpenAICompatProvider:
             raise AIUnavailable("ai_provider_unreachable", f"{who} ist nicht erreichbar.", 502, retryable=True)
         if status >= 400:
             raise http_error(who, status, scrub(_error_message("\n".join(lines))))
-        deltas: list[str] = []
-        usage, finish, model = None, None, self.model
+        st = _CompatState(self, who, images, on_delta)
         try:
             for event in _iter_sse(guarded(lines)):
-                try:
-                    j = json.loads(event)
-                except ValueError:
-                    continue
-                if not isinstance(j, dict):
-                    continue
-                if isinstance(j.get("error"), dict):
-                    err = j["error"]
-                    billed = self._completion("".join(deltas), usage, model, images) if usage else None
-                    raise AIUnavailable("ai_provider_error", f"{who} antwortete mit Fehler: {scrub(str(err.get('message') or '')[:200])}",
-                                        502, billed=billed, started=True)
-                model = j.get("model") or model
-                if isinstance(j.get("usage"), dict):
-                    usage = j["usage"]
-                for ch in j.get("choices") or []:
-                    if not isinstance(ch, dict):
-                        continue
-                    piece = str(((ch.get("delta") or {}).get("content")) or "")
-                    if piece:
-                        deltas.append(piece)
-                        if on_delta:
-                            on_delta(piece)
-                    finish = ch.get("finish_reason") or finish
+                st.feed(event)
         except AIUnavailable:
             raise
         except (urllib.error.URLError, TimeoutError, OSError):
-            raise AIUnavailable("ai_provider_unreachable", f"{who} hat die Antwort abgebrochen.", 502,
-                                billed=self._completion("".join(deltas), usage, model, images) if usage else None, started=True)
-        c = self._completion("".join(deltas), usage, model, images)
-        if finish == "length":
-            raise AIUnavailable("ai_provider_error", f"{who} hat die Antwort nicht beendet (Ausgabegrenze).", 502,
-                                billed=c if usage else None, started=True)
-        if finish is None and not deltas:
-            raise AIUnavailable("ai_provider_error", f"{who} antwortete unlesbar.", 502, started=True)
-        return c
+            raise st.broken()
+        return st.finish()
+
+    async def acomplete(self, system: str, prompt: str, schema: dict | None = None, *, image: bytes | None = None,
+                        max_output_tokens: int | None = None, on_delta=None, **_ignored) -> Completion:
+        """Wie complete, asynchron ueber den gemeinsamen httpx-Client (app/ai_backend.async_http_client); mit einem
+        Test-Transport laeuft complete in einem Thread."""
+        from . import ai_backend
+        if self.transport is not urllib_transport:
+            return await ai_backend.run_sync_provider(self.complete, system, prompt, schema, image=image,
+                                                      max_output_tokens=max_output_tokens, on_delta=on_delta)
+        who = "Der KI-Anbieter"
+        body = self.request_body(system, prompt, schema, image=image, max_output_tokens=max_output_tokens)
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "Accept": "text/event-stream"}
+        httpx = ai_backend._httpx()
+        client = ai_backend.async_http_client()
+        st = _CompatState(self, who, 1 if image else 0, on_delta)
+        parser = ai_backend._SSEParser()
+        started = False
+        end = time.monotonic() + DEADLINE_S
+        try:
+            async with client.stream("POST", self.base_url + "/chat/completions", headers=headers, content=json.dumps(body).encode("utf-8"),
+                                     timeout=httpx.Timeout(float(self.timeout), connect=10.0, write=30.0, pool=30.0)) as r:
+                if r.status_code >= 400:
+                    raw = (await r.aread()).decode("utf-8", "replace")[:4000]
+                    raise http_error(who, r.status_code, scrub(_error_message(raw)))
+                started = True
+                async for line in r.aiter_lines():
+                    if time.monotonic() > end:
+                        raise TimeoutError("Frist der KI-Antwort abgelaufen")
+                    for event in parser.feed(line):
+                        st.feed(event)
+                for event in parser.flush():
+                    st.feed(event)
+        except AIUnavailable:
+            raise
+        except (httpx.HTTPError, TimeoutError, OSError):
+            if started:
+                raise st.broken()
+            raise AIUnavailable("ai_provider_unreachable", f"{who} ist nicht erreichbar.", 502, retryable=True)
+        return st.finish()
 
     def _completion(self, text: str, usage: dict | None, model: str, images: int) -> Completion:
         u = usage if isinstance(usage, dict) else {}
@@ -179,6 +197,54 @@ class OpenAICompatProvider:
         return Completion(text, _n(u.get("prompt_tokens")), _n(u.get("completion_tokens")), model or self.model,
                           cached_tokens=_n(d_in.get("cached_tokens")), reasoning_tokens=_n(d_out.get("reasoning_tokens")),
                           images=images, provider=self.label, usage_known=bool(usage))
+
+
+class _CompatState:
+    """Ereignisse der Chat Completions auswerten, eines nach dem anderen (sync complete und acomplete teilen sich das)."""
+
+    def __init__(self, provider: "OpenAICompatProvider", who: str, images: int, on_delta) -> None:
+        self.p, self.who, self.images, self.on_delta = provider, who, images, on_delta
+        self.deltas: list[str] = []
+        self.usage, self.finish_reason, self.model = None, None, provider.model
+
+    def feed(self, event: str) -> None:
+        try:
+            j = json.loads(event)
+        except ValueError:
+            return
+        if not isinstance(j, dict):
+            return
+        if isinstance(j.get("error"), dict):
+            err = j["error"]
+            billed = self.p._completion("".join(self.deltas), self.usage, self.model, self.images) if self.usage else None
+            raise AIUnavailable("ai_provider_error", f"{self.who} antwortete mit Fehler: {scrub(str(err.get('message') or '')[:200])}",
+                                502, billed=billed, started=True)
+        self.model = j.get("model") or self.model
+        if isinstance(j.get("usage"), dict):
+            self.usage = j["usage"]
+        for ch in j.get("choices") or []:
+            if not isinstance(ch, dict):
+                continue
+            piece = str(((ch.get("delta") or {}).get("content")) or "")
+            if piece:
+                self.deltas.append(piece)
+                if self.on_delta:
+                    self.on_delta(piece)
+            self.finish_reason = ch.get("finish_reason") or self.finish_reason
+
+    def broken(self) -> AIUnavailable:
+        return AIUnavailable("ai_provider_unreachable", f"{self.who} hat die Antwort abgebrochen.", 502,
+                             billed=self.p._completion("".join(self.deltas), self.usage, self.model, self.images) if self.usage else None,
+                             started=True)
+
+    def finish(self) -> Completion:
+        c = self.p._completion("".join(self.deltas), self.usage, self.model, self.images)
+        if self.finish_reason == "length":
+            raise AIUnavailable("ai_provider_error", f"{self.who} hat die Antwort nicht beendet (Ausgabegrenze).", 502,
+                                billed=c if self.usage else None, started=True)
+        if self.finish_reason is None and not self.deltas:
+            raise AIUnavailable("ai_provider_error", f"{self.who} antwortete unlesbar.", 502, started=True)
+        return c
 
 
 # ---------------------------------------------------------------- Claude (Messages API ueber das Anthropic-SDK)
@@ -211,11 +277,12 @@ class AnthropicProvider:
     label = "anthropic"
 
     def __init__(self, model_name: str, *, backend: str = "bedrock", region: str = "eu-central-1", api_key: str | None = None,
-                 base_url: str | None = None, effort: str | None = "medium", timeout: int = 120, client=None,
+                 base_url: str | None = None, effort: str | None = "medium", timeout: int | None = None, client=None,
                  allow_non_eu: bool = False):
         self.model, self.backend, self.region = model_name, backend, region
-        self.api_key, self.base_url, self.effort, self.timeout = api_key, base_url, effort, timeout
+        self.api_key, self.base_url, self.effort, self.timeout = api_key, base_url, effort, timeout or timeout_s()
         self.client = client
+        self._async_client = None
         if client is None:
             if backend == "bedrock" and not (region or "").lower().startswith("eu-"):
                 raise AIUnavailable("ai_not_configured", "Claude nur aus einer EU-Region (LERNAPP_ANTHROPIC_REGION=eu-…).", 503,
@@ -240,6 +307,22 @@ class AnthropicProvider:
         else:
             self.client = anthropic.Anthropic(api_key=self.api_key, base_url=self.base_url or None, timeout=self.timeout, max_retries=0)
         return self.client
+
+    def _aclient(self):
+        """Asynchroner SDK-Client (AsyncAnthropicBedrockMantle bzw. AsyncAnthropic) je Anbieter-Objekt; die Anbieter-Objekte
+        baut app/ai_backend.build je Anfrage, der Verbindungs-Pool liegt im SDK (httpx) und wird je Prozess geteilt."""
+        if self._async_client is not None:
+            return self._async_client
+        try:
+            import anthropic
+        except ImportError:
+            raise AIUnavailable("ai_not_configured", "Das Paket anthropic fehlt auf dem Server (requirements.txt).", 503, retryable=True)
+        kw = dict(base_url=self.base_url or None, timeout=self.timeout, max_retries=0, http_client=_shared_async_http_client())
+        if self.backend == "bedrock":
+            self._async_client = anthropic.AsyncAnthropicBedrockMantle(aws_region=self.region, api_key=self.api_key or None, **kw)
+        else:
+            self._async_client = anthropic.AsyncAnthropic(api_key=self.api_key, **kw)
+        return self._async_client
 
     def request_kwargs(self, system: str, prompt: str, schema: dict | None = None, *, image: bytes | None = None,
                        max_output_tokens: int | None = None) -> dict:
@@ -296,6 +379,50 @@ class AnthropicProvider:
         except (TimeoutError, OSError):
             raise AIUnavailable("ai_provider_unreachable", f"{who} hat die Antwort abgebrochen.", 502, started=started,
                                 retryable=not started)
+        return self._finish(msg, deltas, images, who)
+
+    async def acomplete(self, system: str, prompt: str, schema: dict | None = None, *, image: bytes | None = None,
+                        max_output_tokens: int | None = None, on_delta=None, **_ignored) -> Completion:
+        """Wie complete, asynchron mit dem Async-SDK (messages.stream als async-Kontext); mit einer Attrappe (`client`)
+        laeuft complete in einem Thread."""
+        from . import ai_backend
+        if self.client is not None:
+            return await ai_backend.run_sync_provider(self.complete, system, prompt, schema, image=image,
+                                                      max_output_tokens=max_output_tokens, on_delta=on_delta)
+        who = "Claude"
+        client = self._aclient()
+        kwargs = self.request_kwargs(system, prompt, schema, image=image, max_output_tokens=max_output_tokens)
+        images = 1 if image else 0
+        import anthropic
+        errors = (anthropic.APIConnectionError, anthropic.APIStatusError)
+        started, deltas = False, []
+        end = time.monotonic() + DEADLINE_S
+        try:
+            async with client.messages.stream(**kwargs) as stream:
+                started = True
+                async for piece in stream.text_stream:
+                    if time.monotonic() > end:
+                        raise TimeoutError("Frist der KI-Antwort abgelaufen")
+                    if piece:
+                        deltas.append(piece)
+                        if on_delta:
+                            on_delta(piece)
+                msg = await stream.get_final_message()
+        except AIUnavailable:
+            raise
+        except errors as e:  # type: ignore[misc]
+            status = getattr(e, "status_code", None)
+            if not started and status:
+                raise http_error(who, int(status), scrub(str(getattr(e, "message", "") or "")))
+            if not started:
+                raise AIUnavailable("ai_provider_unreachable", f"{who} ist nicht erreichbar.", 502, retryable=True)
+            raise AIUnavailable("ai_provider_error", f"{who} hat die Antwort abgebrochen.", 502, started=True)
+        except (TimeoutError, OSError):
+            raise AIUnavailable("ai_provider_unreachable", f"{who} hat die Antwort abgebrochen.", 502, started=started,
+                                retryable=not started)
+        return self._finish(msg, deltas, images, who)
+
+    def _finish(self, msg, deltas: list[str], images: int, who: str) -> Completion:
         text = "".join(b.text for b in (getattr(msg, "content", None) or []) if getattr(b, "type", "") == "text") or "".join(deltas)
         c = self.completion(text, msg, images)
         stop = getattr(msg, "stop_reason", None)
@@ -313,6 +440,24 @@ class AnthropicProvider:
         total_in = fresh + read + write + (write + 3) // 4
         return Completion(text, total_in, _n(getattr(u, "output_tokens", 0)), getattr(msg, "model", None) or self.model,
                           cached_tokens=read, images=images, provider=self.label, usage_known=u is not None)
+
+
+_sdk_async_http = None
+_sdk_async_http_loop = None
+
+
+def _shared_async_http_client():
+    """Ein httpx.AsyncClient fuer das Async-SDK je Prozess und Ereignisschleife (Pool ohne Obergrenze wie bei OpenAI)."""
+    global _sdk_async_http, _sdk_async_http_loop
+    import asyncio
+    from . import ai_backend
+    loop = asyncio.get_running_loop()
+    if _sdk_async_http is None or _sdk_async_http_loop is not loop:
+        httpx = ai_backend._httpx()
+        _sdk_async_http = httpx.AsyncClient(timeout=httpx.Timeout(float(timeout_s()), connect=10.0, write=30.0, pool=30.0),
+                                            limits=httpx.Limits(max_connections=None, max_keepalive_connections=100, keepalive_expiry=30.0))
+        _sdk_async_http_loop = loop
+    return _sdk_async_http
 
 
 # ---------------------------------------------------------------- aus der Umgebung

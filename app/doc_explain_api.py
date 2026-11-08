@@ -140,9 +140,59 @@ def plan(request: Request, body: dict = Body(...)):
 
 
 @router.post("/step")
-def step(request: Request, body: dict = Body(...)):
+async def step(request: Request, body: dict = Body(...)):
+    """Ein Schritt (Abschnitt, Aufgabe, Ueberblick). Asynchron wie /api/ai/tutor (app/ai_async.py): Vorbereitung und
+    Speichern kurz im eigenen Thread-Begrenzer, der Anbieter ueber ai_backend.complete_async."""
+    from . import ai_async
+    async with ai_async.slot():
+        pre = await ai_async.db(_step_prepare, request, body)
+        if "early" in pre:
+            return pre["early"]
+        st, sid, rid, prompt, second = pre["st"], pre["sid"], pre["rid"], pre["prompt"], pre["second"]
+        model_used, credits_state = None, None
+        if pre["hosted"]:
+            from . import ai_backend
+            from .server import _ai_replay, _credits_state
+            c = await ai_async.db(_ai_replay, request, rid)
+            if c is None:
+                await ai_async.db(entitlements.consume, request, "ai_assist", rid)
+                try:
+                    c = await ai_backend.complete_async(request.state.user["id"], f"tutor:doc_{st['kind']}", de.SYSTEM, prompt, request_id=rid,
+                                                        keep_result=True, max_output_tokens=de.MAX_OUTPUT[st["kind"]],
+                                                        route_hint="second_opinion" if second else None)
+                except ai_backend.AIUnavailable as e:
+                    await ai_async.db(entitlements.refund, request, "ai_assist", rid)
+                    raise ai_async.http_error(e)
+                except Exception:
+                    await ai_async.db(entitlements.refund, request, "ai_assist", rid)
+                    raise
+            answer, model_used, credits_state = c.text, c.model, await ai_async.db(_credits_state, request, c)
+        else:
+            answer = await ai_async.db(_step_local, prompt)
+        return await ai_async.db(_step_store, st, sid, answer, model_used, credits_state)
+
+
+def _step_local(prompt: str) -> str:
+    from . import ai
+    try:
+        return ai.ask(prompt, de.SYSTEM)
+    except ai.AIError as e:
+        raise HTTPException(500, str(e))
+
+
+def _step_store(st: dict, sid: str, answer: str, model_used, credits_state) -> dict:
+    conn = de.connect()
+    try:
+        saved = de.store(conn, st["hash"], st["kind"], answer, model_used)
+    finally:
+        conn.close()
+    return {"step": sid, "blocks": de.parse_blocks(answer, st), "stored": saved, "credits": credits_state}
+
+
+def _step_prepare(request: Request, body: dict) -> dict:
+    """Synchroner Teil: Weiterleitung (PC), Schritt finden, gespeicherte Antwort (0 Credits) oder Prompt bauen."""
     if (fwd := _forward("step", body)) is not None:
-        return fwd
+        return {"early": fwd}
     _guard(request)
     mode, scope, texts, p = _build(body)
     sid = str(body.get("step") or "")
@@ -180,38 +230,7 @@ def step(request: Request, body: dict = Body(...)):
                 lc.close()
             bal = ai_backend.credits_balance(request.state.user["id"])
             credits_state = {**bal, "charged": 0, "replay": False} if bal else None
-        return {"step": sid, "blocks": de.parse_blocks(hit["text"], st),
-                "stored": {"stored": True, "source": "cache", "variant": hit["variant"], "created_at": hit["created_at"]},
-                "credits": credits_state}
-    prompt = de.step_prompt(st, len(texts), sections)
-    model_used = None
-    credits_state = None
-    if hosted:
-        from . import ai_backend
-        from .server import _ai_replay, _credits_state
-        c = _ai_replay(request, rid)
-        if c is None:
-            entitlements.consume(request, "ai_assist", rid)
-            try:
-                c = ai_backend.complete(request.state.user["id"], f"tutor:doc_{st['kind']}", de.SYSTEM, prompt, request_id=rid,
-                                        keep_result=True, max_output_tokens=de.MAX_OUTPUT[st["kind"]],
-                                        route_hint="second_opinion" if second else None)
-            except ai_backend.AIUnavailable as e:
-                entitlements.refund(request, "ai_assist", rid)
-                raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
-            except Exception:
-                entitlements.refund(request, "ai_assist", rid)
-                raise
-        answer, model_used, credits_state = c.text, c.model, _credits_state(request, c)
-    else:
-        from . import ai
-        try:
-            answer = ai.ask(prompt, de.SYSTEM)
-        except ai.AIError as e:
-            raise HTTPException(500, str(e))
-    conn = de.connect()
-    try:
-        saved = de.store(conn, st["hash"], st["kind"], answer, model_used)
-    finally:
-        conn.close()
-    return {"step": sid, "blocks": de.parse_blocks(answer, st), "stored": saved, "credits": credits_state}
+        return {"early": {"step": sid, "blocks": de.parse_blocks(hit["text"], st),
+                          "stored": {"stored": True, "source": "cache", "variant": hit["variant"], "created_at": hit["created_at"]},
+                          "credits": credits_state}}
+    return {"st": st, "sid": sid, "rid": rid, "prompt": de.step_prompt(st, len(texts), sections), "second": second, "hosted": hosted}

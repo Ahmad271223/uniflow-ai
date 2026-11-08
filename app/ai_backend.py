@@ -96,7 +96,49 @@ CREATE TABLE IF NOT EXISTS ai_cache (
     created_at TEXT NOT NULL,
     model TEXT                             -- welches Modell die Antwort erzeugt hat (nicht Teil des Schluessels)
 );
+-- Laufende Monatssummen (08.11.2026, Lastfestigkeit): die Budgetpruefung je Anfrage liest eine Zeile statt den ganzen
+-- Monat zu summieren (19 ms bei 100k, 62 ms bei 300k Zeilen unter Schreibsperre). Trigger halten sie mit ai_usage_log
+-- gleich (jede Einfuegung, Aenderung, Loeschung; nur Zeilen mit state<>'failed' zaehlen), ensure_schema baut sie beim
+-- Start neu auf. pool = paid | trial | library (dieselben Becken wie vorher: library=1, sonst trial=1, sonst paid).
+CREATE TABLE IF NOT EXISTS ai_usage_month (
+    period TEXT NOT NULL,
+    pool TEXT NOT NULL,
+    cost_microeur INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (period, pool)
+);
+CREATE TABLE IF NOT EXISTS ai_usage_user_month (
+    period TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    cost_microeur INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (period, user_id)
+);
 """
+
+# Beitrag einer Zeile von ai_usage_log zu den Monatssummen und ihr Becken (fuer die Trigger und den Neuaufbau)
+_POOL_SQL = "CASE WHEN {r}.library=1 THEN 'library' WHEN {r}.trial=1 THEN 'trial' ELSE 'paid' END"
+_COST_SQL = "CASE WHEN {r}.state<>'failed' THEN {r}.cost_microeur ELSE 0 END"
+
+TRIGGERS = """
+CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_ins AFTER INSERT ON ai_usage_log BEGIN
+    INSERT INTO ai_usage_month(period, pool, cost_microeur) VALUES (NEW.period, {pool_new}, {cost_new})
+        ON CONFLICT(period, pool) DO UPDATE SET cost_microeur = cost_microeur + excluded.cost_microeur;
+    INSERT INTO ai_usage_user_month(period, user_id, cost_microeur) SELECT NEW.period, NEW.user_id, {cost_new} WHERE NEW.user_id IS NOT NULL
+        ON CONFLICT(period, user_id) DO UPDATE SET cost_microeur = cost_microeur + excluded.cost_microeur;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_upd AFTER UPDATE OF period, trial, library, state, cost_microeur, user_id ON ai_usage_log BEGIN
+    UPDATE ai_usage_month SET cost_microeur = cost_microeur - ({cost_old}) WHERE period=OLD.period AND pool={pool_old};
+    INSERT INTO ai_usage_month(period, pool, cost_microeur) VALUES (NEW.period, {pool_new}, {cost_new})
+        ON CONFLICT(period, pool) DO UPDATE SET cost_microeur = cost_microeur + excluded.cost_microeur;
+    UPDATE ai_usage_user_month SET cost_microeur = cost_microeur - ({cost_old}) WHERE period=OLD.period AND user_id=OLD.user_id;
+    INSERT INTO ai_usage_user_month(period, user_id, cost_microeur) SELECT NEW.period, NEW.user_id, {cost_new} WHERE NEW.user_id IS NOT NULL
+        ON CONFLICT(period, user_id) DO UPDATE SET cost_microeur = cost_microeur + excluded.cost_microeur;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_del AFTER DELETE ON ai_usage_log BEGIN
+    UPDATE ai_usage_month SET cost_microeur = cost_microeur - ({cost_old}) WHERE period=OLD.period AND pool={pool_old};
+    UPDATE ai_usage_user_month SET cost_microeur = cost_microeur - ({cost_old}) WHERE period=OLD.period AND user_id=OLD.user_id;
+END;
+""".format(pool_new=_POOL_SQL.format(r="NEW"), cost_new=_COST_SQL.format(r="NEW"),
+           pool_old=_POOL_SQL.format(r="OLD"), cost_old=_COST_SQL.format(r="OLD"))
 
 RESERVE_MICROEUR = 20_000           # Reservierung je Anfrage vor dem Aufruf (2 Cent), danach echte Kosten
 INFLIGHT_STALE_S = 600
@@ -120,6 +162,26 @@ class AIUnavailable(Exception):
         # retryable: der Anbieter hat nichts berechnet, der naechste der Kette darf uebernehmen (app/ai_router.py);
         # started: der Anbieter hatte angenommen, die Nutzung ist unbekannt -> die Reservierung wird abgerechnet
         self.retryable, self.started = retryable, started
+        # http_status: Antwortcode des Anbieters vor der Antwort (ai_providers.http_error); 0 = Netzfehler oder kein HTTP-Fehler
+        self.http_status = 0
+
+    def quick_retry_ok(self) -> bool:
+        """Darf derselbe Anbieter EINMAL sofort noch einmal gefragt werden? Nur Netzfehler (nicht erreichbar) oder 5xx vor
+        der Antwort, bei denen nichts berechnet wurde - nicht bei 429 (ausgelastet), 401/403 (Schluessel), 4xx."""
+        return self.retryable and self.billed is None and not self.started and \
+            (self.code == "ai_provider_unreachable" or (self.code == "ai_provider_error" and self.http_status >= 500))
+
+
+def timeout_s() -> int:
+    """Zeitlimit je Verbindung zum Anbieter (Verbinden, Warten auf das naechste Stueck): LERNAPP_AI_TIMEOUT_S, Standard
+    90 s (vorher 120; 08.11.2026). Die Gesamtdauer einer Antwort begrenzt ai_providers.DEADLINE_S."""
+    try:
+        return max(5, int(float(os.environ.get("LERNAPP_AI_TIMEOUT_S") or 90)))
+    except ValueError:
+        return 90
+
+
+RETRY_FAST_S = 10        # eine sofortige Wiederholung beim selben Anbieter nur, wenn der Fehler schnell kam (kein Zeitlimit)
 
 
 @dataclass
@@ -318,8 +380,8 @@ class OpenAIProvider:
     label = "openai"
     supports_options = True
 
-    def __init__(self, api_key: str, model_name: str, timeout: int = 120, transport=None, base_url: str | None = None):
-        self.api_key, self.model, self.timeout = api_key, model_name, timeout
+    def __init__(self, api_key: str, model_name: str, timeout: int | None = None, transport=None, base_url: str | None = None):
+        self.api_key, self.model, self.timeout = api_key, model_name, timeout or timeout_s()
         self.transport = transport or urllib_transport
         if base_url:                                 # EU-Datenresidenz: https://eu.api.openai.com/v1
             self.URL = base_url.rstrip("/") + "/responses"
@@ -373,6 +435,111 @@ class OpenAIProvider:
             raise AIUnavailable("ai_provider_unreachable", "Der KI-Anbieter hat die Antwort abgebrochen.", 502, started=True)
         return Completion.from_usage(text, data, self.model, images=1 if image else 0)
 
+    async def acomplete(self, system: str, prompt: str, schema: dict | None = None, *, image: bytes | None = None,
+                        max_output_tokens: int | None = None, on_delta=None, cache_key: str | None = None,
+                        user_tag: str | None = None) -> Completion:
+        """Wie complete, aber asynchron (08.11.2026, Lastfestigkeit): eine offene Anfrage ist nur eine wartende Verbindung
+        im gemeinsamen httpx-Client (async_http_client), kein Thread. Der Ereignisstrom wird Zeile fuer Zeile ausgewertet,
+        nicht gepuffert. Mit einem Test-Transport (sync) laeuft complete in einem Thread."""
+        if self.transport is not urllib_transport:
+            return await run_sync_provider(self.complete, system, prompt, schema, image=image, max_output_tokens=max_output_tokens,
+                                           on_delta=on_delta, cache_key=cache_key, user_tag=user_tag)
+        body = self.request_body(system, prompt, schema, image=image, max_output_tokens=max_output_tokens, cache_key=cache_key,
+                                 user_tag=user_tag)
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "Accept": "text/event-stream"}
+        return await stream_responses_async(self.URL, headers, body, timeout=self.timeout, on_delta=on_delta, model=self.model,
+                                            images=1 if image else 0)
+
+
+# ---------------------------------------------------------------- asynchroner Weg zum Anbieter (httpx)
+
+def _httpx():
+    """httpx (im Repo als `httpx2`, die Abhaengigkeit des Anthropic-SDK; aeltere Umgebungen: `httpx`)."""
+    try:
+        import httpx2 as httpx
+    except ImportError:                              # pragma: no cover - je nach Umgebung
+        import httpx
+    return httpx
+
+
+_async_client = None
+_async_client_loop = None
+
+
+def async_http_client():
+    """Ein httpx.AsyncClient je Prozess (und je Ereignisschleife): Verbindungs-Pool ohne Obergrenze (LERNAPP_AI_CONCURRENCY
+    begrenzt die Anfragen, nicht der Pool), 200 offene Verbindungen bleiben fuer die naechsten Anfragen warm. Zeitlimits:
+    Verbinden 10 s, Warten auf das naechste Stueck timeout_s(); die Gesamtdauer begrenzt ai_providers.DEADLINE_S."""
+    global _async_client, _async_client_loop
+    import asyncio
+    loop = asyncio.get_running_loop()
+    if _async_client is None or _async_client_loop is not loop:
+        httpx = _httpx()
+        _async_client = httpx.AsyncClient(timeout=httpx.Timeout(float(timeout_s()), connect=10.0, write=30.0, pool=30.0),
+                                          limits=httpx.Limits(max_connections=None, max_keepalive_connections=200, keepalive_expiry=30.0),
+                                          follow_redirects=False, trust_env=False)
+        _async_client_loop = loop
+    return _async_client
+
+
+async def run_sync_provider(fn, *args, **kwargs):
+    """Sync-Anbieter (Attrappen in Tests, ChatGPT-Abo am PC) im Thread; eigener Begrenzer, nicht der allgemeine Pool."""
+    import anyio
+    from functools import partial
+    from . import ai_async
+    return await anyio.to_thread.run_sync(partial(fn, *args, **kwargs), limiter=ai_async.provider_limiter())
+
+
+async def stream_responses_async(url: str, headers: dict, body: dict, *, timeout: float, on_delta=None, model: str = "",
+                                 images: int = 0, who: str = "Der KI-Anbieter") -> Completion:
+    """POST an die Responses API als Ereignisstrom, asynchron: Fehler vor der Antwort -> http_error (retryable), Netzfehler
+    vor der Antwort -> ai_provider_unreachable (retryable), Abbruch danach -> started=True (kein Wechsel des Anbieters)."""
+    from .ai_providers import DEADLINE_S, http_error
+    httpx = _httpx()
+    client = async_http_client()
+    started = False
+    consumer = _ResponsesConsumer(on_delta, who, model, images)
+    parser = _SSEParser()
+    end = time.monotonic() + DEADLINE_S
+    try:
+        async with client.stream("POST", url, headers=headers, content=json.dumps(body).encode("utf-8"),
+                                 timeout=httpx.Timeout(float(timeout), connect=10.0, write=30.0, pool=30.0)) as r:
+            if r.status_code >= 400:
+                raw = (await r.aread()).decode("utf-8", "replace")[:4000]
+                raise http_error(who, r.status_code, scrub(_error_message(raw)))
+            started = True
+            head: list[str] = []
+            plain = None
+            async for line in r.aiter_lines():
+                if time.monotonic() > end:
+                    raise TimeoutError("Frist der KI-Antwort abgelaufen")
+                if plain is None:
+                    if not line.strip():
+                        continue
+                    plain = line.lstrip().startswith("{")        # gewoehnliches JSON statt Ereignisstrom
+                if plain:
+                    head.append(line)
+                    continue
+                for event in parser.feed(line):
+                    consumer.feed(event)
+                if consumer.result is not None:
+                    break
+            if plain:
+                text, data = _plain_json("\n".join(head).strip(), who)
+            else:
+                for event in parser.flush():
+                    consumer.feed(event)
+                text, data = consumer.finish()
+    except AIUnavailable as e:
+        if started:
+            e.started = True                         # angenommen, dann abgebrochen: kein Wechsel des Anbieters
+        raise
+    except (httpx.HTTPError, TimeoutError, OSError):
+        if started:
+            raise AIUnavailable("ai_provider_unreachable", f"{who} hat die Antwort abgebrochen.", 502, started=True)
+        raise AIUnavailable("ai_provider_unreachable", f"{who} ist nicht erreichbar.", 502, retryable=True)
+    return Completion.from_usage(text, data, model, images=images)
+
 
 class ChatGPTProvider(OpenAIProvider):
     """Responses API mit dem ChatGPT-Abo des Nutzers (Sign in with ChatGPT, app/chatgpt_login.py): das Zugriffstoken
@@ -387,7 +554,7 @@ class ChatGPTProvider(OpenAIProvider):
 
     label = "chatgpt"
 
-    def __init__(self, model_name: str, timeout: int = 120):
+    def __init__(self, model_name: str, timeout: int | None = None):
         super().__init__("", model_name, timeout)
 
     @staticmethod
@@ -447,6 +614,10 @@ class ChatGPTProvider(OpenAIProvider):
         text, data = stream_text(raw)
         return Completion.from_usage(text, data, self.model, images=1 if image else 0)
 
+    async def acomplete(self, system: str, prompt: str, schema: dict | None = None, *, image: bytes | None = None, **_options) -> Completion:
+        """Nur am PC (ein Nutzer): im Thread, die Ablage des Tokens ist synchron."""
+        return await run_sync_provider(self.complete, system, prompt, schema, image=image)
+
 
 def _iter_sse(lines) -> "Iterator[str]":
     """`data:`-Inhalte der Ereignisse eines SSE-Stroms, Zeile fuer Zeile beim Eintreffen (mehrzeilige `data:` je Ereignis
@@ -493,27 +664,63 @@ def _output_text(d: dict) -> str:
 TRUNCATED_NOTE = "\n\n*(Die Antwort wurde hier gekürzt. Frag nach dem Rest, z. B. „Erkläre ab Aufgabe 5“.)*"
 
 
-def _consume(events, on_delta=None, who: str = "ChatGPT", model: str = "", images: int = 0) -> tuple[str, dict]:
-    """Ereignisse der Responses API auswerten (siehe stream_text). `on_delta` bekommt jedes Textstueck beim Eintreffen.
-    Bricht die Antwort ab (failed, incomplete), traegt der Fehler die schon berechnete Nutzung (`billed`)."""
-    deltas, completed, saw = [], None, False
-    for event in events:
+class _SSEParser:
+    """SSE-Zeilen zu `data:`-Inhalten, Stueck fuer Stueck (wie _iter_sse, aber fuer Zeilen, die einzeln eintreffen,
+    z. B. aus dem asynchronen Strom): feed(line) liefert die fertigen Ereignisse, flush() den Rest."""
+
+    def __init__(self) -> None:
+        self.current: list[str] = []
+
+    def feed(self, line) -> list[str]:
+        out: list[str] = []
+        for part in str(line).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+            if not part:
+                d = "\n".join(self.current)
+                self.current.clear()
+                if d and d != "[DONE]":
+                    out.append(d)
+                continue
+            if part.startswith("data:"):
+                self.current.append(part[5:].removeprefix(" "))
+        return out
+
+    def flush(self) -> list[str]:
+        d = "\n".join(self.current)
+        self.current.clear()
+        return [d] if d and d != "[DONE]" else []
+
+
+class _ResponsesConsumer:
+    """Ereignisse der Responses API auswerten (siehe stream_text), ein Ereignis nach dem anderen: feed(event) fuer jedes
+    Ereignis beim Eintreffen (gepuffert wird nur der Text selbst), finish() liefert (Text, fertige Antwort).
+    `on_delta` bekommt jedes Textstueck sofort. Bricht die Antwort ab (failed, incomplete), traegt der Fehler die schon
+    berechnete Nutzung (`billed`). Nach einer gekuerzten Antwort (Ausgabegrenze) steht das Ergebnis in `result`."""
+
+    def __init__(self, on_delta=None, who: str = "ChatGPT", model: str = "", images: int = 0) -> None:
+        self.on_delta, self.who, self.model, self.images = on_delta, who, model, images
+        self.deltas: list[str] = []
+        self.completed: dict | None = None
+        self.saw = False
+        self.result: tuple[str, dict] | None = None
+
+    def feed(self, event: str) -> None:
         try:
             j = json.loads(event)
         except ValueError:
-            continue
+            return
         if not isinstance(j, dict):
-            continue
-        saw = True
+            return
+        self.saw = True
+        who, model, images = self.who, self.model, self.images
         t = j.get("type") or ""
         resp = j.get("response") if isinstance(j.get("response"), dict) else None
         if t == "response.output_text.delta":
             piece = str(j.get("delta") or "")
-            deltas.append(piece)
-            if on_delta and piece:
-                on_delta(piece)
+            self.deltas.append(piece)
+            if self.on_delta and piece:
+                self.on_delta(piece)
         elif t == "response.completed":
-            completed = resp if resp is not None else {}
+            self.completed = resp if resp is not None else {}
         elif t == "response.failed":
             err = resp.get("error") if resp is not None else None
             err = err if isinstance(err, dict) else (j.get("error") if isinstance(j.get("error"), dict) else {})
@@ -523,19 +730,34 @@ def _consume(events, on_delta=None, who: str = "ChatGPT", model: str = "", image
             raise _stream_error(j.get("code"), j.get("message"), who)
         elif t == "response.incomplete":
             why = ((resp or {}).get("incomplete_details") or {}).get("reason") or "unvollständig"
-            text = "".join(deltas)
+            text = "".join(self.deltas)
             # Ausgabegrenze erreicht (Test 06.11.2026: "Alle Aufgaben" auf 12 Seiten brauchte 4 360 Tokens): der Nutzer hat
             # den Text bezahlt, also bekommt er ihn mit einem Hinweis statt eines Fehlers. JSON-Antworten scheitern weiter
             # beim Auslesen, freier Text ist auch gekuerzt brauchbar.
             if why == "max_output_tokens" and text.strip() and resp is not None:
-                return text + TRUNCATED_NOTE, {**resp, "truncated": True}
+                self.result = (text + TRUNCATED_NOTE, {**resp, "truncated": True})
+                return
             billed = Completion.from_usage(text, resp, model, images) if resp and resp.get("usage") else None
             raise AIUnavailable("ai_provider_error", f"{who} hat die Antwort nicht beendet ({str(why)[:80]}).", 502, billed=billed)
-    if completed is None:
-        raise AIUnavailable("ai_provider_error", f"{who} hat die Antwort nicht beendet (kein response.completed)." if saw
-                            else f"{who} antwortete unlesbar.", 502)
-    final = _output_text(completed)
-    return (final or "".join(deltas)), completed
+
+    def finish(self) -> tuple[str, dict]:
+        if self.result is not None:
+            return self.result
+        if self.completed is None:
+            raise AIUnavailable("ai_provider_error", f"{self.who} hat die Antwort nicht beendet (kein response.completed)." if self.saw
+                                else f"{self.who} antwortete unlesbar.", 502)
+        final = _output_text(self.completed)
+        return (final or "".join(self.deltas)), self.completed
+
+
+def _consume(events, on_delta=None, who: str = "ChatGPT", model: str = "", images: int = 0) -> tuple[str, dict]:
+    """Ereignisse der Responses API auswerten (siehe stream_text, _ResponsesConsumer)."""
+    c = _ResponsesConsumer(on_delta, who, model, images)
+    for event in events:
+        c.feed(event)
+        if c.result is not None:
+            break
+    return c.finish()
 
 
 def _plain_json(stripped: str, who: str) -> tuple[str, dict]:
@@ -688,6 +910,72 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE ai_usage_log ADD COLUMN library INTEGER NOT NULL DEFAULT 0")
     if "model" not in {r[1] for r in conn.execute("PRAGMA table_info(ai_cache)")}:
         conn.execute("ALTER TABLE ai_cache ADD COLUMN model TEXT")
+    conn.executescript(TRIGGERS)
+    _rebuild_once(conn)
+
+
+_rebuilt: set = set()
+
+
+def _rebuild_once(conn: sqlite3.Connection) -> None:
+    """Neuaufbau der Monatssummen einmal je Prozess und Datei (Pfad + Dateinummer). db.schema_once allein reicht nicht:
+    sein Merkmal enthaelt die Aenderungszeit der Datei, die sich bei jedem Checkpoint aendert - dann liefe der Neuaufbau
+    (GROUP BY ueber den ganzen Monat unter Schreibsperre) bei jeder Verbindung noch einmal (Ledger-Messung 08.11.2026:
+    47 statt 1.300 Fragen/s bei 100k Zeilen)."""
+    try:
+        row = conn.execute("PRAGMA database_list").fetchone()
+        path = row[2] if row else ""
+        ident = (path, os.stat(path).st_ino) if path else None
+    except (OSError, sqlite3.Error):
+        ident = None
+    if ident is not None and ident in _rebuilt:
+        return
+    rebuild_month_totals(conn)
+    if ident is not None:
+        _rebuilt.add(ident)
+
+
+def rebuild_month_totals(conn: sqlite3.Connection) -> None:
+    """Monatssummen aus ai_usage_log neu aufbauen (einmal je Prozess beim Start, _rebuild_once): danach stimmen sie
+    auch, wenn jemand die Tabelle von Hand geaendert oder einen alten Stand eingespielt hat; ab dann halten die Trigger
+    sie aktuell."""
+    own = not conn.in_transaction
+    if own:
+        conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute("DELETE FROM ai_usage_month")
+        conn.execute("DELETE FROM ai_usage_user_month")
+        conn.execute(f"INSERT INTO ai_usage_month(period, pool, cost_microeur) SELECT period, {_POOL_SQL.format(r='ai_usage_log')}, "
+                     "COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE state<>'failed' GROUP BY 1, 2")
+        conn.execute("INSERT INTO ai_usage_user_month(period, user_id, cost_microeur) SELECT period, user_id, COALESCE(SUM(cost_microeur),0) "
+                     "FROM ai_usage_log WHERE state<>'failed' AND user_id IS NOT NULL GROUP BY 1, 2")
+        if own:
+            conn.execute("COMMIT")
+    except Exception:
+        if own and conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+
+
+def month_totals_match_log(conn: sqlite3.Connection) -> bool:
+    """Pruefung (Tests, Betrieb): stimmen die laufenden Summen mit ai_usage_log ueberein?"""
+    pools = {(p, k): v for p, k, v in conn.execute(f"SELECT period, {_POOL_SQL.format(r='ai_usage_log')}, COALESCE(SUM(cost_microeur),0) "
+                                                   "FROM ai_usage_log WHERE state<>'failed' GROUP BY 1, 2")}
+    have = {(p, k): v for p, k, v in conn.execute("SELECT period, pool, cost_microeur FROM ai_usage_month WHERE cost_microeur<>0")}
+    users = {(p, u): v for p, u, v in conn.execute("SELECT period, user_id, COALESCE(SUM(cost_microeur),0) FROM ai_usage_log "
+                                                   "WHERE state<>'failed' AND user_id IS NOT NULL GROUP BY 1, 2")}
+    have_u = {(p, u): v for p, u, v in conn.execute("SELECT period, user_id, cost_microeur FROM ai_usage_user_month WHERE cost_microeur<>0")}
+    return {k: v for k, v in pools.items() if v} == have and {k: v for k, v in users.items() if v} == have_u
+
+
+def _pool_total(conn: sqlite3.Connection, period: str, pool: str) -> int:
+    row = conn.execute("SELECT cost_microeur FROM ai_usage_month WHERE period=? AND pool=?", (period, pool)).fetchone()
+    return int(row[0]) if row else 0
+
+
+def _user_total(conn: sqlite3.Connection, period: str, user_id: str) -> int:
+    row = conn.execute("SELECT cost_microeur FROM ai_usage_user_month WHERE period=? AND user_id=?", (period, str(user_id))).fetchone()
+    return int(row[0]) if row else 0
 
 
 def connect() -> sqlite3.Connection:
@@ -728,8 +1016,7 @@ def rate_per_hour() -> int:
 
 
 def _library_pool(conn: sqlite3.Connection, period: str) -> int:
-    return conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed' AND library=1",
-                        (period,)).fetchone()[0]
+    return _pool_total(conn, period, "library")
 
 
 def library_exhausted() -> AIUnavailable:
@@ -776,17 +1063,16 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
             raise
     try:
         trial = 1 if user_id and is_trial_account(conn, user_id, t) else 0
-        # zwei Becken: Probekonten verbrauchen nur ihr eigenes kleines Budget, nie das der zahlenden Konten
-        pool = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed' AND trial=? "
-                            "AND library=0", (period, trial)).fetchone()[0]
+        # zwei Becken: Probekonten verbrauchen nur ihr eigenes kleines Budget, nie das der zahlenden Konten; die Summen
+        # kommen aus ai_usage_month (laufend, Trigger), nicht aus einer Summe ueber den ganzen Monat
+        pool = _pool_total(conn, period, "trial" if trial else "paid")
         if trial:
             if pool + amount > trial_budget_microeur():
                 raise AIUnavailable("ai_trial_budget_exhausted", "Das Probe-Kontingent der StudiNow-KI ist für diesen Monat ausgeschöpft.", 429)
         elif pool + amount > budget_microeur():
             raise AIUnavailable("ai_budget_exhausted", "Das KI-Budget von StudiNow für diesen Monat ist ausgeschöpft.", 503)
         if user_id:
-            mine = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND user_id=? AND state<>'failed'",
-                                (period, user_id)).fetchone()[0]
+            mine = _user_total(conn, period, user_id)
             if mine + amount > user_budget_microeur():
                 raise AIUnavailable("ai_user_budget_exhausted", "Dein KI-Kostenrahmen für diesen Monat ist erreicht.", 429)
             if rate_limit:
@@ -893,6 +1179,179 @@ def _prices_missing() -> AIUnavailable:
                          "LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR).", 503)
 
 
+class _Call:
+    """Eine StudiNow-KI-Anfrage in Schritten, damit der synchrone Weg (`complete`: Jobs, Bibliothek, Tests) und der
+    asynchrone Weg der Endpunkte (`complete_async`) denselben Ablauf teilen (08.11.2026, Lastfestigkeit):
+
+      prepare()      Cache, Credits-Reservierung, Budget/Rate-Limit-Reservierung - EINE kurze Verbindung, danach zu
+      options(i)     Argumente fuer den Anbieter i der Kette
+      succeed(c, i)  abrechnen und in den Zwischenspeicher
+      failed(e, i)   True = der naechste Anbieter uebernimmt (nichts berechnet), sonst abgerechnet/zurueckgebucht
+      crashed()      unerwarteter Fehler: Protokoll 'failed', Credits zurueck
+
+    Waehrend der Anbieter antwortet (5-30 s) haelt die Anfrage KEINE Datenbankverbindung (bei 4.000 offenen Fragen waeren
+    das 12.000 Dateideskriptoren); jeder Schritt oeffnet kurz seine eigene. Die Reservierung (Credits je Konto, Becken des
+    Dienstes) geschieht VOR dem Aufruf des Anbieters in einer BEGIN-IMMEDIATE-Transaktion: gleichzeitige Anfragen koennen
+    das Budget nie gemeinsam ueberschreiten, auch nicht zu Tausenden."""
+
+    def __init__(self, user_id, purpose, system, prompt, schema, cache, now, *, image, model_name, max_output_tokens,
+                 request_id, credits, rate_limit, on_delta, keep_result, budget_reserve, library, route_hint, route_text, fresh):
+        from . import ai_consent
+        # Web-Oberflaeche des Dienstes: kein Anbieter ohne Einwilligung des Kontos (428 ai_consent_required)
+        ai_consent.require_hosted(library)
+        if library:
+            user_id = None
+        self.user_id, self.purpose, self.system, self.prompt, self.schema = user_id, purpose, system, prompt, schema
+        self.cache, self.now, self.image, self.on_delta, self.keep_result = cache, now, image, on_delta, keep_result
+        self.budget_reserve, self.library, self.rate_limit, self.fresh = budget_reserve, library, rate_limit, fresh
+        self.rid = request_id or ("auto:" + uuid.uuid4().hex)
+        # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
+        self.chain = route(purpose, self.rid, model_name=model_name, image=image, route_text=route_text, route_hint=route_hint)
+        self.models = [model_name or getattr(p, "model", None) or model() for p in self.chain]
+        self.hosted = config.is_hosted()
+        if self.hosted:
+            # ohne Token-Preise rechnet kein Budget (Kosten blieben 0): im Dienst lieber sperren als unbegrenzt ausgeben
+            keep = [i for i, m in enumerate(self.models) if prices_set(m)]
+            if not keep:
+                raise _prices_missing()
+            self.chain, self.models = [self.chain[i] for i in keep], [self.models[i] for i in keep]
+        self.requested = self.models[0]
+        self.charge = bool(user_id) and (credits if credits is not None else (self.hosted and charges_credits(purpose)))
+        self.max_out = int(max_output_tokens or max_output(purpose))
+        self.images = [image] if image else None
+        self.key: str | None = None
+        self.held = None
+        self.log_id: int | None = None
+        self.ceiling = 0
+        self.result: Completion | None = None       # fertig ohne Anbieter (Zwischenspeicher, Wiederholung)
+
+    def _worst(self, out_tokens: int) -> int:
+        return max(ai_prices.worst_case_microeur(m, self.system, self.prompt, out_tokens, self.images, self.schema) for m in self.models)
+
+    def _estimate(self, out_tokens: int) -> int:
+        return max(ai_prices.estimate_credits(m, self.system, self.prompt, out_tokens, self.images, schema=self.schema) for m in self.models)
+
+    def prepare(self) -> None:
+        from . import credits as ledger
+        conn = connect()
+        try:
+            if self.cache and not self.image:
+                # ohne Modell im Schluessel: dieselbe Antwort gilt fuer jedes Modell der Mischung (gespeichert wird, wer sie schrieb)
+                self.key = "c2:" + hashlib.sha256(json.dumps([self.purpose, self.system, self.prompt, self.schema], sort_keys=True).encode()).hexdigest()
+                hit = None if self.fresh else conn.execute("SELECT result, created_at, model FROM ai_cache WHERE key=?", (self.key,)).fetchone()
+                if hit and hit[1] >= (_now(self.now) - timedelta(days=CACHE_DAYS)).isoformat():
+                    self.result = Completion(hit[0], 0, 0, "cache", source_model=hit[2] or "")
+                    return
+            if self.charge:
+                try:
+                    self.held = ledger.reserve(conn, self.user_id, self.rid, self.purpose, self._estimate(self.max_out), self.now, model=self.requested)
+                except ledger.CreditsError as e:
+                    remaining = int(((e.extra or {}).get("credits") or {}).get("remaining") or 0)
+                    fit = min(ai_prices.max_output_within(m, self.system, self.prompt, remaining * ai_prices.MICROEUR_PER_CREDIT, self.images,
+                                                          self.schema) for m in self.models) if e.code == "credits_exhausted" and remaining > 0 else 0
+                    fit = min(fit, self.max_out - 1)
+                    if fit < min(MIN_SHRUNK_OUTPUT, self.max_out - 1) or self._estimate(fit) > remaining:
+                        raise AIUnavailable(e.code, e.message, e.status, e.extra)
+                    self.max_out = fit                   # kleinere Antwort, die sicher in den Rest passt
+                    try:
+                        self.held = ledger.reserve(conn, self.user_id, self.rid, self.purpose, self._estimate(self.max_out), self.now,
+                                                   model=self.requested)
+                    except ledger.CreditsError as e2:
+                        raise AIUnavailable(e2.code, e2.message, e2.status, e2.extra)
+                if self.held.replay:
+                    if self.held.result is not None:
+                        self.result = Completion(self.held.result, 0, 0, self.requested, credits_charged=0, replay=True)
+                        return
+                    raise AIUnavailable("duplicate_request", "Diese Anfrage wurde schon verarbeitet.", 409)
+            self.ceiling = self._worst(self.max_out)     # hoechstens so viel kann diese Anfrage kosten (auch mit Ersatz)
+            try:
+                # Becken (gesamt, Probe, je Konto): Reservierung wie bisher; die harte Grenze je Konto halten die Credits
+                self.log_id = reserve(conn, self.user_id, self.purpose, self.now, rate_limit=self.rate_limit,
+                                      amount_microeur=self.budget_reserve, library=self.library)
+            except Exception:
+                if self.held:
+                    ledger.refund(conn, self.user_id, self.rid)
+                raise
+        finally:
+            conn.close()
+
+    def options(self, i: int) -> dict:
+        p = self.chain[i]
+        if not getattr(p, "supports_options", False):
+            return {}
+        return {"image": self.image, "max_output_tokens": self.max_out, "on_delta": self.on_delta,
+                "cache_key": "studinow:" + self.purpose.split(":", 1)[0], "user_tag": user_tag(self.user_id)}
+
+    def _book(self, conn, c: Completion, label: str, used_model: str, cost_override: int | None = None) -> int:
+        from . import credits as ledger
+        cost = settle(conn, self.log_id, c, label, used_model, cost_override)
+        if self.held:
+            c.credits_charged = ledger.settle(conn, self.user_id, self.rid, cost, model=c.model, input_tokens=c.input_tokens,
+                                              cached_tokens=c.cached_tokens, output_tokens=c.output_tokens, images=c.images,
+                                              result=c.text if self.keep_result and c.text else None, now=self.now)
+            c.credits_reserved = self.held.reserved
+        return cost
+
+    def label(self, i: int) -> str:
+        return getattr(self.chain[i], "label", type(self.chain[i]).__name__)
+
+    def succeed(self, c: Completion, i: int) -> Completion:
+        if not c.provider:
+            c.provider = self.label(i)
+        conn = connect()
+        try:
+            self._book(conn, c, self.label(i), self.models[i], None if c.usage_known else self.ceiling)
+            if self.key and c.text:
+                conn.execute("INSERT OR REPLACE INTO ai_cache(key, result, created_at, model) VALUES (?,?,?,?)",
+                             (self.key, c.text, _now(self.now).isoformat(), c.model))
+        finally:
+            conn.close()
+        return c
+
+    def failed(self, e: AIUnavailable, i: int) -> bool:
+        from . import credits as ledger
+        if e.retryable and e.billed is None and not e.started and i + 1 < len(self.chain):
+            return True                              # nichts berechnet: der naechste Anbieter, dieselbe Reservierung
+        label = self.label(i)
+        conn = connect()
+        try:
+            if e.billed is not None:                 # der Anbieter hat schon gerechnet (abgebrochene Antwort): abrechnen
+                if not e.billed.provider:
+                    e.billed.provider = label
+                self._book(conn, e.billed, label, self.models[i], None if e.billed.usage_known else self.ceiling)
+                if self.held:
+                    e.extra = {**e.extra, "credits_charged": e.billed.credits_charged}
+            elif e.started:                          # angenommen, Nutzung unbekannt: die Obergrenze abrechnen
+                gone = Completion("", 0, 0, self.models[i], provider=label, usage_known=False)
+                self._book(conn, gone, label, self.models[i], self.ceiling)
+                if self.held:
+                    e.extra = {**e.extra, "credits_charged": gone.credits_charged}
+            else:
+                settle(conn, self.log_id, None)
+                if self.held:
+                    ledger.refund(conn, self.user_id, self.rid)
+        finally:
+            conn.close()
+        return False
+
+    def crashed(self) -> None:
+        from . import credits as ledger
+        conn = connect()
+        try:
+            settle(conn, self.log_id, None)
+            if self.held:
+                ledger.refund(conn, self.user_id, self.rid)
+        finally:
+            conn.close()
+
+
+def _call_kwargs(image, model_name, max_output_tokens, request_id, credits, rate_limit, on_delta, keep_result, budget_reserve,
+                 library, route_hint, route_text, fresh) -> dict:
+    return dict(image=image, model_name=model_name, max_output_tokens=max_output_tokens, request_id=request_id, credits=credits,
+                rate_limit=rate_limit, on_delta=on_delta, keep_result=keep_result, budget_reserve=budget_reserve, library=library,
+                route_hint=route_hint, route_text=route_text, fresh=fresh)
+
+
 def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
              cache: bool = False, now: datetime | None = None, *, image: bytes | None = None, model_name: str | None = None,
              max_output_tokens: int | None = None, request_id: str | None = None, credits: bool | None = None,
@@ -906,126 +1365,78 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
     harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das teuerste Modell der Kette reserviert - reicht der Rest
     nicht, wird `max_output_tokens` verkleinert (hoechstens bis MIN_SHRUNK_OUTPUT), sonst 429 credits_exhausted. Danach
     wird mit `usage` abgerechnet (nie mehr als reserviert); ein Fehler ohne Nutzung gibt die Reservierung zurueck und
-    der naechste Anbieter der Kette uebernimmt, wenn der erste nichts berechnet hat. Dieselbe request_id wird nie zweimal
-    berechnet (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG.
-    `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits; `user_id` wird dann
-    nicht gespeichert). `fresh=True` ("Neu erklaeren lassen"): den Zwischenspeicher nicht lesen, die neue Antwort ersetzt
-    die gespeicherte."""
-    from . import ai_consent, credits as ledger
-    # Web-Oberflaeche des Dienstes: kein Anbieter ohne Einwilligung des Kontos (428 ai_consent_required)
-    ai_consent.require_hosted(library)
-    if library:
-        user_id = None
-    rid = request_id or ("auto:" + uuid.uuid4().hex)
-    # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
-    chain = route(purpose, rid, model_name=model_name, image=image, route_text=route_text, route_hint=route_hint)
-    models = [model_name or getattr(p, "model", None) or model() for p in chain]
-    hosted = config.is_hosted()
-    if hosted:
-        # ohne Token-Preise rechnet kein Budget (Kosten blieben 0): im Dienst lieber sperren als unbegrenzt ausgeben
-        keep = [i for i, m in enumerate(models) if prices_set(m)]
-        if not keep:
-            raise _prices_missing()
-        chain, models = [chain[i] for i in keep], [models[i] for i in keep]
-    requested = models[0]
-    charge = bool(user_id) and (credits if credits is not None else (hosted and charges_credits(purpose)))
-    max_out = int(max_output_tokens or max_output(purpose))
-    images = [image] if image else None
-
-    def worst(out_tokens: int) -> int:
-        return max(ai_prices.worst_case_microeur(m, system, prompt, out_tokens, images, schema) for m in models)
-
-    def estimate(out_tokens: int) -> int:
-        return max(ai_prices.estimate_credits(m, system, prompt, out_tokens, images, schema=schema) for m in models)
-    conn = connect()
-    try:
-        key = None
-        if cache and not image:
-            # ohne Modell im Schluessel: dieselbe Antwort gilt fuer jedes Modell der Mischung (gespeichert wird, wer sie schrieb)
-            key = "c2:" + hashlib.sha256(json.dumps([purpose, system, prompt, schema], sort_keys=True).encode()).hexdigest()
-            hit = None if fresh else conn.execute("SELECT result, created_at, model FROM ai_cache WHERE key=?", (key,)).fetchone()
-            if hit and hit[1] >= (_now(now) - timedelta(days=CACHE_DAYS)).isoformat():
-                return Completion(hit[0], 0, 0, "cache", source_model=hit[2] or "")
-        held = None
-        if charge:
+    der naechste Anbieter der Kette uebernimmt, wenn der erste nichts berechnet hat. Netzfehler oder 5xx vor der Antwort,
+    die schnell kamen (RETRY_FAST_S), bekommen beim selben Anbieter EINE sofortige Wiederholung (AIUnavailable.quick_retry_ok).
+    Dieselbe request_id wird nie zweimal berechnet (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung).
+    image: Seite als PNG/JPEG. `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits;
+    `user_id` wird dann nicht gespeichert). `fresh=True` ("Neu erklaeren lassen"): den Zwischenspeicher nicht lesen, die
+    neue Antwort ersetzt die gespeicherte. Synchron (Jobs, Bibliothek, Tests); die Endpunkte nutzen complete_async."""
+    call = _Call(user_id, purpose, system, prompt, schema, cache, now,
+                 **_call_kwargs(image, model_name, max_output_tokens, request_id, credits, rate_limit, on_delta, keep_result,
+                                budget_reserve, library, route_hint, route_text, fresh))
+    call.prepare()
+    if call.result is not None:
+        return call.result
+    for i, p in enumerate(call.chain):
+        retried = False
+        while True:
+            t0 = time.monotonic()
             try:
-                held = ledger.reserve(conn, user_id, rid, purpose, estimate(max_out), now, model=requested)
-            except ledger.CreditsError as e:
-                remaining = int(((e.extra or {}).get("credits") or {}).get("remaining") or 0)
-                fit = min(ai_prices.max_output_within(m, system, prompt, remaining * ai_prices.MICROEUR_PER_CREDIT, images, schema)
-                          for m in models) if e.code == "credits_exhausted" and remaining > 0 else 0
-                fit = min(fit, max_out - 1)
-                if fit < min(MIN_SHRUNK_OUTPUT, max_out - 1) or estimate(fit) > remaining:
-                    raise AIUnavailable(e.code, e.message, e.status, e.extra)
-                max_out = fit                        # kleinere Antwort, die sicher in den Rest passt
-                try:
-                    held = ledger.reserve(conn, user_id, rid, purpose, estimate(max_out), now, model=requested)
-                except ledger.CreditsError as e2:
-                    raise AIUnavailable(e2.code, e2.message, e2.status, e2.extra)
-            if held.replay:
-                if held.result is not None:
-                    return Completion(held.result, 0, 0, requested, credits_charged=0, replay=True)
-                raise AIUnavailable("duplicate_request", "Diese Anfrage wurde schon verarbeitet.", 409)
-        ceiling = worst(max_out)                     # hoechstens so viel kann diese Anfrage kosten (auch mit Ersatz)
-        try:
-            # Becken (gesamt, Probe, je Konto): Reservierung wie bisher; die harte Grenze je Konto halten die Credits
-            log_id = reserve(conn, user_id, purpose, now, rate_limit=rate_limit, amount_microeur=budget_reserve, library=library)
-        except Exception:
-            if held:
-                ledger.refund(conn, user_id, rid)
-            raise
-
-        def book(c: Completion, label: str, used_model: str, cost_override: int | None = None) -> int:
-            cost = settle(conn, log_id, c, label, used_model, cost_override)
-            if held:
-                c.credits_charged = ledger.settle(conn, user_id, rid, cost, model=c.model, input_tokens=c.input_tokens,
-                                                  cached_tokens=c.cached_tokens, output_tokens=c.output_tokens, images=c.images,
-                                                  result=c.text if keep_result and c.text else None, now=now)
-                c.credits_reserved = held.reserved
-            return cost
-        c = None
-        for i, p in enumerate(chain):
-            label = getattr(p, "label", type(p).__name__)
-            opts = {}
-            if getattr(p, "supports_options", False):
-                opts = {"image": image, "max_output_tokens": max_out, "on_delta": on_delta,
-                        "cache_key": "studinow:" + purpose.split(":", 1)[0], "user_tag": user_tag(user_id)}
-            try:
+                opts = call.options(i)
                 c = p.complete(system, prompt, schema, **opts) if opts else p.complete(system, prompt, schema)
             except AIUnavailable as e:
-                if e.retryable and e.billed is None and not e.started and i + 1 < len(chain):
-                    continue                         # nichts berechnet: der naechste Anbieter, dieselbe Reservierung
-                if e.billed is not None:             # der Anbieter hat schon gerechnet (abgebrochene Antwort): abrechnen
-                    if not e.billed.provider:
-                        e.billed.provider = label
-                    book(e.billed, label, models[i], None if e.billed.usage_known else ceiling)
-                    if held:
-                        e.extra = {**e.extra, "credits_charged": e.billed.credits_charged}
-                elif e.started:                      # angenommen, Nutzung unbekannt: die Obergrenze abrechnen
-                    gone = Completion("", 0, 0, models[i], provider=label, usage_known=False)
-                    book(gone, label, models[i], ceiling)
-                    if held:
-                        e.extra = {**e.extra, "credits_charged": gone.credits_charged}
-                else:
-                    settle(conn, log_id, None)
-                    if held:
-                        ledger.refund(conn, user_id, rid)
+                if not retried and e.quick_retry_ok() and time.monotonic() - t0 < RETRY_FAST_S:
+                    retried = True
+                    continue
+                if call.failed(e, i):
+                    break
                 raise
             except Exception:
-                settle(conn, log_id, None)
-                if held:
-                    ledger.refund(conn, user_id, rid)
+                call.crashed()
                 raise
-            if not c.provider:
-                c.provider = label
-            book(c, label, models[i], None if c.usage_known else ceiling)
-            break
-        if key and c is not None and c.text:
-            conn.execute("INSERT OR REPLACE INTO ai_cache(key, result, created_at, model) VALUES (?,?,?,?)",
-                         (key, c.text, _now(now).isoformat(), c.model))
-        return c
-    finally:
-        conn.close()
+            return call.succeed(c, i)
+    raise _not_configured()                          # Kette leer (kommt nicht vor: route() wirft vorher)
+
+
+async def complete_async(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
+                         cache: bool = False, now: datetime | None = None, *, image: bytes | None = None, model_name: str | None = None,
+                         max_output_tokens: int | None = None, request_id: str | None = None, credits: bool | None = None,
+                         rate_limit: bool = True, on_delta=None, keep_result: bool = False, budget_reserve: int | None = None,
+                         library: bool = False, route_hint: str | None = None, route_text: str | None = None,
+                         fresh: bool = False) -> Completion:
+    """Wie complete, fuer die Endpunkte des Dienstes (08.11.2026): die Datenbankschritte laufen kurz in einem eigenen
+    kleinen Thread-Begrenzer (app/ai_async.py, nicht im allgemeinen Pool von 40), der Anbieter wird asynchron gefragt
+    (`acomplete`: httpx bzw. Async-SDK; Attrappen und Sync-Anbieter in einem Thread). Eine wartende Anfrage belegt so
+    nur eine Verbindung - Anmelden, Abo-Stand und Abgleich laufen daneben ungebremst weiter."""
+    from . import ai_async
+    call = await ai_async.db(_Call, user_id, purpose, system, prompt, schema, cache, now,
+                             **_call_kwargs(image, model_name, max_output_tokens, request_id, credits, rate_limit, on_delta, keep_result,
+                                            budget_reserve, library, route_hint, route_text, fresh))
+    await ai_async.db(call.prepare)
+    if call.result is not None:
+        return call.result
+    for i, p in enumerate(call.chain):
+        retried = False
+        while True:
+            t0 = time.monotonic()
+            try:
+                opts = call.options(i)
+                if hasattr(p, "acomplete"):
+                    c = await p.acomplete(system, prompt, schema, **opts)
+                else:
+                    c = await run_sync_provider(p.complete, system, prompt, schema, **opts)
+            except AIUnavailable as e:
+                if not retried and e.quick_retry_ok() and time.monotonic() - t0 < RETRY_FAST_S:
+                    retried = True
+                    continue
+                if await ai_async.db(call.failed, e, i):
+                    break
+                raise
+            except Exception:
+                await ai_async.db(call.crashed)
+                raise
+            return await ai_async.db(call.succeed, c, i)
+    raise _not_configured()
 
 
 # ---------------------------------------------------------------- Sperre gegen doppelte Generierung

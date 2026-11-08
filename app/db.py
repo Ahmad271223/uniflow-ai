@@ -502,6 +502,14 @@ def wal_once(conn: sqlite3.Connection, path) -> None:
                 pass
 
 
+def fast_commits(conn: sqlite3.Connection) -> None:
+    """accounts.db (gemeinsame Datei aller Prozesse, 08.11.2026): PRAGMA synchronous=NORMAL. Im WAL-Modus bleibt die
+    Datei bei einem Absturz des Dienstes oder des Rechners konsistent; nur die letzten Transaktionen vor einem
+    Stromausfall koennen fehlen. Dafuer kostet ein Commit kein fsync mehr - bei 4.000 gleichzeitigen KI-Fragen sind
+    das ~5 Schreibtransaktionen je Frage (Credits, Budget, Protokoll), die sonst je ~1-5 ms auf die Platte warten."""
+    conn.execute("PRAGMA synchronous=NORMAL")
+
+
 def connect() -> sqlite3.Connection:
     from . import config
     # hosted: Datenbank des angemeldeten Kontos; sonst DB_PATH (Modulvariable, von Werkzeugen und Tests umlenkbar)
