@@ -120,3 +120,17 @@ def test_store_json_placeholders_are_marked_until_partner_center_values_exist():
     for ph in ("{{IDENTITY_NAME}}", "{{PUBLISHER}}", "{{PUBLISHER_DISPLAY_NAME}}", "{{DISPLAY_NAME}}"):
         assert ph in manifest
     assert "store_ready" in (WIN / "scripts" / "build-msix.ps1").read_text(encoding="utf-8")
+
+
+def test_webview2_is_checked_at_start_and_bundled_by_the_installer():
+    """08.11.2026: WebView2 fehlt auf sehr alten Windows-10-Fassungen. Der NSIS-Installer laedt die Laufzeit nach
+    (webviewInstallMode downloadBootstrapper), das MSIX kann das nicht; darum prueft das Fenster beim Start und oeffnet
+    sonst die Download-Seite von Microsoft."""
+    import json
+    conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+    assert conf["bundle"]["windows"]["webviewInstallMode"] == {"type": "downloadBootstrapper", "silent": True}
+    rs = (WIN / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
+    assert "fn ensure_webview2()" in rs and "tauri::webview_version()" in rs and "ensure_webview2();" in rs
+    assert "https://go.microsoft.com/fwlink/p/?LinkId=2124703" in rs
+    wf = (ROOT / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
+    assert '"windows/**"' in wf and "tests/test_local_secrets.py" in wf, "Zweig windows/** baut das Paket, DPAPI-Test laeuft auf dem Runner"

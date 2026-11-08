@@ -9,7 +9,15 @@
   "app": {
     "withGlobalTauri": false,
     "windows": [
-      { "label": "main", "title": "StudiNow", "width": 1360, "height": 900, "minWidth": 900, "minHeight": 600, "url": "index.html" }
+      {
+        "label": "main",
+        "title": "StudiNow",
+        "width": 1360,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "url": "index.html"
+      }
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
@@ -20,15 +28,28 @@
     "publisher": "IT solutions by Ahmad Fakih",
     "copyright": "© 2026 IT solutions by Ahmad Fakih",
     "homepage": "https://studinow.app",
-    "targets": ["nsis"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico"
+    ],
     "resources": {
       "../backend/dist/uniflow-backend/": "backend/"
     },
     "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["German", "English"]
+        "languages": [
+          "German",
+          "English"
+        ]
       }
     }
   }

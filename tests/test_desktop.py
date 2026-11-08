@@ -476,7 +476,7 @@ def test_pyinstaller_spec_and_workflow():
     assert wf.index("PyInstaller") < wf.index("npx tauri build"), "erst Backend packen, dann Installer"
     assert wf.index("npx tauri build") < wf.index("check-installer.ps1") < wf.index("upload-artifact"), "Installer testen, dann hochladen"
     # Ausloeser: push auf develop bei Aenderungen an App/Backend, dazu von Hand
-    assert re.search(r"^on:\n  push:\n    branches: \[develop\]\n    paths:\n", wf, re.M) and "workflow_dispatch:" in wf
+    assert re.search(r"^on:\n  push:\n    branches: \[develop, \"windows/\*\*\"\]\n    paths:\n", wf, re.M) and "workflow_dispatch:" in wf, "develop und windows/** (08.11.2026) bauen das Paket"
     for p in ('"apps/windows/**"', '"app/**"', '"requirements.txt"', '".github/workflows/windows.yml"'):
         assert p in wf, p
     # Chromium: Ordner chromium-* muss da sein, sonst klare Meldung

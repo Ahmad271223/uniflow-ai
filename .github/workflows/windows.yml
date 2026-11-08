@@ -1,10 +1,11 @@
 # Windows-Desktop (Tauri + mitgeliefertes Python-Backend). Windows-Minuten zaehlen doppelt: laeuft nur bei Aenderungen
-# an App oder Backend auf develop und sonst von Hand (workflow_dispatch).
+# an App oder Backend auf develop und auf Zweigen windows/** (Fertigstellung 1.0, 08.11.2026) und sonst von Hand
+# (workflow_dispatch). Ergebnis: der NSIS-Installer und das Store-Paket (MSIX) als Artefakte des Laufs.
 name: Windows
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, "windows/**"]
     paths:
       - "apps/windows/**"
       - "app/**"
@@ -37,8 +38,9 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt pyinstaller
       # Blockierend: Starter, CSP, Paketbeschreibung, Fenster-Agent, Paketdaten und ein echter Eintrag in der
       # Windows-Anmeldeinformationsverwaltung (tests/test_windows_package.py, Dummy-Token mit eigenem Ziel)
-      - name: Backend-Tests (Starter, CSP, Paketbeschreibung, Anmeldeinformationsverwaltung)
-        run: python -m pytest -q tests/test_desktop.py tests/test_desktop_windows.py tests/test_windows_package.py
+      # tests/test_local_secrets.py: DPAPI-Roundtrip der .env-Geheimnisse laeuft nur hier auf echtem Windows (08.11.2026)
+      - name: Backend-Tests (Starter, CSP, Paketbeschreibung, Anmeldeinformationsverwaltung, DPAPI)
+        run: python -m pytest -q tests/test_desktop.py tests/test_desktop_windows.py tests/test_windows_package.py tests/test_local_secrets.py
       # Hinweis-Stufe: weitere Windows-relevante Tests (Konto-Pflicht, Huelle, OCR, Studienverlauf). Sie liefen bis
       # 05.11.2026 nie unter Windows; ein Fehler steht in der Zusammenfassung des Laufs, stoppt den Installer aber nicht.
       # Nach dem ersten gruenen Lauf continue-on-error entfernen (docs/release/WINDOWS-BAU-2026-11-05.md).
@@ -47,7 +49,8 @@ jobs:
         continue-on-error: true
         run: |
           python -m pytest -q -p no:cacheprovider tests/test_account_mode.py tests/test_web_windows_shell.py tests/test_pageocr.py `
-            tests/test_study_catalog.py tests/test_luh_seed.py tests/test_exam_registration.py tests/test_study_sources_luh.py 2>&1 | Tee-Object -Variable out
+            tests/test_study_catalog.py tests/test_luh_seed.py tests/test_exam_registration.py tests/test_study_sources_luh.py `
+            tests/test_openai_key.py tests/test_shipped_universities.py tests/test_trial_stripe.py 2>&1 | Tee-Object -Variable out
           $code = $LASTEXITCODE
           $last = ($out | Select-Object -Last 1)
           "### Windows-relevante Tests: $(if ($code -eq 0) { 'gruen' } else { 'FEHLER (Exitcode ' + $code + ')' })`n`n$last" | Out-File -Append $env:GITHUB_STEP_SUMMARY

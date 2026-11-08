@@ -321,7 +321,25 @@ fn set_message(window: &tauri::WebviewWindow, text: &str) {
     let _ = window.eval(&js);
 }
 
+/// WebView2-Laufzeit (08.11.2026): der NSIS-Installer laedt sie bei Bedarf nach (tauri.conf.json, bundle.windows.
+/// webviewInstallMode = downloadBootstrapper); das MSIX aus dem Store kann das nicht, es verlaesst sich darauf, dass
+/// Windows 10 ab 21H2 und Windows 11 die Laufzeit mitbringen. Fehlt sie trotzdem (sehr alte Windows-10-Fassung), oeffnet
+/// die App die Download-Seite von Microsoft im Standardbrowser statt stumm zu enden.
+const WEBVIEW2_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+
+fn ensure_webview2() {
+    if tauri::webview_version().is_ok() {
+        return;
+    }
+    eprintln!("WebView2-Laufzeit fehlt - bitte installieren: {WEBVIEW2_URL}");
+    #[cfg(target_os = "windows")]
+    {
+        let _ = Command::new("rundll32").args(["url.dll,FileProtocolHandler", WEBVIEW2_URL]).spawn();
+    }
+}
+
 fn main() {
+    ensure_webview2();
     tauri::Builder::default()
         // Einzelinstanz: ein zweiter Start (Doppelklick, Startmenue) holt das offene Fenster nach vorn und endet; sonst
         // liefe ein zweites Backend auf derselben Datenbank. Muss das erste Plugin sein.
