@@ -18,6 +18,7 @@ def cg(app, monkeypatch, tmp_path):
     """Frische Ablage je Test, keine echten Aufrufe, kein Browser."""
     from app import chatgpt_login as m, config
     monkeypatch.setattr(config, "MODE", "local")
+    monkeypatch.setenv(m.ENABLED_ENV, "1")               # Schalter (08.11.2026): in der Auslieferung aus, hier an
     monkeypatch.setattr(m, "auth_path", lambda: tmp_path / "chatgpt-auth.json")
     m._flow = None
     m._models_cache = None

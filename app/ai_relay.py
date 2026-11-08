@@ -202,10 +202,10 @@ class RelayError(Exception):
         return {"detail": self.message, "code": self.code, **{k: v for k, v in self.extra.items() if k not in ("detail", "code")}}
 
 
-NO_AI = ("Für die KI melde dich mit deinem StudiNow-Konto an (Pro AI oder Probe, mit Credits) oder verbinde unter "
-         "Einstellungen → KI dein ChatGPT.")
-LABELS = {"chatgpt": "über dein ChatGPT · 0 Credits", "studinow": "StudiNow-KI · mit Credits",
-          "cli": "Claude-Kommandozeile (Entwickler)", "none": "keine KI verbunden"}
+NO_AI = ("Für die KI melde dich mit deinem StudiNow-Konto an (Pro AI oder Probe, mit Credits) oder trage unter "
+         "Einstellungen → Erweitert deinen eigenen OpenAI-API-Schlüssel ein.")
+LABELS = {"chatgpt": "über dein ChatGPT · 0 Credits", "openai_key": "über deinen OpenAI-Schlüssel · 0 Credits",
+          "studinow": "StudiNow-KI · mit Credits", "cli": "Claude-Kommandozeile (Entwickler)", "none": "keine KI verbunden"}
 
 _LAST: contextvars.ContextVar[dict | None] = contextvars.ContextVar("ai_relay_last", default=None)
 
@@ -231,12 +231,15 @@ def linked() -> bool:
 
 
 def source() -> str:
-    """Weg der KI am PC: chatgpt | cli | studinow | none (Reihenfolge wie auf dem iPad, Geteiltes kommt vorher)."""
+    """Weg der KI am PC: chatgpt | openai_key | cli | studinow | none (Reihenfolge wie auf dem iPad, Geteiltes kommt
+    vorher; der eigene OpenAI-Schluessel seit 08.11.2026, app/openai_key.py)."""
     if config.is_hosted():
         return "studinow"
     from . import ai
     if ai.uses_chatgpt():
         return "chatgpt"
+    if ai.uses_openai_key():
+        return "openai_key"
     if os.environ.get("LERNAPP_AI_CLI") == "1":
         return "cli"
     if linked():
@@ -356,8 +359,10 @@ def ai_source(request: Request):
         from . import ai_backend
         u = getattr(request.state, "user", None)
         credits = ai_backend.credits_balance(u["id"]) if u else None
-        return {"source": "studinow", "label": LABELS["studinow"], "credits": credits, "linked": True, "chatgpt": False, "cli": False}
+        return {"source": "studinow", "label": LABELS["studinow"], "credits": credits, "linked": True, "chatgpt": False,
+                "openai_key": False, "cli": False}
     src = source()
     from . import ai
     return {"source": src, "label": LABELS[src], "credits": _balance() if linked() else None, "linked": linked(),
-            "chatgpt": ai.uses_chatgpt(), "cli": src == "cli", "message": NO_AI if src == "none" else None}
+            "chatgpt": ai.uses_chatgpt(), "openai_key": src == "openai_key", "cli": src == "cli",
+            "message": NO_AI if src == "none" else None}

@@ -71,9 +71,20 @@ class ChatGPTError(Exception):
 
 # ---------------------------------------------------------------- Zustand
 
+# Schalter "Mit ChatGPT anmelden" (08.11.2026, wie ChatGPTLink.isEnabled = false auf dem iPad): Sign in with ChatGPT
+# braucht die Partnerfreigabe von OpenAI, die StudiNow nicht hat. Bis dahin ist der Ablauf in Windows-App und Web aus;
+# stattdessen gibt es das eigene ChatGPT per OpenAI-API-Schluessel (app/openai_key.py). Entwickler/Tests schalten ihn
+# mit LERNAPP_CHATGPT_SIGNIN=1 wieder ein.
+ENABLED_ENV = "LERNAPP_CHATGPT_SIGNIN"
+
+
+def enabled() -> bool:
+    return os.environ.get(ENABLED_ENV) == "1"
+
+
 def available() -> bool:
-    """Nur auf dem eigenen PC / in der Windows-App; im Dienst erst nach der Freigabe durch OpenAI."""
-    return not config.is_hosted()
+    """Nur auf dem eigenen PC / in der Windows-App, nur mit dem Schalter; im Dienst erst nach der Freigabe durch OpenAI."""
+    return enabled() and not config.is_hosted()
 
 
 def _require_local() -> None:

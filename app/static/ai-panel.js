@@ -80,6 +80,7 @@ export function creditsLine(credits, explain) {
 export function sourceLine(source) {
   if (!source) return "";
   if (source.source === "chatgpt") return "über dein ChatGPT · 0 Credits";
+  if (source.source === "openai_key") return "über deinen OpenAI-Schlüssel · 0 Credits";
   if (source.source === "studinow") return source.credits ? creditsLine(source.credits, null) : "StudiNow-KI · mit Credits";
   if (source.source === "cli") return "Claude-Kommandozeile (Entwickler)";
   if (source.source === "none") return "Keine KI verbunden";

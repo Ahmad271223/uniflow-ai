@@ -78,6 +78,28 @@ def uses_chatgpt() -> bool:
         return False
 
 
+def uses_openai_key() -> bool:
+    """KI-Anfragen ueber den eigenen OpenAI-API-Schluessel des Nutzers (app/openai_key.py, 08.11.2026): nur auf dem
+    eigenen PC, nur mit Schluessel, Einwilligung, Schalter an und gewaehltem Modell."""
+    try:
+        from . import openai_key
+        return openai_key.enabled_for_ai()
+    except Exception:  # noqa: BLE001 - ohne Ablage bleibt der naechste Weg
+        return False
+
+
+def ask_openai_key(prompt: str, system: str = "", schema: dict | None = None) -> str:
+    """Antwort direkt von OpenAI mit dem Schluessel des Nutzers (Responses API, Modell aus den Einstellungen)."""
+    from . import ai_backend, openai_key
+    try:
+        text = ai_backend.OpenAIProvider(openai_key.api_key(), openai_key.model()).complete(system, prompt, schema).text
+    except ai_backend.AIUnavailable as e:
+        raise AIError(e.message) from None
+    with open(LOG_DIR / "ai.log", "a", encoding="utf-8") as f:
+        f.write(f"\n===== PROMPT (eigener OpenAI-Schluessel, {len(prompt)} Zeichen) =====\n{prompt[:1500]}\n----- ANTWORT -----\n{text[:3000]}\n")
+    return text
+
+
 def ask_chatgpt(prompt: str, system: str = "", schema: dict | None = None) -> str:
     """Antwort ueber das ChatGPT-Abo (Responses API, Modell aus den Einstellungen); `schema` verlangt JSON dieser Form."""
     from . import ai_backend, chatgpt_login
@@ -119,7 +141,7 @@ def for_task(name: str, **relay):
 
 
 def source() -> str:
-    """Weg der KI am PC (05.11.2026, app/ai_relay.py): chatgpt | cli | studinow | none."""
+    """Weg der KI am PC (05.11.2026, app/ai_relay.py): chatgpt | openai_key | cli | studinow | none."""
     from . import ai_relay
     return ai_relay.source()
 
@@ -148,6 +170,10 @@ def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[s
         if allowed_tools or cwd:
             raise AIError("Bilder und PDF-Seiten liest nur Claude; mit ChatGPT wird der Text der Datei genutzt.")
         return ask_chatgpt(prompt, system, schema)
+    if src == "openai_key":
+        if allowed_tools or cwd:
+            raise AIError("Bilder und PDF-Seiten liest nur Claude; mit deinem OpenAI-Schlüssel wird der Text der Datei genutzt.")
+        return ask_openai_key(prompt, system, schema)
     if src == "studinow":
         from . import ai_relay
         if allowed_tools or cwd:

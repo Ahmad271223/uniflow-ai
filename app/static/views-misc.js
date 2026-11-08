@@ -4,6 +4,7 @@ import { installCard, bindInstallBanner } from "./pwa.js?v=17";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=46";
 import * as FC from "./flashcards.js?v=7";
+import * as OK from "./openai-key-logic.js?v=1";
 // KI-Karteikarten auf Auftrag (Pro AI, 04.11.2026): Dialog in flashcard-stacks-ui.js
 import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=5";
 import { mountBulletin } from "./bulletin.js?v=7";
@@ -689,7 +690,7 @@ function diagTab() {
 function chatgptCard(gpt, models) {
   if (!gpt) return "";
   const head = `<div class="card-head"><h2>${icon("sparkles", 18)} KI über mein ChatGPT</h2><span class="badge ${gpt.connected ? (gpt.needs_reauth ? "warn" : gpt.sharing ? "ok" : "warn") : "neutral"}">${gpt.connected ? (gpt.needs_reauth ? "neu anmelden" : gpt.sharing ? "verbunden" : "ohne Abo-Nutzung") : gpt.available ? "nicht verbunden" : "noch nicht verfügbar"}</span></div>`;
-  if (!gpt.available) return `<div class="card">${head}<p class="small muted">Die offizielle ChatGPT-Verbindung ist für den Dienst noch nicht von OpenAI freigegeben. Auf dem eigenen PC kannst du dein ChatGPT-Konto schon verbinden.</p></div>`;
+  if (!gpt.available) return "";          // 08.11.2026: ohne Freigabe von OpenAI gibt es die Karte nicht (wie auf dem iPad); stattdessen openaiKeyCard
   const pending = gpt.pending ? `<p class="small" style="color:var(--accent)">${icon("clock", 13)} Anmeldung läuft im Browser … (Port ${gpt.pending.port})</p>` : "";
   const err = gpt.last_error ? `<p class="small" style="color:var(--bad)">${esc(gpt.last_error)}</p>` : "";
   if (!gpt.connected) return `<div class="card">${head}
@@ -709,8 +710,34 @@ function chatgptCard(gpt, models) {
       <div class="row wrap"><button class="btn sm" id="gptReconnect">${icon("refresh", 14)} Neu verbinden</button>${gpt.sharing ? "" : `<button class="btn primary sm" id="gptReconsent">Freigabe nachholen</button>`}<button class="btn ghost sm" id="gptOther">Anderes Konto verbinden</button><button class="btn ghost sm" id="gptDisconnect">Trennen</button></div></div>`;
 }
 
+// Eigenes ChatGPT per OpenAI-API-Schluessel (08.11.2026, app/openai_key.py; iPad: Einstellungen -> Erweitert). Nur auf dem
+// eigenen PC/Windows-App: der Schluessel liegt in der Windows-Anmeldeinformationsverwaltung, im Web gibt es nur die StudiNow-KI.
+function openaiKeyCard(ok, models) {
+  if (!ok || !ok.available) return "";
+  const b = OK.badge(ok);
+  const head = `<div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT (OpenAI-API-Schlüssel)</h2><span class="badge ${b.cls}">${esc(b.text)}</span></div>`;
+  const err = ok.last_error ? `<p class="small" style="color:var(--bad)">${esc(ok.last_error)}</p>` : "";
+  const consent = `<p class="small muted" id="okConsentText">${esc(ok.consent_text || "")}</p>`;
+  if (!ok.has_key) return `<div class="card">${head}
+      <p class="small muted">Du kannst deinen eigenen OpenAI-Schlüssel eintragen: Fragen im Editor, Karteikarten, Wochentests und der KI-Lernplan laufen dann direkt über dein OpenAI-Konto, ohne Credits. Den Schlüssel legst du auf <a href="${esc(ok.keys_url || OK.KEYS_URL)}" target="_blank" rel="noopener">platform.openai.com</a> an; er bleibt nur auf diesem PC (${ok.storage === "windows_credential_manager" ? "Windows-Anmeldeinformationsverwaltung" : "lokal, verschlüsselt"}) und geht nie an StudiNow.</p>
+      <label class="field">OpenAI-API-Schlüssel<input class="input" id="okKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false"></label>
+      ${consent}<label class="small"><input type="checkbox" id="okConsent"> Ich stimme zu: StudiNow sendet meine KI-Anfragen mit meinem Schlüssel direkt an OpenAI.</label>
+      ${err}<div class="row wrap" style="margin-top:.5rem"><button class="btn primary sm" id="okSave">${icon("check", 14)} Schlüssel speichern und prüfen</button></div></div>`;
+  const options = (models && models.length ? models : [ok.model].filter(Boolean)).map(m => `<option value="${esc(m)}" ${m === ok.model ? "selected" : ""}>${esc(m)}</option>`).join("");
+  return `<div class="card">${head}
+      <p class="small">Schlüssel <b>${esc(ok.key_hint || "")}</b>${ok.checked ? ` – ${esc(ok.checked_text || "geprüft")}` : " – noch nicht geprüft"}.</p>${err}
+      <div class="row wrap" style="align-items:center;gap:.6rem">
+        <label class="field" style="margin:0;flex:1">Modell<select class="input" id="okModel">${options || `<option value="">(Modelle laden …)</option>`}</select></label>
+        <label class="small"><input type="checkbox" id="okUse" ${ok.use_for_ai ? "checked" : ""}> KI-Anfragen über meinen Schlüssel</label></div>
+      ${!ok.model ? `<p class="small muted">Bitte ein Modell wählen, sonst läuft die KI über StudiNow.</p>` : ""}
+      <p class="small muted">Jede Anfrage rechnet OpenAI über dein Konto ab (<a href="${esc(ok.usage_url || "https://platform.openai.com/usage")}" target="_blank" rel="noopener">Verbrauch ansehen</a>); StudiNow fragt nie im Hintergrund, nur wenn du eine KI-Funktion anklickst.</p>
+      <div class="row wrap"><button class="btn sm" id="okCheck">${icon("refresh", 14)} Erneut prüfen</button><button class="btn ghost sm" id="okRemove">${icon("trash-2", 14)} Schlüssel entfernen</button></div></div>`;
+}
+
 export async function viewSettings(_, params, view) {
   const gpt = await api("/integrations/chatgpt").catch(() => null);
+  const ok = state.hosted ? null : await api("/integrations/openai-key").catch(() => null);
+  const okModels = ok?.has_key ? await api("/integrations/openai-key/models").then(r => r.models).catch(() => null) : null;
   const aiConsent = await api("/ai/consent").catch(() => null);   // KI-Einwilligung (app/ai_consent.py, 06.11.2026)
   const gptModels = gpt?.connected && !gpt.needs_reauth ? await api("/integrations/chatgpt/models").then(r => r.models).catch(() => null) : null;
   const [s, courses, mods, log, cred, term, svc, sess, older] = await Promise.all([api("/settings"), api("/courses"), api("/modules"), api("/sync/status"), api("/credentials"), api("/terms"), api("/services"), state.hosted ? null : api("/university/session").catch(() => null), api("/older-semesters").catch(() => null)]);
@@ -772,7 +799,7 @@ export async function viewSettings(_, params, view) {
         <p class="muted small">Mit Schlüssel holt die App die Dateien direkt über die Moodle-Schnittstelle, ohne Browser-Anmeldung, und Moodle markiert nichts als angesehen. Erzeugen: im Learnweb Profil → Einstellungen → Sicherheitsschlüssel → „Moodle mobile web service“.</p>
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
     const inviteCard = state.gated ? `<div class="card"><div class="card-head"><h2>${icon("users", 18)} Freunde einladen</h2></div><p class="muted small">Einladungslinks mit QR-Code zum Teilen, mit deinem StudiNow-Konto.</p><a class="btn sm" href="#/einladungen">${icon("arrow-right", 14)} Einladungen öffnen</a></div>` : "";   // invites.js (05.11.2026)
-    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${state.hosted ? noCredCard : uniKey === "hildesheim" ? hiCard : uniKey === "hsh" ? "" : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${consentCardHtml(aiConsent)}${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
+    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${state.hosted ? noCredCard : uniKey === "hildesheim" ? hiCard : uniKey === "hsh" ? "" : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${consentCardHtml(aiConsent)}${openaiKeyCard(ok, okModels)}${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content set-page" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
       <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : planTab}</div></div></div>`;
@@ -785,6 +812,13 @@ export async function viewSettings(_, params, view) {
     $("#gptReconsent")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: { reconsent: true } }); toast("Zustimmungsseite öffnet sich im Browser", 4000); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptOther")?.addEventListener("click", async () => { if (!confirm("Anderes ChatGPT-Konto verbinden? Die bisherige Verbindung wird gelöscht und StudiNow registriert sich bei OpenAI neu.")) return; try { await api("/integrations/chatgpt/connect", { method: "POST", body: { new_account: true } }); toast("Anmeldeseite öffnet sich im Browser", 4000); state.route(); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptOpen")?.addEventListener("click", async () => { try { const r = await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite geöffnet"); if (!r.auth_url) return; } catch (e) { toast(e.message, 5000); } });
+    // Eigener OpenAI-Schluessel (app/openai_key.py): speichern nur mit Einwilligung, dann pruefen; nie im Protokoll, nie im Toast
+    $("#okSave")?.addEventListener("click", async () => { const key = $("#okKey").value; const consent = $("#okConsent").checked; const problem = OK.saveProblem(key, consent); if (problem) { toast(problem, 5000); return; }
+      try { const r = await api("/integrations/openai-key", { method: "PUT", body: { key: OK.normalizeKey(key), consent: true } }); toast(r.last_error ? "Gespeichert, aber die Prüfung schlug fehl" : (r.checked_text || "Schlüssel geprüft"), 5000); state.route(); } catch (e) { toast(e.message, 6000); } });
+    $("#okCheck")?.addEventListener("click", async () => { try { const r = await api("/integrations/openai-key/check", { method: "POST", body: {} }); toast(r.checked_text || "Geprüft"); state.route(); } catch (e) { toast(e.message, 6000); state.route(); } });
+    $("#okModel")?.addEventListener("change", async e => { try { await api("/integrations/openai-key/settings", { method: "PUT", body: { model: e.target.value } }); toast("Modell gespeichert"); } catch (x) { toast(x.message, 4000); } });
+    $("#okUse")?.addEventListener("change", async e => { await api("/integrations/openai-key/settings", { method: "PUT", body: { use_for_ai: e.target.checked } }); toast(e.target.checked ? "KI läuft über deinen OpenAI-Schlüssel" : "KI läuft über StudiNow"); });
+    $("#okRemove")?.addEventListener("click", async () => { if (!confirm("OpenAI-Schlüssel von diesem PC entfernen? KI-Anfragen laufen danach wieder über StudiNow (mit Credits).")) return; await api("/integrations/openai-key", { method: "DELETE" }); toast("Schlüssel entfernt"); state.route(); });
     $("#gptDisconnect")?.addEventListener("click", async () => { if (!confirm("ChatGPT trennen? Das Zugriffstoken wird gelöscht; KI-Anfragen laufen wieder über Claude.")) return; await api("/integrations/chatgpt/disconnect", { method: "POST", body: {} }); toast("Getrennt"); state.route(); });
     $("#gptModel")?.addEventListener("change", async e => { try { await api("/integrations/chatgpt/settings", { method: "PUT", body: { model: e.target.value } }); toast("Modell gespeichert"); } catch (x) { toast(x.message, 4000); } });
     $("#gptUse")?.addEventListener("change", async e => { await api("/integrations/chatgpt/settings", { method: "PUT", body: { use_for_ai: e.target.checked } }); toast(e.target.checked ? "KI läuft über dein ChatGPT" : "KI läuft über Claude"); });

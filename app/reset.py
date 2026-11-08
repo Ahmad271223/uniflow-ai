@@ -9,7 +9,7 @@ Zustand einer frischen Installation (Hochschule und App-Einstellungen in der .en
 - Datenbank: alle Tabellen (Kurse, Dateien, Notizen, Karteikarten, Tests, Lernplaene, Stundenplan, Noten, Protokolle)
   werden geloescht und das Schema neu angelegt
 - heruntergeladene Dateien, KI-Arbeitsordner, Protokolle (soweit nicht geoeffnet)
-- ChatGPT-Verbindung (Token und Profil; Rechnerkennung und Client-ID bleiben)
+- ChatGPT-Verbindung (Token und Profil; Rechnerkennung und Client-ID bleiben) und der eigene OpenAI-API-Schluessel (app/openai_key.py)
 - Sicherungen der Windows-App (%LOCALAPPDATA%\\UniFlow-Sicherungen) – sonst liesse sich alles zurueckholen
 - Windows-App: Cookies und Speicher des WebView2-Profils (WebSSO-, Stud.IP-, OpenAI-Sitzungen der Anmeldefenster)
   ueber den Fenster-Agenten (Auftrag `clear`, apps/windows/src-tauri/src/main.rs)
@@ -98,6 +98,12 @@ def wipe(clear_webview: bool = True) -> dict:
         out["chatgpt"] = True
     except Exception:  # noqa: BLE001 - z. B. Datei nicht lesbar: der Rest soll trotzdem laufen
         out["chatgpt"] = False
+    try:
+        from . import openai_key
+        openai_key.remove()                          # eigener OpenAI-Schluessel (Anmeldeinformationsverwaltung) und Zustand
+        out["openai_key"] = True
+    except Exception:  # noqa: BLE001
+        out["openai_key"] = False
     from . import hsh
     out["browser_profiles"] = sum(_remove_tree(p) for p in {studip_sync._profile_dir(), hildesheim._profile_dir(), hsh._profile_dir()})
     out["db_objects"] = wipe_db()

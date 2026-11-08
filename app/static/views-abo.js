@@ -55,7 +55,7 @@ function quotaBar(label, q) {
 }
 
 export async function viewAbo(_, params, view) {
-  const [contract, me, gptLocal] = await Promise.all([api("/billing/plans"), api("/entitlements"), api("/integrations/chatgpt").catch(() => null)]);
+  const [contract, me, gptLocal, okLocal] = await Promise.all([api("/billing/plans"), api("/entitlements"), api("/integrations/chatgpt").catch(() => null), api("/integrations/openai-key").catch(() => null)]);
   const labels = contract.quotas.labels, current = me.plan;
   const local = me.mode === "local";
   const windows = me.mode === "account";                       // Windows-App mit Konto-Pflicht
@@ -82,7 +82,7 @@ export async function viewAbo(_, params, view) {
     ? `<p class="abo-flash ok">${icon("check", 14)} Zahlung abgeschlossen. Dein Tarif erscheint hier, sobald Stripe die Bestätigung geschickt hat (meist sofort).</p>`
     : params.checkout === "cancel" ? `<p class="abo-flash">Abschluss abgebrochen, nichts wurde berechnet.</p>` : "";
   const term = local
-    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Zugang (Claude oder ChatGPT). Tarife gelten für StudiNow-Konten im Dienst und in der Apple-App.</p>`
+    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Zugang (eigener OpenAI-Schlüssel). Tarife gelten für StudiNow-Konten im Dienst und in der Apple-App.</p>`
     : locked ? ""
     : `<p class="abo-term">${me.expires_at ? `${me.will_renew ? "Verlängert sich am" : "Läuft aus am"} <b>${new Date(me.expires_at).toLocaleDateString("de-DE")}</b>` : current === "free" ? "Kostenlos, ohne Laufzeit." : "Ohne Ablaufdatum."}${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>`;
   const quotas = local || locked || !me.quotas ? "" : [quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new), quotaBar(labels.library_tests, me.quotas.library_tests), quotaBar(labels.ai_assist, me.quotas.ai_assist), quotaBar(labels.card_stacks_adopted, me.quotas.card_stacks_adopted)].join("");
@@ -126,8 +126,9 @@ export async function viewAbo(_, params, view) {
         <div class="row wrap" style="gap:.4rem"><button class="btn sm" id="aboRecheck2">${icon("refresh", 14)} ${esc(GATE_TEXTS.recheck)}</button><a class="btn sm" href="${exportHref(me)}" download>${icon("download", 14)} ${esc(GATE_TEXTS.exportData)}</a><button class="btn sm ghost" id="aboLogout">${icon("log-out", 14)} Abmelden</button></div></section>` : ""}
       ${(local || windows) && gptLocal?.available ? `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></header>
         <p>${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></section>`
-      : `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></header>
-        <p>${esc(gpt.reason || "")} Sobald OpenAI StudiNow freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen StudiNow-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></section>`}
+      : okLocal?.available ? `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT (OpenAI-API-Schlüssel)</h2><span class="badge ${okLocal.enabled_for_ai ? "ok" : "neutral"}">${okLocal.enabled_for_ai ? "aktiv" : okLocal.has_key ? "eingetragen" : "nicht eingetragen"}</span></header>
+        <p>Auf diesem PC kannst du deinen eigenen OpenAI-Schlüssel eintragen; KI-Anfragen laufen dann direkt über dein OpenAI-Konto, ohne Credits und in jedem Tarif. Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Der Schlüssel bleibt auf diesem PC; ohne Zahlung an uns.</p></section>`
+      : ""}
       ${local ? `<section class="abo-info"><header><h2>${icon("info", 18)} Tarife</h2></header>
         <p>Auf diesem PC kannst du nichts kaufen, und es gibt hier keinen Link zu einem Bezahlsystem: alle Funktionen sind frei. Tarife gelten für StudiNow-Konten im Dienst; StudiNow Plus gibt es schon in der Apple-App, StudiNow Pro AI kommt mit dem StudiNow-Dienst. Jedes neue Konto im Dienst startet mit 7 Tagen Probe mit allem, ganz ohne Bezahlangaben, danach gilt Free.</p></section>`
       : `<section class="abo-info"><header><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></header>

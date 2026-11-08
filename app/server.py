@@ -87,6 +87,8 @@ from . import ai_relay  # noqa: E402 - StudiNow-KI am PC ueber das Konto (/api/a
 app.include_router(ai_relay.router)
 from . import ai_consent  # noqa: E402 - Einwilligung vor der StudiNow-KI (Web, Windows), 06.11.2026
 app.include_router(ai_consent.router)
+from . import openai_key  # noqa: E402 - eigenes ChatGPT per OpenAI-API-Schluessel, nur Windows-App/PC (08.11.2026)
+app.include_router(openai_key.router)
 from . import mensa_api  # noqa: E402 - Mensa: Speiseplaene LUH/HsH/Hildesheim, frei in jedem Tarif (/api/mensa, docs/MENSA-2026-11-05.md)
 app.include_router(mensa_api.router)
 from . import rooms_api  # noqa: E402 - Raumfinder: Standortfinder der LUH, Kartenlinks, frei in jedem Tarif (/api/rooms, docs/RAUMFINDER-2026-11-05.md)
