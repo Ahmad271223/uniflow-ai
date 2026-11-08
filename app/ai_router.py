@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -66,6 +67,8 @@ HARD_PURPOSES = ("tutor:steps", "tutor:check", "tutor:doc_tasks")
 MATH_PURPOSES = ("tutor:ask", "tutor:explain", "tutor:explain_simple", "tutor:similar", "tutor:hints")
 # Hinweise der Aufrufer, die immer den schweren Weg nehmen ("Antwort war falsch" -> Zweitmeinung)
 HARD_HINTS = ("hard", "second_opinion")
+# Groesstes Gewicht eines Eintrags: die Summe bleibt endlich, pick() rechnet nie mit inf/nan (Audit P10-01)
+MAX_WEIGHT = 1e9
 
 # Typische Nutzung je 100 Anfragen (Annahme fuer den Bericht, nicht gemessen): (Zweck, Anteil, schwer nach Inhalt)
 TYPICAL_MIX: tuple[tuple[str, float, bool], ...] = (
@@ -93,8 +96,10 @@ def _norm_provider(name: str) -> str | None:
 
 
 def parse_route(raw) -> list[tuple[Choice, float]]:
-    """"deepseek:65,openai:35" oder [["deepseek", 65], ...] oder {"deepseek": 65}; unbekannte Anbieter und Gewichte <= 0
-    fallen weg."""
+    """"deepseek:65,openai:35" oder [["deepseek", 65], ...] oder {"deepseek": 65}; unbekannte Anbieter, Gewichte <= 0,
+    nicht endliche oder ueber MAX_WEIGHT (Audit P10-01) und ein Modell eines anderen Anbieters ("openai/claude-...",
+    Audit P10-06: Preis und Adresse passten sonst nicht zusammen) fallen weg."""
+    from . import ai_prices
     items: list[tuple[str, object]] = []
     if isinstance(raw, str):
         for part in raw.split(","):
@@ -118,8 +123,12 @@ def parse_route(raw) -> list[tuple[Choice, float]]:
             weight = float(w)
         except (TypeError, ValueError):
             continue
-        if p and weight > 0:
-            out.append((Choice(p, model.strip() or None), weight))
+        model = model.strip()
+        if not p or not math.isfinite(weight) or not 0 < weight <= MAX_WEIGHT:
+            continue
+        if model and ai_prices.provider_of(model) != p:
+            continue
+        out.append((Choice(p, model or None), weight))
     return out
 
 
