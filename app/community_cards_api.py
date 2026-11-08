@@ -11,6 +11,7 @@ Dieselben Pfade und Antworten hat der Swift-Kern (CardStackEndpoints.swift) uebe
 - POST   /api/community/card-stacks/{id}/adopt   als eigenen Stapel uebernehmen (Lernstand getrennt, 0 Credits)
 - POST | DELETE /api/community/card-stacks/{id}/like
 - POST   /api/community/card-stacks/{id}/report  {reason, note}
+- POST   /api/community/card-stacks/adopt-quota    {ref}: Uebernahme des iPads (Stapel ueber iCloud) im Kontingent zaehlen
 
 Tarif (04.11.2026): Teilen, Zurueckziehen und Uebernehmen sind eigene Karteikarten und gehoeren zu Plus
 (`can_use_flashcards`, 403 "Karteikarten gibt es ab StudiNow Plus."); Uebernehmen kostet keine Credits und braucht keine
@@ -20,6 +21,7 @@ Uebernehmen zaehlt seit 05.11.2026 im Kontingent `card_stacks_adopted` (Plus 4 j
 """
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from fastapi import APIRouter, Body, HTTPException, Request
@@ -311,3 +313,29 @@ def count_card_stack_adopted(request: Request, stack_id: str):
     if _adopt_quota(request, shared["id"]):                  # je Konto und Monat einmal, wie das Kontingent
         community_cards.count_adopted(u, shared["id"])
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- iPad: Kontingent je Konto (P43-06, 08.11.2026)
+
+_ADOPT_REF = re.compile(r"[A-Za-z0-9:._#-]{1,200}")
+
+
+@router.post("/api/community/card-stacks/adopt-quota")
+def count_adopt_quota_from_app(request: Request, body: dict = Body(...)):
+    """iPad mit StudiNow-Konto: Die Community laeuft dort ueber iCloud, die Stapel kennt der Dienst nicht. Die App meldet
+    jede Uebernahme (`ref`, z. B. "community:<id>" oder "week:<modul>:<woche>:<art>") und der Dienst zaehlt sie im
+    vorhandenen Kontingent `card_stacks_adopted` des Kontos: je Stapel und Monat (Europe/Berlin) einmal, ueber alle
+    Geraete des Kontos (Entscheidung des Inhabers 08.11.2026). Antwort immer 200 mit {ok, counted, used, limit}; ok=false
+    = aufgebraucht (kein 429: das iPad entscheidet mit seinem Tarif aus dem App Store, ob die Grenze des Dienstes gilt)."""
+    _account(request)
+    ref = body.get("ref")
+    if not isinstance(ref, str) or not _ADOPT_REF.fullmatch(ref):
+        raise HTTPException(400, {"detail": "Unbekannter Stapel.", "code": "ref_invalid"})
+    try:
+        r = entitlements.consume(request, "card_stacks_adopted", f"app:{ref}", once=True)
+    except HTTPException as e:
+        d = e.detail if isinstance(e.detail, dict) else {}
+        if e.status_code != 429 or d.get("code") != "quota_exhausted":
+            raise
+        return {"ok": False, "counted": False, "used": d.get("used", 0), "limit": d.get("limit", 0)}
+    return {"ok": True, "counted": not r.duplicate, "used": r.used, "limit": r.limit}

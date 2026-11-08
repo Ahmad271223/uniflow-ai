@@ -95,6 +95,20 @@ def period_of(now: datetime | None = None) -> str:
     return _now(now).strftime("%Y-%m")
 
 
+# Kontingente, deren Monat der Kalendermonat in Europe/Berlin ist (wie die Credits, app/credits.py): die Uebernahme von
+# Karteikarten-Stapeln zaehlt je Konto ueber alle Geraete, und das iPad rechnet ohne Dienst ebenfalls in Berlin
+# (Entscheidung des Inhabers 08.11.2026, P43-06). Die anderen Kontingente bleiben beim UTC-Monat (Audit P21-10).
+BERLIN_MONTH_FEATURES = frozenset({"card_stacks_adopted"})
+
+
+def feature_period(feature: str, now: datetime | None = None) -> str:
+    """Monat (YYYY-MM), in dem ein Kontingent zaehlt"""
+    if feature in BERLIN_MONTH_FEATURES:
+        from zoneinfo import ZoneInfo
+        return _now(now).astimezone(ZoneInfo("Europe/Berlin")).strftime("%Y-%m")
+    return period_of(now)
+
+
 def _migrate_usage_requests(conn: sqlite3.Connection) -> None:
     """Fruehere Fassung: PRIMARY KEY (request_id) allein, also kontenuebergreifend. Die Zeilen wandern unveraendert in
     die Tabelle mit zusammengesetztem Schluessel (Konto, Zeitraum, Funktion, Anfrage-ID); Zaehler bleiben unberuehrt."""
@@ -209,7 +223,7 @@ class ConsumeResult:
 
 def used(conn: sqlite3.Connection, user_id, feature: str, now: datetime | None = None) -> int:
     r = conn.execute("SELECT count FROM usage WHERE user_id=? AND period=? AND feature=?",
-                     (str(user_id), period_of(now), feature)).fetchone()
+                     (str(user_id), feature_period(feature, now), feature)).fetchone()
     return r[0] if r else 0
 
 
@@ -225,7 +239,7 @@ def consume(conn: sqlite3.Connection, user_id, feature: str, request_id: str,
     if not request_id:
         raise ValueError("request_id fehlt")
     t = _now(now)
-    period = t.strftime("%Y-%m")
+    period = feature_period(feature, t)
     uid = str(user_id)
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -449,7 +463,7 @@ def _status(conn: sqlite3.Connection, user: dict, t: datetime) -> dict:
     for feature in plans.QUOTA_LABELS:
         raw = plans.QUOTAS[plan].get(feature, 0)
         quotas[feature] = {"used": used(conn, user["id"], feature, t), "limit": plans.quota_limit(plan, feature),
-                           "unlimited": raw is None, "period": t.strftime("%Y-%m")}
+                           "unlimited": raw is None, "period": feature_period(feature, t)}
     return {
         "plan": plan, "plan_name": PLANS[plan]["name"], "source": src["source"] if src else None,
         "expires_at": src["expires_at"] if src else None, "will_renew": bool(src["will_renew"]) if src else False,

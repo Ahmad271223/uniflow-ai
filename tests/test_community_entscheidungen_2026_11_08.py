@@ -67,7 +67,7 @@ def test_p43_06_adopt_quota_needs_an_account_and_a_sane_ref(hosted):
     _, h = user(hosted, "stapel-ref@beispiel.de", plan="plus")
     for bad in ("", " ", "x" * 201, "a b", "<script>", None, 5):
         st, d = _j(asgi_call(hosted, "POST", PATH, body=json.dumps({"ref": bad}), headers=h))
-        assert st == 400 and d["detail"]["code"] == "ref_invalid", (bad, st, d)
+        assert st == 400 and d["code"] == "ref_invalid", (bad, st, d)
     # Free: Grenze 0, der Dienst sagt ehrlich "aufgebraucht" (das iPad entscheidet dann nach seinem Tarif)
     _, free = user(hosted, "stapel-free@beispiel.de")
     st, d = _count(hosted, free, "community:x")
@@ -84,12 +84,12 @@ def test_p43_06_adopt_quota_month_is_the_calendar_month_in_berlin(hosted):
     summer = datetime(2026, 6, 30, 22, 30, tzinfo=UTC)                 # Sommerzeit: Berlin 01.07. 00:30
     conn = billing.connect()
     try:
-        assert billing.consume(conn, uid, "card_stacks_adopted", "a", now=still_nov).period == "2026-11"
-        r = billing.consume(conn, uid, "card_stacks_adopted", "b", now=late_nov_utc)
+        assert billing.consume(conn, uid, "card_stacks_adopted", "a", now=still_nov, plan="plus").period == "2026-11"
+        r = billing.consume(conn, uid, "card_stacks_adopted", "b", now=late_nov_utc, plan="plus")
         assert (r.period, r.used) == ("2026-12", 1), r
         assert billing.used(conn, uid, "card_stacks_adopted", late_nov_utc) == 1
         assert billing.used(conn, uid, "card_stacks_adopted", still_nov) == 1
-        assert billing.consume(conn, uid, "card_stacks_adopted", "c", now=summer).period == "2026-07"
+        assert billing.consume(conn, uid, "card_stacks_adopted", "c", now=summer, plan="plus").period == "2026-07"
         assert billing.status(conn, {"id": uid, "plan": "plus"}, late_nov_utc)["quotas"]["card_stacks_adopted"]["period"] == "2026-12"
         # andere Kontingente: Monat wie bisher
         assert billing.consume(conn, uid, "ai_tests_new", "d", now=late_nov_utc, plan="plus").period == "2026-11"
