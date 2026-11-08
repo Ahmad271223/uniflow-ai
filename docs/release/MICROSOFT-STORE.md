@@ -26,7 +26,8 @@ Einreichung die Testfassung (`…-test.msix`, Anleitung im `msix/README.md`) auf
    - `Package/Identity/Name` → `identity_name`
    - `Package/Identity/Publisher` (beginnt mit `CN=`) → `publisher`
    - `Package/Properties/PublisherDisplayName` → `publisher_display_name`
-   Danach `store_ready` auf `true`. Ein Paket mit den Testwerten nimmt der Store nicht an.
+   Danach `store_ready` auf `true`. Bis dahin stehen in `store.json` klar markierte Platzhalter („PLATZHALTER …“);
+   ein Paket damit nimmt der Store nicht an (Liste: `docs/WINDOWS-ABNAHME-2026-11-08.md`, Abschnitt 2).
 3. **Paket bauen lassen:** Windows-Lauf bei GitHub starten (Actions → Windows → Run workflow), danach aus dem Ergebnis
    `uniflow-windows-msix` das **unsignierte** `StudiNow_<version>.0_x64.msix` herunterladen. Der Store signiert es selbst.
 4. **Einreichung ausfüllen** mit den Texten unten.

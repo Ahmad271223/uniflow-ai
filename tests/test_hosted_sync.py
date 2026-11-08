@@ -442,7 +442,7 @@ def test_local_mode_unchanged(app, monkeypatch, tmp_path):
     assert st == 200 and json.loads(b) == {"ok": True, "user": "ab12cd", "password_set": True}
     assert 'STUDIP_PASSWORD="Pa$$wort-1"' in env.read_text(encoding="utf-8")
     st, _, b = asgi_call(app, "GET", "/api/credentials")
-    assert json.loads(b) == {"user": "ab12cd", "password_set": True}
+    assert json.loads(b) == {"user": "ab12cd", "password_set": True, "storage": "plain"}, "Entwicklungsserver: .env lesbar (Windows-App: dpapi, app/local_secrets.py)"
     st, _, b = asgi_call(app, "PUT", "/api/credentials/qis", body=json.dumps({"user": "qis-u", "password": "qis-pw"}))
     assert st == 200 and config.service_credentials("QIS") == ("qis-u", "qis-pw")
     st, _, b = asgi_call(app, "PUT", "/api/learnweb/token", body=json.dumps({"token": "A" * 32}))

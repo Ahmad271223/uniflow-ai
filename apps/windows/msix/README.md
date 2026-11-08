@@ -14,7 +14,7 @@ HTTPS-Adresse je Version und eine eigene Update-Funktion.
 | Datei | Inhalt |
 | --- | --- |
 | `AppxManifest.xml.in` | Manifest mit Platzhaltern: Identität, Anzeigename, `runFullTrust` (Desktop-App), `internetClient`, Windows 10 1809+ |
-| `store.json` | Werte aus Partner Center (Produktidentität) und Store-Texte; `store_ready` erst nach dem Eintragen auf `true` |
+| `store.json` | Werte aus Partner Center (Produktidentität) und Store-Texte; bis zum Eintragen klar markierte **PLATZHALTER** (`_inhaber_traegt_ein` nennt die drei Felder), `store_ready` erst danach auf `true` (Test `tests/test_windows_package.py`) |
 | `../scripts/build-msix.ps1` | baut aus `uniflow-desktop.exe` und `backend\` (mit Chromium) das Paket; Bilder aus `app-icon.png`, Version aus `tauri.conf.json` als `x.y.z.0`; `-TestSign` signiert zusätzlich mit einem Wegwerf-Zertifikat |
 | `../scripts/check-msix.ps1` | nur auf dem Runner: Testzertifikat vertrauen, installieren, Dateien prüfen, Backend im Paket starten und abfragen, deinstallieren |
 
@@ -73,5 +73,6 @@ Personen“; braucht Administratorrechte), dann `…-test.msix` doppelklicken. D
 
 - Werte aus Partner Center in `store.json` (siehe oben), Screenshots, öffentliche Datenschutzerklärung.
 - WebView2 ist ab Windows 10 21H2 und unter Windows 11 vorhanden; auf älteren Windows-10-Fassungen fehlt es eventuell
-  (der NSIS-Installer bringt dafür einen Installer mit, MSIX nicht).
+  (der NSIS-Installer lädt es nach, MSIX nicht). Seit 08.11.2026 prüft das Fenster die Laufzeit beim Start und öffnet
+  sonst Microsofts Download-Seite (`ensure_webview2`, `main.rs`).
 - Das Fenster selbst (WebView2) startet der Runner nicht; geprüft werden Dateien und das Backend im Paketkontext.

@@ -312,6 +312,18 @@ eigenen Zahlungsweg vor der Einreichung prüfen; Prüfkonto mit Abo für die Sto
 Nutzungsbedingungen (Stripe, Konto-Pflicht) anwaltlich prüfen. Nicht geändert: die geplanten Hochschul-Abgleiche des
 Dienstes laufen auch für gesperrte Konten weiter (`app/jobs.py`).
 
+## 3e. Jahresabos bei Stripe (08.11.2026)
+
+Wie im App Store (`de.uniflow.plus.yearly` 21,99 €, `de.uniflow.proai.yearly` 41,99 €, `app/plans.py`
+`price_cents_yearly`) gibt es die Jahrespreise jetzt auch im Web und unter Windows: `LERNAPP_STRIPE_PRICES` nimmt neben
+`plus=…,pro_ai=…` die Schlüssel `plus_yearly=…,pro_ai_yearly=…` (auch `plus.yearly` oder die Apple-Produkt-ID). `POST
+/api/billing/stripe/checkout` und `/api/billing/plan-choice` nehmen `interval: month|year` (Standard month; ohne
+Jahrespreis 400 `interval_not_sellable`); die Windows-App reicht den Zeitraum über `/api/app-account/checkout` durch.
+`purchase.web.yearly_plans` nennt die Tarife mit Jahrespreis; die Abo-Seite zeigt einen Umschalter Monatlich/Jährlich
+(`app/static/abo-logic.js`) und bietet den Kaufknopf nur, wenn Stripe den Preis kennt. Der Webhook ordnet Jahrespreise
+über `plan_for_price` demselben Tarif zu; Credits und Kontingente gelten weiter je Kalendermonat. **Inhaber:** die zwei
+Jahrespreise in Stripe anlegen und eintragen (`docs/WINDOWS-ABNAHME-2026-11-08.md`, Abschnitt 4).
+
 ## 4. ChatGPT-Verbindung
 
 `chatgpt_connection_premium` (seit 05.11.2026 **in jedem Tarif**, auch Free; vorher ab Pro AI bzw. Pro Connect; der

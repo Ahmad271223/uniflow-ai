@@ -143,13 +143,28 @@ ChatGPT-Verbindung, die Sicherungen in `%LOCALAPPDATA%\UniFlow-Sicherungen` und 
 (WebView2-Profil, Auftrag `clear` an den Fenster-Agenten). Danach ist die App leer, ein anderer Account meldet sich
 neu an. Hochschule und App-Einstellungen in der `.env` bleiben. Nicht möglich, während ein Abgleich läuft.
 
-## KI über das eigene ChatGPT-Konto
+## Eigenes ChatGPT per OpenAI-API-Schlüssel (08.11.2026)
 
-Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“: die Anmeldung bei OpenAI läuft in einem
-Fenster der App (Sign in with ChatGPT, OAuth mit PKCE, Rückleitung auf `127.0.0.1`; ohne Fenster-Agent im Standardbrowser), das Zugriffstoken liegt danach
-nur in `%LOCALAPPDATA%\de.uniflow.desktop\data\chatgpt-auth.json`. Mit gewähltem Modell und eingeschaltetem Schalter
-laufen Erklärungen im Editor, Analysen und Lernpläne über das ChatGPT-Abo statt über Claude Code; Bilder und PDF-Seiten
-liest weiter nur Claude. „Trennen“ löscht das Token. Details: `docs/KI-CHATGPT-PLAN.md`, Abschnitt 3a.
+Einstellungen → Erweitert → „Eigenes ChatGPT (OpenAI-API-Schlüssel)“ (wie auf dem iPad, `app/openai_key.py`): der Nutzer
+legt auf platform.openai.com einen Schlüssel an, trägt ihn ein und stimmt zu (Text wie `OpenAIKeyLink.consentText`). Der
+Schlüssel liegt nur in der Windows-Anmeldeinformationsverwaltung (`StudiNow/openai-schluessel`, DPAPI), Modell und
+Schalter ohne Schlüssel in `data\openai-key.json`; er geht nie an den Dienst und steht in keiner Antwort. Die App prüft
+ihn gegen `GET /v1/models` und wählt `gpt-4o-mini` vor. Weg der KI am PC (`ai_relay.source`): Geteiltes/Gespeichertes →
+eigener Schlüssel (0 Credits, Kosten beim Nutzer bei OpenAI) → StudiNow-KI mit Credits. Bilder und PDF-Seiten liest nur
+Claude (Entwickler-Schalter). „Schlüssel entfernen“ und „Hochschul-Konto entfernen“ löschen ihn. Im Web gibt es keinen
+eigenen Schlüssel, nur die StudiNow-KI.
+
+„Mit ChatGPT anmelden“ (Sign in with ChatGPT, `app/chatgpt_login.py`) braucht die Partnerfreigabe von OpenAI und ist wie
+auf dem iPad aus (`LERNAPP_CHATGPT_SIGNIN=1` schaltet es für Entwickler wieder ein). Details: `docs/KI-CHATGPT-PLAN.md`.
+
+## Passwörter nur verschlüsselt auf dem PC (08.11.2026)
+
+Hochschul-Passwörter (Stud.IP/WebSSO, QIS, UNI-Account, HsH), gemerkte Cookies und der Learnweb-Schlüssel stehen in der
+`.env` des Datenordners nur noch DPAPI-verschlüsselt (`dpapi:…`, `app/local_secrets.py`): lesbar nur für diesen
+Windows-Benutzer auf diesem PC, nie auf dem Server. Alte Klartext-Einträge verschlüsselt das Backend beim ersten Start
+(Eintrag in `logs\backend.log`). Einstellungen → Zugang → „Passwort auf diesem PC speichern“ legt LUH-ID und
+WebSSO-Passwort so ab; damit melden sich QIS und Uni-Mail ohne Nachfrage an. Ausgelieferte Hochschulen: nur die LUH
+(`LERNAPP_SHIPPED_UNIVERSITIES`, `app/universities.shipped`), wie auf dem iPad.
 
 ## Offen
 
@@ -157,4 +172,8 @@ liest weiter nur Claude. „Trennen“ löscht das Token. Details: `docs/KI-CHAT
 - Texterkennung: Ordner `tesseract` (Programm, DLLs, `tessdata`, Lizenztexte) in den Windows-Workflow aufnehmen und auf echtem
   Windows mit einem Scan prüfen (siehe docs/OCR-WINDOWS.md).
 - Automatische Updates (Tauri-Updater braucht einen signierten Endpunkt) und Code-Signing.
+- „Passwort speichern?“ im Anmeldefenster der Hochschule: WebView2 braucht dafür `IsPasswordAutosaveEnabled`
+  (`webview2-com`), nur auf einem Windows-Rechner kompilierbar zu prüfen (`docs/WINDOWS-ABNAHME-2026-11-08.md`, Punkt 3.8).
+- WebView2: der Installer lädt die Laufzeit nach, das MSIX nicht; beim Start prüft das Fenster sie und öffnet sonst
+  Microsofts Download-Seite (`ensure_webview2` in `main.rs`).
 - Größe: Chromium macht den Großteil des Installers aus (etwa 150 MB gepackt).
