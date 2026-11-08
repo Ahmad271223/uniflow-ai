@@ -245,3 +245,70 @@ def test_p5_03_restore_after_hide_keeps_the_package_and_works(hosted):  # noqa: 
     assert (st, d["solution"]["status"], "package_gone" in d) == (200, "active", False)
     assert call(hosted, "GET", f"/solutions/{sid}", hl)[1]["package"] == pkg
 
+
+# ---------------------------------------------------------------- P5-05 withdraw_all / forget_author: Wiederholung
+
+def _fail_first_unlink(monkeypatch):
+    real = Path.unlink
+    state = {"failed": False}
+
+    def flaky(self, missing_ok=False):
+        if self.name.endswith(PKG) and not state["failed"]:
+            state["failed"] = True
+            raise PermissionError(13, "Permission denied")
+        return real(self, missing_ok=missing_ok)
+    monkeypatch.setattr(Path, "unlink", flaky)
+    return state, real
+
+
+def test_p5_05_withdraw_all_retry_after_file_failure_finishes_the_job(hosted, monkeypatch):  # noqa: F811
+    """Scheitert das Loeschen einer Paketdatei, war die Datenbank schon festgeschrieben: die Wiederholung fand keine
+    Loesung mehr (0) und liess die Pakete liegen. Jetzt gehoert das Loeschen zur Transaktion: die Wiederholung
+    erledigt alles."""
+    from app import community
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    s1, s2 = _publish(hosted, ha, _pkg()), _publish(hosted, ha, _pkg(fp="e" * 64))
+    state, real = _fail_first_unlink(monkeypatch)
+    with pytest.raises(PermissionError):
+        community.withdraw_all(autor["id"], "account_deleted")
+    monkeypatch.setattr(Path, "unlink", real)
+    assert state["failed"]
+    n = community.withdraw_all(autor["id"], "account_deleted")
+    assert n == 2, "Wiederholung zieht alles zurueck"
+    assert {_row(s)["status"] for s in (s1, s2)} == {"withdrawn"}
+    assert not _file(s1).exists() and not _file(s2).exists()
+    assert community.withdraw_all(autor["id"], "account_deleted") == 0
+
+
+def test_p5_05_forget_author_retry_after_file_failure_finishes_the_job(hosted, monkeypatch):  # noqa: F811
+    from app import community
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    leser, hl = _member_user(hosted, "leser@beispiel.de")
+    s1, s2 = _publish(hosted, ha, _pkg()), _publish(hosted, ha, _pkg(fp="e" * 64))
+    assert call(hosted, "POST", f"/solutions/{s1}/like", hl)[0] == 200
+    assert call(hosted, "POST", f"/solutions/{s1}/comments", hl, {"text": "Danke"})[0] == 201
+    state, real = _fail_first_unlink(monkeypatch)
+    with pytest.raises(PermissionError):
+        community.forget_author(autor["id"])
+    monkeypatch.setattr(Path, "unlink", real)
+    assert state["failed"]
+    assert community.forget_author(autor["id"]) == 2, "Wiederholung entfernt alles"
+    with community.cursor() as conn:
+        for t in ("solutions", "likes", "comments"):
+            assert conn.execute(f"SELECT COUNT(*) FROM {t} WHERE solution_id=? OR solution_id=?" if t != "solutions"
+                                else "SELECT COUNT(*) FROM solutions WHERE id=? OR id=?", (s1, s2)).fetchone()[0] == 0
+    assert not _file(s1).exists() and not _file(s2).exists()
+    assert community.forget_author(autor["id"]) == 0
+
+
+def test_p5_05_forget_author_removes_packages_left_by_an_interrupted_withdraw(hosted, monkeypatch):  # noqa: F811
+    """Konto geloescht: withdraw_all (sofort) und forget_author (nach 30 Tagen) hintereinander; ein nach dem Rueckzug
+    liegen gebliebenes Paket (z. B. Prozess weg zwischen Commit und Loeschen) raeumt forget_author ab."""
+    from app import community
+    autor, ha = _member_user(hosted, "autor@beispiel.de")
+    sid = _publish(hosted, ha, _pkg())
+    assert community.withdraw_all(autor["id"], "account_deleted") == 1
+    _file(sid).write_text("{}", encoding="utf-8")                    # Leiche nachgestellt
+    assert community.forget_author(autor["id"]) == 1
+    assert not _file(sid).exists() and _row(sid) is None
+

@@ -730,15 +730,20 @@ def mine(user: dict) -> list[dict]:
 
 
 def withdraw_all(author_id: str, reason: str) -> int:
-    """Alle Loesungen eines Kontos zurueckziehen (Konto geloescht): nicht mehr sichtbar, Pakete weg."""
+    """Alle Loesungen eines Kontos zurueckziehen (Konto geloescht): nicht mehr sichtbar, Pakete weg. Audit P5-05
+    (08.11.2026): die Pakete verschwinden innerhalb der Transaktion - scheitert ein Loeschen, bleibt die Datenbank
+    unveraendert und die Wiederholung (spaetestens `forget_author` beim endgueltigen Loeschen) erledigt alles; vorher
+    war die Datenbank schon festgeschrieben und die Wiederholung fand nichts mehr, die Pakete blieben liegen."""
     with cursor() as conn:
+        from . import community_cards
+        # zuerst: legt beim ersten Aufruf je Prozess sein Schema per executescript an, und das committet still alles
+        # davor - danach gehoeren Statuswechsel und Dateiloeschung zu EINER Transaktion
+        community_cards.withdraw_all(conn, author_id)                # geteilte Karteikarten-Stapel ebenso
         rows = conn.execute("SELECT id FROM solutions WHERE author_id=? AND status IN ('active','hidden')", (author_id,)).fetchall()
         conn.execute("UPDATE solutions SET status='withdrawn', status_reason=? WHERE author_id=? AND status IN ('active','hidden')",
                      (reason, author_id))
-        from . import community_cards
-        community_cards.withdraw_all(conn, author_id)                # geteilte Karteikarten-Stapel ebenso
-    for r in rows:
-        (package_dir() / f"{r['id']}.uniflowsolution").unlink(missing_ok=True)
+        for r in rows:
+            _package_path(r["id"]).unlink(missing_ok=True)
     return len(rows)
 
 
@@ -762,10 +767,10 @@ def forget_author(user_id: str) -> int:
         conn.execute("DELETE FROM reports WHERE reporter_id=?", (user_id,))
         conn.execute("DELETE FROM blocks WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM bans WHERE author_id=?", (user_id,))
+        for sid in ids:                                           # alle Pakete des Kontos, auch liegen gebliebene (P5-05)
+            _package_path(sid).unlink(missing_ok=True)
     from . import community_qa
     community_qa.forget(user_id)
-    for sid in ids:
-        (package_dir() / f"{sid}.uniflowsolution").unlink(missing_ok=True)
     return len(ids)
 
 
