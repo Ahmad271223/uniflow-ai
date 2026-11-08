@@ -23,6 +23,9 @@ final class CommunityCloudKitTests: XCTestCase {
         /// naechste Aufrufe scheitern damit
         var failure: CommunityCloudError?
         var saved = 0
+        /// wie das Schema in Production (apps/apple/Config/cloudkit-schema.ckdb, Entscheidung 1.11.): `Report` liest nur der
+        /// Ersteller (`GRANT READ TO "_creator"`); aus, damit die bisherigen Tests die Regel der App pruefen
+        var reportsReadableByCreatorOnly = false
         let assetDir: URL
         private let lock = NSLock()
 
@@ -73,7 +76,8 @@ final class CommunityCloudKitTests: XCTestCase {
             try check()
             return lock.withLock {
                 records.filter { entry in
-                    entry.key == key(scope, q.type, entry.value.name) && q.equals.allSatisfy { k, v in entry.value.fields[k] == v }
+                    if reportsReadableByCreatorOnly, q.type == CommunityRecordType.report, entry.value.creator != user { return false }
+                    return entry.key == key(scope, q.type, entry.value.name) && q.equals.allSatisfy { k, v in entry.value.fields[k] == v }
                         && q.anyOf.allSatisfy { k, values in entry.value.fields[k]?.string.map(values.contains) ?? false }
                 }
                 .map(\.value)
@@ -988,6 +992,37 @@ final class CommunityCloudKitTests: XCTestCase {
         await expect(.notFound) { _ = try await outsider.comments(solutionID: sid) }
         await expect(.notFound) { _ = try await outsider.setLiked(solutionID: sid, true) }
         await expect(.notFound) { _ = try await outsider.addComment(solutionID: sid, text: "x", parentID: nil, pageKey: nil, anchor: nil) }
+    }
+
+    /// Audit P42-09 (08.11.2026), festgenagelt: In Production liest `Report` nur sein Ersteller. Die Regel "ab drei
+    /// Meldungen ausgeblendet" (`CommunityDiscussion.reportsToHide`) rechnet in der App aus den lesbaren Meldungen, also
+    /// sieht jedes Geraet hoechstens die eigene: ueber CloudKit blendet keine Zahl von Meldungen einen Kommentar aus.
+    /// Wirksam bleiben die Moderation im Dashboard (`status` = `hidden`), die eigene Sperrliste und "schon gemeldet".
+    /// Produktentscheidung, siehe docs/audit/AUDIT-2026-11-08-PAKET-42-43.md (beim StudiNow-Konto zaehlt der Dienst).
+    func testP42_09ReportsOfOthersAreNotReadableInProductionSoTheyDoNotHide() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        cloud.reportsReadableByCreatorOnly = true
+        let sid = try await publishForDiscussion(cloud)
+        let ben = member(cloud, "_user-ben", pseudonym: "Ben")
+        let c = try await ben.addComment(solutionID: sid, text: "Werbung", parentID: nil, pageKey: nil, anchor: nil)
+        for user in ["_user-1", "_user-2", "_user-3"] {
+            let s = member(cloud, user)
+            try await s.reportComment(id: c.id, reason: .spam)
+            await expect(.service("Du hast diesen Kommentar schon gemeldet.")) { try await s.reportComment(id: c.id, reason: .spam) }
+        }
+        XCTAssertEqual(cloud.all(CommunityRecordType.report).count, 3)
+        let seen = try await member(cloud, "_user-4").comments(solutionID: sid)
+        XCTAssertEqual(seen.map(\.id), [c.id], "drei fremde Meldungen sind fuer andere nicht lesbar: nichts ausgeblendet")
+        // Moderation im Dashboard wirkt fuer alle, auch gegen Antworten
+        var record = try XCTUnwrap(cloud.all(CommunityRecordType.comment).first { $0.name == c.id })
+        record["status"] = .string("hidden")
+        cloud.records = cloud.records.mapValues { $0.name == c.id && $0.type == CommunityRecordType.comment ? record : $0 }
+        let moderated = try await member(cloud, "_user-4").comments(solutionID: sid)
+        XCTAssertEqual(moderated, [], "status hidden aus dem Dashboard")
+        let replier = member(cloud, "_user-5")
+        await expect(.service("Der Kommentar, auf den du antwortest, gibt es nicht.")) {
+            _ = try await replier.addComment(solutionID: sid, text: "Antwort", parentID: c.id, pageKey: nil, anchor: nil)
+        }
     }
 
     // MARK: Fragen einer Community (03.11.2026)

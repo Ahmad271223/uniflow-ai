@@ -318,10 +318,18 @@ enum FlashcardEndpoints: LocalEndpointModule {
         return s
     }
 
-    /// `_stack_name`: Text ohne Leerraum aussen, nicht leer
+    /// hoechstens so lang wie ein geteilter Stapel (`STACK_NAME_MAX` in app/server.py, Fixture flashcards/stacks.json
+    /// `max_name`; Audit P30-11)
+    static let stackNameMax = 120
+
+    /// `_stack_name`: Text ohne Leerraum aussen, nicht leer, hoechstens `stackNameMax` Zeichen (gezaehlt wie Pythons `len`)
     static func stackName(_ v: PyJSON?) throws -> String {
         guard case .string(let s)? = v, !PyText.strip(s).isEmpty else { throw LocalHTTPError(status: 422, message: "Name des Stapels fehlt") }
-        return PyText.strip(s)
+        let name = PyText.strip(s)
+        guard name.unicodeScalars.count <= stackNameMax else {
+            throw LocalHTTPError(status: 422, message: "Name des Stapels: höchstens \(stackNameMax) Zeichen")
+        }
+        return name
     }
 
     /// `_subject_value`: Fach als Text (ohne Leerraum aussen, leer = kein Fach) oder null

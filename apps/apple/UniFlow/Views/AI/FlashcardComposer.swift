@@ -35,6 +35,9 @@ struct FlashcardComposer: View {
     @State private var saving = false
     @State private var error: String?
     @State private var cards: [Card] = []
+    /// Dokument, aus dem die KI die Karten der Vorschau erstellt hat (Audit P43-08): gespeichert wird mit dieser Quelle;
+    /// ein anderes Dokument im Auswahlfeld verwirft die Vorschau, eine spaete Antwort fuer ein anderes Dokument ebenso
+    @State private var cardsFileID: String?
     @State private var editing: String?
     /// Stapel (GET /api/flashcard-stacks; ohne Antwort leer: dann nur "Neuer Stapel …")
     @State private var stacks: [JSONValue] = []
@@ -87,6 +90,9 @@ struct FlashcardComposer: View {
             && (stack != FlashcardDeck.newStack || !stackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
+    /// Bleibt die Vorschau beim gewaehlten Dokument? Nur, wenn ihre Karten aus genau diesem stammen (ohne Vorschau immer)
+    static func keepsPreview(cardsFrom: String?, selected: String) -> Bool { cardsFrom == nil || cardsFrom == selected }
+
     /// Fach des gewaehlten Moduls (Name), 0 = alle Module -> Fach des Dokuments ueber sein Modul
     private var subject: String? {
         let mid = module != 0 ? module : file?.i("module_id")
@@ -131,6 +137,11 @@ struct FlashcardComposer: View {
             resetStack()
         }
         .onChange(of: fileID) { _, _ in
+            if !Self.keepsPreview(cardsFrom: cardsFileID, selected: fileID) {
+                cards = []
+                cardsFileID = nil
+                editing = nil
+            }
             clampPages()
             resetStack()
         }
@@ -349,6 +360,9 @@ struct FlashcardComposer: View {
         if !t.isEmpty { body["topic"] = .string(t) }
         do {
             let r = try await api.value("/api/ai/flashcards", method: "POST", body: .object(body))
+            // inzwischen ein anderes Dokument gewaehlt: die Karten gehoeren nicht dorthin
+            guard fileID == id else { return }
+            cardsFileID = id
             cards = r.list("cards").enumerated().map { i, c in Card(id: "\(i)-\(UUID().uuidString)", question: c.s("question") ?? "", answer: c.s("answer") ?? "") }
             AIRecents.shared.count()
             if cards.isEmpty { error = "Die KI hat keine Karten geliefert. Versuche andere Seiten." }
@@ -358,7 +372,8 @@ struct FlashcardComposer: View {
     }
 
     private func save() async {
-        guard let api = session.api, canSave, let id = file?.s("id") else { return }
+        // Quelle = das Dokument, aus dem die Karten stammen (nicht das, was gerade im Auswahlfeld steht)
+        guard let api = session.api, canSave, let id = cardsFileID, id == fileID else { return }
         // lokal nur mit Plus: Tarif inzwischen abgelaufen, waehrend der Dialog offen war
         if needsPlus && !ent.allows(.flashcards) { toast.show("Eigene Karteikarten gibt es ab \(UFPlan.plus.name)."); return }
         saving = true

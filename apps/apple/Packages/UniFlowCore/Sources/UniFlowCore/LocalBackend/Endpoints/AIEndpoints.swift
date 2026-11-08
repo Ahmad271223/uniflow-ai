@@ -130,6 +130,9 @@ enum AIEndpoints: LocalEndpointModule {
                 "SELECT f.name, c.title AS course_title FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", [.text(fileID)]) else {
                 throw LocalHTTPError.notFound("Datei nicht gefunden")
             }
+            // ausdrueckliche Auswahl ohne eine einzige moegliche Seite (keine Liste, nur 0/negativ/Text): 422 wie am PC,
+            // bevor eine Seite erkannt oder die KI gefragt wird (Audit P30-10)
+            try checkPageChoice(body.value("pages"), total: nil)
             let wanted = pageList(body.value("pages"), total: nil)
             let allPages: [String]
             do {
@@ -144,6 +147,7 @@ enum AIEndpoints: LocalEndpointModule {
             guard !allPages.isEmpty else {
                 throw LocalHTTPError(status: 404, detail: ["detail": "Kein Seitentext vorhanden.", "code": "no_content"])
             }
+            try checkPageChoice(body.value("pages"), total: allPages.count)
             let pages = pageList(body.value("pages"), total: allPages.count)
             let text = pages.map { allPages[$0 - 1] }.joined(separator: "\n\n")
             let count = AIPrompts.flashcardsCount(body.value("count"))
@@ -177,6 +181,14 @@ enum AIEndpoints: LocalEndpointModule {
     /// `_page_list(raw, total)`: ganze Zahlen 1..total (ohne `total`: nur >= 1), aufsteigend ohne Doppelte, hoechstens
     /// `flashcardPagesMax`; leer oder unbrauchbar = die ersten Seiten (mit `total`), sonst leer
     static func pageList(_ raw: PyJSON?, total: Int?) -> [Int] {
+        let chosen = chosenPages(raw, total: total)
+        if !chosen.isEmpty { return chosen }
+        guard let total else { return [] }
+        return Array(1...max(1, min(total, flashcardPagesMax)))
+    }
+
+    /// Die gueltigen Seiten der Auswahl (ohne Ersatz durch die ersten Seiten)
+    static func chosenPages(_ raw: PyJSON?, total: Int?) -> [Int] {
         var pages: [Int] = []
         if case .array(let items)? = raw {
             for p in items {
@@ -192,10 +204,23 @@ enum AIEndpoints: LocalEndpointModule {
                 pages.append(v)
             }
         }
-        let chosen = Array(pages.sorted().prefix(flashcardPagesMax))
-        if !chosen.isEmpty { return chosen }
-        guard let total else { return [] }
-        return Array(1...max(1, min(total, flashcardPagesMax)))
+        return Array(pages.sorted().prefix(flashcardPagesMax))
+    }
+
+    /// `_page_list` am PC seit Audit P30-10: `null` oder `[]` = die ersten Seiten; eine ausdrueckliche Auswahl ohne eine
+    /// einzige gueltige Seite (1…`total`) oder eine Angabe, die keine Liste ist, ist 422 `pages_invalid` statt still der
+    /// ersten Seiten (Karten zu Seiten, die niemand gewaehlt hat). Gemischte Listen filtert `pageList` wie bisher.
+    static func checkPageChoice(_ raw: PyJSON?, total: Int?) throws {
+        switch raw {
+        case nil, .null?: return
+        case .array(let items)? where items.isEmpty: return
+        case .array?:
+            if !chosenPages(raw, total: total).isEmpty { return }
+            let range = total.map { "1–\($0)" } ?? "ab 1"
+            throw LocalHTTPError(status: 422, detail: ["detail": .string("Keine der gewählten Seiten gibt es in diesem Dokument (\(range))."), "code": "pages_invalid"])
+        default:
+            throw LocalHTTPError(status: 422, detail: ["detail": "pages: Liste von Seitenzahlen erwartet.", "code": "pages_invalid"])
+        }
     }
 
     private static let citation = PyRegex(#"\[(\d{1,2})\]"#)
