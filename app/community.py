@@ -267,6 +267,9 @@ def owns_file(fingerprint: str, user_id: str | None = None) -> bool:
 
 
 MAX_CLAIMS = 5_000                      # je Meldung; ein Semester hat selten mehr als einige hundert PDFs
+# insgesamt je Konto und Hochschule (Audit P39-10, 08.11.2026): ergaenzende Meldungen (die Windows-App schickt Seiten
+# zu 5.000, P19-03) liessen die Tabelle sonst ohne Ende wachsen; ein voller Abgleich (`replace`) ersetzt den Bestand
+MAX_CLAIMS_TOTAL = 50_000
 
 
 def claim_files(user: dict, university: str, fingerprints: list, replace: bool = False, course_keys: list | None = None) -> dict:
@@ -284,6 +287,14 @@ def claim_files(user: dict, university: str, fingerprints: list, replace: bool =
         # Lerngruppen-Schluessel sind nie Kurse (getrennte Namensraeume)
         keys = [k for k in keys if not _kind_is(conn, k, "group")]
         keys, limited = _course_key_budget(conn, user["id"], keys, now)
+        if not replace and fps:
+            have = conn.execute("SELECT COUNT(*) FROM claims WHERE user_id=? AND university=?", (user["id"], university)).fetchone()[0]
+            q = ",".join("?" * len(fps))
+            known = conn.execute(f"SELECT COUNT(*) FROM claims WHERE user_id=? AND university=? AND fingerprint IN ({q})",
+                                 (user["id"], university, *fps)).fetchone()[0]
+            if have + len(fps) - known > MAX_CLAIMS_TOTAL:
+                raise CommunityError("claims_limit", f"Höchstens {MAX_CLAIMS_TOTAL} gemeldete PDFs je Konto. Bitte einmal "
+                                     "vollständig neu abgleichen.", 429)
         if replace:
             conn.execute("DELETE FROM claims WHERE user_id=? AND university=?", (user["id"], university))
         conn.executemany("INSERT OR REPLACE INTO claims(user_id, fingerprint, university, claimed_at) VALUES (?,?,?,?)",
@@ -812,10 +823,10 @@ def report(user: dict, solution_id: str, reason: str, note: str | None) -> dict:
 
 
 def block(user: dict, solution_id: str) -> dict:
+    """Autor einer Loesung fuer sich ausblenden. Nur fuer Loesungen, die das Konto sehen darf (Audit 38/39, 08.11.2026:
+    vorher verriet eine fremde Loesungs-ID das Pseudonym ihres Autors, auch ohne Mitgliedschaft)."""
     with cursor() as conn:
-        r = conn.execute("SELECT pseudonym, author_id FROM solutions WHERE id=?", (solution_id.lower(),)).fetchone()
-        if not r:
-            raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
+        r = _visible_solution(conn, user, solution_id)
         if r["author_id"] == user["id"]:
             raise CommunityError("own_solution", "Du kannst dich nicht selbst sperren.")
         conn.execute("INSERT OR IGNORE INTO blocks(user_id, pseudonym, created_at) VALUES (?,?,?)", (user["id"], r["pseudonym"], _now()))

@@ -59,10 +59,11 @@ def _flashcards(request: Request) -> dict:
     return u
 
 
-def _adopt_quota(request: Request, shared_id: str) -> None:
+def _adopt_quota(request: Request, shared_id: str) -> bool:
     """Kontingent `card_stacks_adopted` (05.11.2026): Plus 4 Stapel je Monat, Pro AI unbegrenzt (Fair Use); derselbe
-    Stapel zaehlt im Monat einmal. 429 quota_exhausted, wenn es aufgebraucht ist."""
-    entitlements.consume(request, "card_stacks_adopted", f"stack:{shared_id}", once=True)
+    Stapel zaehlt im Monat einmal. 429 quota_exhausted, wenn es aufgebraucht ist. True = in diesem Monat zum ersten Mal
+    (nur dann zaehlt die Uebernahme im Zaehler des Stapels, Audit 38/39: vorher jeder Aufruf)."""
+    return not entitlements.consume(request, "card_stacks_adopted", f"stack:{shared_id}", once=True).duplicate
 
 
 def _run(fn, *args, **kw):
@@ -250,7 +251,7 @@ def adopt_card_stack(request: Request, stack_id: str):
         if pc:
             _service("POST", f"/api/community/card-stacks/{stack_id}/adopted")    # Tarif und Kontingent prueft der Dienst
         else:
-            _adopt_quota(request, shared["id"])
+            first = _adopt_quota(request, shared["id"])
         now = db.now_iso()
         cur = conn.execute("INSERT INTO flashcard_stacks(name, subject, file_id, created_at, kind, week, source, source_ref) VALUES (?,?,?,?,?,?,?,?)",
                            (shared["name"], m["name"], None, now, shared["kind"], shared["week"], cardshare.SOURCE_COMMUNITY, shared["id"]))
@@ -260,7 +261,7 @@ def adopt_card_stack(request: Request, stack_id: str):
             conn.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due, stack_id) VALUES (NULL,?,?,?,?,1,?,?)",
                          (m["name"], c["question"], c["answer"], now, today, sid))
         out = {"stack": _local_stack(conn, sid), "already": False, "count": len(shared["cards_list"])}
-    if not pc:
+    if not pc and first:
         community_cards.count_adopted(u, shared["id"])
     return out
 
@@ -307,6 +308,6 @@ def count_card_stack_adopted(request: Request, stack_id: str):
     """Windows-App hat den Stapel in ihre eigene Datenbank uebernommen: nur zaehlen (ab Plus, wie Uebernehmen)."""
     u = _flashcards(request)
     shared = _run(community_cards.get, u, stack_id)
-    _adopt_quota(request, shared["id"])
-    community_cards.count_adopted(u, stack_id)
+    if _adopt_quota(request, shared["id"]):                  # je Konto und Monat einmal, wie das Kontingent
+        community_cards.count_adopted(u, shared["id"])
     return {"ok": True}

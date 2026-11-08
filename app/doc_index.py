@@ -541,7 +541,8 @@ async def index_file(request: Request, upload: UploadFile = File(...), file_sha:
     now = datetime.now(timezone.utc)
     meta = {"job_id": job_id, "status": "queued", "schema_version": SCHEMA_VERSION, "file_sha": sha, "file_key": file_key(sha),
             "file_name": (file_name or "")[:300], "course": (course or "")[:200], "pages": sorted(set(wanted)),
-            "received_at": _iso(now), "expires_at": _iso(now + timedelta(minutes=RETENTION_MINUTES)), "size": size}
+            "received_at": _iso(now), "expires_at": _iso(now + timedelta(minutes=RETENTION_MINUTES)), "size": size,
+            "owner": config.current_user_id()}       # Konto des Auftrags (Dienst); am PC None
     _write_meta(d, meta)
     purge_expired(now)                                          # jeder Upload raeumt Abgelaufenes mit weg
     return public_state(meta)
@@ -549,7 +550,12 @@ async def index_file(request: Request, upload: UploadFile = File(...), file_sha:
 
 @router.get("/api/index/jobs/{job_id}")
 def index_job(job_id: str):
+    """Zustand eines Auftrags - nur fuer das Konto, das ihn angelegt hat (Audit 38/39, 08.11.2026: der Upload-Ordner ist
+    gemeinsam, vorher sah jedes Konto mit der Auftrags-ID Zustand und Abdruecke). Auftraege ohne `owner` (vor dem Fix
+    angelegt, laengstens RETENTION_MINUTES alt) bleiben lesbar."""
     meta = _read_meta(_job_dir(job_id))
+    if meta is not None and meta.get("owner", config.current_user_id()) != config.current_user_id():
+        meta = None
     if meta is None:
         raise HTTPException(404, {"detail": "Auftrag nicht gefunden.", "code": "not_found"})
     return public_state(meta)
