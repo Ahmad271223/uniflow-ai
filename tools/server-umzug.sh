@@ -115,8 +115,9 @@ SSH_OPTS="-i $SSH_KEY -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChec
 ssh_auf() {
   local ip="$1"; shift
   if [ "$TROCKEN" = 1 ]; then printf '[trocken] ssh %s@%s -- %s\n' "$SSH_USER" "$ip" "$*"; return 0; fi
+  # -n: kein stdin, sonst frisst ssh in einer while-read-Schleife (--env-setzen) die restlichen Zeilen (Befund 08.11.2026)
   # shellcheck disable=SC2086
-  ssh $SSH_OPTS "$SSH_USER@$ip" "$@"
+  ssh -n $SSH_OPTS "$SSH_USER@$ip" "$@"
 }
 ssh_alt() { ssh_auf "$ALT_IP" "$@"; }
 ssh_neu() { ssh_auf "$NEU_IP" "$@"; }
@@ -126,7 +127,7 @@ ssh_wert() {
   local ip="$1" cmd="$2" platzhalter="${3:-}"
   if [ "$TROCKEN" = 1 ]; then printf '[trocken] ssh %s@%s -- %s\n' "$SSH_USER" "$ip" "$cmd" >&2; printf '%s' "$platzhalter"; return 0; fi
   # shellcheck disable=SC2086
-  ssh $SSH_OPTS "$SSH_USER@$ip" "$cmd"
+  ssh -n $SSH_OPTS "$SSH_USER@$ip" "$cmd"
 }
 
 # strom_alt_neu 'befehl auf ALT (schreibt nach stdout)' 'befehl auf NEU (liest stdin)'

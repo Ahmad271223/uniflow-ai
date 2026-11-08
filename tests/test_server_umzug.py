@@ -184,3 +184,10 @@ def test_anleitung_fuer_den_inhaber():
               "--dry-run", "--ref", "server/lastfest"):
         assert s in text, s
     assert "\r\n" not in text
+
+
+def test_ssh_ohne_stdin_in_schleifen():
+    """--env-setzen laeuft in einer while-read-Schleife; ohne ssh -n frisst ssh die restlichen Zeilen (08.11.2026 auf dem
+    echten Server: nur UVICORN_WORKERS kam an, API_MEMORY und Budgets fehlten)."""
+    s = UMZUG.read_text()
+    assert s.count('ssh -n $SSH_OPTS "$SSH_USER@$ip"') == 2
