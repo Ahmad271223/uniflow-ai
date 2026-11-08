@@ -3674,8 +3674,14 @@ def api_tt_attendance(body: dict = Body(...)):
 
 @app.post("/api/timetable/exceptions")
 def api_tt_exception(body: dict = Body(...)):
+    # event_id und date Pflicht, sonst 422; unbekannter Termin 404 (vorher 500 durch KeyError/ValueError/Fremdschluessel)
+    event_id = _int_in(body.get("event_id"), "event_id", 1, 2**63 - 1)
+    day = _iso_day(body.get("date"), "date")
+    new_date = _iso_day(body["new_date"], "new_date") if body.get("new_date") else None
     with db.cursor() as conn:
-        timetable.set_exception(conn, int(body["event_id"]), body["date"], body.get("type") or "edit", body.get("new_date"), body.get("new_start"), body.get("new_end"), body.get("note") or "")
+        if not db.row(conn, "SELECT id FROM course_events WHERE id=?", (event_id,)):
+            raise HTTPException(404, "Termin nicht gefunden")
+        timetable.set_exception(conn, event_id, day, body.get("type") or "edit", new_date, body.get("new_start"), body.get("new_end"), body.get("note") or "")
     return {"ok": True}
 
 

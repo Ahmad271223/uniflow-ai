@@ -508,3 +508,29 @@ def test_nachtrag_reslot_valid_dates_still_work(hosted):
     _, h = user(hosted, "reslot-ok@beispiel.de")
     st, d = call(hosted, "POST", "/api/timetable/reslot", {"dates": ["2026-11-09"], "only_unset": True}, headers=h)
     assert st == 200 and d["reslotted"] == ["2026-11-09"], (st, str(d)[:200])
+
+
+# ---------------------------------------------------------------- Nachtrag: Ausnahme ohne Termin (Verweis aus Paket 38-39)
+
+@pytest.mark.parametrize("body", [{}, {"date": "2026-11-09"}, {"event_id": "abc", "date": "2026-11-09"},
+                                  {"event_id": 1}, {"event_id": True, "date": "2026-11-09"},
+                                  {"event_id": 1, "date": "2026-11-09", "new_date": "morgen"}],
+                         ids=["leer", "ohne-termin", "termin-text", "ohne-datum", "termin-bool", "neues-datum-kaputt"])
+def test_nachtrag_exception_needs_event_and_date(hosted, body):
+    """`event_id` oder `date` fehlend/falsch gab 500 (KeyError/ValueError); jetzt 422."""
+    _, h = user(hosted, f"ausnahme-{abs(hash(str(body)))}@beispiel.de")
+    st, d = call(hosted, "POST", "/api/timetable/exceptions", body, headers=h)
+    assert st == 422, (st, str(d)[:200])
+
+
+def test_nachtrag_exception_for_unknown_event_is_404(hosted):
+    _, h = user(hosted, "ausnahme-404@beispiel.de")
+    st, d = call(hosted, "POST", "/api/timetable/exceptions", {"event_id": 987654, "date": "2026-11-09", "type": "cancelled"}, headers=h)
+    assert st == 404, (st, str(d)[:200])
+
+
+def test_nachtrag_exception_still_works(hosted):
+    _, h = user(hosted, "ausnahme-ok@beispiel.de")
+    _, e = call(hosted, "POST", "/api/timetable/events", {"title": "Analysis", "weekday": 0}, headers=h)
+    st, d = call(hosted, "POST", "/api/timetable/exceptions", {"event_id": e["id"], "date": "2026-11-09", "type": "cancelled"}, headers=h)
+    assert st == 200 and d == {"ok": True}, (st, str(d)[:200])
