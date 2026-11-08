@@ -84,9 +84,14 @@ def portal(request: Request, body: dict = Body(default={})):
 
 
 @router.get("/api/app-account/export")
-def export():
+def export(request: Request):
+    """Export am PC: im WLAN nur mit PIN (server.lan_pin_guard), nie aus dem Netz; eine fremde Webseite darf ihn
+    nicht anstossen (wie /api/account/export im Dienst, Audit P24-02)."""
     _local()
-    path = account_mode.export_zip()
+    from .account_api import _from_foreign_site
+    if _from_foreign_site(request):
+        raise HTTPException(403, {"detail": "Anfrage von fremder Seite abgelehnt.", "code": "cross_site"})
+    path = _call(account_mode.export_zip)
     from datetime import date
     return FileResponse(path, media_type="application/zip", filename=f"studinow-daten-pc-{date.today().isoformat()}.zip",
                         background=BackgroundTask(lambda: path.unlink(missing_ok=True)))

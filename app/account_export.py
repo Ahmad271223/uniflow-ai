@@ -91,6 +91,9 @@ def _add_user_dir(z: zipfile.ZipFile, base: Path) -> int:
         rel = p.relative_to(base)
         if any(part.startswith(SKIP_DIRS) for part in rel.parts) or not p.is_file():
             continue
+        # keine Symlinks (Datei oder Ordner auf dem Weg): nichts ausserhalb des Nutzerordners (Audit P24-10)
+        if any((base / Path(*rel.parts[:i + 1])).is_symlink() for i in range(len(rel.parts))):
+            continue
         if p.name.endswith(("-wal", "-shm", ".lock")):
             continue
         arc = "daten/" + rel.as_posix()
@@ -156,10 +159,14 @@ def build(user: dict) -> Path:
     import os
     os.close(fd)
     at = accounts.iso(accounts.now())
-    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as z:
-        z.writestr("LIESMICH.txt", README.format(at=at, email=user["email"]))
-        z.writestr("konto.json", json.dumps(_account(user), ensure_ascii=False, indent=1))
-        _add_user_dir(z, config.BASE_DATA_DIR / "users" / user["id"])
-        _community(z, user)
-        z.writestr("testbibliothek.json", json.dumps(_library(user), ensure_ascii=False, indent=1))
+    try:
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as z:
+            z.writestr("LIESMICH.txt", README.format(at=at, email=user["email"]))
+            z.writestr("konto.json", json.dumps(_account(user), ensure_ascii=False, indent=1))
+            _add_user_dir(z, config.BASE_DATA_DIR / "users" / user["id"])
+            _community(z, user)
+            z.writestr("testbibliothek.json", json.dumps(_library(user), ensure_ascii=False, indent=1))
+    except BaseException:
+        path.unlink(missing_ok=True)          # keine halbe ZIP im Temp-Ordner des Servers (Audit P24-03)
+        raise
     return path

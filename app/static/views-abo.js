@@ -137,12 +137,14 @@ export async function viewAbo(_, params, view) {
   if (state.gated) state.entitlements = me;
   if (params.checkout === "success" && me.source !== "stripe" && !viewAbo._retried) { viewAbo._retried = true; setTimeout(() => { if (location.hash.startsWith("#/abo")) state.route(); }, 4000); }
   // Windows: Bezahlseite und Kundenportal im Systembrowser, danach den Stand beim Dienst neu abfragen (alle 5 s, 10 Minuten)
+  // Browser startet nicht (Audit P23-10): Adresse zum Kopieren anzeigen
+  const notOpened = url => `Der Browser ließ sich nicht öffnen. Bitte diese Adresse im Browser aufrufen: ${url}`;
   const watchAccount = () => { clearInterval(viewAbo._watch); const until = Date.now() + 10 * 60 * 1000;
     viewAbo._watch = setInterval(() => { if (Date.now() > until || !location.hash.startsWith("#/abo")) { clearInterval(viewAbo._watch); return; } window.refreshAppAccount?.(true, true); }, 5000); };
   $$("[data-buy]", view).forEach(b => b.onclick = async () => { b.disabled = true;
-    if (windows) { try { await api("/app-account/checkout", { method: "POST", body: { plan: b.dataset.buy } }); toast(GATE_TEXTS.checkoutOpened, 7000); watchAccount(); } catch (e) { toast(e.message, 6000); } b.disabled = false; return; }
+    if (windows) { try { const r = await api("/app-account/checkout", { method: "POST", body: { plan: b.dataset.buy } }); toast(r.opened === false ? notOpened(r.url) : GATE_TEXTS.checkoutOpened, r.opened === false ? 30000 : 7000); watchAccount(); } catch (e) { toast(e.message, 6000); } b.disabled = false; return; }
     try { const r = await api("/billing/plan-choice", { method: "POST", body: { plan: b.dataset.buy } }); if (r.checkout_url) { location.href = r.checkout_url; return; } toast(r.checkout_error || "Abschluss zurzeit nur in der Apple-App", 5000); } catch (e) { toast(e.message, 5000); } b.disabled = false; });
-  const portal = async () => { try { if (windows) { await api("/app-account/portal", { method: "POST", body: {} }); toast("Das Kundenportal ist in deinem Browser geöffnet.", 5000); watchAccount(); return; } const r = await api("/billing/stripe/portal", { method: "POST", body: {} }); location.href = r.url; } catch (e) { toast(e.message, 5000); } };
+  const portal = async () => { try { if (windows) { const r = await api("/app-account/portal", { method: "POST", body: {} }); toast(r.opened === false ? notOpened(r.url) : "Das Kundenportal ist in deinem Browser geöffnet.", r.opened === false ? 30000 : 5000); watchAccount(); return; } const r = await api("/billing/stripe/portal", { method: "POST", body: {} }); location.href = r.url; } catch (e) { toast(e.message, 5000); } };
   $("#aboBrowse", view)?.addEventListener("click", () => { try { sessionStorage.setItem("gate-browse", "1"); } catch {} location.hash = "#/dashboard"; });
   $("#aboRecheck", view)?.addEventListener("click", () => window.refreshAppAccount?.(true));
   $("#aboRecheck2", view)?.addEventListener("click", () => window.refreshAppAccount?.(true));
