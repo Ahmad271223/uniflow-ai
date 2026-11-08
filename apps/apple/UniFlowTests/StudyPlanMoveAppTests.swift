@@ -139,9 +139,9 @@ final class StudyPlanMoveAppTests: XCTestCase {
 
     private func dump(_ v: UIView?) -> String { v.map { labels($0).joined(separator: "\n") } ?? "(keine Ansicht)" }
 
-    private let stochastik = "Stochastik für Ingenieure,"
-    private let signale = "Signale und Systeme,"
-    private let programmieren = "Programmieren I,"
+    private let stochastik = "Stochastik für Ingenieure, 5 Leistungspunkte"
+    private let signale = "Signale und Systeme, 6 Leistungspunkte"
+    private let programmieren = "Programmieren I, 5 Leistungspunkte"
 
     // MARK: Verschieben ueber das Menue, Kern und Ansicht gemeinsam
 
@@ -207,7 +207,7 @@ final class StudyPlanMoveAppTests: XCTestCase {
             XCTAssertFalse(actionNames(env.view, card).contains("Verschieben nach …"), card)
             XCTAssertFalse(actionNames(env.view, card).contains("Nicht belegen"), card)
             XCTAssertTrue(find(env.view, label: card)?.accessibilityHint?.contains(reason) ?? false,
-                          "\(card) \(find(env.view, label: card)?.accessibilityHint ?? "-")")
+                          "\(card) \(find(env.view, label: card)?.accessibilityHint ?? "-") " + labels(env.view).filter { $0.hasPrefix(card) }.joined(separator: " | "))
         }
         // Ablegen eines gesperrten Moduls: nichts gespeichert, Grund als Rueckmeldung
         var ok: Bool?

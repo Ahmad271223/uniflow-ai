@@ -21,6 +21,8 @@ final class StudyPlanBoardAppTests: XCTestCase {
         private var status: [String: Int] = [:]
         private var hang: Set<String> = []
         private var log: [(method: String, path: String, body: JSONValue?)] = []
+        /// nach einer Anfrage ("POST /api/...") gilt fuer `key` eine neue Antwort (wie der Kern nach dem Speichern)
+        private var then: [String: (key: String, value: JSONValue)] = [:]
 
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
             let path = request.url?.path ?? ""
@@ -28,6 +30,7 @@ final class StudyPlanBoardAppTests: XCTestCase {
             let method = request.httpMethod ?? "GET"
             let (answer, code, hangs): (JSONValue?, Int, Bool) = lock.withLock {
                 log.append((method, path, body))
+                if let t = then[method + " " + path] { canned[t.key] = t.value }
                 return (canned[method + " " + path] ?? canned[path], status[method + " " + path] ?? status[path] ?? 200, hang.contains(path))
             }
             if hangs { try await Task.sleep(nanoseconds: 60_000_000_000) }
@@ -36,6 +39,32 @@ final class StudyPlanBoardAppTests: XCTestCase {
         }
 
         func answer(_ path: String, _ v: JSONValue) { lock.withLock { canned[path] = v } }
+        func answer(_ path: String, after trigger: String, _ v: JSONValue) { lock.withLock { then[trigger] = (path, v) } }
+
+        /// Plan, in dem der Kern ein Modul ins Semester `term` gelegt hat (eigene Lage, LP je Semester nachgezogen)
+        static func moved(_ plan: JSONValue, _ id: String, to term: String) -> JSONValue {
+            guard var o = plan.object, var sems = o["semesters"]?.array else { return plan }
+            var module: JSONValue?
+            for (i, s) in sems.enumerated() {
+                guard var so = s.object, var ms = so["modules"]?.array, let k = ms.firstIndex(where: { $0["id"]?.string == id }) else { continue }
+                module = ms.remove(at: k)
+                so["modules"] = .array(ms)
+                so["lp"] = .number((so["lp"]?.double ?? 0) - (module?["lp"]?.double ?? 0))
+                sems[i] = .object(so)
+            }
+            guard var m = module?.object, let i = sems.firstIndex(where: { $0["term"]?.string == term }), var so = sems[i].object else { return plan }
+            m["placed"] = true
+            m["moved_from"] = .null
+            m["reason"] = .null
+            so["modules"] = .array((so["modules"]?.array ?? []) + [.object(m)])
+            so["lp"] = .number((so["lp"]?.double ?? 0) + (m["lp"]?.double ?? 0))
+            sems[i] = .object(so)
+            o["semesters"] = .array(sems)
+            var pl = o["placements"]?.object ?? [:]
+            pl[id] = .string(term)
+            o["placements"] = .object(pl)
+            return .object(o)
+        }
         func fail(_ key: String, _ code: Int, _ v: JSONValue) { lock.withLock { canned[key] = v; status[key] = code } }
         func hangs(_ path: String) { lock.withLock { _ = hang.insert(path) } }
         func count(_ method: String, _ path: String) -> Int { lock.withLock { log.filter { $0.method == method && $0.path == path }.count } }
