@@ -470,6 +470,11 @@ def schema_once(conn: sqlite3.Connection, key: str, path, fn) -> None:
         return
     with _schema_lock:
         fn(conn)
+        # Schema-Arbeit festschreiben: sonst begann jeder Aufrufer in einer offenen Transaktion, las einen alten Stand und
+        # bekam beim ersten Schreiben nach einem fremden Commit sofort 'database is locked' (kein busy_timeout beim
+        # Hochstufen eines Lese-Snapshots; 08.11.2026, Community unter Last, tests/test_schema_once_transaktion.py)
+        if conn.in_transaction:
+            conn.commit()
         if ident is not None:
             _schema_done.add(ident)
 
