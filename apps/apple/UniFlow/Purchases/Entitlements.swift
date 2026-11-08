@@ -348,8 +348,8 @@ struct UFEntitlementEntry: Equatable {
     var expirationDate: Date?
     var revocationDate: Date?
     var isUpgraded = false
-    /// Ende der Kulanzfrist (Billing Grace Period), wenn Apple das Abo nach gescheiterter Zahlung weiter zaehlt
-    /// (`Product.SubscriptionInfo.RenewalState.inGracePeriod`); `expirationDate` ist dann schon vorbei
+    /// Ablaufdatum vorbei, Apple zaehlt das Abo aber noch: Ende der Kulanzfrist (Billing Grace Period,
+    /// `RenewalState.inGracePeriod`) bzw. kurze Frist, solange die Verlaengerung unterwegs ist (`.subscribed`)
     var graceUntil: Date?
 }
 
@@ -552,16 +552,24 @@ final class Entitlements: ObservableObject {
         var entries: [UFEntitlementEntry] = []
         var active: [String: StoreKit.Transaction] = [:]
         var activeEntries: [String: UFEntitlementEntry] = [:]
+        var graceProducts: Set<String> = []
         let now = Date()
         for await result in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let t) = result else { continue }
             var e = UFEntitlementEntry(t)
-            // Zeitraum vorbei, aber noch in currentEntitlements: Kulanzfrist? (Audit P44-14)
-            if let exp = t.expirationDate, exp <= now, t.revocationDate == nil, !t.isUpgraded {
-                e.graceUntil = await Self.gracePeriodEnd(of: t, now: now)
+            // Zeitraum vorbei, aber noch in currentEntitlements: Kulanzfrist oder Verlaengerung unterwegs? (Audit P44-14)
+            var grace = false
+            if let exp = t.expirationDate, exp <= now, t.revocationDate == nil, !t.isUpgraded,
+               let still = await Self.stillEntitled(t, now: now) {
+                e.graceUntil = still.until
+                grace = still.grace
             }
             entries.append(e)
-            if UFEntitlementResolver.isActive(e, now: now) { active[t.productID] = t; activeEntries[t.productID] = e }
+            if UFEntitlementResolver.isActive(e, now: now) {
+                active[t.productID] = t
+                activeEntries[t.productID] = e
+                if grace { graceProducts.insert(t.productID) }
+            }
         }
         var p = UFEntitlementResolver.plan(from: entries, now: now)
         var renewal: (willAutoRenew: Bool, productID: String?)?
@@ -578,7 +586,7 @@ final class Entitlements: ObservableObject {
         recompute()
         expiresAt = current?.expirationDate
         let currentEntry = current.flatMap { activeEntries[$0.productID] }
-        graceUntil = currentEntry?.graceUntil
+        graceUntil = current.flatMap { graceProducts.contains($0.productID) ? currentEntry?.graceUntil : nil }
         rightsEnd = currentEntry.flatMap(UFEntitlementResolver.rightsEnd)
         purchasedBilling = current.flatMap { UFBilling(productID: $0.productID) }
         willRenew = renewal?.willAutoRenew
@@ -589,12 +597,22 @@ final class Entitlements: ObservableObject {
         scheduleExpiryCheck(now: now)
     }
 
-    /// Ende der Kulanzfrist, wenn Apple das Abo darin fuehrt (Status inGracePeriod); ohne Datum einen Tag trauen und
-    /// dann neu fragen
-    private static func gracePeriodEnd(of t: StoreKit.Transaction, now: Date) async -> Date? {
-        guard let status = await t.subscriptionStatus, status.state == .inGracePeriod else { return nil }
-        if case .verified(let info) = status.renewalInfo, let end = info.gracePeriodExpirationDate, end > now { return end }
-        return now.addingTimeInterval(86_400)
+    /// Zaehlt Apple ein Abo mit vorbeiem Ablaufdatum noch? Kulanzfrist (inGracePeriod): bis zu deren Ende (ohne Datum
+    /// einen Tag, dann neu fragen). Noch "abonniert": die Verlaengerung ist unterwegs (Wecker am Periodenende kam vor
+    /// der neuen Transaktion) - eine Stunde trauen, `Transaction.updates` bringt sie meist vorher. Sonst nil.
+    private static func stillEntitled(_ t: StoreKit.Transaction, now: Date) async -> (until: Date, grace: Bool)? {
+        // nur, wenn Apples neueste Transaktion der Gruppe noch genau diese ist (kein Wechsel, keine Verlaengerung da)
+        guard let status = await t.subscriptionStatus, case .verified(let latest) = status.transaction, latest.id == t.id
+        else { return nil }
+        switch status.state {
+        case .inGracePeriod:
+            if case .verified(let info) = status.renewalInfo, let end = info.gracePeriodExpirationDate, end > now { return (end, true) }
+            return (now.addingTimeInterval(86_400), true)
+        case .subscribed:
+            return (now.addingTimeInterval(3_600), false)
+        default:
+            return nil
+        }
     }
 
     /// Verlaengerung des gueltigen Abos (RenewalInfo der Abo-Gruppe): verlaengert es sich, und mit welchem Produkt?
