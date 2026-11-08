@@ -138,10 +138,12 @@ enum Weekly {
         }
     }
 
-    /// `doc_version(conn, file_id)`
+    /// `doc_version(conn, file_id)`: auf der Textebene (`scriptsearch.text_layer`); erkannter Text einer Scan-Seite
+    /// (`PageOCRStore.fill`) kommt spaeter dazu und ist keine neue Fassung (Audit P49, 08.11.2026: sonst meldete der
+    /// Marker "Dokument wurde geändert" und sperrte den Stoff)
     static func docVersion(_ c: SQLiteConnection, _ fileID: String) throws -> String {
         let ch = try c.queryOne("SELECT chdate FROM files WHERE id=?", [.text(fileID)])?["chdate"]
-        let pages = try pageTexts(c, fileID)
+        let pages = try PageOCRStore.embedded(c, fileID: fileID, pages: pageTexts(c, fileID))
         let chText = ch.flatMap { LocalModules.truthy($0) ? PyJSON(($0.json ?? .null)).dumps : nil } ?? "0"
         return "\(chText)-\(pages.count)-\(h(.array(pages.map { s(norm($0)) })).prefix(10))"
     }

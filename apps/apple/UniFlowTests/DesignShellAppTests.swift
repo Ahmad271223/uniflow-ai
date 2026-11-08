@@ -264,7 +264,8 @@ final class DesignShellAppTests: XCTestCase {
         }
         let end = Date().addingTimeInterval(30)
         while result == nil && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
-        guard let result else { throw XCTSkip("Zeitueberschreitung") }
+        // Zeitueberschreitung ist ein Fehler, kein Ueberspringen (Audit P48, 08.11.2026: ein Haenger blieb sonst gruen)
+        guard let result else { XCTFail("Zeitueberschreitung"); throw CancellationError() }
         return try result.get()
     }
 

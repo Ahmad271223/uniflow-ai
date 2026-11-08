@@ -21,7 +21,8 @@ extension LocalModulesAppTests {
 
     /// Schreibt die Seitentexte ueber die Datenbank des Backends hinter `api` (Transport des Seeds)
     private func seedPages(_ api: APIClient, pages: [String], chdate: SQLiteValue) async throws {
-        guard let recorder = api.transport as? RecordingTransport else { throw XCTSkip("kein lokaler Transport") }
+        // ohne den Transport des Seeds ist der Test falsch aufgebaut: Fehler statt Ueberspringen (Audit P48)
+        let recorder = try XCTUnwrap(api.transport as? RecordingTransport, "kein lokaler Transport")
         let backend = try await recorder.inner.host.backend()
         try await backend.context.database.transaction { c in
             for (i, t) in pages.enumerated() {

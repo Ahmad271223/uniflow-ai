@@ -79,6 +79,9 @@ final class AIContractTests: XCTestCase {
 
     func testAnalysisAndGradePromptsMatchPython() throws {
         let prompts = g(try contract(), "prompts")
+        // ohne Mindestzahl liefe bei umbenanntem Schluessel keine Pruefung (Audit P48); contract.json hat je 3
+        XCTAssertGreaterThanOrEqual(list(prompts, "analysis").count, 3)
+        XCTAssertGreaterThanOrEqual(list(prompts, "grade").count, 3)
         for (i, c) in list(prompts, "analysis").enumerated() {
             let a = g(c, "in")
             same(AIPrompts.analysis(course: s(a, "course"), fileName: s(a, "file_name"), text: s(a, "text")), s(c, "prompt"), "Analyse \(i)")
@@ -91,6 +94,7 @@ final class AIContractTests: XCTestCase {
     }
 
     func testWeekTestPromptsMatchPython() throws {
+        XCTAssertGreaterThanOrEqual(list(g(try contract(), "prompts"), "week_test").count, 7, "Mindestzahl (Audit P48)")
         for (i, c) in list(g(try contract(), "prompts"), "week_test").enumerated() {
             let a = g(c, "in")
             let block = AIPrompts.testTextBlock(list(a, "materials")), exam = AIPrompts.examTextBlock(g(a, "exam"))
