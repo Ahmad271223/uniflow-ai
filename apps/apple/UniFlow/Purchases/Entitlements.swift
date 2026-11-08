@@ -348,6 +348,9 @@ final class Entitlements: ObservableObject {
     /// nach der Probe
     @Published private(set) var purchasedPlan: UFPlan = .free
     private var serviceTrial: UFPlan?
+    /// Resttage und Ende der Probe des Kontos laut Dienst (nur Anzeige, `UFShownTrial`)
+    @Published private(set) var serviceTrialDaysLeft = 0
+    @Published private(set) var serviceTrialEndsAt: Date?
     /// Probe auf dem iPad ohne Dienst (UFLocalTrial); nil vor der Anmeldung oder wenn noch nicht ermittelt
     @Published private(set) var localTrial: UFLocalTrial.State?
     /// "Bei Free bleiben" nach dem Ende der Probe wurde beantwortet (Hinweis auf der Uebersicht nicht mehr zeigen)
@@ -413,9 +416,17 @@ final class Entitlements: ObservableObject {
     /// Tarif der Abo-Gruppe), dazu Verlaengerung und vorgemerkter Wechsel aus der RenewalInfo
     /// Laufende Probe des StudiNow-Kontos (docs/ABO-SYSTEM.md 3a): gilt zusaetzlich zum App-Store-Kauf, solange der
     /// Dienst sie meldet; nur im Speicher, ohne Antwort des Dienstes bleibt der Kauf allein massgeblich
-    func useServiceTrial(_ trial: UFPlan?) {
+    /// `daysLeft`/`endsAt`: Resttage und Ende dieser Probe laut Dienst, nur fuer die Anzeige (`shownTrial`)
+    func useServiceTrial(_ trial: UFPlan?, daysLeft: Int = 0, endsAt: Date? = nil) {
         serviceTrial = trial
+        serviceTrialDaysLeft = trial == nil ? 0 : daysLeft
+        serviceTrialEndsAt = trial == nil ? nil : endsAt
         recompute()
+    }
+
+    /// Stand des Kontos beim Dienst (`StudoraAccountLink.planStatus`): dessen laufende Probe fuer Freischaltung und Anzeige
+    func useServiceStatus(_ s: StudoraAccount.PlanStatus?) {
+        useServiceTrial(s?.trialPlan.flatMap(UFPlan.init(rawValue:)), daysLeft: s?.trialDaysLeft ?? 0, endsAt: s?.trialEndsAt)
     }
 
     // MARK: Probe auf dem iPad (ohne Dienst)
@@ -465,6 +476,15 @@ final class Entitlements: ObservableObject {
         guard !loading, !planIsForced, purchasedPlan == .free, let t = localTrial, t.isActive else { return nil }
         return t
     }
+
+    /// angezeigte Probe (Entscheidung 09.11.2026, `UFShownTrial`): GERUEST, altes Verhalten
+    var shownTrial: UFShownTrial? {
+        UFShownTrial.make(service: serviceTrial, serviceDaysLeft: serviceTrialDaysLeft, serviceEndsAt: serviceTrialEndsAt,
+                          local: localTrial, purchased: purchasedPlan)
+    }
+
+    /// Tarifseite: die angezeigte Probe, erst nach dem ersten Abruf
+    var runningTrial: UFShownTrial? { loading ? nil : shownTrial }
 
     /// Beschriftung fuer den Tarif in den Einstellungen: waehrend der Probe ohne Kauf die Probe, sonst der Tarif
     var statusLabel: String {

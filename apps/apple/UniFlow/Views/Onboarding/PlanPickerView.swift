@@ -64,7 +64,7 @@ struct PlanPickerView: View {
         UFContent(maxWidth: 860) {
             UFPageHead(Self.title(context), sub: subtitle)
             if context == .trialOver { infoCard(UFTrialTexts.overText).padding(.bottom, 16) }
-            if let t = ent.runningLocalTrial { trialCard(t).padding(.bottom, 16) }
+            if let t = ent.runningTrial { trialCard(t).padding(.bottom, 16) }
             if !ent.loading, ent.purchasedPlan == .free, ent.localTrial?.deviceUsed == true {
                 infoCard(UFTrialTexts.usedOnDeviceTitle + ".").padding(.bottom, 16)
             }
@@ -151,10 +151,17 @@ struct PlanPickerView: View {
     /// laeuft auch in der Probe nur mit StudiNow-Konto; dessen Probe gibt dem neuen Konto 25 Credits (plans.TRIAL).
     /// Ohne Pro-AI-Produkt im Store (Build ohne Dienst) ohne Pro AI und ohne KI.
     static func trialStatus(_ t: UFLocalTrial.State, proAI: Bool) -> (title: String, note: String) {
-        let date = t.endsAt.formatted(Date.FormatStyle(date: .numeric, time: .omitted).locale(Locale(identifier: "de_DE")))
+        trialStatus(UFShownTrial(source: .device, daysLeft: t.daysLeft, endsAt: t.endsAt), proAI: proAI)
+    }
+
+    /// dasselbe fuer die angezeigte Probe (`Entitlements.runningTrial`: Probe des Kontos oder des iPads)
+    static func trialStatus(_ t: UFShownTrial, proAI: Bool) -> (title: String, note: String) {
+        let until = t.endsAt.map {
+            " bis " + $0.formatted(Date.FormatStyle(date: .numeric, time: .omitted).locale(Locale(identifier: "de_DE")))
+        } ?? ""
         let left = "noch \(t.daysLeft) \(t.daysLeft == 1 ? "Tag" : "Tage")"
-        let title = proAI ? "Probe aktiv: alle Funktionen von \(UFPlan.proAI.name) bis \(date) (\(left))"
-            : "Probe aktiv: alle Funktionen bis \(date) (\(left))"
+        let title = proAI ? "Probe aktiv: alle Funktionen von \(UFPlan.proAI.name)\(until) (\(left))"
+            : "Probe aktiv: alle Funktionen\(until) (\(left))"
         var note = ""
         if proAI {
             note += "Für die StudiNow-KI brauchst du ein StudiNow-Konto (Anmelden mit Apple); neue Konten bekommen dort "
@@ -164,7 +171,7 @@ struct PlanPickerView: View {
         return (title, note)
     }
 
-    private func trialCard(_ t: UFLocalTrial.State) -> some View {
+    private func trialCard(_ t: UFShownTrial) -> some View {
         let s = Self.trialStatus(t, proAI: proAIOffered)
         return UFCard(flat: true) {
             HStack(alignment: .top, spacing: 12) {
@@ -185,7 +192,7 @@ struct PlanPickerView: View {
     private func planCard(_ plan: UFPlan) -> some View {
         // "Aktueller Tarif" ist der gekaufte (bzw. Free ohne Kauf); waehrend der Probe ohne Kauf keiner, die Karte des
         // Probe-Tarifs (Pro AI) traegt "Probe"
-        let trial = ent.runningLocalTrial != nil
+        let trial = ent.runningTrial != nil
         let current = Self.isCurrent(plan, purchased: ent.purchasedPlan, loading: ent.loading, trial: trial)
         let showCurrent = current && context != .onboarding && context != .trialOver
         let included = UFPlanCard.included(plan)

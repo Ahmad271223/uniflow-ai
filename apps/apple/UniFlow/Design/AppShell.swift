@@ -445,7 +445,7 @@ struct UFSidebarProfile: Equatable {
 
     @MainActor
     static func make(_ ent: Entitlements) -> UFSidebarProfile {
-        make(plan: ent.plan, purchased: ent.purchasedPlan, trialDaysLeft: ent.localTrial.flatMap { $0.isActive ? $0.daysLeft : nil })
+        make(plan: ent.plan, purchased: ent.purchasedPlan, trialDaysLeft: ent.shownTrial?.daysLeft)
     }
 
     /// Initialen fuer den Avatar: wie die Kopfzeile (Server, sonst Apple-Name), sonst aus dem Namen der Begruessung

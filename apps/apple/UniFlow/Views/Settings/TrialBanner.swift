@@ -45,6 +45,14 @@ struct TrialBanner: View {
             LocalTrialBanner(ent: ent)
         }
     }
+
+    /// Inhalt der Karte: laeuft eine Probe, die angezeigte (`Entitlements.shownTrial`, dieselbe wie in Seitenleiste und
+    /// Einstellungen); sonst der Hinweis nach der Probe aus dem Stand des Kontos (`service`) bzw. der iPad-Probe
+    @MainActor
+    static func content(ent: Entitlements, service: StudoraAccount.PlanStatus?) -> UFTrialBannerContent? {
+        UFTrialBannerContent.make(shown: ent.shownTrial, service: service, local: ent.localTrial, purchased: ent.purchasedPlan,
+                                  choiceMade: ent.localTrialChoiceMade)
+    }
 }
 
 /// mit Konto-Anschluss: dessen Stand beobachten, die iPad-Probe als Rueckfall
@@ -53,9 +61,7 @@ private struct ServiceTrialBanner: View {
     @ObservedObject var ent: Entitlements
 
     var body: some View {
-        TrialBannerCard(content: UFTrialBannerContent.make(service: link.planStatus, local: ent.localTrial,
-                                                           purchased: ent.purchasedPlan, choiceMade: ent.localTrialChoiceMade),
-                        busy: link.busy) { source in
+        TrialBannerCard(content: TrialBanner.content(ent: ent, service: link.planStatus), busy: link.busy) { source in
             if source == .service { Task { await link.stayOnFree() } } else { ent.stayOnFreeAfterLocalTrial() }
         }
     }
@@ -66,9 +72,7 @@ private struct LocalTrialBanner: View {
     @ObservedObject var ent: Entitlements
 
     var body: some View {
-        TrialBannerCard(content: UFTrialBannerContent.make(service: nil, local: ent.localTrial, purchased: ent.purchasedPlan,
-                                                           choiceMade: ent.localTrialChoiceMade),
-                        busy: false) { _ in ent.stayOnFreeAfterLocalTrial() }
+        TrialBannerCard(content: TrialBanner.content(ent: ent, service: nil), busy: false) { _ in ent.stayOnFreeAfterLocalTrial() }
     }
 }
 

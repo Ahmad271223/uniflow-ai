@@ -68,17 +68,20 @@ public actor StudoraAccount {
         public var trialDaysLeft: Int
         /// Plan der Probe (`plans.TRIAL`), solange sie laeuft
         public var trialPlan: String?
+        /// Ende der Probe (`trial.ends_at`), solange sie laeuft; nil, wenn der Dienst es nicht meldet
+        public var trialEndsAt: Date?
         public var needsPlanChoice: Bool
         /// UniFlow-ID als UUID fuer `appAccountToken` beim Kauf im App Store (`apple_account_token`); nil, wenn der Dienst
         /// sie nicht liefert
         public var appleAccountToken: String?
 
-        public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, needsPlanChoice: Bool = false,
-                    appleAccountToken: String? = nil) {
+        public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, trialEndsAt: Date? = nil,
+                    needsPlanChoice: Bool = false, appleAccountToken: String? = nil) {
             self.plan = plan
             self.trialActive = trialActive
             self.trialDaysLeft = trialDaysLeft
             self.trialPlan = trialPlan
+            self.trialEndsAt = trialEndsAt
             self.needsPlanChoice = needsPlanChoice
             self.appleAccountToken = appleAccountToken
         }
@@ -205,8 +208,17 @@ public actor StudoraAccount {
         let t = j["trial"]
         let active = t?["active"]?.bool ?? false
         return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
-                          trialPlan: active ? t?["plan"]?.string : nil, needsPlanChoice: j["needs_plan_choice"]?.bool ?? false,
-                          appleAccountToken: j["apple_account_token"]?.string)
+                          trialPlan: active ? t?["plan"]?.string : nil, trialEndsAt: active ? Self.serviceDate(t?["ends_at"]?.string) : nil,
+                          needsPlanChoice: j["needs_plan_choice"]?.bool ?? false, appleAccountToken: j["apple_account_token"]?.string)
+    }
+
+    /// Zeitpunkt aus dem Dienst (`datetime.isoformat()`, z. B. "2026-11-11T10:00:00.123456+00:00"): Sekundenbruchteile
+    /// zaehlen nicht, ohne Zone gilt UTC (wie `billing._parse_utc`); nil, wenn nichts Lesbares kommt
+    public static func serviceDate(_ s: String?) -> Date? {
+        guard var t = s?.trimmingCharacters(in: .whitespaces), !t.isEmpty else { return nil }
+        if let r = t.range(of: #"\.\d+"#, options: .regularExpression) { t.removeSubrange(r) }
+        if t.range(of: #"(Z|z|[+-]\d{2}:\d{2})$"#, options: .regularExpression) == nil { t += "Z" }
+        return ISO8601DateFormatter().date(from: t)
     }
 
     /// Kauf, Verlaengerung oder Wiederherstellen aus dem App Store melden (`POST /api/billing/apple/verify`,
