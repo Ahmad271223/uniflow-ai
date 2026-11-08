@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import time
 from datetime import datetime, timezone
 
@@ -111,10 +112,21 @@ def _columns(conn, table: str) -> list[str]:
     return [r[1] for r in conn.execute(f"PRAGMA table_info({table})") if r[1] not in SYNC_COLS]
 
 
+def _json_dict(value):
+    """Notizen aus der Datenbank. Korrupter Text (Audit 08.11.2026, Paket 3 Nr. 76) ergibt {} mit der Version des
+    Servers statt eines 500 fuer jeden Abruf des Kontos; die naechste Aenderung des Geraets ueberschreibt den Stand."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except ValueError:
+        return {}
+
+
 def _row_out(table: str, r: dict) -> dict:
     out = dict(r)
     if table == "annotations":
-        out["data"] = json.loads(out["data"]) if isinstance(out.get("data"), str) else out.get("data")
+        out["data"] = _json_dict(out.get("data"))
         out["version"] = out.get("version") or 1
     return out
 
@@ -302,6 +314,13 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                     conn.execute(f"UPDATE {table} SET {sets} WHERE {pk}=?", [*changed.values(), sv + 1, now, device, rid])
                     sv += 1
                 results.append({"entity": table, "id": rid, "status": status, "version": sv, "client_won": won})
+            except (ValueError, TypeError, sqlite3.IntegrityError) as e:
+                # Ein kaputter Eintrag (id nicht ganzzahlig, Fremdschluessel auf eine fremde ID, Pflichtfeld leer) bleibt
+                # ein Fehler dieses Eintrags; vorher brach der ganze Push mit 500 ab und das Geraet wiederholte ihn
+                # endlos (Audit 08.11.2026, Paket 3 Nr. 79/80/82). SQLite rollt nur die Anweisung zurueck, nicht die
+                # Transaktion; die uebrigen Eintraege werden uebernommen.
+                results.append({"entity": table, "id": it.get("id"), "local_id": it.get("local_id"), "status": "error",
+                                "message": f"{table}: {e}"})
             finally:
                 if op and len(results) > n0 and results[-1].get("status") not in ("error", "plan_required"):
                     conn.execute("INSERT OR IGNORE INTO sync_ops(op_id, entity, result, device, created_at) VALUES (?,?,?,?,?)",
@@ -312,19 +331,22 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             results.append({"entity": table, "status": "unknown_entity"})
             continue
         pk = ENTITIES[table]["pk"]
-        rid = _coerce_id(table, d.get("id"))
-        when = d.get("deleted_at") if TS_RE.match(d.get("deleted_at") or "") else now
-        server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
-        if server is None:
-            results.append({"entity": table, "id": rid, "status": "deleted"})
-            continue
-        if when >= (server.get("sync_updated_at") or ""):
-            conn.execute(f"DELETE FROM {table} WHERE {pk}=?", (rid,))
-            conn.execute("UPDATE sync_tombstones SET device=?, deleted_at=? WHERE entity=? AND entity_id=?", (device, now, table, str(rid)))
-            results.append({"entity": table, "id": rid, "status": "deleted"})
-        else:
-            conflicts.append({"entity": table, "id": rid, "server": _row_out(table, server), "client": None, "client_won": []})
-            results.append({"entity": table, "id": rid, "status": "edit_wins", "version": server.get("sync_version")})
+        try:
+            rid = _coerce_id(table, d.get("id"))
+            when = d.get("deleted_at") if TS_RE.match(d.get("deleted_at") or "") else now
+            server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
+            if server is None:
+                results.append({"entity": table, "id": rid, "status": "deleted"})
+                continue
+            if when >= (server.get("sync_updated_at") or ""):
+                conn.execute(f"DELETE FROM {table} WHERE {pk}=?", (rid,))
+                conn.execute("UPDATE sync_tombstones SET device=?, deleted_at=? WHERE entity=? AND entity_id=?", (device, now, table, str(rid)))
+                results.append({"entity": table, "id": rid, "status": "deleted"})
+            else:
+                conflicts.append({"entity": table, "id": rid, "server": _row_out(table, server), "client": None, "client_won": []})
+                results.append({"entity": table, "id": rid, "status": "edit_wins", "version": server.get("sync_version")})
+        except (ValueError, TypeError, sqlite3.IntegrityError) as e:          # wie oben: Fehler nur dieses Eintrags
+            results.append({"entity": table, "id": d.get("id"), "status": "error", "message": f"{table}: {e}"})
     return {"results": results, "mapping": [{"entity": e, "local_id": l, "id": i} for (e, l), i in mapping.items()],
             "conflicts": conflicts, "server_time": now}
 
@@ -340,7 +362,7 @@ def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
     cur_v = (cur["version"] or 1) if cur else 0
     base = it.get("base_version")
     if cur and (base is None or int(base) != cur_v):
-        return {"entity": "annotations", "id": file_id, "status": "conflict", "version": cur_v, "data": json.loads(cur["data"])}
+        return {"entity": "annotations", "id": file_id, "status": "conflict", "version": cur_v, "data": _json_dict(cur["data"])}
     new_v = cur_v + 1
     payload = json.dumps(data, ensure_ascii=False)
     conn.execute("INSERT INTO annotations(file_id, data, updated_at, version, sync_version, sync_updated_at, sync_device) VALUES (?,?,?,?,?,?,?) "
