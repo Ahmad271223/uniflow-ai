@@ -1300,6 +1300,21 @@ def _prices_missing() -> AIUnavailable:
                          "LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR).", 503)
 
 
+def cache_key(purpose: str, system: str, prompt: str, schema: dict | None) -> str:
+    """Schluessel im gemeinsamen Zwischenspeicher (ai_cache): Zweck, System, Prompt, Schema - ohne Konto und Modell"""
+    return "c2:" + hashlib.sha256(json.dumps([purpose, system, prompt, schema], sort_keys=True).encode()).hexdigest()
+
+
+def forget_cached(purpose: str, system: str, prompt: str, schema: dict | None = None) -> None:
+    """Antwort aus dem gemeinsamen Zwischenspeicher nehmen, wenn der Aufrufer sie als unbrauchbar erkannt hat (z. B.
+    keine Karteikarten, Audit P30-03). Abgerechnetes bleibt abgerechnet; nur das naechste Mal fragt die KI neu."""
+    conn = connect()
+    try:
+        conn.execute("DELETE FROM ai_cache WHERE key=?", (cache_key(purpose, system, prompt, schema),))
+    finally:
+        conn.close()
+
+
 class _Call:
     """Eine StudiNow-KI-Anfrage in Schritten, damit der synchrone Weg (`complete`: Jobs, Bibliothek, Tests) und der
     asynchrone Weg der Endpunkte (`complete_async`) denselben Ablauf teilen (08.11.2026, Lastfestigkeit):
@@ -1360,7 +1375,7 @@ class _Call:
         try:
             if self.cache and not self.image:
                 # ohne Modell im Schluessel: dieselbe Antwort gilt fuer jedes Modell der Mischung (gespeichert wird, wer sie schrieb)
-                self.key = "c2:" + hashlib.sha256(json.dumps([self.purpose, self.system, self.prompt, self.schema], sort_keys=True).encode()).hexdigest()
+                self.key = cache_key(self.purpose, self.system, self.prompt, self.schema)
                 hit = None if self.fresh else conn.execute("SELECT result, created_at, model FROM ai_cache WHERE key=?", (self.key,)).fetchone()
                 if hit and hit[1] >= (_now(self.now) - timedelta(days=CACHE_DAYS)).isoformat():
                     self.result = Completion(hit[0], 0, 0, "cache", source_model=hit[2] or "")
