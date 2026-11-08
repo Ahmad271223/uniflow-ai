@@ -8,14 +8,15 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
     LERNAPP_OPENAI_API_KEY     Schluessel des StudiNow-Kontos bei OpenAI (nie in der App, nie im Repo, nie im Protokoll);
                                ersatzweise OPENAI_API_KEY
     LERNAPP_OPENAI_BASE_URL    Standard https://api.openai.com/v1; EU-Datenresidenz: https://eu.api.openai.com/v1 (Projekt
-                               mit EU-Region noetig; Preise dann +10 %, app/ai_prices.py)
+                               mit EU-Region noetig; Preise dann +10 %, app/ai_prices.py). Im Dienst nur diese beiden
+                               https-Adressen (check_openai_base_url), am PC auch Testserver.
     LERNAPP_AI_MODEL           OpenAI-Modell der StudiNow-KI (Pflicht fuer OpenAI); DeepSeek und Claude: app/ai_providers.py
     LERNAPP_AI_MODELS          weitere erlaubte Modelle (Komma-Liste), die ein Client ausdruecklich waehlen darf; jedes
                                braucht einen Preis in app/ai_prices.py
     LERNAPP_AI_PRICE_IN_EUR    aeltere Angabe: Preis je 1 Mio. Eingabe-Tokens in EUR fuer alle Modelle (sonst die Tabelle
     LERNAPP_AI_PRICE_OUT_EUR   in app/ai_prices.py); nur wirksam, wenn beide > 0
     LERNAPP_AI_MAX_OUTPUT      Obergrenze der Ausgabe-Tokens je Zweck, z. B. "tutor=2000,flashcards=3000" (MAX_OUTPUT)
-    LERNAPP_AI_REASONING_EFFORT Denkaufwand fuer Denkmodelle (Standard low; leer/none = nicht senden)
+    LERNAPP_AI_REASONING_EFFORT Denkaufwand fuer Denkmodelle (REASONING_EFFORTS, Standard low; leer/none = nicht senden)
     LERNAPP_AI_BUDGET_EUR      Gesamtbudget je Monat fuer alle Konten (Standard 50); erreicht -> Sperre
     LERNAPP_AI_USER_BUDGET_EUR Budget je Konto und Monat (Standard 2; die eigentliche Grenze je Konto sind die Credits,
                                app/credits.py)
@@ -54,6 +55,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import sqlite3
@@ -64,6 +66,7 @@ import urllib.request
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 from . import ai_prices, billing, config, db
 
@@ -172,13 +175,20 @@ class AIUnavailable(Exception):
             (self.code == "ai_provider_unreachable" or (self.code == "ai_provider_error" and self.http_status >= 500))
 
 
+TIMEOUT_MIN_S, TIMEOUT_MAX_S = 5, 600         # Obergrenze = ai_providers.DEADLINE_S (Audit P6-01, 08.11.2026)
+
+
 def timeout_s() -> int:
     """Zeitlimit je Verbindung zum Anbieter (Verbinden, Warten auf das naechste Stueck): LERNAPP_AI_TIMEOUT_S, Standard
-    90 s (vorher 120; 08.11.2026). Die Gesamtdauer einer Antwort begrenzt ai_providers.DEADLINE_S."""
+    90 s (vorher 120; 08.11.2026), 5 bis 600 s; nan/inf/unlesbar = Standard. Die Gesamtdauer einer Antwort begrenzt
+    ai_providers.DEADLINE_S."""
     try:
-        return max(5, int(float(os.environ.get("LERNAPP_AI_TIMEOUT_S") or 90)))
+        v = float(os.environ.get("LERNAPP_AI_TIMEOUT_S") or 90)
     except ValueError:
         return 90
+    if not math.isfinite(v):
+        return 90
+    return int(min(TIMEOUT_MAX_S, max(TIMEOUT_MIN_S, v)))
 
 
 RETRY_FAST_S = 10        # eine sofortige Wiederholung beim selben Anbieter nur, wenn der Fehler schnell kam (kein Zeitlimit)
@@ -212,19 +222,30 @@ class Completion:
                 return max(0, int(v or 0))
             except (TypeError, ValueError):
                 return 0
+        # Nutzung genannt? Ohne input_tokens/output_tokens gilt sie als unbekannt, und der Dienst rechnet die Obergrenze
+        # ab (usage_known=False, _Call.succeed) - fehlende Zahlen sind nie "kostenlos" (Audit P7-07, 08.11.2026)
+        known = any(k in usage for k in ("input_tokens", "output_tokens"))
         return Completion(text, n(usage.get("input_tokens")), n(usage.get("output_tokens")),
                           (data.get("model") if isinstance(data, dict) else None) or model,
                           cached_tokens=n(details_in.get("cached_tokens")), reasoning_tokens=n(details_out.get("reasoning_tokens")),
-                          images=images, provider="openai")
+                          images=images, provider="openai", usage_known=known)
 
 
 # ---------------------------------------------------------------- Konfiguration
 
-def _env_float(name: str, default: float) -> float:
+def _env_float(name: str, default: float, low: float = 0.0) -> float:
+    """Zahl aus der Umgebung; nur endliche Werte >= `low`, sonst der Standard (Audit P7-01/P6-03, 08.11.2026: `nan`
+    und `inf` liessen int() in budget_microeur/rate_per_minute abstuerzen, negative Budgets sperrten alles)."""
     try:
-        return float(os.environ.get(name, default))
+        v = float(os.environ.get(name, default))
     except ValueError:
         return default
+    return v if math.isfinite(v) and v >= low else default
+
+
+def _env_rate(name: str, default: int) -> int:
+    """Anfragen je Zeitraum: ganze Zahl >= 1 (0 oder negativ wuerde jede Anfrage sperren, Audit P7-02)."""
+    return int(_env_float(name, default, low=1.0))
 
 
 def api_key() -> str:
@@ -240,8 +261,25 @@ def provider_name() -> str:
     return p
 
 
+OPENAI_HOSTS = ("api.openai.com", "eu.api.openai.com")
+
+
 def openai_base_url() -> str:
     return ((os.environ.get("LERNAPP_OPENAI_BASE_URL") or "").strip() or "https://api.openai.com/v1").rstrip("/")
+
+
+def check_openai_base_url(url: str) -> str:
+    """Im Dienst geht der Schluessel des Dienstes nur per https an OpenAI selbst (OPENAI_HOSTS); eine andere Adresse in
+    LERNAPP_OPENAI_BASE_URL ist eine Fehlkonfiguration -> ai_not_configured (Audit P7-03/P6-04, 08.11.2026). Am eigenen
+    PC (local) bleiben Testserver wie http://127.0.0.1 erlaubt."""
+    if not config.is_hosted():
+        return url
+    u = urlparse(url)
+    host = (u.hostname or "").lower()
+    if u.scheme != "https" or host not in OPENAI_HOSTS:
+        raise AIUnavailable("ai_not_configured", "LERNAPP_OPENAI_BASE_URL muss im Dienst eine https-Adresse von OpenAI sein "
+                            "(api.openai.com oder eu.api.openai.com).", 503, retryable=True)
+    return url
 
 
 def configured_providers(ignore_choice: bool = False) -> set[str]:
@@ -289,10 +327,17 @@ def max_output(purpose: str) -> int:
     return limits.get(kind, limits["default"])
 
 
+REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")       # Werte der Responses API (reasoning.effort)
+
+
 def reasoning_effort() -> str | None:
+    """Denkaufwand fuer Denkmodelle: einer aus REASONING_EFFORTS, leer/none/off = nicht senden; ein unbekannter Wert
+    wuerde JEDE Anfrage beim Anbieter scheitern lassen, darum gilt dann der Standard low (Audit P6-06, 08.11.2026)."""
     v = (os.environ.get("LERNAPP_AI_REASONING_EFFORT") if "LERNAPP_AI_REASONING_EFFORT" in os.environ else "low") or ""
     v = v.strip().lower()
-    return None if v in ("", "none", "off") else v
+    if v in ("", "none", "off"):
+        return None
+    return v if v in REASONING_EFFORTS else "low"
 
 
 def charges_credits(purpose: str) -> bool:
@@ -316,7 +361,7 @@ def library_budget_microeur() -> int:
 
 
 def rate_per_minute() -> int:
-    return int(_env_float("LERNAPP_AI_RATE_PER_MINUTE", 6))
+    return _env_rate("LERNAPP_AI_RATE_PER_MINUTE", 6)
 
 
 def prices_set(model_name: str | None = None) -> bool:
@@ -333,11 +378,28 @@ def cost_microeur(input_tokens: int, output_tokens: int, model_name: str | None 
 
 _KEY_RE = re.compile(r"sk-[A-Za-z0-9_\-*.]{3,}")
 _AWS_KEY_RE = re.compile(r"\b(AKIA|ASIA)[A-Z0-9]{12,}\b")
+_BEARER_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=\-]{8,}")
+_BEDROCK_KEY_RE = re.compile(r"\bABSK[A-Za-z0-9+/=]{16,}")
+# Umgebungsvariablen mit Geheimnissen des Dienstes: ihr Wert wird in Fehlertexten immer ersetzt, egal welche Form er hat
+_SECRET_ENV = ("LERNAPP_OPENAI_API_KEY", "OPENAI_API_KEY", "LERNAPP_DEEPSEEK_API_KEY", "LERNAPP_ANTHROPIC_API_KEY",
+               "AWS_SECRET_ACCESS_KEY", "AWS_BEARER_TOKEN_BEDROCK", "AWS_SESSION_TOKEN")
 
 
 def scrub(text: str) -> str:
-    """Schluessel nie weitergeben: OpenAI nennt bei 401 einen Teil davon in der Fehlermeldung."""
-    return _AWS_KEY_RE.sub("AKIA***", _KEY_RE.sub("sk-***", text or ""))
+    """Schluessel nie weitergeben (die Endpunkte reichen e.message als `detail` an den Client): OpenAI nennt bei 401
+    einen Teil des Schluessels, andere Anbieter den Bearer-Header. Muster (sk-, AKIA/ASIA, ABSK von Bedrock, "Bearer …")
+    plus die tatsaechlich eingerichteten Geheimnisse aus der Umgebung (Audit P7-04/P6-07, 08.11.2026)."""
+    out = text or ""
+    for name in _SECRET_ENV:
+        secret = (os.environ.get(name) or "").strip()
+        if len(secret) >= 8 and secret in out:
+            out = out.replace(secret, "***")
+    out = _BEARER_RE.sub("Bearer ***", out)
+    return _BEDROCK_KEY_RE.sub("ABSK***", _AWS_KEY_RE.sub("AKIA***", _KEY_RE.sub("sk-***", out)))
+
+
+ERROR_BODY_BYTES = 16_384            # hoechstens so viel eines Fehlerkoerpers lesen (Audit P7-05)
+MAX_RESPONSE_BYTES = 16 * 1024 * 1024  # ChatGPT-Abo am PC: ganze Antwort im Speicher, aber nie unbegrenzt
 
 
 def urllib_transport(url: str, headers: dict, body: bytes, timeout: float):
@@ -348,7 +410,7 @@ def urllib_transport(url: str, headers: dict, body: bytes, timeout: float):
         r = urllib.request.urlopen(req, timeout=timeout)  # noqa: S310 - feste https-Adresse
     except urllib.error.HTTPError as e:
         try:
-            text = e.read().decode("utf-8", "replace")[:4000]
+            text = e.read(ERROR_BODY_BYTES).decode("utf-8", "replace")[:4000]
         except Exception:  # noqa: BLE001
             text = ""
         return e.code, iter(text.splitlines())
@@ -595,11 +657,11 @@ class ChatGPTProvider(OpenAIProvider):
         req = urllib.request.Request(self.URL, data=json.dumps(body).encode("utf-8"), method="POST", headers=self.request_headers(token))
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 - feste https-Adresse
-                raw = r.read().decode("utf-8", "replace")
+                raw = r.read(MAX_RESPONSE_BYTES).decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
             detail = ""
             try:
-                detail = chatgpt_login._error_text(e.read().decode("utf-8", "replace")[:600])
+                detail = chatgpt_login._error_text(e.read(ERROR_BODY_BYTES).decode("utf-8", "replace")[:600])
             except Exception:  # noqa: BLE001
                 pass
             if e.code == 401:
@@ -820,7 +882,7 @@ def build(provider_label: str, model_name: str | None = None):
     if provider_label == "openai":
         if not api_key() or not (model_name or model()):
             raise _not_configured()
-        return OpenAIProvider(api_key(), model_name or model(), base_url=openai_base_url())
+        return OpenAIProvider(api_key(), model_name or model(), base_url=check_openai_base_url(openai_base_url()))
     if provider_label == "deepseek":
         return ai_providers.deepseek_provider(model_name)
     if provider_label == "anthropic":
@@ -850,11 +912,15 @@ def route(purpose: str, request_id: str, *, model_name: str | None = None, image
         prov = ai_prices.provider_of(model_name)
         if prov not in configured:
             raise _not_configured()
+        p = ai_prices.price(model_name)
+        if image and p is not None and not p.vision:   # ausdruecklich gewaehltes Textmodell liest keine Bilder (Audit P8-07)
+            raise AIUnavailable("model_not_allowed", "Dieses Modell liest keine Bilder.", 400)
         return [build(prov, model_name)]
 
     def vision_ok(c) -> bool:
+        # ohne Preis gilt ein Modell nicht als bildfaehig (fail closed, Audit P8-07): im Dienst sperrt es ohnehin _prices_missing
         p = ai_prices.price(c.model or _default_model(c.provider))
-        return p is None or p.vision
+        return p is not None and p.vision
     choices, _hard = ai_router.chain(purpose, request_id, configured=configured, route_text=route_text, hint=route_hint,
                                      needs_vision=bool(image), vision_ok=vision_ok)
     out = []
@@ -874,20 +940,26 @@ def _default_model(provider_label: str) -> str:
             "anthropic": ai_providers.anthropic_model()}.get(provider_label, "")
 
 
+ESTIMATE_INPUT_TOKENS = 4000     # Eingabe einer typischen Seite fuer den Modellvergleich in estimate_model
+
+
 def estimate_model(purpose: str) -> str | None:
     """Modell fuer die Kostenzeile vor einem Lauf (app/doc_explain_api.py): das teuerste Modell des Weges dieses Zwecks
-    unter den eingerichteten Anbietern - die Zeile verspricht so nie zu wenig."""
+    unter den eingerichteten Anbietern - die Zeile verspricht so nie zu wenig. Verglichen werden die Kosten einer
+    typischen Anfrage (Eingabe ESTIMATE_INPUT_TOKENS + Ausgabe bis max_output), nicht nur der Ausgabepreis (Audit P8-03)."""
     from . import ai_router
     if _provider_override is not None:
         return getattr(_provider_override, "model", None) or model()
     configured = configured_providers()
     choices, _ = ai_router.chain(purpose, "estimate", configured=configured)
-    best, best_out = None, -1.0
+    best, best_cost = None, -1.0
+    out_tokens = max_output(purpose)
     for c in choices[:max(1, len(ai_router.route_for(purpose)))]:
         m = c.model or _default_model(c.provider)
         p = ai_prices.price(m)
-        if p and p.output_eur > best_out:
-            best, best_out = m, p.output_eur
+        cost = p.input_eur * ESTIMATE_INPUT_TOKENS + p.output_eur * out_tokens if p else -1.0
+        if p and cost > best_cost:
+            best, best_cost = m, cost
     return best or model()
 
 
@@ -901,8 +973,23 @@ def available() -> bool:
 
 # ---------------------------------------------------------------- Budget, Rate-Limit, Protokoll
 
+def _run_statements(conn: sqlite3.Connection, script: str) -> None:
+    """Anweisungen eines Skripts einzeln ausfuehren. `conn.executescript` wuerde eine offene Transaktion des Aufrufers
+    vorher stillschweigend abschliessen (COMMIT) - so bleibt sie unberuehrt (Audit P8-02, 08.11.2026). Trigger mit
+    BEGIN … END trennt sqlite3.complete_statement richtig."""
+    buf = ""
+    for line in script.splitlines(keepends=True):
+        buf += line
+        if sqlite3.complete_statement(buf):
+            if buf.strip():
+                conn.execute(buf)
+            buf = ""
+    if buf.strip():
+        conn.execute(buf)
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
+    _run_statements(conn, SCHEMA)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(ai_usage_log)")}
     if "trial" not in cols:                                       # Tabelle aus aelterem Stand
         conn.execute("ALTER TABLE ai_usage_log ADD COLUMN trial INTEGER NOT NULL DEFAULT 0")
@@ -910,7 +997,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE ai_usage_log ADD COLUMN library INTEGER NOT NULL DEFAULT 0")
     if "model" not in {r[1] for r in conn.execute("PRAGMA table_info(ai_cache)")}:
         conn.execute("ALTER TABLE ai_cache ADD COLUMN model TEXT")
-    conn.executescript(TRIGGERS)
+    _run_statements(conn, TRIGGERS)
     _rebuild_once(conn)
 
 
@@ -1000,8 +1087,10 @@ def is_trial_account(conn: sqlite3.Connection, user_id: str, t: datetime) -> boo
         return False
     try:
         u = conn.execute("SELECT plan, plan_until FROM users WHERE id=?", (str(user_id),)).fetchone()
-    except sqlite3.OperationalError:                 # accounts.db ohne Konten-Tabelle (nur Abrechnung angelegt)
-        u = None
+    except sqlite3.OperationalError as e:
+        if "no such table" not in str(e):            # gesperrt, kaputtes Schema o. ae. bleibt sichtbar (Audit P8-05)
+            raise
+        u = None                                     # accounts.db ohne Konten-Tabelle (nur Abrechnung angelegt)
     if u and billing.normalize_plan(u[0]) not in (None, "free") and (not u[1] or str(u[1])[:10] >= now_iso[:10]):
         return False
     return True
@@ -1012,7 +1101,7 @@ def _now(now: datetime | None = None) -> datetime:
 
 
 def rate_per_hour() -> int:
-    return int(_env_float("LERNAPP_AI_RATE_PER_HOUR", 60))
+    return _env_rate("LERNAPP_AI_RATE_PER_HOUR", 60)
 
 
 def _library_pool(conn: sqlite3.Connection, period: str) -> int:
@@ -1052,10 +1141,10 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
     conn.execute("BEGIN IMMEDIATE")
     if library:
         try:
-            if _library_pool(conn, period) + RESERVE_MICROEUR > library_budget_microeur():
+            if _library_pool(conn, period) + amount > library_budget_microeur():     # `amount`, nicht die festen 2 Cent (Audit P8-01)
                 raise library_exhausted()
             cur = conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, trial, library, state, created_at) "
-                               "VALUES (NULL,?,?,?,0,1,'reserved',?)", (period, purpose, RESERVE_MICROEUR, t.isoformat()))
+                               "VALUES (NULL,?,?,?,0,1,'reserved',?)", (period, purpose, amount, t.isoformat()))
             conn.execute("COMMIT")
             return cur.lastrowid
         except Exception:
@@ -1106,9 +1195,11 @@ def settle(conn: sqlite3.Connection, log_id: int, c: Completion | None, provider
     if c is None:
         conn.execute("UPDATE ai_usage_log SET state='failed', cost_microeur=0 WHERE id=?", (log_id,))
         return 0
-    cost = int(cost_override) if cost_override is not None else _cost(c, requested_model)
+    # nie negativ (Audit P8-06): Kosten und Tokens sind Betraege; eine Obergrenze gibt es hier absichtlich nicht - das
+    # Becken zaehlt die echten Kosten (die Reservierung ist eine Schaetzung), die harte Grenze je Konto halten die Credits
+    cost = max(0, int(cost_override) if cost_override is not None else _cost(c, requested_model))
     conn.execute("UPDATE ai_usage_log SET state='done', provider=?, model=?, input_tokens=?, output_tokens=?, cost_microeur=? WHERE id=?",
-                 (provider_label, c.model, c.input_tokens, c.output_tokens, cost, log_id))
+                 (provider_label, c.model, max(0, int(c.input_tokens or 0)), max(0, int(c.output_tokens or 0)), cost, log_id))
     return cost
 
 

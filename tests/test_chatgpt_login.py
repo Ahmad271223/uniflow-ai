@@ -236,7 +236,7 @@ def test_provider_streams_the_responses_api_like_openai_requires(cg, monkeypatch
         def __init__(self, raw):
             self.raw = raw
 
-        def read(self):
+        def read(self, n=-1):                    # wie HTTPResponse.read(amt)
             return self.raw.encode()
 
         def __enter__(self):
