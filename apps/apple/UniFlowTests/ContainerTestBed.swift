@@ -81,10 +81,18 @@ final class ContainerTestBed {
     }
 
     /// Datei aus dem Repository (relativ zur Wurzel)
+    /// Datei oder Ordner aus dem Repo (Pfad relativ zur Repo-Wurzel). Auf dem Mac ("Designed for iPad") laeuft die App
+    /// in der Sandbox und darf den Repo-Ordner nicht lesen (Befund 08.11.2026): dann die Kopie im Testbundle
+    /// (project.yml: DebugStub/erststart und packages/shared-contracts/fixtures als Ordner-Ressourcen).
     nonisolated static func repoURL(_ relative: String) -> URL {
         var url = URL(fileURLWithPath: #filePath)
         for _ in 0..<4 { url.deleteLastPathComponent() }
-        return url.appendingPathComponent(relative)
+        let inRepo = url.appendingPathComponent(relative)
+        if FileManager.default.isReadableFile(atPath: inRepo.path) { return inRepo }
+        let bundled = ["apps/apple/DebugStub/", "packages/shared-contracts/"]
+        guard let root = bundled.first(where: { relative.hasPrefix($0) }),
+              let resources = Bundle(for: ContainerTestBed.self).resourceURL else { return inRepo }
+        return resources.appendingPathComponent(String(relative.dropFirst(root.count)))
     }
 
     /// Ordner des Debug-Stubs fuer den ersten Start (erfundene Antworten beider Hochschulen)

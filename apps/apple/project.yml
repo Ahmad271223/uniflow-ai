@@ -185,6 +185,14 @@ targets:
       # alle vier Tarife, nur fuer die Tests der Wechsel-Logik (Pro-Tarife kommen erst mit dem StudiNow-Dienst)
       - path: UniFlowTests/UniFlowAlleTarife.storekit
         buildPhase: resources
+      # Stub-Ordner und Vertrags-Fixtures auch im Testbundle: auf dem Mac ("Designed for iPad") laeuft die App in der
+      # Sandbox und darf den Repo-Ordner nicht lesen (Befund 08.11.2026); ContainerTestBed.repoURL faellt darauf zurueck
+      - path: DebugStub/erststart
+        type: folder
+        buildPhase: resources
+      - path: ../../packages/shared-contracts/fixtures
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: UniFlow
       - package: UniFlowCore

@@ -325,8 +325,10 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         find(env.window)
         pdfs.forEach { $0.isHidden = true }
         defer { pdfs.forEach { $0.isHidden = false } }
+        // WKContentView: WebKit-intern, liegt in einer waagerecht nicht scrollenden WKScrollView; auf dem Mac ("Designed
+        // for iPad") ist sie bei 1024 pt Fensterbreite 1 pt breiter als das Fenster (Rundung von WebKit, Befund 08.11.2026)
         let chrome = ["UIDimmingView", "_UIRoundedRectShadowView", "_UIInheritedView", "UIDropShadowView",
-                      "_UICollectionViewListLayoutSectionBackgroundColorDecorationView"]
+                      "_UICollectionViewListLayoutSectionBackgroundColorDecorationView", "WKContentView"]
         return LayoutWidthAuditTests.overflows(in: env.window).filter { f in
             !chrome.contains { f.text.contains($0) } && !(f.text.hasPrefix("Element „") && f.text.contains("%“"))
         }

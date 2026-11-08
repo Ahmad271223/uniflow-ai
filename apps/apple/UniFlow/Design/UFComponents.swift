@@ -939,8 +939,12 @@ struct UFGridLayout: Layout {
     var minWidth: CGFloat?
 
     private func count(_ w: CGFloat) -> Int {
-        if let m = minWidth { return max(1, Int((w + spacing) / (m + spacing))) }
-        return max(1, columns)
+        guard let m = minWidth else { return max(1, columns) }
+        // SwiftUI schlaegt auch 0 oder unendlich vor (kleinste/groesste Groesse); Int(unendlich) stuerzt ab - auf dem
+        // Mac ("Designed for iPad") passiert das im Fenster der Einstellungen und der Uebersicht (Befund 08.11.2026)
+        let ratio = (w + spacing) / (m + spacing)
+        guard ratio.isFinite else { return 1 }
+        return max(1, Int(ratio))
     }
 
     private func colWidth(_ w: CGFloat) -> CGFloat {
@@ -957,7 +961,8 @@ struct UFGridLayout: Layout {
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let w = proposal.width ?? 900
+        // ohne oder mit unendlichem Vorschlag die Richtbreite 900
+        let w = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? 900
         let rows = rowHeights(subviews, width: w)
         return CGSize(width: w, height: rows.reduce(0, +) + CGFloat(max(0, rows.count - 1)) * spacing)
     }
