@@ -107,6 +107,8 @@ public enum StudiNowAIText {
     public static let quotaExhausted = "Dein Monatskontingent für diese KI-Funktion ist aufgebraucht. Am 1. des nächsten Monats gibt es neues."
     public static let rateLimited = "Gerade kommen zu viele Anfragen auf einmal. Bitte warte einen Moment und versuche es dann erneut."
     public static let unavailable = "Die StudiNow-KI ist gerade nicht verfügbar. Bitte versuche es später erneut."
+    /// 503 `ai_overloaded` / `ai_provider_busy` (app/ai_async.py, app/ai_providers.py), auch nach dem zweiten Versuch
+    public static let busy = "Die StudiNow-KI ist gerade ausgelastet. Bitte versuche es in ein paar Sekunden noch einmal."
     public static let unsupported = "Diese KI-Funktion gibt es mit der StudiNow-KI auf dem iPad noch nicht."
     public static let badAnswer = "Unerwartete Antwort der StudiNow-KI. Bitte versuche es erneut."
 
@@ -130,6 +132,7 @@ public enum StudiNowAIText {
         case "rate_limited": return ServiceErrorText.retryHint(retryAfter).map { "\(rateLimited) (\($0))" } ?? rateLimited
         case "credits_exhausted": return serverMessage.isEmpty ? "Deine Credits für diesen Monat sind aufgebraucht. Am 1. gibt es neue." : serverMessage
         case "ai_task_unsupported": return unsupported
+        case _ where StudiNowAI.busyCodes.contains(code): return busy
         default: break
         }
         if status == 402 { return subscriptionRequired }
@@ -196,15 +199,27 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     /// Groesstes Bild fuer `tutor:*` (wie `ai.TUTOR_IMAGE_MAX_BYTES`)
     public static let imageMaxBytes = AIEndpoints.tutorImageMaxBytes
 
+    /// 503 "ausgelastet" des Dienstes (Notbremse `ai_overloaded` in app/ai_async.py, Rate-Limit des Anbieters
+    /// `ai_provider_busy` in app/ai_providers.py, beide mit Retry-After): nichts wurde berechnet. Die App fragt einmal
+    /// von selbst nach (Audit P43, 08.11.2026), mit derselben Anfrage, also derselben `request_id`, die der Dienst nie
+    /// doppelt berechnet; danach `StudiNowAIText.busy`.
+    public static let busyCodes: Set<String> = ["ai_overloaded", "ai_provider_busy"]
+    /// hoechstens so lange vor dem zweiten Versuch warten (Retry-After des Dienstes: 3 bzw. 5 s; ohne Angabe 2 s)
+    public static let busyRetryMaxSeconds = 10.0
+    /// Warten vor dem zweiten Versuch (Tests ersetzen es)
+    let retrySleep: @Sendable (Double) async throws -> Void
+
     /// `consent` ist Pflicht (kein Standardwert): jede StudiNow-KI fragt vor der ersten Anfrage nach der Einwilligung
     public init(base: String, http: ServiceHTTPTransport, tokens: AccountTokenStore, consent: AIConsentGate,
-                onCredits: (@Sendable (JSONValue) -> Void)? = nil, onSignedOut: (@Sendable () -> Void)? = nil) {
+                onCredits: (@Sendable (JSONValue) -> Void)? = nil, onSignedOut: (@Sendable () -> Void)? = nil,
+                retrySleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64(max(0, $0) * 1_000_000_000)) }) {
         self.base = base.hasSuffix("/") ? String(base.dropLast()) : base
         self.http = http
         self.tokens = tokens
         self.consent = consent
         self.onCredits = onCredits
         self.onSignedOut = onSignedOut
+        self.retrySleep = retrySleep
     }
 
     public var isMetered: Bool { true }
@@ -260,33 +275,43 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
         try Task.checkCancellation()
         var headers = ["Accept": "application/json", "Authorization": "Bearer \(token)"]
         if body != nil { headers["Content-Type"] = "application/json" }
-        let r: ServiceHTTPResponse
-        do {
-            r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: body?.serialized()))
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw Self.error(503, "service_unreachable", StudiNowAIText.unreachable)
-        }
-        let j = (try? JSONValue.parse(r.body)) ?? .null
-        guard (200..<300).contains(r.status) else {
-            // FastAPI: {"detail": {...}} oder {"detail": "...", "code": ...}
-            var fields = (j["detail"]?.object ?? j.object) ?? [:]
-            if let top = j.object { for (k, v) in top where k != "detail" && fields[k] == nil { fields[k] = v } }
-            let code = fields["code"]?.string ?? (r.status == 401 ? "unauthenticated" : "http_\(r.status)")
-            let server = fields["detail"]?.string ?? j["detail"]?.string ?? ""
-            let retry = r.headers.first { $0.key.lowercased() == "retry-after" }.flatMap { Int($0.value) }
-            if r.status == 401 {
-                try? tokens.save(nil)
-                onSignedOut?()
-                throw Self.error(401, "account_required", StudiNowAIText.sessionExpired)
+        let data = body?.serialized()
+        for attempt in 0..<2 {
+            let r: ServiceHTTPResponse
+            do {
+                r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: data))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                throw Self.error(503, "service_unreachable", StudiNowAIText.unreachable)
             }
-            let text = StudiNowAIText.message(status: r.status, code: code, serverMessage: server,
-                                              requiredPlan: fields["required_plan"]?.string, retryAfter: retry)
-            throw Self.error(r.status, code, text, extra: fields)
+            let j = (try? JSONValue.parse(r.body)) ?? .null
+            guard (200..<300).contains(r.status) else {
+                // FastAPI: {"detail": {...}} oder {"detail": "...", "code": ...}
+                var fields = (j["detail"]?.object ?? j.object) ?? [:]
+                if let top = j.object { for (k, v) in top where k != "detail" && fields[k] == nil { fields[k] = v } }
+                let code = fields["code"]?.string ?? (r.status == 401 ? "unauthenticated" : "http_\(r.status)")
+                let server = fields["detail"]?.string ?? j["detail"]?.string ?? ""
+                let retry = r.headers.first { $0.key.lowercased() == "retry-after" }.flatMap { Int($0.value) } ?? fields["retry_after"]?.int
+                if r.status == 401 {
+                    try? tokens.save(nil)
+                    onSignedOut?()
+                    throw Self.error(401, "account_required", StudiNowAIText.sessionExpired)
+                }
+                // ausgelastet: einmal nach Retry-After (hoechstens `busyRetryMaxSeconds`) dieselbe Anfrage noch einmal
+                if attempt == 0, r.status == 503, Self.busyCodes.contains(code) {
+                    try await retrySleep(min(max(Double(retry ?? 2), 0), Self.busyRetryMaxSeconds))
+                    try Task.checkCancellation()
+                    continue
+                }
+                let text = StudiNowAIText.message(status: r.status, code: code, serverMessage: server,
+                                                  requiredPlan: fields["required_plan"]?.string, retryAfter: retry)
+                throw Self.error(r.status, code, text, extra: fields)
+            }
+            guard j.object != nil else { throw Self.error(502, "service_error", StudiNowAIText.badAnswer) }
+            if let c = j["credits"], c.object != nil { onCredits?(c) }
+            return j
         }
-        guard j.object != nil else { throw Self.error(502, "service_error", StudiNowAIText.badAnswer) }
-        if let c = j["credits"], c.object != nil { onCredits?(c) }
-        return j
+        throw Self.error(503, "ai_overloaded", StudiNowAIText.busy)
     }
 }

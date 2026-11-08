@@ -2,15 +2,46 @@ import Foundation
 
 /// Vorlesungs-Seitenmarker, gemeinsame Wochentests und Probeklausuren wie in app/server.py (`/api/markers…`,
 /// `/api/weekly/…`). Fehler aus den Regeln (`Weekly.Failure`, in Python `WeeklyError`) kommen als 400 mit Meldung,
-/// alle anderen als 500 (`_werr`). Erzeugen und Bewerten brauchen die KI des Nutzers; Marker, Stoffumfang und
-/// Uebersicht gehen ohne.
+/// falsche Eingaben als 422, alle anderen als 500 ohne interne Einzelheiten (`_werr`, Audit P32-05). Erzeugen und
+/// Bewerten brauchen die KI des Nutzers; Marker, Stoffumfang und Uebersicht gehen ohne.
 enum WeeklyEndpoints: LocalEndpointModule {
     static let name = "Seitenmarker und gemeinsame Wochentests"
+
+    static let internalError = "Interner Fehler bei Seitenmarkern oder Wochentests."
 
     static func werr(_ e: Error) -> LocalHTTPError {
         if let f = e as? Weekly.Failure { return LocalHTTPError(status: 400, message: f.message) }
         if let h = e as? LocalHTTPError { return h }
-        return LocalHTTPError(status: 500, message: "\(e)")
+        // wie `_werr` am PC: der Text (SQLite, Pfade) bleibt im Protokoll, nicht in der Antwort
+        print("Wochentests/Marker: \(e)")
+        return LocalHTTPError(status: 500, message: internalError)
+    }
+
+    /// `_marker_fields`: lecture_date, topic, page_key Text oder null; lecture_date als JJJJ-MM-TT (`_iso_day`)
+    static func markerFields(_ body: [String: JSONValue]) throws {
+        for k in ["lecture_date", "topic", "page_key"] {
+            if let v = body[k], !v.isNull, v.string == nil { throw LocalHTTPError(status: 422, message: "\(k): Text oder null erwartet") }
+        }
+        if let d = body["lecture_date"]?.string, !d.isEmpty {
+            guard d.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil, BerlinClock.parseISODate(d) != nil else {
+                throw LocalHTTPError(status: 422, message: "lecture_date: Datum JJJJ-MM-TT erwartet")
+            }
+        }
+    }
+
+    /// `_int_in(page, "page", 1, 100_000)`: ganze Zahl (auch als Ziffernfolge oder 5.0, nie bool), sonst 422
+    static func markerPage(_ v: JSONValue) throws -> Int {
+        let n: Int?
+        switch v {
+        case .number(let d) where d.isFinite && d == d.rounded() && abs(d) < 9.0e15: n = Int(d)
+        case .string(let s):
+            let t = s.trimmingCharacters(in: .whitespaces)
+            n = t.range(of: #"^-?\d+$"#, options: .regularExpression) != nil ? Int(t) : nil
+        default: n = nil
+        }
+        guard let n else { throw LocalHTTPError(status: 422, message: "page: ganze Zahl erwartet") }
+        guard (1...100_000).contains(n) else { throw LocalHTTPError(status: 422, message: "page: zwischen 1 und 100000 erwartet") }
+        return n
     }
 
     static func intQuery(_ req: LocalRequest, _ name: String) throws -> Int? {
@@ -52,13 +83,14 @@ enum WeeklyEndpoints: LocalEndpointModule {
 
         router.post("/api/markers") { req, ctx in
             let body = try req.objectBody()
+            try markerFields(body)
+            let checkedPage = try body["page"].map(markerPage)
             guard let fileID = body["file_id"] else { throw LocalHTTPError(status: 400, message: "Feld fehlt: 'file_id'") }
-            guard let rawPage = body["page"] else { throw LocalHTTPError(status: 400, message: "Feld fehlt: 'page'") }
+            guard let page = checkedPage else { throw LocalHTTPError(status: 400, message: "Feld fehlt: 'page'") }
             let fid = fileID.string ?? PyJSON(fileID).dumps
             try await Weekly.ensurePages([fid], ctx)
             let now = Weekly.now(ctx)
             do {
-                guard let page = rawPage.int ?? rawPage.string.flatMap(PyConvert.int) else { throw LocalHTTPError(status: 500, message: "invalid literal for int()") }
                 return .json(.object(try await ctx.database.transaction { c in
                     try Weekly.createMarker(c, fileID: fid, page: page, lectureDate: body["lecture_date"]?.string, topic: body["topic"]?.string,
                                             pageKey: body["page_key"]?.string, now: now)
@@ -69,7 +101,8 @@ enum WeeklyEndpoints: LocalEndpointModule {
         router.patch("/api/markers/{marker_id:int}") { req, ctx in
             let id = Int64(req.param("marker_id")) ?? 0
             let body = try req.objectBody()
-            let page: Int? = body["page"].flatMap { $0 == .null ? nil : ($0.int ?? $0.string.flatMap(PyConvert.int)) }
+            try markerFields(body)
+            let page: Int? = try body["page"].flatMap { $0 == .null ? nil : try markerPage($0) }
             let now = Weekly.now(ctx)
             do {
                 if let f = try await ctx.database.withConnection({ c in try Weekly.markerRow(c, id)?["file_id"]?.string }) {
@@ -94,7 +127,8 @@ enum WeeklyEndpoints: LocalEndpointModule {
         router.post("/api/markers/{marker_id:int}/release") { req, ctx in
             let id = Int64(req.param("marker_id")) ?? 0
             let body = try req.objectBody(orEmpty: true)
-            let confirm = body["confirm"].map { LocalModules.truthy(Weekly.v($0)) || ($0.object.map { !$0.isEmpty } ?? false) || ($0.array.map { !$0.isEmpty } ?? false) } ?? false
+            // nur ein echtes true gibt frei: "false" (Text), 1 oder [true] waren "wahr" (Audit P32-01; die App sendet true)
+            let confirm = body["confirm"] == .bool(true)
             let now = Weekly.now(ctx)
             do {
                 return .json(.object(try await ctx.database.transaction { c in try Weekly.releaseMarker(c, id: id, confirm: confirm, now: now) }))

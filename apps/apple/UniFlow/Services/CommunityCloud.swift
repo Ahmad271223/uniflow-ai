@@ -77,7 +77,12 @@ enum CommunityCloudError: Error, Equatable {
     case quota
     case notFound
     case permission
+    /// derselbe Datensatz wurde inzwischen anderswo gespeichert (CloudKit `serverRecordChanged`, z. B. zweites Geraet
+    /// aktualisiert dieselbe Loesung): nichts ueberschrieben, neu laden (Audit P42-04)
+    case changedElsewhere
     case other(String)
+
+    static let changedElsewhereText = "Der Eintrag wurde gerade auf einem anderen Gerät geändert. Lade neu und versuche es noch einmal."
 
     var serviceError: CommunityServiceError {
         switch self {
@@ -86,6 +91,7 @@ enum CommunityCloudError: Error, Equatable {
         case .quota: return .quota
         case .notFound: return .notFound
         case .permission: return .notOwner
+        case .changedElsewhere: return .service(Self.changedElsewhereText)
         case .other(let m): return .server(m)
         }
     }
@@ -269,6 +275,7 @@ final class CKCommunityCloud: CommunityCloud, @unchecked Sendable {
         case .quotaExceeded: return .quota
         case .unknownItem: return .notFound
         case .permissionFailure: return .permission
+        case .serverRecordChanged: return .changedElsewhere
         case .partialFailure:
             if let inner = e.partialErrorsByItemID?.values.first { return map(inner) }
             return .other(e.localizedDescription)
