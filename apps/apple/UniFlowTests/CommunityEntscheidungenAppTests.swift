@@ -42,7 +42,7 @@ final class CommunityEntscheidungenAppTests: XCTestCase {
         }
         func countAdoptedStack(ref: String) async throws -> StudoraAccount.AdoptQuota {
             counted.append(ref)
-            guard let answer else { throw AccountError(status: 0, code: "service_unreachable", message: "offline", retryAfter: nil) }
+            guard let answer else { throw URLError(.notConnectedToInternet) }
             return answer
         }
     }
