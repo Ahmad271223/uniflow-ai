@@ -25,6 +25,11 @@ from dataclasses import dataclass, field
 AGENT_TIMEOUT_S = 60          # so lange nach der letzten Abfrage gilt der Agent als verbunden
 MAX_WAIT_S = 30               # laengste Wartezeit einer Abfrage
 COOKIE_KEYS = ("name", "value", "domain", "path", "expires", "httpOnly", "secure")
+# Grenzen (Audit 08.11.2026, P15-08/P15-09): so viele Fenster merkt das Backend (fertige zuerst verworfen), so viele
+# Cookies je Meldung, so lang darf ein Feld eines Cookies sein (laengere Cookies werden verworfen, nicht gekuerzt)
+MAX_WINDOWS = 200
+MAX_COOKIES = 300
+MAX_COOKIE_FIELD = 8192
 
 _cond = threading.Condition()
 _queue: list[dict] = []
@@ -55,9 +60,36 @@ def enqueue(kind: str, url: str, title: str, cookie_urls: list[str] | None = Non
     with _cond:
         w = Window(id=f"w{next(_ids)}", kind=kind, url=url, updated_at=time.time())
         _windows[w.id] = w
+        _prune()
         _queue.append({"id": w.id, "kind": kind, "url": url, "title": title, "cookie_urls": list(cookie_urls or [])})
         _cond.notify_all()
         return w
+
+
+def _prune() -> None:
+    """Hoechstens MAX_WINDOWS Fenster: zuerst die aeltesten fertigen, dann die aeltesten Link-Fenster (`open`, die
+    nie fertig gemeldet werden). Ein laufendes Anmeldefenster bleibt. Aufruf unter `_cond`."""
+    excess = len(_windows) - MAX_WINDOWS
+    if excess <= 0:
+        return
+    order = sorted((w for w in _windows.values() if w.done or w.kind != "login"),
+                   key=lambda w: (not w.done, int(w.id[1:]) if w.id[1:].isdigit() else 0))
+    for w in order[:excess]:
+        _windows.pop(w.id, None)
+
+
+def _clean_cookies(cookies: list) -> list[dict]:
+    out = []
+    for c in cookies:
+        if len(out) >= MAX_COOKIES:
+            break
+        if not (isinstance(c, dict) and c.get("name")):
+            continue
+        d = {k: c.get(k) for k in COOKIE_KEYS}
+        if any(isinstance(v, str) and len(v) > MAX_COOKIE_FIELD for v in d.values()):
+            continue
+        out.append(d)
+    return out
 
 
 def next_command(wait: float = MAX_WAIT_S, now: float | None = None) -> dict | None:
@@ -85,8 +117,8 @@ def report(window_id: str, status: str | None = None, url: str | None = None, co
             w.status = status
         if isinstance(url, str):
             w.current_url = url[:2048]
-        if isinstance(cookies, list):
-            w.cookies = [{k: c.get(k) for k in COOKIE_KEYS} for c in cookies if isinstance(c, dict) and c.get("name")]
+        if isinstance(cookies, list) and not w.done:     # fertig: keine Cookies mehr im Speicher halten
+            w.cookies = _clean_cookies(cookies)
         w.updated_at = time.time()
         _cond.notify_all()
         return {"done": w.done, "known": True}
@@ -97,7 +129,8 @@ def finish(window_id: str, result: str | None = None) -> None:
     with _cond:
         w = _windows.get(window_id)
         if w:
-            w.done, w.result = True, result
+            w.done, w.result = True, (result if result is not None else w.result)
+            w.cookies = []                               # Sitzung ist gemerkt (oder verworfen): nicht im RAM lassen
             _cond.notify_all()
 
 

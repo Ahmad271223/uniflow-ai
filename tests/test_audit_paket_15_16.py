@@ -144,12 +144,12 @@ def test_p15_05_cookie_header_respects_secure_path_and_host_only():
         {"name": "deep", "value": "3", "domain": "studip.test", "path": "/studip"},
         {"name": "other", "value": "4", "domain": "studip.test", "path": "/studipx"},
         {"name": "sub", "value": "5", "domain": ".test"},
-        {"name": "hostonly", "value": "6"},
+        {"name": "hostonly", "value": "6"},              # ohne Domain: Herkunft unbekannt, nie senden
         {"name": "bad", "value": "7", "domain": "studip.test", "expires": "x"},
     ]
-    assert unilogin._cookie_header(cookies, "https://studip.test/studip/jsonapi.php") == "sec=1; plain=2; deep=3; sub=5; hostonly=6"
-    assert unilogin._cookie_header(cookies, "http://studip.test/studip") == "plain=2; deep=3; sub=5; hostonly=6", "secure nie ueber http"
-    assert unilogin._cookie_header(cookies, "https://studip.test/") == "sec=1; plain=2; sub=5; hostonly=6"
+    assert unilogin._cookie_header(cookies, "https://studip.test/studip/jsonapi.php") == "sec=1; plain=2; deep=3; sub=5"
+    assert unilogin._cookie_header(cookies, "http://studip.test/studip") == "plain=2; deep=3; sub=5", "secure nie ueber http"
+    assert unilogin._cookie_header(cookies, "https://studip.test/") == "sec=1; plain=2; sub=5"
     assert unilogin._cookie_header(cookies, "https://evilstudip.test/studip") == "sub=5", "kein Suffix ohne Punkt"
     assert unilogin._cookie_header([{"name": "a", "value": "1", "domain": "studip.test"}], "ftp://studip.test/") == ""
     assert unilogin._cookie_header([{"name": "a", "value": "1", "domain": "studip.test"}], "file:///etc/passwd") == ""
