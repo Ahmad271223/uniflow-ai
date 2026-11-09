@@ -369,7 +369,7 @@ final class Entitlements: ObservableObject {
     private var expiryCheck: Task<Void, Never>?
     /// zur naechsten Verlaengerung vorgemerkter kleinerer Tarif (Downgrade), sonst nil
     @Published private(set) var pendingPlan: UFPlan?
-    /// Zahlweise des gekauften Abos (monatlich/jaehrlich); nil ohne Abo
+    /// Zahlweise des gekauften Abos (jaehrlich; monatlich nur bei einem frueheren Monatsabo); nil ohne Abo
     @Published private(set) var purchasedBilling: UFBilling?
     /// verlaengert sich das gueltige Abo? false = gekuendigt, laeuft bis `expiresAt`; nil = unbekannt bzw. Free
     @Published private(set) var willRenew: Bool?
@@ -541,7 +541,7 @@ final class Entitlements: ObservableObject {
         }
         var p = UFEntitlementResolver.plan(from: entries, now: now)
         var renewal: (willAutoRenew: Bool, productID: String?)?
-        // gueltige Transaktion des Tarifs, monatlich oder jaehrlich (UFPlan.productIDs)
+        // gueltige Transaktion des Tarifs: Jahresabo oder frueheres Monatsabo (UFPlan.productIDs, 09.11.2026)
         var current = p.productIDs.lazy.compactMap { active[$0] }.first
         if let t = current { renewal = await Self.renewal(of: t) }
         #if DEBUG

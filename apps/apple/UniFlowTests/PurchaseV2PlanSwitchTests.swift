@@ -17,12 +17,12 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
     /// Die Testkonfiguration hat alle Abo-Tarife, die App bietet davon nur Plus und Pro AI an
     func testAllPlansConfigurationOffersEveryPaidPlan() async throws {
         let (store, ent) = await makeStore()
-        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
+        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"])
         XCTAssertEqual(ent.plan, .free)
         for plan in UFPlan.paid {
             let q = try XCTUnwrap(store.product(for: plan), plan.rawValue)
             XCTAssertNil(q.subscription?.introductoryOffer, "kein Einführungsangebot: \(plan.rawValue)")
-            XCTAssertEqual(q.ufPeriod.1, .month, plan.rawValue)
+            XCTAssertEqual(q.ufPeriod.1, .year, plan.rawValue)
             XCTAssertEqual(q.subscription?.subscriptionGroupID, store.products.first?.subscription?.subscriptionGroupID)
             XCTAssertEqual(q.displayName, plan.name)
         }
@@ -73,7 +73,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
         for await r in StoreKit.Transaction.currentEntitlements {
             if case .verified(let t) = r, UFEntitlementResolver.isActive(UFEntitlementEntry(t), now: Date()) { active.append(t.productID) }
         }
-        XCTAssertEqual(active, ["de.uniflow.proai.monthly"])
+        XCTAssertEqual(active, ["de.uniflow.proai.yearly"])
         // neue Instanz (wie nach einem Neustart) kommt zum selben Ergebnis
         let fresh = Entitlements(observe: false)
         await fresh.refresh()

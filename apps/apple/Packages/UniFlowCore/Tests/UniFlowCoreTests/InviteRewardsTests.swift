@@ -75,7 +75,7 @@ final class InviteRewardsTests: XCTestCase {
                  "claimed": ["tier": 5, "choice": "plus", "offer_code": "PLUS5-A", "claimed_at": "2026-11-05T09:00:00+00:00",
                              "redeem_url": "https://apps.apple.com/redeem?ctx=offercodes&id=6741234567&code=PLUS5-A"]],
                 ["count": 10, "choices": ["plus"], "rewards": ["plus": "3 Monate StudiNow Plus gratis"], "reached": false, "claimable": false, "claimed": .null],
-                ["count": 20, "choices": ["plus", "proai"], "rewards": ["plus": "12 Monate StudiNow Plus gratis", "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)"],
+                ["count": 20, "choices": ["plus", "proai"], "rewards": ["plus": "12 Monate StudiNow Plus gratis", "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)"],
                  "reached": false, "claimable": false, "claimed": .null],
             ],
         ]
@@ -93,7 +93,7 @@ final class InviteRewardsTests: XCTestCase {
         XCTAssertEqual(o.tiers[0].claimed, .init(choice: .plus, offerCode: "PLUS5-A", claimedAt: "2026-11-05T09:00:00+00:00",
                                                  redeemURL: URL(string: "https://apps.apple.com/redeem?ctx=offercodes&id=6741234567&code=PLUS5-A")))
         XCTAssertEqual(o.tiers[2].choices, [.plus, .proai])
-        XCTAssertEqual(o.tiers[2].rewards[.proai], "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)")
+        XCTAssertEqual(o.tiers[2].rewards[.proai], "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)")
         XCTAssertNil(o.tiers[1].claimed)
 
         await fake.on("POST", "/api/invites", 201, overview)
@@ -110,10 +110,10 @@ final class InviteRewardsTests: XCTestCase {
         XCTAssertEqual(sent?.headers["Authorization"], "Bearer token", "nur mit Sitzung")
 
         await fake.on("POST", "/api/invites/claim", 200, ["tier": 20, "choice": "proai", "offer_code": "PROAI20-A", "already": false,
-                                                          "reward": "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)",
+                                                          "reward": "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)",
                                                           "redeem_url": "https://apps.apple.com/redeem?ctx=offercodes&id=6741234567&code=PROAI20-A"])
         let c = try await acc.claimInvite(tier: 20, choice: .proai)
-        XCTAssertEqual(c, InviteClaim(tier: 20, choice: .proai, offerCode: "PROAI20-A", reward: "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)",
+        XCTAssertEqual(c, InviteClaim(tier: 20, choice: .proai, offerCode: "PROAI20-A", reward: "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)",
                                       redeemURL: URL(string: "https://apps.apple.com/redeem?ctx=offercodes&id=6741234567&code=PROAI20-A"), already: false))
         let claimReq = await fake.last("/api/invites/claim")
         let body = try JSONValue.parse(XCTUnwrap(claimReq?.body))

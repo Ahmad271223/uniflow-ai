@@ -113,7 +113,7 @@ private struct TrialBannerCard: View {
 // MARK: - Entscheidung nach der Probe
 
 /// Nach dem Ende der Probe muss sich die Person entscheiden (Inhaber 07.11.2026): ein Bildschirm ueber der ganzen App,
-/// der nicht wegzuwischen ist, mit Free ("Bei Free bleiben"), Plus und Pro AI (monatlich/jaehrlich, `PlanPickerView`
+/// der nicht wegzuwischen ist, mit Free ("Bei Free bleiben"), Plus und Pro AI (Jahresabo, `PlanPickerView`
 /// im Kontext `.trialOver`). "Bei Free bleiben" ist eine gueltige Wahl und wird je Apple-ID gemerkt (UserDefaults und
 /// Schluesselbund, `UFTrialRecordStore.markChoice`), danach erscheint der Bildschirm nicht wieder, auch nicht nach einer
 /// Neuinstallation. Ein Kauf beendet ihn ebenso. Gilt fuer die Probe auf dem iPad; laeuft die Probe ueber den
