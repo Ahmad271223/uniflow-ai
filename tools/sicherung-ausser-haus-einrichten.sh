@@ -77,8 +77,10 @@ pruefe_kopie() {
 		printf 'BACKUP-INFO.txt:\n%s\n' "$(printf '%s\n' "$info" | sed 's/^/   /')"
 		grep -q '^created=' <<<"$info" || { printf 'PROBLEM: BACKUP-INFO.txt ohne created=\n'; ok=1; }
 		if command -v sqlite3 >/dev/null 2>&1; then
-			integ="$(sqlite3 -readonly "$t/uniflow-data/accounts.db" 'PRAGMA integrity_check;' 2>&1 | head -n1)"
-			konten="$(sqlite3 -readonly "$t/uniflow-data/accounts.db" 'SELECT count(*) FROM users;' 2>&1 | head -n1)"
+			# Wegwerf-Kopie: normal oeffnen. Mit -readonly scheitert eine Datenbank im WAL-Modus ohne -shm-Datei mit
+			# SQLITE_CANTOPEN (14), und set -o pipefail beendete das Skript dann stumm (gefunden 09.11.2026, erster echter Lauf)
+			integ="$(sqlite3 "$t/uniflow-data/accounts.db" 'PRAGMA integrity_check;' 2>&1 | head -n1 || true)"
+			konten="$(sqlite3 "$t/uniflow-data/accounts.db" 'SELECT count(*) FROM users;' 2>&1 | head -n1 || true)"
 			printf 'accounts.db: integrity_check=%s, Konten=%s\n' "$integ" "$konten"
 			[ "$integ" = "ok" ] || { printf 'PROBLEM: accounts.db nicht in Ordnung\n'; ok=1; }
 		else
