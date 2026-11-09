@@ -99,7 +99,9 @@ final class AboNurJahrAppTests: StoreKitSessionTestCase {
             RunLoop.main.run(until: Date().addingTimeInterval(0.3))
         }
         RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        // Der Waehrungsformatierer setzt geschuetzte Leerzeichen vor das Euro-Zeichen; fuer den Vergleich normalisieren
         let all = texts().joined(separator: "\n")
+            .replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{202F}", with: " ")
         XCTAssertTrue(all.contains("StudiNow Plus für 19,99"), all)
         XCTAssertTrue(all.contains("StudiNow Pro AI für 39,99"), all)
         XCTAssertTrue(all.contains("/Jahr"), all)
