@@ -119,6 +119,16 @@ def _expect_app(page, base, email):
     page.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller !== null", timeout=T)
 
 
+def _skip_first_start(page, base, cookie, email):
+    """Erststart (onboarding.js, seit 05.11.2026) fuer ein frisches Konto als erledigt markieren und neu laden: das
+    Willkommensfenster liegt sonst modal ueber der Seite und faengt Klicks (z. B. auf den Avatar) ab."""
+    st, _ = _http(base, "PUT", "/api/settings", {"onboarding_done": "1"}, cookie=cookie)
+    assert st == 200, st
+    page.reload()
+    _expect_app(page, base, email)
+    assert page.query_selector(".ob-overlay") is None
+
+
 def _goto_hash(page, h, ready, timeout=T):
     page.evaluate(f"location.hash = {json.dumps(h)}")
     page.wait_for_function(ready, timeout=timeout)
@@ -193,26 +203,12 @@ def test_register_trial_plans_and_credentials_consent(served_hosted):
             assert buttons.count("In der Apple-App abschließen") >= 1, buttons
             assert page.evaluate("[...document.querySelectorAll('#view .badge')].some(b => b.textContent.trim() === 'Probe läuft')")
             assert not page.evaluate("[...document.querySelectorAll('#view .badge')].some(b => b.textContent.trim() === 'Dein Tarif')")
-            # 2. Einstellungen -> Zugang: ohne Haekchen nichts gespeichert, mit Haekchen gespeichert und "Zugestimmt am"
-            _goto_hash(page, "#/settings?tab=account", "!!document.querySelector('#saveCred') && !!document.querySelector('#credConsent')")
-            assert not page.is_checked("#credConsent"), "Zustimmung darf nicht vorangekreuzt sein"
-            assert page.evaluate("document.querySelector('#view').textContent.includes('Zugestimmt am')") is False
-            page.fill("#credUser", "ab1234")
-            page.fill("#credPass", "webs-so-geheim")
-            page.click("#saveCred")
-            page.wait_for_function("/zustimmen/i.test(document.querySelector('#toastEl')?.textContent || '')", timeout=T)
-            st, cred = _http(base, "GET", "/api/credentials", cookie=cookie)
-            assert st == 200 and cred == {"user": "", "password_set": False, "consent_at": None}, f"ohne Haekchen gespeichert: {cred}"
-            st, err = _http(base, "PUT", "/api/credentials", {"user": "ab1234", "password": "x"}, cookie=cookie)     # der Server verlangt die Zustimmung ebenso
-            assert (st, err and err.get("code")) == (400, "consent_required"), (st, err)
-            page.check("#credConsent")
-            page.click("#saveCred")
-            page.wait_for_function("/Zugang gespeichert/.test(document.querySelector('#toastEl')?.textContent || '')", timeout=T)
-            page.wait_for_function("document.querySelector('#view')?.textContent.includes('Zugestimmt am')", timeout=T)
-            st, cred = _http(base, "GET", "/api/credentials", cookie=cookie)
-            assert st == 200 and cred["user"] == "ab1234" and cred["password_set"] is True and cred["consent_at"], cred
-            assert page.input_value("#credUser") == "ab1234" and page.is_checked("#credConsent")
-            assert page.evaluate("[...document.querySelectorAll('#view .badge')].some(b => b.textContent.trim() === 'gespeichert')")
+            # 2. Einstellungen -> Zugang: der Dienst speichert keine Hochschul-Passwoerter (Entscheidung 06.11.2026):
+            #    statt der Felder ein Hinweis, und die API weist jeden Versuch mit 410 ab
+            _goto_hash(page, "#/settings?tab=account", "/keine Hochschul-Passwörter/.test(document.querySelector('#view')?.textContent || '')")
+            assert page.query_selector("#saveCred") is None and page.query_selector("#credConsent") is None
+            st, err = _http(base, "PUT", "/api/credentials", {"user": "ab1234", "password": "x"}, cookie=cookie)
+            assert st == 410, (st, err)
         finally:
             browser.close()
 
@@ -230,6 +226,7 @@ def test_two_devices_notes_logout_and_second_account(served_hosted):
             a = ctx_a.new_page()
             _register_in_form(a, base, email)
             cookie_a = _cookie(ctx_a)
+            _skip_first_start(a, base, cookie_a, email)
             # 3. Geraet B: zweiter Kontext, gleiches Konto per Login
             ctx_b = browser.new_context(bypass_csp=True)
             b = ctx_b.new_page()
