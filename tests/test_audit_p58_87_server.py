@@ -368,6 +368,21 @@ def test_p66_f3_privacy_policy_names_plaintext_card_stacks_and_kept_copies():
     assert "Karteikarten-Stapel" in html and "Klartext" in html, "site/ mit tools/gen-site.py neu erzeugen"
 
 
+# ================================================================ Paket 80
+
+def test_p80_05_06_ai_code_never_logs_prompts_and_the_usage_log_holds_no_text():
+    """Festgenagelt (P80-F3/F4): die KI-Module schreiben nichts in Protokolle (kein print/logging) - weder Prompt noch
+    Antwort, Seitentext oder Schluessel; das Nutzungsprotokoll `ai_usage_log` hat nur Zahlen und Kennzeichen (Zweck,
+    Anbieter, Modell, Tokens, Kosten), keine Textspalte. Antworten im Abrechnungsbuch leert retention nach 24 h (P57-10),
+    den Zwischenspeicher nach 30 Tagen. Zugriffsprotokoll ohne Query und ohne Koerper (Paket 3-4 Nr. 86, P57-10)."""
+    for name in ("ai_relay", "ai_backend", "ai_providers", "ai_router", "ai_async"):
+        src = (ROOT / "app" / f"{name}.py").read_text(encoding="utf-8")
+        assert not re.search(r"^\s*(print\(|logging\.|log\.(info|warning|error|exception|debug)\(|logger\.)", src, re.M), name
+    m = re.search(r"CREATE TABLE IF NOT EXISTS ai_usage_log \((.*?)\n\);", (ROOT / "app" / "ai_backend.py").read_text(encoding="utf-8"), re.S)
+    cols = [line.strip().split()[0] for line in m.group(1).split("\n") if line.strip() and not line.strip().startswith("--")]
+    assert not {c for c in cols if re.search(r"prompt|text|content|answer|result|system|question", c)}, cols
+
+
 # ================================================================ Paket 81
 
 def test_p81_01_ipad_deletion_names_the_service_account_and_the_card_deletes_it(hosted):
