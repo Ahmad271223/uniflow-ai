@@ -2,7 +2,7 @@
 import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=46";
 import { PdfEditor } from "./editor.js?v=71";
 import { setupLectureMarker } from "./views-weekly.js?v=16";
-import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
+import { afterCloseTab, emptyDocHtml, isExercise as isExerciseFile, splitRole, paneBLeft } from "./doc-nav.js?v=2";
 import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
 
 const TABS_KEY = "uniflow-doc-tabs";
@@ -22,7 +22,7 @@ export async function viewDoc(parts, params, view) {
   api(`/files/${id}/opened`, { method: "POST", body: {} }).catch(() => {});
   if (f.status === "neu") api(`/files/${id}`, { method: "PATCH", body: { status: "gelesen" } }).catch(() => {});
   const settings = await api("/settings").catch(() => ({}));
-  view.className = "doc-view"; document.body.classList.add("doc-open"); let notesOpen = false, split = false;
+  view.className = "doc-view"; document.body.classList.add("doc-open"); let notesOpen = false, split = false, bLeft = settings.hand !== "left";
   const hand = settings.hand === "left" ? "hand-left" : "hand-right";
   view.innerHTML = `<div class="doc-top" id="docTop"><button class="btn ghost icon sm doc-menu" id="docMenu" title="Menü">${icon("menu", 18)}</button><button class="btn ghost sm doc-back" id="docBack" title="Zurück" aria-label="Zurück">${icon("chevron-left", 18)}<span class="hide-s">Zurück</span></button><div class="doc-tabs" id="docTabs"></div>
       ${params.task ? `<button class="btn ok sm" id="docDone" title="Aufgabe erledigt">${icon("check", 14)}<span class="hide-s"> Erledigt</span></button>` : ""}
@@ -50,14 +50,14 @@ export async function viewDoc(parts, params, view) {
   const layoutSplit = () => {
     const P = $("#docPanes"), H = $("#splitHandle"); if (!P) return;
     if (!split) { P.style.gridTemplateColumns = ""; H.hidden = true; ["#paneA", "#paneB", "#paneN"].forEach(s => { $(s).style.order = ""; }); return; }
-    const right = hand === "hand-right", pct = splitPct(), notes = notesOpen ? " 300px" : "";
+    const right = bLeft, pct = splitPct(), notes = notesOpen ? " 300px" : "";
     P.style.gridTemplateColumns = right ? `${pct}% 10px minmax(0, 1fr)${notes}` : `minmax(0, 1fr) 10px ${pct}%${notes}`;
     $("#paneB").style.order = right ? 1 : 3; H.style.order = 2; $("#paneA").style.order = right ? 3 : 1; $("#paneN").style.order = 4; H.hidden = false;
   };
   $("#splitHandle").onpointerdown = e => {
     e.preventDefault(); const H = e.currentTarget; try { H.setPointerCapture(e.pointerId); } catch {}
     const box = $("#docPanes").getBoundingClientRect();
-    H.onpointermove = ev => { let pct = hand === "hand-right" ? (ev.clientX - box.left) / box.width * 100 : (box.right - ev.clientX) / box.width * 100; pct = Math.max(20, Math.min(65, pct)); try { localStorage.setItem("doc-split", pct.toFixed(1)); } catch {} layoutSplit(); };
+    H.onpointermove = ev => { let pct = bLeft ? (ev.clientX - box.left) / box.width * 100 : (box.right - ev.clientX) / box.width * 100; pct = Math.max(20, Math.min(65, pct)); try { localStorage.setItem("doc-split", pct.toFixed(1)); } catch {} layoutSplit(); };
     H.onpointerup = H.onpointercancel = () => { H.onpointermove = null; };
   };
   // Schliessen wirkt sofort; das Speichern des zweiten Dokuments laeuft im Hintergrund weiter (Entwurf liegt lokal)
@@ -79,13 +79,15 @@ export async function viewDoc(parts, params, view) {
     P.hidden = false; $("#docPanes").classList.add("split"); layoutSplit();
     let f2; try { f2 = await api(`/files/${pick}`); } catch { if (gen === splitGen) { toast("Dokument nicht gefunden"); closeSplit(); } return; }
     if (gen !== splitGen) return;
+    // Skript auf der Seite der freien Hand, ein Blatt oder eine Uebung neben der Folie auf der Seite der Schreibhand
+    bLeft = paneBLeft(settings.hand, splitRole(f2, f)); layoutSplit();
     $(".pane-bar b", P).textContent = f2.title || f2.ai_title || f2.name;
     const ed = await mountDoc($(".pane-body", P), f2, { page: page || f2.last_page || 1, penInput: settings.pen_input, pane: "B" });
     if (!ed || gen !== splitGen) return;
     ed.onActive = () => { lastEd = ed; }; if (edA) { ed.applyToolState(edA.toolState()); edA.onToolState = st => ed.applyToolState(st); }
   };
   $("#docSplit").onclick = async () => { if (split) return closeSplit(); const pick = await pickDocument(f.module_id); if (pick) openSplit(pick); };
-  const isExercise = ["uebung", "loesung", "klausur"].includes(f.doc_type) || /übung|uebung|blatt|ueb\d|aufgabe/i.test(`${f.name} ${f.studip_folder || ""}`);
+  const isExercise = isExerciseFile(f);
   if (edA && isExercise) setupScriptHint(edA, f, openSplit);
   if (edA && $("#docLecMark")) setupLectureMarker(edA, f, $("#docLecMark")).catch(() => {});   // Modul ermittelt der Server aus der Datei
 }
