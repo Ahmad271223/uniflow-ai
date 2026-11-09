@@ -96,7 +96,8 @@ struct StudyPlanPage: View {
             .sheet(item: $edit) { ref in editSheet(ref) }
         }
         .background(UF.bg)
-        .onAppear { dropHub.perform = { ids, term in await drop(ids, on: term) } }
+        // jede neue Ablage verbinden (auch nach einem Neuaufbau der Seite durch MainView)
+        .onChange(of: dropHub.id, initial: true) { _, _ in dropHub.perform = { ids, term in await drop(ids, on: term) } }
         .alert("Plan zurücksetzen?", isPresented: $confirmReset) {
             Button("Zurücksetzen", role: .destructive) { Task { await apply(StudyPlanEdit.reset, message: { _ in "Plan zurückgesetzt – alle Module liegen wieder im empfohlenen Semester." }) } }
             Button("Abbrechen", role: .cancel) {}
@@ -306,8 +307,9 @@ struct StudyPlanPage: View {
         } else {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(semesters) { s in
+                    // hochkant ebenso ziehen und ablegen (Abschnitte als Ablage), nicht nur quer auf dem Board
                     StudyPlanSemesterView(semester: s, style: .section, plan: p, actions: cardActions,
-                                          openSlot: { edit = .choose($0) }) { detail = StudyPlanDetailRef(id: $0.id) }
+                                          openSlot: { edit = .choose($0) }, dropHub: dropHub) { detail = StudyPlanDetailRef(id: $0.id) }
                         .id("sem-\(s.term)")
                 }
             }
@@ -595,20 +597,42 @@ struct StudyPlanPage: View {
         }
     }
 
-    /// Ablegen auf einer Spalte des Boards: das erste verschiebbare Modul wandert in dieses Semester
+    /// Ablegen auf einer Spalte des Boards: das erste verschiebbare Modul wandert in dieses Semester; ein gesperrtes
+    /// (bestanden, angemeldet, eigener Eintrag) nennt den Grund statt still nichts zu tun
     func drop(_ ids: [String], on term: String) async -> Bool {
-        guard let p = plan, let id = ids.first(where: { i in p.modules.contains { $0.id == i && $0.movable } }) else { return false }
+        guard let p = plan else { return false }
+        guard let id = ids.first(where: { i in p.modules.contains { $0.id == i && $0.movable } }) else {
+            if let m = ids.lazy.compactMap({ i in p.modules.first { $0.id == i } }).first, let why = m.lockReason {
+                show("\(m.title): \(why)")
+            }
+            return false
+        }
         guard p.semester(of: id)?.term != term else { return false }
         await move(id, to: term)
         return true
     }
 
     func move(_ id: String, to term: String) async {
-        guard let p = plan, let m = p.modules.first(where: { $0.id == id }), m.movable else { return }
+        guard let p = plan, let m = p.modules.first(where: { $0.id == id }) else { return }
+        if let why = m.lockReason { show("\(m.title): \(why)"); return }
         let from = p.semester(of: id)
         guard from?.term != term else { return }
         await apply(StudyPlanEdit.move(p, id: id, to: term)) { after in
-            StudyPlanText.moveMessage(title: m.title, from: from, to: term, after: after)
+            // nur melden, was der Kern wirklich getan hat (er uebergeht eine Lage, die seinen Regeln widerspricht)
+            if let now = after.semester(of: id)?.term, now != term {
+                return StudyPlanText.moveRefused(title: m.title, staysIn: now, target: term)
+            }
+            return StudyPlanText.moveMessage(title: m.title, from: from, to: term, after: after)
+        }
+    }
+
+    /// Rueckmeldung unten zeigen (6 s), VoiceOver liest sie vor
+    private func show(_ text: String) {
+        UFMotion.toggle { toast = text }
+        UIAccessibility.post(notification: .announcement, argument: text)
+        Task {
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            if toast == text { UFMotion.toggle { toast = nil } }
         }
     }
 
@@ -619,16 +643,7 @@ struct StudyPlanPage: View {
             _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
             editError = nil
             await load()
-            if let p = plan, let message {
-                let text = message(p)
-                UFMotion.toggle { toast = text }
-                UIAccessibility.post(notification: .announcement, argument: text)
-                let shown = text
-                Task {
-                    try? await Task.sleep(nanoseconds: 6_000_000_000)
-                    if toast == shown { UFMotion.toggle { toast = nil } }
-                }
-            }
+            if let p = plan, let message { show(message(p)) }
         } catch {
             editError = "Ändern fehlgeschlagen: \(error.localizedDescription)"
         }
@@ -723,7 +738,7 @@ struct StudyPlanSemesterView: View {
     enum Style { case column, section }
     let semester: StudyPlanSemester
     let style: Style
-    /// Plan fuer die Plaetze (Texte), Aktionen je Karte, Platz antippen, Ablegen (nur Board)
+    /// Plan fuer die Plaetze (Texte), Aktionen je Karte, Platz antippen, Ablegen (Board und Liste)
     var plan: StudyPlan?
     var actions: ((StudyPlanModule, StudyPlanModuleAction) -> Void)?
     var openSlot: ((StudyPlanSlot) -> Void)?
@@ -883,11 +898,24 @@ struct StudyPlanModuleCard: View {
                 }
                 Button(role: .destructive) { actions(m, .drop) } label: { Label("Nicht belegen", systemImage: "minus.circle") }
             }
+            StudyPlanLockedMenuItem(module: m, editable: actions != nil)
         }
         .accessibilityLabel(StudyPlanText.accessibility(m))
-        .accessibilityHint("Zeigt Details zum Modul")
+        .accessibilityHint(StudyPlanText.cardHint(m, editable: actions != nil))
         .modifier(StudyPlanCardActions(module: m, actions: actions))
         .accessibilityIdentifier("studyplan.module.\(m.id)")
+    }
+}
+
+/// Im Menue eines gesperrten Moduls: der Grund (statt eines leeren Menues)
+struct StudyPlanLockedMenuItem: View {
+    let module: StudyPlanModule
+    let editable: Bool
+
+    var body: some View {
+        if editable, let why = module.lockReason {
+            Button {} label: { Label(why, systemImage: "lock") }.disabled(true)
+        }
     }
 }
 
@@ -935,7 +963,7 @@ private struct StudyPlanReplaceAction: ViewModifier {
     }
 }
 
-/// Spalte als Ablageziel fuer gezogene Module (nur Board)
+/// Spalte bzw. Abschnitt als Ablageziel fuer gezogene Module (Board, Liste, Gesamtansicht)
 struct StudyPlanDropTarget: ViewModifier {
     let hub: StudyPlanDropHub?
     let term: String

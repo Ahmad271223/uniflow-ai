@@ -125,6 +125,14 @@ struct StudyModuleSheet: View {
     /// Im Plan: verschieben, nicht belegen, zurueck ins empfohlene Semester (nur fuer das Modul, mit dem das Blatt
     /// geoeffnet wurde)
     @ViewBuilder private var manageBlock: some View {
+        if let m = planModule, let why = m.lockReason, manage != nil, currentID == startID {
+            // gesperrt (bestanden, angemeldet, eigener Eintrag): Grund statt fehlender Knoepfe
+            Label { Text(why) } icon: { UFIcon("info", size: 12) }
+                .ufFont(12.8, lh: 1.4).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(why)
+                .accessibilityIdentifier("studyplan.detail.locked")
+        }
         if let m = planModule, m.movable, let manage, currentID == startID {
             UFFlexWrap(gap: 8) {
                 UFButton("Verschieben nach …", icon: "move", size: .small) { manage(m.id, .move) }

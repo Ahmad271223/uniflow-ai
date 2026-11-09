@@ -125,7 +125,7 @@ test("Menue Aktionen: Verschieben, ins empfohlene Semester, Tauschen nur fuer ge
   assert.deepEqual(acts(s3[1]), ["detail", "move", "reset", "drop"]);
   assert.deepEqual(acts(s3[2]), ["detail", "move", "replace", "drop"]);
   assert.deepEqual(acts(s3[3]), ["detail", "remove"]);
-  assert.deepEqual(acts(s3[4]), ["detail", "move", "drop"], "angemeldet: nicht tauschen");
+  assert.deepEqual(acts(s3[4]), ["detail"], "angemeldet: liegt im aktuellen Semester, der Kern uebergeht jede eigene Lage (wie am iPad, 09.11.2026)");
   const html = L.menuHtml(s3[2], PLAN, icon);
   assert.match(html, /role="menu" aria-label="Aktionen für Künstliche Intelligenz"/);
   assert.equal((html.match(/role="menuitem"/g) || []).length, 4);

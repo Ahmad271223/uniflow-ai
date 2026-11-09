@@ -110,8 +110,18 @@ struct StudyPlanModule: Identifiable, Equatable {
     }
 
     var status: StudyPlanStatus { StudyPlanStatus.from(rawStatus, movedFrom: movedFrom) }
-    /// verschiebbar: alles ausser Bestandenem (liegt im Semester aus QIS) und eigenen Eintraegen
-    var movable: Bool { status != .passed && !custom }
+    /// verschiebbar: alles ausser Bestandenem und zur Pruefung Angemeldetem (beides liegt im Semester aus QIS, der Kern
+    /// uebergeht dafuer jede eigene Lage, StudyPlanEngine.compute) und eigenen Eintraegen
+    var movable: Bool { lockReason == nil }
+    /// Grund, warum das Modul nicht verschiebbar ist (Menue, Details, VoiceOver, Ablegen); nil: verschiebbar
+    var lockReason: String? {
+        if custom { return StudyPlanText.lockedCustom }
+        switch status {
+        case .passed: return StudyPlanText.lockedPassed
+        case .registered: return StudyPlanText.lockedRegistered
+        default: return nil
+        }
+    }
     /// gewaehltes Wahlmodul, das sich gegen ein anderes tauschen laesst (nicht bestanden, nicht angemeldet)
     var replaceable: Bool { elective && movable && status != .registered && status != .failed }
     var elective: Bool { kind == "wahlpflicht" || kind == "wahl" }
@@ -715,6 +725,11 @@ enum StudyPlanEdit {
 enum StudyPlanText {
     static let title = "Studienverlauf"
     static let disclaimer = "Verbindlich ist die Prüfungsordnung deiner Hochschule."
+    /// Warum ein Modul nicht verschiebbar ist (Menue, Details, VoiceOver, Ablegen; 09.11.2026). Der Kern uebergeht fuer
+    /// Bestandenes und zur Pruefung Angemeldetes jede eigene Lage (Semester aus dem Notenspiegel)
+    static let lockedPassed = "Bestanden – bleibt in dem Semester, in dem du es bestanden hast."
+    static let lockedRegistered = "Zur Prüfung angemeldet – bleibt im aktuellen Semester. Nach einer Abmeldung lässt es sich verschieben."
+    static let lockedCustom = "Eigener Eintrag – liegt im Fachsemester, das du beim Eintragen gewählt hast."
     static let noQIS = "Verbinde QIS, damit StudiNow deinen Studiengang kennt"
     /// Quelle des Notenspiegels: "LSF" an der Uni Hildesheim, "Campusmanagement" (HISinOne) an der HsH, sonst "QIS" (LUH)
     static func gradeSource(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "Campusmanagement" : hildesheim ? "LSF" : "QIS" }
@@ -973,6 +988,17 @@ enum StudyPlanText {
             head = "\(title) verschoben nach \(term)"
         }
         return free.map { "\(head) – \($0)" } ?? head
+    }
+
+    /// VoiceOver-Hinweis je Karte; ein gesperrtes Modul nennt den Grund
+    static func cardHint(_ m: StudyPlanModule, editable: Bool) -> String {
+        guard editable, let why = m.lockReason else { return "Zeigt Details zum Modul" }
+        return "Zeigt Details zum Modul. Nicht verschiebbar: \(why)"
+    }
+
+    /// Der Kern hat das Modul nicht ins Ziel gelegt (z. B. Nachholen erst nach dem letzten Versuch)
+    static func moveRefused(title: String, staysIn term: String, target: String) -> String {
+        "\(title) bleibt in \(term) – StudiNow konnte es nicht nach \(target) legen."
     }
 
     /// Hinweis beim Ziel: Turnus passt nicht

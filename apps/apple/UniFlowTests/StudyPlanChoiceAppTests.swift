@@ -266,7 +266,9 @@ final class StudyPlanChoiceAppTests: XCTestCase {
     // MARK: Verschieben
 
     func testMoveViaMenuActionShowsHintsAndConfirmation() throws {
-        let t = transport(try enginePlan("selbst_verschoben"))
+        let plan = try enginePlan("selbst_verschoben")
+        let t = transport(plan)
+        t.answer("/api/study-plan", after: "POST /api/study-plan/settings", Transport.moved(plan, "signale-systeme", to: "WiSe 26/27"))
         let env = try host(t)
         let card = "Signale und Systeme, 6 Leistungspunkte, Pflicht, Wintersemester, Verschoben"
         XCTAssertTrue(env.wait { self.find(env.view, label: card) != nil }, dump(env.view))
@@ -290,7 +292,9 @@ final class StudyPlanChoiceAppTests: XCTestCase {
     }
 
     func testMoveViaDragOnBoard() throws {
-        let t = transport(try enginePlan("selbst_verschoben"))
+        let plan = try enginePlan("selbst_verschoben")
+        let t = transport(plan)
+        t.answer("/api/study-plan", after: "POST /api/study-plan/settings", Transport.moved(plan, "labor", to: "SoSe 28"))
         let hub = StudyPlanDropHub()
         let env = try host(t, page: StudyPlanPage(dropHub: hub))
         XCTAssertTrue(env.wait { self.find(env.view, label: "Labor Technische Informatik,") != nil }, dump(env.view))
