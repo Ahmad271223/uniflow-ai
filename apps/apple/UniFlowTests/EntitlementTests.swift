@@ -261,6 +261,6 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFOfferText.period(value: 2, unit: .week), "2 Wochen")
         XCTAssertEqual(UFOfferText.per(value: 1, unit: .year), "/Jahr")
         XCTAssertEqual(UFOfferText.per(value: 3, unit: .month), "/3 Monate")
-        XCTAssertEqual(UFOfferText.cancelNote(value: 1, unit: .year), "jährlich kündbar")
+        XCTAssertEqual(UFOfferText.cancelNote(value: 1, unit: .year), "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar")
     }
 }
