@@ -62,6 +62,15 @@ HEADER_KEYS = {"solutionId", "createdAt", "displayName", "document", "contents",
 TOP_KEYS = {"format", "formatVersion", "header", "ciphertext"}
 HEX64 = re.compile(r"^[0-9a-f]{64}\Z")          # \Z statt $: kein Zeilenende am Schluss (Audit 08.11.2026, Nr. 114)
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\Z")
+# Steuerzeichen (ausser Tab und Zeilenumbruch) und Unicode-Richtungszeichen (Einbettung/Ueberschreibung U+202A-202E,
+# Isolates U+2066-2069) in Texten, die andere Mitglieder sehen: verdrehte oder unsichtbare Anzeige (Audit P66-09)
+_INVISIBLE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]")
+
+
+def plain_text(s):
+    """Text fuer die Community ohne Steuer- und Richtungszeichen; \r\n wird \n. Kein HTML-Filter: der Dienst liefert
+    JSON, die Oberflaechen escapen (CSP script-src 'self'). Nicht-Text kommt unveraendert zurueck."""
+    return _INVISIBLE.sub("", s) if isinstance(s, str) else s
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS solutions (
@@ -484,7 +493,7 @@ def leave(user: dict, community_key) -> dict:
 def create_group(user: dict, university: str, group_key, name) -> dict:
     """Lerngruppe anlegen (ab Plus); der Code bleibt beim Geraet, der Dienst kennt nur den Schluessel."""
     require_plan(user)
-    key, clean = _community_key(group_key), str(name or "").strip()
+    key, clean = _community_key(group_key), plain_text(str(name or "")).strip()
     if not clean or len(clean) > MAX_GROUP_NAME:
         raise CommunityError("group_name_invalid", "Gib der Lerngruppe einen Namen (höchstens 60 Zeichen).")
     with cursor() as conn:
@@ -569,7 +578,7 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
         require_file(info["fingerprint"])
     else:
         raise CommunityError("community_required", "Wähle eine Community aus.")
-    title = (title or "").strip()[:MAX_TITLE] or None
+    title = plain_text(title or "").strip()[:MAX_TITLE] or None
     raw = json.dumps(pkg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     if len(raw) > MAX_PACKAGE_BYTES:
         raise CommunityError("too_large", "Die Lösung ist zu groß.", 413)
@@ -670,7 +679,7 @@ def update(user: dict, university: str, solution_id: str, pkg, title: str | None
     if len(raw) > MAX_PACKAGE_BYTES:
         raise CommunityError("too_large", "Die Lösung ist zu groß.", 413)
     _limit("update_user", user["id"])
-    title = (title or "").strip()[:MAX_TITLE] or None
+    title = plain_text(title or "").strip()[:MAX_TITLE] or None
     now = _now()
     # Audit P5-02 (08.11.2026): eindeutige Temp-Datei je Aufruf; Zeile und Datei in EINER Transaktion, und nur solange
     # die Loesung noch aktiv ist - hat die Moderation sie inzwischen verborgen oder entfernt (Paket geloescht), kommt
@@ -1028,7 +1037,7 @@ def add_comment(user: dict, solution_id: str, text: str, parent_id: str | None =
     if not entitlements.has(user, "can_write_community_comments"):
         raise CommunityError("plan_required", "Kommentieren gibt es ab StudiNow Plus.", 403)
     _require_verified(user, "zu kommentieren")
-    text = (text or "").strip()
+    text = plain_text(text or "").strip()
     if not text:
         raise CommunityError("text_empty", "Der Kommentar ist leer.")
     if len(text) > MAX_COMMENT:
@@ -1073,7 +1082,7 @@ def _own_comment(conn, user: dict, comment_id: str, allow_solution_author: bool 
 
 
 def edit_comment(user: dict, comment_id: str, text: str) -> dict:
-    text = (text or "").strip()
+    text = plain_text(text or "").strip()
     if not text or len(text) > MAX_COMMENT:
         raise CommunityError("text_empty" if not text else "text_too_long", "Kommentar leer oder zu lang.")
     with cursor() as conn:

@@ -98,7 +98,7 @@ def clean_cards(cards) -> list[dict]:
     for c in cards:
         if not isinstance(c, dict):
             continue
-        q, a = str(c.get("question") or "").strip(), str(c.get("answer") or "").strip()
+        q, a = (community.plain_text(str(c.get(k) or "")).strip() for k in ("question", "answer"))
         if q and a:
             out.append({"question": q[:MAX_CARD_CHARS], "answer": a[:MAX_CARD_CHARS]})
     if not out:
@@ -152,6 +152,7 @@ def share(user: dict, university: str, community_key, name, kind, week, cards, s
     key = community._community_key(community_key)
     community.require_plan(user)
     community._require_verified(user, "Stapel zu teilen")
+    name = community.plain_text(name)                              # Audit P66-09
     if not isinstance(name, str) or not name.strip():
         raise CommunityError("name_required", "Name des Stapels fehlt.", 422)
     if kind not in KINDS:
@@ -191,6 +192,7 @@ def replace(user: dict, stack_id: str, name, cards) -> dict:
         if r["status"] == "hidden":
             raise CommunityError("stack_hidden", "Der Stapel ist nach Meldungen verborgen und wird geprüft.", 403)
         _require_member(conn, user, r["community_key"])
+        name = community.plain_text(name)
         n = name.strip()[:MAX_NAME] if isinstance(name, str) and name.strip() else r["name"]
         community._limit("update_user", user["id"])
         conn.execute("UPDATE card_stacks SET name=?, cards=?, card_count=?, updated_at=? WHERE id=?",

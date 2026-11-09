@@ -75,7 +75,7 @@ def _blocked(conn, user: dict) -> set[str]:
 
 
 def _text(v, limit: int, what: str, required: bool = True) -> str:
-    s = (v or "").strip() if isinstance(v, str) or v is None else str(v).strip()
+    s = community.plain_text(v or "" if isinstance(v, str) or v is None else str(v)).strip()      # Audit P66-09
     if required and not s:
         raise CommunityError("text_empty", f"{what} ist leer.")
     if len(s) > limit:

@@ -17,6 +17,7 @@
 #   zertifikat  TLS-Zertifikat von https://DOMAIN laeuft in weniger als DIENST_CHECK_CERT_DAYS (14) Tagen ab
 #   jobs        Lebenszeichen /logs/jobs.heartbeat aelter als DIENST_CHECK_HEARTBEAT_S (180 s)
 #   backup      neuestes Archiv in /srv/uniflow/backups aelter als DIENST_CHECK_BACKUP_H (30 h)
+#   loeschlauf  letzter erfolgreicher Loeschlauf (/logs/retention.log) aelter als DIENST_CHECK_RETENTION_H (30 h)
 #   ausser_haus letzte erfolgreiche Kopie auf die Storage Box (OFFSITE_STATE_DIR/letzte-kopie, deploy/backup-ausser-haus.sh)
 #               aelter als DIENST_CHECK_OFFSITE_H (30 h) - nur, wenn OFFSITE_HOST/OFFSITE_USER/OFFSITE_RECIPIENT gesetzt sind
 #   http        GET https://DOMAIN/login ueber 127.0.0.1:443 antwortet nicht mit 200 (curl, wenn vorhanden)
@@ -32,7 +33,7 @@
 #   DIENST_CHECK_LOG DIENST_CHECK_STATE DIENST_CHECK_MAIL(1|0) DIENST_CHECK_MAIL_TO DIENST_CHECK_MAIL_EVERY_H DIENST_CHECK_DOMAIN
 #   DIENST_CHECK_DISK_PCT DIENST_CHECK_RAM_PCT DIENST_CHECK_5XX_PCT DIENST_CHECK_ERR_PCT DIENST_CHECK_P95_MS DIENST_CHECK_MIN_REQ
 #   DIENST_CHECK_CERT_DAYS DIENST_CHECK_HEARTBEAT_S DIENST_CHECK_BACKUP_H DIENST_CHECK_WINDOW_S DIENST_CHECK_DISK_PATHS
-#   DIENST_CHECK_BACKUP_DIR DIENST_CHECK_LOGS_VOLUME DIENST_CHECK_OFFSITE_H COMPOSE_DIR
+#   DIENST_CHECK_BACKUP_DIR DIENST_CHECK_LOGS_VOLUME DIENST_CHECK_OFFSITE_H DIENST_CHECK_RETENTION_H COMPOSE_DIR
 #   OFFSITE_HOST OFFSITE_USER OFFSITE_RECIPIENT OFFSITE_STATE_DIR (sonst aus deploy/.env, nur diese Namen)
 # Test ohne Server: tests/test_dienst_check.py (bash -n, Trockenlauf mit Attrappen fuer docker/df/free/openssl/curl).
 set -euo pipefail
@@ -56,6 +57,7 @@ CERT_DAYS="${DIENST_CHECK_CERT_DAYS:-14}"
 HEARTBEAT_S="${DIENST_CHECK_HEARTBEAT_S:-180}"
 BACKUP_H="${DIENST_CHECK_BACKUP_H:-30}"
 OFFSITE_H="${DIENST_CHECK_OFFSITE_H:-30}"
+RETENTION_H="${DIENST_CHECK_RETENTION_H:-30}"
 WINDOW_S="${DIENST_CHECK_WINDOW_S:-300}"
 DISK_PATHS="${DIENST_CHECK_DISK_PATHS:-/srv/uniflow /var/lib/docker}"
 BACKUP_DIR="${DIENST_CHECK_BACKUP_DIR:-/srv/uniflow/backups}"
@@ -66,7 +68,7 @@ TROCKEN=0
 VERBOSE=0
 
 hilfe() {
-	sed -n '2,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+	sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -274,6 +276,21 @@ pruefe_jobs() {
 	fi
 }
 
+# Loeschlauf (app/retention.py, taeglich ab 04:00): Endloeschung nach 30 Tagen und Protokollfristen. Nur ein
+# erfolgreicher Lauf schreibt retention.log; scheitert er, wiederholt der Dienst ihn stuendlich (Audit P81-F4/P81-11).
+# Fehlt die Datei (neuer Server vor dem ersten Lauf), kein Befund.
+pruefe_loeschlauf() {
+	finde_logs || return 0
+	local f="$LOGS_DIR/retention.log" alter
+	[ -f "$f" ] || { ok loeschlauf "noch kein Loeschlauf ($f fehlt)"; return 0; }
+	alter=$(((NOW - $(file_mtime "$f")) / 3600))
+	if [ "$alter" -ge "$RETENTION_H" ]; then
+		befund loeschlauf "letzter Loeschlauf vor $alter h (Grenze $RETENTION_H h): docker compose logs jobs | grep retention; docker compose exec app python -m app.retention"
+	else
+		ok loeschlauf "letzter Loeschlauf vor $alter h"
+	fi
+}
+
 pruefe_backup() {
 	[ -d "$BACKUP_DIR" ] || { ok backup "kein Backup-Ordner $BACKUP_DIR"; return 0; }
 	local neu alter
@@ -337,6 +354,7 @@ pruefe_ram
 pruefe_zugriff
 pruefe_zertifikat
 pruefe_jobs
+pruefe_loeschlauf
 pruefe_backup
 pruefe_ausser_haus
 pruefe_http

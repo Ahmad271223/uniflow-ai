@@ -217,6 +217,13 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
   StudiNow-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
   Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs
   aus deinem Hochschul-Abgleich, nie die Dateien. Lösungen werden auf deinem PC ver- und entschlüsselt.
+- **Geteilte Karteikarten-Stapel (Modul-Community):** Teilst du einen Stapel, speichern wir eine Kopie mit Name,
+  Karten (Frage und Antwort), Art, Lehrwoche, Pseudonym, Modul-Schlüssel (Hash), Likes, Zahl der Übernahmen und
+  Meldungen. Anders als Lösungspakete liegen die Karten im Dienst **im Klartext** (lesbar für Mitglieder der
+  Community und technisch für uns), nicht verschlüsselt. Zurückziehen leert die Karten sofort. Wer den Stapel schon
+  übernommen hat, behält seine eigene Kopie; spätere Änderungen oder das Zurückziehen erreichen sie nicht.
+- **Geladene Lösungen:** Wer eine Lösung geladen hat, behält seine Kopie auf dem Gerät, auch wenn du sie später
+  zurückziehst oder dein Konto löschst.
 - **Fragen und Antworten je Kurs:** Fragen, Antworten und „hilfreich“-Stimmen speichern wir mit deinem Pseudonym,
   Zeitpunkt und einem Kurs-Schlüssel (aus Hochschule und Kurs-ID berechnet, ohne Kursnamen). **Lesezeichen** sind
   privat. **Mitteilungen** (z. B. „hat deine Frage beantwortet“) liegen in deinem Konto; gelesene löschen wir nach

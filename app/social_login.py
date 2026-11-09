@@ -87,6 +87,10 @@ def status() -> dict:
 
 _jwks_cache: dict[str, tuple[float, dict]] = {}
 _jwks_lock = threading.Lock()
+# Erzwungenes Neuladen (unbekannte kid, Schluesselrotation) hoechstens einmal je Anbieter und Minute: sonst loeste jedes
+# erfundene Token an der oeffentlichen Anmelde-Route einen Abruf bei Apple/Google aus, unter _jwks_lock (Audit P58-09)
+JWKS_FORCE_MIN_S = 60
+_jwks_forced: dict[str, float] = {}
 
 
 def fetch_jwks(url: str) -> dict:
@@ -100,8 +104,12 @@ def _keys(provider: str, force: bool = False) -> list[dict]:
     url = PROVIDERS[provider]["jwks"]
     with _jwks_lock:
         hit = _jwks_cache.get(url)
+        if force and hit and time.monotonic() - _jwks_forced.get(url, -1e9) < JWKS_FORCE_MIN_S:
+            force = False
         if hit and not force and time.monotonic() - hit[0] < JWKS_TTL:
             return hit[1].get("keys") or []
+        if force:
+            _jwks_forced[url] = time.monotonic()
         data = fetch_jwks(url)
         if not isinstance(data, dict) or not isinstance(data.get("keys"), list):
             raise TokenError("Die Schluesselliste des Anbieters ist unbrauchbar.")
@@ -112,6 +120,7 @@ def _keys(provider: str, force: bool = False) -> list[dict]:
 def clear_cache() -> None:
     with _jwks_lock:
         _jwks_cache.clear()
+        _jwks_forced.clear()
 
 
 # ---------------------------------------------------------------- JWT lesen und pruefen
