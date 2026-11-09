@@ -30,7 +30,10 @@ ist in der Demo ohne geöffnete Dateien leer und wird darum im Prüfhinweis nich
 **Mac (Hinweis für den Inhaber):** Die iPad-App läuft auf Macs mit Apple-Chip als „Designed for iPad“; es gibt **keine
 eigene macOS-Version**. In App Store Connect die Plattform **macOS nicht einreichen** (den alten macOS-1.0-Entwurf liegen
 lassen) und unter **Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“ = verfügbar** setzen. In
-Beschreibung und Werbetext steht dazu nichts.
+Beschreibung und Werbetext steht dazu nichts. **Build 25 stürzt auf dem Mac ab** (Einstellungen und Übersicht,
+`UFGridLayout` bei unendlicher Breite; behoben erst in Build 27, `afc919cc`, Audit P86-F3): solange Build 25 der
+Prüf- bzw. Verkaufsstand ist, „iPhone- und iPad-Apps auf Apple-Silicon-Macs“ = **nicht verfügbar**; erst mit Build 27
+nach einem Test auf einem Mac mit Apple-Chip einschalten.
 
 Frühere Übersicht der zwei Fassungen (Pro AI erst nach Sandbox-Kauf und KI-Frage über TestFlight,
 `docs/UEBERGABE-2026-11-06.md` Abschnitt 3 – durch die Entscheidung vom 07.11.2026 erledigt):
