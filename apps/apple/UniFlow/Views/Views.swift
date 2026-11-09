@@ -118,6 +118,12 @@ struct UFQuickLookView: UIViewControllerRepresentable {
 
 // MARK: - Bibliothek mit Dokument-Tabs
 
+/// Reiter der geoeffneten Dokumente per Tastatur (Mac, iPad mit Tastatur): Ctrl-Tab bzw. Cmd-Option-Pfeil wechselt zum
+/// naechsten bzw. vorherigen Reiter, nach dem letzten wieder zum ersten
+enum DocumentTabs {
+    static func neighbor(of current: String?, in tabs: [String], step: Int) -> String? { nil }
+}
+
 struct LibraryView: View {
     @EnvironmentObject private var session: Session
     /// Ziele des Logos (setzt AppShell); ohne sie (Tests, alte Fassung) kein Zurueck
