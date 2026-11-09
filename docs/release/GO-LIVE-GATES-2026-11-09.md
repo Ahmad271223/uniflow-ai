@@ -18,8 +18,8 @@ Probe mit Beleg (Datei, Protokoll, Test). Und: eine Messung auf dem Mac ist kein
 | G2 Notizen ohne Datenverlust | **offen** | Gerätetest auf echtem iPad mit Pencil (Force-Quit, Offline, Zweitgerät, Zweitfenster) | Inhaber am iPad | 45 min |
 | G3 Zahlungen und Abo-Rechte | **teilweise** | Sandbox-Kauf/Restore/Wechsel in TestFlight mit Konto, Dienst schaltet frei; späterer Abgleich nach Dienstfehler | Inhaber am iPad + ASC | 45 min |
 | G4 Konten und Datenschutz | **teilweise** | Kontowechsel und Konto löschen am iPad (inkl. CloudKit-Community), Export am Gerät | Inhaber am iPad | 30 min |
-| G5 4.000 aktive Nutzer | **offen** (Werkzeug fertig) | Lauf `tools/lasttest-server.sh` auf dem CPX42 | Claude per SSH (nachts) | 1 h Lauf, 15 min Auswertung |
-| G6 Betrieb und Wiederherstellung | **teilweise** | Restore-Probe mit Dienststart **auf dem Server**, kontrollierter Worker-Ausfall auf dem Server, Mail-Alarm einmal ausgelöst, Rollback-Image | Claude per SSH, Inhaber (Mail ansehen) | 1 h |
+| G5 4.000 aktive Nutzer | **erfüllt** (09.11. 04:51–05:26 auf dem CPX42) | 4.000 KI-Fragen 4.000/4.000; 4.000 Anmeldungen/Abgleiche 0 Fehler; 30 min Dauerlast 720.000 Anfragen, 0,07 % Fehler (nur Anlauf und SIGKILL-Minute), p95 ~50 ms; Sturm 0 Fehler; 0 von 296.390 Schreibvorgängen verloren. Knapp: normale Anfragen unter 4.000 gleichzeitigen KI-Fragen p95 2,1 s (Grenze 2 s, Lastgeber im selben 6-Kern-Container). `docs/release/LASTTEST-SERVER-2026-11-09.md` | – | erledigt |
+| G6 Betrieb und Wiederherstellung | **teilweise** (Server-Restore-Probe und Worker-Ausfall am 09.11. auf dem Server belegt: Wiederherstellung vollständig, Dienst lief darauf; Ersatzprozess nach 1 s) | Restore-Probe mit Dienststart **auf dem Server**, kontrollierter Worker-Ausfall auf dem Server, Mail-Alarm einmal ausgelöst, Rollback-Image | Claude per SSH, Inhaber (Mail ansehen) | 1 h |
 
 **Entscheidung:** NO-GO für einen **unbeschränkten öffentlichen** Start mit 4.000 gleichzeitig aktiven Nutzern bleibt bestehen, bis
 G5 und G6 auf dem Server und G2/G3 am Gerät belegt sind. Die **TestFlight-Welle 1 (50 Personen, TESTFLIGHT-500 6.2)** ist mit den
