@@ -694,6 +694,65 @@ class UploadLimit:
 app.add_middleware(UploadLimit)
 
 
+# Oeffentliche Routen ohne Anmeldung (Audit P58-F6, 09.11.2026): sie lasen einen JSON-Koerper bis zur Caddy-Grenze
+# (320 MB) ganz in den Speicher - ohne Konto, also ohne Kontingent oder Ratenbremse. Anmelden, Registrieren, Reset,
+# Social Login und App-Login brauchen wenige KB (Token hoechstens 8 KB), Apple/Stripe-Benachrichtigungen einige 10 KB.
+PUBLIC_BODY_LIMITS = ((re.compile(r"^/api/(account/(register|login|login/[^/]+|password/reset-request|password/reset|verify-email)"
+                                  r"|app-login/token)$"), 64 << 10),
+                      (re.compile(r"^/api/billing/(apple/notifications|stripe/webhook)$"), 1 << 20))
+
+
+class PublicBodyLimit:
+    """Wie UploadLimit, aber fuer die oeffentlichen Routen und ohne Zuschlag fuer Multipart-Rahmen."""
+
+    def __init__(self, app_):
+        self.app = app_
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("method") not in ("POST", "PUT", "PATCH"):
+            return await self.app(scope, receive, send)
+        limit = next((n for rx, n in PUBLIC_BODY_LIMITS if rx.match(scope.get("path") or "")), None)
+        if limit is None:
+            return await self.app(scope, receive, send)
+
+        def refuse():
+            return JSONResponse({"detail": f"Die Anfrage ist zu groß (höchstens {limit >> 10} KB).", "code": "too_large"},
+                                status_code=413)
+        length = dict(scope.get("headers") or []).get(b"content-length")
+        if length is not None and (not length.isdigit() or int(length) > limit):
+            return await refuse()(scope, receive, send)
+        seen, over, started = 0, False, False
+
+        async def counted():
+            nonlocal seen, over
+            if over:
+                return {"type": "http.disconnect"}
+            msg = await receive()
+            if msg["type"] == "http.request":
+                seen += len(msg.get("body") or b"")
+                if seen > limit:
+                    over = True
+                    return {"type": "http.disconnect"}
+            return msg
+
+        async def tracked(msg):
+            nonlocal started
+            if over:
+                return
+            started = started or msg["type"] == "http.response.start"
+            await send(msg)
+        try:
+            await self.app(scope, counted, tracked)
+        except Exception:
+            if not over:
+                raise
+        if over and not started:
+            await refuse()(scope, receive, send)
+
+
+app.add_middleware(PublicBodyLimit)
+
+
 def _upload_quota_bytes() -> int:
     import os
     try:
@@ -1412,7 +1471,29 @@ async def upload_asset(request: Request, file_id: str, upload: UploadFile = File
     target = _inside(_assets_dir(), _assets_dir() / file_id)
     target.mkdir(parents=True, exist_ok=True)
     await _save_upload(upload, target / name, MAX_ASSET_BYTES)        # Grenze vor dem vollstaendigen Lesen
+    if not _asset_content_ok(target / name, ext):
+        (target / name).unlink(missing_ok=True)
+        raise HTTPException(400, {"detail": "Die Datei ist kein Bild bzw. keine PDF.", "code": "asset_content"})
     return {"url": f"/api/assets/{file_id}/{name}", "name": name}
+
+
+def _asset_content_ok(p: Path, ext: str) -> bool:
+    """Anfangsbytes passen zur Art (Audit P58-F1, 09.11.2026): vorher entschied nur die Endung, eine HTML-Datei als
+    `a.png` lag dann als Asset im Konto. Rasterbilder: irgendein Bildformat (ein JPEG mit Endung .png zeigt der Browser
+    trotzdem richtig), PDF: `%PDF` in den ersten 1024 Bytes (wie pdf.js), SVG: XML mit <svg. Die Auslieferung bleibt
+    zusaetzlich mit nosniff und Sandbox (file_response_headers)."""
+    try:
+        with open(p, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return False
+    if ext == ".pdf":
+        return b"%PDF" in head[:1024]
+    if ext == ".svg":
+        text = head.lstrip(b"\xef\xbb\xbf \t\r\n")
+        return text.startswith((b"<?xml", b"<svg", b"<!--", b"<!DOCTYPE svg", b"<!doctype svg")) and b"<svg" in head
+    return (head.startswith((b"\x89PNG", b"\xff\xd8\xff", b"GIF87a", b"GIF89a"))
+            or (head[:4] == b"RIFF" and head[8:12] == b"WEBP"))
 
 
 @app.get("/api/assets/{file_id}/{name}")
