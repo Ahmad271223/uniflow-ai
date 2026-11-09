@@ -111,6 +111,7 @@ final class AboNurJahrAppTests: StoreKitSessionTestCase {
         XCTAssertFalse(all.contains("1,99 €/Monat"), all)
     }
 
+    @discardableResult
     private static func accessibilityAutomation(_ on: Bool) -> Bool {
         guard let h = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW), let f = dlsym(h, "_AXSSetAutomationEnabled") else { return false }
         typealias SetEnabled = @convention(c) (Int32) -> Void
