@@ -318,7 +318,7 @@ def test_g5_server_load_test_watchdog_stops_its_own_container_when_memory_runs_l
 
 
 @pytest.mark.skipif(not __import__("shutil").which("bash"), reason="bash fehlt")
-def test_g6_server_restore_probe_mounts_only_the_newest_archive_read_only(tmp_path):
+def test_g6_server_restore_probe_uses_a_private_copy_of_the_newest_archive(tmp_path):
     import os
     env = ServerEnv(tmp_path)
     backups = tmp_path / "backups"
@@ -332,7 +332,10 @@ def test_g6_server_restore_probe_mounts_only_the_newest_archive_read_only(tmp_pa
     calls = env.calls()
     _assert_production_untouched(calls)
     run = next(c for c in calls if c.startswith("run "))
-    assert f"-v {new}:/lt/backup.tar.gz:ro" in run and str(old) not in run
+    # Seit dem ersten Serverlauf (09.11.2026: Sicherungen sind 0600 root, der Container laeuft als uniflow) wird das
+    # neueste Archiv in den 0700-Arbeitsordner kopiert statt eingebunden; der Ordner wird am Ende geloescht.
+    assert str(new) not in run and str(old) not in run and "/lt/backup.tar.gz:ro" not in run
+    assert f"Restore-Probe mit {new}" in r.stdout + r.stderr
     ex = [c for c in calls if c.startswith("exec ")]
     assert len(ex) == 1 and "restore-probe.py /lt/backup.tar.gz --ziel /lt/tmp/restore" in ex[0]
     assert (env.out / "restore.json").exists() and not list(env.tmp_root.iterdir())
