@@ -197,7 +197,7 @@ def test_tiers_and_claims_hand_out_offer_codes_once_per_tier(hosted, monkeypatch
     assert st == 200, d
     assert (d["offer_code"], d["already"], d["reward"]) == ("PLUS5-A", False, "1 Monat StudiNow Plus gratis")
     assert d["redeem_url"] == "https://apps.apple.com/redeem?ctx=offercodes&id=6741234567&code=PLUS5-A"
-    assert d["apple_product_id"] == "de.uniflow.plus.monthly"
+    assert d["apple_product_id"] == "de.uniflow.plus.yearly"
     st, me = _j(asgi_call(hosted, "GET", "/api/entitlements", headers=h))
     assert me["plan"] == "pro_ai" and me["source"] == "trial", "nur die Probe, kein von uns gesetzter Tarif"
     # zweites Mal: derselbe Code, kein zweiter aus dem Vorrat
@@ -212,8 +212,8 @@ def test_tiers_and_claims_hand_out_offer_codes_once_per_tier(hosted, monkeypatch
     assert (d["arrived"], d["tier"]) == (20, 20) and [t["claimable"] for t in d["tiers"]] == [False, True, True]
     assert claim(hosted, h, 10)[1]["offer_code"] == "PLUS10-A"
     st, d = claim(hosted, h, 20, "proai")
-    assert (st, d["offer_code"], d["reward"]) == (200, "PROAI20-A", "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)")
-    assert d["apple_product_id"] == "de.uniflow.proai.monthly"
+    assert (st, d["offer_code"], d["reward"]) == (200, "PROAI20-A", "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)")
+    assert d["apple_product_id"] == "de.uniflow.proai.yearly"
     # Stufe 20 ist damit eingeloest: kein Wechsel auf Plus mehr
     st, d = claim(hosted, h, 20, "plus")
     assert (st, d["offer_code"], d["choice"], d["already"]) == (200, "PROAI20-A", "proai", True)

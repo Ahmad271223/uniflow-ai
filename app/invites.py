@@ -8,7 +8,8 @@ Regeln:
   nach der ersten Anmeldung einmal POST /api/invites/redeem; der Aufruf ist idempotent.
 - Belohnungen in Stufen (`TIERS`, Fixture packages/shared-contracts/fixtures/invites/cases.json, in Swift
   `InviteRewards`): 5 Personen -> 1 Monat Plus gratis, 10 -> 3 Monate Plus gratis, 20 -> 12 Monate Plus gratis ODER
-  Pro AI 12 Monate zum Plus-Preis (1,99 EUR). Jede Stufe laesst sich einmal einloesen.
+  Pro AI 12 Monate zum Plus-Preis (19,99 statt 39,99 EUR fuer ein Jahr; seit 09.11.2026 gibt es nur Jahresabos, die
+  Angebotscodes gehoeren zu den Jahresabos). Jede Stufe laesst sich einmal einloesen.
 - Apple-Regeln: Belohnungen gibt es nur als Angebotscodes (App Store Connect, je Produkt), eingeloest in Apples Dialog
   (`https://apps.apple.com/redeem?ctx=offercodes&id=<APP_ID>&code=<CODE>`). Der Dienst schaltet nie selbst einen Tarif
   frei; er gibt nur den Code aus seinem Vorrat heraus. Den Vorrat laedt der Betrieb als Stapel hoch
@@ -63,7 +64,7 @@ REWARD_LABELS: dict[tuple[int, str], str] = {
     (5, "plus"): "1 Monat StudiNow Plus gratis",
     (10, "plus"): "3 Monate StudiNow Plus gratis",
     (20, "plus"): "12 Monate StudiNow Plus gratis",
-    (20, "proai"): "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)",
+    (20, "proai"): "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)",
 }
 
 SCHEMA = """

@@ -8,7 +8,8 @@ Ohne Fremdpaket: die Stripe-API ist form-kodiertes HTTPS mit dem geheimen Schlue
 Konfiguration (Umgebung des Dienstes, nie in der App):
 - LERNAPP_STRIPE_SECRET_KEY      sk_live_… oder sk_test_…
 - LERNAPP_STRIPE_WEBHOOK_SECRET  whsec_… (Endpunkt POST /api/billing/stripe/webhook)
-- LERNAPP_STRIPE_PRICES          "plus=price_…,pro_ai=price_…" (monatliche Preise in Stripe; nur kaufbare Tarife)
+- LERNAPP_STRIPE_PRICES          "plus=price_…,pro_ai=price_…" (jaehrliche Preise in Stripe, 19,99 / 39,99 EUR; nur
+                                 kaufbare Tarife; seit 09.11.2026 keine Monatsabos mehr)
 - LERNAPP_PUBLIC_URL             Basis der Rueck-Adressen nach dem Checkout
 
 Regeln:
@@ -205,7 +206,7 @@ def _returns(base: str, client: str | None) -> tuple[str, str]:
 
 
 def checkout(conn, user: dict, plan: str, client: str | None = None) -> dict:
-    """Checkout-Sitzung fuer ein Monatsabo; die Oberflaeche leitet auf `url` weiter. `client` "windows": Rueckkehr auf
+    """Checkout-Sitzung fuer ein Jahresabo (Preis aus LERNAPP_STRIPE_PRICES); die Oberflaeche leitet auf `url` weiter. `client` "windows": Rueckkehr auf
     die schlichte Seite /abo-fertig statt in die Web-App. Mit aktivem Apple- oder Stripe-Abo: 409 (kein zweiter Kauf)."""
     guard_second_purchase(conn, user["id"])
     if not available():

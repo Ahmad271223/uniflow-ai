@@ -110,12 +110,14 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     nb = (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
     # 08.11.2026: Datenschutz mit den Fristen aus dem Code (Audit Paket 55-57: Protokolle, Sicherungen, Loeschung)
     # 09.11.2026: Datenschutz und Konto-loeschen mit der verschluesselten Kopie ausser Haus (Storage Box, 30 Tage)
-    assert "Stand 09.11.2026 (26.10.2026)" in ds and "Stand 07.11.2026 (26.10.2026)" in nb
+    # 09.11.2026 (abends): Bedingungen nur noch mit Jahresabos (Plus 19,99 €, Pro AI 39,99 €)
+    assert "Stand 09.11.2026 (26.10.2026)" in ds and "Stand 09.11.2026 (26.10.2026; 09.11.2026: nur noch Jahresabos)" in nb
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
     assert "Stand 09.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
-    assert "21,99 € pro Jahr" in nb and "41,99 € pro Jahr" in nb and "einen Monat bzw. ein Jahr" in nb
+    assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb and "verlängert sich automatisch um ein Jahr" in nb
+    assert "pro Monat" not in nb.split("## 5a.")[0].split("## 5.")[-1], "kein Monatsabo in Abschnitt 5"
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl
 

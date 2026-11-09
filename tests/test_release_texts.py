@@ -74,15 +74,15 @@ def test_pro_ai_description_is_honest_and_names_no_foreign_brand():
     eigenes ChatGPT (im Build aus). Sonst sagt sie dasselbe wie die Fassung ohne Pro AI."""
     f = fields("APP-STORE.md")
     pro, plus = f["description-proai"], f["description"]
-    for s in ("StudiNow Pro AI (3,99 €/Monat oder 41,99 €/Jahr)", "100 Credits", "StudiNow-Konto (Anmelden mit Apple)",
-              "KI-Antworten können Fehler enthalten", "Ganze Vorlesung erklären", "StudiNow Plus (1,99 €/Monat oder 21,99 €/Jahr)"):
+    for s in ("StudiNow Pro AI (39,99 €/Jahr)", "100 Credits", "StudiNow-Konto (Anmelden mit Apple)",
+              "KI-Antworten können Fehler enthalten", "Ganze Vorlesung erklären", "StudiNow Plus (19,99 €/Jahr)"):
         assert s in pro, s
     assert not re.search(r"ChatGPT|OpenAI|Claude|Anthropic|\bGPT", pro)
     for s in ("FÜR STUDIERENDE IN GANZ DEUTSCHLAND", "Uni-Mail und Uni-Kalender", "Immatrikulations- oder BAföG-Bescheinigung",
               "Raumfinder", "Studentenwerk Hannover, Studierendenwerk OstNiedersachsen", "Passwort auf diesem iPad merken",
               "nicht in iCloud", "An Server von StudiNow geht es nie", "Kein Tracking"):
         assert s in pro and s in plus, s
-    assert "Pro AI" not in plus and "3,99" not in plus
+    assert "Pro AI" not in plus and "39,99" not in plus
 
 
 def _swift(rel: str) -> str:
@@ -121,7 +121,7 @@ def test_review_notes_describe_the_build_honestly():
         # eigener OpenAI-Schluessel (07.11.2026): nutzbar in jedem Tarif, Einwilligung per Haken, keine Anmeldung bei ChatGPT
         assert '"Eigenes ChatGPT", every plan' in notes and "directly from the iPad to OpenAI" in notes, field
         assert 'ticking "Ich stimme zu …"' in notes and "no ChatGPT login" in notes, field
-        assert 'switch "Monatlich · Jährlich"' in notes, field
+        assert "yearly" in notes and "Monatlich" not in notes, field          # nur Jahresabos (09.11.2026)
         assert len(notes) <= 4000, (field, len(notes))
         # 1.0 nur LUH (Entscheidung 07.11.2026): HsH und Hildesheim erst mit 1.0.1 wieder nennen
         assert "Connected today: Leibniz Universität Hannover" in notes, field
@@ -216,7 +216,7 @@ def test_store_texts_keep_the_universities_authoritative_and_no_tracking():
         f = fields(name)
         long = f.get("description") or f.get("full")
         assert "nicht mit den Hochschulen verbunden" in long and "Verbindlich für Termine, Fristen und Noten" in long
-        assert "Kein Tracking" in long and "1,99 €" in long and "https://studinow.app/datenschutz" in long
+        assert "Kein Tracking" in long and "19,99 €" in long and "https://studinow.app/datenschutz" in long
 
 
 def test_placeholders_use_one_syntax_and_are_listed():

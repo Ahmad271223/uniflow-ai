@@ -646,7 +646,7 @@ def test_plans_fixture_is_current():
 
 def test_plan_table_matches_the_order():
     from app import plans
-    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 199, 399], "drei Tarife (04.11.2026)"
+    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 1999, 3999], "drei Tarife, nur Jahresabos (09.11.2026)"
     assert plans.ORDER == ("free", "plus", "pro_ai") and not any(plans.PLANS[k].get("legacy") for k in plans.ORDER)
     assert [plans.is_sellable(k) for k in ("free", "plus", "pro_ai", "pro_connect")] == [False, True, True, False]
     for low, high in zip(plans.ORDER, plans.ORDER[1:]):
@@ -742,14 +742,14 @@ def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_
 
 
 def test_yearly_products_map_to_the_same_plan():
-    """Jahresabos (Entscheidung des Inhabers vom 07.11.2026) gelten wie der Monatstarif; Preise in der Vertragstabelle."""
+    """Seit 09.11.2026 nur Jahresabos (Plus 19,99 EUR, Pro AI 39,99 EUR); die frueheren Monatsprodukte gelten weiter wie
+    ihr Tarif, stehen aber nicht mehr im Vertrag."""
     from app import plans as P
     assert P.plan_for_product("de.uniflow.plus.yearly") == "plus"
     assert P.plan_for_product("de.uniflow.proai.yearly") == "pro_ai"
     assert P.plan_for_product("de.uniflow.plus.monthly") == "plus"
     assert P.plan_for_product("de.uniflow.free.yearly") is None
     c = P.contract()["plans"]
-    assert (c["plus"]["price_cents_yearly"], c["pro_ai"]["price_cents_yearly"]) == (2199, 4199)
-    assert c["free"]["apple_product_id_yearly"] is None
-    for k in ("plus", "pro_ai"):
-        assert c[k]["price_cents_yearly"] < 12 * c[k]["price_cents"], k
+    assert (c["plus"]["price_cents"], c["pro_ai"]["price_cents"]) == (1999, 3999)
+    assert c["free"]["apple_product_id"] is None and c["free"]["period"] is None
+    assert all("price_cents_yearly" not in c[k] for k in P.ORDER)

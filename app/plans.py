@@ -1,8 +1,11 @@
 """StudiNow-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
 
-Entscheidung des Inhabers vom 04.11.2026 (docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free 0 EUR, Plus
-1,99 EUR, Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Seit 07.11.2026 auch jaehrlich: Plus 21,99 EUR, Pro AI
-41,99 EUR (`price_cents_yearly`, `apple_product_id_yearly`); Credits und Kontingente gelten weiter je Kalendermonat. Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
+Entscheidung des Inhabers vom 04.11.2026 (docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free, Plus, Pro AI.
+Seit 09.11.2026 (abends, docs/release/ABO-NUR-JAHR-2026-11-09.md) nur noch Jahresabos: Plus 19,99 EUR, Pro AI
+39,99 EUR im Jahr (Endkundenpreise, `price_cents` mit `period` "year", `apple_product_id` = Jahresabo). Die frueheren
+Monatsabos (1,99 / 3,99 EUR) werden nirgends mehr angeboten; ihre Apple-Produkte gelten beim Pruefen eines Kaufs weiter
+wie der Tarif (`LEGACY_PRODUCTS`). Credits und Kontingente gelten weiter je Kalendermonat. Jeder Tarif enthaelt alle
+Rechte des naechstniedrigeren.
 Angleichung vom 05.11.2026 (docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md): Free ohne Community (auch kein Lesen) und ohne
 StudiNow-KI, das eigene ChatGPT darf in jedem Tarif verbunden werden (Fragen zu Folien; Schreiben erst ab Plus); Plus
 mit Community, Schreiben, eigenen Karteikarten und begrenzt Karteikarten-Stapeln von StudiNow (4/Monat); Pro AI mit
@@ -35,22 +38,25 @@ ORDER = ("free", "plus", "pro_ai")
 # zeigen (Rechte und Kontingente), erscheinen aber in keiner Liste und sind nicht kaufbar
 LEGACY_PLANS = {"pro_connect": "pro_ai"}
 
+# nicht mehr angebotene Apple-Produkte -> Tarif: ein Kauf damit gilt weiter (Belege, Verlaengerungen, Sandbox), sie
+# stehen aber in keiner Liste, keinem Vertrag und keinem Text. Monatsabos bis 09.11.2026, Pro Connect bis 04.11.2026.
+LEGACY_PRODUCTS = {"de.uniflow.plus.monthly": "plus", "de.uniflow.proai.monthly": "pro_ai",
+                   "de.uniflow.proconnect.monthly": "pro_connect"}
+
 PLANS: dict[str, dict] = {
-    "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": "month",
-             "apple_product_id": None, "apple_product_id_yearly": None, "price_cents_yearly": None,
+    "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": None,
+             "apple_product_id": None,
              "tagline": "Studium organisieren und Unterlagen lesen"},
-    "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 199, "currency": "EUR", "period": "month",
-             "apple_product_id": "de.uniflow.plus.monthly",
-             "apple_product_id_yearly": "de.uniflow.plus.yearly", "price_cents_yearly": 2199,
+    "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 1999, "currency": "EUR", "period": "year",
+             "apple_product_id": "de.uniflow.plus.yearly",
              "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"},
-    "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
-               "apple_product_id": "de.uniflow.proai.monthly",
-               "apple_product_id_yearly": "de.uniflow.proai.yearly", "price_cents_yearly": 4199,
+    "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 3999, "currency": "EUR", "period": "year",
+               "apple_product_id": "de.uniflow.proai.yearly",
                "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},
-    # nur fuer alte Zeilen (LEGACY_PLANS): Rang wie Pro AI, nicht in ORDER, nicht kaufbar, nicht sichtbar
-    "pro_connect": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
-                    "apple_product_id": "de.uniflow.proconnect.monthly",
-                    "apple_product_id_yearly": None, "price_cents_yearly": None,
+    # nur fuer alte Zeilen (LEGACY_PLANS): Rang wie Pro AI, nicht in ORDER, nicht kaufbar, nicht sichtbar; sein
+    # frueheres Produkt steht in LEGACY_PRODUCTS
+    "pro_connect": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 3999, "currency": "EUR", "period": "year",
+                    "apple_product_id": None,
                     "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig", "legacy": True},
 }
 
@@ -175,11 +181,14 @@ def quota_limit(plan: str, feature: str) -> int:
 
 
 def plan_for_product(product_id: str | None) -> str | None:
-    """Tarif zu einem Apple-Produkt, monatlich oder jaehrlich (Entscheidung des Inhabers vom 07.11.2026)."""
+    """Tarif zu einem Apple-Produkt: das angebotene Jahresabo oder ein frueheres Produkt (`LEGACY_PRODUCTS`, z. B. die
+    Monatsabos bis 09.11.2026), das weiter wie sein Tarif gilt."""
+    if not product_id:
+        return None
     for key, p in PLANS.items():
-        if product_id and product_id in (p["apple_product_id"], p.get("apple_product_id_yearly")):
+        if product_id == p["apple_product_id"]:
             return key
-    return None
+    return LEGACY_PRODUCTS.get(product_id)
 
 
 # Probe fuer jedes neue Konto (Entscheidung 30.10.2026, iPad 04.11.2026): 7 Tage alles wie Pro AI mit CREDITS["trial"]
