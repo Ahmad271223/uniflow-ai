@@ -994,6 +994,8 @@ struct UFPaneHeader<Trailing: View>: View {
     var closeID: String?
     let close: () -> Void
     @ViewBuilder var trailing: Trailing
+    /// Spalte daneben in der geteilten Ansicht: Kopfzeile gedrueckt halten und ziehen tauscht die Seiten (SplitSides.swift)
+    @Environment(\.ufPaneSwap) private var paneSwap
 
     init(_ title: String, icon: String? = nil, closeLabel: String = "Schließen", closeID: String? = nil,
          close: @escaping () -> Void, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
@@ -1025,6 +1027,7 @@ struct UFPaneHeader<Trailing: View>: View {
         .frame(minHeight: 44)
         .background(UF.surface)
         .ufBorderBottom()
+        .modifier(UFPaneSwapGesture(swap: paneSwap))
     }
 }
 

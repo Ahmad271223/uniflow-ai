@@ -160,6 +160,10 @@ struct DocumentView: View {
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
+    /// an der Kopfzeile getauschte Paare (SplitSides.swift), wie die Breite der Teilung auf dem Geraet gemerkt
+    @AppStorage(SplitSides.swappedKey) private var splitSwapped = ""
+    /// Ziehen an der Kopfzeile der Spalte daneben laeuft (x im Raum "split", nil = noch nicht bewegt)
+    @State private var swapDrag: CGFloat?? = nil
     @State private var fullScreen = false
     @State private var showSidebar = false
     @State private var showSearch = false
@@ -363,8 +367,37 @@ struct DocumentView: View {
         }
     }
 
-    /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
-    private var scriptLeft: Bool { hand != "left" }
+    /// Seite der freien Hand (Seitenleiste, KI-Hilfe, Schloss beim Abpausen): Rechtshaender -> links.
+    private var scriptLeft: Bool { SplitSides.freeHandLeft(hand: hand) }
+
+    /// Spalte daneben: Skript und Loesung auf der Seite der freien Hand, ein Blatt oder eine Uebung neben der Folie
+    /// auf der Seite der Schreibhand (Befund 09.11.2026); an der Kopfzeile getauscht gespiegelt
+    private var sideLeft: Bool {
+        SplitSides.sidePaneLeft(hand: hand, role: SplitSides.role(side: solutionSide == nil ? companion?.file : nil, primary: store.file),
+                                swapped: sideKey.map { SplitSides.isSwapped(splitSwapped, key: $0) } ?? false)
+    }
+
+    /// Paar aus Hauptdokument und Spalte daneben (fuer den gemerkten Tausch)
+    private var sideKey: String? {
+        if let s = solutionSide { return SplitSides.pairKey(primary: store.file.id, side: "loesung:" + s.id) }
+        return companion.map { SplitSides.pairKey(primary: store.file.id, side: $0.file.id) }
+    }
+
+    private func swapSides() {
+        guard let key = sideKey else { return }
+        withAnimation(.easeInOut(duration: 0.2)) { splitSwapped = SplitSides.toggling(splitSwapped, key: key) }
+    }
+
+    /// Kopfzeile der Spalte daneben: gedrueckt halten, zur anderen Haelfte ziehen, loslassen tauscht
+    private func paneSwap(width: CGFloat) -> UFPaneSwap {
+        UFPaneSwap(moved: { active, x in swapDrag = active ? .some(x) : nil },
+                   ended: { x in
+                       let swaps = SplitSides.dropSwaps(sidePaneLeft: sideLeft, x: x, width: width)
+                       swapDrag = nil
+                       if swaps { swapSides() }
+                   },
+                   swapNow: { swapSides() })
+    }
 
     /// "Zum Abpausen einfrieren": nur die Seite, keine Leisten, keine Eingabe
     private var tracing: Bool { freeze.isTracing }
@@ -422,12 +455,7 @@ struct DocumentView: View {
             .accessibilityIdentifier("doc.areaAI.page")
     }
 
-    private var isExercise: Bool {
-        let f = store.file
-        if ["uebung", "loesung", "klausur"].contains(f.doc_type ?? "") { return true }
-        let text = (f.name + " " + (f.studip_folder ?? "")).lowercased()
-        return ["übung", "uebung", "blatt", "aufgabe"].contains { text.contains($0) }
-    }
+    private var isExercise: Bool { SplitSides.isExercise(store.file) }
 
     var body: some View {
         Group {
@@ -446,14 +474,14 @@ struct DocumentView: View {
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                             Divider()
                         }
-                        if hasSidePane, scriptLeft, !tracing {
-                            sidePane.frame(width: geo.size.width * splitFraction)
-                            splitHandle(width: geo.size.width)
-                        }
-                        primaryPane
-                        if hasSidePane, !scriptLeft, !tracing {
-                            splitHandle(width: geo.size.width)
-                            sidePane.frame(width: geo.size.width * splitFraction)
+                        // Spalte daneben links oder rechts (SplitSides); dieselben Ansichten, wenn die Seite wechselt
+                        SplitRow(sideLeft: sideLeft) {
+                            if hasSidePane, !tracing {
+                                sidePane.frame(width: geo.size.width * splitFraction)
+                                    .environment(\.ufPaneSwap, paneSwap(width: geo.size.width))
+                                splitHandle(width: geo.size.width)
+                            }
+                            primaryPane
                         }
                         if showTutor, !scriptLeft, !tracing {
                             Divider()
@@ -465,6 +493,9 @@ struct DocumentView: View {
                         }
                     }
                     .coordinateSpace(NamedCoordinateSpace.named("split"))
+                    .overlay {
+                        if let d = swapDrag, hasSidePane, !tracing { SplitSwapHint(sideLeft: sideLeft, x: d, width: geo.size.width) }
+                    }
                 }
             } else {
                 ProgressView("Lädt…")
@@ -553,7 +584,7 @@ struct DocumentView: View {
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
-                            solutions: foreignLayers.map { ($0.id, $0.label) },
+                            solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
                             onSolution: { id in
                                 if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
                             }) { f in
@@ -806,7 +837,7 @@ struct DocumentView: View {
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
             let x = g.location.x
-            let f = scriptLeft ? x / max(width, 1) : (width - x) / max(width, 1)
+            let f = sideLeft ? x / max(width, 1) : (width - x) / max(width, 1)
             splitFraction = min(0.65, max(0.2, Double(f)))
         })
         .accessibilityLabel("Breite der geteilten Ansicht")
@@ -958,6 +989,13 @@ struct DocumentView: View {
                 // immer das Symbol der Teilung (die Sperre nennt der Text): nur "Schreiben (Plus)" links traegt das Schloss
                 Label(!hasSidePane ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
                       systemImage: "rectangle.split.2x1")
+            }
+            .contextMenu {
+                // auch fuer Bedienungshilfen: dasselbe wie Ziehen an der Kopfzeile der Spalte daneben
+                if hasSidePane {
+                    Button { swapSides() } label: { Label(UFPaneSwap.actionName, systemImage: "arrow.left.arrow.right") }
+                        .accessibilityIdentifier("doc.split.swap")
+                }
             }
         }
         UFToolbarGap()
@@ -1618,6 +1656,8 @@ struct CompanionPicker: View {
     var sourceTitle = ""
     /// empfangene Loesungen zu dieser PDF (ID, Name): "Lösung daneben ansehen" steht dann zuerst
     var solutions: [(id: String, label: String)] = []
+    /// Lage von Folie und Loesung nach der Schreibhand (SplitSides.solutionHint)
+    var solutionHint = SplitSides.solutionHint(hand: "right")
     var onSolution: (String) -> Void = { _ in }
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -1656,7 +1696,7 @@ struct CompanionPicker: View {
     private var solutionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Lösung daneben ansehen").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-            Text("Links deine Folie, rechts die Lösung auf derselben Seite.")
+            Text(solutionHint)
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
                 ForEach(Array(solutions.enumerated()), id: \.element.id) { i, sol in
