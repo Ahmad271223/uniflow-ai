@@ -164,6 +164,7 @@ struct LecturerList: View {
     @Environment(\.uniMail) private var uniMail
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var studip: StudIPSync
     @State private var compose: UniMailComposeRequest?
     @State private var message: LecturerMessageRequest?
 
@@ -180,7 +181,9 @@ struct LecturerList: View {
         .sheet(item: $compose) { req in
             if let c = uniMail { UniMailComposeSheet(connection: c, request: req) { sent in if sent { toast.show("Gesendet.") } } }
         }
-        .sheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender) }
+        // Abgleich ausdruecklich ins Fenster: auf dem Mac ("Designed for iPad") fehlte er dort (Absturz in
+        // MessageReplyEntry, "No ObservableObject of type StudIPSync", Befund 09.11.2026)
+        .sheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender).environmentObject(studip) }
     }
 
     private func mail(_ email: String, person: JSONValue) {

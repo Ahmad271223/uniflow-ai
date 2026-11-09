@@ -154,7 +154,8 @@ struct MessagesPage: View {
         }
         .ufReload { await load() }
         .sheet(item: $composing, onDismiss: loadReplies) { c in
-            MessageReplyEntry(original: c.original, mode: c.mode)
+            // Abgleich ausdruecklich ins Fenster (Mac "Designed for iPad": fehlte sonst, wie in LecturerList)
+            MessageReplyEntry(original: c.original, mode: c.mode).environmentObject(studip)
         }
         .sheet(item: $moodleReply) { t in
             let hsh = self.hsh, hildesheim = self.hildesheim

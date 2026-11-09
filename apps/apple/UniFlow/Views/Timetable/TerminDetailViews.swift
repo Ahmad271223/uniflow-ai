@@ -272,7 +272,8 @@ struct TerminLecturersSection: View {
         .background {
             Color.clear
                 .sheet(isPresented: $login, onDismiss: afterLogin) { if let c = uniMail { UniMailLoginView(connection: c) } }
-                .sheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender) }
+                // Abgleich ausdruecklich ins Fenster (Mac "Designed for iPad": fehlte sonst, wie in LecturerList)
+                .sheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender).environmentObject(studip) }
         }
         .confirmationDialog(TerminDetailText.connectTitle, isPresented: $askConnect, titleVisibility: .visible) {
             Button(TerminDetailText.connect) { login = true }
