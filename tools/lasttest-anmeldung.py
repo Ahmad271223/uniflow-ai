@@ -53,9 +53,43 @@ def ms(v: float) -> str:
     return f"{v * 1000:.0f}"
 
 
+PROC = Path("/proc")   # Linux ohne procps: python:3.12-slim (Wegwerf-Container von tools/lasttest-server.sh) hat kein ps/pgrep
+
+
+def _proc_children(pid: int) -> list[int]:
+    """Kindprozesse aus /proc/<n>/stat (4. Feld = Elternprozess), wenn `ps`/`pgrep` fehlen."""
+    kids = []
+    try:
+        entries = list(PROC.iterdir())
+    except OSError:
+        return []
+    for d in entries:
+        if not d.name.isdigit():
+            continue
+        try:
+            rest = (d / "stat").read_text().rsplit(")", 1)[-1].split()
+        except OSError:
+            continue
+        if len(rest) >= 2 and rest[1] == str(pid):
+            kids.append(int(d.name))
+    return kids
+
+
+def _proc_rss_mb(pid: int) -> float | None:
+    try:
+        for line in (PROC / str(pid) / "status").read_text().splitlines():
+            if line.startswith("VmRSS:"):
+                return int(line.split()[1]) / 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
 def children(pid: int) -> list[int]:
     try:
         out = subprocess.run(["ps", "-ax", "-o", "pid=,ppid="], capture_output=True, text=True, timeout=10).stdout
+    except FileNotFoundError:
+        return _proc_children(pid)
     except Exception:  # noqa: BLE001
         return []
     kids = []
@@ -72,6 +106,10 @@ def rss_mb(pids: list[int]) -> list[float]:
         try:
             kb = subprocess.run(["ps", "-o", "rss=", "-p", str(pid)], capture_output=True, text=True, timeout=10).stdout.strip()
             out.append(round(int(kb) / 1024, 1))
+        except FileNotFoundError:
+            v = _proc_rss_mb(pid)
+            if v is not None:
+                out.append(round(v, 1))
         except Exception:  # noqa: BLE001
             pass
     return out
@@ -115,7 +153,7 @@ class Dienst:
             except (ValueError, OSError):
                 pass
         log = open(self.tmp / "dienst.log", "wb")
-        self.proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.server:app", "--host", "127.0.0.1", "--port", str(self.port),
+        self.proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "lasttest_dienst:app", "--app-dir", str(HERE), "--host", "127.0.0.1", "--port", str(self.port),
                                       "--workers", str(self.a.workers), "--no-access-log", "--backlog", "4096", "--log-level", "warning",
                                       "--proxy-headers", "--forwarded-allow-ips=*"],
                                      cwd=str(self.repo), env=self.env(), stdout=log, stderr=log)

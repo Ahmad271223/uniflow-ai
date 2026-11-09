@@ -53,10 +53,44 @@ def ms(v: float) -> str:
     return f"{v * 1000:.0f} ms"
 
 
+PROC = Path("/proc")   # Linux ohne procps: python:3.12-slim (Wegwerf-Container von tools/lasttest-server.sh) hat kein ps/pgrep
+
+
+def _proc_children(pid: int) -> list[int]:
+    """Kindprozesse aus /proc/<n>/stat (4. Feld = Elternprozess), wenn `ps`/`pgrep` fehlen."""
+    kids = []
+    try:
+        entries = list(PROC.iterdir())
+    except OSError:
+        return []
+    for d in entries:
+        if not d.name.isdigit():
+            continue
+        try:
+            rest = (d / "stat").read_text().rsplit(")", 1)[-1].split()
+        except OSError:
+            continue
+        if len(rest) >= 2 and rest[1] == str(pid):
+            kids.append(int(d.name))
+    return kids
+
+
+def _proc_rss_mb(pid: int) -> float | None:
+    try:
+        for line in (PROC / str(pid) / "status").read_text().splitlines():
+            if line.startswith("VmRSS:"):
+                return int(line.split()[1]) / 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
 def children(pid: int) -> list[int]:
     try:
         out = subprocess.run(["pgrep", "-P", str(pid)], capture_output=True, text=True).stdout.split()
         return [int(x) for x in out]
+    except FileNotFoundError:
+        return _proc_children(pid)
     except Exception:  # noqa: BLE001
         return []
 
@@ -64,9 +98,13 @@ def children(pid: int) -> list[int]:
 def rss_mb(pids: list[int]) -> list[float]:
     if not pids:
         return []
-    out = subprocess.run(["ps", "-o", "rss=", "-p", ",".join(map(str, pids))], capture_output=True, text=True).stdout.split()
+    try:
+        out = subprocess.run(["ps", "-o", "rss=", "-p", ",".join(map(str, pids))], capture_output=True, text=True).stdout.split()
+        values = [int(x) / 1024 for x in out if x.isdigit()]
+    except FileNotFoundError:
+        values = [v for v in map(_proc_rss_mb, pids) if v is not None]
     # nur die API-Prozesse (uvicorn startet daneben einen kleinen Hilfsprozess fuer multiprocessing, ~17 MB)
-    return [int(x) / 1024 for x in out if x.isdigit() and int(x) / 1024 >= 40]
+    return [v for v in values if v >= 40]
 
 
 async def wait_http(client: httpx.AsyncClient, url: str, seconds: float = 60) -> None:
@@ -121,7 +159,7 @@ class Run:
         log = open(self.tmp / "dienst.log", "wb")
         self.procs.append(subprocess.Popen([py, str(HERE / "lasttest-ki-anbieter.py"), "--port", str(self.a.provider_port), "--delay", str(self.a.delay),
                                             "--jitter", str(self.a.jitter), "--quiet"], stdout=log, stderr=log))
-        self.procs.append(subprocess.Popen([py, "-m", "uvicorn", "app.server:app", "--host", "127.0.0.1", "--port", str(self.a.port),
+        self.procs.append(subprocess.Popen([py, "-m", "uvicorn", "lasttest_dienst:app", "--app-dir", str(HERE), "--host", "127.0.0.1", "--port", str(self.a.port),
                                             "--workers", str(self.a.workers), "--no-access-log", "--backlog", "4096", "--log-level", "warning"],
                                            cwd=str(self.repo), env=self.env(), stdout=log, stderr=log))
 
