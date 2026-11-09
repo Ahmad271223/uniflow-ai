@@ -55,14 +55,20 @@ def test_table_lists_every_build_from_21_to_the_current_one():
         assert "noch nicht hochgeladen" in r[now]["status"]
 
 
-def test_submitted_build_is_build_25_from_d08cae54():
-    """Betriebsfakt 08.11.2026: eingereicht ist 1.0 Build 25 aus d08cae54 (App Store und TestFlight-Beta-Pruefung)."""
+def test_submitted_build_is_build_30_from_3b81464a():
+    """Betriebsfakt 10.11.2026: eingereicht ist 1.0.1 Build 30 aus 3b81464a (App Store und TestFlight-Beta-Pruefung).
+    Build 25 (d08cae54) war als 1.0 freigegeben, wurde nie veroeffentlicht und ist zurueckgezogen."""
     r = rows()
-    assert submitted() == 25
+    assert submitted() == 30
+    assert r[30]["commit"] == "3b81464a"
+    assert "1.0.1" in r[30]["status"] and "WAITING_FOR_REVIEW" in r[30]["status"] and "TestFlight" in r[30]["status"]
     assert r[25]["commit"] == "d08cae54"
-    assert "WAITING_FOR_REVIEW" in r[25]["status"] and "TestFlight" in r[25]["status"]
+    assert "nie veröffentlicht" in r[25]["status"] and "zurückgezogen" in r[25]["status"]
     assert "nie" in r[26]["status"] and r[26]["commit"] is None, "Build 26 wurde nie hochgeladen"
-    assert submitted() < project_build(), "neuere Fixes stehen nur in einem spaeteren Build"
+    assert "nie" in r[29]["status"] and r[29]["commit"] is None, "Build 29 wurde nie gebaut"
+    assert submitted() < project_build(), "neuere Aenderungen stehen nur in einem spaeteren Build"
+    yml = YML.read_text(encoding="utf-8")
+    assert 'MARKETING_VERSION: "1.0.1"' in yml or not re.search(r'MARKETING_VERSION: "1\.0"', yml), "1.0 wurde nie veroeffentlicht"
 
 
 def test_app_store_md_names_the_same_builds_as_project_yml_and_this_table():

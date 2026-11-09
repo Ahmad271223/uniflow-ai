@@ -112,7 +112,14 @@ Der Prüf-Screenshot für App Store Connect (`StoreScreenshotFinalTests.testTari
 
 ## Klickliste für den Inhaber in App Store Connect
 
-Nur der Inhaber ändert App Store Connect. Reihenfolge so lassen; nichts davon braucht einen neuen Build.
+**Erledigt am 10.11.2026** (Auftrag des Inhabers vom 09.11.2026, über die App-Store-Connect-Schnittstelle bzw. die
+Sitzung des Inhabers): (a) beide Monatsabos sind aus dem Verkauf genommen (Zustand „Developer Removed from Sale“);
+(b) die Jahrespreise sind in allen Ländern zum **11.11.2026** geplant – ein früheres Datum nimmt Apple bei schon
+genehmigten Abos nicht an –, Deutschland Plus 19,99 €, Pro AI 39,99 €, kein Land wird teurer; bis dahin zeigt StoreKit
+noch 21,99 € und 41,99 €; (c) Beschreibung und Prüfhinweise stehen mit den Jahresabos in App Store Connect, Version
+1.0.1 mit Build 30 ist eingereicht (`BUILD-HERKUNFT.md`). Die Liste unten bleibt als Beschreibung der Schritte stehen.
+
+Reihenfolge so lassen; nichts davon braucht einen neuen Build.
 
 **(a) Beide Monatsabos aus dem Verkauf nehmen**
 
@@ -164,5 +171,5 @@ laufen von selbst aus.
 - Kein Upload der Website, kein Deploy des Dienstes, keine Änderung in App Store Connect, keine Build-Nummer.
 - Stripe-Preise (Web/Windows) legt der Inhaber im Stripe-Dashboard als **jährliche** Preise an, sobald Stripe
   eingerichtet wird.
-- Die Nutzungsbedingungen nennen in Abschnitt 5 weiter „ein Credit entspricht einem Cent“; die Entscheidung vom
-  08.11.2026 (0,9 Cent) ist dort noch nicht nachgezogen (eigener Punkt, nicht Teil der Abo-Änderung).
+- Die Nutzungsbedingungen nennen seit `19521819` (develop, 09.11.2026) in Abschnitt 5 „ein Credit entspricht 0,9 Cent“;
+  die Website-Seite ist neu erzeugt, aber noch nicht hochgeladen.

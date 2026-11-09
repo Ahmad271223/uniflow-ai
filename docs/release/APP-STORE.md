@@ -1,9 +1,13 @@
 # App Store Connect – Texte und Angaben (iPad, Mac „Designed for iPad“)
 
-**Entwurf, Stand 09.11.2026 (nur Jahresabos; 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0 (Build 30; Build 25 ist seit 08.11. in der Prüfung, Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
+**Stand 10.11.2026 (nur Jahresabos; 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.1 (Build 30 ist seit 10.11.2026 in der Prüfung, Beschreibung und Prüfhinweise unten stehen so in App Store Connect; Build 25 war seit 08.11. in der Prüfung und als Version 1.0 freigegeben, wurde aber nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
+
+**Versionsnummern seit 10.11.2026:** Der erste Stand im Store heißt **1.0.1** (Build 30, nur LUH). Wo in älteren Texten
+„1.0“ steht, ist dieser erste Stand gemeint; wo „1.0.1“ für HsH, Hildesheim, iPhone oder die Gerätegrenze steht, ist die
+**nächste** Version gemeint (dann 1.0.2 oder höher).
 
 **1.0 nur LUH, 1.0.1 mit HsH und Hildesheim (Entscheidung des Inhabers 07.11.2026, 14:10):** Version 1.0 (Build 25)
 wird nur mit der Leibniz Universität Hannover (Stud.IP, QIS) eingereicht. Hochschule Hannover (Moodle, HISinOne) und
@@ -214,7 +218,7 @@ Erste Version von StudiNow für das iPad: Unterlagen, Termine, Nachrichten, Note
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0 (`MARKETING_VERSION`), **Build 31** (`CURRENT_PROJECT_VERSION` auf develop, gedacht für 1.0.1; nächster Upload für 1.0 ist Build 30 vom Zweig `release/1.0-b30`; Build 25 in der Prüfung, Build 26 nie hochgeladen); Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
+| Version, Build | 1.0.1 (`MARKETING_VERSION`; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 31** (`CURRENT_PROJECT_VERSION` auf develop, gedacht für die nächste Version; Build 30 in der Prüfung als Version 1.0.1 seit 10.11.2026, vom Zweig `release/1.0-b30`; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen); Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv, an zwei Stellen: beim Start (trennt die Daten je Apple-Nutzer, bleibt auf dem Gerät) und freiwillig für das StudiNow-Konto (Einstellungen → Zugang & Darstellung → StudiNow-Konto; Token-Tausch beim Dienst). Konto löschen geht für beides in der App (Richtlinie 5.1.1(v)) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -399,9 +403,11 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3966 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3972 Zeichen (max. 4000)
 
 ```text review-notes-proai
+Version 1.0 (build 25) was approved but never released. 1.0.1 (build 30) replaces it: bug fixes, yearly subscriptions only.
+
 StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. University features (files, timetable, mail, grades) need a personal university account. Please use the built-in demo instead:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account on the device and sends nothing to our servers.
@@ -411,11 +417,9 @@ A slim bar "Demo-Inhalte – erfunden, ohne Hochschule" marks the demo; "Beenden
 
 After the trial: a screen "Deine Probe ist vorbei" shows Free, Plus and Pro AI (yearly subscriptions) and closes only after a choice. "Bei Free bleiben" is a valid choice without any purchase: Free stays usable at no cost, nothing is lost.
 
-With a real account the first sync loads the current semester and timetable, then asks "Auch frühere Semester laden?" (background, Wi-Fi only). Not visible in the demo, which has no older semesters.
+University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this iPad's Keychain (not synced to iCloud); it is never sent to our servers. Delete: "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden".
 
-University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this iPad's Keychain (not synced to iCloud) for later sign-ins; it is never sent to our servers. Delete: "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden".
-
-Subscriptions (yearly only; no introductory offers), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
+Subscriptions (yearly only, no introductory offers; the monthly products are removed from sale; yearly prices are 19.99 € and 39.99 € from 11 Nov 2026), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
 - "StudiNow Plus": Apple Pencil, exercise and script side by side, flashcards, automatic study plan, course community.
 - "StudiNow Pro AI": everything in Plus, the StudiNow AI with 100 credits per month, note sync between devices.
 Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.

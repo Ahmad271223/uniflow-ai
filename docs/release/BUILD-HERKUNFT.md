@@ -1,11 +1,12 @@
-# Build-Herkunft der iPad-App (StudiNow 1.0)
+# Build-Herkunft der iPad-App (StudiNow 1.0 und 1.0.1)
 
 Stand 08.11.2026, Audit P46-01/P47-04. Welcher Git-Commit steckt in welchem hochgeladenen Build? Fehlerbehebungen nach
 einem Build gelten **nicht** für diesen Build. `tests/test_release_build_provenance.py` prüft diese Datei gegen
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 31 (Version 1.0, `CURRENT_PROJECT_VERSION`).
+Aktueller Stand in project.yml: Build 31 (Version 1.0.1, `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.1
+mit Build 30 (seit 10.11.2026).
 
 ## Builds
 
@@ -19,15 +20,19 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 22 | `10f76288` | 08.11.2026 00:48 | hochgeladen (TestFlight), nicht eingereicht | Bibliothek liest ihre Liste nach jedem Abgleich neu |
 | 23 | `6cccffc5` | 08.11.2026 01:07 | hochgeladen (TestFlight), nicht eingereicht | Stud.IP-Abgleich lädt Dateien ohne Ablageort in jedem vollen Lauf nach |
 | 24 | `d4accf67` | 08.11.2026 01:34 | hochgeladen (TestFlight), nicht eingereicht | Dokument sofort über die Kennung öffnen; voller Abgleich vor Stufe d |
-| 25 | `d08cae54` | 08.11.2026 01:51 | eingereicht: App Store WAITING_FOR_REVIEW, zugleich TestFlight-Beta-Prüfung | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
+| 25 | `d08cae54` | 08.11.2026 01:51 | am 08.11.2026 als Version 1.0 zur Prüfung gegeben und von Apple freigegeben, nie veröffentlicht; am 10.11.2026 00:27 zurückgezogen und durch Build 30 ersetzt; TestFlight weiter verfügbar | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
 | 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
 | 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), auf das iPad des Inhabers installiert, noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
 | 29 | – | 09.11.2026 | nie gebaut und nie hochgeladen: interner Stand auf develop (Build 28 plus Mac-Parität, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen); nicht in Build 30, Inhalt steckt in Build 31 | docs/paritaet/MAC-B28-2026-11-09.md, COMMUNITY-UND-ABGLEICH-2026-11-09.md |
-| 30 | `5d418339` | 09.11.2026 23:32 | gebaut (Archiv) vom Zweig `release/1.0-b30`, noch nicht hochgeladen; Inhalt: Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts | docs/release/ABO-NUR-JAHR-2026-11-09.md |
-| 31 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 30 plus Mac-Parität und Mac-Bedienung (Maus, Trackpad, Tasten), Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen; gedacht für 1.0.1 | docs/paritaet/ |
+| 30 | `3b81464a` | 10.11.2026 00:03 | eingereicht: Version 1.0.1, App Store WAITING_FOR_REVIEW seit 10.11.2026 00:27, zugleich TestFlight-Beta-Prüfung; hochgeladen 10.11.2026 00:06 vom Zweig `release/1.0-b30`; Freigabe von Hand | Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts; docs/release/ABO-NUR-JAHR-2026-11-09.md |
+| 31 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 30 plus Mac-Parität und Mac-Bedienung (Maus, Trackpad, Tasten), Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen; gedacht für die nächste Version nach 1.0.1 (Versionsnummer vor dem Upload hochsetzen, z. B. 1.0.2) | docs/paritaet/ |
 
-### Build 25 (in der Prüfung)
+### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
+
+Build 25 war vom 08.11.2026 an als Version 1.0 in der Prüfung und wurde freigegeben („Pending Developer Release“,
+Freigabe von Hand), aber nie veröffentlicht. Am 10.11.2026 00:27 hat der Inhaber die Freigabe zurückziehen lassen;
+dieselbe Versionsseite heißt jetzt 1.0.1 und trägt Build 30.
 
 - Quelle: `git archive d08cae54` nach `~/Studora-Builds/export-b25` (develop, Nacht 07./08.11.2026, Commit 08.11. 01:51).
   Beim endgültigen Einreichen um 10:05 stand develop auf `c372db24`; zwischen `d08cae54` und `c372db24` hat sich unter
@@ -77,7 +82,7 @@ Audits 58–87. **Stand 09.11.2026:** `~/Studora-Builds/export-b28` ist Datei f�
 `UFShippedUniversities` = `luh`, Team 78MQGF36BD); vorher lokal `b28-test.log` auf demselben Commit: **1387 Tests,
 18 übersprungen, 0 Fehler**. Nie hochgeladen: der Inhaber hat am 09.11.2026 entschieden, nur noch Jahresabos anzubieten; dafür gibt es Build 30.
 
-### Build 30 (nächster Upload)
+### Build 30 (Version 1.0.1, in der Prüfung seit 10.11.2026)
 
 Build 30 = Build 28 (`7d1a8fb3`, alle iPad-Korrekturen) plus genau zwei Dinge: nur noch Jahresabos (Entscheidung des
 Inhabers vom 09.11.2026: Plus 19,99 €, Pro AI 39,99 € im Jahr, Monatsabos werden nicht mehr angeboten; ein früherer
@@ -85,12 +90,30 @@ Kauf eines Monatsabos gilt weiter als Kauf des Tarifs) und der Credit-Text „1 
 Community-Änderungen des internen Stands 29 sind **nicht** enthalten. Unter `apps/apple/` außerhalb der Tests ändern
 sich gegenüber Build 28 nur `Purchases/{Plans,PurchaseStore,Entitlements}.swift`, `Views/Onboarding/PlanPickerView.swift`,
 `Views/Settings/{SettingsPage,TrialBanner}.swift`, `Services/StudoraAccountLink.swift` (Kommentar),
-`UniFlowCore/Account/InviteRewards.swift` und die Build-Nummer in `project.yml`. Einzelheiten und die Klickliste für
-App Store Connect: `docs/release/ABO-NUR-JAHR-2026-11-09.md`. **Stand 09.11.2026 23:32:** Commit `5d418339` auf dem Zweig
-`release/1.0-b30` (von `7d1a8fb3` abgezweigt, nicht von develop); `~/Studora-Builds/export-b30` ist Datei für Datei der
-Export dieses Commits (`tools/pruefe-build-herkunft.sh 30 5d418339`: keine Abweichung; `StudiNow-30.commit` =
-`5d418339`), daraus `StudiNow-30.xcarchive` (`b30-archive.log`: „ARCHIVE SUCCEEDED“, Version 1.0, `CFBundleVersion` 30,
-`UFShippedUniversities` = `luh`, Team 78MQGF36BD, nur iPad). Hochgeladen wird erst, wenn der Inhaber es sagt.
+`UniFlowCore/Account/InviteRewards.swift` sowie Build-Nummer und Versionsnummer in `project.yml`. Einzelheiten:
+`docs/release/ABO-NUR-JAHR-2026-11-09.md`.
+
+- **Version 1.0.1:** Entscheidung des Inhabers vom 09.11.2026 („nenn das 1.01“). Version 1.0 (Build 25) wurde nie
+  veröffentlicht; der erste Stand im Store heißt damit 1.0.1.
+- **Quelle:** Commit `3b81464a` auf dem Zweig `release/1.0-b30` (von `7d1a8fb3` abgezweigt, nicht von develop; in develop
+  eingemischt). `3b81464a` = `5d418339` plus nur `MARKETING_VERSION: "1.0.1"` und zwei Doku-Dateien.
+  `~/Studora-Builds/export-b30` ist Datei für Datei der Export dieses Commits (`tools/pruefe-build-herkunft.sh 30
+  3b81464a`: keine Abweichung; `StudiNow-30.commit` = `3b81464a`).
+- **Archiv:** `StudiNow-30.xcarchive` vom 10.11.2026 00:03 (`b30-archive.log`: „ARCHIVE SUCCEEDED“, Version 1.0.1,
+  `CFBundleVersion` 30, `UFShippedUniversities` = `luh`, Team 78MQGF36BD, nur iPad). Das erste Archiv aus `5d418339`
+  (noch Version 1.0) liegt als `StudiNow-30-v1.0-5d418339.xcarchive` daneben und wurde nie hochgeladen.
+- **Tests vor dem Einreichen (iPad-Simulator, alle Tests):** auf `5d418339` `b30-test-5d418339.log` und auf `3b81464a`
+  `b30-test.log`: je **1392 Tests, 18 übersprungen, 0 Fehler**. Ein Test auf dem iPad des Inhabers fand vor dem
+  Einreichen **nicht** statt (iPad nicht erreichbar).
+- **Hochgeladen** 10.11.2026 00:06 (`b30-upload.log`: „Upload succeeded“, „EXPORT SUCCEEDED“), von Apple verarbeitet
+  (VALID).
+- **Eingereicht** 10.11.2026 00:27 MEZ: Versionsseite von 1.0 auf 1.0.1 umbenannt, Build 30 angehängt, Beschreibung und
+  Prüfhinweise mit den Jahresabos (`docs/release/APP-STORE.md`), Einreichung `ea7010a8-79cc-4cf4-be0c-5a3107de459e`,
+  Zustand WAITING_FOR_REVIEW, Freigabe von Hand (nichts erscheint ohne den Inhaber im Store). Zugleich in der
+  TestFlight-Gruppe „LUH-Tester“ zur Beta-Prüfung.
+- **Abos in App Store Connect:** beide Monatsabos aus dem Verkauf genommen (10.11.2026); Jahrespreise in allen Ländern
+  zum **11.11.2026** geplant (Deutschland Plus 19,99 €, Pro AI 39,99 €; kein Land wird teurer). Bis dahin zeigt StoreKit
+  noch 21,99 € und 41,99 €.
 
 ## Commit eines Archivs nachweisen
 
