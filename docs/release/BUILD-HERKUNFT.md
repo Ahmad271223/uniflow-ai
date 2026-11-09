@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 27 (Version 1.0, `CURRENT_PROJECT_VERSION`).
+Aktueller Stand in project.yml: Build 28 (Version 1.0, `CURRENT_PROJECT_VERSION`).
 
 ## Builds
 
@@ -21,7 +21,8 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 24 | `d4accf67` | 08.11.2026 01:34 | hochgeladen (TestFlight), nicht eingereicht | Dokument sofort über die Kennung öffnen; voller Abgleich vor Stufe d |
 | 25 | `d08cae54` | 08.11.2026 01:51 | eingereicht: App Store WAITING_FOR_REVIEW, zugleich TestFlight-Beta-Prüfung | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
-| 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), noch nicht hochgeladen | Build 25 plus Bugfixes, siehe unten |
+| 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
+| 28 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87 | siehe Audit-Berichte 09.11. |
 
 ### Build 25 (in der Prüfung)
 
