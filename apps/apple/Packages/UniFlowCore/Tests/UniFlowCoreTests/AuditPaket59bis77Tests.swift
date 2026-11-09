@@ -95,9 +95,15 @@ final class AuditPaket59bis77Tests: XCTestCase {
             // Zeile aus dem Dienst (anderes Geraet hat abgehakt) wird Basis; danach nur die eigene Aenderung
             let remoteTask = try XCTUnwrap(task.body["id"])
             let pkg = try XCTUnwrap(task.body["data"]?["package_id"])
-            _ = try core.applyRow(c, "study_tasks", ["id": remoteTask, "package_id": pkg, "type": "lesen", "title": "Kapitel 3",
-                                                     "est_minutes": 45, "status": "erledigt", "sync_version": 3,
-                                                     "sync_updated_at": "2026-11-09T10:00:00.000Z", "sync_device": "windows"])
+            // Zeile so, wie der Dienst sie liefert (alle Spalten, IDs des Dienstes)
+            var server = try XCTUnwrap(try c.rows("SELECT * FROM study_tasks").first)
+            server["id"] = remoteTask
+            server["package_id"] = pkg
+            server["status"] = "erledigt"
+            server["sync_version"] = 3
+            server["sync_updated_at"] = "2026-11-09T10:00:00.000Z"
+            server["sync_device"] = "windows"
+            _ = try core.applyRow(c, "study_tasks", server)
             XCTAssertEqual(try c.rows("SELECT status FROM study_tasks").first?["status"]?.string, "erledigt")
             try c.execute("UPDATE study_tasks SET title='Kapitel 3 und 4'")
             let next = try XCTUnwrap(try core.collect(c).0.first { $0.table == "study_tasks" })

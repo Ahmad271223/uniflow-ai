@@ -125,7 +125,22 @@ def test_p73_f6_done_on_the_ipad_survives_a_later_offline_change_on_windows(two_
                            "updated_at": "2026-11-09T10:00:00.000Z", "data": {"status": "erledigt"}}])
     with db.cursor() as conn:                                   # offline, spaeter als das iPad
         conn.execute("UPDATE study_tasks SET est_minutes=45")             # Trigger: Version hoch, Zeit jetzt
-    out = sync_client.run()
+    sent = []
+    real_call = sync_client._call
+
+    def recording(method, path, body=None, *a, **k):
+        if path == "/api/sync/push":
+            sent.extend(body["items"])
+        return real_call(method, path, body, *a, **k)
+    mp = pytest.MonkeyPatch()
+    mp.setattr(sync_client, "_call", recording)
+    try:
+        out = sync_client.run()
+    finally:
+        mp.undo()
+    task_items = [i for i in sent if i["entity"] == "study_tasks"]
+    assert task_items and task_items[0]["changed"] == ["est_minutes"], task_items
+    assert task_items[0]["data"]["title"] == "Kapitel 3", "data bleibt die ganze Zeile"
     assert out["ok"], out
     changes, _ = ipad_pull(app, ipad)
     t = changes["study_tasks"][0]

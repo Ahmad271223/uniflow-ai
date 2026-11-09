@@ -306,7 +306,16 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                     merged, won = dict(server) | data, list(data)
                     status = "applied"
                 else:
-                    merged, won = _merge_fields(server, data, client_ts, server.get("sync_updated_at") or "", cols)
+                    # `changed` (Audit 09.11.2026, P73-F6): nur diese Felder hat das Geraet seit seiner Basis geaendert;
+                    # die uebrigen Werte der ganzen Zeile sind sein alter Stand und duerfen nichts ueberschreiben (sonst
+                    # verlor eine Erledigung auf Geraet A gegen eine spaetere Verschiebung auf Geraet B). Ohne `changed`
+                    # (aeltere Geraete) wie bisher die ganze Zeile.
+                    claimed = it.get("changed")
+                    if isinstance(claimed, list):
+                        claimed = {k: v for k, v in data.items() if k in {c for c in claimed if isinstance(c, str)}}
+                    else:
+                        claimed = data
+                    merged, won = _merge_fields(server, claimed, client_ts, server.get("sync_updated_at") or "", cols)
                     status = "conflict"
                     conflicts.append({"entity": table, "id": rid, "server": _row_out(table, server), "client": data, "client_won": won})
                 changed = {c: merged[c] for c in cols if c != pk and merged.get(c) != server.get(c)}

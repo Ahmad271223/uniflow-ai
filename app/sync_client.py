@@ -84,6 +84,14 @@ def _cols(conn, table) -> list[str]:
     return [r[1] for r in conn.execute(f"PRAGMA table_info({table})") if r[1] not in SYNC_COLS]
 
 
+def _json_obj(text) -> dict | None:
+    try:
+        v = json.loads(text) if text else None
+    except ValueError:
+        return None
+    return v if isinstance(v, dict) else None
+
+
 def _int_pk(table) -> bool:
     return ENTITIES[table]["pk"] == "id"
 
@@ -184,6 +192,8 @@ class Client:
             return "pending"
         cols = [c for c in _cols(self.conn, table) if c != pk and c in row and c not in LOCAL_COLS.get(table, ())]
         vals = {c: (fk[c] if c in fk else row[c]) for c in cols}
+        # Stand im Dienst (IDs des Dienstes) = Basis fuer `changed` beim naechsten Senden (P73-F6)
+        base = json.dumps({c: row[c] for c in cols}, ensure_ascii=False)
         rv = row.get("sync_version") or 1
         lid = self.local_of(table, rid)
         if lid is None and table == "settings" and self.local_row(table, rid):
@@ -225,7 +235,7 @@ class Client:
                 self.conn.execute(f"UPDATE {table} SET {sets}sync_version=?, sync_updated_at=?, sync_device=? WHERE {pk}=?",
                                   [*changed.values(), nv, row.get("sync_updated_at") or service_now(), APPLIED_DEVICE,
                                    int(lid) if _int_pk(table) else lid])
-                self.set_map(table, rid, lid, rv, nv)
+                self.set_map(table, rid, lid, rv, nv, base)
                 return "applied"
         # neu hier
         nv = 1
@@ -236,7 +246,7 @@ class Client:
         keys = list(data)
         cur = self.conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
         new_lid = cur.lastrowid if _int_pk(table) else rid
-        self.set_map(table, rid, new_lid, rv, nv)
+        self.set_map(table, rid, new_lid, rv, nv, base)
         nk = natural_key(table, {**data, pk: new_lid})
         if nk is not None and table in self._nk:
             self._nk[table].setdefault(nk, str(new_lid))
@@ -394,6 +404,11 @@ class Client:
                         continue                                # Elternteil noch nicht im Dienst: naechster Lauf
                 it = {"entity": table, "updated_at": r.get("sync_updated_at") or service_now(), "data": data,
                       "op_id": f"{self.device}.{table}.{lid}.{r.get('sync_version')}"[:100]}
+                base = _json_obj(m["base"]) if m and table != "annotations" else None
+                if base is not None:
+                    # nur diese Felder hat dieses Geraet seit dem letzten Abgleich geaendert (P73-F6); `data` bleibt
+                    # die ganze Zeile (Wiederherstellen im Dienst)
+                    it["changed"] = sorted(c for c, v in data.items() if c not in base or base[c] != v)
                 if table == "annotations":
                     it["id"] = lid
                     it["base_version"] = m["remote_version"] if m else None
@@ -488,7 +503,13 @@ class Client:
                 remote_id = r.get("id") if r.get("id") is not None else mapping.get((table, it.get("local_id")))
                 if remote_id is None:
                     continue
-                self.set_map(table, remote_id, lid, r.get("version") or 1, lv)
+                # Basis = gesendeter Stand; Eltern aus derselben Sendung mit ihrer ID im Dienst statt der negativen
+                sent = dict(it["data"])
+                for col, target in ENTITIES[table]["fk"].items():
+                    v = sent.get(col)
+                    if isinstance(v, int) and v < 0 and (target, v) in mapping:
+                        sent[col] = mapping[(target, v)]
+                self.set_map(table, remote_id, lid, r.get("version") or 1, lv, json.dumps(sent, ensure_ascii=False))
                 self.stats["pushed"] += 1
             elif st == "conflict":
                 c = conflicts.get((table, str(r.get("id"))))

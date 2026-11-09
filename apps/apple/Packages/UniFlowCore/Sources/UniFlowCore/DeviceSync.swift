@@ -393,6 +393,10 @@ final class DeviceSyncCore: @unchecked Sendable {
         let columns = try cols(c, table).filter { $0 != pk && row[$0] != nil && !skip.contains($0) }
         var vals: Row = [:]
         for col in columns { vals[col] = fk[col] ?? row[col] }
+        // Stand im Dienst (IDs des Dienstes) = Basis fuer `changed` beim naechsten Senden (P73-F6)
+        var remoteState: Row = [:]
+        for col in columns { remoteState[col] = row[col] ?? .null }
+        let base = JSONValue.object(remoteState).jsonString()
         let rv = row["sync_version"]?.int ?? 1
         let stamp = try row["sync_updated_at"]?.string ?? now(c)
         var lid = try localOf(c, table, rid)
@@ -426,7 +430,7 @@ final class DeviceSyncCore: @unchecked Sendable {
                 let sets = names.map { "\($0)=?, " }.joined()
                 try c.execute("UPDATE \(table) SET \(sets)sync_version=?, sync_updated_at=?, sync_device=? WHERE \(pk)=?",
                               names.map { Self.sql(changed[$0]) } + [.integer(Int64(nv)), .text(stamp), .text(Self.appliedDevice), pkValue(table, found)])
-                try setMap(c, table, remote: rid, local: found, remoteVersion: rv, localVersion: nv)
+                try setMap(c, table, remote: rid, local: found, remoteVersion: rv, localVersion: nv, base: base)
                 return "applied"
             }
             if m != nil { return "skipped" }                    // hier geloescht, das Senden entscheidet
@@ -441,7 +445,7 @@ final class DeviceSyncCore: @unchecked Sendable {
         try c.execute("INSERT INTO \(table)(\(keys.joined(separator: ","))) VALUES (\(keys.map { _ in "?" }.joined(separator: ",")))",
                       keys.map { Self.sql(data[$0]) })
         let newID = meta(table).intPK ? String(c.lastInsertRowID) : rid
-        try setMap(c, table, remote: rid, local: newID, remoteVersion: rv, localVersion: 1)
+        try setMap(c, table, remote: rid, local: newID, remoteVersion: rv, localVersion: 1, base: base)
         var stored = data
         stored[pk] = meta(table).intPK ? .number(Double(c.lastInsertRowID)) : .string(rid)
         if let nk = naturalKey(table, stored), keyIndex[table] != nil, keyIndex[table]?[nk] == nil { keyIndex[table]?[nk] = newID }
@@ -583,6 +587,11 @@ final class DeviceSyncCore: @unchecked Sendable {
                 let version = Self.text(r["sync_version"]) ?? "None"
                 var it: Row = ["entity": .string(table), "data": .object(data), "op_id": .string(String("\(device).\(table).\(lid).\(version)".prefix(100)))]
                 it["updated_at"] = .string(try r["sync_updated_at"]?.string ?? now(c))
+                if table != "annotations", let text = m?["base"]?.string, let base = (try? JSONValue.parse(Data(text.utf8)))?.object {
+                    // nur diese Felder hat dieses Geraet seit dem letzten Abgleich geaendert (P73-F6, wie
+                    // app/sync_client.py); `data` bleibt die ganze Zeile (Wiederherstellen im Dienst)
+                    it["changed"] = .array(data.keys.sorted().filter { base[$0] != data[$0] }.map { .string($0) })
+                }
                 if table == "annotations" {
                     it["id"] = .string(lid)
                     it["base_version"] = m?["remote_version"] ?? .null
@@ -662,7 +671,13 @@ final class DeviceSyncCore: @unchecked Sendable {
             case "created", "applied", "resurrected":
                 let remote = Self.text(r["id"]) ?? itemLocal.flatMap { Self.text(mapping["\(table)|\($0)"]) }
                 guard let remote else { continue }
-                try setMap(c, table, remote: remote, local: lid, remoteVersion: r["version"]?.int ?? 1, localVersion: lv)
+                // Basis = gesendeter Stand; Eltern aus derselben Sendung mit ihrer ID im Dienst statt der negativen
+                var sent = it.body["data"]?.object ?? [:]
+                for (col, target) in meta(table).fk {
+                    if let v = sent[col], let n = v.int, n < 0, let id = mapping["\(target)|\(Self.text(v) ?? "")"] { sent[col] = id }
+                }
+                try setMap(c, table, remote: remote, local: lid, remoteVersion: r["version"]?.int ?? 1, localVersion: lv,
+                           base: JSONValue.object(sent).jsonString())
                 stats.pushed += 1
             case "conflict":
                 guard let rid = Self.text(r["id"]) else { continue }
