@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 28 (Version 1.0, `CURRENT_PROJECT_VERSION`).
+Aktueller Stand in project.yml: Build 29 (Version 1.0, `CURRENT_PROJECT_VERSION`).
 
 ## Builds
 
@@ -23,6 +23,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
 | 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
 | 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), auf das iPad des Inhabers installiert, noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
+| 29 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 28 plus Mac-Parität (Absturz „Nachricht in Stud.IP“ auf dem Mac, Textgröße, Cmd-Z), Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen, Credit-Text 0,9 Cent | docs/paritaet/MAC-B28-2026-11-09.md, COMMUNITY-UND-ABGLEICH-2026-11-09.md |
 
 ### Build 25 (in der Prüfung)
 
@@ -62,7 +63,7 @@ Archiv vom 08.11. 19:44 (aus `c3ea0e60`) ist damit ersetzt. Noch nicht hochgelad
 Änderung unter `apps/apple/` dazu, gilt wieder: neu aus dem dann aktuellen Commit bauen und die Zeile 27 oben anpassen. Wird Build 27 einmal
 hochgeladen, ist die Nummer verbraucht; jede weitere Änderung braucht Build 28.
 
-### Build 28 (nächster Upload)
+### Build 28 (ersetzt durch Build 29)
 
 Build 28 = Build 27 plus die Änderungen bis `7d1a8fb3` (develop, 09.11.2026): Schreibhand und Seiten tauschen
 (`e5050f50`, `5160860b`, `4e9aea98`), Strich sofort gesichert (P60-F1, `f5a31bf8`), nur geänderte Felder beim Abgleich
