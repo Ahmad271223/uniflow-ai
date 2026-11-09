@@ -36,8 +36,17 @@ docs/paritaet
 .DS_Store
 Thumbs.db
 deploy/.env
-# Ausnahmen: Register und Grundstock der Modulkataloge (Studienverlauf, deploy/Dockerfile)
+# Ausnahmen: Datendateien, die der Dienst zur Laufzeit liest (deploy/Dockerfile, tests/test_deploy_image_data.py)
 !packages/shared-contracts/study-sources.json
 !packages/shared-contracts/study-sources-all.json
 !apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz
 !apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz
+!packages/shared-contracts/study-sources-luh.json
+!packages/shared-contracts/study-sources-hildesheim.json
+!packages/shared-contracts/study-sources-hsh.json
+!packages/shared-contracts/mensa.json
+!packages/shared-contracts/rooms.json
+!packages/shared-contracts/exam-registration-luh.json
+!packages/shared-contracts/exam-registration-hildesheim.json
+!packages/shared-contracts/exam-registration-hsh.json
+!apps/apple/UniFlow/Resources/StudyCatalogSeed/hsh.json.gz

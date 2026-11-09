@@ -29,10 +29,18 @@ RUN pip install -r requirements.txt \
 # Nur, was der Dienst braucht: Code, Oberflaeche (app/static) und die Rechtstexte (/datenschutz, /impressum, ...)
 COPY app ./app
 COPY docs/release ./docs/release
-# Studienverlauf: Register der Quellen und Grundstock der Modulkataloge (nur Fakten, 0,3 MB) im selben Unterpfad wie im
-# Repo (app/study_catalog.py liest ROOT/packages/... und ROOT/apps/apple/...); .dockerignore laesst genau diese Dateien durch
-COPY packages/shared-contracts/study-sources.json packages/shared-contracts/study-sources-all.json ./packages/shared-contracts/
-COPY apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz ./apps/apple/UniFlow/Resources/StudyCatalogSeed/
+# Datendateien, die der Dienst zur Laufzeit liest, im selben Unterpfad wie im Repo (app/*.py lesen ROOT/packages/... und
+# ROOT/apps/apple/...): Studienverlauf (Register, Grundstock der Modulkataloge), Mensa, Raumfinder, Pruefungsanmeldung.
+# Nur Fakten, zusammen rund 1,5 MB. .dockerignore laesst genau diese Dateien durch; tests/test_deploy_image_data.py prueft,
+# dass jede von app/*.py gelesene Datei hier steht (Befund des Inhabers: Mensa 500, Raumfinder ohne Ergebnis).
+COPY packages/shared-contracts/study-sources.json packages/shared-contracts/study-sources-all.json \
+     packages/shared-contracts/study-sources-luh.json packages/shared-contracts/study-sources-hildesheim.json \
+     packages/shared-contracts/study-sources-hsh.json \
+     packages/shared-contracts/mensa.json packages/shared-contracts/rooms.json \
+     packages/shared-contracts/exam-registration-luh.json packages/shared-contracts/exam-registration-hildesheim.json \
+     packages/shared-contracts/exam-registration-hsh.json ./packages/shared-contracts/
+COPY apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz \
+     apps/apple/UniFlow/Resources/StudyCatalogSeed/hsh.json.gz ./apps/apple/UniFlow/Resources/StudyCatalogSeed/
 
 # Unprivilegierter Dienstnutzer; /data und /logs gehoeren ihm (benannte Volumes uebernehmen die Rechte beim ersten Start)
 RUN useradd --uid 1000 --user-group --create-home --home-dir /home/uniflow --shell /usr/sbin/nologin uniflow \
