@@ -654,7 +654,7 @@ final class StudoraAccountLink: ObservableObject {
     }
 }
 
-/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 1 Cent echter KI-Kosten, Pro AI
+/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 0,9 Cent echter KI-Kosten, Pro AI
 /// 100 je Kalendermonat, Probe 25, andere Tarife 0. Stand aus `credits` in `GET /api/entitlements` und in den
 /// KI-Antworten (`/api/ai/tutor`, `/api/ai/flashcards`: zusaetzlich `charged`, `replay`). Reihenfolge der Bezahlung:
 /// Geteiltes (0) -> eigenes ChatGPT (0) -> Credits. Am eigenen PC und ohne Konto ist der Stand nil.
