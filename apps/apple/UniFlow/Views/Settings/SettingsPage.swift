@@ -1356,7 +1356,7 @@ private struct AdvancedTab: View {
     private var diagText: String {
         let scale = UIScreen.main.scale
         var lines = [
-            "Gerät: \(UIDevice.current.model), iPadOS \(UIDevice.current.systemVersion)",
+            "Gerät: \(StudoraAccountLink.deviceName), \(AccountDevice.systemLabel(version: UIDevice.current.systemVersion, isMac: ProcessInfo.processInfo.isiOSAppOnMac))",
             "Fenster: \(Int(windowWidth))×\(Int(UIScreen.main.bounds.height)), Pixelverhältnis \(Self.js(scale))",
             "Design: \(theme)",
             "Adresse: \(Diagnostics.address(session.api?.base))",

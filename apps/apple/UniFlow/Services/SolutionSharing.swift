@@ -131,11 +131,19 @@ enum SolutionDisplayName {
     static let key = "uniflow.solution.displayName"
 
     static func load(_ defaults: UserDefaults? = ActiveContainer.current?.defaults) -> String {
-        defaults?.string(forKey: key) ?? ""
+        if let state = shared(defaults) { return state.string(forKey: key) ?? "" }
+        return defaults?.string(forKey: key) ?? ""
     }
 
     static func save(_ name: String, _ defaults: UserDefaults? = ActiveContainer.current?.defaults) {
-        defaults?.set(name, forKey: key)
+        if let state = shared(defaults) { state.set(name, forKey: key) } else { defaults?.set(name, forKey: key) }
+    }
+
+    /// Einstellungen des aktiven Containers: dann auch im iCloud-Schluessel-Wert-Speicher (iPad und Mac schreiben mit
+    /// demselben Pseudonym, Paritaet 09.11.2026)
+    private static func shared(_ defaults: UserDefaults?) -> CommunitySharedState? {
+        guard let c = ActiveContainer.current, let defaults, c.defaults === defaults else { return nil }
+        return c.communityState
     }
 }
 

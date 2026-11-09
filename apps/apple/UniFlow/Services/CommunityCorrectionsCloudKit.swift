@@ -182,7 +182,7 @@ enum CorrectionStatusRegistry {
     nonisolated(unsafe) private static var stores: [ObjectIdentifier: CommunityCorrectionStatusStore] = [:]
 
     static func store(for service: CloudKitCommunityService) -> CommunityCorrectionStatusStore {
-        if let c = ActiveContainer.current, c.community === service { return CommunityCorrectionStatusStore(defaults: c.defaults) }
+        if let c = ActiveContainer.current, c.community === service { return CommunityCorrectionStatusStore(defaults: c.defaults, state: c.communityState) }
         return lock.withLock {
             if let s = stores[ObjectIdentifier(service)] { return s }
             let s = CommunityCorrectionStatusStore(defaults: nil)
