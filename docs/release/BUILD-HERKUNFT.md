@@ -22,7 +22,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 25 | `d08cae54` | 08.11.2026 01:51 | eingereicht: App Store WAITING_FOR_REVIEW, zugleich TestFlight-Beta-Prüfung | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
 | 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
-| 28 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87 | siehe Audit-Berichte 09.11. |
+| 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
 
 ### Build 25 (in der Prüfung)
 
@@ -41,7 +41,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
   Übersetzen scheitert (Linux-Foundation, nicht iOS); der iPad-Job wurde übersprungen. Für Build 25 gibt es also
   **keinen** CI-Nachweis, nur die lokalen Läufe oben.
 
-### Build 27 (nächster Upload)
+### Build 27 (ersetzt durch Build 28)
 
 Build 27 = Build 25 plus die Änderungen unter `apps/apple/` seit `d08cae54`, Stand 08.11.2026 21:15:
 
@@ -61,6 +61,19 @@ daraus `StudiNow-27.xcarchive` vom 09.11.2026 01:40 (`b27-archive.log`: „ARCHI
 Archiv vom 08.11. 19:44 (aus `c3ea0e60`) ist damit ersetzt. Noch nicht hochgeladen. Kommt vor dem Upload noch eine
 Änderung unter `apps/apple/` dazu, gilt wieder: neu aus dem dann aktuellen Commit bauen und die Zeile 27 oben anpassen. Wird Build 27 einmal
 hochgeladen, ist die Nummer verbraucht; jede weitere Änderung braucht Build 28.
+
+### Build 28 (nächster Upload)
+
+Build 28 = Build 27 plus die Änderungen bis `7d1a8fb3` (develop, 09.11.2026): Schreibhand und Seiten tauschen
+(`e5050f50`, `5160860b`, `4e9aea98`), Strich sofort gesichert (P60-F1, `f5a31bf8`), nur geänderte Felder beim Abgleich
+(P73-F6, `83e7d910`, `a6d25a73`), Prüfungsknopf QIS/LSF (`7e175276`), Studienverlauf verschieben (`07254389`),
+Probe-Anzeige aus einer Quelle (`3992573b`), Übernahme-Kontingent je Konto (`6859265f`) und die Swift-Korrekturen der
+Audits 58–87. **Stand 09.11.2026:** `~/Studora-Builds/export-b28` ist Datei für Datei der Export von `7d1a8fb3`
+(`tools/pruefe-build-herkunft.sh 28 7d1a8fb3`: keine Abweichung; `StudiNow-28.commit` = `7d1a8fb3`), daraus
+`StudiNow-28.xcarchive` (`b28-archive.log`: „ARCHIVE SUCCEEDED“, Version 1.0, `CFBundleVersion` 28,
+`UFShippedUniversities` = `luh`, Team 78MQGF36BD); vorher lokal `b28-test.log` auf demselben Commit: **1387 Tests,
+18 übersprungen, 0 Fehler**. Noch nicht hochgeladen, Upload erst auf Ansage des Inhabers. Kommt vor dem Upload noch eine
+Änderung unter `apps/apple/` dazu: neu aus dem dann aktuellen Commit bauen und die Zeile 28 oben anpassen.
 
 ## Commit eines Archivs nachweisen
 
