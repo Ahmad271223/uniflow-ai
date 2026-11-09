@@ -145,8 +145,10 @@ def for_solution(user: dict, solution_id: str) -> list[dict]:
     with community.cursor() as conn:
         s = community._visible_solution(conn, user, solution_id)
         blocked, banned = _blocked(conn, user), _banned(conn)
+        # Zeile fuer Zeile statt fetchall: an der Grenze wird nicht weitergelesen (vorher bis 50 x 750.000 Zeichen im
+        # Speicher, bevor gekuerzt wurde; Liste 95 Nr. 70)
         rows = conn.execute("SELECT rowid, * FROM corrections WHERE solution_id=? AND status='active' ORDER BY created_at DESC, rowid DESC",
-                            (s["id"],)).fetchall()
+                            (s["id"],))
         out, size = [], 0
         for c in rows:
             if c["pseudonym"] in blocked or c["author_id"] in banned:

@@ -3,12 +3,15 @@ Fehler wie beim Konto: {"detail": "...", "code": "..."}."""
 from __future__ import annotations
 
 import json
+import os
 
-from fastapi import APIRouter, Body, HTTPException, Request, Response
+from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from . import community, config, entitlements
 
 router = APIRouter(prefix="/api/community", tags=["community"])
+PACKAGE_CHUNK = 1 << 20             # Loesungspaket in Stuecken zu 1 MiB (Liste 95 Nr. 33)
 
 
 def _err(e: community.CommunityError) -> HTTPException:
@@ -188,10 +191,26 @@ def leaderboard(request: Request, limit: int = 50):
 def download(request: Request, solution_id: str):
     """Das Paket (verschluesselt) samt Kopfdaten; zaehlt als Download, ausser bei der eigenen Loesung."""
     u = _user(request)
-    raw, summary = _run(community.get_package_raw, u, solution_id)
-    # Das Paket liegt schon als JSON-Text vor: nicht einlesen und neu schreiben, sondern in die Antwort einsetzen
-    body = '{"package":' + raw + ',"solution":' + json.dumps(summary, ensure_ascii=False) + '}'
-    return Response(body, media_type="application/json")
+    f, summary = _run(community.open_package_file, u, solution_id)
+    # Das Paket liegt schon als JSON-Text vor: nicht einlesen und neu schreiben, sondern in Stuecken in die Antwort
+    # einsetzen - vorher bis ~65 MB je Abruf dreifach im Speicher und in einem Stueck (Liste 95 Nr. 33)
+    head = b'{"package":'
+    tail = (',"solution":' + json.dumps(summary, ensure_ascii=False) + "}").encode("utf-8")
+    size = os.fstat(f.fileno()).st_size
+
+    def chunks():
+        try:
+            yield head
+            while True:
+                chunk = f.read(PACKAGE_CHUNK)
+                if not chunk:
+                    break
+                yield chunk
+            yield tail
+        finally:
+            f.close()
+    return StreamingResponse(chunks(), media_type="application/json",
+                             headers={"Content-Length": str(len(head) + size + len(tail))})
 
 
 @router.delete("/solutions/{solution_id}")
@@ -340,7 +359,7 @@ def notif_list(request: Request, unread: bool = False, limit: int = 50):
 def notif_read(request: Request, body: dict = Body(default={})):
     """{ids?: [...]} oder alles gelesen."""
     ids = body.get("ids") if isinstance(body, dict) else None
-    return community_qa.mark_read(_account(request), ids if isinstance(ids, list) else None)
+    return _run(community_qa.mark_read, _account(request), ids if isinstance(ids, list) else None)
 
 
 # ---------------------------------------------------------------- Korrekturvorschlaege (03.11.2026, app/community_corrections.py)

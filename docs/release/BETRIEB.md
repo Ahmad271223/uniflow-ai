@@ -295,7 +295,10 @@ Kopie von der Box: Löschungen seit dem Datum der Kopie wiederholen.
    ```
    (Volume-Name prüfen mit `docker volume ls`; das Compose-Projekt heißt `uniflow`.)
 4. `deploy/.env` muss denselben `LERNAPP_SECRET_KEY` enthalten wie zum Zeitpunkt des Backups – sonst sind die
-   Tresor-Werte unlesbar (Konten und Notizen bleiben nutzbar, Zugangsdaten müssen neu eingegeben werden).
+   Tresor-Werte unlesbar (Konten und Notizen bleiben nutzbar, Zugangsdaten müssen neu eingegeben werden). Der Schlüssel
+   bildet außerdem die Community-Pseudonyme (`community.pseudonym`): ein anderer Schlüssel gäbe jedem Konto für neue
+   Beiträge ein neues Pseudonym, Sperrlisten griffen nicht mehr. `LERNAPP_SECRET_KEY` daher nie wechseln
+   (docs/audit/LISTE-95-2026-11-09.md, Nr. 72).
 5. Starten und prüfen: `docker compose start app && docker compose exec app python -m app.accounts list`
 
 Neuer Server: Abschnitte 3–6 wiederholen, danach Wiederherstellung wie oben; Caddy holt ein neues Zertifikat.

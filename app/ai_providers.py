@@ -37,7 +37,7 @@ from urllib.parse import urlparse
 from . import ai_prices
 from .ai_backend import AIUnavailable, Completion, _error_message, _iter_sse, scrub, timeout_s, urllib_transport
 
-# Hoechstens so lange darf eine Antwort laufen (unter credits.STALE_MINUTES, damit eine Reservierung nie verfaellt, solange
+# Hoechstens so lange darf eine Antwort laufen (unter credits.stale_minutes(), damit eine Reservierung nie verfaellt, solange
 # der Anbieter noch schreibt)
 DEADLINE_S = 600
 SCALEWAY_URL = "https://api.scaleway.ai/v1"

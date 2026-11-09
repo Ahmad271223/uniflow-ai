@@ -165,26 +165,44 @@ struct UFTrialRecordStore: UFTrialRecording {
         self.defaults = defaults
     }
 
+    /// Ersatzablage in den UserDefaults, nur wenn der Schluesselbund ein Schreiben ablehnt (Liste 95 Nr. 26, 09.11.2026):
+    /// vorher ging der Eintrag dann mit `try?` verloren, und ohne iCloud begann jeder Wechsel in den Vordergrund
+    /// (`Entitlements.refreshLocalTrial`) und jeder Start die Probe neu. Die UserDefaults ueberleben keine
+    /// Neuinstallation - dagegen schuetzen weiter Schluesselbund und iCloud, sobald sie schreiben.
+    static func fallbackKey(service: String, account: String) -> String { "uniflow.trial.fallback.\(service).\(account)" }
+
+    private func write(_ value: String, account: String, in store: KeychainStore) {
+        do {
+            try store.write(value, account: account)
+        } catch {
+            defaults.set(value, forKey: Self.fallbackKey(service: store.service, account: account))
+        }
+    }
+
+    private func read(_ account: String, in store: KeychainStore) -> String? {
+        store.string(account) ?? defaults.string(forKey: Self.fallbackKey(service: store.service, account: account))
+    }
+
     func deviceTrialStart() -> Date? {
-        deviceKeychain.string(Self.deviceAccount).flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
+        read(Self.deviceAccount, in: deviceKeychain).flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
     }
 
     func markDeviceTrial(start: Date) {
-        try? deviceKeychain.write(String(start.timeIntervalSince1970), account: Self.deviceAccount)
+        write(String(start.timeIntervalSince1970), account: Self.deviceAccount, in: deviceKeychain)
     }
 
     func load(_ scope: String) -> UFTrialRecords {
-        let k = keychain.string(scope).flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
+        let k = read(scope, in: keychain).flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
         cloud?.synchronize()
         let c = cloud?.number(forKey: Self.cloudKey(scope)).map { Date(timeIntervalSince1970: $0) }
         // Wahl nach der Probe: UserDefaults oder Schluesselbund (ueberlebt die Neuinstallation, 07.11.2026)
-        let choice = defaults.bool(forKey: Self.choiceKey(scope)) || keychain.string(Self.choiceAccount(scope)) == "1"
-        return UFTrialRecords(keychain: k, cloud: c, choiceMade: choice, endedSeen: keychain.string(Self.endedAccount(scope)) == "1")
+        let choice = defaults.bool(forKey: Self.choiceKey(scope)) || read(Self.choiceAccount(scope), in: keychain) == "1"
+        return UFTrialRecords(keychain: k, cloud: c, choiceMade: choice, endedSeen: read(Self.endedAccount(scope), in: keychain) == "1")
     }
 
     func save(start: Date, scope: String, keychain writeKeychain: Bool, cloud writeCloud: Bool) {
         let value = start.timeIntervalSince1970
-        if writeKeychain { try? keychain.write(String(value), account: scope) }
+        if writeKeychain { write(String(value), account: scope, in: keychain) }
         if writeCloud, let cloud {
             cloud.set(value, forKey: Self.cloudKey(scope))
             cloud.synchronize()
@@ -195,13 +213,13 @@ struct UFTrialRecordStore: UFTrialRecording {
     /// der Entscheidungs-Bildschirm (TrialDecisionCover) nicht noch einmal
     func markChoice(_ scope: String) {
         defaults.set(true, forKey: Self.choiceKey(scope))
-        try? keychain.write("1", account: Self.choiceAccount(scope))
+        write("1", account: Self.choiceAccount(scope), in: keychain)
     }
 
     /// Ende der Probe gesehen: nur im Schluesselbund dieses Geraets (nicht iCloud: ein zweites iPad rechnet selbst)
     func markEnded(_ scope: String) {
-        guard keychain.string(Self.endedAccount(scope)) != "1" else { return }
-        try? keychain.write("1", account: Self.endedAccount(scope))
+        guard read(Self.endedAccount(scope), in: keychain) != "1" else { return }
+        write("1", account: Self.endedAccount(scope), in: keychain)
     }
 
     /// Schluessel der Marke "Ende gesehen" im Schluesselbund (je Apple-ID, Hash)
@@ -216,10 +234,16 @@ struct UFTrialRecordStore: UFTrialRecording {
         keychain.remove(Self.choiceAccount(scope))
         keychain.remove(Self.endedAccount(scope))
         defaults.removeObject(forKey: Self.choiceKey(scope))
+        for account in [scope, Self.choiceAccount(scope), Self.endedAccount(scope)] {
+            defaults.removeObject(forKey: Self.fallbackKey(service: keychain.service, account: account))
+        }
     }
 
     /// nur Tests: Geraete-Marke entfernen
-    func removeDeviceMark() { deviceKeychain.remove(Self.deviceAccount) }
+    func removeDeviceMark() {
+        deviceKeychain.remove(Self.deviceAccount)
+        defaults.removeObject(forKey: Self.fallbackKey(service: deviceKeychain.service, account: Self.deviceAccount))
+    }
 }
 
 /// Ablage im Speicher (Tests, Vorschauen)

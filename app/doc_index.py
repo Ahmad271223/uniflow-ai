@@ -376,9 +376,16 @@ def _read_meta(d: Path) -> dict | None:
 
 
 def _write_meta(d: Path, meta: dict) -> None:
-    tmp = d / "meta.json.tmp"
-    tmp.write_text(json.dumps(meta, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-    os.replace(tmp, d / "meta.json")
+    # eigene Temp-Datei je Schreibvorgang: `_lock` gilt nur je Prozess, im Dienst schreiben 12 API-Prozesse (Loeschauftrag,
+    # Upload, Verarbeitung) in dieselben Auftragsordner; mit der festen `meta.json.tmp` warf `os.replace` des Zweiten
+    # FileNotFoundError und brach den Lauf ab (Liste 95 Nr. 38)
+    tmp = d / f"meta.json.{uuid.uuid4().hex}.tmp"
+    try:
+        tmp.write_text(json.dumps(meta, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, d / "meta.json")
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def delete_upload(job_id: str, reason: str, now: datetime | None = None) -> bool:

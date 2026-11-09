@@ -184,9 +184,20 @@ def _balance_dict(row, now: datetime) -> dict:
             "credit_eur": ai_prices.MICROEUR_PER_CREDIT / 1_000_000}
 
 
+def stale_minutes() -> int:
+    """Nach so vielen Minuten gilt eine Reservierung als liegengeblieben. Nie kuerzer, als eine Anfrage laufen kann
+    (Liste 95 Nr. 94): nach einem Fehler vor der Antwort uebernehmen Ersatz-Anbieter (hoechstens alle aus
+    ai_router.PROVIDERS), jeder bis zum Verbindungs-Zeitlimit (LERNAPP_AI_TIMEOUT_S, 5-600 s, plus 10 s Verbinden), der
+    letzte bis ai_providers.DEADLINE_S. Verfiele die Reservierung vorher, belastete die spaete Abrechnung nur noch das
+    freie Guthaben. Mit dem Standard (90 s) bleibt es bei STALE_MINUTES."""
+    from . import ai_backend, ai_providers, ai_router
+    longest = (len(ai_router.PROVIDERS) - 1) * (ai_backend.timeout_s() + 10) + ai_providers.DEADLINE_S
+    return max(STALE_MINUTES, longest // 60 + 2)
+
+
 def _housekeeping(conn: sqlite3.Connection, user_id: str, now: datetime) -> None:
     """Liegengebliebene Reservierungen dieses Kontos freigeben und alte gespeicherte Antworten leeren."""
-    stale = (now - timedelta(minutes=STALE_MINUTES)).isoformat()
+    stale = (now - timedelta(minutes=stale_minutes())).isoformat()
     for period, amount in conn.execute("SELECT period, reserved FROM credit_ledger WHERE user_id=? AND state='reserved' AND created_at<?",
                                        (user_id, stale)).fetchall():
         conn.execute("UPDATE credit_months SET reserved=MAX(reserved-?, 0) WHERE user_id=? AND period=?", (amount, user_id, period))
