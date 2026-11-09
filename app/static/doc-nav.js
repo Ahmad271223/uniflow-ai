@@ -30,3 +30,25 @@ export function emptyDocHtml(icon, esc, missing = false) {
     + `<div class="muted small">${esc(missing ? EMPTY_DOC.missing : EMPTY_DOC.text)}</div>`
     + `<div class="row" style="justify-content:center;margin-top:.8rem"><a class="btn primary" href="${LIBRARY_HASH}">${icon("folder", 15)} ${esc(EMPTY_DOC.action)}</a></div></div></div>`;
 }
+
+// ---- Schreibhand und geteilte Ansicht (09.11.2026, wie SplitSides.swift auf dem iPad; tests/js/split-sides.test.mjs)
+
+/** Uebungsblatt, Loesung oder Klausur (Name, Stud.IP-Ordner oder Art) */
+export function isExercise(f) {
+  return ["uebung", "loesung", "klausur"].includes(f?.doc_type) || /übung|uebung|blatt|ueb\d|aufgabe/i.test(`${f?.name || ""} ${f?.studip_folder || ""}`);
+}
+
+/**
+ * Rolle des zweiten Dokuments: "writing" (Blatt oder Uebung neben einem Skript: Seite der Schreibhand), sonst
+ * "reference" (Skript und alles zum Lesen: Seite der freien Hand). Bisher lag jedes zweite Dokument auf der freien Seite.
+ */
+export function splitRole(side, primary) {
+  const writes = f => f?.kind === "notebook" || f?.kind === "whiteboard" || isExercise(f);
+  return writes(side) && !writes(primary) ? "writing" : "reference";
+}
+
+/** Zweites Dokument links? hand = Einstellung "right" | "left" (fehlt = Rechtshaender, freie Hand links) */
+export function paneBLeft(hand, role) {
+  const freeLeft = hand !== "left";
+  return role === "writing" ? !freeLeft : freeLeft;
+}
