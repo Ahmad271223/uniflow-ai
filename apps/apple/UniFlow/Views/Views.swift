@@ -228,6 +228,10 @@ struct LibraryView: View {
                 }
             }
             .refreshable { await load() }
+            .background {
+                Button("") { Task { await load() } }                  // Mac und Tastatur: Cmd-R wie Ziehen zum Aktualisieren
+                    .keyboardShortcut("r", modifiers: .command).opacity(0).accessibilityHidden(true)
+            }
             .navigationTitle("Dokumente")
             .toolbar {
                 Button { importing = true } label: { Label("PDF importieren", systemImage: "square.and.arrow.down") }
