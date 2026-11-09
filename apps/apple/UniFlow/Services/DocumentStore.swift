@@ -98,6 +98,19 @@ actor InkProcessor {
         return DrawingBox(drawing: d, unrenderable: fresh.unrenderable)
     }
 
+    /// Zeichnung, die beim Absetzen gesichert, aber vor einem harten Abbruch nicht mehr umgerechnet wurde (P60-F1).
+    /// Was die Canvas damals zeigte, ist unbekannt (Striche anderer Geraete konnten waehrend der Pause dazukommen):
+    /// deshalb nur hinzufuegen und aendern, nichts als radiert werten. Ein Radieren in den letzten Sekunden vor dem
+    /// Abbruch kann so zurueckkommen, ein Strich geht nie verloren.
+    func recoveredPage(key: String, drawing: DrawingBox, previous: JSONValue?) -> InkPageUpdate {
+        var state = StrokeConverter.drawing(fromPage: previous).1
+        state.represented = []
+        state.olderRepresented = nil
+        let update = StrokeConverter.update(from: drawing.drawing, previous: previous, state: state)
+        states[key] = update.state
+        return update
+    }
+
     /// Neuer Seitenstand aus der Zeichnung (drei-Wege gegen `previous`, siehe `StrokeConverter.update`).
     func page(key: String, drawing: DrawingBox, previous: JSONValue?) -> InkPageUpdate {
         let state: InkPageState
@@ -241,6 +254,13 @@ final class DocumentStore: ObservableObject {
     private var document = AnnotationDocument.empty()
     private var structure = ""
     private var pendingDrawings: [String: DrawingBox] = [:]
+    /// Journal dieses Dokuments; hier nur fuer die beim Absetzen gesicherten Zeichnungen (`ink/`, P60-F1)
+    private let inkJournal: LocalJournal
+    /// Seiten, deren ausstehende Zeichnung beim Oeffnen aus `ink/` kam (nach einem harten Abbruch)
+    private var recoveredKeys = Set<String>()
+    /// Messung (Test): wie oft und wie lange das Sichern beim Absetzen den Hauptthread brauchte
+    private(set) var inkDraftWrites = 0
+    private(set) var inkDraftSeconds = 0.0
     /// Zaehlt je Seite jede Canvas-Aenderung: erkennt beim Neuladen, dass inzwischen geschrieben wurde.
     private var canvasEdits: [String: Int] = [:]
     private var processing = false
@@ -331,6 +351,7 @@ final class DocumentStore: ObservableObject {
         let journal = LocalJournal(store: FileBlobStore(root: DataContainerLayout.Folder.journal.url(in: root),
                                                         canWrite: lease.map { l in { l.isValid } }),
                                    documentID: file.id, namespace: api.namespace)
+        self.inkJournal = journal
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
         self.openKey = OpenDocuments.key(root: root, namespace: api.namespace, fileID: file.id)
     }
@@ -403,6 +424,7 @@ final class DocumentStore: ObservableObject {
             let opened = await engine.open(pdfPageCount: pdfDocument.pageCount, openElsewhere: openElsewhere)
             journalUnreadable = opened.journalUnreadable
             if case .newerFormat(let v) = opened.viewOnly { newerFormatVersion = v }
+            recoverInkDrafts()
             apply(document: opened.document, forceLayout: true)
             if opened.journalUnreadable {
                 notice = "Lokale Notizen lassen sich gerade nicht lesen – nur ansehen. Schließe das Dokument und öffne es erneut."
@@ -420,6 +442,8 @@ final class DocumentStore: ObservableObject {
             await loadVersions()
             prepareOriginStamp(opened.document)
             indexPageTexts()
+            // nach einem harten Abbruch Wiederhergestelltes sofort umrechnen und ins Journal (ohne Pause)
+            if !recoveredKeys.isEmpty { processTask = Task { [weak self] in await self?.processAfterPause() } }
         } catch {
             errorMessage = error.localizedDescription
             // nicht geoeffnet: das Dokument nicht fuer andere Fenster sperren
@@ -588,6 +612,7 @@ final class DocumentStore: ObservableObject {
         // ohne Schreiben im Tarif keine neuen Zeichnungen (auch nicht ueber Rueckgaengig); Ausstehendes bleibt
         guard !key.isEmpty, canEdit, !outdatedByNewVersion, !journalUnreadable, !viewOnlyHere else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
+        saveInkDraft(key, drawing)
         canvasEdits[key, default: 0] += 1
         onLocalEdit?(key)
         processTask?.cancel()
@@ -605,6 +630,30 @@ final class DocumentStore: ObservableObject {
                 guard !Task.isCancelled else { return }
                 await self?.processWhileWriting()
             }
+        }
+    }
+
+    /// P60-F1: die abgesetzte Zeichnung sofort auf die Platte (`ink/`), vor Schreibpause und Umrechnung. Vorher lag sie
+    /// bis dahin nur im Speicher (0,25 s, auf dichten Seiten plus Umrechnung); ein harter Abbruch (iOS beendet die App,
+    /// Absturz) verlor sie. Synchron: kehrt `canvasChanged` zurueck, steht sie in der Datei. Scheitert das Schreiben,
+    /// bleibt es beim bisherigen Weg (Pause, Journal).
+    private func saveInkDraft(_ key: String, _ drawing: PKDrawing) {
+        guard !isOldVersion else { return }
+        let start = DispatchTime.now().uptimeNanoseconds
+        try? inkJournal.writeInkDraft(key, drawing.dataRepresentation())
+        inkDraftWrites += 1
+        inkDraftSeconds += Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9
+    }
+
+    /// Beim Oeffnen: Zeichnungen, die beim letzten Mal abgesetzt, aber nicht mehr als Seite gesichert wurden, kommen
+    /// wieder in die Verarbeitung (`recoveredKeys`, nur hinzufuegen). Nur mit Schreibrecht; sonst bleiben sie liegen.
+    private func recoverInkDrafts() {
+        guard !isOldVersion, !journalUnreadable, newerFormatVersion == nil, !openElsewhere, lease?.isValid ?? true else { return }
+        for (key, data) in inkJournal.inkDrafts().drafts where pendingDrawings[key] == nil {
+            guard let drawing = try? PKDrawing(data: data) else { continue }   // bleibt liegen
+            pendingDrawings[key] = DrawingBox(drawing: drawing)
+            canvasEdits[key, default: 0] += 1
+            recoveredKeys.insert(key)
         }
     }
 
@@ -668,11 +717,16 @@ final class DocumentStore: ObservableObject {
         while let (key, box) = takeNextPending(&onePass) {
             processingKey = key
             let previous = await engine.page(key)
-            let update = await ink.page(key: key, drawing: box, previous: previous)
+            let recovered = recoveredKeys.remove(key) != nil
+            let update = recovered ? await ink.recoveredPage(key: key, drawing: box, previous: previous)
+                                   : await ink.page(key: key, drawing: box, previous: previous)
             // hat eine Zusammenfuehrung die Seite waehrend der Umrechnung geaendert, wird zusammengefuehrt statt
             // ueberschrieben (im Browser Geloeschtes kommt nicht zurueck)
             let merged = await engine.updatePage(key, update.page, derivedFrom: previous, holdUpload: holdUpload)
-            if update.canvasOutdated || merged { outdated.append(key) }
+            // gesichert und nichts Neueres abgesetzt: die Zeichnung aus `ink/` wird nicht mehr gebraucht (P60-F1)
+            let saved = await engine.isSavedLocally(key)
+            if saved, pendingDrawings[key] == nil { try? inkJournal.removeInkDraft(key) }
+            if update.canvasOutdated || merged || recovered { outdated.append(key) }
         }
         processingKey = nil
         // Canvas zeigt anderswo geloeschte oder geaenderte Striche: aus dem gespeicherten Stand neu laden

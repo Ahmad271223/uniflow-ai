@@ -158,4 +158,110 @@ final class AuditPaket59bis77AppTests: XCTestCase {
         XCTAssertEqual(strokes(doc, "p1"), 2, "A (Journal) und B (abgesetzt, nicht umgerechnet) muessen beide da sein")
         withExtendedLifetime(store) {}
     }
+    // MARK: P60-F1 nach der Behebung: Aufraeumen, kein Doppel, Kosten, nur ein Schreiber
+
+    private func inkJournal(_ fx: Fixture, root: URL? = nil) -> LocalJournal {
+        LocalJournal(store: FileBlobStore(root: DataContainerLayout.Folder.journal.url(in: root ?? fx.root)),
+                     documentID: fx.file.id, namespace: fx.api.namespace)
+    }
+
+    /// Ist die Seite im Journal, verschwindet die Zeichnung aus `ink/`. Endet der Prozess genau dazwischen (Seite
+    /// schon gesichert, Zeichnung noch da), ergibt der Neustart dieselben Striche, nicht doppelt.
+    func testP60_F1_DraftGoesOnceThePageIsSavedAndARestartInBetweenDoesNotDuplicate() async throws {
+        let fx = try await makeFixture()
+        let store = await openStore(fx)
+        store.canvasChanged(pageKey: "p1", drawing: drawing(0..<3))
+        XCTAssertEqual(Set(inkJournal(fx).inkDrafts().drafts.keys), ["p1"], "sofort beim Absetzen auf der Platte")
+        await store.flush()
+        XCTAssertTrue(inkJournal(fx).inkDrafts().drafts.isEmpty, "nach dem Sichern der Seite aufgeraeumt")
+        // Abbruch zwischen Seite und Aufraeumen nachstellen
+        try inkJournal(fx).writeInkDraft("p1", drawing(0..<3).dataRepresentation())
+        let disk = try diskAtThisMoment(fx)
+        let doc = await restart(fx, from: disk)
+        XCTAssertEqual(strokes(doc, "p1"), 3, "nicht doppelt")
+        XCTAssertTrue(inkJournal(fx, root: disk).inkDrafts().drafts.isEmpty, "nach dem Neustart aufgeraeumt")
+        await store.close()
+    }
+
+    /// Was das Sichern beim Absetzen auf dem Hauptthread kostet (dichte Seite mit 300 Strichen, je Strich die ganze
+    /// Seite). Messwert fuer den Bericht; die Grenze ist grosszuegig (Simulator).
+    func testP60_F1_DraftCostOnADensePage() async throws {
+        let fx = try await makeFixture()
+        let store = await openStore(fx, timing: SaveTiming(pause: 30, maxDelay: nil))
+        for n in 1...300 where n % 30 == 0 || n == 1 { store.canvasChanged(pageKey: "p1", drawing: drawing(0..<n)) }
+        let light = store.inkDraftSeconds / Double(store.inkDraftWrites)
+        let before = (store.inkDraftWrites, store.inkDraftSeconds)
+        for n in 300..<320 { store.canvasChanged(pageKey: "p1", drawing: drawing(0..<n)) }
+        let dense = (store.inkDraftSeconds - before.1) / Double(store.inkDraftWrites - before.0)
+        let size = try XCTUnwrap(inkJournal(fx).inkDrafts().drafts["p1"]).count
+        print(String(format: "P60-F1 Sichern beim Absetzen: Mittel %.2f ms (wenige Striche), %.2f ms (300+ Striche, %d Bytes)",
+                     light * 1000, dense * 1000, size))
+        XCTAssertLessThan(dense, 0.05)
+        await store.flush()
+        await store.close()
+    }
+
+    /// Ist dasselbe Dokument in einem anderen, sichtbaren Fenster offen, schreibt das zweite nichts: es uebernimmt
+    /// auch keine liegenden Zeichnungen (die gehoeren dem ersten, das sie selbst sichert).
+    func testP60_F1_SecondWindowOnlyViewingLeavesTheDraftsToTheWriter() async throws {
+        let fx = try await makeFixture()
+        let first = await openStore(fx, timing: SaveTiming(pause: 30, maxDelay: nil))
+        first.canvasChanged(pageKey: "p1", drawing: drawing(0..<2))
+        let second = DocumentStore(file: fx.file, api: fx.api, root: fx.root)
+        await second.load()
+        XCTAssertTrue(second.openElsewhere)
+        XCTAssertEqual(Set(inkJournal(fx).inkDrafts().drafts.keys), ["p1"], "bleibt fuer das schreibende Fenster")
+        await first.flush()
+        XCTAssertTrue(inkJournal(fx).inkDrafts().drafts.isEmpty)
+        let doc = await first.pageStructureDocument()
+        XCTAssertEqual(strokes(doc, "p1"), 2)
+        await second.close()
+        await first.close()
+    }
+    // MARK: P77-F3 unlesbares Journal: nur ansehen, Export bleibt (Beleg fuer P41-10)
+
+    func testP77_F3_UnreadableJournalStaysViewOnlyButCanStillBeExported() async throws {
+        let fx = try await makeFixture()
+        let first = await openStore(fx)
+        first.canvasChanged(pageKey: "p1", drawing: drawing(0..<2))
+        await first.flush()
+        await first.close()
+        let pages = DataContainerLayout.Folder.journal.url(in: fx.root)
+            .appendingPathComponent(LocalJournal.directory(documentID: fx.file.id, namespace: fx.api.namespace) + "/pages")
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: pages.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: pages.path) }
+        let store = DocumentStore(file: fx.file, api: fx.api, root: fx.root)
+        await store.load()
+        XCTAssertTrue(store.journalUnreadable)
+        XCTAssertFalse(store.isWritable)
+        let payload = try await store.sharePayload(.document, loadImage: nil)
+        let pdf = try XCTUnwrap(PDFDocument(data: payload.pdf))
+        XCTAssertEqual(pdf.pageCount, 3, "Export trotz unlesbarem Journal (Serverstand)")
+        await store.close()
+    }
+
+    // MARK: P77-F8 Geraete-Backup: Notizen und Journal ja, Zwischenspeicher nein
+
+    func testP77_F8_ContainerRootAndJournalAreInTheDeviceBackupThePDFCacheIsNot() async throws {
+        let bed = try ContainerTestBed(name: "p77", clock: .fixed(berlin: "2026-11-09T09:00:00")!)
+        let c = try bed.open(bed.manager(), bed.account(.luh))
+        func excluded(_ u: URL) throws -> Bool? { try u.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup }
+        XCTAssertEqual(try excluded(c.layout.root), false, "Containerwurzel im Backup")
+        let pdf = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 300, height: 400)).pdfData { ctx in ctx.beginPage() }
+        let created = try await c.api.upload("/api/notebooks", fields: ["kind": "pdf", "title": "Skript"], fileField: "upload",
+                                             fileName: "skript.pdf", mimeType: "application/pdf", data: pdf)
+        let id = try XCTUnwrap(created["id"]?.string)
+        let lib = try await c.api.json("/api/library", as: LibraryResponse.self)
+        let file = try XCTUnwrap(lib.files.first { $0.id == id })
+        let store = DocumentStore(file: file, api: c.api, root: c.layout.root, lease: c.lease)
+        store.saveTiming = SaveTiming(pause: 30, maxDelay: nil)
+        await store.load()
+        store.canvasChanged(pageKey: "p1", drawing: drawing(0..<1))
+        let docDir = c.layout.journal.appendingPathComponent(LocalJournal.directory(documentID: id, namespace: .local))
+        let ink = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: docDir.appendingPathComponent("ink"), includingPropertiesForKeys: nil).first)
+        for u in [c.layout.journal, docDir, ink] { XCTAssertEqual(try excluded(u), false, u.lastPathComponent) }
+        XCTAssertEqual(try excluded(store.originalPDFURL.deletingLastPathComponent()), true, "PDF-Zwischenspeicher nicht im Backup")
+        await store.close()
+        await bed.tearDown()
+    }
 }

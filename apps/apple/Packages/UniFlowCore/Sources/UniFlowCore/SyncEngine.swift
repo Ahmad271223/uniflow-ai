@@ -401,6 +401,10 @@ public actor SyncEngine {
 
     public var confirmedServerVersion: Int { serverVersion }
 
+    /// Steht der aktuelle Stand der Seite im Journal auf der Platte? (Schreiben nicht gesperrt und nicht gescheitert.)
+    /// Erst dann darf der Editor die beim Absetzen gesicherte Zeichnung entfernen (`LocalJournal.inkDrafts`, P60-F1).
+    public func isSavedLocally(_ key: String) -> Bool { !writesBlocked && !failedPageWrites.contains(key) && !failedBaseWrites.contains(key) }
+
     // MARK: Lokale Aenderungen
 
     /// Neuer Stand einer Seite (vom Editor). Wird sofort lokal gesichert, Upload nach kurzer Pause. Nur zum Ansehen
