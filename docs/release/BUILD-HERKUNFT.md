@@ -24,7 +24,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
 | 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), auf das iPad des Inhabers installiert, noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
 | 29 | – | 09.11.2026 | nie gebaut und nie hochgeladen: interner Stand auf develop (Build 28 plus Mac-Parität, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen); nicht in Build 30, kommt mit 1.0.1 | docs/paritaet/ auf develop |
-| 30 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts | docs/release/ABO-NUR-JAHR-2026-11-09.md |
+| 30 | – | 09.11.2026 | noch nicht hochgeladen; Version 1.0.1 (Entscheidung des Inhabers 09.11.2026); Inhalt: Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts | docs/release/ABO-NUR-JAHR-2026-11-09.md |
 
 ### Build 25 (in der Prüfung)
 
