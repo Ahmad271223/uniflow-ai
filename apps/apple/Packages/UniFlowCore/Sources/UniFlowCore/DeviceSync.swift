@@ -217,7 +217,15 @@ final class DeviceSyncCore: @unchecked Sendable {
     static let appliedDevice = "~dienst"
     static let page = 2000
     static let pushBatch = 400
-    static let localSettings: Set<String> = ["lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input"]
+    /// Einstellungen nur dieses Geraets (gehen nicht in den Abgleich, kommen nicht an): die zehn der Windows-App
+    /// (app/sync_client.py `LOCAL_SETTINGS`) und dazu der Stand der eigenen Abrufe von Schwarzem Brett und Blubber
+    /// (Paritaet 09.11.2026, K3): `exam_registration_run` gehoert zur nicht abgeglichenen Tabelle `exam_registrations`;
+    /// `studip_bulletin_fetched_at_v2` vom iPad liess den Mac desselben Kontos den Abruf des Schwarzen Bretts stundenlang
+    /// auslassen (`StudIPBulletin.fetch`, `minHours`), obwohl seine eigene Tabelle leer war.
+    static let localSettings: Set<String> = ["lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input",
+                                             "messages_seen_up_to", "studip_reply_drafts", "studip_replies", "studip_submissions",
+                                             "exam_registration_run",
+                                             "studip_bulletin_fetched_at_v2", "studip_blubber_fetched_at", "studip_blubber_activity"]
     static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"]]
     /// NOT NULL in der Datenbank: ohne Elternteil wartet die Zeile
     static let requiredParents: Set<String> = ["package_id", "event_id"]
