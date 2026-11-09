@@ -92,6 +92,20 @@ Monatspreisen oder Monatsprodukten nachgezogen (`EntitlementTests`, `PurchaseTes
 `StoreScreenshot*`, `Abnahme*`, `PlanMatrixAppTests`, `KIAbnahmeLUHAppTests`, `InviteAppTests`, `StudoraNameTests`,
 Python `test_subscriptions`, `test_site`, `test_invites`, `test_rechtstexte`, `test_release_texts`, `test_web_abo`).
 
+Ergebnisse auf dem Zweig `abo/nur-jahresabo` (Basis 7d1a8fb3, Build 28; Build-Nummer nicht erhöht), 09.11.2026:
+
+| Suite | Ergebnis |
+| --- | --- |
+| iPad-App (`xcodebuild test`, Simulator-Klon, voller Lauf) | 1392 Tests, 18 übersprungen, 0 Fehler |
+| Swift-Kern (`swift test`, UniFlowCore) | 1385 Tests, 9 übersprungen, 0 Fehler |
+| JavaScript (`node --test`) | 440 bestanden, 0 Fehler |
+| Python (`pytest`, voller Lauf) | 3322 bestanden, 6 Fehler, 5 übersprungen, 2 xfail |
+
+Zu den 6 Python-Fehlern: zwei (`tests/test_web_hosted_e2e.py`, Overlay „Erster Start“) schlagen schon auf der Basis
+7d1a8fb3 fehl und sind auf `develop` mit 489d8ad6 behoben; vier Browser-Tests (`test_web_overview` 2×,
+`test_web_studyplan`, `test_web_windows_shell`) liefen parallel zum Simulator in Zeitüberschreitungen und bestehen
+im Einzellauf (18 bestanden in den drei Dateien).
+
 Der Prüf-Screenshot für App Store Connect (`StoreScreenshotFinalTests.testTarifPruefung`, Ordner
 `~/Studora-Builds/appstore-pruefung/`) muss mit dem neuen Build neu aufgenommen werden; das frühere Bild
 `tarif-jahr-*.png` (Umschalter „Jährlich“) entfällt.
