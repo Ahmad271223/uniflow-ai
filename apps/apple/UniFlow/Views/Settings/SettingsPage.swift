@@ -907,8 +907,8 @@ private struct AppAccountCards: View {
 struct StudoraCreditsRow: View {
     @ObservedObject var link: StudoraAccountLink
 
-    /// "1 Credit = 1 Cent echter KI-Kosten …" – die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
-    static let explanation = "1 Credit ist 1 Cent echter KI-Kosten: Pro AI hat 100 im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang – welcher Tarif was enthält, steht unter „Tarif wechseln“."
+    /// "1 Credit sind 0,9 Cent echter KI-Kosten …" – die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
+    static let explanation = "1 Credit sind 0,9 Cent echter KI-Kosten: Pro AI hat 100 im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang – welcher Tarif was enthält, steht unter „Tarif wechseln“."
 
     var body: some View {
         if let c = link.credits, let value = AICost.balanceLine(c, trial: link.planStatus?.trialActive ?? false, labelled: false) {
