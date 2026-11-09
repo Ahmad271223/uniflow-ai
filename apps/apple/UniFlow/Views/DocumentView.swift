@@ -931,9 +931,13 @@ struct DocumentView: View {
             if PDFEditorController.isMac {
                 // iPad: Rueckgaengig und Wiederholen stehen in Apples Palette (derselbe Verlauf fuer Striche, Objekte und
                 // eingefuegte Seiten); im Objektmodus zusaetzlich in der Objektleiste. Am Mac bleiben sie hier.
+                // Cmd-Z und Umschalt-Cmd-Z wie in jeder Mac-App (Befund 09.11.2026: das Menue "Bearbeiten" erreichte den
+                // Verlauf des Editors nicht, Cmd-Z tat nichts)
                 Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
+                    .keyboardShortcut("z", modifiers: .command)
                     .disabled(!canWrite && correction == nil)
                 Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
                     .disabled(!canWrite && correction == nil)
             }
             if !planAllowsWriting && !readOnly {
