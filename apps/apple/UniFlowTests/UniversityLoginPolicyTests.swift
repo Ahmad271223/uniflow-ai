@@ -450,6 +450,7 @@ final class UniversityLoginPolicyTests: XCTestCase {
     }
 
     static func appSources() throws -> [Source] {
+        try ContainerTestBed.requireRepoSources()
         let root = ContainerTestBed.repoURL("apps/apple/UniFlow")
         let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL } ?? []
         return try files.filter { $0.pathExtension == "swift" }.map { Source(name: $0.lastPathComponent, text: try String(contentsOf: $0, encoding: .utf8)) }

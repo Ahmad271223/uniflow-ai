@@ -28,9 +28,8 @@ final class StudIPTextsAppTests: XCTestCase {
     }
 
     private func fixture() throws -> JSONValue {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        return try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/studip-texts/texte.json")))
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        return try JSONValue.parse(Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/studip-texts/texte.json")))
     }
 
     private func host() throws -> LocalBackendHost {

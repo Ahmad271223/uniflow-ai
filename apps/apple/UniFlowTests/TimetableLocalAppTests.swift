@@ -65,10 +65,8 @@ final class TimetableLocalAppTests: XCTestCase {
     }
 
     private func fixture(_ name: String) throws -> HTTPReply {
-        // .../apps/apple/UniFlowTests/TimetableLocalAppTests.swift -> Repository-Wurzel
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        let data = try Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/studip-schedule/\(name)"))
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        let data = try Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/studip-schedule/\(name)"))
         return HTTPReply(status: 200, contentType: "application/vnd.api+json", body: data)
     }
 

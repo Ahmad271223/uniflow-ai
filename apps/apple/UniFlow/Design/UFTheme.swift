@@ -172,8 +172,18 @@ struct UFScaledFont: ViewModifier {
         let t = min(typeSize, .accessibility3)
         guard t != .large else { return size }
         let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(t))
-        return (UIFontMetrics(forTextStyle: .body).scaledValue(for: size, compatibleWith: traits) * 4).rounded() / 4
+        var scaled = UIFontMetrics(forTextStyle: .body).scaledValue(for: size, compatibleWith: traits)
+        // Mac ("Designed for iPad"): UIFontMetrics skaliert dort nicht (Befund 09.11.2026), die Textgroesse des Systems
+        // kaeme sonst nur bei Systemschriften an. Dann die Stufen von Apples Textstil "body" (17 pt bei "large").
+        if scaled == size, ProcessInfo.processInfo.isiOSAppOnMac, let body = macBodyPoints[t] { scaled = size * body / 17 }
+        return (scaled * 4).rounded() / 4
     }
+
+    /// Groesse des Textstils "body" je Stufe (Apple Human Interface Guidelines, Dynamic Type), nur Mac
+    private static let macBodyPoints: [DynamicTypeSize: CGFloat] = [
+        .xSmall: 14, .small: 15, .medium: 16, .large: 17, .xLarge: 19, .xxLarge: 21, .xxxLarge: 23,
+        .accessibility1: 28, .accessibility2: 33, .accessibility3: 40,
+    ]
 
     func body(content: Content) -> some View {
         let s = Self.scaled(size, typeSize)

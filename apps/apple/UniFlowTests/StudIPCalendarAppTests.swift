@@ -26,10 +26,8 @@ final class StudIPCalendarAppTests: XCTestCase {
     }
 
     private func fixture(_ name: String, type: String = "application/vnd.api+json") throws -> HTTPReply {
-        // .../apps/apple/UniFlowTests/StudIPCalendarAppTests.swift -> Repository-Wurzel
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        let data = try Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/studip-schedule/kalender/\(name)"))
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        let data = try Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/studip-schedule/kalender/\(name)"))
         return HTTPReply(status: 200, contentType: type, body: data)
     }
 

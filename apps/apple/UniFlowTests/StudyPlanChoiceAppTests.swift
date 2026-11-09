@@ -28,8 +28,7 @@ final class StudyPlanChoiceAppTests: XCTestCase {
 
     /// erwarteter Plan eines Falls aus engine.json
     private func enginePlan(_ name: String) throws -> JSONValue {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("packages/shared-contracts/fixtures/study-plan-engine/engine.json")
+        let url = ContainerTestBed.repoURL("packages/shared-contracts/fixtures/study-plan-engine/engine.json")
         guard let data = try? Data(contentsOf: url) else { throw XCTSkip("Fixture fehlt: \(url.path)") }
         let c = try XCTUnwrap(JSONValue.parse(data).list("cases").first { $0.s("name") == name }, name)
         return try XCTUnwrap(c["expected"])
@@ -429,7 +428,8 @@ final class StudyPlanChoiceAppTests: XCTestCase {
             XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Seminar Datenbanken,") != nil } ?? false }, name)
             env.pump(0.6)
             let inSheet = LayoutWidthAuditTests.overflows(in: env.window).map(\.text)
-                .filter { !$0.contains("UIDimmingView") && !$0.contains("_UIRoundedRectShadowView") }
+                .filter { !$0.contains("UIDimmingView") && !$0.contains("_UIRoundedRectShadowView")
+                && !$0.contains("UIDropShadowRimPartView") }   // Schattenrand des Blatts auf dem Mac (Systemrahmen)
             if !inSheet.isEmpty { report.append("\(name) Auswahl: " + inSheet.prefix(15).joined(separator: "\n  ")) }
             env.hosting.dismiss(animated: false)
             env.pump(0.3)

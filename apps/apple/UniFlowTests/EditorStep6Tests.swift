@@ -60,6 +60,7 @@ final class EditorStep6Tests: XCTestCase {
     /// Objektmodus: Auswahl loeschen, umfaerben, Schrift groesser; Rueckgaengig stellt den Stand davor her,
     /// Wiederholen den danach. Gegenprobe: ohne Auswahl aendern die Aktionen nichts.
     func testSelectionActionsWithUndoAndRedo() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
         let (store, editor) = try await open()
         let obj = editor.objects
         editor.objects.setActive(true)

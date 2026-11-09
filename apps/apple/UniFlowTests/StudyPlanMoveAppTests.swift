@@ -31,8 +31,7 @@ final class StudyPlanMoveAppTests: XCTestCase {
     // MARK: Daten
 
     private func repoFile(_ path: String) throws -> Data {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent(path)
+        let url = ContainerTestBed.repoURL(path)
         guard let data = try? Data(contentsOf: url) else { throw XCTSkip("Fixture fehlt: \(url.path)") }
         return data
     }

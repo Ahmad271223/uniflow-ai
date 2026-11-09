@@ -26,6 +26,7 @@ final class StudoraNameTests: XCTestCase {
             #"bytes\("BT "#,                           // Demo-PDF Byte fuer Byte wie app/demo.py
         ].joined(separator: "|"))
         let literal = try NSRegularExpression(pattern: #""(?:[^"\\]|\\.)*""#)
+        try ContainerTestBed.requireRepoSources()
         let roots = ["apps/apple/UniFlow", "apps/apple/Packages/UniFlowCore/Sources"].map { ContainerTestBed.repoURL($0) }
         var hits: [String] = []
         for root in roots {
