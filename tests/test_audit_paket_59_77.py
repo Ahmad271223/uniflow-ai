@@ -1,0 +1,68 @@
+"""Audit 09.11.2026, Pakete 59/61/77 (Geraete-Abgleich der Windows-App, Abbruch zwischen Serverannahme und lokaler
+Zuordnung). Bericht docs/audit/AUDIT-2026-11-09-PAKET-59-61-70-71-76-77.md. Aufbau wie tests/test_sync_client.py
+(Windows-App mit eigener Datenbank, Dienst per ASGI)."""
+import json
+
+import pytest
+
+from test_sync_client import FILE, ipad_pull, page, two_devices  # noqa: F401 - Fixture
+
+
+class _Killed(Exception):
+    pass
+
+
+def _server_counts(app, ipad):
+    changes, _ = ipad_pull(app, ipad)
+    return changes
+
+
+@pytest.mark.parametrize("phase", ["after_push_before_mapping", "after_pull_before_commit"])
+def test_p59_05_kill_after_the_server_took_the_push_retries_without_duplicates(two_devices, monkeypatch, phase):
+    """P59-05/P59-F5/P77-F5: der Dienst hat die Sendung angenommen (Commit), die Windows-App endet vor dem Sichern der
+    Zuordnung (Prozess-Abbruch, Stromausfall: die lokale Transaktion wird zurueckgerollt). Der naechste Lauf sendet
+    dieselben op_ids erneut: keine doppelten Module, Pakete, Aufgaben oder Striche, die Zuordnung steht danach."""
+    app, ipad = two_devices
+    from app import db, sync_client
+    with db.cursor() as conn:
+        mid = conn.execute("INSERT INTO modules(name, semester) VALUES ('Analysis', 'WiSe 26/27')").lastrowid
+        pid = conn.execute("INSERT INTO study_packages(date, module_id, title, planned_minutes) VALUES ('2026-11-09', ?, 'Blatt 2', 60)", (mid,)).lastrowid
+        conn.execute("INSERT INTO study_tasks(package_id, type, title) VALUES (?, 'uebung', 'Aufgabe 2')", (pid,))
+        conn.execute("INSERT INTO annotations(file_id, data, version) VALUES (?, ?, 1)", (FILE, json.dumps(page("win-x"))))
+
+    target = "handle_results" if phase == "after_push_before_mapping" else "mark_applied_tombstones"
+    original = getattr(sync_client.Client, target)
+    calls = {"n": 0}
+
+    def killed(self, *a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _Killed("Prozess beendet")
+        return original(self, *a, **k)
+    monkeypatch.setattr(sync_client.Client, target, killed)
+
+    first = sync_client.run()
+    assert not first["ok"], "der erste Lauf bricht ab"
+    if phase == "after_push_before_mapping":
+        mid_server = _server_counts(app, ipad)
+        assert [m["name"] for m in mid_server["modules"]] == ["Analysis"], "der Dienst hat die Sendung schon angenommen"
+
+    out = sync_client.run()
+    assert out["ok"], out
+    again = sync_client.run()
+    assert again["ok"] and again["pushed"] == 0, again
+
+    changes = _server_counts(app, ipad)
+    assert [m["name"] for m in changes["modules"]] == ["Analysis"], "kein doppeltes Modul im Dienst"
+    assert [p["title"] for p in changes["study_packages"]] == ["Blatt 2"]
+    assert [t["title"] for t in changes["study_tasks"]] == ["Aufgabe 2"]
+    assert changes["study_packages"][0]["module_id"] == changes["modules"][0]["id"]
+    ids = [o["id"] for o in changes["annotations"][0]["data"]["pages"]["p1"]["objects"]]
+    assert ids == ["win-x"], "Strich genau einmal"
+    with db.cursor() as conn:
+        assert [r["name"] for r in db.rows(conn, "SELECT name FROM modules")] == ["Analysis"], "lokal kein Doppel"
+        assert db.row(conn, "SELECT COUNT(*) AS n FROM study_packages")["n"] == 1
+        mapped = db.rows(conn, "SELECT entity FROM sync_link_map WHERE entity IN ('modules','study_packages','study_tasks')")
+        assert sorted(r["entity"] for r in mapped) == ["modules", "study_packages", "study_tasks"], "Zuordnung steht"
+        data = json.loads(db.row(conn, "SELECT data FROM annotations WHERE file_id=?", (FILE,))["data"])
+        assert [o["id"] for o in data["pages"]["p1"]["objects"]] == ["win-x"]
