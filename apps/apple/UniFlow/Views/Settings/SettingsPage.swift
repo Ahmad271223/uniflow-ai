@@ -744,8 +744,8 @@ private struct AccountTab: View {
                 UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
             }
             SettingsDivider()
-            SettingsRow("Stift & Touch", icon: "pen") {
-                UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
+            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+                UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                          selection: Binding(get: { pen }, set: { v in
                              pen = v
                              pencilOnly = v == "pen_only"                           // Editor auf dem iPad
@@ -1046,8 +1046,8 @@ private struct LocalAccountTab: View {
                         }
                         .padding(.top, -12)
                         SettingsDivider()
-                        SettingsRow("Stift & Touch", icon: "pen") {
-                            UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
+                        SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+                            UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                                      selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
                         }
                         SettingsDivider()

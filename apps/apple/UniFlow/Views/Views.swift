@@ -118,6 +118,18 @@ struct UFQuickLookView: UIViewControllerRepresentable {
 
 // MARK: - Bibliothek mit Dokument-Tabs
 
+/// Reiter der geoeffneten Dokumente per Tastatur (Mac, iPad mit Tastatur): Ctrl-Tab bzw. Cmd-Option-Pfeil wechselt zum
+/// naechsten bzw. vorherigen Reiter, nach dem letzten wieder zum ersten
+enum DocumentTabs {
+    static func neighbor(of current: String?, in tabs: [String], step: Int) -> String? {
+        guard let first = tabs.first else { return nil }
+        guard let current, let i = tabs.firstIndex(of: current) else { return first }
+        guard tabs.count > 1 else { return nil }
+        let n = tabs.count
+        return tabs[((i + step) % n + n) % n]
+    }
+}
+
 struct LibraryView: View {
     @EnvironmentObject private var session: Session
     /// Ziele des Logos (setzt AppShell); ohne sie (Tests, alte Fassung) kein Zurueck
@@ -216,6 +228,10 @@ struct LibraryView: View {
                 }
             }
             .refreshable { await load() }
+            .background {
+                Button("") { Task { await load() } }                  // Mac und Tastatur: Cmd-R wie Ziehen zum Aktualisieren
+                    .keyboardShortcut("r", modifiers: .command).opacity(0).accessibilityHidden(true)
+            }
             .navigationTitle("Dokumente")
             .toolbar {
                 Button { importing = true } label: { Label("PDF importieren", systemImage: "square.and.arrow.down") }
@@ -273,6 +289,7 @@ struct LibraryView: View {
                 }
             }
             .onPreferenceChange(EditorTracingKey.self) { editorTracing = $0 }
+            .background { if openTabs.count > 1, !editorTracing { tabKeys } }
             // schmal klappt die Teilung zu einem Stapel mit System-Zurueck zusammen: genau ein Pfeil, unserer (06.11.2026)
             .navigationBarBackButtonHidden(true)
         }
@@ -350,6 +367,23 @@ struct LibraryView: View {
         .padding(.vertical, -2)
         .background(UF.surface)
         .ufBorderBottom()
+    }
+
+    /// Mac und iPad mit Tastatur: naechster/vorheriger Reiter (Ctrl-Tab wie in Safari, Cmd-Option-Pfeil); auf dem iPad
+    /// wechselt man durch Antippen des Reiters
+    private var tabKeys: some View {
+        ZStack {
+            Button("") { switchTab(1) }.keyboardShortcut(.tab, modifiers: .control)
+            Button("") { switchTab(-1) }.keyboardShortcut(.tab, modifiers: [.control, .shift])
+            Button("") { switchTab(1) }.keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            Button("") { switchTab(-1) }.keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+        }
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
+
+    private func switchTab(_ step: Int) {
+        if let next = DocumentTabs.neighbor(of: fileSelection, in: openTabs, step: step) { fileSelection = next }
     }
 
     private func close(_ id: String) {

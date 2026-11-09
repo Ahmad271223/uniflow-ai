@@ -334,6 +334,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var mixedFormatFactor: CGFloat = 1
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
+    /// Mac: zwei Finger waagerecht auf dem Trackpad blaettern eine Seite weiter bzw. zurueck (`EditorPointerInput.swift`)
+    private(set) var trackpadPageSwipe: TrackpadPageSwipe?
     private(set) var shownLayoutVersion = -1
     /// Ein Neuaufbau kam, waehrend der Stift auflag: er folgt beim Absetzen (`canvasViewDidEndUsingTool`, Audit P41-Z1)
     private var layoutWaitsForPencil = false
@@ -438,16 +440,16 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         objects.prepare(overlay)
     }
 
-    /// Auf dem Mac ("Designed for iPad") gibt es keinen Apple Pencil: dort schreiben Maus und Trackpad immer
+    /// Mac ("Designed for iPad"): dieselbe App, ohne Apple Pencil; Maus, Trackpad und Tastatur (`EditorPointerInput.swift`)
     static var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac }
-    /// Mac: jede Eingabe schreibt. iPad: Standard "Nur Stift" (`.pencilOnly`: der Finger blaettert), ueber den Schalter
-    /// in der Leiste "Finger zeichnet" (`.anyInput`: zwei Finger blaettern). Nie `.default`: damit entschiede die
-    /// iPadOS-Einstellung "Nur mit Apple Pencil zeichnen"; die war am Geraet aus, der Finger schrieb statt zu blaettern
-    /// (Geraetetest 03.11.2026).
-    var drawingPolicy: PKCanvasViewDrawingPolicy {
-        if Self.isMac { return .anyInput }
-        return pencilOnly ? .pencilOnly : .anyInput
-    }
+    /// iPad: Standard "Nur Stift" (`.pencilOnly`: der Finger blaettert), ueber den Schalter in der Leiste "Finger
+    /// zeichnet" (`.anyInput`: zwei Finger blaettern). Nie `.default`: damit entschiede die iPadOS-Einstellung "Nur mit
+    /// Apple Pencil zeichnen"; die war am Geraet aus, der Finger schrieb statt zu blaettern (Geraetetest 03.11.2026).
+    /// Mac siehe `EditorPointer.config`.
+    var drawingPolicy: PKCanvasViewDrawingPolicy { pointerConfig.drawingPolicy }
+
+    /// Schreiben und Blaettern auf diesem Geraet
+    var pointerConfig: EditorPointer.Config { EditorPointer.config(isMac: Self.isMac, pencilOnly: pencilOnly) }
 
     var pencilOnly = true {
         didSet {
@@ -460,8 +462,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         }
     }
 
-    /// Schreibt der Finger gerade nicht (ein Finger blaettert)?
-    var effectivePencilOnly: Bool { !Self.isMac && pencilOnly }
+    /// Schreibt der Finger (am Mac: die Maus) gerade nicht, sondern blaettert?
+    var effectivePencilOnly: Bool { pointerConfig.panMinimumTouches == 1 }
 
     /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
     /// Wischen mit drei Fingern, Leiste der Palette) nichts zuruecknimmt und nichts schreibt.
@@ -474,6 +476,14 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Verlauf der Responder-Kette. Ausgeblendete eigene Notizen = nur ansehen: kein Rueckgaengig (der Verlauf des
     /// Dokuments bleibt erhalten und gilt wieder, sobald die Notizen eingeblendet sind).
     override var undoManager: UndoManager? { ownNotesVisible ? documentUndo : (correction != nil ? correctionUndo : viewOnlyUndo) }
+
+    /// Tastatur (Mac, iPad mit Tastatur): Blaettern, Seiten, Zoom (`EditorPointerInput.swift`)
+    override var keyCommands: [UIKeyCommand]? { (super.keyCommands ?? []) + editorKeyCommands }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(editorKey(_:)) { return acceptsEditorKeys }
+        return super.canPerformAction(action, withSender: sender)
+    }
 
     init(store: DocumentStore, toolPicker: PKToolPicker? = nil, ownsToolPicker: Bool = true,
          undoManager: UndoManager? = nil, initialPDFPage: Int? = nil) {
@@ -712,14 +722,21 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         onZoomChange?(lastFit > 0 ? pdfView.scaleFactor / lastFit : 1)
     }
 
-    /// Stift scrollt nie; im Finger-Zeichenmodus scrollen zwei Finger.
-    private func configureScrollGestures() {
+    /// Stift scrollt nie; im Finger-Zeichenmodus scrollen zwei Finger. Mausrad und Trackpad (zwei Finger rollen, Pinch)
+    /// kommen als eigene Ereignisse, nicht als Beruehrungen: `allowedTouchTypes` und `minimumNumberOfTouches` halten sie
+    /// nicht auf (geprueft in UIKit 09.11.2026, docs/paritaet/MAC-BEDIENUNG-2026-11-09.md).
+    func configureScrollGestures() {
         guard let scroll = firstScrollView(in: pdfView) else { return }
-        let fingers = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-        scroll.panGestureRecognizer.allowedTouchTypes = fingers
-        // Mac: die Maus schreibt, geblaettert wird mit Rad oder Trackpad (keine Ein-Finger-Geste)
-        scroll.panGestureRecognizer.minimumNumberOfTouches = effectivePencilOnly ? 1 : 2
-        scroll.pinchGestureRecognizer?.allowedTouchTypes = fingers
+        let c = pointerConfig
+        let types = c.panTouchTypes.map { NSNumber(value: $0.rawValue) }
+        scroll.panGestureRecognizer.allowedTouchTypes = types
+        scroll.panGestureRecognizer.minimumNumberOfTouches = c.panMinimumTouches
+        scroll.pinchGestureRecognizer?.allowedTouchTypes = types
+        if Self.isMac, trackpadPageSwipe == nil {
+            let swipe = TrackpadPageSwipe(controller: self)
+            pdfView.addGestureRecognizer(swipe.recognizer)
+            trackpadPageSwipe = swipe
+        }
         scroll.delaysContentTouches = false
         applyFreezeGestures()
     }

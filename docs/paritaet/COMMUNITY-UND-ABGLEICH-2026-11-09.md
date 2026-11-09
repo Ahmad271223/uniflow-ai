@@ -94,7 +94,7 @@ nur bei: Gerätesync G2 (`StudoraAccountLink.syncNow`), Kontingent der Stapel-Ü
 - Kern: `CommunitySharedState` (Packages/UniFlowCore/Sources/UniFlowCore/Solutions/CommunitySharedState.swift).
   UserDefaults des Containers **und** iCloud-Schlüssel-Wert-Speicher; Schlüssel `cs1.<Container-UUID>.<j|g|b|n|ci|cs>`
   (höchstens 39 Byte, Grenze 64). Lesen: iCloud-Wert gilt und wird lokal übernommen; fehlt er, wird der lokale
-  Bestand einmal gespiegelt (das iPad mit Build 28 bringt seine Beitritte und Gruppen beim ersten Start von Build 29
+  Bestand einmal gespiegelt (das iPad mit Build 28 bringt seine Beitritte und Gruppen beim ersten Start des Stands mit diesem Abgleich (Build 31, zuerst als Build 29 geplant)
   mit). Leere Listen werden geschrieben, nicht entfernt (ein Austritt kommt nicht aus dem lokalen Stand zurück).
   Kein neuer CloudKit-Typ → **keine Schema-Änderung in Production**.
 - `CommunityCorrectionStatusStore(defaults:state:)` (CommunityCorrection.swift) nutzt den Zustand, wenn er da ist.

@@ -1005,10 +1005,16 @@ struct DocumentView: View {
         UFToolbarGap()
         ToolbarItemGroup(placement: .topBarTrailing) {
             // unser Schalter (Standard: nur der Stift schreibt, der Finger blaettert); der Schalter der Palette ist aus,
-            // er schreibt nur die iPadOS-Einstellung (siehe `EditorPalette`)
-            Button { pencilOnly.toggle() } label: {
-                Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
+            // er schreibt nur die iPadOS-Einstellung (siehe `EditorPalette`). Mac: "Maus blättert" / "Maus schreibt"
+            // (EditorPointer, 09.11.2026)
+            let penLabel = EditorPointer.toggleLabel(isMac: PDFEditorController.isMac, pencilOnly: pencilOnly)
+            Button {
+                pencilOnly.toggle()
+                if PDFEditorController.isMac { bridge.hint = EditorBridge.Hint(text: EditorPointer.macHint(pencilOnly: pencilOnly)) }
+            } label: {
+                Label(penLabel.title, systemImage: penLabel.icon)
             }
+            .modifier(MacHelp(text: EditorPointer.macHint(pencilOnly: pencilOnly)))
             .accessibilityIdentifier("doc.pencilOnly")
             if !bridge.toolsInPalette {
                 // ab iPadOS 18 stehen Text, Haftnotiz, Formen, Auswahl und Text markieren in der Palette; sonst hier
@@ -2204,6 +2210,14 @@ struct OutlineSheet: View {
                                 }
                             }
                         }
+                        // Mac (Rechtsklick) und Tastatur: dasselbe wie das Wischen
+                        .contextMenu {
+                            if bridge.controller?.writable == true {
+                                Button(role: .destructive) {
+                                    Task { await bridge.controller?.removeOutline(at: i); await reload() }
+                                } label: { Label("Entfernen", systemImage: "trash") }
+                            }
+                        }
                     }
                 } else {
                     ProgressView()
@@ -2216,6 +2230,15 @@ struct OutlineSheet: View {
     }
 
     private func reload() async { entries = await bridge.controller?.outlineEntries() ?? [] }
+}
+
+/// Hilfetext beim Zeigen mit der Maus, nur am Mac (iPad unveraendert ohne Hilfetext)
+struct MacHelp: ViewModifier {
+    let text: String
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if PDFEditorController.isMac { content.help(text) } else { content }
+    }
 }
 
 /// Teilen-Dialog des Systems (z. B. exportierte PDF in Dateien sichern).

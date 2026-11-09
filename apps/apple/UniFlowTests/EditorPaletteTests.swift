@@ -344,10 +344,7 @@ final class EditorPaletteTests: XCTestCase {
         editor.loadViewIfNeeded()
         XCTAssertTrue(editor.pencilOnly, "Standard")
         let overlay = try XCTUnwrap(editor.overlayForTesting(at: 0))
-        guard !PDFEditorController.isMac else {
-            XCTAssertEqual(overlay.canvas.drawingPolicy, .anyInput, "Mac: die Maus schreibt")
-            return
-        }
+        // Mac ebenso (09.11.2026): Standard "Maus blättert", "Maus schreibt" ueber denselben Schalter (MacBedienungTests)
         XCTAssertEqual(overlay.canvas.drawingPolicy, .pencilOnly)
         XCTAssertNotEqual(editor.drawingPolicy, .default)
         XCTAssertTrue(editor.effectivePencilOnly)

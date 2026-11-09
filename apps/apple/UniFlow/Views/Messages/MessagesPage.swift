@@ -254,6 +254,11 @@ struct MessagesPage: View {
             LazyVStack(alignment: .leading, spacing: 0) { rows() }
         }
         .refreshable { await pullRefresh() }
+        // Mac und Tastatur: Cmd-R wie "Ziehen zum Aktualisieren" (am Mac zieht das Trackpad die Liste nicht herunter)
+        .background {
+            Button("") { Task { await pullRefresh() } }
+                .keyboardShortcut("r", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
         .accessibilityIdentifier("messages.list")
     }
 
