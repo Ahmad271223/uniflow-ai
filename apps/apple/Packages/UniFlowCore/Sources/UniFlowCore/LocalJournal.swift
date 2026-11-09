@@ -256,6 +256,57 @@ public final class LocalJournal: @unchecked Sendable {
         ])
         try store.write(v.serialized(), to: "\(dir)/acks.json")
     }
+
+    // MARK: Abgesetzte Zeichnungen (Audit P60-F1, 09.11.2026)
+
+    /// `ink/<key>.ink`: die Zeichnung einer Seite, wie der Editor sie beim Absetzen des Stifts meldete (Bytes der
+    /// Zeichnung, z. B. PencilKit), solange sie noch nicht umgerechnet und als Seite gesichert ist. Vorher lag sie bis
+    /// zur Schreibpause (0,25 s) und der Umrechnung nur im Speicher; ein harter Abbruch verlor sie. Aufbau: "UFINK1",
+    /// Laenge des Schluessels (UInt32, big endian), Schluessel (UTF-8), Zeichnung. Nicht Teil von `load()`: wer sie
+    /// liest (`inkDrafts`), rechnet sie selbst um.
+    private func inkPath(_ key: String) -> String { "\(dir)/ink/\(LocalJournal.safeName(key)).ink" }
+
+    static let inkMagic = Data("UFINK1".utf8)
+
+    /// Zeichnung einer Seite sichern (ersetzt die vorige dieser Seite atomar).
+    public func writeInkDraft(_ key: String, _ drawing: Data) throws {
+        let k = Data(key.utf8)
+        var out = LocalJournal.inkMagic
+        let n = UInt32(k.count)
+        out.append(contentsOf: [UInt8(n >> 24 & 0xff), UInt8(n >> 16 & 0xff), UInt8(n >> 8 & 0xff), UInt8(n & 0xff)])
+        out.append(k)
+        out.append(drawing)
+        try store.write(out, to: inkPath(key))
+    }
+
+    /// Gesicherte Zeichnung einer Seite entfernen (umgerechnet und als Seite im Journal)
+    public func removeInkDraft(_ key: String) throws { try store.remove(inkPath(key)) }
+
+    /// Alle noch liegenden Zeichnungen (Schluessel -> Bytes). Unlesbare oder fremde Dateien werden nicht verworfen,
+    /// nur gemeldet (`damaged`) und bleiben liegen, bis die Seite wieder gezeichnet wird.
+    public func inkDrafts() -> (drafts: [String: Data], damaged: [String]) {
+        var drafts: [String: Data] = [:], damaged: [String] = []
+        guard let files = try? store.list("\(dir)/ink") else { return ([:], ["ink"]) }
+        for file in files.sorted() where file.hasSuffix(".ink") {
+            guard let data = try? store.read("\(dir)/ink/\(file)"), let parsed = LocalJournal.parseInk(data) else {
+                damaged.append("ink/\(file)")
+                continue
+            }
+            drafts[parsed.key] = parsed.drawing
+        }
+        return (drafts, damaged)
+    }
+
+    static func parseInk(_ data: Data) -> (key: String, drawing: Data)? {
+        let b = [UInt8](data)
+        let m = [UInt8](inkMagic)
+        guard b.count >= m.count + 4, Array(b[0..<m.count]) == m else { return nil }
+        let n = Int(b[m.count]) << 24 | Int(b[m.count + 1]) << 16 | Int(b[m.count + 2]) << 8 | Int(b[m.count + 3])
+        let start = m.count + 4
+        guard n > 0, b.count >= start + n else { return nil }
+        guard let key = String(bytes: b[start..<start + n], encoding: .utf8) else { return nil }
+        return (key, Data(b[(start + n)...]))
+    }
 }
 
 /// Zustand aller Journale eines Speichers fuer die Diagnose (ohne Inhalte): ungesendete Seiten, beschaedigte Dateien

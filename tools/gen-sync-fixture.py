@@ -178,7 +178,7 @@ def build() -> dict:
                       "pull_paging": "limit 1-2000 (Standard 2000) je Tabelle; wird eine Tabelle abgeschnitten, gilt fuer alle Tabellen und "
                                      "Tombstones die kleinste abgeschnittene Zeit als Grenze: alles bis einschliesslich Grenze, cursor = Grenze, "
                                      "has_more = true; gleiche Zeitstempel am Ende kommen vollstaendig; weiter abrufen, solange has_more",
-                      "update": "base_version == Serverversion -> applied; sonst conflict: je Feld gewinnt der spaetere Schreiber (updated_at vs sync_updated_at)",
+                      "update": "base_version == Serverversion -> applied; sonst conflict: je Feld gewinnt der spaetere Schreiber (updated_at vs sync_updated_at); traegt der Eintrag changed (Liste der seit der Basis des Geraets geaenderten Felder, data bleibt die ganze Zeile), zaehlen beim Konflikt nur diese Felder (Audit P73-F6, 09.11.2026)",
                       "delete": "deleted_at >= sync_updated_at des Servers -> deleted (Tombstone); sonst edit_wins; spaetere Aenderung nach Tombstone -> resurrected",
                       "annotations": "wie PUT /api/files/{id}/annotations: base_version muss der Serverversion entsprechen, sonst conflict mit data/version",
                       "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=&limit=", "push": "POST /api/sync/push {device_id, items, deletes}"}},
