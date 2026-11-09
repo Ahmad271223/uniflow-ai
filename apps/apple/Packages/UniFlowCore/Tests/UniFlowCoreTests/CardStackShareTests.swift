@@ -347,7 +347,11 @@ final class CardStackShareTests: XCTestCase {
         XCTAssertEqual(r.status, 409); XCTAssertEqual(r.json?["detail"]?["code"]?.string, "already_shared")
         // beim Dienst: Chiffrat, kein Klartext, kein Modulname
         let entry = try XCTUnwrap(cloud.store[sid])
-        XCTAssertFalse(entry.payload.contains("Q1") || entry.payload.contains("A1"))
+        // Base64 eines Zufalls-Chiffrats enthaelt "Q1"/"A1" in rund jedem zehnten Lauf (zufaellig, Befund 09.11.2026):
+        // geprueft werden die Bytes auf den Klartext der Karten
+        let sealedBytes = try XCTUnwrap(Data(base64Encoded: entry.payload))
+        XCTAssertNil(sealedBytes.range(of: Data("question".utf8)), "kein Klartext beim Dienst")
+        XCTAssertNil(sealedBytes.range(of: Data("\"Q1\"".utf8)))
         XCTAssertEqual(entry.summary.communityKey, key)
         // Ben (dasselbe Modul ueber den Kurstitel) sieht und uebernimmt; Wochenfilter; Lernstand getrennt
         cloud.user = "_user-ben"
