@@ -171,4 +171,38 @@ final class PurchaseServiceRetryP78Tests: StoreKitSessionTestCase {
         await l.refresh()
         XCTAssertEqual(service.verified.count, 3, "nach Erfolg nicht bei jedem Vordergrund erneut")
     }
+    /// P78-F4/P86-F9 (Weg der App-Pruefung, `review-notes-proai` Schritt 1-2): Pro AI zuerst ohne StudiNow-Konto kaufen
+    /// (kein appAccountToken, keine Meldung), dann "StudiNow-Konto" -> "Mit Apple anmelden": die Anmeldung meldet den Kauf,
+    /// der Dienst ordnet ihn diesem Konto zu (erstes meldendes Konto, P36-04) und gibt Pro AI mit 100 Credits.
+    func testPurchaseBeforeSignInIsReportedWhenTheAccountSignsIn() async throws {
+        let service = Service()
+        service.mode = .ok
+        let ent = Entitlements(observe: false)
+        let l = StudoraAccountLink(entitlements: ent)
+        await l.refresh()                                           // kein Konto angemeldet
+        XCTAssertNil(l.user)
+        XCTAssertNil(ent.verifyOnServer)
+        XCTAssertNil(UFBillingServiceLink.accountToken)
+
+        let store = PurchaseStore(entitlements: ent, productIDs: Self.productIDs)
+        await store.loadProducts()
+        let outcome = await store.purchase(try XCTUnwrap(store.product(for: .proAI)))
+        XCTAssertEqual(outcome, .success)
+        XCTAssertEqual(ent.plan, .proAI)
+        XCTAssertEqual(service.verified.count, 0, "ohne Konto geht keine Kaufmeldung hinaus")
+
+        // Anmeldung beim StudiNow-Konto (Token im Schluesselbund, danach refresh wie nach "Mit Apple anmelden")
+        let tokens = PurchaseAccountLinkP36Tests.MemoryTokens("tok")
+        l.attachForTesting(account: StudoraAccount(base: "https://dienst.example", http: service, tokens: tokens,
+                                                   deviceID: "ipad-test", deviceName: "iPad"),
+                           scope: "p78-review-\(UUID().uuidString)")
+        l.attach(creditsClient: StudoraCredits.Client(base: "https://dienst.example", http: service, tokens: tokens))
+        await l.refresh()
+        XCTAssertEqual(service.verified.count, 1, "die Anmeldung meldet den Kauf")
+        let p = try XCTUnwrap(Self.payload(service.verified.first ?? ""))
+        XCTAssertEqual(p["productId"]?.string, UFPlan.proAI.productID)
+        XCTAssertNil(p["appAccountToken"]?.string, "Kauf vor der Anmeldung traegt kein Konto")
+        XCTAssertEqual(l.planStatus?.plan, "pro_ai")
+        XCTAssertEqual(l.credits?.allowance, 100)
+    }
 }
