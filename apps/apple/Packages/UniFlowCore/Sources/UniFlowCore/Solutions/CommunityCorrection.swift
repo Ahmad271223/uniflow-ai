@@ -397,17 +397,24 @@ public final class CommunityCorrectionStatusStore: @unchecked Sendable {
     public static let key = "uniflow.community.corrections.ignored"
     public static let seenKey = "uniflow.community.corrections.seen"
     private let defaults: UserDefaults?
+    /// iPad und Mac derselben Apple-ID: "gesehen" und "ignoriert" auch im iCloud-Schluessel-Wert-Speicher
+    /// (`CommunitySharedState`, Paritaet 09.11.2026); nil = nur dieses Geraet wie bis Build 28
+    private let state: CommunitySharedState?
     private var memory: [String: Set<String>] = [:]
     private let lock = NSLock()
 
-    public init(defaults: UserDefaults?) { self.defaults = defaults }
+    public init(defaults: UserDefaults?, state: CommunitySharedState? = nil) {
+        self.defaults = defaults
+        self.state = state
+    }
 
     private func read(_ key: String) -> Set<String> {
-        defaults.map { Set($0.stringArray(forKey: key) ?? []) } ?? (memory[key] ?? [])
+        if let state { return Set(state.stringArray(forKey: key) ?? []) }
+        return defaults.map { Set($0.stringArray(forKey: key) ?? []) } ?? (memory[key] ?? [])
     }
 
     private func write(_ s: Set<String>, _ key: String) {
-        if let defaults { defaults.set(s.sorted(), forKey: key) } else { memory[key] = s }
+        if let state { state.set(s.sorted(), forKey: key) } else if let defaults { defaults.set(s.sorted(), forKey: key) } else { memory[key] = s }
     }
 
     public func ignored() -> Set<String> {

@@ -17,20 +17,33 @@ import UniFlowCore
 // Dienst selbst setzt (nicht faelschbar); das Feld `ownerRecordName` ist nur Anzeige fuer das Dashboard.
 // Moderation macht der Inhaber im CloudKit Dashboard: `withdrawn` setzen, Datensatz `Ban` fuer gesperrte Nutzer.
 
-/// Lerngruppen und Sperrliste (Zwischenspeicher) dieses Containers in seiner Einstellungs-Suite.
+/// iPad und Mac teilen den Community-Zustand ueber den iCloud-Schluessel-Wert-Speicher (`CommunitySharedState`)
+extension NSUbiquitousKeyValueStore: UbiquitousValueStore {}
+
+/// Lerngruppen und Sperrliste (Zwischenspeicher) dieses Containers in seiner Einstellungs-Suite; mit `state` dazu im
+/// iCloud-Schluessel-Wert-Speicher, damit der Mac (dieselbe App, dieselbe Apple-ID) dieselben Lerngruppen und Beitritte
+/// sieht wie das iPad (Paritaet 09.11.2026).
 final class CommunityMembership: CommunityGroupStore, @unchecked Sendable {
     static let groupsKey = "uniflow.community.groups"
     static let joinedKey = "uniflow.community.joined"
     static let blockedKey = "uniflow.community.blocked"
 
     private let defaults: UserDefaults?
+    private let state: CommunitySharedState?
     private let lock = NSLock()
 
-    init(defaults: UserDefaults?) { self.defaults = defaults }
+    init(defaults: UserDefaults?, state: CommunitySharedState? = nil) {
+        self.defaults = defaults
+        self.state = state
+    }
+
+    private func array(_ key: String) -> [Any]? { state.map { $0.array(forKey: key) } ?? defaults?.array(forKey: key) }
+    private func strings(_ key: String) -> [String]? { state.map { $0.stringArray(forKey: key) } ?? defaults?.stringArray(forKey: key) }
+    private func store(_ value: Any, _ key: String) { if let state { state.set(value, forKey: key) } else { defaults?.set(value, forKey: key) } }
 
     func groups() -> [CommunityStudyGroup] {
         lock.withLock {
-            (defaults?.array(forKey: Self.groupsKey) as? [[String: String]] ?? []).compactMap { d in
+            (array(Self.groupsKey) as? [[String: String]] ?? []).compactMap { d in
                 guard let code = d["code"], let name = d["name"], let uni = d["university"] else { return nil }
                 return CommunityStudyGroup(code: code, name: name, university: uni)
             }
@@ -47,22 +60,22 @@ final class CommunityMembership: CommunityGroupStore, @unchecked Sendable {
 
     private func write(_ list: [CommunityStudyGroup]) {
         lock.withLock {
-            defaults?.set(list.map { ["code": $0.code, "name": $0.name, "university": $0.university] }, forKey: Self.groupsKey)
+            store(list.map { ["code": $0.code, "name": $0.name, "university": $0.university] }, Self.groupsKey)
         }
     }
 
     /// Beigetretene Kurs-Communities dieses Containers (CloudKit kennt keine Mitgliedschaft: Kenntnis der Kurs-ID)
-    func joinedCourses() -> Set<String> { lock.withLock { Set(defaults?.stringArray(forKey: Self.joinedKey) ?? []) } }
+    func joinedCourses() -> Set<String> { lock.withLock { Set(strings(Self.joinedKey) ?? []) } }
 
     func setJoined(_ key: String, _ joined: Bool) {
         var keys = joinedCourses()
         if joined { keys.insert(key) } else { keys.remove(key) }
-        lock.withLock { defaults?.set(keys.sorted(), forKey: Self.joinedKey) }
+        lock.withLock { store(keys.sorted(), Self.joinedKey) }
     }
 
-    func blocked() -> Set<String> { lock.withLock { Set(defaults?.stringArray(forKey: Self.blockedKey) ?? []) } }
+    func blocked() -> Set<String> { lock.withLock { Set(strings(Self.blockedKey) ?? []) } }
 
-    func setBlocked(_ owners: Set<String>) { lock.withLock { defaults?.set(owners.sorted(), forKey: Self.blockedKey) } }
+    func setBlocked(_ owners: Set<String>) { lock.withLock { store(owners.sorted(), Self.blockedKey) } }
 }
 
 /// Kurs-Schluessel aus der lokalen Datenbank des Containers (nur lesen) – die eine Stelle in der App, an der sie

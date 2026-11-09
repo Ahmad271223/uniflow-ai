@@ -79,6 +79,10 @@ final class ActiveContainer: @unchecked Sendable {
     /// Online-Community dieses Containers (CloudKit; ohne iCloud-Container im Build "nicht verfügbar")
     let community: CloudKitCommunityService
     let membership: CommunityMembership
+    /// Community-Zustand, den iPad und Mac derselben Apple-ID teilen (Beitritte, Lerngruppen, Sperrliste, Pseudonym,
+    /// Korrekturhinweise): UserDefaults dieses Containers und iCloud-Schluessel-Wert-Speicher (`CommunitySharedState`,
+    /// Paritaet 09.11.2026). Unter XCTest nur die UserDefaults (Tests teilen sonst einen echten Speicher).
+    let communityState: CommunitySharedState
     /// Einstellungen dieses Containers (Stud.IP-Kursauswahl, letzter Abgleich, Learnweb/LSF, Anzeigename beim Teilen)
     let defaults: UserDefaults
     let defaultsSuite: String
@@ -102,13 +106,16 @@ final class ActiveContainer: @unchecked Sendable {
         solutions = SolutionLibrary(root: layout.solutions)
         defaultsSuite = Self.defaultsSuite(layout.identifier)
         defaults = UserDefaults(suiteName: defaultsSuite) ?? appDefaults
-        let localHost = host, university = key.university.rawValue, suiteDefaults = defaults
-        let membership = CommunityMembership(defaults: defaults)
+        let localHost = host, university = key.university.rawValue
+        let state = CommunitySharedState(defaults: defaults, cloud: StudIPSync.isUnderTest() ? nil : NSUbiquitousKeyValueStore.default,
+                                         scope: key.identifier)
+        communityState = state
+        let membership = CommunityMembership(defaults: defaults, state: state)
         self.membership = membership
         community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: membership,
                                              courseKeys: { membership.joinedCourses() },
                                              courses: { await CommunityCourses.spaces(host: localHost, university: university) },
-                                             pseudonym: { SolutionDisplayName.load(suiteDefaults) })
+                                             pseudonym: { state.string(forKey: SolutionDisplayName.key) ?? "" })
         tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope, onlyUniversity: key.university)
         cookies = StudIPCookieStore(service: cookieService, container: layout.identifier)
     }

@@ -85,9 +85,15 @@ final class StudoraAccountLink: ObservableObject {
     static var deviceID: String {
         let key = "uniflow.account.deviceID"
         if let id = UserDefaults.standard.string(forKey: key) { return id }
-        let id = "ipad-" + UUID().uuidString.lowercased()
+        // neue Kennungen auf dem Mac mit "mac-" (vorhandene bleiben); der Dienst wertet das Praefix nicht aus
+        let id = AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac) + UUID().uuidString.lowercased()
         UserDefaults.standard.set(id, forKey: key)
         return id
+    }
+
+    /// Name in der Geraeteliste des Kontos: auf dem Mac "Mac" statt des "iPad", das UIDevice dort meldet
+    static var deviceName: String {
+        AccountDevice.name(systemName: UIDevice.current.name, model: UIDevice.current.model, isMac: ProcessInfo.processInfo.isiOSAppOnMac)
     }
 
     @Published private(set) var user: StudoraAccount.User? {
@@ -255,7 +261,7 @@ final class StudoraAccountLink: ObservableObject {
         guard let userScope, let base = Self.serviceURL else { return }
         let tokens = StudoraAccountKeychain(userScope: userScope)
         account = StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: tokens,
-                                 deviceID: Self.deviceID, deviceName: UIDevice.current.name)
+                                 deviceID: Self.deviceID, deviceName: Self.deviceName)
         creditsClient = StudoraCredits.Client(base: base, http: URLSessionServiceTransport(), tokens: tokens)
         attachAI(base: base, http: URLSessionServiceTransport(timeout: 180), tokens: tokens)
         Task { await refresh() }
