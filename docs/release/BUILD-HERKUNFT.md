@@ -21,7 +21,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 24 | `d4accf67` | 08.11.2026 01:34 | hochgeladen (TestFlight), nicht eingereicht | Dokument sofort über die Kennung öffnen; voller Abgleich vor Stufe d |
 | 25 | `d08cae54` | 08.11.2026 01:51 | eingereicht: App Store WAITING_FOR_REVIEW, zugleich TestFlight-Beta-Prüfung | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
-| 27 | – | ab 08.11.2026 19:40 | noch nicht hochgeladen; Inhalt wächst mit develop | Build 25 plus Bugfixes, siehe unten |
+| 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), noch nicht hochgeladen | Build 25 plus Bugfixes, siehe unten |
 
 ### Build 25 (in der Prüfung)
 
@@ -52,9 +52,13 @@ Build 27 = Build 25 plus die Änderungen unter `apps/apple/` seit `d08cae54`, St
 | `a6add585` | Kauf trägt mit Anmeldung immer das Konto-Token, späte Kaufprüfung nach Kontowechsel verworfen (Audit P36) |
 | (Audit 46/47) | Datenschutz-Manifest mit Geräte-ID, Text der Spracherkennung nennt auch „Transkript erstellen“ |
 
-Dazu kommen weitere Swift-Korrekturen aus den laufenden Audits. Das lokale Archiv `StudiNow-27.xcarchive` vom
-08.11.2026 19:44 (aus `export-b27` = `c3ea0e60`) ist **veraltet und darf nicht hochgeladen werden**: vor dem Upload neu
-aus dem dann aktuellen Commit bauen und die Zeile 27 oben mit Commit, Datum und Status füllen. Wird Build 27 einmal
+Dazu kommen weitere Swift-Korrekturen aus den laufenden Audits bis `b328ebdd` (develop, 09.11.2026). **Stand
+09.11.2026 (Audit P68-01):** `~/Studora-Builds/export-b27` ist Datei für Datei der Export von `b328ebdd` (geprüft mit
+`_export_differences` aus `tests/test_release_build_provenance.py`, 0 Abweichungen; `StudiNow-27.commit` = `b328ebdd`),
+daraus `StudiNow-27.xcarchive` vom 09.11.2026 01:40 (`b27-archive.log`: „ARCHIVE SUCCEEDED“, `CFBundleVersion` 27,
+`UFShippedUniversities` = `luh`); vorher lokal `b27-test.log`: **1365 Tests, 18 übersprungen, 0 Fehler**. Das frühere
+Archiv vom 08.11. 19:44 (aus `c3ea0e60`) ist damit ersetzt. Noch nicht hochgeladen. Kommt vor dem Upload noch eine
+Änderung unter `apps/apple/` dazu, gilt wieder: neu aus dem dann aktuellen Commit bauen und die Zeile 27 oben anpassen. Wird Build 27 einmal
 hochgeladen, ist die Nummer verbraucht; jede weitere Änderung braucht Build 28.
 
 ## Commit eines Archivs nachweisen
