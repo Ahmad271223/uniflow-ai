@@ -260,7 +260,8 @@ final class StudyPlanBoardAppTests: XCTestCase {
     /// Breitenbefunde ohne die Huelle des Systemblatts (Abdunkelung und Schatten reichen absichtlich ueber den Rand)
     private func overflows(_ env: HostedEnvironment) -> [String] {
         LayoutWidthAuditTests.overflows(in: env.window).map(\.text)
-            .filter { !$0.contains("UIDimmingView") && !$0.contains("_UIRoundedRectShadowView") }
+            .filter { !$0.contains("UIDimmingView") && !$0.contains("_UIRoundedRectShadowView")
+                && !$0.contains("UIDropShadowRimPartView") }   // Schattenrand des Blatts auf dem Mac (Systemrahmen)
     }
 
     private func dump(_ v: UIView?) -> String { v.map { labels($0).joined(separator: "\n") } ?? "(keine Ansicht)" }
@@ -350,8 +351,7 @@ final class StudyPlanBoardAppTests: XCTestCase {
     /// Antworten des echten Kerns (packages/shared-contracts/fixtures/study-plan-engine/endpoints.json, gleich am
     /// PC-Server): jede Antwort laesst sich lesen, die wichtigen Felder kommen an
     func testModelReadsCoreEndpointFixture() throws {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("packages/shared-contracts/fixtures/study-plan-engine/endpoints.json")
+        let url = ContainerTestBed.repoURL("packages/shared-contracts/fixtures/study-plan-engine/endpoints.json")
         guard let data = try? Data(contentsOf: url) else { throw XCTSkip("Fixture fehlt: \(url.path)") }
         let steps = try JSONValue.parse(data).list("steps")
         var plans = 0, details = 0, settings = 0

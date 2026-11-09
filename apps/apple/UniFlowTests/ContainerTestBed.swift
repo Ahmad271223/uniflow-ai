@@ -89,10 +89,32 @@ final class ContainerTestBed {
         for _ in 0..<4 { url.deleteLastPathComponent() }
         let inRepo = url.appendingPathComponent(relative)
         if FileManager.default.isReadableFile(atPath: inRepo.path) { return inRepo }
-        let bundled = ["apps/apple/DebugStub/", "packages/shared-contracts/"]
+        // apps/apple/UniFlowTests/: die StoreKit-Konfigurationen liegen als Ressourcen direkt im Testbundle
+        let bundled = ["apps/apple/DebugStub/", "packages/shared-contracts/", "apps/apple/UniFlowTests/"]
         guard let root = bundled.first(where: { relative.hasPrefix($0) }),
               let resources = Bundle(for: ContainerTestBed.self).resourceURL else { return inRepo }
         return resources.appendingPathComponent(String(relative.dropFirst(root.count)))
+    }
+
+    /// Rueckgaengig ueber mehrere simulierte Striche: `UndoManager.groupsByEvent` schliesst eine Gruppe am Ende eines
+    /// Durchlaufs der Ereignisschleife. Im Testwirt auf dem Mac ("Designed for iPad") geschieht das ohne echte Ereignisse
+    /// nicht (Befund 09.11.2026: drei Eintraege nach Task.sleep, RunLoop.run oder DispatchQueue.main = ein Schritt; im
+    /// Simulator drei). In der App am Mac nimmt jeder Klick auf "Rückgängig" genau einen Strich zurueck (von Hand
+    /// geprueft, docs/paritaet/MAC-B28-2026-11-09.md). Darum dort ueberspringen; der Simulator prueft die Logik.
+    nonisolated static func requireEventGroupedUndo() throws {
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            throw XCTSkip("Mac-Testwirt: UndoManager schliesst Gruppen ohne echte Ereignisse nicht (prueft der Simulator)")
+        }
+    }
+
+    /// Quelltext-Pruefungen (sie lesen apps/apple/UniFlow im Repo): auf dem Mac ("Designed for iPad") verbietet die
+    /// Sandbox das Lesen des Repo-Ordners (Befund 09.11.2026, docs/paritaet/MAC-B28-2026-11-09.md). Dann ueberspringen;
+    /// die Quellen sind fuer iPad und Mac dieselben, der Simulator prueft sie.
+    nonisolated static func requireRepoSources() throws {
+        let probe = repoURL("apps/apple/UniFlow/UniFlowApp.swift")
+        if (try? Data(contentsOf: probe)) == nil, ProcessInfo.processInfo.isiOSAppOnMac {
+            throw XCTSkip("Mac-Sandbox: Quelltext im Repo nicht lesbar (prueft der Simulator)")
+        }
     }
 
     /// Ordner des Debug-Stubs fuer den ersten Start (erfundene Antworten beider Hochschulen)

@@ -126,6 +126,7 @@ final class AuditPaket41AppTests: XCTestCase {
     // MARK: P41-04 Rueckgaengig/Wiederholen ueber mehrere Seiten, Seite verschieben, Papierkorb
 
     func testP41_04_UndoRedoAcrossPagesFollowsPageKeysAfterMoveAndRestore() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
         let fx = try await makeFixture()
         let store = await openStore(fx)
         let editor = PDFEditorController(store: store)

@@ -13,9 +13,8 @@ import XCTest
 final class SolutionVectorsAppTests: XCTestCase {
 
     private func vectors() throws -> JSONValue {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }          // .../apps/apple/UniFlowTests/<Datei> -> Repository
-        return try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/solutions/vectors.json")))
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        return try JSONValue.parse(Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/solutions/vectors.json")))
     }
 
     private func bytes(_ v: JSONValue?) throws -> Data { try XCTUnwrap(v?.string.flatMap { Data(base64Encoded: $0) }) }

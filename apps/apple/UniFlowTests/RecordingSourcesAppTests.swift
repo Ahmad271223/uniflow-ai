@@ -33,9 +33,8 @@ final class RecordingSourcesAppTests: XCTestCase {
     }
 
     private static func fixture(_ name: String) throws -> String {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        return try String(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/opencast/\(name)"), encoding: .utf8)
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        return try String(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/opencast/\(name)"), encoding: .utf8)
     }
 
     /// Stud.IP mit festen Antworten; merkt sich jede Adresse

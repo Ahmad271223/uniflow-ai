@@ -304,6 +304,7 @@ final class EditorStepEFHKTests: XCTestCase {
 
     /// "+" haengt eine Seite wie die letzte an; Papierkorb aus der Leiste ist rueckgaengig machbar (Palette)
     func testAppendAndTrashFromTheSidebarAreUndoable() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
         let store = try await openStore()
         let editor = PDFEditorController(store: store)
         editor.loadViewIfNeeded()

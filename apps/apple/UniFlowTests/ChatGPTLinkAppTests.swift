@@ -224,6 +224,7 @@ final class ChatGPTLinkAppTests: XCTestCase {
     /// App-Pruefung 07.11.2026 (Richtlinie 2.1): die Einstellungen zeigen keine Karte "bald verfügbar" mehr; die
     /// Anmeldung bei ChatGPT kommt erst mit `isEnabled` (dann `ChatGPTCard`)
     func testSettingsShowNoSoonCard() throws {
+        try ContainerTestBed.requireRepoSources()
         let settings = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("UniFlow/Views/Settings/SettingsPage.swift"), encoding: .utf8)
         XCTAssertFalse(settings.contains("ChatGPTSoonCard"))

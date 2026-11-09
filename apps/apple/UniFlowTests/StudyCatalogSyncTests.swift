@@ -31,9 +31,8 @@ final class StudyCatalogSyncTests: XCTestCase {
     static let now = Date(timeIntervalSince1970: 1_793_786_400)       // 2026-11-04
 
     private func repo(_ relative: String) throws -> Data {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        return try Data(contentsOf: url.appendingPathComponent(relative))
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        return try Data(contentsOf: ContainerTestBed.repoURL(relative))
     }
 
     private var pdf: Data { get throws { try repo("packages/shared-contracts/fixtures/study-catalog/modkat-sample.pdf") } }

@@ -570,6 +570,7 @@ final class EditorScaleTests: XCTestCase {
     /// sie zurueck; nach dem erneuten Oeffnen ist der letzte Stand da. Gemessen wird die Zeit je Schritt, bis die Seite
     /// mit dem erwarteten Stand auf der Canvas liegt (nur protokolliert).
     func testUndoRedoAcrossPagesAfterScrollingAway() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
         let m = Messwerte("Rueckgaengig ueber Seiten")
         let fx = try await makeFixture(pdf: Skript.pdf(pages: 60, .schlicht), pageCount: 60)
         let store = try await openStore(fx)

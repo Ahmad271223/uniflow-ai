@@ -106,9 +106,8 @@ final class AuditRunde11AppTests: XCTestCase {
     }
 
     private func repo(_ relative: String) throws -> Data {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        return try Data(contentsOf: url.appendingPathComponent(relative))
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        return try Data(contentsOf: ContainerTestBed.repoURL(relative))
     }
 
     private func waitUntil(_ what: String, timeout: TimeInterval = 10, _ condition: () async -> Bool) async throws {
