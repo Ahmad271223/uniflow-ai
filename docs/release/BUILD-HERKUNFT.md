@@ -22,7 +22,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 25 | `d08cae54` | 08.11.2026 01:51 | eingereicht: App Store WAITING_FOR_REVIEW, zugleich TestFlight-Beta-Prüfung | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
 | 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
-| 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
+| 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), auf das iPad des Inhabers installiert, noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
 
 ### Build 25 (in der Prüfung)
 
