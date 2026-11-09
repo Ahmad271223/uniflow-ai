@@ -18,10 +18,9 @@ final class EntitlementTests: XCTestCase {
         XCTAssertNil(UFPlan(productID: "de.uniflow.pro.monthly"))
         XCTAssertNil(UFPlan(productID: "fremd"))
         XCTAssertNil(UFPlan.free.productID)
-        // das iPad bietet Plus und Pro AI an (UFPlanCatalog.sellable, Entscheidung 04.11.2026)
-        // je Tarif monatlich und jaehrlich (07.11.2026)
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.plus.yearly",
-                                                  "de.uniflow.proai.monthly", "de.uniflow.proai.yearly"])
+        // das iPad bietet Plus und Pro AI an (UFPlanCatalog.sellable, Entscheidung 04.11.2026), seit 09.11.2026 nur als
+        // Jahresabo; die frueheren Monatsprodukte oben gelten weiter wie ihr Tarif
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"])
         XCTAssertEqual(UFPlan.paid, [.plus, .proAI])
         XCTAssertLessThan(UFPlan.free, .plus)
         XCTAssertLessThan(UFPlan.plus, .proAI)
@@ -239,13 +238,14 @@ final class EntitlementTests: XCTestCase {
     // MARK: Angebotstexte (Richtlinie 3.1.2)
 
     func testOfferTexts() {
-        let month = (1, Product.SubscriptionPeriod.Unit.month)
-        // kein "1 Woche gratis, danach …" mehr (Entscheidung 04.11.2026): nur Preis, Zeitraum, Kuendigung
-        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month), "1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.summary(price: "19,99 €", period: (1, .year)), "19,99 €/Jahr, jährlich kündbar")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month), "StudiNow Plus für 1,99 €/Monat")
-        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "3,99 €", period: month), "StudiNow Pro AI für 3,99 €/Monat")
-        XCTAssertFalse(UFOfferText.summary(price: "1,99 €", period: month).contains("gratis"))
+        let year = (1, Product.SubscriptionPeriod.Unit.year)
+        // kein "1 Woche gratis, danach …" mehr (Entscheidung 04.11.2026): nur Preis, Zeitraum, Kuendigung; nur
+        // Jahresabos (09.11.2026)
+        XCTAssertEqual(UFOfferText.summary(price: "19,99 €", period: year),
+                       "19,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "19,99 €", period: year), "StudiNow Plus für 19,99 €/Jahr")
+        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "39,99 €", period: year), "StudiNow Pro AI für 39,99 €/Jahr")
+        XCTAssertFalse(UFOfferText.summary(price: "19,99 €", period: year).contains("gratis"))
         XCTAssertEqual(UFTrialTexts.offer, "7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten")
         XCTAssertEqual(UFTrialTexts.offerProAI, "7 Tage Probe: alles wie StudiNow Pro AI, mit 25 Credits für die StudiNow-KI, danach Free – ohne Zahlungsdaten")
         // Wechsel in der Abo-Gruppe: hoeher sofort, kleiner ab der naechsten Verlaengerung (regelt Apple)
@@ -261,6 +261,6 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFOfferText.period(value: 2, unit: .week), "2 Wochen")
         XCTAssertEqual(UFOfferText.per(value: 1, unit: .year), "/Jahr")
         XCTAssertEqual(UFOfferText.per(value: 3, unit: .month), "/3 Monate")
-        XCTAssertEqual(UFOfferText.cancelNote(value: 1, unit: .year), "jährlich kündbar")
+        XCTAssertEqual(UFOfferText.cancelNote(value: 1, unit: .year), "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar")
     }
 }

@@ -108,7 +108,7 @@ export async function viewAbo(_, params, view) {
     return `<article class="plan${isCur ? " is-current" : ""}${key === "pro_ai" ? " is-top" : ""}">
       <header><h2>${esc(p.name)}</h2></header>
       ${soon ? `<div class="plan-price"><b class="plan-soon" style="font-size:1.1rem;line-height:1.4">kommt mit dem StudiNow-Dienst</b></div>`
-        : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span> / Monat</span>${p.price_cents_yearly ? `<span> · oder ${euro(p.price_cents_yearly)} / Jahr</span>` : ""}</div>`}
+        : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span>${p.price_cents ? " / Jahr" : ""}</span></div>`}
       ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">ohne eigenes ChatGPT</span></div>` : ""}
       ${action ? `<div class="plan-act">${action}</div>` : ""}
       <p class="plan-pos">${esc(POSITION[key] || p.tagline)}</p>

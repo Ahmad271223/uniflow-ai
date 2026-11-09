@@ -535,7 +535,7 @@ final class AbnahmeTarifeAppTests: XCTestCase {
 
     // MARK: - 2 Entscheidung nach der Probe
 
-    /// Tag 7 + 1 Minute: Bildschirm ueber der ganzen App mit Free/Plus/Pro AI und Monatlich/Jaehrlich, nicht wegzuwischen;
+    /// Tag 7 + 1 Minute: Bildschirm ueber der ganzen App mit Free/Plus/Pro AI (nur Jahresabos), nicht wegzuwischen;
     /// "Bei Free bleiben" beendet ihn, beim naechsten Start (neue Wurzel) kommt er nicht wieder
     func test20EntscheidungNachDerProbe() throws {
         try storeKit()
@@ -551,22 +551,17 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         let env = try host()
         XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, UFTrialTexts.overTitle) },
                       "Entscheidungs-Bildschirm erscheint\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 15) { self.shows(env, UFPlan.plus.name + " für 1,99") }, "Preise\n" + dump(env))
+        XCTAssertTrue(env.wait(timeout: 15) { self.shows(env, UFPlan.plus.name + " für 19,99") }, "Preise\n" + dump(env))
         station(env, "20-probe-vorbei-entscheidung", markers: [UFTrialTexts.overTitle, UFTrialTexts.overText, UFTrialTexts.stayFree,
-                                                             UFPlan.free.name, UFPlan.plus.name, UFPlan.proAI.name, "Monatlich", "Jährlich"])
+                                                             UFPlan.free.name, UFPlan.plus.name, UFPlan.proAI.name,
+                                                             UFPlan.plus.name + " für 19,99", UFPlan.proAI.name + " für 39,99", "/Jahr"])
         let presented = try XCTUnwrap(env.hosting.presentedViewController)
         XCTAssertTrue([.fullScreen, .overFullScreen].contains(presented.modalPresentationStyle), "ganzer Bildschirm")
         XCTAssertTrue(presented.isModalInPresentation || presented.modalPresentationStyle != .pageSheet, "nicht wegzuwischen")
         XCTAssertFalse(shows(env, "Schließen"), "kein Schließen ohne Entscheidung")
-        // Jahresabos
-        if let seg = segmented(env), seg.numberOfSegments == 2 {
-            seg.selectedSegmentIndex = 1
-            seg.sendActions(for: .valueChanged)
-            env.pump(0.8)
-            station(env, "21-probe-vorbei-jaehrlich", markers: [UFPlan.plus.name + " für 21,99", UFPlan.proAI.name + " für 41,99"])
-        } else {
-            note("Umschalter Monatlich/Jährlich fehlt")
-        }
+        // nur Jahresabos (09.11.2026): kein Umschalter Monatlich/Jaehrlich
+        XCTAssertNil(segmented(env), "kein Umschalter der Zahlweise")
+        XCTAssertFalse(shows(env, "Monatlich"), "kein Monatsabo:\n" + dump(env))
         XCTAssertTrue(tap(UFTrialTexts.stayFree, in: env), "Bei Free bleiben:\n" + dump(env))
         XCTAssertTrue(env.wait(timeout: 10) { env.hosting.presentedViewController == nil }, "Bildschirm nach der Wahl weg")
         XCTAssertTrue(records.load(UFLocalTrial.scope(userID: bed.user)).choiceMade, "Wahl gemerkt")

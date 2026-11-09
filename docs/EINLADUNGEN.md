@@ -31,7 +31,7 @@ gegen `packages/shared-contracts/fixtures/invites/cases.json` (`reward_tier(coun
 |---|---|---|---|
 | 5 | 1 Monat StudiNow Plus gratis | `plus` | `plus` |
 | 10 | 3 Monate StudiNow Plus gratis | `plus` | `plus` |
-| 20 | 12 Monate StudiNow Plus gratis **oder** 12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €) | `plus` oder `proai` | `plus` oder `pro_ai` |
+| 20 | 12 Monate StudiNow Plus gratis **oder** 12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €) | `plus` oder `proai` | `plus` oder `pro_ai` |
 
 Die Stufen 5 und 10 bleiben einlösbar, auch wenn 20 schon erreicht ist (jede Stufe einmal).
 
@@ -74,10 +74,10 @@ erzeugen). Vier Angebote:
 
 | Produkt (`apple_product_id`) | Angebot | Angebotstyp | Dauer | Hochladen mit |
 |---|---|---|---|---|
-| StudiNow Plus `de.uniflow.plus.monthly` | Einladung Stufe 5 | **Kostenlos** | 1 Monat | `product=plus, tier=5` |
-| StudiNow Plus `de.uniflow.plus.monthly` | Einladung Stufe 10 | **Kostenlos** | 3 Monate | `product=plus, tier=10` |
-| StudiNow Plus `de.uniflow.plus.monthly` | Einladung Stufe 20 | **Kostenlos** | 12 Monate | `product=plus, tier=20` |
-| StudiNow Pro AI `de.uniflow.proai.monthly` | Einladung Stufe 20 | **Pay as you go** (Monatspreis 1,99 €) | 12 Monate (12 Zahlungen) | `product=pro_ai, tier=20` |
+| StudiNow Plus `de.uniflow.plus.yearly` | Einladung Stufe 5 | **Kostenlos** | 1 Monat | `product=plus, tier=5` |
+| StudiNow Plus `de.uniflow.plus.yearly` | Einladung Stufe 10 | **Kostenlos** | 3 Monate | `product=plus, tier=10` |
+| StudiNow Plus `de.uniflow.plus.yearly` | Einladung Stufe 20 | **Kostenlos** | 12 Monate | `product=plus, tier=20` |
+| StudiNow Pro AI `de.uniflow.proai.yearly` | Einladung Stufe 20 | **Pay up front** (19,99 € für das erste Jahr) | 1 Jahr | `product=pro_ai, tier=20` |
 
 Die Stapel als `.txt`/`.csv` exportieren (ein Code je Zeile) und hochladen, z. B.:
 

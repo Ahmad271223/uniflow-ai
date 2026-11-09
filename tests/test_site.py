@@ -158,9 +158,11 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
         assert s in mensa, s
     # Tarife wie app/plans.py, Probe wie docs/PREISLISTE.md
     from app import plans
-    for key, price in (("free", "0 €"), ("plus", "1,99 €"), ("pro_ai", "3,99 €")):
+    for key, price in (("free", "0 €"), ("plus", "19,99 €"), ("pro_ai", "39,99 €")):
         assert plans.PLANS[key]["name"] in html and f'<span class="amount">{price}</span>' in html, key
-    assert plans.PLANS["plus"]["price_cents"] == 199 and plans.PLANS["pro_ai"]["price_cents"] == 399
+    # nur Jahresabos (Entscheidung des Inhabers vom 09.11.2026)
+    assert plans.PLANS["plus"]["price_cents"] == 1999 and plans.PLANS["pro_ai"]["price_cents"] == 3999
+    assert "pro Monat</span>" not in html and "um ein Jahr" in flat
     assert "7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten" in flat and "deine Daten bleiben" in flat
     assert "24 Stunden" in flat and 'href="nutzungsbedingungen.html"' in html
     assert html.count("<details>") >= 5 and "<summary>" in html
@@ -197,7 +199,7 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
     assert '<main id="inhalt" class="doc invite">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
     assert 'class="btn btn-store"' in html and "Im App Store laden" in html and "Bald verfügbar" in html
     for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
-              "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 € pro Monat)", "30 Tage", "Pro Person zählt eine Einladung",
+              "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 € für das Jahr)", "30 Tage", "Pro Person zählt eine Einladung",
               "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):
         assert s in html, s
     assert 'href="../support.html"' in html and 'href="../datenschutz.html"' in html and "aria-current" not in html

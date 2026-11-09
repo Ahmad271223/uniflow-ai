@@ -190,7 +190,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertTrue(UFLockedCard.message(.weeklyTests, access: .locked(.proAI)).contains("Enthalten ab StudiNow Pro AI."))
         // Tarifwahl: Pro AI nur mit Produkt aus dem Store, sonst der Satz ohne Preis
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: []), [.free, .plus])
-        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"]), [.free, .plus, .proAI])
+        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"]), [.free, .plus, .proAI])
     }
 
     /// Kostenzeile der KI-Aktionen: ueber das eigene ChatGPT fuer jeden Tarif gleich, Credits nur mit Pro AI, sonst der

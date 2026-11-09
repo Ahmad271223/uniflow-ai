@@ -20,47 +20,7 @@
         {
           "adHocOffers": [],
           "codeOffers": [],
-          "displayPrice": "1.99",
-          "familyShareable": false,
-          "groupNumber": 2,
-          "internalID": "6500000001",
-          "localizations": [
-            {
-              "description": "Stift, Karteikarten, Lösungen teilen",
-              "displayName": "StudiNow Plus",
-              "locale": "de"
-            }
-          ],
-          "productID": "de.uniflow.plus.monthly",
-          "recurringSubscriptionPeriod": "P1M",
-          "referenceName": "StudiNow Plus monatlich",
-          "subscriptionGroupID": "21500001",
-          "type": "RecurringSubscription"
-        },
-        {
-          "adHocOffers": [],
-          "codeOffers": [],
-          "displayPrice": "3.99",
-          "familyShareable": false,
-          "groupNumber": 1,
-          "internalID": "6500000003",
-          "localizations": [
-            {
-              "description": "Alles aus Plus und die StudiNow-KI",
-              "displayName": "StudiNow Pro AI",
-              "locale": "de"
-            }
-          ],
-          "productID": "de.uniflow.proai.monthly",
-          "recurringSubscriptionPeriod": "P1M",
-          "referenceName": "StudiNow Pro AI monatlich",
-          "subscriptionGroupID": "21500001",
-          "type": "RecurringSubscription"
-        },
-        {
-          "adHocOffers": [],
-          "codeOffers": [],
-          "displayPrice": "21.99",
+          "displayPrice": "19.99",
           "familyShareable": false,
           "groupNumber": 2,
           "internalID": "6500000011",
@@ -80,7 +40,7 @@
         {
           "adHocOffers": [],
           "codeOffers": [],
-          "displayPrice": "41.99",
+          "displayPrice": "39.99",
           "familyShareable": false,
           "groupNumber": 1,
           "internalID": "6500000013",

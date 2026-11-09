@@ -1,7 +1,7 @@
 # Tarif-Matrix Karteikarten und Tests (Stand des Codes, 04.11.2026)
 
-Prüfung des Abo-/Berechtigungssystems für Karteikarten und Tests über die Tarife **StudiNow Free**, **Plus (1,99 €)**,
-**Pro AI (3,99 €)** und die **7-Tage-Probe** (alles wie Pro AI, danach Free, Daten bleiben). Die Tabellen zeigen, was der
+Prüfung des Abo-/Berechtigungssystems für Karteikarten und Tests über die Tarife **StudiNow Free**, **Plus (19,99 €/Jahr, seit 09.11.2026 nur Jahresabo)**,
+**Pro AI (39,99 €/Jahr)** und die **7-Tage-Probe** (alles wie Pro AI, danach Free, Daten bleiben). Die Tabellen zeigen, was der
 Code heute wirklich tut – nicht, was die Docs versprechen. Abweichungen vom Auftrag des Inhabers stehen in Abschnitt 4.
 **Nachtrag 04.11.2026 (Teil 1 der Angleichung):** Pro Connect gestrichen (Rechte auf Pro AI, alter Schlüssel gilt wie
 Pro AI), Kontingente Plus 4/4, Pro AI 20 neue KI-Tests, „Wochentest erstellen“ auf dem iPad ohne Dienst ab Plus, Probe-

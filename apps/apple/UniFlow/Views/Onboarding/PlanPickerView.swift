@@ -12,9 +12,10 @@ import SwiftUI
 // nach dem Kauf (`purchasedPlan`). Wechsel zwischen Abo-Tarifen regelt Apple in der Gruppe.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
-// Zahlweise (Entscheidung des Inhabers vom 07.11.2026): Umschalter "Monatlich · Jährlich" ueber den Karten, sobald StoreKit
-// ein Jahresabo liefert; Jahrespreis mit Monatsbetrag und Ersparnis, beides aus Product.price. Ein Wechsel der Zahlweise im
-// laufenden Tarif gilt bei Apple ab der naechsten Verlaengerung.
+// Zahlweise (Entscheidung des Inhabers vom 09.11.2026, ersetzt "monatlich oder jaehrlich" vom 07.11.2026): nur noch das
+// Jahresabo, kein Umschalter; die Karte zeigt den Jahrespreis und den Monatsbetrag daraus ("entspricht 1,67 € im Monat"),
+// beides aus Product.price. Laeuft noch ein frueheres Monatsabo (nur Sandbox/Test), bietet die Karte des Tarifs den
+// Wechsel zum Jahresabo an (Apple: ab der naechsten Verlaengerung).
 
 struct PlanPickerView: View {
     enum Context: Equatable {
@@ -36,17 +37,13 @@ struct PlanPickerView: View {
     @ObservedObject private var ent: Entitlements
     @State private var manage = false
     @State private var info: String?
-    /// gewaehlte Zahlweise; ohne Jahresabo im Store immer monatlich
-    @State private var billing: UFBilling = .monthly
     @Environment(\.openURL) private var openURL
 
     /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6)
     @MainActor
-    init(context: Context = .onboarding, entitlements: Entitlements? = nil, billing: UFBilling = .monthly,
-         onDone: @escaping () -> Void) {
+    init(context: Context = .onboarding, entitlements: Entitlements? = nil, onDone: @escaping () -> Void) {
         let ent = entitlements ?? .shared
         self.context = context
-        _billing = State(initialValue: billing)
         self.onDone = onDone
         _store = StateObject(wrappedValue: PurchaseStore(entitlements: ent))
         _ent = ObservedObject(wrappedValue: ent)
@@ -70,7 +67,6 @@ struct PlanPickerView: View {
             }
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
-            if store.offersYearly { billingPicker.padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
                 ForEach(UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs)) { planCard($0) }
             }
@@ -96,7 +92,7 @@ struct PlanPickerView: View {
     /// Hinweis "Pro AI folgt mit dem Dienst": wenn die Produkte geladen sind, Pro AI fehlt und niemand es schon hat
     static func showsProAIMissingNote(loaded: Set<String>, loading: Bool, current: UFPlan) -> Bool {
         guard !loading, !loaded.isEmpty, current != .proAI else { return false }
-        return !UFPlan.proAI.productIDs.contains(where: loaded.contains)
+        return !loaded.contains(UFPlan.proAI.productID ?? "")
     }
 
     // MARK: Kopf
@@ -110,30 +106,10 @@ struct PlanPickerView: View {
         }
     }
 
-    private var proAIOffered: Bool { UFPlan.proAI.productIDs.contains(where: store.loadedProductIDs.contains) }
+    private var proAIOffered: Bool { UFPlan.proAI.productID.map(store.loadedProductIDs.contains) == true }
 
-    /// Zahlweise, mit der die Karten Preis und Kaufknopf zeigen (ohne Jahresabo im Store: monatlich)
-    private var shownBilling: UFBilling { store.offersYearly ? billing : .monthly }
-
-    /// Umschalter "Monatlich · Jährlich"; die groesste Ersparnis der Jahresabos steht dabei
-    private var billingPicker: some View {
-        let best = UFPlan.paid.compactMap { plan -> Int? in
-            guard let m = store.product(for: plan), let y = store.product(for: plan, billing: .yearly) else { return nil }
-            return UFOfferText.yearlySavingPercent(monthly: m.price, yearly: y.price)
-        }.max()
-        return HStack(spacing: 12) {
-            Picker("Zahlweise", selection: $billing) {
-                ForEach(UFBilling.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 320)
-            .accessibilityIdentifier("plans.billing")
-            if let best {
-                UFBadge("Jährlich bis zu \(best) % günstiger", tone: .ok, icon: "sparkles")
-            }
-            Spacer(minLength: 0)
-        }
-    }
+    /// laeuft noch ein frueheres Monatsabo (nur Sandbox/Test)? Dann bietet die Karte des Tarifs das Jahresabo an
+    private var onOldBilling: Bool { !ent.loading && ent.purchasedBilling.map { $0 != UFBilling.offered } == true }
 
     private var subtitle: String { Self.subtitle(proAI: proAIOffered) }
 
@@ -270,16 +246,16 @@ struct PlanPickerView: View {
                 Text("0 €").ufFont(26, 700, lh: 1.2, em: -0.02).foregroundStyle(UF.text)
                 Text("dauerhaft kostenlos, ohne Abo").ufFont(13.12).foregroundStyle(UF.muted)
             }
-        } else if let p = store.product(for: plan, billing: shownBilling) {
+        } else if let p = store.product(for: plan) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 3.2) {
                     Text(p.displayPrice).ufFont(26, 700, lh: 1.2, em: -0.02).foregroundStyle(UF.text)
                     Text(UFOfferText.per(value: p.ufPeriod.0, unit: p.ufPeriod.1)).ufFont(14.5).foregroundStyle(UF.muted)
                 }
-                if shownBilling == .yearly {
-                    let saving = store.product(for: plan).flatMap { UFOfferText.yearlySavingPercent(monthly: $0.price, yearly: p.price) }
-                    Text(UFOfferText.yearlyNote(perMonth: p.priceFormatStyle.format(p.price / 12), saving: saving))
-                        .ufFont(13.12, 600).foregroundStyle(UF.ok)
+                if p.ufPeriod == (1, .year) {
+                    // Monatsbetrag aus dem Jahrespreis des Stores (kein Vergleich mit einem Monatsabo)
+                    Text(UFOfferText.yearlyNote(perMonth: p.priceFormatStyle.format(p.price / 12)))
+                        .ufFont(13.12, 600).foregroundStyle(UF.text2)
                 }
                 Text(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod)).ufFont(13.12).foregroundStyle(UF.muted)
             }
@@ -315,9 +291,10 @@ struct PlanPickerView: View {
             } else {
                 fullButton("\(UFPlan.free.name) nutzen", kind: .normal) { onDone() }
             }
-        } else if current, let b = ent.purchasedBilling, b != shownBilling, let p = store.product(for: plan, billing: shownBilling) {
-            // laufender Tarif, andere Zahlweise gewaehlt: Wechsel der Zahlweise (Apple: ab der naechsten Verlaengerung)
-            fullButton(UFOfferText.billingSwitchButton(to: shownBilling), kind: .primary, enabled: !store.busy) {
+        } else if current, onOldBilling, let p = store.product(for: plan) {
+            // laufender Tarif mit frueherem Monatsabo (nur Sandbox/Test): Wechsel zum Jahresabo (Apple: ab der naechsten
+            // Verlaengerung)
+            fullButton(UFOfferText.billingSwitchButton, kind: .primary, enabled: !store.busy) {
                 Task { await buy(p, plan: plan) }
             }
         } else if current {
@@ -329,7 +306,7 @@ struct PlanPickerView: View {
         } else if !ent.loading && ent.pendingPlan == plan {
             // Downgrade schon vorgemerkt: kein zweiter Kauf; aendern geht ueber "Abo verwalten"
             fullButton("Vorgemerkt", icon: "clock", kind: .normal, enabled: false) {}
-        } else if let p = store.product(for: plan, billing: shownBilling) {
+        } else if let p = store.product(for: plan) {
             let label = hasSubscription
                 ? UFOfferText.switchButton(to: plan)
                 : UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod)
@@ -343,15 +320,13 @@ struct PlanPickerView: View {
     private func buttonNote(_ plan: UFPlan, current: Bool) -> String? {
         guard plan != .free, !ent.loading else { return nil }
         if current {
-            if let b = ent.purchasedBilling, b != shownBilling, store.product(for: plan, billing: shownBilling) != nil {
-                return UFOfferText.billingSwitchNote
-            }
+            if onOldBilling, store.product(for: plan) != nil { return UFOfferText.billingSwitchNote }
             if let next = ent.pendingPlan { return UFOfferText.pendingNote(next, at: ent.expiresAt) }
             if ent.willRenew == false { return UFOfferText.cancelledNote(plan, endsAt: ent.expiresAt) }
             return nil
         }
         if ent.pendingPlan == plan { return UFOfferText.pendingNote(plan, at: ent.expiresAt) }
-        if hasSubscription && store.product(for: plan, billing: shownBilling) != nil { return UFOfferText.switchNote(to: plan, from: ent.purchasedPlan) }
+        if hasSubscription && store.product(for: plan) != nil { return UFOfferText.switchNote(to: plan, from: ent.purchasedPlan) }
         return nil
     }
 
@@ -437,7 +412,7 @@ struct PlanPickerView: View {
 
     /// Pflichtangaben unter den Karten (Richtlinie 3.1.2)
     static var legalText: String {
-        var s = "Die Zahlung läuft über deine Apple-ID. Abos verlängern sich automatisch, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID. "
+        var s = "Die Zahlung läuft über deine Apple-ID. Die Abos sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID; der Zugang bleibt bis zum Ende des bezahlten Jahres. "
         // Wechsel zwischen Abo-Tarifen gibt es erst, wenn mehr als ein Abo angeboten wird (ab V2)
         if UFPlanCatalog.sellable.filter({ $0.productID != nil }).count > 1 {
             s += "Die Abo-Tarife gehören zu einem Abo: Ein Wechsel zu einem höheren Tarif gilt sofort, zu einem kleineren ab der nächsten Verlängerung. "

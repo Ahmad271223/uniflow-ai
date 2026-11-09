@@ -32,7 +32,7 @@ public enum InviteRewards {
         Tier(count: 5, choices: [.plus], rewards: [.plus: "1 Monat StudiNow Plus gratis"]),
         Tier(count: 10, choices: [.plus], rewards: [.plus: "3 Monate StudiNow Plus gratis"]),
         Tier(count: 20, choices: [.plus, .proai], rewards: [.plus: "12 Monate StudiNow Plus gratis",
-                                                            .proai: "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)"]),
+                                                            .proai: "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)"]),
     ]
 
     /// Hoechste erreichte Stufe (5, 10, 20) fuer so viele angekommene Personen; nil unter der ersten Stufe

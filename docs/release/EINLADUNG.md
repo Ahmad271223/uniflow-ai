@@ -27,7 +27,7 @@ Store (eingelöst in Apples Dialog, nie automatisch):
 |---|---|
 | 5 | 1 Monat StudiNow Plus gratis |
 | 10 | 3 Monate StudiNow Plus gratis |
-| 20 | 12 Monate StudiNow Plus gratis – oder 12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 € pro Monat) |
+| 20 | 12 Monate StudiNow Plus gratis – oder 12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 € für das Jahr) |
 
 Jede Stufe lässt sich einmal einlösen. Für dich als eingeladene Person ändert sich nichts an Preisen oder Probe; du
 musst nichts kaufen und nichts teilen.

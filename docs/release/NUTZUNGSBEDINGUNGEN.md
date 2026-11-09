@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Entwurf, Stand 07.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
+**Entwurf, Stand 09.11.2026 (26.10.2026; 09.11.2026: nur noch Jahresabos). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
 (insbesondere Abschnitt 5: Widerrufsbelehrung und Erlöschen des Widerrufsrechts nach § 356 Abs. 5 BGB, Zuständigkeit
 von Apple/Google als Vertragspartner des Kaufs; Abschnitt 9: Haftung; Abschnitt 11).**
 
@@ -76,17 +76,18 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   Bezahlseite in deinem Browser), sobald wir ihn eingerichtet haben; Kündigen und Wechseln im Kundenportal von Stripe.
   Ein Abo aus der Apple-App gilt automatisch auch im Web und unter Windows; ein zweites Abo über Stripe ist dann nicht
   möglich.
-- **StudiNow Plus** ist ein Abo mit monatlicher oder jährlicher Zahlung (Stand: 1,99 € pro Monat oder 21,99 € pro Jahr inkl. USt) mit den Plus-Funktionen aus
-  Abschnitt 2.
-- **StudiNow Pro AI** ist ein Abo mit monatlicher oder jährlicher Zahlung (Stand: 3,99 € pro Monat oder 41,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und die
+- **StudiNow Plus** ist ein Jahresabo (Stand: 19,99 € pro Jahr inkl. USt) mit den Plus-Funktionen aus Abschnitt 2.
+  Monatsabos bieten wir nicht an.
+- **StudiNow Pro AI** ist ein Jahresabo (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und die
   KI von StudiNow über den StudiNow-Dienst, ohne eigenes ChatGPT-Konto. Dafür brauchst du ein StudiNow-Konto; die App
   bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 100 Credits je
-  Kalendermonat (auch bei jährlicher Zahlung), ein Credit entspricht einem Cent der tatsächlichen Kosten beim KI-Anbieter. Nicht verbrauchte
+  Kalendermonat (auch beim Jahresabo), ein Credit entspricht einem Cent der tatsächlichen Kosten beim KI-Anbieter. Nicht verbrauchte
   Credits verfallen am Monatsende; sind sie aufgebraucht, steht die KI von StudiNow bis zum nächsten Monat nicht zur
   Verfügung, alle anderen Funktionen bleiben. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen
   deiner Hochschule.
-- Den Preis zeigt die App vor dem Kauf an. Ein Abo verlängert sich automatisch um den gewählten Zeitraum (einen Monat bzw. ein Jahr), wenn du es nicht
-  spätestens 24 Stunden vor Ende des laufenden Zeitraums kündigst. Kündigen und verwalten kannst du es in den
+- Den Preis zeigt die App vor dem Kauf an; er wird für ein Jahr im Voraus berechnet. Das Abo verlängert sich automatisch um ein Jahr, wenn du es nicht
+  spätestens 24 Stunden vor Ablauf des laufenden Jahres kündigst. Nach einer Kündigung bleibt der Tarif bis zum Ende des bezahlten
+  Jahres nutzbar. Kündigen und verwalten kannst du es in den
   Abo-Einstellungen deines Apple- bzw. Google-Kontos; das Löschen der App beendet das Abo nicht. Ein Wechsel zu einem
   höheren Tarif gilt sofort, zu einem niedrigeren ab der nächsten Verlängerung.
 - Kauf, Zahlung, Rechnung, Rückerstattung und Widerruf wickelt Apple bzw. Google nach deren Bedingungen ab. Mit dem

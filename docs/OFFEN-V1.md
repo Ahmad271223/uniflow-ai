@@ -24,7 +24,7 @@ haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit ec
 Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (Community über CloudKit, siehe unten).
 
 Zweig `wip/vier-tarife` (27./28.10.2026): **Tarife nach `docs/ABO-SYSTEM.md`, V1 verkauft nur StudiNow Free und Plus**
-(Entscheidung des Inhabers vom 28.10.2026; **Stand 04.11.2026: Free, Plus 1,99 €, Pro AI 3,99 €, Pro Connect entfällt**, siehe `docs/ABO-SYSTEM.md` 3b). Die Tabelle der Tarife steht in
+(Entscheidung des Inhabers vom 28.10.2026; **Stand 09.11.2026: Free, Plus 19,99 €/Jahr, Pro AI 39,99 €/Jahr, nur Jahresabos, Pro Connect entfällt**, siehe `docs/ABO-SYSTEM.md` 3b). Die Tabelle der Tarife steht in
 `apps/apple/UniFlow/Purchases/Plans.swift`, geprüft gegen `packages/shared-contracts/fixtures/plans/plans.json`
 (`PlanContractTests`); was die App anbietet, bestimmt der Schalter `UFPlanCatalog.sellable` (seit 04.11.2026 `[.free, .plus, .proAI]`, Pro AI nur mit Produkt aus dem Store).
 Pro AI erscheint nur als Karte, wenn der Store das Produkt liefert, sonst als nicht anklickbarer Satz „StudiNow Pro AI
@@ -68,9 +68,10 @@ auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/veri
 
 - Developer Program aktiv → Team-ID in `apps/apple/Config/Team.xcconfig`; dann „Mit Apple anmelden“ und CloudKit
   echt testbar (iCloud-Container `iCloud.de.uniflow.ai` anlegen, Schema nach Production).
-- App Store Connect für V1 (Stand 04.11.2026): App-Eintrag „StudiNow“, Datenschutz-Angaben und die Abo-Gruppe
-  „StudiNow“ mit `de.uniflow.plus.monthly` (Anzeigename „StudiNow Plus“, 1,99 €/Monat, Stufe 2) und
-  `de.uniflow.proai.monthly` („StudiNow Pro AI“, 3,99 €/Monat, Stufe 1), **beide ohne Einführungsangebot** – die 7 Tage
+- App Store Connect für V1 (Stand 09.11.2026, nur Jahresabos; die Monatsabos sind aus dem Verkauf genommen,
+  `docs/release/ABO-NUR-JAHR-2026-11-09.md`): App-Eintrag „StudiNow“, Datenschutz-Angaben und die Abo-Gruppe
+  „StudiNow“ mit `de.uniflow.plus.yearly` (Anzeigename „StudiNow Plus“, 19,99 €/Jahr, Stufe 2) und
+  `de.uniflow.proai.yearly` („StudiNow Pro AI“, 39,99 €/Jahr, Stufe 1), **beide ohne Einführungsangebot** – die 7 Tage
   Probe läuft in der App ohne Zahlungsdaten (`docs/ABO-SYSTEM.md`, Abschnitt 3b). Plus mit der ersten Version einreichen,
   **Pro AI erst mit dem StudiNow-Dienst** (bis dahin zeigt die Tarifseite nur Free und Plus). Texte in
   `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration

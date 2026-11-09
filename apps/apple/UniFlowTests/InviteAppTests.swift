@@ -54,7 +54,7 @@ final class InviteAppTests: XCTestCase {
                 "tiers": [tier5,
                           ["count": 10, "choices": ["plus"], "rewards": ["plus": "3 Monate StudiNow Plus gratis"], "reached": false, "claimable": false, "claimed": .null],
                           ["count": 20, "choices": ["plus", "proai"], "rewards": ["plus": "12 Monate StudiNow Plus gratis",
-                                                                                  "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)"],
+                                                                                  "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)"],
                            "reached": false, "claimable": false, "claimed": .null]]]
     }
 

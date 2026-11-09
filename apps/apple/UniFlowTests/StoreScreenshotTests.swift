@@ -805,7 +805,7 @@ final class StoreScreenshotTests: XCTestCase {
         var config = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: bundled)) as? [String: Any])
         config["subscriptionGroups"] = (config["subscriptionGroups"] as? [[String: Any]] ?? []).map { group -> [String: Any] in
             var g = group
-            // beide Pro-AI-Produkte (monatlich und jaehrlich, 07.11.2026) weglassen
+            // das Pro-AI-Produkt weglassen (seit 09.11.2026 nur das Jahresabo)
             g["subscriptions"] = (group["subscriptions"] as? [[String: Any]] ?? []).filter { !UFPlan.proAI.productIDs.contains($0["productID"] as? String ?? "") }
             return g
         }
@@ -821,7 +821,7 @@ final class StoreScreenshotTests: XCTestCase {
         let env = try host(page)
         expect(env, UFPlan.plus.name)
         expect(env, UFPlan.free.name)
-        expect(env, "1,99", timeout: 10)                                      // Preis aus der StoreKit-Sitzung
+        expect(env, "19,99", timeout: 10)                                     // Preis aus der StoreKit-Sitzung
         expect(env, UFPlanCatalog.proAIMissingNote)
         XCTAssertFalse(shows(env, UFPlanCatalog.proAIServiceNote), "keine Pro-AI-Karte ohne Produkt im Store")
         shoot(env, "13-tarife", reserve: true)

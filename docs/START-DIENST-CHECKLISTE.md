@@ -197,7 +197,7 @@ dann einen AVV (Abschnitt 13) und ersetzt STRATO in der Datenschutzerklärung (A
 
 Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 
-1. **Produkte**: zwei Produkte mit je einem monatlichen Preis anlegen: StudiNow Plus 1,99 € und StudiNow Pro AI 3,99 €
+1. **Produkte**: zwei Produkte mit je einem jährlichen Preis anlegen: StudiNow Plus 19,99 € und StudiNow Pro AI 39,99 € (nur Jahresabos seit 09.11.2026)
    (Pro Connect gibt es seit dem 04.11.2026 nicht mehr, `docs/PREISLISTE.md`). Jede Preis-ID beginnt mit `price_`.
 2. **Entwickler → API-Schlüssel**: geheimer Schlüssel (`sk_test_…`, später `sk_live_…`).
 3. **Entwickler → Webhooks → Endpunkt hinzufügen**: Adresse `https://app.studinow.app/api/billing/stripe/webhook`,
@@ -546,7 +546,7 @@ streichen, neu bauen, die Tests im Container laufen lassen und einen Upload sowi
 | Backup außer Haus | 3–4 € | Hetzner Storage Box 1 TB |
 | Mail | 0 € extra | STRATO-Postfach (schon vorhanden); Alternative Resend bis 3.000 Mails/Monat frei, danach ca. 20 €/Monat |
 | Monitoring | 0 € | UptimeRobot Free |
-| Stripe | 0 € fest | je Zahlung ca. 1,5 % + 0,25 € (EU-Karten); bei 1,99 € also ca. 0,28 € je Abo-Monat |
+| Stripe | 0 € fest | je Zahlung ca. 1,5 % + 0,25 € (EU-Karten); bei 19,99 € also ca. 0,55 € je Abo-Jahr |
 | KI (Pro AI: OpenAI, AWS Bedrock) | 0 € ohne Nutzer | nach Verbrauch, typisch etwa 0,38 Cent je Anfrage in der Mischung 75/25 (`docs/KI-MODELLMISCHUNG-2026-11-05.md`); je Pro-AI-Konto höchstens 1 € (100 Credits, harte Grenze); `LERNAPP_AI_BUDGET_EUR=50` ist die Obergrenze für alle zusammen |
 | Anwalt für Rechtstexte | einmalig | nach Aufwand |
 | **Summe ohne KI und Anwalt** | **rund 10–12 €** | |

@@ -248,7 +248,7 @@ Reserve unter `reserve/` (nicht ohne Entscheidung hochladen):
 | `11-bibliothek-*.png` | Dokumente & Notizen, Bereich „Neue Dateien“ | Ersatz für 4 ohne KI |
 | `11b-regal-*.png` | „Mein Regal“ | nennt die Hochschule des Containers und den Hinweis „öffne eine Datei mit KI-Hilfe“ |
 | `12-editor-*.png` | Editor mit Handschrift, ohne KI | Ersatz für 2 ohne KI („Skripte und Übungsblätter mit dem Apple Pencil – Marker, Stift, Formen, alles bleibt auf deinem iPad.“) |
-| `13-tarife-*.png` | Tarifseite (Free als Stand, Plus 1,99 €/Monat) | Plus-Karte nennt „Neue KI-Tests von StudiNow“ (in Vorbereitung) |
+| `13-tarife-*.png` | Tarifseite (Free als Stand, Plus 19,99 €/Jahr; seit 09.11.2026 nur Jahresabos, neu aufnehmen) | Plus-Karte nennt „Neue KI-Tests von StudiNow“ (in Vorbereitung) |
 | `14-einstellungen-*.png` | Einstellungen → Zugang & Darstellung | Reiter „Entwicklung“ (nur Debug) und die Hochschule; nur intern |
 | `15-ki-start-*.png` | KI-Start mit Beispielfrage und Antwort | nur mit Pro AI |
 | `16-stundenplan-*.png` | Stundenplan mit Terminen (bis 05.11.2026 Bild 10) | Ersatz („Stundenplan mit Räumen und Terminen – direkt aus deiner Hochschule.“) |
@@ -278,5 +278,5 @@ Studiengang „Informatik B.Sc.“ mit allgemeinen Modulnamen, Absender als Roll
 Quellenzeile („Speiseplan: Studentenwerk Hannover (Studi|Futter)“, „Angaben ohne Gewähr“) sind die echten Angaben der
 Hauptmensa aus `packages/shared-contracts/mensa.json`.
 Kein echter Personenname, kein Hochschul-Logo; der Name einer Hochschule steht nur in den Reserven `11b-regal` und
-`14-einstellungen`. Die Noten im Studienverlauf (5) sind erfunden. Preise: 1,99 €/Monat (Plus) aus der
+`14-einstellungen`. Die Noten im Studienverlauf (5) sind erfunden. Preise: 19,99 €/Jahr (Plus) aus der
 StoreKit-Testkonfiguration.

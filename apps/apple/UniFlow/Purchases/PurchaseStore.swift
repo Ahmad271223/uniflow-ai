@@ -2,7 +2,8 @@ import StoreKit
 import SwiftUI
 
 /// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. Angeboten werden StudiNow Plus und Pro AI
-/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 04.11.2026) in einer Abo-Gruppe; die Pro-AI-Karte erscheint
+/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 04.11.2026), seit 09.11.2026 nur als Jahresabo
+/// (de.uniflow.plus.yearly, de.uniflow.proai.yearly), in einer Abo-Gruppe; die Pro-AI-Karte erscheint
 /// nur, wenn StoreKit das Produkt liefert (vor dem StudiNow-Dienst steht es nicht im Store). Kein Apple-
 /// Einfuehrungsangebot: die 7 Tage Probe laufen auf dem iPad ohne Zahlungsdaten (LocalTrial.swift). Upgrade und
 /// Downgrade innerhalb der Gruppe regelt Apple: hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in
@@ -13,7 +14,7 @@ import SwiftUI
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
-    /// Plus und Pro AI (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
+    /// Jahresabos von Plus und Pro AI (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
     static let productIDs = UFPlanCatalog.sellableProductIDs
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
@@ -35,14 +36,11 @@ final class PurchaseStore: ObservableObject {
         requestedProductIDs = productIDs
     }
 
-    /// Produkt des Tarifs in der Zahlweise (Standard monatlich); nil, wenn StoreKit es nicht geliefert hat
-    func product(for plan: UFPlan, billing: UFBilling = .monthly) -> Product? {
-        guard let id = plan.productID(billing) else { return nil }
+    /// angebotenes Produkt des Tarifs (das Jahresabo); nil, wenn StoreKit es nicht geliefert hat
+    func product(for plan: UFPlan) -> Product? {
+        guard let id = plan.productID else { return nil }
         return products.first { $0.id == id }
     }
-
-    /// Bietet der Store mindestens einen Tarif auch jaehrlich an? (sonst kein Umschalter auf der Tarifseite)
-    var offersYearly: Bool { UFPlan.paid.contains { product(for: $0, billing: .yearly) != nil } }
 
     /// Produkt-IDs, die der Store geliefert hat (Tarifkarten: Pro AI nur mit Produkt, `UFPlanCatalog.cards`)
     var loadedProductIDs: Set<String> { Set(products.map(\.id)) }
@@ -146,44 +144,33 @@ enum UFOfferText {
         }
     }
 
-    /// "monatlich kündbar" (bei Monatsabos), sonst "jederzeit kündbar"
+    /// Laufzeit und Kuendigung: beim Jahresabo "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar" (Apple:
+    /// Kuendigen jederzeit, wirksam zum Ende des bezahlten Jahres), sonst "jederzeit kündbar"
     static func cancelNote(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
-        if value == 1 && unit == .month { return "monatlich kündbar" }
-        if value == 1 && unit == .year { return "jährlich kündbar" }
+        if value == 1 && unit == .year { return "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar" }
         return "jederzeit kündbar"
     }
 
-    /// Text unter dem Preis: "1,99 €/Monat, monatlich kündbar". Kein Einfuehrungsangebot (Entscheidung 04.11.2026):
-    /// die Probe laeuft ohne Kauf auf dem iPad (UFTrialTexts.offer).
+    /// Text unter dem Preis: "19,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar". Kein
+    /// Einfuehrungsangebot (Entscheidung 04.11.2026): die Probe laeuft ohne Kauf auf dem iPad (UFTrialTexts.offer).
     static func summary(price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
         "\(price)\(per(value: period.0, unit: period.1)), \(cancelNote(value: period.0, unit: period.1))"
     }
 
-    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus fuer 1,99 €/Monat"
+    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus fuer 19,99 €/Jahr"
     static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
         "\(plan.name) für \(price)\(per(value: period.0, unit: period.1))"
     }
 
-    /// Ersparnis des Jahresabos gegenueber 12 Monatszahlungen in ganzen Prozent (abgerundet); nil ohne Ersparnis.
-    /// Beide Preise kommen aus StoreKit (`Product.price`), nie aus dem Code.
-    static func yearlySavingPercent(monthly: Decimal, yearly: Decimal) -> Int? {
-        let full = monthly * 12
-        guard full > 0, yearly < full else { return nil }
-        let pct = NSDecimalNumber(decimal: (full - yearly) / full * 100).doubleValue
-        let whole = Int(pct.rounded(.down))
-        return whole > 0 ? whole : nil
+    /// Zeile unter dem Jahrespreis: "entspricht 1,67 € im Monat" (Jahrespreis aus StoreKit durch 12, im Format des
+    /// Stores). Kein Vergleich mit einem Monatsabo, das es nicht mehr gibt (09.11.2026).
+    static func yearlyNote(perMonth: String) -> String {
+        "entspricht \(perMonth) im Monat"
     }
 
-    /// Zeile unter dem Jahrespreis: "entspricht 1,83 €/Monat, 8 % günstiger als monatlich" (Monatsbetrag aus dem
-    /// Jahrespreis im Format des Stores)
-    static func yearlyNote(perMonth: String, saving: Int?) -> String {
-        "entspricht \(perMonth)/Monat" + (saving.map { ", \($0) % günstiger als monatlich" } ?? "")
-    }
-
-    /// Knopf auf der Karte des laufenden Tarifs, wenn die andere Zahlweise gewaehlt ist
-    static func billingSwitchButton(to billing: UFBilling) -> String {
-        billing == .yearly ? "Zu jährlicher Zahlung wechseln" : "Zu monatlicher Zahlung wechseln"
-    }
+    /// Knopf auf der Karte des laufenden Tarifs, wenn noch ein frueheres Monatsabo laeuft (nur Sandbox/Test, 09.11.2026):
+    /// Wechsel zum Jahresabo desselben Tarifs
+    static let billingSwitchButton = "Zum Jahresabo wechseln"
 
     /// Hinweis dazu: Apple stellt die Zahlweise erst zur naechsten Verlaengerung um
     static let billingSwitchNote = "Gilt ab der nächsten Verlängerung, bis dahin läuft deine bisherige Zahlweise weiter."
@@ -217,9 +204,9 @@ enum UFOfferText {
 }
 
 extension Product {
-    /// Abrechnungszeitraum, Standard ein Monat
+    /// Abrechnungszeitraum, Standard ein Jahr (es gibt nur Jahresabos, 09.11.2026)
     var ufPeriod: (Int, Product.SubscriptionPeriod.Unit) {
-        guard let p = subscription?.subscriptionPeriod else { return (1, .month) }
+        guard let p = subscription?.subscriptionPeriod else { return (1, .year) }
         return (p.value, p.unit)
     }
 }

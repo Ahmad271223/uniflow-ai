@@ -140,7 +140,7 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         Rufname.write("Ada", container!.defaults)
     }
 
-    /// Tarife aus `UniFlow.storekit` (Plus 1,99 / 21,99, Pro AI 3,99 / 41,99), ohne Kauf
+    /// Tarife aus `UniFlow.storekit` (nur Jahresabos seit 09.11.2026: Plus 19,99, Pro AI 39,99), ohne Kauf
     private func storeKit() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "UniFlow", withExtension: "storekit"))
         let session = try SKTestSession(contentsOf: url)
@@ -418,8 +418,9 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         account.signIn(userID: bed.user, name: "Ada Erfunden", email: nil, givenName: "Ada")
         XCTAssertEqual(account.stage, .planPicker)
         expect(env, PlanPickerView.title(.onboarding))
-        expect(env, UFPlan.plus.name + " für 1,99")
-        station(env, "02-tarifwahl", back: false, markers: [PlanPickerView.title(.onboarding), UFPlan.free.name, UFPlan.plus.name, UFPlan.proAI.name, "Monatlich", "Jährlich"])
+        expect(env, UFPlan.plus.name + " für 19,99")
+        station(env, "02-tarifwahl", back: false, markers: [PlanPickerView.title(.onboarding), UFPlan.free.name, UFPlan.plus.name, UFPlan.proAI.name, "/Jahr"])
+        XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos (09.11.2026):\n" + dump(env))
         // "Eigenes ChatGPT" (eigener OpenAI-Schluessel) ist erlaubt, die Anmeldung bei OpenAI nicht
         for word in ["Pro AI holen", "Preis zurzeit nicht verfügbar", "über dein ChatGPT", "Mit ChatGPT anmelden", "denselben Umfang"] {
             XCTAssertFalse(shows(env, word), "Tarifwahl: „\(word)“ im Bild")
@@ -552,7 +553,7 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         station(env, "29-studienverlauf", markers: ["Studienverlauf"])
     }
 
-    // MARK: - 3 Einstellungen: alle Karten, Tarif wechseln (monatlich/jaehrlich), Eigenes ChatGPT, Rechtliches, Dialoge, Probe
+    // MARK: - 3 Einstellungen: alle Karten, Tarif wechseln (Jahresabos), Eigenes ChatGPT, Rechtliches, Dialoge, Probe
 
     func test03Einstellungen() throws {
         try storeKit()
@@ -567,19 +568,13 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
                           "Konto löschen", "Daten dieser Hochschule löschen", "Tarif wechseln"])
         XCTAssertFalse(shows(env, "Hochschule wechseln"), "1.0: kein Wechsel-Dialog mit einer einzigen Hochschule")
 
-        // Tarif wechseln: Blatt mit Monatlich/Jaehrlich
+        // Tarif wechseln: Blatt mit den Jahresabos (09.11.2026, kein Umschalter Monatlich/Jaehrlich)
         XCTAssertTrue(tap("Tarif wechseln", in: env), "Tarif wechseln:\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, UFPlan.plus.name + " für 1,99") },
+        XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, UFPlan.plus.name + " für 19,99") },
                       "Tarifblatt mit Preisen:\n" + dump(env))
-        station(env, "31-tarif-monatlich", markers: [PlanPickerView.title(.settings), UFPlan.plus.name + " für 1,99", UFPlan.proAI.name + " für 3,99", "Käufe wiederherstellen"])
-        if let seg = segmented(env), seg.numberOfSegments == 2 {
-            seg.selectedSegmentIndex = 1
-            seg.sendActions(for: .valueChanged)
-            env.pump(0.8)
-            station(env, "32-tarif-jaehrlich", markers: [UFPlan.plus.name + " für 21,99", UFPlan.proAI.name + " für 41,99", "/Jahr"])
-        } else {
-            note("Tarifblatt: Umschalter Monatlich/Jährlich nicht gefunden")
-        }
+        station(env, "31-tarif-jaehrlich", markers: [PlanPickerView.title(.settings), UFPlan.plus.name + " für 19,99", UFPlan.proAI.name + " für 39,99", "/Jahr", "Käufe wiederherstellen"])
+        XCTAssertNil(segmented(env), "kein Umschalter der Zahlweise")
+        XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos:\n" + dump(env))
         if !tap("Schließen", in: env) { dismissPresented(env) }
         XCTAssertTrue(env.wait(timeout: 5) { env.hosting.presentedViewController == nil }, "Tarifblatt geschlossen")
 

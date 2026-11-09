@@ -1,4 +1,4 @@
-# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 05.11.2026, iPad-Teile 07.11.2026)
+# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 05.11.2026, iPad-Teile 07.11.2026, nur Jahresabos 09.11.2026)
 
 Auftrag des Inhabers vom 27.10.2026, Tarife und Kontingente nach der Entscheidung vom 04.11.2026 (`docs/PREISLISTE.md`). Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
@@ -6,11 +6,11 @@ Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ 
 
 ## 1. Tarife
 
-| Tarif | Preis/Monat | Neue KI-Tests | Bibliothekstests | Stapel von StudiNow | KI-Erklärungen u. a. | Credits | PDF bearbeiten | Community |
+| Tarif | Preis/Jahr | Neue KI-Tests | Bibliothekstests | Stapel von StudiNow | KI-Erklärungen u. a. | Credits | PDF bearbeiten | Community |
 |---|---:|---:|---:|---:|---:|---:|:---:|:---:|
 | StudiNow Free | 0,00 € | 0 | 0 | 0 | 0 | 0 | nein | nein |
-| StudiNow Plus | 1,99 € | 4 | 4 | 4 | 0 | 0 | ja | ja |
-| StudiNow Pro AI | 3,99 € | 20 | unbegrenzt (Fair Use 300) | unbegrenzt (Fair Use 300) | 150 | 100 | ja | ja |
+| StudiNow Plus | 19,99 € | 4 | 4 | 4 | 0 | 0 | ja | ja |
+| StudiNow Pro AI | 39,99 € | 20 | unbegrenzt (Fair Use 300) | unbegrenzt (Fair Use 300) | 150 | 100 | ja | ja |
 
 **Angleichung vom 05.11.2026** (`docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`): Free ohne Community (auch kein Lesen,
 `can_read_community` ab Plus) und ohne StudiNow-KI; das eigene ChatGPT darf in jedem Tarif verbunden werden (Fragen zu
@@ -32,13 +32,17 @@ ihre Tabellen dagegen, `tests/test_subscriptions.py::test_plans_fixture_is_curre
 Kontingente nach der Tabelle des Inhabers vom 04.11.2026 (vorher Plus 3 und Pro AI 40 neue KI-Tests). Die Werte
 stehen nur in `app/plans.py` (`QUOTAS`) und lassen sich dort ändern.
 
+**Nur Jahresabos (Entscheidung des Inhabers vom 09.11.2026, abends: „Monatliche Abos komplett entfernen. Nur 19,99 und
+39,99.“, `docs/release/ABO-NUR-JAHR-2026-11-09.md`).** Die Kontingente und Credits der Tabelle gelten weiter je
+Kalendermonat, bezahlt wird für ein Jahr im Voraus. Die Kontingent-Spalten heißen „je Monat“, der Preis „je Jahr“.
+
 Apple-Produkte (eine Abo-Gruppe „StudiNow“, damit Apple Upgrades, Downgrades und Doppel-Abos regelt):
-`de.uniflow.plus.monthly` (1,99 €), `de.uniflow.proai.monthly` (3,99 €) und seit 07.11.2026 die Jahresabos
-`de.uniflow.plus.yearly` (21,99 €, Stufe wie Plus monatlich) und `de.uniflow.proai.yearly` (41,99 €, Stufe wie Pro AI
-monatlich; `apple_product_id_yearly`, `price_cents_yearly` in `app/plans.py`). Credits und Kontingente gelten auch beim
-Jahresabo je Kalendermonat. Alle vier werden mit Version 1.0 eingereicht (Pro AI ist in 1.0 im Store, Dienst
-`app.studinow.app` läuft). Die Kennungen bleiben bei `de.uniflow`, weil die Bundle-ID
-`de.uniflow.ai` ist. Ein früheres `de.uniflow.proconnect.monthly` gilt wie Pro AI, wird aber nicht angeboten.
+`de.uniflow.plus.yearly` (19,99 €, Stufe 2) und `de.uniflow.proai.yearly` (39,99 €, Stufe 1); in `app/plans.py`
+`apple_product_id` mit `price_cents` und `period` „year“. Die Kennungen bleiben bei `de.uniflow`, weil die Bundle-ID
+`de.uniflow.ai` ist. Die früheren Monatsabos `de.uniflow.plus.monthly` und `de.uniflow.proai.monthly` (bis 09.11.2026)
+sind in App Store Connect aus dem Verkauf genommen; wie das frühere `de.uniflow.proconnect.monthly` gelten sie beim
+Prüfen eines Kaufs weiter wie ihr Tarif (`plans.LEGACY_PRODUCTS`, `UFPlan(productID:)`), werden aber nirgends
+angeboten.
 
 ## 2. Berechtigungen
 
@@ -124,7 +128,7 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
   (`active`, `ends_at`, `days_left`, `expired`), `plan_choice` und `needs_plan_choice` (Probe vorbei, kein bezahlter
   Tarif, noch keine Antwort). Die Oberfläche zeigt dann einmal die Aufforderung; `POST /api/billing/plan-choice {plan}`
   merkt die Antwort und liefert für einen bezahlten Tarif gleich die Checkout-Adresse.
-- Stripe (`app/stripe_billing.py`): `POST /api/billing/stripe/checkout {plan}` (Checkout-Sitzung, Monatsabo),
+- Stripe (`app/stripe_billing.py`): `POST /api/billing/stripe/checkout {plan}` (Checkout-Sitzung, Jahresabo),
   `POST /api/billing/stripe/portal` (Kundenportal: Wechsel, Kündigung, Rechnungen), `POST /api/billing/stripe/webhook`
   (öffentlich, Signatur `Stripe-Signature` geprüft, höchstens 5 Minuten alt, jedes Ereignis zählt einmal). Verarbeitet:
   `checkout.session.completed` (Abo nachladen), `customer.subscription.created/updated/deleted`. Stand: active/trialing →
@@ -152,8 +156,9 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
 ## 3b. Probe auf dem iPad ohne Dienst (04.11.2026)
 
 Entscheidung des Inhabers (ersetzt „Apple-Einführungsangebot auf Plus, eigene Probe wird nicht gebaut“ vom 25.10.2026 in
-`docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 5): Die iPad-App bietet **drei Tarife** an – Free, Plus 1,99 €/Monat
-(`de.uniflow.plus.monthly`) und Pro AI 3,99 €/Monat (`de.uniflow.proai.monthly`), **ohne Apple-Einführungsangebote**.
+`docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 5): Die iPad-App bietet **drei Tarife** an – Free, Plus 19,99 €/Jahr
+(`de.uniflow.plus.yearly`) und Pro AI 39,99 €/Jahr (`de.uniflow.proai.yearly`; nur Jahresabos seit 09.11.2026),
+**ohne Apple-Einführungsangebote**.
 Jede Person bekommt ab dem ersten Start **dieselbe Probe wie beim Dienst** (`TRIAL`: 7 Tage, alles wie Pro AI), ohne
 Zahlungsdaten, einmal je Apple-ID **und einmal je iPad** (07.11.2026), danach eine Pflicht-Entscheidung (Free, Plus
 oder Pro AI, unten) – nur dass das iPad sie **ohne Dienst** führt.

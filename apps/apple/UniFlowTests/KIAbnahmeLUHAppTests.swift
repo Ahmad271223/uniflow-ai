@@ -589,7 +589,7 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         defer { session.clearTransactions(); _ = try? pumping { await Entitlements.shared.refresh() } }
         let store = PurchaseStore(entitlements: .shared)
         try pumping { await store.loadProducts() }
-        XCTAssertTrue(store.loadedProductIDs.contains("de.uniflow.proai.monthly"), "Pro AI im Store: \(store.loadedProductIDs)")
+        XCTAssertTrue(store.loadedProductIDs.contains("de.uniflow.proai.yearly"), "Pro AI im Store: \(store.loadedProductIDs)")
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: store.loadedProductIDs), [.free, .plus, .proAI], "Pro-AI-Karte sichtbar")
         let product = try XCTUnwrap(store.product(for: .proAI))
         let outcome = try pumping(30) { await store.purchase(product) }

@@ -1,7 +1,8 @@
 import Foundation
 
 // StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, docs/PREISLISTE.md, Entscheidung des
-// Inhabers vom 04.11.2026): drei Tarife Free, Plus (1,99 EUR), Pro AI (3,99 EUR). Pro Connect gibt es nicht mehr; sein
+// Inhabers vom 04.11.2026): drei Tarife Free, Plus, Pro AI; seit 09.11.2026 nur noch als Jahresabo (Plus 19,99 EUR,
+// Pro AI 39,99 EUR im Jahr, docs/release/ABO-NUR-JAHR-2026-11-09.md). Pro Connect gibt es nicht mehr; sein
 // Schluessel `pro_connect` und sein Produkt gelten wie Pro AI (`UFPlan(rawValue:)`, `UFPlan(productID:)`, wie
 // plans.LEGACY_PLANS im Dienst). Quelle aller Werte ist app/plans.py; tools/gen-plans-fixture.py
 // schreibt daraus packages/shared-contracts/fixtures/plans/plans.json, und PlanContractTests prueft diese Tabelle
@@ -59,13 +60,13 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
-    /// Listenpreis in Cent (EUR, je Monat) aus plans.json. Nur fuer den Vertragsvergleich: angezeigt wird immer
+    /// Listenpreis in Cent (EUR, je Jahr) aus plans.json. Nur fuer den Vertragsvergleich: angezeigt wird immer
     /// `Product.displayPrice` aus StoreKit (Richtlinie 3.1.2, Preis je Storefront).
     var priceCents: Int {
         switch self {
         case .free: return 0
-        case .plus: return 199
-        case .proAI: return 399
+        case .plus: return 1999
+        case .proAI: return 3999
         }
     }
 
@@ -77,12 +78,12 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
-    /// Apple-Produkt fuer monatliche Zahlung (eine Abo-Gruppe, Apple regelt Upgrade und Downgrade); Free hat keins
-    var productID: String? { productID(.monthly) }
+    /// das angebotene Apple-Produkt: das Jahresabo (Entscheidung des Inhabers vom 09.11.2026, eine Abo-Gruppe, Apple
+    /// regelt Upgrade und Downgrade); Free hat keins
+    var productID: String? { productID(.yearly) }
 
-    /// Apple-Produkt je Zahlweise (Entscheidung des Inhabers vom 07.11.2026: monatlich oder jaehrlich, Plus 21,99 €
-    /// und Pro AI 41,99 € im Jahr); beide Produkte eines Tarifs stehen in der Gruppe auf derselben Stufe, ein Wechsel
-    /// der Zahlweise gilt bei Apple ab der naechsten Verlaengerung
+    /// Apple-Produkt je Zahlweise. Angeboten wird nur `.yearly` (`UFBilling.offered`); die Monatsprodukte (bis
+    /// 09.11.2026) stehen nur hier, damit ein frueherer Kauf weiter als Kauf des Tarifs gilt (`init(productID:)`)
     func productID(_ billing: UFBilling) -> String? {
         switch (self, billing) {
         case (.free, _): return nil
@@ -93,18 +94,9 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
-    /// alle Apple-Produkte des Tarifs (monatlich, jaehrlich)
+    /// alle Apple-Produkte, die als Kauf des Tarifs gelten (das Jahresabo und das fruehere Monatsabo); angeboten wird
+    /// nur `productID`
     var productIDs: [String] { UFBilling.allCases.compactMap(productID) }
-
-    /// Listenpreis in Cent fuer ein Jahr (plans.json `price_cents_yearly`); nur Vertragsvergleich, angezeigt wird
-    /// `Product.displayPrice`
-    var yearlyPriceCents: Int? {
-        switch self {
-        case .free: return nil
-        case .plus: return 2199
-        case .proAI: return 4199
-        }
-    }
 
     /// Kurzbeschreibung aus plans.json (`tagline`). Die Tarifkarte zeigt sie nur, wenn der Tarif auf dem iPad schon
     /// etwas Eigenes bietet (`UFFeatureMatrix.hasAvailableExtras`); sonst wuerde sie etwas versprechen.
@@ -133,15 +125,16 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     static var paid: [UFPlan] { allCases.filter { $0.productID != nil } }
 }
 
-/// Zahlweise eines Abos (Entscheidung des Inhabers vom 07.11.2026): monatlich oder fuer 12 Monate im Voraus
+/// Zahlweise eines Abos. Seit 09.11.2026 (Entscheidung des Inhabers) gibt es nur noch das Jahresabo (`offered`);
+/// `monthly` bleibt nur, damit ein frueherer Kauf eines Monatsabos erkannt wird (nie angeboten, kein Umschalter).
 enum UFBilling: String, CaseIterable, Identifiable {
     case monthly
     case yearly
 
     var id: String { rawValue }
 
-    /// Beschriftung des Umschalters auf der Tarifseite
-    var label: String { self == .monthly ? "Monatlich" : "Jährlich" }
+    /// die einzige angebotene Zahlweise
+    static let offered: UFBilling = .yearly
 
     /// Zahlweise eines Apple-Produkts (unbekannt: nil)
     init?(productID: String) {
@@ -154,16 +147,16 @@ enum UFBilling: String, CaseIterable, Identifiable {
 // MARK: - Was das iPad anbietet
 
 /// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 04.11.2026 (ersetzt "nur Free und Plus" vom
-/// 28.10.2026): drei Tarife StudiNow Free, Plus (1,99 €) und Pro AI (3,99 €), kein Apple-Einfuehrungsangebot, dafuer
-/// 7 Tage Probe mit allem auf dem iPad (LocalTrial.swift). Die Pro-AI-Karte erscheint nur, wenn StoreKit das Produkt
-/// liefert: vor dem StudiNow-Dienst steht `de.uniflow.proai.monthly` nicht im Store, dann zeigt die Seite nur Free und
+/// 28.10.2026): drei Tarife StudiNow Free, Plus und Pro AI, seit 09.11.2026 nur als Jahresabo (19,99 € bzw. 39,99 €),
+/// kein Apple-Einfuehrungsangebot, dafuer 7 Tage Probe mit allem auf dem iPad (LocalTrial.swift). Die Pro-AI-Karte
+/// erscheint nur, wenn StoreKit das Produkt `de.uniflow.proai.yearly` liefert, sonst zeigt die Seite nur Free und
 /// Plus. Pro Connect gibt es nicht mehr (Entscheidung 04.11.2026).
 enum UFPlanCatalog {
     /// auf dem iPad waehlbar
     static let sellable: [UFPlan] = [.free, .plus, .proAI]
 
-    /// Apple-Produkte, die die App laedt und anbietet
-    static var sellableProductIDs: [String] { sellable.flatMap(\.productIDs) }
+    /// Apple-Produkte, die die App laedt und anbietet: nur die Jahresabos (09.11.2026)
+    static var sellableProductIDs: [String] { sellable.compactMap(\.productID) }
 
     /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
     static let needsProduct: Set<UFPlan> = [.proAI]
@@ -182,7 +175,7 @@ enum UFPlanCatalog {
         UFPlan.allCases.filter { p in
             guard p != current else { return true }
             guard sellable.contains(p) else { return false }
-            return !needsProduct.contains(p) || p.productIDs.contains(where: loaded.contains)
+            return !needsProduct.contains(p) || p.productID.map(loaded.contains) == true
         }
     }
 

@@ -7,7 +7,7 @@
   "tiers": [
     {"count": 5, "choices": ["plus"], "rewards": {"plus": "1 Monat StudiNow Plus gratis"}},
     {"count": 10, "choices": ["plus"], "rewards": {"plus": "3 Monate StudiNow Plus gratis"}},
-    {"count": 20, "choices": ["plus", "proai"], "rewards": {"plus": "12 Monate StudiNow Plus gratis", "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)"}}
+    {"count": 20, "choices": ["plus", "proai"], "rewards": {"plus": "12 Monate StudiNow Plus gratis", "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)"}}
   ],
   "cases": [
     {"count": 0, "tier": null, "reached": []},

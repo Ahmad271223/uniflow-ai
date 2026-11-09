@@ -523,46 +523,40 @@ final class StoreScreenshotFinalTests: XCTestCase {
 
     /// Bild fuer die App-Pruefung der beiden Abos: Blatt "Tarif wechseln" (Einstellungen -> Zugang & Darstellung ->
     /// Tarif) hell, hoch und quer, Dateien `tarif-portrait.png` (2064 x 2752) und `tarif-landscape.png` (2752 x 2064).
-    /// Produkte aus der StoreKit-Testkonfiguration `UniFlow.storekit` (Plus 1,99 €, Pro AI 3,99 €), ohne Kauf: beide
+    /// Produkte aus der StoreKit-Testkonfiguration `UniFlow.storekit` (nur Jahresabos seit 09.11.2026: Plus 19,99 €,
+    /// Pro AI 39,99 €), ohne Kauf: beide
     /// Kaufknoepfe, kein Hinweis "Pro AI folgt …", nichts laedt; die Free-Karte nennt "Eigenes ChatGPT verbinden" (eigener
     /// OpenAI-Schluessel, 07.11.2026). Die Seite ist hoeher als ein Bildschirm (zwei Spalten,
     /// Pro AI darunter); damit alle drei Karten mit Knoepfen und "Käufe wiederherstellen" ganz im Bild sind, ist das
     /// Fenster so gross wie die ganze Seite im Seitenverhaeltnis 3:4 bzw. 4:3 und wird auf die Pixelgroesse gerechnet.
     func testTarifPruefung() throws {
-        try tarifPruefung(.monthly)
+        try tarifPruefung()
     }
 
-    /// Dasselbe Blatt mit "Jährlich" (Jahresabos seit 07.11.2026, Plus 21,99 €, Pro AI 41,99 €): Bild fuer die App-Pruefung
-    /// der beiden Jahresabos, Dateien `tarif-jahr-portrait.png` und `tarif-jahr-landscape.png`
-    func testTarifPruefungJahr() throws {
-        try tarifPruefung(.yearly)
-    }
-
-    private func tarifPruefung(_ billing: UFBilling) throws {
+    private func tarifPruefung() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "UniFlow", withExtension: "storekit"))
         let session = try SKTestSession(contentsOf: url)
         session.disableDialogs = true
         session.resetToDefaultState()
         defer { withExtendedLifetime(session) {} }
         Entitlements.shared.setPlanForTesting(.free)
-        let env = try host(ZStack { UF.bg.ignoresSafeArea(); PlanPickerView(context: .settings, entitlements: Entitlements.shared, billing: billing) {} })
-        let yearly = billing == .yearly
-        let plusButton = UFPlan.plus.name + (yearly ? " für 21,99" : " für 1,99")
-        let proAIButton = UFPlan.proAI.name + (yearly ? " für 41,99" : " für 3,99")
+        let env = try host(ZStack { UF.bg.ignoresSafeArea(); PlanPickerView(context: .settings, entitlements: Entitlements.shared) {} })
+        let plusButton = UFPlan.plus.name + " für 19,99"
+        let proAIButton = UFPlan.proAI.name + " für 39,99"
         expect(env, PlanPickerView.title(.settings))
         expect(env, UFPlan.free.name)
         expect(env, plusButton)
         expect(env, proAIButton)
         expect(env, "Käufe wiederherstellen")
         env.pump(1.0)
-        let prefix = yearly ? "tarif-jahr" : "tarif"
+        let prefix = "tarif"
         func checkPage(_ name: String) {
             for word in [UFPlanCatalog.proAIMissingNote, "Preis zurzeit nicht verfügbar", "Tarife konnten nicht geladen werden",
-                         "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt"] {
+                         "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt", "Monatlich", "monatlich", "günstiger"] {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
-            var must = [plusButton, proAIButton, "Käufe wiederherstellen", UFPlanCatalog.proAIServiceNote, "Monatlich", "Jährlich"]
-            if yearly { must += ["/Jahr, jährlich kündbar", "günstiger als monatlich"] }
+            let must = [plusButton, proAIButton, "Käufe wiederherstellen", UFPlanCatalog.proAIServiceNote,
+                        "/Jahr, verlängert sich jährlich", "im Monat"]
             for word in must + UFPlanCard.included(.proAI).map(\.title) {
                 XCTAssertTrue(shows(env, word), "\(name): „\(word)“ fehlt:\n" + dump(env))
             }

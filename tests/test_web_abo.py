@@ -29,7 +29,7 @@ def _cards(page):
 
 
 def test_local_pro_ai_card_has_no_price_and_no_buy_path(served):  # noqa: F811
-    """Einzelplatz ohne Konto-Pflicht: Pro AI "kommt mit dem StudiNow-Dienst", ohne 3,99 EUR und ohne Knopf; nirgends ein
+    """Einzelplatz ohne Konto-Pflicht: Pro AI "kommt mit dem StudiNow-Dienst", ohne 39,99 EUR und ohne Knopf; nirgends ein
     Kaufknopf, Stripe oder Link zu einem Bezahlsystem; Plus zeigt seinen Preis, aber auch keinen Knopf."""
     with _playwright() as p:
         browser = _browser(p)
@@ -44,9 +44,9 @@ def test_local_pro_ai_card_has_no_price_and_no_buy_path(served):  # noqa: F811
             cards = _cards(page)
             assert [c["name"] for c in cards] == ["StudiNow Free", "StudiNow Plus", "StudiNow Pro AI"], "genau drei Karten"
             free, plus, pro = cards
-            assert "0 €" in free["text"] and "1,99 €" in plus["text"]
+            assert "0 €" in free["text"] and "19,99 €" in plus["text"] and "/ Jahr" in plus["text"] and "Monat" not in plus["text"].split("Jahr")[0]
             assert "kommt mit dem StudiNow-Dienst" in pro["text"] and "Braucht den StudiNow-Dienst" in pro["text"]
-            assert "3,99" not in pro["text"] and "€" not in pro["text"], "Pro AI ohne Preis"
+            assert "39,99" not in pro["text"] and "€" not in pro["text"], "Pro AI ohne Preis"
             assert all(c["buttons"] == [] and c["buy"] == 0 for c in cards), "im Einzelplatz kein Knopf an einer Karte"
             view = page.inner_text("#view")
             assert page.evaluate("document.querySelectorAll('#view [data-buy], #view [data-portal], #view a[href*=stripe]').length") == 0
@@ -90,7 +90,7 @@ def test_hosted_trial_then_free_cards_and_buy_buttons(served_hosted, with_stripe
             cards = _cards(page)
             assert [c["name"] for c in cards] == ["StudiNow Free", "StudiNow Plus", "StudiNow Pro AI"]
             free, plus, pro = cards
-            assert "1,99 €" in plus["text"] and "3,99 €" in pro["text"] and "kommt mit dem StudiNow-Dienst" not in pro["text"]
+            assert "19,99 € / Jahr" in plus["text"] and "39,99 € / Jahr" in pro["text"] and "kommt mit dem StudiNow-Dienst" not in pro["text"]
             assert free["buy"] == 0 and plus["buy"] == 1 and pro["buy"] == 1, "Kaufen: Plus und Pro AI, nie Free"
             assert "Probe läuft" in pro["badges"] and "Dein Tarif" not in sum((c["badges"] for c in cards), [])
             view = page.inner_text("#view")
