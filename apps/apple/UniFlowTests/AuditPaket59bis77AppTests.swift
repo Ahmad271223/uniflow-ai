@@ -76,10 +76,19 @@ final class AuditPaket59bis77AppTests: XCTestCase {
     /// Was ein in diesem Moment hart beendeter Prozess hinterlaesst: Kopie des ganzen Ordners (Journal, PDF,
     /// Datenbank). Synchron auf dem Hauptthread, also ohne dass der laufende Store dazwischen weiterarbeitet.
     private func diskAtThisMoment(_ fx: Fixture) throws -> URL {
-        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-p59kill-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.copyItem(at: fx.root, to: copy)
-        addTeardownBlock { try? FileManager.default.removeItem(at: copy) }
-        return copy
+        // die Engine (eigener Actor) kann gerade eine Datei atomar ersetzen: verschwindet deren Temp-Datei waehrend des
+        // Kopierens, noch einmal (ein echter Abbruch saehe dort den alten oder den neuen Stand)
+        for attempt in 1...5 {
+            let copy = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-p59kill-\(UUID().uuidString)", isDirectory: true)
+            addTeardownBlock { try? FileManager.default.removeItem(at: copy) }
+            do {
+                try FileManager.default.copyItem(at: fx.root, to: copy)
+                return copy
+            } catch where attempt < 5 {
+                try? FileManager.default.removeItem(at: copy)
+            }
+        }
+        throw CocoaError(.fileNoSuchFile)
     }
 
     /// Neuer Prozess auf der Kopie: oeffnet das Dokument wie nach dem Neustart, liest den Stand, schliesst es.

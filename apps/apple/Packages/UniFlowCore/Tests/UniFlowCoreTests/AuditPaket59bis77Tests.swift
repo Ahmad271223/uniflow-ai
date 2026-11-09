@@ -60,4 +60,48 @@ final class AuditPaket59bis77Tests: XCTestCase {
         let saved = await engine.isSavedLocally("p1")
         XCTAssertTrue(saved)
     }
+
+    // MARK: P73-F6 / P72-F4: das iPad meldet beim Abgleich, welche Felder es geaendert hat
+
+    /// Nach dem ersten Senden (Basis = gesendeter Stand) und nach einer Zeile aus dem Dienst (Basis = deren Stand)
+    /// traegt der naechste Eintrag `changed` mit genau den lokal geaenderten Feldern; `data` bleibt die ganze Zeile
+    /// (fuer Wiederherstellen/Neuanlage im Dienst). Gleich wie `app/sync_client.py` (`tests/test_audit_paket_59_77.py`).
+    func testPushMarksOnlyTheFieldsChangedSinceTheBase() async throws {
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.withConnection { try Migrations.migrate($0) }
+        try await db.transaction { c in
+            try DeviceSyncSchema.ensure(c)
+            let core = DeviceSyncCore(device: "ipad-1")
+            try c.execute("INSERT INTO study_packages(date, title) VALUES ('2026-11-10', 'Blatt 3')")
+            try c.execute("INSERT INTO study_tasks(package_id, type, title, est_minutes, status) VALUES (?, 'lesen', 'Kapitel 3', 30, 'geplant')",
+                          [.integer(c.lastInsertRowID)])
+            let (first, _) = try core.collect(c)
+            XCTAssertTrue(first.allSatisfy { $0.body["changed"] == nil }, "neue Zeilen: ganze Zeile")
+            var results: [JSONValue] = [], mapping: [JSONValue] = []
+            for (n, it) in first.enumerated() where ["study_packages", "study_tasks"].contains(it.table) {
+                let id = JSONValue.number(Double(100 + n))
+                results.append(["entity": .string(it.table), "local_id": it.body["local_id"] ?? .null, "id": id, "status": "created", "version": 1])
+                mapping.append(["entity": .string(it.table), "local_id": it.body["local_id"] ?? .null, "id": id])
+            }
+            try core.handleResults(c, first, [], ["results": .array(results), "mapping": .array(mapping), "conflicts": []])
+
+            try c.execute("UPDATE study_tasks SET est_minutes=45")
+            let task = try XCTUnwrap(try core.collect(c).0.first { $0.table == "study_tasks" })
+            XCTAssertEqual(task.body["changed"], ["est_minutes"])
+            XCTAssertEqual(task.body["data"]?["title"], "Kapitel 3", "data bleibt die ganze Zeile")
+            try core.handleResults(c, [task], [], ["results": [["entity": "study_tasks", "id": task.body["id"] ?? .null, "status": "applied", "version": 2]],
+                                                  "mapping": [], "conflicts": []])
+
+            // Zeile aus dem Dienst (anderes Geraet hat abgehakt) wird Basis; danach nur die eigene Aenderung
+            let remoteTask = try XCTUnwrap(task.body["id"])
+            let pkg = try XCTUnwrap(task.body["data"]?["package_id"])
+            _ = try core.applyRow(c, "study_tasks", ["id": remoteTask, "package_id": pkg, "type": "lesen", "title": "Kapitel 3",
+                                                     "est_minutes": 45, "status": "erledigt", "sync_version": 3,
+                                                     "sync_updated_at": "2026-11-09T10:00:00.000Z", "sync_device": "windows"])
+            XCTAssertEqual(try c.rows("SELECT status FROM study_tasks").first?["status"]?.string, "erledigt")
+            try c.execute("UPDATE study_tasks SET title='Kapitel 3 und 4'")
+            let next = try XCTUnwrap(try core.collect(c).0.first { $0.table == "study_tasks" })
+            XCTAssertEqual(next.body["changed"], ["title"])
+        }
+    }
 }

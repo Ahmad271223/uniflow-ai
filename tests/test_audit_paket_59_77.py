@@ -66,3 +66,70 @@ def test_p59_05_kill_after_the_server_took_the_push_retries_without_duplicates(t
         assert sorted(r["entity"] for r in mapped) == ["modules", "study_packages", "study_tasks"], "Zuordnung steht"
         data = json.loads(db.row(conn, "SELECT data FROM annotations WHERE file_id=?", (FILE,))["data"])
         assert [o["id"] for o in data["pages"]["p1"]["objects"]] == ["win-x"]
+
+
+# ====================================================================== P73-F6 / P72-F4: ganze Zeilen im Abgleich
+
+def _task(conn, db):
+    pid = conn.execute("INSERT INTO study_packages(date, title, planned_minutes, status, sort, generated, created_at) "
+                       "VALUES ('2026-11-10', 'P', 30, 'geplant', 0, 0, '2026-11-01')").lastrowid
+    tid = conn.execute("INSERT INTO study_tasks(package_id, type, title, sort, est_minutes, status, created_at) "
+                       "VALUES (?, 'lesen', 'T', 0, 30, 'geplant', '2026-11-01')", (pid,)).lastrowid
+    base = dict(db.row(conn, "SELECT * FROM study_tasks WHERE id=?", (tid,)))
+    whole = {k: base[k] for k in ("package_id", "type", "title", "sort", "est_minutes", "status")}
+    return tid, base["sync_version"], whole
+
+
+def test_p73_f6_service_merges_only_the_fields_a_device_marks_as_changed(app):
+    """Vertrag G2: ein Eintrag darf `changed` tragen (Felder, die das Geraet seit seiner Basis geaendert hat). Bei
+    Konflikt (veraltete base_version) zaehlen nur diese; die uebrigen Werte der ganzen Zeile sind der alte Stand des
+    Geraets und ueberschreiben nichts. A hakt ab, B aendert spaeter offline die Dauer: beides bleibt."""
+    from app import db, sync
+    with db.cursor() as conn:
+        tid, v, whole = _task(conn, db)
+        sync.push(conn, "windows", [{"entity": "study_tasks", "id": tid, "base_version": v, "updated_at": "2026-11-09T10:00:00.000Z",
+                                     "data": {**whole, "status": "erledigt"}, "changed": ["status"]}], now="2026-11-09T10:30:00.000Z")
+        out = sync.push(conn, "ipad", [{"entity": "study_tasks", "id": tid, "base_version": v, "updated_at": "2026-11-09T11:00:00.000Z",
+                                        "data": {**whole, "est_minutes": 45}, "changed": ["est_minutes"]}], now="2026-11-09T11:30:00.000Z")
+        row = db.row(conn, "SELECT status, est_minutes FROM study_tasks WHERE id=?", (tid,))
+    assert (row["status"], row["est_minutes"]) == ("erledigt", 45)
+    assert out["results"][0]["status"] == "conflict" and out["results"][0]["client_won"] == ["est_minutes"]
+
+
+def test_p73_f6_without_changed_the_old_rule_stays(app):
+    """Alte Geraete (ohne `changed`): unveraendert, ganze Zeile, spaeterer Schreiber je Feld (Vertrag bisher)."""
+    from app import db, sync
+    with db.cursor() as conn:
+        tid, v, whole = _task(conn, db)
+        sync.push(conn, "windows", [{"entity": "study_tasks", "id": tid, "base_version": v, "updated_at": "2026-11-09T10:00:00.000Z",
+                                     "data": {**whole, "status": "erledigt"}}], now="2026-11-09T10:30:00.000Z")
+        sync.push(conn, "ipad", [{"entity": "study_tasks", "id": tid, "base_version": v, "updated_at": "2026-11-09T11:00:00.000Z",
+                                  "data": {**whole, "est_minutes": 45}}], now="2026-11-09T11:30:00.000Z")
+        row = db.row(conn, "SELECT status, est_minutes FROM study_tasks WHERE id=?", (tid,))
+    assert (row["status"], row["est_minutes"]) == ("geplant", 45)
+
+
+def test_p73_f6_done_on_the_ipad_survives_a_later_offline_change_on_windows(two_devices):
+    """Ende zu Ende: Aufgabe auf beiden Geraeten. Das iPad hakt ab; Windows hat die Dauer offline spaeter geaendert und
+    gleicht danach ab. Die Erledigung bleibt, die neue Dauer auch (Windows meldet nur die geaenderten Felder)."""
+    app, ipad = two_devices
+    from app import db, sync_client
+    from test_sync_client import ipad_push
+    with db.cursor() as conn:
+        pid = conn.execute("INSERT INTO study_packages(date, title, planned_minutes) VALUES ('2026-11-10', 'Blatt 3', 30)").lastrowid
+        conn.execute("INSERT INTO study_tasks(package_id, type, title, est_minutes, status) VALUES (?, 'lesen', 'Kapitel 3', 30, 'geplant')", (pid,))
+    assert sync_client.run()["ok"]
+    changes, _ = ipad_pull(app, ipad)
+    task = changes["study_tasks"][0]
+    ipad_push(app, ipad, [{"entity": "study_tasks", "id": task["id"], "base_version": task["sync_version"],
+                           "updated_at": "2026-11-09T10:00:00.000Z", "data": {"status": "erledigt"}}])
+    with db.cursor() as conn:                                   # offline, spaeter als das iPad
+        conn.execute("UPDATE study_tasks SET est_minutes=45")             # Trigger: Version hoch, Zeit jetzt
+    out = sync_client.run()
+    assert out["ok"], out
+    changes, _ = ipad_pull(app, ipad)
+    t = changes["study_tasks"][0]
+    assert (t["status"], t["est_minutes"]) == ("erledigt", 45), "Erledigung des iPads und Dauer von Windows bleiben"
+    with db.cursor() as conn:
+        local = db.row(conn, "SELECT status, est_minutes FROM study_tasks")
+    assert (local["status"], local["est_minutes"]) == ("erledigt", 45)
