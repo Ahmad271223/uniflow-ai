@@ -347,7 +347,7 @@ def test_p57_01_hosted_start_warns_when_mails_only_go_to_the_log(hosted, monkeyp
     monkeypatch.setenv("LERNAPP_SMTP_HOST", "smtp.example")
     with caplog.at_level(logging.WARNING, logger="uniflow.mail"):
         server.wire_hosted_services()
-    assert not caplog.records
+    assert not [r for r in caplog.records if r.name == "uniflow.mail"]   # uniflow.ai (Budget, P63-F1) ist eine andere Warnung
     env = (ROOT / "deploy" / ".env.example").read_text(encoding="utf-8")
     assert "LERNAPP_SMTP_HOST=smtp.strato.de" in env
 

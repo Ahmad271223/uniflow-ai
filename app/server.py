@@ -35,6 +35,11 @@ def wire_hosted_services() -> None:
             logging.getLogger("uniflow.mail").warning(
                 "LERNAPP_MAIL=log im Dienst (kein LERNAPP_SMTP_HOST): Mails mit Reset- und Bestaetigungslinks gehen nicht "
                 "hinaus, sondern stehen vollstaendig in %s. Fuer den Betrieb LERNAPP_SMTP_* in deploy/.env setzen.", mail.log_path())
+        from . import ai_backend
+        warning = ai_backend.budget_warning()  # Audit P63-F1: ohne Budget gilt still der Rueckfall von 50 EUR je Monat
+        if warning:
+            import logging
+            logging.getLogger("uniflow.ai").warning(warning)
 
 
 @asynccontextmanager

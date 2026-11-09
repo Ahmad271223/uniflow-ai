@@ -187,6 +187,15 @@ extension Weekly {
         e is CancellationError || (e as? URLError)?.code == .cancelled
     }
 
+    /// `weekly.BUSY_CODES` (Audit P64-07, 09.11.2026): die StudiNow-KI war ausgelastet, der Anbieter hat nicht gerechnet
+    /// (Notbremse, Anbieter-429, Ratenlimit, dieselbe Anfrage laeuft noch). Kostet keinen der drei Versuche.
+    static let busyCodes: Set<String> = ["ai_overloaded", "ai_provider_busy", "ai_rate_limited", "duplicate_request"]
+
+    static func isBusy(_ e: Error) -> Bool {
+        guard let h = e as? LocalHTTPError, let code = h.detail["code"]?.string else { return false }
+        return busyCodes.contains(code)
+    }
+
     /// Ein belegter Plan: Ergebnis published/waiting/failed wie `process_plan`. Ein Abbruch kostet keinen Versuch:
     /// Status und `attempts` bleiben, nur die Sperre loest `processPlan`, der Fehler geht weiter (`tick` endet damit).
     private static func processClaimed(_ ctx: LocalContext, _ planID: Int64, _ plan: [String: JSONValue], now: Int,
@@ -235,6 +244,14 @@ extension Weekly {
                     "missing": .array(missing.map(JSONValue.string))]
         } catch where isCancellation(error) || _Concurrency.Task.isCancelled {
             throw error                                                                  // abgebrochen: kein Versuch verbraucht
+        } catch where isBusy(error) {
+            // KI ausgelastet, nichts berechnet: Status und Versuche bleiben, der naechste Takt versucht es wieder (P64-07)
+            let text = (error as? LocalHTTPError)?.detail["detail"]?.string ?? "\(error)"
+            let message = String("StudiNow-KI: \(text) Nächster Versuch beim nächsten Lauf.".unicodeScalars.prefix(800))
+            try? await ctx.database.transaction { c in
+                try c.execute("UPDATE wt_plans SET last_error=? WHERE id=?", [.text(message), .integer(planID)])
+            }
+            return ["result": "waiting", "plan_id": .number(Double(planID)), "missing": ["ki-ausgelastet"]]
         } catch {
             let message = String("\(error)".unicodeScalars.prefix(800))
             try? await ctx.database.transaction { c in
@@ -357,7 +374,19 @@ extension Weekly {
         return ctx
     }
 
-    static let system = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. " + AIPromptTexts.mathStyleJSON
+    static let systemRules = "Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. " + AIPromptTexts.mathStyleJSON
+    /// LUH (Store-Build 1.0): Text des eingereichten Builds, byte-gleich (`weekly.SYSTEM`, Fixture weekly.json)
+    static let system = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. " + systemRules
+
+    /// `weekly.system_text(university)` (Audit P65-F7, 09.11.2026): andere Hochschulen bekommen ihren Namen aus dem
+    /// Hochschulprofil und kein fest vorgegebenes Fach. Nur fuer das eigene ChatGPT; bei der StudiNow-KI waehlt der
+    /// Dienst den Text selbst nach der Hochschule des Kontos (app/ai_relay.py `_systems`).
+    static func systemText(university: String?) -> String {
+        let key = UniversityKey(rawValue: (university ?? "").trimmingCharacters(in: .whitespaces).lowercased()) ?? .default
+        guard key != .luh else { return system }
+        let name = key.profile.name
+        return "Du erstellst Pruefungsaufgaben fuer ein Studium an der \(name). Das Fach ergibt sich aus Modul und Material. " + systemRules
+    }
 
     /// `str(x)` wie Python fuer Zahlen in Texten (`(3.0 P.)`, `Aufgabe 2`)
     static func pyStr(_ v: PyJSON?) -> String {
@@ -606,6 +635,7 @@ extension Weekly {
     static func ask(_ ctx: LocalContext, _ prompt: String) async throws -> PyJSON {
         guard let ai = ctx.ai.provider else { throw Failure("Keine KI verbunden (Einstellungen → Erweitert → KI über mein ChatGPT).") }
         try _Concurrency.Task.checkCancellation()                                 // abgebrochen (iOS): keine Anfrage mehr
+        let system = systemText(university: try await ctx.database.withConnection { try Holidays.university($0) })
         do {
             // StudiNow-KI: Aufgabe `weekly` (ohne Credits, nur mit einem Tarif mit Wochentests)
             return try AIAnswers.parseJSON(try await AIRelayTask.run(AIRelayTask("weekly")) {
@@ -637,7 +667,7 @@ extension Weekly {
     static func runPipeline(_ app: LocalContext, _ ctx: Context, tag: String, kind: String) async throws -> (PyJSON, PyJSON) {
         var rounds: [PyJSON] = []
         var res: PyJSON
-        do { res = try await ask(app, genPrompt(ctx, kind: tag)) } catch where isCancellation(error) { throw error } catch { throw Failure("KI-Entwurf unbrauchbar: \(error)") }
+        do { res = try await ask(app, genPrompt(ctx, kind: tag)) } catch where isCancellation(error) || isBusy(error) { throw error } catch { throw Failure("KI-Entwurf unbrauchbar: \(error)") }
         var qs = questions(of: res)
         for rnd in 0..<2 {
             let probs = validate(ctx, qs, kind: kind)
@@ -648,7 +678,7 @@ extension Weekly {
                     review = rejected(rv)
                     let n = { () -> Int in if case .array(let a)? = field(rv, "results") { return a.count } else { return 0 } }()
                     if n < list.count { review.append(.object([.init("nr", .null), .init("issue", .string("Fachprüfung unvollständig"))])) }
-                } catch where isCancellation(error) {
+                } catch where isCancellation(error) || isBusy(error) {
                     throw error
                 } catch {
                     review = [.object([.init("nr", .null), .init("issue", .string("Fachprüfung fehlgeschlagen: \(error)"))])]
@@ -663,7 +693,7 @@ extension Weekly {
             do {
                 res = try await ask(app, genPrompt(ctx, kind: tag, extra: "\nKORREKTUR NOETIG. Behebe diese Probleme vollstaendig:\n\(fix)\n"))
                 qs = questions(of: res)
-            } catch where isCancellation(error) {
+            } catch where isCancellation(error) || isBusy(error) {
                 throw error
             } catch {
                 rounds.append(.object([.init("rules", .array([.string("Reparatur unbrauchbar: \(error)")])), .init("review", .array([]))]))

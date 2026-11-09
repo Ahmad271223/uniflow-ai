@@ -206,6 +206,15 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     public static let busyCodes: Set<String> = ["ai_overloaded", "ai_provider_busy"]
     /// hoechstens so lange vor dem zweiten Versuch warten (Retry-After des Dienstes: 3 bzw. 5 s; ohne Angabe 2 s)
     public static let busyRetryMaxSeconds = 10.0
+
+    /// Wartezeit vor dem zweiten Versuch: Retry-After plus Streuung bis zum selben Betrag (`unit` 0...1), hoechstens
+    /// `busyRetryMaxSeconds` (Audit P64-F7, 09.11.2026). Ohne Streuung kamen alle abgewiesenen Geraete genau nach 3 bzw.
+    /// 5 s gleichzeitig wieder und trafen die Notbremse erneut.
+    static func busyWait(retryAfter: Int?, unit: Double = Double.random(in: 0...1)) -> Double {
+        let base = min(max(Double(retryAfter ?? 2), 0), busyRetryMaxSeconds)
+        return min(base + base * min(max(unit, 0), 1), busyRetryMaxSeconds)
+    }
+
     /// Warten vor dem zweiten Versuch (Tests ersetzen es)
     let retrySleep: @Sendable (Double) async throws -> Void
 
@@ -300,7 +309,7 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
                 }
                 // ausgelastet: einmal nach Retry-After (hoechstens `busyRetryMaxSeconds`) dieselbe Anfrage noch einmal
                 if attempt == 0, r.status == 503, Self.busyCodes.contains(code) {
-                    try await retrySleep(min(max(Double(retry ?? 2), 0), Self.busyRetryMaxSeconds))
+                    try await retrySleep(Self.busyWait(retryAfter: retry))
                     try Task.checkCancellation()
                     continue
                 }

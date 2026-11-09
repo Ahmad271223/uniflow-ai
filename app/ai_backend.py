@@ -353,6 +353,22 @@ def budget_microeur() -> int:
     return int(_env_float("LERNAPP_AI_BUDGET_EUR", 50.0) * 1_000_000)
 
 
+def budget_warning() -> str | None:
+    """Start im Dienst (Audit P63-F1, 09.11.2026): fehlt LERNAPP_AI_BUDGET_EUR oder ist der Wert unbrauchbar, gilt still
+    der Rueckfall von 50 EUR - bei vielen zahlenden Konten sperrt die StudiNow-KI dann nach wenigen Tagen fuer alle
+    (503 ai_budget_exhausted). Im Betrieb ist der Wert gesetzt (09.11.2026: 600); der Start meldet die Luecke laut."""
+    raw = os.environ.get("LERNAPP_AI_BUDGET_EUR")
+    try:
+        if raw is not None and math.isfinite(float(raw)) and float(raw) >= 0:
+            return None
+    except ValueError:
+        pass
+    shown = "nicht gesetzt" if raw is None or not raw.strip() else f"unbrauchbar ({raw.strip()[:20]!r})"
+    return (f"LERNAPP_AI_BUDGET_EUR {shown}: es gilt der Rueckfall {budget_microeur() / 1_000_000:.0f} EUR je Monat fuer "
+            "alle zahlenden Konten zusammen; danach antwortet die StudiNow-KI mit ai_budget_exhausted. Wert in deploy/.env "
+            "setzen (docs/release/BETRIEB.md, Kapazitaet und Lastgrenzen).")
+
+
 def user_budget_microeur() -> int:
     return int(_env_float("LERNAPP_AI_USER_BUDGET_EUR", 2.0) * 1_000_000)
 

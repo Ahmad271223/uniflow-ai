@@ -52,6 +52,16 @@ class WeeklyError(RuntimeError):
     pass
 
 
+class WeeklyBusy(WeeklyError):
+    """KI gerade ausgelastet, nichts berechnet (Audit P64-07, 09.11.2026): kostet keinen der drei Versuche; der naechste
+    Takt versucht es wieder. Vorher verbrauchte am PC (Takt alle 10 min) eine halbe Stunde 429 alle drei Versuche."""
+
+
+# Fehlercodes der StudiNow-KI, bei denen der Anbieter nicht gerechnet hat (Notbremse, Anbieter-429, Ratenlimit je
+# Konto, dieselbe Anfrage laeuft noch). Budget, Credits und Konfiguration bleiben echte Fehler (sie halten laenger an).
+BUSY_CODES = frozenset({"ai_overloaded", "ai_provider_busy", "ai_rate_limited", "duplicate_request"})
+
+
 # ============================================================================ Schema
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS lecture_markers (
@@ -966,6 +976,12 @@ def process_plan(plan_id: int, now: datetime | None = None, log=print) -> dict |
             publish(conn, plan_id, d["id"], now)
         log(f"Wochentest veröffentlicht: Modul {plan['module_id']} Woche {plan['week_no']} (Def {d['id']})")
         return {"result": "published", "plan_id": plan_id, "def_id": d["id"], "missing": missing}
+    except WeeklyBusy as e:
+        # nichts berechnet (KI ausgelastet): Status und Versuche bleiben, der naechste Takt versucht es wieder (P64-07)
+        with db.cursor() as conn:
+            conn.execute("UPDATE wt_plans SET last_error=? WHERE id=?", (f"{e} Nächster Versuch beim nächsten Lauf."[:800], plan_id))
+        log(f"Wochentest Plan {plan_id}: KI ausgelastet, nächster Versuch beim nächsten Lauf")
+        return {"result": "waiting", "plan_id": plan_id, "missing": ["ki-ausgelastet"]}
     except Exception as e:  # noqa: BLE001
         with db.cursor() as conn:
             conn.execute("UPDATE wt_plans SET status='fehlgeschlagen', last_error=?, attempts=attempts+1 WHERE id=?", (str(e)[:800], plan_id))
@@ -1054,10 +1070,16 @@ def _ask(prompt: str, system: str = "") -> str:      # in Tests ersetzt
         try:
             return ai_backend.complete(config.current_user_id(), "weekly_test", system, prompt).text
         except ai_backend.AIUnavailable as e:
-            raise WeeklyError(f"StudiNow-KI: {e}") from e
+            raise (WeeklyBusy if e.code in BUSY_CODES else WeeklyError)(f"StudiNow-KI: {e}") from e
     # am PC: eigenes ChatGPT oder die StudiNow-KI ueber das Konto (Aufgabe "weekly", app/ai_relay.py)
     with ai.for_task("weekly"):
-        return ai.ask(prompt, system)
+        try:
+            return ai.ask(prompt, system)
+        except Exception as e:
+            from . import ai_relay
+            if isinstance(e, ai_relay.RelayError) and e.code in BUSY_CODES:
+                raise WeeklyBusy(f"StudiNow-KI: {e.message}") from e
+            raise
 
 
 # Kontingent je Konto im Dienst (app/jobs.py setzt je Job ein Objekt mit check() -> Grund | None und consume(id)):
@@ -1070,8 +1092,22 @@ def _parse(text: str):
     return ai.parse_json(text)
 
 
-SYSTEM = ("Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. "
-          "Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. " + MATH_STYLE_JSON)
+SYSTEM_RULES = "Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. " + MATH_STYLE_JSON
+# LUH (Store-Build 1.0): Text des eingereichten Builds, byte-gleich (Fixture weekly.json, Zwischenspeicher der KI)
+SYSTEM = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. " + SYSTEM_RULES
+# Andere Hochschulen (1.0.1, Audit P65-F7 09.11.2026): Name aus dem Hochschulprofil, kein fest vorgegebenes Fach - das
+# ergibt sich aus Modul und Material im Prompt. Swift: Weekly.systemText(university:) in WeeklyPlans.swift, gleiche Teile.
+SYSTEM_OTHER_HEAD = "Du erstellst Pruefungsaufgaben fuer ein Studium an der {name}. Das Fach ergibt sich aus Modul und Material. "
+
+
+def system_text(university: str | None = None) -> str:
+    """System-Text der Wochentests fuer die Hochschule des Kontos (Dienst: Konto, PC: Einstellung; ohne Angabe die der
+    laufenden Aufgabe, config.university()). Vorher stand fuer alle Hochschulen fest die LUH im Prompt (Audit P65-F7)."""
+    from . import universities
+    key = config.normalize_university(university) if university is not None else config.university()
+    if key == "luh":
+        return SYSTEM
+    return SYSTEM_OTHER_HEAD.format(name=universities.PROFILES[key]["name"]) + SYSTEM_RULES
 
 
 def _materials_block(ctx: dict) -> str:
@@ -1247,7 +1283,9 @@ def _run_ai_pipeline(ctx: dict, kind_tag: str, kind: str, log) -> tuple[dict, di
     """Entwurf -> Regeln -> Fachpruefung -> hoechstens eine Reparatur. Wirft WeeklyError, wenn nicht bestanden."""
     qa = {"rounds": []}
     try:
-        res = _parse(_ask(_gen_prompt(ctx, kind_tag), SYSTEM))
+        res = _parse(_ask(_gen_prompt(ctx, kind_tag), system_text()))
+    except WeeklyBusy:
+        raise                                                # ausgelastet: kein Versuch (process_plan)
     except Exception as e:  # noqa: BLE001
         raise WeeklyError(f"KI-Entwurf unbrauchbar: {e}") from e
     qs = res.get("questions") if isinstance(res, dict) else None
@@ -1256,10 +1294,12 @@ def _run_ai_pipeline(ctx: dict, kind_tag: str, kind: str, log) -> tuple[dict, di
         review = []
         if not probs:
             try:
-                rv = _parse(_ask(_review_prompt(ctx, qs), SYSTEM))
+                rv = _parse(_ask(_review_prompt(ctx, qs), system_text()))
                 review = [r for r in (rv.get("results") or []) if not (r.get("ok") and r.get("solvable", True) and r.get("solution_correct", True))]
                 if len(rv.get("results") or []) < len(qs):
                     review.append({"nr": None, "issue": "Fachprüfung unvollständig"})
+            except WeeklyBusy:
+                raise
             except Exception as e:  # noqa: BLE001
                 review = [{"nr": None, "issue": f"Fachprüfung fehlgeschlagen: {e}"}]
         qa["rounds"].append({"rules": probs, "review": review})
@@ -1270,8 +1310,10 @@ def _run_ai_pipeline(ctx: dict, kind_tag: str, kind: str, log) -> tuple[dict, di
             break
         fix = "\n".join(probs + [f"Aufgabe {r.get('nr')}: {r.get('issue')}" for r in review])
         try:
-            res = _parse(_ask(_gen_prompt(ctx, kind_tag, extra=f"\nKORREKTUR NOETIG. Behebe diese Probleme vollstaendig:\n{fix}\n"), SYSTEM))
+            res = _parse(_ask(_gen_prompt(ctx, kind_tag, extra=f"\nKORREKTUR NOETIG. Behebe diese Probleme vollstaendig:\n{fix}\n"), system_text()))
             qs = res.get("questions") if isinstance(res, dict) else None
+        except WeeklyBusy:
+            raise
         except Exception as e:  # noqa: BLE001
             qa["rounds"].append({"rules": [f"Reparatur unbrauchbar: {e}"], "review": []})
             break
@@ -1536,7 +1578,7 @@ def create_mock_exam(module_id: int, full: bool = False, user_id: str = LOCAL_US
         res = None
         for rnd in range(2):
             try:
-                res = _parse(_ask(_gen_prompt(prompt_ctx, "PROBEKLAUSUR", extra=extra), SYSTEM))
+                res = _parse(_ask(_gen_prompt(prompt_ctx, "PROBEKLAUSUR", extra=extra), system_text()))
             except Exception as e:  # noqa: BLE001
                 qa["rounds"].append({"rules": [f"KI-Entwurf unbrauchbar: {e}"], "review": []}); continue
             qs = res.get("questions") or []
@@ -1544,7 +1586,7 @@ def create_mock_exam(module_id: int, full: bool = False, user_id: str = LOCAL_US
             review = []
             if not probs:
                 try:
-                    rv = _parse(_ask(_review_prompt(prompt_ctx, qs), SYSTEM))
+                    rv = _parse(_ask(_review_prompt(prompt_ctx, qs), system_text()))
                     review = [r for r in (rv.get("results") or []) if not (r.get("ok") and r.get("solvable", True) and r.get("solution_correct", True))]
                 except Exception as e:  # noqa: BLE001
                     review = [{"issue": f"Fachprüfung fehlgeschlagen: {e}"}]

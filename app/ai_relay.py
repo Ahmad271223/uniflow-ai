@@ -76,9 +76,10 @@ def _tasks() -> dict[str, Task]:
     return out
 
 
-def _systems() -> dict[str, str]:
+def _systems(university: str | None = None) -> dict[str, str]:
+    """System-Texte je Schluessel; `weekly` nach der Hochschule des Kontos (Audit P65-F7, weekly.system_text)"""
     from . import ai, weekly
-    return {"tutor": ai.TUTOR_SYSTEM, "json": ai.SYSTEM, "weekly": weekly.SYSTEM}
+    return {"tutor": ai.TUTOR_SYSTEM, "json": ai.SYSTEM, "weekly": weekly.system_text(university)}
 
 
 def known_task(name: str) -> bool:
@@ -185,9 +186,10 @@ def _relay_answer(user: dict, name: str, c) -> dict:
             "replay": bool(c.replay), "credits": credits, "task": name}
 
 
-def _complete_kwargs(task: Task, name: str, rid: str, body: dict, image: bytes | None) -> tuple[str, dict | None, dict]:
+def _complete_kwargs(task: Task, name: str, rid: str, body: dict, image: bytes | None,
+                     university: str | None = None) -> tuple[str, dict | None, dict]:
     from . import ai
-    system = _systems()[task.system]
+    system = _systems(university)[task.system]
     schema = ai.FLASHCARDS_SCHEMA if task.schema == "flashcards" else None
     second = bool(body.get("second_opinion"))
     cache = bool(body.get("cache")) and task.cache_ok and not second and image is None
@@ -213,7 +215,7 @@ def _week_test_failed(why) -> HTTPException:
 def _complete(user: dict, task: Task, name: str, prompt: str, rid: str, body: dict, image: bytes | None = None):
     """Synchron (Tests, Werkzeuge); der Endpunkt nutzt _complete_async."""
     from . import ai, ai_backend
-    system, _schema, kw = _complete_kwargs(task, name, rid, body, image)
+    system, _schema, kw = _complete_kwargs(task, name, rid, body, image, user.get("university"))
     if name != "week_test":
         return ai_backend.complete(user["id"], task.purpose, system, prompt, image=image, **kw)
     # Wochentest: Form im Dienst pruefen (wie ai.generate_test), hoechstens zwei Versuche
@@ -230,7 +232,7 @@ def _complete(user: dict, task: Task, name: str, prompt: str, rid: str, body: di
 
 async def _complete_async(user: dict, task: Task, name: str, prompt: str, rid: str, body: dict, image: bytes | None = None):
     from . import ai, ai_async, ai_backend
-    system, _schema, kw = _complete_kwargs(task, name, rid, body, image)
+    system, _schema, kw = _complete_kwargs(task, name, rid, body, image, user.get("university"))
     if name != "week_test":
         return await ai_backend.complete_async(user["id"], task.purpose, system, prompt, image=image, **kw)
     options = ai.week_test_options(body.get("options") if isinstance(body.get("options"), dict) else None)

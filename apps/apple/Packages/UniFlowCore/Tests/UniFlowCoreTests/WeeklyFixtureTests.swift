@@ -95,7 +95,7 @@ final class WeeklyFixtureTests: XCTestCase {
     /// Ablauf der Referenz bis einschliesslich Schritt `n` (ohne die reinen `background`-Pruefungen) mit der
     /// aufgezeichneten KI; die Uhr steht danach auf der Zeit des Schritts `n`. Fuer Tests, die mitten im Ablauf etwas
     /// anderes tun (Abbruch, Entscheidung fuer die App).
-    fileprivate static func replay(throughStep n: Int) async throws -> (LocalBackend, Ticker) {
+    static func replay(throughStep n: Int) async throws -> (LocalBackend, Ticker) {
         let fx = try Self.fixture()
         let ticker = Ticker()
         ticker.set(fx["start"]?.string ?? "2026-10-19T12:00:00")
