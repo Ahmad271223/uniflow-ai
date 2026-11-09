@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 28 (Version 1.0, `CURRENT_PROJECT_VERSION`).
+Aktueller Stand in project.yml: Build 30 (Version 1.0, `CURRENT_PROJECT_VERSION`).
 
 ## Builds
 
@@ -22,7 +22,9 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 25 | `d08cae54` | 08.11.2026 01:51 | eingereicht: App Store WAITING_FOR_REVIEW, zugleich TestFlight-Beta-Prüfung | Bibliothek ohne „Dokument wählen“ beim Öffnen; Community-Beiträge erscheinen sofort |
 | 26 | – | – | nie gebaut und nie hochgeladen (Nummer übersprungen) | – |
 | 27 | `b328ebdd` | 09.11.2026 01:40 | gebaut (Archiv), nur auf das iPad des Inhabers installiert, nie hochgeladen | Build 25 plus Bugfixes, siehe unten |
-| 28 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87 | siehe Audit-Berichte 09.11. |
+| 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), auf das iPad des Inhabers installiert, noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
+| 29 | – | 09.11.2026 | nie gebaut und nie hochgeladen: interner Stand auf develop (Build 28 plus Mac-Parität, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen); nicht in Build 30, kommt mit 1.0.1 | docs/paritaet/ auf develop |
+| 30 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts | docs/release/ABO-NUR-JAHR-2026-11-09.md |
 
 ### Build 25 (in der Prüfung)
 
@@ -41,7 +43,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
   Übersetzen scheitert (Linux-Foundation, nicht iOS); der iPad-Job wurde übersprungen. Für Build 25 gibt es also
   **keinen** CI-Nachweis, nur die lokalen Läufe oben.
 
-### Build 27 (nächster Upload)
+### Build 27 (ersetzt durch Build 28)
 
 Build 27 = Build 25 plus die Änderungen unter `apps/apple/` seit `d08cae54`, Stand 08.11.2026 21:15:
 
@@ -61,6 +63,29 @@ daraus `StudiNow-27.xcarchive` vom 09.11.2026 01:40 (`b27-archive.log`: „ARCHI
 Archiv vom 08.11. 19:44 (aus `c3ea0e60`) ist damit ersetzt. Noch nicht hochgeladen. Kommt vor dem Upload noch eine
 Änderung unter `apps/apple/` dazu, gilt wieder: neu aus dem dann aktuellen Commit bauen und die Zeile 27 oben anpassen. Wird Build 27 einmal
 hochgeladen, ist die Nummer verbraucht; jede weitere Änderung braucht Build 28.
+
+### Build 28 (ersetzt durch Build 30)
+
+Build 28 = Build 27 plus die Änderungen bis `7d1a8fb3` (develop, 09.11.2026): Schreibhand und Seiten tauschen
+(`e5050f50`, `5160860b`, `4e9aea98`), Strich sofort gesichert (P60-F1, `f5a31bf8`), nur geänderte Felder beim Abgleich
+(P73-F6, `83e7d910`, `a6d25a73`), Prüfungsknopf QIS/LSF (`7e175276`), Studienverlauf verschieben (`07254389`),
+Probe-Anzeige aus einer Quelle (`3992573b`), Übernahme-Kontingent je Konto (`6859265f`) und die Swift-Korrekturen der
+Audits 58–87. **Stand 09.11.2026:** `~/Studora-Builds/export-b28` ist Datei für Datei der Export von `7d1a8fb3`
+(`tools/pruefe-build-herkunft.sh 28 7d1a8fb3`: keine Abweichung; `StudiNow-28.commit` = `7d1a8fb3`), daraus
+`StudiNow-28.xcarchive` (`b28-archive.log`: „ARCHIVE SUCCEEDED“, Version 1.0, `CFBundleVersion` 28,
+`UFShippedUniversities` = `luh`, Team 78MQGF36BD); vorher lokal `b28-test.log` auf demselben Commit: **1387 Tests,
+18 übersprungen, 0 Fehler**. Nie hochgeladen: der Inhaber hat am 09.11.2026 entschieden, nur noch Jahresabos anzubieten; dafür gibt es Build 30.
+
+### Build 30 (nächster Upload)
+
+Build 30 = Build 28 (`7d1a8fb3`, alle iPad-Korrekturen) plus genau zwei Dinge: nur noch Jahresabos (Entscheidung des
+Inhabers vom 09.11.2026: Plus 19,99 €, Pro AI 39,99 € im Jahr, Monatsabos werden nicht mehr angeboten; ein früherer
+Kauf eines Monatsabos gilt weiter als Kauf des Tarifs) und der Credit-Text „1 Credit sind 0,9 Cent“. Die Mac- und
+Community-Änderungen des internen Stands 29 sind **nicht** enthalten. Unter `apps/apple/` außerhalb der Tests ändern
+sich gegenüber Build 28 nur `Purchases/{Plans,PurchaseStore,Entitlements}.swift`, `Views/Onboarding/PlanPickerView.swift`,
+`Views/Settings/{SettingsPage,TrialBanner}.swift`, `Services/StudoraAccountLink.swift` (Kommentar),
+`UniFlowCore/Account/InviteRewards.swift` und die Build-Nummer in `project.yml`. Einzelheiten und die Klickliste für
+App Store Connect: `docs/release/ABO-NUR-JAHR-2026-11-09.md`.
 
 ## Commit eines Archivs nachweisen
 
