@@ -259,9 +259,18 @@ class Dauer:
         status: dict[str, int] = {}
         lock = threading.Lock()
 
-        def back(i: int) -> None:
+        # Geraete kommen verteilt innerhalb des Fensters zurueck, nicht im selben ms. Nach Startzeit sortiert und gegen
+        # eine feste Uhr gewartet: ein Thread, der eine Sitzung spaet uebernimmt, schickt sofort (sonst zoege der Pool
+        # den Sturm ueber viele Minuten auseinander)
+        offsets = sorted((self.rnd.random() * a.sturm_sekunden, i) for i in range(len(self.sessions)))
+        t_start = time.monotonic() + 0.5
+
+        def back(item: tuple[float, int]) -> None:
+            off, i = item
             s = self.sessions[i]
-            time.sleep(self.rnd.random() * a.sturm_sekunden)            # Geraete kommen verteilt, nicht im selben ms
+            wait = t_start + off - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
             for kind in ("entitlements", "changes", "push"):
                 t0 = time.monotonic()
                 try:
@@ -272,8 +281,8 @@ class Dauer:
                     lat.append(time.monotonic() - t0)
                     status[str(st)] = status.get(str(st), 0) + 1
         t0 = time.monotonic()
-        with ThreadPoolExecutor(max_workers=max(a.parallel, 256)) as ex:
-            list(ex.map(back, range(len(self.sessions))))
+        with ThreadPoolExecutor(max_workers=a.parallel) as ex:
+            list(ex.map(back, offsets))
         n = sum(status.values())
         return {"n": n, "wall_s": round(time.monotonic() - t0, 1), "errors": sum(c for k, c in status.items() if k not in ("200", "201")),
                 "status": dict(sorted(status.items())), "p50_ms": pct(lat, 0.5), "p95_ms": pct(lat, 0.95), "p99_ms": pct(lat, 0.99)}

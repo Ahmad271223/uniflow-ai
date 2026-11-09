@@ -191,7 +191,11 @@ je Zeile BESTANDEN / FEHLGESCHLAGEN / NICHT GETESTET.
 
 ### 3.4 Mac-Kurzlauf des Dauerwerkzeugs (09.11.2026, nicht der Serverlauf)
 
-Siehe docs/audit/AUDIT-2026-11-09-PAKET-62-82-87.md, Abschnitt „Messung“.
+4.000 Sitzungen, 12 Prozesse, 400 Anfragen/s, 4 min: 96.000 Anfragen, 0,065 % Fehler (nur beim SIGKILL), normale Anfragen
+p95 33–43 ms (eine Minute 1 s, ungeklärt), Ersatzprozess nach ~1 s, Sturm 12.000 Anfragen in 60 s ohne Fehler (p99 414 ms),
+46.550 bestätigte Schreibvorgänge, 0 fehlend. Ein erster Lauf zeigte einen Einbruch (1.274 Verbindungsfehler in einer Minute),
+wahrscheinlich das Verbindungslimit des Macs (128) – auf dem Server gezielt darauf achten. Einzelheiten:
+docs/audit/AUDIT-2026-11-09-PAKET-62-82-87.md, Abschnitt 3. **[Mac]**, nicht [Server].
 
 ## 4. iPad-End-to-End (Paket 85) – Abnahmeliste für den Inhaber
 

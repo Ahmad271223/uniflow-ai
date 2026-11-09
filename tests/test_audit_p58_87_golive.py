@@ -133,6 +133,7 @@ def test_p82_soak_tool_keeps_every_acknowledged_write_and_survives_a_killed_work
     assert res["writes"]["acked"] > 0 and res["writes"]["missing"] == 0
     assert res["killed"]["at"] is not None and res["killed"]["back_after_s"] is not None, res["killed"]
     assert res["storm"]["errors"] == 0 and res["storm"]["n"] == 3 * res["sessions"]
+    assert res["storm"]["wall_s"] <= 2 + 3, "Sturm ueber das Fenster hinaus gezogen (Pool wartete statt zu schicken)"
 
 
 # ---------------------------------------------------------------- P82/G5: tools/lasttest-server.sh mit docker-Attrappe
