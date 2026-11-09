@@ -173,40 +173,48 @@ class Dauer:
         minutes: list[dict] = []
         kinds = [k for k, _ in self.mix]
         weights = [w for _, w in self.mix]
-        cur = {"lat": {}, "status": {}, "n": 0}
+        cur = {"lat": {}, "svc": {}, "lag": [], "status": {}, "n": 0}
         cur_lock = threading.Lock()
         fast = ThreadPoolExecutor(max_workers=a.parallel)
         slow = ThreadPoolExecutor(max_workers=max(64, a.parallel * 2))    # KI-Fragen warten 10-20 s auf die Attrappe
         killed = {"at": None, "pid": None, "back_after_s": None}
 
-        def record(kind: str, planned: float, st) -> None:
-            dt = time.monotonic() - planned
+        def record(kind: str, planned: float, started: float, st) -> None:
+            t = time.monotonic()
             with cur_lock:
                 cur["n"] += 1
-                cur["lat"].setdefault(kind, []).append(dt)
+                cur["lat"].setdefault(kind, []).append(t - planned)      # ab geplantem Zeitpunkt (was ein Nutzer merkt)
+                cur["svc"].setdefault(kind, []).append(t - started)      # ab Abschicken (Dienst allein)
+                cur["lag"].append(started - planned)                    # Verzug des Lastgebers selbst
                 cur["status"][str(st)] = cur["status"].get(str(st), 0) + 1
 
         def job(kind: str, s: dict, planned: float) -> None:
+            started = time.monotonic()
             try:
                 st = self.one(kind, s)
             except Exception:  # noqa: BLE001
                 st = 0
-            record(kind, planned, st)
+            record(kind, planned, started, st)
 
         def close_minute(i: int) -> None:
             with cur_lock:
-                lat, status, n = cur["lat"], cur["status"], cur["n"]
-                cur.update({"lat": {}, "status": {}, "n": 0})
-            allv = [x for v in lat.values() for x in v]
+                lat, svc, lag, status, n = cur["lat"], cur["svc"], cur["lag"], cur["status"], cur["n"]
+                cur.update({"lat": {}, "svc": {}, "lag": [], "status": {}, "n": 0})
+            normal = [x for k, v in lat.items() if k != "ai" for x in v]          # ohne KI (die wartet 10-20 s auf die Attrappe)
+            normal_svc = [x for k, v in svc.items() if k != "ai" for x in v]
             bad = sum(c for k, c in status.items() if k not in ("200", "201"))
             wal = self.d.tmp / "data" / "accounts.db-wal"
             row = {"minute": i, "n": n, "errors": bad, "status": dict(sorted(status.items())),
-                   "p50_ms": pct(allv, 0.5), "p95_ms": pct(allv, 0.95), "p99_ms": pct(allv, 0.99),
-                   "by": {k: {"n": len(v), "p95_ms": pct(v, 0.95)} for k, v in sorted(lat.items())},
+                   "p50_ms": pct(normal, 0.5), "p95_ms": pct(normal, 0.95), "p99_ms": pct(normal, 0.99),
+                   "svc_p95_ms": pct(normal_svc, 0.95), "lag_p95_ms": pct(lag, 0.95),
+                   "ai_p50_ms": pct(lat.get("ai", []), 0.5), "ai_p95_ms": pct(lat.get("ai", []), 0.95),
+                   "by": {k: {"n": len(v), "p50_ms": pct(v, 0.5), "p95_ms": pct(v, 0.95), "svc_p95_ms": pct(svc.get(k, []), 0.95)}
+                          for k, v in sorted(lat.items())},
                    "rss_mb": LA.rss_mb(self.d.worker_pids()), "wal_mb": round(wal.stat().st_size / 2**20, 1) if wal.exists() else 0.0}
             minutes.append(row)
-            print(f"  Minute {i:>3}: n={n:<6} Fehler={bad:<5} p50={row['p50_ms']:>5} ms p95={row['p95_ms']:>5} ms "
-                  f"p99={row['p99_ms']:>6} ms WAL={row['wal_mb']} MB RSS={row['rss_mb']}", flush=True)
+            print(f"  Minute {i:>3}: n={n:<6} Fehler={bad:<5} ohne KI p50={row['p50_ms']:>5} p95={row['p95_ms']:>5} p99={row['p99_ms']:>6} ms "
+                  f"(Dienst p95 {row['svc_p95_ms']} ms, Verzug Lastgeber p95 {row['lag_p95_ms']} ms) KI p95={row['ai_p95_ms']} ms "
+                  f"WAL={row['wal_mb']} MB RSS={row['rss_mb']} Status={row['status']}", flush=True)
 
         start = time.monotonic()
         end = start + a.minuten * 60
@@ -306,10 +314,11 @@ class Dauer:
 
 
 def table(r: dict) -> str:
-    rows = [f"| Minute ({r['label']}) | n | Fehler | p50 ms | p95 ms | p99 ms | WAL MB | RSS je Prozess MB |", "|---|---|---|---|---|---|---|---|"]
+    rows = [f"| Minute ({r['label']}) | n | Fehler | ohne KI p50 / p95 / p99 ms | Dienst p95 ms | Verzug Lastgeber p95 ms | KI p95 ms | WAL MB | RSS je Prozess MB |",
+            "|---|---|---|---|---|---|---|---|---|"]
     for m in r["minutes"]:
-        rows.append(f"| {m['minute']} | {m['n']} | {m['errors']} | {m['p50_ms']} | {m['p95_ms']} | {m['p99_ms']} | {m['wal_mb']} | "
-                    f"{', '.join(str(round(x)) for x in m['rss_mb'])} |")
+        rows.append(f"| {m['minute']} | {m['n']} | {m['errors']} | {m['p50_ms']} / {m['p95_ms']} / {m['p99_ms']} | {m['svc_p95_ms']} | "
+                    f"{m['lag_p95_ms']} | {m['ai_p95_ms']} | {m['wal_mb']} | {', '.join(str(round(x)) for x in m['rss_mb'])} |")
     t = r["total"]
     rows.append(f"\nGesamt {t['n']} Anfragen, {t['errors']} Fehler ({t['error_pct']} %); {r['sessions']} Sitzungen auf {r['accounts']} "
                 f"Konten, {r['rate']} Anfragen/s geplant, {r['workers']} Prozesse")

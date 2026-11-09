@@ -404,3 +404,40 @@ def test_p84_03_restore_probe_refuses_an_archive_that_escapes_its_folder(tmp_pat
     with pytest.raises(SystemExit, match="unsicher"):
         probe.extract(archive, tmp_path / "ziel")
     assert not (tmp_path / "etc").exists()
+
+
+# ---------------------------------------------------------------- P62-F7 / P62-04: Pull bei Burst-Updates
+
+def test_p62_07_paged_pull_of_ten_thousand_burst_changes_skips_nothing(tmp_path):
+    """Festgenagelt (P62-F7): 10.500 Aenderungen eines Kontos in Bursts zu je 500 Zeilen mit GLEICHEM Zeitstempel,
+    dazwischen spaetere Aenderungen; ein Geraet holt mit der echten Seitengrenze (MAX_PULL 2.000) seitenweise ab.
+    Jede Zeile kommt an, keine fehlt, der Cursor laeuft nur vorwaerts, danach ist nichts mehr offen."""
+    import sqlite3
+    import time
+    from app import db, sync
+    c = sqlite3.connect(tmp_path / "burst.db")
+    c.row_factory = sqlite3.Row
+    db._init_db(c)
+    since = sync.changes(c, None)["cursor"]
+    while sync.changes(c, since)["has_more"]:
+        since = sync.changes(c, since)["cursor"]
+    for b in range(21):
+        c.executemany("INSERT INTO modules(name, created_at) VALUES (?, '2026-11-09')", [(f"B{b}-{i}",) for i in range(500)])
+        c.execute("UPDATE modules SET sort=? WHERE name LIKE ?", (b, f"B{b}-%"))       # ein Zeitstempel fuer den ganzen Burst
+        c.commit()
+        time.sleep(0.002)
+    seen: list[str] = []
+    pages, cursor = 0, since
+    while True:
+        r = sync.changes(c, cursor)
+        pages += 1
+        seen += [m["name"] for m in r["changes"].get("modules", [])]
+        assert r["cursor"] is None or cursor is None or r["cursor"] >= cursor
+        cursor = r["cursor"]
+        if not r["has_more"]:
+            break
+        assert pages < 50
+    assert pages >= 5, "Seitengrenze greift"
+    assert set(seen) == {f"B{b}-{i}" for b in range(21) for i in range(500)}
+    assert sync.changes(c, cursor)["changes"] == {}
+    c.close()
