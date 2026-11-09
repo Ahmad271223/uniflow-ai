@@ -176,7 +176,11 @@ for f in $TOOLS; do
   cp "$HERE/$f" "$WORK/tools/$f"
 done
 ARCHIV_MOUNT=""
-[ -n "$ARCHIV" ] && ARCHIV_MOUNT="-v $ARCHIV:/lt/backup.tar.gz:ro"
+# Sicherungen sind 0600 root (Datenschutz); der Container laeuft als uniflow (1000). Darum eine Kopie in den eigenen,
+# 0700-geschuetzten Arbeitsordner, die mit ihm geloescht wird (Befund erster Serverlauf 09.11.2026: Permission denied)
+if [ -n "$ARCHIV" ]; then
+  cp "$ARCHIV" "$WORK/backup.tar.gz" && chmod 600 "$WORK/backup.tar.gz"
+fi
 [ "$(id -u)" = "0" ] && chown -R 1000:1000 "$WORK"
 prod_fingerprint > "$OUT/produktion-vorher.txt"
 
