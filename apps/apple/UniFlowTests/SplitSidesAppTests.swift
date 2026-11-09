@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import UniFlow
 
@@ -100,5 +101,81 @@ final class SplitSidesAppTests: XCTestCase {
         XCTAssertTrue(SplitSides.dropSwaps(sidePaneLeft: false, x: 200, width: 1000))
         XCTAssertFalse(SplitSides.dropSwaps(sidePaneLeft: false, x: 800, width: 1000))
         XCTAssertFalse(SplitSides.dropSwaps(sidePaneLeft: true, x: 10, width: 0))
+    }
+}
+
+/// `SplitRow`: Spalte daneben links bzw. rechts, Hauptdokument fuellt den Rest; beim Tauschen bleiben die Ansichten
+/// dieselben (das zweite Dokument verliert weder Seite noch Zoom)
+@MainActor
+final class SplitRowAppTests: XCTestCase {
+    final class Probe: ObservableObject {
+        @Published var sideLeft = true
+        var frames: [String: CGRect] = [:]
+        var appeared: [String: Int] = [:]
+        var tokens: [String: UUID] = [:]
+    }
+
+    private struct Cell: View {
+        let name: String
+        let probe: Probe
+        @State private var token = UUID()
+        var body: some View {
+            GeometryReader { g in
+                Color.gray.onAppear { probe.frames[name] = g.frame(in: .global) }
+                    .onChange(of: g.frame(in: .global)) { _, f in probe.frames[name] = f }
+            }
+            .onAppear {
+                probe.appeared[name, default: 0] += 1
+                probe.tokens[name] = token
+            }
+        }
+    }
+
+    private struct Row: View {
+        @ObservedObject var probe: Probe
+        var body: some View {
+            SplitRow(sideLeft: probe.sideLeft) {
+                Cell(name: "side", probe: probe).frame(width: 300)
+                Cell(name: "handle", probe: probe).frame(width: 12)
+                Cell(name: "main", probe: probe)
+            }
+            .frame(width: 1000, height: 600)
+            .ignoresSafeArea()
+        }
+    }
+
+    private func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.3)) }
+
+    func testPlacesSideLeftOrRightAndKeepsViews() throws {
+        let probe = Probe()
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: .zero)
+        window.frame = CGRect(x: 0, y: 0, width: 1000, height: 600)
+        let hosting = UIHostingController(rootView: Row(probe: probe))
+        window.rootViewController = hosting
+        window.makeKeyAndVisible()
+        addTeardownBlock { @MainActor in window.isHidden = true }
+        settle()
+
+        let side = try XCTUnwrap(probe.frames["side"]), handle = try XCTUnwrap(probe.frames["handle"])
+        let main = try XCTUnwrap(probe.frames["main"])
+        XCTAssertEqual(side.minX, 0, accuracy: 1)
+        XCTAssertEqual(side.width, 300, accuracy: 1)
+        XCTAssertEqual(handle.minX, 300, accuracy: 1)
+        XCTAssertEqual(main.minX, 312, accuracy: 1)
+        XCTAssertEqual(main.width, 688, accuracy: 1, "Hauptdokument fuellt den Rest")
+        let tokens = probe.tokens
+
+        probe.sideLeft = false
+        settle()
+        let side2 = try XCTUnwrap(probe.frames["side"]), handle2 = try XCTUnwrap(probe.frames["handle"])
+        let main2 = try XCTUnwrap(probe.frames["main"])
+        XCTAssertEqual(main2.minX, 0, accuracy: 1)
+        XCTAssertEqual(main2.width, 688, accuracy: 1)
+        XCTAssertEqual(handle2.minX, 688, accuracy: 1, "Griff zwischen Hauptdokument und Spalte")
+        XCTAssertEqual(side2.minX, 700, accuracy: 1)
+        XCTAssertEqual(side2.width, 300, accuracy: 1)
+        XCTAssertEqual(probe.appeared, ["side": 1, "handle": 1, "main": 1], "keine Ansicht neu angelegt")
+        XCTAssertEqual(probe.tokens, tokens, "Zustand der Ansichten bleibt")
     }
 }
