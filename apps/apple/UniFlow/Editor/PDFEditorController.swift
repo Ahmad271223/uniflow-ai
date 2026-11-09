@@ -334,6 +334,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var mixedFormatFactor: CGFloat = 1
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
+    /// Mac: zwei Finger waagerecht auf dem Trackpad blaettern eine Seite weiter bzw. zurueck (`EditorPointerInput.swift`)
+    private(set) var trackpadPageSwipe: TrackpadPageSwipe?
     private(set) var shownLayoutVersion = -1
     /// Ein Neuaufbau kam, waehrend der Stift auflag: er folgt beim Absetzen (`canvasViewDidEndUsingTool`, Audit P41-Z1)
     private var layoutWaitsForPencil = false
@@ -730,6 +732,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         scroll.panGestureRecognizer.allowedTouchTypes = types
         scroll.panGestureRecognizer.minimumNumberOfTouches = c.panMinimumTouches
         scroll.pinchGestureRecognizer?.allowedTouchTypes = types
+        if Self.isMac, trackpadPageSwipe == nil {
+            let swipe = TrackpadPageSwipe(controller: self)
+            pdfView.addGestureRecognizer(swipe.recognizer)
+            trackpadPageSwipe = swipe
+        }
         scroll.delaysContentTouches = false
         applyFreezeGestures()
     }

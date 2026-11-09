@@ -827,6 +827,7 @@ struct CommunityPeopleReader: View {
     private var personBar: some View {
         HStack(spacing: 12) {
             arrow("chevron-left", label: "Vorherige Person", id: "community.reader.previous", enabled: index > 0) { step(-1) }
+                .keyboardShortcut(.leftArrow, modifiers: [])          // Mac und Tastatur: statt Wischen
             HStack(spacing: 10) {
                 CommunityAvatar(name: CommunityContributorsSheet.name(current), size: 36, own: current.isOwn)
                     .id(current.solutionID)
@@ -844,6 +845,7 @@ struct CommunityPeopleReader: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("community.reader.person")
             arrow("chevron-right", label: "Nächste Person", id: "community.reader.next", enabled: index < people.count - 1) { step(1) }
+                .keyboardShortcut(.rightArrow, modifiers: [])
         }
         .padding(.horizontal, 16).padding(.vertical, 6)
         .background(UF.surface)

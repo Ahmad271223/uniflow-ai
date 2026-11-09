@@ -65,6 +65,33 @@ final class MacBedienungTests: XCTestCase {
         }
     }
 
+    /// Mac: zwei Finger waagerecht auf dem Trackpad = Seite weiter/zurueck ("Dokument links/rechts wischen"); senkrecht
+    /// bleibt Rollen, gezoomt rollt es waagerecht
+    func testTrackpadSwipeTurnsPagesOnlyWhenClearlySideways() {
+        let d = EditorNavigation.swipeDistance
+        XCTAssertEqual(EditorNavigation.swipePages(translation: CGPoint(x: -d - 10, y: 5), horizontallyScrollable: false), 1)
+        XCTAssertEqual(EditorNavigation.swipePages(translation: CGPoint(x: d + 10, y: -5), horizontallyScrollable: false), -1)
+        XCTAssertNil(EditorNavigation.swipePages(translation: CGPoint(x: -d / 2, y: 0), horizontallyScrollable: false), "zu kurz")
+        XCTAssertNil(EditorNavigation.swipePages(translation: CGPoint(x: -d - 10, y: 120), horizontallyScrollable: false), "eher senkrecht")
+        XCTAssertNil(EditorNavigation.swipePages(translation: CGPoint(x: -300, y: 0), horizontallyScrollable: true), "gezoomt: rollen")
+    }
+
+    /// Die Trackpad-Geste gibt es nur am Mac und nur fuer Rollereignisse des Trackpads, nie fuer Beruehrungen (Klicken und
+    /// Ziehen bleibt Blaettern bzw. Schreiben); iPad unveraendert ohne sie
+    func testTrackpadSwipeIsInstalledOnlyOnTheMac() async throws {
+        let shown = try await show(pages: 3)
+        let editor = shown.editor
+        guard PDFEditorController.isMac else {
+            XCTAssertNil(editor.trackpadPageSwipe, "iPad: keine zusaetzliche Geste")
+            return
+        }
+        let g = try XCTUnwrap(editor.trackpadPageSwipe?.recognizer)
+        XCTAssertTrue(editor.pdfView.gestureRecognizers?.contains(g) == true)
+        XCTAssertEqual(g.allowedScrollTypesMask, .continuous, "nur Trackpad, nicht das Mausrad")
+        XCTAssertEqual(g.allowedTouchTypes, [], "keine Beruehrungen")
+        XCTAssertFalse(g.cancelsTouchesInView)
+    }
+
     // MARK: B) Tastatur im Editor
 
     private typealias Nav = EditorNavigation
@@ -135,9 +162,12 @@ final class MacBedienungTests: XCTestCase {
         let shown = try await show(pages: 5)
         let editor = shown.editor
         let inputs = Set((editor.keyCommands ?? []).map { "\($0.input ?? "")|\($0.modifierFlags.rawValue)" })
-        for (input, mods) in [(UIKeyCommand.inputRightArrow, UIKeyModifierFlags()), (UIKeyCommand.inputLeftArrow, []),
-                              (UIKeyCommand.inputPageDown, []), (" ", []), (" ", .shift), ("+", .command), ("-", .command),
-                              ("0", .command), (UIKeyCommand.inputUpArrow, .command)] {
+        let none = UIKeyModifierFlags()
+        let expected: [(String, UIKeyModifierFlags)] = [
+            (UIKeyCommand.inputRightArrow, none), (UIKeyCommand.inputLeftArrow, none), (UIKeyCommand.inputPageDown, none),
+            (" ", none), (" ", .shift), ("+", .command), ("-", .command), ("0", .command), (UIKeyCommand.inputUpArrow, .command),
+        ]
+        for (input, mods) in expected {
             XCTAssertTrue(inputs.contains("\(input)|\(mods.rawValue)"), "Taste \(input) \(mods.rawValue)")
         }
         XCTAssertTrue(editor.acceptsEditorKeys)
