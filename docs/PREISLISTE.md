@@ -1,6 +1,8 @@
-# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026, angeglichen am 05.11. und 07.11.2026)
+# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026, angeglichen am 05.11., 07.11. und 09.11.2026)
 
-Drei Tarife, Preise inkl. USt. (monatlich, seit 07.11.2026 auch jährlich). **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
+Drei Tarife, Preise inkl. USt. **Seit 09.11.2026 nur noch Jahresabos** (Entscheidung des Inhabers, abends: „Monatliche
+Abos komplett entfernen. Nur 19,99 und 39,99.“, `docs/release/ABO-NUR-JAHR-2026-11-09.md`); Kontingente und Credits
+gelten weiter je Kalendermonat. **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
 `TRIAL`); `tools/gen-plans-fixture.py` schreibt daraus `packages/shared-contracts/fixtures/plans/plans.json`, gegen die
 Swift (`PlanContractTests`) und der Dienst (`tests/test_subscriptions.py`, `tests/test_tarif_matrix.py`) prüfen.
 Jeder Tarif enthält alles aus dem Tarif darunter. **Keine Einführungsangebote** (weder bei Apple noch bei Stripe,
@@ -12,9 +14,8 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 
 | | StudiNow Free | StudiNow Plus | StudiNow Pro AI |
 |---|:---:|:---:|:---:|
-| Preis | 0,00 € | 1,99 € | 3,99 € |
-| Preis jährlich (`price_cents_yearly`) | – | 21,99 € | 41,99 € |
-| Apple-Produkte | – | `de.uniflow.plus.monthly`, `de.uniflow.plus.yearly` | `de.uniflow.proai.monthly`, `de.uniflow.proai.yearly` (mit Version 1.0 im Store, Dienst `app.studinow.app` läuft) |
+| Preis (Jahresabo, `price_cents`, `period` „year“) | 0,00 € | 19,99 € / Jahr (entspricht 1,67 € im Monat) | 39,99 € / Jahr (entspricht 3,33 € im Monat) |
+| Apple-Produkt | – | `de.uniflow.plus.yearly` | `de.uniflow.proai.yearly` (Dienst `app.studinow.app` läuft) |
 | PDFs lesen, Kurse, Abgleich mit Stud.IP/Learnweb, Stundenplan, Lernkalender | ✓ | ✓ | ✓ |
 | Eigenes ChatGPT über den eigenen OpenAI-API-Schlüssel (`chatgpt_connection_premium`, `available` seit 07.11.2026; iPad: Einstellungen → Erweitert → „Eigenes ChatGPT“): KI-Hilfe zu den Unterlagen und KI-Lernplan in jedem Tarif, nie an den Tarif gekoppelt ² | ✓ | ✓ | ✓ |
 | Community lesen, beitreten und mitmachen (`can_read_community`, seit 05.11.2026 ab Plus) | – | ✓ | ✓ |
@@ -109,14 +110,14 @@ und werden dann für alle gespeichert. Kosten grob: 1–4 Cent je Fragensatz ein
 Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, verteilt auf alle Pro-AI-Kunden (Schätzung, siehe
 `docs/SKALIERUNG-GROSS.md`).
 
-## Was ankommt (je Kunde und Monat, geschätzt)
+## Was ankommt (je Kunde und Jahr, geschätzt)
 
-| | Plus 1,99 € | Pro AI 3,99 € |
+| | Plus 19,99 € / Jahr | Pro AI 39,99 € / Jahr |
 | --- | --- | --- |
-| nach 19 % MwSt | 1,67 € | 3,35 € |
-| nach Apple (15 %) | **1,42 €** | **2,85 €** |
-| nach Stripe (Web, ca. 1,5 % + 0,25 €) | **1,39 €** | **3,04 €** |
-| KI-Kosten | 0 € (eigenes ChatGPT) | höchstens 0,90 € (100 Credits), dazu der Anteil an der Bibliothek |
+| nach 19 % MwSt | 16,80 € | 33,61 € |
+| nach Apple (15 %) | **14,28 €** | **28,57 €** |
+| nach Stripe (Web, ca. 1,5 % + 0,25 €) | **16,25 €** | **32,76 €** |
+| KI-Kosten | 0 € (eigenes ChatGPT) | höchstens 10,80 € (12 × 100 Credits à 0,9 Cent), dazu der Anteil an der Bibliothek |
 
 ## Wo was heute steht
 
@@ -128,7 +129,7 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | Stapel teilen, übernehmen, geteilte Kopie aktualisieren, Moderation | gebaut im Dienst, Web (Seite „Karteikarten“ und Reiter „Karteikarten“ im Community-Kanal) und iPad (CloudKit); Ersetzen und Moderation nur im Dienst |
 | KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ mit der StudiNow-KI ab Pro AI oder mit dem eigenen OpenAI-Schlüssel ab Plus) |
 | Fertige Wochenfragen mit Erklärungen | gebaut im Dienst und Web/Windows (`docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad: nur im Vertrag („in Vorbereitung“) |
-| Pro AI im App Store | mit Version 1.0 (Entscheidung 07.11.2026, Dienst `app.studinow.app` läuft), monatlich und jährlich; liefert StoreKit das Produkt nicht, steht auf der iPad-Tarifseite „StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden …“ (`Plans.swift`, `proAIMissingNote`) |
+| Pro AI im App Store | mit Version 1.0 (Entscheidung 07.11.2026, Dienst `app.studinow.app` läuft), seit 09.11.2026 nur als Jahresabo; liefert StoreKit das Produkt nicht, steht auf der iPad-Tarifseite „StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden …“ (`Plans.swift`, `proAIMissingNote`) |
 | Tarifseite Web (Dienst) | drei Karten aus `GET /api/billing/plans`; „Abschließen“ (Stripe) nur an Plus und Pro AI, nie an Free; in der Probe trägt Pro AI „Probe läuft“ statt „Dein Tarif“ und bleibt kaufbar; nach der Probe ohne Abo „Kein aktives Abo“ mit „Meine Daten ansehen“ und „Meine Daten exportieren“, kein „Bei Free bleiben“ (`app/static/views-abo.js`, `tests/test_web_abo.py`) |
 | Tarifseite Windows-App (seit 05.11.2026 mit Konto-Pflicht) | wie im Web: drei Karten, „Abschließen“ öffnet die Stripe-Bezahlseite des Dienstes im Systembrowser, „Abo verwalten“ das Kundenportal; mit Apple-Abo am Konto kein Kaufknopf, sondern „Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones“ (`app/account_mode.py`, `app/static/views-abo.js`) |
 | Tarifseite Einzelplatz ohne Konto-Pflicht (`serve.py`, Entwicklung) | drei Karten ohne jeden Kaufweg; Pro AI ohne Preis als „kommt mit dem StudiNow-Dienst“ |

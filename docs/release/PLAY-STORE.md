@@ -43,7 +43,7 @@ DEINE DATEN
 • Konto löschen direkt in der App.
 
 STUDINOW FREE UND PLUS
-Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. Zum Start hast du 7 Tage Probe mit allem, ohne Zahlungsdaten. StudiNow Plus (1,99 € pro Monat) schaltet das Schreiben mit dem Stift frei[[, dazu Karteikarten und das Teilen von Lösungen]]. Das Abo verlängert sich automatisch um einen Monat, wenn du es nicht vor Ende des laufenden Zeitraums in Google Play kündigst. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
+Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. Zum Start hast du 7 Tage Probe mit allem, ohne Zahlungsdaten. StudiNow Plus (19,99 € pro Jahr) schaltet das Schreiben mit dem Stift frei[[, dazu Karteikarten und das Teilen von Lösungen]]. Das Abo verlängert sich automatisch um einen Monat, wenn du es nicht vor Ende des laufenden Zeitraums in Google Play kündigst. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -101,7 +101,7 @@ abgleichen, ob die Sitzungs-Cookies anzugeben sind.]]
 | Produkt-ID | `plus_monthly` |
 | Name | StudiNow Plus |
 | Beschreibung | Stift, Karteikarten, Lösungen teilen (Abgleich der Notizen zwischen Geräten erst mit Pro AI) |
-| Basisplan | `monthly`, 1 Monat, automatisch verlängernd, 1,99 € |
+| Basisplan | `yearly`, 1 Jahr, automatisch verlängernd, 19,99 € (nur Jahresabos, 09.11.2026) |
 | Angebot | **keins** (Entscheidung 04.11.2026: keine Einführungsangebote; die 7 Tage Probe laufen in der App ohne Kauf, `docs/ABO-SYSTEM.md` 3b). Android ist zurzeit pausiert. |
 
 Pflichttexte auf der Tarifseite in der App wie bei Apple: Preis und Laufzeit, automatische Verlängerung, Kündigung

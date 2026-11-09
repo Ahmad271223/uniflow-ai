@@ -86,7 +86,7 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | --- | --- |
 | Apple Developer Program | abgelehnt am 28.10., Support-Fall beim Inhaber |
 | Team-ID in `apps/apple/Config/Team.xcconfig`, Signierung, „Mit Apple anmelden“, CloudKit-Container | offen |
-| App Store Connect: Eintrag „StudiNow“, Produkt Plus (`de.uniflow.plus.monthly`), Datenschutzangaben | offen (`docs/release/APP-STORE.md`) |
+| App Store Connect: Eintrag „StudiNow“, Produkte Plus und Pro AI (Jahresabos `de.uniflow.plus.yearly`, `de.uniflow.proai.yearly`), Datenschutzangaben | offen (`docs/release/APP-STORE.md`) |
 | iPad: G2-Client und Community über den Dienst | gebaut 31.10./1.11., Kern live gegen den lokalen Dienst geprüft; ohne Lerngruppen und Sichtbarkeit (kennt der Dienst nicht) |
 | iPad: Konto-Anmeldung sichtbar machen | offen: Dienst-Adresse `StudoraServiceURL` setzen |
 | Übernahme vom Web: Module, Stundenplan, Lernplan, Karteikarten, Einstellungen, Notizen über G2; eigene Dokumente mit Inhalt noch nicht | offen |

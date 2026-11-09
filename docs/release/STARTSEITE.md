@@ -184,7 +184,7 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 </article>
 <article class="plan" aria-labelledby="p-plus">
 <h3 id="p-plus">StudiNow Plus</h3>
-<p class="price"><span class="amount">1,99 €</span> <span class="per">pro Monat</span> <span class="per">oder 21,99 € pro Jahr</span></p>
+<p class="price"><span class="amount">19,99 €</span> <span class="per">pro Jahr</span></p>
 <p class="tagline">Alles aus Free, dazu:</p>
 <ul class="checks">
 <li>Schreiben mit dem Apple Pencil</li>
@@ -197,7 +197,7 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 </article>
 <article class="plan plan-top" aria-labelledby="p-pro">
 <h3 id="p-pro">StudiNow Pro AI</h3>
-<p class="price"><span class="amount">3,99 €</span> <span class="per">pro Monat</span> <span class="per">oder 41,99 € pro Jahr</span></p>
+<p class="price"><span class="amount">39,99 €</span> <span class="per">pro Jahr</span></p>
 <p class="tagline">Alles aus Plus, dazu die KI von StudiNow, ohne eigenes ChatGPT-Konto:</p>
 <ul class="checks">
 <li>KI-Erklärungen, auch für das ganze Dokument</li>
@@ -208,8 +208,8 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 </ul>
 </article>
 </div>
-<p class="fine">Preise inkl. USt. Ein Abo verlängert sich automatisch um einen Monat, wenn du es nicht mindestens 24 Stunden
-vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos kündigst. Nach dem Ende eines Abos bleiben alle
+<p class="fine">Preise inkl. USt. Plus und Pro AI gibt es als Jahresabo. Ein Abo verlängert sich automatisch um ein Jahr, wenn du es nicht mindestens 24 Stunden
+vor Ablauf in den Einstellungen deines Apple-Kontos kündigst. Nach dem Ende eines Abos bleiben alle
 Notizen lesbar und exportierbar. „Ohne Monatsgrenze“ heißt faire Nutzung, höchstens 300 im Monat. Einzelheiten in den <a href="https://studinow.app/nutzungsbedingungen">Nutzungsbedingungen</a>.</p>
 </div>
 </section>
