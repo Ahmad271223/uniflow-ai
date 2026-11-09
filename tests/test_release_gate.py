@@ -53,7 +53,9 @@ def test_privacy_manifest_declares_the_device_id_the_service_receives():
     """P46-04: die zufaellige Installationskennung geht als device_id an app.studinow.app -> Geraete-ID im Manifest."""
     account = CODE["Packages/UniFlowCore/Sources/UniFlowCore/Account/StudoraAccount.swift"]
     assert '"device_id": .string(deviceID)' in account
-    assert '"ipad-" + UUID().uuidString' in CODE["UniFlow/Services/StudoraAccountLink.swift"], "zufaellig, keine Hardware-Kennung"
+    # zufaellig, keine Hardware-Kennung; Praefix "ipad-" bzw. auf dem Mac "mac-" (Paritaet 09.11.2026, AccountDevice)
+    assert 'AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac) + UUID().uuidString' in CODE["UniFlow/Services/StudoraAccountLink.swift"]
+    assert 'isMac ? "mac-" : "ipad-"' in CODE["Packages/UniFlowCore/Sources/UniFlowCore/Solutions/CommunitySharedState.swift"]
     for t in CODE.values():
         assert "identifierForVendor" not in t and "advertisingIdentifier" not in t
     m = plistlib.loads((APPLE / "UniFlow" / "PrivacyInfo.xcprivacy").read_bytes())
