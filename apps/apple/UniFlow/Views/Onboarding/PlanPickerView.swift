@@ -38,6 +38,9 @@ struct PlanPickerView: View {
     @State private var manage = false
     @State private var info: String?
     @Environment(\.openURL) private var openURL
+    /// StudiNow-Konto (nil ohne Dienst): nach dem Kauf von Pro AI gleich zur Anmeldung bitten
+    @Environment(\.ufStudoraAccount) private var studoraAccount
+    @State private var signInAfterPurchase = false
 
     /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6)
     @MainActor
@@ -81,6 +84,12 @@ struct PlanPickerView: View {
         .task {
             await store.loadProducts()
             await store.refreshEntitlements()
+        }
+        .overlay {
+            // nach dem Kauf von Pro AI ohne StudiNow-Konto: gleich zur Anmeldung bitten (Inhaber 10.11.2026)
+            if signInAfterPurchase, let link = studoraAccount {
+                ProAIAfterPurchasePrompt(link: link) { signInAfterPurchase = false; onDone() }
+            }
         }
         .manageSubscriptionsSheet(isPresented: $manage)
         .onChange(of: manage) { _, open in
@@ -355,6 +364,9 @@ struct PlanPickerView: View {
             } else if ent.purchasedPlan != plan, ent.pendingPlan == plan {
                 // Downgrade: Apple stellt erst zur naechsten Verlaengerung um, die Seite bleibt offen und sagt es
                 info = UFOfferText.pendingNote(plan, at: ent.expiresAt) + " Bis dahin bleibt \(before.name)."
+            } else if ProAISignInHint.asksAfterPurchase(plan: plan, serviceAvailable: studoraAccount != nil && StudoraAccountLink.available,
+                                                        signedIn: studoraAccount?.user != nil) {
+                signInAfterPurchase = true               // Karte "Pro AI ist aktiv" mit "Mit Apple anmelden"
             } else {
                 onDone()
             }

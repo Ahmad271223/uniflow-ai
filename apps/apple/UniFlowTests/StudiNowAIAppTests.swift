@@ -124,6 +124,11 @@ final class StudiNowAIAppTests: XCTestCase {
         XCTAssertFalse(ProAISignInHint.shows(.planRequired))
         XCTAssertFalse(ProAISignInHint.shows(.unavailable))
         XCTAssertTrue(ProAISignInHint.text.contains("StudiNow-Konto") && ProAISignInHint.text.contains("Tests & Wiederholung"))
+        // direkt nach dem Kauf (Inhaber 10.11.2026): nur Pro AI, nur mit Dienst, nur ohne Anmeldung
+        XCTAssertTrue(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: true, signedIn: false))
+        XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: true, signedIn: true))
+        XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: false, signedIn: false))
+        XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .plus, serviceAvailable: true, signedIn: false))
     }
 
     /// Echte Anbindung (URLSessionServiceTransport) bis ins lokale Backend: KI-Hilfe fragt den Dienst mit Token

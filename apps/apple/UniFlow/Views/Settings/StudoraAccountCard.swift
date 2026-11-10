@@ -262,3 +262,62 @@ struct ProAISignInBanner: View {
         }
     }
 }
+
+// MARK: - Direkt nach dem Kauf von Pro AI
+
+extension ProAISignInHint {
+    static let purchasedTitle = "Pro AI ist aktiv"
+    static let purchasedText = "Noch ein Tippen: Melde dich mit deiner Apple-ID beim StudiNow-Konto an, dann antwortet die StudiNow-KI "
+        + "und „Tests & Wiederholung“ erscheint in der Leiste."
+    static let later = "Später"
+
+    /// Nach einem Kauf gleich zur Anmeldung bitten? Nur fuer Pro AI, nur mit StudiNow-Dienst und nur ohne Anmeldung
+    /// (Inhaber 10.11.2026: "ja" zur Anmeldung direkt nach dem Kauf)
+    static func asksAfterPurchase(plan: UFPlan, serviceAvailable: Bool, signedIn: Bool) -> Bool {
+        plan == .proAI && serviceAvailable && !signedIn
+    }
+}
+
+/// Karte ueber der Tarifseite nach dem Kauf von Pro AI: "Mit Apple anmelden" oder "Später" (dann bleibt der Hinweis auf
+/// der Uebersicht, `ProAISignInBanner`). Sobald die Anmeldung steht, schliesst sie die Tarifseite (`done`).
+struct ProAIAfterPurchasePrompt: View {
+    @ObservedObject var link: StudoraAccountLink
+    let done: () -> Void
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
+            UFCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 11.2) {
+                        UFIcon("sparkles", size: 22).foregroundStyle(UF.accent)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(ProAISignInHint.purchasedTitle).ufFont(17, 700).foregroundStyle(UF.text)
+                            Text(ProAISignInHint.purchasedText).ufFont(14).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    SignInWithAppleButton(.signIn, onRequest: { link.prepareAppleRequest($0) }, onCompletion: { result in
+                        Task { await link.handleAppleSignIn(result) }
+                    })
+                    .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+                    .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+                    .disabled(link.busy)
+                    .accessibilityIdentifier("proai.purchased.apple")
+                    if let m = link.message {
+                        Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack {
+                        Spacer()
+                        UFButton(ProAISignInHint.later, size: .small) { done() }
+                            .accessibilityIdentifier("proai.purchased.later")
+                    }
+                }
+            }
+            .frame(maxWidth: 440)
+            .padding(24)
+        }
+        .onChange(of: link.user?.id) { _, id in if id != nil { done() } }
+        .accessibilityIdentifier("proai.purchased")
+    }
+}
