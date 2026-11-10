@@ -170,6 +170,36 @@ enum UniAutoLogin {
         return true
     }
 
+    // MARK: Von Hand speichern (Einstellungen)
+
+    /// Ergebnis von `saveTyped`
+    enum TypedSave: Equatable {
+        case saved
+        /// kein Datenspeicher eines Containers (niemand angemeldet)
+        case unavailable
+        case badUsername
+        case badPassword
+        /// der Schluesselbund hat nicht geschrieben
+        case failed
+    }
+
+    /// Einstellungen, "Uni-Zugang einmal speichern" (Entscheidung des Inhabers 10.11.2026): Benutzername und Passwort,
+    /// die der Mensch dort selbst eintippt, kommen in denselben Eintrag im Schluesselbund dieses Geraets wie nach einer
+    /// Anmeldung auf der Anmeldeseite. Speichern heisst zustimmen: der Schalter geht an. Ob das Passwort stimmt,
+    /// entscheidet erst die Hochschule (`ContainerManager.connectWithStoredLogin`).
+    static func saveTyped(username: String, password: String, store: WKWebsiteDataStore, now: Date = Date()) -> TypedSave {
+        guard let e = entry(store) else { return .unavailable }
+        let u = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard UniLoginForms.isAcceptableUsername(u) else { return .badUsername }
+        guard UniLoginForms.isAcceptablePassword(password) else { return .badPassword }
+        guard (try? e.vault.save(UniCredential(username: u, password: password, savedAt: now))) != nil else { return .failed }
+        e.defaults.set(true, forKey: enabledKey)
+        e.pending = nil
+        e.rejected = false
+        e.states = [:]
+        return .saved
+    }
+
     /// Abmelden, Schalter aus, "Gespeichertes Passwort löschen": Eintrag weg, nichts Mitgelesenes mehr
     @discardableResult
     static func forget(_ store: WKWebsiteDataStore) -> Bool {
