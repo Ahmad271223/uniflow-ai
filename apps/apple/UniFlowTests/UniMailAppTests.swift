@@ -445,6 +445,7 @@ final class UniMailAppTests: XCTestCase {
         defer {
             OpenSync.allowed = wasAllowed
             OpenSync.last = [:]
+            OpenSync.running = []
         }
         let t0 = bed.clock.now
         XCTAssertEqual(inboxReads, 0)
@@ -458,6 +459,8 @@ final class UniMailAppTests: XCTestCase {
         XCTAssertFalse(m.syncAllOnOpen(now: t0.addingTimeInterval(15 * 60)))
         try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(inboxReads, 1, "nicht doppelt")
+        // LUH: der Abgleich aller Portale (10.11.2026) ist erst fertig, wenn alle Portale durch sind
+        try await bed.waitUntil("Abgleich beim Oeffnen fertig") { OpenSync.running.isEmpty }
         // mehr als 15 min: wieder einmal alles
         XCTAssertTrue(m.syncAllOnOpen(now: t0.addingTimeInterval(16 * 60)))
         try await bed.waitUntil("Posteingang nach 16 min") { self.inboxReads == 2 }

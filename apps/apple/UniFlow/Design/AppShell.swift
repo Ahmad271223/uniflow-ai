@@ -1115,8 +1115,10 @@ enum UFThemeMode: String {
 }
 
 struct UFHeader: View {
-    /// Sync-Knopf: Abgleich des eigenen Servers, sonst die Hochschule des Containers direkt auf dem iPad (Stud.IP,
-    /// Learnweb und LSF, Moodle und Campusmanagement; `ContainerManager.startUniversitySync`) oder der Weg zur Anmeldung
+    /// Sync-Knopf: Abgleich des eigenen Servers, sonst die Hochschule des Containers direkt auf dem iPad (LUH: alle
+    /// Portale - Stud.IP, QIS, Uni-Mail -, mit gespeichertem Uni-Zugang vorher verbunden; Learnweb und LSF, Moodle und
+    /// Campusmanagement; `ContainerManager.startUniversitySync`) oder der Weg zur Anmeldung. Am Ende das Ergebnis
+    /// ("Abgeglichen: Stud.IP und Uni-Mail. QIS: Anmeldung nötig.") in der Leiste.
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
         // Demo-Inhalte: kein Abgleich mit der Hochschule, nur der Hinweis auf "Beenden" in der Leiste darunter
@@ -1124,7 +1126,7 @@ struct UFHeader: View {
             toast.show(DemoTexts.syncBlocked, seconds: 4)
             return
         }
-        let start = containers.startUniversitySync()
+        let start = containers.startUniversitySync { report in toast.show(report.text, seconds: 5) }
         toast.show(start.text)
         if case .notConnected = start { router.go(.settings(tab: "account")) }
     }

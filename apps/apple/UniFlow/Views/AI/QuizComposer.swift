@@ -338,7 +338,7 @@ struct QuizComposer: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("quiz.noMaterials")
             UFButton("Jetzt abgleichen", icon: "sync", size: .small) {
-                let start = containers.startUniversitySync()
+                let start = containers.startUniversitySync { syncNote = $0.text }   // LUH: Ergebnis aller Portale
                 syncNote = start.text
                 if case .notConnected = start { close(); router.go(.settings(tab: "account")) }
             }
