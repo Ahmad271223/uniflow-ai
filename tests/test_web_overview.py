@@ -8,9 +8,12 @@ import pytest
 from test_pwa import _browser, served  # noqa: F401  (Fixture `served`)
 
 DASHBOARD = "document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)"
+# Die Lernstand-Kachel (seit 04.11.2026, style.css ".ls-tile", ".ls-ring i") zeichnet ihren Fortschrittsring mit
+# conic-gradient und hat einen Verlauf in Modulfarbe: das ist Anzeige, kein Schmuck, und zaehlt hier nicht mit. Ohne diese
+# Ausnahme hing der Test davon ab, ob ein frueherer Test ein Modul mit Lernstand in der gemeinsamen Datenbank hinterliess.
 FLAT = """() => ({
   shadows: [...document.querySelectorAll('#view .ov, #view .ov *')].filter(e => getComputedStyle(e).boxShadow !== 'none').length,
-  gradients: [...document.querySelectorAll('#view .ov, #view .ov *')].filter(e => /gradient/.test(getComputedStyle(e).backgroundImage)).length,
+  gradients: [...document.querySelectorAll('#view .ov, #view .ov *')].filter(e => !e.matches('.ls-tile, .ls-ring i') && /gradient/.test(getComputedStyle(e).backgroundImage)).length,
   hscroll: document.documentElement.scrollWidth > innerWidth })"""
 
 

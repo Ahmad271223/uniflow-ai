@@ -138,7 +138,13 @@ document.addEventListener("click", e => {
   e.preventDefault(); e.stopPropagation();
   import("./rooms.js?v=2").then(m => m.openRoom(b.dataset.room));
 }, true);
+// Seitenwechsel, waehrend eine Seite noch laedt (z. B. die Uebersicht beim Start): die aeltere schreibt beim Fertigwerden
+// noch in #view. War die neuere (andere Seite) da schon fertig, wird sie einmal neu gezeichnet; sonst gewinnt sie ohnehin.
+// Nur bei einer anderen Seite und hoechstens einmal je Seitenwechsel: Ansichten, die sich selbst neu zeichnen
+// (state.route()), duerfen keine Schleife ausloesen.
+let routeSeq = 0, routeDone = 0, routeHash = "", redrawLeft = 1;
 async function route() {
+  const seq = ++routeSeq, myHash = location.hash; routeHash = myHash;
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === name || (name === "doc" && a.dataset.route === "files")));
@@ -154,9 +160,11 @@ async function route() {
       : `<div class="content"><div class="card"><h2>Fehler</h2><p class="muted">${esc(e.message)}</p></div></div>`;
     if (offline) setTimeout(() => api("/bg").then(() => route()).catch(() => {}), 3000);
   }
+  if (seq < routeSeq) { if (routeDone === routeSeq && myHash !== routeHash && redrawLeft > 0) { redrawLeft--; route(); } return; }
+  routeDone = seq;
   if (name !== "doc") window.scrollTo(0, 0);
 }
-state.route = route; window.addEventListener("hashchange", route);
+state.route = route; window.addEventListener("hashchange", () => { redrawLeft = 1; route(); });
 
 // Probe auf der Uebersicht (Dienst): "noch N Tage alles frei", danach einmal die Aufforderung (planChoicePrompt)
 function trialHint() { return trialHintHtml(state.entitlements, state.hosted, icon, esc); }
