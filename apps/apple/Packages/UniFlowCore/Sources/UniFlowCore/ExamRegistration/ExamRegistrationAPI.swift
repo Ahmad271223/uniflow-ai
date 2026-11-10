@@ -146,12 +146,14 @@ public enum ExamRegistrationAPI {
                     o["reason_kind"] = "plan"
                     o["reason"] = .string("laut deinem Plan im \(term - start + 1). Semester")
                 }
-                if st.status == "angemeldet" {
-                    o["registered"] = true
-                    o["registered_via"] = "notenspiegel"
-                } else if reg != nil {
+                // Anmeldeseite zuerst: seit 10.11.2026 liest der Studienverlauf die Anmeldungen mit (Status "angemeldet"
+                // auch ohne Zeile im Notenspiegel); die Quelle bleibt die Seite, auf der die Anmeldung steht
+                if reg != nil {
                     o["registered"] = true
                     o["registered_via"] = "qis_info"
+                } else if st.status == "angemeldet" {
+                    o["registered"] = true
+                    o["registered_via"] = "notenspiegel"
                 } else {
                     o["registered"] = false
                     o["registered_via"] = .null

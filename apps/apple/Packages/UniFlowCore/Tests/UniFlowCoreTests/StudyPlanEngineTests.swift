@@ -210,6 +210,45 @@ final class StudyPlanEngineTests: XCTestCase {
         XCTAssertEqual(after["programmieren-1"]?.term, "WiSe 25/26", "bestanden: bleibt im QIS-Semester")
     }
 
+    /// Meldung 10.11.2026: Klausur aus dem 3. Fachsemester im 1. vorgezogen und in QIS angemeldet. Die Anmeldung steht
+    /// nur auf der QIS-Seite "angemeldete Pruefungen" (Tabelle `exam_registrations`), nicht im Notenspiegel; der
+    /// Studienverlauf zeigte das Modul weiter im spaeteren Semester. Jetzt: im aktuellen Semester, "angemeldet".
+    /// Abgemeldete Zeilen zaehlen nicht, und ein Ergebnis im Notenspiegel geht vor.
+    func testExamRegisteredEarlyShowsInCurrentSemester() async throws {
+        let fx = try studyPlanFixture("endpoints.json")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: UniFlowClock.fixed(berlin: "2026-11-09T10:00:00")!)
+        try await run(backend, (fx["seed"]?.array ?? []) + (fx["steps"]?.array ?? []).flatMap { $0["sql"]?.array ?? [] })
+        func terms() async throws -> [String: (term: String, status: String)] {
+            let r = await backend.handle(request(["method": "GET", "path": "/api/study-plan"]))
+            XCTAssertEqual(r.status, 200)
+            var out: [String: (String, String)] = [:]
+            for s in r.json?["semesters"]?.array ?? [] {
+                for m in s["modules"]?.array ?? [] { out[m["id"]?.string ?? ""] = (s["term"]?.string ?? "", m["status"]?.string ?? "") }
+            }
+            return out
+        }
+        let before = try await terms()
+        XCTAssertEqual(before["stochastik"]?.term, "SoSe 27")
+        XCTAssertEqual(before["stochastik"]?.status, "geplant")
+        XCTAssertNotEqual(before["signale-systeme"]?.status, "angemeldet")
+
+        try await backend.context.database.withConnection { c in
+            try QISRegistrationsSync.store(c, [
+                QISRegistration(pruefungsnr: "4711", text: "Stochastik für Ingenieure", semester: "WiSe 26/27", datum: "12.02.2027",
+                                versuch: "1", status: "angemeldet", abschluss: "Technische Informatik (PO-Version 2017)", raw: ""),
+                QISRegistration(pruefungsnr: "4712", text: "Signale und Systeme", semester: "WiSe 26/27", status: "abgemeldet", raw: ""),
+                QISRegistration(pruefungsnr: "4713", text: "Programmieren 1", semester: "WiSe 26/27", status: "angemeldet", raw: ""),
+            ], now: "2026-11-09T09:00:00")
+        }
+        let after = try await terms()
+        XCTAssertEqual(after["stochastik"]?.term, "WiSe 26/27", "vorgezogen und angemeldet: im aktuellen Semester")
+        XCTAssertEqual(after["stochastik"]?.status, "angemeldet")
+        XCTAssertEqual(after["signale-systeme"]?.term, before["signale-systeme"]?.term, "abgemeldet: bleibt geplant")
+        XCTAssertEqual(after["signale-systeme"]?.status, before["signale-systeme"]?.status)
+        XCTAssertEqual(after["programmieren-1"]?.status, "bestanden", "Ergebnis im Notenspiegel geht vor")
+        XCTAssertEqual(after["programmieren-1"]?.term, before["programmieren-1"]?.term)
+    }
+
     /// Katalog aus dem Speicher statt aus der Tabelle (Quelle austauschbar, solange der Katalog-Abruf fehlt)
     func testMemoryCatalogSource() async throws {
         let fx = try studyPlanFixture("engine.json")

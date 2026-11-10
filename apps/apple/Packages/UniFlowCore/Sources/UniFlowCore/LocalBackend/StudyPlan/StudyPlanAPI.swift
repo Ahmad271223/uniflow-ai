@@ -65,8 +65,19 @@ public enum StudyPlanAPI {
                         excluded: StudyPlanEngine.cleanIDs(v["excluded"]), custom: StudyPlanEngine.cleanCustom(v["custom"]))
     }
 
+    /// Notenspiegel plus die angemeldeten Pruefungen von der eigenen QIS-Seite (`exam_registrations`, nur Geraet).
+    /// Meldung 10.11.2026: eine aus einem spaeteren Fachsemester vorgezogene und angemeldete Klausur steht nur dort,
+    /// nicht im Notenspiegel; ohne diese Zeilen blieb das Modul im spaeteren Semester "geplant". Abgemeldete Zeilen
+    /// zaehlen nicht; ein Ergebnis im Notenspiegel geht in `StudyPlanEngine.compute` ohnehin vor (bestanden vor angemeldet).
     static func gradeRows(_ c: SQLiteConnection) throws -> [[String: JSONValue]] {
-        GradesModel.model(try c.rows("SELECT * FROM grades ORDER BY id"))
+        var rows = try c.rows("SELECT * FROM grades ORDER BY id")
+        func s(_ v: String?) -> JSONValue { v.map(JSONValue.string) ?? .null }
+        for r in try QISRegistrationsSync.rows(c) where r.registered && !r.text.isEmpty {
+            rows.append(["pruefungsnr": s(r.pruefungsnr), "text": .string(r.text), "semester": s(r.semester),
+                         "note": .string(""), "status": .string("angemeldet"), "versuch": s(r.versuch), "credits": .null,
+                         "datum": s(r.datum), "abschluss": s(r.abschluss), "raw": .null])
+        }
+        return GradesModel.model(rows)
     }
 
     /// `GET /api/study-plan`
