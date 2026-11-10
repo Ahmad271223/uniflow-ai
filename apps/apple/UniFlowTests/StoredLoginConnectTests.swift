@@ -47,7 +47,7 @@ final class StoredLoginConnectTests: XCTestCase {
         services = []
     }
 
-    private struct Bed {
+    @MainActor private struct Bed {
         let bed: ContainerTestBed
         let m: ContainerManager
         let qis: QISConnection

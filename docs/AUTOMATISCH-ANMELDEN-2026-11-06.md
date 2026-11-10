@@ -29,9 +29,10 @@ Hochschul-Container ein Eintrag; **nie** an StudiNow-Server oder einen Rechner a
    - jede Weiterleitung des Hauptrahmens auf einen Rechner außerhalb der Hochschule oder auf http: Abbruch;
    - jedes Formular höchstens einmal, höchstens drei je Anmeldung; erscheint es nach dem Absenden wieder: „Passwort
      abgelehnt“;
-   - **falsches Passwort:** nichts wird gelöscht, „Anmeldung nötig“ erscheint (die bisherige Bitte, höchstens alle 6
-     Stunden), das abgelehnte Passwort wird für keinen Dienst der Hochschule mehr benutzt, bis sich der Mensch neu
-     anmeldet (das neue Passwort ersetzt das alte; Einstellungen zeigen „abgelehnt“);
+   - **falsches Passwort:** „Anmeldung nötig“ erscheint (die bisherige Bitte, höchstens alle 6 Stunden), das
+     abgelehnte Passwort wird für keinen Dienst der Hochschule mehr benutzt. Seit 1.0.2 (Abschnitt unten) wird der
+     dabei benutzte Eintrag dafür **vergessen** (vorher blieb er liegen und galt nur bis zum Neustart als abgelehnt);
+     die Einstellungen zeigen „abgelehnt“, bis ein neues Passwort gespeichert ist oder sich der Mensch neu anmeldet;
    - **keine Schleife:** läuft der eine neue Versuch innerhalb von 10 Minuten wieder ab, ist Schluss; nie zwei stille
      Anmeldungen derselben Quelle innerhalb einer Minute; nach Fehlschlägen 5, 10, 20 … Minuten Pause, höchstens 2
      Stunden, nach drei Fehlschlägen in Folge nur noch auf Knopfdruck „Erneut anmelden“ (Schutz vor einer Kontosperre;
@@ -44,9 +45,62 @@ Hochschul-Container ein Eintrag; **nie** an StudiNow-Server oder einen Rechner a
    öffnen, senden …). Stud.IP und Learnweb/LSF versuchen zuerst wie bisher die SSO-Sitzung ohne Passwort
    (`StudIPSilentLogin`, `HildesheimSilentLogin`); erst wenn das WebSSO bzw. CAS das Passwort will, wird eingefüllt und
    danach der bisherige Weg noch einmal gegangen.
-6. **Einstellungen** (Studium → „Automatisch anmelden“, `UniAutoLoginCard`): Schalter, „Gespeichert für: <Benutzer>“,
-   „Gespeichertes Passwort löschen“. Abmelden bei einem Dienst, „Daten dieser Hochschule löschen“ und „Konto löschen“
-   löschen den Eintrag ebenfalls.
+6. **Einstellungen** (bis 1.0.1: Studium → „Automatisch anmelden“, `UniAutoLoginCard`): Schalter, „Gespeichert für:
+   <Benutzer>“, „Gespeichertes Passwort löschen“. Seit 1.0.2 die Karte „Uni-Zugang“ (Abschnitt unten). Abmelden bei
+   einem Dienst, „Daten dieser Hochschule löschen“ und „Konto löschen“ löschen die Einträge ebenfalls.
+
+## 1.0.2: Uni-Zugang einmal speichern (Vorgabe des Inhabers 10.11.2026)
+
+„Man muss nur einmal in den Einstellungen das Passwort speichern, mehr nicht.“
+
+**Einstellungen → Zugang & Darstellung → Studium → „Uni-Zugang“** (`UniAutoLoginCard`, erste Karte der Gruppe):
+
+- Schalter **„Benutzername und Passwort sind überall gleich“** (Vorgabe an, `UniAutoLogin.sameEverywhere`, UserDefaults
+  `uniLogin.sameEverywhere`, kein Geheimnis).
+  - **An:** ein Formular (Benutzername, Passwort) für Stud.IP, QIS und Uni-Mail (SOGo) – der gemeinsame Eintrag
+    `uni-login.<container-uuid>`.
+  - **Aus** (nur an der LUH): Stud.IP, QIS und Uni-Mail (SOGo) untereinander, jedes mit Benutzername, Passwort,
+    „Speichern“, Status (gespeichert / fehlt / abgelehnt) und „Entfernen“. Je Portal ein eigener Eintrag
+    `uni-login.<container-uuid>.<studip|qis|sogo>` im selben Dienst, gleiche Schutzklasse (`ThisDeviceOnly`, nicht
+    synchronisiert). Fehlt der Eintrag eines Portals, gilt der gemeinsame (`UniAutoLogin.credential(for:)`).
+- Unter der Karte: „Dein Passwort liegt nur im Schlüsselbund dieses iPads – nie auf unseren Servern.“
+- **„Speichern“** legt den Eintrag ab (Speichern heißt zustimmen: „Automatisch anmelden“ an) und ruft gleich
+  `ContainerManager.connectWithStoredLogin(userAction: true)` auf; die Karte zeigt kurz das Ergebnis
+  („Verbunden: Stud.IP, QIS, Uni-Mail.“ / „Anmeldung nötig: …“ / „Passwort abgelehnt (…)“). Das Passwortfeld ist
+  danach wieder leer; das Passwort steht nie in Bedienungshilfen-Werten.
+
+**Verbinden** (`connectWithStoredLogin`, Services/StoredLoginConnect.swift): Reihenfolge **Stud.IP (WebSSO), QIS,
+Uni-Mail (SOGo)**, auch beim ersten Mal (vorher konnte die stille Anmeldung nur eine bestehende Verbindung erneuern):
+
+| Stand des Dienstes | was passiert |
+| --- | --- |
+| verbunden | nichts, zählt als „verbunden“ |
+| abgelaufen | wie bisher still erneuern (`renewSilently`, `QISConnection.autoLogin`, `UniMailConnection.autoLogin`) |
+| noch nie verbunden | unsichtbar auf dem Formular anmelden (`UniAutoLogin.handleExpiry`), dann wie nach einer Anmeldung von Hand: Stud.IP prüft die Cookies mit `users/me` und gleicht ab (`signedIn(cookies:)`), QIS ruft Noten ab (`signedIn()`), Uni-Mail liest das Konto aus der Adresse `/SOGo/so/<benutzer>/` und den Posteingang (`signedIn(user:)`) |
+| bewusst abgemeldet | nichts (kein stilles Wiederverbinden), bis sich der Mensch dort anmeldet oder in den Einstellungen neu speichert |
+
+Regeln: nur im Vordergrund; nie in einer Schleife (`UniAutoLoginMachine` unverändert); nie zwei Läufe zugleich; nie mit
+Demo-Inhalten. **Abgelehnt:** der benutzte Eintrag wird vergessen, dazu jeder andere Eintrag mit genau demselben
+Benutzernamen und Passwort – ein abgelehntes Passwort geht nie ein zweites Mal hinaus, auch nicht an ein anderes Portal
+oder nach einem Neustart. Mit dem gemeinsamen Zugang stoppt eine Ablehnung damit alle Portale, mit getrennten Zugängen
+nur dieses. `StoredLoginReport` meldet `connected`, `needsLogin`, `rejected`, `noCredential` und `rejectedPortals`.
+
+**Sync:** Ein Tipp auf „Sync“ (Kopfzeile) gleicht an der LUH Stud.IP, QIS (Noten, Prüfungen, angemeldete Prüfungen,
+Bescheinigungsliste, nur lesend) und Uni-Mail ab; ohne gespeicherten Zugang sagt er „Zuerst den Uni-Zugang in den
+Einstellungen speichern“ und öffnet die Einstellungen (Zugang & Darstellung, Karte „Uni-Zugang“). Beim Öffnen der App
+verbindet sie mit dem gespeicherten Zugang ebenso selbst (Teil „Sync“, `Services/OpenSync.swift`).
+
+Tests: `StoredLoginConnectTests` (gemeinsam, getrennt, Rückfall auf den gemeinsamen, Ablehnung eines Portals gegen
+alle, kein zweites Senden – auch nicht an ein anderes Portal –, Abmelden-Sperre, Hintergrund, Löschen aller Einträge),
+`UniAutoLoginCardTests` (beide Schalterstellungen im Fenster, Texte, Ergebnis), `UniAutoLoginAppTests` (abgelehnter
+Eintrag wird vergessen statt behalten).
+
+**Testliste für den Inhaber (1.0.2, am iPad, echte Konten):**
+13. Neu installieren, anmelden, LUH wählen, nichts verbinden. Einstellungen → „Uni-Zugang“: LUH-ID und Passwort
+    eingeben, „Speichern“ → nach kurzer Zeit „Verbunden: Stud.IP, QIS, Uni-Mail.“; Dateien, Noten und Posteingang kommen.
+14. Schalter „überall gleich“ aus: drei Formulare; nur QIS mit falschem Passwort speichern → „Passwort abgelehnt (QIS)“,
+    Stud.IP und Uni-Mail bleiben verbunden; QIS zeigt „abgelehnt“, kein zweiter Versuch beim nächsten „Sync“.
+15. QIS „Abmelden“ → App schließen und öffnen, „Sync“ → QIS bleibt abgemeldet.
 
 ## Formulare (`UniLoginForms`)
 
