@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 31 (Version 1.0.1, `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.1
+Aktueller Stand in project.yml: Build 31 (Version 1.0.2, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.1
 mit Build 30 (seit 10.11.2026).
 
 ## Builds
@@ -26,7 +26,7 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 28 | `7d1a8fb3` | 09.11.2026 12:08 | gebaut (Archiv), auf das iPad des Inhabers installiert, noch nicht hochgeladen | Build 27 plus Händigkeit/Seitentausch, Strich sofort gesichert (P60-F1), Erledigung beim Abgleich (P73-F6), Audits 58–87, siehe unten |
 | 29 | – | 09.11.2026 | nie gebaut und nie hochgeladen: interner Stand auf develop (Build 28 plus Mac-Parität, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen); nicht in Build 30, Inhalt steckt in Build 31 | docs/paritaet/MAC-B28-2026-11-09.md, COMMUNITY-UND-ABGLEICH-2026-11-09.md |
 | 30 | `3b81464a` | 10.11.2026 00:03 | eingereicht: Version 1.0.1, App Store WAITING_FOR_REVIEW seit 10.11.2026 00:27, zugleich TestFlight-Beta-Prüfung; hochgeladen 10.11.2026 00:06 vom Zweig `release/1.0-b30`; Freigabe von Hand | Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts; docs/release/ABO-NUR-JAHR-2026-11-09.md |
-| 31 | – | 09.11.2026 | noch nicht hochgeladen; Inhalt: Build 30 plus Mac-Parität und Mac-Bedienung (Maus, Trackpad, Tasten), Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen; gedacht für die nächste Version nach 1.0.1 (Versionsnummer vor dem Upload hochsetzen, z. B. 1.0.2) | docs/paritaet/ |
+| 31 | – | 10.11.2026 | noch nicht hochgeladen; Version 1.0.2 | Build 30 plus Mac-Parität und Mac-Bedienung, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen; QIS (angemeldete Prüfungen, Bescheinigungen mit abgelaufener Anmeldung); Lernblöcke nur in freier Zeit; Antwort auf die Übungsfrage für jedes Vorkommen; Uni-Zugang einmal speichern („überall gleich“ oder je Portal); ein Sync für Stud.IP, QIS und Uni-Mail; Wochenkopf ohne Umbruch des Datums; „Nachrichten“ mit Sprechblase statt zweitem Brief |
 
 ### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
 

@@ -163,7 +163,10 @@ struct PlanWeekGrid: View {
             Button { router.go(.plan(view: "day", date: date, module: d.module.isEmpty ? nil : d.module)) } label: {
                 VStack(spacing: 0) {
                     Text(ShellState.days[dd.i("weekday") ?? 0]).ufFont(12.48).foregroundStyle(today ? UF.accentText : UF.muted)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    // schmale Spalte (leerer Tag, Gewicht 0,75): "15.11." nie umbrechen ("15.1 / 1.", Inhaber 10.11.2026)
                     Text("\(c.day ?? 0).\(c.month ?? 0).").ufFont(16, 700).foregroundStyle(today ? UF.accentText : UF.text)
+                        .lineLimit(1).minimumScaleFactor(0.6)
                     HStack(spacing: 5.6) {
                         if total > 0 { UFRing(percent: Double(100 * done) / Double(total), color: col, hole: today ? UF.accentSoft : UF.surface) }
                         Text(txt).lineLimit(1)

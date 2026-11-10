@@ -112,8 +112,12 @@ final class MessagesAppTests: XCTestCase {
         XCTAssertEqual(Array(local.map(\.id).prefix(3)), ["dashboard", "messages", "plan"])
         let item = try? XCTUnwrap(local.first { $0.id == "messages" })
         XCTAssertEqual(item?.title, "Nachrichten")
-        XCTAssertEqual(item?.icon, "mail")
-        XCTAssertTrue(UFIconNames.all.contains("mail"), "Symbol im Katalog")
+        XCTAssertEqual(item?.icon, "message")
+        XCTAssertTrue(UFIconNames.all.contains("message"), "Symbol im Katalog")
+        // eingeklappte Leiste: "Nachrichten" und "Uni-Mail" nie mit demselben Symbol
+        XCTAssertNotEqual(UFNavItem.messages.icon, UFNavItem.uniMail.icon)
+        let both = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, messages: true, uniMail: true)
+        XCTAssertEqual(Set(both.map(\.icon)).count, both.count, "jedes Symbol nur einmal: \(both.map(\.icon))")
         XCTAssertEqual(item?.route, .messages)
         let study = UFNavGroup.groups(local).first { $0.id == "study" }
         XCTAssertEqual(Array(study?.items.map(\.id).prefix(2) ?? []), ["dashboard", "messages"])

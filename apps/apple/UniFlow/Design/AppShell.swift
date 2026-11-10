@@ -265,8 +265,9 @@ struct UFNavItem: Identifiable {
     ]
 
     /// Stud.IP-Nachrichten (04.11.2026): direkt nach "Übersicht", nur wenn `visible(messages:)` es erlaubt
-    /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten)
-    static let messages = UFNavItem(id: "messages", title: "Nachrichten", icon: "mail", route: .messages)
+    /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten).
+    /// Sprechblase statt Brief: "Uni-Mail" traegt den Brief, eingeklappt standen sonst zwei gleiche Symbole (Inhaber 10.11.2026)
+    static let messages = UFNavItem(id: "messages", title: "Nachrichten", icon: "message", route: .messages)
 
     /// Uni-Mail (SOGo der LUH, 05.11.2026): nach "Nachrichten" in "Studium", nur an der LUH auf dem iPad
     /// (`uniMail`: Verbindung des Containers vorhanden und lokales Backend)
