@@ -142,8 +142,10 @@ def test_review_notes_describe_the_build_honestly():
     assert "Auch frühere Semester laden?" in _swift("Views/Library/OlderSemestersViews.swift")
     # 10.11.2026 (Einreichung 1.0.1): der Satz zu frueheren Semestern steht nicht mehr in den Hinweisen (4000 Zeichen,
     # in der Demo nicht sichtbar); dafuer der Stand der Abos, wie er in App Store Connect steht
-    assert "yearly subscriptions only" in pro and "monthly products are removed from sale" in pro
-    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and "Version 1.0 (build 25) was approved but never released" in pro
+    # 10.11.2026 (Einreichung 1.0.2): erste Zeile nennt das Neue statt der Geschichte von 1.0/1.0.1
+    assert "monthly products are removed from sale" in pro
+    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.2:")
+    assert '"Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang"' in pro
     assert "flashcards from a document need Plus, weekly tests Pro AI" in pro
     assert "Wochentests ab \\(UFPlan.proAI.name)" in _swift("Views/Settings/OpenAIKeyCard.swift")
     desc = f["description-proai"]

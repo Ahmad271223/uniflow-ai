@@ -1,6 +1,6 @@
 # App Store Connect – Texte und Angaben (iPad, Mac „Designed for iPad“)
 
-**Stand 10.11.2026 (nur Jahresabos; 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.1 (Build 30 ist seit 10.11.2026 in der Prüfung, Beschreibung und Prüfhinweise unten stehen so in App Store Connect; Build 25 war seit 08.11. in der Prüfung und als Version 1.0 freigegeben, wurde aber nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
+**Stand 10.11.2026 (nur Jahresabos; 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.2 (Build 31 ist seit 10.11.2026 in der Prüfung, Beschreibung und Prüfhinweise unten stehen so in App Store Connect; 1.0.1 mit Build 30 ist seit 10.11.2026 veröffentlicht; Build 25 war seit 08.11. in der Prüfung und als Version 1.0 freigegeben, wurde aber nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
@@ -136,7 +136,7 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3937 Zeichen
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3976 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
@@ -172,7 +172,7 @@ Die KI ist freiwillig und braucht ein StudiNow-Konto (Anmelden mit Apple) – od
 
 DEINE DATEN
 • Dateien, Notizen und Pläne liegen auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
-• Dein Hochschul-Passwort gibst du nur auf der Anmeldeseite deiner Hochschule ein. Lässt du „Passwort auf diesem iPad merken“ an, liegt es nur im Schlüsselbund dieses iPads (nicht in iCloud) – abschaltbar, löschbar. An Server von StudiNow geht es nie.
+• Dein Hochschul-Passwort gibst du auf der Anmeldeseite deiner Hochschule oder einmal unter „Uni-Zugang“ in den Einstellungen ein. Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses iPads (nicht in iCloud) – abschaltbar, löschbar. An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
 StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je iPad), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, automatischer Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
@@ -195,13 +195,18 @@ aufnehmen (dann z. B. „Hochschule“ und „Noten“ weglassen, max. 100 Zeich
 Stud.IP,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Hannover,Hochschule,Noten
 ```
 
-## Neue Funktionen in dieser Version (1.0) – 317 Zeichen
+## Neue Funktionen in dieser Version (1.0.2) – 628 Zeichen
 
-Bei der ersten Version zeigt der App Store dieses Feld nicht an; App Store Connect verlangt es bei 1.0 auch nicht. Für
-1.0.1 ff. ersetzen. Passt zu beiden Fassungen.
+So seit 10.11.2026 in App Store Connect (Version 1.0.2, Build 31).
 
 ```text whats-new
-Erste Version von StudiNow für das iPad: Unterlagen, Termine, Nachrichten, Noten und Bescheinigungen aus deiner Hochschule, Uni-Mail und Uni-Kalender, Raumfinder mit Route, Stundenplan, Lernkalender und Mensa. Mit StudiNow Plus: Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Community.
+Neu: Uni-Zugang einmal speichern. Trag Benutzername und Passwort einmal in den Einstellungen unter „Uni-Zugang“ ein – für alle Portale gleich oder je Portal getrennt. Danach meldet sich StudiNow selbst an, und ein Tipp auf „Sync“ gleicht Stud.IP, QIS und Uni-Mail ab. Dein Passwort bleibt nur im Schlüsselbund deines iPads.
+
+Behoben:
+• Lernblöcke liegen nur noch in freier Zeit, nie über Vorlesungen oder Übungen.
+• Deine gewählte Übung erscheint im Stundenplan, abgewählte werden grau.
+• QIS zeigt angemeldete Prüfungen und meldet sich für Bescheinigungen selbst neu an.
+• Kleinere Korrekturen in Lernkalender und Seitenleiste.
 ```
 
 ## Weitere Angaben
@@ -218,7 +223,7 @@ Erste Version von StudiNow für das iPad: Unterlagen, Termine, Nachrichten, Note
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0.2 (`MARKETING_VERSION` auf develop; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 31** (`CURRENT_PROJECT_VERSION` auf develop, Version 1.0.2; Build 30 in der Prüfung als Version 1.0.1 seit 10.11.2026, vom Zweig `release/1.0-b30`; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen); Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
+| Version, Build | 1.0.2 (`MARKETING_VERSION` auf develop; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 32** (`CURRENT_PROJECT_VERSION` auf develop, für die Version nach 1.0.2; Build 31 in der Prüfung als Version 1.0.2 seit 10.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026, vom Zweig `release/1.0-b30`; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen); Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv, an zwei Stellen: beim Start (trennt die Daten je Apple-Nutzer, bleibt auf dem Gerät) und freiwillig für das StudiNow-Konto (Einstellungen → Zugang & Darstellung → StudiNow-Konto; Token-Tausch beim Dienst). Konto löschen geht für beides in der App (Richtlinie 5.1.1(v)) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -403,10 +408,10 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3981 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3986 Zeichen (max. 4000)
 
 ```text review-notes-proai
-Version 1.0 (build 25) was approved but never released. 1.0.1 (build 30) replaces it: bug fixes, yearly subscriptions only.
+New in 1.0.2: save the university login once ("Uni-Zugang" in settings); "Sync" then refreshes Stud.IP, QIS and mail. Bug fixes.
 
 StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. University features (files, timetable, mail, grades) need a personal university account. Please use the built-in demo instead:
 
