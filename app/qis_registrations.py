@@ -3,16 +3,24 @@ docs/PRUEFUNGSANMELDUNG-2026-11-05.md). Gleiche Regeln wie der Swift-Kern (ExamR
 Startseite -> "Mein Studium" -> Link "Info über angemeldete Prüfungen" -> Tabellen; ohne Tabelle den Baum (Abschluss,
 Studiengang) aufklappen, hoechstens MAX_PAGES Seiten. Laeuft im normalen QIS-Abruf mit (app/qis.py, dieselbe
 angemeldete Browsersitzung wie der Notenspiegel); getestet mit den erfundenen Seiten
-packages/shared-contracts/fixtures/exam-registration/qis-*.html.
+packages/shared-contracts/fixtures/exam-registration/qis-*.html und den echten, anonymisierten Seiten qis-echt-*.html.
+
+LUH AM ECHTEN KONTO GESEHEN (10.11.2026, nur lesend): "Mein Studium" -> "Info über angemeldete Prüfungen"
+(state=examsinfosStudent, next=tree.vm) -> Baum "Abschluss 82 Bachelor of Science" (Link "Diesen Zweig aufklappen",
+expand=0; aufgeklappt heisst derselbe Link "zuklappen", expand=1) -> Bild-Link "angemeldete Prüfungen anzeigen für
+<Studiengang>" (next=list.vm) -> Tabelle mit den Spalten PrfNr. | Prüfungsbezeichnung | Prüfer/in | Semester (Termin) |
+Anmeldedatum *) | Rücktritt über QIS möglich bis | Prüfungsdatum (keine Status-Spalte, Datum und Ruecktritt oft leer).
+Der Baum merkt sich das Aufklappen in der Sitzung: ein schon aufgeklappter Zweig wird nicht wieder zugeklappt.
 
 Uni Hildesheim (`profile="hildesheim"`, dieselbe HIS-Software im LSF, app/qis.py Profil hildesheim): Startseite des
 LSF ("Meine Funktionen") -> "POS-Management" -> "Meine POS-Anmeldungen" (Weg laut Schnellanleitung der Uni; die Seite
 selbst ist NICHT GESEHEN, erfundene Seiten fixtures/exam-registration/lsf-*.html). Tabellen wie im Hildesheimer
 Notenspiegel ("Abschluss: ..." vor der Kopfzeile); Status auch zugelassen/storniert/nicht zugelassen.
 
-NICHT AM ECHTEN KONTO GESEHEN (wie auf dem iPad). Sicherheit: nie einem Link zur Pruefungsanmeldung/-abmeldung folgen
+Sicherheit: nie einem Link zur Pruefungsanmeldung/-abmeldung folgen
 (`is_forbidden`: Text oder Parameter mit Anmeldung, Abmeldung, Ruecktritt), nie ein Formular abschicken (nur GET der
-gefundenen Links), nie eine Bescheinigung oeffnen; asi und Stammdaten werden nie gespeichert. Die App meldet nie
+gefundenen Links), nie eine Bescheinigung oder den PDF-Druck (state=hisreports) oeffnen; asi und Stammdaten werden nie
+gespeichert. Die App meldet nie
 selbst an oder ab.
 """
 from __future__ import annotations
@@ -70,10 +78,12 @@ def fold(text: str) -> str:
 
 HEADERS = {
     "prüfungsnr": "pruefungsnr", "pruefungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungsnummer": "pruefungsnr",
-    "pnr": "pruefungsnr", "modulnr": "pruefungsnr", "nummer": "pruefungsnr",
+    "pnr": "pruefungsnr", "modulnr": "pruefungsnr", "nummer": "pruefungsnr", "prfnr": "pruefungsnr",
     "prüfungstext": "text", "pruefungstext": "text", "text": "text", "bezeichnung": "text", "prüfung": "text",
     "pruefung": "text", "titel": "text", "veranstaltung": "text", "modul": "text", "leistung": "text",
     "prüfungsleistung": "text", "veranstaltungstitel": "text",
+    # echte LUH-Seite (10.11.2026): "PrfNr." und "Prüfungsbezeichnung"
+    "prüfungsbezeichnung": "text", "pruefungsbezeichnung": "text",
     "semester": "semester", "sem": "semester",
     "datum": "datum", "prüfungsdatum": "datum", "pruefungsdatum": "datum", "termin": "datum", "prüfungstermin": "datum",
     "tag": "datum",
@@ -404,6 +414,8 @@ class Page:
 # ---------------------------------------------------------------------------- Links
 
 PROGRAM_RE = re.compile(r"(?:prüfungen|pruefungen|leistungen)\s+f(?:ü|ue)r\s+(.+?)\s+anzeigen\s*$", re.I)
+# echte LUH-Seite: "angemeldete Prüfungen anzeigen für Technische Informatik (PO-Version 2017)"
+PROGRAM_AFTER_RE = re.compile(r"(?:prüfungen|pruefungen|leistungen)\s+anzeigen\s+f(?:ü|ue)r\s+(.+?)\s*$", re.I)
 
 
 def is_pos_overview(l: Link) -> bool:
@@ -433,7 +445,8 @@ def is_forbidden(l: Link) -> bool:
         if "anmeld" in v and not (overview and "anmeldungen" in v):
             return True
     a = l.address.lower()
-    if p.get("state", "").lower() == "verpublish" or ".pdf" in a or "logout" in a or "storn" in a or t.startswith("pdf"):
+    if p.get("state", "").lower() in ("verpublish", "hisreports") or ".pdf" in a or "logout" in a or "storn" in a \
+            or t.startswith("pdf"):
         return True
     if p.get("state") == "user" and p.get("type") == "4":
         return True
@@ -454,7 +467,7 @@ def studiengang(l: Link) -> str | None:
         if lower.startswith(prefix) and lower.endswith(" anzeigen"):
             c = clean(l.text[len(prefix):-len(" anzeigen")])
             return c or None
-    m = PROGRAM_RE.search(clean(l.text))
+    m = PROGRAM_RE.search(clean(l.text)) or PROGRAM_AFTER_RE.search(clean(l.text))
     if not m:
         return None
     return clean(m.group(1)) or None
@@ -464,21 +477,26 @@ def next_links(page: Page, info: Link, visited: set[str]) -> list[Link]:
     host = (urlsplit(page.address).hostname or "").lower()
     state = (info.state or "").lower()
     visited_nodes = {parameters(v).get("nodeid", "").lower() for v in visited} - {""}
-    seen, out = set(), []
+    # Knoten aller Links der Seite: ein Zweig ist schon aufgeklappt, wenn ein anderer Link darunter liegt ("knoten|...")
+    nodes = {l.parameters.get("nodeid", "").lower() for l in page.links if l.host == host} - {""}
+    seen, lists, others = set(), [], []
     for l in page.links:
         if l.host != host or l.address in visited or is_forbidden(l) or l.address in seen:
             continue
         seen.add(l.address)
         is_list = l.parameters.get("next", "").lower() == "list.vm"
         node = l.parameters.get("nodeid", "").lower()
-        if node and not is_list and node in visited_nodes:
-            continue
+        if node and not is_list:
+            # nie wieder zuklappen (echte LUH-Seite: expand=1 am aufgeklappten Zweig), nie denselben Knoten zweimal
+            if node in visited_nodes or l.parameters.get("expand") == "1" or any(n.startswith(node + "|") for n in nodes):
+                continue
         if is_info(l):
-            out.append(l)
+            (lists if is_list else others).append(l)
             continue
         if state and (l.state or "").lower() == state and (node or is_list):
-            out.append(l)
-    return out[:10]
+            (lists if is_list else others).append(l)
+    # Listen zuerst: sie tragen die Tabelle, die Knoten nur den Weg dorthin
+    return (lists + others)[:10]
 
 
 def info_tables(p: Page) -> list[list[list[str]]]:

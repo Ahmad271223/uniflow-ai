@@ -11,6 +11,10 @@ import WebKit
 // Reihenfolge (docs/SYNC-REIHENFOLGE-2026-11-05.md): nichts davon laeuft im Abgleich. Die Liste liest die Seite
 // Bescheinigungen beim Oeffnen, wenn sie aelter als 7 Tage ist (nur Links, erzeugt nichts), und auf "Liste aktualisieren";
 // eine PDF nur auf "Herunterladen" bzw. "Neu laden" (jeder Abruf erzeugt im Portal ein Dokument).
+// Abgelaufene Sitzung (10.11.2026, das QIS meldet nach etwa 30 Minuten ab): wie beim Notenabruf einmal still mit dem
+// auf diesem Geraet gemerkten Passwort anmelden (`UniAutoLogin`, nur mit Zustimmung), dann genau einmal neu versuchen.
+// Ohne gemerktes Passwort bleibt "Anmeldung nötig". Steht in der gespeicherten Liste noch "Anmeldung nötig", die
+// Verbindung ist aber wieder angemeldet (Notenabruf, QIS-Karte), liest die Seite die Liste beim Oeffnen neu.
 
 @MainActor
 final class CertificateCenter: ObservableObject {
@@ -103,9 +107,38 @@ final class CertificateCenter: ObservableObject {
         }
     }
 
-    /// Soll die Seite beim Oeffnen die Liste lesen? Nie gelesen oder aelter als 7 Tage, verbunden, nicht im Abgleich
+    /// Sitzung abgelaufen: einmal still mit dem auf diesem Geraet gemerkten Passwort anmelden (QIS bzw. Campusmanagement;
+    /// nur mit Zustimmung, nie in einer Schleife: `UniAutoLoginMachine`). Danach laeuft der Abruf der Verbindung einmal
+    /// (Noten); erst wenn er fertig ist, geht es hier weiter (kein zweiter Weg durch dieselben Seiten). PLuS: nie.
+    func silentLogin() async -> Bool {
+        let ok: Bool
+        switch portal {
+        case .qis(let q):
+            q.certificatesExpired()
+            ok = await q.autoLogin()
+        case .hsh(let h):
+            h.certificatesExpired()
+            ok = await h.autoLogin(.campus)
+        case .plus:
+            ok = false
+        }
+        guard ok else { return false }
+        for _ in 0..<5 where !portalBusy { try? await Task.sleep(nanoseconds: 100_000_000) }    // der Abruf startet gleich
+        for _ in 0..<600 where portalBusy { try? await Task.sleep(nanoseconds: 200_000_000) }
+        guard isConnected, !portalBusy else { return false }
+        needsLogin = false
+        return true
+    }
+
+    /// Soll die Seite beim Oeffnen die Liste lesen? Nie gelesen oder aelter als 7 Tage, verbunden, nicht im Abgleich.
+    /// Gespeicherter Stand "Anmeldung nötig", die Verbindung ist aber wieder angemeldet: ja (PLuS hat keine eigene
+    /// Verbindung, dort nie von selbst gegen die Anmeldeseite).
     func shouldRefresh(status: String?, checkedAt: String?, now: Date = Date()) -> Bool {
-        guard isConnected, !portalBusy, busy == nil, status != "login" else { return false }
+        guard isConnected, !portalBusy, busy == nil else { return false }
+        if status == "login" {
+            if case .plus = portal { return false }
+            return true
+        }
         guard let checkedAt, let d = Fmt.date(checkedAt) else { return true }
         return now.timeIntervalSince(d) >= Self.staleAfter
     }
@@ -117,10 +150,12 @@ final class CertificateCenter: ObservableObject {
         if await host.demoActive() { message = "Im Demo-Modus fragt StudiNow kein Portal an."; return nil }
         busy = "list"
         defer { busy = nil; finished += 1 }
-        let t = await transport()
         do {
             let db = try await host.backend().context.database
-            let r = await CertificatesSync.refresh(db: db, transport: t, clock: clock)
+            var r = await CertificatesSync.refresh(db: db, transport: await transport(), clock: clock)
+            if r.needsLogin, await silentLogin() {
+                r = await CertificatesSync.refresh(db: db, transport: await transport(), clock: clock)
+            }
             if r.needsLogin { expired() } else if r.ok { needsLogin = false }
             if !r.cancelled { message = r.message }
             return r
@@ -136,11 +171,14 @@ final class CertificateCenter: ObservableObject {
         if await host.demoActive() { message = "Im Demo-Modus fragt StudiNow kein Portal an."; return nil }
         busy = id
         defer { busy = nil; finished += 1 }
-        let t = await transport()
         do {
             let backend = try await host.backend()
             guard let files = backend.context.files else { message = "Auf diesem Gerät gibt es keinen Speicherort für Dateien."; return nil }
-            let r = await CertificatesSync.download(db: backend.context.database, files: files, transport: t, offerID: id, semester: semester, clock: clock)
+            var r = await CertificatesSync.download(db: backend.context.database, files: files, transport: await transport(), offerID: id, semester: semester, clock: clock)
+            // abgelaufen: es kam die Anmeldeseite, kein Dokument entstand; nach der stillen Anmeldung genau einmal neu
+            if r.needsLogin, await silentLogin() {
+                r = await CertificatesSync.download(db: backend.context.database, files: files, transport: await transport(), offerID: id, semester: semester, clock: clock)
+            }
             if r.needsLogin { expired() } else if r.ok { needsLogin = false }
             if !r.cancelled { message = r.message }
             return r.file

@@ -3,8 +3,9 @@ import XCTest
 @testable import UniFlowCore
 
 /// Pruefungsanmeldung (docs/PRUEFUNGSANMELDUNG-2026-11-05.md): Meldezeitraeume aus der Datendatei (gleiche Faelle wie
-/// app/exam_registration.py), Leser fuer "Info über angemeldete Prüfungen" mit erfundenen QIS-Seiten (nie die
-/// Pruefungsanmeldung, nie asi oder Stammdaten gespeichert), Vorschlaege aus dem Studienverlauf, Erinnerungen.
+/// app/exam_registration.py), Leser fuer "Info über angemeldete Prüfungen" mit erfundenen QIS-Seiten und den echten,
+/// anonymisierten LUH-Seiten vom 10.11.2026 (nie die Pruefungsanmeldung, nie asi oder Stammdaten gespeichert),
+/// Vorschlaege aus dem Studienverlauf, Erinnerungen.
 final class ExamRegistrationTests: XCTestCase {
 
     private func repo(_ relative: String) throws -> Data {
@@ -167,6 +168,111 @@ final class ExamRegistrationTests: XCTestCase {
         XCTAssertFalse(urls.contains { $0.contains("type=4") }, "nie abmelden")
         XCTAssertTrue(t.requests.allSatisfy { $0.method == "GET" && $0.body == nil }, "keine Formulare")
         XCTAssertEqual(urls.filter { $0.contains("expand=1") }.count, 0, "aufgeklappter Knoten wird nicht wieder zugeklappt")
+    }
+
+    // MARK: echte LUH-Seiten (10.11.2026, anonymisiert)
+
+    /// QIS mit den echten, anonymisierten Seiten (qis-echt-*.html). Wie der Server merkt sich der Baum das Aufklappen;
+    /// Pruefungsanmeldung, PDF-Druck (hisreports), Bescheinigung und Abmelden waeren VERBOTEN.
+    private func qisEcht(expanded: Bool = false) throws -> FakeUniTransport {
+        let pages = try ["start": page("qis-echt-start.html"), "studium": page("qis-echt-studium.html"),
+                         "tree": page("qis-echt-tree.html"), "expanded": page("qis-echt-expanded.html"),
+                         "list": page("qis-echt-list.html")]
+        let login = "<html><body><form action=\"rds?state=user&amp;type=1\"><input type=\"password\" name=\"fdsa\"></form></body></html>"
+        let start = QISClient.startURL.absoluteString
+        let asi = self.asi
+        final class Tree { var open: Bool; init(_ open: Bool) { self.open = open } }
+        let tree = Tree(expanded)
+        return FakeUniTransport { r in
+            let u = r.url.absoluteString
+            if u == start { return ok(pages["start"]!) }
+            if ["prfAnmStudent", "hisreports", "verpublish", "type=4"].contains(where: { u.contains($0) }) {
+                return ok("<html><body>VERBOTEN</body></html>")
+            }
+            if u.contains("moduleParameter=studyPOSMenu") { return ok(pages["studium"]!) }
+            guard u.contains("asi=\(asi)") else { return ok(login) }
+            if u.contains("state=examsinfosStudent") {
+                if u.contains("next=list.vm") { return ok(pages["list"]!) }
+                if u.contains("nodeID=") { tree.open = u.contains("expand=0") }
+                return ok(pages[tree.open ? "expanded" : "tree"]!)
+            }
+            return UniResponse(status: 404)
+        }
+    }
+
+    /// Fehler 10.11.2026: die echte Tabelle heisst "PrfNr." und "Prüfungsbezeichnung"; beides kannte der Leser nicht und
+    /// meldete "Im QIS sind keine Prüfungen angemeldet", obwohl fuenf Pruefungen angemeldet waren.
+    func testWalkReadsTheRealLUHPages() async throws {
+        for (expanded, pages) in [(false, 5), (true, 4)] {
+            let t = try qisEcht(expanded: expanded)
+            let r = try await QISRegistrationClient(transport: t, retry: noWait).fetch()
+            XCTAssertEqual(r.registrations.map(\.pruefungsnr), ["110", "310", "2010", "2210", "851"])
+            XCTAssertEqual(r.registrations.map(\.text), [
+                "Programmieren I", "Datenstrukturen und Algorithmen", "Mathematik für die Ingenieurwissenschaften I",
+                "Mathematik für die Ingenieurwissenschaften III - Numerik", "Einführung in die Informatik"])
+            XCTAssertTrue(r.registrations.allSatisfy(\.registered), "keine Status-Spalte: jede Zeile ist eine Anmeldung")
+            XCTAssertEqual(r.registrations.map(\.isoDate), ["2027-03-12", "2027-02-22", nil, "2027-02-12", nil], "Prüfungsdatum, nicht Anmeldedatum")
+            XCTAssertEqual(r.registrations.map(\.isoWithdraw), ["2027-03-05", "2027-02-15", nil, "2027-02-05", nil])
+            XCTAssertEqual(Set(r.registrations.map(\.semester)), ["WiSe 26/27 (01)"])
+            XCTAssertEqual(r.registrations[0].pruefer, "Muster")
+            XCTAssertEqual(Set(r.registrations.map(\.abschluss)), ["Technische Informatik (PO-Version 2017)"])
+            XCTAssertEqual(r.tables, 1)
+            XCTAssertEqual(r.pages, pages, expanded ? "Start, Mein Studium, Info (schon aufgeklappt), Liste" : "Start, Mein Studium, Info, Abschluss, Liste")
+            let urls = t.requests.map(\.url.absoluteString)
+            XCTAssertFalse(urls.contains { $0.contains("prfAnmStudent") }, "nie Pruefungsanmeldung/-abmeldung")
+            XCTAssertFalse(urls.contains { $0.contains("hisreports") || $0.contains("verpublish") }, "nie PDF-Druck oder Bescheinigung")
+            XCTAssertFalse(urls.contains { $0.contains("type=4") }, "nie abmelden")
+            XCTAssertFalse(urls.contains { $0.contains("expand=1") }, "ein aufgeklappter Zweig wird nicht zugeklappt")
+            XCTAssertTrue(t.requests.allSatisfy { $0.method == "GET" && $0.body == nil }, "keine Formulare")
+        }
+    }
+
+    func testRealLUHLinksAndHeaders() throws {
+        let base = "https://qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?"
+        func link(_ text: String, _ query: String) -> QISLink {
+            QISLink(text: text, address: base + query, parameters: QISParser.parameters(of: base + query))
+        }
+        let list = link("angemeldete Prüfungen anzeigen für Technische Informatik  (PO-Version 2017) ",
+                        "state=examsinfosStudent&next=list.vm&nodeID=auswahlBaum%7Cabschluss%3Aabschl%3D82%2Cstgnr%3D1%7Cstudiengang%3Astg%3D223&expand=0")
+        XCTAssertTrue(QISRegistrationLinks.isInfo(list))
+        XCTAssertEqual(QISRegistrationLinks.studiengang(list), "Technische Informatik (PO-Version 2017)")
+        XCTAssertTrue(QISRegistrationLinks.isInfo(link("Info über angemeldete Prüfungen", "state=examsinfosStudent&next=tree.vm&menuid=examsinfosStudent&breadcrumb=infoexams")))
+        XCTAssertTrue(QISRegistrationLinks.isForbidden(link("Prüfungsanmeldung/-abmeldung", "state=info&moduleParameter=prfAnmStudent")))
+        XCTAssertTrue(QISRegistrationLinks.isForbidden(link("PDF-Druck", "state=hisreports&status=receive&publishid=82,1234567&moduleCall=AngemeldeteInstudiengang")))
+        XCTAssertTrue(QISRegistrationLinks.isForbidden(link("Liste drucken", "state=hisreports&status=receive")), "Parameter genuegt")
+        let map = RegistrationRows.headerMap(["PrfNr.", "Prüfungsbezeichnung", "Prüfer/in", "Semester (Termin)", "Anmeldedatum *)",
+                                              "Rücktritt über QIS möglich bis", "Prüfungsdatum"])
+        XCTAssertEqual(map, ["pruefungsnr", "text", "pruefer", "semester", nil, "withdraw", "datum"])
+        XCTAssertTrue(RegistrationRows.isHeader(map))
+        // der Zweig eines zweiten Abschlusses wird weiter aufgeklappt, der offene nicht angefasst
+        let second = "<a href=\"\(base)state=examsinfosStudent&amp;next=tree.vm&amp;nodeID=auswahlBaum%7Cabschluss%3Aabschl%3D88%2Cstgnr%3D2"
+            + "&amp;expand=0&amp;asi=\(asi)\" title=\"Diesen Zweig aufklappen\">Abschluss 88 Master of Science</a></body>"
+        let expanded = QISPage.parse(html: try page("qis-echt-expanded.html").replacingOccurrences(of: "</body>", with: second),
+                                     url: URL(string: base + "state=examsinfosStudent&next=tree.vm")!)
+        let studium = QISPage.parse(html: try page("qis-echt-studium.html"), url: URL(string: base + "state=change")!)
+        let info = try XCTUnwrap(studium.links.first(where: QISRegistrationLinks.isInfo))
+        XCTAssertEqual(info.state, "examsinfosStudent")
+        let next = QISRegistrationLinks.next(on: expanded, info: info, visited: [info.address])
+        XCTAssertEqual(next.first?.parameters["next"], "list.vm", "Liste zuerst")
+        XCTAssertEqual(next.filter { $0.parameters["next"] != "list.vm" }.map { $0.parameters["nodeid"] },
+                       ["auswahlBaum|abschluss:abschl=88,stgnr=2"])
+    }
+
+    /// echte Seiten bis in die Datenbank: fuenf Anmeldungen, drei davon mit Termin als Klausurtermin, nichts Persoenliches
+    func testSyncStoresTheRealLUHRows() async throws {
+        let db = try await database()
+        let report = await QISRegistrationsSync.run(db: db, transport: try qisEcht(), clock: .fixed(berlin: "2026-11-20T10:00:00")!, retry: noWait)
+        XCTAssertEqual(report.count, 5)
+        XCTAssertEqual(report.message, "5 angemeldete Prüfungen gelesen.")
+        let (rows, dump, upcoming) = try await db.withConnection { c -> ([QISRegistration], String, [[String: JSONValue]]) in
+            let all = try c.rows("SELECT * FROM exam_registrations").map { JSONValue.object($0).serialized() }
+            let settings = try c.rows("SELECT * FROM settings").map { JSONValue.object($0).serialized() }
+            return (try QISRegistrationsSync.rows(c), (all + settings).map { String(decoding: $0, as: UTF8.self) }.joined(),
+                    try Exams.upcoming(c, today: BerlinClock.parseISODate("2026-11-20")!))
+        }
+        XCTAssertEqual(rows.count, 5)
+        for secret in ["Erika", "1234567", "Musterweg", "Musterstadt", "abc-123", asi] { XCTAssertFalse(dump.contains(secret), secret) }
+        XCTAssertEqual(upcoming.compactMap { $0["date"]?.string }.sorted(), ["2027-02-12", "2027-02-22", "2027-03-12"])
     }
 
     func testEmptyDirectMissingAndExpired() async throws {

@@ -53,11 +53,12 @@ struct CertificatesPage: View {
         } catch { if data == nil { self.error = error.localizedDescription } }
     }
 
-    /// Beim Oeffnen: Liste lesen, wenn nie gelesen oder aelter als 7 Tage (nur Links, erzeugt nichts)
+    /// Beim Oeffnen: Liste lesen, wenn nie gelesen oder aelter als 7 Tage (nur Links, erzeugt nichts). Abgelaufene
+    /// Anmeldung: erst still mit dem gemerkten Passwort (falls zugelassen), sonst "Anmeldung nötig"
     private func refreshIfStale() async {
         guard !autoChecked, let center, let data else { return }
         autoChecked = true
-        if !center.isConnected { center.needsLogin = true; return }
+        if !center.isConnected, !(await center.silentLogin()) { center.needsLogin = true; return }
         if center.shouldRefresh(status: data.s("status"), checkedAt: data.s("checked_at")) { await center.refresh() }
     }
 
@@ -220,7 +221,7 @@ struct CertificatesPage: View {
 
     private func refreshList() async {
         if let center {
-            if !center.isConnected { center.needsLogin = true; login = true; return }
+            if !center.isConnected, !(await center.silentLogin()) { center.needsLogin = true; login = true; return }
             await center.refresh()
             if center.needsLogin { toast.show("\(center.portalName): Anmeldung nötig", seconds: 4) }
             return
@@ -237,7 +238,7 @@ struct CertificatesPage: View {
     private func download(_ id: String, show: Bool) async {
         let semester = semesters[id] ?? data?.list("offers").first { $0.s("id") == id }?.list("semesters").first?.s("value")
         if let center {
-            if !center.isConnected { center.needsLogin = true; login = true; return }
+            if !center.isConnected, !(await center.silentLogin()) { center.needsLogin = true; login = true; return }
             let url = await center.download(id, semester: semester)
             await load()
             if let url, show, let o = data?.list("offers").first(where: { $0.s("id") == id }) {

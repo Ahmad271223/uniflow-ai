@@ -1,3 +1,5 @@
+import os
+import Security
 import SwiftUI
 import UniFlowCore
 import WebKit
@@ -9,6 +11,9 @@ import XCTest
 /// Webansicht des Containers; Liste lesen erzeugt kein Dokument, Herunterladen genau ein Aufruf, Kopie mit Datum,
 /// Datei ueber das lokale Backend, abgelaufene Sitzung -> "Anmeldung nötig" am QIS. Dazu Route, Regeln der Seite und
 /// welches Portal je Hochschule (HsH Campusmanagement, Hildesheim PLuS statt LSF). Erfundene Seiten, kein Netz.
+/// 10.11.2026 (Meldung des Inhabers "Bescheinigungen holt er auch nicht"): abgelaufene QIS-Sitzung -> einmal still mit
+/// dem gemerkten Passwort anmelden und genau einmal neu lesen bzw. laden (unsichtbare Webansicht ersetzt, erfundene
+/// Zugangsdaten); gespeicherter Stand "Anmeldung nötig" bei wieder angemeldeter Verbindung -> beim Oeffnen neu lesen.
 @MainActor
 final class CertificatesAppTests: XCTestCase {
     private var bed: ContainerTestBed!
@@ -21,9 +26,37 @@ final class CertificatesAppTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        UniAutoLogin.runnerOverride = nil
+        UniAutoLogin.appActiveOverride = nil
+        for s in services { SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: s] as CFDictionary) }
+        services = []
         await bed.tearDown()
         try await super.tearDown()
     }
+
+    private var services: [String] = []
+
+    /// QIS aus dem Debug-Stub; angemeldet nur, solange `session` wahr ist (sonst die Anmeldeseite, wie abgelaufen)
+    private func installQIS(session: OSAllocatedUnfairLock<Bool>) {
+        let dir = ContainerTestBed.stubDirectory
+        let login = #"<html><body><form action="x" method="post"><input type="text" name="asdf"><input type="password" name="fdsa"></form></body></html>"#
+        UniStubProtocol.install { r in
+            guard session.withLock({ $0 }), r.cookie.contains("JSESSIONID=qis-sitzung-test") else { return .text(login) }
+            let reply = DebugStubTransport(directory: dir).reply(r.url, body: r.body)
+            return UniStubProtocol.Reply(status: reply.status, headers: reply.headers, body: reply.body)
+        }
+    }
+
+    /// gemerktes Passwort (erfunden) im Test-Schluesselbund dieses Containers, App "aktiv"
+    private func remember(_ m: ContainerManager, _ c: ActiveContainer) throws {
+        services.append(m.credentialService)
+        XCTAssertNotEqual(m.credentialService, UniCredentialStore.service, "Tests nie im echten Dienst")
+        try UniCredentialStore(service: m.credentialService, container: c.layout.identifier)
+            .save(UniCredential(username: "testnutzer-erfunden", password: "Pw-Test-erfunden-123", savedAt: Date()))
+        UniAutoLogin.appActiveOverride = true
+    }
+
+    private func verpublish() -> Int { UniStubProtocol.requests.filter { $0.url.absoluteString.contains("verpublish") }.count }
 
     private func installQIS(loggedIn: Bool = true) {
         let dir = ContainerTestBed.stubDirectory
@@ -100,6 +133,92 @@ final class CertificatesAppTests: XCTestCase {
         XCTAssertEqual(q.state, .needsLogin, "dieselbe Anmeldung wie beim Notenabruf")
         XCTAssertFalse(center.isConnected)
         XCTAssertFalse(center.shouldRefresh(status: "login", checkedAt: nil), "nicht von selbst gegen die Anmeldeseite")
+    }
+
+    func testExpiredSessionSignsInSilentlyAndReadsTheListOnce() async throws {
+        let (m, c, q) = try await luh()
+        try remember(m, c)
+        let session = OSAllocatedUnfairLock(initialState: false)
+        installQIS(session: session)
+        var logins: [UniAutoLoginRequest] = []
+        UniAutoLogin.runnerOverride = { r in logins.append(r); session.withLock { $0 = true }; return .success }
+        let center = CertificateCenter(portal: .qis(q))
+        XCTAssertTrue(center.isConnected, "die App haelt die Sitzung noch fuer gueltig")
+        let report = await center.refresh()
+        let r = try XCTUnwrap(report)
+        XCTAssertTrue(r.ok, r.message)
+        XCTAssertFalse(r.needsLogin)
+        XCTAssertEqual(r.offers, 1)
+        XCTAssertEqual(logins.count, 1, "genau eine stille Anmeldung")
+        XCTAssertEqual(logins.first?.entry, QISClient.startURL)
+        XCTAssertFalse(center.needsLogin)
+        XCTAssertTrue(center.isConnected)
+        XCTAssertNotEqual(q.state, .needsLogin)
+        XCTAssertEqual(verpublish(), 0, "die Liste erzeugt kein Dokument")
+        XCTAssertFalse(UniStubProtocol.requests.contains { $0.url.absoluteString.contains("prfAnm") || $0.url.absoluteString.contains("type=4") })
+        let list = try await c.api.value("/api/certificates")
+        XCTAssertEqual(list["status"]?.string, "ok")
+
+        // Herunterladen mit abgelaufener Sitzung: der erste Aufruf trifft die Anmeldeseite (kein Dokument), dann einmal
+        // still anmelden ist verbraucht (`UniAutoLoginMachine`: keine zweite Runde so kurz danach) -> "Anmeldung nötig"
+        session.withLock { $0 = false }
+        let id = try XCTUnwrap(list["offers"]?.array?.first?.s("id"))
+        let none = await center.download(id)
+        XCTAssertNil(none)
+        XCTAssertTrue(center.needsLogin)
+        XCTAssertEqual(q.state, .needsLogin)
+        XCTAssertEqual(logins.count, 1, "keine Schleife")
+        XCTAssertEqual(verpublish(), 1, "nur der eine Versuch, kein zweiter ohne Anmeldung")
+        // gespeicherter Stand der Liste bleibt, es gibt keine Datei
+        let after = try await c.api.value("/api/certificates")
+        XCTAssertEqual(after["offers"]?.array?.first?["file"], .null)
+    }
+
+    func testExpiredSessionAtDownloadSignsInSilentlyAndLoadsOneDocument() async throws {
+        let (m, c, q) = try await luh()
+        try remember(m, c)
+        let session = OSAllocatedUnfairLock(initialState: true)
+        installQIS(session: session)
+        var logins = 0
+        UniAutoLogin.runnerOverride = { _ in logins += 1; session.withLock { $0 = true }; return .success }
+        let center = CertificateCenter(portal: .qis(q))
+        let first = await center.refresh()
+        XCTAssertEqual(first?.ok, true)
+        XCTAssertEqual(logins, 0, "gueltige Sitzung: keine Anmeldung")
+        let list = try await c.api.value("/api/certificates")
+        let id = try XCTUnwrap(list["offers"]?.array?.first?.s("id"))
+
+        session.withLock { $0 = false }                            // QIS hat inzwischen abgemeldet
+        let file = await center.download(id)
+        let url = try XCTUnwrap(file, center.message ?? "")
+        XCTAssertTrue(try Data(contentsOf: url).starts(with: Array("%PDF".utf8)))
+        XCTAssertEqual(logins, 1, "genau eine stille Anmeldung")
+        XCTAssertEqual(verpublish(), 2, "der erste Aufruf traf die Anmeldeseite (kein Dokument), dann genau einer")
+        XCTAssertFalse(center.needsLogin)
+        XCTAssertNotEqual(q.state, .needsLogin)
+    }
+
+    func testStoredLoginStatusIsReadAgainOnceTheConnectionIsBack() async throws {
+        let (_, _, q) = try await luh()
+        let session = OSAllocatedUnfairLock(initialState: false)
+        installQIS(session: session)
+        let center = CertificateCenter(portal: .qis(q))
+        let r = await center.refresh()                             // ohne gemerktes Passwort: "Anmeldung nötig"
+        XCTAssertEqual(r?.needsLogin, true)
+        XCTAssertTrue(center.needsLogin)
+        XCTAssertFalse(center.shouldRefresh(status: "login", checkedAt: nil))
+        let silent = await center.silentLogin()
+        XCTAssertFalse(silent, "ohne gemerktes Passwort nichts")
+        // der Nutzer meldet sich woanders an (QIS-Karte, Notenabruf): die Seite liest beim Oeffnen von selbst neu
+        session.withLock { $0 = true }
+        q.signedIn()
+        let fresh = CertificateCenter(portal: .qis(q))
+        XCTAssertTrue(fresh.shouldRefresh(status: "login", checkedAt: "2026-11-06T09:59:00", now: clock.now),
+                      "Stand \"Anmeldung nötig\" bleibt nicht haengen")
+        let again = await fresh.refresh()
+        XCTAssertEqual(again?.ok, true)
+        XCTAssertFalse(fresh.needsLogin)
+        XCTAssertEqual(verpublish(), 0)
     }
 
     func testPortalPerUniversity() throws {

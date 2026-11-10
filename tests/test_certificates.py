@@ -1,7 +1,8 @@
 """Bescheinigungen (06.11.2026, app/certificates.py, docs/BESCHEINIGUNGEN-2026-11-06.md): Art und Semester aus dem Titel,
 Angebote der QIS-/LSF-Seiten (nur Links, kein asi), HISinOne-Berichtsknoepfe (HsH und PLuS, live bestaetigt), Anzeige
 GET /api/certificates, PDF nur aus dem eigenen QIS-Ordner, Herunterladen nicht im Dienst, automatischer Notenabruf ohne
-PDF. Gemeinsame Fixture packages/shared-contracts/fixtures/certificates/cases.json (nachgebaute Seiten). Kein Netz."""
+PDF. Gemeinsame Fixture packages/shared-contracts/fixtures/certificates/cases.json (nachgebaute Seiten). Dazu die echte
+Seite "Meine Bescheinigungen" der LUH vom 10.11.2026 (qis-echt-bescheinigungen.html, anonymisiert). Kein Netz."""
 import json
 import subprocess
 import sys
@@ -39,6 +40,40 @@ def test_qis_offers_only_links_without_session():
     luh = FX["qis"][0]["offers"]
     assert len(luh) == 1 and "publishContainer=bafoegbescheinigung" in luh[0]["address"], "einziger Eintrag wie live gesehen"
     assert FX["qis"][3]["offers"] == [], "LSF Hildesheim: keine Bescheinigungen"
+
+
+def test_real_luh_page_offers_german_and_english_certificate():
+    """Echte Seite "Meine Bescheinigungen" der LUH (10.11.2026, nur gelesen, anonymisiert): zwei Eintraege (deutsch und
+    englisch), jeder Link steht zweimal auf der Seite; Start- und Menueseite tragen kein asi (Sitzung per Cookie)."""
+    from app import certificates as C
+    fx = ROOT / "packages/shared-contracts/fixtures"
+    base = "https://qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet"
+    start = (fx / "exam-registration/qis-echt-start.html").read_text(encoding="utf-8")
+    page = (fx / "certificates/qis-echt-bescheinigungen.html").read_text(encoding="utf-8")
+    menu = [a for a in C.anchors(start, base + "?state=user&type=0&application=lsf") if C._menu_priority(a) == 0]
+    assert [a["text"] for a in menu] == ["Meine Bescheinigungen"]
+    assert "moduleParameter=studentReportsMenu" in menu[0]["address"] and "asi=" not in menu[0]["raw"]
+    assert C.qis_offers(start, base + "?state=user&type=0&application=lsf", "bescheinigungen", "luh", True) == []
+    got = C.qis_offers(page, menu[0]["raw"], "bescheinigungen", "luh", True)
+    assert [o["title"] for o in got] == [
+        "Studienzeit- / Immatrikulationsbescheinigung / Bescheinigung nach § 9 BAföG",
+        "Certificate of study period and enrolment / Certificate in accordance with § 9 BAföG"]
+    assert [o["address"] for o in got] == [base + "?state=verpublish&publishContainer=bafoegbescheinigung&menuid=bafoeg",
+                                           base + "?state=verpublish&publishContainer=studienbescheinigungEN&menuid=studbeschEN"]
+    assert [o["id"] for o in got] == ["d595729c4608", "c93f794f4b7b"], "dieselben Kennungen wie auf dem iPad"
+    for o in got:
+        assert o["kinds"] == ["immatrikulation", "bafoeg"] and o["kind"] == "immatrikulation"
+        assert o["source"] == "bescheinigungen" and o["portal"] == "qis" and o["confirmed"] is True
+        assert o["semester"] is None and o["semesters"] == []
+    assert not any("state=verify" in o["address"] for o in got), "der Link verifizierbar ist kein Dokument"
+    # Pruefungsanmeldung, Abmelden, Dokumente und der Pruefdienst sind nie ein Menue zum Weitergehen
+    studium = (fx / "exam-registration/qis-echt-studium.html").read_text(encoding="utf-8")
+    for html in (start, page, studium):
+        for a in C.anchors(html, base):
+            if C._menu_priority(a) is not None:
+                low = a["address"].lower()
+                assert not any(w in low for w in ("prfanm", "logout", "verpublish", "state=verify", "hisreports")), a["address"]
+    assert "asi=" not in start and "asi=" not in page, "Start und Menue ohne Sitzungsparameter, wie live gesehen"
 
 
 def test_hisinone_job_buttons_hsh_and_plus():

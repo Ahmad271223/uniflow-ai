@@ -7,7 +7,8 @@ import XCTest
 // Personen): Art und Semester aus dem Titel, Angebote der QIS-/LSF-Seiten und der HISinOne-Seite, Anzeige
 // (GET /api/certificates). Dazu Abruf mit festen Antworten: LUH (Menue "Meine Bescheinigungen" und Notenspiegel-PDF),
 // Hildesheim (LSF ohne Menue), HsH (HISinOne-Zeilen mit Semesterauswahl), abgelaufene Sitzung, genau ein Aufruf je
-// Herunterladen, Zwischenseite, Speichern mit Datum, kein asi im Speicher.
+// Herunterladen, Zwischenseite, Speichern mit Datum, kein asi im Speicher. Dazu die ECHTE Seite "Meine Bescheinigungen"
+// der LUH vom 10.11.2026 (fixtures/certificates/qis-echt-bescheinigungen.html, nur gelesen, anonymisiert).
 
 private func fixture() throws -> JSONValue {
     var url = URL(fileURLWithPath: #filePath)
@@ -256,6 +257,76 @@ final class CertificatesTests: XCTestCase {
         XCTAssertNil(bad.file)
         let summary = try await db.withConnection { try CertificatesSync.summary($0, files: files) }
         XCTAssertEqual(summary["offers"]?.array?.first { $0["id"]?.string == en.id }?["file"], .null, "nichts gespeichert")
+    }
+
+    // MARK: echte Seiten der LUH (10.11.2026, nur gelesen, anonymisiert)
+
+    private func echt(_ name: String) throws -> String {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        return try String(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/\(name)"), encoding: .utf8)
+    }
+
+    /// QIS der LUH mit den echten Seiten: Startseite und "Meine Bescheinigungen" ohne asi (Sitzung per Cookie), "Mein
+    /// Studium" mit asi. Die Seite hinter "Notenspiegel" ist nachgebaut (leer). Alles andere gibt es nicht (404).
+    private func echtTransport(pdf: @escaping (String) -> UniResponse) throws -> FakeUniTransport {
+        let start = try echt("exam-registration/qis-echt-start.html")
+        let reports = try echt("certificates/qis-echt-bescheinigungen.html")
+        let studium = try echt("exam-registration/qis-echt-studium.html")
+        let grades = #"<html><body><a href="?state=user&amp;type=4&amp;category=auth.logout">Logout</a><h1>Notenspiegel</h1></body></html>"#
+        return FakeUniTransport { r in
+            let u = r.url.absoluteString.removingPercentEncoding ?? r.url.absoluteString
+            if u == QISClient.startURL.absoluteString { return ok(start, url: u) }
+            if u.contains("prfAnm") || u.contains("type=4") || u.contains("state=verify") || u.contains("hisreports") { return UniResponse(status: 404) }
+            if u.contains("state=verpublish") { return pdf(u) }
+            if u.contains("moduleParameter=studentReportsMenu") { return ok(reports, url: u) }
+            if u.contains("moduleParameter=studyPOSMenu") { return ok(studium, url: u) }
+            if u.contains("state=notenspiegelStudent") { return ok(grades, url: u) }
+            return UniResponse(status: 404)
+        }
+    }
+
+    func testRealLUHPageOffersGermanAndEnglishCertificate() async throws {
+        let calls = Counter()
+        let t = try echtTransport { _ in calls.add(); return UniResponse(status: 200, body: Data("%PDF-1.4 echt".utf8)) }
+        let db = try await database("luh")
+        let files = try tempFiles()
+        let clock = UniFlowClock.fixed(berlin: "2026-11-10T18:00:00")!
+        let r = await CertificatesSync.refresh(db: db, transport: t, clock: clock, retry: noWait)
+        XCTAssertTrue(r.ok, r.message)
+        XCTAssertEqual(r.offers, 2, "deutsch und englisch, jeder Link steht zweimal auf der Seite")
+        XCTAssertEqual(calls.value, 0, "die Liste erzeugt nie ein Dokument")
+        let seen = t.requests.map { $0.url.absoluteString }
+        XCTAssertFalse(seen.contains { $0.contains("verpublish") || $0.contains("state=verify") || $0.contains("hisreports") })
+        XCTAssertFalse(seen.contains { $0.contains("prfAnm") || $0.contains("logout") || $0.contains("type=4") }, "nie Pruefungsanmeldung, nie abmelden")
+        XCTAssertTrue(t.requests.allSatisfy { $0.method == "GET" && $0.body == nil }, "nur lesen")
+        let offers = try await db.withConnection { try CertificatesSync.load($0)?.offers ?? [] }
+        XCTAssertEqual(offers.map(\.title), ["Studienzeit- / Immatrikulationsbescheinigung / Bescheinigung nach § 9 BAföG",
+                                             "Certificate of study period and enrolment / Certificate in accordance with § 9 BAföG"])
+        XCTAssertEqual(offers.map(\.id), ["d595729c4608", "c93f794f4b7b"], "dieselben Kennungen wie in Python")
+        XCTAssertEqual(offers.map(\.kinds), [[.immatrikulation, .bafoeg], [.immatrikulation, .bafoeg]])
+        XCTAssertEqual(offers.map(\.source), ["bescheinigungen", "bescheinigungen"])
+        XCTAssertEqual(offers.map(\.confirmed), [true, true])
+        XCTAssertTrue((offers.first?.address ?? "").hasSuffix("?state=verpublish&publishContainer=bafoegbescheinigung&menuid=bafoeg"))
+        XCTAssertTrue((offers.last?.address ?? "").hasSuffix("?state=verpublish&publishContainer=studienbescheinigungEN&menuid=studbeschEN"))
+        let summary = try await db.withConnection { try CertificatesSync.summary($0, files: files) }
+        XCTAssertEqual(summary["status"]?.string, "ok")
+        XCTAssertEqual(summary["offers"]?.array?.count, 2)
+        let offered = (summary["kinds"]?.array ?? []).filter { $0["offered"]?.bool == true }.compactMap { $0["key"]?.string }
+        XCTAssertEqual(offered, ["immatrikulation", "bafoeg"])
+        // Herunterladen: je Dokument genau ein Aufruf des eigenen Links, auch fuer die englische Fassung
+        for (i, o) in offers.enumerated() {
+            let before = t.requests.count
+            let d = await CertificatesSync.download(db: db, files: files, transport: t, offerID: o.id, clock: clock, retry: noWait)
+            XCTAssertTrue(d.ok, d.message)
+            XCTAssertEqual(calls.value, i + 1, "genau ein Aufruf (jeder erzeugt im QIS ein Dokument)")
+            let called = t.requests[before...].map { $0.url.absoluteString }.filter { $0.contains("verpublish") }
+            XCTAssertEqual(called.count, 1)
+            XCTAssertTrue(called.first?.contains(i == 0 ? "publishContainer=bafoegbescheinigung" : "publishContainer=studienbescheinigungEN") == true, "\(called)")
+            XCTAssertEqual(try Data(contentsOf: try XCTUnwrap(d.file)), Data("%PDF-1.4 echt".utf8))
+        }
+        let all = t.requests.map { $0.url.absoluteString }
+        XCTAssertFalse(all.contains { $0.contains("state=verify") || $0.contains("prfAnm") || $0.contains("logout") || $0.contains("type=4") })
     }
 
     func testExpiredSessionAsksForLoginAndKeepsTheList() async throws {

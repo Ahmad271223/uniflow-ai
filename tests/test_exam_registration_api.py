@@ -1,7 +1,8 @@
 """Pruefungsanmeldung am PC (05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): GET /api/exam-registration mit der
 gleichen Antwort wie der Swift-Kern (ExamRegistrationTests.swift, gleiche Daten und Erwartungen) und der Leser fuer "Info
-über angemeldete Prüfungen" (app/qis_registrations.py) mit den erfundenen QIS-Seiten aus
-packages/shared-contracts/fixtures/exam-registration. Nie eine echte Anfrage, nie die Pruefungsanmeldung selbst."""
+über angemeldete Prüfungen" (app/qis_registrations.py) mit den erfundenen QIS-Seiten und den echten, anonymisierten
+LUH-Seiten (qis-echt-*.html, 10.11.2026) aus packages/shared-contracts/fixtures/exam-registration. Nie eine echte
+Anfrage, nie die Pruefungsanmeldung selbst."""
 import json
 from datetime import date
 from pathlib import Path
@@ -111,6 +112,91 @@ def test_walk_reads_tree_and_never_touches_registration():
     assert not any("verpublish" in u for u in calls), "nie eine Bescheinigung"
     assert not any("type=4" in u for u in calls), "nie abmelden"
     assert not any("expand=1" in u for u in calls), "aufgeklappter Knoten wird nicht wieder zugeklappt"
+
+
+# ---------------------------------------------------------------- echte LUH-Seiten (10.11.2026, anonymisiert)
+
+def qis_echt(expanded=False):
+    """QIS mit den echten, anonymisierten Seiten (qis-echt-*.html). Wie der Server merkt sich der Baum das Aufklappen;
+    Pruefungsanmeldung, PDF-Druck (hisreports), Bescheinigung und Abmelden waeren VERBOTEN."""
+    pages = {k: _page(f"qis-echt-{k}.html") for k in ("start", "studium", "tree", "expanded", "list")}
+    calls, tree = [], {"open": expanded}
+
+    def get(u):
+        calls.append(u)
+        if u == START:
+            return 200, pages["start"], u
+        if any(k in u for k in ("prfAnmStudent", "hisreports", "verpublish", "type=4")):
+            return 200, "<html><body>VERBOTEN</body></html>", u
+        if "moduleParameter=studyPOSMenu" in u:
+            return 200, pages["studium"], u
+        if f"asi={ASI}" not in u:
+            return 200, LOGIN, u
+        if "state=examsinfosStudent" in u:
+            if "next=list.vm" in u:
+                return 200, pages["list"], u
+            if "nodeID=" in u:
+                tree["open"] = "expand=0" in u
+            return 200, pages["expanded" if tree["open"] else "tree"], u
+        return 404, "", u
+    return get, calls
+
+
+@pytest.mark.parametrize("expanded,n_pages", [(False, 5), (True, 4)])
+def test_walk_reads_the_real_luh_pages(expanded, n_pages):
+    """Fehler 10.11.2026: die echte Tabelle heisst "PrfNr." und "Prüfungsbezeichnung"; beides kannte der Leser nicht und
+    meldete "Im QIS sind keine Prüfungen angemeldet", obwohl fuenf Pruefungen angemeldet waren."""
+    from app import qis_registrations as Q
+    get, calls = qis_echt(expanded)
+    r = Q.walk(get, START)
+    regs = [Q.row_view(x) for x in r["registrations"]]
+    assert [x["pruefungsnr"] for x in regs] == ["110", "310", "2010", "2210", "851"]
+    assert [x["text"] for x in regs] == [
+        "Programmieren I", "Datenstrukturen und Algorithmen", "Mathematik für die Ingenieurwissenschaften I",
+        "Mathematik für die Ingenieurwissenschaften III - Numerik", "Einführung in die Informatik"]
+    assert all(x["registered"] for x in regs), "die Seite hat keine Status-Spalte: jede Zeile ist eine Anmeldung"
+    assert [x["iso_date"] for x in regs] == ["2027-03-12", "2027-02-22", None, "2027-02-12", None], "Prüfungsdatum, nicht Anmeldedatum"
+    assert [x["iso_withdraw"] for x in regs] == ["2027-03-05", "2027-02-15", None, "2027-02-05", None]
+    assert {x["semester"] for x in regs} == {"WiSe 26/27 (01)"}
+    assert regs[0]["pruefer"] == "Muster"
+    assert {x["abschluss"] for x in regs} == {"Technische Informatik (PO-Version 2017)"}
+    assert r["tables"] == 1 and r["pages"] == n_pages
+    assert Q.message(len(regs)) == "5 angemeldete Prüfungen gelesen."
+    assert not any("prfAnmStudent" in u for u in calls), "nie Pruefungsanmeldung/-abmeldung"
+    assert not any("hisreports" in u or "verpublish" in u for u in calls), "nie PDF-Druck oder Bescheinigung"
+    assert not any("type=4" in u for u in calls), "nie abmelden"
+    assert not any("expand=1" in u for u in calls), "ein aufgeklappter Zweig wird nicht zugeklappt"
+    dump = json.dumps(r["registrations"], ensure_ascii=False)
+    for secret in ("Erika", "1234567", "Musterweg", ASI):
+        assert secret not in dump, secret
+
+
+def test_real_luh_links_and_headers():
+    from app import qis_registrations as Q
+    base = "https://qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?"
+
+    def link(text, query):
+        return Q.Link(text, base + query)
+    lst = link("angemeldete Prüfungen anzeigen für Technische Informatik  (PO-Version 2017) ",
+               "state=examsinfosStudent&next=list.vm&nodeID=auswahlBaum%7Cabschluss%3Aabschl%3D82%2Cstgnr%3D1%7Cstudiengang%3Astg%3D223&expand=0")
+    assert Q.is_info(lst) and Q.studiengang(lst) == "Technische Informatik (PO-Version 2017)"
+    assert Q.is_info(link("Info über angemeldete Prüfungen", "state=examsinfosStudent&next=tree.vm&menuid=examsinfosStudent&breadcrumb=infoexams"))
+    assert Q.is_forbidden(link("Prüfungsanmeldung/-abmeldung", "state=info&moduleParameter=prfAnmStudent"))
+    assert Q.is_forbidden(link("PDF-Druck", "state=hisreports&status=receive&publishid=82,1234567&moduleCall=AngemeldeteInstudiengang"))
+    assert Q.is_forbidden(link("Liste drucken", "state=hisreports&status=receive")), "Parameter genuegt"
+    hm = Q.header_map(["PrfNr.", "Prüfungsbezeichnung", "Prüfer/in", "Semester (Termin)", "Anmeldedatum *)",
+                       "Rücktritt über QIS möglich bis", "Prüfungsdatum"])
+    assert hm == ["pruefungsnr", "text", "pruefer", "semester", None, "withdraw", "datum"]
+    assert Q.is_header(hm)
+    # der Zweig eines zweiten Abschlusses wird weiter aufgeklappt, der offene nicht angefasst
+    expanded = Q.Page(_page("qis-echt-expanded.html").replace(
+        "</body>", f'<a href="{base}state=examsinfosStudent&amp;next=tree.vm&amp;nodeID=auswahlBaum%7Cabschluss%3Aabschl%3D88%2Cstgnr%3D2'
+                   f'&amp;expand=0&amp;asi={ASI}" title="Diesen Zweig aufklappen">Abschluss 88 Master of Science</a></body>'), base + "state=examsinfosStudent&next=tree.vm")
+    info = next(l for l in Q.Page(_page("qis-echt-studium.html"), base + "state=change").links if Q.is_info(l))
+    assert info.state == "examsinfosStudent"
+    nxt = Q.next_links(expanded, info, {info.address})
+    assert [l.parameters.get("next") for l in nxt][:1] == ["list.vm"], "Liste zuerst"
+    assert [l.parameters["nodeid"] for l in nxt if l.parameters.get("next") != "list.vm"] == ["auswahlBaum|abschluss:abschl=88,stgnr=2"]
 
 
 def test_empty_direct_missing_and_expired():

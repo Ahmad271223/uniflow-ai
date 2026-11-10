@@ -130,18 +130,33 @@ klausur), exam_date, exam_time, exam_room, exam_source, registered, registered_v
 Gespeichert (erst bei Bedarf angelegt, nur Gerät): Tabelle `exam_registrations` (Zeilen der Info-Seite, je Abruf
 ersetzt) und `settings.exam_registration_run` (`{at, ok, count, message}`).
 
-## QIS „Info über angemeldete Prüfungen“ (nicht am echten Konto gesehen)
+## QIS „Info über angemeldete Prüfungen“ (am 10.11.2026 am echten Konto gesehen)
 
-Gebaut nach dem bekannten HIS-QIS-Aufbau (wie Notenspiegel) mit erfundenen Seiten
-(`packages/shared-contracts/fixtures/exam-registration/qis-*.html`), absichtlich tolerant:
+**Stand 10.11.2026** (Meldung des Inhabers: „wenn man Klausuren anmeldet, erkennt die App das nicht“): mit der Anmeldung
+des Inhabers nur lesend gesehen, nichts an- oder abgemeldet, kein PDF erzeugt. Ursache: Die echte Tabelle heißt in den
+Kopfzeilen **„PrfNr.“** und **„Prüfungsbezeichnung“**; beide Wörter kannte der Leser nicht, fand deshalb keine Tabelle
+und meldete „Im QIS sind keine Prüfungen angemeldet“. Behoben in `app/qis_registrations.py` und
+`UniFlowCore/ExamRegistration/QISRegistrations.swift` (gleiches Verhalten), geprüft an anonymisierten Kopien der echten
+Seiten (`packages/shared-contracts/fixtures/exam-registration/qis-echt-*.html`).
+
+Echter Weg: Startseite (ohne `asi`) → „Mein Studium“ (`moduleParameter=studyPOSMenu`) → „Info über angemeldete
+Prüfungen“ (`state=examsinfosStudent&next=tree.vm`) → Baum „Abschluss …“ (`nodeID=…abschl=…`, `expand=0` klappt auf,
+`expand=1` wieder zu; der Zustand des Baums liegt in der Sitzung des Servers) → Bild-Link je Studiengang
+(`next=list.vm…|studiengang:stg=…`, Titel „angemeldete Prüfungen anzeigen für …“) → Tabelle mit den Spalten PrfNr.,
+Prüfungsbezeichnung, Prüfer/in, Semester (Termin), Anmeldedatum, Rücktritt über QIS möglich bis, Prüfungsdatum.
+Der Leser folgt zuerst Listen-Links, klappt nie wieder zu (`expand=1`) und geht nie zu einem Elternknoten zurück.
+Auf der Listenseite stehen ein PDF-Link (`state=hisreports`) und ein Formular: beides wird nie benutzt.
+
+Der Leser bleibt absichtlich tolerant (erfundene Seiten `qis-*.html` für andere Formen):
 
 - Weg: Startseite → „Mein Studium“ → Link mit Text „Info über angemeldete Prüfungen“ (auch „angemeldete Prüfungen“,
   Bild-alt/title) → Tabellen lesen; gibt es keine, Baum aufklappen: Links mit gleichem `state` wie der Info-Link und
   `nodeID`, oder wieder mit Text „angemeldete Prüfungen“; höchstens 12 Seiten.
 - **Nie** gefolgt: Text oder Adresse mit „anmeldung“ (ohne „angemeldet“), „abmeld“, „rücktritt“, „anmelden“, `state`
-  mit „anm“/„abm“/„prfan“, Bescheinigungen (`verpublish`), PDF, Abmelden. Keine Formulare, nur GET der Links.
+  mit „anm“/„abm“/„prfan“, Bescheinigungen (`verpublish`), PDF (auch `hisreports`), Abmelden. Keine Formulare, nur
+  GET der Links.
 - Tabelle: Kopfzeile mit Prüfungstext und mindestens einer von Prüfungsnr./Datum/Semester, ohne Spalte „Note“.
-  Spalten (erstes Wort): Prüfungsnr./Nr., Prüfungstext/Text/Bezeichnung/Prüfung/Titel/Veranstaltung/Modul,
+  Spalten (erstes Wort): Prüfungsnr./PrfNr./Nr., Prüfungstext/Prüfungsbezeichnung/Text/Bezeichnung/Prüfung/Titel/Veranstaltung/Modul,
   Semester, Datum/Prüfungsdatum/Termin, Uhrzeit/Zeit/Beginn, Raum/Ort, Prüfer/Prüfende, Versuch, Status/Vermerk,
   Rücktritt/Abmeldung/Abmeldefrist, Form/Prüfungsform/Art. Stammdaten-Zeilen und -Tabellen werden nie gelesen.
   Status AMD/abgemeldet/RT… → nicht angemeldet; leer, AN, angemeldet, zugelassen → angemeldet.

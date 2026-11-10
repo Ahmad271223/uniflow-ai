@@ -5,9 +5,14 @@ import Foundation
 // "Mein Studium" -> Link "Info über angemeldete Prüfungen" -> Tabellen; ohne Tabelle den Baum (Abschluss,
 // Studiengang) aufklappen, hoechstens `maxPages` Seiten.
 //
-// NICHT AM ECHTEN KONTO GESEHEN: gebaut nach dem Aufbau der HIS-QIS-Seiten (wie Notenspiegel) mit erfundenen Seiten
-// (fixtures/exam-registration/qis-*.html) und absichtlich tolerant (Spaltenkoepfe ueber das erste Wort, Link ueber den
-// Text). Was der Inhaber pruefen muss, steht im Dokument.
+// LUH AM ECHTEN KONTO GESEHEN (10.11.2026, nur lesend; anonymisierte Seiten fixtures/exam-registration/qis-echt-*.html):
+// "Mein Studium" -> "Info über angemeldete Prüfungen" (state=examsinfosStudent, next=tree.vm) -> Baum "Abschluss 82
+// Bachelor of Science" (Link "Diesen Zweig aufklappen", expand=0; aufgeklappt heisst derselbe Link "zuklappen",
+// expand=1) -> Bild-Link "angemeldete Prüfungen anzeigen für <Studiengang>" (next=list.vm) -> Tabelle mit den Spalten
+// PrfNr. | Prüfungsbezeichnung | Prüfer/in | Semester (Termin) | Anmeldedatum *) | Rücktritt über QIS möglich bis |
+// Prüfungsdatum (keine Status-Spalte, Datum und Ruecktritt oft leer). Der Baum merkt sich das Aufklappen in der
+// Sitzung: ein schon aufgeklappter Zweig wird nicht wieder zugeklappt. Daneben bleiben die erfundenen Seiten
+// (qis-*.html); der Leser ist absichtlich tolerant (Spaltenkoepfe ueber das erste Wort, Link ueber den Text).
 //
 // Uni Hildesheim (`QISGradeLayout.hildesheim`, dieselbe HIS-Software im LSF): Startseite des LSF ("Meine Funktionen")
 // -> "POS-Management" -> "Meine POS-Anmeldungen" (Weg laut Schnellanleitung der Uni, Seite selbst NICHT GESEHEN; Fixture
@@ -61,10 +66,12 @@ public enum RegistrationRows {
     /// erstes Wort einer Kopfzelle -> Feld ("prüfungs-nr." -> zweites Wort)
     static let headers: [String: String] = [
         "prüfungsnr": "pruefungsnr", "pruefungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungsnummer": "pruefungsnr",
-        "pnr": "pruefungsnr", "modulnr": "pruefungsnr", "nummer": "pruefungsnr",
+        "pnr": "pruefungsnr", "modulnr": "pruefungsnr", "nummer": "pruefungsnr", "prfnr": "pruefungsnr",
         "prüfungstext": "text", "pruefungstext": "text", "text": "text", "bezeichnung": "text", "prüfung": "text",
         "pruefung": "text", "titel": "text", "veranstaltung": "text", "modul": "text", "leistung": "text",
         "prüfungsleistung": "text", "veranstaltungstitel": "text",
+        // echte LUH-Seite (10.11.2026): "PrfNr." und "Prüfungsbezeichnung"
+        "prüfungsbezeichnung": "text", "pruefungsbezeichnung": "text",
         "semester": "semester", "sem": "semester",
         "datum": "datum", "prüfungsdatum": "datum", "pruefungsdatum": "datum", "termin": "datum", "prüfungstermin": "datum",
         "tag": "datum",
@@ -211,16 +218,21 @@ public enum QISRegistrationLinks {
     }
 
     private static let programRE = HText.regex(#"(?:prüfungen|pruefungen|leistungen)\s+f(?:ü|ue)r\s+(.+?)\s+anzeigen\s*$"#, [.caseInsensitive])
+    /// echte LUH-Seite: "angemeldete Prüfungen anzeigen für Technische Informatik (PO-Version 2017)"
+    private static let programAfterRE = HText.regex(#"(?:prüfungen|pruefungen|leistungen)\s+anzeigen\s+f(?:ü|ue)r\s+(.+?)\s*$"#, [.caseInsensitive])
 
-    /// Studiengang aus "Angemeldete Prüfungen für <Studiengang> anzeigen" (wie `QISLink.studiengang`), sonst nil
+    /// Studiengang aus "Angemeldete Prüfungen für <Studiengang> anzeigen" (wie `QISLink.studiengang`) oder
+    /// "angemeldete Prüfungen anzeigen für <Studiengang>", sonst nil
     static func studiengang(_ l: QISLink) -> String? {
         if let s = l.studiengang { return s }
-        guard let g = HText.match(programRE, QISParser.clean(l.text))?.groups[1] ?? nil else { return nil }
+        let text = QISParser.clean(l.text)
+        guard let g = (HText.match(programRE, text) ?? HText.match(programAfterRE, text))?.groups[1] ?? nil else { return nil }
         let c = QISParser.clean(g)
         return c.isEmpty ? nil : c
     }
 
-    /// Nie folgen: Pruefungsanmeldung/-abmeldung, Ruecktritt, Bescheinigungen, PDF, Abmelden (Logout)
+    /// Nie folgen: Pruefungsanmeldung/-abmeldung, Ruecktritt, Bescheinigungen, PDF (auch der PDF-Druck der Liste,
+    /// state=hisreports), Abmelden (Logout)
     public static func isForbidden(_ l: QISLink) -> Bool {
         let t = folded(l.text)
         if ["abmeld", "ruecktritt", "zuruecktreten", "anmelden", "abmelden", "logout", "storn", "zur anmeldung"].contains(where: { t.contains($0) }) {
@@ -237,30 +249,37 @@ public enum QISRegistrationLinks {
             if v.contains("anmeld") && !(overview && v.contains("anmeldungen")) { return true }
         }
         let a = l.address.lowercased()
-        if (p["state"] ?? "").lowercased() == "verpublish" || a.contains(".pdf") || a.contains("logout") || a.contains("storn")
-            || t.hasPrefix("pdf") { return true }
+        if ["verpublish", "hisreports"].contains((p["state"] ?? "").lowercased()) || a.contains(".pdf") || a.contains("logout")
+            || a.contains("storn") || t.hasPrefix("pdf") { return true }
         if p["state"] == "user", p["type"] == "4" { return true }
         return false
     }
 
     /// Naechste Links auf einer Seite hinter dem Info-Link: weitere Info-Links und Baumknoten (gleicher `state`,
-    /// mit nodeID oder Liste); nur derselbe Rechner, ohne besuchte, hoechstens 10
+    /// mit nodeID oder Liste); nur derselbe Rechner, ohne besuchte, hoechstens 10. Listen zuerst (sie tragen die
+    /// Tabelle); ein schon aufgeklappter Zweig wird nicht angefasst (kein Zuklappen: echte LUH-Seite, expand=1).
     static func next(on page: QISPage, info: QISLink, visited: Set<String>) -> [QISLink] {
         let host = URL(string: page.address)?.host?.lowercased()
         let state = info.state?.lowercased()
         // ein schon besuchter Baumknoten wird nicht wieder angeboten (kein Zuklappen), Listen schon
         let visitedNodes = Set(visited.compactMap { QISParser.parameters(of: $0)["nodeid"]?.lowercased() }.filter { !$0.isEmpty })
+        // Knoten aller Links der Seite: ein Zweig ist schon aufgeklappt, wenn ein anderer Link darunter liegt ("knoten|...")
+        let nodes = Set(page.links.filter { $0.host == host }.compactMap { $0.parameters["nodeid"]?.lowercased() }.filter { !$0.isEmpty })
+        func isList(_ l: QISLink) -> Bool { (l.parameters["next"] ?? "").lowercased() == "list.vm" }
         var seen = Set<String>()
         let out = page.links.filter { l in
             guard l.host == host, !visited.contains(l.address), !isForbidden(l), seen.insert(l.address).inserted else { return false }
-            let isList = (l.parameters["next"] ?? "").lowercased() == "list.vm"
+            let list = isList(l)
             let node = (l.parameters["nodeid"] ?? "").lowercased()
-            if !node.isEmpty, !isList, visitedNodes.contains(node) { return false }
+            if !node.isEmpty, !list {
+                if visitedNodes.contains(node) || l.parameters["expand"] == "1" { return false }
+                if nodes.contains(where: { $0.hasPrefix(node + "|") }) { return false }
+            }
             if isInfo(l) { return true }
             guard let state, l.state?.lowercased() == state else { return false }
-            return !node.isEmpty || isList
+            return !node.isEmpty || list
         }
-        return Array(out.prefix(10))
+        return Array((out.filter(isList) + out.filter { !isList($0) }).prefix(10))
     }
 }
 
