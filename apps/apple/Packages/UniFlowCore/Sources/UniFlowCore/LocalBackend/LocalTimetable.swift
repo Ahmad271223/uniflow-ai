@@ -200,7 +200,8 @@ enum LocalTimetable {
                     if LocalModules.truthy(note) { text += " · \(LocalTimetable.text(note))" }
                     occ["note"] = .string(text)
                 }
-                if occ["status"] == "nicht_teilnahme" && !includeSkipped { continue }
+                // nicht besuchte erst nach dem Zusammenfuehren weglassen: sonst stand ihr Stud.IP-Einzeltermin wieder als
+                // besucht in der Woche (Befund 10.11.2026)
                 out.append(.object(occ))
             }
             // Hierher verschobene Termine anderer Tage
@@ -218,7 +219,7 @@ enum LocalTimetable {
             }
             d += 1
         }
-        let merged = try mergeDated(c, out.compactMap(\.object), dated)
+        let merged = try applyTimeAnswers(c, try mergeDated(c, out.compactMap(\.object), dated))
         // Absagen aus Ankuendigungen als Hinweis am Termin (`announcements.mark_cancellations`)
         let marked = try Announcements.markCancellations(c, includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" })
         let consult = try StudIPExtras.withConsultations(c, marked, from: start, to: end)   // eigene Sprechstunden (nur lesend)
@@ -241,14 +242,20 @@ enum LocalTimetable {
             WHERE c.active=1 AND c.kind != 'sonstiges' AND s.start >= ? AND s.start < ? ORDER BY s.start
             """, [.text(iso(start)), .text(iso(end + 1))])
         let cover = try StudIPCalendar.coverage(c)
+        let answers = try StudIPCalendar.timeAnswers(c)
         var out: [[String: JSONValue]] = []
         var at: [JSONValue: Int] = [:]
         for r in rows {
             guard let st = LocalTimetableImport.isoDateTime(r["start"]), let en = LocalTimetableImport.isoDateTime(r["end"]) else { continue }
             let di = iso(st.day)
-            // andere Gruppe oder Kurs ohne Kalendertermin: nicht im eigenen Kalender (abgesagte nach dem Zeitschlitz)
+            // Antwort auf "Welche Termine besuchst du?" (Kurs, Wochentag, Beginn, Ende)
+            let answer = answers.isEmpty ? nil : answers.answer(course: r["course_id"], module: r["module_id"], title: r["course_title"], day: st.day,
+                                                                start: LocalFreeWindows.mh(st.minutes), end: LocalFreeWindows.mh(en.minutes))
+            // andere Gruppe oder Kurs ohne Kalendertermin: nicht im eigenen Kalender (abgesagte nach dem Zeitschlitz).
+            // Eine vom Nutzer gewaehlte Kurszeit gilt auch ohne Kalendertermin (Befund 10.11.2026: die gewaehlte Uebung
+            // am Freitag fehlte, weil ihr Termin nicht im eigenen Stud.IP-Kalender stand).
             let cancelled = LocalModules.truthy(r["cancelled"])
-            if let cover {
+            if let cover, answer != true {
                 let id = r["id"]?.string, course = r["course_id"]?.string
                 let shown = cancelled ? cover.showsCancelled(id: id, course: course, start: st, end: en)
                     : cover.shows(id: id, course: course, start: st, end: en)
@@ -265,6 +272,11 @@ enum LocalTimetable {
             ]
             // Sitzungsthema nur, wenn vorhanden (Antwortform sonst unveraendert)
             if LocalModules.truthy(r["description"]) { o["session_topic"] = r["description"] }
+            if answer == false {
+                // abgewaehlte Kurszeit: grau, die Zeit ist frei fuer Lernbloecke
+                o["status"] = "nicht_teilnahme"
+                o["permanent_skip"] = true
+            }
             if cancelled {
                 // in Stud.IP abgesagt (02.11.2026): bestaetigter Ausfall, die Zeit wird frei (busy_blocks zaehlt nur Teilnahme)
                 o["status"] = "ausfall"
@@ -285,6 +297,26 @@ enum LocalTimetable {
             }
         }
         return out
+    }
+
+    /// Antwort auf "Welche Termine besuchst du?" an Serien, die nicht mit der Kurszeit verknuepft sind (z. B. eigene
+    /// oder frueher uebernommene Serie desselben Kurses, Moduls oder Titels zur selben Zeit): eine abgewaehlte Kurszeit
+    /// wird grau ("nicht_teilnahme"), ausser der Nutzer hat diesen Tag selbst auf "besucht" gesetzt. Verknuepfte Serien
+    /// tragen die Antwort schon in `attend` (`StudIPCalendar.setTimes`) und bleiben, wie der Nutzer sie danach stellt.
+    static func applyTimeAnswers(_ c: SQLiteConnection, _ occ: [JSONValue]) throws -> [JSONValue] {
+        let answers = try StudIPCalendar.timeAnswers(c)
+        guard !answers.isEmpty else { return occ }
+        let linked = Set(try StudIPScheduleImport.readLinks(c).filter { $0.key.hasPrefix("cycle:") }.map { JSONValue.number(Double($0.value.eventID)) })
+        return occ.map { v in
+            guard var o = v.object, let eid = o["event_id"], eid != .null, !linked.contains(eid), o["status"] == "teilnahme",
+                  o["exception"] != "attend", o["exception"] != "moved_here",
+                  let day = (o["date"]?.string).flatMap(BerlinClock.parseISODate), let st = o["start"]?.string, let en = o["end"]?.string,
+                  answers.answer(course: o["course_id"], module: o["module_id"], title: o["title"], day: day, start: st, end: en) == false
+            else { return v }
+            o["status"] = "nicht_teilnahme"
+            o["permanent_skip"] = true
+            return .object(o)
+        }
     }
 
     /// `studip_cancel_hint(course_title, description)`: Hinweis am Termin fuer einen in Stud.IP abgesagten Einzeltermin

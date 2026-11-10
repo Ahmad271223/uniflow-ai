@@ -275,6 +275,56 @@ enum StudIPCalendar {
         }
     }
 
+    /// Antworten auf "Welche Termine besuchst du?" je Zeitschlitz (Wochentag 0 = Montag, Beginn, Ende), fuer die
+    /// Woche (`LocalTimetable.studipDated`, `occurrences`): true = besucht, false = abgewaehlt. Gleicher Zeitschlitz in
+    /// mehreren Kurszeiten: besucht gewinnt. Neben der Kurs-ID auch je Modul und je Kurstitel, weil Serien oft an der
+    /// Kurs-ID eines frueheren Semesters oder ohne Kurs haengen (Befund des Inhabers 10.11.2026: abgewaehlte Uebungen
+    /// blieben im Stundenplan, die gewaehlte am Freitag fehlte).
+    struct TimeAnswers {
+        var bySlot: [String: Bool] = [:]
+
+        var isEmpty: Bool { bySlot.isEmpty }
+
+        static func key(_ kind: String, _ id: String, weekday: Int, start: String, end: String) -> String {
+            "\(kind):\(id)|\(weekday)|\(start)|\(end)"
+        }
+
+        static func title(_ v: JSONValue?) -> String {
+            PyText.lower(PyText.strip(LocalModules.truthy(v) ? (v?.string ?? LocalTimetable.text(v)) : ""))
+        }
+
+        mutating func add(_ kind: String, _ id: String, weekday: Int, start: String, end: String, attend: Bool) {
+            guard !id.isEmpty else { return }
+            let k = Self.key(kind, id, weekday: weekday, start: start, end: end)
+            bySlot[k] = (bySlot[k] ?? false) || attend
+        }
+
+        /// Antwort fuer ein Vorkommen (Kurs, sonst Modul, sonst Titel) am Tag `day`; nil ohne Antwort
+        func answer(course: JSONValue?, module: JSONValue?, title: JSONValue?, day: Int, start: String, end: String) -> Bool? {
+            let wd = BerlinClock.weekday(day)
+            if let course = course?.string, !course.isEmpty, let a = bySlot[Self.key("k", course, weekday: wd, start: start, end: end)] { return a }
+            if LocalModules.truthy(module), let a = bySlot[Self.key("m", LocalTimetable.text(module), weekday: wd, start: start, end: end)] { return a }
+            let t = Self.title(title)
+            return t.isEmpty ? nil : bySlot[Self.key("t", t, weekday: wd, start: start, end: end)]
+        }
+    }
+
+    /// Antworten aller Kurse als Zeitschlitze; leer ohne Antwort
+    static func timeAnswers(_ c: SQLiteConnection) throws -> TimeAnswers {
+        let choices = try choices(c).filter { !$0.value.known.isEmpty }
+        guard !choices.isEmpty else { return TimeAnswers() }
+        var out = TimeAnswers()
+        for cy in try StudIPScheduleStore.cycleEntries(c, relevance: false) {
+            let e = cy.entry
+            guard let course = e.courseID, let ch = choices[course], ch.known.contains(e.id) else { continue }
+            let attend = !ch.skipped.contains(e.id)
+            out.add("k", course, weekday: e.weekday, start: e.startTime, end: e.endTime, attend: attend)
+            if LocalModules.truthy(cy.module) { out.add("m", LocalTimetable.text(cy.module), weekday: e.weekday, start: e.startTime, end: e.endTime, attend: attend) }
+            out.add("t", TimeAnswers.title(.string(e.title)), weekday: e.weekday, start: e.startTime, end: e.endTime, attend: attend)
+        }
+        return out
+    }
+
     /// Kurszeiten, die der Nutzer abgewaehlt hat (alle Kurse)
     static func skippedTimes(_ c: SQLiteConnection) throws -> Set<String> {
         try choices(c).values.reduce(into: Set<String>()) { $0.formUnion($1.skipped) }
