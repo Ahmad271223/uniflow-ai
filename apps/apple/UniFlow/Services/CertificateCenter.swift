@@ -175,7 +175,8 @@ final class CertificateCenter: ObservableObject {
             let backend = try await host.backend()
             guard let files = backend.context.files else { message = "Auf diesem Gerät gibt es keinen Speicherort für Dateien."; return nil }
             var r = await CertificatesSync.download(db: backend.context.database, files: files, transport: await transport(), offerID: id, semester: semester, clock: clock)
-            // abgelaufen: es kam die Anmeldeseite, kein Dokument entstand; nach der stillen Anmeldung genau einmal neu
+            // abgelaufen: schon die Startseite war die Anmeldeseite, der Dokument-Link wurde nicht aufgerufen (kein
+            // Dokument entstand); nach der stillen Anmeldung genau einmal neu
             if r.needsLogin, await silentLogin() {
                 r = await CertificatesSync.download(db: backend.context.database, files: files, transport: await transport(), offerID: id, semester: semester, clock: clock)
             }

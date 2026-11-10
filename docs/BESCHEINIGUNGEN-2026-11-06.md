@@ -25,8 +25,8 @@ Rückmeldebescheinigung, Bescheide und Zahlungsnachweise, Weitere), je Dokument:
   und blieb dort, auch wenn die Verbindung später wieder angemeldet war. Jetzt (`CertificateCenter.silentLogin`):
   QIS und HsH-Campusmanagement melden einmal still mit dem auf diesem Gerät gemerkten Passwort an
   (`docs/AUTOMATISCH-ANMELDEN-2026-11-06.md`, nur mit Zustimmung, nie in einer Schleife) und versuchen Liste bzw.
-  Herunterladen **genau einmal** neu (der Aufruf mit abgelaufener Sitzung traf die Anmeldeseite und erzeugte kein
-  Dokument). Ohne gemerktes Passwort bleibt „Anmeldung nötig“. Steht in der gespeicherten Liste noch „Anmeldung
+  Herunterladen **genau einmal** neu (mit abgelaufener Sitzung ist schon die Startseite die Anmeldeseite, der Dokument-Link
+  wird gar nicht aufgerufen, es entsteht kein Dokument). Ohne gemerktes Passwort bleibt „Anmeldung nötig“. Steht in der gespeicherten Liste noch „Anmeldung
   nötig“ und ist die Verbindung wieder angemeldet, liest die Seite beim Öffnen von selbst neu (PLuS nicht: eigene
   Anmeldung im Fenster). Der Leser selbst hatte gegen die echte Seite keinen Fehler.
 

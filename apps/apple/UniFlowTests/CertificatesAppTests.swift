@@ -159,8 +159,9 @@ final class CertificatesAppTests: XCTestCase {
         let list = try await c.api.value("/api/certificates")
         XCTAssertEqual(list["status"]?.string, "ok")
 
-        // Herunterladen mit abgelaufener Sitzung: der erste Aufruf trifft die Anmeldeseite (kein Dokument), dann einmal
-        // still anmelden ist verbraucht (`UniAutoLoginMachine`: keine zweite Runde so kurz danach) -> "Anmeldung nötig"
+        // Herunterladen mit abgelaufener Sitzung: schon die Startseite (frisches asi) ist die Anmeldeseite, der
+        // Dokument-Link wird gar nicht aufgerufen; einmal still anmelden ist verbraucht (`UniAutoLoginMachine`: keine
+        // zweite Runde so kurz danach) -> "Anmeldung nötig"
         session.withLock { $0 = false }
         let id = try XCTUnwrap(list["offers"]?.array?.first?.s("id"))
         let none = await center.download(id)
@@ -168,7 +169,7 @@ final class CertificatesAppTests: XCTestCase {
         XCTAssertTrue(center.needsLogin)
         XCTAssertEqual(q.state, .needsLogin)
         XCTAssertEqual(logins.count, 1, "keine Schleife")
-        XCTAssertEqual(verpublish(), 1, "nur der eine Versuch, kein zweiter ohne Anmeldung")
+        XCTAssertEqual(verpublish(), 0, "ohne Anmeldung kein Aufruf des Dokument-Links")
         // gespeicherter Stand der Liste bleibt, es gibt keine Datei
         let after = try await c.api.value("/api/certificates")
         XCTAssertEqual(after["offers"]?.array?.first?["file"], .null)
@@ -193,7 +194,7 @@ final class CertificatesAppTests: XCTestCase {
         let url = try XCTUnwrap(file, center.message ?? "")
         XCTAssertTrue(try Data(contentsOf: url).starts(with: Array("%PDF".utf8)))
         XCTAssertEqual(logins, 1, "genau eine stille Anmeldung")
-        XCTAssertEqual(verpublish(), 2, "der erste Aufruf traf die Anmeldeseite (kein Dokument), dann genau einer")
+        XCTAssertEqual(verpublish(), 1, "abgelaufen: nur die Startseite gefragt; nach der Anmeldung genau ein Aufruf, ein Dokument")
         XCTAssertFalse(center.needsLogin)
         XCTAssertNotEqual(q.state, .needsLogin)
     }
