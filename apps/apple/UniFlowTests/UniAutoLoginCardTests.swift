@@ -105,16 +105,24 @@ final class UniAutoLoginCardTests: XCTestCase {
         return out.filter { !$0.isEmpty }
     }
 
-    private func shown(_ view: UIView, containing id: String) async throws -> [String] {
-        let end = Date().addingTimeInterval(10)
+    /// Wartet, bis alle `labels` im Baum stehen (SwiftUI baut ihn nach und nach auf)
+    private func shown(_ view: UIView, all labels: [String]) async throws -> [String] {
+        let end = Date().addingTimeInterval(15)
         var t: [String] = []
         while Date() < end {
             t = texts(view)
-            if t.contains(id) { return t }
+            if labels.allSatisfy(t.contains) { return t }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        XCTFail("nicht gezeigt: \(id) in \(t)")
+        XCTFail("nicht gezeigt: \(labels.filter { !t.contains($0) }) in \(t)")
         return t
+    }
+
+    /// Wie oft ein Element vorkommt, gemessen an einem Element, das die Karte genau einmal hat (der Baum nennt
+    /// manche Elemente ueber mehrere Wege mehrfach, alle gleich oft)
+    private func count(_ label: String, in t: [String], unit: String) -> Double {
+        let u = t.filter { $0 == unit }.count
+        return u == 0 ? -1 : Double(t.filter { $0 == label }.count) / Double(u)
     }
 
     private func card(_ m: ContainerManager) -> some View {
@@ -130,28 +138,21 @@ final class UniAutoLoginCardTests: XCTestCase {
 
         // an: ein Formular fuer alle (der Bedienungshilfen-Baum nennt Beschriftungen, die Kennungen nur am Schalter)
         let one = host(card(m))
-        let a = try await shown(one, containing: "Für alle Dienste")
-        XCTAssertTrue(a.contains("settings.unilogin.same"))
-        XCTAssertTrue(a.contains(UniAutoLoginCard.sameTitle))
-        XCTAssertEqual(a.filter { $0 == "Speichern" }.count, 1, "ein Formular")
-        XCTAssertTrue(a.contains("Benutzername") && a.contains("Passwort"))
-        XCTAssertTrue(a.contains("Entfernen"), "gespeichert: Entfernen")
-        XCTAssertTrue(a.contains("Gespeichert für: \(user)"))
-        XCTAssertTrue(a.contains(UniAutoLoginCard.note))
-        for p in UniAutoLogin.Portal.allCases where p != .studip && p != .qis { XCTAssertFalse(a.contains(p.title), p.rawValue) }
+        let a = try await shown(one, all: ["Für alle Dienste", UniAutoLoginCard.sameTitle, "Benutzername", "Passwort", "Speichern",
+                                           "Entfernen", "Gespeichert für: \(user)", UniAutoLoginCard.note])
+        XCTAssertEqual(count("Speichern", in: a, unit: "Für alle Dienste"), 1, "ein Formular")
+        XCTAssertFalse(a.contains("Uni-Mail (SOGo)"))
         XCTAssertFalse(a.contains { $0.contains(password) }, "das Passwort steht nie in Bedienungshilfen-Werten")
 
         // aus: Stud.IP, QIS und Uni-Mail (SOGo) je mit eigenem Formular
         UniAutoLogin.sameEverywhere = false
         let three = host(card(m))
-        let b = try await shown(three, containing: "Uni-Mail (SOGo)")
-        for p in UniAutoLogin.Portal.allCases { XCTAssertTrue(b.contains(p.title), p.rawValue) }
+        let missing = "Kein eigenes Passwort – es gilt das gemeinsame (\(user))."
+        let b = try await shown(three, all: UniAutoLogin.Portal.allCases.map(\.title) + ["Speichern", missing, UniAutoLoginCard.note])
         XCTAssertFalse(b.contains("Für alle Dienste"))
-        XCTAssertEqual(b.filter { $0 == "Speichern" }.count, 3, "drei Formulare")
-        XCTAssertGreaterThanOrEqual(b.filter { $0 == "Benutzername" }.count, 3)
-        XCTAssertGreaterThanOrEqual(b.filter { $0 == "Passwort" }.count, 3)
-        XCTAssertEqual(b.filter { $0 == "Kein eigenes Passwort – es gilt das gemeinsame (\(user))." }.count, 3, "Status je Portal")
-        XCTAssertEqual(b.filter { $0 == "fehlt" }.count, 3)
+        XCTAssertEqual(count("Speichern", in: b, unit: UniAutoLoginCard.note), 3, "drei Formulare")
+        XCTAssertEqual(count(missing, in: b, unit: UniAutoLoginCard.note), 3, "Status je Portal")
+        XCTAssertEqual(count("Uni-Mail (SOGo)", in: b, unit: UniAutoLoginCard.note), 1)
         XCTAssertFalse(b.contains("Entfernen"), "ohne eigenen Eintrag kein Entfernen")
         XCTAssertFalse(b.contains { $0.contains(password) })
         await bed.tearDown()
