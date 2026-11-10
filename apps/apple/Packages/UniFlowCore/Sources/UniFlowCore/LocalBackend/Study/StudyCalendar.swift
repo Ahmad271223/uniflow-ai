@@ -20,7 +20,7 @@ enum StudyCalendar {
         if refresh { try StudyPlan.refreshStatuses(c, today: today) }
         // Lernbloecke ab heute, die einen besuchten Termin ueberschneiden (Stundenplan geaendert, alte Pakete ueber
         // mehrere Fenster), neu legen, bevor die Woche gezeigt wird (Fehlerbericht des Inhabers vom 10.11.2026)
-        try StudyPlan.repairSlots(c, from: max(start, today), to: end)
+        try StudyPlan.repairSlots(c, from: max(start, today), to: end, now: LocalTimetableImport.isoDateTime(.string(clock.nowISO)))
         let pkgs = try c.rows("""
             SELECT p.*, m.color, m.name AS module_name FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id
                                          WHERE p.date BETWEEN ? AND ? ORDER BY p.date, p.sort, p.id

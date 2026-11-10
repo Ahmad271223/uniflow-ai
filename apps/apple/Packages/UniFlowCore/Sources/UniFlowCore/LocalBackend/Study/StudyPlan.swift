@@ -552,7 +552,8 @@ enum StudyPlan {
     /// und Ende der letzten Aufgabe: ein Lernblock von 09:45 bis 17:30 ueber allen Vorlesungen, und eine zu lange Aufgabe
     /// wurde im zu kleinen Fenster gekappt (45 min als 09:45–10:15) und ragte in den naechsten Termin (Fehlerbericht
     /// des Inhabers vom 10.11.2026: Lernbloecke nie waehrend besuchter Termine).
-    static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil) throws {
+    /// `notBefore`: erste nutzbare Minute (heute: jetzt), damit ein neu gelegter Block nicht in schon vergangener Zeit liegt.
+    static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil, notBefore: Int? = nil) throws {
         let s = try Settings(c)
         var pkgs = try c.query("SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id",
                                [.text(iso(d))])
@@ -567,6 +568,10 @@ enum StudyPlan {
         // ueber den Terminen des Tages (Abnahme 07.11.2026, zuerst in Python)
         var after = max(lo, blocks.map(\.end).max() ?? 0)
         if let last = blocks.last(where: { $0.kind == "event" }) { after = max(after, last.end + (s.raw["travel_minutes"]?.int ?? 30)) }
+        if let notBefore {
+            after = max(after, notBefore)
+            windows = windows.map { (start: max($0.start, notBefore), end: $0.end) }.filter { $0.end > $0.start }
+        }
         if windows.isEmpty { windows = [(after, after + 24 * 60)] }       // kein freies Fenster: hintereinander dort
         let brk = s.breakMinutes
         var free = windows.map(\.start)               // naechste freie Minute je Fenster
@@ -663,7 +668,7 @@ enum StudyPlan {
     /// - Aufgabe gekappt wurde (kuerzer als geschaetzt und endet an einem belegten Block oder am Lernende).
     /// Von Hand gesetzte Uhrzeiten ohne Konflikt bleiben. Liefert die Zahl neu gelegter Pakete.
     @discardableResult
-    static func repairSlots(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> Int {
+    static func repairSlots(_ c: SQLiteConnection, from start: Int, to end: Int, now: LocalTimetableImport.LocalTime? = nil) throws -> Int {
         guard start <= end else { return 0 }
         let rows = try c.query("""
             SELECT id, date, status, start_time, end_time FROM study_packages
@@ -721,7 +726,9 @@ enum StudyPlan {
                 try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [id])
                 try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben')", [id])
             }
-            for id in redo { try assignSlots(c, day: d, packageID: id) }
+            // heute nicht vor der aktuellen Minute (sonst landete ein neu gelegter Block in schon vergangener Zeit)
+            let notBefore = now.flatMap { $0.day == d ? $0.minutes : nil }
+            for id in redo { try assignSlots(c, day: d, packageID: id, notBefore: notBefore) }
             fixed += redo.count
         }
         return fixed

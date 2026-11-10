@@ -255,4 +255,21 @@ final class LernblockFreieZeitTests: XCTestCase {
         let sig = try XCTUnwrap(ps.first { $0["subject"]?.string == "Signale und Systeme" })
         XCTAssertEqual([sig["start_time"], sig["end_time"]], ["20:00", "21:30"], "hinter dem letzten Termin samt Heimfahrt")
     }
+
+    /// Heute neu gelegt: nie in schon vergangener Zeit. Ein alter Block 09:45–10:30 ueber Ue Numerik (10:15) wird um
+    /// 17:00 Uhr repariert und landet nicht im schon vergangenen Fenster ab 16:15, sondern ab jetzt (17:00–17:45).
+    func testReparaturHeuteNichtInVergangeneZeit() async throws {
+        let uhr = Uhr("2026-11-10T17:00:00")
+        let b = try await backend(uhr)
+        let id = try await paket(b, uhr, dienstag, mfi, "Woche 5", [("Folien", 45)])
+        try await b.context.database.transaction { c in
+            try c.execute("UPDATE study_packages SET start_time='09:45', end_time='10:30' WHERE id=?", [.integer(id)])
+            try c.execute("UPDATE study_tasks SET start_time='09:45', end_time='10:30' WHERE package_id=?", [.integer(id)])
+        }
+        await send(b, "GET", "/api/calendar", query: [.init("start", dienstag), .init("end", dienstag)])
+        let p = try await pakete(b, dienstag)
+        XCTAssertEqual(p.count, 1)
+        XCTAssertGreaterThanOrEqual(m(p[0]["start_time"]), 17 * 60, "nicht vor jetzt: \(p[0]["start_time"] ?? .null)")
+        XCTAssertEqual(m(p[0]["end_time"]) - m(p[0]["start_time"]), 45)
+    }
 }
