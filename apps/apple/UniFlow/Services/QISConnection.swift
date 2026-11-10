@@ -123,7 +123,8 @@ final class QISConnection: ObservableObject {
         defaults.set(true, forKey: Keys.connected)
         set(.connected)
         let store = websiteDataStore
-        UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
+        UniAutoLogin.clearSignedOut(.qis, store: store)        // angemeldet: die Abmelden-Sperre faellt
+        UniAutoLogin.signedIn(store, portal: .qis)             // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // QIS-Sitzung ueber Neustarts merken (`UniWebSessions`)
         guard syncsAfterSignIn, !isRunning else { return }
         Task { await run(force: true) }
@@ -140,6 +141,7 @@ final class QISConnection: ObservableObject {
         }
         for k in Keys.all { defaults.removeObject(forKey: k) }
         UniAutoLogin.forget(websiteDataStore)                  // gemerktes Passwort der LUH (Schluesselbund)
+        UniAutoLogin.markSignedOut(.qis, store: websiteDataStore)   // bewusst abgemeldet: nie still wieder verbinden
         lastMessage = nil
         lastCount = nil
         set(.notConnected)
@@ -270,15 +272,31 @@ final class QISConnection: ObservableObject {
         guard isConnected, state == .needsLogin, !stopped else { return false }
         let before = signOuts
         let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
-                                                userAction: userAction) { url, html in
-            // wie `QISLoginPane.isSignedIn`: Seite des QIS mit Abmelden-Link, ohne Anmeldeformular
-            guard url.scheme?.lowercased() == "https", QISConnection.qisDomains.contains(url.host?.lowercased() ?? "") else { return false }
-            let page = QISPage.parse(html: html, url: url)
-            return page.isLoggedIn && !page.hasLoginForm
-        }
+                                                userAction: userAction) { url, html in QISConnection.isSignedInPage(url, html: html) }
         guard d == .retryOnce, signOuts == before, isConnected, !stopped else { return false }
         for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Abruf von eben zu Ende
         guard signOuts == before, isConnected, !stopped else { return false }
+        signedIn()                                              // verbunden, ruft gleich (einmal) ab
+        return true
+    }
+
+    /// wie `QISLoginPane.isSignedIn`: Seite des QIS mit Abmelden-Link, ohne Anmeldeformular
+    static func isSignedInPage(_ url: URL, html: String) -> Bool {
+        guard url.scheme?.lowercased() == "https", qisDomains.contains(url.host?.lowercased() ?? "") else { return false }
+        let page = QISPage.parse(html: html, url: url)
+        return page.isLoggedIn && !page.hasLoginForm
+    }
+
+    /// Uni-Zugang einmal speichern (10.11.2026): noch nie verbunden -> mit dem gespeicherten Zugang zum ersten Mal
+    /// anmelden (unsichtbar, nur im Vordergrund, `UniAutoLogin.handleExpiry`), dann verbunden und gleich abrufen.
+    /// Nie nach bewusstem Abmelden (`UniAutoLogin.signedOut`), nie mit einem abgelehnten Passwort.
+    @discardableResult
+    func connectWithStoredLogin(userAction: Bool = false) async -> Bool {
+        guard !isConnected, !stopped, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
+                                                userAction: userAction) { url, html in QISConnection.isSignedInPage(url, html: html) }
+        guard d == .retryOnce, signOuts == before, !isConnected, !stopped else { return false }
         signedIn()                                              // verbunden, ruft gleich (einmal) ab
         return true
     }

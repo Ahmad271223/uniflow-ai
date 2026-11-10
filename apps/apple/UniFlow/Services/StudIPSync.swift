@@ -429,7 +429,8 @@ final class StudIPSync: ObservableObject {
             defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
             phase = .idle
             let store = websiteDataStore
-            UniAutoLogin.signedIn(store)                       // mitgelesenes Passwort jetzt merken (falls zugelassen)
+            UniAutoLogin.clearSignedOut(.studip, store: store) // angemeldet: die Abmelden-Sperre faellt
+            UniAutoLogin.signedIn(store, portal: .studip)      // mitgelesenes Passwort jetzt merken (falls zugelassen)
             Task { await UniWebSessions.save(store) }          // Uni-Anmeldung (WebSSO) ueber Neustarts merken
             Task { await run() }
         } catch {
@@ -503,6 +504,29 @@ final class StudIPSync: ObservableObject {
             url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
         }
         return d == .retryOnce && signOuts == before && hasStoredSession
+    }
+
+    /// Prueft die Stud.IP-Cookies nach der ersten stillen Anmeldung (`users/me`); Tests: feste Antwort, nie ins Netz
+    static var storedLoginSessionCheck: @MainActor ([HTTPCookie]) async -> Bool = { await StudIPSync.sessionIsValid($0) }
+
+    /// Uni-Zugang einmal speichern (10.11.2026): noch keine Stud.IP-Sitzung -> mit dem gespeicherten Zugang zum ersten
+    /// Mal ueber das WebSSO anmelden (unsichtbar, nur im Vordergrund, `UniAutoLogin.handleExpiry`). Fertig, sobald eine
+    /// Stud.IP-Seite ausserhalb des Logins erreicht ist und `users/me` die Cookies annimmt; dann wie nach einer Anmeldung
+    /// von Hand (`signedIn(cookies:)`, startet den Abgleich). Nie nach bewusstem Abmelden.
+    @discardableResult
+    func connectWithStoredLogin(userAction: Bool = false) async -> Bool {
+        guard offersStudIP, !hasStoredSession, !stopped, !UniAutoLogin.signedOut(.studip, store: websiteDataStore) else { return false }
+        let store = websiteDataStore
+        let host = Self.base.host?.lowercased() ?? ""
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL(), userAction: userAction) { url, _ in
+            url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
+        }
+        guard d == .retryOnce, signOuts == before, !hasStoredSession, !stopped else { return false }
+        let mine = Self.ownCookies(await store.httpCookieStore.allCookies(), host: Self.base.host ?? "")
+        guard !mine.isEmpty, await Self.storedLoginSessionCheck(mine), signOuts == before, !hasStoredSession else { return false }
+        signedIn(cookies: mine)
+        return true
     }
 
     /// Bereitschaft der gemerkten Sitzung vor einem Abgleich bzw. beim Oeffnen (`ensureSession`)
@@ -616,6 +640,7 @@ final class StudIPSync: ObservableObject {
         defaults.removeObject(forKey: LoginReminder.lastLoginKey)
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der Anmeldeseite
         UniAutoLogin.forget(websiteDataStore)                    // gemerktes Passwort dieser Hochschule (Schluesselbund)
+        if offersStudIP { UniAutoLogin.markSignedOut(.studip, store: websiteDataStore) }   // bewusst abgemeldet
         renewal = UniRenewalState()
         await UniWebSessions.forget(websiteDataStore)            // gemerkte Uni-Anmeldung zuerst (nie wiederverwenden)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)

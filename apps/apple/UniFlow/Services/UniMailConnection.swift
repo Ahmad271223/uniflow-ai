@@ -131,7 +131,8 @@ final class UniMailConnection: ObservableObject {
         user = u
         set(.connected)
         let store = websiteDataStore
-        UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
+        UniAutoLogin.clearSignedOut(.sogo, store: store)       // angemeldet: die Abmelden-Sperre faellt
+        UniAutoLogin.signedIn(store, portal: .sogo)            // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }
         guard refreshesAfterSignIn else { return }
         Task { await refreshInbox() }
@@ -142,6 +143,7 @@ final class UniMailConnection: ObservableObject {
         signOuts += 1
         for k in Keys.all { defaults.removeObject(forKey: k) }
         UniAutoLogin.forget(websiteDataStore)                  // gemerktes Passwort der Hochschule (Schluesselbund)
+        UniAutoLogin.markSignedOut(.sogo, store: websiteDataStore)  // bewusst abgemeldet: nie still wieder verbinden
         user = nil
         setUnseen(0)
         calendarMessage = nil
@@ -232,6 +234,29 @@ final class UniMailConnection: ObservableObject {
         set(.connected)
         return true
     }
+
+    /// Uni-Zugang einmal speichern (10.11.2026): noch nie verbunden -> mit dem gespeicherten Zugang zum ersten Mal auf der
+    /// SOGo-Seite anmelden (unsichtbar, nur im Vordergrund); fertig, sobald SOGo ein Konto zeigt (/SOGo/so/<benutzer>/).
+    /// Dann wie nach einer Anmeldung von Hand (`signedIn(user:)`, liest den Posteingang). Nie nach bewusstem Abmelden.
+    @discardableResult
+    func connectWithStoredLogin(userAction: Bool = false) async -> Bool {
+        guard !isConnected, !stopped, !UniAutoLogin.signedOut(.sogo, store: websiteDataStore) else { return false }
+        let before = signOuts
+        let site = self.site
+        let found = SignedInAccount()
+        let d = await UniAutoLogin.handleExpiry(portal: "sogo", store: websiteDataStore, entry: site.loginURL,
+                                                userAction: userAction) { url, _ in
+            guard let u = SOGo.user(fromURL: url, site: site) else { return false }
+            found.user = u
+            return true
+        }
+        guard d == .retryOnce, signOuts == before, !isConnected, !stopped, let account = found.user else { return false }
+        signedIn(user: account)
+        return true
+    }
+
+    /// Konto der angemeldeten SOGo-Seite (aus der Adresse), gefunden von der unsichtbaren Anmeldung
+    @MainActor private final class SignedInAccount { var user: String? }
 
     struct InboxReport: Equatable {
         var unseen: Int?

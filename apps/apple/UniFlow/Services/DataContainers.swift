@@ -228,6 +228,8 @@ final class ContainerManager: ObservableObject {
         weak var sync: ContainerSync?
     }
     private var syncs: [SyncRef] = []
+    /// laufendes `connectWithStoredLogin` (StoredLoginConnect.swift): nie zwei zugleich
+    var storedLoginRun: Task<StoredLoginReport, Never>?
 
     /// Merker: Cookies der alten gemeinsamen Webansicht (`WKWebsiteDataStore.default()`) ziehen noch in diesen Container
     static let legacyWebDataKey = "uniflow.legacy.webdata.target"
@@ -373,6 +375,7 @@ final class ContainerManager: ObservableObject {
         problem = nil
         if publishesCurrent { ActiveContainer.current = c }
         active = c
+        UniAutoLogin.makeCurrent(websiteDataStore(for: c))      // Einstellungen: Uni-Zugang dieses Containers
         studip = StudIPSync(root: c.layout.studip, host: c.host, clock: clock, defaults: c.defaults, support: c.layout.root,
                             university: key.university, cookies: c.cookies, websiteDataStore: websiteDataStore(for: c),
                             container: c.layout)
@@ -439,6 +442,7 @@ final class ContainerManager: ObservableObject {
     func deactivate() {
         guard active != nil else { return }
         if publishesCurrent { ActiveContainer.current = nil }
+        if let c = active, UniAutoLogin.currentStore === stores[c.websiteDataStoreID] { UniAutoLogin.makeCurrent(nil) }
         active = nil
         studip = Self.idleSync()
         hildesheim = nil
@@ -605,7 +609,7 @@ final class ContainerManager: ObservableObject {
         await stopSyncs(key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniWebSessions.vault(service: cookieService, container: layout.identifier).clear()   // Uni-Anmeldung der Webansicht
-        UniCredentialStore(service: credentialService, container: layout.identifier).clear() // gemerktes Passwort
+        UniCredentialStore(service: credentialService, container: layout.identifier).clearAll() // gemerkte Passwoerter (auch je Portal)
         UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
         AppTemp.remove(container: layout.identifier)                       // Teilen-Dateien dieses Containers in tmp
@@ -623,7 +627,7 @@ final class ContainerManager: ObservableObject {
         if key.university.profile.tokenServices.contains(where: { tokens.token(key.university, service: $0) != nil }) { left.append(Self.leftKey) }
         if !StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty
             || UniWebSessions.vault(service: cookieService, container: layout.identifier).loadRaw() != nil { left.append(Self.leftSession) }
-        if UniCredentialStore(service: credentialService, container: layout.identifier).load() != nil { left.append(Self.leftPassword) }
+        if UniCredentialStore(service: credentialService, container: layout.identifier).hasAny() { left.append(Self.leftPassword) }
         return left
     }
 

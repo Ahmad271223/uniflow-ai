@@ -19,8 +19,11 @@ import WebKit
 //   Formular-Rechnern (das Skript prueft Rechner und Pfad selbst noch einmal); jede Weiterleitung auf einen fremden
 //   Rechner bricht ab. Das Passwort geht nie an StudiNow-Server, steht nie in einem Skript-Quelltext, nie im Protokoll.
 // - Abmelden, "Daten dieser Hochschule löschen", "Konto löschen" und "Gespeichertes Passwort löschen" entfernen den
-//   Eintrag. Lehnt die Hochschule das Passwort ab, loescht die App nichts von selbst: "Anmeldung nötig", der Mensch
-//   meldet sich neu an (das neue Passwort ersetzt das alte).
+//   Eintrag. Lehnt die Hochschule das Passwort ab, vergisst die App seit 10.11.2026 genau diesen Eintrag (und jeden
+//   gleichen), damit es nie ein zweites Mal gesendet wird, auch nicht nach einem Neustart: "Anmeldung nötig", die
+//   Einstellungen zeigen "abgelehnt", bis der Mensch ein neues Passwort speichert oder sich neu anmeldet.
+// - Seit 10.11.2026 auch von Hand in den Einstellungen, gemeinsam oder je Portal (UniPortalLogins.swift), und die App
+//   verbindet damit auch zum ersten Mal (`ContainerManager.connectWithStoredLogin`, StoredLoginConnect.swift).
 
 /// Gemerkte Zugangsdaten einer Hochschule (nur im Schluesselbund dieses Geraets)
 struct UniCredential: Codable, Equatable, Sendable {
@@ -40,6 +43,12 @@ struct UniCredentialStore: Sendable {
     init(service: String = UniCredentialStore.service, container: UUID) {
         store = KeychainStore(service: service, accessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
         account = Self.accountPrefix + container.uuidString
+    }
+
+    /// Eintrag eines Portals (`portal(_:)` in UniPortalLogins.swift): derselbe Dienst, dieselbe Schutzklasse
+    init(store: KeychainStore, account: String) {
+        self.store = store
+        self.account = account
     }
 
     func load() -> UniCredential? {
@@ -93,8 +102,6 @@ enum UniAutoLogin {
         let vault: UniCredentialStore
         var pending: (credential: UniCredential, at: Date)?
         var states: [String: UniAutoLoginState] = [:]
-        /// die Hochschule hat das gespeicherte Passwort abgelehnt (fuer alle Dienste, eine Zugangskennung)
-        var rejected = false
         var running: [String: Task<UniAutoLoginDecision, Never>] = [:]
         /// nie zwei unsichtbare Anmeldungen zugleich im selben Datenspeicher
         var tail: Task<Void, Never>?
@@ -106,7 +113,7 @@ enum UniAutoLogin {
         }
     }
 
-    private static var entries: [ObjectIdentifier: Entry] = [:]
+    private(set) static var entries: [ObjectIdentifier: Entry] = [:]
 
     static func entry(_ store: WKWebsiteDataStore) -> Entry? {
         guard let e = entries[ObjectIdentifier(store)], e.store === store else { return nil }
@@ -135,7 +142,7 @@ enum UniAutoLogin {
         if !on { forget(store) }
     }
 
-    /// Gespeichertes Passwort (nur mit Schalter an)
+    /// Gespeichertes Passwort des gemeinsamen Zugangs (nur mit Schalter an); je Portal: `credential(for:)`
     static func credential(_ store: WKWebsiteDataStore) -> UniCredential? {
         guard let e = entry(store), isEnabled(e.defaults) else { return nil }
         return e.vault.load()
@@ -144,8 +151,12 @@ enum UniAutoLogin {
     /// Benutzername des gespeicherten Eintrags (Einstellungen)
     static func storedUsername(_ store: WKWebsiteDataStore) -> String? { entry(store)?.vault.load()?.username }
 
-    /// Hat die Hochschule das gespeicherte Passwort abgelehnt? (Einstellungen: "Passwort abgelehnt, bitte neu anmelden")
-    static func wasRejected(_ store: WKWebsiteDataStore) -> Bool { entry(store)?.rejected ?? false }
+    /// Hat die Hochschule ein gespeichertes Passwort abgelehnt (gemeinsamer Zugang oder eines Portals)? Der Merker bleibt
+    /// bis zum naechsten Speichern (Einstellungen: "Passwort abgelehnt")
+    static func wasRejected(_ store: WKWebsiteDataStore) -> Bool {
+        guard let e = entry(store) else { return false }
+        return ([nil] + Portal.allCases.map { Optional($0) }).contains { e.defaults.bool(forKey: rejectedKey($0)) }
+    }
 
     // MARK: Mitlesen und Speichern
 
@@ -158,14 +169,16 @@ enum UniAutoLogin {
     }
 
     /// Die Anmeldung ist gelungen (Anmeldeansicht hat die angemeldete Seite erkannt): mitgelesenes Passwort jetzt in den
-    /// Schluesselbund. Ohne frisch Mitgelesenes (stille Anmeldung, Cookie noch gueltig) aendert sich nichts.
+    /// Schluesselbund. Ohne frisch Mitgelesenes (stille Anmeldung, Cookie noch gueltig) aendert sich nichts. `portal`:
+    /// mit getrennten Zugaengen ("überall gleich" aus) kommt es in den Eintrag dieses Portals, sonst in den gemeinsamen.
     @discardableResult
-    static func signedIn(_ store: WKWebsiteDataStore, now: Date = Date()) -> Bool {
+    static func signedIn(_ store: WKWebsiteDataStore, portal: Portal? = nil, now: Date = Date()) -> Bool {
         guard let e = entry(store), let p = e.pending else { return false }
         e.pending = nil
         guard isEnabled(e.defaults), now.timeIntervalSince(p.at) < pendingLifetime else { return false }
-        guard (try? e.vault.save(p.credential)) != nil else { return false }
-        e.rejected = false
+        let slot = sameEverywhere ? nil : portal
+        guard (try? vault(e, slot).save(p.credential)) != nil else { return false }
+        e.defaults.removeObject(forKey: rejectedKey(slot))
         e.states = [:]
         return true
     }
@@ -187,27 +200,19 @@ enum UniAutoLogin {
     /// die der Mensch dort selbst eintippt, kommen in denselben Eintrag im Schluesselbund dieses Geraets wie nach einer
     /// Anmeldung auf der Anmeldeseite. Speichern heisst zustimmen: der Schalter geht an. Ob das Passwort stimmt,
     /// entscheidet erst die Hochschule (`ContainerManager.connectWithStoredLogin`).
+    /// Gemeinsamer Zugang; je Portal `saveTyped(username:password:portal:store:)` (UniPortalLogins.swift).
     static func saveTyped(username: String, password: String, store: WKWebsiteDataStore, now: Date = Date()) -> TypedSave {
-        guard let e = entry(store) else { return .unavailable }
-        let u = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard UniLoginForms.isAcceptableUsername(u) else { return .badUsername }
-        guard UniLoginForms.isAcceptablePassword(password) else { return .badPassword }
-        guard (try? e.vault.save(UniCredential(username: u, password: password, savedAt: now))) != nil else { return .failed }
-        e.defaults.set(true, forKey: enabledKey)
-        e.pending = nil
-        e.rejected = false
-        e.states = [:]
-        return .saved
+        save(slot: nil, username: username, password: password, store: store, now: now)
     }
 
-    /// Abmelden, Schalter aus, "Gespeichertes Passwort löschen": Eintrag weg, nichts Mitgelesenes mehr
+    /// Abmelden, Schalter aus, "Gespeichertes Passwort löschen": alle Eintraege dieses Containers (gemeinsam und je
+    /// Portal) weg, nichts Mitgelesenes mehr
     @discardableResult
     static func forget(_ store: WKWebsiteDataStore) -> Bool {
         guard let e = entry(store) else { return true }
         e.pending = nil
-        e.rejected = false
         e.states = [:]
-        return e.vault.clear()
+        return forgetAll(entry: e)
     }
 
     // MARK: Stille Anmeldung
@@ -223,26 +228,30 @@ enum UniAutoLogin {
                              isDone: @escaping @MainActor (URL, String) async -> Bool) async -> UniAutoLoginDecision {
         guard let e = entry(store), liveAllowed else { return .needsUser }
         if let running = e.running[portal] { return await running.value }
-        let cred = credential(store)
+        // Zugang dieses Dienstes: eigener Eintrag des Portals (getrennte Zugaenge) oder der gemeinsame
+        let own = Self.portal(named: portal)
+        let resolved = resolvedCredential(own, entry: e)
         var st = e.states[portal] ?? UniAutoLoginState()
-        let d = UniAutoLoginMachine.expired(&st, enabled: isEnabled(e.defaults), hasCredential: cred != nil && !e.rejected,
+        let d = UniAutoLoginMachine.expired(&st, enabled: isEnabled(e.defaults), hasCredential: resolved != nil,
                                             appActive: appActive, signingOut: false, userAction: userAction, now: Date())
         e.states[portal] = st
-        guard d == .relogin, let cred else { return d }
+        guard d == .relogin, let resolved else { return d }
+        let cred = resolved.credential, slot = resolved.slot
         let previous = e.tail
         let task = Task { @MainActor () -> UniAutoLoginDecision in
             await previous?.value
-            // inzwischen abgemeldet oder Passwort geloescht: nichts tun
-            guard let now = credential(store), now == cred else { return .needsUser }
+            // inzwischen abgemeldet, Passwort geloescht, ersetzt oder (bei einem anderen Dienst) abgelehnt: nichts tun
+            guard let now = resolvedCredential(own, entry: e)?.credential, now == cred else { return .needsUser }
             attempts += 1
             let request = UniAutoLoginRequest(portal: portal, university: e.university, store: store, entry: url, credential: cred, isDone: isDone)
             let outcome: UniAutoLoginOutcome
             if let runner = runnerOverride { outcome = await runner(request) } else { outcome = await UniAutoLoginWeb.attempt(request) }
-            let still = credential(store) == cred
+            let still = resolvedCredential(own, entry: e)?.credential == cred
             var s2 = e.states[portal] ?? UniAutoLoginState()
             let d2 = UniAutoLoginMachine.finished(&s2, outcome, signingOut: !still)
             e.states[portal] = s2
-            if outcome == .wrongPassword, still { e.rejected = true }
+            // abgelehnt: diesen Eintrag (und jeden gleichen) vergessen, Merker bleibt; nie ein zweites Mal senden
+            if outcome == .wrongPassword, still { reject(cred, slot: slot, entry: e) }
             if d2 == .retryOnce { await UniWebSessions.save(store) }      // neue Sitzung ueber Neustarts merken
             return d2
         }

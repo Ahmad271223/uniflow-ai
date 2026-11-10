@@ -1025,6 +1025,7 @@ private struct LocalAccountTab: View {
             }
             SettingsSection("Studium", sub: studip.offersStudIP ? SettingsSections.studyLUH : SettingsSections.studyHildesheim) {
                 UFGridLayout(spacing: 16, minWidth: 340) {
+                    UniAutoLoginCard()                                       // Uni-Zugang speichern (gemeinsam oder je Portal), automatisch anmelden
                     if studip.offersStudIP {
                         LUHSourcesCard()                                     // Stud.IP und QIS der LUH (Views/QISViews.swift)
                         UniMailSourcesCard()                                 // Uni-Mail und Uni-Kalender (SOGo der LUH)
@@ -1032,7 +1033,6 @@ private struct LocalAccountTab: View {
                         HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
                         HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH
                     }
-                    UniAutoLoginCard()                                       // Automatisch anmelden (gemerktes Passwort)
                     if let term { UFCard { SemesterFields(term: term, reload: reload) } }
                     DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen
                 }

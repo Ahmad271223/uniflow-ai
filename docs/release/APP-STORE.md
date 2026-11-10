@@ -390,7 +390,7 @@ StudiNow is a study app for students in Germany. Connected today: Leibniz Univer
 3. On the university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all invented by us). Demo mode never contacts the university.
 While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" in that bar and confirm: all demo content is removed.
 
-University password: below each university login page, the switch "Passwort auf diesem iPad merken" (on by default, can be turned off) stores the university user name and password only in this iPad's Keychain (this device only, not synced to iCloud) to sign in again when a session expires. It is never sent to our servers. Delete it under "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden"; signing out also deletes it.
+University password: below each university login page, the switch "Passwort auf diesem iPad merken" (on by default, can be turned off) stores the university user name and password only in this iPad's Keychain (this device only, not synced to iCloud) to sign in again when a session expires. It is never sent to our servers. It can also be typed once under "Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang" (one entry for all services or one per service); delete it there ("Entfernen"); signing out also deletes it.
 
 Subscriptions: "StudiNow Plus" (yearly subscription; no introductory offers) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, the course community and sharing own solutions. The trial is the app's own, not an App Store offer. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
@@ -417,7 +417,7 @@ A slim bar "Demo-Inhalte – erfunden, ohne Hochschule" marks the demo; "Beenden
 
 After the trial: a screen "Deine Probe ist vorbei" shows Free, Plus and Pro AI (yearly subscriptions) and closes only after a choice. "Bei Free bleiben" is a valid choice without any purchase: Free stays usable at no cost, nothing is lost.
 
-University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this iPad's Keychain (not synced to iCloud); it is never sent to our servers. Delete: "Einstellungen" → "Zugang & Darstellung" → "Automatisch anmelden".
+University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this iPad's Keychain (not synced to iCloud); it is never sent to our servers. Type it once or delete it: "Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang".
 
 Subscriptions (yearly only, no introductory offers; the monthly products are removed from sale; yearly prices are 19.99 € and 39.99 € from 11 Nov 2026), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
 - "StudiNow Plus": Apple Pencil, exercise and script side by side, flashcards, automatic study plan, course community.

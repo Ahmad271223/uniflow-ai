@@ -342,7 +342,9 @@ final class UniAutoLoginAppTests: XCTestCase {
         await bed.tearDown()
     }
 
-    func testWrongPasswordShowsLoginNeededAndDeletesNothing() async throws {
+    /// Seit 10.11.2026 (Uni-Zugang einmal speichern): der abgelehnte Eintrag wird vergessen, damit das Passwort nie ein
+    /// zweites Mal gesendet wird (auch nicht nach einem Neustart); der Merker "abgelehnt" bleibt bis zum neuen Speichern
+    func testWrongPasswordShowsLoginNeededAndForgetsOnlyTheRejectedEntry() async throws {
         let (bed, _, qis, vault) = try luhBed("autologin-falsch")
         try vault.save(UniCredential(username: user, password: password, savedAt: Date()))
         UniAutoLogin.appActiveOverride = true
@@ -353,10 +355,14 @@ final class UniAutoLoginAppTests: XCTestCase {
         let ok = await qis.autoLogin()
         XCTAssertFalse(ok)
         XCTAssertEqual(qis.state, .needsLogin, "Anmeldung nötig")
-        XCTAssertNotNil(vault.load(), "nichts automatisch geloescht")
+        XCTAssertNil(vault.load(), "der abgelehnte Eintrag ist vergessen")
         XCTAssertTrue(UniAutoLogin.wasRejected(qis.websiteDataStore))
+        XCTAssertTrue(UniAutoLogin.isRejected(portal: nil, store: qis.websiteDataStore))
         _ = await qis.autoLogin(userAction: true)
         XCTAssertEqual(count, 1, "nie wieder mit dem abgelehnten Passwort")
+        // neues Passwort in den Einstellungen: Merker weg, wieder automatisch
+        XCTAssertEqual(UniAutoLogin.saveTyped(username: user, password: password + "-neu", store: qis.websiteDataStore), .saved)
+        XCTAssertFalse(UniAutoLogin.wasRejected(qis.websiteDataStore))
         await bed.tearDown()
     }
 
