@@ -10,13 +10,17 @@ enum StudyCalendar {
     /// Spalten einer Aufgabe im Kalender und im Paket (Datei, letzte Seite, Ergebnis des Wochentests)
     static let taskColumns = "t.*, f.name AS file_name, f.last_page, te.submitted_at AS test_submitted, te.score AS test_score, te.max_score AS test_max"
 
-    /// `calendar(conn, start, end)`: Tage mit Lernpaketen (samt Aufgaben), Terminen (bis 45 Tage) und Tagesstatus.
+    /// `calendar(conn, start, end)`: Tage mit Lernpaketen (samt Aufgaben), Terminen (bis 45 Tage) und Tagesstatus;
+    /// Lernbloecke ab heute mit Konflikt legt `StudyPlan.repairSlots` vorher neu.
     /// `refresh: false`, wenn `refreshStatuses` in derselben Transaktion schon lief (Uebersicht; ein zweiter Lauf
     /// aendert nichts)
     static func calendar(_ c: SQLiteConnection, from start: Int, to end: Int, clock: UniFlowClock, refresh: Bool = true) throws -> [String: JSONValue] {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
         if refresh { try StudyPlan.refreshStatuses(c, today: today) }
+        // Lernbloecke ab heute, die einen besuchten Termin ueberschneiden (Stundenplan geaendert, alte Pakete ueber
+        // mehrere Fenster), neu legen, bevor die Woche gezeigt wird (Fehlerbericht des Inhabers vom 10.11.2026)
+        try StudyPlan.repairSlots(c, from: max(start, today), to: end)
         let pkgs = try c.rows("""
             SELECT p.*, m.color, m.name AS module_name FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id
                                          WHERE p.date BETWEEN ? AND ? ORDER BY p.date, p.sort, p.id

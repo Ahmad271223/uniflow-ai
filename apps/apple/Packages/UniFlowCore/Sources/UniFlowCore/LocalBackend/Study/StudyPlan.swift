@@ -543,8 +543,15 @@ enum StudyPlan {
 
     /// `assign_slots(conn, d, only_unset)`: Uhrzeiten fuer die Lernpakete eines Tages in den freien Fenstern
     /// (Hochschultermine, Sperrzeiten, Fahrtzeit, schon gelegte Lernslots). Ein Paket liegt am Stueck im ersten Fenster
-    /// mit genug Platz; passt es in keines, werden seine Aufgaben auf mehrere Fenster verteilt. Ohne freies Fenster
-    /// hinter dem letzten belegten Block hintereinander. Mit `packageID` nur dieses Paket (verschobenes Paket).
+    /// mit genug Platz. Mit `packageID` nur dieses Paket (verschobenes Paket).
+    ///
+    /// Passt es in keines, werden seine Aufgaben auf mehrere Fenster verteilt und das Paket geteilt: je Fenster ein
+    /// eigenes Paket desselben Tages (`splitPackage`). Eine Aufgabe liegt immer mit ihrer vollen Dauer in einem Fenster
+    /// mit genug Platz; passt sie in keines mehr, kommt sie hinter den letzten belegten Block des Tages (Termin samt
+    /// Heimfahrt, Sperrzeit, Lernslot), wie an einem Tag ohne freies Fenster. Vorher bekam das Paket Beginn der ersten
+    /// und Ende der letzten Aufgabe: ein Lernblock von 09:45 bis 17:30 ueber allen Vorlesungen, und eine zu lange Aufgabe
+    /// wurde im zu kleinen Fenster gekappt (45 min als 09:45–10:15) und ragte in den naechsten Termin (Fehlerbericht
+    /// des Inhabers vom 10.11.2026: Lernbloecke nie waehrend besuchter Termine).
     static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil) throws {
         let s = try Settings(c)
         var pkgs = try c.query("SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id",
@@ -552,59 +559,172 @@ enum StudyPlan {
         if onlyUnset { pkgs = pkgs.filter { !LocalModules.truthy($0["start_time"]) } }
         if let packageID { pkgs = pkgs.filter { $0["id"] == packageID } }
         if pkgs.isEmpty { return }
-        var windows = try LocalFreeWindows.compute(c, day: d, settings: s.raw).map { w in (start: w["start"]?.int ?? 0, end: w["end"]?.int ?? 0) }
-        if windows.isEmpty {
-            // kein freies Fenster: hinter dem letzten belegten Block (Termin samt Heimfahrt, Sperrzeit, Lernslot),
-            // hintereinander. Vorher ab Lernbeginn, also ueber den Terminen des Tages (Abnahme 07.11.2026, zuerst in Python)
-            let blocks = try LocalFreeWindows.busyBlocks(c, day: d, settings: s.raw)
-            var after = max(try LocalFreeWindows.hm(s.raw["learn_start"], key: "learn_start"), blocks.map(\.end).max() ?? 0)
-            if let last = blocks.last(where: { $0.kind == "event" }) {
-                after = max(after, last.end + (s.raw["travel_minutes"]?.int ?? 30))
-            }
-            windows = [(after, after + 24 * 60)]
-        }
+        let blocks = try LocalFreeWindows.busyBlocks(c, day: d, settings: s.raw)
+        let lo = try LocalFreeWindows.hm(s.raw["learn_start"], key: "learn_start"), hi = try LocalFreeWindows.hm(s.raw["learn_end"], key: "learn_end")
+        var windows = try LocalFreeWindows.windows(lo: lo, hi: hi, blocks: blocks, settings: s.raw)
+            .map { w in (start: w["start"]?.int ?? 0, end: w["end"]?.int ?? 0) }
+        // hinter dem letzten belegten Block (Termin samt Heimfahrt, Sperrzeit, Lernslot); vorher ab Lernbeginn, also
+        // ueber den Terminen des Tages (Abnahme 07.11.2026, zuerst in Python)
+        var after = max(lo, blocks.map(\.end).max() ?? 0)
+        if let last = blocks.last(where: { $0.kind == "event" }) { after = max(after, last.end + (s.raw["travel_minutes"]?.int ?? 30)) }
+        if windows.isEmpty { windows = [(after, after + 24 * 60)] }       // kein freies Fenster: hintereinander dort
         let brk = s.breakMinutes
         var free = windows.map(\.start)               // naechste freie Minute je Fenster
+        var latest: Int?                              // Ende der spaetesten hier gelegten Aufgabe
         for p in pkgs {
-            let tasks = try c.query("SELECT id, est_minutes FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort",
+            let tasks = try c.query("SELECT id, est_minutes, status FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort",
                                     [p["id"] ?? .null])
+            if tasks.isEmpty { continue }
             let needs = try tasks.map { LocalModules.truthy($0["est_minutes"]) ? try int($0["est_minutes"], "est_minutes") : 45 }
+            // Lage je Aufgabe; slot = Fenster, -1 = hinter dem letzten belegten Block
+            var placed: [(task: SQLiteRow, start: Int, end: Int, slot: Int)] = []
             // Am Stueck in das erste freie Fenster mit genug Platz: sonst lag der Lernblock ueber dem naechsten Termin
-            // (Korrektur vom 26.10.2026, zuerst in Python). Passt es in keines, werden die Aufgaben der Reihe nach verteilt.
+            // (Korrektur vom 26.10.2026, zuerst in Python)
             let total = needs.reduce(0, +) + brk * max(0, needs.count - 1)
-            var k = windows.indices.first { free[$0] + total <= windows[$0].end } ?? 0
-            var first: Int?
-            var last = 0
-            for (t, need) in zip(tasks, needs) {
-                var placed = false
-                while k < windows.count {
-                    let w = windows[k], cur = free[k]
-                    if cur + need <= w.end || (w.end - w.start < need && cur == w.start) {
-                        let st = cur, en = cur + need > w.end ? min(cur + need, w.end) : cur + need
-                        try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
-                                      [.text(LocalFreeWindows.mh(st)), .text(LocalFreeWindows.mh(en)), t["id"] ?? .null])
-                        first = first ?? st
-                        last = en
-                        free[k] = en + brk
-                        placed = true
-                        break
+            if let k = windows.indices.first(where: { free[$0] + total <= windows[$0].end }) {
+                var cur = free[k]
+                for (t, need) in zip(tasks, needs) {
+                    placed.append((t, cur, cur + need, k))
+                    cur += need + brk
+                }
+                free[k] = cur
+            } else {
+                // der Reihe nach: jede Aufgabe ganz in das naechste Fenster mit genug Platz, nie gekappt; passt eine in
+                // keines mehr, liegen sie und die folgenden hinter dem letzten belegten Block
+                var k = 0
+                for (t, need) in zip(tasks, needs) {
+                    while k < windows.count && free[k] + need > windows[k].end { k += 1 }
+                    if k < windows.count {
+                        placed.append((t, free[k], free[k] + need, k))
+                        free[k] += need + brk
+                    } else {
+                        let st = max(after, latest.map { $0 + brk } ?? after)
+                        placed.append((t, st, st + need, -1))
+                        // ein Fenster, in das diese Aufgabe hineinreicht, ist ab hier belegt
+                        for i in windows.indices where windows[i].end > st { free[i] = max(free[i], st + need + brk) }
                     }
-                    k += 1
-                }
-                if !placed {                          // ueber das Tagesende hinaus (hinter das letzte Fenster)
-                    let st = free[free.count - 1]
-                    try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
-                                  [.text(LocalFreeWindows.mh(st)), .text(LocalFreeWindows.mh(st + need)), t["id"] ?? .null])
-                    first = first ?? st
-                    last = st + need
-                    free[free.count - 1] = st + need + brk
+                    latest = max(latest ?? 0, placed[placed.count - 1].end)
                 }
             }
-            if let first {
-                try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?",
-                              [.text(LocalFreeWindows.mh(first)), .text(LocalFreeWindows.mh(last)), p["id"] ?? .null])
+            for x in placed {
+                latest = max(latest ?? 0, x.end)
+                try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
+                              [.text(LocalFreeWindows.mh(x.start)), .text(LocalFreeWindows.mh(x.end)), x.task["id"] ?? .null])
             }
+            // je Fenster ein Paket: die erste Gruppe bleibt im Paket, jede weitere wird ein eigenes
+            var groups: [[(task: SQLiteRow, start: Int, end: Int, slot: Int)]] = []
+            for x in placed {
+                if let g = groups.last, g[0].slot == x.slot { groups[groups.count - 1].append(x) } else { groups.append([x]) }
+            }
+            let pid = p["id"] ?? .null
+            for (i, g) in groups.enumerated() {
+                let a = g[0].start, b = g[g.count - 1].end
+                if i == 0 {
+                    try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?",
+                                  [.text(LocalFreeWindows.mh(a)), .text(LocalFreeWindows.mh(b)), pid])
+                } else {
+                    try splitPackage(c, p, tasks: g.map(\.task), start: a, end: b)
+                }
+            }
+            if groups.count > 1 { try recalcPackage(c, pid) }
         }
+    }
+
+    /// Teil eines Pakets als eigenes Paket desselben Tages in einem eigenen freien Fenster (`assignSlots`): gleiches
+    /// Modul, Fach, Titel, Lehrwoche, `generated` und Anlagezeit, gleiche Sortierung (in `sort, id` damit hinter dem
+    /// Paket). Die Aufgaben wandern mit ihrer Uhrzeit, die Minuten beider Pakete werden neu gerechnet, der Status folgt
+    /// den Aufgaben. Liefert die ID.
+    @discardableResult
+    static func splitPackage(_ c: SQLiteConnection, _ p: SQLiteRow, tasks: [SQLiteRow], start: Int, end: Int) throws -> SQLiteValue {
+        let status = deriveStatus(tasks.map { $0["status"]?.string }, past: false)
+        try c.execute("""
+            INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time)
+            VALUES (?,?,?,?,?,0,?,?,?,?,?,?)
+            """, [p["date"] ?? .null, p["module_id"] ?? .null, p["subject"] ?? .null, p["title"] ?? .null, p["week_no"] ?? .null, .text(status),
+                  p["sort"] ?? .integer(0), p["generated"] ?? .integer(1), p["created_at"] ?? .null,
+                  .text(LocalFreeWindows.mh(start)), .text(LocalFreeWindows.mh(end))])
+        let pid = SQLiteValue.integer(c.lastInsertRowID)
+        for (i, t) in tasks.enumerated() {
+            try c.execute("UPDATE study_tasks SET package_id=?, sort=? WHERE id=?", [pid, .integer(Int64(i)), t["id"] ?? .null])
+        }
+        try recalcPackage(c, pid)
+        return pid
+    }
+
+    /// Lernbloecke von `start` bis `end`, die nicht (mehr) in einem freien Fenster liegen, neu legen (Fehlerbericht des
+    /// Inhabers vom 10.11.2026). Laeuft mit jedem Lernkalender und der Uebersicht (`StudyCalendar.calendar`, ab heute),
+    /// also nach jeder Aenderung des Stundenplans (Teilnahme, Ausnahme, Stud.IP-Abgleich, Fragen zu Kurszeiten), ohne
+    /// dass jede dieser Stellen daran denken muss. Neu gelegt (`assignSlots` mit `packageID`, wenn noetig geteilt) werden
+    /// nur offene Pakete mit Uhrzeit, deren
+    /// - Zeitraum oder eine Aufgabe (mit voller geschaetzter Dauer) einen besuchten Termin oder eine Sperrzeit
+    ///   ueberschneidet (auch ein Termin, der nach dem Planen wieder besucht wird),
+    /// - Zeitraum ein frueheres Lernpaket desselben Tages ueberschneidet,
+    /// - Aufgabe ausserhalb des Pakets liegt (alte Pakete ueber mehrere Fenster) oder
+    /// - Aufgabe gekappt wurde (kuerzer als geschaetzt und endet an einem belegten Block oder am Lernende).
+    /// Von Hand gesetzte Uhrzeiten ohne Konflikt bleiben. Liefert die Zahl neu gelegter Pakete.
+    @discardableResult
+    static func repairSlots(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> Int {
+        guard start <= end else { return 0 }
+        let rows = try c.query("""
+            SELECT id, date, status, start_time, end_time FROM study_packages
+            WHERE date BETWEEN ? AND ? AND start_time IS NOT NULL AND status NOT IN ('verschoben','uebersprungen') ORDER BY date, sort, id
+            """, [.text(iso(start)), .text(iso(end))])
+        if rows.isEmpty { return 0 }
+        let settings = try LocalSettings.read(c)
+        let travel = settings["travel_minutes"]?.int ?? 30
+        let learnEnd = (try? LocalFreeWindows.hm(settings["learn_end"], key: "learn_end")) ?? 24 * 60
+        func minutes(_ v: SQLiteValue?) -> Int? {
+            guard let text = v?.string, let (h, m) = LocalFreeWindows.hourMinute(text) else { return nil }
+            return h * 60 + m
+        }
+        var days: [String: [SQLiteRow]] = [:]
+        var order: [String] = []
+        for r in rows {
+            guard let di = r["date"]?.string else { continue }
+            if days[di] == nil { order.append(di) }
+            days[di, default: []].append(r)
+        }
+        var fixed = 0
+        for di in order {
+            guard let d = BerlinClock.parseISODate(di), let pkgs = days[di] else { continue }
+            // besuchte Termine und Sperrzeiten; Grenzen fuer gekappte Aufgaben: deren Beginn, Fahrtzeit, Lernende
+            let hard = try LocalFreeWindows.busyBlocks(c, day: d, settings: settings, includePackages: false)
+            var bounds = Set(hard.map(\.start))
+            bounds.insert(learnEnd)
+            let events = hard.filter { $0.kind == "event" }
+            if let first = events.first, let last = events.last { bounds.formUnion([first.start - travel, last.end]) }
+            var kept: [(start: Int, end: Int)] = []  // Lernpakete, die bleiben (erledigte immer)
+            for p in pkgs where p["status"]?.string == "erledigt" {
+                if let a = minutes(p["start_time"]), let b = minutes(p["end_time"]) { kept.append((a, b)) }
+            }
+            var redo: [SQLiteValue] = []
+            for p in pkgs where p["status"]?.string != "erledigt" {
+                guard let ps = minutes(p["start_time"]), let pe = minutes(p["end_time"]) else { continue }
+                var bad = hard.contains { ps < $0.end && pe > $0.start } || kept.contains { ps < $0.end && pe > $0.start }
+                if !bad {
+                    let ends = bounds.union(kept.map(\.start))
+                    for t in try c.query("SELECT start_time, end_time, est_minutes FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben')",
+                                         [p["id"] ?? .null]) {
+                        guard let ts = minutes(t["start_time"]), let te = minutes(t["end_time"]) else { continue }
+                        let est = t["est_minutes"]?.int ?? (te - ts)
+                        let full = max(te, ts + est)
+                        if ts < ps || te > pe || hard.contains(where: { ts < $0.end && full > $0.start }) || (te - ts < est && ends.contains(te)) {
+                            bad = true
+                            break
+                        }
+                    }
+                }
+                if bad { redo.append(p["id"] ?? .null) } else { kept.append((ps, pe)) }
+            }
+            if redo.isEmpty { continue }
+            for id in redo {
+                try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [id])
+                try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben')", [id])
+            }
+            for id in redo { try assignSlots(c, day: d, packageID: id) }
+            fixed += redo.count
+        }
+        return fixed
     }
 
     /// `reslot_day(conn, d)`: alle Slots eines Tages neu vergeben (z. B. nach einer Stundenplan-Aenderung, "Lernslots
