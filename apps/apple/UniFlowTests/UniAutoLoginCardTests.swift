@@ -138,7 +138,7 @@ final class UniAutoLoginCardTests: XCTestCase {
 
         // an: ein Formular fuer alle (der Bedienungshilfen-Baum nennt Beschriftungen, die Kennungen nur am Schalter)
         let one = host(card(m))
-        let a = try await shown(one, all: ["Für alle Dienste", UniAutoLoginCard.sameTitle, "Benutzername", "Passwort", "Speichern",
+        let a = try await shown(one, all: ["Für alle Dienste", UniAutoLoginCard.sameTitle, user, "Passwort", "Speichern",
                                            "Entfernen", "Gespeichert für: \(user)", UniAutoLoginCard.note])
         XCTAssertEqual(count("Speichern", in: a, unit: "Für alle Dienste"), 1, "ein Formular")
         XCTAssertFalse(a.contains("Uni-Mail (SOGo)"))
