@@ -128,27 +128,31 @@ final class UniAutoLoginCardTests: XCTestCase {
         services.append(m.credentialService)
         XCTAssertEqual(UniAutoLogin.saveTyped(username: user, password: password, store: m.studip.websiteDataStore), .saved)
 
-        // an: ein Formular fuer alle
+        // an: ein Formular fuer alle (der Bedienungshilfen-Baum nennt Beschriftungen, die Kennungen nur am Schalter)
         let one = host(card(m))
-        let a = try await shown(one, containing: UniLoginSlotForm.identifier(nil, "name"))
+        let a = try await shown(one, containing: "Für alle Dienste")
         XCTAssertTrue(a.contains("settings.unilogin.same"))
-        XCTAssertTrue(a.contains(UniLoginSlotForm.identifier(nil, "secret")))
-        XCTAssertTrue(a.contains(UniLoginSlotForm.identifier(nil, "save")))
-        XCTAssertTrue(a.contains(UniLoginSlotForm.identifier(nil, "remove")), "gespeichert: Entfernen")
-        for p in UniAutoLogin.Portal.allCases { XCTAssertFalse(a.contains(UniLoginSlotForm.identifier(p, "name")), p.rawValue) }
+        XCTAssertTrue(a.contains(UniAutoLoginCard.sameTitle))
+        XCTAssertEqual(a.filter { $0 == "Speichern" }.count, 1, "ein Formular")
+        XCTAssertTrue(a.contains("Benutzername") && a.contains("Passwort"))
+        XCTAssertTrue(a.contains("Entfernen"), "gespeichert: Entfernen")
+        XCTAssertTrue(a.contains("Gespeichert für: \(user)"))
+        XCTAssertTrue(a.contains(UniAutoLoginCard.note))
+        for p in UniAutoLogin.Portal.allCases where p != .studip && p != .qis { XCTAssertFalse(a.contains(p.title), p.rawValue) }
         XCTAssertFalse(a.contains { $0.contains(password) }, "das Passwort steht nie in Bedienungshilfen-Werten")
 
         // aus: Stud.IP, QIS und Uni-Mail (SOGo) je mit eigenem Formular
         UniAutoLogin.sameEverywhere = false
         let three = host(card(m))
-        let b = try await shown(three, containing: UniLoginSlotForm.identifier(.sogo, "name"))
-        for p in UniAutoLogin.Portal.allCases {
-            for part in ["name", "secret", "save", "status"] {
-                XCTAssertTrue(b.contains(UniLoginSlotForm.identifier(p, part)), "\(p.rawValue).\(part)")
-            }
-            XCTAssertFalse(b.contains(UniLoginSlotForm.identifier(p, "remove")), "\(p.rawValue): ohne eigenen Eintrag kein Entfernen")
-        }
-        XCTAssertFalse(b.contains(UniLoginSlotForm.identifier(nil, "name")))
+        let b = try await shown(three, containing: "Uni-Mail (SOGo)")
+        for p in UniAutoLogin.Portal.allCases { XCTAssertTrue(b.contains(p.title), p.rawValue) }
+        XCTAssertFalse(b.contains("Für alle Dienste"))
+        XCTAssertEqual(b.filter { $0 == "Speichern" }.count, 3, "drei Formulare")
+        XCTAssertGreaterThanOrEqual(b.filter { $0 == "Benutzername" }.count, 3)
+        XCTAssertGreaterThanOrEqual(b.filter { $0 == "Passwort" }.count, 3)
+        XCTAssertEqual(b.filter { $0 == "Kein eigenes Passwort – es gilt das gemeinsame (\(user))." }.count, 3, "Status je Portal")
+        XCTAssertEqual(b.filter { $0 == "fehlt" }.count, 3)
+        XCTAssertFalse(b.contains("Entfernen"), "ohne eigenen Eintrag kein Entfernen")
         XCTAssertFalse(b.contains { $0.contains(password) })
         await bed.tearDown()
     }
