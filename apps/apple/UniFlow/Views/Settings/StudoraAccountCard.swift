@@ -207,3 +207,58 @@ struct AIConsentRow: View {
         .padding(.top, 4)
     }
 }
+
+// MARK: - Hinweis auf der Uebersicht: Pro AI ohne Anmeldung
+
+/// Pro AI (oder Probe) ist auf dem iPad aktiv, aber das StudiNow-Konto ist nicht angemeldet: die StudiNow-KI laeuft
+/// ueber den Dienst, der Tarif und Credits kennen muss. Die Anmeldung beim ersten Start (Apple-ID) bleibt nur auf dem
+/// Geraet und reicht dafuer nicht. Rueckmeldung des Inhabers 10.11.2026 ("gib wenigstens eine Nachricht davor"):
+/// vorher stand der Hinweis nur in den Einstellungen und auf den KI-Seiten, "Tests & Wiederholung" fehlte ohne Erklaerung.
+enum ProAISignInHint {
+    static let title = "Noch ein Schritt für die KI"
+    static let text = "Du hast StudiNow Pro AI. Damit die StudiNow-KI antwortet, melde dich einmal mit deinem StudiNow-Konto an. "
+        + "Danach erscheint „Tests & Wiederholung“ in der Leiste."
+    static let otherLogin = "Mit E-Mail anmelden"
+
+    /// Karte zeigen? Nur, wenn genau die Anmeldung fehlt (nicht ohne Tarif, nicht ohne Dienst)
+    static func shows(_ access: StudiNowAIAccess) -> Bool { access == .signInRequired }
+}
+
+/// Karte auf der Uebersicht mit "Mit Apple anmelden" (wie in der Karte "StudiNow-Konto") und dem Weg zur Anmeldung
+/// mit E-Mail in den Einstellungen; verschwindet von selbst, sobald die KI bereit ist
+struct ProAISignInBanner: View {
+    @ObservedObject var link: StudoraAccountLink
+    @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var router: UFRouter
+
+    var body: some View {
+        if ProAISignInHint.shows(link.aiAccess) {
+            UFCard(flat: true) {
+                VStack(alignment: .leading, spacing: 11.2) {
+                    HStack(alignment: .top, spacing: 11.2) {
+                        UFIcon("sparkles", size: 20).foregroundStyle(UF.accent)
+                        VStack(alignment: .leading, spacing: 2.4) {
+                            Text(ProAISignInHint.title).ufFont(14.5, 650).foregroundStyle(UF.text)
+                            Text(ProAISignInHint.text).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    HStack(spacing: 11.2) {
+                        SignInWithAppleButton(.signIn, onRequest: { link.prepareAppleRequest($0) }, onCompletion: { result in
+                            Task { await link.handleAppleSignIn(result) }
+                        })
+                        .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+                        .frame(maxWidth: 260, minHeight: 40, maxHeight: 40)
+                        .disabled(link.busy)
+                        .accessibilityIdentifier("proai.signin.apple")
+                        UFButton(ProAISignInHint.otherLogin, size: .small) { router.go(.settings(tab: "account")) }
+                            .accessibilityIdentifier("proai.signin.settings")
+                    }
+                    if let m = link.message {
+                        Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .accessibilityIdentifier("proai.signin")
+        }
+    }
+}

@@ -118,6 +118,12 @@ final class StudiNowAIAppTests: XCTestCase {
                        "StudiNow-KI bereit · 37 von 100 übrig · neu am 1. Dezember")
         XCTAssertNotNil(StudoraAccountCard.aiLine(.signInRequired, credits: nil, trial: false))
         XCTAssertNil(StudoraAccountCard.aiLine(.planRequired, credits: nil, trial: false))
+        // Hinweis auf der Uebersicht (Inhaber 10.11.2026): nur, wenn genau die Anmeldung fehlt
+        XCTAssertTrue(ProAISignInHint.shows(.signInRequired))
+        XCTAssertFalse(ProAISignInHint.shows(.ready))
+        XCTAssertFalse(ProAISignInHint.shows(.planRequired))
+        XCTAssertFalse(ProAISignInHint.shows(.unavailable))
+        XCTAssertTrue(ProAISignInHint.text.contains("StudiNow-Konto") && ProAISignInHint.text.contains("Tests & Wiederholung"))
     }
 
     /// Echte Anbindung (URLSessionServiceTransport) bis ins lokale Backend: KI-Hilfe fragt den Dienst mit Token

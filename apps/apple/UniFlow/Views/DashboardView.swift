@@ -119,6 +119,8 @@ struct DashboardView: View {
                 // beiden; den Hinweis mit "Beenden" zeigt die App-Huelle ueber jeder Seite (`DemoActiveBar`)
                 // Probe (StudiNow-Konto oder, ohne Dienst, die Probe auf dem iPad); ohne Inhalt nichts
                 TrialBanner(link: studoraAccount).padding(.bottom, 19.2)
+                // Pro AI ohne Anmeldung beim StudiNow-Konto: Hinweis mit Anmeldeknopf (Inhaber 10.11.2026)
+                if let s = studoraAccount { ProAISignInBanner(link: s).padding(.bottom, 19.2) }
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
                 // "Nächste Klausuren" (04.11.2026, `UpcomingExamsCard`): aus allen Quellen, nur wenn es welche gibt
