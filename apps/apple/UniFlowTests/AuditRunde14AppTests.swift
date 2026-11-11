@@ -291,7 +291,7 @@ final class AuditRunde14AppTests: XCTestCase {
         s.signIn(userID: "001.abc", name: "Ada", email: "ada@example.com")
         XCTAssertNil(s.account)
         XCTAssertEqual(s.stage, .welcome)
-        XCTAssertEqual(s.lastError, "Die Anmeldung ließ sich auf diesem iPad nicht speichern. Bitte versuche es erneut.")
+        XCTAssertEqual(s.lastError, UFDevice.adapt("Die Anmeldung ließ sich auf diesem iPad nicht speichern. Bitte versuche es erneut."))
         secrets.failingWrites = false
         s.signIn(userID: "001.abc", name: "Ada", email: "ada@example.com")
         XCTAssertNil(s.lastError)

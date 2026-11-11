@@ -1,4 +1,5 @@
 import PDFKit
+import PencilKit
 import UIKit
 import UniFlowCore
 
@@ -46,7 +47,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         var shapeKind: String? { [.rect: "rect", .ellipse: "ellipse", .line: "line", .arrow: "arrow"][self] }
     }
 
-    private weak var controller: PDFEditorController?
+    private(set) weak var controller: PDFEditorController?
     private(set) var isActive = false
     var tool: Tool = .select {
         didSet {
@@ -69,6 +70,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     var lineWidth = 2.0
     /// Auswahl (eine Seite)
     private(set) var selection: (key: String, ids: Set<String>)?
+    /// Ausgewaehlte Handschrift derselben Seite (ein Lasso fuer Handschrift und Objekte, 10.11.2026): Indizes der Striche
+    var inkSelection: (key: String, indices: [Int])?
+    /// Waehrend des Verschiebens: Bild der ausgewaehlten Striche ueber der Seite und die Zeichnung davor
+    var inkDrag: (view: UIImageView, before: PKDrawing, overlay: PageInkView)?
+    /// Seite der Auswahl (Objekte oder Handschrift)
+    var selectedKey: String? { selection?.key ?? inkSelection?.key }
+    var hasSelection: Bool { selection != nil || inkSelection != nil }
     var onSelectionChange: ((Int) -> Void)?
     /// Der Editor hat das Werkzeug selbst gewechselt (nach dem Anlegen eines Textes, nach dem Lasso)
     var onToolChange: ((Tool) -> Void)?
@@ -178,7 +186,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     // MARK: Treffer
 
-    nonisolated private static func textHeight(_ o: JSONValue) -> Double {
+    nonisolated static func textHeight(_ o: JSONValue) -> Double {
         Double(ObjectGeometry.textSize(o, ObjectGeometry.attributedText(o)).height)
     }
 
@@ -193,7 +201,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         return nil
     }
 
-    private func objects(_ key: String) async -> [JSONValue] { await controller?.store.objects(forPageKey: key) ?? [] }
+    func objects(_ key: String) async -> [JSONValue] { await controller?.store.objects(forPageKey: key) ?? [] }
 
     // MARK: Gesten
 
@@ -221,10 +229,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         if g === pan {
             // Ziehen mit Form-, Lasso- oder Bereichswerkzeug, oder auf der Auswahl; sonst scrollt die Ansicht
             if tool.shapeKind != nil || tool == .lasso || tool == .area { return true }
-            guard let sel = selection, let (v, p) = locate(g), v.pageKey == sel.key else { return false }
+            guard let key = selectedKey, let (v, p) = locate(g), v.pageKey == key else { return false }
             return selectionLayer.path?.boundingBoxOfPath.insetBy(dx: -12, dy: -12).contains(p) == true
         }
-        if g === pinch { return selection != nil }
+        if g === pinch { return hasSelection }
         return true
     }
 
@@ -290,6 +298,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             panStart = (v, p)
             lassoPoints = [p]
             if tool.shapeKind != nil || tool == .lasso || tool == .area { v.content.layer.addSublayer(draftLayer) }
+            else { beginInkDrag(on: v) }
         case .changed:
             guard let start = panStart else { return }
             let p = g.location(in: start.overlay.content)
@@ -315,6 +324,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 let d = g.translation(in: start.overlay.content)
                 selectionLayer.setAffineTransform(CGAffineTransform(translationX: d.x, y: d.y))
                 if let sel = selection { start.overlay.objectsView.previewMove(ids: sel.ids, by: d) }
+                inkDrag?.view.transform = CGAffineTransform(translationX: d.x, y: d.y)
             }
         case .ended:
             guard let start = panStart else { return }
@@ -339,22 +349,27 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             } else if tool == .lasso {
                 let poly = lassoPoints.map { (x: Double($0.x), y: Double($0.y)) }
                 lassoPoints = []
+                let drawing = start.overlay.loaded ? start.overlay.canvas.drawing : PKDrawing()
                 Task {
                     let list = await objects(key)
                     let ids = PageObjectEdit.inLasso(list, polygon: poly, textHeight: Self.textHeight)
-                    if ids.isEmpty { clearSelection() } else { setTool(.select); select(key: key, ids: Set(ids), in: list) }
+                    // dasselbe Lasso greift auch die Handschrift (vorher nur Objekte; Handschrift brauchte Apples Lasso)
+                    let ink = Self.strokes(of: drawing, inLasso: poly)
+                    if ids.isEmpty && ink.isEmpty { clearSelection() } else {
+                        setTool(.select)
+                        select(key: key, ids: Set(ids), in: list, ink: ink)
+                    }
                 }
-            } else if let sel = selection {
+            } else if hasSelection {
                 selectionLayer.setAffineTransform(.identity)
                 let d = g.translation(in: start.overlay.content)
-                guard abs(d.x) + abs(d.y) > 0.5 else {
-                    start.overlay.objectsView.previewMove(ids: sel.ids, by: .zero)
-                    return
-                }
-                Task { await commit(sel.key) { PageObjectEdit.move($0, ids: sel.ids, dx: Double(d.x), dy: Double(d.y)) } }
+                let moved = abs(d.x) + abs(d.y) > 0.5
+                if let sel = selection, !moved { start.overlay.objectsView.previewMove(ids: sel.ids, by: .zero) }
+                finishMove(dx: moved ? d.x : 0, dy: moved ? d.y : 0)
             }
         default:
             if let sel = selection { panStart?.overlay.objectsView.previewMove(ids: sel.ids, by: .zero) }
+            cancelInkDrag()
             panStart = nil
             draftLayer.removeFromSuperlayer()
             selectionLayer.setAffineTransform(.identity)
@@ -362,7 +377,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     @objc private func pinched(_ g: UIPinchGestureRecognizer) {
-        guard let sel = selection else { return }
+        guard hasSelection else { return }
         switch g.state {
         case .changed:
             let b = selectionLayer.path?.boundingBoxOfPath ?? .zero
@@ -372,13 +387,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             selectionLayer.setAffineTransform(.identity)
             let f = Double(g.scale)
             guard abs(f - 1) > 0.02 else { return }
-            Task { await commit(sel.key) { PageObjectEdit.scale($0, ids: sel.ids, factorX: f, factorY: f) } }
+            scaleSelection(by: f)
         default:
             selectionLayer.setAffineTransform(.identity)
         }
     }
 
-    private func setTool(_ t: Tool) {
+    func setTool(_ t: Tool) {
         tool = t
         onToolChange?(t)
         controller?.objectToolChangedInternally(t)          // Palette zeigt das neue Werkzeug (ab iPadOS 18)
@@ -390,27 +405,32 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     // MARK: Auswahl
 
-    private func select(key: String, ids: Set<String>, in list: [JSONValue]) {
-        selection = (key, ids)
+    func select(key: String, ids: Set<String>, in list: [JSONValue], ink: [Int] = []) {
+        selection = ids.isEmpty ? nil : (key, ids)
+        inkSelection = ink.isEmpty ? nil : (key, ink)
         drawSelection(list)
-        onSelectionChange?(ids.count)
+        onSelectionChange?(ids.count + ink.count)
     }
 
     func clearSelection() {
         selection = nil
+        inkSelection = nil
         selectionLayer.removeFromSuperlayer()
         selectionLayer.path = nil
         onSelectionChange?(0)
     }
 
-    private func drawSelection(_ list: [JSONValue]) {
-        guard let sel = selection, let overlay = controller?.boundOverlay(forKey: sel.key) else { selectionLayer.removeFromSuperlayer(); return }
+    func drawSelection(_ list: [JSONValue]) {
+        guard let key = selectedKey, let overlay = controller?.boundOverlay(forKey: key) else { selectionLayer.removeFromSuperlayer(); return }
         var box = CGRect.null
-        for o in list where (o["id"]?.string).map(sel.ids.contains) == true {
-            if let b = PageObjectEdit.bounds(o, textHeight: Self.textHeight) {
-                box = box.union(CGRect(x: b.minX, y: b.minY, width: b.maxX - b.minX, height: b.maxY - b.minY))
+        if let sel = selection {
+            for o in list where (o["id"]?.string).map(sel.ids.contains) == true {
+                if let b = PageObjectEdit.bounds(o, textHeight: Self.textHeight) {
+                    box = box.union(CGRect(x: b.minX, y: b.minY, width: b.maxX - b.minX, height: b.maxY - b.minY))
+                }
             }
         }
+        if let ink = inkSelection, overlay.loaded { box = box.union(Self.bounds(of: ink.indices, in: overlay.canvas.drawing)) }
         guard !box.isNull else { clearSelection(); return }
         selectionLayer.path = CGPath(rect: box.insetBy(dx: -4, dy: -4), transform: nil)
         if selectionLayer.superlayer !== overlay.content.layer { overlay.content.layer.addSublayer(selectionLayer) }
@@ -419,9 +439,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     // MARK: Aktionen auf der Auswahl (Leiste im Objektmodus)
 
     func deleteSelection() {
-        guard let sel = selection else { return }
+        guard hasSelection else { return }
+        let sel = selection, ink = inkSelection
         clearSelection()
-        Task { await commit(sel.key) { PageObjectEdit.delete($0, ids: sel.ids) } }
+        Task {
+            if let sel { await commit(sel.key) { PageObjectEdit.delete($0, ids: sel.ids) } }
+            if let ink { await removeInk(ink) }                  // gleicher Durchlauf: ein Rueckgaengig-Schritt
+        }
     }
 
     /// Farbe der Auswahl: Text `fill`, Haftnotiz `bg`, Formen `stroke`
@@ -456,7 +480,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     // MARK: Text bearbeiten (UITextView: Tastatur oder Scribble mit dem Pencil)
 
-    private func beginTextEditing(key: String, id: String, isNew: Bool) {
+    func beginTextEditing(key: String, id: String, isNew: Bool) {
         guard let overlay = controller?.boundOverlay(forKey: key) else { return }
         Task {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }) else { return }
@@ -505,7 +529,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     // MARK: Speichern mit Rueckgaengig
 
-    private func commit(_ key: String, undoable: Bool = true, _ change: @escaping ([JSONValue]) -> [JSONValue]) async {
+    func commit(_ key: String, undoable: Bool = true, _ change: @escaping ([JSONValue]) -> [JSONValue]) async {
         guard let c = controller, c.writable else { return }
         guard let before = await c.store.editObjects(pageKey: key, change) else { return }
         let after = await objects(key)

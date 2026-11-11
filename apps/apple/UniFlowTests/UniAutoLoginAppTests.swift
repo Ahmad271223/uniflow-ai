@@ -411,8 +411,8 @@ final class UniAutoLoginAppTests: XCTestCase {
         _ = await m.deleteAllData(userID: bed.user)
         XCTAssertNil(vault.load(), "Konto löschen")
         XCTAssertEqual(UniAutoLoginCard.usernameText(user), "Gespeichert für: \(user)")
-        XCTAssertTrue(UniAutoLoginCard.text(.luh).contains("nur auf diesem iPad"))
-        XCTAssertTrue(UniRememberPasswordToggle.title.hasPrefix("Passwort auf diesem iPad merken"))
+        XCTAssertTrue(UniAutoLoginCard.text(.luh).contains(UFDevice.adapt("nur auf diesem iPad")))
+        XCTAssertTrue(UniRememberPasswordToggle.title.hasPrefix(UFDevice.adapt("Passwort auf diesem iPad merken")))
         XCTAssertEqual(UniRememberPasswordToggle.note, "Nur auf diesem Gerät im Schlüsselbund, nie auf unseren Servern")
         await bed.tearDown()
     }

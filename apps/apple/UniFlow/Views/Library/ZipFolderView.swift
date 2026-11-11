@@ -448,7 +448,7 @@ struct ZipFolderView: View {
     private var summaryLine: String {
         let size = ByteCountFormatter.string(fromByteCount: Int64(model.totals.bytes), countStyle: .file)
         let files = model.totals.files == 1 ? "1 Datei" : "\(model.totals.files) Dateien"
-        return "ZIP · \(files) · \(size)" + (model.changed ? " · geändert, auf diesem iPad gespeichert" : "")
+        return "ZIP · \(files) · \(size)" + (model.changed ? UFDevice.adapt(" · geändert, auf diesem iPad gespeichert") : "")
     }
 
     private var breadcrumbBar: some View {

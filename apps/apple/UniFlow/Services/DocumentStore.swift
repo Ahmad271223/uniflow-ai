@@ -166,7 +166,9 @@ struct SearchHit: Identifiable {
     let id = UUID()
     let pageIndex: Int
     let snippet: String
-    let selection: PDFSelection
+    /// Stelle im PDF-Text (nur Treffer im PDF; Notiztreffer springen zur Seite)
+    let selection: PDFSelection?
+    var source: NoteSearch.Source = .pdf
 }
 
 /// Kennzahlen fuer die Dokumentinformation.
@@ -206,6 +208,8 @@ struct SaveTiming {
 @MainActor
 final class DocumentStore: ObservableObject {
     @Published private(set) var layout: DisplayLayout?
+    /// Suchtext der eigenen Notizen (Textfelder, Handschrift, Scans) fuer "Suchen", solange das Dokument offen ist
+    let noteIndex = NoteTextIndex()
     @Published private(set) var layoutVersion = 0
     @Published private(set) var status: SyncStatus = .loading
     /// Warum nicht hochgeladen wird (offline, PIN fehlt, Zugriff verweigert, Serverfehler) oder dass Konflikte
@@ -606,6 +610,22 @@ final class DocumentStore: ObservableObject {
         }
     }
 
+    /// Bild fuer ein Bildobjekt hochladen (`POST /api/files/{id}/assets`, wie `insertImageFile` im Web-Editor) und
+    /// gleich in den Zwischenspeicher legen. Liefert die Adresse fuer `src`.
+    func uploadNoteImage(_ image: UIImage) async throws -> String {
+        let png = image.pngData()
+        let jpeg = image.jpegData(compressionQuality: 0.85)
+        // Fotos als JPEG (klein), Bilder mit Transparenz bzw. kleine Grafiken als PNG
+        let usePNG = png != nil && (jpeg == nil || (png?.count ?? .max) <= (jpeg?.count ?? 0) * 2)
+        guard let data = usePNG ? png : jpeg else { throw ShareExportError.notLoaded }
+        let name = "bild-" + PageOrder.uid() + (usePNG ? ".png" : ".jpg")
+        let r = try await api.upload("/api/files/\(file.id)/assets", fields: [:], fileField: "upload", fileName: name,
+                                     mimeType: usePNG ? "image/png" : "image/jpeg", data: data)
+        guard let url = r["url"]?.string, url.hasPrefix("/") else { throw ShareExportError.notLoaded }
+        images[url] = image
+        return url
+    }
+
     /// Vom Editor nach jeder Aenderung einer Canvas. Kehrt sofort zurueck. Der Schluessel stammt aus dem
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
@@ -842,7 +862,7 @@ final class DocumentStore: ObservableObject {
     private func viewOnlyDuringSession(_ reason: NotesViewOnlyReason) {
         guard case .newerFormatOnServer(let v) = reason, newerFormatVersion == nil else { return }
         newerFormatVersion = v
-        notice = "Auf einem anderen Gerät wurden diese Notizen mit einer neueren Version von StudiNow gespeichert – hier nur noch ansehen. Deine Striche bleiben auf diesem iPad gesichert."
+        notice = UFDevice.adapt("Auf einem anderen Gerät wurden diese Notizen mit einer neueren Version von StudiNow gespeichert – hier nur noch ansehen. Deine Striche bleiben auf diesem iPad gesichert.")
     }
 
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)
@@ -1094,6 +1114,7 @@ final class DocumentStore: ObservableObject {
 
     /// Dokument schliessen: Ausstehendes sichern, Wiederholungen beenden (Ungesendetes bleibt im Journal).
     func close() async {
+        noteIndex.cancel()
         await flush()
         await engine.syncNow(snapshot: isWritable)                      // Stand beim Schliessen in den Versionsverlauf
         await engine.shutdown()

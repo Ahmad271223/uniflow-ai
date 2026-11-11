@@ -43,7 +43,7 @@ struct StudIPView: View {
 
     // MARK: Konto und Abgleich
 
-    static let accountText = "Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. StudiNow speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck."
+    static let accountText = UFDevice.adapt("Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. StudiNow speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck.")
     static let signOutMessage = "Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     private var accountCard: some View {

@@ -100,11 +100,11 @@ struct HildesheimConnectCard: View {
     static func text(_ s: HildesheimConnection.Source, expired: Bool) -> String {
         switch (s, expired) {
         case (.learnweb, false):
-            return "Melde dich mit deinem UNI-Account an, damit StudiNow deine Learnweb-Kurse und -Dateien auf dieses iPad holt."
+            return UFDevice.adapt("Melde dich mit deinem UNI-Account an, damit StudiNow deine Learnweb-Kurse und -Dateien auf dieses iPad holt.")
         case (.learnweb, true):
             return "Melde dich erneut beim Learnweb an, damit StudiNow deine Kurse und Dateien weiter abgleicht."
         case (.lsf, false):
-            return "Melde dich im LSF an, damit StudiNow deinen Stundenplan und deinen Notenspiegel auf dieses iPad holt."
+            return UFDevice.adapt("Melde dich im LSF an, damit StudiNow deinen Stundenplan und deinen Notenspiegel auf dieses iPad holt.")
         case (.lsf, true):
             return "Melde dich erneut im LSF an, damit Stundenplan und Notenspiegel aktuell bleiben."
         }
@@ -211,7 +211,7 @@ struct HildesheimStatusLine: View {
 struct HildesheimSourcesCard: View {
     @Environment(\.hildesheim) private var hildesheim
 
-    static let text = "Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad (dann meldet StudiNow dich selbst wieder an). Dateien und Noten bleiben nur auf diesem iPad."
+    static let text = UFDevice.adapt("Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad (dann meldet StudiNow dich selbst wieder an). Dateien und Noten bleiben nur auf diesem iPad.")
     static let signOutMessage = "Der Learnweb-Schlüssel und die Anmeldung in der Webansicht der Universität Hildesheim werden gelöscht. Dateien, Stundenplan und Noten bleiben. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     var body: some View {

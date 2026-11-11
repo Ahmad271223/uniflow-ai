@@ -173,7 +173,7 @@ final class AccountStore: ObservableObject {
                            email: Self.clean(email) ?? (same ? account?.email : nil),
                            givenName: Self.clean(givenName) ?? (same ? account?.givenName : nil))
         guard secrets.store(Self.encode(next), for: Keys.account) else {
-            lastError = "Die Anmeldung ließ sich auf diesem iPad nicht speichern. Bitte versuche es erneut."
+            lastError = UFDevice.adapt("Die Anmeldung ließ sich auf diesem iPad nicht speichern. Bitte versuche es erneut.")
             return
         }
         // Eintraege von vor dem gemeinsamen Eintrag: gelten nicht mehr (der gemeinsame geht beim Lesen vor)
@@ -197,7 +197,7 @@ final class AccountStore: ObservableObject {
                 // im App Store meist ein Geraet ohne Apple-ID oder ein Systemfehler
                 return debugBuild
                     ? "„Mit Apple anmelden“ ist in diesem Build nicht verfügbar. Bitte später erneut versuchen."
-                    : "Anmeldung nicht möglich. Prüfe, ob du auf diesem iPad mit deiner Apple-ID angemeldet bist."
+                    : UFDevice.adapt("Anmeldung nicht möglich. Prüfe, ob du auf diesem iPad mit deiner Apple-ID angemeldet bist.")
             default: break
             }
         }

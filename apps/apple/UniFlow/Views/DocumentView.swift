@@ -1,5 +1,6 @@
 import PDFKit
 import PencilKit
+import PhotosUI
 import SwiftUI
 import UniFlowCore
 import UniformTypeIdentifiers
@@ -88,6 +89,25 @@ final class EditorBridge: ObservableObject {
     func undo() { controller?.undo() }
     func redo() { controller?.redo() }
     func fitWidth() { controller?.fitWidth() }
+
+    /// Menueleiste und Tastenkuerzel (10.11.2026): Blaetter des Dokuments oeffnen (Suchen, Gehe zu, Sichern, Drucken)
+    @Published var menuRequest: EditorMenuRequest?
+
+    func request(_ kind: EditorMenuRequest.Kind) { menuRequest = EditorMenuRequest(kind: kind) }
+
+    /// Schreiblupe offen (`WritingMagnifier`)
+    @Published var magnifierOpen = false
+    func toggleMagnifier() { controller?.setMagnifier(!magnifierOpen) }
+
+    /// Werkzeug aus Menue oder Tastatur. Am Mac schreibt die Maus danach (sonst blaetterte sie weiter und das gewaehlte
+    /// Werkzeug taete nichts).
+    func choose(_ tool: EditorTool) {
+        if PDFEditorController.isMac, tool.isInk, UserDefaults.standard.object(forKey: "uniflow.pencilOnly") as? Bool ?? true {
+            UserDefaults.standard.set(false, forKey: "uniflow.pencilOnly")
+            hint = Hint(text: EditorPointer.macHint(pencilOnly: false))
+        }
+        controller?.choose(tool)
+    }
 }
 
 /// Eine Werkzeugpalette und ein Rueckgaengig-Verlauf fuer beide Seiten der geteilten Ansicht. Die Palette traegt ab
@@ -111,6 +131,28 @@ struct ExportFile: Identifiable {
     let url: URL
     /// Hinweis ueber dem Teilen-Menue (z. B. fehlende Bilder).
     var notice: String? = nil
+    var purpose: ExportPurpose = .share
+}
+
+/// Was mit der exportierten PDF geschieht: Teilen-Menue, Sichern in einen Ordner (am Mac das Fenster "Sichern"),
+/// Drucken (10.11.2026)
+enum ExportPurpose: Equatable {
+    case share, save, print
+
+    var confirmTitle: String {
+        switch self {
+        case .share: return "Exportieren"
+        case .save: return "Sichern …"
+        case .print: return "Drucken …"
+        }
+    }
+}
+
+/// Befehl aus der Menueleiste bzw. per Tastenkuerzel an das offene Dokument (`EditorCommands`)
+struct EditorMenuRequest: Equatable {
+    enum Kind: Equatable { case search, goToPage, save, print, share, photo, imageFile, magnifier, present, newWindow }
+    let id = UUID()
+    let kind: Kind
 }
 
 /// Blaetter rund um "Lösung teilen".
@@ -165,6 +207,8 @@ struct DocumentView: View {
     /// Ziehen an der Kopfzeile der Spalte daneben laeuft (x im Raum "split", nil = noch nicht bewegt)
     @State private var swapDrag: CGFloat?? = nil
     @State private var fullScreen = false
+    /// Praesentation (11.11.2026): ohne Leisten, ganze Seite, seitenweise blaettern
+    @State private var presenting = false
     @State private var showSidebar = false
     @State private var showSearch = false
     @State private var showTutor = false
@@ -190,6 +234,12 @@ struct DocumentView: View {
     @State private var showOutline = false
     @State private var newText = ""
     @State private var exportFile: ExportFile?
+    /// Teilen, Sichern oder Drucken nach dem Hinweis "nur privat"
+    @State private var exportPurpose: ExportPurpose = .share
+    /// Bild einfuegen (10.11.2026): aus Fotos bzw. aus Dateien (am Mac: Finder)
+    @State private var pickingPhoto = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var pickingImageFile = false
     @State private var exporting = false
     @State private var actionError: String?
     @State private var companion: Companion?
@@ -401,6 +451,42 @@ struct DocumentView: View {
 
     /// "Zum Abpausen einfrieren": nur die Seite, keine Leisten, keine Eingabe
     private var tracing: Bool { freeze.isTracing }
+    /// Leisten und Seitenspalten aus: beim Abpausen und in der Praesentation
+    private var chromeHidden: Bool { tracing || presenting }
+
+    /// Leiste der Praesentation (klein, unten rechts)
+    private var presentationControls: some View {
+        HStack(spacing: 12) {
+            Button { bridge.controller?.perform(.left) } label: { Image(systemName: "chevron.left") }
+                .accessibilityLabel("Vorige Seite")
+            Text("\(bridge.pageIndex + 1) / \(bridge.controller?.pageCount ?? store.pdf?.pageCount ?? 0)")
+                .monospacedDigit()
+            Button { bridge.controller?.perform(.right) } label: { Image(systemName: "chevron.right") }
+                .accessibilityLabel("Nächste Seite")
+            Divider().frame(height: 16)
+            Button("Beenden") { presenting = false }
+                .keyboardShortcut(.escape, modifiers: [])
+                .accessibilityIdentifier("doc.presentation.end")
+        }
+        .font(.callout)
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(.regularMaterial, in: Capsule())
+        .opacity(0.85)
+        .padding(16)
+        .modifier(MacHelp(text: "Pfeiltasten, Leertaste oder Klicker blättern; Esc beendet. Am Mac: Fenster auf den Beamer ziehen und mit ⌃⌘F auf Vollbild."))
+    }
+
+    /// Dokument in einem eigenen Fenster: hier schliessen, dort oeffnen (sonst waere es dort nur zum Ansehen offen)
+    private func openInNewWindow() {
+        let id = store.file.id
+        let page = store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex
+        if let onBack { onBack() } else { router.back() }
+        Task {
+            await store.pause()
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            DocumentWindows.open(fileID: id, page: page)
+        }
+    }
 
     /// Menue, Cmd-L: beim ersten Mal die Erklaerung, sonst gleich; "Ansicht fixieren" bei fixierter Ansicht loest sie
     private func requestFreeze(_ mode: EditorFreeze.Mode) {
@@ -466,35 +552,35 @@ struct DocumentView: View {
                     HStack(spacing: 0) {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
                         // nicht verdeckt oder beruehrt
-                        if showSidebar, scriptLeft, !tracing {
+                        if showSidebar, scriptLeft, !chromeHidden {
                             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                             Divider()
                         }
-                        if showTutor, scriptLeft, !tracing {
+                        if showTutor, scriptLeft, !chromeHidden {
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                             Divider()
                         }
                         // Spalte daneben links oder rechts (SplitSides); dieselben Ansichten, wenn die Seite wechselt
                         SplitRow(sideLeft: sideLeft) {
-                            if hasSidePane, !tracing {
+                            if hasSidePane, !chromeHidden {
                                 sidePane.frame(width: geo.size.width * splitFraction)
                                     .environment(\.ufPaneSwap, paneSwap(width: geo.size.width))
                                 splitHandle(width: geo.size.width)
                             }
                             primaryPane
                         }
-                        if showTutor, !scriptLeft, !tracing {
+                        if showTutor, !scriptLeft, !chromeHidden {
                             Divider()
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                         }
-                        if showSidebar, !scriptLeft, !tracing {
+                        if showSidebar, !scriptLeft, !chromeHidden {
                             Divider()
                             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                         }
                     }
                     .coordinateSpace(NamedCoordinateSpace.named("split"))
                     .overlay {
-                        if let d = swapDrag, hasSidePane, !tracing { SplitSwapHint(sideLeft: sideLeft, x: d, width: geo.size.width) }
+                        if let d = swapDrag, hasSidePane, !chromeHidden { SplitSwapHint(sideLeft: sideLeft, x: d, width: geo.size.width) }
                     }
                 }
             } else {
@@ -503,11 +589,11 @@ struct DocumentView: View {
         }
         .navigationTitle(store.file.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(fullScreen || tracing ? .hidden : .visible, for: .navigationBar)
+        .toolbar(fullScreen || chromeHidden ? .hidden : .visible, for: .navigationBar)
         .toolbar { toolbar }
         .toolbar(removing: .sidebarToggle)                  // eigener Knopf "Seiten"; zwei gleiche Symbole verwirrten
         .overlay(alignment: .bottom) {
-            if bridge.objectMode, !tracing { ObjectToolbar(bridge: bridge).padding(.bottom, 12) }
+            if bridge.objectMode, !chromeHidden { ObjectToolbar(bridge: bridge).padding(.bottom, 12) }
         }
         .overlay(alignment: .topTrailing) {
             if fullScreen, !tracing {
@@ -517,8 +603,14 @@ struct DocumentView: View {
         }
         // Abpausen: Sperre ueber allem, Schloss auf der Seite der freien Hand; Statusleiste und Home-Balken zurueckhaltend
         .overlay { if tracing { TraceLockOverlay(freeze: freeze, leading: scriptLeft) } }
-        .statusBarHidden(tracing)
-        .persistentSystemOverlays(tracing ? .hidden : .automatic)
+        .statusBarHidden(chromeHidden)
+        .persistentSystemOverlays(chromeHidden ? .hidden : .automatic)
+        // Praesentation: nur die Seite, unten klein Seitenzahl, Blaettern und Beenden (Esc)
+        .overlay(alignment: .bottomTrailing) { if presenting, !tracing { presentationControls } }
+        .onChange(of: presenting) { _, on in
+            if on { showSidebar = false; showTutor = false }
+            bridge.controller?.presentationMode = on
+        }
         .defersSystemGestures(on: tracing ? .all : [])
         .preference(key: EditorTracingKey.self, value: tracing)
         .background {
@@ -539,11 +631,29 @@ struct DocumentView: View {
             if phase == .background { freeze.suspend() } else if phase == .active { freeze.resume() }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
+        // Menueleiste (Mac, iPad mit Tastatur): Befehle an dieses Dokument
+        .focusedSceneObject(bridge)
+        .onChange(of: bridge.menuRequest) { _, r in handleMenuRequest(r) }
+        .photosPicker(isPresented: $pickingPhoto, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            photoItem = nil
+            Task { insertPicked((try? await item.loadTransferable(type: Data.self)).flatMap(UIImage.init(data:))) }
+        }
+        .background {
+            // eigener Ort fuer die Dateiauswahl (eine zweite `fileImporter` an derselben Ansicht ginge verloren)
+            Color.clear.fileImporter(isPresented: $pickingImageFile, allowedContentTypes: [.image]) { result in
+                guard case .success(let url) = result else { return }
+                let ok = url.startAccessingSecurityScopedResource()
+                defer { if ok { url.stopAccessingSecurityScopedResource() } }
+                insertPicked((try? Data(contentsOf: url)).flatMap(UIImage.init(data:)))
+            }
+        }
         .onChange(of: bridge.tutorRequest) { _, r in if r != nil { showTutor = true } }
         // Anhang (markierter Text, Bereich als Bild): KI-Hilfe auf, der Anhang steht im Eingabefeld
         .onChange(of: bridge.tutorAttachment) { _, a in if a != nil, !tracing { showTutor = true } }
         .overlay(alignment: .bottom) {
-            if let h = bridge.hint, !tracing {
+            if let h = bridge.hint, !chromeHidden {
                 Text(h.text).ufFont(13.6, 550, lh: 1.35).foregroundStyle(UF.text)
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 16).padding(.vertical, 10)
@@ -610,9 +720,9 @@ struct DocumentView: View {
         }
         .ufModal(isPresented: Binding(get: { pendingExport != nil }, set: { if !$0 { pendingExport = nil } })) {
             if let scope = pendingExport {
-                PDFExportNoticeDialog(scope: scope, export: {
+                PDFExportNoticeDialog(scope: scope, confirm: exportPurpose.confirmTitle, export: {
                     pendingExport = nil
-                    share(scope)
+                    share(scope, purpose: exportPurpose)
                 }, cancel: { pendingExport = nil })
             }
         }
@@ -620,7 +730,11 @@ struct DocumentView: View {
             Task { await reloadSolutionLayers() }
         }
         .onChange(of: entitlements.plan) { _, _ in Task { await reloadSolutionLayers() } }
-        .sheet(item: $exportFile) { f in
+        .sheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
+            // Sichern: Ordner waehlen (iPad: Dateien, Mac: Fenster "Sichern"), die PDF wird dorthin kopiert
+            ExportToFolderView(url: f.url) { exportFile = nil }
+        }
+        .sheet(item: Binding(get: { exportFile?.purpose == .share ? exportFile : nil }, set: { exportFile = $0 })) { f in
             VStack(spacing: 0) {
                 if let notice = f.notice {
                     Label(notice, systemImage: "exclamationmark.triangle")
@@ -731,12 +845,12 @@ struct DocumentView: View {
                       onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled,
                       freezeMode: freeze.mode, traceContrast: freezeContrast)
             .ignoresSafeArea(edges: tracing ? .all : .bottom)
-            .overlay(alignment: .bottom) { if !tracing { pageInfo } }
+            .overlay(alignment: .bottom) { if !chromeHidden { pageInfo } }
             .overlay(alignment: .topLeading) {
                 if freeze.mode == .view { FreezeBadge { freeze.unlock() } }
             }
             .overlay(alignment: .top) {
-                if !tracing { VStack(spacing: 6) {
+                if !chromeHidden { VStack(spacing: 6) {
                     if let correction {
                         CorrectionBar(session: correction, send: { await sendCorrection() },
                                       editMessage: { correctionMessage = correction.draft.note; editingCorrectionMessage = true },
@@ -1031,8 +1145,10 @@ struct DocumentView: View {
             Menu {
                 // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
                 Section("PDF exportieren (nur privat)") {
-                    Button { pendingExport = .document } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
-                    Button { pendingExport = .page(bridge.pageIndex) } label: { Label("Diese Seite", systemImage: "doc") }
+                    Button { startExport(.document, .share) } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
+                    Button { startExport(.page(bridge.pageIndex), .share) } label: { Label("Diese Seite", systemImage: "doc") }
+                    Button { startExport(.document, .save) } label: { Label("Als PDF sichern …", systemImage: "square.and.arrow.down") }
+                    Button { startExport(.document, .print) } label: { Label("Drucken …", systemImage: "printer") }
                 }
                 // B) nur eigene Notizen, ohne Original (Teilen ab Plus; "Meine geteilten Lösungen" mit Zurueckziehen fuer alle)
                 Section("Nur eigene Notizen") {
@@ -1134,6 +1250,11 @@ struct DocumentView: View {
                         if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
                     } label: { Label("Seite drehen", systemImage: "rotate.right") }
                     Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
+                    Button { pickingPhoto = true } label: { Label("Bild aus Fotos …", systemImage: "photo") }
+                    Button { pickingImageFile = true } label: { Label("Bild aus Dateien …", systemImage: "folder") }
+                    Button { bridge.toggleMagnifier() } label: {
+                        Label(bridge.magnifierOpen ? "Schreiblupe schließen" : "Schreiblupe", systemImage: "rectangle.and.text.magnifyingglass")
+                    }
                     pageToolsMenu
                 }
                 .disabled(!ownNotesVisible || !canWrite)
@@ -1154,6 +1275,12 @@ struct DocumentView: View {
                 }
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
+                Button { presenting = true } label: { Label("Präsentieren", systemImage: "play.rectangle") }
+                    .accessibilityIdentifier("doc.present")
+                if DocumentWindows.supported, !readOnly {
+                    Button { openInNewWindow() } label: { Label("In neuem Fenster öffnen", systemImage: "macwindow.badge.plus") }
+                        .accessibilityIdentifier("doc.newWindow")
+                }
                 // Bildschirm fixieren (technische Zeichnungen, Abpausen; docs/FIXIEREN-ABPAUSEN-2026-11-05.md)
                 Section(FreezeTexts.introTitle) {
                     Button { requestFreeze(.view) } label: {
@@ -1523,18 +1650,56 @@ struct DocumentView: View {
     }
 
     /// PDF mit Notizen (Ganzes Dokument oder aktuelle Seite) erzeugen und das Teilen-Menue des Systems zeigen.
-    private func share(_ scope: ShareScope) {
+    private func share(_ scope: ShareScope, purpose: ExportPurpose = .share) {
         exporting = true
         Task {
             defer { exporting = false }
             do {
                 // Seitennotizen und Blaetter daneben gehen direkt hinter ihrer Folie mit (NotesExport, 05.11.2026)
                 let result = try await NotesExport.pdf(for: store, api: api, options: .init(scope: scope))
-                exportFile = ExportFile(url: result.url, notice: result.payload.missingImagesNotice)
+                if purpose == .print {
+                    PDFPrinting.print(result.url, title: store.file.displayTitle) { error in
+                        if let error { actionError = "Drucken fehlgeschlagen: \(error)" }
+                    }
+                } else {
+                    exportFile = ExportFile(url: result.url, notice: result.payload.missingImagesNotice, purpose: purpose)
+                }
             } catch {
-                actionError = "Teilen fehlgeschlagen: \(error.localizedDescription)"
+                actionError = (purpose == .print ? "Drucken" : purpose == .save ? "Sichern" : "Teilen") + " fehlgeschlagen: \(error.localizedDescription)"
             }
         }
+    }
+
+    /// PDF exportieren: erst der Hinweis "nur privat", dann Teilen, Sichern oder Drucken
+    private func startExport(_ scope: ShareScope, _ purpose: ExportPurpose) {
+        exportPurpose = purpose
+        pendingExport = scope
+    }
+
+    /// Befehl aus der Menueleiste (`EditorCommands`)
+    private func handleMenuRequest(_ r: EditorMenuRequest?) {
+        guard let r, !tracing else { return }
+        switch r.kind {
+        case .search: showSearch = true
+        case .goToPage: goToText = ""; goingToPage = true
+        case .save: startExport(.document, .save)
+        case .print: startExport(.document, .print)
+        case .share: startExport(.document, .share)
+        case .photo: if canWrite && ownNotesVisible { pickingPhoto = true }
+        case .imageFile: if canWrite && ownNotesVisible { pickingImageFile = true }
+        case .magnifier: if canWrite && ownNotesVisible { bridge.toggleMagnifier() }
+        case .present: presenting.toggle()
+        case .newWindow: if DocumentWindows.supported, !readOnly { openInNewWindow() }
+        }
+    }
+
+    /// Gewaehltes Bild auf die aktuelle Seite
+    private func insertPicked(_ image: UIImage?) {
+        guard let image, let c = bridge.controller, let key = c.currentPageKey else {
+            if image == nil { actionError = "Das Bild ließ sich nicht öffnen." }
+            return
+        }
+        Task { await c.objects.insertImage(image, on: key) }
     }
 
     private var pageInfo: some View {
@@ -1627,6 +1792,23 @@ struct CompanionView: View {
         VStack(spacing: 0) {
             // Kopf wie KI-Hilfe und Loesung daneben (UFPaneHeader)
             UFPaneHeader(store.file.displayTitle, icon: store.file.isNotebook ? "note" : "file-text", close: onClose) {
+                if DocumentWindows.supported {
+                    // Uebung bzw. Loesung als eigenes Fenster (Mac: frei verschieben, auch auf einen zweiten Bildschirm)
+                    Button {
+                        let id = store.file.id
+                        let page = store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex
+                        onClose()
+                        Task {
+                            await store.pause()
+                            try? await Task.sleep(nanoseconds: 300_000_000)
+                            DocumentWindows.open(fileID: id, page: page)
+                        }
+                    } label: { Image(systemName: "macwindow.badge.plus") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(UF.text2)
+                    .accessibilityLabel("In eigenem Fenster öffnen")
+                    .modifier(MacHelp(text: "In eigenem Fenster öffnen"))
+                }
                 StatusLabel(status: store.status)
                 SyncIssueBadge(store: store)
                 Text("S. \(bridge.pageIndex + 1)").ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
@@ -1912,29 +2094,62 @@ final class ThumbnailCache: ObservableObject {
 
 struct SearchSheet: View {
     @ObservedObject var store: DocumentStore
+    @ObservedObject var index: NoteTextIndex
     let bridge: EditorBridge
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
-    @State private var hits: [SearchHit] = []
+    @State private var pdfHits: [SearchHit] = []
+
+    init(store: DocumentStore, bridge: EditorBridge) {
+        self.store = store
+        self.index = store.noteIndex
+        self.bridge = bridge
+    }
+
+    /// Treffer im PDF zuerst, dann Textfelder, Handschrift, Scans (je Gruppe in Seitenreihenfolge)
+    private var groups: [(NoteSearch.Source, [SearchHit])] {
+        let notes = index.hits(query, layout: store.layout)
+        return NoteSearch.Source.allCases.compactMap { source in
+            let hits = source == .pdf ? pdfHits : notes.filter { $0.source == source }
+            return hits.isEmpty ? nil : (source, hits)
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            List(hits) { hit in
-                Button {
-                    bridge.controller?.show(hit.selection)
-                    dismiss()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Seite \(hit.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
-                        Text(hit.snippet).lineLimit(2)
+            List {
+                if let r = index.reading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Handschrift und Scans werden gelesen … \(r.done) von \(r.total)").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                ForEach(groups, id: \.0) { source, hits in
+                    Section {
+                        ForEach(hits) { hit in
+                            Button {
+                                if let sel = hit.selection { bridge.controller?.show(sel) } else { bridge.controller?.goToPage(hit.pageIndex) }
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Seite \(hit.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                                    Text(hit.snippet).lineLimit(2)
+                                }
+                            }
+                        }
+                    } header: {
+                        Label(source.title, systemImage: source.icon)
                     }
                 }
             }
             .overlay {
-                if query.count >= 2 && hits.isEmpty { ContentUnavailableView.search(text: query) }
+                if query.count >= 2 && groups.isEmpty && index.reading == nil { ContentUnavailableView.search(text: query) }
             }
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Im PDF suchen")
-            .onChange(of: query) { _, q in hits = store.search(q) }
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Im PDF und in deinen Notizen suchen")
+            .onChange(of: query) { _, q in pdfHits = store.search(q) }
+            .onAppear { index.refresh(store: store, startAt: bridge.pageIndex) }
+            // Lesen nur, solange die Suche offen ist (Akku); Gelesenes bleibt fuer das naechste Mal
+            .onDisappear { index.cancel() }
             .navigationTitle("Suchen")
             .toolbar { Button("Fertig") { dismiss() } }
         }
@@ -2408,6 +2623,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.onAskAI = { [weak bridge] a in bridge?.attachToTutor(a) }
         vc.onHint = { [weak bridge] text in bridge?.hint = EditorBridge.Hint(text: text) }
         vc.onFlashcardFromSelection = { [weak bridge] text in bridge?.makeFlashcard(text) }
+        vc.onRequestImage = { [weak bridge] fromFiles in bridge?.request(fromFiles ? .imageFile : .photo) }
+        vc.onMagnifierChange = { [weak bridge] on in bridge?.magnifierOpen = on }
         vc.traceContrast = traceContrast
         vc.freezeMode = freezeMode
         bridge.controller = vc

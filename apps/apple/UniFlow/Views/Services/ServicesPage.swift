@@ -468,7 +468,7 @@ private struct LSFGradesCard: View {
             } else {
                 GradesTable(rows: rows)
             }
-            Text("Die Noten liest StudiNow mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen bleiben im LSF selbst.")
+            Text(UFDevice.adapt("Die Noten liest StudiNow mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen bleiben im LSF selbst."))
                 .ufFont(11.84).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8).padding(.bottom, 5.6)
@@ -519,7 +519,7 @@ struct HsHGradesCard: View {
             } else {
                 GradesTable(rows: rows)
             }
-            Text("Die Leistungen liest StudiNow mit deiner Anmeldung im Campusmanagement (Mein Studium → Leistungen, bei älteren Studiengängen Prüfungen und Studium → Notenspiegel; nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad.")
+            Text(UFDevice.adapt("Die Leistungen liest StudiNow mit deiner Anmeldung im Campusmanagement (Mein Studium → Leistungen, bei älteren Studiengängen Prüfungen und Studium → Notenspiegel; nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad."))
                 .ufFont(11.84).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8).padding(.bottom, 5.6)

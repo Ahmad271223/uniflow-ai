@@ -48,7 +48,7 @@ final class OpenAIKeyLink: ObservableObject {
     var transport: AIHTTPTransport = URLSessionAITransport()
 
     /// Hinweis vor dem Eintragen: was passiert, was gesendet wird, was es kostet
-    static let consentText = "Dein Schlüssel bleibt im Schlüsselbund dieses iPads und geht nie an StudiNow. Wenn du eine KI-Funktion antippst (Frage im Editor, Karteikarten, Wochentest, KI-Lernplan), schickt StudiNow den Text der Seite oder deiner Markierung, deine Frage und die Namen von Kurs und Datei – beim Lernplan nur Modultitel, Lehrwochen, Dateinamen und Zeiten – direkt an OpenAI. Die Anfragen rechnet OpenAI über dein Konto ab (platform.openai.com); es gelten die Bedingungen und die Datenschutzerklärung von OpenAI."
+    static let consentText = UFDevice.adapt("Dein Schlüssel bleibt im Schlüsselbund dieses iPads und geht nie an StudiNow. Wenn du eine KI-Funktion antippst (Frage im Editor, Karteikarten, Wochentest, KI-Lernplan), schickt StudiNow den Text der Seite oder deiner Markierung, deine Frage und die Namen von Kurs und Datei – beim Lernplan nur Modultitel, Lehrwochen, Dateinamen und Zeiten – direkt an OpenAI. Die Anfragen rechnet OpenAI über dein Konto ab (platform.openai.com); es gelten die Bedingungen und die Datenschutzerklärung von OpenAI.")
 
     static let checkedText = "Schlüssel geprüft – OpenAI hat geantwortet."
 

@@ -241,7 +241,7 @@ final class LecturersAppTests: XCTestCase {
         XCTAssertTrue(tap("Lehrende ausklappen", in: w, exact: false))
         XCTAssertTrue(pump { self.shows(w, "E-Mail an beispiel.dozentin@example.org") }, texts(w).joined(separator: "\n"))
         for t in ["Lehrende", "Alle Lehrenden", "Dr. Beispiel Dozentin", "Erfundener Tutor", "Nachricht über Stud.IP",
-                  "Raum 1101 - F102", "Institut für Beispielmathematik", "Die Angaben bleiben auf diesem iPad."] {
+                  "Raum 1101 - F102", "Institut für Beispielmathematik", UFDevice.adapt("Die Angaben bleiben auf diesem iPad.")] {
             XCTAssertTrue(shows(w, t), "\(t) fehlt: \(texts(w).joined(separator: "\n"))")
         }
         XCTAssertTrue(tap("Nachricht in Stud.IP", in: w))

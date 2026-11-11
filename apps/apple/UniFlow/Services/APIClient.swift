@@ -63,7 +63,7 @@ struct APIError: LocalizedError {
 
 /// Meldungen, wenn sich eine Datei nicht im Editor oeffnen laesst
 enum DocumentOpenText {
-    static let notLoaded = "Diese Datei ist noch nicht auf diesem iPad. Jeder Abgleich versucht, sie zu laden; „Jetzt laden“ in der Datei holt sie sofort."
+    static let notLoaded = UFDevice.adapt("Diese Datei ist noch nicht auf diesem iPad. Jeder Abgleich versucht, sie zu laden; „Jetzt laden“ in der Datei holt sie sofort.")
     static let notPDF = "Diese Datei ist keine PDF und öffnet sich nicht im Editor. Mit „Öffnen in …“ zeigst du sie in einer passenden App."
     static let notFound = "Dokument nicht gefunden. Es liegt im Papierkorb oder gehört zu einem abgewählten Kurs."
 

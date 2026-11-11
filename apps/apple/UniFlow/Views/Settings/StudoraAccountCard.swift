@@ -154,7 +154,7 @@ struct StudoraAccountCard: View {
                 }
                 UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) {
                     Task {
-                        guard await overlay.confirm("StudiNow-Konto löschen? Es wird sofort gesperrt und nach 30 Tagen endgültig gelöscht – auch auf Windows und im Web. Die Daten auf diesem iPad bleiben.") else { return }
+                        guard await overlay.confirm(UFDevice.adapt("StudiNow-Konto löschen? Es wird sofort gesperrt und nach 30 Tagen endgültig gelöscht – auch auf Windows und im Web. Die Daten auf diesem iPad bleiben.")) else { return }
                         _ = await link.delete(password: deletePassword.isEmpty ? nil : deletePassword)
                         deletePassword = ""
                     }

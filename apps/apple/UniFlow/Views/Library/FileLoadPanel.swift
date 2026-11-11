@@ -42,20 +42,20 @@ enum FileLoadState: Equatable {
     /// Ueberschrift unter dem Dateinamen
     var headline: String {
         switch self {
-        case .idle: return "Noch nicht auf diesem iPad"
+        case .idle: return UFDevice.adapt("Noch nicht auf diesem iPad")
         case .loading: return "Wird geladen …"
         case .loaded: return "Geladen"
         case .needsLogin: return "Stud.IP-Anmeldung nötig"
         case .failed: return "Nicht geladen"
-        case .otherSource: return "Noch nicht auf diesem iPad"
+        case .otherSource: return UFDevice.adapt("Noch nicht auf diesem iPad")
         }
     }
 
     /// Erklaerung (verspricht nur, was passiert)
     var detail: String {
         switch self {
-        case .idle: return "Die Datei steht in Stud.IP. „Jetzt laden“ holt sie sofort auf dieses iPad."
-        case .loading: return "Die Datei kommt gerade von Stud.IP auf dieses iPad."
+        case .idle: return UFDevice.adapt("Die Datei steht in Stud.IP. „Jetzt laden“ holt sie sofort auf dieses iPad.")
+        case .loading: return UFDevice.adapt("Die Datei kommt gerade von Stud.IP auf dieses iPad.")
         case .loaded: return "Die Datei ist da und öffnet sich gleich."
         case .needsLogin:
             return "Melde dich unter Einstellungen → Stud.IP neu an. Danach lädt „Erneut versuchen“ die Datei, und jeder Abgleich holt fehlende Dateien nach."

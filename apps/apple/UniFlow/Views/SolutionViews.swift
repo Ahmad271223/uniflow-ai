@@ -530,7 +530,7 @@ struct SharedSolutionsSheet: View {
             UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     UFCard {
-                        Text("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann StudiNow nicht zurückholen.")
+                        Text(UFDevice.adapt("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann StudiNow nicht zurückholen."))
                             .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     }
                     if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad) }
@@ -558,7 +558,7 @@ struct SharedSolutionsSheet: View {
         .ufModal(isPresented: Binding(get: { withdrawing != nil }, set: { if !$0 { withdrawing = nil } })) {
             if let e = withdrawing {
                 UFDialog("Lösung zurückziehen", icon: "trash") {
-                    Text("Die Lösung verschwindet aus der Community und das Paket wird beim Dienst gelöscht. Die Kopie auf diesem iPad bleibt; wer sie schon geladen hat, behält sie.")
+                    Text(UFDevice.adapt("Die Lösung verschwindet aus der Community und das Paket wird beim Dienst gelöscht. Die Kopie auf diesem iPad bleibt; wer sie schon geladen hat, behält sie."))
                         .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                 } foot: {
                     UFButton("Abbrechen") { withdrawing = nil }
@@ -691,6 +691,7 @@ struct SolutionLockedSheet: View {
 
 struct PDFExportNoticeDialog: View {
     let scope: ShareScope
+    var confirm = "Exportieren"
     let export: () -> Void
     let cancel: () -> Void
 
@@ -705,7 +706,7 @@ struct PDFExportNoticeDialog: View {
             .fixedSize(horizontal: false, vertical: true)
         } foot: {
             UFButton("Abbrechen", action: cancel)
-            UFButton("Exportieren", icon: "download", kind: .primary, action: export)
+            UFButton(confirm, icon: "download", kind: .primary, action: export)
         }
     }
 }

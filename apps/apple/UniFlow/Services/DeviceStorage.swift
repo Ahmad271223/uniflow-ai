@@ -8,7 +8,7 @@ enum DeviceStorage {
     /// Mindestens so viel bleibt frei (Datenbank, Notizen, System)
     static let reserve: Int64 = 200 * 1024 * 1024
 
-    static let fullMessage = "Der Speicher dieses iPads ist voll. Gib Platz frei und gleiche danach erneut ab."
+    static let fullMessage = UFDevice.adapt("Der Speicher dieses iPads ist voll. Gib Platz frei und gleiche danach erneut ab.")
 
     /// Speicher voll: Abgleich anhalten (nicht wiederholen, nicht als Fehler einer Datei zaehlen)
     struct Full: LocalizedError, Equatable {

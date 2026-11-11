@@ -65,7 +65,7 @@ struct UniversitySettingsCard: View {
                 if let uni { UFBadge(uni.profile.short, tone: .ok) }
             }
             Text(uni?.profile.name ?? "Keine Hochschule gewählt").ufFont(14.5, 600).foregroundStyle(uni == nil ? UF.muted : UF.text)
-            Text("Jede Hochschule hat auf diesem iPad ihren eigenen Speicher: Datenbank, Dateien, Notizen und Anmeldungen bleiben getrennt.")
+            Text(UFDevice.adapt("Jede Hochschule hat auf diesem iPad ihren eigenen Speicher: Datenbank, Dateien, Notizen und Anmeldungen bleiben getrennt."))
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
@@ -85,7 +85,7 @@ struct UniversitySettingsCard: View {
             // Loeschen abgesetzt unter einer Linie, nicht neben "Wechseln" (Befund 27.10.: beim Wechseln verwechselt)
             // gleicher abgesetzter Bereich wie "Konto löschen" (SettingsDangerZone)
             if let uni {
-                SettingsDangerZone(note: "Zum Wechseln musst du nichts löschen. Löschen nur, wenn du diese Hochschule auf diesem iPad nicht mehr nutzt.") {
+                SettingsDangerZone(note: UFDevice.adapt("Zum Wechseln musst du nichts löschen. Löschen nur, wenn du diese Hochschule auf diesem iPad nicht mehr nutzt.")) {
                     UFButton("Daten dieser Hochschule löschen", icon: "trash", kind: .danger, size: .small) {
                         overlay.modal { DeleteUniversityDataDialog(university: uni) }
                     }
@@ -156,7 +156,7 @@ struct UniversitySwitchDialog: View {
 
     /// Hinweis vor dem Wechsel: nichts wird geloescht oder uebertragen
     static func notice(from old: UniversityKey, to new: UniversityKey) -> String {
-        "Die Daten der \(old.profile.name) bleiben getrennt auf diesem iPad erhalten – Dateien, Notizen, Lernplan und Anmeldungen. "
+        UFDevice.adapt("Die Daten der \(old.profile.name) bleiben getrennt auf diesem iPad erhalten – Dateien, Notizen, Lernplan und Anmeldungen. ")
             + "Nichts davon wird in die \(new.profile.name) übernommen. StudiNow arbeitet danach sofort mit dem Speicher der \(new.profile.name); "
             + "zurückwechseln kannst du jederzeit hier."
     }
@@ -240,7 +240,7 @@ struct DeleteUniversityDataDialog: View {
                         if let problem = await containers.deleteUniversityData(DataContainerKey(userID: user, university: university)) {
                             toast.show(problem, seconds: 6)
                         } else {
-                            toast.show("Die Daten der \(university.profile.name) wurden von diesem iPad gelöscht.", seconds: 4)
+                            toast.show(UFDevice.adapt("Die Daten der \(university.profile.name) wurden von diesem iPad gelöscht."), seconds: 4)
                         }
                     }
                 }
@@ -253,7 +253,7 @@ struct DeleteUniversityDataDialog: View {
         // die andere Hochschule dieses Builds beim Namen; bietet er keine zweite an (1.0: nur LUH), allgemein
         let others = "Die Daten " + (UniversitySwitchDialog.choices(current: u).first { $0 != u }.map { "der \($0.profile.name)" }
                                      ?? "anderer Hochschulen") + " bleiben unberührt. "
-        return "Auf diesem iPad werden für dein Konto alle Daten der \(u.profile.name) gelöscht: Kurse, Lernplan und Einstellungen, "
+        return UFDevice.adapt("Auf diesem iPad werden für dein Konto alle Daten der \(u.profile.name) gelöscht: Kurse, Lernplan und Einstellungen, ")
             + "heruntergeladene Dateien, eigene Dokumente und Notizen, Zwischenspeicher und die Anmeldung in der Webansicht"
             + (u.profile.tokenServices.isEmpty ? ". " : " samt Learnweb-Schlüssel. ")
             + others + "Das lässt sich nicht rückgängig machen. "

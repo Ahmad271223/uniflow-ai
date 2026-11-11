@@ -14,7 +14,7 @@ enum UFTrialTexts {
     static let overTitle = "Deine Probe ist vorbei"
     static let overText = "Sieben Tage lang war alles frei. Wähle jetzt einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar."
     /// weitere Apple-ID auf einem iPad, auf dem schon eine Probe lief (LocalTrial.swift, Geraete-Marke)
-    static let usedOnDeviceTitle = "Auf diesem iPad wurde die Probe schon genutzt"
+    static let usedOnDeviceTitle = UFDevice.adapt("Auf diesem iPad wurde die Probe schon genutzt")
     static let usedOnDeviceText = "Die 7 Tage Probe gibt es einmal je iPad. Wähle einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten."
     static let plans = "Tarife ansehen"
     static let stayFree = "Bei Free bleiben"

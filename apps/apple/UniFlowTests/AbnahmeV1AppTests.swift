@@ -246,7 +246,7 @@ final class AbnahmeV1AppTests: XCTestCase {
         XCTAssertFalse(DeviceStorage.isFull(SQLiteError(stage: .step, code: 19, message: "constraint")))
         XCTAssertEqual(LocalBackendHost.message(for: SQLiteError(stage: .step, code: 13, message: "full")), DeviceStorage.fullMessage)
         XCTAssertEqual(LocalBackendHost.message(for: SQLiteError(stage: .step, code: 1, message: "x")),
-                       "Die Datenbank auf diesem iPad meldet einen Fehler (1). Versuche es erneut.")
+                       UFDevice.adapt("Die Datenbank auf diesem iPad meldet einen Fehler (1). Versuche es erneut."))
         XCTAssertNotNil(DeviceStorage.availableBytes(at: FileManager.default.temporaryDirectory.appendingPathComponent("gibt-es-nicht/x")))
     }
 }

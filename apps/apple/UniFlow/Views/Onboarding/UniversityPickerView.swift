@@ -45,7 +45,7 @@ struct UniversityPickerView: View {
         }
     }
 
-    static let note = "Die Daten jeder Hochschule bleiben auf diesem iPad getrennt: eigene Datenbank, eigene Dateien und Notizen, eigene Anmeldungen. Wechseln kannst du später in den Einstellungen."
+    static let note = UFDevice.adapt("Die Daten jeder Hochschule bleiben auf diesem iPad getrennt: eigene Datenbank, eigene Dateien und Notizen, eigene Anmeldungen. Wechseln kannst du später in den Einstellungen.")
     /// Solange dieser Build nicht alle bekannten Hochschulen anbietet (1.0: nur die LUH)
     static let moreNote = "Weitere Hochschulen folgen mit einem Update."
 
@@ -96,11 +96,11 @@ struct UniversityOption: View {
     static func services(_ u: UniversityKey) -> String {
         switch u {
         case .luh:
-            return "Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan und Aufzeichnungen direkt auf dieses iPad. QIS: Notenspiegel. Anmeldung mit deiner LUH-ID auf den Seiten der Universität."
+            return UFDevice.adapt("Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan und Aufzeichnungen direkt auf dieses iPad. QIS: Notenspiegel. Anmeldung mit deiner LUH-ID auf den Seiten der Universität.")
         case .hildesheim:
-            return "Learnweb: Kurse und Dateien direkt auf dieses iPad. LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität."
+            return UFDevice.adapt("Learnweb: Kurse und Dateien direkt auf dieses iPad. LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität.")
         case .hsh:
-            return "Moodle: Kurse, Dateien und Fristen direkt auf dieses iPad. Campusmanagement: Stundenplan, Leistungen und angemeldete Prüfungen. Anmeldung mit deinem SSO-Account auf den Seiten der Hochschule."
+            return UFDevice.adapt("Moodle: Kurse, Dateien und Fristen direkt auf dieses iPad. Campusmanagement: Stundenplan, Leistungen und angemeldete Prüfungen. Anmeldung mit deinem SSO-Account auf den Seiten der Hochschule.")
         }
     }
 }

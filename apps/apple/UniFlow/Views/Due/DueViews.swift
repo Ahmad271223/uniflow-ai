@@ -17,7 +17,7 @@ enum DueTexts {
     static var reminderText: String {
         "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine"
             + (UFReleaseUniversities.isShipped(.hildesheim) ? ", Fristen aus dem Learnweb-Kalender" : "")
-            + " und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad."
+            + UFDevice.adapt(" und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad.")
     }
     static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte die Erinnerungen danach hier erneut ein."
 

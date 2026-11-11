@@ -235,6 +235,8 @@ final class PageObjectsView: UIView {
     private var renderScale: CGFloat = 0
     /// Zuletzt gezeigter Inhalt (fuer `update(images:)`)
     private var shown: (template: String?, placeholder: String?, objects: [JSONValue])?
+    /// Zuletzt gezeigte Objekte (Treffer fuer das Kontextmenue, das nicht warten kann)
+    var shownObjects: [JSONValue] { shown?.objects ?? [] }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -257,8 +259,11 @@ final class PageObjectsView: UIView {
         let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + pictures.joined(separator: ",")
         guard sig != signature else { return }
         signature = sig
-        layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        // erst die Ansichten, dann die uebrigen Ebenen: vorher wurden zuerst alle Ebenen entfernt, auch die der
+        // Ansichten; deren Entfernen lief danach ueber eine Ansicht ohne Ebene (Absturz in `removeFromSuperview`,
+        // Fokus-System, gefunden 10.11.2026 beim Verschieben eines Textfelds mit Handschrift)
         subviews.forEach { $0.removeFromSuperview() }
+        layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         placed = [:]
 
         // Vorlage zuerst, damit sie hinter Text, Formen und der Tinte liegt (wie im Web)

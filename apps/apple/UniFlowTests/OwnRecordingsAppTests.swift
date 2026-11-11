@@ -127,7 +127,7 @@ final class OwnRecordingsAppTests: XCTestCase {
         let labels = env.labels()
         XCTAssertTrue(labels.contains("Dann Stetigkeit."), "\(labels)")
         XCTAssertTrue(labels.contains("Springe zu 00:00") && labels.contains("Springe zu 01:01"), "\(labels)")
-        XCTAssertTrue(labels.contains("Die Audiodatei liegt nicht mehr auf diesem iPad."), "ohne Container keine Datei: \(labels)")
+        XCTAssertTrue(labels.contains(UFDevice.adapt("Die Audiodatei liegt nicht mehr auf diesem iPad.")), "ohne Container keine Datei: \(labels)")
         XCTAssertFalse(labels.contains("Zusammenfassen") || labels.contains("Kernpunkte") || labels.contains("Karteikarten"), "ohne KI keine Knoepfe")
         // ChatGPT verbinden ist vorerst aus (0ad0319): dann verweist der Hinweis auf die StudiNow-KI in Pro AI
         let hint = ChatGPTLink.isEnabled ? "Zusammenfassung, Kernpunkte und Karteikarten aus der Mitschrift gibt es, sobald ChatGPT"

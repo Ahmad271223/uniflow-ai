@@ -163,7 +163,7 @@ final class OpenAIKeyLinkAppTests: XCTestCase {
         let labels = env.labels()
         XCTAssertTrue(labels.contains { $0.contains("Eigenes ChatGPT") })
         XCTAssertTrue(labels.contains { $0.contains("Schlüssel bei OpenAI erstellen") })
-        XCTAssertTrue(labels.contains { $0.contains("bleibt im Schlüsselbund dieses iPads") })
+        XCTAssertTrue(labels.contains { $0.contains(UFDevice.adapt("bleibt im Schlüsselbund dieses iPads")) })
         XCTAssertFalse(labels.contains { $0 == "ChatGPT verbinden" }, "keine Anmeldung bei ChatGPT")
         // Einwilligung (5.1.2(i), 07.11.2026): der Hinweis nennt, was an OpenAI geht, der Haken holt die Zustimmung ein,
         // die Datenschutzerklaerung ist verlinkt

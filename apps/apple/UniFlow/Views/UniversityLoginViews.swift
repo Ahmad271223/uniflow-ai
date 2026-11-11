@@ -9,8 +9,8 @@ import SwiftUI
 /// Eingeklappt eine Zeile mit "Mehr" (Audit 03.11.2026, P3: im ersten Start stehen sonst zwei Hinweisleisten mit viel
 /// Text uebereinander, darunter noch "Später anmelden"); "Mehr" zeigt den ganzen Hinweis, "Weniger" klappt ihn zu.
 struct UniversityLoginHint: View {
-    static let text = "Mit dem Schalter unten merkt sich StudiNow dein Passwort nur auf diesem iPad. Auch iOS kann es einsetzen (Schlüssel-Symbol über der Tastatur)."
-    static let detail = "StudiNow speichert dein Passwort nur, wenn „Passwort auf diesem iPad merken“ an ist: dann liegt es im Schlüsselbund dieses iPads (nicht in iCloud, nie auf StudiNow-Servern) und wird nur auf den Anmeldeseiten deiner Hochschule eingesetzt, wenn eine Sitzung abläuft. Abmelden oder „Gespeichertes Passwort löschen“ in den Einstellungen entfernt es. Deinen Benutzernamen merkt sich StudiNow, damit er beim nächsten Anmelden schon dasteht."
+    static let text = UFDevice.adapt("Mit dem Schalter unten merkt sich StudiNow dein Passwort nur auf diesem iPad. Auch iOS kann es einsetzen (Schlüssel-Symbol über der Tastatur).")
+    static let detail = UFDevice.adapt("StudiNow speichert dein Passwort nur, wenn „Passwort auf diesem iPad merken“ an ist: dann liegt es im Schlüsselbund dieses iPads (nicht in iCloud, nie auf StudiNow-Servern) und wird nur auf den Anmeldeseiten deiner Hochschule eingesetzt, wenn eine Sitzung abläuft. Abmelden oder „Gespeichertes Passwort löschen“ in den Einstellungen entfernt es. Deinen Benutzernamen merkt sich StudiNow, damit er beim nächsten Anmelden schon dasteht.")
     static let more = "Mehr"
     static let less = "Weniger"
 

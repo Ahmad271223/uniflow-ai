@@ -56,6 +56,8 @@ final class PageInkView: UIView {
     var foreignReleased = false
     /// Korrekturvorschlag auf dieser Seite (Korrektur-Modus oder empfangene Korrektur, `CorrectionMode.swift`)
     var correctionView: CorrectionPageView?
+    /// Laufendes Laden von Objekten und Zeichnung (`PDFEditorController.loadContent`)
+    var loadTask: Task<Void, Never>?
 
     init(pageIndex: Int, pageKey: String = "", generation: Int = 0, geometry: PageGeometry) {
         self.pageIndex = pageIndex
@@ -482,6 +484,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         if action == #selector(editorKey(_:)) { return acceptsEditorKeys }
+        if let edit = canPerformEditAction(action) { return edit }
+        if action == #selector(deleteSelectedObjects(_:)) { return acceptsEditorKeys && objects.selection != nil }
+        if action == #selector(finishObjectsKey(_:)) { return acceptsEditorKeys && objects.isActive }
         return super.canPerformAction(action, withSender: sender)
     }
 
@@ -506,6 +511,24 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var editUndo: UndoManager { documentUndo }
     /// Objekt-Werkzeuge (Editor-Schritt 6); eingeschaltet nimmt die Canvas keine Eingabe an
     private(set) lazy var objects = ObjectEditing(controller: self)
+    /// Rechtsklick-Menue, Ziehen und Ablegen, Mauszeiger (10.11.2026)
+    private(set) lazy var mouseSupport = EditorMouseSupport(controller: self)
+    /// "Bild einfügen …" aus Kontextmenue oder Menueleiste: die Dokumentansicht zeigt die Auswahl (Fotos oder Dateien)
+    var onRequestImage: ((Bool) -> Void)?
+    /// Schreiblupe (`WritingMagnifier.swift`), offen oder nil
+    var magnifier: WritingMagnifier?
+    /// Praesentation (11.11.2026, `EditorPresentation.swift`): ohne Palette, ganze Seite, Tasten und Klicker blaettern
+    /// seitenweise
+    var presentationMode = false {
+        didSet {
+            guard presentationMode != oldValue else { return }
+            presentedSize = view.bounds.size
+            presentationModeChanged()
+        }
+    }
+    /// Groesse beim letzten Einpassen der Praesentation
+    var presentedSize: CGSize = .zero
+    var onMagnifierChange: ((Bool) -> Void)?
 
     var currentPageIndex: Int {
         guard let page = pdfView.currentPage, let doc = pdfView.document else { return 0 }
@@ -596,6 +619,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             }
         })
         store.onPagesChanged = { [weak self] keys in self?.reloadPages(keys) }
+        // Rechtsklick (Mac), Ziehen von Bildern hinein, Mauszeiger je Werkzeug (`EditorMouseSupport.swift`)
+        mouseSupport.install(on: pdfView)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -615,6 +640,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         releaseSystemGestures()                               // Zurueck-Wischen gehoert wieder der Navigation
+        if magnifier != nil { setMagnifier(false) }          // Schreiblupe gehoert zu diesem Dokument
         if ownsToolPicker { toolPicker.setVisible(false, forFirstResponder: anchor) }
         // Verlassen schreibt nie: jede Aenderung einer geladenen Canvas ging schon beim Zeichnen an den Store
         // (`canvasViewDrawingDidChange`), hier wird nur ein offener Rueckgaengig-Schritt abgeschlossen
@@ -652,6 +678,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             if !userZoomed { centerColumn(keeping: page) }
         }
         lastFit = fit
+        // Praesentation: neue Fenstergroesse (Vollbild, Beamer) -> ganze Seite neu einpassen
+        if presentationMode, view.bounds.size != presentedSize {
+            presentedSize = view.bounds.size
+            DispatchQueue.main.async { [weak self] in self?.fitPage() }
+        }
     }
 
     /// Gemischte Formate (M6): PDFView legt alle Seiten mittig in eine Spalte so breit wie die breiteste Seite. Bei der
@@ -679,6 +710,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private func show(page: PDFPage) {
         pdfView.go(to: page)
         centerHorizontally()
+    }
+
+    /// Zoomgrenzen wie nach dem Einpassen (nach der Praesentation, die fuer die ganze Seite weiter herauszoomt)
+    func restoreZoomLimits() {
+        let widest = pdfView.scaleFactorForSizeToFit
+        guard widest > 0 else { return }
+        applyLimits(fit: widest * mixedFormatFactor, widest: widest)
     }
 
     private func applyLimits(fit: CGFloat, widest: CGFloat) {
@@ -814,6 +852,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             overlay = parked.remove(at: i)
             overlay.setRenderScale(currentRenderScale, screen: screenScale)     // Zoom kann sich seit dem Parken geaendert haben
             if overlay.foreignReleased { applyForeign(overlay) }      // nach einer Speicherwarnung neu aufbauen
+            // Laden wurde beim Wegscrollen abgebrochen (M4): jetzt nachholen
+            if !overlay.loaded, overlay.loadTask == nil { loadContent(into: overlay) }
         } else {
             let box = page.bounds(for: .cropBox).size
             overlay = PageInkView(pageIndex: index, pageKey: key, generation: shownLayoutVersion,
@@ -891,19 +931,34 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         c.tool = canvasTool
         toolPicker.addObserver(c)
         // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht)
-        if writable { toolPicker.setVisible(true, forFirstResponder: c) }
+        if writable && !presentationMode { toolPicker.setVisible(true, forFirstResponder: c) }
     }
 
     /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).
+    /// Erstes Laden einer Seite, die schon wieder aus dem Bild ist, wird abgebrochen (M4, docs/EDITOR-MESSUNG.md): beim
+    /// schnellen Blaettern ueber volle Seiten warteten die sichtbaren Seiten sonst auf das Dekodieren aller
+    /// uebersprungenen (Striche bis 2,8 s zu spaet). Das Overlay laedt beim Wiederanzeigen (`pdfView(_:overlayViewFor:)`).
+    /// Geladene Overlays laden immer zu Ende (fremde Aenderung, Rueckgaengig), auch geparkt.
     private func loadContent(into overlay: PageInkView, remote: Bool = false) {
-        Task { @MainActor [weak self, weak overlay] in
+        overlay.loadTask?.cancel()
+        overlay.loadTask = Task { @MainActor [weak self, weak overlay] in
             guard let self, let overlay else { return }
+            defer { if !Task.isCancelled { overlay.loadTask = nil } }
+            guard self.wantsContent(overlay) else { return }
             let entry = self.store.entry(forKey: overlay.pageKey)
             let objects = await self.store.objects(forPageKey: overlay.pageKey)
+            guard !Task.isCancelled else { return }
             self.showObjects(objects, entry: entry, on: overlay)
+            guard self.wantsContent(overlay) else { return }
             let drawing = await self.store.drawing(forPageKey: overlay.pageKey)
+            guard !Task.isCancelled else { return }
             self.apply(drawing, to: overlay, remote: remote)
         }
+    }
+
+    /// Lohnt sich das Laden noch? Sichtbar, schon geladen oder mit fruehen Strichen (die gesichert werden muessen)
+    private func wantsContent(_ overlay: PageInkView) -> Bool {
+        overlay.loaded || live[overlay.pageIndex] === overlay || !overlay.canvas.drawing.strokes.isEmpty
     }
 
     private func showObjects(_ objects: [JSONValue], entry: DisplayLayout.Entry?, on overlay: PageInkView) {
@@ -1023,6 +1078,28 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         }
         let visible = live.values.contains { $0.pageKey == key && $0.generation == shownLayoutVersion }
         if !visible, let i = shownLayout?.index(ofKey: key) { goToPage(i) }
+    }
+
+    /// Handschrift einer Seite ersetzen (Lasso fuer Handschrift und Objekte, Einfuegen, Zoom-Fenster) als EIN
+    /// Rueckgaengig-Schritt von `before` nach `after`. Ohne gebundenes, geladenes Overlay nur im Store.
+    func replaceInk(key: String, before: PKDrawing, after: PKDrawing) {
+        guard canEdit else { return }
+        if let overlay = boundOverlay(forKey: key), overlay.loaded {
+            commitPendingUndo(overlay)
+            overlay.isApplyingDrawing = true
+            overlay.canvas.drawing = after
+            overlay.isApplyingDrawing = false
+            overlay.undoBase = after
+            overlay.undoPending = false
+        }
+        store.canvasChanged(pageKey: key, drawing: after)
+        registerUndo(key: key, restore: before, redo: after)
+    }
+
+    /// Handschrift einer Seite (geladenes Overlay, sonst gespeicherter Stand)
+    func inkDrawing(forKey key: String) async -> PKDrawing {
+        if let overlay = boundOverlay(forKey: key), overlay.loaded { return overlay.canvas.drawing }
+        return await store.drawing(forPageKey: key)
     }
 
     // MARK: PKCanvasViewDelegate
@@ -1551,6 +1628,7 @@ extension PDFEditorController {
     /// - `initial`: beim Oeffnen steht die Palette immer auf einem Stift (sie merkt sich sonst ein Objektwerkzeug).
     func paletteSelectionChanged(initial: Bool = false) {
         guard !applyingPalette else { return }
+        defer { magnifier?.syncTool() }
         let selected = toolPicker.selectedTool
         if Self.canvasKnows(selected) { lastCanvasTool = selected }
         if #available(iOS 18.0, *) {

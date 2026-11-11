@@ -43,11 +43,11 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
     /// Was die Anmeldung bringt (ein Satz unter dem Titel)
     var intro: String {
         switch self {
-        case .studip: return "StudiNow holt danach deine Kurse, Dateien, den Stundenplan und die Aufzeichnungen auf dieses iPad."
+        case .studip: return UFDevice.adapt("StudiNow holt danach deine Kurse, Dateien, den Stundenplan und die Aufzeichnungen auf dieses iPad.")
         case .qis: return "Danach steht dein Notenspiegel in StudiNow. Meist dieselbe LUH-ID wie bei Stud.IP."
-        case .learnweb: return "StudiNow holt danach deine Learnweb-Kurse und -Dateien auf dieses iPad (UNI-Account)."
+        case .learnweb: return UFDevice.adapt("StudiNow holt danach deine Learnweb-Kurse und -Dateien auf dieses iPad (UNI-Account).")
         case .lsf: return "Danach kommen Stundenplan und Notenspiegel aus dem LSF. Mit der Learnweb-Anmeldung geht das meist ohne neues Passwort."
-        case .moodle: return "StudiNow holt danach deine Moodle-Kurse, -Dateien und -Fristen auf dieses iPad (SSO-Account)."
+        case .moodle: return UFDevice.adapt("StudiNow holt danach deine Moodle-Kurse, -Dateien und -Fristen auf dieses iPad (SSO-Account).")
         case .campus: return "Danach kommen Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement. Moodle und Campusmanagement haben keine gemeinsame Anmeldung: derselbe SSO-Account, noch einmal eingeben."
         }
     }
@@ -247,7 +247,7 @@ struct FirstLoginPage: View {
     private var later: some View { FirstLoginBottomBar(demo: demo, onLater: onLater, onDemo: onDemo) }
 
     static let laterHint = "Du kannst dich auch später anmelden – die Übersicht zeigt dann die Karte zum Verbinden."
-    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. Mit „Passwort auf diesem iPad merken“ meldet StudiNow dich danach selbst wieder an; das Passwort bleibt nur auf diesem iPad."
+    static let passwordNote = UFDevice.adapt("Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. Mit „Passwort auf diesem iPad merken“ meldet StudiNow dich danach selbst wieder an; das Passwort bleibt nur auf diesem iPad.")
 }
 
 /// Unterer Rand jeder Anmeldeseite: Hinweis und "Später anmelden"; darunter, ganz unten, klein und zurueckhaltend der
@@ -494,8 +494,8 @@ struct FirstSyncPage: View {
                     .ufFont(28.8, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 19.2)
                     .accessibilityIdentifier("firststart.sync.title")
                 Text(finished
-                     ? "Deine Daten liegen nur auf diesem iPad. Alles Weitere holt StudiNow beim Öffnen der App von selbst."
-                     : "StudiNow holt deine Daten auf dieses iPad. Das kann beim ersten Mal ein paar Minuten dauern.")
+                     ? UFDevice.adapt("Deine Daten liegen nur auf diesem iPad. Alles Weitere holt StudiNow beim Öffnen der App von selbst.")
+                     : UFDevice.adapt("StudiNow holt deine Daten auf dieses iPad. Das kann beim ersten Mal ein paar Minuten dauern."))
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
                 UFCard {

@@ -14,7 +14,7 @@ struct UniRememberPasswordToggle: View {
     let dataStore: WKWebsiteDataStore
     @State private var on: Bool?
 
-    static let title = "Passwort auf diesem iPad merken – du wirst nicht erneut gefragt"
+    static let title = UFDevice.adapt("Passwort auf diesem iPad merken – du wirst nicht erneut gefragt")
     static let note = "Nur auf diesem Gerät im Schlüsselbund, nie auf unseren Servern"
 
     var body: some View {
@@ -56,12 +56,12 @@ struct UniAutoLoginCard: View {
     /// in docs/release/APP-STORE.md nennen ihn)
     static let title = "Uni-Zugang"
     static let sameTitle = "Benutzername und Passwort sind überall gleich"
-    static let note = "Dein Passwort liegt nur im Schlüsselbund dieses iPads – nie auf unseren Servern."
+    static let note = UFDevice.adapt("Dein Passwort liegt nur im Schlüsselbund dieses iPads – nie auf unseren Servern.")
     static let connectingText = "Verbinde …"
 
     static func text(_ u: UniversityKey) -> String {
         "Einmal speichern – dann meldet StudiNow dich bei \(services(u)) selbst an und holt deine Daten. "
-            + "Dein Passwort liegt dafür nur auf diesem iPad im Schlüsselbund (nicht in iCloud, nicht auf StudiNow-Servern) "
+            + UFDevice.adapt("Dein Passwort liegt dafür nur auf diesem iPad im Schlüsselbund (nicht in iCloud, nicht auf StudiNow-Servern) ")
             + "und wird nur auf den Anmeldeseiten der \(u.profile.name) eingesetzt."
     }
 
@@ -116,8 +116,8 @@ struct UniAutoLoginCard: View {
         name.map { "Gespeichert für: \($0)" } ?? "Noch kein Passwort gespeichert. Einmal eingeben, dann meldet StudiNow dich selbst an."
     }
 
-    static let rejectedText = "Die Hochschule hat das Passwort abgelehnt. Es ist von diesem iPad gelöscht. Bitte gib das aktuelle ein."
-    static let deletedText = "Das gespeicherte Passwort wurde von diesem iPad gelöscht."
+    static let rejectedText = UFDevice.adapt("Die Hochschule hat das Passwort abgelehnt. Es ist von diesem iPad gelöscht. Bitte gib das aktuelle ein.")
+    static let deletedText = UFDevice.adapt("Das gespeicherte Passwort wurde von diesem iPad gelöscht.")
 
     /// Meldung nach "Speichern" (nil: gespeichert)
     static func saveMessage(_ r: UniAutoLogin.TypedSave) -> String? {

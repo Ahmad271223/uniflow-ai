@@ -319,7 +319,7 @@ final class StudIPDownloadGapAppTests: XCTestCase {
 
     func testLoadStateTextsPromiseOnlyWhatHappens() {
         XCTAssertFalse(DocumentOpenText.notLoaded.contains("Der nächste Abgleich lädt sie"))
-        XCTAssertEqual(FileLoadState.idle.headline, "Noch nicht auf diesem iPad")
+        XCTAssertEqual(FileLoadState.idle.headline, UFDevice.adapt("Noch nicht auf diesem iPad"))
         XCTAssertTrue(FileLoadState.idle.canRetry)
         XCTAssertFalse(FileLoadState.loading.canRetry)
         XCTAssertTrue(FileLoadState.failed("Stud.IP hat die Datei nicht geliefert (Fehler 500).").detail.contains("Erneut versuchen"))
@@ -347,7 +347,7 @@ final class StudIPDownloadGapAppTests: XCTestCase {
         let root = host(FileLoadPanel(file: file) { done += 1 }.environment(\.studipFiles, sync))
         // erstes Bild: "Wird geladen", nie kurz "Noch nicht auf diesem iPad" mit "Jetzt laden" (Befund iPad 07.11., 23:35)
         let first = labels(root)
-        XCTAssertFalse(first.contains("Noch nicht auf diesem iPad"), "\(first)")
+        XCTAssertFalse(first.contains(UFDevice.adapt("Noch nicht auf diesem iPad")), "\(first)")
         XCTAssertFalse(first.contains("Jetzt laden"), "\(first)")
         // beim Oeffnen sofort versucht: Stud.IP gestoert, Grund sichtbar
         XCTAssertNotNil(waitFor(root, label: "Nicht geladen"), "\(labels(root))")

@@ -188,6 +188,8 @@ struct UniFlowApp: App {
                     }
             }
         }
+        // Menueleiste (Mac, iPad mit Tastatur): Dokument, Werkzeuge, Sichern und Drucken (EditorCommands.swift)
+        .commands { EditorCommands() }
         .onChange(of: scenePhase) { _, phase in
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
             if phase == .active {
@@ -258,8 +260,14 @@ struct SceneObjects<Content: View>: View {
         content(router, shell, toast, overlay)
             .onAppear {
                 scenes.register(router: router, overlay: overlay)
-                if sceneID.isEmpty { sceneID = UUID().uuidString }
+                let isNew = sceneID.isEmpty
+                if isNew { sceneID = UUID().uuidString }
                 router.resume.sceneID = sceneID
+                // neues Fenster fuer ein Dokument ("In neuem Fenster öffnen", DocumentWindows.swift)
+                if isNew, let r = DocumentWindows.takePending() { router.go(DocumentWindows.route(for: r)) }
+            }
+            .onContinueUserActivity(DocumentWindows.activityType) { activity in
+                if let r = DocumentWindows.request(from: activity).flatMap(DocumentWindows.take) { router.go(DocumentWindows.route(for: r)) }
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { scenes.activate(router: router, overlay: overlay) }

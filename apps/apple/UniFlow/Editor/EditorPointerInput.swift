@@ -169,7 +169,22 @@ extension PDFEditorController {
         Self.editorKeys.map { k in
             UIKeyCommand(title: k.title, action: #selector(editorKey(_:)), input: k.input, modifierFlags: k.modifiers,
                          propertyList: k.command.rawValue)
-        }
+        } + [
+            // Entf / Rueckschritt: gewaehlte Objekte loeschen; Esc: Objektmodus beenden (10.11.2026)
+            UIKeyCommand(title: "Auswahl löschen", action: #selector(deleteSelectedObjects(_:)), input: "\u{8}", modifierFlags: []),
+            UIKeyCommand(title: "", action: #selector(deleteSelectedObjects(_:)), input: UIKeyCommand.inputDelete, modifierFlags: []),
+            UIKeyCommand(title: "Objekte fertig", action: #selector(finishObjectsKey(_:)), input: UIKeyCommand.inputEscape, modifierFlags: []),
+        ]
+    }
+
+    @objc func deleteSelectedObjects(_ sender: Any?) {
+        guard acceptsEditorKeys, objects.selection != nil else { return }
+        objects.deleteSelection()
+    }
+
+    @objc func finishObjectsKey(_ sender: Any?) {
+        guard acceptsEditorKeys, objects.isActive else { return }
+        if objects.selection != nil { objects.clearSelection() } else { finishObjectTools() }
     }
 
     /// Nicht, waehrend getippt wird (Textobjekt, Feld der KI-Hilfe), ein Blatt darueber liegt oder die Ansicht fixiert ist
@@ -179,7 +194,7 @@ extension PDFEditorController {
 
     @objc func editorKey(_ key: UIKeyCommand) {
         guard let raw = key.propertyList as? String, let command = EditorNavigation.Command(rawValue: raw) else { return }
-        perform(command)
+        perform(presentationMode ? Self.presentationCommand(command) : command)
     }
 
     /// Einen Tastenbefehl ausfuehren; false, wenn nichts zu tun ist (Rand, fixiert, kein Dokument)

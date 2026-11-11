@@ -98,7 +98,7 @@ final class LocalBackendHost: @unchecked Sendable {
         case let e as DataContainerError: return e.description
         case let e as LocalHTTPError: return e.detail.string ?? e.description
         // SQLiteError ist kein LocalizedError ("…SQLiteError-Fehler 1."): verstaendlich, mit Code
-        case let e as SQLiteError: return "Die Datenbank auf diesem iPad meldet einen Fehler (\(e.code)). Versuche es erneut."
+        case let e as SQLiteError: return UFDevice.adapt("Die Datenbank auf diesem iPad meldet einen Fehler (\(e.code)). Versuche es erneut.")
         default: return error.localizedDescription
         }
     }

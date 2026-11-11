@@ -140,7 +140,7 @@ final class LocalTrialTests: XCTestCase {
         XCTAssertEqual(otherIPad.device, t0)
         // Hinweis auf der Uebersicht
         XCTAssertEqual(UFTrialBannerContent.make(service: nil, local: second, purchased: .free, choiceMade: false), .usedOnDevice)
-        XCTAssertEqual(UFTrialBannerContent.usedOnDevice.title, "Auf diesem iPad wurde die Probe schon genutzt")
+        XCTAssertEqual(UFTrialBannerContent.usedOnDevice.title, UFDevice.adapt("Auf diesem iPad wurde die Probe schon genutzt"))
         XCTAssertNil(UFTrialBannerContent.make(service: nil, local: second, purchased: .free, choiceMade: true))
         XCTAssertNil(UFTrialBannerContent.make(service: nil, local: second, purchased: .plus, choiceMade: false))
     }

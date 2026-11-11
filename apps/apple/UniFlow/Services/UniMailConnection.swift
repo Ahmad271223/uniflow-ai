@@ -54,7 +54,7 @@ final class UniMailConnection: ObservableObject {
     var domains: [String] { [site.host] }
     static let signOutMessage = "Die Anmeldung bei Uni-Mail wird in der Webansicht gelöscht, ebenso die zwischengespeicherte Liste des Posteingangs und die übernommenen Termine des Uni-Kalenders. Deine E-Mails bleiben in deinem Uni-Postfach. Ein in StudiNow gemerktes Passwort der Hochschule wird gelöscht; eines, das iOS gesichert hat, bleibt unter „Passwörter“."
     static func hint(_ site: SOGoSite) -> String {
-        "Uni-Mail und Uni-Kalender (SOGo) der \(site.universityName): E-Mails lesen, beantworten, weiterleiten und schreiben, Termine im Lernkalender. Du meldest dich auf der echten SOGo-Seite an; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad. E-Mails bleiben auf diesem iPad und in deinem Uni-Postfach, nichts geht an StudiNow-Server."
+        UFDevice.adapt("Uni-Mail und Uni-Kalender (SOGo) der \(site.universityName): E-Mails lesen, beantworten, weiterleiten und schreiben, Termine im Lernkalender. Du meldest dich auf der echten SOGo-Seite an; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad. E-Mails bleiben auf diesem iPad und in deinem Uni-Postfach, nichts geht an StudiNow-Server.")
     }
     var hint: String { Self.hint(site) }
 

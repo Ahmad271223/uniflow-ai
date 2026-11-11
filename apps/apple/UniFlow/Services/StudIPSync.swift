@@ -857,7 +857,7 @@ final class StudIPSync: ObservableObject {
             }
             return .needsLogin
         } catch where DeviceStorage.isFull(error) {
-            return .failed("Auf diesem iPad ist nicht genug Speicher frei. Platz schaffen und erneut versuchen.")
+            return .failed(UFDevice.adapt("Auf diesem iPad ist nicht genug Speicher frei. Platz schaffen und erneut versuchen."))
         } catch {
             let d = DownloadFailures.describe(error)
             let at = clock.nowISO

@@ -261,7 +261,7 @@ final class LectureRecorder: ObservableObject {
         }
         guard let r = SFSpeechRecognizer(locale: locale), r.isAvailable else {
             transcript = .unavailable
-            transcriptNote = "Spracherkennung für diese Sprache ist auf diesem iPad nicht verfügbar."
+            transcriptNote = UFDevice.adapt("Spracherkennung für diese Sprache ist auf diesem iPad nicht verfügbar.")
             return
         }
         guard r.supportsOnDeviceRecognition else {

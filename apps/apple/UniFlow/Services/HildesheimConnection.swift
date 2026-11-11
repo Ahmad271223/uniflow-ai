@@ -564,7 +564,7 @@ final class HildesheimConnection: ObservableObject {
             return LearnwebAccess(api: LearnwebAPI(base: base, mode: .session, transport: transport, retry: retry))
         case .token:
             guard let raw = tokens.token(.hildesheim, service: Self.tokenService), let token = LearnwebToken(raw) else {
-                return LearnwebAccess(loginNeeded: true, message: "Learnweb: Der Learnweb-Schlüssel fehlt auf diesem iPad. Bitte neu verbinden.")
+                return LearnwebAccess(loginNeeded: true, message: UFDevice.adapt("Learnweb: Der Learnweb-Schlüssel fehlt auf diesem iPad. Bitte neu verbinden."))
             }
             guard stored == nil || stored == base else {
                 return LearnwebAccess(loginNeeded: true, message: "Learnweb: Das Learnweb des neuen Semesters braucht eine neue Anmeldung.")
@@ -759,7 +759,7 @@ final class HildesheimLogin: ObservableObject {
             return true
         }
         stage = connection.learnwebSignedIn(token: token, base: base)
-            ? .done : .failed("Der Learnweb-Schlüssel ließ sich nicht im Schlüsselbund dieses iPads ablegen.")
+            ? .done : .failed(UFDevice.adapt("Der Learnweb-Schlüssel ließ sich nicht im Schlüsselbund dieses iPads ablegen."))
         return true
     }
 

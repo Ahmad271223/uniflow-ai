@@ -10,7 +10,7 @@ struct ChatGPTCard: View {
     @Environment(\.openURL) private var openURL
 
     /// Hinweis vor dem ersten Verbinden: was an OpenAI geht und was nicht
-    static let consentText = "Wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung), schickt StudiNow den Text der Seite oder deiner Markierung, deine Frage und die Namen von Kurs und Datei an OpenAI. StudiNow speichert Anfragen und Antworten auf keinem Server; die Anmeldung bei ChatGPT liegt nur im Schlüsselbund dieses iPads. Die Nutzung zählt gegen dein ChatGPT-Abo, es gelten die Datenschutzbestimmungen von OpenAI. Du kannst die Verbindung jederzeit trennen."
+    static let consentText = UFDevice.adapt("Wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung), schickt StudiNow den Text der Seite oder deiner Markierung, deine Frage und die Namen von Kurs und Datei an OpenAI. StudiNow speichert Anfragen und Antworten auf keinem Server; die Anmeldung bei ChatGPT liegt nur im Schlüsselbund dieses iPads. Die Nutzung zählt gegen dein ChatGPT-Abo, es gelten die Datenschutzbestimmungen von OpenAI. Du kannst die Verbindung jederzeit trennen.")
 
     var body: some View {
         UFCard {
@@ -103,7 +103,7 @@ struct ChatGPTCard: View {
             // Trennen abgesetzt am Kartenende (SettingsDangerZone), nicht zwischen den uebrigen Knoepfen
             SettingsDangerZone {
                 UFButton("Trennen", icon: "log-out", kind: .danger, size: .small) {
-                    Task { if await overlay.confirm("Verbindung mit ChatGPT trennen? Die Anmeldung wird von diesem iPad gelöscht.") { await link.disconnect() } }
+                    Task { if await overlay.confirm(UFDevice.adapt("Verbindung mit ChatGPT trennen? Die Anmeldung wird von diesem iPad gelöscht.")) { await link.disconnect() } }
                 }
                 .accessibilityIdentifier("chatgpt.disconnect")
             }

@@ -68,7 +68,7 @@ struct CertificatesPage: View {
         let offers = d.list("offers")
         let portal = d.s("portal") ?? "Portal"
         UFContent(maxWidth: 960) {
-            UFPageHead("Bescheinigungen", sub: "Alles, was \(portal) an Bescheinigungen anbietet. StudiNow lädt eine PDF nur, wenn du tippst, und speichert sie mit Datum auf diesem iPad.") {
+            UFPageHead("Bescheinigungen", sub: UFDevice.adapt("Alles, was \(portal) an Bescheinigungen anbietet. StudiNow lädt eine PDF nur, wenn du tippst, und speichert sie mit Datum auf diesem iPad.")) {
                 UFButton("Uni & Noten", icon: "graduation", size: .small) { router.go(.services) }
             }
             statusCard(d, portal: portal)

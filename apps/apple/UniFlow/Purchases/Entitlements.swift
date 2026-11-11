@@ -753,7 +753,7 @@ struct UFLockedCard: View {
             if f.isV2 { return "Kommt mit der nächsten Version von StudiNow." }
             let base = f.detail.map { "\($0). " } ?? ""
             if f.isCommunity { return base + "Bald verfügbar – die Community folgt mit einem Update." }
-            return base + "Bald verfügbar – kommt mit einem Update direkt auf dein iPad."
+            return base + UFDevice.adapt("Bald verfügbar – kommt mit einem Update direkt auf dein iPad.")
         case .locked(let p):
             if f == .communityRead { return communityTeaser(p) }
             let base = f.detail.map { "\($0). " } ?? ""

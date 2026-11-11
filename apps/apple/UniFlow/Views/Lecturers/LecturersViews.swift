@@ -19,7 +19,7 @@ enum LecturersText {
     static let allButton = "Alle Lehrenden"
     static let studipMessage = "Nachricht in Stud.IP"
     static let office = "Sprechstunde"
-    static let privacy = "Aus Stud.IP, so wie du es dort siehst. Die Angaben bleiben auf diesem iPad."
+    static let privacy = UFDevice.adapt("Aus Stud.IP, so wie du es dort siehst. Die Angaben bleiben auf diesem iPad.")
     static let notAvailable = "Lehrende mit E-Mail und Sprechstunde gibt es vorerst für die Leibniz Universität Hannover (Stud.IP)."
 
     /// Zweite Zeile: "Dozent/in · Analysis I – Vorlesung, Analysis I – Übung" (in einem Modul nur die Rolle und die Funktion)

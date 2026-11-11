@@ -11,7 +11,7 @@ import UniformTypeIdentifiers
 enum InviteTexts {
     static let title = "Freunde einladen"
     static let noAccount = "Einladungen brauchen dein StudiNow-Konto"
-    static let noAccountText = "Melde dich beim StudiNow-Konto an. Deine Einladungslinks und Belohnungen hängen am Konto, nicht an diesem iPad."
+    static let noAccountText = UFDevice.adapt("Melde dich beim StudiNow-Konto an. Deine Einladungslinks und Belohnungen hängen am Konto, nicht an diesem iPad.")
     static let intro = "Lade in deiner Probewoche bis zu 20 Leute ein. Es zählt, wer über deinen Link neu bei StudiNow anfängt und sich anmeldet – jede Person einmal, innerhalb von 30 Tagen nach dem Link."
     static let rewards = "Belohnungen sind Angebotscodes für den App Store: du löst sie in Apples Dialog ein. Niemand muss etwas kaufen oder teilen."
     static let newLink = "Neuer Einladungslink"

@@ -44,9 +44,9 @@ final class UniAutoLoginCardTests: XCTestCase {
     }
 
     func testTextsAreShortAndHonest() {
-        XCTAssertTrue(UniAutoLoginCard.text(.luh).contains("nur auf diesem iPad"))
+        XCTAssertTrue(UniAutoLoginCard.text(.luh).contains(UFDevice.adapt("nur auf diesem iPad")))
         XCTAssertTrue(UniAutoLoginCard.text(.luh).contains("Stud.IP, QIS und Uni-Mail"))
-        XCTAssertTrue(UniAutoLoginCard.note.contains("nur im Schlüsselbund dieses iPads") && UniAutoLoginCard.note.contains("nie auf unseren Servern"))
+        XCTAssertTrue(UniAutoLoginCard.note.contains(UFDevice.adapt("nur im Schlüsselbund dieses iPads")) && UniAutoLoginCard.note.contains("nie auf unseren Servern"))
         XCTAssertEqual(UniAutoLoginCard.statusText(.saved(user), portal: true), "Gespeichert für: \(user)")
         XCTAssertEqual(UniAutoLoginCard.statusText(.missing, portal: true, shared: user), "Kein eigenes Passwort – es gilt das gemeinsame (\(user)).")
         XCTAssertEqual(UniAutoLoginCard.statusText(.rejected, portal: false), UniAutoLoginCard.rejectedText)
