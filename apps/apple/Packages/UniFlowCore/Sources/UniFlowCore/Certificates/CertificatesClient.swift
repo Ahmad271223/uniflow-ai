@@ -121,12 +121,14 @@ public actor CertificateClient {
         }
     }
 
-    /// Menues, die zu Bescheinigungen fuehren koennen (0 zuerst); Pruefungsanmeldung und Abmelden nie
+    /// Menues, die zu Bescheinigungen fuehren koennen (0 zuerst); Pruefungsanmeldung und Abmelden nie. Nie ein Link, der
+    /// ein Dokument erzeugt (verpublish, hisreports, verify, PDF): die Liste liest nur Menues (11.11.2026, auch im Sync)
     static func menuPriority(_ l: QISLink) -> Int? {
         let addr = l.address.lowercased(), text = l.text.lowercased()
         if addr.contains("prfanm") || addr.contains("logout") || text.contains("abmeld") || text.contains("anmeld") { return nil }
         let state = l.state?.lowercased() ?? ""
-        if state == "verpublish" || state == "verify" { return nil }
+        if ["verpublish", "verify", "hisreports"].contains(state) || addr.contains("hisreports") || addr.contains("verpublish")
+            || addr.contains(".pdf") { return nil }
         let module = l.parameters["moduleparameter"]?.lowercased() ?? ""
         if module == "studentreportsmenu" || text.contains("bescheinigung") { return 0 }
         if module == "studysosmenu" { return 1 }

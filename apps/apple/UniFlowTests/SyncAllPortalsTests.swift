@@ -153,7 +153,8 @@ final class SyncAllPortalsTests: XCTestCase {
         XCTAssertEqual(r.synced, ["QIS", "Uni-Mail"])
         XCTAssertEqual(r.notes, ["Stud.IP: nicht verbunden"])
         XCTAssertFalse(r.rejected)
-        XCTAssertEqual(r.text, "Abgeglichen: QIS und Uni-Mail. Stud.IP: nicht verbunden.")
+        XCTAssertEqual(r.info, ["Bescheinigungen: 1 verfügbar"])
+        XCTAssertEqual(r.text, "Abgeglichen: QIS und Uni-Mail. Bescheinigungen: 1 verfügbar. Stud.IP: nicht verbunden.")
         XCTAssertTrue(OpenSync.running.isEmpty)
         // Uni-Mail zuerst, genau einmal
         XCTAssertEqual(inboxReads, 1)
@@ -187,7 +188,7 @@ final class SyncAllPortalsTests: XCTestCase {
         XCTAssertEqual(mail.state, .needsLogin)
         XCTAssertEqual(r.synced, ["QIS"], "der Fehler von Uni-Mail haelt QIS nicht auf")
         XCTAssertEqual(r.notes, ["Stud.IP: nicht verbunden", "Uni-Mail: Anmeldung nötig"])
-        XCTAssertEqual(r.text, "Abgeglichen: QIS. Stud.IP: nicht verbunden. Uni-Mail: Anmeldung nötig.")
+        XCTAssertEqual(r.text, "Abgeglichen: QIS. Bescheinigungen: 1 verfügbar. Stud.IP: nicht verbunden. Uni-Mail: Anmeldung nötig.")
         XCTAssertEqual(q.lastCount, 3)
 
         // QIS jetzt auch abgelaufen: nichts mehr zu tun, kein Aufruf, Weg zum Uni-Zugang
@@ -248,8 +249,62 @@ final class SyncAllPortalsTests: XCTestCase {
         let r = try XCTUnwrap(result)
         XCTAssertTrue(r.rejected)
         XCTAssertEqual(r.synced, ["QIS"], "QIS hat noch eine gueltige Sitzung")
-        XCTAssertEqual(r.text, "Die Hochschule hat das gespeicherte Passwort abgelehnt. Abgeglichen: QIS. Stud.IP: nicht verbunden. Uni-Mail: nicht verbunden.")
+        XCTAssertEqual(r.text, "Die Hochschule hat das gespeicherte Passwort abgelehnt. Abgeglichen: QIS. Bescheinigungen: 1 verfügbar. Stud.IP: nicht verbunden. Uni-Mail: nicht verbunden.")
         XCTAssertEqual(q.lastCount, 3)
+        assertOnlyReading()
+    }
+
+    /// Befund 11.11.2026: QIS zeigte "verbunden", die Sitzung war aber abgelaufen. Der Sync endete mit "QIS: Anmeldung
+    /// nötig", die stille Anmeldung lief losgeloest weiter, Noten kamen erst spaeter, Bescheinigungen nie. Jetzt wartet
+    /// der Sync die Anmeldung ab (genau eine), liest Noten im selben Lauf neu und danach die Liste der Bescheinigungen.
+    func testExpiredQISSessionIsRenewedWithinTheSyncAndCertificatesAreListed() async throws {
+        let (m, c, q, _) = try await luh(qis: true, mail: false)
+        try install()
+        saveLogin(m)
+        qisSession.withLock { $0 = false }                      // QIS-Sitzung abgelaufen, die App weiss es noch nicht
+        XCTAssertNotEqual(q.state, .needsLogin)
+        OpenSync.storedLoginConnect = { _, _ in StoredLoginReport(connected: ["QIS"], needsLogin: ["Stud.IP", "Uni-Mail"]) }
+        UniAutoLogin.appActiveOverride = true
+        var logins: [UniAutoLoginRequest] = []
+        let session = qisSession
+        UniAutoLogin.runnerOverride = { r in logins.append(r); session.withLock { $0 = true }; return .success }
+        var result: UniversitySyncReport?
+        XCTAssertEqual(m.startUniversitySync { result = $0 }, .started("Stud.IP, QIS und Uni-Mail werden abgeglichen …"))
+        try await bed.waitUntil("Ergebnis", timeout: 30) { result != nil }
+        let r = try XCTUnwrap(result)
+        XCTAssertEqual(logins.count, 1, "genau eine stille Anmeldung, kein zweiter Lauf daneben")
+        XCTAssertEqual(logins.first?.portal, "qis")
+        XCTAssertEqual(r.synced, ["QIS"], "\(r.text)")
+        XCTAssertEqual(q.state, .ok(bed.clock.now))
+        XCTAssertEqual(q.lastCount, 3, "Noten im selben Sync")
+        let list = try await c.api.value("/api/certificates")
+        XCTAssertEqual(list["status"]?.string, "ok", "Liste der Bescheinigungen im selben Sync")
+        XCTAssertEqual(r.info, ["Bescheinigungen: 1 verfügbar"])
+        XCTAssertEqual(UniAutoLogin.state(portal: "qis", store: q.websiteDataStore)?.awaitingRetry, false,
+                       "Abruf gelungen: die Zustandsmaschine weiss es")
+        // kein losgeloester Abruf bzw. keine zweite Anmeldung danach
+        let before = UniStubProtocol.requests.count
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertEqual(UniStubProtocol.requests.count, before)
+        XCTAssertEqual(logins.count, 1)
+        assertOnlyReading()
+    }
+
+    /// Beim Oeffnen (still) liest der Sync die Liste der Bescheinigungen IMMER (11.11.2026), nicht erst nach 7 Tagen
+    func testOpenSyncAlwaysReadsTheCertificateList() async throws {
+        let (m, c, q, _) = try await luh(qis: true, mail: false)
+        try install()
+        // Liste eben erst gelesen (frischer Stand), danach oeffnet die App
+        let first = await CertificateCenter(portal: .qis(q)).refresh()
+        XCTAssertEqual(first?.ok, true)
+        let menuReads = { UniStubProtocol.requests.filter { $0.url.absoluteString.contains("moduleParameter=studentReportsMenu") }.count }
+        XCTAssertEqual(menuReads(), 1)
+        OpenSync.allowed = { true }
+        XCTAssertTrue(m.syncAllOnOpen(now: bed.clock.now))
+        try await bed.waitUntil("Abgleich beim Oeffnen", timeout: 30) { OpenSync.running.isEmpty }
+        XCTAssertEqual(menuReads(), 2, "die Liste im Sync beim Oeffnen neu gelesen")
+        let list = try await c.api.value("/api/certificates")
+        XCTAssertEqual(list["status"]?.string, "ok")
         assertOnlyReading()
     }
 
@@ -277,6 +332,10 @@ final class SyncAllPortalsTests: XCTestCase {
         XCTAssertEqual(UniversitySyncStart.alreadyRunning.text, "Der Abgleich läuft bereits …")
         XCTAssertEqual(UniversitySyncReport(synced: ["Stud.IP", "QIS", "Uni-Mail"]).text, "Abgeglichen: Stud.IP, QIS und Uni-Mail.")
         XCTAssertEqual(UniversitySyncReport(notes: ["QIS: Anmeldung nötig"]).text, "Nichts abgeglichen. QIS: Anmeldung nötig.")
+        XCTAssertEqual(UniversitySyncReport(synced: ["QIS"], notes: ["Uni-Mail: Fehler"], info: ["Bescheinigungen: 2 verfügbar"]).text,
+                       "Abgeglichen: QIS. Bescheinigungen: 2 verfügbar. Uni-Mail: Fehler.")
+        XCTAssertEqual(ContainerManager.certificatesNote(2), "Bescheinigungen: 2 verfügbar")
+        XCTAssertEqual(ContainerManager.certificatesNote(0), "Bescheinigungen: keine verfügbar")
         XCTAssertEqual(ContainerManager.studIPNote(.needsLogin), "Anmeldung nötig")
         XCTAssertEqual(ContainerManager.studIPNote(.failed("x")), "Fehler")
         XCTAssertNil(ContainerManager.studIPNote(.idle))

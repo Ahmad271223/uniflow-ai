@@ -199,6 +199,20 @@ final class CertificatesTests: XCTestCase {
         XCTAssertEqual(offered, ["immatrikulation", "bafoeg", "notenspiegel"], "LUH: kein Datenkontrollblatt und keine Rueckmeldebescheinigung im QIS")
     }
 
+    /// 11.11.2026: die Liste laeuft jetzt in jedem Sync; ein Menue-Link mit "Bescheinigung" im Text, der selbst ein
+    /// Dokument erzeugt (hisreports, PDF), wird nie aufgerufen (vorher nur verpublish/verify ausgeschlossen)
+    func testListNeverFollowsALinkThatCreatesADocument() {
+        let base = "https://qis.verwaltung.uni-hannover.de/qisserver/rds?"
+        func link(_ text: String, _ query: String) -> QISLink {
+            QISLink(text: text, address: base + query, parameters: QISParser.parameters(of: base + query))
+        }
+        XCTAssertEqual(CertificateClient.menuPriority(link("Meine Bescheinigungen", "state=change&type=1&moduleParameter=studentReportsMenu")), 0)
+        XCTAssertNil(CertificateClient.menuPriority(link("Studienbescheinigung", "state=hisreports&publishSubDir=x")))
+        XCTAssertNil(CertificateClient.menuPriority(link("Studienbescheinigung", "state=verpublish&status=transform")))
+        XCTAssertNil(CertificateClient.menuPriority(link("Bescheinigung (PDF)", "state=change&file=bescheinigung.pdf")))
+        XCTAssertNil(CertificateClient.menuPriority(link("Bescheinigung prüfen", "state=verify&x=1")))
+    }
+
     func testDownloadCallsTheLinkExactlyOnceAndStoresTheCopyWithDate() async throws {
         let fx = try fixture()
         let calls = Counter()

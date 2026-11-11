@@ -12,7 +12,7 @@ import UniFlowCore
 // abgelaufene Anmeldung wird wie bisher still erneuert oder bleibt "Anmeldung nötig".
 // Uni-Zugang einmal speichern (Entscheidung des Inhabers 10.11.2026): an der LUH gleichen der Knopf "Sync" und das
 // Oeffnen ALLE Portale ab - Uni-Mail (SOGo) zuerst, dann Stud.IP und QIS (Noten, Pruefungen, angemeldete Pruefungen;
-// Bescheinigungen nur die Liste, erzeugt nichts). Ist ein Uni-Zugang gespeichert, verbindet die App vorher die Portale
+// Bescheinigungen nur die Liste, erzeugt nichts; seit 11.11.2026 in jedem solchen Sync und mit Zahl im Ergebnis). Ist ein Uni-Zugang gespeichert, verbindet die App vorher die Portale
 // (`connectWithStoredLogin`, beim Knopf als Handlung des Menschen). Ein Portal ohne Verbindung wird uebersprungen und im
 // Ergebnis genannt ("QIS: Anmeldung nötig"); ein Fehler eines Portals haelt die anderen nicht auf.
 
@@ -168,8 +168,8 @@ extension ContainerManager {
     }
 
     /// Ein Abgleich aller Portale: gespeicherten Zugang verbinden, Uni-Mail zuerst, dann Stud.IP und QIS nebeneinander
-    /// (verschiedene Rechner). `userAction`: Knopf "Sync" (gleicht auch nicht faellige Noten und die Bescheinigungen ab);
-    /// beim Oeffnen gelten die eigenen Abstaende (Noten 20 Stunden, Bescheinigungen 7 Tage).
+    /// (verschiedene Rechner). `userAction`: Knopf "Sync" (gleicht auch nicht faellige Noten ab); beim Oeffnen gelten
+    /// fuer die Noten die eigenen 20 Stunden. Die Liste der Bescheinigungen liest jeder solche Sync (nur lesend).
     private func runAllPortals(container c: ActiveContainer, userAction: Bool, forceGrades: Bool) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
@@ -181,11 +181,17 @@ extension ContainerManager {
         let studip = studip, qis = qis, mail = uniMail
         if let mail { await Self.syncMail(mail) }
         async let s: Void = Self.syncStudIP(studip, userAction: userAction)
-        async let q: Bool = Self.syncQIS(qis, container: c, userAction: userAction, forceGrades: forceGrades)
-        let (_, certificatesFailed) = await (s, q)
+        async let q: CertificatesSync.Report? = Self.syncQIS(qis, container: c, userAction: userAction, forceGrades: forceGrades)
+        let (_, certificates) = await (s, q)
         report.add(OpenSync.studIP, Self.studIPNote(studip.phase))
         if let qis { report.add(OpenSync.qis, Self.qisNote(qis)) }
-        if certificatesFailed { report.notes.append("Bescheinigungen: Fehler") }
+        if let certificates {
+            if certificates.ok {
+                report.info.append(Self.certificatesNote(certificates.offers))
+            } else if !certificates.needsLogin {
+                report.notes.append("Bescheinigungen: Fehler")
+            }
+        }
         if let mail { report.add(OpenSync.uniMail, Self.mailNote(mail)) }
         return report
     }
@@ -214,28 +220,31 @@ extension ContainerManager {
         await studip.run()
     }
 
-    /// QIS: Noten mit Pruefungen und angemeldeten Pruefungen (`QISConnection.run`), danach die Liste der Bescheinigungen
-    /// (nur Links, erzeugt kein Dokument; beim Oeffnen nur, wenn sie aelter als 7 Tage ist). Nie Anmelden zu Pruefungen.
-    /// Rueckgabe: das Lesen der Bescheinigungen ist gescheitert (nicht wegen der Anmeldung).
-    private static func syncQIS(_ qis: QISConnection?, container c: ActiveContainer, userAction: Bool, forceGrades: Bool) async -> Bool {
-        guard let qis, qis.isConnected, qis.state != .needsLogin else { return false }
+    /// QIS: Noten mit Pruefungen und angemeldeten Pruefungen (`QISConnection.runRenewingSession`: eine dabei abgelaufene
+    /// Sitzung wird still erneuert und abgewartet, dann im selben Lauf neu gelesen), danach IMMER die Liste der
+    /// Bescheinigungen (11.11.2026; nur Menues und Links, erzeugt nie ein Dokument - verpublish, hisreports, verify und
+    /// Formulare bleiben dem Tippen vorbehalten). Nie Anmelden zu Pruefungen.
+    /// Rueckgabe: Ergebnis der Liste (nil, wenn sie nicht gelesen wurde).
+    private static func syncQIS(_ qis: QISConnection?, container c: ActiveContainer, userAction: Bool,
+                                forceGrades: Bool) async -> CertificatesSync.Report? {
+        guard let qis, qis.isConnected, qis.state != .needsLogin else { return nil }
         if qis.isRunning {
             await wait(seconds: 5 * 60) { qis.isRunning }        // laeuft schon (z. B. nach dem Verbinden): abwarten
         } else {
-            await qis.run(force: userAction && forceGrades)
+            await qis.runRenewingSession(force: userAction && forceGrades, userAction: userAction)
         }
-        guard qis.isConnected, !qis.isRunning else { return false }
+        guard qis.isConnected, !qis.isRunning else { return nil }
         switch qis.state {
         case .ok, .connected: break
-        default: return false
+        default: return nil
         }
-        let center = CertificateCenter(portal: .qis(qis))
-        if !userAction {
-            let list = try? await c.api.value("/api/certificates")
-            guard center.shouldRefresh(status: list?["status"]?.string, checkedAt: list?["checked_at"]?.string) else { return false }
-        }
-        guard let r = await center.refresh(), !r.cancelled else { return false }
-        return !r.ok && !r.needsLogin
+        guard let r = await CertificateCenter(portal: .qis(qis)).refresh(), !r.cancelled else { return nil }
+        return r
+    }
+
+    /// "Bescheinigungen: 2 verfügbar" (Ergebnis des Sync)
+    static func certificatesNote(_ offers: Int) -> String {
+        offers == 0 ? "Bescheinigungen: keine verfügbar" : "Bescheinigungen: \(offers) verfügbar"
     }
 
     static func studIPNote(_ phase: StudIPSync.Phase) -> String? {
@@ -273,6 +282,8 @@ struct UniversitySyncReport: Equatable {
     var synced: [String] = []
     /// uebersprungen oder gescheitert, je kurz ("QIS: Anmeldung nötig")
     var notes: [String] = []
+    /// gelungen, mit Ergebnis ("Bescheinigungen: 2 verfügbar")
+    var info: [String] = []
     /// die Hochschule hat das gespeicherte Passwort abgelehnt
     var rejected = false
 
@@ -285,6 +296,7 @@ struct UniversitySyncReport: Equatable {
         var parts: [String] = []
         if rejected { parts.append("Die Hochschule hat das gespeicherte Passwort abgelehnt.") }
         parts.append(synced.isEmpty ? "Nichts abgeglichen." : "Abgeglichen: \(UniversitySyncStart.list(synced)).")
+        parts += info.map { $0 + "." }
         parts += notes.map { $0 + "." }
         return parts.joined(separator: " ")
     }

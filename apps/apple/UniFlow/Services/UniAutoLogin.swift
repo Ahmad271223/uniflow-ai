@@ -19,7 +19,8 @@ import WebKit
 //   Formular-Rechnern (das Skript prueft Rechner und Pfad selbst noch einmal); jede Weiterleitung auf einen fremden
 //   Rechner bricht ab. Das Passwort geht nie an StudiNow-Server, steht nie in einem Skript-Quelltext, nie im Protokoll.
 // - Abmelden, "Daten dieser Hochschule löschen", "Konto löschen" und "Gespeichertes Passwort löschen" entfernen den
-//   Eintrag. Lehnt die Hochschule das Passwort ab, vergisst die App seit 10.11.2026 genau diesen Eintrag (und jeden
+//   Eintrag. Lehnt die Hochschule das Passwort ab (seit 11.11.2026 nur mit Fehlertext der Seite, nie wegen einer
+//   stehenden Seite oder eines unbestaetigten Formulars), vergisst die App seit 10.11.2026 genau diesen Eintrag (und jeden
 //   gleichen), damit es nie ein zweites Mal gesendet wird, auch nicht nach einem Neustart: "Anmeldung nötig", die
 //   Einstellungen zeigen "abgelehnt", bis der Mensch ein neues Passwort speichert oder sich neu anmeldet.
 // - Seit 10.11.2026 auch von Hand in den Einstellungen, gemeinsam oder je Portal (UniPortalLogins.swift), und die App
@@ -334,7 +335,8 @@ final class UniCredentialCapture: NSObject, WKScriptMessageHandler {
 /// Stille Anmeldung: sehr kleine, durchsichtige Webansicht im Fenster (wie `StudIPSilentLogin`) mit der Konfiguration
 /// der Anmeldeansicht (Datenspeicher des Containers, kein Mitleseskript). Auf einem Formular der Hochschule fuellt sie
 /// Benutzername und Passwort ein (`UniLoginForms.fillFunctionBody`, Passwort als Argument) und sendet ab - jedes
-/// Formular hoechstens einmal; erscheint es danach wieder, hat die Hochschule das Passwort abgelehnt. Eine Navigation
+/// Formular hoechstens einmal; erscheint es danach mit Fehlertext wieder, hat die Hochschule das Passwort abgelehnt
+/// (ohne Fehlertext: `.failed`, Passwort bleibt; `UniAutoLoginFlow.rejects`). Eine Navigation
 /// des Hauptrahmens auf einen Rechner ausserhalb der Hochschule (oder http) wird abgebrochen.
 @MainActor
 enum UniAutoLoginWeb {
@@ -401,6 +403,7 @@ enum UniAutoLoginWeb {
                 case .done: return .success
                 case .abort: return .blocked
                 case .rejected: return .wrongPassword
+                case .giveUp: return .failed                       // ohne Fehlertext: nichts loeschen (11.11.2026)
                 case .fill(let form):
                     var result = await fill(web, form: form, credential: r.credential)
                     // HISinOne: "Zur Anmeldung" blendet das Formular per Ajax ein (ohne neue Seite): kurz warten, nochmals
@@ -421,13 +424,12 @@ enum UniAutoLoginWeb {
                 }
             }
             if stable?.url != u { stable = (u, Date()); continue }
-            // ohne Fortschritt: Seite steht (z. B. Zwischenseite, die einen Klick braucht). Steht nach dem eigenen
-            // Absenden noch dasselbe Formular da (SOGo meldet Fehler ohne neue Seite), gilt das Passwort als abgelehnt:
-            // nie ein zweites Mal damit (Sperre des Kontos nach Fehlversuchen)
+            // ohne Fortschritt: Seite steht (z. B. Zwischenseite, die einen Klick braucht, oder eine langsame Antwort).
+            // Seit 11.11.2026 gilt das nur mit echtem Fehlertext eines schon abgesendeten, bestaetigten Formulars als
+            // abgelehnt (`UniAutoLoginFlow.stalled`); sonst `.failed` (Ruecknahme, nichts geloescht). Schutz vor einer
+            // Kontosperre: hoechstens `UniAutoLoginMachine.maxFailures` Versuche ohne Handlung des Menschen.
             if Date().timeIntervalSince(stable?.since ?? Date()) > 8 {
-                if let form = UniLoginForms.form(for: u, university: r.university), submitted.contains(form.id),
-                   form.appears(in: await outerHTML(web)) { return .wrongPassword }
-                return .failed
+                return UniAutoLoginFlow.stalled(url: u, html: await outerHTML(web), university: r.university, submitted: submitted)
             }
         }
         return .failed

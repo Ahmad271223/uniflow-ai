@@ -182,12 +182,46 @@ final class UniAutoLoginTests: XCTestCase {
         XCTAssertEqual(UniAutoLoginFlow.step(url: u("http://sso.idm.uni-hannover.de/idp/"), html: form, university: .luh, domains: domains,
                                              submitted: [], isDone: false), .abort)
         XCTAssertEqual(UniAutoLoginFlow.step(url: u("https://sso.idm.uni-hannover.de/idp/"), html: form, university: .luh, domains: domains,
-                                             submitted: ["a", "b", "c"], isDone: false), .rejected, "hoechstens drei Formulare")
+                                             submitted: ["a", "b", "c"], isDone: false), .giveUp, "hoechstens drei Formulare, nichts loeschen")
         // HISinOne angemeldet mit verstecktem Dialog: Erfolg, nie ein Formular
         XCTAssertEqual(UniAutoLoginFlow.step(url: u("https://campusmanagement.hs-hannover.de/qisserver/pages/x.faces"),
                                              html: try fx("hisinone-angemeldet.html"), university: .hsh,
                                              domains: ["hs-hannover.de"], submitted: [], isDone: true), .done)
         XCTAssertTrue(UniAutoLoginFlow.allowed(URL(string: "about:blank"), domains: domains))
+    }
+
+    /// Befund 11.11.2026: ein Formular, das nach dem Absenden ohne Fehlertext wieder dasteht (langsame Seite, Neuladen),
+    /// und unbestaetigte Formulare (SOGo) galten als "falsches Passwort" - der Eintrag wurde geloescht und mit "überall
+    /// gleich" stand jedes Portal still. Abgelehnt ist es nur noch mit echtem Fehlertext eines bestaetigten Formulars.
+    func testOnlyARealFailureTextRejectsThePassword() throws {
+        let domains = ["uni-hannover.de"]
+        let sso = u("https://sso.idm.uni-hannover.de/idp/profile/SAML2/Redirect/SSO?execution=e1s2")
+        let form = try fx("luh-websso.html"), failure = try fx("luh-websso-fehler.html")
+        // Formular nach dem Absenden wieder da, ohne Fehlertext: abbrechen, nichts loeschen
+        XCTAssertEqual(UniAutoLoginFlow.step(url: sso, html: form, university: .luh, domains: domains, submitted: ["luh-websso"], isDone: false),
+                       .giveUp)
+        XCTAssertEqual(UniAutoLoginFlow.stalled(url: sso, html: form, university: .luh, submitted: ["luh-websso"]), .failed,
+                       "8 s ohne Fortschritt ohne Fehlertext")
+        // mit Fehlertext der Seite: abgelehnt (nach Neuladen und nach stehender Seite)
+        XCTAssertEqual(UniAutoLoginFlow.step(url: sso, html: failure, university: .luh, domains: domains, submitted: ["luh-websso"], isDone: false),
+                       .rejected)
+        XCTAssertEqual(UniAutoLoginFlow.stalled(url: sso, html: failure, university: .luh, submitted: ["luh-websso"]), .wrongPassword)
+        // noch nicht abgesendet: nie abgelehnt
+        XCTAssertEqual(UniAutoLoginFlow.stalled(url: sso, html: failure, university: .luh, submitted: []), .failed)
+        // QIS ohne Fehlertext (Formular steht nur noch da)
+        let qis = u("https://qis.verwaltung.uni-hannover.de/qisserver/rds?state=user&type=1")
+        let qisForm = try fx("luh-qis.html")
+        XCTAssertEqual(UniAutoLoginFlow.step(url: qis, html: qisForm, university: .luh, domains: domains, submitted: ["luh-qis"], isDone: false),
+                       .giveUp)
+        XCTAssertEqual(UniAutoLoginFlow.stalled(url: qis, html: qisForm, university: .luh, submitted: ["luh-qis"]), .failed)
+        // SOGo (Feldnamen am Geraet noch nicht bestaetigt): selbst mit Fehlertext nie loeschen
+        let sogo = u("https://kalender.uni-hannover.de/SOGo/")
+        let sogoFailure = try fx("sogo.html") + "<div>Wrong username or password</div>"
+        XCTAssertFalse(UniLoginForms.luhSOGo.confirmed)
+        XCTAssertTrue(UniLoginForms.luhSOGo.showsFailure(in: sogoFailure))
+        XCTAssertEqual(UniAutoLoginFlow.step(url: sogo, html: sogoFailure, university: .luh, domains: domains, submitted: ["luh-sogo"], isDone: false),
+                       .giveUp)
+        XCTAssertEqual(UniAutoLoginFlow.stalled(url: sogo, html: sogoFailure, university: .luh, submitted: ["luh-sogo"]), .failed)
     }
 
     // MARK: Wann still angemeldet wird

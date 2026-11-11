@@ -331,7 +331,8 @@ public enum UniLoginForms {
 public enum UniAutoLoginOutcome: Equatable, Sendable {
     /// angemeldet (Erfolgsseite des Dienstes erreicht)
     case success
-    /// die Hochschule hat das gespeicherte Passwort abgelehnt (Formular nach dem Absenden wieder da)
+    /// die Hochschule hat das gespeicherte Passwort abgelehnt: Formular (Feldnamen bestaetigt) nach dem Absenden wieder
+    /// da UND mit Fehlertext der Seite (`UniLoginForm.showsFailure`). Nur dann wird der Eintrag vergessen.
     case wrongPassword
     /// Zeitueberschreitung, kein Netz, Seite ohne bekanntes Formular
     case failed
@@ -345,8 +346,11 @@ public enum UniAutoLoginStep: Equatable, Sendable {
     case done
     /// Formular dieser Hochschule: einfuellen und absenden
     case fill(UniLoginForm)
-    /// Formular nach dem eigenen Absenden wieder da: Passwort abgelehnt
+    /// Formular nach dem eigenen Absenden wieder da, mit Fehlertext der Seite: Passwort abgelehnt
     case rejected
+    /// Formular nach dem eigenen Absenden wieder da, aber ohne Fehlertext (oder unbestaetigtes Formular, oder schon
+    /// `maxSubmits` Formulare): abbrechen wie eine Zeitueberschreitung (`.failed`), das Passwort bleibt (11.11.2026)
+    case giveUp
     /// fremder Rechner oder http: abbrechen
     case abort
     /// weiter warten (Weiterleitung, Zwischenseite)
@@ -374,9 +378,25 @@ public enum UniAutoLoginFlow {
         guard allowed(url, domains: domains) else { return .abort }
         if isDone { return .done }
         guard let form = UniLoginForms.form(for: url, university: university), form.appears(in: html) else { return .wait }
-        if submitted.contains(form.id) { return .rejected }
-        if submitted.count >= maxSubmits { return .rejected }
+        if submitted.contains(form.id) { return rejects(form, html: html) ? .rejected : .giveUp }
+        if submitted.count >= maxSubmits { return .giveUp }
         return .fill(form)
+    }
+
+    /// Gilt die Seite nach dem eigenen Absenden als echte Ablehnung? Nur bei einem Formular mit bestaetigten Feldnamen
+    /// und einem Fehlertext der Seite (Befund 11.11.2026: ein langsames Formular galt nach 8 s als "falsches Passwort",
+    /// das Passwort wurde geloescht und mit "überall gleich" stand jedes Portal still). SOGo & Co. (`confirmed: false`)
+    /// nie: dort bleibt es bei `.failed` und der Ruecknahme nach Fehlschlaegen (hoechstens `maxFailures` Versuche).
+    public static func rejects(_ form: UniLoginForm, html: String) -> Bool {
+        form.confirmed && form.appears(in: html) && form.showsFailure(in: html)
+    }
+
+    /// Die Seite steht seit einigen Sekunden ohne neue Navigation (z. B. Fehler per Ajax ohne neue Seite, langsame
+    /// Antwort): abgelehnt nur mit Fehlertext (`rejects`) eines schon abgesendeten Formulars, sonst `.failed`.
+    public static func stalled(url: URL?, html: String, university: UniversityKey, submitted: [String]) -> UniAutoLoginOutcome {
+        guard let form = UniLoginForms.form(for: url, university: university), submitted.contains(form.id),
+              rejects(form, html: html) else { return .failed }
+        return .wrongPassword
     }
 }
 
