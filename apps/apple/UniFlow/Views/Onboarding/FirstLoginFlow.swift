@@ -174,15 +174,23 @@ struct FirstLoginPage: View {
         .background(UF.bg.ignoresSafeArea())
     }
 
+    /// iPhone (Befund des Inhabers 11.11.2026: "Anweisung so gross", die Anmeldeseite darunter kaum zu sehen): kleiner
+    /// Kopf ohne Logo und ohne den Passwort-Satz (er steht im Hinweis unten unter "Mehr"); iPad unveraendert
+    private var phone: Bool { UFCompact.phoneLayouts }
+
     private var header: some View {
-        HStack(alignment: .top, spacing: 14.4) {
-            UFLogoMark(size: 40)
+        HStack(alignment: .top, spacing: phone ? 10 : 14.4) {
+            if !phone { UFLogoMark(size: 40) }
             VStack(alignment: .leading, spacing: 3.2) {
-                Text("Schritt \(index + 1) von \(count): \(step.title)").ufFont(20, 700, em: -0.01).foregroundStyle(UF.text)
+                Text("Schritt \(index + 1) von \(count): \(step.title)").ufFont(phone ? 16 : 20, 700, em: -0.01).foregroundStyle(UF.text)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("firststart.title")
-                Text(step.intro).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-                Text(Self.passwordNote)
-                    .ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                Text(step.intro).ufFont(phone ? 12.8 : 13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(phone ? 3 : nil)
+                if !phone {
+                    Text(Self.passwordNote)
+                        .ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             HStack(spacing: 6) {
@@ -193,7 +201,7 @@ struct FirstLoginPage: View {
             .padding(.top, 8)
             .accessibilityHidden(true)
         }
-        .padding(.horizontal, 25.6).padding(.vertical, 16)
+        .padding(.horizontal, phone ? 16 : 25.6).padding(.vertical, phone ? 10 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(UF.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
@@ -260,7 +268,10 @@ struct FirstLoginBottomBar: View {
     var body: some View {
         VStack(spacing: 2) {
             HStack(spacing: 8) {
-                Text(FirstLoginPage.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                // iPhone: nur der Knopf (der Satz kostete drei Zeilen ueber der Tastatur)
+                if !UFCompact.phoneLayouts {
+                    Text(FirstLoginPage.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer(minLength: 8)
                 UFButton("Später anmelden", icon: "arrow-right", kind: .ghost, size: .small) { onLater() }
                     .accessibilityIdentifier("firststart.later")

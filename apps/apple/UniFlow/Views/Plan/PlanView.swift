@@ -44,7 +44,9 @@ struct PlanView: View {
 
     /// Sieben Tagesspalten brauchen mindestens 560 pt (iPhone hoch: nein; iPad im schmalen Split View und iPhone quer: ja)
     static func weekFits(width: CGFloat) -> Bool { width >= 560 }
-    private var weekFits: Bool { !UFCompact.phoneLayouts || Self.weekFits(width: windowWidth) }      // iPad wie bisher
+    /// iPhone hochkant (11.11.2026): "Woche" wieder da, als Liste Montag–Sonntag (`PhoneWeekListView`) statt sieben Spalten
+    private var weekFits: Bool { !UFCompact.phoneLayouts || Self.weekFits(width: windowWidth) || phoneWeekList }      // iPad wie bisher
+    private var phoneWeekList: Bool { PhoneWeekList.applies(width: windowWidth) }
 
     /// Ansichten der Leiste; ohne Platz fuer die Woche ohne "Woche" (sie zeigt dann 3 Tage, `PlanView.shownView`)
     static func views(compact: Bool, weekFits: Bool = true) -> [(value: String, label: String, icon: String?)] {
@@ -195,6 +197,11 @@ struct PlanView: View {
         VStack(alignment: .leading, spacing: 0) {
             bar(d, wk: wk).padding(.bottom, 14.4)
             switch d.view {
+            case "week" where phoneWeekList:
+                PhoneWeekListView(days: d.days, packages: true,
+                                  openEvent: { e, date in actions.openOccurrence(e, date: date) },
+                                  openPackage: { p in actions.openPackage(p.i("id") ?? 0) },
+                                  addPackage: { date in actions.addPackage(date: date) })
             case "week", "3days": PlanWeekGrid(d: d)
             case "month": PlanMonthGrid(d: d)
             case "day":

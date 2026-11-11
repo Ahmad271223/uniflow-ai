@@ -471,7 +471,9 @@ final class UniversityLoginPolicyTests: XCTestCase {
                               "UniversityCredential", "UniversityLoginAutofill", "UniversityRememberBar", "prefillCredential",
                               "Auf diesem iPad merken", "füllt sie beim nächsten Mal", "setAttribute(", "autocomplete="]
                 where !(s.name == "UniLoginHelper.swift" && helperOnly.contains(forbidden))
-                    && !(s.name == "UniAutoLogin.swift" && autoLoginOnly.contains(forbidden)) {
+                    && !(s.name == "UniAutoLogin.swift" && autoLoginOnly.contains(forbidden))
+                    // 11.11.2026: nur Darstellung der QIS-Anmeldung am iPhone (Viewport und CSS), ohne Kanal
+                    && !(s.name == "QISPhoneFit.swift" && ["WKUserScript", "addUserScript"].contains(forbidden)) {
                 XCTAssertFalse(code.contains(forbidden), "\(s.name): \(forbidden)")
             }
             // Seitenskripte nur zum Lesen des Seiteninhalts (Erkennung der angemeldeten Seite), nie zum Setzen von Werten
@@ -493,6 +495,12 @@ final class UniversityLoginPolicyTests: XCTestCase {
         XCTAssertTrue(auto.contains("contentWorld: UniAutoLogin.world"), "Kanal und Einfuellen nur in der eigenen Welt")
         XCTAssertTrue(auto.contains("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"), "nur dieses Geraet")
         XCTAssertFalse(auto.contains("URLSession") || auto.contains("APIClient"), "das Passwort geht nie ins Netz der App")
+        // QIS am iPhone: nur Stil und Viewport, eigene Inhaltswelt, liest und setzt keine Werte, kein Kanal
+        let fit = try XCTUnwrap(sources.first { $0.name == "QISPhoneFit.swift" }).code.joined(separator: "\n")
+        XCTAssertTrue(fit.contains("forMainFrameOnly: true, in: .defaultClient"), "nur Hauptrahmen, eigene Inhaltswelt")
+        for f in [".value", "password'", "messageHandlers", "postMessage", "fetch(", "XMLHttpRequest", "cookie"] {
+            XCTAssertFalse(fit.contains(f), "QISPhoneFit: \(f)")
+        }
         let tokens = try XCTUnwrap(sources.first { $0.name == "UniversityTokens.swift" })
         XCTAssertFalse(tokens.code.joined().contains("password:"), "der Speicher nimmt kein Passwort an")
     }

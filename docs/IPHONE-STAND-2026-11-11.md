@@ -164,3 +164,19 @@ und kommentieren): „Lösung teilen …“ und „Meine geteilten Lösungen …
 Öffnen und Kommentieren fremder Lösungen ging am iPhone schon. iPhone: `IPhoneReaderTests` + `IPhoneLearnCommunityTests`
 17/0 (zwei neue Tests: Auswahl im Dokument, Dialog liest die iPad-Notizen und schreibt nichts). iPad-Gegenprobe
 (Community, Teilen, Tarife, Abnahme) 78/0; die Änderung wirkt nur am iPhone.
+
+Nachtrag 11.11.2026 nachts (Befund des Inhabers am eigenen iPhone 15 Pro): „Wochenansicht fehlt komplett, alles muss
+lesbar sein“ und „Anmelden QIS/Stud.IP nicht lesbar, weil Anweisung so groß“.
+- **Woche am iPhone hochkant als Liste** Montag–Sonntag (`Views/Plan/PhoneWeekList.swift`): im Lernkalender „Woche“
+  wieder in der Leiste (Termine und Lernblöcke nach Uhrzeit, volle Titel, Zeit, Raum, Status, „+“ je Tag), im
+  Stundenplan statt der abgeschnittenen Spalten (leeres Wochenende ausgeblendet). Quer und am iPad das Raster wie bisher.
+- **QIS-Anmeldung am iPhone**: Die QIS-Seite ist eine reine Rechner-Seite (970 pt, ohne Viewport); iOS zeigte sie
+  winzig, groß blieb nur die Begrüßung. `Views/QISPhoneFit.swift` setzt nur am iPhone Viewport und Stil (Kopfbild,
+  Menü weg, Felder und „Login“ in voller Breite); liest und setzt nichts (Prüfung in `UniversityLoginPolicyTests`).
+  Die Stud.IP-Anmeldung (WebSSO der LUH) ist schon fürs Handy gebaut.
+- **Weniger Text um die Anmeldung am iPhone**: erster Start mit kleinem Kopf ohne Logo und ohne den Passwort-Satz,
+  Schalter „Passwort auf diesem iPhone merken“ einzeilig, „Später anmelden“ ohne Satz daneben. iPad unverändert.
+- Tests: `IPhoneWeekListTests` 6/0 (Liste lesbar auf allen iPhone-Größen, Wochenende, nur iPhone, QIS-Seite passt,
+  erster Start klein), alle iPhone-Tests 112/0 + 6/0; iPad-Gegenprobe (Lernkalender, Stundenplan, Anmeldung, erster
+  Start, QIS, Breiten) 107 + 24 Tests grün nach der Korrektur am Sicherheitstest.
+

@@ -422,6 +422,8 @@ struct StudIPWebView: UIViewRepresentable {
     var loginHelper = true
     /// erste Seite ohne Cache laden (HsH-Campus: eine Fehlerseite des IdP nie aus dem Cache zeigen)
     var cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    /// QIS-Anmeldung am iPhone handlich machen (`QISPhoneFit`, nur iPhone; iPad unveraendert)
+    var phoneFitQIS = false
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -445,6 +447,7 @@ struct StudIPWebView: UIViewRepresentable {
         // seit 06.11.2026 (Entscheidung des Inhabers): mit "Passwort auf diesem iPad merken" liest ein Skript in eigener
         // Inhaltswelt beim Absenden Benutzername und Passwort des echten Formulars der Hochschule mit (`UniAutoLogin`)
         if !url.isFileURL { UniCredentialCapture.install(in: config, dataStore: dataStore) }
+        if phoneFitQIS, UFCompact.phoneLayouts { QISPhoneFit.install(in: config) }
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         load?.webView = view
