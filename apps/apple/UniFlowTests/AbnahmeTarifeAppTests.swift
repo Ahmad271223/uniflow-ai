@@ -372,7 +372,7 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         let expected: [UFFeature: UFPlan] = [
             .studipSync: .free, .readDocuments: .free, .modulesTimetable: .free, .studyCalendar: .free, .studyPlanning: .free,
             .timer: .free, .viewNotes: .free, .uniGrades: .free, .ownChatGPT: .free,
-            .pencilWriting: .plus, .communityRead: .plus, .shareSolutions: .plus, .splitView: .plus, .flashcards: .plus, .autoPlan: .plus,
+            .pencilWriting: .plus, .communityRead: .plus, .shareSolutions: .plus, .splitView: .plus, .flashcards: .plus, .dueReminders: .plus, .autoPlan: .plus,
             .aiHelp: .proAI, .aiFlashcards: .proAI, .weeklyTests: .proAI, .deviceSync: .proAI,
         ]
         var table = ["Funktion | Free | Plus | Pro AI | Probe läuft | Probe vorbei"]

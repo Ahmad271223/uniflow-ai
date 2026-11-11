@@ -40,6 +40,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
+    case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen; can_use_due_reminders, ab Plus
+                             // seit 11.11.2026, vorher Free). Die Fristen-Liste bleibt in jedem Tarif
     case autoPlan            // Lernplan automatisch erstellen (GeneratePlanDialog, POST /api/calendar/generate, auch
                              // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
                              // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
@@ -64,7 +66,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
              .uniGrades, .ownChatGPT:
             return .free
-        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor:
+        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor,
+             .dueReminders:
             return .plus
         case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync:
             return .proAI
@@ -94,6 +97,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .dueReminders: return "Erinnerungen an Abgaben und Klausuren"
         case .autoPlan: return "Lernplan automatisch erstellen"
         case .aiHelp: return "KI-Hilfe zu deinen Unterlagen"
         case .aiFlashcards: return "Karteikarten aus deinen Unterlagen"
@@ -115,6 +119,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
+        case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
         case .aiHelp: return "Zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“"
         case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen"
@@ -140,6 +145,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "users"
         case .splitView: return "columns"
         case .flashcards: return "cards"
+        case .dueReminders: return "bell"
         case .autoPlan: return "calendar"
         case .aiHelp: return "sparkles"
         case .aiFlashcards: return "cards"

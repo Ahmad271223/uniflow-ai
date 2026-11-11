@@ -195,6 +195,12 @@ aufnehmen (dann z. B. „Hochschule“ und „Noten“ weglassen, max. 100 Zeich
 Stud.IP,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Hannover,Hochschule,Noten
 ```
 
+## Für die nächste Version (nach 1.0.2) ändern
+
+- **Erinnerungen ab Plus** (Entscheidung des Inhabers 11.11.2026, ab Build 32): In der Beschreibung bei „Mit Plus“
+  „Erinnerungen an Abgaben und Klausuren“ ergänzen und sie nicht als Free-Funktion nennen. In App Store Connect erst
+  mit der nächsten Versionsseite eintragen; 1.0.2 (Build 31) erinnert noch in jedem Tarif, der Text dort stimmt.
+
 ## Neue Funktionen in dieser Version (1.0.2) – 628 Zeichen
 
 So seit 10.11.2026 in App Store Connect (Version 1.0.2, Build 31).

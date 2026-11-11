@@ -225,10 +225,21 @@ struct DueTimeDialog: View {
 /// Einstellungen: Erinnerungen an/aus. Erst das Einschalten fragt iOS nach der Erlaubnis.
 struct DueReminderCard: View {
     @ObservedObject private var scheduler = DueReminderScheduler.shared
+    @ObservedObject private var entitlements = Entitlements.shared
     @State private var asking = false
     @State private var hint: String?
 
     var body: some View {
+        // ab Plus (11.11.2026): ohne Plus die Sperrkarte mit "Mit StudiNow Plus freischalten" statt des Schalters
+        if !entitlements.allows(.dueReminders) {
+            UFLockedCard(.dueReminders, entitlements: entitlements)
+                .accessibilityIdentifier("due.reminders.locked")
+        } else {
+            switchCard
+        }
+    }
+
+    private var switchCard: some View {
         UFCard {
             UFCardHead(DueTexts.reminderTitle, icon: "bell") {
                 UFBadge(scheduler.enabled ? "an" : "aus", tone: scheduler.enabled ? .ok : .neutral)

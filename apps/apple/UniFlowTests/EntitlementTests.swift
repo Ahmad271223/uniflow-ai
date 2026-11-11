@@ -116,7 +116,8 @@ final class EntitlementTests: XCTestCase {
                        // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026);
                        // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel in jedem Tarif (07.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
-                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan])
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .dueReminders, .autoPlan])
+                       // Erinnerungen an Abgaben und Klausuren ab Plus (Entscheidung 11.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync])
         for f in UFFeature.allCases where f.minimumPlan < .proAI {
             XCTAssertFalse(f.title.contains("KI"), f.rawValue)

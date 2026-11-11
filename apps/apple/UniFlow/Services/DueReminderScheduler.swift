@@ -86,6 +86,9 @@ final class DueReminderScheduler: ObservableObject {
     let notifier: DueNotifying
     /// jetzt (Tests: feste Zeit)
     var now: () -> Date = { Date() }
+    /// Tarif erlaubt Erinnerungen (ab Plus seit 11.11.2026, `UFFeature.dueReminders`; Probe zaehlt wie Plus). Ohne:
+    /// nichts geplant, schon geplante werden zurueckgenommen, der Schalter bleibt gemerkt (nach dem Kauf geht es weiter)
+    var allowed: () -> Bool = { Entitlements.shared.allows(.dueReminders) }
     private let defaults: UserDefaults
     private weak var containers: ContainerManager?
     private var bag = Set<AnyCancellable>()
@@ -107,6 +110,9 @@ final class DueReminderScheduler: ObservableObject {
         guard self.containers !== containers else { return }
         self.containers = containers
         bag.removeAll()
+        // Tarif gewechselt (Kauf, Probe zu Ende, Abo abgelaufen): neu planen bzw. zuruecknehmen
+        Entitlements.shared.$plan.removeDuplicates().dropFirst()
+            .sink { [weak self] _ in self?.schedule(recompute: false) }.store(in: &bag)
         containers.$active.removeDuplicates { $0 === $1 }
             .sink { [weak self] _ in self?.schedule(recompute: true) }.store(in: &bag)
         containers.$studip.map { $0.$finishedRuns.dropFirst() }.switchToLatest()
@@ -157,7 +163,7 @@ final class DueReminderScheduler: ObservableObject {
         guard let list = try? await api.value("/api/due") else { return }       // Fehler: die geplanten bleiben
         if list["refreshed"]?.bool == true { revision += 1 }
         guard containers?.active === c else { return }                          // inzwischen gewechselt: der naechste Lauf plant
-        guard enabled, await notifier.status() == .allowed else {
+        guard enabled, allowed(), await notifier.status() == .allowed else {
             await withdrawAll()
             return
         }
@@ -186,6 +192,7 @@ final class DueReminderScheduler: ObservableObject {
             await withdrawAll()
             return true
         }
+        guard allowed() else { return false }                                  // ab Plus: die Karte zeigt die Sperre
         let ok: Bool
         switch await notifier.status() {
         case .allowed: ok = true
