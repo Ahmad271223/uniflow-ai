@@ -72,7 +72,7 @@ def test_released_builds_and_build_33():
     s = submitted()
     assert s is None or s < project_build(), "neuere Aenderungen stehen nur in einem spaeteren Build"
     yml = YML.read_text(encoding="utf-8")
-    assert not re.search(r'MARKETING_VERSION: "1\\.0"', yml), "1.0 wurde nie veroeffentlicht"
+    assert not re.search(r'MARKETING_VERSION: "1\.0"', yml), "1.0 wurde nie veroeffentlicht"
 
 
 def test_app_store_md_names_the_same_builds_as_project_yml_and_this_table():
