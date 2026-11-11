@@ -365,6 +365,12 @@ final class EditorVerbesserungTests: XCTestCase {
 
     // MARK: Schreiblupe
 
+    /// Am iPad bleibt die Vergroesserung wie in baddff02, am Mac zaehlt der Zoom der Seite mit
+    func testMagnifierZoomOnlyFollowsDisplayOnMac() {
+        XCTAssertEqual(WritingMagnifier.macZoom(scaleFactor: 2.3, isMac: false), WritingMagnifier.zoom, "iPad unveraendert")
+        XCTAssertEqual(WritingMagnifier.macZoom(scaleFactor: 2.3, isMac: true), WritingMagnifier.zoom * 2.3, accuracy: 0.001)
+    }
+
     /// Rahmen dreifach gegenueber der Anzeige: bei 2-fachem Zoom halb so breit wie ohne Zoom
     func testMagnifierFrameFollowsZoom() {
         let strip = CGSize(width: 900, height: 190)
@@ -399,8 +405,12 @@ final class EditorVerbesserungTests: XCTestCase {
         editor.view.layoutIfNeeded()
         let strip = m.canvas.bounds.size
         XCTAssertGreaterThan(strip.width, 100)
-        // ohne Aufruf von `transfer`: die Meldung "Zeichnung geaendert" reicht (am Mac fehlte "Werkzeug fertig")
+        // am Mac reicht die Meldung "Zeichnung geaendert" (dort fehlte "Werkzeug fertig"); am iPad wie bisher `transfer`
         m.canvas.drawing = PKDrawing(strokes: [Self.line(from: CGPoint(x: 10, y: 10), to: CGPoint(x: strip.width * 0.4, y: 20))])
+        if !PDFEditorController.isMac {
+            XCTAssertEqual(m.canvas.drawing.strokes.count, 1, "iPad: Streifen wartet auf \"Werkzeug fertig\"")
+            m.transfer()
+        }
         try await wait("uebertragen") { overlay.canvas.drawing.strokes.count == 1 }
         XCTAssertTrue(m.canvas.drawing.strokes.isEmpty, "Streifen wieder leer")
         let b = overlay.canvas.drawing.strokes[0].renderBounds
@@ -485,11 +495,12 @@ final class EditorVerbesserungTests: XCTestCase {
         editor.perform(PDFEditorController.presentationCommand(.screenDown), animated: false)
         try await wait("naechste Seite") { editor.currentPageIndex == before + 1 }
         // Esc beendet die Praesentation (ueber die Dokumentansicht)
+        // nur am Mac (Vorgabe 11.11.2026: am iPad unveraendert wie in baddff02)
         var ended = false
         editor.onEndPresentation = { ended = true }
-        XCTAssertTrue(editor.canPerformAction(#selector(PDFEditorController.finishObjectsKey(_:)), withSender: nil))
+        XCTAssertEqual(editor.canPerformAction(#selector(PDFEditorController.finishObjectsKey(_:)), withSender: nil), PDFEditorController.isMac)
         editor.finishObjectsKey(nil)
-        XCTAssertTrue(ended, "Esc meldet das Ende der Praesentation")
+        XCTAssertEqual(ended, PDFEditorController.isMac, "Esc beendet die Praesentation nur am Mac")
         editor.presentationMode = false
         XCTAssertTrue(editor.pickerAllowed)
         XCTAssertEqual(editor.pdfView.scaleFactor, widthFit, accuracy: 0.01, "zurueck auf Seitenbreite")

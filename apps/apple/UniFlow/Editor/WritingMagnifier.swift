@@ -25,6 +25,11 @@ final class WritingMagnifier: NSObject, PKCanvasViewDelegate {
     static let zoom: CGFloat = 3
     /// So weit rechts (Anteil der Streifenbreite) beginnt das automatische Weiterruecken
     static let advanceAt: CGFloat = 0.82
+    /// Vergroesserung des Rahmens: am Mac dreifach gegenueber der Anzeige (der Zoom der Seite zaehlt mit), am iPad wie
+    /// in baddff02 dreifach gegenueber Seitenpunkten (Vorgabe 11.11.2026: iPad unveraendert)
+    static func macZoom(scaleFactor: CGFloat, isMac: Bool) -> CGFloat {
+        isMac ? zoom * max(0.5, scaleFactor) : zoom
+    }
     /// Streifen wird gerade geleert (keine erneute Uebertragung)
     private var transferring = false
 
@@ -182,7 +187,8 @@ final class WritingMagnifier: NSObject, PKCanvasViewDelegate {
     /// Auch ohne "Werkzeug fertig" (am Mac mit Maus und Trackpad kam es im Test nicht immer): PencilKit meldet die
     /// Aenderung erst, wenn der Strich fertig ist, also gleich uebertragen
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        guard !transferring, !canvasView.drawing.strokes.isEmpty else { return }
+        // nur am Mac (am iPad meldet der Stift "Werkzeug fertig" zuverlaessig; dort bleibt es wie in baddff02)
+        guard PDFEditorController.isMac, !transferring, !canvasView.drawing.strokes.isEmpty else { return }
         transfer()
     }
 
@@ -224,7 +230,7 @@ extension PDFEditorController {
         // dreifach gegenueber der Anzeige: der aktuelle Zoom der Seite zaehlt mit (vorher dreifach gegenueber Seitenpunkten;
         // bei 230 % Zoom vergroesserte der Streifen kaum, der Rahmen war fast so breit wie das Fenster)
         let size = WritingMagnifier.regionSize(stripSize: CGSize(width: stripWidth, height: WritingMagnifier.panelHeight - 40),
-                                               zoom: WritingMagnifier.zoom * max(0.5, pdfView.scaleFactor))
+                                               zoom: WritingMagnifier.macZoom(scaleFactor: pdfView.scaleFactor, isMac: Self.isMac))
         // Rahmen links oben im sichtbaren Teil der Seite
         let visible = pdfView.convert(pdfView.bounds, to: overlay.content).intersection(overlay.content.bounds)
         let top = visible.isNull ? 40 : visible.minY + 40

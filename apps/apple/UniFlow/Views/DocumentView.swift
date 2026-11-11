@@ -613,7 +613,7 @@ struct DocumentView: View {
         }
         .defersSystemGestures(on: tracing ? .all : [])
         // Reiterleiste der offenen Dokumente aus: beim Abpausen und in der Praesentation
-        .preference(key: EditorTracingKey.self, value: chromeHidden)
+        .preference(key: EditorTracingKey.self, value: PDFEditorController.isMac ? chromeHidden : tracing)
         .background {
             // Cmd-L: Ansicht fixieren bzw. loesen (beim Abpausen ohne Wirkung)
             Button("") { requestFreeze(.view) }

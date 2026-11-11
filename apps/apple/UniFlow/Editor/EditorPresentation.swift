@@ -21,7 +21,7 @@ extension PDFEditorController {
             showToolPicker(pickerAllowed)
             fitWidth()
             // zurueck auf Seitenbreite: dieselbe Seite oben zeigen (sonst stand die Ansicht mitten in ihrem leeren Teil)
-            if let page { DispatchQueue.main.async { [weak self] in self?.pdfView.go(to: page) } }
+            if Self.isMac, let page { DispatchQueue.main.async { [weak self] in self?.pdfView.go(to: page) } }
         }
     }
 

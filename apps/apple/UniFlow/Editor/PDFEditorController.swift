@@ -486,7 +486,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         if action == #selector(editorKey(_:)) { return acceptsEditorKeys }
         if let edit = canPerformEditAction(action) { return edit }
         if action == #selector(deleteSelectedObjects(_:)) { return acceptsEditorKeys && objects.selection != nil }
-        if action == #selector(finishObjectsKey(_:)) { return presentationMode || (acceptsEditorKeys && objects.isActive) }
+        if action == #selector(finishObjectsKey(_:)) { return (Self.isMac && presentationMode) || (acceptsEditorKeys && objects.isActive) }
         return super.canPerformAction(action, withSender: sender)
     }
 
