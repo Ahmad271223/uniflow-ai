@@ -204,6 +204,8 @@ struct DocumentView: View {
     @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
     /// an der Kopfzeile getauschte Paare (SplitSides.swift), wie die Breite der Teilung auf dem Geraet gemerkt
     @AppStorage(SplitSides.swappedKey) private var splitSwapped = ""
+    /// Breite der KI-Hilfe, am Rand gezogen und je Geraet gemerkt (TutorPanelWidth.swift; 0 = Standard)
+    @AppStorage(TutorPanelWidth.key) private var tutorStoredWidth = 0.0
     /// Ziehen an der Kopfzeile der Spalte daneben laeuft (x im Raum "split", nil = noch nicht bewegt)
     @State private var swapDrag: CGFloat?? = nil
     @State private var fullScreen = false
@@ -514,8 +516,23 @@ struct DocumentView: View {
     /// Tarif mit Schreiben (sonst Schloss mit Weg zur Abo-Seite)
     private var planAllowsWriting: Bool { entitlements.notes.canEdit }
 
-    /// Breite der KI-Hilfe: genug zum Lesen, die PDF behaelt den Grossteil
-    static func tutorWidth(_ total: CGFloat) -> CGFloat { min(400, max(300, total * 0.32)) }
+    /// Standardbreite der KI-Hilfe: genug zum Lesen, die PDF behaelt den Grossteil (`TutorPanelWidth.standard`)
+    static func tutorWidth(_ total: CGFloat) -> CGFloat { TutorPanelWidth.standard(total) }
+
+    /// Feste Spalten neben der KI-Hilfe (Seitenleiste, Spalte daneben mit Griff): die PDF behaelt daneben ihren Platz
+    private func tutorReserved(_ total: CGFloat) -> CGFloat {
+        (showSidebar ? 201 : 0) + (hasSidePane ? total * splitFraction + 12 : 0)
+    }
+
+    /// Breite der KI-Hilfe: gemerkt (am Rand gezogen) oder Standard, in den Grenzen des Fensters
+    private func currentTutorWidth(_ total: CGFloat) -> CGFloat {
+        TutorPanelWidth.width(stored: tutorStoredWidth, total: total, reserved: tutorReserved(total))
+    }
+
+    /// Griff am inneren Rand der KI-Hilfe (statt der Trennlinie)
+    private func tutorHandle(panelOnLeft: Bool, total: CGFloat) -> some View {
+        TutorResizeHandle(panelOnLeft: panelOnLeft, total: total, reserved: tutorReserved(total), stored: $tutorStoredWidth)
+    }
 
     /// KI-Hilfe neben der PDF; Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem
     /// Schluessel, beides beim Senden
@@ -557,8 +574,8 @@ struct DocumentView: View {
                             Divider()
                         }
                         if showTutor, scriptLeft, !chromeHidden {
-                            tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
-                            Divider()
+                            tutorPanel.frame(width: currentTutorWidth(geo.size.width))
+                            tutorHandle(panelOnLeft: true, total: geo.size.width)
                         }
                         // Spalte daneben links oder rechts (SplitSides); dieselben Ansichten, wenn die Seite wechselt
                         SplitRow(sideLeft: sideLeft) {
@@ -570,8 +587,8 @@ struct DocumentView: View {
                             primaryPane
                         }
                         if showTutor, !scriptLeft, !chromeHidden {
-                            Divider()
-                            tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
+                            tutorHandle(panelOnLeft: false, total: geo.size.width)
+                            tutorPanel.frame(width: currentTutorWidth(geo.size.width))
                         }
                         if showSidebar, !scriptLeft, !chromeHidden {
                             Divider()

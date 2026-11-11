@@ -370,4 +370,45 @@ final class StudiNowAITests: XCTestCase {
         XCTAssertTrue(st.trialActive)
         XCTAssertEqual(st.appleAccountToken, "3F2504E0-4F89-11D3-9A0C-0305E82C3301")
     }
+    // MARK: Stopp (11.11.2026)
+
+    /// Dienst, der erst nach langer Zeit antwortet; ein Abbruch kommt wie bei URLSession als URLError(.cancelled)
+    final class SlowService: ServiceHTTPTransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var calls = 0
+        var count: Int { lock.withLock { calls } }
+        func send(_ request: AIHTTPRequest) async throws -> ServiceHTTPResponse {
+            lock.withLock { calls += 1 }
+            do { try await Task.sleep(nanoseconds: 5_000_000_000) } catch { throw URLError(.cancelled) }
+            return ServiceHTTPResponse(status: 200, body: Data(#"{"answer": "zu spaet"}"#.utf8))
+        }
+    }
+
+    /// "Stopp" in der KI-Hilfe bricht die Aufgabe ab: die Anfrage an den Dienst endet sofort und kommt als Abbruch an
+    /// (vorher 503 "StudiNow-KI nicht erreichbar", weil URLSession URLError(.cancelled) wirft); das lokale Backend
+    /// antwortet 499 ohne Fehlermeldung fuers Protokoll
+    func testStopCancelsTheRelayRequestAsCancellationNotAsUnreachable() async throws {
+        let slow = SlowService()
+        let ai = StudiNowAI(base: base, http: slow, tokens: MemoryTokenStore("tok"), consent: FixedConsent(true))
+        let task = Task { try await AIRelayTask.run(AIRelayTask("tutor:explain")) { try await ai.answer(system: "", prompt: "p") } }
+        while slow.count == 0 { try await Task.sleep(nanoseconds: 5_000_000) }
+        let started = Date()
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("abgebrochen")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("Abbruch statt \(error)")
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 1, "sofort, nicht erst nach der Antwort")
+        XCTAssertEqual(slow.count, 1, "kein zweiter Versuch nach dem Abbruch")
+
+        let b = try await backend(ai)
+        let call = Task { await post(b, "/api/ai/tutor", ["mode": "explain", "page_text": "Seite"]) }
+        while slow.count < 2 { try await Task.sleep(nanoseconds: 5_000_000) }
+        call.cancel()
+        let r = await call.value
+        XCTAssertEqual(r.status, 499, String(decoding: r.body, as: UTF8.self))
+    }
 }

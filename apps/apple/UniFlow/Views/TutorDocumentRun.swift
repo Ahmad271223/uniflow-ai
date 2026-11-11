@@ -90,7 +90,13 @@ enum TutorDocRun {
     }
 }
 
-/// Ablauf eines Laufs: Plan holen, bei Bedarf nach den Kosten fragen, die Teile nacheinander holen
+/// Ablauf eines Laufs: Plan holen, bei Bedarf nach den Kosten fragen, die Teile nacheinander holen.
+///
+/// "Stopp" (`cancel`, Meldung des Inhabers 11.11.2026: "wenn man auf Stopp klickt bei KI wird sie nicht gestoppt"): bis
+/// dahin setzte `cancel` nur eine Marke, die der Lauf erst VOR dem naechsten Teil las - die laufende Anfrage lief zu Ende
+/// (beim Dienst bis zu einer Minute), ihr Teil erschien noch nach dem Stopp und der Fortschritt blieb so lange stehen.
+/// Jetzt bricht `cancel` die laufende Anfrage selbst ab (Task-Abbruch bis in URLSession), der Lauf ist sofort wieder
+/// bereit (`phase` .idle) und zeigt nichts mehr an; `run` endet mit `CancellationError`.
 @MainActor
 final class TutorDocRunner: ObservableObject {
     enum Phase: Equatable { case idle, confirm, running }
@@ -99,7 +105,10 @@ final class TutorDocRunner: ObservableObject {
     @Published private(set) var plan: JSONValue?
     @Published private(set) var progress = ""
     private var request: [String: JSONValue] = [:]
-    private var cancelled = false
+    /// Kennung des laufenden Laufs; `cancel` nimmt sie weg (ein spaeter zurueckkehrender alter Lauf aendert dann nichts mehr)
+    private var runID: UUID?
+    /// die Anfrage des Teils, der gerade geholt wird
+    private var inflight: Task<JSONValue, Error>?
 
     var mode: String { plan?["mode"]?.string ?? "lecture" }
     var steps: [JSONValue] { plan?["steps"]?.array ?? [] }
@@ -111,6 +120,7 @@ final class TutorDocRunner: ObservableObject {
         if let scope { body["scope"] = scope }
         if let question { body["question"] = .string(question) }
         let p = try await api.value("/api/ai/document/plan", method: "POST", body: .object(body))
+        try Task.checkCancellation()                     // Stopp waehrend des Plans: keine Rueckfrage, kein Lauf
         guard p["intent"]?.bool == true else { return nil }
         plan = p
         request = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": p["mode"] ?? "lecture", "scope": p["scope"] ?? ["kind": "all"]]
@@ -124,27 +134,56 @@ final class TutorDocRunner: ObservableObject {
         plan = nil
     }
 
-    func cancel() { cancelled = true }
+    /// Stopp: die laufende Anfrage abbrechen, keinen weiteren Teil holen oder zeigen, sofort wieder bereit
+    func cancel() {
+        runID = nil
+        inflight?.cancel()
+        inflight = nil
+        if phase == .running { phase = .idle }
+        progress = ""
+    }
+
+    /// Laeuft dieser Lauf noch (nicht gestoppt, Aufgabe nicht abgebrochen)?
+    private func check(_ id: UUID) throws {
+        if runID != id || Task.isCancelled { throw CancellationError() }
+    }
 
     /// Die Teile nacheinander; `update` bekommt nach jedem Teil alle Bloecke bisher und wie viele Teile aus dem
-    /// Speicher kamen. Wirft beim ersten Fehler (die bisherigen Bloecke bleiben).
+    /// Speicher kamen. Wirft beim ersten Fehler (die bisherigen Bloecke bleiben), nach "Stopp" `CancellationError`.
     func run(api: APIClient, force: Bool = false, note: (JSONValue) -> Void = { _ in },
              update: ([DocExplain.Block], _ cached: Int, _ total: Int) -> Void) async throws {
         let steps = self.steps
         guard !steps.isEmpty else { return }
+        let id = UUID()
+        runID = id
         phase = .running
-        cancelled = false
-        defer { phase = .idle; progress = "" }
+        defer {
+            if runID == id {
+                runID = nil
+                phase = .idle
+                progress = ""
+            }
+        }
         var blocks: [DocExplain.Block] = []
         var cached = 0
         for (i, s) in steps.enumerated() {
-            if cancelled { break }
+            try check(id)
             progress = TutorDocRun.progress(done: i, total: steps.count, title: s["title"]?.string ?? "")
             var body = request
             body["step"] = s["id"] ?? .null
             body["request_id"] = .string(UUID().uuidString)
             if force { body["force"] = true }
-            let r = try await api.value("/api/ai/document/step", method: "POST", body: .object(body))
+            let call = Task { [body] in try await api.value("/api/ai/document/step", method: "POST", body: .object(body)) }
+            inflight = call
+            let r: JSONValue
+            do {
+                r = try await withTaskCancellationHandler { try await call.value } onCancel: { call.cancel() }
+            } catch {
+                try check(id)                            // abgebrochen: kein Fehler, sondern Stopp
+                throw error
+            }
+            if inflight == call { inflight = nil }
+            try check(id)                                // Antwort kam nach dem Stopp: nicht mehr zeigen
             note(r)
             if r["stored"]?["stored"]?.bool == true { cached += 1 }
             blocks += (r["blocks"]?.array ?? []).compactMap(DocExplain.Block.init(json:))
@@ -254,6 +293,8 @@ struct TutorScopeSegments: UIViewRepresentable {
 struct TutorDocRunCard: View {
     @ObservedObject var runner: TutorDocRunner
     let start: () -> Void
+    /// "Stopp" der KI-Hilfe (bricht auch die Aufgabe dahinter ab); ohne Angabe nur der Lauf
+    var stop: (() -> Void)? = nil
 
     var body: some View {
         switch runner.phase {
@@ -280,7 +321,8 @@ struct TutorDocRunCard: View {
                 ProgressView()
                 UFShimmerText(runner.progress)
                 Spacer(minLength: 4)
-                UFButton("Stopp", kind: .ghost, size: .small) { runner.cancel() }.accessibilityIdentifier("tutor.doc.stop")
+                UFButton("Stopp", kind: .ghost, size: .small) { if let stop { stop() } else { runner.cancel() } }
+                    .accessibilityIdentifier("tutor.doc.stop")
             }
             .accessibilityIdentifier("tutor.doc.progress")
         case .idle:
