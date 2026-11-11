@@ -93,8 +93,9 @@ Fenster erscheint, abgebrochen), Tarifwahl, Hochschulwahl (LUH), Anmeldeseiten S
 
 Repariert, nur am Mac: Texte mit „Apple Pencil“ bzw. „iOS … Schlüssel-Symbol“ (jetzt Maus/Trackpad bzw. Passwörter-App
 des Mac, `UFDevice.adapt`); „Plus holen“ öffnete den Reiter „plan“ = Lernzeit statt der Tarife – am Mac jetzt die
-Tarifwahl. **Am iPad besteht derselbe Fehler bei „Plus holen“ weiter** (Vorgabe: iPad nicht anfassen; Korrektur wäre eine
-Zeile in `Design/AppShell.swift`, `upgradeButton`).
+Tarifwahl. Auf Wunsch des Inhabers (11.11.2026, einzige Ausnahme von „iPad nicht anfassen“) gilt die Korrektur von
+„Plus holen“ auch am iPad (`UFSidebar.upgradeTarget`, Test `testUpgradeButtonOpensThePlansOnIPadAndMac`, am alten Stand
+rot).
 
 Schlüsselbund am Mac: `AbnahmeV1AppTests` (Schlüsselbund) am Mac grün; der frühere Fehler −25308 kam vom gesperrten Mac.
 

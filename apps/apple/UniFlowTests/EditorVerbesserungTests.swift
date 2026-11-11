@@ -542,4 +542,13 @@ final class EditorVerbesserungTests: XCTestCase {
         support.adoptContextMenu(of: canvas)
         XCTAssertEqual(inner.interactions.filter { $0 is UIContextMenuInteraction }.count, 1, "nicht doppelt")
     }
+
+    // MARK: "Plus holen" (11.11.2026, auch am iPad)
+
+    /// "Plus holen" oeffnet die Tarifwahl – nicht den Reiter "plan" (das ist der Lernplan), am iPad wie am Mac
+    func testUpgradeButtonOpensThePlansOnIPadAndMac() {
+        XCTAssertEqual(UFSidebar.upgradeTarget(hasShowPlans: false, hasSwitchPlan: true), .switchPlan, "iPad und Mac: Tarifwahl")
+        XCTAssertEqual(UFSidebar.upgradeTarget(hasShowPlans: true, hasSwitchPlan: true), .showPlans, "Rahmen gewinnt")
+        XCTAssertEqual(UFSidebar.upgradeTarget(hasShowPlans: false, hasSwitchPlan: false), .settingsPlanTab, "Rueckfall")
+    }
 }
