@@ -86,7 +86,7 @@ final class StudoraAccountLink: ObservableObject {
         let key = "uniflow.account.deviceID"
         if let id = UserDefaults.standard.string(forKey: key) { return id }
         // neue Kennungen auf dem Mac mit "mac-" (vorhandene bleiben); der Dienst wertet das Praefix nicht aus
-        let id = AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac) + UUID().uuidString.lowercased()
+        let id = AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac, isPhone: UFDevice.isPhone) + UUID().uuidString.lowercased()
         UserDefaults.standard.set(id, forKey: key)
         return id
     }

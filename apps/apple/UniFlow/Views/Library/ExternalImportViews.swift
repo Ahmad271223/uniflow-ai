@@ -30,8 +30,9 @@ struct ExternalImportDialog: View {
             UFField("In welches Modul?") {
                 UFSelect(options: [(value: 0, label: "– keins (Eigene Dokumente) –")] + modules, selection: $module, fill: true)
             }
-            Text(staged.kind == .zip ? "Die ZIP-Datei öffnet sich danach als Ordner. PDFs daraus lassen sich mit dem Stift bearbeiten."
-                 : "Die PDF öffnet sich danach im Editor.")
+            Text(staged.kind == .zip
+                 ? "Die ZIP-Datei öffnet sich danach als Ordner." + (UFEditorAvailability.available ? " PDFs daraus lassen sich mit dem Stift bearbeiten." : "")
+                 : UFEditorAvailability.available ? "Die PDF öffnet sich danach im Editor." : "Die PDF öffnet sich danach zum Lesen.")
                 .ufFont(12.8).foregroundStyle(UF.muted)
         } foot: {
             UFButton("Abbrechen") { ExternalFileImport.discard(staged); close() }

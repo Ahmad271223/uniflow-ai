@@ -280,3 +280,48 @@ Hauptmensa aus `packages/shared-contracts/mensa.json`.
 Kein echter Personenname, kein Hochschul-Logo; der Name einer Hochschule steht nur in den Reserven `11b-regal` und
 `14-einstellungen`. Die Noten im Studienverlauf (5) sind erfunden. Preise: 19,99 €/Jahr (Plus) aus der
 StoreKit-Testkonfiguration.
+
+## iPhone (6,9")
+
+Stand 11.11.2026, Zweig `iphone/universal` (vorher 05.11.2026, `feature/iphone`). Das iPhone hat keinen Editor: Bild 2
+zeigt die Leseansicht mit Notizen vom iPad, Bild 7 „Stundenplan“ statt „In Stud.IP abgeben“. Erzeugt vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests.swift`
+aus der kompakten Hülle (untere Leiste, Blätter von unten) mit denselben Demo-Inhalten und Zusätzen wie die iPad-Bilder
+(`DemoContent.installStoreExtras`, Schein-Dienste und Zusammensetzen aus `StoreScreenshotTests`). Bilder unter
+`~/Studora-Builds/appstore-screenshots-iphone/`, je Ansicht `<nn>-<name>-{light|dark}-portrait.png`.
+
+| Gerät | Hochformat | Pflicht |
+| --- | --- | --- |
+| iPhone 6,9" (iPhone 17 Pro Max) | 1320 × 2868 px | ja (App Store Connect skaliert für kleinere iPhones) |
+
+Gerendert mit Maßstab 3 aus einem Fenster von 440 × 956 Punkten im Simulator „iPhone 17 Pro Max“; der Test prüft die
+Pixelgröße, zusätzlich mit `sips -g pixelWidth -g pixelHeight` geprüft (alle 1320 × 2868). Oben zeichnet der Test die
+Statuszeile wie auf dem Gerät (9:41, Netz, WLAN, Akku), weil der Testaufbau keine eigene hat. Blätter (KI-Hilfe,
+Antworten, Abgeben) ganz hoch bzw. in der Höhe, die die App wählt: halb hoch ist das Blatt aus Glas, das sich im Test
+nicht zeichnen lässt.
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate
+UDID=$(xcrun simctl create SN-shots-phone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-2)
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-iphone \
+  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-shots-phone -only-testing:UniFlowTests/IPhoneStoreScreenshotTests
+xcrun simctl delete "$UDID"
+```
+
+Bild 2 und 4 zeigen die KI: nur mit Entscheidung B (sonst weglassen; es bleiben 6 Bilder).
+
+| Nr. | Datei (hell) | Ansicht | Bildunterschrift |
+| --- | --- | --- | --- |
+| 1 | `01-start-light-portrait.png` | Start: „Guten Morgen, Mia“, Karte „Prüfungsanmeldung“, untere Leiste | Dein Tag auf einen Blick – und welche Prüfungen du jetzt anmelden solltest. |
+| 2 | `02-ki-dokument-light-portrait.png` | KI-Hilfe als Blatt über dem Skript (Leseansicht, Notizen vom iPad): „Ganzes Dokument“, erklärte Vorlesung mit Seitenangaben | Die ganze Vorlesung erklärt, Abschnitt für Abschnitt mit Seitenangabe. |
+| 3 | `03-karteikarten-light-portrait.png` | Karteikarten (Stapel, 5 heute fällig) | Karteikarten je Modul: richtig = seltener, falsch = morgen wieder. |
+| 4 | `04-wochentest-light-portrait.png` | Wochentest-Ergebnis (75 %, Erklärung je Aufgabe) | Wochentest mit Auswertung und Erklärung je Aufgabe. |
+| 5 | `05-studienverlauf-light-portrait.png` | Studienverlauf „Informatik B.Sc.“ mit Prüfungsanmeldung | Studienverlauf mit Leistungspunkten und Prüfungsanmeldung. |
+| 6 | `06-nachrichten-light-portrait.png` | Nachricht des Tutoriums, darunter „Antworten“ (Blatt halb hoch mit „Senden“) | Stud.IP-Nachrichten lesen und direkt beantworten. |
+| 7 | `07-stundenplan-light-portrait.png` | Stundenplan der Woche (Demo-Kurse) | Dein Stundenplan aus Stud.IP – immer dabei. |
+| 8 | `08-community-light-portrait.png` | Community (So funktioniert's, Community des Demo-Moduls) | Lösungen vergleichen – nur eigene Notizen, verschlüsselt, unter Pseudonym. |
+
+Jedes Bild hell und dunkel angesehen: keine überlappenden Elemente, keine Demo-Leiste, kein Platzhaltertext; nur die
+Demo-Inhalte (wie beim iPad). Für die Bilder geändert (wirkt in der App): Trennlinien der Prüfungsanmeldung kompakt in
+voller Breite (`ExamRegistrationList`), „1 Uni-Termin“ statt „1 Uni-Termine“.

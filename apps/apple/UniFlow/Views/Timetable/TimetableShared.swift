@@ -171,6 +171,8 @@ struct EventDrawer: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
+    /// kompakt (iPhone): Drawer als Blatt von unten, Knoepfe in voller Breite
+    @Environment(\.ufCompact) private var compactDrawer
     @State private var e: JSONValue?
     @State private var occ: JSONValue = .null
     @State private var mats: [JSONValue] = []
@@ -239,9 +241,16 @@ struct EventDrawer: View {
         } content: {
             // Termin-Detail (06.11.2026): Modul, Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses
             if let m = e.i("module_id") {
-                UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeDrawer(); router.go(.module(m)) }
-                    .padding(.bottom, 9.6)
-                    .accessibilityIdentifier("termin.module")
+                Group {
+                    // iPhone (Blatt von unten): in voller Breite
+                    if compactDrawer {
+                        UFWideButton(TerminDetailText.toModule, icon: "book") { overlay.closeDrawer(); router.go(.module(m)) }
+                    } else {
+                        UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeDrawer(); router.go(.module(m)) }
+                    }
+                }
+                .padding(.bottom, 9.6)
+                .accessibilityIdentifier("termin.module")
             }
             TerminDetailSections(event: Self.detailEvent(e, occ: occ), title: e.s("title") ?? "")
                 .padding(.bottom, 12.8)

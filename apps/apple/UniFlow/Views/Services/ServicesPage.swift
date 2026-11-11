@@ -22,6 +22,8 @@ struct ServicesPage: View {
     @Environment(\.hsh) private var hshConnection
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
+    /// iPhone: "Bescheinigungen öffnen" in voller Breite unter dem Text
+    @Environment(\.ufCompact) private var phoneLayout
     @State private var svc: JSONValue?
     @State private var grades: JSONValue = .null
     @State private var tt: JSONValue?
@@ -211,12 +213,19 @@ struct ServicesPage: View {
     private var certificatesCard: some View {
         UFCard {
             UFCardHead("Bescheinigungen", icon: "file-text", wrap: true) {
-                UFButton("Bescheinigungen öffnen", icon: "arrow-right", kind: .primary, size: .small) { router.go(.certificates) }
-                    .fixedSize()
-                    .accessibilityIdentifier("services.certificates")
+                if !phoneLayout {
+                    UFButton("Bescheinigungen öffnen", icon: "arrow-right", kind: .primary, size: .small) { router.go(.certificates) }
+                        .fixedSize()
+                        .accessibilityIdentifier("services.certificates")
+                }
             }
             Text("Immatrikulationsbescheinigung, BAföG-Bescheinigung, Notenspiegel als PDF und alles Weitere, was dein Portal anbietet – geladen nur, wenn du tippst, mit Datum gespeichert, zum Teilen oder Sichern in Dateien.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            if phoneLayout {
+                UFWideButton("Bescheinigungen öffnen", icon: "arrow-right", kind: .primary) { router.go(.certificates) }
+                    .padding(.top, 10)
+                    .accessibilityIdentifier("services.certificates")
+            }
         }
     }
 
@@ -236,16 +245,27 @@ struct ServicesPage: View {
 
     private func gradesCard(rows: [JSONValue], last: JSONValue?, lastOK: Bool, qis: JSONValue) -> some View {
         UFCard {
-            UFCardHead("Notenspiegel (QIS)", icon: "exam", wrap: true) {
-                UFButton("Zugang", icon: "log-out", size: .small) { openCred("qis") }
-                UFButton("Noten & Bescheinigungen abrufen", icon: "sync", kind: .primary, size: .small) { Task { await sync(show: false) } }
+            if phoneLayout {
+                // iPhone: Knoepfe in voller Breite unter dem Titel (daneben ragte "Noten & Bescheinigungen abrufen" ueber
+                // den Rand, Store-Bild 11.11.2026)
+                UFCardHead("Notenspiegel (QIS)", icon: "exam")
+                VStack(spacing: 8) {
+                    UFWideButton("Noten & Bescheinigungen abrufen", icon: "sync", kind: .primary) { Task { await sync(show: false) } }
+                    UFWideButton("Zugang", icon: "log-out") { openCred("qis") }
+                }
+                .padding(.bottom, 12.8)
+            } else {
+                UFCardHead("Notenspiegel (QIS)", icon: "exam", wrap: true) {
+                    UFButton("Zugang", icon: "log-out", size: .small) { openCred("qis") }
+                    UFButton("Noten & Bescheinigungen abrufen", icon: "sync", kind: .primary, size: .small) { Task { await sync(show: false) } }
+                }
             }
             if qis["own"]?.bool != true {
                 // Web: Inline-Felder Benutzername/QIS-Passwort; auf dem iPad bewusst ohne Passwortfeld
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 4) { UFIcon("log-out", size: 14); Text("QIS-Zugang hinterlegen").ufFont(14.5, 700) }
                         .foregroundStyle(UF.text)
-                    Text("QIS hat meist ein eigenes Passwort (nicht das WebSSO-Passwort). Du trägst es einmal selbst in der Web-App am PC ein (Uni & Noten → Zugang); danach holt die App Noten und Bescheinigungen selbst. Auf dem iPad wird kein Passwort eingegeben oder gespeichert." + (qis.s("same_as").map { " Aktuell: wie \($0)." } ?? ""))
+                    Text("QIS hat meist ein eigenes Passwort (nicht das WebSSO-Passwort). Du trägst es einmal selbst in der Web-App am PC ein (Uni & Noten → Zugang); danach holt die App Noten und Bescheinigungen selbst. Auf dem \(UFDevice.textName) wird kein Passwort eingegeben oder gespeichert." + (qis.s("same_as").map { " Aktuell: wie \($0)." } ?? ""))
                         .ufFont(13.12).foregroundStyle(UF.muted)
                         .padding(.top, 3.2).padding(.bottom, 8)
                 }
@@ -541,6 +561,8 @@ struct GradesTable: View {
     @State private var width: CGFloat = 0
     private var compact: Bool { width > 0 && width < Self.compactBelow }
     static let compactBelow: CGFloat = 520
+    /// iPhone (docs/IPHONE-2026-11-04.md): Liste statt Tabelle, je Leistung eine Zeile mit Note, LP und Status
+    @Environment(\.ufCompact) private var phone
 
     private var bereiche: [JSONValue] { rows.filter { $0.s("level") == "bereich" } }
     private var hasModules: Bool { rows.contains { $0.s("level") == "modul" } }
@@ -562,7 +584,58 @@ struct GradesTable: View {
                     .padding(.bottom, 9.6)
                     .accessibilityIdentifier("grades.view")
             }
-            table
+            if phone { list } else { table }
+        }
+    }
+
+    /// Semester einer Zeile (normiert, sonst wie im Notenspiegel)
+    private static func semester(_ r: JSONValue) -> String {
+        (r.s("semester_norm") ?? "").isEmpty ? r.s("semester") ?? "" : r.s("semester_norm") ?? ""
+    }
+
+    private static func tone(_ r: JSONValue) -> UFTone {
+        let st = (r.s("status") ?? "").lowercased()
+        return st.hasPrefix("be") ? .ok : st.hasPrefix("ni") ? .bad : .neutral
+    }
+
+    /// Kompakt: Name mit Semester, Pruefungsnummer und Versuch links, rechts Note gross, LP und Status darunter
+    private var list: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            line
+            let shown = visible
+            ForEach(shown.indices, id: \.self) { i in
+                let r = shown[i]
+                let attempt = (r.s("versuch") ?? "").trimmingCharacters(in: .whitespaces)
+                let sub = [Self.semester(r), r.s("pruefungsnr"), r.s("art"), attempt.isEmpty ? nil : "Versuch \(attempt)"]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+                let note = r.s("note").flatMap { $0.isEmpty ? nil : $0 } ?? "–"
+                let lp = (r.s("credits") ?? "").isEmpty ? nil : "\(r.s("credits") ?? "") LP"
+                let status = r.s("status").flatMap { $0.isEmpty ? nil : $0 } ?? "–"
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.s("text") ?? "").ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !sub.isEmpty {
+                            Text(sub).ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        }
+                        UFBadge(status, tone: Self.tone(r)).padding(.top, 4)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(note).ufFont(19.2, 700).foregroundStyle(UF.text).monospacedDigit()
+                        if let lp { Text(lp).ufFont(12.48, 500).foregroundStyle(UF.muted) }
+                    }
+                    .fixedSize()
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 2)
+                .opacity(r.s("level") == "pruefung" ? 0.72 : 1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel([r.s("text"), "Note \(note)", lp, status, sub.isEmpty ? nil : sub]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
+                .accessibilityIdentifier("grades.row")
+                line
+            }
         }
     }
 
@@ -706,8 +779,8 @@ struct CredentialDialog: View {
                     Text("Eigene Zugangsdaten" + (cur["own"]?.bool == true ? " (\(cur.s("user") ?? ""))" : ""))
                 }
                 Text(cur["own"]?.bool == true
-                     ? "Bleibt gespeichert. Ändern nur in der Web-App am PC – auf dem iPad wird kein Passwort eingegeben."
-                     : "Benutzername und Passwort trägst du selbst in der Web-App am PC ein – auf dem iPad wird kein Passwort eingegeben.")
+                     ? "Bleibt gespeichert. Ändern nur in der Web-App am PC – auf dem \(UFDevice.textName) wird kein Passwort eingegeben."
+                     : "Benutzername und Passwort trägst du selbst in der Web-App am PC ein – auf dem \(UFDevice.textName) wird kein Passwort eingegeben.")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.leading, 22.4)
                 option("same") {
                     HStack(spacing: 6.4) {

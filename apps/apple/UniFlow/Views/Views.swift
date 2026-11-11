@@ -141,6 +141,9 @@ struct LibraryView: View {
     @State private var openTabs: [String] = []
     @State private var query = ""
     @State private var columns: NavigationSplitViewVisibility = .all
+    /// Kompakt (iPhone): gleich das Dokument zeigen. Sonst stand erst die Dokumentliste da und das Dokument schob sich
+    /// darueber; Zurueck fuehrt ueber das eigene "Zurück" des Dokuments zur vorigen Seite der App
+    @State private var compactColumn: NavigationSplitViewColumn = .detail
     @State private var importing = false
     @State private var importMessage: String?
     /// Dokument, das beim Oeffnen gleich angezeigt wird (Route #/doc/<id> aus Uebersicht/Suche)
@@ -200,8 +203,29 @@ struct LibraryView: View {
         checking.remove(id)
     }
 
-    var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
+    /// iPhone: beim Zusammenklappen zuerst das Dokument (`compactColumn`); iPad (auch schmal) wie bis Build 32 ohne
+    /// bevorzugte Spalte (Vorgabe 11.11.2026: iPad unveraendert)
+    @ViewBuilder private var splitView: some View {
+        if UFCompact.phoneLayouts {
+            NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
+                sidebarColumn
+            } content: {
+                contentColumn
+            } detail: {
+                detailColumn
+            }
+        } else {
+            NavigationSplitView(columnVisibility: $columns) {
+                sidebarColumn
+            } content: {
+                contentColumn
+            } detail: {
+                detailColumn
+            }
+        }
+    }
+
+    @ViewBuilder private var sidebarColumn: some View {
             List(selection: $moduleSelection) {
                 Label("Alle Dokumente", systemImage: "tray.full").tag("all" as String?)
                 Section("Module") {
@@ -212,7 +236,9 @@ struct LibraryView: View {
             }
             .navigationTitle("StudiNow")
             .toolbar { Button("Trennen", role: .destructive) { session.disconnect() } }
-        } content: {
+    }
+
+    @ViewBuilder private var contentColumn: some View {
             List(files, selection: $fileSelection) { f in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(f.displayTitle).lineLimit(2)
@@ -242,13 +268,19 @@ struct LibraryView: View {
             .alert("Import", isPresented: Binding(get: { importMessage != nil }, set: { if !$0 { importMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(importMessage ?? "") }
-        } detail: {
+    }
+
+    @ViewBuilder private var detailColumn: some View {
             VStack(spacing: 0) {
-                if !openTabs.isEmpty, !editorTracing { tabStrip }
+                if !openTabs.isEmpty, !editorTracing, !UFEditorAvailability.readerOnly { tabStrip }
                 if let id = fileSelection, checking.contains(id) {
                     UF.bg
                 } else if let id = fileSelection, let f = file(id), let api = session.api {
-                    if f.opensInEditor {
+                    if f.opensInEditor, UFEditorAvailability.readerOnly {
+                        // iPhone: kein Editor (Vorgabe 11.11.2026), nur lesen, zoomen, suchen, KI-Hilfe
+                        PhoneDocumentReader(file: f, api: api, initialPDFPage: f.id == openFile ? openPage : nil,
+                                            task: f.id == openFile ? openTask : nil).id("\(api.namespace.id)/\(f.id)")
+                    } else if f.opensInEditor {
                         // Identitaet je Datenquelle: beim Wechsel lokal <-> Server entsteht der DocumentStore neu fuer
                         // die neue Quelle (updateAPI uebernimmt nur Verbindungen derselben Quelle)
                         DocumentView(file: f, api: api, initialPDFPage: f.id == openFile ? openPage : nil,
@@ -292,7 +324,10 @@ struct LibraryView: View {
             .background { if openTabs.count > 1, !editorTracing { tabKeys } }
             // schmal klappt die Teilung zu einem Stapel mit System-Zurueck zusammen: genau ein Pfeil, unserer (06.11.2026)
             .navigationBarBackButtonHidden(true)
-        }
+    }
+
+    var body: some View {
+        splitView
         .navigationSplitViewStyle(.prominentDetail)
         .onChange(of: fileSelection) { _, new in
             guard let new else { return }

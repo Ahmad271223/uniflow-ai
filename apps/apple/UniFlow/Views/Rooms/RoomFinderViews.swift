@@ -72,9 +72,27 @@ struct RoomWebTarget: Identifiable { let url: URL; var id: String { url.absolute
 struct RoomMapsButtons: View {
     let maps: JSONValue?
     var compact = false
+    /// iPhone (docs/IPHONE-2026-11-04.md): "In Google Maps öffnen" und "Route" in voller Breite untereinander (Daumen),
+    /// Apple Karten darunter als schlichter Knopf; iPad wie bisher in einer Reihe
+    @Environment(\.ufCompact) private var phone
 
     var body: some View {
-        if maps != nil {
+        if maps != nil, phone {
+            VStack(spacing: 8) {
+                UFWideButton("In Google Maps öffnen", icon: "map-pin", kind: .primary) {
+                    RoomUI.open(RoomUI.googleURL(maps, route: false, appInstalled: RoomUI.googleAppInstalled))
+                }
+                .accessibilityIdentifier("rooms.maps.google")
+                UFWideButton("Route", icon: "arrow-right") {
+                    RoomUI.open(RoomUI.googleURL(maps, route: true, appInstalled: RoomUI.googleAppInstalled))
+                }
+                .accessibilityLabel("Route zu Fuß in Google Maps")
+                .accessibilityIdentifier("rooms.maps.route")
+                UFWideButton("In Apple Karten", kind: .ghost) { RoomUI.open(RoomUI.appleURL(maps)) }
+                    .accessibilityIdentifier("rooms.maps.apple")
+            }
+            .frame(maxWidth: .infinity)
+        } else if maps != nil {
             UFFlexWrap(gap: 8) {
                 UFButton("In Google Maps öffnen", icon: "map-pin", kind: .primary, size: compact ? .small : .regular) {
                     RoomUI.open(RoomUI.googleURL(maps, route: false, appInstalled: RoomUI.googleAppInstalled))
@@ -98,6 +116,8 @@ struct RoomPlaceView: View {
     let place: JSONValue
     var attribution: String?
     @State private var web: RoomWebTarget?
+    /// iPhone: Raumplan und Gebaeudeinfo als Zeilen in voller Breite statt kleiner Knoepfe im Fluss
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -128,7 +148,16 @@ struct RoomPlaceView: View {
                                                      ("Website", "website", "rooms.website"),
                                                      ("Öffnungszeiten", "opening_hours_url", "rooms.hours")]
             let shown = links.filter { place.s($0.1).flatMap(URL.init(string:)) != nil }
-            if !shown.isEmpty {
+            if !shown.isEmpty, compact {
+                VStack(spacing: 8) {
+                    ForEach(shown, id: \.1) { l in
+                        UFWideButton(l.0, icon: l.1 == "floorplan_url" ? "layers" : "file-text") {
+                            web = place.s(l.1).flatMap(URL.init(string:)).map(RoomWebTarget.init)
+                        }
+                        .accessibilityIdentifier(l.2)
+                    }
+                }
+            } else if !shown.isEmpty {
                 UFFlexWrap(gap: 8) {
                     ForEach(shown, id: \.1) { l in
                         UFButton(l.0, icon: l.1 == "floorplan_url" ? "layers" : "file-text", kind: .ghost, size: .small) {
@@ -185,7 +214,7 @@ struct RoomPlaceView: View {
     @ViewBuilder private func row(_ label: String, _ value: String?) -> some View {
         if let value, !value.isEmpty {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(label).ufFont(13.5).foregroundStyle(UF.muted).frame(width: 80, alignment: .leading)
+                Text(label).ufFont(13.5).foregroundStyle(UF.muted).frame(width: compact ? 68 : 80, alignment: .leading)
                 Text(value).ufFont(13.5, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
@@ -306,16 +335,21 @@ struct RoomDetailSheet: View {
     let place: JSONValue
     var attribution: String?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 RoomPlaceView(place: place, attribution: attribution)
-                    .padding(20).frame(maxWidth: 640, alignment: .leading).frame(maxWidth: .infinity)
+                    .padding(compact ? 16 : 20).frame(maxWidth: 640, alignment: .leading).frame(maxWidth: .infinity)
             }
             .background(UF.bg)
+            .navigationTitle(compact ? "Ort" : "")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() }.accessibilityIdentifier("rooms.detail.done") } }
         }
+        // iPhone: von unten halb (Name, Karten-Knoepfe) und ganz (Angaben, Raumplan, Barrierefreiheit)
+        .ufHalfSheet(when: compact)
         .accessibilityIdentifier("rooms.detail")
     }
 }
@@ -326,6 +360,7 @@ struct RoomResolveSheet: View {
     let text: String
     let api: APIClient?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.ufCompact) private var compact
     @State private var result: JSONValue?
     @State private var error: String?
     @State private var chosen: [Int: JSONValue] = [:]
@@ -350,7 +385,7 @@ struct RoomResolveSheet: View {
                         ProgressView().frame(maxWidth: .infinity).padding(30)
                     }
                 }
-                .padding(20).frame(maxWidth: 640, alignment: .leading).frame(maxWidth: .infinity)
+                .padding(compact ? 16 : 20).frame(maxWidth: 640, alignment: .leading).frame(maxWidth: .infinity)
             }
             .background(UF.bg)
             .navigationTitle("Raum")
@@ -358,6 +393,7 @@ struct RoomResolveSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() }.accessibilityIdentifier("rooms.resolve.done") } }
         }
         .task { await load() }
+        .ufHalfSheet(when: compact)                                  // iPhone: von unten, halb und ganz
         .accessibilityIdentifier("rooms.resolve")
     }
 
@@ -464,6 +500,8 @@ struct RoomFinderPage: View {
     /// vorbelegte Suche (Termin-Detail: Raum nicht eindeutig aufgeloest); sucht beim Oeffnen sofort
     var initialQuery: String?
     @EnvironmentObject private var session: Session
+    /// iPhone: Suchfeld und "Suchen" in voller Breite untereinander, Beispiele als waagerecht scrollende Reihe
+    @Environment(\.ufCompact) private var compact
     @State private var query = ""
     @State private var result: JSONValue?
     @State private var campuses: JSONValue?
@@ -511,21 +549,40 @@ struct RoomFinderPage: View {
         .accessibilityIdentifier("rooms.page")
     }
 
+    private var searchField: some View {
+        UFInputBox(focused: false) {
+            // iPad wie bisher (`placeholder` je Hochschule); iPhone kuerzer, damit er ins Feld passt
+            TextField(compact ? (finderKey == "lsf" ? "Raum oder Gebäude" : "Raum, Gebäude, Einrichtung") : placeholder, text: $query)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onSubmit { Task { await search() } }
+                .accessibilityIdentifier("rooms.search")
+        }
+    }
+
     private var searchBar: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                UFInputBox(focused: false) {
-                    TextField(placeholder, text: $query)
-                        .submitLabel(.search)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .onSubmit { Task { await search() } }
-                        .accessibilityIdentifier("rooms.search")
-                }
-                UFButton("Suchen", icon: "search", kind: .primary) { Task { await search() } }
+            if compact {
+                searchField.frame(maxWidth: .infinity)
+                UFWideButton("Suchen", icon: "search", kind: .primary) { Task { await search() } }
                     .accessibilityIdentifier("rooms.search.go")
+            } else {
+                HStack(spacing: 10) {
+                    searchField
+                    UFButton("Suchen", icon: "search", kind: .primary) { Task { await search() } }
+                        .accessibilityIdentifier("rooms.search.go")
+                }
             }
-            if result == nil {
+            if result == nil, compact {
+                UFCompactScrollRow {
+                    ForEach(examples, id: \.self) { e in
+                        UFButton(e, size: .small) { query = e; Task { await search() } }
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Beispiele")
+            } else if result == nil {
                 UFFlexWrap(gap: 8) {
                     ForEach(examples, id: \.self) { e in
                         UFButton(e, size: .small) { query = e; Task { await search() } }
@@ -555,7 +612,11 @@ struct RoomFinderPage: View {
                     .accessibilityIdentifier("rooms.result")
             }
             if (r.i("pages") ?? 0) > (r.i("page") ?? 0) + 1 {
-                UFButton("Weitere Treffer laden", icon: "chevron-down") { Task { await search(page: (r.i("page") ?? 0) + 1) } }
+                if compact {
+                    UFWideButton("Weitere Treffer laden", icon: "chevron-down") { Task { await search(page: (r.i("page") ?? 0) + 1) } }
+                } else {
+                    UFButton("Weitere Treffer laden", icon: "chevron-down") { Task { await search(page: (r.i("page") ?? 0) + 1) } }
+                }
             }
         }
         .padding(.bottom, 14)

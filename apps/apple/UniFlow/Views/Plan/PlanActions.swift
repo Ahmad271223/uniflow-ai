@@ -19,7 +19,7 @@ struct PlanActions {
 
     /// openEvent(id, date): Termin-Drawer (views-tt.js)
     func openEvent(_ id: Int, date: String) {
-        overlay.openDrawer { EventDrawer(eventID: id, date: date) }
+        overlay.openDrawer(half: true) { EventDrawer(eventID: id, date: date) }      // iPhone: halb und ganz
     }
 
     /// Ein Vorkommen aus Woche, Tag oder Uebersicht oeffnen: eine Serie im Termin-Drawer; ein Einzeltermin aus dem
@@ -710,6 +710,17 @@ struct DatedEventDialog: View {
     let e: JSONValue
     let date: String
     @Environment(\.ufClose) private var close
+    /// iPhone (Blatt von unten): Quelle als Abzeichen ueber dem Text, "Schließen" in voller Breite
+    @Environment(\.ufCompact) private var compact
+
+    /// Abzeichen der Quelle (Uni-Kalender, Sprechstunde, Stud.IP-Kalender)
+    static func sourceLabel(_ source: String?) -> String {
+        switch source {
+        case SOGo.source: return "Uni-Kalender"
+        case "studip-sprechstunde": return "Sprechstunde"
+        default: return "Stud.IP-Kalender"
+        }
+    }
     @Environment(\.uniMail) private var uniMail
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
@@ -731,10 +742,21 @@ struct DatedEventDialog: View {
     var body: some View {
         UFDialog("\(e.s("title") ?? "Termin") \(e.s("start") ?? "")–\(e.s("end") ?? "")") {
             VStack(alignment: .leading, spacing: 6.4) {
+                if compact {
+                    UFBadge(Self.sourceLabel(e.s("source")), tone: e.s("source") == SOGo.source ? .info : .neutral).fixedSize()
+                        .accessibilityIdentifier("event.source")
+                }
                 Text("\(UFKind.text(e.s("kind"))) · \(UFFmt.short(date))").ufFont(13.12).foregroundStyle(UF.muted)
                 if let m = e.i("module_id") {
-                    UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeAll(); router.go(.module(m)) }
-                        .accessibilityIdentifier("termin.module")
+                    // iPhone: "Zum Modul" in voller Breite (Daumen)
+                    Group {
+                        if compact {
+                            UFWideButton(TerminDetailText.toModule, icon: "book") { overlay.closeAll(); router.go(.module(m)) }
+                        } else {
+                            UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeAll(); router.go(.module(m)) }
+                        }
+                    }
+                    .accessibilityIdentifier("termin.module")
                 }
                 // Termin-Detail (06.11.2026): Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses. Ort aus
                 // dem Uni-Kalender: Raumfinder nur an der LUH (`SOGoSite.roomLinks`), sonst Text
@@ -747,7 +769,7 @@ struct DatedEventDialog: View {
                 Text(Self.text(date, source: e.s("source"), cancelled: e.s("status") == "ausfall")).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         } foot: {
-            UFButton("Schließen") { close() }
+            if compact { UFWideButton("Schließen") { close() } } else { UFButton("Schließen") { close() } }
         }
     }
 }

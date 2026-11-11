@@ -662,7 +662,8 @@ private struct AccountTab: View {
         // Gruppen mit Abschnittskopf statt einer langen Folge gleichrangiger Karten
         VStack(alignment: .leading, spacing: 32) {
             SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) { AppAccountCards() }
-            SettingsSection("Studium", sub: "Stud.IP-Zugang, Semester, Anzeigename, Darstellung und Stift.") {
+            SettingsSection("Studium", sub: UFEditorAvailability.available ? "Stud.IP-Zugang, Semester, Anzeigename, Darstellung und Stift."
+                                                                           : "Stud.IP-Zugang, Semester, Anzeigename und Darstellung.") {
                 UFGridLayout(spacing: 16, minWidth: 340) {
                     credCard
                     looksCard
@@ -707,7 +708,7 @@ private struct AccountTab: View {
                         }
                     }
                 }
-                UFButton("Stud.IP direkt auf dem iPad", icon: "book", size: .small) { studipSheet = true }
+                UFButton("Stud.IP direkt auf dem \(UFDevice.textName)", icon: "book", size: .small) { studipSheet = true }
             }
         }
     }
@@ -741,8 +742,15 @@ private struct AccountTab: View {
             }
             SettingsDivider()
             SettingsRow("Darstellung", icon: "sun") {
-                UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                UFSegmented(options: [("auto", "Wie \(UFDevice.textName)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
             }
+            .padding(.bottom, UFEditorAvailability.available ? 0 : -12)
+            // Stift und Schreibhand nur mit Editor (am iPhone keiner, Vorgabe 11.11.2026)
+            if UFEditorAvailability.available { penRows }
+        }
+    }
+
+    @ViewBuilder private var penRows: some View {
             SettingsDivider()
             SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
                 UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
@@ -762,7 +770,6 @@ private struct AccountTab: View {
                             }))
             }
             .padding(.bottom, -12)
-        }
     }
 }
 
@@ -1038,23 +1045,27 @@ private struct LocalAccountTab: View {
                 }
                 .environment(\.ufFillsCell, true)
             }
-            SettingsSection(UFDevice.adapt("Auf diesem iPad"), sub: "Darstellung, Schreiben mit dem Stift und der Abgleich im Hintergrund.") {
+            SettingsSection(UFDevice.adapt("Auf diesem iPad"), sub: UFEditorAvailability.available ? "Darstellung, Schreiben mit dem Stift und der Abgleich im Hintergrund."
+                                                                                                 : "Darstellung und der Abgleich im Hintergrund.") {
                 UFGridLayout(spacing: 16, minWidth: 340) {
                     UFCard {
                         SettingsRow("Darstellung", icon: "sun") {
-                            UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                            UFSegmented(options: [("auto", "Wie \(UFDevice.textName)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
                         }
                         .padding(.top, -12)
-                        SettingsDivider()
-                        SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
-                            UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
-                                     selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
+                        .padding(.bottom, UFEditorAvailability.available ? 0 : -12)
+                        if UFEditorAvailability.available {
+                            SettingsDivider()
+                            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+                                UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
+                                         selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
+                            }
+                            SettingsDivider()
+                            SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
+                                UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
+                            }
+                            .padding(.bottom, -12)
                         }
-                        SettingsDivider()
-                        SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
-                            UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
-                        }
-                        .padding(.bottom, -12)
                     }
                     BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)
                 }
@@ -1356,7 +1367,7 @@ private struct AdvancedTab: View {
     private var diagText: String {
         let scale = UIScreen.main.scale
         var lines = [
-            "Gerät: \(StudoraAccountLink.deviceName), \(AccountDevice.systemLabel(version: UIDevice.current.systemVersion, isMac: ProcessInfo.processInfo.isiOSAppOnMac))",
+            "Gerät: \(StudoraAccountLink.deviceName), \(AccountDevice.systemLabel(version: UIDevice.current.systemVersion, isMac: ProcessInfo.processInfo.isiOSAppOnMac, isPhone: UFDevice.isPhone))",
             "Fenster: \(Int(windowWidth))×\(Int(UIScreen.main.bounds.height)), Pixelverhältnis \(Self.js(scale))",
             "Design: \(theme)",
             "Adresse: \(Diagnostics.address(session.api?.base))",

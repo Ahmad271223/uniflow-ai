@@ -890,6 +890,11 @@ struct CardsPage: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     /// StudiNow-Konto: zaehlt das Uebernahme-Kontingent je Konto (P43-06)
     @Environment(\.ufStudoraAccount) private var studoraAccount
+    /// schmal (iPhone): Kacheln untereinander, Menue "…" und Dialoge als Blatt, Lernkarte so hoch wie Platz ist
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @StateObject private var learnSheets = UFLearnSheets()
     @StateObject private var deck = FlashcardDeck()
     @StateObject private var trainer = FlashcardTrainer()
     @ObservedObject private var ent: Entitlements
@@ -901,6 +906,8 @@ struct CardsPage: View {
     @State private var trainerTitle: String?
     /// sichtbare Flaeche der Seite: hochkant waechst die Lernkarte mit (`FlashcardCardLayout`)
     @State private var viewport: CGSize = .zero
+    /// Wischen in der Wiederholung (waagerechte Strecke)
+    @State private var reviewDrag: CGFloat = 0
 
     /// `entitlements: nil` = `Entitlements.shared`
     @MainActor
@@ -917,13 +924,29 @@ struct CardsPage: View {
     /// gerade wird geuebt (Trainer oder Wiederholung): der Kopf wird ruhig
     private var practising: Bool { (trainer.active && canEdit) || deck.inSession }
 
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact) }
+    /// Dialoge schmal als Blatt von unten, breit mittig
+    private var sheets: UFLearnSheets? { compact ? learnSheets : nil }
+
     /// Knopf, der Plus braucht: im Lesemodus sichtbar mit Schloss, Tippen oeffnet die Tarifwahl
     @ViewBuilder private func plusOnly<V: View>(_ v: V) -> some View {
         if canEdit { v } else { v.ufRequires(.flashcards, entitlements: ent) }
     }
 
     var body: some View {
-        UFContent(maxWidth: 1120) {
+        UFContent(maxWidth: 1120, insets: compact ? Self.compactInsets : nil) {
+            // schmal beim Ueben kein Seitenkopf: der Kopf des Trainers nennt Stapel und Weg zurueck, die Karte bekommt den Platz
+            if !(compact && practising) { pageHead }
+            cards
+        }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
+        .ufLearnSheetHost(learnSheets)
+    }
+
+    /// Rand schmal: 16 pt seitlich, wenig oben
+    static let compactInsets = EdgeInsets(top: 12, leading: UFCompactLearn.gutter, bottom: 24, trailing: UFCompactLearn.gutter)
+
+    private var pageHead: some View {
             UFPageHead("Karteikarten", sub: practising ? nil : "Deine Stapel je Modul · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
                 if !needsPlus { UFButton("Tests", icon: "exam", size: .small) { router.go(.exams) } }      // Pfeil nur oben links
                 if deck.loaded {
@@ -938,12 +961,17 @@ struct CardsPage: View {
                     }
                 }
             }
-            cards
-        }
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
 
-    private var cardMinHeight: CGFloat { FlashcardCardLayout.minHeight(viewport: viewport, typeSize: typeSize) }
+    /// Hoehe der Lernkarte: breit wie bisher (hochkant die Haelfte der Hoehe); schmal alles, was neben Kopf,
+    /// Fortschritt und Knoepfen bleibt (`UFCompactLearn.cardHeight`)
+    private var cardMinHeight: CGFloat {
+        compact ? UFCompactLearn.cardHeight(viewport: viewport, reserved: Self.compactReserved, typeSize: typeSize)
+            : FlashcardCardLayout.minHeight(viewport: viewport, typeSize: typeSize)
+    }
+
+    /// schmal: Kopf (44), Fortschritt (~60), Zeile Vorherige/Umdrehen/Erneut (44), Antworten (60), Abstaende und Rand
+    static let compactReserved: CGFloat = 300
 
     /// Inhalt unter dem Kopf; laedt in jedem Tarif (Lesen bleibt frei), im Lesemodus ohne Ueben und Bearbeiten
     private var cards: some View {
@@ -1042,7 +1070,7 @@ struct CardsPage: View {
 
     /// Spalten: so viele 260-pt-Kacheln wie passen (quer 2-3, hochkant 1-2); grosse Schrift eine Spalte
     private var tileGrid: UFGridLayout {
-        typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 14) : UFGridLayout(spacing: 14, minWidth: 250)
+        compact || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 12) : UFGridLayout(spacing: 14, minWidth: 250)
     }
 
     private var stackList: some View {
@@ -1117,13 +1145,17 @@ struct CardsPage: View {
     /// Ein Modul: Kopf (Farbe, Name, Zahl, Wochenaktionen), Kacheln, darunter geteilte Stapel der Community
     @ViewBuilder private func group(_ g: FlashcardDeck.Group, first: Bool) -> some View {
         let moduleID = g.id.hasPrefix("m") ? Int(g.id.dropFirst()) : nil
-        HStack(spacing: 8) {
-            UFDot(color: g.color.map { Color(hex: $0) } ?? UF.lineStrong)
-            Text(g.title).ufFont(16, 700, em: -0.01).foregroundStyle(UF.text).lineLimit(1)
-                .accessibilityAddTraits(.isHeader)
-            Text("\(g.stacks.count)").ufFont(12.8, 600).foregroundStyle(UF.muted)
-                .padding(.horizontal, 7).padding(.vertical, 1).background(Capsule().fill(UF.surface2))
-            Spacer(minLength: 0)
+        // schmal: die Wochenaktion unter dem Modulnamen statt daneben
+        let groupLayout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        groupLayout {
+            HStack(spacing: 8) {
+                UFDot(color: g.color.map { Color(hex: $0) } ?? UF.lineStrong)
+                Text(g.title).ufFont(16, 700, em: -0.01).foregroundStyle(UF.text).lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                Text("\(g.stacks.count)").ufFont(12.8, 600).foregroundStyle(UF.muted)
+                    .padding(.horizontal, 7).padding(.vertical, 1).background(Capsule().fill(UF.surface2))
+                Spacer(minLength: 0)
+            }
             // bei gewaehlter Lehrwoche: die gemeinsamen Stapel holen bzw. "Woche n komplett" ueben (Vorlesung, dann Uebung)
             if let moduleID, let w = weekFilter, w != FlashcardDeck.generalWeek {
                 if deck.hasCompleteWeek(subject: g.title, week: w) && !canEdit {
@@ -1150,7 +1182,7 @@ struct CardsPage: View {
                                    menuOpen: menuStack?.i("id") != nil && menuStack?.i("id") == s.i("id"),
                                    open: { menuStack = nil; deck.select(s.i("id")) },
                                    practise: { practise(s) },
-                                   toggleMenu: { menuStack = menuStack?.i("id") == s.i("id") ? nil : s })
+                                   toggleMenu: { toggleMenu(s) })
                     .ufAppear("cards.tiles", index: i)
             }
         }
@@ -1226,7 +1258,9 @@ struct CardsPage: View {
                 let adopted = sh["adopted"]?.bool ?? false
                 let liked = sh["liked_by_me"]?.bool ?? false
                 let mine = sh["mine"]?.bool ?? false
-                HStack(spacing: 12) {
+                // schmal: Knoepfe unter dem Namen (volle Breite fuer Name und Zeile)
+                let rowLayout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 12))
+                rowLayout {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
                             Text(name).ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(1)
@@ -1267,6 +1301,43 @@ struct CardsPage: View {
         .padding(.vertical, 12).padding(.horizontal, 16)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(UF.surface))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+    }
+
+    /// Menue "…" einer Kachel: breit als kleines Menue an der Kachel, schmal als Blatt von unten
+    private func toggleMenu(_ s: JSONValue) {
+        if compact {
+            menuStack = nil
+            learnSheets.present { stackMenuSheet(s) }
+        } else {
+            menuStack = menuStack?.i("id") == s.i("id") ? nil : s
+        }
+    }
+
+    /// Menue "…" schmal: Titel des Stapels, darunter die Aktionen als grosse Zeilen
+    private func stackMenuSheet(_ s: JSONValue) -> some View {
+        let name = s.s("name") ?? ""
+        let shared = !(s.s("shared_id") ?? "").isEmpty
+        let canShare = deck.sharingAvailable && !(s.s("subject") ?? "").isEmpty && (s.i("cards") ?? 0) > 0
+        return VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).ufFont(17.6, 700, em: -0.01).foregroundStyle(UF.text).lineLimit(2)
+                    .accessibilityAddTraits(.isHeader)
+                Text(FlashcardDeck.badge(s) + " · " + (s.s("subject").flatMap { $0.isEmpty ? nil : $0 } ?? "Ohne Modul"))
+                    .ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1)
+            }
+            .padding(.horizontal, UFCompactLearn.gutter).padding(.top, 12).padding(.bottom, 8)
+            UFSheetActionRow(title: "Bearbeiten", icon: "pen", label: "Stapel bearbeiten: \(name)") { openStack(s) }
+            if canShare {
+                UFSheetActionRow(title: shared ? "Teilen zurückziehen" : "In der Community teilen", icon: "users",
+                                 label: shared ? "Teilen zurückziehen: \(name)" : "Stapel teilen: \(name)") { shared ? confirmUnshare(s) : openShare(s) }
+            }
+            Rectangle().fill(UF.line).frame(height: 1).padding(.vertical, 4).accessibilityHidden(true)
+            UFSheetActionRow(title: "Löschen", icon: "trash", danger: true, label: "Stapel löschen: \(name)") { confirmDeleteStack(s) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Aktionen für \(name)")
+        .accessibilityIdentifier("cards.stackMenu")
     }
 
     /// "Üben" auf der Kachel: Stapel waehlen, dann die faelligen Karten (Leitner) oder frei ueben
@@ -1314,7 +1385,7 @@ struct CardsPage: View {
 
     /// "Heute fällig" und "Frei üben" nebeneinander (schmal untereinander)
     private var stackPanels: some View {
-        let grid = windowWidth < 760 || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 16) : UFGridLayout(columns: 2, spacing: 16)
+        let grid = compact || windowWidth < 760 || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 16) : UFGridLayout(columns: 2, spacing: 16)
         return grid {
             reviewCard
             practiceCard
@@ -1399,10 +1470,10 @@ struct CardsPage: View {
                     Task { await deck.reload(toast: toast) }
                 }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, compact ? 10 : 16)
             FlashcardProgressHeader(current: deck.position + 1, total: deck.queue.count, done: deck.position,
                                     detail: "Fach \(c.i("box") ?? 1) · Nur dieser Stapel wird abgefragt")
-                .padding(.bottom, 20)
+                .padding(.bottom, compact ? 12 : 20)
             Button { reveal() } label: {
                 FlashcardFlip(flipped: deck.revealed) {
                     FlashcardFace(label: "Frage", text: q, minHeight: cardMinHeight)
@@ -1413,9 +1484,13 @@ struct CardsPage: View {
                 .contentShape(RoundedRectangle(cornerRadius: 22))
             }
             .buttonStyle(.plain)
+            .offset(x: reviewDrag)
+            // Wischen zum Bewerten nur schmal (iPhone); breit bleibt die Wiederholung wie bisher
+            .simultaneousGesture(reviewSwipe, including: compact ? .all : .subviews)
             .accessibilityLabel(deck.revealed ? "Antwort: \(a)" : "Frage: \(q)")
             .accessibilityHint(deck.revealed ? "" : "Doppeltippen deckt die Antwort auf.")
-            Text(deck.revealed ? "Wie war's? → richtig · ← falsch" : "Tippen oder Leertaste deckt die Antwort auf")
+            Text(deck.revealed ? (compact ? "Wie war's? Wischen: → richtig · ← falsch" : "Wie war's? → richtig · ← falsch")
+                 : (compact ? "Tippen deckt die Antwort auf" : "Tippen oder Leertaste deckt die Antwort auf"))
                 .ufFont(12.8).foregroundStyle(UF.muted)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 12)
@@ -1437,6 +1512,20 @@ struct CardsPage: View {
         }
         .frame(maxWidth: 760)
         .frame(maxWidth: .infinity)
+    }
+
+    /// Wischen in der Wiederholung (aufgedeckt): nach rechts richtig, nach links falsch, wie im Trainer
+    private var reviewSwipe: some Gesture {
+        DragGesture(minimumDistance: 18)
+            .onChanged { v in
+                guard deck.revealed, !deck.rating, abs(v.translation.width) > abs(v.translation.height) else { return }
+                reviewDrag = v.translation.width
+            }
+            .onEnded { v in
+                let w = v.translation.width
+                if deck.revealed, !deck.rating, abs(w) > abs(v.translation.height), abs(w) >= 110 { rate(w > 0) }
+                withAnimation(UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled, fadeWhenReduced: false)) { reviewDrag = 0 }
+            }
     }
 
     private func reveal() {
@@ -1469,7 +1558,7 @@ struct CardsPage: View {
                 UFButton("Optionen", icon: "filter", kind: .ghost) {
                     trainerTitle = deck.stack?.s("name")
                     trainer.start(with: stackCards)
-                    overlay.modal { FlashcardTrainerOptionsDialog(trainer: trainer) }
+                    overlay.learnModal(sheets) { FlashcardTrainerOptionsDialog(trainer: trainer) }
                 }
                 .disabled(stackCards.isEmpty)
             }
@@ -1543,7 +1632,7 @@ struct CardsPage: View {
 
     private func openCreate() {
         let stack = deck.stack
-        overlay.modal {
+        overlay.learnModal(sheets, large: true) {
             FlashcardCreateDialog(deck: deck, entitlements: ent, question: "", moduleID: deck.module(named: stack?.s("subject"))?.i("id"),
                                   fileID: nil, stackID: stack?.i("id"))
         }
@@ -1551,39 +1640,39 @@ struct CardsPage: View {
 
     /// "Bearbeiten": derselbe Dialog wie beim Anlegen, mit der Karte vorbelegt; der Trainer uebernimmt den neuen Text
     private func openEdit(_ c: JSONValue) {
-        overlay.modal {
+        overlay.learnModal(sheets, large: true) {
             FlashcardCreateDialog(deck: deck, entitlements: ent, card: c) { saved in trainer.merge(saved) }
         }
     }
 
     private func confirmDelete(_ c: JSONValue) {
-        overlay.modal { FlashcardDeleteDialog(deck: deck, card: c) }
+        overlay.learnModal(sheets) { FlashcardDeleteDialog(deck: deck, card: c) }
     }
 
     private func openStack(_ s: JSONValue?) {
-        overlay.modal { FlashcardStackDialog(deck: deck, stack: s) }
+        overlay.learnModal(sheets) { FlashcardStackDialog(deck: deck, stack: s) }
     }
 
     private func confirmDeleteStack(_ s: JSONValue) {
-        overlay.modal { FlashcardStackDeleteDialog(deck: deck, stack: s) }
+        overlay.learnModal(sheets) { FlashcardStackDeleteDialog(deck: deck, stack: s) }
     }
 
     // MARK: Geteilte Wochenstapel und Stapel teilen
 
     private func openWeekFetch(moduleID: Int?, week: Int?) {
-        overlay.modal { FlashcardWeekFetchDialog(deck: deck, moduleID: moduleID, week: week) }
+        overlay.learnModal(sheets) { FlashcardWeekFetchDialog(deck: deck, moduleID: moduleID, week: week) }
     }
 
     private func openShare(_ s: JSONValue) {
-        overlay.modal { FlashcardShareDialog(deck: deck, stack: s) }
+        overlay.learnModal(sheets) { FlashcardShareDialog(deck: deck, stack: s) }
     }
 
     private func confirmUnshare(_ s: JSONValue) {
-        overlay.modal { FlashcardUnshareDialog(deck: deck, stack: s) }
+        overlay.learnModal(sheets) { FlashcardUnshareDialog(deck: deck, stack: s) }
     }
 
     private func openReport(_ sh: JSONValue) {
-        overlay.modal { FlashcardSharedReportDialog(deck: deck, shared: sh) }
+        overlay.learnModal(sheets) { FlashcardSharedReportDialog(deck: deck, shared: sh) }
     }
 
     private func adopt(_ sh: JSONValue) {

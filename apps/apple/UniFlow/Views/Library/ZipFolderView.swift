@@ -379,7 +379,12 @@ struct ZipFolderView: View {
         }
         .fullScreenCover(item: $editing, onDismiss: { model.refresh() }) { f in
             NavigationStack {
-                DocumentView(file: f, api: model.api, onBack: { editing = nil })
+                if UFEditorAvailability.readerOnly {
+                    PhoneDocumentReader(file: f, api: model.api)
+                        .environment(\.ufBack, { editing = nil })
+                } else {
+                    DocumentView(file: f, api: model.api, onBack: { editing = nil })
+                }
             }
         }
         .sheet(item: $previewing) { item in
@@ -544,10 +549,16 @@ struct ZipFolderView: View {
 
     @ViewBuilder private func menu(_ item: ZipWorkspace.Item) -> some View {
         if ZipOpenKind.of(item) == .pdf {
-            Button { open(item) } label: { Label("Mit Stift öffnen", systemImage: "pencil.tip.crop.circle") }
+            // iPhone ohne Editor: die PDF oeffnet in der Leseansicht (Vorgabe 11.11.2026)
+            Button { open(item) } label: {
+                UFEditorAvailability.available ? Label("Mit Stift öffnen", systemImage: "pencil.tip.crop.circle")
+                    : Label("Öffnen", systemImage: "doc.text.magnifyingglass")
+            }
             Button { previewing = item } label: { Label("Nur ansehen", systemImage: "eye") }
         } else if ZipOpenKind.of(item) == .text {
-            Button { textEditing = item } label: { Label("Bearbeiten", systemImage: "square.and.pencil") }
+            if UFEditorAvailability.available {
+                Button { textEditing = item } label: { Label("Bearbeiten", systemImage: "square.and.pencil") }
+            }
             Button { previewing = item } label: { Label("Ansehen", systemImage: "eye") }
         }
         Button { newName = item.name; renaming = item } label: { Label("Umbenennen", systemImage: "pencil") }
@@ -570,7 +581,7 @@ struct ZipFolderView: View {
         switch ZipOpenKind.of(item) {
         case .folder: model.open(folder: item.path)
         case .pdf: Task { if let f = await model.editorDocument(for: item) { editing = f } }
-        case .text: textEditing = item
+        case .text: if UFEditorAvailability.available { textEditing = item } else { previewing = item }
         case .preview: previewing = item
         }
     }

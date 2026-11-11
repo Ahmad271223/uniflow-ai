@@ -103,7 +103,8 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     var tagline: String {
         switch self {
         case .free: return "Studium organisieren und Unterlagen lesen"
-        case .plus: return "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"
+        case .plus: return UFEditorAvailability.available ? "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"
+            : "Karteikarten, Wochentests und in der iPad-App mit Stift schreiben"
         case .proAI: return "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"
         }
     }

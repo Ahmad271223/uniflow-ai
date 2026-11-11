@@ -15,6 +15,8 @@ enum CorrectionTexts {
     static let action = "Korrektur vorschlagen"
     static let needsPDF = "Lade die PDF, um zu korrigieren."
     static let needsPDFToView = "Lade die PDF, um die Korrektur anzusehen."
+    /// iPhone ohne Editor (11.11.2026): Korrekturen entstehen und erscheinen ueber den eigenen Notizen im Editor des iPads
+    static let onIPad = "Korrekturen schlägst du in der iPad-App vor und siehst sie dort über deinen Notizen."
     static let reported = "Danke – die Korrektur wurde gemeldet."
     static let deleted = "Deine Korrektur wurde zurückgenommen."
     static let sectionTitle = "Korrekturvorschläge"
@@ -164,6 +166,7 @@ final class CorrectionInboxModel: ObservableObject {
         defer { busy = nil }
         var print = item.fingerprint
         if print == nil { print = try? await service.download(solutionID: item.correction.targetSolutionID).header.fingerprint }
+        guard UFEditorAvailability.available else { notice = CorrectionTexts.onIPad; return }
         guard let print, !print.isEmpty, let file = await localFile(print) else {
             notice = CorrectionTexts.needsPDFToView
             return

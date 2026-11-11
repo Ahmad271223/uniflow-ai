@@ -11,6 +11,9 @@ struct PlanView: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// iPhone (docs/IPHONE-2026-11-04.md): Woche als 3 Tage (sieben Spalten passen nicht), Aktionen im Menue,
+    /// Leiste untereinander
+    @Environment(\.ufCompact) private var compact
     @AppStorage("cal-side") private var calSide = ""                 // localStorage "cal-side": "on" | "off"
     @State private var data: PlanData?
     @State private var error: String?
@@ -37,7 +40,21 @@ struct PlanView: View {
         .ufReload { await load() }
     }
 
-    private var key: String { "\(params.view ?? "")|\(params.date ?? "")|\(params.module ?? "")" }
+    private var key: String { "\(params.view ?? "")|\(params.date ?? "")|\(params.module ?? "")|\(weekFits)" }
+
+    /// Sieben Tagesspalten brauchen mindestens 560 pt (iPhone hoch: nein; iPad im schmalen Split View und iPhone quer: ja)
+    static func weekFits(width: CGFloat) -> Bool { width >= 560 }
+    private var weekFits: Bool { !UFCompact.phoneLayouts || Self.weekFits(width: windowWidth) }      // iPad wie bisher
+
+    /// Ansichten der Leiste; ohne Platz fuer die Woche ohne "Woche" (sie zeigt dann 3 Tage, `PlanView.shownView`)
+    static func views(compact: Bool, weekFits: Bool = true) -> [(value: String, label: String, icon: String?)] {
+        let all: [(value: String, label: String, icon: String?)] = [("day", "Tag", nil), ("3days", "3 Tage", nil), ("week", "Woche", nil),
+                                                                    ("month", "Monat", nil), ("list", "Liste", compact ? nil : "list")]
+        return weekFits ? all : all.filter { $0.value != "week" }
+    }
+
+    /// Gezeigte Ansicht: ohne Platz fuer sieben Spalten wird "Woche" zu "3 Tage" ab dem gewaehlten Tag
+    static func shownView(_ view: String, weekFits: Bool) -> String { !weekFits && view == "week" ? "3days" : view }
 
     // MARK: Laden
 
@@ -46,7 +63,8 @@ struct PlanView: View {
         if let d = params.date { Self.state.date = d }
         if let m = params.module { Self.state.module = m }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
-        let st = Self.state
+        var st = Self.state
+        st.view = Self.shownView(st.view, weekFits: weekFits)
         let d = Fmt.date(st.date) ?? Date()
         let (start, end) = PlanData.range(view: st.view, date: d)
         let (mStart, mEnd) = PlanData.range(view: "month", date: d)
@@ -90,10 +108,32 @@ struct PlanView: View {
         let backlog = d.open.filter { $0.s("status") == "nachholen" }
         let wk = d.view == "week" || d.view == "3days"
         let sideOff = wk && (calSide.isEmpty ? windowWidth < 1400 : calSide == "off")
-        UFContent(wide: true, maxWidth: 1600, insets: EdgeInsets(top: 20.8, leading: 24, bottom: 48, trailing: 24)) {
+        let side: CGFloat = compact ? 16 : 24
+        UFContent(wide: true, maxWidth: 1600, insets: EdgeInsets(top: 20.8, leading: side, bottom: 48, trailing: side)) {
             // ohne PC keine Wochentests (KI, entfallen in V1): nicht ankuendigen
             UFPageHead("Lernkalender", sub: session.api?.isLocal == true ? "Dein Wochenplan – perfekt auf Vorlesungen und Übungen abgestimmt."
                                                                        : "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.") {
+              if compact {
+                // iPhone: "Plan erstellen" sichtbar, die uebrigen Aktionen im Menue daneben
+                UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+                Menu {
+                    Button { actions.addPackage(date: Fmt.isoDay(d.view == "day" ? d.date : d.start)) } label: { Label("Lernpaket", systemImage: "plus") }
+                    Button { actions.availability() } label: { Label("Verfügbarkeit", systemImage: "clock") }
+                    Button { actions.config() } label: { Label("Lernkombination", systemImage: "gearshape") }
+                    Button { Task { await actions.suggest(["rescue": true]) } } label: { Label("Woche retten", systemImage: "lifepreserver") }
+                        .disabled(backlog.isEmpty)
+                } label: {
+                    HStack(spacing: 6) { UFIcon("more", size: 16); Text("Mehr") }
+                        .ufFont(14.5, 500).foregroundStyle(UF.text)
+                        .padding(.vertical, 8).padding(.horizontal, 14)
+                        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
+                        .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.lineStrong, lineWidth: 1))
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Weitere Aktionen")
+                .accessibilityIdentifier("plan.more")
+              } else {
                 UFButton("Lernpaket", icon: "plus") { actions.addPackage(date: Fmt.isoDay(d.view == "day" ? d.date : d.start)) }
                 // Verfuegbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten) gehoert zu den Lernslots: seit 03.11.2026 hier statt im Stundenplan
                 UFButton("Verfügbarkeit", icon: "clock") { actions.availability() }
@@ -102,9 +142,10 @@ struct PlanView: View {
                     .disabled(backlog.isEmpty)
                     .help(backlog.isEmpty ? "Nichts nachzuholen" : "")
                 UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+              }
             }
             if !backlog.isEmpty { backlogBanner(backlog, d) }
-            if windowWidth > 1100 || sideOff {
+            if (windowWidth > 1100 || sideOff) && !compact {
                 HStack(alignment: .top, spacing: 16) {
                     mainCard(d, wk: wk)
                     if !sideOff { PlanSide(d: d, backlog: backlog).frame(width: 286) }
@@ -165,7 +206,8 @@ struct PlanView: View {
             default: PlanTaskList(open: d.open)
             }
         }
-        .padding(EdgeInsets(top: 14.4 + ufB, leading: 16 + ufB, bottom: 16 + ufB, trailing: 16 + ufB))
+        .padding(compact ? EdgeInsets(top: 12 + ufB, leading: 10 + ufB, bottom: 12 + ufB, trailing: 10 + ufB)
+                         : EdgeInsets(top: 14.4 + ufB, leading: 16 + ufB, bottom: 16 + ufB, trailing: 16 + ufB))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
         .overlay(RoundedRectangle(cornerRadius: UF.rLg).strokeBorder(UF.line, lineWidth: 1))
@@ -173,9 +215,46 @@ struct PlanView: View {
     }
 
     /// .cal2-bar
-    private func bar(_ d: PlanData, wk: Bool) -> some View {
-        let views: [(value: String, label: String, icon: String?)] = [("day", "Tag", nil), ("3days", "3 Tage", nil), ("week", "Woche", nil), ("month", "Monat", nil), ("list", "Liste", "list")]
-        let modOptions: [(value: String, label: String)] = [("", "Alle Module")] + d.modules.compactMap { m in m.i("id").map { ("\($0)", UFFmt.shortName(m.s("name"))) } }
+    @ViewBuilder private func bar(_ d: PlanData, wk: Bool) -> some View {
+        if compact { compactBar(d) } else { regularBar(d, wk: wk) }
+    }
+
+    private func moduleOptions(_ d: PlanData) -> [(value: String, label: String)] {
+        [("", "Alle Module")] + d.modules.compactMap { m in m.i("id").map { ("\($0)", UFFmt.shortName(m.s("name"))) } }
+    }
+
+    private var moduleBinding: Binding<String> {
+        Binding(get: { Self.state.module }, set: { m in
+            Self.state.module = m
+            router.go(.plan(view: Self.state.view, date: Self.state.date, module: m))
+        })
+    }
+
+    /// iPhone: Ansichten in voller Breite, darunter ‹ Zeitraum ›, dann Heute, Modulfilter und Lernkombination
+    private func compactBar(_ d: PlanData) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            UFSegPill(options: Self.views(compact: true, weekFits: weekFits), selection: d.view, fill: true) { v in go(v, Self.state.date) }
+                .accessibilityIdentifier("plan.views")
+            HStack(spacing: 6) {
+                UFButton(icon: "chevron-left") { go(d.view, d.step(-1)) }
+                Text(d.label)
+                    .ufFont(15.2, 650).foregroundStyle(UF.text)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2).minimumScaleFactor(0.85)
+                    .frame(maxWidth: .infinity)
+                UFButton(icon: "chevron-right") { go(d.view, d.step(1)) }
+            }
+            HStack(spacing: 8) {
+                UFButton("Heute") { go(d.view, UFFmt.todayISO()) }
+                UFSelect(options: moduleOptions(d), selection: moduleBinding, fill: true)
+                UFButton(icon: "settings") { actions.config() }.accessibilityLabel("Lernkombination")
+            }
+        }
+    }
+
+    private func regularBar(_ d: PlanData, wk: Bool) -> some View {
+        let views = Self.views(compact: false)
+        let modOptions = moduleOptions(d)
         return UFFlexWrap(gap: 8) {
             UFSegPill(options: views, selection: d.view) { v in go(v, Self.state.date) }
             UFFlexSpacer(max: 24)

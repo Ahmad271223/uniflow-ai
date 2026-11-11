@@ -156,6 +156,9 @@ final class CommunitySharedStateTests: XCTestCase {
         XCTAssertEqual(AccountDevice.name(systemName: "iPad", model: "iPad", isMac: false), "iPad")
         XCTAssertEqual(AccountDevice.idPrefix(isMac: true), "mac-")
         XCTAssertEqual(AccountDevice.idPrefix(isMac: false), "ipad-")
+        XCTAssertEqual(AccountDevice.idPrefix(isMac: false, isPhone: true), "iphone-")
+        XCTAssertEqual(AccountDevice.systemLabel(version: "27.2", isMac: false, isPhone: true), "iOS 27.2")
+        XCTAssertEqual(AccountDevice.systemLabel(version: "27.2", isMac: false), "iPadOS 27.2")
         XCTAssertEqual(AccountDevice.systemLabel(version: "26.1", isMac: false), "iPadOS 26.1")
         XCTAssertTrue(AccountDevice.systemLabel(version: "26.1", isMac: true).hasPrefix("macOS"))
     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniFlowCore
 
 // App-Rahmen 1:1 nach index.html / app.js: Seitenleiste (Logo, Menue, Einstellungen/Einklappen unten fest),
@@ -207,10 +208,28 @@ final class UFRouter: ObservableObject {
     var showsBackArrow: Bool { Self.showsBackArrow(on: route) }
     static func showsBackArrow(on r: UFRoute) -> Bool { r != .dashboard }
 
+    /// iPhone (kompakt, docs/IPHONE-2026-11-04.md): die Bereiche der unteren Leiste (Start, Kalender, Module,
+    /// Dokumente) sind Wurzeln wie die Tabs des Systems und tragen keinen Pfeil (Dokumente hat in Ordnern das eigene
+    /// "‹ Ordner"); jede andere Seite (aus "Mehr", ein Modul, eine Community) genau einen in der Kopfzeile, ebenso
+    /// jede Wurzel, solange in ihr etwas offen ist (`localBack`). Blaetter mit NavigationStack haben das Zurueck des
+    /// Systems, das Dokument das seiner Werkzeugleiste (Kopfzeile aus).
+    var showsCompactBackArrow: Bool { Self.showsCompactBackArrow(on: route, local: hasLocalBack) }
+    static func showsCompactBackArrow(on r: UFRoute, local: Bool) -> Bool {
+        if local { return true }
+        switch r {
+        case .dashboard, .plan, .modules, .files: return false
+        default: return true
+        }
+    }
+
     /// Zurueck innerhalb einer Seite (z. B. offene Nachricht in schmaler Ansicht, Notizen einer Person in der
     /// Community): solange gesetzt, schliesst der Pfeil zuerst das, statt die Seite zu wechseln (wie das Zurueck eines
     /// NavigationStack). Die Seite setzt und loescht es selbst (`ufLocalBack`); ein Seitenwechsel loescht es immer.
-    private(set) var localBack: (id: String, action: () -> Void)?
+    private(set) var localBack: (id: String, action: () -> Void)? {
+        didSet { if hasLocalBack != (localBack != nil) { hasLocalBack = localBack != nil } }
+    }
+    /// Es gibt ein Zurueck innerhalb der Seite (die kompakte Kopfzeile zeigt dann auch auf einer Wurzel den Pfeil)
+    @Published private(set) var hasLocalBack = false
 
     func setLocalBack(id: String, _ action: (() -> Void)?) {
         if let action { localBack = (id, action) } else if localBack?.id == id { localBack = nil }
@@ -483,6 +502,11 @@ struct AppShell<Content: View>: View {
     @ObservedObject private var inbox = MessagesInbox.shared
     @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
+    /// iPhone-Fassung (docs/IPHONE-2026-11-04.md): nach Platz, nicht nach Geraet (`UFLayout.isCompact`)
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    /// Tastatur offen: kompakt verschwindet die untere Leiste, damit sie nicht ueber der Tastatur klebt
+    @ObservedObject private var keyboard = UFKeyboard.shared
     @ViewBuilder let content: (UFRoute) -> Content
 
     /// Nur Debug-Builds: -UFCanvas 1194x834 legt die Oberflaeche in dieser Groesse an und verkleinert sie auf den
@@ -511,7 +535,13 @@ struct AppShell<Content: View>: View {
 
     private var shell: some View {
         GeometryReader { geo in
-            let narrow = geo.size.width <= 900
+            // kompakt (iPhone hoch und quer, iPad im schmalen Split View): untere Leiste mit "Mehr" statt Schublade,
+            // kompakte Kopfzeile; sonst unter 900 pt wie bisher Schublade + untere Leiste (iPad unveraendert)
+            let compact = UFLayout.isCompact(horizontal: hSize, vertical: vSize)
+            // iPhone quer: Kopfzeile und untere Leiste flach wie die Tab-Leiste des Systems, sonst blieben von 402 pt
+            // Hoehe kaum 150 pt fuer die Seite (Pruefung 05.11.2026); das iPad ist nie senkrecht kompakt
+            let flat = compact && vSize == .compact
+            let narrow = geo.size.width <= 900 || compact
             let docOpen: Bool = { if case .doc = router.route { return true }; return false }()
             let hideChrome = router.fullscreenDoc || router.examFocus
             let showsSidebar = !narrow && !hideChrome && !docOpen
@@ -525,7 +555,7 @@ struct AppShell<Content: View>: View {
                             .transition(.move(edge: .leading))
                     }
                     VStack(spacing: 0) {
-                        if !hideChrome && !docOpen { UFHeader(narrow: narrow) }          // doc-open: Kopfzeile aus
+                        if !hideChrome && !docOpen { UFHeader(narrow: narrow, compact: compact, flat: flat) }   // doc-open: Kopfzeile aus
                         if demoActive && !demoBarHidden && !session.isOwnServer && !hideChrome && !docOpen { DemoActiveBar() }
                         // Die Seite bekommt genau die Breite neben der Leiste: eine zu breite Seite schob sonst Kopfzeile,
                         // Demo-Leiste und alles darunter ueber den rechten Rand (Breiten-Audit 04.11.2026, Einstellungen
@@ -533,12 +563,14 @@ struct AppShell<Content: View>: View {
                         content(router.route)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .frame(width: max(0, geo.size.width - (showsSidebar ? sidebarWidth : 0)), alignment: .leading)
-                        if narrow && !hideChrome && !docOpen { UFMobileNav() }
+                        if narrow && !hideChrome && !docOpen && !(compact && keyboard.visible) {
+                            UFMobileNav(compact: compact, flat: flat)
+                        }
                     }
                     .modifier(UFDrawerHost(overlay: overlay))
                 }
                 .background(UF.bg)
-                if narrow && router.drawerOpen {
+                if narrow && !compact && router.drawerOpen {
                     Color.black.opacity(0.35).ignoresSafeArea()
                         .onTapGesture { router.drawerOpen = false }
                     UFSidebar(collapsed: false, allowCollapse: false)
@@ -550,6 +582,8 @@ struct AppShell<Content: View>: View {
             .animation(UF.transition, value: sidebarMode)
             .animation(UF.transition, value: router.drawerOpen)
             .environment(\.ufWindowWidth, geo.size.width)
+            .environment(\.ufCompact, compact)
+            .onChange(of: compact) { _, c in if c { router.drawerOpen = false } }
             .environment(\.ufLogoMenu, UFLogoMenuTargets(
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                          community: SolutionSharing.community.isConnected, ai: aiEnabled,
@@ -972,6 +1006,10 @@ struct UFNavBadge: View {
 /// .mobile-nav: fuenf gleich breite Eintraege, aktiv mit --accent-soft; Abzeichen klein am Symbol. "Mehr" oeffnet die
 /// Liste der uebrigen Bereiche (`UFMoreSheet`) mit ihren Abzeichen; markiert, wenn einer davon offen ist.
 struct UFMobileNav: View {
+    /// kompakt (iPhone): etwas hoeher und mit groesseren Symbolen wie eine Tab-Leiste des Systems
+    var compact = false
+    /// iPhone quer: Symbol neben dem Namen, flach (wie die Tab-Leiste des Systems quer)
+    var flat = false
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
@@ -1012,16 +1050,19 @@ struct UFMobileNav: View {
                 let active = isMore ? Self.moreActive(router.route, items: more) : router.route.navKey == item.id
                 let badge = isMore ? Self.moreBadge(router.badges, items: more) : router.badge(for: item.id)
                 Button { if isMore { showMore = true } else { router.go(item.route) } } label: {
-                    VStack(spacing: 1.6) {
-                        UFIcon(item.icon, size: 20)
+                    let layout = flat ? AnyLayout(HStackLayout(spacing: 6)) : AnyLayout(VStackLayout(spacing: compact ? 2.4 : 1.6))
+                    layout {
+                        UFIcon(item.icon, size: flat ? 19 : (compact ? 22 : 20))
                             .overlay(alignment: .topTrailing) {
                                 if badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -6) }
                             }
-                        Text(item.title).font(.uf(10.56))
+                        // iPad (nicht kompakt): Schrift und Umbruch wie bis Build 32
+                        Text(item.title).font(.uf(flat ? 12.5 : (compact ? 11 : 10.56), (compact || flat) && active ? 600 : 400))
+                            .lineLimit(compact || flat ? 1 : nil).minimumScaleFactor(compact || flat ? 0.8 : 1)
                     }
                     .foregroundStyle(active ? UF.accentText : UF.muted)
                     .padding(4)
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: flat ? 36 : (compact ? 48 : 44))
                     .background(RoundedRectangle(cornerRadius: 6).fill(active ? UF.accentSoft : .clear))
                     .contentShape(Rectangle())
                 }
@@ -1040,8 +1081,8 @@ struct UFMobileNav: View {
             }
         }
         .padding(.horizontal, 3.2)
-        .padding(.top, 4.8)
-        .padding(.bottom, 4.8)
+        .padding(.top, flat ? 2.4 : 4.8)
+        .padding(.bottom, flat ? 2.4 : 4.8)
         .background(UF.surface.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
         .task {
@@ -1056,43 +1097,148 @@ struct UFMobileNav: View {
     }
 }
 
-/// Liste hinter "Mehr": je Bereich Symbol, Name, Abzeichen und Pfeil, mindestens 44 pt hoch, der offene Bereich markiert
+/// Liste hinter "Mehr": je Bereich Symbol, Name, Abzeichen und Pfeil, mindestens 44 pt hoch, der offene Bereich markiert.
+/// Kompakt (iPhone, Blatt von unten) oben das Profil mit Tarif und "Plus holen" wie im Fuss der Seitenleiste, die Liste
+/// scrollt.
 struct UFMoreSheet: View {
     let items: [UFNavItem]
     let go: (UFRoute) -> Void
     @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
+        if compact {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    UFMoreProfile(go: go)
+                    list
+                }
+                .padding(.top, 8)
+            }
+            .background(UF.surface)
+        } else {
+            list
+        }
+    }
+
+    /// Kompakt (iPhone): die Bereiche in den Gruppen der Seitenleiste ("Studium", "Lernen", "Alltag", "Gemeinsam") mit
+    /// kleiner Ueberschrift, die Einstellungen danach ohne Gruppe; breit eine Liste wie bisher
+    static func sections(_ items: [UFNavItem], grouped: Bool) -> [(id: String, label: String?, items: [UFNavItem])] {
+        guard grouped else { return [("all", nil, items)] }
+        let areas = items.filter { $0.id != UFNavItem.settings.id }
+        let rest = items.filter { $0.id == UFNavItem.settings.id }
+        return UFNavGroup.groups(areas).map { ($0.id, $0.label, $0.items) } + (rest.isEmpty ? [] : [("settings", nil, rest)])
+    }
+
+    private var list: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Mehr").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
                 .padding(.horizontal, 11.2).padding(.bottom, 4)
                 .accessibilityAddTraits(.isHeader)
-            ForEach(items) { item in
-                let active = UFNavItem.active(item, in: items + UFNavItem.mobile, route: router.route)
-                let badge = router.badge(for: item.id)
-                Button { go(item.route) } label: {
-                    HStack(spacing: 10.4) {
-                        UFIcon(item.icon, size: 18)
-                        Text(item.title).ufFont(14.5, 500).frame(maxWidth: .infinity, alignment: .leading)
-                        if badge > 0 { UFNavBadge(count: badge) }
-                        UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
-                    }
-                    .foregroundStyle(active ? UF.accentText : UF.text)
-                    .padding(.horizontal, 11.2)
-                    .frame(minHeight: 44)
-                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(active ? UF.accentSoft : .clear))
-                    .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+            ForEach(Self.sections(items, grouped: compact), id: \.id) { section in
+                if let label = section.label {
+                    Text(label).ufFont(11.5, 650, em: 0.06).foregroundStyle(UF.muted)
+                        .padding(.horizontal, 11.2).padding(.top, 10).padding(.bottom, 2)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("more.group.\(section.id)")
+                } else if section.id == "settings" {
+                    Divider().padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
-                .accessibilityAddTraits(active ? .isSelected : [])
-                .accessibilityIdentifier("more.\(item.id)")
+                rows(section.items)
             }
         }
         .padding(16)
         .frame(minWidth: 300, alignment: .topLeading)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(maxHeight: compact ? nil : .infinity, alignment: .top)
         .background(UF.surface)
+    }
+
+    @ViewBuilder private func rows(_ shown: [UFNavItem]) -> some View {
+        ForEach(shown) { item in
+            let active = UFNavItem.active(item, in: items + UFNavItem.mobile, route: router.route)
+            let badge = router.badge(for: item.id)
+            Button { go(item.route) } label: {
+                HStack(spacing: 10.4) {
+                    UFIcon(item.icon, size: 18)
+                    Text(item.title).ufFont(14.5, 500).frame(maxWidth: .infinity, alignment: .leading)
+                    if badge > 0 { UFNavBadge(count: badge) }
+                    UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                }
+                .foregroundStyle(active ? UF.accentText : UF.text)
+                .padding(.horizontal, 11.2)
+                .frame(minHeight: 44)
+                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(active ? UF.accentSoft : .clear))
+                .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
+            .accessibilityAddTraits(active ? .isSelected : [])
+            .accessibilityIdentifier("more.\(item.id)")
+        }
+    }
+}
+
+/// Profil oben in "Mehr" (iPhone): Initialen, Name der Begruessung, Tarif und Knopf zum naechsthoeheren Tarif; Tippen
+/// oeffnet das Konto (wie das Profil der Seitenleiste, `UFSidebarProfile`)
+struct UFMoreProfile: View {
+    let go: (UFRoute) -> Void
+    @EnvironmentObject private var shell: ShellState
+    @EnvironmentObject private var account: AccountStore
+    @Environment(\.ufShowPlans) private var showPlans
+    @ObservedObject private var ent = Entitlements.shared
+
+    var body: some View {
+        let p = UFSidebarProfile.make(ent)
+        let name = UFGreeting.name(for: account.account)
+        let shown = name ?? "Dein Konto"
+        let ini = UFSidebarProfile.initials(server: shell.initials, appleName: account.account?.name, greetingName: name)
+        VStack(alignment: .leading, spacing: 10) {
+            Button { go(.settings(tab: "account")) } label: {
+                HStack(spacing: 10) {
+                    Group {
+                        if ini.isEmpty { UFIcon("user", size: 18) } else { Text(ini).font(.uf(14, 700)) }
+                    }
+                    .foregroundStyle(UF.accentText)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(UF.accentSoft))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(shown).ufFont(15, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
+                        Text(p.planLabel).ufFont(13, 500, lh: 1.25).foregroundStyle(UF.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(shown), \(p.planAccessibility)")
+            .accessibilityHint("Öffnet dein Konto")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("more.profile")
+            if let title = p.upgradeTitle {
+                Button {
+                    if let showPlans { showPlans() } else { go(.settings(tab: "plan")) }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(title).ufFont(14, 650, lh: 1.2).lineLimit(1)
+                        UFIcon("arrow-right", size: 14)
+                    }
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Capsule().fill(UF.accentFill))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(UFPressStyle())
+                .accessibilityHint("Öffnet die Tarife")
+                .accessibilityIdentifier("more.upgrade")
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+        .padding(.horizontal, 16)
     }
 }
 
@@ -1133,6 +1279,11 @@ struct UFHeader: View {
     }
 
     let narrow: Bool
+    /// kompakt (iPhone): Logo links, rechts nur Symbole (Suche als Vollbild, Sync, Profil); keine Schublade, die
+    /// untere Leiste mit "Mehr" fuehrt zu allen Bereichen
+    var compact = false
+    /// iPhone quer: 44 statt 56 pt hoch
+    var flat = false
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var toast: UFToastCenter
@@ -1145,8 +1296,84 @@ struct UFHeader: View {
     @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @State private var query = ""
     @FocusState private var searchFocused: Bool
+    /// kompakt: Suche als Vollbild
+    @State private var searchOpen = false
 
     var body: some View {
+        if compact { compactBar } else { regularBar }
+    }
+
+    /// Initialen fuer den Avatar (Server, sonst Apple-Name)
+    private var initials: String { shell.initials.isEmpty ? ShellState.initials(of: account.account?.name) : shell.initials }
+
+    private func avatar(size: CGFloat) -> some View {
+        let ini = initials
+        return Group {
+            if ini.isEmpty { UFIcon("user", size: 16) } else { Text(ini).font(.uf(12.48, 700)) }
+        }
+        .foregroundStyle(UF.accentText)
+        .frame(width: size, height: size)
+        .background(Circle().fill(UF.accentSoft))
+    }
+
+    /// Kopfzeile auf dem iPhone: Logo und Name, dann Suche, Sync und Profil als Symbole mit 44 pt Trefferflaeche
+    private var compactBar: some View {
+        HStack(spacing: 2) {
+            // Zurueck (06.11.2026) nur, wo die untere Leiste nicht schon dorthin fuehrt (`showsCompactBackArrow`)
+            if router.showsCompactBackArrow { UFBackButton(style: .header, compact: true).padding(.trailing, 4) }
+            Button { router.go(.dashboard) } label: {
+                HStack(spacing: 8) {
+                    UFLogoImage(size: 28)                               // neues Logo wie das App-Icon (develop 06.11.2026)
+                    Text("StudiNow").ufFont(16.32, 700).foregroundStyle(UF.text).lineLimit(1)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("StudiNow, zur Übersicht")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("header.home")
+            Spacer(minLength: 8)
+            iconButton("search", label: "Suche", id: "header.search") { searchOpen = true }
+            iconButton("sync", label: shell.syncRunning || studip.isRunning ? "Abgleich läuft" : "Abgleichen", id: "header.sync") { sync() }
+                .disabled(shell.syncRunning || studip.isRunning)
+                .opacity(shell.syncRunning || studip.isRunning ? 0.5 : 1)
+            Button { router.go(.settings(tab: "account")) } label: {
+                avatar(size: 32).frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(account.account == nil ? "Profil, nicht angemeldet" : "Profil")
+            .accessibilityHint("Öffnet dein Konto")
+            .accessibilityIdentifier("header.profile")
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 6)
+        .frame(height: flat ? 44 : UF.header)
+        .background(.ultraThinMaterial)
+        .background(UF.surface.opacity(0.88))
+        .ufBorderBottom()
+        .zIndex(15)
+        .fullScreenCover(isPresented: $searchOpen) {
+            UFSearchScreen { r in
+                searchOpen = false
+                router.go(r)
+            } cancel: { searchOpen = false }
+            .environmentObject(shell)
+        }
+    }
+
+    private func iconButton(_ icon: String, label: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            UFIcon(icon, size: 20).foregroundStyle(UF.text2)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
+    }
+
+    private var regularBar: some View {
         HStack(spacing: 9.6) {
             // Zurueck oben links auf jeder Seite ausser der Startseite (06.11.2026); schmal nur der Chevron
             if router.showsBackArrow { UFBackButton(style: .header, compact: narrow) }
@@ -1185,13 +1412,7 @@ struct UFHeader: View {
                 UFButton(icon: "clock", kind: .ghost) { timer.toggle() }     // #profileBtn: Zeitmesser
             }
             // .avatar: 34 pt, accent-soft, .78rem fett; ohne Server die Initialen aus dem Apple-Namen, sonst ein Symbol
-            let ini = shell.initials.isEmpty ? ShellState.initials(of: account.account?.name) : shell.initials
-            Group {
-                if ini.isEmpty { UFIcon("user", size: 16) } else { Text(ini).font(.uf(12.48, 700)) }
-            }
-            .foregroundStyle(UF.accentText)
-            .frame(width: 34, height: 34)
-            .background(Circle().fill(UF.accentSoft))
+            avatar(size: 34)
             .help(account.account == nil ? "Nicht angemeldet" : "Angemeldet mit deiner Apple-ID")
         }
         .padding(.horizontal, narrow ? 11.2 : 17.6)
@@ -1270,5 +1491,106 @@ struct UFHeader: View {
         query = ""
         searchFocused = false
         router.go(r)
+    }
+}
+
+// MARK: - Suche als Vollbild (iPhone)
+
+/// Suche auf dem iPhone: Feld oben mit "Abbrechen", Treffer als Liste darunter (dieselbe Suche wie die Kopfzeile des
+/// iPad, `ShellState.search`); Eingabe sofort aktiv, Liste scrollt ueber der Tastatur.
+struct UFSearchScreen: View {
+    let open: (UFRoute) -> Void
+    let cancel: () -> Void
+    @EnvironmentObject private var shell: ShellState
+    @State private var query = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                HStack(spacing: 6) {
+                    UFIcon("search", size: 16).foregroundStyle(UF.muted)
+                    TextField("Dateien, Module, Themen …", text: $query)
+                        .font(UF.body)
+                        .focused($focused)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .onChange(of: query) { _, q in shell.search(q) }
+                        .onSubmit { if let first = shell.searchHits.first { open(first.route) } }
+                        .accessibilityIdentifier("search.field")
+                }
+                .padding(.vertical, 9)
+                .padding(.horizontal, 12)
+                .background(Capsule().fill(UF.surface2))
+                .overlay(Capsule().strokeBorder(UF.line, lineWidth: 1))
+                Button("Abbrechen") { shell.search(""); cancel() }
+                    .ufFont(15, 500)
+                    .foregroundStyle(UF.accentText)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("search.cancel")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .ufBorderBottom()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) { results }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .background(UF.bg.ignoresSafeArea())
+        .onAppear { focused = true }
+    }
+
+    @ViewBuilder private var results: some View {
+        if query.trimmingCharacters(in: .whitespaces).count < 2 {
+            Text("Mindestens zwei Zeichen eingeben").font(UF.small).foregroundStyle(UF.muted).padding(12)
+        } else if let e = shell.searchError {
+            HStack(spacing: 6) { UFIcon("alert", size: 14); Text(e) }.font(UF.small).foregroundStyle(UF.warn).padding(12)
+        } else if shell.searchHits.isEmpty {
+            Text("Keine Treffer").font(UF.small).foregroundStyle(UF.muted).padding(12)
+        } else {
+            ForEach(shell.searchHits) { hit in
+                Button { query = ""; open(hit.route) } label: {
+                    HStack(spacing: 10) {
+                        if let c = hit.color { UFDot(color: c) } else { UFIcon(hit.icon, size: 18).foregroundStyle(UF.text2) }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(hit.title).font(.uf(15, hit.color == nil ? 500 : 600)).foregroundStyle(UF.text).lineLimit(2)
+                            Text(hit.sub).font(UF.small).foregroundStyle(UF.muted).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// MARK: - Tastatur
+
+/// Ob die Bildschirmtastatur offen ist (kompakt blendet `AppShell` die untere Leiste dann aus)
+@MainActor
+final class UFKeyboard: ObservableObject {
+    static let shared = UFKeyboard()
+    @Published private(set) var visible = false
+    private var tokens: [NSObjectProtocol] = []
+
+    private init() {
+        let c = NotificationCenter.default
+        tokens.append(c.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.visible = true }
+        })
+        tokens.append(c.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.visible = false }
+        })
     }
 }

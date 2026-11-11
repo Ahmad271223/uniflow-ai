@@ -34,9 +34,9 @@ struct BackgroundSyncCard: View {
         return "Die Mitteilung nennt nur die Zahl, nie Dateinamen („3 neue Dateien aus \(files)“). Läuft die Anmeldung ab, kommt einmal „\(login)“ – im Hintergrund meldet sich StudiNow nie selbst an und benutzt keine gemerkten Zugangsdaten."
     }
 
-    static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
+    static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den \(UFDevice.textName)-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
 
-    static let refreshOffText = "Die Hintergrundaktualisierung ist in den iPad-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht StudiNow nur beim Öffnen ab."
+    static let refreshOffText = "Die Hintergrundaktualisierung ist in den \(UFDevice.textName)-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht StudiNow nur beim Öffnen ab."
 
     /// "Letzter Hintergrundlauf: 08:14 – Listen: 3 neue Dateien"
     static func lastRunText(_ r: BackgroundSyncRecord?, now: Date) -> String {

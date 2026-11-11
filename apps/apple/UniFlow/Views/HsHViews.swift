@@ -184,6 +184,8 @@ struct HsHSourcesCard: View {
 
     private struct Panel: View {
         @ObservedObject var connection: HsHConnection
+        /// iPhone: Studienservice als eigener Kasten, Knoepfe in voller Breite
+        @Environment(\.ufCompact) private var compact
         @State private var login: HsHConnection.Source?
         @State private var confirmSignOut = false
 
@@ -232,25 +234,35 @@ struct HsHSourcesCard: View {
                     HsHMessagesDisclosure(messages: connection.messages)
                 }
                 if let note = connection.registrationsMessage {
-                    Text(note).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 6)
+                    Text(note).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 6).modifier(UFPhoneWrap())
                 }
                 if let note = connection.messagesNote {
-                    Text(note).ufFont(12.8).foregroundStyle(UF.muted)
+                    Text(note).ufFont(12.8).foregroundStyle(UF.muted).modifier(UFPhoneWrap())
                 }
                 if let ss = connection.studyService {
                     // Studienservice (nur lesen): Rueckmeldung, offene Zahlungen (Semesterbeitrag), Bescheide
                     VStack(alignment: .leading, spacing: 4) {
+                        if compact {
+                            Text("Studienservice").ufFont(13.6, 650).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                        }
                         if let r = ss["reregistration"]?.string { UFBadge(r, tone: r.lowercased().hasPrefix("nicht") ? .warn : .ok, icon: "check") }
                         if let n = ss["open_payments"]?.int {
                             Text(n == 0 ? "Semesterbeitrag: keine offenen Zahlungen" : "Semesterbeitrag: \(n) offene \(n == 1 ? "Zahlung" : "Zahlungen") – im Campusmanagement ansehen")
                                 .ufFont(12.8).foregroundStyle(n == 0 ? UF.muted : UF.bad)
+                                .modifier(UFPhoneWrap())
                         }
                         if let d = ss["documents"]?.int {
                             Text(d == 0 ? "Bescheide und Bescheinigungen: keine vorhanden" : "Bescheide und Bescheinigungen: \(d) im Campusmanagement")
                                 .ufFont(12.8).foregroundStyle(UF.muted)
+                                .modifier(UFPhoneWrap())
                         }
                         Link("Studienservice öffnen", destination: HISinOneStudyService.url).ufFont(12.8)
+                            .frame(minHeight: compact ? 44 : nil)
+                            .accessibilityIdentifier("hsh.studyService.open")
                     }
+                    .padding(compact ? 12 : 0)
+                    .frame(maxWidth: compact ? .infinity : nil, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(compact ? UF.surface2 : Color.clear))
                     .padding(.top, 6)
                     .accessibilityIdentifier("hsh.studyService")
                 }

@@ -126,7 +126,7 @@ struct PlanPickerView: View {
     /// Zeile darunter (`trialStatus`)
     static func subtitle(proAI: Bool) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
-        s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
+        s += "\(UFPlan.plus.name) fügt \(UFEditorAvailability.available ? "das Schreiben mit Apple Pencil" : "Karteikarten, Community und in der iPad-App das Schreiben mit Apple Pencil") hinzu"
         s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
@@ -381,15 +381,21 @@ struct PlanPickerView: View {
 
     private func errorCard(_ text: String) -> some View {
         UFCard(flat: true) {
-            HStack(spacing: 12) {
-                UFIcon("alert", size: 18).foregroundStyle(UF.bad)
-                Text(text).ufFont(14.5).foregroundStyle(UF.text)
-                Spacer(minLength: 8)
+            // iPhone: Knopf unter dem Text (daneben blieb fuer den Text nur ein schmaler Streifen)
+            let layout = (UFCompact.phoneLayouts && hSize == .compact) ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 12))
+            layout {
+                HStack(alignment: (UFCompact.phoneLayouts && hSize == .compact) ? .top : .center, spacing: 12) {
+                    UFIcon("alert", size: 18).foregroundStyle(UF.bad)
+                    Text(text).ufFont(14.5).foregroundStyle(UF.text)
+                }
+                Spacer(minLength: (UFCompact.phoneLayouts && hSize == .compact) ? 0 : 8)
                 UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await store.loadProducts() } }
                     .disabled(store.loadingProducts)
             }
         }
     }
+
+    @Environment(\.horizontalSizeClass) private var hSize
 
     private func infoCard(_ text: String) -> some View {
         UFCard(flat: true) {

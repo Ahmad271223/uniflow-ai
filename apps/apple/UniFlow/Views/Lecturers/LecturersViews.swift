@@ -96,6 +96,8 @@ struct LecturerRow: View {
     var showCourses = false
     let onMail: (String) -> Void
     let onMessage: () -> Void
+    /// iPhone: E-Mail-Adresse 44 pt hoch, "Nachricht in Stud.IP" in voller Breite
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -116,6 +118,7 @@ struct LecturerRow: View {
                     }
                     .foregroundStyle(UF.accentText)
                     .padding(.vertical, 4)
+                    .frame(minHeight: compact ? 44 : nil, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -144,9 +147,15 @@ struct LecturerRow: View {
             if let inst = person.s("institute"), !inst.isEmpty {
                 Text(inst).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
-            UFButton(LecturersText.studipMessage, icon: "message", size: .small, action: onMessage)
-                .padding(.top, 4)
-                .accessibilityIdentifier("lecturer.studipMessage")
+            Group {
+                if compact {
+                    UFWideButton(LecturersText.studipMessage, icon: "message", action: onMessage)
+                } else {
+                    UFButton(LecturersText.studipMessage, icon: "message", size: .small, action: onMessage)
+                }
+            }
+            .padding(.top, 4)
+            .accessibilityIdentifier("lecturer.studipMessage")
         }
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -268,6 +277,8 @@ struct ModuleLecturersCard: View {
 
 struct LecturersPage: View {
     @EnvironmentObject private var session: Session
+    /// iPhone: Suche in voller Breite
+    @Environment(\.ufCompact) private var compact
     @State private var data: JSONValue?
     @State private var query = ""
     @State private var error: String?
@@ -283,7 +294,7 @@ struct LecturersPage: View {
                         .accessibilityIdentifier("lecturers.unavailable")
                 } else {
                     UFTextInput(LecturersText.search, text: $query)
-                        .frame(maxWidth: 420)
+                        .frame(maxWidth: compact ? .infinity : 420)
                         .padding(.bottom, 12)
                         .accessibilityIdentifier("lecturers.search")
                     let people = d.list("people")

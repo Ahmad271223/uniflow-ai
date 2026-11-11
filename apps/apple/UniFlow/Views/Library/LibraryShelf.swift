@@ -336,6 +336,9 @@ struct LibraryShelfView: View {
 struct ShelfModuleShelf: View {
     let module: ShelfTree.Module
     let open: (ShelfTree.File) -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
 
     private var tint: Color {
         Color(hex: module.color ?? CommunityTint.hex(module.key.isEmpty ? module.name : module.key))
@@ -365,7 +368,7 @@ struct ShelfModuleShelf: View {
                 ShelfWeekRow(week: w, tint: c, moduleID: module.id, last: i == module.weeks.count - 1, open: open)
             }
         }
-        .padding(.top, 16).padding(.horizontal, 18).padding(.bottom, 10)
+        .padding(.top, 16).padding(.horizontal, UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? 12 : 18).padding(.bottom, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.mix(c, 0.07, UF.bg)))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.mix(c, 0.22, UF.line), lineWidth: 1))
@@ -381,10 +384,37 @@ struct ShelfWeekRow: View {
     let open: (ShelfTree.File) -> Void
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// schmal (iPhone): je Art eine senkrechte Liste der Buecher in voller Breite
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
     @ScaledMetric(relativeTo: .body) private var labelWidth: CGFloat = 132
     @ScaledMetric(relativeTo: .body) private var bookWidth: CGFloat = 168
 
     var body: some View {
+        if UFCompactLearn.isCompact(sizeClass, shell: shellCompact) { compactBody } else { wideBody }
+    }
+
+    /// Schmal: Woche oben, darunter je Art Etikett und die Buecher untereinander, unten das Brett
+    private var compactBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            weekLabel
+            ForEach(week.kinds) { k in
+                VStack(alignment: .leading, spacing: 6) {
+                    ShelfKindTag(kind: k.kind, label: k.label, count: k.files.count)
+                        .accessibilityIdentifier("shelf.kind.\(moduleID).\(week.week).\(k.kind)")
+                    ForEach(k.files) { f in ShelfBook(file: f, compact: true) { open(f) } }
+                }
+                .accessibilityElement(children: .contain)
+            }
+            Capsule().fill(Color.mix(tint, 0.32, UF.surface)).frame(height: 4)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder private var wideBody: some View {
         // schmal oder sehr grosse Schrift: Woche ueber den Buechern statt daneben
         let stacked = windowWidth <= 760 || typeSize.isAccessibilitySize
         let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
@@ -500,8 +530,11 @@ struct ShelfKindTag: View {
 /// darunter Seitenzahl und Datum. Ganze Flaeche antippbar (mindestens 112 pt hoch).
 struct ShelfBook: View {
     let file: ShelfTree.File
+    /// schmal: Zeile in voller Breite (zwei Zeilen Titel, niedriger) statt Buch im Fluss
+    var compact = false
     let open: () -> Void
     @ScaledMetric(relativeTo: .body) private var minHeight: CGFloat = 112
+    @ScaledMetric(relativeTo: .body) private var compactHeight: CGFloat = 64
 
     /// Symbol und Name der Art fuer Nicht-PDF (word | slides | audio), nil fuer PDF und Unbekanntes
     private var sourceIcon: String? {
@@ -525,10 +558,10 @@ struct ShelfBook: View {
             HStack(spacing: 0) {
                 Rectangle().fill(pair.solid).frame(width: 5)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(file.title).ufFont(13.6, 600, lh: 1.3).foregroundStyle(file.downloaded ? UF.text : UF.text2)
-                        .lineLimit(3).multilineTextAlignment(.leading)
+                    Text(file.title).ufFont(compact ? 14.5 : 13.6, 600, lh: 1.3).foregroundStyle(file.downloaded ? UF.text : UF.text2)
+                        .lineLimit(compact ? 2 : 3).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Spacer(minLength: 0)
+                    if !compact { Spacer(minLength: 0) }
                     if file.explained || file.partial || file.notePages > 0 {
                         UFFlexWrap(gap: 4, rowGap: 4) {
                             if file.explained { UFBadge("erklärt", tone: .ok, icon: "check") }
@@ -546,7 +579,7 @@ struct ShelfBook: View {
                 }
                 .padding(.vertical, 10).padding(.leading, 11).padding(.trailing, 10)
             }
-            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: compact ? compactHeight : minHeight, alignment: .topLeading)
             .background(UF.surface)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(UF.line, lineWidth: 1))

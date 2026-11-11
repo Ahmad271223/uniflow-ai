@@ -25,6 +25,11 @@ struct AIStartView: View {
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// schmal (iPhone, schmales Split View): Feld unten ueber der Tastatur, Aktionen als seitlich scrollende Reihe
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @StateObject private var learnSheets = UFLearnSheets()
     @ObservedObject private var recents: AIRecents
     @ObservedObject private var ent: Entitlements
     @State private var modules: [JSONValue] = []
@@ -104,12 +109,18 @@ struct AIStartView: View {
     private var layout: PageLayout { Self.layout(turns: turns.count, pending: pending != nil) }
     /// Breite der Spalte (Feld, Verlauf): ruhig lesbar, auf dem iPad quer nicht ueber die ganze Breite
     private let column: CGFloat = 820
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact) }
+    /// Dialoge schmal als Blatt von unten, breit mittig
+    private var sheets: UFLearnSheets? { compact ? learnSheets : nil }
+    /// Seitenrand: schmal 16 pt, breit 24 pt
+    private var gutter: CGFloat { compact ? UFCompactLearn.gutter : 24 }
 
     var body: some View {
         Group {
-            if layout == .chat { chatPage } else { startPage }
+            if layout == .chat { chatPage } else if compact { compactStartPage } else { startPage }
         }
         .background(UF.bg)
+        .ufLearnSheetHost(learnSheets)
         .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
         // StudiNow-KI: Credits-Stand frisch vom Dienst (GET /api/entitlements), danach nach jeder Antwort
         .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
@@ -164,6 +175,44 @@ struct AIStartView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+    }
+
+    /// Start schmal: oben Logo, Frage und die Aktionen als seitlich scrollende Reihe, Hilfe und "Zuletzt" darunter;
+    /// das Frage-Feld steht unten fest und rutscht mit der Tastatur hoch
+    private var compactStartPage: some View {
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 0) {
+                    topBar
+                    VStack(spacing: 0) {
+                        head
+                        if !aiEnabled { connectCard.padding(.bottom, 16) }
+                        compactActions.padding(.bottom, 8)
+                    }
+                    .frame(minHeight: max(0, geo.size.height * 0.5), alignment: .center)
+                    if help { helpCard.padding(.top, 12) }
+                    if Self.showsRecents(layout) {
+                        if !recents.entries.isEmpty { recentRow.padding(.top, 24) }
+                        if !recentUsed.isEmpty { RecentCard(items: recentUsed).padding(.top, 20) }
+                    }
+                }
+                .padding(.horizontal, gutter).padding(.top, 10).padding(.bottom, 24)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            UFCompactBottomBar {
+                composer(large: false)
+                statusBlock
+            }
+            .accessibilityIdentifier("ai.start.bottom")
+        }
+    }
+
+    /// Aktionen schmal: eine Reihe kompakter Pillen, die seitlich scrollt (nichts gekuerzt, nichts umgebrochen)
+    private var compactActions: some View {
+        UFCompactScrollRow(spacing: 8, inset: gutter) { pills(compact: true) }
+            .accessibilityIdentifier("ai.start.actions")
     }
 
     /// Oben: zurueck zu den Tests; im Gespraech rechts "Neues Gespräch"
@@ -253,13 +302,13 @@ struct AIStartView: View {
     }
 
     private func openFlashcards() {
-        overlay.modal(wide: true) {
+        overlay.learnModal(sheets, wide: true, large: true) {
             FlashcardComposer(moduleID: module, fileID: currentFile?.s("id"), entitlements: ent)
         }
     }
 
     private func openQuiz() {
-        overlay.modal { QuizComposer(moduleID: module != 0 ? module : modules.first?.i("id") ?? 0, entitlements: ent) }
+        overlay.learnModal(sheets, large: true) { QuizComposer(moduleID: module != 0 ? module : modules.first?.i("id") ?? 0, entitlements: ent) }
     }
 
     private func showHelp() {
@@ -278,7 +327,7 @@ struct AIStartView: View {
     private func composer(large: Bool) -> some View {
         AIComposer(placeholder: "Frag etwas … z. B. Erkläre mir den Satz von Bolzano", text: $question, focused: $askFocused, large: large,
                    canSend: aiEnabled && !busy && !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                   sendLabel: "Frage senden", inputID: "ai.start.input", sendID: "ai.start.ask",
+                   sendLabel: "Frage senden", placeholderOneLine: compact, inputID: "ai.start.input", sendID: "ai.start.ask",
                    send: { Task { await ask() } }) {
             moduleMenu
             if let a = attachment {
@@ -305,7 +354,8 @@ struct AIStartView: View {
                 ForEach(moduleOptions.indices, id: \.self) { i in Text(moduleOptions[i].label).tag(moduleOptions[i].value) }
             }
         } label: {
-            AIComposerPill(icon: "layers", text: moduleName)
+            AIComposerPill(icon: "layers", text: moduleName, oneLine: compact)
+                .frame(maxWidth: compact ? 150 : nil, alignment: .leading)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Modul: \(moduleName)")
@@ -319,7 +369,10 @@ struct AIStartView: View {
             Button { openPicker() } label: {
                 HStack(spacing: 6) {
                     UFIcon("file-text", size: min(chipIcon, 26))
-                    Text(a.label).ufFont(12.8, 550, lh: 1.3).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    // schmal eine Zeile (der ganze Name steht in der Beschriftung fuer VoiceOver)
+                    Text(compact ? a.title : a.label).ufFont(12.8, 550, lh: 1.3).multilineTextAlignment(.leading)
+                        .lineLimit(compact ? 1 : nil)
+                        .fixedSize(horizontal: false, vertical: !compact)
                 }
                 .padding(.vertical, 6).padding(.leading, 10).padding(.trailing, 2)
                 .contentShape(Rectangle())
@@ -343,7 +396,7 @@ struct AIStartView: View {
 
     private func openPicker() {
         let docs = documents
-        overlay.modal {
+        overlay.learnModal(sheets) {
             AIDocumentPicker(documents: docs, selected: fileID) { f in fileID = f.s("id") ?? "" }
         }
     }
@@ -392,7 +445,7 @@ struct AIStartView: View {
     private var chatPage: some View {
         VStack(spacing: 0) {
             topBar
-                .padding(.horizontal, 24).padding(.top, 14).padding(.bottom, 6)
+                .padding(.horizontal, gutter).padding(.top, compact ? 10 : 14).padding(.bottom, 6)
                 .frame(maxWidth: column).frame(maxWidth: .infinity)
             ScrollViewReader { proxy in
                 ScrollView {
@@ -416,7 +469,7 @@ struct AIStartView: View {
                         }
                         if help { helpCard.id("help") }
                     }
-                    .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 24)
+                    .padding(.horizontal, gutter).padding(.top, 12).padding(.bottom, 24)
                     .frame(maxWidth: column)
                     .frame(maxWidth: .infinity)
                 }
@@ -436,15 +489,26 @@ struct AIStartView: View {
                     if on { withAnimation(UF.transition) { proxy.scrollTo("help", anchor: .top) } }
                 }
             }
-            VStack(spacing: 10) {
-                chatActions
-                composer(large: false)
-                statusBlock
+            if compact {
+                // schmal: Aktionen, Feld und Kostenzeile unten fest ueber der Tastatur
+                UFCompactBottomBar {
+                    UFCompactScrollRow(spacing: 8, inset: gutter) { pills(compact: true, dense: true) }
+                        .accessibilityIdentifier("ai.start.actions")
+                    composer(large: false)
+                    statusBlock
+                }
+                .accessibilityIdentifier("ai.start.bottom")
+            } else {
+                VStack(spacing: 10) {
+                    chatActions
+                    composer(large: false)
+                    statusBlock
+                }
+                .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 14)
+                .frame(maxWidth: column)
+                .frame(maxWidth: .infinity)
+                .background(UF.bg)
             }
-            .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 14)
-            .frame(maxWidth: column)
-            .frame(maxWidth: .infinity)
-            .background(UF.bg)
         }
     }
 
@@ -486,7 +550,7 @@ struct AIStartView: View {
                 Spacer()
                 UFButton("Leeren", kind: .ghost, size: .small) { recents.clear() }.accessibilityIdentifier("ai.start.recent.clear")
             }
-            let grid = windowWidth <= 640 || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 10) : UFGridLayout(columns: 3, spacing: 10)
+            let grid = compact || windowWidth <= 640 || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 10) : UFGridLayout(columns: 3, spacing: 10)
             grid {
                 ForEach(Array(recents.entries.enumerated()), id: \.element.id) { i, e in
                     Button {

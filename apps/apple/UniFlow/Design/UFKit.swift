@@ -149,7 +149,16 @@ struct UFFlexWrap: Layout {
 struct UFSegPill<Value: Hashable>: View {
     let options: [(value: Value, label: String, icon: String?)]
     let selection: Value
+    /// iPhone: Segmente gleich breit ueber die ganze Breite, Schrift etwas kleiner
+    var fill = false
     let onSelect: (Value) -> Void
+
+    init(options: [(value: Value, label: String, icon: String?)], selection: Value, fill: Bool = false, onSelect: @escaping (Value) -> Void) {
+        self.options = options
+        self.selection = selection
+        self.fill = fill
+        self.onSelect = onSelect
+    }
 
     var body: some View {
         HStack(spacing: 2) {
@@ -161,11 +170,14 @@ struct UFSegPill<Value: Hashable>: View {
                         if let ic = o.icon { UFIcon(ic, size: 14) }
                         Text(o.label)
                     }
-                    .ufFont(14.5, 500)
-                    .fixedSize()                                     // white-space: nowrap, Segmente kuerzen nie
+                    .ufFont(fill ? 13.6 : 14.5, 500)
+                    .lineLimit(1)
+                    .minimumScaleFactor(fill ? 0.8 : 1)
+                    .fixedSize(horizontal: !fill, vertical: true)    // white-space: nowrap, Segmente kuerzen nie
                     .foregroundStyle(active ? .white : UF.text2)
-                    .padding(.vertical, 6.4)
-                    .padding(.horizontal, 14.4)
+                    .padding(.vertical, fill ? 8 : 6.4)
+                    .padding(.horizontal, fill ? 4 : 14.4)
+                    .frame(maxWidth: fill ? .infinity : nil)
                     .background(RoundedRectangle(cornerRadius: 8).fill(active ? UF.accentFill : .clear))   // Weiss darauf >= 4,5:1
                     .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -307,6 +319,8 @@ final class UFOverlay: ObservableObject {
         let id = UUID()
         let wide: Bool
         let content: AnyView
+        /// Drawer kompakt als Blatt halb und ganz statt nur ganz (Termin-Detail, iPhone)
+        var half = false
     }
 
     enum Ask: Identifiable {
@@ -335,8 +349,10 @@ final class UFOverlay: ObservableObject {
     func close(_ id: UUID) { modals.removeAll { $0.id == id } }
 
     /// drawer(html): vorhandenen Drawer ersetzen (closeDrawer() + neu)
-    func openDrawer<V: View>(@ViewBuilder _ content: () -> V) {
-        drawer = Layer(wide: false, content: AnyView(content()))
+    /// `half`: kompakt (iPhone) als Blatt von unten halb und ganz (z. B. Termin-Detail: Raum und Route auf einen Blick,
+    /// Lehrende beim Aufziehen); sonst ganz wie alle Drawer. Breit (iPad) ohne Wirkung.
+    func openDrawer<V: View>(half: Bool = false, @ViewBuilder _ content: () -> V) {
+        drawer = Layer(wide: false, content: AnyView(content()), half: half)
     }
 
     func closeDrawer() { drawer = nil }
@@ -372,12 +388,20 @@ extension EnvironmentValues {
 struct UFModalHost: ViewModifier {
     @ObservedObject var overlay: UFOverlay
     @State private var promptText = ""
+    /// kompakt (iPhone, schmaler Split View): Dialoge als Blatt von unten statt mittig (`UFLayout.presentsAsSheet`)
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+
+    private var sheets: Bool { UFLayout.presentsAsSheet(horizontal: hSize, vertical: vSize) }
 
     func body(content: Content) -> some View {
         content
+            .sheet(item: UFSheetLayer.binding(overlay, index: 0, active: sheets)) { _ in
+                UFSheetLayer(overlay: overlay, index: 0)
+            }
             .overlay {
                 ZStack {
-                    ForEach(overlay.modals) { l in
+                    ForEach(sheets ? [] : overlay.modals) { l in
                         ZStack {
                             Color(red: 10 / 255, green: 12 / 255, blue: 24 / 255).opacity(0.45).ignoresSafeArea()
                                 .onTapGesture { overlay.close(l.id) }               // Klick auf die Abdunkelung schliesst
@@ -435,14 +459,51 @@ struct UFModalHost: ViewModifier {
     }
 }
 
+/// Dialog `index` des Stapels als Blatt von unten; ein darin geoeffneter weiterer Dialog erscheint als Blatt darueber.
+/// Wischt man ein Blatt weg, schliessen es und alle darueber.
+struct UFSheetLayer: View {
+    @ObservedObject var overlay: UFOverlay
+    let index: Int
+
+    static func binding(_ overlay: UFOverlay, index: Int, active: Bool) -> Binding<UFOverlay.Layer?> {
+        Binding(get: { active && index < overlay.modals.count ? overlay.modals[index] : nil },
+                set: { if $0 == nil { for l in overlay.modals.dropFirst(index) { overlay.close(l.id) } } })
+    }
+
+    var body: some View {
+        if index < overlay.modals.count {
+            let l = overlay.modals[index]
+            ScrollView {
+                l.content
+                    .environment(\.ufClose, { overlay.close(l.id) })
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .ufSheetPresentation(wide: l.wide)
+            .sheet(item: Self.binding(overlay, index: index + 1, active: true)) { _ in
+                UFSheetLayer(overlay: overlay, index: index + 1)
+            }
+        }
+    }
+}
+
 /// Drawer rechts ueber der Hauptspalte: Breite min(440, 100 %), Rand links, Schatten; Abdunkelung rgba(0,0,0,.35)
-/// liegt im Web unter der Seitenleiste (z-index 19 < 20) und wird deshalb an die Hauptspalte gehaengt.
+/// liegt im Web unter der Seitenleiste (z-index 19 < 20) und wird deshalb an die Hauptspalte gehaengt. Kompakt
+/// (iPhone) als Blatt von unten in voller Hoehe.
 struct UFDrawerHost: ViewModifier {
     @ObservedObject var overlay: UFOverlay
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
 
     func body(content: Content) -> some View {
-        content.overlay {
-            if let d = overlay.drawer {
+        let sheet = UFLayout.presentsAsSheet(horizontal: hSize, vertical: vSize)
+        content
+        .sheet(item: Binding(get: { sheet ? overlay.drawer : nil }, set: { if $0 == nil { overlay.closeDrawer() } })) { d in
+            d.content
+                .environment(\.ufClose, { overlay.closeDrawer() })
+                .ufSheetPresentation(wide: !d.half)
+        }
+        .overlay {
+            if !sheet, let d = overlay.drawer {
                 GeometryReader { g in
                     ZStack(alignment: .trailing) {
                         Color.black.opacity(0.35).ignoresSafeArea()
