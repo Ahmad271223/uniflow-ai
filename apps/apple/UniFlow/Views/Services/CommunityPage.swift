@@ -40,8 +40,8 @@ struct CommunityPage: View {
     static var howItWorks: [(icon: String, text: String)] {
         UFEditorAvailability.available ? howItWorksIPad : [
             ("users", "Jeder Kurs hat eine eigene Community. Tritt unten bei, dann siehst du dort die Lösungen der anderen."),
-            ("layers", "Lösungen liest du hier auf eigenen Seiten. Über deiner PDF erscheinen sie in der iPad-App unter „Ebenen“."),
-            ("book", "Eigene Lösungen veröffentlichst du ab \(UFPlan.plus.name) in der iPad-App über „Lösung teilen …“."),
+            ("layers", "Lösungen anderer öffnest und kommentierst du hier. Über deiner PDF erscheinen sie in der iPad-App unter „Ebenen“."),
+            ("book", "Fertige Lösungen teilst du ab \(UFPlan.plus.name) im Dokument über das Personen-Symbol → „Lösung teilen …“: nur deine eigenen Notizen, nur für die Mitglieder der gewählten Community."),
         ]
     }
 

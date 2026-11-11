@@ -164,6 +164,51 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         shoot(env, "iphone-dokument-grosse-schrift")
     }
 
+    /// Fertige Notizen vom iPad am iPhone teilen (Wunsch des Inhabers 11.11.2026): Knopf in der Leseansicht, Auswahl
+    /// "Lösung teilen …" / "Meine geteilten Lösungen …" wie im Editor-Menü am iPad
+    func testShareButtonOffersSolutionSharing() throws {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        defer { Entitlements.shared.setPlanForTesting(before) }
+        let (env, _, transport) = try openReader()
+        let share = try XCTUnwrap(element(env, id: "phoneReader.share"), dump(env))
+        XCTAssertEqual(share.accessibilityLabel, "Lösung teilen")
+        XCTAssertTrue(share.accessibilityActivate())
+        var sheet: UIAlertController?
+        XCTAssertTrue(env.wait(timeout: 5) {
+            var vc = env.hosting.presentedViewController
+            while let p = vc?.presentedViewController { vc = p }
+            sheet = vc as? UIAlertController
+            return sheet != nil
+        }, "Auswahl erscheint")
+        let titles = sheet?.actions.compactMap(\.title) ?? []
+        XCTAssertTrue(titles.contains("Lösung teilen …"), titles.joined(separator: ", "))
+        XCTAssertTrue(titles.contains("Meine geteilten Lösungen …"), titles.joined(separator: ", "))
+        XCTAssertEqual(sheet?.message, SolutionTexts.ownNotesOnly)
+        sheet?.dismiss(animated: false)
+        env.pump(0.5)
+        _ = transport
+    }
+
+    /// Dialog "Lösung teilen" aus der Leseansicht: die Notizen vom iPad werden gelesen (Vorschau), "Als Datei teilen"
+    /// und "In der Community veröffentlichen" stehen bereit, alles passt aufs iPhone; an die Notizen geht nichts
+    func testShareSheetFromReaderShowsIPadNotes() throws {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        defer { Entitlements.shared.setPlanForTesting(before) }
+        let d = document()
+        let store = DocumentStore(file: d.file, api: d.api)
+        try awaiting { await store.load() }
+        XCTAssertNotNil(store.pdf, "PDF geladen")
+        let env = try hostPhone(SolutionShareSheet(store: store, api: d.api) {}, api: d.api)
+        XCTAssertTrue(env.wait(timeout: 20) { self.shows(env, "Als Datei teilen") }, dump(env))
+        XCTAssertFalse(shows(env, "Keine eigenen Notizen"), "Notizen vom iPad zählen als eigene Notizen: \(dump(env))")
+        assertFitsOnAllPhones(env, "loesung-teilen")
+        shoot(env, "iphone-loesung-teilen")
+        let path = "/api/files/\(d.file.id)/annotations"
+        for m in ["PUT", "POST", "PATCH"] { XCTAssertEqual(d.transport.count(m, path), 0, "\(m) an die Notizen") }
+    }
+
     func testTaskDoneButtonOnlyFromStudyPlan() throws {
         let (env, _, _) = try openReader(task: 7)
         XCTAssertNotNil(element(env, id: "phoneReader.done"))

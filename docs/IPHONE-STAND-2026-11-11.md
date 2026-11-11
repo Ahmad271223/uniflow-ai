@@ -18,7 +18,7 @@ Vorgabe des Inhabers (11.11.2026): alles wie am iPad, **außer dem Editor**, abe
 | Uni & Noten | Notenspiegel (QIS), Bescheinigungen (Vorschau, Teilen), Prüfungsanmeldung |
 | Nachrichten, Uni-Mail | Stud.IP-Nachrichten mit Antworten (Blatt, „Senden“ über der Tastatur); Uni-Mail Ordner → Liste → E-Mail als Ebenen, „Neue E-Mail“ als ganzes Blatt, Lehrende |
 | Mensa, Raumfinder | wie am iPad, iPhone-gerecht (Filter als Blatt, Treffer als Karten, Route) |
-| Community | lesen, beitreten, Fragen und Antworten (Eingabe unten), Lösungen anderer **lesen**; veröffentlichen und Korrekturen nur in der iPad-App (Hinweis in der App) |
+| Community | beitreten, Fragen und Antworten (Eingabe unten), Lösungen anderer **öffnen und kommentieren**; fertige eigene Lösungen (am iPad geschrieben) **teilen**: im Dokument Personen-Symbol → „Lösung teilen …“ (als Datei oder in der Community veröffentlichen) bzw. „Meine geteilten Lösungen …“ (Wunsch des Inhabers 11.11.2026). Korrekturen vorschlagen und ansehen nur in der iPad-App (Hinweis in der App) |
 | KI | Nur über die **StudiNow-KI** (Pro AI): „Eigenes ChatGPT“ ist seit 11.11.2026 überall aus (Abschnitt 2a). KI-Hilfe zu Dokumenten (Blatt von unten, Umfang „Diese Seite / Ganzes Dokument / Seiten …“, markierter PDF-Text geht mit), KI-Start, KI-Lernplan, KI-Karteikarten, Wochentests. Gleiche Tarifregeln (Plus / Pro AI) und dieselbe KI-Einwilligung vor der ersten Anfrage wie am iPad (ein Code für beide) |
 | Einstellungen | „Uni-Zugang“ (einmal speichern, „Benutzername und Passwort sind überall gleich“ oder je Portal), Knöpfe am iPhone in voller Breite; Tarif/Abos, StudiNow-Konto, Darstellung, Abgleich im Hintergrund. **Keine** Zeilen „Stift & Touch“ und „Schreibhand“ |
 | Texte | „dieses iPhone“ statt „dieses iPad“, wo das Gerät gemeint ist (`UFDevice.adapt`); Stellen über das Schreiben sagen „in der iPad-App“ |
@@ -38,8 +38,11 @@ das iPad (auch im schmalen Split View) und der Mac behalten den Editor unveränd
   Versionseintrag (`closeAfterReading`); geprüft, dass keine Anfrage an die Notizen geht.
 - Ausgeblendet am iPhone: Stift-/Werkzeugleiste, Lasso, Schreiblupe, Fixieren/Abpausen, „Übung und Skript
   nebeneinander“, Präsentieren, Seiten einfügen/drehen, „Notizbuch“/„Whiteboard“ anlegen, „Korrektur vorschlagen“,
-  Korrekturen über den eigenen Notizen, „Lösung teilen“, „In Stud.IP abgeben“, Bearbeiten von Textdateien im ZIP,
+  Korrekturen über den eigenen Notizen, „In Stud.IP abgeben“, PDF-Export, Bearbeiten von Textdateien im ZIP,
   Stift-Einstellungen.
+- **Lösung teilen** geht in der Leseansicht (Personen-Symbol oben): derselbe Dialog wie am iPad, er liest die Notizen
+  nur (Vorschau, Seiten wählen, als Datei teilen, in der Community veröffentlichen); dazu „Meine geteilten Lösungen …“
+  zum Zurückziehen. Tarifregel wie am iPad (Teilen ab Plus).
 - **Notizen vom iPad** kommen über den Notizen-Abgleich des StudiNow-Kontos aufs iPhone (Tarif Pro AI, „Notizen auf
   allen deinen Geräten“). Mit Plus bleiben Notizen je Gerät; dann zeigt das iPhone die PDF ohne die iPad-Notizen.
 
@@ -155,3 +158,9 @@ Schon auf `develop` rot (nicht durch diese Arbeit, auf dem unveränderten Stand 
 Bildschirmfotos: iPhone-Prüfbilder (hell/dunkel, 186) in `~/Studora-Builds/iphone-bildschirmfotos-2026-11-11/`,
 App-Store-Bilder 6,9" (1320 × 2868, 8 Motive hell/dunkel) in `~/Studora-Builds/appstore-screenshots-iphone-2026-11-11/`;
 iPad vorher/nachher in `~/Studora-Builds/ipad-vorher/` und `~/Studora-Builds/ipad-nachher3/`.
+
+Nachtrag 11.11.2026 abends (Wunsch des Inhabers: fertige Lösungen vom iPad am iPhone teilen, Lösungen anderer öffnen
+und kommentieren): „Lösung teilen …“ und „Meine geteilten Lösungen …“ in der iPhone-Leseansicht (Personen-Symbol).
+Öffnen und Kommentieren fremder Lösungen ging am iPhone schon. iPhone: `IPhoneReaderTests` + `IPhoneLearnCommunityTests`
+17/0 (zwei neue Tests: Auswahl im Dokument, Dialog liest die iPad-Notizen und schreibt nichts). iPad-Gegenprobe
+(Community, Teilen, Tarife, Abnahme) 78/0; die Änderung wirkt nur am iPhone.

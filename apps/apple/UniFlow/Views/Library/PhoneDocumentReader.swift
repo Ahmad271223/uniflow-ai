@@ -46,6 +46,10 @@ struct PhoneDocumentReader: View {
     @State private var goToText = ""
     @State private var actionError: String?
     @State private var lastPageTask: Task<Void, Never>?
+    /// "Lösung teilen" wie am iPad (Wunsch des Inhabers 11.11.2026): fertige Notizen vom iPad am iPhone teilen
+    @State private var choosingShare = false
+    @State private var solutionSheet: SolutionSheet?
+    @ObservedObject private var entitlements = Entitlements.shared
     @AppStorage("uniflow.phoneReader.hintSeen") private var hintSeen = false
     @EnvironmentObject private var router: UFRouter
 
@@ -80,6 +84,12 @@ struct PhoneDocumentReader: View {
                        close: { showTutor = false }, moduleID: store.file.module_id, inSheet: true)
                 .ufHalfSheet()
         }
+        .confirmationDialog("Nur eigene Notizen", isPresented: $choosingShare, titleVisibility: .visible) {
+            Button(DocumentView.lockedLabel("Lösung teilen …", entitlements.access(.shareSolutions))) { openSolutionSheet(.share) }
+            Button("Meine geteilten Lösungen …") { openSolutionSheet(.shared) }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { Text(SolutionTexts.ownNotesOnly) }
+        .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .alert("Zu Seite", isPresented: $goingToPage) {
             TextField("Seite", text: $goToText).keyboardType(.numberPad)
             Button("Abbrechen", role: .cancel) {}
@@ -128,6 +138,9 @@ struct PhoneDocumentReader: View {
                 UFButton(nil, icon: "search", kind: .ghost, size: .small) { showSearch = true }
                     .disabled(store.layout == nil)
                     .accessibilityLabel("Suchen").accessibilityIdentifier("phoneReader.search")
+                UFButton(nil, icon: "users", kind: .ghost, size: .small) { choosingShare = true }
+                    .disabled(store.layout == nil || store.pdf == nil)
+                    .accessibilityLabel("Lösung teilen").accessibilityIdentifier("phoneReader.share")
                 if task != nil {
                     UFButton(nil, icon: "check", kind: taskDone ? .primary : .ghost, size: .small) {
                         Task { await markTaskDone() }
@@ -144,6 +157,23 @@ struct PhoneDocumentReader: View {
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(UF.surface)
         .ufBorderBottom()
+    }
+
+    /// Wie am iPad: Teilen braucht Plus, "Meine geteilten Lösungen" (Zurueckziehen) steht allen offen
+    func openSolutionSheet(_ sheet: SolutionSheet) {
+        let feature: UFFeature = sheet.id == SolutionSheet.share.id ? .shareSolutions : .communityRead
+        solutionSheet = entitlements.allows(feature) ? sheet : .locked(feature)
+    }
+
+    /// Dieselben Blaetter wie im Editor; das Teilen liest die Notizen nur (eigene Notizen ohne Original, angehaengte
+    /// Notizblaetter gehen mit) und schreibt nichts an das Dokument
+    @ViewBuilder private func solutionSheetView(_ sheet: SolutionSheet) -> some View {
+        switch sheet {
+        case .share: SolutionShareSheet(store: store, api: api) { solutionSheet = nil }
+        case .shared: SharedSolutionsSheet { solutionSheet = nil }
+        case .locked(let feature): SolutionLockedSheet(feature: feature) { solutionSheet = nil }
+        case .preview, .community: EmptyView()
+        }
     }
 
     @ViewBuilder private var pageLabel: some View {
