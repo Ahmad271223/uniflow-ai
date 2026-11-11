@@ -83,6 +83,25 @@ Präsentation, Reiterleiste in der Präsentation aus, Seite oben nach der Präse
 der Anzeige, Übertragen der Schreiblupe ohne „Werkzeug fertig“. Am iPad verhalten sich diese Stellen wie im Commit
 `baddff02`.
 
+## Mac ohne Demo wie ein neuer Nutzer (11.11.2026)
+
+Debug-Build, Konto zurückgesetzt, keine Demo. Durchgeklickt: Begrüßung (Mac-Texte), „Mit Apple anmelden“ (Apples
+Fenster erscheint, abgebrochen), Tarifwahl, Hochschulwahl (LUH), Anmeldeseiten Stud.IP (LUH WebSSO), QIS und Uni-Mail
+(SOGo) laden in der App, Übersicht ohne Demo („Stud.IP verbinden“, echte Mensa), Einstellungen mit Karte „Uni-Zugang“
+(Felder, „Speichern“, „überall gleich“, „Schlüsselbund dieses Macs“), „Sync“ ohne Zugang meldet „Zuerst den Uni-Zugang
+… speichern“.
+
+Repariert, nur am Mac: Texte mit „Apple Pencil“ bzw. „iOS … Schlüssel-Symbol“ (jetzt Maus/Trackpad bzw. Passwörter-App
+des Mac, `UFDevice.adapt`); „Plus holen“ öffnete den Reiter „plan“ = Lernzeit statt der Tarife – am Mac jetzt die
+Tarifwahl. **Am iPad besteht derselbe Fehler bei „Plus holen“ weiter** (Vorgabe: iPad nicht anfassen; Korrektur wäre eine
+Zeile in `Design/AppShell.swift`, `upgradeButton`).
+
+Schlüsselbund am Mac: `AbnahmeV1AppTests` (Schlüsselbund) am Mac grün; der frühere Fehler −25308 kam vom gesperrten Mac.
+
+Inhaber prüft mit eigenem Konto (TestFlight am Mac): Anmeldung Stud.IP/QIS/Uni-Mail mit LUH-ID (Tippen in die Felder),
+Uni-Zugang speichern und „Sync“ (Dateien, Noten, Mails), Mit Apple anmelden, Kauf und „Käufe wiederherstellen“ in der
+Sandbox (im Debug-Test fehlte Pro AI auf der Tarifseite: „konnte nicht geladen werden“).
+
 ## Von Hand prüfen (am iPad mit Pencil und am Mac)
 
 1. iPad: großes Skript schnell durchblättern – Handschrift erscheint ohne Verzögerung.

@@ -710,6 +710,8 @@ struct UFSidebar: View {
     @EnvironmentObject private var account: AccountStore
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufShowPlans) private var showPlans
+    /// Tarifwahl als Blatt (RootView); am Mac fuer "Plus holen" (11.11.2026)
+    @Environment(\.ufSwitchPlan) private var switchPlan
     @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @EnvironmentObject private var studip: StudIPSync
     @ObservedObject private var ent = Entitlements.shared
@@ -854,7 +856,9 @@ struct UFSidebar: View {
     /// "Plus holen →": oeffnet die Tarife (Einstellungen -> Tarif, oder die vom Rahmen gesetzte Tarifwahl)
     private func upgradeButton(_ title: String) -> some View {
         Button {
-            if let showPlans { showPlans() } else { router.go(.settings(tab: "plan")) }
+            // Mac (Handpruefung 11.11.2026): der Reiter "plan" ist der Lernplan, nicht der Tarif – am Mac die Tarifwahl.
+            // Am iPad unveraendert (Vorgabe des Inhabers; derselbe Fehler dort ist gemeldet).
+            if let showPlans { showPlans() } else if UFDevice.isMac, let switchPlan { switchPlan() } else { router.go(.settings(tab: "plan")) }
         } label: {
             HStack(spacing: 6) {
                 Text(title).ufFont(12.8, 650, lh: 1.2).lineLimit(1)

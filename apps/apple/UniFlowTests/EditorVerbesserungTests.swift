@@ -440,6 +440,11 @@ final class EditorVerbesserungTests: XCTestCase {
         XCTAssertEqual(UFDevice.adapt("im Schlüsselbund dieses iPads", mac: true), "im Schlüsselbund dieses Macs")
         XCTAssertEqual(UFDevice.adapt("direkt auf dein iPad.", mac: true), "direkt auf deinen Mac.")
         XCTAssertEqual(UFDevice.adapt("Bleibt auf diesem iPad.", mac: false), "Bleibt auf diesem iPad.", "iPad unveraendert")
+        // Mac ohne Apple Pencil, Passwoerter ueber die Passwoerter-App (Handpruefung 11.11.2026)
+        XCTAssertEqual(UFDevice.adapt("Schreiben mit Apple Pencil", mac: true), "Schreiben mit Maus oder Trackpad")
+        XCTAssertEqual(UFDevice.adapt("Auch iOS kann es einsetzen (Schlüssel-Symbol über der Tastatur).", mac: true),
+                       "Auch die Passwörter-App des Mac kann es einsetzen.")
+        XCTAssertEqual(UFDevice.adapt("Schreiben mit Apple Pencil", mac: false), "Schreiben mit Apple Pencil", "iPad unveraendert")
     }
 
     // MARK: Eigenes Fenster und Praesentation (11.11.2026)
