@@ -302,6 +302,9 @@ public actor CertificateClient {
 
     /// Genau ein Aufruf ohne Wiederholung (er erzeugt im Portal ein Dokument); Antwort muss eine PDF sein
     private func once(_ request: UniRequest) async throws -> UniResponse {
+        // erzeugt im Portal ein Dokument (genau ein Aufruf): das laengere Zeitlimit, nie das kurze der Seiten
+        var request = request
+        if request.timeout == nil { request.timeout = 30 }
         let resp = try await transport.send(request)
         guard resp.status == 200 else { throw CertificateError.http(resp.status) }
         return resp

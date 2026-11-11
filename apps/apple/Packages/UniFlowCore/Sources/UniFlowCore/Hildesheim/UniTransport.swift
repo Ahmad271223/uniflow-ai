@@ -11,13 +11,17 @@ public struct UniRequest: Sendable, Equatable, CustomStringConvertible, CustomDe
     public var body: Data?
     /// false: Weiterleitungen nicht folgen (Moodle-Dateilink: nur den Location-Header lesen)
     public var followRedirects: Bool
+    /// Zeitlimit ohne Daten in Sekunden; nil: Vorgabe des Transports (App: Seiten 15 s, sonst 30 s)
+    public var timeout: TimeInterval?
 
-    public init(url: URL, method: String = "GET", headers: [String: String] = [:], body: Data? = nil, followRedirects: Bool = true) {
+    public init(url: URL, method: String = "GET", headers: [String: String] = [:], body: Data? = nil, followRedirects: Bool = true,
+                timeout: TimeInterval? = nil) {
         self.url = url
         self.method = method
         self.headers = headers
         self.body = body
         self.followRedirects = followRedirects
+        self.timeout = timeout
     }
 
     public var description: String { "\(method) \(HText.withoutQuery(url.absoluteString))" }
@@ -95,11 +99,22 @@ public struct UniRetry: Sendable {
     public var attempts: Int
     /// Wartezeit vor Versuch n (n ab 1) in Nanosekunden; Tests setzen 0
     public var delayNanos: @Sendable (Int) -> UInt64
+    /// Zeitueberschreitung wiederholen? Der QIS-Seitendurchlauf nicht (11.11.2026): eine haengende QIS-Seite kostete
+    /// sonst dreimal das Zeitlimit, der Abgleich "dauerte ewig"; abgerissene Verbindungen, 5xx und 429 weiter
+    public var retriesTimeouts: Bool
 
-    public init(attempts: Int = 3, delayNanos: @escaping @Sendable (Int) -> UInt64 = { UInt64($0) * 1_500_000_000 }) {
+    public init(attempts: Int = 3, delayNanos: @escaping @Sendable (Int) -> UInt64 = { UInt64($0) * 1_500_000_000 },
+                retriesTimeouts: Bool = true) {
         self.attempts = attempts
         self.delayNanos = delayNanos
+        self.retriesTimeouts = retriesTimeouts
     }
+
+    /// QIS-Seiten (Noten, angemeldete Pruefungen, Liste der Bescheinigungen): wie die Vorgabe, aber ohne zweiten
+    /// Versuch nach einer Zeitueberschreitung
+    public static let qisPages = UniRetry(retriesTimeouts: false)
+
+    static func isTimeout(_ error: Error) -> Bool { (error as? URLError)?.code == .timedOut }
 
     public static let none = UniRetry(attempts: 1, delayNanos: { _ in 0 })
 
@@ -121,7 +136,7 @@ public struct UniRetry: Sendable {
                 return try await body()
             } catch {
                 n += 1
-                guard n < max(1, attempts), Self.isTransient(error), !Task.isCancelled else { throw error }
+                guard n < max(1, attempts), Self.isTransient(error), retriesTimeouts || !Self.isTimeout(error), !Task.isCancelled else { throw error }
                 try? await Task.sleep(nanoseconds: delayNanos(n))
                 try Task.checkCancellation()
             }

@@ -66,8 +66,9 @@ final class SyncAllPortalsTests: XCTestCase {
         try Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/sogo/raw/\(name)"))
     }
 
-    /// QIS (Debug-Stub, nur mit dem Sitzungs-Cookie der Webansicht) und SOGo (Posteingang) nachgebaut
-    private func install() throws {
+    /// QIS (Debug-Stub, nur mit dem Sitzungs-Cookie der Webansicht) und SOGo (Posteingang) nachgebaut. `holdInbox`:
+    /// der Posteingang antwortet erst, wenn das QIS gefragt wurde (hoechstens 3 s), und merkt sich, ob es so kam
+    private func install(holdInbox: OSAllocatedUnfairLock<Bool>? = nil) throws {
         let dir = ContainerTestBed.stubDirectory
         let inbox = try fx("folder-inbox.json"), unseen = try fx("unseen.json"), mailLogin = try fx("login-page.html")
         let qisLogin = #"<html><body><form action="x" method="post"><input type="text" name="asdf"><input type="password" name="fdsa"></form></body></html>"#
@@ -82,7 +83,16 @@ final class SyncAllPortalsTests: XCTestCase {
                 return UniStubProtocol.Reply(status: 200, headers: ["Content-Type": "text/html"], body: mailLogin)
             }
             let json = ["Content-Type": "application/json"]
-            if r.url.path.hasSuffix("/Mail/0/folderINBOX/view") { return UniStubProtocol.Reply(status: 200, headers: json, body: inbox) }
+            if r.url.path.hasSuffix("/Mail/0/folderINBOX/view") {
+                if let holdInbox {
+                    let end = Date().addingTimeInterval(3)
+                    while Date() < end {
+                        if UniStubProtocol.requests.contains(where: { $0.url.host == qisHost }) { holdInbox.withLock { $0 = true }; break }
+                        usleep(20_000)
+                    }
+                }
+                return UniStubProtocol.Reply(status: 200, headers: json, body: inbox)
+            }
             if r.url.path.hasSuffix("/Mail/unseenCount") { return UniStubProtocol.Reply(status: 200, headers: json, body: unseen) }
             return UniStubProtocol.Reply(status: 404, headers: json, body: Data("{}".utf8))
         }
@@ -156,9 +166,8 @@ final class SyncAllPortalsTests: XCTestCase {
         XCTAssertEqual(r.info, ["Bescheinigungen: 1 verfügbar"])
         XCTAssertEqual(r.text, "Abgeglichen: QIS und Uni-Mail. Bescheinigungen: 1 verfügbar. Stud.IP: nicht verbunden.")
         XCTAssertTrue(OpenSync.running.isEmpty)
-        // Uni-Mail zuerst, genau einmal
+        // Uni-Mail genau einmal (seit 11.11.2026 neben Stud.IP und QIS, nicht mehr davor)
         XCTAssertEqual(inboxReads, 1)
-        XCTAssertEqual(UniStubProtocol.requests.first?.url.path, "/SOGo/so/\(mailUser)/Mail/0/folderINBOX/view")
         if case .ok = mail.state {} else { XCTFail("Uni-Mail: \(mail.state)") }
         // QIS: Noten (Knopf: auch vor Ablauf der 20 Stunden) und die Liste der Bescheinigungen
         XCTAssertEqual(q.state, .ok(bed.clock.now))
@@ -175,6 +184,21 @@ final class SyncAllPortalsTests: XCTestCase {
         try await bed.waitUntil("zweiter Abgleich", timeout: 30) { again != nil }
         XCTAssertEqual(inboxReads, 2)
         XCTAssertEqual(again?.synced, ["QIS", "Uni-Mail"])
+    }
+
+    /// 11.11.2026: der Posteingang haelt Stud.IP und QIS nicht mehr auf (vorher wartete alles auf Uni-Mail)
+    func testUniMailRunsSideBySideWithQIS() async throws {
+        let (m, _, q, mail) = try await luh()
+        let qisDuringInbox = OSAllocatedUnfairLock(initialState: false)
+        try install(holdInbox: qisDuringInbox)
+        var result: UniversitySyncReport?
+        XCTAssertEqual(m.startUniversitySync { result = $0 }, .started("QIS und Uni-Mail werden abgeglichen …"))
+        try await bed.waitUntil("Ergebnis", timeout: 30) { result != nil }
+        XCTAssertTrue(qisDuringInbox.withLock { $0 }, "QIS fragt, waehrend der Posteingang noch laedt")
+        XCTAssertEqual(result?.synced, ["QIS", "Uni-Mail"])
+        XCTAssertEqual(q.lastCount, 3)
+        if case .ok = mail.state {} else { XCTFail("Uni-Mail: \(mail.state)") }
+        assertOnlyReading()
     }
 
     func testPortalNeedingLoginIsSkippedAndNamedWhileTheOthersContinue() async throws {

@@ -58,7 +58,7 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
         config.httpCookieStorage = nil
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        // 30 s ohne Daten gilt als abgerissen (wiederholbar); kein festes Gesamtlimit: vorher brach nach 10 Minuten
+        // 30 s ohne Daten gilt als abgerissen (wiederholbar; Seiten 15 s, `pageTimeout`); kein festes Gesamtlimit: vorher brach nach 10 Minuten
         // jede grosse Datei bei langsamem WLAN ab, wurde dreimal von vorn geladen und kam nie an
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 24 * 3600
@@ -79,8 +79,12 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
 
     // MARK: UniTransport
 
+    /// Zeitlimit ohne Daten fuer Seiten (GET ohne eigenes `UniRequest.timeout`): 15 s (11.11.2026, vorher 30 s wie
+    /// Downloads und Formulare; eine haengende Seite hielt den Abgleich lange auf)
+    static let pageTimeout: TimeInterval = 15
+
     func send(_ request: UniRequest) async throws -> UniResponse {
-        let r = try prepared(request)
+        let r = try sendRequest(request)
         let (data, response) = try await session.data(for: r, delegate: Redirects(transport: self, follow: request.followRedirects, original: r))
         return try reply(response, body: data)
     }
@@ -104,6 +108,13 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
             return false
         }
         return allowedDomains.contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
+    /// Anfrage fuer `send`: Seiten (GET) mit `pageTimeout`, sonst das Zeitlimit der Sitzung bzw. `UniRequest.timeout`
+    func sendRequest(_ request: UniRequest) throws -> URLRequest {
+        var r = try prepared(request)
+        if let t = request.timeout ?? (request.method.uppercased() == "GET" ? Self.pageTimeout : nil) { r.timeoutInterval = t }
+        return r
     }
 
     private func prepared(_ request: UniRequest) throws -> URLRequest {

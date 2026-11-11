@@ -208,6 +208,8 @@ public actor StudIPClient {
     /// Downloads: abgerissene Verbindungen wiederholen wie `stream_download` (dieselbe Regel wie fuer Learnweb)
     private let retry: UniRetry
     public private(set) var requestCount = 0
+    /// Pause vor jeder Anfrage ausser der ersten (die App: `StudIPSync.livePauseMillis`)
+    public nonisolated var pauseMillis: UInt64 { pauseNanos / 1_000_000 }
     /// Anfragen zugleich (Abgleich: Dateilisten mehrerer Kurse und Ordner)
     public static let defaultConcurrency = 4
     private let maxConcurrent: Int

@@ -293,33 +293,73 @@ public enum OpencastStore {
         return now - s.checkedAt >= noOpencastRecheck || now < s.checkedAt
     }
 
-    /// Laedt die Aufzeichnungslisten der Kurse nacheinander (Pausen wie die JSON:API). Wirft nie: ein Fehler betrifft
-    /// nur seinen Kurs (der gespeicherte Stand bleibt). Abgelaufene Sitzung, kein Netz oder Zeitlimit beenden den
-    /// Abruf (`StudIPScheduleStore.stopsFetch`), weitere Anfragen waeren sinnlos.
+    /// Laedt die Aufzeichnungslisten der Kurse; mit `width` > 1 (App seit 11.11.2026: `StudIPClient.defaultConcurrency`)
+    /// so viele Kurse nebeneinander (die Anfragen selbst begrenzt der Client auf 4 zugleich), sonst Kurs fuer Kurs. Wirft nie: ein
+    /// Fehler betrifft nur seinen Kurs (der gespeicherte Stand bleibt). Abgelaufene Sitzung, kein Netz oder Zeitlimit
+    /// beenden den Abruf (`StudIPScheduleStore.stopsFetch`): keine weiteren Kurse; bei Netzfehlern gelten alle noch
+    /// nicht gelesenen Kurse als gescheitert, wie vorher. Ergebnisse stehen in der Reihenfolge der Kurse.
     public static func fetch(client: StudIPClient, courses: [StudIPCourse], known: [String: OpencastCourseState],
-                             now: Int) async -> OpencastFetch {
+                             now: Int, width: Int = 1) async -> OpencastFetch {
         var f = OpencastFetch(courses: courses, checkedAt: now)
-        for (i, c) in courses.enumerated() {
-            if !needsCheck(known[c.id], now: now) { f.skipped.append(c.id); continue }
-            do {
-                if let listing = try await client.opencastListing(courseID: c.id, knownAvailable: known[c.id]?.status == "available") {
-                    f.listings[c.id] = listing
-                } else {
-                    f.failed.append(c.id)
-                }
-            } catch StudIPError.sessionExpired {
-                f.sessionExpired = true
-                break
-            } catch {
-                f.failed.append(c.id)
-                if StudIPScheduleStore.stopsFetch(error) {
-                    f.unreachable = true
-                    f.failed += courses[(i + 1)...].map(\.id).filter { needsCheck(known[$0], now: now) }
-                    break
+        let todo = courses.filter { needsCheck(known[$0.id], now: now) }
+        f.skipped = courses.filter { !needsCheck(known[$0.id], now: now) }.map(\.id)
+        var results: [String: CourseFetch] = [:]
+        var stop: CourseFetch?
+        await withTaskGroup(of: (String, CourseFetch).self) { group in
+            var next = 0
+            func start(_ c: StudIPCourse, available: Bool) -> @Sendable () async -> (String, CourseFetch) {
+                { (c.id, await fetchOne(client: client, courseID: c.id, knownAvailable: available)) }
+            }
+            while next < todo.count, next < max(1, width) {
+                group.addTask(operation: start(todo[next], available: known[todo[next].id]?.status == "available"))
+                next += 1
+            }
+            while let (id, r) = await group.next() {
+                if stop == nil {
+                    results[id] = r
+                    if r.stops {
+                        stop = r
+                        group.cancelAll()
+                    } else if next < todo.count {
+                        group.addTask(operation: start(todo[next], available: known[todo[next].id]?.status == "available"))
+                        next += 1
+                    }
+                } else if case .listing = r {
+                    results[id] = r                               // schon unterwegs und gelesen: behalten
                 }
             }
         }
+        for c in todo {
+            switch results[c.id] {
+            case .listing(let l)?: f.listings[c.id] = l
+            case .failed?: f.failed.append(c.id)
+            case .expired?: f.sessionExpired = true
+            case .unreachable?: f.unreachable = true; f.failed.append(c.id)
+            case nil: if stop == .unreachable { f.failed.append(c.id) }
+            }
+        }
         return f
+    }
+
+    /// Ergebnis eines Kurses beim Abruf der Aufzeichnungslisten
+    enum CourseFetch: Sendable, Equatable {
+        case listing(OpencastListing)
+        case failed
+        case expired
+        case unreachable
+
+        var stops: Bool { self == .expired || self == .unreachable }
+    }
+
+    static func fetchOne(client: StudIPClient, courseID: String, knownAvailable: Bool) async -> CourseFetch {
+        do {
+            guard let listing = try await client.opencastListing(courseID: courseID, knownAvailable: knownAvailable) else { return .failed }
+            return .listing(listing)
+        } catch StudIPError.sessionExpired {
+            return .expired
+        } catch {
+            return StudIPScheduleStore.stopsFetch(error) ? .unreachable : .failed
+        }
     }
 
     // MARK: Speichern

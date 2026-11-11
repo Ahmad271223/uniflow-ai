@@ -11,8 +11,9 @@ import UniFlowCore
 // weiter hoechstens alle 20 Stunden). Nur lesend; ein laufender Abgleich wird nie doppelt gestartet, eine bekannte
 // abgelaufene Anmeldung wird wie bisher still erneuert oder bleibt "Anmeldung nötig".
 // Uni-Zugang einmal speichern (Entscheidung des Inhabers 10.11.2026): an der LUH gleichen der Knopf "Sync" und das
-// Oeffnen ALLE Portale ab - Uni-Mail (SOGo) zuerst, dann Stud.IP und QIS (Noten, Pruefungen, angemeldete Pruefungen;
-// Bescheinigungen nur die Liste, erzeugt nichts; seit 11.11.2026 in jedem solchen Sync und mit Zahl im Ergebnis). Ist ein Uni-Zugang gespeichert, verbindet die App vorher die Portale
+// Oeffnen ALLE Portale ab - Uni-Mail (SOGo), Stud.IP und QIS, seit 11.11.2026 nebeneinander (Noten, Pruefungen,
+// angemeldete Pruefungen; Bescheinigungen nur die Liste, erzeugt nichts, seit 11.11.2026 in jedem solchen Sync und
+// mit Zahl im Ergebnis). Ist ein Uni-Zugang gespeichert, verbindet die App vorher die Portale
 // (`connectWithStoredLogin`, beim Knopf als Handlung des Menschen). Ein Portal ohne Verbindung wird uebersprungen und im
 // Ergebnis genannt ("QIS: Anmeldung nötig"); ein Fehler eines Portals haelt die anderen nicht auf.
 
@@ -167,9 +168,9 @@ extension ContainerManager {
         }
     }
 
-    /// Ein Abgleich aller Portale: gespeicherten Zugang verbinden, Uni-Mail zuerst, dann Stud.IP und QIS nebeneinander
-    /// (verschiedene Rechner). `userAction`: Knopf "Sync" (gleicht auch nicht faellige Noten ab); beim Oeffnen gelten
-    /// fuer die Noten die eigenen 20 Stunden. Die Liste der Bescheinigungen liest jeder solche Sync (nur lesend).
+    /// Ein Abgleich aller Portale: gespeicherten Zugang verbinden, dann Uni-Mail, Stud.IP und QIS nebeneinander
+    /// (verschiedene Rechner; Stud.IP nur bis "fertig"). `userAction`: Knopf "Sync" (gleicht auch nicht faellige
+    /// Noten ab); beim Oeffnen gelten fuer die Noten die eigenen 20 Stunden. Die Liste der Bescheinigungen liest jeder solche Sync (nur lesend).
     private func runAllPortals(container c: ActiveContainer, userAction: Bool, forceGrades: Bool) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
@@ -179,10 +180,12 @@ extension ContainerManager {
         // nach dem Verbinden: die Verbindungen dieses Containers (ein Wechsel des Containers bricht hier ab)
         guard active === c else { return report }
         let studip = studip, qis = qis, mail = uniMail
-        if let mail { await Self.syncMail(mail) }
+        // Uni-Mail, Stud.IP und QIS nebeneinander (11.11.2026; vorher wartete alles auf den Posteingang). Die
+        // unsichtbaren Anmeldungen bleiben je Datenspeicher nacheinander (`UniAutoLogin`, `Entry.tail`)
+        async let m: Void = Self.syncMail(mail)
         async let s: Void = Self.syncStudIP(studip, userAction: userAction)
         async let q: CertificatesSync.Report? = Self.syncQIS(qis, container: c, userAction: userAction, forceGrades: forceGrades)
-        let (_, certificates) = await (s, q)
+        let (_, _, certificates) = await (m, s, q)
         report.add(OpenSync.studIP, Self.studIPNote(studip.phase))
         if let qis { report.add(OpenSync.qis, Self.qisNote(qis)) }
         if let certificates {
@@ -202,9 +205,9 @@ extension ContainerManager {
         while busy(), Date() < end { try? await Task.sleep(nanoseconds: 200_000_000) }
     }
 
-    /// Posteingang lesen (vor allem anderen); laeuft das Lesen schon (nach dem Verbinden), darauf warten
-    private static func syncMail(_ mail: UniMailConnection) async {
-        guard mail.isConnected, mail.state != .needsLogin else { return }
+    /// Posteingang lesen (neben Stud.IP und QIS); laeuft das Lesen schon (nach dem Verbinden), darauf warten
+    private static func syncMail(_ mail: UniMailConnection?) async {
+        guard let mail, mail.isConnected, mail.state != .needsLogin else { return }
         if mail.isRunning { await wait(seconds: 60) { mail.isRunning }; return }
         await mail.refreshInbox()
     }
@@ -213,11 +216,12 @@ extension ContainerManager {
     /// beim Oeffnen wie bisher immer `run` (prueft selbst Angebot, Sitzung und Demo und erneuert still)
     private static func syncStudIP(_ studip: StudIPSync, userAction: Bool) async {
         if userAction, studip.phase == .signedOut || studip.phase == .needsLogin { return }
+        if studip.finishingUp { return }                         // eben fertig, Aufzeichnungen/Lernstoff laufen noch
         if studip.isRunning, !studip.runningOlderOnly {
             await wait(seconds: 30 * 60) { studip.isRunning }    // laeuft schon (z. B. nach dem Verbinden): abwarten
             return
         }
-        await studip.run()
+        await studip.runUntilReady()                             // nur bis "fertig" (11.11.2026)
     }
 
     /// QIS: Noten mit Pruefungen und angemeldeten Pruefungen (`QISConnection.runRenewingSession`: eine dabei abgelaufene

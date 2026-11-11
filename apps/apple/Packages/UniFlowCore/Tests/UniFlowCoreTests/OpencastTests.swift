@@ -290,6 +290,34 @@ final class OpencastFetchTests: XCTestCase {
         XCTAssertTrue(f.listings.isEmpty)
     }
 
+    /// 11.11.2026: im Abgleich laufen die Kurse nebeneinander (`width`, der Client begrenzt auf 4 Anfragen); dasselbe
+    /// Ergebnis in der Reihenfolge der Kurse, dieselben Abbruchregeln
+    func testCoursesSideBySideGiveTheSameResult() async throws {
+        let slow = SlowTransport(try PageTransport(routes()))
+        let client = StudIPClient(base: base, transport: slow, pauseMillis: 0)
+        let f = await OpencastStore.fetch(client: client, courses: courses, known: [:], now: unix(2026, 11, 10), width: 4)
+        let (seq, _) = try await fetch()
+        XCTAssertEqual(f.listings, seq.listings)
+        XCTAssertEqual(f.failed, ["c-erst"])
+        XCTAssertFalse(f.sessionExpired || f.unreachable)
+        XCTAssertGreaterThan(slow.maxOpen, 1, "Kurse nebeneinander")
+        XCTAssertLessThanOrEqual(slow.maxOpen, StudIPClient.defaultConcurrency)
+
+        let failing = FailingTransport(URLError(.timedOut))
+        let down = await OpencastStore.fetch(client: StudIPClient(base: base, transport: failing, pauseMillis: 0), courses: courses,
+                                             known: ["c-prog": OpencastCourseState(status: "none", checkedAt: unix(2026, 11, 9))],
+                                             now: unix(2026, 11, 10), width: 4)
+        XCTAssertTrue(down.unreachable)
+        XCTAssertEqual(down.failed, ["c-ana", "c-ana-ue", "c-erst"], "Reihenfolge der Kurse")
+        XCTAssertEqual(down.skipped, ["c-prog"])
+
+        let login = page(#"<form action="/dispatch.php/login" method="post"><input type="password" name="password"></form>"#)
+        let expired = await OpencastStore.fetch(client: StudIPClient(base: base, transport: try PageTransport(routes([mediaPath("c-ana-ue"): login])), pauseMillis: 0),
+                                                courses: courses, known: [:], now: unix(2026, 11, 10), width: 4)
+        XCTAssertTrue(expired.sessionExpired)
+        XCTAssertFalse(expired.failed.contains("c-ana-ue"))
+    }
+
     /// Kursueberblick mit Kursnavigation (erfunden nach dem Aufbau der Stud.IP-Reiter)
     private func overview(_ course: String, tabs: [(String, String)] = []) -> HTTPReply {
         let links = ([("dispatch.php/course/overview", "Übersicht"), ("dispatch.php/course/files", "Dateien")] + tabs)
@@ -795,5 +823,23 @@ final class OpencastPlaybackTests: XCTestCase {
         XCTAssertFalse(RecordingResume.usable(savedURL: url.absoluteString, savedAt: now.addingTimeInterval(-4 * 86400), currentURL: url, now: now))
         XCTAssertFalse(RecordingResume.usable(savedURL: url.absoluteString, savedAt: now.addingTimeInterval(3600), currentURL: url, now: now))
         XCTAssertFalse(RecordingResume.usable(savedURL: nil, savedAt: now, currentURL: url, now: now))
+    }
+}
+
+/// Antwortet nach kurzer Wartezeit und zaehlt die hoechste Zahl gleichzeitiger Anfragen
+private final class SlowTransport: StudIPTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    private let inner: StudIPTransport
+    private var open = 0
+    private var most = 0
+    init(_ inner: StudIPTransport) { self.inner = inner }
+    var maxOpen: Int { lock.lock(); defer { lock.unlock() }; return most }
+    private func enter() { lock.lock(); open += 1; most = max(most, open); lock.unlock() }
+    private func leave() { lock.lock(); open -= 1; lock.unlock() }
+    func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+        enter()
+        try? await Task.sleep(nanoseconds: 30_000_000)
+        leave()
+        return try await inner.get(url, accept: accept)
     }
 }

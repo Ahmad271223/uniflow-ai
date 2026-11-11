@@ -61,7 +61,7 @@ final class QISConnection: ObservableObject {
     static var qisDomains: [String] { [UniversityProfile.luhQISStart.host?.lowercased() ?? "qis.verwaltung.uni-hannover.de"] }
 
     init(container c: ActiveContainer, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
-         transport: TransportFactory? = nil, retry: UniRetry = UniRetry()) {
+         transport: TransportFactory? = nil, retry: UniRetry = .qisPages) {
         key = c.key
         host = c.host
         defaults = c.defaults

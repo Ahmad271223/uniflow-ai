@@ -172,6 +172,22 @@ final class QISAppTests: XCTestCase {
         XCTAssertEqual(q.state, .ok(clock.now))
     }
 
+    /// 11.11.2026: Seiten (GET) mit 15 s Zeitlimit statt 30 s, Formulare/Downloads wie bisher; der QIS-Durchlauf
+    /// wiederholt eine Zeitueberschreitung nicht (`UniRetry.qisPages`)
+    func testPagesTimeOutAfterFifteenSecondsAndQISDoesNotRetryTimeouts() throws {
+        let t = URLSessionUniTransport(cookies: [], allowedDomains: QISConnection.qisDomains)
+        let page = try t.sendRequest(UniRequest(url: QISClient.startURL))
+        XCTAssertEqual(page.timeoutInterval, 15)
+        let form = try t.sendRequest(UniRequest(url: QISClient.startURL, method: "POST", body: Data("a=b".utf8)))
+        XCTAssertNotEqual(form.timeoutInterval, 15, "Formulare behalten das Zeitlimit der Sitzung")
+        let document = try t.sendRequest(UniRequest(url: QISClient.startURL, timeout: 30))
+        XCTAssertEqual(document.timeoutInterval, 30)
+        XCTAssertFalse(UniRetry.qisPages.retriesTimeouts)
+        let (_, _, q) = try luh()
+        XCTAssertTrue(Mirror(reflecting: q).children.contains { ($0.value as? UniRetry)?.retriesTimeouts == false },
+                       "QIS-Verbindung: keine Wiederholung nach Zeitueberschreitung")
+    }
+
     func testSignOutRemovesOnlyTheQISSession() async throws {
         let (m, c, q) = try luh()
         installQIS()
