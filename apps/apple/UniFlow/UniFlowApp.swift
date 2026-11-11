@@ -47,6 +47,7 @@ struct UniFlowApp: App {
         if !StudIPSync.isUnderTest() {
             b.register()
             Task { await b.schedule() }
+            b.startMacTicker()                                            // nur am Mac: alle 20–30 Minuten, solange die App laeuft
         }
         _account = StateObject(wrappedValue: a)
         _containers = StateObject(wrappedValue: c)

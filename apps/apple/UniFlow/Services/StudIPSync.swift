@@ -422,6 +422,13 @@ final class StudIPSync: ObservableObject {
 
     /// Aufruf aus der Anmeldeansicht, sobald Stud.IP die Sitzung bestaetigt hat.
     func signedIn(cookies: [HTTPCookie]) {
+        if adopt(cookies: cookies) { Task { await run() } }
+    }
+
+    /// Neue Sitzung uebernehmen (ohne Abgleich): Cookies in den Schluesselbund, "abgelaufen" weg. false, wenn der
+    /// Schluesselbund nicht schrieb
+    @discardableResult
+    private func adopt(cookies: [HTTPCookie]) -> Bool {
         do {
             try self.cookies.save(cookies)
             setFlag(Keys.sessionExpired, false)
@@ -432,10 +439,28 @@ final class StudIPSync: ObservableObject {
             UniAutoLogin.clearSignedOut(.studip, store: store) // angemeldet: die Abmelden-Sperre faellt
             UniAutoLogin.signedIn(store, portal: .studip)      // mitgelesenes Passwort jetzt merken (falls zugelassen)
             Task { await UniWebSessions.save(store) }          // Uni-Anmeldung (WebSSO) ueber Neustarts merken
-            Task { await run() }
+            return true
         } catch {
             phase = .failed(error.localizedDescription)
+            return false
         }
+    }
+
+    /// Hintergrundlauf (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md): abgelaufene Stud.IP-Sitzung still erneuern -
+    /// erst ueber die noch gueltige Uni-Anmeldung (WebSSO, kein Passwort), sonst mit dem gespeicherten Uni-Zugang
+    /// (Schluesselbund dieses Geraets, `UniAutoLogin.handleExpiry(background:)`). Startet keinen Abgleich: den macht der
+    /// Hintergrundlauf gleich danach. Ob und wie oft, entscheidet `BackgroundReloginLedger` beim Aufrufer.
+    @discardableResult
+    func renewInBackground() async -> Bool {
+        guard sessionKnownExpired, offersStudIP, !stopped, liveSessionWorkAllowed, renewing == nil else { return false }
+        let store = websiteDataStore
+        let before = signOuts
+        var fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+        if fresh == nil, await autoLogin(store: store, background: true) {
+            fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+        }
+        guard let fresh, sessionKnownExpired, signOuts == before, !stopped else { return false }
+        return adopt(cookies: fresh)
     }
 
     /// Direkter Einstieg ins WebSSO der LUH (ueberspringt die Hochschulauswahl), wie `SHIB_LOGIN_URL` in
@@ -497,10 +522,10 @@ final class StudIPSync: ObservableObject {
 
     /// Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): auf dem WebSSO mit dem gespeicherten Passwort
     /// (nur mit Zustimmung, nur dieses Geraet); true, wenn danach Stud.IP erreicht ist
-    private func autoLogin(store: WKWebsiteDataStore) async -> Bool {
+    private func autoLogin(store: WKWebsiteDataStore, background: Bool = false) async -> Bool {
         let host = Self.base.host?.lowercased() ?? ""
         let before = signOuts
-        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL()) { url, _ in
+        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL(), background: background) { url, _ in
             url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
         }
         return d == .retryOnce && signOuts == before && hasStoredSession

@@ -224,12 +224,13 @@ final class UniMailConnection: ObservableObject {
     /// gespeicherten Passwort; fertig, sobald SOGo das gemerkte Konto zeigt (/SOGo/so/<benutzer>/). Kein Abruf hier:
     /// die gescheiterte Aktion wiederholt `perform` genau einmal.
     @discardableResult
-    func autoLogin(userAction: Bool = false) async -> Bool {
+    /// `background`: aus dem Hintergrundlauf (Version 1.3/1.4, `UniAutoLogin.handleExpiry`)
+    func autoLogin(userAction: Bool = false, background: Bool = false) async -> Bool {
         guard isConnected, !stopped, let account = user else { return false }
         let before = signOuts
         let site = self.site
         let d = await UniAutoLogin.handleExpiry(portal: "sogo", store: websiteDataStore, entry: site.loginURL,
-                                                userAction: userAction) { url, _ in SOGo.user(fromURL: url, site: site) == account }
+                                                userAction: userAction, background: background) { url, _ in SOGo.user(fromURL: url, site: site) == account }
         guard d == .retryOnce, signOuts == before, isConnected else { return false }
         set(.connected)
         return true

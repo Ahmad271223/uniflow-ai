@@ -311,6 +311,22 @@ final class BackgroundSyncController: ObservableObject {
     /// Ergebnis des letzten Posteingang-Schritts (Tests)
     private(set) var lastMail: UniMailConnection.InboxReport?
 
+    // Mitteilungen wie bei Studo (Version 1.3/1.4, BackgroundNews.swift, docs/BENACHRICHTIGUNGEN-1-3.md)
+    /// Schalter je Art und "Im Hintergrund neu anmelden" (dieselben UserDefaults wie `settings`)
+    var news: BackgroundNewsSettings { BackgroundNewsSettings(defaults: settings.defaults) }
+    /// Notenspiegel im Hintergrund abrufen (QIS der LUH; Tests: Attrappe). Neue Noten erkennt der Vergleich der Datenbank.
+    var gradesStep: (ActiveContainer) async -> Void
+    /// Dienste mit abgelaufener Anmeldung ("Stud.IP", "QIS", "Uni-Mail")
+    var expiredPortals: (ActiveContainer) -> [String]
+    /// Liegt ein gespeicherter Uni-Zugang vor (Schluesselbund dieses Geraets)?
+    var hasStoredLogin: (ActiveContainer) -> Bool
+    /// Still neu anmelden (unsichtbare Webansicht ohne Fenster); true: angemeldet
+    var relogin: (ActiveContainer, String) async -> Bool
+    /// Neues des letzten Laufs (Tests)
+    private(set) var lastNews: BackgroundNewsDiff?
+    /// Takt am Mac, solange die App laeuft (`startMacTicker`)
+    private(set) var macTicker: MacBackgroundTicker?
+
     private static var registered = false
 
     /// `scheduler`, `notifier`: nil = BGTaskScheduler bzw. UNUserNotificationCenter
@@ -329,6 +345,31 @@ final class BackgroundSyncController: ObservableObject {
             guard let containers, containers.active === c else { return nil }
             if c.key.university == .hsh { return containers.hsh }
             return c.key.university == .hildesheim ? containers.hildesheim : (containers.studip.offersStudIP ? containers.studip : nil)
+        }
+        gradesStep = { [weak containers] c in
+            guard let containers, containers.active === c, let qis = containers.qis else { return }
+            await qis.backgroundCheck()
+        }
+        expiredPortals = { [weak containers] c in
+            guard let containers, containers.active === c else { return [] }
+            var out: [String] = []
+            if containers.studip.offersStudIP, containers.studip.loginNeededSources.contains("Stud.IP") { out.append("Stud.IP") }
+            if let q = containers.qis, q.isConnected, q.state == .needsLogin { out.append("QIS") }
+            if let u = containers.uniMail, u.isConnected, u.state == .needsLogin { out.append("Uni-Mail") }
+            return out
+        }
+        hasStoredLogin = { [weak containers] c in
+            guard let containers, containers.active === c else { return false }
+            return containers.hasStoredLogin
+        }
+        relogin = { [weak containers] c, portal in
+            guard let containers, containers.active === c else { return false }
+            switch portal {
+            case "Stud.IP": return await containers.studip.renewInBackground()
+            case "QIS": return await containers.qis?.reloginInBackground() ?? false
+            case "Uni-Mail": return await containers.uniMail?.autoLogin(background: true) ?? false
+            default: return false
+            }
         }
     }
 
@@ -491,12 +532,88 @@ final class BackgroundSyncController: ObservableObject {
     /// Ein Hintergrundlauf auf dem offenen Container. Rueckgabe: Erfolg fuer `setTaskCompleted`.
     @discardableResult
     func perform(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool = { false }) async -> Bool {
-        let ok = await performRun(kind, expired: expired)
+        let c = containers.active
+        // Stand vor dem Lauf (nur mit einem Schalter fuer Noten, Nachrichten oder Ankuendigungen)
+        var before: BackgroundNewsSnapshot?
+        if let c, news.anyOn, runnable(c, expired: expired) { before = await snapshot(c) }
+        // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher
+        let tried = c != nil ? await reloginStep(c!, expired: expired) : []
+        let ok = await performRun(kind, expired: expired, reloginTried: tried)
+        if let c { await gradesAndNews(c, before: before, expired: expired) }
         await schedule()                                         // nach jedem Lauf neu planen
         return ok
     }
 
-    private func performRun(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool) async -> Bool {
+    /// Am Mac (`MacBackgroundTicker`): derselbe kurze Lauf, wenn der letzte mindestens 15 Minuten zurueckliegt
+    func performIfDue() async {
+        guard MacBackgroundTicker.due(lastRun: lastRecord?.finishedAt, now: now()) else { return }
+        await perform(.refresh)
+    }
+
+    /// Takt am Mac starten ("Designed for iPad": ob iOS dort Hintergrundaufgaben startet, ist ungewiss); nie auf iPad
+    /// oder iPhone, nie unter XCTest (der Aufrufer prueft das)
+    func startMacTicker() {
+        guard MacBackgroundTicker.isMac, macTicker == nil else { return }
+        let t = MacBackgroundTicker { [weak self] in await self?.performIfDue() }
+        macTicker = t
+        t.start()
+    }
+
+    /// Duerfen Neuanmeldung, Notenabruf und Mitteilungen laufen? Wie der Abgleich: eingeschaltet, passender Container,
+    /// keine Einrichtung oder Wechsel, keine Demo-Inhalte, Zeit nicht um
+    private func runnable(_ c: ActiveContainer, expired: () -> Bool) -> Bool {
+        allowed() && settings.enabled && containers.active === c && c.key == account.containerKey && account.stage == .ready
+            && containers.problem == nil && !containers.demoActive && !expired()
+    }
+
+    private func snapshot(_ c: ActiveContainer) async -> BackgroundNewsSnapshot? {
+        guard let backend = try? await c.host.backend() else { return nil }
+        return await BackgroundNewsSnapshot.read(backend.context.database)
+    }
+
+    /// Stille Neuanmeldung im Hintergrund: nur mit Schalter, "Automatisch anmelden" und gespeichertem Uni-Zugang, je
+    /// Dienst nach `BackgroundReloginLedger`. Rueckgabe: versuchte Dienste.
+    private func reloginStep(_ c: ActiveContainer, expired: () -> Bool) async -> [String] {
+        guard runnable(c, expired: expired), news.relogin, UniAutoLogin.isEnabled(c.defaults), hasStoredLogin(c) else { return [] }
+        let ledger = BackgroundReloginLedger(defaults: c.defaults)
+        var tried: [String] = []
+        for p in expiredPortals(c) where ledger.mayTry(p, now: now()) {
+            guard !expired(), containers.active === c else { break }
+            let ok = await relogin(c, p)
+            guard owns(c) else { break }
+            ledger.record(p, ok: ok, now: now())
+            tried.append(p)
+        }
+        return tried
+    }
+
+    /// Notenspiegel abrufen und, mit den Schaltern, Neues melden (Vergleich mit dem Stand vor dem Lauf)
+    private func gradesAndNews(_ c: ActiveContainer, before: BackgroundNewsSnapshot?, expired: () -> Bool) async {
+        guard runnable(c, expired: expired) else { return }
+        await gradesStep(c)
+        guard let before, owns(c), containers.active === c, let after = await snapshot(c) else { return }
+        let d = BackgroundNews.diff(before: before, after: after, now: now())
+        lastNews = d
+        guard !d.isEmpty, owns(c), containers.active === c, await notifier.isAllowed() else { return }
+        let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
+        for n in BackgroundNews.notices(d, settings: news, container: container) {
+            await notifier.post(n.content, id: prefix + n.id, thread: prefix + container)
+        }
+    }
+
+    /// Schalter einer Art (Noten, Nachrichten, Ankuendigungen): erst hier fragt iOS nach der Erlaubnis. false, wenn sie
+    /// fehlt; dann bleibt der Schalter aus.
+    func setNewsNotify(_ kind: BackgroundNewsKind, _ on: Bool) async -> Bool {
+        guard on else {
+            news.set(kind, false)
+            return true
+        }
+        let ok = await notifier.requestPermission()
+        news.set(kind, ok)
+        return ok
+    }
+
+    private func performRun(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool, reloginTried: [String] = []) async -> Bool {
         let c = containers.active
         // Uni-Mail zuerst (docs/SYNC-REIHENFOLGE-2026-11-05.md: erste Seite des Posteingangs vor allem anderen)
         if let c { await runUniMail(c, kind: kind, expired: expired) }
@@ -537,7 +654,7 @@ final class BackgroundSyncController: ObservableObject {
                 await notifier.post(n, id: prefix + "files.\(container).\(UUID().uuidString)", thread: thread)
             }
             let due = state.loginNoticeDue(report)
-            if let n = BackgroundNotice.loginNeeded(due) {
+            if let n = BackgroundNotice.loginNeeded(due, reloginTried: due.contains(where: reloginTried.contains)) {
                 await notifier.post(n, id: prefix + "login.\(container)", thread: thread)
                 due.forEach(state.markLoginNoticeSent)
             }
