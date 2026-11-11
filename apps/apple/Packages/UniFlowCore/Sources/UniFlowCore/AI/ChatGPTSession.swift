@@ -443,6 +443,7 @@ public actor ChatGPTSession {
             return try await http.send(AIHTTPRequest(method: "POST", url: ChatGPTConstants.responsesURL,
                                                      headers: ChatGPTProtocol.requestHeaders(token: token), body: body))
         } catch {
+            if Task.isCancelled { throw CancellationError() }      // "Stopp": Abbruch, nicht "nicht erreichbar"
             throw ChatGPTProtocol.error(status: 0)
         }
     }

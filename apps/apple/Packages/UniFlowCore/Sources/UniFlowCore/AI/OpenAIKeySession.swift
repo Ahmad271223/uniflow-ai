@@ -256,6 +256,7 @@ public actor OpenAIKeySession: AIProvider {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            if Task.isCancelled { throw CancellationError() }      // "Stopp": Abbruch, nicht "OpenAI nicht erreichbar"
             throw Self.unreachable(error)
         }
         guard (200..<300).contains(r.status) else {

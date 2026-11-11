@@ -140,6 +140,8 @@ struct TutorPanel: View {
     @FocusState private var inputFocused: Bool
     /// Anhang im Eingabefeld (05.11.2026): geht mit der naechsten Frage bzw. dem naechsten Modus mit, danach weg
     @State private var attached: TutorAttachment?
+    /// Aufgabe der laufenden KI-Anfrage (Frage, Lauf fuers Dokument, Karteikarten): "Stopp" bricht sie ab (11.11.2026)
+    @State private var aiTask: Task<Void, Never>?
 
     /// KI erreichbar (`ufAIEnabled`); sonst zeigt die Leiste den Anhang und den Tarif-Hinweis
     private var canAsk: Bool { aiEnabled }
@@ -165,7 +167,7 @@ struct TutorPanel: View {
             request.wrappedValue = nil
             // ohne KI nicht still verwerfen: der Text steht dann als Anhang da, darunter der Hinweis
             guard canAsk else { attached = TutorAttachment(kind: .selection, text: r.selection, page: page()); return }
-            await send(mode: r.mode, selection: r.selection)
+            run { await send(mode: r.mode, selection: r.selection) }
         }
         .task(id: attachment.wrappedValue?.id) {
             guard let a = attachment.wrappedValue else { return }
@@ -197,8 +199,8 @@ struct TutorPanel: View {
     private var tabBar: some View {
         TutorPanelHead(tab: $tab, scope: $docScope, from: $docFrom, to: $docTo, busy: busy, checking: checking,
                        mode: { activate(mode: $0) },
-                       doc: { mode in Task { await startDoc(mode: mode) } },
-                       cards: { Task { await startCards() } },
+                       doc: { mode in run { await startDoc(mode: mode) } },
+                       cards: { run { await startCards() } },
                        weeklyTest: { overlay.modal { QuizComposer(moduleID: moduleID ?? 0) } })
     }
 
@@ -209,10 +211,28 @@ struct TutorPanel: View {
             checking.toggle()
             if checking { inputFocused = true }
         } else if let doc = TutorDocRun.docMode(forTutorMode: key, scope: docScope) {
-            Task { await startDoc(mode: doc) }
+            run { await startDoc(mode: doc) }
         } else {
-            Task { await send(mode: key) }
+            run { await send(mode: key) }
         }
+    }
+
+    // MARK: Stopp
+
+    /// KI-Anfrage als Aufgabe starten, die "Stopp" abbrechen kann
+    private func run(_ work: @escaping @MainActor () async -> Void) {
+        aiTask = Task { await work() }
+    }
+
+    /// "Stopp" (Meldung des Inhabers 11.11.2026): die laufende Anfrage abbrechen (Task-Abbruch bis in URLSession; beim
+    /// StudiNow-Dienst endet die Verbindung), keine weiteren Teile holen oder zeigen, sofort wieder bereit. Was schon da
+    /// ist, bleibt stehen; eine Frage ohne Antwort geht zurueck ins Eingabefeld.
+    private func stopAI() {
+        aiTask?.cancel()
+        aiTask = nil
+        docRunner.cancel()
+        busy = false
+        cardsProgress = nil
     }
 
     /// Ohne KI: der Weg zur Verbindung - und darueber, was die Bibliothek zur offenen Seite schon weiss (lesen darf
@@ -247,10 +267,18 @@ struct TutorPanel: View {
                             bubble($m, index: messages.firstIndex { $0.id == m.id } ?? 0).id(m.id)
                         }
                         // ganzes Dokument: Rueckfrage zu den Kosten bzw. Fortschritt "Teil 2 von 4"
-                        TutorDocRunCard(runner: docRunner) { Task { await runDoc() } }
+                        TutorDocRunCard(runner: docRunner, start: { run { await runDoc() } }, stop: stopAI)
                         if busy && docRunner.phase != .running {
-                            // dezenter Schimmer (text-shimmer); beim Karten-Lauf der Teil ("Karteikarten, Teil 2 von 3 …")
-                            HStack(spacing: 8) { ProgressView(); UFShimmerText(cardsProgress ?? "Die KI liest die Seite …") }
+                            // dezenter Schimmer (text-shimmer); beim Karten-Lauf der Teil ("Karteikarten, Teil 2 von 3 …");
+                            // "Stopp" bricht die Anfrage ab (11.11.2026)
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                UFShimmerText(cardsProgress ?? "Die KI liest die Seite …")
+                                Spacer(minLength: 4)
+                                UFButton("Stopp", kind: .ghost, size: .small) { stopAI() }
+                                    .accessibilityLabel("KI-Anfrage stoppen")
+                                    .accessibilityIdentifier("tutor.stop")
+                            }
                                 .id("busy")
                                 .accessibilityIdentifier("tutor.busy")
                         }
@@ -306,7 +334,7 @@ struct TutorPanel: View {
                        text: $input, focused: $inputFocused,
                        canSend: Self.canSend(busy: busy, input: input, attached: attached != nil, checking: checking),
                        sendLabel: checking ? "Lösung prüfen" : "Senden", inputID: "tutor.input", sendID: "tutor.ask",
-                       send: { Task { await send(mode: Self.composerMode(checking: checking, input: input, attached: attached != nil)) } }) {
+                       send: { run { await send(mode: Self.composerMode(checking: checking, input: input, attached: attached != nil)) } }) {
                 if checking {
                     Button { checking = false } label: {
                         AIComposerPill(icon: "check", text: "Lösung prüfen", tint: Tab.test.pair.fg, fill: Tab.test.pair.bg)
@@ -388,7 +416,7 @@ struct TutorPanel: View {
                             .padding(.vertical, 4)
                             .accessibilityElement(children: .combine)
                             .accessibilityIdentifier("tutor.stored")
-                            UFButton("Neu erklären lassen", icon: "refresh", kind: .ghost, size: .small) { Task { await send(mode: msg.mode, force: true) } }
+                            UFButton("Neu erklären lassen", icon: "refresh", kind: .ghost, size: .small) { run { await send(mode: msg.mode, force: true) } }
                                 .disabled(busy)
                                 .accessibilityIdentifier("tutor.rebuild")
                         }
@@ -399,7 +427,7 @@ struct TutorPanel: View {
                     if !followUps.isEmpty {
                         AIChipRail {
                             ForEach(followUps) { s in
-                                UFChip(text: s.label, icon: "sparkles") { input = s.question; Task { await send(mode: s.mode) } }
+                                UFChip(text: s.label, icon: "sparkles") { input = s.question; run { await send(mode: s.mode) } }
                                     .disabled(busy)
                                     .accessibilityIdentifier("tutor.followUp.\(s.mode)")
                             }
@@ -498,16 +526,18 @@ struct TutorPanel: View {
                                     selection: given ?? using?.text ?? selection(), image: using?.image, force: force)
         if let t = Tab.tab(for: mode), t != tab, mode != "check" { tab = t }
         let quoted = given ?? using.flatMap { $0.text.isEmpty ? nil : $0.text }
-        messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed, force: force)
-                                + (using?.image != nil ? "\n[\(using!.title) als Bild]" : "")
-                                + (quoted.map { "\n„\(String($0.prefix(160)))\($0.count > 160 ? " …" : "")“" } ?? "")))
+        let question = Message(fromUser: true, text: Self.label(mode: mode, input: typed, force: force)
+                               + (using?.image != nil ? "\n[\(using!.title) als Bild]" : "")
+                               + (quoted.map { "\n„\(String($0.prefix(160)))\($0.count > 160 ? " …" : "")“" } ?? ""))
+        messages.append(question)
         input = ""
         if using != nil { attached = nil }
         if mode == "check" { checking = false }
         busy = true
         error = nil
         errorAction = nil
-        defer { busy = false }
+        // nach "Stopp" ist die Leiste schon bereit (`stopAI`); eine neue Anfrage laeuft dann evtl. schon
+        defer { if !Task.isCancelled { busy = false } }
         do {
             // eigene Notizen zur Folie (Seitennotizen, Blatt daneben) als Kontext; der Dienst nutzt dann keinen
             // geteilten Erklaerungsspeicher
@@ -515,7 +545,9 @@ struct TutorPanel: View {
                 let notes = await ownNotes()
                 if !notes.isEmpty { body["own_notes"] = .string(notes) }
             }
+            try Task.checkCancellation()
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
+            try Task.checkCancellation()        // Antwort nach "Stopp": nicht mehr zeigen
             studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Fusszeile
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
                                     sources: r["sources"]?.array ?? [], mode: mode, explain: r["explain"].flatMap { $0.isNull ? nil : $0 }))
@@ -524,7 +556,13 @@ struct TutorPanel: View {
             persistConversation()
         } catch {
             // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), Eingabe und Anhang zurueck ins Feld
-            if messages.last?.fromUser == true { messages.removeLast() }
+            messages.removeAll { $0.id == question.id }
+            if Task.isCancelled {
+                // "Stopp": keine Fehlermeldung; Frage und Anhang zurueck, sofern dort inzwischen nichts Neues steht
+                if input.isEmpty { input = typed }
+                if attached == nil, let using { attached = using }
+                return
+            }
             input = typed
             if let using { attached = using }
             if mode == "check" { checking = true }
@@ -543,7 +581,8 @@ struct TutorPanel: View {
         guard let api = session.api, !busy, docRunner.phase != .running else { return }
         let scope = question == nil ? TutorDocRun.scopeJSON(docScope, from: docFrom, to: docTo) : nil
         if docRunner.phase == .confirm { docRunner.dismiss() }
-        messages.append(Message(fromUser: true, text: question ?? TutorDocRun.userLabel(mode: mode ?? "lecture", scope: docScope, from: docFrom, to: docTo)))
+        let asked = Message(fromUser: true, text: question ?? TutorDocRun.userLabel(mode: mode ?? "lecture", scope: docScope, from: docFrom, to: docTo))
+        messages.append(asked)
         input = ""
         busy = true
         error = nil
@@ -553,7 +592,7 @@ struct TutorPanel: View {
             busy = false
             guard plan != nil else {
                 // keine Absicht erkannt: normale Frage zur Seite
-                messages.removeLast()
+                messages.removeAll { $0.id == asked.id }
                 input = question ?? ""
                 await send(mode: "ask", docIntent: false)
                 return
@@ -561,8 +600,13 @@ struct TutorPanel: View {
             if docRunner.phase == .confirm { return }
             await runDoc()
         } catch {
+            messages.removeAll { $0.id == asked.id }
+            if Task.isCancelled {
+                // "Stopp" waehrend des Plans: kein Fehler, kein Lauf; die Frage zurueck ins Feld
+                if input.isEmpty { input = question ?? "" }
+                return
+            }
             busy = false
-            if messages.last?.fromUser == true { messages.removeLast() }
             input = question ?? ""
             self.error = error.localizedDescription
             errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
@@ -584,13 +628,17 @@ struct TutorPanel: View {
                 messages[i] = Message(fromUser: false, text: TutorDocRun.markdown(blocks), mode: mode, explain: TutorDocRun.marker(cached: cached, total: total))
                 answerID = messages[i].id
             }
+        } catch is CancellationError {
+            // "Stopp": die Teile bis dahin bleiben, kein Fehler, kein weiterer Teil
         } catch {
-            self.error = error.localizedDescription
-            errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
+            if !Task.isCancelled {
+                self.error = error.localizedDescription
+                errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
+            }
         }
-        // nichts angekommen (Fehler im ersten Teil): keine leere Antwort stehen lassen
+        // nichts angekommen (Fehler im ersten Teil, Stopp davor): keine leere Antwort stehen lassen
         if let i = messages.firstIndex(where: { $0.id == answerID }), messages[i].text.isEmpty { messages.remove(at: i) }
-        busy = false
+        if !Task.isCancelled { busy = false }
         persistConversation()
     }
 
@@ -605,12 +653,13 @@ struct TutorPanel: View {
             return
         }
         guard let api = session.api, !busy, docRunner.phase != .running else { return }
-        messages.append(Message(fromUser: true, text: TutorCardsRun.userLabel(scope: docScope, from: docFrom, to: docTo)))
+        let asked = Message(fromUser: true, text: TutorCardsRun.userLabel(scope: docScope, from: docFrom, to: docTo))
+        messages.append(asked)
         input = ""
         busy = true
         error = nil
         errorAction = nil
-        defer { busy = false; cardsProgress = nil }
+        defer { if !Task.isCancelled { busy = false; cardsProgress = nil } }
         // Seitenzahl aus der Bibliothek (ohne sie laufen die Teile bis zum erkannten Ende)
         let range = docScope == .document ? (TutorCardsRun.range(scope: .document, from: 1, to: 1, pageCount: await pageCount(api)) ?? range0) : range0
         let steps = TutorCardsRun.steps(from: range.lowerBound, to: range.upperBound)
@@ -619,9 +668,11 @@ struct TutorPanel: View {
         var pages: [Int] = []
         var failure: Error?
         for (i, step) in steps.enumerated() {
+            if Task.isCancelled { break }                  // "Stopp": kein weiterer Teil
             cardsProgress = TutorCardsRun.progress(step: i, total: steps.count, pages: step)
             do {
                 let r = try await api.value("/api/ai/flashcards", method: "POST", body: TutorCardsRun.body(fileID: fileID, pages: step, count: counts[i]))
+                if Task.isCancelled { break }              // Antwort nach dem Stopp: nicht mehr zeigen
                 studoraAccount?.noteAIResponse(r)
                 let got = TutorCardsRun.pages(in: r)
                 guard TutorCardsRun.accepted(got, requested: step) else { break }     // hinter dem Ende des Dokuments
@@ -629,16 +680,18 @@ struct TutorPanel: View {
                 pages += got
                 if !TutorCardsRun.continues(after: got, requested: step) { break }
             } catch {
-                failure = error
+                if !Task.isCancelled { failure = error }
                 break
             }
         }
         if !cards.isEmpty {
+            // auch nach "Stopp": die Karten der fertigen Teile (schon berechnet) bleiben, zum Durchsehen und Speichern
             messages.append(Message(fromUser: false, text: TutorCardsRun.answerText(cards: cards.count, pages: pages), cards: cards, mode: "flashcards"))
             persistConversation()
-        } else if messages.last?.fromUser == true {
-            messages.removeLast()
+        } else {
+            messages.removeAll { $0.id == asked.id }
         }
+        if Task.isCancelled { return }
         if let failure {
             // Teile davor bleiben stehen; der Fehler steht darunter
             self.error = failure.localizedDescription

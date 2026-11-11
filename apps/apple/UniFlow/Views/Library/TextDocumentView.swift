@@ -16,6 +16,8 @@ struct TextDocumentView: View {
     @State private var noContent = false
     @State private var problem: String?
     @State private var showTutor = false
+    /// Breite der KI-Hilfe, am Rand gezogen und je Geraet gemerkt (TutorPanelWidth.swift; 0 = Standard)
+    @AppStorage(TutorPanelWidth.key) private var tutorStoredWidth = 0.0
     @State private var showOriginal = false
     @StateObject private var transcriber = AudioTranscriber()
     @Environment(\.ufAIEnabled) private var aiEnabled
@@ -47,11 +49,12 @@ struct TextDocumentView: View {
                     }
                 }
                 if showTutor {
-                    Divider()
+                    // Rand mit Griff: KI-Hilfe breiter/schmaler ziehen (TutorPanelWidth.swift)
+                    TutorResizeHandle(panelOnLeft: false, total: geo.size.width, stored: $tutorStoredWidth)
                     TutorPanel(fileID: file.id, fileName: file.displayTitle, page: { page }, selection: { "" },
                                open: { id, p in if id == file.id, p >= 1, p <= max(pages, 1) { page = p } },
                                close: { showTutor = false }, moduleID: file.module_id)
-                        .frame(width: DocumentView.tutorWidth(geo.size.width))
+                        .frame(width: TutorPanelWidth.width(stored: tutorStoredWidth, total: geo.size.width))
                 }
             }
         }
