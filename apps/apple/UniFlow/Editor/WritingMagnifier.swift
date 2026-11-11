@@ -163,10 +163,10 @@ final class WritingMagnifier: NSObject, PKCanvasViewDelegate {
 
     // MARK: Werkzeug
 
-    /// Werkzeug der Palette, solange es schreibt (Stift, Textmarker); sonst nimmt der Streifen nichts an
+    /// Werkzeug der festen Leiste, solange es schreibt (Stift, Fineliner, Textmarker); sonst nimmt der Streifen nichts an
     func syncTool() {
         guard let c = controller else { return }
-        let tool = c.styledCanvasTool
+        let tool = c.canvasTool
         let writes = tool is PKInkingTool && !c.objects.isActive
         if writes { canvas.tool = tool }
         canvas.isUserInteractionEnabled = writes && c.writable

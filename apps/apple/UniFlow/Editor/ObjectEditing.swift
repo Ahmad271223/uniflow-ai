@@ -164,7 +164,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     /// Auswahl als Markierung, Unterstreichung oder Durchstreichung speichern (ein Rueckgaengig je Seite)
-    /// Farbe fuer "Text markieren" (vom Editor: Farbe des Textmarkers in der Palette, `PaletteSync.markupColor`)
+    /// Farbe fuer "Text markieren" (vom Editor: Farbe des Textmarkers der Leiste, `PaletteSync.markupColor`)
     var markupColor: ((PageObjectEdit.Markup) -> String)?
 
     func applyMarkup(_ kind: PageObjectEdit.Markup, color: String? = nil) {
@@ -396,7 +396,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     func setTool(_ t: Tool) {
         tool = t
         onToolChange?(t)
-        controller?.objectToolChangedInternally(t)          // Palette zeigt das neue Werkzeug (ab iPadOS 18)
+        controller?.objectToolChangedInternally(t)          // die feste Leiste zeigt das neue Werkzeug
     }
 
     private func rect(_ a: CGPoint, _ b: CGPoint) -> CGRect {

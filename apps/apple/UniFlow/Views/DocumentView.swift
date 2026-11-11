@@ -31,9 +31,8 @@ final class EditorBridge: ObservableObject {
         let id = UUID()
         let text: String
     }
-    /// Die Palette traegt unsere Objektwerkzeuge (iPadOS 18 mit eigenen Eintraegen); sonst Objektleiste und
-    /// "Tinte/Objekte" wie unter iPadOS 17
-    @Published var toolsInPalette = false
+    /// Feste Werkzeugleiste oben (`EditorToolbar`): sichtbar bzw. nur Tinte, vom Editor gemeldet
+    @Published var toolbar = EditorToolbarMode.hidden
 
     struct TutorRequest: Equatable {
         let id = UUID()
@@ -41,7 +40,7 @@ final class EditorBridge: ObservableObject {
         let selection: String
     }
 
-    /// "KI fragen" am Rand der Palette (Schritt F): jede Erhoehung oeffnet die KI-Hilfe
+    /// KI-Hilfe oeffnen ohne Anhang (z. B. "KI erklärt" ohne markierten Text): jede Erhoehung oeffnet sie
     @Published var askAIRequested = 0
     /// "Als Karteikarte" aus markiertem PDF-Text (Schritt K): Vorderseite fuer das Blatt "Karte anlegen"
     @Published var flashcardRequest: FlashcardRequest?
@@ -80,7 +79,7 @@ final class EditorBridge: ObservableObject {
         objectTool = t
     }
 
-    /// "Fertig" in der Objektleiste: zurueck zum Stift (ab iPadOS 18 ueber die Palette)
+    /// "Fertig" in der Objektleiste: zurueck zum Stift (ueber die feste Leiste)
     func finishObjectTools() {
         controller?.finishObjectTools()
         objectMode = controller?.objects.isActive ?? false
@@ -102,19 +101,28 @@ final class EditorBridge: ObservableObject {
     /// Werkzeug aus Menue oder Tastatur. Am Mac schreibt die Maus danach (sonst blaetterte sie weiter und das gewaehlte
     /// Werkzeug taete nichts).
     func choose(_ tool: EditorTool) {
-        if PDFEditorController.isMac, tool.isInk, UserDefaults.standard.object(forKey: "uniflow.pencilOnly") as? Bool ?? true {
-            UserDefaults.standard.set(false, forKey: "uniflow.pencilOnly")
-            hint = Hint(text: EditorPointer.macHint(pencilOnly: false))
-        }
+        if tool.isInk { mouseWrites() }
         controller?.choose(tool)
+    }
+
+    /// Werkzeug in der festen Leiste gewaehlt: am Mac schreibt die Maus danach mit Stift, Radierer oder Lasso (wie
+    /// ueber Menue und Tastatur)
+    func toolbarPicked(_ tool: EditorToolState.Tool) {
+        if tool.drawsOnCanvas { mouseWrites() }
+    }
+
+    private func mouseWrites() {
+        guard PDFEditorController.isMac, UserDefaults.standard.object(forKey: "uniflow.pencilOnly") as? Bool ?? true else { return }
+        UserDefaults.standard.set(false, forKey: "uniflow.pencilOnly")
+        hint = Hint(text: EditorPointer.macHint(pencilOnly: false))
     }
 }
 
-/// Eine Werkzeugpalette und ein Rueckgaengig-Verlauf fuer beide Seiten der geteilten Ansicht. Die Palette traegt ab
-/// iPadOS 18 auch die Objektwerkzeuge (`EditorPalette`).
+/// Ein Werkzeugstand (feste Leiste, `EditorToolState`) und ein Rueckgaengig-Verlauf fuer beide Seiten der geteilten
+/// Ansicht
 @MainActor
-final class ToolPickerHolder: ObservableObject {
-    let picker = EditorPalette.makePicker()
+final class EditorToolsHolder: ObservableObject {
+    let tools = EditorToolState()
     let undo = UndoManager()
 }
 
@@ -198,7 +206,7 @@ struct DocumentView: View {
     let api: APIClient
     @StateObject private var store: DocumentStore
     @StateObject private var bridge = EditorBridge()
-    @StateObject private var tools = ToolPickerHolder()
+    @StateObject private var tools = EditorToolsHolder()
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
@@ -456,6 +464,13 @@ struct DocumentView: View {
     /// Leisten und Seitenspalten aus: beim Abpausen und in der Praesentation
     private var chromeHidden: Bool { tracing || presenting }
 
+    /// Feste Werkzeugleiste oben (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`)
+    private var toolbarStrip: EditorToolbar {
+        EditorToolbar(tools: tools.tools, mode: bridge.toolbar, undo: { [bridge] in bridge.undo() }, redo: { [bridge] in bridge.redo() },
+                      onPick: { [bridge] t in bridge.toolbarPicked(t) },
+                      askAI: aiEnabled && !proAIOfferHidden ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil)
+    }
+
     /// Leiste der Praesentation (klein, unten rechts)
     private var presentationControls: some View {
         HStack(spacing: 12) {
@@ -549,7 +564,7 @@ struct DocumentView: View {
                    })
     }
 
-    /// "Bereich an KI" (05.11.2026): Rahmen ziehen bzw. einkreisen (Werkzeug wie in der Palette) oder ohne Gesten die
+    /// "Bereich an KI" (05.11.2026): Rahmen ziehen bzw. einkreisen (Werkzeug wie in der Leiste) oder ohne Gesten die
     /// ganze angezeigte Seite
     @ViewBuilder private var areaMenuItems: some View {
         Button { bridge.controller?.startAreaCapture() } label: { Label("Bereich an KI …", systemImage: "rectangle.dashed") }
@@ -569,6 +584,10 @@ struct DocumentView: View {
             if let error = store.errorMessage {
                 ContentUnavailableView("Dokument nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
+                VStack(spacing: 0) {
+                // feste Werkzeugleiste (11.11.2026, `EditorToolbar.swift`): unter der Kopfzeile, volle Breite, immer an
+                // derselben Stelle; nicht beim Abpausen, nicht in der Praesentation, nicht ohne Schreiben
+                if bridge.toolbar.visible, !chromeHidden { toolbarStrip }
                 GeometryReader { geo in
                     HStack(spacing: 0) {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
@@ -604,6 +623,7 @@ struct DocumentView: View {
                         if let d = swapDrag, hasSidePane, !chromeHidden { SplitSwapHint(sideLeft: sideLeft, x: d, width: geo.size.width) }
                     }
                 }
+                }
             } else {
                 ProgressView("Lädt…")
             }
@@ -620,6 +640,7 @@ struct DocumentView: View {
             if fullScreen, !tracing {
                 Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
                     .buttonStyle(.borderedProminent).padding()
+                    .padding(.top, bridge.toolbar.visible && !chromeHidden ? EditorToolbar.height : 0)   // unter der Leiste
             }
         }
         // Abpausen: Sperre ueber allem, Schloss auf der Seite der freien Hand; Statusleiste und Home-Balken zurueckhaltend
@@ -694,7 +715,7 @@ struct DocumentView: View {
                     }
             }
         }
-        // "KI fragen" am Rand der Palette (Schritt F): dieselbe KI-Hilfe wie der Knopf oben
+        // KI-Hilfe ohne Anhang oeffnen (z. B. "KI erklärt" ohne markierten Text)
         .onChange(of: bridge.askAIRequested) { _, _ in showTutor = true }
         // "Als Karteikarte" (Schritt K): Blatt "Karte anlegen" mit dem markierten Text als Vorderseite
         .onChange(of: bridge.flashcardRequest) { _, r in if let r { openFlashcard(r.question) } }
@@ -879,7 +900,7 @@ struct DocumentView: View {
     /// Hauptspalte mit der PDF; eigener Schnitt, sie steckt tief in Teil 1 (Seitenleiste, Teilung, KI-Hilfe)
     private var primaryPane: AnyView {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
+                      tools: tools.tools, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
                       foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
@@ -959,7 +980,7 @@ struct DocumentView: View {
     }
 
     private func companionPane(_ c: Companion) -> some View {
-        CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
+        CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, tools: tools.tools, undoManager: tools.undo,
                       pencilOnly: pencilOnly, canEdit: canWrite, viewLocked: freeze.locksView, onStore: { [store, bridge] s, shown in
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
@@ -1084,18 +1105,8 @@ struct DocumentView: View {
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
                 Label("Seiten", systemImage: "rectangle.stack")
             }
-            if PDFEditorController.isMac {
-                // iPad: Rueckgaengig und Wiederholen stehen in Apples Palette (derselbe Verlauf fuer Striche, Objekte und
-                // eingefuegte Seiten); im Objektmodus zusaetzlich in der Objektleiste. Am Mac bleiben sie hier.
-                // Cmd-Z und Umschalt-Cmd-Z wie in jeder Mac-App (Befund 09.11.2026: das Menue "Bearbeiten" erreichte den
-                // Verlauf des Editors nicht, Cmd-Z tat nichts)
-                Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
-                    .keyboardShortcut("z", modifiers: .command)
-                    .disabled(!canWrite && correction == nil)
-                Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
-                    .keyboardShortcut("z", modifiers: [.command, .shift])
-                    .disabled(!canWrite && correction == nil)
-            }
+            // Rueckgaengig und Wiederholen stehen in der festen Werkzeugleiste (iPad und Mac, derselbe Verlauf fuer
+            // Striche, Objekte und eingefuegte Seiten); am Mac dort mit Cmd-Z und Umschalt-Cmd-Z (Befund 09.11.2026)
             if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
                 Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (\(UFPlan.plus.name))", systemImage: "lock") }
@@ -1160,8 +1171,8 @@ struct DocumentView: View {
         }
         UFToolbarGap()
         ToolbarItemGroup(placement: .topBarTrailing) {
-            // unser Schalter (Standard: nur der Stift schreibt, der Finger blaettert); der Schalter der Palette ist aus,
-            // er schreibt nur die iPadOS-Einstellung (siehe `EditorPalette`). Mac: "Maus blättert" / "Maus schreibt"
+            // unser Schalter (Standard: nur der Stift schreibt, der Finger blaettert); die iPadOS-Einstellung gilt nicht
+            // (siehe `EditorPalette`). Mac: "Maus blättert" / "Maus schreibt"
             // (EditorPointer, 09.11.2026)
             let penLabel = EditorPointer.toggleLabel(isMac: PDFEditorController.isMac, pencilOnly: pencilOnly)
             Button {
@@ -1172,14 +1183,6 @@ struct DocumentView: View {
             }
             .modifier(MacHelp(text: EditorPointer.macHint(pencilOnly: pencilOnly)))
             .accessibilityIdentifier("doc.pencilOnly")
-            if !bridge.toolsInPalette {
-                // ab iPadOS 18 stehen Text, Haftnotiz, Formen, Auswahl und Text markieren in der Palette; sonst hier
-                Button { bridge.setObjectMode(!bridge.objectMode) } label: {
-                    Label(bridge.objectMode ? "Objekte" : "Tinte", systemImage: bridge.objectMode ? "square.on.circle" : "pencil.tip")
-                }
-                .disabled(!ownNotesVisible || !canWrite || correction != nil)
-                .accessibilityIdentifier("doc.objectMode")
-            }
             layersMenu
         }
         UFToolbarGap()
@@ -1236,7 +1239,7 @@ struct DocumentView: View {
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
-                // "Bereich an KI" auch ohne Palette und ohne Schreiben im Tarif (05.11.2026)
+                // "Bereich an KI" auch ohne Leiste und ohne Schreiben im Tarif (05.11.2026)
                 Section("KI-Hilfe") { areaMenuItems }
                 if !planAllowsWriting && !readOnly {
                     // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
@@ -1800,13 +1803,13 @@ struct DocumentView: View {
 }
 
 /// Rechte bzw. linke Seite der geteilten Ansicht: eigenes Dokument, eigenes Scrollen und Zoomen,
-/// keine eigene Werkzeugpalette (die Palette des Hauptdokuments gilt fuer beide).
+/// keine eigene Werkzeugleiste (die feste Leiste des Hauptdokuments gilt fuer beide).
 struct CompanionView: View {
     let api: APIClient
     @StateObject private var store: DocumentStore
     @StateObject private var bridge = EditorBridge()
     let pdfPage: Int?
-    let toolPicker: PKToolPicker
+    let tools: EditorToolState
     let undoManager: UndoManager
     let pencilOnly: Bool
     let canEdit: Bool
@@ -1816,13 +1819,13 @@ struct CompanionView: View {
     var onStore: (DocumentStore, Bool) -> Void = { _, _ in }
     let onClose: () -> Void
 
-    init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
+    init(file: LibFile, api: APIClient, pdfPage: Int?, tools: EditorToolState, undoManager: UndoManager,
          pencilOnly: Bool, canEdit: Bool = true, viewLocked: Bool = false,
          onStore: @escaping (DocumentStore, Bool) -> Void = { _, _ in }, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
-        self.toolPicker = toolPicker
+        self.tools = tools
         self.undoManager = undoManager
         self.pencilOnly = pencilOnly
         self.canEdit = canEdit
@@ -1860,7 +1863,7 @@ struct CompanionView: View {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
                 PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                              toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage,
+                              tools: tools, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage,
                               canEdit: canEdit && !store.journalUnreadable && !store.viewOnlyHere,
                               freezeMode: viewLocked ? .view : .off)
             } else {
@@ -2337,21 +2340,18 @@ struct PageTrashSheet: View {
     }
 }
 
-/// Leiste im Objektmodus: Werkzeuge wie im Web (Auswaehlen, Text, Haftnotiz, Formen, Lasso) und Aktionen fuer die
-/// Auswahl. Die Stiftpalette von PencilKit ist in diesem Modus ohne Wirkung.
+/// Leiste im Objektmodus (unten): was zur Auswahl ("Auswählen": Farbe, Schrift, Löschen), zum markierten Text ("Text
+/// markieren") bzw. zu "Bereich an KI" gehoert. Die Werkzeuge selbst, Rueckgaengig und Wiederholen stehen in der festen
+/// Werkzeugleiste oben (`EditorToolbar`).
 struct ObjectToolbar: View {
     @ObservedObject var bridge: EditorBridge
     private let colors: [(String, String)] = [("#e5322d", "Rot"), ("#1d2130", "Schwarz"), ("#2f7fd1", "Blau"), ("#2e9e5b", "Grün"),
                                               ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
 
-    /// Ab iPadOS 18 waehlt man die Werkzeuge in Apples Palette; die Leiste zeigt dann nur, was zur Auswahl bzw. zum
-    /// markierten Text gehoert (unter iPadOS 17, oder ohne die Eintraege in der Palette, weiter mit den Werkzeugen)
-    private var toolsInPalette: Bool { bridge.toolsInPalette }
-
     var body: some View {
         VStack(spacing: 8) {
             if bridge.objectTool == .area {
-                // Bereich an KI: was zu tun ist, und der Weg zurueck (ohne Palette sonst kein Ausweg aus dem Werkzeug)
+                // Bereich an KI: was zu tun ist, und der Weg zurueck
                 HStack(spacing: 10) {
                     Image(systemName: "rectangle.dashed").accessibilityHidden(true)
                     Text("Rahmen ziehen oder Bereich einkreisen").font(.callout)
@@ -2382,40 +2382,20 @@ struct ObjectToolbar: View {
                     } else {
                         Text("Text in der PDF auswählen (gedrückt halten und ziehen)").font(.callout).foregroundStyle(.secondary)
                     }
-                    if toolsInPalette {
-                        // beim Markieren hat die PDF-Ansicht den Fokus und die Palette ist weg: hier zurueck zum Stift
-                        Button("Fertig") { bridge.finishObjectTools() }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("objects.markup.done")
-                    }
+                    Button("Fertig") { bridge.finishObjectTools() }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("objects.markup.done")
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            if !toolsInPalette || bridge.objectSelection > 0 { tools }
+            if bridge.objectSelection > 0 { selectionActions }
         }
     }
 
-    private var tools: some View {
+    private var selectionActions: some View {
         HStack(spacing: 6) {
-            if !toolsInPalette {
-                ForEach(ObjectEditing.Tool.allCases, id: \.self) { t in
-                    Button { bridge.setObjectTool(t) } label: { Image(systemName: t.systemImage).frame(width: 30, height: 30) }
-                        .buttonStyle(.bordered)
-                        .tint(bridge.objectTool == t ? .accentColor : .secondary)
-                        .accessibilityLabel(t.label)
-                        .accessibilityIdentifier("objects.tool.\(t.rawValue)")
-                }
-                Divider().frame(height: 26)
-            }
-            // eigenes Rueckgaengig fuer Objektaktionen (derselbe Verlauf wie die Palette)
-            Button { bridge.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 30, height: 30) }
-                .accessibilityLabel("Rückgängig")
-                .accessibilityIdentifier("objects.undo")
-            Button { bridge.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 30, height: 30) }
-                .accessibilityLabel("Wiederholen")
-            Divider().frame(height: 26)
             Menu {
                 ForEach(colors, id: \.0) { c in
                     Button(c.1) { bridge.controller?.objects.recolorSelection(c.0) }
@@ -2431,10 +2411,6 @@ struct ObjectToolbar: View {
             }
             .disabled(bridge.objectSelection == 0).accessibilityLabel("Auswahl löschen")
             .accessibilityIdentifier("objects.delete")
-            if !toolsInPalette {
-                Divider().frame(height: 26)
-                Button("Fertig") { bridge.finishObjectTools() }
-            }
         }
         .padding(8)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
@@ -2624,7 +2600,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
     let bridge: EditorBridge
     let pencilOnly: Bool
     let layoutVersion: Int
-    var toolPicker: PKToolPicker?
+    var tools: EditorToolState?
     var ownsToolPicker = true
     var undoManager: UndoManager?
     var initialPDFPage: Int?
@@ -2637,14 +2613,14 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var correction: CorrectionSession?
     var shownCorrection: CommunityCorrection?
     var onCorrectionNote: ((CorrectionNoteEvent) -> Void)?
-    /// KI verbunden: "KI fragen" am Rand der Palette (Schritt F)
+    /// KI verbunden (`ufAIEnabled`)
     var aiAvailable = false
     /// Bildschirm fixieren (`EditorFreezeLock.swift`)
     var freezeMode: EditorFreeze.Mode = .off
     var traceContrast = false
 
     func makeUIViewController(context: Context) -> PDFEditorController {
-        let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
+        let vc = PDFEditorController(store: store, tools: tools, ownsToolPicker: ownsToolPicker,
                                      undoManager: undoManager, initialPDFPage: initialPDFPage)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
@@ -2665,9 +2641,9 @@ struct PDFEditorView: UIViewControllerRepresentable {
             if bridge?.objectMode != on { bridge?.objectMode = on }
             if bridge?.objectTool != t { bridge?.objectTool = t }
         }
-        if ownsToolPicker { bridge.toolsInPalette = vc.toolsInPalette }
+        if ownsToolPicker { vc.onToolbarChange = { [weak bridge] m in if bridge?.toolbar != m { bridge?.toolbar = m } } }
         vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
-        // "KI fragen" an der Palette und "Als Karteikarte" im Bearbeitungsmenue melden sich ueber die Bruecke
+        // "Als Karteikarte" im Bearbeitungsmenue, Hinweise und KI-Anhaenge melden sich ueber die Bruecke
         vc.aiAvailable = aiAvailable
         vc.onAskAI = { [weak bridge] a in bridge?.attachToTutor(a) }
         vc.onHint = { [weak bridge] text in bridge?.hint = EditorBridge.Hint(text: text) }

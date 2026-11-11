@@ -339,43 +339,6 @@ final class EditorStepEFHKTests: XCTestCase {
         }
     }
 
-    // MARK: F) "KI fragen" an der Palette
-
-    func testAccessoryOnlyWithAIAndOnlyForThePaletteOwner() async throws {
-        XCTAssertFalse(EditorPalette.wantsAccessory(aiAvailable: false, ownsPicker: true))
-        XCTAssertFalse(EditorPalette.wantsAccessory(aiAvailable: true, ownsPicker: false), "andere Haelfte der geteilten Ansicht")
-        guard #available(iOS 18.0, *) else {
-            XCTAssertFalse(EditorPalette.wantsAccessory(aiAvailable: true, ownsPicker: true), "iPadOS 17: nichts aendert sich")
-            return
-        }
-        XCTAssertTrue(EditorPalette.wantsAccessory(aiAvailable: true, ownsPicker: true))
-        let item = EditorPalette.accessoryItem {}
-        XCTAssertEqual(item.title, "KI fragen")
-        XCTAssertEqual(item.accessibilityIdentifier, "palette.askAI")
-        XCTAssertNotNil(item.primaryAction)
-
-        let store = try await openStore()
-        let picker = EditorPalette.makePicker()
-        picker.stateAutosaveName = "test-" + UUID().uuidString
-        let editor = PDFEditorController(store: store, toolPicker: picker)
-        editor.loadViewIfNeeded()
-        XCTAssertNil(picker.accessoryItem, "ohne KI kein Knopf")
-        let bridge = EditorBridge()
-        editor.onAskAI = { bridge.attachToTutor($0) }
-        editor.aiAvailable = true
-        let accessory = try XCTUnwrap(picker.accessoryItem, "mit KI: 'KI fragen'")
-        XCTAssertEqual(accessory.title, "KI fragen")
-        editor.askAIFromPalette()                                        // was der Knopf ausloest
-        XCTAssertEqual(bridge.askAIRequested, 1, "oeffnet die KI-Hilfe ueber die Bruecke")
-        editor.aiAvailable = false
-        XCTAssertNil(picker.accessoryItem, "KI getrennt: Knopf weg")
-        // geteilte Ansicht: die andere Haelfte traegt keinen Knopf
-        let other = PDFEditorController(store: store, toolPicker: picker, ownsToolPicker: false)
-        other.loadViewIfNeeded()
-        other.aiAvailable = true
-        XCTAssertNil(picker.accessoryItem)
-    }
-
     // MARK: K) Als Karteikarte
 
     func testFlashcardTextFromTheSelection() {
@@ -439,7 +402,7 @@ final class EditorStepEFHKTests: XCTestCase {
         editor.onFlashcardFromSelection = { _ in }
         XCTAssertNil(editor.tutorAction(), "ohne Auswahl kein Menuepunkt")
         XCTAssertTrue(editor.selectionMenuActions().isEmpty)
-        editor.askAIFromPalette()
+        editor.askAIFromToolbar()
         XCTAssertEqual(bridge.askAIRequested, 1)
         XCTAssertNil(bridge.tutorAttachment)
         bridge.askTutor("explain")
@@ -456,7 +419,7 @@ final class EditorStepEFHKTests: XCTestCase {
         XCTAssertEqual(a.page, doc.pageCount, "Seite der Auswahl, nicht die angezeigte")
         XCTAssertEqual(a.title, "Markierter Text · Seite \(doc.pageCount)")
         bridge.tutorAttachment = nil
-        editor.askAIFromPalette()
+        editor.askAIFromToolbar()
         XCTAssertEqual(bridge.tutorAttachment?.text, "Pythagoras", "KI fragen nimmt die Auswahl mit")
         XCTAssertEqual(bridge.askAIRequested, 2)
         XCTAssertEqual(PDFEditorController.tutorText(String(repeating: "x", count: 5000))?.count, TutorAttachment.maxText)
@@ -542,7 +505,7 @@ final class EditorStepEFHKTests: XCTestCase {
         try XCTUnwrap(value, file: file, line: line)
     }
 
-    /// Palette: "Bereich an KI" vorn unter unseren Eintraegen, "Auswählen" ohne Mauszeiger
+    /// Leiste: "Bereich an KI" vorn unter unseren Objektwerkzeugen, "Auswählen" ohne Mauszeiger
     func testPaletteAreaItemAndClearSelectItem() {
         XCTAssertEqual(EditorPalette.customIDs.first, EditorPalette.areaID)
         XCTAssertEqual(EditorPalette.objectTool(for: EditorPalette.areaID), .area)
@@ -551,11 +514,9 @@ final class EditorStepEFHKTests: XCTestCase {
         XCTAssertNotEqual(ObjectEditing.Tool.select.systemImage, "cursorarrow", "kein Mauszeiger-Pfeil")
         XCTAssertNotNil(UIImage(systemName: ObjectEditing.Tool.select.systemImage))
         XCTAssertNotNil(UIImage(systemName: ObjectEditing.Tool.area.systemImage))
-        guard #available(iOS 18.0, *) else { return }
-        let items = EditorPalette.customItems()
-        XCTAssertEqual(items.map(\.identifier), EditorPalette.customIDs)
-        XCTAssertEqual(items.first { $0.identifier == EditorPalette.selectID }?.configuration.name, "Auswählen")
-        XCTAssertEqual(items.first { $0.identifier == EditorPalette.areaID }?.configuration.name, "Bereich an KI")
+        XCTAssertEqual(EditorToolState.Tool.objectTools.first, .area)
+        XCTAssertEqual(EditorToolState.Tool.select.title, "Auswählen")
+        XCTAssertEqual(EditorToolState.Tool.area.title, "Bereich an KI")
     }
 
     /// "Bereich an KI" aus dem Menue geht auch ohne Schreiben im Tarif, ein Rahmen schickt den Ausschnitt in die Bruecke

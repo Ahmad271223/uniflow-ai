@@ -5,8 +5,9 @@ import XCTest
 @testable import UniFlow
 
 /// Meldung des Inhabers 11.11.2026: "Er schreibt, die Palette ist da. Dann in den Chat und wieder zurueck: die Palette
-/// ist weg. Datei verlassen und neu oeffnen: wieder da." Die Palette steht nur, solange der Anker (an dem
-/// `setVisible(true, forFirstResponder:)` haengt) Erstantwortgeber ist. Nachgestellt werden die Wege, auf denen der Fokus
+/// ist weg. Datei verlassen und neu oeffnen: wieder da." Apples Palette stand nur, solange der Anker Erstantwortgeber
+/// war. Seit der festen Leiste (11.11.2026, `EditorToolbar`) steht die Leiste unabhaengig vom Fokus; der Fokus muss
+/// trotzdem zum Editor zurueck (Tastenbefehle, Rueckgaengig ueber die Responder-Kette). Nachgestellt werden die Wege, auf denen der Fokus
 /// woandershin geht und beim Zurueckkommen nicht zum Anker kam: Eingabefeld der KI-Hilfe (bzw. eines Chats) behaelt den
 /// Fokus, waehrend wieder auf der Seite geschrieben wird; ein Vollbild-Blatt bzw. eine Navigation, nach der die Ansicht
 /// des Editors wieder erscheint. Was nur am Geraet geht (echter Stift, Scribble, Hardware-Tastatur), steht im Bericht.
@@ -54,11 +55,12 @@ final class EditorPaletteReturnAppTests: XCTestCase {
         return store
     }
 
-    /// Palette wie in der App, mit eigenem Speichernamen (kein geteilter Stand mit anderen Tests)
-    private func picker() -> PKToolPicker {
-        let p = EditorPalette.makePicker()
-        p.stateAutosaveName = "test-" + UUID().uuidString
-        return p
+    /// Werkzeuge in eigenem Speicher (kein geteilter Stand mit anderen Tests)
+    private func tools() -> EditorToolState {
+        let suite = "toolbar-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return EditorToolState(defaults: defaults)
     }
 
     private func wait(_ what: String, timeout: Double = 5, _ cond: () async -> Bool) async throws {
@@ -98,8 +100,9 @@ final class EditorPaletteReturnAppTests: XCTestCase {
         return field
     }
 
+    /// Leiste steht (fest, braucht keinen Fokus) und der Fokus ist beim Editor (Tastenbefehle, Rueckgaengig)
     private func paletteStands(_ editor: PDFEditorController) -> Bool {
-        UIResponder.uf_current is ToolPickerAnchor && editor.toolPicker.isVisible
+        UIResponder.uf_current is ToolPickerAnchor && editor.toolbarMode.visible
     }
 
     /// Ablauf der Meldung: Schreiben (Palette da) → KI-Frage tippen (Palette weg, der Editor nimmt den Fokus nicht) →
@@ -108,7 +111,7 @@ final class EditorPaletteReturnAppTests: XCTestCase {
     /// kam erst nach dem Neuoeffnen der Datei zurueck. Ein Textobjekt auf der Seite verliert den Fokus dabei nicht.
     func testWritingOnThePageAgainAfterTheChatBringsThePaletteBack() async throws {
         let store = try await openStore()
-        let editor = PDFEditorController(store: store, toolPicker: picker())
+        let editor = PDFEditorController(store: store, tools: tools())
         let (_, root) = show(editor)
         editor.showToolPicker(true)
         try await wait("Palette steht", timeout: 6) { paletteStands(editor) }
@@ -116,7 +119,8 @@ final class EditorPaletteReturnAppTests: XCTestCase {
         // in den Chat: Frage tippen, die Palette geht weg und der Editor stiehlt den Fokus nicht
         let field = chatField(in: root)
         XCTAssertTrue(field.becomeFirstResponder())
-        try await wait("Palette weg") { !editor.toolPicker.isVisible }
+        try await wait("Fokus im Feld") { !editor.editorHoldsFocus }
+        XCTAssertTrue(editor.toolbarMode.visible, "die feste Leiste bleibt beim Tippen stehen")
         XCTAssertEqual(editor.paletteBlocker, .textInput)
         XCTAssertFalse(editor.restorePicker(), "tippt: nicht stehlen")
         try await Task.sleep(nanoseconds: 300_000_000)
@@ -146,13 +150,14 @@ final class EditorPaletteReturnAppTests: XCTestCase {
     /// KI-Leiste schliesst, waehrend ihr Eingabefeld den Fokus hat: die Palette kommt ohne Zutun zurueck
     func testClosingTheAIPanelWhileTypingBringsThePaletteBack() async throws {
         let store = try await openStore()
-        let editor = PDFEditorController(store: store, toolPicker: picker())
+        let editor = PDFEditorController(store: store, tools: tools())
         let (_, root) = show(editor)
         editor.showToolPicker(true)
         try await wait("Palette steht", timeout: 6) { paletteStands(editor) }
         let field = chatField(in: root)
         XCTAssertTrue(field.becomeFirstResponder())
-        try await wait("Palette weg") { !editor.toolPicker.isVisible }
+        try await wait("Fokus im Feld") { !editor.editorHoldsFocus }
+        XCTAssertTrue(editor.toolbarMode.visible, "die feste Leiste bleibt beim Tippen stehen")
         field.removeFromSuperview()
         try await wait("Palette wieder da", timeout: 6) { paletteStands(editor) }
     }
@@ -163,7 +168,7 @@ final class EditorPaletteReturnAppTests: XCTestCase {
     /// geoeffnet wurde.
     func testPaletteComesBackAfterAFullScreenDetour() async throws {
         let store = try await openStore()
-        let editor = PDFEditorController(store: store, toolPicker: picker())
+        let editor = PDFEditorController(store: store, tools: tools())
         let (_, root) = show(editor)
         editor.showToolPicker(true)
         try await wait("Palette steht", timeout: 6) { paletteStands(editor) }

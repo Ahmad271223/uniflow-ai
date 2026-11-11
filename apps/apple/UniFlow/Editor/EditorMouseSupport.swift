@@ -191,7 +191,7 @@ final class EditorMouseSupport: NSObject, UIContextMenuInteractionDelegate, UIDr
             }
         }
         guard !c.effectivePencilOnly, c.writable else { return nil }
-        return c.toolPicker.selectedTool is PKEraserTool ? .circle : nil
+        return c.tools.tool == .eraser ? .circle : nil
     }
 }
 

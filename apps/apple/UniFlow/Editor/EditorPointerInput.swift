@@ -23,7 +23,7 @@ enum EditorPointer {
     ///   schreibt, zwei Finger blaettern. Der Stift blaettert nie.
     /// - Mac: keinen Stift; derselbe Schalter heisst "Maus blättert" (Standard: Ziehen mit der Maus verschiebt das
     ///   Dokument in alle Richtungen, wie der Finger am iPad, und schreibt nicht) bzw. "Maus schreibt" (Ziehen schreibt
-    ///   mit dem Werkzeug der Palette). Vorher schrieb am Mac jedes Ziehen, das Dokument liess sich mit der Maus nicht
+    ///   mit dem Werkzeug der Leiste). Vorher schrieb am Mac jedes Ziehen, das Dokument liess sich mit der Maus nicht
     ///   verschieben (Befund des Inhabers 09.11.2026). Klicks kommen in iPad-Apps am Mac als direkte Beruehrung; die
     ///   indirekte Zeigerart ist mit erlaubt, falls macOS sie liefert.
     /// - Beide: zwei Finger auf dem Trackpad, Mausrad und Trackpad-Pinch sind keine Beruehrungen (UIKit pruefte sie in
@@ -43,7 +43,7 @@ enum EditorPointer {
     static func macHint(pencilOnly: Bool) -> String {
         pencilOnly
             ? "Maus blättert: Ziehen verschiebt das Dokument. Rollen mit Trackpad oder Mausrad, Zoom mit Cmd + und Cmd −. Zum Schreiben „Maus blättert“ antippen."
-            : "Maus schreibt mit dem Werkzeug der Palette. Blättern mit zwei Fingern auf dem Trackpad, dem Mausrad oder den Pfeiltasten."
+            : "Maus schreibt mit dem Werkzeug der Werkzeugleiste. Blättern mit zwei Fingern auf dem Trackpad, dem Mausrad oder den Pfeiltasten."
     }
 
     /// Einstellungen ("Stift & Touch"): Titel der Zeile und Wahl, am Mac fuer Maus und Trackpad

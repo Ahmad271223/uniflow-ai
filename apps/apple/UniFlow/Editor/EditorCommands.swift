@@ -42,17 +42,20 @@ enum EditorTool: String, CaseIterable, Identifiable {
     /// Cmd + Ziffer (Cmd-1 Stift … Cmd-8 Auswaehlen)
     var shortcut: KeyEquivalent { KeyEquivalent(Character(String((Self.allCases.firstIndex(of: self) ?? 0) + 1))) }
 
-    /// Werkzeug von Apple (schreibt auf der Zeichenflaeche)
+    /// Werkzeug der Zeichenflaeche (PencilKit)
     var isInk: Bool { [.pen, .marker, .eraser, .lasso].contains(self) }
 
-    /// Kennung des Eintrags von Apple in der Palette (ab iPadOS 18)
-    var appleItemID: String? {
+    /// Eintrag der festen Leiste
+    var barTool: EditorToolState.Tool {
         switch self {
-        case .pen: return "com.apple.ink.pen"
-        case .marker: return "com.apple.ink.marker"
-        case .eraser: return "com.apple.tool.eraser"
-        case .lasso: return "com.apple.tool.lasso"
-        default: return nil
+        case .pen: return .pen
+        case .marker: return .marker
+        case .eraser: return .eraser
+        case .lasso: return .lasso
+        case .text: return .text
+        case .sticky: return .sticky
+        case .shape: return .shape
+        case .select: return .select
         }
     }
 
@@ -69,46 +72,13 @@ enum EditorTool: String, CaseIterable, Identifiable {
 }
 
 extension PDFEditorController {
-    /// Werkzeug aus Menue oder Tastatur waehlen: ab iPadOS 18 ueber die Palette (sie zeigt die Wahl), sonst direkt.
-    /// Nur, wenn geschrieben werden darf; im Korrektur-Modus nur Werkzeuge von Apple.
+    /// Werkzeug aus Menue oder Tastatur ueber die feste Leiste (sie zeigt die Wahl). Nur, wenn geschrieben werden darf;
+    /// im Korrektur-Modus nur Werkzeuge der Zeichenflaeche.
     func choose(_ tool: EditorTool) {
         guard writable || (correction != nil && tool.isInk) else { return }
         if correction != nil, !tool.isInk { return }
-        if #available(iOS 18.0, *), toolsInPalette {
-            let id: String?
-            if let apple = tool.appleItemID {
-                id = toolPicker.toolItems.first { $0.identifier == apple }?.identifier
-                    ?? toolPicker.toolItems.first { item in
-                        guard let ink = item as? PKToolPickerInkingItem else { return false }
-                        return tool == .marker ? ink.inkingTool.inkType == .marker : (tool == .pen && ink.inkingTool.inkType == .pen)
-                    }?.identifier
-            } else if let object = tool.objectTool {
-                if tool == .select { EditorPalette.selectTool = .select }
-                id = EditorPalette.identifier(for: object)
-            } else {
-                id = nil
-            }
-            guard let id, toolPicker.toolItems.contains(where: { $0.identifier == id }) else { return }
-            toolPicker.selectedToolItemIdentifier = id
-            paletteSelectionChanged()
-            return
-        }
-        // iPadOS 17: Werkzeug von Apple direkt, Objekte ueber den Objektmodus
-        if let object = tool.objectTool {
-            if !objects.isActive { setObjectMode(true) }
-            setObjectTool(object)
-            return
-        }
-        if objects.isActive { setObjectMode(false) }
-        let color = UIColor(hex: paletteSync.inkHex) ?? .black
-        switch tool {
-        case .pen: toolPicker.selectedTool = PKInkingTool(.pen, color: color)
-        case .marker: toolPicker.selectedTool = PKInkingTool(.marker, color: .systemYellow)
-        case .eraser: toolPicker.selectedTool = PKEraserTool(.vector)
-        case .lasso: toolPicker.selectedTool = PKLassoTool()
-        default: break
-        }
-        paletteSelectionChanged()
+        if tool == .select { EditorPalette.selectTool = .select }
+        tools.select(tool.barTool)
     }
 
     /// Name des gewaehlten Werkzeugs (fuer Tests und Hinweise)
@@ -122,39 +92,14 @@ extension PDFEditorController {
             default: return nil
             }
         }
-        switch toolPicker.selectedTool {
-        case let ink as PKInkingTool: return ink.inkType == .marker ? .marker : .pen
-        case is PKEraserTool: return .eraser
-        case is PKLassoTool: return .lasso
+        switch tools.tool {
+        case .pen, .fineliner: return .pen
+        case .marker: return .marker
+        case .eraser: return .eraser
+        case .lasso: return .lasso
         default: return nil
         }
     }
-}
-
-// MARK: - Farbe und Staerke am Mac
-
-/// Mac: Apples Werkzeugpalette erscheint dort nicht (gemessen 11.11.2026, macOS 26.6, "Designed for iPad"). Farbe und
-/// Staerke fuer Stift und Textmarker kommen deshalb aus dem Menue "Werkzeuge".
-struct MacInkStyle: Equatable {
-    var color: UIColor?
-    var width: CGFloat?
-
-    var isSet: Bool { color != nil || width != nil }
-
-    /// Stift bzw. Textmarker mit dieser Farbe/Staerke (Radierer und Lasso bleiben)
-    func apply(to tool: PKTool) -> PKTool {
-        guard isSet, let ink = tool as? PKInkingTool else { return tool }
-        let base = ink.inkType == .marker ? (color ?? ink.color).withAlphaComponent(1) : (color ?? ink.color)
-        let w = width.map { ink.inkType == .marker ? $0 * 4 : $0 } ?? ink.width
-        return PKInkingTool(ink.inkType, color: base, width: w)
-    }
-
-    static let colors: [(title: String, color: UIColor)] = [
-        ("Schwarz", .black), ("Blau", UIColor(red: 0.12, green: 0.35, blue: 0.85, alpha: 1)),
-        ("Rot", UIColor(red: 0.85, green: 0.15, blue: 0.15, alpha: 1)), ("Grün", UIColor(red: 0.1, green: 0.55, blue: 0.25, alpha: 1)),
-        ("Orange", UIColor(red: 0.95, green: 0.55, blue: 0.1, alpha: 1)), ("Gelb", UIColor(red: 1, green: 0.85, blue: 0.1, alpha: 1)),
-    ]
-    static let widths: [(title: String, width: CGFloat)] = [("Fein", 1.5), ("Mittel", 3), ("Dick", 6)]
 }
 
 // MARK: - Menueleiste
@@ -209,16 +154,18 @@ struct EditorCommands: Commands {
                 }
                 Divider()
                 Button("Objekte fertig") { bridge?.finishObjectTools() }
+                Divider()
+                Button("Lineal") { bridge?.controller?.tools.toggleRuler() }
                 if PDFEditorController.isMac {
-                    Divider()
+                    // dieselben Farben und Staerken wie in der festen Leiste (fuer das gewaehlte Werkzeug)
                     Menu("Farbe") {
-                        ForEach(MacInkStyle.colors, id: \.title) { c in
-                            Button(c.title) { bridge?.controller?.macInkStyle.color = c.color }
+                        ForEach(EditorToolState.menuColors, id: \.hex) { c in
+                            Button(c.name) { bridge?.controller?.tools.setColor(c.hex) }
                         }
                     }
                     Menu("Strichstärke") {
-                        ForEach(MacInkStyle.widths, id: \.title) { w in
-                            Button(w.title) { bridge?.controller?.macInkStyle.width = w.width }
+                        ForEach(Array(EditorToolState.widthSteps.enumerated()), id: \.offset) { i, name in
+                            Button(name) { bridge?.controller?.tools.setWidthStep(i) }
                         }
                     }
                 }
