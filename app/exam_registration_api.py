@@ -170,7 +170,9 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
             if st["status"] == "nicht_bestanden":
                 nxt = (st.get("attempt") or 1) + 1
                 o["reason_kind"] = "wiederholung"
-                o["reason"] = f"Wiederholung – {nxt}. Versuch" + (f" (nicht bestanden im {st['moved_from']})" if st.get("moved_from") else "")
+                # Nummer nur, wenn QIS die Versuche zaehlt (11.11.2026); sonst waere sie geraten
+                o["reason"] = ("Wiederholung" + (f" – {nxt}. Versuch" if st.get("known") else "")
+                               + (f" (nicht bestanden im {st['moved_from']})" if st.get("moved_from") else ""))
             elif st.get("moved_from") and "nachholen" in (st.get("reason") or ""):
                 o["reason_kind"] = "nachholen"
                 o["reason"] = f"nachholen – laut Plan im {st['moved_from']}"

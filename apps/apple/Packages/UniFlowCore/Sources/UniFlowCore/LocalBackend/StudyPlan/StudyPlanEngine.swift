@@ -15,7 +15,12 @@ public enum StudyPlanEngine {
     static let capLP = 36.0
     static let behindLP = 10.0
     static let electiveKinds: Set<String> = ["wahlpflicht", "wahl"]
-    static let noteRank: [String: Int] = ["endgueltig": 0, "letzter_versuch": 1, "voraussetzung": 2, "ueberlast": 3, "rueckstand": 4]
+    static let noteRank: [String: Int] = ["endgueltig": 0, "letzter_versuch": 1, "voraussetzung": 2, "ueberlast": 3, "rueckstand": 4,
+                                          "wahl_erkannt": 5]
+    /// Wahl statt Pflicht (11.11.2026): Pflichtmodule eines Bereichs ueber dem 1,5-fachen seiner LP sind eine Wahl
+    static let choiceFactor = 1.5
+    /// QIS meldet ausdruecklich den letzten Versuch (11.11.2026)
+    private static let lastTryRE = PyRegex("letzte[rnms]? ?(wiederholungs)?versuch|letztversuch")
 
     private static let termRE = PyRegex(#"^\s*(WiSe|SoSe|Wintersemester|Sommersemester|WS|SS)\s*(\d{2,4})(?:\s*/\s*(\d{2,4}))?\s*$"#, ignoreCase: true)
     private static let roman: [String: String] = ["i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7",
@@ -189,6 +194,18 @@ public enum StudyPlanEngine {
     /// Voraussetzungen als Modul-ids (nur Texte aus einer Liste)
     static func prereqs(_ m: [String: JSONValue]) -> [String] { m["prerequisites"]?.array?.compactMap(\.string) ?? [] }
 
+    static func recSem(_ m: [String: JSONValue]) -> Int? {
+        guard let s = num(m["semester"]), s >= 1 else { return nil }
+        return Int(s)
+    }
+
+    /// Voraussetzungen, die der Plan beachtet (`plan_prereqs`, 11.11.2026): ohne die, die der Studienverlaufsplan selbst
+    /// ins gleiche oder ein spaeteres Fachsemester legt (nur eine Empfehlung, z. B. INFBSc22 Logik vor Theoretischer Informatik)
+    static func planPrereqs(_ m: [String: JSONValue], _ byID: [String: [String: JSONValue]]) -> [String] {
+        guard let own = recSem(m) else { return prereqs(m) }
+        return prereqs(m).filter { p in !(byID[p].flatMap(recSem).map { $0 >= own } ?? false) }
+    }
+
     // MARK: Wahlbereiche und eigene Lage (05.11.2026)
 
     /// klein, Umlaute ausgeschrieben (`fold`)
@@ -218,6 +235,40 @@ public enum StudyPlanEngine {
             }
         }
         return kind
+    }
+
+    /// QIS meldet ausdruecklich den letzten Versuch: Status, Vermerk oder eine andere Zelle als der Titel (`says_last_try`)
+    static func saysLastTry(_ r: [String: JSONValue]) -> Bool {
+        let text = PyText.strip(textOf(r["text"]))
+        let cells = [textOf(r["status"]), textOf(r["vermerk"])]
+            + textOf(r["raw"]).components(separatedBy: " | ").filter { PyText.strip($0) != text }
+        return cells.contains { lastTryRE.found(in: fold($0)) }
+    }
+
+    /// Hoechstzahl der Versuche: Modul, sonst Katalog (1..20), sonst unbekannt (`max_attempts_of`)
+    static func maxAttemptsOf(_ m: [String: JSONValue], _ catalog: JSONValue) -> Int? {
+        for v in [m["max_attempts"], catalog["max_attempts"]] {
+            if let n = intValue(v), (1...20).contains(n) { return n }
+        }
+        return nil
+    }
+
+    /// Woerter (klein, Umlaute ausgeschrieben, nur Buchstaben/Ziffern) (`tokens`)
+    static func tokens(_ v: JSONValue?) -> [String] {
+        PyText.split(nonAlnum.sub(fold(v), " "), " ").filter { !$0.isEmpty }
+    }
+
+    /// Bereich, dessen Name als Wortfolge in der QIS-Bereichszeile steht (der laengste, bei Gleichstand der erste)
+    static func areaOfBereich(_ text: JSONValue?, _ areaToks: [(String, [String])]) -> String? {
+        let toks = tokens(text)
+        var best: String?, bestN = 0
+        for (aid, at) in areaToks where at.count > bestN && toks.count >= at.count {
+            if (0...(toks.count - at.count)).contains(where: { Array(toks[$0..<($0 + at.count)]) == at }) {
+                best = aid
+                bestN = at.count
+            }
+        }
+        return best
     }
 
     /// LP einer QIS-Zeile ("5", "7,5"), sonst 0 (`credits_of`)
@@ -378,11 +429,20 @@ public enum StudyPlanEngine {
         var failed: Int
         var final: Bool
         var placed = false
+        /// QIS nennt die Nummer des Versuchs (sonst aus den Fehlversuchen gezaehlt)
+        var known = false
+        /// Hoechstzahl der Versuche laut Modul bzw. Katalog, nil = unbekannt
+        var maxAttempts: Int?
+        /// QIS meldet ausdruecklich den letzten Versuch
+        var qisLast = false
 
-        /// Naechster bzw. angemeldeter Versuch ist der dritte, oder endgueltig nicht bestanden
+        /// Endgueltig, QIS meldet den letzten Versuch, oder bei bekannter Hoechstzahl: der naechste bzw. angemeldete
+        /// Versuch ist der letzte (`last_attempt`, 11.11.2026: ohne Hoechstzahl nie aus der Zahl der Versuche)
         var lastAttempt: Bool {
-            if status == "bestanden" { return false }
-            return final || (status == "nicht_bestanden" && attempt == 2) || (status == "angemeldet" && attempt == 3)
+            guard status == "nicht_bestanden" || status == "angemeldet" else { return false }
+            if final || qisLast { return true }
+            guard let mx = maxAttempts else { return false }
+            return (status == "nicht_bestanden" && attempt == mx - 1) || (status == "angemeldet" && attempt == mx)
         }
     }
 
@@ -417,8 +477,11 @@ public enum StudyPlanEngine {
         let (byCode, byKey) = index(mods)
         var hist: [String: [[String: JSONValue]]] = [:]
         var unmatched: [String] = []
-        for r in grades where !isBereich(r) {
-            guard let id = rowModule(r, byCode, byKey) else {
+        for r in grades {
+            // Bereichszeile nur, wenn kein Katalogmodul so heisst (11.11.2026: "Vertiefung der Betriebssysteme")
+            let mid = rowModule(r, byCode, byKey)
+            if mid == nil && isBereich(r) { continue }
+            guard let id = mid else {
                 let t = PyText.strip(textOf(r["text"]))
                 if !t.isEmpty, !unmatched.contains(where: { $0.unicodeScalars.elementsEqual(t.unicodeScalars) }) { unmatched.append(t) }
                 continue
@@ -428,10 +491,13 @@ public enum StudyPlanEngine {
         return (hist, unmatched.sorted(by: PyText.less))
     }
 
-    /// (Fehlversuche, Semester des letzten Fehlversuchs, endgueltig)
-    static func attempts(_ rows: [[String: JSONValue]]) -> (Int, Int?, Bool) {
+    /// (Fehlversuche, Semester des letzten Fehlversuchs, endgueltig, Versuchsnummer aus QIS, QIS meldet letzten Versuch);
+    /// endgueltig nur aus QIS oder bei erreichter Hoechstzahl (11.11.2026)
+    static func attempts(_ rows: [[String: JSONValue]], max maxAttempts: Int? = nil) -> (Int, Int?, Bool, Bool, Bool) {
+        let known = rows.contains { (intOrNil($0["versuch"]) ?? 0) != 0 }
+        let last = rows.contains(where: saysLastTry)
         let failed = rows.filter { ["failed", "final"].contains(rowResult($0) ?? "") }
-        if failed.isEmpty { return (0, nil, false) }
+        if failed.isEmpty { return (0, nil, false, known, last) }
         let versuche = failed.map { intOrNil($0["versuch"]) ?? 0 }
         var terms: [Int?] = []
         for r in failed {
@@ -439,13 +505,22 @@ public enum StudyPlanEngine {
             if !terms.contains(where: { $0 == t }) { terms.append(t) }
         }
         let n = max(versuche.max() ?? 0, terms.count)
-        let known = terms.compactMap { $0 }
-        let final = failed.contains { rowResult($0) == "final" } || n >= 3
-        return (n, known.max(), final)
+        let seen = terms.compactMap { $0 }
+        let final = failed.contains { rowResult($0) == "final" } || (maxAttempts.map { n >= $0 } ?? false)
+        return (n, seen.max(), final, known, last)
     }
 
-    /// Der volle Stand (fuer Plan und Moduldetail), wie `compute`
-    static func compute(catalog: JSONValue, grades: [[String: JSONValue]], settings: [String: JSONValue], today: String) -> Result {
+    /// Module des Katalogs (ohne Doppelte) mit der Art, die der Plan nutzt, und die als Wahl erkannten Bereiche
+    /// (`effective_modules`, Wahl statt Pflicht 11.11.2026)
+    struct RecognizedChoice {
+        let name: String
+        let n: Int
+        let lp: Double
+        let cap: Double?
+        let total: Double
+    }
+
+    static func effectiveModules(_ catalog: JSONValue) -> ([[String: JSONValue]], [RecognizedChoice]) {
         var mods: [[String: JSONValue]] = []
         var seen: Set<String> = []
         for v in catalog["modules"]?.array ?? [] {
@@ -453,6 +528,46 @@ public enum StudyPlanEngine {
             seen.insert(id)
             mods.append(m)
         }
+        var total = num(catalog["total_lp"]) ?? 0
+        if total <= 0 {
+            var reg = 6
+            if let r = num(catalog["regular_semesters"]), r > 0 { reg = Int(r) }
+            total = Double(reg) * targetLP
+        }
+        var found: [RecognizedChoice] = []
+        var changed: Set<String> = []
+        var areasSeen: Set<String> = []
+        func isSem(_ m: [String: JSONValue]) -> Bool { (num(m["semester"]) ?? 0) >= 1 }
+        for v in catalog["areas"]?.array ?? [] {
+            guard let a = v.object, let aid = a["id"]?.string, !aid.isEmpty, !areasSeen.contains(aid) else { continue }
+            areasSeen.insert(aid)
+            let pf = mods.filter { $0["area"]?.string == aid && !(electiveKinds.contains(textOf($0["kind"])) || textOf($0["kind"]) == "abschluss") }
+            let lp = pf.reduce(0.0) { $0 + lpOf($1) }
+            let mx = num(a["lp_max"]), req = num(a["lp_required"])
+            let cap: Double? = (mx.flatMap { $0 > 0 ? $0 : nil }) ?? (req.flatMap { $0 > 0 ? $0 : nil })
+            if pf.isEmpty || lp <= (cap.map { $0 * choiceFactor } ?? total) { continue }
+            let bound = cap ?? total
+            let fixed = pf.filter(isSem)
+            let keep: Set<String> = fixed.reduce(0.0) { $0 + lpOf($1) } <= bound ? Set(fixed.compactMap { $0["id"]?.string }) : []
+            let conv = pf.filter { !keep.contains($0["id"]?.string ?? "") }
+            for m in conv { changed.insert(m["id"]?.string ?? "") }
+            found.append(RecognizedChoice(name: textOf(a["name"]), n: conv.count, lp: conv.reduce(0.0) { $0 + lpOf($1) },
+                                          cap: cap, total: total))
+        }
+        if !changed.isEmpty {
+            mods = mods.map { m in
+                guard changed.contains(m["id"]?.string ?? "") else { return m }
+                var c = m
+                c["kind"] = .string("wahlpflicht")
+                return c
+            }
+        }
+        return (mods, found)
+    }
+
+    /// Der volle Stand (fuer Plan und Moduldetail), wie `compute`
+    static func compute(catalog: JSONValue, grades: [[String: JSONValue]], settings: [String: JSONValue], today: String) -> Result {
+        let (mods, recognized) = effectiveModules(catalog)
         var order: [String: Int] = [:], byID: [String: [String: JSONValue]] = [:]
         for (i, m) in mods.enumerated() {
             let id = m["id"]!.string!
@@ -461,7 +576,8 @@ public enum StudyPlanEngine {
         }
         func idOf(_ m: [String: JSONValue]) -> String { m["id"]?.string ?? "" }
         let current = currentTerm(today)
-        let (hist, unmatched) = match(mods, grades)
+        let (hist, matchedUnmatched) = match(mods, grades)
+        var unmatched = matchedUnmatched
 
         var start: Int
         if let s = parseTerm(settings["start_term"]) {
@@ -560,6 +676,7 @@ public enum StudyPlanEngine {
             if hist[id] != nil { return true }
             if excluded.contains(id) { return false }
             if electiveKinds.contains(textOf(m["kind"])) { return chosen.contains(id) }
+            if let since = parseTerm(m["required_from"]), start < since { return chosen.contains(id) }   // Pflicht erst ab (11.11.2026)
             guard let prim = m["area"]?.string, groupOf[prim] != nil, !active.contains(prim) else { return true }
             return chosen.contains(id)
         }.map(idOf)
@@ -616,10 +733,12 @@ public enum StudyPlanEngine {
         for mid in included {
             let m = byID[mid]!, rows = hist[mid] ?? []
             let turnus = turnusOf(m["turnus"])
-            let (failedN, lastFail, final) = attempts(rows)
+            let maxN = maxAttemptsOf(m, catalog)
+            let (failedN, lastFail, final, known, qisLast) = attempts(rows, max: maxN)
             let passed = rows.filter { rowResult($0) == "passed" }
             let registered = rows.filter { rowResult($0) == "registered" }
-            var st = ModuleState(status: "", term: nil, attempt: nil, grade: nil, movedFrom: nil, reason: nil, failed: failedN, final: final)
+            var st = ModuleState(status: "", term: nil, attempt: nil, grade: nil, movedFrom: nil, reason: nil, failed: failedN, final: final,
+                                 known: known, maxAttempts: maxN, qisLast: qisLast)
             let rec = (semOf(m) ?? slotSem[mid]).map { start + $0 - 1 }
             let own = placed[mid]
             if !passed.isEmpty {
@@ -685,7 +804,7 @@ public enum StudyPlanEngine {
                     let st = state[mid]!
                     guard (st.status == "plan" || st.status == "nicht_bestanden") && !st.placed else { continue }
                     var need: Int?, needID: String?
-                    for p in prereqs(byID[mid]!) {
+                    for p in planPrereqs(byID[mid]!, byID) {
                         guard let ps = state[p], ps.status != "bestanden" else { continue }
                         if need == nil || ps.term! > need! { need = ps.term; needID = p }
                     }
@@ -731,8 +850,8 @@ public enum StudyPlanEngine {
             var e: [String: JSONValue] = [
                 "id": opt(c.id), "title": .string(c.title), "code": .null, "kind": .string(area.map { akind[$0]! } ?? "wahl"),
                 "area": opt(area), "lp": .number(c.lp), "semester": opt(c.semester), "turnus": .null, "status": .null,
-                "attempt": .null, "grade": .null, "moved_from": .null, "reason": .null, "last_attempt": false, "placed": false,
-                "hints": [], "custom": true]
+                "attempt": .null, "grade": .null, "moved_from": .null, "reason": .null, "last_attempt": false,
+                "attempt_known": false, "max_attempts": .null, "final": false, "placed": false, "hints": [], "custom": true]
             let t: Int
             if !passedRows.isEmpty {
                 var best = passedRows[0]
@@ -749,6 +868,73 @@ public enum StudyPlanEngine {
                 e["status"] = .string(t <= current ? "offen" : "geplant")
             }
             custom.append((t, e))
+        }
+
+        // Wahlfach aus QIS ohne Katalogmodul (11.11.2026), wie app/study_plan.py: nicht zugeordnete Leistungen unter einer
+        // QIS-Bereichszeile, die einen aktiven Wahlbereich nennt, stehen mit Stand im Plan (eigene Eintraege gleichen Namens
+        // gehen vor) und belegen den naechstgelegenen freien Platz ihres Bereichs laut Verlaufsplan
+        let customKeys = Set(custom.map { nameKey($0.1["title"]) })
+        let areaToks = choice.map { ($0, tokens(areaBy[$0]!["name"])) }
+        var qOrder: [String] = [], qRows: [String: [[String: JSONValue]]] = [:], qArea: [String: String] = [:]
+        var ctx: String?
+        for r in grades {
+            if rowModule(r, byCode, byKey) != nil { continue }
+            if isBereich(r) { ctx = areaOfBereich(r["text"], areaToks); continue }
+            guard let area = ctx, textOf(r["source"]) != "anmeldung" else { continue }
+            let key = nameKey(r["text"])
+            if key.isEmpty || customKeys.contains(key) { continue }
+            if qRows[key] == nil { qOrder.append(key); qArea[key] = area }
+            qRows[key, default: []].append(r)
+        }
+        var nQIS = 0
+        for key in qOrder {
+            let rows = qRows[key]!, area = qArea[key]!
+            let (failedN, lastFail, final, known, qisLast) = attempts(rows)
+            let passedRows = rows.filter { rowResult($0) == "passed" }
+            let registered = rows.filter { rowResult($0) == "registered" }
+            if passedRows.isEmpty && registered.isEmpty && failedN == 0 { continue }   // nur abgemeldet, krank ...
+            let lps = members[area]!.map { lpOf(byID[$0]!) }.filter { $0 > 0 }.sorted()
+            let credits = rows.map(creditsOf).max() ?? 0
+            let lp = credits > 0 ? credits : (lps.isEmpty ? unitLP : lps[(lps.count - 1) / 2])
+            let code = rows.lazy.map { PyText.strip(textOf($0["pruefungsnr"])) }.first { !$0.isEmpty }
+            nQIS += 1
+            var e: [String: JSONValue] = [
+                "id": .string("qis-\(nQIS)"), "title": .string(PyText.strip(textOf(rows[0]["text"]))), "code": opt(code),
+                "kind": .string(akind[area]!), "area": .string(area), "lp": .number(lp), "semester": .null, "turnus": .null,
+                "status": .null, "attempt": .null, "grade": .null, "moved_from": .null, "reason": .null, "last_attempt": false,
+                "attempt_known": .bool(known), "max_attempts": .null, "final": false, "placed": false, "hints": [],
+                "custom": false, "qis": true]
+            var st = ModuleState(status: "", term: nil, attempt: nil, grade: nil, movedFrom: nil, reason: nil, failed: failedN,
+                                 final: final, known: known, maxAttempts: nil, qisLast: qisLast)
+            let t: Int
+            if !passedRows.isEmpty {
+                var best = passedRows[0]
+                for r in passedRows.dropFirst() where (parseTerm(r["semester"]) ?? -1) >= (parseTerm(best["semester"]) ?? -1) { best = r }
+                let g = PyText.strip(textOf(best["note"]))
+                t = max(parseTerm(best["semester"]) ?? current, start)
+                st.status = "bestanden"; st.attempt = failedN + 1
+                e["grade"] = g.isEmpty ? .null : .string(g)
+            } else if !registered.isEmpty {
+                let vs = registered.compactMap { intOrNil($0["versuch"]) }.filter { $0 != 0 }
+                t = current
+                st.status = "angemeldet"; st.attempt = vs.max() ?? failedN + 1
+            } else {
+                t = max(lastFail.map { $0 + 1 } ?? current, lower)
+                st.status = "nicht_bestanden"; st.attempt = failedN
+                e["final"] = .bool(final)
+                e["moved_from"] = opt(lastFail.map(termName))
+                e["reason"] = "Nicht bestanden – nächster Versuch"
+            }
+            e["status"] = .string(st.status)
+            e["attempt"] = opt(st.attempt)
+            e["last_attempt"] = .bool(st.lastAttempt)
+            let free = slots.indices.filter { k in !taken.contains(k) && (slots[k].1.isEmpty || slots[k].1.contains(.string(area))) }
+            if let k = free.min(by: { (abs(start + slots[$0].0 - 1 - t), $0) < (abs(start + slots[$1].0 - 1 - t), $1) }) {
+                taken.insert(k)
+            }
+            custom.append((t, e))
+            let texts = Set(rows.map { PyText.strip(textOf($0["text"])) })
+            unmatched = unmatched.filter { !texts.contains($0) }
         }
 
         // Stand je Bereich: jedes Modul zaehlt einmal, im eigenen Bereich, sonst im ersten aktiven Bereich mit Platz
@@ -896,6 +1082,8 @@ public enum StudyPlanEngine {
         }
         for g in groupOrder where track[g] == nil {
             let ids = groupIDs[g]!
+            // der Verlaufsplan hat Plaetze dafuer (INFBSc22: Nebenfach in "Wahl(pflicht)modul"), 11.11.2026
+            if !slots.isEmpty && ids.allSatisfy(referenced.contains) { continue }
             var lps: [Double] = []
             for aid in ids {
                 let req = num(areaBy[aid]!["lp_required"]), mx = num(areaBy[aid]!["lp_max"])
@@ -940,20 +1128,16 @@ public enum StudyPlanEngine {
         for mid in included {
             let m = byID[mid]!, st = state[mid]!
             let title = textOf(m["title"])
-            if st.status != "bestanden" && st.final {
-                notes.append(note("endgueltig", mid, "\(title): endgültig nicht bestanden – sprich mit der Studienberatung."))
-            } else if (st.status == "nicht_bestanden" && st.attempt == 2) || (st.status == "angemeldet" && st.attempt == 3) {
-                notes.append(note("letzter_versuch", mid, "\(title): Letzter Versuch – sprich mit der Studienberatung."))
-            }
+            attemptNotes(&notes, mid, title, st)
             if st.status == "bestanden" { continue }
-            for p in prereqs(m) {
+            for p in planPrereqs(m, byID) {
                 guard let pm = byID[p] else { continue }
                 let ptitle = textOf(pm["title"])
                 if let ps = state[p] {
                     if ps.status != "bestanden" && st.status == "angemeldet" {
                         notes.append(note("voraussetzung", mid, "\(title): Voraussetzung \(ptitle) ist noch nicht bestanden."))
                     }
-                } else {
+                } else if !electiveKinds.contains(textOf(pm["kind"])) {     // ein Wahlmodul muss nicht im Plan sein
                     notes.append(note("voraussetzung", mid, "\(title): Voraussetzung \(ptitle) ist nicht im Plan."))
                 }
             }
@@ -964,6 +1148,17 @@ public enum StudyPlanEngine {
         if current > start && lpExpected - lpDone >= behindLP {
             notes.append(note("rueckstand", nil, "Du liegst \(fmtLP(lpExpected - lpDone)) LP hinter dem Studienverlaufsplan: "
                               + "\(fmtLP(lpDone)) von \(fmtLP(lpExpected)) LP bis zum Ende des \(current - start). Fachsemesters."))
+        }
+        for (_, e) in custom where e["qis"]?.bool == true {
+            let final = e["final"]?.bool ?? false, last = e["last_attempt"]?.bool ?? false
+            let st = ModuleState(status: textOf(e["status"]), term: nil, attempt: e["attempt"]?.int, grade: nil, movedFrom: nil,
+                                 reason: nil, failed: 0, final: final, qisLast: last && !final)
+            attemptNotes(&notes, textOf(e["id"]), textOf(e["title"]), st)
+        }
+        for f in recognized {
+            let limit = f.cap.map { "der Bereich verlangt \(fmtLP($0)) LP" } ?? "mehr als der ganze Studiengang (\(fmtLP(f.total)) LP)"
+            notes.append(note("wahl_erkannt", nil, "\(f.name): \(f.n) Module mit \(fmtLP(f.lp)) LP stehen im Katalog als Pflicht, "
+                              + "\(limit) – StudiNow zeigt sie als Wahl."))
         }
         notes = LocalTimetable.stableSorted(notes) { noteRank[$0["kind"]!.string!]! < noteRank[$1["kind"]!.string!]! }
 
@@ -1026,7 +1221,18 @@ public enum StudyPlanEngine {
          "area": m["area"] ?? .null, "lp": .number(lpOf(m)), "semester": numJSON(m["semester"]), "turnus": m["turnus"] ?? .null,
          "status": .string(st.status), "attempt": opt(st.attempt), "grade": opt(st.grade),
          "moved_from": opt(st.movedFrom), "reason": opt(st.reason), "last_attempt": .bool(st.lastAttempt),
+         "attempt_known": .bool(st.known), "max_attempts": opt(st.maxAttempts), "final": .bool(st.final && st.status != "bestanden"),
          "placed": .bool(st.placed), "hints": .array(hints.map(JSONValue.string))]
+    }
+
+    /// Hinweis endgueltig nicht bestanden bzw. letzter Versuch mit Grund (QIS oder Hoechstzahl) (`attempt_notes`)
+    static func attemptNotes(_ notes: inout [[String: JSONValue]], _ moduleID: String, _ title: String, _ st: ModuleState) {
+        if st.status != "bestanden" && st.final {
+            notes.append(note("endgueltig", moduleID, "\(title): endgültig nicht bestanden – sprich mit der Studienberatung."))
+        } else if st.lastAttempt {
+            let why = st.qisLast ? "laut QIS" : "höchstens \(st.maxAttempts ?? 0) Versuche laut Prüfungsordnung"
+            notes.append(note("letzter_versuch", moduleID, "\(title): Letzter Versuch (\(why)) – sprich mit der Studienberatung."))
+        }
     }
 
     /// Hinweise je Modul (`module_hints`): Turnus passt nicht zum Semester, Voraussetzung nicht davor oder nicht im Plan
@@ -1038,12 +1244,12 @@ public enum StudyPlanEngine {
         if !fits(t, turnus) {
             out.append("Laut Katalog nur im \(turnus == "WS" ? "Wintersemester" : "Sommersemester") angeboten")
         }
-        for p in prereqs(m) {
+        for p in planPrereqs(m, byID) {
             guard let pm = byID[p] else { continue }
             let ptitle = textOf(pm["title"])
             if let ps = state[p] {
                 if ps.status != "bestanden", let pt = ps.term, pt >= t { out.append("Voraussetzung \(ptitle) liegt nicht davor") }
-            } else {
+            } else if !electiveKinds.contains(textOf(pm["kind"])) {
                 out.append("Voraussetzung \(ptitle) ist nicht im Plan")
             }
         }

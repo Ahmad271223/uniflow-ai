@@ -59,11 +59,11 @@ PLAN_FILES = {
 
 # Felder der geteilten Fakten (study-catalog.schema.json); alles andere (Texte, Hilfsfelder der Leser) faellt weg
 CATALOG_KEYS = ("v", "university", "program", "degree", "po", "catalog_term", "code", "regular_semesters", "total_lp",
-                "source", "areas", "modules", "study_plan", "plan_slots")
+                "source", "areas", "modules", "study_plan", "plan_slots", "max_attempts")
 SOURCE_KEYS = ("url", "fetched_at", "sha256")
 AREA_KEYS = ("id", "name", "lp_required", "lp_max", "kind", "type", "group", "modules", "modules_required", "semester", "rule")
 MODULE_KEYS = ("id", "title", "code", "area", "kind", "lp", "semester", "turnus", "exam", "coursework", "prerequisites",
-               "language", "workload_h", "source_page")
+               "language", "workload_h", "source_page", "max_attempts", "required_from")
 SLOT_KEYS = ("semester", "title", "areas", "lp", "lp_max")
 
 # Bereiche, deren Module nie Pflicht sind (Name gefaltet: klein, Umlaute ausgeschrieben); "... - Pflichtmodule" bleibt
@@ -353,6 +353,8 @@ def apply_area_rules(catalog: dict, rules: dict) -> bool:
     r = rules.get(catalog.get("code"))
     if not r:
         return False
+    if isinstance(r.get("max_attempts"), int):                 # Hoechstzahl der Versuche laut PO (11.11.2026)
+        catalog["max_attempts"] = r["max_attempts"]
     areas = {a["id"]: a for a in catalog.get("areas") or []}
     for aid, fields in (r.get("areas") or {}).items():
         if aid in areas:

@@ -173,11 +173,67 @@ def test_third_attempt_final_and_missing_prerequisite():
     p = _case("dritter_versuch")
     m = _mods(p)
     assert m["mathematik-1"][1]["status"] == "angemeldet" and m["mathematik-1"][1]["attempt"] == 3
-    assert m["mathematik-1"][1]["last_attempt"] is True
+    # 11.11.2026: ohne Hoechstzahl im Katalog ist der dritte Versuch nicht pauschal der letzte
+    assert m["mathematik-1"][1]["last_attempt"] is False and m["mathematik-1"][1]["attempt_known"] is True
+    assert m["mathematik-1"][1]["max_attempts"] is None
+    assert m["signale-systeme"][1]["final"] is True, "endgueltig nur, weil QIS es meldet"
     kinds = [n["kind"] for n in p["notes"]]
-    assert kinds[0] == "endgueltig" and "letzter_versuch" in kinds and "voraussetzung" in kinds and kinds[-1] == "rueckstand"
-    assert "Mathematik I: Letzter Versuch – sprich mit der Studienberatung." in [n["text"] for n in p["notes"]]
+    assert kinds[0] == "endgueltig" and "letzter_versuch" not in kinds and "voraussetzung" in kinds and kinds[-1] == "rueckstand"
     assert "Mathematik II: Voraussetzung Mathematik I ist noch nicht bestanden." in [n["text"] for n in p["notes"]]
+
+
+def _case_cat(name):
+    fx = _engine()
+    c = next(c for c in fx["cases"] if c["name"] == name)
+    from app import study_plan
+    return study_plan.build_plan(fx["catalogs"].get(c.get("catalog_code"), fx["catalog"]), c["grades"], c["settings"], c["today"])
+
+
+def test_attempts_only_last_with_known_maximum_or_qis():
+    """Versuche ehrlich (11.11.2026): letzter Versuch nur bei bekannter Hoechstzahl oder Meldung aus QIS"""
+    m = _mods(_case_cat("versuche_hoechstzahl"))
+    assert m["mathematik-1"][1]["last_attempt"] is True and m["mathematik-1"][1]["max_attempts"] == 3
+    assert m["signale-systeme"][1]["last_attempt"] is True and m["signale-systeme"][1]["final"] is False
+    assert m["programmieren-2"][1]["final"] is True, "dritter Fehlversuch bei hoechstens 3 Versuchen"
+    assert m["bachelorarbeit"][1]["max_attempts"] == 2, "Modul geht vor Katalog"
+    p = _case_cat("versuche_hoechstzahl")
+    assert ("Mathematik I: Letzter Versuch (höchstens 3 Versuche laut Prüfungsordnung) – sprich mit der Studienberatung."
+            in [n["text"] for n in p["notes"]])
+    p = _case_cat("versuche_ohne_nummer")
+    m = _mods(p)
+    assert (m["mathematik-1"][1]["status"], m["mathematik-1"][1]["attempt_known"], m["mathematik-1"][1]["last_attempt"]) \
+        == ("angemeldet", False, False), "ohne Versuchsspalte: neutral"
+    assert m["signale-systeme"][1]["last_attempt"] is True, "QIS meldet den letzten Versuch"
+    assert "Signale und Systeme: Letzter Versuch (laut QIS) – sprich mit der Studienberatung." in [n["text"] for n in p["notes"]]
+
+
+def test_choice_instead_of_mandatory():
+    """Wahl statt Pflicht (11.11.2026): ueberfuellter Pflichtbereich ist eine Wahl, Plaetze statt Pflichtmodule"""
+    p = _case_cat("wahl_statt_pflicht")
+    m = _mods(p)
+    assert "vertiefung-a" in m and m["vertiefung-a"][1]["kind"] == "pflicht", "mit Fachsemester bleibt Pflicht"
+    assert not any(i.startswith("angebot-") or i in ("vertiefung-b", "vertiefung-c") for i in m), "keine Wahl als Pflicht"
+    slots = [sl for s in p["semesters"] for sl in s["slots"]]
+    assert [(sl["area"], sl["lp"]) for sl in slots] == [("vertiefung", 5), ("details", 5)]
+    assert [n["kind"] for n in p["notes"]].count("wahl_erkannt") == 2
+    assert m["softwareprojekt"][1]["hints"] == [], "Wahlmodul als Voraussetzung fehlt nicht im Plan"
+    m = _mods(_case_cat("wahl_statt_pflicht_aus_qis"))
+    assert m["vertiefung-b"][1]["status"] == "bestanden" and m["vertiefung-b"][1]["kind"] == "wahlpflicht"
+
+
+def test_elective_from_qis_fills_its_place():
+    """Wahlfach aus QIS ohne Katalogmodul fuellt seinen Bereich (11.11.2026)"""
+    p = _case_cat("wahlfach_aus_qis")
+    m = _mods(p)
+    e = next(x for _, x in m.values() if x.get("qis"))
+    assert (e["title"], e["area"], e["status"], e["lp"], e["grade"]) == ("Englisch B2", "studium-generale", "bestanden", 4, "1,7")
+    sg = next(a for a in p["areas"] if a["id"] == "studium-generale")
+    assert (sg["lp_done"], sg["slots"]) == (4, 0)
+    assert p["unmatched"] == ["Englisch für Ingenieure"], "ausserhalb eines Wahlbereichs bleibt es nicht zugeordnet"
+    p = _case_cat("wahlfach_aus_qis_verlaufsplan")
+    titles = [sl["title"] for s in p["semesters"] for sl in s["slots"]]
+    assert "Proseminar" not in titles and titles.count("Vertiefung") == 1
+    assert p["unmatched"] == ["Spieltheorie"]
 
 
 def test_start_in_summer_shifts_winter_modules():
@@ -264,3 +320,36 @@ def test_without_catalog_and_memory_source(app, monkeypatch, tmp_path):
         assert study_plan.plan_response(conn, "2026-11-04", src)["available"] is True
         detail = study_plan.module_response(conn, "mathematik-1", "2026-11-04", src)
         assert detail["texts"]["content"] == "Analysis" and detail["source"]["page"] == 14
+
+
+def test_online_study_plan_order_and_mandatory_boxes():
+    """Abgleich mit dem Online-Verlaufsplan (11.11.2026, TI/INF WS 2026/27): Einfuehrung Pflicht ab Studienbeginn
+    WS 2025/26, Proseminar-Platz bleibt, Verlaufsplan-Reihenfolge schlaegt empfohlene Voraussetzung, Nebenfach steckt in
+    den Plaetzen Wahl(pflicht)modul"""
+    p = _case_cat("verlaufsplan_neu")
+    m = _mods(p)
+    assert m["einfuehrung"][0] == "WiSe 26/27" and m["einfuehrung"][1]["kind"] == "pflicht"
+    assert m["logik"][0] == "SoSe 27" and m["logik"][1]["reason"] is None and m["logik"][1]["hints"] == []
+    slots = [(s["term"], sl["title"]) for s in p["semesters"] for sl in s["slots"]]
+    assert ("SoSe 28", "Proseminar") in slots and not any(sl["kind"] == "track" for s in p["semesters"] for sl in s["slots"])
+    titles = [sl["title"] for s in _case_cat("verlaufsplan_einfuehrung_bestanden")["semesters"] for sl in s["slots"]]
+    assert "Proseminar" in titles, "Einfuehrung bestanden: das Proseminar bleibt Pflicht"
+    m = _mods(_case_cat("verlaufsplan_ueberfuehrt"))
+    assert "einfuehrung" not in m, "vor WS 2025/26 begonnen: Einfuehrung nicht noetig"
+
+
+def test_luh_seed_matches_online_study_plans():
+    """Grundstock TIBSc25/INFBSc22 (Regeln aus PO 2026 und Verlaufsplan WS 2026/27): Semester-LP wie im Online-Plan"""
+    import gzip
+    from app import study_plan
+    seed = json.loads(gzip.decompress((ROOT / "apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz").read_bytes()))
+    cats = {c["code"]: c for c in seed["catalogs"]}
+    for code, want in (("TIBSc25", [28, 28, 31, 30, 30, 30]), ("INFBSc22", [30, 30, 30, 30, 30, 30])):
+        c = cats[code]
+        assert c["max_attempts"] == 3, "PO § 14 Abs. 1: zweimal wiederholen"
+        p = study_plan.build_plan(c, [], {"start_term": "WiSe 26/27"}, "2026-11-04")
+        got = [s["lp"] + s["lp_slots"] for s in p["semesters"]]
+        assert got == want, (code, got)
+        m = _mods(p)
+        assert m["einfuehrung-in-die-informatik"][0] == "WiSe 26/27"
+        assert not any(sl["kind"] == "track" for s in p["semesters"] for sl in s["slots"])

@@ -138,7 +138,9 @@ public enum ExamRegistrationAPI {
                 if st.status == "nicht_bestanden" {
                     let next = (st.attempt ?? 1) + 1
                     o["reason_kind"] = "wiederholung"
-                    o["reason"] = .string("Wiederholung – \(next). Versuch" + (st.movedFrom.map { " (nicht bestanden im \($0))" } ?? ""))
+                    // Nummer nur, wenn QIS die Versuche zaehlt (11.11.2026); sonst waere sie geraten
+                    o["reason"] = .string("Wiederholung" + (st.known ? " – \(next). Versuch" : "")
+                                          + (st.movedFrom.map { " (nicht bestanden im \($0))" } ?? ""))
                 } else if let from = st.movedFrom, (st.reason ?? "").contains("nachholen") {
                     o["reason_kind"] = "nachholen"
                     o["reason"] = .string("nachholen – laut Plan im \(from)")

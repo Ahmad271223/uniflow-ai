@@ -249,6 +249,126 @@ final class StudyPlanEngineTests: XCTestCase {
         XCTAssertEqual(after["programmieren-1"]?.term, before["programmieren-1"]?.term)
     }
 
+    // MARK: Meldung des Inhabers 11.11.2026: Wahl statt Pflicht, Wahlfach aus QIS, Versuche ehrlich
+
+    private func modules(_ p: JSONValue) -> [String: JSONValue] {
+        var out: [String: JSONValue] = [:]
+        for s in p["semesters"]?.array ?? [] { for m in s["modules"]?.array ?? [] { out[m["id"]?.string ?? ""] = m } }
+        return out
+    }
+
+    private func casePlan(_ fx: JSONValue, _ name: String) throws -> JSONValue {
+        let c = try XCTUnwrap(fx["cases"]?.array?.first { $0["name"]?.string == name })
+        let cat = c["catalog_code"]?.string.flatMap { fx["catalogs"]?[$0] } ?? fx["catalog"]!
+        return StudyPlanEngine.buildPlan(catalog: cat, grades: (c["grades"]?.array ?? []).compactMap(\.object),
+                                         settings: c["settings"]?.object ?? [:], today: c["today"]?.string ?? "")
+    }
+
+    /// Dritter Versuch ist nur mit bekannter Hoechstzahl (Katalog/Modul) oder Meldung aus QIS der letzte
+    func testAttemptsAreHonest() throws {
+        let fx = try studyPlanFixture("engine.json")
+        let third = modules(try casePlan(fx, "dritter_versuch"))
+        XCTAssertEqual(third["mathematik-1"]?["attempt"], 3)
+        XCTAssertEqual(third["mathematik-1"]?["last_attempt"], false, "ohne Hoechstzahl kein 'letzter Versuch'")
+        XCTAssertEqual(third["mathematik-1"]?["attempt_known"], true)
+        XCTAssertEqual(third["signale-systeme"]?["final"], true, "endgueltig, weil QIS es meldet")
+        let maxPlan = try casePlan(fx, "versuche_hoechstzahl")
+        let mx = modules(maxPlan)
+        XCTAssertEqual(mx["mathematik-1"]?["last_attempt"], true)
+        XCTAssertEqual(mx["mathematik-1"]?["max_attempts"], 3)
+        XCTAssertEqual(mx["programmieren-2"]?["final"], true)
+        XCTAssertEqual(mx["bachelorarbeit"]?["max_attempts"], 2)
+        XCTAssertTrue((maxPlan["notes"]?.array ?? []).contains {
+            $0["text"]?.string == "Mathematik I: Letzter Versuch (höchstens 3 Versuche laut Prüfungsordnung) – sprich mit der Studienberatung."
+        })
+        let bare = modules(try casePlan(fx, "versuche_ohne_nummer"))
+        XCTAssertEqual(bare["mathematik-1"]?["attempt_known"], false)
+        XCTAssertEqual(bare["mathematik-1"]?["last_attempt"], false)
+        XCTAssertEqual(bare["signale-systeme"]?["last_attempt"], true, "Vermerk 'letzter Versuch' aus QIS")
+        XCTAssertTrue(StudyPlanEngine.saysLastTry(["text": "X", "status": "Letzter Wiederholungsversuch"]))
+        XCTAssertFalse(StudyPlanEngine.saysLastTry(["text": "Der letzte Versuch", "raw": "1 | Der letzte Versuch | PL"]),
+                       "der Titel zaehlt nicht")
+    }
+
+    /// Ueberfuellter Pflichtbereich ist eine Wahl: Plaetze statt Pflichtmodule; Wahlmodul als Voraussetzung fehlt nicht
+    func testChoiceInsteadOfMandatory() throws {
+        let fx = try studyPlanFixture("engine.json")
+        let p = try casePlan(fx, "wahl_statt_pflicht")
+        let m = modules(p)
+        XCTAssertEqual(m["vertiefung-a"]?["kind"], "pflicht")
+        XCTAssertFalse(m.keys.contains { $0.hasPrefix("angebot-") || $0 == "vertiefung-b" })
+        let slots = (p["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }
+        XCTAssertEqual(slots.map { $0["area"]?.string ?? "" }, ["vertiefung", "details"])
+        XCTAssertEqual((p["notes"]?.array ?? []).filter { $0["kind"] == "wahl_erkannt" }.count, 2)
+        XCTAssertEqual(m["softwareprojekt"]?["hints"], [])
+        let fromQIS = modules(try casePlan(fx, "wahl_statt_pflicht_aus_qis"))
+        XCTAssertEqual(fromQIS["vertiefung-b"]?["status"], "bestanden", "Titel wie eine Bereichszeile, trotzdem zugeordnet")
+        XCTAssertEqual(fromQIS["vertiefung-b"]?["kind"], "wahlpflicht")
+    }
+
+    /// Wahlfach aus QIS ohne Katalogmodul fuellt seinen Bereich; Anmeldungen der Info-Seite erben keine Bereichszeile
+    func testElectiveFromQISFillsItsPlace() async throws {
+        let fx = try studyPlanFixture("engine.json")
+        let p = try casePlan(fx, "wahlfach_aus_qis")
+        let e = try XCTUnwrap(modules(p).values.first { $0["qis"] == true })
+        XCTAssertEqual(e["title"], "Englisch B2")
+        XCTAssertEqual(e["area"], "studium-generale")
+        XCTAssertEqual(e["status"], "bestanden")
+        XCTAssertEqual(p["unmatched"], ["Englisch für Ingenieure"])
+        let slots = (try casePlan(fx, "wahlfach_aus_qis_verlaufsplan")["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }
+        XCTAssertFalse(slots.contains { $0["title"] == "Proseminar" })
+
+        let ep = try studyPlanFixture("endpoints.json")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: UniFlowClock.fixed(berlin: "2026-11-09T10:00:00")!)
+        try await run(backend, (ep["seed"]?.array ?? []) + (ep["steps"]?.array ?? []).flatMap { $0["sql"]?.array ?? [] })
+        try await backend.context.database.withConnection { c in
+            let ab = "Technische Informatik (PO-Version 2017)"
+            for (text, status, credits) in [("Kompetenzbereich Schlüsselkompetenzen", "", ""), ("Englisch B2", "bestanden", "5")] {
+                try c.execute("INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) "
+                              + "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                              [.text(text), .text("SoSe 26"), .text(status), .text(""), .text(""), .text(""), .text(credits), .text(""),
+                               .text(ab), .null, .text("t")])
+            }
+            try QISRegistrationsSync.store(c, [QISRegistration(pruefungsnr: "9", text: "Rhetorik", semester: "WiSe 26/27",
+                                                               status: "angemeldet", raw: "")], now: "2026-11-09T09:00:00")
+        }
+        let r = await backend.handle(request(["method": "GET", "path": "/api/study-plan"]))
+        let entries = (r.json?["semesters"]?.array ?? []).flatMap { $0["modules"]?.array ?? [] }.filter { $0["qis"] == true }
+        XCTAssertEqual(entries.map { $0["title"]?.string ?? "" }, ["Englisch B2"])
+        XCTAssertEqual(entries.first?["area"], "schluessel")
+        XCTAssertTrue(r.json?["unmatched"]?.array?.contains("Rhetorik") ?? false, "Anmeldung ohne Bereich bleibt nicht zugeordnet")
+    }
+
+    /// Abgleich mit dem Online-Verlaufsplan (TI/INF WS 2026/27, PO 2026): Einfuehrung Pflicht ab Studienbeginn WS 2025/26,
+    /// Proseminar-Platz bleibt, Verlaufsplan-Reihenfolge schlaegt empfohlene Voraussetzung, Nebenfach in den Wahlplaetzen;
+    /// der Grundstock liefert fuer TIBSc25/INFBSc22 die Semester-LP des Online-Plans
+    func testOnlineStudyPlanMatches() throws {
+        let fx = try studyPlanFixture("engine.json")
+        let neu = try casePlan(fx, "verlaufsplan_neu")
+        let m = modules(neu)
+        XCTAssertEqual(m["einfuehrung"]?["kind"], "pflicht")
+        XCTAssertEqual(m["logik"]?["reason"], .null, "bleibt im 2. Semester")
+        let slots = (neu["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }
+        XCTAssertTrue(slots.contains { $0["title"] == "Proseminar" })
+        XCTAssertFalse(slots.contains { $0["kind"] == "track" }, "kein eigener Platz 'Nebenfach wählen'")
+        let done = (try casePlan(fx, "verlaufsplan_einfuehrung_bestanden")["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }
+        XCTAssertTrue(done.contains { $0["title"] == "Proseminar" })
+        XCTAssertNil(modules(try casePlan(fx, "verlaufsplan_ueberfuehrt"))["einfuehrung"])
+
+        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("UniFlow/Resources/StudyCatalogSeed")
+        let index = try JSONValue.parse(Data(contentsOf: dir.appendingPathComponent("luh-index.json")))
+        let seed = StudyCatalogSeed(index: index) { try? Data(contentsOf: dir.appendingPathComponent($0)) }
+        for (code, want) in [("TIBSc25", [28.0, 28, 31, 30, 30, 30]), ("INFBSc22", [30.0, 30, 30, 30, 30, 30])] {
+            let e = try XCTUnwrap(seed.entries.first { $0.code == code && $0.term == "WS 2026/27" }, code)
+            let cat = try JSONValue.parse(try XCTUnwrap(seed.payload(key: e.libraryKey)))
+            XCTAssertEqual(cat["max_attempts"], 3, code)
+            let p = StudyPlanEngine.buildPlan(catalog: cat, grades: [], settings: ["start_term": "WiSe 26/27"], today: "2026-11-04")
+            let got = (p["semesters"]?.array ?? []).map { ($0["lp"]?.double ?? 0) + ($0["lp_slots"]?.double ?? 0) }
+            XCTAssertEqual(got, want, code)
+        }
+    }
+
     /// Katalog aus dem Speicher statt aus der Tabelle (Quelle austauschbar, solange der Katalog-Abruf fehlt)
     func testMemoryCatalogSource() async throws {
         let fx = try studyPlanFixture("engine.json")

@@ -422,6 +422,16 @@ final class ExamRegistrationTests: XCTestCase {
         XCTAssertTrue(v["qis_url"]?.string?.hasPrefix("https://qis.verwaltung.uni-hannover.de/") == true)
     }
 
+    /// 11.11.2026: zaehlt QIS die Versuche nicht (keine Spalte "Versuch"), nennt die Anmeldung keine Nummer
+    func testRepeatWithoutAttemptColumnNamesNoNumber() async throws {
+        let b = try await backend(now: "2026-11-20T10:00:00")
+        try await b.context.database.withConnection { c in try c.execute("UPDATE grades SET versuch=NULL") }
+        let s = try await get(b)["suggestions"]?.array ?? []
+        let m = s.first { $0["id"]?.string == "mathematik-1" } ?? .null
+        XCTAssertEqual(m["reason"]?.string, "Wiederholung (nicht bestanden im WiSe 25/26)")
+        XCTAssertEqual(m["last_attempt"], false)
+    }
+
     func testCardOnlyAroundThePeriodAndFallbackWithoutPlan() async throws {
         let soon = try await get(try await backend(now: "2026-11-05T10:00:00"))
         XCTAssertEqual(soon["window"]?["phase"]?.string, "soon")

@@ -169,12 +169,72 @@ CATALOG_FULL = {
                    {"semester": 6, "title": "Wahlmodul", "areas": ["vertiefung", "praxis"], "lp": 5, "lp_max": None}],
 }
 
+# Versuche ehrlich (11.11.2026): Hoechstzahl der Versuche im Katalog (3), Bachelorarbeit nur 2
+CATALOG_MAX = {**CATALOG, "code": "TIBSc22MAX", "max_attempts": 3,
+               "modules": [dict(m, max_attempts=2) if m["id"] == "bachelorarbeit" else m for m in CATALOG["modules"]]}
+
+# Wahl statt Pflicht (11.11.2026): Bereich "Vertiefung" verlangt 10 LP, der Katalog nennt 5 Module (25 LP) als Pflicht
+# (eins mit Fachsemester bleibt Pflicht); ein Kapitel "Details der Semesterangebote" mit 40 Modulen (200 LP) als
+# Pflicht ohne LP-Angabe (wie ETBSc17); Softwareprojekt setzt ein Wahlmodul voraus (kein "nicht im Plan")
+CATALOG_OVERFULL = {
+    **{k: v for k, v in CATALOG.items() if k not in ("areas", "modules")}, "code": "ETBSc17X", "catalog_term": "WS 2026/27",
+    "areas": [a for a in CATALOG["areas"] if a["id"] not in _ELECTIVE] + [
+        {"id": "vertiefung", "name": "Vertiefung", "lp_required": 10, "lp_max": None, "kind": "pflicht"},
+        {"id": "details", "name": "Details der Semesterangebote", "lp_required": None, "lp_max": None, "kind": "pflicht"},
+    ],
+    "modules": [dict(m, prerequisites=["software-engineering", "vertiefung-c"]) if m["id"] == "softwareprojekt" else m
+                for m in CATALOG["modules"] if m["area"] not in _ELECTIVE] + [
+        mod("vertiefung-a", "Vertiefung Echtzeitsysteme", "vertiefung", 5, 5, "WS"),
+        mod("vertiefung-b", "Vertiefung Compilerbau", "vertiefung", 5, None, "SS"),
+        mod("vertiefung-c", "Vertiefung Datenbanken", "vertiefung", 5, None, "WS"),
+        mod("vertiefung-d", "Vertiefung Robotik", "vertiefung", 5, None, "WS+SS"),
+        mod("vertiefung-e", "Vertiefung Grafik", "vertiefung", 5, None, "WS+SS"),
+    ] + [mod(f"angebot-{i}", f"Angebot {i}", "details", 5, None, "WS+SS") for i in range(1, 41)],
+}
+
+# Abgleich mit dem Online-Verlaufsplan (11.11.2026, wie TIBSc25/INFBSc22 laut PO 2026 und Verlaufsplan WS 2026/27):
+# "Einfuehrung" ist Pflicht im 1. Semester erst ab Studienbeginn WS 2025/26 (`required_from`), Akademisches Arbeiten
+# 10 LP (Einfuehrung + Proseminar-Platz im 4.); "Logik" liegt laut Verlaufsplan im 2. vor ihrer empfohlenen
+# Voraussetzung "Theorie" (3.); das Nebenfach steckt in den Plaetzen "Wahl(pflicht)modul" (kein eigener "Nebenfach waehlen")
+CATALOG_VP = {
+    **{k: v for k, v in CATALOG.items() if k not in ("areas", "modules")}, "program": "Informatik", "code": "INFBSc22X",
+    "catalog_term": "WS 2026/27", "max_attempts": 3,
+    "study_plan": {"url": "https://plan.example.invalid/verlaufsplan-inf.pdf", "fetched_at": None, "sha256": None},
+    "areas": [
+        {"id": "informatik", "name": "Grundlagen der Informatik", "lp_required": 20, "kind": "pflicht"},
+        {"id": "akademisches-arbeiten", "name": "Akademisches Arbeiten", "lp_required": 10, "lp_max": 10, "kind": "pflicht"},
+        {"id": "studium-generale", "name": "Studium Generale", "lp_required": 3, "lp_max": 6, "kind": "wahlpflicht"},
+        {"id": "nebenfach-bwl", "name": "Nebenfach Betriebswirtschaftslehre", "lp_required": 12, "lp_max": 16, "kind": "wahlpflicht"},
+        {"id": "nebenfach-physik", "name": "Nebenfach Physik", "lp_required": 12, "kind": "wahlpflicht"},
+        {"id": "abschluss", "name": "Bachelorarbeit", "lp_required": 15, "kind": "abschluss"},
+    ],
+    "modules": [
+        mod("programmieren-1", "Programmieren I", "informatik", 5, 1, "WS"),
+        mod("einfuehrung", "Einführung in die Informatik", "akademisches-arbeiten", 5, 1, "WS") | {"required_from": "WS 2025/26"},
+        mod("logik", "Logik und formale Systeme", "informatik", 5, 2, "SS", ["theorie"]),
+        mod("theorie", "Grundlagen der Theoretischen Informatik", "informatik", 5, 3, "WS"),
+        mod("datenbanken", "Grundlagen der Datenbanksysteme", "informatik", 5, 4, "SS", ["programmieren-1"]),
+        mod("proseminar-a", "Proseminar Theoretische Informatik", "akademisches-arbeiten", 5, None, "WS", kind="wahlpflicht"),
+        mod("proseminar-b", "Proseminar Maschinelles Lernen", "akademisches-arbeiten", 5, None, "SS", kind="wahlpflicht"),
+        mod("sg-recht", "Patentrecht", "studium-generale", 3, None, "WS", kind="wahlpflicht"),
+        mod("bwl-1", "Einführung in die BWL", "nebenfach-bwl", 6, None, "WS", kind="wahlpflicht"),
+        mod("physik-1", "Physik für Informatiker", "nebenfach-physik", 12, None, "WS", kind="wahlpflicht"),
+        mod("bachelorarbeit", "Bachelorarbeit", "abschluss", 15, 6, "WS+SS", kind="abschluss") | {"max_attempts": 2},
+    ],
+    "plan_slots": [{"semester": 2, "title": "Wahl(pflicht)modul (SG / N)", "areas": ["studium-generale", "nebenfach-bwl",
+                                                                                     "nebenfach-physik"], "lp": 5, "lp_max": None},
+                   {"semester": 4, "title": "Proseminar", "areas": ["akademisches-arbeiten"], "lp": 5, "lp_max": None}],
+}
+
 ABSCHLUSS = "Technische Informatik (PO-Version 2017)"
 
 
-def g(text, semester, status, note="", versuch="", nr="", credits="", datum=""):
-    return {"text": text, "semester": semester, "status": status, "note": note, "versuch": versuch, "pruefungsnr": nr,
-            "credits": credits, "datum": datum, "abschluss": ABSCHLUSS}
+def g(text, semester, status, note="", versuch="", nr="", credits="", datum="", raw=None):
+    row = {"text": text, "semester": semester, "status": status, "note": note, "versuch": versuch, "pruefungsnr": nr,
+           "credits": credits, "datum": datum, "abschluss": ABSCHLUSS}
+    if raw is not None:
+        row["raw"] = raw
+    return row
 
 
 def passed(titles_terms):
@@ -306,6 +366,68 @@ CASES = [
      "today": "2026-11-04", "settings": {"start_term": "WiSe 26/27", "electives": ["labor-a"],
                                          "custom": [{"title": "Seminar im Ausland", "lp": 3, "area": "seminare"}]},
      "grades": []},
+    # Versuche ehrlich (11.11.2026)
+    {"name": "versuche_hoechstzahl", "catalog_code": "TIBSc22MAX", "what": "Katalog nennt hoechstens 3 Versuche: "
+     "Mathematik I im 3. Versuch angemeldet und Signale und Systeme zweimal nicht bestanden -> letzter Versuch (laut "
+     "Pruefungsordnung); Programmieren II dreimal nicht bestanden -> endgueltig, obwohl QIS nur 'nicht bestanden' sagt",
+     "today": "2026-11-04", "settings": {},
+     "grades": passed([(t, "WiSe 24/25") for t in SEM1 if t != "Mathematik I"])
+     + [g("Mathematik I", "WiSe 24/25", "nicht bestanden", "5,0", "1"),
+        g("Mathematik I", "SoSe 25", "nicht bestanden", "5,0", "2"),
+        g("Mathematik I", "WiSe 26/27", "angemeldet", "", "3"),
+        g("Signale und Systeme", "WiSe 25/26", "nicht bestanden", "5,0", "1"),
+        g("Signale und Systeme", "SoSe 26", "nicht bestanden", "5,0", "2"),
+        g("Programmieren II", "SoSe 25", "nicht bestanden", "5,0", "1"),
+        g("Programmieren II", "WiSe 25/26", "nicht bestanden", "5,0", "2"),
+        g("Programmieren II", "SoSe 26", "nicht bestanden", "5,0", "3")]},
+    {"name": "versuche_ohne_nummer", "what": "QIS ohne Versuchsspalte (wie LSF Hildesheim): Mathematik I zweimal nicht "
+     "bestanden und angemeldet -> neutral, keine Nummer aus QIS, kein letzter Versuch; Signale und Systeme mit Vermerk "
+     "'letzter Versuch' in QIS -> letzter Versuch laut QIS", "today": "2026-11-04", "settings": {},
+     "grades": passed([(t, "WiSe 24/25") for t in SEM1 if t != "Mathematik I"])
+     + [g("Mathematik I", "WiSe 24/25", "nicht bestanden", "5,0"),
+        g("Mathematik I", "SoSe 25", "nicht bestanden", "5,0"),
+        g("Mathematik I", "WiSe 26/27", "angemeldet"),
+        g("Signale und Systeme", "WiSe 25/26", "nicht bestanden", "5,0",
+          raw="210 | Signale und Systeme | PL | WiSe 25/26 | 5,0 | nicht bestanden | 0 | 20.02.2026 | 2 | letzter Versuch")]},
+    # Wahl statt Pflicht und Wahlfach aus QIS (11.11.2026)
+    {"name": "wahl_statt_pflicht", "catalog_code": "ETBSc17X", "what": "Vertiefung (10 LP) mit 5 Pflichtmodulen (25 LP): "
+     "nur das mit Fachsemester bleibt Pflicht, ein Platz fuer die restlichen 5 LP; Kapitel mit 200 LP als Pflicht: ein "
+     "Platz statt 40 Pflichtmodulen; Hinweise 'wahl_erkannt'; Voraussetzung Vertiefung Datenbanken (Wahl) fehlt nicht",
+     "today": "2026-11-04", "settings": {"start_term": "WiSe 26/27"}, "grades": []},
+    {"name": "wahl_statt_pflicht_aus_qis", "catalog_code": "ETBSc17X", "what": "Vertiefung Compilerbau bestanden (Titel beginnt wie eine QIS-Bereichszeile): steht "
+     "als Wahlpflicht im Plan, die Vertiefung ist voll (kein Platz mehr)", "today": "2026-11-04", "settings": {},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1]) + passed([("Vertiefung Compilerbau", "SoSe 26")])},
+    {"name": "wahlfach_aus_qis", "catalog_code": "ETBSc25", "what": "QIS-Bereich 'Kompetenzbereich Studium Generale': "
+     "Englisch B2 (4 LP, bestanden) fuellt den Bereich ohne Katalogmodul, kein Platz mehr; Seminar Datenbanken (Katalog) "
+     "unter 'Kompetenzbereich Seminare' angemeldet belegt den Seminar-Platz; 'Englisch für Ingenieure' unter "
+     "'Pflichtmodule' bleibt nicht zugeordnet", "today": "2026-11-04", "settings": {},
+     "grades": [g("Pflichtmodule", "", "")] + passed([(t, "WiSe 25/26") for t in SEM1])
+     + [g("Englisch für Ingenieure", "WiSe 25/26", "bestanden", "1,0"),
+        g("Kompetenzbereich Studium Generale", "", "bestanden"),
+        g("Englisch B2", "SoSe 26", "bestanden", "1,7", credits="4"),
+        g("Englisch B2", "SoSe 26", "bestanden", "1,7", versuch="1"),
+        g("Kompetenzbereich Seminare", "", ""),
+        g("Seminar Datenbanken", "WiSe 26/27", "angemeldet", versuch="1")]},
+    {"name": "wahlfach_aus_qis_verlaufsplan", "catalog_code": "TIBSc26", "what": "Proseminar aus QIS (nicht im Katalog) "
+     "unter 'Kompetenzbereich Akademisches Arbeiten' bestanden: belegt den Platz Proseminar; ein nicht bestandenes "
+     "Vertiefungsmodul aus QIS zaehlt in der Vertiefung und belegt den naechsten Vertiefungsplatz; abgemeldet zaehlt nicht",
+     "today": "2026-11-04", "settings": {"start_term": "WiSe 24/25"},
+     "grades": [g("Kompetenzbereich Akademisches Arbeiten", "", ""),
+                g("Proseminar Quantencomputing", "SoSe 26", "bestanden", "2,0", "1", nr="4711", credits="5"),
+                g("Kompetenzbereich Vertiefung", "", ""),
+                g("Kryptographie", "SoSe 26", "nicht bestanden", "5,0", "1"),
+                g("Spieltheorie", "SoSe 26", "abgemeldet")]},
+    # Abgleich mit dem Online-Verlaufsplan (11.11.2026)
+    {"name": "verlaufsplan_neu", "catalog_code": "INFBSc22X", "what": "Beginn WiSe 26/27: Einfuehrung (Pflicht ab WS 2025/26) "
+     "im 1. Semester, Logik bleibt im 2. (Voraussetzung Theorie liegt laut Verlaufsplan danach: Empfehlung), Proseminar-Platz "
+     "im 4., Nebenfach nur in den Plaetzen Wahl(pflicht)modul (kein eigener Platz 'Nebenfach waehlen')", "today": "2026-11-04",
+     "settings": {"start_term": "WiSe 26/27"}, "grades": []},
+    {"name": "verlaufsplan_einfuehrung_bestanden", "catalog_code": "INFBSc22X", "what": "Einfuehrung bestanden: der "
+     "Proseminar-Platz bleibt (Akademisches Arbeiten 10 LP: beides Pflicht)", "today": "2026-11-04", "settings": {},
+     "grades": passed([("Programmieren I", "WiSe 25/26"), ("Einführung in die Informatik", "WiSe 25/26")])},
+    {"name": "verlaufsplan_ueberfuehrt", "catalog_code": "INFBSc22X", "what": "Beginn WiSe 23/24 (in die PO ueberfuehrt): "
+     "Einfuehrung nicht noetig (nicht im Plan, kein 'nachholen'), Proseminar-Platz bleibt", "today": "2026-11-04",
+     "settings": {}, "grades": passed([("Programmieren I", "WiSe 23/24")])},
 ]
 
 NAMES = ["Programmieren I", "Übung zu Programmieren I", "Programmieren 1", "Vorlesung und Übung Mathematik II",
@@ -427,7 +549,8 @@ def build(check: bool) -> int:
         cases = []
         for c in CASES:
             cat = {"TIBSc25": CATALOG_SLOTS, "ETBSc25": CATALOG_AREAS, "ETBSc17": CATALOG_AREAS_NO_LP,
-                   "TIBSc26": CATALOG_FULL}.get(c.get("catalog_code"), CATALOG)
+                   "TIBSc26": CATALOG_FULL, "TIBSc22MAX": CATALOG_MAX, "ETBSc17X": CATALOG_OVERFULL,
+                   "INFBSc22X": CATALOG_VP}.get(c.get("catalog_code"), CATALOG)
             cases.append({**c, "expected": study_plan.build_plan(cat, c["grades"], c["settings"], c["today"])})
         picks = []
         for p in PICKS:
@@ -437,7 +560,7 @@ def build(check: bool) -> int:
         engine = {
             "generator": "tools/gen-study-plan-fixture.py", "catalog": CATALOG,
             "catalogs": {c["code"]: c for c in (CATALOG, CATALOG_INF, CATALOG_OLD, CATALOG_SLOTS, CATALOG_AREAS,
-                                                CATALOG_AREAS_NO_LP, CATALOG_FULL)},
+                                                CATALOG_AREAS_NO_LP, CATALOG_FULL, CATALOG_MAX, CATALOG_OVERFULL, CATALOG_VP)},
             "cases": cases,
             "name_keys": [{"text": t, "key": study_plan.name_key(t)} for t in NAMES],
             "terms": [{"text": t, "term": study_plan.parse_term(t),

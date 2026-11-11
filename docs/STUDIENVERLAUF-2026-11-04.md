@@ -460,3 +460,38 @@ mehreren Bereichen zählt genau einmal (eigener Bereich, solange offen, sonst de
 ohne Verlaufsplan reichen für LP und Zahl. Kasten „Bereiche und Wahl“ (Web und iPad): Bereiche nur mit Zahl der Module
 erscheinen, der Fortschritt ist erst grün, wenn LP und Zahl bestanden sind; die Platzzeile zeigt den offenen Teil.
 Fixture-Fälle `bereiche_offen_verlaufsplan`, `proseminar_bereich_voll_*`, `lp_bereich_*`, `zahl_bereich_voll` (TIBSc26).
+
+## Wahl statt Pflicht, Wahlfach aus QIS, Versuche ehrlich (Meldung des Inhabers 11.11.2026)
+
+„Wenn etwas eine Wahl ist, soll es nicht als Pflicht erscheinen … Wahlfach – wähl eins aus der Liste aus … bereits
+gemachtes Wahlfach anzeigen … im dritten Versuch nicht direkt ‚letzter Versuch‘ … QIS mit dem Studienverlaufsplan
+abchecken.“ Kern in Python und Swift gleich (`compute`, Fixture-Fälle `versuche_*`, `wahl_statt_pflicht*`,
+`wahlfach_aus_qis*`, `verlaufsplan_*`).
+
+- **Wahl statt Pflicht** (`effective_modules`): haben die Pflichtmodule eines Bereichs zusammen mehr als das 1,5-fache
+  seiner LP (Obergrenze, sonst Bedarf; ohne Angabe mehr als der ganze Studiengang), ist der Bereich eine Wahl; seine
+  Module ohne Fachsemester gelten als Wahlpflicht (mit Fachsemester bleiben sie Pflicht, solange sie allein passen).
+  Hinweis `wahl_erkannt`. Vorher z. B. ETBSc17: 196 Module mit 910 LP als Pflicht im Plan, ETMSc17 1452 LP,
+  MechBSc17 316 LP, EntMsc24 438 LP; jetzt Plätze. Eine Voraussetzung, die ein Wahlmodul ist, fehlt nie „im Plan“
+  (TI: „Software-Projekt: Voraussetzung Software-Qualität ist nicht im Plan“ entfällt).
+- **Kasten je offenem Platz** (iPad/Mac): „Wahlpflicht: <Bereich>“ bzw. „Wahlfach“, darunter der Name laut
+  Verlaufsplan („Proseminar · 5 LP“), was fehlt, und „Aus der Liste wählen“ (Module des Bereichs mit LP, Turnus,
+  Semester; Wahl speichert `electives` + `placements`).
+- **Bereits gemachtes Wahlfach**: eine QIS-Zeile, deren Titel wie eine Bereichszeile beginnt („Vertiefung der
+  Betriebssysteme“), gilt als Modul, wenn der Katalog sie kennt (vorher verschluckt). Nicht zugeordnete Leistungen unter
+  einer QIS-Bereichszeile, die einen aktiven Wahlbereich nennt („Kompetenzbereich Studium Generale“), stehen mit Stand
+  im Plan (`qis: true`, LP aus QIS), zählen im Bereich und belegen den nächstgelegenen freien Platz; alles andere bleibt
+  „nicht zugeordnet“. Anmeldungen der Info-Seite (nur iPad/Mac) erben keine Bereichszeile.
+- **Versuche** (`max_attempts` im Katalog bzw. je Modul, Vorgabe unbekannt): „letzter Versuch“ nur mit bekannter
+  Höchstzahl oder wenn QIS „letzter Versuch“ meldet; „endgültig“ nur aus QIS oder bei erreichter Höchstzahl.
+  `attempt_known`: ohne Versuchsspalte (z. B. LSF Hildesheim) zeigt die App keine Nummer („Nicht bestanden“,
+  Prüfungsanmeldung „Wiederholung“). Texte „Nicht bestanden · 2. Versuch“, „Angemeldet · 3. Versuch“, „Endgültig nicht
+  bestanden“; im Detail die Regel („Laut Prüfungsordnung höchstens 3 Versuche.“ bzw. „… StudiNow kennt die Zahl nicht“).
+- **Abgleich mit dem Online-Verlaufsplan** (TI und Informatik B.Sc., Verlaufspläne WS 2026/27, Prüfungsordnungen
+  f_techinf_bpo26.pdf / f_inform_bpo26.pdf, nur anonym gelesen): Akademisches Arbeiten = Pflichtmodule „Einführung in die
+  Informatik“ (1. Semester, bei Studienbeginn ab 1.10.2025, Feld `required_from`) und Proseminar (4./5. Semester), 10 LP;
+  § 14: zweimal wiederholen (3 Versuche, Bachelorarbeit 2). Eingetragen in `study-area-rules-luh.json` (dazu Maschinenbau
+  PO 2026), Grundstock neu gebaut (nur diese drei Kataloge geändert). Plan-Regeln: eine Voraussetzung, die der
+  Verlaufsplan selbst ins gleiche oder spätere Semester legt, ist nur eine Empfehlung (INF: Logik und formale Systeme
+  bleibt im 2. Semester); hat der Verlaufsplan Plätze für alle Bereiche einer Gruppe, gibt es keinen eigenen Platz
+  „Nebenfach wählen“. Ergebnis: Semester-LP wie online (TI 28/28/31/30/30/30, INF 6 × 30).
