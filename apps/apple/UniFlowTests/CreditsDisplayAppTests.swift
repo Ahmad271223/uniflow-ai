@@ -206,7 +206,7 @@ final class CreditsDisplayAppTests: XCTestCase {
 
     func testSettingsExplanationIsHonestAndShort() {
         let t = StudoraCreditsRow.explanation
-        XCTAssertTrue(t.contains("0,9 Cent"), "1 Credit = 0,9 Cent wie der Dienst (Entscheidung 08.11.2026)")
+        XCTAssertFalse(t.contains("Cent"), "kein Centbetrag fuer Nutzer (Entscheidung 11.11.2026)")
         XCTAssertFalse(t.contains("1 Credit ist 1 Cent"))
         XCTAssertTrue(t.contains("100"))
         XCTAssertTrue(t.contains("25"))

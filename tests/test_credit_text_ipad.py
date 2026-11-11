@@ -22,5 +22,6 @@ def test_service_values_one_credit_at_point_nine_cent():
 def test_app_text_names_point_nine_cent_not_one_cent():
     text = explanation()
     assert "1 Credit ist 1 Cent" not in text
-    assert "0,9 Cent" in text
-    assert "Pro AI hat 100" in text and "Probewoche 25" in text
+    # seit 11.11.2026 nennt die App keinen Centbetrag mehr (Entscheidung des Inhabers); der Dienst rechnet weiter so
+    assert "Cent" not in text
+    assert "Pro AI hat 100 Credits" in text and "Probewoche 25" in text
