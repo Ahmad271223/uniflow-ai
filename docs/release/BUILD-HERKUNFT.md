@@ -5,8 +5,8 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 32 (Version 1.0.2, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.2
-mit Build 31 aus `0324eb3d` (seit 10.11.2026 20:45). Veröffentlicht: Version 1.0.1 mit Build 30 (10.11.2026).
+Aktueller Stand in project.yml: Build 33 (Version 1.0.2, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.2
+mit Build 31 aus `0324eb3d` (seit 10.11.2026 20:45), soll durch Build 32 (`95943d32`) ersetzt werden. Veröffentlicht: Version 1.0.1 mit Build 30.
 
 ## Builds
 
@@ -27,7 +27,8 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 29 | – | 09.11.2026 | nie gebaut und nie hochgeladen: interner Stand auf develop (Build 28 plus Mac-Parität, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen); nicht in Build 30, Inhalt steckt in Build 31 | docs/paritaet/MAC-B28-2026-11-09.md, COMMUNITY-UND-ABGLEICH-2026-11-09.md |
 | 30 | `3b81464a` | 10.11.2026 00:03 | veröffentlicht: Version 1.0.1, von Apple freigegeben und am 10.11.2026 vom Inhaber veröffentlicht (READY_FOR_DISTRIBUTION; vorher WAITING_FOR_REVIEW seit 10.11.2026 00:27), zugleich TestFlight; hochgeladen 10.11.2026 00:06 vom Zweig `release/1.0-b30`; Freigabe von Hand | Build 28 (`7d1a8fb3`) plus nur Jahresabos (Plus 19,99 €, Pro AI 39,99 € im Jahr, keine Monatsabos mehr) und Credit-Text 0,9 Cent, sonst nichts; docs/release/ABO-NUR-JAHR-2026-11-09.md |
 | 31 | `0324eb3d` | 10.11.2026 19:28 | eingereicht: Version 1.0.2, App Store WAITING_FOR_REVIEW seit 10.11.2026 20:45, Freigabe von Hand; TestFlight intern, Gruppe „LUH-Tester“ in der TestFlight-Beta-Prüfung | Build 30 plus Mac-Parität und Mac-Bedienung, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen; QIS (angemeldete Prüfungen, Bescheinigungen mit abgelaufener Anmeldung); Lernblöcke nur in freier Zeit; Antwort auf die Übungsfrage für jedes Vorkommen; Uni-Zugang einmal speichern („überall gleich“ oder je Portal); ein Sync für Stud.IP, QIS und Uni-Mail; Wochenkopf ohne Umbruch des Datums; „Nachrichten“ mit Sprechblase statt zweitem Brief |
-| 32 | – | 10.11.2026 | noch nicht hochgeladen; develop nach Build 31 | Änderungen nach `0324eb3d` |
+| 32 | `95943d32` | 11.11.2026 | hochgeladen (TestFlight), Version 1.0.2, LUH-Tester in der Beta-Prüfung; soll Build 31 in der wartenden 1.0.2-Einreichung ersetzen (Entscheidung des Inhabers 11.11.2026), erst nach seiner Prüfung am iPad | Build 31 plus Mac-Version (Tastatur/Maus, eigenes Fenster, Präsentieren), Editor (Suche in Notizen, Bilder, ein Lasso, Schreiblupe), Benachrichtigungen bei Noten/Nachrichten, Erinnerungen ab Plus, kein Centbetrag bei Credits, Studienverlauf zählt angemeldete Prüfungen und Wahlfächer, Versuche ehrlich, QIS-Anmeldung im Sync und Bescheinigungsliste, schnellerer Sync, PDF-Absturz (iPadOS 26.5) entschärft, KI-Stopp und ziehbare KI-Leiste, Import in Ordner, Listenansicht |
+| 33 | – | 11.11.2026 | noch nicht hochgeladen; develop nach Build 32 (geplant: iPhone) | Änderungen nach `95943d32` |
 
 ### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
 
