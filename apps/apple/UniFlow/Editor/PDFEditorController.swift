@@ -486,7 +486,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         if action == #selector(editorKey(_:)) { return acceptsEditorKeys }
         if let edit = canPerformEditAction(action) { return edit }
         if action == #selector(deleteSelectedObjects(_:)) { return acceptsEditorKeys && objects.selection != nil }
-        if action == #selector(finishObjectsKey(_:)) { return acceptsEditorKeys && objects.isActive }
+        if action == #selector(finishObjectsKey(_:)) { return presentationMode || (acceptsEditorKeys && objects.isActive) }
         return super.canPerformAction(action, withSender: sender)
     }
 
@@ -517,6 +517,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var onRequestImage: ((Bool) -> Void)?
     /// Schreiblupe (`WritingMagnifier.swift`), offen oder nil
     var magnifier: WritingMagnifier?
+    /// Mac: Farbe und Staerke aus dem Menue "Werkzeuge" (Apples Palette erscheint am Mac nicht, `EditorCommands.swift`)
+    var macInkStyle = MacInkStyle() {
+        didSet { if macInkStyle != oldValue { applyMacInkStyle() } }
+    }
     /// Praesentation (11.11.2026, `EditorPresentation.swift`): ohne Palette, ganze Seite, Tasten und Klicker blaettern
     /// seitenweise
     var presentationMode = false {
@@ -528,6 +532,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
     /// Groesse beim letzten Einpassen der Praesentation
     var presentedSize: CGSize = .zero
+    /// Esc in der Praesentation: die Dokumentansicht beendet sie
+    var onEndPresentation: (() -> Void)?
     var onMagnifierChange: ((Bool) -> Void)?
 
     var currentPageIndex: Int {
@@ -865,6 +871,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             loadContent(into: overlay)
         }
         live[index] = overlay
+        if Self.isMac {
+            mouseSupport.adoptContextMenu(of: overlay.canvas)               // falls PencilKit seine Ansicht neu anlegte
+            // im Objektmodus nimmt die Zeichenflaeche keine Eingabe an: dann trifft der Rechtsklick die Seite selbst
+            // (vorher kam das Textmenue der PDF statt dem der Textfelder und Formen)
+            mouseSupport.ensureContextMenu(on: overlay.content)
+        }
         return overlay
     }
 
@@ -928,8 +940,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let c = overlay.canvas
         c.drawingPolicy = drawingPolicy
         c.delegate = self
-        c.tool = canvasTool
+        c.tool = styledCanvasTool
         toolPicker.addObserver(c)
+        if Self.isMac { mouseSupport.adoptContextMenu(of: c) }   // Rechtsklick: unser Menue statt dem der Zeichenflaeche
         // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht)
         if writable && !presentationMode { toolPicker.setVisible(true, forFirstResponder: c) }
     }
@@ -1615,6 +1628,18 @@ extension PDFEditorController {
 
     nonisolated static func canvasKnows(_ t: PKTool) -> Bool { t is PKInkingTool || t is PKEraserTool || t is PKLassoTool }
 
+    /// Werkzeug fuer Zeichenflaechen mit der Mac-Farbe und -Staerke
+    var styledCanvasTool: PKTool { macInkStyle.apply(to: canvasTool) }
+
+    /// Mac: Farbe/Staerke auf alle Zeichenflaechen (und die Schreiblupe); auch fuer Text und Formen
+    func applyMacInkStyle() {
+        let tool = styledCanvasTool
+        if let ink = tool as? PKInkingTool { lastCanvasTool = ink }
+        for v in allOverlays { v.canvas.tool = tool }
+        magnifier?.syncTool()
+        if let hex = macInkStyle.color?.uniflowRGBA.hex { objects.color = hex }
+    }
+
     /// iPadOS 17 (alte Rueckmeldung); ab iPadOS 18 ruft PencilKit nur noch `toolPickerSelectedToolItemDidChange`
     func toolPickerSelectedToolDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged() }
 
@@ -1628,7 +1653,11 @@ extension PDFEditorController {
     /// - `initial`: beim Oeffnen steht die Palette immer auf einem Stift (sie merkt sich sonst ein Objektwerkzeug).
     func paletteSelectionChanged(initial: Bool = false) {
         guard !applyingPalette else { return }
-        defer { magnifier?.syncTool() }
+        defer {
+            magnifier?.syncTool()
+            // nach den Beobachtern der Palette (die setzen das Werkzeug der Zeichenflaechen selbst)
+            if Self.isMac, macInkStyle.isSet { DispatchQueue.main.async { [weak self] in self?.applyMacInkStyle() } }
+        }
         let selected = toolPicker.selectedTool
         if Self.canvasKnows(selected) { lastCanvasTool = selected }
         if #available(iOS 18.0, *) {

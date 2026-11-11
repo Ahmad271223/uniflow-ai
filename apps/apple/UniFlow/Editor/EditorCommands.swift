@@ -131,6 +131,32 @@ extension PDFEditorController {
     }
 }
 
+// MARK: - Farbe und Staerke am Mac
+
+/// Mac: Apples Werkzeugpalette erscheint dort nicht (gemessen 11.11.2026, macOS 26.6, "Designed for iPad"). Farbe und
+/// Staerke fuer Stift und Textmarker kommen deshalb aus dem Menue "Werkzeuge".
+struct MacInkStyle: Equatable {
+    var color: UIColor?
+    var width: CGFloat?
+
+    var isSet: Bool { color != nil || width != nil }
+
+    /// Stift bzw. Textmarker mit dieser Farbe/Staerke (Radierer und Lasso bleiben)
+    func apply(to tool: PKTool) -> PKTool {
+        guard isSet, let ink = tool as? PKInkingTool else { return tool }
+        let base = ink.inkType == .marker ? (color ?? ink.color).withAlphaComponent(1) : (color ?? ink.color)
+        let w = width.map { ink.inkType == .marker ? $0 * 4 : $0 } ?? ink.width
+        return PKInkingTool(ink.inkType, color: base, width: w)
+    }
+
+    static let colors: [(title: String, color: UIColor)] = [
+        ("Schwarz", .black), ("Blau", UIColor(red: 0.12, green: 0.35, blue: 0.85, alpha: 1)),
+        ("Rot", UIColor(red: 0.85, green: 0.15, blue: 0.15, alpha: 1)), ("Grün", UIColor(red: 0.1, green: 0.55, blue: 0.25, alpha: 1)),
+        ("Orange", UIColor(red: 0.95, green: 0.55, blue: 0.1, alpha: 1)), ("Gelb", UIColor(red: 1, green: 0.85, blue: 0.1, alpha: 1)),
+    ]
+    static let widths: [(title: String, width: CGFloat)] = [("Fein", 1.5), ("Mittel", 3), ("Dick", 6)]
+}
+
 // MARK: - Menueleiste
 
 /// Menues "Dokument" und "Werkzeuge" sowie "Sichern" und "Drucken" im Menue "Ablage". Ohne offenes Dokument sind sie
@@ -183,6 +209,19 @@ struct EditorCommands: Commands {
                 }
                 Divider()
                 Button("Objekte fertig") { bridge?.finishObjectTools() }
+                if PDFEditorController.isMac {
+                    Divider()
+                    Menu("Farbe") {
+                        ForEach(MacInkStyle.colors, id: \.title) { c in
+                            Button(c.title) { bridge?.controller?.macInkStyle.color = c.color }
+                        }
+                    }
+                    Menu("Strichstärke") {
+                        ForEach(MacInkStyle.widths, id: \.title) { w in
+                            Button(w.title) { bridge?.controller?.macInkStyle.width = w.width }
+                        }
+                    }
+                }
             }
             .disabled(bridge == nil)
         }

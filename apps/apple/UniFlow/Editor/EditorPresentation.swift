@@ -15,10 +15,13 @@ extension PDFEditorController {
             showToolPicker(false)
             fitPage()
         } else {
+            let page = pdfView.currentPage
             restoreZoomLimits()
             for v in allOverlays where writable { toolPicker.setVisible(true, forFirstResponder: v.canvas) }
             showToolPicker(pickerAllowed)
             fitWidth()
+            // zurueck auf Seitenbreite: dieselbe Seite oben zeigen (sonst stand die Ansicht mitten in ihrem leeren Teil)
+            if let page { DispatchQueue.main.async { [weak self] in self?.pdfView.go(to: page) } }
         }
     }
 

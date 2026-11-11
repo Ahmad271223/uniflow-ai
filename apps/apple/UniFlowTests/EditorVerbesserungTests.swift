@@ -365,6 +365,14 @@ final class EditorVerbesserungTests: XCTestCase {
 
     // MARK: Schreiblupe
 
+    /// Rahmen dreifach gegenueber der Anzeige: bei 2-fachem Zoom halb so breit wie ohne Zoom
+    func testMagnifierFrameFollowsZoom() {
+        let strip = CGSize(width: 900, height: 190)
+        let plain = WritingMagnifier.regionSize(stripSize: strip, zoom: WritingMagnifier.zoom * 1)
+        let zoomed = WritingMagnifier.regionSize(stripSize: strip, zoom: WritingMagnifier.zoom * 2)
+        XCTAssertEqual(zoomed.width, plain.width / 2, accuracy: 0.01)
+    }
+
     func testMagnifierGeometry() {
         let size = WritingMagnifier.regionSize(stripSize: CGSize(width: 900, height: 190))
         XCTAssertEqual(size.width, 300, accuracy: 0.01)
@@ -391,8 +399,8 @@ final class EditorVerbesserungTests: XCTestCase {
         editor.view.layoutIfNeeded()
         let strip = m.canvas.bounds.size
         XCTAssertGreaterThan(strip.width, 100)
+        // ohne Aufruf von `transfer`: die Meldung "Zeichnung geaendert" reicht (am Mac fehlte "Werkzeug fertig")
         m.canvas.drawing = PKDrawing(strokes: [Self.line(from: CGPoint(x: 10, y: 10), to: CGPoint(x: strip.width * 0.4, y: 20))])
-        m.transfer()
         try await wait("uebertragen") { overlay.canvas.drawing.strokes.count == 1 }
         XCTAssertTrue(m.canvas.drawing.strokes.isEmpty, "Streifen wieder leer")
         let b = overlay.canvas.drawing.strokes[0].renderBounds
@@ -476,8 +484,46 @@ final class EditorVerbesserungTests: XCTestCase {
         let before = editor.currentPageIndex
         editor.perform(PDFEditorController.presentationCommand(.screenDown), animated: false)
         try await wait("naechste Seite") { editor.currentPageIndex == before + 1 }
+        // Esc beendet die Praesentation (ueber die Dokumentansicht)
+        var ended = false
+        editor.onEndPresentation = { ended = true }
+        XCTAssertTrue(editor.canPerformAction(#selector(PDFEditorController.finishObjectsKey(_:)), withSender: nil))
+        editor.finishObjectsKey(nil)
+        XCTAssertTrue(ended, "Esc meldet das Ende der Praesentation")
         editor.presentationMode = false
         XCTAssertTrue(editor.pickerAllowed)
         XCTAssertEqual(editor.pdfView.scaleFactor, widthFit, accuracy: 0.01, "zurueck auf Seitenbreite")
+    }
+
+    // MARK: Mac: Farbe/Staerke und Rechtsklick (11.11.2026)
+
+    func testMacInkStyleChangesInkButKeepsEraser() {
+        var style = MacInkStyle()
+        let pen = PKInkingTool(.pen, color: .black, width: 2)
+        XCTAssertEqual(style.apply(to: pen) as? PKInkingTool, pen, "ohne Wahl unveraendert")
+        style.color = .red
+        style.width = 6
+        let styled = style.apply(to: pen) as? PKInkingTool
+        XCTAssertEqual(styled?.width ?? 0, 6, accuracy: 0.5)
+        XCTAssertTrue(styled?.color.isEqual(UIColor.red) == true || styled?.color.cgColor.components?.first ?? 0 > 0.9)
+        XCTAssertTrue(style.apply(to: PKEraserTool(.vector)) is PKEraserTool, "Radierer bleibt")
+    }
+
+    /// Eine Zeichenflaeche mit Rechtsklick-Menue von PencilKit bekommt am Mac unseres an dessen Stelle
+    func testContextMenuIsAdoptedOnCanvas() {
+        let (canvas, inner) = (UIView(), UIView())
+        canvas.addSubview(inner)
+        final class BridgedContextMenuFake: NSObject, UIInteraction {
+            weak var view: UIView?
+            func willMove(to view: UIView?) {}
+            func didMove(to view: UIView?) { self.view = view }
+        }
+        inner.addInteraction(BridgedContextMenuFake())
+        let support = EditorMouseSupport(controller: PDFEditorController(store: DocumentStore(file: LibFile(id: "x", name: "x", title: "x", kind: "pdf", module_id: nil, subject: nil, doc_type: nil, ai_title: nil, sub_label: nil, downloaded_at: nil, has_notes: nil, page_count: 1, studip_folder: nil), api: APIClient(base: APIClient.localBase, transport: LocalTransport(host: LocalBackendHost(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString), clock: .fixed(berlin: "2026-11-11T09:00:00")!))), root: FileManager.default.temporaryDirectory)))
+        support.adoptContextMenu(of: canvas)
+        XCTAssertFalse(inner.interactions.contains { String(describing: type(of: $0)).contains("BridgedContextMenu") }, "Menue von PencilKit weg")
+        XCTAssertTrue(inner.interactions.contains { ($0 as? UIContextMenuInteraction)?.delegate === support }, "unseres da")
+        support.adoptContextMenu(of: canvas)
+        XCTAssertEqual(inner.interactions.filter { $0 is UIContextMenuInteraction }.count, 1, "nicht doppelt")
     }
 }

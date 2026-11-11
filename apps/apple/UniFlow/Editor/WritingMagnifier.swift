@@ -25,6 +25,8 @@ final class WritingMagnifier: NSObject, PKCanvasViewDelegate {
     static let zoom: CGFloat = 3
     /// So weit rechts (Anteil der Streifenbreite) beginnt das automatische Weiterruecken
     static let advanceAt: CGFloat = 0.82
+    /// Streifen wird gerade geleert (keine erneute Uebertragung)
+    private var transferring = false
 
     init(controller: PDFEditorController, key: String, region: CGRect) {
         self.controller = controller
@@ -159,7 +161,7 @@ final class WritingMagnifier: NSObject, PKCanvasViewDelegate {
     /// Werkzeug der Palette, solange es schreibt (Stift, Textmarker); sonst nimmt der Streifen nichts an
     func syncTool() {
         guard let c = controller else { return }
-        let tool = c.canvasTool
+        let tool = c.styledCanvasTool
         let writes = tool is PKInkingTool && !c.objects.isActive
         if writes { canvas.tool = tool }
         canvas.isUserInteractionEnabled = writes && c.writable
@@ -177,13 +179,22 @@ final class WritingMagnifier: NSObject, PKCanvasViewDelegate {
 
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) { transfer() }
 
+    /// Auch ohne "Werkzeug fertig" (am Mac mit Maus und Trackpad kam es im Test nicht immer): PencilKit meldet die
+    /// Aenderung erst, wenn der Strich fertig ist, also gleich uebertragen
+    func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+        guard !transferring, !canvasView.drawing.strokes.isEmpty else { return }
+        transfer()
+    }
+
     /// Alles im Streifen Geschriebene auf die Seite (ein Rueckgaengig-Schritt), Streifen leeren; am rechten Rand weiter
     func transfer() {
-        guard let c = controller, !canvas.drawing.strokes.isEmpty else { return }
+        guard let c = controller, !transferring, !canvas.drawing.strokes.isEmpty else { return }
         let strokes = canvas.drawing.strokes
         let rightEdge = canvas.drawing.bounds.maxX
         let t = Self.pageTransform(strip: canvas.bounds.size, region: region)
+        transferring = true
         canvas.drawing = PKDrawing()
+        transferring = false
         let key = self.key
         Task {
             let before = await c.inkDrawing(forKey: key)
@@ -210,7 +221,10 @@ extension PDFEditorController {
         }
         guard magnifier == nil, let key = currentPageKey, let overlay = boundOverlay(forKey: key) else { return }
         let stripWidth = max(320, view.bounds.width - 90)
-        let size = WritingMagnifier.regionSize(stripSize: CGSize(width: stripWidth, height: WritingMagnifier.panelHeight - 40))
+        // dreifach gegenueber der Anzeige: der aktuelle Zoom der Seite zaehlt mit (vorher dreifach gegenueber Seitenpunkten;
+        // bei 230 % Zoom vergroesserte der Streifen kaum, der Rahmen war fast so breit wie das Fenster)
+        let size = WritingMagnifier.regionSize(stripSize: CGSize(width: stripWidth, height: WritingMagnifier.panelHeight - 40),
+                                               zoom: WritingMagnifier.zoom * max(0.5, pdfView.scaleFactor))
         // Rahmen links oben im sichtbaren Teil der Seite
         let visible = pdfView.convert(pdfView.bounds, to: overlay.content).intersection(overlay.content.bounds)
         let top = visible.isNull ? 40 : visible.minY + 40
