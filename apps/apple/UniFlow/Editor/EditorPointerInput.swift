@@ -183,6 +183,9 @@ extension PDFEditorController {
     }
 
     @objc func finishObjectsKey(_ sender: Any?) {
+        // Praesentation: Esc beendet sie (die Taste kaeme sonst nie beim Knopf "Beenden" an, gefunden am Mac 11.11.2026)
+        // nur am Mac (Vorgabe 11.11.2026: am iPad bleibt alles wie in baddff02)
+        if Self.isMac, presentationMode { onEndPresentation?(); return }
         guard acceptsEditorKeys, objects.isActive else { return }
         if objects.selection != nil { objects.clearSelection() } else { finishObjectTools() }
     }

@@ -93,7 +93,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .uniGrades: return "Uni & Noten"
         case .ownChatGPT: return "Eigenes ChatGPT verbinden"
         case .communityRead: return "Community lesen, beitreten und mitmachen"
-        case .pencilWriting: return "Schreiben mit Apple Pencil"
+        case .pencilWriting: return UFDevice.adapt("Schreiben mit Apple Pencil")
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
@@ -280,7 +280,7 @@ enum UFPlanCard {
         guard UFFeatureMatrix.hasAvailableExtras(in: plan) else { return nil }
         switch plan {
         case .free: return plan.tagline
-        case .plus: return "Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community"
+        case .plus: return UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
         case .proAI: return "Die StudiNow-KI für deine Unterlagen inklusive"
         }
     }

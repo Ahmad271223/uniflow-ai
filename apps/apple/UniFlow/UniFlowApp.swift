@@ -228,7 +228,7 @@ struct UniFlowApp: App {
             // die Frage erscheint einmal, im zuletzt aktiven Fenster
             guard let source = background.loginReminderSource(), let scene = scenes.active else { return }
             background.markLoginAsked()
-            if await scene.overlay.confirm("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.") {
+            if await scene.overlay.confirm(UFDevice.adapt("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.")) {
                 scene.router.go(.settings(tab: "account"))
             }
         }

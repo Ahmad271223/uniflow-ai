@@ -365,6 +365,20 @@ final class EditorVerbesserungTests: XCTestCase {
 
     // MARK: Schreiblupe
 
+    /// Am iPad bleibt die Vergroesserung wie in baddff02, am Mac zaehlt der Zoom der Seite mit
+    func testMagnifierZoomOnlyFollowsDisplayOnMac() {
+        XCTAssertEqual(WritingMagnifier.macZoom(scaleFactor: 2.3, isMac: false), WritingMagnifier.zoom, "iPad unveraendert")
+        XCTAssertEqual(WritingMagnifier.macZoom(scaleFactor: 2.3, isMac: true), WritingMagnifier.zoom * 2.3, accuracy: 0.001)
+    }
+
+    /// Rahmen dreifach gegenueber der Anzeige: bei 2-fachem Zoom halb so breit wie ohne Zoom
+    func testMagnifierFrameFollowsZoom() {
+        let strip = CGSize(width: 900, height: 190)
+        let plain = WritingMagnifier.regionSize(stripSize: strip, zoom: WritingMagnifier.zoom * 1)
+        let zoomed = WritingMagnifier.regionSize(stripSize: strip, zoom: WritingMagnifier.zoom * 2)
+        XCTAssertEqual(zoomed.width, plain.width / 2, accuracy: 0.01)
+    }
+
     func testMagnifierGeometry() {
         let size = WritingMagnifier.regionSize(stripSize: CGSize(width: 900, height: 190))
         XCTAssertEqual(size.width, 300, accuracy: 0.01)
@@ -391,8 +405,12 @@ final class EditorVerbesserungTests: XCTestCase {
         editor.view.layoutIfNeeded()
         let strip = m.canvas.bounds.size
         XCTAssertGreaterThan(strip.width, 100)
+        // am Mac reicht die Meldung "Zeichnung geaendert" (dort fehlte "Werkzeug fertig"); am iPad wie bisher `transfer`
         m.canvas.drawing = PKDrawing(strokes: [Self.line(from: CGPoint(x: 10, y: 10), to: CGPoint(x: strip.width * 0.4, y: 20))])
-        m.transfer()
+        if !PDFEditorController.isMac {
+            XCTAssertEqual(m.canvas.drawing.strokes.count, 1, "iPad: Streifen wartet auf \"Werkzeug fertig\"")
+            m.transfer()
+        }
         try await wait("uebertragen") { overlay.canvas.drawing.strokes.count == 1 }
         XCTAssertTrue(m.canvas.drawing.strokes.isEmpty, "Streifen wieder leer")
         let b = overlay.canvas.drawing.strokes[0].renderBounds
@@ -422,6 +440,11 @@ final class EditorVerbesserungTests: XCTestCase {
         XCTAssertEqual(UFDevice.adapt("im Schlüsselbund dieses iPads", mac: true), "im Schlüsselbund dieses Macs")
         XCTAssertEqual(UFDevice.adapt("direkt auf dein iPad.", mac: true), "direkt auf deinen Mac.")
         XCTAssertEqual(UFDevice.adapt("Bleibt auf diesem iPad.", mac: false), "Bleibt auf diesem iPad.", "iPad unveraendert")
+        // Mac ohne Apple Pencil, Passwoerter ueber die Passwoerter-App (Handpruefung 11.11.2026)
+        XCTAssertEqual(UFDevice.adapt("Schreiben mit Apple Pencil", mac: true), "Schreiben mit Maus oder Trackpad")
+        XCTAssertEqual(UFDevice.adapt("Auch iOS kann es einsetzen (Schlüssel-Symbol über der Tastatur).", mac: true),
+                       "Auch die Passwörter-App des Mac kann es einsetzen.")
+        XCTAssertEqual(UFDevice.adapt("Schreiben mit Apple Pencil", mac: false), "Schreiben mit Apple Pencil", "iPad unveraendert")
     }
 
     // MARK: Eigenes Fenster und Praesentation (11.11.2026)
@@ -476,8 +499,56 @@ final class EditorVerbesserungTests: XCTestCase {
         let before = editor.currentPageIndex
         editor.perform(PDFEditorController.presentationCommand(.screenDown), animated: false)
         try await wait("naechste Seite") { editor.currentPageIndex == before + 1 }
+        // Esc beendet die Praesentation (ueber die Dokumentansicht)
+        // nur am Mac (Vorgabe 11.11.2026: am iPad unveraendert wie in baddff02)
+        var ended = false
+        editor.onEndPresentation = { ended = true }
+        XCTAssertEqual(editor.canPerformAction(#selector(PDFEditorController.finishObjectsKey(_:)), withSender: nil), PDFEditorController.isMac)
+        editor.finishObjectsKey(nil)
+        XCTAssertEqual(ended, PDFEditorController.isMac, "Esc beendet die Praesentation nur am Mac")
         editor.presentationMode = false
         XCTAssertTrue(editor.pickerAllowed)
         XCTAssertEqual(editor.pdfView.scaleFactor, widthFit, accuracy: 0.01, "zurueck auf Seitenbreite")
+    }
+
+    // MARK: Mac: Farbe/Staerke und Rechtsklick (11.11.2026)
+
+    func testMacInkStyleChangesInkButKeepsEraser() {
+        var style = MacInkStyle()
+        let pen = PKInkingTool(.pen, color: .black, width: 2)
+        XCTAssertEqual(style.apply(to: pen) as? PKInkingTool, pen, "ohne Wahl unveraendert")
+        style.color = .red
+        style.width = 6
+        let styled = style.apply(to: pen) as? PKInkingTool
+        XCTAssertEqual(styled?.width ?? 0, 6, accuracy: 0.5)
+        XCTAssertTrue(styled?.color.isEqual(UIColor.red) == true || styled?.color.cgColor.components?.first ?? 0 > 0.9)
+        XCTAssertTrue(style.apply(to: PKEraserTool(.vector)) is PKEraserTool, "Radierer bleibt")
+    }
+
+    /// Eine Zeichenflaeche mit Rechtsklick-Menue von PencilKit bekommt am Mac unseres an dessen Stelle
+    func testContextMenuIsAdoptedOnCanvas() {
+        let (canvas, inner) = (UIView(), UIView())
+        canvas.addSubview(inner)
+        final class BridgedContextMenuFake: NSObject, UIInteraction {
+            weak var view: UIView?
+            func willMove(to view: UIView?) {}
+            func didMove(to view: UIView?) { self.view = view }
+        }
+        inner.addInteraction(BridgedContextMenuFake())
+        let support = EditorMouseSupport(controller: PDFEditorController(store: DocumentStore(file: LibFile(id: "x", name: "x", title: "x", kind: "pdf", module_id: nil, subject: nil, doc_type: nil, ai_title: nil, sub_label: nil, downloaded_at: nil, has_notes: nil, page_count: 1, studip_folder: nil), api: APIClient(base: APIClient.localBase, transport: LocalTransport(host: LocalBackendHost(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString), clock: .fixed(berlin: "2026-11-11T09:00:00")!))), root: FileManager.default.temporaryDirectory)))
+        support.adoptContextMenu(of: canvas)
+        XCTAssertFalse(inner.interactions.contains { String(describing: type(of: $0)).contains("BridgedContextMenu") }, "Menue von PencilKit weg")
+        XCTAssertTrue(inner.interactions.contains { ($0 as? UIContextMenuInteraction)?.delegate === support }, "unseres da")
+        support.adoptContextMenu(of: canvas)
+        XCTAssertEqual(inner.interactions.filter { $0 is UIContextMenuInteraction }.count, 1, "nicht doppelt")
+    }
+
+    // MARK: "Plus holen" (11.11.2026, auch am iPad)
+
+    /// "Plus holen" oeffnet die Tarifwahl – nicht den Reiter "plan" (das ist der Lernplan), am iPad wie am Mac
+    func testUpgradeButtonOpensThePlansOnIPadAndMac() {
+        XCTAssertEqual(UFSidebar.upgradeTarget(hasShowPlans: false, hasSwitchPlan: true), .switchPlan, "iPad und Mac: Tarifwahl")
+        XCTAssertEqual(UFSidebar.upgradeTarget(hasShowPlans: true, hasSwitchPlan: true), .showPlans, "Rahmen gewinnt")
+        XCTAssertEqual(UFSidebar.upgradeTarget(hasShowPlans: false, hasSwitchPlan: false), .settingsPlanTab, "Rueckfall")
     }
 }

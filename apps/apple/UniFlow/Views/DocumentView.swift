@@ -150,7 +150,7 @@ enum ExportPurpose: Equatable {
 
 /// Befehl aus der Menueleiste bzw. per Tastenkuerzel an das offene Dokument (`EditorCommands`)
 struct EditorMenuRequest: Equatable {
-    enum Kind: Equatable { case search, goToPage, save, print, share, photo, imageFile, magnifier, present, newWindow }
+    enum Kind: Equatable { case search, goToPage, save, print, share, photo, imageFile, magnifier, present, endPresentation, newWindow }
     let id = UUID()
     let kind: Kind
 }
@@ -612,7 +612,8 @@ struct DocumentView: View {
             bridge.controller?.presentationMode = on
         }
         .defersSystemGestures(on: tracing ? .all : [])
-        .preference(key: EditorTracingKey.self, value: tracing)
+        // Reiterleiste der offenen Dokumente aus: beim Abpausen und in der Praesentation
+        .preference(key: EditorTracingKey.self, value: PDFEditorController.isMac ? chromeHidden : tracing)
         .background {
             // Cmd-L: Ansicht fixieren bzw. loesen (beim Abpausen ohne Wirkung)
             Button("") { requestFreeze(.view) }
@@ -1689,6 +1690,7 @@ struct DocumentView: View {
         case .imageFile: if canWrite && ownNotesVisible { pickingImageFile = true }
         case .magnifier: if canWrite && ownNotesVisible { bridge.toggleMagnifier() }
         case .present: presenting.toggle()
+        case .endPresentation: presenting = false
         case .newWindow: if DocumentWindows.supported, !readOnly { openInNewWindow() }
         }
     }
@@ -2625,6 +2627,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.onFlashcardFromSelection = { [weak bridge] text in bridge?.makeFlashcard(text) }
         vc.onRequestImage = { [weak bridge] fromFiles in bridge?.request(fromFiles ? .imageFile : .photo) }
         vc.onMagnifierChange = { [weak bridge] on in bridge?.magnifierOpen = on }
+        vc.onEndPresentation = { [weak bridge] in bridge?.request(.endPresentation) }
         vc.traceContrast = traceContrast
         vc.freezeMode = freezeMode
         bridge.controller = vc

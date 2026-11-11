@@ -54,19 +54,54 @@ Schreiblupe, Mac-Texte).
 | Mac („Designed for iPad“): EditorVerbesserung, MacBedienung, EditorPalette, EditorFreeze, EditorStep6, EditorStepEFHK | 79 Tests, 2 übersprungen (Mac-Ausnahmen wie bisher), 0 Fehler | `~/Studora-Builds/verb-mac.log` |
 | Messung schnelles Blättern (`EditorScaleTests`) | grün, Werte oben | `~/Studora-Builds/verb-1.log` |
 
-## Mac-Prüfliste (11.11.2026)
+## Mac-Prüfliste (11.11.2026, von Hand mit Maus und Tastatur in der Testversion)
 
-| Punkt | Stand |
+Debug-Build als „Designed for iPad“ auf diesem Mac gestartet (Demo-Inhalte), mit echter Maus und echten Tasten bedient.
+
+| Punkt | Ergebnis |
 |---|---|
-| App als „Designed for iPad“ gebaut und gestartet | gebaut und gestartet (Debug, Demo); **Durchklicken nicht möglich**: der Zugriff auf das App-Fenster wurde am Mac abgelehnt, die App wurde wieder beendet |
-| Menüleiste, Tasten, Rechtsklick-Menü, Werkzeuge, Zwischenablage, Lasso, Bilder, Schreiblupe, Präsentation | per Test am Mac geprüft (Logik und Wirkung im echten Editor), nicht mit echter Maus |
-| Cmd-Z | Knopf mit Kurzbefehl seit `13a9c0c6`; von Hand **ungeprüft** |
-| Neues Fenster | Anfrage und Info.plist per Test geprüft; das Öffnen eines zweiten Fensters von Hand **ungeprüft** |
-| „Nachricht in Stud.IP“ (früherer Mac-Absturz) | `LecturersAppTests` am Mac grün |
-| Kauf/Wiederherstellen (Sandbox) | **ungeprüft** – braucht ein Sandbox-Konto des Inhabers |
-| Mit Apple anmelden | **ungeprüft** – braucht die Apple-ID des Inhabers |
-| Blätter ohne Schließen-Knopf (am Mac nicht wegwischbar) | **ungeprüft** |
-| Mac-Testumgebung | `AbnahmeV1AppTests.testLegacyItem…` scheitert am Mac mit Schlüsselbund-Fehler −25308 (Interaktion nicht erlaubt, Mac gesperrt); Umgebung, kein App-Fehler |
+| Menüleiste „Ablage“ (Neues Fenster, Als PDF sichern, Teilen, Drucken), „Dokument“, „Werkzeuge“ | da und wirksam |
+| Stift/Textmarker per Menü, Farbe und Strichstärke (neu am Mac, Apples Palette erscheint dort nicht) | Rot/dick und gelber Textmarker auf der Seite |
+| Zeichnen mit der Maus, Rückgängig (Menü und ⌘Z), Entf, ⌘W | geht |
+| Rechtsklick auf leere Stelle („Text hier“ usw.) und auf ein Textfeld (Ausschneiden … Nach hinten), Duplizieren | geht (vorher kam das Menü von PencilKit bzw. der PDF – behoben) |
+| Suche | Treffer, Sprung zur Seite |
+| Präsentation ⌥⌘P, Pfeil, Leertaste, Esc | geht (Esc kam vorher nicht an, Reiterleiste blieb sichtbar, danach leere Ansicht – behoben) |
+| Schreiblupe | geht mit echter Maus (vorher: Rahmen zu groß – behoben) |
+| In neuem Fenster öffnen (Menü und Symbol in „Daneben“) | zweites Fenster mit dem Dokument, beschreibbar |
+| Drucken | Mac-Druckdialog mit Vorschau samt Handschrift (abgebrochen) |
+| Als PDF sichern | Mac-Fenster „Sichern unter“ (abgebrochen) |
+| Fenster beim Neustart | werden wiederhergestellt; einmal kam dasselbe Dokument in zwei Fenstern, das zweite dann „nur ansehen“ (gewollter Schutz) |
+| Ziehen aus dem Finder | nur per Test geprüft (Finder-Zugriff nicht angefragt) |
+| Kauf/Wiederherstellen (Sandbox), Mit Apple anmelden | **ungeprüft** – Konten des Inhabers nötig |
+
+## Vorgabe ab 11.11.2026: iPad nicht anfassen
+
+Entscheidung des Inhabers: Am iPad ändert sich nichts mehr, nur Mac (und iPhone) kommen dazu. Die Demo bleibt, wie sie
+ist (Link auf der Uni-Anmeldeseite; ein Versuch „Demo nur über fünfmal Logo“ wurde verworfen). Die Korrekturen aus der
+Mac-Handprüfung wirken nur am Mac (`PDFEditorController.isMac`): Rechtsklick-Menü, Farbe/Strichstärke, Esc beendet die
+Präsentation, Reiterleiste in der Präsentation aus, Seite oben nach der Präsentation, Rahmen der Schreiblupe gegenüber
+der Anzeige, Übertragen der Schreiblupe ohne „Werkzeug fertig“. Am iPad verhalten sich diese Stellen wie im Commit
+`baddff02`.
+
+## Mac ohne Demo wie ein neuer Nutzer (11.11.2026)
+
+Debug-Build, Konto zurückgesetzt, keine Demo. Durchgeklickt: Begrüßung (Mac-Texte), „Mit Apple anmelden“ (Apples
+Fenster erscheint, abgebrochen), Tarifwahl, Hochschulwahl (LUH), Anmeldeseiten Stud.IP (LUH WebSSO), QIS und Uni-Mail
+(SOGo) laden in der App, Übersicht ohne Demo („Stud.IP verbinden“, echte Mensa), Einstellungen mit Karte „Uni-Zugang“
+(Felder, „Speichern“, „überall gleich“, „Schlüsselbund dieses Macs“), „Sync“ ohne Zugang meldet „Zuerst den Uni-Zugang
+… speichern“.
+
+Repariert, nur am Mac: Texte mit „Apple Pencil“ bzw. „iOS … Schlüssel-Symbol“ (jetzt Maus/Trackpad bzw. Passwörter-App
+des Mac, `UFDevice.adapt`); „Plus holen“ öffnete den Reiter „plan“ = Lernzeit statt der Tarife – am Mac jetzt die
+Tarifwahl. Auf Wunsch des Inhabers (11.11.2026, einzige Ausnahme von „iPad nicht anfassen“) gilt die Korrektur von
+„Plus holen“ auch am iPad (`UFSidebar.upgradeTarget`, Test `testUpgradeButtonOpensThePlansOnIPadAndMac`, am alten Stand
+rot).
+
+Schlüsselbund am Mac: `AbnahmeV1AppTests` (Schlüsselbund) am Mac grün; der frühere Fehler −25308 kam vom gesperrten Mac.
+
+Inhaber prüft mit eigenem Konto (TestFlight am Mac): Anmeldung Stud.IP/QIS/Uni-Mail mit LUH-ID (Tippen in die Felder),
+Uni-Zugang speichern und „Sync“ (Dateien, Noten, Mails), Mit Apple anmelden, Kauf und „Käufe wiederherstellen“ in der
+Sandbox (im Debug-Test fehlte Pro AI auf der Tarifseite: „konnte nicht geladen werden“).
 
 ## Von Hand prüfen (am iPad mit Pencil und am Mac)
 

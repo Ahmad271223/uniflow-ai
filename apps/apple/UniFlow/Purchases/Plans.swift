@@ -261,7 +261,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canUseBasicPlanner: return "Lernkalender und Lernplanung"
         case .canReadCommunity: return "Community lesen, beitreten und mitmachen"
         case .canAnnotatePDF: return "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder"
-        case .canUsePencilKit: return "Apple Pencil (PencilKit) und handschriftliche Notizen"
+        case .canUsePencilKit: return UFDevice.adapt("Apple Pencil (PencilKit) und handschriftliche Notizen")
         case .canWriteCommunityComments: return "Community-Kommentare schreiben"
         case .canShareSolutions: return "Eigene Lösungen teilen"
         case .canAccessSharedTests: return "Tests aus der StudiNow-Bibliothek"

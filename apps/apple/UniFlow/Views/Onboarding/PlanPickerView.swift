@@ -126,7 +126,7 @@ struct PlanPickerView: View {
     /// Zeile darunter (`trialStatus`)
     static func subtitle(proAI: Bool) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
-        s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
+        s += UFDevice.adapt("\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu")
         s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
