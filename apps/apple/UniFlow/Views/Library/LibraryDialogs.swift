@@ -81,6 +81,9 @@ struct LibraryNewDialog: View {
             let kind = importKind ?? "pdf"
             importKind = nil
             guard case .success(let urls) = result else { return }
+            // PDFs: Dialog "Wohin?" wie fuer Dateien von aussen (11.11.2026), vorgewaehlt der offene Ort; alle
+            // gewaehlten Dateien landen am selben Ort
+            if kind == "pdf" { Task { await stagePDFs(urls) }; return }
             // erst beim Hochladen lesen, eine Datei nach der anderen (vorher lagen alle gewaehlten Dateien zugleich im
             // Speicher, Pruefbericht 412); eine nicht lesbare zaehlt als fehlgeschlagen statt still zu fehlen
             let files = urls.map { url in
@@ -93,6 +96,21 @@ struct LibraryNewDialog: View {
             }
             Task { await upload(kind, files) }
         }
+    }
+
+    /// Gewaehlte PDFs pruefen und in den Container kopieren (abseits des Hauptthreads), dann "Wohin?"; nicht lesbare
+    /// bzw. keine PDF nennt die Meldung
+    private func stagePDFs(_ urls: [URL]) async {
+        var staged: [ExternalFileImport.Staged] = []
+        var failed: [String] = []
+        for url in urls {
+            do { staged.append(try await ExternalFileImport.stageDetached(url, kind: .pdf)) } catch {
+                failed.append("\(url.lastPathComponent) (\(ExternalFileImport.message(error)))")
+            }
+        }
+        close()
+        if !failed.isEmpty { toast.show(Self.importSummary(ok: 0, failed: failed), seconds: 6) }
+        ExternalImportInbox.receive(staged, overlay: overlay, preset: LibraryDropTarget.target(moduleID: moduleID, folderID: folderID))
     }
 
     /// prompt("Name des Ordners:", "Neuer Ordner") -> POST /api/folders; Fehler sichtbar (vorher try?)

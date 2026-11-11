@@ -4396,7 +4396,7 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
             size = {"w": w, "h": h} if (w and h) else ({"w": 842, "h": 595} if kind == "whiteboard" else {"w": 595, "h": 842})
             model = {"version": 2, "zoom": 1.2, "pages": {"b1": {"objects": []}}, "pageOrder": [{"key": "b1", "type": "blank", "template": template, **size}], "bookmarks": [], "outline": []}
             conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", (fid, json.dumps(model), db.now_iso()))
-        if module_id:
+        if module_id and not folder_id:     # mit gewaehltem Ordner bleibt das Dokument dort (11.11.2026)
             m = db.row(conn, "SELECT name FROM modules WHERE id=?", (int(module_id),))
             if m:
                 conn.execute("UPDATE files SET folder_id=COALESCE(folder_id, NULL) WHERE id=?", (fid,))

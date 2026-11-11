@@ -116,7 +116,7 @@ struct UniFlowApp: App {
                             return
                         }
                         // PDF oder ZIP von aussen (Dateien-App, Safari-Download, Mail: "Teilen" -> StudiNow; 07.11.2026):
-                        // pruefen und in den Container kopieren, dann "In welches Modul?"; eine ZIP oeffnet sich danach als
+                        // pruefen und in den Container kopieren, dann "Wohin?" (Modul, Ordner, neuer Ordner); eine ZIP oeffnet sich danach als
                         // Ordner, eine PDF im Editor (`ExternalFileImport`, Dateitypen in project.yml)
                         if let kind = ExternalFileImport.kind(of: url) {
                             guard containers.active != nil else {
@@ -129,7 +129,9 @@ struct UniFlowApp: App {
                                 defer { ExternalFileImport.discardSource(url) }
                                 do {
                                     let staged = try await ExternalFileImport.stageDetached(url, kind: kind)
-                                    overlay.modal { ExternalImportDialog(staged: staged) }
+                                    // "Wohin?" mit allen Orten der Bibliothek (11.11.2026); mehrere geteilte Dateien
+                                    // kommen einzeln an und landen im selben Dialog, vorgewaehlt der offene Ort
+                                    ExternalImportInbox.receive([staged], overlay: overlay, preset: ExternalImportInbox.preset(for: router.route))
                                 } catch {
                                     toast.show(ExternalFileImport.message(error), seconds: 5)
                                 }

@@ -132,6 +132,8 @@ enum DocumentTabs {
 
 struct LibraryView: View {
     @EnvironmentObject private var session: Session
+    /// Dialog "Wohin?" beim PDF-Import
+    @EnvironmentObject private var overlay: UFOverlay
     /// Ziele des Logos (setzt AppShell); ohne sie (Tests, alte Fassung) kein Zurueck
     @Environment(\.ufLogoMenu) private var logoMenu
     @State private var library: LibraryResponse?
@@ -404,22 +406,14 @@ struct LibraryView: View {
         }
     }
 
+    /// PDF aus "Dateien": pruefen, dann "Wohin?" wie fuer Dateien von aussen (11.11.2026; vorher immer ohne Ordner).
+    /// Nach dem Import oeffnet der Dialog das Dokument.
     private func importPDF(_ result: Result<URL, Error>) async {
-        guard let api = session.api else { return }
         do {
-            let url = try result.get()
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
-            guard data.starts(with: Array("%PDF".utf8)) else { importMessage = "Die Datei ist keine PDF."; return }
-            let title = url.deletingPathExtension().lastPathComponent
-            let created = try await api.upload("/api/notebooks", fields: ["kind": "pdf", "title": title],
-                                               fileField: "upload", fileName: url.lastPathComponent, mimeType: "application/pdf", data: data)
-            await load()
-            if let id = created["id"]?.string { fileSelection = id }
-            importMessage = "„\(title)“ wurde importiert."
+            let staged = try await ExternalFileImport.stageDetached(try result.get(), kind: .pdf)
+            ExternalImportInbox.receive([staged], overlay: overlay)
         } catch {
-            importMessage = "Import fehlgeschlagen: \(error.localizedDescription)"
+            importMessage = "Import fehlgeschlagen: \(ExternalFileImport.message(error))"
         }
     }
 }

@@ -243,12 +243,12 @@ final class ExternalImportAppTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let size = CGSize(width: 1032, height: 1376)
 
-        // Dialog "In welches Modul?" wie nach "Teilen" -> StudiNow: Beschriftungen direkt gehostet (der
+        // Dialog "Wohin?" wie nach "Teilen" -> StudiNow: Beschriftungen direkt gehostet (der
         // Bedienungshilfen-Baum eines Dialogs ueber der Abdunkelung ist im Test leer), Bild als Dialog ueber der Seite
         let direct = try hostWithEnvironment(ExternalImportDialog(staged: staged), api: api, size: size)
         direct.pump(1.5)
         let shownDialog = direct.labels().joined(separator: "\n")
-        for word in ["ZIP importieren", "Übungsblatt 03.zip", "In welches Modul?", "Importieren", "Abbrechen"] {
+        for word in ["ZIP importieren", "Übungsblatt 03.zip", "Wohin?", "Importieren", "Abbrechen"] {
             XCTAssertTrue(shownDialog.contains(word), "„\(word)“ fehlt:\n\(shownDialog)")
         }
         direct.window.isHidden = true
