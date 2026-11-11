@@ -560,7 +560,11 @@ struct DocumentView: View {
 
     private var isExercise: Bool { SplitSides.isExercise(store.file) }
 
-    var body: some View {
+    // `body` in Teilen, jeder endet mit `ufTypeCut` (Absturz Build 32: der Typ war 115 Ebenen tief, `ViewTypeCut`).
+    // Reihenfolge der Modifikatoren wie vorher: Inhalt mit Leisten, Dialoge und Blaetter, zuletzt Hinweise und Aufgaben.
+
+    /// Teil 1: Inhalt (PDF, Seitenleiste, KI-Hilfe, Spalte daneben), Leisten und Ueberlagerungen
+    private var documentChrome: AnyView {
         Group {
             if let error = store.errorMessage {
                 ContentUnavailableView("Dokument nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
@@ -638,6 +642,12 @@ struct DocumentView: View {
                 .opacity(0)
                 .accessibilityHidden(true)
         }
+        .ufTypeCut("DocumentView.chrome")
+    }
+
+    /// Teil 2: Fixieren, Suche, Menuebefehle, Bild einfuegen, Hinweis, Karteikarte, Vorlesungsmarker
+    private var documentPanels: AnyView {
+        documentChrome
         .ufModal(isPresented: Binding(get: { freezeIntroFor != nil }, set: { if !$0 { freezeIntroFor = nil } })) {
             FreezeIntroDialog(maxBrightness: $freezeMaxBrightness, contrast: $freezeContrast, start: { mode in
                 freezeIntroFor = nil
@@ -706,6 +716,12 @@ struct DocumentView: View {
         .alert("Vorlesung bis hier", isPresented: Binding(get: { markerNotice != nil }, set: { if !$0 { markerNotice = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(markerNotice ?? "") }
+        .ufTypeCut("DocumentView.panels")
+    }
+
+    /// Teil 3: Blaetter (Info, Papierkorb, Gliederung, Daneben, Loesungen, Abgabe, Export) und alte Fassung
+    private var documentSheets: AnyView {
+        documentPanels
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
         .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
         .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
@@ -764,6 +780,12 @@ struct DocumentView: View {
                 ActivityView(items: [f.url])
             }
         }
+        .ufTypeCut("DocumentView.sheets")
+    }
+
+    /// Teil 4: Eingaben, Seitenwechsel, Laden und Ende
+    var body: some View {
+        documentSheets
         .alert("Text hinzufügen", isPresented: $addingText) {
             TextField("Text", text: $newText)
             Button("Hinzufügen") {
@@ -854,7 +876,8 @@ struct DocumentView: View {
         }
     }
 
-    private var primaryPane: some View {
+    /// Hauptspalte mit der PDF; eigener Schnitt, sie steckt tief in Teil 1 (Seitenleiste, Teilung, KI-Hilfe)
+    private var primaryPane: AnyView {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                       toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
                       foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
@@ -894,6 +917,7 @@ struct DocumentView: View {
                     }
                 } }
             }
+            .ufTypeCut("DocumentView.primaryPane")
     }
 
     /// Hinweis nach einer neuen Original-Fassung mit Notizen (S7): uebernommen, welche Seiten zu pruefen sind, Weg zur
