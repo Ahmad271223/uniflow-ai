@@ -497,14 +497,16 @@ struct StudIPWebView: UIViewRepresentable {
 /// beim Uni-Login stehen bleibt (dort braeuchte es das Passwort) oder nach `timeout`.
 @MainActor
 enum StudIPSilentLogin {
-    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20) async -> [HTTPCookie]? {
+    /// `background`: aus dem Hintergrundlauf (Version 1.3/1.4): ohne Fenster, die Webansicht laeuft ausserhalb jeder Ansicht
+    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20, background: Bool = false) async -> [HTTPCookie]? {
         await UniWebSessions.ready(dataStore)                     // Uni-Anmeldung von vor dem Neustart zuerst zurueck
-        guard let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return nil }
+        let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
+        guard window != nil || background else { return nil }
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4), configuration: StudIPWebView.loginConfiguration(dataStore: dataStore))
         web.alpha = 0.01
         web.isUserInteractionEnabled = false
         web.accessibilityElementsHidden = true
-        window.addSubview(web)
+        window?.addSubview(web)
         defer {
             web.stopLoading()
             web.removeFromSuperview()

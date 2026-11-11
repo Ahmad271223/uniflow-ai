@@ -301,6 +301,34 @@ final class QISConnection: ObservableObject {
         return true
     }
 
+    // MARK: Hintergrund (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md)
+
+    /// Im Hintergrund hoechstens so oft den Notenspiegel abrufen (der Abruf beim Oeffnen bleibt bei 20 Stunden)
+    static let backgroundInterval: TimeInterval = 3600
+
+    /// Hintergrundlauf: abgelaufene QIS-Anmeldung still mit dem gespeicherten Uni-Zugang erneuern (nur dieses Geraet,
+    /// unsichtbar ohne Fenster). Anders als `autoLogin` startet sie keinen Abruf von selbst: den macht `backgroundCheck`.
+    @discardableResult
+    func reloginInBackground() async -> Bool {
+        guard isConnected, state == .needsLogin, !stopped, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
+                                                background: true) { url, html in QISConnection.isSignedInPage(url, html: html) }
+        guard d == .retryOnce, signOuts == before, isConnected, !stopped else { return false }
+        set(.connected)
+        Task { await UniWebSessions.save(self.websiteDataStore) }    // neue Sitzung ueber Neustarts merken
+        return true
+    }
+
+    /// Hintergrundlauf: Notenspiegel abrufen, wenn verbunden, angemeldet und der letzte Abruf mindestens
+    /// `backgroundInterval` zurueckliegt. Neue Noten erkennt der Hintergrundlauf am Vergleich der Datenbank.
+    @discardableResult
+    func backgroundCheck() async -> QISGradesSync.Report? {
+        guard isConnected, !stopped, !isRunning, state != .needsLogin else { return nil }
+        if let last = lastRun, clock.now.timeIntervalSince(last) < Self.backgroundInterval { return nil }
+        return await run(force: true)
+    }
+
     // MARK: Anzeige
 
     /// "QIS: 16:30 ok", "QIS: Anmeldung nötig" (Uhrzeit in Berlin; nicht von heute mit Datum)

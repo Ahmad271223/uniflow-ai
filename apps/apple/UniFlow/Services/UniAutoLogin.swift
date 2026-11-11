@@ -78,6 +78,9 @@ struct UniAutoLoginRequest {
     /// Erfolgsseite des Dienstes (z. B. QIS mit Abmelden-Link)
     let isDone: @MainActor (URL, String) async -> Bool
     var timeout: TimeInterval = 30
+    /// Hintergrundlauf (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md): ohne Fenster, die Webansicht laeuft unsichtbar
+    /// ausserhalb jeder Ansicht
+    var background = false
 }
 
 @MainActor
@@ -224,7 +227,10 @@ enum UniAutoLogin {
 
     /// Eine Quelle meldet "abgelaufen". Rueckgabe `.retryOnce`: still angemeldet, der Aufrufer wiederholt genau einmal;
     /// sonst bleibt es bei "Anmeldung nötig" (`UniAutoLoginMachine`).
-    static func handleExpiry(portal: String, store: WKWebsiteDataStore, entry url: URL, userAction: Bool = false,
+    /// `background`: der Hintergrundlauf fragt ausdruecklich (Version 1.3/1.4, nur nach `BackgroundReloginLedger` und mit
+    /// dem Schalter "Im Hintergrund neu anmelden"); dann auch ohne offene App, mit einer Webansicht ohne Fenster. Alle
+    /// anderen Regeln bleiben: nur mit Zustimmung und gespeichertem Zugang, nie mit einem abgelehnten Passwort.
+    static func handleExpiry(portal: String, store: WKWebsiteDataStore, entry url: URL, userAction: Bool = false, background: Bool = false,
                              isDone: @escaping @MainActor (URL, String) async -> Bool) async -> UniAutoLoginDecision {
         guard let e = entry(store), liveAllowed else { return .needsUser }
         if let running = e.running[portal] { return await running.value }
@@ -233,7 +239,7 @@ enum UniAutoLogin {
         let resolved = resolvedCredential(own, entry: e)
         var st = e.states[portal] ?? UniAutoLoginState()
         let d = UniAutoLoginMachine.expired(&st, enabled: isEnabled(e.defaults), hasCredential: resolved != nil,
-                                            appActive: appActive, signingOut: false, userAction: userAction, now: Date())
+                                            appActive: appActive || background, signingOut: false, userAction: userAction, now: Date())
         e.states[portal] = st
         guard d == .relogin, let resolved else { return d }
         let cred = resolved.credential, slot = resolved.slot
@@ -243,7 +249,8 @@ enum UniAutoLogin {
             // inzwischen abgemeldet, Passwort geloescht, ersetzt oder (bei einem anderen Dienst) abgelehnt: nichts tun
             guard let now = resolvedCredential(own, entry: e)?.credential, now == cred else { return .needsUser }
             attempts += 1
-            let request = UniAutoLoginRequest(portal: portal, university: e.university, store: store, entry: url, credential: cred, isDone: isDone)
+            var request = UniAutoLoginRequest(portal: portal, university: e.university, store: store, entry: url, credential: cred, isDone: isDone)
+            request.background = background
             let outcome: UniAutoLoginOutcome
             if let runner = runnerOverride { outcome = await runner(request) } else { outcome = await UniAutoLoginWeb.attempt(request) }
             let still = resolvedCredential(own, entry: e)?.credential == cred
@@ -360,15 +367,17 @@ enum UniAutoLoginWeb {
     static func attempt(_ r: UniAutoLoginRequest) async -> UniAutoLoginOutcome {
         await UniWebSessions.ready(r.store)
         let domains = UniWebSessions.domains(r.university)
-        guard UniAutoLoginFlow.allowed(r.entry, domains: domains),
-              let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return .failed }
+        guard UniAutoLoginFlow.allowed(r.entry, domains: domains) else { return .failed }
+        let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
+        // im Vordergrund nur mit Fenster (wie bisher); im Hintergrund ohne Fenster, falls keins da ist
+        guard window != nil || r.background else { return .failed }
         let delegate = Delegate(domains: domains)
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4), configuration: StudIPWebView.loginConfiguration(dataStore: r.store))
         web.navigationDelegate = delegate
         web.alpha = 0.01
         web.isUserInteractionEnabled = false
         web.accessibilityElementsHidden = true
-        window.addSubview(web)
+        window?.addSubview(web)
         defer {
             web.stopLoading()
             web.navigationDelegate = nil

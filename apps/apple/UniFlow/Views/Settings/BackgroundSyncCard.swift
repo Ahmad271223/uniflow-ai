@@ -31,8 +31,25 @@ struct BackgroundSyncCard: View {
     static func notifyText(_ university: UniversityKey?) -> String {
         let files = university == .hildesheim ? "Learnweb" : university == .hsh ? "Moodle" : "Stud.IP"
         let login = BackgroundNotice.loginNeeded([files])?.title ?? ""
-        return "Die Mitteilung nennt nur die Zahl, nie Dateinamen („3 neue Dateien aus \(files)“). Läuft die Anmeldung ab, kommt einmal „\(login)“ – im Hintergrund meldet sich StudiNow nie selbst an und benutzt keine gemerkten Zugangsdaten."
+        return "Die Mitteilung nennt nur die Zahl, nie Dateinamen („3 neue Dateien aus \(files)“). Läuft die Anmeldung ab, meldet StudiNow dich mit dem gespeicherten Uni-Zugang still neu an (falls gespeichert und unten erlaubt). Klappt das nicht, kommt einmal „\(login)“."
     }
+
+    /// Erklaerung unter den Mitteilungen zu Noten, Nachrichten und Ankuendigungen (Version 1.3/1.4)
+    static let newsText = "Jede Art hat einen eigenen Schalter. Stud.IP-Nachrichten nennen nur die Zahl, nie Absender oder Betreff. Neue Noten nennen das Modul; den Notenwert nur, wenn du es unten erlaubst – sonst stünde er auf dem Sperrbildschirm."
+
+    static func label(_ kind: BackgroundNewsKind) -> String {
+        switch kind {
+        case .grades: return "Neue Noten"
+        case .messages: return "Stud.IP-Nachrichten"
+        case .announcements: return "Ankündigungen"
+        }
+    }
+
+    /// Erklaerung unter "Im Hintergrund neu anmelden"
+    static let reloginText = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast. Er liegt nur im Schlüsselbund dieses Geräts und geht nie an einen Server von StudiNow. Höchstens ein Versuch je Dienst in 6 Stunden; ein abgelehntes Passwort wird gelöscht und nie erneut gesendet."
+
+    /// Am Mac ("Designed for iPad"): eigener Takt, solange die App laeuft
+    static let macText = "Am Mac gleicht StudiNow zusätzlich alle 20 bis 30 Minuten ab, solange die App geöffnet ist – auch wenn sie nicht vorn ist."
 
     static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
 
@@ -50,6 +67,9 @@ struct BackgroundSyncCard: View {
         @State private var notify = false
         @State private var asking = false
         @State private var hint: String?
+        @State private var newsOn: [BackgroundNewsKind: Bool] = [:]
+        @State private var gradeValue = false
+        @State private var relogin = true
 
         var body: some View {
             UFCard {
@@ -95,6 +115,29 @@ struct BackgroundSyncCard: View {
                         .accessibilityIdentifier("background.hint")
                 }
                 SettingsDivider().padding(.vertical, 12)
+                newsSection
+                SettingsDivider().padding(.vertical, 12)
+                Toggle(isOn: Binding(get: { relogin }, set: { v in
+                    relogin = v
+                    background.news.relogin = v
+                })) {
+                    Text("Im Hintergrund neu anmelden").ufFont(14.5, 550).foregroundStyle(UF.text)
+                }
+                .tint(UF.accent)
+                .disabled(!enabled)
+                .accessibilityIdentifier("background.relogin")
+                Text(BackgroundSyncCard.reloginText)
+                    .ufFont(12.8).foregroundStyle(UF.muted)
+                    .padding(.top, 4)
+                    .fixedSize(horizontal: false, vertical: true)
+                if MacBackgroundTicker.isMac {
+                    Text(BackgroundSyncCard.macText)
+                        .ufFont(12.8).foregroundStyle(UF.muted)
+                        .padding(.top, 8)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("background.mac")
+                }
+                SettingsDivider().padding(.vertical, 12)
                 // liest den Stand nach jedem Lauf neu (`revision`)
                 Text(BackgroundSyncCard.lastRunText(background.revision >= 0 ? background.lastRecord : nil, now: Date()))
                     .ufFont(13.12, 600).foregroundStyle(UF.text2)
@@ -113,6 +156,59 @@ struct BackgroundSyncCard: View {
             .onAppear {
                 enabled = background.settings.enabled
                 notify = background.settings.notify
+                for k in BackgroundNewsKind.allCases { newsOn[k] = background.news.isOn(k) }
+                gradeValue = background.news.gradeValue
+                relogin = background.news.relogin
+            }
+        }
+
+        /// Arten mit eigenem Schalter; Stud.IP-Nachrichten nur an Hochschulen mit Stud.IP
+        private var kinds: [BackgroundNewsKind] {
+            let studip = background.containers.key?.university.profile.studipBase != nil
+            return BackgroundNewsKind.allCases.filter { $0 != .messages || studip }
+        }
+
+        @ViewBuilder private var newsSection: some View {
+            Text("Mitteilungen").ufFont(13.12, 650).foregroundStyle(UF.text2)
+                .padding(.bottom, 4)
+            ForEach(kinds, id: \.self) { kind in
+                Toggle(isOn: Binding(get: { newsOn[kind] ?? false }, set: { v in setNews(kind, v) })) {
+                    Text(BackgroundSyncCard.label(kind)).ufFont(14.5, 550).foregroundStyle(UF.text)
+                }
+                .tint(UF.accent)
+                .disabled(!enabled || asking)
+                .accessibilityIdentifier("background.news.\(kind)")
+                if kind == .grades {
+                    Toggle(isOn: Binding(get: { gradeValue }, set: { v in
+                        gradeValue = v
+                        background.news.gradeValue = v
+                    })) {
+                        Text("Notenwert in der Mitteilung zeigen").ufFont(13.5, 500).foregroundStyle(UF.text2)
+                    }
+                    .tint(UF.accent)
+                    .padding(.leading, 16)
+                    .disabled(!enabled || !(newsOn[.grades] ?? false))
+                    .accessibilityIdentifier("background.news.gradeValue")
+                }
+            }
+            Text(BackgroundSyncCard.newsText)
+                .ufFont(12.8).foregroundStyle(UF.muted)
+                .padding(.top, 4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+
+        /// Einschalten fragt iOS (einmal; abgelehnt: Hinweis, Schalter bleibt aus)
+        private func setNews(_ kind: BackgroundNewsKind, _ v: Bool) {
+            hint = nil
+            newsOn[kind] = v
+            asking = v
+            Task {
+                let ok = await background.setNewsNotify(kind, v)
+                asking = false
+                if v, !ok {
+                    newsOn[kind] = false
+                    hint = BackgroundSyncCard.deniedText
+                }
             }
         }
 
