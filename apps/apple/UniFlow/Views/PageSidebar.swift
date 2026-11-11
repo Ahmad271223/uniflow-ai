@@ -115,6 +115,9 @@ struct ThumbnailStrip: View {
             }
         }
         .task(id: store.layoutVersion) { hasOutline = !(await bridge.controller?.outlineEntries() ?? []).isEmpty }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            cache.releaseHidden()                                   // Speicherdruck: nur sichtbare Miniaturen behalten
+        }
         .alert("Zur Gliederung hinzufügen", isPresented: Binding(get: { outlineKey != nil }, set: { if !$0 { outlineKey = nil } })) {
             TextField("Titel", text: $outlineTitle)
             Button("Hinzufügen") {
@@ -219,8 +222,10 @@ struct ThumbnailStrip: View {
         guard let layout = store.layout, let i = layout.index(ofKey: key), let entry = layout.entry(at: i) else { return }
         let objects = await store.objects(forPageKey: key)
         guard let current = store.layout, current.entry(at: i) == entry, let page = current.pdf.page(at: i) else { return }
-        await cache.refresh(key: key, page: page, entry: entry, objects: objects, images: store.images,
-                            layoutVersion: store.layoutVersion, width: Self.width, scale: max(1, displayScale))
+        // nur die Form der angezeigten Seite; gezeichnet wird aus der eigenen PDF-Instanz (`OffscreenPDF`)
+        await cache.refresh(key: key, shape: OffscreenPDF.Shape(page: page, entry: entry), entry: entry, objects: objects,
+                            images: store.images, source: store.offscreenPDF, layoutVersion: store.layoutVersion,
+                            width: Self.width, scale: max(1, displayScale))
     }
 
     private func cell(_ i: Int, _ entry: DisplayLayout.Entry) -> some View {

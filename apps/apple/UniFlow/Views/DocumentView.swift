@@ -910,7 +910,7 @@ struct DocumentView: View {
     /// Rechte bzw. linke Spalte der geteilten Ansicht: ein zweites Dokument oder eine Loesung zum Ansehen
     @ViewBuilder private var sidePane: some View {
         if let s = solutionSide {
-            SolutionSidePane(layer: s, pdf: store.originalPDF) { solutionSide = nil }
+            SolutionSidePane(layer: s, source: store.offscreenPDF) { solutionSide = nil }
                 .id("solution-" + s.id)
         } else if let c = companion {
             companionPane(c)
@@ -2038,9 +2038,6 @@ final class ThumbnailCache: ObservableObject {
 
     init(limit: Int = 60) { self.limit = max(1, limit) }
 
-    /// PDFPage-Kopie fuer das Zeichnen im Hintergrund (das Original gehoert dem Editor auf dem Hauptthread).
-    private struct PageBox: @unchecked Sendable { let page: PDFPage }
-
     /// Signatur des gezeichneten Stands: Seitenaufbau, Seite, Objekte, Quellen der geladenen Bilder.
     nonisolated static func signature(layoutVersion: Int, entry: DisplayLayout.Entry, rotation: Int,
                                       objects: [JSONValue], loadedImages: [String]) -> Int {
@@ -2054,29 +2051,38 @@ final class ThumbnailCache: ObservableObject {
     }
 
     /// Zeichnet die Miniatur neu, wenn sich die Signatur geaendert hat. `true` = neu gezeichnet.
+    /// Die PDF-Seite kommt aus `source`, einer eigenen PDF-Instanz (`OffscreenPDF`); die Seite der PDFView wird hier nie
+    /// angefasst, nur ihre Form (`shape`, auf dem Hauptthread gelesen). Vorher wurde eine Kopie der angezeigten Seite im
+    /// Hintergrund gezeichnet, gleichzeitig mit den Kacheln der PDFView (Absturz Build 30, iPad 9).
     @discardableResult
-    func refresh(key: String, page: PDFPage, entry: DisplayLayout.Entry, objects: [JSONValue], images: [String: UIImage],
-                 layoutVersion: Int, width: CGFloat, scale: CGFloat) async -> Bool {
+    func refresh(key: String, shape: OffscreenPDF.Shape, entry: DisplayLayout.Entry, objects: [JSONValue],
+                 images: [String: UIImage], source: OffscreenPDF, layoutVersion: Int, width: CGFloat, scale: CGFloat) async -> Bool {
         // nur Bilder dieser Seite (kleiner Uebergabewert, Signatur aendert sich nur bei eigenen Bildern)
         let srcs = Set(objects.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil })
         let own = images.filter { srcs.contains($0.key) }
-        let rotation = page.rotation
+        let rotation = shape.rotation
         let sig = await Task.detached(priority: .utility) {
             Self.signature(layoutVersion: layoutVersion, entry: entry, rotation: rotation, objects: objects,
                            loadedImages: own.keys.sorted())
         }.value
         guard signatures[key] != sig else { touch(key); return false }
         signatures[key] = sig
-        let box = PageBox(page: page.copy() as? PDFPage ?? page)
-        let img = await Task.detached(priority: .utility) {
-            PageRenderer.thumbnail(page: box.page, entry: entry, objects: objects, images: own, width: width, scale: scale)
-        }.value
+        let img = await source.thumbnail(shape: shape, entry: entry, objects: objects, images: own, width: width, scale: scale)
         guard signatures[key] == sig else { return false }                       // inzwischen neuerer Stand unterwegs
         self.images[key] = img
         renderCount += 1
         touch(key)
         evict()
         return true
+    }
+
+    /// Speicherwarnung: Miniaturen, die gerade nicht zu sehen sind, verwerfen (sie werden beim Erscheinen neu gezeichnet)
+    func releaseHidden() {
+        for key in images.keys where !visible.contains(key) {
+            images[key] = nil
+            signatures[key] = nil
+            recent.removeAll { $0 == key }
+        }
     }
 
     private func touch(_ key: String) {

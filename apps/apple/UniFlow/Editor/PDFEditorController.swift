@@ -341,6 +341,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private(set) var shownLayoutVersion = -1
     /// Ein Neuaufbau kam, waehrend der Stift auflag: er folgt beim Absetzen (`canvasViewDidEndUsingTool`, Audit P41-Z1)
     private var layoutWaitsForPencil = false
+    /// Ein Neuaufbau kam, waehrend der Finger scrollte oder zoomte (auch Ausrollen): er folgt, sobald die Ansicht steht
+    /// (`waitForScrollToSettle`). Der Tausch von `pdfView.document` verwirft alle Kacheln; mitten im Scrollen geriet
+    /// PDFKit dabei auf dem iPad 9 (iPadOS 26.5, 3 GB) in die Ueberfreigabe einer Kachel-Oberflaeche (Absturz Build 30).
+    private(set) var layoutWaitsForGesture = false
+    private var settleTask: Task<Void, Never>?
+    /// Nur fuer Tests: Geste laeuft (true) bzw. steht (false) statt des Zustands der Scroll-Ansicht
+    var scrollGestureOverrideForTesting: Bool?
     /// Seite, die nach dem naechsten Neuaufbau gezeigt werden soll (nach Einfuegen, Papierkorb, Wiederherstellen).
     private var pendingFocusKey: String?
 
@@ -804,6 +811,16 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             return
         }
         layoutWaitsForPencil = false
+        // Finger scrollt/zoomt (oder die Ansicht rollt aus): Dokument erst tauschen, wenn sie steht. Das erste Dokument
+        // (noch keins gezeigt) kommt sofort.
+        if shownLayout != nil, scrollGestureActive {
+            layoutWaitsForGesture = true
+            waitForScrollToSettle()
+            return
+        }
+        layoutWaitsForGesture = false
+        settleTask?.cancel()
+        settleTask = nil
         // Fokus nur verbrauchen, wenn die Seite schon im Aufbau steht (ein fremder Neuaufbau waehrend einer
         // Seitenoperation kommt sonst vor der neuen Seite und wuerde den Sprung dorthin verschlucken)
         var keepKey = currentPageKey
@@ -843,6 +860,31 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.onPageChange?(self.currentPageIndex, self.currentPageKey)
+        }
+    }
+
+    /// Scrollt, zoomt oder rollt die PDF-Ansicht gerade aus?
+    var scrollGestureActive: Bool {
+        if let o = scrollGestureOverrideForTesting { return o }
+        guard let s = firstScrollView(in: pdfView) else { return false }
+        return s.isTracking || s.isDragging || s.isDecelerating || s.isZooming || s.isZoomBouncing
+    }
+
+    /// Wartet, bis die Ansicht steht, und holt dann den aufgeschobenen Neuaufbau nach (kurze Abfrage statt eigener
+    /// Gestenziele: Ausrollen und Zurueckfedern haben keine Geste mehr)
+    private func waitForScrollToSettle() {
+        guard settleTask == nil else { return }
+        settleTask = Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard let self, !Task.isCancelled else { return }
+                guard self.layoutWaitsForGesture else { self.settleTask = nil; return }
+                if !self.scrollGestureActive {
+                    self.settleTask = nil
+                    self.showLayout()
+                    return
+                }
+            }
         }
     }
 
@@ -924,9 +966,25 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Speicherwarnung: fremde Ebenen weggescrollter (geparkter) Seiten freigeben. Sichtbare Seiten behalten sie,
     /// Auswahl und Sichtbarkeit der Ebenen bleiben; beim Zurueckscrollen entstehen sie neu an derselben Stelle.
+    /// Danach die geparkten Overlays selbst (je Seite eine PencilKit-Flaeche mit eigenen Kacheln): ihr Inhalt liegt schon
+    /// im Store, der Verlauf haengt am Seitenschluessel; beim Zurueckscrollen wird die Seite neu aufgebaut. Auf dem
+    /// iPad 9 (3 GB) traf PDFKit unter Speicherdruck seinen Kachelfehler (Absturz Build 30). Ein Overlay mit Strichen,
+    /// die vor dem Laden entstanden und noch nicht gesichert sind, bleibt.
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         for overlay in parked where !overlay.foreignReleased { overlay.releaseForeign() }
+        releaseParkedOverlays()
+    }
+
+    /// Geparkte Overlays freigeben (Speicherwarnung), ausser solchen mit noch ungesicherten fruehen Strichen
+    func releaseParkedOverlays() {
+        let keep = parked.filter { !$0.loaded && !$0.canvas.drawing.strokes.isEmpty }
+        for overlay in parked where !keep.contains(where: { $0 === overlay }) {
+            overlay.loadTask?.cancel()
+            overlay.loadTask = nil
+            toolPicker.removeObserver(overlay.canvas)
+        }
+        parked = keep
     }
 
     /// Overlay einer Anzeige-Seite (nur fuer Tests: erzeugt es wie PDFKit beim Scrollen).
@@ -1435,7 +1493,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// (`updateUIViewController`), wurde `pendingFocusKey` dort verbraucht; dann nur noch hinspringen. Danach wird
     /// `pendingFocusKey` immer geleert (auch wenn ein fremder Neuaufbau ihn nicht verwenden konnte).
     private func finishPageChange(_ change: PageOrder.Change?) {
-        defer { pendingFocusKey = nil }
+        // aufgeschoben, weil die Ansicht noch scrollt: der Fokus gilt dann beim Nachholen
+        defer { if !layoutWaitsForGesture { pendingFocusKey = nil } }
         guard let change else { return }
         let alreadyShown = shownLayoutVersion == store.layoutVersion
         showLayout()

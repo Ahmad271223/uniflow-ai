@@ -244,6 +244,10 @@ final class DocumentStore: ObservableObject {
 
     var pdf: PDFDocument? { layout?.pdf }
 
+    /// Eigene PDF-Instanz fuer das Zeichnen ausserhalb des Hauptthreads (Miniaturen, Scans der Suche); nie die PDF der
+    /// PDFView (`OffscreenPDF`, Absturz Build 30 auf dem iPad 9)
+    private(set) lazy var offscreenPDF = OffscreenPDF(url: isNotebook ? nil : originalPDFURL)
+
     let file: LibFile
     /// Datenquelle (lokal oder Server-Host): bestimmt Journal und PDF-Zwischenspeicher, aendert sich nie
     let namespace: DataSourceNamespace
@@ -1083,6 +1087,10 @@ final class DocumentStore: ObservableObject {
         lifecycle.append(center.addObserver(forName: .uniflowAccountSynced, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.engine.refreshFromServer() }
         })
+        // Speicherdruck (iPad mit 3 GB): die eigene PDF-Instanz der Miniaturen freigeben, sie entsteht bei Bedarf neu
+        lifecycle.append(center.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.offscreenPDF.release() }
+        })
     }
 
     private func flushInBackground() async {
@@ -1115,6 +1123,7 @@ final class DocumentStore: ObservableObject {
     /// Dokument schliessen: Ausstehendes sichern, Wiederholungen beenden (Ungesendetes bleibt im Journal).
     func close() async {
         noteIndex.cancel()
+        await offscreenPDF.release()
         await flush()
         await engine.syncNow(snapshot: isWritable)                      // Stand beim Schliessen in den Versionsverlauf
         await engine.shutdown()

@@ -718,7 +718,8 @@ struct PDFExportNoticeDialog: View {
 /// in der Breite der Spalte gezeichnet, also scharf.
 struct SolutionSidePane: View {
     let layer: ForeignSolutionLayer
-    let pdf: PDFDocument?
+    /// eigene PDF-Instanz des Dokuments (`OffscreenPDF`): gezeichnet wird im Hintergrund, nie aus dem Original im Store
+    let source: OffscreenPDF
     let onClose: () -> Void
 
     var body: some View {
@@ -732,7 +733,7 @@ struct SolutionSidePane: View {
                     LazyVStack(spacing: 14) {
                         ForEach(Array(layer.pages.enumerated()), id: \.element.key) { i, page in
                             SolutionSidePage(page: page, title: SolutionBuilder.pageTitle(layer.pages, at: i), images: layer.images,
-                                             pdfPage: page.pdfIndex.flatMap { pdf?.page(at: $0 - 1) },
+                                             source: source,
                                              width: max(200, geo.size.width - 24))
                         }
                     }
@@ -749,7 +750,7 @@ private struct SolutionSidePage: View {
     /// "PDF-Seite 4", "Notiz zu Folie 4" (SolutionBuilder.pageTitle)
     let title: String
     let images: [String: UIImage]
-    let pdfPage: PDFPage?
+    let source: OffscreenPDF
     let width: CGFloat
     @State private var image: UIImage?
 
@@ -766,16 +767,7 @@ private struct SolutionSidePage: View {
             Text(title).ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted)
         }
         .task(id: "\(page.key)-\(Int(width))") {
-            let p = page, imgs = images, pp = pdfPage, w = width
-            let scale = UIScreen.main.scale
-            image = await Task.detached(priority: .userInitiated) {
-                Box(SolutionPreview.image(p, images: imgs, width: w, scale: scale, pdfPage: pp))
-            }.value.image
+            image = await source.solutionPreview(page, images: images, width: width, scale: UIScreen.main.scale)
         }
-    }
-
-    private struct Box: @unchecked Sendable {
-        let image: UIImage
-        init(_ i: UIImage) { image = i }
     }
 }
