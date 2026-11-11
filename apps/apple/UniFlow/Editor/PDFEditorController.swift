@@ -600,7 +600,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // fertig, Menue- oder Popover-Fenster zu, Fenster wieder vorn, zurueck in der App
         for name in [UIResponder.keyboardDidHideNotification, UIApplication.didBecomeActiveNotification,
                      UITextField.textDidEndEditingNotification, UITextView.textDidEndEditingNotification,
-                     UIWindow.didBecomeHiddenNotification, UIWindow.didBecomeKeyNotification] {
+                     UIWindow.didBecomeHiddenNotification, UIWindow.didBecomeKeyNotification,
+                     UIScene.didActivateNotification] {                  // Fenster der App (Split View, Stage Manager) wieder aktiv
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] n in
                 MainActor.assumeIsolated {
                     guard let self, self.pickerWanted, !self.toolPicker.isVisible else { return }
@@ -639,8 +640,19 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         configureScrollGestures()
+        if ownsToolPicker {
+            // `viewWillDisappear` meldet den Anker bei der Palette ab. Erscheint die Ansicht wieder, ohne neu zu entstehen
+            // (Vollbild-Blatt, Chat oder Nachrichten darueber, Navigation zurueck), muss er wieder angemeldet werden:
+            // sonst ist der Anker zwar Erstantwortgeber, die Palette bleibt aber weg, bis die Datei neu geoeffnet wird
+            // (Meldung 11.11.2026)
+            toolPicker.setVisible(pickerWanted && pickerAllowed, forFirstResponder: anchor)
+        }
         // Fokus zum Anker (Palette), ausser jemand markiert gerade PDF-Text oder tippt
-        if ownsToolPicker, !hasPDFSelection, !Self.isTypingField(UIResponder.uf_current) { anchor.becomeFirstResponder() }
+        if ownsToolPicker, !hasPDFSelection, !Self.isTypingField(UIResponder.uf_current) {
+            anchor.becomeFirstResponder()
+        } else {
+            restorePickerSoon()                             // wartet auf das Hindernis (Textfeld fertig, Blatt weg)
+        }
         logPaletteProbeIfRequested()
         if let p = initialPDFPage {
             initialPDFPage = nil
@@ -1192,6 +1204,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
         overlay(of: canvasView)?.isDrawing = true
+        reclaimFocusForWriting()
     }
 
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
@@ -1637,6 +1650,20 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         s.onLeave = { [weak self] in self?.restorePicker() }
         host.addSubview(s)
         presentationSentinel = s
+    }
+
+    /// Der Stift setzt auf der Seite auf, waehrend ein Eingabefeld ausserhalb des Editors den Fokus haelt (KI-Frage,
+    /// Chat, Suche): der Nutzer schreibt wieder, das Feld gibt den Fokus ab und die Palette kommt zurueck. Vorher blieb
+    /// das Feld Erstantwortgeber, solange es im Fenster stand; mit Stift/Scribble oder Hardware-Tastatur gibt es keine
+    /// Tastatur zum Schliessen, die Palette kam erst nach dem Neuoeffnen der Datei zurueck (Meldung 11.11.2026).
+    /// Waehrend des Tippens selbst nimmt der Editor den Fokus nie; ein Textobjekt auf der Seite behaelt ihn. Am Mac
+    /// gibt es Apples Palette nicht: dort nichts erzwingen. In der geteilten Ansicht gibt das Feld den Fokus auch beim
+    /// Schreiben im Dokument daneben ab; die Palette holt dann der Editor, der sie fuehrt (`textDidEndEditing`).
+    func reclaimFocusForWriting() {
+        guard !Self.isMac, pickerAllowed, let r = UIResponder.uf_current, Self.isTypingField(r) else { return }
+        if let v = r as? UIView, Self.isInsideEditor(v) { return }
+        guard r.resignFirstResponder() else { return }
+        restorePickerSoon()
     }
 
     /// Eine Zeichenflaeche verlaesst die Anzeige (Scrollen, Neuaufbau nach Seite einfuegen): hatte sie den Fokus, geht
