@@ -5,8 +5,8 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 33 (Version 1.0.2, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.2
-mit Build 31 aus `0324eb3d` (seit 10.11.2026 20:45), soll durch Build 32 (`95943d32`) ersetzt werden. Veröffentlicht: Version 1.0.1 mit Build 30.
+Aktueller Stand in project.yml: Build 33 (Version 1.0.3, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). Veröffentlicht: Version 1.0.2
+mit Build 31 aus `0324eb3d` (11.11.2026) und davor 1.0.1 mit Build 30. Build 32 nur TestFlight (Absturz beim Öffnen von Dokumenten).
 
 ## Builds
 
