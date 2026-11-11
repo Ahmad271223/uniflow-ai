@@ -32,6 +32,17 @@ Code: `UniFlow/Services/BackgroundNews.swift` (Regeln, Texte, Schalter), `MacBac
 `UniMailConnection.swift` (Neuanmeldung ohne Fenster), `Views/Settings/BackgroundSyncCard.swift` (Schalter).
 Tests: `UniFlowTests/BackgroundNewsAppTests.swift`.
 
+## Tests (11.11.2026)
+
+- Neue Tests zuerst geschrieben und auf dem alten Stand rot gesehen (Funktionen fehlten), danach grün.
+- Kompletter iPad-Simulatorlauf (iOS 27.2): 1456 Tests, 1437 grün, 18 übersprungen, 1 rot –
+  `KIAbnahmeLUHAppTests` (KI-Hilfe-Knöpfe, Zeitproblem): Im ganzen Lauf scheiterte test3, beim Einzellauf der Klasse
+  test1 und test3 lief durch. Hat mit diesem Zweig nichts zu tun.
+- Mac („Designed for iPad“), betroffene Klassen `BackgroundNewsAppTests`, `BackgroundSyncAppTests`,
+  `UniAutoLoginAppTests`, `StoredLoginConnectTests`: 46 von 46 grün. Hinweis: Mit einem Bauordner unter `/tmp` wird die
+  Test-App am Mac sofort beendet („signal kill before establishing connection“); unter `~/Library/Developer/Xcode/
+  DerivedData/…` läuft es.
+
 ## Was nur am echten Gerät prüfbar ist
 
 1. **Wann iOS den Hintergrundlauf startet**, bestimmt iOS allein (Nutzung, Akku, Netz). Der Simulator startet ihn nie.
