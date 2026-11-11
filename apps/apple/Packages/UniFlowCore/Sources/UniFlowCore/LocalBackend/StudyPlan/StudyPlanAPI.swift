@@ -75,7 +75,9 @@ public enum StudyPlanAPI {
         for r in try QISRegistrationsSync.rows(c) where r.registered && !r.text.isEmpty {
             rows.append(["pruefungsnr": s(r.pruefungsnr), "text": .string(r.text), "semester": s(r.semester),
                          "note": .string(""), "status": .string("angemeldet"), "versuch": s(r.versuch), "credits": .null,
-                         "datum": s(r.datum), "abschluss": s(r.abschluss), "raw": .null])
+                         "datum": s(r.datum), "abschluss": s(r.abschluss), "raw": .null,
+                         // stehen hinter dem Notenspiegel: nie unter dessen letzter Bereichszeile einordnen (Wahlfach aus QIS)
+                         "source": "anmeldung"])
         }
         return GradesModel.model(rows)
     }
@@ -122,7 +124,9 @@ public enum StudyPlanAPI {
         let own: JSONValue = [
             "status": .string(st?.status ?? "nicht_gewaehlt"), "term": opt(st?.term.map(StudyPlanEngine.termName)),
             "attempt": StudyPlanEngine.opt(st?.attempt), "grade": opt(st?.grade), "moved_from": opt(st?.movedFrom),
-            "reason": opt(st?.reason), "last_attempt": .bool(st?.lastAttempt ?? false), "attempts": .array(attempts),
+            "reason": opt(st?.reason), "last_attempt": .bool(st?.lastAttempt ?? false),
+            "attempt_known": .bool(st?.known ?? false), "max_attempts": StudyPlanEngine.opt(StudyPlanEngine.maxAttemptsOf(m, cat)),
+            "final": .bool(st.map { $0.final && $0.status != "bestanden" } ?? false), "attempts": .array(attempts),
         ]
         func ref(_ i: String) -> JSONValue {
             ["id": .string(i), "title": .string(textOf(full.byID[i]?["title"])),
@@ -186,9 +190,9 @@ public enum StudyPlanAPI {
         for a in areas { if let id = a["id"]?.string { names[id] = a["name"] ?? .null } }
         let wp = areas.filter { $0["kind"]?.string == "wahlpflicht" }.map { StudyPlanEngine.num($0["lp_required"]) ?? 0 }
         var options: [JSONValue] = []
-        for v in cat?["modules"]?.array ?? [] {
-            guard let m = v.object, let id = m["id"]?.string, !id.isEmpty,
-                  StudyPlanEngine.electiveKinds.contains(StudyPlanEngine.textOf(m["kind"])) else { continue }
+        // Art wie im Plan (Wahl statt Pflicht, StudyPlanEngine.effectiveModules)
+        for m in cat.map({ StudyPlanEngine.effectiveModules($0).0 }) ?? [] {
+            guard let id = m["id"]?.string, StudyPlanEngine.electiveKinds.contains(StudyPlanEngine.textOf(m["kind"])) else { continue }
             options.append(["id": .string(id), "title": .string(StudyPlanEngine.textOf(m["title"])), "kind": m["kind"] ?? .null,
                             "lp": .number(StudyPlanEngine.lpOf(m)), "semester": StudyPlanEngine.numJSON(m["semester"]),
                             "area": m["area"] ?? .null,

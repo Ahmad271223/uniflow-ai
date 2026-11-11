@@ -226,7 +226,7 @@ Bibliothek, erst dann lädt sie die PDF; Modultexte lädt sie erst, wenn jemand 
 
 Nach Format: `fbg-modulhandbuch` 5 Kataloge / 424 Module; `luh-modulbeschreibung` 41 Kataloge / 1693 Module; `maphy-katalog` 17 Kataloge / 225 Module; `mb-modulkatalog` 18 Kataloge / 1753 Module; `modkat-FEI` 23 Kataloge / 1934 Module; `phil-kv-tabelle` 20 Kataloge / 267 Module; `scanned` 23 Kataloge / 604 Module; `wiwi-modulhandbuch` 5 Kataloge / 327 Module.
 Mit Studienverlaufsplan: 2. Registereinträge der Erhebung: 234, davon im Grundstock: 151.
-Datei `luh.json.gz`: 305 KB gzip, 2816 KB JSON, 152 Kataloge.
+Datei `luh.json.gz`: 306 KB gzip, 2817 KB JSON, 152 Kataloge.
 Nachbearbeitung: 35 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 0 doppelte Kataloge, 0 doppelte Module, 0 ungültige, 0 nicht zugeordnete verworfen.
 
 Neu bauen: `.venv/bin/python tools/build-luh-seed.py` (prüfen: `--check`, Vorschau: `--diff`).

@@ -285,7 +285,7 @@ final class StudyPlanBoardAppTests: XCTestCase {
         XCTAssertEqual(byID["mathematik-1-n"]?.status, .moved)
         XCTAssertEqual(byID["signale"]?.status, .open)
         XCTAssertEqual(StudyPlanText.status(try XCTUnwrap(byID["programmieren-1"])), "Bestanden · 1,7")
-        XCTAssertEqual(StudyPlanText.status(try XCTUnwrap(byID["mathematik-1"])), "Nicht bestanden · Versuch 2")
+        XCTAssertEqual(StudyPlanText.status(try XCTUnwrap(byID["mathematik-1"])), "Nicht bestanden · 2. Versuch")
         XCTAssertEqual(StudyPlanText.status(try XCTUnwrap(byID["mathematik-1-n"])), "Verschoben · aus WiSe 25/26")
         XCTAssertEqual(StudyPlanText.status(try XCTUnwrap(byID["signale"])), "Offen")
         XCTAssertEqual(StudyPlanText.accessibility(try XCTUnwrap(byID["computergrafik"])),
@@ -502,7 +502,7 @@ final class StudyPlanBoardAppTests: XCTestCase {
         // jeder Status
         let expected = [
             "Programmieren I, 5 Leistungspunkte, Pflicht, Wintersemester, Bestanden, 1,7",
-            "Mathematik I, 10 Leistungspunkte, Pflicht, Wintersemester, Nicht bestanden, Versuch 2, letzter Versuch",
+            "Mathematik I, 10 Leistungspunkte, Pflicht, Wintersemester, Nicht bestanden, 2. Versuch, letzter Versuch",
             "Algorithmen und Datenstrukturen, 5 Leistungspunkte, Pflicht, Wintersemester, Angemeldet",
             "Mathematik I, 10 Leistungspunkte, Pflicht, Wintersemester, Verschoben, aus WiSe 25/26, Nicht bestanden im 2. Versuch – nächster Termin im Wintersemester, letzter Versuch",
             "Signale und Systeme, 10 Leistungspunkte, Pflicht, Wintersemester, Offen",
@@ -548,12 +548,12 @@ final class StudyPlanBoardAppTests: XCTestCase {
         let l = labels(s)
         for e in ["Empfohlen: 1. Fachsemester", "Turnus: Wintersemester", "Prüfungsleistung: Klausur 120 min",
                   "Studienleistung: Übungsaufgaben (50 %)", "Sprache: Deutsch", "Arbeitsaufwand: 300 Stunden",
-                  "Nicht bestanden · Versuch 2", StudyPlanText.lastAttemptWarning, "Inhalte", "Lernziele", "Literatur",
+                  "Nicht bestanden · 2. Versuch", StudyPlanText.lastAttemptWarning, "Inhalte", "Lernziele", "Literatur",
                   "Kurs, Mathematik I für Ingenieure, Stud.IP-Kurs", "Datei, Übungsblatt 4.pdf, Übungsblätter",
                   "Im Modulkatalog ansehen (S. 12)", "Schließen"] {
             XCTAssertTrue(l.contains { $0.contains(e) }, "fehlt: \(e)\n" + l.joined(separator: "\n"))
         }
-        XCTAssertTrue(l.contains { $0.contains("Versuch 1") && $0.contains("WiSe 25/26") && $0.contains("5,0") }, l.joined(separator: "\n"))
+        XCTAssertTrue(l.contains { $0.contains("1. Versuch") && $0.contains("WiSe 25/26") && $0.contains("5,0") }, l.joined(separator: "\n"))
         // Inhalte offen, Lernziele zu; Antippen klappt auf
         XCTAssertTrue(l.contains { $0.contains("Folgen und Reihen") })
         XCTAssertFalse(l.contains { $0.contains("rechnen sicher mit Grenzwerten") })

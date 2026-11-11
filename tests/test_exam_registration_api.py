@@ -406,6 +406,16 @@ def test_suggestions_from_plan_with_reasons_dates_and_ticks(plan_db):
     assert v["qis_url"].startswith("https://qis.verwaltung.uni-hannover.de/")
 
 
+def test_repeat_without_attempt_column_names_no_number(plan_db):
+    """11.11.2026: zaehlt QIS die Versuche nicht (keine Spalte "Versuch"), nennt die Anmeldung keine Nummer"""
+    from app import db
+    with db.cursor() as conn:
+        conn.execute("UPDATE grades SET versuch=NULL")
+    one = {x["id"]: x for x in _resp("2026-11-20", plan_db)["suggestions"]}
+    assert one["mathematik-1"]["reason"] == "Wiederholung (nicht bestanden im WiSe 25/26)"
+    assert one["mathematik-1"]["last_attempt"] is False
+
+
 def test_card_only_around_the_period_and_fallback_without_plan(plan_db):
     from app import study_plan
     soon = _resp("2026-11-05", plan_db)

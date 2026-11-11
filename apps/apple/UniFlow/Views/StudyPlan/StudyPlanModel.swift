@@ -80,6 +80,14 @@ struct StudyPlanModule: Identifiable, Equatable {
     let movedFrom: String?
     let reason: String?
     let lastAttempt: Bool
+    /// QIS nennt die Nummer des Versuchs (sonst nur gezaehlt: keine Nummer anzeigen, 11.11.2026)
+    let attemptKnown: Bool
+    /// Hoechstzahl der Versuche laut Katalog/Pruefungsordnung, nil = unbekannt
+    let maxAttempts: Int?
+    /// endgueltig nicht bestanden (QIS oder Hoechstzahl erreicht)
+    let final: Bool
+    /// Wahlfach aus QIS ohne Katalogmodul (zaehlt in seinem Wahlbereich)
+    let qis: Bool
     /// selbst verschoben oder vorgezogen (Einstellung `placements`)
     let placed: Bool
     /// Hinweise des Kerns: Turnus passt nicht, Voraussetzung nicht davor
@@ -102,7 +110,12 @@ struct StudyPlanModule: Identifiable, Equatable {
         grade = v.s("grade") ?? v.s("note") ?? v.n("grade").map(StudyPlanText.grade)
         movedFrom = (v.s("moved_from") ?? v.s("postponed_from")).flatMap { $0.isEmpty ? nil : $0 }
         reason = (v.s("reason") ?? v.s("moved_reason")).flatMap { $0.isEmpty ? nil : $0 }
-        lastAttempt = v["last_attempt"]?.bool ?? ((attempt ?? 0) >= 3 && StudyPlanStatus.from(v.s("status"), movedFrom: nil) == .failed)
+        // "letzter Versuch" nur, wenn der Kern es sagt (Hoechstzahl bekannt oder QIS meldet es), nie aus der Nummer geraten
+        lastAttempt = v["last_attempt"]?.bool ?? false
+        attemptKnown = v["attempt_known"]?.bool ?? (attempt != nil)
+        maxAttempts = v.i("max_attempts")
+        final = v["final"]?.bool ?? false
+        qis = v["qis"]?.bool ?? false
         placed = v["placed"]?.bool ?? false
         hints = v.list("hints").compactMap(\.string).filter { !$0.isEmpty }
         custom = v["custom"]?.bool ?? false
@@ -116,6 +129,7 @@ struct StudyPlanModule: Identifiable, Equatable {
     /// Grund, warum das Modul nicht verschiebbar ist (Menue, Details, VoiceOver, Ablegen); nil: verschiebbar
     var lockReason: String? {
         if custom { return StudyPlanText.lockedCustom }
+        if qis { return StudyPlanText.lockedQIS }
         switch status {
         case .passed: return StudyPlanText.lockedPassed
         case .registered: return StudyPlanText.lockedRegistered
@@ -497,6 +511,12 @@ struct StudyModuleDetail: Equatable {
     let status: StudyPlanStatus
     let attempts: [Attempt]
     let lastAttempt: Bool
+    /// QIS nennt die Nummer des Versuchs; Hoechstzahl laut Katalog (nil = unbekannt); endgueltig nicht bestanden
+    let attemptKnown: Bool
+    let maxAttempts: Int?
+    let final: Bool
+    /// Nummer des aktuellen bzw. letzten Versuchs laut Kern
+    let attempt: Int?
     let movedFrom: String?
     let reason: String?
     let materials: [Material]
@@ -541,8 +561,11 @@ struct StudyModuleDetail: Equatable {
                     grade: a.s("grade") ?? a.s("note") ?? a.n("grade").map(StudyPlanText.grade),
                     status: StudyPlanStatus.from(a.s("status"), movedFrom: nil), date: a.s("date") ?? a.s("datum"))
         }
-        let lastTry = attempts.compactMap(\.attempt).max() ?? own.i("attempt") ?? 0
-        lastAttempt = own["last_attempt"]?.bool ?? (status == .failed && lastTry >= 3)
+        lastAttempt = own["last_attempt"]?.bool ?? false
+        attempt = own.i("attempt") ?? attempts.compactMap(\.attempt).max()
+        attemptKnown = own["attempt_known"]?.bool ?? attempts.contains { $0.attempt != nil }
+        maxAttempts = own.i("max_attempts")
+        final = own["final"]?.bool ?? false
         // Unterlagen: "materials" oder wie der Kern getrennt "app_modules" (Fach der App), "courses" und "files"
         var mats = v.list("materials")
         if mats.isEmpty {
@@ -751,6 +774,14 @@ enum StudyPlanText {
     static let materialsEmpty = "Noch keine Kurse oder Dateien in StudiNow, die zu diesem Modul gehören."
     static let localOnly = "Modultexte liegen nur auf diesem Gerät."
     static let lastAttemptWarning = "Letzter Versuch – sprich mit der Studienberatung."
+    static let finalWarning = "Endgültig nicht bestanden – sprich mit der Studienberatung."
+    static let lockedQIS = "Aus QIS übernommen – Stand und Semester kommen aus QIS"
+
+    /// Regel zu den Versuchen im Detail (11.11.2026): Hoechstzahl nur, wenn Katalog/Pruefungsordnung sie nennen
+    static func attemptsRule(maxAttempts: Int?) -> String {
+        if let n = maxAttempts { return "Laut Prüfungsordnung höchstens \(n) Versuche." }
+        return "Wie viele Versuche du hast, regelt deine Prüfungsordnung – StudiNow kennt die Zahl für diesen Studiengang nicht."
+    }
     /// Richtwert je Semester 30 LP; Warnung ab mehr als 36 LP
     static let lpLimit: Double = 36
     static let lpTarget: Double = 30
@@ -836,8 +867,13 @@ enum StudyPlanText {
     static func status(_ m: StudyPlanModule) -> String {
         switch m.status {
         case .passed: return m.grade.map { "Bestanden · \($0)" } ?? "Bestanden"
-        case .registered: return "Angemeldet"
-        case .failed: return m.attempt.map { "Nicht bestanden · Versuch \($0)" } ?? "Nicht bestanden"
+        case .registered:
+            guard m.attemptKnown, let n = m.attempt, n >= 2 else { return "Angemeldet" }
+            return "Angemeldet · \(n). Versuch"
+        case .failed:
+            if m.final { return "Endgültig nicht bestanden" }
+            guard m.attemptKnown, let n = m.attempt else { return "Nicht bestanden" }
+            return "Nicht bestanden · \(n). Versuch"
         case .moved: return m.movedFrom.map { "Verschoben · aus \($0)" } ?? "Nachholen"
         case .planned: return "Geplant"
         case .open: return "Offen"
@@ -862,9 +898,10 @@ enum StudyPlanText {
         parts.append(status(m).replacingOccurrences(of: " · ", with: ", "))
         if m.status != .moved, let f = m.movedFrom { parts.append("aus \(f)") }
         if let r = m.reason { parts.append(r) }
-        if m.lastAttempt { parts.append("letzter Versuch") }
+        if m.lastAttempt && !m.final { parts.append("letzter Versuch") }
         if m.placed { parts.append("selbst eingeplant") }
         if m.custom { parts.append("eigener Eintrag") }
+        if m.qis { parts.append("aus QIS, nicht im Modulkatalog") }
         parts.append(contentsOf: m.hints)
         return parts.joined(separator: ", ")
     }
@@ -953,10 +990,41 @@ enum StudyPlanText {
         return "\(slot.title) (\(number(lp)) LP)"
     }
 
-    /// VoiceOver je Platz
+    /// Bereichsnamen eines Platzes ("Vertiefung der Informatik oder Vertiefung der Informationstechnik"); nil ohne Namen
+    /// oder bei mehr als drei Bereichen
+    static func slotAreaNames(_ slot: StudyPlanSlot, plan: StudyPlan) -> String? {
+        let ids = slot.areas.isEmpty ? (slot.area.map { [$0] } ?? []) : slot.areas
+        let names = ids.compactMap { plan.area($0)?.name }.filter { !$0.isEmpty }
+        guard !names.isEmpty, names.count <= 3 else { return nil }
+        return names.joined(separator: " oder ")
+    }
+
+    /// Kopf des Kastens fuer offene Wahl (Inhaber 11.11.2026: „Wahlfach – wähl eins aus der Liste aus"): "Wahlpflicht:
+    /// Vertiefung der Informatik" bzw. "Wahlfach"; Schwerpunkt/Nebenfach: "Schwerpunkt wählen"
+    static func slotHeading(_ slot: StudyPlanSlot, plan: StudyPlan) -> String {
+        if slot.isTrack { return slot.title }
+        if slot.areaKind == "wahl" { return "Wahlfach" }
+        return "Wahlpflicht: " + (slotAreaNames(slot, plan: plan) ?? slot.title)
+    }
+
+    /// Zweite Zeile des Kastens: Wahlfach -> Bereich, sonst der Name laut Verlaufsplan, wenn er anders heisst ("Proseminar"),
+    /// dazu die LP
+    static func slotSubtitle(_ slot: StudyPlanSlot, plan: StudyPlan) -> String? {
+        if slot.isTrack { return slot.lp.map { lp($0) } }
+        let names = slotAreaNames(slot, plan: plan)
+        var name: String? = slot.areaKind == "wahl" ? (names ?? slot.title) : (slot.title != names ? slot.title : nil)
+        if slot.areaKind != "wahl", names == nil { name = nil }
+        let parts = [name, slot.lp.flatMap { $0 > 0 ? lp($0) : nil }].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Knopf im Kasten
+    static func slotButton(_ slot: StudyPlanSlot) -> String { slot.isTrack ? "Richtung wählen" : "Aus der Liste wählen" }
+
+    /// VoiceOver je Platz: "Offener Platz, Wahlpflicht: Seminare, 5 Leistungspunkte, 0 von 1 Modulen gewählt"
     static func accessibility(_ slot: StudyPlanSlot, plan: StudyPlan) -> String {
-        var parts = ["Offener Platz", slotTitle(slot).replacingOccurrences(of: " LP)", with: " Leistungspunkte)")]
-        if !slot.isTrack { parts.append(kind(slot.areaKind)) }
+        var parts = ["Offener Platz", slotHeading(slot, plan: plan)]
+        if let sub = slotSubtitle(slot, plan: plan) { parts.append(sub.replacingOccurrences(of: " LP", with: " Leistungspunkte")) }
         parts.append(slotLine(slot, plan: plan))
         return parts.joined(separator: ", ")
     }

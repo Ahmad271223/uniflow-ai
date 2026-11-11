@@ -3214,10 +3214,10 @@
  ],
  "files": {
   "luh.json.gz": {
-   "bytes": 312624,
+   "bytes": 312894,
    "catalogs": 152,
-   "raw_bytes": 2883733,
-   "sha256": "1963f21093f42156ec20cfee68f2d65668c3961ff06eb68273385b22abbf8615"
+   "raw_bytes": 2884261,
+   "sha256": "d912624c77759b31979e9ad9d3d5db5f3785e7d0404c983ba5d96c9b4ed571f7"
   }
  },
  "generator": "tools/build-luh-seed.py",
