@@ -326,6 +326,9 @@ final class BackgroundSyncController: ObservableObject {
     private(set) var lastNews: BackgroundNewsDiff?
     /// Takt am Mac, solange die App laeuft (`startMacTicker`)
     private(set) var macTicker: MacBackgroundTicker?
+    /// Neuanmeldung auch im kurzen Lauf? Auf iPad/iPhone nein: der kurze Lauf hat rund 30 Sekunden, so lange kann die
+    /// unsichtbare Anmeldung allein dauern; dort nur im langen Lauf. Am Mac (Takt, ohne Zeitgrenze von iOS) ja.
+    var reloginInShortRun = MacBackgroundTicker.isMac
 
     private static var registered = false
 
@@ -537,7 +540,8 @@ final class BackgroundSyncController: ObservableObject {
         var before: BackgroundNewsSnapshot?
         if let c, news.anyOn, runnable(c, expired: expired) { before = await snapshot(c) }
         // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher
-        let tried = c != nil ? await reloginStep(c!, expired: expired) : []
+        var tried: [String] = []
+        if let c, kind == .processing || reloginInShortRun { tried = await reloginStep(c, expired: expired) }
         let ok = await performRun(kind, expired: expired, reloginTried: tried)
         if let c { await gradesAndNews(c, before: before, expired: expired) }
         await schedule()                                         // nach jedem Lauf neu planen

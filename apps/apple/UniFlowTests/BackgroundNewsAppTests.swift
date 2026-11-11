@@ -288,7 +288,8 @@ final class BackgroundNewsAppTests: XCTestCase {
             sync.usableSources = ["Stud.IP"]
             return true
         }
-        // ohne gespeicherten Uni-Zugang: kein Versuch, Bitte um Anmeldung wie bisher
+        // ohne gespeicherten Uni-Zugang: kein Versuch, Bitte um Anmeldung wie bisher (Takt wie am Mac: auch im kurzen Lauf)
+        b.reloginInShortRun = true
         b.hasStoredLogin = { _ in false }
         await b.perform(.refresh)
         XCTAssertEqual(tried, [])
@@ -300,13 +301,17 @@ final class BackgroundNewsAppTests: XCTestCase {
         await b.perform(.refresh)
         XCTAssertEqual(tried, [])
 
-        // an: ein Versuch, danach laeuft der Abgleich mit der neuen Sitzung
+        // an: im kurzen Lauf von iOS (rund 30 Sekunden) nie, im langen ein Versuch, danach der Abgleich mit der neuen Sitzung
         BackgroundNewsSettings(defaults: bed.defaults).relogin = true
+        b.reloginInShortRun = false
         await b.perform(.refresh)
+        XCTAssertEqual(tried, [], "kurzer Lauf: keine Neuanmeldung")
+        await b.perform(.processing)
         XCTAssertEqual(tried, ["Stud.IP"])
         XCTAssertEqual(sync.runs, 1, "nach der Neuanmeldung im selben Lauf abgeglichen")
 
         // wieder abgelaufen, eine Stunde spaeter: kein zweiter Versuch (hoechstens alle 6 Stunden)
+        b.reloginInShortRun = true
         sync.usableSources = []
         sync.loginNeededSources = ["Stud.IP"]
         b.now = { self.now.addingTimeInterval(3600) }
