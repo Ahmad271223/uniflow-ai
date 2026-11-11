@@ -602,7 +602,9 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         station(env, "36-einstellungen-lernzeit", markers: ["Lernzeit"])
         env.router.go(.dashboard); env.pump(0.3)
         env.router.go(.settings(tab: "advanced"))
-        station(env, "37-einstellungen-erweitert", markers: ["Erweitert", "Eigenes ChatGPT"])
+        // „Eigenes ChatGPT“ aus (11.11.2026): Erweitert ohne die Karte
+        station(env, "37-einstellungen-erweitert", markers: ["Erweitert", "Vorab einordnen"])
+        XCTAssertFalse(shows(env, "Eigenes ChatGPT"), "Erweitert ohne „Eigenes ChatGPT“")
         if shows(env, "KI über mein ChatGPT") { remark("Erweitert: Karte „KI über mein ChatGPT“ (Anmeldung bei OpenAI nicht freigegeben) mit Abzeichen „bald“ sichtbar") }
 
         // Probe auf dem iPad: laufend (Seitenleiste, Uebersicht, Tarif-Karte), danach vorbei mit "Bei Free bleiben"

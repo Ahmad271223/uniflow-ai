@@ -1311,8 +1311,8 @@ struct ExamAskPanel: View {
     static func footer(nr: String, model: String?, credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false) -> String {
         let m = (model ?? "").trimmingCharacters(in: .whitespaces)
         let way = credits != nil
-            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil, charge: charge, trial: trial) ?? "über dein ChatGPT"
-            : "über dein ChatGPT"
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil, charge: charge, trial: trial) ?? AICost.ownWay
+            : AICost.ownWay
         return "Aufgabe \(nr) · \(way)" + (m.isEmpty ? "" : " · \(m)")
     }
 

@@ -554,7 +554,7 @@ struct OwnRecordingDetail: View {
                 UFButton(busy == "flashcards" ? "Erstellt Karten …" : "Karteikarten", icon: "cards", size: .small) { Task { await ask("flashcards") } }
             }
             .disabled(busy != nil)
-            Text("Gesendet wird nur der Text dieses Teils an dein ChatGPT – nie die Aufnahme.").ufFont(12.16).foregroundStyle(UF.muted)
+            Text(OpenAIKeyLink.isOffered ? "Gesendet wird nur der Text dieses Teils an dein ChatGPT – nie die Aufnahme." : "Gesendet wird nur der Text dieses Teils an die KI – nie die Aufnahme.").ufFont(12.16).foregroundStyle(UF.muted)
             if let answer {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(answerLabel).ufFont(12.8, 650).foregroundStyle(UF.text2)

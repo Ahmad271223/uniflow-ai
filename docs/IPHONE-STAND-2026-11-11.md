@@ -19,7 +19,7 @@ Vorgabe des Inhabers (11.11.2026): alles wie am iPad, **außer dem Editor**, abe
 | Nachrichten, Uni-Mail | Stud.IP-Nachrichten mit Antworten (Blatt, „Senden“ über der Tastatur); Uni-Mail Ordner → Liste → E-Mail als Ebenen, „Neue E-Mail“ als ganzes Blatt, Lehrende |
 | Mensa, Raumfinder | wie am iPad, iPhone-gerecht (Filter als Blatt, Treffer als Karten, Route) |
 | Community | lesen, beitreten, Fragen und Antworten (Eingabe unten), Lösungen anderer **lesen**; veröffentlichen und Korrekturen nur in der iPad-App (Hinweis in der App) |
-| KI | KI-Hilfe zu Dokumenten (Blatt von unten, Umfang „Diese Seite / Ganzes Dokument / Seiten …“, markierter PDF-Text geht mit), KI-Start, KI-Lernplan, KI-Karteikarten, Wochentests. Gleiche Tarifregeln (Plus / Pro AI) und dieselbe KI-Einwilligung vor der ersten Anfrage wie am iPad (ein Code für beide) |
+| KI | Nur über die **StudiNow-KI** (Pro AI): „Eigenes ChatGPT“ ist seit 11.11.2026 überall aus (Abschnitt 2a). KI-Hilfe zu Dokumenten (Blatt von unten, Umfang „Diese Seite / Ganzes Dokument / Seiten …“, markierter PDF-Text geht mit), KI-Start, KI-Lernplan, KI-Karteikarten, Wochentests. Gleiche Tarifregeln (Plus / Pro AI) und dieselbe KI-Einwilligung vor der ersten Anfrage wie am iPad (ein Code für beide) |
 | Einstellungen | „Uni-Zugang“ (einmal speichern, „Benutzername und Passwort sind überall gleich“ oder je Portal), Knöpfe am iPhone in voller Breite; Tarif/Abos, StudiNow-Konto, Darstellung, Abgleich im Hintergrund. **Keine** Zeilen „Stift & Touch“ und „Schreibhand“ |
 | Texte | „dieses iPhone“ statt „dieses iPad“, wo das Gerät gemeint ist (`UFDevice.adapt`); Stellen über das Schreiben sagen „in der iPad-App“ |
 | Konto | Gerät meldet sich beim StudiNow-Konto als iPhone (`iphone-…`, „iOS …“ in der Diagnose) statt als iPad |
@@ -43,9 +43,21 @@ das iPad (auch im schmalen Split View) und der Mac behalten den Editor unveränd
 - **Notizen vom iPad** kommen über den Notizen-Abgleich des StudiNow-Kontos aufs iPhone (Tarif Pro AI, „Notizen auf
   allen deinen Geräten“). Mit Plus bleiben Notizen je Gerät; dann zeigt das iPhone die PDF ohne die iPad-Notizen.
 
+## 2a. „Eigenes ChatGPT“ überall entfernt (Vorgabe 11.11.2026)
+
+Auf Wunsch des Inhabers („dein ChatGPT erstmal überall entfernen“) auf **iPhone, iPad und Mac**: zentraler Schalter
+`OpenAIKeyLink.isOffered = false`. Keine Karte „Eigenes ChatGPT“ unter Einstellungen → Erweitert, keine Zeile
+„Eigenes ChatGPT verbinden“ auf der Free-Karte, keine Hinweise auf den eigenen OpenAI-Schlüssel (KI-Hilfe, KI-Start,
+Tests, Lernplan-Vorschlag), kein „über dein ChatGPT“ in Kostenzeilen. Ein früher eingetragener Schlüssel bleibt im
+Schlüsselbund, wird aber nicht benutzt; „Konto löschen“ entfernt ihn weiter. Die KI kommt nur noch über die StudiNow-KI
+(Pro AI). Wieder einschalten: Schalter auf `true` (die Tests der Funktion laufen weiter mit eingeschaltetem Schalter).
+Dies ist die **einzige gewollte Änderung am iPad** in diesem Zweig. Unverändert: der Pro-AI-Satz „kein eigenes
+ChatGPT-Konto nötig“ (steht so im gemeinsamen Tarif-Vertrag mit Web und Server).
+
 ## 3. iPad unverändert
 
-Vorgabe des Inhabers (11.11.2026): an der iPad-Fassung ändert sich nichts. Umgesetzt so:
+Vorgabe des Inhabers (11.11.2026): an der iPad-Fassung ändert sich nichts – einzige gewollte Ausnahme ist das
+Entfernen von „Eigenes ChatGPT“ (Abschnitt 2a). Umgesetzt so:
 - Die iPhone-Fassung hängt am **Gerät** (`UFCompact.phoneLayouts`, `UFEditorAvailability`): ein iPad – auch schmal
   im geteilten Bildschirm oder in einem Blatt – und der Mac zeigen alles wie in Build 32.
 - Eine Durchsicht des ganzen Unterschieds zu `develop` fand Stellen aus dem alten Zweig, die das iPad ohne
@@ -109,6 +121,15 @@ iPhone-Fassung („Meine geteilten Lösungen“: Menü statt Knöpfe, Rückfrage
 - **App-Datenschutz**: Datenarten ändern sich nicht. Geräte-ID-Text: Kennung jetzt `ipad-…`, `iphone-…` oder `mac-…`.
 - Preise/Abos: unverändert (gleiche Bundle-ID, gleiche Abos).
 
+**„Eigenes ChatGPT“ entfernt (gilt für iPad und iPhone):**
+- `APP-STORE.md`: Beschreibung „oder in jedem Tarif deinen eigenen API-Schlüssel (Einstellungen → Erweitert)“
+  streichen; Prüfhinweise (Englisch): Absatz „Own OpenAI key (Einstellungen → Erweitert → Eigenes ChatGPT …)“ streichen;
+  Tarif-Angaben ohne „Eigenes ChatGPT verbinden“.
+- `DATENSCHUTZ.md`: Abschnitt „Eigenes ChatGPT mit deinem OpenAI-Schlüssel“ (8a) und die Hinweise darauf (u. a.
+  Abschnitt 2 „Du verbindest dein eigenes ChatGPT“) als „derzeit nicht angeboten“ kennzeichnen oder streichen.
+- App-Datenschutz in App Store Connect: die Angaben zur Weitergabe an OpenAI über den eigenen Schlüssel entfallen;
+  die Weitergabe über die StudiNow-KI bleibt.
+
 **Datenschutz** (`docs/release/DATENSCHUTZ.md`, `site/datenschutz.html` – Upload nur durch den Inhaber)
 - Geltungsbereich „StudiNow-Apps (iPad und Mac, …)“ → „iPhone, iPad und Mac, …“.
 - „iPad-App“ an rund 35 Stellen → „App für iPhone und iPad“ (Uni-Zugang/Schlüsselbund, Uni-Mail, Konto, eigenes
@@ -122,8 +143,8 @@ iPhone-Fassung („Meine geteilten Lösungen“: Menü statt Knöpfe, Rückfrage
 
 | Lauf | Ergebnis |
 | --- | --- |
-| iPhone-Simulator (iPhone 17, iOS 27.2): alle `IPhone*Tests` (19 Klassen) + `LayoutWidthAuditTests` + `IPhoneStoreScreenshotTests` | **113 Tests, 0 Fehler** (1 übersprungen: Bildtest nur mit Ablageordner) |
-| iPad-Simulator (iPad Pro 11 M5): komplette `UniFlowTests` | **1.553 Tests, 0 Fehler** (19 übersprungen wie auf develop) |
+| iPhone-Simulator (iPhone 17, iOS 27.2): alle `IPhone*Tests` (19 Klassen) + `LayoutWidthAuditTests` + `IPhoneStoreScreenshotTests` + `OwnChatGPTOffTests` | **115 Tests**, grün nach einer Testkorrektur (Termin-Detail im schmalen iPad-Split-View lässt sich auf einem iPhone-Simulator nicht nachstellen; einzeln nachgeprüft) |
+| iPad-Simulator (iPad Pro 11 M5): komplette `UniFlowTests`, nach dem Entfernen von „Eigenes ChatGPT“ | **1.555 Tests, 1 rot** (`KIAbnahmeLUHAppTests.test3ProAIUeberDenDienst`, auch auf develop rot); davor ohne die ChatGPT-Änderung 1.553 Tests, 0 Fehler |
 | UniFlowCore (`swift test --filter CommunitySharedStateTests`, Geräte-Kennung) | 9 Tests, 0 Fehler |
 | Bildvergleich iPad vorher (`develop`) / nachher, je einzeln aufgenommen | Store-Bilder 32 von 40 pixelgleich, Layout-Bilder 271 von 312; **alle Abweichungen erklärt**: Uhrzeiten („Stand 11:41“, „QIS: 11:37 ok“), die Jetzt-Linie im Lernkalender, Ladezustand der Community ohne iCloud-Konto im Simulator. Keine Abweichung durch diese Arbeit |
 

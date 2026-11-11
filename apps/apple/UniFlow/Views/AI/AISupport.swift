@@ -114,13 +114,17 @@ final class AIRecents: ObservableObject {
 /// beim Abo; Credits gibt es erst mit Pro AI ueber den Dienst (in V1 nicht kaufbar). Ein gemeinsamer Wochentest, der
 /// uebernommen wurde, kostet nichts.
 enum AICost {
+    /// Weg der KI ohne StudiNow-KI (eigenes ChatGPT bzw. eigener Server): "über dein ChatGPT", solange es angeboten
+    /// wird (`OpenAIKeyLink.isOffered`), sonst neutral
+    static var ownWay: String { OpenAIKeyLink.isOffered || ChatGPTLink.isEnabled ? "über dein ChatGPT" : "über die KI" }
+
     /// Zeile unter einer Aktion: "1 Anfrage über dein ChatGPT", "≈ 10 Credits" (Pro AI) oder "0 Credits (gemeinsamer Test)"
     static func line(chatgpt: Bool, plan: UFPlan, credits: Int, calls: Int = 1, adopted: Bool = false) -> String {
         if adopted { return "0 Credits (gemeinsamer Test)" }
         if chatgpt { return calls == 1 ? "1 Anfrage über dein ChatGPT" : "\(calls) Anfragen über dein ChatGPT" }
         if plan == .proAI { return "≈ \(credits) Credits" }
         // ohne KI: der Weg dahin - StudiNow Pro AI oder der eigene OpenAI-Schluessel (07.11.2026)
-        return "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)"
+        return OpenAIKeyLink.isOffered ? "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)" : "Kommt mit StudiNow Pro AI"
     }
 
     /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)
@@ -133,9 +137,10 @@ enum AICost {
         if credits != nil, let line = creditsLine(credits: credits, chatgpt: chatgpt, charge: charge, trial: trial) {
             return "\(count) · \(line)\(m)"
         }
-        if chatgpt { return "\(count) · über dein ChatGPT\(m)" }
+        if chatgpt { return "\(count) · \(ownWay)\(m)" }
         if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
-        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · " : "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · ") + count
+        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · "
+                : OpenAIKeyLink.isOffered ? "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · " : "KI kommt mit StudiNow Pro AI · ") + count
     }
 
     // MARK: Echter Stand vom Dienst (Credits, docs/ABO-SYSTEM.md Abschnitt 6a)

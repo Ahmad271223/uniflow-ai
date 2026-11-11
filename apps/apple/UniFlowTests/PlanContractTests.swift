@@ -236,8 +236,9 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFEntitlement.canReadCommunity.from, .plus)
         XCTAssertEqual(UFFeature.communityRead.minimumPlan, .plus)
         XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.from, .free)
-        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.onDevice, .onDevice([.ownChatGPT]))
-        XCTAssertTrue(UFEntitlement.chatgptConnectionPremium.availableOnDevice)
+        // „Eigenes ChatGPT“ aus (OpenAIKeyLink.isOffered, Vorgabe 11.11.2026): auf keiner Karte, nicht freigeschaltet
+        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.onDevice, .needsService)
+        XCTAssertFalse(UFEntitlement.chatgptConnectionPremium.availableOnDevice)
         XCTAssertEqual(UFEntitlement.canShareSolutions.onDevice, .onDevice([.shareSolutions]))
         // eigene Karteikarten (04.11.2026): Recht des Vertrags ab Plus, auf dem iPad die Funktion `flashcards`
         XCTAssertEqual(UFEntitlement.canUseFlashcards.onDevice, .onDevice([.flashcards]))
@@ -308,7 +309,7 @@ final class PlanContractTests: XCTestCase {
     func testPlanCardsListOnlyWhatWorks() {
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
-                        .viewNotes, .uniGrades, .ownChatGPT].map(\.title))
+                        .viewNotes, .uniGrades].map(\.title))             // ohne „Eigenes ChatGPT“ (aus seit 11.11.2026)
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
                         "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung", "Lernplan automatisch erstellen"])

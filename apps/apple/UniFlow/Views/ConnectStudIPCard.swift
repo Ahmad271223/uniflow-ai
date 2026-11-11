@@ -122,7 +122,9 @@ struct UFNoServerContent: Equatable {
     /// Tests schon gibt, kein "bald"
     static var examsText: String {
         ChatGPTLink.isEnabled ? "Tests gibt es nur mit verbundenem ChatGPT. Ohne ChatGPT wiederholst du mit deinen eigenen Karteikarten."
-                              : "Tests erstellt die StudiNow-KI in StudiNow Pro AI – oder dein eigener OpenAI-Schlüssel (Einstellungen → Erweitert). Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
+                              : OpenAIKeyLink.isOffered
+                              ? "Tests erstellt die StudiNow-KI in StudiNow Pro AI – oder dein eigener OpenAI-Schlüssel (Einstellungen → Erweitert). Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
+                              : "Tests erstellt die StudiNow-KI in StudiNow Pro AI. Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
     }
 
     private static func text(_ kind: UFNoServerPage.Kind) -> String {
@@ -390,7 +392,7 @@ extension UFNoServerPage.Spec {
     static let exams = Self(title: "Tests & Wiederholung", sub: "Deine eigenen Karteikarten wiederholst du unter „Karteikarten“.",
                             kind: .exams, local: false)
     /// mit KI ueber das ChatGPT-Abo des Nutzers (`ufAIEnabled`): Wochentests auch auf dem Geraet (lokales Backend)
-    static let examsWithAI = Self(title: "Tests & Wiederholung", sub: "Wochentests deiner Module, erstellt mit deinem ChatGPT.", kind: .exams)
+    static var examsWithAI: Self { Self(title: "Tests & Wiederholung", sub: OpenAIKeyLink.isOffered ? "Wochentests deiner Module, erstellt mit deinem ChatGPT." : "Wochentests deiner Module, erstellt mit der KI.", kind: .exams) }
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     /// KI-Start (03.11.2026): lokal immer echt; ohne verbundene KI zeigt die Seite selbst den Weg dorthin
     static let aiStart = Self(title: "KI-Start", sub: ChatGPTLink.isEnabled ? "Fragen, Karteikarten, Erklären und Wochentests mit deinem ChatGPT." : "Fragen, Karteikarten, Erklären und Wochentests zu deinen Unterlagen.", kind: .exams, maxWidth: 960)

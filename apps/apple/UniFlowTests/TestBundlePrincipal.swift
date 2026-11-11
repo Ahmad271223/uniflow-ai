@@ -24,10 +24,21 @@ final class UniFlowTestsPrincipal: NSObject, XCTestObservation {
     /// alle anderen Tests sehen das echte Geraet (am iPad also nie die iPhone-Fassung, wie in der App).
     func testCaseWillStart(_ testCase: XCTestCase) {
         UFCompact.phoneLayoutsOverride = Self.isPhoneTest(testCase.name) ? true : nil
+        OpenAIKeyLink.isOffered = Self.isOwnChatGPTTest(testCase.name)
     }
 
     func testCaseDidFinish(_ testCase: XCTestCase) {
         UFCompact.phoneLayoutsOverride = nil
+        OpenAIKeyLink.isOffered = false
+    }
+
+    /// „Eigenes ChatGPT“ ist in der App aus (`OpenAIKeyLink.isOffered`, Vorgabe des Inhabers 11.11.2026). Die Tests der
+    /// ruhenden Funktion (eigener OpenAI-Schluessel, Kosten- und Fusszeilen ueber das eigene ChatGPT) schalten sie fuer
+    /// sich ein, damit sie beim Wiedereinschalten noch stimmt; alle anderen Tests sehen sie aus wie die App.
+    static func isOwnChatGPTTest(_ name: String) -> Bool {
+        ["OpenAIKeyLinkAppTests", "ChatGPTLinkAppTests", "AIViewsAppTests", "AIStartPolishAppTests", "CreditsDisplayAppTests",
+         "StudiNowAIAppTests", "PlanMatrixAppTests", "KIAbnahmeLUHAppTests test1EigenerSchluesselInJedemTarif"]
+            .contains { name.contains($0) }
     }
 
     static func isPhoneTest(_ name: String) -> Bool { name.contains("IPhone") }

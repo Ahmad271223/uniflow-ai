@@ -1229,7 +1229,7 @@ private struct LocalAdvancedTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if ChatGPTLink.available, let chatgpt {
-                OpenAIKeyCard(link: chatgpt.apiKey)
+                if OpenAIKeyLink.isOffered { OpenAIKeyCard(link: chatgpt.apiKey) }      // „Eigenes ChatGPT“ aus (11.11.2026)
                 // Anmelden mit dem ChatGPT-Abo erst nach der Freigabe durch OpenAI (`ChatGPTLink.isEnabled`); bis dahin
                 // keine Karte
                 if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) }

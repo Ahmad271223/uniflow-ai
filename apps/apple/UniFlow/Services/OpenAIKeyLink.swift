@@ -33,6 +33,12 @@ struct OpenAIKeyKeychainStore: OpenAIKeyStateStore {
 /// (`Entitlements.ownChatGPTConnected`). Braucht keine Freigabe von OpenAI (anders als Sign in with ChatGPT, `ChatGPTLink`).
 @MainActor
 final class OpenAIKeyLink: ObservableObject {
+    /// Schalter "Eigenes ChatGPT" (Vorgabe des Inhabers 11.11.2026: „dein ChatGPT erstmal überall entfernen“): aus =
+    /// keine Karte unter Einstellungen → Erweitert, keine Zeile auf den Tarifkarten, keine Hinweise darauf; ein frueher
+    /// eingetragener Schluessel bleibt im Schluesselbund, wird aber nicht benutzt (die KI kommt nur ueber die
+    /// StudiNow-KI). Wieder an: auf true setzen. Tests der Funktion schalten ihn fuer sich ein.
+    nonisolated(unsafe) static var isOffered = false
+
     @Published private(set) var status: OpenAIKeySession.Status?
     @Published private(set) var models: [String] = []
     @Published private(set) var busy = false
@@ -53,7 +59,7 @@ final class OpenAIKeyLink: ObservableObject {
     static let checkedText = "Schlüssel geprüft – OpenAI hat geantwortet."
 
     /// KI-Anfragen gerade moeglich
-    var enabled: Bool { status?.enabledForAI == true }
+    var enabled: Bool { Self.isOffered && status?.enabledForAI == true }
 
     /// Container geoeffnet oder geschlossen: Schluessel des Apple-Nutzers laden und ins Backend haengen
     func use(userScope: String?, host: LocalBackendHost?) {
@@ -69,7 +75,7 @@ final class OpenAIKeyLink: ObservableObject {
     }
 
     func refresh() async {
-        guard let session else {
+        guard let session, Self.isOffered else {
             status = nil
             await attach(nil)
             publishEntitlement(false)

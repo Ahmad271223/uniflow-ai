@@ -568,7 +568,8 @@ final class StoreScreenshotFinalTests: XCTestCase {
                          "Probe aktiv"] {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
-            XCTAssertTrue(shows(env, UFFeature.ownChatGPT.title), "\(name): „\(UFFeature.ownChatGPT.title)“ fehlt:\n" + dump(env))
+            // „Eigenes ChatGPT“ aus (OpenAIKeyLink.isOffered, Vorgabe des Inhabers 11.11.2026): nicht auf der Free-Karte
+            XCTAssertFalse(shows(env, UFFeature.ownChatGPT.title), "\(name): „\(UFFeature.ownChatGPT.title)“ im Bild:\n" + dump(env))
         }
         checkPage(prefix)
         guard let outDir else { return }

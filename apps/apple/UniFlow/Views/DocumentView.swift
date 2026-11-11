@@ -2229,7 +2229,7 @@ struct InfoSheet: View {
                 Button(analyzing ? "Die KI liest die Datei …" : "Mit KI einordnen") { Task { await analyze() } }
                     .disabled(analyzing)
                     .accessibilityIdentifier("doc.analyze")
-                Text("Schickt den Text dieser Datei an dein ChatGPT (nur diese Datei).").font(.caption).foregroundStyle(.secondary)
+                Text(OpenAIKeyLink.isOffered ? "Schickt den Text dieser Datei an dein ChatGPT (nur diese Datei)." : "Schickt den Text dieser Datei an die KI (nur diese Datei).").font(.caption).foregroundStyle(.secondary)
             }
             if let e = analysisError { Text(e).font(.caption).foregroundStyle(.red) }
         }

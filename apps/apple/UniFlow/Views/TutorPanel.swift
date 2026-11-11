@@ -360,8 +360,8 @@ struct TutorPanel: View {
         }
         let m = (model ?? "").trimmingCharacters(in: .whitespaces)
         let way = credits != nil
-            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil && !adopted, adopted: adopted, charge: charge, trial: trial) ?? "über dein ChatGPT"
-            : "über dein ChatGPT"
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil && !adopted, adopted: adopted, charge: charge, trial: trial) ?? AICost.ownWay
+            : AICost.ownWay
         return "Seite \(page) · \(way)" + (m.isEmpty ? "" : " · \(m)")
     }
 

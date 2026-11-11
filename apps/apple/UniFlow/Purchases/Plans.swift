@@ -321,7 +321,7 @@ extension UFEntitlement {
         case .canViewTimetable: return .onDevice([.modulesTimetable])
         case .canUseBasicPlanner: return .onDevice([.studyCalendar, .studyPlanning])
         // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel (07.11.2026): Einstellungen → Erweitert, jeder Tarif
-        case .chatgptConnectionPremium: return .onDevice([.ownChatGPT])
+        case .chatgptConnectionPremium: return OpenAIKeyLink.isOffered ? .onDevice([.ownChatGPT]) : .needsService
         // Lesen ab Plus wie im Vertrag und im Dienst (Entscheidung 05.11.2026); eigene Beitraege zurueckziehen geht
         // nach dem Herabstufen weiter (nichts wird geloescht)
         case .canReadCommunity: return .onDevice([.communityRead])

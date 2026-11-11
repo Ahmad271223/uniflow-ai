@@ -433,8 +433,11 @@ final class LayoutWidthAuditTests: XCTestCase {
         let e = try XCTUnwrap(ev, "kein Demo-Termin mit Raum")
         let id = try XCTUnwrap(e.i("id"))
         env.overlay.openDrawer { EventDrawer(eventID: id, date: UFFmt.todayISO()) }
-        // alle iPad-Groessen wie bis Build 32 (die iPhone-Fassung gibt es am iPad auch schmal nicht, 11.11.2026)
-        let report = audit(env, "termin-detail", route: nil, marker: "Route zu Fuß starten")
+        // alle iPad-Groessen wie bis Build 32 (die iPhone-Fassung gibt es am iPad auch schmal nicht, 11.11.2026); auf
+        // einem iPhone-Simulator laesst sich der schmale iPad-Split-View (590 pt, kompakt) nicht nachstellen - dort gilt
+        // die iPhone-Fassung (Blatt von unten, `IPhoneTerminDetailTests`)
+        let report = audit(env, "termin-detail", route: nil, marker: "Route zu Fuß starten",
+                           variants: UFDevice.isPhone ? Self.variants.filter { $0.size.width >= 700 } : Self.variants)
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
