@@ -190,6 +190,12 @@ liegt er im `localStorage` des Browsers (community-spaces.js), in der Windows-Ap
 Gruppe nicht, obwohl der Dienst die Mitgliedschaft des Kontos kennt. Vorschlag: Code verschlüsselt mit einem
 Konto-Schlüssel im Dienst ablegen oder beim Beitritt im zweiten Gerät „Code erneut eingeben“ anbieten. Aufwand ½ Tag.
 
+**Umgesetzt 12.11.2026 für Web und Windows (zweiter Weg):** Gruppen, die der Dienst als Mitgliedschaft kennt, deren
+Code dieser Browser/PC aber nicht hat, erscheinen mit „auf einem anderen Gerät beigetreten – Code hier einmal
+eingeben“ (`community-logic.js` `pendingGroups`, `community-spaces.js` `unlockGroup`; falscher Code wird über den
+Gruppen-Schlüssel erkannt). Der Code liegt weiter nie beim Dienst. Tests: `tests/js/community-logic.test.mjs`,
+`tests/test_web_community_groups_devices.py`.
+
 ### 5.5 „Aktualisieren“
 
 Weder iPad noch Mac noch Web aktualisieren eine offene Community-Ansicht von selbst (keine Push-Abos, kein Abfragen
@@ -197,12 +203,22 @@ im Takt). Vorschlag für alle Geräte gleich: beim Zurückkommen ins Fenster (`s
 `visibilitychange`) die offene Liste neu laden, höchstens einmal je Minute. Aufwand ½ Tag, App-Oberfläche → mit
 App-Tests.
 
+**Umgesetzt 12.11.2026 für Web und Windows** (`app/static/community-refresh.js`: `visibilitychange`/`focus`, höchstens
+einmal je Minute, nie mit angefangenem Text oder offenem Fenster, Scrollstand bleibt; `tests/js/community-refresh.test.mjs`).
+iPad/Mac: offen (`docs/AUFTRAG-MAC-2026-11-12.md`).
+
 ### 5.6 Abgleich: Abrufstände in der Windows-App
 
 `app/sync_client.py` `LOCAL_SETTINGS` sollte `studip_bulletin_fetched_at`, `studip_blubber_fetched_at` und
 `studip_blubber_activity` aufnehmen (zwei PCs desselben Kontos), und der Dienst sollte geräte-eigene Schlüssel gar nicht
 erst annehmen (`sync.PRIVATE_SETTINGS` erweitern, Altbestand löschen). Aufwand ½ Stunde mit Test; hier nicht umgesetzt
 (Vorrang Mac).
+
+**Umgesetzt 12.11.2026:** gemeinsames Muster `sync.DEVICE_FETCH_RE` (alle vier Schlüssel, mit und ohne `_v2`); die
+Windows-App sendet und übernimmt sie nicht, der Dienst nimmt sie nicht an (`ignored`) und gibt Altbestand im Abruf nicht
+heraus (`LOCAL_SETTINGS` blieb unverändert, weil der Mac-Test genau zehn Schlüssel erwartet). Tests:
+`tests/test_sync.py::test_device_fetch_state_is_neither_taken_nor_handed_out`,
+`tests/test_windows_fertigstellung_2026_11_12.py`.
 
 ## 6. Prüfungen in diesem Zweig
 

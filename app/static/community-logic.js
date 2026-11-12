@@ -215,3 +215,13 @@ export function ensureCss() {
   if (typeof document === "undefined" || document.getElementById("cc-css")) return;
   const l = document.createElement("link"); l.id = "cc-css"; l.rel = "stylesheet"; l.href = "community-channel.css?v=2"; document.head.append(l);
 }
+
+// ---------------------------------------------------------------- Lerngruppen ohne Code auf diesem Geraet
+/** Lerngruppen, denen das Konto beigetreten ist, deren Beitrittscode dieses Geraet aber nicht kennt (Befund 5.4,
+ *  12.11.2026). `rows`: Liste des Dienstes (`/community/communities`), `knownKeys`: Schluessel, die hier schon offen sind.
+ *  Der Code liegt nie beim Dienst; die Gruppe erscheint mit "Code hier einmal eingeben". */
+export function pendingGroups(rows, knownKeys) {
+  const known = new Set(knownKeys || []);
+  return [...(rows || [])].filter(r => r && r.kind === "group" && r.joined && !known.has(r.community_key))
+    .map(r => ({ key: r.community_key, name: r.name || "Lerngruppe", joined: true, members: r.members ?? 0, solutions: r.solutions ?? 0 }));
+}

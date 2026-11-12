@@ -33,7 +33,7 @@ import time
 
 from . import config, db, service_link
 from .annotation_merge import merge_document
-from .sync import ENTITIES, SYNC_COLS
+from .sync import DEVICE_FETCH_RE, ENTITIES, SYNC_COLS
 
 APPLIED_DEVICE = "~dienst"
 PAGE = 2000
@@ -44,10 +44,7 @@ LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applie
 # ein zweiter PC desselben Kontos den Zeitpunkt, ueberlas dann den eigenen Abruf (Drosselung) und zeigte ein leeres
 # Schwarzes Brett (Befund 5.6 in docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md). Bewusst eine eigene Menge: die Liste
 # oben liest `DeviceSyncLocalSettingsTests.swift` auf dem Mac (zaehlt zehn Schluessel); das iPad hat diese Schluessel schon.
-# Gemeint sind genau: studip_bulletin_fetched_at, studip_bulletin_fetched_at_v2 (iPad/Mac), Blubber-Abrufzeit und
-# Blubber-Aktivitaet (gleiche Liste wie `DeviceSync.swift`). Als Muster geschrieben, weil `tests/test_studip_blubber.py`
-# den Wortlaut des Blubber-Abrufs in app/*.py verbietet (Schutz: der Abgleich ruft Blubber nie ab).
-_OWN_FETCH_RE = re.compile(r"^studip_(bulletin_fetched_at(_v2)?|blubber_(fetched_at|activity))$")
+# Das Muster (`sync.DEVICE_FETCH_RE`) teilen Dienst und Windows-App: der Dienst nimmt sie auch nicht an.
 # Spalten, die nur auf diesem Geraet etwas bedeuten (IDs von Tabellen ausserhalb des Abgleichs)
 LOCAL_COLS = {"study_tasks": {"test_id"}}
 _SECRET_RE = re.compile(r"token|secret|passw|pin$|_path$|_dir$|service", re.I)
@@ -67,6 +64,8 @@ def ensure_tables(conn) -> None:
     conn.execute("CREATE TABLE IF NOT EXISTS sync_link_state (key TEXT PRIMARY KEY, value TEXT)")
     conn.execute("""CREATE TABLE IF NOT EXISTS sync_link_pending (
         entity TEXT NOT NULL, remote_id TEXT NOT NULL, payload TEXT NOT NULL, reason TEXT, PRIMARY KEY (entity, remote_id))""")
+    from . import own_docs_sync                                  # eigene Dokumente (12.11.2026)
+    own_docs_sync.ensure_tables(conn)
 
 
 def _state(conn, key, default=None):
@@ -82,7 +81,7 @@ def _set_state(conn, key, value) -> None:
 def reset(conn) -> None:
     """Anderes Konto oder Neuanfang: Zuordnung und Cursor vergessen (lokale Daten bleiben)."""
     ensure_tables(conn)
-    for t in ("sync_link_map", "sync_link_state", "sync_link_pending"):
+    for t in ("sync_link_map", "sync_link_state", "sync_link_pending", "own_doc_link"):
         conn.execute(f"DELETE FROM {t}")
 
 
@@ -105,7 +104,7 @@ def _int_pk(table) -> bool:
 
 
 def _setting_local(key: str) -> bool:
-    return key in LOCAL_SETTINGS or bool(_OWN_FETCH_RE.match(key or "")) or bool(_SECRET_RE.search(key or ""))
+    return key in LOCAL_SETTINGS or bool(DEVICE_FETCH_RE.match(key or "")) or bool(_SECRET_RE.search(key or ""))
 
 
 def _norm(v):
@@ -142,6 +141,7 @@ class Client:
         # (Audit 08.11.2026, P37-02); None = jeweils der gespeicherte Stand (nur Tests ohne Lauf)
         self.token, self.url = token, url
         self.retry_notes = False
+        self.own_enabled = False                                 # eigene Dokumente (own_docs_sync), nach probe()
         self._nk: dict[str, dict] = {}
         self.stats = {"pulled": 0, "applied": 0, "pushed": 0, "deleted": 0, "conflicts": 0, "pending": 0, "notes_merged": 0,
                       "plan_required": False, "errors": []}
@@ -332,7 +332,7 @@ class Client:
     def pull(self) -> None:
         cursor = _state(self.conn, "cursor")
         for _ in range(200):
-            q = "limit=%d&device_id=%s" % (PAGE, self.device) + (f"&since={cursor}" if cursor else "")
+            q = "limit=%d&device_id=%s" % (PAGE, self.device) + (f"&since={cursor}" if cursor else "") + ("&own=1" if self.own_enabled else "")
             d = _call("GET", "/api/sync/changes", query=q, token=self.token, url=self.url)
             self.conn.execute("BEGIN IMMEDIATE")
             try:
@@ -371,8 +371,14 @@ class Client:
     def file_info(self, fid) -> dict | None:
         f = db.row(self.conn, "SELECT f.id, f.name, f.mime, f.course_id, c.title AS course_title, c.semester FROM files f "
                               "LEFT JOIN courses c ON c.id=f.course_id WHERE f.id=?", (fid,))
-        if not f or f["course_id"] == "__user__":
+        if not f:
             return None
+        if f["course_id"] == "__user__":
+            # eigenes Dokument: Notizen erst, wenn das Dokument selbst im Dienst liegt (own_docs_sync, 12.11.2026)
+            from . import own_docs_sync
+            if not (self.own_enabled and own_docs_sync.linked(self.conn, fid)):
+                return None
+            return {"name": f["name"], "mime": f["mime"], "course_id": "__user__", "course_title": "Eigene Dokumente", "semester": None}
         return {"name": f["name"], "mime": f["mime"], "course_id": f["course_id"], "course_title": f["course_title"] or f["course_id"],
                 "semester": f["semester"]}
 
@@ -640,14 +646,24 @@ def run(force: bool = False) -> dict:
                 _set_state(conn, "account", account)
             c = Client(conn, st.get("device_id") or "win", token=st.get("token") or "", url=service_link.service_url(st) or None)
             c.retry_notes = False
+            # eigene Dokumente (own_docs_sync, 12.11.2026): erst pruefen, ob das Konto sie abgleicht (Recht wie Notizen)
+            from .own_docs_sync import OwnDocsSync
+            own = OwnDocsSync(c)
+            c.own_enabled = own.probe()
             c.pull()
+            if c.own_enabled:
+                own.step(own.run)                                # Dokumente vor den Notizen: die brauchen ihre Datei
             c.push()
             for _ in range(2):
                 if not c.retry_notes:
                     break
                 c.retry_notes = False
                 c.push()
+            if c.own_enabled:
+                own.step(own.assets_up)
             c.pull()
+            if c.own_enabled:
+                own.step(own.assets_down)
             out = {"ok": True, **c.stats}
         finally:
             conn.close()
@@ -665,7 +681,10 @@ def run(force: bool = False) -> dict:
         if (s.get("user") or {}).get("id") != (st.get("user") or {}).get("id"):
             return out                                          # inzwischen anderes Konto: dessen Stand bleibt, wie er ist
         s["sync_last"] = {k: out[k] for k in out if k in ("ok", "at", "pulled", "applied", "pushed", "deleted", "conflicts", "pending",
-                                                          "notes_merged", "plan_required", "error")}
+                                                          "notes_merged", "plan_required", "error", "own_documents", "own_up",
+                                                          "own_down", "own_deleted", "own_skipped", "assets_up", "assets_down")}
+        if out.get("errors"):
+            s["sync_last"]["errors"] = [str(e)[:200] for e in out["errors"][:5]]
         service_link.save_state(s)
     except OSError:
         pass

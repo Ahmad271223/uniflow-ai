@@ -17,6 +17,22 @@ async function call(path, body) {
 }
 export const linkStatus = (refresh = true) => call(`/status?refresh=${refresh}`);
 
+/** Zeile "Eigene Dokumente" im Abgleich (app/own_docs_sync.py): Notizbuecher und importierte PDFs mit der Web-App. */
+export function ownDocsLine(l) {
+  if (!l || !l.ok || !l.own_documents || l.own_documents === "plan_required") return "";
+  if (l.own_documents === "unavailable") return `<div class="muted">Eigene Dokumente: der Dienst kann das noch nicht (wird mit dem nächsten Update des Dienstes freigeschaltet).</div>`;
+  const parts = [];
+  if (l.own_up) parts.push(`${l.own_up} hochgeladen`);
+  if (l.own_down) parts.push(`${l.own_down} geholt`);
+  if (l.own_deleted) parts.push(`${l.own_deleted} gelöscht`);
+  const pics = (l.assets_up || 0) + (l.assets_down || 0);
+  if (pics) parts.push(`${pics} Bilder`);
+  const skipped = (l.own_skipped || []).length
+    ? `<div class="sl-warn">${icon("info", 13)} Zu groß für den Abgleich (über 75 MB), bleibt auf diesem PC: ${l.own_skipped.slice(0, 3).map(esc).join(", ")}${l.own_skipped.length > 3 ? " …" : ""}</div>` : "";
+  const errs = (l.errors || []).length ? `<div class="sl-warn">${icon("alert", 13)} ${esc(l.errors[0])}${l.errors.length > 1 ? ` (+${l.errors.length - 1})` : ""}</div>` : "";
+  return `<div class="muted">Eigene Dokumente (Notizbücher, importierte PDFs) mit der Web-App: ${parts.length ? parts.join(", ") : "alles aktuell"}.</div>${skipped}${errs}`;
+}
+
 /** Karte mit Anmeldeformular bzw. verbundenem Konto. `onChange(status)` nach Anmelden/Abmelden. */
 export async function renderLinkCard(el, { onChange, compact = false } = {}) {
   let st;
@@ -43,7 +59,8 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       const when = l?.at ? new Date(l.at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : null;
       syncBox.innerHTML = `<label class="row" style="gap:.4rem;align-items:center"><input type="checkbox" data-sl="auto" ${s.enabled ? "checked" : ""}> <b>Mit dem iPad abgleichen</b> <span class="muted">(Notizen, Module, Stundenplan-Änderungen, Lernkalender, Karteikarten, Einstellungen)</span></label>
         <div class="muted">${s.running ? "Gleicht gerade ab …" : when ? `Zuletzt ${when}: ${l.ok ? `${l.applied || 0} übernommen, ${l.pushed || 0} gesendet${l.deleted ? `, ${l.deleted} gelöscht` : ""}${l.conflicts ? `, ${l.conflicts} zusammengeführt` : ""}${l.pending ? `, ${l.pending} warten auf Dateien dieses PCs` : ""}` : `Fehler: ${esc(l.error || "")}`}` : "Noch nicht abgeglichen."}</div>
-        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen erst mit StudiNow Pro AI zwischen deinen Geräten ab (Plus gilt je Gerät); Pläne und Module schon jetzt.</div>` : ""}`;
+        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen erst mit StudiNow Pro AI zwischen deinen Geräten ab (Plus gilt je Gerät); Pläne und Module schon jetzt.</div>` : ""}
+        ${ownDocsLine(l)}`;
       const auto = $('[data-sl="auto"]', syncBox); if (auto) auto.onchange = async () => { await fetch("/api/studora/sync/enabled", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: auto.checked }) }); showSync(); };
     };
     showSync();

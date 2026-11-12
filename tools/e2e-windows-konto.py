@@ -80,6 +80,17 @@ def req(base: str, method: str, path: str, body=None, token: str | None = None, 
             return e.code, b[:300]
 
 
+def req_form(base: str, path: str, fields: dict, file: tuple[str, bytes] | None = None, token: str | None = None):
+    """multipart/form-data wie der Import-Dialog (POST /api/notebooks)."""
+    b = "----e2e-" + secrets.token_hex(8)
+    parts = [f'--{b}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode() for k, v in fields.items()]
+    if file:
+        parts.append(f'--{b}\r\nContent-Disposition: form-data; name="upload"; filename="{file[0]}"\r\n'
+                     f'Content-Type: application/pdf\r\n\r\n'.encode() + file[1] + b"\r\n")
+    return req(base, "POST", path, b"".join(parts) + f"--{b}--\r\n".encode(), token=token,
+               headers={"Content-Type": f"multipart/form-data; boundary={b}"})
+
+
 def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -125,7 +136,8 @@ def sync_until_quiet(pcs: list[str], rounds: int = 4) -> None:
         busy = 0
         for pc in pcs:
             s, d = req(pc, "POST", "/api/studora/sync", {})
-            busy += int(isinstance(d, dict) and (d.get("pulled", 0) or d.get("pushed", 0) or d.get("applied", 0)))
+            busy += int(isinstance(d, dict) and any(d.get(k) for k in ("pulled", "pushed", "applied", "own_up", "own_down", "own_deleted",
+                                                                        "assets_up", "assets_down")))
         if not busy:
             return
 
@@ -238,6 +250,50 @@ def run() -> int:
         s, mods = req(W2, "GET", "/api/modules")
         names = [x.get("name") for x in (mods if isinstance(mods, list) else mods.get("modules", []))]
         check("Analysis I" not in names, "Geloeschtes Modul verschwindet auch auf PC 2", str(names))
+
+        print("\n== Eigene Dokumente (Notizbuch, importierte PDF) zwischen PC 1, Web/Dienst und PC 2")
+        s, nb = req_form(W1, "/api/notebooks", {"kind": "notebook", "title": "Mitschrift e2e"})
+        check(s == 200 and nb.get("id"), "PC 1: neues Notizbuch", str(nb)[:200])
+        own_pdf = pdf.read_bytes()
+        s, imp = req_form(W1, "/api/notebooks", {"kind": "pdf", "title": "Skript e2e"}, ("skript.pdf", own_pdf))
+        check(s == 200 and imp.get("id"), "PC 1: PDF importiert", str(imp)[:200])
+        nb_id, imp_id = nb["id"], imp["id"]
+        s, cur = req(W1, "GET", f"/api/files/{nb_id}/annotations")
+        doc = cur["data"]
+        key = doc["pageOrder"][0]["key"]
+        doc["pages"].setdefault(key, {})["objects"] = [{"id": "w1", "type": "stroke", "points": [1, 2, 3, 4]}]
+        check(req(W1, "PUT", f"/api/files/{nb_id}/annotations?base_version={cur['version']}", doc)[0] == 200, "PC 1: Strich im Notizbuch")
+        sync_until_quiet([W1, W2])
+        s, lib = req(H, "GET", "/api/library", token=ipad)
+        check(s == 200 and {nb_id, imp_id} <= {f["id"] for f in lib.get("files", [])}, "Web/Dienst: beide Dokumente in der Bibliothek")
+        r = urllib.request.Request(H + f"/api/files/{imp_id}/content", headers={"Authorization": "Bearer " + ipad})
+        with urllib.request.urlopen(r, timeout=90) as resp:
+            check(hashlib.sha256(resp.read()).hexdigest() == hashlib.sha256(own_pdf).hexdigest(), "Web/Dienst: PDF-Inhalt identisch (SHA-256)")
+        s, lib2 = req(W2, "GET", "/api/library")
+        t2 = {f["id"]: f.get("title") for f in lib2.get("files", [])}
+        check(t2.get(nb_id) == "Mitschrift e2e" and t2.get(imp_id) == "Skript e2e", "PC 2: beide Dokumente mit Titel", str(t2)[:200])
+        s, a = req(W2, "GET", f"/api/files/{nb_id}/annotations")
+        check(ids_of(a.get("data")) == ["w1"], "PC 2: Strich von PC 1 im Notizbuch", str(ids_of(a.get("data"))))
+        # Web schreibt dazu und benennt um
+        s, cur = req(H, "GET", f"/api/files/{nb_id}/annotations", token=ipad)
+        doc = cur["data"]
+        doc["pages"][key]["objects"].append({"id": "web1", "type": "stroke", "points": [5, 6, 7, 8]})
+        check(req(H, "PUT", f"/api/files/{nb_id}/annotations?base_version={cur['version']}", doc, token=ipad)[0] == 200, "Web: Strich dazu")
+        check(req(H, "PATCH", f"/api/library/files/{imp_id}", {"title": "Skript e2e (umbenannt)"}, token=ipad)[0] == 200, "Web: PDF umbenannt")
+        sync_until_quiet([W1, W2])
+        for name, pc in (("PC 1", W1), ("PC 2", W2)):
+            s, a = req(pc, "GET", f"/api/files/{nb_id}/annotations")
+            s, lb = req(pc, "GET", "/api/library")
+            title = {f["id"]: f.get("title") for f in lb.get("files", [])}.get(imp_id)
+            check(ids_of(a.get("data")) == ["w1", "web1"] and title == "Skript e2e (umbenannt)", f"{name}: Strich und neuer Name aus dem Web",
+                  f"{ids_of(a.get('data'))} {title}")
+        # PC 2 loescht endgueltig
+        check(req(W2, "PATCH", f"/api/library/files/{nb_id}", {"delete_forever": True})[0] == 200, "PC 2: Notizbuch endgueltig geloescht")
+        sync_until_quiet([W2, W1])
+        s, lib = req(H, "GET", "/api/library", token=ipad)
+        s, lb1 = req(W1, "GET", "/api/library")
+        check(nb_id not in {f["id"] for f in lib.get("files", [])} and nb_id not in {f["id"] for f in lb1.get("files", [])},
+              "Endgueltig loeschen kommt im Web und auf PC 1 an")
 
         print("\n== Community (Windows <-> anderes Konto auf dem 'iPad')")
         for pc in (W1, W2):

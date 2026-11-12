@@ -16,7 +16,8 @@ Abruf: `changes(conn, since)` liefert alle Zeilen und Tombstones nach dem Cursor
    `sync_updated_at` des Servers); das Ergebnis kommt mit beiden Staenden zurueck
  - Loeschen: gewinnt, wenn es nicht aelter ist als die letzte Aenderung auf dem Server, sonst bleibt die Zeile
    (Konflikt `edit_wins`); eine Aenderung nach einem Tombstone stellt die Zeile wieder her
-Eigene Dokumente mit Inhalt (Notizbuecher, importierte PDFs) folgen spaeter; Hochschuldateien laedt jedes Geraet selbst.
+Eigene Dokumente (Notizbuecher, importierte PDFs) gleichen ueber einen eigenen Weg ab (app/own_docs.py, 12.11.2026); ihre
+Notizen liefert `changes` nur mit `own_documents=True`. Hochschuldateien laedt jedes Geraet selbst.
 """
 from __future__ import annotations
 
@@ -43,6 +44,18 @@ ENTITIES: dict[str, dict] = {
 }
 SYNC_COLS = ("sync_version", "sync_updated_at", "sync_device")
 PRIVATE_SETTINGS = {"lan_pin", "university"}       # nie zwischen Geraeten
+# Abrufstaende von Schwarzem Brett und Blubber gehoeren dem Geraet, das abgerufen hat (Befund 5.6 in
+# docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md, 12.11.2026): der Dienst nimmt sie nicht an und gibt sie nicht
+# weiter, die Windows-App (`sync_client`) sendet und uebernimmt sie nicht. Genau die vier Schluessel von `DeviceSync.swift`
+# (iPad/Mac halten sie schon lokal): studip_bulletin_fetched_at, studip_bulletin_fetched_at_v2, Blubber-Abrufzeit,
+# Blubber-Aktivitaet. Als Muster, weil tests/test_studip_blubber.py den Wortlaut des Blubber-Abrufs in app/*.py verbietet.
+DEVICE_FETCH_RE = re.compile(r"^studip_(bulletin_fetched_at(_v2)?|blubber_(fetched_at|activity))$")
+
+
+def private_setting(key) -> bool:
+    """Einstellung, die der Dienst nie zwischen Geraeten weitergibt."""
+    return key in PRIVATE_SETTINGS or bool(DEVICE_FETCH_RE.match(str(key or "")))
+
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
 OP_RE = re.compile(r"^[A-Za-z0-9._:-]{8,100}$")             # Operations-ID eines Push-Eintrags (z. B. UUID)
 NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
@@ -148,7 +161,16 @@ def _page(conn, sql_more: str, sql_same: str, since: str, limit: int, ts_key: st
     return [r for r in rows if r[ts_key] < last] + db.rows(conn, sql_same, (last,)), last
 
 
-def changes(conn, since: str | None, limit: int = MAX_PULL) -> dict:
+def _own_document_ids(conn, file_ids: list) -> set:
+    out: set = set()
+    ids = [str(x) for x in file_ids]
+    for i in range(0, len(ids), 500):
+        part = ids[i:i + 500]
+        out.update(r["id"] for r in db.rows(conn, f"SELECT id FROM files WHERE course_id='__user__' AND id IN ({','.join('?' * len(part))})", part))
+    return out
+
+
+def changes(conn, since: str | None, limit: int = MAX_PULL, own_documents: bool = False) -> dict:
     """Alle Aenderungen nach `since` (Cursor aus der letzten Antwort; None = alles), seitenweise.
 
     Je Tabelle hoechstens `limit` Zeilen (plus Gleichstand am Ende). Wird eine Tabelle abgeschnitten, gilt fuer alle
@@ -183,7 +205,11 @@ def changes(conn, since: str | None, limit: int = MAX_PULL) -> dict:
         if rows:
             newest = max(newest, rows[-1]["sync_updated_at"] or "")
         if table == "settings":
-            rows = [r for r in rows if r["key"] not in PRIVATE_SETTINGS]
+            rows = [r for r in rows if not private_setting(r["key"])]
+        if table == "annotations" and rows and not own_documents:
+            # Notizen eigener Dokumente nur fuer Geraete, die eigene Dokumente abgleichen (app/own_docs.py, 12.11.2026)
+            own = _own_document_ids(conn, [r["file_id"] for r in rows])
+            rows = [r for r in rows if r["file_id"] not in own]
         if rows:
             out[table] = [_row_out(table, r) for r in rows]
     if cut:
@@ -256,7 +282,7 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             n0 = len(results)
             try:
                 data = {k: v for k, v in (it.get("data") or {}).items() if k in cols and k != pk}
-                if table == "settings" and (it.get("id") or it.get("local_id")) in PRIVATE_SETTINGS:
+                if table == "settings" and private_setting(it.get("id") or it.get("local_id")):
                     results.append({"entity": table, "id": it.get("id") or it.get("local_id"), "status": "ignored"})
                     continue
                 try:

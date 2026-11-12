@@ -622,8 +622,13 @@ _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/timetable/import/preview$"), MAX_IMPORT_BYTES))
 # PUT mit JSON-Koerper, der ganz gelesen wird (Audit 08.11.2026, P28-01/P29-04): Notizen wie in sync/push, Seitentexte
 # vom Geraet; vorher galt fuer PUT nur die Caddy-Grenze von 320 MB.
+MAX_OWN_DOC_SYNC_BYTES = 75 << 20           # = own_docs.MAX_SYNC_BYTES (Abgleich eigener Dokumente, 12.11.2026)
 _PUT_LIMITS = ((re.compile(r"^/api/files/[^/]+/annotations$"), MAX_SYNC_BYTES),
-               (re.compile(r"^/api/files/[^/]+/pagetext$"), MAX_SYNC_BYTES))
+               (re.compile(r"^/api/files/[^/]+/pagetext$"), MAX_SYNC_BYTES),
+               # Abgleich eigener Dokumente: Beschreibung (JSON), Inhalt (roh), Bild bzw. PDF-Seite (roh)
+               (re.compile(r"^/api/sync/own-documents/[^/]+$"), 1 << 20),
+               (re.compile(r"^/api/sync/own-documents/[^/]+/content$"), MAX_OWN_DOC_SYNC_BYTES),
+               (re.compile(r"^/api/sync/assets/[^/]+/[^/]+$"), MAX_ASSET_BYTES))
 try:
     from PIL import Image as _PILImage  # type: ignore
     _PILImage.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
@@ -1067,12 +1072,15 @@ def sync_now(ai: bool = True):
 
 
 @app.get("/api/sync/changes")
-def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000)):
+def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000),
+                     own: bool = False):
     """Vertrag G2: Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones, seitenweise:
-    weiter abrufen, solange `has_more` true ist."""
+    weiter abrufen, solange `has_more` true ist. Notizen eigener Dokumente nur mit `own=1` (Geraete, die eigene Dokumente
+    abgleichen, 12.11.2026); andere Geraete (das veroeffentlichte iPad) bekommen sie nicht, sie koennten sie keiner Datei
+    zuordnen und hielten sie sonst endlos als "wartend"."""
     from . import sync
     with db.cursor() as conn:
-        return sync.changes(conn, since, limit)
+        return sync.changes(conn, since, limit, own_documents=own)
 
 
 @app.post("/api/sync/push")
@@ -1103,6 +1111,143 @@ def api_sync_push(request: Request, body: dict = Body(...)):
                           "required_plan": entitlements.required_plan("can_use_flashcards")} for it in refused_cards]
                       + out["results"])
     return out
+
+
+# ---------------------------------------------------------------- Abgleich eigener Dokumente (12.11.2026, app/own_docs.py)
+
+class _BodyUpload:
+    """Rohen Anfrage-Inhalt stueckweise lesen wie ein UploadFile (fuer _save_upload: Grenze, Kontingent, Platte)."""
+
+    def __init__(self, request: Request):
+        self._it = request.stream().__aiter__()
+        self._buf, self._done = b"", False
+        cl = request.headers.get("content-length")
+        self.size = int(cl) if cl and cl.isdigit() else None
+
+    async def read(self, n: int) -> bytes:
+        while not self._done and len(self._buf) < n:
+            try:
+                self._buf += await self._it.__anext__()
+            except StopAsyncIteration:
+                self._done = True
+        out, self._buf = self._buf[:n], self._buf[n:]
+        return out
+
+
+def _own_sync_user(request: Request):
+    """Nur im Dienst und mit dem Recht can_sync_annotations: eigene Dokumente gleichen ab wie Notizen (ab Pro AI und in
+    der Probe, Entscheidung vom 04.11.2026)."""
+    if not config.is_hosted():
+        raise HTTPException(404, "Nicht gefunden.")
+    return entitlements.require(request, "can_sync_annotations")
+
+
+def _own_error(e) -> HTTPException:
+    return HTTPException(e.status, {"detail": e.message, "code": e.code})
+
+
+@app.get("/api/sync/own-documents")
+def api_own_docs_list(request: Request):
+    """Alle eigenen Dokumente des Kontos (Beschreibung, SHA-256 des Inhalts, `meta_at`) und Grabsteine."""
+    _own_sync_user(request)
+    from . import own_docs, sync
+    with db.cursor() as conn:
+        return own_docs.listing(conn, sync.now_utc())
+
+
+@app.put("/api/sync/own-documents/{file_id}")
+def api_own_doc_put(request: Request, file_id: str, body: dict = Body(...)):
+    """Eigenes Dokument anlegen oder seine Beschreibung uebernehmen (Ordner-ID des Dienstes)."""
+    _own_sync_user(request)
+    from . import own_docs, sync
+    with db.cursor() as conn:
+        own_docs.ensure_tables(conn)
+        try:
+            own_docs.apply_meta(conn, file_id, body)
+        except own_docs.OwnDocError as e:
+            raise _own_error(e)
+        return own_docs.describe(conn, db.row(conn, "SELECT * FROM files WHERE id=?", (file_id,)), sync.now_utc())
+
+
+@app.put("/api/sync/own-documents/{file_id}/content")
+async def api_own_doc_content(request: Request, file_id: str, sha256: str = Query(default="")):
+    """Inhalt (PDF oder Bild) eines eigenen Dokuments, roh im Koerper; zaehlt zum Speicherkontingent des Kontos."""
+    import hashlib
+    import os
+    _own_sync_user(request)
+    from . import own_docs, sync
+    with db.cursor() as conn:
+        f = db.row(conn, "SELECT * FROM files WHERE id=? AND course_id='__user__'", (file_id,))
+    if not f or not own_docs.ID_RE.fullmatch(file_id):
+        raise HTTPException(404, {"detail": "Kein eigenes Dokument mit dieser Kennung.", "code": "own_document_unknown"})
+    target = own_docs.content_target(config.data_dir(), file_id, own_docs.meta_of(f))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    part = target.with_name(f"{target.name}.{uuid.uuid4().hex}.part")      # immer ein neuer Name (Audit P28-02)
+    await _save_upload(_BodyUpload(request), part, own_docs.MAX_SYNC_BYTES, head=b"%PDF" if target.suffix == ".pdf" else None)
+    h = hashlib.sha256()
+    with open(part, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    if sha256 and h.hexdigest() != sha256.lower():
+        part.unlink(missing_ok=True)
+        raise HTTPException(400, {"detail": "Die Datei kam unvollständig an.", "code": "content_mismatch"})
+    os.replace(part, target)
+    with db.cursor() as conn:
+        own_docs.ensure_tables(conn)
+        own_docs.set_content(conn, file_id, target)
+        return own_docs.describe(conn, db.row(conn, "SELECT * FROM files WHERE id=?", (file_id,)), sync.now_utc())
+
+
+@app.delete("/api/sync/own-documents/{file_id}")
+def api_own_doc_delete(request: Request, file_id: str):
+    """Endgueltig loeschen wie in der Bibliothek; der Grabstein bringt das Loeschen auf die anderen Geraete."""
+    _own_sync_user(request)
+    from . import own_docs
+    if not own_docs.ID_RE.fullmatch(file_id or ""):
+        raise HTTPException(400, {"detail": "Ungültige Kennung eines eigenen Dokuments.", "code": "id_invalid"})
+    with db.cursor() as conn:
+        try:
+            found = own_docs.delete_forever(conn, file_id, _assets_dir())
+        except own_docs.OwnDocError as e:
+            raise _own_error(e)
+        if not found:
+            own_docs.record_tombstone(conn, file_id)
+    return {"ok": True, "deleted": found}
+
+
+@app.get("/api/sync/assets")
+def api_sync_assets(request: Request):
+    """Bilder und eingefuegte PDF-Seiten des Kontos je Asset-Ordner ({ordner: {name: groesse}}); Aufnahmen nicht."""
+    _own_sync_user(request)
+    from . import own_docs
+    return {"assets": own_docs.asset_index(_assets_dir())}
+
+
+@app.put("/api/sync/assets/{dir_id}/{name}")
+async def api_sync_asset_put(request: Request, dir_id: str, name: str):
+    """Bild bzw. PDF-Seite eines anderen Geraets ablegen, unter demselben Namen (die Notizen verweisen darauf)."""
+    import os
+    _own_sync_user(request)
+    from . import own_docs
+    if not own_docs.ASSET_DIR_RE.fullmatch(dir_id or "") or not own_docs.ASSET_NAME_RE.fullmatch(name or ""):
+        raise HTTPException(400, {"detail": "Ungültiger Name.", "code": "asset_name"})
+    with db.cursor() as conn:
+        known = db.row(conn, "SELECT 1 FROM files WHERE id=?", (dir_id,)) or \
+            db.row(conn, "SELECT 1 FROM annotations WHERE instr(data, ?) > 0 LIMIT 1", (f"/api/assets/{dir_id}/{name}",))
+    if not known:
+        raise HTTPException(404, {"detail": "Keine Notiz verweist auf dieses Bild.", "code": "asset_unreferenced"})
+    folder = _inside(_assets_dir(), _assets_dir() / dir_id)
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / name
+    if target.is_file():
+        return {"ok": True, "existed": True}
+    part = folder / f"{name}.{uuid.uuid4().hex}.part"                        # immer ein neuer Name (Audit P28-02)
+    await _save_upload(_BodyUpload(request), part, MAX_ASSET_BYTES)
+    if not _asset_content_ok(part, Path(name).suffix.lower()):
+        part.unlink(missing_ok=True)
+        raise HTTPException(400, {"detail": "Die Datei ist kein Bild bzw. keine PDF.", "code": "asset_content"})
+    os.replace(part, target)
+    return {"ok": True, "existed": False}
 
 
 @app.get("/api/sync/status")
@@ -4439,36 +4584,6 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
         return db.row(conn, "SELECT * FROM files WHERE id=?", (fid,))
 
 
-_ASSET_REF = re.compile(r"/api/assets/([A-Za-z0-9][A-Za-z0-9_-]{0,79})/")
-
-
-def _asset_refs(conn, file_id: str) -> set[str]:
-    """Asset-Ordner, auf die Notizen und Verlauf eines Dokuments verweisen (ein Duplikat verweist auf die des Originals)."""
-    out: set[str] = set()
-    for t in ("annotations", "annotation_versions"):
-        for r in db.rows(conn, f"SELECT data FROM {t} WHERE file_id=?", (file_id,)):
-            out.update(_ASSET_REF.findall(r["data"] or ""))
-    return out
-
-
-def _drop_unused_assets(conn, ids: set[str]) -> None:
-    """Endgueltig geloescht (Audit P29-03): Bilder und Aufnahmen bleiben sonst fuer immer liegen und belegen im Dienst
-    das Kontingent ohne Weg, den Platz freizugeben. Ein Ordner geht nur, wenn sein Dokument weg ist und keine
-    Notiz, Version oder Aufnahme mehr auf ihn verweist."""
-    import shutil
-    for aid in ids:
-        if not _SAFE_ID.fullmatch(aid) or db.row(conn, "SELECT 1 FROM files WHERE id=?", (aid,)):
-            continue
-        like = f"%/api/assets/{aid}/%"
-        if any(db.row(conn, f"SELECT 1 FROM {t} WHERE {c} LIKE ? LIMIT 1", (like,))
-               for t, c in (("annotations", "data"), ("annotation_versions", "data"), ("recordings", "url"))):
-            continue
-        try:
-            shutil.rmtree(_inside(_assets_dir(), _assets_dir() / aid), ignore_errors=True)
-        except HTTPException:
-            pass
-
-
 @app.patch("/api/library/files/{file_id}")
 def api_library_file_patch(file_id: str, body: dict = Body(...)):
     with db.cursor() as conn:
@@ -4491,25 +4606,13 @@ def api_library_file_patch(file_id: str, body: dict = Body(...)):
                 conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", (nid, ann["data"], db.now_iso()))
             return {"ok": True, "id": nid}
         if body.get("delete_forever"):
-            f = db.row(conn, "SELECT local_path, course_id FROM files WHERE id=?", (file_id,))
-            if f and f["course_id"] != "__user__":
-                raise HTTPException(400, "Stud.IP-Dokumente können nur in den Papierkorb, nicht endgültig gelöscht werden.")
-            asset_dirs = _asset_refs(conn, file_id) | {file_id}         # vor dem Loeschen: welche Asset-Ordner nutzt es
-            for t in ("annotation_versions", "annotations", "analysis", "flashcards", "recordings"):
-                conn.execute(f"DELETE FROM {t} WHERE file_id=?", (file_id,))
-            # Stapel des Dokuments: leer -> weg, sonst bleibt er ohne Quelle (Karten aus anderen Dokumenten darin)
-            conn.execute("DELETE FROM flashcard_stacks WHERE file_id=? AND NOT EXISTS (SELECT 1 FROM flashcards fc WHERE fc.stack_id=flashcard_stacks.id)", (file_id,))
-            conn.execute("UPDATE flashcard_stacks SET file_id=NULL WHERE file_id=?", (file_id,))
-            conn.execute("UPDATE study_tasks SET file_id=NULL WHERE file_id=?", (file_id,))
-            conn.execute("DELETE FROM files WHERE id=?", (file_id,))
-            # Duplikate teilen sich die Datei: nur loeschen, wenn sie kein anderes Dokument mehr nutzt
-            shared = f and f["local_path"] and db.row(conn, "SELECT 1 FROM files WHERE local_path=?", (f["local_path"],))
-            if f and f["local_path"] and not shared and Path(f["local_path"]).exists():
-                try:
-                    Path(f["local_path"]).unlink()
-                except OSError:
-                    pass
-            _drop_unused_assets(conn, asset_dirs)
+            # ein Loeschweg fuer Bibliothek und Abgleich (app/own_docs.py); der Grabstein bringt das Loeschen auf die
+            # anderen Geraete des Kontos (Abgleich eigener Dokumente, 12.11.2026)
+            from . import own_docs
+            try:
+                own_docs.delete_forever(conn, file_id, _assets_dir())
+            except own_docs.OwnDocError as e:
+                raise HTTPException(400, e.message)
             return {"ok": True}
     return {"ok": True}
 

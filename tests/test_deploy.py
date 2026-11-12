@@ -230,6 +230,12 @@ def test_backup_snapshot_copies_databases_consistently(tmp_path, monkeypatch, ca
     (data / "users" / uid / "browser-profile").mkdir()
     (data / "users" / uid / "browser-profile" / "Cookies").write_text("x")
     (data / "users" / uid / "assets" / "bild.png").write_bytes(b"png")
+    # 12.11.2026: eigene Dokumente der Konten kommen mit, Hochschuldateien nicht
+    (data / "users" / uid / "files" / "Eigene Dokumente").mkdir(parents=True)
+    (data / "users" / uid / "files" / "Eigene Dokumente" / "u1.pdf").write_bytes(b"%PDF-1.4 eigen")
+    (data / "users" / uid / "files" / "Mathe I").mkdir()
+    (data / "users" / uid / "files" / "Mathe I" / "Blatt 1.pdf").write_bytes(b"%PDF-1.4 hochschule")
+    (data / "users" / uid / "files" / "lose.pdf").write_bytes(b"%PDF-1.4 lose")
     (data / "secret.key").write_text("geheim")
     for db in (data / "accounts.db", data / "users" / uid / "lernapp.db"):
         c = sqlite3.connect(db)
@@ -246,8 +252,9 @@ def test_backup_snapshot_copies_databases_consistently(tmp_path, monkeypatch, ca
     assert e.value.code == 0
     names = set(tarfile.open(fileobj=io.BytesIO(buf.getvalue()), mode="r:gz").getnames())
     assert {"uniflow-data/accounts.db", f"uniflow-data/users/{uid}/lernapp.db", f"uniflow-data/users/{uid}/assets/bild.png",
-            "uniflow-data/BACKUP-INFO.txt"} <= names
+            "uniflow-data/BACKUP-INFO.txt", f"uniflow-data/users/{uid}/files/Eigene Dokumente/u1.pdf"} <= names
     assert not any("browser-profile" in n or n.endswith(("-wal", "-shm", "secret.key")) for n in names), names
+    assert not any("Mathe I" in n or n.endswith("lose.pdf") for n in names), names
     with tarfile.open(fileobj=io.BytesIO(buf.getvalue()), mode="r:gz") as tar:
         restored = tmp_path / "accounts.db"
         restored.write_bytes(tar.extractfile("uniflow-data/accounts.db").read())

@@ -132,7 +132,13 @@ def test_p28_01_put_bodies_for_annotations_and_pagetext_are_capped(hosted, tiny_
 def test_p28_01_put_limits_use_the_sync_cap_by_default():
     from app import server
     pats = {rx.pattern: n for rx, n in server._PUT_LIMITS}
-    assert all(n == server.MAX_SYNC_BYTES for n in pats.values())
+    # 12.11.2026 geprueft: Abgleich eigener Dokumente mit eigenen Grenzen (Beschreibung 1 MB, Inhalt roh 75 MB wie
+    # own_docs.MAX_SYNC_BYTES, Bild roh 15 MB wie die Assets im Editor); der Inhalt wird gestreamt, nie ganz gelesen
+    own = {p: n for p, n in pats.items() if p.startswith("^/api/sync/")}
+    assert sorted(own.values()) == sorted([1 << 20, server.MAX_OWN_DOC_SYNC_BYTES, server.MAX_ASSET_BYTES]), own
+    from app import own_docs
+    assert server.MAX_OWN_DOC_SYNC_BYTES == own_docs.MAX_SYNC_BYTES
+    assert all(n == server.MAX_SYNC_BYTES for p, n in pats.items() if p not in own)
     assert any(re.match(p, "/api/files/abc/annotations") for p in pats)
     assert any(re.match(p, "/api/files/abc/pagetext") for p in pats)
     assert not any(re.match(p, "/api/files/abc/fingerprint") for p in pats)
@@ -201,7 +207,10 @@ def test_p28_02_every_caller_writes_a_fresh_file(app, monkeypatch):
     assert len(seen) == 8 and len({t for t, _ in seen}) == 8
     assert not any(existed for _, existed in seen), "nie ein vorhandenes Ziel"
     text = (ROOT / "app" / "server.py").read_text(encoding="utf-8")
-    assert text.count("await _save_upload(") == 4, "neuer Aufrufer? dann P28-02 neu pruefen"
+    # 12.11.2026 geprueft: zwei neue Aufrufer im Abgleich eigener Dokumente schreiben in "<ziel>.<uuid4>.part" und
+    # ersetzen erst danach (os.replace); ihr Lauf mit dem Spion steht in tests/test_own_docs_sync.py
+    assert text.count("await _save_upload(") == 6, "neuer Aufrufer? dann P28-02 neu pruefen"
+    assert text.count('{uuid.uuid4().hex}.part"') == 2
 
 
 # ---------------------------------------------------------------- P28-03 Parallele Uploads gegen das Kontingent

@@ -5,8 +5,9 @@
 SQLite-Datenbanken (accounts.db, users/<id>/lernapp.db, users/<id>/unis/<key>/lernapp.db, auch users-deleted/)
 werden mit der Backup-API von sqlite3 kopiert (konsistent, auch waehrend der Dienst schreibt; WAL-Dateien werden
 dabei eingearbeitet). Alle anderen Dateien (Notizen, assets/, qis/-Dokumente) kommen unveraendert mit.
-Ausgelassen: Browser-Profile (gross, enthalten Hochschul-Sitzungen), files/ (im Dienst leer: LERNAPP_FILES=stream),
-logs/, ai-tmp/, index-uploads/ (PDFs duerfen hoechstens 15 Minuten beim Dienst liegen, app/doc_index.py), WAL/SHM-Dateien
+Ausgelassen: Browser-Profile (gross, enthalten Hochschul-Sitzungen), Hochschuldateien in files/ (im Dienst leer:
+LERNAPP_FILES=stream) – aber nicht files/Eigene Dokumente/: die eigenen PDFs und Bilder der Konten liegen nur dort
+(12.11.2026, vorher fehlten sie im Backup; auch der Abgleich eigener Dokumente der Windows-App legt sie dort ab), logs/, ai-tmp/, index-uploads/ (PDFs duerfen hoechstens 15 Minuten beim Dienst liegen, app/doc_index.py), WAL/SHM-Dateien
 und secret.key – das Dienst-Geheimnis gehoert getrennt vom Backup aufbewahrt
 (LERNAPP_SECRET_KEY in deploy/.env, siehe .env.example).
 
@@ -30,6 +31,7 @@ from pathlib import Path
 
 DATA = Path(os.environ.get("LERNAPP_DATA_DIR") or "/data")
 SKIP_DIRS = {"browser-profile", "browser-profile-qis", "files", "logs", "ai-tmp", "index-uploads", "__pycache__"}
+OWN_DOCS = "Eigene Dokumente"               # einziger Unterordner von files/, der mitkommt (Dateien der Konten selbst)
 SKIP_SUFFIXES = (".db-wal", ".db-shm", ".db-journal", ".tmp")
 PREFIX = "uniflow-data"
 
@@ -70,7 +72,11 @@ def main() -> int:
         info.size, info.mtime = len(meta), int(datetime.now().timestamp())
         tar.addfile(info, io.BytesIO(meta))
         for root, dirs, files in os.walk(DATA):
-            dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("browser-profile"))
+            if Path(root).name == "files" and Path(root) != DATA:
+                dirs[:] = [d for d in dirs if d == OWN_DOCS]    # Hochschuldateien nein, eigene Dokumente ja
+                files = []
+                continue
+            dirs[:] = sorted(d for d in dirs if (d not in SKIP_DIRS or d == "files") and not d.startswith("browser-profile"))
             for name in sorted(files):
                 p = Path(root) / name
                 rel = p.relative_to(DATA).as_posix()

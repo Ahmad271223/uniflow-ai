@@ -8,10 +8,10 @@ import { icon } from "./icons.js?v=33";
 import { $, $$, api, toast, modal } from "./core.js?v=46";
 import * as S from "./solutions.js?v=6";
 import { pageTitle } from "./solution-labels.js?v=1";
-import * as L from "./community-logic.js?v=2";
+import * as L from "./community-logic.js?v=3";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=7";
-import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=21";
+import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=22";
 import { capi, openQuestion } from "./views-qa.js?v=9";
 import { renderDecksPanel } from "./community-decks-ui.js?v=5";
 

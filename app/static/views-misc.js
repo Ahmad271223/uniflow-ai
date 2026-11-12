@@ -615,7 +615,7 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=10");
+    const { renderLinkCard } = await import("./studora-link.js?v=11");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
@@ -651,7 +651,7 @@ export async function viewCommunity(_, params, view) {
   }
   const [mine, blocks, mod] = await Promise.all([api("/community/mine"), api("/community/blocks"), info.admin ? api("/community/moderation") : Promise.resolve(null)]);
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); state.route(); } catch (e) { toast(e.message, 4000); } };
-  view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt auf Windows und dem iPad.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">StudiNow Plus</span>` : `<span class="badge warn">StudiNow Plus nötig</span>`}</div></div>
+  view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt in der StudiNow-Community für Windows und Web.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">StudiNow Plus</span>` : `<span class="badge warn">StudiNow Plus nötig</span>`}</div></div>
     ${tabs}
     <div id="ccInboxAll"></div>
     <div class="card"><div class="card-head"><h2>${icon("info", 18)} So funktioniert es</h2></div><ul class="small muted" style="margin:0">
@@ -669,9 +669,9 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=21").then(m => m.renderSpaces($("#spacesCard", view)));
-  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=7")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=10").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  import("./community-spaces.js?v=22").then(m => m.renderSpaces($("#spacesCard", view)));
+  Promise.all([import("./community-logic.js?v=3"), import("./community-corrections-ui.js?v=7")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=11").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });

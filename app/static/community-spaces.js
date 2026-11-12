@@ -3,7 +3,7 @@
 // PDF; dann stehen die Notizen auf leeren Seiten. Codes bleiben in diesem Browser, der Dienst kennt nur den Gruppen-Schluessel.
 import { $, $$, api, esc, icon, toast, showError, drawer, closeDrawer } from "./core.js?v=46";
 import * as S from "./solutions.js?v=6";
-import { visibleSpaces } from "./community-logic.js?v=2";
+import { visibleSpaces, pendingGroups } from "./community-logic.js?v=3";
 
 const GROUPS = "community-groups";
 export async function groupKey(university, code) { return S.sha256Hex(S.utf8(`uniflow.community.group.v1\0${university}\0${code}`)); }
@@ -26,7 +26,17 @@ export async function loadSpaces() {
     const key = await groupKey(university, g.code); const r = rows.get(key);
     if (r?.joined) spaces.push({ key, kind: "group", name: r.name || g.name, code: g.code, secret: await S.communitySecret("group", university, g.code), ...stateOf(r) });
   }
-  return { university, spaces };
+  // Lerngruppen, denen das Konto auf einem anderen Geraet beigetreten ist (Befund 5.4, 12.11.2026): der Dienst kennt die
+  // Mitgliedschaft, der Code liegt aber nie beim Dienst. Solche Gruppen erscheinen mit "Code hier eingeben".
+  return { university, spaces, pendingGroups: pendingGroups(rows.values(), spaces.map(s => s.key)) };
+}
+
+/** Code einer Lerngruppe aus einem anderen Geraet hier eintragen; nur der passende Code wird gespeichert. */
+export async function unlockGroup(university, pending, rawCode) {
+  const code = S.normalizedCode(rawCode);
+  if (!code || await groupKey(university, code) !== pending.key) throw new Error("Dieser Code gehört nicht zu dieser Lerngruppe.");
+  saveGroups([...storedGroups().filter(g => g.code !== code), { code, name: pending.name || code }]);
+  return code;
 }
 const stateOf = r => ({ joined: !!r?.joined, members: r?.members ?? 0, solutions: r?.solutions ?? 0 });
 
@@ -54,12 +64,14 @@ export async function renderSpaces(el) {
   el.innerHTML = `<p class="small muted">Wird geladen …</p>`;
   let data;
   try { data = await loadSpaces(); } catch (e) { el.innerHTML = `<p class="small">${esc(e.message)}</p>`; return; }
-  const { university, spaces } = data; const reload = () => renderSpaces(el);
+  const { university, spaces } = data; const pending = data.pendingGroups || []; const reload = () => renderSpaces(el);
   const { older, shown } = visibleSpaces(spaces, showOlder);
   const line = s => `<div class="row wrap" style="justify-content:space-between;padding:.35rem 0"><span>${icon(s.kind === "group" ? "users" : "book", 15)} <b>${esc(s.name)}</b> <span class="tiny muted">${s.kind === "course" && s.current === false ? "früheres Semester · " : ""}${s.members} Mitglieder · ${s.solutions} Lösungen${s.code ? ` · Code ${esc(s.code)}` : ""}</span></span>
     <span class="row" style="gap:.3rem">${s.joined ? `<button class="btn sm" data-open="${s.key}">Öffnen</button><button class="btn sm ghost" data-leave="${s.key}">Verlassen</button>` : `<button class="btn sm primary" data-join="${s.key}">Beitreten</button>`}</span></div>`;
   el.innerHTML = `<p class="small muted" style="margin-top:0">Jeder Kurs hat seine eigene Community. Tritt bei, dann siehst und teilst du dort Lösungen.</p>
-    ${shown.map(line).join("") || (older.length ? "" : `<p class="small muted">Noch keine Kurse. Gleiche zuerst deine Hochschule ab.</p>`)}
+    ${shown.map(line).join("") || (older.length || pending.length ? "" : `<p class="small muted">Noch keine Kurse. Gleiche zuerst deine Hochschule ab.</p>`)}
+    ${pending.map(g => `<div class="row wrap" style="justify-content:space-between;padding:.35rem 0"><span>${icon("users", 15)} <b>${esc(g.name)}</b> <span class="tiny muted">${g.members} Mitglieder · auf einem anderen Gerät beigetreten – Code hier einmal eingeben</span></span>
+      <span class="row" style="gap:.3rem"><input class="input" data-pcode="${esc(g.key)}" placeholder="Beitrittscode" maxlength="9" style="max-width:130px"><button class="btn sm" data-punlock="${esc(g.key)}">Hier öffnen</button><button class="btn sm ghost" data-pleave="${esc(g.key)}">Verlassen</button></span></div>`).join("")}
     ${older.length ? `<button class="btn sm ghost" id="spOlder" aria-expanded="${showOlder}" style="margin-top:.3rem">${icon(showOlder ? "eye-off" : "clock", 14)} ${showOlder ? "Frühere Kurse ausblenden" : `Frühere Kurse (${older.length})`}</button>` : ""}
     <div class="row wrap" style="gap:.4rem;margin-top:.6rem"><input class="input" id="grpName" placeholder="Name der neuen Lerngruppe" maxlength="60" style="max-width:220px"><button class="btn sm" id="grpNew">Anlegen</button>
     <input class="input" id="grpCode" placeholder="Beitrittscode" maxlength="9" style="max-width:150px"><button class="btn sm" id="grpJoin">Beitreten</button></div>`;
@@ -72,6 +84,12 @@ export async function renderSpaces(el) {
     const s = byKey(b.dataset.leave); await api(`/community/communities/${s.key}/join`, { method: "DELETE" });
     if (s.code) saveGroups(storedGroups().filter(g => g.code !== s.code));
   }));
+  $$("[data-punlock]", el).forEach(b => b.onclick = () => run(async () => {
+    const g = pending.find(x => x.key === b.dataset.punlock);
+    const input = [...el.querySelectorAll("[data-pcode]")].find(i => i.dataset.pcode === g.key);
+    await unlockGroup(university, g, input?.value || ""); toast("Lerngruppe auf diesem Gerät freigeschaltet");
+  }));
+  $$("[data-pleave]", el).forEach(b => b.onclick = () => run(() => api(`/community/communities/${b.dataset.pleave}/join`, { method: "DELETE" })));
   $("#grpNew", el).onclick = () => run(async () => {
     const name = $("#grpName", el).value.trim(); const bytes = S.randomBytes(8);
     const code = [...bytes].map(x => S.CODE_ALPHABET[x % S.CODE_ALPHABET.length]).join("");

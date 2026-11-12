@@ -5,7 +5,7 @@ import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=71";
 import { viewFiles } from "./views-lib.js?v=69";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=50";
 import { viewTimetable, openEvent } from "./views-tt.js?v=49";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=91";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=92";
 import { installConsentFetch } from "./ai-consent.js?v=1";   // Einwilligung vor der StudiNow-KI (06.11.2026)
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=51";
 import { resendNote } from "./service-errors.js?v=1";
@@ -89,7 +89,7 @@ function accountMenu() {
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
-  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=10");
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=11");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
@@ -165,6 +165,9 @@ async function route() {
   if (name !== "doc") window.scrollTo(0, 0);
 }
 state.route = route; window.addEventListener("hashchange", () => { redrawLeft = 1; route(); });
+// Community beim Zurueckkommen ins Fenster neu laden, hoechstens einmal je Minute, nie mit angefangenem Text
+// (community-refresh.js, Befund 5.5 in docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md, 12.11.2026)
+import("./community-refresh.js?v=1").then(m => m.installCommunityRefresh({ route, view: () => $("#view") })).catch(() => {});
 
 // Probe auf der Uebersicht (Dienst): "noch N Tage alles frei", danach einmal die Aufforderung (planChoicePrompt)
 function trialHint() { return trialHintHtml(state.entitlements, state.hosted, icon, esc); }
@@ -183,7 +186,7 @@ async function viewDashboard(p, q, v) {
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
     const U = await import("./community-corrections-ui.js?v=7"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
-    (await import("./community-logic.js?v=2")).ensureCss();
+    (await import("./community-logic.js?v=3")).ensureCss();
     const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
     await U.renderInbox(box, { toast, onChange: () => route() });
     if (!box.innerHTML) box.remove();

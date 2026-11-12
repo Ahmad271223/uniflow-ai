@@ -231,8 +231,9 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Trigger stehen in `app/sync.py::ensure_schema`).
 - **Entitäten** (Reihenfolge = Eltern vor Kindern): `modules`, `folders`, `course_events`, `event_exceptions`,
   `study_packages`, `study_tasks`, `flashcards`, `settings` (Schlüssel `key`; nie `lan_pin`, `university`),
-  `annotations` (Schlüssel `file_id`). Eigene Dokumente mit Inhalt (Notizbücher, importierte PDFs) folgen später;
-  Hochschul-PDFs lädt jedes Gerät selbst (`files`, `courses` nicht im Sync).
+  `annotations` (Schlüssel `file_id`). Eigene Dokumente mit Inhalt (Notizbücher, importierte PDFs) über einen eigenen
+  Weg (Abschnitt „Eigene Dokumente“ unten, seit 12.11.2026); Hochschul-PDFs lädt jedes Gerät selbst (`files`, `courses`
+  nicht im Sync).
 - **Abruf:** `GET /api/sync/changes?since=<cursor>&limit=<1…2000>` → `{cursor, changes: {entity: [Zeilen inkl.
   sync_*]}, tombstones, has_more}`. Ohne `since` alles. **Seitenweise (seit 28.10.2026):** je Tabelle höchstens
   `limit` Zeilen; wird eine Tabelle abgeschnitten, gilt für alle Tabellen und Tombstones die kleinste abgeschnittene
@@ -282,6 +283,47 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   - `op_id` = `<Gerät>.<Tabelle>.<lokale ID>.<sync_version>`: dieselbe Änderung hat bei Wiederholung dieselbe ID.
   - Tarif Free: Notizen bleiben lokal (`plan_required`), alles andere gleicht ab.
 - Beide Endpunkte gibt es auch im Einzelplatzmodus (iPad ↔ PC im WLAN); im Dienst gelten sie je Konto.
+
+### Eigene Dokumente (seit 12.11.2026; Dienst + Windows fertig, iPad/Mac offen)
+
+Eigene Dokumente = Zeilen in `files` mit `course_id='__user__'` (Notizbücher, Whiteboards, importierte PDFs/Bilder).
+Kennung auf allen Geräten gleich: `u` + 8–40 Hex-Zeichen (Python `uuid4().hex[:23]`, Swift `newDocumentID`). Nur im
+Dienst, Recht `can_sync_annotations` (Pro AI und Probe; sonst 403 `plan_required`). Referenz: `app/own_docs.py`
+(Regeln), `app/server.py` (Wege), `app/own_docs_sync.py` (Client der Windows-App), Tests `tests/test_own_docs_sync.py`.
+
+- `GET /api/sync/own-documents` → `{documents: [{id, kind, title, name, mime, folder_id, deleted_at, page_count,
+  favorite, sha256, size, has_content, meta_at}], tombstones: [{id, deleted_at}], max_bytes}`. `folder_id` ist die ID
+  des Ordners **im Dienst** (Zuordnung wie G2 `folders`). `meta_at` ändert sich bei jeder sichtbaren Änderung
+  (Beschreibung oder Inhalt), auch über die normalen Wege (Umbenennen, Papierkorb).
+- `PUT /api/sync/own-documents/{id}` mit der Beschreibung (`kind`, `title`, `name`, `mime`, `folder_id` des Dienstes,
+  `deleted_at`, `page_count`, `favorite`) → legt an oder übernimmt; Antwort = Eintrag wie in der Liste. Eine Kennung,
+  die einer Hochschuldatei gehört → 409 `not_own_document`; falsche Kennung → 400 `id_invalid`. Entfernt einen
+  Grabstein.
+- `PUT /api/sync/own-documents/{id}/content?sha256=<hex>` mit der Datei **roh** im Körper (`application/octet-stream`),
+  höchstens `max_bytes` (75 MB), PDFs müssen mit `%PDF` beginnen; zählt zum Speicherkontingent (413 `storage_quota`);
+  Fingerabdruck falsch → 400 `content_mismatch`, nichts bleibt liegen. Erst die Beschreibung, dann der Inhalt.
+- Inhalt holen: `GET /api/files/{id}/content` (wie bisher), danach SHA-256 prüfen.
+- `DELETE /api/sync/own-documents/{id}` = endgültig löschen (wie „Endgültig löschen“ in der Bibliothek, mit Notizen,
+  Verlauf und unbenutzten Bildern) und Grabstein. Hochschuldatei → 400 `not_own_document`.
+- **Notizen** eigener Dokumente laufen über G2 `annotations`, aber der Abruf liefert sie nur mit
+  `GET /api/sync/changes?…&own=1`. Ohne `own=1` (veröffentlichtes iPad) fehlen sie, damit ein Gerät ohne diesen
+  Abgleich keine Notizen zu unbekannten Dateien bekommt. Senden über `POST /api/sync/push` wie bisher, mit `file:
+  {name, mime, course_id: "__user__", course_title: "Eigene Dokumente", semester: null}` – erst, nachdem das Dokument
+  per `PUT` im Dienst liegt.
+- **Bilder und eingefügte PDF-Seiten** in Notizen (`/api/assets/{ordner}/{32 hex}.{png|jpg|jpeg|gif|webp|svg|pdf}`):
+  `GET /api/sync/assets` → `{assets: {ordner: {name: größe}}}`; hochladen `PUT /api/sync/assets/{ordner}/{name}` roh
+  (nur wenn ein Dokument mit dieser Kennung existiert oder eine Notiz darauf verweist, sonst 404; Inhalt muss zur
+  Endung passen, sonst 400 `asset_content`; vorhandene Datei bleibt); holen `GET /api/assets/{ordner}/{name}`.
+  Aufnahmen (Audio) bleiben am Gerät.
+- **Client-Regeln (Windows, so soll auch das iPad arbeiten):** Lauf = Liste holen (403 → aus, 404 → älterer Dienst,
+  übriger Abgleich läuft) → G2 abrufen mit `own=1` → eigene Dokumente → G2 senden → Bilder hoch → G2 abrufen → Bilder
+  herunter. Je Dokument merkt sich das Gerät `meta_at` des Dienstes und einen Fingerabdruck der eigenen Beschreibung
+  samt SHA-256 vom letzten Abgleich (`own_doc_link`). Nur hier geändert → hochladen; nur im Dienst → übernehmen;
+  beides → dieses Gerät gewinnt, der Inhalt nur bei anderem SHA-256. Hier endgültig gelöscht → `DELETE`; im Dienst
+  gelöscht (Grabstein) → hier löschen, außer Dokument **oder Notizen** wurden hier seitdem geändert (dann neu hochladen:
+  lieber doppelt als verloren). Größer als `max_bytes` → bleibt am Gerät und wird im Status genannt.
+- Geräte-Abrufstände (`studip_bulletin_fetched_at(_v2)`, `studip_blubber_fetched_at`, `studip_blubber_activity`) nimmt
+  der Dienst seit 12.11.2026 weder an noch gibt er sie heraus (`sync.DEVICE_FETCH_RE`).
 
 ## G4 Community
 

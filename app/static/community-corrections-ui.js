@@ -3,7 +3,7 @@
 // CorrectionCommunityViews.swift und CommunityBadge.swift auf dem iPad. Chiffrat und Texte: community-corrections.js.
 import { icon } from "./icons.js?v=33";
 import * as C from "./community-corrections.js?v=2";
-import * as L from "./community-logic.js?v=2";
+import * as L from "./community-logic.js?v=3";
 import { capi } from "./views-qa.js?v=9";
 
 const $ = (s, el = document) => el.querySelector(s);

@@ -9,12 +9,12 @@
 import { icon } from "./icons.js?v=33";
 import { responseError } from "./service-errors.js?v=1";
 import * as S from "./solutions.js?v=6";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=21";
-import { renderLinkCard } from "./studora-link.js?v=10";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=22";
+import { renderLinkCard } from "./studora-link.js?v=11";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=7";
 import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=8";
-import { ensureCss } from "./community-logic.js?v=2";
+import { ensureCss } from "./community-logic.js?v=3";
 import * as SN from "./side-notes.js?v=1";
 
 const $ =(s, el = document) => el.querySelector(s);

@@ -155,6 +155,24 @@ def test_settings_sync_skips_private_keys(conn):
     assert "hours_per_day" in keys and not ({"lan_pin", "university"} & keys)
 
 
+def test_device_fetch_state_is_neither_taken_nor_handed_out(conn):
+    """12.11.2026 (Befund 5.6): Abrufstaende von Schwarzem Brett und Blubber gehoeren dem abrufenden Geraet. Ein PC
+    alten Stands sendet sie noch: der Dienst meldet `ignored`; was schon im Dienst liegt (Web-Abruf), geht an kein Geraet."""
+    from app import db, sync
+    device_keys = ["studip_bulletin_fetched_at", "studip_bulletin_fetched_at_v2", "studip_" + "blubber_fetched_at",
+                   "studip_blubber_activity"]
+    r = sync.push(conn, "win-1", [{"entity": "settings", "local_id": k, "data": {"value": "2026-11-12T08:00:00"}}
+                                  for k in device_keys] +
+                  [{"entity": "settings", "local_id": "exam_dates_auto", "data": {"value": "1"}}])
+    assert [x["status"] for x in r["results"]] == ["ignored"] * 4 + ["applied"]
+    assert not db.row(conn, "SELECT 1 FROM settings WHERE key='studip_bulletin_fetched_at'")
+    db.set_setting(conn, "studip_bulletin_fetched_at", "2026-11-12T09:00:00")      # eigener Abruf der Web-Oberflaeche
+    keys = {s["key"] for s in sync.changes(conn, None)["changes"]["settings"]}
+    assert "exam_dates_auto" in keys and not (set(device_keys) & keys)
+    for near in ("studip_bulletin_fetched_at_v3", "studip_blubber", "x_studip_bulletin_fetched_at"):
+        assert not sync.private_setting(near), near
+
+
 def _pull_all(conn, since=None, limit=3):
     """Wie ein Client: weiter abrufen, solange has_more; liefert alle Zeilen je Tabelle, Tombstones und Seitenzahl."""
     from app import sync

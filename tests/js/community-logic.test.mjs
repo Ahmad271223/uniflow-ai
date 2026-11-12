@@ -112,3 +112,19 @@ test("Kopfzeile, Namen, Zeit", () => {
   assert.equal(L.initial("lea"), "L"); assert.equal(L.initial(""), "?");
   assert.equal(L.tint("Lea"), L.tint("Lea"));
 });
+
+test("Lerngruppen eines anderen Geraets: erscheinen ohne Code, nur beigetretene Gruppen (Befund 5.4, 12.11.2026)", () => {
+  const rows = [
+    { community_key: "k-kurs", kind: "course", name: null, joined: true, members: 9, solutions: 3 },
+    { community_key: "k-hier", kind: "group", name: "Mathe-Runde", joined: true, members: 4, solutions: 1 },
+    { community_key: "k-dort", kind: "group", name: "Physik-Gruppe", joined: true, members: 2 },
+    { community_key: "k-raus", kind: "group", name: "Verlassen", joined: false, members: 5 },
+    { community_key: "k-ohne", kind: "group", name: null, joined: true },
+  ];
+  const out = L.pendingGroups(rows, ["k-kurs", "k-hier"]);
+  assert.deepEqual(out.map(g => g.key), ["k-dort", "k-ohne"]);
+  assert.deepEqual(out[0], { key: "k-dort", name: "Physik-Gruppe", joined: true, members: 2, solutions: 0 });
+  assert.equal(out[1].name, "Lerngruppe");
+  assert.deepEqual(L.pendingGroups(new Map(rows.map(r => [r.community_key, r])).values(), []).length, 3, "auch aus einer Map");
+  assert.deepEqual(L.pendingGroups(null, null), []);
+});
