@@ -84,3 +84,80 @@ def test_grades_endpoint_returns_the_model(app):
     finally:
         with db.cursor() as conn:
             conn.execute("DELETE FROM grades")
+
+
+# Regel des Inhabers 12.11.2026: QIS ist die einzige Quelle; jede bestandene QIS-Leistung zaehlt einmal (wie
+# GradesModelTests im Swift-Kern)
+def _row(nr, text, sem, status, note="", lp="", art="", versuch=""):
+    return {"pruefungsnr": nr, "text": text, "semester": sem, "note": note, "status": status, "credits": lp, "versuch": versuch,
+            "raw": raw(nr, text, art, sem, note, status, lp, "", versuch, "")}
+
+
+def test_passed_exam_without_module_row_counts():
+    from app import grades_model as gm
+    rows = [_row("1100", "Mathematik I", "WiSe 23/24", "bestanden", "2,0", "8"),
+            _row("1101", "Mathematik I", "WiSe 23/24", "bestanden", "2,0", "8", "PL", "1"),
+            _row("9000", "Kompetenzbereich Schlüsselkompetenzen", "", "bestanden", "", "4"),
+            _row("9011", "Englisch B2", "WiSe 24/25", "bestanden", "", "4", "SL", "1")]
+    s = gm.summary(rows)
+    assert (s["credits"], s["passed"]) == (12.0, 2), "vorher 8 LP: die Pruefung ohne Modulzeile fehlte"
+    assert gm.credits_done(rows) == 12.0
+
+
+def test_passed_status_variants_and_note_without_status():
+    from app import grades_model as gm
+    rows = [_row("201", "Seminar A", "SoSe 25", "BE", "", "3", "SL", "1"),
+            _row("202", "Auslandsmodul", "SoSe 25", "bestanden (anerkannt)", "", "5", "AN", "1"),
+            _row("203", "Vorkurs", "SoSe 25", "angerechnet", "", "2", "SL", "1"),
+            _row("204", "Projekt", "SoSe 25", "", "1,7", "6", "PL", "1"),
+            _row("205", "Klausur X", "SoSe 25", "", "5,0", "6", "PL", "1"),
+            _row("206", "Klausur Y", "SoSe 26", "angemeldet", "", "", "PL", "1"),
+            _row("207", "Klausur Z", "SoSe 25", "nicht bestanden", "4,0", "6", "PL", "1")]
+    assert [r["passed"] for r in gm.model(rows)] == [True, True, True, True, False, False, False]
+    assert gm.summary(rows)["credits"] == 16.0
+    assert not gm.is_passed({"status": "bestanden", "source": "anmeldung"})
+
+
+def test_vertiefung_der_is_a_module_not_a_bereich():
+    from app import grades_model as gm
+    rows = [_row("300", "Vertiefung der Betriebssysteme", "WiSe 24/25", "bestanden", "1,7", "5"),
+            _row("310", "Vertiefung Informatik", "WiSe 24/25", "bestanden", "", "15")]
+    assert [r["level"] for r in gm.model(rows)] == ["modul", "bereich"]
+    assert gm.summary(rows)["credits"] == 5.0
+
+
+def test_module_and_its_exams_count_once():
+    from app import grades_model as gm
+    rows = [_row("1100", "Mathematik I", "WiSe 23/24", "bestanden", "2,0", "8"),
+            _row("1101", "Klausur Mathematik I", "WiSe 23/24", "bestanden", "2,0", "8", "PL", "1"),
+            _row("1102", "Übungsschein", "WiSe 23/24", "bestanden", "", "8", "SL", "1"),
+            _row("6001", "Labor Regelung", "WiSe 25/26", "bestanden", "", "2", "LA", "1"),
+            _row("4000", "Programmierpraktikum", "SoSe 24", "bestanden"),
+            _row("4711", "Praktikum Abnahme", "SoSe 24", "bestanden", "", "6", "PR", "1"),
+            _row("5000", "Elektrotechnik", "SoSe 25", "", "", "10"),
+            _row("5001", "Elektrotechnik", "SoSe 25", "bestanden", "2,3", "7", "PL", "1"),
+            _row("5002", "Elektrotechnik", "SoSe 25", "bestanden", "", "7", "LA", "1")]
+    got = {r["pruefungsnr"]: r["lp_counted"] for r in gm.model(rows) if r["counted"]}
+    assert got == {"1100": 8, "6001": 2, "4000": 6, "5001": 7, "5002": 3}
+    assert gm.summary(rows)["credits"] == 26.0
+
+
+def test_parse_grade_rows_reads_prfnr_and_lp_and_keeps_same_named_exams():
+    from app import qis
+    rows = [["PrfNr.", "Prüfungstext", "Art", "Semester", "Note", "Status", "LP", "Vermerk", "Versuch", "Prüfungsdatum"],
+            ["1101", "Mathematik I", "PL", "WiSe 26/27", "2,0", "bestanden", "8", "", "1", "12.02.2027"],
+            ["1102", "Mathematik I", "SL", "WiSe 26/27", "", "bestanden", "0", "", "1", "01.02.2027"]]
+    g = qis.parse_grade_rows(rows)
+    assert [(r["pruefungsnr"], r["credits"]) for r in g] == [("1101", "8"), ("1102", "0")]
+    # Nummer aus der ersten Spalte auch bei unbekanntem Kopf
+    g2 = qis.parse_grade_rows([["Nummer", "Prüfungstext", "Note", "Status"], ["4711", "Projekt", "1,0", "bestanden"]])
+    assert g2[0]["pruefungsnr"] == "4711"
+
+
+def test_semester_from_date_when_column_is_empty():
+    from app import grades_model as gm
+    m = gm.model([_row("2101", "Mathematik II", "", "nicht bestanden", "5,0", "0", "PL", "")])
+    assert m[0]["semester_norm"] == "" and gm.term_of_date("27.09.2024") == 4048
+    rows = [{**_row("2101", "Mathematik II", "", "nicht bestanden", "5,0", "0", "PL", ""), "datum": "27.09.2024"}]
+    assert gm.model(rows)[0]["semester_norm"] == "SoSe 24"
+    assert gm.norm_semester("W24") == "WiSe 24/25" and gm.norm_semester("20251") == "SoSe 25"

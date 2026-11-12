@@ -114,6 +114,20 @@ final class QISAppTests: XCTestCase {
         XCTAssertTrue(again.isConnected)
     }
 
+    /// Regel des Inhabers 12.11.2026: jede bestandene QIS-Leistung steht in "Uni & Noten", auch in der Ansicht "Module"
+    /// (vorher nur Modulzeilen: eine bestandene Pruefung ohne Modulzeile fehlte dort), LP-Kachel = Summe aller
+    func testModuleViewShowsEveryPassedQISAchievement() {
+        func r(_ nr: String, _ level: String, counted: Bool) -> JSONValue {
+            ["pruefungsnr": .string(nr), "level": .string(level), "counted": .bool(counted), "text": .string(nr)]
+        }
+        let rows: [JSONValue] = [r("10", "bereich", counted: false), r("1100", "modul", counted: true), r("1101", "pruefung", counted: false),
+                                 r("9011", "pruefung", counted: true), r("9031", "pruefung", counted: false)]
+        XCTAssertEqual(GradesTable.visibleRows(rows, showAll: false).map { $0.s("pruefungsnr") }, ["1100", "9011"])
+        XCTAssertEqual(GradesTable.visibleRows(rows, showAll: true).map { $0.s("pruefungsnr") }, ["1100", "1101", "9011", "9031"])
+        let g: JSONValue = ["passed": 2, "basis": "module", "failed_attempts": 0, "grades": .array(rows)]
+        XCTAssertEqual(ServicesPage.creditsLabel(g), "aus 2 bestandenen Leistungen")
+    }
+
     func testEmptyNotenspiegelIsHonestAndNotAnError() async throws {
         let (m, c, q) = try luh()
         installQIS(list: """

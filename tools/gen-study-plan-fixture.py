@@ -249,7 +249,34 @@ SEM3 = ["Mathematik III", "Grundlagen der Betriebssysteme", "Signale und Systeme
         "Digitalschaltungen der Elektronik"]
 SEM4 = ["Grundlagen der Rechnernetze", "Stochastik für Ingenieure", "Grundlagen der Regelungstechnik", "Softwareprojekt"]
 
+# Hoehere Fachsemester (Meldung des Inhabers 12.11.2026: ausser im 1. Semester erkannte der Plan weder Semester noch
+# Versuche): Semester in allen Schreibweisen des QIS/HIS, leere Semesterspalte mit Pruefungsdatum, Versuche ohne
+# Versuchsspalte, Studienbeginn vom Einstellungsblatt ungefragt auf das aktuelle Semester gesetzt
+HOEHER_3 = ([g(t, "25/26 WS", "bestanden", "2,3") for t in SEM1 if t not in ("Mathematik I", "Grundlagen digitaler Systeme")]
+            + [g("Grundlagen digitaler Systeme", "", "bestanden", "1,7", datum="18.02.2026"),
+               g("Mathematik I", "W25", "nicht bestanden", "5,0", datum="20.02.2026"),
+               g("Mathematik I", "S26", "bestanden", "3,0", datum="02.04.2026")]
+            + [g(t, "20261", "bestanden", "2,0") for t in SEM2 if t != "Mathematik II"])
+HOEHER_5 = (passed([(t, "WS 2024/25") for t in SEM1]) + passed([(t, "Sommersemester 2025") for t in SEM2])
+            + passed([(t, "Wi.Se. 25/26") for t in SEM3]) + passed([(t, "SoSe2026") for t in SEM4]))
+HOEHER_7 = ([g(t, "", "bestanden", "2,7", datum="14.02.2024") for t in SEM1]
+            + [g(t, "", "bestanden", "2,3", datum="22.07.2024") for t in SEM2 if t != "Mathematik II"]
+            + [g("Mathematik II", "", "nicht bestanden", "5,0", datum="16.07.2024"),
+               g("Mathematik II", "", "nicht bestanden", "5,0", datum="27.09.2024"),
+               g("Mathematik II", "SS 2025", "bestanden", "4,0", datum="15.07.2025")]
+            + passed([(t, "2024W") for t in SEM3]) + passed([(t, "S 25") for t in SEM4])
+            + [g("Seminar Technische Informatik", "WiSe 2025/26", "bestanden", "1,3", versuch="1")])
+
 CASES = [
+    {"name": "hoeher_3_fachsemester", "what": "3. Fachsemester: Semester als '25/26 WS', 'W25', 'S26', HIS-Schluessel "
+     "'20261', leere Semesterspalte mit Datum; Mathematik I erst im zweiten Versuch (ohne Versuchsspalte)",
+     "today": "2026-11-12", "settings": {}, "grades": HOEHER_3},
+    {"name": "hoeher_5_beginn_aus_qis", "what": "5. Fachsemester, Studienbeginn vom Einstellungsblatt auf das aktuelle "
+     "Semester gesetzt: QIS-Leistungen ab WS 2024/25 gehen vor, alles Bestandene im QIS-Semester",
+     "today": "2026-11-12", "settings": {"start_term": "WiSe 26/27"}, "grades": HOEHER_5},
+    {"name": "hoeher_7_datum_und_versuche", "what": "7. Fachsemester: die ersten beiden Semester ohne Semesterspalte "
+     "(nur Datum), Mathematik II zweimal im SoSe 24 nicht bestanden (Erst- und Zweittermin), im SoSe 25 im dritten Versuch",
+     "today": "2026-11-12", "settings": {}, "grades": HOEHER_7},
     {"name": "im_plan", "what": "Beginn WiSe 24/25, alles bis zum 4. Fachsemester bestanden, Seminar angemeldet",
      "today": "2026-11-04", "settings": {},
      "grades": [g("Pflichtmodule", "", "", credits="117")]

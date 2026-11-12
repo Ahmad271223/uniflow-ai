@@ -87,6 +87,9 @@ struct GradeEntry: Equatable, Sendable {
     let module: String
     let note: String
     let status: String
+    /// Text, Semester, Versuch ohne Nummer: seit 12.11.2026 liest der Notenspiegel die Pruefungsnummer auch aus der
+    /// ersten Spalte ("PrfNr."); eine bekannte Leistung, die dadurch erst jetzt eine Nummer hat, ist keine neue Note
+    var looseKey: String? = nil
 
     /// Steht ein Ergebnis da (Note oder bestanden/nicht bestanden)? "angemeldet" ist keins.
     var hasResult: Bool {
@@ -122,7 +125,9 @@ struct BackgroundNewsSnapshot: Equatable, Sendable {
             let rows = (try? conn.query("SELECT pruefungsnr, text, semester, versuch, note, status FROM grades")) ?? []
             s.grades = rows.map { r in
                 let key = ["pruefungsnr", "text", "semester", "versuch"].map { r[$0]?.string ?? "" }.joined(separator: "\u{1}")
-                return GradeEntry(key: key, module: r["text"]?.string ?? "", note: r["note"]?.string ?? "", status: r["status"]?.string ?? "")
+                let loose = ["text", "semester", "versuch"].map { r[$0]?.string ?? "" }.joined(separator: "\u{1}")
+                return GradeEntry(key: key, module: r["text"]?.string ?? "", note: r["note"]?.string ?? "", status: r["status"]?.string ?? "",
+                                  looseKey: loose)
             }
             let runs = (try? conn.scalar("SELECT COUNT(*) FROM qis_runs WHERE ok = 1"))?.int ?? 0
             s.gradesKnown = runs > 0 || !s.grades.isEmpty
@@ -162,7 +167,11 @@ enum BackgroundNews {
         var d = BackgroundNewsDiff()
         if before.gradesKnown {
             let had = Set(before.grades.filter(\.hasResult).map(\.key))
-            d.newGrades = after.grades.filter { $0.hasResult && !had.contains($0.key) }
+            // bekannt ohne Nummer (vor 12.11.2026 gespeichert), jetzt mit Nummer: nicht neu
+            let hadLoose = Set(before.grades.filter { $0.hasResult && $0.key.hasPrefix("\u{1}") }.compactMap(\.looseKey))
+            d.newGrades = after.grades.filter { g in
+                g.hasResult && !had.contains(g.key) && !(g.looseKey.map(hadLoose.contains) ?? false)
+            }
         }
         func recent(_ date: Date?) -> Bool { date.map { now.timeIntervalSince($0) < maxAge } ?? true }
         d.newMessages = after.messages.filter { before.messages[$0.key] == nil && recent($0.value) }.count

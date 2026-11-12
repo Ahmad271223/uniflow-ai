@@ -22,7 +22,6 @@ public enum StudyPlanEngine {
     /// QIS meldet ausdruecklich den letzten Versuch (11.11.2026)
     private static let lastTryRE = PyRegex("letzte[rnms]? ?(wiederholungs)?versuch|letztversuch")
 
-    private static let termRE = PyRegex(#"^\s*(WiSe|SoSe|Wintersemester|Sommersemester|WS|SS)\s*(\d{2,4})(?:\s*/\s*(\d{2,4}))?\s*$"#, ignoreCase: true)
     private static let roman: [String: String] = ["i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7",
                                                   "viii": "8", "ix": "9", "x": "10"]
     private static let filler: Set<String> = ["modul", "pl", "sl", "pruefungsleistung", "studienleistung", "modulpruefung",
@@ -60,23 +59,17 @@ public enum StudyPlanEngine {
 
     // MARK: Semester
 
-    /// "WiSe 25/26", "WS 2025/26", "Wintersemester 2025/2026", "SoSe 26", "SS 2026" -> Zahl, sonst nil
-    public static func parseTerm(_ s: String?) -> Int? {
-        guard let s, let m = termRE.match(s), let ys = m.group(2), var year = PyText.int(digits: ys), let kind = m.group(1) else { return nil }
-        if year < 100 { year += 2000 }
-        let k = PyText.lower(kind)
-        let winter = k.hasPrefix("wi") || k.hasPrefix("ws")
-        return year * 2 + (winter ? 1 : 0)
-    }
+    /// "WiSe 25/26", "WS 2025/26", "Wintersemester 2025/2026", "SoSe 26", "SS 2026", "W25", "25/26 WS", "20252" -> Zahl,
+    /// sonst nil (`GradesModel.parseTerm`, alle Schreibweisen des QIS seit 12.11.2026)
+    public static func parseTerm(_ s: String?) -> Int? { GradesModel.parseTerm(s) }
 
     static func parseTerm(_ v: JSONValue?) -> Int? { parseTerm(v?.string) }
 
+    /// Semester einer QIS-Zeile: Semesterspalte, sonst aus dem Pruefungsdatum (`row_term`)
+    static func rowTerm(_ r: [String: JSONValue]) -> Int? { GradesModel.rowTerm(r) }
+
     /// "WiSe 26/27", "SoSe 27"
-    public static func termName(_ t: Int) -> String {
-        let year = t / 2
-        func two(_ n: Int) -> String { String(format: "%02d", n % 100) }
-        return t % 2 == 1 ? "WiSe \(two(year))/\(two(year + 1))" : "SoSe \(two(year))"
-    }
+    public static func termName(_ t: Int) -> String { GradesModel.termName(t) }
 
     /// Oktober bis Maerz: WS (Jahr des Oktobers), April bis September: SS; `today` als "YYYY-MM-DD"
     public static func currentTerm(_ today: String) -> Int {
@@ -179,7 +172,8 @@ public enum StudyPlanEngine {
     /// passed | final | failed | registered | nil (abgemeldet, krank ...)
     static func rowResult(_ r: [String: JSONValue]) -> String? {
         let s = PyText.lower(PyText.strip(textOf(r["status"])))
-        if ["bestanden", "anerkannt", "be"].contains(s) { return "passed" }
+        // bestanden wie im Notenspiegel (GradesModel.isPassed, Regel des Inhabers 12.11.2026: QIS ist die Quelle)
+        if ["bestanden", "anerkannt", "be"].contains(s) || (r["level"]?.string != nil && r["passed"] == .bool(true)) { return "passed" }
         if starts(s, "endgültig") || starts(s, "endgueltig") || s == "en" { return "final" }
         if starts(s, "nicht bestanden") || s == "nb" { return "failed" }
         if registeredRE.found(in: s) { return "registered" }
@@ -188,7 +182,7 @@ public enum StudyPlanEngine {
     }
 
     static func isBereich(_ r: [String: JSONValue]) -> Bool {
-        r["level"]?.string == "bereich" || GradesModel.bereichRE.match(textOf(r["text"])) != nil
+        r["level"]?.string == "bereich" || GradesModel.isBereichText(textOf(r["text"]))
     }
 
     /// Voraussetzungen als Modul-ids (nur Texte aus einer Liste)
@@ -501,10 +495,18 @@ public enum StudyPlanEngine {
         let versuche = failed.map { intOrNil($0["versuch"]) ?? 0 }
         var terms: [Int?] = []
         for r in failed {
-            let t = parseTerm(r["semester"])
+            let t = rowTerm(r)
             if !terms.contains(where: { $0 == t }) { terms.append(t) }
         }
-        let n = max(versuche.max() ?? 0, terms.count)
+        // ohne Versuchsspalte: jede nicht bestandene Pruefung (Semester, Datum) ist ein Versuch; Modulzeilen nur, wenn es
+        // keine Pruefungszeilen gibt (sonst stuenden Modul und Pruefung desselben Versuchs doppelt da), wie `_attempts`
+        let examRows = failed.filter { $0["level"]?.string == "pruefung" }
+        var tries: [(Int?, [UInt32])] = []
+        for r in examRows.isEmpty ? failed : examRows {
+            let k = (rowTerm(r), PyText.strip(textOf(r["datum"])).unicodeScalars.map(\.value))
+            if !tries.contains(where: { $0.0 == k.0 && $0.1 == k.1 }) { tries.append(k) }
+        }
+        let n = max(versuche.max() ?? 0, terms.count, tries.count)
         let seen = terms.compactMap { $0 }
         let final = failed.contains { rowResult($0) == "final" } || (maxAttempts.map { n >= $0 } ?? false)
         return (n, seen.max(), final, known, last)
@@ -579,11 +581,14 @@ public enum StudyPlanEngine {
         let (hist, matchedUnmatched) = match(mods, grades)
         var unmatched = matchedUnmatched
 
+        // Studienbeginn: Einstellung, sonst das frueheste Semester mit einer QIS-Leistung (Semesterspalte oder Datum); liegt
+        // eine QIS-Leistung vor dem eingestellten Beginn, gilt das QIS (12.11.2026: hoehere Semester bekamen sonst den
+        // Beginn = aktuelles Semester und alles Bestandene rutschte dorthin). Pruefungsanmeldungen zaehlen nicht.
+        let known = grades.filter { !isBereich($0) && textOf($0["source"]) != "anmeldung" }.compactMap(rowTerm)
         var start: Int
-        if let s = parseTerm(settings["start_term"]) {
+        if let s = parseTerm(settings["start_term"]), !(known.min().map { $0 < s } ?? false) {
             start = s
         } else {
-            let known = grades.filter { !isBereich($0) }.compactMap { parseTerm($0["semester"]) }
             start = known.min() ?? current
         }
         var regular = 6
@@ -743,11 +748,12 @@ public enum StudyPlanEngine {
             let own = placed[mid]
             if !passed.isEmpty {
                 var best = passed[0]
-                for r in passed.dropFirst() where (parseTerm(r["semester"]) ?? -1) >= (parseTerm(best["semester"]) ?? -1) { best = r }
-                var t = parseTerm(best["semester"]) ?? (rec.map { min($0, current) } ?? current)
+                for r in passed.dropFirst() where (rowTerm(r) ?? -1) >= (rowTerm(best) ?? -1) { best = r }
+                var t = rowTerm(best) ?? (rec.map { min($0, current) } ?? current)
                 t = max(t, start)
                 let g = PyText.strip(textOf(best["note"]))
-                st.status = "bestanden"; st.term = t; st.attempt = failedN + 1; st.grade = g.isEmpty ? nil : g
+                st.status = "bestanden"; st.term = t; st.attempt = max(failedN + 1, intOrNil(best["versuch"]) ?? 0)
+                st.grade = g.isEmpty ? nil : g
             } else if !registered.isEmpty {
                 let vs = registered.compactMap { intOrNil($0["versuch"]) }.filter { $0 != 0 }
                 st.status = "angemeldet"; st.term = current; st.attempt = vs.max() ?? failedN + 1
@@ -855,11 +861,11 @@ public enum StudyPlanEngine {
             let t: Int
             if !passedRows.isEmpty {
                 var best = passedRows[0]
-                for r in passedRows.dropFirst() where (parseTerm(r["semester"]) ?? -1) >= (parseTerm(best["semester"]) ?? -1) { best = r }
+                for r in passedRows.dropFirst() where (rowTerm(r) ?? -1) >= (rowTerm(best) ?? -1) { best = r }
                 let g = PyText.strip(textOf(best["note"]))
                 e["status"] = "bestanden"
                 e["grade"] = g.isEmpty ? .null : .string(g)
-                t = max(parseTerm(best["semester"]) ?? current, start)
+                t = max(rowTerm(best) ?? current, start)
             } else if rows.contains(where: { rowResult($0) == "registered" }) {
                 t = current
                 e["status"] = "angemeldet"
@@ -909,10 +915,10 @@ public enum StudyPlanEngine {
             let t: Int
             if !passedRows.isEmpty {
                 var best = passedRows[0]
-                for r in passedRows.dropFirst() where (parseTerm(r["semester"]) ?? -1) >= (parseTerm(best["semester"]) ?? -1) { best = r }
+                for r in passedRows.dropFirst() where (rowTerm(r) ?? -1) >= (rowTerm(best) ?? -1) { best = r }
                 let g = PyText.strip(textOf(best["note"]))
-                t = max(parseTerm(best["semester"]) ?? current, start)
-                st.status = "bestanden"; st.attempt = failedN + 1
+                t = max(rowTerm(best) ?? current, start)
+                st.status = "bestanden"; st.attempt = max(failedN + 1, intOrNil(best["versuch"]) ?? 0)
                 e["grade"] = g.isEmpty ? .null : .string(g)
             } else if !registered.isEmpty {
                 let vs = registered.compactMap { intOrNil($0["versuch"]) }.filter { $0 != 0 }
@@ -1115,7 +1121,11 @@ public enum StudyPlanEngine {
             }
         }
 
-        let lpDone = included.reduce(0.0) { $0 + (state[$1]!.status == "bestanden" ? lpOf(byID[$1]!) : 0) }
+        // LP erreicht: die LP aller bestandenen QIS-Leistungen wie in Uni & Noten (`GradesModel.creditsDone`, Regel des
+        // Inhabers 12.11.2026), auch nicht zugeordnete; nur ohne jede LP-Angabe im QIS die Katalog-LP der bestandenen Module
+        let qisLP = GradesModel.creditsDone(grades)
+        let lpDone = qisLP != 0 ? qisLP
+            : included.reduce(0.0) { $0 + (state[$1]!.status == "bestanden" ? lpOf(byID[$1]!) : 0) }
             + custom.reduce(0.0) { $0 + ($1.1["status"]?.string == "bestanden" ? $1.1["lp"]!.double! : 0) }
         let total = num(catalog["total_lp"]) ?? 0
         let lpTotal = total != 0 ? total : included.reduce(0.0) { $0 + lpOf(byID[$1]!) }

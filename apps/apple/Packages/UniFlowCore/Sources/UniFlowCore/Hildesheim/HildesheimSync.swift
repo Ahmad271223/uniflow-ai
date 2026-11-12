@@ -115,6 +115,15 @@ extension UniStore {
     /// angelegt. Der Vergleich ist NULL-sicher (`IS`): Der Notenspiegel der Uni Hildesheim hat weder Semester noch
     /// Versuch, und fuer SQLite sind zwei NULL in einer UNIQUE-Spalte verschieden (ON CONFLICT griffe nie, jeder Abruf
     /// legte alle Leistungen noch einmal an).
+    /// Vollstaendig gelesener Notenspiegel (QIS der LUH, `QISGradesSync`): Tabelle leeren und alle Leistungen in der
+    /// Reihenfolge der Seite neu anlegen (ids in Seitenreihenfolge: `GradesModel` ordnet Pruefungen der Modulzeile
+    /// davor zu). Gleicher Schluessel zweimal (Pruefungsnr., Text, Semester, Versuch): die spaetere Zeile aktualisiert.
+    /// Nur in einer Transaktion aufrufen, damit ein Fehler nichts loescht.
+    public static func replaceGrades(_ conn: SQLiteConnection, _ grades: [QISGrade], now: String) throws {
+        try conn.execute("DELETE FROM grades")
+        try storeGrades(conn, grades, now: now)
+    }
+
     public static func storeGrades(_ conn: SQLiteConnection, _ grades: [QISGrade], now: String) throws {
         for g in grades {
             let key: [SQLiteValue] = [SQLiteValue(g.pruefungsnr), .text(g.text), SQLiteValue(g.semester), SQLiteValue(g.versuch)]

@@ -77,11 +77,12 @@ final class QISLUHTests: XCTestCase {
         """
 
     /// QIS mit festen Antworten: ohne asi nur die Startseite; alle anderen Seiten brauchen den asi dieser Sitzung
-    private func qis(list: String, loggedIn: Bool = true) -> FakeUniTransport {
+    private func qis(list: String, loggedIn: Bool = true, listTimesOut: Bool = false) -> FakeUniTransport {
         let start = QISClient.startURL.absoluteString
         return FakeUniTransport { [asi, loginPage, startPage, studiumPage, treePage, expandedPage] r in
             let u = r.url.absoluteString
             guard loggedIn else { return ok(loginPage) }
+            if listTimesOut, u.contains("next=list.vm") { throw URLError(.timedOut) }
             if u == start { return ok(startPage) }
             guard u.contains("asi=\(asi)") else { return ok(loginPage) }
             if u.contains("moduleParameter=studyPOSMenu") { return ok(studiumPage) }
@@ -214,6 +215,116 @@ final class QISLUHTests: XCTestCase {
         XCTAssertFalse(r.ok)
         XCTAssertFalse(r.needsLogin)
         XCTAssertEqual(r.message, QISError.notenspiegelNotFound.description)
+    }
+
+    // MARK: Regel des Inhabers 12.11.2026: jede bestandene QIS-Leistung, LP nur aus QIS
+
+    /// Kopf wie im echten QIS ("PrfNr.", "LP"), Bereichszeile ueber zwei Spalten (colspan) und zwei Leistungen eines
+    /// Moduls mit gleichem Text, Semester und Versuch (PL und SL)
+    private func luhList(_ extra: String = "") -> String {
+        """
+        <html><body><h1>Notenspiegel</h1>\(logout)\(stammdaten)
+        <table><tr><th>PrfNr.</th><th>Prüfungstext</th><th>Art</th><th>Semester</th><th>Note</th><th>Status</th><th>LP</th><th>Vermerk</th><th>Versuch</th><th>Prüfungsdatum</th></tr>
+        <tr><td>1000</td><td colspan="2">Kompetenzbereich Grundlagen</td><td></td><td>2,0</td><td>bestanden</td><td>8</td><td></td><td></td><td></td></tr>
+        <tr><td>1100</td><td>Mathematik I</td><td></td><td>WiSe 26/27</td><td>2,0</td><td>bestanden</td><td>8</td><td></td><td></td><td></td></tr>
+        <tr><td>1101</td><td>Mathematik I</td><td>PL</td><td>WiSe 26/27</td><td>2,0</td><td>bestanden</td><td>8</td><td></td><td>1</td><td>12.02.2027</td></tr>
+        <tr><td>1102</td><td>Mathematik I</td><td>SL</td><td>WiSe 26/27</td><td></td><td>bestanden</td><td>0</td><td></td><td>1</td><td>01.02.2027</td></tr>
+        \(extra)</table></body></html>
+        """
+    }
+
+    /// Ursache: "PrfNr." und "LP" kannte der Leser nicht. Ohne Nummer fielen PL und SL desselben Moduls beim Entfernen
+    /// der Doppelten zusammen (die SL fehlte), ohne LP-Spalte fehlten die LP; die Bereichszeile ohne Spalte "Art"
+    /// (colspan) rutschte eine Spalte nach links (Note in "Semester")
+    func testPrfNrLPAndColspanKeepEveryRowAndItsLP() async throws {
+        let r = try await QISClient(transport: qis(list: luhList()), retry: noWait).fetch()
+        XCTAssertEqual(r.grades.map(\.pruefungsnr), ["1000", "1100", "1101", "1102"], "jede Zeile mit ihrer Nummer, die SL bleibt")
+        XCTAssertEqual(r.grades.map(\.credits), ["8", "8", "8", "0"], "LP aus der Spalte LP")
+        XCTAssertEqual(r.grades.first?.note, "2,0", "Bereichszeile: Note unter Note")
+        XCTAssertEqual(r.grades.first?.status, "bestanden")
+        XCTAssertTrue(r.complete)
+        let db = try await database()
+        _ = await QISGradesSync.run(db: db, transport: qis(list: luhList()), clock: .fixed(berlin: "2026-10-27T09:00:00")!, retry: noWait)
+        let s = GradesModel.summary(try await db.rows("SELECT * FROM grades ORDER BY id"))
+        XCTAssertEqual(s["credits"], 8, "Modul 8 LP einmal, Bereich (Summe) nie")
+        XCTAssertEqual(s["grades"]?.array?.count, 4)
+    }
+
+    /// Abgekuerzte Koepfe anderer HIS-Fassungen ("Sem.", "Vers.") werden gelesen
+    func testAbbreviatedSemesterAndAttemptHeaders() {
+        let g = GradeRows.parse(rows: [["PrfNr.", "Prüfungstext", "Sem.", "Note", "Status", "LP", "Vers.", "Datum"],
+                                       ["2101", "Mathematik II", "SS 24", "5,0", "nicht bestanden", "0", "2", "27.09.2024"]])
+        XCTAssertEqual(g.first?.semester, "SS 24")
+        XCTAssertEqual(g.first?.versuch, "2")
+    }
+
+    /// Ursache: ein Abruf ergaenzte nur. Was im QIS nicht mehr so steht (hier umbenanntes Modul), blieb doppelt stehen
+    /// und zaehlte doppelt; ein vollstaendiger Abruf ersetzt jetzt den Notenspiegel in der Reihenfolge der Seite
+    func testCompleteFetchReplacesTheStoredNotenspiegel() async throws {
+        let db = try await database()
+        let clock = UniFlowClock.fixed(berlin: "2026-10-27T09:00:00")!
+        _ = await QISGradesSync.run(db: db, transport: qis(list: listPage(rows: twoGrades)), clock: clock, retry: noWait)
+        let renamed = twoGrades.replacingOccurrences(of: "Mathematik I", with: "Mathematik für Informatik I")
+        let r = await QISGradesSync.run(db: db, transport: qis(list: listPage(rows: renamed)), clock: clock, retry: noWait)
+        XCTAssertEqual(r.grades, 2)
+        let rows = try await db.rows("SELECT * FROM grades ORDER BY id")
+        XCTAssertEqual(rows.compactMap { $0["text"]?.string }, ["Mathematik für Informatik I", "Programmieren"])
+        XCTAssertEqual(GradesModel.summary(rows)["credits"], 14)
+    }
+
+    /// Teil-Abbruch: eine Seite antwortet nicht (Zeitlimit) oder der Weg endet an der Seitengrenze -> gespeicherte
+    /// Leistungen bleiben alle stehen (nichts geloescht, nichts halb ersetzt)
+    func testPartialFetchNeverLosesStoredGrades() async throws {
+        let db = try await database()
+        let clock = UniFlowClock.fixed(berlin: "2026-10-27T09:00:00")!
+        _ = await QISGradesSync.run(db: db, transport: qis(list: listPage(rows: twoGrades)), clock: clock, retry: noWait)
+        // Leistungsseite laeuft ins Zeitlimit
+        let r1 = await QISGradesSync.run(db: db, transport: qis(list: "", listTimesOut: true), clock: clock, retry: noWait)
+        XCTAssertFalse(r1.ok)
+        let n1 = try await db.scalar("SELECT COUNT(*) FROM grades")?.int
+        XCTAssertEqual(n1, 2)
+        // Seitengrenze vor den Leistungen: unvollstaendig, nur ergaenzen
+        let short = try await QISClient(transport: qis(list: listPage(rows: "")), retry: noWait, maxPages: 4).fetch()
+        XCTAssertFalse(short.complete)
+        let r2 = await QISGradesSync.run(db: db, transport: qis(list: listPage(rows: "")), clock: clock, retry: noWait, maxPages: 4)
+        XCTAssertTrue(r2.ok)
+        let n2 = try await db.scalar("SELECT COUNT(*) FROM grades")?.int
+        XCTAssertEqual(n2, 2)
+        // vollstaendig, aber leer (QIS zeigt gerade nichts): nichts loeschen
+        let r3 = await QISGradesSync.run(db: db, transport: qis(list: listPage(rows: "")), clock: clock, retry: noWait)
+        XCTAssertEqual(r3.grades, 0)
+        let n3 = try await db.scalar("SELECT COUNT(*) FROM grades")?.int
+        XCTAssertEqual(n3, 2)
+        XCTAssertGreaterThanOrEqual(QISClient.defaultMaxPages, 60)
+    }
+
+    /// Zwei Abschluesse mit je einem Studiengang: beide Leistungsseiten werden gelesen
+    func testSecondAbschlussIsRead() async throws {
+        let start = QISClient.startURL.absoluteString
+        func node(_ a: String, expanded: Bool) -> String {
+            let stg = expanded ? #"<ul><li><a href="\#(base)?state=notenspiegelStudent&amp;next=list.vm&amp;nodeID=auswahlBaum|abschluss:abschl=\#(a)|studiengang:stg=\#(a)1&amp;asi=\#(asi)" title="Leistungen für Fach \#(a) (PO-Version 2017) anzeigen"><img src="i.gif" alt=""></a></li></ul>"# : ""
+            return #"<li><a href="\#(base)?state=notenspiegelStudent&amp;next=tree.vm&amp;nodeID=auswahlBaum|abschluss:abschl=\#(a)&amp;expand=0&amp;asi=\#(asi)">Abschluss \#(a)</a>\#(stg)</li>"#
+        }
+        func tree(_ open: String?) -> String {
+            "<html><body><h1>Notenspiegel</h1>\(logout)<ul>\(node("82", expanded: open == "82"))\(node("88", expanded: open == "88"))</ul></body></html>"
+        }
+        let l82 = listPage(rows: #"<tr><td>1001</td><td>Mathematik I</td><td>WiSe 26/27</td><td>2,0</td><td>bestanden</td><td>8</td><td>1</td><td>12.02.2027</td></tr>"#)
+        let l88 = listPage(rows: #"<tr><td>7001</td><td>Englisch</td><td>WiSe 26/27</td><td>1,0</td><td>bestanden</td><td>4</td><td>1</td><td>13.02.2027</td></tr>"#)
+        let t82 = tree("82"), t88 = tree("88"), t0 = tree(nil)
+        let t = FakeUniTransport { [startPage, studiumPage] r in
+            let u = r.url.absoluteString.removingPercentEncoding ?? ""
+            if u == start { return ok(startPage) }
+            if u.contains("moduleParameter=studyPOSMenu") { return ok(studiumPage) }
+            if u.contains("stg=821") { return ok(l82) }
+            if u.contains("stg=881") { return ok(l88) }
+            if u.contains("abschl=82") { return ok(t82) }
+            if u.contains("abschl=88") { return ok(t88) }
+            if u.contains("state=notenspiegelStudent") { return ok(t0) }
+            return UniResponse(status: 404)
+        }
+        let r = try await QISClient(transport: t, retry: noWait).fetch()
+        XCTAssertEqual(Set(r.grades.map(\.text)), ["Mathematik I", "Englisch"])
+        XCTAssertTrue(r.complete)
     }
 
     func testNetworkErrorMessageCarriesNoAddress() {

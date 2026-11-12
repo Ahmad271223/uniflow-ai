@@ -229,9 +229,16 @@ public struct QISPage: Sendable {
     }
 
     /// Leistungen aller Tabellen der Seite wie `LSFClient.grades` (`GradeRows`, qis.parse_grade_rows). `abschluss` wie
-    /// in qis.py: Text des Links, ueber den die Seite erreicht wurde.
+    /// in qis.py: Text des Links, ueber den die Seite erreicht wurde. Zellen ueber mehrere Spalten (colspan, z. B. die
+    /// Bereichs-/Kontozeilen ohne Spalte "Art") stehen mit leeren Zellen dahinter, damit Note, Status und LP unter ihrer
+    /// Kopfspalte bleiben (12.11.2026; vorher rutschten sie eine Spalte nach links).
     public func grades(abschluss: String = "") -> [QISGrade] {
-        QISParser.merge(tables.flatMap { GradeRows.parse(rows: $0.rows.map { $0.map(\.text) }, abschluss: abschluss) })
+        QISParser.merge(tables.flatMap { GradeRows.parse(rows: $0.rows.map(QISPage.spread), abschluss: abschluss) })
+    }
+
+    /// Zellentexte einer Zeile, eine Zelle je Spalte (colspan n -> Text und n-1 leere Zellen)
+    static func spread(_ row: [HTMLTableCell]) -> [String] {
+        row.flatMap { [$0.text] + Array(repeating: "", count: max($0.colspan, 1) - 1) }
     }
 }
 

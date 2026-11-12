@@ -344,6 +344,16 @@ final class StudyPlanBoardAppTests: XCTestCase {
         XCTAssertEqual(s.chosenLP(["computergrafik", "robotik"]), 10)
         XCTAssertEqual(s.body(po: "2017", startTerm: "SoSe 26", electives: ["robotik", "computergrafik"]),
                        ["po": "2017", "start_term": "SoSe 26", "electives": ["computergrafik", "robotik"]])
+        // 12.11.2026: ohne gespeicherten Beginn ist "aus dem Notenspiegel" vorgewaehlt, nie das aktuelle Semester
+        // (vorher wurde es beim Sichern gespeichert: hoehere Semester standen danach im 1. Fachsemester)
+        let fresh = StudyPlanSettings(["po_options": ["2022"], "term_options": ["WiSe 26/27", "SoSe 26"],
+                                       "suggested_start_term": "WiSe 23/24"])
+        XCTAssertEqual(fresh.initialStart, "")
+        XCTAssertEqual(fresh.startChoices.first?.value, "")
+        XCTAssertEqual(fresh.startChoices.first?.label, "Aus dem Notenspiegel übernehmen (WiSe 23/24)")
+        XCTAssertTrue(fresh.termOptions.contains("WiSe 23/24"))
+        XCTAssertNil(fresh.body(po: nil, startTerm: fresh.initialStart.isEmpty ? nil : fresh.initialStart, electives: [])["start_term"]?.string)
+        XCTAssertEqual(StudyPlanSettings(Self.settings).initialStart, "WiSe 25/26")
         XCTAssertEqual(StudyPlanSettingsSheet.counter(5, 15), "5 von 15 LP gewählt")
         XCTAssertEqual(StudyPlanSettingsSheet.counter(5, nil), "5 LP gewählt")
     }

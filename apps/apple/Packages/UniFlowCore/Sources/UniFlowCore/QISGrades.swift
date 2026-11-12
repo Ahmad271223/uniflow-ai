@@ -41,6 +41,17 @@ public struct QISFetchResult: Sendable, Equatable {
     public let documents: [QISDocumentLink]
     public let pages: Int
     public let gradeTables: Int
+    /// alle Wege bis zu den Leistungen gelesen (nicht an der Seitengrenze abgebrochen): nur dann ersetzt der Abruf den
+    /// gespeicherten Notenspiegel ganz (`QISGradesSync.run`)
+    public var complete = true
+
+    public init(grades: [QISGrade], documents: [QISDocumentLink], pages: Int, gradeTables: Int, complete: Bool = true) {
+        self.grades = grades
+        self.documents = documents
+        self.pages = pages
+        self.gradeTables = gradeTables
+        self.complete = complete
+    }
 }
 
 /// Liest den Notenspiegel des QIS der LUH mit einer angemeldeten Sitzung (Cookies setzt der Transport der App).
@@ -48,8 +59,10 @@ public struct QISFetchResult: Sendable, Equatable {
 /// bzw. `QISPage.nextLinksTowardGrades` folgt ihnen nicht).
 public actor QISClient {
     public static let startURL = UniversityProfile.luhQISStart
-    /// hoechstens so viele Seiten je Durchlauf (Startseite, Mein Studium, Notenspiegel, Abschluesse, Studiengaenge)
-    public static let defaultMaxPages = 24
+    /// hoechstens so viele Seiten je Durchlauf (Startseite, Mein Studium, Notenspiegel, Abschluesse, Studiengaenge).
+    /// 12.11.2026 von 24 auf 60: mit mehreren Abschluessen/Studiengaengen und den Baumseiten dazwischen endete der Weg
+    /// sonst still vor den letzten Leistungen; wird die Grenze doch erreicht, ist der Abruf unvollstaendig (`complete`)
+    public static let defaultMaxPages = 60
 
     private let transport: UniTransport
     private let retry: UniRetry
@@ -95,7 +108,9 @@ public actor QISClient {
             pending = collector.nextLinks(on: p).map { ($0, p) } + pending
         }
         guard reached else { throw QISError.notenspiegelNotFound }
-        return QISFetchResult(grades: collector.grades, documents: collector.documents, pages: pages, gradeTables: tables)
+        let open = pending.contains { !collector.visited.contains($0.link.address) }
+        return QISFetchResult(grades: collector.grades, documents: collector.documents, pages: pages, gradeTables: tables,
+                              complete: !open)
     }
 }
 
@@ -161,7 +176,14 @@ public enum QISGradesSync {
             let text = message(grades: r.grades.count)
             let grades = r.grades
             try await db.transaction { conn in
-                try UniStore.storeGrades(conn, grades, now: now)
+                // vollstaendig gelesen: der Notenspiegel ersetzt die Tabelle (nichts Altes bleibt doppelt oder veraltet
+                // stehen, Reihenfolge wie im QIS fuer die Zuordnung Pruefung -> Modul); unvollstaendig oder leer: nur
+                // ergaenzen/aktualisieren, nie Leistungen verlieren (Regel des Inhabers 12.11.2026)
+                if r.complete && !grades.isEmpty {
+                    try UniStore.replaceGrades(conn, grades, now: now)
+                } else {
+                    try UniStore.storeGrades(conn, grades, now: now)
+                }
                 try conn.execute("INSERT INTO qis_runs(started_at, finished_at, ok, message, grades, documents) VALUES (?,?,1,?,?,0)",
                                  [.text(started), .text(now), .text(text), .integer(Int64(grades.count))])
             }

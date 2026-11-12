@@ -115,24 +115,18 @@ MAX_CUSTOM_TITLE = 120
 # ----------------------------------------------------------------------------
 
 def parse_term(s) -> int | None:
-    """'WiSe 25/26', 'WS 2025/26', 'Wintersemester 2025/2026', 'SoSe 26', 'SS 2026' -> Zahl, sonst None"""
-    if not isinstance(s, str):
-        return None
-    m = TERM_RE.match(s)
-    if not m:
-        return None
-    year = int(m.group(2))
-    if year < 100:
-        year += 2000
-    winter = m.group(1).lower().startswith(("wi", "ws"))
-    return year * 2 + (1 if winter else 0)
+    """'WiSe 25/26', 'WS 2025/26', 'Wintersemester 2025/2026', 'SoSe 26', 'SS 2026', 'W25', '25/26 WS', '20252' -> Zahl,
+    sonst None (grades_model.parse_term, alle Schreibweisen des QIS seit 12.11.2026)"""
+    return grades_model.parse_term(s)
+
+
+def row_term(r: dict) -> int | None:
+    """Semester einer QIS-Zeile: Semesterspalte, sonst aus dem Pruefungsdatum (grades_model.row_term)"""
+    return grades_model.row_term(r)
 
 
 def term_name(t: int) -> str:
-    year = t // 2
-    if t % 2:
-        return f"WiSe {year % 100:02d}/{(year + 1) % 100:02d}"
-    return f"SoSe {year % 100:02d}"
+    return grades_model.term_name(t)
 
 
 def current_term(today: str) -> int:
@@ -231,7 +225,8 @@ def text_of(v) -> str:
 def row_result(r: dict) -> str | None:
     """passed | final | failed | registered | None (abgemeldet, krank ...)"""
     s = text_of(r.get("status")).strip().lower()
-    if s in ("bestanden", "anerkannt", "be"):
+    # bestanden wie im Notenspiegel (grades_model.is_passed, Regel des Inhabers 12.11.2026: QIS ist die Quelle)
+    if s in ("bestanden", "anerkannt", "be") or (r.get("level") is not None and r.get("passed") is True):
         return "passed"
     if s.startswith("endgültig") or s.startswith("endgueltig") or s == "en":
         return "final"
@@ -245,7 +240,7 @@ def row_result(r: dict) -> str | None:
 
 
 def is_bereich(r: dict) -> bool:
-    return r.get("level") == "bereich" or bool(grades_model.BEREICH_RE.match(text_of(r.get("text"))))
+    return r.get("level") == "bereich" or grades_model.is_bereich_text(text_of(r.get("text")))
 
 
 def fold(text) -> str:
@@ -551,8 +546,12 @@ def _attempts(rows: list[dict], max_attempts: int | None = None) -> tuple[int, i
     if not failed:
         return 0, None, False, known, last
     versuche = [int_or_none(r.get("versuch")) or 0 for r in failed]
-    terms = {parse_term(r.get("semester")) for r in failed}
-    n = max(max(versuche), len(terms))
+    terms = {row_term(r) for r in failed}
+    # ohne Versuchsspalte: jede nicht bestandene Pruefung (Semester, Datum) ist ein Versuch; Modulzeilen nur, wenn es
+    # keine Pruefungszeilen gibt (sonst stuenden Modul und Pruefung desselben Versuchs doppelt da)
+    exams = [r for r in failed if r.get("level") == "pruefung"] or failed
+    tries = {(row_term(r), text_of(r.get("datum")).strip()) for r in exams}
+    n = max(max(versuche), len(terms), len(tries))
     seen = [t for t in terms if t is not None]
     final = any(row_result(r) == "final" for r in failed) or (max_attempts is not None and n >= max_attempts)
     return n, (max(seen) if seen else None), final, known, last
@@ -607,10 +606,14 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     current = current_term(today)
     hist, unmatched = _match(mods, grades)
 
+    # Studienbeginn: Einstellung, sonst das frueheste Semester mit einer QIS-Leistung (Semesterspalte oder Datum);
+    # liegt eine QIS-Leistung vor dem eingestellten Beginn, gilt das QIS (12.11.2026: hoehere Semester bekamen sonst den
+    # Beginn = aktuelles Semester, weil das Einstellungsblatt ihn ungefragt so speicherte, und alles Bestandene rutschte
+    # in dieses Semester). Pruefungsanmeldungen zaehlen nicht (sie liegen im aktuellen Semester).
+    terms = [row_term(r) for r in grades if isinstance(r, dict) and not is_bereich(r) and r.get("source") != "anmeldung"]
+    known = [t for t in terms if t is not None]
     start = parse_term(settings.get("start_term"))
-    if start is None:
-        terms = [parse_term(r.get("semester")) for r in grades if isinstance(r, dict) and not is_bereich(r)]
-        known = [t for t in terms if t is not None]
+    if start is None or (known and min(known) < start):
         start = min(known) if known else current
     regular = num(catalog.get("regular_semesters"))
     regular = int(regular) if regular and regular > 0 else 6
@@ -766,12 +769,12 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         if passed:
             best = passed[0]
             for r in passed[1:]:
-                if (parse_term(r.get("semester")) or -1) >= (parse_term(best.get("semester")) or -1):
+                if (row_term(r) or -1) >= (row_term(best) or -1):
                     best = r
-            t = parse_term(best.get("semester"))
+            t = row_term(best)
             if t is None:
                 t = min(rec, current) if rec is not None else current
-            st.update(status="bestanden", term=max(t, start), attempt=failed_n + 1,
+            st.update(status="bestanden", term=max(t, start), attempt=max(failed_n + 1, int_or_none(best.get("versuch")) or 0),
                       grade=text_of(best.get("note")).strip() or None)
         elif registered:
             vs = [int_or_none(r.get("versuch")) for r in registered]
@@ -882,9 +885,9 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         if passed_rows:
             best = passed_rows[0]
             for r in passed_rows[1:]:
-                if (parse_term(r.get("semester")) or -1) >= (parse_term(best.get("semester")) or -1):
+                if (row_term(r) or -1) >= (row_term(best) or -1):
                     best = r
-            t = parse_term(best.get("semester"))
+            t = row_term(best)
             e.update(status="bestanden", grade=text_of(best.get("note")).strip() or None)
             t = max(t if t is not None else current, start)
         elif any(row_result(r) == "registered" for r in rows):
@@ -939,10 +942,11 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         if passed_rows:
             best = passed_rows[0]
             for r in passed_rows[1:]:
-                if (parse_term(r.get("semester")) or -1) >= (parse_term(best.get("semester")) or -1):
+                if (row_term(r) or -1) >= (row_term(best) or -1):
                     best = r
-            t = max(parse_term(best.get("semester")) or current, start)
-            e.update(status="bestanden", attempt=failed_n + 1, grade=text_of(best.get("note")).strip() or None)
+            t = max(row_term(best) or current, start)
+            e.update(status="bestanden", attempt=max(failed_n + 1, int_or_none(best.get("versuch")) or 0),
+                     grade=text_of(best.get("note")).strip() or None)
         elif registered:
             vs = [v for v in (int_or_none(r.get("versuch")) for r in registered) if v]
             t = current
@@ -1130,8 +1134,11 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
                                       for i in ids] + mine,
                           "slots": here, "lp_slots": sum(p["lp"] or 0 for p in here)})
 
-    lp_done = sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden") \
-        + sum(e["lp"] for _, e in custom if e["status"] == "bestanden")
+    # LP erreicht: die LP aller bestandenen QIS-Leistungen wie in Uni & Noten (grades_model.credits_done, Regel des
+    # Inhabers 12.11.2026), auch nicht zugeordnete; nur ohne jede LP-Angabe im QIS die Katalog-LP der bestandenen Module
+    lp_done = grades_model.credits_done(grades) or (
+        sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden")
+        + sum(e["lp"] for _, e in custom if e["status"] == "bestanden"))
     total = num(catalog.get("total_lp"))
     lp_total = total if total else sum(lp_of(by_id[i]) for i in included)
     lp_expected = sum(lp_of(by_id[i]) for i in included if sem_of(by_id[i]) and start + sem_of(by_id[i]) - 1 < current)
@@ -1409,7 +1416,7 @@ def settings_response(conn, today: str, source=None) -> dict:
     catalogs = source.catalogs()
     suggested, _ = pick_catalog(catalogs, {}, grades)
     cat, _ = pick_catalog(catalogs, s, grades)
-    terms = [parse_term(r.get("semester")) for r in grades if not is_bereich(r)]
+    terms = [row_term(r) for r in grades if not is_bereich(r) and r.get("source") != "anmeldung"]
     known = [t for t in terms if t is not None]
     pos: list[str] = []
     for c in catalogs:

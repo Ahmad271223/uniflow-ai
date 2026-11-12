@@ -130,6 +130,20 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertTrue(g("x", "M", status: "NB").hasResult)
     }
 
+    /// 12.11.2026: der Notenspiegel liest die Pruefungsnummer jetzt auch aus "PrfNr."; eine schon bekannte Leistung,
+    /// die dadurch erst jetzt eine Nummer hat, ist keine neue Note (eine wirklich neue schon)
+    func testKnownGradeThatGainsItsNumberIsNotNew() {
+        let before = BackgroundNewsSnapshot(grades: [GradeEntry(key: "\u{1}Analysis A\u{1}WiSe 26/27\u{1}1", module: "Analysis A", note: "2,3",
+                                                                status: "bestanden", looseKey: "Analysis A\u{1}WiSe 26/27\u{1}1")],
+                                            gradesKnown: true)
+        let after = BackgroundNewsSnapshot(grades: [GradeEntry(key: "1101\u{1}Analysis A\u{1}WiSe 26/27\u{1}1", module: "Analysis A", note: "2,3",
+                                                               status: "bestanden", looseKey: "Analysis A\u{1}WiSe 26/27\u{1}1"),
+                                                    GradeEntry(key: "1201\u{1}Numerik B\u{1}WiSe 26/27\u{1}1", module: "Numerik B", note: "1,7",
+                                                               status: "bestanden", looseKey: "Numerik B\u{1}WiSe 26/27\u{1}1")],
+                                           gradesKnown: true)
+        XCTAssertEqual(BackgroundNews.diff(before: before, after: after, now: now).newGrades.map(\.module), ["Numerik B"])
+    }
+
     func testMessageAndAnnouncementDiffIgnoresOldEntries() {
         let recent = now.addingTimeInterval(-3600), old = now.addingTimeInterval(-40 * 86400)
         let before = BackgroundNewsSnapshot(messages: ["m1": recent],

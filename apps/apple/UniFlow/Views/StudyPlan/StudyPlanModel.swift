@@ -603,6 +603,8 @@ struct StudyPlanSettings: Equatable {
     var poOptions: [String]
     var startTerm: String?
     var termOptions: [String]
+    /// frühestes Semester mit einer QIS-Leistung (`suggested_start_term`); gilt, solange kein Beginn gespeichert ist
+    var suggestedStartTerm: String?
     var electives: [String]
     var electiveOptions: [Elective]
     var electiveLPRequired: Double?
@@ -615,9 +617,11 @@ struct StudyPlanSettings: Equatable {
         if let p = po, !pos.contains(p) { pos.append(p) }
         poOptions = pos
         startTerm = v.s("start_term")
+        suggestedStartTerm = v.s("suggested_start_term")
         var terms = v.list("term_options").compactMap(\.string)
         if terms.isEmpty { terms = StudyPlanText.recentTerms(today: today) }
         if let t = startTerm, !terms.contains(t) { terms.insert(t, at: 0) }
+        if let t = suggestedStartTerm, !terms.contains(t) { terms.append(t) }
         termOptions = terms
         electives = v.list("electives").compactMap { $0.string ?? $0.s("id") }
         electiveOptions = v.list("elective_options").compactMap { e in
@@ -632,6 +636,18 @@ struct StudyPlanSettings: Equatable {
     func chosenLP(_ chosen: Set<String>) -> Double {
         electiveOptions.filter { chosen.contains($0.id) }.reduce(0) { $0 + $1.lp }
     }
+
+    /// Auswahl "Studienbeginn": zuerst "automatisch" (Wert "", nichts gespeichert: der Kern nimmt das früheste Semester
+    /// mit einer QIS-Leistung), dann die Semester. 12.11.2026: vorher stand das aktuelle Semester vorgewählt da und wurde
+    /// bei jedem Sichern gespeichert; Studierende höherer Semester waren danach im 1. Fachsemester, alles Bestandene lag
+    /// im aktuellen Semester.
+    var startChoices: [(value: String, label: String)] {
+        let auto = suggestedStartTerm.map { "Aus dem Notenspiegel übernehmen (\($0))" } ?? "Aus dem Notenspiegel übernehmen"
+        return [("", auto)] + termOptions.map { ($0, $0) }
+    }
+
+    /// vorgewählter Studienbeginn im Einstellungsblatt: gespeicherter Beginn, sonst "automatisch" ("")
+    var initialStart: String { startTerm ?? "" }
 
     /// Rumpf fuer POST /api/study-plan/settings: Wahlmodule in der Reihenfolge der Liste (stabil fuer den Vergleich)
     func body(po: String?, startTerm: String?, electives chosen: Set<String>, catalogURL: String? = nil) -> JSONValue {

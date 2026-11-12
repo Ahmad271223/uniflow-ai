@@ -79,10 +79,12 @@ struct ServicesPage: View {
         "Bestandene, benotete \(g.s("basis") == "module" ? "Module" : "Leistungen"), nach Leistungspunkten gewichtet; wie in Prüfungsordnungen üblich nach der ersten Nachkommastelle abgeschnitten."
     }
 
-    /// "aus 5 bestandenen Modulen · 1 nicht bestandene Versuche"
+    /// "aus 5 bestandenen Leistungen · 1 nicht bestandene Versuche": jede bestandene QIS-Leistung einmal (Module und
+    /// Pruefungen ohne Modulzeile, `GradesModel.count`), dieselbe Zahl wie "LP erreicht" im Studienverlauf
     static func creditsLabel(_ g: JSONValue) -> String {
         let failed = g.i("failed_attempts") ?? 0
-        return "aus \(g.i("passed") ?? 0) bestandenen \(g.s("basis") == "module" ? "Modulen" : "Leistungen")"
+        let onlyModules = !g.list("grades").contains { $0["counted"]?.bool == true && $0.s("level") != "modul" }
+        return "aus \(g.i("passed") ?? 0) bestandenen \(g.s("basis") == "module" && onlyModules ? "Modulen" : "Leistungen")"
             + (failed > 0 ? " · \(failed) nicht bestandene Versuche" : "")
     }
 
@@ -545,8 +547,15 @@ struct GradesTable: View {
     private var bereiche: [JSONValue] { rows.filter { $0.s("level") == "bereich" } }
     private var hasModules: Bool { rows.contains { $0.s("level") == "modul" } }
     private var hasExams: Bool { rows.contains { $0.s("level") == "pruefung" } }
-    private var visible: [JSONValue] {
-        rows.filter { r in r.s("level") != "bereich" && (showAll || r.s("level") == "modul" || !hasModules) }
+    /// Ansicht "Module": Module und jede bestandene Pruefung, die als eigene Leistung zaehlt (`counted`: ohne Modulzeile
+    /// oder Modul noch offen; Regel des Inhabers 12.11.2026, vorher fehlten sie hier)
+    private var visible: [JSONValue] { Self.visibleRows(rows, showAll: showAll) }
+
+    static func visibleRows(_ rows: [JSONValue], showAll: Bool) -> [JSONValue] {
+        let hasModules = rows.contains { $0.s("level") == "modul" }
+        return rows.filter { r in
+            r.s("level") != "bereich" && (showAll || r.s("level") == "modul" || !hasModules || r["counted"]?.bool == true)
+        }
     }
 
     var body: some View {

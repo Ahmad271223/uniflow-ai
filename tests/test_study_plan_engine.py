@@ -353,3 +353,40 @@ def test_luh_seed_matches_online_study_plans():
         m = _mods(p)
         assert m["einfuehrung-in-die-informatik"][0] == "WiSe 26/27"
         assert not any(sl["kind"] == "track" for s in p["semesters"] for sl in s["slots"])
+
+
+def test_lp_done_is_the_qis_sum_including_unmatched():
+    """Regel des Inhabers 12.11.2026: LP erreicht = LP aller bestandenen QIS-Leistungen (grades_model.credits_done),
+    auch nicht zugeordnete; vorher die Katalog-LP der zugeordneten Module"""
+    from app import grades_model, study_plan
+    ab = "Technische Informatik (PO-Version 2017)"
+    grades = [{"pruefungsnr": "1001", "text": "Programmieren I", "semester": "WiSe 25/26", "note": "2,0", "status": "bestanden",
+               "credits": "7", "versuch": "", "datum": "", "abschluss": ab, "raw": None},
+              {"pruefungsnr": "8801", "text": "Rhetorikkurs", "semester": "WiSe 25/26", "note": "2,0", "status": "bestanden",
+               "credits": "3", "versuch": "", "datum": "", "abschluss": ab, "raw": None}]
+    p = study_plan.build_plan(_engine()["catalog"], grades_model.model(grades), {}, "2026-11-04")
+    assert p["lp_done"] == 10.0 == grades_model.credits_done(grades)
+    assert "Rhetorikkurs" in p["unmatched"]
+
+
+def test_higher_semesters_read_terms_start_and_attempts():
+    """Meldung des Inhabers 12.11.2026: ab dem 2. Fachsemester erkannte der Plan weder Semester noch Versuche (Semester-
+    Schreibweisen, leere Semesterspalte, Beginn = aktuelles Semester vom Einstellungsblatt, Fehlversuche ohne Spalte)"""
+    from app import study_plan
+    p3 = _case("hoeher_3_fachsemester")
+    m3 = _mods(p3)
+    assert (p3["start_term"], p3["current_fachsemester"]) == ("WiSe 25/26", 3)
+    assert m3["digitale-systeme"][0] == "WiSe 25/26" and m3["rechnerstrukturen"][0] == "SoSe 26"
+    assert (m3["mathematik-1"][0], m3["mathematik-1"][1]["attempt"]) == ("SoSe 26", 2)
+    p5 = _case("hoeher_5_beginn_aus_qis")
+    assert (p5["start_term"], p5["current_fachsemester"]) == ("WiSe 24/25", 5)
+    assert _mods(p5)["mathematik-2"][0] == "SoSe 25"
+    p7 = _case("hoeher_7_datum_und_versuche")
+    m7 = _mods(p7)
+    assert (p7["start_term"], p7["current_fachsemester"]) == ("WiSe 23/24", 7)
+    assert (m7["mathematik-2"][0], m7["mathematik-2"][1]["attempt"]) == ("SoSe 25", 3)
+    assert m7["programmieren-1"][0] == "WiSe 23/24" and m7["rechnerstrukturen"][0] == "SoSe 24"
+    for s, t in [("WS 2024/25", 4049), ("W24", 4049), ("24/25 WS", 4049), ("2024W", 4049), ("SS 2025", 4050),
+                 ("S25", 4050), ("SoSe2025", 4050), ("20251", 4050), ("Wi.Se. 24/25", 4049), ("WS 24/25 (2. PZ)", 4049)]:
+        assert study_plan.parse_term(s) == t, s
+    assert study_plan.parse_term("Winter 24") is None and study_plan.parse_term("24") is None

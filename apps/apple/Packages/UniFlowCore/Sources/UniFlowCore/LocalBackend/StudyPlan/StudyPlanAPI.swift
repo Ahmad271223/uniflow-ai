@@ -178,7 +178,8 @@ public enum StudyPlanAPI {
         let catalogs = try source.catalogs()
         let suggested = StudyPlanEngine.pickCatalog(catalogs, settings: [:], grades: grades).catalog
         let cat = StudyPlanEngine.pickCatalog(catalogs, settings: s.json, grades: grades).catalog
-        let known = grades.filter { !StudyPlanEngine.isBereich($0) }.compactMap { StudyPlanEngine.parseTerm($0["semester"]) }
+        let known = grades.filter { !StudyPlanEngine.isBereich($0) && StudyPlanEngine.textOf($0["source"]) != "anmeldung" }
+            .compactMap(StudyPlanEngine.rowTerm)
         var pos: [String] = []
         for c in catalogs {
             let p = StudyPlanEngine.pyStr(c["po"])
