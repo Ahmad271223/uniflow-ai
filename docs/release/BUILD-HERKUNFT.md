@@ -5,8 +5,8 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 34 (Version 1.0.3, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). Veröffentlicht: Version 1.0.2
-mit Build 31 (11.11.2026), davor 1.0.1 mit Build 30. Hochgeladen, noch nicht eingereicht: Version 1.0.3 mit Build 33 (`1c911fa5`).
+Aktueller Stand in project.yml: Build 35 (Version 1.0.3, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). Veröffentlicht: Version 1.0.2
+mit Build 31 (11.11.2026), davor 1.0.1 mit Build 30. Hochgeladen, noch nicht eingereicht: Version 1.0.3 mit Build 34 (`6be58cd3`).
 
 ## Builds
 
@@ -29,7 +29,8 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 31 | `0324eb3d` | 10.11.2026 19:28 | veröffentlicht: Version 1.0.2, von Apple freigegeben und am 11.11.2026 veröffentlicht (READY_FOR_SALE; eingereicht 10.11.2026 20:45); TestFlight | Build 30 plus Mac-Parität und Mac-Bedienung, Community-Zustand iPad/Mac über iCloud, gerätelokale Einstellungen; QIS (angemeldete Prüfungen, Bescheinigungen mit abgelaufener Anmeldung); Lernblöcke nur in freier Zeit; Antwort auf die Übungsfrage für jedes Vorkommen; Uni-Zugang einmal speichern („überall gleich“ oder je Portal); ein Sync für Stud.IP, QIS und Uni-Mail; Wochenkopf ohne Umbruch des Datums; „Nachrichten“ mit Sprechblase statt zweitem Brief |
 | 32 | `95943d32` | 11.11.2026 | nur TestFlight, nie eingereicht: Version 1.0.2; stürzte auf iPads beim Öffnen eines Dokuments ab (Stapelüberlauf in `DocumentView.body`), am 11.11.2026 aus der Gruppe „LUH-Tester“ genommen | Build 31 plus Mac-Version (Tastatur/Maus, eigenes Fenster, Präsentieren), Editor (Suche in Notizen, Bilder, ein Lasso, Schreiblupe), Benachrichtigungen bei Noten/Nachrichten, Erinnerungen ab Plus, kein Centbetrag bei Credits, Studienverlauf zählt angemeldete Prüfungen und Wahlfächer, Versuche ehrlich, QIS-Anmeldung im Sync und Bescheinigungsliste, schnellerer Sync, PDF-Absturz (iPadOS 26.5) entschärft, KI-Stopp und ziehbare KI-Leiste, Import in Ordner, Listenansicht |
 | 33 | `1c911fa5` | 11.11.2026 23:52 | hochgeladen (TestFlight), Version 1.0.3; intern zum Testen frei, „LUH-Tester“ in der Beta-Prüfung; im App Store erst nach der Prüfung durch den Inhaber einreichen | Build 32 plus Absturzkorrektur `DocumentView` (Stapel 1220 → 435 KB, Schutztest `ViewTypeDepthAppTests`), Stift-Palette kommt nach Chat/KI-Frage zurück; Tests: Vorlage-iPad 1504 grün, iPad 9 (Simulator) 960 grün |
-| 34 | – | 11.11.2026 | noch nicht hochgeladen; develop nach Build 33 (geplant: feste Werkzeugleiste, iPhone) | Änderungen nach `1c911fa5` |
+| 34 | `6be58cd3` | 12.11.2026 17:31 | hochgeladen (TestFlight), Version 1.0.3; intern und „LUH-Tester“ zum Testen frei; im App Store erst nach der Prüfung durch den Inhaber einreichen (ersetzt Build 33 als Kandidat für 1.0.3) | Build 33 plus feste Werkzeugleiste (oben/unten/schwebend), Schlösser für Free/Plus, eine Apple-Anmeldung (Dienst-Konto für alle, Widerruf beim Löschen – braucht Server-Deploy und Apple-Schlüssel), Datentrennung bei anderem Stud.IP-Benutzer, Jetzt-Linie im Stundenplan, Planer öffnet richtiges Modul, Import in eigene/neue Ordner auf allen Wegen, Noten/LP nur aus QIS, Studienverlauf höhere Semester, Profil-Kreis entfernt; Tests: iPad 1547 (1 zeitabhängiger Test einzeln grün), Kern 1442, JS 440, Python grün |
+| 35 | – | 12.11.2026 | noch nicht hochgeladen; develop nach Build 34 (geplant: Studiengruppen, Auswahl Lernkalender) | Änderungen nach `6be58cd3` |
 
 ### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
 
