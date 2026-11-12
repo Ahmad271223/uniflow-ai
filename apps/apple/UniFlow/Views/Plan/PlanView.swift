@@ -17,12 +17,17 @@ struct PlanView: View {
 
     /// planState im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var state = (view: "week", date: UFFmt.todayISO(), module: "")
+    /// letzte Pruefung der Lernziele vor dem Laden des Kalenders (hoechstens alle 30 Sekunden)
+    @MainActor static var goalsChecked: Date?
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
 
     var body: some View {
         Group {
-            if let data {
+            if (params.view ?? Self.state.view) == "ziele" {
+                // Lernziele in Stunden (Smart Planner 2.0, 12.11.2026): eigene Ansicht in derselben Leiste
+                GoalsPage { v in go(v, Self.state.date) }
+            } else if let data {
                 content(data)
             } else if let error {
                 UFContent { UFEmpty(icon: "alert", text: error) }
@@ -45,7 +50,13 @@ struct PlanView: View {
         if let v = params.view { Self.state.view = v }
         if let d = params.date { Self.state.date = d }
         if let m = params.module { Self.state.module = m }
+        if Self.state.view == "ziele" { return }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
+        // Lernziele: vor dem Kalender kurz pruefen, ob umzuplanen ist (ohne KI; aendert nur bei neuen Eingaben)
+        if Self.goalsChecked.map({ Date().timeIntervalSince($0) > 30 }) ?? true {
+            Self.goalsChecked = Date()
+            _ = try? await api.value("/api/goals")
+        }
         let st = Self.state
         let d = Fmt.date(st.date) ?? Date()
         let (start, end) = PlanData.range(view: st.view, date: d)
@@ -181,7 +192,7 @@ struct PlanView: View {
 
     /// .cal2-bar
     private func bar(_ d: PlanData, wk: Bool) -> some View {
-        let views: [(value: String, label: String, icon: String?)] = [("day", "Tag", nil), ("3days", "3 Tage", nil), ("week", "Woche", nil), ("month", "Monat", nil), ("list", "Liste", "list")]
+        let views = PlanViews.all
         let modOptions: [(value: String, label: String)] = [("", "Alle Module")] + d.modules.compactMap { m in m.i("id").map { ("\($0)", UFFmt.shortName(m.s("name"))) } }
         return UFFlexWrap(gap: 8) {
             UFSegPill(options: views, selection: d.view) { v in go(v, Self.state.date) }

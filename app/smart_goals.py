@@ -655,11 +655,12 @@ def build(conn, t: date, partial: bool = False) -> dict:
     inp = {"days": days, "modules": modules, "fixed": fixed,
            "settings": {k: s[k] for k in ("utilization", "min_block", "max_block", "break", "max_week_minutes", "max_day_minutes")},
            "accept_partial": partial}
-    h = hashlib.sha256(json.dumps(inp, sort_keys=True).encode()).hexdigest()[:24]
-    inp["now_minute"] = _now_minute()
-    # bisheriger Plan: Lagen behalten, wo es geht (nicht Teil der Pruefsumme, sonst rechnete jeder Plan sich selbst neu)
+    # bisheriger Plan: Lagen behalten, wo es geht. Teil der Pruefsumme, damit ein von Hand geloeschter Block neu verteilt
+    # wird; nach dem Anwenden rechnet der naechste Aufruf einmal nach (ohne Aenderung) und steht dann still.
     inp["prefer"] = [{"module_id": p["module_id"], "date": p["date"], "start": timetable.hm(p["start_time"]), "end": timetable.hm(p["end_time"])}
                      for p in db.rows(conn, _AUTO_SQL + " ORDER BY date, start_time, id", (ti,)) if p["start_time"] and p["end_time"]]
+    h = hashlib.sha256(json.dumps(inp, sort_keys=True).encode()).hexdigest()[:24]
+    inp["now_minute"] = _now_minute()
     return {"input": inp, "hash": h, "info": info, "credit": cr, "sessions": sessions, "occ": occ, "settings": s, "goals": goals}
 
 

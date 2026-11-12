@@ -33,6 +33,8 @@ struct UniFlowApp: App {
         _ = Entitlements.shared
         // Lernplan nach dem Abgleich (auto_plan) nur, wenn der Tarif automatisch planen darf (ab Plus; Free von Hand)
         StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) }
+        // Lernziele (Smart Planner 2.0): automatisch umplanen wie der Lernplan erst ab Plus; Ziele, Lernzeit, Übersicht frei
+        SmartGoalsEndpoints.autoAllowed = { Entitlements.shared.allows(.autoPlan) }
         DueNotificationDelegate.install()                                 // Antippen einer Erinnerung oeffnet die Quelle; fragt nichts
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild

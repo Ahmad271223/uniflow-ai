@@ -672,12 +672,13 @@ enum SmartGoals {
         for k in ["utilization", "min_block", "max_block", "break", "max_week_minutes", "max_day_minutes"] { setsOut[k] = s[k] }
         var inp: [String: JSONValue] = ["days": .array(dayList), "modules": .array(modules), "fixed": .array(fixed),
                                         "settings": .object(setsOut), "accept_partial": .bool(partial)]
-        let hash = sha(pyJSON(.object(inp)).dumps(ensureASCII: true))
-        inp["now_minute"] = n(uc.minutesOfDay)
+        // bisheriger Plan: Lagen behalten, wo es geht; Teil der Pruefsumme (ein geloeschter Block wird neu verteilt)
         inp["prefer"] = .array(try c.rows(autoSQL + " ORDER BY date, start_time, id", [.text(ti)]).compactMap { p in
             guard let a = hm(p["start_time"]), let b = hm(p["end_time"]) else { return nil }
             return ["module_id": p["module_id"] ?? .null, "date": p["date"] ?? .null, "start": n(a), "end": n(b)]
         })
+        let hash = sha(pyJSON(.object(inp)).dumps(ensureASCII: true))
+        inp["now_minute"] = n(uc.minutesOfDay)
         return Build(input: .object(inp), hash: hash, info: info, sessions: sessions, occ: occ, settings: s, goals: gs)
     }
 

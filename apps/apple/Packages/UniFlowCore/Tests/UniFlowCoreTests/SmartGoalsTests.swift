@@ -224,6 +224,25 @@ final class SmartGoalsTests: XCTestCase {
         XCTAssertEqual(minutes(all.filter { ($0["date"]?.string ?? "") >= "2026-11-18" && $0["status"] == "geplant" }), 20 * 60)
     }
 
+    func testGeloeschterBlockWirdNeuVerteilt() async throws {
+        let b = try await backend(Now("2026-11-16T08:00:00"))
+        let mid = try await module(b, "Mathematik", exam: "2027-01-25")
+        await send(b, "PUT", "/api/goals/\(mid)", ["target_hours": 20])
+        await send(b, "POST", "/api/goals/plan", [:])
+        await send(b, "GET", "/api/goals")
+        let fut = try await blocks(b, mid).filter { ($0["date"]?.string ?? "") > "2026-11-20" }
+        await send(b, "DELETE", "/api/packages/\(fut[0]["id"]!.int!)")
+        await send(b, "GET", "/api/goals")
+        var all = try await blocks(b, mid)
+        XCTAssertEqual(minutes(all), 20 * 60, "geloeschte Zeit wieder eingeplant")
+        let count = all.count
+        for _ in 0..<3 { await send(b, "GET", "/api/goals") }
+        all = try await blocks(b, mid)
+        XCTAssertEqual(all.count, count, "danach steht der Plan still")
+        let o = await send(b, "GET", "/api/goals")
+        XCTAssertEqual(o["proposal"], .null)
+    }
+
     func testKlausurEntferntUndZielErreicht() async throws {
         let b = try await backend(Now("2026-11-16T08:00:00"))
         let a = try await module(b, "Mathematik", exam: "2027-01-25")

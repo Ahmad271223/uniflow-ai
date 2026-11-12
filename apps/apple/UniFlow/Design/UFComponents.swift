@@ -419,10 +419,10 @@ struct UFStatusPill: View {
 
     static let labels: [String: String] = [
         "geplant": "Geplant", "in_bearbeitung": "In Bearbeitung", "erledigt": "Erledigt", "teilweise": "Teilweise erledigt",
-        "nachholen": "Nachholen", "verschoben": "Verschoben", "uebersprungen": "Übersprungen", "frei": "Frei", "leer": "Nichts geplant",
+        "nachholen": "Nachholen", "verpasst": "Verpasst", "verschoben": "Verschoben", "uebersprungen": "Übersprungen", "frei": "Frei", "leer": "Nichts geplant",
     ]
     static let icons: [String: String] = [
-        "geplant": "calendar", "in_bearbeitung": "play", "erledigt": "check", "teilweise": "clock", "nachholen": "alert",
+        "geplant": "calendar", "in_bearbeitung": "play", "erledigt": "check", "teilweise": "clock", "nachholen": "alert", "verpasst": "alert",
         "verschoben": "move", "uebersprungen": "x", "frei": "sun", "leer": "circle",
     ]
 
@@ -432,7 +432,7 @@ struct UFStatusPill: View {
         case "in_bearbeitung": return (UF.accentText, UF.accentSoft)
         case "erledigt": return (UF.okText, UF.okSoft)
         case "teilweise": return (UF.warnText, UF.warnSoft)
-        case "nachholen": return (UF.badText, UF.badSoft)
+        case "nachholen", "verpasst": return (UF.badText, UF.badSoft)
         default: return (UF.muted, UF.surface2)
         }
     }

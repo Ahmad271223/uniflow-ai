@@ -253,6 +253,22 @@ def test_ziel_erhoeht_klausur_verschoben_gesperrt_und_manuell_bleiben(env):
     assert {b["id"]: b for b in blocks()}[locked["id"]]["date"] == "2027-01-20"
 
 
+def test_geloeschter_block_wird_neu_verteilt(env):
+    app, clock = env
+    mid = module("Mathematik", "2027-01-25")
+    call(app, "PUT", f"/api/goals/{mid}", {"target_hours": 20})
+    call(app, "POST", "/api/goals/plan", {})
+    call(app, "GET", "/api/goals")
+    fut = [b for b in blocks(mid) if b["date"] > "2026-11-20"]
+    assert call(app, "DELETE", f"/api/packages/{fut[0]['id']}")[0] == 200
+    st, o = call(app, "GET", "/api/goals")
+    assert sum(int(b["planned_minutes"]) for b in blocks(mid)) == 20 * 60, "geloeschte Zeit wieder eingeplant"
+    n = len(blocks(mid))
+    for _ in range(3):                                                              # danach steht der Plan still
+        call(app, "GET", "/api/goals")
+    assert len(blocks(mid)) == n and call(app, "GET", "/api/goals")[1]["proposal"] is None
+
+
 def test_verpasste_bloecke_werden_nachgeplant(env):
     app, clock = env
     mid = module("Mathematik", "2027-01-25")
