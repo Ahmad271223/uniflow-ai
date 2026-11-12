@@ -509,10 +509,12 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(shows(env.view, "KI kommt mit StudiNow Pro AI"))
         XCTAssertEqual(enabled("Frage senden", in: env.view), false, "Senden ohne KI gesperrt")
         XCTAssertNotNil(button("Karteikarten.", in: env.view, exact: false), "die Aktionen bleiben sichtbar")
-        // Wochentest-Pille oeffnet den Dialog, der ebenfalls den Weg zur KI zeigt
+        // Auftrag des Inhabers 12.11.2026: ohne KI und ohne Pro AI tragen die KI-Aktionen das Schloss "ab Pro AI" und
+        // oeffnen die Tarifwahl mit Pro AI (vorher oeffnete die Wochentest-Pille den Dialog mit gesperrtem "Test erstellen")
+        XCTAssertEqual(button("Wochentest.", in: env.view, exact: false)?.accessibilityValue, UFLock.accessibilityValue(.proAI))
         XCTAssertTrue(tap("Wochentest.", in: env.view, exact: false))
-        XCTAssertTrue(env.wait { self.shows(env.view, "Wochentest erstellen") })
-        XCTAssertEqual(enabled("Test erstellen", in: env.view), false)
+        XCTAssertTrue(env.wait { env.hosting.presentedViewController != nil }, "Tarifwahl offen")
+        XCTAssertFalse(shows(env.view, "Wochentest erstellen"), "kein Dialog ohne Tarif")
         XCTAssertEqual(t.count("POST", "/api/tests/generate"), 0)
     }
 

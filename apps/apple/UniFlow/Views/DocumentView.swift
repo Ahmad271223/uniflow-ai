@@ -210,6 +210,8 @@ struct DocumentView: View {
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
+    /// Lage der Werkzeuge (Einstellungen, 12.11.2026): oben fest, unten fest oder schwebend (`EditorToolbarPlacement`)
+    @AppStorage(EditorToolbarPlacement.key) private var toolbarPlacementRaw = EditorToolbarPlacement.standard.rawValue
     /// an der Kopfzeile getauschte Paare (SplitSides.swift), wie die Breite der Teilung auf dem Geraet gemerkt
     @AppStorage(SplitSides.swappedKey) private var splitSwapped = ""
     /// Breite der KI-Hilfe, am Rand gezogen und je Geraet gemerkt (TutorPanelWidth.swift; 0 = Standard)
@@ -464,11 +466,32 @@ struct DocumentView: View {
     /// Leisten und Seitenspalten aus: beim Abpausen und in der Praesentation
     private var chromeHidden: Bool { tracing || presenting }
 
-    /// Feste Werkzeugleiste oben (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`)
+    /// Lage der Werkzeuge; am Mac nie schwebend
+    private var toolbarPlacement: EditorToolbarPlacement {
+        EditorToolbarPlacement.resolve(toolbarPlacementRaw, isMac: PDFEditorController.isMac)
+    }
+
+    /// Schloss der KI-Stellen im Editor (KI-Hilfe, "KI fragen", "Bereich an KI"): ohne KI und ohne Pro AI "ab Pro AI"
+    private var aiLock: UFPlan? {
+        UFLock.ai(.aiHelp, plan: entitlements.plan, aiEnabled: aiEnabled, offerHidden: proAIOfferHidden)
+    }
+
+    /// Feste Werkzeugleiste (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`)
     private var toolbarStrip: EditorToolbar {
         EditorToolbar(tools: tools.tools, mode: bridge.toolbar, undo: { [bridge] in bridge.undo() }, redo: { [bridge] in bridge.redo() },
                       onPick: { [bridge] t in bridge.toolbarPicked(t) },
-                      askAI: aiEnabled && !proAIOfferHidden ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil)
+                      askAI: aiEnabled && !proAIOfferHidden ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil,
+                      askAILock: aiLock, atBottom: toolbarPlacement == .bottom)
+    }
+
+    /// Platz der Werkzeuge oben bzw. unten (Leiste, Leiste mit Schloss ohne Plus, Hinweis bei "Schwebend")
+    private func toolbarSlot(_ edge: EditorToolbarSlot.Edge) -> EditorToolbarSlot {
+        let shown = !chromeHidden
+        let locked = shown && !planAllowsWriting && !readOnly && !store.isOldVersion && correction == nil
+        return EditorToolbarSlot(edge: edge, placement: toolbarPlacement,
+                                 toolbar: shown && bridge.toolbar.visible && toolbarPlacement != .floating ? toolbarStrip : nil,
+                                 lockedPlan: locked ? UFLock.plan(.pencilWriting, plan: entitlements.plan) : nil,
+                                 askAILock: aiLock)
     }
 
     /// Leiste der Praesentation (klein, unten rechts)
@@ -567,10 +590,18 @@ struct DocumentView: View {
     /// "Bereich an KI" (05.11.2026): Rahmen ziehen bzw. einkreisen (Werkzeug wie in der Leiste) oder ohne Gesten die
     /// ganze angezeigte Seite
     @ViewBuilder private var areaMenuItems: some View {
-        Button { bridge.controller?.startAreaCapture() } label: { Label("Bereich an KI …", systemImage: "rectangle.dashed") }
-            .accessibilityIdentifier("doc.areaAI.pick")
-        Button { bridge.controller?.sendVisiblePage() } label: { Label("Ganze Seite an KI", systemImage: "doc.viewfinder") }
-            .accessibilityIdentifier("doc.areaAI.page")
+        if let lock = aiLock {
+            // ohne KI und ohne Pro AI: sichtbar mit Schloss, Antippen oeffnet die Tarifwahl (12.11.2026)
+            Button { lockedFeature = .aiHelp } label: { Label(UFLock.label("Bereich an KI …", lock), systemImage: UFLock.symbol) }
+                .accessibilityIdentifier("doc.areaAI.pick")
+            Button { lockedFeature = .aiHelp } label: { Label(UFLock.label("Ganze Seite an KI", lock), systemImage: UFLock.symbol) }
+                .accessibilityIdentifier("doc.areaAI.page")
+        } else {
+            Button { bridge.controller?.startAreaCapture() } label: { Label("Bereich an KI …", systemImage: "rectangle.dashed") }
+                .accessibilityIdentifier("doc.areaAI.pick")
+            Button { bridge.controller?.sendVisiblePage() } label: { Label("Ganze Seite an KI", systemImage: "doc.viewfinder") }
+                .accessibilityIdentifier("doc.areaAI.page")
+        }
     }
 
     private var isExercise: Bool { SplitSides.isExercise(store.file) }
@@ -585,9 +616,9 @@ struct DocumentView: View {
                 ContentUnavailableView("Dokument nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
                 VStack(spacing: 0) {
-                // feste Werkzeugleiste (11.11.2026, `EditorToolbar.swift`): unter der Kopfzeile, volle Breite, immer an
-                // derselben Stelle; nicht beim Abpausen, nicht in der Praesentation, nicht ohne Schreiben
-                if bridge.toolbar.visible, !chromeHidden { toolbarStrip }
+                // Werkzeugleiste (11.11.2026, `EditorToolbar.swift`): oben oder unten fest bzw. schwebend nach der
+                // Einstellung (12.11.2026); nicht beim Abpausen, nicht in der Praesentation; ohne Plus mit Schloss
+                toolbarSlot(.top)
                 GeometryReader { geo in
                     HStack(spacing: 0) {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
@@ -623,6 +654,7 @@ struct DocumentView: View {
                         if let d = swapDrag, hasSidePane, !chromeHidden { SplitSwapHint(sideLeft: sideLeft, x: d, width: geo.size.width) }
                     }
                 }
+                toolbarSlot(.bottom)
                 }
             } else {
                 ProgressView("Lädt…")
@@ -763,7 +795,8 @@ struct DocumentView: View {
         .sheet(isPresented: $mailingDocument) {
             if let uniMailConnection { UniMailDocumentEntry(store: store, api: api, connection: uniMailConnection) }
         }
-        .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
+        // Schloss angetippt: Tarifwahl mit dem noetigen Tarif vorausgewaehlt (Auftrag des Inhabers 12.11.2026)
+        .sheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
                 // Vollbild einer frueheren Fassung: derselbe Zurueck-Pfeil wie im Editor schliesst sie (vorher "Schließen")
@@ -905,7 +938,7 @@ struct DocumentView: View {
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
                       onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled,
-                      freezeMode: freeze.mode, traceContrast: freezeContrast)
+                      freezeMode: freeze.mode, traceContrast: freezeContrast, toolbarPlacement: toolbarPlacement)
             .ignoresSafeArea(edges: tracing ? .all : .bottom)
             .overlay(alignment: .bottom) { if !chromeHidden { pageInfo } }
             .overlay(alignment: .topLeading) {
@@ -1109,8 +1142,11 @@ struct DocumentView: View {
             // Striche, Objekte und eingefuegte Seiten); am Mac dort mit Cmd-Z und Umschalt-Cmd-Z (Befund 09.11.2026)
             if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
-                Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (\(UFPlan.plus.name))", systemImage: "lock") }
-                    .labelStyle(.titleAndIcon)
+                Button { lockedFeature = .pencilWriting } label: {
+                    Label(UFLock.label("Schreiben", UFFeature.pencilWriting.minimumPlan), systemImage: UFLock.symbol)
+                }
+                .labelStyle(.titleAndIcon)
+                .accessibilityValue(UFLock.accessibilityValue(UFFeature.pencilWriting.minimumPlan))
             }
         }
         // Rechts in Gruppen nach Aufgabe (Design-Ueberarbeitung 03.11.2026; vorher elf Knoepfe in einer Reihe):
@@ -1145,10 +1181,17 @@ struct DocumentView: View {
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
             if !proAIOfferHidden {                          // nur Store-Bilder der Fassung nur mit Plus blenden ihn aus
                 Button {
+                    // ohne KI und ohne Pro AI: Schloss, Antippen oeffnet die Tarifwahl (12.11.2026)
+                    if aiLock != nil, !showTutor { lockedFeature = .aiHelp; return }
                     // markierter Text geht als Anhang mit (sichtbar im Eingabefeld), statt erst beim Senden gelesen zu werden
                     if !showTutor, let a = bridge.controller?.selectionAttachment() { bridge.tutorAttachment = a }
                     showTutor.toggle()
-                } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
+                } label: {
+                    // Symbol bleibt das der KI (Entscheidung: in der Kopfzeile traegt nur "Schreiben" das Schloss); die Sperre
+                    // nennen Text und VoiceOver "(ab Pro AI)", Antippen oeffnet die Tarifwahl
+                    Label(showTutor ? "KI-Hilfe schließen" : aiLock.map { UFLock.label("KI-Hilfe", $0) } ?? "KI-Hilfe",
+                          systemImage: "sparkles")
+                }
                     .accessibilityIdentifier("doc.tutor")
                     .contextMenu { areaMenuItems }
             }
@@ -1157,8 +1200,9 @@ struct DocumentView: View {
                 else if entitlements.allows(.splitView) { choosingCompanion = true }
                 else { lockedFeature = .splitView }
             } label: {
-                // immer das Symbol der Teilung (die Sperre nennt der Text): nur "Schreiben (Plus)" links traegt das Schloss
-                Label(!hasSidePane ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
+                // immer das Symbol der Teilung (in der Kopfzeile traegt nur "Schreiben" das Schloss); die Sperre nennt der
+                // Text einheitlich "(ab Plus)" (12.11.2026)
+                Label(!hasSidePane ? Self.lockedLabel("Geteilt", entitlements.access(.splitView)) : "Teilung beenden",
                       systemImage: "rectangle.split.2x1")
             }
             .contextMenu {
@@ -1199,7 +1243,7 @@ struct DocumentView: View {
                 Section("Nur eigene Notizen") {
                     Button { openSolutionSheet(.share) } label: {
                         Label(Self.lockedLabel("Lösung teilen …", entitlements.access(.shareSolutions)),
-                              systemImage: entitlements.allows(.shareSolutions) ? "person.2" : "lock")
+                              systemImage: entitlements.allows(.shareSolutions) ? "person.2" : UFLock.symbol)
                     }
                     Button { openSolutionSheet(.shared) } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
                 }
@@ -1242,9 +1286,10 @@ struct DocumentView: View {
                 // "Bereich an KI" auch ohne Leiste und ohne Schreiben im Tarif (05.11.2026)
                 Section("KI-Hilfe") { areaMenuItems }
                 if !planAllowsWriting && !readOnly {
-                    // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
-                    Button { lockedFeature = .pencilWriting } label: {
-                        Label("Schreiben, Seiten und Lesezeichen ab \(UFPlan.plus.name)", systemImage: "lock")
+                    // Free: jeder schreibende Eintrag sichtbar mit Schloss (statt grau), Antippen oeffnet die Tarifwahl
+                    // (Auftrag des Inhabers 12.11.2026); eigener Typ, damit das Menue flach bleibt
+                    EditorLockedWriteItems(plan: UFFeature.pencilWriting.minimumPlan, bookmarked: store.isBookmarked(pageKey: bridge.pageKey)) {
+                        lockedFeature = .pencilWriting
                     }
                     Divider()
                 } else if !ownNotesVisible {
@@ -1254,8 +1299,11 @@ struct DocumentView: View {
                     }
                     Divider()
                 }
-                // schreiben ins eigene Dokument: gesperrt, solange "Meine Notizen" ausgeblendet ist
+                // schreiben ins eigene Dokument: gesperrt, solange "Meine Notizen" ausgeblendet ist; ohne Plus stehen die
+                // Eintraege oben mit Schloss
+                if planAllowsWriting || readOnly {
                 Group {
+
                     Button {
                         if let key = bridge.pageKey {
                             let title = "Seite \(bridge.pageIndex + 1)"
@@ -1303,6 +1351,7 @@ struct DocumentView: View {
                     pageToolsMenu
                 }
                 .disabled(!ownNotesVisible || !canWrite)
+                }
                 Button { goToText = ""; goingToPage = true } label: { Label("Gehe zu Seite …", systemImage: "arrow.right.to.line") }
                 Button { showOutline = true } label: { Label("Gliederung …", systemImage: "list.bullet.indent") }
                 Divider()
@@ -1490,7 +1539,7 @@ struct DocumentView: View {
                 }
             } else {
                 Button { solutionSheet = .locked(.communityRead) } label: {
-                    Label(Self.lockedLabel("Lösungen anderer ansehen", entitlements.access(.communityRead)), systemImage: "lock")
+                    Label(Self.lockedLabel("Lösungen anderer ansehen", entitlements.access(.communityRead)), systemImage: UFLock.symbol)
                 }
             }
         } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
@@ -1503,11 +1552,11 @@ struct DocumentView: View {
         solutionSheet = entitlements.allows(feature) ? sheet : .locked(feature)
     }
 
-    /// Menuepunkt einer gesperrten Funktion: "Lösung teilen … (StudiNow Plus)" bzw. "(bald)"
+    /// Menuepunkt einer gesperrten Funktion: "Lösung teilen … (ab Plus)" bzw. "(bald)" (einheitlich `UFLock.label`)
     static func lockedLabel(_ title: String, _ access: UFAccess) -> String {
         switch access {
         case .allowed: return title
-        case .locked(let p): return "\(title) (\(p.name))"
+        case .locked(let p): return UFLock.label(title, p)
         case .comingSoon: return "\(title) (bald)"
         }
     }
@@ -2618,6 +2667,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
     /// Bildschirm fixieren (`EditorFreezeLock.swift`)
     var freezeMode: EditorFreeze.Mode = .off
     var traceContrast = false
+    /// Lage der Werkzeuge (Einstellung): "Schwebend" zeigt der Editor Apples Palette
+    var toolbarPlacement: EditorToolbarPlacement = .standard
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, tools: tools, ownsToolPicker: ownsToolPicker,
@@ -2653,6 +2704,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.onEndPresentation = { [weak bridge] in bridge?.request(.endPresentation) }
         vc.traceContrast = traceContrast
         vc.freezeMode = freezeMode
+        vc.toolbarPlacement = toolbarPlacement
         bridge.controller = vc
         return vc
     }
@@ -2671,5 +2723,27 @@ struct PDFEditorView: UIViewControllerRepresentable {
         if vc.shownCorrection != shownCorrection { vc.shownCorrection = shownCorrection }
         if vc.traceContrast != traceContrast { vc.traceContrast = traceContrast }
         if vc.freezeMode != freezeMode { vc.freezeMode = freezeMode }
+        if vc.toolbarPlacement != toolbarPlacement { vc.toolbarPlacement = toolbarPlacement }
+    }
+}
+
+/// Schreibende Eintraege im Menue "Mehr" ohne Schreiben im Tarif (Free, nach dem Herabstufen): sichtbar mit Schloss
+/// "(ab Plus)" statt grau, jeder oeffnet die Tarifwahl (Auftrag des Inhabers 12.11.2026)
+struct EditorLockedWriteItems: View {
+    let plan: UFPlan
+    let bookmarked: Bool
+    let open: () -> Void
+
+    /// Eintraege wie im Menue mit Plus (Lesezeichen, Seiten, Text, Bilder, Schreiblupe)
+    static func titles(bookmarked: Bool) -> [String] {
+        [bookmarked ? "Lesezeichen entfernen" : "Lesezeichen setzen", "Leere Seite danach", "Seite in den Papierkorb",
+         "Papierkorb …", "Seite drehen", "Text hinzufügen", "Bild aus Fotos …", "Bild aus Dateien …", "Schreiblupe"]
+    }
+
+    var body: some View {
+        ForEach(Self.titles(bookmarked: bookmarked), id: \.self) { title in
+            Button(action: open) { Label(UFLock.label(title, plan), systemImage: UFLock.symbol) }
+                .accessibilityValue(UFLock.accessibilityValue(plan))
+        }
     }
 }

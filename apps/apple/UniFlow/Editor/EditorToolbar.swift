@@ -12,6 +12,11 @@ import UniFlowCore
 // ausdruecklich `CGRectNull`, "wenn die Palette beweglich ist". Darum zeigt der Editor Apples Palette nicht mehr und
 // fuehrt die Werkzeuge selbst: `EditorToolState` (ein Stand fuer beide Haelften der geteilten Ansicht, je Geraet
 // gemerkt) und `EditorToolbar` (Leiste unter der Kopfzeile, volle Breite, immer an derselben Stelle).
+//
+// 12.11.2026 (Inhaber: "den Pencil-Kit-Strich kleiner und fest oben oder unten, man kann aussuchen, oder weiterhin
+// schwebend, in Einstellung"): Leiste 44 statt 52 pt hoch, Lage in den Einstellungen waehlbar (`EditorToolbarPlacement`:
+// oben fest, unten fest, schwebend = Apples Palette, `EditorFloatingPalette.swift`). Ohne Schreiben im Tarif steht sie
+// mit Schloss da (`EditorLockedToolbar`) statt zu fehlen.
 
 /// Sichtbarkeit der Leiste, vom Editor gemeldet (wie frueher die Palette: nur mit Schreiben, nicht beim Abpausen und in
 /// der Praesentation); im Korrektur-Modus nur Stifte, Radierer, Lasso und Lineal
@@ -386,25 +391,37 @@ struct EditorToolbar: View {
     let onPick: (EditorToolState.Tool) -> Void
     /// "KI fragen" (nur mit verbundener KI, wie frueher am Rand von Apples Palette): KI-Hilfe mit markiertem Text
     let askAI: (() -> Void)?
+    /// ohne KI und ohne Pro AI: "KI fragen" sichtbar mit Schloss (Auftrag des Inhabers 12.11.2026), Antippen oeffnet
+    /// die Tarifwahl
+    let askAILock: UFPlan?
+    /// Leiste unten im Dokument ("Unten fest"): Trennlinie oben statt unten
+    let atBottom: Bool
     @State private var attributesOpen = false
     @State private var optionsFor: EditorToolState.Tool?
 
     init(tools: EditorToolState, mode: EditorToolbarMode, undo: @escaping () -> Void, redo: @escaping () -> Void,
-         onPick: @escaping (EditorToolState.Tool) -> Void = { _ in }, askAI: (() -> Void)? = nil) {
+         onPick: @escaping (EditorToolState.Tool) -> Void = { _ in }, askAI: (() -> Void)? = nil, askAILock: UFPlan? = nil,
+         atBottom: Bool = false) {
         self.tools = tools
         self.mode = mode
         self.undo = undo
         self.redo = redo
         self.onPick = onPick
         self.askAI = askAI
+        self.askAILock = askAILock
+        self.atBottom = atBottom
     }
 
-    static let height: CGFloat = 52
+    /// Hoehe der Leiste (12.11.2026: "den Pencil-Kit-Strich kleiner", vorher 52 pt): so hoch wie die kleinste
+    /// Trefferflaeche (44 pt), Symbole 16 pt
+    static let height: CGFloat = 44
+    /// Trefferflaeche je Knopf (Breite und Hoehe), Bedienungshilfen: mindestens 44 pt
+    static let hitSide: CGFloat = 44
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
+                HStack(spacing: 0) {
                     ForEach(EditorToolState.Tool.canvasTools) { toolButton($0) }
                     rulerButton
                     if !mode.inkOnly {
@@ -412,7 +429,7 @@ struct EditorToolbar: View {
                         ForEach(EditorToolState.Tool.objectTools) { toolButton($0) }
                     }
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 6)
             }
             .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             divider
@@ -424,6 +441,12 @@ struct EditorToolbar: View {
                     .accessibilityLabel("KI fragen")
                     .accessibilityIdentifier("toolbar.askAI")
                     .help("KI fragen (markierter Text geht mit)")
+            } else if let askAILock {
+                UFLockedButton(plan: askAILock, title: "KI fragen", identifier: "toolbar.askAI.locked") {
+                    Image(systemName: "sparkles").font(.system(size: 16, weight: .medium)).foregroundStyle(UF.text)
+                }
+                .frame(minHeight: Self.hitSide)
+                .padding(.horizontal, 4)
             }
             Button(action: undo) { icon("arrow.uturn.backward") }
                 .buttonStyle(EditorToolButtonStyle(selected: false))
@@ -435,12 +458,12 @@ struct EditorToolbar: View {
                 .accessibilityLabel("Wiederholen")
                 .accessibilityIdentifier("toolbar.redo")
                 .modifier(MacShortcut(key: "z", modifiers: [.command, .shift]))
-                .padding(.trailing, 10)
+                .padding(.trailing, 6)
         }
         .frame(height: Self.height)
         .frame(maxWidth: .infinity)
         .background(UF.surface)
-        .overlay(alignment: .bottom) { UF.line.frame(height: 1) }
+        .overlay(alignment: atBottom ? .top : .bottom) { UF.line.frame(height: 1) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Werkzeuge")
         .accessibilityIdentifier("editor.toolbar")
@@ -449,10 +472,11 @@ struct EditorToolbar: View {
         }
     }
 
-    private var divider: some View { UF.line.frame(width: 1, height: 28).padding(.horizontal, 4) }
+    private var divider: some View { UF.line.frame(width: 1, height: 22).padding(.horizontal, 3) }
 
+    /// Symbol eines Knopfs: 16 pt, Flaeche 44 x 44 pt (die Markierung des gewaehlten Werkzeugs zeichnet der Stil kleiner)
     private func icon(_ name: String) -> some View {
-        Image(systemName: name).font(.system(size: 18, weight: .medium)).frame(width: 40, height: 36)
+        Image(systemName: name).font(.system(size: 16, weight: .medium)).frame(width: Self.hitSide, height: Self.hitSide)
     }
 
     /// Werkzeug: Symbol, bei Stiften ein Farbpunkt darunter; zweites Tippen oeffnet seine Einstellungen
@@ -469,9 +493,9 @@ struct EditorToolbar: View {
             ZStack(alignment: .bottom) {
                 icon(t.icon)
                 if t.isInk {
-                    Circle().fill(color(tools.style(t).hex)).frame(width: 7, height: 7)
+                    Circle().fill(color(tools.style(t).hex)).frame(width: 6, height: 6)
                         .overlay(Circle().stroke(UF.lineStrong, lineWidth: 0.5))
-                        .offset(y: 1)
+                        .offset(y: -4)
                 }
             }
         }
@@ -518,14 +542,14 @@ struct EditorToolbar: View {
             if t.hasColor || !t.widths.isEmpty { attributesOpen = true } else if hasOptions(tools.tool) { optionsFor = tools.tool }
         } label: {
             HStack(spacing: 6) {
-                Circle().fill(color(s.hex)).frame(width: 22, height: 22)
+                Circle().fill(color(s.hex)).frame(width: 18, height: 18)
                     .overlay(Circle().stroke(UF.lineStrong, lineWidth: 1))
                 if !t.widths.isEmpty {
-                    Capsule().fill(UF.text).frame(width: 18, height: min(10, max(1.5, s.width * (t == .marker ? 0.3 : 0.9))))
+                    Capsule().fill(UF.text).frame(width: 16, height: min(8, max(1.5, s.width * (t == .marker ? 0.3 : 0.9))))
                 }
             }
-            .frame(minWidth: 40, minHeight: 36)
-            .padding(.horizontal, 4)
+            .frame(minWidth: Self.hitSide, minHeight: Self.hitSide)
+            .padding(.horizontal, 2)
         }
         .buttonStyle(EditorToolButtonStyle(selected: false))
         .popover(isPresented: $attributesOpen) {
@@ -539,7 +563,141 @@ struct EditorToolbar: View {
     private func color(_ hex: String) -> Color { Color(uiColor: UIColor(hex: hex) ?? .black) }
 }
 
+// MARK: - Lage und Schloss (12.11.2026)
+
+/// Platz der Werkzeuge in `DocumentView` (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`):
+/// oben bzw. unten die feste Leiste, wenn diese Lage gewaehlt ist. Ohne Schreiben im Tarif (Free, nach dem
+/// Herabstufen) statt nichts die Leiste mit Schloss (`EditorLockedToolbar`), bei "Schwebend" oben ein schmaler Hinweis
+/// mit Schloss (Apples Palette erscheint ohne Plus nicht). Auftrag des Inhabers 12.11.2026: gesperrt heisst sichtbar
+/// mit Schloss.
+struct EditorToolbarSlot: View {
+    enum Edge { case top, bottom }
+
+    let edge: Edge
+    let placement: EditorToolbarPlacement
+    /// Leiste mit Werkzeugen; nil, solange nicht geschrieben werden kann
+    let toolbar: EditorToolbar?
+    /// Schreiben im Tarif gesperrt: Tarif, der es freischaltet (nil = kein Schloss)
+    let lockedPlan: UFPlan?
+    /// "KI fragen" gesperrt (ohne KI, ohne Pro AI)
+    let askAILock: UFPlan?
+
+    var body: some View {
+        switch (edge, placement) {
+        case (.top, .top), (.bottom, .bottom):
+            if let toolbar {
+                toolbar
+            } else if let lockedPlan {
+                EditorLockedToolbar(plan: lockedPlan, askAILock: askAILock, atBottom: edge == .bottom)
+            }
+        case (.top, .floating):
+            if toolbar == nil, let lockedPlan { EditorFloatingLockHint(plan: lockedPlan) }
+        default:
+            EmptyView()
+        }
+    }
+}
+
+/// Werkzeugleiste ohne Schreiben im Tarif: dieselben Werkzeuge gedimmt, Schloss "ab Plus" und "Schreiben mit Plus";
+/// Antippen oeffnet die Tarifwahl mit Plus. Notizen bleiben lesbar und exportierbar (Herabstufen loescht nichts).
+struct EditorLockedToolbar: View {
+    let plan: UFPlan
+    var askAILock: UFPlan?
+    var atBottom = false
+    @State private var sheet: UFPlan?
+
+    /// "Schreiben mit Plus"
+    static func title(_ p: UFPlan) -> String { "Schreiben mit \(UFLock.short(p))" }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button { sheet = plan } label: {
+                HStack(spacing: 8) {
+                    // so viele Werkzeuge, wie in die Breite passen (schmale geteilte Ansicht: nur der Hinweis)
+                    ViewThatFits(in: .horizontal) {
+                        icons(EditorToolState.Tool.canvasTools + EditorToolState.Tool.objectTools)
+                        icons(EditorToolState.Tool.canvasTools)
+                        Color.clear.frame(width: 1, height: 1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 6) {
+                        Text(Self.title(plan)).ufFont(13.6, 600).foregroundStyle(UF.text).lineLimit(1).fixedSize()
+                        UFLockMark(plan)
+                    }
+                    .padding(.trailing, 8)
+                }
+                .frame(minHeight: EditorToolbar.hitSide)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(UFLock.label(Self.title(plan), plan))
+            .accessibilityLabel(Self.title(plan))
+            .ufLockAccessibility(plan)
+            .accessibilityIdentifier("editor.toolbar.locked")
+            if let askAILock {
+                UF.line.frame(width: 1, height: 22).padding(.horizontal, 3)
+                UFLockedButton(plan: askAILock, title: "KI fragen", identifier: "toolbar.askAI.locked") {
+                    Image(systemName: "sparkles").font(.system(size: 16, weight: .medium)).foregroundStyle(UF.text)
+                }
+                .frame(minHeight: EditorToolbar.hitSide)
+                .padding(.trailing, 8)
+            }
+        }
+        .padding(.leading, 6)
+        .frame(height: EditorToolbar.height)
+        .frame(maxWidth: .infinity)
+        .background(UF.surface)
+        .overlay(alignment: atBottom ? .top : .bottom) { UF.line.frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Werkzeuge")
+        .accessibilityIdentifier("editor.toolbar")
+        .ufPlanSheet($sheet)
+    }
+
+    private func icons(_ tools: [EditorToolState.Tool]) -> some View {
+        HStack(spacing: 0) {
+            ForEach(tools) { t in
+                Image(systemName: t.icon).font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(UF.muted)
+                    .frame(width: EditorToolbar.hitSide, height: EditorToolbar.hitSide)
+            }
+        }
+        .opacity(0.55)
+        .fixedSize()
+        .accessibilityHidden(true)
+    }
+}
+
+/// "Schwebend" ohne Schreiben im Tarif: statt Apples Palette ein schmaler Hinweis mit Schloss oben im Dokument
+struct EditorFloatingLockHint: View {
+    let plan: UFPlan
+    @State private var sheet: UFPlan?
+
+    var body: some View {
+        Button { sheet = plan } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "pencil.tip.crop.circle").font(.system(size: 15, weight: .medium)).foregroundStyle(UF.muted)
+                Text(EditorLockedToolbar.title(plan)).ufFont(13.6, 600).foregroundStyle(UF.text).lineLimit(1)
+                UFLockMark(plan)
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: EditorToolbar.hitSide)
+            .background(Capsule().fill(UF.surface))
+            .overlay(Capsule().strokeBorder(UF.line, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(EditorLockedToolbar.title(plan))
+        .ufLockAccessibility(plan)
+        .accessibilityIdentifier("editor.palette.locked")
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .ufPlanSheet($sheet)
+    }
+}
+
 /// Tastenkuerzel nur am Mac (am iPad gehoert Cmd-Z dem Verlauf der Responder-Kette)
+
 private struct MacShortcut: ViewModifier {
     let key: KeyEquivalent
     let modifiers: EventModifiers
@@ -549,7 +707,7 @@ private struct MacShortcut: ViewModifier {
     }
 }
 
-/// Knopf der Leiste: gewaehlt in der Akzentfarbe der App
+/// Knopf der Leiste: gewaehlt in der Akzentfarbe der App (Markierung 36 x 32 pt in der 44-pt-Flaeche)
 struct EditorToolButtonStyle: ButtonStyle {
     let selected: Bool
     @Environment(\.isEnabled) private var enabled
@@ -557,7 +715,9 @@ struct EditorToolButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(selected ? UF.accentText : UF.text)
-            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(selected ? UF.accentSoft : (configuration.isPressed ? UF.surface2 : .clear)))
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(selected ? UF.accentSoft : (configuration.isPressed ? UF.surface2 : .clear))
+                .padding(.horizontal, 4).padding(.vertical, 6))
+
             .opacity(enabled ? 1 : 0.4)
             .contentShape(Rectangle())
     }

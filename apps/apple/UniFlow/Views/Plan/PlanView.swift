@@ -101,7 +101,7 @@ struct PlanView: View {
                 UFButton("Woche retten", icon: "life-buoy") { Task { await actions.suggest(["rescue": true]) } }
                     .disabled(backlog.isEmpty)
                     .help(backlog.isEmpty ? "Nichts nachzuholen" : "")
-                UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+                planButton(d)
             }
             if !backlog.isEmpty { backlogBanner(backlog, d) }
             if windowWidth > 1100 || sideOff {
@@ -116,6 +116,13 @@ struct PlanView: View {
                 }
             }
         }
+    }
+
+    /// "Plan erstellen" (Lernplan automatisch): ohne PC ab Plus, in Free sichtbar mit Schloss (Auftrag des Inhabers
+    /// 12.11.2026, wie "Lernplan erstellen" auf der Uebersicht); Antippen oeffnet die Tarifwahl
+    @ViewBuilder private func planButton(_ d: PlanData) -> some View {
+        let b = UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+        if session.api?.isLocal != false { b.ufRequires(.autoPlan) } else { b }
     }
 
     private func backlogBanner(_ backlog: [JSONValue], _ d: PlanData) -> some View {
