@@ -324,6 +324,8 @@ public enum StudyEndpoints: LocalEndpointModule {
             let set = fields, moveTo = newDate
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
+                // Block des Stundenplaners von Hand verschoben: gilt als fest, der Planer plant darum herum
+                if moveTo != nil || time != nil { try c.execute("UPDATE study_packages SET manual=1 WHERE id=? AND source='smart'", [id]) }
                 if let moveTo, !(try StudyReschedule.movePackage(c, id: id, to: moveTo, clock: clock)) {
                     throw LocalHTTPError.notFound("Paket nicht gefunden")
                 }

@@ -40,6 +40,11 @@ extension StudyPlan {
             try markAllSeen(c, clock: clock)
             return nil
         }
+        // Lernziele in Stunden (Smart Planner 2.0): neue Dokumente kommen ueber den Stundenplaner in dessen Bloecke
+        if try SmartGoals.active(c) {
+            try markAllSeen(c, clock: clock)
+            return nil
+        }
         let t0 = T.today(clock)
         if firstRun {
             var result: JSONValue? = nil

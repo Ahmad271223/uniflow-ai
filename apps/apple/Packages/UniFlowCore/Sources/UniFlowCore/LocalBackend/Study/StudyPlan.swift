@@ -110,7 +110,8 @@ enum StudyPlan {
         var packages: [SQLiteValue: (date: SQLiteValue?, status: SQLiteValue?, tasks: [String?])] = [:]
         for r in try c.query("""
             SELECT p.id, p.date, p.status, t.id AS task_id, t.status AS task_status
-            FROM study_packages p LEFT JOIN study_tasks t ON t.package_id=p.id ORDER BY p.id
+            FROM study_packages p LEFT JOIN study_tasks t ON t.package_id=p.id
+            WHERE COALESCE(p.source,'')<>'smart' ORDER BY p.id
             """) {
             let id = r["id"] ?? .null
             if packages[id] == nil {
@@ -368,6 +369,8 @@ enum StudyPlan {
     /// ohne Uhrzeit (vorher blieb sie: leerer Block im Raster, ein neues Paket bekam dieselbe Uhrzeit; Korrektur vom
     /// 26.10.2026, zuerst in Python)
     static func recalcPackage(_ c: SQLiteConnection, _ pid: SQLiteValue) throws {
+        // Block des Stundenplaners: Dauer = Stundenbudget, unabhaengig von den Aufgaben (Smart Planner 2.0)
+        if try c.queryOne("SELECT 1 FROM study_packages WHERE id=? AND source='smart'", [pid]) != nil { return }
         guard let r = try c.queryOne("SELECT COUNT(*) n, COALESCE(SUM(est_minutes),0) m FROM study_tasks WHERE package_id=?", [pid]) else { return }
         if r["n"]?.int == 0 {
             if try c.queryOne("SELECT generated FROM study_packages WHERE id=?", [pid]) != nil {
@@ -387,7 +390,7 @@ enum StudyPlan {
                    (p.generated=1 AND p.status='geplant' AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id
                         AND (t.status != 'geplant' OR t.moved_from IS NOT NULL))) AS fresh,
                    NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) AS empty
-            FROM study_packages p WHERE p.date BETWEEN ? AND ? ORDER BY p.id
+            FROM study_packages p WHERE p.date BETWEEN ? AND ? AND COALESCE(p.source,'')<>'smart' ORDER BY p.id
             """, [.text(iso(start)), .text(iso(end))])
         let keep = Set(rows.filter { !LocalModules.truthy($0["fresh"]) && !LocalModules.truthy($0["empty"]) }.map { $0["date"] ?? .null })
         return rows.filter { !keep.contains($0["date"] ?? .null) }.map { $0["id"] ?? .null }
@@ -532,6 +535,7 @@ enum StudyPlan {
     /// zeigte; auf dem iPad gab es nach dem Abgleich gar keine Planung.
     static func autoPlanWeek(_ c: SQLiteConnection, newFiles: Int, clock: UniFlowClock) throws -> JSONValue? {
         guard try LocalSettings.read(c)["auto_plan"]?.bool == true else { return nil }
+        if try SmartGoals.active(c) { return nil }        // Lernziele in Stunden: der Stundenplaner plant
         let t0 = T.today(clock)
         let sunday = StudyWeeks.monday(t0) + 6
         let planned = try c.queryOne("SELECT 1 FROM study_packages WHERE generated=1 AND date BETWEEN ? AND ?", [.text(iso(t0)), .text(iso(sunday))]) != nil
@@ -671,7 +675,7 @@ enum StudyPlan {
     static func repairSlots(_ c: SQLiteConnection, from start: Int, to end: Int, now: LocalTimetableImport.LocalTime? = nil) throws -> Int {
         guard start <= end else { return 0 }
         let rows = try c.query("""
-            SELECT id, date, status, start_time, end_time FROM study_packages
+            SELECT id, date, status, start_time, end_time, source FROM study_packages
             WHERE date BETWEEN ? AND ? AND start_time IS NOT NULL AND status NOT IN ('verschoben','uebersprungen') ORDER BY date, sort, id
             """, [.text(iso(start)), .text(iso(end))])
         if rows.isEmpty { return 0 }
@@ -699,11 +703,13 @@ enum StudyPlan {
             let events = hard.filter { $0.kind == "event" }
             if let first = events.first, let last = events.last { bounds.formUnion([first.start - travel, last.end]) }
             var kept: [(start: Int, end: Int)] = []  // Lernpakete, die bleiben (erledigte immer)
-            for p in pkgs where p["status"]?.string == "erledigt" {
+            // Bloecke des Stundenplaners legt nur der Stundenplaner (gesperrte und von Hand gelegte nie ungefragt);
+            // sie bleiben, belegen aber ihre Zeit
+            for p in pkgs where p["status"]?.string == "erledigt" || p["source"]?.string == "smart" {
                 if let a = minutes(p["start_time"]), let b = minutes(p["end_time"]) { kept.append((a, b)) }
             }
             var redo: [SQLiteValue] = []
-            for p in pkgs where p["status"]?.string != "erledigt" {
+            for p in pkgs where p["status"]?.string != "erledigt" && p["source"]?.string != "smart" {
                 guard let ps = minutes(p["start_time"]), let pe = minutes(p["end_time"]) else { continue }
                 var bad = hard.contains { ps < $0.end && pe > $0.start } || kept.contains { ps < $0.end && pe > $0.start }
                 if !bad {
@@ -738,8 +744,9 @@ enum StudyPlan {
     /// neu legen"), auch von Hand gesetzte; "Uhrzeiten vergeben" nimmt `assignSlots` (nur Pakete ohne Uhrzeit)
     static func reslotDay(_ c: SQLiteConnection, day d: Int) throws {
         let di = SQLiteValue.text(iso(d))
-        try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt')", [di])
-        try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt'))", [di])
+        // Bloecke des Stundenplaners legt nur der Stundenplaner (Smart Planner 2.0)
+        try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt') AND COALESCE(source,'')<>'smart'", [di])
+        try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt') AND COALESCE(source,'')<>'smart')", [di])
         try assignSlots(c, day: d)
     }
 
