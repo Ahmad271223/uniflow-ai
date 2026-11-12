@@ -200,7 +200,7 @@ struct PlanWeekGrid: View {
             }
     }
 
-    /// .cal2-col mit freien Fenstern, Terminen, Lernbloecken, Jetzt-Linie und "+" (nur heute)
+    /// .cal2-col mit freien Fenstern, Terminen, Lernbloecken, Jetzt-Linie (`UFNowLine`) und "+" (nur heute)
     private func column(_ dd: JSONValue, lo: Int, hi: Int, compact: Bool, names: [String: String]) -> some View {
         let date = dd.s("date") ?? ""
         let today = date == UFFmt.todayISO()
@@ -208,8 +208,6 @@ struct PlanWeekGrid: View {
         let pks = dd.list("packages").filter { $0.s("start_time") != nil }
         let L = planLanes(evs.map { (UFTime.hm($0.s("start")), UFTime.hm($0.s("end"))) } + pks.map { (UFTime.hm($0.s("start_time")), UFTime.hm($0.s("end_time"))) })
         let free = (d.free[date] ?? []).filter { ($0.i("end") ?? 0) > lo && ($0.i("start") ?? 0) < hi }
-        let now = PlanData.cal.dateComponents([.hour, .minute], from: Date())
-        let nowM = (now.hour ?? 0) * 60 + (now.minute ?? 0)
         let height = px(hi, lo)
         return GeometryReader { g in
             let W = g.size.width
@@ -232,16 +230,8 @@ struct PlanWeekGrid: View {
                                      open: { actions.openPackage(pks[i].i("id") ?? 0) },
                                      toggle: { Task { await actions.togglePackageDone(pks[i].i("id") ?? 0) } })
                 }
-                if today && nowM >= lo && nowM <= hi {
-                    ZStack(alignment: .leading) {
-                        Rectangle().fill(UF.accent).frame(height: 2)
-                        Circle().fill(UF.accent).frame(width: 8, height: 8).offset(x: -4)
-                    }
-                    .frame(width: W)
-                    .offset(y: px(nowM, lo) - 1)
-                    .allowsHitTesting(false)
-                    .zIndex(3)
-                }
+                // Jetzt-Linie (UFNowLine, wie im Stundenplan): nur heute, laeuft im Minutentakt mit
+                UFNowLine(date: date, lo: lo, hi: hi, width: W, y: { px($0, lo) }).zIndex(3)
                 if today {
                     Button { actions.addPackage(date: date) } label: {
                         Circle().fill(UF.accent).frame(width: 34, height: 34)
@@ -626,7 +616,6 @@ struct PlanDayTimeline: View {
         let hi = min(24 * 60, ([20 * 60] + evs.map { UFTime.hm($0.s("end")) } + pks.map { UFTime.hm($0.s("end_time")) }).max() ?? 1200)
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * HH }
         let unslotted = dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }
-        let now = PlanData.cal.dateComponents([.hour, .minute], from: Date())
         let free = dt.list("free")
         VStack(alignment: .leading, spacing: 0) {
             // leerer Tag: ein Satz und der naechste Schritt statt einer unerklaerten schraffierten Flaeche; die Schraffur
@@ -677,17 +666,7 @@ struct PlanDayTimeline: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .offset(x: 60, y: top)
                     }
-                    if dateStr == UFFmt.todayISO() {
-                        let nowM = (now.hour ?? 0) * 60 + (now.minute ?? 0)
-                        ZStack(alignment: .leading) {
-                            Rectangle().fill(UF.accent).frame(height: 2)
-                            Circle().fill(UF.accent).frame(width: 8, height: 8).offset(x: -4)
-                        }
-                        .frame(width: max(0, W - 60))
-                        .offset(x: 60, y: px(nowM) - 1)
-                        .allowsHitTesting(false)
-                        .zIndex(3)
-                    }
+                    UFNowLine(date: dateStr, lo: lo, hi: hi, width: W - 60, y: px, x: 60).zIndex(3)
                 }
             }
             .frame(height: px(hi) + 20)

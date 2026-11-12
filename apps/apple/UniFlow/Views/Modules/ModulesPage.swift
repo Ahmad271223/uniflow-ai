@@ -351,6 +351,8 @@ struct ModulePage: View {
     /// Opencast-Aufzeichnungen je Block (nur lokal) und Woche, zu der aus der Uebersicht gesprungen wurde
     @State private var recordingCounts: [Int: Int] = [:]
     @State private var focusWeek: Int?
+    /// Sprung aus Lernkalender/Stundenplan (`ModuleFocus`): nur die Woche des Termins bzw. Lernpakets aufgeklappt
+    @State private var focus: ModuleFocus.Request?
     @EnvironmentObject private var studip: StudIPSync
 
     /// Gehoert die Antwort zu diesem Modul? Wechselt die Route direkt von einem Modul zum naechsten (Seitenleiste), behaelt
@@ -383,12 +385,20 @@ struct ModulePage: View {
 
     private func load() async {
         // anderes Modul als die angezeigte Antwort: deren Stand gilt hier nicht (Fehler, Aufzeichnungen, Sprung zur Woche)
-        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil }
+        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil; focus = nil; collapsed = [] }
+        // Sprung aus Lernkalender/Stundenplan: einmal abholen; beim Neuladen bleibt die Abfrage, die Klappzustaende auch
+        let jump = ModuleFocus.take(for: id)
+        if let jump { focus = jump }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do {
-            let v = try await api.value("/api/modules/\(id)")
+            let v = try await api.value("/api/modules/\(id)" + ModuleFocus.query(focus))
             // andere Modul-ID waehrend des Ladens (.task(id:) bricht den alten Lauf ab): dessen Antwort nie anzeigen
             guard !Task.isCancelled else { return }
+            if jump != nil {
+                // nur die Woche des Termins/Pakets offen, die anderen zugeklappt (vorher alle Wochen offen)
+                let weeks = v.list("weeks").compactMap { $0.i("week") }
+                collapsed = ModuleFocus.collapsed(weeks, open: ModuleFocus.openWeek(weeks, focus: v.i("focus_week")))
+            }
             d = v
             error = nil
         } catch {
@@ -469,6 +479,9 @@ struct ModulePage: View {
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
             if session.api?.isLocal == true && studip.offersStudIP { ModuleLecturersCard(moduleID: id, moduleName: m.s("name")) }
             if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
+            if let focus, !weeks.isEmpty, !collapsed.isEmpty {
+                ModuleFocusBar(label: focus.label) { UFMotion.toggle { collapsed = [] } }
+            }
             ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
         } else if tab == "recordings" {
             RecordingsPanel(moduleID: id, focusWeek: focusWeek)

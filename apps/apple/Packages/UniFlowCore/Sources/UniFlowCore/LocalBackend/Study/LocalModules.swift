@@ -190,8 +190,24 @@ public enum LocalModules {
     }
 
     /// `module_detail(conn, module_id)`; nil, wenn es das Modul nicht gibt (Python: `{}` und 404)
-    public static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, clock: UniFlowClock) throws -> [String: JSONValue]? {
-        try detail(c, moduleID: moduleID, dates: Dates(c, clock: clock))
+    /// Mit `focusDate` (Tag eines Termins oder Lernpakets) bzw. `focusFile` (Datei einer Aufgabe des Pakets) steht
+    /// dazu `focus_week`: die Lehrwoche, die das Moduldetail aufgeklappt zeigt (Auftrag 12.11.2026: aus dem Lernkalender
+    /// nur die Woche des angetippten Termins statt aller Wochen). Ohne beides bleibt die Antwort wie in Python.
+    public static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, clock: UniFlowClock,
+                              focusDate: Int? = nil, focusFile: String? = nil) throws -> [String: JSONValue]? {
+        let dates = try Dates(c, clock: clock)
+        guard var d = try detail(c, moduleID: moduleID, dates: dates) else { return nil }
+        if let w = try focusWeek(c, moduleID: moduleID, dates: dates, date: focusDate, file: focusFile) { d["focus_week"] = .number(Double(w)) }
+        return d
+    }
+
+    /// Lehrwoche zu einer Datei des Moduls (dieselbe Regel wie die Wochenbloecke, `week(_:dates:)`), sonst zum Tag
+    /// (`StudyWeeks.dayWeek`, dieselbe Regel wie die Unterlagen zum Termin); nil ohne beides
+    static func focusWeek(_ c: SQLiteConnection, moduleID: SQLiteValue, dates: Dates, date: Int?, file: String?) throws -> Int? {
+        if let file, !file.isEmpty, let f = try fileRows(c, moduleID: moduleID).first(where: { $0.json["id"]?.string == file }) {
+            return try week(f, dates: dates)
+        }
+        return date.map { StudyWeeks.dayWeek(start: dates.start, day: $0, today: dates.today) }
     }
 
     static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, dates: Dates) throws -> [String: JSONValue]? {

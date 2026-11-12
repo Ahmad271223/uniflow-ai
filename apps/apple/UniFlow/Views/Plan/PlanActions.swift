@@ -167,6 +167,16 @@ struct PackageDrawer: View {
             UFStatusPill(status: status)
             UFButton(icon: "x", kind: .ghost) { close() }
         } content: {
+            // Fach antippen -> sein Modul, aufgeklappt nur die Woche der Unterlagen dieses Pakets (`ModuleFocus`, 12.11.2026)
+            if let m = p.i("module_id") {
+                UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
+                    overlay.closeAll()
+                    ModuleFocus.open(module: m, date: p.s("date"), file: tasks.lazy.compactMap { $0.s("file_id") }.first,
+                                     label: "Lernpaket am \(UFFmt.short(p.s("date")))", router: router)
+                }
+                .padding(.bottom, 9.6)
+                .accessibilityIdentifier("package.module")
+            }
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Row.rows(tasks)) { row in TaskRow(t: row.value) { Task { await load(first: false) } } }
             }
@@ -733,7 +743,10 @@ struct DatedEventDialog: View {
             VStack(alignment: .leading, spacing: 6.4) {
                 Text("\(UFKind.text(e.s("kind"))) · \(UFFmt.short(date))").ufFont(13.12).foregroundStyle(UF.muted)
                 if let m = e.i("module_id") {
-                    UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeAll(); router.go(.module(m)) }
+                    UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
+                        overlay.closeAll()
+                        ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                    }
                         .accessibilityIdentifier("termin.module")
                 }
                 // Termin-Detail (06.11.2026): Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses. Ort aus
