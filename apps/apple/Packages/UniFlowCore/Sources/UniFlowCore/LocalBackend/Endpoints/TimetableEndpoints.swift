@@ -69,8 +69,12 @@ public enum TimetableEndpoints: LocalEndpointModule {
         }
 
         router.get("/api/timetable/events") { _, ctx in
-            let rows = try await ctx.database.rows("SELECT e.*, m.name AS module_name FROM course_events e LEFT JOIN modules m ON m.id=e.module_id ORDER BY weekday, start_time")
-            return .json(.array(rows.map(JSONValue.object)))
+            // Modul des Kurses vor dem gemerkten der Serie (`LocalTimetable.eventModuleSQL`)
+            let rows = try await ctx.database.rows("""
+                SELECT e.*, \(T.eventModuleSQL) AS module_ref, m.name AS module_name FROM course_events e
+                LEFT JOIN modules m ON m.id=\(T.eventModuleSQL) ORDER BY weekday, start_time
+                """)
+            return .json(.array(rows.map(T.withCourseModule).map(JSONValue.object)))
         }
 
         router.post("/api/timetable/events") { req, ctx in
@@ -194,7 +198,8 @@ public enum TimetableEndpoints: LocalEndpointModule {
             let id: SQLiteValue = .integer(Int64(req.intParam("event_id")))
             let clock = ctx.clock
             return .json(.array(try await ctx.database.withConnection { c in
-                guard let e = try c.rows("SELECT * FROM course_events WHERE id=?", [id]).first else { throw LocalHTTPError.notFound() }
+                guard let e = try c.rows("SELECT e.*, \(T.eventModuleSQL) AS module_ref FROM course_events e WHERE e.id=?", [id]).first
+                    .map(T.withCourseModule) else { throw LocalHTTPError.notFound() }
                 guard let d = BerlinClock.parseISODate(raw) else { throw LocalHTTPError(status: 422, message: "Ungültiges Datum: \(raw)") }
                 return try T.materials(c, event: e, day: d, clock: clock)
             }))

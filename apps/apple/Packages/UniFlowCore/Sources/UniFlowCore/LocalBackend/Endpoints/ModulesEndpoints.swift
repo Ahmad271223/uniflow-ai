@@ -55,7 +55,11 @@ public enum ModulesEndpoints: LocalEndpointModule {
         router.get("/api/modules/{module_id:int}") { req, ctx in
             let id = SQLiteValue.integer(Int64(req.intParam("module_id")))
             let clock = ctx.clock
-            guard let d = try await ctx.database.withConnection({ try LocalModules.detail($0, moduleID: id, clock: clock) }) else {
+            // ?date=YYYY-MM-DD / ?file=<id>: Lehrwoche des angetippten Termins bzw. Lernpakets (`focus_week`)
+            let date = req.query("date").flatMap(BerlinClock.parseISODate), file = req.query("file")
+            guard let d = try await ctx.database.withConnection({
+                try LocalModules.detail($0, moduleID: id, clock: clock, focusDate: date, focusFile: file)
+            }) else {
                 throw LocalHTTPError.notFound()
             }
             return .json(.object(d))

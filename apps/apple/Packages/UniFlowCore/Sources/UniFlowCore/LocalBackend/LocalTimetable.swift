@@ -118,6 +118,23 @@ enum LocalTimetable {
         }
     }
 
+    // MARK: Modul eines Termins
+
+    /// Modul eines Termins (Auftrag 12.11.2026, "richtiges Modul"): das Modul seines Kurses, sonst das der Serie. Die
+    /// Serie merkt sich das Modul beim Import (`apply_import`); wird der Kurs danach einem anderen Modul zugeordnet
+    /// (`POST /api/courses/{id}/module`, z. B. "Übung zu Mathematik II" lag zuerst unter "Mathematik I"), blieb der
+    /// Termin beim alten Modul: "Zum Modul" im Lernkalender und Stundenplan oeffnete das falsche Fach, der Modulfilter
+    /// zeigte ihn dort und die "Passenden Unterlagen" kamen aus dem falschen Modul. Kurs ↔ Modul ist die eine
+    /// Zuordnung, nach der auch die Dateien eines Moduls gehen (`LocalModules.fileRows`).
+    static let eventModuleSQL = "COALESCE((SELECT ec.module_id FROM courses ec WHERE ec.id=e.course_id AND ec.module_id IS NOT NULL), e.module_id)"
+
+    /// Zeile aus `course_events e` mit `module_ref` (`eventModuleSQL`): `module_id` ist danach das Modul des Kurses
+    static func withCourseModule(_ row: [String: JSONValue]) -> [String: JSONValue] {
+        var r = row
+        r["module_id"] = r.removeValue(forKey: "module_ref") ?? r["module_id"] ?? .null
+        return r
+    }
+
     // MARK: Vorkommen
 
     /// `UNI_KINDS`: Arten, die an Feiertagen und in der vorlesungsfreien Zeit ausfallen
@@ -130,7 +147,10 @@ enum LocalTimetable {
     /// "vorlesungsfrei" mit `note`); eine Bemerkung der Quelle (`event_notes`, LSF) steht als `note`. Jedes Vorkommen
     /// traegt `source` (Quelle der Serie, bei Einzelterminen "studip-kalender").
     static func occurrences(_ c: SQLiteConnection, from start: Int, to end: Int, includeSkipped: Bool = true) throws -> [JSONValue] {
-        let events = try c.rows("SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
+        let events = try c.rows("""
+            SELECT e.*, \(eventModuleSQL) AS module_ref, m.name AS module_name, m.color AS module_color
+            FROM course_events e LEFT JOIN modules m ON m.id=\(eventModuleSQL)
+            """).map(withCourseModule)
         let dated = try studipDated(c, from: start, to: end)
         if events.isEmpty {
             // dazu eigene Sprechstunden aus Stud.IP (`studip_extras.with_consultations`)
