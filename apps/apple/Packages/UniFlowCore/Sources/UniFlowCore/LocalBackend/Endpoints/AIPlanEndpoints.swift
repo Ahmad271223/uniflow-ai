@@ -87,7 +87,7 @@ enum AIPlanEndpoints: LocalEndpointModule {
         }
         let plannedFiles = try StudyPlan.plannedFiles(c)
         var modules: [AIStudyPlan.ModuleInput] = []
-        for m in try c.query("SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort") {
+        for m in try StudyPlanModules.plannedModules(c) {
             guard let id = m["id"]?.int64 else { continue }
             let units = try StudyPlan.units(c, moduleID: .integer(id), exclude: plannedFiles, dates: dates)
             guard !units.isEmpty else { continue }

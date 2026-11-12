@@ -1,0 +1,13 @@
+{"data": [
+ {"id": "c-vl", "type": "courses", "attributes": {"title": "Testanalysis I", "course-number": "9001", "course-type": 1},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}, "end-semester": {"data": {"type": "semesters", "id": "s-test"}}}},
+ {"id": "sg-lern", "type": "courses", "attributes": {"title": "Lerngruppe Testanalysis", "course-number": "", "course-type": 99},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-alt"}}, "end-semester": {"data": null}}},
+ {"id": "sg-fach", "type": "courses", "attributes": {"title": "Fachschaft Beispiel", "course-type": 99},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}, "end-semester": {"data": null}}},
+ {"id": "c-ue", "type": "courses", "attributes": {"title": "Übung Testanalysis I", "course-number": "9002", "course-type": 3},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}, "end-semester": {"data": {"type": "semesters", "id": "s-test"}}}}
+],
+ "included": [{"id": "s-test", "type": "semesters", "attributes": {"title": "WiSe 2026/27", "start": "2026-10-01T00:00:00+02:00", "end": "2027-03-31T23:59:59+02:00"}},
+              {"id": "s-alt", "type": "semesters", "attributes": {"title": "SoSe 2026", "start": "2026-04-01T00:00:00+02:00", "end": "2026-09-30T23:59:59+02:00"}}],
+ "links": {}}

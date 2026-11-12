@@ -419,7 +419,7 @@ enum StudyPlan {
         let dates = try LocalModules.Dates(c, clock: clock)
         var queues: [Int64: Queue] = [:]
         var queueOrder: [Int64] = []
-        for m in try c.query("SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort") {
+        for m in try StudyPlanModules.plannedModules(c) {
             guard let id = m["id"]?.int64 else { continue }
             let units = try units(c, moduleID: .integer(id), exclude: planned, dates: dates, week: week, doneWeeks: doneWeeks)
             if !units.isEmpty {
@@ -828,8 +828,8 @@ enum StudyPlan {
         let done = Set(try c.query("SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status='erledigt'").compactMap { $0[0].string })
         let dates = try LocalModules.Dates(c, clock: clock)
         var total = 0
-        for m in try c.query("SELECT id FROM modules WHERE COALESCE(active,1)=1") {
-            for u in try units(c, moduleID: m[0], exclude: done, dates: dates) {
+        for m in try StudyPlanModules.plannedModules(c) {            // Faecher im Lernkalender (12.11.2026)
+            for u in try units(c, moduleID: m["id"] ?? .null, exclude: done, dates: dates) {
                 if s.partsLecture != 0 { for f in u.lectures.prefix(4) { total += try est(f) } }
                 if s.partsExercise != 0 { for f in u.exercises.prefix(4) { total += try est(f) } }
                 if s.testsPerSubject != 0 { total += s.testMinutes }

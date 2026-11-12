@@ -157,6 +157,9 @@ public struct StudIPScheduleDownload: Sendable {
     public var unreadable = 0
     /// Ankuendigungen (News) je Kurs, Rohdaten der JSON:API; fehlt ein Kurs, bleibt sein Bestand (wie `fetch_news` None)
     public var news: [String: [JSONValue]] = [:]
+    /// Kurse (Studiengruppen), deren Termine nicht in den Stundenplan sollen: ihre Kurszeiten fehlen in `cycles`,
+    /// Gespeichertes entfernt `store` (`StudIPStudyGroups.removeTimetable`)
+    public var excludedCourses: Set<String> = []
     /// Basis fuer Links in Ankuendigungen (STUDIP_BASE)
     public var studipBase = ""
     /// Kurse, deren Termine nicht geladen werden konnten
@@ -219,12 +222,18 @@ public enum StudIPScheduleStore {
     /// Ergebnis, damit der Datei-Abgleich davon unberuehrt bleibt. Nach einem Netz- oder Zeitlimitfehler
     /// (`stopsFetch`) fragt der Abruf nichts mehr ab: jede weitere Anfrage wuerde nur bis zum Zeitlimit warten
     /// (30 s je Kurs), waehrend der Datei-Abgleich noch nicht fertig gemeldet ist.
-    public static func fetch(client: StudIPClient, userID: String, courses: [StudIPCourse]) async -> StudIPScheduleDownload {
+    public static func fetch(client: StudIPClient, userID: String, courses: [StudIPCourse],
+                             excluding: Set<String> = []) async -> StudIPScheduleDownload {
         var d = StudIPScheduleDownload(courses: courses)
         d.studipBase = client.baseString
+        d.excludedCourses = excluding
         do {
             let r = try await client.scheduleResources(userID: userID)
-            d.cycles = r.schedule.filter { $0["type"]?.string == "seminar-cycle-dates" }
+            // Kurszeiten von Studiengruppen ohne "Termine in den Stundenplan" gar nicht erst uebernehmen
+            d.cycles = r.schedule.filter { $0["type"]?.string == "seminar-cycle-dates" }.filter { r in
+                guard let owner = r["relationships"]?["owner"]?["data"]?["id"]?.string else { return true }
+                return !excluding.contains(owner)
+            }
             d.personal = r.schedule.filter { $0["type"]?.string == "schedule-entries" }
             // ohne Typ laesst sich ein Eintrag keiner Tabelle zuordnen: nichts entfernen, was er sein koennte
             let untyped = r.schedule.filter { $0["type"]?.string == nil }.count
@@ -389,6 +398,8 @@ public enum StudIPScheduleStore {
         }
         // eigener Stud.IP-Kalender: Kurszeiten neu entscheiden (nach Kurszeiten und Einzelterminen)
         if let ids = d.calendar { try StudIPCalendar.store(ids: ids, in: c, clock: clock) }
+        // Studiengruppen ohne Termine im Stundenplan (`StudIPStudyGroups`): auch frueher Uebernommenes weg
+        try StudIPStudyGroups.removeTimetable(c, courseIDs: d.excludedCourses)
         let r = try StudIPScheduleImport.autoImport(c, clock: clock)
         let q = try StudIPCalendar.questions(c)
         let open = (q["hidden"]?.array?.count ?? 0) + (q["busy"]?.array?.count ?? 0)

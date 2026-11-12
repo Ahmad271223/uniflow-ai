@@ -87,6 +87,7 @@ struct MainView: View {
         .modifier(UniMailBadgeHost())                                        // "Uni-Mail": Zahl der ungelesenen
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
+        .modifier(StudIPQuestionsHost())                                     // einmal: Studiengruppen, Fächer im Lernkalender
         .modifier(OlderSemesterLoaderHost())                                 // fruehere Semester im Hintergrund (SyncOrder, Stufe d)
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
         // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle

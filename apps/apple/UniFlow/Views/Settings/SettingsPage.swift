@@ -612,6 +612,9 @@ private struct PlanTab: View {
             UFFlexWrap(gap: 9.6) {
                 UFButton("Lernkombination", icon: "settings", kind: .primary) { a.config { router.reload() } }
                 UFButton("Verfügbarkeit & Sperrzeiten", icon: "clock") { a.availability() }
+                if session.api?.isLocal == true {                        // Fächer im Lernkalender (12.11.2026, nur lokal)
+                    UFButton(PlanModulesText.button, icon: "calendar") { PlanModulesOpen.open(api: session.api, overlay: overlay, toast: toast) }
+                }
             }
             // aktueller Stand als Liste aus Bezeichnung und Wert statt einer langen Zeile mit Mittelpunkten
             VStack(alignment: .leading, spacing: 0) {
