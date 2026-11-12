@@ -15,7 +15,10 @@ enum UFTrialTexts {
     static let overText = "Sieben Tage lang war alles frei. Wähle jetzt einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar."
     /// weitere Apple-ID auf einem iPad, auf dem schon eine Probe lief (LocalTrial.swift, Geraete-Marke)
     static let usedOnDeviceTitle = UFDevice.adapt("Auf diesem iPad wurde die Probe schon genutzt")
-    static let usedOnDeviceText = "Die 7 Tage Probe gibt es einmal je iPad. Wähle einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten."
+    static let usedOnDeviceText = UFDevice.adapt("Die 7 Tage Probe gibt es einmal je Apple-ID und einmal je iPad. Wähle einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten.")
+    /// Probe und Kauf gelten je Apple-ID (Entscheidung des Inhabers 12.11.2026: eine Apple-ID = ein StudiNow-Konto = ein
+    /// Abo): Tarifseite und Einstellungen → Tarif sagen es ausdruecklich
+    static let perAppleID = "Probe und Abo gelten für deine Apple-ID: Ein Abo gilt für die Apple-ID, mit der du im App Store bezahlst – auf jedem deiner Geräte mit dieser Apple-ID. Die 7 Tage Probe gibt es einmal je Apple-ID (und einmal je Gerät). Meldest du dich auf einem weiteren Gerät mit derselben Apple-ID an, kommst du in dasselbe StudiNow-Konto."
     static let plans = "Tarife ansehen"
     static let stayFree = "Bei Free bleiben"
     /// Angebotssatz auf der Tarifseite (ersetzt "1 Woche gratis, danach …" des Einfuehrungsangebots, 04.11.2026)

@@ -1045,12 +1045,26 @@ def sync_now(ai: bool = True):
 
 
 @app.get("/api/sync/changes")
-def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000)):
+def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000),
+                     studip_user: str | None = None):
     """Vertrag G2: Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones, seitenweise:
-    weiter abrufen, solange `has_more` true ist."""
+    weiter abrufen, solange `has_more` true ist. Optional `studip_user` (Hash der Stud.IP-Benutzerkennung des Geraets):
+    gehoert das Konto schon einem anderen Stud.IP-Benutzer, 409 `studip_user_mismatch` (`sync.check_studip_user`)."""
     from . import sync
     with db.cursor() as conn:
+        _check_studip_user(conn, studip_user)
         return sync.changes(conn, since, limit)
+
+
+def _check_studip_user(conn, value) -> None:
+    """`sync.check_studip_user` mit den HTTP-Fehlern: 400 bei kaputtem Wert, 409 `studip_user_mismatch`."""
+    from . import sync
+    try:
+        sync.check_studip_user(conn, value)
+    except sync.StudIPUserMismatch as e:
+        raise HTTPException(409, {"detail": str(e), "code": "studip_user_mismatch"})
+    except ValueError as e:
+        raise HTTPException(400, {"detail": str(e), "code": "studip_user_invalid"})
 
 
 @app.post("/api/sync/push")
@@ -1074,6 +1088,7 @@ def api_sync_push(request: Request, body: dict = Body(...)):
         items = [it for it in items if not new_card(it)]
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        _check_studip_user(conn, body.get("studip_user"))      # vor jedem Schreiben (Datentrennung, 12.11.2026)
         out = sync.push(conn, body.get("device_id"), items, deletes)
     out["results"] = ([{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
                         "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused]
@@ -2964,7 +2979,8 @@ def put_settings(body: dict = Body(...)):
     body.pop("ai_consent", None)          # nur ueber /api/ai/consent (Stand und Konto setzt der Server)
     # PIN des WLAN-Zugangs und Kennung der Installation setzt nur der Server (Audit P32-07): sonst stellte ein Geraet
     # mit PIN die PIN beliebig um (auch "1") bzw. gaebe sich eine fremde Varianten-Kennung
-    for k in ("lan_pin", "share_user_id"):
+    # ebenso der Stud.IP-Benutzer, dem die Daten gehoeren (Datentrennung, sync.check_studip_user, 12.11.2026)
+    for k in ("lan_pin", "share_user_id", "studip_user_hash"):
         body.pop(k, None)
     with db.cursor() as conn:
         for k, v in body.items():

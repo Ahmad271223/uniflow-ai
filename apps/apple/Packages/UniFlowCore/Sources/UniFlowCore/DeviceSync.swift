@@ -21,6 +21,9 @@ public struct DeviceSyncResult: Equatable, Sendable {
     public var notesMerged = 0
     /// Tarif Free: Notizen bleiben auf dem Geraet, alles andere gleicht ab
     public var planRequired = false
+    /// Das Konto gleicht schon die Daten eines anderen Stud.IP-Benutzers ab (409 `studip_user_mismatch`): nichts
+    /// abgerufen, nichts gesendet (`StudIPUserMark`)
+    public var studipUserMismatch = false
     public var errors: [String] = []
 
     public init() {}
@@ -121,12 +124,14 @@ public actor DeviceSync {
     public func run(account: String) async -> DeviceSyncResult {
         let core = DeviceSyncCore(device: device)
         do {
-            try await database.transaction { c in
+            core.studipUser = try await database.transaction { c -> String? in
                 try DeviceSyncSchema.ensure(c)
                 if try DeviceSyncCore.state(c, "account") != account {
                     for t in ["sync_link_map", "sync_link_state", "sync_link_pending"] { try c.execute("DELETE FROM \(t)") }
                     try DeviceSyncCore.setState(c, "account", account)
                 }
+                // Stud.IP-Benutzer dieses Datenbereichs (nur Hash); der Dienst vergleicht ihn vor jedem Lesen und Schreiben
+                return (try? StudIPUserMark.stored(c)) ?? nil
             }
             try await pull(core)
             try await push(core)
@@ -138,6 +143,10 @@ public actor DeviceSync {
         } catch let e as AccountError {
             core.stats.ok = false
             core.stats.error = e.userMessage
+            if e.code == StudIPUserMark.mismatchCode {
+                core.stats.studipUserMismatch = true
+                core.stats.error = Self.mismatchText
+            }
         } catch {
             core.stats.ok = false
             core.stats.error = "Abgleich fehlgeschlagen: \(error.localizedDescription)"
@@ -145,11 +154,15 @@ public actor DeviceSync {
         return core.stats
     }
 
+    /// Meldung beim 409 `studip_user_mismatch` (Einstellungen → Konto, Stand des Abgleichs)
+    public static let mismatchText = "Dieses StudiNow-Konto gleicht bereits die Daten eines anderen Stud.IP-Benutzers ab. Der Abgleich zwischen Geräten ist angehalten; deine Daten auf diesem Gerät bleiben unverändert."
+
     private func pull(_ core: DeviceSyncCore) async throws {
         var cursor = try await database.transaction { try DeviceSyncCore.state($0, "cursor") }
         for _ in 0..<200 {
             var q = "limit=\(DeviceSyncCore.page)&device_id=\(Self.escaped(device))"
             if let cursor { q += "&since=\(Self.escaped(cursor))" }
+            if let u = core.studipUser { q += "&studip_user=\(Self.escaped(u))" }
             let d = try await transport.syncChanges(query: q)
             let before = cursor
             cursor = d["cursor"]?.string ?? before
@@ -177,8 +190,10 @@ public actor DeviceSync {
         }
         for (i, batch) in batches.enumerated() {
             let last = i == batches.count - 1
-            let body: JSONValue = .object(["device_id": .string(device), "items": .array(batch.map { .object($0.body) }),
-                                           "deletes": .array(last ? deletes.map(\.body) : [])])
+            var fields: [String: JSONValue] = ["device_id": .string(device), "items": .array(batch.map { .object($0.body) }),
+                                               "deletes": .array(last ? deletes.map(\.body) : [])]
+            if let u = core.studipUser { fields["studip_user"] = .string(u) }
+            let body: JSONValue = .object(fields)
             let res = try await transport.syncPush(body)
             try await database.transaction { c in
                 try core.handleResults(c, batch, last ? deletes : [], res)
@@ -225,12 +240,15 @@ final class DeviceSyncCore: @unchecked Sendable {
     static let localSettings: Set<String> = ["lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input",
                                              "messages_seen_up_to", "studip_reply_drafts", "studip_replies", "studip_submissions",
                                              "exam_registration_run",
-                                             "studip_bulletin_fetched_at_v2", "studip_blubber_fetched_at", "studip_blubber_activity"]
+                                             "studip_bulletin_fetched_at_v2", "studip_blubber_fetched_at", "studip_blubber_activity",
+                                             StudIPUserMark.key]
     static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"]]
     /// NOT NULL in der Datenbank: ohne Elternteil wartet die Zeile
     static let requiredParents: Set<String> = ["package_id", "event_id"]
 
     let device: String
+    /// Hash des Stud.IP-Benutzers dieses Datenbereichs (`StudIPUserMark`); nil ohne Stud.IP bzw. vor dem ersten Abgleich
+    var studipUser: String?
     var retryNotes = false
     var stats = DeviceSyncResult()
     private var keyIndex: [String: [String: String]] = [:]

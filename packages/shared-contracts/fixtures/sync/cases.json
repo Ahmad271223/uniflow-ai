@@ -21,6 +21,7 @@
   ],
   "private_settings": [
    "lan_pin",
+   "studip_user_hash",
    "university"
   ],
   "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",

@@ -38,6 +38,8 @@ struct UniFlowApp: App {
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
         let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory,
                                  uniMailTransport: DebugUniStub.transportFactory)
+        // eine Apple-Anmeldung fuer alles (12.11.2026): die Anmeldung beim ersten Start meldet auch beim StudiNow-Dienst an
+        a.onFirstLogin = { [weak c] p in Task { @MainActor in await c?.account.adoptFirstLogin(p) } }
         c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen
         let s = Session(local: c.active?.api ?? .local(.unavailable))
         c.onChange = { [weak s] container in s?.useLocal(container?.api ?? .local(.unavailable)) }
@@ -379,5 +381,7 @@ struct RootView: View {
             // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
             // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto
             .onChange(of: containers.generation) { _, _ in overlay.closeAll() }
+            // anderer Stud.IP-Benutzer im selben Datenbereich: fragen (12.11.2026, ForeignStudIPUserDialog)
+            .background(ForeignStudIPUserGate())
     }
 }

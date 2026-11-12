@@ -128,6 +128,8 @@ final class StudoraAccountLink: ObservableObject {
     @Published var message: String?
     /// Handlung zur letzten Fehlermeldung (z. B. Bestaetigungslink erneut senden)
     @Published private(set) var messageAction: ServiceErrorAction?
+    /// Fehlercode des Dienstes zur letzten Meldung (z. B. `credentials_invalid` beim Loeschen ohne Passwort)
+    private(set) var lastErrorCode: String?
     /// Rueckmeldung ohne Fehler (z. B. "Link geschickt")
     @Published private(set) var notice: String?
 
@@ -258,14 +260,101 @@ final class StudoraAccountLink: ObservableObject {
         tokenStore = nil
         reportedPurchasesFor = nil
         entitlements.verifyOnServer = nil
-        guard let userScope, let base = Self.serviceURL else { return }
-        let tokens = StudoraAccountKeychain(userScope: userScope)
-        account = StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: tokens,
-                                 deviceID: Self.deviceID, deviceName: Self.deviceName)
-        creditsClient = StudoraCredits.Client(base: base, http: URLSessionServiceTransport(), tokens: tokens)
-        attachAI(base: base, http: URLSessionServiceTransport(timeout: 180), tokens: tokens)
-        Task { await refresh() }
+        guard let userScope else { return }
+        if let accountFactory {
+            // Tests: Schein-Dienst statt Dienst-Adresse
+            account = accountFactory(userScope)
+        } else {
+            guard let base = Self.serviceURL else { return }
+            let tokens = StudoraAccountKeychain(userScope: userScope)
+            account = Self.serviceAccount(base: base, userScope: userScope)
+            creditsClient = StudoraCredits.Client(base: base, http: URLSessionServiceTransport(), tokens: tokens)
+            attachAI(base: base, http: URLSessionServiceTransport(timeout: 180), tokens: tokens)
+        }
+        // Apple-Anmeldung vom ersten Start fuer genau diesen Apple-Nutzer: jetzt mit der Hochschule beim Dienst
+        // tauschen (neues Konto), sonst nur den Stand laden
+        if let p = pendingFirstLogin, DataContainerKey.userScope(p.userID) == userScope {
+            pendingFirstLogin = nil
+            Task { await self.completeFirstLogin(p) }
+        } else {
+            Task { await refresh() }
+        }
     }
+
+    /// Konto-Anschluss beim Dienst fuer einen Apple-Nutzer (Sitzungs-Token im Schluesselbund je Apple-Nutzer)
+    static func serviceAccount(base: String, userScope: String) -> StudoraAccount {
+        StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: StudoraAccountKeychain(userScope: userScope),
+                       deviceID: deviceID, deviceName: deviceName)
+    }
+
+    /// Tests: Konto-Anschluss je Apple-Nutzer ueber einen Schein-Dienst (auch fuer `adoptFirstLogin`); nil = Dienst-Adresse
+    var accountFactory: ((String) -> StudoraAccount?)?
+
+    // MARK: Eine Apple-Anmeldung fuer alles (Entscheidung des Inhabers 12.11.2026)
+
+    /// Apple-Anmeldung vom ersten Start (`AccountStore.handle`): ID-Token, Nonce und einmaliger Code nur im
+    /// Arbeitsspeicher, nie im Schluesselbund oder auf der Platte. Kurzlebig (`firstLoginLifetime`): danach bleibt der
+    /// Rueckfall "Mit Apple anmelden" (Uebersicht, Einstellungen → Konto, Karte nach dem Kauf).
+    struct FirstAppleLogin: Equatable, Sendable {
+        let userID: String
+        let identityToken: String
+        let nonce: String?
+        let authorizationCode: String?
+        let email: String?
+        var at = Date()
+    }
+
+    /// Apple stellt ID-Token fuer 10 Minuten aus, den Code fuer 5; der Dienst prueft das Token mit 60 s Toleranz
+    nonisolated static let firstLoginLifetime: TimeInterval = 9 * 60
+    /// wartet auf die Hochschulwahl (neues Konto beim Dienst braucht die Hochschule)
+    private(set) var pendingFirstLogin: FirstAppleLogin?
+
+    /// Die Anmeldung mit Apple beim ersten Start meldet zugleich beim StudiNow-Dienst an. Gibt es zu dieser Apple-ID
+    /// schon ein Konto (zweites Geraet, Neuinstallation), gelingt das sofort, auch vor der Hochschulwahl: gleiche
+    /// Apple-Kennung (`sub`) → dasselbe Konto (`identities`). Ein neues Konto braucht die Hochschule
+    /// (`university_unknown`): dann wartet die Anmeldung im Speicher, bis der Datenbereich offen ist (`use`).
+    func adoptFirstLogin(_ p: FirstAppleLogin) async {
+        let scope = DataContainerKey.userScope(p.userID)
+        if self.scope == scope, account != nil {                 // Datenbereich schon offen (erneute Anmeldung)
+            await completeFirstLogin(p)
+            return
+        }
+        let temp: StudoraAccount?
+        if let accountFactory { temp = accountFactory(scope) } else { temp = Self.serviceURL.map { Self.serviceAccount(base: $0, userScope: scope) } }
+        guard let temp else { return }                           // ohne Dienst: nichts zu tun
+        pendingFirstLogin = nil                                  // laeuft gerade; `use` startet keinen zweiten Tausch
+        firstLoginRunning = true
+        let ok = (try? await temp.loginWithApple(identityToken: p.identityToken, nonce: p.nonce, university: nil, email: p.email,
+                                                  authorizationCode: p.authorizationCode)) != nil
+        firstLoginRunning = false
+        if ok {
+            if self.scope == scope, account != nil { await refresh() }
+            return
+        }
+        // neues Konto (Hochschule fehlt) oder gerade kein Netz: inzwischen offen? Dann gleich, sonst nach der Hochschulwahl
+        if self.scope == scope, account != nil { await completeFirstLogin(p) } else { pendingFirstLogin = p }
+    }
+
+    /// laeuft gerade der Tausch vor der Hochschulwahl (Tests)
+    private(set) var firstLoginRunning = false
+
+    /// Tausch mit der Hochschule dieses Datenbereichs; abgelaufen: nichts senden, der Rueckfall-Knopf bleibt
+    func completeFirstLogin(_ p: FirstAppleLogin, now: Date = Date()) async {
+        guard now.timeIntervalSince(p.at) < Self.firstLoginLifetime else {
+            await refresh()
+            return
+        }
+        await loginWithApple(identityToken: p.identityToken, nonce: p.nonce, email: p.email, authorizationCode: p.authorizationCode)
+    }
+
+    /// Meldung, wenn eine Anmeldung ohne offenen Datenbereich bzw. ohne Dienst angestossen wird (vorher brach `run`
+    /// still ab: die Karte "Pro AI ist aktiv" beim ersten Start schloss nie)
+    nonisolated static let noAccountYet = "Wähle zuerst deine Hochschule – danach meldet StudiNow dich beim StudiNow-Konto an."
+    nonisolated static let noService = "Das StudiNow-Konto ist in dieser Version nicht verfügbar."
+
+    /// Kann jetzt beim Dienst angemeldet werden (Datenbereich offen, Dienst-Adresse da)? Sonst zeigt die Tarifseite nach
+    /// dem Kauf keine Anmelde-Karte; die Anmeldung folgt nach der Hochschulwahl.
+    var canSignIn: Bool { account != nil }
 
     // MARK: StudiNow-KI
 
@@ -381,17 +470,24 @@ final class StudoraAccountLink: ObservableObject {
     }
 
     private func run(_ op: @escaping (StudoraAccount) async throws -> Void) async {
-        guard let account else { return }
+        guard let account else {
+            // nie mehr still: ohne Datenbereich (erster Start vor der Hochschulwahl) bzw. ohne Dienst sagt es die Meldung
+            message = Self.serviceURL == nil && accountFactory == nil ? Self.noService : Self.noAccountYet
+            messageAction = nil
+            return
+        }
         let epoch = accountEpoch
         busy = true
         message = nil
         defer { busy = false }
         messageAction = nil
+        lastErrorCode = nil
         do { try await op(account) } catch let e as AccountError {
             // der Fehler eines frueheren Kontos zeigt nichts und meldet das jetzige nicht ab
             guard stillCurrent(account, epoch) else { return }
             // Texte der Fehlercodes: ServiceErrorText (UniFlowCore), mit Retry-After
             message = e.userMessage
+            lastErrorCode = e.code
             messageAction = e.action
             if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil }
         } catch {
@@ -534,14 +630,23 @@ final class StudoraAccountLink: ObservableObject {
                 message = "Apple hat keine Anmeldung geliefert. Bitte erneut versuchen."
                 return
             }
-            await loginWithApple(identityToken: token, nonce: nonce, email: credential.email)
+            await loginWithApple(identityToken: token, nonce: nonce, email: credential.email,
+                                 authorizationCode: Self.code(credential))
         }
     }
 
+    /// Einmaliger Code der Apple-Anmeldung (fuer den Widerruf beim Loeschen, Richtlinie 5.1.1(v)); nil ohne Code
+    nonisolated static func code(_ credential: ASAuthorizationAppleIDCredential) -> String? {
+        credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+    }
+
     /// Tausch des Apple-Tokens gegen eine Sitzung beim Dienst (auch fuer Tests ohne Apple-Fenster)
-    func loginWithApple(identityToken: String, nonce: String?, email: String?) async {
+    func loginWithApple(identityToken: String, nonce: String?, email: String?, authorizationCode: String? = nil) async {
         let uni = university
-        await run { a in _ = try await a.loginWithApple(identityToken: identityToken, nonce: nonce, university: uni, email: email) }
+        await run { a in
+            _ = try await a.loginWithApple(identityToken: identityToken, nonce: nonce, university: uni, email: email,
+                                           authorizationCode: authorizationCode)
+        }
         await refresh()
     }
 
@@ -640,6 +745,12 @@ final class StudoraAccountLink: ObservableObject {
         try AppTemp.file("konto-export", name: "studinow-export.zip", container: container)
     }
 
+    /// Gibt es auf diesem Geraet eine Sitzung beim Dienst (auch wenn `user` gerade nicht geladen ist, z. B. offline)?
+    func signedInAtService() async -> Bool {
+        guard let account else { return false }
+        return await account.isSignedIn
+    }
+
     func delete(password: String?) async -> Bool {
         var ok = false
         let consentAccount = aiConsentAccount
@@ -651,6 +762,36 @@ final class StudoraAccountLink: ObservableObject {
         accountEpoch += 1
         user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI()
         return ok
+    }
+}
+
+/// "Konto löschen" (Einstellungen → Konto, Richtlinie 5.1.1(v)). Seit 12.11.2026 (eine Apple-Anmeldung fuer alles)
+/// loescht es immer auch das Konto beim StudiNow-Dienst, und zwar zuerst: der Dienst sperrt es sofort, loescht es nach
+/// 30 Tagen endgueltig und widerruft die Apple-Anmeldung bei Apple (app/accounts.py `delete_account`,
+/// app/apple_signin.py). Erst danach gehen die Daten auf dem Geraet (`ContainerManager.deleteAllData` u. a.). Scheitert
+/// der Dienst (Passwort noetig, kein Netz), bleibt alles stehen und die Rueckfrage sagt es; "Nur auf diesem iPad
+/// löschen" (`onlyThisDevice`) ist der bewusste Ausweg. Vorher (P35-01) loeschte "Konto löschen" nur das Geraet.
+enum AccountDeletion {
+    enum Outcome: Equatable {
+        case done
+        case serviceFailed(message: String, needsPassword: Bool)
+    }
+
+    static let passwordLabel = "Passwort deines StudiNow-Kontos"
+    static let fallbackMessage = "Das StudiNow-Konto ließ sich gerade nicht löschen. Prüfe die Internetverbindung und versuche es erneut."
+    static let passwordMessage = "Dein StudiNow-Konto hat ein Passwort (z. B. aus der Windows-App). Gib es ein, um das Konto zu löschen."
+
+    @MainActor
+    static func run(service: StudoraAccountLink?, password: String?, onlyThisDevice: Bool, local: () async -> Void) async -> Outcome {
+        if !onlyThisDevice, let service, await service.signedInAtService() {
+            guard await service.delete(password: password) else {
+                let needsPassword = service.lastErrorCode == "credentials_invalid"
+                return .serviceFailed(message: needsPassword ? passwordMessage : (service.message ?? fallbackMessage),
+                                      needsPassword: needsPassword)
+            }
+        }
+        await local()
+        return .done
     }
 }
 

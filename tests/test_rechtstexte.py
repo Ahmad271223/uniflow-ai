@@ -111,11 +111,15 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # 08.11.2026: Datenschutz mit den Fristen aus dem Code (Audit Paket 55-57: Protokolle, Sicherungen, Loeschung)
     # 09.11.2026: Datenschutz und Konto-loeschen mit der verschluesselten Kopie ausser Haus (Storage Box, 30 Tage)
     # 09.11.2026 (abends): Bedingungen nur noch mit Jahresabos (Plus 19,99 €, Pro AI 39,99 €)
-    assert "Stand 09.11.2026 (26.10.2026)" in ds and "Stand 09.11.2026 (26.10.2026; 09.11.2026: nur noch Jahresabos)" in nb
+    # 12.11.2026: eine Apple-Anmeldung fuer alles (jeder Nutzer hat ein Dienst-Konto), Widerruf bei Apple beim Loeschen,
+    # Hash der Stud.IP-Benutzerkennung im Geraeteabgleich (app/apple_signin.py, app/sync.py check_studip_user)
+    assert "Stand 12.11.2026 (26.10.2026)" in ds and "Stand 09.11.2026 (26.10.2026; 09.11.2026: nur noch Jahresabos)" in nb
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
+    assert "Jede Nutzung hat ein StudiNow-Konto" in ds and "iPad-App ohne StudiNow-Konto" not in ds
+    assert "zugleich bei Apple" in ds and "Stud.IP-Benutzerkennung" in ds and "dieselbe apple-id" in ds.lower()
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
-    assert "Stand 09.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
+    assert "Stand 12.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
     assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb and "verlängert sich automatisch um ein Jahr" in nb
     assert "pro Monat" not in nb.split("## 5a.")[0].split("## 5.")[-1], "kein Monatsabo in Abschnitt 5"
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")

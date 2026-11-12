@@ -192,6 +192,11 @@ final class StudIPSync: ObservableObject {
     @Published private(set) var stagesReady = 0
     /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
     @Published private(set) var olderFilesNote: String?
+    /// Ein anderer Stud.IP-Benutzer als bisher in diesem Datenbereich hat sich angemeldet (`StudIPUserMark`): der
+    /// Abgleich ist angehalten, nichts geschrieben; der Dialog "Anderer Stud.IP-Benutzer" fragt, wie es weitergeht
+    @Published var foreignUser = false
+    /// Meldung im Abgleich-Status, solange die Frage offen ist
+    nonisolated static let foreignUserText = "Bei Stud.IP ist ein anderer Benutzer angemeldet als bisher. Der Abgleich ist angehalten; es wurde nichts gespeichert."
     @Published var selectedCourses: Set<String> = [] {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
     }
@@ -668,6 +673,7 @@ final class StudIPSync: ObservableObject {
             _ = await task.value
         }
         cookies.clear()
+        foreignUser = false                                      // die Frage nach dem anderen Benutzer ist beantwortet
         setFlag(Keys.sessionExpired, false)
         defaults.removeObject(forKey: LoginReminder.lastLoginKey)
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der Anmeldeseite
@@ -787,7 +793,7 @@ final class StudIPSync: ObservableObject {
     /// gespeicherter Sitzung, nicht waehrend eines Abgleichs. Rueckgabe: ohne abgelaufene Sitzung gelaufen.
     @discardableResult
     func loadLecturers(courseID: String) async -> Bool {
-        guard offersStudIP, !isRunning, !stopped, !courseID.isEmpty else { return false }
+        guard offersStudIP, !isRunning, !stopped, !foreignUser, !courseID.isEmpty else { return false }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { return false }
         let expired = await StudIPExtrasSync(host: host).lecturers(client: liveClient(cookies), courses: [StudIPCourse(id: courseID, title: "")])
@@ -975,11 +981,19 @@ final class StudIPSync: ObservableObject {
             let db = try await host.backend().context.database
             database = db
             guard let localFiles = host.files else { throw DataContainerError.missing }
+            // Datentrennung (12.11.2026, `StudIPUserMark`): zuerst der Benutzer. Ein anderer Stud.IP-Benutzer als bisher
+            // in diesem Datenbereich: anhalten, bevor irgendetwas geschrieben wird, und fragen (`ForeignStudIPUserDialog`)
+            let uid = try await client.currentUserID()
+            let mark = try await db.transaction { try StudIPUserMark.check($0, userID: uid) }
+            if mark == .other {
+                foreignUser = true
+                phase = .failed(Self.foreignUserText)
+                return .failed(Self.foreignUserText)
+            }
             let downloads = UniDownloads(folder: root, files: localFiles, container: container, source: "Stud.IP")
             // Ordner anlegen (ohne iCloud-Backup); Reste eines abgebrochenen Laufs im Zwischenordner gehen hier weg
             try downloads.begin()
             defer { downloads.end() }
-            let uid = try await client.currentUserID()
             let list = try await client.courses(userID: uid)
             courses = list.sorted { ($0.semesterStart ?? "", $0.title) > ($1.semesterStart ?? "", $1.title) }
             try? JSONEncoder().encode(courses).write(to: root.appendingPathComponent("courses.json"), options: .atomic)

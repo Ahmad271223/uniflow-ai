@@ -1,21 +1,23 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 09.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 12.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
-Gerät; nur mit einem StudiNow-Konto verarbeiten wir Daten auf unseren Servern, und auch dann nur das, was du
-eingeschaltet hast.
+Gerät; auf unseren Servern verarbeiten wir Daten nur zu deinem StudiNow-Konto, und auch dann nur das, was dafür
+nötig ist oder was du eingeschaltet hast.
 
 ## 1. Das Wichtigste in Kürze
 
-- **Ohne StudiNow-Konto** (iPad-App) bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts – außer
-  dem, was du auf dem iPad bewusst mit anderen teilst: Community-Beiträge, gemeinsame Wochentests und Einträge der
-  Bibliothek liegen verschlüsselt in Apples iCloud (Abschnitt 8b). Die Web-Oberfläche und die Windows-App brauchen
-  seit dem 05.11.2026 immer ein StudiNow-Konto (Abschnitt 5).
-- **Mit StudiNow-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
-  und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
-  schaltest du einzeln ein (Abschnitte 6–8).
+- **Jede Nutzung hat ein StudiNow-Konto.** In der iPad-App meldet dich „Mit Apple anmelden“ beim ersten Start seit dem
+  12.11.2026 zugleich bei deinem StudiNow-Konto an (eine Anmeldung für alles; ein neues Konto entsteht direkt nach der
+  Wahl deiner Hochschule). Dieselbe Apple-ID führt auf jedem Gerät in dasselbe Konto. Die Web-Oberfläche und die
+  Windows-App brauchen seit dem 05.11.2026 ebenfalls ein StudiNow-Konto (Abschnitt 5).
+- **Zum Konto** speichern wir deine Apple-Kennung bzw. E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse),
+  ein Passwort nur als Hash (falls du eines setzt), deine Hochschule, Sitzungen, Tarif und Probe (Abschnitt 5). Mit der
+  Anmeldung gleicht die App Module, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten ab,
+  Notizen nur mit Pro AI (Abschnitt 7). Die Dateien deiner Hochschule, deine Notizen ohne Pro AI und alles in
+  Abschnitt 3 bleiben auf dem Gerät. Die Community schaltest du selbst ein (Abschnitte 8, 8b).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie nur auf deinem Gerät (iPad, PC). **Auf unseren Servern speichern wir Hochschul-Passwörter nie** – auch
   nicht für die Web-Version (seit 06.11.2026; Abschnitt 6). Den Abgleich mit deiner Hochschule erledigt die iPad-App
@@ -61,13 +63,15 @@ Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls r
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.
 Wir speichern auf deinem Gerät nur, was für die Funktion nötig ist oder was du selbst einstellst (§ 25 Abs. 2 TDDDG).
 
-Für die **iPad-App ohne StudiNow-Konto** gelten dieser Abschnitt, Abschnitt 4 (Hochschule) und – nur wenn du die
-Funktionen nutzt – Abschnitt 8b (Community, gemeinsame Wochentests und Bibliothek über Apple iCloud). „Mit Apple
-anmelden“ beim Start und das Abo laufen dann allein über Apple (Abschnitt 9); an uns wird dabei nichts übertragen,
-deine Apple-Kennung bleibt auf dem iPad. Meldest du dich auf dem iPad freiwillig bei deinem **StudiNow-Konto** an
-(Einstellungen → Zugang & Darstellung → StudiNow-Konto, z. B. für die StudiNow-KI in Pro AI), gelten zusätzlich die
-Abschnitte 5, 7, 8, 8c und 9: Der Sitzungsschlüssel liegt nur im Schlüsselbund dieses iPads, die App gleicht mit
-deinem Konto ab und meldet deine App-Store-Käufe an den Dienst. „Abmelden“ beendet das.
+Für die **iPad-App** gelten dieser Abschnitt, Abschnitt 4 (Hochschule), die Abschnitte 5, 7 und 9 (StudiNow-Konto,
+Abgleich zwischen Geräten, Käufe) und – nur wenn du die Funktionen nutzt – die Abschnitte 8b (Community, gemeinsame
+Wochentests und Bibliothek über Apple iCloud) und 8c (StudiNow-KI in Pro AI). Seit dem 12.11.2026 meldet dich
+„Mit Apple anmelden“ beim Start zugleich bei deinem **StudiNow-Konto** an: Apple übergibt dabei ein Identitäts-Token
+mit deiner Apple-Kennung (und, wenn du zustimmst, deiner E-Mail- bzw. Weiterleitungsadresse), das die App nur im
+Arbeitsspeicher hält, bis der Dienst es gegen eine Sitzung getauscht hat (bei einem neuen Konto direkt nach der Wahl
+deiner Hochschule). Der Sitzungsschlüssel liegt nur im Schlüsselbund dieses iPads; die App gleicht mit deinem Konto ab
+(Abschnitt 7) und meldet deine App-Store-Käufe an den Dienst (Abschnitt 9). Klappt die Anmeldung beim Dienst nicht
+(z. B. ohne Internet), holst du sie in den Einstellungen unter „Konto“ nach; bis dahin bleiben die Daten auf dem iPad.
 
 ## 4. Systeme deiner Hochschule
 
@@ -144,7 +148,9 @@ Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 |---|---|---|
 | E-Mail-Adresse, Hochschule, Zeitpunkt der Registrierung | Konto führen, Anmeldung, Zuordnung der Hochschule, Mitteilungen zum Konto | E-Mail-Adresse bis zur Löschung des Kontos (beim Löschen sofort entfernt), der Rest bis 30 Tage nach Löschung des Kontos |
 | Passwort – nur als Hash (scrypt mit zufälligem Salz), nie im Klartext | Anmeldung | wie das Konto |
-| „Mit Apple anmelden“ / „Mit Google anmelden“: Kennung des Anbieters und die von ihm übermittelte E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse) | Anmeldeweg mit dem Konto verknüpfen | wie das Konto |
+| „Mit Apple anmelden“ / „Mit Google anmelden“: Kennung des Anbieters und die von ihm übermittelte E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse) | Anmeldeweg mit dem Konto verknüpfen; dieselbe Apple-ID führt auf jedem Gerät in dasselbe Konto | wie das Konto (beim Löschen sofort entfernt) |
+| Apple: ein Refresh-Token von Apple, verschlüsselt (AES-256-GCM, Schlüssel je Konto) | beim Löschen des Kontos die Anmeldung „Mit Apple“ bei Apple widerrufen (Abschnitt 15) | bis zur Löschung des Kontos; beim Löschen an Apple zum Widerruf geschickt und sofort entfernt |
+| Ein Hash (SHA-256) deiner Stud.IP-Benutzerkennung, nie die Kennung selbst | Datentrennung: verhindern, dass sich die Daten zweier Stud.IP-Benutzer im selben Konto mischen (Abschnitt 7) | wie dein Datenbereich |
 | Sitzungen: Token nur als Hash, Gerätename (oder Browser-Kennung), eine zufällige Kennung der App-Installation (keine Werbe- oder Hardware-Kennung), Zeitpunkt der Anmeldung und letzten Nutzung | angemeldet bleiben (30 Tage, verlängert sich bei Nutzung), andere Geräte abmelden | bis Abmeldung oder Ablauf, danach spätestens am nächsten Tag gelöscht |
 | Fehlgeschlagene Anmeldeversuche je E-Mail-Adresse und je IP-Adresse (Anzahl, Zeitpunkt des letzten) | Schutz vor Passwortraten (Sperre nach 8 Versuchen für 10 Minuten; je IP-Adresse erst nach sehr vielen Versuchen, weil an der Hochschule viele Geräte eine Adresse teilen) | wirksam 10 Minuten, gelöscht spätestens nach 24 Stunden |
 | Zähler gegen Missbrauch: Registrierungen und Anfragen „Passwort vergessen“ je IP-Adresse bzw. E-Mail-Adresse, Datenexporte, Bestätigungsmails und Community-Aktionen je Konto (Anzahl, Beginn des Zeitfensters) | Schutz vor Massen-Registrierungen und Spam (Art. 6 Abs. 1 lit. f DSGVO) | höchstens 2 Tage |
@@ -153,9 +159,9 @@ Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von StudiNow); für die Schutzmaßnahmen gegen
 Missbrauch Art. 6 Abs. 1 lit. f DSGVO (unser Interesse an einem sicheren Dienst). Ohne diese Daten können wir kein
-Konto führen. In der iPad-App kannst du StudiNow auch ohne Konto nutzen (Abschnitt 3). Die Web-Oberfläche und die
-Windows-App brauchen immer ein StudiNow-Konto; ohne aktives Abo (nach der Probe) kannst du dort deine Daten nur
-ansehen und exportieren, gelöscht wird dadurch nichts.
+Konto führen. Alle Apps und die Web-Oberfläche nutzen ein StudiNow-Konto; in der Web-Oberfläche und der
+Windows-App kannst du ohne aktives Abo (nach der Probe) deine Daten nur ansehen und exportieren, gelöscht wird
+dadurch nichts.
 
 **Windows-App:** Du meldest dich mit E-Mail und Passwort deines StudiNow-Kontos an oder über deinen Browser („Mit
 Apple anmelden“, „Mit Google anmelden“, Konto anlegen; die Anmeldung läuft dann auf der Anmeldeseite des Dienstes und
@@ -165,10 +171,13 @@ Windows-Anmeldeinformationsverwaltung (du löschst ihn mit „Abmelden“) und d
 Probe, Ablauf), damit die App bis zu 7 Tage ohne Internet weiter funktioniert. Beim Abruf erfährt der Dienst, dass die
 Anfrage von der Windows-App kommt.
 
-**iPad-App:** Das Konto ist auf dem iPad freiwillig. Du meldest dich in den Einstellungen mit Apple an (Apple übergibt
-dem Dienst ein Identitäts-Token mit deiner Apple-Kennung und – beim ersten Mal, wenn du zustimmst – deiner E-Mail-Adresse;
-der Dienst legt damit ein Konto an oder meldet dich an) oder mit E-Mail und Passwort. Auf dem iPad liegt danach nur ein
-Sitzungsschlüssel im Schlüsselbund dieses Geräts (nicht in iCloud); „Abmelden“ und „Konto löschen“ entfernen ihn.
+**iPad-App:** Die Anmeldung „Mit Apple“ beim ersten Start meldet dich auch beim Dienst an (Abschnitt 3): Apple
+übergibt dem Dienst ein Identitäts-Token mit deiner Apple-Kennung und – beim ersten Mal, wenn du zustimmst – deiner
+E-Mail-Adresse sowie einen einmaligen Code, den der Dienst bei Apple gegen das Refresh-Token oben tauscht; der Dienst
+legt damit ein Konto an (mit 7 Tagen Probe) oder meldet dich an. Auf weiteren Geräten mit derselben Apple-ID landest du
+im selben Konto, die Probe gibt es nur einmal. Wer sein Konto mit E-Mail und Passwort angelegt hat, kann sich in den
+Einstellungen auch so anmelden. Auf dem iPad liegt danach nur ein Sitzungsschlüssel im Schlüsselbund dieses Geräts
+(nicht in iCloud); „Konto löschen“ entfernt ihn.
 
 ## 6. Keine Hochschul-Zugangsdaten auf unseren Servern
 
@@ -194,6 +203,11 @@ die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – nich
 Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
 Geräteabgleich außerdem Module, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und Einstellungen,
 ab Pro AI auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
+Die iPad-App gleicht mit deinem Konto ab, sobald du angemeldet bist (beim Öffnen der App, höchstens alle drei Minuten,
+und mit „Jetzt abgleichen“), und nur mit dem Datenbereich der Hochschule, die zu deinem Konto gehört. Damit sich die
+Daten zweier Stud.IP-Benutzer nicht mischen, schickt sie dabei einen Hash (SHA-256) deiner Stud.IP-Benutzerkennung
+mit; meldet sich ein anderes Gerät mit einem anderen Stud.IP-Benutzer, hält der Abgleich an, ohne etwas zu lesen oder
+zu schreiben.
 Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelöscht wird mit dem Konto, spätestens
 30 Tage nach dessen Löschung. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -383,10 +397,11 @@ ohne sie funktioniert StudiNow genauso.
 
 Die Abos StudiNow Plus und StudiNow Pro AI kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und
 Zahlungsabwicklung, Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren
-Datenschutzbestimmungen. Wir erhalten keine Zahlungsdaten. Ohne StudiNow-Konto prüft die iPad-App den Kauf nur auf
-dem Gerät; an uns geht nichts. Bist du in der App mit deinem StudiNow-Konto angemeldet, schickt sie uns die von Apple
-signierte Kaufbestätigung (Transaktions- und Produktkennung, Laufzeit), damit wir den Tarif deinem Konto zuordnen
-(z. B. die Credits der StudiNow-KI in Pro AI). Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
+Datenschutzbestimmungen. Wir erhalten keine Zahlungsdaten. Die iPad-App prüft den Kauf auf dem Gerät; mit deinem
+StudiNow-Konto (Abschnitt 3) schickt sie uns außerdem die von Apple signierte Kaufbestätigung (Transaktions- und
+Produktkennung, Laufzeit, die zufällige Kontokennung `appAccountToken`), damit wir den Tarif deinem Konto zuordnen
+(z. B. die Credits der StudiNow-KI in Pro AI). Ein Abo gehört so genau einem StudiNow-Konto: Es gilt auf allen
+Geräten mit derselben Apple-ID, ein anderes Konto kann es nicht übernehmen. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
 
 **Web und Windows (Entwurf, vor Veröffentlichung rechtlich prüfen):** Dort schließt du ein Abo – sobald wir den
@@ -483,15 +498,17 @@ Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
 
 ## 15. Konto löschen, Daten mitnehmen
 
-- **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen, Bestätigung mit Passwort) oder per
-  E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; E-Mail-Adresse, Passwort-Hash
-  und die Verknüpfung mit Apple bzw. Google entfernen wir sofort, deine Community-Beiträge ziehen wir sofort zurück.
+- **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen; hat dein Konto ein Passwort, bestätigst du
+  mit ihm) oder per E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; E-Mail-Adresse,
+  Passwort-Hash und die Verknüpfung mit Apple bzw. Google entfernen wir sofort, deine Community-Beiträge ziehen wir
+  sofort zurück. Hast du dich mit Apple angemeldet, widerrufen wir die Anmeldung „Mit Apple“ zugleich bei Apple
+  (StudiNow verschwindet dann aus „Mit Apple anmelden“ in den Einstellungen deiner Apple-ID).
   Alle übrigen Daten (Datenbereich, Mitgliedschaften, Kommentare, Fragen und Antworten, Käufe, Nutzung) werden nach
   30 Tagen endgültig gelöscht, aus den Sicherungskopien spätestens 30 Tage später (Abschnitt 10). Rückgängig machen
   lässt sich die Löschung nicht. Das Abo kündigst du zusätzlich bei Apple bzw. Google.
-- **iPad ohne StudiNow-Konto:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) entfernt sofort alle
-  Daten auf dem iPad; was du in der Community, als Wochentest oder in der Bibliothek geteilt hast, löschen wir auf
-  Anfrage (Abschnitt 8b).
+- **iPad:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) löscht dein StudiNow-Konto beim Dienst wie
+  oben (mit Widerruf bei Apple) und entfernt sofort alle Daten auf dem iPad; was du in der Community, als Wochentest
+  oder in der Bibliothek über iCloud geteilt hast, löschen wir auf Anfrage (Abschnitt 8b).
 - **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
   (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
   Notizen, Kalender, Lernpakete, Karteikarten, Tests, eigene Dateien und Community-Beiträge (Lösungen, Kommentare,
