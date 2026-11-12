@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sqlite3
 import uuid as uuidlib
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -729,12 +730,16 @@ def fill_materials(conn, t: date) -> dict:
     return r
 
 
-def ensure(conn, t: date | None = None, auto: bool = True) -> dict:
+def ensure(conn, t: date | None = None, auto: bool = True, readonly: bool = False) -> dict:
     """Beim Oeffnen von Uebersicht und Kalender: Doppel zusammenfuehren, Verpasstes markieren, bei geaenderten
-    Eingaben neu planen (klein: sofort, gross oder Unterdeckung: Vorschlag). Liefert den Stand fuer die Uebersicht."""
+    Eingaben neu planen (klein: sofort, gross oder Unterdeckung: Vorschlag). Liefert den Stand fuer die Uebersicht.
+    `readonly`: nur lesen und rechnen (Schreibsperre gerade belegt), der naechste Aufruf holt das Umplanen nach."""
     t = t or study.today()
-    dedupe_blocks(conn)
-    mark_missed(conn, t, sp.credit(_session_rows(conn), _now_ts())["blocks"])
+    if readonly:
+        auto = False
+    else:
+        dedupe_blocks(conn)
+        mark_missed(conn, t, sp.credit(_session_rows(conn), _now_ts())["blocks"])
     state = _json(conn, STATE_KEY, {})
     b = build(conn, t, partial=bool(state.get("partial")))
     if not b["input"]["modules"]:
@@ -758,10 +763,10 @@ def ensure(conn, t: date | None = None, auto: bool = True) -> dict:
                 proposal = {"kind": "umplanung", "hash": b["hash"], "added": len(d["add"]), "removed": len(d["remove"]),
                             "message": f"Größere Änderung: {len(d['add'])} neue und {len(d['remove'])} wegfallende Lernblöcke."}
         _put(conn, PROPOSAL_KEY, proposal or None)
-    elif state.get("hash") == b["hash"] and proposal:
+    elif state.get("hash") == b["hash"] and proposal and not readonly:
         proposal = {}
         _put(conn, PROPOSAL_KEY, None)
-    fill = fill_materials(conn, t) if state.get("hash") else {"assign": [], "overflow": []}
+    fill = fill_materials(conn, t) if state.get("hash") and not readonly else {"assign": [], "overflow": []}
     return {"build": b, "result": result, "state": state, "proposal": proposal or None, "fill": fill}
 
 
@@ -804,11 +809,12 @@ def _result_out(r: dict) -> dict:
 
 # ---------------------------------------------------------------- Uebersicht
 
-def overview(conn, auto: bool = True) -> dict:
+def overview(conn, auto: bool = True, readonly: bool = False) -> dict:
     t = study.today()
     ti = t.isoformat()
-    study.ensure_modules(conn)
-    e = ensure(conn, t, auto)
+    if not readonly:
+        study.ensure_modules(conn)
+    e = ensure(conn, t, auto, readonly)
     b = e["build"]
     s = b["settings"]
     cr = sp.credit(_session_rows(conn), _now_ts())
@@ -910,7 +916,16 @@ def _tx(conn) -> None:
 @router.get("/api/goals")
 def api_goals():
     with db.cursor() as conn:
-        _tx(conn)
+        try:
+            _tx(conn)
+        except sqlite3.OperationalError as e:
+            # Schreibsperre dieses Kontos laenger belegt (z. B. dieselbe Neuplanung gerade auf einem zweiten Geraet):
+            # Stand nur lesend zeigen statt Fehler 500; das Umplanen holt der naechste Aufruf nach (Lasttest 12.11.2026)
+            if "locked" not in str(e):
+                raise
+            out = overview(conn, auto=False, readonly=True)
+            out["busy"] = True
+            return out
         return overview(conn)
 
 

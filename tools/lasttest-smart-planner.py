@@ -236,7 +236,10 @@ def part_b(n_accounts: int, threads: int, ops: int) -> dict:
 
     def call(kind, m, p, h, body=None):
         t = time.perf_counter()
-        st, _, b = asgi_call(app, m, p, headers=h, body=body)
+        try:
+            st, _, b = asgi_call(app, m, p, headers=h, body=body)
+        except Exception as e:                 # noqa: BLE001 - im echten Dienst waere das eine 500
+            st, b = "exception", str(e).encode()
         dt = time.perf_counter() - t
         with lock:
             lat.setdefault(kind, []).append(dt)
@@ -351,7 +354,7 @@ def main() -> int:
     if a.out:
         Path(a.out).write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     ok = (res["kern"] is None or (res["kern"]["errors"] == 0 and res["kern"]["hard_violations"] == 0)) and \
-        res["dienst"]["duplicate_blocks"] == 0 and not any(k.startswith("5") for k in res["dienst"]["status"])
+        res["dienst"]["duplicate_blocks"] == 0 and not any(k.startswith("5") or k == "exception" for k in res["dienst"]["status"])
     return 0 if ok else 1
 
 

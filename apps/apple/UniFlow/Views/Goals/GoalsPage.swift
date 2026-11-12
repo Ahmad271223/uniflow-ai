@@ -109,6 +109,12 @@ struct GoalsPlanButton: View {
 enum GoalsActions {
     static func plan(_ api: APIClient?, _ toast: UFToastCenter, _ router: UFRouter, _ body: JSONValue) async {
         guard let api else { return }
+        // automatisch planen ab Plus (am PC/Dienst entscheidet der Server), auch über die Optionen bei Unterdeckung
+        if api.isLocal && !Entitlements.shared.allows(.autoPlan) {
+            toast.show("Lernblöcke automatisch planen gibt es ab Plus. Ziele und Lernzeit kannst du weiter eintragen.", seconds: 5)
+            router.reload()
+            return
+        }
         var result: JSONValue = .null
         guard await toast.attempt("Planen", { result = try await api.value("/api/goals/plan", method: "POST", body: body) }) else { return }
         if result["applied"]?.bool == true {

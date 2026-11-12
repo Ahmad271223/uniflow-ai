@@ -404,3 +404,28 @@ def test_kein_ki_aufruf_beim_oeffnen_und_verschieben(env, monkeypatch):
     b = blocks()[3]
     assert call(app, "PATCH", f"/api/packages/{b['id']}", {"date": "2026-11-25"})[0] == 200
     assert call(app, "GET", "/api/calendar?start=2026-11-16&end=2026-11-22")[0] == 200
+
+
+def test_uebersicht_bei_belegter_schreibsperre_nur_lesend(env, monkeypatch):
+    """Haelt ein anderer Vorgang die Schreibsperre zu lange, kommt der Stand ohne Umplanen statt Fehler 500"""
+    app, clock = env
+    mid = module("Mathematik", "2027-01-25")
+    call(app, "PUT", f"/api/goals/{mid}", {"target_hours": 20})
+    call(app, "POST", "/api/goals/plan", {})
+    from app import db
+    import sqlite3
+    real = db.connect
+
+    def slow():
+        c = real()
+        c.execute("PRAGMA busy_timeout=50")
+        return c
+    monkeypatch.setattr(db, "connect", slow)
+    blocker = sqlite3.connect(db.DB_PATH, timeout=1)
+    blocker.execute("BEGIN IMMEDIATE")
+    try:
+        st, o = call(app, "GET", "/api/goals")
+    finally:
+        blocker.rollback()
+        blocker.close()
+    assert st == 200 and o["busy"] is True and o["modules"][0]["module_id"] == mid
