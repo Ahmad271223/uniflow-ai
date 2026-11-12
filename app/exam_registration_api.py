@@ -118,13 +118,19 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
     for r in db.rows(conn, "SELECT id, name FROM modules ORDER BY id"):
         app_modules.setdefault(study_plan.name_key(r["name"]), []).append(r["id"])
 
-    def registration(code: str | None, key: str) -> dict | None:
+    def registration(code: str | None, key: str, title=None) -> dict | None:
+        # zusammengesetzter Titel (12.11.2026): die Anmeldung nennt einen Teil ("Thermodynamik I" fuer "Thermodynamik I
+        # / Chemie", "Grundzüge der Chemie" fuer dessen Teil "Chemie")
+        parts, _ = study_plan.title_parts(title)
         for r in regs:
             if not r["registered"]:
                 continue
             if code and r.get("pruefungsnr") and r["pruefungsnr"].strip() == code:
                 return r
             if key and study_plan.name_key(r.get("text") or "") == key:
+                return r
+        for r in regs:
+            if r["registered"] and parts and study_plan.part_index(r.get("text") or "", parts) is not None:
                 return r
         return None
 
@@ -162,7 +168,7 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
                 continue
             key = study_plan.name_key(m.get("title"))
             code = m.get("code").strip() if isinstance(m.get("code"), str) else None
-            reg = registration(code, key)
+            reg = registration(code, key, m.get("title"))
             o = {"id": mid, "title": m.get("title"), "lp": study_plan.lp_of(m), "exam": m.get("exam"), "kind": m.get("kind"),
                  "code": m.get("code"), "status": st["status"], "fachsemester": term - start + 1,
                  "period": "vbp" if vbp(exam) else "meldung", "last_attempt": study_plan.last_attempt(st),
