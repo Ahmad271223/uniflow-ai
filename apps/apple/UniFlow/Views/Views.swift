@@ -396,6 +396,15 @@ struct LibraryView: View {
         if openTabs.isEmpty, let logoMenu { logoMenu.go(.files()) }
     }
 
+    /// Ort fuer "PDF importieren" in der Dokumentleiste: Ordner des offenen Dokuments, sonst das in der Seitenleiste
+    /// gewaehlte Modul, sonst das Modul des Dokuments, sonst ohne Ordner
+    static func importPreset(open file: LibFile?, module selection: String?) -> ImportTarget {
+        if let f = file?.folder_id { return .folder(f) }
+        if let sel = selection, sel.hasPrefix("m"), let id = Int(sel.dropFirst()) { return .module(id) }
+        if let m = file?.module_id { return .module(m) }
+        return .loose
+    }
+
     private func load() async {
         guard let api = session.api else { return }
         do {
@@ -407,11 +416,12 @@ struct LibraryView: View {
     }
 
     /// PDF aus "Dateien": pruefen, dann "Wohin?" wie fuer Dateien von aussen (11.11.2026; vorher immer ohne Ordner).
-    /// Nach dem Import oeffnet der Dialog das Dokument.
+    /// Vorgewaehlt ist der Ort des offenen Dokuments (12.11.2026; vorher immer "ohne Ordner"). Nach dem Import oeffnet
+    /// der Dialog das Dokument.
     private func importPDF(_ result: Result<URL, Error>) async {
         do {
             let staged = try await ExternalFileImport.stageDetached(try result.get(), kind: .pdf)
-            ExternalImportInbox.receive([staged], overlay: overlay)
+            ExternalImportInbox.receive([staged], overlay: overlay, preset: Self.importPreset(open: fileSelection.flatMap(file), module: moduleSelection))
         } catch {
             importMessage = "Import fehlgeschlagen: \(ExternalFileImport.message(error))"
         }

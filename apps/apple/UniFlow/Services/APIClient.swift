@@ -306,6 +306,8 @@ struct LibFile: Decodable, Identifiable, Hashable {
     var course_id: String? = nil
     /// Groesse in Byte laut Quelle (Fortschritt beim "Jetzt laden"); fehlt in aelteren Antworten
     var size: Int? = nil
+    /// Ordner der Bibliothek (eigener Ordner bzw. "Eigene Notizen" des Moduls): Ort fuer "PDF importieren" im Dokument
+    var folder_id: Int? = nil
 
     var displayTitle: String { ai_title ?? title ?? name }
     /// Geladene PDF: dieselbe Regel wie die Bibliothek (`kind == "pdf"`, das `UniRules.fileKind` auch bei mime

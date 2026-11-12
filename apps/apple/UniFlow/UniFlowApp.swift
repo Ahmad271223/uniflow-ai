@@ -67,6 +67,8 @@ struct UniFlowApp: App {
                     .environment(\.openURL, OpenURLAction { UniWebBrowser.action(for: $0, containers: containers) })
                     .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
                     .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
+                    // Ablage -> "Importieren …": Dateiauswahl dieses Fensters, danach "Wohin?" (LibraryImportCommand.swift)
+                    .modifier(LibraryImportHost(router: router, overlay: overlay, toast: toast, enabled: containers.active != nil))
                     .modifier(UFToastOverlay(center: toast))
                     .environmentObject(account)
                     .environmentObject(containers)
@@ -191,8 +193,12 @@ struct UniFlowApp: App {
                     }
             }
         }
-        // Menueleiste (Mac, iPad mit Tastatur): Dokument, Werkzeuge, Sichern und Drucken (EditorCommands.swift)
-        .commands { EditorCommands() }
+        // Menueleiste (Mac, iPad mit Tastatur): Dokument, Werkzeuge, Sichern und Drucken (EditorCommands.swift),
+        // Ablage -> "Importieren …" (LibraryImportCommand.swift)
+        .commands {
+            EditorCommands()
+            LibraryImportCommands()
+        }
         .onChange(of: scenePhase) { _, phase in
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
             if phase == .active {

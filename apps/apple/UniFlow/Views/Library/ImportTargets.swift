@@ -4,7 +4,9 @@ import UniFlowCore
 // Wohin mit Dateien von aussen (Meldung des Inhabers 11.11.2026): vorher ging beim Import nur "In welches Modul?".
 // Jetzt dieselben Orte wie in "Dokumente & Notizen" (`GET /api/library`): ohne Ordner, ein Modul, jeder eigene Ordner
 // (auch Unterordner, auch in einem Modul) oder "Neuer Ordner …" (Name eingeben, direkt dort ablegen,
-// `POST /api/folders`). Gilt fuer "Teilen"/"Öffnen in", Ablegen in der Bibliothek und "Neu" -> "PDF importieren".
+// `POST /api/folders`). Gilt fuer "Teilen"/"Öffnen in", Ablegen in der Bibliothek (PDF, ZIP, Bilder), "Neu" -> "PDF
+// importieren" und "Bild importieren" (Fotomediathek, Dateien), "PDF importieren" in der Dokumentleiste und Ablage ->
+// "Importieren …" (seit 12.11.2026 alle gleich); "In Ordner verschieben" bietet dieselben Ordner und "Neuer Ordner …".
 
 /// Ziel eines Imports
 enum ImportTarget: Hashable {

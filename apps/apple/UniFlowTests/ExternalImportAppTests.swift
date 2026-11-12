@@ -178,7 +178,7 @@ final class ExternalImportAppTests: XCTestCase {
         // keine ZIP (Textdatei mit Endung .zip), keine PDF, fremde Art
         XCTAssertEqual(message(stage("kaputt.zip", Data("kein zip".utf8))), "Die Datei ist keine ZIP-Datei.")
         XCTAssertEqual(message(stage("kaputt.pdf", Data("kein pdf".utf8))), "Die Datei ist keine PDF.")
-        XCTAssertTrue(message(stage("Folien.pptx", Data("x".utf8))).contains("Es gehen PDF- und ZIP-Dateien"))
+        XCTAssertTrue(message(stage("Folien.pptx", Data("x".utf8))).contains("Es gehen PDF-, ZIP- und Bilddateien"))
         // verschluesselt (Bit 0 im lokalen Kopf und im Zentralverzeichnis, wie ZIP mit Passwort aus dem Windows-Explorer)
         var enc = try ZipArchive.pack([.init(path: "geheim.pdf", data: Data("x".utf8))])
         enc[6] |= 1

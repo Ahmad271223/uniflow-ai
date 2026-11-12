@@ -81,7 +81,7 @@ struct ExternalImportDialog: View {
     }
 
     var body: some View {
-        UFDialog(heading, icon: single?.kind == .zip ? "folder" : "file-text") {
+        UFDialog(heading, icon: single?.kind == .zip ? "folder" : single?.kind == .image ? "image" : "file-text") {
             UFField(files.count == 1 ? "Datei" : "Dateien") {
                 VStack(alignment: .leading, spacing: 3.2) {
                     ForEach(files.indices, id: \.self) { i in
@@ -122,8 +122,11 @@ struct ExternalImportDialog: View {
 
     private var hint: String {
         if files.count > 1 { return "Alle Dateien landen am selben Ort." }
-        return single?.kind == .zip ? "Die ZIP-Datei öffnet sich danach als Ordner. PDFs daraus lassen sich mit dem Stift bearbeiten."
-            : "Die PDF öffnet sich danach im Editor."
+        switch single?.kind {
+        case .zip?: return "Die ZIP-Datei öffnet sich danach als Ordner. PDFs daraus lassen sich mit dem Stift bearbeiten."
+        case .image?: return "Das Bild wird als PDF-Seite angelegt und öffnet sich danach im Editor."
+        default: return "Die PDF öffnet sich danach im Editor."
+        }
     }
 
     /// Ergebnis eines Imports: angelegte Dokumente, gescheiterte Dateien (Name und Grund), Ziel und sein Pfad
@@ -188,9 +191,10 @@ struct ExternalImportDialog: View {
     }
 }
 
-/// Ablegen von PDF und ZIP aus der Dateien-App (Drag & Drop, Split View) in "Dokumente & Notizen": alle abgelegten
-/// Dateien kommen in den Dialog "Wohin?", vorgewaehlt mit dem offenen Modul bzw. Ordner (vorher landeten PDFs ohne
-/// Frage dort, eine einzelne ZIP fragte nur nach dem Modul).
+/// Ablegen von PDF, ZIP und Bildern aus der Dateien-App, aus Fotos bzw. dem Finder (Drag & Drop, Split View) in
+/// "Dokumente & Notizen": alle abgelegten Dateien kommen in den Dialog "Wohin?", vorgewaehlt mit dem offenen Modul bzw.
+/// Ordner (vorher landeten PDFs ohne Frage dort, eine einzelne ZIP fragte nur nach dem Modul; Bilder gingen bis
+/// 12.11.2026 gar nicht).
 struct LibraryDropTarget: ViewModifier {
     let moduleID: Int?
     let folderID: Int?
@@ -199,7 +203,7 @@ struct LibraryDropTarget: ViewModifier {
     @EnvironmentObject private var toast: UFToastCenter
     @State private var targeted = false
 
-    static let types: [UTType] = [.pdf, .zip]
+    static let types: [UTType] = [.pdf, .zip, .image]
 
     func body(content: Content) -> some View {
         content
@@ -208,7 +212,7 @@ struct LibraryDropTarget: ViewModifier {
                     RoundedRectangle(cornerRadius: UF.r)
                         .fill(UF.accentSoft.opacity(0.5))
                         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.accent, style: StrokeStyle(lineWidth: 2, dash: [8, 6])))
-                        .overlay(Text("PDF oder ZIP hier ablegen").ufFont(16, 600).foregroundStyle(UF.accentText))
+                        .overlay(Text("PDF, ZIP oder Bild hier ablegen").ufFont(16, 600).foregroundStyle(UF.accentText))
                         .padding(8)
                         .allowsHitTesting(false)
                 }
@@ -221,10 +225,11 @@ struct LibraryDropTarget: ViewModifier {
             }
     }
 
-    /// Art des Anbieters (ZIP vor PDF: eine ZIP meldet nie PDF, eine PDF nie ZIP)
+    /// Art des Anbieters (ZIP vor PDF: eine ZIP meldet nie PDF, eine PDF nie ZIP; Bild zuletzt)
     static func kind(of provider: NSItemProvider) -> (ExternalFileImport.Kind, UTType)? {
         if provider.hasItemConformingToTypeIdentifier(UTType.zip.identifier) { return (.zip, .zip) }
         if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) { return (.pdf, .pdf) }
+        if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) { return (.image, .image) }
         return nil
     }
 
