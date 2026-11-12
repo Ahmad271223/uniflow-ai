@@ -830,10 +830,15 @@ private struct AppAccountCards: View {
                 // Rufname fuer "Hallo Ahmad – lass uns gemeinsam lernen." auf der Uebersicht (je Container, nur auf dem
                 // iPad; leer: der Vorname aus der Anmeldung, `UFGreeting`)
                 RufnameField().padding(.top, 4.8)
-                Text(UFDevice.adapt("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem iPad."))
+                Text(Self.accountText)
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 2.4)
+            }
+            // eine Karte "Konto" (12.11.2026): darunter das StudiNow-Konto beim Dienst mit derselben Apple-ID
+            if StudoraAccountLink.available, let studoraAccount {
+                SettingsDivider()
+                StudoraAccountCard(link: studoraAccount)
             }
             // Loeschen abgesetzt am Kartenende wie bei "Hochschule"
             SettingsDangerZone {
@@ -841,6 +846,9 @@ private struct AppAccountCards: View {
             }
         }
     }
+
+    /// Was das Konto ist (eine Apple-ID = ein StudiNow-Konto = ein Abo, 12.11.2026)
+    static let accountText = UFDevice.adapt("Mit deiner Apple-ID bist du in StudiNow und beim StudiNow-Dienst angemeldet – auf jedem Gerät mit derselben Apple-ID dasselbe Konto. Dateien aus Stud.IP und deine Uni-Anmeldungen bleiben auf diesem iPad.")
 
     /// Rufname (Einstellungen -> Konto): ein Feld, gespeichert je Container beim Tippen (`Rufname.save`)
     struct RufnameField: View {
@@ -871,6 +879,8 @@ private struct AppAccountCards: View {
                  ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
                  : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
+            Text(UFTrialTexts.perAppleID).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4.8)
             // Credits der StudiNow-KI (nur mit Konto beim Dienst und Stand aus GET /api/entitlements)
             if let studoraAccount { StudoraCreditsRow(link: studoraAccount) }
             UFFlexWrap(gap: 9.6) {
@@ -934,15 +944,19 @@ enum DeleteAccountText {
             + "Was iOS selbst gesichert hat, bleibt unter „Passwörter“."
     }
 
-    static let appleID = UFDevice.adapt("Diese Anmeldung mit Apple speichert StudiNow nur auf diesem iPad. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow.")
+    static let appleID = UFDevice.adapt("Die Verknüpfung „Mit Apple anmelden“ widerruft StudiNow beim Löschen auch bei Apple. Prüfen oder selbst lösen kannst du sie in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow.")
 
-    /// Mit angemeldetem StudiNow-Konto (Dienst): "Konto löschen" hier entfernt nur dessen Anmeldung auf diesem iPad
-    /// (`ContainerManager.deleteAllData`); das Konto beim Dienst loescht die Karte StudiNow-Konto (Audit 08.11.2026, P35-01)
-    static let service = "Dein StudiNow-Konto beim Dienst bleibt bestehen – mit allem, was dorthin abgeglichen wurde. Löschen kannst du es vorher unter Einstellungen → StudiNow-Konto → „Konto löschen“."
+    /// Seit 12.11.2026 (eine Anmeldung fuer alles): "Konto löschen" loescht zuerst das Konto beim StudiNow-Dienst
+    /// (`AccountDeletion`, Dienst: sofort gesperrt, nach 30 Tagen endgueltig, Widerruf bei Apple), dann alles auf dem iPad.
+    /// Vorher (P35-01) blieb das Konto beim Dienst bestehen und liess sich nur in der Karte StudiNow-Konto loeschen.
+    static let service = "Dein StudiNow-Konto beim StudiNow-Dienst wird ebenfalls gelöscht – auf allen Geräten, unter Windows und im Web: sofort gesperrt, nach 30 Tagen endgültig mit allem, was dorthin abgeglichen wurde."
+
+    /// Ohne Anmeldung beim Dienst auf diesem Geraet (z. B. offline beim Start): ehrlich sagen, was dann gilt
+    static let serviceUnknown = "Auf diesem Gerät bist du gerade nicht beim StudiNow-Dienst angemeldet. Hast du dort ein Konto (z. B. von einem anderen Gerät), lösche es dort oder schreib an support@studinow.app."
 
     /// Saetze unter der Rueckfrage, die vom Stand abhaengen (StudiNow-Konto angemeldet)
     static func shows(serviceSignedIn: Bool) -> [String] {
-        [appleID] + (serviceSignedIn ? [service] : [])
+        [appleID] + [serviceSignedIn ? service : serviceUnknown]
     }
 
     /// Nur mit iCloud-Container im Build (Community ueber CloudKit, docs/release/DATENSCHUTZ.md Abschnitt 8b): was in der
@@ -950,7 +964,9 @@ enum DeleteAccountText {
     static let community = "Was du in der Community veröffentlicht hast (Lösungen, Kommentare, Korrekturen), liegt verschlüsselt in Apples iCloud und bleibt unter deinem Pseudonym, bis du es zurückziehst. Zieh es vorher unter „Meine geteilten Lösungen“ zurück oder schreib an support@studinow.app – dann löschen wir es für dich."
 }
 
-/// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
+/// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple. Seit 12.11.2026
+/// zuerst das Konto beim StudiNow-Dienst (`AccountDeletion`), dann alles auf dem iPad; scheitert der Dienst, bleibt alles
+/// stehen und der Dialog sagt warum (Passwort, Netz) – mit "Nur auf diesem iPad löschen" als bewusstem Ausweg.
 private struct DeleteAccountDialog: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var session: Session
@@ -959,7 +975,8 @@ private struct DeleteAccountDialog: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
     @State private var busy = false
-
+    @State private var servicePassword = ""
+    @State private var problem: AccountDeletion.Outcome?
 
     var body: some View {
         UFDialog("Konto löschen?", icon: "trash") {
@@ -972,6 +989,7 @@ private struct DeleteAccountDialog: View {
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
                 ForEach(DeleteAccountText.shows(serviceSignedIn: containers.account.user != nil), id: \.self) { Text($0) }
                 if SolutionSharing.community.isConnected { Text(DeleteAccountText.community) }
+                if let problem { ServiceDeletionProblem(outcome: problem, password: $servicePassword) }
                 ContainerSyncGate { syncing in
                     if syncing { ContainerSyncNotice() }
                 }
@@ -980,22 +998,55 @@ private struct DeleteAccountDialog: View {
             .fixedSize(horizontal: false, vertical: true)
         } foot: {
             UFButton("Abbrechen") { close() }
+            if problem != nil {
+                UFButton(UFDevice.adapt("Nur auf diesem iPad löschen"), kind: .ghost) { start(onlyThisDevice: true) }
+                    .disabled(busy)
+            }
             // gesperrt, solange ein Abgleich laeuft (deleteAllData haelt ihn sonst an und wartet auf ihn)
             ContainerSyncGate { syncing in
-                UFButton("Konto löschen", icon: "trash", kind: .danger) {
-                    busy = true
-                    Task {
-                        // RootView zeigt danach die Begruessung
-                        let steps = account.account.map {
-                            AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID)
-                        } ?? []
-                        await account.deleteAccount(also: steps) {
-                            overlay.closeAll()
-                            router.go(.dashboard)
-                        }
+                UFButton(problem == nil ? "Konto löschen" : "Erneut versuchen", icon: "trash", kind: .danger) { start(onlyThisDevice: false) }
+                    .disabled(busy || syncing)
+            }
+        }
+    }
+
+    private func start(onlyThisDevice: Bool) {
+        busy = true
+        Task {
+            let steps = account.account.map {
+                AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID)
+            } ?? []
+            let out = await AccountDeletion.run(service: containers.account, password: servicePassword.isEmpty ? nil : servicePassword,
+                                                onlyThisDevice: onlyThisDevice) {
+                // RootView zeigt danach die Begruessung
+                await account.deleteAccount(also: steps) {
+                    overlay.closeAll()
+                    router.go(.dashboard)
+                }
+            }
+            if out != .done {
+                problem = out
+                busy = false
+            }
+        }
+    }
+}
+
+/// Warum das Konto beim Dienst nicht geloescht wurde; mit Passwortfeld, wenn das Konto eins hat
+private struct ServiceDeletionProblem: View {
+    let outcome: AccountDeletion.Outcome
+    @Binding var password: String
+
+    var body: some View {
+        if case .serviceFailed(let message, let needsPassword) = outcome {
+            VStack(alignment: .leading, spacing: 7.2) {
+                Text(message).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("delete.serviceProblem")
+                if needsPassword {
+                    UFField(AccountDeletion.passwordLabel) {
+                        UFTextField("Passwort", text: $password, secure: true).textContentType(.password)
                     }
                 }
-                .disabled(busy || syncing)
             }
         }
     }
@@ -1018,9 +1069,8 @@ private struct LocalAccountTab: View {
         // vier Gruppen mit Abschnittskopf (Konto, Studium, dieses iPad, Austausch) statt einer langen Kartenfolge
         VStack(alignment: .leading, spacing: 32) {
             SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) {
-                AppAccountCards()
+                AppAccountCards()                                        // "Konto": Apple-ID und StudiNow-Konto in einer Karte
                 if StudoraAccountLink.available, let studoraAccount {
-                    StudoraAccountCard(link: studoraAccount)
                     InviteCard(link: studoraAccount)                     // Freunde einladen (docs/EINLADUNGEN.md)
                 }
             }

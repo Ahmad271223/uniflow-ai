@@ -42,7 +42,34 @@ ENTITIES: dict[str, dict] = {
     "annotations": {"pk": "file_id", "fk": {}},
 }
 SYNC_COLS = ("sync_version", "sync_updated_at", "sync_device")
-PRIVATE_SETTINGS = {"lan_pin", "university"}       # nie zwischen Geraeten
+# nie zwischen Geraeten. `studip_user_hash`: Hash der Stud.IP-Benutzerkennung, der dieses Konto (je Hochschule) gehoert
+# (check_studip_user); setzt nur der Dienst, kein Geraet kann ihn per Push aendern oder loeschen
+PRIVATE_SETTINGS = {"lan_pin", "university", "studip_user_hash"}
+STUDIP_USER_RE = re.compile(r"^[0-9a-f]{16,128}$")
+STUDIP_USER_MISMATCH = ("Dieses StudiNow-Konto gleicht bereits die Daten eines anderen Stud.IP-Benutzers ab. "
+                        "Der Abgleich zwischen Geräten ist angehalten.")
+
+
+class StudIPUserMismatch(Exception):
+    """Das Geraet ist mit einem anderen Stud.IP-Benutzer angemeldet als dem, dessen Daten dieses Konto abgleicht."""
+
+
+def check_studip_user(conn, value) -> None:
+    """Datentrennung im Geraete-Abgleich (12.11.2026): die App schickt den Hash ihrer Stud.IP-Benutzerkennung mit
+    (`studip_user`). Noch keiner gemerkt -> merken; gleich -> weiter; anders -> StudIPUserMismatch, bevor etwas gelesen
+    oder geschrieben wird. Ohne Wert (Windows-App, aeltere Apps, Hochschule ohne Stud.IP) aendert sich nichts.
+    ValueError bei einem Wert, der kein Hex-Hash ist."""
+    if value is None or value == "":
+        return
+    if not isinstance(value, str) or not STUDIP_USER_RE.match(value):
+        raise ValueError("studip_user muss ein Hex-Hash sein")
+    row = db.row(conn, "SELECT value FROM settings WHERE key='studip_user_hash'")
+    known = (row or {}).get("value")
+    if not known:
+        conn.execute("INSERT INTO settings(key, value) VALUES ('studip_user_hash', ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (value,))
+    elif known != value:
+        raise StudIPUserMismatch(STUDIP_USER_MISMATCH)
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
 OP_RE = re.compile(r"^[A-Za-z0-9._:-]{8,100}$")             # Operations-ID eines Push-Eintrags (z. B. UUID)
 NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
@@ -339,6 +366,9 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
         table = d.get("entity")
         if table not in ENTITIES or table == "annotations":
             results.append({"entity": table, "status": "unknown_entity"})
+            continue
+        if table == "settings" and d.get("id") in PRIVATE_SETTINGS:
+            results.append({"entity": table, "id": d.get("id"), "status": "ignored"})
             continue
         pk = ENTITIES[table]["pk"]
         try:

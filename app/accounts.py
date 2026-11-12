@@ -166,6 +166,9 @@ def _migrate(conn) -> None:
     from . import db
     # db.add_column: alle Dienst-Prozesse migrieren accounts.db beim Start gleichzeitig (Audit P11-02)
     db.add_column(conn, "identities", "email", "TEXT")          # vom Anbieter gelieferte Adresse (Apple: Relay), nur zur Anzeige
+    # Apple: Refresh-Token (AES-GCM, app/vault.py) und Client-ID, fuer den Widerruf beim Loeschen (app/apple_signin.py)
+    db.add_column(conn, "identities", "apple_refresh_enc", "TEXT")
+    db.add_column(conn, "identities", "apple_client_id", "TEXT")
 
 
 @contextmanager
@@ -827,8 +830,10 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
             raise AccountError("not_found", "Konto nicht gefunden.", 404)
         if u["pw_hash"] and not verify_password(password or "", u["pw_hash"]):
             raise AccountError("credentials_invalid", "Zum Löschen bitte das Passwort angeben.", 401)
+        apple = _apple_tokens(conn, user_id)                 # vor _mark_deleted: das loescht die Verknuepfungen
         _mark_deleted(conn, user_id, iso(now()))
     _after_delete(user_id)
+    revoke_apple(user_id, apple)                             # nach dem Commit; Fehler halten das Loeschen nicht auf
     return {"deleted": True, "purge_after_days": 30}
 
 
@@ -839,9 +844,58 @@ def redelete(user_id: str, deleted_at: str | None = None) -> bool:
     with cursor() as conn:
         if not conn.execute("SELECT 1 FROM users WHERE id=? AND status='active'", (user_id,)).fetchone():
             return False
+        apple = _apple_tokens(conn, user_id)
         _mark_deleted(conn, user_id, deleted_at or iso(now()))
     _after_delete(user_id)
+    revoke_apple(user_id, apple)
     return True
+
+
+# ---------------------------------------------------------------- Apple: Refresh-Token und Widerruf (5.1.1(v))
+
+def store_apple_refresh(user_id: str, subject: str, client_id: str, refresh_token: str) -> bool:
+    """Refresh-Token von Apple (app/apple_signin.exchange_code) an der Verknuepfung ablegen, verschluesselt mit dem
+    Schluessel des Kontos (app/vault.py, Konto-ID als AAD). False, wenn die Verknuepfung nicht (mehr) diesem Konto gehoert."""
+    from . import vault                                      # spaet: vault importiert accounts
+    enc = vault.encrypt(user_id, refresh_token)
+    with cursor() as conn:
+        return conn.execute("UPDATE identities SET apple_refresh_enc=?, apple_client_id=? "
+                            "WHERE provider='apple' AND subject=? AND user_id=?",
+                            (enc, client_id, subject, user_id)).rowcount > 0
+
+
+def _apple_tokens(conn, user_id: str) -> list[tuple[str | None, str | None]]:
+    """(verschluesseltes Refresh-Token, Client-ID) je Apple-Verknuepfung des Kontos; leer ohne Apple-Anmeldung."""
+    return [(r["apple_refresh_enc"], r["apple_client_id"]) for r in
+            conn.execute("SELECT apple_refresh_enc, apple_client_id FROM identities WHERE user_id=? AND provider='apple'",
+                         (user_id,)).fetchall()]
+
+
+def revoke_apple(user_id: str, tokens: list[tuple[str | None, str | None]]) -> int:
+    """Apple-Anmeldung des geloeschten Kontos bei Apple widerrufen (App-Review-Richtlinie 5.1.1(v)). Wirft nie:
+    Fehler werden protokolliert (ohne Token und Secret), das Konto ist trotzdem geloescht. Rueckgabe: Zahl der
+    widerrufenen Tokens."""
+    import logging
+    log = logging.getLogger("uniflow.accounts")
+    if not tokens:
+        return 0
+    from . import apple_signin, vault
+    done = 0
+    for enc, client_id in tokens:
+        if not enc or not client_id:
+            log.info("Konto %s: kein Apple-Token gespeichert, Widerruf bei Apple nicht moeglich", user_id)
+            continue
+        if not apple_signin.configured():
+            log.warning("Konto %s: Widerruf bei Apple nicht eingerichtet (LERNAPP_APPLE_TEAM_ID/_SIGNIN_KEY_ID/_SIGNIN_KEY_FILE)", user_id)
+            continue
+        try:
+            apple_signin.revoke(vault.decrypt(user_id, enc), client_id)
+            done += 1
+            log.info("Konto %s: Apple-Anmeldung bei Apple widerrufen", user_id)
+        except Exception as e:  # noqa: BLE001 - nie das Token oder den Text einer unbekannten Ausnahme protokollieren
+            reason = str(e) if isinstance(e, apple_signin.AppleError) else type(e).__name__
+            log.warning("Konto %s: Widerruf bei Apple fehlgeschlagen: %s", user_id, reason)
+    return done
 
 
 def _mark_deleted(conn, user_id: str, t: str) -> None:

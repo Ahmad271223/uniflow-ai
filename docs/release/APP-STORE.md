@@ -230,7 +230,7 @@ Behoben:
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
 | Version, Build | 1.0.3 (`MARKETING_VERSION` auf develop; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 34** (`CURRENT_PROJECT_VERSION` auf develop); Build 33 als Version 1.0.3 hochgeladen 11.11.2026, noch nicht eingereicht; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
-| Mit Apple anmelden | Fähigkeit aktiv, an zwei Stellen: beim Start (trennt die Daten je Apple-Nutzer, bleibt auf dem Gerät) und freiwillig für das StudiNow-Konto (Einstellungen → Zugang & Darstellung → StudiNow-Konto; Token-Tausch beim Dienst). Konto löschen geht für beides in der App (Richtlinie 5.1.1(v)) |
+| Mit Apple anmelden | Fähigkeit aktiv. Seit 12.11.2026 eine Anmeldung für alles: „Mit Apple anmelden“ beim Start trennt die Daten je Apple-Nutzer und meldet zugleich beim StudiNow-Dienst an (Token-Tausch beim Dienst; ein neues Konto direkt nach der Hochschulwahl; dieselbe Apple-ID = dasselbe Konto auf jedem Gerät). Rückfall bei Fehler/offline: Einstellungen → Konto. „Konto löschen“ in der App löscht Gerätedaten und Dienst-Konto und widerruft die Apple-Anmeldung bei Apple (Richtlinie 5.1.1(v); `app/apple_signin.py`, braucht `LERNAPP_APPLE_TEAM_ID`, `LERNAPP_APPLE_SIGNIN_KEY_ID`, `LERNAPP_APPLE_SIGNIN_KEY_FILE` am Server) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
 ## Altersfreigabe (Fragebogen in App Store Connect)
@@ -257,15 +257,25 @@ Abschnitt 16: nicht für Kinder unter 16); eine höhere Stufe als 4+ wegen nutze
 Auftragsverarbeiter länger abrufbar, als die Anfrage dauert. Optionale Funktionen (StudiNow-Konto, KI, Community)
 zählen mit.
 
+**Stand 12.11.2026 („eine Anmeldung für alles“, Entscheidung des Inhabers):** „Mit Apple anmelden“ beim ersten Start
+meldet jetzt zugleich beim StudiNow-Dienst an; jeder Nutzer hat damit ein StudiNow-Konto, Geräteabgleich und Meldung
+der Käufe laufen für alle (nicht mehr „nur mit StudiNow-Konto“). **Neue Datentypen kommen dadurch nicht dazu** – alle
+unten stehenden waren schon angegeben, weil Apple optionale Funktionen mitzählt. Neu in bestehenden Typen: der Hash
+(SHA-256) der Stud.IP-Benutzerkennung (Datentrennung im Geräteabgleich) gehört zu „Kennungen → Nutzer-ID“; das
+verschlüsselte Refresh-Token von Apple (nur für den Widerruf beim Löschen, Richtlinie 5.1.1(v)) ist kein vom Nutzer
+erhobener Datentyp. **Für App Store Connect (Inhaber, dort nichts automatisch):** prüfen, dass genau diese sechs
+Datentypen eingetragen sind, alle „mit Identität verknüpft“, keiner „für Tracking“, Zweck „App-Funktionalität“ –
+insbesondere „Kennungen → Geräte-ID“ (seit P46-04 nachzutragen) und „Käufe → Kaufverlauf“; fehlt einer, ergänzen.
+
 Frage „Erfassen Sie oder Ihre Drittanbieter Daten aus dieser App?“ → **Ja**.
 
 | Datentyp | Erfasst | Mit Identität verknüpft | Für Tracking | Zweck | Was genau |
 |---|---|---|---|---|---|
-| Kontaktinformationen → E-Mail-Adresse | ja | ja | nein | App-Funktionalität | nur mit StudiNow-Konto: die Adresse, die Apple bei „Mit Apple anmelden“ übermittelt (ggf. Weiterleitungsadresse), bzw. die bei der Registrierung angegebene; Mitteilungen zum Konto |
-| Kennungen → Nutzer-ID | ja | ja | nein | App-Funktionalität | Konto-ID und Apple-Kennung beim StudiNow-Dienst; CloudKit-Nutzerkennung (zufällig, nur für StudiNow) in jedem Community-, Wochentest- und Bibliotheks-Datensatz (Zurückziehen, Melden, Blockieren, Moderation) |
-| Kennungen → Geräte-ID | ja | ja | nein | App-Funktionalität | nur mit StudiNow-Konto: zufällige Kennung dieser Installation (`ipad-<UUID>`, `StudoraAccountLink.deviceID`, keine Werbe- oder Hardware-Kennung) als `device_id` bei Anmeldung und Geräteabgleich; der Dienst führt sie bei der Sitzung (Geräteliste, andere Geräte abmelden). **Neu seit Audit P46-04 (08.11.2026), gilt ab Build 27; in App Store Connect vom Inhaber nachzutragen** |
-| Käufe → Kaufverlauf | ja | ja | nein | App-Funktionalität | nur mit StudiNow-Konto: die von Apple signierte Transaktion (Produkt, Laufzeit, Transaktionskennung) geht an `/api/billing/apple/verify`, damit Tarif und Credits am Konto stimmen; keine Zahlungsdaten |
-| Nutzerinhalte → Andere Nutzerinhalte | ja | ja | nein | App-Funktionalität | Community (Lösungen verschlüsselt, Fragen, Antworten, Kommentare, Meldungen; CloudKit bzw. mit Konto im Dienst); KI-Anfragen (Seitentext bzw. Bild eines Bereichs, Frage, Kurs- und Dateiname) an den Dienst und weiter an den KI-Anbieter; Geräteabgleich mit Konto (Module, Termine, Lernpakete, Karteikarten, Einstellungen; Notizen ab Pro AI) |
+| Kontaktinformationen → E-Mail-Adresse | ja | ja | nein | App-Funktionalität | StudiNow-Konto (seit 12.11.2026 für alle): die Adresse, die Apple bei „Mit Apple anmelden“ übermittelt (ggf. Weiterleitungsadresse), bzw. die bei der Registrierung angegebene; Mitteilungen zum Konto |
+| Kennungen → Nutzer-ID | ja | ja | nein | App-Funktionalität | Konto-ID und Apple-Kennung beim StudiNow-Dienst; Hash (SHA-256) der Stud.IP-Benutzerkennung (Datentrennung im Geräteabgleich, seit 12.11.2026); CloudKit-Nutzerkennung (zufällig, nur für StudiNow) in jedem Community-, Wochentest- und Bibliotheks-Datensatz (Zurückziehen, Melden, Blockieren, Moderation) |
+| Kennungen → Geräte-ID | ja | ja | nein | App-Funktionalität | zufällige Kennung dieser Installation (`ipad-<UUID>`, `StudoraAccountLink.deviceID`, keine Werbe- oder Hardware-Kennung) als `device_id` bei Anmeldung und Geräteabgleich; der Dienst führt sie bei der Sitzung (Geräteliste, andere Geräte abmelden). **Neu seit Audit P46-04 (08.11.2026), gilt ab Build 27; in App Store Connect vom Inhaber nachzutragen** |
+| Käufe → Kaufverlauf | ja | ja | nein | App-Funktionalität | die von Apple signierte Transaktion (Produkt, Laufzeit, Transaktionskennung) geht an `/api/billing/apple/verify`, damit Tarif und Credits am Konto stimmen; keine Zahlungsdaten |
+| Nutzerinhalte → Andere Nutzerinhalte | ja | ja | nein | App-Funktionalität | Community (Lösungen verschlüsselt, Fragen, Antworten, Kommentare, Meldungen; CloudKit bzw. mit Konto im Dienst); KI-Anfragen (Seitentext bzw. Bild eines Bereichs, Frage, Kurs- und Dateiname) an den Dienst und weiter an den KI-Anbieter; Geräteabgleich mit dem Konto (Module, Termine, Lernpakete, Karteikarten, Einstellungen; Notizen ab Pro AI) |
 | Nutzungsdaten → Produktinteraktion | ja | ja | nein | App-Funktionalität | je KI-Anfrage Zeitpunkt, Art der Aufgabe und verbrauchte Credits (Abrechnung der Credits, Monatsgrenze) |
 | Gesundheit und Fitness, Finanzinformationen, Standort, sensible Daten, Kontakte, Browserverlauf, Suchverlauf, Diagnose, Name, sonstige Daten | nein | – | – | – | – |
 
@@ -277,9 +287,9 @@ Warum so:
   nicht in iCloud, nicht im Backup). Das Passwort geht nur an die Anmeldeseiten der Hochschule, nie an StudiNow-Server;
   der Dienst speichert keine Hochschul-Passwörter (seit 06.11.2026, `DATENSCHUTZ.md` Abschnitt 6). Es verlässt das
   Gerät also nicht in unsere Richtung – keine Erfassung im Sinne Apples.
-- **Mit Apple anmelden beim Start** bleibt auf dem iPad (Kennung, Name, E-Mail im Schlüsselbund). Erst die freiwillige
-  Anmeldung beim **StudiNow-Konto** schickt Apples Identitäts-Token an den Dienst – daher E-Mail-Adresse und Nutzer-ID.
-  Den Namen übermittelt die App dabei nicht.
+- **Mit Apple anmelden beim Start** meldet seit 12.11.2026 zugleich beim **StudiNow-Konto** an: Apples
+  Identitäts-Token (und der einmalige Code für das Refresh-Token zum Widerruf) gehen an den Dienst – daher E-Mail-Adresse
+  und Nutzer-ID. Den Namen übermittelt die App dabei nicht; er bleibt im Schlüsselbund des iPads.
 - **KI (Pro AI bzw. Probe des Kontos):** Der Dienst gibt jede Anfrage an einen Auftragsverarbeiter weiter (heute
   OpenAI; Claude über Amazon Bedrock Frankfurt, sobald eingeschaltet). Antworten speichert der Dienst 24 Stunden bzw.
   ohne Kontobezug bis 30 Tage (`DATENSCHUTZ.md` 8c) – darum „erfasst“. Die Anmeldung bei ChatGPT ist im Build aus
@@ -326,7 +336,7 @@ Jahrespreis aus dem Store und „entspricht … im Monat“ (Jahrespreis durch 1
 | Einführungsangebot | keins | keins |
 | Einreichen | mit Version 1.0 bzw. dem nächsten Build (Version → In-App-Käufe und Abonnements → Produkt auswählen) | ebenso |
 | Prüf-Screenshot | Tarifseite mit allen drei Karten: `~/Studora-Builds/appstore-pruefung/tarif-portrait.png` (bzw. `tarif-landscape.png`; `StoreScreenshotFinalTests.testTarifPruefung`, Stand 09.11.2026, neu aufnehmen) | dasselbe Bild (Pro-AI-Karte mit 39,99 €, KI-Funktionen und Konto-Hinweis) |
-| Prüfhinweis zum Abo | „Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, the course community (read and post) and sharing own solutions; StudiNow Free has no community. Yearly subscription. Buy and restore on the plan page: Einstellungen → Zugang & Darstellung → Tarif → Tarif wechseln.“ | „Pro AI includes everything in Plus plus the StudiNow AI (100 credits per calendar month) and note sync between devices. Yearly subscription. The AI runs on our service and needs a StudiNow account: Einstellungen → Zugang & Darstellung → StudiNow-Konto → Mit Apple anmelden. Then open a PDF and use KI-Hilfe.“ |
+| Prüfhinweis zum Abo | „Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, the course community (read and post) and sharing own solutions; StudiNow Free has no community. Yearly subscription. Buy and restore on the plan page: Einstellungen → Zugang & Darstellung → Tarif → Tarif wechseln.“ | „Pro AI includes everything in Plus plus the StudiNow AI (100 credits per calendar month) and note sync between devices. Yearly subscription. The AI runs on our service with the StudiNow account; "Sign in with Apple" on first launch signs in there too (fallback: Einstellungen → Zugang & Darstellung → Konto → Mit Apple anmelden). Then open a PDF and use KI-Hilfe.“ |
 
 **Frühere Monatsabos** (`de.uniflow.plus.monthly`, `de.uniflow.proai.monthly`, bis 09.11.2026): in App Store Connect
 genehmigt und nicht löschbar, darum **aus dem Verkauf genommen** (Klickliste in `ABO-NUR-JAHR-2026-11-09.md`). Die App
@@ -414,7 +424,7 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3986 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 12.11.2026, eine Apple-Anmeldung für alles) – 3987 Zeichen (max. 4000)
 
 ```text review-notes-proai
 New in 1.0.2: save the university login once ("Uni-Zugang" in settings); "Sync" then refreshes Stud.IP, QIS and mail. Bug fixes.
@@ -435,13 +445,13 @@ Subscriptions (yearly only, no introductory offers; the monthly products are rem
 - "StudiNow Pro AI": everything in Plus, the StudiNow AI with 100 credits per month, note sync between devices.
 Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
-AI (Pro AI) runs on our own service (https://app.studinow.app) and needs a StudiNow account. Test:
+AI (Pro AI) runs on our own service (https://app.studinow.app) with the StudiNow account; first-launch "Sign in with Apple" signs in there too. Test:
 1. Buy "StudiNow Pro AI" in the sandbox (or skip it: a new StudiNow account has a 7-day trial with 25 credits).
-2. "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden". Our service then verifies the signed transaction and assigns the plan.
+2. Our service verifies the signed transaction and assigns the plan (if offline then: "StudiNow-Konto" → "Mit Apple anmelden").
 3. Open a demo PDF, tap "KI-Hilfe" and ask about the page, or choose "Ganzes Dokument" → "Ganze Vorlesung erklären".
 The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Zustimmen und fortfahren". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan for AI help and AI study plan; flashcards from a document need Plus, weekly tests Pro AI): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
 
-Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device); the "StudiNow-Konto" card has its own "Konto löschen" (online).
+Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device and our service; revokes Sign in with Apple).
 
 Community (guideline 1.2): course members share notes on exercise sheets, ask and comment under a pseudonym (encrypted; CloudKit or our service). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours, remove content and ban users. Contact: support@studinow.app.
 

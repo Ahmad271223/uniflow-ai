@@ -9,13 +9,17 @@ struct WelcomeView: View {
     /// Rufname fuer die Begruessung (`UFGreeting`), vorgemerkt in den gemeinsamen Einstellungen
     @State private var rufname = Rufname.current(container: nil) ?? ""
 
-    /// wofuer das Konto dient: Icon, Titel, Erklaerung. Nur was V1 wirklich tut: Das Abo haengt an der Apple-ID im App
-    /// Store (StoreKit, ohne appAccountToken), nicht an dieser Anmeldung; einen Abgleich zwischen Geraeten gibt es nicht.
+    /// wofuer das Konto dient: Icon, Titel, Erklaerung. Seit 12.11.2026 (Entscheidung des Inhabers: eine Anmeldung fuer
+    /// alles) meldet dieselbe Anmeldung auch beim StudiNow-Dienst an; eine Apple-ID = ein StudiNow-Konto = ein Abo.
     static let reasons: [(String, String, String)] = [
         ("graduation", "Hochschul-Zuordnung", "Deine Hochschule, ihre Verbindungen (z. B. Stud.IP) und deine Kurse werden deinem Konto zugeordnet – getrennt je Hochschule."),
-        ("user", "Getrennte Daten", UFDevice.adapt("Dateien, Notizen und Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Nichts davon wird an StudiNow gesendet.")),
-        ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store, unabhängig von der Anmeldung in StudiNow."),
+        ("user", "Getrennte Daten", UFDevice.adapt("Dateien, Notizen und Uni-Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Hochschul-Passwörter und Dateien aus Stud.IP gehen nie an StudiNow.")),
+        ("sync", "StudiNow-Konto", "Dieselbe Anmeldung meldet dich beim StudiNow-Dienst an: für die StudiNow-KI mit Credits, deinen Tarif auf allen Geräten und den Abgleich von Modulen, Stundenplan, Lernplan und Karteikarten zwischen deinen Geräten (Notizen mit Pro AI)."),
+        ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store. Mit derselben Apple-ID hast du auf jedem Gerät dasselbe StudiNow-Konto und dasselbe Abo."),
     ]
+
+    /// Satz unter dem Knopf: was StudiNow von Apple bekommt und wo es liegt
+    static let footnote = UFDevice.adapt("Mit der Anmeldung erhält StudiNow von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse. Kennung und E-Mail-Adresse (ggf. Apples Weiterleitungsadresse) speichert der StudiNow-Dienst für dein Konto, dein Name bleibt auf diesem iPad. Dateien aus Stud.IP bleiben nur auf diesem iPad.")
 
     var body: some View {
         OnboardingPage {
@@ -84,7 +88,7 @@ struct WelcomeView: View {
                 .padding(.top, 12.8)
                 #endif
 
-                Text(UFDevice.adapt("Dateien aus Stud.IP bleiben nur auf diesem iPad. Mit der Anmeldung erhält StudiNow von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse."))
+                Text(Self.footnote)
                     .ufFont(12.8).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 19.2)

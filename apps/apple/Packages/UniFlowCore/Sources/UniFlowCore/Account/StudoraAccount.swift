@@ -161,11 +161,14 @@ public actor StudoraAccount {
     /// Mit Apple: das `identity_token` von "Mit Apple anmelden" (Konto ueber die Apple-Kennung, nie ueber die E-Mail).
     /// `nonce`: der Rohwert, dessen SHA-256 in der Anfrage an Apple stand (der Dienst prueft beides). Ein neues Konto
     /// braucht die Hochschule (`university`); `email` nur, wenn Apple keine Adresse ins Token schreibt. Neue Konten
-    /// bekommen beim Dienst die 7-Tage-Probe mit 25 Credits (`accounts.grant_trial`).
+    /// bekommen beim Dienst die 7-Tage-Probe mit 25 Credits (`accounts.grant_trial`). `authorizationCode`: der einmalige
+    /// Code derselben Anmeldung; der Dienst tauscht ihn bei Apple gegen ein Refresh-Token, das er beim Loeschen des
+    /// Kontos bei Apple widerruft (Richtlinie 5.1.1(v), app/apple_signin.py).
     public func loginWithApple(identityToken: String, nonce: String? = nil, university: String? = nil,
-                               email: String? = nil) async throws -> (user: User, created: Bool) {
+                               email: String? = nil, authorizationCode: String? = nil) async throws -> (user: User, created: Bool) {
         var body: [String: JSONValue] = ["identity_token": .string(identityToken), "device_id": .string(deviceID), "device_name": .string(deviceName)]
         if let nonce { body["nonce"] = .string(nonce) }
+        if let authorizationCode, !authorizationCode.isEmpty { body["authorization_code"] = .string(authorizationCode) }
         if let university, !university.isEmpty { body["university"] = .string(university) }
         if let email, !email.isEmpty { body["email"] = .string(email) }
         let r = try await request("POST", "/api/account/login/apple", body: .object(body), auth: false)

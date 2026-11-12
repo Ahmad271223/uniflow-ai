@@ -554,6 +554,19 @@ final class ContainerManager: ObservableObject {
         return Self.deletionProblem(left)
     }
 
+    /// "Anderer Stud.IP-Benutzer" → "Neu beginnen" (12.11.2026, `StudIPUserMark`): die Sitzung des neuen Benutzers
+    /// merken, die Daten dieser Hochschule ueber den vorhandenen Weg "Daten dieser Hochschule löschen"
+    /// (`deleteUniversityData`) entfernen und im leeren Datenbereich mit derselben Sitzung den Abgleich starten (er merkt
+    /// sich den neuen Benutzer). Rueckgabe wie `deleteUniversityData`.
+    @discardableResult
+    func restartForNewStudIPUser() async -> String? {
+        guard let key = active?.key else { return nil }
+        let cookies = studip.cookies.load()
+        let problem = await deleteUniversityData(key)
+        if !cookies.isEmpty, active?.key == key { studip.signedIn(cookies: cookies) }
+        return problem
+    }
+
     /// "Konto löschen": alle Container des Nutzers samt Webdaten, Schluesselbund und Einstellungen; laufende Abgleiche
     /// werden vorher angehalten und abgewartet. Rueckgabe wie `deleteUniversityData`.
     @discardableResult
