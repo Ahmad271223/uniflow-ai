@@ -310,8 +310,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var onAskAI: ((TutorAttachment?) -> Void)?
     /// Kurzer Hinweis unten im Editor (z. B. was "Auswählen" greift, wie "Bereich an KI" geht)
     var onHint: ((String) -> Void)?
-    /// KI verbunden (`ufAIEnabled`)
-    var aiAvailable = false
+    /// KI verbunden (`ufAIEnabled`); traegt "Schwebend" dann "KI fragen" am Rand der Palette
+    var aiAvailable = false {
+        didSet { if aiAvailable != oldValue { updateFloatingPalette() } }
+    }
+    /// Lage der Werkzeuge (Einstellung, `EditorToolbarPlacement`): oben/unten fest zeigt `DocumentView` die Leiste,
+    /// "Schwebend" zeigt dieser Editor Apples Palette (nur der Editor, der die Werkzeuge fuehrt; am Mac nie)
+    var toolbarPlacement: EditorToolbarPlacement = .standard {
+        didSet { if toolbarPlacement != oldValue { updateFloatingPalette() } }
+    }
+    /// Apples schwebende Palette ("Schwebend"), erst bei Bedarf angelegt
+    private(set) var floatingPalette: EditorFloatingPalette?
     /// "Als Karteikarte" aus markiertem PDF-Text (Schritt K): der markierte Text geht an das Blatt "Karte anlegen"
     var onFlashcardFromSelection: ((String) -> Void)?
     /// In der geteilten Ansicht teilen sich beide Dokumente einen Verlauf, damit "Rueckgaengig" der gemeinsamen
@@ -624,7 +633,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         super.viewDidAppear(animated)
         configureScrollGestures()
         if ownsToolPicker { publishToolbar() }
-        // Fokus zum Anker (Tastenbefehle), ausser jemand markiert gerade PDF-Text oder tippt
+        // Fokus zum Anker (Tastenbefehle, schwebende Palette), ausser jemand markiert gerade PDF-Text oder tippt
         if ownsToolPicker, !hasPDFSelection, !Self.isTypingField(UIResponder.uf_current) {
             anchor.becomeFirstResponder()
         } else {
@@ -643,6 +652,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         super.viewWillDisappear(animated)
         releaseSystemGestures()                               // Zurueck-Wischen gehoert wieder der Navigation
         if magnifier != nil { setMagnifier(false) }          // Schreiblupe gehoert zu diesem Dokument
+        // schwebende Palette gehoert zu diesem Dokument (erscheint die Ansicht wieder, zeigt `viewDidAppear` sie neu)
+        floatingPalette?.setVisible(false, for: [anchor])
         // Verlassen schreibt nie: jede Aenderung einer geladenen Canvas ging schon beim Zeichnen an den Store
         // (`canvasViewDrawingDidChange`), hier wird nur ein offener Rueckgaengig-Schritt abgeschlossen
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
@@ -981,6 +992,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         c.tool = canvasTool
         c.isRulerActive = tools.ruler
         if Self.isMac { mouseSupport.adoptContextMenu(of: c) }   // Rechtsklick: unser Menue statt dem der Zeichenflaeche
+        // "Schwebend": Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben)
+        if let f = floatingPalette, floatingPaletteWanted { f.setVisible(true, for: [c]) }
     }
 
     /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).
@@ -1533,6 +1546,42 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func publishToolbar() {
         guard ownsToolPicker else { return }
         onToolbarChange?(toolbarMode)
+        updateFloatingPalette()
+    }
+
+    /// "Schwebend" gewaehlt und Werkzeuge erlaubt (wie die feste Leiste: Schreiben im Tarif, nicht beim Abpausen, nicht in
+    /// der Praesentation); am Mac nie
+    var floatingPaletteWanted: Bool {
+        ownsToolPicker && !Self.isMac && toolbarPlacement == .floating && toolbarMode.visible
+    }
+
+    /// Apples Palette zeigen oder verbergen (Anker und Zeichenflaechen); ohne Plus erscheint sie nie, die Dokumentansicht
+    /// zeigt dann den Hinweis mit Schloss
+    func updateFloatingPalette() {
+        guard ownsToolPicker, !Self.isMac else { return }
+        let want = floatingPaletteWanted
+        if want, floatingPalette == nil {
+            let f = EditorFloatingPalette(tools: tools)
+            f.onAskAI = { [weak self] in self?.askAIFromToolbar() }
+            f.onHidden = { [weak self] in
+                guard let self, self.floatingPaletteWanted else { return }
+                self.restorePickerSoon()
+            }
+            floatingPalette = f
+        }
+        guard let f = floatingPalette else { return }
+        if want {
+            f.reflect()
+            f.setVisible(true, for: [anchor] + allOverlays.map(\.canvas))
+            f.updateAccessory(aiAvailable: aiAvailable)
+            if view.window != nil, !anchor.isFirstResponder, !editorHoldsFocus, !hasPDFSelection,
+               !Self.isTypingField(UIResponder.uf_current) {
+                anchor.becomeFirstResponder()
+            }
+        } else {
+            f.setVisible(false, for: [anchor] + allOverlays.map(\.canvas))
+        }
+        applyCanvasTool()
     }
 
     // MARK: Fokus bleibt beim Editor
@@ -1685,7 +1734,12 @@ extension PDFEditorController: UIPencilInteractionDelegate {
 
     /// Werkzeug fuer die Zeichenflaechen: das der Leiste; bei einem Objektwerkzeug das letzte der Zeichenflaeche (die
     /// nimmt dann keine Eingabe an)
-    var canvasTool: PKTool { tools.canvasTool }
+    var canvasTool: PKTool {
+        // "Schwebend": genau das Werkzeug der Palette (auch Apples weitere Stifte), solange es dort gewaehlt ist
+        if floatingPaletteWanted, tools.tool.drawsOnCanvas, let t = floatingPalette?.appleTool, Self.canvasKnows(t) { return t }
+        return tools.canvasTool
+    }
+
 
     nonisolated static func canvasKnows(_ t: PKTool) -> Bool { t is PKInkingTool || t is PKEraserTool || t is PKLassoTool }
 
@@ -1711,6 +1765,8 @@ extension PDFEditorController: UIPencilInteractionDelegate {
     ///   letzten Stift zurueck; "Bereich an KI" geht immer (schreibt nichts).
     /// - `initial`: beim Oeffnen steht die Leiste nie auf einem Objektwerkzeug.
     func toolsChanged(_ change: EditorToolState.Change, initial: Bool = false) {
+        // Wahl aus Leiste, Tastatur oder Apple Pencil: die schwebende Palette zeigt sie (kam sie aus der Palette, nicht)
+        if ownsToolPicker, let f = floatingPalette, !f.isApplying { f.reflect() }
         noteStyles()
         applyCanvasTool()
         guard change != .ruler else { return }

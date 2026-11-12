@@ -761,6 +761,8 @@ private struct AccountTab: View {
                                 Task { await api.put(["hand": .string(v)], toast: "Schreibhand gespeichert") }
                             }))
             }
+            SettingsDivider()
+            EditorToolbarPlacementRow()                                  // Werkzeugleiste oben/unten/schwebend (12.11.2026)
             .padding(.bottom, -12)
         }
     }
@@ -1105,6 +1107,8 @@ private struct LocalAccountTab: View {
                         SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
                             UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
                         }
+                        SettingsDivider()
+                        EditorToolbarPlacementRow()                      // Werkzeugleiste oben/unten/schwebend (12.11.2026)
                         .padding(.bottom, -12)
                     }
                     BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)

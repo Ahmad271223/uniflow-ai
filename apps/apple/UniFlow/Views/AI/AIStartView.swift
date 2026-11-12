@@ -20,6 +20,7 @@ struct AIStartView: View {
     @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufAIAccess) private var aiAccess
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @Environment(\.ufStudiNowAI) private var studinowAI
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
@@ -232,20 +233,26 @@ struct AIStartView: View {
 
     /// Reihenfolge und Farben der Aktionen: Fragen (Teal), Karteikarten (Orange), Erklaeren (Gruen), Wochentest
     /// (Blau), Hilfe (Violett) – Paarungen aus der Palette der Community
+    /// Schloss einer KI-Aktion: ohne KI und ohne Pro AI "ab Pro AI" (Auftrag des Inhabers 12.11.2026)
+    private func lock(_ f: UFFeature) -> UFPlan? {
+        UFLock.ai(f, plan: ent.plan, aiEnabled: aiEnabled, offerHidden: proAIOfferHidden)
+    }
+
     @ViewBuilder private func pills(compact: Bool, dense: Bool = false) -> some View {
-        AIActionPill(title: "Fragen", sub: "Zur Seite, zur Aufgabe, zum Begriff", icon: "sparkles", pair: CommunityPalette.teal, compact: compact, dense: dense) {
+        AIActionPill(title: "Fragen", sub: "Zur Seite, zur Aufgabe, zum Begriff", icon: "sparkles", pair: CommunityPalette.teal, compact: compact, dense: dense,
+                     lock: lock(.aiHelp)) {
             help = false
             askFocused = true
         }
         .accessibilityIdentifier("ai.start.pill.ask")
         AIActionPill(title: "Karteikarten", sub: "Aus einem Dokument, zum Durchsehen vor dem Speichern", icon: "cards",
-                     pair: CommunityPalette.peach, compact: compact, dense: dense) { openFlashcards() }
+                     pair: CommunityPalette.peach, compact: compact, dense: dense, lock: lock(.aiFlashcards)) { openFlashcards() }
             .accessibilityIdentifier("ai.start.pill.cards")
         AIActionPill(title: "Erklären / PDF analysieren", sub: "Zusammenfassung des Dokuments, dann weiter im Editor", icon: "book",
-                     pair: CommunityPalette.mint, compact: compact, dense: dense) { Task { await explain() } }
+                     pair: CommunityPalette.mint, compact: compact, dense: dense, lock: lock(.aiHelp)) { Task { await explain() } }
             .accessibilityIdentifier("ai.start.pill.explain")
         AIActionPill(title: "Wochentest", sub: "15 Aufgaben zu einer Lehrwoche, gemeinsam je Modul", icon: "exam",
-                     pair: CommunityPalette.sky, compact: compact, dense: dense) { openQuiz() }
+                     pair: CommunityPalette.sky, compact: compact, dense: dense, lock: lock(.weeklyTests)) { openQuiz() }
             .accessibilityIdentifier("ai.start.pill.quiz")
         AIActionPill(title: "Hilfe", sub: "Was die KI-Hilfe kann und wie du anfängst, ohne KI", icon: "life-buoy",
                      pair: CommunityPalette.lavender, compact: compact, dense: dense) { showHelp() }

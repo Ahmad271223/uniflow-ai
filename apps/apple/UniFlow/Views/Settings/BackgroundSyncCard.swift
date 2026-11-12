@@ -143,6 +143,9 @@ struct BackgroundSyncCard: View {
                     .ufFont(13.12, 600).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("background.last")
+                // Abgleich der Notizen zwischen deinen Geraeten ist Pro AI: in Free und Plus sichtbar mit Schloss
+                // (Auftrag des Inhabers 12.11.2026); mit Pro AI steht er in der Karte des StudiNow-Kontos
+                DeviceSyncLockRow()
                 #if DEBUG
                 // Im Simulator lehnt iOS BGTaskScheduler ab ("not available on this platform", Code 1): derselbe Lauf
                 // wie beim Start durch iOS, nur von Hand
@@ -224,6 +227,30 @@ struct BackgroundSyncCard: View {
                     notify = false
                     hint = BackgroundSyncCard.deniedText
                 }
+            }
+        }
+    }
+}
+
+/// "Notizen auf allen deinen Geräten" (`UFFeature.deviceSync`, Pro AI) ohne Pro AI: Zeile mit Schloss "ab Pro AI",
+/// Antippen oeffnet die Tarifwahl. Mit Pro AI nichts (der Abgleich steht in der Karte des StudiNow-Kontos).
+struct DeviceSyncLockRow: View {
+    @ObservedObject private var ent = Entitlements.shared
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
+
+    var body: some View {
+        if let lock = UFLock.plan(.deviceSync, plan: ent.plan), !(lock == .proAI && proAIOfferHidden) {
+            SettingsDivider().padding(.vertical, 12)
+            UFLockedButton(plan: lock, title: UFFeature.deviceSync.title, identifier: "settings.deviceSync.locked") {
+                HStack(spacing: 8) {
+                    UFIcon(UFFeature.deviceSync.icon, size: 16).foregroundStyle(UF.muted)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(UFFeature.deviceSync.title).ufFont(14.5, 550).foregroundStyle(UF.text)
+                        Text(UFFeature.deviceSync.detail ?? "").ufFont(12.8).foregroundStyle(UF.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(minHeight: 44)
             }
         }
     }

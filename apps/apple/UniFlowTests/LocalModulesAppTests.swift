@@ -275,8 +275,10 @@ final class LocalModulesAppTests: XCTestCase {
         XCTAssertFalse(shows(shown, "Woche 4 · 02.11. – 08.11."), "keine Dateien in Woche 4: \(all)")
         XCTAssertTrue(shows(shown, "Gruppenübung"), all)
         XCTAssertTrue(shows(shown, "Altklausur"), all)
-        // ohne PC keine KI-Zusammenfassung der Woche
-        XCTAssertFalse(shows(shown, "Zusammenfassen"), all)
+        // ohne PC und ohne KI keine KI-Zusammenfassung der Woche; seit 12.11.2026 (Auftrag des Inhabers: gesperrt heisst
+        // sichtbar mit Schloss) steht der Knopf ohne Pro AI mit Schloss "ab Pro AI" da (LockVisibilityAppTests), mit Pro AI
+        // ohne KI-Verbindung gar nicht
+        XCTAssertEqual(shows(shown, "Zusammenfassen"), UFLock.ai(.aiHelp, plan: Entitlements.shared.plan, aiEnabled: false) != nil, all)
 
         // Gegenprobe: dieselben Antworten, aber als eigener Server (kein Netz, dieselbe lokale Weiche) zeigen den Knopf
         let server = APIClient(base: URL(string: "http://pc-server.invalid/")!, transport: recorder)

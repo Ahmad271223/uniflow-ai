@@ -181,10 +181,14 @@ final class OpenAIKeyLinkAppTests: XCTestCase {
         addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
         let off = try hostWithEnvironment(GeneratePlanDialog(api: nil, start: "2026-11-09") {})
         XCTAssertTrue(off.wait { off.labels().contains { $0 == "Erstellen" } }, off.labels().joined(separator: " | "))
-        XCTAssertFalse(off.labels().contains { $0 == "KI-Vorschlag" })
+        // ohne KI: "KI-Vorschlag" nur mit Schloss "ab Pro AI" (Auftrag des Inhabers 12.11.2026), nicht der echte Knopf
+        let offIDs = EditorToolbarTests.identifiers(in: off.view)
+        XCTAssertFalse(offIDs.contains("plan.aiSuggest"), offIDs.sorted().joined(separator: ", "))
+        XCTAssertTrue(offIDs.contains("plan.aiSuggest.locked"), "ohne KI mit Schloss")
         XCTAssertTrue(off.labels().contains { $0.contains("KI-Vorschlag: mit deinem eigenen ChatGPT") }, "ohne KI der Weg dahin")
         let on = try hostWithEnvironment(GeneratePlanDialog(api: nil, start: "2026-11-09") {}.environment(\.ufAIEnabled, true))
         XCTAssertTrue(on.wait { on.labels().contains { $0 == "KI-Vorschlag" } }, on.labels().joined(separator: " | "))
+        XCTAssertFalse(EditorToolbarTests.identifiers(in: on.view).contains("plan.aiSuggest.locked"), "mit KI kein Schloss")
         XCTAssertFalse(on.labels().contains { $0.contains("KI-Vorschlag: mit") })
     }
 }

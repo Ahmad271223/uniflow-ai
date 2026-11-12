@@ -750,7 +750,7 @@ struct CommunityPeopleReader: View {
         .navigationBarTitleDisplayMode(.inline)
         // eigene PDF zur Loesung suchen (Korrektur nur mit derselben PDF)
         .task(id: current.solutionID) { await lookUpPDF(current) }
-        .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
+        .sheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }   // Schloss: Tarifwahl (12.11.2026)
         .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
             if let s = reporting {
                 CommunityReportDialog(solution: s, service: service, done: { m in reporting = nil; notice = m })

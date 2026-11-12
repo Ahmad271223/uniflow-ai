@@ -207,9 +207,13 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         return false
     }
 
-    /// Element mit dem Hinweis "Gesperrt. Öffnet die Tarifwahl." (ufRequires), dessen Beschriftung `label` enthaelt
+    /// Gesperrtes Element (ufRequires, Schloss), dessen Beschriftung `label` enthaelt. Seit 12.11.2026 sagt VoiceOver
+    /// einheitlich den Wert "gesperrt, ab Plus" und den Hinweis "Öffnet die Tarifwahl." (vorher Hinweis "Gesperrt. …")
     private func lockedElement(_ env: HostedEnvironment, containing label: String) -> NSObject? {
-        allElements(env).first { ($0.accessibilityLabel ?? "").contains(label) && ($0.accessibilityHint ?? "").hasPrefix("Gesperrt") }
+        allElements(env).first {
+            ($0.accessibilityLabel ?? "").contains(label) && ($0.accessibilityValue ?? "").hasPrefix("gesperrt, ab ")
+                && $0.accessibilityHint == UFLock.hint
+        }
     }
 
     private func unlabeledButtons(_ env: HostedEnvironment) -> [String] {
@@ -516,6 +520,16 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         // Lernkalender und Stundenplan (frei)
         env.router.go(.plan())
         station(env, "\(p)-09-lernkalender", markers: ["Lernkalender"])
+        // Auftrag des Inhabers 12.11.2026: gesperrt heisst sichtbar mit Schloss ("Plan erstellen" ab Plus, Seitenleiste)
+        if plan >= .plus {
+            XCTAssertNil(lockedElement(env, containing: "Plan erstellen"), "\(p): Plan erstellen frei")
+        } else {
+            XCTAssertNotNil(lockedElement(env, containing: "Plan erstellen"), "\(p): Plan erstellen mit Schloss\n" + dump(env))
+        }
+        let cardsLock = allElements(env).first { EditorToolbarTests.identifier($0) == "nav.cards" }?.accessibilityValue ?? ""
+        XCTAssertEqual(cardsLock, plan >= .plus ? "" : UFLock.accessibilityValue(.plus), "\(p): Karteikarten in der Seitenleiste")
+        let examsLock = allElements(env).first { EditorToolbarTests.identifier($0) == "nav.exams" }?.accessibilityValue
+        if plan < .proAI { XCTAssertEqual(examsLock, UFLock.accessibilityValue(.proAI), "\(p): Tests & Wiederholung mit Schloss") }
         env.router.go(.timetable())
         station(env, "\(p)-10-stundenplan", markers: ["Stundenplan", "Grundlagen der Informatik"])
 

@@ -249,6 +249,9 @@ struct UFNavItem: Identifiable {
     let title: String
     let icon: String
     let route: UFRoute
+    /// Schloss (Auftrag des Inhabers 12.11.2026): Bereich gehoert zu einem hoeheren Tarif, steht aber sichtbar im Menue
+    /// ("ab Plus" bzw. "ab Pro AI"); Antippen oeffnet die Seite und die Tarifwahl mit diesem Tarif. nil = frei
+    var lock: UFPlan? = nil
 
     static let main: [UFNavItem] = [
         UFNavItem(id: "dashboard", title: "Übersicht", icon: "home", route: .dashboard),
@@ -286,13 +289,28 @@ struct UFNavItem: Identifiable {
     /// "Karteikarten" bleibt daneben.
     /// `messages`: "Nachrichten" direkt nach "Übersicht" (Stud.IP-Posteingang nur auf dem Geraet; der Aufrufer
     /// entscheidet mit `MessagesInbox.showsNavItem`, am eigenen Server und in Hildesheim ohne Nachrichten nie)
+    /// `plan`: wirksamer Tarif (Auftrag des Inhabers 12.11.2026: gesperrt heisst sichtbar mit Schloss). Dann steht
+    /// "Tests & Wiederholung" ohne KI mit Schloss "ab Pro AI" da (Wochentests gehoeren zu Pro AI), "Karteikarten" und
+    /// "Community" in Free mit Schloss "ab Plus". Ohne iCloud-Container im Build bleibt die Community weg (technisch, kein
+    /// Tarif), ebenso "Tests & Wiederholung" mit Pro AI ohne KI-Verbindung (Anmeldung fehlt, kein Schloss). nil = ohne
+    /// Schloesser wie bisher (Tests, eigener Server).
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
                         flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false,
-                        uniMail: Bool = false) -> [UFNavItem] {
+                        uniMail: Bool = false, plan: UFPlan? = nil, proAIHidden: Bool = false) -> [UFNavItem] {
+        func locked(_ item: UFNavItem, _ f: UFFeature) -> UFNavItem {
+            var i = item
+            i.lock = plan.flatMap { UFLock.plan(f, plan: $0) }
+            return i
+        }
+        // Pro AI nicht zu kaufen (nur Store-Bilder der Fassung nur mit Plus, `ufProAIOfferHidden`): kein Schloss "ab Pro AI"
+        let examsLock = plan.flatMap { ai ? nil : UFLock.plan(.weeklyTests, plan: $0) }.flatMap { $0 == .proAI && proAIHidden ? nil : $0 }
         let base: [UFNavItem] = local ? main.flatMap { item -> [UFNavItem] in
             switch item.id {
-            case "exams": return (ai ? [item] : []) + (flashcards ? [cards] : [])
-            case "community": return community ? [item] : []
+            case "exams":
+                var exams = item
+                exams.lock = examsLock
+                return (ai || examsLock != nil ? [exams] : []) + (flashcards ? [locked(cards, .flashcards)] : [])
+            case "community": return community ? [locked(item, .communityRead)] : []
             case "services": return gradesOnDevice ? [item] : []
             default: return [item]
             }
@@ -334,6 +352,9 @@ struct UFNavItem: Identifiable {
     static func accessibilityLabel(title: String, key: String, badge: Int) -> String {
         badge > 0 ? "\(title), \(badgeText(key: key, count: badge))" : title
     }
+
+    /// Titel im Logo-Menue des Editors (Text ohne Symbol): "Karteikarten (ab Plus)"
+    var menuTitle: String { lock.map { UFLock.label(title, $0) } ?? title }
 
     /// Zahl im Abzeichen: ab 100 "99+"
     static func badgeLabel(_ count: Int) -> String { count > 99 ? "99+" : "\(count)" }
@@ -481,6 +502,9 @@ struct AppShell<Content: View>: View {
     @Environment(\.ufDemoBarHidden) private var demoBarHidden
     /// Stud.IP-Nachrichten: ob der Eintrag erscheint (`MessagesInbox.showsNavItem`)
     @ObservedObject private var inbox = MessagesInbox.shared
+    /// Tarif fuer die Schloesser im Logo-Menue des Editors
+    @ObservedObject private var ent = Entitlements.shared
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
@@ -553,7 +577,8 @@ struct AppShell<Content: View>: View {
             .environment(\.ufLogoMenu, UFLogoMenuTargets(
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                          community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                         messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil).map { ($0.title, $0.route) },
+                                         messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil,
+                                         plan: ent.plan, proAIHidden: proAIOfferHidden).map { ($0.menuTitle, $0.route) },
                 go: { [router] r in router.go(r) }))
             .environment(\.ufBack, { [router] in router.goBack() })
         }
@@ -718,6 +743,8 @@ struct UFSidebar: View {
     @ObservedObject private var inbox = MessagesInbox.shared
     @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"
+    /// angetipptes Schloss eines Menuepunkts: Tarifwahl mit diesem Tarif
+    @State private var lockSheet: UFPlan?
     let collapsed: Bool
     let allowCollapse: Bool
 
@@ -726,7 +753,8 @@ struct UFSidebar: View {
         // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
         let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                       community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                      messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil)
+                                      messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil,
+                                      plan: ent.plan, proAIHidden: proAIOfferHidden)
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 9.6) {                                       // .brand
@@ -765,7 +793,7 @@ struct UFSidebar: View {
                                     pillRow(item, pair: pair, active: active, badge: router.badge(for: item.id))
                                 } else {
                                     navRow(item.title, icon: item.icon, active: active, key: item.id,
-                                           badge: router.badge(for: item.id)) { router.go(item.route) }
+                                           badge: router.badge(for: item.id), lock: item.lock) { open(item) }
                                 }
                             }
                         }
@@ -791,6 +819,14 @@ struct UFSidebar: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(UF.surface)
         .overlay(alignment: .trailing) { Rectangle().fill(UF.line).frame(width: 1) }
+        .ufPlanSheet($lockSheet)
+    }
+
+    /// Menuepunkt antippen: die Seite; mit Schloss dazu die Tarifwahl mit dem noetigen Tarif (die Seite darunter zeigt,
+    /// was bleibt, z. B. eigene Karten zum Lesen, eigene Beitraege zum Zurueckziehen)
+    private func open(_ item: UFNavItem) {
+        router.go(item.route)
+        if let p = item.lock { lockSheet = p }
     }
 
     // MARK: Profil
@@ -893,17 +929,22 @@ struct UFSidebar: View {
 
     /// Lern-Eintrag als Kapsel in seiner Farbe (wie die Knoepfe im KI-Start): aktiv gefuellt, sonst nur umrandet
     private func pillRow(_ item: UFNavItem, pair: CommunityPair, active: Bool, badge: Int) -> some View {
-        Button { router.go(item.route) } label: {
+        Button { open(item) } label: {
             HStack(spacing: 9.6) {
                 UFIcon(item.icon, size: 17)
                     .foregroundStyle(pair.fg)
                     .overlay(alignment: .topTrailing) {
                         if collapsed, badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -7) }
+                        else if collapsed, item.lock != nil { UFNavLockDot().offset(x: 9, y: -7) }
                     }
                 if !collapsed {
-                    Text(item.title).ufFont(14.08, active ? 650 : 550, lh: 1.25)
-                        .foregroundStyle(active ? pair.fg : UF.text)
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    // Schloss unter dem Titel: neben ihm kuerzte die schmale Leiste "Tests & Wiederholung"
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.title).ufFont(14.08, active ? 650 : 550, lh: 1.25)
+                            .foregroundStyle(active ? pair.fg : UF.text)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        if let p = item.lock { UFLockMark(p) }
+                    }
                     if badge > 0 {
                         Spacer(minLength: 6)
                         UFNavBadge(count: badge)
@@ -922,26 +963,27 @@ struct UFSidebar: View {
         .buttonStyle(.plain)
         .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
         .accessibilityAddTraits(active ? .isSelected : [])
+        .help(item.menuTitle)
+        .ufLockAccessibility(item.lock)
         .accessibilityIdentifier("nav.\(item.id)")
-        .help(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
     }
 
     /// Eintrag der Leiste; `badge` > 0 zeigt die Zahl rechts (eingeklappt: klein am Symbol) und nennt sie VoiceOver
-    private func navRow(_ title: String, icon: String, active: Bool, key: String = "", badge: Int = 0,
+    private func navRow(_ title: String, icon: String, active: Bool, key: String = "", badge: Int = 0, lock: UFPlan? = nil,
                         action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10.4) {
                 UFIcon(icon, size: 18)
                     .overlay(alignment: .topTrailing) {
                         if collapsed, badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -7) }
+                        else if collapsed, lock != nil { UFNavLockDot().offset(x: 9, y: -7) }
                     }
                 if !collapsed {
                     Text(title).ufFont(14.5, active ? 600 : 500, lh: 1.25)
                         .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                    if badge > 0 {
-                        Spacer(minLength: 6)
-                        UFNavBadge(count: badge)
-                    }
+                    if badge > 0 || lock != nil { Spacer(minLength: 6) }
+                    if badge > 0 { UFNavBadge(count: badge) }
+                    if let lock { UFLockMark(lock) }
                 }
             }
             .foregroundStyle(active ? UF.accentText : UF.text2)
@@ -954,8 +996,22 @@ struct UFSidebar: View {
         .buttonStyle(.plain)
         .accessibilityLabel(UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
         .accessibilityAddTraits(active ? .isSelected : [])
+        .help(lock.map { UFLock.label(title, $0) } ?? UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
+        .ufLockAccessibility(lock)
         .accessibilityIdentifier("nav.\(key.isEmpty ? title : key)")
-        .help(UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
+    }
+}
+
+/// Schloss eingeklappt am Symbol eines Menuepunkts (wie das Abzeichen klein oben rechts)
+struct UFNavLockDot: View {
+    var body: some View {
+        Image(systemName: UFLock.symbol)
+            .font(.system(size: 7.5, weight: .bold))
+            .foregroundStyle(Color.white)
+            .frame(width: 15, height: 15)
+            .background(Circle().fill(UF.accentFill))
+            .overlay(Circle().strokeBorder(UF.surface, lineWidth: 1.5))
+            .accessibilityHidden(true)
     }
 }
 
@@ -994,13 +1050,17 @@ struct UFMobileNav: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufAIEnabled) private var aiEnabled
     @ObservedObject private var inbox = MessagesInbox.shared
+    @ObservedObject private var ent = Entitlements.shared
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @Environment(\.uniMail) private var uniMail
     @State private var showMore = false
+    @State private var lockSheet: UFPlan?
 
     private var moreItems: [UFNavItem] {
         let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                         community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                        messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil)
+                                        messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil,
+                                        plan: ent.plan, proAIHidden: proAIOfferHidden)
         return UFNavItem.more(visible: visible)
     }
 
@@ -1050,6 +1110,13 @@ struct UFMobileNav: View {
                     UFMoreSheet(items: more) { r in
                         showMore = false
                         router.go(r)
+                    } locked: { item in
+                        showMore = false
+                        router.go(item.route)
+                        if let p = item.lock {
+                            // erst nach dem Schliessen des Popovers (zwei Blaetter zugleich zeigt iPadOS nicht)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { lockSheet = p }
+                        }
                     }
                     .presentationCompactAdaptation(.sheet)
                     .presentationDetents([.medium, .large])
@@ -1061,6 +1128,7 @@ struct UFMobileNav: View {
         .padding(.bottom, 4.8)
         .background(UF.surface.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
+        .ufPlanSheet($lockSheet)
         .task {
             #if DEBUG
             // Bildvergleich: -UFShowMore YES oeffnet die Liste "Mehr" beim Start
@@ -1077,6 +1145,8 @@ struct UFMobileNav: View {
 struct UFMoreSheet: View {
     let items: [UFNavItem]
     let go: (UFRoute) -> Void
+    /// Bereich mit Schloss angetippt (Seite und Tarifwahl); ohne: wie `go`
+    var locked: ((UFNavItem) -> Void)? = nil
     @EnvironmentObject private var router: UFRouter
 
     var body: some View {
@@ -1087,11 +1157,12 @@ struct UFMoreSheet: View {
             ForEach(items) { item in
                 let active = UFNavItem.active(item, in: items + UFNavItem.mobile, route: router.route)
                 let badge = router.badge(for: item.id)
-                Button { go(item.route) } label: {
+                Button { if item.lock != nil, let locked { locked(item) } else { go(item.route) } } label: {
                     HStack(spacing: 10.4) {
                         UFIcon(item.icon, size: 18)
                         Text(item.title).ufFont(14.5, 500).frame(maxWidth: .infinity, alignment: .leading)
                         if badge > 0 { UFNavBadge(count: badge) }
+                        if let p = item.lock { UFLockMark(p) }
                         UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
                     }
                     .foregroundStyle(active ? UF.accentText : UF.text)
@@ -1103,7 +1174,9 @@ struct UFMoreSheet: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
                 .accessibilityAddTraits(active ? .isSelected : [])
+                .ufLockAccessibility(item.lock)
                 .accessibilityIdentifier("more.\(item.id)")
+
             }
         }
         .padding(16)

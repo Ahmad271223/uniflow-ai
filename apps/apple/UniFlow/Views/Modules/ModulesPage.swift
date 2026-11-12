@@ -340,6 +340,9 @@ struct ModulePage: View {
     @EnvironmentObject private var session: Session
     /// KI ueber das ChatGPT-Abo des Nutzers verbunden (dann gibt es die Zusammenfassung auch ohne PC)
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
+    /// Tarif fuer die Schloesser der KI-Stellen (Wochentests, Zusammenfassen)
+    @ObservedObject private var ent = Entitlements.shared
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
@@ -473,7 +476,12 @@ struct ModulePage: View {
             DueListCard(moduleID: id, limit: 4).padding(.bottom, 14.4)       // Abgaben & Prüfungen dieses Moduls
             // Lernfortschritt & Wochentests (#wtBox): erstellt die KI, darum lokal nur mit ChatGPT-Abo (wie der
             // Modul-Dialog: sonst weder anbieten noch ankuendigen)
-            if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
+            if session.api?.isLocal == false || aiEnabled {
+                WeeklyTestsCard(module: m)
+            } else if aiLock(.weeklyTests) != nil {
+                // ohne KI und ohne Pro AI sichtbar mit Schloss (Auftrag des Inhabers 12.11.2026), Pro AI ohne Anmeldung nicht
+                UFLockedCard(.weeklyTests, entitlements: ent).padding(.bottom, 14.4)
+            }
             // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
             if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
@@ -534,6 +542,12 @@ struct ModulePage: View {
         }
     }
 
+    /// Schloss einer KI-Stelle auf dem Geraet: ohne KI und ohne Pro AI "ab Pro AI"; am eigenen Server nie
+    private func aiLock(_ f: UFFeature) -> UFPlan? {
+        guard session.api?.isLocal != false else { return nil }
+        return UFLock.ai(f, plan: ent.plan, aiEnabled: aiEnabled, offerHidden: proAIOfferHidden)
+    }
+
     @ViewBuilder private func docList(_ files: [JSONValue], empty: String, icon: String) -> some View {
         if files.isEmpty {
             // leer: Rahmen bleibt, ein Satz sagt, was hier fehlt
@@ -572,6 +586,11 @@ struct ModulePage: View {
                 // KI-Zusammenfassung mit dem PC-Server oder ueber das ChatGPT-Abo des Nutzers (LocalContext.ai)
                 if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true || aiEnabled {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }
+                } else if !w.list("vorlesungen").isEmpty, let lock = aiLock(.aiHelp) {
+                    UFLockedButton(plan: lock, title: "Zusammenfassen", identifier: "module.week.summary.locked") {
+                        HStack(spacing: 5) { UFIcon("sparkles", size: 14); Text("Zusammenfassen").ufFont(13.12, 550) }
+                            .foregroundStyle(UF.text).frame(minHeight: 44)
+                    }
                 }
             }
             .padding(.vertical, 8)
