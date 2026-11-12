@@ -182,7 +182,9 @@ enum BackgroundNews {
     }
 
     /// Mitteilungen eines Laufs nach den Schaltern: (Kennung ohne Praefix, Inhalt). Gleiche Kennung ersetzt die alte.
-    static func notices(_ d: BackgroundNewsDiff, settings: BackgroundNewsSettings, container: String) -> [(id: String, content: BackgroundNotice.Content)] {
+    /// `platform`: woher die Nachrichten kommen ("Stud.IP", an der Uni Hildesheim "Learnweb", 12.11.2026)
+    static func notices(_ d: BackgroundNewsDiff, settings: BackgroundNewsSettings, container: String,
+                        platform: String = "Stud.IP") -> [(id: String, content: BackgroundNotice.Content)] {
         var out: [(String, BackgroundNotice.Content)] = []
         if settings.grades, !d.newGrades.isEmpty {
             if d.newGrades.count > maxSingle, let n = BackgroundNotice.newGrades(d.newGrades.count) {
@@ -194,7 +196,7 @@ enum BackgroundNews {
                 }
             }
         }
-        if settings.messages, let n = BackgroundNotice.newStudIPMessages(d.newMessages) {
+        if settings.messages, let n = BackgroundNotice.newStudIPMessages(d.newMessages, platform: platform) {
             out.append(("messages.\(container)", n))
         }
         if settings.announcements, !d.newAnnouncements.isEmpty {
@@ -246,9 +248,9 @@ extension BackgroundNotice {
     }
 
     /// Nur die Zahl, nie Absender oder Betreff
-    static func newStudIPMessages(_ count: Int) -> Content? {
+    static func newStudIPMessages(_ count: Int, platform: String = "Stud.IP") -> Content? {
         guard count > 0 else { return nil }
-        return Content(title: "Neue Stud.IP-Nachricht", body: count == 1 ? "1 neue Nachricht in Stud.IP" : "\(count) neue Nachrichten in Stud.IP")
+        return Content(title: "Neue \(platform)-Nachricht", body: count == 1 ? "1 neue Nachricht in \(platform)" : "\(count) neue Nachrichten in \(platform)")
     }
 
     static func newAnnouncement(_ a: NewsAnnouncement) -> Content {

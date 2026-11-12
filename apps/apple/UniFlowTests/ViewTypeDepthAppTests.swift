@@ -123,6 +123,11 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("EditorHeaderBar", EditorHeaderBar.Body.self),
         ("DocumentTabStrip", DocumentTabStrip.Body.self),
         ("EditorToolbar", EditorToolbar.Body.self),
+        // eigene Wochen im Moduldetail (12.11.2026)
+        ("ModulePage", ModulePage.Body.self),
+        ("ModuleWeekFileRow", ModuleWeekFileRow.Body.self),
+        ("ModuleSectionMenu", ModuleSectionMenu.Body.self),
+        ("ModuleUnassignedBar", ModuleUnassignedBar.Body.self),
     ]
 
     private func check(_ name: String, _ type: Any.Type, file: StaticString = #filePath, line: UInt = #line) {

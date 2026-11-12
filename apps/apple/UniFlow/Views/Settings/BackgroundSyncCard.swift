@@ -37,10 +37,10 @@ struct BackgroundSyncCard: View {
     /// Erklaerung unter den Mitteilungen zu Noten, Nachrichten und Ankuendigungen (Version 1.3/1.4)
     static let newsText = "Jede Art hat einen eigenen Schalter. Stud.IP-Nachrichten nennen nur die Zahl, nie Absender oder Betreff. Neue Noten nennen das Modul; den Notenwert nur, wenn du es unten erlaubst – sonst stünde er auf dem Sperrbildschirm."
 
-    static func label(_ kind: BackgroundNewsKind) -> String {
+    static func label(_ kind: BackgroundNewsKind, university: UniversityKey? = nil) -> String {
         switch kind {
         case .grades: return "Neue Noten"
-        case .messages: return "Stud.IP-Nachrichten"
+        case .messages: return university == .hildesheim ? "Learnweb-Nachrichten" : "Stud.IP-Nachrichten"
         case .announcements: return "Ankündigungen"
         }
     }
@@ -165,10 +165,11 @@ struct BackgroundSyncCard: View {
             }
         }
 
-        /// Arten mit eigenem Schalter; Stud.IP-Nachrichten nur an Hochschulen mit Stud.IP
+        /// Arten mit eigenem Schalter; Nachrichten nur an Hochschulen mit Stud.IP bzw. Learnweb (Uni Hildesheim, 12.11.2026)
         private var kinds: [BackgroundNewsKind] {
-            let studip = background.containers.key?.university.profile.studipBase != nil
-            return BackgroundNewsKind.allCases.filter { $0 != .messages || studip }
+            let u = background.containers.key?.university
+            let messages = u?.profile.studipBase != nil || u == .hildesheim
+            return BackgroundNewsKind.allCases.filter { $0 != .messages || messages }
         }
 
         @ViewBuilder private var newsSection: some View {
@@ -176,7 +177,7 @@ struct BackgroundSyncCard: View {
                 .padding(.bottom, 4)
             ForEach(kinds, id: \.self) { kind in
                 Toggle(isOn: Binding(get: { newsOn[kind] ?? false }, set: { v in setNews(kind, v) })) {
-                    Text(BackgroundSyncCard.label(kind)).ufFont(14.5, 550).foregroundStyle(UF.text)
+                    Text(BackgroundSyncCard.label(kind, university: background.containers.key?.university)).ufFont(14.5, 550).foregroundStyle(UF.text)
                 }
                 .tint(UF.accent)
                 .disabled(!enabled || asking)

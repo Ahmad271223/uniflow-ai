@@ -302,6 +302,35 @@ public enum QISParser {
         return grades.filter { seen.insert([$0.pruefungsnr, $0.text, $0.semester, $0.versuch]).inserted }
     }
 
+    /// LSF der Uni Hildesheim (12.11.2026): Zeilen ohne Semester und Versuch. Vorher fielen ein nicht bestandener und
+    /// ein spaeter bestandener Versuch derselben Leistung (Pruefungsnr., Text) in `merge` und beim Speichern zu einer
+    /// Zeile zusammen (Versuche fehlten im Studienverlauf). Jetzt: gleiche Leistung mit verschiedenem Datum = weiterer
+    /// Versuch, nummeriert "1", "2" … nach Datum (gleiches Datum: Seitenreihenfolge); dieselbe Zeile mit gleichem Datum
+    /// (mehrere Reiter) bleibt eine. Zeilen mit Semester oder Versuch und Leistungen mit nur einem Datum bleiben
+    /// unveraendert. Auf echten LSF-Seiten noch ungeprueft (kein echtes Muster des Notenspiegels).
+    public static func numberAttempts(_ grades: [QISGrade]) -> [QISGrade] {
+        func key(_ g: QISGrade) -> [String?] { [g.pruefungsnr, g.text] }
+        func sortable(_ d: String?) -> String {
+            let p = (d ?? "").split(separator: ".").map(String.init)
+            return p.count == 3 ? p[2] + p[1].leftPadded(2) + p[0].leftPadded(2) : (d ?? "")
+        }
+        var dates: [[String?]: [String]] = [:]
+        for g in grades where g.semester == nil && g.versuch == nil {
+            let d = g.datum ?? ""
+            if !(dates[key(g)] ?? []).contains(d) { dates[key(g), default: []].append(d) }
+        }
+        return grades.map { g in
+            guard g.semester == nil, g.versuch == nil, let ds = dates[key(g)], ds.count > 1 else { return g }
+            let ordered = ds.enumerated().sorted { a, b in
+                let x = sortable(a.element), y = sortable(b.element)
+                return x != y ? x < y : a.offset < b.offset
+            }.map(\.element)
+            var out = g
+            out.versuch = String((ordered.firstIndex(of: g.datum ?? "") ?? 0) + 1)
+            return out
+        }
+    }
+
     /// Zahl wie float(str(x).replace(",", ".")) in Python; nil, wenn das nicht ginge.
     static func number(_ s: String) -> Double? {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
@@ -879,4 +908,9 @@ enum HTMLScanner {
         }
         return builder.result()
     }
+}
+
+
+private extension String {
+    func leftPadded(_ n: Int) -> String { count >= n ? self : String(repeating: "0", count: n - count) + self }
 }
