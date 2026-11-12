@@ -1,5 +1,10 @@
 # Was fehlt auf der Windows-Version? (Stand 05.11.2026)
 
+> **Teilweise überholt (12.11.2026):** Den aktuellen, belegten Stand mit echtem Lauf und der Tabelle Funktion × Plattform
+> gibt es in [WINDOWS-FERTIG-2026-11-12.md](WINDOWS-FERTIG-2026-11-12.md). Abschnitt 6 unten stimmt nicht mehr: ein iPad mit StudiNow-Konto
+> nutzt die Dienst-Community seit 07.11.2026 nicht mehr (`communityViaService = false`), iPad/Mac laufen über CloudKit.
+
+
 Frage des Inhabers: „Was fehlt alles auf der Windows-Version?“
 
 Nur gelesen, nichts im Repo geändert. Verglichen wurde die iPad-App (`apps/apple`, SwiftUI mit eigenem Backend im

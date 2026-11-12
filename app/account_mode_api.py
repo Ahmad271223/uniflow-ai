@@ -2,6 +2,7 @@
 
 - GET  /api/app-account/status?refresh=1    Zustand (signed_out | unverified | trial | active | subscription_required),
                                             Konto, Tarif, Probe, Apple-Abo, Kulanzzeit; refresh=1 fragt den Dienst
+- GET  /api/app-account/providers           welche Anmeldewege der Dienst im Browser kann (Apple/Google nur mit Web-Kennung)
 - POST /api/app-account/login               {email, password}: Anmelden mit E-Mail und Passwort des StudiNow-Kontos
 - POST /api/app-account/browser-login       {mode: login|register, provider?: apple|google}: im Systembrowser anmelden
 - GET  /konto/rueckkehr?code&state          Rueckleitung aus dem Browser (HTML-Seite, ausserhalb von /api)
@@ -40,6 +41,12 @@ def _call(fn, *args, **kwargs):
 def status(refresh: bool = False):
     _local()
     return account_mode.refresh() if refresh else account_mode.info()
+
+
+@router.get("/api/app-account/providers")
+def providers():
+    _local()
+    return account_mode.providers()
 
 
 @router.post("/api/app-account/login")

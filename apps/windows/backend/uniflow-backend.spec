@@ -49,6 +49,9 @@ hidden = collect_submodules("app") + [
     "uvicorn.protocols.http.h11_impl", "uvicorn.protocols.websockets.auto", "uvicorn.protocols.websockets.websockets_impl",
     "uvicorn.lifespan.on", "uvicorn.lifespan.off", "multipart", "python_multipart", "dotenv", "pypdf", "cryptography",
     "pypdfium2", "pypdfium2_raw",
+    # Bild importieren (Pillow legt das Bild als PDF-Seite ab, app/server.py api_notebook_create; 12.11.2026). Der Import steht in einer
+    # Funktion; PyInstaller findet ihn meist selbst, hier zur Sicherheit genannt. Nicht unter Windows gebaut (Kurzpruefung im Workflow).
+    "PIL", "PIL.Image", "PIL.PngImagePlugin", "PIL.JpegImagePlugin", "PIL.GifImagePlugin", "PIL.WebPImagePlugin",
 ]
 
 a = Analysis(

@@ -14,3 +14,6 @@ pypdfium2==5.14.0
 # Claude Sonnet 5.5 fuer die StudiNow-KI (app/ai_providers.py, offizielles SDK; Extra "bedrock" fuer Amazon Bedrock in der EU,
 # bringt boto3/botocore mit). Ohne das Paket faellt Claude aus der Modellmischung, alles andere laeuft.
 anthropic[bedrock]==2.1.0
+# Bild importieren (Bibliothek -> Neu -> Bild importieren, app/server.py api_notebook_create): das Bild wird als PDF-Seite abgelegt. Ohne das Paket
+# entstand ein Dokument namens *.pdf, das in Wirklichkeit ein PNG war und sich nicht oeffnen liess (Befund 12.11.2026, Windows-App). HPND-Lizenz (permissiv).
+Pillow==13.0.0

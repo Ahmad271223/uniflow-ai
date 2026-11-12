@@ -8,7 +8,7 @@
 // /api/study-plan/settings. Ohne aktives Abo (Web/Windows, account-gate.js) nur lesen. Noten aus QIS bleiben auf diesem Geraet.
 // Regeln und HTML stehen in study-plan-logic.js (laeuft auch unter node: tests/js/study-plan*.test.mjs).
 import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=46";
-import { gateState } from "./account-gate.js?v=1";
+import { gateState } from "./account-gate.js?v=2";
 import * as L from "./study-plan-logic.js?v=3";
 
 const POLL_MS = 2000;

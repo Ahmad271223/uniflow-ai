@@ -20,6 +20,9 @@ export const GATE_TEXTS = {
   loginTitle: "Bei StudiNow anmelden",
   loginText: "StudiNow für Windows braucht dein StudiNow-Konto – dasselbe wie auf dem iPad und im Web. Neue Konten haben 7 Tage Probe mit allem wie StudiNow Pro AI, ohne Zahlungsdaten.",
   browserWait: "Im Browser geöffnet. Melde dich dort an; StudiNow wechselt danach von selbst weiter.",
+  appleHintTitle: "Konto mit Apple auf dem iPad angelegt?",
+  appleHint: "Die Anmeldung mit Apple im Browser ist beim StudiNow-Dienst noch nicht freigeschaltet. So kommst du trotzdem mit demselben Konto hinein: „Passwort festlegen“ wählen, die E-Mail-Adresse deines Kontos eingeben (steht auf dem iPad unter Einstellungen → Zugang & Darstellung → StudiNow-Konto) und per Link ein Passwort festlegen. Danach hier mit E-Mail und Passwort anmelden. Das iPad wird dabei einmal abgemeldet und meldet sich danach wieder mit Apple an.",
+  appleHintButton: "Passwort festlegen",
   checkoutOpened: "Die Bezahlseite ist in deinem Browser geöffnet. Nach dem Bezahlen erscheint dein Abo hier von selbst.",
 };
 
@@ -38,6 +41,17 @@ export function gateState(ent, account) {
   if (a.locked) return "locked";
   if (a.state === "trial") return "trial";
   return "active";
+}
+
+/**
+ * Welche Knöpfe der Anmeldebildschirm zeigt. `p` = GET /api/app-account/providers. Apple und Google gehen im Browser nur,
+ * wenn der Dienst die Web-Kennung hat (sonst führt der Knopf auf eine Seite ohne Anmeldeknopf). Ist der Dienst nicht
+ * erreichbar (`reachable` false), bleiben beide Knöpfe wie bisher; der Hinweis für Apple-Konten erscheint nur, wenn der
+ * Dienst erreichbar war und Apple im Browser fehlt.
+ */
+export function socialState(p) {
+  if (!p || !p.reachable) return { apple: true, google: true, hint: false };
+  return { apple: !!p.apple_browser, google: !!p.google_browser, hint: !p.apple_browser };
 }
 
 /** Export der eigenen Daten: Windows die Daten dieses PCs, im Web das ganze Konto (DSGVO-Export) */
@@ -74,9 +88,14 @@ export function loginScreenHtml(info, { icon = () => "", esc = escHtml } = {}) {
         <div class="small" id="gateMsg" role="alert" style="min-height:1.2em;margin:.4rem 0;color:var(--bad-text)">${esc(info.last_error || "")}</div>
         <button class="btn primary" type="submit" style="width:100%;justify-content:center">Anmelden</button>
       </form>
-      <div style="display:grid;gap:.5rem;margin-top:.9rem">
+      <div id="gateSocial" style="display:grid;gap:.5rem;margin-top:.9rem">
         <button type="button" class="btn" data-browser="login" data-provider="apple" style="justify-content:center">Mit Apple anmelden</button>
         <button type="button" class="btn" data-browser="login" data-provider="google" style="justify-content:center">Mit Google anmelden</button>
+      </div>
+      <div id="gateAppleHint" class="small" style="display:none;margin-top:.9rem;padding:.7rem .8rem;border:1px solid var(--line, #e5e8f0);border-radius:10px;background:var(--info-soft, #eef4ff)">
+        <strong>${esc(GATE_TEXTS.appleHintTitle)}</strong>
+        <p class="muted" style="margin:.3rem 0 .6rem">${esc(GATE_TEXTS.appleHint)}</p>
+        <button type="button" class="btn sm" data-browser="forgot">${esc(GATE_TEXTS.appleHintButton)}</button>
       </div>
       <div class="row wrap small" style="justify-content:space-between;gap:.6rem;margin-top:.9rem">
         <a href="#" data-browser="register">Neu hier? Konto anlegen</a><a href="#" data-browser="forgot">Passwort vergessen?</a>
@@ -113,6 +132,16 @@ export function mountLogin(root, info, { icon, esc } = {}) {
     try { await post("/login", { email: f.email.value.trim(), password: f.password.value }); location.reload(); }
     catch (x) { say(x.message); b.disabled = false; }
   };
+  // Anmeldewege des Dienstes abfragen und nur zeigen, was im Browser auch geht (socialState); bei Fehlern bleibt alles wie gezeichnet
+  fetch("/api/app-account/providers").then(r => r.ok ? r.json() : null).then(p => {
+    const s = socialState(p);
+    // style.display statt hidden: .btn und das Raster setzen display und würden das Attribut überstimmen
+    const show = (el, on, shown = "") => { el.style.display = on ? shown : "none"; };
+    show(wrap.querySelector('[data-provider="apple"]'), s.apple);
+    show(wrap.querySelector('[data-provider="google"]'), s.google);
+    show(wrap.querySelector("#gateSocial"), s.apple || s.google, "grid");
+    show(wrap.querySelector("#gateAppleHint"), s.hint, "block");
+  }).catch(() => {});
   wrap.querySelectorAll("[data-browser]").forEach(el => el.addEventListener("click", async e => {
     e.preventDefault();
     try { const r = await post("/browser-login", { mode: el.dataset.browser, provider: el.dataset.provider || undefined }); say(r && r.opened === false ? `Der Browser ließ sich nicht öffnen. Bitte diese Adresse im Browser aufrufen: ${r.url}` : GATE_TEXTS.browserWait, true); waitForLogin(); }

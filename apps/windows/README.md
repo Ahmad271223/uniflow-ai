@@ -151,6 +151,18 @@ nur in `%LOCALAPPDATA%\de.uniflow.desktop\data\chatgpt-auth.json`. Mit gewählte
 laufen Erklärungen im Editor, Analysen und Lernpläne über das ChatGPT-Abo statt über Claude Code; Bilder und PDF-Seiten
 liest weiter nur Claude. „Trennen“ löscht das Token. Details: `docs/KI-CHATGPT-PLAN.md`, Abschnitt 3a.
 
+## Anmeldung mit Apple und Bild-Import (12.11.2026)
+
+Der Anmeldebildschirm fragt den Dienst (`GET /api/app-account/providers`), welche Wege im Browser gehen. „Mit Apple anmelden“ und
+„Mit Google anmelden“ erscheinen nur, wenn der Dienst die Web-Kennung hat (`LERNAPP_APPLE_WEB_CLIENT_ID`, Services-ID von Apple;
+`LERNAPP_GOOGLE_WEB_CLIENT_ID`). Fehlt sie, zeigt die App stattdessen den Hinweis „Konto mit Apple auf dem iPad angelegt?“ mit dem
+Knopf „Passwort festlegen“ (Reiter „Passwort vergessen“ im Browser). Was der Inhaber dafür einrichten muss:
+[docs/WINDOWS-FERTIG-2026-11-12.md](../../docs/WINDOWS-FERTIG-2026-11-12.md), Abschnitt 5 (E1).
+
+„Bild importieren“ braucht Pillow (`requirements.txt`, im PyInstaller-Paket als versteckter Import genannt): das Bild wird als PDF-Seite
+abgelegt. **Nicht unter Windows gebaut**; die Kurzprüfung des Workflows (`scripts/check-backend.ps1`) sollte einen Bild-Import
+einschließen, sobald der Bau wieder läuft.
+
 ## Offen
 
 

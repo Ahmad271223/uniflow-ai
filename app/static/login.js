@@ -55,9 +55,10 @@ if (!info || !info.hosted) {
   const token = new URLSearchParams(location.search).get("reset");
   const verify = new URLSearchParams(location.search).get("verify");
   show(token ? "reset" : appFlow && ["register", "forgot"].includes(appFlow.tab) ? appFlow.tab : "login");
+  let appNote = null;
   if (appFlow) {
     // Hinweis oben: fuer welche App angemeldet wird; mit bestehender Browser-Sitzung erst nachfragen (kein stilles Weiterreichen)
-    const note = document.createElement("div"); note.className = "msg ok"; note.style.display = "block"; note.style.margin = "0 0 .8rem";
+    const note = appNote = document.createElement("div"); note.className = "msg ok"; note.style.display = "block"; note.style.margin = "0 0 .8rem";
     note.textContent = appFlow.provider === "apple" ? "Anmeldung für StudiNow für Windows – wähle unten „Mit Apple anmelden“."
       : appFlow.provider === "google" ? "Anmeldung für StudiNow für Windows – wähle unten „Mit Google anmelden“."
       : "Anmeldung für StudiNow für Windows. Danach geht es in der App weiter.";
@@ -108,6 +109,11 @@ if (!info || !info.hosted) {
   // Mit Google / Apple anmelden: ein neues Konto nimmt die Hochschule aus der Auswahl im Reiter „Konto anlegen“.
   const prov = await fetch("/api/account/providers").then(r => r.json()).catch(() => null);
   const social = $("#social");
+  // Windows-App hat "Mit Apple" gewaehlt, der Dienst kann es im Browser aber (noch) nicht (keine Services-ID, 12.11.2026):
+  // nicht auf einen Knopf verweisen, den es nicht gibt
+  if (appNote && appFlow.provider === "apple" && !(prov && prov.apple && prov.apple_web_client_id)) {
+    appNote.textContent = "Anmeldung für StudiNow für Windows. „Mit Apple anmelden“ ist im Browser noch nicht freigeschaltet. Hast du dein Konto auf dem iPad mit Apple angelegt? Wähle „Passwort vergessen?“, gib die E-Mail-Adresse deines Kontos ein und lege per Link ein Passwort fest. Danach meldest du dich hier mit E-Mail und Passwort an.";
+  }
   const uni = () => $("#uniSelect").value;
   if (prov && prov.google && prov.google_web_client_id) {
     try {

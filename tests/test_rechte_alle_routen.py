@@ -58,7 +58,10 @@ PUBLIC_API = {
     ("POST", "/api/app-login/token"): "Windows-App tauscht Code + PKCE-Verifier gegen Sitzung",
 }
 # Oberflaeche und Rechtstexte (keine /api-Pfade); `/`, `/index.html` leiten ohne Sitzung zur Anmeldung um
-PUBLIC_PAGES = {"/login", "/abo-fertig", "/datenschutz", "/nutzungsbedingungen", "/impressum", "/konto-loeschen", "/konto/rueckkehr"}
+PUBLIC_PAGES = {"/login", "/abo-fertig", "/datenschutz", "/nutzungsbedingungen", "/impressum", "/konto-loeschen", "/konto/rueckkehr",
+                # Domain-Bestaetigung fuer "Mit Apple anmelden" im Browser (12.11.2026): Apple holt sie ohne Anmeldung;
+                # liefert nur die vom Inhaber abgelegte Datei, sonst 404 (tests/test_windows_fertigstellung_2026_11_12.py)
+                "/.well-known/apple-developer-domain-association.txt"}
 # Eingebaute Schnittstellenbeschreibung von FastAPI: im Dienst 404 (hosted_guard, _FASTAPI_DOC_PATHS)
 DOC_PAGES = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 

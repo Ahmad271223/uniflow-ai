@@ -513,6 +513,28 @@ def login_page():
     return FileResponse(STATIC_DIR / "login.html", media_type="text/html")
 
 
+APPLE_DOMAIN_FILE = "apple-developer-domain-association.txt"
+
+
+@app.get("/.well-known/" + APPLE_DOMAIN_FILE, include_in_schema=False)
+def apple_domain_association():
+    """Bestaetigungsdatei der Domain fuer "Mit Apple anmelden" im Browser (Services-ID im Apple-Entwicklerkonto, 12.11.2026,
+    docs/WINDOWS-FERTIG-2026-11-12.md E1). Apple gibt die Datei zum Herunterladen; der Inhaber legt sie als
+    `<Datenordner>/apple-developer-domain-association.txt` auf den Server (im Docker-Betrieb `/data/...`). Nur im Dienst,
+    oeffentlich (Apple holt sie ohne Anmeldung; eingetragen in tests/test_rechte_alle_routen.py), nur diese eine Datei,
+    hoechstens 64 KB; ohne Datei 404."""
+    if not config.is_hosted():
+        raise HTTPException(404, "Nicht gefunden.")
+    path = config.BASE_DATA_DIR / APPLE_DOMAIN_FILE
+    try:
+        if not path.is_file() or path.stat().st_size > 64 << 10:
+            raise OSError
+        body = path.read_bytes()
+    except OSError:
+        raise HTTPException(404, "Nicht gefunden.")
+    return Response(body, media_type="text/plain; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+
 ABO_DONE_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>StudiNow – Abo</title>
 <style>body{{font:16px/1.5 system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}}main{{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(420px,92vw)}}h1{{font-size:1.2rem;margin:0 0 .4rem}}p{{margin:0;color:#4a5068}}</style></head>
 <body><main><h1>{title}</h1><p>{text}</p></main></body></html>"""
@@ -3015,7 +3037,15 @@ def api_studora_status(refresh: bool = True):
     from . import service_link
     if config.is_hosted():
         return {"linked": False, "hosted": True}
-    return _link_call(service_link.status_info, None, refresh)
+    out = _link_call(service_link.status_info, None, refresh)
+    # Windows-App mit Konto-Pflicht: der Tarif, nach dem dieser PC gerade arbeitet (waehrend der Probe Pro AI), nicht der
+    # gespeicherte Kontotarif "free" (Befund 12.11.2026: die Karte zeigte "StudiNow Free" mitten in der Probe)
+    from . import account_mode
+    if out.get("user") and account_mode.required():
+        s = account_mode.state()
+        out["effective_plan"] = s.get("plan") if not s.get("locked") else None
+        out["trial"] = s.get("state") == "trial"
+    return out
 
 
 @app.post("/api/studora/login")

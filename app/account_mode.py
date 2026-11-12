@@ -387,6 +387,28 @@ def logout() -> dict:
     return info()
 
 
+def providers() -> dict:
+    """Welche Anmeldewege der Dienst im Browser anbietet (oeffentlich: GET /api/account/providers). Die Windows-App
+    zeigt "Mit Apple/Google anmelden" nur, wenn die Anmeldeseite des Dienstes den Knopf auch hat: Apple im Browser
+    braucht die Services-ID (`apple_web_client_id`), Google die Web-Client-ID. Ohne sie fuehrte der Knopf auf eine
+    Seite ohne Apple-Knopf (Befund 12.11.2026). Nicht erreichbar -> `reachable` false, dann zeigt die Oberflaeche
+    beide Knoepfe wie bisher (kein Raten)."""
+    out = {"reachable": False, "apple": False, "google": False, "apple_browser": False, "google_browser": False,
+           "service_url": service_link.service_url()}
+    try:
+        status, _, data = service_link.call("GET", "/api/account/providers", token="")
+    except service_link.LinkError:
+        return out
+    d = service_link._json(data) if status == 200 else {}
+    if not d:
+        return out
+    out["reachable"] = True
+    out["apple"], out["google"] = bool(d.get("apple")), bool(d.get("google"))
+    out["apple_browser"] = out["apple"] and bool(d.get("apple_web_client_id"))
+    out["google_browser"] = out["google"] and bool(d.get("google_web_client_id"))
+    return out
+
+
 def _b64url(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
 

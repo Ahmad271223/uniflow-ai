@@ -2,7 +2,7 @@
 // Zustaende der Oberflaeche, Leiste ueber dem Inhalt, Anmeldebildschirm der Windows-App, Tarifzeile der Seitenleiste.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gateState, gateBarHtml, loginScreenHtml, exportHref, trialBarTitle, GATE_TEXTS } from "../../app/static/account-gate.js";
+import { gateState, gateBarHtml, loginScreenHtml, exportHref, trialBarTitle, socialState, GATE_TEXTS } from "../../app/static/account-gate.js";
 import { planLabel, upgradeCta } from "../../app/static/shell-nav.js";
 import { trialHintHtml } from "../../app/static/trial-hint.js";
 
@@ -60,4 +60,20 @@ test("Seitenleiste und Probe-Karte mit Abo-Pflicht: kein 'Bei Free bleiben'", ()
   const over = { trial: { granted: true, active: false, expired: true }, needs_plan_choice: true };
   assert.match(trialHintHtml(over, true, icon, s => s), /trialFree/, "ohne Pflicht wie bisher");
   assert.equal(trialHintHtml({ ...over, ...acc("subscription_required") }, true, icon, s => s), "", "mit Pflicht zeigt die Leiste den Stand");
+});
+
+test("Apple und Google im Browser nur mit Web-Kennung des Dienstes; sonst Hinweis fuer Konten vom iPad (12.11.2026)", () => {
+  const p = (extra = {}) => ({ reachable: true, apple: true, google: false, apple_browser: false, google_browser: false, ...extra });
+  assert.deepEqual(socialState(null), { apple: true, google: true, hint: false }, "ohne Antwort: wie bisher, kein Raten");
+  assert.deepEqual(socialState({ reachable: false }), { apple: true, google: true, hint: false }, "Dienst nicht erreichbar");
+  // Stand des Dienstes am 12.11.2026: Bundle-ID ja, Services-ID nein
+  assert.deepEqual(socialState(p()), { apple: false, google: false, hint: true });
+  assert.deepEqual(socialState(p({ apple_browser: true })), { apple: true, google: false, hint: false });
+  assert.deepEqual(socialState(p({ apple_browser: true, google_browser: true })), { apple: true, google: true, hint: false });
+  assert.deepEqual(socialState(p({ google_browser: true })), { apple: false, google: true, hint: true });
+  const html = loginScreenHtml({ service_url: "https://app.studinow.app", last_email: "", last_error: "" }, { icon });
+  assert.match(html, /id="gateAppleHint"[^>]*display:none/, "Hinweis erst sichtbar, wenn der Dienst Apple im Browser nicht kann");
+  assert.match(html, /Konto mit Apple auf dem iPad angelegt\?/);
+  assert.match(html, /data-browser="forgot">Passwort festlegen</, "Knopf oeffnet den Reiter Passwort vergessen im Browser");
+  assert.match(GATE_TEXTS.appleHint, /iPad wird dabei einmal abgemeldet/);
 });

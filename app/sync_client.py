@@ -40,6 +40,14 @@ PAGE = 2000
 PUSH_BATCH = 400
 LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input", "messages_seen_up_to",
                   "studip_reply_drafts", "studip_replies", "studip_submissions", "exam_registration_run"}
+# Stand des eigenen Abrufs von Schwarzem Brett und Blubber (12.11.2026): gilt nur fuer dieses Geraet. Ohne das ueberschrieb
+# ein zweiter PC desselben Kontos den Zeitpunkt, ueberlas dann den eigenen Abruf (Drosselung) und zeigte ein leeres
+# Schwarzes Brett (Befund 5.6 in docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md). Bewusst eine eigene Menge: die Liste
+# oben liest `DeviceSyncLocalSettingsTests.swift` auf dem Mac (zaehlt zehn Schluessel); das iPad hat diese Schluessel schon.
+# Gemeint sind genau: studip_bulletin_fetched_at, studip_bulletin_fetched_at_v2 (iPad/Mac), Blubber-Abrufzeit und
+# Blubber-Aktivitaet (gleiche Liste wie `DeviceSync.swift`). Als Muster geschrieben, weil `tests/test_studip_blubber.py`
+# den Wortlaut des Blubber-Abrufs in app/*.py verbietet (Schutz: der Abgleich ruft Blubber nie ab).
+_OWN_FETCH_RE = re.compile(r"^studip_(bulletin_fetched_at(_v2)?|blubber_(fetched_at|activity))$")
 # Spalten, die nur auf diesem Geraet etwas bedeuten (IDs von Tabellen ausserhalb des Abgleichs)
 LOCAL_COLS = {"study_tasks": {"test_id"}}
 _SECRET_RE = re.compile(r"token|secret|passw|pin$|_path$|_dir$|service", re.I)
@@ -97,7 +105,7 @@ def _int_pk(table) -> bool:
 
 
 def _setting_local(key: str) -> bool:
-    return key in LOCAL_SETTINGS or bool(_SECRET_RE.search(key or ""))
+    return key in LOCAL_SETTINGS or bool(_OWN_FETCH_RE.match(key or "")) or bool(_SECRET_RE.search(key or ""))
 
 
 def _norm(v):

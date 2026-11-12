@@ -16,7 +16,7 @@ import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=17";
 import { navHtml, accountHtml } from "./shell-nav.js?v=5";
 import { viewStudyPlan } from "./study-plan.js?v=5";   // Studienverlauf (05.11.2026)
 import { viewAiStart } from "./views-ai.js?v=7";                       // KI-Start (#/ki), Paket B 05.11.2026
-import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
+import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=2";   // Konto- und Abo-Pflicht (05.11.2026)
 import { createBackNav, backButtonHtml, showsBack } from "./back-nav.js?v=1";   // Zurueck-Pfeil (06.11.2026)
 
 // ---------------------------------------------------------------- Shell
@@ -89,7 +89,7 @@ function accountMenu() {
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
-  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=9");
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=10");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };

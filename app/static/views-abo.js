@@ -11,7 +11,7 @@
 // StudiNow Pro AI braucht den StudiNow-Dienst und steht dort ohne Preis als "kommt mit dem StudiNow-Dienst".
 // planChoicePrompt (Tarif wählen oder bei Free bleiben) gilt nur noch ohne Abo-Pflicht.
 import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=46";
-import { GATE_TEXTS, exportHref } from "./account-gate.js?v=1";
+import { GATE_TEXTS, exportHref } from "./account-gate.js?v=2";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {
