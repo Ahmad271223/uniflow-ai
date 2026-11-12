@@ -223,9 +223,11 @@ final class LockVisibilityAppTests: XCTestCase {
         let buttons = Self.all(in: env.view).filter {
             guard let id = Self.identifier($0) else { return false }
             return id.hasPrefix("toolbar.tool.") || ["toolbar.ruler", "toolbar.attributes", "toolbar.undo", "toolbar.redo",
-                                                     "toolbar.askAI.locked"].contains(id)
+                                                     "toolbar.askAI.locked", "toolbar.objects"].contains(id)
         }
-        XCTAssertGreaterThanOrEqual(buttons.count, 16, "alle Knoepfe gefunden")
+        // seit 12.11.2026 in der einen Kopfzeile: passt nicht alles, stehen die Objektwerkzeuge in einem Knopf
+        let collapsed = buttons.contains { Self.identifier($0) == "toolbar.objects" }
+        XCTAssertGreaterThanOrEqual(buttons.count, collapsed ? 11 : 16, "alle Knoepfe gefunden")
         for b in buttons {
             let f = b.accessibilityFrame
             XCTAssertGreaterThanOrEqual(f.height, 43.5, "\(Self.identifier(b) ?? "?"): Hoehe \(f.height)")

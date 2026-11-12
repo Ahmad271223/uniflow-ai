@@ -296,6 +296,12 @@ struct DocumentView: View {
     let readOnly: Bool
     /// PDF-Seite beim Oeffnen (1-basiert, Treffer der Suche), nil = wie zuletzt
     let initialPDFPage: Int?
+    /// gemerkte Stelle des Reiters (Seite, Punkt, Zoom; `DocumentTabList`), gilt ohne `initialPDFPage`
+    let initialSpot: DocumentViewSpot?
+    /// Kennung, unter der dieses Dokument seinen Schutz vor dem Reiterwechsel meldet
+    @State private var leaveOwner = UUID()
+    /// Stelle des Reiters merken (entprellt)
+    @State private var spotTask: Task<Void, Never>?
     /// Aufgabe des Lernplans, aus der das Dokument geoeffnet wurde: Knopf "Erledigt" wie im Web (views-doc.js)
     let task: Int?
     @State private var taskDone = false
@@ -339,12 +345,13 @@ struct DocumentView: View {
     /// (`\.ufBack`; im Vollbild darf der Pfeil nicht die Seite darunter wechseln, darum ausdruecklich)
     private let onBack: (() -> Void)?
 
-    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil,
-         onBack: (() -> Void)? = nil) {
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, initialSpot: DocumentViewSpot? = nil,
+         task: Int? = nil, correcting: String? = nil, onBack: (() -> Void)? = nil) {
         self.onBack = onBack
         self.api = api
         self.readOnly = readOnly
         self.initialPDFPage = initialPDFPage
+        self.initialSpot = initialSpot
         self.task = task
         self.correcting = correcting
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
@@ -364,6 +371,40 @@ struct DocumentView: View {
             guard !Task.isCancelled else { return }
             router.resume.notePage(page, of: id)          // Weitermachen wie zuvor (ResumeState.swift)
             _ = try? await api.value("/api/files/\(id)/opened", method: "POST", body: ["last_page": .number(Double(page))])
+        }
+    }
+
+    /// Reiter fuer offene Dokumente (12.11.2026): nur fuer Dokumente der Bibliothek (keine alte Fassung, kein Dokument
+    /// aus einem ZIP, die haben ein eigenes Zurueck)
+    private var tabsEnabled: Bool { onBack == nil && !readOnly }
+
+    /// Stelle des Reiters nach 1 s Ruhe merken (Seite, Punkt, Zoom; beim Verlassen ohnehin)
+    private func scheduleSpot() {
+        guard tabsEnabled else { return }
+        spotTask?.cancel()
+        let tabs = router.tabs, id = store.file.id
+        spotTask = Task { [bridge] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            tabs.setSpot(bridge.controller?.currentSpot(), for: id)
+        }
+    }
+
+    /// Vor dem Wechsel zu einem anderen Reiter: PDFKit nie waehrend einer Geste tauschen (Stift liegt auf, Finger
+    /// scrollt oder zoomt, Ansicht rollt aus; wie `showLayout`), dann Stelle merken und alle Striche sichern
+    static func prepareToLeave(store: DocumentStore, bridge: EditorBridge, tabs: DocumentTabList) async {
+        let id = store.file.id
+        await bridge.controller?.waitUntilSettled()
+        tabs.setSpot(bridge.controller?.currentSpot(), for: id)
+        await store.flush()
+        tabs.setUnsaved(Self.unsaved(store.status), for: id)
+    }
+
+    /// Nicht lokal gesichert (der Reiter faellt dann nie von selbst heraus)
+    static func unsaved(_ status: SyncStatus) -> Bool {
+        switch status {
+        case .localSaveFailed, .conflictUnresolved: return true
+        default: return false
         }
     }
 
@@ -471,25 +512,33 @@ struct DocumentView: View {
         EditorToolbarPlacement.resolve(toolbarPlacementRaw, isMac: PDFEditorController.isMac)
     }
 
+    /// "Oben fest": eine Kopfzeile statt Navigationsleiste und Werkzeugleiste (`EditorHeaderBar`)
+    private var usesHeader: Bool { toolbarPlacement == .top }
+
     /// Schloss der KI-Stellen im Editor (KI-Hilfe, "KI fragen", "Bereich an KI"): ohne KI und ohne Pro AI "ab Pro AI"
     private var aiLock: UFPlan? {
         UFLock.ai(.aiHelp, plan: entitlements.plan, aiEnabled: aiEnabled, offerHidden: proAIOfferHidden)
     }
 
-    /// Feste Werkzeugleiste (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`)
-    private var toolbarStrip: EditorToolbar {
+    /// Feste Werkzeugleiste (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`). In der einen
+    /// Kopfzeile (`embedded`) ohne "KI fragen": dort fuehrt der KI-Knopf der Zeile beides (KI-Hilfe, markierter Text)
+    private func toolbarStrip(embedded: Bool = false) -> EditorToolbar {
         EditorToolbar(tools: tools.tools, mode: bridge.toolbar, undo: { [bridge] in bridge.undo() }, redo: { [bridge] in bridge.redo() },
                       onPick: { [bridge] t in bridge.toolbarPicked(t) },
-                      askAI: aiEnabled && !proAIOfferHidden ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil,
-                      askAILock: aiLock, atBottom: toolbarPlacement == .bottom)
+                      askAI: aiEnabled && !proAIOfferHidden && !embedded ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil,
+                      askAILock: embedded ? nil : aiLock, atBottom: toolbarPlacement == .bottom, embedded: embedded)
     }
 
-    /// Platz der Werkzeuge oben bzw. unten (Leiste, Leiste mit Schloss ohne Plus, Hinweis bei "Schwebend")
+    /// Ohne Schreiben im Tarif (Free, nach dem Herabstufen) steht die Leiste mit Schloss da
+    private var writingLocked: Bool { !planAllowsWriting && !readOnly && !store.isOldVersion && correction == nil }
+
+    /// Platz der Werkzeuge oben bzw. unten (Leiste, Leiste mit Schloss ohne Plus, Hinweis bei "Schwebend"); "Oben fest"
+    /// stehen sie in der einen Kopfzeile (`editorHeader`), hier dann nichts
     private func toolbarSlot(_ edge: EditorToolbarSlot.Edge) -> EditorToolbarSlot {
-        let shown = !chromeHidden
-        let locked = shown && !planAllowsWriting && !readOnly && !store.isOldVersion && correction == nil
+        let shown = !chromeHidden && !(usesHeader && edge == .top)
+        let locked = shown && writingLocked
         return EditorToolbarSlot(edge: edge, placement: toolbarPlacement,
-                                 toolbar: shown && bridge.toolbar.visible && toolbarPlacement != .floating ? toolbarStrip : nil,
+                                 toolbar: shown && bridge.toolbar.visible && toolbarPlacement != .floating ? toolbarStrip() : nil,
                                  lockedPlan: locked ? UFLock.plan(.pencilWriting, plan: entitlements.plan) : nil,
                                  askAILock: aiLock)
     }
@@ -518,6 +567,12 @@ struct DocumentView: View {
 
     /// Dokument in einem eigenen Fenster: hier schliessen, dort oeffnen (sonst waere es dort nur zum Ansehen offen)
     private func openInNewWindow() {
+        // mit Reitern: Reiter hier schliessen (Striche gesichert, Nachbar kommt), Dokument im neuen Fenster an seiner Stelle
+        if tabsEnabled, router.tabs.entry(store.file.id) != nil {
+            router.tabs.setSpot(bridge.controller?.currentSpot(), for: store.file.id)
+            router.tabs.openInNewWindow(store.file.id, router: router)
+            return
+        }
         let id = store.file.id
         let page = store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex
         if let onBack { onBack() } else { router.back() }
@@ -611,6 +666,10 @@ struct DocumentView: View {
 
     /// Teil 1: Inhalt (PDF, Seitenleiste, KI-Hilfe, Spalte daneben), Leisten und Ueberlagerungen
     private var documentChrome: AnyView {
+        VStack(spacing: 0) {
+        // "Oben fest" (12.11.2026): eine Kopfzeile mit Zurueck, Reitern, Werkzeugen und Knoepfen statt Navigationsleiste,
+        // Reiterstreifen und Werkzeugleiste; auch waehrend des Ladens (Reiter bleiben bedienbar)
+        if usesHeader, !chromeHidden, !fullScreen { editorHeader }
         Group {
             if let error = store.errorMessage {
                 ContentUnavailableView("Dokument nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
@@ -660,19 +719,26 @@ struct DocumentView: View {
                 ProgressView("Lädt…")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
         .navigationTitle(store.file.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(fullScreen || chromeHidden ? .hidden : .visible, for: .navigationBar)
+        .toolbar(fullScreen || chromeHidden || usesHeader ? .hidden : .visible, for: .navigationBar)
         .toolbar { toolbar }
         .toolbar(removing: .sidebarToggle)                  // eigener Knopf "Seiten"; zwei gleiche Symbole verwirrten
         .overlay(alignment: .bottom) {
             if bridge.objectMode, !chromeHidden { ObjectToolbar(bridge: bridge).padding(.bottom, 12) }
         }
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: usesHeader ? .top : .topTrailing) {
             if fullScreen, !tracing {
-                Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
-                    .buttonStyle(.borderedProminent).padding()
-                    .padding(.top, bridge.toolbar.visible && !chromeHidden ? EditorToolbar.height : 0)   // unter der Leiste
+                if usesHeader {
+                    // Vollbild-Schreiben: nur ein kleiner Griff oben in der Mitte holt die Kopfzeile zurueck
+                    EditorHeaderRestoreHandle { withAnimation(UF.motion(.default)) { fullScreen = false } }
+                } else {
+                    Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
+                        .buttonStyle(.borderedProminent).padding()
+                        .padding(.top, bridge.toolbar.visible && !chromeHidden ? EditorToolbar.height : 0)   // unter der Leiste
+                }
             }
         }
         // Abpausen: Sperre ueber allem, Schloss auf der Seite der freien Hand; Statusleiste und Home-Balken zurueckhaltend
@@ -688,6 +754,8 @@ struct DocumentView: View {
         .defersSystemGestures(on: tracing ? .all : [])
         // Reiterleiste der offenen Dokumente aus: beim Abpausen und in der Praesentation
         .preference(key: EditorTracingKey.self, value: PDFEditorController.isMac ? chromeHidden : tracing)
+        // die Kopfzeile zeigt die Reiter selbst: die Bibliothek blendet ihren Streifen aus
+        .preference(key: EditorOwnsTabsKey.self, value: usesHeader && tabsEnabled)
         .background {
             // Cmd-L: Ansicht fixieren bzw. loesen (beim Abpausen ohne Wirkung)
             Button("") { requestFreeze(.view) }
@@ -878,6 +946,7 @@ struct DocumentView: View {
         .onChange(of: bridge.pageIndex) { _, page in
             scheduleSuggestion(page)
             rememberPage(page)
+            scheduleSpot()
         }
         // Weitermachen wie zuvor: KI-Hilfe und "Daneben öffnen" fuer den naechsten Start merken (ResumeState.swift)
         .onChange(of: showTutor) { _, open in if !readOnly { router.resume.noteTutor(open: open, of: store.file.id) } }
@@ -920,8 +989,22 @@ struct DocumentView: View {
                                     confirmDiscard: $confirmDiscardCorrection,
                                     discard: { correction?.discard(); correction = nil }))
         // zu sehen oder nicht: ein anderes Fenster darf ein nicht sichtbares Dokument uebernehmen (OpenDocuments)
-        .onAppear { store.setShown(true) }
+        .onAppear {
+            store.setShown(true)
+            // Reiterwechsel: erst Stift und Finger abwarten, Stelle merken, Striche sichern (`DocumentTabList`)
+            if tabsEnabled {
+                router.tabs.setLeaveGuard(leaveOwner) { [store, bridge, tabs = router.tabs] in
+                    await Self.prepareToLeave(store: store, bridge: bridge, tabs: tabs)
+                }
+            }
+        }
+        .onChange(of: bridge.zoomPercent) { _, _ in scheduleSpot() }
         .onDisappear {
+            if tabsEnabled {
+                router.tabs.setSpot(bridge.controller?.currentSpot(), for: store.file.id)
+                router.tabs.clearLeaveGuard(leaveOwner)
+            }
+            spotTask?.cancel()
             freeze.end()                          // Fixieren gilt nur fuer diese Sitzung; Bildschirm wie vorher
             correction?.saveNow()                 // Entwurf der Korrektur bleibt bis Senden oder Verwerfen
             store.setShown(false)
@@ -934,6 +1017,7 @@ struct DocumentView: View {
     private var primaryPane: AnyView {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                       tools: tools.tools, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
+                      initialSpot: initialSpot,
                       foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
@@ -1180,13 +1264,7 @@ struct DocumentView: View {
             }
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
             if !proAIOfferHidden {                          // nur Store-Bilder der Fassung nur mit Plus blenden ihn aus
-                Button {
-                    // ohne KI und ohne Pro AI: Schloss, Antippen oeffnet die Tarifwahl (12.11.2026)
-                    if aiLock != nil, !showTutor { lockedFeature = .aiHelp; return }
-                    // markierter Text geht als Anhang mit (sichtbar im Eingabefeld), statt erst beim Senden gelesen zu werden
-                    if !showTutor, let a = bridge.controller?.selectionAttachment() { bridge.tutorAttachment = a }
-                    showTutor.toggle()
-                } label: {
+                Button { toggleTutor() } label: {
                     // Symbol bleibt das der KI (Entscheidung: in der Kopfzeile traegt nur "Schreiben" das Schloss); die Sperre
                     // nennen Text und VoiceOver "(ab Pro AI)", Antippen oeffnet die Tarifwahl
                     Label(showTutor ? "KI-Hilfe schließen" : aiLock.map { UFLock.label("KI-Hilfe", $0) } ?? "KI-Hilfe",
@@ -1195,11 +1273,7 @@ struct DocumentView: View {
                     .accessibilityIdentifier("doc.tutor")
                     .contextMenu { areaMenuItems }
             }
-            Button {
-                if hasSidePane { companion = nil; solutionSide = nil }
-                else if entitlements.allows(.splitView) { choosingCompanion = true }
-                else { lockedFeature = .splitView }
-            } label: {
+            Button { toggleSplit() } label: {
                 // immer das Symbol der Teilung (in der Kopfzeile traegt nur "Schreiben" das Schloss); die Sperre nennt der
                 // Text einheitlich "(ab Plus)" (12.11.2026)
                 Label(!hasSidePane ? Self.lockedLabel("Geteilt", entitlements.access(.splitView)) : "Teilung beenden",
@@ -1231,7 +1305,162 @@ struct DocumentView: View {
         }
         UFToolbarGap()
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Menu {
+            Menu { shareMenuItems } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
+                .disabled(exporting || store.pdf == nil)
+            Menu { moreMenuItems } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+        }
+    }
+
+    /// KI-Hilfe auf oder zu; ohne KI und ohne Pro AI das Schloss (Tarifwahl, 12.11.2026). Markierter Text geht als
+    /// Anhang mit (sichtbar im Eingabefeld), statt erst beim Senden gelesen zu werden
+    private func toggleTutor() {
+        if aiLock != nil, !showTutor { lockedFeature = .aiHelp; return }
+        if !showTutor, let a = bridge.controller?.selectionAttachment() { bridge.tutorAttachment = a }
+        showTutor.toggle()
+    }
+
+    /// Daneben oeffnen (zweites Dokument oder Loesung) bzw. Teilung beenden; ohne Plus das Schloss
+    private func toggleSplit() {
+        if hasSidePane { companion = nil; solutionSide = nil }
+        else if entitlements.allows(.splitView) { choosingCompanion = true }
+        else { lockedFeature = .splitView }
+    }
+
+    // MARK: Eine Kopfzeile ("Oben fest", 12.11.2026)
+
+    /// Zurueck, Reiter, Werkzeuge, Knoepfe in einer Zeile (`EditorHeaderBar`); eigene Typen hinter Schnitten, damit
+    /// `documentChrome` flach bleibt (`ViewTypeDepthAppTests`)
+    private var editorHeader: AnyView {
+        EditorHeaderBar(leading: { layout in headerLeading(layout) }, tools: headerTools, actions: { layout in headerActions(layout) })
+            .ufTypeCut("DocumentView.header")
+    }
+
+    private func headerLeading(_ layout: EditorHeaderLayout) -> AnyView {
+        HStack(spacing: 0) {
+            // Zurueck: schliesst das Dokument dorthin, wo es geoeffnet wurde (die Reiter bleiben)
+            UFBackButton(style: .header, compact: true, action: onBack)
+                .frame(width: EditorToolbar.hitSide, height: EditorToolbar.hitSide)
+            DocumentTabStrip(tabs: router.tabs, currentID: store.file.id, currentTitle: store.file.displayTitle,
+                             maxWidth: layout.tabMaxWidth, asMenu: layout.tabsAsMenu, enabled: tabsEnabled)
+        }
+        .padding(.leading, 4)
+        .ufTypeCut("DocumentView.headerLeading")
+    }
+
+    /// Werkzeuge in der Zeile: die Leiste (schreiben erlaubt), ohne Plus dieselbe mit Schloss, sonst nichts (lesen)
+    private var headerTools: AnyView? {
+        if bridge.toolbar.visible { return toolbarStrip(embedded: true).ufTypeCut("DocumentView.headerTools") }
+        if writingLocked, let plan = UFLock.plan(.pencilWriting, plan: entitlements.plan) {
+            return EditorLockedToolbar(plan: plan, embedded: true)
+                .ufTypeCut("DocumentView.headerTools")
+        }
+        return nil
+    }
+
+    /// Rechts: Stand, Seiten, KI, Daneben, Teilen, Mehr, Leiste ausblenden; schmal nur KI und Mehr (der Rest im Menue)
+    private func headerActions(_ layout: EditorHeaderLayout) -> AnyView {
+        HStack(spacing: 0) {
+            if task != nil, !readOnly {
+                EditorHeaderButton(title: taskDone ? "Erledigt ✓" : "Erledigt", icon: taskDone ? "checkmark.circle.fill" : "checkmark.circle",
+                                   selected: taskDone, identifier: "doc.task.done") { Task { await markTaskDone() } }
+                    .disabled(taskDone)
+            }
+            // Stand nur bei Problemen in der Zeile (offline, nicht gesichert, Konflikt); sonst oben im Menue "Mehr"
+            if StatusLabel.needsAttention(store.status) {
+                StatusLabel(status: store.status).padding(.horizontal, 2)
+            }
+            SyncIssueBadge(store: store)
+            if !layout.compactActions {
+                EditorHeaderButton(title: "Seiten", icon: "rectangle.stack", selected: showSidebar, identifier: "doc.pages") {
+                    withAnimation(UF.motion(.default)) { showSidebar.toggle() }
+                }
+            }
+            headerAIButton(narrow: layout.narrow)
+            if !layout.compactActions {
+                EditorHeaderButton(title: !hasSidePane ? Self.lockedLabel("Geteilt", entitlements.access(.splitView)) : "Teilung beenden",
+                                   icon: "rectangle.split.2x1", selected: hasSidePane, identifier: "doc.split") { toggleSplit() }
+                    .contextMenu {
+                        if hasSidePane {
+                            Button { swapSides() } label: { Label(UFPaneSwap.actionName, systemImage: "arrow.left.arrow.right") }
+                        }
+                    }
+                Menu { shareMenuItems } label: { EditorHeaderMenuLabel(icon: "square.and.arrow.up") }
+                    .disabled(exporting || store.pdf == nil)
+                    .accessibilityLabel(exporting ? "Exportiert…" : "Teilen")
+                    .accessibilityIdentifier("doc.share")
+            }
+            Menu { headerMoreItems(compact: layout.compactActions) } label: { EditorHeaderMenuLabel(icon: "ellipsis.circle") }
+                .accessibilityLabel("Mehr")
+                .accessibilityIdentifier("doc.more")
+            if !layout.compactActions {
+                EditorHeaderButton(title: "Leiste ausblenden", icon: "arrow.up.left.and.arrow.down.right", identifier: "editor.header.hide") {
+                    withAnimation(UF.motion(.default)) { fullScreen = true }
+                }
+            }
+        }
+        .padding(.trailing, 4)
+        .ufTypeCut("DocumentView.headerActions")
+    }
+
+    /// KI-Hilfe (auch mit markiertem Text als Anhang); ohne KI und ohne Pro AI mit Schloss (Tarifwahl)
+    @ViewBuilder private func headerAIButton(narrow: Bool) -> some View {
+        if !proAIOfferHidden {
+            if let lock = aiLock, !showTutor, narrow {
+                // sehr schmal: Symbol mit kleinem Schloss statt Schild "ab Pro AI"
+                EditorHeaderButton(title: "KI-Hilfe", icon: "sparkles", identifier: "toolbar.askAI.locked") { lockedFeature = .aiHelp }
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: UFLock.symbol).font(.system(size: 8, weight: .bold)).foregroundStyle(UF.accentText)
+                            .offset(x: -8, y: 9).accessibilityHidden(true)
+                    }
+                    .ufLockAccessibility(lock)
+            } else if let lock = aiLock, !showTutor {
+                UFLockedButton(plan: lock, title: "KI-Hilfe", identifier: "toolbar.askAI.locked") {
+                    Image(systemName: "sparkles").font(.system(size: 17, weight: .medium)).foregroundStyle(UF.text)
+                }
+            } else {
+                EditorHeaderButton(title: showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", icon: "sparkles", selected: showTutor,
+                                   identifier: "doc.tutor") { toggleTutor() }
+                    .contextMenu { areaMenuItems }
+            }
+        }
+    }
+
+    /// Menue "Mehr" der Kopfzeile: was frueher einzeln in der Navigationsleiste stand (Suchen, Vorlesung bis hier,
+    /// Stift/Finger, Ebenen), schmal dazu Seiten, Daneben und Teilen, dann das bisherige Menue "Mehr"
+    @ViewBuilder private func headerMoreItems(compact: Bool) -> some View {
+        Section(store.status.label) {
+            Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
+            if offersLectureMarker {
+                Button { openLectureMarker() } label: {
+                    Label("Vorlesung bis hier", systemImage: markers.needsReview ? "bookmark.trianglebadge.exclamationmark" : "bookmark")
+                }
+            }
+            let penLabel = EditorPointer.toggleLabel(isMac: PDFEditorController.isMac, pencilOnly: pencilOnly)
+            Button {
+                pencilOnly.toggle()
+                if PDFEditorController.isMac { bridge.hint = EditorBridge.Hint(text: EditorPointer.macHint(pencilOnly: pencilOnly)) }
+            } label: { Label(penLabel.title, systemImage: penLabel.icon) }
+            layersMenu
+        }
+        if compact {
+            Section {
+                Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
+                    Label(showSidebar ? "Seiten ausblenden" : "Seiten", systemImage: "rectangle.stack")
+                }
+                Button { toggleSplit() } label: {
+                    Label(!hasSidePane ? Self.lockedLabel("Geteilt", entitlements.access(.splitView)) : "Teilung beenden",
+                          systemImage: "rectangle.split.2x1")
+                }
+                Menu { shareMenuItems } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
+                    .disabled(exporting || store.pdf == nil)
+            }
+        }
+        moreMenuItems
+    }
+
+    /// Inhalt des Menues "Teilen" (Navigationsleiste und Kopfzeile)
+    private var shareMenuItems: AnyView {
+        Group {
                 // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
                 Section("PDF exportieren (nur privat)") {
                     Button { startExport(.document, .share) } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
@@ -1280,9 +1509,13 @@ struct DocumentView: View {
                             .accessibilityIdentifier("doc.uniMail")
                     }
                 }
-            } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
-            .disabled(exporting || store.pdf == nil)
-            Menu {
+        }
+        .ufTypeCut("DocumentView.shareMenu")
+    }
+
+    /// Inhalt des Menues "Mehr" (Navigationsleiste und Kopfzeile)
+    private var moreMenuItems: AnyView {
+        Group {
                 // "Bereich an KI" auch ohne Leiste und ohne Schreiben im Tarif (05.11.2026)
                 Section("KI-Hilfe") { areaMenuItems }
                 if !planAllowsWriting && !readOnly {
@@ -1368,7 +1601,10 @@ struct DocumentView: View {
                     }
                 }
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
-                Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
+                Button { withAnimation(UF.motion(.default)) { fullScreen = true } } label: {
+                    Label(usesHeader ? "Vollbild-Schreiben (Leiste ausblenden)" : "Vollbild", systemImage: "arrow.up.left.and.arrow.down.right")
+                }
+                .accessibilityIdentifier("doc.fullScreen")
                 Button { presenting = true } label: { Label("Präsentieren", systemImage: "play.rectangle") }
                     .accessibilityIdentifier("doc.present")
                 if DocumentWindows.supported, !readOnly {
@@ -1389,8 +1625,8 @@ struct DocumentView: View {
                     }
                     Toggle(isOn: $freezeContrast) { Label(FreezeTexts.contrast, systemImage: "circle.lefthalf.filled") }
                 }
-            } label: { Label("Mehr", systemImage: "ellipsis.circle") }
         }
+        .ufTypeCut("DocumentView.moreMenu")
     }
 
     /// Untermenue "Seite" wie das Seitenmenue im Web-Editor: kopieren, verschieben, Leerseite davor/am Ende, Vorlage und
@@ -2618,7 +2854,10 @@ struct StatusLabel: View {
         .accessibilityLabel(status.label)
     }
 
-    private var problem: Bool {
+    private var problem: Bool { Self.needsAttention(status) }
+
+    /// Offline, nicht gesichert oder Konflikt: der Stand steht mit Text da (auch in schmaler Kopfzeile)
+    static func needsAttention(_ status: SyncStatus) -> Bool {
         switch status {
         case .offline, .localSaveFailed, .conflictUnresolved: return true
         default: return false
@@ -2653,6 +2892,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var ownsToolPicker = true
     var undoManager: UndoManager?
     var initialPDFPage: Int?
+    /// gemerkte Stelle des Reiters (ohne `initialPDFPage`)
+    var initialSpot: DocumentViewSpot?
     /// fremde Loesungen (nur Anzeige) und Sichtbarkeit der eigenen Notizen
     var foreignLayers: [ForeignSolutionLayer] = []
     var ownNotesVisible = true
@@ -2672,7 +2913,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, tools: tools, ownsToolPicker: ownsToolPicker,
-                                     undoManager: undoManager, initialPDFPage: initialPDFPage)
+                                     undoManager: undoManager, initialPDFPage: initialPDFPage, initialSpot: initialSpot)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
         vc.foreignLayers = foreignLayers

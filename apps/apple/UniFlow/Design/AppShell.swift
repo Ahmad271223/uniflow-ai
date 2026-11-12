@@ -165,9 +165,14 @@ final class UFRouter: ObservableObject {
     /// Weitermachen wie zuvor (Services/ResumeState.swift): Stand dieses Fensters mitschreiben und beim Start einmal
     /// wiederherstellen
     let resume = ResumeTracker()
+    /// Reiter der offenen Dokumente dieses Fensters (`DocumentTabList`, 12.11.2026)
+    let tabs = DocumentTabList()
 
     /// `start`: erste Seite ohne Verlauf (sonst die Startseite; Tests fuer "Zurück ohne Verlauf")
-    init(start: UFRoute = .dashboard) { route = start }
+    init(start: UFRoute = .dashboard) {
+        route = start
+        tabs.sceneID = { [weak resume] in resume?.sceneID ?? "" }
+    }
 
     func reload() { reloadToken += 1 }
 
@@ -193,6 +198,16 @@ final class UFRouter: ObservableObject {
     }
 
     func go(hash: String) { go(UFRoute(hash: hash)) }
+
+    /// Seite ersetzen, ohne den Verlauf zu verlaengern (Reiterwechsel: Zurueck fuehrt weiter dorthin, wo das erste
+    /// Dokument geoeffnet wurde); Vollbild und Pruefungsfokus bleiben
+    func replace(_ r: UFRoute) {
+        guard r != route else { return }
+        localBack = nil
+        route = r
+        drawerOpen = false
+        resume.noteRoute(r)
+    }
 
     func back() {
         if let r = history.popLast() { show(r) }

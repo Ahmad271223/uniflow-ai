@@ -120,6 +120,9 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("StudyGroupsCard", StudyGroupsCard.Body.self),
         ("PlanModulesSheet", PlanModulesSheet.Body.self),
         ("StudIPView", StudIPView.Body.self),
+        ("EditorHeaderBar", EditorHeaderBar.Body.self),
+        ("DocumentTabStrip", DocumentTabStrip.Body.self),
+        ("EditorToolbar", EditorToolbar.Body.self),
     ]
 
     private func check(_ name: String, _ type: Any.Type, file: StaticString = #filePath, line: UInt = #line) {
@@ -185,7 +188,9 @@ final class ViewTypeDepthAppTests: XCTestCase {
     func testDocumentPartsStayShallow() throws {
         ViewTypeCut.seen = [:]
         let env = try hostDocument()
-        let parts = ["DocumentView.chrome", "DocumentView.panels", "DocumentView.sheets", "DocumentView.primaryPane"]
+        // seit 12.11.2026 dazu die eine Kopfzeile ("Oben fest") mit Reitern, Werkzeugen und Knoepfen
+        let parts = ["DocumentView.chrome", "DocumentView.panels", "DocumentView.sheets", "DocumentView.primaryPane",
+                     "DocumentView.header", "DocumentView.headerLeading", "DocumentView.headerActions"]
         XCTAssertTrue(env.wait(timeout: 15) { parts.allSatisfy { ViewTypeCut.seen[$0] != nil } },
                       "nicht alle Teile gezeichnet: \(ViewTypeCut.seen.keys.sorted())")
         for name in parts {

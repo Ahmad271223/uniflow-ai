@@ -32,7 +32,7 @@ enum EditorToolbarPlacement: String, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .top: return "Leiste unter der Kopfzeile, immer an derselben Stelle"
+        case .top: return "Eine Zeile ganz oben mit Reitern und Werkzeugen, darunter nur das Dokument"
         case .bottom: return "Leiste am unteren Rand, nah an der Schreibhand"
         case .floating: return "Apples Werkzeugpalette, frei verschiebbar"
         }

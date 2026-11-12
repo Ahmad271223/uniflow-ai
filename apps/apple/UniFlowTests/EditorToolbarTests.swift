@@ -336,7 +336,7 @@ final class EditorToolbarTests: XCTestCase {
 
     // MARK: Fest oben im Dokument
 
-    /// Ganzes Dokument (DocumentView): die Leiste steht unter der Kopfzeile ueber der PDF, volle Breite; keine
+    /// Ganzes Dokument (DocumentView): die Leiste steht in der einen Kopfzeile ganz oben ueber der PDF; keine
     /// schwebende Palette von PencilKit; Lage bleibt bei Werkzeugwechsel, Objektmodus und Drehen. Bildschirmfotos quer
     /// und hoch mit `TEST_RUNNER_UF_TOOLBAR_SHOTS=<Ordner>`.
     func testToolbarIsFixedAtTheTopOfTheDocument() throws {
@@ -371,12 +371,15 @@ final class EditorToolbarTests: XCTestCase {
             let redo = try XCTUnwrap(Self.frame(of: "toolbar.redo", in: env.view), what)
             let p = try XCTUnwrap(pdfFrame(), what)
             let w = env.window.bounds.width
-            XCTAssertLessThan(b.minX, 40, "\(what): beginnt links")
-            XCTAssertGreaterThan(redo.maxX, w - 40, "\(what): reicht bis rechts (volle Breite)")
+            // seit 12.11.2026 (Auftrag: "maximale Schreibflaeche") eine Kopfzeile: Zurueck und Reiter links, Werkzeuge,
+            // rechts die Knoepfe bis an den Rand; keine Navigationsleiste mehr darueber
+            let more = try XCTUnwrap(Self.frame(of: "doc.more", in: env.view), what)
+            XCTAssertLessThan(b.minX, w * 0.4, "\(what): Werkzeuge links der Mitte")
+            XCTAssertGreaterThan(more.maxX, w - 100, "\(what): Knoepfe bis rechts (volle Breite)")
             XCTAssertEqual(redo.midY, b.midY, accuracy: 1, "\(what): eine Reihe")
+            XCTAssertEqual(more.midY, b.midY, accuracy: 1, "\(what): Knoepfe in derselben Reihe")
             XCTAssertEqual(p.minY - b.midY, EditorToolbar.height / 2, accuracy: 2, "\(what): PDF beginnt direkt unter der Leiste")
-            XCTAssertGreaterThan(b.minY, env.window.safeAreaInsets.top + 30, "\(what): unter der Kopfzeile")
-            XCTAssertLessThan(b.minY, 160, "\(what): oben")
+            XCTAssertEqual(b.minY, env.window.safeAreaInsets.top, accuracy: 1, "\(what): ganz oben (keine Kopfzeile darueber)")
             let floating = env.window.windowScene?.windows.contains { w in
                 !w.isHidden && String(describing: type(of: w)).contains("ToolPicker")
             } ?? false

@@ -288,6 +288,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var pickerWanted = false
     /// PDF-Seite (1-basiert), zu der beim ersten Anzeigen gesprungen wird (z. B. Skriptstelle).
     private var initialPDFPage: Int?
+    /// Gemerkte Stelle des Reiters (Seite, Punkt, Zoom), beim ersten Anzeigen; gilt nur ohne `initialPDFPage`
+    private var initialSpot: DocumentViewSpot?
     private let anchor = ToolPickerAnchor()
     /// Farbe und Staerke der Stifte fuer Objekte und "Text markieren" (`EditorPalette.swift`)
     let paletteSync = PaletteSync()
@@ -505,12 +507,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     init(store: DocumentStore, tools: EditorToolState? = nil, ownsToolPicker: Bool = true,
-         undoManager: UndoManager? = nil, initialPDFPage: Int? = nil) {
+         undoManager: UndoManager? = nil, initialPDFPage: Int? = nil, initialSpot: DocumentViewSpot? = nil) {
         self.store = store
         self.tools = tools ?? EditorToolState()
         self.ownsToolPicker = ownsToolPicker
         self.documentUndo = undoManager ?? UndoManager()
         self.initialPDFPage = initialPDFPage
+        self.initialSpot = initialPDFPage == nil ? initialSpot : nil
         super.init(nibName: nil, bundle: nil)
         if documentUndo.levelsOfUndo == 0 { documentUndo.levelsOfUndo = 150 }     // wie der Verlauf im Web-Editor
     }
@@ -645,6 +648,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             // PDF-Seite -> Anzeige-Index (eingefuegte oder entfernte Seiten verschieben die Zaehlung)
             let index = shownLayout?.entries.firstIndex { $0.pdfIndex == p } ?? max(0, p - 1)
             goToPage(index)
+        } else if let s = initialSpot {
+            initialSpot = nil
+            restore(s)
+            // PDFKit legt die Seiten nach dem Zoom erst im naechsten Durchlauf neu: dort noch einmal an die Stelle
+            DispatchQueue.main.async { [weak self] in self?.restore(s, zoom: false) }
         }
     }
 
@@ -1501,6 +1509,52 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func goToPage(_ index: Int) {
         guard freezeMode == .off, let page = pdfView.document?.page(at: index) else { return }
         show(page: page)
+    }
+
+    // MARK: Reiter (Stelle merken, nie waehrend einer Geste wechseln)
+
+    /// Liegt der Stift auf einer Seite (laufender Strich)?
+    var pencilDown: Bool { live.values.contains(where: \.isDrawing) }
+
+    /// Darf das Dokument jetzt gegen ein anderes getauscht werden? Nicht, solange der Stift schreibt oder der Finger
+    /// scrollt, zoomt oder die Ansicht ausrollt (wie `showLayout`)
+    var readyToLeave: Bool { !pencilDown && !scrollGestureActive }
+
+    /// Wartet, bis Stift und Finger ruhen (hoechstens `timeout` Sekunden); true, wenn die Ansicht steht
+    @discardableResult
+    func waitUntilSettled(timeout: Double = 3) async -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        while !readyToLeave, Date() < end {
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        for v in allOverlays where v.loaded { commitPendingUndo(v) }
+        return readyToLeave
+    }
+
+    /// Stelle der Ansicht: Seite, Punkt oben links in Seitenkoordinaten, Zoom relativ zur eingepassten Breite
+    func currentSpot() -> DocumentViewSpot? {
+        guard let doc = pdfView.document, let dest = pdfView.currentDestination, let page = dest.page else { return nil }
+        let i = doc.index(for: page)
+        guard i >= 0, i < doc.pageCount else { return nil }
+        func finite(_ v: CGFloat) -> Double { v.isFinite && abs(v) < 1e6 ? Double(v) : 0 }
+        return DocumentViewSpot(pageKey: shownLayout?.key(at: i), pdfPage: store.entry(forPageIndex: i)?.pdfIndex,
+                                x: finite(dest.point.x), y: finite(dest.point.y),
+                                zoom: lastFit > 0 ? Double(pdfView.scaleFactor / lastFit) : 1)
+    }
+
+    /// Gemerkte Stelle wieder zeigen (Reiterwechsel); fixiert bleibt die Ansicht, wo sie ist
+    func restore(_ s: DocumentViewSpot, zoom: Bool = true) {
+        guard freezeMode == .off, let layout = shownLayout, let doc = pdfView.document else { return }
+        let index = s.pageKey.flatMap { layout.index(ofKey: $0) }
+            ?? s.pdfPage.flatMap { p in layout.entries.firstIndex { $0.pdfIndex == p } }
+        guard let index, let page = doc.page(at: index) else { return }
+        if zoom, lastFit > 0, s.zoom.isFinite, s.zoom > 0 {
+            let scale = min(max(lastFit * CGFloat(s.zoom), pdfView.minScaleFactor), pdfView.maxScaleFactor)
+            pdfView.scaleFactor = scale
+            userZoomed = ZoomPolicy.isUserZoom(scale: scale, fitScale: lastFit)
+        }
+        pdfView.go(to: PDFDestination(page: page, at: CGPoint(x: s.x, y: s.y)))
+        if mixedFormatFactor > 1.001, !userZoomed { centerHorizontally() }
     }
 
     func show(_ selection: PDFSelection) {

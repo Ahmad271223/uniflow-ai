@@ -396,12 +396,15 @@ struct EditorToolbar: View {
     let askAILock: UFPlan?
     /// Leiste unten im Dokument ("Unten fest"): Trennlinie oben statt unten
     let atBottom: Bool
+    /// in der einen Kopfzeile ("Oben fest", `EditorHeaderBar`, 12.11.2026): ohne eigene Flaeche und Linie, nur so breit
+    /// wie noetig; passt sie nicht, ruecken die Objektwerkzeuge in einen Knopf, danach laesst sich die Reihe schieben
+    let embedded: Bool
     @State private var attributesOpen = false
     @State private var optionsFor: EditorToolState.Tool?
 
     init(tools: EditorToolState, mode: EditorToolbarMode, undo: @escaping () -> Void, redo: @escaping () -> Void,
          onPick: @escaping (EditorToolState.Tool) -> Void = { _ in }, askAI: (() -> Void)? = nil, askAILock: UFPlan? = nil,
-         atBottom: Bool = false) {
+         atBottom: Bool = false, embedded: Bool = false) {
         self.tools = tools
         self.mode = mode
         self.undo = undo
@@ -410,6 +413,7 @@ struct EditorToolbar: View {
         self.askAI = askAI
         self.askAILock = askAILock
         self.atBottom = atBottom
+        self.embedded = embedded
     }
 
     /// Hoehe der Leiste (12.11.2026: "den Pencil-Kit-Strich kleiner", vorher 52 pt): so hoch wie die kleinste
@@ -420,18 +424,19 @@ struct EditorToolbar: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(EditorToolState.Tool.canvasTools) { toolButton($0) }
-                    rulerButton
-                    if !mode.inkOnly {
-                        divider
-                        ForEach(EditorToolState.Tool.objectTools) { toolButton($0) }
-                    }
+            if embedded {
+                // so breit wie noetig: alle Werkzeuge, sonst Objektwerkzeuge in einem Knopf, sonst schieben (nie umbrechen)
+                ViewThatFits(in: .horizontal) {
+                    toolRow(collapsed: false).fixedSize()
+                    toolRow(collapsed: true).fixedSize()
+                    ScrollView(.horizontal, showsIndicators: false) { toolRow(collapsed: true) }
+                        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                        .frame(minWidth: Self.hitSide * 2)              // mindestens zwei Stifte zu sehen
                 }
-                .padding(.horizontal, 6)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) { toolRow(collapsed: false) }
+                    .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             }
-            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             divider
             attributesButton
             divider
@@ -458,12 +463,10 @@ struct EditorToolbar: View {
                 .accessibilityLabel("Wiederholen")
                 .accessibilityIdentifier("toolbar.redo")
                 .modifier(MacShortcut(key: "z", modifiers: [.command, .shift]))
-                .padding(.trailing, 6)
+                .padding(.trailing, embedded ? 0 : 6)
         }
         .frame(height: Self.height)
-        .frame(maxWidth: .infinity)
-        .background(UF.surface)
-        .overlay(alignment: atBottom ? .top : .bottom) { UF.line.frame(height: 1) }
+        .modifier(EditorBarSurface(embedded: embedded, atBottom: atBottom))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Werkzeuge")
         .accessibilityIdentifier("editor.toolbar")
@@ -473,6 +476,55 @@ struct EditorToolbar: View {
     }
 
     private var divider: some View { UF.line.frame(width: 1, height: 22).padding(.horizontal, 3) }
+
+    /// Werkzeuge der Zeichenflaeche, Lineal und (ausser im Korrektur-Modus) die Objektwerkzeuge, einzeln oder in einem Knopf
+    private func toolRow(collapsed: Bool) -> some View {
+        HStack(spacing: 0) {
+            ForEach(EditorToolState.Tool.canvasTools) { toolButton($0) }
+            rulerButton
+            if !mode.inkOnly {
+                divider
+                if collapsed {
+                    objectsMenu
+                } else {
+                    ForEach(EditorToolState.Tool.objectTools) { toolButton($0) }
+                }
+            }
+        }
+        .padding(.horizontal, embedded ? 2 : 6)
+    }
+
+    /// Schmale Kopfzeile: die seltener gebrauchten Objektwerkzeuge (Bereich an KI, Auswaehlen, Text, Haftnotiz, Form,
+    /// Text markieren) in einem Knopf; er zeigt das gewaehlte bzw. zuletzt benutzte Objektwerkzeug
+    private var objectsMenu: some View {
+        let objectSelected = !tools.tool.drawsOnCanvas
+        let shown = objectSelected ? tools.tool : EditorToolState.Tool.select
+        return Menu {
+            ForEach(EditorToolState.Tool.objectTools) { t in
+                Button {
+                    onPick(t)
+                    tools.select(t)
+                } label: {
+                    Label(t.title, systemImage: tools.tool == t ? "checkmark" : t.icon)
+                }
+                .accessibilityIdentifier("toolbar.objects.\(t.rawValue)")
+            }
+        } label: {
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: shown.icon).font(.system(size: 16, weight: .medium))
+                    .frame(width: Self.hitSide, height: Self.hitSide)
+                Image(systemName: "chevron.down").font(.system(size: 7, weight: .heavy)).offset(x: -7, y: -9)
+            }
+            .foregroundStyle(objectSelected ? UF.accentText : UF.text)
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(objectSelected ? UF.accentSoft : .clear)
+                .padding(.horizontal, 4).padding(.vertical, 6))
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel(objectSelected ? "Objektwerkzeuge: \(tools.tool.title)" : "Objektwerkzeuge")
+        .accessibilityAddTraits(objectSelected ? .isSelected : [])
+        .accessibilityIdentifier("toolbar.objects")
+        .help("Objektwerkzeuge")
+    }
 
     /// Symbol eines Knopfs: 16 pt, Flaeche 44 x 44 pt (die Markierung des gewaehlten Werkzeugs zeichnet der Stil kleiner)
     private func icon(_ name: String) -> some View {
@@ -604,6 +656,8 @@ struct EditorLockedToolbar: View {
     let plan: UFPlan
     var askAILock: UFPlan?
     var atBottom = false
+    /// in der einen Kopfzeile ("Oben fest"): ohne eigene Flaeche und Linie
+    var embedded = false
     @State private var sheet: UFPlan?
 
     /// "Schreiben mit Plus"
@@ -645,9 +699,7 @@ struct EditorLockedToolbar: View {
         }
         .padding(.leading, 6)
         .frame(height: EditorToolbar.height)
-        .frame(maxWidth: .infinity)
-        .background(UF.surface)
-        .overlay(alignment: atBottom ? .top : .bottom) { UF.line.frame(height: 1) }
+        .modifier(EditorBarSurface(embedded: embedded, atBottom: atBottom))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Werkzeuge")
         .accessibilityIdentifier("editor.toolbar")
@@ -693,6 +745,23 @@ struct EditorFloatingLockHint: View {
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
         .ufPlanSheet($sheet)
+    }
+}
+
+/// Flaeche der Leiste: eigene volle Breite mit Linie, in der Kopfzeile nichts davon (die Zeile hat beides)
+private struct EditorBarSurface: ViewModifier {
+    let embedded: Bool
+    let atBottom: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if embedded {
+            content
+        } else {
+            content
+                .frame(maxWidth: .infinity)
+                .background(UF.surface)
+                .overlay(alignment: atBottom ? .top : .bottom) { UF.line.frame(height: 1) }
+        }
     }
 }
 
