@@ -38,7 +38,10 @@ Regeln (alle Reihenfolgen fest, damit Python und Swift dasselbe JSON liefern):
 - Versuche ehrlich (11.11.2026): "letzter Versuch" nur, wenn QIS es meldet ("letzter Versuch" im Status/Vermerk) oder
   Katalog bzw. Modul eine Hoechstzahl nennen (`max_attempts`, Vorgabe: unbekannt); "endgueltig" nur aus QIS oder bei
   erreichter Hoechstzahl, nie pauschal ab dem dritten Versuch. `attempt_known`: QIS nennt die Nummer des Versuchs
-  (sonst ist sie aus den Fehlversuchen gezaehlt, z. B. LSF Hildesheim ohne Versuchsspalte).
+  (sonst ist sie aus den Fehlversuchen gezaehlt, z. B. LSF Hildesheim ohne Versuchsspalte). Zaehlung (12.11.2026,
+  echter LUH-Notenspiegel): Fehlversuche = verschiedene (Semester, Datum) nicht bestandener Pruefungszeilen, mindestens
+  die hoechste QIS-Versuchsnummer; der bestandene Versuch ist max(Fehlversuche + 1, QIS-Versuch). Zeigt QIS bei
+  Fehlversuch (SoSe 25) und bestandenem Eintrag (SoSe 26) beide als Versuch 1, ist der bestandene Versuch 2.
 - Wahl statt Pflicht (11.11.2026): ein Bereich, dessen Pflichtmodule zusammen mehr als das 1,5-fache seiner LP
   (Obergrenze, sonst Bedarf; ohne Angabe: mehr als der ganze Studiengang) haben, bietet eine Wahl an: seine
   Pflichtmodule gelten als Wahlpflicht (die mit empfohlenem Fachsemester bleiben Pflicht, solange sie allein in den
@@ -511,9 +514,19 @@ def _index(mods: list[dict]) -> tuple[dict, dict]:
 
 
 def _row_module(r: dict, by_code: dict, by_key: dict) -> str | None:
+    """Katalogmodul einer QIS-Zeile: Pruefungsnummer, sonst Name; sonst das Modul ihrer QIS-Modulzeile (`modul_nr`,
+    `modul_text` aus grades_model, 12.11.2026: Leistungen eines Moduls ohne eigene Pruefungen wie "Studium Generale"
+    gehoeren zu diesem Modul, vorher standen sie als "nicht zugeordnet" da)"""
     nr = text_of(r.get("pruefungsnr")).strip()
     mid = by_code.get(nr) if nr else None
-    return mid if mid is not None else by_key.get(name_key(r.get("text")))
+    if mid is None:
+        mid = by_key.get(name_key(r.get("text")))
+    if mid is None:
+        mnr = text_of(r.get("modul_nr")).strip()
+        mid = by_code.get(mnr) if mnr else None
+        if mid is None and text_of(r.get("modul_text")).strip():
+            mid = by_key.get(name_key(r.get("modul_text")))
+    return mid
 
 
 def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:

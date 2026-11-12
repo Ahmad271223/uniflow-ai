@@ -16,6 +16,11 @@ import Foundation
 /// ihrem Modul (dann zaehlen die LP der Modulzeile): gleicher Text, sonst Nummer (110 -> 111, 11 -> 1101), sonst die
 /// Modulzeile direkt davor (nicht, wenn die Pruefung nach dem Semester des bestandenen Moduls liegt). Ist das Modul
 /// nicht bestanden, zaehlen seine bestandenen Pruefungen (zusammen hoechstens die LP der Modulzeile).
+///
+/// Echter LUH-Notenspiegel (12.11.2026, fixtures/qis-notenspiegel, wie grades_model.py): Spalte "Prf.Art" entscheidet
+/// (PL/SL Leistung, ohne Art Modul/Bereich; SL unbenotet); Note "0,0" = anerkannt ohne Note (`anerkannt`, Note leer);
+/// `modul_nr`/`modul_text` je Leistung; von mehreren bestandenen Eintraegen derselben Pruefung gilt der neueste nach
+/// Datum (aeltere `superseded`); `datum_iso` je Zeile.
 enum GradesModel {
     static let arts: Set<String> = ["PL", "SL", "LN", "LA", "SO", "KL", "MP", "PA", "HA", "RE", "BA", "MA", "PR", "TN", "AN", "SP", "ML"]
     static let semRE = PyRegex(#"^(WiSe|SoSe|Wintersemester|Sommersemester|WS|SS)\s*(\d{2,4})(?:\s*/\s*(\d{2,4}))?$"#, ignoreCase: true)
@@ -222,10 +227,27 @@ enum GradesModel {
         }
     }
 
-    private static func level(_ r: [String: JSONValue]) -> String {
+    /// `_level`: mit Spalte "Prf.Art" (LUH, `artColumn`: eine Zeile traegt PL/SL) entscheidet allein die Art: PL/SL ist
+    /// eine Leistung, ohne Art eine Modul- oder Bereichszeile (auch mit Wert in "Versuch")
+    private static func level(_ r: [String: JSONValue], artColumn: Bool = false) -> String {
         if isBereichText(text(r["text"]) ?? "") { return "bereich" }
-        if truthy(r["art"]) || !PyText.strip(text(r["versuch"]) ?? "").isEmpty { return "pruefung" }
-        return "modul"
+        if truthy(r["art"]) { return "pruefung" }
+        if artColumn && text(r["source"]) != "anmeldung" { return "modul" }
+        return PyText.strip(text(r["versuch"]) ?? "").isEmpty ? "modul" : "pruefung"
+    }
+
+    /// `iso_date`: "21.08.2026" -> "2026-08-21", sonst ""
+    static func isoDate(_ d: String?) -> String {
+        guard let d, let m = dateDERE.match(PyText.strip(d)), let day = PyText.int(digits: m.group(1) ?? ""),
+              let month = PyText.int(digits: m.group(2) ?? ""), let year = PyText.int(digits: m.group(3) ?? ""),
+              (1...12).contains(month), (1...31).contains(day), (1990...2099).contains(year) else { return "" }
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    /// `is_recognized`: Note "0,0" = anerkannt ohne Note (zaehlt nicht zum Schnitt, die LP zaehlen)
+    static func isRecognized(_ note: String?) -> Bool {
+        let s = PyText.strip(note ?? "")
+        return noteRE.match(s) != nil && num(.string(s)) == 0
     }
 
     /// `model`: gespeicherte Zeilen -> bereinigte Zeilen mit level, semester_norm, passed, graded; ohne Doppelte
@@ -259,17 +281,26 @@ enum GradesModel {
             var semNorm = normSemester(text(g["semester"]))
             if semNorm.isEmpty, let t = termOfDate(text(g["datum"])) { semNorm = termName(t) }   // leere Semesterspalte: Datum
             g["semester_norm"] = .string(semNorm)
+            // LUH: Note "0,0" heisst anerkannt ohne Note (12.11.2026: vorher stand "0,0" als Note in Uni & Noten und im
+            // Studienverlauf); bestanden laut Status, zaehlt nicht zum Schnitt, die LP zaehlen
+            let recognized = isRecognized(text(g["note"]))
+            g["anerkannt"] = .bool(recognized)
+            if recognized { g["note"] = .string("") }
+            g["datum_iso"] = .string(isoDate(text(g["datum"])))
             let nr = truthy(g["pruefungsnr"]) ? text(g["pruefungsnr"]) : text(g["text"])
             let key = [nr ?? "\u{0}none", text(g["art"]) ?? "", semNorm, PyText.strip(text(g["versuch"]) ?? ""),
                        text(g["note"]) ?? "", text(g["datum"]) ?? ""].map { $0.unicodeScalars.map(\.value) }
             guard seen.insert(key).inserted else { continue }
-            g["level"] = .string(level(g))
             let note = num(g["note"])
             let passed = isPassed(g)
             g["passed"] = .bool(passed)
-            g["graded"] = .bool(note.map { $0 >= 1.0 && $0 <= 4.0 } == true && passed)
+            // Studienleistung (SL) ist immer unbenotet
+            g["graded"] = .bool(note.map { $0 >= 1.0 && $0 <= 4.0 } == true && passed && text(g["art"]) != "SL")
             out.append(g)
         }
+        // Spalte "Prf.Art" vorhanden (LUH): PL/SL sind Leistungen, Zeilen ohne Art Modul- oder Bereichszeilen
+        let artColumn = out.contains { ["PL", "SL"].contains(text($0["art"]) ?? "") }
+        for i in out.indices { out[i]["level"] = .string(level(out[i], artColumn: artColumn)) }
         return count(out)
     }
 
@@ -301,6 +332,12 @@ enum GradesModel {
     }
 
     private static func lvl(_ r: [String: JSONValue]) -> String { text(r["level"]) ?? "" }
+
+    /// `_when`: Reihenfolge fuer "der neueste Eintrag": Datum, dann Semester, dann Position
+    private static func when(_ r: [String: JSONValue], _ i: Int) -> (String, Int, Int) {
+        let iso = text(r["datum_iso"]) ?? ""
+        return (iso.isEmpty ? isoDate(text(r["datum"])) : iso, rowTerm(r) ?? -1, i)
+    }
 
     /// `_parent`: Modulzeile (Index) einer Pruefungszeile oder nil
     private static func parent(_ m: [[String: JSONValue]], _ i: Int) -> Int? {
@@ -341,10 +378,41 @@ enum GradesModel {
     /// Modulzeile. Bestandene Pruefung ohne Modulzeile: ihre LP. Bereichs-/Summenzeilen und Anmeldungen nie.
     static func count(_ rows: [[String: JSONValue]]) -> [[String: JSONValue]] {
         var m = rows
-        for i in m.indices { m[i]["counted"] = false; m[i]["lp_counted"] = .number(0) }
+        for i in m.indices {
+            m[i]["counted"] = false; m[i]["lp_counted"] = .number(0); m[i]["superseded"] = false
+            m[i]["modul_nr"] = .null; m[i]["modul_text"] = .null
+        }
+        // Mehrere bestandene Eintraege derselben Pruefung (gleiche Nummer und gleicher Text, z. B. Notenverbesserung): es
+        // gilt der neueste nach Datum (dann Semester, dann Reihenfolge); die aelteren zaehlen weder zum Schnitt noch zu den
+        // LP (12.11.2026: vorher zaehlten beide). Nicht bestandene Eintraege sind Fehlversuche und ersetzen nichts.
+        func candidate(_ r: [String: JSONValue]) -> Bool {
+            lvl(r) == "pruefung" && isTrue(r["passed"]) && text(r["source"]) != "anmeldung"
+        }
+        var newest: [[[UInt32]]: Int] = [:]
+        for i in m.indices where candidate(m[i]) {
+            let n = nr(m[i])
+            let k = [n.isEmpty ? nameKey(m[i]) : n.unicodeScalars.map(\.value), nameKey(m[i])]
+            if let j = newest[k] {
+                let a = when(m[i], i), b = when(m[j], j)
+                if PyText.less(b.0, a.0) || (a.0.unicodeScalars.elementsEqual(b.0.unicodeScalars) && (a.1, a.2) >= (b.1, b.2)) { newest[k] = i }
+            } else {
+                newest[k] = i
+            }
+        }
+        let keep = Set(newest.values)
+        for i in m.indices where candidate(m[i]) && !keep.contains(i) { m[i]["superseded"] = true; m[i]["graded"] = false }
+
         var kids: [Int: [Int]] = [:], alone: [Int] = []
-        for i in m.indices where lvl(m[i]) == "pruefung" && isTrue(m[i]["passed"]) {
-            if let j = parent(m, i) { kids[j, default: []].append(i) } else { alone.append(i) }
+        for i in m.indices where lvl(m[i]) == "pruefung" {
+            let j = parent(m, i)
+            // Modul der Leistung (QIS: die Modulzeile davor; Nummer und Text fuer Studienverlauf und Anzeige)
+            if let j {
+                let n = nr(m[j])
+                m[i]["modul_nr"] = n.isEmpty ? .null : .string(n)
+                m[i]["modul_text"] = m[j]["text"] ?? .null
+            }
+            guard isTrue(m[i]["passed"]), !isTrue(m[i]["superseded"]) else { continue }
+            if let j { kids[j, default: []].append(i) } else { alone.append(i) }
         }
         for i in m.indices where lvl(m[i]) == "modul" {
             let own = lp(m[i])

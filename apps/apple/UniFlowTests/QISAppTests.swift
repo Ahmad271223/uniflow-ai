@@ -280,6 +280,39 @@ final class QISAppTests: XCTestCase {
         XCTAssertTrue(UniStubProtocol.requests.isEmpty, "keine Anfrage an das QIS")
     }
 
+    /// Knopf "Diese Seite auslesen" (12.11.2026): die angezeigte Notenspiegel-Seite (echter LUH-Aufbau,
+    /// fixtures/qis-notenspiegel/luh-notenspiegel.html) mit demselben Leser; nur Seiten des QIS ueber HTTPS; Stammdaten
+    /// und asi nie gespeichert; die Ansicht hat den Knopf und liest nur `outerHTML`
+    func testReadDisplayedPageWithTheSameParser() async throws {
+        let (m, c, q) = try luh()
+        installQIS()
+        await signIn(m, c, q)
+        try ContainerTestBed.requireRepoSources()
+        let html = try String(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/qis-notenspiegel/luh-notenspiegel.html"),
+                              encoding: .utf8)
+        let url = URL(string: "https://\(host)/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=notenspiegelStudent&next=list.vm&asi=S1abcDEF")!
+        let foreign = await q.readDisplayedPage(html: html, url: URL(string: "https://qis.example.org/x")!)
+        XCTAssertEqual(foreign.result, .nothing, "nur das QIS der LUH")
+        let http = await q.readDisplayedPage(html: html, url: URL(string: "http://\(host)/x")!)
+        XCTAssertEqual(http.result, .nothing, "nur HTTPS")
+        let runs = q.finishedRuns
+        let r = await q.readDisplayedPage(html: html, url: url)
+        XCTAssertEqual(r.result, .grades(7), r.message)
+        XCTAssertEqual(q.state, .ok(clock.now))
+        XCTAssertEqual(q.finishedRuns, runs + 1, "Seiten laden danach neu")
+        let g = try await c.api.value("/api/grades")
+        XCTAssertEqual(g["credits"], 19, "LP aus QIS: 8 + 5 + 6, Kompetenzbereich nie")
+        XCTAssertEqual(g["average"], 3.3)
+        let db = try await c.host.backend().context.database
+        let dump = JSONValue.array(try await db.rows("SELECT * FROM grades").map(JSONValue.object)).jsonString()
+        for secret in ["Erika", "1234567", "Musterweg", "S1abcDEF"] { XCTAssertFalse(dump.contains(secret), secret) }
+        // Ansicht: Knopf in der QIS-Webansicht, nur Seiteninhalt lesen, Felder fuer Autofill gekennzeichnet
+        let views = try String(contentsOf: ContainerTestBed.repoURL("apps/apple/UniFlow/Views/QISViews.swift"), encoding: .utf8)
+        XCTAssertTrue(views.contains("\"Diese Seite auslesen\""))
+        XCTAssertTrue(views.contains("connection.readDisplayedPage(html: html, url: url)"))
+        XCTAssertEqual(views.components(separatedBy: "qisAutofillHints: true").count - 1, 2, "Anmeldung und Leseansicht")
+    }
+
     func testUniversityPickerAndSidebarNoLongerPromiseQISForLater() {
         XCTAssertFalse(UniversityOption.services(.luh).contains("spätere"))
         XCTAssertTrue(UniversityOption.services(.luh).contains("QIS: Notenspiegel"))

@@ -423,6 +423,8 @@ struct StudIPWebView: UIViewRepresentable {
     var load: UFWebLoadState? = nil
     /// Hilfe auf der Anmeldeseite des WebSSO bzw. CAS (`UniLoginHelper`); aus fuer das QIS (eigenes Formular, kein SSO)
     var loginHelper = true
+    /// QIS: Felder `asdf`/`fdsa` fuer das Passwort-Autofill von iPadOS kennzeichnen (`QISAutofillHints`, nur Attribute)
+    var qisAutofillHints = false
     /// erste Seite ohne Cache laden (HsH-Campus: eine Fehlerseite des IdP nie aus dem Cache zeigen)
     var cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     let onPageLoaded: (WKWebView) -> Void
@@ -445,6 +447,8 @@ struct StudIPWebView: UIViewRepresentable {
         // einsetzen (`UniLoginHelper`, nie das Passwort); Stud.IP, QIS, Learnweb und LSF bleiben ohne Skript
         // (nicht fuer die lokale Nachbildung des Debug-Stubs: dort gibt es keinen Anbieter)
         if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }
+        // QIS (12.11.2026): nur die Kennzeichnung der Anmeldefelder fuer iPadOS, nie ein Wert (`QISAutofillHints`)
+        if qisAutofillHints, !url.isFileURL { QISAutofillHints.install(in: config) }
         // seit 06.11.2026 (Entscheidung des Inhabers): mit "Passwort auf diesem iPad merken" liest ein Skript in eigener
         // Inhaltswelt beim Absenden Benutzername und Passwort des echten Formulars der Hochschule mit (`UniAutoLogin`)
         if !url.isFileURL { UniCredentialCapture.install(in: config, dataStore: dataStore) }

@@ -244,6 +244,41 @@ final class QISConnection: ObservableObject {
         return r
     }
 
+    /// Knopf "Diese Seite auslesen" (`QISPageReaderView`, 12.11.2026): die in der Webansicht angezeigte QIS-Seite
+    /// (Notenspiegel bzw. "Info über angemeldete Prüfungen") mit demselben Leser wie der Abruf lesen
+    /// (`QISPageImport`). Nur Seiten des QIS ueber HTTPS; nie mit Demo-Inhalten, nie waehrend eines Abrufs.
+    @discardableResult
+    func readDisplayedPage(html: String, url: URL) async -> QISPageImport.Report {
+        guard QISPageImport.accepts(url, allowedHosts: Self.qisDomains) else {
+            return .init(result: .nothing, message: "Nur Seiten des QIS der LUH können ausgelesen werden.")
+        }
+        guard !isRunning, !stopped else { return .init(result: .nothing, message: "Gerade läuft ein Abruf. Bitte gleich noch einmal.") }
+        if await host.demoActive() { return .init(result: .nothing, message: "Mit Demo-Inhalten wird nichts aus dem QIS gelesen.") }
+        let r: QISPageImport.Report
+        do {
+            let db = try await host.backend().context.database
+            r = await QISPageImport.read(db: db, html: html, url: url, clock: clock)
+        } catch {
+            return .init(result: .nothing, message: LocalBackendHost.message(for: error))
+        }
+        switch r.result {
+        case .grades(let n):
+            if !isConnected { defaults.set(true, forKey: Keys.connected) }
+            lastMessage = r.message
+            lastCount = n
+            defaults.set(r.message, forKey: Keys.message)
+            defaults.set(n, forKey: Keys.count)
+            set(.ok(clock.now))
+            StudyCatalogSync.trigger(host: host)
+        case .registrations:
+            registrationsMessage = r.message
+        case .loginPage, .nothing:
+            break
+        }
+        finishedRuns += 1                                       // offene Seiten laden neu
+        return r
+    }
+
     private func apply(_ r: QISGradesSync.Report?, before: State, renewsSession: Bool) {
         guard let r else { set(.failed("Abruf nicht möglich.")); return }
         if r.cancelled {

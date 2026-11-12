@@ -26,12 +26,17 @@ public enum GradeRows {
     private static let nonWordRE = HText.regex("[^\\wäöüß]+")
     private static let abschlussRE = HText.regex("^(Abschluss:.*?PO-Version:\\s*\\d+)", [.caseInsensitive])
 
-    /// `qis._header_map`: erstes Wort jeder Spalte -> Feldname
+    /// Spalte der Pruefungsart (`qis.ART_HEADERS`): "Prf.Art" (echter LUH-Notenspiegel, 12.11.2026), "Prüfungsart", "Art"
+    static let artHeaders: Set<[String]> = [["prf", "art"], ["prfart"], ["prüfungsart"], ["pruefungsart"], ["art"],
+                                            ["prüfungs", "art"], ["pruefungs", "art"]]
+
+    /// `qis._header_map`: erstes Wort jeder Spalte -> Feldname; "Prf.Art" -> art
     static func headerMap(_ cells: [String]) -> [String?] {
         cells.map { h in
             let words = HText.replace(nonWordRE, in: h.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), with: " ")
-                .split(separator: " ")
-            return words.first.flatMap { headers[String($0)] }
+                .split(separator: " ").map(String.init)
+            if artHeaders.contains(words) { return "art" }
+            return words.first.flatMap { headers[$0] }
         }
     }
 

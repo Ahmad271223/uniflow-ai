@@ -206,15 +206,18 @@ public struct QISPage: Sendable {
     /// `visited` (Adressen ohne asi) wird je Gruppe vorher entfernt: sind die Studiengaenge eines Abschlusses schon
     /// besucht, kommen die uebrigen Abschluesse dran. Ein Baumknoten, dessen nodeID schon besucht wurde oder unter
     /// dem schon ein Knoten besucht wurde, gilt als aufgeklappt und wird nicht erneut angeboten (kein Zuklappen).
-    public func nextLinksTowardGrades(excluding visited: Set<String> = []) -> [QISLink] {
+    /// Nie gefolgt wird Links mit "logout", "abmeld", "anmeldung" (Pruefungsanmeldung), Ruecktritt, Bescheinigungen und
+    /// PDF (`QISParser.isForbiddenNavigation`, 12.11.2026). `preferring`: Namen des eigenen Studiengangs (gewaehlter
+    /// Katalog, zuletzt gelesener Notenspiegel); bei mehreren Studiengaengen bzw. Abschluessen kommen die passenden zuerst.
+    public func nextLinksTowardGrades(excluding visited: Set<String> = [], preferring preferred: [String] = []) -> [QISLink] {
         let visitedNodes = visited.compactMap { QISParser.parameters(of: $0)["nodeid"]?.lowercased() }.filter { !$0.isEmpty }
         func isOpen(_ l: QISLink) -> Bool {
-            guard !visited.contains(l.address) else { return false }
+            guard !visited.contains(l.address), !QISParser.isForbiddenNavigation(l) else { return false }
             guard let node = l.parameters["nodeid"]?.lowercased(), !node.isEmpty else { return true }
             return !visitedNodes.contains { $0 == node || $0.hasPrefix(node + ",") || $0.hasPrefix(node + "|") }
         }
         for t in [QISTarget.leistungen, .abschluss] {
-            let l = links(t).filter(isOpen)
+            let l = QISParser.preferProgram(links(t).filter(isOpen), preferred)
             if !l.isEmpty { return Array(l.prefix(10)) }
         }
         for t in [QISTarget.notenspiegel, .meinStudium] {
@@ -264,9 +267,10 @@ public struct QISCollector: Sendable, Equatable, Codable {
         for d in page.documents where known.insert(d.link.address).inserted { documents.append(d) }
     }
 
-    /// Noch nicht besuchte Links Richtung Leistungen auf dieser Seite (besuchte schon vor der Wahl der Gruppe entfernt).
-    public func nextLinks(on page: QISPage) -> [QISLink] {
-        page.nextLinksTowardGrades(excluding: visited)
+    /// Noch nicht besuchte Links Richtung Leistungen auf dieser Seite (besuchte schon vor der Wahl der Gruppe entfernt);
+    /// der eigene Studiengang (`preferring`) zuerst.
+    public func nextLinks(on page: QISPage, preferring preferred: [String] = []) -> [QISLink] {
+        page.nextLinksTowardGrades(excluding: visited, preferring: preferred)
     }
 
     public var summary: QISGradeSummary { QISParser.summary(grades) }
@@ -367,6 +371,35 @@ public enum QISParser {
         return ["grades": .array(gradeJSON), "average": sum.average.map(JSONValue.number) ?? .null,
                 "credits": .number(sum.credits), "passed": .number(Double(sum.passed)), "last_run": lastRun,
                 "documents": .array(docJSON)]
+    }
+
+    // MARK: Navigation (12.11.2026, wie qis.is_forbidden_nav und qis.prefer_program)
+
+    static let forbiddenNavigation = ["logout", "abmeld", "anmeldung", "prfanm", "ruecktritt", "rücktritt", "verpublish",
+                                      "hisreports", "storn", ".pdf"]
+
+    /// Nie folgen: Abmelden (Logout), Pruefungsan-/abmeldung, Ruecktritt, Bescheinigungen/PDF (Text oder Adresse).
+    /// "Info über angemeldete Prüfungen" nennt "angemeldet", nicht "Anmeldung".
+    public static func isForbiddenNavigation(_ l: QISLink) -> Bool {
+        let t = l.text.lowercased() + " " + (l.address.removingPercentEncoding ?? l.address).lowercased()
+        return forbiddenNavigation.contains { t.contains($0) }
+    }
+
+    /// Name eines Studiengangs ohne "(PO-Version ...)", klein, Leerraum zusammengefasst
+    static func programKey(_ name: String) -> String {
+        let base = name.range(of: "(").map { String(name[..<$0.lowerBound]) } ?? name
+        return clean(base).lowercased()
+    }
+
+    /// Eigener Studiengang zuerst (Text "Leistungen für <Studiengang> anzeigen" bzw. Linktext), sonst Reihenfolge der Seite
+    public static func preferProgram(_ links: [QISLink], _ preferred: [String]) -> [QISLink] {
+        let keys = preferred.map(programKey).filter { !$0.isEmpty }
+        guard !keys.isEmpty else { return links }
+        func own(_ l: QISLink) -> Bool {
+            let name = programKey(l.studiengang ?? l.text)
+            return keys.contains { $0 == name || ($0.count >= 4 && name.contains($0)) }
+        }
+        return links.filter(own) + links.filter { !own($0) }
     }
 
     // MARK: Zuordnung der Links
