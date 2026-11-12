@@ -88,6 +88,8 @@ from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan,
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
 app.include_router(study_catalog.router)
+from . import smart_goals  # noqa: E402 - Smart Planner 2.0: Lernziele in Stunden, Lernzeit (/api/goals, /api/sessions)
+app.include_router(smart_goals.router)
 from . import timetable_questions  # noqa: E402 - Rueckfragen zum Stud.IP-Kalender, Ausfaelle laut Stud.IP (/api/timetable/studip-*)
 app.include_router(timetable_questions.router)
 from . import due_api  # noqa: E402 - Fristen aus Dateien erkennen (/api/due, app/due_store.py, 05.11.2026)
@@ -3614,6 +3616,9 @@ def api_package_add_task(package_id: int, body: dict = Body(...)):
 @app.patch("/api/packages/{package_id}")
 def api_package_patch(package_id: int, body: dict = Body(...)):
     with db.cursor() as conn:
+        # Block des Stundenplaners von Hand verschoben: gilt als fest, der Planer plant darum herum (Smart Planner 2.0)
+        if body.get("date") or "start_time" in body or "end_time" in body:
+            conn.execute("UPDATE study_packages SET manual=1 WHERE id=? AND source='smart'", (package_id,))
         if body.get("date"):
             try:
                 study.move_package(conn, package_id, body["date"])

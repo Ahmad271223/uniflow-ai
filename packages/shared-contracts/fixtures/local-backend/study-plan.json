@@ -918,6 +918,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "09:00",
         "end_time": "10:45",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -1014,6 +1017,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "10:00",
         "end_time": "10:45",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -1069,6 +1075,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#333333",
         "module_name": "Programmierkurs Beispiel",
         "tasks": [
@@ -1143,6 +1152,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "17:00",
         "end_time": "18:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -1427,6 +1439,9 @@
        "created_at": "2026-10-19T08:00:00",
        "start_time": "17:00",
        "end_time": "18:00",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": null,
        "module_name": null,
        "tasks": [
@@ -2022,6 +2037,9 @@
     "created_at": "2026-10-19T08:00:00",
     "start_time": "09:00",
     "end_time": "10:45",
+    "source": null,
+    "locked": 0,
+    "manual": 0,
     "color": "#111111",
     "module_name": "Testmathematik I",
     "tasks": [
@@ -2090,6 +2108,9 @@
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
     "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0,
     "color": "#111111",
     "module_name": "Testmathematik I",
     "tasks": [
@@ -2181,6 +2202,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "10:30",
         "end_time": "13:10",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -2244,6 +2268,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "13:20",
         "end_time": "14:20",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -2350,6 +2377,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "08:00",
         "end_time": "08:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -2680,6 +2710,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "08:00",
         "end_time": "08:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        }
       ],
@@ -2973,6 +3006,9 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "10:30",
       "end_time": "13:10",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#111111"
      },
      {
@@ -2989,6 +3025,9 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "13:20",
       "end_time": "14:20",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#222222"
      }
     ],
@@ -3044,7 +3083,10 @@
     "generated": 1,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "16:15",
-    "end_time": "18:55"
+    "end_time": "18:55",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "start_time": "16:15",
@@ -3119,6 +3161,9 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "10:30",
       "end_time": "13:10",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#111111"
      },
      {
@@ -3135,6 +3180,9 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "13:20",
       "end_time": "14:20",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#222222"
      }
     ],
@@ -3344,7 +3392,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "date": "2026-10-28",
@@ -3370,7 +3421,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "16:00",
-    "end_time": "16:50"
+    "end_time": "16:50",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "start_time": "16:00",
@@ -3395,6 +3449,9 @@
     "created_at": "2026-10-23T09:15:00",
     "start_time": "16:00",
     "end_time": "16:50",
+    "source": null,
+    "locked": 0,
+    "manual": 0,
     "color": "#222222",
     "module_name": "Testphysik",
     "tasks": [
@@ -3454,6 +3511,9 @@
     "created_at": "2026-10-23T09:15:00",
     "start_time": "16:00",
     "end_time": "16:50",
+    "source": null,
+    "locked": 0,
+    "manual": 0,
     "color": "#222222",
     "module_name": "Testphysik",
     "tasks": [
@@ -3521,7 +3581,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "date": "2026-10-28",
@@ -3557,7 +3620,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "date": "2026-10-29",
@@ -3601,7 +3667,10 @@
     "generated": 0,
     "created_at": "2026-10-19T08:00:00",
     "start_time": "17:00",
-    "end_time": "18:00"
+    "end_time": "18:00",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "date": "2026-10-30",
@@ -3649,7 +3718,10 @@
     "generated": 0,
     "created_at": "2026-10-19T08:00:00",
     "start_time": "19:30",
-    "end_time": "20:00"
+    "end_time": "20:00",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "start_time": "19:30"
@@ -3696,6 +3768,9 @@
       "created_at": "2026-10-19T08:00:00",
       "start_time": "19:30",
       "end_time": "20:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": null
      }
     ],
@@ -3739,7 +3814,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "date": "2026-11-09",
@@ -3776,7 +3854,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    "body": {
     "date": "2026-11-09",
@@ -3840,6 +3921,9 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "08:00",
       "end_time": "08:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": null
      },
      {
@@ -3856,6 +3940,9 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "13:00",
       "end_time": "15:10",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#111111"
      }
     ],
@@ -4187,6 +4274,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": []
@@ -4238,6 +4328,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": []
@@ -4270,6 +4363,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#333333",
         "module_name": "Programmierkurs Beispiel",
         "tasks": [
@@ -4344,6 +4440,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "09:55",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -4431,6 +4530,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "10:30",
         "end_time": "13:10",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -4494,6 +4596,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "13:20",
         "end_time": "14:20",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -4568,6 +4673,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:45",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -4642,6 +4750,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "08:00",
         "end_time": "08:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -4717,6 +4828,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "16:00",
         "end_time": "16:50",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -4780,6 +4894,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -4843,6 +4960,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "11:50",
         "end_time": "12:50",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -4936,6 +5056,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -5010,6 +5133,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "19:30",
         "end_time": "20:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -5159,6 +5285,9 @@
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
     "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0,
     "color": "#111111",
     "module_name": "Testmathematik I",
     "tasks": []
@@ -5392,6 +5521,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:45",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -5466,6 +5598,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "08:00",
         "end_time": "08:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -5541,6 +5676,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "16:00",
         "end_time": "16:50",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -5604,6 +5742,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -5645,6 +5786,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "11:50",
         "end_time": "12:50",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -5770,6 +5914,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "19:30",
         "end_time": "20:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -5960,6 +6107,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": "08:00",
        "end_time": "09:55",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": "#111111",
        "module_name": "Testmathematik I",
        "tasks": [
@@ -7486,6 +7636,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "13:00",
         "end_time": "15:10",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -7549,6 +7702,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -8336,6 +8492,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": "16:00",
        "end_time": "16:50",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": "#222222",
        "module_name": "Testphysik",
        "tasks": [
@@ -8399,6 +8558,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": null,
        "end_time": null,
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": null,
        "module_name": null,
        "tasks": [
@@ -8440,6 +8602,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": "11:50",
        "end_time": "12:50",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": "#111111",
        "module_name": "Testmathematik I",
        "tasks": [
@@ -9442,6 +9607,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "16:00",
         "end_time": "16:50",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -9505,6 +9673,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "12:50",
         "end_time": "13:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -9546,6 +9717,9 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "11:50",
         "end_time": "12:50",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -9639,6 +9813,9 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "08:00",
         "end_time": "08:23",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -9680,6 +9857,9 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "08:33",
         "end_time": "08:56",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -9721,6 +9901,9 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "09:06",
         "end_time": "09:36",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
@@ -9795,6 +9978,9 @@
         "created_at": "2026-10-19T08:00:00",
         "start_time": "19:30",
         "end_time": "20:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null,
         "module_name": null,
         "tasks": [
@@ -9887,6 +10073,9 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "10:30",
         "end_time": "10:53",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
@@ -9928,6 +10117,9 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "11:03",
         "end_time": "11:26",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
@@ -9969,6 +10161,9 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "11:36",
         "end_time": "12:06",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
@@ -10717,6 +10912,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": "16:00",
        "end_time": "16:50",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": "#222222",
        "module_name": "Testphysik",
        "tasks": [
@@ -10780,6 +10978,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": "12:50",
        "end_time": "13:30",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": null,
        "module_name": null,
        "tasks": [
@@ -10821,6 +11022,9 @@
        "created_at": "2026-10-23T09:15:00",
        "start_time": "11:50",
        "end_time": "12:50",
+       "source": null,
+       "locked": 0,
+       "manual": 0,
        "color": "#111111",
        "module_name": "Testmathematik I",
        "tasks": [
@@ -11759,7 +11963,10 @@
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 2,
@@ -11774,7 +11981,10 @@
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 3,
@@ -11789,7 +11999,10 @@
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
-    "end_time": null
+    "end_time": null,
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 4,
@@ -11804,7 +12017,10 @@
     "generated": 0,
     "created_at": "2026-10-19T08:00:00",
     "start_time": "19:30",
-    "end_time": "20:00"
+    "end_time": "20:00",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 5,
@@ -11819,7 +12035,10 @@
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
     "start_time": "08:00",
-    "end_time": "08:30"
+    "end_time": "08:30",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 6,
@@ -11834,7 +12053,10 @@
     "generated": 1,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "10:30",
-    "end_time": "13:10"
+    "end_time": "13:10",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 7,
@@ -11849,7 +12071,10 @@
     "generated": 1,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "13:20",
-    "end_time": "14:20"
+    "end_time": "14:20",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 8,
@@ -11864,7 +12089,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "16:00",
-    "end_time": "16:50"
+    "end_time": "16:50",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 9,
@@ -11879,7 +12107,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "12:50",
-    "end_time": "13:30"
+    "end_time": "13:30",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 11,
@@ -11894,7 +12125,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "13:00",
-    "end_time": "15:10"
+    "end_time": "15:10",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 12,
@@ -11909,7 +12143,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "08:00",
-    "end_time": "08:30"
+    "end_time": "08:30",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 13,
@@ -11924,7 +12161,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "08:00",
-    "end_time": "09:55"
+    "end_time": "09:55",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 14,
@@ -11939,7 +12179,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "08:00",
-    "end_time": "08:45"
+    "end_time": "08:45",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 15,
@@ -11954,7 +12197,10 @@
     "generated": 0,
     "created_at": "2026-10-23T09:15:00",
     "start_time": "11:50",
-    "end_time": "12:50"
+    "end_time": "12:50",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 16,
@@ -11969,7 +12215,10 @@
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "08:00",
-    "end_time": "08:23"
+    "end_time": "08:23",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 17,
@@ -11984,7 +12233,10 @@
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "08:33",
-    "end_time": "08:56"
+    "end_time": "08:56",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 18,
@@ -11999,7 +12251,10 @@
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "09:06",
-    "end_time": "09:36"
+    "end_time": "09:36",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 19,
@@ -12014,7 +12269,10 @@
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "10:30",
-    "end_time": "10:53"
+    "end_time": "10:53",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 20,
@@ -12029,7 +12287,10 @@
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "11:03",
-    "end_time": "11:26"
+    "end_time": "11:26",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    },
    {
     "id": 21,
@@ -12044,7 +12305,10 @@
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "11:36",
-    "end_time": "12:06"
+    "end_time": "12:06",
+    "source": null,
+    "locked": 0,
+    "manual": 0
    }
   ],
   "study_tasks": [
@@ -12789,7 +13053,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-10-29",
@@ -12918,6 +13185,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "08:00",
           "end_time": "08:30",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": null,
           "module_name": null,
           "tasks": [
@@ -12959,6 +13229,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "14:00",
           "end_time": "15:00",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -13154,6 +13427,9 @@
           "created_at": "2026-10-19T08:00:00",
           "start_time": "08:00",
           "end_time": "08:30",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#111111",
           "module_name": "Testmathematik I",
           "tasks": [
@@ -13229,6 +13505,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "11:50",
           "end_time": "13:45",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#111111",
           "module_name": "Testmathematik I",
           "tasks": [
@@ -13292,6 +13571,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "13:55",
           "end_time": "14:40",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -13385,6 +13667,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "08:00",
           "end_time": "08:30",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": null,
           "module_name": null,
           "tasks": [
@@ -13426,6 +13711,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "14:00",
           "end_time": "15:00",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -13500,6 +13788,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "08:00",
           "end_time": "09:00",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
@@ -13680,7 +13971,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-11-02",
@@ -13732,7 +14026,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "16:00",
-      "end_time": "17:25"
+      "end_time": "17:25",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "start_time": "16:00",
@@ -13756,7 +14053,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "10:30",
-      "end_time": "11:55"
+      "end_time": "11:55",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "start_time": "10:30"
@@ -13780,6 +14080,9 @@
       "created_at": "2026-10-28T09:00:00",
       "start_time": "10:30",
       "end_time": "11:55",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": null,
       "module_name": null,
       "tasks": [
@@ -13847,7 +14150,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "10:30",
-      "end_time": "11:55"
+      "end_time": "11:55",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-11-05"
@@ -13870,7 +14176,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "14:40",
-      "end_time": "16:05"
+      "end_time": "16:05",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-10-28"
@@ -13894,6 +14203,9 @@
       "created_at": "2026-10-28T09:00:00",
       "start_time": "14:40",
       "end_time": "16:05",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": null,
       "module_name": null,
       "tasks": [
@@ -13961,7 +14273,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "17:00",
-      "end_time": "18:25"
+      "end_time": "18:25",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-11-06",
@@ -13985,7 +14300,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "08:00",
-      "end_time": "08:30"
+      "end_time": "08:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-11-03"
@@ -14014,7 +14332,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      "body": {
       "date": "2026-11-06",
@@ -14079,6 +14400,9 @@
         "created_at": "2026-10-28T09:00:00",
         "start_time": "08:00",
         "end_time": "08:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null
        },
        {
@@ -14095,6 +14419,9 @@
         "created_at": "2026-10-28T09:00:00",
         "start_time": "17:00",
         "end_time": "18:25",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null
        }
       ],
@@ -14185,6 +14512,9 @@
         "created_at": "2026-10-28T09:00:00",
         "start_time": "08:00",
         "end_time": "09:25",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null
        },
        {
@@ -14201,6 +14531,9 @@
         "created_at": "2026-10-28T09:00:00",
         "start_time": "09:35",
         "end_time": "10:05",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null
        }
       ],
@@ -14261,6 +14594,9 @@
       "created_at": "2026-10-28T09:00:00",
       "start_time": null,
       "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": null,
       "module_name": null,
       "tasks": []
@@ -14307,6 +14643,9 @@
         "created_at": "2026-10-28T09:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null
        },
        {
@@ -14323,6 +14662,9 @@
         "created_at": "2026-10-28T09:00:00",
         "start_time": "08:00",
         "end_time": "09:25",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": null
        }
       ],
@@ -14466,6 +14808,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "11:50",
           "end_time": "13:45",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#111111",
           "module_name": "Testmathematik I",
           "tasks": [
@@ -14529,6 +14874,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "13:55",
           "end_time": "14:40",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -14622,6 +14970,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "14:00",
           "end_time": "15:00",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -14696,6 +15047,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": null,
           "end_time": null,
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": []
@@ -14765,6 +15119,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "10:30",
           "end_time": "11:30",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
@@ -14871,6 +15228,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "08:00",
           "end_time": "08:30",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": null,
           "module_name": null,
           "tasks": [
@@ -15011,6 +15371,9 @@
          "created_at": "2026-10-28T09:00:00",
          "start_time": "11:50",
          "end_time": "13:45",
+         "source": null,
+         "locked": 0,
+         "manual": 0,
          "color": "#111111",
          "module_name": "Testmathematik I",
          "tasks": [
@@ -15074,6 +15437,9 @@
          "created_at": "2026-10-28T09:00:00",
          "start_time": "13:55",
          "end_time": "14:40",
+         "source": null,
+         "locked": 0,
+         "manual": 0,
          "color": "#222222",
          "module_name": "Testphysik",
          "tasks": [
@@ -15746,7 +16112,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "09:00",
-      "end_time": "10:45"
+      "end_time": "10:45",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 2,
@@ -15761,7 +16130,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "10:00",
-      "end_time": "10:45"
+      "end_time": "10:45",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 3,
@@ -15776,7 +16148,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 4,
@@ -15791,7 +16166,10 @@
       "generated": 0,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "17:00",
-      "end_time": "18:00"
+      "end_time": "18:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 5,
@@ -15806,7 +16184,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "08:00",
-      "end_time": "08:30"
+      "end_time": "08:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 6,
@@ -15821,7 +16202,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "08:00",
-      "end_time": "08:30"
+      "end_time": "08:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 7,
@@ -15836,7 +16220,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "14:00",
-      "end_time": "15:00"
+      "end_time": "15:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 8,
@@ -15851,7 +16238,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "11:50",
-      "end_time": "13:45"
+      "end_time": "13:45",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 9,
@@ -15866,7 +16256,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "13:55",
-      "end_time": "14:40"
+      "end_time": "14:40",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 10,
@@ -15881,7 +16274,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 11,
@@ -15896,7 +16292,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "08:00",
-      "end_time": "09:25"
+      "end_time": "09:25",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 12,
@@ -15911,7 +16310,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 13,
@@ -15926,7 +16328,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "08:00",
-      "end_time": "08:30"
+      "end_time": "08:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 14,
@@ -15941,7 +16346,10 @@
       "generated": 0,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "10:30",
-      "end_time": "11:30"
+      "end_time": "11:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      }
     ],
     "study_tasks": [
@@ -16655,6 +17063,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "11:50",
           "end_time": "15:25",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#111111",
           "module_name": "Testmathematik I",
           "tasks": [
@@ -16740,6 +17151,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "15:35",
           "end_time": "16:20",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -16833,6 +17247,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "08:00",
           "end_time": "09:00",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
@@ -17122,6 +17539,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "11:50",
           "end_time": "15:25",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#111111",
           "module_name": "Testmathematik I",
           "tasks": [
@@ -17207,6 +17627,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "15:35",
           "end_time": "16:20",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#222222",
           "module_name": "Testphysik",
           "tasks": [
@@ -17300,6 +17723,9 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "08:00",
           "end_time": "09:00",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
@@ -17556,6 +17982,9 @@
           "created_at": "2026-11-02T08:00:00",
           "start_time": "08:00",
           "end_time": "08:32",
+          "source": null,
+          "locked": 0,
+          "manual": 0,
           "color": "#111111",
           "module_name": "Testmathematik I",
           "tasks": [
@@ -17922,7 +18351,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "09:00",
-      "end_time": "10:45"
+      "end_time": "10:45",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 2,
@@ -17937,7 +18369,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "10:00",
-      "end_time": "10:45"
+      "end_time": "10:45",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 3,
@@ -17952,7 +18387,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 4,
@@ -17967,7 +18405,10 @@
       "generated": 0,
       "created_at": "2026-10-19T08:00:00",
       "start_time": "17:00",
-      "end_time": "18:00"
+      "end_time": "18:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 5,
@@ -17982,7 +18423,10 @@
       "generated": 1,
       "created_at": "2026-10-19T08:00:00",
       "start_time": null,
-      "end_time": null
+      "end_time": null,
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 9,
@@ -17997,7 +18441,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "11:50",
-      "end_time": "15:25"
+      "end_time": "15:25",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 10,
@@ -18012,7 +18459,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "15:35",
-      "end_time": "16:20"
+      "end_time": "16:20",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 12,
@@ -18027,7 +18477,10 @@
       "generated": 1,
       "created_at": "2026-10-28T09:00:00",
       "start_time": "08:00",
-      "end_time": "09:00"
+      "end_time": "09:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      },
      {
       "id": 13,
@@ -18042,7 +18495,10 @@
       "generated": 1,
       "created_at": "2026-11-02T08:00:00",
       "start_time": "08:00",
-      "end_time": "08:32"
+      "end_time": "08:32",
+      "source": null,
+      "locked": 0,
+      "manual": 0
      }
     ],
     "study_tasks": [

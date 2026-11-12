@@ -197,9 +197,17 @@ enum SmartPlanner {
         let passed: Bool
     }
 
+    struct Pref {
+        let module: JSONValue
+        let date: String
+        let start: Int
+        let end: Int
+    }
+
     struct Input {
         let days: [Day]
         let fixed: [Fixed]
+        let prefer: [Pref]
         let now: Int?
         let settings: Settings
         let modules: [Mod]
@@ -213,12 +221,15 @@ enum SmartPlanner {
                 Fixed(module: $0["module_id"] ?? .null, date: $0["date"]?.string ?? "", start: num($0["start"]), end: num($0["end"]),
                       counts: truthy($0["counts"], default: true))
             }
+            prefer = (inp["prefer"]?.array ?? []).map {
+                Pref(module: $0["module_id"] ?? .null, date: $0["date"]?.string ?? "", start: num($0["start"]), end: num($0["end"]))
+            }
             now = inp["now_minute"].flatMap { $0.isNull ? nil : num($0) }
             var s = ["utilization": 60, "min_block": 30, "max_block": 120, "break": 10, "max_day_minutes": 0, "max_week_minutes": 0] as [String: JSONValue]
             for (k, v) in inp["settings"]?.object ?? [:] { s[k] = v }
             let minBlock = max(unit, num(s["min_block"]))
             settings = Settings(utilization: min(100, max(1, num(s["utilization"]))), minBlock: minBlock,
-                                maxBlock: max(minBlock, num(s["max_block"])), brk: num(s["break"]),
+                                maxBlock: max(minBlock, num(s["max_block"])), brk: floorDiv(max(0, num(s["break"])), 5) * 5,
                                 maxDay: num(s["max_day_minutes"]), maxWeek: num(s["max_week_minutes"]))
             partial = truthy(inp["accept_partial"], default: false)
             let h = days.count
@@ -249,9 +260,9 @@ enum SmartPlanner {
 
     // MARK: Kapazitaet
 
-    static func windows(_ inp: Input, extra: Int = 0) -> [[Iv]] {
+    static func windows(_ inp: Input, extra: Int = 0, gross: Bool = false) -> [[Iv]] {
         var fixed: [String: [Iv]] = [:]
-        for b in inp.fixed { fixed[b.date, default: []].append((b.start, b.end)) }
+        if !gross { for b in inp.fixed { fixed[b.date, default: []].append((b.start, b.end)) } }
         return inp.days.enumerated().map { i, d in
             var ws = d.windows
             if extra > 0 {
@@ -288,6 +299,29 @@ enum SmartPlanner {
         return out
     }
 
+    /// `_fixed_units`: Einheiten fester Bloecke je Tag innerhalb der nutzbaren Zeit
+    static func fixedUnits(_ inp: Input, _ gwins: [[Iv]]) -> [Int] {
+        var per: [String: [Iv]] = [:]
+        for b in inp.fixed { per[b.date, default: []].append((b.start, b.end)) }
+        return inp.days.enumerated().map { i, d in
+            var n = 0
+            for x in merge(per[d.date] ?? []) {
+                for w in gwins[i] { n += max(0, min(x.b, w.b) - max(x.a, w.a)) }
+            }
+            return floorDiv(n, unit)
+        }
+    }
+
+    /// `_net`: Tagesbudget mit festen Bloecken
+    static func net(_ inp: Input, quota: Int, extra: Int = 0) -> (cap: [Int], gcap: [Int], wins: [[Iv]]) {
+        let gw = windows(inp, extra: extra, gross: true)
+        let nw = windows(inp, extra: extra)
+        let gcap = caps(inp, gw, quota: quota)
+        let fx = fixedUnits(inp, gw)
+        let free = nw.map { $0.reduce(0) { $0 + floorDiv($1.b - $1.a, unit) } }
+        return (gcap.indices.map { max(0, min(gcap[$0] - fx[$0], free[$0])) }, gcap, nw)
+    }
+
     static func prefix(_ cap: [Int]) -> [Int] {
         var p = [0]
         for c in cap { p.append(p[p.count - 1] + c) }
@@ -318,52 +352,106 @@ enum SmartPlanner {
 
     // MARK: Verteilen
 
-    static func place(_ ws: [Iv], wants: [(key: Int, units: Int)], minU: Int, maxU: Int, brk: Int) -> [(key: Int, a: Int, b: Int)] {
-        var freeu = ws.map { floorDiv($0.b - $0.a, unit) }
-        var pieces: [[(key: Int, units: Int)]] = Array(repeating: [], count: ws.count)
+    /// `_place`: bisherige Lagen zuerst, dann der Reihe nach in die erste freie Luecke
+    static func place(_ ws: [Iv], wants: [(key: Int, units: Int)], minU: Int, maxU: Int, brk: Int,
+                      prefer: [Int: [Iv]]? = nil) -> [(key: Int, a: Int, b: Int)] {
+        var free: [[Iv]] = ws.map { [$0] }
+        var out: [(key: Int, a: Int, b: Int)] = []
+        func take(_ k: Int, _ j: Int, _ a: Int, _ b: Int) {
+            let x = free[k][j]
+            var repl: [Iv] = []
+            if a > x.a { repl.append((x.a, a)) }
+            if x.b > b { repl.append((b, x.b)) }
+            free[k].replaceSubrange(j...j, with: repl)
+        }
+        var left: [Int: Int] = [:]
+        for w in wants { left[w.key] = w.units }
         for w in wants {
-            var left = w.units
-            for k in ws.indices {
-                while left > 0 && freeu[k] > 0 {
-                    var p = min(left, maxU, freeu[k])
-                    if p < left && left - p < minU && left - minU >= minU { p = min(p, left - minU) }
-                    if p < minU && p < left { break }
-                    pieces[k].append((w.key, p))
-                    freeu[k] -= p
-                    left -= p
+            let pref = (prefer?[w.key] ?? []).sorted { $0.a != $1.a ? $0.a < $1.a : $0.b < $1.b }
+            for slot in pref {
+                let u = floorDiv(slot.b - slot.a, unit)
+                if u <= 0 || u > left[w.key]! { continue }
+                var spot: (Int, Int)?
+                outer: for k in free.indices {
+                    for (j, x) in free[k].enumerated() where x.a <= slot.a && slot.b <= x.b {
+                        spot = (k, j)
+                        break outer
+                    }
                 }
-                if left == 0 { break }
+                if let (k, j) = spot {
+                    take(k, j, slot.a, slot.b)
+                    out.append((w.key, slot.a, slot.b))
+                    left[w.key]! -= u
+                }
             }
         }
-        var out: [(key: Int, a: Int, b: Int)] = []
-        for (k, w) in ws.enumerated() {
-            let ps = pieces[k]
-            if ps.isEmpty { continue }
-            let slack = (w.b - w.a) - ps.reduce(0) { $0 + $1.units } * unit
-            let gap = ps.count > 1 ? floorDiv(min(brk, floorDiv(slack, ps.count - 1)), 5) * 5 : 0
-            var t = w.a
-            for x in ps {
-                out.append((x.key, t, t + x.units * unit))
-                t += x.units * unit + gap
+        for w in wants {
+            var rest = left[w.key]!
+            for k in free.indices {
+                var j = 0
+                while rest > 0 && j < free[k].count {
+                    let x = free[k][j]
+                    var start = x.a
+                    if brk > 0 && out.contains(where: { $0.b == x.a }) {
+                        let loss = floorDiv(x.b - x.a, unit) - floorDiv(x.b - x.a - brk, unit)
+                        let spare = free.reduce(0) { $0 + $1.reduce(0) { $0 + floorDiv($1.b - $1.a, unit) } } - left.values.reduce(0, +)
+                        if floorDiv(x.b - x.a - brk, unit) >= min(rest, maxU) && spare >= loss { start = x.a + brk }
+                    }
+                    var p = min(rest, maxU, floorDiv(x.b - start, unit))
+                    if p < rest && rest - p < minU && rest - minU >= minU { p = min(p, rest - minU) }
+                    if p <= 0 || (p < minU && p < rest) {
+                        j += 1
+                        continue
+                    }
+                    take(k, j, start, start + p * unit)
+                    out.append((w.key, start, start + p * unit))
+                    rest -= p
+                    left[w.key] = rest
+                }
+                if rest == 0 { break }
             }
+            left[w.key] = rest
+        }
+        return out.enumerated().sorted { $0.element.a != $1.element.a ? $0.element.a < $1.element.a : $0.offset < $1.offset }.map(\.element)
+    }
+
+    /// `_module_fixed`: je Modul und Tag die Einheiten seiner festen, angerechneten Bloecke vor der Klausur
+    static func moduleFixed(_ inp: Input, _ mods: [Mod]) -> [Int: [Int: Int]] {
+        var index: [String: Int] = [:]
+        for (i, d) in inp.days.enumerated() where index[d.date] == nil { index[d.date] = i }
+        var out: [Int: [Int: Int]] = [:]
+        for m in mods {
+            var per: [Int: Int] = [:]
+            for b in inp.fixed where b.module == m.id && b.counts {
+                if let i = index[b.date], i < m.E { per[i, default: 0] += floorDiv(b.end - b.start, unit) }
+            }
+            out[m.order] = per
         }
         return out
     }
 
-    static func allocate(_ inp: Input, _ mods: [Mod], _ wins: [[Iv]], _ cap: [Int], _ p: [Int])
+    static func allocate(_ inp: Input, _ mods: [Mod], _ wins: [[Iv]], _ cap: [Int], _ p: [Int], gcap: [Int], mfix: [Int: [Int: Int]])
         -> (blocks: [(module: Int, day: Int, a: Int, b: Int)], rem: [Int: Int], planned: [Int: Int]) {
         let minU = inp.settings.minBlock / unit, maxU = inp.settings.maxBlock / unit
+        let gp = prefix(gcap)
+        var later = Dictionary(uniqueKeysWithValues: mfix.map { ($0.key, $0.value.values.reduce(0, +)) })
+        var prefer: [String: [Int: [Iv]]] = [:]
+        for b in inp.prefer {
+            if let o = mods.first(where: { $0.id == b.module })?.order { prefer[b.date, default: [:]][o, default: []].append((b.start, b.end)) }
+        }
         var rem = Dictionary(uniqueKeysWithValues: mods.map { ($0.order, $0.rem) })
         var planned: [Int: Int] = [:]
         var blocks: [(module: Int, day: Int, a: Int, b: Int)] = []
         for d in inp.days.indices {
+            if d > 0 { for m in mods { later[m.order]! -= mfix[m.order]![d - 1] ?? 0 } }
             let act = mods.filter { rem[$0.order]! > 0 && $0.E > d }.sorted { $0.E != $1.E ? $0.E < $1.E : $0.order < $1.order }
             let c = cap[d]
             if act.isEmpty || c == 0 { continue }
             var x: [Int: Int] = [:]
             for m in act {
-                let cf = p[m.E] - p[d], r = rem[m.order]!
-                x[m.order] = cf > 0 ? min(r, ceilDiv(r * c, cf)) : 0
+                let o = m.order
+                let cf = gp[m.E] - gp[d], r = rem[o]! + later[o]!
+                x[o] = cf > 0 ? min(rem[o]!, max(0, ceilDiv(r * gcap[d], cf) - (mfix[o]![d] ?? 0))) : 0
             }
             for m in act {
                 let o = m.order
@@ -396,7 +484,7 @@ enum SmartPlanner {
                 }
             }
             let wants = act.filter { x[$0.order]! > 0 }.map { (key: $0.order, units: x[$0.order]!) }
-            for pc in place(wins[d], wants: wants, minU: minU, maxU: maxU, brk: inp.settings.brk) {
+            for pc in place(wins[d], wants: wants, minU: minU, maxU: maxU, brk: inp.settings.brk, prefer: prefer[inp.days[d].date]) {
                 rem[pc.key]! -= (pc.b - pc.a) / unit
                 planned[pc.key, default: 0] += pc.b - pc.a
                 blocks.append((pc.key, d, pc.a, pc.b))
@@ -436,10 +524,9 @@ enum SmartPlanner {
     static func options(_ inp: Input, _ mods: [Mod], _ p: [Int]) -> [JSONValue] {
         var out: [JSONValue] = []
         let quota = inp.settings.utilization
-        let wins = windows(inp)
         var qs = Array(stride(from: quota + 5, to: 100, by: 5)) + [100]
         qs = qs.filter { $0 > quota }
-        if let q = qs.first(where: { feasible(mods, prefix(caps(inp, wins, quota: $0))) }) {
+        if let q = qs.first(where: { feasible(mods, prefix(net(inp, quota: $0).cap)) }) {
             out.append(["kind": "nutzungsquote", "value": n(q), "text": .string("Nutzungsquote der freien Zeit von \(quota) % auf \(q) % erhöhen")])
         } else if quota < 100 {
             out.append(["kind": "nutzungsquote", "value": .null, "text": "Auch 100 % der freien Zeit reichen allein nicht."])
@@ -448,7 +535,7 @@ enum SmartPlanner {
         var found: Int?
         if most >= unit {
             for extra in stride(from: unit, through: most, by: unit)
-                where feasible(mods, prefix(caps(inp, windows(inp, extra: extra), quota: quota))) {
+                where feasible(mods, prefix(net(inp, quota: quota, extra: extra).cap)) {
                 found = extra
                 break
             }
@@ -514,8 +601,8 @@ enum SmartPlanner {
     static func plan(_ json: JSONValue) throws -> JSONValue {
         let inp = try Input(json)
         let mods = inp.modules
-        let wins = windows(inp)
-        let cap = caps(inp, wins, quota: inp.settings.utilization)
+        let nt = net(inp, quota: inp.settings.utilization)
+        let wins = nt.wins, cap = nt.cap
         let p = prefix(cap)
         let dl = deadlines(mods, p)
         let ok = dl.allSatisfy { $0.missing == 0 }
@@ -544,7 +631,7 @@ enum SmartPlanner {
             }
             out["status"] = "teilplan"
         }
-        let (blocks, rem, planned) = allocate(inp, mods, wins, cap, p)
+        let (blocks, rem, planned) = allocate(inp, mods, wins, cap, p, gcap: nt.gcap, mfix: moduleFixed(inp, mods))
         out["blocks"] = .array(blocks.map { b in
             ["module_id": mods[b.module].id, "date": .string(inp.days[b.day].date), "start": n(b.a), "end": n(b.b), "minutes": n(b.b - b.a)]
         })
@@ -691,20 +778,24 @@ enum SmartPlanner {
         for f in mats {
             let e = num(f["est"])
             let est = max(unit, e == 0 ? 45 : e)
-            let parts = min(4, ceilDiv(est, max(unit, maxBlock)))
-            let part = ceilDiv(est, parts)
-            let from = f["from_date"]?.string ?? ""
-            var got: [(index: Int, json: JSONValue)] = []
-            for k in 0..<parts {
-                guard let i = bl.indices.first(where: { bl[$0].module == pyStr(f["module_id"]) && !less(bl[$0].date, from)
-                    && bl[$0].minutes - bl[$0].used >= part }) else { break }
-                bl[i].used += part
-                got.append((i, ["file_id": f["file_id"] ?? .null, "block_id": bl[i].id, "part": n(k + 1), "parts": n(parts), "minutes": n(part)]))
+            let from = f["from_date"]?.string ?? "", module = pyStr(f["module_id"])
+            var need = est
+            var got: [(index: Int, take: Int)] = []
+            for i in bl.indices {
+                if need == 0 || got.count == 4 { break }
+                if bl[i].module != module || less(bl[i].date, from) { continue }
+                let take = min(need, bl[i].minutes - bl[i].used)
+                if take <= 0 || (take < need && take < unit) { continue }
+                bl[i].used += take
+                need -= take
+                got.append((i, take))
             }
-            if got.count == parts {
-                assign += got.map(\.json)
+            if need == 0 {
+                for (k, g) in got.enumerated() {
+                    assign.append(["file_id": f["file_id"] ?? .null, "block_id": bl[g.index].id, "part": n(k + 1), "parts": n(got.count), "minutes": n(g.take)])
+                }
             } else {
-                for g in got { bl[g.index].used -= part }
+                for g in got { bl[g.index].used -= g.take }
                 overflow.append(["file_id": f["file_id"] ?? .null, "module_id": f["module_id"] ?? .null, "kind": f["kind"] ?? .null, "est": n(est)])
             }
         }

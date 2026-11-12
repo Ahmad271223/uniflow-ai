@@ -60,6 +60,17 @@ def plan_cases():
                                     "modules": [{"id": 1, "exam_date": d[20]["date"], "remaining_minutes": 10 * 60 + 30},
                                                 {"id": 2, "exam_date": None, "remaining_minutes": 300, "priority": 3},
                                                 {"id": "x", "exam_date": d[0]["date"], "remaining_minutes": 99}]}))
+    # bisheriger Plan, feste Bloecke heute, ein Block von Hand verschoben, Ziel um 1 h erhoeht
+    d = mkdays(98, win=((540, 1260),), weekdays=range(6))
+    base = {"days": d, "settings": {"utilization": 60, "break": 10}, "now_minute": 480,
+            "modules": [{"id": 1, "exam_date": d[70]["date"], "remaining_minutes": 30 * 60},
+                        {"id": 2, "exam_date": d[84]["date"], "remaining_minutes": 40 * 60},
+                        {"id": 3, "exam_date": d[97]["date"], "remaining_minutes": 31 * 60}]}
+    first = sp.plan(dict(base, modules=[dict(m, remaining_minutes=30 * 60) if m["id"] == 3 else m for m in base["modules"]]))["blocks"]
+    today = [b for b in first if b["date"] == d[0]["date"]]
+    rest = [b for b in first if b["date"] != d[0]["date"]]
+    cases.append(("bisheriger_plan", dict(base, now_minute=600, prefer=rest[:5] + rest[6:],
+                                          fixed=[dict(b, counts=True) for b in today] + [dict(rest[5], start=420, end=420 + rest[5]["minutes"])])))
     rnd = random.Random(1112)
     for case in range(40):
         n = rnd.randint(7, 60)
@@ -86,7 +97,13 @@ def plan_cases():
             if dd["windows"] and dd["windows"][0][1] - dd["windows"][0][0] >= 30:
                 a = dd["windows"][0][0]
                 fixed.append({"module_id": rnd.randint(1, len(mods)), "date": dd["date"], "start": a, "end": a + 30})
-        cases.append((f"zufall_{case}", {"days": days, "modules": mods, "fixed": fixed,
+        prefer = []
+        for _ in range(rnd.randint(0, 4)):
+            dd = days[rnd.randint(0, n - 1)]
+            if dd["windows"]:
+                a = dd["windows"][-1][0] // 15 * 15 + 15
+                prefer.append({"module_id": rnd.randint(1, len(mods)), "date": dd["date"], "start": a, "end": a + rnd.choice([30, 45, 60])})
+        cases.append((f"zufall_{case}", {"days": days, "modules": mods, "fixed": fixed, "prefer": prefer,
                                          "now_minute": rnd.choice([None, rnd.randint(0, 1439)]),
                                          "settings": {"utilization": rnd.choice([30, 60, 100]), "max_block": rnd.choice([60, 90, 120]),
                                                       "break": rnd.choice([0, 10, 15]), "max_week_minutes": rnd.choice([0, 0, 1200])},
@@ -150,7 +167,8 @@ def assign_cases():
             {"file_id": "c", "module_id": 1, "kind": "skript", "from_date": "2026-11-16", "est": 300},
             {"file_id": "d", "module_id": 1, "kind": "klausur", "from_date": "2026-11-16", "est": 60},
             {"file_id": "e", "module_id": 2, "kind": None, "from_date": None, "est": 0},
-            {"file_id": "f", "module_id": 2, "kind": "loesung", "from_date": "2026-11-16", "est": 200}]
+            {"file_id": "f", "module_id": 2, "kind": "loesung", "from_date": "2026-11-16", "est": 200},
+            {"file_id": "g", "module_id": 1, "kind": "uebung", "from_date": "2026-11-16", "est": 70}]
     return [{"blocks": blocks, "materials": mats, "max_block": mb, "output": sp.assign_materials(blocks, mats, mb)} for mb in (120, 60)]
 
 

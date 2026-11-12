@@ -141,6 +141,12 @@ public enum Migrations {
         // Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
         // bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.
         .addColumnOnce("modules", "color_custom", "INTEGER DEFAULT 0", then: ModuleColors.migratePalette),
+        // Smart Planner 2.0 (12.11.2026): Lernbloecke des Stundenplaners (source='smart'), gesperrt und von Hand geaendert
+        // (beides verschiebt der Planer nie ungefragt)
+        .addColumn("study_packages", "source", "TEXT"),
+        .addColumn("study_packages", "locked", "INTEGER DEFAULT 0"),
+        .addColumn("study_packages", "manual", "INTEGER DEFAULT 0"),
+        .sql("CREATE INDEX IF NOT EXISTS ix_study_sessions_module ON study_sessions(module_id)"),
     ]
 
     /// `db.FLASHCARD_RESULT_BACKFILL`: einmalige Vorbelegung von flashcards.last_result, woertlich

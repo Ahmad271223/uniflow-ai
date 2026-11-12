@@ -226,6 +226,28 @@ def test_ziel_erhoeht_und_klausur_verschoben_mit_geringster_aenderung():
     assert max(b["date"] for b in r3["blocks"] if b["module_id"] == 1) > max(b["date"] for b in r1["blocks"] if b["module_id"] == 1)
 
 
+def test_geringste_aenderung_mit_bisherigem_plan():
+    """Heutige Bloecke sind fest, einer wird von Hand verschoben, das Ziel steigt um 1 h: der Rest bleibt liegen"""
+    days = mkdays(98, win=((540, 1260),), weekdays=range(6))
+    mods = [{"id": 1, "exam_date": days[70]["date"], "remaining_minutes": 30 * 60},
+            {"id": 2, "exam_date": days[84]["date"], "remaining_minutes": 40 * 60},
+            {"id": 3, "exam_date": days[97]["date"], "remaining_minutes": 30 * 60}]
+    inp = {"days": days, "modules": mods, "settings": {"utilization": 60}, "now_minute": 480}
+    r1 = sp.plan(inp)
+    today = [b for b in r1["blocks"] if b["date"] == days[0]["date"]]
+    rest = [b for b in r1["blocks"] if b["date"] != days[0]["date"]]
+    moved = rest[5]
+    fixed = [dict(b, counts=True) for b in today] + [dict(moved, start=420, end=420 + moved["minutes"], counts=True)]
+    auto = [b for b in rest if b is not moved]
+    mods2 = [dict(m, remaining_minutes=m["remaining_minutes"] + (60 if m["id"] == 3 else 0)) for m in mods]
+    later = dict(inp, modules=mods2, fixed=fixed, prefer=auto, now_minute=600)
+    r2 = sp.plan(later)
+    check_hard(r2, later)
+    d = sp.diff([dict(b, id=i) for i, b in enumerate(auto)], [b for b in r2["blocks"] if b["date"] != days[0]["date"]])
+    assert len(d["add"]) + len(d["remove"]) <= 6, d
+    assert not [b for b in r2["blocks"] if b["date"] == days[0]["date"]], "heute nichts doppelt"
+
+
 def test_verpasste_bloecke_werden_nachgeplant():
     days = mkdays(35, win=((480, 1080),))
     inp = {"days": days, "settings": {"utilization": 50},

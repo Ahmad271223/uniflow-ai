@@ -575,6 +575,31 @@
           {"name": "sqlite_autoindex_studip_series_relevance_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["series"]}
         ]
       },
+      "study_goals": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "module_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "target_minutes", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0},
+          {"name": "learned_before_minutes", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "include_lectures", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "writing", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "exam_attempt", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "exam_date_2", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "exam_confirmed", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "priority", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "modules", "from": "module_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
+        ],
+        "indexes": [
+          {"name": "sqlite_autoindex_study_goals_1", "unique": 1, "origin": "u", "partial": 0, "columns": ["module_id"]}
+        ]
+      },
       "study_packages": {
         "columns": [
           {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
@@ -590,6 +615,9 @@
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "source", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "locked", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "manual", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
@@ -598,6 +626,35 @@
           {"table": "modules", "from": "module_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
         ],
         "indexes": []
+      },
+      "study_sessions": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "uuid", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "package_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "kind", "type": "TEXT", "notnull": 1, "default": "'timer'", "pk": 0},
+          {"name": "state", "type": "TEXT", "notnull": 0, "default": "'fertig'", "pk": 0},
+          {"name": "segments", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "day", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "deleted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "modules", "from": "module_id", "to": "id", "on_update": "NO ACTION", "on_delete": "SET NULL"},
+          {"table": "study_packages", "from": "package_id", "to": "id", "on_update": "NO ACTION", "on_delete": "SET NULL"}
+        ],
+        "indexes": [
+          {"name": "ix_study_sessions_module", "unique": 0, "origin": "c", "partial": 0, "columns": ["module_id"]},
+          {"name": "sqlite_autoindex_study_sessions_1", "unique": 1, "origin": "u", "partial": 0, "columns": ["uuid"]}
+        ]
       },
       "study_tasks": {
         "columns": [
@@ -805,7 +862,7 @@
         ]
       }
     },
-    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "idx_tombstones_time": "CREATE INDEX idx_tombstones_time ON sync_tombstones(deleted_at)", "ix_markers_mod": "CREATE INDEX ix_markers_mod ON lecture_markers(module_id, file_id)", "ix_task_mod": "CREATE INDEX ix_task_mod ON task_index(module_id, source)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1", "ux_tests_def_user": "CREATE UNIQUE INDEX ux_tests_def_user ON tests(def_id, user_id) WHERE def_id IS NOT NULL"},
+    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "idx_tombstones_time": "CREATE INDEX idx_tombstones_time ON sync_tombstones(deleted_at)", "ix_markers_mod": "CREATE INDEX ix_markers_mod ON lecture_markers(module_id, file_id)", "ix_study_sessions_module": "CREATE INDEX ix_study_sessions_module ON study_sessions(module_id)", "ix_task_mod": "CREATE INDEX ix_task_mod ON task_index(module_id, source)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1", "ux_tests_def_user": "CREATE UNIQUE INDEX ux_tests_def_user ON tests(def_id, user_id) WHERE def_id IS NOT NULL"},
     "user_version": 0
   },
   "rows": {

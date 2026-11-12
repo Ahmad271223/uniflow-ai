@@ -1391,6 +1391,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "15:00",
         "end_time": "16:30",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#333333"
        }
       ],
@@ -1576,6 +1579,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "09:00",
         "end_time": "10:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        }
       ],
@@ -1734,6 +1740,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "12:00",
         "end_time": "13:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        },
        {
@@ -1750,6 +1759,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "15:00",
         "end_time": "16:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -1855,6 +1867,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -2127,6 +2142,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "10:30",
         "end_time": "11:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#333333"
        }
       ],
@@ -3722,6 +3740,9 @@
       "created_at": "2026-10-02T09:00:00",
       "start_time": "15:00",
       "end_time": "16:30",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#333333"
      }
     ],
@@ -3798,6 +3819,9 @@
       "created_at": "2026-10-02T09:00:00",
       "start_time": "12:00",
       "end_time": "13:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#111111"
      },
      {
@@ -3814,6 +3838,9 @@
       "created_at": "2026-10-02T09:00:00",
       "start_time": "15:00",
       "end_time": "16:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#222222"
      }
     ],
@@ -3971,6 +3998,9 @@
       "created_at": "2026-10-02T09:00:00",
       "start_time": "10:30",
       "end_time": "11:00",
+      "source": null,
+      "locked": 0,
+      "manual": 0,
       "color": "#333333"
      }
     ],
@@ -6137,6 +6167,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "09:00",
         "end_time": "10:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        }
       ],
@@ -6321,6 +6354,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "12:00",
         "end_time": "13:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        },
        {
@@ -6337,6 +6373,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "15:00",
         "end_time": "16:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -6460,6 +6499,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -7430,6 +7472,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "09:00",
         "end_time": "10:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        }
       ],
@@ -7614,6 +7659,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "12:00",
         "end_time": "13:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        },
        {
@@ -7630,6 +7678,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "15:00",
         "end_time": "16:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -7772,6 +7823,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -9518,6 +9572,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "10:30",
         "end_time": "11:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#333333"
        }
       ],
@@ -10776,6 +10833,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "09:00",
         "end_time": "10:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        }
       ],
@@ -10996,6 +11056,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "12:00",
         "end_time": "13:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#111111"
        },
        {
@@ -11012,6 +11075,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": "15:00",
         "end_time": "16:00",
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],
@@ -11127,6 +11193,9 @@
         "created_at": "2026-10-02T09:00:00",
         "start_time": null,
         "end_time": null,
+        "source": null,
+        "locked": 0,
+        "manual": 0,
         "color": "#222222"
        }
       ],

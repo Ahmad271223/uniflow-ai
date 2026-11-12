@@ -122,14 +122,16 @@ def _settings(inp: dict) -> dict:
     s["utilization"] = min(100, max(1, int(s["utilization"])))
     s["min_block"] = max(UNIT, int(s["min_block"]))
     s["max_block"] = max(s["min_block"], int(s["max_block"]))
+    s["break"] = max(0, int(s["break"])) // 5 * 5
     return s
 
 
-def _windows(inp: dict, s: dict, extra: int = 0) -> list[list[list[int]]]:
-    """Nutzbare Fenster je Tag (feste Bloecke abgezogen); `extra`: so viele Minuten der Freizeit dazu"""
+def _windows(inp: dict, s: dict, extra: int = 0, gross: bool = False) -> list[list[list[int]]]:
+    """Nutzbare Fenster je Tag (ohne `gross`: feste Bloecke abgezogen); `extra`: so viele Minuten der Freizeit dazu"""
     fixed: dict[str, list] = {}
     for b in inp.get("fixed") or []:
-        fixed.setdefault(b["date"], []).append([b["start"], b["end"]])
+        if not gross:
+            fixed.setdefault(b["date"], []).append([b["start"], b["end"]])
     now = inp.get("now_minute")
     out = []
     for i, d in enumerate(inp["days"]):
@@ -162,6 +164,33 @@ def _caps(days: list[dict], wins: list, s: dict, quota: int) -> list[int]:
         prev = d["weekday"]
         out.append(c)
     return out
+
+
+def _fixed_units(inp: dict, gwins: list) -> list[int]:
+    """Je Tag: Einheiten fester Bloecke innerhalb der nutzbaren Zeit (sie verbrauchen das Tagesbudget)"""
+    per: dict[str, list] = {}
+    for b in inp.get("fixed") or []:
+        per.setdefault(b["date"], []).append([b["start"], b["end"]])
+    out = []
+    for i, d in enumerate(inp["days"]):
+        n = 0
+        for x, y in merge(per.get(d["date"], [])):
+            for a, b in gwins[i]:
+                n += max(0, min(y, b) - max(x, a))
+        out.append(n // UNIT)
+    return out
+
+
+def _net(inp: dict, s: dict, quota: int, extra: int = 0) -> dict:
+    """Tagesbudget: Quote x freie Zeit (feste Bloecke mitgezaehlt) minus feste Bloecke, hoechstens die noch freien
+    Fenster. So zaehlt ein schon geplanter Block des Tages auf das Budget, statt daneben neu zu planen."""
+    gw = _windows(inp, s, extra, gross=True)
+    nw = _windows(inp, s, extra)
+    gcap = _caps(inp["days"], gw, s, quota)
+    fx = _fixed_units(inp, gw)
+    free = [sum((b - a) // UNIT for a, b in w) for w in nw]
+    cap = [max(0, min(gcap[i] - fx[i], free[i])) for i in range(len(gcap))]
+    return {"cap": cap, "gcap": gcap, "wins": nw, "fixed": fx}
 
 
 def _prefix(cap: list[int]) -> list[int]:
@@ -219,55 +248,100 @@ def _feasible(mods: list[dict], p: list[int], rem: dict | None = None) -> bool:
 
 # ---------------------------------------------------------------- Verteilen
 
-def _place(ws: list, wants: list, min_u: int, max_u: int, brk: int) -> list[tuple]:
-    """Tagesmengen in die Fenster: der Reihe nach, Stuecke hoechstens max_u, keine Reste unter min_u, wenn es sich
-    vermeiden laesst; Pausen nur aus dem Spielraum des Fensters (kostet nie Lernzeit)"""
-    freeu = [(b - a) // UNIT for a, b in ws]
-    pieces: list[list] = [[] for _ in ws]
-    for key, units in wants:
-        left = units
-        for k in range(len(ws)):
-            while left > 0 and freeu[k] > 0:
-                p = min(left, max_u, freeu[k])
-                if p < left and left - p < min_u and left - min_u >= min_u:
-                    p = min(p, left - min_u)
-                if p < min_u and p < left:
-                    break
-                pieces[k].append([key, p])
-                freeu[k] -= p
-                left -= p
-            if left == 0:
+def _place(ws: list, wants: list, min_u: int, max_u: int, brk: int, prefer: dict | None = None) -> list[tuple]:
+    """Tagesmengen in die Fenster. Zuerst behaelt jedes Modul seine bisherigen Lagen (bevorzugte Bloecke des alten
+    Plans, genau gleich lang und noch frei): so wenig Aenderung wie moeglich. Der Rest der Reihe nach in die erste freie
+    Luecke, Stuecke hoechstens max_u, keine Reste unter min_u, wenn es sich vermeiden laesst; direkt hinter einem
+    eben gelegten Block eine Pause, wenn das ganze Stueck danach noch passt (kostet nie Lernzeit)."""
+    free = [[[a, b]] for a, b in ws]
+    out: list[tuple] = []
+
+    def take(k: int, j: int, a: int, b: int) -> None:
+        x, y = free[k][j]
+        free[k][j:j + 1] = ([[x, a]] if a > x else []) + ([[b, y]] if y > b else [])
+
+    left = {key: units for key, units in wants}
+    for key, _units in wants:
+        for a, b in sorted((prefer or {}).get(key, [])):
+            u = (b - a) // UNIT
+            if u <= 0 or u > left[key]:
+                continue
+            spot = next(((k, j) for k in range(len(free)) for j, (x, y) in enumerate(free[k]) if x <= a and b <= y), None)
+            if spot is not None:
+                take(spot[0], spot[1], a, b)
+                out.append((key, a, b))
+                left[key] -= u
+    for key, _units in wants:
+        rest = left[key]
+        for k in range(len(free)):
+            j = 0
+            while rest > 0 and j < len(free[k]):
+                x, y = free[k][j]
+                start = x
+                if brk > 0 and any(o[2] == x for o in out):
+                    loss = (y - x) // UNIT - (y - x - brk) // UNIT
+                    spare = sum((v - u) // UNIT for f in free for u, v in f) - sum(left.values())
+                    if (y - x - brk) // UNIT >= min(rest, max_u) and spare >= loss:
+                        start = x + brk
+                p = min(rest, max_u, (y - start) // UNIT)
+                if p < rest and rest - p < min_u and rest - min_u >= min_u:
+                    p = min(p, rest - min_u)
+                if p <= 0 or (p < min_u and p < rest):
+                    j += 1
+                    continue
+                take(k, j, start, start + p * UNIT)
+                out.append((key, start, start + p * UNIT))
+                rest -= p
+                left[key] = rest
+            if rest == 0:
                 break
-    out = []
-    for k, (a, b) in enumerate(ws):
-        ps = pieces[k]
-        if not ps:
-            continue
-        slack = (b - a) - sum(p for _, p in ps) * UNIT
-        gap = min(brk, slack // (len(ps) - 1)) // 5 * 5 if len(ps) > 1 else 0
-        t = a
-        for key, p in ps:
-            out.append((key, t, t + p * UNIT))
-            t += p * UNIT + gap
+        left[key] = rest
+    return sorted(out, key=lambda o: o[1])
+
+
+def _module_fixed(inp: dict, mods: list[dict]) -> dict:
+    """Je Modul und Tag: Einheiten seiner festen, angerechneten Bloecke vor der Klausur"""
+    index = {d["date"]: i for i, d in enumerate(inp["days"])}
+    out: dict[int, dict[int, int]] = {}
+    for m in mods:
+        per: dict[int, int] = {}
+        for b in inp.get("fixed") or []:
+            if b.get("module_id") == m["id"] and b.get("counts", True) and b["date"] in index and index[b["date"]] < m["E"]:
+                per[index[b["date"]]] = per.get(index[b["date"]], 0) + (b["end"] - b["start"]) // UNIT
+        out[m["order"]] = per
     return out
 
 
-def _allocate(inp: dict, s: dict, mods: list[dict], wins: list, cap: list[int], p: list[int]) -> tuple[list, dict, dict]:
+def _allocate(inp: dict, s: dict, mods: list[dict], wins: list, cap: list[int], p: list[int], gcap: list[int],
+              mfix: dict) -> tuple[list, dict, dict]:
+    """Tag fuer Tag: Wunschmenge = (Rest + eigene feste Bloecke ab heute) x Tagesbudget / Budget bis zur Klausur
+    (aufgerundet, gleichmaessig), minus der festen Bloecke des Tages; dann Zwischenfristen absichern."""
     days = inp["days"]
+    gp = _prefix(gcap)
+    prefer: dict[str, dict[int, list]] = {}
+    for b in inp.get("prefer") or []:
+        o = next((m["order"] for m in mods if m["id"] == b.get("module_id")), None)
+        if o is not None:
+            prefer.setdefault(b["date"], {}).setdefault(o, []).append([b["start"], b["end"]])
+    later = {o: sum(v.values()) for o, v in mfix.items()}
     min_u, max_u = s["min_block"] // UNIT, s["max_block"] // UNIT
     rem = {m["order"]: m["rem"] for m in mods}
     planned: dict[int, int] = {}
     blocks = []
     for d in range(len(days)):
+        if d > 0:
+            for m in mods:
+                later[m["order"]] -= mfix[m["order"]].get(d - 1, 0)
         act = sorted([m for m in mods if rem[m["order"]] > 0 and m["E"] > d], key=lambda m: (m["E"], m["order"]))
         c = cap[d]
         if not act or c == 0:
             continue
         x = {}
         for m in act:
-            cf = p[m["E"]] - p[d]
-            r = rem[m["order"]]
-            x[m["order"]] = min(r, ceil_div(r * c, cf)) if cf > 0 else 0
+            o = m["order"]
+            cf = gp[m["E"]] - gp[d]
+            r = rem[o] + later[o]
+            x[o] = min(rem[o], max(0, ceil_div(r * gcap[d], cf) - mfix[o].get(d, 0))) if cf > 0 else 0
         for m in act:
             o = m["order"]
             if 0 < x[o] < min_u and rem[o] > x[o]:
@@ -300,7 +374,7 @@ def _allocate(inp: dict, s: dict, mods: list[dict], wins: list, cap: list[int], 
                 x[o] += a
                 take -= a
         wants = [(m["order"], x[m["order"]]) for m in act if x[m["order"]] > 0]
-        for o, a, b in _place(wins[d], wants, min_u, max_u, int(s["break"])):
+        for o, a, b in _place(wins[d], wants, min_u, max_u, s["break"], prefer.get(days[d]["date"])):
             rem[o] -= (b - a) // UNIT
             planned[o] = planned.get(o, 0) + (b - a)
             blocks.append({"module_id": mods[o]["id"], "date": days[d]["date"], "start": a, "end": b, "minutes": b - a})
@@ -338,11 +412,10 @@ def _options(inp: dict, s: dict, mods: list[dict], p: list[int]) -> list[dict]:
     out = []
     quota = s["utilization"]
     # 1. Nutzungsquote
-    wins = _windows(inp, s)
     for q in list(range(quota + 5, 100, 5)) + [100]:
         if q <= quota:
             continue
-        if _feasible(mods, _prefix(_caps(days, wins, s, q))):
+        if _feasible(mods, _prefix(_net(inp, s, q)["cap"])):
             out.append({"kind": "nutzungsquote", "value": q,
                         "text": f"Nutzungsquote der freien Zeit von {quota} % auf {q} % erhöhen"})
             break
@@ -354,7 +427,7 @@ def _options(inp: dict, s: dict, mods: list[dict], p: list[int]) -> list[dict]:
     most = max([sum(b - a for a, b in merge(d.get("reserve") or [])) for d in days] or [0])
     found = None
     for extra in range(UNIT, most + 1, UNIT):
-        if _feasible(mods, _prefix(_caps(days, _windows(inp, s, extra), s, quota))):
+        if _feasible(mods, _prefix(_net(inp, s, quota, extra)["cap"])):
             found = extra
             break
     if found is not None:
@@ -410,12 +483,13 @@ def _options(inp: dict, s: dict, mods: list[dict], p: list[int]) -> list[dict]:
 
 def plan(inp: dict) -> dict:
     """Eingabe: {days: [{date, weekday, windows, reserve}], now_minute, modules: [{id, exam_date, remaining_minutes,
-    priority, exam_date_2}], fixed: [{module_id, date, start, end, counts}], settings, accept_partial}"""
+    priority, exam_date_2}], fixed: [{module_id, date, start, end, counts}], prefer: [{module_id, date, start, end}]
+    (bisheriger Plan, Lagen werden wenn moeglich behalten), settings, accept_partial}"""
     s = _settings(inp)
     days = inp["days"]
     mods = _modules(inp)
-    wins = _windows(inp, s)
-    cap = _caps(days, wins, s, s["utilization"])
+    net = _net(inp, s, s["utilization"])
+    wins, cap = net["wins"], net["cap"]
     p = _prefix(cap)
     dl = _deadlines(mods, p)
     feasible = all(x["missing"] == 0 for x in dl)
@@ -435,7 +509,7 @@ def plan(inp: dict) -> dict:
             out["modules"] = [_mod_out(m, 0, m["rem"]) for m in mods]
             return out
         out["status"] = "teilplan"
-    blocks, rem, planned = _allocate(inp, s, mods, wins, cap, p)
+    blocks, rem, planned = _allocate(inp, s, mods, wins, cap, p, net["gcap"], _module_fixed(inp, mods))
     out["blocks"] = blocks
     out["modules"] = [_mod_out(m, planned.get(m["order"], 0), rem[m["order"]]) for m in mods]
     if feasible and any(rem[m["order"]] > 0 for m in mods):
@@ -525,34 +599,33 @@ def diff(existing: list[dict], new: list[dict]) -> dict:
 
 
 def assign_materials(blocks: list[dict], materials: list[dict], max_block: int = 120) -> dict:
-    """Material ins Stundenbudget: je Datei (lange in hoechstens 4 Teilen) der erste Block desselben Moduls ab ihrer
-    Lehrwoche mit genug freiem Budget; was nicht passt, bleibt draussen (Konflikt, nach Wichtigkeit) – das Budget
-    waechst nie. blocks: [{id, module_id, date, minutes, used}], materials: [{file_id, module_id, kind, from_date, est}]"""
+    """Material ins Stundenbudget: je Datei die naechsten Bloecke desselben Moduls ab ihrer Lehrwoche mit freiem
+    Budget (eine Datei in hoechstens 4 Teilen, jeder Teil mindestens 15 Minuten oder der ganze Rest); was nicht ganz
+    passt, bleibt draussen (Konflikt, nach Wichtigkeit) – das Budget waechst nie.
+    blocks: [{id, module_id, date, start, minutes, used}], materials: [{file_id, module_id, kind, from_date, est}]"""
     bl = sorted([dict(b) for b in blocks], key=lambda b: (b["date"], b.get("start") or 0, b["id"]))
     mats = sorted(materials, key=lambda f: (f.get("from_date") or "", KIND_RANK.get(f.get("kind"), 5), f["file_id"]))
     assign, overflow = [], []
     for f in mats:
         est = max(UNIT, int(f.get("est") or 45))
-        n = min(4, ceil_div(est, max(UNIT, max_block)))
-        part = ceil_div(est, n)
-        got = []
-        for k in range(n):
-            for b in bl:
-                if str(b["module_id"]) != str(f["module_id"]) or b["date"] < (f.get("from_date") or ""):
-                    continue
-                if b["minutes"] - b["used"] >= part:
-                    b["used"] += part
-                    got.append({"file_id": f["file_id"], "block_id": b["id"], "part": k + 1, "parts": n, "minutes": part})
-                    break
-            else:
+        need, got = est, []
+        for b in bl:
+            if need == 0 or len(got) == 4:
                 break
-        if len(got) == n:
-            assign += got
+            if str(b["module_id"]) != str(f["module_id"]) or b["date"] < (f.get("from_date") or ""):
+                continue
+            take = min(need, b["minutes"] - b["used"])
+            if take <= 0 or (take < need and take < UNIT):
+                continue
+            b["used"] += take
+            need -= take
+            got.append((b, take))
+        if need == 0:
+            for k, (b, take) in enumerate(got):
+                assign.append({"file_id": f["file_id"], "block_id": b["id"], "part": k + 1, "parts": len(got), "minutes": take})
         else:
-            for g in got:
-                for b in bl:
-                    if b["id"] == g["block_id"]:
-                        b["used"] -= g["minutes"]
+            for b, take in got:
+                b["used"] -= take
             overflow.append({"file_id": f["file_id"], "module_id": f["module_id"], "kind": f.get("kind"), "est": est})
     overflow.sort(key=lambda f: (KIND_RANK.get(f.get("kind"), 5), f["file_id"]))
     return {"assign": assign, "overflow": overflow}
