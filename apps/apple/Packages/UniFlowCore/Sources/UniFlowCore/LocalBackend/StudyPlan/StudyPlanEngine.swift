@@ -429,6 +429,9 @@ public enum StudyPlanEngine {
         var maxAttempts: Int?
         /// QIS meldet ausdruecklich den letzten Versuch
         var qisLast = false
+        /// Modul aus Teilen, die alle noetig sind: Texte der bestandenen QIS-Zeilen und die offenen Teile (12.11.2026)
+        var partsDone: [String] = []
+        var partsOpen: [String] = []
 
         /// Endgueltig, QIS meldet den letzten Versuch, oder bei bekannter Hoechstzahl: der naechste bzw. angemeldete
         /// Versuch ist der letzte (`last_attempt`, 11.11.2026: ohne Hoechstzahl nie aus der Zahl der Versuche)
@@ -448,9 +451,47 @@ public enum StudyPlanEngine {
         var byID: [String: [String: JSONValue]]
     }
 
-    /// {Modul-id: [Zeilen]} und die nicht zugeordneten Texte (sortiert, ohne Doppelte)
-    /// (Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id), jeweils das erste Modul (`_index`)
-    static func index(_ mods: [[String: JSONValue]]) -> ([String: String], [String: String]) {
+    // Zusammengesetzte Modultitel (12.11.2026, iPad eines Nutzers, Maschinenbau B.Sc.), wie app/study_plan.py: der Katalog
+    // nennt "Thermodynamik I / Chemie" und "Tutorien oder Studium Generale", das QIS die Teile ("Thermodynamik I",
+    // "Grundzüge der Chemie", Modul "Studium Generale"). Vorher passte nur der ganze Titel: die Leistungen und Anmeldungen
+    // standen als "nicht zugeordnet" da und das Modul blieb offen. " / " heisst: alle Teile noetig; " oder ": einer reicht.
+    static let partSplitRE = PyRegex(#"\s+/\s+|\s+oder\s+"#, ignoreCase: true)
+    static let orRE = PyRegex(#"\s+oder\s+"#, ignoreCase: true)
+    /// Teile kuerzer als das ("II") ordnen nichts zu
+    static let minPartKey = 4
+
+    /// Teile eines zusammengesetzten Modultitels als (Text, Namensschluessel) und ob alle noetig sind ("/") oder einer
+    /// reicht ("oder"); ([], false) fuer einen einfachen Titel (`title_parts`)
+    static func titleParts(_ title: JSONValue?) -> (parts: [(text: String, key: String)], all: Bool) {
+        let t = PyText.strip(textOf(title))
+        let raw = PyText.split(partSplitRE.sub(t, "\u{1}"), "\u{1}").map(PyText.strip)
+        guard raw.count >= 2, !raw.contains(where: \.isEmpty) else { return ([], false) }
+        return (raw.map { ($0, nameKey($0)) }, !orRE.found(in: t))
+    }
+
+    /// Teil, den ein QIS-Text nennt: gleicher Namensschluessel, sonst endet der Text mit dem Teil ("Grundzüge der Chemie"
+    /// -> "Chemie"); der laengste Teil gewinnt (`part_index`)
+    static func partIndex(_ text: JSONValue?, _ parts: [(text: String, key: String)]) -> Int? {
+        let k = nameKey(text)
+        guard !k.isEmpty else { return nil }
+        var best: Int?, bestN = 0
+        for (i, p) in parts.enumerated() {
+            let n = p.key.unicodeScalars.count
+            guard n >= minPartKey, n > bestN else { continue }
+            if k.unicodeScalars.elementsEqual(p.key.unicodeScalars)
+                || k.unicodeScalars.reversed().starts(with: (" " + p.key).unicodeScalars.reversed()) {
+                best = i
+                bestN = n
+            }
+        }
+        return best
+    }
+
+    /// Teile je Modul (Reihenfolge des Katalogs); ein Teil nur, wenn kein Modul so heisst
+    typealias PartIndex = [(id: String, parts: [(text: String, key: String)])]
+
+    /// (Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id, Teile -> Modul-id), jeweils das erste Modul (`_index`)
+    static func index(_ mods: [[String: JSONValue]]) -> ([String: String], [String: String], PartIndex) {
         var byCode: [String: String] = [:], byKey: [String: String] = [:]
         for m in mods {
             let id = m["id"]?.string ?? ""
@@ -459,28 +500,74 @@ public enum StudyPlanEngine {
             let k = nameKey(m["title"])
             if !k.isEmpty, byKey[k] == nil { byKey[k] = id }
         }
-        return (byCode, byKey)
+        var byPart: PartIndex = []
+        for m in mods {
+            let id = m["id"]?.string ?? "", parts = titleParts(m["title"]).parts
+            if !parts.isEmpty, !byPart.contains(where: { $0.id == id }) { byPart.append((id, parts.filter { byKey[$0.key] == nil })) }
+        }
+        return (byCode, byKey, byPart)
+    }
+
+    /// Modul, dessen Titel einen Teil nennt, den der Text nennt (der laengste Teil gewinnt, dann das erste Modul)
+    static func partModule(_ text: JSONValue?, _ byPart: PartIndex) -> String? {
+        var best: String?, bestN = 0
+        for (mid, parts) in byPart {
+            if let i = partIndex(text, parts), parts[i].key.unicodeScalars.count > bestN {
+                best = mid
+                bestN = parts[i].key.unicodeScalars.count
+            }
+        }
+        return best
     }
 
     /// `_row_module`: Pruefungsnummer, sonst Name; sonst das Modul ihrer QIS-Modulzeile (`modul_nr`, `modul_text` aus
     /// `GradesModel`, 12.11.2026: Leistungen eines Moduls ohne eigene Pruefungen wie "Studium Generale" gehoeren zu
-    /// diesem Modul, vorher standen sie als "nicht zugeordnet" da)
-    static func rowModule(_ r: [String: JSONValue], _ byCode: [String: String], _ byKey: [String: String]) -> String? {
+    /// diesem Modul, vorher standen sie als "nicht zugeordnet" da); sonst ein Teil eines zusammengesetzten Titels (Name,
+    /// dann Modulzeile)
+    static func rowModule(_ r: [String: JSONValue], _ byCode: [String: String], _ byKey: [String: String],
+                          _ byPart: PartIndex = []) -> String? {
         let nr = PyText.strip(textOf(r["pruefungsnr"]))
         if let mid = (nr.isEmpty ? nil : byCode[nr]) ?? byKey[nameKey(r["text"])] { return mid }
         let mnr = PyText.strip(textOf(r["modul_nr"]))
         if !mnr.isEmpty, let mid = byCode[mnr] { return mid }
-        guard !PyText.strip(textOf(r["modul_text"])).isEmpty else { return nil }
-        return byKey[nameKey(r["modul_text"])]
+        let hasModulText = !PyText.strip(textOf(r["modul_text"])).isEmpty
+        if hasModulText, let mid = byKey[nameKey(r["modul_text"])] { return mid }
+        guard !byPart.isEmpty else { return nil }
+        return partModule(r["text"], byPart) ?? (hasModulText ? partModule(r["modul_text"], byPart) : nil)
+    }
+
+    /// (Texte der bestandenen QIS-Zeilen, offene Teile laut Katalog) eines Moduls, dessen Teile alle noetig sind; ([], [])
+    /// wenn das Modul einfach ist, einer reicht ("oder") oder eine bestandene Zeile fuer das ganze Modul steht (gleicher
+    /// Titel, Nummer oder eine Modulzeile, die keinen Teil nennt) (`_parts_state`)
+    static func partsState(_ m: [String: JSONValue], _ passed: [[String: JSONValue]]) -> (done: [String], open: [String]) {
+        let (parts, all) = titleParts(m["title"])
+        guard !parts.isEmpty, all, !passed.isEmpty else { return ([], []) }
+        let titleKey = nameKey(m["title"]), code = PyText.strip(textOf(m["code"]))
+        var done = Set<Int>()
+        for r in passed {
+            if nameKey(r["text"]) == titleKey || (!code.isEmpty && PyText.strip(textOf(r["pruefungsnr"])) == code) { return ([], []) }
+            guard let i = partIndex(r["text"], parts) else {
+                if let l = r["level"]?.string, l != "pruefung" { return ([], []) }   // Modulzeile unter anderem Namen
+                continue
+            }
+            done.insert(i)
+        }
+        if done.count == parts.count { return ([], []) }
+        var names: [String] = []
+        for r in passed {
+            let t = PyText.strip(textOf(r["text"]))
+            if !t.isEmpty, !names.contains(where: { $0.unicodeScalars.elementsEqual(t.unicodeScalars) }) { names.append(t) }
+        }
+        return (names, parts.enumerated().filter { !done.contains($0.offset) }.map(\.element.text))
     }
 
     static func match(_ mods: [[String: JSONValue]], _ grades: [[String: JSONValue]]) -> ([String: [[String: JSONValue]]], [String]) {
-        let (byCode, byKey) = index(mods)
+        let (byCode, byKey, byPart) = index(mods)
         var hist: [String: [[String: JSONValue]]] = [:]
         var unmatched: [String] = []
         for r in grades {
             // Bereichszeile nur, wenn kein Katalogmodul so heisst (11.11.2026: "Vertiefung der Betriebssysteme")
-            let mid = rowModule(r, byCode, byKey)
+            let mid = rowModule(r, byCode, byKey, byPart)
             if mid == nil && isBereich(r) { continue }
             guard let id = mid else {
                 let t = PyText.strip(textOf(r["text"]))
@@ -743,14 +830,26 @@ public enum StudyPlanEngine {
 
         var state: [String: ModuleState] = [:]
         for mid in included {
-            let m = byID[mid]!, rows = hist[mid] ?? []
+            let m = byID[mid]!
+            var rows = hist[mid] ?? []
             let turnus = turnusOf(m["turnus"])
             let maxN = maxAttemptsOf(m, catalog)
+            var passed = rows.filter { rowResult($0) == "passed" }
+            // Modul aus Teilen, die alle noetig sind ("Thermodynamik I / Chemie"): bestanden erst mit allen Teilen oder einer
+            // bestandenen Zeile fuer das ganze Modul; bis dahin zaehlen die bestandenen Teile nicht als Fehlversuche
+            let (doneParts, openParts) = partsState(m, passed)
+            if !openParts.isEmpty {
+                let parts = titleParts(m["title"]).parts
+                let done = Set(passed.compactMap { partIndex($0["text"], parts) })
+                rows = rows.filter { partIndex($0["text"], parts).map { !done.contains($0) } ?? true }
+                passed = []
+            }
             let (failedN, lastFail, final, known, qisLast) = attempts(rows, max: maxN)
-            let passed = rows.filter { rowResult($0) == "passed" }
             let registered = rows.filter { rowResult($0) == "registered" }
             var st = ModuleState(status: "", term: nil, attempt: nil, grade: nil, movedFrom: nil, reason: nil, failed: failedN, final: final,
                                  known: known, maxAttempts: maxN, qisLast: qisLast)
+            st.partsDone = openParts.isEmpty ? [] : doneParts
+            st.partsOpen = openParts
             let rec = (semOf(m) ?? slotSem[mid]).map { start + $0 - 1 }
             let own = placed[mid]
             if !passed.isEmpty {
@@ -852,8 +951,8 @@ public enum StudyPlanEngine {
 
         // Eigene Eintraege: Stand aus einer nicht zugeordneten QIS-Zeile mit gleichem Namensschluessel, sonst im
         // gewaehlten Fachsemester (fruehestens jetzt)
-        let (byCode, byKey) = index(mods)
-        let loose = grades.filter { !isBereich($0) && rowModule($0, byCode, byKey) == nil }
+        let (byCode, byKey, byPart) = index(mods)
+        let loose = grades.filter { !isBereich($0) && rowModule($0, byCode, byKey, byPart) == nil }
         var custom: [(Int, [String: JSONValue])] = []
         for c in cleanCustom(settings["custom"]) {
             let key = nameKey(c.title)
@@ -891,7 +990,7 @@ public enum StudyPlanEngine {
         var qOrder: [String] = [], qRows: [String: [[String: JSONValue]]] = [:], qArea: [String: String] = [:]
         var ctx: String?
         for r in grades {
-            if rowModule(r, byCode, byKey) != nil { continue }
+            if rowModule(r, byCode, byKey, byPart) != nil { continue }
             if isBereich(r) { ctx = areaOfBereich(r["text"], areaToks); continue }
             guard let area = ctx, textOf(r["source"]) != "anmeldung" else { continue }
             let key = nameKey(r["text"])
@@ -1257,6 +1356,9 @@ public enum StudyPlanEngine {
                             _ byID: [String: [String: JSONValue]]) -> [String] {
         guard st.status != "bestanden", let t = st.term else { return [] }
         var out: [String] = []
+        if !st.partsOpen.isEmpty {
+            out.append("Teil bestanden: \(st.partsDone.joined(separator: ", ")) – es fehlt noch: \(st.partsOpen.joined(separator: ", "))")
+        }
         let turnus = turnusOf(m["turnus"])
         if !fits(t, turnus) {
             out.append("Laut Katalog nur im \(turnus == "WS" ? "Wintersemester" : "Sommersemester") angeboten")

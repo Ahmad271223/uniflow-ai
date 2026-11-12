@@ -499,10 +499,45 @@ def _catalog_rank(c: dict) -> tuple:
 # Plan
 # ----------------------------------------------------------------------------
 
-def _index(mods: list[dict]) -> tuple[dict, dict]:
-    """(Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id), jeweils das erste Modul"""
+# Zusammengesetzte Modultitel (12.11.2026, iPad eines Nutzers, Maschinenbau B.Sc.): der Katalog nennt "Thermodynamik I /
+# Chemie" und "Tutorien oder Studium Generale", das QIS die Teile ("Thermodynamik I", "Grundzüge der Chemie", Modul
+# "Studium Generale"). Vorher passte nur der ganze Titel: die Leistungen und Anmeldungen standen als "nicht
+# zugeordnet" da und das Modul blieb offen. " / " heisst: alle Teile noetig; " oder ": einer reicht.
+PART_SPLIT_RE = re.compile(r"\s+/\s+|\s+oder\s+", re.I)
+OR_RE = re.compile(r"\s+oder\s+", re.I)
+# Teile kuerzer als das ("II") ordnen nichts zu
+MIN_PART_KEY = 4
+
+
+def title_parts(title) -> tuple[list[tuple[str, str]], bool]:
+    """Teile eines zusammengesetzten Modultitels als (Text, Namensschluessel) und ob alle noetig sind ("/") oder einer
+    reicht ("oder"); ([], False) fuer einen einfachen Titel"""
+    t = text_of(title).strip()
+    raw = [p.strip() for p in PART_SPLIT_RE.split(t)]
+    if len(raw) < 2 or any(not p for p in raw):
+        return [], False
+    return [(p, name_key(p)) for p in raw], not OR_RE.search(t)
+
+
+def part_index(text, parts: list[tuple[str, str]]) -> int | None:
+    """Teil, den ein QIS-Text nennt: gleicher Namensschluessel, sonst endet der Text mit dem Teil ("Grundzüge der
+    Chemie" -> "Chemie"); der laengste Teil gewinnt"""
+    k = name_key(text)
+    if not k:
+        return None
+    best, best_n = None, 0
+    for i, (_, pk) in enumerate(parts):
+        if len(pk) >= MIN_PART_KEY and (k == pk or k.endswith(" " + pk)) and len(pk) > best_n:
+            best, best_n = i, len(pk)
+    return best
+
+
+def _index(mods: list[dict]) -> tuple[dict, dict, dict]:
+    """(Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id, Teile -> Modul-id), jeweils das erste Modul; ein Teil
+    nur, wenn kein Modul so heisst"""
     by_code: dict[str, str] = {}
     by_key: dict[str, str] = {}
+    by_part: dict[str, list[tuple[str, str]]] = {}
     for m in mods:
         code = text_of(m.get("code")).strip()
         if code and code not in by_code:
@@ -510,13 +545,28 @@ def _index(mods: list[dict]) -> tuple[dict, dict]:
         k = name_key(m.get("title"))
         if k and k not in by_key:
             by_key[k] = m["id"]
-    return by_code, by_key
+    for m in mods:
+        parts, _ = title_parts(m.get("title"))
+        if parts and m["id"] not in by_part:
+            by_part[m["id"]] = [p for p in parts if p[1] not in by_key]
+    return by_code, by_key, by_part
 
 
-def _row_module(r: dict, by_code: dict, by_key: dict) -> str | None:
+def _part_module(text, by_part: dict) -> str | None:
+    """Modul, dessen Titel einen Teil nennt, den der Text nennt (der laengste Teil gewinnt, dann das erste Modul)"""
+    best, best_n = None, 0
+    for mid, parts in by_part.items():
+        i = part_index(text, parts)
+        if i is not None and len(parts[i][1]) > best_n:
+            best, best_n = mid, len(parts[i][1])
+    return best
+
+
+def _row_module(r: dict, by_code: dict, by_key: dict, by_part: dict | None = None) -> str | None:
     """Katalogmodul einer QIS-Zeile: Pruefungsnummer, sonst Name; sonst das Modul ihrer QIS-Modulzeile (`modul_nr`,
     `modul_text` aus grades_model, 12.11.2026: Leistungen eines Moduls ohne eigene Pruefungen wie "Studium Generale"
-    gehoeren zu diesem Modul, vorher standen sie als "nicht zugeordnet" da)"""
+    gehoeren zu diesem Modul, vorher standen sie als "nicht zugeordnet" da); sonst ein Teil eines zusammengesetzten
+    Titels (Name, dann Modulzeile)"""
     nr = text_of(r.get("pruefungsnr")).strip()
     mid = by_code.get(nr) if nr else None
     if mid is None:
@@ -526,12 +576,44 @@ def _row_module(r: dict, by_code: dict, by_key: dict) -> str | None:
         mid = by_code.get(mnr) if mnr else None
         if mid is None and text_of(r.get("modul_text")).strip():
             mid = by_key.get(name_key(r.get("modul_text")))
+    if mid is None and by_part:
+        mid = _part_module(r.get("text"), by_part)
+        if mid is None and text_of(r.get("modul_text")).strip():
+            mid = _part_module(r.get("modul_text"), by_part)
     return mid
+
+
+def _parts_state(m: dict, passed: list[dict]) -> tuple[list[str], list[str]]:
+    """(Texte der bestandenen QIS-Zeilen, offene Teile laut Katalog) eines Moduls, dessen Teile alle noetig sind; ([], [])
+    wenn das Modul einfach ist, einer reicht ("oder") oder eine bestandene Zeile fuer das ganze Modul steht (gleicher
+    Titel, Nummer oder eine Modulzeile, die keinen Teil nennt)"""
+    parts, need_all = title_parts(m.get("title"))
+    if not parts or not need_all or not passed:
+        return [], []
+    title_key, code = name_key(m.get("title")), text_of(m.get("code")).strip()
+    done: set[int] = set()
+    for r in passed:
+        if name_key(r.get("text")) == title_key or (code and text_of(r.get("pruefungsnr")).strip() == code):
+            return [], []
+        i = part_index(r.get("text"), parts)
+        if i is None:
+            if r.get("level") not in (None, "pruefung"):
+                return [], []                               # Modulzeile unter anderem Namen: das ganze Modul
+            continue
+        done.add(i)
+    if len(done) == len(parts):
+        return [], []
+    names: list[str] = []
+    for r in passed:
+        t = text_of(r.get("text")).strip()
+        if t and t not in names:
+            names.append(t)
+    return names, [p[0] for i, p in enumerate(parts) if i not in done]
 
 
 def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
     """{Modul-id: [Zeilen]} und die nicht zugeordneten Texte (sortiert, ohne Doppelte)"""
-    by_code, by_key = _index(mods)
+    by_code, by_key, by_part = _index(mods)
     hist: dict[str, list[dict]] = {}
     unmatched: set[str] = set()
     for r in grades:
@@ -539,7 +621,7 @@ def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
             continue
         # Bereichszeile nur, wenn kein Katalogmodul so heisst (11.11.2026: "Vertiefung der Betriebssysteme" ist im
         # TI-Katalog ein Wahlpflichtmodul, die Bereichsregel "Vertiefung ..." hatte die bestandene Leistung verschluckt)
-        mid = _row_module(r, by_code, by_key)
+        mid = _row_module(r, by_code, by_key, by_part)
         if mid is None and is_bereich(r):
             continue
         if mid is None:
@@ -770,12 +852,19 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         m, rows = by_id[mid], hist.get(mid, [])
         turnus = turnus_of(m.get("turnus"))
         max_n = max_attempts_of(m, catalog)
-        failed_n, last_fail, final, known, qis_last = _attempts(rows, max_n)
         passed = [r for r in rows if row_result(r) == "passed"]
+        # Modul aus Teilen, die alle noetig sind ("Thermodynamik I / Chemie"): bestanden erst mit allen Teilen oder einer
+        # bestandenen Zeile fuer das ganze Modul; bis dahin zaehlen die bestandenen Teile nicht als Fehlversuche
+        done_parts, open_parts = _parts_state(m, passed)
+        if open_parts:
+            done = {part_index(r.get("text"), title_parts(m.get("title"))[0]) for r in passed} - {None}
+            rows = [r for r in rows if part_index(r.get("text"), title_parts(m.get("title"))[0]) not in done]
+            passed = []
+        failed_n, last_fail, final, known, qis_last = _attempts(rows, max_n)
         registered = [r for r in rows if row_result(r) == "registered"]
         st = {"status": None, "term": None, "attempt": None, "grade": None, "moved_from": None, "reason": None,
               "failed": failed_n, "final": final, "placed": False, "known": known, "max_attempts": max_n,
-              "qis_last": qis_last}
+              "qis_last": qis_last, "parts_done": done_parts if open_parts else [], "parts_open": open_parts}
         sem = sem_of(m) or slot_sem.get(mid)
         rec = start + sem - 1 if sem else None
         own = placed.get(mid)
@@ -883,8 +972,8 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
 
     # Eigene Eintraege (z. B. Studium generale einer anderen Fakultaet): Stand aus einer nicht zugeordneten QIS-Zeile
     # mit gleichem Namensschluessel, sonst im gewaehlten Fachsemester (fruehestens jetzt)
-    by_code, by_key = _index(mods)
-    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and _row_module(r, by_code, by_key) is None]
+    by_code, by_key, by_part = _index(mods)
+    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and _row_module(r, by_code, by_key, by_part) is None]
     custom = []
     for c in clean_custom(settings.get("custom")):
         key = name_key(c["title"])
@@ -922,7 +1011,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     for r in grades:
         if not isinstance(r, dict):
             continue
-        if _row_module(r, by_code, by_key) is not None:
+        if _row_module(r, by_code, by_key, by_part) is not None:
             continue
         if is_bereich(r):
             ctx = area_of_bereich(r.get("text"), area_toks)
@@ -1247,6 +1336,8 @@ def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
     if st["status"] == "bestanden":
         return []
     out = []
+    if st.get("parts_open"):
+        out.append(f"Teil bestanden: {', '.join(st['parts_done'])} – es fehlt noch: {', '.join(st['parts_open'])}")
     turnus = turnus_of(m.get("turnus"))
     if not fits(st["term"], turnus):
         out.append(f"Laut Katalog nur im {'Wintersemester' if turnus == 'WS' else 'Sommersemester'} angeboten")
