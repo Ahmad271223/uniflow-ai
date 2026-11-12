@@ -391,10 +391,12 @@ def test_p81_01_ipad_deletion_names_the_service_account_and_the_card_deletes_it(
     wird. Die Karte "StudiNow-Konto" ruft POST /api/account/delete (sofort gesperrt, 30 Tage). Hier ohne Xcode
     festgenagelt: Texte und Aufruf im Swift-Quelltext, dazu der Server-Weg mit Bearer-Token (wie das iPad)."""
     settings = (ROOT / "apps/apple/UniFlow/Views/Settings/SettingsPage.swift").read_text(encoding="utf-8")
-    assert "Dein StudiNow-Konto beim Dienst bleibt bestehen" in settings
+    # seit 12.11.2026 (eine Apple-Anmeldung fuer alles, Entscheidung des Inhabers): "Konto löschen" loescht auch das
+    # Dienst-Konto (vorher P35-01: es blieb bestehen und liess sich nur in der Karte loeschen)
+    assert "Dein StudiNow-Konto beim StudiNow-Dienst wird ebenfalls gelöscht" in settings
     assert "shows(serviceSignedIn: containers.account.user != nil)" in settings
-    card = (ROOT / "apps/apple/UniFlow/Views/Settings/StudoraAccountCard.swift").read_text(encoding="utf-8")
-    assert "sofort gesperrt und nach 30 Tagen endgültig gelöscht" in card
+    # der eigene Loesch-Knopf der Karte ist seit 12.11.2026 weg; die Rueckfrage in den Einstellungen nennt die Frist
+    assert "sofort gesperrt, nach 30 Tagen endgültig" in settings
     link = (ROOT / "apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Account/StudoraAccount.swift").read_text(encoding="utf-8")
     assert '"POST", "/api/account/delete"' in link
     u, h = user(hosted, "ipad-del@beispiel.de")
