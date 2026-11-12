@@ -57,6 +57,10 @@ final class OpenDocuments {
         if holders[key]?.store === store { holders[key] = nil }
     }
 
+    /// Schreibt der Nutzer gerade? Ein Dokument ist zum Schreiben offen und zu sehen. Fragen nach dem Abgleich
+    /// (`StudIPQuestionsHost`) warten dann, bis es geschlossen ist.
+    var writing: Bool { holders.values.contains { h in h.store.map { !$0.released && $0.isShown } ?? false } }
+
     /// Store, der das Dokument gerade zum Schreiben haelt (Tests)
     func holder(_ key: String) -> DocumentStore? { holders[key]?.store }
 

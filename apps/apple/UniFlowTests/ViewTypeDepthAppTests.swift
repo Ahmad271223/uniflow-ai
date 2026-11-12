@@ -115,6 +115,11 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("SettingsPage", SettingsPage.Body.self),
         ("MainView", MainView.Body.self),
         ("TextDocumentView", TextDocumentView.Body.self),
+        ("StudyGroupsSheet", StudyGroupsSheet.Body.self),
+        ("StudyGroupRow", StudyGroupRow.Body.self),
+        ("StudyGroupsCard", StudyGroupsCard.Body.self),
+        ("PlanModulesSheet", PlanModulesSheet.Body.self),
+        ("StudIPView", StudIPView.Body.self),
     ]
 
     private func check(_ name: String, _ type: Any.Type, file: StaticString = #filePath, line: UInt = #line) {

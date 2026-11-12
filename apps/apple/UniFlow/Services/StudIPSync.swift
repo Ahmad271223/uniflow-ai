@@ -200,6 +200,35 @@ final class StudIPSync: ObservableObject {
     @Published var selectedCourses: Set<String> = [] {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
     }
+    /// Studiengruppen (Auftrag des Inhabers 12.11.2026, `StudIPStudyGroups`): Wahl je Gruppe (Dateien, Modul, Termine;
+    /// Vorgabe alles aus) und ob schon gefragt wurde; im Container gespeichert wie die Kursauswahl. Fuer Gruppen gilt
+    /// die Kursauswahl nicht mehr, nur diese Wahl (`StudyGroupsSheet`, Einstellungen -> Stud.IP)
+    @Published var groupSettings = StudIPStudyGroups.Settings() {
+        didSet { groupSettings.save(defaults) }
+    }
+    /// Erkannte Studiengruppen der letzten Kursliste
+    var studyGroups: [StudIPCourse] { courses.filter { StudIPStudyGroups.isStudyGroup($0) } }
+    /// Kurse ohne Studiengruppen (Karte "Kurse")
+    var regularCourses: [StudIPCourse] { courses.filter { !StudIPStudyGroups.isStudyGroup($0) } }
+    /// Frage "Studiengruppen" faellig: ein Abgleich ist durch, es gibt Gruppen, noch nie gefragt
+    var groupsQuestionDue: Bool { lastRun != nil && !groupSettings.asked && !studyGroups.isEmpty }
+
+    /// Wahl fuer die Studiengruppen uebernehmen (Frage oder Einstellungen). Kommt dabei etwas dazu, gleicht die App
+    /// gleich ab (Dateien, Termine, Modul); Ausgeschaltetes raeumt der naechste Abgleich auf.
+    func applyGroupChoices(_ choices: [String: StudIPStudyGroups.Choice]) {
+        let before = groupSettings
+        groupSettings = StudIPStudyGroups.Settings(asked: true, choices: choices)
+        guard groupSettings.choices != before.choices, !isRunning, !finishingUp else { return }
+        Task { await run() }
+    }
+
+    /// Namen der aktuellen Module (Wahl "Einem Modul zuordnen")
+    func moduleNames() async -> [String] {
+        guard let backend = try? await host.backend() else { return [] }
+        return (try? await backend.context.database.withConnection { c in
+            try c.rows("SELECT name FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort, name").compactMap { $0["name"]?.string }
+        }) ?? []
+    }
     /// Kurse, die der Abgleich schon gesehen hat (abgewaehlt = bekannt und nicht ausgewaehlt, `StudIPImport.selection`);
     /// nil bis zum ersten Abgleich mit dieser Regel
     private var knownCourses: Set<String>? {
@@ -349,6 +378,7 @@ final class StudIPSync: ObservableObject {
                                       container: container, cookies: { url in Self.ownCookies(cookieStore.load(), host: url.host ?? "") })
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
         knownCourses = defaults.stringArray(forKey: "uniflow.studip.knownCourses").map(Set.init)
+        groupSettings = StudIPStudyGroups.Settings.load(defaults)
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
         lastSummary = defaults.string(forKey: "uniflow.studip.lastSummary")
         if let d = try? Data(contentsOf: legacyIndexURL), let list = try? JSONDecoder().decode([StudIPLocalEntry].self, from: d) {
@@ -1003,16 +1033,22 @@ final class StudIPSync: ObservableObject {
             if selection.selected != selectedCourses { selectedCourses = selection.selected }
             knownCourses = selection.known
 
-            let selectedNow = courses.filter { selectedCourses.contains($0.id) }
+            // Studiengruppen nur nach ihrer Wahl (`StudIPStudyGroups.plan`): ausgeschaltet kein Kurs, keine Dateien,
+            // keine Termine, kein Modul; die uebrigen Kurse wie bisher nach der Kursauswahl
+            let groupPlan = StudIPStudyGroups.plan(courses: courses, selected: selectedCourses, settings: groupSettings)
+            let groupIDs = Set(groupPlan.groups.map(\.id)), storeIDs = Set(groupPlan.store.map(\.id))
+            let selectedNow = courses.filter { storeIDs.contains($0.id) }
             let today = clock.today
             // Kurse frueherer Semester kommen als Kurs in die Datenbank, auch ohne Auswahl (inaktiv nach der
             // Semesterregel, ohne Modul, Termine und Dateien): die Bibliothek zeigt sie je Semester zum Nachladen, die
             // Community prueft daran "hat oder hatte das Modul". Abgewaehlte Kurse des aktuellen Semesters bleiben aus.
-            let olderUnselected = courses.filter { !selectedCourses.contains($0.id) && StudIPView.isOlder($0, today: today) }
+            let olderUnselected = courses.filter { !selectedCourses.contains($0.id) && !groupIDs.contains($0.id) && StudIPView.isOlder($0, today: today) }
             // Fach und Art wie upsert_course (classify), aktiv nach der Semesterregel (`Semesters`, app/semesters.py);
             // die Module legt ensure_modules beim naechsten Lesen an
+            let groups = groupPlan.groups, groupChoices = groupSettings, groupClock = clock
             let (active, wantedOlder) = try await db.transaction { c -> (Set<String>, Set<String>) in
                 try StudIPLibrary.storeCourses(c, selectedNow + olderUnselected, startedAt: started, today: today)
+                try StudIPStudyGroups.applyModules(c, groups: groups, settings: groupChoices, clock: groupClock)
                 return (Set(try c.rows("SELECT id FROM courses WHERE active=1").compactMap { $0["id"]?.string }),
                         try OlderSemesters.pending(c, today: today))
             }
@@ -1029,17 +1065,23 @@ final class StudIPSync: ObservableObject {
             }.map(\.element)
             let olderFiles = olderOnly ? SyncOrder.newestFirst(courses.filter {
                 wantedOlder.contains($0.id) && !active.contains($0.id) && (olderCourses?.contains($0.id) ?? true)
+                    && (!groupIDs.contains($0.id) || groupPlan.files.contains($0.id))
             }, semester: \.semesterTitle) : []
             // ausgewaehlte Kurse frueherer Semester: nicht eingeplant (ihre Dateien kommen erst in Stufe d)
             let older = selectedNow.filter { !active.contains($0.id) }.count
-            let fileCourses = olderOnly ? olderFiles : chosen
+            // Dateien, Neuigkeiten, Aufzeichnungen, Lernstoff: Studiengruppen nur mit "Dateien durchsuchen"; Termine nur mit
+            // "Termine in den Stundenplan" (normale Kurse stehen in beiden Mengen)
+            let contentCourses = chosen.filter { groupPlan.files.contains($0.id) }
+            let timetableCourses = chosen.filter { groupPlan.timetable.contains($0.id) }
+            let fileCourses = olderOnly ? olderFiles : contentCourses
             // Erstes Einrichten (noch kein voller Lauf, 07.11.2026): Kurse und Stundenplan zuerst zeigen, die Dateien
             // danach. Spaetere Laeufe: Dateilisten zuerst (neue Dateien sind das, worauf man wartet), dann der Stundenplan
             var timetable = StudIPScheduleSync.Outcome()
             let scheduleFirst = !olderOnly && lastRun == nil
             if scheduleFirst {
                 try Task.checkCancellation()
-                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: timetableCourses,
+                                                                    excluding: groupPlan.timetableOff) { phase = .running($0) }
                 stagesReady += 1                              // Stundenplan und Kurse schon zeigen
             }
             var remote: [StudIPFile] = []
@@ -1134,7 +1176,8 @@ final class StudIPSync: ObservableObject {
             // seine Woche sofort (`SyncOrder` Stufe a); Fehler dort brechen den Datei-Abgleich nicht ab
             if !olderOnly && !scheduleFirst {
                 try Task.checkCancellation()
-                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: timetableCourses,
+                                                                    excluding: groupPlan.timetableOff) { phase = .running($0) }
                 stagesReady += 1
             }
             // Videodateien laedt der Abgleich nicht (Entscheidung 7: grosse Dateien nur auf Wunsch); sie stehen bei den
@@ -1249,12 +1292,12 @@ final class StudIPSync: ObservableObject {
             _ = try? await db.transaction { try SyncOrder.markCurrentReady($0, now: readyAt) }
             // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden, Brett, Blubber (StudIPExtrasSync)
             phase = .running(note + " · Neuigkeiten werden geladen …")
-            let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: chosen)
+            let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: contentCourses)
             try Task.checkCancellation()
             // Lehrende und Kontakte (StudIPLecturers, 06.11.2026): erst nach Stufe (a), nur im vollen Lauf, je Kurs hoechstens
             // alle 7 Tage; nur an Hochschulen mit Stud.IP. Fehler halten den Abgleich nicht an
             let lecturersExpired = timetable.sessionExpired || extrasExpired || scope == .lists ? false
-                : await StudIPExtrasSync(host: host).lecturers(client: client, courses: chosen)
+                : await StudIPExtrasSync(host: host).lecturers(client: client, courses: contentCourses)
             try Task.checkCancellation()
             // Aufzeichnungen und Lernstoff (viele Anfragen je Kurs, aendern sich selten binnen Minuten) hoechstens alle
             // `slowPartsInterval` (07.11.2026); Dateien, Stundenplan und Nachrichten kommen bei jedem Lauf. Seit
@@ -1272,7 +1315,7 @@ final class StudIPSync: ObservableObject {
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             if skippedFolders > 0 { parts.append("\(skippedFolders) Ordner nicht lesbar") }
-            if let n = Self.newCoursesNote(selection.newUnselected.count) { parts.append(n) }
+            if let n = Self.newCoursesNote(selection.newUnselected.filter { !groupIDs.contains($0.id) }.count) { parts.append(n) }
             if let n = Self.olderCoursesNote(older) { parts.append(n) }
             parts += timetable.summary
             let expired = timetable.sessionExpired || extrasExpired || lecturersExpired
@@ -1302,7 +1345,7 @@ final class StudIPSync: ObservableObject {
                 return .sessionExpired
             }
             // Aufzeichnungen und Lernstoff als eigener Schritt nach "fertig"; derselbe Client (hoechstens 4 Anfragen)
-            if wantsSlowParts, await finishSlowParts(client: client, courses: chosen, keepsSummary: !olderOnly) {
+            if wantsSlowParts, await finishSlowParts(client: client, courses: contentCourses, keepsSummary: !olderOnly) {
                 return .sessionExpired
             }
             if !Task.isCancelled { renewal.verified(at: Date()) }

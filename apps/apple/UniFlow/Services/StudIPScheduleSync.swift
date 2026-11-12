@@ -78,9 +78,11 @@ struct StudIPScheduleSync {
     /// Laedt den Stundenplan der Kurse (`courses`: die abgeglichenen Kurse) und speichert ihn. Kein `await` in der
     /// Transaktion: erst das Netz, dann kurz schreiben. `progress` bekommt den Text fuer die Statusanzeige.
     @MainActor
-    func run(client: StudIPClient, userID: String, courses: [StudIPCourse], progress: (String) -> Void = { _ in }) async -> Outcome {
+    /// `excluding`: Studiengruppen ohne "Termine in den Stundenplan" (`StudIPStudyGroups`)
+    func run(client: StudIPClient, userID: String, courses: [StudIPCourse], excluding: Set<String> = [],
+             progress: (String) -> Void = { _ in }) async -> Outcome {
         progress("Stundenplan wird geladen …")
-        let download = await StudIPScheduleStore.fetch(client: client, userID: userID, courses: courses)
+        let download = await StudIPScheduleStore.fetch(client: client, userID: userID, courses: courses, excluding: excluding)
         var out = Outcome(failedCourses: download.failedCourses.count, sessionExpired: download.sessionExpired,
                           scheduleFailed: download.scheduleError != nil, unreachable: download.unreachable,
                           calendarFailed: download.calendarError != nil, unreadable: download.unreadable)

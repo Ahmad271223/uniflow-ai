@@ -17,7 +17,8 @@ struct StudIPView: View {
             UFPageHead("Stud.IP", sub: "Stud.IP der Leibniz Universität Hannover")
             VStack(alignment: .leading, spacing: 16) {
                 accountCard
-                if !studip.courses.isEmpty { coursesCard }
+                if !studip.regularCourses.isEmpty { coursesCard }
+                StudyGroupsCard()                                        // Studiengruppen (12.11.2026), nur wenn es welche gibt
                 LazyVStack(alignment: .leading, spacing: 16) {
                     ForEach(groups) { g in groupCard(g) }
                 }
@@ -114,10 +115,12 @@ struct StudIPView: View {
 
     private var coursesCard: some View {
         UFCard {
-            UFCardHead("Kurse", icon: "book") { UFBadge("\(studip.selectedCourses.count) von \(studip.courses.count)", tone: .neutral) }
+            // Studiengruppen stehen in ihrer eigenen Karte (`StudyGroupsCard`); fuer sie gilt die Kursauswahl nicht
+            let regular = studip.regularCourses
+            UFCardHead("Kurse", icon: "book") { UFBadge("\(regular.filter { studip.selectedCourses.contains($0.id) }.count) von \(regular.count)", tone: .neutral) }
             VStack(alignment: .leading, spacing: 0) {
                 let today = UFFmt.todayISO()
-                ForEach(Array(studip.courses.enumerated()), id: \.element.id) { i, c in
+                ForEach(Array(regular.enumerated()), id: \.element.id) { i, c in
                     if i > 0 { SettingsDivider() }
                     CourseRow(title: c.title, semester: c.semesterTitle, older: Self.isOlder(c, today: today), isOn: Binding(
                         get: { studip.selectedCourses.contains(c.id) },
