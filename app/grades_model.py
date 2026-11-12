@@ -33,6 +33,15 @@ Zugehoerigkeit einer Pruefung zu ihrem Modul (dann zaehlen die LP der Modulzeile
 Nummer (Modul 110 -> Pruefung 111, Modul 11 -> 1101), sonst die Modulzeile direkt davor (QIS listet je Modul seine
 Pruefungen darunter; nicht, wenn die Pruefung nach dem Semester des bestandenen Moduls liegt). Ist das Modul nicht
 bestanden, zaehlen seine bestandenen Pruefungen mit ihren LP (hoechstens die LP der Modulzeile).
+
+Echter Aufbau des LUH-Notenspiegels (Beschreibung des Inhabers 12.11.2026, fixtures/qis-notenspiegel):
+- Spalte "Prf.Art" ist das staerkste Signal: PL/SL-Zeilen sind Leistungen, Zeilen ohne Art Modul- bzw. Kompetenz-
+  bereichszeilen (auch mit Wert in "Versuch"). SL ist immer unbenotet.
+- Note "0,0" heisst anerkannt ohne Note: `anerkannt`, Note leer, kein Schnitt, LP zaehlen.
+- Jede Leistung kennt ihr Modul (`modul_nr`, `modul_text`: die Modulzeile laut Zuordnung oben); Module ohne eigene
+  Pruefungen (Studium Generale, Wahlpflicht) bekommen so ihre Leistungen, LP aus der Modulzeile.
+- Mehrere bestandene Eintraege derselben Pruefung (gleiche Nummer und Text): der neueste nach Datum gilt, aeltere sind
+  `superseded` (kein Schnitt, keine LP). "nicht bestanden" ist ein Fehlversuch mit Semester und Datum (`datum_iso`).
 """
 from __future__ import annotations
 
@@ -186,12 +195,33 @@ def is_passed(r: dict) -> bool:
     return s in ("", "an") and note is not None and 1.0 <= note <= 4.0
 
 
-def _level(r: dict) -> str:
+def _level(r: dict, art_column: bool = False) -> str:
+    """Ebene einer Zeile. Mit Spalte "Prf.Art" (LUH, `art_column`: eine Zeile der Tabelle traegt PL/SL) entscheidet
+    allein die Art: PL/SL ist eine Leistung, ohne Art eine Modul- oder Bereichszeile (auch mit Wert in "Versuch")."""
     if is_bereich_text(r.get("text")):
         return "bereich"
-    if r.get("art") or (r.get("versuch") or "").strip():
+    if r.get("art"):
         return "pruefung"
-    return "modul"
+    if art_column and r.get("source") != "anmeldung":
+        return "modul"
+    return "pruefung" if (r.get("versuch") or "").strip() else "modul"
+
+
+def iso_date(d) -> str:
+    """'21.08.2026' -> '2026-08-21' (Datum der QIS-Zeile), sonst ''"""
+    m = _DATE_DE_RE.match((d or "").strip()) if isinstance(d, str) else None
+    if not m:
+        return ""
+    day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if not 1 <= month <= 12 or not 1 <= day <= 31 or not 1990 <= year <= 2099:
+        return ""
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def is_recognized(note) -> bool:
+    """Note "0,0": anerkannt ohne Note (zaehlt nicht zum Schnitt, die LP zaehlen)"""
+    s = (note or "").strip() if isinstance(note, str) else ""
+    return bool(NOTE_RE.match(s)) and _num(s) == 0.0
 
 
 def model(rows: list[dict]) -> list[dict]:
@@ -217,16 +247,26 @@ def model(rows: list[dict]) -> list[dict]:
         g["semester_norm"] = norm_semester(g.get("semester"))
         if not g["semester_norm"] and term_of_date(g.get("datum")) is not None:
             g["semester_norm"] = term_name(term_of_date(g.get("datum")))     # leere Semesterspalte: aus dem Datum
+        # LUH: Note "0,0" heisst anerkannt ohne Note (12.11.2026: vorher stand "0,0" als Note in Uni & Noten und im
+        # Studienverlauf); die Zeile bleibt bestanden laut Status, zaehlt nicht zum Schnitt, ihre LP zaehlen
+        g["anerkannt"] = is_recognized(g.get("note"))
+        if g["anerkannt"]:
+            g["note"] = ""
+        g["datum_iso"] = iso_date(g.get("datum"))
         key = (g.get("pruefungsnr") or g.get("text"), g.get("art"), g["semester_norm"], (g.get("versuch") or "").strip(),
                g.get("note") or "", g.get("datum") or "")
         if key in seen:
             continue
         seen.add(key)
-        g["level"] = _level(g)
         note = _num(g.get("note"))
         g["passed"] = is_passed(g)
-        g["graded"] = note is not None and 1.0 <= note <= 4.0 and g["passed"]
+        # Studienleistung (SL) ist immer unbenotet
+        g["graded"] = note is not None and 1.0 <= note <= 4.0 and g["passed"] and g.get("art") != "SL"
         out.append(g)
+    # Spalte "Prf.Art" vorhanden (LUH): PL/SL sind Leistungen, Zeilen ohne Art Modul- oder Bereichszeilen
+    art_column = any(g.get("art") in ("PL", "SL") for g in out)
+    for g in out:
+        g["level"] = _level(g, art_column)
     return count(out)
 
 
@@ -252,6 +292,12 @@ def _chrono(semester_norm: str) -> int | None:
     """SoSe 24 -> 48, WiSe 24/25 -> 49 (zum Vergleich der Reihenfolge)"""
     m = re.match(r"^(WiSe|SoSe) (\d{2})", semester_norm or "")
     return int(m.group(2)) * 2 + (1 if m.group(1) == "WiSe" else 0) if m else None
+
+
+def _when(r: dict, i: int) -> tuple:
+    """Reihenfolge fuer "der neueste Eintrag": Datum, dann Semester, dann Position"""
+    t = row_term(r)
+    return (r.get("datum_iso") or iso_date(r.get("datum")), t if t is not None else -1, i)
 
 
 def _parent(m: list[dict], i: int) -> int | None:
@@ -285,21 +331,43 @@ def count(m: list[dict]) -> list[dict]:
     Nicht bestandenes Modul: seine bestandenen Pruefungen mit ihren LP, zusammen hoechstens die LP der Modulzeile.
     Bestandene Pruefung ohne Modulzeile: ihre LP. Bereichs-/Summenzeilen und Pruefungsanmeldungen nie."""
     for r in m:
-        r["counted"], r["lp_counted"] = False, 0.0
+        r["counted"], r["lp_counted"], r["superseded"] = False, 0.0, False
+        r["modul_nr"], r["modul_text"] = None, None
 
     def lp(r):
         v = _num(r.get("credits"))
         return v if v is not None and math.isfinite(v) and v > 0 else 0.0
 
+    # Mehrere bestandene Eintraege derselben Pruefung (gleiche Nummer und gleicher Text, z. B. Notenverbesserung): es
+    # gilt der neueste nach Datum (dann Semester, dann Reihenfolge); die aelteren zaehlen weder zum Schnitt noch zu den
+    # LP (12.11.2026: vorher zaehlten beide). Nicht bestandene Eintraege sind Fehlversuche und ersetzen nichts.
+    newest: dict[tuple, int] = {}
+    for i, r in enumerate(m):
+        if r["level"] == "pruefung" and r["passed"] and r.get("source") != "anmeldung":
+            k = (_nr(r) or _name_key(r), _name_key(r))
+            j = newest.get(k)
+            if j is None or _when(r, i) >= _when(m[j], j):
+                newest[k] = i
+    keep = set(newest.values())
+    for i, r in enumerate(m):
+        if r["level"] == "pruefung" and r["passed"] and r.get("source") != "anmeldung" and i not in keep:
+            r["superseded"], r["graded"] = True, False
+
     kids: dict[int, list[int]] = {}
     alone: list[int] = []
     for i, r in enumerate(m):
-        if r["level"] == "pruefung" and r["passed"]:
-            j = _parent(m, i)
-            if j is None:
-                alone.append(i)
-            else:
-                kids.setdefault(j, []).append(i)
+        if r["level"] != "pruefung":
+            continue
+        j = _parent(m, i)
+        # Modul der Leistung (QIS: die Modulzeile davor; Nummer und Text, fuer Studienverlauf und Anzeige)
+        r["modul_nr"] = (_nr(m[j]) or None) if j is not None else None
+        r["modul_text"] = m[j].get("text") if j is not None else None
+        if not r["passed"] or r["superseded"]:
+            continue
+        if j is None:
+            alone.append(i)
+        else:
+            kids.setdefault(j, []).append(i)
     for i, r in enumerate(m):
         if r["level"] == "modul" and r["passed"]:
             r["counted"] = True

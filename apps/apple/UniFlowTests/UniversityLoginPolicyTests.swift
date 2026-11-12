@@ -254,7 +254,9 @@ final class UniversityLoginPolicyTests: XCTestCase {
         XCTAssertTrue(studip.contains("WKWebView(frame: .zero, configuration: config)"))
         // seit 04.11.2026 die eine Ausnahme: Hilfe nur auf der Anmeldeseite des WebSSO bzw. CAS (UniLoginKeepAppTests)
         XCTAssertTrue(studip.contains("if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }"))
-        XCTAssertTrue(try code("QISViews.swift").contains("loginHelper: false"), "QIS: kein Skript")
+        XCTAssertTrue(try code("QISViews.swift").contains("loginHelper: false"), "QIS: keine Hilfe fuer den Benutzernamen")
+        // QIS: nur die Autofill-Kennzeichnung der Felder (12.11.2026), nie fuer die Nachbildung des Debug-Stubs
+        XCTAssertTrue(studip.contains("if qisAutofillHints, !url.isFileURL { QISAutofillHints.install(in: config) }"))
         for name in ["StudIPView.swift", "QISViews.swift", "HildesheimViews.swift"] {
             XCTAssertTrue(try code(name).contains("UniversityLoginHint()"), "\(name): Hinweis unter dem Fenster")
         }
@@ -275,6 +277,59 @@ final class UniversityLoginPolicyTests: XCTestCase {
             let problems = try await h.js(Self.untouchedCheck)
             XCTAssertEqual(problems, "", name)
             XCTAssertTrue(h.webView.configuration.userContentController.userScripts.isEmpty, name)
+        }
+        XCTAssertFalse(h.blocked.contains { $0 == .formSubmitted || $0 == .linkActivated }, "kein Absenden, kein Klick: \(h.blocked)")
+    }
+
+    // MARK: Autofill-Kennzeichnung der QIS-Anmeldung (12.11.2026)
+
+    /// `QISAutofillHints`: auf der QIS-Anmeldeseite (HTTPS, Rechner des QIS) bekommen asdf/fdsa `autocomplete`
+    /// username/current-password und `autocapitalize`/`autocorrect` aus; kein Feld wird gefuellt, kein Kanal, kein Absenden.
+    /// Auf allen anderen Seiten (CAS, WebSSO, fremde Rechner, http, Same-Origin-Faelschung) bleibt alles, wie die Seite es setzt.
+    func testQISAutofillHintsOnlyMarkTheQISLoginFields() async throws {
+        let rules = #"[{"trigger": {"url-filter": ".*"}, "action": {"type": "block"}}]"#
+        let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "uniflow.tests.blockall.autofill",
+                                                                                      encodedContentRuleList: rules)
+        let h = Harness(rules: try XCTUnwrap(list))
+        QISAutofillHints.install(in: h.webView.configuration)
+        let scripts = h.webView.configuration.userContentController.userScripts
+        XCTAssertEqual(scripts.count, 1)
+        XCTAssertTrue(scripts[0].isForMainFrameOnly)
+        XCTAssertEqual(scripts[0].injectionTime, .atDocumentStart)
+        XCTAssertFalse(QISAutofillHints.script(hosts: QISConnection.qisDomains).contains(".value"), "nie ein Wert")
+        let marks = """
+        (function () {
+          var u = document.querySelector('input[name="asdf"]'), p = document.querySelector('input[name="fdsa"]');
+          if (!u || !p) return 'keine Felder';
+          return [u.getAttribute('autocomplete'), p.getAttribute('autocomplete'), u.getAttribute('autocapitalize'),
+                  u.getAttribute('autocorrect'), p.getAttribute('autocorrect'), u.value, p.value].join('|');
+        })()
+        """
+        // echte Anmeldeseite des QIS: gekennzeichnet, leer
+        try await loaded(h, Self.qisPage, Self.qisURL)
+        try await waitUntil("Felder gekennzeichnet") { try await h.js(marks) == "username|current-password|none|off|off||" }
+        let channel = try await h.js("String(!!(window.webkit && window.webkit.messageHandlers && Object.keys(window.webkit.messageHandlers).length))")
+        XCTAssertEqual(channel, "false", "kein Kanal zur App")
+        // gleiche Felder auf fremdem Rechner, ueber http oder auf einem aehnlichen Rechner: unberuehrt
+        for url in [URL(string: "https://phishing.example/qisserver/rds?state=user&type=0")!,
+                    URL(string: "http://qis.verwaltung.uni-hannover.de/qisserver/rds?state=user&type=0")!,
+                    URL(string: "https://qis.verwaltung.uni-hannover.de.example.org/qisserver/rds")!] {
+            try await loaded(h, Self.qisPage, url)
+            try await settle()
+            let got = try await h.js(marks)
+            XCTAssertEqual(got, "||||||", url.absoluteString)
+        }
+        // andere Anmeldeseiten (CAS, WebSSO): autocomplete wie von der Seite gesetzt, nichts gefuellt
+        for (name, html, url) in Self.pages where !html.contains("asdf") {
+            try await loaded(h, html, url)
+            if html.contains("iframe") {
+                try await waitUntil("eingebetteter Rahmen steht (\(name))") {
+                    try await h.js("String(!!(document.getElementById('fremd').contentDocument && document.getElementById('fremd').contentDocument.querySelector('#password')))") == "true"
+                }
+            }
+            try await settle()
+            let problems = try await h.js(Self.untouchedCheck)
+            XCTAssertEqual(problems, "", name)
         }
         XCTAssertFalse(h.blocked.contains { $0 == .formSubmitted || $0 == .linkActivated }, "kein Absenden, kein Klick: \(h.blocked)")
     }
@@ -465,13 +520,17 @@ final class UniversityLoginPolicyTests: XCTestCase {
         // eigene Inhaltswelt, Passwort nur als Argument; UniAutoLoginAppTests)
         let helperOnly: Set<String> = ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "messageHandlers"]
         let autoLoginOnly: Set<String> = helperOnly.union(["callAsyncJavaScript"])
+        // seit 12.11.2026 (Wunsch des Inhabers): `QISAutofillHints` kennzeichnet die Felder asdf/fdsa der QIS-Anmeldung
+        // fuer das Passwort-Autofill von iPadOS (nur Attribute, kein Kanal, kein Wert; testQISAutofillHints...)
+        let autofillOnly: Set<String> = ["WKUserScript", "addUserScript", "setAttribute("]
         for s in sources {
             let code = s.code.joined(separator: "\n")
             for forbidden in ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "callAsyncJavaScript", "messageHandlers",
                               "UniversityCredential", "UniversityLoginAutofill", "UniversityRememberBar", "prefillCredential",
                               "Auf diesem iPad merken", "füllt sie beim nächsten Mal", "setAttribute(", "autocomplete="]
                 where !(s.name == "UniLoginHelper.swift" && helperOnly.contains(forbidden))
-                    && !(s.name == "UniAutoLogin.swift" && autoLoginOnly.contains(forbidden)) {
+                    && !(s.name == "UniAutoLogin.swift" && autoLoginOnly.contains(forbidden))
+                    && !(s.name == "QISAutofillHints.swift" && autofillOnly.contains(forbidden)) {
                 XCTAssertFalse(code.contains(forbidden), "\(s.name): \(forbidden)")
             }
             // Seitenskripte nur zum Lesen des Seiteninhalts (Erkennung der angemeldeten Seite), nie zum Setzen von Werten
@@ -493,6 +552,11 @@ final class UniversityLoginPolicyTests: XCTestCase {
         XCTAssertTrue(auto.contains("contentWorld: UniAutoLogin.world"), "Kanal und Einfuellen nur in der eigenen Welt")
         XCTAssertTrue(auto.contains("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"), "nur dieses Geraet")
         XCTAssertFalse(auto.contains("URLSession") || auto.contains("APIClient"), "das Passwort geht nie ins Netz der App")
+        let hints = try XCTUnwrap(sources.first { $0.name == "QISAutofillHints.swift" }).code.joined(separator: "\n")
+        XCTAssertTrue(hints.contains("forMainFrameOnly: true, in: world"), "nur Hauptrahmen, eigene Inhaltswelt")
+        for never in [".value", "messageHandlers", "WKScriptMessageHandler", "evaluateJavaScript", "callAsyncJavaScript", "submit", "click("] {
+            XCTAssertFalse(hints.contains(never), "QISAutofillHints: \(never)")
+        }
         let tokens = try XCTUnwrap(sources.first { $0.name == "UniversityTokens.swift" })
         XCTAssertFalse(tokens.code.joined().contains("password:"), "der Speicher nimmt kein Passwort an")
     }

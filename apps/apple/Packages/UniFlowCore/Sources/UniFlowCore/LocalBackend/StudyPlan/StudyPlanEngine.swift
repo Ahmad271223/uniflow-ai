@@ -462,9 +462,16 @@ public enum StudyPlanEngine {
         return (byCode, byKey)
     }
 
+    /// `_row_module`: Pruefungsnummer, sonst Name; sonst das Modul ihrer QIS-Modulzeile (`modul_nr`, `modul_text` aus
+    /// `GradesModel`, 12.11.2026: Leistungen eines Moduls ohne eigene Pruefungen wie "Studium Generale" gehoeren zu
+    /// diesem Modul, vorher standen sie als "nicht zugeordnet" da)
     static func rowModule(_ r: [String: JSONValue], _ byCode: [String: String], _ byKey: [String: String]) -> String? {
         let nr = PyText.strip(textOf(r["pruefungsnr"]))
-        return (nr.isEmpty ? nil : byCode[nr]) ?? byKey[nameKey(r["text"])]
+        if let mid = (nr.isEmpty ? nil : byCode[nr]) ?? byKey[nameKey(r["text"])] { return mid }
+        let mnr = PyText.strip(textOf(r["modul_nr"]))
+        if !mnr.isEmpty, let mid = byCode[mnr] { return mid }
+        guard !PyText.strip(textOf(r["modul_text"])).isEmpty else { return nil }
+        return byKey[nameKey(r["modul_text"])]
     }
 
     static func match(_ mods: [[String: JSONValue]], _ grades: [[String: JSONValue]]) -> ([String: [[String: JSONValue]]], [String]) {

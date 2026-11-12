@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
@@ -135,12 +136,17 @@ def login(page: Page, user: str, password: str, prof: dict) -> None:
     log("QIS: Login erfolgreich")
 
 
+# Spalte der Pruefungsart: "Prf.Art" (echter LUH-Notenspiegel, 12.11.2026), "Prüfungsart", "Art"
+ART_HEADERS = {("prf", "art"), ("prfart",), ("prüfungsart",), ("pruefungsart",), ("art",), ("prüfungs", "art"), ("pruefungs", "art")}
+
+
 def _header_map(cells: list[str]) -> list[str | None]:
-    """Spaltenkoepfe -> Feldnamen. 'Prüfungsnr.' und 'Bezeichnung der Leistung / ...' werden ueber das erste Wort erkannt."""
+    """Spaltenkoepfe -> Feldnamen. 'Prüfungsnr.' und 'Bezeichnung der Leistung / ...' werden ueber das erste Wort erkannt,
+    'Prf.Art' als Art (PL/SL; app/grades_model.py liest die Art sonst aus dem Inhalt der Zeile)."""
     out = []
     for h in cells:
         words = re.sub(r"[^\wäöüß]+", " ", (h or "").strip().lower()).split()
-        out.append(GRADE_HEADERS.get(words[0]) if words else None)
+        out.append("art" if tuple(words) in ART_HEADERS else (GRADE_HEADERS.get(words[0]) if words else None))
     return out
 
 
@@ -178,14 +184,149 @@ def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
     return out
 
 
+# Zellen einer Zeile, eine je Spalte: colspan n -> Text und n-1 leere Zellen (wie QISPage.spread im Swift-Kern;
+# 12.11.2026: die Kompetenzbereich-Zeile des LUH-Notenspiegels fasst "Prf.Art" und "Semester" zusammen)
+_ROW_CELLS_JS = "tr => Array.from(tr.cells).flatMap(c => [c.innerText].concat(Array(Math.max(Math.min(c.colSpan || 1, 20), 1) - 1).fill('')))"
+
+
 def _parse_tables(page: Page, abschluss: str) -> list[dict]:
     rows_out = []
     tables = page.locator("table")
     for ti in range(tables.count()):
         trs = tables.nth(ti).locator("tr")
-        rows = [trs.nth(ri).locator("th, td").all_inner_texts() for ri in range(trs.count())]
+        rows = [trs.nth(ri).evaluate(_ROW_CELLS_JS) for ri in range(trs.count())]
         rows_out += parse_grade_rows(rows, abschluss)
     return rows_out
+
+
+STAMMDATEN = ("matrikelnummer", "matrikelnr", "geburtsdatum", "geburtsort", "anschrift")
+
+
+class _GradeTables(HTMLParser):
+    """Tabellen einer gespeicherten bzw. angezeigten QIS-Seite als Zeilen von Zellentexten (innerste Tabelle bekommt
+    den Text, colspan wie `_ROW_CELLS_JS`, script/style ohne Text). Fuer den Notenspiegel ohne Browser (Tests, Knopf
+    "Diese Seite auslesen" der App liest mit QISPage.parse im Swift-Kern dasselbe)."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tables: list[dict] = []
+        self._stack: list[dict] = []
+        self._skip = 0
+
+    def handle_starttag(self, tag, attrs):
+        a = {k.lower(): (v or "") for k, v in attrs}
+        if tag in ("script", "style"):
+            self._skip += 1
+        elif tag == "table":
+            t = {"summary": a.get("summary", ""), "rows": [], "cell": None}
+            self.tables.append(t)
+            self._stack.append(t)
+        elif tag == "tr" and self._stack:
+            self._stack[-1]["rows"].append([])
+            self._stack[-1]["cell"] = None
+        elif tag in ("td", "th") and self._stack:
+            t = self._stack[-1]
+            if not t["rows"]:
+                t["rows"].append([])
+            try:
+                span = min(max(int(a.get("colspan") or 1), 1), 20)
+            except ValueError:
+                span = 1
+            cell = {"parts": [], "span": span}
+            t["rows"][-1].append(cell)
+            t["cell"] = cell
+        elif tag in ("br", "p", "div", "li"):
+            self._text(" ")
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style"):
+            self._skip = max(self._skip - 1, 0)
+        elif tag == "table" and self._stack:
+            self._stack.pop()
+        elif tag in ("td", "th", "tr") and self._stack:
+            self._stack[-1]["cell"] = None
+
+    def _text(self, data):
+        if self._stack and self._stack[-1]["cell"] is not None:
+            self._stack[-1]["cell"]["parts"].append(data)
+
+    def handle_data(self, data):
+        if not self._skip:
+            self._text(data)
+
+
+def grade_tables_from_html(html: str) -> list[list[list[str]]]:
+    """Alle Tabellen (ohne Stammdaten-Tabellen) als Zeilen von Zellentexten, colspan aufgefaechert"""
+    p = _GradeTables()
+    p.feed(html or "")
+    p.close()
+    out = []
+    for t in p.tables:
+        rows = [[c for cell in r for c in [" ".join("".join(cell["parts"]).split())] + [""] * (cell["span"] - 1)]
+                for r in t["rows"]]
+        rows = [r for r in rows if r]
+        if "stammdaten" in t["summary"].lower() or any(c.lower().startswith(STAMMDATEN) for r in rows for c in r):
+            continue
+        out.append(rows)
+    return out
+
+
+def parse_grade_html(html: str, abschluss: str = "") -> list[dict]:
+    """Leistungen einer Notenspiegel-Seite (HTML) wie im Browser: jede Tabelle mit parse_grade_rows, Doppelte wie
+    fetch_grades entfernt"""
+    seen, out = set(), []
+    for rows in grade_tables_from_html(html):
+        for g in parse_grade_rows(rows, abschluss):
+            key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
+            if key not in seen:
+                seen.add(key)
+                out.append(g)
+    return out
+
+
+# Navigation im Notenspiegel (12.11.2026, wie QISPage.nextLinksTowardGrades im Swift-Kern)
+STALL_LIMIT = 10
+_FORBIDDEN_NAV = ("logout", "abmeld", "anmeldung", "prfanm", "ruecktritt", "rücktritt", "verpublish", "hisreports", "storn")
+
+
+def is_forbidden_nav(text: str, href: str) -> bool:
+    """Nie folgen: Abmelden (Logout), Pruefungsan-/abmeldung, Ruecktritt, Bescheinigungen/PDF. "Info über angemeldete
+    Prüfungen" nennt "angemeldet", nicht "Anmeldung"."""
+    t = (text or "").lower() + " " + (href or "").lower()
+    return any(k in t for k in _FORBIDDEN_NAV) or ".pdf" in t
+
+
+def _program_key(name: str) -> str:
+    return " ".join(re.sub(r"\s*\(.*$", "", name or "").lower().split())
+
+
+def prefer_program(links: list[tuple[str, str]], preferred: list[str]) -> list[tuple[str, str]]:
+    """Mehrere Studiengaenge/Abschluesse: der eigene (gewaehlte bzw. zuletzt gelesene) zuerst, sonst die Reihenfolge der
+    Seite. `links`: (Text, Adresse)"""
+    keys = [k for k in (_program_key(p) for p in preferred) if k]
+    if not keys:
+        return links
+
+    def own(t: str) -> bool:
+        tk = _program_key(re.sub(r"^leistungen f(?:ü|ue)r\s+|\s+anzeigen$", "", (t or "").strip(), flags=re.I))
+        return any(k == tk or (len(k) >= 4 and k in tk) for k in keys)
+    return [x for x in links if own(x[0])] + [x for x in links if not own(x[0])]
+
+
+def preferred_programs() -> list[str]:
+    """Eigener Studiengang: der des gewaehlten Katalogs (Einstellung Studienverlauf), dann der zuletzt gelesene"""
+    try:
+        from . import study_plan
+        with db.connect() as conn:
+            out = []
+            po = study_plan.load_settings(conn).get("po")
+            if po:
+                out += [c.get("program") or "" for c in study_plan.DbCatalogSource(conn).catalogs()
+                        if isinstance(c, dict) and (c.get("po") == po or c.get("code") == po)]
+            out.append(study_plan.program_of(db.rows(conn, "SELECT abschluss FROM grades ORDER BY id")) or "")
+            return [p for p in out if p]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
@@ -210,6 +351,7 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
     # Abschluesse/Studiengaenge aufklappen (z. B. "Abschluss 82 Bachelor of Science" -> Studiengang -> Leistungen), bis Tiefe 3
     EXP = "a[title*='Leistungen' i], a:has(img[src*='info' i]), a:has-text('Abschluss'), a:has-text('Bachelor'), a:has-text('Master'), a:has-text('Alle Leistungen'), a:has-text('Leistungen anzeigen'), a:has-text('Studiengang')"
     seen_urls: set[str] = set()
+    stall = [0]                                # Seiten in Folge ohne Leistungstabelle (Schutz vor Schleifen)
 
     def expand(depth: int, title: str) -> None:
         nonlocal grades
@@ -219,7 +361,11 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
         found = _parse_tables(page, title)
         if found:
             grades += found
-        if depth >= 3:
+            stall[0] = 0
+        else:
+            stall[0] += 1
+        # nach STALL_LIMIT Seiten ohne Leistungen in Folge nur noch lesen, keinem Link mehr folgen
+        if depth >= 3 or stall[0] >= STALL_LIMIT:
             return
         hrefs = []
         exp = page.locator(EXP)
@@ -227,12 +373,12 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
             try:
                 t = re.sub(r"\s+", " ", exp.nth(i).inner_text()).strip()[:60] or title
                 h = exp.nth(i).get_attribute("href")
-                if h and "logout" not in h.lower() and h not in seen_urls and "notenspiegel" not in t.lower():
+                if h and not is_forbidden_nav(t, h) and h not in seen_urls and "notenspiegel" not in t.lower():
                     hrefs.append((t, h))
             except Exception:  # noqa: BLE001
                 pass
-        for t, h in hrefs:
-            if h in seen_urls:
+        for t, h in prefer_program(hrefs, preferred_programs()):
+            if h in seen_urls or stall[0] >= STALL_LIMIT:
                 continue
             seen_urls.add(h)
             try:

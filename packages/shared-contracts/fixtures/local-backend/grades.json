@@ -219,11 +219,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "SoSe 25",
-      "level": "bereich",
+      "anerkannt": false,
+      "datum_iso": "2025-06-13",
       "passed": true,
       "graded": false,
+      "level": "bereich",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 1,
@@ -240,11 +245,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "",
-      "level": "bereich",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "bereich",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 13,
@@ -261,11 +271,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "WiSe 25/26",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 4.0
+      "lp_counted": 4.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 11,
@@ -282,11 +297,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "SoSe 25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2025-06-13",
       "passed": true,
       "graded": false,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 6.0
+      "lp_counted": 6.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 12,
@@ -303,11 +323,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "SoSe 25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2025-08-01",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 7.5
+      "lp_counted": 7.5,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 7,
@@ -324,11 +349,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "WiSe 24/25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2025-02-10",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 5.0
+      "lp_counted": 5.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 2,
@@ -345,11 +375,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "WiSe 23/24",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2024-01-22",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 8.0
+      "lp_counted": 8.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 14,
@@ -366,11 +401,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "KL",
       "semester_norm": "WiSe 25/26",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2026-02-12",
       "passed": false,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "140",
+      "modul_text": "Testsprachkurs"
      },
      {
       "id": 8,
@@ -387,11 +427,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PL",
       "semester_norm": "WiSe 24/25",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2025-02-10",
       "passed": true,
       "graded": true,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "120",
+      "modul_text": "Testphysik"
      },
      {
       "id": 9,
@@ -408,11 +453,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "LA",
       "semester_norm": "SoSe 24",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2024-07-23",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "120",
+      "modul_text": "Testphysik"
      },
      {
       "id": 6,
@@ -430,11 +480,16 @@
       "art": "PL",
       "vermerk": "OWR",
       "semester_norm": "SoSe 24",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2024-07-20",
       "passed": false,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "120",
+      "modul_text": "Testphysik"
      },
      {
       "id": 3,
@@ -451,11 +506,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PL",
       "semester_norm": "WiSe 23/24",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2024-01-22",
       "passed": true,
       "graded": true,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "110",
+      "modul_text": "Testmathe I"
      },
      {
       "id": 4,
@@ -472,11 +532,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "SL",
       "semester_norm": "WiSe 23/24",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2024-01-15",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "110",
+      "modul_text": "Testmathe I"
      }
     ],
     "average": 2.3,
@@ -568,11 +633,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "SoSe 25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2025-08-01",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 5.0
+      "lp_counted": 5.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 3,
@@ -589,11 +659,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "SoSe 25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2025-08-02",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 4.0
+      "lp_counted": 4.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 1,
@@ -610,11 +685,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "WiSe 24/25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "2025-02-01",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 6.0
+      "lp_counted": 6.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      }
     ],
     "average": 3.4,
@@ -707,11 +787,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "",
-      "level": "bereich",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": false,
       "graded": false,
+      "level": "bereich",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 2,
@@ -728,11 +813,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 6.0
+      "lp_counted": 6.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 1,
@@ -749,11 +839,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 6.0
+      "lp_counted": 6.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 3,
@@ -770,11 +865,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": false,
       "graded": false,
+      "level": "modul",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      }
     ],
     "average": 2.0,
@@ -860,11 +960,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PL",
       "semester_norm": "",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "pruefung",
       "counted": true,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 3,
@@ -881,11 +986,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PL",
       "semester_norm": "",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": true,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 1,
@@ -902,11 +1012,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PL",
       "semester_norm": "",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "pruefung",
       "counted": true,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      }
     ],
     "average": 1.6,
@@ -1115,11 +1230,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "",
-      "level": "bereich",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "bereich",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 6,
@@ -1136,11 +1256,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "SoSe 25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 6.0
+      "lp_counted": 6.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 5,
@@ -1157,11 +1282,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "WiSe 24/25",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 5.0
+      "lp_counted": 5.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 1,
@@ -1178,11 +1308,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "",
       "semester_norm": "WiSe 23/24",
-      "level": "modul",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": true,
+      "level": "modul",
       "counted": true,
-      "lp_counted": 8.0
+      "lp_counted": 8.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 11,
@@ -1199,11 +1334,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "SL",
       "semester_norm": "SoSe 26",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": false,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 4,
@@ -1220,11 +1360,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "LA",
       "semester_norm": "SoSe 25",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": true,
-      "lp_counted": 3.0
+      "lp_counted": 3.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 7,
@@ -1241,11 +1386,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PR",
       "semester_norm": "SoSe 25",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "1300",
+      "modul_text": "Testprojekt"
      },
      {
       "id": 10,
@@ -1262,11 +1412,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "AN",
       "semester_norm": "SoSe 25",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": true,
-      "lp_counted": 2.0
+      "lp_counted": 2.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 9,
@@ -1283,11 +1438,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "SL",
       "semester_norm": "WiSe 24/25",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
-      "graded": true,
+      "graded": false,
+      "level": "pruefung",
       "counted": true,
-      "lp_counted": 4.0
+      "lp_counted": 4.0,
+      "superseded": false,
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 2,
@@ -1304,11 +1464,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "PL",
       "semester_norm": "WiSe 23/24",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "2024-02-02",
       "passed": true,
       "graded": true,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "1100",
+      "modul_text": "Testmathe I"
      },
      {
       "id": 3,
@@ -1325,11 +1490,16 @@
       "fetched_at": "2026-10-29T09:00:00",
       "art": "SL",
       "semester_norm": "WiSe 23/24",
-      "level": "pruefung",
+      "anerkannt": false,
+      "datum_iso": "",
       "passed": true,
       "graded": false,
+      "level": "pruefung",
       "counted": false,
-      "lp_counted": 0.0
+      "lp_counted": 0.0,
+      "superseded": false,
+      "modul_nr": "1100",
+      "modul_text": "Testmathe I"
      }
     ],
     "average": 1.8,
