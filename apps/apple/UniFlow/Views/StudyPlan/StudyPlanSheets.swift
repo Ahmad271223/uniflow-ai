@@ -535,9 +535,9 @@ struct StudyPlanSettingsSheet: View {
             }
             StudyPlanSection(title: "Studienbeginn", icon: "calendar") {
                 VStack(alignment: .leading, spacing: 8) {
-                    UFSelect(options: s.termOptions.map { ($0, $0) }, selection: $start)
+                    UFSelect(options: s.startChoices, selection: $start)
                         .accessibilityLabel("Studienbeginn")
-                        .accessibilityValue(start)
+                        .accessibilityValue(start.isEmpty ? (s.startChoices.first?.label ?? "") : start)
                         .accessibilityIdentifier("studyplan.settings.start")
                     Text("Ab hier zählen die Fachsemester. StudiNow schlägt das früheste Semester \(StudyPlanText.gradeSourceFrom(hildesheim: hildesheim != nil, hsh: hsh != nil)) vor.")
                         .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -673,7 +673,7 @@ struct StudyPlanSettingsSheet: View {
         do {
             let s = StudyPlanSettings(try await api.value("/api/study-plan/settings"), today: today)
             po = s.po ?? s.poOptions.first ?? ""
-            start = s.startTerm ?? s.termOptions.first ?? ""
+            start = s.initialStart                     // nie ungefragt das aktuelle Semester (12.11.2026)
             chosen = Set(s.electives)
             var t: [String: String] = [:]
             for g in plan?.groups ?? [] { t[g.id] = g.auto ? "" : (g.chosen ?? "") }

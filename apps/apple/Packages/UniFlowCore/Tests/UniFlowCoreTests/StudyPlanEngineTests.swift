@@ -339,6 +339,75 @@ final class StudyPlanEngineTests: XCTestCase {
         XCTAssertTrue(r.json?["unmatched"]?.array?.contains("Rhetorik") ?? false, "Anmeldung ohne Bereich bleibt nicht zugeordnet")
     }
 
+    /// Meldung des Inhabers 12.11.2026: Studierende ab dem 2. Fachsemester bekamen einen falschen Plan. Am alten Stand:
+    /// Semester wie "25/26 WS", "W25", "20261", "2024W", "S 25" und leere Semesterspalten (nur Datum) unlesbar ->
+    /// Studienbeginn = aktuelles Semester (1. Fachsemester) und alles Bestandene im aktuellen Semester; ein vom
+    /// Einstellungsblatt gespeicherter Beginn "aktuelles Semester" schlug das QIS; zwei Fehlversuche in einem Semester
+    /// ohne Versuchsspalte zaehlten als einer
+    func testHigherSemestersReadTermsStartAndAttempts() throws {
+        let fx = try studyPlanFixture("engine.json")
+        func at(_ p: JSONValue) -> [String: (String, JSONValue)] {
+            var out: [String: (String, JSONValue)] = [:]
+            for s in p["semesters"]?.array ?? [] { for m in s["modules"]?.array ?? [] { out[m["id"]!.string!] = (s["term"]!.string!, m) } }
+            return out
+        }
+        let p3 = try casePlan(fx, "hoeher_3_fachsemester")
+        XCTAssertEqual(p3["start_term"], "WiSe 25/26")
+        XCTAssertEqual(p3["current_fachsemester"], 3)
+        let m3 = at(p3)
+        XCTAssertEqual(m3["digitale-systeme"]?.0, "WiSe 25/26", "leere Semesterspalte: Semester aus dem Datum 18.02.2026")
+        XCTAssertEqual(m3["mathematik-1"]?.0, "SoSe 26")
+        XCTAssertEqual(m3["mathematik-1"]?.1["attempt"], 2, "nicht bestanden W25, bestanden S26 (ohne Versuchsspalte)")
+        XCTAssertEqual(m3["rechnerstrukturen"]?.0, "SoSe 26", "HIS-Schluessel 20261")
+
+        let p5 = try casePlan(fx, "hoeher_5_beginn_aus_qis")
+        XCTAssertEqual(p5["start_term"], "WiSe 24/25", "QIS geht vor einem gespeicherten spaeteren Beginn")
+        XCTAssertEqual(p5["current_fachsemester"], 5)
+        XCTAssertEqual(at(p5)["mathematik-2"]?.0, "SoSe 25")
+        XCTAssertEqual(at(p5)["softwareprojekt"]?.0, "SoSe 26")
+
+        let p7 = try casePlan(fx, "hoeher_7_datum_und_versuche")
+        XCTAssertEqual(p7["start_term"], "WiSe 23/24")
+        XCTAssertEqual(p7["current_fachsemester"], 7)
+        let m7 = at(p7)
+        XCTAssertEqual(m7["programmieren-1"]?.0, "WiSe 23/24")
+        XCTAssertEqual(m7["rechnerstrukturen"]?.0, "SoSe 24")
+        XCTAssertEqual(m7["mathematik-2"]?.0, "SoSe 25")
+        XCTAssertEqual(m7["mathematik-2"]?.1["attempt"], 3, "Erst- und Zweittermin im SoSe 24 nicht bestanden")
+        XCTAssertEqual(m7["seminar"]?.1["status"], "bestanden")
+        for (s, t) in [("WS 2024/25", 4049), ("W24", 4049), ("24/25 WS", 4049), ("2024W", 4049), ("Wintersemester 2024/2025", 4049),
+                       ("SS 2025", 4050), ("S25", 4050), ("SoSe2025", 4050), ("20251", 4050), ("Sommersemester 2025", 4050)] {
+            XCTAssertEqual(StudyPlanEngine.parseTerm(s), t, s)
+        }
+        XCTAssertEqual(GradesModel.termOfDate("15.02.2025"), 4049)
+        XCTAssertEqual(GradesModel.termOfDate("20.07.2025"), 4050)
+    }
+
+    /// Regel des Inhabers 12.11.2026: "LP erreicht" im Studienverlauf ist die LP-Summe aller bestandenen QIS-Leistungen,
+    /// dieselbe Zahl wie in Uni & Noten (`GradesModel.creditsDone`). Vorher zaehlten die Katalog-LP der zugeordneten
+    /// Module; eine bestandene, keinem Katalogmodul zugeordnete Leistung (hier "Rhetorikkurs", 3 LP) fehlte.
+    func testLPDoneIsTheQISSumIncludingUnmatchedAchievements() async throws {
+        let ep = try studyPlanFixture("endpoints.json")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: UniFlowClock.fixed(berlin: "2026-11-09T10:00:00")!)
+        try await run(backend, (ep["seed"]?.array ?? []) + (ep["steps"]?.array ?? []).flatMap { $0["sql"]?.array ?? [] })
+        try await backend.context.database.withConnection { c in
+            try c.execute("DELETE FROM grades")
+            let ab = "Technische Informatik (PO-Version 2017)"
+            for (nr, text, credits) in [("1001", "Programmieren I", "7"), ("8801", "Rhetorikkurs", "3")] {
+                try c.execute("INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) "
+                              + "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                              [.text(text), .text("WiSe 25/26"), .text("bestanden"), .text("2,0"), .text(""), .text(nr), .text(credits),
+                               .text(""), .text(ab), .null, .text("t")])
+            }
+        }
+        let plan = await backend.handle(request(["method": "GET", "path": "/api/study-plan"]))
+        let grades = await backend.handle(request(["method": "GET", "path": "/api/grades"]))
+        XCTAssertEqual(plan.json?["available"], true)
+        XCTAssertEqual(grades.json?["credits"], 10)
+        XCTAssertEqual(plan.json?["lp_done"], 10, "QIS-LP, auch die nicht zugeordnete Leistung, nicht Katalog-LP")
+        XCTAssertTrue(plan.json?["unmatched"]?.array?.contains("Rhetorikkurs") ?? false)
+    }
+
     /// Abgleich mit dem Online-Verlaufsplan (TI/INF WS 2026/27, PO 2026): Einfuehrung Pflicht ab Studienbeginn WS 2025/26,
     /// Proseminar-Platz bleibt, Verlaufsplan-Reihenfolge schlaegt empfohlene Voraussetzung, Nebenfach in den Wahlplaetzen;
     /// der Grundstock liefert fuer TIBSc25/INFBSc22 die Semester-LP des Online-Plans

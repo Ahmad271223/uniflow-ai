@@ -79,7 +79,12 @@ GRADE_HEADERS = {"bezeichnung": "text", "leistung": "text", "prüfungsnr": "prue
                  "status": "status", "credits": "credits", "ects": "credits", "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum",
                  # LUH-Kopfzeile (28.10.2026: Nummer und LP wurden nicht erkannt; app/grades_model.py liest sie sonst aus der Zeile)
                  "prfgnr": "pruefungsnr", "pnr": "pruefungsnr", "lp": "credits", "leistungspunkte": "credits", "cp": "credits",
-                 "kreditpunkte": "credits", "punkte": "credits"}
+                 "kreditpunkte": "credits", "punkte": "credits",
+                 # LUH-QIS schreibt "PrfNr." (Seite "Info über angemeldete Prüfungen", 10.11.2026); ohne Nummer fielen
+                 # gleichnamige Leistungen eines Semesters beim Entfernen der Doppelten zusammen (12.11.2026)
+                 "prfnr": "pruefungsnr", "prüfungsnummer": "pruefungsnr", "pruefungsnr": "pruefungsnr",
+                 # abgekuerzte Koepfe anderer HIS-Fassungen (12.11.2026): "Sem.", "Prüfungssemester", "Vers.", "VS"
+                 "sem": "semester", "prüfungssemester": "semester", "vers": "versuch", "vs": "versuch"}
 
 
 def log(msg: str) -> None:
@@ -164,6 +169,8 @@ def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
         for k, v in zip(mapped, cells):
             if k and k not in rec:
                 rec[k] = v
+        if not (rec.get("pruefungsnr") or "").strip() and cells[0].isascii() and cells[0].isdigit():
+            rec["pruefungsnr"] = cells[0]          # Nummer in der ersten Spalte, Kopf unbekannt (12.11.2026)
         if (rec.get("status") or "").lower() == "prüfung vorhanden" and not rec.get("note"):
             continue          # Modul-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
         if rec.get("text") and (rec.get("note") or rec.get("status")):
