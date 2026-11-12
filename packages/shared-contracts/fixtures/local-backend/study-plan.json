@@ -6874,14 +6874,20 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:0",
+        "placed": false
        }
       ],
       "uebungen": [],
       "loesungen": [],
       "skripte": [],
       "klausuren": [],
-      "sonstiges": []
+      "sonstiges": [],
+      "key": "w:0",
+      "custom": false,
+      "renamed": false,
+      "auto_label": "Vor Vorlesungsbeginn"
      },
      {
       "week": 1,
@@ -6914,7 +6920,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
       ],
       "uebungen": [
@@ -6943,7 +6951,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
       ],
       "loesungen": [
@@ -6972,12 +6982,18 @@
         "ai_doc_type": null,
         "sub_label": "Lösung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
       ],
       "skripte": [],
       "klausuren": [],
-      "sonstiges": []
+      "sonstiges": [],
+      "key": "w:1",
+      "custom": false,
+      "renamed": false,
+      "auto_label": "Woche 1 · 12.10. – 18.10."
      },
      {
       "week": 2,
@@ -7010,7 +7026,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        }
       ],
       "uebungen": [
@@ -7039,7 +7057,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        }
       ],
       "loesungen": [],
@@ -7069,11 +7089,17 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        }
       ],
       "klausuren": [],
-      "sonstiges": []
+      "sonstiges": [],
+      "key": "w:2",
+      "custom": false,
+      "renamed": false,
+      "auto_label": "Woche 2 · 19.10. – 25.10."
      },
      {
       "week": -2,
@@ -7110,10 +7136,16 @@
         "ai_doc_type": null,
         "sub_label": "Altklausur",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-2",
+        "placed": false
        }
       ],
-      "sonstiges": []
+      "sonstiges": [],
+      "key": "w:-2",
+      "custom": false,
+      "renamed": false,
+      "auto_label": "Klausuren & Altklausuren"
      }
     ],
     "files": [
@@ -7142,7 +7174,9 @@
       "ai_doc_type": null,
       "sub_label": "Altklausur",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:-2",
+      "placed": false
      },
      {
       "id": "f-ma-vk",
@@ -7169,7 +7203,9 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:0",
+      "placed": false
      },
      {
       "id": "f-ma-v1",
@@ -7196,7 +7232,9 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 1,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:1",
+      "placed": false
      },
      {
       "id": "f-ma-u1",
@@ -7223,7 +7261,9 @@
       "ai_doc_type": null,
       "sub_label": "Übung",
       "week_hint": 1,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:1",
+      "placed": false
      },
      {
       "id": "f-ma-v2",
@@ -7250,7 +7290,9 @@
       "ai_doc_type": "vorlesung",
       "sub_label": "Vorlesung",
       "week_hint": 2,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:2",
+      "placed": false
      },
      {
       "id": "f-ma-u2",
@@ -7277,7 +7319,9 @@
       "ai_doc_type": null,
       "sub_label": "Übung",
       "week_hint": 2,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:2",
+      "placed": false
      },
      {
       "id": "f-ma-l1",
@@ -7304,7 +7348,9 @@
       "ai_doc_type": null,
       "sub_label": "Lösung",
       "week_hint": 1,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:1",
+      "placed": false
      },
      {
       "id": "f-ma-s",
@@ -7331,7 +7377,9 @@
       "ai_doc_type": null,
       "sub_label": "Skript",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "section": "w:2",
+      "placed": false
      }
     ],
     "progress": 33,
@@ -7349,7 +7397,100 @@
      "date": "2026-10-23",
      "title": "Woche 1 · 12.10. – 18.10."
     },
-    "notes": []
+    "notes": [],
+    "targets": [
+     {
+      "key": "w:-4",
+      "week": -4,
+      "label": "Nicht zugeordnet"
+     },
+     {
+      "key": "w:-3",
+      "week": -3,
+      "label": "Allgemein"
+     },
+     {
+      "key": "w:0",
+      "week": 0,
+      "label": "Vor Vorlesungsbeginn"
+     },
+     {
+      "key": "w:1",
+      "week": 1,
+      "label": "Woche 1 · 12.10. – 18.10."
+     },
+     {
+      "key": "w:2",
+      "week": 2,
+      "label": "Woche 2 · 19.10. – 25.10."
+     },
+     {
+      "key": "w:3",
+      "week": 3,
+      "label": "Woche 3 · 26.10. – 01.11."
+     },
+     {
+      "key": "w:4",
+      "week": 4,
+      "label": "Woche 4 · 02.11. – 08.11."
+     },
+     {
+      "key": "w:5",
+      "week": 5,
+      "label": "Woche 5 · 09.11. – 15.11."
+     },
+     {
+      "key": "w:6",
+      "week": 6,
+      "label": "Woche 6 · 16.11. – 22.11."
+     },
+     {
+      "key": "w:7",
+      "week": 7,
+      "label": "Woche 7 · 23.11. – 29.11."
+     },
+     {
+      "key": "w:8",
+      "week": 8,
+      "label": "Woche 8 · 30.11. – 06.12."
+     },
+     {
+      "key": "w:9",
+      "week": 9,
+      "label": "Woche 9 · 07.12. – 13.12."
+     },
+     {
+      "key": "w:10",
+      "week": 10,
+      "label": "Woche 10 · 14.12. – 20.12."
+     },
+     {
+      "key": "w:11",
+      "week": 11,
+      "label": "Woche 11 · 21.12. – 27.12."
+     },
+     {
+      "key": "w:12",
+      "week": 12,
+      "label": "Woche 12 · 28.12. – 03.01."
+     },
+     {
+      "key": "w:13",
+      "week": 13,
+      "label": "Woche 13 · 04.01. – 10.01."
+     },
+     {
+      "key": "w:14",
+      "week": 14,
+      "label": "Woche 14 · 11.01. – 17.01."
+     },
+     {
+      "key": "w:-2",
+      "week": -2,
+      "label": "Klausuren & Altklausuren"
+     }
+    ],
+    "layout_custom": false
    }
   },
   {

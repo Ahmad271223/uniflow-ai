@@ -1,0 +1,1583 @@
+{
+ "layouts": {
+  "leer": {
+   "sections": [],
+   "places": {}
+  },
+  "umsortiert": {
+   "sections": [
+    {
+     "id": 1,
+     "week": 1,
+     "title": null,
+     "rank": null,
+     "sort": 0,
+     "hidden": false
+    },
+    {
+     "id": 2,
+     "week": 3,
+     "title": null,
+     "rank": null,
+     "sort": 1,
+     "hidden": false
+    },
+    {
+     "id": 3,
+     "week": 4,
+     "title": null,
+     "rank": null,
+     "sort": 2,
+     "hidden": false
+    },
+    {
+     "id": 4,
+     "week": 2,
+     "title": null,
+     "rank": null,
+     "sort": 3,
+     "hidden": false
+    }
+   ],
+   "places": {}
+  },
+  "abschnitt": {
+   "sections": [
+    {
+     "id": 7,
+     "week": null,
+     "title": "Kapitel Graphen",
+     "rank": 20.5,
+     "sort": null,
+     "hidden": false
+    },
+    {
+     "id": 8,
+     "week": null,
+     "title": "Extras",
+     "rank": null,
+     "sort": null,
+     "hidden": false
+    }
+   ],
+   "places": {}
+  },
+  "gemischt": {
+   "sections": [
+    {
+     "id": 1,
+     "week": 5,
+     "title": null,
+     "rank": null,
+     "sort": null,
+     "hidden": true
+    },
+    {
+     "id": 2,
+     "week": null,
+     "title": "Graphen",
+     "rank": 30.5,
+     "sort": null,
+     "hidden": false
+    },
+    {
+     "id": 3,
+     "week": 1,
+     "title": "Einstieg",
+     "rank": null,
+     "sort": null,
+     "hidden": false
+    },
+    {
+     "id": 4,
+     "week": null,
+     "title": "Weg",
+     "rank": null,
+     "sort": null,
+     "hidden": true
+    }
+   ],
+   "places": {
+    "a": "w:2",
+    "b": "s:2",
+    "c": "w:5",
+    "d": "w:-4",
+    "e": "s:99",
+    "f": "s:4",
+    "g": "w:-3"
+   }
+  }
+ },
+ "order": [
+  {
+   "layout": "leer",
+   "weeks": [
+    3,
+    -2,
+    1,
+    -1,
+    0,
+    -3,
+    -4,
+    2
+   ],
+   "expect": [
+    -4,
+    -3,
+    0,
+    1,
+    2,
+    3,
+    -1,
+    -2
+   ]
+  },
+  {
+   "layout": "leer",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ]
+  },
+  {
+   "layout": "leer",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "layout": "leer",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ]
+  },
+  {
+   "layout": "leer",
+   "weeks": [
+    1,
+    2,
+    3,
+    -1007,
+    -1008,
+    -4
+   ],
+   "expect": [
+    -1008,
+    -1007,
+    -4,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "layout": "leer",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    -1002,
+    -2,
+    -4
+   ],
+   "expect": [
+    -1002,
+    -4,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    -2
+   ]
+  },
+  {
+   "layout": "umsortiert",
+   "weeks": [
+    3,
+    -2,
+    1,
+    -1,
+    0,
+    -3,
+    -4,
+    2
+   ],
+   "expect": [
+    -4,
+    -3,
+    0,
+    1,
+    3,
+    -1,
+    2,
+    -2
+   ]
+  },
+  {
+   "layout": "umsortiert",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ],
+   "expect": [
+    1,
+    3,
+    4,
+    5,
+    2,
+    -2
+   ]
+  },
+  {
+   "layout": "umsortiert",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "expect": [
+    1,
+    3,
+    4,
+    2,
+    5
+   ]
+  },
+  {
+   "layout": "umsortiert",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ],
+   "expect": [
+    1,
+    3,
+    4,
+    5,
+    2,
+    -1
+   ]
+  },
+  {
+   "layout": "umsortiert",
+   "weeks": [
+    1,
+    2,
+    3,
+    -1007,
+    -1008,
+    -4
+   ],
+   "expect": [
+    -1008,
+    -1007,
+    -4,
+    1,
+    3,
+    2
+   ]
+  },
+  {
+   "layout": "umsortiert",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    -1002,
+    -2,
+    -4
+   ],
+   "expect": [
+    -1002,
+    -4,
+    1,
+    3,
+    4,
+    5,
+    6,
+    2,
+    -2
+   ]
+  },
+  {
+   "layout": "abschnitt",
+   "weeks": [
+    3,
+    -2,
+    1,
+    -1,
+    0,
+    -3,
+    -4,
+    2
+   ],
+   "expect": [
+    -4,
+    -3,
+    0,
+    1,
+    2,
+    3,
+    -1,
+    -2
+   ]
+  },
+  {
+   "layout": "abschnitt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ]
+  },
+  {
+   "layout": "abschnitt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "layout": "abschnitt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ]
+  },
+  {
+   "layout": "abschnitt",
+   "weeks": [
+    1,
+    2,
+    3,
+    -1007,
+    -1008,
+    -4
+   ],
+   "expect": [
+    -4,
+    1,
+    2,
+    -1007,
+    3,
+    -1008
+   ]
+  },
+  {
+   "layout": "abschnitt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    -1002,
+    -2,
+    -4
+   ],
+   "expect": [
+    -1002,
+    -4,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    -2
+   ]
+  },
+  {
+   "layout": "gemischt",
+   "weeks": [
+    3,
+    -2,
+    1,
+    -1,
+    0,
+    -3,
+    -4,
+    2
+   ],
+   "expect": [
+    -4,
+    -3,
+    0,
+    1,
+    2,
+    3,
+    -1,
+    -2
+   ]
+  },
+  {
+   "layout": "gemischt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -2
+   ]
+  },
+  {
+   "layout": "gemischt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "layout": "gemischt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ],
+   "expect": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    -1
+   ]
+  },
+  {
+   "layout": "gemischt",
+   "weeks": [
+    1,
+    2,
+    3,
+    -1007,
+    -1008,
+    -4
+   ],
+   "expect": [
+    -1008,
+    -1007,
+    -4,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "layout": "gemischt",
+   "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    -1002,
+    -2,
+    -4
+   ],
+   "expect": [
+    -4,
+    1,
+    2,
+    3,
+    -1002,
+    4,
+    5,
+    6,
+    -2
+   ]
+  }
+ ],
+ "files": [
+  {
+   "layout": "leer",
+   "file": "a",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "leer",
+   "file": "b",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "leer",
+   "file": "c",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "leer",
+   "file": "d",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "leer",
+   "file": "e",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "leer",
+   "file": "f",
+   "auto": 4,
+   "unsure": false,
+   "planning": 4,
+   "display": 4
+  },
+  {
+   "layout": "leer",
+   "file": "g",
+   "auto": 2,
+   "unsure": false,
+   "planning": 2,
+   "display": 2
+  },
+  {
+   "layout": "leer",
+   "file": "x",
+   "auto": 5,
+   "unsure": false,
+   "planning": 5,
+   "display": 5
+  },
+  {
+   "layout": "leer",
+   "file": "x",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "leer",
+   "file": "a",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "leer",
+   "file": "y",
+   "auto": -2,
+   "unsure": false,
+   "planning": -2,
+   "display": -2
+  },
+  {
+   "layout": "umsortiert",
+   "file": "a",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "umsortiert",
+   "file": "b",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "umsortiert",
+   "file": "c",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "umsortiert",
+   "file": "d",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "umsortiert",
+   "file": "e",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "umsortiert",
+   "file": "f",
+   "auto": 4,
+   "unsure": false,
+   "planning": 4,
+   "display": 4
+  },
+  {
+   "layout": "umsortiert",
+   "file": "g",
+   "auto": 2,
+   "unsure": false,
+   "planning": 2,
+   "display": 2
+  },
+  {
+   "layout": "umsortiert",
+   "file": "x",
+   "auto": 5,
+   "unsure": false,
+   "planning": 5,
+   "display": 5
+  },
+  {
+   "layout": "umsortiert",
+   "file": "x",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "umsortiert",
+   "file": "a",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "umsortiert",
+   "file": "y",
+   "auto": -2,
+   "unsure": false,
+   "planning": -2,
+   "display": -2
+  },
+  {
+   "layout": "abschnitt",
+   "file": "a",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "abschnitt",
+   "file": "b",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "abschnitt",
+   "file": "c",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "abschnitt",
+   "file": "d",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "abschnitt",
+   "file": "e",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "abschnitt",
+   "file": "f",
+   "auto": 4,
+   "unsure": false,
+   "planning": 4,
+   "display": 4
+  },
+  {
+   "layout": "abschnitt",
+   "file": "g",
+   "auto": 2,
+   "unsure": false,
+   "planning": 2,
+   "display": 2
+  },
+  {
+   "layout": "abschnitt",
+   "file": "x",
+   "auto": 5,
+   "unsure": false,
+   "planning": 5,
+   "display": 5
+  },
+  {
+   "layout": "abschnitt",
+   "file": "x",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "abschnitt",
+   "file": "a",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "abschnitt",
+   "file": "y",
+   "auto": -2,
+   "unsure": false,
+   "planning": -2,
+   "display": -2
+  },
+  {
+   "layout": "gemischt",
+   "file": "a",
+   "auto": 7,
+   "unsure": false,
+   "planning": 2,
+   "display": 2
+  },
+  {
+   "layout": "gemischt",
+   "file": "b",
+   "auto": 7,
+   "unsure": false,
+   "planning": 3,
+   "display": -1002
+  },
+  {
+   "layout": "gemischt",
+   "file": "c",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "gemischt",
+   "file": "d",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": -4
+  },
+  {
+   "layout": "gemischt",
+   "file": "e",
+   "auto": 7,
+   "unsure": false,
+   "planning": 7,
+   "display": 7
+  },
+  {
+   "layout": "gemischt",
+   "file": "f",
+   "auto": 4,
+   "unsure": false,
+   "planning": 4,
+   "display": 4
+  },
+  {
+   "layout": "gemischt",
+   "file": "g",
+   "auto": 2,
+   "unsure": false,
+   "planning": -3,
+   "display": -3
+  },
+  {
+   "layout": "gemischt",
+   "file": "x",
+   "auto": 5,
+   "unsure": false,
+   "planning": 5,
+   "display": -4
+  },
+  {
+   "layout": "gemischt",
+   "file": "x",
+   "auto": 3,
+   "unsure": true,
+   "planning": 3,
+   "display": -4
+  },
+  {
+   "layout": "gemischt",
+   "file": "a",
+   "auto": 3,
+   "unsure": true,
+   "planning": 2,
+   "display": 2
+  },
+  {
+   "layout": "gemischt",
+   "file": "y",
+   "auto": -2,
+   "unsure": false,
+   "planning": -2,
+   "display": -2
+  }
+ ],
+ "keys": [
+  {
+   "key": "w:3",
+   "week": 3
+  },
+  {
+   "key": "w:-4",
+   "week": -4
+  },
+  {
+   "key": "w:-5",
+   "week": null
+  },
+  {
+   "key": "w:60",
+   "week": 60
+  },
+  {
+   "key": "w:61",
+   "week": null
+  },
+  {
+   "key": "s:12",
+   "week": -1012
+  },
+  {
+   "key": "s:0",
+   "week": null
+  },
+  {
+   "key": "x:1",
+   "week": null
+  },
+  {
+   "key": "w:",
+   "week": null
+  },
+  {
+   "key": "w:abc",
+   "week": null
+  },
+  {
+   "key": "",
+   "week": null
+  },
+  {
+   "key": "w:3:4",
+   "week": null
+  }
+ ],
+ "titles": [
+  {
+   "title": "Woche 5",
+   "week": 5
+  },
+  {
+   "title": " 3. Woche ",
+   "week": 3
+  },
+  {
+   "title": "Woche 5 – Graphen",
+   "week": null
+  },
+  {
+   "title": "Kapitel 2",
+   "week": null
+  },
+  {
+   "title": "week 12",
+   "week": 12
+  },
+  {
+   "title": "Lehrwoche 4",
+   "week": 4
+  },
+  {
+   "title": "Woche 41",
+   "week": null
+  },
+  {
+   "title": "WOCHE 07",
+   "week": 7
+  }
+ ],
+ "hints": [
+  {
+   "name": "VL 3.pdf",
+   "expect": {
+    "kind": "vl",
+    "number": 3
+   }
+  },
+  {
+   "name": "Vorlesung_03.pdf",
+   "expect": {
+    "kind": "vl",
+    "number": 3
+   }
+  },
+  {
+   "name": "V03 Graphen.pdf",
+   "expect": {
+    "kind": "vl",
+    "number": 3
+   }
+  },
+  {
+   "name": "Übungsblatt 02.pdf",
+   "expect": {
+    "kind": "blatt",
+    "number": 2
+   }
+  },
+  {
+   "name": "Blatt 4 Lösung.pdf",
+   "expect": {
+    "kind": "loesung",
+    "number": 4
+   }
+  },
+  {
+   "name": "Lösung zu Blatt 2.pdf",
+   "expect": {
+    "kind": "loesung",
+    "number": 2
+   }
+  },
+  {
+   "name": "Ü3.pdf",
+   "expect": {
+    "kind": "blatt",
+    "number": 3
+   }
+  },
+  {
+   "name": "Tutorium 5.pdf",
+   "expect": {
+    "kind": "tutorium",
+    "number": 5
+   }
+  },
+  {
+   "name": "Skript Teil 4.pdf",
+   "expect": {
+    "kind": "teil",
+    "number": 4
+   }
+  },
+  {
+   "name": "Kapitel 3.pdf",
+   "expect": {
+    "kind": "kapitel",
+    "number": 3
+   }
+  },
+  {
+   "name": "Woche 5.pdf",
+   "expect": {
+    "kind": "woche",
+    "number": 5
+   }
+  },
+  {
+   "name": "KW 46.pdf",
+   "expect": {
+    "kind": "kw",
+    "number": 46
+   }
+  },
+  {
+   "name": "2. Woche.pdf",
+   "expect": {
+    "kind": "woche",
+    "number": 2
+   }
+  },
+  {
+   "name": "Sitzung vom 12.10.2026.pdf",
+   "expect": null
+  },
+  {
+   "name": "7_Literaturempfehlungen.pdf",
+   "expect": null
+  },
+  {
+   "name": "Einleitung.pdf",
+   "expect": null
+  },
+  {
+   "name": "Folien 20261019.pdf",
+   "expect": null
+  }
+ ],
+ "dates": [
+  {
+   "name": "VL_2026-10-12.pdf",
+   "expect": "2026-10-12"
+  },
+  {
+   "name": "Folien 20261019.pdf",
+   "expect": "2026-10-19"
+  },
+  {
+   "name": "Sitzung vom 12.10.2026.pdf",
+   "expect": "2026-10-12"
+  },
+  {
+   "name": "Sitzung 2.11.26.pdf",
+   "expect": "2026-11-02"
+  },
+  {
+   "name": "Blatt 3.pdf",
+   "expect": null
+  },
+  {
+   "name": "2026-13-40.pdf",
+   "expect": null
+  }
+ ],
+ "suggest": [
+  {
+   "name": "Graphen.pdf",
+   "first_page": "Diskrete Strukturen\nVorlesung 4: Graphen",
+   "start": "2026-10-12",
+   "expect": {
+    "week": 4,
+    "reason": "Inhalt: Vorlesung 4"
+   }
+  },
+  {
+   "name": "Loesung.pdf",
+   "first_page": "Musterlösung zu Blatt 2",
+   "start": "2026-10-12",
+   "expect": {
+    "week": 3,
+    "reason": "Inhalt: Lösung 2"
+   }
+  },
+  {
+   "name": "Sitzung.pdf",
+   "first_page": "Sitzung vom 27.10.2026",
+   "start": "2026-10-12",
+   "expect": {
+    "week": 3,
+    "reason": "Inhalt: Datum 27.10."
+   }
+  },
+  {
+   "name": "02 Grundlagen.pdf",
+   "first_page": null,
+   "start": "2026-10-12",
+   "expect": {
+    "week": 2,
+    "reason": "Nummer 2 am Anfang des Namens"
+   }
+  },
+  {
+   "name": "Grundlagen.pdf",
+   "first_page": "Grundlagen der Informatik",
+   "start": "2026-10-12",
+   "expect": null
+  },
+  {
+   "name": "3_Rekursion.pdf",
+   "first_page": "",
+   "start": "2026-10-12",
+   "expect": {
+    "week": 3,
+    "reason": "Nummer 3 am Anfang des Namens"
+   }
+  },
+  {
+   "name": "Zusatz.pdf",
+   "first_page": "Informatik I – Vorlesung 2: Zahlensysteme",
+   "start": "2026-10-12",
+   "expect": {
+    "week": 2,
+    "reason": "Inhalt: Vorlesung 2"
+   }
+  },
+  {
+   "name": "10 Ende.pdf",
+   "first_page": "KW 46",
+   "start": "2026-10-12",
+   "expect": {
+    "week": 10,
+    "reason": "Nummer 10 am Anfang des Namens"
+   }
+  },
+  {
+   "name": "Plan.pdf",
+   "first_page": "Termin am 30.03.2027",
+   "start": "2026-10-12",
+   "expect": null
+  },
+  {
+   "name": "0 Vorwort.pdf",
+   "first_page": null,
+   "start": "2026-10-12",
+   "expect": null
+  }
+ ],
+ "bulk": [
+  {
+   "name": "sammel",
+   "files": [
+    {
+     "id": "f0",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f1",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f2",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f3",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f4",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f5",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    }
+   ],
+   "expect": [
+    "f0",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5"
+   ]
+  },
+  {
+   "name": "fuenf",
+   "files": [
+    {
+     "id": "f0",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": 1
+    },
+    {
+     "id": "f1",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f2",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f3",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f4",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f5",
+     "course": "c1",
+     "day": "2026-10-13",
+     "week": 1,
+     "doc_type": "vorlesung",
+     "hint": null
+    }
+   ],
+   "expect": []
+  },
+  {
+   "name": "spaet",
+   "files": [
+    {
+     "id": "f0",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 3,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f1",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 4,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f2",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 4,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f3",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 4,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f4",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 4,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f5",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 4,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f6",
+     "course": "c1",
+     "day": "2026-11-13",
+     "week": 4,
+     "doc_type": "uebung",
+     "hint": null
+    }
+   ],
+   "expect": []
+  },
+  {
+   "name": "eigene",
+   "files": [
+    {
+     "id": "f0",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f1",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f2",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f3",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f4",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f5",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f6",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f7",
+     "course": "__user__",
+     "day": "2026-10-13",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    }
+   ],
+   "expect": []
+  },
+  {
+   "name": "gemischt",
+   "files": [
+    {
+     "id": "f0",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f1",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "sonstiges",
+     "hint": null
+    },
+    {
+     "id": "f2",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "uebung",
+     "hint": null
+    },
+    {
+     "id": "f3",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "loesung",
+     "hint": null
+    },
+    {
+     "id": "f4",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "skript",
+     "hint": null
+    },
+    {
+     "id": "f5",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "vorlesung",
+     "hint": null
+    },
+    {
+     "id": "f6",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "klausur",
+     "hint": null
+    },
+    {
+     "id": "f7",
+     "course": "c1",
+     "day": "2026-10-12",
+     "week": 0,
+     "doc_type": "uebung",
+     "hint": null
+    }
+   ],
+   "expect": [
+    "f0",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f7"
+   ]
+  }
+ ]
+}
