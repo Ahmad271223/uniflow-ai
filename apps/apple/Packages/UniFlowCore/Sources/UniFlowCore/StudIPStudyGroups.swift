@@ -65,8 +65,14 @@ public enum StudIPStudyGroups {
             return s
         }
 
+        /// Vorgabe (nie gefragt, nichts gewaehlt) schreibt nichts bzw. entfernt den Eintrag: ein leerer Container bleibt
+        /// leer (Datentrennung, `DataSeparationAppTests`: nach dem Loeschen kein Stand im neuen Container)
         public func save(_ defaults: UserDefaults) {
-            if let d = try? JSONEncoder().encode(self) { defaults.set(d, forKey: Self.defaultsKey) }
+            if self == Settings() {
+                defaults.removeObject(forKey: Self.defaultsKey)
+            } else if let d = try? JSONEncoder().encode(self) {
+                defaults.set(d, forKey: Self.defaultsKey)
+            }
         }
     }
 

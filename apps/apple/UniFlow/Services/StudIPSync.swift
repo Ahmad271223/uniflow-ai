@@ -204,7 +204,7 @@ final class StudIPSync: ObservableObject {
     /// Vorgabe alles aus) und ob schon gefragt wurde; im Container gespeichert wie die Kursauswahl. Fuer Gruppen gilt
     /// die Kursauswahl nicht mehr, nur diese Wahl (`StudyGroupsSheet`, Einstellungen -> Stud.IP)
     @Published var groupSettings = StudIPStudyGroups.Settings() {
-        didSet { groupSettings.save(defaults) }
+        didSet { if groupSettings != oldValue { groupSettings.save(defaults) } }
     }
     /// Erkannte Studiengruppen der letzten Kursliste
     var studyGroups: [StudIPCourse] { courses.filter { StudIPStudyGroups.isStudyGroup($0) } }

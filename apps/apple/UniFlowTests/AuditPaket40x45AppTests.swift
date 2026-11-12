@@ -366,6 +366,15 @@ final class AuditPaket40x45AppTests: XCTestCase {
         XCTAssertTrue(env.wait(timeout: 15) { texts().contains { $0.contains("Tabelle-Alpha") } }, texts().joined(separator: "\n"))
         env.router.go(.doc("f-beta"))
         XCTAssertTrue(env.wait(timeout: 10) { texts().contains { $0.contains("Tabelle-Beta") } }, texts().joined(separator: "\n"))
-        XCTAssertFalse(texts().contains { $0.contains("Tabelle-Alpha") }, "A steht nicht mehr da")
+        // seit den Reitern (12.11.2026) bleibt A oben in der Kopfzeile als Reiter stehen – als Dokument ist aber nur noch
+        // B offen. Reiter liegen in der einen oberen Zeile (SwiftUI reicht ihr Kennzeichen nicht immer durch): alles
+        // oberhalb der Unterkante der Kopfzeile zaehlt als Reiterzeile.
+        let rowBottom = env.window.safeAreaInsets.top + 2 * EditorToolbar.hitSide + 8
+        let notTabs = LayoutWidthAuditTests.elements(in: env.window)
+            .filter { $0.accessibilityFrame.minY >= rowBottom }
+            .flatMap { [$0.accessibilityLabel, $0.accessibilityValue].compactMap { $0 } }
+            .filter { !$0.isEmpty }
+        XCTAssertFalse(notTabs.contains { $0.contains("Tabelle-Alpha") }, "A steht nicht mehr als Dokument da")
+        XCTAssertTrue(texts().contains { $0.contains("Tabelle-Alpha") }, "A bleibt als Reiter")
     }
 }
