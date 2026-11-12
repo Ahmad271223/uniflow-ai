@@ -347,7 +347,8 @@ extension PageInkView {
 }
 
 extension PDFEditorController {
-    /// Palette zu sehen: eigene Notizen schreibbar oder Korrektur-Modus; nie beim Abpausen (`EditorFreezeLock.swift`)
+    /// Feste Leiste zu sehen: eigene Notizen schreibbar oder Korrektur-Modus (dort nur Tinte); nie beim Abpausen
+    /// (`EditorFreezeLock.swift`) und nie in der Praesentation
     var pickerAllowed: Bool { (writable || correction != nil) && freezeMode != .trace && !presentationMode }
 
     /// Seite einer PDF-Seite fuer die Korrektur (nur Originalseiten, keine eingefuegten Seiten)
@@ -360,14 +361,13 @@ extension PDFEditorController {
 
     /// Korrektur-Ebene eines Overlays: bearbeitbar im Korrektur-Modus, sonst die angezeigte empfangene Korrektur
     func applyCorrection(_ overlay: PageInkView) {
-        if let old = overlay.correctionView { toolPicker.removeObserver(old.ink) }
         guard let info = correctionInfo(overlay) else { overlay.setCorrection(nil); return }
         if let session = correction {
             let v = CorrectionPageView(info: info, pageSize: overlay.geometry.pageSize, editable: true)
             v.show(session.draft.page(pdfIndex: info.pdfIndex))
             v.ink.drawingPolicy = drawingPolicy
-            v.ink.tool = canvasTool
-            toolPicker.addObserver(v.ink)
+            v.ink.tool = canvasTool                         // Werkzeug der festen Leiste (nur Tinte)
+            v.ink.isRulerActive = tools.ruler
             v.onInkChange = { [weak session] v in session?.setInk(v.currentStrokes, on: v.info) }
             v.onPlace = { [weak self, weak session] v, p in
                 // Striche der Seite zuerst uebernehmen (Drehung der Seite und der Notizen stimmen dann ueberein)
@@ -408,6 +408,8 @@ extension PDFEditorController {
         } else {
             correctionUndo.removeAllActions()
         }
+        // Korrektur: nur Tinte; ein Objektwerkzeug der Leiste geht zurueck zum letzten Stift
+        if correction != nil, ownsToolPicker, tools.tool.objectTool != nil { finishObjectTools() }
         allOverlays.forEach(applyCorrection)
         showToolPicker(pickerAllowed)
     }

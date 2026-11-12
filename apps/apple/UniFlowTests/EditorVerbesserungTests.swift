@@ -513,16 +513,25 @@ final class EditorVerbesserungTests: XCTestCase {
 
     // MARK: Mac: Farbe/Staerke und Rechtsklick (11.11.2026)
 
-    func testMacInkStyleChangesInkButKeepsEraser() {
-        var style = MacInkStyle()
-        let pen = PKInkingTool(.pen, color: .black, width: 2)
-        XCTAssertEqual(style.apply(to: pen) as? PKInkingTool, pen, "ohne Wahl unveraendert")
-        style.color = .red
-        style.width = 6
-        let styled = style.apply(to: pen) as? PKInkingTool
-        XCTAssertEqual(styled?.width ?? 0, 6, accuracy: 0.5)
-        XCTAssertTrue(styled?.color.isEqual(UIColor.red) == true || styled?.color.cgColor.components?.first ?? 0 > 0.9)
-        XCTAssertTrue(style.apply(to: PKEraserTool(.vector)) is PKEraserTool, "Radierer bleibt")
+    /// Menue "Werkzeuge" am Mac (seit 11.11.2026 dieselben Werte wie die feste Leiste): Farbe und Staerke wirken auf das
+    /// gewaehlte Werkzeug, beim Radierer auf den letzten Stift; der Radierer bleibt Radierer
+    func testMacMenuColorAndWidthChangeInkButKeepEraser() throws {
+        let suite = "toolbar-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let tools = EditorToolState(defaults: defaults)
+        XCTAssertEqual(EditorToolState.widthSteps.count, 3)
+        tools.setColor("#e5322d")
+        tools.setWidthStep(2)
+        let pen = try XCTUnwrap(tools.canvasTool as? PKInkingTool)
+        XCTAssertEqual(pen.width, EditorToolState.Tool.pen.widths.last ?? 0, accuracy: 0.5, "Dick")
+        XCTAssertTrue(PaletteSync.sameColor(pen.color.uniflowRGBA.hex, "#e5322d"))
+        tools.setWidthStep(0)
+        XCTAssertEqual((tools.canvasTool as? PKInkingTool)?.width ?? 0, EditorToolState.Tool.pen.widths[0], accuracy: 0.5, "Fein")
+        tools.select(.eraser)
+        tools.setColor("#2f7fd1")
+        XCTAssertTrue(tools.canvasTool is PKEraserTool, "Radierer bleibt")
+        XCTAssertTrue(PaletteSync.sameColor(tools.style(.pen).hex, "#2f7fd1"), "Farbe fuer den letzten Stift")
     }
 
     /// Eine Zeichenflaeche mit Rechtsklick-Menue von PencilKit bekommt am Mac unseres an dessen Stelle

@@ -2,22 +2,18 @@ import PencilKit
 import UIKit
 import UniFlowCore
 
-/// Apples Werkzeugpalette (`PKToolPicker`) als einziger Ort fuer alle Werkzeuge (Plan EDITOR-GOODNOTES-PLAN, 03.11.2026).
-///
-/// - Ab iPadOS 18 stehen unsere Objektwerkzeuge als eigene Eintraege in der Palette (`PKToolPickerCustomItem`): Objekte
-///   auswaehlen (Antippen oder Lasso), Text, Haftnotiz, Form (Rechteck, Ellipse, Linie, Pfeil) und Text markieren.
-///   Die Palette zeigt nur so viele Werkzeuge, wie in ihre Breite passen (iPad hochkant: sieben), der Rest erst nach
-///   waagerechtem Wischen. Darum stehen unsere Eintraege direkt hinter Stift, Fineliner, Textmarker, Radierer und
-///   Lasso, vor Lineal und Apples fuenf weiteren Stiften (Geraetetest 03.11.2026: ganz am Ende fand sie niemand; im
-///   Simulator nachgestellt, `EditorDeviceProbeTests` zeigt das Bild der Palette). Wer einen davon waehlt, ist im
-///   Objektmodus; ein Stift, Radierer oder Lasso von Apple beendet ihn. Unter iPadOS 17, oder wenn die Palette die
-///   Eintraege nicht traegt (`hasCustomItems`), bleibt die bisherige Objektleiste mit dem Schalter "Tinte/Objekte".
-/// - "Nur Stift / Finger zeichnet" bleibt unser Schalter in der Leiste (Standard: nur der Stift schreibt, der Finger
-///   blaettert). Der Schalter der Palette ("Mit dem Finger zeichnen") ist ausgeblendet: Er schreibt die iPadOS-
-///   Einstellung `UIPencilInteraction.prefersPencilOnlyDrawing`, die eine App nur lesen kann, und wirkt nur bei der
-///   Eingabeart `.default`. Mit `.default` schrieb der Finger am Geraet (Einstellung dort aus), Blaettern ging nicht mehr
-///   (Geraetetest 03.11.2026). Zwei Schalter mit verschiedener Bedeutung waeren verwirrend, darum nur unserer.
-/// - Objekte uebernehmen Farbe und Staerke aus der Palette; "Text markieren" die Farbe des Textmarkers (`PaletteSync`).
+/// Werkzeuge des Editors: frueher Apples Werkzeugpalette (`PKToolPicker`, Plan EDITOR-GOODNOTES-PLAN, 03.11.2026), seit
+/// 11.11.2026 die feste Leiste oben im Dokument (`EditorToolbar.swift`, Auftrag "nicht schwebend"). Hier bleibt, was
+/// beide brauchen:
+/// - Kennungen und Zuordnung unserer Objektwerkzeuge (Objekte auswaehlen durch Antippen oder Lasso, Text, Haftnotiz,
+///   Form: Rechteck, Ellipse, Linie, Pfeil, Text markieren, "Bereich an KI"); die gewaehlte Form- und Auswahlart ist
+///   gemerkt.
+/// - "Nur Stift / Finger zeichnet" bleibt unser Schalter in der Kopfzeile (Standard: nur der Stift schreibt, der Finger
+///   blaettert). Die iPadOS-Einstellung `UIPencilInteraction.prefersPencilOnlyDrawing` kann eine App nur lesen; mit der
+///   Eingabeart `.default` schrieb der Finger am Geraet, Blaettern ging nicht mehr (Geraetetest 03.11.2026).
+/// - Objekte uebernehmen Farbe und Staerke der Stifte; "Text markieren" die Farbe des Textmarkers (`PaletteSync`).
+/// - Der Fokus kehrt nach Blaettern, Textfeldern und Blaettern zum Editor zurueck (`Blocker`), damit Tastenbefehle und
+///   Rueckgaengig ueber die Responder-Kette wirken.
 enum EditorPalette {
     static let selectID = "de.studinow.palette.select"
     static let textID = "de.studinow.palette.text"
@@ -26,89 +22,24 @@ enum EditorPalette {
     static let markupID = "de.studinow.palette.markup"
     /// "Bereich an KI" (05.11.2026): Ausschnitt einkreisen, er geht als Bild in die KI-Hilfe
     static let areaID = "de.studinow.palette.area"
-    /// Reihenfolge in der Palette: "Bereich an KI" vorn (Wunsch des Inhabers), dann Form und Text (am haeufigsten),
+    /// Reihenfolge der Objektwerkzeuge: "Bereich an KI" vorn (Wunsch des Inhabers), dann Form und Text (am haeufigsten),
     /// Haftnotiz, Auswaehlen, Text markieren
     static let customIDs = [areaID, shapeID, textID, stickyID, selectID, markupID]
 
-    /// Eigene Eintraege in der Palette moeglich (iPadOS 18)
-    static var supportsCustomItems: Bool {
-        if #available(iOS 18.0, *) { return true }
-        return false
-    }
+    static let areaTitle = "Bereich an KI"
 
-    /// Diese Palette traegt unsere Eintraege wirklich (sonst Objektleiste und "Tinte/Objekte" wie unter iPadOS 17)
-    static func hasCustomItems(_ picker: PKToolPicker) -> Bool {
-        guard #available(iOS 18.0, *) else { return false }
-        let ids = Set(picker.toolItems.map(\.identifier))
-        return customIDs.allSatisfy(ids.contains)
-    }
-
-    /// Apples Werkzeuge vor unseren Eintraegen (die fuenf, die man beim Schreiben staendig braucht)
-    static let appleFirstIDs = ["com.apple.ink.pen", "com.apple.ink.monoline", "com.apple.ink.marker", "com.apple.tool.eraser",
-                                "com.apple.tool.lasso"]
-
-    /// Reihenfolge: Apples fuenf Hauptwerkzeuge, unsere Eintraege, dann Lineal und Apples weitere Stifte (alle bleiben)
-    @available(iOS 18.0, *)
-    static func orderedItems(apple: [PKToolPickerItem], ours: [PKToolPickerItem]) -> [PKToolPickerItem] {
-        let first = apple.filter { appleFirstIDs.contains($0.identifier) }
-        let rest = apple.filter { !appleFirstIDs.contains($0.identifier) }
-        return first + ours + rest
-    }
-
-    /// Palette mit Apples Werkzeugen und, ab iPadOS 18, unseren Objektwerkzeugen; ohne den Schalter der Palette fuer
-    /// das Zeichnen mit dem Finger (siehe oben)
-    static func makePicker() -> PKToolPicker {
-        let picker: PKToolPicker
-        if #available(iOS 18.0, *) {
-            picker = PKToolPicker(toolItems: orderedItems(apple: PKToolPicker().toolItems, ours: customItems()))
-        } else {
-            picker = PKToolPicker()
-        }
-        picker.showsDrawingPolicyControls = false
-        return picker
-    }
-
-    // MARK: Zusatzknopf "KI fragen" (Schritt F)
-
-    /// Zusatzknopf nur ab iPadOS 18 (`PKToolPicker.accessoryItem`), nur mit verbundener KI (sonst gaebe es nichts zu
-    /// fragen; der Knopf "KI-Hilfe" oben zeigt ohne Verbindung nur den Weg dorthin) und nur in der Haelfte, der die
-    /// Palette gehoert
-    static func wantsAccessory(aiAvailable: Bool, ownsPicker: Bool) -> Bool {
-        guard #available(iOS 18.0, *) else { return false }
-        return aiAvailable && ownsPicker
-    }
-
-    static let accessoryTitle = "KI fragen"
-
-    /// Knopf am Rand der Palette: oeffnet die KI-Hilfe zur aktuellen Seite, ohne den Weg ueber die Leiste oben
-    @available(iOS 18.0, *)
-    static func accessoryItem(action: @escaping () -> Void) -> UIBarButtonItem {
-        let item = UIBarButtonItem(title: accessoryTitle, image: UIImage(systemName: "sparkles"), primaryAction: UIAction { _ in action() })
-        item.accessibilityLabel = accessoryTitle
-        item.accessibilityIdentifier = "palette.askAI"
-        return item
-    }
-
-    /// Zustand der Palette fuer Protokolle (Geraete-Probe `EditorDeviceProbeTests`, Startargument `-UFPaletteProbe 1`)
+    /// Zustand der Werkzeuge fuer Protokolle (Geraete-Probe `EditorDeviceProbeTests`, Startargument `-UFPaletteProbe 1`)
     @MainActor
-    static func describe(_ picker: PKToolPicker, editor: PDFEditorController?) -> [String] {
+    static func describe(editor: PDFEditorController) -> [String] {
         var lines: [String] = []
-        if #available(iOS 18.0, *) {
-            lines.append("toolItems (\(picker.toolItems.count)): " + picker.toolItems.map { "\(type(of: $0)):\($0.identifier)" }.joined(separator: ", "))
-            lines.append("selected: \(picker.selectedToolItemIdentifier)")
-            lines.append("hasCustomItems: \(hasCustomItems(picker))")
-        } else {
-            lines.append("iOS < 18: keine eigenen Eintraege, selectedTool \(picker.selectedTool)")
-        }
-        lines.append("isVisible: \(picker.isVisible), showsDrawingPolicyControls: \(picker.showsDrawingPolicyControls), stateAutosaveName: \(picker.stateAutosaveName ?? "nil")")
-        lines.append("prefersPencilOnlyDrawing (iPadOS-Einstellung): \(UIPencilInteraction.prefersPencilOnlyDrawing)")
-        if let editor {
-            lines.append("editor: pencilOnly \(editor.pencilOnly), drawingPolicy \(editor.drawingPolicy.rawValue) (0 default, 1 anyInput, 2 pencilOnly), writable \(editor.writable), pickerAllowed \(editor.pickerAllowed), objectMode \(editor.objects.isActive) \(editor.objects.tool.rawValue), blocker \(editor.paletteBlocker)")
-            let canvases = editor.allOverlays.map { "p\($0.pageIndex): policy \($0.canvas.drawingPolicy.rawValue), input \($0.canvas.isUserInteractionEnabled), tool \(type(of: $0.canvas.tool))" }
-            lines.append("canvas: " + canvases.joined(separator: " | "))
-            if let scene = editor.view.window?.windowScene {
-                lines.append("windows: " + scene.windows.map { "\(type(of: $0)) hidden=\($0.isHidden) level=\($0.windowLevel.rawValue)" }.joined(separator: ", "))
-            }
+        let t = editor.tools
+        lines.append("Leiste: Werkzeug \(t.tool.rawValue), Lineal \(t.ruler), Radierer \(t.eraserKind.rawValue), letzter Stift \(t.lastInk.rawValue), sichtbar \(editor.toolbarMode.visible), nur Tinte \(editor.toolbarMode.inkOnly)")
+        lines.append("prefersPencilOnlyDrawing (iPadOS-Einstellung): \(UIPencilInteraction.prefersPencilOnlyDrawing), Doppeltippen \(UIPencilInteraction.preferredTapAction.rawValue)")
+        lines.append("editor: pencilOnly \(editor.pencilOnly), drawingPolicy \(editor.drawingPolicy.rawValue) (0 default, 1 anyInput, 2 pencilOnly), writable \(editor.writable), pickerAllowed \(editor.pickerAllowed), objectMode \(editor.objects.isActive) \(editor.objects.tool.rawValue), blocker \(editor.paletteBlocker)")
+        let canvases = editor.allOverlays.map { "p\($0.pageIndex): policy \($0.canvas.drawingPolicy.rawValue), input \($0.canvas.isUserInteractionEnabled), tool \(type(of: $0.canvas.tool)), ruler \($0.canvas.isRulerActive)" }
+        lines.append("canvas: " + canvases.joined(separator: " | "))
+        if let scene = editor.view.window?.windowScene {
+            lines.append("windows: " + scene.windows.map { "\(type(of: $0)) hidden=\($0.isHidden) level=\($0.windowLevel.rawValue)" }.joined(separator: ", "))
         }
         return lines
     }
@@ -156,100 +87,9 @@ enum EditorPalette {
         }
     }
 
-    /// Eine Option der Palette hat sich geaendert (Formart, Auswahlart): der Editor setzt das Werkzeug neu
-    static let optionChanged = Notification.Name("uniflow.palette.optionChanged")
+    // MARK: Fokus zurueck zum Editor
 
-    @available(iOS 18.0, *)
-    static func customItems() -> [PKToolPickerCustomItem] {
-        func item(_ id: String, _ name: String, color: UIColor? = nil, widths: [CGFloat] = [],
-                  options: (() -> UIViewController)? = nil) -> PKToolPickerCustomItem {
-            var c = PKToolPickerCustomItem.Configuration(identifier: id, name: name)
-            c.imageProvider = { it in
-                toolImage(symbol: symbol(for: it.identifier), color: color == nil ? nil : it.color, name: name,
-                          badge: it.identifier == areaID ? "sparkles" : nil)
-            }
-            if let color {
-                c.allowsColorSelection = true
-                c.defaultColor = color
-            }
-            if widths.count > 1 {
-                c.defaultWidth = widths[widths.count / 2]
-                c.widthVariants = Dictionary(uniqueKeysWithValues: widths.map { ($0, widthImage($0)) })
-                c.toolAttributeControls = [.width]
-            } else {
-                c.toolAttributeControls = []
-            }
-            if let options { c.viewControllerProvider = { _ in options() } }
-            return PKToolPickerCustomItem(configuration: c)
-        }
-        let all: [String: PKToolPickerCustomItem] = [
-            shapeID: item(shapeID, "Form", color: UIColor(hex: "#e5322d"), widths: [1, 2, 4],
-                          options: { PaletteOptionsController(title: "Form", key: shapeKey, choices: shapeChoices) }),
-            textID: item(textID, "Text", color: UIColor(hex: "#1d2130")),
-            stickyID: item(stickyID, "Haftnotiz"),
-            // "Auswählen" (Textfelder, Haftnotizen, Formen; Antippen oder Lasso), vorher "Objekte auswählen" mit Mauszeiger
-            selectID: item(selectID, "Auswählen", options: { PaletteOptionsController(title: "Auswählen", key: selectKey, choices: selectChoices) }),
-            markupID: item(markupID, "Text markieren"),
-            areaID: item(areaID, Self.areaTitle),
-        ]
-        return customIDs.compactMap { all[$0] }
-    }
-
-    static func symbol(for identifier: String) -> String {
-        switch identifier {
-        case selectID: return selectTool.systemImage
-        case textID: return "textformat"
-        case stickyID: return "note.text"
-        case shapeID: return shapeTool.systemImage
-        case areaID: return ObjectEditing.Tool.area.systemImage
-        default: return "highlighter"
-        }
-    }
-
-    /// Bild eines Eintrags: Werkzeug wie ein Stift in der Palette (mindestens 150 pt hoch, PencilKit zeigt den oberen
-    /// Teil), heller Koerper mit Kontur wie Apples Stifte, Symbol oben, bei Werkzeugen mit Farbe in dieser Farbe
-    /// (im Simulator geprueft: so gezeichnet erscheint der Eintrag wie Apples Werkzeuge)
-    static let areaTitle = "Bereich an KI"
-
-    /// - Parameter badge: kleines zweites Symbol rechts unter dem Hauptsymbol ("Bereich an KI": Funkeln der KI)
-    static func toolImage(symbol: String, color: UIColor?, name: String, badge: String? = nil) -> UIImage {
-        let size = CGSize(width: 44, height: 150)
-        let img = UIGraphicsImageRenderer(size: size).image { _ in
-            let body = UIBezierPath(roundedRect: CGRect(x: 8, y: 6, width: 28, height: 160), cornerRadius: 9)
-            UIColor(white: 0.97, alpha: 1).setFill()
-            body.fill()
-            UIColor(white: 0.6, alpha: 1).setStroke()
-            body.lineWidth = 1.2
-            body.stroke()
-            let cfg = UIImage.SymbolConfiguration(pointSize: 19, weight: .semibold)
-            if let s = UIImage(systemName: symbol, withConfiguration: cfg)?
-                .withTintColor(color ?? UIColor(white: 0.2, alpha: 1), renderingMode: .alwaysOriginal) {
-                s.draw(in: CGRect(x: (size.width - s.size.width) / 2, y: 18, width: s.size.width, height: s.size.height))
-            }
-            if let badge, let b = UIImage(systemName: badge, withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold))?
-                .withTintColor(.systemPurple, renderingMode: .alwaysOriginal) {
-                b.draw(in: CGRect(x: size.width - 12 - b.size.width / 2, y: 38, width: b.size.width, height: b.size.height))
-            }
-        }
-        img.accessibilityLabel = name
-        return img
-    }
-
-    static func widthImage(_ w: CGFloat) -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32)).image { _ in
-            let p = UIBezierPath()
-            p.move(to: CGPoint(x: 6, y: 16))
-            p.addLine(to: CGPoint(x: 26, y: 16))
-            p.lineWidth = w * 1.5
-            p.lineCapStyle = .round
-            UIColor.label.setStroke()
-            p.stroke()
-        }
-    }
-
-    // MARK: Palette wieder zeigen
-
-    /// Was die Palette gerade verdeckt halten darf; `none`: sie kann sofort zurueck
+    /// Was den Fokus gerade beim Element halten darf (frueher: die Palette verdeckt halten); `none`: er kann sofort zurueck
     enum Blocker: Equatable {
         case none
         /// nicht gewuenscht (nur ansehen, nicht im Fenster, andere Haelfte der geteilten Ansicht)
@@ -279,9 +119,9 @@ enum EditorPalette {
     }
 }
 
-/// Merkt sich, was die Palette eingestellt hat: letzte Stiftfarbe und -staerke, Farbe des Textmarkers. Objekte nehmen
-/// diese Werte; die eigenen Eintraege (Text, Form) uebernehmen beim Wechsel vom Stift dessen Farbe, solange man dort
-/// keine eigene Farbe gewaehlt hat.
+/// Merkt sich, was die Leiste eingestellt hat: letzte Stiftfarbe und -staerke, Farbe des Textmarkers. Objekte nehmen
+/// diese Werte; Text und Form uebernehmen beim Wechsel vom Stift dessen Farbe, solange man dort keine eigene Farbe
+/// gewaehlt hat.
 final class PaletteSync {
     private(set) var inkHex = "#1d2130"
     private(set) var inkWidth = 2.0
@@ -339,49 +179,8 @@ final class PaletteSync {
     }
 }
 
-/// Optionen eines eigenen Eintrags im Popover der Palette (Formart, Auswahlart)
-final class PaletteOptionsController: UIViewController {
-    private let key: String
-    private let choices: [ObjectEditing.Tool]
-
-    init(title: String, key: String, choices: [ObjectEditing.Tool]) {
-        self.key = key
-        self.choices = choices
-        super.init(nibName: nil, bundle: nil)
-        self.title = title
-        preferredContentSize = CGSize(width: 280, height: 56)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        let seg = UISegmentedControl(items: choices.map { t -> Any in
-            let img = UIImage(systemName: t.systemImage) ?? UIImage()
-            img.accessibilityLabel = t.label
-            return img
-        })
-        let current = UserDefaults.standard.string(forKey: key)
-        seg.selectedSegmentIndex = choices.firstIndex { $0.rawValue == current } ?? 0
-        seg.accessibilityLabel = title
-        seg.addAction(UIAction { [weak self, weak seg] _ in
-            guard let self, let seg else { return }
-            UserDefaults.standard.set(self.choices[seg.selectedSegmentIndex].rawValue, forKey: self.key)
-            NotificationCenter.default.post(name: EditorPalette.optionChanged, object: nil)
-        }, for: .valueChanged)
-        seg.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(seg)
-        NSLayoutConstraint.activate([
-            seg.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
-            seg.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            seg.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-        ])
-    }
-}
-
-/// Unsichtbare Markierung in einem Blatt: meldet, wenn das Blatt den Bildschirm verlassen hat (die Palette kommt dann
-/// zurueck, ohne in Abstaenden nachzusehen)
+/// Unsichtbare Markierung in einem Blatt: meldet, wenn das Blatt den Bildschirm verlassen hat (der Fokus kommt dann
+/// zum Editor zurueck, ohne in Abstaenden nachzusehen)
 final class WindowExitSentinel: UIView {
     var onLeave: (() -> Void)?
 
