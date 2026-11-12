@@ -1201,15 +1201,8 @@ struct UFHeader: View {
             if !narrow && StudyTimer.isEnabled {
                 UFButton(icon: "clock", kind: .ghost) { timer.toggle() }     // #profileBtn: Zeitmesser
             }
-            // .avatar: 34 pt, accent-soft, .78rem fett; ohne Server die Initialen aus dem Apple-Namen, sonst ein Symbol
-            let ini = shell.initials.isEmpty ? ShellState.initials(of: account.account?.name) : shell.initials
-            Group {
-                if ini.isEmpty { UFIcon("user", size: 16) } else { Text(ini).font(.uf(12.48, 700)) }
-            }
-            .foregroundStyle(UF.accentText)
-            .frame(width: 34, height: 34)
-            .background(Circle().fill(UF.accentSoft))
-            .help(account.account == nil ? "Nicht angemeldet" : "Angemeldet mit deiner Apple-ID")
+            // Kein Profil-Kreis mehr in der Kopfzeile (Inhaber 12.11.2026: „der Kreis hat eh keine Funktion“); das Konto
+            // oeffnet „Dein Konto“ unten in der Seitenleiste
         }
         .padding(.horizontal, narrow ? 11.2 : 17.6)
         .frame(height: UF.header)
