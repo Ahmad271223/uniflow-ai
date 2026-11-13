@@ -739,6 +739,11 @@ struct UniMailComposeSheet: View {
     @State private var busy = false
     @State private var confirmSend = false
     @State private var importing = false
+    // "Mit KI verbessern" (13.11.2026, Pro AI, 50 je Monat): Vorschlag ersetzt den Text erst mit "Übernehmen"
+    @State private var proposal: String?
+    @State private var rewriting = false
+    @State private var lockSheet: UFPlan?
+    @Environment(\.ufAIAccess) private var aiAccess
 
     var body: some View {
         NavigationStack {
@@ -754,6 +759,10 @@ struct UniMailComposeSheet: View {
                         field("Bcc", $bcc, id: "unimail.bcc")
                         field("Betreff", $subject, id: "unimail.subject.field")
                         UFTextArea(placeholder: "Text", text: $text, minHeight: 240).accessibilityIdentifier("unimail.body")
+                        if let proposal {
+                            UniMailAIProposal(text: proposal, accept: { self.text = proposal; self.proposal = nil; info = "Vorschlag übernommen. Gesendet wird erst mit „Senden“." },
+                                              dismiss: { self.proposal = nil })
+                        }
                         if !attachments.isEmpty {
                             ForEach(Array(attachments.enumerated()), id: \.offset) { _, a in
                                 Label("\(a.s("name") ?? "") \(a.s("size") ?? "")", systemImage: "paperclip").ufFont(13)
@@ -764,6 +773,8 @@ struct UniMailComposeSheet: View {
                                 .accessibilityIdentifier("unimail.attach")
                             UFButton("Als Entwurf speichern", icon: "file", size: .small) { Task { await saveDraft() } }
                                 .accessibilityIdentifier("unimail.save")
+                            UniMailAIButton(access: aiAccess, busy: rewriting,
+                                            empty: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { tapAI() }
                         }
                         Text("Gesendet wird erst mit „Senden“ und deiner Bestätigung. Die E-Mail geht direkt von deinem Uni-Postfach aus, nicht über StudiNow.")
                             .ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -790,6 +801,7 @@ struct UniMailComposeSheet: View {
                 guard case .success(let urls) = r, let u = urls.first else { return }
                 Task { await attachFile(u) }
             }
+            .ufPlanSheet($lockSheet)
         }
         .task { await create() }
     }
@@ -866,6 +878,31 @@ struct UniMailComposeSheet: View {
             error = nil
         } catch {
             self.error = UniMailConnection.message(error)
+        }
+    }
+
+    /// "Mit KI verbessern": ohne Pro AI die Tarifwahl, ohne Anmeldung ein Hinweis, sonst der Vorschlag der KI (ersetzt den
+    /// Text erst mit "Übernehmen"; gesendet wird nie von hier)
+    private func tapAI() {
+        switch aiAccess {
+        case .planRequired: lockSheet = .proAI; return
+        case .signInRequired: error = "Melde dich einmal in den Einstellungen mit deinem StudiNow-Konto an, dann verbessert die KI deine E-Mail."; return
+        case .unavailable: error = "Diese Version hat keinen KI-Dienst."; return
+        case .ready: break
+        }
+        Task { await rewrite() }
+    }
+
+    private func rewrite() async {
+        rewriting = true
+        defer { rewriting = false }
+        do {
+            proposal = try await connection.rewrite(subject: subject, text: text)
+            error = nil
+        } catch let e as UniMailConnection.RewriteError {
+            error = e.message
+        } catch {
+            self.error = "Die KI konnte die E-Mail gerade nicht verbessern. Bitte später erneut versuchen."
         }
     }
 
@@ -984,5 +1021,66 @@ struct UniCalendarCard: View {
         defer { busy = false }
         await connection.importCalendar(days: days)
         events = await connection.upcomingEvents()
+    }
+}
+
+
+// MARK: - Mit KI verbessern (13.11.2026)
+
+/// Knopf "Mit KI verbessern" im Fenster "Neue E-Mail": ab Pro AI (sonst Schloss "ab Pro AI", Antippen oeffnet die
+/// Tarifwahl), 50 KI-Mails je Monat; waehrend der Anfrage "KI verbessert …"
+struct UniMailAIButton: View {
+    let access: StudiNowAIAccess
+    let busy: Bool
+    let empty: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let locked = access == .planRequired
+        HStack(spacing: 6) {
+            UFButton(busy ? "KI verbessert …" : (locked ? UFLock.label("Mit KI verbessern", .proAI) : "Mit KI verbessern"),
+                     icon: locked ? nil : "sparkles", size: .small) { action() }
+                .disabled(busy || (!locked && empty))
+                .accessibilityIdentifier("unimail.ai")
+                .ufLockAccessibility(locked ? .proAI : nil)
+            if locked { Image(systemName: UFLock.symbol).font(.system(size: 12)).foregroundStyle(UF.muted).accessibilityHidden(true) }
+        }
+    }
+}
+
+/// Vorschlag der KI unter dem Text: "Übernehmen" ersetzt den eigenen Text (gesendet wird erst mit "Senden"),
+/// X verwirft den Vorschlag und laesst den eigenen Text stehen
+struct UniMailAIProposal: View {
+    let text: String
+    let accept: () -> Void
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                UFIcon("sparkles", size: 15).foregroundStyle(UF.accent)
+                Text("Vorschlag der KI").ufFont(14.5, 650).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button(action: dismiss) {
+                    UFIcon("x", size: 15).foregroundStyle(UF.muted).frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Vorschlag nicht übernehmen")
+                .accessibilityIdentifier("unimail.ai.dismiss")
+            }
+            Text(text).ufFont(14, lh: 1.45).foregroundStyle(UF.text).textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("unimail.ai.text")
+            HStack(spacing: 8) {
+                UFButton("Übernehmen", icon: "check", kind: .primary, size: .small) { accept() }
+                    .accessibilityIdentifier("unimail.ai.accept")
+                Text("Ersetzt deinen Text. Gesendet wird erst mit „Senden“.").ufFont(12).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(UF.accentSoft.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityIdentifier("unimail.ai.proposal")
     }
 }

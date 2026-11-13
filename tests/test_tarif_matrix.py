@@ -82,9 +82,9 @@ def test_trial_is_pro_ai_in_contract_fixture_and_credits():
     # Kontingente des Tarifs (app/plans.py QUOTAS, Tabelle des Inhabers 04.11.2026): Free nichts, Plus 4 KI-Tests und
     # 4 Bibliothekstests, Pro AI 20 KI-Tests, Bibliothek unbegrenzt (Fair Use 300), 150 KI-Aufrufe; Karteikarten-Stapel von
     # StudiNow (05.11.2026): Plus 4, Pro AI unbegrenzt (Fair Use 300)
-    assert {k: plans.quota_limit("free", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0}
-    assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4}
-    assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300}
+    assert {k: plans.quota_limit("free", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0}
+    assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0}
+    assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}
     # Credits (app/credits.py): Pro AI 100, Probe 25, Free und Plus 0 - die Probe hat also Pro-AI-Rechte und -Kontingente,
     # aber einen kleineren Credit-Rahmen (Entscheidung 04.11.2026, docs/ABO-SYSTEM.md 6a)
     assert credits.allowance("pro_ai", False) == 100 and credits.allowance("pro_ai", True) == 25
@@ -109,9 +109,10 @@ def test_entitlements_and_quotas_per_plan(hosted, kind):
     }[effective_plan(kind)]
     assert {k: rights[k] for k in expect} == expect, kind
     limits = {k: v["limit"] for k, v in e["quotas"].items()}
-    assert limits == {"free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0},
-                      "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4},
-                      "pro_ai": {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300}}[effective_plan(kind)], kind
+    # KI-Mails (13.11.2026): Pro AI 50 je Monat, sonst keine
+    assert limits == {"free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0},
+                      "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0},
+                      "pro_ai": {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}}[effective_plan(kind)], kind
     assert e["entitlements"]["can_use_flashcards"] is (kind != "free"), "Karteikarten ab Plus, Probe = Pro AI"
 
 

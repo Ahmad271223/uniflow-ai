@@ -7,6 +7,37 @@ enum AIEndpoints: LocalEndpointModule {
     static let name = "KI (ChatGPT des Nutzers)"
 
     static func register(on router: LocalRouter) {
+        // Uni-Mail "Mit KI verbessern" (13.11.2026, MailRewrite.swift): {subject, text} -> {text, credits}; nur ein
+        // Vorschlag, gesendet wird nie von hier. Beim Dienst Aufgabe `mail` (Pro AI, 50 je Monat, keine Credits).
+        router.post("/api/ai/mail-rewrite") { req, ctx in
+            guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
+            let body = try req.pythonObjectBody()
+            func text(_ key: String) -> String {
+                if case .string(let s)? = body.value(key) { return s }
+                return ""
+            }
+            let mail = text("text")
+            guard !mail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw LocalHTTPError(status: 400, detail: ["detail": "Schreib zuerst deine E-Mail, dann kann die KI sie verbessern.", "code": "mail_empty"])
+            }
+            let prompt = MailRewrite.prompt(subject: text("subject"), text: mail)
+            let answer: String
+            var credits: JSONValue = .null
+            do {
+                let r = try await AIRelayTask.run(AIRelayTask(MailRewrite.task, routeText: String(mail.prefix(300)))) {
+                    try await ai.answer(system: MailRewrite.system, prompt: prompt)
+                }
+                answer = r.value
+                credits = r.credits
+            } catch let e as AIError {
+                throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
+            }
+            let improved = MailRewrite.clean(answer)
+            guard !improved.isEmpty else {
+                throw LocalHTTPError(status: 502, detail: ["detail": "Die KI hat keinen Text geliefert. Bitte erneut versuchen.", "code": "ai_no_text"])
+            }
+            return .json(["text": .string(improved), "credits": credits])
+        }
         router.post("/api/ai/tutor") { req, ctx in
             guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
             let body = try req.pythonObjectBody()
