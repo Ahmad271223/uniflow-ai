@@ -17,7 +17,8 @@ from test_pwa import _browser, _free_port
 PASSWORD = "sehr-geheim-123"
 T = 20000                                   # grosszuegige Wartezeit im Browser (ms)
 EDITOR_READY = "window.__app && __app.state.editors.length === 1 && !!__app.state.editors[0].model && !__app.state.editors[0].destroyed"
-DASHBOARD = "document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)"
+# Begruessung je Uhrzeit (app/static/greeting.js): vor 11 "Guten Morgen", 11-18 "Hallo", ab 18 "Guten Abend"
+DASHBOARD = "document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)"
 
 
 @pytest.fixture
