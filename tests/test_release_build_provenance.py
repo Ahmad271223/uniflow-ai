@@ -125,7 +125,7 @@ def _export_differences(commit: str, export: Path) -> list[str]:
     return [f"fehlt: {p}" for p in missing] + [f"anders: {p}" for p in changed] + [f"zusaetzlich: {p}" for p in extra]
 
 
-@pytest.mark.parametrize("build", [21, 22, 23, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35, 36])
+@pytest.mark.parametrize("build", [21, 22, 23, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37])
 def test_export_folder_is_exactly_the_commit(build):
     """Nur auf dem Mac des Inhabers: ~/Studora-Builds/export-bNN = git archive <commit> (bis auf erzeugte Dateien)."""
     v = rows()[build]
