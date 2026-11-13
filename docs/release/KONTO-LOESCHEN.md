@@ -6,7 +6,9 @@ abgedeckt.
 
 ## In der App
 
-1. Einstellungen → Konto → **Konto löschen**.
+1. **iPad:** Einstellungen → Konto → **Konto löschen**.
+   **Web (app.studinow.app):** oben rechts auf dein Kürzel oder unten links auf dein Konto → **Konto löschen**.
+   **Windows:** unten links „Dein Konto“ (Seite „Abo & Tarife“) → Abschnitt StudiNow-Konto → **Konto löschen**.
 2. Bestätigen (hat dein Konto ein Passwort, gibst du es dabei ein).
 
 Das Konto wird sofort gesperrt und auf allen Geräten abgemeldet; E-Mail-Adresse, Passwort und die Anmeldung mit Apple
@@ -24,8 +26,9 @@ Löschung innerhalb von 7 Tagen; die Frist von 30 Tagen bis zur endgültigen Lö
 
 ## Was nicht automatisch endet
 
-- **Abo StudiNow Plus:** kündige es in den Abo-Einstellungen deines Apple- bzw. Google-Kontos. Das Löschen des Kontos
-  oder der App beendet das Abo nicht.
+- **Abo StudiNow Plus oder Pro AI:** kündige es in den Abo-Einstellungen deines Apple- bzw. Google-Kontos, ein Abo mit
+  Karte im Kundenportal („Abo verwalten“ im Web und unter Windows). Das Löschen des Kontos oder der App beendet das
+  Abo nicht.
 - **Daten auf deinem Gerät:** Notizen und Dateien auf dem iPad, Android-Gerät oder PC bleiben, bis du die App
   löschst oder den Datenordner entfernst.
 

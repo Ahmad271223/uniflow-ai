@@ -7,7 +7,7 @@ import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow
 import { viewTimetable, openEvent } from "./views-tt.js?v=50";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=93";
 import { installConsentFetch } from "./ai-consent.js?v=2";   // Einwilligung vor der StudiNow-KI (06.11.2026)
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=52";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=53";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=8";
 import { chipState } from "./sync-chip.js?v=1";
@@ -85,7 +85,7 @@ function accountMenu() {
   const m = modal(`<div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>
     <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${esc(state.entitlements?.plan_name || "StudiNow Free")}${a.role === "admin" ? " · Moderation" : ""}</p>
     ${a.email_verified ? "" : `<div class="card flat" style="background:var(--warn-soft);border-color:transparent;margin:0 0 .8rem"><b class="small">E-Mail-Adresse noch nicht bestätigt</b><div class="small muted" style="margin:.2rem 0 .5rem">Bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen StudiNow-KI und Schreiben in der Community nicht.</div><button class="btn sm" id="accVerify">Bestätigungslink erneut senden</button></div>`}
-    <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a><a class="btn" href="/api/account/export" download title="Alle Daten dieses Kontos als ZIP (Auskunft nach DSGVO)">${icon("download", 15)} Meine Daten exportieren</a></div>
+    <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a><a class="btn" href="/api/account/export" download title="Alle Daten dieses Kontos als ZIP (Auskunft nach DSGVO)">${icon("download", 15)} Meine Daten exportieren</a><button class="btn danger" id="accDelete">${icon("trash", 15)} Konto löschen</button></div>
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
@@ -94,6 +94,10 @@ function accountMenu() {
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
   $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(resendNote(r), 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
+  // Konto loeschen wie auf dem iPad (account-delete.js, 13.11.2026); vorher nur ein Link auf die Seite /konto-loeschen
+  $("#accDelete", m).onclick = async () => { const { deleteAccountDialog } = await import("./account-delete.js?v=1"); m.remove();
+    deleteAccountDialog({ email: a.email, onPortal: async () => { try { const r = await api("/billing/stripe/portal", { method: "POST", body: {} }); location.href = r.url; } catch (e) { toast(e.message, 5000); } },
+                          onDeleted: () => { clearWorkerCache(); location.replace("/login"); } }); };
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
 }
 
