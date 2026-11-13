@@ -161,9 +161,11 @@ def public_settings(s: dict) -> dict:
 # ---------------------------------------------------------------- Ziele
 
 def _goals(conn) -> list[dict]:
-    return db.rows(conn, """SELECT g.*, m.name, m.color, m.exam_date AS module_exam, m.priority AS module_priority
-                            FROM study_goals g JOIN modules m ON m.id=g.module_id
-                            WHERE COALESCE(m.active,1)=1 ORDER BY m.sort, m.id""")
+    """Lernziele der Module, die der Lernkalender plant (abgewaehlte Faecher: kein Ziel, kein Block)"""
+    off = study.plan_off_ids(conn)
+    return [g for g in db.rows(conn, """SELECT g.*, m.name, m.color, m.exam_date AS module_exam, m.priority AS module_priority
+                                        FROM study_goals g JOIN modules m ON m.id=g.module_id
+                                        WHERE COALESCE(m.active,1)=1 ORDER BY m.sort, m.id""") if g["module_id"] not in off]
 
 
 def exam_of(conn, g: dict, auto: dict | None = None) -> dict:
@@ -194,6 +196,8 @@ def save_goal(conn, module_id: int, body: dict) -> dict:
     m = db.row(conn, "SELECT * FROM modules WHERE id=?", (module_id,))
     if not m:
         raise HTTPException(404, "Modul nicht gefunden")
+    if module_id in study.plan_off_ids(conn):
+        raise HTTPException(409, f"„{m['name'] or 'Modul'}“ ist nicht im Lernkalender. Erst unter „Fächer im Lernkalender“ anhaken.")
     g = db.row(conn, "SELECT * FROM study_goals WHERE module_id=?", (module_id,))
     ts = db.now_iso()
     if not g:
@@ -741,6 +745,7 @@ def ensure(conn, t: date | None = None, auto: bool = True, readonly: bool = Fals
     if readonly:
         auto = False
     else:
+        study.drop_unplanned(conn)                  # abgewaehlte Faecher (auch nach einem Abgleich)
         dedupe_blocks(conn)
         mark_missed(conn, t, sp.credit(_session_rows(conn), _now_ts())["blocks"])
     state = _json(conn, STATE_KEY, {})
@@ -826,6 +831,7 @@ def overview(conn, auto: bool = True, readonly: bool = False) -> dict:
     s = b["settings"]
     cr = sp.credit(_session_rows(conn), _now_ts())
     goal_ids = {g["module_id"] for g in b["goals"]}
+    off_ids = study.plan_off_ids(conn)
     # kuenftige Lernzeit je Modul (vor der Klausur, nicht erledigt)
     planned_rows = db.rows(conn, """SELECT module_id, date, start_time, end_time, planned_minutes, status, source FROM study_packages
                                     WHERE date >= ? AND status NOT IN ('verschoben','uebersprungen','erledigt','verpasst','teilweise')""", (ti,))
@@ -855,7 +861,7 @@ def overview(conn, auto: bool = True, readonly: bool = False) -> dict:
             next_exam = {"module_id": mid, "name": g["name"], "date": ex["date"], "days": days_left, "confirmed": ex["confirmed"]}
     others = [{"module_id": m["id"], "name": m["name"], "color": m["color"], "exam_date": m["exam_date"]}
               for m in db.rows(conn, "SELECT id, name, color, exam_date FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort, id")
-              if m["id"] not in goal_ids]
+              if m["id"] not in goal_ids and m["id"] not in off_ids]
     mon = study.monday(t)
     week_days = []
     wk_sessions = [x for x in b["sessions"] if x.get("day") and mon.isoformat() <= x["day"] <= (mon + timedelta(days=6)).isoformat()]
