@@ -502,17 +502,24 @@ def set_task_status(conn, task_id: int, status: str, actual_minutes: int | None 
                  (task_id, t["package_id"], t["status"], status, t["date"], t["date"], note, db.now_iso()))
     if status == "erledigt" and t["file_id"]:
         conn.execute("UPDATE files SET status='erledigt', seen_by_user=1 WHERE id=?", (t["file_id"],))
+    elif t["status"] == "erledigt" and status in OPEN_TASKS and t["file_id"] and t["type"] not in OWN_RESULT:
+        # wieder geoeffnet: die Datei ist auch nicht mehr erledigt (ein Stand, set_files_done)
+        conn.execute("UPDATE files SET status='gelesen', seen_by_user=1 WHERE id=? AND status='erledigt'", (t["file_id"],))
     refresh_statuses(conn)
     return db.row(conn, "SELECT * FROM study_tasks WHERE id=?", (task_id,))
 
 
 OPEN_TASKS = ("geplant", "in_bearbeitung", "nachholen")
+OWN_RESULT = ("test",)          # Aufgabenarten, die der Haken nicht beruehrt (Wochentests haben ein eigenes Ergebnis)
+FILE_DONE_PREFIX = "file_done:"
 
 
-def set_files_done(conn, file_ids: list[str], done: bool) -> tuple[list[str], int]:
-    """Haken "erledigt" je Datei im Moduldetail (Auftrag 13.11.2026), Spiegel von `ModuleDone.set` (Swift). Derselbe
-    Stand wie bei den Lernpaketen (`files.status='erledigt'`): Abhaken schliesst offene Lernaufgaben zur Datei,
-    Haken entfernen oeffnet erledigte wieder. Ergebnis: geaenderte Dateien, geaenderte Aufgaben."""
+def set_files_done(conn, file_ids: list[str], done: bool, reopen: bool = True) -> tuple[list[str], int]:
+    """Haken "erledigt" je Datei im Moduldetail (Auftrag 13.11.2026), Spiegel von `ModuleDone.set` (Swift). Ein Stand:
+    `files.status='erledigt'`; Trigger im Schema (`trg_file_done_*`) spiegeln ihn fuer den Geraete-Abgleich in die
+    Einstellung `file_done:<ID>`. Abhaken schliesst offene Lernaufgaben zur Datei (ausser Tests), Haken entfernen
+    oeffnet erledigte wieder, ausser `reopen` ist False (Fach, das der Lernkalender nicht plant).
+    Ergebnis: geaenderte Dateien, geaenderte Aufgaben."""
     ids: list[str] = []
     for fid in file_ids:
         if fid in ids:
@@ -527,17 +534,44 @@ def set_files_done(conn, file_ids: list[str], done: bool) -> tuple[list[str], in
             conn.execute("UPDATE files SET status='erledigt', seen_by_user=1 WHERE id=?", (fid,))
         elif is_done:
             conn.execute("UPDATE files SET status='gelesen', seen_by_user=1 WHERE id=?", (fid,))
-    tasks = 0
     every = sorted(set(file_ids))
-    if every:
-        frm = OPEN_TASKS if done else ("erledigt",)
-        rows = conn.execute(f"SELECT id FROM study_tasks WHERE file_id IN ({','.join('?' * len(every))}) "
-                            f"AND status IN ({','.join('?' * len(frm))}) ORDER BY id", (*every, *frm)).fetchall()
-        for r in rows:
-            set_task_status(conn, r[0], "erledigt" if done else "geplant",
-                            note="Im Modul abgehakt" if done else "Haken im Modul entfernt")
-            tasks += 1
-    return ids, tasks
+    if not every or not (done or reopen):
+        return ids, 0
+    n = _change_tasks(conn, every, OPEN_TASKS if done else ("erledigt",), "erledigt" if done else "geplant",
+                      "Im Modul abgehakt" if done else "Haken im Modul entfernt")
+    return ids, n
+
+
+def close_tasks_of_done_files(conn) -> int:
+    """Nach dem Geraete-Abgleich (`sync_client.pull`): offene Aufgaben zu Dateien, die auf einem anderen Geraet erledigt
+    wurden, ebenfalls erledigen (`ModuleDone.closeTasksOfDoneFiles`)."""
+    rows = conn.execute(f"SELECT t.id FROM study_tasks t JOIN files f ON f.id = t.file_id WHERE f.status = 'erledigt' "
+                        f"AND t.status IN ({','.join('?' * len(OPEN_TASKS))}) AND t.type NOT IN ({','.join('?' * len(OWN_RESULT))}) "
+                        f"ORDER BY t.id", (*OPEN_TASKS, *OWN_RESULT)).fetchall()
+    for r in rows:
+        set_task_status(conn, r[0], "erledigt", note="Auf einem anderen Gerät abgehakt")
+    return len(rows)
+
+
+def _change_tasks(conn, file_ids: list[str], frm: tuple, to: str, note: str) -> int:
+    rows = conn.execute(f"SELECT id FROM study_tasks WHERE file_id IN ({','.join('?' * len(file_ids))}) "
+                        f"AND status IN ({','.join('?' * len(frm))}) AND type NOT IN ({','.join('?' * len(OWN_RESULT))}) ORDER BY id",
+                        (*file_ids, *frm, *OWN_RESULT)).fetchall()
+    for r in rows:
+        set_task_status(conn, r[0], to, note=note)
+    return len(rows)
+
+
+def file_planned(conn, file_id: str) -> bool:
+    """Plant der Lernkalender das Modul dieser Datei (ueber ihren Kurs; ohne Modul: ja)?"""
+    r = db.row(conn, "SELECT c.module_id FROM files f JOIN courses c ON c.id = f.course_id WHERE f.id=?", (file_id,))
+    return module_planned(conn, r["module_id"]) if r and r["module_id"] is not None else True
+
+
+def module_planned(conn, module_id: int) -> bool:
+    """Plant der Lernkalender dieses Modul (`plan_modules_off`)?"""
+    m = db.row(conn, "SELECT name FROM modules WHERE id=?", (module_id,))
+    return not m or m["name"] not in plan_off(conn)
 
 
 # ----------------------------------------------------------------------------

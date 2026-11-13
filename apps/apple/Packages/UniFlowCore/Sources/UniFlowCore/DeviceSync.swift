@@ -114,17 +114,21 @@ public actor DeviceSync {
     private let database: SQLiteDatabase
     private let transport: DeviceSyncTransport
     private let device: String
+    /// Uhr fuer Lernaufgaben, die ein auf einem anderen Geraet gesetzter Haken schliesst (`ModuleDone`)
+    private let clock: UniFlowClock
 
-    public init(database: SQLiteDatabase, transport: DeviceSyncTransport, device: String) {
+    public init(database: SQLiteDatabase, transport: DeviceSyncTransport, device: String, clock: UniFlowClock = .system) {
         self.database = database
         self.transport = transport
         self.device = device
+        self.clock = clock
     }
 
     /// Ein vollstaendiger Abgleich; wirft nie, das Ergebnis nennt den Fehler. Anderes `account`: Zuordnung und Cursor
     /// vergessen (lokale Daten bleiben).
     public func run(account: String) async -> DeviceSyncResult {
         let core = DeviceSyncCore(device: device)
+        core.clock = clock
         do {
             core.studipUser = try await database.transaction { c -> String? in
                 try DeviceSyncSchema.ensure(c)
@@ -252,6 +256,7 @@ final class DeviceSyncCore: @unchecked Sendable {
     /// Hash des Stud.IP-Benutzers dieses Datenbereichs (`StudIPUserMark`); nil ohne Stud.IP bzw. vor dem ersten Abgleich
     var studipUser: String?
     var retryNotes = false
+    var clock: UniFlowClock = .system
     var stats = DeviceSyncResult()
     private var keyIndex: [String: [String: String]] = [:]
 
@@ -274,7 +279,8 @@ final class DeviceSyncCore: @unchecked Sendable {
 
     /// `_setting_local`: nie zwischen Geraeten
     static func settingIsLocal(_ key: String) -> Bool {
-        localSettings.contains(key) || key.range(of: "token|secret|passw|pin$|_path$|_dir$|service", options: [.regularExpression, .caseInsensitive]) != nil
+        if key.hasPrefix(ModuleDone.markPrefix) { return false }   // Haken je Datei: immer abgleichen
+        return localSettings.contains(key) || key.range(of: "token|secret|passw|pin$|_path$|_dir$|service", options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     /// `str(v)` fuer IDs: Zahlen ohne Nachkommastellen
@@ -388,6 +394,8 @@ final class DeviceSyncCore: @unchecked Sendable {
         }
         for t in d["tombstones"]?.array ?? [] { try applyTombstone(c, t) }
         try retryPending(c)
+        // Haken je Datei von einem anderen Geraet: offene Lernaufgaben zur Datei hier ebenfalls erledigen
+        try ModuleDone.closeTasksOfDoneFiles(c, clock: clock)
         try markAppliedTombstones(c, mark)
         try Self.setState(c, "cursor", cursor)
     }
@@ -621,6 +629,10 @@ final class DeviceSyncCore: @unchecked Sendable {
                     // nur diese Felder hat dieses Geraet seit dem letzten Abgleich geaendert (P73-F6, wie
                     // app/sync_client.py); `data` bleibt die ganze Zeile (Wiederherstellen im Dienst)
                     it["changed"] = .array(data.keys.sorted().filter { base[$0] != data[$0] }.map { .string($0) })
+                    if table == "settings", lid.hasPrefix(ModuleDone.markPrefix) {
+                        // Haken je Datei: jede Aenderung zaehlt, auch hin und zurueck; der neuere Stand gewinnt
+                        it["changed"] = ["value"]
+                    }
                 }
                 if table == "annotations" {
                     it["id"] = .string(lid)

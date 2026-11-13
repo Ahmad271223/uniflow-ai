@@ -111,7 +111,9 @@ public enum ModuleLayoutEndpoints: LocalEndpointModule {
             let r = try await edit(req, ctx) { c, m, _, _ -> (files: [String], tasks: Int) in
                 // nur Dateien dieses Moduls (wie im Moduldetail)
                 let mine = Set((try LocalModules.detail(c, moduleID: .integer(m), clock: clock)?["files"]?.array ?? []).compactMap { $0["id"]?.string })
-                return try ModuleDone.set(c, fileIDs: wanted.filter { mine.contains($0) }, done: done, clock: clock)
+                // abgewaehltes Fach (plan_modules_off): Haken ja, aber keine Aufgaben wieder einplanen
+                return try ModuleDone.set(c, fileIDs: wanted.filter { mine.contains($0) }, done: done,
+                                          reopen: try ModuleDone.planned(c, moduleID: m), clock: clock)
             }
             return .json(["changed": .array(r.files.map { .string($0) }), "tasks": .number(Double(r.tasks))])
         }

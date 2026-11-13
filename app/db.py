@@ -412,6 +412,36 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT
 );
 
+-- Haken "erledigt" je Datei (13.11.2026): ein Stand, files.status = 'erledigt'. Fuer den Geraete-Abgleich steht er
+-- zusaetzlich als Einstellung 'file_done:<Datei-ID>' = '1' bzw. '0' (der Abgleich der Einstellungen bringt ihn auf
+-- die anderen Geraete, der neuere Stand gewinnt). Die Trigger halten beides gleich: Aenderung der Datei -> Eintrag,
+-- angekommener Eintrag -> Datei, spaeter geladene Datei -> Stand aus dem Eintrag.
+CREATE TRIGGER IF NOT EXISTS trg_file_done_from_status AFTER UPDATE OF status ON files
+WHEN (NEW.status = 'erledigt') <> (OLD.status IS 'erledigt')
+BEGIN
+    INSERT INTO settings(key, value) VALUES ('file_done:' || NEW.id, CASE WHEN NEW.status = 'erledigt' THEN '1' ELSE '0' END)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE settings.value IS NOT excluded.value;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_file_done_new_file AFTER INSERT ON files
+BEGIN
+    UPDATE files SET status = CASE WHEN status = 'erledigt' THEN 'gelesen' ELSE 'erledigt' END, seen_by_user = 1
+    WHERE id = NEW.id AND EXISTS (SELECT 1 FROM settings WHERE key = 'file_done:' || NEW.id
+                                  AND (value = '1') <> (NEW.status IS 'erledigt'));
+    INSERT OR IGNORE INTO settings(key, value) SELECT 'file_done:' || NEW.id, '1' WHERE NEW.status IS 'erledigt';
+END;
+CREATE TRIGGER IF NOT EXISTS trg_file_done_mark_ins AFTER INSERT ON settings
+WHEN NEW.key LIKE 'file_done:%'
+BEGIN
+    UPDATE files SET status = CASE WHEN NEW.value = '1' THEN 'erledigt' ELSE 'gelesen' END, seen_by_user = 1
+    WHERE id = substr(NEW.key, 11) AND (status IS 'erledigt') <> (NEW.value IS '1');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_file_done_mark_upd AFTER UPDATE OF value ON settings
+WHEN NEW.key LIKE 'file_done:%' AND NEW.value IS NOT OLD.value
+BEGIN
+    UPDATE files SET status = CASE WHEN NEW.value = '1' THEN 'erledigt' ELSE 'gelesen' END, seen_by_user = 1
+    WHERE id = substr(NEW.key, 11) AND (status IS 'erledigt') <> (NEW.value IS '1');
+END;
+
 CREATE TABLE IF NOT EXISTS sync_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT,
@@ -421,6 +451,13 @@ CREATE TABLE IF NOT EXISTS sync_log (
     message TEXT
 );
 """
+
+# Haken "erledigt" je Datei (13.11.2026): schon erledigte Dateien bekommen ihren Eintrag fuer den Geraete-Abgleich
+# (bei jedem Start, nur fehlende); woertlich auch in Migrations.swift
+FILE_DONE_BACKFILL = ("INSERT OR IGNORE INTO settings(key, value) SELECT 'file_done:' || id, '1' FROM files "
+                      "WHERE status = 'erledigt'")
+# Einstellungen mit diesem Praefix sind Haken je Datei, keine Einstellungen (get_settings laesst sie weg)
+FILE_DONE_PREFIX = "file_done:"
 
 # Einmalige Vorbelegung von flashcards.last_result (siehe _init_db); woertlich auch in Migrations.swift
 FLASHCARD_RESULT_BACKFILL = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"
@@ -769,6 +806,7 @@ def _init_db(conn) -> None:
     add_col("study_packages", "locked", "INTEGER DEFAULT 0")
     add_col("study_packages", "manual", "INTEGER DEFAULT 0")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_study_sessions_module ON study_sessions(module_id)")
+    conn.execute(FILE_DONE_BACKFILL)
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
@@ -820,7 +858,7 @@ def row(conn: sqlite3.Connection, sql: str, params=()) -> dict | None:
 
 
 def get_settings(conn: sqlite3.Connection) -> dict:
-    s = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM settings")}
+    s = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM settings WHERE key NOT LIKE 'file_done:%'")}
     out = dict(s)
     # Ungueltige gespeicherte Werte (z. B. PUT /api/settings mit "nan", free_days "{") liessen vorher jeden Aufruf mit
     # ValueError/OverflowError/JSONDecodeError scheitern (Audit P11-03): dann gilt der Standard, mit Protokollzeile.

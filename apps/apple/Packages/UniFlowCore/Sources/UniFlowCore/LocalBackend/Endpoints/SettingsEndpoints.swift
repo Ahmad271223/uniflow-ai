@@ -7,7 +7,8 @@ public enum LocalSettings {
     /// `get_settings(conn)`
     public static func read(_ c: SQLiteConnection) throws -> [String: JSONValue] {
         var s: [String: SQLiteValue] = [:]
-        for r in try c.query("SELECT key, value FROM settings") {
+        // ohne die Haken je Datei ('file_done:<ID>', `ModuleDone`): das sind keine Einstellungen
+        for r in try c.query("SELECT key, value FROM settings WHERE key NOT LIKE 'file_done:%'") {
             guard let k = r[0].string else { continue }
             s[k] = r[1]
         }

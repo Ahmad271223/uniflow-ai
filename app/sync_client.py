@@ -97,6 +97,8 @@ def _int_pk(table) -> bool:
 
 
 def _setting_local(key: str) -> bool:
+    if (key or "").startswith("file_done:"):            # Haken je Datei: immer abgleichen (study.set_files_done)
+        return False
     return key in LOCAL_SETTINGS or bool(_SECRET_RE.search(key or ""))
 
 
@@ -341,6 +343,9 @@ class Client:
                 for t in d.get("tombstones") or []:
                     self.apply_tombstone(t)
                 self.retry_pending()
+                # Haken je Datei von einem anderen Geraet: offene Lernaufgaben zur Datei hier ebenfalls erledigen
+                from . import study
+                study.close_tasks_of_done_files(self.conn)
                 self.mark_applied_tombstones(mark)
                 cursor = d.get("cursor") or cursor
                 _set_state(self.conn, "cursor", cursor)
@@ -413,6 +418,9 @@ class Client:
                     # nur diese Felder hat dieses Geraet seit dem letzten Abgleich geaendert (P73-F6); `data` bleibt
                     # die ganze Zeile (Wiederherstellen im Dienst)
                     it["changed"] = sorted(c for c, v in data.items() if c not in base or base[c] != v)
+                    if table == "settings" and lid.startswith("file_done:"):
+                        # Haken je Datei: jede Aenderung zaehlt, auch hin und zurueck; der neuere Stand gewinnt
+                        it["changed"] = ["value"]
                 if table == "annotations":
                     it["id"] = lid
                     it["base_version"] = m["remote_version"] if m else None
