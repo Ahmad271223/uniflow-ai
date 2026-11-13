@@ -42,6 +42,20 @@ Für den Inhaber, in einfacher Sprache. Diese Datei ersetzt den Stand vom 05.11.
 - Der Bau läuft jetzt auch auf Zweigen `windows/**`, damit das Store-Paket entstehen kann, ohne `develop` anzufassen.
 - Fünf Bildschirmfotos in `docs/release/store-windows/` (1920 × 1080, mit den Demo-Inhalten).
 
+**Bau vom 13.11.2026, 15:04 Uhr — alles grün** ([Lauf 43439223644](https://github.com/Ahmad271223/uniflow-ai/actions/runs/43439223644),
+Zweig `windows/store-2026-11-13`, 19 Minuten). Jeder Schritt erfolgreich, auch die sonst nur hinweisenden
+Windows-Tests. Entstanden sind:
+
+| Datei | Größe | Wofür |
+|---|---|---|
+| `StudiNow_1.0.0.0_x64.msix` (Artefakt `uniflow-windows-msix`) | 480 MB | das Store-Paket — **noch mit Platzhalter-Kennung**, Partner Center weist es so ab |
+| `StudiNow_1.0.0.0_x64-test.msix` + `…-test.cer` | 480 MB | **zum Ausprobieren auf deinem Windows-PC** |
+| `StudiNow_1.0.0_x64-setup.exe` (Artefakt `uniflow-windows`) | 330 MB | normaler Installer |
+
+Der Lauf hat das Testpaket auf dem Windows-Rechner selbst installiert, das Backend darin gestartet und wieder
+deinstalliert — ohne Fehler. Die Warnung „store.json hat noch Testwerte“ ist erwartet und verschwindet, sobald die
+drei Werte aus Partner Center drin sind.
+
 ## 1. Deine Liste für heute Abend
 
 | # | Was du tust | Wo | Dauer |
