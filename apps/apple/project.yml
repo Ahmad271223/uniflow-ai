@@ -15,7 +15,7 @@ settings:
     # App Store 1.0.1 (Build 30 eingereicht am 10.11.2026; 1.0 mit Build 25 wurde nie veroeffentlicht); Build 31 ist 1.0.2 (veroeffentlicht 11.11.2026); Build 33 wird 1.0.3. Build-Nummer: eine fortlaufende ganze Zahl ueber alle Uploads hinweg,
     # je Upload +1, nie zurueck (0.2.0 hatte Build 2). Neue Version (1.0.1, 1.1) -> MARKETING_VERSION, Build weiterzaehlen.
     MARKETING_VERSION: "1.0.4"
-    CURRENT_PROJECT_VERSION: "39"
+    CURRENT_PROJECT_VERSION: "40"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
   UniFlow:
