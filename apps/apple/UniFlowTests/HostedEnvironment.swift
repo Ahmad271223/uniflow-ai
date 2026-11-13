@@ -96,6 +96,41 @@ final class HostedEnvironment {
         return out
     }
 
+    /// Erstes Element mit Knopf-Eigenschaft, auf das `match` passt (Bedienungshilfen-Baum)
+    func accessibleButton(where match: (NSObject) -> Bool) -> NSObject? {
+        view.layoutIfNeeded()
+        var hit: NSObject?
+        func visit(_ element: Any, depth: Int) {
+            guard depth < 50, hit == nil else { return }
+            if let o = element as? NSObject {
+                if o.accessibilityTraits.contains(.button), match(o) { hit = o; return }
+                for e in o.accessibilityElements ?? [] { visit(e, depth: depth + 1) }
+                let n = o.accessibilityElementCount()
+                if n != NSNotFound, n > 0 { for i in 0..<min(n, 500) { if let e = o.accessibilityElement(at: i) { visit(e, depth: depth + 1) } } }
+            }
+            if let v = element as? UIView { for s in v.subviews { visit(s, depth: depth + 1) } }
+        }
+        visit(view, depth: 0)
+        return hit
+    }
+
+    /// Knopf mit genau dieser Beschriftung antippen wie VoiceOver; false, wenn es ihn nicht gibt
+    @discardableResult
+    func activate(_ label: String) -> Bool {
+        accessibleButton { $0.accessibilityLabel == label }?.accessibilityActivate() ?? false
+    }
+
+    /// Moduldetail: alle zugeklappten Wochen aufklappen (Wochen starten zugeklappt, 13.11.2026); Anzahl aufgeklappter
+    @discardableResult
+    func openWeeks() -> Int {
+        var n = 0
+        while n < 60, let e = accessibleButton(where: { $0.accessibilityValue == "zugeklappt" }), e.accessibilityActivate() {
+            n += 1
+            pump(0.4)
+        }
+        return n
+    }
+
     /// SwiftUI baut den Bedienungshilfen-Baum nur, wenn ein Hilfsmittel aktiv ist: Automation ein- und wieder
     /// ausschalten wie bei UI-Tests (nur im Test, libAccessibility des Simulators). false, wenn es das nicht gibt.
     @discardableResult

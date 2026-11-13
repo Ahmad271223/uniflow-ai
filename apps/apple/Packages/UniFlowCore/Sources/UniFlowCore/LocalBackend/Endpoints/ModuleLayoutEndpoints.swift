@@ -11,6 +11,7 @@ import Foundation
 /// - `POST /api/modules/{id}/suggestions/accept` {file_ids?}
 /// - `POST /api/modules/{id}/suggestions/scan`  erste Seiten der nicht zugeordneten Dateien lesen (fuer Vorschlaege)
 /// - `DELETE /api/modules/{id}/layout`  eigene Ordnung verwerfen
+/// - `POST /api/modules/{id}/done` {file_ids, done}  Haken "erledigt" je Datei bzw. ganze Woche (`ModuleDone`, 13.11.2026)
 public enum ModuleLayoutEndpoints: LocalEndpointModule {
     public static let name = "Eigene Wochen"
 
@@ -99,6 +100,20 @@ public enum ModuleLayoutEndpoints: LocalEndpointModule {
                 if let p = try? await ScriptSearch.pageTexts(fileID: id, ctx: ctx, ocrScope: .none), !p.isEmpty { read += 1 }
             }
             return .json(["read": .number(Double(read))])
+        }
+
+        router.post("/api/modules/{module_id:int}/done") { req, ctx in
+            let o = try req.objectBody()
+            guard let done = o["done"]?.bool else { throw LocalHTTPError(status: 400, message: "done: true oder false") }
+            let wanted = strings(o, "file_ids")
+            guard !wanted.isEmpty, wanted.count <= 500 else { throw LocalHTTPError(status: 400, message: "file_ids: 1 bis 500 Dateien") }
+            let clock = ctx.clock
+            let r = try await edit(req, ctx) { c, m, _, _ -> (files: [String], tasks: Int) in
+                // nur Dateien dieses Moduls (wie im Moduldetail)
+                let mine = Set((try LocalModules.detail(c, moduleID: .integer(m), clock: clock)?["files"]?.array ?? []).compactMap { $0["id"]?.string })
+                return try ModuleDone.set(c, fileIDs: wanted.filter { mine.contains($0) }, done: done, clock: clock)
+            }
+            return .json(["changed": .array(r.files.map { .string($0) }), "tasks": .number(Double(r.tasks))])
         }
 
         router.delete("/api/modules/{module_id:int}/layout") { req, ctx in

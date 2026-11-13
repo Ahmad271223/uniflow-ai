@@ -63,13 +63,28 @@ export async function viewModules(parts, _, view) {
 }
 async function viewModule(id, view) {
   const d = await api(`/modules/${id}`); const m = d.module; let tab = "overview", mode = "list";
+  // Wochen starten zugeklappt (Auftrag 13.11.2026); aufgeklappte bleiben bis zum Verlassen der Seite offen
+  const opened = new Set();
+  const GROUPS = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"];
+  const weekFiles = w => GROUPS.flatMap(k => w[k]);
+  // Haken "erledigt" je Datei und ganze Woche: gleicher Stand wie die Lernpakete (POST /modules/{id}/done)
+  const doneRow = f => `<div class="dr-wrap">${docRow(f)}<button class="done-tick${f.status === "erledigt" ? " on" : ""}" data-f="${esc(f.id)}" aria-pressed="${f.status === "erledigt"}" aria-label="Erledigt: ${esc(f.ai_title || f.name)}" title="${f.status === "erledigt" ? "Als offen markieren" : "Als erledigt abhaken"}">${icon("check", 15)}</button></div>`;
+  const weekDone = w => { const fs = weekFiles(w); if (!fs.length) return ""; const n = fs.filter(f => f.status === "erledigt").length; const all = n === fs.length;
+    return `${n ? `<span class="muted wd-progress${all ? " all" : ""}">${n}/${fs.length} erledigt</span>` : ""}<button class="btn ghost sm week-done${all ? " on" : ""}" data-w="${w.week}" aria-pressed="${all}" title="${all ? "Nimmt alle Haken dieser Woche weg" : "Hakt alle Dateien dieser Woche ab"}">${icon("check", 14)} Woche erledigt</button>`; };
+  const markDone = async (ids, done) => {
+    try { await api(`/modules/${id}/done`, { method: "POST", body: { file_ids: ids, done } }); } catch (e) { toast(e.message, 4000); return; }
+    const st = done ? "erledigt" : "gelesen";
+    d.files.forEach(f => { if (ids.includes(f.id)) f.status = st; });
+    d.weeks.forEach(w => weekFiles(w).forEach(f => { if (ids.includes(f.id)) f.status = st; }));
+    render(true);
+  };
   const curWeek = d.weeks.filter(w => w.week >= 1).slice(-1)[0];
   // `switched`: nur der Reiter wechselt – die Seite blendet nicht neu ein, nur der Reiterinhalt (transition-panel)
   const render = (switched = false) => {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
-    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div><div id="lecHost"></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
-        <div class="wb">${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
+    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div><div id="lecHost"></div>` + d.weeks.map(w => `<div class="card week-block${opened.has(w.week) ? "" : " closed"}" data-w="${w.week}"><div class="wh" role="button" tabindex="0" aria-expanded="${opened.has(w.week)}">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}${weekDone(w)}</div>
+        <div class="wb"${opened.has(w.week) ? "" : " hidden"}>${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(doneRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
@@ -84,7 +99,13 @@ async function viewModule(id, view) {
     bindInstallBanner(view);
     $$("[data-mode]", view).forEach(b => b.onclick = () => { mode = b.dataset.mode; render(true); });
     // Auf- und Zuklappen wie disclosure (Hoehe und Deckkraft), der Pfeil dreht mit
-    $$(".week-block .wh", view).forEach(h => h.onclick = e => { if (e.target.closest(".ai-week")) return; const wb = $(".wb", h.parentElement); const open = wb.hidden; h.parentElement.classList.toggle("closed", !open); reveal(wb, open); });
+    $$(".week-block .wh", view).forEach(h => {
+      const toggle = () => { const wb = $(".wb", h.parentElement); const open = wb.hidden; const wk = +h.parentElement.dataset.w; if (open) opened.add(wk); else opened.delete(wk); h.setAttribute("aria-expanded", String(open)); h.parentElement.classList.toggle("closed", !open); reveal(wb, open); };
+      h.onclick = e => { if (e.target.closest(".ai-week, .week-done")) return; toggle(); };
+      h.onkeydown = e => { if ((e.key === "Enter" || e.key === " ") && e.target === h) { e.preventDefault(); toggle(); } };
+    });
+    $$(".done-tick", view).forEach(b => b.onclick = e => { e.preventDefault(); e.stopPropagation(); markDone([b.dataset.f], !b.classList.contains("on")); });
+    $$(".week-done", view).forEach(b => b.onclick = () => { const w = d.weeks.find(x => x.week === +b.dataset.w); if (w) markDone(weekFiles(w).map(f => f.id), !b.classList.contains("on")); });
     $$(".ai-week", view).forEach(b => b.onclick = () => summarizeWeek(d.weeks.find(w => w.week === +b.dataset.w), m));
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);

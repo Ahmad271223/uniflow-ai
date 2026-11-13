@@ -701,6 +701,9 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         XCTAssertEqual(fileWeeks["01_Vorlesung_Mengen.pdf"], 1, "Lehrwoche aus dem Dateinamen: \(fileWeeks)")
         XCTAssertEqual(fileWeeks["02_Vorlesung_Induktion.pdf"], 2, "Lehrwoche aus dem Dateinamen: \(fileWeeks)")
         env.router.go(.module(matheID))
+        // Wochen starten zugeklappt (13.11.2026): fuer die Station alle aufklappen
+        _ = env.wait(timeout: 12) { self.shows(env, "Woche 1") }
+        env.openWeeks()
         station(env, "56-modul-wochen-studip", markers: ["Mathematik", "Woche 1", "Woche 2", "01_Vorlesung_Mengen"])
 
         // Einstellungen: Stud.IP verbunden, Abmelden-Dialog (abbrechen)
