@@ -46,7 +46,7 @@ Für den Inhaber, in einfacher Sprache. Diese Datei ersetzt den Stand vom 05.11.
 
 | # | Was du tust | Wo | Dauer |
 |---|---|---|---|
-| 1 | **Entwicklerkonto anlegen**, falls noch nicht geschehen: als Einzelperson registrieren, Microsoft-Konto, Identitätsprüfung. Für Einzelpersonen laut Microsoft kostenlos — beim Anlegen prüfen, ob eine Gebühr verlangt wird, und mir Bescheid sagen. | <https://partner.microsoft.com/dashboard> | 15–30 min, die Prüfung kann Tage dauern |
+| 1 | **Entwicklerkonto anlegen**, falls noch nicht geschehen: als Einzelperson registrieren, Microsoft-Konto, Identitätsprüfung. **Fang auf <https://developer.microsoft.com/store/register> an, nicht im Partner Center** — über diesen Weg ist die Anmeldung für Einzelpersonen seit September 2025 kostenlos. Über andere Einstiege oder in manchen Ländern verlangt Microsoft noch die alte einmalige Gebühr (rund 19 US-Dollar). Wenn eine Gebühr angezeigt wird: nicht bezahlen, erst mir Bescheid sagen. | <https://developer.microsoft.com/store/register> | 15–30 min, die Identitätsprüfung kann Tage dauern |
 | 2 | **Namen „StudiNow“ reservieren**: Apps und Spiele → Neues Produkt → MSIX- oder PWA-App → Name `StudiNow`. Ist er vergeben, sag mir den neuen Namen. | Partner Center | 5 min |
 | 3 | **Drei Werte abschreiben** und mir schicken: Produktverwaltung → Produktidentität → `Package/Identity/Name`, `Package/Identity/Publisher` (beginnt mit `CN=`), `Package/Properties/PublisherDisplayName`. | Partner Center | 5 min |
 | 4 | Warten: **ich trage die Werte ein und lasse das Paket bauen.** | — | 15–20 min |
