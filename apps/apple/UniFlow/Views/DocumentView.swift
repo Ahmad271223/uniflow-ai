@@ -849,6 +849,7 @@ struct DocumentView: View {
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
+                            linkedSheetIDs: store.sideSheetFileIDs,
                             solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
                             onSolution: { id in
                                 if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
@@ -876,9 +877,10 @@ struct DocumentView: View {
         }
         .ufModal(isPresented: Binding(get: { pendingExport != nil }, set: { if !$0 { pendingExport = nil } })) {
             if let scope = pendingExport {
-                PDFExportNoticeDialog(scope: scope, confirm: exportPurpose.confirmTitle, export: {
+                PDFExportNoticeWithSheets(store: store, api: api, open: companionStore, scope: scope, confirm: exportPurpose.confirmTitle,
+                                          export: { excluded in
                     pendingExport = nil
-                    share(scope, purpose: exportPurpose)
+                    share(scope, purpose: exportPurpose, excludedSheets: excluded)
                 }, cancel: { pendingExport = nil })
             }
         }
@@ -1102,10 +1104,17 @@ struct DocumentView: View {
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
                           Self.linkSideSheet(s, shown: shown, main: store, bridge: bridge)
-                      }) {
+                      }) { [bridge] in
+            // wo das Blatt danach zu finden ist (Fehlerbericht 13.11.2026: geschlossen, dann nirgends mehr gesehen)
+            if c.file.isNotebook { bridge.hint = .init(text: Self.sheetClosedHint(c.file.displayTitle)) }
             companion = nil
         }
         .id(c.id + "-" + String(c.pdfPage ?? -1))
+    }
+
+    /// Hinweis nach dem Schliessen eines Blatts daneben: gespeichert, und wo es wieder auftaucht
+    static func sheetClosedHint(_ title: String) -> String {
+        "„\(title)“ ist gespeichert. Wieder öffnen: „Geteilt“ › Deine Blätter, Bibliothek › Eigene Notizen oder „Zuletzt benutzt“."
     }
 
     /// Blatt daneben (Notizbuch): wer darauf schreibt, schreibt neben der gerade angezeigten Seite dieses Dokuments.
@@ -1812,10 +1821,20 @@ struct DocumentView: View {
             // "Laden und anzeigen" nimmt denselben Weg wie die Datei (fremde Ebene, eigene Notizen unveraendert)
             CommunitySolutionsSheet(fingerprint: fp, service: SolutionSharing.community,
                                     importer: { id in try await store.importFromCommunity(id, service: SolutionSharing.community) },
-                                    onImported: { result in Task { await handleImport(result) } }) { solutionSheet = nil }
+                                    onImported: { result in Task { await handleImport(result) } },
+                                    onBeside: { id in Task { await showSolutionBeside(id) } }) { solutionSheet = nil }
         case .locked(let feature):
             SolutionLockedSheet(feature: feature) { solutionSheet = nil }
         }
+    }
+
+    /// Geladene Community-Loesung neben dem Dokument zeigen: jede Seite auf der eigenen PDF-Seite (gleicher Fingerabdruck)
+    /// bzw. auf der Vorlage des leeren Blatts, wie sie geschrieben wurde (Wunsch des Inhabers 13.11.2026)
+    private func showSolutionBeside(_ id: String) async {
+        await reloadSolutionLayers()
+        solutionSheet = nil
+        guard let layer = foreignLayers.first(where: { $0.id == id }) else { return }
+        if entitlements.allows(.splitView) { companion = nil; solutionSide = layer } else { lockedFeature = .splitView }
     }
 
     /// Passende Loesungen neu laden (Lesen, auch in Free). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
@@ -1980,13 +1999,16 @@ struct DocumentView: View {
     }
 
     /// PDF mit Notizen (Ganzes Dokument oder aktuelle Seite) erzeugen und das Teilen-Menue des Systems zeigen.
-    private func share(_ scope: ShareScope, purpose: ExportPurpose = .share) {
+    private func share(_ scope: ShareScope, purpose: ExportPurpose = .share, excludedSheets: Set<String> = []) {
         exporting = true
         Task {
             defer { exporting = false }
             do {
-                // Seitennotizen und Blaetter daneben gehen direkt hinter ihrer Folie mit (NotesExport, 05.11.2026)
-                let result = try await NotesExport.pdf(for: store, api: api, options: .init(scope: scope))
+                // Seitennotizen und Blaetter daneben gehen direkt hinter ihrer Folie mit (NotesExport, 05.11.2026); das
+                // gerade offene Blatt geht mit, im Hinweis abgewaehlte und solche im Papierkorb nicht (13.11.2026)
+                var options = NotesExport.Options(scope: scope)
+                options.excludedSheets = excludedSheets
+                let result = try await NotesExport.pdf(for: store, api: api, options: options, open: companionStore)
                 if purpose == .print {
                     PDFPrinting.print(result.url, title: store.file.displayTitle) { error in
                         if let error { actionError = "Drucken fehlgeschlagen: \(error)" }
@@ -2142,7 +2164,10 @@ struct CompanionView: View {
                 }
                 StatusLabel(status: store.status)
                 SyncIssueBadge(store: store)
-                Text("S. \(bridge.pageIndex + 1)").ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
+                // weitere Seite unter der angezeigten, wie "Seite anhängen" im Hauptdokument (Frage des Inhabers 13.11.2026)
+                CompanionAddPageButton(store: store, bridge: bridge,
+                                       enabled: canEdit && store.pdf != nil && !store.journalUnreadable && !store.viewOnlyHere)
+                CompanionPageLabel(bridge: bridge, count: store.layout?.entries.count ?? 0)
             }
             if let error = store.errorMessage {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
@@ -2155,7 +2180,14 @@ struct CompanionView: View {
                 ProgressView().frame(maxHeight: .infinity)
             }
         }
-        .task { await store.load() }
+        .task {
+            await store.load()
+            // fuer "Zuletzt benutzt" (Uebersicht) und "Zuletzt bearbeitet" (Bibliothek): ein Blatt daneben war sonst
+            // nach dem Schliessen nirgends zu sehen (Fehlerbericht 13.11.2026)
+            if store.errorMessage == nil, !store.isOldVersion {
+                _ = try? await api.value("/api/files/\(store.file.id)/opened", method: "POST", body: [:])
+            }
+        }
         .onAppear {
             store.setShown(true)
             onStore(store, true)
@@ -2169,6 +2201,98 @@ struct CompanionView: View {
     }
 }
 
+/// "S. 2 / 3" in der Kopfzeile des Dokuments daneben (die Seitenzahl zeigt, dass es weitere Seiten gibt)
+struct CompanionPageLabel: View {
+    @ObservedObject var bridge: EditorBridge
+    let count: Int
+
+    var body: some View {
+        Text(count > 1 ? "S. \(bridge.pageIndex + 1) / \(count)" : "S. \(bridge.pageIndex + 1)")
+            .ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
+            .accessibilityIdentifier("companion.pageLabel")
+    }
+}
+
+/// "+" im Kopf des Dokuments daneben: leere Seite direkt unter der angezeigten, mit deren Vorlage (wie "Seite
+/// anhängen" in der Seitenleiste); gedrueckt halten bzw. Menue: Vorlage waehlen. Vorher ging daneben nur das eine
+/// Blatt (Frage des Inhabers 13.11.2026).
+struct CompanionAddPageButton: View {
+    let store: DocumentStore
+    @ObservedObject var bridge: EditorBridge
+    let enabled: Bool
+
+    var body: some View {
+        Menu {
+            Section("Seite darunter einfügen") {
+                ForEach(PaperTemplate.choices, id: \.id) { t in
+                    Button(t.name) { add(t.id) }
+                }
+            }
+        } label: {
+            Image(systemName: "plus.rectangle.on.rectangle")
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        } primaryAction: {
+            add(Self.template(store.layout?.entries, at: bridge.pageIndex))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(enabled ? UF.text2 : UF.muted)
+        .disabled(!enabled)
+        .accessibilityLabel("Seite darunter einfügen")
+        .accessibilityHint("Leere Seite unter der angezeigten; gedrückt halten für Vorlagen")
+        .accessibilityIdentifier("companion.addPage")
+        .modifier(MacHelp(text: "Seite darunter einfügen"))
+    }
+
+    /// Vorlage der angezeigten Seite (Leerseite), sonst "blank" - wie `PageSidebarActions.appendTemplate`
+    static func template(_ entries: [DisplayLayout.Entry]?, at index: Int) -> String {
+        guard let entries, entries.indices.contains(index) else { return PageSidebarActions.appendTemplate(lastEntry: entries?.last) }
+        return PageSidebarActions.appendTemplate(lastEntry: entries[index])
+    }
+
+    private func add(_ template: String) {
+        let after = bridge.pageKey
+        Task { await bridge.controller?.insertBlankPage(after: after, template: template) }
+    }
+}
+
+/// "Deine Blätter zu diesem Dokument" unter "Daneben öffnen": Blaetter, die schon einmal neben diesem Dokument
+/// beschrieben wurden, mit Datum; eins im Papierkorb laesst sich hier wiederherstellen (Fehlerbericht 13.11.2026)
+struct CompanionOwnSheetsSection: View {
+    let sheets: [SideSheetLoader.Entry]
+    let open: (String) -> Void
+    let restore: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Deine Blätter zu diesem Dokument").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+            VStack(spacing: 0) {
+                ForEach(Array(sheets.enumerated()), id: \.element.id) { i, e in
+                    if i > 0 { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
+                    Button { e.trashed ? restore(e.id) : open(e.id) } label: {
+                        HStack(spacing: 12) {
+                            UFIcon("note", size: 18).foregroundStyle(e.trashed ? UF.muted : UF.accent).frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(e.title).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
+                                Text([e.trashed ? "im Papierkorb" : nil, e.editedLabel].compactMap { $0 }.joined(separator: " · "))
+                                    .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            Text(e.trashed ? "Wiederherstellen" : "Daneben öffnen").ufFont(12.8, 600).foregroundStyle(UF.accentText)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("companion.own.\(i)")
+                }
+            }
+            .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
+        }
+    }
+}
+
 /// "Daneben öffnen": ein leeres Blatt mit Vorlage (mitschreiben, ohne auf die Folie zu schreiben) oder ein vorhandenes
 /// Dokument (Dokumente desselben Moduls zuerst). Das Blatt ist ein Notizbuch im Modul der offenen Datei.
 struct CompanionPicker: View {
@@ -2177,6 +2301,8 @@ struct CompanionPicker: View {
     let excluding: String
     /// Titel der offenen Datei, fuer den Namen des neuen Blatts
     var sourceTitle = ""
+    /// Blaetter, die neben diesem Dokument beschrieben wurden (`sideSheets`): "Deine Blätter zu diesem Dokument"
+    var linkedSheetIDs: [String] = []
     /// empfangene Loesungen zu dieser PDF (ID, Name): "Lösung daneben ansehen" steht dann zuerst
     var solutions: [(id: String, label: String)] = []
     /// Lage von Folie und Loesung nach der Schreibhand (SplitSides.solutionHint)
@@ -2188,6 +2314,8 @@ struct CompanionPicker: View {
     @State private var query = ""
     @State private var error: String?
     @State private var creating: String?
+    /// eigene Blaetter zu diesem Dokument (verknuepft oder nach ihm benannt), auch solche im Papierkorb
+    @State private var ownSheets: [SideSheetLoader.Entry] = []
 
     /// Vorlagen fuer das leere Blatt in der Reihenfolge der Auswahl im Editor
     static var blankTemplates: [(id: String, name: String)] { PaperTemplate.choices }
@@ -2203,6 +2331,10 @@ struct CompanionPicker: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     if !solutions.isEmpty { solutionSection }
+                    if !ownSheets.isEmpty {
+                        CompanionOwnSheetsSection(sheets: ownSheets, open: { id in Task { await openOwn(id, restore: false) } },
+                                                  restore: { id in Task { await openOwn(id, restore: true) } })
+                    }
                     blankSection
                     documentSection
                 }
@@ -2245,7 +2377,7 @@ struct CompanionPicker: View {
     private var blankSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Leeres Blatt").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-            Text("Zum Mitschreiben neben der Folie, ohne auf sie zu schreiben. Das Blatt landet bei deinen Notizen im Modul.")
+            Text("Zum Mitschreiben neben der Folie, ohne auf sie zu schreiben. Das Blatt bleibt gespeichert: hier oben unter „Deine Blätter“, in der Bibliothek beim Modul unter „Eigene Notizen“ und unter „Zuletzt benutzt“. Mit „+“ im Kopf des Blatts kommen weitere Seiten darunter.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 12) {
                 ForEach(Self.blankTemplates, id: \.id) { t in
@@ -2319,6 +2451,41 @@ struct CompanionPicker: View {
         do {
             files = try await library().filter { $0.opensInEditor && $0.id != excluding }
                 .sorted { ($0.module_id == moduleID ? 0 : 1, $0.displayTitle) < ($1.module_id == moduleID ? 0 : 1, $1.displayTitle) }
+        } catch let e {
+            error = e.localizedDescription
+        }
+        ownSheets = await Self.ownSheets(linked: linkedSheetIDs, named: Self.sheetTitle(for: sourceTitle), library: files,
+                                         excluding: excluding, api: api)
+    }
+
+    /// Eigene Blaetter zu einem Dokument: erst die neben ihm beschriebenen (`sideSheets`, auch im Papierkorb), dann
+    /// Notizbuecher, die "Daneben öffnen" fuer dieses Dokument angelegt hat (Titel "Notizen – <Dokument>"), aber auf
+    /// denen noch nichts verknuepft wurde. Neueste zuerst innerhalb jeder Gruppe.
+    static func ownSheets(linked: [String], named title: String, library: [LibFile], excluding: String,
+                          api: APIClient) async -> [SideSheetLoader.Entry] {
+        var out: [SideSheetLoader.Entry] = []
+        for id in linked where id != excluding {
+            if let e = await SideSheetLoader.entry(id, api: api) { out.append(e) }
+        }
+        let known = Set(out.map(\.id))
+        let named = library.filter { $0.isNotebook && $0.id != excluding && !known.contains($0.id) && $0.displayTitle == title }
+        var more: [SideSheetLoader.Entry] = []
+        for f in named {
+            if let e = await SideSheetLoader.entry(f.id, api: api) { more.append(e) }
+        }
+        let newest: (SideSheetLoader.Entry, SideSheetLoader.Entry) -> Bool = { ($0.edited ?? "") > ($1.edited ?? "") }
+        return out.sorted(by: newest) + more.sorted(by: newest)
+    }
+
+    /// Eigenes Blatt wieder daneben oeffnen (aus dem Papierkorb zuerst wiederherstellen)
+    private func openOwn(_ id: String, restore: Bool) async {
+        do {
+            if restore { _ = try await api.value("/api/library/files/\(id)", method: "PATCH", body: ["restore": true]) }
+            var f = try await library().first(where: { $0.id == id })
+            if f == nil { f = try await api.json("/api/files/\(id)", as: LibFile.self) }
+            guard let f else { return }
+            onPick(f)
+            dismiss()
         } catch let e {
             error = e.localizedDescription
         }

@@ -84,6 +84,9 @@ actor OffscreenPDF {
         PageRenderer.thumbnail(page: page(for: shape), entry: entry, objects: objects, images: images, width: width, scale: scale)
     }
 
+    /// Seitenzahl der eigenen Instanz (nil: Datei fehlt oder ist nicht lesbar)
+    func pageCount() -> Int? { openIfNeeded()?.pageCount }
+
     /// Vorschau einer fremden Loesungsseite mit der eigenen PDF-Seite darunter ("Daneben ansehen", `SolutionPreview`)
     func solutionPreview(_ page: SolutionPage, images: [String: UIImage], width: CGFloat, scale: CGFloat) -> UIImage {
         let pdfPage = page.kind == .pdf ? page.pdfIndex.flatMap { openIfNeeded()?.page(at: $0 - 1) } : nil
