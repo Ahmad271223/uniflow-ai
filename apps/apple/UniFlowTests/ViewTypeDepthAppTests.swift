@@ -142,6 +142,20 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("UniMailComposeSheet", UniMailComposeSheet.Body.self),
         ("UniMailAIButton", UniMailAIButton.Body.self),
         ("UniMailAIProposal", UniMailAIProposal.Body.self),
+        // neuer Einstieg (13.11.2026)
+        ("IntroWelcomeLayout", IntroWelcomeLayout.Body.self),
+        ("IntroWelcomeSignIn", IntroWelcomeSignIn.Body.self),
+        ("IntroWelcomeStage", IntroWelcomeStage.Body.self),
+        ("IntroTourLayout", IntroTourLayout.Body.self),
+        ("IntroTourArt", IntroTourArt.Body.self),
+        ("IntroSetupLayout", IntroSetupLayout.Body.self),
+        ("IntroChatHistory", IntroChatHistory.Body.self),
+        ("IntroAnswerPanel", IntroAnswerPanel.Body.self),
+        ("IntroExamRow", IntroExamRow.Body.self),
+        ("IntroPlanLayout", IntroPlanLayout.Body.self),
+        ("IntroPlanHero", IntroPlanHero.Body.self),
+        ("IntroPlanTile", IntroPlanTile.Body.self),
+        ("IntroContainerStep", IntroContainerStep.Body.self),
     ]
 
     private func check(_ name: String, _ type: Any.Type, file: StaticString = #filePath, line: UInt = #line) {

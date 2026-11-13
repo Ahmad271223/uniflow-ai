@@ -114,7 +114,10 @@ final class Session: ObservableObject {
 ///                                     -UFDisconnect YES -UFRoute "#/settings?tab=dev" zeigt das Verbindungsformular.
 ///   -UFOnboarding reset               Konto und Merker "Tarifwahl gezeigt" loeschen -> Begruessung wie nach Neuinstallation
 ///   -UFOnboarding skip                Debug-Konto ohne Apple-ID, Tarifwahl gilt als gezeigt -> direkt die Oberflaeche
-///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl -> Hochschulwahl
+///   -UFOnboarding tour                Debug-Konto, neuer Einstieg ab dem Rundgang -> Hochschulwahl -> ...
+///   -UFOnboarding setup               Debug-Konto, Hochschule aus -UFUniversity (sonst LUH), Uni-Anmeldung erledigt ->
+///                                     Fragen im Gespraech -> Probe und Tarife -> Lernkalender
+///   -UFOnboarding plan                wie setup, Fragen erledigt -> Probe und Tarife -> Lernkalender
 ///   -UFOnboarding university          Debug-Konto, Tarifwahl gezeigt, keine Hochschule -> Hochschulwahl
 ///   -UFOnboarding login               Debug-Konto, Tarifwahl gezeigt, Hochschule aus -UFUniversity (sonst LUH),
 ///                                     Anmeldeseiten noch nicht gezeigt -> Anmeldeseiten der Hochschule, Erstabgleich
@@ -191,7 +194,16 @@ enum DebugLaunch {
             account.markPlanShown()
             account.chooseUniversity(forcedUniversity(defaults: d) ?? .luh)
             account.resetLoginStep()
-        case "plan":
+        case "plan", "setup":
+            // neuer Einstieg: Fragen bzw. Probe und Tarife im Container der Hochschule (LUH ohne -UFUniversity)
+            account.deleteAccount()
+            account.notice = nil
+            account.skipSignInForDebug()
+            account.markTourDone()
+            account.chooseUniversity(forcedUniversity(defaults: d) ?? .luh)
+            account.markLoginDone()
+            if mode == "plan" { account.markSetupDone() }
+        case "tour":
             account.deleteAccount()
             account.notice = nil
             account.skipSignInForDebug()

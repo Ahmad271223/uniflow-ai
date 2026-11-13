@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Erster Start nach docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a und docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1:
-/// Begruessung (Mit Apple anmelden) -> beim ersten Mal Tarifwahl -> Hochschule waehlen -> sofort die Anmeldeseiten
-/// der Hochschule mit Erstabgleich (`main`, dort FirstLoginFlow im offenen Container) -> die UniFlow-Oberflaeche.
+/// Erster Start (neuer Einstieg 13.11.2026, Views/Onboarding/Einstieg): Willkommen (Mit Apple anmelden) -> Rundgang ->
+/// Hochschule waehlen -> sofort die Anmeldeseiten der Hochschule mit Erstabgleich (`main`, dort FirstLoginFlow im
+/// offenen Container) -> Fragen im Gespraech und Probe/Tarife (ebenfalls im Container, `IntroContainerStep`) -> die
+/// UniFlow-Oberflaeche.
 /// Kein Verbindungsformular: die Verbindung zum eigenen PC-Server liegt in den Einstellungen unter "Entwicklung".
 struct OnboardingFlow<Main: View>: View {
     @EnvironmentObject private var account: AccountStore
@@ -11,10 +12,11 @@ struct OnboardingFlow<Main: View>: View {
     var body: some View {
         Group {
             switch account.stage {
-            case .welcome: WelcomeView()
-            case .planPicker: PlanPickerView { account.markPlanShown() }
+            case .welcome: IntroWelcomeView()
+            case .tour: IntroTourView { account.markTourDone() }
             case .universityPicker: UniversityPickerView { account.chooseUniversity($0) }
-            case .universityLogin, .ready: main()
+            // Uni-Anmeldung, Fragen und Tarife brauchen den Container der Hochschule (Faecher, Termine)
+            case .universityLogin, .setup, .planPicker, .ready: main()
             }
         }
         .animation(UF.transition, value: account.stage)
@@ -69,4 +71,35 @@ struct UFLogoMark: View {
         UFLogoImage(size: size)
             .ufShadow(.sm)
     }
+}
+
+/// Schritte des Einstiegs im offenen Container: Uni-Anmeldung, Fragen, Probe und Tarife, danach die Oberflaeche. Nach
+/// den Tarifen oeffnet die App den Lernkalender (der erste Lernplan), wenn in den Fragen Faecher gewaehlt wurden, sonst
+/// die Übersicht.
+struct IntroContainerStep: View {
+    let stage: AccountStore.Stage
+    @EnvironmentObject private var account: AccountStore
+    @EnvironmentObject private var router: UFRouter
+
+    var body: some View {
+        switch stage {
+        case .universityLogin: FirstLoginFlow()
+        case .setup:
+            IntroSetupView { planned in
+                account.introPlannedModules = planned
+                account.markSetupDone()
+            }
+        case .planPicker:
+            IntroPlanView {
+                let toPlan = account.introPlannedModules
+                account.markPlanShown()
+                // ohne Verlauf: auf der ersten Seite nach dem Einstieg gibt es keinen Zurück-Pfeil
+                if toPlan { router.replace(UFRoute(hash: IntroContainerStep.firstRoute)) }
+            }
+        default: MainView()
+        }
+    }
+
+    /// Ziel nach dem Einstieg: der Lernkalender mit dem ersten Lernplan
+    static let firstRoute = "#/plan"
 }

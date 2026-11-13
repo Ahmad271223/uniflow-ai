@@ -381,7 +381,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        OnboardingFlow { ContainerGate { if account.stage == .universityLogin { FirstLoginFlow() } else { MainView() } } }
+        OnboardingFlow { ContainerGate { IntroContainerStep(stage: account.stage) } }
             .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
             .sheet(isPresented: $choosingPlan) {
                 PlanPickerView(context: .settings) { choosingPlan = false }
