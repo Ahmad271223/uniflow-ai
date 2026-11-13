@@ -20,6 +20,8 @@ enum ShapeRecognizer {
     static let trimRadius: CGFloat = 6
     /// Kuerzere Striche sind kein Kandidat (Punkte, Haekchen)
     static let minimumLength: CGFloat = 30
+    /// Kleinere Formen sind kein Kandidat (Seitenpunkte): ein kleines "o" beim Nachdenken soll kein Kreis werden
+    static let minimumSize: CGFloat = 18
     /// Rechteck mit Seiten, die hoechstens so viel (Anteil der laengeren) auseinanderliegen, wird ein Quadrat
     static let squareTolerance: CGFloat = 0.1
 
@@ -81,7 +83,7 @@ enum ShapeRecognizer {
         guard pts.count >= 8 else { return nil }
         let length = pathLength(pts)
         let box = bounds(pts)
-        guard length >= minimumLength, max(box.width, box.height) >= 12 else { return nil }
+        guard length >= minimumLength, max(box.width, box.height) >= minimumSize else { return nil }
         let closed = hypot(pts[0].x - pts[pts.count - 1].x, pts[0].y - pts[pts.count - 1].y) <= max(12, 0.15 * length)
         let corners = cornerIndices(pts, closed: closed)
         if closed {

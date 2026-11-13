@@ -1271,8 +1271,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
-        let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool,
-                              snapsShapes: ShapeRecognizer.snaps(canvasView.tool), ruler: canvasView.isRulerActive)
+        let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
         // Form erkannt: `snapShape` sichert die ersetzte Zeichnung selbst (ein Mal statt Strich + Form)
         var snapped = false
         if overlay.loaded, overlay.undoPending {
@@ -1304,8 +1303,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func finishStroke(on overlay: PageInkView, _ lift: StrokeLift) -> Bool {
         guard lift.inking else { return false }
         let hold = RawStroke.heldDuration(lift.samples, radius: ShapeRecognizer.holdRadius)
-        // Formen nur mit einem Stift-Werkzeug (nicht mit dem Textmarker), glaetten wie bisher mit jeder Tinte
-        if lift.snapsShapes, snapShape(on: overlay, endedAt: lift.endedAt, held: hold) != nil { return true }
+        if snapShape(on: overlay, endedAt: lift.endedAt, held: hold) != nil { return true }
         if !lift.ruler { rebuildFromRawPoints(on: overlay, samples: lift.samples, smoothing: PencilSmoothing.current) }
         return false
     }
@@ -1316,7 +1314,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Returns: die erkannte Form (fuer Tests), sonst nil
     @discardableResult
     func snapShape(on overlay: PageInkView, endedAt: Date, held: TimeInterval? = nil) -> ShapeRecognizer.Shape? {
-        guard canEdit, shapeSnapEnabled else { return nil }
+        // Formen erkennt nur ein Stift-Werkzeug; mit dem Textmarker bleibt der Strich, wie gezogen
+        guard canEdit, shapeSnapEnabled, ShapeRecognizer.snaps(overlay.canvas.tool) else { return nil }
         var drawing = overlay.canvas.drawing
         guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil else { return nil }
         // Halten am Ende: Zeitstempel des Stifts (Rohpunkte), sonst die Punkte von PencilKit
@@ -2331,16 +2330,13 @@ extension UndoManager {
 struct StrokeLift {
     let samples: [RawPencilSample]
     let inking: Bool
-    /// Werkzeug, mit dem Formen erkannt werden (Stift, Fineliner, Bleistift, Fueller; nicht der Textmarker)
-    let snapsShapes: Bool
     let ruler: Bool
     let endedAt = Date()
     private let uptime = ProcessInfo.processInfo.systemUptime
 
-    init(samples: [RawPencilSample], inking: Bool, snapsShapes: Bool = true, ruler: Bool) {
+    init(samples: [RawPencilSample], inking: Bool, ruler: Bool) {
         self.samples = samples
         self.inking = inking
-        self.snapsShapes = snapsShapes
         self.ruler = ruler
     }
 

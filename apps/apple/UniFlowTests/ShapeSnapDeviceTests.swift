@@ -61,6 +61,17 @@ final class ShapeSnapDeviceTests: XCTestCase {
         }
     }
 
+    /// Kleine Kringel beim Nachdenken bleiben Handschrift: erst ab `minimumSize` wird daraus eine Form
+    func testSmallCirclesStayHandwriting() {
+        XCTAssertEqual(ShapeRecognizer.minimumSize, 18)
+        for seed in UInt64(1)...8 {
+            let small = DeviceStroke.stroke(DeviceStroke.ellipse(200, 300, 6, 6.5), closed: true, seed: seed)
+            XCTAssertNil(ShapeRecognizer.recognize(DeviceStroke.points(of: small)), "kleines o bleibt (Zufall \(seed))")
+            let big = DeviceStroke.stroke(DeviceStroke.ellipse(200, 300, 16, 16), closed: true, seed: seed)
+            XCTAssertEqual(ShapeRecognizer.recognize(DeviceStroke.points(of: big))?.name, "circle", "32 pt sind eine Form")
+        }
+    }
+
     // MARK: Stillhalten am Ende
 
     /// Das Stillhalten wird während des Zeichnens aus den Zeitstempeln des Stifts gemessen
@@ -168,6 +179,7 @@ enum DeviceStroke {
             let t = CGFloat(i) / 5 * 2 * .pi
             return CGPoint(x: 200 + 80 * cos(t), y: 300 + 80 * sin(t))
         }, closed: true, want: nil),
+        Case(name: "kleines o", vertices: ellipse(200, 300, 6, 6.5), closed: true, want: nil),
         Case(name: "Haken", vertices: [CGPoint(x: 100, y: 300), CGPoint(x: 130, y: 340), CGPoint(x: 200, y: 240)], closed: false, want: nil),
         Case(name: "Handschrift", vertices: (0..<4).flatMap { k -> [CGPoint] in
             let x = 100 + CGFloat(k) * 26
