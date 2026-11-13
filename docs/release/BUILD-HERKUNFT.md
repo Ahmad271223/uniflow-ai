@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 36 (Version 1.0.4, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.3
+Aktueller Stand in project.yml: Build 37 (Version 1.0.4, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: Version 1.0.3
 mit Build 35 aus `ce6df886` (seit 13.11.2026 00:53). Veröffentlicht: 1.0.2 mit Build 31, davor 1.0.1 mit Build 30.
 
 ## Builds
@@ -31,7 +31,8 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 33 | `1c911fa5` | 11.11.2026 23:52 | nur TestFlight, nie eingereicht: Version 1.0.3, ersetzt durch Build 35 | Build 32 plus Absturzkorrektur `DocumentView` (Stapel 1220 → 435 KB, Schutztest `ViewTypeDepthAppTests`), Stift-Palette kommt nach Chat/KI-Frage zurück; Tests: Vorlage-iPad 1504 grün, iPad 9 (Simulator) 960 grün |
 | 34 | `6be58cd3` | 12.11.2026 17:31 | nur TestFlight, nie eingereicht: Version 1.0.3, ersetzt durch Build 35 | Build 33 plus feste Werkzeugleiste (oben/unten/schwebend), Schlösser für Free/Plus, eine Apple-Anmeldung (Dienst-Konto für alle, Widerruf beim Löschen – braucht Server-Deploy und Apple-Schlüssel), Datentrennung bei anderem Stud.IP-Benutzer, Jetzt-Linie im Stundenplan, Planer öffnet richtiges Modul, Import in eigene/neue Ordner auf allen Wegen, Noten/LP nur aus QIS, Studienverlauf höhere Semester, Profil-Kreis entfernt; Tests: iPad 1547 (1 zeitabhängiger Test einzeln grün), Kern 1442, JS 440, Python grün |
 | 35 | `ce6df886` | 13.11.2026 00:47 | eingereicht: Version 1.0.3, App Store WAITING_FOR_REVIEW seit 13.11.2026 00:53, Freigabe von Hand (vom Inhaber geprüft); TestFlight intern und „LUH-Tester“ | Build 34 plus Kopfzeile mit Reitern und Werkzeugen (Vollbild-Schreiben), Studiengruppen nach Wahl, Fächer für den Lernkalender, QIS-Leser nach echtem LUH-Notenspiegel (Prf.Art, anerkannt 0,0, neuester Eintrag), zusammengesetzte Modultitel, Autofill QIS, „Diese Seite auslesen“; Tests: Kern 1462, Python 3106 (bekannte Browser-Tests ausgenommen), JS 440, iPad 1558 im Gesamtlauf plus gezielte Nachläufe der korrigierten Klassen grün |
-| 36 | – | 13.11.2026 | noch nicht hochgeladen; develop nach Build 35, Version 1.0.4 | Änderungen nach `ce6df886`: Smart Planner 2.0 (Lernziele), eigene Wochen je Modul, Uni Hildesheim (im Release aus), kurzer KI-Hinweis, Beschreibung „Lernmanagementsystem“ |
+| 36 | `d606ceda` | 13.11.2026 09:15 | hochgeladen (TestFlight), Version 1.0.4, nicht eingereicht; intern und „LUH-Tester“ (Beta-Prüfung bei Apple seit 13.11.2026 09:16) | Änderungen nach `ce6df886`: Smart Planner 2.0 (Lernziele), eigene Wochen je Modul, Uni Hildesheim (im Release aus), kurzer KI-Hinweis, Beschreibung „Lernmanagementsystem“ |
+| 37 | – | 13.11.2026 | noch nicht hochgeladen; develop nach Build 36 | Änderungen nach `d606ceda` |
 
 ### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
 
