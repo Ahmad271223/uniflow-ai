@@ -172,7 +172,11 @@ final class ChatGPTLink: ObservableObject {
 
     /// Hinweis an den KI-Stellen ohne KI: wie es weitergeht - StudiNow-KI (Pro AI) oder der eigene OpenAI-Schluessel
     /// (Einstellungen → Erweitert, in jedem Tarif; 07.11.2026), ohne eine Anmeldung bei ChatGPT anzubieten
-    nonisolated static let planHint = "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI – oder mit deinem eigenen ChatGPT: OpenAI-Schlüssel unter Einstellungen → Erweitert → Eigenes ChatGPT eintragen (in jedem Tarif)."
+    nonisolated static var planHint: String {
+        OpenAIKeyLink.isOffered
+            ? "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI – oder mit deinem eigenen ChatGPT: OpenAI-Schlüssel unter Einstellungen → Erweitert → Eigenes ChatGPT eintragen (in jedem Tarif)."
+            : "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI."
+    }
 
     /// Ziel der Knoepfe an den KI-Stellen ohne KI: mit Schalter die ChatGPT-Karte (Erweitert), sonst die Tarife (Konto)
     nonisolated static var settingsTab: String { isEnabled ? "advanced" : "account" }

@@ -103,7 +103,8 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     var tagline: String {
         switch self {
         case .free: return "Studium organisieren und Unterlagen lesen"
-        case .plus: return "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"
+        case .plus: return UFEditorAvailability.available ? "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"
+            : "Karteikarten, Wochentests und in der iPad-App mit Stift schreiben"
         case .proAI: return "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"
         }
     }
@@ -323,7 +324,7 @@ extension UFEntitlement {
         case .canViewTimetable: return .onDevice([.modulesTimetable])
         case .canUseBasicPlanner: return .onDevice([.studyCalendar, .studyPlanning])
         // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel (07.11.2026): Einstellungen → Erweitert, jeder Tarif
-        case .chatgptConnectionPremium: return .onDevice([.ownChatGPT])
+        case .chatgptConnectionPremium: return OpenAIKeyLink.isOffered ? .onDevice([.ownChatGPT]) : .needsService
         // Lesen ab Plus wie im Vertrag und im Dienst (Entscheidung 05.11.2026); eigene Beitraege zurueckziehen geht
         // nach dem Herabstufen weiter (nichts wird geloescht)
         case .canReadCommunity: return .onDevice([.communityRead])

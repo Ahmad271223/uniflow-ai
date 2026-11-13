@@ -93,9 +93,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .uniGrades: return "Uni & Noten"
         case .ownChatGPT: return "Eigenes ChatGPT verbinden"
         case .communityRead: return "Community lesen, beitreten und mitmachen"
-        case .pencilWriting: return UFDevice.adapt("Schreiben mit Apple Pencil")
+        case .pencilWriting: return UFEditorAvailability.available ? UFDevice.adapt("Schreiben mit Apple Pencil") : "Schreiben mit Apple Pencil (in der iPad-App)"
         case .shareSolutions: return "Eigene Lösungen teilen"
-        case .splitView: return "Übung und Skript nebeneinander"
+        case .splitView: return UFEditorAvailability.available ? "Übung und Skript nebeneinander" : "Übung und Skript nebeneinander (in der iPad-App)"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
         case .dueReminders: return "Erinnerungen an Abgaben und Klausuren"
         case .autoPlan: return "Lernplan automatisch erstellen"
@@ -114,7 +114,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App"
         case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen und Lernplan-Vorschläge – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
-        case .communityRead: return "Lösungen anderer finden, laden und im Editor ansehen, melden und blockieren, Lerngruppen beitreten"
+        case .communityRead: return "Lösungen anderer finden, laden und \(UFEditorAvailability.available ? "im Editor" : "auf leeren Seiten") ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
@@ -217,7 +217,8 @@ enum UFFeatureMatrix {
 
     /// Funktionen, die ein Tarif mehr bietet als der naechstkleinere (Inhalt der Tarifkarten)
     static func added(in plan: UFPlan) -> [UFFeature] {
-        UFFeature.allCases.filter { $0.minimumPlan == plan && ($0 != .timer || StudyTimer.isEnabled) }
+        UFFeature.allCases.filter { $0.minimumPlan == plan && ($0 != .timer || StudyTimer.isEnabled)
+            && ($0 != .ownChatGPT || OpenAIKeyLink.isOffered) }
     }
 
     /// Herabstufen (Abschnitt 4, "Regeln"): Notizen bleiben vollstaendig erhalten, lesbar und exportierbar;
@@ -280,7 +281,8 @@ enum UFPlanCard {
         guard UFFeatureMatrix.hasAvailableExtras(in: plan) else { return nil }
         switch plan {
         case .free: return plan.tagline
-        case .plus: return UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
+        case .plus: return UFEditorAvailability.available ? UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
+            : "Karteikarten, Community und in der iPad-App mit Apple Pencil schreiben"
         case .proAI: return "Die StudiNow-KI für deine Unterlagen inklusive"
         }
     }

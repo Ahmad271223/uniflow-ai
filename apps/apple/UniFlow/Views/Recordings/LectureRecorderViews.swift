@@ -25,11 +25,11 @@ struct OwnRecordingsSection: View {
                     overlay.modal(wide: true) { LectureRecordDialog(moduleID: moduleID) { revision += 1 } }
                 }
                 .accessibilityIdentifier("ownrec.record")
-                .accessibilityHint("Nimmt die Vorlesung mit dem Mikrofon auf; Aufnahme und Mitschrift bleiben auf dem iPad")
+                .accessibilityHint("Nimmt die Vorlesung mit dem Mikrofon auf; Aufnahme und Mitschrift bleiben auf dem \(UFDevice.textName)")
             }
             if let items {
                 if items.isEmpty {
-                    Text("Noch keine eigene Aufnahme. „Aufnehmen“ nimmt die Vorlesung mit dem Mikrofon des iPads auf und schreibt sie auf dem Gerät mit – mit Zeitmarken, später durchsuchbar und auf Wunsch von der KI zusammengefasst.")
+                    Text("Noch keine eigene Aufnahme. „Aufnehmen“ nimmt die Vorlesung mit dem Mikrofon des \(UFDevice.textName)s auf und schreibt sie auf dem Gerät mit – mit Zeitmarken, später durchsuchbar und auf Wunsch von der KI zusammengefasst.")
                         .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 8)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
@@ -341,7 +341,7 @@ struct LectureRecordDialog: View {
             _ = try await api.value("/api/recordings/own", method: "POST", body: .object(body))
             return nil
         } catch {
-            return "Die Aufnahme ließ sich nicht eintragen: \(error.localizedDescription) Die Datei liegt noch auf dem iPad."
+            return "Die Aufnahme ließ sich nicht eintragen: \(error.localizedDescription) Die Datei liegt noch auf dem \(UFDevice.textName)."
         }
     }
 }
@@ -554,7 +554,7 @@ struct OwnRecordingDetail: View {
                 UFButton(busy == "flashcards" ? "Erstellt Karten …" : "Karteikarten", icon: "cards", size: .small) { Task { await ask("flashcards") } }
             }
             .disabled(busy != nil)
-            Text("Gesendet wird nur der Text dieses Teils an dein ChatGPT – nie die Aufnahme.").ufFont(12.16).foregroundStyle(UF.muted)
+            Text(OpenAIKeyLink.isOffered ? "Gesendet wird nur der Text dieses Teils an dein ChatGPT – nie die Aufnahme." : "Gesendet wird nur der Text dieses Teils an die KI – nie die Aufnahme.").ufFont(12.16).foregroundStyle(UF.muted)
             if let answer {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(answerLabel).ufFont(12.8, 650).foregroundStyle(UF.text2)

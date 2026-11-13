@@ -9,6 +9,7 @@ struct CommunityPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
+    @Environment(\.ufCompact) private var compact
     /// Community ab Plus (Entscheidung 05.11.2026): beobachtet den Tarif, damit nach Kauf oder Ablauf neu gezeichnet wird
     @ObservedObject var entitlements: Entitlements = .shared
     @State private var showingShared = false
@@ -36,7 +37,15 @@ struct CommunityPage: View {
     }
 
     /// Mit Dienst: wo die Community in der App steckt (sie lebt im Dokument und im Modul, nicht auf dieser Seite)
-    static let howItWorks: [(icon: String, text: String)] = [
+    static var howItWorks: [(icon: String, text: String)] {
+        UFEditorAvailability.available ? howItWorksIPad : [
+            ("users", "Jeder Kurs hat eine eigene Community. Tritt unten bei, dann siehst du dort die Lösungen der anderen."),
+            ("layers", "Lösungen anderer öffnest und kommentierst du hier. Über deiner PDF erscheinen sie in der iPad-App unter „Ebenen“."),
+            ("book", "Fertige Lösungen teilst du ab \(UFPlan.plus.name) im Dokument über das Personen-Symbol → „Lösung teilen …“: nur deine eigenen Notizen, nur für die Mitglieder der gewählten Community."),
+        ]
+    }
+
+    static let howItWorksIPad: [(icon: String, text: String)] = [
         ("users", "Jeder Kurs hat eine eigene Community. Tritt unten bei, dann siehst du dort die Lösungen der anderen."),
         ("layers", "Hast du dieselbe PDF, liegt eine Lösung im Dokument unter „Ebenen“ über deiner PDF. Sonst liest du sie auf leeren Seiten."),
         ("book", "Ab \(UFPlan.plus.name) im Editor „Lösung teilen …“ → „In der Community veröffentlichen“: nur deine eigenen Notizen, nur für die Mitglieder der gewählten Community."),
@@ -75,8 +84,9 @@ struct CommunityPage: View {
     @ViewBuilder private var readableContent: some View {
         UFGate(.communityRead, entitlements: entitlements) {
             UFCard {
+                // iPhone: Knopf unter dem Text, neben dem Titel war er auf "Meine geteilte…" gekuerzt (Pruefung 05.11.2026)
                 UFCardHead("So funktioniert die Community", icon: "info") {
-                    UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }
+                    if !compact { sharedButton }
                 }
                 VStack(alignment: .leading, spacing: 9.6) {
                     ForEach(Array(Self.howItWorks.enumerated()), id: \.offset) { row in
@@ -86,12 +96,17 @@ struct CommunityPage: View {
                         }
                     }
                     Text(SolutionTexts.examRules).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 4)
+                    if compact { sharedButton.padding(.top, 4) }
                 }
             }
             .padding(.bottom, 16)
         }
         CommunitySpacesCard()
         CommunitySettingsCard()                                              // Pseudonym, Lerngruppen, Sperrliste
+    }
+
+    private var sharedButton: some View {
+        UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }
     }
 
     private func unavailableCard(onDevice: Bool) -> some View {

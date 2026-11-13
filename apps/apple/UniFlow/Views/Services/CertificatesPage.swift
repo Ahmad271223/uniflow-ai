@@ -24,6 +24,8 @@ struct CertificatesPage: View {
     @State private var semesters: [String: String] = [:]
     @State private var login = false
     @State private var autoChecked = false
+    /// iPhone: Knoepfe in voller Breite (Liste aktualisieren, Öffnen/Neu laden, Herunterladen), Semester breit
+    @Environment(\.ufCompact) private var compact
 
     private var isLocal: Bool { session.api?.isLocal == true }
 
@@ -105,17 +107,11 @@ struct CertificatesPage: View {
         let loginNeeded = status == "login" || center?.needsLogin == true
         return UFCard {
             UFCardHead("Aus \(portal)", icon: "graduation", wrap: true) {
-                if loginNeeded, center != nil {
-                    UFButton("Anmeldung nötig", icon: "arrow-right", kind: .primary, size: .small) { login = true }
-                        .fixedSize()
-                        .accessibilityIdentifier("certificates.login")
-                }
-                UFButton(center?.busy == "list" ? "Wird gelesen …" : "Liste aktualisieren", icon: "sync", size: .small) {
-                    Task { await refreshList() }
-                }
-                .fixedSize()
-                .disabled(center?.busy != nil || (center?.portalBusy ?? false))
-                .accessibilityIdentifier("certificates.refresh")
+                if !compact { statusButtons(loginNeeded: loginNeeded) }
+            }
+            if compact {
+                VStack(spacing: 8) { statusButtons(loginNeeded: loginNeeded) }
+                    .padding(.bottom, 8)
             }
             HStack(spacing: 8) {
                 if loginNeeded {
@@ -136,6 +132,32 @@ struct CertificatesPage: View {
         .padding(.bottom, 16)
     }
 
+    /// "Anmeldung nötig" und "Liste aktualisieren": breit klein im Kopf der Karte, auf dem iPhone in voller Breite
+    @ViewBuilder private func statusButtons(loginNeeded: Bool) -> some View {
+        if loginNeeded, center != nil {
+            if compact {
+                UFWideButton("Anmeldung nötig", icon: "arrow-right", kind: .primary) { login = true }
+                    .accessibilityIdentifier("certificates.login")
+            } else {
+                UFButton("Anmeldung nötig", icon: "arrow-right", kind: .primary, size: .small) { login = true }
+                    .fixedSize()
+                    .accessibilityIdentifier("certificates.login")
+            }
+        }
+        Group {
+            if compact {
+                UFWideButton(center?.busy == "list" ? "Wird gelesen …" : "Liste aktualisieren", icon: "sync") { Task { await refreshList() } }
+            } else {
+                UFButton(center?.busy == "list" ? "Wird gelesen …" : "Liste aktualisieren", icon: "sync", size: .small) {
+                    Task { await refreshList() }
+                }
+                .fixedSize()
+            }
+        }
+        .disabled(center?.busy != nil || (center?.portalBusy ?? false))
+        .accessibilityIdentifier("certificates.refresh")
+    }
+
     private func offerRow(_ o: JSONValue) -> some View {
         let id = o.s("id") ?? ""
         let file = o["file"].flatMap { $0.isNull ? nil : $0 }
@@ -150,25 +172,51 @@ struct CertificatesPage: View {
                 }
                 Spacer(minLength: 0)
             }
-            UFFlexWrap(gap: 8) {
-                if !options.isEmpty {
-                    UFSelect(options: options, selection: Binding(get: { semesters[id] ?? options.first?.value ?? "" },
-                                                                   set: { semesters[id] = $0 }))
-                        .accessibilityLabel("Semester")
+            if compact {
+                // iPhone: Semester in voller Breite, darunter "Öffnen" und "Neu laden" nebeneinander bzw. "Herunterladen"
+                VStack(spacing: 8) {
+                    if !options.isEmpty {
+                        UFSelect(options: options, selection: Binding(get: { semesters[id] ?? options.first?.value ?? "" },
+                                                                       set: { semesters[id] = $0 }))
+                            .frame(maxWidth: .infinity)
+                            .accessibilityLabel("Semester")
+                    }
+                    if file != nil {
+                        HStack(spacing: 8) {
+                            UFWideButton("Öffnen", icon: "eye", kind: .primary) { Task { await open(o) } }
+                                .accessibilityIdentifier("certificates.open.\(id)")
+                            UFWideButton(busy ? "Lädt …" : "Neu laden", icon: "sync") { Task { await download(id, show: true) } }
+                                .disabled(center?.busy != nil || !canDownload)
+                                .accessibilityIdentifier("certificates.reload.\(id)")
+                        }
+                    } else {
+                        UFWideButton(busy ? "Lädt …" : "Herunterladen", icon: "download", kind: .primary) { Task { await download(id, show: true) } }
+                            .disabled(center?.busy != nil || !canDownload)
+                            .accessibilityIdentifier("certificates.download.\(id)")
+                    }
                 }
-                if file != nil {
-                    UFButton("Öffnen", icon: "eye", kind: .primary, size: .small) { Task { await open(o) } }
-                        .accessibilityIdentifier("certificates.open.\(id)")
-                    UFButton(busy ? "Lädt …" : "Neu laden", icon: "sync", size: .small) { Task { await download(id, show: true) } }
-                        .disabled(center?.busy != nil || !canDownload)
-                        .accessibilityIdentifier("certificates.reload.\(id)")
-                } else {
-                    UFButton(busy ? "Lädt …" : "Herunterladen", icon: "download", kind: .primary, size: .small) { Task { await download(id, show: true) } }
-                        .disabled(center?.busy != nil || !canDownload)
-                        .accessibilityIdentifier("certificates.download.\(id)")
+                .padding(.top, 2)
+            } else {
+                UFFlexWrap(gap: 8) {
+                    if !options.isEmpty {
+                        UFSelect(options: options, selection: Binding(get: { semesters[id] ?? options.first?.value ?? "" },
+                                                                       set: { semesters[id] = $0 }))
+                            .accessibilityLabel("Semester")
+                    }
+                    if file != nil {
+                        UFButton("Öffnen", icon: "eye", kind: .primary, size: .small) { Task { await open(o) } }
+                            .accessibilityIdentifier("certificates.open.\(id)")
+                        UFButton(busy ? "Lädt …" : "Neu laden", icon: "sync", size: .small) { Task { await download(id, show: true) } }
+                            .disabled(center?.busy != nil || !canDownload)
+                            .accessibilityIdentifier("certificates.reload.\(id)")
+                    } else {
+                        UFButton(busy ? "Lädt …" : "Herunterladen", icon: "download", kind: .primary, size: .small) { Task { await download(id, show: true) } }
+                            .disabled(center?.busy != nil || !canDownload)
+                            .accessibilityIdentifier("certificates.download.\(id)")
+                    }
                 }
+                .padding(.leading, 24)
             }
-            .padding(.leading, 24)
         }
         .padding(.vertical, 10)
     }

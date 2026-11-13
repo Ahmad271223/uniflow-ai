@@ -123,9 +123,10 @@ struct ExternalImportDialog: View {
     private var hint: String {
         if files.count > 1 { return "Alle Dateien landen am selben Ort." }
         switch single?.kind {
-        case .zip?: return "Die ZIP-Datei öffnet sich danach als Ordner. PDFs daraus lassen sich mit dem Stift bearbeiten."
-        case .image?: return "Das Bild wird als PDF-Seite angelegt und öffnet sich danach im Editor."
-        default: return "Die PDF öffnet sich danach im Editor."
+        // iPhone ohne Editor (11.11.2026): zum Lesen
+        case .zip?: return "Die ZIP-Datei öffnet sich danach als Ordner." + (UFEditorAvailability.available ? " PDFs daraus lassen sich mit dem Stift bearbeiten." : "")
+        case .image?: return "Das Bild wird als PDF-Seite angelegt und öffnet sich danach " + (UFEditorAvailability.available ? "im Editor." : "zum Lesen.")
+        default: return UFEditorAvailability.available ? "Die PDF öffnet sich danach im Editor." : "Die PDF öffnet sich danach zum Lesen."
         }
     }
 

@@ -171,6 +171,8 @@ struct EventDrawer: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
+    /// kompakt (iPhone): Drawer als Blatt von unten, Knoepfe in voller Breite
+    @Environment(\.ufCompact) private var compactDrawer
     @State private var e: JSONValue?
     @State private var occ: JSONValue = .null
     @State private var mats: [JSONValue] = []
@@ -239,13 +241,23 @@ struct EventDrawer: View {
         } content: {
             // Termin-Detail (06.11.2026): Modul, Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses
             if let m = e.i("module_id") {
-                // Modul des Kurses (Kern), aufgeklappt nur die Woche dieses Termins (`ModuleFocus`, 12.11.2026)
-                UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
-                    overlay.closeDrawer()
-                    ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                // Modul des Kurses (Kern), aufgeklappt nur die Woche dieses Termins (`ModuleFocus`, 12.11.2026);
+                // iPhone (Blatt von unten): in voller Breite
+                Group {
+                    if compactDrawer {
+                        UFWideButton(TerminDetailText.toModule, icon: "book") {
+                            overlay.closeDrawer()
+                            ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                        }
+                    } else {
+                        UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
+                            overlay.closeDrawer()
+                            ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                        }
+                    }
                 }
-                    .padding(.bottom, 9.6)
-                    .accessibilityIdentifier("termin.module")
+                .padding(.bottom, 9.6)
+                .accessibilityIdentifier("termin.module")
             }
             TerminDetailSections(event: Self.detailEvent(e, occ: occ), title: e.s("title") ?? "")
                 .padding(.bottom, 12.8)

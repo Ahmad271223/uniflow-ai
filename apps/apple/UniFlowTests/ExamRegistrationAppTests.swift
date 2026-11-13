@@ -70,7 +70,7 @@ final class ExamRegistrationAppTests: XCTestCase {
     ]
 
     /// Lokales Backend wie auf dem iPad: Katalog, Noten (bestanden, nicht bestanden, AN), Klausur aus Stud.IP
-    private func seed(_ db: SQLiteDatabase) async throws {
+    static func seed(_ db: SQLiteDatabase) async throws {
         try await db.transaction { c in
             _ = try StudyCatalogStore.store(c, payload: String(decoding: Self.catalog.serialized(), as: UTF8.self), texts: nil,
                                             origin: "fixture", now: "t")
@@ -93,7 +93,7 @@ final class ExamRegistrationAppTests: XCTestCase {
 
     private func seededAPI(now: String) async throws -> APIClient {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: now)!)
-        try await seed(try await host.backend().context.database)
+        try await Self.seed(try await host.backend().context.database)
         return APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
     }
 
@@ -276,7 +276,7 @@ final class ExamRegistrationAppTests: XCTestCase {
         addTeardownBlock { await bed.tearDown() }
         let m = bed.manager()
         let c = try bed.open(m, bed.account(.luh))
-        try await seed(try await c.host.backend().context.database)
+        try await Self.seed(try await c.host.backend().context.database)
         let q = try XCTUnwrap(m.qis)
         q.syncsAfterSignIn = false
         func page(_ name: String) -> String {

@@ -30,6 +30,10 @@ struct TutorPanel: View {
     var moduleID: Int? = nil
     /// Seitennotizen und Blatt daneben der offenen Folie als Text (`AttachedNotes`, 05.11.2026); leer = keine
     var ownNotes: (@MainActor () async -> String)? = nil
+    /// Kompakt (iPhone): die Leiste liegt als Blatt von unten ueber dem Dokument. Wege aus der Leiste (KI-Start,
+    /// Einstellungen, Tarif) und der Dialog "Wochentest erstellen" schliessen das Blatt zuerst; sonst laege der Dialog
+    /// unter dem Blatt bzw. ein zweites Blatt kaeme nicht
+    var inSheet = false
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var overlay: UFOverlay
@@ -177,11 +181,26 @@ struct TutorPanel: View {
         }
     }
 
+    /// Im Blatt: erst das Blatt schliessen, dann (nach dessen Animation) weiter; als Spalte sofort
+    private func afterSheet(_ action: @escaping () -> Void) {
+        guard inSheet else { action(); return }
+        close()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.sheetDismissDelay, execute: action)
+    }
+
+    /// Zu einer anderen Seite der App (im Blatt: das Blatt zuerst schliessen)
+    private func leave(_ route: UFRoute) {
+        afterSheet { [router] in router.go(route) }
+    }
+
+    /// Zeit fuer das Wegschieben eines Blatts, bevor ein Dialog oder ein anderes Blatt erscheinen darf
+    static let sheetDismissDelay: TimeInterval = 0.45
+
     /// Kopf wie die anderen Spalten neben der PDF (UFPaneHeader); "Neu" als ruhiger Textknopf
     private var header: some View {
         UFPaneHeader("KI-Hilfe", icon: "sparkles", closeLabel: "KI-Hilfe schließen", closeID: "tutor.close", close: close) {
             // KI-Start (03.11.2026): Fragen, Karteikarten, Erklären, Wochentest auf einer Seite
-            UFButton(icon: "grid", kind: .ghost, size: .small) { router.go(.aiStart) }
+            UFButton(icon: "grid", kind: .ghost, size: .small) { leave(.aiStart) }
                 .accessibilityLabel("KI-Start öffnen").accessibilityIdentifier("tutor.aiStart")
             if !messages.isEmpty {
                 UFButton("Neu", kind: .ghost, size: .small) { messages = []; error = nil; persistConversation() }
@@ -241,14 +260,14 @@ struct TutorPanel: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 // der Anhang kam an (sichtbar), auch wenn die KI hier noch nicht antworten kann
-                if let a = attached { TutorAttachmentCard(attachment: a) { attached = nil } }
+                if let a = attached { TutorAttachmentCard(attachment: a, chip: inSheet) { attached = nil } }
                 DocIndexPageCard(fileID: fileID, page: page, open: open)
             }
                 .padding(.horizontal, 14).padding(.top, 14)
             if let chatgpt {
-                TutorConnectState(link: chatgpt) { router.go(.settings(tab: ChatGPTLink.settingsTab)) }
+                TutorConnectState(link: chatgpt) { leave(.settings(tab: ChatGPTLink.settingsTab)) }
             } else {
-                TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { router.go(.settings(tab: ChatGPTLink.settingsTab)) }
+                TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { leave(.settings(tab: ChatGPTLink.settingsTab)) }
             }
         }
     }
@@ -289,7 +308,7 @@ struct TutorPanel: View {
                                 if let errorAction {
                                     // Tarif (Recht, Kontingent, Credits) bzw. Anmeldung beim StudiNow-Konto
                                     UFButton(StudoraAccountLink.errorButton(errorAction), icon: errorAction == .signIn ? "user" : "star", size: .small) {
-                                        router.go(.settings(tab: "account"))
+                                        leave(.settings(tab: "account"))
                                     }
                                         .accessibilityIdentifier("tutor.plans")
                                 }
@@ -327,7 +346,7 @@ struct TutorPanel: View {
     private var composer: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let a = attached {
-                TutorAttachmentCard(attachment: a) { attached = nil }
+                TutorAttachmentCard(attachment: a, chip: inSheet) { attached = nil }
             }
             AIComposer(placeholder: checking ? "Deine Lösung oder deinen Rechenweg eintragen"
                                              : (attached == nil ? "Frag etwas zur Seite …" : "Frag etwas dazu – oder gleich senden: „Erklär mir das“"),
@@ -369,8 +388,8 @@ struct TutorPanel: View {
         }
         let m = (model ?? "").trimmingCharacters(in: .whitespaces)
         let way = credits != nil
-            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil && !adopted, adopted: adopted, charge: charge, trial: trial) ?? "über dein ChatGPT"
-            : "über dein ChatGPT"
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil && !adopted, adopted: adopted, charge: charge, trial: trial) ?? AICost.ownWay
+            : AICost.ownWay
         return "Seite \(page) · \(way)" + (m.isEmpty ? "" : " · \(m)")
     }
 
@@ -922,15 +941,24 @@ struct TutorConnectState: View {
 /// (erkannten) Texts; entfernen, als Bild teilen, Bild oder Text kopieren (z. B. in eine Notiz einfuegen)
 struct TutorAttachmentCard: View {
     let attachment: TutorAttachment
+    /// iPhone (KI-Hilfe als Blatt von unten): flacher Chip mit kleinem Bild und einer Textzeile, damit Eingabefeld
+    /// und Antwort im halben Blatt Platz behalten; Knoepfe 44 pt
+    var chip = false
     let remove: () -> Void
+
+    init(attachment: TutorAttachment, chip: Bool = false, remove: @escaping () -> Void) {
+        self.attachment = attachment
+        self.chip = chip
+        self.remove = remove
+    }
 
     private var image: UIImage? { attachment.image.flatMap(UIImage.init(data:)) }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: chip ? .center : .top, spacing: 10) {
             if let image {
                 Image(uiImage: image).resizable().scaledToFit()
-                    .frame(maxWidth: 88, maxHeight: 66)
+                    .frame(maxWidth: chip ? 52 : 88, maxHeight: chip ? 40 : 66)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(UF.lineStrong, lineWidth: 1))
                     .accessibilityLabel("Vorschau des Bereichs")
@@ -942,7 +970,7 @@ struct TutorAttachmentCard: View {
                 Text(attachment.title).ufFont(12.8, 650, lh: 1.3).foregroundStyle(UF.text)
                     .accessibilityIdentifier("tutor.attachment.title")
                 Text(attachment.text.isEmpty ? "Kein Text erkannt – das Bild geht mit." : attachment.text)
-                    .ufFont(12.16, lh: 1.4).foregroundStyle(UF.muted).lineLimit(3)
+                    .ufFont(12.16, lh: 1.4).foregroundStyle(UF.muted).lineLimit(chip ? 1 : 3)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("tutor.attachment.text")
             }
@@ -958,19 +986,19 @@ struct TutorAttachmentCard: View {
                     Button { UIPasteboard.general.string = attachment.text } label: { Label("Text kopieren", systemImage: "doc.on.clipboard") }
                 }
             } label: {
-                Image(systemName: "ellipsis.circle").font(.system(size: 17)).frame(width: 32, height: 32).contentShape(Rectangle())
+                Image(systemName: "ellipsis.circle").font(.system(size: 17)).frame(width: chip ? 44 : 32, height: chip ? 44 : 32).contentShape(Rectangle())
             }
             .accessibilityLabel("Mehr zum Anhang")
             .accessibilityIdentifier("tutor.attachment.more")
             Button(action: remove) {
                 Image(systemName: "xmark.circle.fill").font(.system(size: 17)).foregroundStyle(UF.muted)
-                    .frame(width: 32, height: 32).contentShape(Rectangle())
+                    .frame(width: chip ? 44 : 32, height: chip ? 44 : 32).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Anhang entfernen")
             .accessibilityIdentifier("tutor.attachment.remove")
         }
-        .padding(10)
+        .padding(chip ? 6 : 10)
         .background(RoundedRectangle(cornerRadius: 12).fill(UF.surface2))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tutor.attachment")

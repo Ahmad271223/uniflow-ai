@@ -201,12 +201,17 @@ struct TutorDocControls: View {
     @Binding var scope: TutorDocScope
     @Binding var from: Int
     @Binding var to: Int
+    /// Kompakt (iPhone, KI-Hilfe als Blatt): bei sehr grosser Schrift ein Menue statt der abgeschnittenen Segmente,
+    /// und die Seitenfelder bekommen "Fertig" ueber der Zifferntastatur (die des iPhones hat keine Taste zum Schliessen)
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @FocusState private var pageFocus: Bool
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Segmente nach Inhalt breit (Store-Bilder 05.11.2026: im iPad-Hochformat ist die Leiste 330 pt schmal, gleich
-            // breite Segmente kuerzten "Ganzes Dokument" auf "Ganzes Doku…")
-            TutorScopeSegments(scope: $scope)
+            scopePicker
                 .accessibilityIdentifier("tutor.scope")
             if scope == .range {
                 HStack(spacing: 6) {
@@ -215,12 +220,36 @@ struct TutorDocControls: View {
                     Text("bis").ufFont(12.8).foregroundStyle(UF.muted)
                     pageField($to, id: "tutor.scope.to")
                 }
+                .toolbar {
+                    if compact {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Fertig") { pageFocus = false }.accessibilityIdentifier("tutor.scope.done")
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    /// Umfang: Segmente wie am iPad; kompakt mit sehr grosser Schrift ein Menue (die drei Segmente passten nur abgeschnitten)
+    @ViewBuilder private var scopePicker: some View {
+        if compact && typeSize.isAccessibilitySize {
+            Picker("Umfang", selection: $scope) {
+                ForEach(TutorDocScope.allCases) { s in Text(s.title).tag(s) }
+            }
+            .pickerStyle(.menu)
+            .tint(UF.accentText)
+        } else {
+            // Segmente nach Inhalt breit (Store-Bilder 05.11.2026: im iPad-Hochformat ist die Leiste 330 pt schmal, gleich
+            // breite Segmente kuerzten "Ganzes Dokument" auf "Ganzes Doku…")
+            TutorScopeSegments(scope: $scope)
         }
     }
 
     private func pageField(_ value: Binding<Int>, id: String) -> some View {
         TextField("1", value: value, format: .number)
+            .focused($pageFocus)
             .keyboardType(.numberPad)
             .multilineTextAlignment(.center)
             .ufFont(13.12)

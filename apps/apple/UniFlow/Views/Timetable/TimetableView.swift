@@ -21,6 +21,7 @@ struct TimetableView: View {
     @State private var studipQuestions: JSONValue?
     /// Breite des Rasters (fuer die Spaltenwahl und den Hinweis auf ausgeblendete Wochenendtage); 0 = noch nicht gemessen
     @State private var gridWidth: CGFloat = 0
+    @Environment(\.ufWindowWidth) private var windowWidth
 
     /// ttDate im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var ttDate = UFFmt.todayISO()
@@ -92,9 +93,14 @@ struct TimetableView: View {
                 }
                 .padding(.bottom, 12.8)
             }
-            let cols = TimetableColumns.layout(days: days, width: gridWidth)
-            if !cols.hidden.isEmpty { weekendHint(cols.hidden) }
-            grid(days, lo: lo, hi: hi)
+            if PhoneWeekList.applies(width: windowWidth) {
+                // iPhone hochkant (11.11.2026): die Woche als Liste, alles lesbar, nichts seitlich abgeschnitten
+                PhoneWeekListView(days: days, hideEmptyWeekend: true) { e, date in actions.openOccurrence(e, date: date) }
+            } else {
+                let cols = TimetableColumns.layout(days: days, width: gridWidth)
+                if !cols.hidden.isEmpty { weekendHint(cols.hidden) }
+                grid(days, lo: lo, hi: hi)
+            }
             Text("Tippe auf einen Termin: Teilnahme ändern, bearbeiten, Unterlagen öffnen. Nicht besuchte Veranstaltungen geben Zeit frei, die du für Lernblöcke nutzen kannst.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 9.6)
         }
@@ -539,13 +545,15 @@ struct TimetablePreviewDialog: View {
 
     @State private var entries: [Entry] = []
     @State private var remove: Set<Int> = []
+    /// iPhone: die Tabelle (gut 800 pt) scrollt auch waagerecht, statt ueber den Rand zu ragen
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         let diff = r["diff"] ?? .null
         let removed = diff.list("removed")
         UFDialog("Importvorschau · \(r.list("entries").count) Veranstaltungen") {
             Text(summary(diff, removed: removed.count)).ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
-            ScrollView {
+            ScrollView(compact ? [.vertical, .horizontal] : .vertical) {
                 VStack(spacing: 0) {
                     header
                     ForEach($entries) { $e in row($e) }

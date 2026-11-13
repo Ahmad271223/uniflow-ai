@@ -16,6 +16,7 @@ struct UniRememberPasswordToggle: View {
 
     static let title = UFDevice.adapt("Passwort auf diesem iPad merken – du wirst nicht erneut gefragt")
     static let note = "Nur auf diesem Gerät im Schlüsselbund, nie auf unseren Servern"
+    static let phoneTitle = UFDevice.adapt("Passwort auf diesem iPad merken")
 
     var body: some View {
         if UniAutoLogin.entry(dataStore) != nil {
@@ -23,16 +24,22 @@ struct UniRememberPasswordToggle: View {
                 on = v
                 UniAutoLogin.setEnabled(v, store: dataStore)
             })) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Self.title).ufFont(13.12, 600).foregroundStyle(UF.text)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(Self.note).ufFont(12.16).foregroundStyle(UF.muted)
-                        .fixedSize(horizontal: false, vertical: true)
+                // iPhone (11.11.2026): eine Zeile, damit die Anmeldeseite darueber Platz hat; der ganze Satz steht im
+                // Hinweis darueber unter "Mehr"
+                if UFCompact.phoneLayouts {
+                    Text(Self.phoneTitle).ufFont(13.12, 600).foregroundStyle(UF.text).lineLimit(2)
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Self.title).ufFont(13.12, 600).foregroundStyle(UF.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(Self.note).ufFont(12.16).foregroundStyle(UF.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             .tint(UF.accent)
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.vertical, UFCompact.phoneLayouts ? 4 : 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(UF.surface)
             .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
@@ -222,6 +229,8 @@ struct UniLoginSlotForm: View {
     @State private var name = ""
     @State private var secret = ""
     @State private var problem: String?
+    /// iPhone: Knoepfe in voller Breite
+    @Environment(\.ufCompact) private var compact
 
     /// Kennungen fuer Bedienungshilfen und Tests ("settings.unilogin.<shared|studip|qis|sogo>.<feld>")
     static func identifier(_ slot: UniAutoLogin.Portal?, _ part: String) -> String {
@@ -252,22 +261,37 @@ struct UniLoginSlotForm: View {
                 Text(problem).ufFont(12.8, 600).foregroundStyle(UF.warn)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 8) {
-                UFButton("Speichern", kind: .primary, size: .small) { save() }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || secret.isEmpty)
-                    .accessibilityIdentifier(Self.identifier(slot, "save"))
-                if case .saved = status {
-                    UFButton("Entfernen", icon: "trash", kind: .danger, size: .small) {
-                        UniAutoLogin.forget(portal: slot, store: store)
-                        onRemoved()
+            if compact {
+                // iPhone: Knoepfe untereinander in voller Breite (Daumen)
+                VStack(spacing: 8) {
+                    UFWideButton("Speichern", kind: .primary) { save() }
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || secret.isEmpty)
+                        .accessibilityIdentifier(Self.identifier(slot, "save"))
+                    if case .saved = status {
+                        UFWideButton("Entfernen", icon: "trash", kind: .danger) { remove() }
+                            .accessibilityIdentifier(Self.identifier(slot, "remove"))
                     }
-                    .accessibilityIdentifier(Self.identifier(slot, "remove"))
+                }
+            } else {
+                HStack(spacing: 8) {
+                    UFButton("Speichern", kind: .primary, size: .small) { save() }
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || secret.isEmpty)
+                        .accessibilityIdentifier(Self.identifier(slot, "save"))
+                    if case .saved = status {
+                        UFButton("Entfernen", icon: "trash", kind: .danger, size: .small) { remove() }
+                            .accessibilityIdentifier(Self.identifier(slot, "remove"))
+                    }
                 }
             }
         }
         .onAppear {
             if name.isEmpty { name = UniAutoLogin.storedUsername(portal: slot, store: store) ?? "" }
         }
+    }
+
+    private func remove() {
+        UniAutoLogin.forget(portal: slot, store: store)
+        onRemoved()
     }
 
     private func save() {

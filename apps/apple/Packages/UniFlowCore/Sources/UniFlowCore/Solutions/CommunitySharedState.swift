@@ -125,10 +125,11 @@ public enum AccountDevice {
     }
 
     /// Praefix neuer Geraete-Kennungen (vorhandene bleiben, wie sie sind)
-    public static func idPrefix(isMac: Bool) -> String { isMac ? "mac-" : "ipad-" }
+    /// (iPhone seit der Universal-App, 11.11.2026: "iphone-")
+    public static func idPrefix(isMac: Bool, isPhone: Bool = false) -> String { isMac ? "mac-" : (isPhone ? "iphone-" : "ipad-") }
 
-    /// Betriebssystem fuer Diagnose und Supportmail ("iPadOS 26.1" bzw. "macOS (App fuer iPad) 26.1")
-    public static func systemLabel(version: String, isMac: Bool) -> String {
-        isMac ? "macOS (App für iPad) \(version)" : "iPadOS \(version)"
+    /// Betriebssystem fuer Diagnose und Supportmail ("iPadOS 26.1", "iOS 26.1" bzw. "macOS (App fuer iPad) 26.1")
+    public static func systemLabel(version: String, isMac: Bool, isPhone: Bool = false) -> String {
+        isMac ? "macOS (App für iPad) \(version)" : (isPhone ? "iOS \(version)" : "iPadOS \(version)")
     }
 }

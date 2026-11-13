@@ -215,7 +215,7 @@ Neu in 1.0.3:
 
 | Feld | Wert |
 |---|---|
-| Plattform, Geräte | **nur die iOS-App** in App Store Connect (App-ID 6830632088); macOS nicht einreichen, der alte macOS-1.0-Entwurf bleibt liegen (Hinweis oben). iPad (iPadOS 17 oder neuer, `TARGETED_DEVICE_FAMILY` 2); Mac mit Apple-Chip über „Designed for iPad“ (Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“; am Mac noch nicht getestet, sonst abschalten); kein iPhone |
+| Plattform, Geräte | **nur die iOS-App** in App Store Connect (App-ID 6830632088); macOS nicht einreichen, der alte macOS-1.0-Entwurf bleibt liegen (Hinweis oben). Seit 1.0.4 (Build 39) **iPhone und iPad** (`TARGETED_DEVICE_FAMILY` 1,2; iPadOS/iOS 17 oder neuer); Mac mit Apple-Chip über „Designed for iPad“ (Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“; am Mac noch nicht getestet, sonst abschalten). Achtung: Ist eine Version mit iPhone veröffentlicht, lässt Apple das iPhone nicht mehr entfernen. Für die Store-Einreichung sind dann iPhone-Bilder 6,9" Pflicht (für TestFlight nicht) |
 | Primäre Sprache | Deutsch |
 | Kategorie | Bildung; zweite Kategorie: Produktivität |
 | Support-URL | `https://studinow.app/support` (Kontakt per E-Mail support@studinow.app) |

@@ -16,26 +16,41 @@ struct PageSidebar: View {
     var markers: LectureMarkers?
     /// Schreiben erlaubt (Tarif, eigene Notizen eingeblendet, keine alte Fassung)
     var canEdit = true
+    /// Kompakt (iPhone): Blatt von unten mit Kopf "Seiten" und Miniaturen im Raster; Antippen springt und schliesst
+    var sheet = false
+    /// Seite gewaehlt (Miniatur oder Lesezeichen); im Blatt schliesst es sich danach
+    var onPick: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
+            if sheet {
+                UFPaneHeader("Seiten", icon: "file-text", closeLabel: "Seiten schließen", closeID: "sidebar.close", close: onPick) {
+                    Text("\(bridge.pageIndex + 1) / \(store.layout?.entries.count ?? 0)")
+                        .ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
+                }
+                .padding(.leading, 16).padding(.trailing, 4)
+                .background(UF.surface)
+                .ufBorderBottom()
+            }
             if !store.bookmarks.isEmpty {
                 List {
                     Section("Lesezeichen") {
                         ForEach(store.bookmarks) { b in
                             Button(b.title) {
-                                if let i = store.layout?.index(ofKey: b.key) { bridge.controller?.goToPage(i) }
+                                if let i = store.layout?.index(ofKey: b.key) { bridge.controller?.goToPage(i); onPick() }
                             }
                         }
                     }
                 }
                 .listStyle(.plain)
-                .frame(maxHeight: 180)
+                .frame(maxHeight: sheet ? 132 : 180)
                 Divider()
             }
-            ThumbnailStrip(store: store, bridge: bridge, markers: markers, canEdit: canEdit)
+            ThumbnailStrip(store: store, bridge: bridge, markers: markers, canEdit: canEdit, grid: sheet, onPick: onPick)
         }
         .background(Color(uiColor: .secondarySystemBackground))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(sheet ? "doc.pagesSheet" : "doc.pagesColumn")
     }
 }
 
@@ -69,6 +84,9 @@ struct ThumbnailStrip: View {
     @ObservedObject var bridge: EditorBridge
     var markers: LectureMarkers?
     var canEdit = true
+    /// Raster statt Spalte (Blatt von unten am iPhone, `PageSidebar.sheet`)
+    var grid = false
+    var onPick: () -> Void = {}
     @StateObject private var cache = ThumbnailCache()
     @Environment(\.displayScale) private var displayScale
     /// Das Dokument hat eine Gliederung ("Zur Gliederung" im Menue)
@@ -85,20 +103,16 @@ struct ThumbnailStrip: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 14) {
-                    ForEach(Array((store.layout?.entries ?? []).enumerated()), id: \.element.key) { i, entry in
-                        Button { bridge.controller?.goToPage(i) } label: { cell(i, entry) }
-                            .buttonStyle(.plain)
-                            .id(entry.key)
-                            .contextMenu { if canEdit { pageMenu(i, entry) } }
-                            .onAppear { cache.visible.insert(entry.key) }
-                            .onDisappear { cache.visible.remove(entry.key) }
-                            .task(id: "\(entry.key)|\(store.layoutVersion)") { await refresh(entry.key) }
+                if grid {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.gridWidth, maximum: Self.width), spacing: 14)], spacing: 16) {
+                        cells
                     }
-                    if canEdit, store.layout != nil { addTile }
+                    .padding(.horizontal, 16).padding(.vertical, 14)
+                } else {
+                    LazyVStack(spacing: 14) { cells }
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
             }
             .onChange(of: bridge.pageIndex) { old, i in
                 if let key = store.layout?.key(at: i) { withAnimation { proxy.scrollTo(key, anchor: .center) } }
@@ -133,6 +147,26 @@ struct ThumbnailStrip: View {
         } message: { Text(notice ?? "") }
     }
 
+    /// Miniaturen und "+"-Kachel (Spalte am iPad, Raster im Blatt am iPhone)
+    @ViewBuilder private var cells: some View {
+        ForEach(Array((store.layout?.entries ?? []).enumerated()), id: \.element.key) { i, entry in
+            Button { bridge.controller?.goToPage(i); onPick() } label: { cell(i, entry) }
+                .buttonStyle(.plain)
+                .id(entry.key)
+                .contextMenu { if canEdit { pageMenu(i, entry) } }
+                .onAppear { cache.visible.insert(entry.key) }
+                .onDisappear { cache.visible.remove(entry.key) }
+                .task(id: "\(entry.key)|\(store.layoutVersion)") { await refresh(entry.key) }
+        }
+        if canEdit, store.layout != nil { addTile }
+    }
+
+    /// Breite der Miniaturen im Raster (drei Spalten auf 390 bis 440 pt)
+    static let gridWidth: CGFloat = 100
+
+    /// Breite einer Miniatur: Spalte fest, Raster bis zur Breite der Spalte
+    private var cellWidth: CGFloat? { grid ? nil : Self.width }
+
     // MARK: "+"-Kachel
 
     /// Leere Seite wie die letzte anhaengen; langes Druecken: Vorlage waehlen
@@ -143,7 +177,8 @@ struct ThumbnailStrip: View {
                     Color(uiColor: .systemBackground).opacity(0.6)
                     Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(Color.accentColor)
                 }
-                .frame(width: Self.width, height: Self.width * 0.55)
+                .frame(width: cellWidth, height: (cellWidth ?? Self.gridWidth) * (grid ? 1.414 : 0.55))
+                .frame(maxWidth: grid ? .infinity : nil)
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(uiColor: .separator), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 Text("Seite anhängen").font(.caption2).foregroundStyle(.secondary)
@@ -238,7 +273,8 @@ struct ThumbnailStrip: View {
                     Color.white.aspectRatio(595.0 / 842.0, contentMode: .fit)
                 }
             }
-            .frame(width: Self.width)
+            .frame(width: cellWidth)
+            .frame(maxWidth: grid ? .infinity : nil)
             .overlay(Rectangle().strokeBorder(current ? Color.accentColor : Color(uiColor: .separator), lineWidth: current ? 2 : 1))
             .overlay(alignment: .bottom) { if let lm = lectureMark(entry) { MarkerTag(review: LectureMarkers.reviewFlag(lm)) } }
             .overlay(alignment: .topTrailing) {

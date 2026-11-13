@@ -20,6 +20,11 @@ struct ExamsPage: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// schmal (iPhone): Testkarten untereinander, Dialoge als Blatt von unten
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @StateObject private var learnSheets = UFLearnSheets()
     @ObservedObject private var generation: TestGenerationState
     @ObservedObject private var ent: Entitlements
     @State private var tests: [JSONValue]?
@@ -46,12 +51,16 @@ struct ExamsPage: View {
         if weeklyAllowed { v } else { v.ufRequires(.weeklyTests, entitlements: ent) }
     }
 
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact) }
+    private var sheets: UFLearnSheets? { compact ? learnSheets : nil }
+
     var body: some View {
         Group {
             if let tests { content(tests) } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
                 UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
         }
+        .ufLearnSheetHost(learnSheets)
         .task { await load() }
         .ufReload { await load() }
         .onChange(of: generation.job == nil) { _, idle in if idle { Task { await load() } } }
@@ -116,7 +125,7 @@ struct ExamsPage: View {
         let sorted = order.sorted { (groups[$0]?.first?.s("week_start") ?? "") > (groups[$1]?.first?.s("week_start") ?? "") }
         let flat = sorted.flatMap { groups[$0] ?? [] }
         let byName = Dictionary(mods.map { ($0.s("name") ?? "", $0) }, uniquingKeysWith: { a, _ in a })
-        UFContent {
+        UFContent(insets: compact ? Self.compactInsets : nil) {
             UFPageHead("Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.") {
                 UFButton("KI-Start", icon: "sparkles", kind: .ghost, size: .small) { router.go(.aiStart) }.accessibilityIdentifier("exams.aiStart")
                 plusOnly(UFButton("Fehlende Wochentests", icon: "refresh", size: .small) { Task { await generateWeek() } }
@@ -172,11 +181,11 @@ struct ExamsPage: View {
                 }
             } else if !tests.isEmpty {
                 // .test-grid: auto-fill minmax(280px), bis 1366 px zwei Spalten, bis 640 px eine
-                let grid = windowWidth <= 640 ? UFGridLayout(columns: 1) : windowWidth <= 1366 ? UFGridLayout(columns: 2) : UFGridLayout(minWidth: 280)
+                let grid = compact || windowWidth <= 640 ? UFGridLayout(columns: 1) : windowWidth <= 1366 ? UFGridLayout(columns: 2) : UFGridLayout(minWidth: 280)
                 grid {
                     ForEach(Array(Row.rows(flat).enumerated()), id: \.element.id) { i, row in
                         TestCard(t: row.value, color: byName[row.value.s("subject") ?? ""].flatMap { $0.s("color") }) {
-                            overlay.modal { TestDeleteDialog(t: row.value) }
+                            overlay.learnModal(sheets) { TestDeleteDialog(t: row.value) }
                         }
                         .ufAppear("exams.cards", index: i)
                     }
@@ -191,8 +200,11 @@ struct ExamsPage: View {
     }
 
     private func openComposer() {
-        overlay.modal { QuizComposer(moduleID: subject) }
+        overlay.learnModal(sheets, large: true) { QuizComposer(moduleID: subject) }
     }
+
+    /// Rand schmal: 16 pt seitlich
+    static let compactInsets = EdgeInsets(top: 12, leading: UFCompactLearn.gutter, bottom: 32, trailing: UFCompactLearn.gutter)
 
     private func generateWeek() async {
         guard let api = session.api, weeklyAllowed else { return }
@@ -212,6 +224,9 @@ struct ExamsPage: View {
 struct TestGeneratingCard: View {
     let job: TestGenerationState.Job
     @Environment(\.ufWindowWidth) private var windowWidth
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
 
     /// Text im Chip rechts: Phase, bei der KI mit verstrichener Zeit
     static func chip(_ phase: TestGenerationState.Phase, seconds s: Int) -> String {
@@ -245,14 +260,15 @@ struct TestGeneratingCard: View {
                 .accessibilityIdentifier("exams.generating.chip")
             }
             .padding(.bottom, 10)
-            let grid = windowWidth <= 640 ? UFGridLayout(columns: 1, spacing: 8) : windowWidth <= 1000 ? UFGridLayout(columns: 3, spacing: 8) : UFGridLayout(columns: 5, spacing: 8)
+            // schmal: drei kleine Platzhalter je Reihe (eine Spalte waeren 15 volle Zeilen)
+            let grid = UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? UFGridLayout(columns: 3, spacing: 6) : windowWidth <= 640 ? UFGridLayout(columns: 1, spacing: 8) : windowWidth <= 1000 ? UFGridLayout(columns: 3, spacing: 8) : UFGridLayout(columns: 5, spacing: 8)
             grid {
                 ForEach(0..<max(1, job.count), id: \.self) { i in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Aufgabe \(i + 1)").ufFont(12, 600).foregroundStyle(UF.muted)
+                            Text(UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? "\(i + 1)" : "Aufgabe \(i + 1)").ufFont(12, 600).foregroundStyle(UF.muted)
                             Spacer()
-                            UFShimmerText(generating ? "wird erstellt …" : "…", size: 11.52)
+                            if !UFCompactLearn.isCompact(sizeClass, shell: shellCompact) { UFShimmerText(generating ? "wird erstellt …" : "…", size: 11.52) }
                         }
                         UFSkeleton().frame(height: 10)
                         UFSkeleton().frame(height: 10).frame(maxWidth: 120)
@@ -406,6 +422,16 @@ struct ExamRunPage: View {
     /// schmal als Dialog)
     @State private var ask: ExamAskContext?
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// schmal (iPhone): eine Aufgabe je Bildschirm mit Weiter/Zurueck unten, KI-Hilfe als Blatt
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    /// schmal: Aufgabe auf dem Bildschirm (0-basiert)
+    @State private var current = 0
+    /// schmal: KI-Hilfe zu einer Aufgabe als Blatt von unten
+    @State private var askSheet: ExamAskContext?
+
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact) }
 
     /// KI-Hilfe als Spalte rechts neben dem Ergebnis (wie im Vorbild), sonst als Dialog
     static func asksInColumn(windowWidth: CGFloat) -> Bool { windowWidth >= 1100 }
@@ -423,7 +449,7 @@ struct ExamRunPage: View {
                     UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
                 }
             }
-            if let ask, Self.asksInColumn(windowWidth: windowWidth) {
+            if let ask, !compact, Self.asksInColumn(windowWidth: windowWidth) {
                 ExamAskPanel(context: ask, close: { self.ask = nil })
                     .id(ask.id)
                     .frame(width: 380)
@@ -432,6 +458,11 @@ struct ExamRunPage: View {
         }
         .background(UF.bg.ignoresSafeArea())
         .animation(UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled), value: ask?.id)
+        .sheet(item: $askSheet) { c in
+            ExamAskPanel(context: c, close: { askSheet = nil }, sheet: true)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .task(id: id) { await load() }
         .onDisappear { router.examFocus = false }
     }
@@ -442,7 +473,9 @@ struct ExamRunPage: View {
         var c = context
         c.testID = id
         c.testTitle = ExamsPage.cleanTitle(t?.s("title"))
-        if Self.asksInColumn(windowWidth: windowWidth) {
+        if compact {
+            askSheet = c
+        } else if Self.asksInColumn(windowWidth: windowWidth) {
             ask = c
         } else {
             overlay.modal { ExamAskPanel(context: c, close: nil) }
@@ -496,7 +529,75 @@ struct ExamRunPage: View {
         var perQ: [String: JSONValue] = [:]
         let _ = fb?.list("per_question").forEach { if let nr = $0["nr"].map({ JSONValue.format($0.double ?? 0) }) { perQ[nr] = $0 } }
         let answered = qs.filter { !(answers[Self.nrOf($0)] ?? "").isEmpty }.count
-        UFContent(maxWidth: 900) {
+        if compact && !submitted && !qs.isEmpty {
+            compactRun(t, qs: qs, answered: answered)
+        } else {
+            fullRun(t, qs: qs, submitted: submitted, fb: fb, perQ: perQ, answered: answered)
+        }
+    }
+
+    /// Testlauf schmal: oben Fortschritt und Zeit, eine Aufgabe je Bildschirm, unten "Zurück" und "Weiter" (auf der
+    /// letzten "Abgeben & bewerten") in Daumennaehe; Antworten bleiben beim Blaettern stehen
+    private func compactRun(_ t: JSONValue, qs: [JSONValue], answered: Int) -> some View {
+        let i = UFCompactLearn.clampIndex(current, count: qs.count)
+        let q = qs[i]
+        let last = i == qs.count - 1
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    UFButton("Abbrechen", icon: "arrow-left", kind: .ghost, size: .small) { leave() }
+                        .accessibilityIdentifier("exam.back")
+                    Spacer(minLength: 0)
+                    Text(ExamsPage.cleanTitle(t.s("title"))).ufFont(13.12, 600).foregroundStyle(UF.muted).lineLimit(1)
+                }
+                .padding(.bottom, 12)
+                ExamQuestionCard(q: q, index: i, count: qs.count, submitted: false, feedback: nil,
+                                 answer: Binding(get: { answers[Self.nrOf(q)] ?? "" }, set: { setAnswer(Self.nrOf(q), $0) }))
+                    .id(Self.nrOf(q))
+            }
+            .padding(.horizontal, UFCompactLearn.gutter).padding(.top, 12).padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(UF.bg)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 14) {
+                progressBar(answered: answered, total: qs.count, position: i + 1)
+                ExamTimer(startedAt: t.s("started_at"), minutes: t.i("duration_min") ?? 0)
+            }
+            .padding(.vertical, 10).padding(.horizontal, UFCompactLearn.gutter)
+            .frame(maxWidth: .infinity)
+            .background(UF.surface.opacity(0.97))
+            .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            UFCompactBottomBar {
+                HStack(spacing: 10) {
+                    UFWideButton("Zurück", icon: "arrow-left") { step(-1, count: qs.count) }
+                        .disabled(i == 0)
+                        .frame(maxWidth: 130)
+                        .accessibilityIdentifier("exam.prev")
+                    if last {
+                        UFWideButton(submitting ? "Wird bewertet…" : "Abgeben & bewerten", icon: submitting ? nil : "check", kind: .ok) { Task { await submit(qs) } }
+                            .disabled(submitting)
+                            .accessibilityIdentifier("exam.submit")
+                    } else {
+                        UFWideButton("Weiter", icon: "arrow-right", kind: .primary) { step(1, count: qs.count) }
+                            .accessibilityIdentifier("exam.next")
+                    }
+                }
+                Text("\(answered) von \(qs.count) beantwortet").ufFont(12.48).foregroundStyle(UF.muted)
+                    .accessibilityIdentifier("exam.answered")
+            }
+        }
+    }
+
+    private func step(_ delta: Int, count: Int) {
+        let next = UFCompactLearn.clampIndex(current + delta, count: count)
+        if let a = UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled) { withAnimation(a) { current = next } } else { current = next }
+    }
+
+    @ViewBuilder private func fullRun(_ t: JSONValue, qs: [JSONValue], submitted: Bool, fb: JSONValue?, perQ: [String: JSONValue], answered: Int) -> some View {
+        UFContent(maxWidth: 900, insets: compact ? ExamsPage.compactInsets : nil) {
             UFFlexWrap(gap: 9.6) {
                 // nach der Abgabe ist die Kopfzeile wieder da: dort steht der Zurueck-Pfeil (06.11.2026); im Fokus ohne
                 // Kopfzeile bleibt "Abbrechen"
@@ -561,10 +662,11 @@ struct ExamRunPage: View {
         router.go(task != nil ? .plan() : .exams)
     }
 
-    private func progressBar(answered: Int, total: Int) -> some View {
+    /// `position`: schmal die Aufgabe auf dem Bildschirm ("Aufgabe 3 von 15" statt "Fortschritt")
+    private func progressBar(answered: Int, total: Int, position: Int? = nil) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Fortschritt").ufFont(14.5, 650).foregroundStyle(UF.text2)
+                Text(position.map { "Aufgabe \($0) von \(total)" } ?? "Fortschritt").ufFont(14.5, 650).foregroundStyle(UF.text2)
                 Spacer()
                 Text("\(answered) / \(total)").ufFont(17.6, 700).foregroundStyle(UF.text).monospacedDigit().ufNumber(answered)
             }
@@ -664,6 +766,10 @@ struct ExamQuestionCard: View {
     var asking = false
     /// "Frag die KI zu Aufgabe n" (nur nach der Abgabe, nur bei falschen Aufgaben)
     var onAskAI: ((ExamAskContext) -> Void)?
+    /// schmal: "von 15 · Art" unter "Aufgabe n" statt daneben
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
 
     static func kind(_ type: String?) -> String {
         switch type {
@@ -711,7 +817,9 @@ struct ExamQuestionCard: View {
                             .alignmentGuide(.firstTextBaseline) { d in d[.bottom] - 2 }
                     }
                     Text("Aufgabe \(nr)").ufFont(20.8, 700, em: -0.01).foregroundStyle(UF.text)
-                    Text("von \(count) · \(Self.kind(type))").ufFont(13.12).foregroundStyle(UF.muted)
+                    if !UFCompactLearn.isCompact(sizeClass, shell: shellCompact) {
+                        Text("von \(count) · \(Self.kind(type))").ufFont(13.12).foregroundStyle(UF.muted)
+                    }
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Aufgabe \(nr) von \(count) · \(Self.kind(type))" + (right == nil ? "" : (right! ? ", richtig" : ", falsch")))
@@ -721,7 +829,11 @@ struct ExamQuestionCard: View {
                 Text("\(JSONValue.format(q.n("points") ?? 0)) P.\(feedback.map { " → \(JSONValue.format($0.n("points") ?? 0))" } ?? "")")
                     .ufFont(13.12, feedback == nil ? 500 : 700).foregroundStyle(right == nil ? UF.muted : (right! ? UF.okText : UF.badText))
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? 2 : 10)
+            if UFCompactLearn.isCompact(sizeClass, shell: shellCompact) {
+                Text("von \(count) · \(Self.kind(type))").ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 10)
+                    .accessibilityHidden(true)
+            }
             Text(FormulaText.attributed(q.s("question") ?? "", size: 17.6, weight: 500)).ufFont(17.6, 500).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.bottom, 14)
                 .textSelection(.enabled)
             if submitted {
@@ -1007,6 +1119,8 @@ struct ExamAskPanel: View {
     let close: (() -> Void)?
     /// Ablage der Gespraeche (nil = `TutorConversations.shared`; Tests geben eine eigene)
     var conversations: TutorConversations? = nil
+    /// schmal: als Blatt von unten (volle Hoehe des Blatts, ohne Rand links; `close` schliesst das Blatt)
+    var sheet = false
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var closeDialog
@@ -1070,7 +1184,7 @@ struct ExamAskPanel: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .frame(height: close == nil ? 600 : nil)
         .background(UF.surface.ignoresSafeArea(edges: close == nil ? [] : .vertical))
-        .overlay(alignment: .leading) { if close != nil { Rectangle().fill(UF.line).frame(width: 1).ignoresSafeArea(edges: .vertical) } }
+        .overlay(alignment: .leading) { if close != nil && !sheet { Rectangle().fill(UF.line).frame(width: 1).ignoresSafeArea(edges: .vertical) } }
         .clipShape(RoundedRectangle(cornerRadius: close == nil ? UF.rLg : 0))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("exam.ask.panel")
@@ -1197,8 +1311,8 @@ struct ExamAskPanel: View {
     static func footer(nr: String, model: String?, credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false) -> String {
         let m = (model ?? "").trimmingCharacters(in: .whitespaces)
         let way = credits != nil
-            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil, charge: charge, trial: trial) ?? "über dein ChatGPT"
-            : "über dein ChatGPT"
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil, charge: charge, trial: trial) ?? AICost.ownWay
+            : AICost.ownWay
         return "Aufgabe \(nr) · \(way)" + (m.isEmpty ? "" : " · \(m)")
     }
 

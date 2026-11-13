@@ -10,7 +10,7 @@
   - E-Mail-Adresse: nur mit StudiNow-Konto (Mit Apple anmelden bzw. Registrierung), StudoraAccountLink.swift
   - Nutzer-ID: Konto-ID und Apple-Kennung beim StudiNow-Dienst; CloudKit-Nutzerkennung in Community-, Wochentest- und
     Bibliotheks-Datensaetzen
-  - Geraete-ID (seit Audit P46-04, 08.11.2026): zufaellige Kennung dieser Installation ("ipad-<UUID>",
+  - Geraete-ID (seit Audit P46-04, 08.11.2026): zufaellige Kennung dieser Installation ("ipad-<UUID>", "iphone-<UUID>" bzw. "mac-<UUID>",
     StudoraAccountLink.deviceID) geht mit Anmeldung und Geraeteabgleich als device_id an den Dienst und steht dort bei
     der Sitzung des Kontos (Geraeteliste, andere Geraete abmelden); nur mit StudiNow-Konto, keine Werbe- oder
     Hardware-Kennung (kein identifierForVendor, keine IDFA)

@@ -20,6 +20,7 @@ struct StudyPlanPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.ufCompact) private var compact
     /// Uni Hildesheim: Notenspiegel aus dem LSF statt QIS (nur fuer die Texte)
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.hsh) private var hsh
@@ -56,6 +57,8 @@ struct StudyPlanPage: View {
     @AppStorage("studyplan.overview") private var overview = false
     /// Ziehen und Ablegen auf dem Board (Tests loesen das Ablegen hierueber aus)
     let dropHub: StudyPlanDropHub
+    /// Kompakt: Abstand der Gesamtansicht vom Anfang der Seite (gemessen), damit sie genau den Rest des Bildschirms fuellt
+    @State private var overviewTop: CGFloat = 0
 
     /// `initialLink`: vorbelegter Link zum Modulhandbuch (Tests, Bildvergleich)
     init(focus: String? = nil, layoutOverride: StudyPlanLayout? = nil, pollInterval: Double = 2, initialLink: String = "",
@@ -71,15 +74,19 @@ struct StudyPlanPage: View {
 
     var body: some View {
         GeometryReader { g in
-            let layout = layoutOverride ?? (g.size.width > g.size.height && typeSize < .accessibility1 ? .board : .list)
+            // kompakt (iPhone, auch quer): immer die Semesterliste, nie Spalten
+            let layout = layoutOverride ?? (!compact && g.size.width > g.size.height && typeSize < .accessibility1 ? .board : .list)
             let pad: CGFloat = g.size.width < 700 ? 16 : 25.6
+            // kompakt in der Gesamtansicht: unten nur ein schmaler Rand, damit alle Semester auf den Bildschirm passen
+            let compactOverview = compact && overview && plan?.available == true
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         UFPageHead(StudyPlanText.title) { headActions }
                         content(layout: layout, pad: pad, size: g.size)
                     }
-                    .padding(EdgeInsets(top: 22.4, leading: pad, bottom: 48, trailing: pad))
+                    .padding(EdgeInsets(top: 22.4, leading: pad, bottom: compactOverview ? 12 : 48, trailing: pad))
+                    .coordinateSpace(.named("studyplan.content"))
                     .frame(maxWidth: 1480, alignment: .leading)
                     .frame(maxWidth: .infinity)
                 }
@@ -168,12 +175,17 @@ struct StudyPlanPage: View {
                     if let editError {
                         Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
                     }
-                    // Hoehe: Fenster minus Seitenkopf (ca. 70 pt), Umschalter (44 pt) und Raender
+                    // Hoehe: Fenster minus Seitenkopf (ca. 70 pt), Umschalter (44 pt) und Raender; kompakt (iPhone) gemessen:
+                    // der Seitenkopf mit seinen Knoepfen bricht dort um, die Gesamtansicht fuellt genau den Rest
+                    let height = compact && overviewTop > 0
+                        ? max(300, size.height - overviewTop - 12)
+                        : max(260, size.height - 22.4 - 48 - 70 - 54)
                     StudyPlanOverview(plan: p, semesters: p.semesters,
-                                      size: CGSize(width: max(200, size.width - 2 * pad), height: max(260, size.height - 22.4 - 48 - 70 - 54)),
-                                      actions: cardActions, openSlot: { edit = .choose($0) }, dropHub: dropHub) {
+                                      size: CGSize(width: max(200, size.width - 2 * pad), height: height),
+                                      actions: cardActions, openSlot: { edit = .choose($0) }, dropHub: dropHub, compact: compact) {
                         detail = StudyPlanDetailRef(id: $0.id)
                     }
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("studyplan.content")).minY } action: { overviewTop = $0 }
                 }
             } else if p.available {
                 VStack(alignment: .leading, spacing: 16) {
@@ -561,6 +573,7 @@ struct StudyPlanPage: View {
                 if let m = p.modules.first(where: { $0.id == id }) {
                     StudyPlanMoveSheet(module: m, plan: p, pick: { term in Task { await move(id, to: term) } },
                                        resetPlacement: { handle(id, .resetPlacement, viaDetail: false) })
+                        .modifier(StudyPlanCompactSheet())
                 }
             case .choose(let slot):
                 StudyPlanChooserSheet(
@@ -672,6 +685,9 @@ struct StudyPlanPage: View {
 struct StudyPlanHeaderCard: View {
     let plan: StudyPlan
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Kompakt (iPhone): Hinweise unter Ring und Titel in voller Breite und umbrechend (als Abzeichen neben dem Ring
+    /// wurden sie auf "SoSe 27: 38 LP geplant, mehr…" gekuerzt)
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         let ring = min(UFScaledFont.scaled(96, typeSize), 136)
@@ -704,7 +720,7 @@ struct StudyPlanHeaderCard: View {
                     Text(StudyPlanText.progress(plan.lpDone, plan.lpTotal) + " erreicht")
                         .ufFont(13.12, 600).foregroundStyle(UF.okText)
                         .accessibilityHidden(true)
-                    if !plan.notes.isEmpty {
+                    if !plan.notes.isEmpty && !compact {
                         UFFlexWrap(gap: 6) {
                             ForEach(Array(plan.notes.enumerated()), id: \.offset) { _, n in
                                 UFBadge(n.text, tone: n.tone, icon: n.tone == .bad ? "alert" : (n.tone == .warn ? "move" : "info"))
@@ -717,6 +733,24 @@ struct StudyPlanHeaderCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !plan.notes.isEmpty && compact {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(plan.notes.enumerated()), id: \.offset) { _, n in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            UFIcon(n.tone == .bad ? "alert" : (n.tone == .warn ? "move" : "info"), size: 13)
+                            Text(n.text).ufFont(12.8, 600, lh: 1.35).fixedSize(horizontal: false, vertical: true)
+                        }
+                        .foregroundStyle(n.tone.fg)
+                        .padding(.vertical, 6).padding(.horizontal, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 9).fill(n.tone.bg))
+                    }
+                }
+                .padding(.top, 10)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Hinweise: " + plan.notes.map(\.text).joined(separator: ", "))
+                .accessibilityIdentifier("studyplan.notes")
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 UFIcon("info", size: 13).foregroundStyle(UF.muted)

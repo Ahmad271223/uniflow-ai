@@ -119,14 +119,42 @@ struct IntroTourArt: View {
     var body: some View {
         ZStack {
             IntroSoftStage()
-            switch page {
-            case .uni: IntroArtUni()
-            case .exams: IntroArtExams()
-            case .plan: IntroArtPlan()
-            case .notes: IntroArtNotes()
+            IntroArtFit {
+                switch page {
+                case .uni: IntroArtUni()
+                case .exams: IntroArtExams()
+                case .plan: IntroArtPlan()
+                case .notes: IntroArtNotes()
+                }
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// iPhone (13.11.2026): Die Bilder des Rundgangs sind aus festen Kacheln gebaut und zusammen rund 560 pt breit; schmal
+/// schoben sie die ganze Seite (auch Titel und Text) ueber den Rand. Am iPhone wird das Bild als Ganzes verkleinert,
+/// am iPad und am Mac bleibt es unveraendert.
+struct IntroArtFit<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    /// Breite, fuer die die Bilder gezeichnet sind
+    static var design: CGFloat { 560 }
+
+    /// Verkleinerung bei dieser Breite (reine Funktion fuer Tests)
+    static func scale(width: CGFloat) -> CGFloat { width <= 0 ? 1 : min(1, width / design) }
+
+    var body: some View {
+        if UFCompact.phoneLayouts {
+            GeometryReader { g in
+                content
+                    .frame(width: Self.design)
+                    .scaleEffect(Self.scale(width: g.size.width))
+                    .frame(width: g.size.width, height: g.size.height)
+            }
+        } else {
+            content
+        }
     }
 }
 

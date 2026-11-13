@@ -67,10 +67,13 @@ struct SolutionShareSheet: View {
 
     /// Dienst des aktiven Containers (Tests geben einen eigenen mit)
     var community: CommunityService = SolutionSharing.community
+    /// Kompakt (iPhone): Seitenrand 16 wie die Systemlisten, sonst wie bisher. Nach der Huelle, nicht nach dem Blatt:
+    /// ein Blatt auf dem iPad ist selbst schmal, das iPad soll sich nicht aendern (`UFCompactLearn.inSheet`)
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 UFGate(.shareSolutions) { content }
             }
             .navigationTitle("Lösung teilen")
@@ -524,10 +527,13 @@ struct SharedSolutionsSheet: View {
     @State private var error: String?
     @State private var withdrawing: SolutionLibrary.SharedEntry?
     @State private var busyID: String?
+    /// Kompakt (iPhone): Aktionen einer Zeile in einem Menue statt dreier Knoepfe nebeneinander. Nach der Huelle, nicht
+    /// nach dem Blatt (am iPad ist das Blatt selbst schmal, dort bleiben die Knoepfe)
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     UFCard {
                         Text(UFDevice.adapt("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann StudiNow nicht zurückholen."))
@@ -579,6 +585,20 @@ struct SharedSolutionsSheet: View {
         return UFItemRow(e.title.isEmpty ? "Lösung" : e.title, sub: "\(pages) · \(ForeignSolutionLayer.date(e.createdAt)) · \(name) · \(Self.status(e))",
                          leading: { UFIcon("users", size: 18).foregroundStyle(e.publishedAt == nil ? UF.muted : UF.accentText) },
                          trailing: {
+                             if compact {
+                                 Menu {
+                                     if e.publishedAt != nil {
+                                         Button(busyID == e.solutionID ? "Wird zurückgezogen …" : "Zurückziehen") { withdrawing = e }
+                                             .disabled(busyID != nil)
+                                     }
+                                     Button("Erneut teilen") { reshare(e) }
+                                     Button("Entfernen", role: .destructive) { remove(e) }
+                                         .disabled(e.publishedAt != nil)
+                                 } label: {
+                                     Image(systemName: "ellipsis.circle").frame(width: 44, height: 44).contentShape(Rectangle())
+                                 }
+                                 .accessibilityLabel("Aktionen")
+                             } else {
                              HStack(spacing: 8) {
                                  if e.publishedAt != nil {
                                      UFButton(busyID == e.solutionID ? "Wird zurückgezogen …" : "Zurückziehen", icon: "x", size: .small) { withdrawing = e }
@@ -587,6 +607,7 @@ struct SharedSolutionsSheet: View {
                                  UFButton("Erneut teilen", icon: "download", size: .small) { reshare(e) }
                                  UFButton("Entfernen", icon: "trash", kind: .danger, size: .small) { remove(e) }
                                      .disabled(e.publishedAt != nil)        // erst zurueckziehen, dann die Kopie loeschen
+                             }
                              }
                          })
     }

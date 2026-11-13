@@ -114,13 +114,17 @@ final class AIRecents: ObservableObject {
 /// beim Abo; Credits gibt es erst mit Pro AI ueber den Dienst (in V1 nicht kaufbar). Ein gemeinsamer Wochentest, der
 /// uebernommen wurde, kostet nichts.
 enum AICost {
+    /// Weg der KI ohne StudiNow-KI (eigenes ChatGPT bzw. eigener Server): "über dein ChatGPT", solange es angeboten
+    /// wird (`OpenAIKeyLink.isOffered`), sonst neutral
+    static var ownWay: String { OpenAIKeyLink.isOffered || ChatGPTLink.isEnabled ? "über dein ChatGPT" : "über die KI" }
+
     /// Zeile unter einer Aktion: "1 Anfrage über dein ChatGPT", "≈ 10 Credits" (Pro AI) oder "0 Credits (gemeinsamer Test)"
     static func line(chatgpt: Bool, plan: UFPlan, credits: Int, calls: Int = 1, adopted: Bool = false) -> String {
         if adopted { return "0 Credits (gemeinsamer Test)" }
         if chatgpt { return calls == 1 ? "1 Anfrage über dein ChatGPT" : "\(calls) Anfragen über dein ChatGPT" }
         if plan == .proAI { return "≈ \(credits) Credits" }
         // ohne KI: der Weg dahin - StudiNow Pro AI oder der eigene OpenAI-Schluessel (07.11.2026)
-        return "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)"
+        return OpenAIKeyLink.isOffered ? "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)" : "Kommt mit StudiNow Pro AI"
     }
 
     /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)
@@ -133,9 +137,10 @@ enum AICost {
         if credits != nil, let line = creditsLine(credits: credits, chatgpt: chatgpt, charge: charge, trial: trial) {
             return "\(count) · \(line)\(m)"
         }
-        if chatgpt { return "\(count) · über dein ChatGPT\(m)" }
+        if chatgpt { return "\(count) · \(ownWay)\(m)" }
         if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
-        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · " : "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · ") + count
+        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · "
+                : OpenAIKeyLink.isOffered ? "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · " : "KI kommt mit StudiNow Pro AI · ") + count
     }
 
     // MARK: Echter Stand vom Dienst (Credits, docs/ABO-SYSTEM.md Abschnitt 6a)
@@ -466,6 +471,8 @@ struct AIComposer<Accessory: View>: View {
     var large = false
     var canSend: Bool
     var sendLabel = "Senden"
+    /// schmal (iPhone): Platzhalter in einer Zeile wie das Feld (sonst ragte die zweite unter die Knoepfe)
+    var placeholderOneLine = false
     var inputID: String
     var sendID: String
     let send: () -> Void
@@ -483,7 +490,8 @@ struct AIComposer<Accessory: View>: View {
                 .background(alignment: .topLeading) {
                     if text.isEmpty {
                         Text(placeholder).ufFont(large ? 16 : 14.5, lh: 1.45).foregroundStyle(UF.muted)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(placeholderOneLine ? 1 : nil)
+                            .fixedSize(horizontal: false, vertical: !placeholderOneLine)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
@@ -525,12 +533,16 @@ struct AIComposerPill: View {
     var text: String?
     var tint: Color = UF.text2
     var fill: Color = UF.surface2
+    /// schmal: Text in einer Zeile (gekuerzt mit "…"), damit Modul und Dokument neben Senden passen
+    var oneLine = false
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 14
 
     var body: some View {
         HStack(spacing: 6) {
             UFIcon(icon, size: min(iconSize, 26))
-            if let text { Text(text).ufFont(12.8, 550, lh: 1.3).fixedSize(horizontal: false, vertical: true) }
+            if let text {
+                Text(text).ufFont(12.8, 550, lh: 1.3).lineLimit(oneLine ? 1 : nil).fixedSize(horizontal: false, vertical: !oneLine)
+            }
         }
         .foregroundStyle(tint)
         .padding(.vertical, 6).padding(.leading, 10).padding(.trailing, text == nil ? 10 : 12)

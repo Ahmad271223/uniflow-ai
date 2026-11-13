@@ -106,6 +106,8 @@ struct UniMailSourcesCard: View {
     private struct Panel: View {
         @ObservedObject var connection: UniMailConnection
         @Environment(\.backgroundSync) private var background
+        /// iPhone: Anmelden und Abmelden in voller Breite untereinander
+        @Environment(\.ufCompact) private var compact
         @State private var login = false
         @State private var confirmSignOut = false
         @State private var notifyNote: String?
@@ -124,7 +126,7 @@ struct UniMailSourcesCard: View {
                         Task {
                             let ok = await (background?.setMailNotify(on) ?? !on)
                             connection.notify = on && ok
-                            notifyNote = on && !ok ? "Mitteilungen sind in den iPad-Einstellungen für StudiNow aus." : nil
+                            notifyNote = on && !ok ? "Mitteilungen sind in den \(UFDevice.textName)-Einstellungen für StudiNow aus." : nil
                         }
                     })) {
                         Text("Bei neuen Uni-Mails benachrichtigen").ufFont(13.5)
@@ -133,6 +135,20 @@ struct UniMailSourcesCard: View {
                     .padding(.top, 6)
                     if let notifyNote { Text(notifyNote).ufFont(12.5).foregroundStyle(UF.warnText) }
                 }
+                if compact {
+                    VStack(spacing: 8) {
+                        if connection.needsAttention {
+                            UFWideButton(connection.state == .needsLogin ? "Erneut anmelden" : "Bei Uni-Mail anmelden", icon: "arrow-right", kind: .primary) {
+                                login = true
+                            }
+                            .accessibilityIdentifier("unimail.connect")
+                        }
+                        if connection.isConnected {
+                            UFWideButton("Abmelden", icon: "log-out", kind: .danger) { confirmSignOut = true }
+                        }
+                    }
+                    .padding(.top, 9.6)
+                } else {
                 UFFlexWrap(gap: 9.6) {
                     if connection.needsAttention {
                         UFButton(connection.state == .needsLogin ? "Erneut anmelden" : "Bei Uni-Mail anmelden", icon: "arrow-right", kind: .primary, size: .small) {
@@ -145,6 +161,7 @@ struct UniMailSourcesCard: View {
                     }
                 }
                 .padding(.top, 9.6)
+                }
             }
             .accessibilityIdentifier("unimail.card")
             .sheet(isPresented: $login) { UniMailLoginView(connection: connection) }
@@ -196,7 +213,7 @@ struct UniMailPage: View {
         } else {
             UFContent(maxWidth: 900) {
                 UFPageHead("Uni-Mail", sub: "E-Mails und Kalender deiner Hochschule")
-                UFCard { UFEmpty(icon: "mail", text: "Uni-Mail gibt es für Studierende der Leibniz Universität Hannover und der Universität Hildesheim auf dem iPad.") }
+                UFCard { UFEmpty(icon: "mail", text: "Uni-Mail gibt es für Studierende der Leibniz Universität Hannover und der Universität Hildesheim auf dem \(UFDevice.textName).") }
             }
         }
     }
@@ -223,25 +240,41 @@ struct UniMailMain: View {
     @State private var compose: UniMailComposeRequest?
     @State private var login = false
     @State private var pendingTrash: (ref: UniMailRef, unread: Bool, task: Task<Void, Never>)?
+    /// iPhone (docs/IPHONE-2026-11-04.md): Ordnerliste -> E-Mails -> E-Mail als Ebenen einer Seite; der Zurueck-Pfeil
+    /// der Kopfzeile fuehrt eine Ebene hoeher (`ufLocalBack`), Neue E-Mail als ganzes Blatt
+    @Environment(\.ufCompact) private var compact
+    /// iPhone: Ordnerliste offen
+    @State private var showFolders = false
 
     private var wide: Bool { windowWidth >= 1000 }
 
     var body: some View {
         UFContent(maxWidth: 1200) {
-            UFPageHead(connection.site.name, sub: "E-Mails und Kalender der \(connection.site.universityName) (SOGo)") {
+            if compact, connection.isConnected, let s = selected {
+                // iPhone: die E-Mail als eigene Ebene (der Pfeil oben fuehrt zur Liste zurueck)
+                UniMailReader(connection: connection, ref: s, boxes: boxes, onAction: handle).id(s.id)
+                    .ufLocalBack(id: "unimail.reader", active: true) { UFMotion.toggle { selected = nil } }
+            } else if compact, connection.isConnected, showFolders {
+                folderList
+                    .ufLocalBack(id: "unimail.folderList", active: true) { UFMotion.toggle { showFolders = false } }
+            } else {
+            UFPageHead(connection.site.name, sub: compact ? "\(connection.site.universityName) (SOGo)"
+                                                          : "E-Mails und Kalender der \(connection.site.universityName) (SOGo)") {
                 if connection.isConnected { checkButton }
-                // Lehrende der eigenen Kurse mit E-Mail aus Stud.IP (06.11.2026, Views/Lecturers); Stud.IP nur an der LUH
-                if connection.site.university == .luh {
+                // Lehrende der eigenen Kurse mit E-Mail aus Stud.IP (06.11.2026, Views/Lecturers); Stud.IP nur an der LUH.
+                // iPhone: als Zeile in voller Breite unter dem Kopf (`lecturersRow`)
+                if connection.site.university == .luh, !compact {
                     UFButton(LecturersText.title, icon: "users", size: .small) { router.go(.lecturers) }
                         .accessibilityHint("Lehrende deiner Kurse mit E-Mail-Adresse und Sprechstunde")
                         .accessibilityIdentifier("unimail.lecturers")
                 }
             }
+            if compact, connection.site.university == .luh { lecturersRow }
             if !connection.isConnected {
                 connectCard
             } else {
                 if connection.state == .needsLogin { loginBanner }
-                toolbar
+                if compact { compactToolbar } else { toolbar }
                 if let error { Text(error).ufFont(13).foregroundStyle(UF.bad).padding(.bottom, 8).accessibilityIdentifier("unimail.error") }
                 if pendingTrash != nil { undoBar }
                 if wide {
@@ -261,9 +294,11 @@ struct UniMailMain: View {
                 }
                 UniCalendarCard(connection: connection).padding(.top, 18)
             }
+            }
         }
         .task(id: connection.isConnected) { await start() }
-        .sheet(item: Binding(get: { wide ? nil : selected }, set: { selected = $0 })) { s in
+        // mittelbreit (iPad hochkant, Split View) als Blatt; iPhone als Ebene der Seite (oben)
+        .sheet(item: Binding(get: { wide || compact ? nil : selected }, set: { selected = $0 })) { s in
             NavigationStack {
                 ScrollView { UniMailReader(connection: connection, ref: s, boxes: boxes, onAction: handle).padding(16) }
                     .navigationTitle("E-Mail").navigationBarTitleDisplayMode(.inline)
@@ -271,6 +306,8 @@ struct UniMailMain: View {
             }
         }
         .sheet(item: $compose) { r in UniMailComposeSheet(connection: connection, request: r) { sent in if sent { toast.show("Gesendet.") } } }
+        // iPhone: abgemeldet zur Ordnerebene zurueck (die E-Mail ist dort eine eigene Ebene); iPad wie bisher
+        .onChange(of: connection.isConnected) { _, on in if !on && compact { selected = nil; showFolders = false } }
         .sheet(isPresented: $login) { UniMailLoginView(connection: connection) }
         .accessibilityIdentifier("unimail.page")
     }
@@ -279,13 +316,60 @@ struct UniMailMain: View {
         UFCard {
             UFCardHead("Uni-Mail verbinden", icon: "mail")
             Text(connection.hint).ufFont(13.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-            UFButton("Bei Uni-Mail anmelden", icon: "arrow-right", kind: .primary) { login = true }
-                .padding(.top, 10)
-                .accessibilityIdentifier("unimail.connect")
+            Group {
+                if compact {
+                    UFWideButton("Bei Uni-Mail anmelden", icon: "arrow-right", kind: .primary) { login = true }
+                } else {
+                    UFButton("Bei Uni-Mail anmelden", icon: "arrow-right", kind: .primary) { login = true }
+                }
+            }
+            .padding(.top, 10)
+            .accessibilityIdentifier("unimail.connect")
         }
     }
 
-    private var loginBanner: some View {
+    /// iPhone: "Lehrende" als Zeile in voller Breite (Name, Unterzeile, Pfeil), fuehrt zur Seite "Lehrende"
+    private var lecturersRow: some View {
+        Button { router.go(.lecturers) } label: {
+            HStack(spacing: 10) {
+                UFIcon("users", size: 17).foregroundStyle(UF.accentText)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(LecturersText.title).ufFont(15, 650).foregroundStyle(UF.text)
+                    Text("E-Mail und Sprechstunde aus Stud.IP").ufFont(12, 500).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.line, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(LecturersText.title)
+        .accessibilityHint("Lehrende deiner Kurse mit E-Mail-Adresse und Sprechstunde")
+        .accessibilityIdentifier("unimail.lecturers")
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder private var loginBanner: some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
+                    UFIcon("alert", size: 16).foregroundStyle(UF.warnText)
+                    Text("Die Anmeldung bei Uni-Mail ist abgelaufen. Melde dich erneut an; dein Passwort setzt höchstens iOS ein.")
+                        .ufFont(13).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
+                }
+                UFWideButton("Erneut anmelden", icon: "arrow-right", kind: .primary) { login = true }
+                    .accessibilityIdentifier("unimail.relogin")
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.warnSoft))
+            .padding(.bottom, 10)
+        } else {
         HStack(spacing: 10) {
             UFIcon("alert", size: 16).foregroundStyle(UF.warnText)
             Text("Die Anmeldung bei Uni-Mail ist abgelaufen. Melde dich erneut an; dein Passwort setzt höchstens iOS ein.")
@@ -297,6 +381,87 @@ struct UniMailMain: View {
         .padding(12)
         .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.warnSoft))
         .padding(.bottom, 10)
+        }
+    }
+
+    /// iPhone: Ordner als Zeile in voller Breite (oeffnet die Ordnerliste), Suche in voller Breite, darunter "Neue
+    /// E-Mail" in voller Breite und Aktualisieren
+    private var compactToolbar: some View {
+        VStack(spacing: 10) {
+            Button { UFMotion.toggle { showFolders = true } } label: {
+                HStack(spacing: 10) {
+                    UFIcon("folder", size: 17).foregroundStyle(UF.accentText)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Ordner").ufFont(12, 600).foregroundStyle(UF.muted)
+                        Text(folderName).ufFont(15, 650).foregroundStyle(UF.text).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                }
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
+                .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.line, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ordner: \(folderName)")
+            .accessibilityHint("Zeigt alle Ordner")
+            .accessibilityIdentifier("unimail.folders")
+            UFInputBox(focused: false) {
+                TextField("Suchen (Betreff, Absender)", text: $query)
+                    .submitLabel(.search).autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .onSubmit { Task { await reload() } }
+                    .accessibilityIdentifier("unimail.search")
+            }
+            .frame(maxWidth: .infinity)
+            HStack(spacing: 8) {
+                UFWideButton("Neue E-Mail", icon: "pen", kind: .primary) { compose = UniMailComposeRequest() }
+                    .accessibilityIdentifier("unimail.new")
+                UFButton(icon: "refresh") { Task { await reload() } }
+                    .disabled(loading)
+                    .accessibilityLabel("Aktualisieren")
+                    .accessibilityIdentifier("unimail.refresh")
+            }
+        }
+        .padding(.bottom, 12)
+    }
+
+    /// iPhone: alle Ordner als Zeilen (eingerueckt nach Ebene, der offene mit Haken); Antippen zeigt seine E-Mails
+    private var folderList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Ordner").ufFont(20.8, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader).padding(.bottom, 10)
+            VStack(alignment: .leading, spacing: 0) {
+                let list: [JSONValue] = boxes.isEmpty ? [["path": "INBOX", "name": "Posteingang"]] : boxes
+                ForEach(Array(list.enumerated()), id: \.offset) { i, b in
+                    let path = b.s("path") ?? "INBOX"
+                    Button {
+                        UFMotion.toggle {
+                            folder = path
+                            showFolders = false
+                        }
+                        Task { await reload() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            UFIcon(path == "INBOX" ? "mail" : "folder", size: 16).foregroundStyle(UF.accentText)
+                            Text(b.s("name") ?? path).ufFont(15, path == folder ? 650 : 500).foregroundStyle(UF.text).lineLimit(1)
+                            Spacer(minLength: 4)
+                            if path == folder { UFIcon("check", size: 15).foregroundStyle(UF.accentText) }
+                        }
+                        .padding(.leading, 12 + CGFloat(min(b.i("level") ?? 0, 4)) * 16).padding(.trailing, 12)
+                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(path == folder ? .isSelected : [])
+                    .accessibilityIdentifier("unimail.folder")
+                    if i < list.count - 1 { Divider().padding(.leading, 12) }
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+        }
+        .accessibilityIdentifier("unimail.folderList")
     }
 
     private var toolbar: some View {
@@ -380,10 +545,16 @@ struct UniMailMain: View {
                 }
             }
             if let l = listing, messages.count < (l.i("total") ?? 0), l["stale"]?.bool != true {
-                UFButton("Weitere laden", icon: "chevron-down", size: .small) { Task { await more() } }
-                    .padding(.top, 10)
-                    .disabled(loading)
-                    .accessibilityIdentifier("unimail.more")
+                Group {
+                    if compact {
+                        UFWideButton("Weitere laden", icon: "chevron-down") { Task { await more() } }
+                    } else {
+                        UFButton("Weitere laden", icon: "chevron-down", size: .small) { Task { await more() } }
+                    }
+                }
+                .padding(.top, 10)
+                .disabled(loading)
+                .accessibilityIdentifier("unimail.more")
             }
         }
     }
@@ -548,6 +719,8 @@ struct UniMailReader: View {
     @State private var flagged = false
     @State private var shareItem: UniMailShareItem?
     @State private var busy = false
+    /// iPhone: Knoepfe in voller Breite (Antworten oben, darunter je zwei nebeneinander), Anhaenge 44 pt hoch
+    @Environment(\.ufCompact) private var compact
 
     struct UniMailShareItem: Identifiable { let url: URL; var id: String { url.absoluteString } }
 
@@ -602,7 +775,52 @@ struct UniMailReader: View {
             }.joined(separator: ", ")).font(.uf(13)).foregroundColor(UF.text2)
     }
 
-    private var actions: some View {
+    @ViewBuilder private var actions: some View {
+        if compact { compactActions } else { regularActions }
+    }
+
+    private func markUnread() {
+        Task { await run { try await connection.setRead(folder: ref.folder, uid: ref.uid, read: false); onAction(.changed(ref, read: false, flagged: nil)) } }
+    }
+
+    private func toggleFlag() {
+        let next = !flagged
+        Task { await run { try await connection.setFlag(folder: ref.folder, uid: ref.uid, flagged: next); flagged = next; onAction(.changed(ref, read: nil, flagged: next)) } }
+    }
+
+    private func restore() {
+        Task { await run { try await connection.restore(uids: [ref.uid], boxes: boxes); onAction(.restored(ref)) } }
+    }
+
+    private var compactActions: some View {
+        VStack(spacing: 8) {
+            UFWideButton("Antworten", icon: "reply", kind: .primary) { onAction(.reply(ref)) }
+                .accessibilityIdentifier("unimail.reply")
+            HStack(spacing: 8) {
+                UFWideButton("Allen antworten", icon: "reply") { onAction(.replyAll(ref)) }
+                    .accessibilityIdentifier("unimail.replyAll")
+                UFWideButton("Weiterleiten", icon: "arrow-right") { onAction(.forward(ref)) }
+                    .accessibilityIdentifier("unimail.forward")
+            }
+            HStack(spacing: 8) {
+                UFWideButton("Als ungelesen", icon: "mail") { markUnread() }
+                    .accessibilityIdentifier("unimail.unread")
+                UFWideButton(flagged ? "Entmarkieren" : "Markieren", icon: "flag") { toggleFlag() }
+                    .accessibilityLabel(flagged ? "Markierung entfernen" : "Markieren")
+                    .accessibilityIdentifier("unimail.flag")
+            }
+            if inTrash {
+                UFWideButton("Wiederherstellen", icon: "undo") { restore() }
+                    .accessibilityIdentifier("unimail.restore")
+            } else {
+                UFWideButton("In den Papierkorb", icon: "trash", kind: .danger) { onAction(.trash(ref)) }
+                    .accessibilityIdentifier("unimail.trash")
+            }
+        }
+        .disabled(busy)
+    }
+
+    private var regularActions: some View {
         UFFlexWrap(gap: 8) {
             UFButton("Antworten", icon: "reply", kind: .primary, size: .small) { onAction(.reply(ref)) }
                 .accessibilityIdentifier("unimail.reply")
@@ -648,6 +866,7 @@ struct UniMailReader: View {
                     }
                     .foregroundStyle(UF.accentText)
                     .padding(8)
+                    .frame(minHeight: compact ? 44 : nil)
                     .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
                 }
                 .buttonStyle(.plain)
@@ -739,6 +958,8 @@ struct UniMailComposeSheet: View {
     @State private var busy = false
     @State private var confirmSend = false
     @State private var importing = false
+    /// iPhone: ganzes Blatt (Tastatur, langer Text), Knoepfe in voller Breite
+    @Environment(\.ufCompact) private var compact
     // "Mit KI verbessern" (13.11.2026, Pro AI, 50 je Monat): Vorschlag ersetzt den Text erst mit "Übernehmen"
     @State private var proposal: String?
     @State private var rewriting = false
@@ -758,7 +979,7 @@ struct UniMailComposeSheet: View {
                         field("Cc", $cc, id: "unimail.cc")
                         field("Bcc", $bcc, id: "unimail.bcc")
                         field("Betreff", $subject, id: "unimail.subject.field")
-                        UFTextArea(placeholder: "Text", text: $text, minHeight: 240).accessibilityIdentifier("unimail.body")
+                        UFTextArea(placeholder: "Text", text: $text, minHeight: compact ? 200 : 240).accessibilityIdentifier("unimail.body")
                         if let proposal {
                             UniMailAIProposal(text: proposal, accept: { self.text = proposal; self.proposal = nil; info = "Vorschlag übernommen. Gesendet wird erst mit „Senden“." },
                                               dismiss: { self.proposal = nil })
@@ -768,6 +989,16 @@ struct UniMailComposeSheet: View {
                                 Label("\(a.s("name") ?? "") \(a.s("size") ?? "")", systemImage: "paperclip").ufFont(13)
                             }
                         }
+                        if compact {
+                            HStack(spacing: 8) {
+                                UFWideButton("Anhängen", icon: "upload") { importing = true }
+                                    .accessibilityLabel("Datei anhängen")
+                                    .accessibilityIdentifier("unimail.attach")
+                                UFWideButton("Entwurf sichern", icon: "file") { Task { await saveDraft() } }
+                                    .accessibilityLabel("Als Entwurf speichern")
+                                    .accessibilityIdentifier("unimail.save")
+                            }
+                        } else {
                         UFFlexWrap(gap: 8) {
                             UFButton("Datei anhängen", icon: "upload", size: .small) { importing = true }
                                 .accessibilityIdentifier("unimail.attach")
@@ -776,6 +1007,7 @@ struct UniMailComposeSheet: View {
                             UniMailAIButton(access: aiAccess, busy: rewriting,
                                             empty: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { tapAI() }
                         }
+                        }
                         Text("Gesendet wird erst mit „Senden“ und deiner Bestätigung. Die E-Mail geht direkt von deinem Uni-Postfach aus, nicht über StudiNow.")
                             .ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     }
@@ -783,6 +1015,7 @@ struct UniMailComposeSheet: View {
                 .padding(16)
                 .disabled(busy)
             }
+            .scrollDismissesKeyboard(compact ? .interactively : .automatic)          // iPad wie bisher
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -804,6 +1037,7 @@ struct UniMailComposeSheet: View {
             .ufPlanSheet($lockSheet)
         }
         .task { await create() }
+        .ufFullSheet(when: compact)
     }
 
     private var title: String {
@@ -971,17 +1205,32 @@ struct UniCalendarCard: View {
     @ObservedObject var connection: UniMailConnection
     @State private var events: [JSONValue] = []
     @State private var busy = false
+    /// iPhone: "Nächste 7/30 Tage" nebeneinander in voller Breite
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         UFCard {
             UFCardHead("Uni-Kalender", icon: "calendar")
             Text("Termine aus deinem Uni-Kalender (SOGo) erscheinen im Lernkalender und im Stundenplan als „Uni-Kalender“ – nur lesend; ändern kannst du sie im Uni-Kalender. Ganztägige Termine stehen nur hier.")
                 .ufFont(13).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-            UFFlexWrap(gap: 8) {
-                UFButton("Nächste 7 Tage übernehmen", icon: "sync", size: .small) { Task { await run(7) } }
-                    .accessibilityIdentifier("unimail.calendar.7")
-                UFButton("Nächste 30 Tage übernehmen", icon: "sync", size: .small) { Task { await run(30) } }
-                    .accessibilityIdentifier("unimail.calendar.30")
+            Group {
+                if compact {
+                    HStack(spacing: 8) {
+                        UFWideButton("7 Tage", icon: "sync") { Task { await run(7) } }
+                            .accessibilityLabel("Nächste 7 Tage übernehmen")
+                            .accessibilityIdentifier("unimail.calendar.7")
+                        UFWideButton("30 Tage", icon: "sync") { Task { await run(30) } }
+                            .accessibilityLabel("Nächste 30 Tage übernehmen")
+                            .accessibilityIdentifier("unimail.calendar.30")
+                    }
+                } else {
+                    UFFlexWrap(gap: 8) {
+                        UFButton("Nächste 7 Tage übernehmen", icon: "sync", size: .small) { Task { await run(7) } }
+                            .accessibilityIdentifier("unimail.calendar.7")
+                        UFButton("Nächste 30 Tage übernehmen", icon: "sync", size: .small) { Task { await run(30) } }
+                            .accessibilityIdentifier("unimail.calendar.30")
+                    }
+                }
             }
             .disabled(busy)
             .padding(.top, 8)

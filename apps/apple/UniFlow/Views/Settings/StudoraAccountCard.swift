@@ -11,6 +11,8 @@ import UniFlowCore
 struct StudoraAccountCard: View {
     @ObservedObject var link: StudoraAccountLink
     @Environment(\.colorScheme) private var scheme
+    /// iPhone: Anmelden und "Mit Apple anmelden" in voller Breite, Abgleich unter dem Stand
+    @Environment(\.ufCompact) private var compact
     @State private var email = ""
     @State private var password = ""
     @State private var exportURL: URL?
@@ -86,7 +88,7 @@ struct StudoraAccountCard: View {
                 Task { await link.handleAppleSignIn(result) }
             })
             .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
-            .frame(maxWidth: 320, minHeight: 44, maxHeight: 44)
+            .frame(maxWidth: compact ? .infinity : 320, minHeight: 44, maxHeight: 44)
             .disabled(link.busy)
             .accessibilityIdentifier("account.apple")
             // Felder im Stil der App mit Beschriftung darueber
@@ -111,6 +113,13 @@ struct StudoraAccountCard: View {
         .padding(.top, 4)
     }
 
+    private func login() {
+        Task {
+            await link.login(email: email, password: password)
+            password = ""                                            // nie im Speicher behalten
+        }
+    }
+
     @ViewBuilder private func signedIn(_ u: StudoraAccount.User) -> some View {
         VStack(alignment: .leading, spacing: 9.6) {
             SettingsValue(label: "Angemeldet als", value: u.email)
@@ -120,11 +129,12 @@ struct StudoraAccountCard: View {
                 resendButton
             }
             SettingsDivider()
-            HStack(spacing: 9.6) {
+            let syncLayout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 9.6))
+            syncLayout {
                 Text(Self.syncText(link.lastSync)).ufFont(12.8).foregroundStyle(link.lastSync?.ok == false ? UF.bad : UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("account.sync")
-                Spacer()
+                if !compact { Spacer() }
                 UFButton(link.syncing ? "Gleiche ab …" : "Jetzt abgleichen", icon: "sync", size: .small) { Task { await link.syncNow(force: true) } }
                     .disabled(link.syncing)
                     .accessibilityIdentifier("account.syncNow")

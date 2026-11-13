@@ -53,9 +53,9 @@ def test_privacy_manifest_declares_the_device_id_the_service_receives():
     """P46-04: die zufaellige Installationskennung geht als device_id an app.studinow.app -> Geraete-ID im Manifest."""
     account = CODE["Packages/UniFlowCore/Sources/UniFlowCore/Account/StudoraAccount.swift"]
     assert '"device_id": .string(deviceID)' in account
-    # zufaellig, keine Hardware-Kennung; Praefix "ipad-" bzw. auf dem Mac "mac-" (Paritaet 09.11.2026, AccountDevice)
-    assert 'AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac) + UUID().uuidString' in CODE["UniFlow/Services/StudoraAccountLink.swift"]
-    assert 'isMac ? "mac-" : "ipad-"' in CODE["Packages/UniFlowCore/Sources/UniFlowCore/Solutions/CommunitySharedState.swift"]
+    # zufaellig, keine Hardware-Kennung; Praefix "ipad-", am Mac "mac-", am iPhone "iphone-" (AccountDevice; iPhone 11.11.2026)
+    assert 'AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac, isPhone: UFDevice.isPhone) + UUID().uuidString' in CODE["UniFlow/Services/StudoraAccountLink.swift"]
+    assert 'isMac ? "mac-" : (isPhone ? "iphone-" : "ipad-")' in CODE["Packages/UniFlowCore/Sources/UniFlowCore/Solutions/CommunitySharedState.swift"]
     for t in CODE.values():
         assert "identifierForVendor" not in t and "advertisingIdentifier" not in t
     m = plistlib.loads((APPLE / "UniFlow" / "PrivacyInfo.xcprivacy").read_bytes())
@@ -105,7 +105,9 @@ def test_release_info_plist_has_no_transport_exception_and_declares_export_compl
     assert not re.search(r"^\s+NSAppTransportSecurity:", info, re.M) and "NSAllowsArbitraryLoads" not in YML
     assert 'if [ "${CONFIGURATION}" = "Debug" ]; then' in YML, "lokales Netz nur im Debug-Build"
     assert "ITSAppUsesNonExemptEncryption: false" in info
-    assert 'TARGETED_DEVICE_FAMILY: "2"' in YML and 'iOS: "17.0"' in YML
+    # seit 1.0.4 (Build 39) iPhone und iPad (TARGETED_DEVICE_FAMILY 1,2); am iPhone Hochformat Pflicht, quer erlaubt
+    assert 'TARGETED_DEVICE_FAMILY: "1,2"' in YML and 'iOS: "17.0"' in YML
+    assert "UISupportedInterfaceOrientations~iphone:" in info
 
 
 def test_ci_runs_the_checks_that_read_apple_files():

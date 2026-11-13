@@ -57,7 +57,7 @@ struct QISLoginPane<Bottom: View>: View {
         // QIS hat ein eigenes Formular (kein WebSSO): keine Hilfe fuer den Benutzernamen; nur die Kennzeichnung der
         // Felder fuer das Passwort-Autofill von iPadOS (`QISAutofillHints`, 12.11.2026, nie ein Wert)
         StudIPWebView(url: DebugUniStub.loginPage("qis", real: QISClient.startURL), dataStore: connection.websiteDataStore,
-                      load: load, loginHelper: false, qisAutofillHints: true) { webView in pageLoaded(webView) }
+                      load: load, loginHelper: false, qisAutofillHints: true, phoneFitQIS: true) { webView in pageLoaded(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {

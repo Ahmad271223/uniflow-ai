@@ -39,11 +39,12 @@ enum AIHelpContent {
         "Welche Fachbegriffe kommen hier vor? Definiere sie kurz.",
     ]
 
-    static let start = Section(title: "So fängst du an", icon: "pencil", items: [
+    static var start: Section { Section(title: "So fängst du an", icon: "pencil", items: [
         "Wähle oben ein Modul und hänge ein Dokument an – die KI liest dann dessen erste Seite.",
-        "Im Editor liest die KI-Hilfe die offene Seite oder deinen markierten Text.",
+        UFEditorAvailability.available ? "Im Editor liest die KI-Hilfe die offene Seite oder deinen markierten Text."
+            : "Im Dokument liest die KI-Hilfe die offene Seite oder deinen markierten Text.",
         "Antworten bleiben unter „Zuletzt“ auf diesem Gerät.",
-    ])
+    ]) }
 
     /// "Ohne Unterlagen": der Weg zu den Dateien fuehrt ueber den Abgleich mit der Hochschule (berechnet, nicht `let`:
     /// folgt `UFReleaseUniversities.shipped`, sonst friert der erste Zugriff im Prozess den Stand ein)
@@ -68,8 +69,13 @@ struct AIHelpCard: View {
     let example: (String) -> Void
     let openSettings: () -> Void
     let close: () -> Void
+    /// schmal: Kostenetikett unter dem Titel statt daneben (volle Breite fuer den Titel)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
 
     var body: some View {
+        let compact = UFCompactLearn.isCompact(sizeClass, shell: shellCompact)
         UFCard {
             HStack(alignment: .top, spacing: 8) {
                 HStack(spacing: 7.2) {
@@ -78,12 +84,13 @@ struct AIHelpCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
-                UFBadge(AIHelpContent.costLine, tone: .neutral)
+                if !compact { UFBadge(AIHelpContent.costLine, tone: .neutral) }
                 UFButton(nil, icon: "x", kind: .ghost, size: .small, action: close)
                     .accessibilityLabel("Hilfe schließen")
                     .accessibilityIdentifier("ai.start.help.close")
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, compact ? 4 : 10)
+            if compact { UFBadge(AIHelpContent.costLine, tone: .neutral).padding(.bottom, 10) }
             VStack(alignment: .leading, spacing: 14) {
                 section(AIHelpContent.can)
                 VStack(alignment: .leading, spacing: 8) {
@@ -129,6 +136,8 @@ struct AIHelpCard: View {
 /// schliesst den Dialog.
 struct AIDocumentPicker: View {
     @Environment(\.ufClose) private var close
+    /// im Blatt (schmal) scrollt das Blatt selbst
+    @Environment(\.ufInSheet) private var inSheet
     let documents: [JSONValue]
     let selected: String
     let pick: (JSONValue) -> Void
@@ -149,20 +158,25 @@ struct AIDocumentPicker: View {
             } else {
                 Text("Die KI liest die erste Seite des Dokuments als Kontext deiner Frage.")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(Array(documents.prefix(40).enumerated()), id: \.offset) { i, f in
-                            row(f, index: i)
-                            if i < min(documents.count, 40) - 1 { Rectangle().fill(UF.line).frame(height: 1) }
-                        }
-                    }
+                if inSheet {
+                    rows
+                } else {
+                    ScrollView { rows }.frame(maxHeight: 420)
                 }
-                .frame(maxHeight: 420)
             }
         } foot: {
             UFButton("Abbrechen", kind: .ghost) { close() }.accessibilityIdentifier("ai.start.picker.cancel")
         }
         .accessibilityIdentifier("ai.start.picker")
+    }
+
+    private var rows: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(documents.prefix(40).enumerated()), id: \.offset) { i, f in
+                row(f, index: i)
+                if i < min(documents.count, 40) - 1 { Rectangle().fill(UF.line).frame(height: 1) }
+            }
+        }
     }
 
     private func row(_ f: JSONValue, index: Int) -> some View {

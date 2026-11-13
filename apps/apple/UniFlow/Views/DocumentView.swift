@@ -2749,15 +2749,26 @@ final class ThumbnailCache: ObservableObject {
 struct SearchSheet: View {
     @ObservedObject var store: DocumentStore
     @ObservedObject var index: NoteTextIndex
-    let bridge: EditorBridge
+    /// Treffer zeigen (Editor: Stelle markieren bzw. zur Seite; iPhone-Leseansicht ebenso)
+    private let pick: (SearchHit) -> Void
+    /// Seite, ab der Handschrift und Scans gelesen werden (die gerade offene zuerst)
+    private let startAt: () -> Int
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var pdfHits: [SearchHit] = []
 
     init(store: DocumentStore, bridge: EditorBridge) {
+        self.init(store: store, startAt: { bridge.pageIndex }) { hit in
+            if let sel = hit.selection { bridge.controller?.show(sel) } else { bridge.controller?.goToPage(hit.pageIndex) }
+        }
+    }
+
+    /// Ohne Editor (iPhone-Leseansicht, `PhoneDocumentReader`)
+    init(store: DocumentStore, startAt: @escaping () -> Int, pick: @escaping (SearchHit) -> Void) {
         self.store = store
         self.index = store.noteIndex
-        self.bridge = bridge
+        self.startAt = startAt
+        self.pick = pick
     }
 
     /// Treffer im PDF zuerst, dann Textfelder, Handschrift, Scans (je Gruppe in Seitenreihenfolge)
@@ -2782,7 +2793,7 @@ struct SearchSheet: View {
                     Section {
                         ForEach(hits) { hit in
                             Button {
-                                if let sel = hit.selection { bridge.controller?.show(sel) } else { bridge.controller?.goToPage(hit.pageIndex) }
+                                pick(hit)
                                 dismiss()
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -2801,7 +2812,7 @@ struct SearchSheet: View {
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Im PDF und in deinen Notizen suchen")
             .onChange(of: query) { _, q in pdfHits = store.search(q) }
-            .onAppear { index.refresh(store: store, startAt: bridge.pageIndex) }
+            .onAppear { index.refresh(store: store, startAt: startAt()) }
             // Lesen nur, solange die Suche offen ist (Akku); Gelesenes bleibt fuer das naechste Mal
             .onDisappear { index.cancel() }
             .navigationTitle("Suchen")
@@ -2872,7 +2883,7 @@ struct InfoSheet: View {
                 Button(analyzing ? "Die KI liest die Datei …" : "Mit KI einordnen") { Task { await analyze() } }
                     .disabled(analyzing)
                     .accessibilityIdentifier("doc.analyze")
-                Text("Schickt den Text dieser Datei an dein ChatGPT (nur diese Datei).").font(.caption).foregroundStyle(.secondary)
+                Text(OpenAIKeyLink.isOffered ? "Schickt den Text dieser Datei an dein ChatGPT (nur diese Datei)." : "Schickt den Text dieser Datei an die KI (nur diese Datei).").font(.caption).foregroundStyle(.secondary)
             }
             if let e = analysisError { Text(e).font(.caption).foregroundStyle(.red) }
         }

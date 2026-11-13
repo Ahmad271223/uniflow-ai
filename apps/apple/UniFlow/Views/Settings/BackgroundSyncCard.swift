@@ -51,9 +51,9 @@ struct BackgroundSyncCard: View {
     /// Am Mac ("Designed for iPad"): eigener Takt, solange die App laeuft
     static let macText = "Am Mac gleicht StudiNow zusätzlich alle 20 bis 30 Minuten ab, solange die App geöffnet ist – auch wenn sie nicht vorn ist."
 
-    static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
+    static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den \(UFDevice.textName)-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
 
-    static let refreshOffText = "Die Hintergrundaktualisierung ist in den iPad-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht StudiNow nur beim Öffnen ab."
+    static let refreshOffText = "Die Hintergrundaktualisierung ist in den \(UFDevice.textName)-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht StudiNow nur beim Öffnen ab."
 
     /// "Letzter Hintergrundlauf: 08:14 – Listen: 3 neue Dateien"
     static func lastRunText(_ r: BackgroundSyncRecord?, now: Date) -> String {

@@ -10,9 +10,11 @@ struct GoalsPage: View {
     @EnvironmentObject private var session: Session
     @State private var o: JSONValue?
     @State private var error: String?
+    /// iPhone (Huelle schmal): Rand 16 wie der Lernkalender; iPad unveraendert
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
-        UFContent(wide: true, maxWidth: 1400, insets: EdgeInsets(top: 20.8, leading: 24, bottom: 48, trailing: 24)) {
+        UFContent(wide: true, maxWidth: 1400, insets: EdgeInsets(top: 20.8, leading: compact ? 16 : 24, bottom: 48, trailing: compact ? 16 : 24)) {
             GoalsHead(o: o, onView: onView)
             if let o {
                 GoalsBody(o: o)
@@ -73,6 +75,7 @@ struct GoalsHead: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         UFPageHead("Lernziele", sub: "Wie viele Stunden du bis zur Klausur lernen willst – StudiNow verteilt sie auf deine freie Zeit.") {
@@ -84,7 +87,8 @@ struct GoalsHead: View {
             .disabled((o?.list("modules") ?? []).isEmpty)
             GoalsPlanButton(o: o)
         }
-        UFSegPill(options: PlanViews.all, selection: "ziele") { v in onView(v) }
+        // iPhone: dieselbe Leiste wie im Lernkalender (in voller Breite, ohne Symbole)
+        UFSegPill(options: compact ? PlanView.views(compact: true) : PlanViews.all, selection: "ziele", fill: compact) { v in onView(v) }
             .padding(.bottom, 16)
     }
 }

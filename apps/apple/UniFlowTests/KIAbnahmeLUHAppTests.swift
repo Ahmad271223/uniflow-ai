@@ -561,7 +561,8 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
             let p = plan.rawValue
             openTutor(env)
             expect(env, ChatGPTLink.planHint, timeout: 25)
-            XCTAssertTrue(ChatGPTLink.planHint.contains("Einstellungen → Erweitert → Eigenes ChatGPT"))
+            // „Eigenes ChatGPT“ aus (11.11.2026): der Hinweis nennt nur die StudiNow-KI
+            XCTAssertFalse(ChatGPTLink.planHint.contains("ChatGPT"))
             shoot(env, "30-\(p)-ki-hilfe-ohne-ki")
             env.router.go(.aiStart)
             expect(env, ChatGPTLink.planHint)

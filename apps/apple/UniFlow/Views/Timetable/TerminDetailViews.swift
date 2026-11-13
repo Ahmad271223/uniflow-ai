@@ -95,6 +95,8 @@ struct TerminRoomSection: View {
     @State private var busy: String?
     @State private var search: RoomQuery?
     @State private var details: RoomQuery?
+    /// iPhone: "Im Raumfinder anzeigen" und "In Karten suchen" in voller Breite (Daumen)
+    @Environment(\.ufCompact) private var compact
 
     struct RoomQuery: Identifiable { let text: String; var id: String { text } }
 
@@ -134,9 +136,15 @@ struct TerminRoomSection: View {
                 .accessibilityLabel(TerminDetailText.routeLabel(r.text))
                 .accessibilityHint("Öffnet Google Maps mit der Route zu Fuß")
                 .accessibilityIdentifier("termin.room.route")
-                UFButton(TerminDetailText.showInFinder, icon: "layers", kind: .ghost, size: .small) { details = RoomQuery(text: r.text) }
-                    .accessibilityLabel(TerminDetailText.finderLabel(r.text))
-                    .accessibilityIdentifier("termin.room.finder")
+                Group {
+                    if compact {
+                        UFWideButton(TerminDetailText.showInFinder, icon: "layers", kind: .ghost) { details = RoomQuery(text: r.text) }
+                    } else {
+                        UFButton(TerminDetailText.showInFinder, icon: "layers", kind: .ghost, size: .small) { details = RoomQuery(text: r.text) }
+                    }
+                }
+                .accessibilityLabel(TerminDetailText.finderLabel(r.text))
+                .accessibilityIdentifier("termin.room.finder")
             }
         } else {
             UFFlexWrap(gap: 8, rowGap: 4) {
@@ -147,10 +155,16 @@ struct TerminRoomSection: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(r.link ? "Raum \(r.text)" : r.text)
                 if r.link && finder == false {
-                    UFButton(TerminDetailText.searchMaps, icon: "search", size: .small) { Task { await searchMaps(r.text) } }
-                        .disabled(busy != nil)
-                        .accessibilityLabel(TerminDetailText.mapsLabel(r.text))
-                        .accessibilityIdentifier("termin.room.maps")
+                    Group {
+                        if compact {
+                            UFWideButton(TerminDetailText.searchMaps, icon: "search") { Task { await searchMaps(r.text) } }
+                        } else {
+                            UFButton(TerminDetailText.searchMaps, icon: "search", size: .small) { Task { await searchMaps(r.text) } }
+                        }
+                    }
+                    .disabled(busy != nil)
+                    .accessibilityLabel(TerminDetailText.mapsLabel(r.text))
+                    .accessibilityIdentifier("termin.room.maps")
                 }
             }
             .accessibilityIdentifier("termin.room.text")
@@ -224,6 +238,8 @@ struct TerminLecturersSection: View {
     @State private var askConnect = false
     @State private var login = false
     @State private var message: LecturerMessageRequest?
+    /// iPhone: "Allen Lehrenden schreiben" in voller Breite unter der Ueberschrift statt daneben
+    @Environment(\.ufCompact) private var compact
 
     /// Tests: Nachladen eines Kurses ohne Stud.IP-Sitzung (sonst `StudIPSync.loadLecturers`)
     static var fetchOverride: ((String) async -> Void)?
@@ -239,13 +255,19 @@ struct TerminLecturersSection: View {
         VStack(alignment: .leading, spacing: 0) {
             if available, !people.isEmpty || loading || data?.s("hint") != nil {
                 TerminSectionHead(title: TerminDetailText.lecturers, icon: "users") {
-                    if all.count > 1 {
+                    if all.count > 1, !compact {
                         UFButton(TerminDetailText.writeAll, icon: "mail", size: .small) { write(all, person: nil) }
                             .accessibilityHint("Neue E-Mail an alle \(all.count) Lehrenden")
                             .accessibilityIdentifier("termin.lecturers.all")
                     }
                 }
                 .padding(.bottom, 2)
+                if all.count > 1, compact {
+                    UFWideButton(TerminDetailText.writeAll, icon: "mail") { write(all, person: nil) }
+                        .accessibilityHint("Neue E-Mail an alle \(all.count) Lehrenden")
+                        .accessibilityIdentifier("termin.lecturers.all")
+                        .padding(.vertical, 6)
+                }
                 if loading && people.isEmpty {
                     HStack(spacing: 8) { ProgressView(); Text(TerminDetailText.loading) }
                         .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 8)

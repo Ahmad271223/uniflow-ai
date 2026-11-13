@@ -21,6 +21,10 @@ struct TextDocumentView: View {
     @State private var showOriginal = false
     @StateObject private var transcriber = AudioTranscriber()
     @Environment(\.ufAIEnabled) private var aiEnabled
+    /// Kompakt (iPhone, schmaler Split View): Kopf in zwei Reihen, KI-Hilfe als Blatt von unten
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
 
     /// Beschriftung der Art (Kopfzeile)
     static func kindLabel(_ kind: String?) -> String {
@@ -48,17 +52,18 @@ struct TextDocumentView: View {
                         content
                     }
                 }
-                if showTutor {
-                    // Rand mit Griff: KI-Hilfe breiter/schmaler ziehen (TutorPanelWidth.swift)
+                if showTutor, !compact {
+                    // Rand mit Griff: KI-Hilfe breiter/schmaler ziehen (TutorPanelWidth.swift); iPhone: Blatt (unten)
                     TutorResizeHandle(panelOnLeft: false, total: geo.size.width, stored: $tutorStoredWidth)
-                    TutorPanel(fileID: file.id, fileName: file.displayTitle, page: { page }, selection: { "" },
-                               open: { id, p in if id == file.id, p >= 1, p <= max(pages, 1) { page = p } },
-                               close: { showTutor = false }, moduleID: file.module_id)
+                    tutor(inSheet: false)
                         .frame(width: TutorPanelWidth.width(stored: tutorStoredWidth, total: geo.size.width))
                 }
             }
         }
         .background(UF.bg)
+        .sheet(isPresented: Binding(get: { compact && showTutor }, set: { if !$0 { showTutor = false } })) {
+            tutor(inSheet: true).ufHalfSheet()
+        }
         .navigationTitle(file.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: file.id) { await load(1) }
@@ -66,32 +71,73 @@ struct TextDocumentView: View {
         .onChange(of: transcriber.state) { _, s in if case .done = s { Task { await reload() } } }
     }
 
+    /// KI-Hilfe zur aktuellen Seite (Spalte daneben bzw. kompakt als Blatt)
+    private func tutor(inSheet: Bool) -> some View {
+        TutorPanel(fileID: file.id, fileName: file.displayTitle, page: { page }, selection: { "" },
+                   open: { id, p in if id == file.id, p >= 1, p <= max(pages, 1) { page = p } },
+                   close: { showTutor = false }, moduleID: file.module_id, inSheet: inSheet)
+    }
+
     private var header: some View {
+        Group {
+            if compact {
+                // kompakt: oben Titel und Art, darunter Blaettern, Original und KI-Hilfe (eine Reihe ragte ueber den Rand)
+                VStack(alignment: .leading, spacing: 6) {
+                    titleBlock
+                    HStack(spacing: 6) {
+                        pager
+                        Spacer(minLength: 4)
+                        originalButton
+                        tutorButton
+                    }
+                }
+            } else {
+                HStack(spacing: 10) {
+                    titleBlock
+                    Spacer(minLength: 8)
+                    pager
+                    originalButton
+                    tutorButton
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .background(UF.surface)
+        .ufBorderBottom()
+    }
+
+    private var titleBlock: some View {
         HStack(spacing: 10) {
             UFIcon(Self.icon(kind), size: 16).foregroundStyle(UF.muted)
             VStack(alignment: .leading, spacing: 0) {
                 Text(file.displayTitle).ufFont(14.5, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
                 Text(Self.kindLabel(kind) + (pages > 0 ? " · \(pages) \(pages == 1 ? pageWord : pageWord + "n")" : "")).ufFont(12, lh: 1.3).foregroundStyle(UF.muted)
             }
-            Spacer(minLength: 8)
-            if pages > 1, !showOriginal {
-                HStack(spacing: 2) {
-                    UFButton(nil, icon: "chevron-left", kind: .ghost, size: .small) { page = max(1, page - 1) }
-                        .disabled(page <= 1).accessibilityLabel("Zurück").accessibilityIdentifier("text.prev")
-                    Text("\(pageWord) \(page) von \(pages)").ufFont(12.8).foregroundStyle(UF.text2).monospacedDigit()
-                        .accessibilityIdentifier("text.pageLabel")
-                    UFButton(nil, icon: "chevron-right", kind: .ghost, size: .small) { page = min(pages, page + 1) }
-                        .disabled(page >= pages).accessibilityLabel("Weiter").accessibilityIdentifier("text.next")
-                }
-            }
-            UFButton(showOriginal ? "Text" : "Original", icon: showOriginal ? "text" : "eye", kind: .ghost, size: .small) { showOriginal.toggle() }
-                .accessibilityIdentifier("text.original")
-            UFButton("KI-Hilfe", icon: "sparkles", kind: showTutor ? .primary : .normal, size: .small) { showTutor.toggle() }
-                .accessibilityIdentifier("text.tutor")
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
-        .background(UF.surface)
-        .ufBorderBottom()
+    }
+
+    @ViewBuilder private var pager: some View {
+        if pages > 1, !showOriginal {
+            HStack(spacing: 2) {
+                UFButton(nil, icon: "chevron-left", kind: .ghost, size: .small) { page = max(1, page - 1) }
+                    .disabled(page <= 1).accessibilityLabel("Zurück").accessibilityIdentifier("text.prev")
+                Text(compact ? "\(page)/\(pages)" : "\(pageWord) \(page) von \(pages)").ufFont(12.8).foregroundStyle(UF.text2).monospacedDigit()
+                    .accessibilityLabel("\(pageWord) \(page) von \(pages)")
+                    .accessibilityIdentifier("text.pageLabel")
+                UFButton(nil, icon: "chevron-right", kind: .ghost, size: .small) { page = min(pages, page + 1) }
+                    .disabled(page >= pages).accessibilityLabel("Weiter").accessibilityIdentifier("text.next")
+            }
+        }
+    }
+
+    private var originalButton: some View {
+        UFButton(showOriginal ? "Text" : "Original", icon: showOriginal ? "text" : "eye", kind: .ghost, size: .small) { showOriginal.toggle() }
+            .accessibilityIdentifier("text.original")
+    }
+
+    private var tutorButton: some View {
+        UFButton("KI-Hilfe", icon: "sparkles", kind: showTutor ? .primary : .normal, size: .small) { showTutor.toggle() }
+            .accessibilityIdentifier("text.tutor")
     }
 
     @ViewBuilder private var content: some View {
