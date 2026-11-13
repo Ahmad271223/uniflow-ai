@@ -6,7 +6,7 @@ import * as S from "./solutions.js?v=6";
 import { pageTitle } from "./solution-labels.js?v=1";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=7";
-import { loadSpaces } from "./community-spaces.js?v=21";
+import { loadSpaces } from "./community-spaces.js?v=22";
 import { capi } from "./views-qa.js?v=9";
 
 const $ = (s, el = document) => el.querySelector(s);

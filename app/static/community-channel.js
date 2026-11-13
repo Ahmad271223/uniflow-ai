@@ -11,7 +11,7 @@ import { pageTitle } from "./solution-labels.js?v=1";
 import * as L from "./community-logic.js?v=2";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=7";
-import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=21";
+import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=22";
 import { capi, openQuestion } from "./views-qa.js?v=9";
 import { renderDecksPanel } from "./community-decks-ui.js?v=5";
 
@@ -114,7 +114,7 @@ export async function renderSpacePage(view, params, info) {
         if (!en.isIntersecting) continue; observer.unobserve(en.target);
         const id = en.target.dataset.fid; if (!id || en.target.querySelector("img")) continue;
         try {
-          const ed = await import("./editor.js?v=71");
+          const ed = await import("./editor.js?v=72");
           const data = await ed.renderThumbnail(id, `/api/files/${id}/content`, en.target.dataset.ver, 220);
           if (data) { const img = new Image(); img.alt = ""; img.src = data; en.target.prepend(img); $(".cc-sheet", en.target)?.remove(); }
         } catch { /* Platzhalter bleibt */ }

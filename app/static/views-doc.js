@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
 import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=46";
-import { PdfEditor } from "./editor.js?v=71";
+import { PdfEditor } from "./editor.js?v=72";
 import { setupLectureMarker } from "./views-weekly.js?v=16";
 import { afterCloseTab, emptyDocHtml, isExercise as isExerciseFile, splitRole, paneBLeft } from "./doc-nav.js?v=2";
 import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)

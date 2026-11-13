@@ -30,12 +30,28 @@ public enum CommunityDiscussion {
 
     // MARK: Pruefen (wie der Dienst)
 
-    /// Getrimmter Text; leer oder zu lang wirft dieselben Meldungen wie der Dienst
+    /// Getrimmter Text ohne Steuer- und Richtungszeichen (`plain_text` im Dienst); leer oder zu lang wirft dieselben
+    /// Meldungen wie der Dienst. Kommentare und Fragen liegen in CloudKit nur verschluesselt, darum bereinigt das Geraet
+    /// selbst (Haertetest 13.11.2026, gemeinsame Faelle: fixtures/community/text-cases.json).
     public static func cleanText(_ text: String) throws -> String {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let t = plainText(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { throw CommunityServiceError.service("Der Kommentar ist leer.") }
         guard t.unicodeScalars.count <= maxComment else { throw CommunityServiceError.service("Höchstens \(maxComment) Zeichen.") }
         return t
+    }
+
+    /// Ohne Steuerzeichen (ausser Tab und Zeilenumbruch, also auch ohne `\r`) und ohne Unicode-Richtungszeichen
+    /// (U+202A-202E, U+2066-2069), wie `_INVISIBLE` in app/community.py; Skalar fuer Skalar, damit `\r\n` als ein
+    /// Zeichen nicht mitsamt dem Zeilenumbruch verschwindet.
+    public static func plainText(_ s: String) -> String {
+        var out = String.UnicodeScalarView()
+        for u in s.unicodeScalars where !isInvisible(u.value) { out.append(u) }
+        return String(out)
+    }
+
+    static func isInvisible(_ v: UInt32) -> Bool {
+        (0x00...0x08).contains(v) || (0x0B...0x1F).contains(v) || (0x7F...0x9F).contains(v)
+            || (0x202A...0x202E).contains(v) || (0x2066...0x2069).contains(v)
     }
 
     /// Seite und Stelle (`_anchor`): Seite gekuerzt, Stelle nur mit Seite und x, y in 0...1

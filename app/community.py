@@ -451,6 +451,21 @@ def _summary(r, me: str, reported: set[str] | None = None, conn=None) -> dict:
     return out
 
 
+def _summaries(conn, rows, me: str, reported: set[str] | None = None) -> list[dict]:
+    """Wie `_summary` mit Zahlen fuer viele Loesungen: Likes, eigenes Like und Kommentare in drei Abfragen fuer alle
+    Zeilen (vorher drei je Loesung; Lasttest Community 13.11.2026)."""
+    ids = [r["id"] for r in rows]
+    if not ids:
+        return []
+    ph = ",".join("?" * len(ids))
+    likes = dict(conn.execute(f"SELECT solution_id, COUNT(*) FROM likes WHERE solution_id IN ({ph}) GROUP BY solution_id", ids).fetchall())
+    mine = {x[0] for x in conn.execute(f"SELECT solution_id FROM likes WHERE user_id=? AND solution_id IN ({ph})", (me, *ids))}
+    comments = dict(conn.execute(f"SELECT solution_id, COUNT(*) FROM comments WHERE solution_id IN ({ph}) AND status='active' "
+                                 "GROUP BY solution_id", ids).fetchall())
+    return [{**_summary(r, me, reported), "likes": likes.get(r["id"], 0), "liked_by_me": r["id"] in mine,
+             "comments": comments.get(r["id"], 0)} for r in rows]
+
+
 def _member(conn, user: dict, community_key: str | None) -> bool:
     return bool(community_key and conn.execute("SELECT 1 FROM community_members WHERE user_id=? AND community_key=?",
                                                (user["id"], community_key)).fetchone())
@@ -558,7 +573,7 @@ def _listed(conn, user: dict, rows) -> list[dict]:
     blocked = {r["pseudonym"] for r in conn.execute("SELECT pseudonym FROM blocks WHERE user_id=?", (user["id"],))}
     banned = {r["author_id"] for r in conn.execute("SELECT author_id FROM bans")}
     reported = {r["solution_id"] for r in conn.execute("SELECT solution_id FROM reports WHERE reporter_id=?", (user["id"],))}
-    out = [_summary(r, user["id"], reported, conn) for r in rows if r["pseudonym"] not in blocked and r["author_id"] not in banned]
+    out = _summaries(conn, [r for r in rows if r["pseudonym"] not in blocked and r["author_id"] not in banned], user["id"], reported)
     out.sort(key=lambda x: x["published_at"], reverse=True)         # meistgelikte zuerst, bei Gleichstand die neueste
     out.sort(key=lambda x: -x["likes"])
     return out
@@ -759,7 +774,7 @@ def open_package_file(user: dict, solution_id: str):
 def mine(user: dict) -> list[dict]:
     with cursor() as conn:
         rows = conn.execute("SELECT * FROM solutions WHERE author_id=? ORDER BY published_at DESC", (user["id"],)).fetchall()
-        return [_summary(r, user["id"], None, conn) for r in rows]
+        return _summaries(conn, rows, user["id"])
 
 
 def withdraw_all(author_id: str, reason: str) -> int:
@@ -1007,9 +1022,13 @@ def comments(user: dict, solution_id: str) -> list[dict]:
     with cursor() as conn:
         r = _visible_solution(conn, user, solution_id)
         blocked = {x["pseudonym"] for x in conn.execute("SELECT pseudonym FROM blocks WHERE user_id=?", (user["id"],))}
+        # gesperrte Autoren (Moderation) wie bei Fragen und Antworten ausblenden; vorher blieben ihre Kommentare
+        # unter fremden Loesungen stehen (Haertetest 13.11.2026). Eigene Kommentare sieht das Konto weiter.
+        banned = {x["author_id"] for x in conn.execute(
+            "SELECT b.author_id FROM bans b JOIN comments c ON c.author_id=b.author_id WHERE c.solution_id=?", (r["id"],))}
         rows = conn.execute("SELECT * FROM comments WHERE solution_id=? AND status IN ('active','deleted') ORDER BY created_at, rowid",
                             (r["id"],)).fetchall()
-    rows = [c for c in rows if c["pseudonym"] not in blocked]
+    rows = [c for c in rows if c["pseudonym"] not in blocked and (c["author_id"] not in banned or c["author_id"] == user["id"])]
     has_reply = {c["parent_id"] for c in rows if c["parent_id"] and c["status"] == "active"}
     top = [c for c in rows if not c["parent_id"] and (c["status"] == "active" or c["id"] in has_reply)]
     out = []
@@ -1032,12 +1051,25 @@ def _anchor(page_key, anchor) -> tuple[str | None, float | None, float | None]:
     return pk, x, y
 
 
+def _comment_text(text) -> str:
+    """Kommentartext pruefen: nur Zeichenketten (vorher lief {"text": 123} auf .strip() einer Zahl, 500; Haertetest
+    13.11.2026), ohne Steuer- und Richtungszeichen, getrimmt."""
+    if text is not None and not isinstance(text, str):
+        raise CommunityError("text_invalid", "Der Kommentar muss Text sein.")
+    return plain_text(text or "").strip()
+
+
+def _require_not_banned(conn, user: dict) -> None:
+    if conn.execute("SELECT 1 FROM bans WHERE author_id=?", (user["id"],)).fetchone():
+        raise CommunityError("author_banned", "Dein Konto darf in der Community nichts mehr schreiben.", 403)
+
+
 def add_comment(user: dict, solution_id: str, text: str, parent_id: str | None = None, page_key=None, anchor=None) -> dict:
     from . import entitlements
     if not entitlements.has(user, "can_write_community_comments"):
         raise CommunityError("plan_required", "Kommentieren gibt es ab StudiNow Plus.", 403)
     _require_verified(user, "zu kommentieren")
-    text = plain_text(text or "").strip()
+    text = _comment_text(text)
     if not text:
         raise CommunityError("text_empty", "Der Kommentar ist leer.")
     if len(text) > MAX_COMMENT:
@@ -1082,13 +1114,14 @@ def _own_comment(conn, user: dict, comment_id: str, allow_solution_author: bool 
 
 
 def edit_comment(user: dict, comment_id: str, text: str) -> dict:
-    text = plain_text(text or "").strip()
+    text = _comment_text(text)
     if not text or len(text) > MAX_COMMENT:
         raise CommunityError("text_empty" if not text else "text_too_long", "Kommentar leer oder zu lang.")
     with cursor() as conn:
         c = _own_comment(conn, user, comment_id)
         if c["author_id"] != user["id"]:
             raise CommunityError("not_owner", "Nur der Verfasser kann seinen Kommentar ändern.", 403)
+        _require_not_banned(conn, user)            # gesperrt: alte Kommentare nicht umschreiben (13.11.2026)
         conn.execute("UPDATE comments SET text=?, edited_at=? WHERE id=?", (text, _now(), c["id"]))
         c2 = conn.execute("SELECT * FROM comments WHERE id=?", (c["id"],)).fetchone()
         return _comment_out(c2, user["id"], c["solution_author"])
@@ -1117,8 +1150,11 @@ def report_comment(user: dict, comment_id: str, reason: str) -> dict:
         if conn.execute("SELECT 1 FROM comment_reports WHERE comment_id=? AND reporter_id=?", (c["id"], user["id"])).fetchone():
             raise CommunityError("already_reported", "Du hast diesen Kommentar schon gemeldet.", 409)
         _limit("report_user", user["id"])
-        conn.execute("INSERT INTO comment_reports(comment_id, reporter_id, reason, created_at) VALUES (?,?,?,?)",
-                     (c["id"], user["id"], reason, _now()))
+        # OR IGNORE: zwei gleichzeitige Meldungen desselben Kontos kommen beide an der Pruefung oben vorbei; die zweite
+        # scheiterte am Primaerschluessel mit 500 (Haertetest 13.11.2026)
+        if not conn.execute("INSERT OR IGNORE INTO comment_reports(comment_id, reporter_id, reason, created_at) VALUES (?,?,?,?)",
+                            (c["id"], user["id"], reason, _now())).rowcount:
+            raise CommunityError("already_reported", "Du hast diesen Kommentar schon gemeldet.", 409)
         n = conn.execute("SELECT COUNT(*) FROM comment_reports WHERE comment_id=?", (c["id"],)).fetchone()[0]
         hidden = n >= REPORTS_TO_HIDE
         conn.execute("UPDATE comments SET report_count=?, status=? WHERE id=?", (n, "hidden" if hidden else "active", c["id"]))

@@ -80,7 +80,11 @@ export async function renderSpaces(el) {
   });
   $("#grpJoin", el).onclick = () => run(async () => {
     const code = S.normalizedCode($("#grpCode", el).value); if (!code) throw new Error("Ein Beitrittscode hat 8 Zeichen (Buchstaben und Ziffern).");
-    await api(`/community/communities/${await groupKey(university, code)}/join`, { method: "POST", body: { kind: "group" } });
-    saveGroups([...storedGroups().filter(g => g.code !== code), { code, name: code }]);
+    const key = await groupKey(university, code);
+    await api(`/community/communities/${key}/join`, { method: "POST", body: { kind: "group" } });
+    // Name der Gruppe wie auf dem iPad statt nur des Codes (Windows-Luecken 13.11.2026); ohne Antwort bleibt der Code
+    let name = code;
+    try { name = (await api(`/community/groups/${key}`)).name || code; } catch {}
+    saveGroups([...storedGroups().filter(g => g.code !== code), { code, name }]);
   });
 }

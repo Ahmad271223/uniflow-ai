@@ -13,7 +13,7 @@ const store = {
 const RECENTS_KEY = "uf.ai.recents", COUNT_KEY = () => `uf.ai.count.${L.monthKey()}`;
 
 export async function viewAiStart(_, params, view) {
-  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=71")]);
+  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=72")]);
   // in der Seitenleiste leuchtet "Tests & Wiederholung" (wie auf dem iPad)
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === "exams"));
   const st = { module: 0, fileId: "", question: "", turns: [], pending: null, busy: false, error: null, exhausted: false, help: false, credits: null, explain: null, loaded: false, source: null };

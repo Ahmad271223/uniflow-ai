@@ -119,7 +119,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=71"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=72"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -193,7 +193,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=71"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=72"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -637,7 +637,7 @@ export async function viewCommunity(_, params, view) {
     return;
   }
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=15")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=16")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -669,7 +669,7 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=21").then(m => m.renderSpaces($("#spacesCard", view)));
+  import("./community-spaces.js?v=22").then(m => m.renderSpaces($("#spacesCard", view)));
   Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=7")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
   if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=9").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
