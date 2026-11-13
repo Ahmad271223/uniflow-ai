@@ -26,6 +26,20 @@ Prüfungsanmeldung/-abmeldung. Das Schreiben an die Hochschulen (docs/release/AN
    Prüfung anmelden“ bzw. „Im LSF zur Prüfung anmelden“, und nach dem Schließen dieses In-App-Browsers ruft die App die
    angemeldeten Prüfungen einmal selbst ab (wie „Angemeldete Prüfungen abrufen“; nur mit bestehender QIS- bzw.
    LSF-Verbindung, nie in der Demo; `ExamRegistrationAutoFetch`, `UniWebBrowser.didClose`).
+   Seit 13.11.2026 (Wunsch des Inhabers) **direkt zum Modul** (nur QIS der LUH, iPad): Der Knopf gibt die offenen
+   Prüfungen mit (im Modul dieses zuerst). Der In-App-Browser geht „Mein Studium“ → „Prüfungsanmeldung/-abmeldung“
+   (Hinweise) → Anmeldebaum, klappt Zweige auf (`expand=0`, nie `expand=1`) und markiert das Modul
+   (`QISRegistrationGuide` im Kern, `QISRegistrationGuideRunner` in der App). Er folgt nur Menü- und Baumlinks, nie
+   „anmelden“, „abmelden“, Rücktritt, Logout oder einem Formular; Anmeldung beim QIS, Hinweise bestätigen und „Prüfung
+   anmelden“ tut der Mensch. Tippt der Mensch selbst, hält die Suche an; „Neu suchen“ und „Andere Prüfung“ beginnen
+   frisch ab „Mein Studium“ (frische Links der Sitzung). Findet er nichts, sagt er es.
+   Ebenfalls 13.11.2026 (Fehler des Inhabers: „mal angemeldet, mal abgemeldet“, „nur das eine Modul“): Solange der
+   Browser das QIS zeigt, liest die App nicht selbst in derselben QIS-Sitzung und meldet sich nicht still neu an
+   (`QISConnection.beginBrowser`/`endBrowser`; vorher konnte der Abgleich beim Zurückkehren in die App bzw. eine stille
+   Neuanmeldung die Seite im Browser ungültig machen). Vor dem Laden prüft die App die Sitzung und erneuert sie bei
+   Bedarf still mit dem gespeicherten Zugang (`prepareBrowserSession`). Der Browser kennzeichnet die Felder der
+   QIS-Anmeldeseite für das Passwort-Autofill und merkt ein dort getipptes Passwort (mit Zustimmung) wie die
+   Anmeldeansicht. „Neu laden“ sendet nach einem Formular nichts erneut.
 4. **Abhaken**: „Angemeldete Prüfungen abrufen“ (und jeder normale QIS-Abruf) liest nur lesend die Seite „Info über
    angemeldete Prüfungen“. Zusätzlich zählt der Vermerk **AN** im Notenspiegel (laut Prüfungsamt erscheinen angemeldete
    Prüfungen dort so; der Studienverlauf kennt das schon als Status „angemeldet“). Warnung, wenn der Meldezeitraum in

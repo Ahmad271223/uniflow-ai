@@ -46,23 +46,28 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(s.stage, .welcome)
     }
 
-    func testSignInThenPlanPickerOnceThenUniversityThenReady() {
+    /// Neuer Einstieg (13.11.2026): Anmeldung -> Rundgang -> Hochschule -> Uni-Anmeldung -> Fragen -> Tarife -> Oberflaeche
+    func testSignInThenTourUniversityLoginSetupPlanThenReady() {
         let secrets = MemorySecrets()
         let s = store(secrets)
         s.signIn(userID: "001.abc", name: "Ada Lovelace", email: "ada@example.com")
-        XCTAssertEqual(s.stage, .planPicker)
+        XCTAssertEqual(s.stage, .tour)
         // ein Eintrag fuer Kennung, Name und E-Mail (Pruefbericht 513, AuditRunde14AppTests)
         let stored = try? JSONSerialization.jsonObject(with: Data((secrets.values[AccountStore.Keys.account] ?? "").utf8)) as? [String: String]
         XCTAssertEqual(stored, ["user": "001.abc", "name": "Ada Lovelace", "email": "ada@example.com"])
         XCTAssertNil(secrets.values[AccountStore.Keys.user])
-        s.markPlanShown()
-        XCTAssertEqual(s.stage, .universityPicker, "nach der Tarifwahl: Hochschule wählen")
+        s.markTourDone()
+        XCTAssertEqual(s.stage, .universityPicker, "nach dem Rundgang: Hochschule wählen")
         XCTAssertNil(s.containerKey)
         s.chooseUniversity(.luh)
         XCTAssertEqual(s.stage, .universityLogin, "sofort die Anmeldeseiten der Hochschule (Entscheidung des Inhabers)")
         XCTAssertEqual(s.containerKey, DataContainerKey(userID: "001.abc", university: .luh), "dafuer ist der Container schon offen")
         XCTAssertFalse(s.loginDone)
         s.markLoginDone()
+        XCTAssertEqual(s.stage, .setup, "danach die Fragen im Gespräch")
+        s.markSetupDone()
+        XCTAssertEqual(s.stage, .planPicker, "zum Schluss Probe und Tarife")
+        s.markPlanShown()
         XCTAssertEqual(s.stage, .ready)
         XCTAssertFalse(AccountStore.Keys.loginDone("001.abc", .luh).contains("001.abc"), "nur die Kurzkennung in den UserDefaults")
 
@@ -125,9 +130,11 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertTrue(secrets.values.isEmpty)
         XCTAssertFalse(defaults.bool(forKey: AccountStore.Keys.planShown))
 
-        // nach erneuter Anmeldung kommt die Tarifwahl wieder
+        // nach erneuter Anmeldung kommt der Einstieg wieder (Rundgang, Fragen, Tarife)
+        XCTAssertFalse(defaults.bool(forKey: AccountStore.Keys.tourDone))
+        XCTAssertFalse(defaults.bool(forKey: AccountStore.Keys.setupDone))
         s.signIn(userID: "001.abc", name: nil, email: nil)
-        XCTAssertEqual(s.stage, .planPicker)
+        XCTAssertEqual(s.stage, .tour)
         XCTAssertNil(s.notice)
     }
 
@@ -325,6 +332,7 @@ final class AccountStoreTests: XCTestCase {
         defaults.set("plan", forKey: "UFOnboarding")
         DebugLaunch.prepare(account: s, defaults: defaults)
         XCTAssertEqual(s.stage, .planPicker)
+        XCTAssertEqual(s.university, .luh, "Probe und Tarife brauchen den Container der Hochschule")
         XCTAssertEqual(s.account?.isDebug, true)
         XCTAssertNil(s.notice)
     }
@@ -384,5 +392,49 @@ final class AccountStoreTests: XCTestCase {
         let request = ASAuthorizationAppleIDProvider().createRequest()
         AccountStore.configure(request)
         XCTAssertEqual(Set(request.requestedScopes ?? []), [.fullName, .email])
+    }
+
+    // MARK: Neuer Einstieg (13.11.2026)
+
+    /// Bestehende Nutzer (Tarifwahl im alten Ablauf schon gesehen) sehen Rundgang und Fragen nie
+    func testExistingUsersSkipNewIntro() {
+        let secrets = MemorySecrets()
+        let old = store(secrets)
+        old.signIn(userID: "001.abc", name: nil, email: nil)
+        old.chooseUniversity(.luh)
+        old.markLoginDone()
+        // Stand einer frueheren Version: nur der Merker "Tarifwahl gezeigt"
+        defaults.set(true, forKey: AccountStore.Keys.planShown)
+        defaults.removeObject(forKey: AccountStore.Keys.tourDone)
+        defaults.removeObject(forKey: AccountStore.Keys.setupDone)
+        let s = store(secrets)
+        XCTAssertEqual(s.stage, .ready)
+        XCTAssertTrue(defaults.bool(forKey: AccountStore.Keys.tourDone))
+        XCTAssertTrue(defaults.bool(forKey: AccountStore.Keys.setupDone))
+        // Hochschulwechsel: nur die Anmeldeseiten der neuen Hochschule, keine Fragen
+        s.chooseUniversity(.hildesheim)
+        XCTAssertEqual(s.stage, .universityLogin)
+        s.markLoginDone()
+        XCTAssertEqual(s.stage, .ready)
+    }
+
+    /// Ueberspringen: jeder Schritt einzeln, und "Tarifwahl gezeigt" schliesst Rundgang und Fragen ein
+    func testSkippingStepsAndPlanShownImpliesIntro() {
+        let s = store(MemorySecrets())
+        s.signIn(userID: "001.abc", name: nil, email: nil)
+        s.markPlanShown()
+        XCTAssertEqual(s.stage, .universityPicker)
+        XCTAssertTrue(s.tourDone)
+        XCTAssertTrue(s.setupDone)
+    }
+
+    func testPrepareSetupShowsQuestions() {
+        let s = store(MemorySecrets())
+        defaults.set("setup", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .setup)
+        defaults.set("tour", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .tour)
     }
 }

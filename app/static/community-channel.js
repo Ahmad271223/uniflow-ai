@@ -5,15 +5,15 @@
 // Dort "Korrektur vorschlagen", Likes und Kommentare. Reiter "Karteikarten": geteilte Stapel je Lehrwoche (community-decks-ui.js).
 // Aufruf: #/community?space=<schluessel>&tab=discussion|docs|cards&layout=weeks|list
 import { icon } from "./icons.js?v=33";
-import { $, $$, api, toast, modal } from "./core.js?v=46";
+import { $, $$, api, toast, modal } from "./core.js?v=47";
 import * as S from "./solutions.js?v=6";
 import { pageTitle } from "./solution-labels.js?v=1";
 import * as L from "./community-logic.js?v=2";
 import * as C from "./community-corrections.js?v=2";
-import * as U from "./community-corrections-ui.js?v=7";
-import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=21";
-import { capi, openQuestion } from "./views-qa.js?v=9";
-import { renderDecksPanel } from "./community-decks-ui.js?v=5";
+import * as U from "./community-corrections-ui.js?v=8";
+import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=23";
+import { capi, openQuestion } from "./views-qa.js?v=11";
+import { renderDecksPanel } from "./community-decks-ui.js?v=6";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim", hsh: "Hochschule Hannover" };
@@ -114,7 +114,7 @@ export async function renderSpacePage(view, params, info) {
         if (!en.isIntersecting) continue; observer.unobserve(en.target);
         const id = en.target.dataset.fid; if (!id || en.target.querySelector("img")) continue;
         try {
-          const ed = await import("./editor.js?v=71");
+          const ed = await import("./editor.js?v=73");
           const data = await ed.renderThumbnail(id, `/api/files/${id}/content`, en.target.dataset.ver, 220);
           if (data) { const img = new Image(); img.alt = ""; img.src = data; en.target.prepend(img); $(".cc-sheet", en.target)?.remove(); }
         } catch { /* Platzhalter bleibt */ }

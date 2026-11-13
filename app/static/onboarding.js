@@ -46,7 +46,7 @@ function show({ api, icon, esc, toast, state, settings }) {
     if (step === "welcome") {
       page(`<div class="ob-logo">${icon("graduation", 38)}</div><h1>Willkommen bei StudiNow</h1>
         <p class="ob-lead">Stud.IP-Dateien, Lernplan und Notizen – dein Studium an einem Ort.</p>
-        <label class="field"><b>Wie sollen wir dich nennen?</b><input class="input" id="obName" maxlength="40" autocomplete="given-name" placeholder="z. B. Ahmad" value="${esc(st.rufname)}"></label>
+        <label class="field"><b>Wie sollen wir dich nennen?</b><input class="input" id="obName" maxlength="40" autocomplete="given-name" placeholder="z. B. Alex" value="${esc(st.rufname)}"></label>
         <p class="muted small" style="margin:.3rem 0 1.2rem">Für „Hallo … – lass uns gemeinsam lernen.“ auf der Übersicht. Du kannst es leer lassen.</p>
         <div class="ob-foot"><button class="btn primary" id="obNext">Weiter ${icon("arrow-right", 15)}</button></div>`);
       const go = () => { st.rufname = box.querySelector("#obName").value.trim(); api("/settings", { method: "PUT", body: { rufname: st.rufname } }).catch(() => {}); next(); };

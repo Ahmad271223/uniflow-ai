@@ -387,6 +387,24 @@ def logout() -> dict:
     return info()
 
 
+def delete_account(password: str | None = None) -> dict:
+    """Konto beim StudiNow-Dienst loeschen (wie "Konto löschen" auf dem iPad, POST /api/account/delete): dort sofort
+    gesperrt und auf allen Geraeten abgemeldet, nach 30 Tagen endgueltig. Danach meldet sich dieser PC ab. Die Daten
+    auf diesem PC (lernapp.db, Dateien, Notizen) bleiben liegen, bis der Nutzer die App deinstalliert oder den Ordner
+    loescht - ohne Konto oeffnet die App sie nicht mehr, der Export geht weiter (Windows-Luecken 13.11.2026).
+    Falsches oder fehlendes Passwort: 403 credentials_invalid statt 401 (401 hiesse in der Oberflaeche "abgemeldet")."""
+    try:
+        out = _service_json("POST", "/api/account/delete", {"password": password} if password else {})
+    except AccountModeError as e:
+        if e.code == "credentials_invalid":
+            raise AccountModeError(e.code, e.message, 403)
+        raise
+    service_link.logout()                 # Sitzung ist im Dienst schon beendet; hier das Token vergessen
+    clear_cache()
+    _last.update(error=None, offline=False)
+    return {"deleted": bool(out.get("deleted", True)), "purge_after_days": out.get("purge_after_days", 30), "local_data_kept": True}
+
+
 def _b64url(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
 

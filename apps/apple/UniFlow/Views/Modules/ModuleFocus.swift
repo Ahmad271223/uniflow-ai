@@ -57,11 +57,6 @@ enum ModuleFocus {
         return lecture.filter { $0 <= f }.max() ?? lecture.min() ?? weeks.first
     }
 
-    /// Zugeklappt: alle Bloecke ausser `open`
-    static func collapsed(_ weeks: [Int], open: Int?) -> Set<Int> {
-        Set(weeks.filter { $0 != open })
-    }
-
     /// Hinweistext ueber den Wochen
     static func hint(_ label: String) -> String { "Aufgeklappt: die Woche zum \(label) – andere Wochen sind zugeklappt." }
     static let expandAll = "Alle Wochen aufklappen"

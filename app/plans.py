@@ -119,18 +119,22 @@ ENTITLEMENTS: dict[str, dict] = {
 # Karteikarten-Stapel von StudiNow (05.11.2026): fertige Wochenstapel aus dem Pool und geteilte Stapel der Community
 # uebernehmen, Plus 4 je Monat, Pro AI unbegrenzt (Fair Use); derselbe Stapel zaehlt im Monat nur einmal.
 QUOTAS: dict[str, dict[str, int | None]] = {
-    "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0},
-    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4},
-    "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150, "card_stacks_adopted": None},
+    "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0},
+    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0},
+    "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150, "card_stacks_adopted": None, "ai_mail": 50},
 }
 QUOTAS["pro_connect"] = QUOTAS["pro_ai"]        # alte Zeilen gelten wie Pro AI
+
+# KI-Mails (13.11.2026, Inhaber: "ab Pro AI, Pro hat 50 KI-Mails"): Uni-Mail "Mit KI verbessern" (Rechtschreibung,
+# Grammatik, Stil), 50 je Monat, ohne Credits; Aufgabe `mail` in app/ai_relay.py.
 
 # Grenze fuer "unbegrenzt" (Schutz vor automatisierten Abrufen), je Monat
 FAIR_USE: dict[str, int] = {"library_tests": 300, "ai_tests_new": 20, "ai_assist": 150, "card_stacks_adopted": 300}
 
 QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Tests aus der Bibliothek",
                 "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen",
-                "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)"}
+                "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)",
+                "ai_mail": "E-Mails mit KI verbessern"}
 
 # Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 0,9 Cent OpenAI-Kosten): Pro AI 100,
 # sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.

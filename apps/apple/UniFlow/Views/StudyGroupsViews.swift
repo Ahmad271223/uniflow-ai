@@ -209,6 +209,11 @@ enum PlanModulesText {
     static let later = "Später"
     static let cancel = "Abbrechen"
     static let button = "Fächer im Lernkalender"
+    /// Rueckfrage nach dem Abwaehlen: selbst angelegte oder geaenderte Lernpakete werden nie still geloescht
+    static func keptQuestion(_ n: Int) -> String {
+        (n == 1 ? "1 selbst angelegtes oder geändertes Lernpaket gehört" : "\(n) selbst angelegte oder geänderte Lernpakete gehören")
+            + " zu nicht gewählten Fächern. Auch entfernen? Erledigtes und erfasste Lernzeit bleiben."
+    }
 }
 
 /// Ein Fach der Auswahl (aus `GET /api/calendar/modules`)
@@ -233,6 +238,7 @@ struct PlanModulesSheet: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufClose) private var close
 
     init(items: [PlanModuleItem], asQuestion: Bool) {
@@ -273,9 +279,15 @@ struct PlanModulesSheet: View {
         close()
         Task {
             guard let api = session.api else { return }
-            if await toast.attempt("Speichern", { _ = try await api.value("/api/calendar/modules", method: "POST", body: body) }) {
-                router.reload()
+            var saved: JSONValue?
+            guard await toast.attempt("Speichern", { saved = try await api.value("/api/calendar/modules", method: "POST", body: body) }) else { return }
+            // Automatische Pakete abgewaehlter Faecher sind schon weg; eigene bzw. geaenderte nur nach Rueckfrage
+            if let kept = saved?["kept"]?.int, kept > 0, await overlay.confirm(PlanModulesText.keptQuestion(kept)) {
+                _ = await toast.attempt("Entfernen") {
+                    _ = try await api.value("/api/calendar/modules", method: "POST", body: ["remove_own": true])
+                }
             }
+            router.reload()
         }
     }
 }

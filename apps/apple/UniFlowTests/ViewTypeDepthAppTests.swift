@@ -127,6 +127,8 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("ModulePage", ModulePage.Body.self),
         ("ModuleWeekFileRow", ModuleWeekFileRow.Body.self),
         ("ModuleSectionMenu", ModuleSectionMenu.Body.self),
+        ("ModuleFileDoneToggle", ModuleFileDoneToggle.Body.self),
+        ("ModuleWeekDoneButton", ModuleWeekDoneButton.Body.self),
         ("ModuleUnassignedBar", ModuleUnassignedBar.Body.self),
         // Lernziele (Smart Planner 2.0, 12.11.2026) und der Lernkalender, in den sie eingebettet sind
         ("PlanView", PlanView.Body.self),
@@ -136,6 +138,24 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("GoalEditDialog", GoalEditDialog.Body.self),
         ("GoalSettingsDialog", GoalSettingsDialog.Body.self),
         ("PackageDrawer", PackageDrawer.Body.self),
+        // Uni-Mail "Mit KI verbessern" (13.11.2026)
+        ("UniMailComposeSheet", UniMailComposeSheet.Body.self),
+        ("UniMailAIButton", UniMailAIButton.Body.self),
+        ("UniMailAIProposal", UniMailAIProposal.Body.self),
+        // neuer Einstieg (13.11.2026)
+        ("IntroWelcomeLayout", IntroWelcomeLayout.Body.self),
+        ("IntroWelcomeSignIn", IntroWelcomeSignIn.Body.self),
+        ("IntroWelcomeStage", IntroWelcomeStage.Body.self),
+        ("IntroTourLayout", IntroTourLayout.Body.self),
+        ("IntroTourArt", IntroTourArt.Body.self),
+        ("IntroSetupLayout", IntroSetupLayout.Body.self),
+        ("IntroChatHistory", IntroChatHistory.Body.self),
+        ("IntroAnswerPanel", IntroAnswerPanel.Body.self),
+        ("IntroExamRow", IntroExamRow.Body.self),
+        ("IntroPlanLayout", IntroPlanLayout.Body.self),
+        ("IntroPlanHero", IntroPlanHero.Body.self),
+        ("IntroPlanTile", IntroPlanTile.Body.self),
+        ("IntroContainerStep", IntroContainerStep.Body.self),
     ]
 
     private func check(_ name: String, _ type: Any.Type, file: StaticString = #filePath, line: UInt = #line) {

@@ -433,7 +433,8 @@ def stub_answer(task: dict, provider: str) -> str:
         return "## Lösung\n\n" + "\n".join(f"{i + 1}. {n}" for i, n in enumerate(names)) + "\n\nErgebnis siehe oben."
     if k == "flashcards":
         n = task.get("count", 8) - (1 if flaw else 0)
-        return json.dumps({"cards": [{"question": f"Frage {i + 1} ({task['subject']})?", "answer": f"Antwort {i + 1}."}
+        return json.dumps({"cards": [{"question": f"Was bedeutet Begriff{i + 1} in {task['subject']}?", "answer": f"Antwort {i + 1}.",
+                                      "kind": "begriff", "page": 0}
                                      for i in range(n)]}, ensure_ascii=False)
     if k == "week_test":
         o = task["built"]["options"]

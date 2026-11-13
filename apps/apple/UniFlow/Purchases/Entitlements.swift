@@ -356,6 +356,8 @@ final class Entitlements: ObservableObject {
     /// nach der Probe
     @Published private(set) var purchasedPlan: UFPlan = .free
     private var serviceTrial: UFPlan?
+    /// bezahlter Tarif des Kontos laut Dienst (`paid_plan`, ohne Probe); nur fuer die Anzeige der Probe (`shownTrial`)
+    private var servicePaid: UFPlan?
     /// Resttage und Ende der Probe des Kontos laut Dienst (nur Anzeige, `UFShownTrial`)
     @Published private(set) var serviceTrialDaysLeft = 0
     @Published private(set) var serviceTrialEndsAt: Date?
@@ -434,6 +436,7 @@ final class Entitlements: ObservableObject {
 
     /// Stand des Kontos beim Dienst (`StudoraAccountLink.planStatus`): dessen laufende Probe fuer Freischaltung und Anzeige
     func useServiceStatus(_ s: StudoraAccount.PlanStatus?) {
+        servicePaid = s?.paidPlan.flatMap(UFPlan.init(rawValue:))
         useServiceTrial(s?.trialPlan.flatMap(UFPlan.init(rawValue:)), daysLeft: s?.trialDaysLeft ?? 0, endsAt: s?.trialEndsAt)
     }
 
@@ -490,7 +493,7 @@ final class Entitlements: ObservableObject {
     var shownTrial: UFShownTrial? {
         guard !planIsForced else { return nil }
         return UFShownTrial.make(service: serviceTrial, serviceDaysLeft: serviceTrialDaysLeft, serviceEndsAt: serviceTrialEndsAt,
-                          local: localTrial, purchased: purchasedPlan)
+                          local: localTrial, purchased: purchasedPlan, servicePaid: servicePaid)
     }
 
     /// Tarifseite: die angezeigte Probe, erst nach dem ersten Abruf

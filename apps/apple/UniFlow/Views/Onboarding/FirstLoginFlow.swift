@@ -180,7 +180,7 @@ struct FirstLoginPage: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: phone ? 10 : 14.4) {
-            if !phone { UFLogoMark(size: 40) }
+            IntroBuddy(size: phone ? 28 : 40)
             VStack(alignment: .leading, spacing: 3.2) {
                 Text("Schritt \(index + 1) von \(count): \(step.title)").ufFont(phone ? 16 : 20, 700, em: -0.01).foregroundStyle(UF.text)
                     .fixedSize(horizontal: false, vertical: true)
@@ -193,13 +193,9 @@ struct FirstLoginPage: View {
                 }
             }
             Spacer(minLength: 8)
-            HStack(spacing: 6) {
-                ForEach(0..<count, id: \.self) { i in
-                    Circle().fill(i <= index ? UF.accent : UF.line).frame(width: 8, height: 8)
-                }
-            }
-            .padding(.top, 8)
-            .accessibilityHidden(true)
+            // Fortschritt im Stil des neuen Einstiegs (IntroSteps)
+            IntroSteps(count: count, index: index).frame(width: 120).padding(.top, 10)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, phone ? 16 : 25.6).padding(.vertical, phone ? 10 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)

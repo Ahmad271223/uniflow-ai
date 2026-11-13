@@ -446,6 +446,7 @@ enum StudyPlan {
     static func generatePackages(_ c: SQLiteConnection, start: Int?, days: Int, replace: Bool, clock: UniFlowClock) throws -> JSONValue {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
+        try StudyPlanModules.dropUnplanned(c, today: today)       // abgewaehlte Faecher: keine Pakete (Build 37)
         try refreshStatuses(c, today: today)
         let s = try Settings(c)
         let start = start ?? today
@@ -875,6 +876,8 @@ public enum StudyAutoPlan {
         let ok = await MainActor.run(body: { allowed() })
         let clock = backend.context.clock
         return try await backend.context.database.transaction { c in
+            // abgewaehlte Faecher: auch Pakete, die ein anderes Geraet vor der Abwahl angelegt hat, kommen hier weg
+            try StudyPlanModules.dropUnplanned(c, today: LocalTimetable.today(clock))
             guard ok else {
                 try StudyPlan.markAllSeen(c, clock: clock)
                 return nil

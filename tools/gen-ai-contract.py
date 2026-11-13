@@ -133,7 +133,48 @@ def _flashcards_check_cases(ai) -> list[dict]:
         {"cards": "keine Liste"}, {"title": "ohne cards"}, [], "Text", None, many,
     ]
     counts = [None, "", 0, -3, 1, 7, "12", 30, 31, 999, 2.7, "abc", True]
-    return [{"in": a, "out": ai.check_flashcards(a)} for a in answers] + [{"count_in": c, "count": ai.flashcards_count(c)} for c in counts]
+    # Qualitaet (13.11.2026): Seitenangabe nur fuer Seiten des Inhalts, Doppel, fast gleiche Fragen, Frage verraet die
+    # Antwort, zu lange Felder, Frage gleich Antwort, Unicode-Woerter (Umlaute, Griechisch, Hochzahlen, Indizes)
+    quality = [
+        ({"cards": [
+            {"question": "Wie lautet die Bedingung des Abtasttheorems?", "answer": "f_A > 2 · f_max", "kind": "formel", "page": 4},
+            {"question": "Wie lautet die Bedingung des Abtasttheorems?", "answer": "doppelt", "page": 4},
+            {"question": "wie LAUTET die Bedingung des Abtasttheorems ?!", "answer": "Gross/klein und Zeichen egal", "page": 4},
+            {"question": "Wie lautet die Bedingung des Abtasttheorems genau?", "answer": "fast gleich", "page": 4},
+            {"question": "Welche Bedingung nennt das Abtasttheorem für die Abtastfrequenz?", "answer": "aehnlich, aber nicht gleich", "page": 4},
+            {"question": "Wie heißt der Tiefpass vor der Abtastung (Anti-Aliasing-Filter)?", "answer": "Anti-Aliasing-Filter.", "page": 5},
+            {"question": "Warum braucht man ein Anti-Aliasing-Filter vor der Abtastung?", "answer": "Es entfernt Frequenzen über f_A/2, die sonst als Alias erscheinen.", "page": 5},
+            {"question": "Was ist ein Alias?", "answer": "Eine hohe Frequenz, die nach der Abtastung als tiefe erscheint.", "page": 9},
+            {"question": "Was ist T?", "answer": "Das Abtastintervall", "page": True},
+            {"question": "Was ist f_A?", "answer": "Die Abtastfrequenz 1/T", "page": 3.0},
+            {"question": "Was ist x[n]?", "answer": "Der Abtastwert x(nT)", "page": "3"},
+            {"question": "Ja", "answer": "ja"},
+            {"question": "F" * (ai.FLASHCARDS_QUESTION_CHARS + 1), "answer": "zu lange Frage"},
+            {"question": "Zu lange Antwort?", "answer": "A" * (ai.FLASHCARDS_ANSWER_CHARS + 1)},
+            {"question": "F" * ai.FLASHCARDS_QUESTION_CHARS, "answer": "A" * ai.FLASHCARDS_ANSWER_CHARS, "page": 3},
+            {"question": "Ergänze: Für |q| < 1 gilt Σ qᵏ = ___", "answer": "1/(1−q)", "kind": "lueckentext", "page": 13},
+            {"question": "Was gilt für Σ qᵏ bei |q| ≥ 1?", "answer": "Die Reihe divergiert.", "page": 13},
+            {"question": "Was liefert s == t für zwei mit new erzeugte Strings mit gleichem Inhalt?", "answer": "false", "page": 22},
+            {"question": "Welche Ausgabe hat x² für x = 3?", "answer": "9", "page": 0},
+            {"question": "ω ist was?", "answer": "ω", "page": 4},
+            {"question": "Was ist x²?", "answer": "x mal x"}, {"question": "Was ist x2?", "answer": "eine Variable"},
+            {"question": "Was ist X²?", "answer": "doppelt (gross/klein)"},
+            {"question": "Welchen Wert hat die geometrische Reihe für q = 1/2?", "answer": "2"},
+            {"question": "Welchen Wert hat die geometrische Reihe für q = 1/3?", "answer": "3/2"},
+            {"question": "Vorlesung Frage 1 (Lauf 1)", "answer": "A"}, {"question": "Vorlesung Frage 2 (Lauf 1)", "answer": "B"},
+            {"question": "Was beschreibt ω₀ beim Schwingkreis?", "answer": "Die Resonanzkreisfrequenz ω₀ = 1/√(L·C)."},
+        ]}, [3, 4, 5, 13, 22]),
+        ([{"question": "Liste ohne Seiten", "answer": "keine Angabe", "page": 2}], None),
+        ({"cards": [{"question": "Was ist T?", "answer": "Intervall", "page": 2}]}, []),
+    ]
+    out = [{"in": a, "out": ai.check_flashcards(a)} for a in answers] + [{"count_in": c, "count": ai.flashcards_count(c)} for c in counts]
+    return out + [{"in": a, "pages": pages, "out": ai.check_flashcards(a, pages)} for a, pages in quality]
+
+
+def _flashcards_pages_text_cases(ai) -> list[dict]:
+    """ai.flashcards_pages_text: Seitenueberschriften, Leerraum, leere Seiten"""
+    cases = [([3, 4], ["  Abtastung \n", "Aliasing"]), ([1, 2, 3], ["", " \n ", "nur Seite 3"]), ([], []), ([7], ["ä€😀"])]
+    return [{"pages": p, "texts": t, "out": ai.flashcards_pages_text(p, t)} for p, t in cases]
 
 
 def _grade_cases(ai) -> list[dict]:
@@ -395,6 +436,7 @@ def main() -> int:
         "check_week_test": _check_cases(ai),
         "week_test_options": _options_cases(ai),
         "check_flashcards": _flashcards_check_cases(ai),
+        "flashcards_pages_text": _flashcards_pages_text_cases(ai),
         "chatgpt": _chatgpt(chatgpt_login, ai_backend),
     }
     text = json.dumps(out, ensure_ascii=False, indent=1) + "\n"

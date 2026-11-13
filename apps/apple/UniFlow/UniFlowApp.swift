@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniFlowCore
 
 /// Einstieg der nativen iPad-App. Erster Start nach docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a
@@ -214,12 +215,14 @@ struct UniFlowApp: App {
                 if let host = containers.active?.host { Task.detached { await StudIPSync.placeNewDocumentsOnOpen(host: host) } }
                 weeklyTicker.resume()
                 askForLoginIfDue()
+                // Geraete-Abgleich: Daten anderer Geraete in jedem Fenster zeigen (Abgleich nach Aenderungen, im Takt)
+                let routers = { [scenes] in for router in scenes.routers where !router.route.isDocument { router.reload() } }
+                containers.account.onRemoteChanges = routers
                 Task {
                     await containers.account.refresh()                     // Probe: Resttage, Ende
-                    if await containers.account.syncNow() {
-                        for router in scenes.routers where !router.route.isDocument { router.reload() }   // jedes Fenster
-                    }
+                    if await containers.account.syncNow() { routers() }    // jedes Fenster
                 }
+                containers.account.startForegroundSync()                   // offen: alle 3 Minuten abrufen
             } else {
                 weeklyTicker.pause()
             }
@@ -228,7 +231,24 @@ struct UniFlowApp: App {
             if phase == .background {
                 Task { await containers.saveWebSessions() }
                 Task { await background.schedule() }
+                sendPendingAccountChanges()
             }
+        }
+    }
+
+    /// Wechsel in den Hintergrund: noch nicht gesendete Aenderungen an die anderen Geraete schicken, mit etwas
+    /// Hintergrund-Zeit (iOS kann die App danach jederzeit beenden; vorher ging eine Notiz erst beim naechsten Oeffnen los)
+    private func sendPendingAccountChanges() {
+        final class TaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
+        let box = TaskBox()
+        box.id = UIApplication.shared.beginBackgroundTask(withName: "StudiNow abgleichen") {
+            UIApplication.shared.endBackgroundTask(box.id)
+            box.id = .invalid
+        }
+        let account = containers.account
+        Task {
+            await account.sendPendingChanges()
+            if box.id != .invalid { UIApplication.shared.endBackgroundTask(box.id); box.id = .invalid }
         }
     }
 
@@ -361,7 +381,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        OnboardingFlow { ContainerGate { if account.stage == .universityLogin { FirstLoginFlow() } else { MainView() } } }
+        OnboardingFlow { ContainerGate { IntroContainerStep(stage: account.stage) } }
             .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
             .sheet(isPresented: $choosingPlan) {
                 PlanPickerView(context: .settings) { choosingPlan = false }

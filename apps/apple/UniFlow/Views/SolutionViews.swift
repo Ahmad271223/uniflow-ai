@@ -713,6 +713,11 @@ struct SolutionLockedSheet: View {
 struct PDFExportNoticeDialog: View {
     let scope: ShareScope
     var confirm = "Exportieren"
+    /// Blaetter daneben, die mitgehen wuerden (nil = werden noch gesucht); Fehlerbericht 13.11.2026: beim Drucken
+    /// erschien ein altes Blatt, ohne dass der Hinweis es nannte
+    var sheets: [SideSheetLoader.Entry]? = []
+    /// abgewaehlte Blaetter (gehen diesmal nicht mit)
+    var excluded: Binding<Set<String>> = .constant([])
     let export: () -> Void
     let cancel: () -> Void
 
@@ -722,6 +727,7 @@ struct PDFExportNoticeDialog: View {
                 Text(SolutionTexts.pdfExportPrivate)
                 Text(scope == .document ? "Umfang: ganzes Dokument mit Notizen." : "Umfang: aktuelle Seite mit Notizen.")
                     .foregroundStyle(UF.muted)
+                PDFExportSheetList(sheets: sheets, excluded: excluded)
             }
             .ufFont(13.12).foregroundStyle(UF.text2)
             .fixedSize(horizontal: false, vertical: true)
@@ -729,6 +735,62 @@ struct PDFExportNoticeDialog: View {
             UFButton("Abbrechen", action: cancel)
             UFButton(confirm, icon: "download", kind: .primary, action: export)
         }
+    }
+}
+
+/// Liste "Blätter daneben" im Hinweis vor Drucken, Sichern und Teilen: jedes Blatt mit Namen und Schalter, damit klar
+/// ist, was mitgeht. Blaetter im Papierkorb erscheinen nicht (sie gehen nie mit).
+struct PDFExportSheetList: View {
+    let sheets: [SideSheetLoader.Entry]?
+    let excluded: Binding<Set<String>>
+
+    var body: some View {
+        if let sheets {
+            let shown = sheets.filter { !$0.trashed }
+            if !shown.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(shown.count == 1 ? "Mit dabei: 1 Blatt daneben" : "Mit dabei: \(shown.count) Blätter daneben")
+                        .ufFont(13.12, 650).foregroundStyle(UF.text)
+                    ForEach(shown) { e in
+                        Toggle(isOn: Binding(get: { !excluded.wrappedValue.contains(e.id) }, set: { on in
+                            if on { excluded.wrappedValue.remove(e.id) } else { excluded.wrappedValue.insert(e.id) }
+                        })) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(e.title).ufFont(13.12, 600).foregroundStyle(UF.text).lineLimit(2)
+                                if let when = e.editedLabel { Text(when).ufFont(12).foregroundStyle(UF.muted) }
+                            }
+                        }
+                        .accessibilityIdentifier("export.sheet.\(e.id)")
+                    }
+                }
+                .padding(.top, 4)
+            }
+        } else {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Blätter daneben werden gesucht …").foregroundStyle(UF.muted)
+            }
+        }
+    }
+}
+
+/// Hinweis vor Drucken, Sichern und Teilen mit den Blaettern daneben dieses Dokuments (laedt sie selbst)
+struct PDFExportNoticeWithSheets: View {
+    let store: DocumentStore
+    let api: APIClient
+    /// gerade daneben offenes Dokument
+    let open: DocumentStore?
+    let scope: ShareScope
+    let confirm: String
+    let export: (Set<String>) -> Void
+    let cancel: () -> Void
+    @State private var sheets: [SideSheetLoader.Entry]?
+    @State private var excluded: Set<String> = []
+
+    var body: some View {
+        PDFExportNoticeDialog(scope: scope, confirm: confirm, sheets: sheets, excluded: $excluded,
+                              export: { export(excluded) }, cancel: cancel)
+            .task { sheets = await SideSheetLoader.entries(for: store, api: api, open: open) }
     }
 }
 

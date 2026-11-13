@@ -54,7 +54,10 @@ final class OpenDocuments {
     }
 
     func release(_ key: String, by store: DocumentStore) {
-        if holders[key]?.store === store { holders[key] = nil }
+        if holders[key]?.store === store {
+            holders[key] = nil
+            NotificationCenter.default.post(name: .uniflowDocumentReleased, object: nil, userInfo: ["key": key])
+        }
     }
 
     /// Schreibt der Nutzer gerade? Ein Dokument ist zum Schreiben offen und zu sehen. Fragen nach dem Abgleich
@@ -68,4 +71,21 @@ final class OpenDocuments {
     func openStore(fileID: String, namespace: DataSourceNamespace) -> DocumentStore? {
         holders.values.compactMap(\.store).first { $0.file.id == fileID && $0.namespace == namespace && !$0.released }
     }
+}
+
+extension Notification.Name {
+    /// Ein Fenster hat ein Dokument zum Schreiben freigegeben (`userInfo["key"]`): ein anderes, das es nur ansieht, oeffnet
+    /// es neu und schreibt (13.11.2026)
+    static let uniflowDocumentReleased = Notification.Name("uniflowDocumentReleased")
+}
+
+/// Dokument im selben Fenster neu oeffnen (neuer `DocumentStore`): nach "Hier bearbeiten" oder wenn das andere Fenster
+/// das Dokument freigegeben hat. `Views.swift` haengt die Generation an die Identitaet der Dokumentansicht.
+@MainActor
+final class DocumentReopen: ObservableObject {
+    static let shared = DocumentReopen()
+    @Published private(set) var generations: [String: Int] = [:]
+
+    func generation(_ fileID: String) -> Int { generations[fileID] ?? 0 }
+    func reopen(_ fileID: String) { generations[fileID, default: 0] += 1 }
 }

@@ -1,6 +1,6 @@
 // Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination,
 // persoenliche Verfuegbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten; seit 03.11.2026 hier statt im Stundenplan)
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=46";
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=47";
 import { tinyNames } from "./plan-names.js?v=30";
 import { progress, ofDays, weekDays, weekLabel, emptyText } from "./task-progress.js?v=1";
 
@@ -14,6 +14,9 @@ export async function viewPlan(_, params, view) {
   // Werte aus der Adresse nur in fester Form (landen in href und innerHTML; Sicherheitspruefung 3.11.2026)
   if (PLAN_VIEWS.includes(params.view)) planState.view = params.view; if (/^\d{4}-\d{2}-\d{2}$/.test(params.date || "")) planState.date = params.date;
   if (params.module !== undefined && /^\d*$/.test(params.module)) planState.module = params.module;
+  // Lernziele (Smart Planner 2.0, 13.11.2026): eigene Ansicht wie auf dem iPad (views-goals.js)
+  if (params.view === "ziele") planState.view = "ziele";
+  if (planState.view === "ziele") return (await import("./views-goals.js?v=2")).viewGoals(view, planState);
   const d = parseISO(planState.date); const t = todayISO();
   let start, end;
   if (planState.view === "week") { start = mondayOf(d); end = addDays(start, 6); }
@@ -32,7 +35,7 @@ export async function viewPlan(_, params, view) {
       <div class="actions"><button class="btn" id="addPkgBtn">${icon("plus", 15)} Lernpaket</button><button class="btn" id="availBtn">${icon("clock", 15)} Verfügbarkeit</button><button class="btn" id="cfgBtn">${icon("settings", 15)} Lernkombination</button><button class="btn" id="rescueBtn" ${backlog.length ? "" : "disabled"} title="${backlog.length ? "" : "Nichts nachzuholen"}">${icon("life-buoy", 15)} Woche retten</button><button class="btn primary" id="genBtn">${icon("sparkles", 15)} Plan erstellen</button></div></div>
     ${backlog.length ? `<div class="card" style="border-color:transparent;background:var(--bad-soft);margin-bottom:1rem"><div class="row wrap"><b style="color:var(--bad-text)">${icon("alert", 16)} ${backlog.length} Aufgabe${backlog.length > 1 ? "n müssen" : " muss"} nachgeholt werden</b><span class="spacer"></span><button class="btn sm" id="catchNow">Jetzt nachholen</button><button class="btn sm primary" id="catchPlan">Neu einplanen</button><button class="btn sm ghost" id="catchSkip">Bewusst überspringen</button></div></div>` : ""}
     <div class="cal2 ${["week", "3days"].includes(planState.view) ? "wk" : ""} ${sideOff() ? "side-off" : ""}" id="cal2"><div class="cal2-main">
-      <div class="cal2-bar"><div class="seg pill">${[["day", "Tag"], ["3days", "3 Tage"], ["week", "Woche"], ["month", "Monat"], ["list", "Liste"]].map(([k, l]) => `<button class="${planState.view === k ? "active" : ""}" data-view="${k}">${k === "list" ? icon("list", 14) + " " : ""}${l}</button>`).join("")}</div>
+      <div class="cal2-bar"><div class="seg pill">${[["ziele", "Lernziele"], ["day", "Tag"], ["3days", "3 Tage"], ["week", "Woche"], ["month", "Monat"], ["list", "Liste"]].map(([k, l]) => `<button class="${planState.view === k ? "active" : ""}" data-view="${k}">${k === "list" ? icon("list", 14) + " " : k === "ziele" ? icon("flag", 14) + " " : ""}${l}</button>`).join("")}</div>
         <span class="spacer" style="max-width:1.5rem"></span><button class="btn icon" id="prevBtn" title="Zurück" aria-label="Zurück">${icon("chevron-left", 18)}</button><div class="cal2-title">${icon("calendar", 17)} <span>${label}</span></div><button class="btn icon" id="nextBtn" title="Weiter" aria-label="Weiter">${icon("chevron-right", 18)}</button>
         <span class="spacer"></span><button class="btn" id="todayBtn">Heute</button><select class="input" id="modSel" aria-label="Nach Modul filtern" style="width:auto"><option value="">Alle Module</option>${mods.map(m => `<option value="${m.id}" ${modFilter === m.id ? "selected" : ""}>${esc(shortName(m.name))}</option>`).join("")}</select><button class="btn icon" id="cfgBtn2" title="Lernkombination">${icon("settings", 17)}</button>${["week", "3days"].includes(planState.view) ? `<button class="btn icon" id="sideBtn" title="Seitenspalte ein-/ausblenden">${icon("panel-right", 17)}</button>` : ""}</div>
       <div id="calBody"></div></div>
@@ -141,7 +144,7 @@ export function bindCalendar(body) {
   // "Uhrzeiten vergeben": die Tage der Pakete ohne Uhrzeit, von Hand gesetzte Uhrzeiten bleiben (only_unset)
   $("#reslotWeek", body)?.addEventListener("click", async e => { await api("/timetable/reslot", { method: "POST", body: { dates: e.currentTarget.dataset.dates.split(","), only_unset: true } }); toast("Uhrzeiten vergeben"); state.route(); });
   $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => {
-    if (el.dataset.ev) return import("./views-tt.js?v=49").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
+    if (el.dataset.ev) return import("./views-tt.js?v=50").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
     // Einzeltermin aus dem Stud.IP-Kalender ohne eigene Serie: nur anzeigen
     modal(`<h3>${esc(el.title.split(" · ")[0])}</h3>${el.dataset.cx ? `<p class="small cx-box card flat">${icon("alert", 14)} ${esc(el.dataset.cx)}</p>` : ""}<p class="small muted">Termin aus deinem Stud.IP-Kalender (${fmtDate(el.dataset.date)}). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.</p><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   });
@@ -176,7 +179,7 @@ function weekSide(week, backlog, monthCal, d) {
 }
 function bindSide(view, dateStr, days) {
   $$("#calSide [data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
-  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=49")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
+  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=50")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
   $$("#calSide [data-taskdone]", view).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.taskdone}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt"); state.route(); });
   $("#calSide #addTaskBtn", view)?.addEventListener("click", () => addPackageDialog(dateStr));
   $$("#calSide [data-use]", view).forEach(b => b.onclick = () => useFreeWindow(dateStr, b.dataset.use));
@@ -227,12 +230,14 @@ export async function useFreeWindow(dateStr, range, extra = {}) {
 // ---------------------------------------------------------------- Lernpaket-Panel
 export async function openPackage(id) {
   let p; try { p = await api(`/packages/${id}`); } catch { return toast("Paket nicht gefunden"); }
+  const GV = p.source === "smart" ? await import("./views-goals.js?v=2") : null;      // Lernblock aus den Lernzielen
   const html = `<div class="drawer-head"><span class="dot" style="background:${p.color || "var(--accent)"}"></span><div style="flex:1"><b>${esc(p.subject)}</b><div class="muted small">${esc(p.title)} · ${fmtShort(p.date)}${p.start_time ? ` · ${p.start_time}–${p.end_time}` : ""} · ${fmtMin(p.planned_minutes || 0)}</div></div>${statusPill(p.status)}<button class="btn ghost icon" data-close>${icon("x", 18)}</button></div>
-    <div class="drawer-body"><div class="stack" id="taskList">${p.tasks.map(t => taskRow(t)).join("")}</div>
+    <div class="drawer-body">${GV ? GV.smartBlockHtml(p) : ""}<div class="stack" id="taskList">${p.tasks.map(t => taskRow(t)).join("")}</div>
       ${p.status === "nachholen" || p.status === "teilweise" ? `<div class="card flat" style="margin-top:1rem;background:var(--bad-soft);border-color:transparent"><b>${p.tasks.filter(t => t.status === "nachholen").length} Aufgaben müssen nachgeholt werden.</b><div class="row wrap" style="margin-top:.5rem"><button class="btn sm primary" id="pkSuggest">Neu einplanen</button><button class="btn sm" id="pkSkip">Bewusst überspringen</button></div></div>` : ""}</div>
     <div class="drawer-foot"><button class="btn sm" id="pkMove">${icon("move", 14)} Verschieben</button><button class="btn sm" id="pkTime">${icon("clock", 14)} Uhrzeit</button><button class="btn sm" id="pkAddTask">${icon("plus", 14)} Aufgabe</button><span class="spacer"></span><button class="btn sm danger" id="pkDel">${icon("trash", 14)}</button></div>`;
   const host = drawer(html);
   bindTaskRows(host, () => openPackage(id));
+  GV?.bindSmartBlock(host, p, () => openPackage(id));
   $("#pkSuggest", host)?.addEventListener("click", () => suggestFlow({ package_id: id }));
   $("#pkSkip", host)?.addEventListener("click", async () => { await api("/tasks/skip", { method: "POST", body: { task_ids: p.tasks.filter(t => t.status === "nachholen").map(t => t.id) } }); toast("Übersprungen"); state.route(); });
   $("#pkMove", host).onclick = () => moveDialog(`Lernpaket „${p.subject}“ verschieben`, async date => { await api(`/packages/${id}`, { method: "PATCH", body: { date } }); toast("Verschoben"); state.route(); }, p.date);

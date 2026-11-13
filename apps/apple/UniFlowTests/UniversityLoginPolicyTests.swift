@@ -511,6 +511,18 @@ final class UniversityLoginPolicyTests: XCTestCase {
         return try files.filter { $0.pathExtension == "swift" }.map { Source(name: $0.lastPathComponent, text: try String(contentsOf: $0, encoding: .utf8)) }
     }
 
+    /// Markierung im QIS-Anmeldebaum: nur Aussehen und Scrollen, nie klicken, Werte setzen, absenden oder mit der App reden
+    func testQISGuideHighlightOnlyMarks() {
+        let js = QISRegistrationGuideRunner.highlightScript
+        for forbidden in [".click", "dispatchEvent", ".value", "submit", "postMessage", "messageHandlers", "fetch(",
+                          "XMLHttpRequest", "cookie", "setAttribute"] {
+            XCTAssertFalse(js.contains(forbidden), forbidden)
+        }
+        // location nur als Basis zum Aufloesen der Adressen (new URL(h, location.href)), nie zugewiesen
+        XCTAssertFalse(js.contains("location.href =") || js.contains("location ="), "keine Navigation")
+        XCTAssertTrue(js.contains("style.outline") && js.contains("scrollIntoView"))
+    }
+
     func testAppSourcesHaveNoPasswordStoreAndNoFormScripts() throws {
         let sources = try Self.appSources()
         XCTAssertGreaterThan(sources.count, 50, "Quellen gefunden")
@@ -523,6 +535,10 @@ final class UniversityLoginPolicyTests: XCTestCase {
         // seit 12.11.2026 (Wunsch des Inhabers): `QISAutofillHints` kennzeichnet die Felder asdf/fdsa der QIS-Anmeldung
         // fuer das Passwort-Autofill von iPadOS (nur Attribute, kein Kanal, kein Wert; testQISAutofillHints...)
         let autofillOnly: Set<String> = ["WKUserScript", "addUserScript", "setAttribute("]
+        // seit 13.11.2026 (Wunsch des Inhabers, direkt zur Pruefungsanmeldung): `QISRegistrationGuideRunner` markiert die
+        // gefundene Zeile im QIS (nur Rahmen/Farbe und Scrollen, eigene Inhaltswelt, kein Klick, kein Wert, kein Kanal;
+        // testQISGuideHighlightOnlyMarks)
+        let guideOnly: Set<String> = ["callAsyncJavaScript"]
         for s in sources {
             let code = s.code.joined(separator: "\n")
             for forbidden in ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "callAsyncJavaScript", "messageHandlers",
@@ -531,6 +547,7 @@ final class UniversityLoginPolicyTests: XCTestCase {
                 where !(s.name == "UniLoginHelper.swift" && helperOnly.contains(forbidden))
                     && !(s.name == "UniAutoLogin.swift" && autoLoginOnly.contains(forbidden))
                     && !(s.name == "QISAutofillHints.swift" && autofillOnly.contains(forbidden))
+                    && !(s.name == "QISRegistrationGuideRunner.swift" && guideOnly.contains(forbidden))
                     // 11.11.2026: nur Darstellung der QIS-Anmeldung am iPhone (Viewport und CSS), ohne Kanal
                     && !(s.name == "QISPhoneFit.swift" && ["WKUserScript", "addUserScript"].contains(forbidden)) {
                 XCTAssertFalse(code.contains(forbidden), "\(s.name): \(forbidden)")

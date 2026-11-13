@@ -23,3 +23,8 @@
   (mit "Belegen/Abmelden", nie gefolgt), lsf-pos (mit "An-/Abmeldung zu Studien-/Prüfungsleistungen" und "Weiter zur
   Anmeldung", nie gefolgt), lsf-anmeldungen (Zeile "Abschluss: ...", Status zugelassen/AN/storniert, Link "Zur
   Stornierung der Anmeldung", nie gefolgt), lsf-anmeldungen-empty.
+- qis-anm-hinweise-link.html, qis-anm-hinweise-formular.html: ERFUNDEN (13.11.2026), Hinweisseite hinter dem Menuepunkt
+  "Prüfungsanmeldung/-abmeldung" (state=info, moduleParameter=prfAnmStudent, next=info.vm) in zwei Formen: mit Link in
+  den Anmeldebaum (state=prfAnmStudent, next=tree.vm, ohne nodeID) bzw. mit Formular und Haken (bestaetigt nur der
+  Mensch). Die echte Seite und der echte Anmeldebaum sind noch nicht gesehen; der Baum im Test
+  (QISRegistrationGuideTests.FakeQIS) folgt dem echten Baum von "Info über angemeldete Prüfungen".

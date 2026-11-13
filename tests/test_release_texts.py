@@ -185,7 +185,13 @@ def test_app_store_texts_match_current_build():
         assert "<key>UFShippedUniversities</key>" in (APPLE / "Info.plist").read_text(encoding="utf-8")
     for field in ("description", "description-proai"):
         d = f[field]
-        assert "Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen." in d
+        # ehrlich: heute ist nur die LUH angebunden (Richtlinie 2.3); seit 13.11.2026 steht in der genutzten Fassung zuerst
+        # der Satz des Inhabers "Lernmanagementsystem für Hochschulen in ganz Deutschland" mit diesem Zusatz
+        assert ("Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen." in d
+                if field == "description" else
+                d.startswith("StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit "
+                             "voller Anbindung an die Leibniz Universität Hannover.")
+                and "weitere Hochschulen folgen" in d), field
         assert "alle Hochschulen" not in d and "allen Hochschulen" not in d
     for field in ("description", "description-proai", "keywords", "promo", "whats-new", "subtitle", "name"):
         v = f[field]

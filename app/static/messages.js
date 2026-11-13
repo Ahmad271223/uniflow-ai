@@ -5,7 +5,7 @@
 // Stud.IP verbunden ist oder schon Nachrichten gespeichert sind (GET /api/studip/messages/status); die Zahl daran zählt die
 // neuen. Regeln und Texte: messages-logic.js; Daten: app/studip_messages.py (nur Liste, nie die Einzelansicht, nichts wird in
 // Stud.IP als gelesen markiert, nie im gehosteten Dienst, nie im Offline-Speicher, nie an die KI).
-import { $, $$, api, icon, toast, todayISO, debounce } from "./core.js?v=46";
+import { $, $$, api, icon, toast, todayISO, debounce } from "./core.js?v=47";
 import * as L from "./messages-logic.js?v=4";
 
 const { esc } = L;
@@ -115,7 +115,7 @@ export async function viewMessages(_, __, view) {
     if (!m) { box.innerHTML = `<div class="msg-pick muted">${icon("mail", 30)}<div>${esc(data.messages.length ? L.TEXTS.pick : L.noHits(query))}</div></div>`; return; }
     box.innerHTML = L.readerHtml(m, { today, back: true, icon });
     // Antworten / Allen antworten (05.11.2026, message-reply.js): Knoepfe, "Beantwortet am …", eigene Antwort
-    import("./message-reply.js?v=5").then(R => { if (selected === m.id) R.decorateReader(box, m, { onSent: () => load(false) }); }).catch(() => {});
+    import("./message-reply.js?v=6").then(R => { if (selected === m.id) R.decorateReader(box, m, { onSent: () => load(false) }); }).catch(() => {});
     box.scrollTop = 0;
     $(".msg-back", box).onclick = () => { selected = null; drawResults(); $(".msg-row", body)?.focus(); };
     $$(".msg-row", body).forEach(b => { const on = b.dataset.id === selected; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current"); });

@@ -95,6 +95,17 @@ enum AIPromptTexts {{
     static let flashcardsMax = {ai.FLASHCARDS_MAX}
     static let flashcardsTextChars = {ai.FLASHCARDS_TEXT_CHARS}
 
+    /// `ai.FLASHCARDS_QUESTION_CHARS` / `ai.FLASHCARDS_ANSWER_CHARS` / `ai.FLASHCARDS_SIMILAR`: Pruefung der Karten (13.11.2026)
+    static let flashcardsQuestionChars = {ai.FLASHCARDS_QUESTION_CHARS}
+    static let flashcardsAnswerChars = {ai.FLASHCARDS_ANSWER_CHARS}
+    static let flashcardsSimilar = {ai.FLASHCARDS_SIMILAR}
+
+    /// `ai.FLASHCARDS_RULES`: Regeln fuer gute Karten (eine Idee je Karte, Mischung der Arten, Seitenangabe)
+    static let flashcardsRules = {raw(ai.FLASHCARDS_RULES)}
+
+    /// `ai.FLASHCARDS_ANSWER_FORM`: verlangte Form der Antwort
+    static let flashcardsAnswerForm = {raw(ai.FLASHCARDS_ANSWER_FORM)}
+
     /// `ai.FLASHCARDS_SCHEMA` als JSON (Responses API: text.format json_schema)
     static let flashcardsSchemaJSON = {raw(json.dumps(ai.FLASHCARDS_SCHEMA, ensure_ascii=False, separators=(", ", ": ")))}
 }}

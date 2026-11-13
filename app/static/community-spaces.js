@@ -1,7 +1,7 @@
 // Communities je Modul und Lerngruppe (wie CommunitySpacesCard auf dem iPad): beitreten, verlassen, Loesungen
 // ansehen. Der Schluessel einer Community entsteht aus Modulname bzw. Beitrittscode und oeffnet ihre Pakete auch ohne die
 // PDF; dann stehen die Notizen auf leeren Seiten. Codes bleiben in diesem Browser, der Dienst kennt nur den Gruppen-Schluessel.
-import { $, $$, api, esc, icon, toast, showError, drawer, closeDrawer } from "./core.js?v=46";
+import { $, $$, api, esc, icon, toast, showError, drawer, closeDrawer } from "./core.js?v=47";
 import * as S from "./solutions.js?v=6";
 import { visibleSpaces } from "./community-logic.js?v=2";
 
@@ -80,7 +80,11 @@ export async function renderSpaces(el) {
   });
   $("#grpJoin", el).onclick = () => run(async () => {
     const code = S.normalizedCode($("#grpCode", el).value); if (!code) throw new Error("Ein Beitrittscode hat 8 Zeichen (Buchstaben und Ziffern).");
-    await api(`/community/communities/${await groupKey(university, code)}/join`, { method: "POST", body: { kind: "group" } });
-    saveGroups([...storedGroups().filter(g => g.code !== code), { code, name: code }]);
+    const key = await groupKey(university, code);
+    await api(`/community/communities/${key}/join`, { method: "POST", body: { kind: "group" } });
+    // Name der Gruppe wie auf dem iPad statt nur des Codes (Windows-Luecken 13.11.2026); ohne Antwort bleibt der Code
+    let name = code;
+    try { name = (await api(`/community/groups/${key}`)).name || code; } catch {}
+    saveGroups([...storedGroups().filter(g => g.code !== code), { code, name }]);
   });
 }

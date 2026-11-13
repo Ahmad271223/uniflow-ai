@@ -133,6 +133,20 @@ enum CommunityCourses {
         }) ?? nil
     }
 
+    /// Eigene Kopie der PDF zu einem Fingerabdruck (Datei-ID und Ort auf dem Geraet), um eine fremde Loesung 1:1 auf
+    /// der richtigen Seite zu zeigen. Nur lesen, nur im Container des Betrachters: die PDF des Lehrenden wird nie
+    /// geschickt, die Loesung traegt nur den Fingerabdruck und die Seitennummern (13.11.2026).
+    static func localPDF(fingerprint: String, host: LocalBackendHost) async -> (id: String, url: URL)? {
+        guard !fingerprint.isEmpty, let files = host.files, let backend = try? await host.backend() else { return nil }
+        let row = try? await backend.context.database.withConnection {
+            try $0.rows("SELECT id, local_path FROM files WHERE content_sha256=? AND deleted_at IS NULL AND local_path IS NOT NULL LIMIT 1",
+                        [.text(fingerprint)]).first
+        }
+        guard let row, let id = row["id"]?.string, let path = row["local_path"]?.string, files.exists(stored: path),
+              let url = files.url(stored: path) else { return nil }
+        return (id, url)
+    }
+
     /// Community-Schluessel einer Datei: aus dem Modul ihres Kurses (Abgleich) oder, bei eigenen Dokumenten, aus dem
     /// Namen des Moduls (ueber den Ordner); nil ohne Kurs und Modul oder bei unbekannter Datei
     static func courseKey(fileID: String, host: LocalBackendHost, university: String) async -> String? {
@@ -850,6 +864,8 @@ extension CloudKitCommunityService {
         guard Self.owner(record, me: user) == user else {
             throw CommunityServiceError.service("Nur der Verfasser kann seinen Kommentar ändern.")
         }
+        // gesperrt (Ban im Dashboard): alte Kommentare nicht umschreiben, wie edit_comment im Dienst (13.11.2026)
+        if await bannedOwners(cloud).contains(user) { throw CommunityServiceError.service("Dein Konto darf nicht mehr kommentieren.") }
         guard let secret = t.secret else { throw CommunityServiceError.notAMember }
         let cid = record.name.lowercased(), sid = t.id
         // Seite, Stelle und Pseudonym bleiben; neues Salz und neue Nonce

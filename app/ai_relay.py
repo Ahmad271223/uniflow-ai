@@ -24,6 +24,8 @@ Aufgaben (`TASKS`):
 - `grade`          Bewertung eines abgegebenen Tests; ohne Credits, nur mit einem Tarif mit Wochentests
 - `study_plan`     KI-Lernplan (07.11.2026, iPad AIStudyPlan.swift): Lernbloecke aus Modultiteln, Lehrwochen, Dateinamen,
                    Klausurterminen und Zeiten; Recht can_use_ai_explanations, Kontingent ai_assist, Credits
+- `mail`           Uni-Mail "Mit KI verbessern" (13.11.2026): Rechtschreibung, Grammatik, Stil; Recht
+                   can_use_ai_explanations (Pro AI, Probe), Kontingent ai_mail (50 je Monat), ohne Credits
 
 Antwort: {answer, model, shared, replay, credits}; `shared` = Treffer im Zwischenspeicher der StudiNow-KI (0 Credits),
 `credits` = Stand des Kontos mit `charged` (wie /api/ai/tutor im Dienst). Fehler wie im Dienst: {detail, code, ...}
@@ -73,13 +75,15 @@ def _tasks() -> dict[str, Task]:
     out["weekly"] = Task("weekly_test", "weekly", 120_000, needs_tests=True)
     out["grade"] = Task("test_grading", "json", 60_000, needs_tests=True)
     out["study_plan"] = Task("study_plan", "json", 40_000, "can_use_ai_explanations", "ai_assist")
+    # Uni-Mail "Mit KI verbessern" (13.11.2026): Pro AI, 50 je Monat (plans.QUOTAS ai_mail), ohne Credits
+    out["mail"] = Task("mail_rewrite", "mail", 12_000, "can_use_ai_explanations", "ai_mail")
     return out
 
 
 def _systems(university: str | None = None) -> dict[str, str]:
     """System-Texte je Schluessel; `weekly` nach der Hochschule des Kontos (Audit P65-F7, weekly.system_text)"""
     from . import ai, weekly
-    return {"tutor": ai.TUTOR_SYSTEM, "json": ai.SYSTEM, "weekly": weekly.system_text(university)}
+    return {"tutor": ai.TUTOR_SYSTEM, "json": ai.SYSTEM, "weekly": weekly.system_text(university), "mail": ai.MAIL_INSTRUCTION}
 
 
 def known_task(name: str) -> bool:

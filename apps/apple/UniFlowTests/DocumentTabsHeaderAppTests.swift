@@ -63,13 +63,20 @@ final class DocumentTabsHeaderAppTests: XCTestCase {
         XCTAssertEqual(restarted.entry("a")?.spot, spot)
         XCTAssertEqual(restarted.entry("b")?.title, "Lineare Algebra Skript")
 
-        // hoechstens 10: der am laengsten nicht gezeigte faellt heraus, nie der aktive, nie einer mit Ungesichertem
+        // hoechstens 15 (die zuletzt geoeffneten, Inhaber 13.11.2026): der am laengsten nicht gezeigte faellt heraus,
+        // nie der aktive, nie einer mit Ungesichertem
+        XCTAssertEqual(DocumentTabList.limit, 15)
         tabs.setUnsaved(true, for: "b")
-        for i in 0..<12 { tabs.open("x\(i)", title: "Dokument \(i)") }
+        for i in 0..<13 { tabs.open("x\(i)", title: "Dokument \(i)") }
         XCTAssertEqual(tabs.entries.count, DocumentTabList.limit)
         XCTAssertTrue(tabs.ids.contains("b"), "ungesichert bleibt")
         XCTAssertFalse(tabs.ids.contains("a"), "aeltester faellt heraus")
-        XCTAssertEqual(tabs.activeID, "x11")
+        XCTAssertTrue(tabs.ids.contains("c"), "15 passen: der zweitaelteste bleibt")
+        XCTAssertEqual(tabs.activeID, "x12")
+        let afterRestart = DocumentTabList(defaults: d)
+        afterRestart.sceneID = { "fenster-1" }
+        afterRestart.reloadForTesting()
+        XCTAssertEqual(afterRestart.ids, tabs.ids, "alle 15 nach dem Neustart")
 
         // Titel gekuerzt, nie umbrochen
         XCTAssertEqual(DocumentTabStrip.shortTitle("Kurz", active: false), "Kurz")
@@ -77,10 +84,11 @@ final class DocumentTabsHeaderAppTests: XCTestCase {
         XCTAssertLessThanOrEqual(long.count, 18)
         XCTAssertTrue(long.hasSuffix("…"))
         XCTAssertGreaterThan(DocumentTabStrip.shortTitle("Übungsblatt 7 – Mehrdimensionale Integration", active: true).count, long.count)
-        // Reiter passen immer ganz: volle Titel, kurze Titel, sonst ein Knopf mit Liste (nie halb abgeschnitten)
-        XCTAssertEqual(DocumentTabStrip.fit(full: 300, short: 200, max: 354), .full)
-        XCTAssertEqual(DocumentTabStrip.fit(full: 430, short: 330, max: 354), .short)
-        XCTAssertEqual(DocumentTabStrip.fit(full: 430, short: 330, max: 164), .menu)
+        // Leiste so breit wie die Reiter, hoechstens die erlaubte Breite; darueber zu wischen
+        XCTAssertEqual(DocumentTabStrip.stripWidth(content: 300, max: 354), 300)
+        XCTAssertEqual(DocumentTabStrip.stripWidth(content: 900, max: 354), 354)
+        XCTAssertFalse(DocumentTabStrip.scrolls(content: 300, max: 354))
+        XCTAssertTrue(DocumentTabStrip.scrolls(content: 900, max: 354))
     }
 
     func testHeaderLayoutNeverWrapsOnlyMovesIntoMenus() {
@@ -90,6 +98,60 @@ final class DocumentTabsHeaderAppTests: XCTestCase {
         XCTAssertTrue(EditorHeaderLayout(width: 500).tabsAsMenu, "sehr schmal: Reiter als ein Knopf")
         XCTAssertEqual(EditorHeaderLayout.height, 44)
         XCTAssertLessThan(EditorHeaderLayout(width: 1180).tabMaxWidth, 1180 / 2)
+    }
+
+    /// Je Konto/Container eine eigene Liste: nach einem Wechsel zeigt die Leiste nie die Reiter des anderen Kontos, und
+    /// zurueck sind die eigenen wieder da (Datentrennung)
+    func testTabsBelongToTheOpenContainer() throws {
+        let sa = "uniflow.tests.tabs.a.\(UUID().uuidString)", sb = "uniflow.tests.tabs.b.\(UUID().uuidString)"
+        let da = try XCTUnwrap(UserDefaults(suiteName: sa)), db = try XCTUnwrap(UserDefaults(suiteName: sb))
+        addTeardownBlock { da.removePersistentDomain(forName: sa); db.removePersistentDomain(forName: sb) }
+        var current: UserDefaults? = da
+        let tabs = DocumentTabList()
+        tabs.containerDefaults = { current }
+        tabs.sceneID = { "fenster-1" }
+        tabs.reloadForTesting()
+        tabs.open("ada-1", title: "Ada Analysis")
+        tabs.open("ada-2", title: "Ada Physik")
+        XCTAssertEqual(tabs.visibleEntries.map(\.id), ["ada-1", "ada-2"])
+
+        current = db                                                    // Konto- bzw. Hochschulwechsel
+        XCTAssertTrue(tabs.visibleEntries.isEmpty, "vor dem Neuladen: nichts vom anderen Konto")
+        tabs.refresh()
+        XCTAssertTrue(tabs.visibleEntries.isEmpty, "neues Konto beginnt leer")
+        tabs.open("bob-1", title: "Bob Chemie")
+        XCTAssertEqual(tabs.visibleEntries.map(\.id), ["bob-1"])
+        XCTAssertNil(db.data(forKey: DocumentTabList.lastKey).flatMap { String(data: $0, encoding: .utf8) }?.range(of: "ada-"),
+                     "nichts von Ada in Bobs Einstellungen")
+
+        current = da
+        tabs.refresh()
+        XCTAssertEqual(tabs.visibleEntries.map(\.id), ["ada-1", "ada-2"], "Adas Reiter wieder da")
+        XCTAssertNil(da.data(forKey: DocumentTabList.lastKey).flatMap { String(data: $0, encoding: .utf8) }?.range(of: "bob-"))
+    }
+
+    /// Geloeschte Dokumente verschwinden aus der Leiste: Papierkorb sofort, nicht mehr in der Bibliothek nur nach
+    /// Rueckfrage (ein Kurs, der nur ausgeblendet ist, behaelt seine Reiter)
+    func testDeletedDocumentsLeaveTheStrip() async throws {
+        let suite = "uniflow.tests.tabs.del.\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { d.removePersistentDomain(forName: suite) }
+        let tabs = DocumentTabList(defaults: d)
+        tabs.reloadForTesting()
+        for id in ["da", "papierkorb", "weg", "ausgeblendet"] { tabs.open(id, title: id) }
+        var asked: [String] = []
+        await tabs.pruneDeleted(listed: ["da"], trashed: ["papierkorb"]) { id in
+            asked.append(id)
+            return id == "ausgeblendet"
+        }
+        XCTAssertEqual(Set(asked), ["weg", "ausgeblendet"], "nur Unbekannte werden nachgefragt")
+        XCTAssertEqual(tabs.ids, ["da", "ausgeblendet"])
+        let restarted = DocumentTabList(defaults: d)
+        restarted.reloadForTesting()
+        XCTAssertEqual(restarted.ids, ["da", "ausgeblendet"], "auch nach dem Neustart weg")
+        tabs.remove(["ausgeblendet"])
+        XCTAssertNil(tabs.activeID, "aktiver Reiter geloescht: keiner aktiv")
+        XCTAssertEqual(tabs.ids, ["da"])
     }
 
     // MARK: Im Editor
@@ -270,7 +332,7 @@ final class DocumentTabsHeaderAppTests: XCTestCase {
             }
             print("REITER Schreibflaeche \(what): PDF beginnt bei \(pdf.minY) pt (vorher \(Self.pdfTopBefore))")
         }
-        try checkOneRow("hoch", ids: ["doc.tabs.menu", "toolbar.tool.pen", "toolbar.redo", "toolbar.askAI.locked", "doc.more"])
+        try checkOneRow("hoch", ids: ["doc.tabs", "toolbar.tool.pen", "toolbar.redo", "toolbar.askAI.locked", "doc.more"])
         XCTAssertNil(frame("doc.pages", env), "hoch: Seiten im Menue Mehr")
         try shoot(env, "reiter-hoch-3")
 

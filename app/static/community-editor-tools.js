@@ -5,9 +5,9 @@ import { icon } from "./icons.js?v=33";
 import * as S from "./solutions.js?v=6";
 import { pageTitle } from "./solution-labels.js?v=1";
 import * as C from "./community-corrections.js?v=2";
-import * as U from "./community-corrections-ui.js?v=7";
-import { loadSpaces } from "./community-spaces.js?v=21";
-import { capi } from "./views-qa.js?v=9";
+import * as U from "./community-corrections-ui.js?v=8";
+import { loadSpaces } from "./community-spaces.js?v=23";
+import { capi } from "./views-qa.js?v=11";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];

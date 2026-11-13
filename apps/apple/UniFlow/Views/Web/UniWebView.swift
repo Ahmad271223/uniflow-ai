@@ -110,18 +110,37 @@ final class UniWebPage: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     let load = UFWebLoadState()
     let university: UniversityKey
     let webView: WKWebView
+    /// QIS-Verbindung des Containers (LUH): Anmeldung im Browser erkennen (`browserSignedIn`)
+    weak var qis: QISConnection?
+    /// "Im QIS zur Prüfung anmelden" mit Modul: Weg zum Modul im Anmeldebaum (`QISRegistrationGuideRunner`)
+    let guide: QISRegistrationGuideRunner?
     private var observations: [NSKeyValueObservation] = []
     private var downloads: [ObjectIdentifier: URL] = [:]
+    /// letzte Navigation des Hauptrahmens war ein Formular (POST): "Neu laden" sendet es nie noch einmal
+    private(set) var lastWasPost = false
+    /// letzte per GET geladene Adresse des Hauptrahmens
+    private(set) var lastGetURL: URL?
 
-    init(dataStore: WKWebsiteDataStore, university: UniversityKey) {
+    init(dataStore: WKWebsiteDataStore, university: UniversityKey, qis: QISConnection? = nil,
+         guide: QISRegistrationGuideRunner? = nil) {
         self.university = university
+        self.qis = qis
+        self.guide = guide
         let config = WKWebViewConfiguration()
         config.websiteDataStore = dataStore
         // kein Skript auf Stud.IP, Learnweb, LSF oder QIS; nur auf der Anmeldeseite des WebSSO bzw. CAS:
         // "Angemeldet bleiben" und Benutzername (`UniLoginHelper`)
         UniLoginHelper.install(in: config, dataStore: dataStore)
+        if university == .luh {
+            // QIS-Anmeldeseite (13.11.2026): Felder fuer das Passwort-Autofill kennzeichnen (`QISAutofillHints`, nie ein
+            // Wert) und ein selbst getipptes Passwort nach gelungener Anmeldung merken wie in der Anmeldeansicht
+            // (`UniCredentialCapture`, nur mit Zustimmung). Vorher war die QIS-Anmeldung im Browser ohne beides.
+            QISAutofillHints.install(in: config)
+            UniCredentialCapture.install(in: config, dataStore: dataStore)
+        }
         webView = WKWebView(frame: .zero, configuration: config)
         super.init()
+        guide?.page = self
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -138,6 +157,32 @@ final class UniWebPage: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     func open(_ url: URL) {
         load.lastURL = url
         webView.load(URLRequest(url: url))
+    }
+
+    /// Erstes Laden: mit Weg zum Modul ueber den Weg, sonst die Startadresse
+    func begin(_ start: URL) {
+        if let guide { guide.start() } else { open(start) }
+    }
+
+    /// "Neu laden": nach einem Formular (POST) nie erneut senden (das koennte eine An- oder Abmeldung im QIS
+    /// wiederholen), sondern die letzte per GET geladene Seite holen
+    func reloadSafely() {
+        if lastWasPost {
+            if let g = lastGetURL { open(g) }
+        } else {
+            load.retry()
+        }
+    }
+
+    /// Seite des QIS der LUH (nur HTTPS)
+    static func isQIS(_ url: URL?) -> Bool {
+        guard let url, url.scheme?.lowercased() == "https", let h = url.host?.lowercased() else { return false }
+        return QISConnection.qisDomains.contains(h)
+    }
+
+    /// Ganze Seite (nur Struktur; keine eingetippten Werte) in eigener Inhaltswelt
+    func pageHTML() async -> String {
+        (try? await webView.evaluateJavaScript("document.documentElement.outerHTML", in: nil, contentWorld: QISRegistrationGuideRunner.world)) as? String ?? ""
     }
 
     /// Andere Rechner gehen wie bisher an das System (nur http(s))
@@ -157,13 +202,18 @@ final class UniWebPage: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
             decisionHandler(["https", "about", "blob", "data"].contains(scheme) ? .allow : .cancel)
             return
         }
+        let post = (navigationAction.request.httpMethod ?? "GET").uppercased() != "GET"
         switch UniLinks.mainFrame(url, university: university) {
         case .load:
             load.lastURL = url
+            lastWasPost = post
+            if !post { lastGetURL = url }
+            guide?.navigation(navigationAction.navigationType)
             decisionHandler(.allow)
         case .upgrade(let secure):
             decisionHandler(.cancel)
-            open(secure)
+            // ein Formular nie still als GET neu laden (der Inhalt ginge verloren)
+            if !post { open(secure) }
         case .handOff(let other):
             decisionHandler(.cancel)
             Self.handOff(other)
@@ -192,7 +242,22 @@ final class UniWebPage: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load.failed(error) }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { load.failure = nil }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        load.failure = nil
+        guard let url = webView.url, Self.isQIS(url), qis != nil || guide != nil else { return }
+        Task { @MainActor in
+            let html = await self.pageHTML()
+            guard webView.url == url else { return }                // inzwischen weiter
+            // selbst im Browser angemeldet: verbunden, Passwort (falls zugelassen) merken
+            if QISConnection.isSignedInPage(url, html: html) { self.qis?.browserSignedIn() }
+            self.guide?.pageFinished(url: url, html: html)
+        }
+    }
+
+    /// Gefundene Zeile markieren (Rahmen, in die Mitte scrollen); klickt nichts
+    func highlight(_ h: QISRegistrationGuide.Highlight) async -> Bool {
+        await QISRegistrationGuideRunner.mark(h, in: webView)
+    }
 
     // MARK: WKUIDelegate
 
@@ -271,6 +336,7 @@ struct UniWebView: View {
                     if page.isLoading { ProgressView().progressViewStyle(.linear).tint(UF.accent) }
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if let guide = page.guide { QISGuideBar(guide: guide) }
                     if let file = page.download {
                         HStack(spacing: 9.6) {
                             Text("Geladen: \(file.lastPathComponent)").ufFont(13.12).foregroundStyle(UF.text2).lineLimit(1)
@@ -304,7 +370,7 @@ struct UniWebView: View {
                             .disabled(!page.canGoForward).accessibilityLabel("Vor")
                         Spacer()
                         Button {
-                            if page.isLoading { page.webView.stopLoading() } else { page.load.retry() }
+                            if page.isLoading { page.webView.stopLoading() } else { page.reloadSafely() }
                         } label: { Image(systemName: page.isLoading ? "xmark" : "arrow.clockwise") }
                             .accessibilityLabel(page.isLoading ? "Laden anhalten" : "Neu laden")
                     }
@@ -314,7 +380,7 @@ struct UniWebView: View {
             guard !started else { return }
             started = true
             await prepare()
-            page.open(start)
+            page.begin(start)
         }
     }
 }
@@ -360,18 +426,28 @@ enum UniWebBrowser {
         let store = containers.websiteDataStore(for: c)
         let studip = containers.studip
         let hildesheim = containers.hildesheim
-        let page = UniWebPage(dataStore: store, university: c.key.university)
+        let qis = c.key.university == .luh ? containers.qis : nil
+        // QIS im Browser (13.11.2026): solange er offen ist, liest die App nicht selbst in derselben QIS-Sitzung und meldet
+        // sich nicht still neu an (`QISConnection.beginBrowser`); vorher wird die Sitzung geprueft und bei Bedarf still
+        // erneuert (`prepareBrowserSession`). Mit Modul: Weg zum Modul im Anmeldebaum (`QISGuideRequests`).
+        let lease = UniWebPage.isQIS(url) ? qis : nil
+        let request = lease != nil ? QISGuideRequests.take(for: url) : nil
+        let guide = request.map { QISRegistrationGuideRunner(targets: $0.targets, entry: url, first: $0.first) }
+        let page = UniWebPage(dataStore: store, university: c.key.university, qis: qis, guide: guide)
+        lease?.beginBrowser()
         weak var sheet: UIViewController?
         let view = UniWebView(start: url, page: page, prepare: {
             // gemerkte Anmeldung (auch des WebSSO bzw. CAS) und das Stud.IP-Cookie des Abgleichs in den Datenspeicher
             await UniWebSessions.ready(store)
             await studip.seedWebSession()
+            await lease?.prepareBrowserSession()
         }, close: { sheet?.dismiss(animated: true) })
         let controller = UniWebHostingController(rootView: view)
         controller.modalPresentationStyle = .pageSheet
         controller.onDismissed = {
             Task { @MainActor in
                 await finished(store: store, studip: studip, hildesheim: hildesheim)
+                lease?.endBrowser()                               // erst jetzt darf die App wieder im QIS lesen
                 announceClosed(url)
             }
         }

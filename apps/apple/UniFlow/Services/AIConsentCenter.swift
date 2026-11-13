@@ -5,7 +5,7 @@ import UniFlowCore
 /// Einwilligung vor der StudiNow-KI auf dem iPad (06.11.2026, App Store Review Guideline 5.1.2(i)). Die StudiNow-KI
 /// (`StudiNowAI.json`) fragt vor jeder Anfrage `ensure`: liegt die Zustimmung zum aktuellen Text fuer dieses Konto vor,
 /// geht es sofort weiter; sonst zeigt die App einmal den Hinweis "KI-Hilfe: Was wird gesendet?" (`AIConsentSheet`) ueber
-/// allem, was gerade offen ist, und die Anfrage wartet auf "Zustimmen und fortfahren" bzw. "Abbrechen". Gleichzeitige
+/// allem, was gerade offen ist, und die Anfrage wartet auf "Okay, los" bzw. "Abbrechen". Gleichzeitige
 /// Anfragen (z. B. "Ganzes Dokument") teilen sich denselben Hinweis. Gespeichert je StudiNow-Konto auf diesem Geraet
 /// (`AIConsentStore`, UserDefaults, Schluessel mit dem Stand des Textes); widerrufen in Einstellungen → Zugang &
 /// Darstellung → StudiNow-Konto → "KI-Einwilligung widerrufen".

@@ -13,9 +13,11 @@ import UniFlowCore
 /// hinter Protokollen, damit die Logik ohne echte Apple-ID testbar ist (UniFlowTests/AccountStoreTests.swift).
 @MainActor
 final class AccountStore: ObservableObject {
-    /// Bildschirm beim Start: Begruessung -> (nur beim ersten Mal) Tarifwahl -> Hochschule waehlen -> (einmal je
-    /// Hochschule) Anmeldeseiten der Hochschule mit Erstabgleich -> UniFlow-Oberflaeche
-    enum Stage: Equatable { case welcome, planPicker, universityPicker, universityLogin, ready }
+    /// Bildschirm beim Start (neuer Einstieg, Inhaber 13.11.2026): Begruessung mit Anmeldung -> (nur beim ersten Mal)
+    /// Rundgang -> Hochschule waehlen -> (einmal je Hochschule) Anmeldeseiten der Hochschule mit Erstabgleich -> (nur
+    /// beim ersten Mal) Fragen im Gespraech -> Probe und Tarife -> UniFlow-Oberflaeche. Vorher kam die Tarifwahl direkt
+    /// nach der Anmeldung; wer sie schon gesehen hat, sieht Rundgang und Fragen nie (`migrateEarlierOnboarding`).
+    enum Stage: Equatable { case welcome, tour, universityPicker, universityLogin, setup, planPicker, ready }
 
     struct Account: Equatable {
         var userID: String
@@ -41,6 +43,10 @@ final class AccountStore: ObservableObject {
         /// das gelingt, gilt kein Eintrag als Anmeldung (Pruefbericht 511, 514)
         static let cleanupPending = "uniflow.account.cleanupPending"
         static let planShown = "uniflow.onboarding.planShown"
+        /// Rundgang gesehen oder uebersprungen (neuer Einstieg)
+        static let tourDone = "uniflow.onboarding.tourDone"
+        /// Fragen im Gespraech beantwortet oder uebersprungen (neuer Einstieg)
+        static let setupDone = "uniflow.onboarding.setupDone"
         /// gewaehlte Hochschule je Apple-Nutzer (Kurzkennung, nie die Apple-ID selbst)
         static func university(_ userID: String) -> String { "uniflow.university." + DataContainerKey.userScope(userID) }
         /// Anmeldeseiten dieser Hochschule beim ersten Start gezeigt (angemeldet oder "Später anmelden"), je Nutzer
@@ -67,6 +73,8 @@ final class AccountStore: ObservableObject {
 
     @Published private(set) var account: Account?
     @Published private(set) var planShown: Bool
+    @Published private(set) var tourDone: Bool
+    @Published private(set) var setupDone: Bool
     /// gewaehlte Hochschule des angemeldeten Nutzers; nil = noch nicht gewaehlt (Hochschulwahl)
     @Published private(set) var university: UniversityKey?
     /// Anmeldeseiten der gewaehlten Hochschule schon gezeigt (sonst `Stage.universityLogin`)
@@ -104,6 +112,8 @@ final class AccountStore: ObservableObject {
             account = Self.storedAccount(secrets)
         }
         planShown = defaults.bool(forKey: Keys.planShown)
+        tourDone = defaults.bool(forKey: Keys.tourDone)
+        setupDone = defaults.bool(forKey: Keys.setupDone)
         university = account.flatMap { Self.storedUniversity($0.userID, defaults) }
         loginDone = Self.storedLoginDone(account?.userID, university, defaults)
         // Release/TestFlight ueber einem Debug-Build installiert: das Debug-Konto gilt nicht als Anmeldung,
@@ -111,9 +121,9 @@ final class AccountStore: ObservableObject {
         // Die Tarifwahl wurde dann nur im Debug-Build "gezeigt" und erscheint nach der echten Anmeldung erneut.
         if account?.isDebug == true && !allowsDebugAccount {
             signOut()
-            planShown = false
-            defaults.removeObject(forKey: Keys.planShown)
+            resetIntro()
         }
+        migrateEarlierOnboarding()
         if observeRevocation {
             // Apple meldet einen Widerruf auch waehrend die App laeuft (Einstellungen -> Apple-ID -> Mit Apple anmelden)
             revokeObserver = NotificationCenter.default.addObserver(
@@ -130,9 +140,29 @@ final class AccountStore: ObservableObject {
 
     var stage: Stage {
         guard account != nil else { return .welcome }
-        guard planShown else { return .planPicker }
+        guard tourDone else { return .tour }
         guard university != nil else { return .universityPicker }
-        return loginDone ? .ready : .universityLogin
+        guard loginDone else { return .universityLogin }
+        guard setupDone else { return .setup }
+        return planShown ? .ready : .planPicker
+    }
+
+    /// Bestehende Nutzer (Tarifwahl schon gesehen, im alten Ablauf direkt nach der Anmeldung) sehen Rundgang und
+    /// Fragen nie: beide gelten als erledigt
+    private func migrateEarlierOnboarding() {
+        guard planShown, !tourDone || !setupDone else { return }
+        tourDone = true
+        setupDone = true
+        defaults.set(true, forKey: Keys.tourDone)
+        defaults.set(true, forKey: Keys.setupDone)
+    }
+
+    /// Merker des Einstiegs zuruecksetzen (Konto geloescht, Debug-Konto im Release): beim naechsten Konto alles neu
+    private func resetIntro() {
+        planShown = false
+        tourDone = false
+        setupDone = false
+        for k in [Keys.planShown, Keys.tourDone, Keys.setupDone] { defaults.removeObject(forKey: k) }
     }
 
     /// Container aller Daten: (Apple-Nutzer, Hochschule); nil vor Anmeldung oder Hochschulwahl
@@ -327,9 +357,30 @@ final class AccountStore: ObservableObject {
 
     // MARK: Tarifwahl
 
+    /// Tarifwahl gesehen: der letzte Schritt des Einstiegs, Rundgang und Fragen liegen davor und gelten mit als erledigt
+    /// (auch Debug "skip" und Tests, die den Einstieg so ueberspringen)
     func markPlanShown() {
         planShown = true
         defaults.set(true, forKey: Keys.planShown)
+        if !tourDone { markTourDone() }
+        if !setupDone { markSetupDone() }
+    }
+
+    // MARK: Neuer Einstieg
+
+    /// In den Fragen Faecher fuer den Lernkalender gewaehlt: nach den Tarifen den Lernkalender oeffnen (nur im Speicher)
+    var introPlannedModules = false
+
+    /// Rundgang gesehen oder uebersprungen
+    func markTourDone() {
+        tourDone = true
+        defaults.set(true, forKey: Keys.tourDone)
+    }
+
+    /// Fragen beantwortet oder uebersprungen
+    func markSetupDone() {
+        setupDone = true
+        defaults.set(true, forKey: Keys.setupDone)
     }
 
     // MARK: Konto loeschen
@@ -345,8 +396,7 @@ final class AccountStore: ObservableObject {
         }
         var left = problems
         if !signOut() { left.append(Self.keychainLeft) }
-        planShown = false
-        defaults.removeObject(forKey: Keys.planShown)
+        resetIntro()
         lastError = nil
         notice = .deleted
         deletionProblem = left.isEmpty ? nil : left.joined(separator: "\n")

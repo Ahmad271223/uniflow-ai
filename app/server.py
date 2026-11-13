@@ -1752,7 +1752,7 @@ async def ai_flashcards(request: Request, body: dict = Body(...)):
     Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file).
     Ohne file_id, mit module_id: KI-Auftrag nach Modul und Lernwoche (`_ai_flashcards_order`, app/flashcard_order.py).
     Asynchron wie /api/ai/tutor (app/ai_async.py)."""
-    from . import ai_async
+    from . import ai, ai_async
     async with ai_async.slot():
         if not body.get("file_id") and body.get("module_id") is not None:
             pre = await ai_async.db(_ai_flashcards_order_prepare, request, body)
@@ -1760,7 +1760,9 @@ async def ai_flashcards(request: Request, body: dict = Body(...)):
                                                                   parse=pre["parse"], cache=pre["cache"])
             return await ai_async.db(_ai_flashcards_order_finish, request, pre, raw, credits_state)
         pre = await ai_async.db(_ai_flashcards_prepare, request, body)
-        cards, credits_state = await _flashcards_complete_async(request, pre["hosted"], pre["prompt"], body)
+        pages = pre["pages"]
+        cards, credits_state = await _flashcards_complete_async(request, pre["hosted"], pre["prompt"], body,
+                                                                parse=lambda a: ai.check_flashcards(ai.parse_json(a), pages))
         return {"cards": cards, "pages": pre["pages"], "count": pre["count"], "credits": credits_state}
 
 
@@ -1783,7 +1785,7 @@ def _ai_flashcards_prepare(request: Request, body: dict) -> dict:
     if not all_pages:
         raise HTTPException(404, {"detail": "Kein Seitentext vorhanden.", "code": "no_content"})
     pages = _page_list(body.get("pages"), len(all_pages))
-    text = "\n\n".join(all_pages[p - 1] for p in pages)
+    text = ai.flashcards_pages_text(pages, [all_pages[p - 1] for p in pages])      # mit "### Seite N" fuer die Seitenangabe
     count = ai.flashcards_count(body.get("count"))
     topic = str(body.get("topic") or "")
     prompt = ai.flashcards_prompt(f["course_title"], f["name"], pages, text, count, topic)
@@ -1836,7 +1838,7 @@ def _ai_flashcards_order_prepare(request: Request, body: dict) -> dict:
                                             "Gleiche zuerst deine Hochschule ab oder wähle eine andere Woche.", "code": "no_content"})
     prompt = fo.stack_prompt(m["name"], week, mat["sources"], mat["text"], count, topic, existing)
     body = {**body, "request_id": str(body.get("request_id") or uuid.uuid4().hex)[:80]}
-    return {"hosted": hosted, "prompt": prompt, "body": body, "parse": lambda a: fo.parse_answer(a, count), "cache": not body.get("again"),
+    return {"hosted": hosted, "prompt": prompt, "body": body, "parse": lambda a: fo.parse_answer(a, count, mat["sources"]), "cache": not body.get("again"),
             "count": count, "mid": mid, "name": m["name"], "week": week, "sources": mat["sources"], "existing": existing}
 
 
@@ -3355,6 +3357,23 @@ def api_module_suggestions_accept(module_id: int, body: dict = Body(default={}))
     return {"placed": _layout_edit(module_id, accept)}
 
 
+@app.post("/api/modules/{module_id}/done")
+def api_module_done(module_id: int, body: dict = Body(...)):
+    """Haken "erledigt" je Datei bzw. ganze Woche (`study.set_files_done`, wie `ModuleLayoutEndpoints` in Swift)."""
+    done = (body or {}).get("done")
+    if not isinstance(done, bool):
+        raise HTTPException(400, "done: true oder false")
+    wanted = [x for x in (body or {}).get("file_ids") or [] if isinstance(x, str)]
+    if not wanted or len(wanted) > 500:
+        raise HTTPException(400, "file_ids: 1 bis 500 Dateien")
+
+    def mark(conn, now):
+        mine = {f["id"] for f in study.module_detail(conn, module_id).get("files", [])}
+        return study.set_files_done(conn, [f for f in wanted if f in mine], done)
+    changed, tasks = _layout_edit(module_id, mark)
+    return {"changed": changed, "tasks": tasks}
+
+
 @app.delete("/api/modules/{module_id}/layout")
 def api_module_layout_reset(module_id: int):
     _layout_edit(module_id, lambda c, now: module_layout.reset(c, module_id))
@@ -3403,7 +3422,7 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
     if body.get("expected_materials") is not None and not isinstance(body["expected_materials"], (list, str, dict)):
         raise HTTPException(400, "expected_materials: Liste erwartet")
     with db.cursor() as conn:
-        before = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,))
+        before = db.row(conn, "SELECT color, name FROM modules WHERE id=?", (module_id,))
         if body.get("color") not in (None, "") and not timetable.COLOR_RE.fullmatch(str(body["color"])):
             raise HTTPException(400, "Farbe als #rrggbb.")                 # wird in style-Attributen eingesetzt (3.11.2026)
         for k, v in body.items():
@@ -3423,6 +3442,8 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
         if "name" in body:
             conn.execute("UPDATE courses SET subject=? WHERE module_id=?", (body["name"], module_id))
             conn.execute("UPDATE study_packages SET subject=? WHERE module_id=?", (body["name"], module_id))
+            if before:
+                study.rename_plan_off(conn, before["name"], body["name"])        # "nicht im Lernkalender" bleibt
         return _found(db.row(conn, "SELECT * FROM modules WHERE id=?", (module_id,)), "Modul")
 
 

@@ -18,6 +18,36 @@ final class CommunityDiscussionTests: XCTestCase {
         XCTAssertThrowsError(try CommunityDiscussion.cleanText(String(repeating: "a", count: CommunityDiscussion.maxComment + 1)))
     }
 
+    /// Gemeinsame Faelle mit dem Dienst (tools/gen-community-text-cases.py): Steuer- und Richtungszeichen fallen weg,
+    /// `\r\n` wird `\n`, Grenzen in Unicode-Skalaren (Haertetest 13.11.2026).
+    func testTextCasesMatchServiceFixture() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let data = try Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/community/text-cases.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(root["max_comment"] as? Int, CommunityDiscussion.maxComment)
+        let cases = try XCTUnwrap(root["cases"] as? [[String: Any]])
+        XCTAssertGreaterThan(cases.count, 15)
+        func text(_ any: Any?) throws -> String {
+            var v = String.UnicodeScalarView()
+            for n in try XCTUnwrap(any as? [Int]) { v.append(try XCTUnwrap(Unicode.Scalar(UInt32(n)))) }
+            return String(v)
+        }
+        for c in cases {
+            let name = c["name"] as? String ?? "?"
+            let input = try text(c["input"])
+            if let expected = c["output"] {
+                XCTAssertEqual(Array(try CommunityDiscussion.cleanText(input).unicodeScalars), Array(try text(expected).unicodeScalars), name)
+            } else {
+                let code = c["error"] as? String
+                let message = code == "text_empty" ? "Der Kommentar ist leer." : "Höchstens \(CommunityDiscussion.maxComment) Zeichen."
+                XCTAssertThrowsError(try CommunityDiscussion.cleanText(input), name) {
+                    XCTAssertEqual($0 as? CommunityServiceError, .service(message), name)
+                }
+            }
+        }
+    }
+
     func testAnchorRulesMatchService() throws {
         let (pk, a) = try CommunityDiscussion.cleanAnchor(pageKey: String(repeating: "p", count: 60), anchor: .init(x: 0.5, y: 1))
         XCTAssertEqual(pk?.count, CommunityDiscussion.maxPageKey)

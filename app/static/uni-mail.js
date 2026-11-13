@@ -4,7 +4,7 @@
 // Bestätigung ("confirm": true), Markieren, Papierkorb mit "Rückgängig" (Anfrage erst nach 5 s), Uni-Kalender übernehmen.
 // Menüpunkt nur am PC an der LUH und der Uni Hildesheim (GET /api/sogo/status, Hochschule in "university"); im Dienst
 // und an der HsH gibt es Uni-Mail nicht. Raum-Links (Raumfinder) und „Lehrende“ nur an der LUH.
-import { $, $$, api, icon, toast, modal } from "./core.js?v=46";
+import { $, $$, api, icon, toast, modal } from "./core.js?v=47";
 import * as L from "./uni-mail-logic.js?v=2";
 
 const { esc } = L;

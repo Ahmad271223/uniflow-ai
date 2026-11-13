@@ -1,18 +1,18 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
-import { renderWeeklyBox } from "./views-weekly.js?v=16";
-import { installCard, bindInstallBanner } from "./pwa.js?v=17";
+import { renderWeeklyBox } from "./views-weekly.js?v=17";
+import { installCard, bindInstallBanner } from "./pwa.js?v=18";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=46";
+import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=47";
 import * as FC from "./flashcards.js?v=7";
 // KI-Karteikarten auf Auftrag (Pro AI, 04.11.2026): Dialog in flashcard-stacks-ui.js
-import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=5";
-import { mountBulletin } from "./bulletin.js?v=7";
-import { mountStudipTexts } from "./studip-texts.js?v=7";
+import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=6";
+import { mountBulletin } from "./bulletin.js?v=8";
+import { mountStudipTexts } from "./studip-texts.js?v=8";
 import { settingHtml } from "./older-semesters.js?v=4";
-import { consentCardHtml } from "./ai-consent.js?v=1";   // KI-Einwilligung in Einstellungen → Erweitert (06.11.2026)
+import { consentCardHtml } from "./ai-consent.js?v=2";   // KI-Einwilligung in Einstellungen → Erweitert (06.11.2026)
 // Module je Semester und Hinweis "Aktuelles Semester ist da · ältere Semester …" (module-semesters.js)
 import * as MS from "./module-semesters.js?v=2";
-import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=7";
+import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=8";
 // Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
 import { masteryHtml, masteryTile } from "./mastery.js?v=2";
 // Testergebnis wie auf dem iPad: Ring, Einordnung und "Frag die KI zu Aufgabe n" (test-result.js)
@@ -63,13 +63,28 @@ export async function viewModules(parts, _, view) {
 }
 async function viewModule(id, view) {
   const d = await api(`/modules/${id}`); const m = d.module; let tab = "overview", mode = "list";
+  // Wochen starten zugeklappt (Auftrag 13.11.2026); aufgeklappte bleiben bis zum Verlassen der Seite offen
+  const opened = new Set();
+  const GROUPS = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"];
+  const weekFiles = w => GROUPS.flatMap(k => w[k]);
+  // Haken "erledigt" je Datei und ganze Woche: gleicher Stand wie die Lernpakete (POST /modules/{id}/done)
+  const doneRow = f => `<div class="dr-wrap">${docRow(f)}<button class="done-tick${f.status === "erledigt" ? " on" : ""}" data-f="${esc(f.id)}" aria-pressed="${f.status === "erledigt"}" aria-label="Erledigt: ${esc(f.ai_title || f.name)}" title="${f.status === "erledigt" ? "Als offen markieren" : "Als erledigt abhaken"}">${icon("check", 15)}</button></div>`;
+  const weekDone = w => { const fs = weekFiles(w); if (!fs.length) return ""; const n = fs.filter(f => f.status === "erledigt").length; const all = n === fs.length;
+    return `${n ? `<span class="muted wd-progress${all ? " all" : ""}">${n}/${fs.length} erledigt</span>` : ""}<button class="btn ghost sm week-done${all ? " on" : ""}" data-w="${w.week}" aria-pressed="${all}" title="${all ? "Nimmt alle Haken dieser Woche weg" : "Hakt alle Dateien dieser Woche ab"}">${icon("check", 14)} Woche erledigt</button>`; };
+  const markDone = async (ids, done) => {
+    try { await api(`/modules/${id}/done`, { method: "POST", body: { file_ids: ids, done } }); } catch (e) { toast(e.message, 4000); return; }
+    const st = done ? "erledigt" : "gelesen";
+    d.files.forEach(f => { if (ids.includes(f.id)) f.status = st; });
+    d.weeks.forEach(w => weekFiles(w).forEach(f => { if (ids.includes(f.id)) f.status = st; }));
+    render(true);
+  };
   const curWeek = d.weeks.filter(w => w.week >= 1).slice(-1)[0];
   // `switched`: nur der Reiter wechselt – die Seite blendet nicht neu ein, nur der Reiterinhalt (transition-panel)
   const render = (switched = false) => {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
-    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div><div id="lecHost"></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
-        <div class="wb">${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
+    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div><div id="lecHost"></div>` + d.weeks.map(w => `<div class="card week-block${opened.has(w.week) ? "" : " closed"}" data-w="${w.week}"><div class="wh" role="button" tabindex="0" aria-expanded="${opened.has(w.week)}">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}${weekDone(w)}</div>
+        <div class="wb"${opened.has(w.week) ? "" : " hidden"}>${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(doneRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
@@ -84,16 +99,22 @@ async function viewModule(id, view) {
     bindInstallBanner(view);
     $$("[data-mode]", view).forEach(b => b.onclick = () => { mode = b.dataset.mode; render(true); });
     // Auf- und Zuklappen wie disclosure (Hoehe und Deckkraft), der Pfeil dreht mit
-    $$(".week-block .wh", view).forEach(h => h.onclick = e => { if (e.target.closest(".ai-week")) return; const wb = $(".wb", h.parentElement); const open = wb.hidden; h.parentElement.classList.toggle("closed", !open); reveal(wb, open); });
+    $$(".week-block .wh", view).forEach(h => {
+      const toggle = () => { const wb = $(".wb", h.parentElement); const open = wb.hidden; const wk = +h.parentElement.dataset.w; if (open) opened.add(wk); else opened.delete(wk); h.setAttribute("aria-expanded", String(open)); h.parentElement.classList.toggle("closed", !open); reveal(wb, open); };
+      h.onclick = e => { if (e.target.closest(".ai-week, .week-done")) return; toggle(); };
+      h.onkeydown = e => { if ((e.key === "Enter" || e.key === " ") && e.target === h) { e.preventDefault(); toggle(); } };
+    });
+    $$(".done-tick", view).forEach(b => b.onclick = e => { e.preventDefault(); e.stopPropagation(); markDone([b.dataset.f], !b.classList.contains("on")); });
+    $$(".week-done", view).forEach(b => b.onclick = () => { const w = d.weeks.find(x => x.week === +b.dataset.w); if (w) markDone(weekFiles(w).map(f => f.id), !b.classList.contains("on")); });
     $$(".ai-week", view).forEach(b => b.onclick = () => summarizeWeek(d.weeks.find(w => w.week === +b.dataset.w), m));
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
     if ($("#stHost", view)) mountStudipTexts($("#stHost", view), id, api);   // Courseware, Wiki, Forum (Blubber) aus Stud.IP
     // Lehrende mit E-Mail und Sprechstunde (LUH, Stud.IP; lecturers.js): nur mit Eintraegen, an HsH/Hildesheim leer
-    if ($("#lecHost", view)) import("./lecturers.js?v=3").then(X => X.mountModuleLecturers($("#lecHost", view), id, m.name)).catch(() => {});
-    if ($("#stHost", view)) import("./exam-registration.js?v=3").then(X => X.renderModuleBlock($("#stHost", view), { appModuleId: +id, before: true })).catch(() => {});   // "Prüfung anmelden"
+    if ($("#lecHost", view)) import("./lecturers.js?v=4").then(X => X.mountModuleLecturers($("#lecHost", view), id, m.name)).catch(() => {});
+    if ($("#stHost", view)) import("./exam-registration.js?v=4").then(X => X.renderModuleBlock($("#stHost", view), { appModuleId: +id, before: true })).catch(() => {});   // "Prüfung anmelden"
     // Fertige Fragen je Lehrwoche (Pro AI, Bibliothek des Dienstes): week-sets.js
-    if ($(".ws-host", view)) import("./week-sets.js?v=5").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
+    if ($(".ws-host", view)) import("./week-sets.js?v=6").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
   };
   render();
 }
@@ -119,7 +140,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=71"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=73"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -193,7 +214,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=71"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=73"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -637,7 +658,7 @@ export async function viewCommunity(_, params, view) {
     return;
   }
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=15")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=17")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -645,7 +666,7 @@ export async function viewCommunity(_, params, view) {
   if (tab !== "overview") {
     view.innerHTML = `<div class="content" style="max-width:960px">${head}${tabs}<div class="card" id="qaPanel"></div></div>`;
     bindTabs();
-    const q = await import("./views-qa.js?v=10"); const el = $("#qaPanel", view);
+    const q = await import("./views-qa.js?v=11"); const el = $("#qaPanel", view);
     if (tab === "questions") q.renderQuestions(el); else if (tab === "bookmarks") q.renderBookmarks(el); else q.renderNotifications(el, n => window.updateBell?.(n));
     return;
   }
@@ -669,8 +690,8 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=21").then(m => m.renderSpaces($("#spacesCard", view)));
-  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=7")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
+  import("./community-spaces.js?v=23").then(m => m.renderSpaces($("#spacesCard", view)));
+  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=8")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
   if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=9").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
@@ -751,8 +772,8 @@ export async function viewSettings(_, params, view) {
     const credCard = state.hosted ? noCredCard : `<div class="card"><div class="card-head"><h2>${icon("log-out", 18)} Zugangsdaten (optional)</h2>${cred.user && cred.password_set ? `<span class="badge ok">gespeichert</span>` : `<span class="badge neutral">leer</span>`}</div><p class="muted small">${credText}</p>
         <label class="field">LUH-ID<input class="input" id="credUser" value="${esc(cred.user || "")}" autocomplete="username"></label><label class="field">WebSSO-Passwort<input class="input" id="credPass" type="password" placeholder="${cred.password_set ? "•••••••• (leer lassen = behalten)" : "noch nicht gesetzt"}" autocomplete="current-password"></label>
         <div class="row wrap"><button class="btn primary sm" id="saveCred">Zugang speichern</button><button class="btn sm" id="testSync">Dateien jetzt holen (ohne KI)</button></div></div>`;
-    const looksCard = `<div class="card"><div class="card-head"><h2>${icon("user", 18)} Anzeigename</h2></div><div class="row"><input class="input" id="sName" value="${esc(s.user_name || "")}" placeholder="z. B. Ahmad H." style="max-width:260px"><button class="btn sm" id="sNameOk">Speichern</button></div>
-      <label class="field" style="margin-top:.6rem">Rufname für die Begrüßung <span class="row"><input class="input" id="sRuf" value="${esc(s.rufname || "")}" placeholder="z. B. Ahmad" maxlength="40" style="max-width:260px"><button class="btn sm" id="sRufOk">Speichern</button></span></label><p class="muted tiny" style="margin:.2rem 0 0">Für „Hallo … – lass uns gemeinsam lernen.“ auf der Übersicht.</p>
+    const looksCard = `<div class="card"><div class="card-head"><h2>${icon("user", 18)} Anzeigename</h2></div><div class="row"><input class="input" id="sName" value="${esc(s.user_name || "")}" placeholder="z. B. Alex M." style="max-width:260px"><button class="btn sm" id="sNameOk">Speichern</button></div>
+      <label class="field" style="margin-top:.6rem">Rufname für die Begrüßung <span class="row"><input class="input" id="sRuf" value="${esc(s.rufname || "")}" placeholder="z. B. Alex" maxlength="40" style="max-width:260px"><button class="btn sm" id="sRufOk">Speichern</button></span></label><p class="muted tiny" style="margin:.2rem 0 0">Für „Hallo … – lass uns gemeinsam lernen.“ auf der Übersicht.</p>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("sun", 18)} Darstellung</h2></div><div class="seg">${[["auto", "Automatisch"], ["light", "Hell"], ["dark", "Dunkel"]].map(([k, l]) => `<button class="${(document.documentElement.dataset.theme || "auto") === k ? "active" : ""}" data-theme="${k}">${l}</button>`).join("")}</div>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("pen", 18)} Stift & Touch</h2></div><select class="input" id="sPen" style="width:auto"><option value="all" ${s.pen_input === "all" ? "selected" : ""}>Finger darf schreiben (Handballen wird bei Stift ignoriert)</option><option value="pen_only" ${s.pen_input === "pen_only" ? "selected" : ""}>Nur Stift schreibt, Finger navigiert</option></select>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("hand", 18)} Schreibhand</h2></div><div class="seg">${[["right", "Rechtshänder"], ["left", "Linkshänder"]].map(([k, l]) => `<button class="${(s.hand || "right") === k ? "active" : ""}" data-hand="${k}">${l}</button>`).join("")}</div><p class="muted tiny" style="margin-top:.4rem">Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.</p></div>`;
@@ -835,8 +856,8 @@ export async function viewSettings(_, params, view) {
     $("#sNameOk")?.addEventListener("click", async () => { await api("/settings", { method: "PUT", body: { user_name: $("#sName").value } }); toast("Gespeichert"); location.reload(); });
     $("#diagCopy")?.addEventListener("click", () => { navigator.clipboard?.writeText($("#diagText").textContent).then(() => toast("Diagnose kopiert")); });
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok-text)">${icon("check", 15)} ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`Fehler: ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
-    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=50")).configDialog(() => state.route()));
-    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=50")).availabilityDialog());
+    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=51")).configDialog(() => state.route()));
+    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=51")).availabilityDialog());
   };
   render();
 }

@@ -21,6 +21,10 @@ public enum AIConsentText {
     public static let version = "2026-11-06"
     public static let title = "KI-Hilfe: Was wird gesendet?"
     public static let intro = "Für die StudiNow-KI schickt StudiNow deine Anfrage an einen KI-Anbieter. Bevor das zum ersten Mal passiert, brauchen wir deine Zustimmung."
+    /// Kurzfassung, die der Hinweis zuerst zeigt (Wunsch des Inhabers 13.11.2026: kurz statt der langen Seite); sie
+    /// nennt weiter was und an wen (5.1.2(i)), alles Weitere steht hinter "Genauer ansehen"
+    public static let short = "StudiNow schickt den Text deiner Seite (oder einen Bildausschnitt) und deine Frage an einen KI-Anbieter: OpenAI (USA) oder Claude über Amazon Bedrock (EU). Dein Name, deine E-Mail, deine Zugangsdaten und deine Noten werden nie gesendet."
+    public static let details = "Genauer ansehen"
     public static let whatHeading = "Was gesendet wird"
     public static let what: [String] = [
         "der Text der Seite oder deiner Markierung, bei „Ganzes Dokument“ der Text der gewählten Seiten",
@@ -30,7 +34,7 @@ public enum AIConsentText {
     ]
     public static let never = "Nie gesendet werden dein Name, deine E-Mail-Adresse, deine Hochschul-Zugangsdaten und deine Noten."
     public static let whereHeading = "Wohin es geht"
-    public static let service = "An den StudiNow-Dienst (app.studinow.app) von IT solutions by Ahmad Fakih. Er gibt jede Anfrage an einen dieser KI-Anbieter weiter:"
+    public static let service = "An den StudiNow-Dienst (app.studinow.app). Er gibt jede Anfrage an einen dieser KI-Anbieter weiter:"
     public static let recipients: [String] = [
         "OpenAI (ChatGPT-Modelle, Verarbeitung in den USA)",
         "Anthropic Claude über Amazon Web Services (Amazon Bedrock, Frankfurt, Verarbeitung in der EU)",
@@ -39,7 +43,7 @@ public enum AIConsentText {
     public static let revoke = "Du kannst die Einwilligung jederzeit widerrufen: Einstellungen → Zugang & Darstellung → StudiNow-Konto → „KI-Einwilligung widerrufen“. Ohne Einwilligung sendet StudiNow nichts an die KI."
     public static let privacyURL = "https://studinow.app/datenschutz"
     public static let privacyLink = "Datenschutzerklärung (Abschnitt 8c)"
-    public static let accept = "Zustimmen und fortfahren"
+    public static let accept = "Okay, los"
     public static let cancel = "Abbrechen"
     public static let revokeButton = "KI-Einwilligung widerrufen"
     /// Meldung, wenn die Einwilligung fehlt (Abbrechen); Code `ai_consent_required`

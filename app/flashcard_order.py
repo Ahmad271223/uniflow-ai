@@ -25,7 +25,6 @@ STACK_TEXT_CHARS = 24_000            # Material im Prompt (Zeichen)
 PAGE_CHARS = 2_500                   # hoechstens so viel Text einer Seite
 MAX_FILES_WEEK, MAX_FILES_MODULE = 8, 12
 EXISTING_IN_PROMPT, EXISTING_CHARS = 80, 5_000
-MAX_SIDE = 4_000                     # Zeichen je Kartenseite (Frage bzw. Antwort)
 WEEK_MAX = 30
 TOPIC_CHARS = 300
 SIMILAR = 0.85                       # Wortueberschneidung (Jaccard), ab der zwei Fragen als gleich gelten
@@ -258,10 +257,8 @@ def stack_prompt(module: str, week: int | None, sources: list[dict], text: str, 
     src = "; ".join(f"{s['name']}" + (f" (Seiten {s['pages'][0]}–{s['pages'][-1]})" if len(s.get("pages") or []) > 1 else
                                      f" (Seite {s['pages'][0]})" if s.get("pages") else "") for s in sources[:12])
     parts = [f"Modul: {module}", f"Umfang: {scope}", f"Quellen: {src or 'keine Angabe'}", "",
-             f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Material. Vorn eine klare Frage, hinten eine kurze, "
-             "vollstaendige Antwort (1-3 Saetze, Formeln mit Unicode-Zeichen). Decke die wichtigsten Begriffe, Definitionen, Saetze, "
-             "Zusammenhaenge und Rechenwege ab und verteile die Karten ueber alle Quellen; keine Karte doppelt, nichts "
-             "erfinden, was nicht im Material steht."]
+             f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Material, mit denen man sich gezielt auf die Klausur "
+             "vorbereitet: vorn eine Frage, hinten die Antwort. Verteile die Karten ueber alle Quellen.", "", ai.FLASHCARDS_RULES]
     if topic.strip():
         parts += ["", f"SCHWERPUNKT: {topic.strip()[:TOPIC_CHARS]}"]
     have, size = [], 0
@@ -274,28 +271,30 @@ def stack_prompt(module: str, week: int | None, sources: list[dict], text: str, 
     if have:
         parts += ["", "SCHON VORHANDEN (diese Fragen nicht wiederholen, auch nicht umformuliert):", *have]
     parts += ["", f"MATERIAL. {ai.UNTRUSTED}:", "<<<", (text or "").strip()[:STACK_TEXT_CHARS] or "[kein Text extrahierbar]", ">>>",
-              "", 'Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort"}]}']
+              "", ai.FLASHCARDS_ANSWER_FORM]
     return "\n".join(parts)
 
 
-def check_cards(res, limit: int) -> list[dict]:
-    """Karten aus der KI-Antwort ({"cards": [...]} oder Liste), nur mit Frage und Antwort, hoechstens `limit`."""
-    items = res.get("cards") if isinstance(res, dict) else res
-    if not isinstance(items, list):
-        return []
-    out = []
-    for c in items:
-        if not isinstance(c, dict):
-            continue
-        q, a = str(c.get("question") or "").strip()[:MAX_SIDE], str(c.get("answer") or "").strip()[:MAX_SIDE]
-        if q and a:
-            out.append({"question": q, "answer": a})
-    return out[:limit]
+def page_labels(sources: list[dict]) -> dict[int, str]:
+    """Seitenangabe je Seitenzahl fuer ai.check_flashcards: nur Seiten, die genau eine Quelle hat ("Name, S. N");
+    kommt eine Seitenzahl in mehreren Dateien vor, bleibt die Karte ohne Angabe (die KI nennt nur die Zahl)."""
+    owners: dict[int, list[str]] = {}
+    for s in sources:
+        for p in s.get("pages") or []:
+            owners.setdefault(p, []).append(str(s.get("name") or "Dokument"))
+    return {p: f"{names[0]}, S. {p}" for p, names in owners.items() if len(names) == 1}
 
 
-def parse_answer(text: str, limit: int) -> list[dict]:
+def check_cards(res, limit: int, sources: list[dict] | None = None) -> list[dict]:
+    """Karten aus der KI-Antwort ({"cards": [...]} oder Liste) mit den Regeln von ai.check_flashcards (eine Idee je Karte,
+    keine Doppel, Frage verraet die Antwort nicht), hoechstens `limit`; Seitenangabe aus `sources` (page_labels)."""
+    from . import ai
+    return ai.check_flashcards(res, page_labels(sources or []), limit=limit)
+
+
+def parse_answer(text: str, limit: int, sources: list[dict] | None = None) -> list[dict]:
     from . import ai
     try:
-        return check_cards(ai.parse_json(text or ""), limit)
+        return check_cards(ai.parse_json(text or ""), limit, sources)
     except (ai.AIError, json.JSONDecodeError):
         return []

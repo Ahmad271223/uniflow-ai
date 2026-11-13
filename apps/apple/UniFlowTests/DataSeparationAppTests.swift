@@ -335,7 +335,7 @@ final class DataSeparationAppTests: XCTestCase {
 
         // dieselbe Apple-ID meldet sich wieder an
         a.signIn(userID: user, name: nil, email: nil)
-        XCTAssertEqual(a.stage, .planPicker, "Tarifwahl kommt wieder")
+        XCTAssertEqual(a.stage, .tour, "der Einstieg kommt wieder")
         a.markPlanShown()
         XCTAssertEqual(a.stage, .universityPicker, "Hochschule wird neu gewählt")
         for uni in [UniversityKey.luh, .hildesheim] {

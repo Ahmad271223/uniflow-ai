@@ -136,7 +136,7 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     # Wunsch des Inhabers 05.11.2026: ganz Deutschland ansprechen, aber ehrlich nur die angebundenen Hochschulen nennen
     # (Richtlinie 2.3, keine irrefuehrende Werbung); Systeme als Chips; Mensa mit Quellen und "ohne Gewähr".
     # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1)
-    assert '<p class="eyebrow">Für Studierende in ganz Deutschland</p>' in html
+    assert '<p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>' in html
     assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>\. In Kürze: Hochschule Hannover und "
                      r"Universität Hildesheim\. Weitere Hochschulen folgen\.", flat)
     assert "Heute für die Leibniz Universität Hannover." in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" in flat
@@ -148,7 +148,7 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
             '<li class="soon">In Kürze: Moodle, HISinOne, LSF</li></ul>') in html
     assert "Abgeben in Stud.IP</h3>" in html and "(Moodle in Kürze)" in flat
     faq = flat.split("Für welche Hochschulen ist StudiNow?")[1].split("</details>")[0]
-    for s in ("ganz Deutschland", "Angebunden ist heute die Leibniz Universität Hannover", "In Kürze folgen die Hochschule Hannover",
+    for s in ("ganz Deutschland", "zum Start mit voller Anbindung an die Leibniz Universität Hannover", "In Kürze folgen die Hochschule Hannover",
               "Universität Hildesheim", "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
         assert s in faq, s
     assert "Modulkatalogen von über 300 Studiengängen und Fächern" in flat or "Modulkataloge von über 300 Studiengängen und Fächern" in flat

@@ -7,7 +7,8 @@ from datetime import date, timedelta
 import pytest
 from test_pwa import _browser, served  # noqa: F401  (Fixture `served`)
 
-DASHBOARD = "document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)"
+# Begruessung je Uhrzeit (app/static/greeting.js): vor 11 "Guten Morgen", 11-18 "Hallo", ab 18 "Guten Abend"
+DASHBOARD = "document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)"
 # Die Lernstand-Kachel (seit 04.11.2026, style.css ".ls-tile", ".ls-ring i") zeichnet ihren Fortschrittsring mit
 # conic-gradient und hat einen Verlauf in Modulfarbe: das ist Anzeige, kein Schmuck, und zaehlt hier nicht mit. Ohne diese
 # Ausnahme hing der Test davon ab, ob ein frueherer Test ein Modul mit Lernstand in der gemeinsamen Datenbank hinterliess.

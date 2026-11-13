@@ -10,5 +10,6 @@
   "quotas": { "ai_tests_new": { "used": 2, "limit": 3, "unlimited": false, "period": "2026-10" },
               "library_tests": { "used": 1, "limit": 4, "unlimited": false, "period": "2026-10" },
               "ai_assist": { "used": 0, "limit": 0, "unlimited": false, "period": "2026-10" },
-              "card_stacks_adopted": { "used": 1, "limit": 4, "unlimited": false, "period": "2026-10" } },
+              "card_stacks_adopted": { "used": 1, "limit": 4, "unlimited": false, "period": "2026-10" },
+              "ai_mail": { "used": 0, "limit": 0, "unlimited": false, "period": "2026-10" } },
   "integrations": { "chatgpt": { "status": "disabled", "reason": "Noch nicht von OpenAI freigegeben.", "plan_gating_allowed": false } } }

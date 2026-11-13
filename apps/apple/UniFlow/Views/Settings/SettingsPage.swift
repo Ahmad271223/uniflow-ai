@@ -734,7 +734,7 @@ private struct AccountTab: View {
             SettingsDivider()
             SettingsRow("Anzeigename", icon: "user") {
                 HStack(spacing: 9.6) {
-                    UFTextInput("z. B. Ahmad H.", text: $userName).frame(maxWidth: 260)
+                    UFTextInput("z. B. Alex M.", text: $userName).frame(maxWidth: 260)
                     UFButton("Speichern", size: .small) {
                         Task {
                             await api.put(["user_name": .string(userName)])
@@ -772,6 +772,8 @@ private struct AccountTab: View {
                                 Task { await api.put(["hand": .string(v)], toast: "Schreibhand gespeichert") }
                             }))
             }
+            SettingsDivider()
+            PencilFeelSettingsRows()                                     // Glättung, Formen erkennen (13.11.2026)
             SettingsDivider()
             EditorToolbarPlacementRow()                                  // Werkzeugleiste oben/unten/schwebend (12.11.2026)
             .padding(.bottom, -12)
@@ -1120,6 +1122,8 @@ private struct LocalAccountTab: View {
                             SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
                                 UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
                             }
+                            SettingsDivider()
+                            PencilFeelSettingsRows()                         // Glättung, Formen erkennen (13.11.2026)
                             SettingsDivider()
                             EditorToolbarPlacementRow()                      // Werkzeugleiste oben/unten/schwebend (12.11.2026)
                             .padding(.bottom, -12)

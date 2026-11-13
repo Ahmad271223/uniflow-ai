@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 12.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 13.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -361,7 +361,7 @@ ohne sie funktioniert StudiNow genauso.
 - **Wann:** nur wenn du mit deinem StudiNow-Konto (Pro AI oder Probe, bestätigte E-Mail-Adresse) eine KI-Funktion im
   Dienst nutzt, z. B. eine Frage im Editor, eine Erklärung des ganzen Dokuments, Karteikarten oder einen Wochentest.
   Vor der ersten Anfrage zeigen App, Web und Windows einmal den Hinweis „KI-Hilfe: Was wird gesendet?“ (was, an wen)
-  und senden erst nach „Zustimmen und fortfahren“; widerrufen kannst du das jederzeit in den Einstellungen
+  und senden erst nach „Okay, los“; widerrufen kannst du das jederzeit in den Einstellungen
   („KI-Einwilligung widerrufen“), dann wird vor der nächsten Anfrage wieder gefragt.
 - **Was gesendet wird:**
   - der Text der betroffenen Seite oder deiner Markierung;
@@ -409,8 +409,9 @@ Abschluss eingerichtet haben – über den Zahlungsdienstleister Stripe ab (Stri
 Verantwortlicher für die Zahlungsabwicklung). Die Windows-App öffnet dafür die Bezahlseite von Stripe in deinem
 Browser. Wir übermitteln Stripe deine E-Mail-Adresse, eine Kundenkennung und den gewählten Tarif; Zahlungsdaten gibst
 du nur bei Stripe ein, wir erhalten sie nicht. Von Stripe erhalten wir Kunden- und Abo-Kennung, Tarif, Status und
-Laufzeit, um das Abo freizuschalten; Kündigen und Wechseln geht im Kundenportal von Stripe. Hast du schon ein Abo über
-Apple, bietet die App keinen zweiten Kauf an.
+Laufzeit, um das Abo freizuschalten; Kündigen und Wechseln geht im Kundenportal von Stripe. Löschst du dein Konto,
+fragen wir bei Stripe deine Abos ab und beenden ein laufendes sofort (übermittelt werden dabei nur Kunden- und
+Abo-Kennung). Hast du schon ein Abo über Apple, bietet die App keinen zweiten Kauf an.
 
 ## 10. Web-Oberfläche, Cookies und Server-Protokolle
 
@@ -498,14 +499,16 @@ Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
 
 ## 15. Konto löschen, Daten mitnehmen
 
-- **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen; hat dein Konto ein Passwort, bestätigst du
-  mit ihm) oder per E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; E-Mail-Adresse,
+- **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen), im Web (Konto-Menü → Konto löschen),
+  unter Windows („Abo & Tarife“ → Konto löschen) – hat dein Konto ein Passwort, bestätigst du mit ihm – oder per
+  E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; E-Mail-Adresse,
   Passwort-Hash und die Verknüpfung mit Apple bzw. Google entfernen wir sofort, deine Community-Beiträge ziehen wir
   sofort zurück. Hast du dich mit Apple angemeldet, widerrufen wir die Anmeldung „Mit Apple“ zugleich bei Apple
   (StudiNow verschwindet dann aus „Mit Apple anmelden“ in den Einstellungen deiner Apple-ID).
   Alle übrigen Daten (Datenbereich, Mitgliedschaften, Kommentare, Fragen und Antworten, Käufe, Nutzung) werden nach
   30 Tagen endgültig gelöscht, aus den Sicherungskopien spätestens 30 Tage später (Abschnitt 10). Rückgängig machen
-  lässt sich die Löschung nicht. Das Abo kündigst du zusätzlich bei Apple bzw. Google.
+  lässt sich die Löschung nicht. Ein Abo über Apple bzw. Google kündigst du zusätzlich dort; ein Abo über Stripe
+  beenden wir mit der Löschung sofort (Abschnitt 9).
 - **iPad:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) löscht dein StudiNow-Konto beim Dienst wie
   oben (mit Widerruf bei Apple) und entfernt sofort alle Daten auf dem iPad; was du in der Community, als Wochentest
   oder in der Bibliothek über iCloud geteilt hast, löschen wir auf Anfrage (Abschnitt 8b).

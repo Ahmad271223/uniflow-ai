@@ -297,13 +297,14 @@ extension ContainerManager {
     /// Rueckgabe: Ergebnis der Liste (nil, wenn sie nicht gelesen wurde).
     private static func syncQIS(_ qis: QISConnection?, container c: ActiveContainer, userAction: Bool,
                                 forceGrades: Bool) async -> CertificatesSync.Report? {
-        guard let qis, qis.isConnected, qis.state != .needsLogin else { return nil }
+        // QIS gerade im In-App-Browser offen: nicht in derselben Sitzung lesen (QISConnection.browserUses)
+        guard let qis, qis.isConnected, qis.state != .needsLogin, !qis.browserOpen else { return nil }
         if qis.isRunning {
             await wait(seconds: 5 * 60) { qis.isRunning }        // laeuft schon (z. B. nach dem Verbinden): abwarten
         } else {
             await qis.runRenewingSession(force: userAction && forceGrades, userAction: userAction)
         }
-        guard qis.isConnected, !qis.isRunning else { return nil }
+        guard qis.isConnected, !qis.isRunning, !qis.browserOpen else { return nil }
         switch qis.state {
         case .ok, .connected: break
         default: return nil

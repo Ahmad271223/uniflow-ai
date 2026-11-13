@@ -25,6 +25,17 @@ final class IPhoneNewPagesTests: IPhoneLearnTestCase {
             try await backend.context.database.transaction { c in
                 try c.execute("INSERT INTO modules(id, name, color, sort) VALUES (1, 'Einführung in die Informatik', '#175ee8', 0), (2, 'Lineare Algebra I für Studierende der Informatik', '#16a34a', 1)")
                 try c.execute("INSERT INTO courses(id, title, subject, kind, semester, active, module_id, created_at) VALUES ('sp-1', 'Lineare Algebra', 'Lineare Algebra', 'vorlesung', 'WiSe 2026/27', 1, 2, 't')")
+                // Modul 3 mit Lehrwochen (Erledigt-Haken je Datei und Woche, Build 38)
+                try c.execute("INSERT INTO modules(id, name, color, sort) VALUES (3, 'Grundlagen der theoretischen Informatik', '#7c3aed', 2)")
+                try c.execute("INSERT INTO courses(id, title, subject, kind, semester, active, module_id, created_at) VALUES ('lw-101', 'Grundlagen der theoretischen Informatik', 'Grundlagen der theoretischen Informatik', 'vorlesung', 'WiSe 2026/27', 1, 3, 't')")
+                let lw: [(String, String, String)] = [("f1", "Folien Einführung.pdf", "Woche 1"), ("f2", "Übungsblatt 1 mit einem langen Namen zum Umbrechen.pdf", "Woche 1"),
+                                                      ("f3", "Folien Zahlensysteme.pdf", "Woche 2"), ("f4", "Übungsblatt 2.pdf", "Woche 2")]
+                for (id, name, _) in lw {
+                    try c.execute("INSERT INTO files(id, course_id, name, chdate, first_seen, status) VALUES (?,?,?,?,?, 'gelesen')",
+                                  [.text(id), .text("lw-101"), .text(name), .integer(1_760_000_000), .text("2026-10-12T09:00:00")])
+                }
+                try LectureWeeks.assignCourse(c, courseID: "lw-101", semester: "WiSe 2026/27", university: "hildesheim",
+                                              files: lw.map { LectureWeeks.Input(id: $0.0, name: $0.1, section: $0.2) }, now: "2026-10-12T09:00:00")
                 for (i, n) in ["Einführung", "Vektorräume", "Basis und Dimension"].enumerated() {
                     try c.execute("INSERT INTO files(id, course_id, name, chdate) VALUES (?,?,?,?)",
                                   [.text("la-\(i + 1)"), .text("sp-1"), .text("LA \(n).pdf"), .integer(Int64(1_791_878_400 + 60 * i))])
@@ -50,6 +61,16 @@ final class IPhoneNewPagesTests: IPhoneLearnTestCase {
         env.pump(1)
         assertFitsOnAllPhones(env, "modul-wochen")
         shoot(env, "iphone-modul-wochen")
+    }
+
+    func testModuleWeeksWithTicksFitThePhone() throws {
+        let env = try hostPhone(ModulePage(id: 3), api: try localAPI())
+        env.router.go(.module(3))
+        XCTAssertTrue(env.wait(timeout: 15) { self.shows(env, "Woche 1") || self.shows(env, "Woche 2") }, dump(env))
+        env.pump(0.6)
+        if let w = button(env, "Woche 2", prefix: true) { _ = w.accessibilityActivate(); env.pump(0.6) }
+        assertFitsOnAllPhones(env, "modul-haken")
+        shoot(env, "iphone-modul-haken")
     }
 
     func testStudyGroupQuestionsFitThePhone() throws {

@@ -30,8 +30,9 @@ enum StudyReschedule {
         } else if let taskIDs, !taskIDs.isEmpty {
             let marks = Array(repeating: "?", count: taskIDs.count).joined(separator: ",")
             tasks = try c.query(taskSQL + " WHERE t.id IN (\(marks)) ORDER BY p.date, t.sort", taskIDs)
-        } else {                                       // alle nachzuholenden
-            tasks = try c.query(taskSQL + " WHERE t.status='nachholen' ORDER BY p.date, t.sort")
+        } else {                                       // alle nachzuholenden, ohne abgewaehlte Faecher
+            let off = try StudyPlanModules.offModuleIDs(c)
+            tasks = try c.query(taskSQL + " WHERE t.status='nachholen' ORDER BY p.date, t.sort").filter { !off.contains($0["module_id"]?.int64 ?? -1) }
         }
         // Lerntage mit freier Zeit, nach Datum (heute zuerst); bei gleichem Platz gilt der fruehere Tag
         var cap: [(day: Int, minutes: Double)] = []

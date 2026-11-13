@@ -51,7 +51,7 @@ final class AIFlashcardsTests: XCTestCase {
         let schema = try XCTUnwrap(g(t, "flashcards_schema"))
         XCTAssertEqual(AIPrompts.flashcardsSchema, schema.json, "Schema wie ai.FLASHCARDS_SCHEMA")
         XCTAssertEqual(AIPrompts.flashcardsSchema["required"], ["cards"])
-        XCTAssertEqual(AIPrompts.flashcardsSchema["properties"]?["cards"]?["items"]?["required"], ["question", "answer"])
+        XCTAssertEqual(AIPrompts.flashcardsSchema["properties"]?["cards"]?["items"]?["required"], ["question", "answer", "kind", "page"])
     }
 
     func testPromptsMatchPython() throws {
@@ -69,11 +69,31 @@ final class AIFlashcardsTests: XCTestCase {
         // Seitenangabe und Schwerpunkt sichtbar, Text als Material gekennzeichnet
         let p = AIPrompts.flashcards(course: "K", fileName: "f.pdf", pages: [2, 3], text: "Inhalt", count: 7, topic: "Beweise")
         XCTAssertTrue(p.contains("Datei: f.pdf, Seiten 2–3"))
-        XCTAssertTrue(p.contains("genau 7 Karteikarten"))
+        XCTAssertTrue(p.contains("Erstelle genau 7 Karteikarten"))
+        XCTAssertTrue(p.contains(AIPromptTexts.flashcardsRules) && p.hasSuffix(AIPromptTexts.flashcardsAnswerForm))
         XCTAssertTrue(p.contains("SCHWERPUNKT: Beweise"))
         XCTAssertTrue(p.contains(AIPromptTexts.untrusted))
         XCTAssertTrue(AIPrompts.flashcards(course: "K", fileName: "f.pdf", pages: [4], text: " ").contains("Seite 4\n"))
         XCTAssertTrue(AIPrompts.flashcards(course: "K", fileName: "f.pdf", pages: [], text: " ").contains("[kein Text extrahierbar]"))
+    }
+
+    func testPagesTextMatchesPython() throws {
+        let cases = list(try contract(), "flashcards_pages_text")
+        XCTAssertGreaterThanOrEqual(cases.count, 4)
+        for (i, c) in cases.enumerated() {
+            let pages = list(c, "pages").compactMap { v -> Int? in if case .int(let d) = v { return Int(d) }; return nil }
+            let texts = list(c, "texts").map { v -> String in if case .string(let t) = v { return t }; return "" }
+            same(AIPrompts.flashcardsPagesText(pages: pages, texts: texts), s(c, "out"), "Seitentext \(i)")
+        }
+    }
+
+    /// Gespeicherte Stapel (CardStackShare) bleiben ganz: ohne die Qualitaetspruefung fallen nur leere Karten weg
+    func testStoredStacksKeepAllCards() {
+        let long = String(repeating: "A", count: AIPromptTexts.flashcardsAnswerChars + 1)
+        let res: PyJSON = .array([.object([.init("question", .string("F")), .init("answer", .string(long))]),
+                                  .object([.init("question", .string("F")), .init("answer", .string("doppelt"))])])
+        XCTAssertEqual(AIAnswers.checkFlashcards(res).count, 1, "zu lang faellt weg, die zweite Karte bleibt")
+        XCTAssertEqual(AIAnswers.checkFlashcards(res, quality: false).count, 2)
     }
 
     func testCheckAndCountMatchPython() throws {
@@ -82,7 +102,9 @@ final class AIFlashcardsTests: XCTestCase {
         for (i, c) in cases.enumerated() {
             if let input = g(c, "in") {
                 let expected = list(c, "out").map { AIAnswers.Flashcard(question: s($0, "question"), answer: s($0, "answer")) }
-                XCTAssertEqual(AIAnswers.checkFlashcards(input), expected, "Fall \(i)")
+                var pages: [Int] = []
+                if case .array(let p)? = g(c, "pages") { pages = p.compactMap { if case .int(let d) = $0 { return Int(d) }; return nil } }
+                XCTAssertEqual(AIAnswers.checkFlashcards(input, pages: pages), expected, "Fall \(i)")
             } else {
                 // null kommt als fehlender Schluessel nicht zurueck: `in` fehlt, `out` ist leer
                 if case .object(let members) = c, members.contains(where: { $0.key == "out" }) {
@@ -126,7 +148,7 @@ final class AIFlashcardsTests: XCTestCase {
         try await seed(b)
         let noAI = await post(b, "/api/ai/flashcards", ["file_id": "f1"])
         XCTAssertEqual(noAI.status, 404, "ohne KI")
-        let ai = SchemaFakeAI(#"```json\n{"cards": [{"question": " Was ist eine Cauchy-Folge? ", "answer": "Eine Folge, deren Glieder sich beliebig nahe kommen."}, {"question": "", "answer": "x"}, {"question": "Reihe?", "answer": "Summe"}]}\n```"#)
+        let ai = SchemaFakeAI(#"```json\n{"cards": [{"question": " Was ist eine Cauchy-Folge? ", "answer": "Eine Folge, deren Glieder sich beliebig nahe kommen.", "kind": "begriff", "page": 2}, {"question": "", "answer": "x"}, {"question": "Reihe?", "answer": "Summe", "page": 1}]}\n```"#)
         b.context.ai.set(ai)
         let r = await post(b, "/api/ai/flashcards", ["file_id": "f1", "pages": [3, 2, 3, 99, "2"], "count": "2", "topic": " Konvergenz "])
         XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
@@ -134,13 +156,15 @@ final class AIFlashcardsTests: XCTestCase {
         XCTAssertEqual(j["pages"], [2, 3], "aufsteigend, ohne Doppelte, nur vorhandene Seiten")
         XCTAssertEqual(j["count"], 2)
         XCTAssertEqual(j["cards"]?.array?.map { $0["question"]?.string ?? "" }, ["Was ist eine Cauchy-Folge?", "Reihe?"], "nur Karten mit Frage und Antwort, ohne Leerraum")
+        XCTAssertEqual(j["cards"]?.array?.map { $0["answer"]?.string ?? "" },
+                       ["Eine Folge, deren Glieder sich beliebig nahe kommen. (S. 2)", "Summe"], "Seitenangabe nur fuer gewaehlte Seiten")
         let call = try XCTUnwrap(ai.prompts.first)
         XCTAssertEqual(call.system, AIPromptTexts.system)
         XCTAssertEqual(call.schema, AIPrompts.flashcardsSchema, "Schema an die KI")
         XCTAssertTrue(call.prompt.hasPrefix("Kurs: Testmathe I\nDatei: vl03.pdf, Seiten 2–3\n"), call.prompt)
         XCTAssertTrue(call.prompt.contains("genau 2 Karteikarten"))
         XCTAssertTrue(call.prompt.contains("SCHWERPUNKT: Konvergenz"))
-        XCTAssertTrue(call.prompt.contains("Cauchy-Folgen und Vollstaendigkeit\n\nReihen und Konvergenzkriterien"), "Text der gewaehlten Seiten")
+        XCTAssertTrue(call.prompt.contains("### Seite 2\nCauchy-Folgen und Vollstaendigkeit\n\n### Seite 3\nReihen und Konvergenzkriterien"), "Text der gewaehlten Seiten")
         XCTAssertFalse(call.prompt.contains("Grenzwerte von Folgen"), "Seite 1 nicht gewaehlt")
         XCTAssertEqual(ai.prompts.count, 1)
 

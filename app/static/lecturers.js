@@ -4,7 +4,7 @@
 // Klick auf die E-Mail: neue E-Mail in Uni-Mail mit dem Empfaenger (am PC mit verbundener Uni-Mail), sonst mailto:.
 // "Nachricht in Stud.IP": Fenster, das ueber POST /api/lecturers/{id}/message sendet (nur Lehrende der eigenen Kurse,
 // genau ein Versuch); Ausweg "In Stud.IP schreiben". Raeume fuehren zum Raumfinder (.room-link, app.js).
-import { $, $$, api, icon, modal, toast } from "./core.js?v=46";
+import { $, $$, api, icon, modal, toast } from "./core.js?v=47";
 import * as L from "./lecturers-logic.js?v=1";
 
 const { esc } = L;
@@ -17,7 +17,7 @@ async function mail(email, person, module) {
   const a = L.mailAction(email, await uniMailConnected());
   if (!a) return;
   if (a.kind === "mailto") { location.href = a.url; return; }
-  const m = await import("./uni-mail.js?v=2");
+  const m = await import("./uni-mail.js?v=3");
   m.composeTo(a.to, L.subject(person, module));
 }
 

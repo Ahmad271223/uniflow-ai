@@ -5,7 +5,7 @@
 // Stundenplan, Lernkalender oder Klausuren auf (Klick auf .room-link, app.js). Frei in jedem Tarif.
 // Daten: GET /api/rooms/search, /api/rooms/resolve, /api/rooms/campuses (app/rooms_api.py); Regeln: rooms-logic.js.
 // An Google geht nichts von selbst: erst der Klick auf einen Karten-Link oeffnet Google Maps.
-import { $, $$, api, esc, icon, modal } from "./core.js?v=46";
+import { $, $$, api, esc, icon, modal } from "./core.js?v=47";
 import * as L from "./rooms-logic.js?v=1";
 
 function ensureCss() {

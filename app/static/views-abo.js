@@ -10,7 +10,7 @@
 // Eigener PC ohne Konto-Pflicht (Einzelplatz, me.mode "local", z. B. serve.py in der Entwicklung): keine Kaufwege;
 // StudiNow Pro AI braucht den StudiNow-Dienst und steht dort ohne Preis als "kommt mit dem StudiNow-Dienst".
 // planChoicePrompt (Tarif wählen oder bei Free bleiben) gilt nur noch ohne Abo-Pflicht.
-import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=46";
+import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=47";
 import { GATE_TEXTS, exportHref } from "./account-gate.js?v=1";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
@@ -123,7 +123,7 @@ export async function viewAbo(_, params, view) {
     <div class="abo-more">
       ${windows ? `<section class="abo-info"><header><h2>${icon("user", 18)} StudiNow-Konto</h2><span class="badge ${me.account?.offline ? "warn" : "ok"}">${me.account?.offline ? "Dienst nicht erreichbar" : "angemeldet"}</span></header>
         <p>Angemeldet als <b>${esc(me.account?.user?.email || "")}</b>. Dasselbe Konto gilt auf dem iPad und im Web; dein Abo wird beim Dienst geprüft${me.account?.fetched_at ? `, zuletzt ${new Date(me.account.fetched_at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}` : ""}. Ohne Internet gilt der letzte Stand bis zu ${me.account?.grace_days ?? 7} Tage.</p>
-        <div class="row wrap" style="gap:.4rem"><button class="btn sm" id="aboRecheck2">${icon("refresh", 14)} ${esc(GATE_TEXTS.recheck)}</button><a class="btn sm" href="${exportHref(me)}" download>${icon("download", 14)} ${esc(GATE_TEXTS.exportData)}</a><button class="btn sm ghost" id="aboLogout">${icon("log-out", 14)} Abmelden</button></div></section>` : ""}
+        <div class="row wrap" style="gap:.4rem"><button class="btn sm" id="aboRecheck2">${icon("refresh", 14)} ${esc(GATE_TEXTS.recheck)}</button><a class="btn sm" href="${exportHref(me)}" download>${icon("download", 14)} ${esc(GATE_TEXTS.exportData)}</a><button class="btn sm ghost" id="aboLogout">${icon("log-out", 14)} Abmelden</button><button class="btn sm danger" id="aboDelete">${icon("trash", 14)} Konto löschen</button></div></section>` : ""}
       ${(local || windows) && gptLocal?.available ? `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></header>
         <p>${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></section>`
       : `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></header>
@@ -150,6 +150,9 @@ export async function viewAbo(_, params, view) {
   $("#aboRecheck2", view)?.addEventListener("click", () => window.refreshAppAccount?.(true));
   $("#aboLogout", view)?.addEventListener("click", async () => { if (!confirm("Vom StudiNow-Konto abmelden? Deine Daten auf diesem PC bleiben erhalten.")) return; try { await api("/app-account/logout", { method: "POST", body: {} }); } catch {} location.reload(); });
   $("#aboPortal", view)?.addEventListener("click", portal);
+  // Konto loeschen unter Windows (account-delete.js, 13.11.2026): der PC leitet an den Dienst weiter und meldet sich ab
+  $("#aboDelete", view)?.addEventListener("click", async () => { const { deleteAccountDialog } = await import("./account-delete.js?v=2");
+    deleteAccountDialog({ windows: true, email: me.account?.user?.email || "", exportHref: exportHref(me), onDeleted: () => location.reload() }); });
   $$("[data-portal]", view).forEach(b => b.onclick = portal);
   $("#aboStayFree", view)?.addEventListener("click", async () => { try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free – deine Notizen bleiben"); state.route(); } catch (e) { toast(e.message, 5000); } });
 }

@@ -52,7 +52,8 @@
     "ai_tests_new": 0,
     "library_tests": 0,
     "ai_assist": 0,
-    "card_stacks_adopted": 0
+    "card_stacks_adopted": 0,
+    "ai_mail": 0
    },
    "credits": 0
   },
@@ -96,7 +97,8 @@
     "ai_tests_new": 4,
     "library_tests": 4,
     "ai_assist": 0,
-    "card_stacks_adopted": 4
+    "card_stacks_adopted": 4,
+    "ai_mail": 0
    },
    "credits": 0
   },
@@ -140,7 +142,8 @@
     "ai_tests_new": 20,
     "library_tests": null,
     "ai_assist": 150,
-    "card_stacks_adopted": null
+    "card_stacks_adopted": null,
+    "ai_mail": 50
    },
    "credits": 100
   }
@@ -282,7 +285,8 @@
    "ai_tests_new": "Neue StudiNow-KI-Tests",
    "library_tests": "Tests aus der Bibliothek",
    "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen",
-   "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)"
+   "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)",
+   "ai_mail": "E-Mails mit KI verbessern"
   },
   "fair_use": {
    "library_tests": 300,
