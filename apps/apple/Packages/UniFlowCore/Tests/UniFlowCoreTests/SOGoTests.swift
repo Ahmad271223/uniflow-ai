@@ -404,4 +404,14 @@ final class SOGoTests: XCTestCase {
         XCTAssertEqual(mine.first?["start"], "10:15")
         XCTAssertFalse(mine.contains { $0["title"] == "Exkursion" }, "ganztaegige nicht im Stundenplan")
     }
+
+    /// 13.11.2026, echtes iPad: HTML statt JSON heisst "neu anmelden" (einmal automatisch, `perform`), nicht der
+    /// technische Fehler "keine JSON-Antwort"; der Fehlertext fuer anderen Unsinn ist verstaendlich
+    func testHTMLInsteadOfJSONIsLoginAgain() {
+        XCTAssertTrue(SOGo.looksLikeHTML(Data("  <!DOCTYPE html><html><body>Bitte anmelden</body></html>".utf8)))
+        XCTAssertTrue(SOGo.looksLikeHTML(Data("<html lang='de'>".utf8)))
+        XCTAssertFalse(SOGo.looksLikeHTML(Data(#"{"a": 1}"#.utf8)))
+        XCTAssertFalse(SOGo.looksLikeHTML(Data("kaputt".utf8)))
+        XCTAssertFalse(SOGoError.bad("keine JSON-Antwort").localizedDescription.contains("JSON"))
+    }
 }
