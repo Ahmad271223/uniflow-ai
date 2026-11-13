@@ -994,7 +994,7 @@ struct CommunityPersonPane: View {
                                     resetComposer()
                                     spot = (page.key, anchor)
                                     tab = .discussion
-                                } : nil, title: SolutionBuilder.pageTitle(content.pages, at: i))
+                                } : nil, title: SolutionPaper.title(content.pages, at: i))
                             }
                         } else if failure == nil { CommunityLoading(text: "Notizen werden geladen …") }
                     } else {

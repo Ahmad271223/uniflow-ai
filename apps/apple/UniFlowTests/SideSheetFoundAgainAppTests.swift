@@ -365,4 +365,38 @@ final class SideSheetFoundAgainAppTests: XCTestCase {
         await sheet.close()
         await main.close()
     }
+    // MARK: Papierkorb fuer Notizblaetter (Wunsch des Inhabers 13.11.2026)
+
+    /// Offenes Blatt in den Papierkorb: Ausstehendes wird vorher gesichert, es geht nicht mehr in den Druck, steht unter
+    /// "Deine Blätter" mit "Wiederherstellen" und kommt wiederhergestellt mit allen Strichen zurueck
+    func testSideSheetTrashKeepsEverythingRestorable() async throws {
+        let e = try env()
+        let main = try await mainStore(e)
+        let sheet = try await newSheet(e)
+        try await write(on: sheet, beside: "p1", main: main)
+        let page = try XCTUnwrap(sheet.pageKey(forPageIndex: 0))
+        // zweiter Strich, noch nicht gesichert (die Canvas meldet immer die ganze Zeichnung der Seite)
+        sheet.canvasChanged(pageKey: page, drawing: PKDrawing(strokes: ink(300).strokes + ink(600).strokes))
+        try await SideSheetTrash.trash(sheet.file.id, api: e.api, flushing: sheet)
+        let sheetID = sheet.file.id
+        await sheet.close()
+
+        let entries = await SideSheetLoader.entries(for: main, api: e.api)
+        XCTAssertEqual(entries.first?.trashed, true, "im Papierkorb, nicht geloescht")
+        let printed = try await NotesExport.pdf(for: main, api: e.api, options: .init(folder: "papierkorb-test"))
+        XCTAssertEqual(pageCount(printed), 3, "geht nicht mehr mit in den Druck")
+        let library = try await e.api.value("/api/library")
+        XCTAssertFalse(library.list("files").contains { $0.s("id") == sheetID }, "nicht mehr in der Bibliothek")
+        XCTAssertTrue(library.list("trash").contains { $0.s("id") == sheetID }, "im Papierkorb der Bibliothek")
+
+        _ = try await e.api.value("/api/library/files/\(sheetID)", method: "PATCH", body: ["restore": true])
+        let file = try await e.api.json("/api/files/\(sheetID)", as: LibFile.self)
+        let back = DocumentStore(file: file, api: e.api, root: e.root)
+        await back.load()
+        let doc = await back.pageStructureDocument()
+        XCTAssertEqual(doc.objects(page: page).filter { $0["type"]?.string == "stroke" }.count, 2, "beide Striche zurueck")
+        await back.close()
+        XCTAssertTrue(SideSheetTrash.trashedHint("Notizen – Folien").contains("Wiederherstellen"))
+        await main.close()
+    }
 }

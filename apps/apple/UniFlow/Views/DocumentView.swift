@@ -864,7 +864,7 @@ struct DocumentView: View {
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
-                            linkedSheetIDs: store.sideSheetFileIDs,
+                            linkedSheetIDs: store.sideSheetFileIDs, openSheetID: companion?.file.id,
                             solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
                             onSolution: { id in
                                 if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
@@ -1128,6 +1128,10 @@ struct DocumentView: View {
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, tools: tools.tools, undoManager: tools.undo,
                       pencilOnly: pencilOnly, canEdit: canWrite, viewLocked: freeze.locksView, appendTemplate: c.appendTemplate,
+                      onTrashed: { [bridge] in
+                          bridge.hint = .init(text: SideSheetTrash.trashedHint(c.file.displayTitle))
+                          companion = nil
+                      },
                       onStore: { [store, bridge] s, shown in
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
@@ -2166,14 +2170,18 @@ struct CompanionView: View {
     var viewLocked = false
     /// nach dem Laden unten eine Seite mit dieser Vorlage anfuegen und hinspringen (`Companion.appendTemplate`)
     var appendTemplate: String?
+    /// Blatt in den Papierkorb gelegt (Hauptansicht schliesst die Spalte und sagt, wo es wiederherzustellen ist)
+    var onTrashed: (() -> Void)?
     /// meldet das offene Dokument an die Hauptansicht (sichtbar ja/nein)
     var onStore: (DocumentStore, Bool) -> Void = { _, _ in }
     let onClose: () -> Void
 
     init(file: LibFile, api: APIClient, pdfPage: Int?, tools: EditorToolState, undoManager: UndoManager,
          pencilOnly: Bool, canEdit: Bool = true, viewLocked: Bool = false, appendTemplate: String? = nil,
+         onTrashed: (() -> Void)? = nil,
          onStore: @escaping (DocumentStore, Bool) -> Void = { _, _ in }, onClose: @escaping () -> Void) {
         self.appendTemplate = appendTemplate
+        self.onTrashed = onTrashed
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
@@ -2217,6 +2225,13 @@ struct CompanionView: View {
                 CompanionAddPageButton(store: store, bridge: bridge,
                                        enabled: canEdit && store.pdf != nil && !store.journalUnreadable && !store.viewOnlyHere)
                 CompanionPageLabel(bridge: bridge, count: store.layout?.entries.count ?? 0)
+                // Papierkorb fuer das Notizblatt daneben (Wunsch des Inhabers 13.11.2026)
+                if store.file.isNotebook, let onTrashed {
+                    CompanionTrashButton(title: store.file.displayTitle, enabled: canEdit && store.pdf != nil) {
+                        try await SideSheetTrash.trash(store.file.id, api: api, flushing: store)
+                        onTrashed()
+                    }
+                }
             }
             if let error = store.errorMessage {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
@@ -2287,6 +2302,58 @@ extension CompanionView {
         if last.kind == "blank", last.template == template, doc.objects(page: last.key).isEmpty { return entries.count - 1 }
         await store.addBlankPage(afterKey: last.key, template: template)
         return (store.layout?.entries.count ?? entries.count + 1) - 1
+    }
+}
+
+/// Notizblatt daneben in den Papierkorb (Wunsch des Inhabers 13.11.2026). Wie "Papierkorb" in der Bibliothek: nichts wird
+/// endgueltig geloescht; wiederherstellen unter "Daneben öffnen" › Deine Blätter oder Bibliothek › Papierkorb. Ein Blatt
+/// im Papierkorb geht nicht mehr mit in Druck, Export und geteilte Loesungen.
+enum SideSheetTrash {
+    /// Ausstehendes des offenen Blatts sichern, dann in den Papierkorb
+    @MainActor
+    static func trash(_ fileID: String, api: APIClient, flushing store: DocumentStore?) async throws {
+        await store?.flush()
+        _ = try await api.value("/api/library/files/\(fileID)", method: "PATCH", body: ["trash": true])
+    }
+
+    static func trashedHint(_ title: String) -> String {
+        "„\(title)“ liegt im Papierkorb. Wiederherstellen: „Geteilt“ › Deine Blätter oder Bibliothek › Papierkorb."
+    }
+
+    static func confirmMessage(_ title: String) -> String {
+        "„\(title)“ kommt in den Papierkorb und geht nicht mehr beim Drucken oder Teilen mit. Du kannst es jederzeit wiederherstellen."
+    }
+}
+
+/// Papierkorb-Knopf im Kopf des Notizblatts daneben, mit Rueckfrage
+struct CompanionTrashButton: View {
+    let title: String
+    let enabled: Bool
+    let trash: () async throws -> Void
+    @State private var asking = false
+    @State private var failure: String?
+
+    var body: some View {
+        Button { asking = true } label: {
+            Image(systemName: "trash").frame(width: 30, height: 30).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(enabled ? UF.text2 : UF.muted)
+        .disabled(!enabled)
+        .accessibilityLabel("Blatt in den Papierkorb")
+        .accessibilityIdentifier("companion.trash")
+        .modifier(MacHelp(text: "Blatt in den Papierkorb"))
+        .confirmationDialog("Blatt in den Papierkorb?", isPresented: $asking, titleVisibility: .visible) {
+            Button("In den Papierkorb", role: .destructive) {
+                Task {
+                    do { try await trash() } catch { failure = error.localizedDescription }
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { Text(SideSheetTrash.confirmMessage(title)) }
+        .alert("Papierkorb", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(failure ?? "") }
     }
 }
 
@@ -2396,6 +2463,9 @@ struct CompanionOwnSheetsSection: View {
     let sheets: [SideSheetLoader.Entry]
     let open: (String) -> Void
     let restore: (String) -> Void
+    /// in den Papierkorb (nicht fuer das gerade offene Blatt)
+    var trash: ((String) -> Void)? = nil
+    var openSheetID: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -2419,6 +2489,12 @@ struct CompanionOwnSheetsSection: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("companion.own.\(i)")
+                    .contextMenu {
+                        if let trash, !e.trashed, e.id != openSheetID {
+                            Button(role: .destructive) { trash(e.id) } label: { Label("In den Papierkorb", systemImage: "trash") }
+                        }
+                    }
+                    .accessibilityAction(named: "In den Papierkorb") { if let trash, !e.trashed, e.id != openSheetID { trash(e.id) } }
                 }
             }
             .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -2437,6 +2513,8 @@ struct CompanionPicker: View {
     var sourceTitle = ""
     /// Blaetter, die neben diesem Dokument beschrieben wurden (`sideSheets`): "Deine Blätter zu diesem Dokument"
     var linkedSheetIDs: [String] = []
+    /// gerade daneben offenes Blatt (laesst sich hier nicht in den Papierkorb legen, dafuer der Knopf in seinem Kopf)
+    var openSheetID: String?
     /// empfangene Loesungen zu dieser PDF (ID, Name): "Lösung daneben ansehen" steht dann zuerst
     var solutions: [(id: String, label: String)] = []
     /// Lage von Folie und Loesung nach der Schreibhand (SplitSides.solutionHint)
@@ -2470,7 +2548,8 @@ struct CompanionPicker: View {
                     if !solutions.isEmpty { solutionSection }
                     if !ownSheets.isEmpty {
                         CompanionOwnSheetsSection(sheets: ownSheets, open: { id in Task { await openOwn(id, restore: false) } },
-                                                  restore: { id in Task { await openOwn(id, restore: true) } })
+                                                  restore: { id in Task { await openOwn(id, restore: true) } },
+                                                  trash: { id in Task { await trashOwn(id) } }, openSheetID: openSheetID)
                     }
                     blankSection
                     documentSection
@@ -2614,6 +2693,18 @@ struct CompanionPicker: View {
         }
         let newest: (SideSheetLoader.Entry, SideSheetLoader.Entry) -> Bool = { ($0.edited ?? "") > ($1.edited ?? "") }
         return out.sorted(by: newest) + more.sorted(by: newest)
+    }
+
+    /// Blatt aus "Deine Blätter" in den Papierkorb (wiederherstellbar: hier und in der Bibliothek)
+    private func trashOwn(_ id: String) async {
+        do {
+            try await SideSheetTrash.trash(id, api: api, flushing: nil)
+            ownSheets = await Self.ownSheets(linked: linkedSheetIDs, named: Self.sheetTitle(for: sourceTitle),
+                                             library: try await library().filter { $0.opensInEditor && $0.id != excluding },
+                                             excluding: excluding, api: api)
+        } catch let e {
+            error = e.localizedDescription
+        }
     }
 
     /// Blatt, in dem ein neues "Leeres Blatt" weitergeht: das zuletzt benutzte nicht geloeschte (verknuepfte zuerst)
