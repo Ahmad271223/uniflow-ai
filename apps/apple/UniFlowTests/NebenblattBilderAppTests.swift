@@ -175,6 +175,8 @@ final class NebenblattBilderAppTests: XCTestCase {
         env.pump(2.0)
         shot(env.window, "2-nebenansicht-zwei-seiten")
         XCTAssertTrue(tap(containing: "Seite darunter einfügen", in: env.window), "„+“ im Kopf des Blatts")
+        // erst das Papier waehlen (Wunsch des Inhabers 13.11.2026)
+        XCTAssertTrue(env.wait(timeout: 5) { self.tap(containing: "Kariert", in: env.window) }, "Papier waehlen")
         env.wait(timeout: 10) { self.shows("S. 2 / 3", in: env.window) }
         env.pump(2.0)
         shot(env.window, "3-nebenansicht-seite-angefuegt")
