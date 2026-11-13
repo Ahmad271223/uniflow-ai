@@ -1,4 +1,4 @@
-# Dienst-Update 13.11.2026 (zweites) – vorbereitet, nicht ausgerollt
+# Dienst-Update 13.11.2026 (zweites) – ausgerollt 16:32
 
 Stand: `develop` bei `2639e54c` (Server-Code gleich `6f1eff9d` = Build 37). Auf dem Server läuft seit 13.11.2026 11:07
 `21ecc168` (siehe `DEPLOY-DIENST-2026-11-13.md`). Ausrollen nur mit Freigabe des Inhabers.
@@ -52,3 +52,18 @@ Lernziele (Fehlerbericht des Inhabers 13.11.2026, „Mathe 1“).
    - in Uni-Mail „Neue E-Mail“ → Text schreiben → „Mit KI verbessern“;
    - ein Fach abwählen und prüfen, dass es keine Lernpakete bekommt.
 4. **Zurück, falls etwas nicht geht:** Schritt 2 mit dem alten Stand: `git archive 21ecc168 | ssh …`
+
+## Ergebnis
+
+Ausgerollt am 13.11.2026 um 16:32 (Berlin) auf Freigabe des Inhabers („Ja, ausrollen“). Ausgerollt wurde der neuere Stand
+`d0d178b6` (develop nach Build 38) statt `2639e54c`: zusätzlich bessere KI-Karteikarten (`app/ai.py`, `ai_backend.py`
+MAX_OUTPUT flashcards 8000, `flashcard_order.py`), Haken „erledigt“ am PC (`server.py`, `study.py`, `views-misc.js`,
+`style.css`) und die Uni-Mail-Reparatur (`app/sogo.py`: HTML statt JSON = neu anmelden). Keine Schemaänderung.
+
+- Vorher: Python 3.492 bestanden (1 bekannter wackeliger Test abgewählt), JS 450/450 auf `d0d178b6`
+- Backup vorher: `/srv/uniflow/backups/uniflow-2026-11-13_1631.tar.gz` (8,3 MB, 17 Datenbanken)
+- Bau und Start ohne Fehler, `app` und `jobs` „healthy“
+- `dienst-check.sh`: alle Prüfungen bestanden
+- Von außen: `/login` 200, `/api/billing/plans` 200 mit `ai_mail` 50 für Pro AI
+- Nicht geprüft: echte KI-Antworten und KI-Mails mit einem echten Konto (am iPad mit Build 37/38 testen)
+- Zurück: `git archive 21ecc168 | ssh …` wie oben
