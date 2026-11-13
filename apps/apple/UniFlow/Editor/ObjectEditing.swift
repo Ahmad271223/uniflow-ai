@@ -541,6 +541,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// erst nach einem `await` angemeldet, zaehlte er beim UndoManager als neuer Rueckgaengig-Schritt.
     private func registerUndo(key: String, restore: [JSONValue], then redo: [JSONValue]) {
         guard let c = controller else { return }
+        c.editUndo.beginSeparateStep()                      // eigener Schritt, nie mit einem Strich zusammen
         c.editUndo.registerUndo(withTarget: self) { me in
             me.registerUndo(key: key, restore: redo, then: restore)
             me.clearSelection()

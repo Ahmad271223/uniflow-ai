@@ -1,4 +1,5 @@
 import Combine
+import OSLog
 import PDFKit
 import PencilKit
 import UIKit
@@ -58,6 +59,9 @@ final class PageInkView: UIView {
     var undoPending = false
     /// Aenderung, waehrend der Stift noch aktiv ist: beim Absetzen einmal sichern (`PencilTuning.saveOnLift`)
     var storePending = false
+    /// Stift abgesetzt, die Meldung "Zeichnung geaendert" steht noch aus (iOS meldet beides in beliebiger Reihenfolge):
+    /// Formerkennung und Rohpunkte laufen, sobald der Strich da ist
+    var pendingLift: StrokeLift?
     /// Fremde Ebenen wurden nach einer Speicherwarnung freigegeben und werden beim naechsten Anzeigen neu gebaut.
     var foreignReleased = false
     /// Korrekturvorschlag auf dieser Seite (Korrektur-Modus oder empfangene Korrektur, `CorrectionMode.swift`)
@@ -1128,16 +1132,46 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         documentUndo.removeAllActions(withTarget: t)
     }
 
-    /// Eintrag "Seite `key` auf `old` zuruecksetzen"; beim Ausfuehren entsteht der Gegeneintrag (zurueck auf `new`).
-    /// Schnappschuesse statt Einzelschritte: PKDrawing ist ein Wert, das Merken kostet beim Schreiben praktisch nichts.
+    /// Schritt "Seite `key` von `old` nach `new`" merken. Gemerkt wird nur der Unterschied (`InkUndoStep`: welche
+    /// Striche entfernt, welche hinzugefuegt); Rueckgaengig wendet ihn umgekehrt auf den jetzigen Stand an. Vorher
+    /// setzte Rueckgaengig die ganze Seite auf `old` zurueck - war `old` veraltet, kamen geloeschte Striche zurueck
+    /// (Fehlerbericht 13.11.2026). Schritte ohne Aenderung werden nicht gemerkt (sie leerten nur "Wiederholen").
     private func registerUndo(key: String, restore old: PKDrawing, redo new: PKDrawing) {
+        let step = InkUndoStep.between(old, new)
+        guard !step.isEmpty else { return }
+        documentUndo.beginSeparateStep()                    // nie mit einem anderen Strich/Radieren zusammen
+        registerInk(step, key: key, undoing: true)
+    }
+
+    /// Eintrag im Verlauf: `undoing` = beim Ausfuehren zuruecknehmen (Rueckgaengig), sonst wieder anwenden
+    /// (Wiederholen); der Gegeneintrag entsteht sofort im Handler
+    private func registerInk(_ step: InkUndoStep, key: String, undoing: Bool) {
         documentUndo.registerUndo(withTarget: undoTarget(key)) { [weak self] _ in
             MainActor.assumeIsolated {
                 // ohne Schreiben im Tarif nimmt ein Schritt, den `removeAllActions(withTarget:)` nicht erreicht hat
                 // (z. B. in einer noch offenen Gruppe), nichts zurueck, auch nicht auf der Canvas
                 guard let self, self.canEdit else { return }
-                self.setDrawing(old, forKey: key)
-                self.registerUndo(key: key, restore: new, redo: old)
+                self.registerInk(step, key: key, undoing: !undoing)
+                self.applyInk(step, key: key, undoing: undoing)
+            }
+        }
+    }
+
+    /// Schritt auf den jetzigen Stand der Seite anwenden: geladene Canvas sofort, sonst den gespeicherten Stand
+    private func applyInk(_ step: InkUndoStep, key: String, undoing: Bool) {
+        func change(_ d: PKDrawing) -> PKDrawing { undoing ? step.reverted(on: d) : step.reapplied(on: d) }
+        if let overlay = boundOverlay(forKey: key), overlay.loaded {
+            setDrawing(change(overlay.canvas.drawing), forKey: key)
+            return
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let current = await self.store.drawing(forPageKey: key)
+            // inzwischen geladen: dann zaehlt deren Stand
+            if let overlay = self.boundOverlay(forKey: key), overlay.loaded {
+                self.setDrawing(change(overlay.canvas.drawing), forKey: key)
+            } else {
+                self.setDrawing(change(current), forKey: key)
             }
         }
     }
@@ -1213,6 +1247,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing else { return }
         // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
         guard overlay.loaded else { return }
+        // Strich kommt erst nach "Werkzeug aus": jetzt Form erkennen bzw. aus Rohpunkten bauen (gleicher Schritt)
+        if !overlay.isDrawing, let lift = overlay.pendingLift {
+            overlay.pendingLift = nil
+            if lift.isRecent, !documentUndo.isUndoing, !documentUndo.isRedoing { finishStroke(on: overlay, lift) }
+        }
         // Stift liegt noch auf (Radierer, Lasso; beim Stift kommt die Meldung kurz vor dem Absetzen): einmal beim
         // Absetzen sichern statt bei jeder Zwischenmeldung (`PencilTuning.saveOnLift`)
         if overlay.isDrawing, PencilTuning.saveOnLift { overlay.storePending = true } else { saveCanvas(overlay) }
@@ -1223,6 +1262,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+        overlay(of: canvasView)?.pendingLift = nil
         overlay(of: canvasView)?.isDrawing = true
         reclaimFocusForWriting()
     }
@@ -1231,13 +1271,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
+        let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
         // Form erkannt: `snapShape` sichert die ersetzte Zeichnung selbst (ein Mal statt Strich + Form)
         var snapped = false
-        if overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool { snapped = snapShape(on: overlay, endedAt: Date()) != nil }
-        // Glaettung "Leicht"/"Aus": Strich aus den Rohpunkten des Stifts (nicht bei erkannter Form, nicht mit Lineal)
-        let samples = overlay.rawRecorder.take()
-        if !snapped, overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool, !canvasView.isRulerActive {
-            rebuildFromRawPoints(on: overlay, samples: samples, smoothing: PencilSmoothing.current)
+        if overlay.loaded, overlay.undoPending {
+            snapped = finishStroke(on: overlay, lift)                       // Strich ist schon gemeldet
+        } else if overlay.loaded, lift.inking {
+            overlay.pendingLift = lift                                      // Meldung kommt gleich
         }
         if overlay.storePending, !snapped { saveCanvas(overlay) }
         overlay.storePending = false
@@ -1256,16 +1296,31 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing)
     }
 
+    /// Strich fertig (Stift abgesetzt UND Zeichnung gemeldet, in welcher Reihenfolge auch immer): Form erkennen,
+    /// sonst Glaettung "Leicht"/"Aus" aus den Rohpunkten (nicht mit Lineal). Beides im selben Rueckgaengig-Schritt.
+    /// - Returns: true, wenn eine Form erkannt (und schon gesichert) wurde
+    @discardableResult
+    func finishStroke(on overlay: PageInkView, _ lift: StrokeLift) -> Bool {
+        guard lift.inking else { return false }
+        let hold = RawStroke.heldDuration(lift.samples, radius: ShapeRecognizer.holdRadius)
+        if snapShape(on: overlay, endedAt: lift.endedAt, held: hold) != nil { return true }
+        if !lift.ruler { rebuildFromRawPoints(on: overlay, samples: lift.samples, smoothing: PencilSmoothing.current) }
+        return false
+    }
+
     /// Formerkennung "zeichnen und halten" (`ShapeRecognizer`): Der eben beendete Strich (genau einer seit dem letzten
     /// Rueckgaengig-Stand) wird durch die ideale Form ersetzt, wenn der Stift am Ende still stand. Der Tausch landet im
     /// selben Rueckgaengig-Schritt wie der Strich (`commitPendingUndo` folgt), das Speicherformat bleibt ein Strich.
     /// - Returns: die erkannte Form (fuer Tests), sonst nil
     @discardableResult
-    func snapShape(on overlay: PageInkView, endedAt: Date) -> ShapeRecognizer.Shape? {
+    func snapShape(on overlay: PageInkView, endedAt: Date, held: TimeInterval? = nil) -> ShapeRecognizer.Shape? {
         guard canEdit, shapeSnapEnabled else { return nil }
         var drawing = overlay.canvas.drawing
-        guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil,
-              ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt) else { return nil }
+        guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil else { return nil }
+        // Halten am Ende: Zeitstempel des Stifts (Rohpunkte), sonst die Punkte von PencilKit
+        let still = (held ?? 0) >= ShapeRecognizer.holdDuration || ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt)
+        ShapeLog.log.debug("Formerkennung: gehalten \(held ?? -1, privacy: .public) s, PencilKit still \(still, privacy: .public)")
+        guard still else { return nil }
         let points = stroke.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(stroke.transform) }
         guard let shape = ShapeRecognizer.recognize(points) else { return nil }
         drawing.strokes[drawing.strokes.count - 1] = ShapeRecognizer.idealStroke(shape, like: stroke)
@@ -2252,4 +2307,43 @@ extension UIResponder {
     }
 
     @objc private func uf_capture() { UIResponder.ufFound = self }
+}
+
+extension UndoManager {
+    /// Eigener Rueckgaengig-Schritt (Fehlerbericht des Inhabers 13.11.2026, Build 37/38: "Rueckgaengig holt frueher
+    /// geloeschte Striche zurueck"). Mit `groupsByEvent` ist alles, was in EINEM Durchlauf der Hauptschleife
+    /// angemeldet wird, ein Schritt. War das iPad kurz beschaeftigt (volle Seite sichern, Abgleich), arbeitet iOS die
+    /// gestauten Beruehrungen in einem Durchlauf ab: Radieren und der naechste Strich wurden ein Schritt, Rueckgaengig
+    /// nahm den Strich weg und holte die radierten Striche zurueck. Hier wird die offene Gruppe geschlossen und eine
+    /// neue begonnen; die Hauptschleife schliesst sie wie sonst. Nicht waehrend Rueckgaengig/Wiederholen (dort gehoert
+    /// der Gegenschritt in die laufende Gruppe). `groupsByEvent` bleibt an: Textfelder melden ihre Schritte ueber
+    /// denselben Verlauf an und braeuchten sonst eigene Gruppen (`UndoStrokesAppTests`).
+    func beginSeparateStep() {
+        guard groupsByEvent, groupingLevel == 1, !isUndoing, !isRedoing else { return }
+        endUndoGrouping()
+        beginUndoGrouping()
+    }
+}
+
+/// Stift abgesetzt: Rohpunkte, Werkzeug und Lineal in diesem Moment
+struct StrokeLift {
+    let samples: [RawPencilSample]
+    let inking: Bool
+    let ruler: Bool
+    let endedAt = Date()
+    private let uptime = ProcessInfo.processInfo.systemUptime
+
+    init(samples: [RawPencilSample], inking: Bool, ruler: Bool) {
+        self.samples = samples
+        self.inking = inking
+        self.ruler = ruler
+    }
+
+    /// Die Meldung "Zeichnung geaendert" gehoert noch zu diesem Absetzen
+    var isRecent: Bool { ProcessInfo.processInfo.systemUptime - uptime < 1 }
+}
+
+/// Protokoll der Formerkennung (Konsole am Mac: Kategorie "Formerkennung")
+enum ShapeLog {
+    static let log = Logger(subsystem: "app.studinow.ipad", category: "Formerkennung")
 }
