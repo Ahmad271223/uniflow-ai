@@ -144,12 +144,15 @@ public enum LocalModules {
         let start: Int
         var term: LectureWeeks.Term? = nil
         var stored: [String: LectureWeeks.Stored] = [:]
+        /// eigene Ordnung des Nutzers je Modul (`ModuleLayout`)
+        var layouts: [Int64: ModuleLayout.Layout] = [:]
 
         init(_ c: SQLiteConnection, clock: UniFlowClock) throws {
             today = BerlinClock.parseISODate(clock.today) ?? 0
             term = try LectureWeeks.currentTerm(c)
             start = try term.map { $0.firstMonday } ?? StudyWeeks.semesterStart(c, today: today)
             stored = try LectureWeeks.stored(c)
+            layouts = try ModuleLayout.load(c)
         }
 
         init(today: Int, start: Int) {
@@ -166,7 +169,15 @@ public enum LocalModules {
     /// eigener Block (-2, keine Lehrwoche), sonst der Hinweis aus Name/Ordner (Blatt 3 / VL03 -> Lehrwoche 3), wenn die
     /// Datei aus diesem Semester ist, sonst die Woche der Aenderung (`StudyWeeks.weekIndex`). Vorher nahmen Lernplan und
     /// Termin nur die Woche der Aenderung ("Blatt 3", in Woche 5 hochgeladen: Moduldetail Woche 3, Lernplan Woche 5).
+    /// Mit eigener Ordnung (`ModuleLayout.Layout.planningWeek`): die Woche, in die der Nutzer die Datei gelegt hat.
     static func week(_ f: FileRow, dates: Dates) throws -> Int {
+        let auto = try autoWeek(f, dates: dates)
+        guard let m = f.json["module_id"]?.int, let layout = dates.layouts[Int64(m)] else { return auto }
+        return layout.planningWeek(fileID: f.json["id"]?.string, auto: auto)
+    }
+
+    /// Woche, wie die App sie ohne eigene Ordnung bestimmt
+    static func autoWeek(_ f: FileRow, dates: Dates) throws -> Int {
         if f.docType != "klausur", f.json["sub_label"]?.string != "Klausur-Lösung", let id = f.json["id"]?.string,
            let s = dates.stored[id] {
             return LectureWeeks.displayWeek(s, start: dates.start)
@@ -204,25 +215,56 @@ public enum LocalModules {
     /// Lehrwoche zu einer Datei des Moduls (dieselbe Regel wie die Wochenbloecke, `week(_:dates:)`), sonst zum Tag
     /// (`StudyWeeks.dayWeek`, dieselbe Regel wie die Unterlagen zum Termin); nil ohne beides
     static func focusWeek(_ c: SQLiteConnection, moduleID: SQLiteValue, dates: Dates, date: Int?, file: String?) throws -> Int? {
-        if let file, !file.isEmpty, let f = try fileRows(c, moduleID: moduleID).first(where: { $0.json["id"]?.string == file }) {
-            return try week(f, dates: dates)
+        if let file, !file.isEmpty {
+            let files = try fileRows(c, moduleID: moduleID)
+            if let f = files.first(where: { $0.json["id"]?.string == file }) {
+                // der Block, in dem die Datei steht (eigene Ordnung, "Nicht zugeordnet")
+                return try displayWeek(f, dates: dates, layout: layout(moduleID, dates), bulk: try bulk(files, dates: dates))
+            }
         }
         return date.map { StudyWeeks.dayWeek(start: dates.start, day: $0, today: dates.today) }
     }
 
     static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, dates: Dates) throws -> [String: JSONValue]? {
         guard let m = try c.queryOne("SELECT * FROM modules WHERE id=?", [moduleID]) else { return nil }
-        let files = try fileRows(c, moduleID: moduleID)
+        var files = try fileRows(c, moduleID: moduleID)
+        let layout = layout(moduleID, dates)
+        let bulk = try bulk(files, dates: dates)
         var weeks: [Int: [FileRow]] = [:]
-        for f in files { weeks[try week(f, dates: dates), default: []].append(f) }
-        let order = weeks.keys.sorted(by: weekOrder)
+        for i in files.indices {
+            let w = try displayWeek(files[i], dates: dates, layout: layout, bulk: bulk)
+            // eigene Ordnung (`ModuleLayout`): Abschnitt der Datei, selbst gelegt?, Vorschlag in "Nicht zugeordnet"
+            let id = files[i].json["id"]?.string
+            files[i].json["section"] = .string(ModuleLayout.key(week: w))
+            files[i].json["placed"] = .bool(id.map { layout.places[$0] != nil } ?? false)
+            if w == ModuleLayout.unassignedWeek, let s = ModuleLayout.suggest(name: files[i].json["name"]?.string ?? "",
+                                                                             firstPage: id.flatMap { firstPage(c, $0) },
+                                                                             start: dates.start, term: dates.term),
+               s.week != w, layout.exists(s.week) {
+                files[i].json["suggest_week"] = .number(Double(s.week))
+                files[i].json["suggest_key"] = .string(ModuleLayout.key(week: s.week))
+                files[i].json["suggest_label"] = .string(blockLabel(s.week, dates: dates, layout: layout))
+                files[i].json["suggest_reason"] = .string(s.reason)
+            }
+            weeks[w, default: []].append(files[i])
+        }
+        // selbst angelegte Abschnitte und Wochen auch ohne Dateien zeigen (Ziel zum Hineinziehen)
+        for w in layout.shownEmpty where weeks[w] == nil { weeks[w] = [] }
+        let order = layout.isEmpty ? weeks.keys.sorted(by: weekOrder) : ModuleLayout.order(Array(weeks.keys), layout: layout)
         var outWeeks: [JSONValue] = []
         for w in order {
             let fl = weeks[w]!
             var grp: [String: [FileRow]] = Dictionary(uniqueKeysWithValues: groupKeys.map { ($0, []) })
             for f in fl { grp[groupOf[f.docType ?? ""] ?? "sonstiges"]!.append(f) }
-            var block: [String: JSONValue] = ["week": .number(Double(w)), "label": .string(dates.label(w)),
+            var block: [String: JSONValue] = ["week": .number(Double(w)), "label": .string(blockLabel(w, dates: dates, layout: layout)),
                                               "topic": .string(try weekTopic(fl)), "count": .number(Double(fl.count))]
+            block["key"] = .string(ModuleLayout.key(week: w))
+            block["custom"] = .bool(ModuleLayout.sectionID(ofWeek: w) != nil)
+            block["renamed"] = .bool(ModuleLayout.sectionID(ofWeek: w) == nil && layout.row(week: w)?.title != nil)
+            block["auto_label"] = .string(dates.label(w))
+            if w == ModuleLayout.unassignedWeek {
+                block["suggestions"] = .number(Double(fl.filter { $0.json["suggest_week"] != nil }.count))
+            }
             for k in groupKeys {
                 // sort(key=(sub_label or "", name or "")), stabil wie Python
                 let sorted = grp[k]!.enumerated().sorted { x, y in
@@ -255,6 +297,10 @@ public enum LocalModules {
             SELECT date, title FROM study_packages WHERE module_id=? AND date>=? AND status IN ('geplant','in_bearbeitung') ORDER BY date LIMIT 1
             """, [moduleID, .text(BerlinClock.isoDate(dates.today))])
         return ["module": .object(m.json), "courses": .array(courses.map(JSONValue.object)), "weeks": .array(outWeeks),
+                // Ziele fuer "Verschieben nach …": alle Bloecke, dazu die Lehrwochen des Semesters ohne Dateien,
+                // Allgemein und Nicht zugeordnet; `layout_custom`: es gibt eine eigene Ordnung (Zuruecksetzen)
+                "targets": .array(targets(Array(weeks.keys), dates: dates, layout: layout)),
+                "layout_custom": .bool(!layout.isEmpty),
                 "files": .array(files.map { .object($0.json) }), "progress": .number(Double(progress)),
                 // Lernstand (docs/LERNSTAND-2026-11-04.md): aus Wochentests, Karteikarten und Aufgaben, null ohne Signal
                 "mastery": try Mastery.forModule(c, moduleID: moduleID, name: m["name"] ?? .null),
@@ -262,6 +308,56 @@ public enum LocalModules {
                 "open_tasks": .number(Double(tasks.filter { open.contains($0["status"]?.string ?? "") }.count)),
                 "next_package": next.map { .object($0.json) } ?? .null,
                 "notes": .array(files.filter { truthy($0.json["has_notes"]) }.map { .object($0.json) })]
+    }
+
+    // MARK: eigene Ordnung (ModuleLayout)
+
+    static func layout(_ moduleID: SQLiteValue, _ dates: Dates) -> ModuleLayout.Layout {
+        moduleID.int64.flatMap { dates.layouts[$0] } ?? ModuleLayout.Layout()
+    }
+
+    /// Stud.IP-Sammelupload zu Semesterbeginn (`ModuleLayout.bulkUploads`); nur Dateien ohne Moodle-Zuordnung
+    static func bulk(_ files: [FileRow], dates: Dates) throws -> Set<String> {
+        ModuleLayout.bulkUploads(try files.compactMap { f in
+            guard let id = f.json["id"]?.string, dates.stored[id] == nil else { return nil }
+            let day = StudyWeeks.isEmpty(chdate: f.chdate) ? nil : try? StudyWeeks.localDay(chdate: f.chdate)
+            return (id, f.json["course_id"]?.string ?? "", day, try autoWeek(f, dates: dates), f.docType, f.json["week_hint"]?.int)
+        })
+    }
+
+    /// Block einer Datei im Moduldetail: eigene Ordnung, sonst automatisch; Unsicheres (Moodle ohne Hinweis,
+    /// Sammelupload) in "Nicht zugeordnet". Fuer Lernkalender und Wochentests gilt `week(_:dates:)`.
+    static func displayWeek(_ f: FileRow, dates: Dates, layout: ModuleLayout.Layout, bulk: Set<String>) throws -> Int {
+        let auto = try autoWeek(f, dates: dates)
+        let id = f.json["id"]?.string
+        let unsure = auto != -2 && (id.map { bulk.contains($0) || (dates.stored[$0]?.unsure ?? false) } ?? false)
+        return layout.displayWeek(fileID: id, auto: auto, unsure: unsure)
+    }
+
+    /// Bezeichnung eines Blocks: eigener Titel, sonst wie bisher
+    static func blockLabel(_ w: Int, dates: Dates, layout: ModuleLayout.Layout) -> String {
+        if let id = ModuleLayout.sectionID(ofWeek: w) { return layout.custom(id)?.title ?? "Abschnitt" }
+        if let t = layout.row(week: w)?.title, !t.isEmpty { return t }
+        return dates.label(w)
+    }
+
+    /// Erste Seite einer Datei, wenn ihr Text schon gelesen ist (Suche, Wochentests); nil sonst
+    static func firstPage(_ c: SQLiteConnection, _ fileID: String) -> String? {
+        (try? c.queryOne("SELECT text FROM page_texts WHERE file_id=? ORDER BY page LIMIT 1", [.text(fileID)]))??["text"]?.string
+    }
+
+    /// Ziele fuer "Verschieben nach …" in der Reihenfolge der Bloecke
+    static func targets(_ present: [Int], dates: Dates, layout: ModuleLayout.Layout) -> [JSONValue] {
+        var all = Set(present)
+        let count = dates.term?.lectureMondays.count ?? 14
+        for n in 1...max(1, count) {
+            if let w = ModuleLayout.blockWeek(lectureWeek: n, start: dates.start, term: dates.term), w >= 1, layout.exists(w) { all.insert(w) }
+        }
+        for w in [LectureWeeks.generalWeek, ModuleLayout.unassignedWeek] where layout.exists(w) { all.insert(w) }
+        for s in layout.customs { all.insert(s.blockWeek) }
+        return ModuleLayout.order(Array(all), layout: layout).map { w in
+            ["key": .string(ModuleLayout.key(week: w)), "week": .number(Double(w)), "label": .string(blockLabel(w, dates: dates, layout: layout))]
+        }
     }
 
     // MARK: modules_overview

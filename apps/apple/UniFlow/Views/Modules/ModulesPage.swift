@@ -490,7 +490,14 @@ struct ModulePage: View {
             if let focus, !weeks.isEmpty, !collapsed.isEmpty {
                 ModuleFocusBar(label: focus.label) { UFMotion.toggle { collapsed = [] } }
             }
-            ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
+            // eigene Wochen und Abschnitte (12.11.2026): je Block Menue, Ziehen, Verschieben; unter den Wochen anlegen und
+            // zuruecksetzen (unten, damit die Wochen oben stehen bleiben wie bisher)
+            let keys = weeks.compactMap { $0.s("key") }, targets = d.list("targets")
+            ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m, keys: keys, targets: targets) }
+            if !weeks.isEmpty {
+                ModuleLayoutBar(moduleID: id, custom: d["layout_custom"]?.bool == true,
+                                lastKey: weeks.last { ($0.i("week") ?? 0) >= 1 }?.s("key"))
+            }
         } else if tab == "recordings" {
             RecordingsPanel(moduleID: id, focusWeek: focusWeek)
         } else if tab == "community" {
@@ -566,7 +573,7 @@ struct ModulePage: View {
     }
 
     /// .card.week-block: Kopf klappt ein/aus, Gruppen nach sub_label, "Zusammenfassen" bei Vorlesungen (nur PC-Server)
-    private func weekBlock(_ w: JSONValue, m: JSONValue) -> some View {
+    private func weekBlock(_ w: JSONValue, m: JSONValue, keys: [String], targets: [JSONValue]) -> some View {
         let wk = w.i("week") ?? 0
         let open = !collapsed.contains(wk)
         let groupsOrder = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"]
@@ -583,6 +590,7 @@ struct ModulePage: View {
                         .accessibilityHint("Zeigt die Aufzeichnungen dieser Woche")
                 }
                 Text("\(w.i("count") ?? 0) \(w.i("count") == 1 ? "Dokument" : "Dokumente")").ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
+                if w.s("key") != nil { ModuleSectionMenu(moduleID: id, block: w, keys: keys) }
                 // KI-Zusammenfassung mit dem PC-Server oder ueber das ChatGPT-Abo des Nutzers (LocalContext.ai)
                 if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true || aiEnabled {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }
@@ -600,6 +608,11 @@ struct ModulePage: View {
             .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
             if open {
                 VStack(alignment: .leading, spacing: 0) {
+                    if wk == -4 { ModuleUnassignedBar(moduleID: id, suggestions: w.i("suggestions") ?? 0) }
+                    if (w.i("count") ?? 0) == 0 {
+                        Text("Noch leer – zieh Dateien hierher oder nutze bei einer Datei „Verschieben nach …“.")
+                            .ufFont(12.8).foregroundStyle(UF.muted).padding(.horizontal, 8).padding(.vertical, 10)
+                    }
                     ForEach(groupsOrder, id: \.self) { k in
                         let fs = w.list(k)
                         if !fs.isEmpty {
@@ -613,7 +626,9 @@ struct ModulePage: View {
                                 (Text(lab) + Text(group.count > 1 ? " · \(group.count)" : "").font(.uf(12.8, 400)).foregroundColor(UF.muted))
                                     .ufFont(12.8, 600).foregroundStyle(UF.text2)
                                     .padding(.top, 12).padding(.bottom, 2).padding(.leading, 8)
-                                ForEach(Row.rows(group)) { row in UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
+                                ForEach(Row.rows(group)) { row in
+                                    ModuleWeekFileRow(moduleID: id, f: row.value, targets: targets) { router.go(.doc(row.value.s("id") ?? "")) }
+                                }
                             }
                         }
                     }
@@ -621,6 +636,7 @@ struct ModulePage: View {
                 .ufReveal()                                                 // Aufklappen wie disclosure (UFMotion)
             }
         }
+        .modifier(ModuleDropZone(moduleID: id, key: w.s("key") ?? ""))         // Datei hineinziehen
         .padding(.bottom, 14.4)
     }
 }

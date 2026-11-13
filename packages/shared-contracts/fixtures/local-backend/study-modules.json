@@ -6995,7 +6995,9 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:0",
+          "placed": false
          }
         ],
         "klausuren": [],
@@ -7025,9 +7027,15 @@
           "ai_doc_type": "organisatorisch",
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:0",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:0",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Vor Vorlesungsbeginn"
        },
        {
         "week": 1,
@@ -7060,7 +7068,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -7089,7 +7099,9 @@
           "ai_doc_type": "uebung",
           "sub_label": "Gruppenübung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          },
          {
           "id": "f-zu-01",
@@ -7116,7 +7128,9 @@
           "ai_doc_type": null,
           "sub_label": "Hörsaalübung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "loesungen": [
@@ -7145,12 +7159,18 @@
           "ai_doc_type": null,
           "sub_label": "Lösung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 1 · 12.10. – 18.10."
        },
        {
         "week": 2,
@@ -7183,7 +7203,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -7212,7 +7234,9 @@
           "ai_doc_type": null,
           "sub_label": "Gruppenübung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          },
          {
           "id": "f-ma-12",
@@ -7239,13 +7263,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 2 · 19.10. – 25.10."
        },
        {
         "week": 3,
@@ -7278,7 +7308,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -7307,13 +7339,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:3",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 3 · 26.10. – 01.11."
        },
        {
         "week": 4,
@@ -7346,14 +7384,20 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 4,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:4",
+          "placed": false
          }
         ],
         "uebungen": [],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:4",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 4 · 02.11. – 08.11."
        },
        {
         "week": 5,
@@ -7391,9 +7435,15 @@
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:5",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:5",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 5 · 09.11. – 15.11."
        },
        {
         "week": -2,
@@ -7428,7 +7478,9 @@
           "ai_doc_type": null,
           "sub_label": "Klausur-Lösung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-2",
+          "placed": false
          }
         ],
         "skripte": [],
@@ -7458,10 +7510,16 @@
           "ai_doc_type": null,
           "sub_label": "Altklausur",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-2",
+          "placed": false
          }
         ],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Klausuren & Altklausuren"
        }
       ],
       "files": [
@@ -7490,7 +7548,9 @@
         "ai_doc_type": "organisatorisch",
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:0",
+        "placed": false
        },
        {
         "id": "f-ma-04",
@@ -7517,7 +7577,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:0",
+        "placed": false
        },
        {
         "id": "f-ma-01",
@@ -7544,7 +7606,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-ma-05",
@@ -7571,7 +7635,9 @@
         "ai_doc_type": "uebung",
         "sub_label": "Gruppenübung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-zu-01",
@@ -7598,7 +7664,9 @@
         "ai_doc_type": null,
         "sub_label": "Hörsaalübung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-ma-12",
@@ -7625,7 +7693,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-ma-02",
@@ -7652,7 +7722,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-ma-06",
@@ -7679,7 +7751,9 @@
         "ai_doc_type": null,
         "sub_label": "Lösung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-ma-07",
@@ -7706,7 +7780,9 @@
         "ai_doc_type": null,
         "sub_label": "Gruppenübung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-ma-03",
@@ -7733,7 +7809,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        },
        {
         "id": "f-ma-13",
@@ -7760,7 +7838,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        },
        {
         "id": "f-ma-14",
@@ -7787,7 +7867,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 4,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:4",
+        "placed": false
        },
        {
         "id": "f-ma-08",
@@ -7814,7 +7896,9 @@
         "ai_doc_type": null,
         "sub_label": "Altklausur",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-2",
+        "placed": false
        },
        {
         "id": "f-ma-09",
@@ -7841,7 +7925,9 @@
         "ai_doc_type": null,
         "sub_label": "Klausur-Lösung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-2",
+        "placed": false
        },
        {
         "id": "f-ma-10",
@@ -7868,7 +7954,9 @@
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:5",
+        "placed": false
        }
       ],
       "progress": 30,
@@ -7912,9 +8000,104 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
-      ]
+      ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:0",
+        "week": 0,
+        "label": "Vor Vorlesungsbeginn"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-2",
+        "week": -2,
+        "label": "Klausuren & Altklausuren"
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -7987,7 +8170,9 @@
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -8016,7 +8201,9 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "loesungen": [
@@ -8045,7 +8232,9 @@
           "ai_doc_type": null,
           "sub_label": "Lösung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "skripte": [
@@ -8074,7 +8263,9 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "klausuren": [],
@@ -8104,9 +8295,15 @@
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 1 · 12.10. – 18.10."
        },
        {
         "week": 2,
@@ -8139,7 +8336,9 @@
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -8168,7 +8367,9 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "loesungen": [],
@@ -8198,11 +8399,17 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 2 · 19.10. – 25.10."
        },
        {
         "week": 3,
@@ -8236,13 +8443,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:3",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 3 · 26.10. – 01.11."
        },
        {
         "week": -1,
@@ -8276,13 +8489,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Ältere Unterlagen"
        }
       ],
       "files": [
@@ -8311,7 +8530,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        },
        {
         "id": "f-bt-01",
@@ -8338,7 +8559,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-05",
@@ -8365,7 +8588,9 @@
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-06",
@@ -8392,7 +8617,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-02",
@@ -8419,7 +8646,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-10",
@@ -8446,7 +8675,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-07",
@@ -8473,7 +8704,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-03",
@@ -8500,7 +8733,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-04",
@@ -8527,7 +8762,9 @@
         "ai_doc_type": null,
         "sub_label": "Lösung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-09",
@@ -8554,7 +8791,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        }
       ],
       "progress": 12,
@@ -8598,9 +8837,99 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
-      ]
+      ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -8635,7 +8964,90 @@
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -8708,14 +9120,20 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "uebungen": [],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 1 · 12.10. – 18.10."
        },
        {
         "week": 2,
@@ -8748,7 +9166,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -8777,13 +9197,19 @@
           "ai_doc_type": null,
           "sub_label": "Tutorium",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 2 · 19.10. – 25.10."
        },
        {
         "week": 27,
@@ -8816,14 +9242,20 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:27",
+          "placed": false
          }
         ],
         "uebungen": [],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:27",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 27 · 12.04. – 18.04."
        },
        {
         "week": -2,
@@ -8860,10 +9292,16 @@
           "ai_doc_type": null,
           "sub_label": "Klausur",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-2",
+          "placed": false
          }
         ],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Klausuren & Altklausuren"
        }
       ],
       "files": [
@@ -8892,7 +9330,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-pi-03",
@@ -8919,7 +9359,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-pi-02",
@@ -8946,7 +9388,9 @@
         "ai_doc_type": null,
         "sub_label": "Tutorium",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-pi-04",
@@ -8973,7 +9417,9 @@
         "ai_doc_type": null,
         "sub_label": "Klausur",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-2",
+        "placed": false
        },
        {
         "id": "f-pi-05",
@@ -9000,7 +9446,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:27",
+        "placed": false
        }
       ],
       "progress": 0,
@@ -9008,7 +9456,100 @@
       "new_count": 5,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:27",
+        "week": 27,
+        "label": "Woche 27 · 12.04. – 18.04."
+       },
+       {
+        "key": "w:-2",
+        "week": -2,
+        "label": "Klausuren & Altklausuren"
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -9075,7 +9616,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -9104,13 +9647,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Ältere Unterlagen"
        }
       ],
       "files": [
@@ -9139,7 +9688,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        },
        {
         "id": "f-alt-02",
@@ -9166,7 +9717,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        }
       ],
       "progress": 50,
@@ -9174,7 +9727,95 @@
       "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -9216,7 +9857,90 @@
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -9258,7 +9982,90 @@
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -9636,7 +10443,9 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:0",
+          "placed": false
          }
         ],
         "klausuren": [],
@@ -9666,9 +10475,15 @@
           "ai_doc_type": "organisatorisch",
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:0",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:0",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Vor Vorlesungsbeginn"
        },
        {
         "week": 1,
@@ -9701,7 +10516,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -9730,7 +10547,9 @@
           "ai_doc_type": "uebung",
           "sub_label": "Gruppenübung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          },
          {
           "id": "f-zu-01",
@@ -9757,7 +10576,9 @@
           "ai_doc_type": null,
           "sub_label": "Hörsaalübung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "loesungen": [
@@ -9786,12 +10607,18 @@
           "ai_doc_type": null,
           "sub_label": "Lösung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 1 · 12.10. – 18.10."
        },
        {
         "week": 2,
@@ -9824,7 +10651,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -9853,7 +10682,9 @@
           "ai_doc_type": null,
           "sub_label": "Gruppenübung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          },
          {
           "id": "f-ma-12",
@@ -9880,13 +10711,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 2 · 19.10. – 25.10."
        },
        {
         "week": 3,
@@ -9919,7 +10756,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -9948,13 +10787,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:3",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 3 · 26.10. – 01.11."
        },
        {
         "week": 4,
@@ -9987,14 +10832,20 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 4,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:4",
+          "placed": false
          }
         ],
         "uebungen": [],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:4",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 4 · 02.11. – 08.11."
        },
        {
         "week": 5,
@@ -10032,9 +10883,15 @@
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:5",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:5",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 5 · 09.11. – 15.11."
        },
        {
         "week": -2,
@@ -10069,7 +10926,9 @@
           "ai_doc_type": null,
           "sub_label": "Klausur-Lösung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-2",
+          "placed": false
          }
         ],
         "skripte": [],
@@ -10099,10 +10958,16 @@
           "ai_doc_type": null,
           "sub_label": "Altklausur",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-2",
+          "placed": false
          }
         ],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Klausuren & Altklausuren"
        }
       ],
       "files": [
@@ -10131,7 +10996,9 @@
         "ai_doc_type": "organisatorisch",
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:0",
+        "placed": false
        },
        {
         "id": "f-ma-04",
@@ -10158,7 +11025,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:0",
+        "placed": false
        },
        {
         "id": "f-ma-01",
@@ -10185,7 +11054,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-ma-05",
@@ -10212,7 +11083,9 @@
         "ai_doc_type": "uebung",
         "sub_label": "Gruppenübung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-zu-01",
@@ -10239,7 +11112,9 @@
         "ai_doc_type": null,
         "sub_label": "Hörsaalübung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-ma-12",
@@ -10266,7 +11141,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-ma-02",
@@ -10293,7 +11170,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-ma-06",
@@ -10320,7 +11199,9 @@
         "ai_doc_type": null,
         "sub_label": "Lösung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-ma-07",
@@ -10347,7 +11228,9 @@
         "ai_doc_type": null,
         "sub_label": "Gruppenübung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-ma-03",
@@ -10374,7 +11257,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        },
        {
         "id": "f-ma-13",
@@ -10401,7 +11286,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        },
        {
         "id": "f-ma-14",
@@ -10428,7 +11315,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 4,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:4",
+        "placed": false
        },
        {
         "id": "f-ma-08",
@@ -10455,7 +11344,9 @@
         "ai_doc_type": null,
         "sub_label": "Altklausur",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-2",
+        "placed": false
        },
        {
         "id": "f-ma-09",
@@ -10482,7 +11373,9 @@
         "ai_doc_type": null,
         "sub_label": "Klausur-Lösung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-2",
+        "placed": false
        },
        {
         "id": "f-ma-10",
@@ -10509,7 +11402,9 @@
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:5",
+        "placed": false
        }
       ],
       "progress": 30,
@@ -10550,9 +11445,104 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
-      ]
+      ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:0",
+        "week": 0,
+        "label": "Vor Vorlesungsbeginn"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-2",
+        "week": -2,
+        "label": "Klausuren & Altklausuren"
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -10625,7 +11615,9 @@
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -10654,7 +11646,9 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "loesungen": [
@@ -10683,7 +11677,9 @@
           "ai_doc_type": null,
           "sub_label": "Lösung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "skripte": [
@@ -10712,7 +11708,9 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "klausuren": [],
@@ -10742,9 +11740,15 @@
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 1 · 12.10. – 18.10."
        },
        {
         "week": 2,
@@ -10777,7 +11781,9 @@
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -10806,7 +11812,9 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "loesungen": [],
@@ -10836,11 +11844,17 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 2 · 19.10. – 25.10."
        },
        {
         "week": 3,
@@ -10874,13 +11888,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:3",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 3 · 26.10. – 01.11."
        },
        {
         "week": -1,
@@ -10914,13 +11934,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Ältere Unterlagen"
        }
       ],
       "files": [
@@ -10949,7 +11975,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        },
        {
         "id": "f-bt-01",
@@ -10976,7 +12004,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-05",
@@ -11003,7 +12033,9 @@
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-06",
@@ -11030,7 +12062,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-02",
@@ -11057,7 +12091,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-10",
@@ -11084,7 +12120,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-07",
@@ -11111,7 +12149,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-03",
@@ -11138,7 +12178,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-04",
@@ -11165,7 +12207,9 @@
         "ai_doc_type": null,
         "sub_label": "Lösung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-09",
@@ -11192,7 +12236,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        }
       ],
       "progress": 12,
@@ -11236,9 +12282,99 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
-      ]
+      ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false
      }
     }
    ]
@@ -11542,7 +12678,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -11571,13 +12709,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Ältere Unterlagen"
        }
       ],
       "files": [
@@ -11606,7 +12750,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        },
        {
         "id": "f-alt-02",
@@ -11633,7 +12779,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        }
       ],
       "progress": 50,
@@ -11641,7 +12789,95 @@
       "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.04. – 18.04."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.04. – 25.04."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.04. – 02.05."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 03.05. – 09.05."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 10.05. – 16.05."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 17.05. – 23.05."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 24.05. – 30.05."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 31.05. – 06.06."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.06. – 13.06."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.06. – 20.06."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.06. – 27.06."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.06. – 04.07."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 05.07. – 11.07."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 12.07. – 18.07."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false
      }
     }
    ]
@@ -12510,7 +13746,9 @@
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -12539,7 +13777,9 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "loesungen": [
@@ -12568,7 +13808,9 @@
           "ai_doc_type": null,
           "sub_label": "Lösung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "skripte": [
@@ -12597,7 +13839,9 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
         ],
         "klausuren": [],
@@ -12627,9 +13871,15 @@
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:1",
+          "placed": false
          }
-        ]
+        ],
+        "key": "w:1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 1 · 12.10. – 18.10."
        },
        {
         "week": 2,
@@ -12662,7 +13912,9 @@
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
           "week_hint": null,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -12691,7 +13943,9 @@
           "ai_doc_type": null,
           "sub_label": "Tutorium",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          },
          {
           "id": "f-bt-03",
@@ -12718,7 +13972,9 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "loesungen": [],
@@ -12748,11 +14004,17 @@
           "ai_doc_type": null,
           "sub_label": "Skript",
           "week_hint": 2,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:2",
+          "placed": false
          }
         ],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:2",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 2 · 19.10. – 25.10."
        },
        {
         "week": 3,
@@ -12786,13 +14048,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:3",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:3",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Woche 3 · 26.10. – 01.11."
        },
        {
         "week": -1,
@@ -12826,13 +14094,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 3,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Ältere Unterlagen"
        }
       ],
       "files": [
@@ -12861,7 +14135,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        },
        {
         "id": "f-bt-01",
@@ -12888,7 +14164,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-05",
@@ -12915,7 +14193,9 @@
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-06",
@@ -12942,7 +14222,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-02",
@@ -12969,7 +14251,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-10",
@@ -12996,7 +14280,9 @@
         "ai_doc_type": null,
         "sub_label": "Skript",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-07",
@@ -13023,7 +14309,9 @@
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
         "week_hint": null,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-pi-02",
@@ -13050,7 +14338,9 @@
         "ai_doc_type": null,
         "sub_label": "Tutorium",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-03",
@@ -13077,7 +14367,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 2,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:2",
+        "placed": false
        },
        {
         "id": "f-bt-04",
@@ -13104,7 +14396,9 @@
         "ai_doc_type": null,
         "sub_label": "Lösung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        },
        {
         "id": "f-bt-09",
@@ -13131,7 +14425,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 3,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:3",
+        "placed": false
        }
       ],
       "progress": 11,
@@ -13175,9 +14471,99 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:1",
+        "placed": false
        }
-      ]
+      ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false
      }
     },
     {
@@ -13244,7 +14630,9 @@
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "uebungen": [
@@ -13273,13 +14661,19 @@
           "ai_doc_type": null,
           "sub_label": "Übung",
           "week_hint": 1,
-          "source": "studip"
+          "source": "studip",
+          "section": "w:-1",
+          "placed": false
          }
         ],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
+        "sonstiges": [],
+        "key": "w:-1",
+        "custom": false,
+        "renamed": false,
+        "auto_label": "Ältere Unterlagen"
        }
       ],
       "files": [
@@ -13308,7 +14702,9 @@
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        },
        {
         "id": "f-alt-02",
@@ -13335,7 +14731,9 @@
         "ai_doc_type": null,
         "sub_label": "Übung",
         "week_hint": 1,
-        "source": "studip"
+        "source": "studip",
+        "section": "w:-1",
+        "placed": false
        }
       ],
       "progress": 50,
@@ -13343,7 +14741,95 @@
       "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
-      "notes": []
+      "notes": [],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false
      }
     }
    ]

@@ -586,6 +586,16 @@ public enum LectureWeeks {
         public let docType: String?
         /// Ende der Vorlesungszeit des Kurses (aeltere Semester: "Ältere Unterlagen")
         public let termEnd: Int?
+        /// Regel und Begruendung der Zuordnung (`Rule`, z. B. "allgemein" / "ohne Hinweis")
+        public var rule: String? = nil
+        public var detail: String? = nil
+
+        /// Unsicher: keine Woche aus Abschnitt, Name oder Datum (ohne Hinweis, Datum ausserhalb der Vorlesungszeit) ->
+        /// im Moduldetail "Nicht zugeordnet" (`ModuleLayout`), Allgemein-Material und Klausuren nicht
+        public var unsure: Bool {
+            guard monday == nil, rule == Rule.general.rawValue, let d = detail else { return false }
+            return d == "ohne Hinweis" || d.hasPrefix("Datum ")
+        }
     }
 
     /// Alle gespeicherten Zuordnungen (leer ohne Tabelle, z. B. Stud.IP der LUH)
@@ -593,12 +603,13 @@ public enum LectureWeeks {
         guard try hasTables(c) else { return [:] }
         var out: [String: Stored] = [:]
         for r in try c.query("""
-            SELECT w.file_id, w.week_monday, w.doc_type, t.lecture_end FROM lecture_file_weeks w
+            SELECT w.file_id, w.week_monday, w.doc_type, w.rule, w.detail, t.lecture_end FROM lecture_file_weeks w
             LEFT JOIN lecture_course_terms t ON t.course_id=w.course_id
             """) {
             guard let id = r["file_id"]?.string else { continue }
             out[id] = Stored(monday: (r["week_monday"]?.string).flatMap(BerlinClock.parseISODate), docType: r["doc_type"]?.string,
-                             termEnd: (r["lecture_end"]?.string).flatMap(BerlinClock.parseISODate))
+                             termEnd: (r["lecture_end"]?.string).flatMap(BerlinClock.parseISODate),
+                             rule: r["rule"]?.string, detail: r["detail"]?.string)
         }
         return out
     }

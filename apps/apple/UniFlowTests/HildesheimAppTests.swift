@@ -527,6 +527,29 @@ final class HildesheimAppTests: XCTestCase {
         return (d["events"]?.array ?? []).filter { $0["start"]?.string == start }.map { $0["status"]?.string }
     }
 
+    /// Ein Sync fuer alle Portale (12.11.2026, wie die LUH seit 10.11.): der Knopf gleicht Learnweb/LSF und Uni-Mail ab und
+    /// meldet am Ende das Ergebnis je Portal; ein zweiter Tipp waehrend des Laufs sagt "läuft bereits"
+    func testSyncButtonRunsAllHildesheimPortalsWithResult() async throws {
+        let ics = try repo("packages/shared-contracts/fixtures/hildesheim/lsf-course.ics")
+        let contents = try repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json")
+        let m = manager()
+        let (c, h) = try hildesheim(m, account(.hildesheim))
+        XCTAssertEqual(m.startUniversitySync(), .notConnected("Zuerst Learnweb oder LSF verbinden"))
+        await m.websiteDataStore(for: c).httpCookieStore.setCookie(cookie("JSESSIONID", "lsf-sitzung-test", domain: "lsf.uni-hildesheim.de"))
+        XCTAssertTrue(h.learnwebSignedIn(token: try XCTUnwrap(LearnwebToken(token)), base: base))
+        h.lsfSignedIn()
+        UniStubProtocol.install(Self.uniHildesheim(base: base, lsf: lsf, token: token, ics: ics, contents: contents))
+        var result: UniversitySyncReport?
+        let start = m.startUniversitySync { result = $0 }
+        XCTAssertEqual(start, .started("Learnweb und LSF werden abgeglichen …"))
+        XCTAssertEqual(m.startUniversitySync(), .alreadyRunning)
+        try await waitUntil("Ergebnis des Sync", timeout: 30) { result != nil }
+        let text = try XCTUnwrap(result).text
+        XCTAssertTrue(text.hasPrefix("Abgeglichen: Learnweb und LSF."), text)
+        XCTAssertEqual(h.learnweb, .ok(clock.now))
+        XCTAssertEqual(h.lsf, .ok(clock.now))
+    }
+
     func testHildesheimChosenSyncFillsDocumentsTimetableAndGradesAndLUHStaysAsItWas() async throws {
         let ics = try repo("packages/shared-contracts/fixtures/hildesheim/lsf-course.ics")
         let contents = try repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json")

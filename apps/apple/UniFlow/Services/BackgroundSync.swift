@@ -600,7 +600,7 @@ final class BackgroundSyncController: ObservableObject {
         lastNews = d
         guard !d.isEmpty, owns(c), containers.active === c, await notifier.isAllowed() else { return }
         let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
-        for n in BackgroundNews.notices(d, settings: news, container: container) {
+        for n in BackgroundNews.notices(d, settings: news, container: container, platform: c.key.university == .hildesheim ? "Learnweb" : "Stud.IP") {
             await notifier.post(n.content, id: prefix + n.id, thread: prefix + container)
         }
     }

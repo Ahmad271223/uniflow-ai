@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
+from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, module_layout, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -3297,6 +3297,66 @@ def api_module(module_id: int):
     if not d:
         raise HTTPException(404)
     return d
+
+
+# Eigene Wochen und Abschnitte (app/module_layout.py, Auftrag 12.11.2026); gleiche Pfade wie im Kern
+# (ModuleLayoutEndpoints.swift)
+def _layout_edit(module_id: int, fn):
+    with db.cursor() as conn:
+        if not db.row(conn, "SELECT 1 FROM modules WHERE id=?", (module_id,)):
+            raise HTTPException(404, "Modul nicht gefunden")
+        try:
+            return fn(conn, db.now_iso())
+        except module_layout.EditError as e:
+            raise HTTPException(400, str(e)) from None
+
+
+@app.post("/api/modules/{module_id}/sections")
+def api_module_section_create(module_id: int, body: dict = Body(...)):
+    return {"key": _layout_edit(module_id, lambda c, now: module_layout.create(c, module_id, body.get("title"), body.get("after"), now))}
+
+
+@app.post("/api/modules/{module_id}/sections/rename")
+def api_module_section_rename(module_id: int, body: dict = Body(...)):
+    _layout_edit(module_id, lambda c, now: module_layout.rename(c, module_id, body.get("key"), body.get("title"), now))
+    return {"ok": True}
+
+
+@app.post("/api/modules/{module_id}/sections/delete")
+def api_module_section_delete(module_id: int, body: dict = Body(...)):
+    _layout_edit(module_id, lambda c, now: module_layout.remove(c, module_id, body.get("key"), now))
+    return {"ok": True}
+
+
+@app.put("/api/modules/{module_id}/sections/order")
+def api_module_section_order(module_id: int, body: dict = Body(...)):
+    _layout_edit(module_id, lambda c, now: module_layout.reorder(c, module_id, body.get("keys"), now))
+    return {"ok": True}
+
+
+@app.post("/api/modules/{module_id}/place")
+def api_module_place(module_id: int, body: dict = Body(...)):
+    to = body.get("to") if isinstance(body.get("to"), str) else None
+    return {"placed": _layout_edit(module_id, lambda c, now: module_layout.place(c, module_id, body.get("file_ids"), to, now))}
+
+
+@app.post("/api/modules/{module_id}/suggestions/accept")
+def api_module_suggestions_accept(module_id: int, body: dict = Body(default={})):
+    only = {x for x in (body or {}).get("file_ids") or [] if isinstance(x, str)}
+
+    def accept(conn, now):
+        by: dict[str, list] = {}
+        for f in study.module_detail(conn, module_id).get("files", []):
+            if f.get("suggest_key") and (not only or f["id"] in only):
+                by.setdefault(f["suggest_key"], []).append(f["id"])
+        return sum(module_layout.place(conn, module_id, ids, k, now) for k, ids in by.items())
+    return {"placed": _layout_edit(module_id, accept)}
+
+
+@app.delete("/api/modules/{module_id}/layout")
+def api_module_layout_reset(module_id: int):
+    _layout_edit(module_id, lambda c, now: module_layout.reset(c, module_id))
+    return {"ok": True}
 
 
 @app.post("/api/modules/auto-assign")

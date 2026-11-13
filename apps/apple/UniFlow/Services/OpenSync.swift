@@ -66,6 +66,16 @@ extension ContainerManager {
             beginAllPortals(c, userAction: false, forceGrades: false, finished: nil)
             return true
         }
+        // Uni Hildesheim (12.11.2026): wie die LUH alle Portale, mit gespeichertem Uni-Zugang vorher verbinden
+        if let h = hildesheim, h.anyConnected || hasStoredLogin {
+            let key = c.key
+            OpenSync.running.insert(key)
+            Task { @MainActor in
+                _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false, forceGrades: false)
+                OpenSync.running.remove(key)
+            }
+            return true
+        }
         let mail = uniMail, studip = studip, hildesheim = hildesheim, hsh = hsh, qis = qis
         Task { @MainActor in
             // Posteingang zuerst (still, ohne bekannte abgelaufene Anmeldung)
@@ -106,11 +116,22 @@ extension ContainerManager {
             Task { await hsh.run(forceGrades: forceGrades) }
             return .started(UniversitySyncStart.startedText(names))
         }
-        if let hildesheim {
-            let names = HildesheimConnection.Source.allCases.filter { hildesheim.isConnected($0) }.map(\.rawValue)
+        // Uni Hildesheim (12.11.2026, wie die LUH seit 10.11.): ein Tipp gleicht alle Portale ab - Learnweb, LSF (Noten,
+        // angemeldete Pruefungen), PLuS-Bescheinigungen (nur die Liste) und Uni-Mail -, vorher mit dem gespeicherten
+        // Uni-Zugang verbinden
+        if let hildesheim, let c = active {
+            if OpenSync.running.contains(c.key) || hildesheim.isRunning { return .alreadyRunning }
+            let stored = hasStoredLogin
+            let names = HildesheimConnection.Source.allCases.filter { stored || hildesheim.isConnected($0) }.map(\.rawValue)
+                + ((uniMail.map { stored || $0.isConnected } ?? false) ? [OpenSync.uniMail] : [])
             guard !names.isEmpty else { return .notConnected(UniversitySyncStart.connectHint(.hildesheim)) }
-            if hildesheim.isRunning { return .alreadyRunning }
-            Task { await hildesheim.run() }
+            let key = c.key
+            OpenSync.running.insert(key)
+            Task { @MainActor in
+                let report = await self.runHildesheimPortals(container: c, hildesheim: hildesheim, userAction: true, forceGrades: forceGrades)
+                OpenSync.running.remove(key)
+                finished?(report)
+            }
             return .started(UniversitySyncStart.startedText(names))
         }
         if syncsAllPortals, let c = active {
@@ -197,6 +218,51 @@ extension ContainerManager {
         }
         if let mail { report.add(OpenSync.uniMail, Self.mailNote(mail)) }
         return report
+    }
+
+    // MARK: Alle Portale (Uni Hildesheim)
+
+    /// Ein Abgleich aller Portale der Uni Hildesheim: gespeicherten Zugang verbinden (Learnweb, LSF, Uni-Mail), eine
+    /// abgelaufene Anmeldung still erneuern und abwarten, dann Uni-Mail und Learnweb/LSF nebeneinander, danach die Liste
+    /// der PLuS-Bescheinigungen (nur lesend, erzeugt nichts). `forceGrades`: Noten auch vor Ablauf der 20 Stunden.
+    func runHildesheimPortals(container c: ActiveContainer, hildesheim: HildesheimConnection, userAction: Bool,
+                              forceGrades: Bool) async -> UniversitySyncReport {
+        var report = UniversitySyncReport()
+        if hasStoredLogin {
+            let r = await OpenSync.storedLoginConnect(self, userAction)
+            report.rejected = r.rejected
+        } else if !hildesheim.expiredSources.isEmpty {
+            _ = await hildesheim.renewSilently(trigger: userAction ? .userAction : .foreground)
+        }
+        guard active === c else { return report }
+        let mail = uniMail
+        async let m: Void = Self.syncMail(mail)
+        async let h: Void = Self.syncHildesheim(hildesheim, forceGrades: userAction && forceGrades)
+        _ = await (m, h)
+        for s in HildesheimConnection.Source.allCases { report.add(s.rawValue, Self.hildesheimNote(hildesheim, s)) }
+        if hildesheim.isConnected(.lsf), hildesheim.state(.lsf) != .needsLogin,
+           let r = await CertificateCenter(portal: .plus(hildesheim)).refresh(), !r.cancelled {
+            if r.ok { report.info.append(Self.certificatesNote(r.offers)) } else if !r.needsLogin { report.notes.append("Bescheinigungen: Fehler") }
+        }
+        if let mail { report.add(OpenSync.uniMail, Self.mailNote(mail)) }
+        return report
+    }
+
+    /// Learnweb/LSF abgleichen; laeuft schon ein Lauf (z. B. nach dem Verbinden), darauf warten
+    private static func syncHildesheim(_ h: HildesheimConnection, forceGrades: Bool) async {
+        guard h.anyConnected else { return }
+        if h.isRunning { await wait(seconds: 30 * 60) { h.isRunning }; if !forceGrades { return } }
+        await h.run(forceGrades: forceGrades)
+    }
+
+    static func hildesheimNote(_ h: HildesheimConnection, _ s: HildesheimConnection.Source) -> String? {
+        guard h.isConnected(s) else { return "nicht verbunden" }
+        switch h.state(s) {
+        case .notConnected: return "nicht verbunden"
+        case .needsLogin: return "Anmeldung nötig"
+        case .failed: return "Fehler"
+        case .connected, .running, .ok: return nil
+        }
     }
 
     /// Wartet, solange `busy` gilt (hoechstens `seconds`)
