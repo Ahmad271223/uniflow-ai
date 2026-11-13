@@ -644,7 +644,10 @@ def _queues(conn, planned_files: set[str], s: dict, week: int | None = None,
     """Warteschlangen der aktiven Module mit offenen Lerneinheiten und ihre Reihenfolge (hoechste Bewertung zuerst);
     mit `week` nur die Einheiten dieser Lehrwoche (`_units`)"""
     queues = {}
+    off = plan_off_ids(conn)
     for m in db.rows(conn, "SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort"):
+        if m["id"] in off:                           # nicht im Lernkalender gewaehlt
+            continue
         units = _units(conn, m["id"], planned_files, week, done_weeks)
         if units:
             queues[m["id"]] = {"module": m, "units": units, "pos": 0, "pending": []}  # pending: Aufgaben der angefangenen Einheit
@@ -662,6 +665,7 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     Woche und den Rest eines Skripts nach dem Marker der Vorwoche. Aeltere offene Unterlagen plant das freie Fenster
     (`plan_window`), frueher kamen sie hier zuerst dran."""
     ensure_modules(conn)
+    drop_unplanned(conn)                             # abgewaehlte Faecher (auch nach einem Abgleich)
     refresh_statuses(conn)
     s = db.get_settings(conn)
     t0 = today()
@@ -955,9 +959,67 @@ def _insert_package(conn, d: date, m: dict, tasks: list[dict], unit: dict | None
 
 
 def smart_active(conn) -> bool:
-    """Smart Planner 2.0 an: mindestens ein Lernziel in Stunden fuer ein aktives Modul, das man schreibt"""
-    return db.row(conn, """SELECT 1 FROM study_goals g JOIN modules m ON m.id=g.module_id
-                           WHERE COALESCE(m.active,1)=1 AND g.writing=1 AND g.target_minutes>0 LIMIT 1""") is not None
+    """Smart Planner 2.0 an: mindestens ein Lernziel in Stunden fuer ein aktives, im Lernkalender gewaehltes Modul,
+    das man schreibt"""
+    off = plan_off_ids(conn)
+    return any(r["module_id"] not in off for r in db.rows(conn, """SELECT g.module_id FROM study_goals g JOIN modules m ON m.id=g.module_id
+                                                                   WHERE COALESCE(m.active,1)=1 AND g.writing=1 AND g.target_minutes>0"""))
+
+
+# ----------------------------------------------------------------------------
+# Faecher im Lernkalender (iPad: StudyPlanModules.swift). Die Wahl kommt mit dem Geraeteabgleich (settings
+# plan_modules_off, Liste der Modulnamen, die NICHT geplant werden); der PC-Dienst plant diese Faecher ebenfalls nie
+# (Fehlerbericht des Inhabers 13.11.2026: abgewaehltes "Mathe 1" bekam trotzdem Lernpakete).
+# ----------------------------------------------------------------------------
+
+PLAN_OFF_KEY = "plan_modules_off"
+
+
+def plan_off(conn) -> set[str]:
+    """Modulnamen, die der Lernkalender nicht plant (kaputter Eintrag: keine)"""
+    r = db.row(conn, "SELECT value FROM settings WHERE key=?", (PLAN_OFF_KEY,))
+    try:
+        v = json.loads(r["value"]) if r and r["value"] else []
+    except (TypeError, ValueError):
+        return set()
+    return {x for x in v if isinstance(x, str)} if isinstance(v, list) else set()
+
+
+def plan_off_ids(conn) -> set[int]:
+    """IDs aller Module (auch inaktiver), die der Lernkalender nicht plant"""
+    names = plan_off(conn)
+    return {m["id"] for m in db.rows(conn, "SELECT id, name FROM modules") if m["name"] in names} if names else set()
+
+
+def rename_plan_off(conn, old: str, new: str) -> None:
+    """Umbenanntes Modul: die Wahl bleibt"""
+    names = plan_off(conn)
+    if old == new or old not in names:
+        return
+    names = (names - {old}) | {new}
+    conn.execute("INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                 (PLAN_OFF_KEY, json.dumps(sorted(names), ensure_ascii=False, separators=(",", ":"))))
+
+
+UNTOUCHED_AUTO_SQL = """(COALESCE(p.generated,0)=1 OR p.source='smart') AND COALESCE(p.locked,0)=0 AND COALESCE(p.manual,0)=0
+    AND p.status NOT IN ('erledigt','teilweise','in_bearbeitung')
+    AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id AND t.status IN ('erledigt','teilweise','in_bearbeitung'))
+    AND NOT EXISTS (SELECT 1 FROM study_sessions s WHERE s.package_id=p.id AND s.deleted_at IS NULL)"""
+
+
+def drop_unplanned(conn) -> int:
+    """Abgewaehlte Faecher: unberuehrte automatische Lernpakete und -bloecke entfernen (wie StudyPlanModules.dropUnplanned;
+    selbst angelegte, gesperrte, verschobene oder begonnene bleiben)"""
+    ids = plan_off_ids(conn)
+    if not ids:
+        return 0
+    n = 0
+    for p in db.rows(conn, f"SELECT p.id FROM study_packages p WHERE p.module_id IN ({','.join('?' * len(ids))}) AND {UNTOUCHED_AUTO_SQL}",
+                     sorted(ids)):
+        conn.execute("DELETE FROM study_tasks WHERE package_id=?", (p["id"],))
+        conn.execute("DELETE FROM study_packages WHERE id=?", (p["id"],))
+        n += 1
+    return n
 
 
 def auto_plan_week(conn, new_files: int, log=print) -> dict | None:
@@ -965,6 +1027,7 @@ def auto_plan_week(conn, new_files: int, log=print) -> dict | None:
     Woche ab heute planen, wenn neue Dateien kamen oder in dieser Woche noch kein automatisches Paket liegt. Ersetzt
     nur automatisch erstellte, nicht begonnene Pakete (`replace`). Frueher lief hier der KI-Wochenplan
     (`planner.generate_plan`), dessen Ergebnis keine Ansicht zeigte."""
+    drop_unplanned(conn)                             # abgewaehlte Faecher: auch Pakete eines anderen Geraets
     if not db.get_settings(conn)["auto_plan"]:
         return None
     if smart_active(conn):                          # Lernziele in Stunden: der Stundenplaner plant (app/smart_goals.py)
@@ -982,7 +1045,10 @@ def feasibility(conn) -> dict:
     s = db.get_settings(conn)
     planned_files = {r["file_id"] for r in db.rows(conn, "SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status='erledigt'")}
     total = 0
+    off = plan_off_ids(conn)
     for m in db.rows(conn, "SELECT id FROM modules WHERE COALESCE(active,1)=1"):
+        if m["id"] in off:
+            continue
         for u in _units(conn, m["id"], planned_files):
             total += (sum(_est(f) for f in u["vorlesungen"][:4]) if s["parts_lecture"] else 0) + (sum(_est(f) for f in u["uebungen"][:4]) if s["parts_exercise"] else 0) + (s["test_minutes"] if s["tests_per_subject"] else 0)
     avail = 0
@@ -1077,8 +1143,10 @@ def suggest_reschedule(conn, task_ids: list[int] | None = None, package_id: int 
         tasks = db.rows(conn, "SELECT t.*, p.date, p.module_id, p.subject FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE p.id=? AND t.status IN ('geplant','in_bearbeitung','nachholen') ORDER BY t.sort", (package_id,))
     elif task_ids:
         tasks = db.rows(conn, f"SELECT t.*, p.date, p.module_id, p.subject FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.id IN ({','.join('?' * len(task_ids))}) ORDER BY p.date, t.sort", task_ids)
-    else:  # alle nachzuholenden
-        tasks = db.rows(conn, "SELECT t.*, p.date, p.module_id, p.subject FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.status='nachholen' ORDER BY p.date, t.sort")
+    else:  # alle nachzuholenden, ohne abgewaehlte Faecher
+        off = plan_off_ids(conn)
+        tasks = [t for t in db.rows(conn, "SELECT t.*, p.date, p.module_id, p.subject FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.status='nachholen' ORDER BY p.date, t.sort")
+                 if t["module_id"] not in off]
     moves = []
     t0 = today()
     cap = {}

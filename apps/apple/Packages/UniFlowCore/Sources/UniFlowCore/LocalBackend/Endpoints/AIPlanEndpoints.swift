@@ -113,7 +113,8 @@ enum AIPlanEndpoints: LocalEndpointModule {
         let today = T.today(clock)
         var created = 0
         var touched = Set<Int>()
-        for b in blocks {
+        let off = try StudyPlanModules.offModuleIDs(c)          // abgewaehlte Faecher nie uebernehmen
+        for b in blocks where !off.contains(b.moduleID) {
             guard let day = BerlinClock.parseISODate(b.date), day >= today,
                   let m = try c.queryOne("SELECT * FROM modules WHERE id=?", [.integer(b.moduleID)]) else { continue }
             var tasks: [StudyPlan.NewTask] = []
