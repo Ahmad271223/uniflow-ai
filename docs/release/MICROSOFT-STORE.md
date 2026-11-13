@@ -199,9 +199,8 @@ LIZENZEN.txt im Programmordner.
 
 ## 4. Bildschirmfotos
 
-Fünf Stück liegen fertig in `docs/release/store-windows/`, alle 1920 × 1080 PNG (Microsoft verlangt mindestens
-1366 × 768). Sie zeigen die Demo-Inhalte, nicht die Daten einer echten Hochschule; die schmale Leiste „Demo-Inhalte –
-erfunden, ohne Hochschule“ ist im Bild und darf da sein.
+Sechs Stück liegen fertig in `docs/release/store-windows/`, alle 1920 × 1080 PNG (Microsoft verlangt mindestens
+1366 × 768).
 
 | Datei | Zeigt |
 |---|---|
@@ -210,8 +209,14 @@ erfunden, ohne Hochschule“ ist im Bild und darf da sein.
 | `3-pdf-editor.png` | Ein Skript im eigenen PDF-Editor mit Stift- und Markerleiste |
 | `4-karteikarten.png` | Karteikarten-Stapel mit Leitner-Fächern und „Üben“ |
 | `5-module.png` | „Meine Module“ mit Lernstand, nächstem Termin und Zahlen |
+| `6-stundenplan.png` | Stundenplan der Woche mit Vorlesung und Übung |
 
 Nimm sie in dieser Reihenfolge; das erste Bild ist das Titelbild im Store.
+
+**Auf den Bildern steht nirgends „Demo“** (Entscheidung des Inhabers, 13.11.2026): keine Demo-Leiste, keine
+Demo-Namen. Zu sehen ist ein Beispielmodul „Grundlagen der Informatik“ mit erfundenen Inhalten — Store-Bilder dürfen
+Beispieldaten zeigen, und so sieht man die App, wie ein Studierender sie benutzt. In der App selbst ändert das
+nichts; die Demo für die Prüfer bleibt wie sie ist (Abschnitt 3, „Hinweise für die Zertifizierung“).
 
 Erzeugt mit der echten Weboberfläche der App (dieselbe, die im Windows-Fenster läuft). Neu erzeugen lassen sich sie
 jederzeit — sag mir Bescheid, wenn du andere Seiten im Store zeigen willst.
