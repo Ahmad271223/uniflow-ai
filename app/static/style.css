@@ -1317,3 +1317,38 @@ button.sp-chip:hover { border-color: var(--line-strong); } .sp-chip:focus-visibl
 .lec-mail { border: 0; background: none; padding: .15rem 0; color: var(--accent-text, var(--accent)); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
 .lec-mail:hover, .lec-mail:focus-visible { text-decoration: underline; }
 .lec-msg { margin-top: .3rem; }
+/* Lernziele (Smart Planner 2.0, views-goals.js, 13.11.2026): wie GoalsPage.swift auf dem iPad */
+.goals .card + .card, .goals .goals-cols, .goals .goals-feas { margin-top: 1rem; }
+.goals-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.goals-cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1rem; align-items: start; }
+.goals-cols .stack > .card + .card { margin-top: 0; }
+@media (max-width: 1100px) { .goals-cols { grid-template-columns: minmax(0, 1fr); } .goals-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.goals-mod { border-left: 4px solid var(--mc, var(--accent)); padding: .2rem 0 .2rem .8rem; display: flex; flex-direction: column; gap: .45rem; }
+.goals-mod + .goals-mod { margin-top: 1rem; }
+.goals-mod-title { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.goals-mod .progress { height: 7px; }
+.goals-proposal.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn-text); }
+.goals-proposal.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad-text); }
+.goals-timer { background: var(--ok-soft); border-color: transparent; }
+.goals-timer b { font-variant-numeric: tabular-nums; }
+.goals-feas-msg { color: var(--bad-text); font-weight: 700; margin: 0 0 .4rem; }
+.goals-deadline { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .2rem 0; font-size: .875rem; }
+.goals-deadline b { min-width: 6rem; }
+.goals-option { display: flex; align-items: center; gap: .6rem; padding: .6rem .7rem; background: var(--surface-2); border-radius: var(--r-sm, 8px); }
+.goals-option span { flex: 1; }
+.goals-day { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr) 6.5rem; align-items: center; gap: .5rem; padding: .2rem 0; }
+.goals-day .small { text-align: right; font-variant-numeric: tabular-nums; }
+.goals-bar { position: relative; height: 9px; }
+.goals-bar i { position: absolute; left: 0; border-radius: 999px; }
+.goals-bar i.pl, .goals-key.pl { background: color-mix(in srgb, var(--info) 35%, transparent); }
+.goals-bar i.pl { top: 0; bottom: 0; }
+.goals-bar i.le { top: 2px; height: 5px; background: var(--ok); }
+.goals-key { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-left: .4rem; }
+.goals-key.le { background: var(--ok); }
+.goals-conflict { display: flex; gap: .4rem; align-items: flex-start; font-size: .82rem; color: var(--text-2); padding: .25rem 0; }
+.goals-conflict svg { flex: none; margin-top: .15rem; }
+.goals-conflict.bad svg { color: var(--bad); } .goals-conflict.warn svg { color: var(--warn-text); }
+.goals-conflict[role=button] { cursor: pointer; }
+.goals-block { background: var(--info-soft); border-color: transparent; margin-bottom: .8rem; }
+/* Leiste des Lernkalenders mit sechs Ansichten (Lernziele dazu, 13.11.2026): schmal seitlich wischen statt Ueberbreite */
+@media (max-width: 640px) { .cal2-bar .seg.pill { overflow-x: auto; scrollbar-width: none; } .cal2-bar .seg.pill button { flex: none; } }

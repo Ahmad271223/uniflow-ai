@@ -4,7 +4,7 @@
 // Entwurf bei jeder Aenderung (PUT …/draft, nur dieser PC), beim naechsten Oeffnen "Entwurf vom … wiederhergestellt".
 // Fehler mit Ausweg "In Stud.IP antworten" (Schreibfenster mit answer_to im App-Fenster) bzw. Anmeldung bei der
 // Hochschule. Gesendet wird nur auf "Senden" (POST …/reply), nie still wiederholt. Regeln: message-reply-logic.js.
-import { $, api, icon, modal, toast, debounce } from "./core.js?v=46";
+import { $, api, icon, modal, toast, debounce } from "./core.js?v=47";
 import * as R from "./message-reply-logic.js?v=3";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

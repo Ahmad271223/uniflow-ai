@@ -11,15 +11,16 @@ Aufwand grob: **S** = unter 1 Tag, **M** = 1–3 Tage, **L** = mehr als 3 Tage.
 - **Gleich auf beiden Seiten:** QIS-Noten-Regeln (bestandene Prüfungen, Noten, LP-Summe nur aus QIS; dieselbe
   Rechnung, gemeinsam getestet), Dokument-Reiter (im Kern), Lerngruppen mit Code, Erinnerungen ab Plus (solange
   StudiNow offen ist), Apple-Anmeldung über den Browser, Community mit Fragen, Antworten, Melden.
-- **Die größte Lücke:** Die **Lernziele (Smart Planner 2.0)** haben am PC keine Ansicht. Der Dienst kann alles schon
-  (`/api/goals`, Stoppuhr, Plan), es fehlt nur die Oberfläche.
-- **Danach:** Schlösser für Plus/Pro AI in der Oberfläche, Konto löschen am PC, eigene Wochen je Modul bearbeiten.
+- ~~**Die größte Lücke:** Die Lernziele (Smart Planner 2.0) haben am PC keine Ansicht.~~ **Erledigt 13.11.2026**
+  (Reiter „Lernziele“ im Lernkalender, siehe unten).
+- **Jetzt die größten Lücken:** Schlösser für Plus/Pro AI in der Oberfläche, Konto löschen am PC, eigene Wochen je
+  Modul bearbeiten.
 
 ## Priorisierte Liste
 
 | # | Lücke | iPad heute | Windows/Web heute | Aufwand |
 |---|-------|------------|-------------------|---------|
-| 1 | **Lernziele (Smart Planner 2.0)** | Ansicht „Lernziele“ im Lernkalender: Ziele je Modul, Prognose, Konflikte, Stoppuhr, Zeit eintragen, Plan erstellen/neu verteilen (`Views/Goals/GoalsPage.swift`) | Keine Ansicht. Der Dienst hat alle Endpunkte (`app/smart_goals.py`, `/api/goals`, `/api/sessions`); die geplanten Blöcke erscheinen als normale Lerneinheiten im Kalender, Ziele setzen geht nicht | **M** (oberes Ende): nur Oberfläche, aber groß (Übersicht, Dialoge, Stoppuhr, „Zeit reicht nicht“-Auswahl) |
+| 1 | ~~**Lernziele (Smart Planner 2.0)**~~ **erledigt 13.11.** | Ansicht „Lernziele“ im Lernkalender: Ziele je Modul, Prognose, Konflikte, Stoppuhr, Zeit eintragen, Plan erstellen/neu verteilen (`Views/Goals/GoalsPage.swift`) | **Jetzt gleich:** Reiter „Lernziele“ vorne im Lernkalender (`app/static/views-goals.js`, `goals-logic.js`): Kennzahlen, Module mit Prognose und Klausurtermin (bestätigen), Ziel-Dialog mit gefundenen Terminen, Zeitrahmen, Zeit eintragen, Stoppuhr, „Zeit reicht nicht“ mit Optionen, Woche, Konflikte; im Lernpaket abhaken mit Zeit, Stoppuhr, sperren | – |
 | 2 | **Schlösser für Plus/Pro AI** | Schloss „ab Plus“/„ab Pro AI“ an Seitenleiste, Menüs, Editor-Werkzeugen, „KI fragen“, Wochentests, „Plan erstellen“; Antippen öffnet die Tarifauswahl | Nur die Grundsperre „ohne Abo nur ansehen“. Schlösser nur an wenigen Stellen (Karteikarten-Stapel, Erinnerungen, Wochensätze). Sonst merkt man es erst an der Fehlermeldung „Tarif ansehen“ (z. B. Plus-Konto ruft Pro-AI-KI auf) | **M**: gemeinsamer Schloss-Baustein, dann Seitenleiste, Editor, KI-Einstiege |
 | 3 | **Konto löschen** | Einstellungen → Konto → „Konto löschen“ | Nur ein Link auf die Seite `/konto-loeschen`. Der Dienst hat `POST /api/account/delete`, aber die Windows-App leitet ihn nicht weiter. `docs/release/KONTO-LOESCHEN.md` beschreibt den iPad-Weg | **S** im Web, **S–M** in Windows (weiterleiten, danach abmelden und lokale Daten löschen) |
 | 4 | **Eigene Wochen je Modul bearbeiten** | Abschnitt hinzufügen, umbenennen, verschieben, löschen, Dokumente verschieben, Vorschläge übernehmen, zurücksetzen (`Views/Modules/ModuleLayoutViews.swift`) | **Anzeige gleich** (der Dienst wendet dieselbe Einteilung an), aber nichts änderbar; Vorschläge werden nicht gezeigt. Endpunkte gibt es (`/api/modules/{id}/sections`, `/place`, `/suggestions/accept`, `/layout`) | **M**: nur Oberfläche, gemeinsame Fixture vorhanden |
@@ -55,5 +56,7 @@ Geprüft gegen `docs/WINDOWS-LUECKEN-2026-11-05.md`, `docs/UEBERGABE-WINDOWS-PAR
 
 - **Lerngruppe per Code beitreten zeigt jetzt den Namen der Gruppe** statt des Codes
   (`app/static/community-spaces.js`, fragt dafür die schon vorhandene Gruppen-Vorschau des Dienstes).
+- **Lernziele am PC** (auf Wunsch des Inhabers, 13.11.): siehe Zeile 1. Getestet mit `tests/js/goals-logic.test.mjs`
+  (Rechnungen wie auf dem iPad) und `tests/test_web_goals.py` (im echten Browser, auch auf Handy-Breite).
 - Alles andere ist größer als „klein und sicher“ und wartet auf deine Entscheidung. Vorschlag für die Reihenfolge:
-  1 (Lernziele), 3 (Konto löschen), 2 (Schlösser), 4 (Wochen bearbeiten).
+  3 (Konto löschen), 2 (Schlösser), 4 (Wochen bearbeiten).

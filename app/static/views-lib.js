@@ -1,9 +1,9 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
-import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=46";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=72";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=47";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=73";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 import { currentHeading, courseIdOf, findCourse } from "./older-semesters.js?v=4";
-import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=7";
+import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=8";
 import { kindIcon, kindText } from "./filekinds.js?v=2";   // Word, PowerPoint, Audio mit eigenem Symbol (docs/DATEIARTEN.md)
 
 // "Neu" wie auf der Uebersicht, den Modulkarten und in der iPad-App (study.NEW_FILE_SQL): noch nicht angesehen

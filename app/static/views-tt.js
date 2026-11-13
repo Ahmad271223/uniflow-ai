@@ -1,7 +1,7 @@
 // Stundenplan: Wochenraster nur mit Hochschulterminen, Termin-Panel mit Teilnahme, Import-Vorschau. Alles zu Lernslots
 // (Verfügbarkeit, freie Fenster, Sperrzeiten, Konflikte, Neu legen) steht im Lernkalender (views-plan.js).
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=46";
-import { useFreeWindow } from "./views-plan.js?v=50";
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=47";
+import { useFreeWindow } from "./views-plan.js?v=51";
 import * as SQ from "./studip-questions.js?v=1";
 // Termin-Detail (06.11.2026): Raum mit Route zu Fuss und Lehrende des Kurses im Termin-Panel (termin-detail.js; Raumfinder ueber .room-link)
 
@@ -59,7 +59,7 @@ export async function openEvent(eventId, dateStr) {
       <h3 style="margin:1rem 0 .4rem">${icon("book", 16)} Passende Unterlagen</h3>${mats.length ? mats.map(f => `<a class="doc-row ${f.status}" href="#/doc/${f.id}">${icon(f.doc_type === "uebung" ? "pencil" : "book", 16)}<span><span class="t">${esc(f.ai_title || f.name)}</span><span class="s">${esc(f.doc_type || "")}${f.est_minutes ? ` · ca. ${f.est_minutes} min` : ""}</span></span></a>`).join("") : `<div class="muted small">Keine passenden Unterlagen gefunden.</div>`}</div>
     <div class="drawer-foot"><button class="btn sm" id="evEdit">${icon("pencil", 14)} Bearbeiten</button><button class="btn sm" id="evBlock">${icon("plus", 14)} Lernblock danach</button><span class="spacer"></span><button class="btn sm danger" id="evDel">${icon("trash", 14)}</button></div>`);
   // Raum (Route zu Fuss) und Lehrende des Kurses; Kurs und Modul notfalls aus dem Vorkommen
-  import("./termin-detail.js?v=1").then(m => m.mountTerminDetail($("[data-termin-detail]", d),
+  import("./termin-detail.js?v=2").then(m => m.mountTerminDetail($("[data-termin-detail]", d),
     { room: e.room, course_id: e.course_id || occ.course_id || null, module_id: e.module_id ?? occ.module_id ?? null }, e.title)).catch(() => {});
   $$("[data-att]", d).forEach(b => b.onclick = async () => {
     const mode = b.dataset.att; const r = await api("/timetable/attendance", { method: "POST", body: { event_id: eventId, date: dateStr, mode } });
