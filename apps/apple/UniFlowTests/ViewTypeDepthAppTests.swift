@@ -128,6 +128,14 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("ModuleWeekFileRow", ModuleWeekFileRow.Body.self),
         ("ModuleSectionMenu", ModuleSectionMenu.Body.self),
         ("ModuleUnassignedBar", ModuleUnassignedBar.Body.self),
+        // Lernziele (Smart Planner 2.0, 12.11.2026) und der Lernkalender, in den sie eingebettet sind
+        ("PlanView", PlanView.Body.self),
+        ("GoalsPage", GoalsPage.Body.self),
+        ("GoalsBody", GoalsBody.Body.self),
+        ("GoalsModuleRow", GoalsModuleRow.Body.self),
+        ("GoalEditDialog", GoalEditDialog.Body.self),
+        ("GoalSettingsDialog", GoalSettingsDialog.Body.self),
+        ("PackageDrawer", PackageDrawer.Body.self),
     ]
 
     private func check(_ name: String, _ type: Any.Type, file: StaticString = #filePath, line: UInt = #line) {

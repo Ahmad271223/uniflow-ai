@@ -129,6 +129,31 @@ SAMPLES: dict[str, dict] = {
     "POST /api/packages": {"path": "/api/packages", "body": {"date": "2026-10-26", "title": "Lernen"}},
     "GET /api/packages/{}": {"path": "/api/packages/1"},
     "PATCH /api/packages/{}": {"path": "/api/packages/1", "body": {"title": "x"}},
+    # Smart Planner 2.0 (app/smart_goals.py, SmartGoalsEndpoints, 12.11.2026): leere Datenbank -> ohne Lernziele;
+    # unbekannte Module, Bloecke und Lerneinheiten 404; Faelle in tests/test_smart_goals.py und SmartGoalsTests
+    "GET /api/goals": {"path": "/api/goals"},
+    "GET /api/goals/settings": {"path": "/api/goals/settings"},
+    "PUT /api/goals/settings": {"path": "/api/goals/settings", "body": {"utilization": 70, "sleep_hours": 9}},
+    "POST /api/goals/plan": {"path": "/api/goals/plan", "body": {}},
+    "POST /api/goals/plan/keep": {"path": "/api/goals/plan/keep"},
+    "PUT /api/goals/{}": {"path": "/api/goals/1", "body": {"target_hours": 10}},
+    "DELETE /api/goals/{}": {"path": "/api/goals/1"},
+    "POST /api/goals/blocks/{}/done": {"path": "/api/goals/blocks/1/done", "body": {"minutes": 30}},
+    "POST /api/goals/blocks/{}/undone": {"path": "/api/goals/blocks/1/undone"},
+    "POST /api/goals/blocks/{}/check": {"path": "/api/goals/blocks/1/check", "body": {"date": "2026-11-18"}},
+    "PATCH /api/goals/blocks/{}": {"path": "/api/goals/blocks/1", "body": {"locked": True}},
+    "POST /api/sessions": {"path": "/api/sessions", "body": {"module_id": 1, "minutes": 30}},
+    "POST /api/sessions/start": {"path": "/api/sessions/start", "body": {"module_id": 1}},
+    "POST /api/sessions/{}/pause": {"path": "/api/sessions/lerneinheit-1/pause"},
+    "POST /api/sessions/{}/resume": {"path": "/api/sessions/lerneinheit-1/resume"},
+    "POST /api/sessions/{}/stop": {"path": "/api/sessions/lerneinheit-1/stop"},
+    # Lernplan mit KI nur auf dem Geraet (AIPlanEndpoints): ohne KI-Anbieter 404, ohne Bloecke 400
+    "POST /api/calendar/ai-suggest": {"path": "/api/calendar/ai-suggest", "body": {}, "python": False,
+                                      "expect": {"status": 404, "reason": "nur auf dem Geraet mit KI-Anbieter (AIPlanEndpoints)"}},
+    "POST /api/calendar/ai-apply": {"path": "/api/calendar/ai-apply", "body": {"blocks": []}, "python": False,
+                                    "expect": {"status": 400, "reason": "nur auf dem Geraet (AIPlanEndpoints): keine Bloecke gewaehlt"}},
+    # Bild einer Notiz: eine Datei, die kein Bild ist -> 400 mit Meldung (Uploads mit Bildern in annotations-Faellen)
+    "POST /api/files/{}/assets": {"path": "/api/files/f1/assets", "form": {"upload": ["x.exe", "MZ"]}},
     "DELETE /api/packages/{}": {"path": "/api/packages/1"},
     "POST /api/packages/{}/tasks": {"path": "/api/packages/1/tasks", "body": {"title": "x"}},
     "GET /api/timetable/week": {"path": "/api/timetable/week?start=2026-10-26"},
@@ -306,6 +331,9 @@ SAMPLES: dict[str, dict] = {
     # Raumfinder (RoomsEndpoints, app/rooms_api.py, docs/RAUMFINDER-2026-11-05.md): ohne Suchtext bzw. ohne Raumnummer
     # keine Anfrage beim Standortfinder, darum ohne Netz gleich; Faelle mit Treffern in tests/test_rooms.py und RoomsTests
     "GET /api/rooms/search": {"path": "/api/rooms/search"},
+    # Raumplan nur in Hildesheim auf dem Geraet (LocalRooms): ohne Raumgruppe keine Anfrage
+    "GET /api/rooms/plan": {"path": "/api/rooms/plan", "python": False,
+                            "expect": {"status": 404, "reason": "nur auf dem Geraet, Hildesheim (LocalRooms)"}},
     "GET /api/rooms/resolve": {"path": "/api/rooms/resolve?text=Seminarraum&university=luh"},
     "GET /api/rooms/campuses": {"path": "/api/rooms/campuses?university=hsh"},
     # Lehrende und Kontakte (StudIPLecturersEndpoints, app/studip_lecturers_api.py, docs/LEHRENDE-KONTAKTE-2026-11-06.md):
@@ -448,7 +476,10 @@ def asgi(app, method: str, path: str, body=None, form=None, raw_body: str | None
         raw = raw_body.encode()
         ctype = "application/json"
     elif form is not None:
-        parts = [f'--{MP}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n' for k, v in form.items()]
+        # Wert als [Dateiname, Inhalt]: Dateiteil (Upload), sonst Textfeld; Reihenfolge nach Namen wie im Swift-Test
+        parts = [f'--{MP}\r\nContent-Disposition: form-data; name="{k}"; filename="{v[0]}"\r\nContent-Type: application/octet-stream\r\n\r\n{v[1]}\r\n'
+                 if isinstance(v, list) else f'--{MP}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'
+                 for k, v in sorted(form.items())]
         raw = ("".join(parts) + f"--{MP}--\r\n").encode()
         ctype = f"multipart/form-data; boundary={MP}"
     else:

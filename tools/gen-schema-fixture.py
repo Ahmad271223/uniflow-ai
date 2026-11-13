@@ -97,8 +97,9 @@ def snapshot(conn: sqlite3.Connection) -> dict:
         tables[name] = {"columns": columns, "foreign_keys": fks, "indexes": indexes}
     index_sql = {r[0]: r[1] for r in conn.execute(
         "SELECT name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL ORDER BY name")}
-    return {"tables": tables, "index_sql": index_sql,
-            "user_version": conn.execute("PRAGMA user_version").fetchone()[0]}
+    # user_version: am PC/im Dienst seit dem 08.11.2026 der Fingerabdruck der Python-Schemaquellen (db.schema_fingerprint,
+    # nur fuer init_db(fast=True)); Geraete nutzen ihn nicht (dort zaehlen die Geraete-Schritte), darum hier 0
+    return {"tables": tables, "index_sql": index_sql, "user_version": 0}
 
 
 # sync.ensure_schema setzt sync_updated_at mit der SQLite-Uhr (strftime 'now'): nicht einfrierbar, darum wie in

@@ -96,6 +96,18 @@ struct PlanActions {
         let p: JSONValue
         do { p = try await api.value("/api/packages/\(id)") } catch { toast.show("Lernpaket laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4); return }
         let done = p.s("status") == "erledigt"
+        // Block des Stundenplaners: abhaken nur mit der wirklich gelernten Zeit (Smart Planner 2.0)
+        if p.s("source") == "smart" {
+            if done {
+                if await toast.attempt("Zurücksetzen", { _ = try await api.value("/api/goals/blocks/\(id)/undone", method: "POST") }) {
+                    toast.show("Wieder offen")
+                    router.reload()
+                }
+            } else {
+                overlay.modal { BlockDoneDialog(package: p) }
+            }
+            return
+        }
         let todo = p.list("tasks").filter { ($0.s("status") == "erledigt") == done }.compactMap { $0.i("id") }
         var changed = 0
         for tid in todo {
@@ -182,6 +194,7 @@ struct PackageDrawer: View {
             }
             // passende Opencast-Aufzeichnungen zu den Aufgaben, nur bei sicherem Treffer (lokal)
             if session.api?.isLocal == true { RecordingPackageHints(packageID: id) }
+            if p.s("source") == "smart" { SmartBlockPanel(p: p) }
             if status == "nachholen" || status == "teilweise" {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("\(late.count) Aufgaben müssen nachgeholt werden.").ufFont(14.5, 700).foregroundStyle(UF.text)
@@ -209,6 +222,10 @@ struct PackageDrawer: View {
         } foot: {
             UFButton("Verschieben", icon: "move", size: .small) {
                 actions.move(title: "Lernpaket „\(p.s("subject") ?? "")“ verschieben", current: p.s("date")) { date in
+                    if p.s("source") == "smart" {
+                        await SmartBlockPanel.move(p, to: date, api: session.api, overlay: overlay, toast: toast, router: router)
+                        return
+                    }
                     guard let api = session.api else { return }
                     if await toast.attempt("Verschieben", { _ = try await api.value("/api/packages/\(id)", method: "PATCH", body: ["date": .string(date)]) }) {
                         toast.show("Verschoben")

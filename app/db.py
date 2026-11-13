@@ -196,6 +196,40 @@ CREATE TABLE IF NOT EXISTS task_history (
     at TEXT
 );
 
+-- Smart Planner 2.0 (12.11.2026, app/smart_goals.py): Lernziel in Stunden je Modul
+CREATE TABLE IF NOT EXISTS study_goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module_id INTEGER NOT NULL UNIQUE REFERENCES modules(id) ON DELETE CASCADE,
+    target_minutes INTEGER NOT NULL DEFAULT 0,
+    learned_before_minutes INTEGER DEFAULT 0,   -- schon vor dem Planer gelernt
+    include_lectures INTEGER DEFAULT 0,         -- 1 = Pflichtveranstaltungen zaehlen zum Ziel
+    writing INTEGER DEFAULT 1,                  -- 0 = schreibe ich nicht
+    exam_attempt INTEGER DEFAULT 1,             -- 1 Ersttermin, 2 Zweittermin
+    exam_date_2 TEXT,
+    exam_confirmed TEXT,                        -- bestaetigter Klausurtag (gilt, solange er dem Termin entspricht)
+    priority INTEGER,
+    created_at TEXT,
+    updated_at TEXT
+);
+
+-- Erfasste Lernzeit (Stoppuhr, Eintrag, abgehakter Block); uuid = vom Geraet vergeben, zaehlt einmal
+CREATE TABLE IF NOT EXISTS study_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL UNIQUE,
+    module_id INTEGER REFERENCES modules(id) ON DELETE SET NULL,
+    package_id INTEGER REFERENCES study_packages(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL DEFAULT 'timer',         -- timer | manual | block
+    state TEXT DEFAULT 'fertig',                -- laeuft | pause | fertig
+    segments TEXT,                              -- JSON [[beginn, ende], ...] in Unix-Sekunden, offenes Ende = null
+    minutes INTEGER,
+    day TEXT,                                   -- Tag (YYYY-MM-DD, Berlin)
+    note TEXT,
+    device TEXT,
+    deleted_at TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -729,6 +763,12 @@ def _init_db(conn) -> None:
         conn.execute("ALTER TABLE modules ADD COLUMN color_custom INTEGER DEFAULT 0")
         from . import colors
         colors.migrate_palette(conn)
+    # Smart Planner 2.0 (12.11.2026): Lernbloecke des Stundenplaners (source='smart'), gesperrt und von Hand geaendert
+    # (beides verschiebt der Planer nie ungefragt)
+    add_col("study_packages", "source", "TEXT")
+    add_col("study_packages", "locked", "INTEGER DEFAULT 0")
+    add_col("study_packages", "manual", "INTEGER DEFAULT 0")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_study_sessions_module ON study_sessions(module_id)")
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))

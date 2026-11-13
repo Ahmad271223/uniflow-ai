@@ -65,7 +65,7 @@ def ensure_modules(conn) -> None:
 
 
 # Tabellen mit Verweis auf ein Modul (fuer merge_duplicate_modules)
-MODULE_REFS = ("courses", "course_events", "study_packages", "folders")
+MODULE_REFS = ("courses", "course_events", "study_packages", "folders", "study_sessions")
 
 
 def merge_duplicate_modules(conn) -> int:
@@ -101,6 +101,9 @@ def merge_duplicate_modules(conn) -> int:
             conn.execute("""UPDATE tests SET auto=0 WHERE module_id=? AND auto=1 AND week_no IN
                             (SELECT week_no FROM tests WHERE module_id=? AND auto=1)""", (dup, keep))
             conn.execute("UPDATE tests SET module_id=? WHERE module_id=?", (keep, dup))
+            # Lernziel: das des bleibenden Moduls gilt, sonst das des Doppels (Smart Planner 2.0)
+            conn.execute("UPDATE OR IGNORE study_goals SET module_id=? WHERE module_id=?", (keep, dup))
+            conn.execute("DELETE FROM study_goals WHERE module_id=?", (dup,))
             conn.execute("UPDATE OR IGNORE dismissed_tests SET module_id=? WHERE module_id=?", (keep, dup))
             conn.execute("DELETE FROM dismissed_tests WHERE module_id=?", (dup,))
             conn.execute("DELETE FROM modules WHERE id=?", (dup,))
@@ -459,7 +462,8 @@ def refresh_statuses(conn) -> None:
     t = today().isoformat()
     conn.execute("""UPDATE study_tasks SET status='nachholen' WHERE status IN ('geplant','in_bearbeitung')
                     AND package_id IN (SELECT id FROM study_packages WHERE date < ?)""", (t,))
-    for p in db.rows(conn, "SELECT id, date, status FROM study_packages"):
+    # Bloecke des Stundenplaners (Smart Planner 2.0) fuehren ihren Status selbst (abgehakt mit Minuten, verpasst)
+    for p in db.rows(conn, "SELECT id, date, status FROM study_packages WHERE COALESCE(source,'')<>'smart'"):
         tasks = db.rows(conn, "SELECT status FROM study_tasks WHERE package_id=?", (p["id"],))
         if not tasks:
             # Paket ohne Aufgaben (alle verschoben oder geloescht): _recalc_package hat es auf "verschoben" gesetzt und
@@ -609,7 +613,8 @@ def _replaceable(conn, start: date, end: date) -> list[int]:
                                    (p.generated=1 AND p.status='geplant' AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id
                                         AND (t.status != 'geplant' OR t.moved_from IS NOT NULL))) AS fresh,
                                    NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) AS empty
-                            FROM study_packages p WHERE p.date BETWEEN ? AND ? ORDER BY p.id""", (start.isoformat(), end.isoformat()))
+                            FROM study_packages p WHERE p.date BETWEEN ? AND ? AND COALESCE(p.source,'')<>'smart' ORDER BY p.id""",
+                   (start.isoformat(), end.isoformat()))
     keep_days = {r["date"] for r in rows if not (r["fresh"] or r["empty"])}
     return [r["id"] for r in rows if r["date"] not in keep_days]
 
@@ -830,8 +835,10 @@ def _clock_minutes(v) -> int:
 def reslot_day(conn, d: date) -> None:
     """Alle Slots eines Tages neu vergeben (z. B. nach Stundenplan-Aenderung, "Lernslots neu legen"). Auch von Hand
     gesetzte Uhrzeiten werden neu vergeben; "Uhrzeiten vergeben" nimmt deshalb assign_slots (nur Pakete ohne Uhrzeit)."""
-    conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt')", (d.isoformat(),))
-    conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt'))", (d.isoformat(),))
+    # Bloecke des Stundenplaners legt nur der Stundenplaner (gesperrte und von Hand gelegte nie ungefragt)
+    conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt') AND COALESCE(source,'')<>'smart'", (d.isoformat(),))
+    conn.execute("""UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN
+                    (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt') AND COALESCE(source,'')<>'smart')""", (d.isoformat(),))
     assign_slots(conn, d)
 
 
@@ -947,12 +954,20 @@ def _insert_package(conn, d: date, m: dict, tasks: list[dict], unit: dict | None
     return pid
 
 
+def smart_active(conn) -> bool:
+    """Smart Planner 2.0 an: mindestens ein Lernziel in Stunden fuer ein aktives Modul, das man schreibt"""
+    return db.row(conn, """SELECT 1 FROM study_goals g JOIN modules m ON m.id=g.module_id
+                           WHERE COALESCE(m.active,1)=1 AND g.writing=1 AND g.target_minutes>0 LIMIT 1""") is not None
+
+
 def auto_plan_week(conn, new_files: int, log=print) -> dict | None:
     """Nach einem Abgleich (am PC `_full_sync`, auf dem iPad nach dem Stud.IP-Abgleich): mit `auto_plan` die laufende
     Woche ab heute planen, wenn neue Dateien kamen oder in dieser Woche noch kein automatisches Paket liegt. Ersetzt
     nur automatisch erstellte, nicht begonnene Pakete (`replace`). Frueher lief hier der KI-Wochenplan
     (`planner.generate_plan`), dessen Ergebnis keine Ansicht zeigte."""
     if not db.get_settings(conn)["auto_plan"]:
+        return None
+    if smart_active(conn):                          # Lernziele in Stunden: der Stundenplaner plant (app/smart_goals.py)
         return None
     t0 = today()
     sunday = monday(t0) + timedelta(days=6)
@@ -1167,6 +1182,9 @@ def _slot_target(conn, package_id: int) -> None:
 
 
 def _recalc_package(conn, pid: int) -> None:
+    # Block des Stundenplaners: Dauer = Stundenbudget, unabhaengig von den Aufgaben darin (Smart Planner 2.0)
+    if db.row(conn, "SELECT 1 FROM study_packages WHERE id=? AND source='smart'", (pid,)):
+        return
     r = db.row(conn, "SELECT COUNT(*) n, COALESCE(SUM(est_minutes),0) m FROM study_tasks WHERE package_id=?", (pid,))
     if r["n"] == 0:
         p = db.row(conn, "SELECT generated FROM study_packages WHERE id=?", (pid,))

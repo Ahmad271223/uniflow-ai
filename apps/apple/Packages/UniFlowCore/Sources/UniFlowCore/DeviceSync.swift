@@ -48,6 +48,8 @@ public enum DeviceSyncSchema {
         Entity(name: "event_exceptions", pk: "id", fk: [("event_id", "course_events")]),
         Entity(name: "study_packages", pk: "id", fk: [("module_id", "modules")]),
         Entity(name: "study_tasks", pk: "id", fk: [("package_id", "study_packages")]),
+        Entity(name: "study_goals", pk: "id", fk: [("module_id", "modules")]),
+        Entity(name: "study_sessions", pk: "id", fk: [("module_id", "modules"), ("package_id", "study_packages")]),
         Entity(name: "flashcard_stacks", pk: "id", fk: []),
         Entity(name: "flashcards", pk: "id", fk: [("stack_id", "flashcard_stacks")]),
         Entity(name: "settings", pk: "key", fk: []),
@@ -332,6 +334,8 @@ final class DeviceSyncCore: @unchecked Sendable {
             let title = row["title"].flatMap { $0 == .null || $0 == .string("") ? nil : $0 } ?? row["subject"]
             parts = [id(row["date"]), id(f("module_id")), Self.norm(title)]
         case "study_tasks": parts = [id(f("package_id")), Self.norm(row["type"]), Self.norm(row["title"]), Self.norm(row["file_id"])]
+        case "study_goals": parts = [id(f("module_id"))]                 // ein Lernziel je Modul (Smart Planner 2.0)
+        case "study_sessions": parts = [Self.norm(row["uuid"])]          // vom Geraet vergebene uuid
         case "flashcard_stacks": parts = [Self.norm(row["name"]), Self.norm(row["subject"]), Self.norm(row["file_id"])]
         case "flashcards": parts = [Self.norm(row["question"]), Self.norm(row["file_id"])]
         default: return nil
