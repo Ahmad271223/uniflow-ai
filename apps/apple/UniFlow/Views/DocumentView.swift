@@ -2294,37 +2294,42 @@ struct CompanionPageLabel: View {
     }
 }
 
-/// "+" im Kopf des Dokuments daneben: leere Seite direkt unter der angezeigten, mit deren Vorlage (wie "Seite
-/// anhängen" in der Seitenleiste); gedrueckt halten bzw. Menue: Vorlage waehlen. Vorher ging daneben nur das eine
-/// Blatt (Frage des Inhabers 13.11.2026).
+/// "+ Seite" im Kopf des Dokuments daneben: fragt erst nach dem Papier (leer, liniert, kariert ... wie beim Oeffnen
+/// eines leeren Blatts), fuegt die Seite dann direkt unter der angezeigten ein und springt hin; das Blatt bleibt offen.
+///
+/// Fehlerbericht des Inhabers (Build 37, 13.11.2026): Antippen tat nichts. Der Knopf war ein `Menu` mit Hauptaktion;
+/// die Kopfzeile hat eine Geste "gedrueckt halten und ziehen" (Seiten tauschen, `UFPaneSwapGesture`), die jede
+/// Beruehrung sofort aufnimmt. Ein `Button` setzt sich dagegen durch (wie das X), das System-Menue nicht. Belegt mit
+/// echter Beruehrung in `UniFlowUITests/CompanionAddPageUITests`.
 struct CompanionAddPageButton: View {
     let store: DocumentStore
     @ObservedObject var bridge: EditorBridge
     let enabled: Bool
+    @State private var choosing = false
 
     var body: some View {
-        Menu {
-            Section("Seite darunter einfügen") {
-                ForEach(PaperTemplate.choices, id: \.id) { t in
-                    Button(t.name) { add(t.id) }
-                }
-            }
-        } label: {
+        Button { choosing = true } label: {
             // beschriftet, damit er nicht mit einem Fenster-Knopf verwechselt wird
             Label("Seite", systemImage: "plus").ufFont(12.8, 600)
+                .lineLimit(1).fixedSize()                  // hochkant nicht zu "+ S…" kuerzen (der Titel gibt nach)
                 .padding(.horizontal, 8).frame(height: 30)
                 .background(UF.surface2, in: Capsule())
                 .contentShape(Capsule())
-        } primaryAction: {
-            add(Self.template(store.layout?.entries, at: bridge.pageIndex))
         }
         .buttonStyle(.plain)
+        .layoutPriority(1)
         .foregroundStyle(enabled ? UF.text2 : UF.muted)
         .disabled(!enabled)
         .accessibilityLabel("Seite darunter einfügen")
-        .accessibilityHint("Leere Seite unter der angezeigten; gedrückt halten für Vorlagen")
+        .accessibilityHint("Fragt nach dem Papier und fügt eine Seite unter der angezeigten ein")
         .accessibilityIdentifier("companion.addPage")
         .modifier(MacHelp(text: "Seite darunter einfügen"))
+        .popover(isPresented: $choosing, arrowEdge: .top) {
+            CompanionPaperChooser(current: Self.template(store.layout?.entries, at: bridge.pageIndex)) { t in
+                choosing = false
+                add(t)
+            }
+        }
     }
 
     /// Vorlage der angezeigten Seite (Leerseite), sonst "blank" - wie `PageSidebarActions.appendTemplate`
@@ -2336,6 +2341,44 @@ struct CompanionAddPageButton: View {
     private func add(_ template: String) {
         let after = bridge.pageKey
         Task { await bridge.controller?.insertBlankPage(after: after, template: template) }
+    }
+}
+
+/// Papier fuer die neue Seite: dieselben Vorlagen wie "Leeres Blatt" unter "Daneben öffnen"; die der angezeigten
+/// Seite ist markiert
+struct CompanionPaperChooser: View {
+    let current: String
+    let choose: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Neue Seite darunter").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 78), spacing: 10)], spacing: 10) {
+                ForEach(CompanionPicker.blankTemplates, id: \.id) { t in
+                    Button { choose(t.id) } label: {
+                        VStack(spacing: 6) {
+                            UFTemplatePreview(template: t.id)
+                                .frame(width: 46, height: 60)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(UF.lineStrong, lineWidth: 1))
+                            Text(t.name).ufFont(12.8, 600).foregroundStyle(UF.text)
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        .background(UF.surface, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(t.id == current ? UF.accent : UF.line, lineWidth: t.id == current ? 2 : 1))
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(t.name)
+                    .accessibilityIdentifier("companion.addPage.\(t.id)")
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 300)
+        .presentationCompactAdaptation(.popover)
     }
 }
 

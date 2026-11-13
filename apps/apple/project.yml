@@ -205,17 +205,33 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai.tests
         GENERATE_INFOPLIST_FILE: YES
+  # echte Beruehrungen (XCUITest) fuer Fehler, die Tests ueber die Bedienungshilfen nicht sehen (13.11.2026: "+ Seite"
+  # im Blatt daneben); laeuft nicht in der Suite `-only-testing:UniFlowTests`
+  UniFlowUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UniFlowUITests
+    dependencies:
+      - target: UniFlow
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: UniFlow
 schemes:
   UniFlow:
     build:
       targets:
         UniFlow: all
         UniFlowTests: [test]
+        UniFlowUITests: [test]
     test:
       config: Debug
       gatherCoverageData: false
       targets:
         - name: UniFlowTests
+        - name: UniFlowUITests
     run:
       config: Debug
       # nur lokales StoreKit-Testen in Xcode; echte Produkte erst nach Freigabe
