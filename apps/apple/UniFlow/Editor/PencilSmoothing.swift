@@ -71,7 +71,8 @@ final class RawPencilRecorder: UIGestureRecognizer {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-        guard PencilSmoothing.current != .normal, tracked == nil, let t = touches.first else { return }
+        // auch fuer die Formerkennung: Haltezeit aus den Zeitstempeln des Stifts (`RawStroke.heldDuration`)
+        guard PencilSmoothing.current != .normal || ShapeSnapSetting.enabled, tracked == nil, let t = touches.first else { return }
         tracked = t
         samples = []
         record(t, event)
@@ -112,6 +113,21 @@ final class RawPencilRecorder: UIGestureRecognizer {
 
 /// Strich aus Rohpunkten (reine Funktionen, `PencilSmoothingTests`)
 enum RawStroke {
+    /// Wie lange stand der Stift am Ende still (Sekunden)? Vom letzten Messpunkt (Absetzen) zurueck bis zum letzten
+    /// Punkt ausserhalb von `radius` (Zeichnungskoordinaten). Nutzt die Zeitstempel der Beruehrung selbst, nicht die
+    /// von PencilKit; nil ohne Messpunkte.
+    static func heldDuration(_ samples: [RawPencilSample], radius: CGFloat) -> TimeInterval? {
+        guard let last = samples.last, samples.count >= 2 else { return nil }
+        var firstStill = samples.count - 1
+        while firstStill > 0 {
+            let p = samples[firstStill - 1].location
+            guard hypot(p.x - last.location.x, p.y - last.location.y) <= radius else { break }
+            firstStill -= 1
+        }
+        // der Stift kam erst an diesem Punkt zum Stehen: ab dem letzten Punkt davor (noch in Bewegung) gerechnet
+        return last.time - samples[firstStill].time
+    }
+
     /// Rohpunkte, die naeher als dieser Abstand (Seitenpunkte) am vorigen liegen, fallen weg (Stillstand)
     static let minimumStep: CGFloat = 0.05
 
