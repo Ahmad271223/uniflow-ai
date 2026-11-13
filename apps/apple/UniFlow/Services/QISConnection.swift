@@ -53,6 +53,13 @@ final class QISConnection: ObservableObject {
     /// zaehlt jedes Abmelden: ein Abruf, der vorher begann und noch auf die Demo-Pruefung wartete, beginnt danach nicht
     /// mehr (er setzte sonst nach dem Abmelden wieder seinen Stand, Pruefpunkt 362)
     private var signOuts = 0
+    /// Offene In-App-Browser auf dem QIS (`beginBrowser`/`endBrowser`, 13.11.2026). Solange einer offen ist, ruft die App
+    /// nichts selbst im QIS ab und meldet sich nicht still neu an: der Abruf benutzt dieselbe Sitzung des Servers (asi,
+    /// Zustand des Anmeldebaums), und eine stille Neuanmeldung schreibt ein neues Sitzungs-Cookie in den gemeinsamen
+    /// Datenspeicher. Beides machte die Seite im Browser ungueltig: "mal angemeldet, mal abgemeldet" und "nur noch dieses
+    /// eine Modul" (Meldung des Inhabers 13.11.2026). Nach dem Schliessen ruft `ExamRegistrationAutoFetch` einmal ab.
+    private(set) var browserUses = 0
+    var browserOpen: Bool { browserUses > 0 }
 
     /// Rueckfrage vor dem Abmelden (Einstellungen, Uni & Noten)
     static let signOutMessage = "Die QIS-Anmeldung in der Webansicht wird gelöscht, ebenso ein in StudiNow gemerktes Passwort der LUH. Die geladenen Noten bleiben; Stud.IP bleibt angemeldet. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
@@ -174,12 +181,12 @@ final class QISConnection: ObservableObject {
     /// und wartet sie selbst ab (`runRenewingSession`), damit nie zwei Anmeldungen bzw. Abrufe nebeneinander laufen.
     @discardableResult
     func run(force: Bool = false, renewsSession: Bool = true) async -> QISGradesSync.Report? {
-        guard !isRunning, !stopped, isConnected, force || due else { return nil }
+        guard !isRunning, !stopped, !browserOpen, isConnected, force || due else { return nil }
         let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
         if await host.demoActive() { return nil }
         // waehrend der Pruefung angehalten, schon ein Abruf oder abgemeldet
-        guard !isRunning, !stopped, signOuts == signOutsBefore, isConnected else { return nil }
+        guard !isRunning, !stopped, !browserOpen, signOuts == signOutsBefore, isConnected else { return nil }
         isRunning = true
         let before = state
         set(.running)
@@ -222,7 +229,7 @@ final class QISConnection: ObservableObject {
     /// Sitzung der Webansicht. Meldet nie an oder ab. nil ohne Verbindung, waehrend eines Abrufs oder mit Demo-Inhalten
     @discardableResult
     func fetchRegistrations() async -> QISRegistrationsSync.Report? {
-        guard isConnected, !stopped, !isRunning, !registrationsRunning else { return nil }
+        guard isConnected, !stopped, !browserOpen, !isRunning, !registrationsRunning else { return nil }
         if await host.demoActive() { return nil }
         guard isConnected, !stopped, !registrationsRunning else { return nil }
         registrationsRunning = true
@@ -311,15 +318,21 @@ final class QISConnection: ObservableObject {
     /// `fetch: false`: nur anmelden, nicht losgeloest abrufen (der Aufrufer liest selbst, `runRenewingSession`).
     @discardableResult
     func autoLogin(userAction: Bool = false, fetch: Bool = true) async -> Bool {
-        guard isConnected, state == .needsLogin, !stopped else { return false }
+        guard !browserOpen, await renewSession(userAction: userAction) else { return false }
         let before = signOuts
-        let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
-                                                userAction: userAction) { url, html in QISConnection.isSignedInPage(url, html: html) }
-        guard d == .retryOnce, signOuts == before, isConnected, !stopped else { return false }
         for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Abruf von eben zu Ende
         guard signOuts == before, isConnected, !stopped else { return false }
         signedIn(fetch: fetch)                                  // verbunden, ruft gleich (einmal) ab
         return true
+    }
+
+    /// Stille Anmeldung mit dem gespeicherten Zugang (`UniAutoLogin.handleExpiry`), ohne danach abzurufen; true: angemeldet
+    private func renewSession(userAction: Bool) async -> Bool {
+        guard isConnected, state == .needsLogin, !stopped else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
+                                                userAction: userAction) { url, html in QISConnection.isSignedInPage(url, html: html) }
+        return d == .retryOnce && signOuts == before && isConnected && !stopped
     }
 
     /// Abgleich aller Portale (OpenSync, 11.11.2026): ein Abruf wie `run`; meldet das QIS dabei "abgelaufen", wartet er
@@ -346,13 +359,58 @@ final class QISConnection: ObservableObject {
     /// Nie nach bewusstem Abmelden (`UniAutoLogin.signedOut`), nie mit einem abgelehnten Passwort.
     @discardableResult
     func connectWithStoredLogin(userAction: Bool = false) async -> Bool {
-        guard !isConnected, !stopped, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
+        guard !isConnected, !stopped, !browserOpen, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
         let before = signOuts
         let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
                                                 userAction: userAction) { url, html in QISConnection.isSignedInPage(url, html: html) }
         guard d == .retryOnce, signOuts == before, !isConnected, !stopped else { return false }
         signedIn()                                              // verbunden, ruft gleich (einmal) ab
         return true
+    }
+
+    // MARK: In-App-Browser (13.11.2026)
+
+    /// Ein In-App-Browser zeigt das QIS: ab jetzt kein eigener Abruf, keine stille Neuanmeldung (`browserUses`)
+    func beginBrowser() { browserUses += 1 }
+
+    /// Browser geschlossen (nach dem Merken seiner Cookies)
+    func endBrowser() { browserUses = max(0, browserUses - 1) }
+
+    /// Vor dem ersten Laden im Browser: einen laufenden Abruf abwarten (nie zwei Nutzer derselben Sitzung), dann die
+    /// Sitzung pruefen und, wenn sie abgelaufen ist, still mit dem gespeicherten Zugang erneuern (wie beim Sync; nur mit
+    /// Zustimmung und gespeichertem Zugang, `UniAutoLogin`). Vorher zeigte der Browser je nach Alter der Sitzung mal die
+    /// angemeldete Seite, mal die Anmeldeseite. Rueckgabe: Sitzung traegt (false: der Mensch meldet sich im Browser an).
+    @discardableResult
+    func prepareBrowserSession(probe: ((UniTransport) async -> Bool?)? = nil) async -> Bool {
+        for _ in 0..<300 where isRunning || registrationsRunning { try? await Task.sleep(nanoseconds: 200_000_000) }
+        guard isConnected, !stopped, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
+        if await host.demoActive() { return false }
+        await UniWebSessions.ready(websiteDataStore)
+        let transport = await makeTransport(websiteDataStore)
+        let alive = await (probe ?? Self.sessionAlive)(transport)
+        // unbekannt (Netz): nichts tun, der Browser zeigt, was das QIS sagt
+        guard alive == false else { return alive ?? false }
+        set(.needsLogin)
+        guard await renewSession(userAction: true) else { return false }
+        set(.connected)
+        await UniWebSessions.save(websiteDataStore)
+        return true
+    }
+
+    /// Startseite des QIS mit den Cookies des Containers: true angemeldet, false Anmeldeseite, nil unbekannt (Netz)
+    static func sessionAlive(_ transport: UniTransport) async -> Bool? {
+        guard let r = try? await transport.send(UniRequest(url: QISClient.startURL, timeout: 15)), r.status == 200 else { return nil }
+        let url = r.finalURL ?? QISClient.startURL
+        let html = String(decoding: r.body, as: UTF8.self)
+        if isSignedInPage(url, html: html) { return true }
+        return QISPage.parse(html: html, url: url).hasLoginForm ? false : nil
+    }
+
+    /// Im Browser selbst angemeldet (angemeldete QIS-Seite nach "Anmeldung nötig" bzw. ohne Verbindung): verbunden,
+    /// mitgelesenes Passwort merken (falls zugelassen), Sitzung merken. Ruft nicht ab (der Browser ist offen).
+    func browserSignedIn() {
+        guard !stopped, !isConnected || state == .needsLogin || state == .notConnected else { return }
+        signedIn(fetch: false)
     }
 
     // MARK: Hintergrund (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md)
@@ -364,7 +422,7 @@ final class QISConnection: ObservableObject {
     /// unsichtbar ohne Fenster). Anders als `autoLogin` startet sie keinen Abruf von selbst: den macht `backgroundCheck`.
     @discardableResult
     func reloginInBackground() async -> Bool {
-        guard isConnected, state == .needsLogin, !stopped, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
+        guard isConnected, state == .needsLogin, !stopped, !browserOpen, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
         let before = signOuts
         let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
                                                 background: true) { url, html in QISConnection.isSignedInPage(url, html: html) }
@@ -378,7 +436,7 @@ final class QISConnection: ObservableObject {
     /// `backgroundInterval` zurueckliegt. Neue Noten erkennt der Hintergrundlauf am Vergleich der Datenbank.
     @discardableResult
     func backgroundCheck() async -> QISGradesSync.Report? {
-        guard isConnected, !stopped, !isRunning, state != .needsLogin else { return nil }
+        guard isConnected, !stopped, !browserOpen, !isRunning, state != .needsLogin else { return nil }
         if let last = lastRun, clock.now.timeIntervalSince(last) < Self.backgroundInterval { return nil }
         return await run(force: true)
     }
