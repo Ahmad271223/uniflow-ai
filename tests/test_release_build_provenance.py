@@ -82,7 +82,7 @@ def test_app_store_md_names_the_same_builds_as_project_yml_and_this_table():
     s = submitted()
     assert (f"Build {s} in der Prüfung" in row) if s else ("veröffentlicht" in row), row
     assert "Build 26 nie hochgeladen" in row, row
-    assert (f"Build {s} ist seit" if s else "Build 31 ist seit") in store.splitlines()[2], "Kopfzeile nennt den aktuellen Build"
+    assert (f"Build {s} ist seit" if s else "Build 35 ist seit") in store.splitlines()[2], "Kopfzeile nennt den aktuellen Build"
     assert "BUILD-HERKUNFT.md" in store
 
 
