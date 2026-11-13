@@ -77,8 +77,30 @@ Gib ein JSON-Objekt mit genau diesen Feldern zurueck:
     static let flashcardsMax = 30
     static let flashcardsTextChars = 12000
 
+    /// `ai.FLASHCARDS_QUESTION_CHARS` / `ai.FLASHCARDS_ANSWER_CHARS` / `ai.FLASHCARDS_SIMILAR`: Pruefung der Karten (13.11.2026)
+    static let flashcardsQuestionChars = 300
+    static let flashcardsAnswerChars = 600
+    static let flashcardsSimilar = 0.85
+
+    /// `ai.FLASHCARDS_RULES`: Regeln fuer gute Karten (eine Idee je Karte, Mischung der Arten, Seitenangabe)
+    static let flashcardsRules = #"""
+REGELN FUER GUTE KARTEN:
+- Eine Idee je Karte: eine klare, eindeutige Frage mit genau einer richtigen Antwort. Keine Doppelfragen ("Was ist X und wie ...?"), keine Ja/Nein-Fragen, keine Aufzaehlungen mit mehr als drei Teilen; teile so etwas auf mehrere Karten auf.
+- Die Frage steht fuer sich: nenne den Gegenstand ("beim Abtasttheorem", "in Java"), nie nur "es", "dies" oder "auf der Folie".
+- Antwort kurz, aber vollstaendig: das Entscheidende zuerst, hoechstens zwei Saetze, ohne die Frage zu wiederholen.
+- Die Frage verraet die Antwort nicht: das gesuchte Wort, die Zahl oder die Formel steht nicht schon in der Frage.
+- Mische die Arten (kind): begriff (Was bedeutet ...?), verstaendnis (Warum ...? Wozu ...? Was passiert, wenn ...? Unterschied zwischen ...?), anwendung (kleine Rechnung, Beispiel oder Code aus dem Inhalt, Ergebnis mit kurzem Weg), formel (Wie lautet ...? Antwort mit Formel und kurz, wofuer die Zeichen stehen), lueckentext (ein wichtiger Satz aus dem Inhalt, die Kernaussage durch ___ ersetzt; Antwort nur das fehlende Stueck). Mindestens ein Drittel verstaendnis oder anwendung, hoechstens ein Drittel begriff.
+- Verteile die Karten ueber alle Seiten des Inhalts; Wichtiges (Saetze, Definitionen, Bedingungen, typische Fehler, Beispiele) vor Nebensachen.
+- Nur, was wirklich im Inhalt steht: keine Zahlen, Beispiele oder Aussagen von ausserhalb. Keine trivialen Karten (Titel, Gliederung, Organisatorisches) und keine zwei Karten zur selben Aussage, auch nicht umformuliert. Reicht der Inhalt nicht fuer so viele gute Karten, liefere weniger statt Fuellkarten.
+- Formeln korrekt und vollstaendig wie im Inhalt, mit Unicode-Zeichen wie im System-Text beschrieben (kein LaTeX, kein Backslash).
+- page: die Seitennummer N aus der Ueberschrift des Abschnitts (Zeile mit ### und Seite N), aus dem die Karte stammt; 0, wenn der Abschnitt keine Seitennummer hat.
+"""#
+
+    /// `ai.FLASHCARDS_ANSWER_FORM`: verlangte Form der Antwort
+    static let flashcardsAnswerForm = #"Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort", "kind": "begriff|verstaendnis|anwendung|formel|lueckentext", "page": 0}]}"#
+
     /// `ai.FLASHCARDS_SCHEMA` als JSON (Responses API: text.format json_schema)
-    static let flashcardsSchemaJSON = #"{"type": "object", "properties": {"cards": {"type": "array", "items": {"type": "object", "properties": {"question": {"type": "string"}, "answer": {"type": "string"}}, "required": ["question", "answer"], "additionalProperties": false}}}, "required": ["cards"], "additionalProperties": false}"#
+    static let flashcardsSchemaJSON = #"{"type": "object", "properties": {"cards": {"type": "array", "items": {"type": "object", "properties": {"question": {"type": "string"}, "answer": {"type": "string"}, "kind": {"type": "string", "enum": ["begriff", "verstaendnis", "anwendung", "formel", "lueckentext"]}, "page": {"type": "integer"}}, "required": ["question", "answer", "kind", "page"], "additionalProperties": false}}}, "required": ["cards"], "additionalProperties": false}"#
 }
 
 /// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py (oeffentlich: die App baut damit die Rueckleitung)

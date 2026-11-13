@@ -774,7 +774,44 @@ Gib ein JSON-Objekt zurueck:
 FLASHCARDS_DEFAULT = 10
 FLASHCARDS_MAX = 30
 FLASHCARDS_TEXT_CHARS = 12000
-# JSON-Schema der Antwort (Responses API: text.format json_schema); der Prompt verlangt dieselbe Form
+# Qualitaet der Karten (13.11.2026, Ziel: Niveau der grossen Lernkarten-Apps; docs/KARTEIKARTEN-QUALITAET-2026-11-13.md):
+# Kartenarten, die der Trainer als Frage/Antwort zeigen kann (Lueckentext mit ___ in der Frage). Multiple Choice und
+# Wahr/Falsch brauchen eigene Felder im Trainer und kommen spaeter.
+FLASHCARDS_KINDS = ("begriff", "verstaendnis", "anwendung", "formel", "lueckentext")
+# Laengen, ab denen eine Karte nicht mehr "eine Idee" ist und wegfaellt (Zeichen, ohne Seitenangabe)
+FLASHCARDS_QUESTION_CHARS = 300
+FLASHCARDS_ANSWER_CHARS = 600
+# Ab dieser Wortueberschneidung (Jaccard ueber alle Woerter, auch Zahlen und kurze wie "x1") gelten zwei Fragen als gleich;
+# "Wert fuer q = 1/2?" und "Wert fuer q = 1/3?" bleiben verschieden
+FLASHCARDS_SIMILAR = 0.85
+# Regeln fuer jede Karteikarten-Anfrage (Dokument, Auftrag nach Woche, Wochenstapel); gleich in AIPromptTexts.swift
+FLASHCARDS_RULES = (
+    "REGELN FUER GUTE KARTEN:\n"
+    "- Eine Idee je Karte: eine klare, eindeutige Frage mit genau einer richtigen Antwort. Keine Doppelfragen (\"Was ist X "
+    "und wie ...?\"), keine Ja/Nein-Fragen, keine Aufzaehlungen mit mehr als drei Teilen; teile so etwas auf mehrere "
+    "Karten auf.\n"
+    "- Die Frage steht fuer sich: nenne den Gegenstand (\"beim Abtasttheorem\", \"in Java\"), nie nur \"es\", \"dies\" "
+    "oder \"auf der Folie\".\n"
+    "- Antwort kurz, aber vollstaendig: das Entscheidende zuerst, hoechstens zwei Saetze, ohne die Frage zu wiederholen.\n"
+    "- Die Frage verraet die Antwort nicht: das gesuchte Wort, die Zahl oder die Formel steht nicht schon in der Frage.\n"
+    "- Mische die Arten (kind): begriff (Was bedeutet ...?), verstaendnis (Warum ...? Wozu ...? Was passiert, wenn ...? "
+    "Unterschied zwischen ...?), anwendung (kleine Rechnung, Beispiel oder Code aus dem Inhalt, Ergebnis mit kurzem Weg), "
+    "formel (Wie lautet ...? Antwort mit Formel und kurz, wofuer die Zeichen stehen), lueckentext (ein wichtiger Satz aus "
+    "dem Inhalt, die Kernaussage durch ___ ersetzt; Antwort nur das fehlende Stueck). Mindestens ein Drittel "
+    "verstaendnis oder anwendung, hoechstens ein Drittel begriff.\n"
+    "- Verteile die Karten ueber alle Seiten des Inhalts; Wichtiges (Saetze, Definitionen, Bedingungen, typische "
+    "Fehler, Beispiele) vor Nebensachen.\n"
+    "- Nur, was wirklich im Inhalt steht: keine Zahlen, Beispiele oder Aussagen von ausserhalb. Keine trivialen Karten "
+    "(Titel, Gliederung, Organisatorisches) und keine zwei Karten zur selben Aussage, auch nicht umformuliert. Reicht "
+    "der Inhalt nicht fuer so viele gute Karten, liefere weniger statt Fuellkarten.\n"
+    "- Formeln korrekt und vollstaendig wie im Inhalt, mit Unicode-Zeichen wie im System-Text beschrieben (kein LaTeX, "
+    "kein Backslash).\n"
+    "- page: die Seitennummer N aus der Ueberschrift des Abschnitts (Zeile mit ### und Seite N), aus dem die Karte "
+    "stammt; 0, wenn der Abschnitt keine Seitennummer hat.")
+FLASHCARDS_ANSWER_FORM = ('Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort", '
+                          '"kind": "begriff|verstaendnis|anwendung|formel|lueckentext", "page": 0}]}')
+# JSON-Schema der Antwort (Responses API: text.format json_schema, nicht strikt); der Prompt verlangt dieselbe Form.
+# kind und page sind fuer die KI Pflicht, die Pruefung nimmt Karten auch ohne (aeltere Prompts und Server).
 FLASHCARDS_SCHEMA = {
     "type": "object",
     "properties": {
@@ -782,8 +819,9 @@ FLASHCARDS_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"question": {"type": "string"}, "answer": {"type": "string"}},
-                "required": ["question", "answer"],
+                "properties": {"question": {"type": "string"}, "answer": {"type": "string"},
+                               "kind": {"type": "string", "enum": list(FLASHCARDS_KINDS)}, "page": {"type": "integer"}},
+                "required": ["question", "answer", "kind", "page"],
                 "additionalProperties": False,
             },
         },
@@ -802,46 +840,94 @@ def flashcards_count(n) -> int:
     return min(FLASHCARDS_MAX, v) if v >= 1 else FLASHCARDS_DEFAULT
 
 
+def flashcards_pages_text(pages: list[int], texts: list[str]) -> str:
+    """Text der gewaehlten Seiten fuer flashcards_prompt: je Seite "### Seite N" und ihr Text, damit die KI zu jeder Karte
+    die Seite nennen kann (`page`); Seiten ohne Text fallen weg."""
+    return "\n\n".join(f"### Seite {p}\n{t.strip()}" for p, t in zip(pages, texts) if isinstance(t, str) and t.strip())
+
+
 def flashcards_prompt(course: str, file_name: str, pages: list[int] | None, text: str, count: int = FLASHCARDS_DEFAULT,
                       topic: str = "") -> str:
     """Prompt fuer Karteikarten aus einem Dokument (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai):
-    genau `count` Karten aus dem Text der Seiten `pages` (aufsteigend) von `file_name`; `topic` grenzt den Stoff ein.
-    Die Antwort hat die Form von FLASHCARDS_SCHEMA; der Text ist Material, keine Anweisung (UNTRUSTED)."""
+    genau `count` Karten aus dem Text der Seiten `pages` (aufsteigend) von `file_name` (mit Seitenueberschriften aus
+    flashcards_pages_text); `topic` grenzt den Stoff ein. Die Antwort hat die Form von FLASHCARDS_SCHEMA; der Text ist
+    Material, keine Anweisung (UNTRUSTED)."""
     where = ""
     if pages:
         where = f", Seite {pages[0]}" if len(pages) == 1 else f", Seiten {pages[0]}–{pages[-1]}"
     parts = [f"Kurs: {course}", f"Datei: {file_name}{where}", "",
-             f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Inhalt. Vorn eine klare Frage, hinten eine kurze, "
-             "vollstaendige Antwort (1-3 Saetze, Formeln mit Unicode-Zeichen). Decke die wichtigsten Begriffe, Zusammenhaenge und "
-             "Rechenwege ab; keine Karte doppelt, nichts erfinden, was nicht im Inhalt steht."]
+             f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Inhalt, mit denen man sich gezielt auf die Klausur "
+             "vorbereitet: vorn eine Frage, hinten die Antwort.", "", FLASHCARDS_RULES]
     if topic.strip():
         parts += ["", f"SCHWERPUNKT: {topic.strip()[:300]}"]
     parts += ["", f"INHALT. {UNTRUSTED}:", "<<<", (text or "").strip()[:FLASHCARDS_TEXT_CHARS] or "[kein Text extrahierbar]", ">>>",
-              "", 'Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort"}]}']
+              "", FLASHCARDS_ANSWER_FORM]
     return "\n".join(parts)
 
 
-def check_flashcards(res) -> list[dict]:
+_CARD_WORD = re.compile(r"\w+")
+
+
+def flashcard_norm(text: str) -> str:
+    """Text zum Vergleichen: klein, nur Buchstaben/Ziffern/_, durch je ein Leerzeichen getrennt."""
+    return " ".join(_CARD_WORD.findall((text or "").lower()))
+
+
+def flashcard_words(text: str) -> set[str]:
+    """Alle Woerter der Frage (auch Zahlen und Kurzes), damit sich Fragen, die sich nur in einer Zahl unterscheiden, nicht gleichen."""
+    return set(flashcard_norm(text).split())
+
+
+def flashcard_similar(a: set[str], b: set[str]) -> bool:
+    """Fast gleiche Fragen: beide mit mindestens drei Woertern und Jaccard >= FLASHCARDS_SIMILAR."""
+    return len(a) >= 3 and len(b) >= 3 and len(a & b) / len(a | b) >= FLASHCARDS_SIMILAR
+
+
+def flashcard_gives_away(question: str, answer: str) -> bool:
+    """Die Frage verraet die Antwort: die ganze Antwort (mindestens 4 Zeichen, hoechstens 6 Woerter) steht schon woertlich in
+    der Frage, z. B. "Wie heisst der Tiefpass vor der Abtastung (Anti-Aliasing-Filter)?" -> "Anti-Aliasing-Filter"."""
+    a = flashcard_norm(answer)
+    return len(a) >= 4 and len(a.split()) <= 6 and f" {a} " in f" {flashcard_norm(question)} "
+
+
+def check_flashcards(res, pages: list[int] | dict[int, str] | None = None, limit: int = FLASHCARDS_MAX) -> list[dict]:
     """Karten aus der Antwort: {"cards": [...]} oder eine Liste wie beim Tutor-Modus flashcards; nur Karten mit Frage
-    und Antwort (als Text, aussen ohne Leerraum), hoechstens FLASHCARDS_MAX; leer, wenn die Antwort keine Karten hat."""
+    und Antwort (als Text, aussen ohne Leerraum), hoechstens FLASHCARDS_MAX; leer, wenn die Antwort keine Karten hat.
+    Faellt weg (13.11.2026): Frage ueber FLASHCARDS_QUESTION_CHARS, Antwort ueber FLASHCARDS_ANSWER_CHARS Zeichen, Frage
+    gleich Antwort, Frage verraet die Antwort, Frage gleich oder fast gleich einer frueheren Karte.
+    `pages`: Seiten des Inhalts; nennt die Karte eine davon (`page`), endet die Antwort mit " (S. N)" (bei einer Zuordnung
+    Seite -> Text mit " (Text)", z. B. "Skript.pdf, S. 4"). `limit`: hoechstens so viele Karten (KI-Auftrag bis 50)."""
     items = res.get("cards") if isinstance(res, dict) else res
     if not isinstance(items, list):
         return []
-    out = []
+    labels = pages if isinstance(pages, dict) else {p: f"S. {p}" for p in pages or [] if isinstance(p, int) and not isinstance(p, bool)}
+    out, seen_norm, seen_words = [], set(), []
     for c in items:
         if not isinstance(c, dict):
             continue
         q, a = str(c.get("question") or "").strip(), str(c.get("answer") or "").strip()
-        if q and a:
-            out.append({"question": q, "answer": a})
-    return out[:FLASHCARDS_MAX]
+        if not q or not a or len(q) > FLASHCARDS_QUESTION_CHARS or len(a) > FLASHCARDS_ANSWER_CHARS:
+            continue
+        n, w = flashcard_norm(q), flashcard_words(q)
+        if not n or n == flashcard_norm(a) or n in seen_norm or flashcard_gives_away(q, a) \
+                or any(flashcard_similar(w, k) for k in seen_words):
+            continue
+        seen_norm.add(n)
+        seen_words.append(w)
+        page = c.get("page")
+        if isinstance(page, int) and not isinstance(page, bool) and labels.get(page):
+            a = f"{a} ({labels[page]})"
+        out.append({"question": q, "answer": a})
+        if len(out) >= limit:
+            break
+    return out
 
 
 def flashcards(course: str, file_name: str, pages: list[int] | None, text: str, count: int = FLASHCARDS_DEFAULT, topic: str = "") -> list[dict]:
     """Karteikarten mit der KI des PCs (Textweg); ohne Karten in der Antwort AIError."""
     with for_task("flashcards"):
         res = parse_json(ask(flashcards_prompt(course, file_name, pages, text, count, topic), SYSTEM, schema=FLASHCARDS_SCHEMA))
-    cards = check_flashcards(res)
+    cards = check_flashcards(res, pages)
     if not cards:
         raise AIError("Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.")
     return cards

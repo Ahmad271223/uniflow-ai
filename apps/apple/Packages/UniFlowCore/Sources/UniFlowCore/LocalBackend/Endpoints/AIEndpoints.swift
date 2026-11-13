@@ -149,7 +149,8 @@ enum AIEndpoints: LocalEndpointModule {
             }
             try checkPageChoice(body.value("pages"), total: allPages.count)
             let pages = pageList(body.value("pages"), total: allPages.count)
-            let text = pages.map { allPages[$0 - 1] }.joined(separator: "\n\n")
+            // mit "### Seite N" je Seite, damit die KI zu jeder Karte die Seite nennt (`ai.flashcards_pages_text`)
+            let text = AIPrompts.flashcardsPagesText(pages: pages, texts: pages.map { allPages[$0 - 1] })
             let count = AIPrompts.flashcardsCount(body.value("count"))
             let topicValue = AIPrompts.or(body.value("topic"), .string(""))
             let topic: String = { if case .string(let s)? = topicValue { return s }; return AIPrompts.str(topicValue) }()
@@ -166,7 +167,7 @@ enum AIEndpoints: LocalEndpointModule {
             } catch let e as AIError {
                 throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
             }
-            let cards = (try? AIAnswers.parseJSON(answer)).map(AIAnswers.checkFlashcards) ?? []
+            let cards = (try? AIAnswers.parseJSON(answer)).map { AIAnswers.checkFlashcards($0, pages: pages) } ?? []
             guard !cards.isEmpty else {
                 throw LocalHTTPError(status: 502, detail: ["detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"])
             }

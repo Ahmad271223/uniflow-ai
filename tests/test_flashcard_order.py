@@ -63,7 +63,13 @@ def test_inputs_and_duplicates():
     assert [c["answer"] for c in cards] == ["a", "d"] and dropped == 2, "gleiche und fast gleiche Fragen fallen weg"
     assert fs.without_duplicates([{"question": "Ableitung?", "answer": "a"}, {"question": "Integral?", "answer": "b"}], ["ableitung"]) == \
         ([{"question": "Integral?", "answer": "b"}], 1), "kurze Fragen: gleicher Text zaehlt"
-    assert len(fs.check_cards({"cards": [{"question": "q", "answer": "a"}] * 60}, 50)) == 50
+    assert len(fs.check_cards({"cards": [{"question": f"Was ist Begriff{i}?", "answer": "a"} for i in range(60)]}, 50)) == 50
+    assert fs.check_cards({"cards": [{"question": "q", "answer": "a"}] * 60}, 50) == [{"question": "q", "answer": "a"}]
+    # Seitenangabe nur, wenn genau eine Quelle die Seite hat
+    src = [{"name": "V05.pdf", "pages": [1, 2, 7]}, {"name": "Skript.pdf", "pages": [1, 2]}]
+    assert fs.page_labels(src) == {7: "V05.pdf, S. 7"}
+    assert [c["answer"] for c in fs.check_cards({"cards": [{"question": "Was ist A?", "answer": "a", "page": 7},
+                                                           {"question": "Was ist B?", "answer": "b", "page": 2}]}, 50, src)] == ["a (V05.pdf, S. 7)", "b"]
 
 
 def test_week_material_prefers_marked_pages_then_lectures_then_exercises(app, world, monkeypatch):
