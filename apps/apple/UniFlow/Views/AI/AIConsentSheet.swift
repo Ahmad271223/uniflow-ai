@@ -3,10 +3,13 @@ import UniFlowCore
 
 /// Hinweis "KI-Hilfe: Was wird gesendet?" vor der ersten Anfrage an die StudiNow-KI (06.11.2026, App Store Review
 /// Guideline 5.1.2(i)): was gesendet wird, an wen (StudiNow-Dienst, OpenAI, Claude ueber Amazon Bedrock), Link zur
-/// Datenschutzerklaerung, "Zustimmen und fortfahren" / "Abbrechen". Gezeigt von `AIConsentCenter`, Texte aus
-/// `AIConsentText` (UniFlowCore). Scrollt, damit er auch bei grosser Schrift ganz lesbar bleibt.
+/// Datenschutzerklaerung, "Okay, los" / "Abbrechen". Gezeigt von `AIConsentCenter`, Texte aus `AIConsentText`
+/// (UniFlowCore). Seit 13.11.2026 kurz (Wunsch des Inhabers): zuerst nur `AIConsentText.short` (was und an wen in zwei
+/// Saetzen), die ausfuehrlichen Abschnitte erst nach "Genauer ansehen". Scrollt, damit er auch bei grosser Schrift ganz
+/// lesbar bleibt.
 struct AIConsentSheet: View {
     let decide: (Bool) -> Void
+    @State private var showDetails = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,17 +21,30 @@ struct AIConsentSheet: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityAddTraits(.isHeader)
                     }
-                    paragraph(AIConsentText.intro)
-                    section(AIConsentText.whatHeading, icon: "file-text") {
-                        bullets(AIConsentText.what)
-                        paragraph(AIConsentText.never, color: UF.text2)
+                    paragraph(AIConsentText.short)
+                    if showDetails {
+                        section(AIConsentText.whatHeading, icon: "file-text") {
+                            bullets(AIConsentText.what)
+                            paragraph(AIConsentText.never, color: UF.text2)
+                        }
+                        section(AIConsentText.whereHeading, icon: "share") {
+                            paragraph(AIConsentText.service)
+                            bullets(AIConsentText.recipients)
+                            paragraph(AIConsentText.processors, color: UF.text2)
+                        }
+                        paragraph(AIConsentText.revoke, color: UF.muted)
+                    } else {
+                        Button { withAnimation(.easeOut(duration: 0.2)) { showDetails = true } } label: {
+                            HStack(spacing: 6) {
+                                Text(AIConsentText.details)
+                                UFIcon("chevron-down", size: 13)
+                            }
+                            .ufFont(14.5, 600).foregroundStyle(UF.accent)
+                            .frame(minHeight: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("aiConsent.details")
                     }
-                    section(AIConsentText.whereHeading, icon: "share") {
-                        paragraph(AIConsentText.service)
-                        bullets(AIConsentText.recipients)
-                        paragraph(AIConsentText.processors, color: UF.text2)
-                    }
-                    paragraph(AIConsentText.revoke, color: UF.muted)
                     if let url = URL(string: AIConsentText.privacyURL) {
                         Link(destination: url) {
                             HStack(spacing: 6) {

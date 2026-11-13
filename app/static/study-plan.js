@@ -51,9 +51,14 @@ export async function viewStudyPlan(parts, params, view) {
 
   function schedulePoll() {
     clearTimeout(st.timer);
-    if (!st.plan || st.plan.available || L.gapKind(st.plan, st.catalog) !== "loading" || !L.catalogBusy(st.catalog)) return;
+    // Gleich nach der Wahl eines Studiengangs meldet der Dienst die Katalogsuche manchmal noch nicht als laufend: dann
+    // eine Weile trotzdem nachsehen, sonst blieb die Seite bis zum Neuladen ohne Plan stehen (13.11.2026)
+    const picking = (st.pickUntil || 0) > Date.now();
+    if (!st.plan || st.plan.available) return;
+    if (!picking && (L.gapKind(st.plan, st.catalog) !== "loading" || !L.catalogBusy(st.catalog))) return;
     st.timer = setTimeout(async () => {
       if (!alive()) return;
+      if (picking) return load();
       try {
         st.catalog = await api("/study-catalog/status");
         if (L.catalogReady(st.catalog)) return load();         // fertig: Plan neu lesen
@@ -629,7 +634,7 @@ export async function viewStudyPlan(parts, params, view) {
         try {
           await saveSettings({ po: b.dataset.pick });
           st.catalog = await api("/study-catalog/status").catch(() => st.catalog);      // stoesst die Suche an
-          m.remove(); toast("Studiengang gewählt – StudiNow sucht den Katalog"); st.plan = null; await load();
+          m.remove(); toast("Studiengang gewählt – StudiNow sucht den Katalog"); st.plan = null; st.pickUntil = Date.now() + 30000; await load();
         } catch (x) { showError(x); b.disabled = false; }
       });
     };

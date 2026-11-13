@@ -733,7 +733,7 @@ private struct AccountTab: View {
             SettingsDivider()
             SettingsRow("Anzeigename", icon: "user") {
                 HStack(spacing: 9.6) {
-                    UFTextInput("z. B. Ahmad H.", text: $userName).frame(maxWidth: 260)
+                    UFTextInput("z. B. Alex M.", text: $userName).frame(maxWidth: 260)
                     UFButton("Speichern", size: .small) {
                         Task {
                             await api.put(["user_name": .string(userName)])

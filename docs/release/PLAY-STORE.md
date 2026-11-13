@@ -13,11 +13,11 @@ StudiNow – Studium & Notizen
 ```
 
 ```text short
-Stud.IP und Learnweb auf dem Tablet: Dateien, Stundenplan, Lernkalender, Stift.
+Lernmanagementsystem für Hochschulen: Dateien, Stundenplan, Lernkalender, Stift.
 ```
 
 ```text full
-StudiNow bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender und deine handschriftlichen Notizen – auf dem Tablet, mit dem Stift.
+StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover. StudiNow bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender und deine handschriftlichen Notizen – auf dem Tablet, mit dem Stift.
 
 FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER UND DER UNIVERSITÄT HILDESHEIM
 Melde dich mit deinem StudiNow-Konto an und verbinde deine Hochschule. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und übernimmt Vorlesungs- und Übungstermine, Abgabefristen und Ankündigungen der Lehrenden. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst – etwa eine Antwort auf eine Nachricht oder eine Abgabe.

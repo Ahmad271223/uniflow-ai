@@ -42,9 +42,9 @@ DOMAIN = "studinow.app"
 # (Markdown, Ausgabe, Name in der Navigation, Beschreibung fuer <meta name="description">)
 PAGES = [
     ("STARTSEITE.md", "index.html", "Start",
-     "Für Studierende in ganz Deutschland, heute angebunden: Leibniz Universität Hannover, weitere Hochschulen folgen. StudiNow holt "
-     "Skripte, Termine und Nachrichten aufs iPad: Apple Pencil, KI-Hilfe fürs ganze Dokument, Wochentests, Karteikarten "
-     "und Mensa. Ohne Tracking."),
+     "StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die "
+     "Leibniz Universität Hannover. Skripte, Termine und Nachrichten aufs iPad: Apple Pencil, KI-Hilfe, Wochentests, "
+     "Karteikarten und Mensa. Ohne Tracking."),
     ("SUPPORT.md", "support.html", "Support",
      "Hilfe zu StudiNow: Anmeldung bei der Hochschule, Daten auf dem iPad, Konto löschen, Abo. Kontakt support@studinow.app."),
     ("DATENSCHUTZ.md", "datenschutz.html", "Datenschutz", "Datenschutzerklärung der StudiNow-Apps und des StudiNow-Dienstes."),

@@ -54,10 +54,10 @@ Support: dein Link bzw. deine Adresse.
 beziehungsweise „USK 0“, je nach Antwort zu Nutzerinhalten ggf. höher.
 
 ### Kurzbeschreibung (bis 100 Zeichen)
-> Dein Studium an einem Ort: Unterlagen, Stundenplan, Notizen und Lernplan.
+> Lernmanagementsystem für Hochschulen in ganz Deutschland: Unterlagen, Stundenplan, Notizen.
 
 ### Beschreibung (Deutsch)
-> StudiNow holt deine Kurse, Dateien, Termine und Ankündigungen aus Stud.IP bzw. Learnweb und bringt sie in eine ruhige
+> StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover. StudiNow holt deine Kurse, Dateien, Termine und Ankündigungen aus Stud.IP bzw. Learnweb und bringt sie in eine ruhige
 > Übersicht. Du meldest dich dafür selbst bei deiner Hochschule an, in deren eigenem Anmeldefenster. Wenn du es
 > ausdrücklich möchtest, kann die App deine Zugangsdaten lokal auf deinem PC merken; an einen Online-Dienst geschickt
 > werden sie nicht.

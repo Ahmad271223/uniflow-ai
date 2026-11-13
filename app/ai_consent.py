@@ -3,7 +3,7 @@ docs/release/DATENSCHUTZ.md Abschnitt 8c).
 
 Bevor Seitentext, Bild eines Bereichs oder Frage zum ersten Mal an einen KI-Anbieter gehen, zeigt die Oberflaeche den
 Hinweis "KI-Hilfe: Was wird gesendet?" (was, an wen, Link zur Datenschutzerklaerung) und braucht ein ausdrueckliches
-"Zustimmen und fortfahren". Durchgesetzt wird das auf dem Server, nicht in einzelnen Ansichten:
+"Okay, los". Durchgesetzt wird das auf dem Server, nicht in einzelnen Ansichten:
 
 - Windows-App (eigener PC, StudiNow-KI ueber das Konto): `ai_relay.service_json` schickt nichts an `/api/ai/*` des
   Dienstes ohne Einwilligung (`require_for_relay`, 428 `ai_consent_required`).
@@ -42,6 +42,11 @@ TEXT = {
     "title": "KI-Hilfe: Was wird gesendet?",
     "intro": "Für die StudiNow-KI schickt StudiNow deine Anfrage an einen KI-Anbieter. Bevor das zum ersten Mal passiert, "
              "brauchen wir deine Zustimmung.",
+    # Kurzfassung zuerst (13.11.2026, wie AIConsentText.short), Rest hinter "Genauer ansehen"
+    "short": "StudiNow schickt den Text deiner Seite (oder einen Bildausschnitt) und deine Frage an einen KI-Anbieter: "
+             "OpenAI (USA) oder Claude über Amazon Bedrock (EU). Dein Name, deine E-Mail, deine Zugangsdaten und deine "
+             "Noten werden nie gesendet.",
+    "details": "Genauer ansehen",
     "what_heading": "Was gesendet wird",
     "what": [
         "der Text der Seite oder deiner Markierung, bei „Ganzes Dokument“ der Text der gewählten Seiten",
@@ -51,7 +56,7 @@ TEXT = {
     ],
     "never": "Nie gesendet werden dein Name, deine E-Mail-Adresse, deine Hochschul-Zugangsdaten und deine Noten.",
     "where_heading": "Wohin es geht",
-    "service": "An den StudiNow-Dienst (app.studinow.app) von IT solutions by Ahmad Fakih. Er gibt jede Anfrage an einen "
+    "service": "An den StudiNow-Dienst (app.studinow.app). Er gibt jede Anfrage an einen "
                "dieser KI-Anbieter weiter:",
     "recipients": [
         "OpenAI (ChatGPT-Modelle, Verarbeitung in den USA)",
@@ -62,7 +67,7 @@ TEXT = {
               "Ohne Einwilligung sendet StudiNow nichts an die KI.",
     "privacy_url": PRIVACY_URL,
     "privacy_link": "Datenschutzerklärung (Abschnitt 8c)",
-    "accept": "Zustimmen und fortfahren",
+    "accept": "Okay, los",
     "cancel": "Abbrechen",
     "revoke_button": "KI-Einwilligung widerrufen",
 }

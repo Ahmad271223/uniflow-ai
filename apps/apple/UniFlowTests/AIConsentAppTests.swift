@@ -185,6 +185,14 @@ final class AIConsentAppTests: XCTestCase {
         var decisions: [Bool] = []
         let env = try hostWithEnvironment(AIConsentSheet { decisions.append($0) }, size: CGSize(width: 600, height: 900))
         XCTAssertTrue(env.wait { self.labels(env.view).contains(AIConsentText.title) }, labels(env.view).joined(separator: "\n"))
+        // kurz zuerst: was und an wen in zwei Saetzen, Details erst auf Tipp
+        let short = labels(env.view).joined(separator: "\n")
+        for needle in ["OpenAI", "Amazon Bedrock", "Datenschutzerklärung", AIConsentText.details, AIConsentText.accept] {
+            XCTAssertTrue(short.contains(needle), needle + "\n" + short)
+        }
+        XCTAssertFalse(short.contains("Wohin es geht"), "Details erst nach \"Genauer ansehen\"")
+        XCTAssertTrue(tap(AIConsentText.details, in: env.view))
+        XCTAssertTrue(env.wait { self.labels(env.view).contains("Wohin es geht") }, labels(env.view).joined(separator: "\n"))
         let all = labels(env.view).joined(separator: "\n")
         for needle in ["Was gesendet wird", "Wohin es geht", "app.studinow.app", "OpenAI", "Amazon Bedrock", "Datenschutzerklärung",
                        AIConsentText.accept, AIConsentText.cancel] {
@@ -195,7 +203,7 @@ final class AIConsentAppTests: XCTestCase {
         XCTAssertEqual(decisions, [false, true])
     }
 
-    /// Der echte Hinweis erscheint als Formblatt ueber dem obersten Inhalt; "Zustimmen und fortfahren" gibt die
+    /// Der echte Hinweis erscheint als Formblatt ueber dem obersten Inhalt; "Okay, los" gibt die
     /// wartende Anfrage frei und schliesst ihn
     func testRealPresenterShowsTheSheetOverTheTopController() throws {
         let env = try hostWithEnvironment(Text("Editor"), size: CGSize(width: 1180, height: 820))

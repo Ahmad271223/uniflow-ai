@@ -1,7 +1,7 @@
 // Einwilligung vor der StudiNow-KI (06.11.2026, App Store 5.1.2(i) wie auf dem iPad; Server: app/ai_consent.py).
 // Der Server schickt ohne Einwilligung nichts an einen KI-Anbieter und antwortet 428 `ai_consent_required` mit den
 // Texten des Hinweises. Diese Hilfe um `fetch` faengt das an EINER Stelle fuer alle KI-Stellen ab (KI-Hilfe, ganzes
-// Dokument, Karteikarten, Wochentests …): Hinweis zeigen (`ask`), bei "Zustimmen und fortfahren" speichern (`grant`,
+// Dokument, Karteikarten, Wochentests …): Hinweis zeigen (`ask`), bei "Okay, los" speichern (`grant`,
 // POST /api/ai/consent) und die Anfrage einmal wiederholen; bei "Abbrechen" bleibt eine 428-Antwort mit DECLINED.
 // Gleichzeitige Anfragen teilen sich einen Hinweis. Ohne DOM, damit node --test es pruefen kann (tests/js/ai-consent.test.mjs).
 

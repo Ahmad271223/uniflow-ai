@@ -621,9 +621,9 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         openTutor(env)
         expect(env, "StudiNow-KI", timeout: 25)
         _ = tutorMode(env, "explain")
-        if expect(env, "Zustimmen und fortfahren", timeout: 15) {
+        if expect(env, AIConsentText.accept, timeout: 15) {
             shoot(env, "41-proai-einwilligung")
-            tap(env, "Zustimmen und fortfahren")
+            tap(env, AIConsentText.accept)
         }
         expect(env, "x²", timeout: 20)
         expect(env, "– 3 Credits (97 übrig)", timeout: 10)
@@ -692,7 +692,7 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         XCTAssertEqual(link.planStatus?.trialActive, true)
         openTutor(env)
         _ = tutorMode(env, "summary")
-        if env.wait(timeout: 10, until: { self.shows(env, "Zustimmen und fortfahren") }) { tap(env, "Zustimmen und fortfahren") }
+        if env.wait(timeout: 10, until: { self.shows(env, AIConsentText.accept) }) { tap(env, AIConsentText.accept) }
         expect(env, "x²", timeout: 20)
         expect(env, "(22 übrig)", timeout: 10)
         shoot(env, "50-probe-ki-hilfe-25-credits")

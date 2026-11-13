@@ -361,7 +361,7 @@ ohne sie funktioniert StudiNow genauso.
 - **Wann:** nur wenn du mit deinem StudiNow-Konto (Pro AI oder Probe, bestätigte E-Mail-Adresse) eine KI-Funktion im
   Dienst nutzt, z. B. eine Frage im Editor, eine Erklärung des ganzen Dokuments, Karteikarten oder einen Wochentest.
   Vor der ersten Anfrage zeigen App, Web und Windows einmal den Hinweis „KI-Hilfe: Was wird gesendet?“ (was, an wen)
-  und senden erst nach „Zustimmen und fortfahren“; widerrufen kannst du das jederzeit in den Einstellungen
+  und senden erst nach „Okay, los“; widerrufen kannst du das jederzeit in den Einstellungen
   („KI-Einwilligung widerrufen“), dann wird vor der nächsten Anfrage wieder gefragt.
 - **Was gesendet wird:**
   - der Text der betroffenen Seite oder deiner Markierung;

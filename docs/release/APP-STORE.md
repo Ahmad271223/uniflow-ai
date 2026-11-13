@@ -136,24 +136,23 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – für 1.0 verwenden (Stand 09.11.2026, nur Jahresabos) – 3998 Zeichen
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, gilt ab der nächsten Version nach 1.0.3; nur Jahresabos) – 3988 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
 (ChatGPT, OpenAI) im öffentlichen Text.
 
 ```text description-proai
-StudiNow bringt dein Studium an einen Ort: Unterlagen, Termine, Nachrichten, Uni-Mail und Noten deiner Hochschule, dazu Lernkalender, Karteikarten, Handschrift mit dem Apple Pencil und KI-Hilfe – auf dem iPad.
+StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover. Unterlagen, Termine, Nachrichten, Uni-Mail und Noten an einem Ort, dazu Lernkalender, Karteikarten, Apple Pencil und KI-Hilfe – auf dem iPad.
 
 FÜR STUDIERENDE IN GANZ DEUTSCHLAND
-Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst, frühere auf Wunsch – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
+Angebunden: Stud.IP und QIS der LUH, weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen – das aktuelle Semester zuerst, frühere auf Wunsch – und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst.
 
 DEINE UNI AN EINEM ORT
 • Nachrichten aus Stud.IP beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
 • Uni-Mail und Uni-Kalender: lesen, antworten, weiterleiten, schreiben
 • Notenspiegel und Bescheinigungen wie Immatrikulations- oder BAföG-Bescheinigung als PDF
 • Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß
-• Termin antippen: Raum mit Route, Lehrende, E-Mail an alle
 • Studienverlauf mit Modulkatalogen von über 300 Studiengängen, Meldezeiträume der Prüfungsanmeldung mit Erinnerung
 • Speiseplan deiner Mensa mit Preisen und Allergenen (Studentenwerk Hannover, Studierendenwerk OstNiedersachsen; ohne Gewähr)
 • Übersicht für heute, Wochenraster, Lernkalender; mit Plus Lernplan automatisch in freien Zeitfenstern
@@ -395,10 +394,10 @@ der App und hier gleich, `tests/test_release_texts.py`). Solange die Demo aktiv 
 
 **Richtlinie 5.1.2(i) (KI-Weitergabe), erledigt 06.11.2026:** Vor der ersten Anfrage an die StudiNow-KI zeigen iPad,
 Web und Windows einmal „KI-Hilfe: Was wird gesendet?“ (was, an wen: StudiNow-Dienst, OpenAI bzw. Claude über Amazon
-Bedrock Frankfurt, Link zur Datenschutzerklärung) und senden ohne „Zustimmen und fortfahren“ nichts (zentral in
+Bedrock Frankfurt, Link zur Datenschutzerklärung) und senden ohne „Okay, los“ nichts (zentral in
 `StudiNowAI.json` bzw. `app/ai_consent.py`, je Konto, widerrufbar unter „KI-Einwilligung widerrufen“).
 
-### Fassung nur Plus – ÜBERHOLT, nicht verwenden (1.0 wird mit Pro AI eingereicht) – 3925 Zeichen
+### Fassung nur Plus – ÜBERHOLT, nicht verwenden (1.0 wird mit Pro AI eingereicht) – 3910 Zeichen
 
 ```text review-notes
 StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features (files, timetable, messages, mail, grades) need the student's personal university account, which we cannot share. Please use the built-in demo content (no university account needed):
@@ -412,7 +411,7 @@ University password: below each university login page, the switch "Passwort auf 
 
 Subscriptions: "StudiNow Plus" (yearly subscription; no introductory offers) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, the course community and sharing own solutions. The trial is the app's own, not an App Store offer. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
-AI: the build contains AI help ("KI-Hilfe" in the editor, "KI-Start"). It is answered by our own service (https://app.studinow.app) and belongs to the plan "StudiNow Pro AI", which is not part of this submission; the plan page shows "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." without price or buy button. To try it anyway: "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden" creates a StudiNow account with a 7-day trial of 25 AI credits. Without account or plan the AI places explain this and send nothing; nothing is sent before "Zustimmen und fortfahren" in the notice "KI-Hilfe: Was wird gesendet?". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
+AI: the build contains AI help ("KI-Hilfe" in the editor, "KI-Start"). It is answered by our own service (https://app.studinow.app) and belongs to the plan "StudiNow Pro AI", which is not part of this submission; the plan page shows "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." without price or buy button. To try it anyway: "Einstellungen" → "Zugang & Darstellung" → "StudiNow-Konto" → "Mit Apple anmelden" creates a StudiNow account with a 7-day trial of 25 AI credits. Without account or plan the AI places explain this and send nothing; nothing is sent before "Okay, los" in the notice "KI-Hilfe: Was wird gesendet?". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device); the "StudiNow-Konto" card has its own "Konto löschen" (online account).
 
@@ -421,7 +420,7 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0 verwenden (Stand 13.11.2026, eine Apple-Anmeldung für alles) – 3998 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0 verwenden (Stand 13.11.2026, eine Apple-Anmeldung für alles) – 3983 Zeichen (max. 4000)
 
 ```text review-notes-proai
 New in 1.0.3: one Sign in with Apple also creates the StudiNow account; "Konto löschen" deletes it too. Document tabs, study groups, fixes.
@@ -446,7 +445,7 @@ AI (Pro AI) runs on our own service (https://app.studinow.app) with the StudiNow
 1. Buy "StudiNow Pro AI" in the sandbox (or skip it: a new StudiNow account has a 7-day trial with 25 credits).
 2. Our service verifies the signed transaction and assigns the plan (if offline then: "StudiNow-Konto" → "Mit Apple anmelden").
 3. Open a demo PDF, tap "KI-Hilfe" and ask about the page, or choose "Ganzes Dokument" → "Ganze Vorlesung erklären".
-The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Zustimmen und fortfahren". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan for AI help and AI study plan; flashcards from a document need Plus, weekly tests Pro AI): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
+The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan for AI help and AI study plan; flashcards from a document need Plus, weekly tests Pro AI): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's own key; no ChatGPT login exists in the build.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device and our service; revokes Sign in with Apple).
 

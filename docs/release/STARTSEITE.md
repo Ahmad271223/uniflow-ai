@@ -15,9 +15,9 @@
 <section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
 <div class="hero-text">
-<p class="eyebrow">Für Studierende in ganz Deutschland</p>
+<p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>
 <h1 id="hero-title">Dein Studium an einem Ort.</h1>
-<p class="lead">StudiNow holt Skripte, Übungsblätter, Termine und Nachrichten aus den Systemen deiner Hochschule auf dein
+<p class="lead">StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland. Es holt Skripte, Übungsblätter, Termine und Nachrichten aus den Systemen deiner Hochschule auf dein
 iPad. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen erklären und übst mit Wochentests und Karteikarten.</p>
 <p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong>. In Kürze: Hochschule
 Hannover und Universität Hildesheim. Weitere Hochschulen folgen. Deine fehlt?
@@ -241,7 +241,7 @@ du angelegt hast, bleibt da.</p>
 </details>
 <details>
 <summary>Für welche Hochschulen ist StudiNow?</summary>
-<p>StudiNow ist für Studierende in ganz Deutschland gedacht. Angebunden ist heute die Leibniz Universität Hannover
+<p>StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover
 (Stud.IP, QIS), mit den Modulkatalogen der Studiengänge und dem Speiseplan der Mensen. In Kürze folgen die Hochschule
 Hannover (Moodle, HISinOne, QIS) und die Universität Hildesheim (Learnweb, LSF). Weitere Hochschulen folgen. Deine
 fehlt? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>

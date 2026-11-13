@@ -117,7 +117,7 @@ def test_texts_match_the_ipad_and_name_what_and_whom():
     from app import ai_consent
     swift = (ROOT / "apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/AI/AIConsent.swift").read_text(encoding="utf-8")
     assert f'public static let version = "{ai_consent.VERSION}"' in swift, "gleicher Stand wie auf dem iPad"
-    for key in ("title", "intro", "never", "service", "processors", "accept", "cancel", "privacy_link", "revoke_button"):
+    for key in ("title", "short", "details", "intro", "never", "service", "processors", "accept", "cancel", "privacy_link", "revoke_button"):
         assert json.dumps(ai_consent.TEXT[key], ensure_ascii=False) in swift, key
     for line in ai_consent.TEXT["what"] + ai_consent.TEXT["recipients"]:
         assert json.dumps(line, ensure_ascii=False) in swift, line

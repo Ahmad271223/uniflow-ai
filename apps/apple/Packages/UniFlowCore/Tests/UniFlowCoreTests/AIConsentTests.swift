@@ -88,7 +88,11 @@ final class AIConsentTests: XCTestCase {
             XCTAssertTrue(all.contains(needle), needle)
         }
         XCTAssertFalse(all.contains("DeepSeek"), "DeepSeek ist aus")
-        XCTAssertEqual(AIConsentText.accept, "Zustimmen und fortfahren")
+        XCTAssertEqual(AIConsentText.accept, "Okay, los")
+        for needle in ["OpenAI", "Amazon Bedrock", "Text deiner Seite", "Frage", "nie gesendet"] {
+            XCTAssertTrue(AIConsentText.short.contains(needle), "Kurzfassung nennt was und an wen: " + needle)
+        }
+        XCTAssertFalse((AIConsentText.short + AIConsentText.service).contains("Fakih"), "kein Name des Inhabers im Hinweis")
         XCTAssertEqual(AIConsentText.privacyURL, "https://studinow.app/datenschutz")
     }
 }
