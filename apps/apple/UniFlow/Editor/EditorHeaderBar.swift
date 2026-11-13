@@ -122,10 +122,12 @@ struct EditorOwnsTabsKey: PreferenceKey {
 
 // MARK: - Reiter
 
-/// Reiter der offenen Dokumente: in der Kopfzeile (`.header`, so breit wie noetig, hoechstens `maxWidth`) oder als
-/// flacher Streifen ueber Dokumenten ohne Kopfzeile ("Unten fest", "Schwebend", Text- und ZIP-Ansicht; `.row`).
-/// Aktiver Reiter in der Akzentfarbe, Antippen wechselt sofort, "×" schliesst, lange druecken bzw. Rechtsklick:
-/// Schliessen, Andere schliessen, In neuem Fenster oeffnen.
+/// Reiter der zuletzt geoeffneten Dokumente (hoechstens `DocumentTabList.limit`, 15): in der Kopfzeile (`.header`, so
+/// breit wie die Reiter, hoechstens `maxWidth`, darueber waagerecht wischbar) oder als flacher Streifen ueber Dokumenten
+/// ohne Kopfzeile ("Unten fest", "Schwebend", Text- und ZIP-Ansicht; `.row`). Nie eine zweite Zeile (maximale
+/// Schreibflaeche, Inhaber 12./13.11.2026). Aktiver Reiter in der Akzentfarbe und beim Erscheinen in Sicht geschoben,
+/// Antippen wechselt sofort, "×" nimmt ihn aus der Leiste, lange druecken bzw. Rechtsklick: Schliessen, Andere
+/// schliessen, In neuem Fenster oeffnen. Sehr schmal (`asMenu`) ein Knopf mit Liste.
 struct DocumentTabStrip: View {
     enum Style { case header, row }
 
@@ -138,24 +140,22 @@ struct DocumentTabStrip: View {
     /// Reiter bedienbar; aus (alte Fassung, Dokument aus einem ZIP): nur der Titel
     var enabled = true
     @EnvironmentObject private var router: UFRouter
-    /// Breite aller Reiter mit vollen bzw. kurzen Titeln (gemessen): passt keins, wird die Reihe ein Knopf mit Liste
+    /// Breite aller Reiter (gemessen): so breit wird die Leiste, hoechstens `maxWidth`, der Rest ist zu wischen
     @State private var fullWidth: CGFloat = 0
-    @State private var shortWidth: CGFloat = 0
 
     /// Titel gekuerzt (gewaehlter Reiter etwas laenger): eine Zeile, nie umbrechen
     static func shortTitle(_ title: String, active: Bool, short: Bool = false) -> String {
         shortTitle(title, limit: short ? (active ? 18 : 9) : (active ? 26 : 18))
     }
 
-    /// Wie die Reiter in der Kopfzeile stehen: volle Titel, kurze Titel oder (passt beides nicht) ein Knopf mit Liste.
-    /// Nie geschoben und nie halb abgeschnitten.
-    enum Fit: Equatable { case full, short, menu }
-
-    static func fit(full: CGFloat, short: CGFloat, max: CGFloat) -> Fit {
-        if full <= max { return .full }
-        if short <= max { return .short }
-        return .menu
+    /// Breite der Leiste in der Kopfzeile: so breit wie alle Reiter, hoechstens `max`; noch nicht gemessen ein Stueck
+    /// (der aktive Reiter passt fast immer)
+    static func stripWidth(content: CGFloat, max: CGFloat) -> CGFloat {
+        content > 0 ? min(content, max) : min(max, 160)
     }
+
+    /// Ab dieser Breite ist die Leiste zu wischen (nicht alle Reiter sichtbar)
+    static func scrolls(content: CGFloat, max: CGFloat) -> Bool { content > max + 0.5 }
 
     static func shortTitle(_ title: String, limit: Int) -> String {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -163,57 +163,58 @@ struct DocumentTabStrip: View {
         return String(t.prefix(limit - 1)).trimmingCharacters(in: .whitespaces) + "…"
     }
 
-    /// Reiter in der Reihenfolge der Liste; fehlt das gezeigte Dokument darin (Reiter aus), steht es allein da
+    /// Reiter in der Reihenfolge der Liste; fehlt das gezeigte Dokument darin (Reiter aus), steht es allein da. Nur die
+    /// Liste des offenen Containers (`visibleEntries`): nie Reiter eines anderen Kontos.
     private var items: [DocumentTabEntry] {
-        let list = enabled ? tabs.entries : []
+        let list = enabled ? tabs.visibleEntries : []
         if list.contains(where: { $0.id == currentID }) { return list }
         return list + [DocumentTabEntry(id: currentID, title: currentTitle, used: 0)]
     }
 
-    private func closable(_ id: String) -> Bool { enabled && tabs.entries.contains { $0.id == id } }
+    private func closable(_ id: String) -> Bool { enabled && tabs.visibleEntries.contains { $0.id == id } }
 
     var body: some View {
-        if asMenu {
-            menu
-        } else if style == .row {
-            strip.padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(UF.surface)
-                .ufBorderBottom()
+        Group {
+            if asMenu {
+                menu
+            } else if style == .row {
+                strip.padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(UF.surface)
+                    .ufBorderBottom()
+            } else {
+                strip
+                    .frame(width: Self.stripWidth(content: fullWidth, max: maxWidth))
+                    .mask { edgeFade(Self.scrolls(content: fullWidth, max: maxWidth)) }
+                    .background {
+                        // Breite messen (unsichtbar, nicht bedienbar)
+                        row.fixedSize()
+                            .background(GeometryReader { g in Color.clear.preference(key: TabStripWidthKey.self, value: g.size.width) })
+                            .onPreferenceChange(TabStripWidthKey.self) { fullWidth = $0 }
+                            .hidden()
+                            .accessibilityHidden(true)
+                    }
+            }
+        }
+        .onAppear { tabs.refresh() }
+    }
+
+    /// Zu wischen: an den Raendern sanft ausblenden, damit man sieht, dass es weitergeht
+    @ViewBuilder private func edgeFade(_ on: Bool) -> some View {
+        if on {
+            HStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: 10)
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: 18)
+            }
         } else {
-            Group {
-                switch Self.fit(full: fullWidth, short: shortWidth, max: maxWidth) {
-                case .full: row(short: false)
-                case .short: row(short: true)
-                case .menu: menu
-                }
-            }
-            .background {
-                // Breiten messen (unsichtbar, nicht bedienbar)
-                ZStack {
-                    row(short: false).fixedSize()
-                        .background(GeometryReader { g in Color.clear.preference(key: TabStripWidthKey.self, value: g.size.width) })
-                        .onPreferenceChange(TabStripWidthKey.self) { fullWidth = $0 }
-                    row(short: true).fixedSize()
-                        .background(GeometryReader { g in Color.clear.preference(key: TabStripShortWidthKey.self, value: g.size.width) })
-                        .onPreferenceChange(TabStripShortWidthKey.self) { shortWidth = $0 }
-                }
-                .hidden()
-                .accessibilityHidden(true)
-            }
+            Color.black
         }
     }
 
-    /// Reiter der Kopfzeile nebeneinander (passen in die Breite)
-    private func row(short: Bool) -> some View {
-        HStack(spacing: 4) {
-            ForEach(items) { tab($0, short: short) }
-        }
-        .padding(.horizontal, 2)
-        .frame(height: EditorToolbar.hitSide)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Offene Dokumente")
-        .accessibilityIdentifier("doc.tabs")
+    /// alle Reiter nebeneinander (nur zum Messen)
+    private var row: some View {
+        HStack(spacing: 4) { ForEach(items) { tab($0) } }.padding(.horizontal, 2)
     }
 
     private var strip: some View {
@@ -223,25 +224,26 @@ struct DocumentTabStrip: View {
                     ForEach(items) { tab($0).id($0.id) }
                 }
                 .padding(.horizontal, 2)
+                .frame(height: EditorToolbar.hitSide)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Zuletzt geöffnete Dokumente")
+                .accessibilityIdentifier("doc.tabs")
             }
             .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             .onAppear { proxy.scrollTo(currentID) }
-            .onChange(of: currentID) { _, id in proxy.scrollTo(id) }
+            .onChange(of: currentID) { _, id in withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id) } }
         }
         .frame(height: EditorToolbar.hitSide)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Offene Dokumente")
-        .accessibilityIdentifier("doc.tabs")
     }
 
-    private func tab(_ e: DocumentTabEntry, short: Bool = false) -> some View {
+    private func tab(_ e: DocumentTabEntry) -> some View {
         let active = e.id == currentID
         let canClose = closable(e.id)
         return HStack(spacing: 0) {
             Button { if !active, enabled { tabs.select(e.id, router: router) } } label: {
                 HStack(spacing: 5) {
                     if active { Circle().fill(UF.accent).frame(width: 6, height: 6) }
-                    Text(Self.shortTitle(e.title, active: active, short: short)).lineLimit(1).fixedSize()
+                    Text(Self.shortTitle(e.title, active: active)).lineLimit(1).fixedSize()
                         .ufFont(12.8, active ? 650 : 500, lh: 1.2)
                 }
                 .padding(.leading, 10).padding(.trailing, canClose ? 2 : 10)
@@ -277,7 +279,7 @@ struct DocumentTabStrip: View {
     @ViewBuilder private func contextItems(_ e: DocumentTabEntry) -> some View {
         Button { tabs.close(e.id, router: router) } label: { Label("Schließen", systemImage: "xmark") }
         Button { tabs.closeOthers(keeping: e.id, router: router) } label: { Label("Andere schließen", systemImage: "xmark.square") }
-            .disabled(tabs.entries.count < 2)
+            .disabled(tabs.visibleEntries.count < 2)
         if DocumentWindows.supported {
             Button { tabs.openInNewWindow(e.id, router: router) } label: { Label("In neuem Fenster öffnen", systemImage: "macwindow.badge.plus") }
         }
@@ -319,11 +321,6 @@ struct DocumentTabStrip: View {
 }
 
 private struct TabStripWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
-}
-
-private struct TabStripShortWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }

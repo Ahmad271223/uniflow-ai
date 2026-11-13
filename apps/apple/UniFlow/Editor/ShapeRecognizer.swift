@@ -7,7 +7,7 @@ import UIKit
 /// PKStroke.h, PKStrokePath.h) gibt es weder eine Einstellung noch eine Rueckmeldung zum Einrasten von Formen; die
 /// Notizen-App nutzt dafuer private Teile. Darum erkennt der Editor die Form selbst, nachdem der Strich fertig ist:
 /// Blieb der Stift am Ende mindestens `holdDuration` still (`heldStill`), wird der Strich durch eine ideale Form
-/// ersetzt (Linie, Rechteck, Ellipse bzw. Kreis, Dreieck, Pfeil). Die Form ist wieder ein gewoehnlicher `PKStroke`
+/// ersetzt (Linie, Rechteck bzw. Quadrat, Ellipse bzw. Kreis, Dreieck, Pfeil). Die Form ist wieder ein gewoehnlicher `PKStroke`
 /// mit derselben Tinte, Farbe und Breite: Speicherformat, Web-Editor und `StrokeConverter` bleiben unveraendert. Der
 /// Tausch ist ein Rueckgaengig-Schritt (`PDFEditorController.canvasViewDidEndUsingTool`).
 enum ShapeRecognizer {
@@ -17,6 +17,8 @@ enum ShapeRecognizer {
     static let holdRadius: CGFloat = 6
     /// Kuerzere Striche sind kein Kandidat (Punkte, Haekchen)
     static let minimumLength: CGFloat = 30
+    /// Rechteck mit Seiten, die hoechstens so viel (Anteil der laengeren) auseinanderliegen, wird ein Quadrat
+    static let squareTolerance: CGFloat = 0.1
 
     enum Shape: Equatable {
         case line(from: CGPoint, to: CGPoint)
@@ -31,7 +33,7 @@ enum ShapeRecognizer {
         var name: String {
             switch self {
             case .line: return "line"
-            case .rectangle: return "rectangle"
+            case .rectangle(_, let size, _): return abs(size.width - size.height) <= 0.001 ? "square" : "rectangle"
             case .ellipse(_, let r): return abs(r.width - r.height) <= 0.001 ? "circle" : "ellipse"
             case .triangle: return "triangle"
             case .arrow: return "arrow"
@@ -133,7 +135,13 @@ enum ShapeRecognizer {
         let b = bounds(rotated)
         let centerR = CGPoint(x: b.midX, y: b.midY)
         let center = CGPoint(x: centerR.x * cos(angle) - centerR.y * sin(angle), y: centerR.x * sin(angle) + centerR.y * cos(angle))
-        return .rectangle(center: center, size: CGSize(width: b.width, height: b.height), angle: angle)
+        // Quadrat bei fast gleichen Seiten (wie der Kreis bei fast gleichen Achsen)
+        var size = CGSize(width: b.width, height: b.height)
+        if abs(size.width - size.height) <= squareTolerance * max(size.width, size.height) {
+            let side = (size.width + size.height) / 2
+            size = CGSize(width: side, height: side)
+        }
+        return .rectangle(center: center, size: size, angle: angle)
     }
 
     /// Winkel auf -45 ... 45 Grad (ein Rechteck sieht alle 90 Grad gleich aus)
@@ -354,4 +362,13 @@ enum ShapeRecognizer {
         }
         return out.sorted()
     }
+}
+
+/// Schalter "Formen erkennen" in den Einstellungen (Wunsch des Inhabers 13.11.2026); Standard an, je Geraet
+enum ShapeSnapSetting {
+    static let key = "uniflow.shapeSnap"
+    static var enabled: Bool { UserDefaults.standard.object(forKey: key) == nil || UserDefaults.standard.bool(forKey: key) }
+    static let title = "Formen erkennen"
+    static let note = "Linie, Rechteck, Quadrat, Dreieck, Kreis, Ellipse oder Pfeil zeichnen und am Ende kurz stehen bleiben "
+        + "(½ Sekunde): StudiNow macht die Form gerade bzw. rund. Normales Schreiben bleibt, wie es ist. Rückgängig holt den Strich zurück."
 }
