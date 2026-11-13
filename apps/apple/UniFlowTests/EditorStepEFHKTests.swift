@@ -266,6 +266,70 @@ final class EditorStepEFHKTests: XCTestCase {
         XCTAssertEqual(saved.strokes.first?.path.count, shaped.path.count)
     }
 
+    /// Wie am iPad: ein von Hand gezeichnetes Rechteck (zittrig, von PencilKit gerundet). Das Halten steht nicht im
+    /// fertigen Strich, sondern nur in den Zeitstempeln des Stifts; und die beiden Meldungen von PencilKit kommen am
+    /// Geraet in beliebiger Reihenfolge - beide Reihenfolgen werden geprueft. Mit dem Textmarker passiert nichts.
+    func testDeviceLikeStrokeBecomesAShapeInBothMessageOrders() async throws {
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        let overlay = try XCTUnwrap(editor.overlayForTesting(at: 0))
+        try await wait("Seite geladen") { overlay.loaded }
+        let corners = DeviceStroke.rectangle(100, 150, 220, 140)
+        // Der fertige Strich allein verraet das Halten nicht: Am Geraet fasst PencilKit die Ruhepunkte zusammen,
+        // im Strich steht nur das Zeichnen (`hold: 0`), und `creationDate` hilft auch nicht weiter.
+        let noHold = DeviceStroke.stroke(corners, closed: true, seed: 5, hold: 0, created: Date())
+        XCTAssertFalse(ShapeRecognizer.heldStill(noHold.path, endedAt: Date()), "aus dem Strich allein: kein Halten")
+        let samples = DeviceStroke.samples(corners, closed: true, seed: 5, hold: 0.6)
+
+        for lateReport in [false, true] {
+            let label = lateReport ? "Strich erst nach dem Absetzen gemeldet" : "Strich vor dem Absetzen gemeldet"
+            overlay.canvas.tool = PKInkingTool(.pen, color: .black, width: 3)
+            overlay.rawRecorder.setSamplesForTesting(samples)
+            editor.canvasViewDidBeginUsingTool(overlay.canvas)
+            overlay.rawRecorder.setSamplesForTesting(samples)
+            var d = overlay.canvas.drawing
+            d.strokes.append(noHold)
+            if lateReport {
+                editor.canvasViewDidEndUsingTool(overlay.canvas)
+                overlay.canvas.drawing = d
+                editor.canvasViewDrawingDidChange(overlay.canvas)
+            } else {
+                overlay.canvas.drawing = d
+                editor.canvasViewDrawingDidChange(overlay.canvas)
+                editor.canvasViewDidEndUsingTool(overlay.canvas)
+            }
+
+            XCTAssertEqual(overlay.canvas.drawing.strokes.count, 1, label)
+            let shaped = try XCTUnwrap(overlay.canvas.drawing.strokes.first, label)
+            XCTAssertNotEqual(shaped.path.count, noHold.path.count, "durch das Rechteck ersetzt (\(label))")
+            let pts = shaped.path.interpolatedPoints(by: .distance(2)).map(\.location)
+            let box = ShapeRecognizer.bounds(pts)
+            XCTAssertEqual(box.width, 220, accuracy: 14, label)
+            XCTAssertEqual(box.height, 140, accuracy: 14, label)
+            // vier gerade Kanten: jeder Punkt liegt dicht am Rand der Box
+            let onEdge = pts.allSatisfy { p in
+                min(abs(p.x - box.minX), abs(p.x - box.maxX), abs(p.y - box.minY), abs(p.y - box.maxY)) <= 2
+            }
+            XCTAssertTrue(onEdge, "gerade Kanten (\(label))")
+            editor.editUndo.undo()
+            XCTAssertEqual(overlay.canvas.drawing.strokes.count, 0, "ein Schritt: Strich und Form zusammen weg (\(label))")
+        }
+
+        // Textmarker: bleibt, wie gezeichnet
+        let marker = DeviceStroke.stroke(corners, closed: true, seed: 5, ink: PKInk(.marker, color: .yellow))
+        overlay.canvas.tool = PKInkingTool(.marker, color: .yellow, width: 20)
+        overlay.rawRecorder.setSamplesForTesting(samples)
+        editor.canvasViewDidBeginUsingTool(overlay.canvas)
+        overlay.rawRecorder.setSamplesForTesting(samples)
+        var m = overlay.canvas.drawing
+        m.strokes.append(marker)
+        overlay.canvas.drawing = m
+        editor.canvasViewDrawingDidChange(overlay.canvas)
+        editor.canvasViewDidEndUsingTool(overlay.canvas)
+        XCTAssertEqual(overlay.canvas.drawing.strokes.last?.path.count, marker.path.count, "mit dem Textmarker keine Form")
+    }
+
     func testShapeSnapCanBeSwitchedOff() async throws {
         UserDefaults.standard.set(false, forKey: "uniflow.shapeSnap")
         addTeardownBlock { UserDefaults.standard.removeObject(forKey: "uniflow.shapeSnap") }
