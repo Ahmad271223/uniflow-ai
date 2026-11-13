@@ -73,10 +73,13 @@ struct ExamRegistrationState: Equatable {
         let withdrawUntil: String?
         let appModuleIDs: [Int]
         let lastAttempt: Bool
+        /// Pruefungsnummer aus dem Katalog, wenn bekannt (Weg im QIS)
+        let code: String?
 
         init(_ v: JSONValue) {
             id = v.s("id") ?? UUID().uuidString
             title = v.s("title") ?? "Prüfung"
+            code = v.s("code")
             lp = v.n("lp")
             exam = v.s("exam")
             reason = v.s("reason") ?? ""
@@ -166,6 +169,14 @@ struct ExamRegistrationState: Equatable {
         system = v.s("system") ?? "QIS"
         openLabel = v.s("open_label") ?? ExamRegistrationAPI.openLabel(system)
         periodNote = v.s("period_note")
+    }
+
+    /// Pruefungen fuer den Weg im QIS (`QISRegistrationGuide`): zuerst `first`, dann die uebrigen noch nicht angemeldeten.
+    /// Nur LUH (QIS); das LSF der Uni Hildesheim oeffnet wie bisher die Startseite.
+    func guideTargets(first: Suggestion? = nil) -> [QISRegistrationTarget] {
+        guard system == "QIS" else { return [] }
+        let rest = suggestions.filter { !$0.registered && $0.id != first?.id }
+        return ([first].compactMap { $0 } + rest).map { QISRegistrationTarget(title: $0.title, nr: $0.code) }
     }
 
     static func == (a: Self, b: Self) -> Bool {
@@ -289,6 +300,8 @@ struct ExamRegistrationQISButton: View {
     let url: URL?
     var system: String = "QIS"
     var size: UFButtonSize = .regular
+    /// Pruefungen, zu denen der Browser im QIS direkt fuehrt (erste zuerst; leer: nur "Mein Studium")
+    var targets: [QISRegistrationTarget] = []
     @Environment(\.openURL) private var openURL
     @Environment(\.qis) private var qis
     @Environment(\.hildesheim) private var hildesheim
@@ -298,10 +311,13 @@ struct ExamRegistrationQISButton: View {
         if let url {
             UFButton(ExamRegistrationAPI.openLabel(system), icon: "arrow-right", kind: .primary, size: size) {
                 ExamRegistrationAutoFetch.shared.arm(url, qis: qis, hildesheim: hildesheim, demo: demo)
+                if !demo { QISGuideRequests.set(url: url, targets: targets) }
                 openURL(url)
             }
                 .fixedSize()
-                .accessibilityHint("Öffnet das \(system). Zur Prüfung anmelden und bestätigen tust du dort selbst; danach ruft StudiNow die angemeldeten Prüfungen ab.")
+                .accessibilityHint(targets.isEmpty
+                    ? "Öffnet das \(system). Zur Prüfung anmelden und bestätigen tust du dort selbst; danach ruft StudiNow die angemeldeten Prüfungen ab."
+                    : "Öffnet das \(system) und führt zu „\(targets[0].title)“. Auf „Prüfung anmelden“ tippst du dort selbst; danach ruft StudiNow die angemeldeten Prüfungen ab.")
                 .accessibilityIdentifier("examreg.qis")
         }
     }
@@ -547,7 +563,7 @@ struct ExamRegistrationCard: View {
         let missing = st.suggestions.filter { !$0.registered }
         UFCard {
             UFCardHead("Prüfungsanmeldung", icon: "exam", wrap: true) {
-                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small, targets: st.guideTargets())
             }
             VStack(alignment: .leading, spacing: 10) {
                 if let w = st.window {
@@ -591,7 +607,7 @@ struct ExamRegistrationSection: View {
     @ViewBuilder static func section(_ st: ExamRegistrationState, reload: @escaping () async -> Void) -> some View {
         UFCard {
             UFCardHead("Prüfungsanmeldung" + (st.term.map { " · \($0)" } ?? ""), icon: "exam", wrap: true) {
-                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small, targets: st.guideTargets())
             }
             VStack(alignment: .leading, spacing: 12) {
                 periodsBlock(st)
@@ -711,7 +727,7 @@ struct ExamRegistrationModuleBlock: View {
                 Text(ExamRegistrationText.windowLine(w, system: st.system)).ufFont(12.8, 600).foregroundStyle(UF.accentText)
             }
             if !s.registered {
-                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small, targets: st.guideTargets(first: s))
                 ExamRegistrationHint(text: st.hint)
             }
         }
@@ -733,7 +749,7 @@ struct ExamRegistrationExamsFooter: View {
             UFFlexWrap(gap: 8) {
                 Text("Prüfungsanmeldung: " + ExamRegistrationText.windowLine(w, system: state.system)).ufFont(12.8, 600).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
-                ExamRegistrationQISButton(url: state.qisURL, system: state.system, size: .small)
+                ExamRegistrationQISButton(url: state.qisURL, system: state.system, size: .small, targets: state.guideTargets())
             }
             .padding(.top, 6)
             .accessibilityIdentifier("exams.registration")
