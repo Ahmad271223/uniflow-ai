@@ -372,11 +372,28 @@ final class DocumentStore: ObservableObject {
     let dataRoot: URL
     /// Ist das Dokument gerade in einem Fenster zu sehen? (DocumentView: beim Erscheinen und Verschwinden.) Ein Store,
     /// der nicht zu sehen ist, gibt das Schreiben an ein anderes Fenster ab, das dasselbe Dokument oeffnet.
-    private(set) var isShown = true
+    /// Zu sehen heisst: die Ansicht ist da UND ihr Fenster ist nicht im Hintergrund. Vorher zaehlte nur die Ansicht; ein
+    /// Fenster, das auf dem iPad hinter ein neues Fenster rutschte, hielt das Dokument fuer immer fest, und das neue
+    /// Fenster zeigte es nur zum Ansehen (Fehlerbericht des Inhabers 13.11.2026).
+    var isShown: Bool { shownInView && sceneVisible }
+    private(set) var shownInView = true
+    /// Fenster (Szene) des Dokuments nicht im Hintergrund (`scenePhase` != .background)
+    private(set) var sceneVisible = true
     /// Schreibrecht abgegeben (geschlossen oder an ein anderes Fenster uebergeben)
     private(set) var released = false
 
-    func setShown(_ shown: Bool) { isShown = shown }
+    func setShown(_ shown: Bool) { shownInView = shown }
+    func setSceneVisible(_ visible: Bool) { sceneVisible = visible }
+
+    /// Nur zum Ansehen, weil ein anderes Fenster das Dokument haelt: "Hier bearbeiten" kann uebernehmen
+    var canTakeOverHere: Bool { (openElsewhere || handedOver) && newerFormatVersion == nil && !isOldVersion }
+
+    /// Haelt der Schreiber in einem anderen Fenster das Dokument noch sichtbar? false: dieses Fenster soll neu oeffnen und
+    /// schreiben (das andere ist zu, im Hintergrund oder hat abgegeben)
+    var writerElsewhereShown: Bool {
+        guard let other = OpenDocuments.shared.holder(openKey), other !== self, !other.released else { return false }
+        return other.isShown
+    }
 
     /// Ein anderes Fenster oeffnet dasselbe Dokument, waehrend dieses nicht zu sehen ist: Ausstehendes ins Journal, danach
     /// schreibt dieser Store nichts mehr (auch kein Upload, keine Bestaetigung). Das neue Fenster liest das Journal
@@ -387,7 +404,16 @@ final class DocumentStore: ObservableObject {
         await settlePending()
         await engine.enterViewOnly(.openElsewhere)
         handedOver = true
-        notice = "Dieses Dokument ist jetzt in einem anderen Fenster geöffnet – hier nur ansehen."
+        notice = Self.handedOverNotice
+    }
+
+    static let openElsewhereNotice = "Dieses Dokument ist schon in einem anderen Fenster geöffnet – hier nur ansehen. Zum Schreiben hier: „Hier bearbeiten“."
+    static let handedOverNotice = "Dieses Dokument ist jetzt in einem anderen Fenster geöffnet – hier nur ansehen. Zum Schreiben hier: „Hier bearbeiten“."
+
+    /// "Hier bearbeiten": der Schreiber in einem anderen Fenster sichert Ausstehendes und gibt ab; danach muss dieses
+    /// Fenster das Dokument neu oeffnen (`DocumentReopen`), weil dieser Store nur zum Ansehen geladen wurde.
+    func takeOverFromOtherWindow() async {
+        if let other = OpenDocuments.shared.holder(openKey), other !== self { await other.handOver() }
     }
 
     // MARK: Laden
@@ -439,7 +465,7 @@ final class DocumentStore: ObservableObject {
             } else if newerFormatVersion != nil {
                 notice = Self.newerFormatNotice
             } else if openElsewhere {
-                notice = "Dieses Dokument ist schon in einem anderen Fenster geöffnet – hier nur ansehen. Zum Schreiben dort schließen und hier neu öffnen."
+                notice = Self.openElsewhereNotice
             } else if !opened.damagedFiles.isEmpty {
                 notice = "\(opened.damagedFiles.count) lokale Datei(en) beschädigt – Serverstand verwendet, wo möglich."
             } else if opened.restoredUnsentPages > 0 {

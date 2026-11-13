@@ -76,6 +76,14 @@ enum CommunityTexts {
         }
     }
 
+    /// Lesen einer Loesung mit eigener Kopie der PDF: die Seiten stehen auf der eigenen PDF (nur ein Verweis plus
+    /// Seitennummer kam mit, die PDF selbst nie)
+    static let ownPDFNotice = "Du hast dieselbe PDF: Die Lösung steht hier auf deinen eigenen Seiten, genau wie sie geschrieben wurde. Im Dokument kannst du sie auch daneben oder als Ebene ansehen."
+    /// eigene PDF bekannt, aber hier nicht lesbar: im Dokument liegt die Loesung als Ebene darueber
+    static let ownPDFLayerNotice = "Du hast dieselbe PDF. Im Dokument liegt die Lösung als Ebene darüber."
+    /// ohne eigene Kopie: leere Seiten statt der PDF
+    static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung), darum stehen die Notizen auf leeren Seiten. Die PDF des Lehrenden wird nicht mitgeschickt."
+
     static func publishedAt(_ iso: String) -> String { "veröffentlicht am \(ForeignSolutionLayer.date(iso))" }
 
     static func visibility(_ v: CommunityVisibility) -> String {
@@ -420,6 +428,8 @@ struct CommunityReaderSheet: View {
     @State private var content: SolutionContent?
     @State private var images: [String: UIImage] = [:]
     @State private var localFile: String?
+    /// eigene Kopie derselben PDF (gleicher Fingerabdruck, gleiche Seitenzahl): Hintergrund der Seiten wie beim Absender
+    @State private var ownPDF: OffscreenPDF?
     @State private var error: String?
     @State private var comments: [CommunityComment] = []
     @State private var liked = false
@@ -439,7 +449,8 @@ struct CommunityReaderSheet: View {
                     if let error { CommunityNotice(text: error) }
                     if let localFile {
                         UFCard {
-                            Text("Du hast dieselbe PDF. Im Dokument liegt die Lösung als Ebene darüber.").ufFont(13.12).foregroundStyle(UF.text2)
+                            Text(ownPDF != nil ? CommunityTexts.ownPDFNotice : CommunityTexts.ownPDFLayerNotice).ufFont(13.12).foregroundStyle(UF.text2)
+                                .fixedSize(horizontal: false, vertical: true)
                             UFButton("In meiner PDF ansehen", icon: "layers", kind: .primary, size: .small) {
                                 close()
                                 router.go(.doc(localFile, task: nil, page: nil))
@@ -447,11 +458,11 @@ struct CommunityReaderSheet: View {
                             .padding(.top, 8)
                         }
                     } else if content != nil {
-                        Text("Du hast diese PDF nicht, darum stehen die Notizen auf leeren Seiten.").ufFont(13.12).foregroundStyle(UF.muted)
+                        Text(CommunityTexts.noPDFNotice).ufFont(13.12).foregroundStyle(UF.muted)
                     }
                     if let content {
                         ForEach(Array(content.pages.enumerated()), id: \.element.key) { i, page in
-                            CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: service.supportsDiscussion ? { anchor in
+                            CommunityReaderPage(page: page, images: images, source: ownPDF, marks: marks(page), tapped: service.supportsDiscussion ? { anchor in
                                 spot = (page.key, anchor)
                                 replyTo = nil
                                 editing = nil
@@ -563,7 +574,15 @@ struct CommunityReaderSheet: View {
             let c = try await SolutionSharing.loadCommunity(solution.solutionID, service: service)
             images = c.images.compactMapValues { UIImage(data: $0.data) }
             content = c
-            if let host = ActiveContainer.current?.host { localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host) }
+            if let host = ActiveContainer.current?.host {
+                localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host)
+                // eigene Kopie als Hintergrund: gleiche Seitenzahl wie beim Absender, sonst lieber leere Seiten als eine
+                // falsche Folie darunter
+                if let own = await CommunityCourses.localPDF(fingerprint: c.fingerprint, host: host) {
+                    let pdf = OffscreenPDF(url: own.url)
+                    if await pdf.pageCount() == c.pdfPageCount { ownPDF = pdf }
+                }
+            }
             if service.supportsDiscussion { comments = try await service.comments(solutionID: solution.solutionID) }
         } catch { self.error = CommunityTexts.message(error) }
     }
@@ -614,6 +633,8 @@ struct CommunityReaderPage: View {
 
     let page: SolutionPage
     let images: [String: UIImage]
+    /// eigene PDF des Betrachters (gleicher Fingerabdruck): PDF-Seiten erscheinen darauf wie beim Absender
+    var source: OffscreenPDF?
     var marks: [Mark] = []
     var tapped: ((CommunityComment.Anchor) -> Void)?
     /// Beschriftung ueber der Seite: "PDF-Seite 4", "Notiz zu Folie 4" (`SolutionBuilder.pageTitle`, 05.11.2026)
@@ -653,9 +674,13 @@ struct CommunityReaderPage: View {
                     .accessibilityLabel("Seite wird geladen")
             }
         }
-        .task(id: page.key) {
+        .task(id: page.key + (source == nil ? "" : "-pdf")) {
             let page = self.page, images = self.images
-            image = await Task.detached(priority: .utility) { ImageBox(SolutionPreview.image(page, images: images, width: 860)) }.value.image
+            if let source {
+                image = await source.solutionPreview(page, images: images, width: 860, scale: 2)
+            } else {
+                image = await Task.detached(priority: .utility) { ImageBox(SolutionPreview.image(page, images: images, width: 860)) }.value.image
+            }
         }
     }
 
@@ -675,6 +700,8 @@ struct CommunitySolutionsSheet: View {
     /// "Laden und anzeigen": derselbe Weg wie die Datei (`DocumentStore.importFromCommunity`)
     let importer: (String) async throws -> SolutionImportResult
     let onImported: (SolutionImportResult) -> Void
+    /// "Daneben ansehen": geladen und neben dem eigenen Dokument zeigen, auf den eigenen PDF-Seiten (13.11.2026)
+    var onBeside: ((String) -> Void)?
     let close: () -> Void
 
     @State private var items: [CommunitySolutionSummary]?
@@ -779,6 +806,11 @@ struct CommunitySolutionsSheet: View {
                                      load(s)
                                  }
                                  .disabled(busyID != nil)
+                                 if onBeside != nil {
+                                     UFButton("Daneben ansehen", icon: "layers", size: .small) { load(s, beside: true) }
+                                         .disabled(busyID != nil)
+                                         .accessibilityIdentifier("community.beside.\(s.solutionID)")
+                                 }
                                  if service.supportsDiscussion {
                                      UFButton("Kommentare", size: .small) { discussing = s }
                                  }
@@ -808,7 +840,7 @@ struct CommunitySolutionsSheet: View {
         }
     }
 
-    private func load(_ s: CommunitySolutionSummary) {
+    private func load(_ s: CommunitySolutionSummary, beside: Bool = false) {
         busyID = s.solutionID
         error = nil
         Task {
@@ -816,6 +848,7 @@ struct CommunitySolutionsSheet: View {
             do {
                 let result = try await importer(s.solutionID)
                 onImported(result)
+                if case .shown = result, beside, let onBeside { onBeside(s.solutionID); return }
                 if case .shown = result { notice = "Lösung geladen – sie liegt jetzt unter „Ebenen“ über deiner PDF." }
             } catch {
                 self.error = CommunityTexts.message(error)

@@ -138,6 +138,8 @@ struct LibraryView: View {
     @Environment(\.ufLogoMenu) private var logoMenu
     /// Reiter der offenen Dokumente dieses Fensters (`router.tabs`, `DocumentTabList`)
     @EnvironmentObject private var router: UFRouter
+    /// Dokument neu oeffnen nach "Hier bearbeiten" (13.11.2026)
+    @ObservedObject private var reopen = DocumentReopen.shared
     @State private var library: LibraryResponse?
     @State private var loadError: String?
     @State private var moduleSelection: String? = "all"
@@ -261,7 +263,9 @@ struct LibraryView: View {
                         // ohne Seite aus der Route an die gemerkte Stelle des Reiters (Seite, Punkt, Zoom)
                         DocumentView(file: f, api: api, initialPDFPage: f.id == openFile ? openPage : nil,
                                      initialSpot: f.id == openFile && openPage != nil ? nil : router.tabs.entry(f.id)?.spot,
-                                     task: f.id == openFile ? openTask : nil).id("\(api.namespace.id)/\(f.id)")
+                                     task: f.id == openFile ? openTask : nil)
+                            // neue Generation: dasselbe Dokument neu oeffnen ("Hier bearbeiten", DocumentReopen)
+                            .id("\(api.namespace.id)/\(f.id)/\(reopen.generation(f.id))")
                     } else if f.opensAsText {
                         // Word, PowerPoint, Audio: Text je Seite mit KI-Hilfe daneben statt nur der Vorschau (docs/DATEIARTEN.md)
                         TextDocumentView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")

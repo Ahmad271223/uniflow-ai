@@ -190,6 +190,11 @@ struct Companion: Identifiable, Equatable {
     let file: LibFile
     /// PDF-Seite (1-basiert, wie von /api/related geliefert), `nil` = Anfang.
     let pdfPage: Int?
+    /// "Leeres Blatt" zu einem Dokument, das schon ein Blatt hat: unten eine Seite mit dieser Vorlage anfuegen und
+    /// hinspringen, statt ein weiteres Notizbuch anzulegen (Wunsch des Inhabers 13.11.2026)
+    var appendTemplate: String? = nil
+    /// je Anfuegen neu, damit die Ansicht daneben auch beim selben Blatt neu anfaengt
+    var request = ""
     var id: String { file.id }
 }
 
@@ -218,6 +223,8 @@ struct DocumentView: View {
     @AppStorage(TutorPanelWidth.key) private var tutorStoredWidth = 0.0
     /// Ziehen an der Kopfzeile der Spalte daneben laeuft (x im Raum "split", nil = noch nicht bewegt)
     @State private var swapDrag: CGFloat?? = nil
+    /// wird gerade neu geoeffnet (nach "Hier bearbeiten" bzw. Freigabe im anderen Fenster)
+    @State private var reopening = false
     @State private var fullScreen = false
     /// Praesentation (11.11.2026): ohne Leisten, ganze Seite, seitenweise blaettern
     @State private var presenting = false
@@ -778,6 +785,14 @@ struct DocumentView: View {
         // App im Hintergrund: Helligkeit vorerst zurueck, beim Zurueckkommen wieder hell
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { freeze.suspend() } else if phase == .active { freeze.resume() }
+            // Fenster im Hintergrund gibt das Dokument frei fuer ein anderes Fenster; wieder vorn: ist das Dokument hier
+            // nur zum Ansehen und das andere Fenster nicht zu sehen, hier neu oeffnen und schreiben (13.11.2026)
+            store.setSceneVisible(phase != .background)
+            companionStore?.setSceneVisible(phase != .background)
+            if phase == .active { reopenHere(force: false) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .uniflowDocumentReleased)) { n in
+            if n.userInfo?["key"] as? String == store.openKey { reopenHere(force: false) }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         // Menueleiste (Mac, iPad mit Tastatur): Befehle an dieses Dokument
@@ -849,9 +864,13 @@ struct DocumentView: View {
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
+                            linkedSheetIDs: store.sideSheetFileIDs,
                             solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
                             onSolution: { id in
                                 if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
+                            }, onAppend: { f, template in
+                                solutionSide = nil
+                                companion = Companion(file: f, pdfPage: nil, appendTemplate: template, request: UUID().uuidString)
                             }) { f in
                 solutionSide = nil
                 companion = Companion(file: f, pdfPage: nil)
@@ -876,9 +895,10 @@ struct DocumentView: View {
         }
         .ufModal(isPresented: Binding(get: { pendingExport != nil }, set: { if !$0 { pendingExport = nil } })) {
             if let scope = pendingExport {
-                PDFExportNoticeDialog(scope: scope, confirm: exportPurpose.confirmTitle, export: {
+                PDFExportNoticeWithSheets(store: store, api: api, open: companionStore, scope: scope, confirm: exportPurpose.confirmTitle,
+                                          export: { excluded in
                     pendingExport = nil
-                    share(scope, purpose: exportPurpose)
+                    share(scope, purpose: exportPurpose, excludedSheets: excluded)
                 }, cancel: { pendingExport = nil })
             }
         }
@@ -991,6 +1011,7 @@ struct DocumentView: View {
         // zu sehen oder nicht: ein anderes Fenster darf ein nicht sichtbares Dokument uebernehmen (OpenDocuments)
         .onAppear {
             store.setShown(true)
+            reopenHere(force: false)
             // Reiterwechsel: erst Stift und Finger abwarten, Stelle merken, Striche sichern (`DocumentTabList`)
             if tabsEnabled {
                 router.tabs.setLeaveGuard(leaveOwner) { [store, bridge, tabs = router.tabs] in
@@ -1098,14 +1119,36 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, tools: tools.tools, undoManager: tools.undo,
-                      pencilOnly: pencilOnly, canEdit: canWrite, viewLocked: freeze.locksView, onStore: { [store, bridge] s, shown in
+                      pencilOnly: pencilOnly, canEdit: canWrite, viewLocked: freeze.locksView, appendTemplate: c.appendTemplate,
+                      onStore: { [store, bridge] s, shown in
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
                           Self.linkSideSheet(s, shown: shown, main: store, bridge: bridge)
-                      }) {
+                      }) { [bridge] in
+            // wo das Blatt danach zu finden ist (Fehlerbericht 13.11.2026: geschlossen, dann nirgends mehr gesehen)
+            if c.file.isNotebook { bridge.hint = .init(text: Self.sheetClosedHint(c.file.displayTitle)) }
             companion = nil
         }
-        .id(c.id + "-" + String(c.pdfPage ?? -1))
+        .id(c.id + "-" + String(c.pdfPage ?? -1) + c.request)
+    }
+
+    /// Nur zum Ansehen, weil ein anderes Fenster das Dokument haelt: hier neu oeffnen und schreiben. `force`: "Hier
+    /// bearbeiten" (das andere Fenster gibt ab, auch wenn es zu sehen ist); sonst nur, wenn das andere Fenster nicht zu
+    /// sehen ist (im Hintergrund, Dokument dort geschlossen). Nur in der Dokumentansicht der App (Reiter), nicht in alten
+    /// Fassungen oder ZIP-Ordnern.
+    private func reopenHere(force: Bool) {
+        guard tabsEnabled, store.canTakeOverHere, force || !store.writerElsewhereShown, !reopening else { return }
+        reopening = true
+        Task {
+            if force { await store.takeOverFromOtherWindow() }
+            await store.close()
+            DocumentReopen.shared.reopen(store.file.id)
+        }
+    }
+
+    /// Hinweis nach dem Schliessen eines Blatts daneben: gespeichert, und wo es wieder auftaucht
+    static func sheetClosedHint(_ title: String) -> String {
+        "„\(title)“ ist gespeichert. Wieder öffnen: „Geteilt“ › Deine Blätter, Bibliothek › Eigene Notizen oder „Zuletzt benutzt“."
     }
 
     /// Blatt daneben (Notizbuch): wer darauf schreibt, schreibt neben der gerade angezeigten Seite dieses Dokuments.
@@ -1812,10 +1855,20 @@ struct DocumentView: View {
             // "Laden und anzeigen" nimmt denselben Weg wie die Datei (fremde Ebene, eigene Notizen unveraendert)
             CommunitySolutionsSheet(fingerprint: fp, service: SolutionSharing.community,
                                     importer: { id in try await store.importFromCommunity(id, service: SolutionSharing.community) },
-                                    onImported: { result in Task { await handleImport(result) } }) { solutionSheet = nil }
+                                    onImported: { result in Task { await handleImport(result) } },
+                                    onBeside: { id in Task { await showSolutionBeside(id) } }) { solutionSheet = nil }
         case .locked(let feature):
             SolutionLockedSheet(feature: feature) { solutionSheet = nil }
         }
+    }
+
+    /// Geladene Community-Loesung neben dem Dokument zeigen: jede Seite auf der eigenen PDF-Seite (gleicher Fingerabdruck)
+    /// bzw. auf der Vorlage des leeren Blatts, wie sie geschrieben wurde (Wunsch des Inhabers 13.11.2026)
+    private func showSolutionBeside(_ id: String) async {
+        await reloadSolutionLayers()
+        solutionSheet = nil
+        guard let layer = foreignLayers.first(where: { $0.id == id }) else { return }
+        if entitlements.allows(.splitView) { companion = nil; solutionSide = layer } else { lockedFeature = .splitView }
     }
 
     /// Passende Loesungen neu laden (Lesen, auch in Free). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
@@ -1980,13 +2033,16 @@ struct DocumentView: View {
     }
 
     /// PDF mit Notizen (Ganzes Dokument oder aktuelle Seite) erzeugen und das Teilen-Menue des Systems zeigen.
-    private func share(_ scope: ShareScope, purpose: ExportPurpose = .share) {
+    private func share(_ scope: ShareScope, purpose: ExportPurpose = .share, excludedSheets: Set<String> = []) {
         exporting = true
         Task {
             defer { exporting = false }
             do {
-                // Seitennotizen und Blaetter daneben gehen direkt hinter ihrer Folie mit (NotesExport, 05.11.2026)
-                let result = try await NotesExport.pdf(for: store, api: api, options: .init(scope: scope))
+                // Seitennotizen und Blaetter daneben gehen direkt hinter ihrer Folie mit (NotesExport, 05.11.2026); das
+                // gerade offene Blatt geht mit, im Hinweis abgewaehlte und solche im Papierkorb nicht (13.11.2026)
+                var options = NotesExport.Options(scope: scope)
+                options.excludedSheets = excludedSheets
+                let result = try await NotesExport.pdf(for: store, api: api, options: options, open: companionStore)
                 if purpose == .print {
                     PDFPrinting.print(result.url, title: store.file.displayTitle) { error in
                         if let error { actionError = "Drucken fehlgeschlagen: \(error)" }
@@ -2051,7 +2107,7 @@ struct DocumentView: View {
                 Label("Lokale Notizen nicht lesbar – nur ansehen", systemImage: "exclamationmark.triangle").lineLimit(1)
             } else if let label = store.viewOnlyLabel {
                 Divider().frame(height: 14)
-                Label(label, systemImage: "eye").lineLimit(1)
+                ViewOnlyElsewhereLabel(label: label, canTakeOver: store.canTakeOverHere && tabsEnabled) { reopenHere(force: true) }
             } else if !planAllowsWriting {
                 Divider().frame(height: 14)
                 Button { lockedFeature = .pencilWriting } label: {
@@ -2100,13 +2156,16 @@ struct CompanionView: View {
     let canEdit: Bool
     /// "Ansicht fixieren" im Hauptdokument fixiert auch das Dokument daneben
     var viewLocked = false
+    /// nach dem Laden unten eine Seite mit dieser Vorlage anfuegen und hinspringen (`Companion.appendTemplate`)
+    var appendTemplate: String?
     /// meldet das offene Dokument an die Hauptansicht (sichtbar ja/nein)
     var onStore: (DocumentStore, Bool) -> Void = { _, _ in }
     let onClose: () -> Void
 
     init(file: LibFile, api: APIClient, pdfPage: Int?, tools: EditorToolState, undoManager: UndoManager,
-         pencilOnly: Bool, canEdit: Bool = true, viewLocked: Bool = false,
+         pencilOnly: Bool, canEdit: Bool = true, viewLocked: Bool = false, appendTemplate: String? = nil,
          onStore: @escaping (DocumentStore, Bool) -> Void = { _, _ in }, onClose: @escaping () -> Void) {
+        self.appendTemplate = appendTemplate
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
@@ -2119,11 +2178,15 @@ struct CompanionView: View {
         self.onClose = onClose
     }
 
+    /// "Eigenes Fenster" nur am Mac: auf dem iPad schob das neue Fenster das Dokument ganz weg (Vollbild), man kam nicht
+    /// mehr zur PDF zurueck und sie blieb im alten Fenster gesperrt (Fehlerbericht des Inhabers 13.11.2026)
+    static var offersOwnWindow: Bool { PDFEditorController.isMac && DocumentWindows.supported }
+
     var body: some View {
         VStack(spacing: 0) {
             // Kopf wie KI-Hilfe und Loesung daneben (UFPaneHeader)
             UFPaneHeader(store.file.displayTitle, icon: store.file.isNotebook ? "note" : "file-text", close: onClose) {
-                if DocumentWindows.supported {
+                if Self.offersOwnWindow {
                     // Uebung bzw. Loesung als eigenes Fenster (Mac: frei verschieben, auch auf einen zweiten Bildschirm)
                     Button {
                         let id = store.file.id
@@ -2134,7 +2197,7 @@ struct CompanionView: View {
                             try? await Task.sleep(nanoseconds: 300_000_000)
                             DocumentWindows.open(fileID: id, page: page)
                         }
-                    } label: { Image(systemName: "macwindow.badge.plus") }
+                    } label: { Label("Eigenes Fenster", systemImage: "macwindow.badge.plus").ufFont(12.8, 600) }
                     .buttonStyle(.plain)
                     .foregroundStyle(UF.text2)
                     .accessibilityLabel("In eigenem Fenster öffnen")
@@ -2142,7 +2205,10 @@ struct CompanionView: View {
                 }
                 StatusLabel(status: store.status)
                 SyncIssueBadge(store: store)
-                Text("S. \(bridge.pageIndex + 1)").ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
+                // weitere Seite unter der angezeigten, wie "Seite anhängen" im Hauptdokument (Frage des Inhabers 13.11.2026)
+                CompanionAddPageButton(store: store, bridge: bridge,
+                                       enabled: canEdit && store.pdf != nil && !store.journalUnreadable && !store.viewOnlyHere)
+                CompanionPageLabel(bridge: bridge, count: store.layout?.entries.count ?? 0)
             }
             if let error = store.errorMessage {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
@@ -2155,7 +2221,20 @@ struct CompanionView: View {
                 ProgressView().frame(maxHeight: .infinity)
             }
         }
-        .task { await store.load() }
+        .task {
+            await store.load()
+            // fuer "Zuletzt benutzt" (Uebersicht) und "Zuletzt bearbeitet" (Bibliothek): ein Blatt daneben war sonst
+            // nach dem Schliessen nirgends zu sehen (Fehlerbericht 13.11.2026)
+            if store.errorMessage == nil, !store.isOldVersion {
+                _ = try? await api.value("/api/files/\(store.file.id)/opened", method: "POST", body: [:])
+            }
+            if let t = appendTemplate, canEdit, store.isWritable, let index = await Self.appendPage(to: store, template: t) {
+                // warten, bis der Editor da ist, dann zur neuen Seite
+                for _ in 0..<40 where bridge.controller == nil { try? await Task.sleep(nanoseconds: 50_000_000) }
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                bridge.controller?.goToPage(index)
+            }
+        }
         .onAppear {
             store.setShown(true)
             onStore(store, true)
@@ -2169,6 +2248,134 @@ struct CompanionView: View {
     }
 }
 
+/// "In einem anderen Fenster offen – nur ansehen" mit "Hier bearbeiten" (uebernimmt das Dokument aus dem anderen
+/// Fenster; Fehlerbericht 13.11.2026: das andere Fenster war nicht zu finden, die PDF blieb gesperrt)
+struct ViewOnlyElsewhereLabel: View {
+    let label: String
+    let canTakeOver: Bool
+    let takeOver: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(label, systemImage: "eye").lineLimit(1)
+            if canTakeOver {
+                Button(action: takeOver) {
+                    Text("Hier bearbeiten").fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent).controlSize(.mini)
+                .accessibilityIdentifier("doc.takeOverHere")
+                .accessibilityHint("Das andere Fenster gibt das Dokument ab, hier kannst du schreiben")
+            }
+        }
+    }
+}
+
+extension CompanionView {
+    /// Weitere Seite unten an ein vorhandenes Blatt: eine leere letzte Seite derselben Vorlage wird wiederverwendet (kein
+    /// Stapel leerer Seiten bei jedem Antippen). Liefert den Index der Zielseite.
+    static func appendPage(to store: DocumentStore, template: String) async -> Int? {
+        guard let entries = store.layout?.entries, let last = entries.last else { return nil }
+        let doc = await store.pageStructureDocument()
+        if last.kind == "blank", last.template == template, doc.objects(page: last.key).isEmpty { return entries.count - 1 }
+        await store.addBlankPage(afterKey: last.key, template: template)
+        return (store.layout?.entries.count ?? entries.count + 1) - 1
+    }
+}
+
+/// "S. 2 / 3" in der Kopfzeile des Dokuments daneben (die Seitenzahl zeigt, dass es weitere Seiten gibt)
+struct CompanionPageLabel: View {
+    @ObservedObject var bridge: EditorBridge
+    let count: Int
+
+    var body: some View {
+        Text(count > 1 ? "S. \(bridge.pageIndex + 1) / \(count)" : "S. \(bridge.pageIndex + 1)")
+            .ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
+            .accessibilityIdentifier("companion.pageLabel")
+    }
+}
+
+/// "+" im Kopf des Dokuments daneben: leere Seite direkt unter der angezeigten, mit deren Vorlage (wie "Seite
+/// anhängen" in der Seitenleiste); gedrueckt halten bzw. Menue: Vorlage waehlen. Vorher ging daneben nur das eine
+/// Blatt (Frage des Inhabers 13.11.2026).
+struct CompanionAddPageButton: View {
+    let store: DocumentStore
+    @ObservedObject var bridge: EditorBridge
+    let enabled: Bool
+
+    var body: some View {
+        Menu {
+            Section("Seite darunter einfügen") {
+                ForEach(PaperTemplate.choices, id: \.id) { t in
+                    Button(t.name) { add(t.id) }
+                }
+            }
+        } label: {
+            // beschriftet, damit er nicht mit einem Fenster-Knopf verwechselt wird
+            Label("Seite", systemImage: "plus").ufFont(12.8, 600)
+                .padding(.horizontal, 8).frame(height: 30)
+                .background(UF.surface2, in: Capsule())
+                .contentShape(Capsule())
+        } primaryAction: {
+            add(Self.template(store.layout?.entries, at: bridge.pageIndex))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(enabled ? UF.text2 : UF.muted)
+        .disabled(!enabled)
+        .accessibilityLabel("Seite darunter einfügen")
+        .accessibilityHint("Leere Seite unter der angezeigten; gedrückt halten für Vorlagen")
+        .accessibilityIdentifier("companion.addPage")
+        .modifier(MacHelp(text: "Seite darunter einfügen"))
+    }
+
+    /// Vorlage der angezeigten Seite (Leerseite), sonst "blank" - wie `PageSidebarActions.appendTemplate`
+    static func template(_ entries: [DisplayLayout.Entry]?, at index: Int) -> String {
+        guard let entries, entries.indices.contains(index) else { return PageSidebarActions.appendTemplate(lastEntry: entries?.last) }
+        return PageSidebarActions.appendTemplate(lastEntry: entries[index])
+    }
+
+    private func add(_ template: String) {
+        let after = bridge.pageKey
+        Task { await bridge.controller?.insertBlankPage(after: after, template: template) }
+    }
+}
+
+/// "Deine Blätter zu diesem Dokument" unter "Daneben öffnen": Blaetter, die schon einmal neben diesem Dokument
+/// beschrieben wurden, mit Datum; eins im Papierkorb laesst sich hier wiederherstellen (Fehlerbericht 13.11.2026)
+struct CompanionOwnSheetsSection: View {
+    let sheets: [SideSheetLoader.Entry]
+    let open: (String) -> Void
+    let restore: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Deine Blätter zu diesem Dokument").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+            VStack(spacing: 0) {
+                ForEach(Array(sheets.enumerated()), id: \.element.id) { i, e in
+                    if i > 0 { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
+                    Button { e.trashed ? restore(e.id) : open(e.id) } label: {
+                        HStack(spacing: 12) {
+                            UFIcon("note", size: 18).foregroundStyle(e.trashed ? UF.muted : UF.accent).frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(e.title).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
+                                Text([e.trashed ? "im Papierkorb" : nil, e.editedLabel].compactMap { $0 }.joined(separator: " · "))
+                                    .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            Text(e.trashed ? "Wiederherstellen" : "Daneben öffnen").ufFont(12.8, 600).foregroundStyle(UF.accentText)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("companion.own.\(i)")
+                }
+            }
+            .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
+        }
+    }
+}
+
 /// "Daneben öffnen": ein leeres Blatt mit Vorlage (mitschreiben, ohne auf die Folie zu schreiben) oder ein vorhandenes
 /// Dokument (Dokumente desselben Moduls zuerst). Das Blatt ist ein Notizbuch im Modul der offenen Datei.
 struct CompanionPicker: View {
@@ -2177,17 +2384,24 @@ struct CompanionPicker: View {
     let excluding: String
     /// Titel der offenen Datei, fuer den Namen des neuen Blatts
     var sourceTitle = ""
+    /// Blaetter, die neben diesem Dokument beschrieben wurden (`sideSheets`): "Deine Blätter zu diesem Dokument"
+    var linkedSheetIDs: [String] = []
     /// empfangene Loesungen zu dieser PDF (ID, Name): "Lösung daneben ansehen" steht dann zuerst
     var solutions: [(id: String, label: String)] = []
     /// Lage von Folie und Loesung nach der Schreibhand (SplitSides.solutionHint)
     var solutionHint = SplitSides.solutionHint(hand: "right")
     var onSolution: (String) -> Void = { _ in }
+    /// "Leeres Blatt", wenn es zu diesem Dokument schon ein Blatt gibt: dort unten eine Seite anfuegen (Blatt, Vorlage).
+    /// nil: immer ein neues Notizbuch (alter Weg)
+    var onAppend: ((LibFile, String) -> Void)? = nil
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var files: [LibFile] = []
     @State private var query = ""
     @State private var error: String?
     @State private var creating: String?
+    /// eigene Blaetter zu diesem Dokument (verknuepft oder nach ihm benannt), auch solche im Papierkorb
+    @State private var ownSheets: [SideSheetLoader.Entry] = []
 
     /// Vorlagen fuer das leere Blatt in der Reihenfolge der Auswahl im Editor
     static var blankTemplates: [(id: String, name: String)] { PaperTemplate.choices }
@@ -2203,6 +2417,10 @@ struct CompanionPicker: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     if !solutions.isEmpty { solutionSection }
+                    if !ownSheets.isEmpty {
+                        CompanionOwnSheetsSection(sheets: ownSheets, open: { id in Task { await openOwn(id, restore: false) } },
+                                                  restore: { id in Task { await openOwn(id, restore: true) } })
+                    }
                     blankSection
                     documentSection
                 }
@@ -2245,7 +2463,9 @@ struct CompanionPicker: View {
     private var blankSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Leeres Blatt").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-            Text("Zum Mitschreiben neben der Folie, ohne auf sie zu schreiben. Das Blatt landet bei deinen Notizen im Modul.")
+            Text(ownSheets.contains { !$0.trashed } && onAppend != nil
+                 ? "Es gibt schon Notizen zu diesem Dokument: die neue Seite kommt dort unten dazu, im gewählten Muster. So bleibt alles in einer Notiz."
+                 : "Zum Mitschreiben neben der Folie, ohne auf sie zu schreiben. Die Notiz bleibt gespeichert: hier oben unter „Deine Blätter“, in der Bibliothek beim Modul unter „Eigene Notizen“ und unter „Zuletzt benutzt“. Mit „+ Seite“ im Kopf kommen weitere Seiten darunter.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 12) {
                 ForEach(Self.blankTemplates, id: \.id) { t in
@@ -2322,6 +2542,44 @@ struct CompanionPicker: View {
         } catch let e {
             error = e.localizedDescription
         }
+        ownSheets = await Self.ownSheets(linked: linkedSheetIDs, named: Self.sheetTitle(for: sourceTitle), library: files,
+                                         excluding: excluding, api: api)
+    }
+
+    /// Eigene Blaetter zu einem Dokument: erst die neben ihm beschriebenen (`sideSheets`, auch im Papierkorb), dann
+    /// Notizbuecher, die "Daneben öffnen" fuer dieses Dokument angelegt hat (Titel "Notizen – <Dokument>"), aber auf
+    /// denen noch nichts verknuepft wurde. Neueste zuerst innerhalb jeder Gruppe.
+    static func ownSheets(linked: [String], named title: String, library: [LibFile], excluding: String,
+                          api: APIClient) async -> [SideSheetLoader.Entry] {
+        var out: [SideSheetLoader.Entry] = []
+        for id in linked where id != excluding {
+            if let e = await SideSheetLoader.entry(id, api: api) { out.append(e) }
+        }
+        let known = Set(out.map(\.id))
+        let named = library.filter { $0.isNotebook && $0.id != excluding && !known.contains($0.id) && $0.displayTitle == title }
+        var more: [SideSheetLoader.Entry] = []
+        for f in named {
+            if let e = await SideSheetLoader.entry(f.id, api: api) { more.append(e) }
+        }
+        let newest: (SideSheetLoader.Entry, SideSheetLoader.Entry) -> Bool = { ($0.edited ?? "") > ($1.edited ?? "") }
+        return out.sorted(by: newest) + more.sorted(by: newest)
+    }
+
+    /// Blatt, in dem ein neues "Leeres Blatt" weitergeht: das zuletzt benutzte nicht geloeschte (verknuepfte zuerst)
+    static func sheetToContinue(_ own: [SideSheetLoader.Entry]) -> String? { own.first { !$0.trashed }?.id }
+
+    /// Eigenes Blatt wieder daneben oeffnen (aus dem Papierkorb zuerst wiederherstellen)
+    private func openOwn(_ id: String, restore: Bool) async {
+        do {
+            if restore { _ = try await api.value("/api/library/files/\(id)", method: "PATCH", body: ["restore": true]) }
+            var f = try await library().first(where: { $0.id == id })
+            if f == nil { f = try await api.json("/api/files/\(id)", as: LibFile.self) }
+            guard let f else { return }
+            onPick(f)
+            dismiss()
+        } catch let e {
+            error = e.localizedDescription
+        }
     }
 
     /// Neues Notizbuch mit Vorlage im Modul der offenen Datei, dann daneben oeffnen
@@ -2332,6 +2590,22 @@ struct CompanionPicker: View {
         }
         creating = template
         defer { creating = nil }
+        // schon ein Blatt zu diesem Dokument: neue Seite dort unten statt eines weiteren "Notizen – …" (13.11.2026)
+        if let onAppend {
+            let own = ownSheets.isEmpty
+                ? await Self.ownSheets(linked: linkedSheetIDs, named: Self.sheetTitle(for: sourceTitle), library: files,
+                                       excluding: excluding, api: api)
+                : ownSheets
+            if let id = Self.sheetToContinue(own) {
+                var f = files.first(where: { $0.id == id })
+                if f == nil { f = try? await api.json("/api/files/\(id)", as: LibFile.self) }
+                if let f {
+                    onAppend(f, template)
+                    dismiss()
+                    return
+                }
+            }
+        }
         var fields = NotebookDialog.fields(kind: "notebook", title: Self.sheetTitle(for: sourceTitle), template: template,
                                            format: PageFormats.defaultNotebook, orientation: .portrait)
         if let moduleID { fields["module_id"] = "\(moduleID)" }
