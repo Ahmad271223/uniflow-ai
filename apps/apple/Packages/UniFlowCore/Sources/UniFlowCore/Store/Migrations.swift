@@ -147,7 +147,13 @@ public enum Migrations {
         .addColumn("study_packages", "locked", "INTEGER DEFAULT 0"),
         .addColumn("study_packages", "manual", "INTEGER DEFAULT 0"),
         .sql("CREATE INDEX IF NOT EXISTS ix_study_sessions_module ON study_sessions(module_id)"),
+        // Haken "erledigt" je Datei (13.11.2026): schon erledigte Dateien bekommen ihren Eintrag fuer den Geraete-Abgleich
+        .sql(Migrations.fileDoneBackfill),
     ]
+
+    /// `db.FILE_DONE_BACKFILL`, woertlich (bei jedem Start, nur fehlende Eintraege)
+    static let fileDoneBackfill = "INSERT OR IGNORE INTO settings(key, value) SELECT 'file_done:' || id, '1' FROM files "
+        + "WHERE status = 'erledigt'"
 
     /// `db.FLASHCARD_RESULT_BACKFILL`: einmalige Vorbelegung von flashcards.last_result, woertlich
     static let flashcardResultBackfill = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"

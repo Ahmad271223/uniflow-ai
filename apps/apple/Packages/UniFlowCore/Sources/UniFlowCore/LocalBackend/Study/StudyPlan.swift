@@ -144,6 +144,10 @@ enum StudyPlan {
                       [taskID, t["package_id"] ?? .null, t["status"] ?? .null, .text(status), t["date"] ?? .null, t["date"] ?? .null, note, now])
         if status == "erledigt" && LocalModules.truthy(t["file_id"]) {
             try c.execute("UPDATE files SET status='erledigt', seen_by_user=1 WHERE id=?", [t["file_id"] ?? .null])
+        } else if t["status"]?.string == "erledigt", ModuleDone.openTasks.contains(status), LocalModules.truthy(t["file_id"]),
+                  !ModuleDone.ownResult.contains(t["type"]?.string ?? "") {
+            // wieder geoeffnet: die Datei ist auch nicht mehr erledigt (ein Stand, `ModuleDone`)
+            try c.execute("UPDATE files SET status='gelesen', seen_by_user=1 WHERE id=? AND status='erledigt'", [t["file_id"] ?? .null])
         }
         try refreshStatuses(c, today: T.today(clock))
         return try c.rows("SELECT * FROM study_tasks WHERE id=?", [taskID]).first.map(JSONValue.object) ?? .null

@@ -104,8 +104,16 @@ public enum FilesEndpoints: LocalEndpointModule {
             if case .string(let s)? = body.value("status"), ["neu", "gelesen", "erledigt"].contains(s) { status = s }
             let difficulty = try body.has("difficulty") ? LocalTerms.pyInt(body.value("difficulty"), field: "difficulty") : nil
             let newStatus = status
+            let clock = ctx.clock
             let row = try await ctx.database.transaction { c -> JSONValue in
-                if let newStatus { try c.execute("UPDATE files SET status=?, seen_by_user=1 WHERE id=?", [.text(newStatus), id]) }
+                if let newStatus {
+                    // erledigt an/aus: ein Stand mit den Lernaufgaben (`ModuleDone`), dann der gewaehlte Status
+                    if let old = try c.queryOne("SELECT status FROM files WHERE id=?", [id]),
+                       (newStatus == "erledigt") != (old["status"]?.string == "erledigt"), let fid = id.string {
+                        _ = try ModuleDone.set(c, fileIDs: [fid], done: newStatus == "erledigt", reopen: try ModuleDone.filePlanned(c, fileID: fid), clock: clock)
+                    }
+                    try c.execute("UPDATE files SET status=?, seen_by_user=1 WHERE id=?", [.text(newStatus), id])
+                }
                 if let difficulty { try c.execute("UPDATE analysis SET difficulty=? WHERE file_id=?", [.integer(Int64(difficulty)), id]) }
                 // Regel G6 (server._changed/_found): unbekannte Datei -> 404
                 guard let row = try c.queryOne("SELECT * FROM files WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Datei nicht gefunden") }

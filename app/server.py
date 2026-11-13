@@ -1369,6 +1369,10 @@ def put_page_text(file_id: str, body: dict = Body(...)):
 def patch_file(file_id: str, body: dict = Body(...)):
     with db.cursor() as conn:
         if "status" in body and body["status"] in ("neu", "gelesen", "erledigt"):
+            # erledigt an/aus: ein Stand mit den Lernaufgaben (study.set_files_done), dann der gewaehlte Status
+            old = db.row(conn, "SELECT status FROM files WHERE id=?", (file_id,))
+            if old and (body["status"] == "erledigt") != (old["status"] == "erledigt"):
+                study.set_files_done(conn, [file_id], body["status"] == "erledigt", reopen=study.file_planned(conn, file_id))
             conn.execute("UPDATE files SET status=?, seen_by_user=1 WHERE id=?", (body["status"], file_id))
         if "difficulty" in body:
             conn.execute("UPDATE analysis SET difficulty=? WHERE file_id=?", (_int_value("difficulty", body["difficulty"], 1, 5), file_id))
@@ -3369,7 +3373,8 @@ def api_module_done(module_id: int, body: dict = Body(...)):
 
     def mark(conn, now):
         mine = {f["id"] for f in study.module_detail(conn, module_id).get("files", [])}
-        return study.set_files_done(conn, [f for f in wanted if f in mine], done)
+        # abgewaehltes Fach (plan_modules_off): Haken ja, aber keine Aufgaben wieder einplanen
+        return study.set_files_done(conn, [f for f in wanted if f in mine], done, reopen=study.module_planned(conn, module_id))
     changed, tasks = _layout_edit(module_id, mark)
     return {"changed": changed, "tasks": tasks}
 

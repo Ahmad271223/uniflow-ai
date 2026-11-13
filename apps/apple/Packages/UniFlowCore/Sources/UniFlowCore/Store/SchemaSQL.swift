@@ -405,6 +405,36 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT
 );
 
+-- Haken "erledigt" je Datei (13.11.2026): ein Stand, files.status = 'erledigt'. Fuer den Geraete-Abgleich steht er
+-- zusaetzlich als Einstellung 'file_done:<Datei-ID>' = '1' bzw. '0' (der Abgleich der Einstellungen bringt ihn auf
+-- die anderen Geraete, der neuere Stand gewinnt). Die Trigger halten beides gleich: Aenderung der Datei -> Eintrag,
+-- angekommener Eintrag -> Datei, spaeter geladene Datei -> Stand aus dem Eintrag.
+CREATE TRIGGER IF NOT EXISTS trg_file_done_from_status AFTER UPDATE OF status ON files
+WHEN (NEW.status = 'erledigt') <> (OLD.status IS 'erledigt')
+BEGIN
+    INSERT INTO settings(key, value) VALUES ('file_done:' || NEW.id, CASE WHEN NEW.status = 'erledigt' THEN '1' ELSE '0' END)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE settings.value IS NOT excluded.value;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_file_done_new_file AFTER INSERT ON files
+BEGIN
+    UPDATE files SET status = CASE WHEN status = 'erledigt' THEN 'gelesen' ELSE 'erledigt' END, seen_by_user = 1
+    WHERE id = NEW.id AND EXISTS (SELECT 1 FROM settings WHERE key = 'file_done:' || NEW.id
+                                  AND (value = '1') <> (NEW.status IS 'erledigt'));
+    INSERT OR IGNORE INTO settings(key, value) SELECT 'file_done:' || NEW.id, '1' WHERE NEW.status IS 'erledigt';
+END;
+CREATE TRIGGER IF NOT EXISTS trg_file_done_mark_ins AFTER INSERT ON settings
+WHEN NEW.key LIKE 'file_done:%'
+BEGIN
+    UPDATE files SET status = CASE WHEN NEW.value = '1' THEN 'erledigt' ELSE 'gelesen' END, seen_by_user = 1
+    WHERE id = substr(NEW.key, 11) AND (status IS 'erledigt') <> (NEW.value IS '1');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_file_done_mark_upd AFTER UPDATE OF value ON settings
+WHEN NEW.key LIKE 'file_done:%' AND NEW.value IS NOT OLD.value
+BEGIN
+    UPDATE files SET status = CASE WHEN NEW.value = '1' THEN 'erledigt' ELSE 'gelesen' END, seen_by_user = 1
+    WHERE id = substr(NEW.key, 11) AND (status IS 'erledigt') <> (NEW.value IS '1');
+END;
+
 CREATE TABLE IF NOT EXISTS sync_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT,
