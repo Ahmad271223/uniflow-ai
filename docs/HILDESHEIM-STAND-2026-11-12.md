@@ -94,12 +94,18 @@ Code und Tests. Keine Anfrage an Uni-Seiten, keine Anmeldung.
 11. Erst wenn 1–9 passen: `UF_SHIPPED_UNIVERSITIES` für Release auf `"luh hildesheim"` und `ipad_hildesheim` in
     `docs/release/angaben.json` auf `true`, Store-Texte neu füllen.
 
-## 6. Tests
+## 6. Tests (13.11.2026, nach Zusammenführen mit develop 09b55ff4)
 
-- Kern: `ModuleLayoutTests` (11 Fälle, inkl. gemeinsamer Fälle mit Python), `HildesheimGradesAttemptsTests`, alle
-  1469 Kern-Tests grün vor den Hildesheim-Änderungen (danach die betroffenen erneut).
-- Python: `tests/test_module_layout.py` (Fixture aktuell, Reihenfolge, Endpunkte), `tests/test_study_weeks.py`.
-- App: `ModuleLayoutAppTests` (Nicht zugeordnet, Vorschläge, eigener Abschnitt, LUH-Sammelupload, Bildschirmfotos),
-  `ViewTypeDepthAppTests` um die neuen Ansichten erweitert.
+- Kern: alle 1472 Tests grün (`swift test`), darunter `ModuleLayoutTests` (11 Fälle, inkl. gemeinsamer Fälle mit
+  Python) und `HildesheimGradesAttemptsTests`.
+- Python: 229 Tests der Bereiche Module/Wochen/Planer/Hildesheim grün, dazu `tests/test_module_layout.py`.
+- App (geklonter iPad-Simulator): `ModuleLayoutAppTests`, `HildesheimAppTests` (neu: Sync für alle Portale),
+  `SyncAllPortalsTests`, `StoredLoginConnectTests`, `ViewTypeDepthAppTests` (neue Ansichten flach: Tiefe ≤ 38) und
+  30 weitere Testgruppen (321 Tests) grün. Eine volle Runde aller 1563 App-Tests lief auf dem überlasteten Simulator
+  4,7 statt 0,4 Stunden; die dabei roten Editor-/Store-Tests sind einzeln wiederholt alle grün. Vorbestehend rot (auch
+  auf develop): `BackgroundSyncAppTests.testDeletingTheContainerDuringABackgroundRunLeavesNothing`
+  (`uniflow.studip.studyGroups`).
+- Bildschirmfotos: `~/Studora-Builds/hildesheim/bilder-2026-11-12/` (wochen-01 Hildesheim „Nicht zugeordnet“,
+  wochen-02 eigene Ordnung, wochen-03 LUH-Sammelupload, wochen-04 Abschnitt anlegen; je hell/dunkel).
 - Bekannt, nicht von hier: `tools/gen-local-backend-fixture.py --check` scheitert schon auf develop (6 Pfade in
   `SAMPLES` fehlen); die neuen Pfade der eigenen Wochen müssten dort mit nachgetragen werden.
