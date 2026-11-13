@@ -339,12 +339,26 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         env.pump(1.0)
     }
 
-    /// Modus-Chip der KI-Hilfe antippen (Reiter wechseln, wenn er dort nicht liegt)
-    private func tutorMode(_ env: HostedEnvironment, _ key: String) -> Bool {
+    /// Modus-Chip der KI-Hilfe antippen (Reiter wechseln, wenn er dort nicht liegt). Waehrend eine Anfrage laeuft, sind
+    /// die Chips gesperrt (`.disabled(busy)`): erst warten, bis die vorige Anfrage fertig ist (Befund 13.11.2026: ein
+    /// Tipp in die laufende Anfrage ging ins Leere, "Knopf „Aufgabe lösen“ fehlt")
+    private func tutorMode(_ env: HostedEnvironment, _ key: String, file: StaticString = #filePath, line: UInt = #line) -> Bool {
         let label = TutorPanel.modes.first { $0.key == key }?.label ?? key
-        if button(env, label, prefix: true) == nil, let tab = TutorPanel.Tab.tab(for: key) { _ = tap(env, "Bereich \(tab.title)") }
-        return tap(env, label, prefix: true)
+        waitTutorIdle(env, file: file, line: line)
+        if button(env, label, prefix: true) == nil, let tab = TutorPanel.Tab.tab(for: key) { _ = tap(env, "Bereich \(tab.title)", file: file, line: line) }
+        _ = env.wait(timeout: 10) { self.button(env, label, prefix: true).map { !$0.accessibilityTraits.contains(.notEnabled) } ?? false }
+        return tap(env, label, prefix: true, file: file, line: line)
     }
+
+    /// Bis die KI-Hilfe keine Anfrage mehr laufen hat ("Die KI liest die Seite …" mit "KI-Anfrage stoppen" ist weg)
+    @discardableResult
+    private func waitTutorIdle(_ env: HostedEnvironment, timeout: Double = 30, file: StaticString = #filePath, line: UInt = #line) -> Bool {
+        let ok = env.wait(timeout: timeout) { self.button(env, "KI-Anfrage stoppen") == nil }
+        if !ok { note("KI-Hilfe bleibt nach \(Int(timeout)) s beschäftigt: \(dump(env).prefix(1500))", file: file, line: line) }
+        return ok
+    }
+
+    private var relayCount: Int { KIServiceStub.requests.filter { $0.path == "/api/ai/relay" }.count }
 
     // MARK: - 1 Eigenes ChatGPT (eigener OpenAI-Schluessel), Free / Plus / Pro AI
 
@@ -630,15 +644,23 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         shoot(env, "42-proai-ki-hilfe-credits")
         XCTAssertEqual(KIServiceStub.requests.last { $0.path == "/api/ai/relay" }?.body?["task"]?.string, "tutor:explain")
 
-        // Fehler: Credits leer, Dienst nicht erreichbar, 500, Zeitueberschreitung
-        for (fail, text, shot) in [(KIServiceStub.Fail.credits, "Credits", "43-proai-credits-leer"),
+        // Fehler: Credits leer, Dienst nicht erreichbar, 500, Zeitueberschreitung. Je Fall: die Anfrage muss beim Dienst
+        // ankommen und fertig sein, bevor der Text geprueft wird - sonst passt "Credits" schon auf die Fusszeile der
+        // vorigen Antwort bzw. die Meldung "nicht erreichbar" noch vom Fall davor (Befund 13.11.2026, jeder zweite Lauf rot)
+        for (fail, text, shot) in [(KIServiceStub.Fail.credits, "Credits für diesen Monat sind aufgebraucht", "43-proai-credits-leer"),
                                    (.offline, StudiNowAIText.unreachable, "44-proai-dienst-nicht-erreichbar"),
                                    (.server, StudiNowAIText.unavailable, "45-proai-dienst-500"),
                                    (.timeout, StudiNowAIText.unreachable, "46-proai-zeitueberschreitung")] {
             KIServiceStub.fail = fail
+            waitTutorIdle(env)
+            let before = relayCount
             guard tutorMode(env, "steps") else { continue }
+            if !env.wait(timeout: 20, until: { self.relayCount > before }) { note("\(fail): keine Anfrage beim Dienst") }
+            waitTutorIdle(env)
             if expect(env, text, timeout: 20) { shoot(env, shot) }
-            if fail == .credits { XCTAssertNotNil(button(env, "Tarif ansehen"), "Knopf zu den Tarifen") }
+            if fail == .credits {
+                XCTAssertTrue(env.wait(timeout: 10) { self.button(env, "Tarif ansehen") != nil }, "Knopf zu den Tarifen: \(dump(env).prefix(1500))")
+            }
         }
         KIServiceStub.fail = nil
 
