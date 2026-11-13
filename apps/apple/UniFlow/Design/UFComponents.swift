@@ -1128,9 +1128,15 @@ struct UFPaneHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if let icon { UFIcon(icon, size: 16).foregroundStyle(UF.accent) }
-            Text(title).ufFont(14.5, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
-            Spacer(minLength: 4)
+            // Tausch-Geste (gedrueckt halten und ziehen) nur auf Symbol und Titel: auf der ganzen Kopfzeile konkurrierte
+            // sie mit den Knoepfen ("+ Seite" kam nie an; Meldung 13.11.2026, das X einer Loesung reagierte nicht)
+            HStack(spacing: 8) {
+                if let icon { UFIcon(icon, size: 16).foregroundStyle(UF.accent) }
+                Text(title).ufFont(14.5, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
+                Spacer(minLength: 4)
+            }
+            .frame(minHeight: 44)                          // ganze Hoehe der Kopfzeile, ohne sie zu strecken
+            .modifier(UFPaneSwapGesture(swap: paneSwap))
             trailing
             Button(action: close) {
                 UFIcon("x", size: 16).foregroundStyle(UF.text2)
@@ -1146,7 +1152,6 @@ struct UFPaneHeader<Trailing: View>: View {
         .frame(minHeight: 44)
         .background(UF.surface)
         .ufBorderBottom()
-        .modifier(UFPaneSwapGesture(swap: paneSwap))
     }
 }
 

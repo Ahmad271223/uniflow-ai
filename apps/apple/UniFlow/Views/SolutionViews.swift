@@ -673,7 +673,7 @@ struct SolutionPreviewSheet: View {
                     UFCard {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 132, maximum: 170), spacing: 14)], alignment: .leading, spacing: 14) {
                             ForEach(Array(layer.pages.enumerated()), id: \.element.key) { i, page in
-                                SolutionPageTile(page: page, images: layer.images, title: SolutionBuilder.pageTitle(layer.pages, at: i))
+                                SolutionPageTile(page: page, images: layer.images, title: SolutionPaper.title(layer.pages, at: i))
                             }
                         }
                     }
@@ -799,6 +799,28 @@ struct PDFExportNoticeWithSheets: View {
 /// Eine fremde Loesung in der geteilten Ansicht neben dem eigenen Dokument: nur ansehen (nicht ueber die eigene Seite
 /// gelegt), je Seite die eigene PDF-Seite darunter, eigene Seiten der Loesung auf ihrer Vorlage. Bilder werden je Seite
 /// in der Breite der Spalte gezeichnet, also scharf.
+/// Papier einer geteilten Seite (Wunsch des Inhabers 13.11.2026): Eine eigene Seite des Absenders (leeres Blatt,
+/// Blatt daneben) traegt nur den Namen ihres Musters (`SolutionPage.template`, keine Datei); die Anzeige zeichnet genau
+/// dieses Papier. Der Titel nennt es dazu: "Notiz zu Folie 4 · Liniert".
+enum SolutionPaper {
+    /// Name des Musters einer eigenen Seite ("Liniert", "Kariert" ...), nil fuer PDF-Seiten
+    static func name(_ page: SolutionPage) -> String? {
+        guard page.kind == .blank else { return nil }
+        let t = page.template ?? "blank"
+        return PaperTemplate.choices.first { $0.id == t }?.name ?? "Leer"
+    }
+
+    /// "PDF-Seite 4" bzw. "Notiz zu Folie 4 · Liniert" (`SolutionBuilder.pageTitle` plus Papier)
+    static func title(_ pages: [SolutionPage], at index: Int) -> String {
+        let base = SolutionBuilder.pageTitle(pages, at: index)
+        guard pages.indices.contains(index), let paper = name(pages[index]) else { return base }
+        return base + " · " + paper
+    }
+
+    /// Enthaelt die Loesung Seiten der PDF des Lehrenden? (sonst braucht der Betrachter die PDF gar nicht)
+    static func hasPDFPages(_ pages: [SolutionPage]) -> Bool { pages.contains { $0.kind == .pdf } }
+}
+
 struct SolutionSidePane: View {
     let layer: ForeignSolutionLayer
     /// eigene PDF-Instanz des Dokuments (`OffscreenPDF`): gezeichnet wird im Hintergrund, nie aus dem Original im Store
@@ -808,14 +830,14 @@ struct SolutionSidePane: View {
     var body: some View {
         VStack(spacing: 0) {
             // Kopf wie KI-Hilfe und Dokument daneben (UFPaneHeader); "nur ansehen" als ruhiges Abzeichen
-            UFPaneHeader(layer.label, icon: "users", close: onClose) {
+            UFPaneHeader(layer.label, icon: "users", closeID: "solution.close", close: onClose) {
                 UFBadge("nur ansehen", tone: .neutral)
             }
             GeometryReader { geo in
                 ScrollView {
                     LazyVStack(spacing: 14) {
                         ForEach(Array(layer.pages.enumerated()), id: \.element.key) { i, page in
-                            SolutionSidePage(page: page, title: SolutionBuilder.pageTitle(layer.pages, at: i), images: layer.images,
+                            SolutionSidePage(page: page, title: SolutionPaper.title(layer.pages, at: i), images: layer.images,
                                              source: source,
                                              width: max(200, geo.size.width - 24))
                         }

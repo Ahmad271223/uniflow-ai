@@ -82,7 +82,9 @@ enum CommunityTexts {
     /// eigene PDF bekannt, aber hier nicht lesbar: im Dokument liegt die Loesung als Ebene darueber
     static let ownPDFLayerNotice = "Du hast dieselbe PDF. Im Dokument liegt die Lösung als Ebene darüber."
     /// ohne eigene Kopie: leere Seiten statt der PDF
-    static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung), darum stehen die Notizen auf leeren Seiten. Die PDF des Lehrenden wird nicht mitgeschickt."
+    static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung): Notizen auf Folien stehen darum auf weißen Seiten. Eigene Blätter erscheinen auf ihrem Papier (liniert, kariert …). Die PDF des Lehrenden wird nie mitgeschickt."
+    /// Loesung nur auf eigenen Blaettern: jede Seite auf ihrem Papier, wie geschrieben
+    static let ownPaperNotice = "Die Lösung steht auf eigenen Blättern – jede Seite auf ihrem Papier, genau wie sie geschrieben wurde."
 
     static func publishedAt(_ iso: String) -> String { "veröffentlicht am \(ForeignSolutionLayer.date(iso))" }
 
@@ -464,8 +466,10 @@ struct CommunityReaderSheet: View {
                             }
                             .padding(.top, 8)
                         }
-                    } else if content != nil {
-                        Text(CommunityTexts.noPDFNotice).ufFont(13.12).foregroundStyle(UF.muted)
+                    } else if let content {
+                        // nur PDF-Seiten brauchen die PDF; eigene Blaetter stehen immer auf ihrem Papier
+                        Text(SolutionPaper.hasPDFPages(content.pages) ? CommunityTexts.noPDFNotice : CommunityTexts.ownPaperNotice)
+                            .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     }
                     if let content {
                         ForEach(Array(content.pages.enumerated()), id: \.element.key) { i, page in
@@ -473,7 +477,7 @@ struct CommunityReaderSheet: View {
                                 spot = (page.key, anchor)
                                 replyTo = nil
                                 editing = nil
-                            } : nil, title: SolutionBuilder.pageTitle(content.pages, at: i))
+                            } : nil, title: SolutionPaper.title(content.pages, at: i))
                         }
                     } else if error == nil { CommunityLoading(text: "Lösung wird geladen …") }
                     if service.supportsDiscussion { commentsCard }

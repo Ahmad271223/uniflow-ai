@@ -273,6 +273,38 @@ final class NebenblattBilderAppTests: XCTestCase {
         UserDefaults.standard.set(previous, forKey: "UFDocPanel")
     }
 
+
+    /// Papierkorb im Kopf des Notizblatts daneben: Rueckfrage, danach Hinweis, wo es wiederherzustellen ist
+    func test6Papierkorb() throws {
+        let s = try run { try await self.scene() }
+        let previous = UserDefaults.standard.object(forKey: "UFDocPanel")
+        UserDefaults.standard.set("companion", forKey: "UFDocPanel")
+        addTeardownBlock { @MainActor in UserDefaults.standard.set(previous, forKey: "UFDocPanel") }
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: s.main, api: s.api) }, api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.plus)
+        env.wait(timeout: 15) { self.shows("Deine Blätter", in: env.window) }
+        env.pump(1.0)
+        XCTAssertTrue(env.wait(timeout: 10) { self.tap(containing: "Notizen – Übungsblatt 4", in: env.window) }, "eigenes Blatt")
+        UserDefaults.standard.set(previous, forKey: "UFDocPanel")
+        XCTAssertTrue(env.wait(timeout: 15) { self.hasButton("Seiten und Blatt", env.window) }, "Menue im Kopf")
+        Entitlements.shared.setPlanForTesting(.plus)
+        XCTAssertTrue(tap(containing: "Seiten und Blatt", in: env.window))
+        env.wait(timeout: 5) { self.hasButton("Ganzes Blatt löschen", env.window) }
+        env.pump(1.0)
+        shot(env.window, "10-blatt-menue")
+        XCTAssertTrue(tap(containing: "Ganzes Blatt löschen", in: env.window))
+        env.wait(timeout: 5) { self.hasButton("Blatt in den Papierkorb", env.window) }
+        env.pump(1.0)
+        shot(env.window, "11-blatt-papierkorb-rueckfrage")
+        XCTAssertTrue(env.wait(timeout: 5) { self.tap(containing: "Blatt in den Papierkorb", in: env.window) })
+        env.wait(timeout: 10) { self.shows("liegt im Papierkorb", in: env.window) }
+        env.pump(0.6)
+        shot(env.window, "12-blatt-im-papierkorb-hinweis")
+        let trashed = try run { try await s.api.value("/api/library") }
+        XCTAssertTrue(trashed.list("trash").contains { $0.s("id") == s.sheetID }, "im Papierkorb")
+    }
+
     private func hasButton(_ text: String, _ root: UIView) -> Bool {
         elements(in: root).contains { $0.accessibilityTraits.contains(.button) && ($0.accessibilityLabel ?? "").contains(text) }
     }
