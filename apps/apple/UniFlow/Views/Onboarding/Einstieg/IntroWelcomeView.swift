@@ -24,7 +24,9 @@ struct IntroWelcomeView: View {
                            onCloseNotice: { account.notice = nil }) { result in
             account.handle(result)
         } onDebugSkip: {
-            account.skipSignInForDebug()
+            #if DEBUG
+            account.skipSignInForDebug()       // nur in Test-Builds; der Knopf steht im Release nicht da
+            #endif
         }
     }
 }
