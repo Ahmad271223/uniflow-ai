@@ -135,6 +135,14 @@ public enum SOGo {
         return t.contains("name=\"loginForm\"") || t.contains("app.creds.username") || t.contains("id=\"passwordField\"")
     }
 
+    /// HTML statt JSON (13.11.2026, echtes iPad: "Unerwartete Antwort von Uni-Mail: keine JSON-Antwort"): eine Seite
+    /// statt Daten ist fast immer eine abgelaufene oder umgeleitete Anmeldung in einer Form, die `looksLikeLogin` nicht
+    /// kennt. Dann wie "abgelaufen" behandeln: einmal automatisch anmelden und neu versuchen (`perform`).
+    public static func looksLikeHTML(_ body: Data) -> Bool {
+        let head = String(decoding: body.prefix(600), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return head.hasPrefix("<!doctype html") || head.hasPrefix("<html") || head.contains("<html")
+    }
+
     /// Sitzung abgelaufen? 401/403, Weiterleitung aus /SOGo/so/ heraus oder Anmeldeformular
     public static func expired(status: Int, finalURL: String?, body: String?, site: SOGoSite = .luh) -> Bool {
         if status == 401 || status == 403 { return true }
@@ -712,7 +720,7 @@ public enum SOGoError: Error, Equatable, CustomStringConvertible, LocalizedError
         case .needsLogin: return "Die Anmeldung bei Uni-Mail ist abgelaufen. Bitte neu anmelden."
         case .offline: return "Keine Verbindung zu Uni-Mail (SOGo)."
         case .http(let s): return "Uni-Mail antwortet mit Fehler \(s)."
-        case .bad(let s): return "Unerwartete Antwort von Uni-Mail: \(s)"
+        case .bad: return "Uni-Mail hat gerade unerwartet geantwortet. Bitte gleich noch einmal „Neue Mails prüfen“ tippen."
         case .input(let s): return s
         }
     }

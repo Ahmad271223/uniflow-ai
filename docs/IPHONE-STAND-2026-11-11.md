@@ -180,3 +180,40 @@ lesbar sein“ und „Anmelden QIS/Stud.IP nicht lesbar, weil Anweisung so groß
   erster Start klein), alle iPhone-Tests 112/0 + 6/0; iPad-Gegenprobe (Lernkalender, Stundenplan, Anmeldung, erster
   Start, QIS, Breiten) 107 + 24 Tests grün nach der Korrektur am Sicherheitstest.
 
+## 8. Stand 13.11.2026: develop bis Build 39 eingearbeitet (für den TestFlight-Upload)
+
+`iphone/universal` enthält jetzt `develop` bis `a7b80ba3` (Build 39). Aus develop dazugekommen und am iPhone geprüft:
+Lernziele (Smart Planner 2.0), eigene Wochen im Moduldetail mit Erledigt-Haken, Studiengruppen- und Fächer-Fragen,
+neuer Einstieg (Willkommen, Rundgang, Hochschule, Fragen, Tarif), „Mit KI verbessern“ in der Uni-Mail, QIS-Direktlink
+zur Prüfung, Stift-Glättung und Formen (nur iPad, am iPhone ausgeblendet), Reiter über Dokumenten (am iPhone aus).
+
+Am iPhone angepasst (iPad überall unverändert):
+- **Rundgang**: Die Bilder sind für 560 pt gezeichnet; sie schoben Titel und Text über den Rand. Am iPhone wird das
+  Bild als Ganzes verkleinert (`IntroArtFit` in `Views/Onboarding/Einstieg/IntroTourView.swift`).
+- **Erster Start**: kleiner Kopf (Begleiter 28 statt 40 pt), ohne den langen Passwort-Satz.
+- **Lernkalender/Lernziele**: „Ziele“ steht in derselben Leiste wie Tag/3 Tage/Woche/Monat/Liste, am iPhone ohne
+  Symbole und in voller Breite; die Seite „Lernziele“ hat am iPhone Rand 16.
+- **Dokumentliste**: Module und Ordner am iPhone immer als Liste (die Kacheln füllten je einen Bildschirm).
+- **Prüfungsanmeldung**: Der Knopf führt auch am iPhone direkt zur Prüfung im QIS (develop 13.11.) und ist in voller
+  Breite.
+- **Release-Gate** (`tests/test_release_gate.py`) steht jetzt auf iPhone und iPad (`TARGETED_DEVICE_FAMILY` „1,2“,
+  Hochformat-Liste fürs iPhone, Gerätekennung `iphone-`).
+
+Tests auf diesem Stand (nacheinander, eigene Simulatoren):
+- iPad (iPad Pro 11 M5, komplette Suite): **alle Tests grün**, 0 Fehler.
+- iPhone (iPhone 17, alle `IPhone*Tests` + `LayoutWidthAuditTests`): **121 grün**, 0 Fehler.
+- `swift test` (UniFlowCore): **1521 grün**.
+- Python ohne Playwright: 3480 grün; `tests/test_modules_race.py::test_merge_duplicate_modules_keeps_everything`
+  scheitert nur im vollen Lauf und läuft einzeln durch (zeitabhängiger Test, nicht von dieser Arbeit berührt).
+
+### Was für den Upload fehlt (Stand 13.11.2026)
+- **Nichts am Projekt**: `TARGETED_DEVICE_FAMILY` steht auf „1,2“, Hochformat/Querformat für iPhone sind gesetzt, das
+  App-Symbol ist ein einzelnes 1024er-Bild und gilt für iPhone und iPad.
+- **TestFlight** braucht keine iPhone-Bildschirmfotos.
+- **App-Store-Einreichung** braucht iPhone-Bilder 6,9" (1320 × 2868). Es liegen 16 Bilder vom 11.11. unter
+  `~/Studora-Builds/appstore-screenshots-iphone-2026-11-11/`; sie zeigen den Stand vor Build 38/39 und sollten vor der
+  Store-Einreichung neu erzeugt werden (`IPhoneStoreScreenshotTests`).
+- **Texte**: „Neu in dieser Version“ und die Beschreibung müssen das iPhone nennen; `docs/release/APP-STORE.md` ist auf
+  iPhone + iPad umgestellt (Zeile „Plattform, Geräte“).
+- **Hinweis**: Sobald eine Version mit iPhone im Store veröffentlicht ist, lässt Apple das iPhone nicht mehr entfernen.
+

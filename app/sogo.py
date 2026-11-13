@@ -161,6 +161,12 @@ def looks_like_login(text: str | None) -> bool:
     return 'name="loginForm"' in t or "app.creds.username" in t or 'id="passwordField"' in t
 
 
+def looks_like_html(content: bytes) -> bool:
+    """HTML statt JSON (13.11.2026, wie SOGo.looksLikeHTML): fast immer eine abgelaufene oder umgeleitete Anmeldung."""
+    head = content[:600].decode("utf-8", "replace").strip().lower()
+    return head.startswith("<!doctype html") or head.startswith("<html") or "<html" in head
+
+
 def expired(status: int, final_url: str | None, body: str | None, host: str = HOST) -> bool:
     """Sitzung abgelaufen? 401/403, Weiterleitung aus /SOGo/so/ heraus (Anmeldeseite) oder Anmeldeformular im Inhalt"""
     if status in (401, 403):
@@ -888,6 +894,8 @@ class SOGoWeb:
         try:
             return json.loads(content.decode("utf-8"))
         except ValueError:
+            if looks_like_html(content):
+                raise SOGoError("login") from None
             raise SOGoError("bad", "keine JSON-Antwort") from None
 
     # Mail lesen

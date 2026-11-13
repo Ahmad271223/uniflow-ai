@@ -86,7 +86,10 @@ public final class SOGoClient: @unchecked Sendable {
         let r = try await request(method, path, json: body, write: write)
         guard ok.contains(r.status) else { throw SOGoError.http(r.status) }
         if r.status == 204 || r.body.isEmpty { return .null }
-        guard let v = try? JSONValue.parse(r.body) else { throw SOGoError.bad("keine JSON-Antwort") }
+        guard let v = try? JSONValue.parse(r.body) else {
+            if SOGo.looksLikeHTML(r.body) { throw SOGoError.needsLogin }      // Seite statt Daten: neu anmelden, einmal wiederholen
+            throw SOGoError.bad("keine JSON-Antwort")
+        }
         return v
     }
 
