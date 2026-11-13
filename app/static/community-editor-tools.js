@@ -7,7 +7,7 @@ import { pageTitle } from "./solution-labels.js?v=1";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=8";
 import { loadSpaces } from "./community-spaces.js?v=23";
-import { capi } from "./views-qa.js?v=10";
+import { capi } from "./views-qa.js?v=11";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
