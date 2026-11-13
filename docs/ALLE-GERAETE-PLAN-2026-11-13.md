@@ -40,6 +40,17 @@ Heute: einziger Auslöser ist das Öffnen der App (höchstens alle 3 Minuten) bz
 - Gilt automatisch für iPhone (gleicher Code); auf `iphone/universal` mitnehmen.
 - Test: Rundgang + neuer Test in UniFlowCore für das Bündeln.
 
+**Stand 13.11.2026 (OK des Inhabers „Ja, Schritt 1“): umgesetzt auf `sync/alle-geraete`, nicht veröffentlicht.**
+- `UniFlowCore/DeviceSyncKick.swift` (`DeviceSyncKicker`): bündelt Änderungen (5 s Ruhe, spätestens 30 s), nie zwei
+  Läufe zugleich, `flush()` für den Hintergrund; welche Anfragen zählen, wie `_NO_KICK` der Windows-App.
+- `LocalTransport` meldet jede gelungene Änderung an Daten des Kontos (`.uniflowLocalDataChanged`);
+  `StudoraAccountLink` stößt damit den Abgleich an (nur für den eigenen Container), ruft im Vordergrund alle 3 Minuten
+  ab (`startForegroundSync`) und sendet beim Wechsel in den Hintergrund (`sendPendingChanges`, mit
+  Hintergrund-Zeit in `UniFlowApp`). Bringt ein Abgleich Daten anderer Geräte, laden die Fenster neu (wie beim Öffnen).
+- Tests: `DeviceSyncKickTests` (6), drei neue in `AuditPaket40x45AppTests` (Änderung → gesendet, Hintergrund →
+  sofort gesendet, anderer Container → nichts).
+- Offen: iPhone-Zweig `iphone/universal` muss develop (bzw. diesen Zweig) übernehmen; Gerätetest am echten iPad.
+
 ## 2. Gleicher Anmeldeweg, Konten verknüpfen – 3 Tage
 
 Befund: Apple/Google mit derselben bestätigten E-Mail landen schon im selben Konto. Getrennte Konten entstehen vor

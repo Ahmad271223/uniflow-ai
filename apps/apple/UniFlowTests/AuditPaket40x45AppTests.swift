@@ -182,6 +182,69 @@ final class AuditPaket40x45AppTests: XCTestCase {
         l.use(userScope: nil)
     }
 
+    // MARK: Abgleich nach Aenderungen (Plan "Ein Konto, alle Geraete" Schritt 1, 13.11.2026)
+
+    /// Eine gespeicherte Aenderung in der App (hier: neues Lernpaket) schickt der Abgleich ohne Oeffnen der App und
+    /// ohne Knopf an den Dienst; ein Lesen loest nichts aus
+    func testAChangeInTheAppIsSentToTheOtherDevicesSoon() async throws {
+        let stub = ServiceStub()
+        let host = try backendHost()
+        let l = await signedInLink(stub, host: host)
+        l.kickTiming = (0.2, 2)
+        let api = LocalTransport(host: host)
+        var get = URLRequest(url: URL(string: "http://ipad.local/api/packages?from=2026-11-01&to=2026-11-30")!)
+        get.httpMethod = "GET"
+        _ = try await api.send(get)
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(stub.count("GET /api/sync/changes"), 0, "Lesen loest keinen Abgleich aus")
+        var post = URLRequest(url: URL(string: "http://ipad.local/api/packages")!)
+        post.httpMethod = "POST"
+        post.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        post.httpBody = Data(#"{"date":"2026-11-20","title":"Blatt 3 rechnen","minutes":90}"#.utf8)
+        let (_, r) = try await api.send(post)
+        XCTAssertLessThan(r.statusCode, 400)
+        try await bed.waitUntil("Lernpaket an den Dienst geschickt") { stub.count("POST /api/sync/push") > 0 }
+        XCTAssertEqual(l.lastSync?.ok, true)
+        l.use(userScope: nil)
+    }
+
+    /// Wechsel in den Hintergrund: was noch aussteht, geht sofort los (nicht erst nach der Ruhezeit oder beim
+    /// naechsten Oeffnen)
+    func testPendingChangesAreSentWhenTheAppGoesToTheBackground() async throws {
+        let stub = ServiceStub()
+        let host = try backendHost()
+        let l = await signedInLink(stub, host: host)
+        l.kickTiming = (600, 600)
+        l.backgroundSettle = 100_000_000
+        var post = URLRequest(url: URL(string: "http://ipad.local/api/packages")!)
+        post.httpMethod = "POST"
+        post.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        post.httpBody = Data(#"{"date":"2026-11-21","title":"Wiederholung","minutes":60}"#.utf8)
+        _ = try await LocalTransport(host: host).send(post)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(stub.count("POST /api/sync/push"), 0, "wartet noch auf Ruhe")
+        await l.sendPendingChanges()
+        XCTAssertEqual(stub.count("POST /api/sync/push"), 1, "beim Wechsel in den Hintergrund gesendet")
+        await l.sendPendingChanges()
+        XCTAssertEqual(stub.count("POST /api/sync/push"), 1, "nichts mehr offen")
+        l.use(userScope: nil)
+    }
+
+    /// Aenderungen in einem anderen Container (andere Hochschule) zaehlen nicht fuer dieses Konto
+    func testChangesInAnotherContainerDoNotTriggerThisAccount() async throws {
+        let stub = ServiceStub()
+        let l = await signedInLink(stub, host: try backendHost())
+        l.kickTiming = (0.1, 1)
+        var post = URLRequest(url: URL(string: "http://ipad.local/api/packages")!)
+        post.httpMethod = "POST"
+        post.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        post.httpBody = Data(#"{"date":"2026-11-22","title":"Fremd","minutes":30}"#.utf8)
+        _ = try await LocalTransport(host: try backendHost()).send(post)
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(stub.count("GET /api/sync/changes"), 0)
+        l.use(userScope: nil)
+    }
+
     // MARK: P45-01 / P37-02: spaetes Ende des Geraete-Abgleichs
 
     /// Der Abgleich von A endet erst nach dem Wechsel zu einem anderen Apple-Nutzer: sein Ergebnis gilt nicht fuer B

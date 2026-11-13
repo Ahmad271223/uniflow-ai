@@ -45,6 +45,8 @@ struct URLSessionServiceTransport: ServiceHTTPTransport {
 extension Notification.Name {
     /// Geraete-Abgleich hat hier etwas geaendert; offene Dokumente holen ihren Stand neu
     static let uniflowAccountSynced = Notification.Name("uniflow.accountSynced")
+    /// Die App hat Daten des Kontos im lokalen Backend geaendert (`LocalTransport`, object = `LocalBackendHost`)
+    static let uniflowLocalDataChanged = Notification.Name("uniflow.localDataChanged")
 }
 
 /// StudiNow-Konto auf dem iPad (V1, Entscheidung des Inhabers vom 29.10.2026; Plan ENTSCHEIDUNGEN-INHABER-2026-10-29 §3):
@@ -160,6 +162,69 @@ final class StudoraAccountLink: ObservableObject {
         self.entitlements = ent
         // Tarif auf dem iPad geaendert (Kauf, Ablauf, Probe): Weg zur KI neu bestimmen (nach dem Setzen, daher im naechsten Takt)
         planWatch = ent.$plan.dropFirst().sink { [weak self] _ in Task { @MainActor in self?.updateAI() } }
+        changeWatch = NotificationCenter.default.addObserver(forName: .uniflowLocalDataChanged, object: nil, queue: nil) { [weak self] note in
+            let host = note.object as AnyObject?
+            Task { @MainActor in self?.localDataChanged(in: host) }
+        }
+    }
+
+    deinit {
+        if let changeWatch { NotificationCenter.default.removeObserver(changeWatch) }
+    }
+
+    // MARK: Abgleich nach Aenderungen (Plan "Ein Konto, alle Geraete" Schritt 1, 13.11.2026)
+
+    // Vorher glichen iPad und iPhone nur beim Oeffnen der App ab (hoechstens alle 3 Minuten) und per Knopf: eine Notiz
+    // ging erst beim naechsten Oeffnen los, ein offenes iPad holte nichts Neues. Jetzt wie die Windows-App: nach einer
+    // Aenderung gebuendelt (5 s Ruhe, spaetestens 30 s), beim Wechsel in den Hintergrund sofort, und solange die App
+    // offen ist alle 3 Minuten.
+
+    /// Hat ein Abgleich (nach einer Aenderung oder im Takt) Daten anderer Geraete gebracht: offene Ansichten neu laden.
+    /// Setzt die App; beim Oeffnen laedt sie selbst neu.
+    var onRemoteChanges: (@MainActor () -> Void)?
+    private var changeWatch: NSObjectProtocol?
+    private var polling: Task<Void, Never>?
+    /// Ruhezeit und laengstes Warten nach einer Aenderung; Tests kuerzen sie vor der ersten Aenderung
+    var kickTiming: (quiet: TimeInterval, maxWait: TimeInterval) = (5, 30)
+    /// Wartezeit beim Wechsel in den Hintergrund, bis offene Dokumente gesichert haben
+    var backgroundSettle: UInt64 = 1_500_000_000
+    private lazy var kicker = DeviceSyncKicker(quiet: kickTiming.quiet, maxWait: kickTiming.maxWait) { [weak self] in
+        await self?.syncAfterChange()
+    }
+
+    /// Aenderung im lokalen Backend: nur fuer den Container dieses Kontos zaehlen
+    private func localDataChanged(in host: AnyObject?) {
+        guard account != nil, let host, host === self.host else { return }
+        let kicker = kicker
+        Task { await kicker.kick() }
+    }
+
+    private func syncAfterChange() async {
+        // laeuft gerade ein Abgleich (Oeffnen, Knopf), danach noch einmal: er kann die Aenderung verpasst haben
+        for _ in 0..<120 where syncing { try? await Task.sleep(nanoseconds: 500_000_000) }
+        if await syncNow(force: true) { onRemoteChanges?() }
+    }
+
+    /// App im Vordergrund: alle 3 Minuten abrufen (`syncNow` ohne `force` laesst Laeufe kurz nach einem anderen aus)
+    func startForegroundSync() {
+        polling?.cancel()
+        polling = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(Self.autoSyncInterval * 1_000_000_000))
+                guard !Task.isCancelled, let self else { return }
+                if await self.syncNow() { self.onRemoteChanges?() }
+            }
+        }
+    }
+
+    /// Wechsel in den Hintergrund: Takt anhalten und Ausstehendes sofort senden (die App kann danach beendet werden).
+    /// Die App haelt dafuer etwas Hintergrund-Zeit.
+    func sendPendingChanges() async {
+        polling?.cancel()
+        polling = nil
+        // offene Dokumente sichern gerade ihren Stand (`DocumentStore.flushInBackground`); deren Aenderung soll mit
+        try? await Task.sleep(nanoseconds: backgroundSettle)
+        await kicker.flush()
     }
 
     /// `true`, wenn der Abgleich gerade laufen darf: angemeldet, gleiche Hochschule wie das Konto, keine Demo-Inhalte
@@ -248,6 +313,8 @@ final class StudoraAccountLink: ObservableObject {
         guard userScope != scope else { return }
         scope = userScope
         accountEpoch += 1
+        let kicker = kicker
+        Task { await kicker.cancel() }                          // Aenderungen gehoerten zum vorigen Konto
         lastSync = nil
         lastSyncAt = nil
         user = nil

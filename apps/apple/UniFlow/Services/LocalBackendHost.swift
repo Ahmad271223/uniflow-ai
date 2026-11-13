@@ -184,6 +184,10 @@ struct LocalTransport: APITransport {
         let local = LocalRequest(method: request.httpMethod ?? "GET", url: url,
                                  headers: request.allHTTPHeaderFields ?? [:], body: request.httpBody)
         let r = await host.handle(local)
+        // gespeicherte Aenderung an Daten des Kontos: bald mit den anderen Geraeten abgleichen (StudoraAccountLink)
+        if DeviceSyncKicker.isAccountChange(method: local.method, path: url.path, status: r.status) {
+            NotificationCenter.default.post(name: .uniflowLocalDataChanged, object: host)
+        }
         guard let http = HTTPURLResponse(url: url, statusCode: r.status, httpVersion: "HTTP/1.1", headerFields: r.headers) else {
             throw APIError(status: -1, message: "Keine HTTP-Antwort")
         }
