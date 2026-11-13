@@ -794,8 +794,12 @@ enum SmartGoals {
         }
         let result = try SP.plan(b.input)
         var proposal: JSONValue? = try readJSON(c, proposalKey)
-        if let h = state["hash"]?.string, h != b.hash, auto {
-            if result["status"]?.string == "unterdeckt" {
+        let shortfall = result["status"]?.string == "unterdeckt"
+        if let h = state["hash"]?.string, h != b.hash, auto, proposal?["hash"]?.string == b.hash,
+           (proposal?["kind"]?.string == "unterdeckt") == shortfall {
+            // Vorschlag zu genau diesen Eingaben steht schon: nicht bei jeder Uebersicht neu vergleichen und schreiben
+        } else if let h = state["hash"]?.string, h != b.hash, auto {
+            if shortfall {
                 proposal = ["kind": "unterdeckt", "hash": .string(b.hash), "message": result["message"] ?? .null]
             } else {
                 let ti = T.iso(t)

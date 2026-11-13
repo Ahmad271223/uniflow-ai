@@ -97,3 +97,14 @@ Zweig `feature/smart-planner-2`. Technische Arbeitsnotiz je Phase; der Bericht f
   `tests/test_rechte_alle_routen.py` (fremde Konten, läuft automatisch über die neuen Routen).
 - Swift: `SmartPlannerParityTests`, `SmartGoalsTests` (14 Szenarien über die Endpunkte des Kerns).
 - Last: `tools/lasttest-smart-planner.py`, Ergebnisse im Bericht.
+  - Teil A Rechenkern (100.000 erfundene Nutzer, 18 Prozesse), Teil B ein Dienst-Prozess mit vielen Threads (Korrektheit
+    unter Gedraenge), Teil C echter Dienst `uvicorn --workers N` ueber HTTP wie im Betrieb (13.11. ergaenzt).
+  - Befund 13.11.: In einem Python-Prozess rechnet immer nur ein Thread (GIL); jede Datenbankabfrage und jede gelesene
+    Zeile stellt sich neu an. Die Uebersicht stellte 190 Abfragen (151 davon `timetable.occurrences`: verschobene
+    Termine je Tag einzeln) und las 1.540 Zeilen; bei offenem Vorschlag wurde er bei jeder Uebersicht neu verglichen
+    und neu geschrieben. Jetzt: verschobene Termine in einer Abfrage, automatische Bloecke einmal gelesen, feste Bloecke
+    ohne die automatischen (SQL), offener Vorschlag mit gleicher Pruefsumme bleibt stehen (Python und Swift) →
+    38 Abfragen, 790 Zeilen. Teil C mit 4 Prozessen / 32 Clients: vorher 25,9 Anfragen/s, Median Uebersicht 1.000 ms,
+    104 abgebrochene Verbindungen; nachher 61,3/s, Median 37 ms, alle 200.
+  - Mehr Prozesse helfen fast linear, weniger gleichzeitige Anfragen je Prozess verkleinern die GIL-Warteschlange:
+    12 Prozesse / 48 Clients 341 Anfragen/s, p99 Uebersicht 0,5 s. `sys.setswitchinterval` bringt nichts (gemessen).

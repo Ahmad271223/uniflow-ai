@@ -628,12 +628,15 @@ def build(conn, t: date, partial: bool = False) -> dict:
     occ = timetable.occurrences(conn, min(since, t), last)
     days = _days(conn, t, last, s, [o for o in occ if o["date"] >= ti])
     # feste Bloecke: alles mit Uhrzeit ab heute ausser den automatisch gelegten, unberuehrten kuenftigen
-    auto_ids = {p["id"] for p in db.rows(conn, _AUTO_SQL, (ti,))}
+    auto_rows = db.rows(conn, _AUTO_SQL + " ORDER BY date, start_time, id", (ti,))     # einmal lesen (auch fuer prefer)
+    auto_ids = {p["id"] for p in auto_rows}
     goal_mods = {g["module_id"] for g in goals}
     fixed = []
     for p in db.rows(conn, """SELECT id, module_id, date, start_time, end_time, status, source FROM study_packages
                               WHERE date >= ? AND start_time IS NOT NULL AND end_time IS NOT NULL
-                              AND status NOT IN ('verschoben','uebersprungen') ORDER BY date, start_time, id""", (ti,)):
+                              AND status NOT IN ('verschoben','uebersprungen')
+                              AND id NOT IN (""" + _AUTO_SQL.replace("SELECT *", "SELECT p.id", 1) + """)
+                              ORDER BY date, start_time, id""", (ti, ti)):
         if p["id"] in auto_ids:
             continue
         a, b = timetable.hm(p["start_time"]), timetable.hm(p["end_time"])
@@ -659,7 +662,7 @@ def build(conn, t: date, partial: bool = False) -> dict:
     # bisheriger Plan: Lagen behalten, wo es geht. Teil der Pruefsumme, damit ein von Hand geloeschter Block neu verteilt
     # wird; nach dem Anwenden rechnet der naechste Aufruf einmal nach (ohne Aenderung) und steht dann still.
     inp["prefer"] = [{"module_id": p["module_id"], "date": p["date"], "start": timetable.hm(p["start_time"]), "end": timetable.hm(p["end_time"])}
-                     for p in db.rows(conn, _AUTO_SQL + " ORDER BY date, start_time, id", (ti,)) if p["start_time"] and p["end_time"]]
+                     for p in auto_rows if p["start_time"] and p["end_time"]]
     h = hashlib.sha256(json.dumps(inp, sort_keys=True).encode()).hexdigest()[:24]
     inp["now_minute"] = _now_minute()
     return {"input": inp, "hash": h, "info": info, "credit": cr, "sessions": sessions, "occ": occ, "settings": s, "goals": goals}
@@ -746,8 +749,12 @@ def ensure(conn, t: date | None = None, auto: bool = True, readonly: bool = Fals
         return {"build": b, "result": None, "state": state, "proposal": None}
     result = sp.plan(b["input"])
     proposal = _json(conn, PROPOSAL_KEY, {})
-    if state.get("hash") and state["hash"] != b["hash"] and auto:
-        if result["status"] == "unterdeckt":
+    shortfall = result["status"] == "unterdeckt"
+    if state.get("hash") and state["hash"] != b["hash"] and auto and proposal and proposal.get("hash") == b["hash"] \
+            and (proposal.get("kind") == "unterdeckt") == shortfall:
+        pass        # Vorschlag zu genau diesen Eingaben steht schon: nicht bei jeder Uebersicht neu vergleichen und schreiben
+    elif state.get("hash") and state["hash"] != b["hash"] and auto:
+        if shortfall:
             proposal = {"kind": "unterdeckt", "hash": b["hash"], "message": result["message"]}
         else:
             existing = [{"id": p["id"], "module_id": p["module_id"], "date": p["date"], "start": timetable.hm(p["start_time"]),

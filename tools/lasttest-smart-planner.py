@@ -11,6 +11,11 @@ Lernzielen, dann T Threads gleichzeitig mit gemischten Anfragen (Uebersicht mit 
 Ziel aendern, dieselbe Uebersicht doppelt gleichzeitig). Gemessen: Status, 5xx, "database is locked", Latenz, danach
 in jeder Konto-Datenbank keine doppelten Bloecke.
 
+Teil C – Dienst wie im Betrieb: uvicorn mit W Prozessen (deploy/Dockerfile: WEB_CONCURRENCY=4) ueber echtes HTTP auf
+den Konten aus Teil B, C Client-Prozesse gleichzeitig. Teil B laeuft in EINEM Python-Prozess mit vielen Threads; dort
+rechnet wegen der GIL immer nur einer, jede gelesene Datenbankzeile stellt sich neu an - Teil B misst deshalb Korrektheit
+unter Gedraenge (Sperren, doppelte Bloecke), Teil C die Antwortzeiten.
+
 Hochrechnung auf 100.000 gleichzeitige Nutzer: aus der gemessenen CPU-Zeit je Anfrage (Teil B) und je Plan (Teil A) mit
 offen genannten Annahmen zur Anfragerate. Das ist eine Rechnung auf Messwerten, kein Lauf mit 100.000 Verbindungen.
 
@@ -313,6 +318,153 @@ def part_b(n_accounts: int, threads: int, ops: int) -> dict:
            "cpu_serial": {k: summary(v) for k, v in sorted(cpu.items())}, "rss_mb": rss_mb()}
     print(f"   {res['requests']} Anfragen in {res['wall_s']} s ({res['requests_per_s']}/s), Status {codes}, "
           f"locked {locked[0]}, doppelte Bloecke {dup}", flush=True)
+    SHARED.update(tmp=tmp, users=users)
+    return res
+
+
+SHARED: dict = {}
+
+
+def _dup_blocks(tmp: str) -> tuple[int, int]:
+    import sqlite3
+    dup = 0
+    dbs = list((Path(tmp) / "data").rglob("lernapp.db"))
+    for p in dbs:
+        c = sqlite3.connect(p)
+        dup += c.execute("""SELECT COUNT(*) FROM (SELECT 1 FROM study_packages WHERE source='smart' AND status<>'erledigt'
+                            GROUP BY module_id, date, start_time HAVING COUNT(*) > 1)""").fetchone()[0]
+        c.close()
+    return dup, len(dbs)
+
+
+def _http_client(args: tuple) -> dict:
+    """Ein Client-Prozess: eigene Keep-alive-Verbindung, arbeitet seinen Teil der Vorgaenge nacheinander ab"""
+    import http.client
+    port, users, ops = args
+    lat: dict[str, list[float]] = {}
+    codes: dict[str, int] = {}
+    conns: dict[int, http.client.HTTPConnection] = {}
+
+    retried = [0]
+
+    def req(kind, m, p, h, body=None, slot=0):
+        hd = {**h, "Content-Type": "application/json"} if body is not None else dict(h)
+        t = time.perf_counter()
+        for attempt in (0, 1):
+            reused = slot in conns
+            c = conns.get(slot)
+            if c is None:
+                c = conns[slot] = http.client.HTTPConnection("127.0.0.1", port, timeout=120)
+            try:
+                c.request(m, p, body=body, headers=hd)
+                r = c.getresponse()
+                r.read()
+                st = str(r.status)
+                break
+            except (http.client.RemoteDisconnected, ConnectionResetError, BrokenPipeError) as e:
+                conns.pop(slot, None)
+                c.close()
+                # Keep-alive-Verbindung, die der Dienst nach Leerlauf (uvicorn: 5 s) geschlossen hat: wie URLSession
+                # einmal auf neuer Verbindung wiederholen. Gezaehlt; scheitert auch das, zaehlt es als Fehler.
+                if reused and attempt == 0:
+                    retried[0] += 1
+                    continue
+                st = f"exception {type(e).__name__}"
+                break
+            except Exception as e:             # noqa: BLE001
+                conns.pop(slot, None)
+                st = f"exception {type(e).__name__}"
+                break
+        dt = time.perf_counter() - t
+        lat.setdefault(kind, []).append(dt)
+        codes[st] = codes.get(st, 0) + 1
+
+    for u, kind, i in ops:
+        us = users[u]
+        h = us["h"]
+        if kind == "overview":
+            req("GET /api/goals", "GET", "/api/goals", h)
+        elif kind == "overview_twice":
+            th = threading.Thread(target=req, args=("GET /api/goals (doppelt)", "GET", "/api/goals", h, None, 1))
+            th.start()
+            req("GET /api/goals (doppelt)", "GET", "/api/goals", h)
+            th.join()
+        elif kind == "timer":
+            uid = f"http-{u}-{i}"
+            req("POST /api/sessions/start", "POST", "/api/sessions/start", h, json.dumps({"uuid": uid, "module_id": us["mids"][i % 3]}))
+            req("POST /api/sessions/{}/stop", "POST", f"/api/sessions/{uid}/stop", h)
+        elif kind == "entry":
+            req("POST /api/sessions", "POST", "/api/sessions", h, json.dumps({"module_id": us["mids"][i % 3], "minutes": 25}))
+        else:
+            req("PUT /api/goals/{}", "PUT", f"/api/goals/{us['mids'][i % 3]}", h, json.dumps({"target_hours": 40 + i % 30}))
+    return {"lat": lat, "codes": codes, "retried": retried[0]}
+
+
+def part_c(workers: int, clients: int, ops: int) -> dict:
+    """Wie im Betrieb (deploy/Dockerfile: uvicorn mit WEB_CONCURRENCY=4 Prozessen): echter Dienst ueber HTTP auf den
+    Konten aus Teil B, `clients` Client-Prozesse gleichzeitig. Ein einzelner Python-Prozess rechnet immer nur einen
+    Schritt zur Zeit (GIL) - deshalb zaehlt hier die Zahl der Dienst-Prozesse, nicht die der Threads."""
+    import signal
+    import socket
+    import subprocess
+    tmp, users = SHARED["tmp"], SHARED["users"]
+    with socket.socket() as so:
+        so.bind(("127.0.0.1", 0))
+        port = so.getsockname()[1]
+    env = {**os.environ, "LERNAPP_ALLOWED_HOSTS": "test,127.0.0.1", "PYTHONUNBUFFERED": "1"}
+    log = open(Path(tmp) / "dienst-c.log", "wb")
+    proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.server:app", "--host", "127.0.0.1", "--port", str(port),
+                             "--workers", str(workers), "--no-access-log", "--backlog", "4096", "--log-level", "warning"],
+                            cwd=str(ROOT), env=env, stdout=log, stderr=log)
+    print(f"\nC. Dienst wie im Betrieb: uvicorn mit {workers} Prozessen, {clients} Clients gleichzeitig, {ops} Vorgaenge ...", flush=True)
+    try:
+        import http.client
+        deadline = time.monotonic() + 90
+        while True:
+            try:
+                c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                c.request("GET", "/api/goals", headers=users[0]["h"])
+                if c.getresponse().status == 200:
+                    break
+            except Exception:  # noqa: BLE001
+                pass
+            if proc.poll() is not None or time.monotonic() > deadline:
+                raise SystemExit("Dienst startet nicht: " + (Path(tmp) / "dienst-c.log").read_text(errors="replace")[-2000:])
+            time.sleep(0.3)
+        rnd = random.Random(11)
+        plan_ops = []
+        for i in range(ops):
+            r = rnd.random()
+            kind = "overview" if r < 0.55 else "overview_twice" if r < 0.65 else "timer" if r < 0.8 else "entry" if r < 0.9 else "goal"
+            plan_ops.append((rnd.randrange(len(users)), kind, i))
+        chunks = [(port, users, plan_ops[k::clients]) for k in range(clients)]
+        t0 = time.perf_counter()
+        with mp.get_context("spawn").Pool(clients) as pool:
+            parts = pool.map(_http_client, chunks)
+        wall = time.perf_counter() - t0
+    finally:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(20)
+        except Exception:  # noqa: BLE001
+            proc.kill()
+    lat: dict[str, list[float]] = {}
+    codes: dict[str, int] = {}
+    for part in parts:
+        for k, v in part["lat"].items():
+            lat.setdefault(k, []).extend(v)
+        for k, v in part["codes"].items():
+            codes[k] = codes.get(k, 0) + v
+    dup, n_dbs = _dup_blocks(tmp)
+    n = sum(len(v) for v in lat.values())
+    res = {"workers": workers, "clients": clients, "ops": ops, "wall_s": round(wall, 1), "requests": n,
+           "keepalive_retries": sum(part["retried"] for part in parts),
+           "requests_per_s": round(n / wall, 1), "status": codes, "duplicate_blocks": dup, "user_dbs": n_dbs,
+           "latency": {k: summary(v) for k, v in sorted(lat.items())}}
+    print(f"   {n} Anfragen in {res['wall_s']} s ({res['requests_per_s']}/s), Status {codes}, doppelte Bloecke {dup}, "
+          f"Wiederholungen nach geschlossener Keep-alive-Verbindung {res['keepalive_retries']}", flush=True)
+    for k, v in res["latency"].items():
+        print(f"   {k}: Median {v['median_ms']} ms, p95 {v['p95_ms']} ms, p99 {v['p99_ms']} ms", flush=True)
     return res
 
 
@@ -344,17 +496,23 @@ def main() -> int:
     ap.add_argument("--ops", type=int, default=4000)
     ap.add_argument("--procs", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--skip-a", action="store_true")
+    ap.add_argument("--workers", type=int, default=4, help="Teil C: uvicorn-Prozesse (Betrieb: WEB_CONCURRENCY=4)")
+    ap.add_argument("--clients", type=int, default=32, help="Teil C: gleichzeitige Client-Prozesse")
+    ap.add_argument("--ops-c", type=int, default=4000)
+    ap.add_argument("--skip-c", action="store_true")
     ap.add_argument("--out")
     a = ap.parse_args()
     res = {"date": date.today().isoformat(), "cpu_count": os.cpu_count()}
     res["kern"] = None if a.skip_a else part_a(a.users, a.procs)
     res["dienst"] = part_b(a.accounts, a.threads, a.ops)
+    res["betrieb"] = None if a.skip_c else part_c(a.workers, a.clients, a.ops_c)
     res["hochrechnung"] = projection(res["kern"], res["dienst"])
     print("\nHochrechnung:", json.dumps(res["hochrechnung"], ensure_ascii=False), flush=True)
     if a.out:
         Path(a.out).write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     ok = (res["kern"] is None or (res["kern"]["errors"] == 0 and res["kern"]["hard_violations"] == 0)) and \
-        res["dienst"]["duplicate_blocks"] == 0 and not any(k.startswith("5") or k == "exception" for k in res["dienst"]["status"])
+        res["dienst"]["duplicate_blocks"] == 0 and not any(k.startswith("5") or k == "exception" for k in res["dienst"]["status"]) and \
+        (res["betrieb"] is None or (res["betrieb"]["duplicate_blocks"] == 0 and set(res["betrieb"]["status"]) <= {"200"}))
     return 0 if ok else 1
 
 

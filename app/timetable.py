@@ -188,6 +188,14 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     from . import config, holidays, studip_terms
     free = holidays.day_marks(start, end, config.university(), studip=studip_terms.load(conn))   # mit Stud.IP-Semestern
     notes = {r["event_id"]: r["note"] for r in db.rows(conn, "SELECT event_id, note FROM event_notes")}
+    # Hierher verschobene Termine: eine Abfrage fuer den ganzen Zeitraum statt einer je Tag (Lasttest Smart Planner
+    # 13.11.2026: 151 Abfragen je Lernziel-Uebersicht; im Dienst stellt sich jede Abfrage neu um die GIL an)
+    moved_here = defaultdict(list)
+    for x in db.rows(conn, "SELECT x.*, e.* , x.id AS xid FROM event_exceptions x JOIN course_events e ON e.id=x.event_id "
+                           "WHERE x.type='moved' AND x.new_date BETWEEN ? AND ? AND x.date!=x.new_date ORDER BY x.id",
+                     (start.isoformat(), end.isoformat())):
+        moved_here[x["new_date"]].append(x)
+    mod_cache: dict = {}
     out = []
     d = start
     while d <= end:
@@ -224,8 +232,10 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
                 continue
             out.append(occ)
         # Hierher verschobene Termine anderer Tage
-        for x in db.rows(conn, "SELECT x.*, e.* , x.id AS xid FROM event_exceptions x JOIN course_events e ON e.id=x.event_id WHERE x.type='moved' AND x.new_date=? AND x.date!=?", (di, di)):
-            m = db.row(conn, "SELECT name, color FROM modules WHERE id=?", (x["module_id"],)) if x["module_id"] else None
+        for x in moved_here.get(di, ()):
+            if x["module_id"] and x["module_id"] not in mod_cache:
+                mod_cache[x["module_id"]] = db.row(conn, "SELECT name, color FROM modules WHERE id=?", (x["module_id"],))
+            m = mod_cache.get(x["module_id"]) if x["module_id"] else None
             out.append({"event_id": x["event_id"], "date": di, "start": x["new_start"] or x["start_time"], "end": x["new_end"] or x["end_time"], "title": x["title"], "kind": x["kind"],
                         "module_id": x["module_id"], "module_name": m["name"] if m else None, "color": x["color"] or (m["color"] if m else None) or "#4f5bd5", "room": x["room"], "lecturer": x["lecturer"],
                         "course_id": x["course_id"], "status": "teilnahme", "permanent_skip": False, "exception": "moved_here", "moved_from": x["date"], "source": x["source"]})

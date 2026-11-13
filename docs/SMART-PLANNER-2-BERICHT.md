@@ -66,7 +66,40 @@ umplanen** gehört – wie der bisherige automatische Lernplan – zu **Plus** (
 
 ## Wie geprüft wurde (echte Läufe, keine erfundenen Zahlen)
 
-LASTTEST_UND_TESTS
+**Automatische Tests (Stand 13.11.2026)**
+
+- Python (PC-Dienst): 3.415 bestanden, 3 fehlgeschlagen. Zwei davon (Konto-Löschhinweis, E-Mail-Migration) schlugen
+  schon vor dieser Arbeit fehl und sind auf develop behoben; der dritte (Web-Seite Studienverlauf ohne QIS) schlägt
+  auch ohne die Änderungen dieses Tages fehl und hat mit dem Planer nichts zu tun. Darunter 40 neue Planer-Tests
+  (Rechenkern mit 300 Zufallsfällen, alle Pflicht-Szenarien) und der Rechte-Test über alle neuen Adressen.
+- iPad-Kern (Swift): 1.461 Tests, 0 Fehler – darunter der Abgleich, dass iPad und PC bei 48 Planungsfällen exakt
+  denselben Plan rechnen, und 14 Szenarien über die Lernziel-Schnittstellen.
+- App im Simulator: 910 bestanden, 27 fehlgeschlagen. Alle 27 betreffen den Schlüsselbund (Uni-Passwort, Tarif-Probe,
+  ChatGPT-/OpenAI-Verknüpfung, Konto): der Test-Bau ist ohne Signatur, dann darf der Simulator nichts in den
+  Schlüsselbund schreiben (die Tests sagen das selbst). Alle Lernkalender- und Lernziel-Tests sind grün, auch der
+  Test, dass die neuen Ansichten das iPad nicht überfordern.
+
+**Lasttest** (`tools/lasttest-smart-planner.py`, dieser Mac mit 18 Kernen)
+
+- **Rechenkern, 100.000 erfundene Nutzer** (2–6 Module, Stundenplan, Schlaf, Arbeit, 6–20 Wochen bis zur Klausur):
+  100.000 Pläne in 49 Sekunden, ein Plan im Mittel 6 ms (99 % unter 23 ms), 0 Fehler, 0 Verstöße (geprüft: nie nach
+  der Klausur, nie über einem Termin, keine Überschneidung, Tagesbudget eingehalten).
+- **Dienst mit 200 Konten unter Gedränge** (32 gleichzeitig, auch dieselbe Neuplanung doppelt gestartet):
+  4.986 Anfragen, alle in Ordnung, 0 Sperrfehler, 0 doppelte Lernblöcke.
+- **Dienst wie im Betrieb** (echter Server mit mehreren Prozessen, echte Verbindungen): Hier zeigte sich ein echtes
+  Problem, das jetzt behoben ist. Die Lernziel-Übersicht stellte 190 Datenbankabfragen (151 davon, weil der
+  Stundenplan verschobene Termine Tag für Tag einzeln nachsah) und schrieb einen offenen Vorschlag bei jedem Öffnen neu.
+  Jetzt sind es 38 Abfragen und keine unnötigen Schreibvorgänge. Ergebnis mit 4 Server-Prozessen (so ist der Dienst
+  heute eingestellt) und 32 gleichzeitigen Nutzern: vorher 26 Anfragen pro Sekunde, Übersicht im Mittel 1 Sekunde,
+  104 abgebrochene Verbindungen – nachher 61 pro Sekunde, im Mittel 37 ms, keine Fehler. Mit 12 Server-Prozessen:
+  341 Anfragen pro Sekunde, 99 % der Übersichten unter 0,5 Sekunden, keine Fehler.
+- **Hochrechnung auf 100.000 gleichzeitige Nutzer** (Annahme, offen genannt: jeder öffnet alle 5 Minuten die Übersicht
+  und schreibt alle 10 Minuten etwas, also etwa 500 Anfragen pro Sekunde): reine Rechenzeit 3 Kern-Sekunden pro
+  Sekunde; gemessen schafft ein Server-Prozess etwa 28 Anfragen pro Sekunde. Gebraucht werden also rund 18
+  Server-Prozesse, mit Reserve etwa 26 – zum Beispiel zwei Server mit je 16 Kernen. Die heutige Einstellung
+  (4 Prozesse) reicht nach dieser Messung für etwa 10.000–20.000 gleichzeitige Nutzer; für mehr muss die Zahl der
+  Prozesse (`WEB_CONCURRENCY`) bzw. der Server steigen. Das ist eine Rechnung auf Messwerten, kein Lauf mit 100.000
+  echten Verbindungen.
 
 ## Was offen ist
 
@@ -78,8 +111,10 @@ LASTTEST_UND_TESTS
 - **Web/PC-Oberfläche:** Die Funktionen sind im PC-Dienst vorhanden (gleiche Rechnung, gleiche Schnittstellen), eine
   eigene Web-Ansicht dafür gibt es noch nicht.
 - **Lasttest:** 100.000 gleichzeitige Nutzer wurden nicht als echte Verbindungen erzeugt (das geht auf einem Mac nicht);
-  belegt ist es über die gemessene Rechenzeit je Anfrage und je Plan (siehe oben) plus eine offen genannte Annahme.
-  Ein Lauf auf dem gemieteten Testserver (vorhandenes Werkzeug k6) steht noch aus.
+  belegt ist es über die gemessene Leistung je Server-Prozess (siehe oben) plus eine offen genannte Annahme.
+  Ein Lauf auf dem gemieteten Testserver (vorhandenes Werkzeug k6) steht noch aus. Empfehlung: im Betrieb so viele
+  Server-Prozesse wie Kerne einstellen (heute fest 4) – das betrifft den ganzen Dienst, nicht nur den Planer, und ist
+  hier nicht geändert.
 - Unabhängig von diesem Auftrag gefunden: drei ältere Abgleichsdateien (Einstellungen, Bibliothek, Stud.IP-Import)
   passen nicht mehr zur neuesten Python-Fassung; zwei Python-Tests (Konto-Löschhinweis, E-Mail-Migration) schlugen
   schon auf dem Ausgangsstand fehl und sind auf develop inzwischen behoben.
