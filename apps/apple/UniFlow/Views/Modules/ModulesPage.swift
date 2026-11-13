@@ -350,7 +350,8 @@ struct ModulePage: View {
     @State private var error: String?
     @State private var tab = "overview"                                   // nur im Speicher wie im Web
     @State private var mode = "list"
-    @State private var collapsed: Set<Int> = []
+    /// Aufgeklappte Wochen: beim Oeffnen eines Moduls alle zu (Auftrag 13.11.2026), beim Neuladen bleiben sie offen
+    @State private var opened: Set<Int> = []
     /// Opencast-Aufzeichnungen je Block (nur lokal) und Woche, zu der aus der Uebersicht gesprungen wurde
     @State private var recordingCounts: [Int: Int] = [:]
     @State private var focusWeek: Int?
@@ -388,7 +389,7 @@ struct ModulePage: View {
 
     private func load() async {
         // anderes Modul als die angezeigte Antwort: deren Stand gilt hier nicht (Fehler, Aufzeichnungen, Sprung zur Woche)
-        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil; focus = nil; collapsed = [] }
+        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil; focus = nil; opened = [] }
         // Sprung aus Lernkalender/Stundenplan: einmal abholen; beim Neuladen bleibt die Abfrage, die Klappzustaende auch
         let jump = ModuleFocus.take(for: id)
         if let jump { focus = jump }
@@ -398,9 +399,9 @@ struct ModulePage: View {
             // andere Modul-ID waehrend des Ladens (.task(id:) bricht den alten Lauf ab): dessen Antwort nie anzeigen
             guard !Task.isCancelled else { return }
             if jump != nil {
-                // nur die Woche des Termins/Pakets offen, die anderen zugeklappt (vorher alle Wochen offen)
+                // nur die Woche des Termins/Pakets offen, die anderen zugeklappt
                 let weeks = v.list("weeks").compactMap { $0.i("week") }
-                collapsed = ModuleFocus.collapsed(weeks, open: ModuleFocus.openWeek(weeks, focus: v.i("focus_week")))
+                opened = Set([ModuleFocus.openWeek(weeks, focus: v.i("focus_week"))].compactMap { $0 })
             }
             d = v
             error = nil
@@ -487,8 +488,8 @@ struct ModulePage: View {
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
             if session.api?.isLocal == true && studip.offersStudIP { ModuleLecturersCard(moduleID: id, moduleName: m.s("name")) }
             if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
-            if let focus, !weeks.isEmpty, !collapsed.isEmpty {
-                ModuleFocusBar(label: focus.label) { UFMotion.toggle { collapsed = [] } }
+            if let focus, !weeks.isEmpty, opened.count < weeks.count {
+                ModuleFocusBar(label: focus.label) { UFMotion.toggle { opened = Set(weeks.compactMap { $0.i("week") }) } }
             }
             // eigene Wochen und Abschnitte (12.11.2026): je Block Menue, Ziehen, Verschieben; unter den Wochen anlegen und
             // zuruecksetzen (unten, damit die Wochen oben stehen bleiben wie bisher)
@@ -575,7 +576,8 @@ struct ModulePage: View {
     /// .card.week-block: Kopf klappt ein/aus, Gruppen nach sub_label, "Zusammenfassen" bei Vorlesungen (nur PC-Server)
     private func weekBlock(_ w: JSONValue, m: JSONValue, keys: [String], targets: [JSONValue]) -> some View {
         let wk = w.i("week") ?? 0
-        let open = !collapsed.contains(wk)
+        let open = opened.contains(wk)
+        let toggle = { if open { opened.remove(wk) } else { opened.insert(wk) } }
         let groupsOrder = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"]
         let fallback = ["vorlesungen": "Vorlesung", "uebungen": "Übung", "loesungen": "Lösung", "skripte": "Skript", "klausuren": "Klausur", "sonstiges": "Sonstiges"]
         return UFCard {
@@ -584,6 +586,10 @@ struct ModulePage: View {
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 90 : 0))
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)
                     .foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
+                    // VoiceOver: der Wochentitel klappt auf und zu (alle Wochen starten zugeklappt)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityValue(open ? "aufgeklappt" : "zugeklappt")
+                    .accessibilityAction { UFMotion.toggle { toggle() } }
                 if let n = recordingCounts[wk], n > 0 {
                     // Aufzeichnungen derselben Woche: Sprung in den Bereich "Aufzeichnungen"
                     UFChip(text: RecordingText.count(n), icon: "play") { focusWeek = wk; tab = "recordings" }
@@ -600,12 +606,14 @@ struct ModulePage: View {
                             .foregroundStyle(UF.text).frame(minHeight: 44)
                     }
                 }
+                // ganz rechts: Fortschritt und "Woche erledigt" (13.11.2026), nur mit Dateien
+                if (w.i("count") ?? 0) > 0 { ModuleWeekDoneButton(moduleID: id, w: w) }
             }
             .padding(.vertical, 8)
             .contentShape(Rectangle())
-            .onTapGesture { UFMotion.toggle { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } } }   // wie disclosure
+            .onTapGesture { UFMotion.toggle { toggle() } }   // wie disclosure
             // VoiceOver: Auf-/Zuklappen als benannte Aktion (die Kopfzeile ist kein eigener Knopf)
-            .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
+            .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { toggle() }
             if open {
                 VStack(alignment: .leading, spacing: 0) {
                     if wk == -4 { ModuleUnassignedBar(moduleID: id, suggestions: w.i("suggestions") ?? 0) }

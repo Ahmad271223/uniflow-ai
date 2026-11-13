@@ -80,6 +80,7 @@ final class ModuleLayoutAppTests: XCTestCase {
         let api = try api()
         let env = try module(api, 1)
         XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Nicht zugeordnet") } }, env.labels().joined(separator: "\n"))
+        XCTAssertGreaterThan(env.openWeeks(), 0, "Wochen starten zugeklappt")
         XCTAssertTrue(env.labels().contains("Vorschläge übernehmen (2)"), env.labels().joined(separator: "\n"))
         XCTAssertTrue(env.labels().contains("Vorschlag: Woche 3 · 02.11. – 08.11.") || env.labels().contains { $0.hasPrefix("Vorschlag: Woche 3") },
                       env.labels().joined(separator: "\n"))
@@ -97,6 +98,7 @@ final class ModuleLayoutAppTests: XCTestCase {
         XCTAssertEqual(r.s("key")?.hasPrefix("s:"), true)
         let env = try module(api, 1)
         XCTAssertTrue(env.wait { env.labels().contains("Abschnitt Kapitel Graphen bearbeiten") }, env.labels().joined(separator: "\n"))
+        env.openWeeks()
         XCTAssertTrue(env.labels().contains { $0.hasPrefix("Noch leer") }, env.labels().joined(separator: "\n"))
         XCTAssertTrue(env.labels().contains { $0.contains("Mehr zur Ordnung") }, "Zuruecksetzen erst mit eigener Ordnung")
     }
@@ -105,6 +107,7 @@ final class ModuleLayoutAppTests: XCTestCase {
         let api = try api()
         let env = try module(api, 2)
         XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Nicht zugeordnet") } }, env.labels().joined(separator: "\n"))
+        env.openWeeks()
         XCTAssertTrue(env.labels().contains("Vorschläge übernehmen (1)"), env.labels().joined(separator: "\n"))
     }
 
@@ -119,15 +122,18 @@ final class ModuleLayoutAppTests: XCTestCase {
         let api = try api()
         let env = try module(api, 1, size: CGSize(width: 1180, height: 1500))
         _ = env.wait { env.labels().contains { $0.hasPrefix("Nicht zugeordnet") } }
+        env.openWeeks()
         shoot(env, "wochen-01-hildesheim-nicht-zugeordnet", to: dir)
         _ = try pumping { try await api.value("/api/modules/1/suggestions/accept", method: "POST", body: [:]) }
         _ = try pumping { try await api.value("/api/modules/1/sections", method: "POST", body: ["title": "Kapitel Rekursion", "after": "w:3"]) }
         _ = try pumping { try await api.value("/api/modules/1/sections/rename", method: "POST", body: ["key": "w:1", "title": "Woche 1 – Einstieg"]) }
         env.router.reload()
         _ = env.wait { env.labels().contains("Abschnitt Kapitel Rekursion bearbeiten") }
+        env.openWeeks()
         shoot(env, "wochen-02-hildesheim-eigene-ordnung", to: dir)
         let la = try module(api, 2, size: CGSize(width: 1180, height: 1300))
         _ = la.wait { la.labels().contains { $0.hasPrefix("Nicht zugeordnet") } }
+        la.openWeeks()
         shoot(la, "wochen-03-luh-sammelupload", to: dir)
         let dialog = try hostWithEnvironment(ModuleSectionNameDialog(moduleID: 1, mode: .create(after: "w:3")), api: api,
                                              size: CGSize(width: 700, height: 420))

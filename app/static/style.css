@@ -182,6 +182,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 .doc-row:hover { background: var(--surface-2); } .doc-row .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .doc-row .s { color: var(--muted); font-size: .8125rem; }
 .doc-row.neu .t::after { content: "Neu"; margin-left: .5rem; font-size: .8125rem; background: var(--accent-soft); color: var(--accent-text); padding: 0 .4rem; border-radius: 999px; font-weight: 600; }
 .doc-row.erledigt .t { color: var(--muted); text-decoration: line-through; }
+.dr-wrap { display: flex; align-items: center; gap: .3rem; } .dr-wrap .doc-row { flex: 1; min-width: 0; }
+.done-tick { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 999px; border: 1.5px solid var(--line); background: none; color: transparent; cursor: pointer; }
+.done-tick:hover { border-color: var(--ok); color: var(--ok); } .done-tick.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.week-block .wd-progress.all { color: var(--ok); font-weight: 600; } .week-done.on { color: var(--ok); }
 .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: .7rem; }
 .doc-card { border: 1px solid var(--line); border-radius: var(--r); padding: .8rem; cursor: pointer; background: var(--surface); display: flex; flex-direction: column; gap: .4rem; }
 .doc-card:hover { border-color: var(--line-strong); } .doc-card .t { font-weight: 550; line-height: 1.3; }

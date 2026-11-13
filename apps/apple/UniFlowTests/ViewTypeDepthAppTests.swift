@@ -127,6 +127,8 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("ModulePage", ModulePage.Body.self),
         ("ModuleWeekFileRow", ModuleWeekFileRow.Body.self),
         ("ModuleSectionMenu", ModuleSectionMenu.Body.self),
+        ("ModuleFileDoneToggle", ModuleFileDoneToggle.Body.self),
+        ("ModuleWeekDoneButton", ModuleWeekDoneButton.Body.self),
         ("ModuleUnassignedBar", ModuleUnassignedBar.Body.self),
         // Lernziele (Smart Planner 2.0, 12.11.2026) und der Lernkalender, in den sie eingebettet sind
         ("PlanView", PlanView.Body.self),

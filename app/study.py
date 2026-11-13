@@ -506,6 +506,40 @@ def set_task_status(conn, task_id: int, status: str, actual_minutes: int | None 
     return db.row(conn, "SELECT * FROM study_tasks WHERE id=?", (task_id,))
 
 
+OPEN_TASKS = ("geplant", "in_bearbeitung", "nachholen")
+
+
+def set_files_done(conn, file_ids: list[str], done: bool) -> tuple[list[str], int]:
+    """Haken "erledigt" je Datei im Moduldetail (Auftrag 13.11.2026), Spiegel von `ModuleDone.set` (Swift). Derselbe
+    Stand wie bei den Lernpaketen (`files.status='erledigt'`): Abhaken schliesst offene Lernaufgaben zur Datei,
+    Haken entfernen oeffnet erledigte wieder. Ergebnis: geaenderte Dateien, geaenderte Aufgaben."""
+    ids: list[str] = []
+    for fid in file_ids:
+        if fid in ids:
+            continue
+        f = db.row(conn, "SELECT status FROM files WHERE id=?", (fid,))
+        if not f:
+            continue
+        is_done = f["status"] == "erledigt"
+        if is_done != done:
+            ids.append(fid)
+        if done:
+            conn.execute("UPDATE files SET status='erledigt', seen_by_user=1 WHERE id=?", (fid,))
+        elif is_done:
+            conn.execute("UPDATE files SET status='gelesen', seen_by_user=1 WHERE id=?", (fid,))
+    tasks = 0
+    every = sorted(set(file_ids))
+    if every:
+        frm = OPEN_TASKS if done else ("erledigt",)
+        rows = conn.execute(f"SELECT id FROM study_tasks WHERE file_id IN ({','.join('?' * len(every))}) "
+                            f"AND status IN ({','.join('?' * len(frm))}) ORDER BY id", (*every, *frm)).fetchall()
+        for r in rows:
+            set_task_status(conn, r[0], "erledigt" if done else "geplant",
+                            note="Im Modul abgehakt" if done else "Haken im Modul entfernt")
+            tasks += 1
+    return ids, tasks
+
+
 # ----------------------------------------------------------------------------
 # Planung
 # ----------------------------------------------------------------------------

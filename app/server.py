@@ -3355,6 +3355,23 @@ def api_module_suggestions_accept(module_id: int, body: dict = Body(default={}))
     return {"placed": _layout_edit(module_id, accept)}
 
 
+@app.post("/api/modules/{module_id}/done")
+def api_module_done(module_id: int, body: dict = Body(...)):
+    """Haken "erledigt" je Datei bzw. ganze Woche (`study.set_files_done`, wie `ModuleLayoutEndpoints` in Swift)."""
+    done = (body or {}).get("done")
+    if not isinstance(done, bool):
+        raise HTTPException(400, "done: true oder false")
+    wanted = [x for x in (body or {}).get("file_ids") or [] if isinstance(x, str)]
+    if not wanted or len(wanted) > 500:
+        raise HTTPException(400, "file_ids: 1 bis 500 Dateien")
+
+    def mark(conn, now):
+        mine = {f["id"] for f in study.module_detail(conn, module_id).get("files", [])}
+        return study.set_files_done(conn, [f for f in wanted if f in mine], done)
+    changed, tasks = _layout_edit(module_id, mark)
+    return {"changed": changed, "tasks": tasks}
+
+
 @app.delete("/api/modules/{module_id}/layout")
 def api_module_layout_reset(module_id: int):
     _layout_edit(module_id, lambda c, now: module_layout.reset(c, module_id))

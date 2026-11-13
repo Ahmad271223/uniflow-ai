@@ -215,11 +215,21 @@ final class PlanerModulWocheAppTests: XCTestCase {
     }
 
     /// Moduldetail ohne Sprung (Meine Module, Seitenleiste): wie bisher alle Wochen offen, kein Hinweis
-    func testModuleListStillShowsAllWeeks() throws {
+    /// Normales Oeffnen (Auftrag 13.11.2026): alle Wochen zugeklappt, ohne Hinweis "Alle Wochen aufklappen"; jede Woche
+    /// laesst sich aufklappen (VoiceOver: Wochentitel), dann stehen alle Dateien da
+    func testModuleListStartsCollapsedAndOpensEveryWeek() throws {
         let (api, _, _) = try device()
         let router = UFRouter(start: .module(2))
         let w = try modulePage(after: router, api: api)
-        for n in names { XCTAssertTrue(shows(w, "M2 \(n)"), "\(n): \(dump(w))") }
+        for n in names { XCTAssertFalse(shows(w, "M2 \(n)"), "\(n) zugeklappt: \(dump(w))") }
         XCTAssertFalse(shows(w, "Alle Wochen aufklappen"))
+        var opened = 0
+        while opened < 30, let e = elements(in: w).first(where: { $0.accessibilityTraits.contains(.button) && $0.accessibilityValue == "zugeklappt" }),
+              e.accessibilityActivate() {
+            opened += 1
+            _ = pump(timeout: 0.4)
+        }
+        XCTAssertGreaterThanOrEqual(opened, 5)
+        for n in names { XCTAssertTrue(shows(w, "M2 \(n)"), "\(n): \(dump(w))") }
     }
 }

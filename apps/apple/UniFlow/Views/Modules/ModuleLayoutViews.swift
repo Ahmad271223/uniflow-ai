@@ -190,6 +190,7 @@ struct ModuleWeekFileRow: View {
             if let k = f.s("suggest_key"), let label = f.s("suggest_label") {
                 ModuleSuggestionChip(label: label, reason: f.s("suggest_reason") ?? "") { place(k) }
             }
+            ModuleFileDoneToggle(moduleID: moduleID, f: f)                  // ganz rechts: erledigt (13.11.2026)
         }
         .draggable(ModuleDragFile(id: id)) {
             Text(f.s("ai_title") ?? f.s("name") ?? "Datei").ufFont(13.12, 550).padding(8)
