@@ -268,4 +268,101 @@ final class SideSheetFoundAgainAppTests: XCTestCase {
         ctx.draw(cg, in: CGRect(x: -p.x * scale, y: -(CGFloat(cg.height) - p.y * scale - 1), width: CGFloat(cg.width), height: CGFloat(cg.height)))
         return Int(px[2]) - Int(px[0]) > 25
     }
+    // MARK: Fenster-Sperre (Rueckmeldung des Inhabers 13.11.2026, Bilder vom iPad)
+
+    /// Fenster im Hintergrund (auf dem iPad hinter ein neues Fenster gerutscht): ein anderes Fenster uebernimmt das
+    /// Dokument und schreibt. Vorher blieb die PDF dort dauerhaft "nur ansehen".
+    func testBackgroundWindowDoesNotLockTheDocument() async throws {
+        let e = try env()
+        let a = try await mainStore(e)
+        XCTAssertTrue(a.isWritable)
+        a.canvasChanged(pageKey: "p1", drawing: ink(200))           // ungesichert, als das Fenster nach hinten rutscht
+        a.setSceneVisible(false)
+        let b = DocumentStore(file: a.file, api: e.api, root: e.root)
+        await b.load()
+        XCTAssertTrue(b.isWritable, "Fenster vorn schreibt")
+        XCTAssertFalse(b.canTakeOverHere)
+        XCTAssertTrue(a.viewOnlyHere, "Fenster hinten hat abgegeben")
+        XCTAssertTrue(a.canTakeOverHere, "und kann mit „Hier bearbeiten“ zurueckholen")
+        let doc = await b.pageStructureDocument()
+        XCTAssertFalse(doc.objects(page: "p1").isEmpty, "Striche aus dem Fenster hinten sind da")
+        await b.close()
+        await a.close()
+    }
+
+    /// Wirklich zwei sichtbare Fenster: das zweite sieht nur an; "Hier bearbeiten" laesst das erste abgeben, danach
+    /// oeffnet dieses Fenster neu und schreibt. Schliesst das erste, meldet es die Freigabe.
+    func testTakeOverHereFromVisibleWindow() async throws {
+        let e = try env()
+        let a = try await mainStore(e)
+        let b = DocumentStore(file: a.file, api: e.api, root: e.root)
+        await b.load()
+        XCTAssertTrue(b.viewOnlyHere)
+        XCTAssertTrue(b.canTakeOverHere)
+        XCTAssertTrue(b.writerElsewhereShown, "das andere Fenster ist zu sehen: nicht von selbst uebernehmen")
+        XCTAssertEqual(b.notice, DocumentStore.openElsewhereNotice)
+        XCTAssertTrue(DocumentStore.openElsewhereNotice.contains("Hier bearbeiten"))
+
+        a.canvasChanged(pageKey: "p2", drawing: ink(300))
+        await b.takeOverFromOtherWindow()
+        XCTAssertTrue(a.viewOnlyHere, "erstes Fenster gibt ab")
+        XCTAssertEqual(a.notice, DocumentStore.handedOverNotice)
+        XCTAssertFalse(b.writerElsewhereShown)
+        await b.close()
+        let before = DocumentReopen.shared.generation(a.file.id)
+        DocumentReopen.shared.reopen(a.file.id)
+        XCTAssertEqual(DocumentReopen.shared.generation(a.file.id), before + 1, "Ansicht entsteht neu")
+        let c = DocumentStore(file: a.file, api: e.api, root: e.root)
+        await c.load()
+        XCTAssertTrue(c.isWritable, "neu geoeffnet: hier schreiben")
+        let doc = await c.pageStructureDocument()
+        XCTAssertFalse(doc.objects(page: "p2").isEmpty, "nichts verloren")
+
+        let released = expectation(forNotification: .uniflowDocumentReleased, object: nil) { n in
+            n.userInfo?["key"] as? String == c.openKey
+        }
+        await c.close()
+        await fulfillment(of: [released], timeout: 2)
+        await a.close()
+    }
+
+    /// "Eigenes Fenster" gibt es nur am Mac (auf dem iPad schob es die PDF weg)
+    func testOwnWindowButtonOnlyOnMac() {
+        XCTAssertEqual(CompanionView.offersOwnWindow, PDFEditorController.isMac && DocumentWindows.supported)
+        if !PDFEditorController.isMac { XCTAssertFalse(CompanionView.offersOwnWindow) }
+    }
+
+    // MARK: Eine Notiz je Datei
+
+    /// Zweites "Leeres Blatt" zum selben Dokument: kein neues Notizbuch, sondern eine Seite unten im vorhandenen; eine
+    /// leere letzte Seite derselben Vorlage wird wiederverwendet
+    func testSecondBlankSheetContinuesTheSameNotes() async throws {
+        let e = try env()
+        let main = try await mainStore(e)
+        let sheet = try await newSheet(e)
+        try await write(on: sheet, beside: "p1", main: main)
+        let library = try await e.api.json("/api/library", as: LibraryResponse.self).files
+        let own = await CompanionPicker.ownSheets(linked: main.sideSheetFileIDs, named: CompanionPicker.sheetTitle(for: "Folien"),
+                                                  library: library, excluding: main.file.id, api: e.api)
+        XCTAssertEqual(CompanionPicker.sheetToContinue(own), sheet.file.id, "weiter in derselben Notiz")
+
+        let first = await CompanionView.appendPage(to: sheet, template: "lined")
+        XCTAssertEqual(first, 1)
+        XCTAssertEqual(sheet.layout?.entries.count, 2, "Seite unten angefuegt")
+        XCTAssertEqual(sheet.layout?.entries.last?.template, "lined")
+        let again = await CompanionView.appendPage(to: sheet, template: "lined")
+        XCTAssertEqual(again, 1, "leere letzte Seite wird wiederverwendet")
+        XCTAssertEqual(sheet.layout?.entries.count, 2)
+        let other = await CompanionView.appendPage(to: sheet, template: "grid")
+        XCTAssertEqual(other, 2)
+        XCTAssertEqual(sheet.layout?.entries.count, 3)
+
+        // im Papierkorb: neues Blatt statt Weiterschreiben im geloeschten
+        _ = try await e.api.value("/api/library/files/\(sheet.file.id)", method: "PATCH", body: ["trash": true])
+        let trashed = await CompanionPicker.ownSheets(linked: main.sideSheetFileIDs, named: CompanionPicker.sheetTitle(for: "Folien"),
+                                                      library: [], excluding: main.file.id, api: e.api)
+        XCTAssertNil(CompanionPicker.sheetToContinue(trashed))
+        await sheet.close()
+        await main.close()
+    }
 }

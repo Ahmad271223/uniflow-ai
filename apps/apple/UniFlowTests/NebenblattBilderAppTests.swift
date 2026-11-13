@@ -232,4 +232,57 @@ final class NebenblattBilderAppTests: XCTestCase {
         env.pump(2.0)
         shot(env.view, "5-loesung-auf-eigener-pdf")
     }
+    /// Gleiches Dokument in einem anderen sichtbaren Fenster: hier "nur ansehen" mit "Hier bearbeiten"; antippen
+    /// uebernimmt, die Ansicht oeffnet neu und schreibt
+    func test4HierBearbeiten() throws {
+        let s = try run { try await self.scene() }
+        let other = DocumentStore(file: s.main, api: s.api)
+        try run { await other.load() }
+        let env = try hostWithEnvironment(ReopenHost(file: s.main, api: s.api), api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.plus)
+        XCTAssertTrue(env.wait(timeout: 15) { self.hasButton("Hier bearbeiten", env.window) }, "Knopf „Hier bearbeiten“")
+        env.pump(1.0)
+        shot(env.window, "6-anderes-fenster-hier-bearbeiten")
+        XCTAssertTrue(tap(containing: "Hier bearbeiten", in: env.window))
+        XCTAssertTrue(env.wait(timeout: 15) { other.viewOnlyHere && !self.hasButton("Hier bearbeiten", env.window) }, "uebernommen")
+        Entitlements.shared.setPlanForTesting(.plus)
+        env.pump(1.5)
+        shot(env.window, "7-hier-bearbeiten-uebernommen")
+        try run { await other.close() }
+    }
+
+    /// Zweites "Leeres Blatt" zum selben Dokument: Seite unten in derselben Notiz
+    func test5GleicheNotizWeiter() throws {
+        let s = try run { try await self.scene() }
+        let previous = UserDefaults.standard.object(forKey: "UFDocPanel")
+        UserDefaults.standard.set("companion", forKey: "UFDocPanel")
+        addTeardownBlock { @MainActor in UserDefaults.standard.set(previous, forKey: "UFDocPanel") }
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: s.main, api: s.api) }, api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.plus)
+        env.wait(timeout: 15) { self.shows("Es gibt schon Notizen", in: env.window) }
+        env.pump(1.0)
+        shot(env.window, "8-leeres-blatt-gleiche-notiz")
+        XCTAssertTrue(tap(containing: "Liniert", in: env.window), "Vorlage Liniert")
+        env.wait(timeout: 15) { self.shows("S. 3 / 3", in: env.window) }
+        env.pump(2.0)
+        shot(env.window, "9-neue-seite-in-derselben-notiz")
+        UserDefaults.standard.set(previous, forKey: "UFDocPanel")
+    }
+
+    private func hasButton(_ text: String, _ root: UIView) -> Bool {
+        elements(in: root).contains { $0.accessibilityTraits.contains(.button) && ($0.accessibilityLabel ?? "").contains(text) }
+    }
+}
+
+/// Dokumentansicht wie in der Bibliothek: neue Identitaet je `DocumentReopen`-Generation
+private struct ReopenHost: View {
+    let file: LibFile
+    let api: APIClient
+    @ObservedObject private var reopen = DocumentReopen.shared
+
+    var body: some View {
+        NavigationStack { DocumentView(file: file, api: api).id(reopen.generation(file.id)) }
+    }
 }
