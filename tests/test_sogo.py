@@ -416,3 +416,22 @@ def test_luh_status_names_luh(app, monkeypatch, tmp_path):
     db.init_db()
     st, d = _j(asgi_call(app, "GET", "/api/sogo/status"))
     assert d["available"] is True and d["university"] == "luh" and d["name"] == "Uni-Mail (LUH)" and d["room_links"] is True
+
+
+def test_html_instead_of_json_means_login_again():
+    """13.11.2026, echtes iPad: SOGo schickte eine HTML-Seite statt JSON ("Unerwartete Antwort von Uni-Mail: keine
+    JSON-Antwort"). Eine Seite statt Daten heisst jetzt "neu anmelden" (die App meldet sich dann einmal selbst an),
+    anderer Unsinn bleibt "bad"."""
+    from app import sogo
+    assert sogo.looks_like_html(b"  <!DOCTYPE html><html><body>Bitte anmelden</body></html>")
+    assert sogo.looks_like_html(b"<html lang='de'>")
+    assert not sogo.looks_like_html(b'{"a": 1}') and not sogo.looks_like_html(b"kaputt")
+    w = web(FakeSOGo())
+    w._req = lambda *a, **k: (200, b"<!doctype html><html><head><title>SOGo</title></head></html>", {"content-type": "text/html"})
+    with pytest.raises(sogo.SOGoError) as e:
+        w.folder("INBOX")
+    assert e.value.code == "login"
+    w._req = lambda *a, **k: (200, b"kein json", {"content-type": "text/plain"})
+    with pytest.raises(sogo.SOGoError) as e:
+        w.folder("INBOX")
+    assert e.value.code == "bad"
