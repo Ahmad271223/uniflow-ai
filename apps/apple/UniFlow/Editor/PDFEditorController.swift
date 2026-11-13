@@ -800,7 +800,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let report = onZoomChange else { return }
         let value = lastFit > 0 ? pdfView.scaleFactor / lastFit : 1
         guard value != lastPublishedZoom else { return }
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = CACurrentMediaTime()   // keine Startzeit-API mit Begruendungspflicht (PrivacyInfo, tests/test_ai_consent.py)
         if !force, PencilTuning.throttleZoomPublish, now - lastZoomPublish < PencilTuning.zoomPublishInterval { return }
         lastZoomPublish = now
         lastPublishedZoom = value
