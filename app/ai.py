@@ -335,20 +335,28 @@ def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | N
 # 2) Tutor im Editor (freier Text, Markdown); der KI-Wochenplan ist entfallen (Lernplan in app/study.py, ohne KI)
 # ----------------------------------------------------------------------------
 
-TUTOR_SYSTEM = ("Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester "
-                "(Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen "
-                "Absaetzen. Beziehe dich konkret auf den gegebenen Seiteninhalt. " + MATH_STYLE)
+# 13.11.2026 (Rueckmeldung der Tester: "viel zu kompliziert, ChatGPT erklaert einfacher"): erklaeren wie ein guter
+# Kommilitone - Kernidee zuerst, einfache Woerter, Beispiel, Formeln nur wenn noetig und dann in Worten, kurz.
+TUTOR_SYSTEM = ("Du bist ein freundlicher Lernpartner fuer Studierende (z. B. Informatik, Elektrotechnik, Mathematik). "
+                "Erklaere so, wie es ein guter Kommilitone tun wuerde: auf Deutsch, in der Du-Form, mit einfachen Woertern "
+                "und kurzen Saetzen. Fang mit der Kernidee in ein bis zwei Saetzen an, dann folgt ein anschauliches Beispiel "
+                "(aus dem Alltag oder mit einfachen Zahlen). Fachbegriffe nur, wenn noetig, und dann sofort in einfachen "
+                "Worten erklaert. Formeln nur, wenn sie wirklich helfen; sag danach in Worten, was die Zeichen bedeuten. "
+                "Keine Einleitungsfloskeln, keine Wiederholung des Seiteninhalts, keine langen Herleitungen, keine "
+                "Rueckfrage am Ende. Halte dich kurz (meist unter 200 Woertern; bei Rechenaufgaben so lang wie noetig) und "
+                "nutze Markdown sparsam: kurze Absaetze, hoechstens eine kurze Liste. Beziehe dich vor allem auf die "
+                "markierte Stelle bzw. meine Frage; der uebrige Seiteninhalt ist nur Hintergrund. " + MATH_STYLE)
 
 TUTOR_MODES = {
-    "ask": "Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.",
-    "explain": "Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.",
-    "explain_simple": "Erklaere so einfach wie moeglich, als waere ich Anfaenger. Keine Fachbegriffe ohne Erklaerung.",
+    "ask": "Beantworte meine Frage zur Seite bzw. zum markierten Text direkt und einfach. Ist es eine Aufgabe, loese sie Schritt fuer Schritt und sag bei jedem Schritt in einem Satz, warum.",
+    "explain": "Erklaere den markierten Text bzw. die Formel einfach und anschaulich: erst die Idee in ein bis zwei Saetzen, dann ein kleines Beispiel. Nur so genau, wie es fuers Verstehen noetig ist.",
+    "explain_simple": "Erklaere so einfach wie moeglich, als haette ich kein Vorwissen, mit einem Vergleich aus dem Alltag. Keine Fachbegriffe ohne Erklaerung, keine Formeln, wenn es auch ohne geht.",
     "summary": "Fasse die Seite in 5-8 Stichpunkten zusammen und nenne, was man danach koennen muss.",
-    "steps": "Loese die Aufgabe (markierter Text oder Seiteninhalt) Schritt fuer Schritt. Erklaere jeden Schritt kurz.",
+    "steps": "Loese die Aufgabe (markierter Text oder Seiteninhalt) Schritt fuer Schritt. Sag bei jedem Schritt in einfachen Worten, was du machst und warum.",
     "hints": "Gib NUR Hinweise zur Loesung der Aufgabe, keine fertige Loesung. Maximal 3 Hinweise, vom allgemeinen zum konkreten.",
     "check": "Pruefe meine Loesung (unter 'Meine Loesung'). Sage, was richtig ist, wo Fehler sind und wie man sie behebt. Gib am Ende eine Einschaetzung in Punkten von 10.",
     "similar": "Erstelle eine aehnliche Uebungsaufgabe mit gleichem Schwierigkeitsgrad und gib die Loesung getrennt darunter an.",
-    "terms": "Definiere die Fachbegriffe auf dieser Seite kurz und praezise (Begriff: Definition).",
+    "terms": "Erklaere die Fachbegriffe auf dieser Seite kurz und in einfachen Worten (Begriff: Erklaerung in einem Satz).",
     "flashcards": "Erstelle 6-10 Karteikarten aus dem Seiteninhalt. Antworte NUR mit JSON: [{\"question\": \"...\", \"answer\": \"...\"}]",
 }
 
