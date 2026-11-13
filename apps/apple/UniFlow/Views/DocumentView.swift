@@ -2225,13 +2225,12 @@ struct CompanionView: View {
                 CompanionAddPageButton(store: store, bridge: bridge,
                                        enabled: canEdit && store.pdf != nil && !store.journalUnreadable && !store.viewOnlyHere)
                 CompanionPageLabel(bridge: bridge, count: store.layout?.entries.count ?? 0)
-                // Papierkorb fuer das Notizblatt daneben (Wunsch des Inhabers 13.11.2026)
-                if store.file.isNotebook, let onTrashed {
-                    CompanionTrashButton(title: store.file.displayTitle, enabled: canEdit && store.pdf != nil) {
-                        try await SideSheetTrash.trash(store.file.id, api: api, flushing: store)
-                        onTrashed()
-                    }
-                }
+                // Seiten loeschen, Papierkorb der Seiten, ganzes Blatt loeschen (Wunsch des Inhabers 13.11.2026)
+                CompanionPageMenu(store: store, bridge: bridge, enabled: canEdit && store.pdf != nil && !store.viewOnlyHere,
+                                  trashSheet: store.file.isNotebook && onTrashed != nil ? {
+                                      try await SideSheetTrash.trash(store.file.id, api: api, flushing: store)
+                                      onTrashed?()
+                                  } : nil)
             }
             if let error = store.errorMessage {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
@@ -2325,35 +2324,113 @@ enum SideSheetTrash {
     }
 }
 
-/// Papierkorb-Knopf im Kopf des Notizblatts daneben, mit Rueckfrage
-struct CompanionTrashButton: View {
-    let title: String
+/// "…" im Kopf des Dokuments daneben (Wunsch des Inhabers 13.11.2026: "neben der Datei kann ich kein Blatt löschen"):
+/// diese Seite in den Papierkorb (mit Rueckfrage, Rueckgaengig ueber die Leiste), Papierkorb der Seiten mit
+/// Wiederherstellen (wie im Hauptdokument, `PageTrashSheet`) und - beim Notizblatt - das ganze Blatt in den
+/// Papierkorb (`SideSheetTrash`). Ein normaler Knopf mit Popover, kein `Menu` (das verschluckte die Kopfzeile, siehe
+/// `CompanionAddPageButton`).
+struct CompanionPageMenu: View {
+    let store: DocumentStore
+    @ObservedObject var bridge: EditorBridge
     let enabled: Bool
-    let trash: () async throws -> Void
-    @State private var asking = false
+    /// ganzes Blatt in den Papierkorb (nur Notizblaetter daneben)
+    let trashSheet: (() async throws -> Void)?
+
+    enum Confirm: Identifiable { case page, sheet; var id: Int { self == .page ? 0 : 1 } }
+
+    @State private var open = false
+    @State private var trashed = 0
+    @State private var confirm: Confirm?
+    @State private var showingTrash = false
     @State private var failure: String?
 
+    private var pageCount: Int { store.layout?.entries.count ?? 0 }
+
     var body: some View {
-        Button { asking = true } label: {
-            Image(systemName: "trash").frame(width: 30, height: 30).contentShape(Rectangle())
+        Button { open = true } label: {
+            Image(systemName: "ellipsis.circle").font(.system(size: 18, weight: .medium))
+                .frame(width: 34, height: 34).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(enabled ? UF.text2 : UF.muted)
         .disabled(!enabled)
-        .accessibilityLabel("Blatt in den Papierkorb")
-        .accessibilityIdentifier("companion.trash")
-        .modifier(MacHelp(text: "Blatt in den Papierkorb"))
-        .confirmationDialog("Blatt in den Papierkorb?", isPresented: $asking, titleVisibility: .visible) {
-            Button("In den Papierkorb", role: .destructive) {
-                Task {
-                    do { try await trash() } catch { failure = error.localizedDescription }
-                }
+        .accessibilityLabel("Seiten und Blatt")
+        .accessibilityIdentifier("companion.menu")
+        .modifier(MacHelp(text: "Seiten und Blatt"))
+        .popover(isPresented: $open, arrowEdge: .top) { menu }
+        .confirmationDialog(confirm == .sheet ? "Ganzes Blatt in den Papierkorb?" : "Seite \(bridge.pageIndex + 1) in den Papierkorb?",
+                            isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
+                            titleVisibility: .visible, presenting: confirm) { c in
+            Button(c == .sheet ? "Blatt in den Papierkorb" : "Seite in den Papierkorb", role: .destructive) {
+                Task { await run(c) }
             }
+            .accessibilityIdentifier("companion.menu.confirm")
             Button("Abbrechen", role: .cancel) {}
-        } message: { Text(SideSheetTrash.confirmMessage(title)) }
-        .alert("Papierkorb", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+        } message: { c in
+            Text(c == .sheet ? SideSheetTrash.confirmMessage(store.file.displayTitle) : Self.pageConfirmMessage)
+        }
+        .sheet(isPresented: $showingTrash) { PageTrashSheet(bridge: bridge) }
+        .alert("Löschen", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(failure ?? "") }
+    }
+
+    static let pageConfirmMessage = "Rückgängig in der Leiste oder „Papierkorb der Seiten“ holt sie wieder zurück."
+    static let lastPageMessage = "Die letzte Seite lässt sich nicht einzeln löschen. Lösche stattdessen das ganze Blatt."
+
+    private var menu: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Seite \(bridge.pageIndex + 1) von \(max(1, pageCount))").ufFont(12.8, 600).foregroundStyle(UF.muted)
+                .padding(.horizontal, 12).padding(.top, 4)
+            item("Diese Seite löschen", "trash", id: "companion.menu.deletePage", destructive: true, disabled: pageCount <= 1) {
+                then { confirm = .page }
+            }
+            item(trashed > 0 ? "Papierkorb der Seiten (\(trashed))" : "Papierkorb der Seiten", "arrow.uturn.backward",
+                 id: "companion.menu.trash") { then { showingTrash = true } }
+            if trashSheet != nil {
+                Divider().padding(.vertical, 4)
+                item("Ganzes Blatt löschen", "xmark.bin", id: "companion.menu.deleteSheet", destructive: true) {
+                    then { confirm = .sheet }
+                }
+            }
+            if pageCount <= 1 {
+                Text(Self.lastPageMessage).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12).padding(.top, 4)
+            }
+        }
+        .padding(8)
+        .frame(width: 280)
+        .presentationCompactAdaptation(.popover)
+        .task { trashed = await bridge.controller?.trashedPages().count ?? 0 }
+    }
+
+    private func item(_ title: String, _ icon: String, id: String, destructive: Bool = false, disabled: Bool = false,
+                      action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon).ufFont(14.5, 550)
+                .foregroundStyle(disabled ? UF.muted : destructive ? UF.bad : UF.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12).padding(.vertical, 10)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .accessibilityIdentifier(id)
+    }
+
+    /// Popover zu, danach die naechste Darstellung (Rueckfrage, Papierkorb)
+    private func then(_ next: @escaping () -> Void) {
+        open = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: next)
+    }
+
+    private func run(_ c: Confirm) async {
+        switch c {
+        case .page:
+            if await bridge.controller?.trashPage(key: bridge.pageKey, undoable: true) != true { failure = Self.lastPageMessage }
+        case .sheet:
+            do { try await trashSheet?() } catch { failure = error.localizedDescription }
+        }
     }
 }
 

@@ -33,3 +33,19 @@ Community-Lösung daneben geöffnet („Lösung von Anonym …“, „nur ansehe
   Lauf scheiterte nur `CommunityCorrectionWiringAppTests.testInboxBannerOnSpacePageOpensAndIgnores` (Zeitlimit);
   allein zweimal 13/13 grün. `TutorHeadAppTests`, `ViewTypeDepthAppTests`, `SplitSidesAppTests`,
   `ChatGPTLinkAppTests` zusammen 27/27.
+
+## Seiten und Blatt löschen im Blatt daneben (Wunsch des Inhabers, 13.11.2026)
+
+- **Vorher:** Im Hauptdokument: Seite löschen (Seitenleiste, gedrückt halten) und „Papierkorb“ mit Wiederherstellen.
+  Im Blatt daneben gab es nichts davon – keine Seitenleiste, kein Menü.
+- **Jetzt:** Im Kopf des Blatts daneben ein „…“-Knopf („Seiten und Blatt“, normaler Knopf mit Popover):
+  - **Diese Seite löschen** – mit Rückfrage; die Seite kommt in den Papierkorb, Rückgängig in der Leiste holt sie zurück.
+    Die letzte Seite lässt sich nicht einzeln löschen (Hinweis: ganzes Blatt löschen).
+  - **Papierkorb der Seiten (n)** – derselbe Papierkorb wie im Hauptdokument, mit „Wiederherstellen“.
+  - **Ganzes Blatt löschen** (nur Notizblätter) – mit Rückfrage; landet im Blatt-Papierkorb, wiederherstellbar unter
+    „Daneben öffnen“ › „Deine Blätter“ oder Bibliothek › Papierkorb.
+- Dafür ist Commit `693b75c5` (Zweig `editor/community-papier`: Papier der Lösungen, Blatt-Papierkorb) in diesen Zweig
+  übernommen; der frühere einzelne Papierkorb-Knopf ist in das Menü gewandert. **Beim Mischen nur diesen Zweig nehmen**
+  (er enthält `editor/community-papier`).
+- Test mit echter Berührung: `CompanionPageMenuUITests` (Seite löschen mit Rückfrage, Papierkorb, Wiederherstellen,
+  ganzes Blatt löschen, über „Deine Blätter“ zurückholen). UI-Tests gesamt 13/13. iPad voll danach: 1749 Tests, 0 Fehler.

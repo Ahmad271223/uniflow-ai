@@ -287,15 +287,17 @@ final class NebenblattBilderAppTests: XCTestCase {
         env.pump(1.0)
         XCTAssertTrue(env.wait(timeout: 10) { self.tap(containing: "Notizen – Übungsblatt 4", in: env.window) }, "eigenes Blatt")
         UserDefaults.standard.set(previous, forKey: "UFDocPanel")
-        XCTAssertTrue(env.wait(timeout: 15) { self.hasButton("Blatt in den Papierkorb", env.window) }, "Papierkorb-Knopf")
+        XCTAssertTrue(env.wait(timeout: 15) { self.hasButton("Seiten und Blatt", env.window) }, "Menue im Kopf")
         Entitlements.shared.setPlanForTesting(.plus)
-        env.pump(1.5)
-        shot(env.window, "10-blatt-papierkorb-knopf")
-        XCTAssertTrue(tap(containing: "Blatt in den Papierkorb", in: env.window))
-        env.wait(timeout: 5) { self.hasButton("In den Papierkorb", env.window) }
+        XCTAssertTrue(tap(containing: "Seiten und Blatt", in: env.window))
+        env.wait(timeout: 5) { self.hasButton("Ganzes Blatt löschen", env.window) }
+        env.pump(1.0)
+        shot(env.window, "10-blatt-menue")
+        XCTAssertTrue(tap(containing: "Ganzes Blatt löschen", in: env.window))
+        env.wait(timeout: 5) { self.hasButton("Blatt in den Papierkorb", env.window) }
         env.pump(1.0)
         shot(env.window, "11-blatt-papierkorb-rueckfrage")
-        XCTAssertTrue(env.wait(timeout: 5) { self.tap(containing: "In den Papierkorb", in: env.window) })
+        XCTAssertTrue(env.wait(timeout: 5) { self.tap(containing: "Blatt in den Papierkorb", in: env.window) })
         env.wait(timeout: 10) { self.shows("liegt im Papierkorb", in: env.window) }
         env.pump(0.6)
         shot(env.window, "12-blatt-im-papierkorb-hinweis")
