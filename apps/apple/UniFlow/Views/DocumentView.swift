@@ -995,6 +995,14 @@ struct DocumentView: View {
             #endif
             scheduleSuggestion(bridge.pageIndex)
             await reloadSolutionLayers()
+            #if DEBUG
+            // -UFDocPanel solution: erfundene Loesung zu diesem Dokument daneben (UI-Tests der Kopfzeile, 13.11.2026)
+            if UserDefaults.standard.string(forKey: "UFDocPanel") == "solution" {
+                await DebugDemoSolution.ensure(for: store)
+                await reloadSolutionLayers()
+                if let layer = foreignLayers.first { companion = nil; solutionSide = layer }
+            }
+            #endif
             if let sid = correcting { await startCorrection(sid) }
             await takeCorrectionRequest()
             await loadCommunityMatches()
@@ -2185,7 +2193,7 @@ struct CompanionView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Kopf wie KI-Hilfe und Loesung daneben (UFPaneHeader)
-            UFPaneHeader(store.file.displayTitle, icon: store.file.isNotebook ? "note" : "file-text", close: onClose) {
+            UFPaneHeader(store.file.displayTitle, icon: store.file.isNotebook ? "note" : "file-text", closeID: "companion.close", close: onClose) {
                 if Self.offersOwnWindow {
                     // Uebung bzw. Loesung als eigenes Fenster (Mac: frei verschieben, auch auf einen zweiten Bildschirm)
                     Button {

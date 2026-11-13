@@ -808,7 +808,7 @@ struct SolutionSidePane: View {
     var body: some View {
         VStack(spacing: 0) {
             // Kopf wie KI-Hilfe und Dokument daneben (UFPaneHeader); "nur ansehen" als ruhiges Abzeichen
-            UFPaneHeader(layer.label, icon: "users", close: onClose) {
+            UFPaneHeader(layer.label, icon: "users", closeID: "solution.close", close: onClose) {
                 UFBadge("nur ansehen", tone: .neutral)
             }
             GeometryReader { geo in
