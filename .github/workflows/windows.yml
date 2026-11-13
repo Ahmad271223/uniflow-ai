@@ -1,10 +1,11 @@
 # Windows-Desktop (Tauri + mitgeliefertes Python-Backend). Windows-Minuten zaehlen doppelt: laeuft nur bei Aenderungen
-# an App oder Backend auf develop und sonst von Hand (workflow_dispatch).
+# an App oder Backend auf develop und auf Zweigen windows/** (Store-Paket, 13.11.2026) und sonst von Hand
+# (workflow_dispatch). Ergebnis: der NSIS-Installer und das Store-Paket (MSIX) als Artefakte des Laufs.
 name: Windows
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, "windows/**"]
     paths:
       - "apps/windows/**"
       - "app/**"

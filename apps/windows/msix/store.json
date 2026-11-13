@@ -1,8 +1,13 @@
 {
-  "_hinweis": "Werte aus Partner Center, Produkt -> Produktverwaltung -> Produktidentität. Bis der Name reserviert ist, gelten die Testwerte; ein Paket mit Testwerten nimmt der Store nicht an. Siehe apps/windows/msix/README.md.",
-  "identity_name": "UniFlow.Test",
-  "publisher": "CN=UniFlow Test",
-  "publisher_display_name": "StudiNow (Test)",
+  "_hinweis": "PLATZHALTER: Die drei Werte identity_name, publisher und publisher_display_name kommen aus Partner Center (Produkt -> Produktverwaltung -> Produktidentitaet) und sind hier noch NICHT eingetragen. Ein Paket mit Platzhaltern baut und installiert sich zum Testen, Partner Center nimmt es nicht an. Eintragen und store_ready auf true setzen; der Test tests/test_windows_package.py prueft beides. Anleitung: apps/windows/msix/README.md, docs/WINDOWS-ABNAHME-2026-11-08.md Abschnitt 2.",
+  "_inhaber_traegt_ein": {
+    "identity_name": "Partner Center -> Produktidentitaet -> Package/Identity/Name (z. B. 12345ITsolutionsbyAhmadFakih.StudiNow)",
+    "publisher": "Partner Center -> Produktidentitaet -> Package/Identity/Publisher (beginnt mit CN=, eine GUID-aehnliche Kennung)",
+    "publisher_display_name": "Partner Center -> Produktidentitaet -> Package/Properties/PublisherDisplayName (Anzeigename des Herausgebers, z. B. IT solutions by Ahmad Fakih)"
+  },
+  "identity_name": "PLATZHALTER.StudiNow",
+  "publisher": "CN=PLATZHALTER-AUS-PARTNER-CENTER",
+  "publisher_display_name": "PLATZHALTER (Herausgeber aus Partner Center)",
   "display_name": "StudiNow",
   "description": "Studium, Unterlagen und Lernplan an einem Ort",
   "store_ready": false

@@ -476,7 +476,8 @@ def test_pyinstaller_spec_and_workflow():
     assert wf.index("PyInstaller") < wf.index("npx tauri build"), "erst Backend packen, dann Installer"
     assert wf.index("npx tauri build") < wf.index("check-installer.ps1") < wf.index("upload-artifact"), "Installer testen, dann hochladen"
     # Ausloeser: push auf develop bei Aenderungen an App/Backend, dazu von Hand
-    assert re.search(r"^on:\n  push:\n    branches: \[develop\]\n    paths:\n", wf, re.M) and "workflow_dispatch:" in wf
+    # 13.11.2026: auch Zweige windows/** bauen (Store-Paket, ohne develop anzufassen)
+    assert re.search(r'^on:\n  push:\n    branches: \[develop, "windows/\*\*"\]\n    paths:\n', wf, re.M) and "workflow_dispatch:" in wf
     for p in ('"apps/windows/**"', '"app/**"', '"requirements.txt"', '".github/workflows/windows.yml"'):
         assert p in wf, p
     # Chromium: Ordner chromium-* muss da sein, sonst klare Meldung
@@ -512,8 +513,10 @@ def test_visible_name_is_studinow_and_internal_names_stay():
     assert 'set_message(&win, "StudiNow startet …")' in rs and 'unwrap_or("StudiNow")' in rs
     assert "uniflow-backend.exe" in rs and "de.uniflow.desktop" in rs, "Dateiname und Datenordner bleiben"
     store = json.loads((WIN / "msix" / "store.json").read_text(encoding="utf-8"))
-    assert store["display_name"] == "StudiNow" and store["publisher_display_name"].startswith("StudiNow")
-    assert store["identity_name"].startswith("UniFlow") and store["publisher"].startswith("CN="), "Identität aus Partner Center bleibt"
+    # publisher_display_name ist bis zur Eintragung ein Platzhalter aus Partner Center (siehe
+    # tests/test_windows_package.py); sichtbar im Store ist der display_name
+    assert store["display_name"] == "StudiNow"
+    assert store["publisher"].startswith("CN="), "Identität aus Partner Center bleibt (Form CN=…)"
     assert (WIN / "README.md").read_text(encoding="utf-8").startswith("# StudiNow für Windows")
 
 
