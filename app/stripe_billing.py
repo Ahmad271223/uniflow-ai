@@ -148,6 +148,10 @@ def http_get(path: str) -> dict:
     return _request("GET", path)
 
 
+def http_delete(path: str) -> dict:
+    return _request("DELETE", path)
+
+
 # ---------------------------------------------------------------- Kunde, Checkout, Portal
 
 def customer_id(conn, user: dict, create: bool = True) -> str | None:
@@ -171,6 +175,31 @@ def user_for_customer(conn, cid: str | None) -> str | None:
         return None
     row = conn.execute("SELECT user_id FROM stripe_customers WHERE customer_id=?", (cid,)).fetchone()
     return row[0] if row else None
+
+
+# Abo-Stände, die noch abbuchen oder abbuchen koennten (beim Loeschen des Kontos beenden)
+ENDABLE = ("active", "trialing", "past_due", "unpaid", "incomplete", "paused")
+
+
+def cancel_for_deleted_account(conn, user_id: str) -> list[str]:
+    """Konto geloescht (Entscheidung des Inhabers vom 13.11.2026: Karten-Abo mitkuendigen): jedes noch laufende
+    Stripe-Abo des Kunden sofort beenden, damit nichts mehr abgebucht wird; bezahlte Zeit wird nicht anteilig erstattet.
+    Gefragt wird Stripe selbst (alle Abos des Kunden), nicht der eigene Stand: ein Webhook kann fehlen oder spaet kommen.
+    Idempotent (beendete Abos zaehlen nicht mehr); ohne Stripe-Kunden passiert nichts und es gibt keinen Aufruf.
+    Liefert die beendeten Abo-IDs; Fehler (Stripe nicht erreichbar, nicht eingerichtet) gehen an den Aufrufer, der es
+    spaeter erneut versucht (accounts._after_delete, taeglich ueber purge_deleted bis zum endgueltigen Loeschen)."""
+    row = conn.execute("SELECT customer_id FROM stripe_customers WHERE user_id=?", (str(user_id),)).fetchone()
+    if not row:
+        return []
+    cid = urllib.parse.quote(str(row[0]), safe="")
+    subs = (http_get(f"/subscriptions?customer={cid}&status=all&limit=100") or {}).get("data") or []
+    done = []
+    for sub in subs:
+        sid = sub.get("id") if isinstance(sub, dict) else None
+        if isinstance(sid, str) and sid and sub.get("status") in ENDABLE:
+            http_delete(f"/subscriptions/{urllib.parse.quote(sid, safe='')}")      # sofort beenden, ohne Erstattung
+            done.append(sid)
+    return done
 
 
 APPLE_ACTIVE = "Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones."

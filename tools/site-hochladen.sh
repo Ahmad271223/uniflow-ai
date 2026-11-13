@@ -13,7 +13,7 @@ ZIP="$(mktemp -t studinow-site).zip"
 ANTWORT="$(curl -sS -X POST -H "Authorization: Bearer $(cat "$TOKEN_DATEI")" -H "Content-Type: application/zip" \
   --data-binary @"$ZIP" "https://api.netlify.com/api/v1/sites/$SITE_ID/deploys?title=$(date +%Y-%m-%d_%H%M)")"
 rm -f "$ZIP"
-ID="$(printf '%s' "$ANTWORT" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id") or ""); import os; os._exit(0 if d.get("id") else 1)')" \
+ID="$(printf '%s' "$ANTWORT" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id") or "", flush=True); import os; os._exit(0 if d.get("id") else 1)')" \
   || { echo "Upload fehlgeschlagen: $ANTWORT" >&2; exit 1; }
 for i in $(seq 1 24); do
   STATE="$(curl -sS -H "Authorization: Bearer $(cat "$TOKEN_DATEI")" "https://api.netlify.com/api/v1/deploys/$ID" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("state", "unbekannt"))')"

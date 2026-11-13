@@ -13,8 +13,8 @@ Aufwand grob: **S** = unter 1 Tag, **M** = 1–3 Tage, **L** = mehr als 3 Tage.
   StudiNow offen ist), Apple-Anmeldung über den Browser, Community mit Fragen, Antworten, Melden.
 - ~~**Die größte Lücke:** Die Lernziele (Smart Planner 2.0) haben am PC keine Ansicht.~~ **Erledigt 13.11.2026**
   (Reiter „Lernziele“ im Lernkalender, siehe unten).
-- **Jetzt die größten Lücken:** Schlösser für Plus/Pro AI in der Oberfläche, Konto löschen am PC, eigene Wochen je
-  Modul bearbeiten.
+- **Jetzt die größten Lücken:** Schlösser für Plus/Pro AI in der Oberfläche und eigene Wochen je Modul bearbeiten
+  (Konto löschen am PC: erledigt 13.11.).
 
 ## Priorisierte Liste
 
@@ -22,7 +22,7 @@ Aufwand grob: **S** = unter 1 Tag, **M** = 1–3 Tage, **L** = mehr als 3 Tage.
 |---|-------|------------|-------------------|---------|
 | 1 | ~~**Lernziele (Smart Planner 2.0)**~~ **erledigt 13.11.** | Ansicht „Lernziele“ im Lernkalender: Ziele je Modul, Prognose, Konflikte, Stoppuhr, Zeit eintragen, Plan erstellen/neu verteilen (`Views/Goals/GoalsPage.swift`) | **Jetzt gleich:** Reiter „Lernziele“ vorne im Lernkalender (`app/static/views-goals.js`, `goals-logic.js`): Kennzahlen, Module mit Prognose und Klausurtermin (bestätigen), Ziel-Dialog mit gefundenen Terminen, Zeitrahmen, Zeit eintragen, Stoppuhr, „Zeit reicht nicht“ mit Optionen, Woche, Konflikte; im Lernpaket abhaken mit Zeit, Stoppuhr, sperren | – |
 | 2 | **Schlösser für Plus/Pro AI** | Schloss „ab Plus“/„ab Pro AI“ an Seitenleiste, Menüs, Editor-Werkzeugen, „KI fragen“, Wochentests, „Plan erstellen“; Antippen öffnet die Tarifauswahl | Nur die Grundsperre „ohne Abo nur ansehen“. Schlösser nur an wenigen Stellen (Karteikarten-Stapel, Erinnerungen, Wochensätze). Sonst merkt man es erst an der Fehlermeldung „Tarif ansehen“ (z. B. Plus-Konto ruft Pro-AI-KI auf) | **M**: gemeinsamer Schloss-Baustein, dann Seitenleiste, Editor, KI-Einstiege |
-| 3 | **Konto löschen** | Einstellungen → Konto → „Konto löschen“ | Nur ein Link auf die Seite `/konto-loeschen`. Der Dienst hat `POST /api/account/delete`, aber die Windows-App leitet ihn nicht weiter. `docs/release/KONTO-LOESCHEN.md` beschreibt den iPad-Weg | **S** im Web, **S–M** in Windows (weiterleiten, danach abmelden und lokale Daten löschen) |
+| 3 | ~~**Konto löschen**~~ **erledigt 13.11.** | Einstellungen → Konto → „Konto löschen“ | **Jetzt gleich:** Web: Kontofenster (Kürzel oben rechts) → „Konto löschen“; Windows: „Dein Konto“ (Seite „Abo & Tarife“) → „Konto löschen“ (`POST /api/app-account/delete` leitet an den Dienst weiter und meldet den PC ab). Daten auf dem PC bleiben (Hinweis mit Export). `docs/release/KONTO-LOESCHEN.md` nennt alle drei Wege | – |
 | 4 | **Eigene Wochen je Modul bearbeiten** | Abschnitt hinzufügen, umbenennen, verschieben, löschen, Dokumente verschieben, Vorschläge übernehmen, zurücksetzen (`Views/Modules/ModuleLayoutViews.swift`) | **Anzeige gleich** (der Dienst wendet dieselbe Einteilung an), aber nichts änderbar; Vorschläge werden nicht gezeigt. Endpunkte gibt es (`/api/modules/{id}/sections`, `/place`, `/suggestions/accept`, `/layout`) | **M**: nur Oberfläche, gemeinsame Fixture vorhanden |
 | 5 | **Erinnerungen bei geschlossener App** | Systemmitteilungen 3 Tage, 1 Tag, 8 Uhr und 2 Stunden vorher, auch wenn die App zu ist | Ab Plus ja, aber nur solange StudiNow offen ist (Zeitgeber für die nächsten 26 Stunden). Ein/Aus gilt je Browser, nicht je Konto | **M**: geplante Windows-Mitteilungen oder Start im Infobereich |
 | 6 | **Stud.IP-Studiengruppen** (Import, „Was soll in den Lernkalender?“) | Ja, seit 12.11. (`Views/StudyGroupsViews.swift`) | Fehlt (kein Python-Gegenstück; Fixture `fixtures/studip-studygroups` liegt schon da) | **M**: Python-Leser plus Dialog |
@@ -59,4 +59,9 @@ Geprüft gegen `docs/WINDOWS-LUECKEN-2026-11-05.md`, `docs/UEBERGABE-WINDOWS-PAR
 - **Lernziele am PC** (auf Wunsch des Inhabers, 13.11.): siehe Zeile 1. Getestet mit `tests/js/goals-logic.test.mjs`
   (Rechnungen wie auf dem iPad) und `tests/test_web_goals.py` (im echten Browser, auch auf Handy-Breite).
 - Alles andere ist größer als „klein und sicher“ und wartet auf deine Entscheidung. Vorschlag für die Reihenfolge:
-  3 (Konto löschen), 2 (Schlösser), 4 (Wochen bearbeiten).
+  2 (Schlösser), 4 (Wochen bearbeiten).
+- **Konto löschen am PC und im Web** (auf Wunsch des Inhabers, 13.11.): siehe Zeile 3. Getestet mit
+  `tests/test_konto_loeschen_pc.py` (Windows-Weg: mit und ohne Passwort, falsches Passwort, offline, ohne Abo, fremde
+  Webseite) und `tests/test_web_konto_loeschen.py` (im echten Browser). Seit 13.11. (Entscheidung des Inhabers) beendet das
+  Löschen ein Abo mit Karte (Stripe) sofort mit; ein Apple-Abo kündigt der Nutzer selbst
+  (`tests/test_konto_loeschen_abo.py`).

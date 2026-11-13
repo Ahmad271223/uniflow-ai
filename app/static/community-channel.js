@@ -12,7 +12,7 @@ import * as L from "./community-logic.js?v=2";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=8";
 import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=23";
-import { capi, openQuestion } from "./views-qa.js?v=10";
+import { capi, openQuestion } from "./views-qa.js?v=11";
 import { renderDecksPanel } from "./community-decks-ui.js?v=6";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

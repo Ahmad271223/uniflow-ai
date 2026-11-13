@@ -9,6 +9,7 @@
 - POST /api/app-account/checkout            {plan}: Stripe-Checkout im Systembrowser; mit Apple-Abo 409
 - POST /api/app-account/portal              Stripe-Kundenportal (wechseln, kuendigen) im Systembrowser
 - GET  /api/app-account/export              eigene Daten dieses PCs als ZIP (auch ohne Abo)
+- POST /api/app-account/delete              {password?}: StudiNow-Konto beim Dienst loeschen, danach abmelden
 """
 from __future__ import annotations
 
@@ -81,6 +82,15 @@ def portal(request: Request, body: dict = Body(default={})):
     _local(request, loopback=True)
     b = body if isinstance(body, dict) else {}
     return _call(account_mode.portal, open_browser=b.get("open_browser") is not False)
+
+
+@router.post("/api/app-account/delete")
+def delete(request: Request, body: dict = Body(default={})):
+    """Konto loeschen nur vom PC selbst (keine fremde Webseite, kein WLAN-Geraet), wie Checkout und Portal."""
+    _local(request, loopback=True)
+    b = body if isinstance(body, dict) else {}
+    pw = b.get("password")
+    return _call(account_mode.delete_account, pw if isinstance(pw, str) and pw else None)
 
 
 @router.get("/api/app-account/export")
