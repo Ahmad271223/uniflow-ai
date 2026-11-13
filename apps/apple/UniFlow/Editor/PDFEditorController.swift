@@ -1314,7 +1314,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Returns: die erkannte Form (fuer Tests), sonst nil
     @discardableResult
     func snapShape(on overlay: PageInkView, endedAt: Date, held: TimeInterval? = nil) -> ShapeRecognizer.Shape? {
-        guard canEdit, shapeSnapEnabled else { return nil }
+        // Formen erkennt nur ein Stift-Werkzeug; mit dem Textmarker bleibt der Strich, wie gezogen
+        guard canEdit, shapeSnapEnabled, ShapeRecognizer.snaps(overlay.canvas.tool) else { return nil }
         var drawing = overlay.canvas.drawing
         guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil else { return nil }
         // Halten am Ende: Zeitstempel des Stifts (Rohpunkte), sonst die Punkte von PencilKit
