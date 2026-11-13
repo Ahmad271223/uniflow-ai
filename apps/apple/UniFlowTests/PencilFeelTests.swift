@@ -15,6 +15,7 @@ import XCTest
 final class PencilFeelTests: XCTestCase {
 
     override func tearDown() async throws {
+        UserDefaults.standard.removeObject(forKey: PencilSmoothing.key)
         PencilTuning.saveOnLift = true
         PencilTuning.rescaleVisibleOnly = true
         PencilTuning.throttleZoomPublish = true
@@ -97,6 +98,65 @@ final class PencilFeelTests: XCTestCase {
         await store.flush()
         let objects = await store.objects(forPageKey: "p1")
         XCTAssertEqual(objects.filter { $0["type"]?.string == "stroke" }.count, 1)
+        await store.close()
+    }
+
+    // MARK: Glaettung "Aus"
+
+    /// Glaettung "Aus": beim Absetzen wird der Strich aus den Messpunkten neu gebaut, einmal gesichert, ein
+    /// Rueckgaengig-Schritt holt alles zurueck. Mit Lineal bleibt der Strich von PencilKit.
+    func testSmoothingOffRebuildsTheStrokeFromRawPointsOnLift() async throws {
+        UserDefaults.standard.set(PencilSmoothing.off.rawValue, forKey: PencilSmoothing.key)
+        defer { UserDefaults.standard.removeObject(forKey: PencilSmoothing.key) }
+        let fx = try await makeFixture(pdf: Skript.pdf(pages: 2, .schlicht), pageCount: 2)
+        let store = try await openStore(fx)
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor
+        let overlay = try await waitForOverlay(editor, page: 0, timeout: 20)
+        var samples: [RawPencilSample] = []
+        for i in 0..<90 {
+            let t = CGFloat(i)
+            let jitter: CGFloat = i % 2 == 0 ? 0.25 : -0.25
+            let y: CGFloat = 300 + sin(t / 7) * 15 + jitter
+            samples.append(RawPencilSample(location: CGPoint(x: 80 + t * 2, y: y), time: 500 + Double(i) / 240))
+        }
+        let pk = PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: stride(from: 0, to: 90, by: 5).map { i in
+            PKStrokePoint(location: samples[i].location, timeOffset: Double(i) / 240, size: CGSize(width: 2.5, height: 2.5), opacity: 1,
+                          force: 0.8, azimuth: 0.5, altitude: 1.2)
+        }, creationDate: Date()))
+        let writes0 = store.inkDraftWrites
+        editor.canvasViewDidBeginUsingTool(overlay.canvas)
+        var d = overlay.canvas.drawing
+        d.strokes.append(pk)
+        apply(d, to: overlay)
+        overlay.rawRecorder.setSamplesForTesting(samples)
+        editor.canvasViewDrawingDidChange(overlay.canvas)
+        editor.canvasViewDidEndUsingTool(overlay.canvas)
+        XCTAssertEqual(editor.rawRebuilds, 1)
+        let stroke = try XCTUnwrap(overlay.canvas.drawing.strokes.last)
+        XCTAssertEqual(stroke.path.count, 90, "ein Kontrollpunkt je Messpunkt")
+        let p = stroke.path.interpolatedLocation(at: 45)
+        XCTAssertEqual(p.y, samples[45].location.y, accuracy: 0.01, "genau durch den Messpunkt")
+        XCTAssertEqual(store.inkDraftWrites, writes0 + 1, "einmal gesichert, beim Absetzen")
+        await store.flush()
+        let saved = await store.objects(forPageKey: "p1")
+        XCTAssertEqual(saved.filter { $0["type"]?.string == "stroke" }.count, 1)
+        editor.editUndo.undo()
+        XCTAssertTrue(overlay.canvas.drawing.strokes.isEmpty, "ein Rueckgaengig-Schritt fuer Strich und Neubau")
+
+        // mit Lineal: Strich von PencilKit bleibt (das Lineal macht ihn gerade)
+        overlay.canvas.isRulerActive = true
+        editor.canvasViewDidBeginUsingTool(overlay.canvas)
+        var r = overlay.canvas.drawing
+        r.strokes.append(pk)
+        apply(r, to: overlay)
+        overlay.rawRecorder.setSamplesForTesting(samples)
+        editor.canvasViewDrawingDidChange(overlay.canvas)
+        editor.canvasViewDidEndUsingTool(overlay.canvas)
+        XCTAssertEqual(editor.rawRebuilds, 1, "mit Lineal kein Neubau")
+        XCTAssertEqual(overlay.canvas.drawing.strokes.last?.path.count, pk.path.count)
+        overlay.canvas.isRulerActive = false
         await store.close()
     }
 

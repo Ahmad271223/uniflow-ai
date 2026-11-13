@@ -41,6 +41,8 @@ final class PageInkView: UIView {
     let content = UIView()
     let objectsView: PageObjectsView
     let canvas = InkCanvasView()
+    /// Rohpunkte des Pencil fuer die einstellbare Glaettung (`PencilSmoothing`)
+    let rawRecorder = RawPencilRecorder()
     /// Eigene Schicht fuer fremde Loesungen: ueber der PDF, unter der eigenen Zeichenflaeche, ohne Eingabe.
     let foreignView = UIView()
     /// Zeichnung wird gerade programmatisch gesetzt (kein Speichern ausloesen).
@@ -92,6 +94,7 @@ final class PageInkView: UIView {
         content.addSubview(foreignView)
         content.addSubview(objectsView)
         content.addSubview(canvas)
+        canvas.addGestureRecognizer(rawRecorder)
         addSubview(content)
     }
 
@@ -383,6 +386,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var lastPublishedZoom: CGFloat = -1
     /// Messung (`PencilFeelTests`): Sicherungen der Canvas an den Store und Zoom-Meldungen an SwiftUI
     private(set) var canvasSaves = 0
+    private(set) var rawRebuilds = 0
     private(set) var zoomPublishes = 0
     /// Anzeige-Index und Seitenschluessel der aktuellen Seite.
     var onPageChange: ((Int, String?) -> Void)?
@@ -1230,6 +1234,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Form erkannt: `snapShape` sichert die ersetzte Zeichnung selbst (ein Mal statt Strich + Form)
         var snapped = false
         if overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool { snapped = snapShape(on: overlay, endedAt: Date()) != nil }
+        // Glaettung "Leicht"/"Aus": Strich aus den Rohpunkten des Stifts (nicht bei erkannter Form, nicht mit Lineal)
+        let samples = overlay.rawRecorder.take()
+        if !snapped, overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool, !canvasView.isRulerActive {
+            rebuildFromRawPoints(on: overlay, samples: samples, smoothing: PencilSmoothing.current)
+        }
         if overlay.storePending, !snapped { saveCanvas(overlay) }
         overlay.storePending = false
         if overlay.loaded { commitPendingUndo(overlay) }
@@ -1269,9 +1278,26 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         return shape
     }
 
-    /// Formerkennung an (Standard); `uniflow.shapeSnap = false` schaltet sie ab (noch ohne Schalter in der Leiste)
-    var shapeSnapEnabled: Bool {
-        UserDefaults.standard.object(forKey: "uniflow.shapeSnap") == nil || UserDefaults.standard.bool(forKey: "uniflow.shapeSnap")
+    /// Formerkennung an (Standard); Schalter "Formen erkennen" in den Einstellungen (`ShapeSnapSetting`)
+    var shapeSnapEnabled: Bool { ShapeSnapSetting.enabled }
+
+    /// Glaettung "Leicht"/"Aus" (`PencilSmoothing`): der eben beendete Strich (genau einer seit dem letzten
+    /// Rueckgaengig-Stand) wird aus den Rohpunkten des Stifts neu gebaut, im selben Rueckgaengig-Schritt; gesichert
+    /// wird beim Absetzen wie sonst auch (`storePending`).
+    /// - Returns: true, wenn der Strich ersetzt wurde
+    @discardableResult
+    func rebuildFromRawPoints(on overlay: PageInkView, samples: [RawPencilSample], smoothing: PencilSmoothing) -> Bool {
+        guard canEdit, smoothing != .normal else { return false }
+        var drawing = overlay.canvas.drawing
+        guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last,
+              let rebuilt = RawStroke.rebuild(stroke, samples: samples, smoothing: smoothing) else { return false }
+        drawing.strokes[drawing.strokes.count - 1] = rebuilt
+        overlay.isApplyingDrawing = true
+        overlay.canvas.drawing = drawing
+        overlay.isApplyingDrawing = false
+        overlay.storePending = true
+        rawRebuilds += 1
+        return true
     }
 
     // MARK: Seiten (gleiches Modell wie der Web-Editor, siehe PageOrder)

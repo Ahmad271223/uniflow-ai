@@ -79,6 +79,38 @@ Millisekunden je Strich.
 - Möglicher nächster Schritt: Bei sehr starkem Zoom (4-fach) ist die Zeichenfläche riesig. Eine Grenze bei 3-fach
   müsste am Gerät gegen die Schärfe abgewogen werden.
 
+## 4. Glättung einstellbar und Formen erkennen (Nachtrag 13.11.2026)
+
+In den Einstellungen gibt es unter „Schreibhand“ zwei neue Zeilen. Sie stehen bei „Auf diesem iPad“ bzw. „Studium“
+(Bild: `~/Studora-Builds/startseite/stift/`).
+
+**Glättung: Aus / Leicht / Normal** (Standard „Normal“, also wie bisher)
+
+- Was heute glättet: nur PencilKit, Apples Schreib-Baustein. Die App hatte keine eigene Glättung und keine eigene
+  Vorhersage. PencilKit filtert die Stiftpunkte und legt den Strich als glatte Kurve darüber.
+- Das lässt sich in PencilKit nicht abschalten, weder für den laufenden Strich noch über ein Werkzeug oder eine
+  Tinte. Darum misst die App die echten Punkte des Stifts mit (240 je Sekunde) und baut den Strich beim Absetzen
+  daraus neu.
+- „Aus“: Die Kurve läuft genau durch jeden gemessenen Punkt (Abstand 0,000 pt im Test).
+- „Leicht“: Die Messpunkte sind die Stützpunkte der Kurve. Im Mittel liegt sie 0,06 pt daneben, das ist viel
+  weniger als ein Zehntelmillimeter.
+- Breite, Druck, Neigung, Farbe und Werkzeug bleiben wie bei PencilKit. Es ist ein Rückgängig-Schritt, und gesichert
+  wird einmal beim Absetzen.
+- Ehrlich:
+  - Während der Stift noch schreibt, zeigt das iPad immer den geglätteten Strich von PencilKit. Erst beim Absetzen
+    steht der Strich aus den Rohpunkten da.
+  - Mit Lineal und bei erkannten Formen bleibt der Strich, wie er ist.
+  - Ob man den Unterschied sieht oder fühlt, lässt sich nur am iPad mit Pencil prüfen. Der Simulator hat keinen
+    Stift; dort sind die Messpunkte im Test nachgestellt.
+
+**Formen erkennen: An / Aus** (Standard an)
+
+- Die Erkennung gab es schon: Form zeichnen und am Ende ½ Sekunde stehen bleiben. Erkannt werden Linie (waagerecht
+  und senkrecht rastet ein), Rechteck, Dreieck, Kreis, Ellipse und Pfeil.
+- Neu sind der Schalter und das Quadrat: Fast gleich lange Seiten (bis 10 % Unterschied) werden ein Quadrat.
+- Ersetzt wird mit gleicher Farbe, Breite und gleichem Werkzeug, mit Rückgängig. Normales Schreiben ohne Halten bleibt
+  unverändert.
+
 ## Tests
 
 - Volle iPad-Testsuite (`-only-testing:UniFlowTests`, Kopie von Simulator 4495AA80): 1.570 Tests, 0 Fehler,
@@ -90,5 +122,10 @@ Millisekunden je Strich.
 - Schon vorher wackelig, nicht durch diesen Zweig: `KIAbnahmeLUHAppTests.test3ProAIUeberDenDienst` scheitert
   manchmal („Aufgabe lösen“ fehlt, weil die vorige KI-Anfrage noch läuft). Auf unverändertem develop 2 von 4 Läufen
   rot, auf diesem Zweig im ersten vollen Lauf rot und im zweiten grün.
+
+- Nach dem Nachtrag (Glättung, Formen): volle iPad-Suite 1.577 Tests, 1.576 grün, 20 übersprungen; rot nur wieder
+  der wackelige KI-Test oben. Er ist auf dem Zweig `test/ki-abnahme-proai-stabil` (Commit `336602e1`) repariert und
+  nicht in diesen Zweig gemischt. Neu: `PencilSmoothingTests` (6), ein Editor-Test in `PencilFeelTests`. Kern
+  unverändert (letzter Lauf 1.495 / 0).
 
 Bilder: `~/Studora-Builds/startseite/ergebnis/` (vorher/jetzt), Einzelbilder in `bilder/` (vorher) und `endstand/`.
