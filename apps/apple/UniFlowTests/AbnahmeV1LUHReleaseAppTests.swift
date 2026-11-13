@@ -403,34 +403,25 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         }
     }
 
-    // MARK: - 1 Erster Start: Begruessung -> Tarif -> Hochschulwahl -> Anmeldeseite -> Demo ohne Konto -> Uebersicht
+    // MARK: - 1 Erster Start: Willkommen -> Rundgang -> Hochschulwahl -> Anmeldeseite -> Demo ohne Konto -> Fragen -> Tarife -> Uebersicht
 
     func test01ErsterStartBisZurDemo() throws {
         try storeKit()
         useLoginStub()
         let env = try host()
         XCTAssertEqual(account.stage, .welcome)
-        expect(env, "Willkommen bei StudiNow")
-        station(env, "01-begruessung", back: false, markers: ["Willkommen bei StudiNow", "Wofür du ein Konto brauchst", "Wie sollen wir dich nennen?"])
+        expect(env, IntroWelcomeText.title)
+        station(env, "01-begruessung", back: false, markers: [IntroWelcomeText.title, IntroWelcomeText.accountQuestion])
         XCTAssertTrue(texts(env).contains { $0.contains("Apple") }, "Knopf „Mit Apple anmelden“:\n" + dump(env))
 
         // "Mit Apple anmelden" oeffnet den Dialog von iOS (im Test nicht moeglich): die Anmeldung wie nach dem Dialog
         account.signIn(userID: bed.user, name: "Ada Erfunden", email: nil, givenName: "Ada")
-        XCTAssertEqual(account.stage, .planPicker)
-        expect(env, PlanPickerView.title(.onboarding))
-        expect(env, UFPlan.plus.name + " für 19,99")
-        station(env, "02-tarifwahl", back: false, markers: [PlanPickerView.title(.onboarding), UFPlan.free.name, UFPlan.plus.name, UFPlan.proAI.name, "/Jahr"])
-        XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos (09.11.2026):\n" + dump(env))
-        // "Eigenes ChatGPT" (eigener OpenAI-Schluessel) ist erlaubt, die Anmeldung bei OpenAI nicht
-        for word in ["Pro AI holen", "Preis zurzeit nicht verfügbar", "über dein ChatGPT", "Mit ChatGPT anmelden", "denselben Umfang"] {
-            XCTAssertFalse(shows(env, word), "Tarifwahl: „\(word)“ im Bild")
-        }
-        // weiter mit Free (Knopf der Free-Karte), sonst wie der Knopf
-        if !tap("Weiter mit \(UFPlan.free.name)", in: env) && !tap("\(UFPlan.free.name) nutzen", in: env) {
-            remark("Tarifwahl: kein Knopf „Weiter mit Free“/„Free nutzen“ gefunden – programmatisch weiter:\n" + dump(env))
-            account.markPlanShown()
-        }
-        XCTAssertTrue(env.wait { self.account.stage == .universityPicker }, "nach der Tarifwahl die Hochschulwahl")
+        // neuer Einstieg (13.11.2026): Rundgang, ueberspringbar
+        XCTAssertEqual(account.stage, .tour)
+        expect(env, IntroTourPage.uni.title)
+        station(env, "02-rundgang", back: false, markers: [IntroTourPage.uni.title, "Weiter", "Überspringen"])
+        XCTAssertTrue(tap("Überspringen", in: env), "Rundgang überspringen:\n" + dump(env))
+        XCTAssertTrue(env.wait { self.account.stage == .universityPicker }, "nach dem Rundgang die Hochschulwahl")
 
         // Hochschulwahl: nur die LUH, der Hinweis auf weitere Hochschulen, nichts von Hildesheim/HsH
         expect(env, "Hochschule wählen")
@@ -453,10 +444,26 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
 
         // Demo ohne Konto: der kleine Textlink ganz unten
         XCTAssertTrue(tap(DemoTexts.firstStart, in: env), "Demo-Link:\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 30) { self.manager.demoActive && self.account.stage == .ready }, "Demo angelegt, Oberflaeche")
+        XCTAssertTrue(env.wait(timeout: 30) { self.manager.demoActive && self.account.stage == .setup }, "Demo angelegt, dann die Fragen")
+        // Fragen im Gespraech: Rufname vorbelegt mit dem Vornamen aus der Apple-Anmeldung, "Später" ueberspringt alle
+        expect(env, IntroSetupModel().question(.name))
+        station(env, "05-fragen", back: false, markers: [IntroSetupModel().question(.name), "Weiter", "Später"])
+        XCTAssertTrue(tap("Später", in: env), "Fragen überspringen:\n" + dump(env))
+        // Probe und Tarife: Preise aus StoreKit, nur Jahresabos, Pflichtangaben
+        XCTAssertTrue(env.wait { self.account.stage == .planPicker }, "zum Schluss Probe und Tarife")
+        expect(env, UFPlan.plus.name)
+        expect(env, "19,99")
+        station(env, "06-tarife", back: false, markers: [UFPlan.free.name, UFPlan.plus.name, "/Jahr", PlanPickerView.LegalPage.terms.rawValue,
+                                                         PlanPickerView.LegalPage.privacy.rawValue, "Käufe wiederherstellen"])
+        XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos (09.11.2026):\n" + dump(env))
+        for word in ["Geld zurück", "Preis zurzeit nicht verfügbar", "Mit ChatGPT anmelden"] {
+            XCTAssertFalse(shows(env, word), "Tarife: „\(word)“ im Bild")
+        }
+        XCTAssertTrue(tap(IntroPlanText.startTrial, in: env) || tap(IntroPlanText.startFree, in: env), "loslegen:\n" + dump(env))
+        XCTAssertTrue(env.wait(timeout: 30) { self.account.stage == .ready }, "Oberflaeche")
         expect(env, "Hallo Ada")
         expect(env, "Grundlagen der Informatik")
-        station(env, "05-uebersicht-demo", back: false, markers: ["Hallo Ada", DemoTexts.barTitle, DemoTexts.barEnd, "Grundlagen der Informatik"])
+        station(env, "07-uebersicht-demo", back: false, markers: ["Hallo Ada", DemoTexts.barTitle, DemoTexts.barEnd, "Grundlagen der Informatik"])
         XCTAssertFalse(shows(env, "Stud.IP verbinden"), "Demo: keine Karte zum Verbinden:\n" + dump(env))
         XCTAssertFalse(manager.studip.hasStoredSession)
     }

@@ -12,7 +12,7 @@ struct UniversityPickerView: View {
     var body: some View {
         OnboardingPage {
             VStack(alignment: .leading, spacing: 0) {
-                UFLogoMark(size: 52)
+                IntroBuddy(size: 52)
                 Text("Hochschule wählen").ufFont(28.8, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 19.2)
                 Text("An welcher Hochschule studierst du? StudiNow richtet danach die passenden Zugänge ein.")
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
