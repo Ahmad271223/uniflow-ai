@@ -2332,7 +2332,7 @@ struct StrokeLift {
     let inking: Bool
     let ruler: Bool
     let endedAt = Date()
-    private let uptime = ProcessInfo.processInfo.systemUptime
+    private let uptime = CACurrentMediaTime()       // keine Startzeit-API mit Begruendungspflicht (PrivacyInfo)
 
     init(samples: [RawPencilSample], inking: Bool, ruler: Bool) {
         self.samples = samples
@@ -2341,7 +2341,7 @@ struct StrokeLift {
     }
 
     /// Die Meldung "Zeichnung geaendert" gehoert noch zu diesem Absetzen
-    var isRecent: Bool { ProcessInfo.processInfo.systemUptime - uptime < 1 }
+    var isRecent: Bool { CACurrentMediaTime() - uptime < 1 }
 }
 
 /// Protokoll der Formerkennung (Konsole am Mac: Kategorie "Formerkennung")
