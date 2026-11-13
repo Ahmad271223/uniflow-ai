@@ -31,7 +31,7 @@ def test_delete_account_in_the_web(served_hosted):
             page.wait_for_selector("#adOk", timeout=T)
             text = page.text_content("#overlay")
             assert "sofort gesperrt" in text and "30 Tagen" in text and "nicht rückgängig" in text
-            assert "nicht gekündigt" in text, "ehrlicher Hinweis aufs Abo"
+            assert "Abo mit Karte" in text and "beenden wir dabei sofort" in text and "Apple" in text, "ehrlicher Hinweis aufs Abo"
             assert page.is_disabled("#adOk"), "erst nach Bestaetigung"
             page.check("#adSure")
             # falsches Passwort: Hinweis im Fenster, keine Umleitung zur Anmeldung, nichts geloescht

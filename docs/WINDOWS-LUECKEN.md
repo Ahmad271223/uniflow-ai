@@ -62,5 +62,6 @@ Geprüft gegen `docs/WINDOWS-LUECKEN-2026-11-05.md`, `docs/UEBERGABE-WINDOWS-PAR
   2 (Schlösser), 4 (Wochen bearbeiten).
 - **Konto löschen am PC und im Web** (auf Wunsch des Inhabers, 13.11.): siehe Zeile 3. Getestet mit
   `tests/test_konto_loeschen_pc.py` (Windows-Weg: mit und ohne Passwort, falsches Passwort, offline, ohne Abo, fremde
-  Webseite) und `tests/test_web_konto_loeschen.py` (im echten Browser). Offen, deine Entscheidung: Ein Abo mit Karte
-  (Stripe) läuft nach dem Löschen weiter wie beim Apple-Abo; der Dialog sagt das und bietet „Abo verwalten“ an.
+  Webseite) und `tests/test_web_konto_loeschen.py` (im echten Browser). Seit 13.11. (Entscheidung des Inhabers) beendet das
+  Löschen ein Abo mit Karte (Stripe) sofort mit; ein Apple-Abo kündigt der Nutzer selbst
+  (`tests/test_konto_loeschen_abo.py`).

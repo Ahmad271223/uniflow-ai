@@ -7,7 +7,7 @@ import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow
 import { viewTimetable, openEvent } from "./views-tt.js?v=50";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=93";
 import { installConsentFetch } from "./ai-consent.js?v=2";   // Einwilligung vor der StudiNow-KI (06.11.2026)
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=53";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=54";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=8";
 import { chipState } from "./sync-chip.js?v=1";
@@ -95,9 +95,8 @@ function accountMenu() {
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
   $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(resendNote(r), 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
   // Konto loeschen wie auf dem iPad (account-delete.js, 13.11.2026); vorher nur ein Link auf die Seite /konto-loeschen
-  $("#accDelete", m).onclick = async () => { const { deleteAccountDialog } = await import("./account-delete.js?v=1"); m.remove();
-    deleteAccountDialog({ email: a.email, onPortal: async () => { try { const r = await api("/billing/stripe/portal", { method: "POST", body: {} }); location.href = r.url; } catch (e) { toast(e.message, 5000); } },
-                          onDeleted: () => { clearWorkerCache(); location.replace("/login"); } }); };
+  $("#accDelete", m).onclick = async () => { const { deleteAccountDialog } = await import("./account-delete.js?v=2"); m.remove();
+    deleteAccountDialog({ email: a.email, onDeleted: () => { clearWorkerCache(); location.replace("/login"); } }); };
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
 }
 

@@ -24,11 +24,12 @@ Löschung nicht.
 Schreibe von der E-Mail-Adresse deines Kontos an support@studinow.app mit dem Betreff „Konto löschen“. Wir bestätigen die
 Löschung innerhalb von 7 Tagen; die Frist von 30 Tagen bis zur endgültigen Löschung gilt ebenso.
 
-## Was nicht automatisch endet
+## Abos und Daten auf deinem Gerät
 
-- **Abo StudiNow Plus oder Pro AI:** kündige es in den Abo-Einstellungen deines Apple- bzw. Google-Kontos, ein Abo mit
-  Karte im Kundenportal („Abo verwalten“ im Web und unter Windows). Das Löschen des Kontos oder der App beendet das
-  Abo nicht.
+- **Abo StudiNow Plus oder Pro AI über Apple oder Google:** kündige es in den Abo-Einstellungen deines Apple- bzw.
+  Google-Kontos. Das Löschen des Kontos oder der App beendet dieses Abo nicht.
+- Ein **Abo mit Karte** (im Web oder unter Windows abgeschlossen) beenden wir beim Löschen des Kontos sofort; es wird
+  nichts mehr abgebucht. Schon bezahlte Zeit erstatten wir nicht anteilig.
 - **Daten auf deinem Gerät:** Notizen und Dateien auf dem iPad, Android-Gerät oder PC bleiben, bis du die App
   löschst oder den Datenordner entfernst.
 

@@ -151,8 +151,8 @@ export async function viewAbo(_, params, view) {
   $("#aboLogout", view)?.addEventListener("click", async () => { if (!confirm("Vom StudiNow-Konto abmelden? Deine Daten auf diesem PC bleiben erhalten.")) return; try { await api("/app-account/logout", { method: "POST", body: {} }); } catch {} location.reload(); });
   $("#aboPortal", view)?.addEventListener("click", portal);
   // Konto loeschen unter Windows (account-delete.js, 13.11.2026): der PC leitet an den Dienst weiter und meldet sich ab
-  $("#aboDelete", view)?.addEventListener("click", async () => { const { deleteAccountDialog } = await import("./account-delete.js?v=1");
-    deleteAccountDialog({ windows: true, email: me.account?.user?.email || "", exportHref: exportHref(me), onPortal: portal, onDeleted: () => location.reload() }); });
+  $("#aboDelete", view)?.addEventListener("click", async () => { const { deleteAccountDialog } = await import("./account-delete.js?v=2");
+    deleteAccountDialog({ windows: true, email: me.account?.user?.email || "", exportHref: exportHref(me), onDeleted: () => location.reload() }); });
   $$("[data-portal]", view).forEach(b => b.onclick = portal);
   $("#aboStayFree", view)?.addEventListener("click", async () => { try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free – deine Notizen bleiben"); state.route(); } catch (e) { toast(e.message, 5000); } });
 }

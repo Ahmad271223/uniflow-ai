@@ -8,7 +8,7 @@ import { $, esc, icon, modal, toast } from "./core.js?v=47";
 export const TEXTS = {
   service: "Dein StudiNow-Konto wird beim StudiNow-Dienst gelöscht – auf allen Geräten, auf dem iPad, unter Windows und im Web: sofort gesperrt und abgemeldet, nach 30 Tagen endgültig mit allem, was dorthin abgeglichen wurde. Was du in der Community geteilt hast, ist sofort nicht mehr sichtbar.",
   irreversible: "Das lässt sich nicht rückgängig machen.",
-  subscription: "Ein Abo wird dadurch nicht gekündigt. Kündige es vorher: Abos mit Karte im Kundenportal („Abo verwalten“), Abos aus der iPad-App in den Abo-Einstellungen deines Apple-Kontos.",
+  subscription: "Ein Abo mit Karte (im Web oder unter Windows abgeschlossen) beenden wir dabei sofort: es wird nichts mehr abgebucht, schon bezahlte Zeit wird nicht anteilig erstattet. Ein Abo aus der iPad-App kann nur Apple beenden – kündige es selbst in den Abo-Einstellungen deines Apple-Kontos.",
   apple: "Hast du dich mit Apple angemeldet, widerruft StudiNow die Verknüpfung „Mit Apple anmelden“ ebenfalls.",
   windowsLocal: "Die Daten auf diesem PC (Dateien, Notizen, Lernplan) bleiben auf der Festplatte. Ohne Konto öffnet StudiNow sie nicht mehr; exportiere sie vorher, wenn du sie behalten willst. Entfernen kannst du sie, indem du StudiNow deinstallierst.",
   password: "Passwort deines StudiNow-Kontos (leer lassen, wenn du dich nur mit Apple oder Google anmeldest)",
@@ -29,12 +29,11 @@ export function problemText(status, data) {
  * Rueckfrage mit Erklaerung, Passwort und Bestaetigung. `windows`: Windows-App (Konto-Pflicht), sonst Web im Dienst.
  * `onDeleted` wird nach dem Loeschen aufgerufen (Web: zur Anmeldung, Windows: neu laden -> Anmeldebildschirm).
  */
-export function deleteAccountDialog({ windows = false, email = "", exportHref = "", onPortal, onDeleted } = {}) {
+export function deleteAccountDialog({ windows = false, email = "", exportHref = "", onDeleted } = {}) {
   const m = modal(`<h3>${icon("trash", 18)} Konto löschen?</h3>
     ${email ? `<p style="margin:.2rem 0 .6rem">Konto: <b>${esc(email)}</b></p>` : ""}
     <p class="small">${esc(TEXTS.service)} <b style="color:var(--bad-text)">${esc(TEXTS.irreversible)}</b></p>
     <p class="small">${esc(TEXTS.subscription)}</p>
-    ${onPortal ? `<p><button type="button" class="btn sm" id="adPortal">${icon("share", 14)} Abo verwalten</button></p>` : ""}
     <p class="small muted">${esc(TEXTS.apple)}</p>
     ${windows ? `<p class="small">${esc(TEXTS.windowsLocal)}${exportHref ? ` <a href="${esc(exportHref)}" download>Daten dieses PCs exportieren</a>` : ""}</p>` : ""}
     <label class="field">${esc(TEXTS.password)}<input class="input" type="password" id="adPw" autocomplete="current-password"></label>
@@ -43,7 +42,6 @@ export function deleteAccountDialog({ windows = false, email = "", exportHref = 
     <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn danger" id="adOk" disabled>${icon("trash", 15)} Konto löschen</button></div>`);
   const ok = $("#adOk", m), msg = $("#adMsg", m);
   $("#adSure", m).onchange = e => { ok.disabled = !e.target.checked; };
-  $("#adPortal", m)?.addEventListener("click", () => onPortal());
   ok.onclick = async () => {
     ok.disabled = true; msg.hidden = true;
     const pw = $("#adPw", m).value;
