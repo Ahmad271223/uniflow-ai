@@ -1,6 +1,6 @@
 // Seite "Freunde einladen" (#/einladungen) fuer Web und Windows. Regeln und Texte: invites-logic.js; QR-Code ohne
 // fremden Dienst: qr.js. Teilen ueber das Teilen-Menue des Systems (Web Share), sonst Kopieren in die Zwischenablage.
-import { $, $$, api, esc, icon, toast, modal } from "./core.js?v=46";
+import { $, $$, api, esc, icon, toast, modal } from "./core.js?v=47";
 import { toSvg } from "./qr.js?v=1";
 import * as L from "./invites-logic.js?v=1";
 

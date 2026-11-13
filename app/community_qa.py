@@ -122,15 +122,22 @@ def notifications(user: dict, unread_only: bool = False, limit: int = 50) -> dic
         rows = conn.execute(f"""SELECT * FROM notifications WHERE user_id=? {"AND read_at IS NULL" if unread_only else ""}
                                 ORDER BY created_at DESC LIMIT ?""", (user["id"], max(1, min(int(limit or 50), 200)))).fetchall()
         unread = conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at IS NULL", (user["id"],)).fetchone()[0]
+        # Ziele gesammelt in zwei Abfragen (vorher eine je Mitteilung, bis zu 200; Lasttest 13.11.2026)
+        sids = sorted({r["target_id"] for r in rows if r["target_kind"] == "solution"})
+        qids = sorted({r["target_id"] for r in rows if r["target_kind"] != "solution"})
+        sols = {s["id"]: s for s in conn.execute(
+            f"SELECT id, fingerprint, title, display_name FROM solutions WHERE id IN ({','.join('?' * len(sids))})", sids)} if sids else {}
+        qs = {q["id"]: q for q in conn.execute(
+            f"SELECT id, title, course_key FROM questions WHERE id IN ({','.join('?' * len(qids))})", qids)} if qids else {}
         out = []
         for r in rows:
             n = {"id": r["id"], "kind": r["kind"], "target_kind": r["target_kind"], "target_id": r["target_id"], "context_id": r["context_id"],
                  "actor": r["actor"], "text": r["text"], "count": r["count"], "created_at": r["created_at"], "read": bool(r["read_at"])}
             if r["target_kind"] == "solution":
-                s = conn.execute("SELECT fingerprint, title, display_name FROM solutions WHERE id=?", (r["target_id"],)).fetchone()
+                s = sols.get(r["target_id"])
                 n.update(fingerprint=s["fingerprint"] if s else None, title=(s["title"] or s["display_name"]) if s else None)
             else:
-                q = conn.execute("SELECT title, course_key FROM questions WHERE id=?", (r["target_id"],)).fetchone()
+                q = qs.get(r["target_id"])
                 n.update(title=q["title"] if q else None, course_key=q["course_key"] if q else None)
             out.append(n)
     return {"unread": unread, "notifications": out}
@@ -163,23 +170,42 @@ def prune(days: int = NOTIFY_KEEP_DAYS, unread_days: int = NOTIFY_UNREAD_KEEP_DA
 
 # ---------------------------------------------------------------- Fragen und Antworten
 
+def _counts(conn, sql: str, ids: list[str], *pre) -> dict[str, int]:
+    """{id: Zahl} fuer viele IDs in EINER Abfrage (`sql` mit {ids} fuer die Platzhalter, gruppiert nach der ID)."""
+    return dict(conn.execute(sql.format(ids=",".join("?" * len(ids))), (*pre, *ids)).fetchall()) if ids else {}
+
+
+def _q_outs(conn, rows, me: str) -> list[dict]:
+    """Fragen fuer die Ausgabe. Zahlen und eigene Markierungen fuer alle Zeilen in vier Abfragen: vorher vier je Frage,
+    eine volle Seite (30) des Feeds kostete 124 Abfragen (Lasttest Community 13.11.2026)."""
+    ids = [r["id"] for r in rows]
+    answers = _counts(conn, "SELECT question_id, COUNT(*) FROM answers WHERE question_id IN ({ids}) AND status='active' GROUP BY question_id", ids)
+    likes = _counts(conn, "SELECT question_id, COUNT(*) FROM question_likes WHERE question_id IN ({ids}) GROUP BY question_id", ids)
+    liked = _counts(conn, "SELECT question_id, 1 FROM question_likes WHERE user_id=? AND question_id IN ({ids})", ids, me)
+    marked = _counts(conn, "SELECT target_id, 1 FROM bookmarks WHERE user_id=? AND kind='question' AND target_id IN ({ids})", ids, me)
+    return [{"id": r["id"], "course_key": r["course_key"], "title": r["title"], "body": r["body"] if r["status"] == "active" else "",
+             "pseudonym": r["pseudonym"], "fingerprint": r["fingerprint"], "page": r["page"], "created_at": r["created_at"],
+             "edited_at": r["edited_at"], "last_activity": r["last_activity"], "answers": answers.get(r["id"], 0),
+             "accepted_answer": r["accepted_answer"], "mine": r["author_id"] == me, "status": r["status"],
+             "likes": likes.get(r["id"], 0), "liked_by_me": r["id"] in liked, "bookmarked": r["id"] in marked} for r in rows]
+
+
 def _q_out(conn, r, me: str, blocked: set[str] | None = None) -> dict:
-    answers = conn.execute("SELECT COUNT(*) FROM answers WHERE question_id=? AND status='active'", (r["id"],)).fetchone()[0]
-    return {"id": r["id"], "course_key": r["course_key"], "title": r["title"], "body": r["body"] if r["status"] == "active" else "",
-            "pseudonym": r["pseudonym"], "fingerprint": r["fingerprint"], "page": r["page"], "created_at": r["created_at"],
-            "edited_at": r["edited_at"], "last_activity": r["last_activity"], "answers": answers, "accepted_answer": r["accepted_answer"],
-            "mine": r["author_id"] == me, "status": r["status"],
-            "likes": conn.execute("SELECT COUNT(*) FROM question_likes WHERE question_id=?", (r["id"],)).fetchone()[0],
-            "liked_by_me": bool(conn.execute("SELECT 1 FROM question_likes WHERE question_id=? AND user_id=?", (r["id"], me)).fetchone()),
-            "bookmarked": bool(conn.execute("SELECT 1 FROM bookmarks WHERE user_id=? AND kind='question' AND target_id=?", (me, r["id"])).fetchone())}
+    return _q_outs(conn, [r], me)[0]
+
+
+def _a_outs(conn, rows, me: str, question_author: str) -> list[dict]:
+    """Antworten fuer die Ausgabe; Stimmen fuer alle Zeilen in zwei Abfragen (vorher zwei je Antwort)."""
+    ids = [r["id"] for r in rows]
+    votes = _counts(conn, "SELECT answer_id, COUNT(*) FROM answer_votes WHERE answer_id IN ({ids}) GROUP BY answer_id", ids)
+    mine = _counts(conn, "SELECT answer_id, 1 FROM answer_votes WHERE user_id=? AND answer_id IN ({ids})", ids, me)
+    return [{"id": r["id"], "question_id": r["question_id"], "pseudonym": r["pseudonym"], "body": r["body"], "created_at": r["created_at"],
+             "edited_at": r["edited_at"], "votes": votes.get(r["id"], 0), "voted_by_me": r["id"] in mine, "mine": r["author_id"] == me,
+             "by_asker": r["author_id"] == question_author} for r in rows]
 
 
 def _a_out(conn, r, me: str, question_author: str) -> dict:
-    votes = conn.execute("SELECT COUNT(*) FROM answer_votes WHERE answer_id=?", (r["id"],)).fetchone()[0]
-    mine_vote = bool(conn.execute("SELECT 1 FROM answer_votes WHERE answer_id=? AND user_id=?", (r["id"], me)).fetchone())
-    return {"id": r["id"], "question_id": r["question_id"], "pseudonym": r["pseudonym"], "body": r["body"], "created_at": r["created_at"],
-            "edited_at": r["edited_at"], "votes": votes, "voted_by_me": mine_vote, "mine": r["author_id"] == me,
-            "by_asker": r["author_id"] == question_author}
+    return _a_outs(conn, [r], me, question_author)[0]
 
 
 def list_questions(user: dict, university: str, course_key: str, limit: int = PAGE, before: str | None = None,
@@ -213,7 +239,7 @@ def list_questions(user: dict, university: str, course_key: str, limit: int = PA
         raw = raw[:limit]
         rows = [r for r in raw if r["pseudonym"] not in blocked and r["author_id"] not in banned]
         nxt = f"{raw[-1]['last_activity']}|{raw[-1]['id']}" if more and raw else None
-        return {"questions": [_q_out(conn, r, user["id"]) for r in rows], "next": nxt}
+        return {"questions": _q_outs(conn, rows, user["id"]), "next": nxt}
 
 
 def ask(user: dict, university: str, course_key: str, title, body, fingerprint=None, page=None) -> dict:
@@ -252,7 +278,7 @@ def get_question(user: dict, qid: str) -> dict:
         blocked = _blocked(conn, user)
         banned = {r[0] for r in conn.execute("SELECT author_id FROM bans")}
         rows = conn.execute("SELECT * FROM answers WHERE question_id=? AND status='active' ORDER BY created_at, rowid", (q["id"],)).fetchall()
-        answers = [_a_out(conn, a, user["id"], q["author_id"]) for a in rows if a["pseudonym"] not in blocked and a["author_id"] not in banned]
+        answers = _a_outs(conn, [a for a in rows if a["pseudonym"] not in blocked and a["author_id"] not in banned], user["id"], q["author_id"])
         # markierte Loesung zuerst, dann nach Stimmen, sonst in Reihenfolge
         answers.sort(key=lambda a: (a["id"] != q["accepted_answer"], -a["votes"]))
         return {**_q_out(conn, q, user["id"]), "answer_list": answers}
@@ -338,6 +364,8 @@ def edit(user: dict, kind: str, target_id: str, body=None, title=None) -> dict:
             raise CommunityError("not_found", "Nicht gefunden.", 404)
         if r["author_id"] != user["id"]:
             raise CommunityError("not_owner", "Nur der Verfasser kann das.", 403)
+        if _banned(conn, user["id"]):              # gesperrt: alte Beitraege nicht umschreiben (Haertetest 13.11.2026)
+            raise CommunityError("author_banned", "Dein Konto darf in der Community nichts mehr schreiben.", 403)
         if kind == "question":
             conn.execute("UPDATE questions SET title=?, body=?, edited_at=? WHERE id=?",
                          (_text(title if title is not None else r["title"], MAX_TITLE, "Der Titel"),

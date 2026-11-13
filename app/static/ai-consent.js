@@ -2,7 +2,7 @@
 // Regeln ohne DOM in ai-consent-logic.js). `installConsentFetch()` haengt die Hilfe einmal beim Start um window.fetch:
 // jede KI-Anfrage, die der Server mit 428 `ai_consent_required` ablehnt, zeigt den Hinweis und laeuft nach
 // "Okay, los" einmal neu. Seit 13.11.2026 kurz: zuerst nur `short`, der Rest hinter "Genauer ansehen" (<details>). Texte kommen vom Server (gleich AIConsentText auf dem iPad).
-import { esc, icon, modal } from "./core.js?v=46";
+import { esc, icon, modal } from "./core.js?v=47";
 import { withConsent } from "./ai-consent-logic.js?v=1";
 
 let installed = false;

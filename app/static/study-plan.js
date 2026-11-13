@@ -7,7 +7,7 @@
 // Der Plan kommt fertig vom Backend (GET /api/study-plan); Aenderungen gehen als Teil-Einstellung an POST
 // /api/study-plan/settings. Ohne aktives Abo (Web/Windows, account-gate.js) nur lesen. Noten aus QIS bleiben auf diesem Geraet.
 // Regeln und HTML stehen in study-plan-logic.js (laeuft auch unter node: tests/js/study-plan*.test.mjs).
-import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=46";
+import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=47";
 import { gateState } from "./account-gate.js?v=1";
 import * as L from "./study-plan-logic.js?v=3";
 
@@ -32,7 +32,7 @@ export async function viewStudyPlan(parts, params, view) {
   const root = $("#spRoot", view), body = $("#spBody", root);
   // Hochschule fuer die Quellen-Texte (QIS, LSF, Campusmanagement); scheitert das Lesen, bleibt LUH
   const uniReady = api("/settings").then(s => { L.setUniversity(s?.university); const sub = $("#spSub", root); if (sub) sub.textContent = subText(); }).catch(() => {});
-  import("./exam-registration.js?v=3").then(X => X.renderSection($("#xrSection", root))).catch(() => {});   // Pruefungsanmeldung
+  import("./exam-registration.js?v=4").then(X => X.renderSection($("#xrSection", root))).catch(() => {});   // Pruefungsanmeldung
   const alive = () => root.isConnected && /^#\/(studyplan|studienverlauf)/.test(location.hash);
 
   async function load() {
@@ -569,7 +569,7 @@ export async function viewStudyPlan(parts, params, view) {
       if (cur !== stack[stack.length - 1]) return;
       box.innerHTML = L.detailHtml(cache[cur], icon);
       bindDetail();
-      import("./exam-registration.js?v=3").then(X => X.renderModuleBlock(box, { catalogId: cur })).catch(() => {});   // "Prüfung anmelden"
+      import("./exam-registration.js?v=4").then(X => X.renderModuleBlock(box, { catalogId: cur })).catch(() => {});   // "Prüfung anmelden"
       // Modultexte werden im Hintergrund geladen: einige Male nachfragen, solange das Fenster dieses Modul zeigt
       if (cache[cur].texts_loading && !cache[cur].texts && tries < 8) {
         tries++;

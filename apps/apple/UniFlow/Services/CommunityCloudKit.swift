@@ -850,6 +850,8 @@ extension CloudKitCommunityService {
         guard Self.owner(record, me: user) == user else {
             throw CommunityServiceError.service("Nur der Verfasser kann seinen Kommentar ändern.")
         }
+        // gesperrt (Ban im Dashboard): alte Kommentare nicht umschreiben, wie edit_comment im Dienst (13.11.2026)
+        if await bannedOwners(cloud).contains(user) { throw CommunityServiceError.service("Dein Konto darf nicht mehr kommentieren.") }
         guard let secret = t.secret else { throw CommunityServiceError.notAMember }
         let cid = record.name.lowercased(), sid = t.id
         // Seite, Stelle und Pseudonym bleiben; neues Salz und neue Nonce

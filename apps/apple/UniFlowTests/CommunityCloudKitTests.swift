@@ -967,6 +967,27 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(still.map(\.id), [c1.id, reply.id, own.id])
     }
 
+    /// Haertetest 13.11.2026: nach einem Ban im Dashboard sind die Kommentare des Kontos fuer andere weg, und es kann
+    /// alte Kommentare weder umschreiben noch neue schreiben (wie edit_comment und add_comment im Dienst).
+    func testBannedUserCannotEditOldCommentsAndOthersNoLongerSeeThem() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let sid = try await publishForDiscussion(cloud)
+        let ben = member(cloud, "_user-ben", pseudonym: "Ben")
+        let c = try await ben.addComment(solutionID: sid, text: "Kauf hier!", parentID: nil, pageKey: nil, anchor: nil)
+        cloud.user = "_owner"
+        var ban = CommunityRecord(type: CommunityRecordType.ban, name: "ban-_user-ben")
+        ban[CloudKitCommunityService.Field.owner] = .string("_user-ben")
+        try await cloud.save(ban, in: .publicDB)
+        let ben2 = member(cloud, "_user-ben", pseudonym: "Ben")
+        await expect(.service("Dein Konto darf nicht mehr kommentieren.")) { _ = try await ben2.editComment(id: c.id, text: "anders") }
+        await expect(.service("Dein Konto darf nicht mehr kommentieren.")) {
+            _ = try await ben2.addComment(solutionID: sid, text: "neu", parentID: nil, pageKey: nil, anchor: nil)
+        }
+        let lea = member(cloud, "_user-ada", pseudonym: "Lea")
+        let seen = try await lea.comments(solutionID: sid)
+        XCTAssertEqual(seen.map(\.id), [], "Kommentare gesperrter Konten sieht niemand mehr")
+    }
+
     func testCommentReportsHideAfterThreeAndOutsidersSeeNothing() async throws {
         let cloud = FakeCommunityCloud(assetDir: try tempDir())
         let sid = try await publishForDiscussion(cloud)

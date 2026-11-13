@@ -2,7 +2,7 @@
 // uebernommen und an das Stapel-Modell angepasst: Fach, Lernwoche oder ganzes Modul, Anzahl 5-50, Schwerpunkt,
 // Vorschau mit Haken, "Andere Karten", dann Speichern in einen Stapel des Moduls ("KI · Woche n", Art "eigene").
 // Regeln ohne DOM in flashcard-stacks.js. Eingebunden von viewCards (views-misc.js) und community-decks-ui.js.
-import { $, $$, api, esc, icon, toast, showError, modal, can } from "./core.js?v=46";
+import { $, $$, api, esc, icon, toast, showError, modal, can } from "./core.js?v=47";
 import * as F from "./flashcard-stacks.js?v=3";
 
 /** Schloss (icons.js hat keins): gleiche Strichart wie die anderen Symbole */

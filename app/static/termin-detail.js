@@ -3,7 +3,7 @@
 // HsH/Hildesheim: "In Karten suchen") und alle Lehrenden des Kurses (nur LUH). Klick auf eine E-Mail: neue Uni-Mail mit
 // Empfaenger und Betreff "Frage zu <Kurs>" (gesendet erst mit "Senden"); Uni-Mail nicht verbunden: zuerst verbinden oder
 // Mail-Programm; ohne Adresse "Nachricht in Stud.IP". Regeln in termin-detail-logic.js.
-import { $, $$, api, icon, modal, toast } from "./core.js?v=46";
+import { $, $$, api, icon, modal, toast } from "./core.js?v=47";
 import * as T from "./termin-detail-logic.js?v=1";
 
 const { esc } = T;
@@ -50,9 +50,9 @@ async function uniMailStatus() {
 async function write(to, title, person) {
   const subj = T.subject(title);
   const choice = T.mailChoice(to, T.uniMailState(await uniMailStatus()));
-  if (choice === "compose") return (await import("./uni-mail.js?v=2")).composeTo(to.join(", "), subj);
+  if (choice === "compose") return (await import("./uni-mail.js?v=3")).composeTo(to.join(", "), subj);
   if (choice === "mailto") { const u = T.mailto(to, subj); if (u) location.href = u; return; }
-  if (choice === "studip") { if (person) (await import("./lecturers.js?v=3")).studipMessage(person, title); return; }
+  if (choice === "studip") { if (person) (await import("./lecturers.js?v=4")).studipMessage(person, title); return; }
   const m = modal(`<h3>${icon("mail", 18)} ${esc(T.TEXTS.connectTitle)}</h3><p class="muted">${esc(T.TEXTS.connectMessage)}</p>
     <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn" data-mailapp>${esc(T.TEXTS.mailApp)}</button>
     <a class="btn primary" href="#/unimail" data-connect>${esc(T.TEXTS.connect)}</a></div>`);

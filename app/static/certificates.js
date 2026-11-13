@@ -2,7 +2,7 @@
 // alle Dokumente, die QIS, Campusmanagement bzw. PLuS anbieten, mit gespeicherter Kopie und Datum. "Liste aktualisieren"
 // (POST /api/certificates/refresh) liest nur Links/Knoepfe; "Herunterladen"/"Neu laden" (POST .../{id}/download) laedt
 // genau dieses Dokument im Hintergrund (Playwright mit der Anmeldung am PC). Im Dienst nicht verfuegbar (409).
-import { $$, api, icon, toast } from "./core.js?v=46";
+import { $$, api, icon, toast } from "./core.js?v=47";
 import * as L from "./certificates-logic.js?v=1";
 
 export async function viewCertificates(parts, params, view) {

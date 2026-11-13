@@ -74,7 +74,7 @@ test("HTML: Lehrende mit E-Mail, Tutor/innen zugeklappt, Allen schreiben nur ab 
 
 test("Einbindung: Termin-Panel, Route, Uni-Mail, Raumfinder mit Suche", () => {
   const tt = read("views-tt.js"), td = read("termin-detail.js");
-  assert.match(tt, /import\("\.\/termin-detail\.js\?v=1"\)\.then\(m => m\.mountTerminDetail/);
+  assert.match(tt, /import\("\.\/termin-detail\.js\?v=\d+"\)\.then\(m => m\.mountTerminDetail/);
   assert.match(tt, /Zum Modul/);
   assert.ok(!tt.includes("Modul öffnen"));
   assert.match(td, /window\.open\(r\.url, "_blank", "noopener"\)/);
