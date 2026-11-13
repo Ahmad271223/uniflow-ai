@@ -1,0 +1,15 @@
+{"data": [
+ {"id": "cy-vl", "type": "seminar-cycle-dates",
+  "attributes": {"title": "Kurszeit", "description": "", "start": "10:00", "end": "11:30", "weekday": 1, "color": null,
+                 "recurrence": {"FREQ": "WEEKLY", "INTERVAL": 1, "DTSTART": "2026-10-12", "UNTIL": "2027-01-25"}, "locations": ["Hörsaal Test 1"]},
+  "relationships": {"owner": {"data": {"type": "courses", "id": "c-vl"}}}},
+ {"id": "cy-sg-lern", "type": "seminar-cycle-dates",
+  "attributes": {"title": "Kurszeit", "description": "Treffen", "start": "18:00", "end": "19:30", "weekday": 3, "color": null,
+                 "recurrence": {"FREQ": "WEEKLY", "INTERVAL": 1, "DTSTART": "2026-10-14", "UNTIL": "2027-01-27"}, "locations": ["Lernraum Test"]},
+  "relationships": {"owner": {"data": {"type": "courses", "id": "sg-lern"}}}}
+],
+ "included": [
+  {"id": "c-vl", "type": "courses", "attributes": {"title": "Testanalysis I", "course-number": "9001", "course-type": 1}},
+  {"id": "sg-lern", "type": "courses", "attributes": {"title": "Lerngruppe Testanalysis", "course-type": 99}}
+ ],
+ "links": {}}

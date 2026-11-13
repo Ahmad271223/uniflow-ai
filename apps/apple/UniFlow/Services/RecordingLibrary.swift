@@ -216,7 +216,9 @@ final class RecordingLibrary: ObservableObject {
         let db = backend.context.database, clock = backend.context.clock
         let known = (try? await db.withConnection { try OpencastStore.courseStates($0) }) ?? [:]
         let now = Int(clock.now.timeIntervalSince1970.rounded(.down))
-        let fetched = await OpencastStore.fetch(client: client, courses: courses, known: known, now: now)
+        // Kurse nebeneinander (11.11.2026); der Client laesst hoechstens 4 Anfragen zugleich zu
+        let fetched = await OpencastStore.fetch(client: client, courses: courses, known: known, now: now,
+                                                width: StudIPClient.defaultConcurrency)
         var out = Outcome(failedCourses: fetched.failed.count, sessionExpired: fetched.sessionExpired, unreachable: fetched.unreachable)
         out.result = try? await db.transaction { try OpencastStore.store(fetched, in: $0, clock: clock) }
         revision += 1

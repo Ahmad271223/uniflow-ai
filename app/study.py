@@ -14,7 +14,7 @@ import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from . import colors, db, holidays, mastery
+from . import colors, db, holidays, mastery, module_layout
 from .holidays import DEADLINE_LABELS
 
 PALETTE = colors.PALETTE          # Fachfarben: app/colors.py
@@ -65,7 +65,7 @@ def ensure_modules(conn) -> None:
 
 
 # Tabellen mit Verweis auf ein Modul (fuer merge_duplicate_modules)
-MODULE_REFS = ("courses", "course_events", "study_packages", "folders")
+MODULE_REFS = ("courses", "course_events", "study_packages", "folders", "study_sessions")
 
 
 def merge_duplicate_modules(conn) -> int:
@@ -101,6 +101,9 @@ def merge_duplicate_modules(conn) -> int:
             conn.execute("""UPDATE tests SET auto=0 WHERE module_id=? AND auto=1 AND week_no IN
                             (SELECT week_no FROM tests WHERE module_id=? AND auto=1)""", (dup, keep))
             conn.execute("UPDATE tests SET module_id=? WHERE module_id=?", (keep, dup))
+            # Lernziel: das des bleibenden Moduls gilt, sonst das des Doppels (Smart Planner 2.0)
+            conn.execute("UPDATE OR IGNORE study_goals SET module_id=? WHERE module_id=?", (keep, dup))
+            conn.execute("DELETE FROM study_goals WHERE module_id=?", (dup,))
             conn.execute("UPDATE OR IGNORE dismissed_tests SET module_id=? WHERE module_id=?", (keep, dup))
             conn.execute("DELETE FROM dismissed_tests WHERE module_id=?", (dup,))
             conn.execute("DELETE FROM modules WHERE id=?", (dup,))
@@ -162,6 +165,14 @@ def file_week(start: date, f: dict) -> int:
     Block), sonst die Woche aus Name/Ordner (Blatt 3 / VL03 -> 3), wenn die Datei aus diesem Semester ist, sonst die
     Woche der Aenderung. Vorher nahmen Lernplan und Termin nur die Woche der Aenderung: "Blatt 3", in Woche 5
     hochgeladen, stand im Moduldetail in Woche 3, im Lernplan in Woche 5."""
+    auto = auto_week(start, f)
+    # eigene Ordnung des Nutzers (app/module_layout.py): die Woche, in die er die Datei gelegt hat
+    layout = getattr(f, "layout", None)
+    return layout.planning_week(f.get("id"), auto) if layout is not None else auto
+
+
+def auto_week(start: date, f: dict) -> int:
+    """Woche einer Datei, wie die App sie ohne eigene Ordnung bestimmt."""
     if f.get("doc_type") == "klausur" or f.get("sub_label") == "Klausur-Lösung":
         return -2
     w = week_index(start, f.get("chdate"))
@@ -171,6 +182,10 @@ def file_week(start: date, f: dict) -> int:
 
 
 def week_label(start: date, w: int) -> str:
+    if w == module_layout.UNASSIGNED:
+        return "Nicht zugeordnet"
+    if w == module_layout.GENERAL:
+        return "Allgemein"
     if w == -2:
         return "Klausuren & Altklausuren"
     if w == -1:
@@ -266,7 +281,18 @@ def _file_rows(conn, module_id: int | None = None) -> list[dict]:
     if module_id is not None:
         sql += " AND c.module_id=?"
         params.append(module_id)
-    return [enrich_file(r) for r in db.rows(conn, sql + " ORDER BY f.chdate", params)]
+    layouts = module_layout.load(conn)
+    out = []
+    for r in db.rows(conn, sql + " ORDER BY f.chdate", params):
+        f = FileRow(enrich_file(r))
+        f.layout = layouts.get(f.get("module_id"))
+        out.append(f)
+    return out
+
+
+class FileRow(dict):
+    """Datei mit der eigenen Ordnung ihres Moduls (`layout`, nicht Teil der Antwort)."""
+    layout: "module_layout.Layout | None" = None
 
 
 def week_topic(files: list[dict]) -> str:
@@ -305,10 +331,25 @@ def module_detail(conn, module_id: int) -> dict:
         return {}
     start = semester_start(conn)
     files = _file_rows(conn, module_id)
+    layout = module_layout.load(conn).get(module_id, module_layout.Layout())
+    bulk = _bulk(start, files)
     weeks: dict[int, list] = defaultdict(list)
     for f in files:
-        weeks[file_week(start, f)].append(f)
-    order = sorted(weeks, key=lambda w: (w == -2, w == -1, w))
+        w = _display_week(start, f, layout, bulk)
+        # eigene Ordnung (app/module_layout.py): Abschnitt, selbst gelegt?, Vorschlag in "Nicht zugeordnet"
+        f["section"] = module_layout.key(w)
+        f["placed"] = f.get("id") in layout.places
+        if w == module_layout.UNASSIGNED:
+            sg = module_layout.suggest(f.get("name") or "", _first_page(conn, f.get("id")), start)
+            if sg and sg["week"] != w and layout.exists(sg["week"]):
+                f["suggest_week"] = sg["week"]
+                f["suggest_key"] = module_layout.key(sg["week"])
+                f["suggest_label"] = _block_label(start, sg["week"], layout)
+                f["suggest_reason"] = sg["reason"]
+        weeks[w].append(f)
+    for w in layout.shown_empty:
+        weeks.setdefault(w, [])
+    order = sorted(weeks, key=lambda w: (w == -2, w == -1, w)) if layout.empty else module_layout.order(list(weeks), layout)
     out_weeks = []
     for w in order:
         fl = weeks[w]
@@ -319,7 +360,13 @@ def module_detail(conn, module_id: int) -> dict:
             grp[key].append(f)
         for k in grp:
             grp[k].sort(key=lambda x: (x.get("sub_label") or "", x.get("name") or ""))
-        out_weeks.append({"week": w, "label": week_label(start, w), "topic": week_topic(fl), "count": len(fl), **grp})
+        block = {"week": w, "label": _block_label(start, w, layout), "topic": week_topic(fl), "count": len(fl), **grp,
+                 "key": module_layout.key(w), "custom": module_layout.section_id(w) is not None,
+                 "renamed": module_layout.section_id(w) is None and bool((layout.row(w) or {}).get("title")),
+                 "auto_label": week_label(start, w)}
+        if w == module_layout.UNASSIGNED:
+            block["suggestions"] = len([f for f in fl if "suggest_week" in f])
+        out_weeks.append(block)
     courses = db.rows(conn, "SELECT id, title, kind, number FROM courses WHERE module_id=? ORDER BY kind, title", (module_id,))
     tasks = db.rows(conn, """SELECT t.*, p.date FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
                              WHERE p.module_id=? ORDER BY p.date""", (module_id,))
@@ -328,10 +375,59 @@ def module_detail(conn, module_id: int) -> dict:
     progress = round(100 * len([f for f in learnable if f["id"] in done_files]) / len(learnable)) if learnable else 0
     next_pkg = db.row(conn, "SELECT date, title FROM study_packages WHERE module_id=? AND date>=? AND status IN ('geplant','in_bearbeitung') ORDER BY date LIMIT 1", (module_id, today().isoformat()))
     # Lernstand (docs/LERNSTAND-2026-11-04.md): aus Wochentests, Karteikarten und Aufgaben, None ohne Signal
-    return {"module": dict(m), "courses": courses, "weeks": out_weeks, "files": files, "progress": progress,
+    return {"module": dict(m), "courses": courses, "weeks": out_weeks,
+            "targets": _targets(start, list(weeks), layout), "layout_custom": not layout.empty,
+            "files": files, "progress": progress,
             "mastery": mastery.for_module(conn, module_id, m["name"]),
             "new_count": new_files_count(conn, module_id), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
             "next_package": next_pkg, "notes": [f for f in files if f["has_notes"]]}
+
+
+def _bulk(start: date, files: list[dict]) -> set[str]:
+    """Stud.IP-Sammelupload zu Semesterbeginn (module_layout.bulk_uploads)."""
+    return module_layout.bulk_uploads([
+        {"id": f.get("id"), "course": f.get("course_id") or "", "week": auto_week(start, f), "doc_type": f.get("doc_type"),
+         "hint": f.get("week_hint"), "day": datetime.fromtimestamp(f["chdate"]).date().isoformat() if f.get("chdate") else None}
+        for f in files])
+
+
+def _display_week(start: date, f: dict, layout, bulk: set) -> int:
+    auto = auto_week(start, f)
+    return layout.display_week(f.get("id"), auto, auto != -2 and f.get("id") in bulk)
+
+
+def _block_label(start: date, w: int, layout) -> str:
+    sid = module_layout.section_id(w)
+    if sid is not None:
+        s = layout.custom(sid)
+        return s["title"] if s and s.get("title") else "Abschnitt"
+    r = layout.row(w)
+    if r and r.get("title"):
+        return r["title"]
+    return week_label(start, w)
+
+
+def _first_page(conn, file_id) -> str | None:
+    """Erste Seite, wenn ihr Text schon gelesen ist (Suche, Wochentests)."""
+    try:
+        r = conn.execute("SELECT text FROM page_texts WHERE file_id=? ORDER BY page LIMIT 1", (file_id,)).fetchone()
+    except Exception:  # noqa: BLE001 - Tabelle fehlt
+        return None
+    return r[0] if r and isinstance(r[0], str) else None
+
+
+def _targets(start: date, present: list[int], layout) -> list[dict]:
+    """Ziele fuer "Verschieben nach ...": Bloecke, Lehrwochen 1-14, Allgemein? (nur Kern), Nicht zugeordnet."""
+    allw = set(present)
+    for n in range(1, 15):
+        if layout.exists(n):
+            allw.add(n)
+    for w in (module_layout.GENERAL, module_layout.UNASSIGNED):
+        if layout.exists(w):
+            allw.add(w)
+    for s in layout.customs:
+        allw.add(module_layout.custom_week(s["id"]))
+    return [{"key": module_layout.key(w), "week": w, "label": _block_label(start, w, layout)} for w in module_layout.order(list(allw), layout)]
 
 
 def modules_overview(conn) -> list[dict]:
@@ -366,7 +462,8 @@ def refresh_statuses(conn) -> None:
     t = today().isoformat()
     conn.execute("""UPDATE study_tasks SET status='nachholen' WHERE status IN ('geplant','in_bearbeitung')
                     AND package_id IN (SELECT id FROM study_packages WHERE date < ?)""", (t,))
-    for p in db.rows(conn, "SELECT id, date, status FROM study_packages"):
+    # Bloecke des Stundenplaners (Smart Planner 2.0) fuehren ihren Status selbst (abgehakt mit Minuten, verpasst)
+    for p in db.rows(conn, "SELECT id, date, status FROM study_packages WHERE COALESCE(source,'')<>'smart'"):
         tasks = db.rows(conn, "SELECT status FROM study_tasks WHERE package_id=?", (p["id"],))
         if not tasks:
             # Paket ohne Aufgaben (alle verschoben oder geloescht): _recalc_package hat es auf "verschoben" gesetzt und
@@ -516,7 +613,8 @@ def _replaceable(conn, start: date, end: date) -> list[int]:
                                    (p.generated=1 AND p.status='geplant' AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id
                                         AND (t.status != 'geplant' OR t.moved_from IS NOT NULL))) AS fresh,
                                    NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) AS empty
-                            FROM study_packages p WHERE p.date BETWEEN ? AND ? ORDER BY p.id""", (start.isoformat(), end.isoformat()))
+                            FROM study_packages p WHERE p.date BETWEEN ? AND ? AND COALESCE(p.source,'')<>'smart' ORDER BY p.id""",
+                   (start.isoformat(), end.isoformat()))
     keep_days = {r["date"] for r in rows if not (r["fresh"] or r["empty"])}
     return [r["id"] for r in rows if r["date"] not in keep_days]
 
@@ -737,8 +835,10 @@ def _clock_minutes(v) -> int:
 def reslot_day(conn, d: date) -> None:
     """Alle Slots eines Tages neu vergeben (z. B. nach Stundenplan-Aenderung, "Lernslots neu legen"). Auch von Hand
     gesetzte Uhrzeiten werden neu vergeben; "Uhrzeiten vergeben" nimmt deshalb assign_slots (nur Pakete ohne Uhrzeit)."""
-    conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt')", (d.isoformat(),))
-    conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt'))", (d.isoformat(),))
+    # Bloecke des Stundenplaners legt nur der Stundenplaner (gesperrte und von Hand gelegte nie ungefragt)
+    conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt') AND COALESCE(source,'')<>'smart'", (d.isoformat(),))
+    conn.execute("""UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN
+                    (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt') AND COALESCE(source,'')<>'smart')""", (d.isoformat(),))
     assign_slots(conn, d)
 
 
@@ -854,12 +954,20 @@ def _insert_package(conn, d: date, m: dict, tasks: list[dict], unit: dict | None
     return pid
 
 
+def smart_active(conn) -> bool:
+    """Smart Planner 2.0 an: mindestens ein Lernziel in Stunden fuer ein aktives Modul, das man schreibt"""
+    return db.row(conn, """SELECT 1 FROM study_goals g JOIN modules m ON m.id=g.module_id
+                           WHERE COALESCE(m.active,1)=1 AND g.writing=1 AND g.target_minutes>0 LIMIT 1""") is not None
+
+
 def auto_plan_week(conn, new_files: int, log=print) -> dict | None:
     """Nach einem Abgleich (am PC `_full_sync`, auf dem iPad nach dem Stud.IP-Abgleich): mit `auto_plan` die laufende
     Woche ab heute planen, wenn neue Dateien kamen oder in dieser Woche noch kein automatisches Paket liegt. Ersetzt
     nur automatisch erstellte, nicht begonnene Pakete (`replace`). Frueher lief hier der KI-Wochenplan
     (`planner.generate_plan`), dessen Ergebnis keine Ansicht zeigte."""
     if not db.get_settings(conn)["auto_plan"]:
+        return None
+    if smart_active(conn):                          # Lernziele in Stunden: der Stundenplaner plant (app/smart_goals.py)
         return None
     t0 = today()
     sunday = monday(t0) + timedelta(days=6)
@@ -1074,6 +1182,9 @@ def _slot_target(conn, package_id: int) -> None:
 
 
 def _recalc_package(conn, pid: int) -> None:
+    # Block des Stundenplaners: Dauer = Stundenbudget, unabhaengig von den Aufgaben darin (Smart Planner 2.0)
+    if db.row(conn, "SELECT 1 FROM study_packages WHERE id=? AND source='smart'", (pid,)):
+        return
     r = db.row(conn, "SELECT COUNT(*) n, COALESCE(SUM(est_minutes),0) m FROM study_tasks WHERE package_id=?", (pid,))
     if r["n"] == 0:
         p = db.row(conn, "SELECT generated FROM study_packages WHERE id=?", (pid,))

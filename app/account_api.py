@@ -15,7 +15,7 @@ from fastapi.routing import APIRoute
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import accounts, config, mail, social_login
+from . import accounts, apple_signin, config, mail, social_login
 
 
 class NoStoreRoute(APIRoute):
@@ -180,9 +180,30 @@ def _verified(provider: str, body: dict) -> dict:
         raise _err(e)
 
 
+def _keep_apple_token(provider: str, user_id: str, subject: str, body: dict) -> None:
+    """Apple: den einmaligen `authorization_code` der App gegen ein Refresh-Token tauschen und an der Verknuepfung
+    ablegen, damit "Konto loeschen" die Anmeldung bei Apple widerrufen kann (app/apple_signin.py, Richtlinie
+    5.1.1(v)). Ohne Code oder Einrichtung nichts; ein Fehler verhindert die Anmeldung nie."""
+    code = _text(body, "authorization_code").strip()
+    if provider != "apple" or not code or not apple_signin.configured():
+        return
+    import logging
+    try:
+        aud = social_login.decode_unverified(_id_token(body))[1].get("aud")      # eben geprueft (_verified)
+        allowed = social_login.client_ids("apple")
+        client_id = next((a for a in (aud if isinstance(aud, list) else [aud]) if isinstance(a, str) and a in allowed), None)
+        refresh = apple_signin.exchange_code(code, client_id) if client_id else None
+        if refresh:
+            accounts.store_apple_refresh(user_id, subject, client_id, refresh)
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("uniflow.account").warning("Apple-Token nicht abgelegt (%s)", type(e).__name__)
+
+
 @router.post("/login/{provider}")
 def login_provider(provider: str, request: Request, body: dict = Body(...)):
-    """Anmelden mit Apple/Google: `id_token` (oder `identity_token`) vom Anbieter, optional `nonce`; neues Konto braucht `university` (und `email`, falls der Anbieter keine liefert)."""
+    """Anmelden mit Apple/Google: `id_token` (oder `identity_token`) vom Anbieter, optional `nonce`; neues Konto braucht `university` (und `email`, falls der Anbieter keine liefert).
+    Apple optional `authorization_code` (einmaliger Code aus der App): wird gegen ein Refresh-Token getauscht, das
+    "Konto loeschen" bei Apple widerruft."""
     _hosted_only()
     info = _verified(provider, body)
     try:
@@ -192,6 +213,7 @@ def login_provider(provider: str, request: Request, body: dict = Body(...)):
             fallback_email=_text(body, "email").strip() or None)
     except accounts.AccountError as e:
         raise _err(e)
+    _keep_apple_token(provider, user["id"], info["subject"], body)
     resp = JSONResponse({"user": user, "token": token, "created": created}, status_code=201 if created else 200)
     _set_cookie(resp, token)
     return resp
@@ -203,9 +225,11 @@ def link(provider: str, request: Request, body: dict = Body(...)):
     u = _user(request)
     info = _verified(provider, body)
     try:
-        return accounts.link_provider(u["id"], provider, info["subject"], info.get("email"))
+        out = accounts.link_provider(u["id"], provider, info["subject"], info.get("email"))
     except accounts.AccountError as e:
         raise _err(e)
+    _keep_apple_token(provider, u["id"], info["subject"], body)
+    return out
 
 
 @router.get("/identities")

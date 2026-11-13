@@ -21,7 +21,14 @@ private func request(_ method: String, _ r: JSONValue) -> LocalRequest {
     if let form = r["form"]?.object {
         let b = "uniflow-fixture"
         var body = ""
-        for k in form.keys.sorted() { body += "--\(b)\r\nContent-Disposition: form-data; name=\"\(k)\"\r\n\r\n\(form[k]?.string ?? "")\r\n" }
+        for k in form.keys.sorted() {
+            // [Dateiname, Inhalt]: Dateiteil (Upload) wie im Generator, sonst Textfeld
+            if let f = form[k]?.array, f.count == 2 {
+                body += "--\(b)\r\nContent-Disposition: form-data; name=\"\(k)\"; filename=\"\(f[0].string ?? "")\"\r\nContent-Type: application/octet-stream\r\n\r\n\(f[1].string ?? "")\r\n"
+            } else {
+                body += "--\(b)\r\nContent-Disposition: form-data; name=\"\(k)\"\r\n\r\n\(form[k]?.string ?? "")\r\n"
+            }
+        }
         body += "--\(b)--\r\n"
         return LocalRequest(method: method, url: url, headers: ["Content-Type": "multipart/form-data; boundary=\(b)"], body: Data(body.utf8))
     }

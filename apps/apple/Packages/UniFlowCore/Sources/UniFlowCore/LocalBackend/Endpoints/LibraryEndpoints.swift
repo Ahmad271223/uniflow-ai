@@ -194,8 +194,10 @@ public enum LibraryEndpoints: LocalEndpointModule {
                 if let annotations {
                     try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", [.text(fid), .text(annotations), .text(now)])
                 }
-                if let module, try c.queryOne("SELECT name FROM modules WHERE id=?", [.integer(Int64(module))]) != nil {
-                    // Notizbuch dem Modul zuordnen: ueber den Ordner "Eigene Notizen" des Moduls
+                // Notizbuch dem Modul zuordnen: ueber den Ordner "Eigene Notizen" des Moduls - nur ohne gewaehlten Ordner
+                // (Import in einen eigenen Ordner bzw. Unterordner eines Moduls, Meldung des Inhabers 11.11.2026: vorher
+                // landete jedes Dokument mit Modul in "Eigene Notizen", auch wenn ein Ordner mitkam)
+                if let module, folder == nil, try c.queryOne("SELECT name FROM modules WHERE id=?", [.integer(Int64(module))]) != nil {
                     var folderRow = try c.scalar("SELECT id FROM folders WHERE module_id=? AND parent_id IS NULL AND name='Eigene Notizen'", [.integer(Int64(module))])
                     if folderRow == nil {
                         try c.execute("INSERT INTO folders(name, parent_id, module_id, created_at) VALUES ('Eigene Notizen', NULL, ?, ?)", [.integer(Int64(module)), .text(now)])

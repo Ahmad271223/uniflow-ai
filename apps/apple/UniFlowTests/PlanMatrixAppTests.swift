@@ -169,7 +169,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertEqual(UFFlashcardAccess.readOnlyHint, "Mit Plus übst und bearbeitest du deine Karten wieder.")
         XCTAssertEqual(UFFeature.allCases.map(\.rawValue),
                        ["studipSync", "readDocuments", "modulesTimetable", "studyCalendar", "studyPlanning", "timer", "viewNotes", "uniGrades",
-                        "ownChatGPT", "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "autoPlan",
+                        "ownChatGPT", "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "dueReminders", "autoPlan",
                         "aiHelp", "aiFlashcards", "weeklyTests", "deviceSync", "uniflowEditor"],
                        "keine Funktion fuer Testlauf oder Lernstand: auf dem Geraet ohne Schloss")
         for e: UFEntitlement in [.canAccessSharedTests, .canGenerateStudoraAITests, .canUseAdvancedAnalytics, .canUseExtendedTestHistory,

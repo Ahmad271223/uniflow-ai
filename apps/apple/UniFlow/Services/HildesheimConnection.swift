@@ -225,8 +225,9 @@ final class HildesheimConnection: ObservableObject {
         let store = websiteDataStore
         UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // CAS-Anmeldung ueber Neustarts merken
-        // eine Anmeldung fuer beide Dienste: dieselbe CAS-Sitzung verbindet den anderen gleich mit (ohne Eingabe)
-        if let other = Source.allCases.first(where: { $0 != s && !isConnected($0) }), silentLoginAllowed {
+        // eine Anmeldung fuer beide Dienste: dieselbe CAS-Sitzung verbindet den anderen gleich mit (ohne Eingabe);
+        // waehrend `connectWithStoredLogin` verbindet dieses die Quellen nacheinander selbst (nie zwei Webansichten)
+        if !connectingStored, let other = Source.allCases.first(where: { $0 != s && !isConnected($0) }), silentLoginAllowed {
             Task { _ = await silentLogin(other) }
         }
         if isRunning {
@@ -363,6 +364,32 @@ final class HildesheimConnection: ObservableObject {
 
     /// Laufender stiller Versuch (ein zweiter Aufruf wartet auf ihn)
     private var renewing: Task<[Source], Never>?
+
+    /// `connectWithStoredLogin` laeuft (die Quellen verbindet es nacheinander selbst)
+    private var connectingStored = false
+
+    /// Uni-Zugang einmal speichern (Auftrag 10.11.2026, fuer Hildesheim 12.11.2026): Learnweb und LSF mit dem
+    /// gespeicherten Zugang verbinden - auch zum ersten Mal, nicht nur nach einer abgelaufenen Anmeldung. Abgelaufene
+    /// erst still erneuern (`renewSilently`, beim Knopf als Handlung des Menschen ohne Ruecknahme), dann jede noch nie
+    /// verbundene Quelle ueber die unsichtbare Webansicht (CAS: gespeichertes Passwort genau einmal, `autoLoginCAS`).
+    /// Nur im Vordergrund, nie unter XCTest/Nachbildung. Lehnt das CAS das Passwort ab, ist es vergessen
+    /// (`UniAutoLogin.handleExpiry`), die zweite Quelle sendet es dann nicht noch einmal.
+    /// Rueckgabe: verbundene Quellen und solche, die eine Anmeldung von Hand brauchen.
+    func connectWithStoredLogin(userAction: Bool) async -> (connected: [Source], needsLogin: [Source]) {
+        let expiredLeft = await renewSilently(trigger: userAction ? .userAction : .foreground)
+        var needs = Set(expiredLeft)
+        if silentLoginAllowed, !connectingStored, !defaults.bool(forKey: Keys.signOutPending) {
+            connectingStored = true
+            for s in Source.allCases where !isConnected(s) {
+                if !(await silentLogin(s)) { needs.insert(s) }
+            }
+            connectingStored = false
+        } else {
+            needs.formUnion(Source.allCases.filter { !isConnected($0) })
+        }
+        let connected = Source.allCases.filter { isConnected($0) && state($0) != .needsLogin && !needs.contains($0) }
+        return (connected, Source.allCases.filter { needs.contains($0) })
+    }
 
     /// Eine Quelle unsichtbar anmelden (nur mit offener App und gueltiger CAS-Anmeldung)
     private func silentLogin(_ s: Source) async -> Bool {

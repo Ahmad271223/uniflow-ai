@@ -31,10 +31,11 @@ def rows() -> dict[int, dict]:
             for m in ROW.finditer(table)}
 
 
-def submitted() -> int:
+def submitted() -> int | None:
+    """eingereichter Build (hoechstens einer); None, wenn gerade keiner in der Pruefung ist"""
     s = [b for b, r in rows().items() if r["status"].startswith("eingereicht")]
-    assert len(s) == 1, s
-    return s[0]
+    assert len(s) <= 1, s
+    return s[0] if s else None
 
 
 def git(*args) -> subprocess.CompletedProcess:
@@ -55,20 +56,21 @@ def test_table_lists_every_build_from_21_to_the_current_one():
         assert "noch nicht hochgeladen" in r[now]["status"]
 
 
-def test_submitted_build_is_build_31_and_build_30_is_released():
-    """Betriebsfakt 10.11.2026: 1.0.1 Build 30 aus 3b81464a ist veroeffentlicht; eingereicht ist 1.0.2 Build 31 aus 0324eb3d.
-    Build 25 (d08cae54) war als 1.0 freigegeben, wurde nie veroeffentlicht und ist zurueckgezogen."""
+def test_released_builds_and_build_33():
+    """Betriebsfakt 11.11.2026: 1.0.1 Build 30 (3b81464a) und 1.0.2 Build 31 (0324eb3d) sind veroeffentlicht, Build 32
+    (95943d32) war nur in TestFlight (Absturz), Build 33 (1c911fa5) ist 1.0.3. Build 25 (d08cae54) war als 1.0 freigegeben,
+    wurde nie veroeffentlicht und ist zurueckgezogen."""
     r = rows()
-    assert submitted() == 31
-    assert r[31]["commit"] == "0324eb3d"
-    assert "1.0.2" in r[31]["status"] and "WAITING_FOR_REVIEW" in r[31]["status"]
-    assert r[30]["commit"] == "3b81464a"
-    assert r[30]["status"].startswith("veröffentlicht") and "1.0.1" in r[30]["status"]
+    assert r[30]["commit"] == "3b81464a" and r[30]["status"].startswith("veröffentlicht") and "1.0.1" in r[30]["status"]
+    assert r[31]["commit"] == "0324eb3d" and r[31]["status"].startswith("veröffentlicht") and "1.0.2" in r[31]["status"]
+    assert r[32]["commit"] == "95943d32" and "nie eingereicht" in r[32]["status"]
+    assert r[33]["commit"] == "1c911fa5" and "1.0.3" in r[33]["status"]
     assert r[25]["commit"] == "d08cae54"
     assert "nie veröffentlicht" in r[25]["status"] and "zurückgezogen" in r[25]["status"]
     assert "nie" in r[26]["status"] and r[26]["commit"] is None, "Build 26 wurde nie hochgeladen"
     assert "nie" in r[29]["status"] and r[29]["commit"] is None, "Build 29 wurde nie gebaut"
-    assert submitted() < project_build(), "neuere Aenderungen stehen nur in einem spaeteren Build"
+    s = submitted()
+    assert s is None or s < project_build(), "neuere Aenderungen stehen nur in einem spaeteren Build"
     yml = YML.read_text(encoding="utf-8")
     assert not re.search(r'MARKETING_VERSION: "1\.0"', yml), "1.0 wurde nie veroeffentlicht"
 
@@ -77,9 +79,10 @@ def test_app_store_md_names_the_same_builds_as_project_yml_and_this_table():
     store = STORE.read_text(encoding="utf-8")
     row = next(line for line in store.splitlines() if line.startswith("| Version, Build |"))
     assert f"**Build {project_build()}**" in row, row
-    assert f"Build {submitted()} in der Prüfung" in row, row
+    s = submitted()
+    assert (f"Build {s} in der Prüfung" in row) if s else ("veröffentlicht" in row), row
     assert "Build 26 nie hochgeladen" in row, row
-    assert f"Build {submitted()} ist seit" in store.splitlines()[2], "Kopfzeile nennt den eingereichten Build"
+    assert (f"Build {s} ist seit" if s else "Build 31 ist seit") in store.splitlines()[2], "Kopfzeile nennt den aktuellen Build"
     assert "BUILD-HERKUNFT.md" in store
 
 
@@ -122,7 +125,7 @@ def _export_differences(commit: str, export: Path) -> list[str]:
     return [f"fehlt: {p}" for p in missing] + [f"anders: {p}" for p in changed] + [f"zusaetzlich: {p}" for p in extra]
 
 
-@pytest.mark.parametrize("build", [21, 22, 23, 24, 25, 27, 28, 30, 31])
+@pytest.mark.parametrize("build", [21, 22, 23, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35])
 def test_export_folder_is_exactly_the_commit(build):
     """Nur auf dem Mac des Inhabers: ~/Studora-Builds/export-bNN = git archive <commit> (bis auf erzeugte Dateien)."""
     v = rows()[build]

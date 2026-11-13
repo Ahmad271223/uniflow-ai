@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
+from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, module_layout, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -88,6 +88,8 @@ from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan,
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
 app.include_router(study_catalog.router)
+from . import smart_goals  # noqa: E402 - Smart Planner 2.0: Lernziele in Stunden, Lernzeit (/api/goals, /api/sessions)
+app.include_router(smart_goals.router)
 from . import timetable_questions  # noqa: E402 - Rueckfragen zum Stud.IP-Kalender, Ausfaelle laut Stud.IP (/api/timetable/studip-*)
 app.include_router(timetable_questions.router)
 from . import due_api  # noqa: E402 - Fristen aus Dateien erkennen (/api/due, app/due_store.py, 05.11.2026)
@@ -1045,12 +1047,26 @@ def sync_now(ai: bool = True):
 
 
 @app.get("/api/sync/changes")
-def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000)):
+def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000),
+                     studip_user: str | None = None):
     """Vertrag G2: Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones, seitenweise:
-    weiter abrufen, solange `has_more` true ist."""
+    weiter abrufen, solange `has_more` true ist. Optional `studip_user` (Hash der Stud.IP-Benutzerkennung des Geraets):
+    gehoert das Konto schon einem anderen Stud.IP-Benutzer, 409 `studip_user_mismatch` (`sync.check_studip_user`)."""
     from . import sync
     with db.cursor() as conn:
+        _check_studip_user(conn, studip_user)
         return sync.changes(conn, since, limit)
+
+
+def _check_studip_user(conn, value) -> None:
+    """`sync.check_studip_user` mit den HTTP-Fehlern: 400 bei kaputtem Wert, 409 `studip_user_mismatch`."""
+    from . import sync
+    try:
+        sync.check_studip_user(conn, value)
+    except sync.StudIPUserMismatch as e:
+        raise HTTPException(409, {"detail": str(e), "code": "studip_user_mismatch"})
+    except ValueError as e:
+        raise HTTPException(400, {"detail": str(e), "code": "studip_user_invalid"})
 
 
 @app.post("/api/sync/push")
@@ -1074,6 +1090,7 @@ def api_sync_push(request: Request, body: dict = Body(...)):
         items = [it for it in items if not new_card(it)]
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        _check_studip_user(conn, body.get("studip_user"))      # vor jedem Schreiben (Datentrennung, 12.11.2026)
         out = sync.push(conn, body.get("device_id"), items, deletes)
     out["results"] = ([{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
                         "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused]
@@ -2964,7 +2981,8 @@ def put_settings(body: dict = Body(...)):
     body.pop("ai_consent", None)          # nur ueber /api/ai/consent (Stand und Konto setzt der Server)
     # PIN des WLAN-Zugangs und Kennung der Installation setzt nur der Server (Audit P32-07): sonst stellte ein Geraet
     # mit PIN die PIN beliebig um (auch "1") bzw. gaebe sich eine fremde Varianten-Kennung
-    for k in ("lan_pin", "share_user_id"):
+    # ebenso der Stud.IP-Benutzer, dem die Daten gehoeren (Datentrennung, sync.check_studip_user, 12.11.2026)
+    for k in ("lan_pin", "share_user_id", "studip_user_hash"):
         body.pop(k, None)
     with db.cursor() as conn:
         for k, v in body.items():
@@ -3283,6 +3301,66 @@ def api_module(module_id: int):
     return d
 
 
+# Eigene Wochen und Abschnitte (app/module_layout.py, Auftrag 12.11.2026); gleiche Pfade wie im Kern
+# (ModuleLayoutEndpoints.swift)
+def _layout_edit(module_id: int, fn):
+    with db.cursor() as conn:
+        if not db.row(conn, "SELECT 1 FROM modules WHERE id=?", (module_id,)):
+            raise HTTPException(404, "Modul nicht gefunden")
+        try:
+            return fn(conn, db.now_iso())
+        except module_layout.EditError as e:
+            raise HTTPException(400, str(e)) from None
+
+
+@app.post("/api/modules/{module_id}/sections")
+def api_module_section_create(module_id: int, body: dict = Body(...)):
+    return {"key": _layout_edit(module_id, lambda c, now: module_layout.create(c, module_id, body.get("title"), body.get("after"), now))}
+
+
+@app.post("/api/modules/{module_id}/sections/rename")
+def api_module_section_rename(module_id: int, body: dict = Body(...)):
+    _layout_edit(module_id, lambda c, now: module_layout.rename(c, module_id, body.get("key"), body.get("title"), now))
+    return {"ok": True}
+
+
+@app.post("/api/modules/{module_id}/sections/delete")
+def api_module_section_delete(module_id: int, body: dict = Body(...)):
+    _layout_edit(module_id, lambda c, now: module_layout.remove(c, module_id, body.get("key"), now))
+    return {"ok": True}
+
+
+@app.put("/api/modules/{module_id}/sections/order")
+def api_module_section_order(module_id: int, body: dict = Body(...)):
+    _layout_edit(module_id, lambda c, now: module_layout.reorder(c, module_id, body.get("keys"), now))
+    return {"ok": True}
+
+
+@app.post("/api/modules/{module_id}/place")
+def api_module_place(module_id: int, body: dict = Body(...)):
+    to = body.get("to") if isinstance(body.get("to"), str) else None
+    return {"placed": _layout_edit(module_id, lambda c, now: module_layout.place(c, module_id, body.get("file_ids"), to, now))}
+
+
+@app.post("/api/modules/{module_id}/suggestions/accept")
+def api_module_suggestions_accept(module_id: int, body: dict = Body(default={})):
+    only = {x for x in (body or {}).get("file_ids") or [] if isinstance(x, str)}
+
+    def accept(conn, now):
+        by: dict[str, list] = {}
+        for f in study.module_detail(conn, module_id).get("files", []):
+            if f.get("suggest_key") and (not only or f["id"] in only):
+                by.setdefault(f["suggest_key"], []).append(f["id"])
+        return sum(module_layout.place(conn, module_id, ids, k, now) for k, ids in by.items())
+    return {"placed": _layout_edit(module_id, accept)}
+
+
+@app.delete("/api/modules/{module_id}/layout")
+def api_module_layout_reset(module_id: int):
+    _layout_edit(module_id, lambda c, now: module_layout.reset(c, module_id))
+    return {"ok": True}
+
+
 @app.post("/api/modules/auto-assign")
 def api_modules_auto_assign():
     """Ordnet Kurse ohne Modul per Namensaehnlichkeit zu; manuelle Zuordnungen bleiben unangetastet."""
@@ -3598,6 +3676,9 @@ def api_package_add_task(package_id: int, body: dict = Body(...)):
 @app.patch("/api/packages/{package_id}")
 def api_package_patch(package_id: int, body: dict = Body(...)):
     with db.cursor() as conn:
+        # Block des Stundenplaners von Hand verschoben: gilt als fest, der Planer plant darum herum (Smart Planner 2.0)
+        if body.get("date") or "start_time" in body or "end_time" in body:
+            conn.execute("UPDATE study_packages SET manual=1 WHERE id=? AND source='smart'", (package_id,))
         if body.get("date"):
             try:
                 study.move_package(conn, package_id, body["date"])
@@ -4396,7 +4477,7 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
             size = {"w": w, "h": h} if (w and h) else ({"w": 842, "h": 595} if kind == "whiteboard" else {"w": 595, "h": 842})
             model = {"version": 2, "zoom": 1.2, "pages": {"b1": {"objects": []}}, "pageOrder": [{"key": "b1", "type": "blank", "template": template, **size}], "bookmarks": [], "outline": []}
             conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", (fid, json.dumps(model), db.now_iso()))
-        if module_id:
+        if module_id and not folder_id:     # mit gewaehltem Ordner bleibt das Dokument dort (11.11.2026)
             m = db.row(conn, "SELECT name FROM modules WHERE id=?", (int(module_id),))
             if m:
                 conn.execute("UPDATE files SET folder_id=COALESCE(folder_id, NULL) WHERE id=?", (fid,))

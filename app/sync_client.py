@@ -120,6 +120,10 @@ def natural_key(table: str, row: dict, fk_local: dict | None = None) -> tuple | 
         return (row.get("date"), f.get("module_id", row.get("module_id")), _norm(row.get("title") or row.get("subject")))
     if table == "study_tasks":
         return (f.get("package_id", row.get("package_id")), _norm(row.get("type")), _norm(row.get("title")), _norm(row.get("file_id")))
+    if table == "study_goals":                      # ein Lernziel je Modul (Smart Planner 2.0)
+        return (f.get("module_id", row.get("module_id")),)
+    if table == "study_sessions":                   # vom Geraet vergebene uuid
+        return (_norm(row.get("uuid")),)
     if table == "flashcard_stacks":
         return (_norm(row.get("name")), _norm(row.get("subject")), _norm(row.get("file_id")))
     if table == "flashcards":

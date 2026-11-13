@@ -492,9 +492,11 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         env.pump(1.5)
         station(env, "14-dokument-pdf-free", markers: [lockLabel], settle: 1.2)
         XCTAssertTrue(tap(lockLabel, in: env), "Hinweis antippen:\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 10) { env.hosting.presentedViewController != nil && self.shows(env, "Mit \(UFPlan.plus.name) freischalten") },
-                      "Blatt „Schreiben“ mit dem Weg zu Plus:\n" + dump(env))
-        station(env, "15-stift-gesperrt-blatt", markers: [UFFeature.pencilWriting.title, "Mit \(UFPlan.plus.name) freischalten"])
+        // seit 12.11.2026 (Auftrag des Inhabers: Schloss antippen oeffnet die Tarifwahl mit dem noetigen Tarif) direkt die
+        // Tarifwahl "Mehr mit StudiNow Plus" statt erst der Sperrkarte mit "Mit StudiNow Plus freischalten"
+        XCTAssertTrue(env.wait(timeout: 10) { env.hosting.presentedViewController != nil && self.shows(env, "Mehr mit \(UFPlan.plus.name)") },
+                      "Tarifwahl mit Plus:\n" + dump(env))
+        station(env, "15-stift-gesperrt-blatt", markers: ["Mehr mit \(UFPlan.plus.name)", UFPlan.plus.name])
         if !tap("Schließen", in: env) { dismissPresented(env) }
         XCTAssertTrue(env.wait(timeout: 5) { env.hosting.presentedViewController == nil }, "Blatt geschlossen")
 

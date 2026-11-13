@@ -54,9 +54,10 @@ struct QISLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
-        // QIS hat ein eigenes Formular (kein WebSSO): kein Skript, auch nicht die Hilfe fuer den Benutzernamen
+        // QIS hat ein eigenes Formular (kein WebSSO): keine Hilfe fuer den Benutzernamen; nur die Kennzeichnung der
+        // Felder fuer das Passwort-Autofill von iPadOS (`QISAutofillHints`, 12.11.2026, nie ein Wert)
         StudIPWebView(url: DebugUniStub.loginPage("qis", real: QISClient.startURL), dataStore: connection.websiteDataStore,
-                      load: load, loginHelper: false, phoneFitQIS: true) { webView in pageLoaded(webView) }
+                      load: load, loginHelper: false, qisAutofillHints: true, phoneFitQIS: true) { webView in pageLoaded(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
@@ -137,9 +138,83 @@ struct QISGradesCard: View {
                 .ufFont(11.84).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8).padding(.bottom, 5.6)
+            if connection.isConnected && connection.state != .needsLogin { QISPageReaderButton(connection: connection) }
             Spacer(minLength: 0)
         }
         .sheet(isPresented: $login) { QISLoginView(connection: connection) }
+    }
+}
+
+/// Knopf "Im QIS öffnen" unter dem Notenspiegel: fuer den Fall, dass der automatische Weg haengt (eigene Ansicht, damit
+/// der Typ der Karte nicht tiefer wird)
+struct QISPageReaderButton: View {
+    @ObservedObject var connection: QISConnection
+    @State private var open = false
+
+    var body: some View {
+        UFButton("Im QIS öffnen und Seite auslesen", icon: "arrow-right", size: .small) { open = true }
+            .accessibilityIdentifier("qis.reader.open")
+            .sheet(isPresented: $open) { QISPageReaderView(connection: connection) }
+    }
+}
+
+/// QIS in der Webansicht des Containers mit dem Knopf "Diese Seite auslesen" (Wunsch des Inhabers 12.11.2026): haengt
+/// der automatische Abruf, oeffnet der Mensch selbst "Mein Studium" -> "Notenspiegel / Studienverlauf" -> "Leistungen
+/// für … anzeigen" (bzw. "Info über angemeldete Prüfungen"); der Knopf liest die angezeigte Seite mit demselben Leser
+/// (`QISConnection.readDisplayedPage`, `QISPageImport`). Gelesen wird nur der Seiteninhalt (`outerHTML`, ohne
+/// eingetippte Werte), keine Stammdaten, kein asi; die App klickt nichts und sendet kein Formular. Anmeldung wie in
+/// `QISLoginPane` (keine Hilfe fuer den Benutzernamen, nur die Autofill-Kennzeichnung der Felder).
+struct QISPageReaderView: View {
+    @ObservedObject var connection: QISConnection
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var load = UFWebLoadState()
+    @State private var message: String?
+    @State private var reading = false
+
+    var body: some View {
+        NavigationStack {
+            StudIPWebView(url: QISClient.startURL, dataStore: connection.websiteDataStore, load: load, loginHelper: false,
+                          qisAutofillHints: true) { _ in message = nil }
+                .ufWebLoadFailure(load)
+                .safeAreaInset(edge: .bottom, spacing: 0) { QISPageReaderBar(message: message, reading: reading) { Task { await read() } } }
+                .navigationTitle("QIS")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() } } }
+        }
+    }
+
+    private func read() async {
+        guard !reading, let web = load.webView, let url = web.url else { return }
+        reading = true
+        defer { reading = false }
+        let html = (try? await web.evaluateJavaScript("document.documentElement.outerHTML", in: nil, contentWorld: .defaultClient)) as? String ?? ""
+        message = await connection.readDisplayedPage(html: html, url: url).message
+    }
+}
+
+/// Leiste unter der QIS-Webansicht: Knopf "Diese Seite auslesen" und das Ergebnis
+private struct QISPageReaderBar: View {
+    let message: String?
+    let reading: Bool
+    let action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6.4) {
+            Text(UFDevice.adapt("Hängt der automatische Abruf? Öffne den Notenspiegel („Leistungen für … anzeigen“) oder „Info über angemeldete Prüfungen“ und tippe auf „Diese Seite auslesen“."))
+                .ufFont(11.84).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            UFButton(reading ? "Liest …" : "Diese Seite auslesen", icon: "sync", kind: .primary, size: .small, action: action)
+                .disabled(reading)
+                .accessibilityIdentifier("qis.reader.read")
+            if let message {
+                Text(message).ufFont(13.12, 600).foregroundStyle(UF.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("qis.reader.message")
+            }
+        }
+        .padding(12.8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(UF.surface)
     }
 }
 

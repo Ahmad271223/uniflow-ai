@@ -888,6 +888,7 @@ struct StudyPlanModuleCard: View {
                     if let t = StudyPlanText.turnus(m.turnus) { StudyPlanTag(text: t, pair: nil) }
                     if m.placed { StudyPlanTag(text: "Selbst eingeplant", pair: CommunityPalette.sky) }
                     if m.custom { StudyPlanTag(text: "Eigener Eintrag", pair: nil) }
+                    if m.qis { StudyPlanTag(text: "Aus QIS", pair: CommunityPalette.sky) }
                 }
                 StudyPlanStatusPill(text: StudyPlanText.status(m), status: m.status)
                 if let r = StudyPlanText.reasonLine(m) {
@@ -895,7 +896,7 @@ struct StudyPlanModuleCard: View {
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if m.lastAttempt {
+                if m.lastAttempt && !m.final {
                     HStack(spacing: 4) {
                         UFIcon("alert", size: 12)
                         Text("Letzter Versuch").ufFont(12, 650)

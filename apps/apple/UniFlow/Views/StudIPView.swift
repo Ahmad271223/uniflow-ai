@@ -17,7 +17,8 @@ struct StudIPView: View {
             UFPageHead("Stud.IP", sub: "Stud.IP der Leibniz Universität Hannover")
             VStack(alignment: .leading, spacing: 16) {
                 accountCard
-                if !studip.courses.isEmpty { coursesCard }
+                if !studip.regularCourses.isEmpty { coursesCard }
+                StudyGroupsCard()                                        // Studiengruppen (12.11.2026), nur wenn es welche gibt
                 LazyVStack(alignment: .leading, spacing: 16) {
                     ForEach(groups) { g in groupCard(g) }
                 }
@@ -114,10 +115,12 @@ struct StudIPView: View {
 
     private var coursesCard: some View {
         UFCard {
-            UFCardHead("Kurse", icon: "book") { UFBadge("\(studip.selectedCourses.count) von \(studip.courses.count)", tone: .neutral) }
+            // Studiengruppen stehen in ihrer eigenen Karte (`StudyGroupsCard`); fuer sie gilt die Kursauswahl nicht
+            let regular = studip.regularCourses
+            UFCardHead("Kurse", icon: "book") { UFBadge("\(regular.filter { studip.selectedCourses.contains($0.id) }.count) von \(regular.count)", tone: .neutral) }
             VStack(alignment: .leading, spacing: 0) {
                 let today = UFFmt.todayISO()
-                ForEach(Array(studip.courses.enumerated()), id: \.element.id) { i, c in
+                ForEach(Array(regular.enumerated()), id: \.element.id) { i, c in
                     if i > 0 { SettingsDivider() }
                     CourseRow(title: c.title, semester: c.semesterTitle, older: Self.isOlder(c, today: today), isOn: Binding(
                         get: { studip.selectedCourses.contains(c.id) },
@@ -420,6 +423,8 @@ struct StudIPWebView: UIViewRepresentable {
     var load: UFWebLoadState? = nil
     /// Hilfe auf der Anmeldeseite des WebSSO bzw. CAS (`UniLoginHelper`); aus fuer das QIS (eigenes Formular, kein SSO)
     var loginHelper = true
+    /// QIS: Felder `asdf`/`fdsa` fuer das Passwort-Autofill von iPadOS kennzeichnen (`QISAutofillHints`, nur Attribute)
+    var qisAutofillHints = false
     /// erste Seite ohne Cache laden (HsH-Campus: eine Fehlerseite des IdP nie aus dem Cache zeigen)
     var cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     /// QIS-Anmeldung am iPhone handlich machen (`QISPhoneFit`, nur iPhone; iPad unveraendert)
@@ -444,6 +449,8 @@ struct StudIPWebView: UIViewRepresentable {
         // einsetzen (`UniLoginHelper`, nie das Passwort); Stud.IP, QIS, Learnweb und LSF bleiben ohne Skript
         // (nicht fuer die lokale Nachbildung des Debug-Stubs: dort gibt es keinen Anbieter)
         if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }
+        // QIS (12.11.2026): nur die Kennzeichnung der Anmeldefelder fuer iPadOS, nie ein Wert (`QISAutofillHints`)
+        if qisAutofillHints, !url.isFileURL { QISAutofillHints.install(in: config) }
         // seit 06.11.2026 (Entscheidung des Inhabers): mit "Passwort auf diesem iPad merken" liest ein Skript in eigener
         // Inhaltswelt beim Absenden Benutzername und Passwort des echten Formulars der Hochschule mit (`UniAutoLogin`)
         if !url.isFileURL { UniCredentialCapture.install(in: config, dataStore: dataStore) }
@@ -500,14 +507,16 @@ struct StudIPWebView: UIViewRepresentable {
 /// beim Uni-Login stehen bleibt (dort braeuchte es das Passwort) oder nach `timeout`.
 @MainActor
 enum StudIPSilentLogin {
-    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20) async -> [HTTPCookie]? {
+    /// `background`: aus dem Hintergrundlauf (Version 1.3/1.4): ohne Fenster, die Webansicht laeuft ausserhalb jeder Ansicht
+    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20, background: Bool = false) async -> [HTTPCookie]? {
         await UniWebSessions.ready(dataStore)                     // Uni-Anmeldung von vor dem Neustart zuerst zurueck
-        guard let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return nil }
+        let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
+        guard window != nil || background else { return nil }
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4), configuration: StudIPWebView.loginConfiguration(dataStore: dataStore))
         web.alpha = 0.01
         web.isUserInteractionEnabled = false
         web.accessibilityElementsHidden = true
-        window.addSubview(web)
+        window?.addSubview(web)
         defer {
             web.stopLoading()
             web.removeFromSuperview()

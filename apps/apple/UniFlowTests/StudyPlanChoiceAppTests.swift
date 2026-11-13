@@ -161,11 +161,11 @@ final class StudyPlanChoiceAppTests: XCTestCase {
     func testBoardShowsSlotsAreasAndTrack() throws {
         let t = transport(try enginePlan("wahlbereiche_offen"))
         let env = try host(t)
-        XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Seminare (5 Leistungspunkte), Wahlpflicht, 0 von 1 Modulen gewählt", exact: true) != nil },
+        XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Wahlpflicht: Seminare, 5 Leistungspunkte, 0 von 1 Modulen gewählt", exact: true) != nil },
                       dump(env.view))
         let l = labels(env.view)
-        XCTAssertTrue(l.contains("Offener Platz, Studium Generale (4 Leistungspunkte), Wahl, noch 4 von 4 LP offen"), l.joined(separator: "\n"))
-        XCTAssertTrue(l.contains("Offener Platz, Schwerpunkt wählen (15 Leistungspunkte), Eine von 3 Richtungen wählen"))
+        XCTAssertTrue(l.contains("Offener Platz, Wahlfach, Studium Generale · 4 Leistungspunkte, noch 4 von 4 LP offen"), l.joined(separator: "\n"))
+        XCTAssertTrue(l.contains("Offener Platz, Schwerpunkt wählen, 15 Leistungspunkte, Eine von 3 Richtungen wählen"))
         XCTAssertTrue(l.contains("Seminare, Wahlpflicht, 0 von 5 LP · 0 von 1 Modulen"), "Stand je Bereich")
         XCTAssertTrue(l.contains("Schwerpunkt wählen"), "Gruppe im Bereichskasten")
         XCTAssertTrue(l.contains("WiSe 27/28, 5. Fachsemester, 10 Leistungspunkte, dazu 24 Leistungspunkte offene Wahl"), "Semesterkopf")
@@ -193,22 +193,88 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.find(env.view, label: "Akademisches Arbeiten, Wahlpflicht, 5 von 5 LP", exact: true) != nil },
                       dump(env.view))
         let l = labels(env.view)
-        XCTAssertFalse(l.contains { $0.hasPrefix("Offener Platz, Proseminar") }, l.joined(separator: "\n"))
-        XCTAssertTrue(l.contains("Offener Platz, Vertiefung (5 Leistungspunkte), Wahlpflicht, noch 10 von 10 LP offen"),
+        XCTAssertFalse(l.contains { $0.hasPrefix("Offener Platz, Wahlpflicht: Akademisches Arbeiten") }, l.joined(separator: "\n"))
+        XCTAssertTrue(l.contains("Offener Platz, Wahlpflicht: Vertiefung, 5 Leistungspunkte, noch 10 von 10 LP offen"),
                       l.joined(separator: "\n"))
         let env2 = try host(transport(try enginePlan("zahl_bereich_voll")))
-        XCTAssertTrue(env2.wait { self.find(env2.view, label: "Offener Platz, Labor (3 Leistungspunkte), Wahlpflicht, 1 von 2 Modulen gewählt",
+        XCTAssertTrue(env2.wait { self.find(env2.view, label: "Offener Platz, Wahlpflicht: Labore, Labor · 3 Leistungspunkte, 1 von 2 Modulen gewählt",
                                             exact: true) != nil }, dump(env2.view))
         let l2 = labels(env2.view)
         XCTAssertTrue(l2.contains("Seminare, Wahlpflicht, 3 LP · 1 von 1 Modulen"), "Bereich nur mit Zahl im Kasten")
-        XCTAssertFalse(l2.contains { $0.hasPrefix("Offener Platz, Seminar ") || $0.hasPrefix("Offener Platz, Seminar (") })
+        XCTAssertFalse(l2.contains { $0.hasPrefix("Offener Platz, Wahlpflicht: Seminare") })
+    }
+
+    // MARK: Meldung des Inhabers 11.11.2026
+
+    /// Wahl statt Pflicht: kein Wahlmodul als Pflichtkarte, je offenem Platz ein Kasten "Wahlpflicht: <Bereich>" bzw.
+    /// "Wahlfach" mit "Aus der Liste wählen", der die Module des Bereichs mit LP und Turnus zeigt
+    func testChoiceShowsAsBoxNotAsMandatory() throws {
+        let p = StudyPlan(try enginePlan("wahl_statt_pflicht"))
+        XCTAssertFalse(p.modules.contains { $0.id.hasPrefix("angebot-") || $0.id == "vertiefung-b" }, "Wahl erscheint nicht als Pflicht")
+        let slot = try XCTUnwrap(p.semesters.flatMap(\.slots).first { $0.area == "vertiefung" })
+        XCTAssertEqual(StudyPlanText.slotHeading(slot, plan: p), "Wahlpflicht: Vertiefung")
+        XCTAssertEqual(StudyPlanText.slotButton(slot), "Aus der Liste wählen")
+        XCTAssertEqual(Set(p.choices(for: slot).map(\.id)), ["vertiefung-b", "vertiefung-c", "vertiefung-d", "vertiefung-e"])
+        let sg = try XCTUnwrap(StudyPlan(try enginePlan("wahlbereiche_offen")).semesters.flatMap(\.slots).first { $0.area == "studium-generale" })
+        XCTAssertEqual(StudyPlanText.slotHeading(sg, plan: StudyPlan(try enginePlan("wahlbereiche_offen"))), "Wahlfach")
+
+        let t = transport(try enginePlan("wahl_statt_pflicht"))
+        let env = try host(t)
+        XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Wahlpflicht: Vertiefung, 5 Leistungspunkte") != nil }, dump(env.view))
+        XCTAssertTrue(find(env.view, label: "Offener Platz, Wahlpflicht: Vertiefung, 5 Leistungspunkte")?.accessibilityHint?
+            .hasPrefix("Aus der Liste wählen") == true, "Knopf im Kasten")
+        XCTAssertFalse(labels(env.view).contains { $0.hasPrefix("Angebot 1,") }, "kein Pflichtmodul aus dem Wahlangebot")
+        XCTAssertTrue(tap(env.view, "Offener Platz, Wahlpflicht: Vertiefung"))
+        XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Vertiefung Compilerbau,") != nil } ?? false }, dump(sheet(env)))
+        let s = try XCTUnwrap(sheet(env))
+        XCTAssertTrue(labels(s).contains { $0.hasPrefix("Vertiefung Compilerbau, 5 Leistungspunkte, Wahlpflicht, Sommersemester") })
+        XCTAssertTrue(labels(s).contains("Wahlpflicht: Vertiefung"), "Titel des Blatts")
+        XCTAssertNil(find(s, label: "Angebot 1,"), "nur Module des Bereichs")
+    }
+
+    /// Bereits gemachtes Wahlfach aus QIS steht mit Stand im Plan und fuellt seinen Platz; der Rest bleibt "nicht zugeordnet"
+    func testElectiveFromQISIsShownWithStatus() throws {
+        let p = StudyPlan(try enginePlan("wahlfach_aus_qis"))
+        let e = try XCTUnwrap(p.modules.first { $0.qis })
+        XCTAssertEqual(e.title, "Englisch B2")
+        XCTAssertEqual(e.status, .passed)
+        XCTAssertFalse(e.movable, "Stand und Semester kommen aus QIS")
+        XCTAssertFalse(p.semesters.flatMap(\.slots).contains { $0.area == "studium-generale" }, "Platz gefuellt")
+        let env = try host(transport(try enginePlan("wahlfach_aus_qis")))
+        XCTAssertTrue(env.wait { self.find(env.view, label: "Englisch B2, 4 Leistungspunkte, Wahl, Bestanden, 1,7, aus QIS, nicht im Modulkatalog",
+                                          exact: true) != nil }, dump(env.view))
+    }
+
+    /// Versuche ehrlich: dritter Versuch ohne Hoechstzahl neutral, ohne Nummer aus QIS keine Nummer, letzter Versuch nur
+    /// mit Grund
+    func testAttemptsTextsAreNeutral() throws {
+        let third = StudyPlan(try enginePlan("dritter_versuch"))
+        let m1 = try XCTUnwrap(third.modules.first { $0.id == "mathematik-1" })
+        XCTAssertFalse(m1.lastAttempt)
+        XCTAssertEqual(StudyPlanText.status(m1), "Angemeldet · 3. Versuch")
+        XCTAssertFalse(StudyPlanText.accessibility(m1).contains("letzter Versuch"))
+        let ss = try XCTUnwrap(third.modules.first { $0.id == "signale-systeme" })
+        XCTAssertEqual(StudyPlanText.status(ss), "Endgültig nicht bestanden")
+        let bare = StudyPlan(try enginePlan("versuche_ohne_nummer"))
+        XCTAssertEqual(StudyPlanText.status(try XCTUnwrap(bare.modules.first { $0.id == "mathematik-1" })), "Angemeldet",
+                       "ohne Versuchsspalte keine geratene Nummer")
+        XCTAssertTrue(try XCTUnwrap(bare.modules.first { $0.id == "signale-systeme" }).lastAttempt, "QIS meldet den letzten Versuch")
+        let mx = StudyPlan(try enginePlan("versuche_hoechstzahl"))
+        XCTAssertTrue(try XCTUnwrap(mx.modules.first { $0.id == "mathematik-1" }).lastAttempt)
+        XCTAssertEqual(StudyPlanText.attemptsRule(maxAttempts: nil),
+                       "Wie viele Versuche du hast, regelt deine Prüfungsordnung – StudiNow kennt die Zahl für diesen Studiengang nicht.")
+        XCTAssertEqual(StudyPlanText.attemptsRule(maxAttempts: 3), "Laut Prüfungsordnung höchstens 3 Versuche.")
+        let env = try host(transport(try enginePlan("dritter_versuch")))
+        XCTAssertTrue(env.wait { self.find(env.view, label: "Mathematik I, 8 Leistungspunkte, Pflicht, Wintersemester, Angemeldet, 3. Versuch",
+                                          exact: true) != nil }, dump(env.view))
+        XCTAssertFalse(labels(env.view).contains("Letzter Versuch"))
     }
 
     func testSlotChooserChoosesModuleIntoSlotSemester() throws {
         let t = transport(try enginePlan("wahlbereiche_offen"))
         let env = try host(t)
-        XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Seminare") != nil }, dump(env.view))
-        XCTAssertTrue(tap(env.view, "Offener Platz, Seminare"))
+        XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Wahlpflicht: Seminare") != nil }, dump(env.view))
+        XCTAssertTrue(tap(env.view, "Offener Platz, Wahlpflicht: Seminare"))
         XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Seminar Datenbanken,") != nil } ?? false }, dump(sheet(env)))
         let s = try XCTUnwrap(sheet(env))
         XCTAssertTrue(labels(s).contains { $0.hasPrefix("Seminar Eingebettete Systeme, 5 Leistungspunkte, Wahlpflicht, Wintersemester") })
@@ -235,7 +301,7 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.sheet(env) == nil })
         env.pump(0.4)
         // eigener Eintrag im Platz Studium Generale
-        XCTAssertTrue(tap(env.view, "Offener Platz, Studium Generale"))
+        XCTAssertTrue(tap(env.view, "Offener Platz, Wahlfach, Studium Generale"))
         XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Titel des eigenen Eintrags") != nil } ?? false }, dump(sheet(env)))
         let c = try XCTUnwrap(sheet(env))
         env.pump(0.6)
@@ -420,11 +486,11 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         ]
         for (size, type, name) in cases {
             let env = try host(transport(try enginePlan("wahlbereiche_offen")), size: size, type: type)
-            XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Seminare") != nil }, "\(name): " + dump(env.view))
+            XCTAssertTrue(env.wait { self.find(env.view, label: "Offener Platz, Wahlpflicht: Seminare") != nil }, "\(name): " + dump(env.view))
             env.pump(0.5)
             let found = LayoutWidthAuditTests.overflows(in: env.window).map(\.text)
             if !found.isEmpty { report.append("\(name): " + found.prefix(15).joined(separator: "\n  ")) }
-            XCTAssertTrue(tap(env.view, "Offener Platz, Seminare"))
+            XCTAssertTrue(tap(env.view, "Offener Platz, Wahlpflicht: Seminare"))
             XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Seminar Datenbanken,") != nil } ?? false }, name)
             env.pump(0.6)
             let inSheet = LayoutWidthAuditTests.overflows(in: env.window).map(\.text)

@@ -88,9 +88,10 @@ final class IPhoneNavigationTests: XCTestCase {
     }
 
     func testCalendarShowsThreeDaysInsteadOfWeekOnPhoneWidth() {
-        XCTAssertEqual(PlanView.views(compact: false).map(\.value), ["day", "3days", "week", "month", "list"])
-        XCTAssertEqual(PlanView.views(compact: true, weekFits: false).map(\.value), ["day", "3days", "month", "list"])
-        XCTAssertEqual(PlanView.views(compact: true, weekFits: true).map(\.value), ["day", "3days", "week", "month", "list"])
+        // seit develop 12.11.2026 mit "Lernziele" (Smart Planner 2.0), am iPhone kurz "Ziele"
+        XCTAssertEqual(PlanView.views(compact: false).map(\.value), ["ziele", "day", "3days", "week", "month", "list"])
+        XCTAssertEqual(PlanView.views(compact: true, weekFits: false).map(\.value), ["ziele", "day", "3days", "month", "list"])
+        XCTAssertEqual(PlanView.views(compact: true, weekFits: true).map(\.value), ["ziele", "day", "3days", "week", "month", "list"])
         for w: CGFloat in [390, 402, 440] { XCTAssertFalse(PlanView.weekFits(width: w), "iPhone \(w) hoch") }
         for w: CGFloat in [590, 874, 1180] { XCTAssertTrue(PlanView.weekFits(width: w), "\(w): Split View, iPhone quer, iPad") }
         XCTAssertEqual(PlanView.shownView("week", weekFits: false), "3days")

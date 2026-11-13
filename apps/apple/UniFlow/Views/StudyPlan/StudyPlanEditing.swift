@@ -60,17 +60,31 @@ struct StudyPlanSlotCard: View {
                     .foregroundStyle(UF.accentText)
                     .frame(width: 28, height: 28)
                     .background(Circle().fill(Color.mix(UF.accent, 0.12, UF.surface)))
+                // Kasten fuer offene Wahl (Inhaber 11.11.2026): "Wahlpflicht: <Bereich>" bzw. "Wahlfach", darunter der Name
+                // laut Verlaufsplan und die LP, was noch fehlt, und "Aus der Liste wählen" (die Module des Bereichs)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(StudyPlanText.slotTitle(slot)).ufFont(13.6, 600, lh: 1.3).foregroundStyle(UF.text)
+                    Text(StudyPlanText.slotHeading(slot, plan: plan)).ufFont(13.6, 650, lh: 1.3).foregroundStyle(UF.text)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                    UFFlexWrap(gap: 5, rowGap: 5) {
-                        if !slot.isTrack { StudyPlanTag(text: StudyPlanText.kind(slot.areaKind), pair: StudyPlanText.kindPair(slot.areaKind)) }
-                        if let t = StudyPlanText.typeLabel(slot.type) { StudyPlanTag(text: t, pair: nil) }
+                    if let sub = StudyPlanText.slotSubtitle(slot, plan: plan) {
+                        Text(sub).ufFont(12.48, 550, lh: 1.3).foregroundStyle(UF.text2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let t = StudyPlanText.typeLabel(slot.type) {
+                        UFFlexWrap(gap: 5, rowGap: 5) { StudyPlanTag(text: t, pair: nil) }
                     }
                     Text(StudyPlanText.slotLine(slot, plan: plan)).ufFont(12, lh: 1.35).foregroundStyle(UF.text2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 5) {
+                        UFIcon(slot.isTrack ? "layers" : "list", size: 12)
+                        Text(StudyPlanText.slotButton(slot)).ufFont(12.48, 650)
+                    }
+                    .foregroundStyle(UF.accentText)
+                    .padding(.vertical, 4).padding(.horizontal, 10)
+                    .background(Capsule().fill(Color.mix(UF.accent, 0.12, UF.surface)))
+                    .padding(.top, 2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -84,7 +98,7 @@ struct StudyPlanSlotCard: View {
         }
         .buttonStyle(StudyPlanPressStyle())
         .accessibilityLabel(StudyPlanText.accessibility(slot, plan: plan))
-        .accessibilityHint(slot.isTrack ? "Wählt die Richtung" : "Zeigt die Module, die du hier wählen kannst")
+        .accessibilityHint(slot.isTrack ? "Wählt die Richtung" : "Aus der Liste wählen: zeigt die Module, die du hier wählen kannst")
         .accessibilityIdentifier("studyplan.slot.\(slot.id)")
     }
 }
@@ -292,7 +306,7 @@ struct StudyPlanChooserSheet: View {
     @State private var customLP = "5"
 
     private var title: String {
-        if let slot { return slot.isTrack ? slot.title : "Modul wählen" }
+        if let slot { return slot.isTrack ? slot.title : StudyPlanText.slotHeading(slot, plan: plan) }
         return "Modul hinzufügen"
     }
 

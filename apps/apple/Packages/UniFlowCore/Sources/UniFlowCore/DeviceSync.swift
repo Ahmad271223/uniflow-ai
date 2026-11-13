@@ -21,6 +21,9 @@ public struct DeviceSyncResult: Equatable, Sendable {
     public var notesMerged = 0
     /// Tarif Free: Notizen bleiben auf dem Geraet, alles andere gleicht ab
     public var planRequired = false
+    /// Das Konto gleicht schon die Daten eines anderen Stud.IP-Benutzers ab (409 `studip_user_mismatch`): nichts
+    /// abgerufen, nichts gesendet (`StudIPUserMark`)
+    public var studipUserMismatch = false
     public var errors: [String] = []
 
     public init() {}
@@ -45,6 +48,8 @@ public enum DeviceSyncSchema {
         Entity(name: "event_exceptions", pk: "id", fk: [("event_id", "course_events")]),
         Entity(name: "study_packages", pk: "id", fk: [("module_id", "modules")]),
         Entity(name: "study_tasks", pk: "id", fk: [("package_id", "study_packages")]),
+        Entity(name: "study_goals", pk: "id", fk: [("module_id", "modules")]),
+        Entity(name: "study_sessions", pk: "id", fk: [("module_id", "modules"), ("package_id", "study_packages")]),
         Entity(name: "flashcard_stacks", pk: "id", fk: []),
         Entity(name: "flashcards", pk: "id", fk: [("stack_id", "flashcard_stacks")]),
         Entity(name: "settings", pk: "key", fk: []),
@@ -121,12 +126,14 @@ public actor DeviceSync {
     public func run(account: String) async -> DeviceSyncResult {
         let core = DeviceSyncCore(device: device)
         do {
-            try await database.transaction { c in
+            core.studipUser = try await database.transaction { c -> String? in
                 try DeviceSyncSchema.ensure(c)
                 if try DeviceSyncCore.state(c, "account") != account {
                     for t in ["sync_link_map", "sync_link_state", "sync_link_pending"] { try c.execute("DELETE FROM \(t)") }
                     try DeviceSyncCore.setState(c, "account", account)
                 }
+                // Stud.IP-Benutzer dieses Datenbereichs (nur Hash); der Dienst vergleicht ihn vor jedem Lesen und Schreiben
+                return (try? StudIPUserMark.stored(c)) ?? nil
             }
             try await pull(core)
             try await push(core)
@@ -138,6 +145,10 @@ public actor DeviceSync {
         } catch let e as AccountError {
             core.stats.ok = false
             core.stats.error = e.userMessage
+            if e.code == StudIPUserMark.mismatchCode {
+                core.stats.studipUserMismatch = true
+                core.stats.error = Self.mismatchText
+            }
         } catch {
             core.stats.ok = false
             core.stats.error = "Abgleich fehlgeschlagen: \(error.localizedDescription)"
@@ -145,11 +156,15 @@ public actor DeviceSync {
         return core.stats
     }
 
+    /// Meldung beim 409 `studip_user_mismatch` (Einstellungen → Konto, Stand des Abgleichs)
+    public static let mismatchText = "Dieses StudiNow-Konto gleicht bereits die Daten eines anderen Stud.IP-Benutzers ab. Der Abgleich zwischen Geräten ist angehalten; deine Daten auf diesem Gerät bleiben unverändert."
+
     private func pull(_ core: DeviceSyncCore) async throws {
         var cursor = try await database.transaction { try DeviceSyncCore.state($0, "cursor") }
         for _ in 0..<200 {
             var q = "limit=\(DeviceSyncCore.page)&device_id=\(Self.escaped(device))"
             if let cursor { q += "&since=\(Self.escaped(cursor))" }
+            if let u = core.studipUser { q += "&studip_user=\(Self.escaped(u))" }
             let d = try await transport.syncChanges(query: q)
             let before = cursor
             cursor = d["cursor"]?.string ?? before
@@ -177,8 +192,10 @@ public actor DeviceSync {
         }
         for (i, batch) in batches.enumerated() {
             let last = i == batches.count - 1
-            let body: JSONValue = .object(["device_id": .string(device), "items": .array(batch.map { .object($0.body) }),
-                                           "deletes": .array(last ? deletes.map(\.body) : [])])
+            var fields: [String: JSONValue] = ["device_id": .string(device), "items": .array(batch.map { .object($0.body) }),
+                                               "deletes": .array(last ? deletes.map(\.body) : [])]
+            if let u = core.studipUser { fields["studip_user"] = .string(u) }
+            let body: JSONValue = .object(fields)
             let res = try await transport.syncPush(body)
             try await database.transaction { c in
                 try core.handleResults(c, batch, last ? deletes : [], res)
@@ -225,12 +242,15 @@ final class DeviceSyncCore: @unchecked Sendable {
     static let localSettings: Set<String> = ["lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input",
                                              "messages_seen_up_to", "studip_reply_drafts", "studip_replies", "studip_submissions",
                                              "exam_registration_run",
-                                             "studip_bulletin_fetched_at_v2", "studip_blubber_fetched_at", "studip_blubber_activity"]
+                                             "studip_bulletin_fetched_at_v2", "studip_blubber_fetched_at", "studip_blubber_activity",
+                                             StudIPUserMark.key]
     static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"]]
     /// NOT NULL in der Datenbank: ohne Elternteil wartet die Zeile
     static let requiredParents: Set<String> = ["package_id", "event_id"]
 
     let device: String
+    /// Hash des Stud.IP-Benutzers dieses Datenbereichs (`StudIPUserMark`); nil ohne Stud.IP bzw. vor dem ersten Abgleich
+    var studipUser: String?
     var retryNotes = false
     var stats = DeviceSyncResult()
     private var keyIndex: [String: [String: String]] = [:]
@@ -314,6 +334,8 @@ final class DeviceSyncCore: @unchecked Sendable {
             let title = row["title"].flatMap { $0 == .null || $0 == .string("") ? nil : $0 } ?? row["subject"]
             parts = [id(row["date"]), id(f("module_id")), Self.norm(title)]
         case "study_tasks": parts = [id(f("package_id")), Self.norm(row["type"]), Self.norm(row["title"]), Self.norm(row["file_id"])]
+        case "study_goals": parts = [id(f("module_id"))]                 // ein Lernziel je Modul (Smart Planner 2.0)
+        case "study_sessions": parts = [Self.norm(row["uuid"])]          // vom Geraet vergebene uuid
         case "flashcard_stacks": parts = [Self.norm(row["name"]), Self.norm(row["subject"]), Self.norm(row["file_id"])]
         case "flashcards": parts = [Self.norm(row["question"]), Self.norm(row["file_id"])]
         default: return nil

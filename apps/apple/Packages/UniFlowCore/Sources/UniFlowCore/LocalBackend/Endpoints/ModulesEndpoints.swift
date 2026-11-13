@@ -55,7 +55,11 @@ public enum ModulesEndpoints: LocalEndpointModule {
         router.get("/api/modules/{module_id:int}") { req, ctx in
             let id = SQLiteValue.integer(Int64(req.intParam("module_id")))
             let clock = ctx.clock
-            guard let d = try await ctx.database.withConnection({ try LocalModules.detail($0, moduleID: id, clock: clock) }) else {
+            // ?date=YYYY-MM-DD / ?file=<id>: Lehrwoche des angetippten Termins bzw. Lernpakets (`focus_week`)
+            let date = req.query("date").flatMap(BerlinClock.parseISODate), file = req.query("file")
+            guard let d = try await ctx.database.withConnection({
+                try LocalModules.detail($0, moduleID: id, clock: clock, focusDate: date, focusFile: file)
+            }) else {
                 throw LocalHTTPError.notFound()
             }
             return .json(.object(d))
@@ -103,7 +107,7 @@ public enum ModulesEndpoints: LocalEndpointModule {
             let colorSent = members.contains { $0.key == "color" }
             let custom = members.contains { $0.key == "active" }
             let row = try await ctx.database.transaction { c -> JSONValue in
-                let before = try c.queryOne("SELECT color FROM modules WHERE id=?", [id])
+                let before = try c.queryOne("SELECT color, name FROM modules WHERE id=?", [id])
                 for (k, v) in updates { try c.execute("UPDATE modules SET \(k)=? WHERE id=?", [v, id]) }
                 // selbst geschaltet: Module ohne aktiven Kurs schaltet `Semesters.deactivateStaleModules` dann nicht aus
                 if custom { try c.execute("UPDATE modules SET active_custom=1 WHERE id=?", [id]) }
@@ -116,6 +120,8 @@ public enum ModulesEndpoints: LocalEndpointModule {
                 if let rename {
                     try c.execute("UPDATE courses SET subject=? WHERE module_id=?", [rename, id])
                     try c.execute("UPDATE study_packages SET subject=? WHERE module_id=?", [rename, id])
+                    // Faecher im Lernkalender: die Wahl haengt am Namen und bleibt beim Umbenennen
+                    if let old = before?["name"]?.string, let new = rename.string { try StudyPlanModules.renamed(c, from: old, to: new) }
                 }
                 // Regel G6 (server._found): kein Datensatz -> 404
                 guard let row = try c.queryOne("SELECT * FROM modules WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Modul nicht gefunden") }

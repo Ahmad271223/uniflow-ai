@@ -15,7 +15,7 @@ enum FreezeTexts {
     static let contrast = "Kontrast für Abpausen"
     static let unlockAction = "Entsperren"
     static let introTitle = "Bildschirm fixieren"
-    static let viewExplain = "Zoom, Scrollen und Seitenwechsel sind gesperrt, der Apple Pencil schreibt weiter. "
+    static let viewExplain = UFDevice.adapt("Zoom, Scrollen und Seitenwechsel sind gesperrt, der Apple Pencil schreibt weiter. ")
         + "Gut für genaue technische Zeichnungen. Lösen über das Abzeichen oben oder ⌘L."
     static let traceExplain = "Die Seite füllt den Bildschirm im aktuellen Zoom, alle Leisten verschwinden und keine Berührung "
         + "wirkt mehr – auch nicht der Stift oder Papier, das darauf liegt. Der Bildschirm bleibt an. "

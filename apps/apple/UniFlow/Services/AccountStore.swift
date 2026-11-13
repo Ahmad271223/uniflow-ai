@@ -143,10 +143,28 @@ final class AccountStore: ObservableObject {
 
     // MARK: Anmelden
 
-    /// Umfang wie in Abschnitt 2a: Name und E-Mail (Apple liefert beides nur bei der ersten Zustimmung)
+    /// Umfang wie in Abschnitt 2a: Name und E-Mail (Apple liefert beides nur bei der ersten Zustimmung). Seit
+    /// 12.11.2026 (eine Anmeldung fuer alles) mit Nonce: dieselbe Anmeldung meldet auch beim StudiNow-Dienst an, der
+    /// das ID-Token mit der Nonce prueft. An Apple geht nur ihr SHA-256, der Rohwert bleibt im Speicher.
     nonisolated static func configure(_ request: ASAuthorizationAppleIDRequest) {
         request.requestedScopes = [.fullName, .email]
+        let nonce = StudoraAccountLink.randomNonce()
+        AppleNonce.shared.set(nonce)
+        request.nonce = StudoraAccountLink.sha256(nonce)
     }
+
+    /// Rohwert der Nonce der laufenden Anmeldung (nur im Speicher, einmal abholbar)
+    final class AppleNonce: @unchecked Sendable {
+        static let shared = AppleNonce()
+        private let lock = NSLock()
+        private var value: String?
+        func set(_ v: String?) { lock.withLock { value = v } }
+        func take() -> String? { lock.withLock { defer { value = nil }; return value } }
+    }
+
+    /// Die Anmeldung beim ersten Start weiterreichen an den StudiNow-Dienst (`StudoraAccountLink.adoptFirstLogin`,
+    /// gesetzt in UniFlowApp); nil in Tests und ohne Dienst
+    var onFirstLogin: ((StudoraAccountLink.FirstAppleLogin) -> Void)?
 
     /// Ergebnis von `SignInWithAppleButton`
     func handle(_ result: Result<ASAuthorization, Error>) {
@@ -158,6 +176,12 @@ final class AccountStore: ObservableObject {
             }
             let name = c.fullName.map { PersonNameComponentsFormatter.localizedString(from: $0, style: .default) }
             signIn(userID: c.user, name: name, email: c.email, givenName: c.fullName?.givenName)
+            let nonce = AppleNonce.shared.take()
+            // eine Anmeldung fuer alles: Token nur im Speicher an den Dienst-Anschluss (nie gespeichert)
+            if account?.userID == c.user, let data = c.identityToken, let token = String(data: data, encoding: .utf8) {
+                onFirstLogin?(StudoraAccountLink.FirstAppleLogin(userID: c.user, identityToken: token, nonce: nonce,
+                                                                 authorizationCode: StudoraAccountLink.code(c), email: c.email))
+            }
         case .failure(let error):
             lastError = Self.message(for: error)
         }

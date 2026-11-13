@@ -1,8 +1,30 @@
 {
-  "description": "Wahlbereiche je Katalog, von Hand aus Pruefungsordnung (Anlage 1) und Modulkatalog gelesen (05.11.2026), eingemischt von tools/build-luh-seed.py. areas: Felder je Bereichs-id (lp_required, lp_max, modules_required, semester = empfohlenes Fachsemester fuer offene Plaetze, group = eins waehlen, type, kind, rule); add_areas: neue Bereiche (ohne Module: Platz mit eigenem Eintrag); modules: Felder je Modul-id (semester, area, kind). Verbindlich bleibt die Pruefungsordnung.",
+  "description": "Wahlbereiche je Katalog, von Hand aus Pruefungsordnung (Anlage 1) und Modulkatalog gelesen (05.11.2026), eingemischt von tools/build-luh-seed.py. areas: Felder je Bereichs-id (lp_required, lp_max, modules_required, semester = empfohlenes Fachsemester fuer offene Plaetze, group = eins waehlen, type, kind, rule); add_areas: neue Bereiche (ohne Module: Platz mit eigenem Eintrag); modules: Felder je Modul-id (semester, area, kind, max_attempts, required_from = Pflicht erst ab diesem Studienbeginn); max_attempts: Hoechstzahl der Versuche laut PO (11.11.2026, fehlt = unbekannt). Verbindlich bleibt die Pruefungsordnung.",
   "catalogs": {
+    "TIBSc25": {
+      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_techinf_bpo26.pdf (§ 14 Abs. 1, Anlage 1.4, gelesen 11.11.2026); Studienverlaufsplan Bachelor Technische Informatik WS 2026/27 (Stand 19.10.2026): Einführung in die Informatik eigener Kasten im 1., Proseminar im 4. Semester",
+      "max_attempts": 3,
+      "modules": {"einfuehrung-in-die-informatik": {"kind": "pflicht", "required_from": "WS 2025/26"},
+                  "bachelorarbeit": {"max_attempts": 2}},
+      "areas": {
+        "akademisches-arbeiten": {"lp_required": 10, "lp_max": 10,
+          "rule": "Pflichtmodule: Einführung in die Informatik (1. Semester, bei Studienbeginn ab 1.10.2025) und ein Proseminar (4. oder 5. Semester), je 5 LP; wer in diese PO überführt wurde, nur das Proseminar (5 LP)."}
+      }
+    },
+    "INFBSc22": {
+      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_inform_bpo26.pdf (§ 14 Abs. 1, Anlage 1.3, gelesen 11.11.2026); Studienverlaufsplan Bachelor Informatik WS 2026/27 (Stand 12.10.2026): Einführung in die Informatik eigener Kasten im 1., Proseminar im 4. Semester",
+      "max_attempts": 3,
+      "modules": {"einfuehrung-in-die-informatik": {"kind": "pflicht", "required_from": "WS 2025/26"},
+                  "bachelorarbeit": {"max_attempts": 2}},
+      "areas": {
+        "akademisches-arbeiten": {"lp_required": 10, "lp_max": 10,
+          "rule": "Pflichtmodule: Einführung in die Informatik (1. Semester, bei Studienbeginn ab 1.10.2025) und ein Proseminar (4. oder 5. Semester), je 5 LP; wer in diese PO überführt wurde, nur das Proseminar (5 LP)."}
+      }
+    },
     "maschinenbau|b.sc.|2026": {
-      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_maschbau_bpo26_PO26.pdf (§ 21 Abs. 8, Anlage 1.6-1.9); Modulkatalog PO 2026 S. 11",
+      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_maschbau_bpo26_PO26.pdf (§ 14 Abs. 1, § 21 Abs. 8, Anlage 1.6-1.9); Modulkatalog PO 2026 S. 11",
+      "max_attempts": 3,
+      "modules": {"bachelorarbeit": {"max_attempts": 2}},
       "areas": {
         "ingenieurkompetenz-im-gesellschaftlichen-und-methodischen-kontext": {"lp_required": 29, "lp_max": null, "semester": 6,
           "rule": "Bachelorprojekt, Tutorien oder Studium Generale, Praxisprojekt (14 LP) und Berufsqualifizierung (15 LP): Fachpraktikum (12 Wochen) oder drei Wahlpflichtmodule."},

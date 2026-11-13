@@ -114,10 +114,14 @@ extension ContainerManager {
                 if UniAutoLogin.isRejected(portal: used.slot, store: store) { r.rejectedPortals.append(name) }
             }
         }
-        // Dienste ohne eigenen Zugang je Portal (Uni Hildesheim, HsH): abgelaufene Anmeldungen still erneuern
+        // Uni Hildesheim (12.11.2026): Learnweb und LSF wie die Portale der LUH auch zum ersten Mal verbinden
+        // (CAS mit dem gemeinsamen Zugang), abgelaufene still erneuern
         if active === c, let hildesheim {
-            r.needsLogin += await hildesheim.renewSilently().map(\.rawValue)
+            let h = await hildesheim.connectWithStoredLogin(userAction: userAction)
+            r.connected += h.connected.map(\.rawValue)
+            r.needsLogin += h.needsLogin.map(\.rawValue)
         }
+        // HsH: abgelaufene Anmeldungen still erneuern
         if active === c, let hsh {
             for s in HsHConnection.Source.allCases where hsh.isConnected(s) && hsh.state(s) == .needsLogin {
                 if await hsh.autoLogin(s) { r.connected.append(s.rawValue) } else { r.needsLogin.append(s.rawValue) }

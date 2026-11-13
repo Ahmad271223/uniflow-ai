@@ -89,6 +89,9 @@ ENTITLEMENTS: dict[str, dict] = {
     # Wochenstapel uebernehmen ab Plus. Lesen (GET /api/flashcards, /api/flashcard-stacks) bleibt in jedem Tarif frei:
     # nach der Probe sind die eigenen Karten in Free weiter sichtbar, nur nicht mehr bearbeit- oder uebbar.
     "can_use_flashcards": {"from": "plus", "label": "Eigene Karteikarten mit Wiederholung", "status": "available"},
+    # Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen 3 Tage, 1 Tag und am Morgen vorher) ab Plus
+    # (Entscheidung des Inhabers 11.11.2026, vorher in jedem Tarif). Die Fristen-Liste selbst bleibt in Free sichtbar.
+    "can_use_due_reminders": {"from": "plus", "label": "Erinnerungen an Abgaben und Klausuren", "status": "available"},
     # Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect). Die Endpunkte /api/learning/* gibt es,
     # eine Oberflaeche dafuer noch nicht (Web und iPad): darum coming_soon, nie als enthalten beworben.
     "can_use_advanced_analytics": {"from": "pro_ai", "label": "Lernstatistik über alle Module", "status": "coming_soon"},

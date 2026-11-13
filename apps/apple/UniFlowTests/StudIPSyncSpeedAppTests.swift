@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import UniFlowCore
 @testable import UniFlow
@@ -199,6 +200,37 @@ final class StudIPSyncSpeedAppTests: XCTestCase {
         report(String(format: "zweiter Lauf mit 20 ms Latenz, %.2f s", seconds), stud)
         XCTAssertGreaterThan(stud.maxOpen, 1, "parallel")
         XCTAssertLessThanOrEqual(stud.maxOpen, StudIPClient.defaultConcurrency)
+    }
+
+    /// 11.11.2026 ("Sync dauert ewig"): "fertig" kommt, sobald Dateien, Stundenplan und Neuigkeiten da sind;
+    /// Aufzeichnungen und Lernstoff laufen danach im selben Lauf, der Lernplan losgeloest danach
+    func testReadyBeforeRecordingsTextsAndStudyPlan() async throws {
+        let dev = try device()
+        let stud = portal()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        var readyAt: Int?
+        let watch = sync.$phase.sink { p in if p == .idle, readyAt == nil { readyAt = stud.requested.count } }
+        defer { watch.cancel() }
+        var planPhase: StudIPSync.Phase?
+        StudIPSync.autoPlanStarted = { p in if planPhase == nil { planPhase = p } }
+        defer { StudIPSync.autoPlanStarted = nil }
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertFalse(sync.finishingUp)
+        let slow = { (p: String) in
+            p.contains("courseware") || p.contains("wiki-pages") || p.contains("forum-categories") || p.contains("opencast")
+                || p.contains("course/overview")
+        }
+        let all = stud.requested
+        let firstSlow = try XCTUnwrap(all.firstIndex(where: slow), "Aufzeichnungen und Lernstoff wurden gefragt")
+        let ready = try XCTUnwrap(readyAt, "fertig gemeldet")
+        XCTAssertGreaterThanOrEqual(firstSlow, ready, "fertig vor Aufzeichnungen und Lernstoff")
+        XCTAssertTrue(all[..<ready].allSatisfy { !slow($0) })
+        XCTAssertEqual(planPhase, .idle, "Lernplan erst nach fertig")
+        XCTAssertEqual(sync.entries.count, Self.courseCount * Self.folders.count * 2)
+        // der Abgleich der App wartet nicht mehr zwischen den Anfragen (die Grenze von 4 zugleich bleibt)
+        XCTAssertEqual(sync.liveClient([]).pauseMillis, 0)
+        XCTAssertEqual(StudIPClient.defaultConcurrency, 4)
     }
 
     /// Flache Liste ohne Unterordner (andere Stud.IP-Fassung): keine Bestaetigung, weiter der Baum, keine Datei fehlt

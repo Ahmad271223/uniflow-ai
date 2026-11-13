@@ -114,6 +114,20 @@ final class QISAppTests: XCTestCase {
         XCTAssertTrue(again.isConnected)
     }
 
+    /// Regel des Inhabers 12.11.2026: jede bestandene QIS-Leistung steht in "Uni & Noten", auch in der Ansicht "Module"
+    /// (vorher nur Modulzeilen: eine bestandene Pruefung ohne Modulzeile fehlte dort), LP-Kachel = Summe aller
+    func testModuleViewShowsEveryPassedQISAchievement() {
+        func r(_ nr: String, _ level: String, counted: Bool) -> JSONValue {
+            ["pruefungsnr": .string(nr), "level": .string(level), "counted": .bool(counted), "text": .string(nr)]
+        }
+        let rows: [JSONValue] = [r("10", "bereich", counted: false), r("1100", "modul", counted: true), r("1101", "pruefung", counted: false),
+                                 r("9011", "pruefung", counted: true), r("9031", "pruefung", counted: false)]
+        XCTAssertEqual(GradesTable.visibleRows(rows, showAll: false).map { $0.s("pruefungsnr") }, ["1100", "9011"])
+        XCTAssertEqual(GradesTable.visibleRows(rows, showAll: true).map { $0.s("pruefungsnr") }, ["1100", "1101", "9011", "9031"])
+        let g: JSONValue = ["passed": 2, "basis": "module", "failed_attempts": 0, "grades": .array(rows)]
+        XCTAssertEqual(ServicesPage.creditsLabel(g), "aus 2 bestandenen Leistungen")
+    }
+
     func testEmptyNotenspiegelIsHonestAndNotAnError() async throws {
         let (m, c, q) = try luh()
         installQIS(list: """
@@ -170,6 +184,22 @@ final class QISAppTests: XCTestCase {
         let back = await q.run(force: true)
         XCTAssertEqual(back?.grades, 3)
         XCTAssertEqual(q.state, .ok(clock.now))
+    }
+
+    /// 11.11.2026: Seiten (GET) mit 15 s Zeitlimit statt 30 s, Formulare/Downloads wie bisher; der QIS-Durchlauf
+    /// wiederholt eine Zeitueberschreitung nicht (`UniRetry.qisPages`)
+    func testPagesTimeOutAfterFifteenSecondsAndQISDoesNotRetryTimeouts() throws {
+        let t = URLSessionUniTransport(cookies: [], allowedDomains: QISConnection.qisDomains)
+        let page = try t.sendRequest(UniRequest(url: QISClient.startURL))
+        XCTAssertEqual(page.timeoutInterval, 15)
+        let form = try t.sendRequest(UniRequest(url: QISClient.startURL, method: "POST", body: Data("a=b".utf8)))
+        XCTAssertNotEqual(form.timeoutInterval, 15, "Formulare behalten das Zeitlimit der Sitzung")
+        let document = try t.sendRequest(UniRequest(url: QISClient.startURL, timeout: 30))
+        XCTAssertEqual(document.timeoutInterval, 30)
+        XCTAssertFalse(UniRetry.qisPages.retriesTimeouts)
+        let (_, _, q) = try luh()
+        XCTAssertTrue(Mirror(reflecting: q).children.contains { ($0.value as? UniRetry)?.retriesTimeouts == false },
+                       "QIS-Verbindung: keine Wiederholung nach Zeitueberschreitung")
     }
 
     func testSignOutRemovesOnlyTheQISSession() async throws {
@@ -248,6 +278,39 @@ final class QISAppTests: XCTestCase {
         XCTAssertFalse(q.isConnected)
         XCTAssertNil(q.lastCount)
         XCTAssertTrue(UniStubProtocol.requests.isEmpty, "keine Anfrage an das QIS")
+    }
+
+    /// Knopf "Diese Seite auslesen" (12.11.2026): die angezeigte Notenspiegel-Seite (echter LUH-Aufbau,
+    /// fixtures/qis-notenspiegel/luh-notenspiegel.html) mit demselben Leser; nur Seiten des QIS ueber HTTPS; Stammdaten
+    /// und asi nie gespeichert; die Ansicht hat den Knopf und liest nur `outerHTML`
+    func testReadDisplayedPageWithTheSameParser() async throws {
+        let (m, c, q) = try luh()
+        installQIS()
+        await signIn(m, c, q)
+        try ContainerTestBed.requireRepoSources()
+        let html = try String(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/qis-notenspiegel/luh-notenspiegel.html"),
+                              encoding: .utf8)
+        let url = URL(string: "https://\(host)/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=notenspiegelStudent&next=list.vm&asi=S1abcDEF")!
+        let foreign = await q.readDisplayedPage(html: html, url: URL(string: "https://qis.example.org/x")!)
+        XCTAssertEqual(foreign.result, .nothing, "nur das QIS der LUH")
+        let http = await q.readDisplayedPage(html: html, url: URL(string: "http://\(host)/x")!)
+        XCTAssertEqual(http.result, .nothing, "nur HTTPS")
+        let runs = q.finishedRuns
+        let r = await q.readDisplayedPage(html: html, url: url)
+        XCTAssertEqual(r.result, .grades(7), r.message)
+        XCTAssertEqual(q.state, .ok(clock.now))
+        XCTAssertEqual(q.finishedRuns, runs + 1, "Seiten laden danach neu")
+        let g = try await c.api.value("/api/grades")
+        XCTAssertEqual(g["credits"], 19, "LP aus QIS: 8 + 5 + 6, Kompetenzbereich nie")
+        XCTAssertEqual(g["average"], 3.3)
+        let db = try await c.host.backend().context.database
+        let dump = JSONValue.array(try await db.rows("SELECT * FROM grades").map(JSONValue.object)).jsonString()
+        for secret in ["Erika", "1234567", "Musterweg", "S1abcDEF"] { XCTAssertFalse(dump.contains(secret), secret) }
+        // Ansicht: Knopf in der QIS-Webansicht, nur Seiteninhalt lesen, Felder fuer Autofill gekennzeichnet
+        let views = try String(contentsOf: ContainerTestBed.repoURL("apps/apple/UniFlow/Views/QISViews.swift"), encoding: .utf8)
+        XCTAssertTrue(views.contains("\"Diese Seite auslesen\""))
+        XCTAssertTrue(views.contains("connection.readDisplayedPage(html: html, url: url)"))
+        XCTAssertEqual(views.components(separatedBy: "qisAutofillHints: true").count - 1, 2, "Anmeldung und Leseansicht")
     }
 
     func testUniversityPickerAndSidebarNoLongerPromiseQISForLater() {

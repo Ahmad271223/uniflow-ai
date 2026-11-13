@@ -61,7 +61,7 @@ final class QISConnection: ObservableObject {
     static var qisDomains: [String] { [UniversityProfile.luhQISStart.host?.lowercased() ?? "qis.verwaltung.uni-hannover.de"] }
 
     init(container c: ActiveContainer, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
-         transport: TransportFactory? = nil, retry: UniRetry = UniRetry()) {
+         transport: TransportFactory? = nil, retry: UniRetry = .qisPages) {
         key = c.key
         host = c.host
         defaults = c.defaults
@@ -118,15 +118,16 @@ final class QISConnection: ObservableObject {
 
     // MARK: Anmeldung (aus QISLoginView)
 
-    /// Die Webansicht zeigt eine angemeldete QIS-Seite: verbunden, danach gleich abrufen
-    func signedIn() {
+    /// Die Webansicht zeigt eine angemeldete QIS-Seite: verbunden, danach gleich abrufen. `fetch: false`: der Aufrufer
+    /// liest selbst (Abgleich aller Portale, `runRenewingSession`), kein zweiter, losgeloester Abruf.
+    func signedIn(fetch: Bool = true) {
         defaults.set(true, forKey: Keys.connected)
         set(.connected)
         let store = websiteDataStore
         UniAutoLogin.clearSignedOut(.qis, store: store)        // angemeldet: die Abmelden-Sperre faellt
         UniAutoLogin.signedIn(store, portal: .qis)             // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // QIS-Sitzung ueber Neustarts merken (`UniWebSessions`)
-        guard syncsAfterSignIn, !isRunning else { return }
+        guard fetch, syncsAfterSignIn, !isRunning else { return }
         Task { await run(force: true) }
     }
 
@@ -168,9 +169,11 @@ final class QISConnection: ObservableObject {
         Task { await run() }
     }
 
-    /// Ein Abruf; `force`: auch vor Ablauf der 20 Stunden (Knopf "Noten abrufen")
+    /// Ein Abruf; `force`: auch vor Ablauf der 20 Stunden (Knopf "Noten abrufen"). `renewsSession`: meldet das QIS
+    /// "abgelaufen", startet `apply` die stille Anmeldung losgeloest (Vorgabe); der Abgleich aller Portale schaltet das ab
+    /// und wartet sie selbst ab (`runRenewingSession`), damit nie zwei Anmeldungen bzw. Abrufe nebeneinander laufen.
     @discardableResult
-    func run(force: Bool = false) async -> QISGradesSync.Report? {
+    func run(force: Bool = false, renewsSession: Bool = true) async -> QISGradesSync.Report? {
         guard !isRunning, !stopped, isConnected, force || due else { return nil }
         let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
@@ -184,7 +187,7 @@ final class QISConnection: ObservableObject {
         current = task
         let report = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
-        apply(report, before: before)
+        apply(report, before: before, renewsSession: renewsSession)
         isRunning = false
         finishedRuns += 1
         return report
@@ -241,7 +244,42 @@ final class QISConnection: ObservableObject {
         return r
     }
 
-    private func apply(_ r: QISGradesSync.Report?, before: State) {
+    /// Knopf "Diese Seite auslesen" (`QISPageReaderView`, 12.11.2026): die in der Webansicht angezeigte QIS-Seite
+    /// (Notenspiegel bzw. "Info über angemeldete Prüfungen") mit demselben Leser wie der Abruf lesen
+    /// (`QISPageImport`). Nur Seiten des QIS ueber HTTPS; nie mit Demo-Inhalten, nie waehrend eines Abrufs.
+    @discardableResult
+    func readDisplayedPage(html: String, url: URL) async -> QISPageImport.Report {
+        guard QISPageImport.accepts(url, allowedHosts: Self.qisDomains) else {
+            return .init(result: .nothing, message: "Nur Seiten des QIS der LUH können ausgelesen werden.")
+        }
+        guard !isRunning, !stopped else { return .init(result: .nothing, message: "Gerade läuft ein Abruf. Bitte gleich noch einmal.") }
+        if await host.demoActive() { return .init(result: .nothing, message: "Mit Demo-Inhalten wird nichts aus dem QIS gelesen.") }
+        let r: QISPageImport.Report
+        do {
+            let db = try await host.backend().context.database
+            r = await QISPageImport.read(db: db, html: html, url: url, clock: clock)
+        } catch {
+            return .init(result: .nothing, message: LocalBackendHost.message(for: error))
+        }
+        switch r.result {
+        case .grades(let n):
+            if !isConnected { defaults.set(true, forKey: Keys.connected) }
+            lastMessage = r.message
+            lastCount = n
+            defaults.set(r.message, forKey: Keys.message)
+            defaults.set(n, forKey: Keys.count)
+            set(.ok(clock.now))
+            StudyCatalogSync.trigger(host: host)
+        case .registrations:
+            registrationsMessage = r.message
+        case .loginPage, .nothing:
+            break
+        }
+        finishedRuns += 1                                       // offene Seiten laden neu
+        return r
+    }
+
+    private func apply(_ r: QISGradesSync.Report?, before: State, renewsSession: Bool) {
         guard let r else { set(.failed("Abruf nicht möglich.")); return }
         if r.cancelled {
             set(before == .running ? .connected : before)
@@ -253,10 +291,13 @@ final class QISConnection: ObservableObject {
             lastCount = n
             defaults.set(n, forKey: Keys.count)
             set(.ok(clock.now))
+            // die Sitzung traegt (auch nach einer stillen Anmeldung): Fehlschlaege und "neuer Versuch laeuft" zurueck,
+            // wie bei Uni-Mail (11.11.2026; vorher blieb die Zustandsmaschine nach jeder stillen Anmeldung "im Versuch")
+            UniAutoLogin.succeeded(portal: "qis", store: websiteDataStore)
             StudyCatalogSync.trigger(host: host)     // Studiengang aus dem Notenspiegel -> Modulkatalog suchen (Hintergrund)
         } else if r.needsLogin {
             set(.needsLogin)
-            Task { await self.autoLogin() }                    // still mit dem gespeicherten Passwort, dann einmal neu
+            if renewsSession { Task { await self.autoLogin() } }   // still mit dem gespeicherten Passwort, dann einmal neu
         } else {
             set(.failed(r.message))
         }
@@ -267,8 +308,9 @@ final class QISConnection: ObservableObject {
     /// Abgelaufen: unsichtbar mit dem gespeicherten Passwort (nur mit Zustimmung, nur dieses Geraet) auf der QIS-Seite
     /// anmelden, dann genau einmal neu abrufen (`signedIn`). Scheitert es (falsches Passwort), bleibt "Anmeldung nötig".
     /// Nie waehrend des Abmeldens, nie im Hintergrund, nie in einer Schleife (`UniAutoLoginMachine`).
+    /// `fetch: false`: nur anmelden, nicht losgeloest abrufen (der Aufrufer liest selbst, `runRenewingSession`).
     @discardableResult
-    func autoLogin(userAction: Bool = false) async -> Bool {
+    func autoLogin(userAction: Bool = false, fetch: Bool = true) async -> Bool {
         guard isConnected, state == .needsLogin, !stopped else { return false }
         let before = signOuts
         let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
@@ -276,8 +318,20 @@ final class QISConnection: ObservableObject {
         guard d == .retryOnce, signOuts == before, isConnected, !stopped else { return false }
         for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Abruf von eben zu Ende
         guard signOuts == before, isConnected, !stopped else { return false }
-        signedIn()                                              // verbunden, ruft gleich (einmal) ab
+        signedIn(fetch: fetch)                                  // verbunden, ruft gleich (einmal) ab
         return true
+    }
+
+    /// Abgleich aller Portale (OpenSync, 11.11.2026): ein Abruf wie `run`; meldet das QIS dabei "abgelaufen", wartet er
+    /// die stille Anmeldung ab (`autoLogin`, nur mit Zustimmung und gespeichertem Zugang, `UniAutoLoginMachine`) und
+    /// liest danach im selben Lauf genau einmal neu. Vorher endete der Sync hier mit "QIS: Anmeldung nötig", die
+    /// Anmeldung lief losgeloest weiter, Noten und Pruefungen kamen erst spaeter und Bescheinigungen gar nicht.
+    @discardableResult
+    func runRenewingSession(force: Bool, userAction: Bool) async -> QISGradesSync.Report? {
+        let first = await run(force: force, renewsSession: false)
+        guard let first, first.needsLogin, state == .needsLogin else { return first }
+        guard await autoLogin(userAction: userAction, fetch: false) else { return first }
+        return await run(force: true, renewsSession: false) ?? first
     }
 
     /// wie `QISLoginPane.isSignedIn`: Seite des QIS mit Abmelden-Link, ohne Anmeldeformular
@@ -299,6 +353,34 @@ final class QISConnection: ObservableObject {
         guard d == .retryOnce, signOuts == before, !isConnected, !stopped else { return false }
         signedIn()                                              // verbunden, ruft gleich (einmal) ab
         return true
+    }
+
+    // MARK: Hintergrund (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md)
+
+    /// Im Hintergrund hoechstens so oft den Notenspiegel abrufen (der Abruf beim Oeffnen bleibt bei 20 Stunden)
+    static let backgroundInterval: TimeInterval = 3600
+
+    /// Hintergrundlauf: abgelaufene QIS-Anmeldung still mit dem gespeicherten Uni-Zugang erneuern (nur dieses Geraet,
+    /// unsichtbar ohne Fenster). Anders als `autoLogin` startet sie keinen Abruf von selbst: den macht `backgroundCheck`.
+    @discardableResult
+    func reloginInBackground() async -> Bool {
+        guard isConnected, state == .needsLogin, !stopped, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
+        let before = signOuts
+        let d = await UniAutoLogin.handleExpiry(portal: "qis", store: websiteDataStore, entry: QISClient.startURL,
+                                                background: true) { url, html in QISConnection.isSignedInPage(url, html: html) }
+        guard d == .retryOnce, signOuts == before, isConnected, !stopped else { return false }
+        set(.connected)
+        Task { await UniWebSessions.save(self.websiteDataStore) }    // neue Sitzung ueber Neustarts merken
+        return true
+    }
+
+    /// Hintergrundlauf: Notenspiegel abrufen, wenn verbunden, angemeldet und der letzte Abruf mindestens
+    /// `backgroundInterval` zurueckliegt. Neue Noten erkennt der Hintergrundlauf am Vergleich der Datenbank.
+    @discardableResult
+    func backgroundCheck() async -> QISGradesSync.Report? {
+        guard isConnected, !stopped, !isRunning, state != .needsLogin else { return nil }
+        if let last = lastRun, clock.now.timeIntervalSince(last) < Self.backgroundInterval { return nil }
+        return await run(force: true)
     }
 
     // MARK: Anzeige

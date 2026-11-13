@@ -35,6 +35,7 @@
     "can_access_shared_tests": false,
     "can_generate_studora_ai_tests": false,
     "can_use_flashcards": false,
+    "can_use_due_reminders": false,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -78,6 +79,7 @@
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
     "can_use_flashcards": true,
+    "can_use_due_reminders": true,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -121,6 +123,7 @@
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
     "can_use_flashcards": true,
+    "can_use_due_reminders": true,
     "can_use_advanced_analytics": true,
     "can_use_advanced_planner": true,
     "can_review_wrong_answers": true,
@@ -211,6 +214,11 @@
   "can_use_flashcards": {
    "from": "plus",
    "label": "Eigene Karteikarten mit Wiederholung",
+   "status": "available"
+  },
+  "can_use_due_reminders": {
+   "from": "plus",
+   "label": "Erinnerungen an Abgaben und Klausuren",
    "status": "available"
   },
   "can_use_advanced_analytics": {

@@ -791,4 +791,122 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertEqual(luhFiles, 0)
         XCTAssertEqual(suiteKeys(freshLUH.layout), [], "Kursauswahl und Stand des alten Abgleichs weg")
     }
+
+    // MARK: Anderer Stud.IP-Benutzer im selben Datenbereich (12.11.2026, StudIPUserMark)
+
+    /// Stud.IP mit festen Antworten fuer einen erfundenen Benutzer: ein Kurs `c-<id>` mit einer Datei, ohne Warten
+    private final class UserStudIP: StudIPTransport, @unchecked Sendable {
+        let user: String
+        private let lock = NSLock()
+        private var seen: [String] = []
+        init(_ user: String) { self.user = user }
+        var paths: [String] { lock.withLock { seen } }
+
+        func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+            let path = (url.path + (url.query.map { "?" + $0 } ?? ""))
+                .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
+            lock.withLock { seen.append(path) }
+            let json: String
+            switch path {
+            case "/jsonapi.php/v1/users/me": json = #"{"data":{"id":"\#(user)","type":"users"}}"#
+            case "/jsonapi.php/v1/users/\(user)/courses?page[limit]=100&include=start-semester,end-semester":
+                json = #"""
+                    {"data":[{"id":"c-\#(user)","type":"courses","attributes":{"title":"Kurs von \#(user)","course-number":"T-1"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+                     "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+                    """#
+            case "/jsonapi.php/v1/courses/c-\(user)/folders?page[limit]=200": json = #"{"data":[{"id":"r-\#(user)","attributes":{"folder-type":"RootFolder","name":""}}]}"#
+            case "/jsonapi.php/v1/folders/r-\(user)/file-refs?page[limit]=500":
+                json = #"{"data":[{"id":"d-\#(user)","attributes":{"name":"Blatt.pdf","filesize":12,"mime-type":"application/pdf","chdate":"2026-10-19T10:00:00+02:00","is-downloadable":true}}]}"#
+            case "/jsonapi.php/v1/folders/r-\(user)/folders?page[limit]=200": json = #"{"data":[]}"#
+            default: return HTTPReply(status: 404, contentType: "application/vnd.api+json", body: Data(#"{"errors":[]}"#.utf8))
+            }
+            return HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(json.utf8))
+        }
+
+        func download(_ url: URL, to file: URL) async throws -> HTTPReply {
+            try Data("%PDF-1.7 \(user)".utf8).write(to: file)
+            return HTTPReply(status: 200, contentType: "application/pdf")
+        }
+    }
+
+    private func mark(_ c: ActiveContainer) async throws -> String? {
+        try await c.host.backend().context.database.withConnection { try StudIPUserMark.stored($0) }
+    }
+
+    private func courseIDs(_ c: ActiveContainer) async throws -> [String] {
+        try await c.host.backend().context.database.withConnection {
+            try $0.rows("SELECT id FROM courses WHERE id NOT LIKE '\\_\\_%' ESCAPE '\\' ORDER BY id").compactMap { $0["id"]?.string }
+        }
+    }
+
+    /// Zweiter LUH-Benutzer unter derselben Apple-ID: vorher mischte der Abgleich seine Kurse und Dateien still in den
+    /// Speicher des ersten. Jetzt: Bestandsdaten ohne Merker uebernehmen still den ersten Benutzer (nur Hash); ein
+    /// anderer Benutzer haelt den Abgleich an, bevor er etwas schreibt (keine Kursliste abgerufen), und die Frage steht an.
+    func testOtherStudIPUserInTheSameContainerStopsBeforeWritingAndAsks() async throws {
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        let m = manager()
+        m.sync(account: a)
+        let c = try active(m)
+        try c.cookies.save([cookie("Seminar_Session", "sitzung-ada", domain: "studip.uni-hannover.de")])
+        let noMarkYet = try await mark(c)
+        XCTAssertNil(noMarkYet, "Bestandsdaten ohne Merker")
+
+        let first = await m.studip.run(client: StudIPClient(base: StudIPSync.base, transport: UserStudIP("ada1"), pauseMillis: 0))
+        XCTAssertEqual(first, .completed)
+        let adopted = try await mark(c)
+        XCTAssertEqual(adopted, StudIPUserMark.hash(userID: "ada1"), "erster Benutzer still uebernommen, nur als Hash")
+        XCTAssertFalse(m.studip.foreignUser)
+
+        let bob = UserStudIP("bob2")
+        let second = await m.studip.run(client: StudIPClient(base: StudIPSync.base, transport: bob, pauseMillis: 0))
+        XCTAssertEqual(second, .failed(StudIPSync.foreignUserText))
+        XCTAssertTrue(m.studip.foreignUser, "Dialog „Anderer Stud.IP-Benutzer“ steht an")
+        XCTAssertEqual(bob.paths, ["/jsonapi.php/v1/users/me"], "nach users/me nichts mehr abgerufen")
+        let ids = try await courseIDs(c)
+        XCTAssertEqual(ids, ["c-ada1"], "nichts von bob2 im Speicher von ada1")
+        let files = try await c.host.backend().context.database.scalar("SELECT COUNT(*) FROM files")?.int
+        XCTAssertEqual(files, 1)
+        let kept = try await mark(c)
+        XCTAssertEqual(kept, StudIPUserMark.hash(userID: "ada1"))
+
+        // derselbe Benutzer wie bisher: weiter wie gewohnt
+        await m.studip.signOut()
+        XCTAssertFalse(m.studip.foreignUser, "Abbrechen: Frage beantwortet, neuer Benutzer abgemeldet")
+        XCTAssertFalse(m.studip.hasStoredSession)
+        let again = await m.studip.run(client: StudIPClient(base: StudIPSync.base, transport: UserStudIP("ada1"), pauseMillis: 0))
+        XCTAssertEqual(again, .completed)
+    }
+
+    /// "Neu beginnen": ueber den vorhandenen Weg "Daten dieser Hochschule löschen" alles der bisherigen Person weg, die
+    /// Sitzung des neuen Benutzers bleibt, und sein Abgleich merkt sich ihn
+    func testRestartForNewStudIPUserDeletesTheOldDataAndKeepsTheNewSession() async throws {
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        let m = manager()
+        m.sync(account: a)
+        let c = try active(m)
+        _ = await m.studip.run(client: StudIPClient(base: StudIPSync.base, transport: UserStudIP("ada1"), pauseMillis: 0))
+        try c.cookies.save([cookie("Seminar_Session", "sitzung-bob", domain: "studip.uni-hannover.de")])
+        _ = await m.studip.run(client: StudIPClient(base: StudIPSync.base, transport: UserStudIP("bob2"), pauseMillis: 0))
+        XCTAssertTrue(m.studip.foreignUser)
+
+        let problem = await m.restartForNewStudIPUser()
+        XCTAssertNil(problem)
+        let fresh = try active(m)
+        XCTAssertEqual(fresh.key, c.key)
+        XCTAssertFalse(m.studip.foreignUser)
+        XCTAssertEqual(fresh.cookies.load().map(\.value), ["sitzung-bob"], "Sitzung des neuen Benutzers bleibt")
+        let before = try await courseIDs(fresh)
+        XCTAssertEqual(before, [], "Daten von ada1 geloescht")
+        let none = try await mark(fresh)
+        XCTAssertNil(none)
+        let end = await m.studip.run(client: StudIPClient(base: StudIPSync.base, transport: UserStudIP("bob2"), pauseMillis: 0))
+        XCTAssertEqual(end, .completed)
+        let after = try await courseIDs(fresh)
+        XCTAssertEqual(after, ["c-bob2"])
+        let now = try await mark(fresh)
+        XCTAssertEqual(now, StudIPUserMark.hash(userID: "bob2"))
+    }
 }

@@ -227,7 +227,8 @@ struct TimetableView: View {
             }
     }
 
-    /// .tt-col: nur Hochschultermine (03.11.2026: Lernslots, freie Fenster und Sperrzeiten stehen im Lernkalender); Doppeltippen = neuer Termin
+    /// .tt-col: nur Hochschultermine (03.11.2026: Lernslots, freie Fenster und Sperrzeiten stehen im Lernkalender) und
+    /// heute die Jetzt-Linie (`UFNowLine`); Doppeltippen = neuer Termin
     private func column(_ d: JSONValue, lo: Int, hi: Int, px: @escaping (Int) -> CGFloat, width: CGFloat, today: Bool) -> some View {
         let date = d.s("date") ?? ""
         return ZStack(alignment: .topLeading) {
@@ -239,6 +240,8 @@ struct TimetableView: View {
                 TimetableEventBlock(e: evs[i], width: w, px: px) { actions.openOccurrence(evs[i], date: date) }
                     .offset(x: 3 + CGFloat(lanes[i].lane) * (w + 2))
             }
+            // Jetzt-Linie wie im Lernkalender (Auftrag 12.11.2026): nur heute, im sichtbaren Bereich, im Minutentakt
+            UFNowLine(date: date, lo: lo, hi: hi, width: width, y: px).zIndex(3)
         }
         .frame(width: width, height: px(hi), alignment: .topLeading)
         .background(hourLines(H))

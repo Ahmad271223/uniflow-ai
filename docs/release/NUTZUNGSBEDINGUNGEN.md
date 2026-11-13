@@ -31,6 +31,7 @@ und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält z
 | Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
 | Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
+| Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung (die Fristen selbst siehst du in jedem Tarif) | – | ✓ | ✓ |
 | Wochentests aus deinen Unterlagen erstellen (über dein eigenes ChatGPT oder den StudiNow-Dienst, Abschnitt 5a) | – | ✓ | ✓ |
 | Community deines Kurses: lesen, beitreten, Fragen stellen, Lösungen und Karteikarten-Stapel teilen und vergleichen | – | ✓ | ✓ |
 | Abgleich zwischen eigenen Geräten über den StudiNow-Dienst (sobald verfügbar) | – | ✓ | ✓ |
@@ -81,7 +82,7 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
 - **StudiNow Pro AI** ist ein Jahresabo (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und die
   KI von StudiNow über den StudiNow-Dienst, ohne eigenes ChatGPT-Konto. Dafür brauchst du ein StudiNow-Konto; die App
   bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 100 Credits je
-  Kalendermonat (auch beim Jahresabo), ein Credit entspricht 0,9 Cent der tatsächlichen Kosten beim KI-Anbieter. Nicht verbrauchte
+  Kalendermonat (auch beim Jahresabo). Nicht verbrauchte
   Credits verfallen am Monatsende; sind sie aufgebraucht, steht die KI von StudiNow bis zum nächsten Monat nicht zur
   Verfügung, alle anderen Funktionen bleiben. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen
   deiner Hochschule.

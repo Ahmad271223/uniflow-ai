@@ -178,7 +178,7 @@ final class ExternalImportAppTests: XCTestCase {
         // keine ZIP (Textdatei mit Endung .zip), keine PDF, fremde Art
         XCTAssertEqual(message(stage("kaputt.zip", Data("kein zip".utf8))), "Die Datei ist keine ZIP-Datei.")
         XCTAssertEqual(message(stage("kaputt.pdf", Data("kein pdf".utf8))), "Die Datei ist keine PDF.")
-        XCTAssertTrue(message(stage("Folien.pptx", Data("x".utf8))).contains("Es gehen PDF- und ZIP-Dateien"))
+        XCTAssertTrue(message(stage("Folien.pptx", Data("x".utf8))).contains("Es gehen PDF-, ZIP- und Bilddateien"))
         // verschluesselt (Bit 0 im lokalen Kopf und im Zentralverzeichnis, wie ZIP mit Passwort aus dem Windows-Explorer)
         var enc = try ZipArchive.pack([.init(path: "geheim.pdf", data: Data("x".utf8))])
         enc[6] |= 1
@@ -243,12 +243,12 @@ final class ExternalImportAppTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let size = CGSize(width: 1032, height: 1376)
 
-        // Dialog "In welches Modul?" wie nach "Teilen" -> StudiNow: Beschriftungen direkt gehostet (der
+        // Dialog "Wohin?" wie nach "Teilen" -> StudiNow: Beschriftungen direkt gehostet (der
         // Bedienungshilfen-Baum eines Dialogs ueber der Abdunkelung ist im Test leer), Bild als Dialog ueber der Seite
         let direct = try hostWithEnvironment(ExternalImportDialog(staged: staged), api: api, size: size)
         direct.pump(1.5)
         let shownDialog = direct.labels().joined(separator: "\n")
-        for word in ["ZIP importieren", "Übungsblatt 03.zip", "In welches Modul?", "Importieren", "Abbrechen"] {
+        for word in ["ZIP importieren", "Übungsblatt 03.zip", "Wohin?", "Importieren", "Abbrechen"] {
             XCTAssertTrue(shownDialog.contains(word), "„\(word)“ fehlt:\n\(shownDialog)")
         }
         direct.window.isHidden = true

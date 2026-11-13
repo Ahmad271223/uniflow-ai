@@ -132,13 +132,16 @@ enum DocumentTabs {
 
 struct LibraryView: View {
     @EnvironmentObject private var session: Session
+    /// Dialog "Wohin?" beim PDF-Import
+    @EnvironmentObject private var overlay: UFOverlay
     /// Ziele des Logos (setzt AppShell); ohne sie (Tests, alte Fassung) kein Zurueck
     @Environment(\.ufLogoMenu) private var logoMenu
+    /// Reiter der offenen Dokumente dieses Fensters (`router.tabs`, `DocumentTabList`)
+    @EnvironmentObject private var router: UFRouter
     @State private var library: LibraryResponse?
     @State private var loadError: String?
     @State private var moduleSelection: String? = "all"
     @State private var fileSelection: String?
-    @State private var openTabs: [String] = []
     @State private var query = ""
     @State private var columns: NavigationSplitViewVisibility = .all
     /// Kompakt (iPhone): gleich das Dokument zeigen. Sonst stand erst die Dokumentliste da und das Dokument schob sich
@@ -160,6 +163,8 @@ struct LibraryView: View {
     @State private var checking: Set<String> = []
     /// Dokument ist zum Abpausen eingefroren: keine Reiter darueber (Papier darf nichts antippen)
     @State private var editorTracing = false
+    /// Das Dokument zeigt die Reiter in seiner Kopfzeile ("Oben fest"): kein zweiter Streifen darueber
+    @State private var editorOwnsTabs = false
 
     init(openFile: String? = nil, openPage: Int? = nil, openTask: Int? = nil) {
         self.openFile = openFile
@@ -168,7 +173,6 @@ struct LibraryView: View {
         // Mit Ziel-Dokument ist es vom ersten Bild an ausgewaehlt: bis seine Zeile aus der Datenbank da ist, bleibt die
         // Flaeche leer - vorher stand fuer einen Moment "Dokument wählen" (Befund iPad 08.11.2026, Build 24)
         _fileSelection = State(initialValue: openFile)
-        _openTabs = State(initialValue: openFile.map { [$0] } ?? [])
         _columns = State(initialValue: openFile == nil ? .all : .detailOnly)
     }
 
@@ -272,7 +276,11 @@ struct LibraryView: View {
 
     @ViewBuilder private var detailColumn: some View {
             VStack(spacing: 0) {
-                if !openTabs.isEmpty, !editorTracing, !UFEditorAvailability.readerOnly { tabStrip }
+                // Reiter ueber Dokumenten ohne eigene Kopfzeile ("Unten fest", "Schwebend", Text, ZIP, nicht geladen);
+                // iPhone: Leseansicht ohne Reiter
+                if let id = fileSelection, !editorTracing, !editorOwnsTabs, !UFEditorAvailability.readerOnly {
+                    DocumentTabStrip(tabs: router.tabs, currentID: id, currentTitle: file(id)?.displayTitle ?? "Dokument", style: .row)
+                }
                 if let id = fileSelection, checking.contains(id) {
                     UF.bg
                 } else if let id = fileSelection, let f = file(id), let api = session.api {
@@ -283,7 +291,9 @@ struct LibraryView: View {
                     } else if f.opensInEditor {
                         // Identitaet je Datenquelle: beim Wechsel lokal <-> Server entsteht der DocumentStore neu fuer
                         // die neue Quelle (updateAPI uebernimmt nur Verbindungen derselben Quelle)
+                        // ohne Seite aus der Route an die gemerkte Stelle des Reiters (Seite, Punkt, Zoom)
                         DocumentView(file: f, api: api, initialPDFPage: f.id == openFile ? openPage : nil,
+                                     initialSpot: f.id == openFile && openPage != nil ? nil : router.tabs.entry(f.id)?.spot,
                                      task: f.id == openFile ? openTask : nil).id("\(api.namespace.id)/\(f.id)")
                     } else if f.opensAsText {
                         // Word, PowerPoint, Audio: Text je Seite mit KI-Hilfe daneben statt nur der Vorschau (docs/DATEIARTEN.md)
@@ -321,7 +331,8 @@ struct LibraryView: View {
                 }
             }
             .onPreferenceChange(EditorTracingKey.self) { editorTracing = $0 }
-            .background { if openTabs.count > 1, !editorTracing { tabKeys } }
+            .onPreferenceChange(EditorOwnsTabsKey.self) { editorOwnsTabs = $0 }
+            .background { if !editorTracing { DocumentTabKeys(tabs: router.tabs) } }
             // schmal klappt die Teilung zu einem Stapel mit System-Zurueck zusammen: genau ein Pfeil, unserer (06.11.2026)
             .navigationBarBackButtonHidden(true)
     }
@@ -331,7 +342,9 @@ struct LibraryView: View {
         .navigationSplitViewStyle(.prominentDetail)
         .onChange(of: fileSelection) { _, new in
             guard let new else { return }
-            if !openTabs.contains(new) { openTabs.append(new) }
+            // aus der Liste gewaehlt: als Reiter, die Route folgt (Zurueck und Weitermachen kennen das Dokument)
+            router.tabs.open(new, title: file(new)?.displayTitle)
+            if new != openFile { router.replace(.doc(new)) }
             columns = .detailOnly
             if file(new)?.downloaded_at == nil { checking.insert(new); Task { await ensureFresh(new) } }
             // wie viewDoc im Web: geoeffnet (Zuletzt, gilt als gesehen); Fehler sind egal
@@ -347,6 +360,8 @@ struct LibraryView: View {
             // laufenden Abgleich), und solange stand "Dokument wählen" statt des angetippten Dokuments.
             await loadSingle(o)
             fileSelection = o
+            // als Reiter (oder den vorhandenen aktiv); ein verschwundenes Dokument bekommt keinen neuen
+            if !missing.contains(o) || router.tabs.entry(o) != nil { router.tabs.open(o, title: file(o)?.displayTitle) }
             columns = .detailOnly
             // wie viewDoc im Web: geoeffnet (Zuletzt, gilt als gesehen); onChange feuert fuer den Startwert nicht
             let api = session.api
@@ -373,60 +388,13 @@ struct LibraryView: View {
         if let f = try? await api.json("/api/files/\(id)", as: LibFile.self) { extra[id] = f } else { missing.insert(id) }
     }
 
-    private var tabStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                // Farben aus UF.* wie die uebrige App (vorher Systemfarben); Schliessen mit groesserer Trefferflaeche
-                ForEach(openTabs, id: \.self) { id in
-                    let active = id == fileSelection
-                    HStack(spacing: 2) {
-                        Text(file(id)?.displayTitle ?? "Dokument").lineLimit(1).frame(maxWidth: 220)
-                            .ufFont(12.8, active ? 600 : 500, lh: 1.25)
-                        Button { close(id) } label: {
-                            // 44 pt hoch; seitlich nur bis zur halben Luecke, damit der Titel (Tab waehlen) bleibt
-                            UFIcon("x", size: 12).frame(width: 28, height: 28).contentShape(Rectangle())
-                                .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 2, bottom: .infinity, trailing: 7))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Tab schließen")
-                    }
-                    .foregroundStyle(active ? UF.accentText : UF.text2)
-                    .padding(.leading, 12).padding(.trailing, 4)
-                    .background(active ? UF.accentSoft : UF.surface2, in: Capsule())
-                    .onTapGesture { fileSelection = id }
-                }
-            }
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .padding(.vertical, 2)                                      // Platz fuer die 44-pt-Flaeche in der Rollflaeche
-        }
-        .padding(.vertical, -2)
-        .background(UF.surface)
-        .ufBorderBottom()
-    }
-
-    /// Mac und iPad mit Tastatur: naechster/vorheriger Reiter (Ctrl-Tab wie in Safari, Cmd-Option-Pfeil); auf dem iPad
-    /// wechselt man durch Antippen des Reiters
-    private var tabKeys: some View {
-        ZStack {
-            Button("") { switchTab(1) }.keyboardShortcut(.tab, modifiers: .control)
-            Button("") { switchTab(-1) }.keyboardShortcut(.tab, modifiers: [.control, .shift])
-            Button("") { switchTab(1) }.keyboardShortcut(.rightArrow, modifiers: [.command, .option])
-            Button("") { switchTab(-1) }.keyboardShortcut(.leftArrow, modifiers: [.command, .option])
-        }
-        .opacity(0)
-        .accessibilityHidden(true)
-    }
-
-    private func switchTab(_ step: Int) {
-        if let next = DocumentTabs.neighbor(of: fileSelection, in: openTabs, step: step) { fileSelection = next }
-    }
-
-    private func close(_ id: String) {
-        guard let i = openTabs.firstIndex(of: id) else { return }
-        openTabs.remove(at: i)
-        if fileSelection == id { fileSelection = openTabs.isEmpty ? nil : openTabs[max(0, i - 1)] }
-        // letzter Tab zu: zurueck in die Bibliothek statt auf eine leere Seite ohne Zurueck
-        if openTabs.isEmpty, let logoMenu { logoMenu.go(.files()) }
+    /// Ort fuer "PDF importieren" in der Dokumentleiste: Ordner des offenen Dokuments, sonst das in der Seitenleiste
+    /// gewaehlte Modul, sonst das Modul des Dokuments, sonst ohne Ordner
+    static func importPreset(open file: LibFile?, module selection: String?) -> ImportTarget {
+        if let f = file?.folder_id { return .folder(f) }
+        if let sel = selection, sel.hasPrefix("m"), let id = Int(sel.dropFirst()) { return .module(id) }
+        if let m = file?.module_id { return .module(m) }
+        return .loose
     }
 
     private func load() async {
@@ -439,22 +407,15 @@ struct LibraryView: View {
         }
     }
 
+    /// PDF aus "Dateien": pruefen, dann "Wohin?" wie fuer Dateien von aussen (11.11.2026; vorher immer ohne Ordner).
+    /// Vorgewaehlt ist der Ort des offenen Dokuments (12.11.2026; vorher immer "ohne Ordner"). Nach dem Import oeffnet
+    /// der Dialog das Dokument.
     private func importPDF(_ result: Result<URL, Error>) async {
-        guard let api = session.api else { return }
         do {
-            let url = try result.get()
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
-            guard data.starts(with: Array("%PDF".utf8)) else { importMessage = "Die Datei ist keine PDF."; return }
-            let title = url.deletingPathExtension().lastPathComponent
-            let created = try await api.upload("/api/notebooks", fields: ["kind": "pdf", "title": title],
-                                               fileField: "upload", fileName: url.lastPathComponent, mimeType: "application/pdf", data: data)
-            await load()
-            if let id = created["id"]?.string { fileSelection = id }
-            importMessage = "„\(title)“ wurde importiert."
+            let staged = try await ExternalFileImport.stageDetached(try result.get(), kind: .pdf)
+            ExternalImportInbox.receive([staged], overlay: overlay, preset: Self.importPreset(open: fileSelection.flatMap(file), module: moduleSelection))
         } catch {
-            importMessage = "Import fehlgeschlagen: \(error.localizedDescription)"
+            importMessage = "Import fehlgeschlagen: \(ExternalFileImport.message(error))"
         }
     }
 }

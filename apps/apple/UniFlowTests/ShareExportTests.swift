@@ -380,10 +380,11 @@ final class ShareExportTests: XCTestCase {
         let page = try XCTUnwrap(layout.pdf.page(at: 0))
         let entry = try XCTUnwrap(layout.entry(at: 0))
         let cache = ThumbnailCache(limit: 2)
+        let source = OffscreenPDF(url: nil)                    // ohne Datei: PDF-Seite weiss, Notizen wie gehabt
         let blue = image(.blue)
         func refresh(_ key: String, _ objects: [JSONValue], images: [String: UIImage] = [:], version: Int = 1) async -> Bool {
-            await cache.refresh(key: key, page: page, entry: entry, objects: objects, images: images,
-                                layoutVersion: version, width: 70, scale: 1)
+            await cache.refresh(key: key, shape: OffscreenPDF.Shape(page: page, entry: entry), entry: entry, objects: objects,
+                                images: images, source: source, layoutVersion: version, width: 70, scale: 1)
         }
         let pen = try stroke(##""tool":"pen","width":4,"opacity":1,"points":[10,10,200,200]"##)
         let second = try stroke(##""tool":"pen","width":4,"opacity":1,"points":[10,200,200,10]"##)

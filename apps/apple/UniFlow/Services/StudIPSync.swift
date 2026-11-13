@@ -150,7 +150,8 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// `finishedRuns` hoch; offene Seiten laden dann neu (`ufReload`), wie nach einem Sync des PC-Servers.
 /// Nach dem Stundenplan kommen die Listen der Opencast-Aufzeichnungen (`recordings`, nur die Listen, nie ein Video;
 /// Listen in der Datenbank, geladene Videos unter `Aufzeichnungen` im Container). `stop` haelt auch laufende Downloads
-/// von Aufzeichnungen an.
+/// von Aufzeichnungen an. Seit 11.11.2026 meldet der Lauf "fertig", sobald Dateien, Stundenplan und Neuigkeiten da
+/// sind; Aufzeichnungen und Lernstoff folgen im selben Lauf danach (`finishingUp`), der Lernplan losgeloest.
 /// Im Hintergrund (S8, `BackgroundSyncController`) laeuft derselbe Abgleich: kurz nur mit den Listen (`scope: .lists`,
 /// Kurse, Dateilisten, Stundenplan; keine Downloads, keine Aufzeichnungen), lang mit Netz wie beim Oeffnen. Ein Lauf
 /// nur mit Listen setzt nicht `lastRun` (sonst wartete das Laden der neuen Dateien beim Oeffnen 30 Minuten), sondern
@@ -191,8 +192,42 @@ final class StudIPSync: ObservableObject {
     @Published private(set) var stagesReady = 0
     /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
     @Published private(set) var olderFilesNote: String?
+    /// Ein anderer Stud.IP-Benutzer als bisher in diesem Datenbereich hat sich angemeldet (`StudIPUserMark`): der
+    /// Abgleich ist angehalten, nichts geschrieben; der Dialog "Anderer Stud.IP-Benutzer" fragt, wie es weitergeht
+    @Published var foreignUser = false
+    /// Meldung im Abgleich-Status, solange die Frage offen ist
+    nonisolated static let foreignUserText = "Bei Stud.IP ist ein anderer Benutzer angemeldet als bisher. Der Abgleich ist angehalten; es wurde nichts gespeichert."
     @Published var selectedCourses: Set<String> = [] {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
+    }
+    /// Studiengruppen (Auftrag des Inhabers 12.11.2026, `StudIPStudyGroups`): Wahl je Gruppe (Dateien, Modul, Termine;
+    /// Vorgabe alles aus) und ob schon gefragt wurde; im Container gespeichert wie die Kursauswahl. Fuer Gruppen gilt
+    /// die Kursauswahl nicht mehr, nur diese Wahl (`StudyGroupsSheet`, Einstellungen -> Stud.IP)
+    @Published var groupSettings = StudIPStudyGroups.Settings() {
+        didSet { if groupSettings != oldValue { groupSettings.save(defaults) } }
+    }
+    /// Erkannte Studiengruppen der letzten Kursliste
+    var studyGroups: [StudIPCourse] { courses.filter { StudIPStudyGroups.isStudyGroup($0) } }
+    /// Kurse ohne Studiengruppen (Karte "Kurse")
+    var regularCourses: [StudIPCourse] { courses.filter { !StudIPStudyGroups.isStudyGroup($0) } }
+    /// Frage "Studiengruppen" faellig: ein Abgleich ist durch, es gibt Gruppen, noch nie gefragt
+    var groupsQuestionDue: Bool { lastRun != nil && !groupSettings.asked && !studyGroups.isEmpty }
+
+    /// Wahl fuer die Studiengruppen uebernehmen (Frage oder Einstellungen). Kommt dabei etwas dazu, gleicht die App
+    /// gleich ab (Dateien, Termine, Modul); Ausgeschaltetes raeumt der naechste Abgleich auf.
+    func applyGroupChoices(_ choices: [String: StudIPStudyGroups.Choice]) {
+        let before = groupSettings
+        groupSettings = StudIPStudyGroups.Settings(asked: true, choices: choices)
+        guard groupSettings.choices != before.choices, !isRunning, !finishingUp else { return }
+        Task { await run() }
+    }
+
+    /// Namen der aktuellen Module (Wahl "Einem Modul zuordnen")
+    func moduleNames() async -> [String] {
+        guard let backend = try? await host.backend() else { return [] }
+        return (try? await backend.context.database.withConnection { c in
+            try c.rows("SELECT name FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort, name").compactMap { $0["name"]?.string }
+        }) ?? []
     }
     /// Kurse, die der Abgleich schon gesehen hat (abgewaehlt = bekannt und nicht ausgewaehlt, `StudIPImport.selection`);
     /// nil bis zum ersten Abgleich mit dieser Regel
@@ -310,6 +345,11 @@ final class StudIPSync: ObservableObject {
     /// darf ihn unterbrechen; er setzt spaeter fort. Vorher blockierte die Stufe d den vollen Lauf stundenlang, und
     /// ihre Laeufe zaehlten als "letzter Abgleich" (Befund iPad 08.11.2026: aktuelle Dateien kamen nicht mehr)
     private(set) var runningOlderOnly = false
+    /// Nach "fertig" laufen noch Aufzeichnungen und Lernstoff desselben Laufs (`finishSlowParts`, 11.11.2026): kein
+    /// zweiter Lauf daneben, der Status zeigt trotzdem "fertig"
+    @Published private(set) var finishingUp = false
+    /// Lernplan, Wochentests und Index nach "fertig" (losgeloest, `startAutoPlan`)
+    private var autoPlanTask: Task<Void, Never>?
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
     private(set) var stopped = false
     /// zaehlt jedes Abmelden: ein Lauf, der vorher begann und noch auf die Demo-Pruefung wartete (noch ohne `current`,
@@ -338,6 +378,7 @@ final class StudIPSync: ObservableObject {
                                       container: container, cookies: { url in Self.ownCookies(cookieStore.load(), host: url.host ?? "") })
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
         knownCourses = defaults.stringArray(forKey: "uniflow.studip.knownCourses").map(Set.init)
+        groupSettings = StudIPStudyGroups.Settings.load(defaults)
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
         lastSummary = defaults.string(forKey: "uniflow.studip.lastSummary")
         if let d = try? Data(contentsOf: legacyIndexURL), let list = try? JSONDecoder().decode([StudIPLocalEntry].self, from: d) {
@@ -422,6 +463,13 @@ final class StudIPSync: ObservableObject {
 
     /// Aufruf aus der Anmeldeansicht, sobald Stud.IP die Sitzung bestaetigt hat.
     func signedIn(cookies: [HTTPCookie]) {
+        if adopt(cookies: cookies) { Task { await run() } }
+    }
+
+    /// Neue Sitzung uebernehmen (ohne Abgleich): Cookies in den Schluesselbund, "abgelaufen" weg. false, wenn der
+    /// Schluesselbund nicht schrieb
+    @discardableResult
+    private func adopt(cookies: [HTTPCookie]) -> Bool {
         do {
             try self.cookies.save(cookies)
             setFlag(Keys.sessionExpired, false)
@@ -432,10 +480,28 @@ final class StudIPSync: ObservableObject {
             UniAutoLogin.clearSignedOut(.studip, store: store) // angemeldet: die Abmelden-Sperre faellt
             UniAutoLogin.signedIn(store, portal: .studip)      // mitgelesenes Passwort jetzt merken (falls zugelassen)
             Task { await UniWebSessions.save(store) }          // Uni-Anmeldung (WebSSO) ueber Neustarts merken
-            Task { await run() }
+            return true
         } catch {
             phase = .failed(error.localizedDescription)
+            return false
         }
+    }
+
+    /// Hintergrundlauf (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md): abgelaufene Stud.IP-Sitzung still erneuern -
+    /// erst ueber die noch gueltige Uni-Anmeldung (WebSSO, kein Passwort), sonst mit dem gespeicherten Uni-Zugang
+    /// (Schluesselbund dieses Geraets, `UniAutoLogin.handleExpiry(background:)`). Startet keinen Abgleich: den macht der
+    /// Hintergrundlauf gleich danach. Ob und wie oft, entscheidet `BackgroundReloginLedger` beim Aufrufer.
+    @discardableResult
+    func renewInBackground() async -> Bool {
+        guard sessionKnownExpired, offersStudIP, !stopped, liveSessionWorkAllowed, renewing == nil else { return false }
+        let store = websiteDataStore
+        let before = signOuts
+        var fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+        if fresh == nil, await autoLogin(store: store, background: true) {
+            fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+        }
+        guard let fresh, sessionKnownExpired, signOuts == before, !stopped else { return false }
+        return adopt(cookies: fresh)
     }
 
     /// Direkter Einstieg ins WebSSO der LUH (ueberspringt die Hochschulauswahl), wie `SHIB_LOGIN_URL` in
@@ -497,10 +563,10 @@ final class StudIPSync: ObservableObject {
 
     /// Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): auf dem WebSSO mit dem gespeicherten Passwort
     /// (nur mit Zustimmung, nur dieses Geraet); true, wenn danach Stud.IP erreicht ist
-    private func autoLogin(store: WKWebsiteDataStore) async -> Bool {
+    private func autoLogin(store: WKWebsiteDataStore, background: Bool = false) async -> Bool {
         let host = Self.base.host?.lowercased() ?? ""
         let before = signOuts
-        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL()) { url, _ in
+        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL(), background: background) { url, _ in
             url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
         }
         return d == .retryOnce && signOuts == before && hasStoredSession
@@ -629,13 +695,15 @@ final class StudIPSync: ObservableObject {
     /// loeschen; die andere Hochschule bleibt angemeldet. Heruntergeladene Dateien bleiben, bis der Nutzer sie entfernt.
     func signOut() async {
         signOuts += 1
+        autoPlanTask?.cancel()
         // laufenden Abgleich zuerst anhalten und abwarten: er arbeitete sonst mit der alten Sitzung weiter und setzte
-        // danach "verbunden" (phase .idle), obwohl abgemeldet
+        // danach "verbunden" (phase .idle), obwohl abgemeldet (auch Aufzeichnungen und Lernstoff nach "fertig")
         if let task = current {
             task.cancel()
             _ = await task.value
         }
         cookies.clear()
+        foreignUser = false                                      // die Frage nach dem anderen Benutzer ist beantwortet
         setFlag(Keys.sessionExpired, false)
         defaults.removeObject(forKey: LoginReminder.lastLoginKey)
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der Anmeldeseite
@@ -701,7 +769,7 @@ final class StudIPSync: ObservableObject {
     private var isFailed: Bool { if case .failed = phase { return true }; return false }
 
     func run(scope: UniSyncScope = .full) async {
-        guard !isRunning, offersStudIP, !Self.isUnderTest() else { return }
+        guard !isRunning, !finishingUp, offersStudIP, !Self.isUnderTest() else { return }
         guard !self.cookies.load().isEmpty else { phase = .signedOut; return }
         // vorab pruefen bzw. still erneuern (nur mit offener App; im Hintergrund entscheidet die erste Anfrage)
         switch await ensureSession(.beforeSync) {
@@ -719,7 +787,7 @@ final class StudIPSync: ObservableObject {
     /// Laeuft gerade ein Abgleich, holt der naechste die vorgemerkten Kurse. Rueckgabe: Meldung fuer die Anzeige.
     @discardableResult
     func loadOlderFiles(only: Set<String>? = nil) async -> String? {
-        guard !isRunning else { return Self.olderQueuedNote }
+        guard !isRunning, !finishingUp else { return Self.olderQueuedNote }
         guard offersStudIP, !Self.isUnderTest() else { return nil }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { phase = .signedOut; return nil }
@@ -729,18 +797,33 @@ final class StudIPSync: ObservableObject {
 
     static let olderQueuedNote = "Vorgemerkt: Die Dateien kommen mit dem nächsten Abgleich."
 
+    /// Pause zwischen zwei Anfragen des Abgleichs (11.11.2026: 0 statt 250 ms; die Pause belegte einen der 4 Plaetze,
+    /// Messung 45 s -> 17 s). Schonung der Hochschule: hoechstens `StudIPClient.defaultConcurrency` Anfragen zugleich,
+    /// 429/5xx mit Wartezeit wiederholt (`UniRetry`)
+    static let livePauseMillis: UInt64 = 0
+
     /// Client mit dem gespeicherten Sitzungs-Cookie (nur Debug mit -UFLoginStub: feste Antworten aus dem Stub-Ordner)
     func liveClient(_ cookies: [HTTPCookie]) -> StudIPClient {
         let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")
-        return StudIPClient(base: Self.base, transport: transport)
+        return StudIPClient(base: Self.base, transport: transport, pauseMillis: Self.livePauseMillis)
     }
+
+    /// Abgleich aller Portale (OpenSync, 11.11.2026): einen Lauf starten und nur bis "fertig" warten (Dateien,
+    /// Stundenplan, Neuigkeiten); Aufzeichnungen, Lernstoff und Lernplan laufen danach weiter (`finishingUp`)
+    func runUntilReady() async {
+        let end = RunFlag()
+        Task { await self.run(); end.done = true }
+        while !end.done, !finishingUp { try? await Task.sleep(nanoseconds: 100_000_000) }
+    }
+
+    @MainActor private final class RunFlag { var done = false }
 
     /// Termin-Detail (06.11.2026): Lehrende eines Kurses, die noch nicht geladen sind, auf Wunsch nachholen (wie nach
     /// Stufe (a) des Abgleichs, `StudIPExtrasSync.lecturers`: nur lesend, je Kurs hoechstens alle 7 Tage). Nur mit
     /// gespeicherter Sitzung, nicht waehrend eines Abgleichs. Rueckgabe: ohne abgelaufene Sitzung gelaufen.
     @discardableResult
     func loadLecturers(courseID: String) async -> Bool {
-        guard offersStudIP, !isRunning, !stopped, !courseID.isEmpty else { return false }
+        guard offersStudIP, !isRunning, !stopped, !foreignUser, !courseID.isEmpty else { return false }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { return false }
         let expired = await StudIPExtrasSync(host: host).lecturers(client: liveClient(cookies), courses: [StudIPCourse(id: courseID, title: "")])
@@ -880,12 +963,12 @@ final class StudIPSync: ObservableObject {
             older.cancel()                                    // Stufe d weicht dem vollen Lauf und setzt spaeter fort
             _ = await older.value
         }
-        guard !isRunning, !stopped else { return nil }
+        guard !isRunning, !finishingUp, !stopped else { return nil }
         let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
         if await demoActive() { return nil }
         // waehrend der Pruefung angehalten, schon ein Lauf oder abgemeldet (dann gehoert `client` zur alten Sitzung)
-        guard !isRunning, !stopped, signOuts == signOutsBefore else { return nil }
+        guard !isRunning, !finishingUp, !stopped, signOuts == signOutsBefore else { return nil }
         // gleicht ein anderes Objekt desselben Containers noch ab (Wechsel A → B → A), keinen zweiten Lauf (P2-2)
         guard ContainerRuns.claim(root, by: self) else { return nil }
         defer { ContainerRuns.release(root, by: self) }
@@ -904,6 +987,7 @@ final class StudIPSync: ObservableObject {
     func stop() async {
         stopped = true
         recordings.stop()
+        autoPlanTask?.cancel()
         guard let task = current else { return }
         task.cancel()
         _ = await task.value
@@ -927,11 +1011,19 @@ final class StudIPSync: ObservableObject {
             let db = try await host.backend().context.database
             database = db
             guard let localFiles = host.files else { throw DataContainerError.missing }
+            // Datentrennung (12.11.2026, `StudIPUserMark`): zuerst der Benutzer. Ein anderer Stud.IP-Benutzer als bisher
+            // in diesem Datenbereich: anhalten, bevor irgendetwas geschrieben wird, und fragen (`ForeignStudIPUserDialog`)
+            let uid = try await client.currentUserID()
+            let mark = try await db.transaction { try StudIPUserMark.check($0, userID: uid) }
+            if mark == .other {
+                foreignUser = true
+                phase = .failed(Self.foreignUserText)
+                return .failed(Self.foreignUserText)
+            }
             let downloads = UniDownloads(folder: root, files: localFiles, container: container, source: "Stud.IP")
             // Ordner anlegen (ohne iCloud-Backup); Reste eines abgebrochenen Laufs im Zwischenordner gehen hier weg
             try downloads.begin()
             defer { downloads.end() }
-            let uid = try await client.currentUserID()
             let list = try await client.courses(userID: uid)
             courses = list.sorted { ($0.semesterStart ?? "", $0.title) > ($1.semesterStart ?? "", $1.title) }
             try? JSONEncoder().encode(courses).write(to: root.appendingPathComponent("courses.json"), options: .atomic)
@@ -941,16 +1033,22 @@ final class StudIPSync: ObservableObject {
             if selection.selected != selectedCourses { selectedCourses = selection.selected }
             knownCourses = selection.known
 
-            let selectedNow = courses.filter { selectedCourses.contains($0.id) }
+            // Studiengruppen nur nach ihrer Wahl (`StudIPStudyGroups.plan`): ausgeschaltet kein Kurs, keine Dateien,
+            // keine Termine, kein Modul; die uebrigen Kurse wie bisher nach der Kursauswahl
+            let groupPlan = StudIPStudyGroups.plan(courses: courses, selected: selectedCourses, settings: groupSettings)
+            let groupIDs = Set(groupPlan.groups.map(\.id)), storeIDs = Set(groupPlan.store.map(\.id))
+            let selectedNow = courses.filter { storeIDs.contains($0.id) }
             let today = clock.today
             // Kurse frueherer Semester kommen als Kurs in die Datenbank, auch ohne Auswahl (inaktiv nach der
             // Semesterregel, ohne Modul, Termine und Dateien): die Bibliothek zeigt sie je Semester zum Nachladen, die
             // Community prueft daran "hat oder hatte das Modul". Abgewaehlte Kurse des aktuellen Semesters bleiben aus.
-            let olderUnselected = courses.filter { !selectedCourses.contains($0.id) && StudIPView.isOlder($0, today: today) }
+            let olderUnselected = courses.filter { !selectedCourses.contains($0.id) && !groupIDs.contains($0.id) && StudIPView.isOlder($0, today: today) }
             // Fach und Art wie upsert_course (classify), aktiv nach der Semesterregel (`Semesters`, app/semesters.py);
             // die Module legt ensure_modules beim naechsten Lesen an
+            let groups = groupPlan.groups, groupChoices = groupSettings, groupClock = clock
             let (active, wantedOlder) = try await db.transaction { c -> (Set<String>, Set<String>) in
                 try StudIPLibrary.storeCourses(c, selectedNow + olderUnselected, startedAt: started, today: today)
+                try StudIPStudyGroups.applyModules(c, groups: groups, settings: groupChoices, clock: groupClock)
                 return (Set(try c.rows("SELECT id FROM courses WHERE active=1").compactMap { $0["id"]?.string }),
                         try OlderSemesters.pending(c, today: today))
             }
@@ -967,17 +1065,23 @@ final class StudIPSync: ObservableObject {
             }.map(\.element)
             let olderFiles = olderOnly ? SyncOrder.newestFirst(courses.filter {
                 wantedOlder.contains($0.id) && !active.contains($0.id) && (olderCourses?.contains($0.id) ?? true)
+                    && (!groupIDs.contains($0.id) || groupPlan.files.contains($0.id))
             }, semester: \.semesterTitle) : []
             // ausgewaehlte Kurse frueherer Semester: nicht eingeplant (ihre Dateien kommen erst in Stufe d)
             let older = selectedNow.filter { !active.contains($0.id) }.count
-            let fileCourses = olderOnly ? olderFiles : chosen
+            // Dateien, Neuigkeiten, Aufzeichnungen, Lernstoff: Studiengruppen nur mit "Dateien durchsuchen"; Termine nur mit
+            // "Termine in den Stundenplan" (normale Kurse stehen in beiden Mengen)
+            let contentCourses = chosen.filter { groupPlan.files.contains($0.id) }
+            let timetableCourses = chosen.filter { groupPlan.timetable.contains($0.id) }
+            let fileCourses = olderOnly ? olderFiles : contentCourses
             // Erstes Einrichten (noch kein voller Lauf, 07.11.2026): Kurse und Stundenplan zuerst zeigen, die Dateien
             // danach. Spaetere Laeufe: Dateilisten zuerst (neue Dateien sind das, worauf man wartet), dann der Stundenplan
             var timetable = StudIPScheduleSync.Outcome()
             let scheduleFirst = !olderOnly && lastRun == nil
             if scheduleFirst {
                 try Task.checkCancellation()
-                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: timetableCourses,
+                                                                    excluding: groupPlan.timetableOff) { phase = .running($0) }
                 stagesReady += 1                              // Stundenplan und Kurse schon zeigen
             }
             var remote: [StudIPFile] = []
@@ -1072,7 +1176,8 @@ final class StudIPSync: ObservableObject {
             // seine Woche sofort (`SyncOrder` Stufe a); Fehler dort brechen den Datei-Abgleich nicht ab
             if !olderOnly && !scheduleFirst {
                 try Task.checkCancellation()
-                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+                timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: timetableCourses,
+                                                                    excluding: groupPlan.timetableOff) { phase = .running($0) }
                 stagesReady += 1
             }
             // Videodateien laedt der Abgleich nicht (Entscheidung 7: grosse Dateien nur auf Wunsch); sie stehen bei den
@@ -1187,27 +1292,18 @@ final class StudIPSync: ObservableObject {
             _ = try? await db.transaction { try SyncOrder.markCurrentReady($0, now: readyAt) }
             // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden, Brett, Blubber (StudIPExtrasSync)
             phase = .running(note + " · Neuigkeiten werden geladen …")
-            let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: chosen)
+            let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: contentCourses)
             try Task.checkCancellation()
             // Lehrende und Kontakte (StudIPLecturers, 06.11.2026): erst nach Stufe (a), nur im vollen Lauf, je Kurs hoechstens
             // alle 7 Tage; nur an Hochschulen mit Stud.IP. Fehler halten den Abgleich nicht an
             let lecturersExpired = timetable.sessionExpired || extrasExpired || scope == .lists ? false
-                : await StudIPExtrasSync(host: host).lecturers(client: client, courses: chosen)
+                : await StudIPExtrasSync(host: host).lecturers(client: client, courses: contentCourses)
             try Task.checkCancellation()
-            // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
-            // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen, im
-            // kurzen Hintergrundlauf auch nicht (eine Seite je Kurs sprengte die rund 30 Sekunden)
             // Aufzeichnungen und Lernstoff (viele Anfragen je Kurs, aendern sich selten binnen Minuten) hoechstens alle
-            // `slowPartsInterval` (07.11.2026); Dateien, Stundenplan und Nachrichten kommen bei jedem Lauf
+            // `slowPartsInterval` (07.11.2026); Dateien, Stundenplan und Nachrichten kommen bei jedem Lauf. Seit
+            // 11.11.2026 erst NACH dem Fertig-Status (`finishSlowParts`), vorher hielten sie "fertig" minutenlang auf
             let slowDue = Self.slowPartsDue(last: defaults.object(forKey: Keys.slowPartsAt) as? Date, now: Date())
-            let rec = timetable.sessionExpired || scope == .lists || !slowDue ? nil
-                : await recordings.refresh(client: client, courses: chosen) { phase = .running(note + " · " + $0) }
-            // Lernstoff aus Stud.IP (Courseware-Fristen, Courseware, Wiki, Forum; StudIPTextsSync), nur im vollen Lauf
-            let texts = timetable.sessionExpired || rec?.sessionExpired == true || scope == .lists || !slowDue ? nil
-                : await StudIPTextsSync(host: host).run(client: client, courses: chosen) { phase = .running(note + " · " + $0) }
-            if rec != nil, texts != nil, rec?.sessionExpired != true, texts?.sessionExpired != true {
-                defaults.set(Date(), forKey: Keys.slowPartsAt)
-            }
+            let wantsSlowParts = !timetable.sessionExpired && scope == .full && slowDue
             let linkCount = remote.filter { $0.linkURL != nil }.count
             let waiting = download.count - toLoad.count - resting.count
             let waitingText = "\(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download"
@@ -1219,13 +1315,10 @@ final class StudIPSync: ObservableObject {
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             if skippedFolders > 0 { parts.append("\(skippedFolders) Ordner nicht lesbar") }
-            if let n = Self.newCoursesNote(selection.newUnselected.count) { parts.append(n) }
+            if let n = Self.newCoursesNote(selection.newUnselected.filter { !groupIDs.contains($0.id) }.count) { parts.append(n) }
             if let n = Self.olderCoursesNote(older) { parts.append(n) }
             parts += timetable.summary
-            parts += rec?.summary ?? []
-            parts += texts?.summary ?? []
-            let expired = timetable.sessionExpired || rec?.sessionExpired == true || texts?.sessionExpired == true || extrasExpired
-                || lecturersExpired
+            let expired = timetable.sessionExpired || extrasExpired || lecturersExpired
             if scope == .full {
                 // nur der volle Lauf der aktuellen Kurse zaehlt als "letzter Abgleich" (30-Minuten-Regel, Anzeige);
                 // Stufe d hat ihren eigenen Stand (`olderFilesNote`)
@@ -1240,12 +1333,23 @@ final class StudIPSync: ObservableObject {
                                                                    removedEvents: timetable.result?.removedEvents ?? 0)
                 : "Hintergrund: Listen abgeglichen, " + waitingText
             await log(database, started: started, ok: true, newFiles: loaded, message: message)
-            await Self.autoPlan(host: host, newFiles: loaded, weekly: scope == .full)
-            // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
+            // Fertig (11.11.2026): Dateien, Stundenplan und Neuigkeiten sind da - der Status sagt es jetzt, nicht erst
+            // nach Aufzeichnungen, Lernstoff und Lernplan. Sitzung erst beim Stundenplan oder den Neuigkeiten
+            // abgelaufen: Dateien sind da, die Anmeldung muss neu
             phase = expired ? .needsLogin : .idle
             setFlag(Keys.sessionExpired, expired)
-            if expired { Task { await renewSilently(trigger: .requestFailed) } } else { renewal.verified(at: Date()) }
-            return expired ? .sessionExpired : .completed
+            // Lernplan, Wochentests und Index losgeloest nach "fertig" (der Lauf wartet nicht darauf)
+            startAutoPlan(newFiles: loaded, weekly: scope == .full)
+            if expired {
+                Task { await renewSilently(trigger: .requestFailed) }
+                return .sessionExpired
+            }
+            // Aufzeichnungen und Lernstoff als eigener Schritt nach "fertig"; derselbe Client (hoechstens 4 Anfragen)
+            if wantsSlowParts, await finishSlowParts(client: client, courses: contentCourses, keepsSummary: !olderOnly) {
+                return .sessionExpired
+            }
+            if !Task.isCancelled { renewal.verified(at: Date()) }
+            return .completed
         } catch where Self.isCancellation(error) || Task.isCancelled {
             // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
             await refreshEntries()
@@ -1267,6 +1371,56 @@ final class StudIPSync: ObservableObject {
             phase = .failed(message)
             return .failed(message)
         }
+    }
+
+    /// Nach "fertig" (11.11.2026): Aufzeichnungen (Opencast, Kurse nebeneinander, der Client begrenzt auf 4 Anfragen)
+    /// und danach Lernstoff (Courseware-Fristen, Courseware, Wiki, Forum; `StudIPTextsSync`, Kurse nacheinander mit
+    /// Anfragebudget). Der Status bleibt "fertig"; ein weiterer Lauf beginnt erst danach (`finishingUp`). Fehler
+    /// halten nichts an; abgelaufen: "Anmeldung nötig" und still erneuern. Rueckgabe: Sitzung abgelaufen.
+    private func finishSlowParts(client: StudIPClient, courses: [StudIPCourse], keepsSummary: Bool) async -> Bool {
+        let before = signOuts
+        finishingUp = true
+        defer { finishingUp = false }
+        // Aufzeichnungen: je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne Opencast sind
+        // kein Fehler; Videos laedt nur der Nutzer
+        let rec = await recordings.refresh(client: client, courses: courses)
+        guard !Task.isCancelled, signOuts == before else { return false }
+        let texts = rec.sessionExpired ? nil : await StudIPTextsSync(host: host).run(client: client, courses: courses) { _ in }
+        guard !Task.isCancelled, signOuts == before else { return false }
+        let expired = rec.sessionExpired || texts?.sessionExpired == true
+        if texts != nil, !expired { defaults.set(Date(), forKey: Keys.slowPartsAt) }
+        let extra = rec.summary + (texts?.summary ?? [])
+        if keepsSummary, !extra.isEmpty, let summary = lastSummary { appendSummary(summary, extra) }
+        if expired {
+            phase = .needsLogin
+            setFlag(Keys.sessionExpired, true)
+            Task { await renewSilently(trigger: .requestFailed) }
+        }
+        return expired
+    }
+
+    /// Tests: meldet den Start des Lernplans nach einem Lauf (mit dem Stand des Laufs in diesem Moment)
+    static var autoPlanStarted: (@MainActor (Phase) -> Void)?
+
+    /// Lernplan (`autoPlan`) losgeloest nach "fertig"; Anhalten bzw. Abmelden bricht ihn ab
+    private func startAutoPlan(newFiles: Int, weekly: Bool) {
+        let host = self.host
+        Self.autoPlanStarted?(phase)
+        autoPlanTask?.cancel()
+        autoPlanTask = Task { await Self.autoPlan(host: host, newFiles: newFiles, weekly: weekly) }
+    }
+
+    /// Teile von Aufzeichnungen und Lernstoff an die Zusammenfassung des Laufs haengen (vor " · N Kurse")
+    private func appendSummary(_ summary: String, _ extra: [String]) {
+        let marker = " · "
+        let updated: String
+        if let r = summary.range(of: marker, options: .backwards) {
+            updated = summary[..<r.lowerBound] + ", " + extra.joined(separator: ", ") + summary[r.lowerBound...]
+        } else {
+            updated = summary + ", " + extra.joined(separator: ", ")
+        }
+        lastSummary = updated
+        defaults.set(updated, forKey: "uniflow.studip.lastSummary")
     }
 
     /// Hinweis auf ausgewaehlte Kurse frueherer Semester, die der Abgleich nach der Semesterregel nicht einplant

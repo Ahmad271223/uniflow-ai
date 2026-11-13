@@ -33,11 +33,15 @@ struct UniFlowApp: App {
         _ = Entitlements.shared
         // Lernplan nach dem Abgleich (auto_plan) nur, wenn der Tarif automatisch planen darf (ab Plus; Free von Hand)
         StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) }
+        // Lernziele (Smart Planner 2.0): automatisch umplanen wie der Lernplan erst ab Plus; Ziele, Lernzeit, Übersicht frei
+        SmartGoalsEndpoints.autoAllowed = { Entitlements.shared.allows(.autoPlan) }
         DueNotificationDelegate.install()                                 // Antippen einer Erinnerung oeffnet die Quelle; fragt nichts
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
         let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory,
                                  uniMailTransport: DebugUniStub.transportFactory)
+        // eine Apple-Anmeldung fuer alles (12.11.2026): die Anmeldung beim ersten Start meldet auch beim StudiNow-Dienst an
+        a.onFirstLogin = { [weak c] p in Task { @MainActor in await c?.account.adoptFirstLogin(p) } }
         c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen
         let s = Session(local: c.active?.api ?? .local(.unavailable))
         c.onChange = { [weak s] container in s?.useLocal(container?.api ?? .local(.unavailable)) }
@@ -47,6 +51,7 @@ struct UniFlowApp: App {
         if !StudIPSync.isUnderTest() {
             b.register()
             Task { await b.schedule() }
+            b.startMacTicker()                                            // nur am Mac: alle 20–30 Minuten, solange die App laeuft
         }
         _account = StateObject(wrappedValue: a)
         _containers = StateObject(wrappedValue: c)
@@ -66,6 +71,8 @@ struct UniFlowApp: App {
                     .environment(\.openURL, OpenURLAction { UniWebBrowser.action(for: $0, containers: containers) })
                     .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
                     .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
+                    // Ablage -> "Importieren …": Dateiauswahl dieses Fensters, danach "Wohin?" (LibraryImportCommand.swift)
+                    .modifier(LibraryImportHost(router: router, overlay: overlay, toast: toast, enabled: containers.active != nil))
                     .modifier(UFToastOverlay(center: toast))
                     .environmentObject(account)
                     .environmentObject(containers)
@@ -115,7 +122,7 @@ struct UniFlowApp: App {
                             return
                         }
                         // PDF oder ZIP von aussen (Dateien-App, Safari-Download, Mail: "Teilen" -> StudiNow; 07.11.2026):
-                        // pruefen und in den Container kopieren, dann "In welches Modul?"; eine ZIP oeffnet sich danach als
+                        // pruefen und in den Container kopieren, dann "Wohin?" (Modul, Ordner, neuer Ordner); eine ZIP oeffnet sich danach als
                         // Ordner, eine PDF im Editor (`ExternalFileImport`, Dateitypen in project.yml)
                         if let kind = ExternalFileImport.kind(of: url) {
                             guard containers.active != nil else {
@@ -128,7 +135,9 @@ struct UniFlowApp: App {
                                 defer { ExternalFileImport.discardSource(url) }
                                 do {
                                     let staged = try await ExternalFileImport.stageDetached(url, kind: kind)
-                                    overlay.modal { ExternalImportDialog(staged: staged) }
+                                    // "Wohin?" mit allen Orten der Bibliothek (11.11.2026); mehrere geteilte Dateien
+                                    // kommen einzeln an und landen im selben Dialog, vorgewaehlt der offene Ort
+                                    ExternalImportInbox.receive([staged], overlay: overlay, preset: ExternalImportInbox.preset(for: router.route))
                                 } catch {
                                     toast.show(ExternalFileImport.message(error), seconds: 5)
                                 }
@@ -188,8 +197,12 @@ struct UniFlowApp: App {
                     }
             }
         }
-        // Menueleiste (Mac, iPad mit Tastatur): Dokument, Werkzeuge, Sichern und Drucken (EditorCommands.swift)
-        .commands { EditorCommands() }
+        // Menueleiste (Mac, iPad mit Tastatur): Dokument, Werkzeuge, Sichern und Drucken (EditorCommands.swift),
+        // Ablage -> "Importieren …" (LibraryImportCommand.swift)
+        .commands {
+            EditorCommands()
+            LibraryImportCommands()
+        }
         .onChange(of: scenePhase) { _, phase in
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
             if phase == .active {
@@ -228,7 +241,7 @@ struct UniFlowApp: App {
             // die Frage erscheint einmal, im zuletzt aktiven Fenster
             guard let source = background.loginReminderSource(), let scene = scenes.active else { return }
             background.markLoginAsked()
-            if await scene.overlay.confirm("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.") {
+            if await scene.overlay.confirm(UFDevice.adapt("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.")) {
                 scene.router.go(.settings(tab: "account"))
             }
         }
@@ -370,5 +383,7 @@ struct RootView: View {
             // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
             // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto
             .onChange(of: containers.generation) { _, _ in overlay.closeAll() }
+            // anderer Stud.IP-Benutzer im selben Datenbereich: fragen (12.11.2026, ForeignStudIPUserDialog)
+            .background(ForeignStudIPUserGate())
     }
 }

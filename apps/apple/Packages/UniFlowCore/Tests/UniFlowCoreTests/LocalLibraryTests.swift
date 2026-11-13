@@ -412,6 +412,28 @@ final class LocalAnnotationsTests: XCTestCase {
         XCTAssertEqual(after, before)
     }
 
+    /// Import in einen eigenen Ordner eines Moduls (Meldung des Inhabers 11.11.2026): mit `module_id` und `folder_id`
+    /// bleibt das Dokument im gewaehlten Ordner (auch einem Unterordner). Vorher schob das Backend es immer in
+    /// "Eigene Notizen" des Moduls, sobald ein Modul mitkam. Nur mit Modul bleibt "Eigene Notizen".
+    func testNotebookWithModuleAndFolderStaysInChosenFolder() async throws {
+        let b = try await backend()
+        let db = b.context.database
+        try await db.execute("INSERT INTO modules(id, name) VALUES (7, 'Analysis')")
+        try await db.execute("INSERT INTO folders(id, name, parent_id, module_id) VALUES (40, 'Übungen', NULL, 7)")
+        try await db.execute("INSERT INTO folders(id, name, parent_id, module_id) VALUES (41, 'Blatt 1', 40, 7)")
+        let sub = await notebook(b, [("kind", "notebook"), ("title", "Im Unterordner"), ("module_id", "7"), ("folder_id", "41")])
+        XCTAssertEqual(sub.status, 200)
+        XCTAssertEqual(sub.json?["folder_id"], 41)
+        let top = await notebook(b, [("kind", "notebook"), ("title", "Im Ordner"), ("module_id", "7"), ("folder_id", "40")])
+        XCTAssertEqual(top.json?["folder_id"], 40)
+        let onlyModule = await notebook(b, [("kind", "notebook"), ("title", "Nur Modul"), ("module_id", "7")])
+        let own = try await db.scalar("SELECT id FROM folders WHERE module_id=7 AND parent_id IS NULL AND name='Eigene Notizen'")?.int
+        XCTAssertNotNil(own)
+        XCTAssertEqual(onlyModule.json?["folder_id"]?.int, own, "nur Modul: Ordner \"Eigene Notizen\"")
+        let folderless = try await db.scalar("SELECT COUNT(*) FROM files WHERE course_id='__user__' AND folder_id IS NULL")
+        XCTAssertEqual(folderless, .integer(0))
+    }
+
     func testS3EndpointsAreReal() async throws {
         let b = try await backend()
         let real: [(String, String)] = [

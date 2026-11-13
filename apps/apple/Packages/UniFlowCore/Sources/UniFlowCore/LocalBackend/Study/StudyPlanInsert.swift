@@ -40,6 +40,11 @@ extension StudyPlan {
             try markAllSeen(c, clock: clock)
             return nil
         }
+        // Lernziele in Stunden (Smart Planner 2.0): neue Dokumente kommen ueber den Stundenplaner in dessen Bloecke
+        if try SmartGoals.active(c) {
+            try markAllSeen(c, clock: clock)
+            return nil
+        }
         let t0 = T.today(clock)
         if firstRun {
             var result: JSONValue? = nil
@@ -63,7 +68,7 @@ extension StudyPlan {
         let limit = t0 + 180
         let free = StudIPTerms.freeDays(from: t0, to: limit, university: try Holidays.university(c), studip: try StudIPTerms.load(c))
         var days: [Int] = []
-        for m in try c.query("SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort") {
+        for m in try StudyPlanModules.plannedModules(c) {
             guard let mid = m["id"]?.int64 else { continue }
             var exam: Int?
             if LocalModules.truthy(m["exam_date"]), let text = m["exam_date"]?.string, let e = BerlinClock.parseISODate(text), e > t0 { exam = e }

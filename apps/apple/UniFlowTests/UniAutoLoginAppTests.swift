@@ -366,6 +366,61 @@ final class UniAutoLoginAppTests: XCTestCase {
         await bed.tearDown()
     }
 
+    /// 11.11.2026: eine stehende Seite bzw. ein Formular ohne Fehlertext ist kein "falsches Passwort" (`UniAutoLoginFlow`
+    /// liefert `.failed`): der gemeinsame Eintrag bleibt, kein Merker "abgelehnt", Ruecknahme nach den bisherigen Regeln
+    func testFailedSilentLoginKeepsTheSharedPassword() async throws {
+        let (bed, _, qis, vault) = try luhBed("autologin-fehlschlag")
+        try vault.save(UniCredential(username: user, password: password, savedAt: Date()))
+        UniAutoLogin.appActiveOverride = true
+        var count = 0
+        UniAutoLogin.runnerOverride = { _ in count += 1; return .failed }
+        qis.signedIn()
+        qis.certificatesExpired()
+        let ok = await qis.autoLogin()
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vault.load()?.username, user, "nichts geloescht")
+        XCTAssertFalse(UniAutoLogin.wasRejected(qis.websiteDataStore))
+        XCTAssertEqual(UniAutoLogin.state(portal: "qis", store: qis.websiteDataStore)?.failures, 1)
+        _ = await qis.autoLogin()
+        XCTAssertEqual(count, 1, "Ruecknahme: nicht sofort noch einmal")
+        await bed.tearDown()
+    }
+
+    /// 11.11.2026: QIS meldete den gelungenen Abruf nach einer stillen Anmeldung nie an die Zustandsmaschine (Uni-Mail
+    /// schon); sie blieb "im neuen Versuch", und das naechste "abgelaufen" galt als gescheiterte Wiederholung
+    func testSuccessfulFetchAfterSilentLoginResetsTheStateMachine() async throws {
+        let (bed, _, qis, vault) = try luhBed("autologin-erfolg")
+        try vault.save(UniCredential(username: user, password: password, savedAt: Date()))
+        let dir = ContainerTestBed.stubDirectory
+        UniStubProtocol.install { r in
+            guard r.cookie.contains("JSESSIONID=qis-sitzung-test") else {
+                return .text(#"<html><body><form action="x" method="post"><input type="text" name="asdf"><input type="password" name="fdsa"></form></body></html>"#)
+            }
+            let reply = DebugStubTransport(directory: dir).reply(r.url, body: r.body)
+            return UniStubProtocol.Reply(status: reply.status, headers: reply.headers, body: reply.body)
+        }
+        await qis.websiteDataStore.httpCookieStore.setCookie(bed.cookie("JSESSIONID", "qis-sitzung-test", domain: "qis.verwaltung.uni-hannover.de"))
+        UniAutoLogin.appActiveOverride = true
+        var count = 0
+        UniAutoLogin.runnerOverride = { _ in count += 1; return .success }
+        qis.signedIn()
+        qis.certificatesExpired()
+        let ok = await qis.autoLogin()
+        XCTAssertTrue(ok)
+        XCTAssertEqual(UniAutoLogin.state(portal: "qis", store: qis.websiteDataStore)?.awaitingRetry, true)
+        let r = await qis.run(force: true)
+        XCTAssertEqual(r?.grades, 3)
+        let st = UniAutoLogin.state(portal: "qis", store: qis.websiteDataStore)
+        XCTAssertEqual(st?.awaitingRetry, false, "Abruf gelungen: die Wiederholung hat gehalten")
+        XCTAssertEqual(st?.failures, 0)
+        // spaeter wieder abgelaufen: der Mensch tippt "Sync" -> still neu anmelden statt "Anmeldung nötig"
+        qis.certificatesExpired()
+        let again = await qis.autoLogin(userAction: true)
+        XCTAssertTrue(again)
+        XCTAssertEqual(count, 2)
+        await bed.tearDown()
+    }
+
     func testNoSilentLoginWithoutPasswordInBackgroundOrAfterSignOut() async throws {
         let (bed, _, qis, vault) = try luhBed("autologin-ohne")
         var count = 0

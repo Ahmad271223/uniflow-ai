@@ -14,16 +14,29 @@ public enum GradeRows {
         "bezeichnung": "text", "leistung": "text", "prüfungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungstext": "text",
         "text": "text", "semester": "semester", "note": "note", "status": "status", "credits": "credits", "ects": "credits",
         "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum",
+        // LUH-Kopfzeile wie qis.GRADE_HEADERS (28.10.2026 am PC, fehlte hier: LP der Spalte "LP" wurden nicht gelesen) und
+        // "PrfNr." wie auf der echten Seite "Info über angemeldete Prüfungen" (12.11.2026: ohne Nummer fielen
+        // gleichnamige Leistungen eines Semesters beim Entfernen der Doppelten zusammen)
+        "prfgnr": "pruefungsnr", "pnr": "pruefungsnr", "lp": "credits", "leistungspunkte": "credits", "cp": "credits",
+        "kreditpunkte": "credits", "punkte": "credits", "prfnr": "pruefungsnr", "prüfungsnummer": "pruefungsnr",
+        "pruefungsnr": "pruefungsnr",
+        // abgekuerzte Koepfe anderer HIS-Fassungen (12.11.2026): "Sem.", "Prüfungssemester", "Vers.", "VS"
+        "sem": "semester", "prüfungssemester": "semester", "vers": "versuch", "vs": "versuch",
     ]
     private static let nonWordRE = HText.regex("[^\\wäöüß]+")
     private static let abschlussRE = HText.regex("^(Abschluss:.*?PO-Version:\\s*\\d+)", [.caseInsensitive])
 
-    /// `qis._header_map`: erstes Wort jeder Spalte -> Feldname
+    /// Spalte der Pruefungsart (`qis.ART_HEADERS`): "Prf.Art" (echter LUH-Notenspiegel, 12.11.2026), "Prüfungsart", "Art"
+    static let artHeaders: Set<[String]> = [["prf", "art"], ["prfart"], ["prüfungsart"], ["pruefungsart"], ["art"],
+                                            ["prüfungs", "art"], ["pruefungs", "art"]]
+
+    /// `qis._header_map`: erstes Wort jeder Spalte -> Feldname; "Prf.Art" -> art
     static func headerMap(_ cells: [String]) -> [String?] {
         cells.map { h in
             let words = HText.replace(nonWordRE, in: h.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), with: " ")
-                .split(separator: " ")
-            return words.first.flatMap { headers[String($0)] }
+                .split(separator: " ").map(String.init)
+            if artHeaders.contains(words) { return "art" }
+            return words.first.flatMap { headers[$0] }
         }
     }
 
@@ -59,6 +72,11 @@ public enum GradeRows {
             var fields: [String: String] = [:]
             for (k, v) in zip(map, cells) {
                 if let k, fields[k] == nil { fields[k] = v }
+            }
+            // Nummer in der ersten Spalte, Kopf unbekannt (qis.parse_grade_rows, 12.11.2026)
+            if (fields["pruefungsnr"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty, let first = cells.first, !first.isEmpty,
+               first.unicodeScalars.allSatisfy({ $0.value >= 48 && $0.value <= 57 }) {
+                fields["pruefungsnr"] = first
             }
             let note = fields["note"] ?? "", status = fields["status"] ?? ""
             if status.lowercased() == "prüfung vorhanden" && note.isEmpty { continue }

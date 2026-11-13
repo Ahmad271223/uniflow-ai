@@ -198,6 +198,27 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(t.count("\(base)/my/courses.php"), 3)
     }
 
+    /// 11.11.2026: der QIS-Seitendurchlauf wiederholt eine Zeitueberschreitung nicht (sonst dreimal das Zeitlimit);
+    /// abgerissene Verbindungen und 5xx weiter. Die Vorgabe (Hildesheim, HsH, Learnweb) bleibt unveraendert.
+    func testQISPagesDoNotRetryATimeoutButOtherErrors() async {
+        var qis = UniRetry.qisPages
+        qis.delayNanos = { _ in 0 }
+        var calls = 0
+        do {
+            _ = try await qis.run { () async throws -> Int in calls += 1; throw URLError(.timedOut) }
+            XCTFail("Fehler erwartet")
+        } catch {}
+        XCTAssertEqual(calls, 1, "keine Wiederholung nach Zeitueberschreitung")
+        calls = 0
+        let lost = try? await qis.run { () async throws -> Int in calls += 1; if calls < 2 { throw URLError(.networkConnectionLost) }; return 7 }
+        XCTAssertEqual(lost, 7)
+        XCTAssertEqual(calls, 2, "abgerissene Verbindung: ein zweiter Versuch")
+        calls = 0
+        _ = try? await noWait.run { () async throws -> Int in calls += 1; throw URLError(.timedOut) }
+        XCTAssertEqual(calls, noWait.attempts, "Vorgabe: Zeitueberschreitung wie bisher wiederholt")
+        XCTAssertTrue(UniRetry().retriesTimeouts)
+    }
+
     func testDiscoverLearnwebOverNetwork() async {
         let t = FakeUniTransport()
         let cfg = { (name: String) in okJSON(.array([.object(["error": .bool(false), "data": .object(["sitename": .string(name)])])])) }

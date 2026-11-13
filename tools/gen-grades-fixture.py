@@ -89,8 +89,45 @@ OHNE_LP = [
     {"pruefungsnr": "303", "text": "Testreferat", "note": "4,3", "status": "bestanden", "raw": "303 | Testreferat | PL | 4,3 | bestanden"},
 ]
 
-CASES = [("luh", LUH), ("abschneiden", ABSCHNEIDEN), ("hildesheim", HILDESHEIM), ("ohne_lp", OHNE_LP), ("leer", [])]
+# Regel des Inhabers 12.11.2026: jede bestandene QIS-Leistung zaehlt einmal (app/grades_model.count). Faelle, die
+# vorher fehlten: Pruefung ohne Modulzeile (nach einer Bereichszeile), Status "BE", Note ohne Status, "bestanden
+# (anerkannt)", Modul "Vertiefung der ...", bestandene Pruefung eines noch offenen Moduls (Modulzeile ohne Status ist
+# keine Leistung; die Pruefung liegt nach dem Semester des Moduls davor), Modul ohne LP mit LP an der Pruefung, Pruefung
+# mit anderem Text unter ihrer Modulnummer (nicht doppelt)
+QIS_REGEL = [
+    {"pruefungsnr": "1100", "text": "Testmathe I", "semester": "WiSe 23/24", "note": "2,0", "status": "bestanden", "credits": "8",
+     "raw": raw("1100", "Testmathe I", "", "WiSe 23/24", "2,0", "bestanden", "8", "", "", "")},
+    {"pruefungsnr": "1101", "text": "Klausur Testmathe I", "semester": "WiSe 23/24", "note": "2,0", "status": "bestanden", "credits": "8",
+     "versuch": "1", "raw": raw("1101", "Klausur Testmathe I", "PL", "WiSe 23/24", "2,0", "bestanden", "8", "", "1", "02.02.2024")},
+    {"pruefungsnr": "1102", "text": "Testmathe I Übungsschein", "semester": "WiSe 23/24", "note": "", "status": "BE", "credits": "",
+     "versuch": "1", "raw": raw("1102", "Testmathe I Übungsschein", "SL", "WiSe 23/24", "", "BE", "", "", "1", "")},
+    {"pruefungsnr": "1111", "text": "Testlabor Elektro", "semester": "SoSe 25", "note": "", "status": "bestanden", "credits": "3",
+     "versuch": "1", "raw": raw("1111", "Testlabor Elektro", "LA", "SoSe 25", "", "bestanden", "3", "", "1", "")},
+    {"pruefungsnr": "1200", "text": "Vertiefung der Testbetriebssysteme", "semester": "WiSe 24/25", "note": "1,7", "status": "bestanden",
+     "credits": "5", "raw": raw("1200", "Vertiefung der Testbetriebssysteme", "", "WiSe 24/25", "1,7", "bestanden", "5", "", "", "")},
+    {"pruefungsnr": "1300", "text": "Testprojekt", "semester": "SoSe 25", "note": "", "status": "bestanden", "credits": "",
+     "raw": raw("1300", "Testprojekt", "", "SoSe 25", "", "bestanden", "", "", "", "")},
+    {"pruefungsnr": "1301", "text": "Testprojekt", "semester": "SoSe 25", "note": "", "status": "bestanden", "credits": "6", "versuch": "1",
+     "raw": raw("1301", "Testprojekt", "PR", "SoSe 25", "", "bestanden", "6", "", "1", "")},
+    {"text": "Kompetenzbereich Schlüsselkompetenzen", "semester": "", "note": "", "status": "bestanden", "credits": "6",
+     "raw": raw("9000", "Kompetenzbereich Schlüsselkompetenzen", "", "", "", "bestanden", "6", "", "", "")},
+    {"pruefungsnr": "9011", "text": "Testenglisch B2", "semester": "WiSe 24/25", "note": "1,3", "status": "", "credits": "4", "versuch": "1",
+     "raw": raw("9011", "Testenglisch B2", "SL", "WiSe 24/25", "1,3", "", "4", "", "1", "")},
+    {"pruefungsnr": "9021", "text": "Testrhetorik", "semester": "SoSe 25", "note": "", "status": "bestanden (anerkannt)", "credits": "2",
+     "versuch": "1", "raw": raw("9021", "Testrhetorik", "AN", "SoSe 25", "", "bestanden (anerkannt)", "2", "", "1", "")},
+    {"pruefungsnr": "9031", "text": "Testsprache C1", "semester": "SoSe 26", "note": "", "status": "angemeldet", "credits": "", "versuch": "1",
+     "raw": raw("9031", "Testsprache C1", "SL", "SoSe 26", "", "angemeldet", "", "", "1", "")},
+]
 
+CASES = [("luh", LUH), ("abschneiden", ABSCHNEIDEN), ("hildesheim", HILDESHEIM), ("ohne_lp", OHNE_LP), ("leer", []),
+         ("qis_regel", QIS_REGEL)]
+
+# alle Schreibweisen des QIS/HIS (12.11.2026: Studierende hoeherer Semester, Semester nicht erkannt)
+TERMS_12_11 = ["WS 2024/25", "WiSe 2024/25", "Wintersemester 2024/2025", "SS 2025", "Sommersemester 2025", "W24", "S25",
+               "2024W", "2025 S", "24/25 WS", "2024/25 Wintersemester", "WS24/25.", "SoSe2025", "S 25", "20242", "20251",
+               "Wi.Se. 24/25", "So.Se. 25", "WS 2024-25", "ws 2024 / 25", "SS 1989", "W 5", "Winter 24", "24", "WS 24/25 (2. PZ)"]
+DATES = ["15.02.2025", "03.04.2025", "20.07.2025", "30.09.2025", "07.10.2025", "12.12.2024", "2025-02-15", "1.3.2025",
+         "", "32.13.2025", "13.13.2025", "x"]
 SEMESTERS = ["WiSe 23/24", "Wintersemester 23/24", "Sommersemester 26", "SoSe 26", "WS 2024/2025", "SS 2025", "ws 24/25",
              "Wintersemester 2025", "Sommersemester2024", "3,3", "", "  WiSe 25/26  ", "Winter 23/24"]
 TRUNCATE = [3.47, 3.0, 1.99, 2.8, 2.0000000001, 1.0, 4.0, 3.4666666666666663, 2.95, 0.1 + 0.2]
@@ -122,7 +159,8 @@ def main() -> int:
             assert status == 200, value
             cases.append({"name": name, "rows": stored, "response": value})
         helpers = {
-            "norm_semester": [{"in": s, "out": gm.norm_semester(s)} for s in SEMESTERS],
+            "norm_semester": [{"in": s, "out": gm.norm_semester(s)} for s in SEMESTERS + TERMS_12_11],
+            "term_of_date": [{"in": d, "out": gm.term_of_date(d)} for d in DATES],
             "truncate1": [{"in": x, "out": gm.truncate1(x)} for x in TRUNCATE],
             "fields_from_raw": [{"in": r, "out": gm.fields_from_raw(r)} for r in RAWS],
         }

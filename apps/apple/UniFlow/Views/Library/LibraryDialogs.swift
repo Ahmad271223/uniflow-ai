@@ -75,35 +75,52 @@ struct LibraryNewDialog: View {
         .photosPicker(isPresented: $showPhotos, selection: $photos, matching: .images)
         .onChange(of: photos) { _, items in
             guard !items.isEmpty else { return }
-            Task {
-                var files: [ImportItem] = []
-                var unreadable = 0
-                for (i, it) in items.enumerated() {
-                    // Format aus den Daten (HEIC, PNG, JPEG …), nicht pauschal JPEG; nicht lesbare Fotos werden gezaehlt
-                    if let d = try? await it.loadTransferable(type: Data.self), let type = Self.imageType(d) {
-                        files.append(ImportItem(name: "Bild \(i + 1).\(type.preferredFilenameExtension ?? "jpg")", mime: type.preferredMIMEType ?? "image/jpeg") { d })
-                    } else { unreadable += 1 }
-                }
-                await upload("image", files, unreadable: unreadable)
-            }
+            Task { await stagePhotos(items) }
         }
         .fileImporter(isPresented: Binding(get: { importKind != nil }, set: { if !$0 { importKind = nil } }),
                       allowedContentTypes: importKind == "pdf" ? [.pdf] : [.image], allowsMultipleSelection: true) { result in
-            let kind = importKind ?? "pdf"
+            let kind: ExternalFileImport.Kind = importKind == "image" ? .image : .pdf
             importKind = nil
             guard case .success(let urls) = result else { return }
-            // erst beim Hochladen lesen, eine Datei nach der anderen (vorher lagen alle gewaehlten Dateien zugleich im
-            // Speicher, Pruefbericht 412); eine nicht lesbare zaehlt als fehlgeschlagen statt still zu fehlen
-            let files = urls.map { url in
-                ImportItem(name: url.lastPathComponent,
-                           mime: kind == "pdf" ? "application/pdf" : (UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "image/png")) {
-                    let ok = url.startAccessingSecurityScopedResource()
-                    defer { if ok { url.stopAccessingSecurityScopedResource() } }
-                    return try Data(contentsOf: url, options: .mappedIfSafe)
-                }
-            }
-            Task { await upload(kind, files) }
+            // PDFs und Bilder: Dialog "Wohin?" wie fuer Dateien von aussen (PDF seit 11.11.2026, Bilder seit 12.11.2026;
+            // vorher landeten Bilder ohne Frage im offenen Ordner, ein neuer Ordner ging nicht), vorgewaehlt der offene
+            // Ort; alle gewaehlten Dateien landen am selben Ort
+            Task { await stage(urls, kind: kind) }
         }
+    }
+
+    /// Vorgewaehltes Ziel im Dialog "Wohin?": der offene Ort (Ordner vor Modul; im eigenen Ordner "f3" bzw.
+    /// Unterordner "f3/f7" genau dieser Ordner)
+    private var preset: ImportTarget { ImportTarget.from(path: path) }
+
+    /// Gewaehlte PDFs bzw. Bilder pruefen und in den Container kopieren (abseits des Hauptthreads), dann "Wohin?";
+    /// nicht lesbare bzw. falsche Dateien nennt die Meldung
+    private func stage(_ urls: [URL], kind: ExternalFileImport.Kind) async {
+        var staged: [ExternalFileImport.Staged] = []
+        var failed: [String] = []
+        for url in urls {
+            do { staged.append(try await ExternalFileImport.stageDetached(url, kind: kind)) } catch {
+                failed.append("\(url.lastPathComponent) (\(ExternalFileImport.message(error)))")
+            }
+        }
+        close()
+        if !failed.isEmpty { toast.show(Self.importSummary(ok: 0, failed: failed), seconds: 6) }
+        ExternalImportInbox.receive(staged, overlay: overlay, preset: preset)
+    }
+
+    /// Fotos aus der Mediathek: Format aus den Daten (HEIC, PNG, JPEG …), dann "Wohin?" wie alle anderen Importe;
+    /// nicht lesbare Fotos werden gezaehlt
+    private func stagePhotos(_ items: [PhotosPickerItem]) async {
+        var staged: [ExternalFileImport.Staged] = []
+        var unreadable = 0
+        for (i, it) in items.enumerated() {
+            if let d = try? await it.loadTransferable(type: Data.self), let s = try? ExternalFileImport.stage(image: d, name: "Bild \(i + 1)") {
+                staged.append(s)
+            } else { unreadable += 1 }
+        }
+        close()
+        if unreadable > 0 { toast.show(Self.importSummary(ok: 0, failed: [], unreadable: unreadable), seconds: 6) }
+        ExternalImportInbox.receive(staged, overlay: overlay, preset: preset)
     }
 
     /// prompt("Name des Ordners:", "Neuer Ordner") -> POST /api/folders; Fehler sichtbar (vorher try?)
@@ -130,35 +147,6 @@ struct LibraryNewDialog: View {
         if !failed.isEmpty { parts.append("\(failed.count) fehlgeschlagen: " + failed.joined(separator: "; ")) }
         if unreadable > 0 { parts.append(unreadable == 1 ? "1 Foto nicht lesbar" : "\(unreadable) Fotos nicht lesbar") }
         return parts.isEmpty ? "Nichts importiert" : parts.joined(separator: " · ")
-    }
-
-    /// Datei zum Import: Name, Typ und Inhalt, der erst beim Hochladen gelesen wird
-    struct ImportItem {
-        let name: String
-        let mime: String
-        let load: () throws -> Data
-    }
-
-    /// je Datei POST /api/notebooks (kind, title ohne Endung, module_id, folder_id, upload), danach die Bilanz
-    /// (importiert, fehlgeschlagen, nicht lesbar). Jede Datei ist eine eigene Anfrage: eine gescheiterte aendert an
-    /// den schon importierten nichts.
-    private func upload(_ kind: String, _ files: [ImportItem], unreadable: Int = 0) async {
-        guard let api = session.api, !files.isEmpty || unreadable > 0 else { return }
-        close()
-        var ok = 0
-        var failed: [String] = []
-        for item in files {
-            var fields = ["kind": kind, "title": (item.name as NSString).deletingPathExtension]
-            if let moduleID { fields["module_id"] = "\(moduleID)" }
-            if let folderID { fields["folder_id"] = "\(folderID)" }
-            do {
-                let data = try item.load()
-                _ = try await api.form("/api/notebooks", fields: fields, file: ("upload", item.name, item.mime, data))
-                ok += 1
-            } catch { failed.append("\(item.name) (\(error.localizedDescription))") }
-        }
-        toast.show(Self.importSummary(ok: ok, failed: failed, unreadable: unreadable), seconds: failed.isEmpty && unreadable == 0 ? 2.6 : 6)
-        if ok > 0 { router.reload() }
     }
 }
 
@@ -499,7 +487,10 @@ struct LibraryDocMenu: View {
     }
 }
 
-/// Modal "Verschieben nach": (kein Ordner …) oder "Modul › Ordner"
+/// Modal "Verschieben nach": (kein Ordner …), jeder Ordner mit ganzem Pfad ("Modul › Ordner › Unterordner",
+/// "Privat › Sommer") oder "Neuer Ordner …" (Name und Ort, wird angelegt und das Dokument hineingelegt). Gilt auch fuer
+/// Stud.IP-Dateien (in einen eigenen Ordner legen). Vorgewaehlt ist der jetzige Ordner. Vorher (bis 12.11.2026) nur
+/// die Ordnernamen ohne Pfad und kein neuer Ordner.
 struct LibraryMoveDialog: View {
     let id: String
     let lib: JSONValue
@@ -507,17 +498,55 @@ struct LibraryMoveDialog: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
-    @State private var folder = 0
+    @State private var target: ImportTarget = .loose
+    @State private var newName = "Neuer Ordner"
+    @State private var newParent: ImportTarget = .loose
+    @State private var ready = false
+
+    static let looseLabel = "(kein Ordner – Stammebene / Modulordner)"
+
+    /// Auswahl: kein Ordner, alle Ordner der Bibliothek mit Pfad, "Neuer Ordner …"
+    static func options(_ lib: JSONValue) -> [(value: ImportTarget, label: String)] {
+        [(ImportTarget.loose, looseLabel)] + ImportPlaces.places(lib).filter { if case .folder = $0 { return true } else { return false } }
+            .map { ($0, ImportPlaces.label($0, in: lib)) } + [(ImportTarget.newFolder, ImportPlaces.newFolderLabel)]
+    }
+
+    /// Jetziger Ordner des Dokuments (sonst kein Ordner)
+    static func current(_ id: String, in lib: JSONValue) -> ImportTarget {
+        guard let f = lib.list("files").first(where: { $0.s("id") == id })?.i("folder_id"), ImportPlaces.contains(.folder(f), in: lib) else { return .loose }
+        return .folder(f)
+    }
+
+    /// Verschieben ohne Ansicht (testbar): bei "Neuer Ordner …" erst anlegen, dann `folder_id` setzen; liefert den Ordner
+    static func perform(id: String, api: APIClient, target: ImportTarget, newFolder: (name: String, parent: ImportTarget)? = nil,
+                        lib: JSONValue) async throws -> Int? {
+        var folder: Int?
+        switch target {
+        case .folder(let f): folder = f
+        case .newFolder:
+            let n = newFolder ?? (name: "Neuer Ordner", parent: .loose)
+            let row = try await api.value("/api/folders", method: "POST", body: ImportPlaces.newFolderBody(name: n.name, parent: n.parent, in: lib))
+            guard let f = row.i("id") else { throw APIError(status: 502, message: "keine ID", text: "Der Ordner ließ sich nicht anlegen.") }
+            folder = f
+        case .loose, .module: folder = nil
+        }
+        _ = try await api.value("/api/library/files/\(id)", method: "PATCH", body: ["folder_id": folder.map { .number(Double($0)) } ?? .null])
+        return folder
+    }
+
+    private var canMove: Bool { ready && (target != .newFolder || !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
 
     var body: some View {
-        let modules = lib.list("modules")
         UFDialog("Verschieben nach") {
-            UFSelect(options: [(0, "(kein Ordner – Stammebene / Modulordner)")] + lib.list("folders").compactMap { fo in
-                fo.i("id").map { fid in
-                    let mod = fo.i("module_id").flatMap { mid in modules.first { $0.i("id") == mid }?.s("name") }
-                    return (fid, (mod.map { $0 + " › " } ?? "") + (fo.s("name") ?? ""))
+            UFSelect(options: Self.options(lib), selection: $target, fill: true)
+                .accessibilityIdentifier("move.target")
+            if target == .newFolder {
+                UFField("Name des neuen Ordners") { UFTextInput(text: $newName) }
+                UFField("Anlegen in") {
+                    UFSelect(options: ImportPlaces.parents(lib), selection: $newParent, fill: true)
+                        .accessibilityIdentifier("move.newFolderParent")
                 }
-            }, selection: $folder, fill: true)
+            }
         } foot: {
             UFButton("Abbrechen") { close() }
             UFButton("Verschieben", kind: .primary) {
@@ -525,13 +554,20 @@ struct LibraryMoveDialog: View {
                     guard let api = session.api else { return }
                     // Fehler sichtbar, der Dialog bleibt dann offen (vorher try?, schliessen, neu laden)
                     if await toast.attempt("Verschieben", {
-                        _ = try await api.value("/api/library/files/\(id)", method: "PATCH", body: ["folder_id": folder == 0 ? .null : .number(Double(folder))])
+                        _ = try await Self.perform(id: id, api: api, target: target, newFolder: (newName, newParent), lib: lib)
                     }) {
                         close()
                         router.reload()
                     }
                 }
             }
+            .disabled(!canMove)
+        }
+        .onAppear {
+            guard !ready else { return }
+            target = Self.current(id, in: lib)
+            newParent = target
+            ready = true
         }
     }
 }

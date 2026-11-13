@@ -312,7 +312,8 @@ final class PlanContractTests: XCTestCase {
                         .viewNotes, .uniGrades].map(\.title))             // ohne „Eigenes ChatGPT“ (aus seit 11.11.2026)
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
-                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung", "Lernplan automatisch erstellen"])
+                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
+                        "Erinnerungen an Abgaben und Klausuren", "Lernplan automatisch erstellen"])
         // Free (07.11.2026): Lernkalender von Hand, der automatische Lernplan gehoert zu Plus
         XCTAssertFalse((UFPlanCard.included(.free).map { $0.title + " " + ($0.detail ?? "") }).joined().contains("automatisch"))
         XCTAssertEqual(UFPlanCard.included(.plus).last?.detail, "Lernslots in deinen freien Zeiten")

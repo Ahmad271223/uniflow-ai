@@ -241,12 +241,19 @@ struct EventDrawer: View {
         } content: {
             // Termin-Detail (06.11.2026): Modul, Raum (Antippen startet die Route zu Fuss) und Lehrende des Kurses
             if let m = e.i("module_id") {
+                // Modul des Kurses (Kern), aufgeklappt nur die Woche dieses Termins (`ModuleFocus`, 12.11.2026);
+                // iPhone (Blatt von unten): in voller Breite
                 Group {
-                    // iPhone (Blatt von unten): in voller Breite
                     if compactDrawer {
-                        UFWideButton(TerminDetailText.toModule, icon: "book") { overlay.closeDrawer(); router.go(.module(m)) }
+                        UFWideButton(TerminDetailText.toModule, icon: "book") {
+                            overlay.closeDrawer()
+                            ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                        }
                     } else {
-                        UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeDrawer(); router.go(.module(m)) }
+                        UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
+                            overlay.closeDrawer()
+                            ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                        }
                     }
                 }
                 .padding(.bottom, 9.6)

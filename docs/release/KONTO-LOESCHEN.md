@@ -1,16 +1,18 @@
 # StudiNow-Konto löschen
 
-**Entwurf, Stand 09.11.2026 (26.10.2026).** Öffentliche Seite unter `https://studinow.app/konto-loeschen`. Google Play verlangt für Apps mit
+**Entwurf, Stand 12.11.2026 (26.10.2026).** Öffentliche Seite unter `https://studinow.app/konto-loeschen`. Google Play verlangt für Apps mit
 Kontoerstellung eine solche Seite; Apple verlangt die Löschung in der App (Richtlinie 5.1.1(v)) – beides ist
 abgedeckt.
 
 ## In der App
 
 1. Einstellungen → Konto → **Konto löschen**.
-2. Passwort eingeben und bestätigen.
+2. Bestätigen (hat dein Konto ein Passwort, gibst du es dabei ein).
 
 Das Konto wird sofort gesperrt und auf allen Geräten abgemeldet; E-Mail-Adresse, Passwort und die Anmeldung mit Apple
-bzw. Google entfernen wir sofort, Community-Beiträge ziehen wir sofort zurück. Alle übrigen Daten im StudiNow-Dienst
+bzw. Google entfernen wir sofort, Community-Beiträge ziehen wir sofort zurück. Hast du dich mit Apple angemeldet,
+widerrufen wir die Anmeldung „Mit Apple“ zugleich bei Apple. In der iPad-App löscht „Konto löschen“ außerdem alle
+Daten von StudiNow auf diesem iPad. Alle übrigen Daten im StudiNow-Dienst
 (Kurse, Dateien, Notizen, Kalender, Karteikarten, Kommentare, Fragen und Antworten) werden **30 Tage** nach der
 Löschung endgültig entfernt, aus den Sicherungskopien spätestens 30 Tage später. Rückgängig machen lässt sich die
 Löschung nicht.

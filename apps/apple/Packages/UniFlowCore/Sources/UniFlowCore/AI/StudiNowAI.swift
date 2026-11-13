@@ -292,6 +292,9 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                // "Stopp" in der KI-Hilfe (11.11.2026): URLSession bricht mit URLError(.cancelled) ab - das ist kein
+                // "Dienst nicht erreichbar", sondern ein Abbruch, und so geht er bis zur Oberflaeche
+                if Task.isCancelled { throw CancellationError() }
                 throw Self.error(503, "service_unreachable", StudiNowAIText.unreachable)
             }
             let j = (try? JSONValue.parse(r.body)) ?? .null

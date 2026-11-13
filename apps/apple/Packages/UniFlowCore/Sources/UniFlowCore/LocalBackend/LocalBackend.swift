@@ -20,7 +20,9 @@ public final class LocalBackend: Sendable {
         TestEndpoints.self,
         WeeklyEndpoints.self,
         ModulesEndpoints.self,
+        ModuleLayoutEndpoints.self,
         StudyEndpoints.self,
+        SmartGoalsEndpoints.self,
         AIPlanEndpoints.self,
         SearchEndpoints.self,
         FileVersionEndpoints.self,
@@ -47,6 +49,7 @@ public final class LocalBackend: Sendable {
         RoomsEndpoints.self,
         StudIPLecturersEndpoints.self,
         CertificatesEndpoints.self,
+        StudyPlanModulesEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

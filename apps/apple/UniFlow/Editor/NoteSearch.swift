@@ -190,8 +190,9 @@ final class NoteTextIndex: ObservableObject {
             for i in scans {
                 guard !Task.isCancelled, let page = layout.pdf.page(at: i) else { return }
                 let key = entries[i].key
-                let box = PageBox(page: page.copy() as? PDFPage ?? page)
-                let image = await Task.detached(priority: .utility) { NoteSearch.pageImage(box.page).map(ImageBox.init) }.value
+                // aus der eigenen PDF-Instanz, nie aus einer Kopie der angezeigten Seite (`OffscreenPDF`)
+                let shape = OffscreenPDF.Shape(page: page, entry: entries[i])
+                let image = await store.offscreenPDF.scanImage(shape: shape).map(ImageBox.init)
                 let text = await image.map(\.image).asyncMap(self.recognize) ?? ""
                 guard !Task.isCancelled else { return }
                 self.pages[key, default: PageText()].scan = text
@@ -224,7 +225,6 @@ final class NoteTextIndex: ObservableObject {
         return out
     }
 
-    private struct PageBox: @unchecked Sendable { let page: PDFPage }
     private struct ImageBox: @unchecked Sendable { let image: CGImage }
 
     /// Nur fuer Tests: Text einer Seite direkt setzen

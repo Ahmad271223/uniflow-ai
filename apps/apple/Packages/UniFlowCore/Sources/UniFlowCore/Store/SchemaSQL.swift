@@ -189,6 +189,40 @@ CREATE TABLE IF NOT EXISTS task_history (
     at TEXT
 );
 
+-- Smart Planner 2.0 (12.11.2026, app/smart_goals.py): Lernziel in Stunden je Modul
+CREATE TABLE IF NOT EXISTS study_goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module_id INTEGER NOT NULL UNIQUE REFERENCES modules(id) ON DELETE CASCADE,
+    target_minutes INTEGER NOT NULL DEFAULT 0,
+    learned_before_minutes INTEGER DEFAULT 0,   -- schon vor dem Planer gelernt
+    include_lectures INTEGER DEFAULT 0,         -- 1 = Pflichtveranstaltungen zaehlen zum Ziel
+    writing INTEGER DEFAULT 1,                  -- 0 = schreibe ich nicht
+    exam_attempt INTEGER DEFAULT 1,             -- 1 Ersttermin, 2 Zweittermin
+    exam_date_2 TEXT,
+    exam_confirmed TEXT,                        -- bestaetigter Klausurtag (gilt, solange er dem Termin entspricht)
+    priority INTEGER,
+    created_at TEXT,
+    updated_at TEXT
+);
+
+-- Erfasste Lernzeit (Stoppuhr, Eintrag, abgehakter Block); uuid = vom Geraet vergeben, zaehlt einmal
+CREATE TABLE IF NOT EXISTS study_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL UNIQUE,
+    module_id INTEGER REFERENCES modules(id) ON DELETE SET NULL,
+    package_id INTEGER REFERENCES study_packages(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL DEFAULT 'timer',         -- timer | manual | block
+    state TEXT DEFAULT 'fertig',                -- laeuft | pause | fertig
+    segments TEXT,                              -- JSON [[beginn, ende], ...] in Unix-Sekunden, offenes Ende = null
+    minutes INTEGER,
+    day TEXT,                                   -- Tag (YYYY-MM-DD, Berlin)
+    note TEXT,
+    device TEXT,
+    deleted_at TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

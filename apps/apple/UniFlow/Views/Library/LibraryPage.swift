@@ -132,6 +132,9 @@ struct LibraryPage: View {
         studip.offersStudIP ? studip.phase != .signedOut : hildesheim?.anyConnected == true || hsh?.anyConnected == true
     }
     @AppStorage("lib-mode") private var mode = "grid"
+    /// zuletzt gewaehlte Ansicht "Ordner | Regal" (folders | shelf): "Dokumente & Notizen" aus der Seitenleiste
+    /// (#/files ohne Pfad) oeffnet sie wieder (11.11.2026; vorher immer die Ordner)
+    @AppStorage("lib-view") private var libView = "folders"
     @State private var lib: JSONValue?
     /// lokal: Kursliste fuer die Kursordner (`LibraryCourses`); mit eigenem Server leer
     @State private var courses: [JSONValue] = []
@@ -148,6 +151,8 @@ struct LibraryPage: View {
     @MainActor static var sort = "date"
     @MainActor static var filter = "all"
     @State private var tick = 0                                             // erzwingt Neuaufbau nach sort/filter
+    /// Breite der Liste (schmale Zeilen unter `compactListWidth`)
+    @State private var listWidth: CGFloat = 1000
 
     var body: some View {
         Group {
@@ -265,8 +270,13 @@ struct LibraryPage: View {
                     } + modFiles.filter { $0.s("course_id") == "__user__" && $0["folder_id"]?.isNull != false }.map(doc)
                     if filter != "all" { b.items = byFilter(modFiles) }
                 } else if seg[1].hasPrefix("f") {
-                    let fid = Int(seg[1].dropFirst()) ?? 0
-                    b.crumbs.append((folders.first { $0.i("id") == fid }?.s("name") ?? "Ordner", seg.joined(separator: "/")))
+                    // Unterordner eines Modulordners ("m1/f5/f9"): Inhalt des letzten Ordners, Brotkrumen je Ebene
+                    // (vorher zeigte jeder tiefere Pfad den Inhalt von seg[1], Meldung des Inhabers 11.11.2026)
+                    var fid = 0
+                    for i in 1..<seg.count {
+                        fid = Int(seg[i].dropFirst()) ?? 0
+                        b.crumbs.append((folders.first { $0.i("id") == fid }?.s("name") ?? "Ordner", seg[0...i].joined(separator: "/")))
+                    }
                     b.items = folders.filter { $0.i("parent_id") == fid }.map { f in
                         Item(id: "f\(f.i("id") ?? 0)", kind: .folder, label: f.s("name") ?? "", color: f.s("color") ?? m?.s("color"), count: count(f.i("id") ?? 0),
                              path: seg.joined(separator: "/") + "/f\(f.i("id") ?? 0)", user: f)
@@ -387,15 +397,17 @@ struct LibraryPage: View {
                     Text("Aktuelles Semester" + (older.s("current").map { " · \($0)" } ?? ""))
                         .ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader).padding(.bottom, 10)
                 }
-                if compact {
-                    // schmal: Modul- und Kursordner als Liste (die grossen Mappen-Karten fuellten je einen Bildschirm)
-                    let folders = b.items.filter { $0.kind == .folder }
-                    if !folders.isEmpty { itemsView(folders, lib: lib, inCard: true) }
+                // Liste auch hier (Meldung des Inhabers 11.11.2026): vorher blieben Module und Ordner auf der obersten
+                // Ebene immer Kacheln, der Umschalter "Kacheln | Liste" wirkte nur auf Unterebenen. iPhone (schmal):
+                // immer als Liste (die grossen Mappen-Karten fuellten je einen Bildschirm)
+                let folderItems = b.items.filter { $0.kind == .folder }
+                if mode == "list" || compact {
+                    if !folderItems.isEmpty { itemsView(folderItems, lib: lib, inCard: true) }
                 } else {
-                UFGridLayout(spacing: 19.2, minWidth: 290) {
-                    ForEach(b.items.filter { $0.kind == .folder }) { it in LibraryFolderCard(it: it, open: { open(it) }, menu: { menu(it, lib: lib) }) }
-                }
-                .environment(\.ufFillsCell, true)
+                    UFGridLayout(spacing: 19.2, minWidth: 290) {
+                        ForEach(folderItems) { it in LibraryFolderCard(it: it, open: { open(it) }, menu: { menu(it, lib: lib) }) }
+                    }
+                    .environment(\.ufFillsCell, true)
                 }
                 if let older { LibrarySemestersSection(overview: older, reload: load) }
                 // ganz leer (keine Kursordner, keine Dokumente): Leerkarte mit den Wegen zu Inhalten statt nur des
@@ -456,8 +468,16 @@ struct LibraryPage: View {
 
     // MARK: Mein Regal (04.11.2026)
 
-    /// Regal statt Ordner (`#/files?section=shelf`)
-    private var isShelf: Bool { section == "shelf" }
+    /// Regal statt Ordner (`#/files?section=shelf`, oder `#/files` ohne Pfad, Suche und Bereich, wenn zuletzt das
+    /// Regal gewaehlt war); nur lokal (mit eigenem Server gibt es kein Regal)
+    private var isShelf: Bool {
+        Self.showsShelf(section: section, path: path, q: q, remembered: (session.api?.isLocal ?? true) ? libView : "folders")
+    }
+
+    static func showsShelf(section: String?, path: String?, q: String?, remembered: String) -> Bool {
+        if section == "shelf" { return true }
+        return section == nil && (path ?? "").isEmpty && (q ?? "").isEmpty && remembered == "shelf"
+    }
 
     /// Umschalter "Ordner | Regal" oben in der Bibliothek; nur ohne eigenen Server (das Regal ist eine Abfrage des
     /// lokalen Backends, `GET /api/index/shelf`)
@@ -465,7 +485,7 @@ struct LibraryPage: View {
         if session.api?.isLocal ?? true {
             UFSegmented(options: [("folders", "Ordner"), ("shelf", "Regal")],
                         selection: Binding(get: { isShelf ? "shelf" : "folders" },
-                                           set: { router.go($0 == "shelf" ? .files(section: "shelf") : .files()) }))
+                                           set: { libView = $0; router.go($0 == "shelf" ? .files(section: "shelf") : .files()) }))
                 .accessibilityIdentifier("library.viewSwitch")
         }
     }
@@ -494,9 +514,11 @@ struct LibraryPage: View {
             }
             .environment(\.ufFillsCell, false)
         } else {
+            let compact = listWidth < Self.compactListWidth
             let list = LazyVStack(spacing: 0) {
-                ForEach(items) { it in LibraryListRow(it: it, api: session.api, open: { open(it) }, menu: { menu(it, lib: lib) }) }
+                ForEach(items) { it in LibraryListRow(it: it, api: session.api, compact: compact, open: { open(it) }, menu: { menu(it, lib: lib) }) }
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { listWidth = $0 }
             if inCard {
                 list.padding(ufB)
                     .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
@@ -506,6 +528,10 @@ struct LibraryPage: View {
             } else { list }
         }
     }
+
+    /// Unter dieser Breite zeigt die Liste nur Symbol, Name mit Unterzeile und Menue (feste Spalten rund 460 pt plus
+    /// Platz fuer den Namen)
+    static let compactListWidth: CGFloat = 640
 
     /// Spalten der Kacheln: so viele wie bei 150 pt Mindestbreite und 16 pt Abstand passen, gleich breit
     static let gridColumns = [GridItem(.adaptive(minimum: 150), spacing: 16, alignment: .top)]
@@ -954,10 +980,15 @@ struct LibraryThumb: View {
     }
 }
 
-/// .lib-list .lib-row: Spalten 44px 1fr 110px 120px 90px 36px
+/// .lib-list .lib-row: Spalten 44px 1fr 110px 120px 90px 36px; schmal (wie im Web unter 900 px: 36px 1fr 36px) nur
+/// Symbol, Name mit Unterzeile und Menue. Vorher blieben die festen Spalten (rund 460 pt) auch im iPad-Hochformat mit
+/// Seitenleiste, in Split View und kleinen Mac-Fenstern; fuer den Namen blieb kaum Platz (Meldung des Inhabers
+/// 11.11.2026: "die Liste geht nicht").
 struct LibraryListRow: View {
     let it: LibraryPage.Item
     let api: APIClient?
+    /// schmale Liste (`LibraryPage.compactListWidth`)
+    var compact = false
     let open: () -> Void
     let menu: () -> Void
     @State private var image: UIImage?
@@ -1046,25 +1077,47 @@ struct LibraryListRow: View {
     private var wideRow: some View {
         HStack(spacing: 9.6) {
             if it.kind == .folder {
+                // Module und Kursordner der obersten Ebene stehen seit 11.11.2026 auch in der Liste: Modul mit Initiale
+                // und Menue wie die Kachel
                 RoundedRectangle(cornerRadius: 6).fill(Color(hex: it.color ?? "#4f8ef7")).frame(width: 36, height: 36)
-                    .overlay(UFIcon("folder", size: 16).foregroundStyle(.white)).frame(width: 44, alignment: .leading)
-                Text(it.label).ufFont(14.08, 700).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
-                Text("Ordner").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 110, alignment: .leading)
-                Text("\(it.count) \(it.count == 1 ? "Dokument" : "Dokumente")").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
-                Color.clear.frame(width: 90, height: 1)
-                Group { if it.user != nil { Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText).ufHitArea() }.buttonStyle(.plain) } else { Color.clear } }
+                    .overlay {
+                        if it.module != nil { Text(UFFmt.initial(it.label)).font(.uf(13.12, 700)).foregroundStyle(.white) }
+                        else { UFIcon("folder", size: 16).foregroundStyle(.white) }
+                    }
+                    .frame(width: compact ? 36 : 44, alignment: .leading)
+                let count = "\(it.count) \(it.count == 1 ? "Dokument" : "Dokumente")"
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(it.label).ufFont(14.08, 700).foregroundStyle(UF.text)
+                    if compact { Text("\(Self.folderKind(it)) · \(count)").ufFont(11.84).foregroundStyle(UF.muted).lineLimit(1) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if !compact {
+                    Text(Self.folderKind(it)).ufFont(13.12).foregroundStyle(UF.muted).frame(width: 110, alignment: .leading)
+                    Text(count).ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
+                    Color.clear.frame(width: 90, height: 1)
+                }
+                Group {
+                    if it.user != nil || it.module != nil {
+                        Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText).ufHitArea() }.buttonStyle(.plain)
+                            .accessibilityLabel("Mehr")
+                    } else { Color.clear }
+                }
                     .frame(width: 36)
             } else {
                 let f = it.f
                 let isPdf = f.s("kind") == "pdf" && f.s("downloaded_at") != nil
                 let t = f.s("kind") == "pdf" ? (f.s("doc_type") ?? "pdf") : LibraryStyle.displayKind(f)
+                let type = ShellState.typeText[t] ?? ""
+                let subject = f.s("subject") ?? "Eigene"
+                let date = it.kind == .trash ? "gelöscht " + UFFmt.date(f.s("deleted_at"))
+                    : f.s("edited_at").map { UFFmt.date($0) } ?? UFFmt.date(UFFmt.isoFromUnix(f.n("chdate")))
                 RoundedRectangle(cornerRadius: 6).fill(UF.surface2).frame(width: 36, height: 36)
                     .overlay {
                         if let image { Image(uiImage: image).resizable().scaledToFill().frame(width: 36, height: 36, alignment: .top).clipped() }
                         else { UFIcon(ShellState.typeIcon[t] ?? "file", size: 16).foregroundStyle(UF.text) }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .frame(width: 44, alignment: .leading)
+                    .frame(width: compact ? 36 : 44, alignment: .leading)
                     .task(id: f.s("id")) {
                         if isPdf, let api, let id = f.s("id") {
                             image = await UFThumbnails.shared.image(fileID: id, version: f.s("edited_at") ?? "\(f.n("chdate") ?? 0)", image: false, api: api)
@@ -1073,19 +1126,31 @@ struct LibraryListRow: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(f.s("title") ?? "").ufFont(14.08, 700).foregroundStyle(UF.text)
                     if let ai = f.s("ai_title"), ai != f.s("title") { Text(f.s("name") ?? "").ufFont(11.84).foregroundStyle(UF.muted) }
+                    if compact {
+                        Text([type, subject, date].filter { !$0.isEmpty }.joined(separator: " · ")).ufFont(11.84).foregroundStyle(UF.muted).lineLimit(1)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text(ShellState.typeText[t] ?? "").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 110, alignment: .leading)
-                Text(f.s("subject") ?? "Eigene").ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1).frame(width: 120, alignment: .leading)
-                Text(f.s("edited_at").map { UFFmt.date($0) } ?? UFFmt.date(UFFmt.isoFromUnix(f.n("chdate")))).ufFont(13.12).foregroundStyle(UF.muted)
-                    .frame(width: 90, alignment: .leading)
+                if !compact {
+                    Text(type).ufFont(13.12).foregroundStyle(UF.muted).frame(width: 110, alignment: .leading)
+                    Text(subject).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1).frame(width: 120, alignment: .leading)
+                    Text(date).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1).frame(width: 90, alignment: .leading)
+                }
                 Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText).ufHitArea() }.buttonStyle(.plain).frame(width: 36)
+                    .accessibilityLabel("Mehr")
             }
         }
         .padding(.vertical, 7.2).padding(.horizontal, 8)
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
         .ufBorderBottom()
+    }
+
+    /// Art eines Ordners in der Liste: Modul, Stud.IP-Kurs (lokal) oder eigener bzw. Typ-Ordner
+    static func folderKind(_ it: LibraryPage.Item) -> String {
+        if it.module != nil { return "Modul" }
+        if it.user == nil, LibraryCourses.courseID(it.path) != nil { return "Kurs" }
+        return "Ordner"
     }
 }
 

@@ -96,6 +96,18 @@ struct PlanActions {
         let p: JSONValue
         do { p = try await api.value("/api/packages/\(id)") } catch { toast.show("Lernpaket laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4); return }
         let done = p.s("status") == "erledigt"
+        // Block des Stundenplaners: abhaken nur mit der wirklich gelernten Zeit (Smart Planner 2.0)
+        if p.s("source") == "smart" {
+            if done {
+                if await toast.attempt("Zurücksetzen", { _ = try await api.value("/api/goals/blocks/\(id)/undone", method: "POST") }) {
+                    toast.show("Wieder offen")
+                    router.reload()
+                }
+            } else {
+                overlay.modal { BlockDoneDialog(package: p) }
+            }
+            return
+        }
         let todo = p.list("tasks").filter { ($0.s("status") == "erledigt") == done }.compactMap { $0.i("id") }
         var changed = 0
         for tid in todo {
@@ -167,11 +179,22 @@ struct PackageDrawer: View {
             UFStatusPill(status: status)
             UFButton(icon: "x", kind: .ghost) { close() }
         } content: {
+            // Fach antippen -> sein Modul, aufgeklappt nur die Woche der Unterlagen dieses Pakets (`ModuleFocus`, 12.11.2026)
+            if let m = p.i("module_id") {
+                UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
+                    overlay.closeAll()
+                    ModuleFocus.open(module: m, date: p.s("date"), file: tasks.lazy.compactMap { $0.s("file_id") }.first,
+                                     label: "Lernpaket am \(UFFmt.short(p.s("date")))", router: router)
+                }
+                .padding(.bottom, 9.6)
+                .accessibilityIdentifier("package.module")
+            }
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Row.rows(tasks)) { row in TaskRow(t: row.value) { Task { await load(first: false) } } }
             }
             // passende Opencast-Aufzeichnungen zu den Aufgaben, nur bei sicherem Treffer (lokal)
             if session.api?.isLocal == true { RecordingPackageHints(packageID: id) }
+            if p.s("source") == "smart" { SmartBlockPanel(p: p) }
             if status == "nachholen" || status == "teilweise" {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("\(late.count) Aufgaben müssen nachgeholt werden.").ufFont(14.5, 700).foregroundStyle(UF.text)
@@ -199,6 +222,10 @@ struct PackageDrawer: View {
         } foot: {
             UFButton("Verschieben", icon: "move", size: .small) {
                 actions.move(title: "Lernpaket „\(p.s("subject") ?? "")“ verschieben", current: p.s("date")) { date in
+                    if p.s("source") == "smart" {
+                        await SmartBlockPanel.move(p, to: date, api: session.api, overlay: overlay, toast: toast, router: router)
+                        return
+                    }
                     guard let api = session.api else { return }
                     if await toast.attempt("Verschieben", { _ = try await api.value("/api/packages/\(id)", method: "PATCH", body: ["date": .string(date)]) }) {
                         toast.show("Verschoben")
@@ -751,9 +778,15 @@ struct DatedEventDialog: View {
                     // iPhone: "Zum Modul" in voller Breite (Daumen)
                     Group {
                         if compact {
-                            UFWideButton(TerminDetailText.toModule, icon: "book") { overlay.closeAll(); router.go(.module(m)) }
+                            UFWideButton(TerminDetailText.toModule, icon: "book") {
+                                overlay.closeAll()
+                                ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                            }
                         } else {
-                            UFButton(TerminDetailText.toModule, icon: "book", size: .small) { overlay.closeAll(); router.go(.module(m)) }
+                            UFButton(TerminDetailText.toModule, icon: "book", size: .small) {
+                                overlay.closeAll()
+                                ModuleFocus.open(module: m, date: date, label: "Termin am \(UFFmt.short(date))", router: router)
+                            }
                         }
                     }
                     .accessibilityIdentifier("termin.module")

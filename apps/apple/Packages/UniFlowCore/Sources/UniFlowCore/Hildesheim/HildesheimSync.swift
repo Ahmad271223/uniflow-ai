@@ -115,6 +115,15 @@ extension UniStore {
     /// angelegt. Der Vergleich ist NULL-sicher (`IS`): Der Notenspiegel der Uni Hildesheim hat weder Semester noch
     /// Versuch, und fuer SQLite sind zwei NULL in einer UNIQUE-Spalte verschieden (ON CONFLICT griffe nie, jeder Abruf
     /// legte alle Leistungen noch einmal an).
+    /// Vollstaendig gelesener Notenspiegel (QIS der LUH, `QISGradesSync`): Tabelle leeren und alle Leistungen in der
+    /// Reihenfolge der Seite neu anlegen (ids in Seitenreihenfolge: `GradesModel` ordnet Pruefungen der Modulzeile
+    /// davor zu). Gleicher Schluessel zweimal (Pruefungsnr., Text, Semester, Versuch): die spaetere Zeile aktualisiert.
+    /// Nur in einer Transaktion aufrufen, damit ein Fehler nichts loescht.
+    public static func replaceGrades(_ conn: SQLiteConnection, _ grades: [QISGrade], now: String) throws {
+        try conn.execute("DELETE FROM grades")
+        try storeGrades(conn, grades, now: now)
+    }
+
     public static func storeGrades(_ conn: SQLiteConnection, _ grades: [QISGrade], now: String) throws {
         for g in grades {
             let key: [SQLiteValue] = [SQLiteValue(g.pruefungsnr), .text(g.text), SQLiteValue(g.semester), SQLiteValue(g.versuch)]
@@ -685,8 +694,11 @@ public actor HildesheimSync {
         do {
             let grades = try await lsf.grades()
             let now = clock.nowISO
+            let hildesheim = names.university == .hildesheim
             try await db.transaction { conn in
-                try UniStore.storeGrades(conn, grades, now: now)
+                // LSF Hildesheim (12.11.2026): vollstaendig gelesen -> ersetzen wie QIS der LUH (weggefallene Zeilen
+                // verschwinden, ids in Seitenreihenfolge fuer `GradesModel`); eine leere Antwort loescht nie
+                if hildesheim, !grades.isEmpty { try UniStore.replaceGrades(conn, grades, now: now) } else { try UniStore.storeGrades(conn, grades, now: now) }
                 try conn.execute("INSERT INTO qis_runs(started_at, finished_at, ok, message, grades, documents) VALUES (?,?,1,?,?,0)",
                                  [.text(started), .text(now), .text("\(grades.count) Leistungen"), .integer(Int64(grades.count))])
             }

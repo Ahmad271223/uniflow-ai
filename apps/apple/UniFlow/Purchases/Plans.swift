@@ -216,6 +216,8 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canGenerateStudoraAITests = "can_generate_studora_ai_tests"
     /// eigene Karteikarten anlegen, bearbeiten, ueben, teilen, uebernehmen (04.11.2026); Lesen bleibt in jedem Tarif
     case canUseFlashcards = "can_use_flashcards"
+    /// Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen) ab Plus (Entscheidung 11.11.2026)
+    case canUseDueReminders = "can_use_due_reminders"
     // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect)
     case canUseAdvancedAnalytics = "can_use_advanced_analytics"
     case canUseAdvancedPlanner = "can_use_advanced_planner"
@@ -241,7 +243,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
              .chatgptConnectionPremium:
             return .free
         case .canReadCommunity, .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
-             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards:
+             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards, .canUseDueReminders:
             return .plus
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .canUseAIExplanations, .canUseAIGeneratedQuestions,
@@ -260,12 +262,13 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canUseBasicPlanner: return "Lernkalender und Lernplanung"
         case .canReadCommunity: return "Community lesen, beitreten und mitmachen"
         case .canAnnotatePDF: return "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder"
-        case .canUsePencilKit: return "Apple Pencil (PencilKit) und handschriftliche Notizen"
+        case .canUsePencilKit: return UFDevice.adapt("Apple Pencil (PencilKit) und handschriftliche Notizen")
         case .canWriteCommunityComments: return "Community-Kommentare schreiben"
         case .canShareSolutions: return "Eigene Lösungen teilen"
         case .canAccessSharedTests: return "Tests aus der StudiNow-Bibliothek"
         case .canGenerateStudoraAITests: return "Neue KI-Tests von StudiNow"
         case .canUseFlashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .canUseDueReminders: return "Erinnerungen an Abgaben und Klausuren"
         case .canUseAdvancedAnalytics: return "Lernstatistik über alle Module"
         case .canUseAdvancedPlanner: return "Intelligente Lernplanung (Empfehlungen für die Woche)"
         case .canReviewWrongAnswers: return "Automatische Wiederholung falscher Antworten"
@@ -329,6 +332,8 @@ extension UFEntitlement {
         case .canShareSolutions: return .onDevice([.shareSolutions])
         // eigene Karteikarten: CardsPage, "Als Karteikarte", FlashcardComposer; ohne Plus nur lesen (UFFlashcardAccess)
         case .canUseFlashcards: return .onDevice([.flashcards])
+        // Mitteilungen 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren (DueReminderScheduler)
+        case .canUseDueReminders: return .onDevice([.dueReminders])
         // StudiNow-KI (Pro AI): KI-Hilfe mit Erklaeren und Zusammenfassen, KI-Karteikarten und Wochentests
         case .canUseAIExplanations, .canUseAISummaries: return .withAccount([.aiHelp])
         case .canUseAIGeneratedQuestions: return .withAccount([.aiFlashcards, .weeklyTests])

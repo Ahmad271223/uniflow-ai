@@ -171,7 +171,7 @@ extension PDFEditorController {
     }
 
     /// Zurueck-Wischen und Seitenleiste per Wischen vom Rand aus, Tippen auf die Statusleiste aus (nur der Editor mit
-    /// der Palette, in der geteilten Ansicht also einmal)
+    /// der Leiste, in der geteilten Ansicht also einmal)
     private func acquireSystemGestures() {
         guard freezeSystemGestures == nil else { return }
         var s = FreezeSystemGestures()

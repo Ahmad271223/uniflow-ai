@@ -212,7 +212,7 @@ struct StudyModuleSheet: View {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(d.attempts.enumerated()), id: \.offset) { i, a in
                             HStack(spacing: 10) {
-                                Text(a.attempt.map { "Versuch \($0)" } ?? "Versuch").ufFont(13.12, 600).foregroundStyle(UF.text)
+                                Text(a.attempt.map { "\($0). Versuch" } ?? "Versuch").ufFont(13.12, 600).foregroundStyle(UF.text)
                                 Text([a.term, a.date.map { UFFmt.date($0) }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                                     .ufFont(12.8).foregroundStyle(UF.muted)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -226,10 +226,12 @@ struct StudyModuleSheet: View {
                     }
                     .accessibilityIdentifier("studyplan.detail.attempts")
                 }
-                if d.lastAttempt {
+                // Versuche ehrlich (11.11.2026): Warnung nur, wenn der Kern sie begruendet (QIS oder Hoechstzahl), sonst
+                // ein neutraler Satz zur Regel
+                if d.final || d.lastAttempt {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         UFIcon("alert", size: 14)
-                        Text(StudyPlanText.lastAttemptWarning).fixedSize(horizontal: false, vertical: true)
+                        Text(d.final ? StudyPlanText.finalWarning : StudyPlanText.lastAttemptWarning).fixedSize(horizontal: false, vertical: true)
                     }
                     .ufFont(13.12, 600, lh: 1.4)
                     .foregroundStyle(UF.badText)
@@ -237,6 +239,11 @@ struct StudyModuleSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.badSoft))
                     .accessibilityElement(children: .combine)
+                }
+                if d.attempts.contains(where: { $0.status == .failed }) && !d.final {
+                    Text(StudyPlanText.attemptsRule(maxAttempts: d.maxAttempts))
+                        .ufFont(12.8, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("studyplan.detail.attempts-rule")
                 }
             }
         }
@@ -248,8 +255,12 @@ struct StudyModuleSheet: View {
             let g = d.attempts.last(where: { $0.status == .passed })?.grade
             return g.map { "Bestanden · \($0)" } ?? "Bestanden"
         case .failed:
-            let n = d.attempts.compactMap(\.attempt).max()
-            return n.map { "Nicht bestanden · Versuch \($0)" } ?? "Nicht bestanden"
+            if d.final { return "Endgültig nicht bestanden" }
+            guard d.attemptKnown, let n = d.attempt ?? d.attempts.compactMap(\.attempt).max() else { return "Nicht bestanden" }
+            return "Nicht bestanden · \(n). Versuch"
+        case .registered:
+            guard d.attemptKnown, let n = d.attempt, n >= 2 else { return "Angemeldet" }
+            return "Angemeldet · \(n). Versuch"
         case .moved: return d.movedFrom.map { "Verschoben · aus \($0)" } ?? "Nachholen"
         default: return StudyPlanText.status(d.status)
         }
@@ -549,9 +560,9 @@ struct StudyPlanSettingsSheet: View {
             }
             StudyPlanSection(title: "Studienbeginn", icon: "calendar") {
                 VStack(alignment: .leading, spacing: 8) {
-                    UFSelect(options: s.termOptions.map { ($0, $0) }, selection: $start)
+                    UFSelect(options: s.startChoices, selection: $start)
                         .accessibilityLabel("Studienbeginn")
-                        .accessibilityValue(start)
+                        .accessibilityValue(start.isEmpty ? (s.startChoices.first?.label ?? "") : start)
                         .accessibilityIdentifier("studyplan.settings.start")
                     Text("Ab hier zählen die Fachsemester. StudiNow schlägt das früheste Semester \(StudyPlanText.gradeSourceFrom(hildesheim: hildesheim != nil, hsh: hsh != nil)) vor.")
                         .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -687,7 +698,7 @@ struct StudyPlanSettingsSheet: View {
         do {
             let s = StudyPlanSettings(try await api.value("/api/study-plan/settings"), today: today)
             po = s.po ?? s.poOptions.first ?? ""
-            start = s.startTerm ?? s.termOptions.first ?? ""
+            start = s.initialStart                     // nie ungefragt das aktuelle Semester (12.11.2026)
             chosen = Set(s.electives)
             var t: [String: String] = [:]
             for g in plan?.groups ?? [] { t[g.id] = g.auto ? "" : (g.chosen ?? "") }

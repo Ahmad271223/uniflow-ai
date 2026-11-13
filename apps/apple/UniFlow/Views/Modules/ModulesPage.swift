@@ -351,6 +351,9 @@ struct ModulePage: View {
     @EnvironmentObject private var session: Session
     /// KI ueber das ChatGPT-Abo des Nutzers verbunden (dann gibt es die Zusammenfassung auch ohne PC)
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
+    /// Tarif fuer die Schloesser der KI-Stellen (Wochentests, Zusammenfassen)
+    @ObservedObject private var ent = Entitlements.shared
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
@@ -362,6 +365,8 @@ struct ModulePage: View {
     /// Opencast-Aufzeichnungen je Block (nur lokal) und Woche, zu der aus der Uebersicht gesprungen wurde
     @State private var recordingCounts: [Int: Int] = [:]
     @State private var focusWeek: Int?
+    /// Sprung aus Lernkalender/Stundenplan (`ModuleFocus`): nur die Woche des Termins bzw. Lernpakets aufgeklappt
+    @State private var focus: ModuleFocus.Request?
     @EnvironmentObject private var studip: StudIPSync
 
     /// Gehoert die Antwort zu diesem Modul? Wechselt die Route direkt von einem Modul zum naechsten (Seitenleiste), behaelt
@@ -394,12 +399,20 @@ struct ModulePage: View {
 
     private func load() async {
         // anderes Modul als die angezeigte Antwort: deren Stand gilt hier nicht (Fehler, Aufzeichnungen, Sprung zur Woche)
-        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil }
+        if d != nil, !Self.shows(d, moduleID: id) { d = nil; error = nil; recordingCounts = [:]; focusWeek = nil; focus = nil; collapsed = [] }
+        // Sprung aus Lernkalender/Stundenplan: einmal abholen; beim Neuladen bleibt die Abfrage, die Klappzustaende auch
+        let jump = ModuleFocus.take(for: id)
+        if let jump { focus = jump }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do {
-            let v = try await api.value("/api/modules/\(id)")
+            let v = try await api.value("/api/modules/\(id)" + ModuleFocus.query(focus))
             // andere Modul-ID waehrend des Ladens (.task(id:) bricht den alten Lauf ab): dessen Antwort nie anzeigen
             guard !Task.isCancelled else { return }
+            if jump != nil {
+                // nur die Woche des Termins/Pakets offen, die anderen zugeklappt (vorher alle Wochen offen)
+                let weeks = v.list("weeks").compactMap { $0.i("week") }
+                collapsed = ModuleFocus.collapsed(weeks, open: ModuleFocus.openWeek(weeks, focus: v.i("focus_week")))
+            }
             d = v
             error = nil
         } catch {
@@ -474,13 +487,28 @@ struct ModulePage: View {
             DueListCard(moduleID: id, limit: 4).padding(.bottom, 14.4)       // Abgaben & Prüfungen dieses Moduls
             // Lernfortschritt & Wochentests (#wtBox): erstellt die KI, darum lokal nur mit ChatGPT-Abo (wie der
             // Modul-Dialog: sonst weder anbieten noch ankuendigen)
-            if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
+            if session.api?.isLocal == false || aiEnabled {
+                WeeklyTestsCard(module: m)
+            } else if aiLock(.weeklyTests) != nil {
+                // ohne KI und ohne Pro AI sichtbar mit Schloss (Auftrag des Inhabers 12.11.2026), Pro AI ohne Anmeldung nicht
+                UFLockedCard(.weeklyTests, entitlements: ent).padding(.bottom, 14.4)
+            }
             // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
             if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
             if session.api?.isLocal == true && studip.offersStudIP { ModuleLecturersCard(moduleID: id, moduleName: m.s("name")) }
             if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
-            ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
+            if let focus, !weeks.isEmpty, !collapsed.isEmpty {
+                ModuleFocusBar(label: focus.label) { UFMotion.toggle { collapsed = [] } }
+            }
+            // eigene Wochen und Abschnitte (12.11.2026): je Block Menue, Ziehen, Verschieben; unter den Wochen anlegen und
+            // zuruecksetzen (unten, damit die Wochen oben stehen bleiben wie bisher)
+            let keys = weeks.compactMap { $0.s("key") }, targets = d.list("targets")
+            ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m, keys: keys, targets: targets) }
+            if !weeks.isEmpty {
+                ModuleLayoutBar(moduleID: id, custom: d["layout_custom"]?.bool == true,
+                                lastKey: weeks.last { ($0.i("week") ?? 0) >= 1 }?.s("key"))
+            }
         } else if tab == "recordings" {
             RecordingsPanel(moduleID: id, focusWeek: focusWeek)
         } else if tab == "community" {
@@ -532,6 +560,12 @@ struct ModulePage: View {
         }
     }
 
+    /// Schloss einer KI-Stelle auf dem Geraet: ohne KI und ohne Pro AI "ab Pro AI"; am eigenen Server nie
+    private func aiLock(_ f: UFFeature) -> UFPlan? {
+        guard session.api?.isLocal != false else { return nil }
+        return UFLock.ai(f, plan: ent.plan, aiEnabled: aiEnabled, offerHidden: proAIOfferHidden)
+    }
+
     @ViewBuilder private func docList(_ files: [JSONValue], empty: String, icon: String) -> some View {
         if files.isEmpty {
             // leer: Rahmen bleibt, ein Satz sagt, was hier fehlt
@@ -550,7 +584,7 @@ struct ModulePage: View {
     }
 
     /// .card.week-block: Kopf klappt ein/aus, Gruppen nach sub_label, "Zusammenfassen" bei Vorlesungen (nur PC-Server)
-    private func weekBlock(_ w: JSONValue, m: JSONValue) -> some View {
+    private func weekBlock(_ w: JSONValue, m: JSONValue, keys: [String], targets: [JSONValue]) -> some View {
         let wk = w.i("week") ?? 0
         let open = !collapsed.contains(wk)
         let groupsOrder = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"]
@@ -567,9 +601,15 @@ struct ModulePage: View {
                         .accessibilityHint("Zeigt die Aufzeichnungen dieser Woche")
                 }
                 Text("\(w.i("count") ?? 0) \(w.i("count") == 1 ? "Dokument" : "Dokumente")").ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
+                if w.s("key") != nil { ModuleSectionMenu(moduleID: id, block: w, keys: keys) }
                 // KI-Zusammenfassung mit dem PC-Server oder ueber das ChatGPT-Abo des Nutzers (LocalContext.ai)
                 if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true || aiEnabled {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }
+                } else if !w.list("vorlesungen").isEmpty, let lock = aiLock(.aiHelp) {
+                    UFLockedButton(plan: lock, title: "Zusammenfassen", identifier: "module.week.summary.locked") {
+                        HStack(spacing: 5) { UFIcon("sparkles", size: 14); Text("Zusammenfassen").ufFont(13.12, 550) }
+                            .foregroundStyle(UF.text).frame(minHeight: 44)
+                    }
                 }
             }
             .padding(.vertical, 8)
@@ -579,6 +619,11 @@ struct ModulePage: View {
             .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
             if open {
                 VStack(alignment: .leading, spacing: 0) {
+                    if wk == -4 { ModuleUnassignedBar(moduleID: id, suggestions: w.i("suggestions") ?? 0) }
+                    if (w.i("count") ?? 0) == 0 {
+                        Text("Noch leer – zieh Dateien hierher oder nutze bei einer Datei „Verschieben nach …“.")
+                            .ufFont(12.8).foregroundStyle(UF.muted).padding(.horizontal, 8).padding(.vertical, 10)
+                    }
                     ForEach(groupsOrder, id: \.self) { k in
                         let fs = w.list(k)
                         if !fs.isEmpty {
@@ -592,7 +637,9 @@ struct ModulePage: View {
                                 (Text(lab) + Text(group.count > 1 ? " · \(group.count)" : "").font(.uf(12.8, 400)).foregroundColor(UF.muted))
                                     .ufFont(12.8, 600).foregroundStyle(UF.text2)
                                     .padding(.top, 12).padding(.bottom, 2).padding(.leading, 8)
-                                ForEach(Row.rows(group)) { row in UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
+                                ForEach(Row.rows(group)) { row in
+                                    ModuleWeekFileRow(moduleID: id, f: row.value, targets: targets) { router.go(.doc(row.value.s("id") ?? "")) }
+                                }
                             }
                         }
                     }
@@ -600,6 +647,7 @@ struct ModulePage: View {
                 .ufReveal()                                                 // Aufklappen wie disclosure (UFMotion)
             }
         }
+        .modifier(ModuleDropZone(moduleID: id, key: w.s("key") ?? ""))         // Datei hineinziehen
         .padding(.bottom, 14.4)
     }
 }

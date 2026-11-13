@@ -309,7 +309,7 @@ const slotsBy = plan => L.allSlots(plan).reduce((o, sl) => ({ ...o, [sl.area]: [
 
 test("Volle Bereiche: kein Platz zeigt 'noch 0 von … LP offen' oder alle Module gewählt", () => {
   const cases = ENGINE.cases.filter(c => c.catalog_code === "TIBSc26");
-  assert.equal(cases.length, 6);
+  assert.ok(cases.length >= 6, "6 Faelle vom 05.11.2026, dazu Wahlfach aus QIS (11.11.2026)");
   for (const c of cases) {
     for (const sl of L.allSlots(c.expected)) {
       const line = L.slotLine(sl, c.expected), a = L.area(c.expected, sl.area);

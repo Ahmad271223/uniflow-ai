@@ -4,12 +4,13 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-/// Geraete-Probe der Werkzeugpalette (03.11.2026): laeuft nur mit der Umgebungsvariable `UF_DEVICE_PROBE=1` (Xcode:
-/// Schema → Test → Arguments → Environment; xcodebuild: `TEST_RUNNER_UF_DEVICE_PROBE=1`), sonst uebersprungen.
-/// Oeffnet ein kleines Dokument im Editor (eigener Ordner, nichts aus den Containern), zeigt die Palette und schreibt
-/// ins Testprotokoll (jede Zeile mit "[Probe]"): Eintraege der Palette (`toolItems`), gewaehltes Werkzeug, `isVisible`,
-/// `showsDrawingPolicyControls`, Eingabeart der Zeichenflaechen, Fenster der Szene. Dazu ein Bild der Palette als
-/// Anhang des Tests (Xcode: Testbericht → Anhaenge). Gleiche Ausgabe in der App: Startargument `-UFPaletteProbe 1`.
+/// Geraete-Probe der Werkzeuge (03.11.2026, seit 11.11.2026 die feste Leiste): laeuft nur mit der Umgebungsvariable
+/// `UF_DEVICE_PROBE=1` (Xcode: Schema → Test → Arguments → Environment; xcodebuild: `TEST_RUNNER_UF_DEVICE_PROBE=1`),
+/// sonst uebersprungen. Oeffnet ein kleines Dokument im Editor (eigener Ordner, nichts aus den Containern) und schreibt
+/// ins Testprotokoll (jede Zeile mit "[Probe]"): gewaehltes Werkzeug, Lineal, Sichtbarkeit der Leiste, Einstellung
+/// "Doppeltippen" des Apple Pencil, Eingabeart und Werkzeug der Zeichenflaechen, Fenster der Szene (eine Palette von
+/// PencilKit darf nicht darunter sein). Dazu ein Bild jedes Fensters als Anhang des Tests (Xcode: Testbericht →
+/// Anhaenge). Gleiche Ausgabe in der App: Startargument `-UFPaletteProbe 1`.
 @MainActor
 final class EditorDeviceProbeTests: XCTestCase {
 
@@ -33,7 +34,6 @@ final class EditorDeviceProbeTests: XCTestCase {
             throw XCTSkip("Geräte-Probe nur mit UF_DEVICE_PROBE=1 (TEST_RUNNER_UF_DEVICE_PROBE=1 bei xcodebuild)")
         }
         say("Geraet: \(UIDevice.current.model), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion), Mac-Modus \(PDFEditorController.isMac)")
-        say("eigene Eintraege moeglich (iOS 18+): \(EditorPalette.supportsCustomItems)")
 
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-probe-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -59,10 +59,7 @@ final class EditorDeviceProbeTests: XCTestCase {
         XCTAssertNil(store.errorMessage, store.errorMessage ?? "")
         addTeardownBlock { await store.close() }
 
-        // wie DocumentView: Palette aus `EditorPalette.makePicker()`, eigener Speichername wie in der App
-        let picker = EditorPalette.makePicker()
-        say("Palette frisch: " + EditorPalette.describe(picker, editor: nil).joined(separator: " / "))
-        let editor = PDFEditorController(store: store, toolPicker: picker)
+        let editor = PDFEditorController(store: store)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: UIScreen.main.bounds)
         window.frame = scene?.screen.bounds ?? UIScreen.main.bounds
@@ -75,13 +72,12 @@ final class EditorDeviceProbeTests: XCTestCase {
         }
         editor.showToolPicker(true)
         try await Task.sleep(nanoseconds: 1_500_000_000)
-        for line in EditorPalette.describe(picker, editor: editor) { say(line) }
-        XCTAssertTrue(picker.isVisible, "Palette steht")
-        if EditorPalette.supportsCustomItems {
-            XCTAssertTrue(EditorPalette.hasCustomItems(picker), "unsere Eintraege fehlen in der Palette")
-        }
+        for line in EditorPalette.describe(editor: editor) { say(line) }
+        XCTAssertTrue(editor.toolbarMode.visible, "Leiste steht")
+        XCTAssertFalse(window.windowScene?.windows.contains { String(describing: type(of: $0)).contains("ToolPicker") } ?? false,
+                       "keine schwebende Palette von PencilKit")
 
-        // Bild jedes Fensters der Szene als Anhang (die Palette liegt in einem Fenster von PencilKit bzw. UIKit)
+        // Bild jedes Fensters der Szene als Anhang
         if let scene = window.windowScene {
             for (i, w) in scene.windows.enumerated() where !w.isHidden {
                 let name = String(describing: type(of: w))

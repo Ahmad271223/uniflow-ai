@@ -4,10 +4,10 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-/// Apples Palette als einziger Ort fuer alle Werkzeuge (EDITOR-GOODNOTES-PLAN-2026-11-03, Schritte A bis D):
-/// eigene Eintraege ab iPadOS 18, Objektmodus ueber die Palette, Farben aus der Palette, "Mit dem Finger zeichnen" aus der
-/// Palette, Rueckgaengig fuer eingefuegte Seiten im gemeinsamen Verlauf, Palette kommt nach Blaettern ohne Abfrage-
-/// Schleife zurueck. Stift, Doppeltippen und Squeeze prueft die Abnahmeliste am Geraet.
+/// Werkzeuge an einem Ort (EDITOR-GOODNOTES-PLAN-2026-11-03, Schritte A bis D; seit 11.11.2026 die feste Leiste statt
+/// Apples Palette, `EditorToolbar`): unsere Objektwerkzeuge in der Leiste, Objektmodus ueber die Leiste, Farben aus der
+/// Leiste, unser Schalter "Nur Stift", Rueckgaengig fuer eingefuegte Seiten im gemeinsamen Verlauf, der Fokus kommt nach
+/// Blaettern ohne Abfrage-Schleife zurueck. Stift, Doppeltippen und Squeeze prueft die Abnahmeliste am Geraet.
 @MainActor
 final class EditorPaletteTests: XCTestCase {
 
@@ -54,27 +54,19 @@ final class EditorPaletteTests: XCTestCase {
         return store
     }
 
-    private static let pen = "test.pen-\(UUID().uuidString)"
     private static let blue = UIColor(red: 0x2f / 255.0, green: 0x7f / 255.0, blue: 0xd1 / 255.0, alpha: 1)
     private static let green = UIColor(red: 0x2e / 255.0, green: 0x9e / 255.0, blue: 0x5b / 255.0, alpha: 1)
 
-    /// Palette mit bekanntem Stift (blau, 3 pt) und Textmarker (gruen) vor unseren Eintraegen
-    /// Palette mit eigenem Speichernamen: Paletten mit gleichem Namen (der Editor nimmt sonst "uniflow.toolpicker")
-    /// teilen bei PencilKit Auswahl, Farben und Staerken, auch ueber Tests hinweg
-    @available(iOS 18.0, *)
-    private func testPicker() -> PKToolPicker {
-        let p = PKToolPicker(toolItems: [PKToolPickerInkingItem(type: .pen, identifier: Self.pen),
-                                         PKToolPickerInkingItem(type: .marker, identifier: "test.marker"),
-                                         PKToolPickerEraserItem(type: .vector), PKToolPickerLassoItem()] + EditorPalette.customItems())
-        p.stateAutosaveName = "test-" + UUID().uuidString
-        p.selectedToolItemIdentifier = Self.pen
-        return p
-    }
-
-    private func isolatedDefaultPicker() -> PKToolPicker {
-        let p = EditorPalette.makePicker()
-        p.stateAutosaveName = "test-" + UUID().uuidString
-        return p
+    /// Werkzeuge mit eigenem Speicher (kein geteilter Stand mit der App oder anderen Tests); Stift blau 3,5 pt,
+    /// Textmarker gruen
+    private func testTools() -> EditorToolState {
+        let suite = "toolbar-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        let t = EditorToolState(defaults: defaults)
+        t.setStyle(.init(hex: Self.blue.uniflowRGBA.hex, width: 3.5), for: .pen, silently: true)
+        t.setStyle(.init(hex: Self.green.uniflowRGBA.hex, width: 15), for: .marker, silently: true)
+        return t
     }
 
     private func resetPaletteDefaults() {
@@ -94,50 +86,30 @@ final class EditorPaletteTests: XCTestCase {
         XCTFail("Zeit abgelaufen: \(what)")
     }
 
-    // MARK: A) Unsere Werkzeuge in Apples Palette
+    // MARK: A) Unsere Werkzeuge in der festen Leiste
 
-    /// Die Palette behaelt alle Werkzeuge von Apple und zeigt unsere fuenf Eintraege direkt hinter den Hauptwerkzeugen
-    /// (Stift, Fineliner, Textmarker, Radierer, Lasso, Lineal), vor den weiteren Stiften: ohne Wischen zu sehen. Der
-    /// Schalter der Palette fuer das Zeichnen mit dem Finger ist aus (unser Schalter in der Leiste gilt).
-    func testPaletteKeepsAppleToolsAndAddsOurObjectTools() throws {
-        let picker = EditorPalette.makePicker()
-        XCTAssertFalse(picker.showsDrawingPolicyControls, "kein zweiter Schalter neben 'Nur Stift'")
-        guard #available(iOS 18.0, *) else {
-            XCTAssertFalse(EditorPalette.supportsCustomItems, "iPadOS 17: bisherige Objektleiste")
-            XCTAssertFalse(EditorPalette.hasCustomItems(picker))
-            return
+    /// Die Leiste traegt Apples Werkzeuge (Stift, Fineliner, Textmarker, Radierer, Lasso, Lineal) und unsere
+    /// Objektwerkzeuge ("Bereich an KI" vorn, dann Auswaehlen, Text, Haftnotiz, Form, Text markieren); jedes mit Namen
+    /// fuer VoiceOver und einem Symbol, das es gibt
+    func testToolbarCarriesAppleToolsAndOurObjectTools() throws {
+        typealias T = EditorToolState.Tool
+        XCTAssertEqual(T.canvasTools, [.pen, .fineliner, .marker, .eraser, .lasso])
+        XCTAssertEqual(T.objectTools.first, .area, "Bereich an KI vorn (05.11.2026)")
+        XCTAssertEqual(Set(T.objectTools.compactMap(\.paletteID)), Set(EditorPalette.customIDs), "alle Objektwerkzeuge")
+        XCTAssertEqual(Set(T.canvasTools + T.objectTools), Set(T.allCases), "nichts fehlt, nichts doppelt")
+        for t in T.allCases {
+            XCTAssertFalse(t.title.isEmpty, t.rawValue)
+            XCTAssertNotNil(UIImage(systemName: t.icon), "Symbol fuer \(t.rawValue)")
+            XCTAssertEqual(t.drawsOnCanvas, t.objectTool == nil, t.rawValue)
         }
-        XCTAssertTrue(EditorPalette.supportsCustomItems)
-        XCTAssertTrue(EditorPalette.hasCustomItems(picker))
-        XCTAssertFalse(EditorPalette.hasCustomItems(PKToolPicker()), "Palette ohne unsere Eintraege: Objektleiste")
-        let ids = picker.toolItems.map(\.identifier)
-        let apple = PKToolPicker().toolItems.map(\.identifier)
-        XCTAssertEqual(Set(ids), Set(apple).union(EditorPalette.customIDs), "nichts von Apple fehlt, nichts doppelt")
-        XCTAssertEqual(ids.count, apple.count + EditorPalette.customIDs.count)
-        let first = apple.filter { EditorPalette.appleFirstIDs.contains($0) }
-        XCTAssertEqual(first.count, 5, "Stift, Fineliner, Textmarker, Radierer, Lasso in dieser Palette")
-        XCTAssertEqual(Array(ids.prefix(first.count)), first, "Apples Hauptwerkzeuge zuerst, in Apples Reihenfolge")
-        XCTAssertEqual(Array(ids.dropFirst(first.count).prefix(EditorPalette.customIDs.count)), EditorPalette.customIDs,
-                       "unsere Eintraege direkt dahinter (Form und Text zuerst): in den sieben sichtbaren Plaetzen hochkant")
-        XCTAssertEqual(Array(ids.suffix(apple.count - first.count)), apple.filter { !EditorPalette.appleFirstIDs.contains($0) },
-                       "Lineal und Apples weitere Stifte am Ende")
-        XCTAssertEqual(ids[5], EditorPalette.areaID, "Bereich an KI direkt hinter Apples Lasso (05.11.2026)")
-        XCTAssertEqual(ids[6], EditorPalette.shapeID)
-        XCTAssertEqual(ids[7], EditorPalette.textID)
-        // Palette unter dem Speichernamen der App: die Eintraege bleiben (PencilKit stellt Auswahl und Farben wieder her)
-        picker.stateAutosaveName = "uniflow.toolpicker"
-        XCTAssertTrue(EditorPalette.hasCustomItems(picker))
-        XCTAssertFalse(EditorPalette.describe(picker, editor: nil).isEmpty)
-        let custom = picker.toolItems.compactMap { $0 as? PKToolPickerCustomItem }
-        XCTAssertEqual(custom.first { $0.identifier == EditorPalette.shapeID }?.allowsColorSelection, true, "Form mit Farbe")
-        XCTAssertEqual(custom.first { $0.identifier == EditorPalette.textID }?.allowsColorSelection, true, "Text mit Farbe")
-        XCTAssertEqual(custom.first { $0.identifier == EditorPalette.markupID }?.allowsColorSelection, false,
-                       "Text markieren nimmt die Farbe des Textmarkers")
-        for item in custom {
-            let img = try XCTUnwrap(item.configuration.imageProvider?(item))
-            XCTAssertGreaterThanOrEqual(img.size.height, 150, "Bild mindestens 150 pt hoch (PencilKit)")
-            XCTAssertFalse((img.accessibilityLabel ?? "").isEmpty, "VoiceOver nennt das Werkzeug")
+        for t in [T.pen, .fineliner, .marker] {
+            XCTAssertTrue((3...5).contains(t.widths.count), "3 bis 5 Staerken: \(t.rawValue)")
+            XCTAssertGreaterThanOrEqual(EditorToolState.colors(for: t).count, 5)
         }
+        XCTAssertEqual(T.shape.widths.count, 3)
+        XCTAssertTrue(T.text.hasColor && T.shape.hasColor && !T.sticky.hasColor && !T.markup.hasColor,
+                      "Text markieren nimmt die Farbe des Textmarkers")
+        XCTAssertNotNil(UIImage(systemName: "ruler"))
     }
 
     /// Zuordnung Eintrag <-> Objektwerkzeug in beide Richtungen; Form und Auswahl folgen ihrer Option
@@ -152,158 +124,162 @@ final class EditorPaletteTests: XCTestCase {
             let id = EditorPalette.identifier(for: t)
             XCTAssertEqual(EditorPalette.objectTool(for: id, shape: EditorPalette.shapeChoices.contains(t) ? t : .rect,
                                                     select: t == .lasso ? .lasso : .select), t, t.rawValue)
+            XCTAssertEqual(EditorToolState.Tool.forObject(t).paletteID, id, t.rawValue)
         }
     }
 
-    /// Text in der Palette waehlen: Objektmodus mit Text, die Canvas schreibt nicht. Stift waehlen: Objektmodus aus.
-    /// Legt der Editor selbst ein anderes Werkzeug fest, zeigt die Palette es.
-    func testChoosingOurPaletteItemSwitchesObjectModeAndBack() async throws {
-        guard #available(iOS 18.0, *) else { throw XCTSkip("eigene Eintraege erst ab iPadOS 18") }
+    /// Text in der Leiste waehlen: Objektmodus mit Text, die Canvas schreibt nicht. Stift waehlen: Objektmodus aus.
+    /// Legt der Editor selbst ein anderes Werkzeug fest, zeigt die Leiste es.
+    func testChoosingOurToolbarItemSwitchesObjectModeAndBack() async throws {
         resetPaletteDefaults()
         let store = try await openStore()
-        let picker = testPicker()
-        let editor = PDFEditorController(store: store, toolPicker: picker)
+        let tools = testTools()
+        let editor = PDFEditorController(store: store, tools: tools)
         var reported: [(Bool, ObjectEditing.Tool)] = []
         editor.onObjectModeChange = { reported.append(($0, $1)) }
         editor.loadViewIfNeeded()
         let overlay = try XCTUnwrap(editor.overlayForTesting(at: 0))
         XCTAssertTrue(overlay.canvas.isUserInteractionEnabled)
 
-        picker.selectedToolItemIdentifier = EditorPalette.textID
+        tools.select(.text)
         XCTAssertTrue(editor.objects.isActive)
         XCTAssertEqual(editor.objects.tool, .text)
         XCTAssertFalse(overlay.canvas.isUserInteractionEnabled, "Objektwerkzeug: der Stift schreibt nicht")
         XCTAssertEqual(reported.last?.0, true)
         XCTAssertEqual(reported.last?.1, .text)
+        XCTAssertTrue(overlay.canvas.tool is PKInkingTool, "die Canvas behaelt ein Werkzeug, das sie kennt")
 
-        EditorPalette.shapeTool = .ellipse
-        picker.selectedToolItemIdentifier = EditorPalette.shapeID
+        tools.setShape(.ellipse)
+        XCTAssertEqual(tools.tool, .shape)
         XCTAssertEqual(editor.objects.tool, .ellipse, "Form nach ihrer Option")
 
         editor.setObjectTool(.lasso)                                    // Leiste bzw. Editor wechselt selbst
-        XCTAssertEqual(picker.selectedToolItemIdentifier, EditorPalette.selectID, "Palette zeigt das Werkzeug")
+        XCTAssertEqual(tools.tool, .select, "Leiste zeigt das Werkzeug")
         XCTAssertEqual(EditorPalette.selectTool, .lasso)
+        XCTAssertEqual(editor.objects.tool, .lasso)
 
-        picker.selectedToolItemIdentifier = Self.pen
+        tools.select(.pen)
         XCTAssertFalse(editor.objects.isActive, "Stift: Objektmodus aus")
         XCTAssertTrue(overlay.canvas.isUserInteractionEnabled)
         XCTAssertEqual(reported.last?.0, false)
 
-        // "Bereich an KI" aus der Palette: Objektmodus mit dem Bereichswerkzeug, Stift beendet ihn
-        picker.selectedToolItemIdentifier = EditorPalette.areaID
+        // "Bereich an KI" aus der Leiste: Objektmodus mit dem Bereichswerkzeug, Stift beendet ihn
+        tools.select(.area)
         XCTAssertTrue(editor.objects.isActive)
         XCTAssertEqual(editor.objects.tool, .area)
         XCTAssertFalse(overlay.canvas.isUserInteractionEnabled, "Einkreisen schreibt nicht")
-        picker.selectedToolItemIdentifier = Self.pen
+        tools.select(.fineliner)
         XCTAssertFalse(editor.objects.isActive)
 
-        // "Fertig" in der Objektleiste geht ueber die Palette zum letzten Stift
-        picker.selectedToolItemIdentifier = EditorPalette.stickyID
+        // "Fertig" in der Objektleiste geht ueber die Leiste zum letzten Stift
+        tools.select(.sticky)
         XCTAssertTrue(editor.objects.isActive)
         editor.finishObjectTools()
-        XCTAssertEqual(picker.selectedToolItemIdentifier, Self.pen)
+        XCTAssertEqual(tools.tool, .fineliner, "zurueck zum zuletzt benutzten Stift")
         XCTAssertFalse(editor.objects.isActive)
+
+        // der Editor wechselt selbst (nach dem Anlegen eines Textes): die Leiste zeigt es, ohne erneut zu schalten
+        tools.select(.text)
+        editor.objects.setTool(.select)
+        XCTAssertEqual(tools.tool, .select)
+        XCTAssertTrue(editor.objects.isActive)
     }
 
-    /// Nur ansehen (Notizen ausgeblendet; ebenso Korrektur-Modus und Free): ein Objektwerkzeug in der Palette schaltet
-    /// nichts ein, die Palette springt zum Stift zurueck. Beim Oeffnen steht die Palette nie auf einem Objektwerkzeug.
+    /// Nur ansehen (Notizen ausgeblendet; ebenso Korrektur-Modus und Free): ein Objektwerkzeug schaltet nichts ein, die
+    /// Leiste springt zum Stift zurueck. Beim Oeffnen steht die Leiste nie auf einem Objektwerkzeug.
     func testObjectToolIsRefusedWhereNotesAreReadOnly() async throws {
-        guard #available(iOS 18.0, *) else { throw XCTSkip("eigene Eintraege erst ab iPadOS 18") }
         resetPaletteDefaults()
         let store = try await openStore()
-        let picker = testPicker()
-        picker.selectedToolItemIdentifier = EditorPalette.textID          // gemerkter Stand von gestern
-        let editor = PDFEditorController(store: store, toolPicker: picker)
+        let tools = testTools()
+        tools.select(.text)                                             // Stand im Speicher (z. B. andere Haelfte)
+        let editor = PDFEditorController(store: store, tools: tools)
         editor.loadViewIfNeeded()
-        XCTAssertEqual(picker.selectedToolItemIdentifier, Self.pen, "Oeffnen: Palette auf dem Stift")
+        XCTAssertEqual(tools.tool, .pen, "Oeffnen: Leiste auf dem Stift")
         XCTAssertFalse(editor.objects.isActive)
 
         editor.ownNotesVisible = false
-        picker.selectedToolItemIdentifier = EditorPalette.shapeID
+        tools.select(.shape)
         XCTAssertFalse(editor.objects.isActive, "nur ansehen: kein Objektmodus")
-        try await wait("zurueck zum Stift") { picker.selectedToolItemIdentifier == Self.pen }
+        try await wait("zurueck zum Stift") { tools.tool == .pen }
     }
 
-    /// Geteilte Ansicht: die andere Haelfte schreibt nicht, solange ein Objektwerkzeug gewaehlt ist (PencilKit liesse
-    /// ihre Canvas sonst mit dem letzten Stift weiterschreiben), und schaltet selbst keinen Objektmodus ein
+    /// Geteilte Ansicht: die andere Haelfte schreibt nicht, solange ein Objektwerkzeug gewaehlt ist (sie schriebe sonst
+    /// mit dem letzten Stift weiter), und schaltet selbst keinen Objektmodus ein
     func testCompanionCanvasPausesWhileObjectToolIsChosen() async throws {
-        guard #available(iOS 18.0, *) else { throw XCTSkip("eigene Eintraege erst ab iPadOS 18") }
         resetPaletteDefaults()
         let store = try await openStore()
         let other = try await openStore()
-        let picker = testPicker()
+        let tools = testTools()
         let undo = UndoManager()
-        let main = PDFEditorController(store: store, toolPicker: picker, ownsToolPicker: true, undoManager: undo)
-        let side = PDFEditorController(store: other, toolPicker: picker, ownsToolPicker: false, undoManager: undo)
+        let main = PDFEditorController(store: store, tools: tools, ownsToolPicker: true, undoManager: undo)
+        let side = PDFEditorController(store: other, tools: tools, ownsToolPicker: false, undoManager: undo)
         main.loadViewIfNeeded()
         side.loadViewIfNeeded()
         let sideOverlay = try XCTUnwrap(side.overlayForTesting(at: 0))
-        picker.selectedToolItemIdentifier = EditorPalette.textID
+        tools.select(.text)
         XCTAssertTrue(main.objects.isActive)
         XCTAssertFalse(side.objects.isActive)
         XCTAssertFalse(sideOverlay.canvas.isUserInteractionEnabled)
-        // neue Seite waehrend eines Objektwerkzeugs: PencilKit stuerzte mit dessen Werkzeug ab ("Unknown PKTool type")
+        // neue Seite waehrend eines Objektwerkzeugs: die Canvas bekommt das letzte Werkzeug der Zeichenflaeche
         let fresh = try XCTUnwrap(side.overlayForTesting(at: 1))
         XCTAssertFalse(fresh.canvas.isUserInteractionEnabled, "auch neue Seiten")
-        XCTAssertTrue(fresh.canvas.tool is PKInkingTool, "letztes Werkzeug von Apple")
+        XCTAssertTrue(fresh.canvas.tool is PKInkingTool, "letztes Werkzeug der Zeichenflaeche")
         XCTAssertTrue(try XCTUnwrap(main.overlayForTesting(at: 1)).canvas.tool is PKInkingTool)
-        picker.selectedToolItemIdentifier = Self.pen
+        tools.select(.marker)
         XCTAssertTrue(sideOverlay.canvas.isUserInteractionEnabled)
+        XCTAssertEqual((sideOverlay.canvas.tool as? PKInkingTool)?.inkType, .marker, "beide Haelften schreiben mit dem Textmarker")
     }
 
-    // MARK: C) Farben aus der Palette
+    // MARK: C) Farben aus der Leiste
 
-    /// Formen und Text nehmen die Stiftfarbe, solange man im Eintrag keine eigene gewaehlt hat; die Formstaerke kommt
-    /// aus dem Eintrag; "Text markieren" nimmt die Farbe des Textmarkers
-    func testObjectsTakeColorAndWidthFromThePalette() async throws {
-        guard #available(iOS 18.0, *) else { throw XCTSkip("eigene Eintraege erst ab iPadOS 18") }
+    /// Formen und Text nehmen die Stiftfarbe, solange man dort keine eigene gewaehlt hat; die Formstaerke kommt aus der
+    /// Leiste; "Text markieren" nimmt die Farbe des Textmarkers
+    func testObjectsTakeColorAndWidthFromTheToolbar() async throws {
         resetPaletteDefaults()
         let store = try await openStore()
-        let picker = testPicker()
-        let editor = PDFEditorController(store: store, toolPicker: picker)
+        let tools = testTools()
+        let editor = PDFEditorController(store: store, tools: tools)
         editor.loadViewIfNeeded()
-        // PencilKit setzt Farbe und Staerke der Stifte aus seinem gespeicherten Stand: verglichen wird mit dem, was die
-        // Palette meldet
-        let pen = try XCTUnwrap(picker.toolItems.first { $0.identifier == Self.pen } as? PKToolPickerInkingItem).inkingTool
-        let marker = try XCTUnwrap(picker.toolItems.first { $0.identifier == "test.marker" } as? PKToolPickerInkingItem).inkingTool
-        let blueHex = pen.color.uniflowRGBA.hex
-        XCTAssertEqual(editor.paletteSync.inkHex, blueHex, "Stift der Palette")
-        XCTAssertEqual(editor.paletteSync.inkWidth, Double(pen.width), accuracy: 0.01)
-        XCTAssertEqual(editor.paletteSync.markerHex, marker.color.uniflowRGBA.hex, "Textmarker der Palette")
-        XCTAssertEqual(editor.paletteSync.markupColor(.highlight), marker.color.uniflowRGBA.hex)
+        let blueHex = Self.blue.uniflowRGBA.hex
+        XCTAssertTrue(PaletteSync.sameColor(editor.paletteSync.inkHex, blueHex), "Stift der Leiste")
+        XCTAssertEqual(editor.paletteSync.inkWidth, 3.5, accuracy: 0.01)
+        XCTAssertTrue(PaletteSync.sameColor(editor.paletteSync.markerHex, Self.green.uniflowRGBA.hex), "Textmarker der Leiste")
+        XCTAssertEqual(editor.paletteSync.markupColor(.highlight), editor.paletteSync.markerHex)
 
-        picker.selectedToolItemIdentifier = EditorPalette.shapeID
-        let shape = try XCTUnwrap(picker.toolItems.first { $0.identifier == EditorPalette.shapeID } as? PKToolPickerCustomItem)
+        tools.select(.shape)
         XCTAssertFalse(PaletteSync.sameColor(blueHex, "#e5322d"), "Voraussetzung: Stift nicht in der Formfarbe")
-        XCTAssertTrue(PaletteSync.sameColor(shape.color.uniflowRGBA.hex, blueHex), "Form uebernimmt die Stiftfarbe")
+        XCTAssertTrue(PaletteSync.sameColor(tools.style(.shape).hex, blueHex), "Form uebernimmt die Stiftfarbe")
         XCTAssertTrue(PaletteSync.sameColor(editor.objects.color, blueHex))
-        XCTAssertEqual(editor.objects.lineWidth, Double(shape.width), accuracy: 0.01)
+        XCTAssertEqual(editor.objects.lineWidth, Double(tools.style(.shape).width), accuracy: 0.01)
+        tools.setWidth(4)
+        XCTAssertEqual(editor.objects.lineWidth, 4, accuracy: 0.01, "Staerke der Form aus der Leiste")
 
-        // eigene Farbe im Eintrag bleibt, auch nach dem naechsten Wechsel vom Stift
-        picker.selectedToolItemIdentifier = Self.pen
-        shape.color = UIColor(red: 0.18, green: 0.62, blue: 0.36, alpha: 1)
-        let own = shape.color.uniflowRGBA.hex
-        picker.selectedToolItemIdentifier = EditorPalette.shapeID
-        XCTAssertTrue(PaletteSync.sameColor(shape.color.uniflowRGBA.hex, own), "eigene Farbe bleibt")
+        // eigene Farbe der Form bleibt, auch nach dem naechsten Wechsel vom Stift
+        let own = Self.green.uniflowRGBA.hex
+        tools.setColor(own)
+        XCTAssertTrue(PaletteSync.sameColor(editor.objects.color, own))
+        tools.select(.pen)
+        tools.select(.shape)
+        XCTAssertTrue(PaletteSync.sameColor(tools.style(.shape).hex, own), "eigene Farbe bleibt")
         XCTAssertTrue(PaletteSync.sameColor(editor.objects.color, own))
     }
 
-    /// Objektmodus von aussen (iPadOS 17: Schalter "Tinte/Objekte"): Objekte nehmen Farbe und Staerke des letzten Stifts
+    /// Objektmodus von aussen (Menue "Bereich an KI …"): Objekte nehmen Farbe und Staerke des letzten Stifts
     func testObjectModeFromOutsideTakesTheInkStyle() async throws {
         resetPaletteDefaults()
         let store = try await openStore()
-        let editor = PDFEditorController(store: store, toolPicker: isolatedDefaultPicker())
+        let tools = testTools()
+        let editor = PDFEditorController(store: store, tools: tools)
         editor.loadViewIfNeeded()
-        editor.paletteSync.note(PKInkingTool(.pen, color: Self.blue, width: 4.2))
+        tools.setStyle(.init(hex: Self.blue.uniflowRGBA.hex, width: 4.2), for: .pen)
         editor.setObjectMode(true)
         XCTAssertTrue(editor.objects.isActive)
-        XCTAssertEqual(editor.objects.color, Self.blue.uniflowRGBA.hex)
+        XCTAssertTrue(PaletteSync.sameColor(editor.objects.color, Self.blue.uniflowRGBA.hex))
         XCTAssertEqual(editor.objects.lineWidth, 4, accuracy: 0.01, "auf halbe Punkte gerundet")
-        if #available(iOS 18.0, *) {
-            XCTAssertEqual(editor.toolPicker.selectedToolItemIdentifier, EditorPalette.selectID, "Palette zeigt Auswaehlen")
-        }
+        XCTAssertEqual(tools.tool, .select, "Leiste zeigt Auswaehlen")
         editor.setObjectMode(false)
         XCTAssertFalse(editor.objects.isActive)
+        XCTAssertEqual(tools.tool, .pen)
     }
 
     /// Unter- und Durchstreichen: dunkle Textmarker-Farbe bleibt, helle wird wie im Web zu Rot
@@ -348,7 +324,6 @@ final class EditorPaletteTests: XCTestCase {
         XCTAssertEqual(overlay.canvas.drawingPolicy, .pencilOnly)
         XCTAssertNotEqual(editor.drawingPolicy, .default)
         XCTAssertTrue(editor.effectivePencilOnly)
-        XCTAssertFalse(editor.toolPicker.showsDrawingPolicyControls, "Schalter der Palette aus")
         editor.pencilOnly = false
         XCTAssertEqual(overlay.canvas.drawingPolicy, .anyInput)
         XCTAssertFalse(editor.effectivePencilOnly)

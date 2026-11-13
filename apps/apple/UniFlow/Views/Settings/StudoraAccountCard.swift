@@ -2,27 +2,37 @@ import AuthenticationServices
 import SwiftUI
 import UniFlowCore
 
-/// Einstellungen → Zugang & Darstellung → "StudiNow-Konto": dasselbe Konto wie auf Windows und im Web (Vertrag G1).
-/// Sichtbar erst mit Dienst-Adresse (`StudoraAccountLink.available`). Das Passwort geht nur an den Dienst, gemerkt wird
-/// es nur von iOS (Passwort-AutoFill), nie von StudiNow.
+/// Einstellungen → Konto & Tarif → Karte "Konto", unterer Teil "StudiNow-Konto": dasselbe Konto wie auf Windows und im
+/// Web (Vertrag G1). Seit 12.11.2026 (Entscheidung des Inhabers: eine Apple-Anmeldung fuer alles) keine eigene Karte
+/// mehr: die Anmeldung mit Apple beim ersten Start meldet auch hier an (`StudoraAccountLink.adoptFirstLogin`); die
+/// Felder zum Anmelden sind nur noch Rueckfall (offline beim Start, Konto mit E-Mail aus der Windows-App). "Konto
+/// löschen" steht einmal in der Karte und loescht beides (`AccountDeletion`). Sichtbar erst mit Dienst-Adresse
+/// (`StudoraAccountLink.available`). Das Passwort geht nur an den Dienst, gemerkt wird es nur von iOS.
 struct StudoraAccountCard: View {
     @ObservedObject var link: StudoraAccountLink
-    @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.colorScheme) private var scheme
     /// iPhone: Anmelden und "Mit Apple anmelden" in voller Breite, Abgleich unter dem Stand
     @Environment(\.ufCompact) private var compact
     @State private var email = ""
     @State private var password = ""
-    @State private var deletePassword = ""
     @State private var exportURL: URL?
 
+    /// Wofuer das StudiNow-Konto da ist (12.11.2026)
+    static let purpose = "Mit derselben Apple-ID bist du auch beim StudiNow-Dienst angemeldet. Darüber laufen die StudiNow-KI mit deinen Credits (Pro AI und Probe), dein Tarif auf allen Geräten und der Abgleich von Modulen, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten; Notizen ab Pro AI. Hochschuldateien lädt jedes Gerät selbst, Hochschul-Passwörter gehen nie an StudiNow."
+    /// Rueckfall: die Anmeldung beim Dienst hat (noch) nicht geklappt
+    static let fallback = "Die Anmeldung beim StudiNow-Dienst fehlt auf diesem Gerät noch (z. B. weil du beim Start offline warst). Tippe auf „Mit Apple anmelden“ – mit derselben Apple-ID wie oben. Noch kein Konto? „Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits für die StudiNow-KI). Hast du dein Konto in der Windows-App mit E-Mail angelegt, melde dich mit E-Mail und Passwort an."
+
     var body: some View {
-        UFCard {
-            UFCardHead("StudiNow-Konto", icon: "user") {
-                UFBadge(link.user == nil ? "nicht angemeldet" : "angemeldet", tone: link.user == nil ? .neutral : .ok)
+        VStack(alignment: .leading, spacing: 9.6) {
+            HStack(spacing: 9.6) {
+                Text("StudiNow-Konto").ufFont(14.5, 650).foregroundStyle(UF.text)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                UFBadge(link.user == nil ? "nicht verbunden" : "verbunden", tone: link.user == nil ? .neutral : .ok)
             }
-            Text("Dasselbe Konto wie auf Windows und im Web. Module, Stundenplan, Lernplan, Karteikarten und Einstellungen gleichen sich zwischen deinen Geräten ab; Notizen ab Plus. Hochschuldateien lädt jedes Gerät selbst. Mit StudiNow Pro AI antwortet über das Konto die StudiNow-KI.")
+            Text(Self.purpose)
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("account.purpose")
             if let line = Self.aiLine(link.aiAccess, credits: link.credits, trial: link.planStatus?.trialActive ?? false) {
                 Text(line).ufFont(13.12, 600).foregroundStyle(link.aiAccess == .ready ? UF.text2 : UF.warn)
                     .fixedSize(horizontal: false, vertical: true)
@@ -72,25 +82,7 @@ struct StudoraAccountCard: View {
 
     private var signIn: some View {
         VStack(alignment: .leading, spacing: 9.6) {
-            // Felder im Stil der App mit Beschriftung darueber (vorher Systemrahmen, Platzhalter als einzige Beschriftung)
-            UFField("E-Mail") {
-                UFTextField("name@beispiel.de", text: $email)
-                    .textContentType(.username).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
-            }
-            UFField("Passwort") {
-                UFTextField("Passwort", text: $password, secure: true).textContentType(.password)
-            }
-            Group {
-                if compact {
-                    UFWideButton(link.busy ? "Melde an …" : "Anmelden", icon: "log-out", kind: .primary) { login() }
-                } else {
-                    UFFlexWrap(gap: 9.6) {
-                        UFButton(link.busy ? "Melde an …" : "Anmelden", icon: "log-out", kind: .primary, size: .small) { login() }
-                    }
-                }
-            }
-            .disabled(link.busy || email.isEmpty || password.isEmpty)
-            .accessibilityIdentifier("account.login")
+            Text(Self.fallback).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             // "Mit Apple anmelden": Token-Tausch beim Dienst; ein neues Konto bekommt die Hochschule dieses iPads
             SignInWithAppleButton(.signIn, onRequest: { link.prepareAppleRequest($0) }, onCompletion: { result in
                 Task { await link.handleAppleSignIn(result) }
@@ -99,10 +91,26 @@ struct StudoraAccountCard: View {
             .frame(maxWidth: compact ? .infinity : 320, minHeight: 44, maxHeight: 44)
             .disabled(link.busy)
             .accessibilityIdentifier("account.apple")
-            Text("Noch kein Konto? „Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits für die StudiNow-KI). Registrieren mit E-Mail, E-Mail bestätigen und Passwort zurücksetzen auf der Webseite von StudiNow.")
-                .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            // Felder im Stil der App mit Beschriftung darueber
+            UFField("E-Mail") {
+                UFTextField("name@beispiel.de", text: $email)
+                    .textContentType(.username).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+            }
+            UFField("Passwort") {
+                UFTextField("Passwort", text: $password, secure: true).textContentType(.password)
+            }
+            UFFlexWrap(gap: 9.6) {
+                UFButton(link.busy ? "Melde an …" : "Mit E-Mail anmelden", icon: "log-out", size: .small) {
+                    Task {
+                        await link.login(email: email, password: password)
+                        password = ""                                            // nie im Speicher behalten
+                    }
+                }
+                .disabled(link.busy || email.isEmpty || password.isEmpty)
+                .accessibilityIdentifier("account.login")
+            }
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
     private func login() {
@@ -158,21 +166,9 @@ struct StudoraAccountCard: View {
                 UFButton("Abmelden", icon: "log-out", size: .small) { Task { await link.logout() } }
                     .accessibilityIdentifier("account.logout")
             }
-            // Loeschen abgesetzt am Kartenende, das Passwortfeld direkt ueber dem Knopf, zu dem es gehoert
-            SettingsDangerZone {
-                UFField("Passwort (zum Löschen, falls das Konto eins hat)") {
-                    UFTextField("Passwort", text: $deletePassword, secure: true).textContentType(.password)
-                }
-                UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) {
-                    Task {
-                        guard await overlay.confirm(UFDevice.adapt("StudiNow-Konto löschen? Es wird sofort gesperrt und nach 30 Tagen endgültig gelöscht – auch auf Windows und im Web. Die Daten auf diesem iPad bleiben.")) else { return }
-                        _ = await link.delete(password: deletePassword.isEmpty ? nil : deletePassword)
-                        deletePassword = ""
-                    }
-                }
-            }
+            // "Konto löschen" steht einmal oben in der Karte "Konto" und loescht auch dieses Konto (`AccountDeletion`)
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
     private var resendButton: some View {
@@ -283,9 +279,12 @@ extension ProAISignInHint {
     static let later = "Später"
 
     /// Nach einem Kauf gleich zur Anmeldung bitten? Nur fuer Pro AI, nur mit StudiNow-Dienst und nur ohne Anmeldung
-    /// (Inhaber 10.11.2026: "ja" zur Anmeldung direkt nach dem Kauf)
-    static func asksAfterPurchase(plan: UFPlan, serviceAvailable: Bool, signedIn: Bool) -> Bool {
-        plan == .proAI && serviceAvailable && !signedIn
+    /// (Inhaber 10.11.2026: "ja" zur Anmeldung direkt nach dem Kauf). Seit 12.11.2026 nur noch als Rueckfall und nur mit
+    /// offenem Datenbereich (`accountOpen`): beim ersten Start liegt die Tarifwahl VOR der Hochschulwahl, dort lief
+    /// "Mit Apple anmelden" ins Leere und die Karte schloss nie. Dort meldet die Anmeldung vom Start nach der
+    /// Hochschulwahl beim Dienst an (`StudoraAccountLink.adoptFirstLogin`), sonst zeigt die Uebersicht den Hinweis.
+    static func asksAfterPurchase(plan: UFPlan, serviceAvailable: Bool, signedIn: Bool, accountOpen: Bool) -> Bool {
+        plan == .proAI && serviceAvailable && !signedIn && accountOpen
     }
 }
 

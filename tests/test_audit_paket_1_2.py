@@ -608,7 +608,8 @@ def test_24_migrate_adds_email_to_old_identities_and_is_repeatable(tmp_path):
     accounts._migrate(conn)
     accounts._migrate(conn)
     cols = [r[1] for r in conn.execute("PRAGMA table_info(identities)")]
-    assert cols == ["provider", "subject", "user_id", "created_at", "email"]
+    # seit 12.11.2026 zusaetzlich das verschluesselte Apple-Refresh-Token fuer den Widerruf beim Loeschen (5.1.1(v))
+    assert cols == ["provider", "subject", "user_id", "created_at", "email", "apple_refresh_enc", "apple_client_id"]
     assert conn.execute("SELECT email FROM identities").fetchone() == (None,), "alte Zeilen bleiben"
     conn.executescript(accounts.SCHEMA)                                 # aktuelles Schema dazu: keine Aenderung mehr noetig
     accounts._migrate(conn)

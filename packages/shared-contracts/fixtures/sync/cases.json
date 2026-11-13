@@ -8,6 +8,8 @@
    "event_exceptions",
    "study_packages",
    "study_tasks",
+   "study_goals",
+   "study_sessions",
    "flashcard_stacks",
    "flashcards",
    "settings",
@@ -21,6 +23,7 @@
   ],
   "private_settings": [
    "lan_pin",
+   "studip_user_hash",
    "university"
   ],
   "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",
@@ -181,6 +184,9 @@
          "created_at": null,
          "start_time": null,
          "end_time": null,
+         "source": null,
+         "locked": 0,
+         "manual": 0,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2913,6 +2919,9 @@
          "created_at": null,
          "start_time": null,
          "end_time": null,
+         "source": null,
+         "locked": 0,
+         "manual": 0,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"

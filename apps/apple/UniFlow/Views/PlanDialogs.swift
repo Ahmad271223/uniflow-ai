@@ -16,6 +16,7 @@ struct GeneratePlanDialog: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @State private var feas: JSONValue?
     @State private var startDate = ""
     @State private var days = 7
@@ -84,6 +85,12 @@ struct GeneratePlanDialog: View {
                 if aiEnabled {
                     UFButton("KI-Vorschlag", icon: "sparkles") { showAI = true }.disabled(busy)
                         .accessibilityIdentifier("plan.aiSuggest")
+                } else if let lock = UFLock.ai(plan: ent.plan, aiEnabled: false, offerHidden: proAIOfferHidden) {
+                    // ohne KI: sichtbar mit Schloss "ab Pro AI" (StudiNow-KI), Antippen oeffnet die Tarifwahl (12.11.2026)
+                    UFLockedButton(plan: lock, title: "KI-Vorschlag", identifier: "plan.aiSuggest.locked") {
+                        HStack(spacing: 6) { UFIcon("sparkles", size: 15); Text("KI-Vorschlag").ufFont(14.5, 550) }
+                            .foregroundStyle(UF.text).padding(.horizontal, 10).frame(minHeight: 44)
+                    }
                 }
                 UFButton("Erstellen", kind: .primary) { Task { await create() } }.disabled(busy)
             }

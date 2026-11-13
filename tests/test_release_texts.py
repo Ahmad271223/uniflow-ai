@@ -144,7 +144,7 @@ def test_review_notes_describe_the_build_honestly():
     # in der Demo nicht sichtbar); dafuer der Stand der Abos, wie er in App Store Connect steht
     # 10.11.2026 (Einreichung 1.0.2): erste Zeile nennt das Neue statt der Geschichte von 1.0/1.0.1
     assert "monthly products are removed from sale" in pro
-    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.2:")
+    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.3:")
     assert '"Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang"' in pro
     assert "flashcards from a document need Plus, weekly tests Pro AI" in pro
     assert "Wochentests ab \\(UFPlan.proAI.name)" in _swift("Views/Settings/OpenAIKeyCard.swift")

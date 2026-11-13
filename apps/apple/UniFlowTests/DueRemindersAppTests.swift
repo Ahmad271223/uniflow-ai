@@ -90,10 +90,12 @@ final class DueRemindersAppTests: XCTestCase {
         return a
     }
 
-    private func scheduler(_ fake: FakeNotifier) -> DueReminderScheduler {
+    /// `plus`: Tarif erlaubt Erinnerungen (ab Plus seit 11.11.2026); die bisherigen Faelle laufen mit Plus
+    private func scheduler(_ fake: FakeNotifier, plus: Bool = true) -> DueReminderScheduler {
         let s = DueReminderScheduler(notifier: fake, defaults: defaults)
         let fixed = now
         s.now = { fixed }
+        s.allowed = { plus }
         return s
     }
 
@@ -151,6 +153,49 @@ final class DueRemindersAppTests: XCTestCase {
         // zweites Einschalten fragt nicht noch einmal
         _ = await s.setEnabled(true)
         XCTAssertEqual(fake.requests, 1)
+    }
+
+    /// Entscheidung des Inhabers 11.11.2026: Erinnerungen erst ab Plus. Free: der Schalter fragt iOS nicht, nichts wird
+    /// geplant, schon geplante (z. B. aus der Probe) werden zurueckgenommen; mit Plus plant derselbe Schalter wieder.
+    /// Tarifregeln: `UFFeature.dueReminders` ab Plus, im Vertrag `can_use_due_reminders` (plans.json).
+    func testRemindersNeedPlus() async throws {
+        XCTAssertEqual(UFFeature.dueReminders.minimumPlan, .plus)
+        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .free), .locked(.plus))
+        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .plus), .allowed)
+        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .proAI), .allowed)
+        XCTAssertEqual(UFEntitlement.canUseDueReminders.from, .plus)
+        XCTAssertTrue(UFPlanCard.included(.plus).contains { $0.title == "Erinnerungen an Abgaben und Klausuren" })
+        XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title == "Erinnerungen an Abgaben und Klausuren" })
+
+        let m = manager()
+        m.sync(account: account(.luh))
+        let c = try XCTUnwrap(m.active)
+        stores.append(c.websiteDataStoreID)
+        try await seedLUH(c)
+        let fake = FakeNotifier()
+        var plus = true
+        let s = scheduler(fake)
+        s.allowed = { plus }
+        s.attach(m)
+        await s.settle()
+        _ = await s.setEnabled(true)
+        XCTAssertEqual(fake.pending.count, 7, "mit Plus geplant")
+
+        plus = false                                    // Probe bzw. Abo zu Ende
+        await s.refresh(recompute: false)
+        XCTAssertEqual(fake.pending.count, 0, "Free: geplante zurueckgenommen")
+        XCTAssertEqual(s.scheduled, 0)
+
+        let fresh = FakeNotifier()
+        let free = scheduler(fresh, plus: false)
+        let ok = await free.setEnabled(true)
+        XCTAssertFalse(ok, "Free: Schalter geht nicht an")
+        XCTAssertEqual(fresh.requests, 0, "Free: iOS wird nicht gefragt")
+        XCTAssertEqual(fresh.pending.count, 0)
+
+        plus = true                                     // wieder Plus: derselbe Schalter plant wieder
+        await s.refresh(recompute: false)
+        XCTAssertEqual(fake.pending.count, 7)
     }
 
     func testDeniedStaysOffAndSchedulesNothing() async throws {

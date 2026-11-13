@@ -31,6 +31,29 @@ final class EditorMouseSupport: NSObject, UIContextMenuInteractionDelegate, UIDr
         view.addInteraction(UIPointerInteraction(delegate: self))
     }
 
+    /// Mac: Die Zeichenflaeche von PencilKit bringt ein eigenes Rechtsklick-Menue mit ("Alles auswählen", "Leerzeile
+    /// einfügen", gemessen 11.11.2026), das unseres verdeckte. Am Mac tritt unseres an seine Stelle: dieselbe Ansicht,
+    /// die das Menue von PencilKit traegt, bekommt unsere Interaktion. Nur der Mac; am iPad bleibt alles, wie es ist.
+    func adoptContextMenu(of canvas: UIView) {
+        func walk(_ v: UIView) {
+            let bridged = v.interactions.filter { String(describing: type(of: $0)).contains("BridgedContextMenu") }
+            if !bridged.isEmpty {
+                bridged.forEach { v.removeInteraction($0) }
+                if !v.interactions.contains(where: { ($0 as? UIContextMenuInteraction)?.delegate === self }) {
+                    v.addInteraction(UIContextMenuInteraction(delegate: self))
+                }
+            }
+            v.subviews.forEach(walk)
+        }
+        walk(canvas)
+    }
+
+    /// Unser Kontextmenue an einer Ansicht (einmal)
+    func ensureContextMenu(on view: UIView) {
+        guard !view.interactions.contains(where: { ($0 as? UIContextMenuInteraction)?.delegate === self }) else { return }
+        view.addInteraction(UIContextMenuInteraction(delegate: self))
+    }
+
     /// Seite und Punkt in Seitenpunkten unter einem Punkt der PDF-Ansicht
     func locate(_ point: CGPoint, in view: UIView) -> (PageInkView, CGPoint)? {
         guard let c = controller else { return nil }
@@ -168,7 +191,7 @@ final class EditorMouseSupport: NSObject, UIContextMenuInteractionDelegate, UIDr
             }
         }
         guard !c.effectivePencilOnly, c.writable else { return nil }
-        return c.toolPicker.selectedTool is PKEraserTool ? .circle : nil
+        return c.tools.tool == .eraser ? .circle : nil
     }
 }
 

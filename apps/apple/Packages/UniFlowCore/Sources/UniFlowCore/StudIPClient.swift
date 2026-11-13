@@ -101,9 +101,13 @@ public struct StudIPCourse: Sendable, Equatable, Codable {
     /// liefert (dann bleibt der gespeicherte Text). Annahme: Attribute `description` und `miscellaneous` (Stud.IP 6.x)
     public let description: String?
     public let miscellaneous: String?
+    /// `course-type` (Veranstaltungsart, SEM_TYPE in Stud.IP); nil ohne Angabe oder aus einer Kursliste von vor dem
+    /// 12.11.2026 (courses.json). Daran erkennt `StudIPStudyGroups` Studiengruppen.
+    public let courseType: Int?
 
     public init(id: String, title: String, number: String? = nil, semesterTitle: String? = nil, semesterStart: String? = nil,
-                semesterEnd: String? = nil, semesterEndsAt: String? = nil, description: String? = nil, miscellaneous: String? = nil) {
+                semesterEnd: String? = nil, semesterEndsAt: String? = nil, description: String? = nil, miscellaneous: String? = nil,
+                courseType: Int? = nil) {
         self.id = id
         self.title = title
         self.number = number
@@ -113,6 +117,7 @@ public struct StudIPCourse: Sendable, Equatable, Codable {
         self.semesterEndsAt = semesterEndsAt
         self.description = description
         self.miscellaneous = miscellaneous
+        self.courseType = courseType
     }
 }
 
@@ -208,6 +213,8 @@ public actor StudIPClient {
     /// Downloads: abgerissene Verbindungen wiederholen wie `stream_download` (dieselbe Regel wie fuer Learnweb)
     private let retry: UniRetry
     public private(set) var requestCount = 0
+    /// Pause vor jeder Anfrage ausser der ersten (die App: `StudIPSync.livePauseMillis`)
+    public nonisolated var pauseMillis: UInt64 { pauseNanos / 1_000_000 }
     /// Anfragen zugleich (Abgleich: Dateilisten mehrerer Kurse und Ordner)
     public static let defaultConcurrency = 4
     private let maxConcurrent: Int
@@ -413,7 +420,8 @@ public actor StudIPClient {
             return StudIPCourse(id: id, title: title.isEmpty ? "Kurs" : title, number: (number?.isEmpty ?? true) ? nil : number,
                                 semesterTitle: semID.flatMap { semesters[$0]?["title"]?.string }, semesterStart: semID.flatMap { semesters[$0]?["start"]?.string },
                                 semesterEnd: semesterEnd, semesterEndsAt: end?["end"]?.string,
-                                description: StudIPText.field(a, "description"), miscellaneous: StudIPText.field(a, "miscellaneous"))
+                                description: StudIPText.field(a, "description"), miscellaneous: StudIPText.field(a, "miscellaneous"),
+                                courseType: StudIPSchedule.integer(a?["course-type"]))
         }
     }
 

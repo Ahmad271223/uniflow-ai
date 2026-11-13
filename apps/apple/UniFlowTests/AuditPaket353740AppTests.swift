@@ -186,18 +186,19 @@ final class AuditPaket353740AppTests: XCTestCase {
 
     // MARK: P35-01: "Konto löschen" auf dem iPad und das StudiNow-Konto beim Dienst
 
-    /// "Konto löschen" in den Einstellungen loescht die Daten auf diesem iPad und die Anmeldung am StudiNow-Konto hier,
-    /// nicht das Konto beim Dienst (das loescht "Konto löschen" in der Karte StudiNow-Konto, Richtlinie 5.1.1(v)). Die
-    /// Rueckfrage sagt das ehrlich, sobald ein StudiNow-Konto angemeldet ist; vorher hiess es nur, StudiNow speichere das
-    /// Apple-Konto nirgends ausserhalb des iPads – mit StudiNow-Konto (Mit Apple angemeldet) stimmte das nicht.
+    /// Seit 12.11.2026 (eine Apple-Anmeldung fuer alles) loescht "Konto löschen" das Konto beim Dienst mit
+    /// (`AccountDeletion`, FirstAppleLoginAccountAppTests); die Rueckfrage sagt das ehrlich, ohne Dienst-Sitzung auf diesem
+    /// Geraet sagt sie, was dann gilt. Die Verknuepfung "Mit Apple anmelden" widerruft der Dienst beim Loeschen; der Weg
+    /// in den Einstellungen des iPads bleibt genannt.
     func testDeleteAccountDialogNamesTheServiceAccountThatStays() {
         XCTAssertFalse(DeleteAccountText.appleID.contains("nirgends außerhalb"), DeleteAccountText.appleID)
+        XCTAssertFalse(DeleteAccountText.appleID.contains("nur auf diesem iPad"), DeleteAccountText.appleID)
         XCTAssertTrue(DeleteAccountText.appleID.contains("Mit Apple anmelden"))
         let service = DeleteAccountText.service
         XCTAssertTrue(service.contains("StudiNow-Konto"), service)
-        XCTAssertTrue(service.contains("bleibt"), service)
-        XCTAssertTrue(service.contains("„Konto löschen“"), "Weg zum Loeschen beim Dienst: \(service)")
+        XCTAssertTrue(service.contains("ebenfalls gelöscht"), service)
         XCTAssertFalse(DeleteAccountText.shows(serviceSignedIn: false).contains(service))
+        XCTAssertTrue(DeleteAccountText.shows(serviceSignedIn: false).contains(DeleteAccountText.serviceUnknown))
         XCTAssertTrue(DeleteAccountText.shows(serviceSignedIn: true).contains(service))
     }
 

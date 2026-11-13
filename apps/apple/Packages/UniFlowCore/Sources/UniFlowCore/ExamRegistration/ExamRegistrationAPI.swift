@@ -92,12 +92,18 @@ public enum ExamRegistrationAPI {
             if let id = r["id"]?.int { appModules[StudyPlanEngine.nameKey(r["name"]), default: []].append(id) }
         }
 
-        func registration(code: String?, key: String) -> QISRegistration? {
-            regs.first { r in
+        func registration(code: String?, key: String, title: JSONValue? = nil) -> QISRegistration? {
+            let exact = regs.first { r in
                 guard r.registered else { return false }
                 if let code, !code.isEmpty, let nr = r.pruefungsnr, PyText.strip(nr) == code { return true }
                 return !key.isEmpty && StudyPlanEngine.nameKey(r.text) == key
             }
+            if let exact { return exact }
+            // zusammengesetzter Titel (12.11.2026): die Anmeldung nennt einen Teil ("Thermodynamik I" fuer "Thermodynamik I
+            // / Chemie", "Grundzüge der Chemie" fuer dessen Teil "Chemie")
+            let parts = StudyPlanEngine.titleParts(title).parts
+            guard !parts.isEmpty else { return nil }
+            return regs.first { $0.registered && StudyPlanEngine.partIndex(.string($0.text), parts) != nil }
         }
 
         func examFields(_ key: String, exam: String?, reg: QISRegistration?, into o: inout [String: JSONValue]) {
@@ -128,7 +134,7 @@ public enum ExamRegistrationAPI {
                 let exam = m["exam"]?.string
                 if m["kind"]?.string == "abschluss" || noExam(exam) { continue }
                 let key = StudyPlanEngine.nameKey(m["title"])
-                let reg = registration(code: m["code"]?.string.map(PyText.strip), key: key)
+                let reg = registration(code: m["code"]?.string.map(PyText.strip), key: key, title: m["title"])
                 var o: [String: JSONValue] = [
                     "id": .string(id), "title": m["title"] ?? .null, "lp": .number(StudyPlanEngine.lpOf(m)), "exam": m["exam"] ?? .null,
                     "kind": m["kind"] ?? .null, "code": m["code"] ?? .null, "status": .string(st.status),
@@ -138,7 +144,9 @@ public enum ExamRegistrationAPI {
                 if st.status == "nicht_bestanden" {
                     let next = (st.attempt ?? 1) + 1
                     o["reason_kind"] = "wiederholung"
-                    o["reason"] = .string("Wiederholung – \(next). Versuch" + (st.movedFrom.map { " (nicht bestanden im \($0))" } ?? ""))
+                    // Nummer nur, wenn QIS die Versuche zaehlt (11.11.2026); sonst waere sie geraten
+                    o["reason"] = .string("Wiederholung" + (st.known ? " – \(next). Versuch" : "")
+                                          + (st.movedFrom.map { " (nicht bestanden im \($0))" } ?? ""))
                 } else if let from = st.movedFrom, (st.reason ?? "").contains("nachholen") {
                     o["reason_kind"] = "nachholen"
                     o["reason"] = .string("nachholen – laut Plan im \(from)")

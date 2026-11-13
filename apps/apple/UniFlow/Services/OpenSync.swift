@@ -11,8 +11,9 @@ import UniFlowCore
 // weiter hoechstens alle 20 Stunden). Nur lesend; ein laufender Abgleich wird nie doppelt gestartet, eine bekannte
 // abgelaufene Anmeldung wird wie bisher still erneuert oder bleibt "Anmeldung nötig".
 // Uni-Zugang einmal speichern (Entscheidung des Inhabers 10.11.2026): an der LUH gleichen der Knopf "Sync" und das
-// Oeffnen ALLE Portale ab - Uni-Mail (SOGo) zuerst, dann Stud.IP und QIS (Noten, Pruefungen, angemeldete Pruefungen;
-// Bescheinigungen nur die Liste, erzeugt nichts). Ist ein Uni-Zugang gespeichert, verbindet die App vorher die Portale
+// Oeffnen ALLE Portale ab - Uni-Mail (SOGo), Stud.IP und QIS, seit 11.11.2026 nebeneinander (Noten, Pruefungen,
+// angemeldete Pruefungen; Bescheinigungen nur die Liste, erzeugt nichts, seit 11.11.2026 in jedem solchen Sync und
+// mit Zahl im Ergebnis). Ist ein Uni-Zugang gespeichert, verbindet die App vorher die Portale
 // (`connectWithStoredLogin`, beim Knopf als Handlung des Menschen). Ein Portal ohne Verbindung wird uebersprungen und im
 // Ergebnis genannt ("QIS: Anmeldung nötig"); ein Fehler eines Portals haelt die anderen nicht auf.
 
@@ -65,6 +66,16 @@ extension ContainerManager {
             beginAllPortals(c, userAction: false, forceGrades: false, finished: nil)
             return true
         }
+        // Uni Hildesheim (12.11.2026): wie die LUH alle Portale, mit gespeichertem Uni-Zugang vorher verbinden
+        if let h = hildesheim, h.anyConnected || hasStoredLogin {
+            let key = c.key
+            OpenSync.running.insert(key)
+            Task { @MainActor in
+                _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false, forceGrades: false)
+                OpenSync.running.remove(key)
+            }
+            return true
+        }
         let mail = uniMail, studip = studip, hildesheim = hildesheim, hsh = hsh, qis = qis
         Task { @MainActor in
             // Posteingang zuerst (still, ohne bekannte abgelaufene Anmeldung)
@@ -105,11 +116,22 @@ extension ContainerManager {
             Task { await hsh.run(forceGrades: forceGrades) }
             return .started(UniversitySyncStart.startedText(names))
         }
-        if let hildesheim {
-            let names = HildesheimConnection.Source.allCases.filter { hildesheim.isConnected($0) }.map(\.rawValue)
+        // Uni Hildesheim (12.11.2026, wie die LUH seit 10.11.): ein Tipp gleicht alle Portale ab - Learnweb, LSF (Noten,
+        // angemeldete Pruefungen), PLuS-Bescheinigungen (nur die Liste) und Uni-Mail -, vorher mit dem gespeicherten
+        // Uni-Zugang verbinden
+        if let hildesheim, let c = active {
+            if OpenSync.running.contains(c.key) || hildesheim.isRunning { return .alreadyRunning }
+            let stored = hasStoredLogin
+            let names = HildesheimConnection.Source.allCases.filter { stored || hildesheim.isConnected($0) }.map(\.rawValue)
+                + ((uniMail.map { stored || $0.isConnected } ?? false) ? [OpenSync.uniMail] : [])
             guard !names.isEmpty else { return .notConnected(UniversitySyncStart.connectHint(.hildesheim)) }
-            if hildesheim.isRunning { return .alreadyRunning }
-            Task { await hildesheim.run() }
+            let key = c.key
+            OpenSync.running.insert(key)
+            Task { @MainActor in
+                let report = await self.runHildesheimPortals(container: c, hildesheim: hildesheim, userAction: true, forceGrades: forceGrades)
+                OpenSync.running.remove(key)
+                finished?(report)
+            }
             return .started(UniversitySyncStart.startedText(names))
         }
         if syncsAllPortals, let c = active {
@@ -167,9 +189,9 @@ extension ContainerManager {
         }
     }
 
-    /// Ein Abgleich aller Portale: gespeicherten Zugang verbinden, Uni-Mail zuerst, dann Stud.IP und QIS nebeneinander
-    /// (verschiedene Rechner). `userAction`: Knopf "Sync" (gleicht auch nicht faellige Noten und die Bescheinigungen ab);
-    /// beim Oeffnen gelten die eigenen Abstaende (Noten 20 Stunden, Bescheinigungen 7 Tage).
+    /// Ein Abgleich aller Portale: gespeicherten Zugang verbinden, dann Uni-Mail, Stud.IP und QIS nebeneinander
+    /// (verschiedene Rechner; Stud.IP nur bis "fertig"). `userAction`: Knopf "Sync" (gleicht auch nicht faellige
+    /// Noten ab); beim Oeffnen gelten fuer die Noten die eigenen 20 Stunden. Die Liste der Bescheinigungen liest jeder solche Sync (nur lesend).
     private func runAllPortals(container c: ActiveContainer, userAction: Bool, forceGrades: Bool) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
@@ -179,15 +201,68 @@ extension ContainerManager {
         // nach dem Verbinden: die Verbindungen dieses Containers (ein Wechsel des Containers bricht hier ab)
         guard active === c else { return report }
         let studip = studip, qis = qis, mail = uniMail
-        if let mail { await Self.syncMail(mail) }
+        // Uni-Mail, Stud.IP und QIS nebeneinander (11.11.2026; vorher wartete alles auf den Posteingang). Die
+        // unsichtbaren Anmeldungen bleiben je Datenspeicher nacheinander (`UniAutoLogin`, `Entry.tail`)
+        async let m: Void = Self.syncMail(mail)
         async let s: Void = Self.syncStudIP(studip, userAction: userAction)
-        async let q: Bool = Self.syncQIS(qis, container: c, userAction: userAction, forceGrades: forceGrades)
-        let (_, certificatesFailed) = await (s, q)
+        async let q: CertificatesSync.Report? = Self.syncQIS(qis, container: c, userAction: userAction, forceGrades: forceGrades)
+        let (_, _, certificates) = await (m, s, q)
         report.add(OpenSync.studIP, Self.studIPNote(studip.phase))
         if let qis { report.add(OpenSync.qis, Self.qisNote(qis)) }
-        if certificatesFailed { report.notes.append("Bescheinigungen: Fehler") }
+        if let certificates {
+            if certificates.ok {
+                report.info.append(Self.certificatesNote(certificates.offers))
+            } else if !certificates.needsLogin {
+                report.notes.append("Bescheinigungen: Fehler")
+            }
+        }
         if let mail { report.add(OpenSync.uniMail, Self.mailNote(mail)) }
         return report
+    }
+
+    // MARK: Alle Portale (Uni Hildesheim)
+
+    /// Ein Abgleich aller Portale der Uni Hildesheim: gespeicherten Zugang verbinden (Learnweb, LSF, Uni-Mail), eine
+    /// abgelaufene Anmeldung still erneuern und abwarten, dann Uni-Mail und Learnweb/LSF nebeneinander, danach die Liste
+    /// der PLuS-Bescheinigungen (nur lesend, erzeugt nichts). `forceGrades`: Noten auch vor Ablauf der 20 Stunden.
+    func runHildesheimPortals(container c: ActiveContainer, hildesheim: HildesheimConnection, userAction: Bool,
+                              forceGrades: Bool) async -> UniversitySyncReport {
+        var report = UniversitySyncReport()
+        if hasStoredLogin {
+            let r = await OpenSync.storedLoginConnect(self, userAction)
+            report.rejected = r.rejected
+        } else if !hildesheim.expiredSources.isEmpty {
+            _ = await hildesheim.renewSilently(trigger: userAction ? .userAction : .foreground)
+        }
+        guard active === c else { return report }
+        let mail = uniMail
+        async let m: Void = Self.syncMail(mail)
+        async let h: Void = Self.syncHildesheim(hildesheim, forceGrades: userAction && forceGrades)
+        _ = await (m, h)
+        for s in HildesheimConnection.Source.allCases { report.add(s.rawValue, Self.hildesheimNote(hildesheim, s)) }
+        if hildesheim.isConnected(.lsf), hildesheim.state(.lsf) != .needsLogin,
+           let r = await CertificateCenter(portal: .plus(hildesheim)).refresh(), !r.cancelled {
+            if r.ok { report.info.append(Self.certificatesNote(r.offers)) } else if !r.needsLogin { report.notes.append("Bescheinigungen: Fehler") }
+        }
+        if let mail { report.add(OpenSync.uniMail, Self.mailNote(mail)) }
+        return report
+    }
+
+    /// Learnweb/LSF abgleichen; laeuft schon ein Lauf (z. B. nach dem Verbinden), darauf warten
+    private static func syncHildesheim(_ h: HildesheimConnection, forceGrades: Bool) async {
+        guard h.anyConnected else { return }
+        if h.isRunning { await wait(seconds: 30 * 60) { h.isRunning }; if !forceGrades { return } }
+        await h.run(forceGrades: forceGrades)
+    }
+
+    static func hildesheimNote(_ h: HildesheimConnection, _ s: HildesheimConnection.Source) -> String? {
+        guard h.isConnected(s) else { return "nicht verbunden" }
+        switch h.state(s) {
+        case .notConnected: return "nicht verbunden"
+        case .needsLogin: return "Anmeldung nötig"
+        case .failed: return "Fehler"
+        case .connected, .running, .ok: return nil
+        }
     }
 
     /// Wartet, solange `busy` gilt (hoechstens `seconds`)
@@ -196,9 +271,9 @@ extension ContainerManager {
         while busy(), Date() < end { try? await Task.sleep(nanoseconds: 200_000_000) }
     }
 
-    /// Posteingang lesen (vor allem anderen); laeuft das Lesen schon (nach dem Verbinden), darauf warten
-    private static func syncMail(_ mail: UniMailConnection) async {
-        guard mail.isConnected, mail.state != .needsLogin else { return }
+    /// Posteingang lesen (neben Stud.IP und QIS); laeuft das Lesen schon (nach dem Verbinden), darauf warten
+    private static func syncMail(_ mail: UniMailConnection?) async {
+        guard let mail, mail.isConnected, mail.state != .needsLogin else { return }
         if mail.isRunning { await wait(seconds: 60) { mail.isRunning }; return }
         await mail.refreshInbox()
     }
@@ -207,35 +282,39 @@ extension ContainerManager {
     /// beim Oeffnen wie bisher immer `run` (prueft selbst Angebot, Sitzung und Demo und erneuert still)
     private static func syncStudIP(_ studip: StudIPSync, userAction: Bool) async {
         if userAction, studip.phase == .signedOut || studip.phase == .needsLogin { return }
+        if studip.finishingUp { return }                         // eben fertig, Aufzeichnungen/Lernstoff laufen noch
         if studip.isRunning, !studip.runningOlderOnly {
             await wait(seconds: 30 * 60) { studip.isRunning }    // laeuft schon (z. B. nach dem Verbinden): abwarten
             return
         }
-        await studip.run()
+        await studip.runUntilReady()                             // nur bis "fertig" (11.11.2026)
     }
 
-    /// QIS: Noten mit Pruefungen und angemeldeten Pruefungen (`QISConnection.run`), danach die Liste der Bescheinigungen
-    /// (nur Links, erzeugt kein Dokument; beim Oeffnen nur, wenn sie aelter als 7 Tage ist). Nie Anmelden zu Pruefungen.
-    /// Rueckgabe: das Lesen der Bescheinigungen ist gescheitert (nicht wegen der Anmeldung).
-    private static func syncQIS(_ qis: QISConnection?, container c: ActiveContainer, userAction: Bool, forceGrades: Bool) async -> Bool {
-        guard let qis, qis.isConnected, qis.state != .needsLogin else { return false }
+    /// QIS: Noten mit Pruefungen und angemeldeten Pruefungen (`QISConnection.runRenewingSession`: eine dabei abgelaufene
+    /// Sitzung wird still erneuert und abgewartet, dann im selben Lauf neu gelesen), danach IMMER die Liste der
+    /// Bescheinigungen (11.11.2026; nur Menues und Links, erzeugt nie ein Dokument - verpublish, hisreports, verify und
+    /// Formulare bleiben dem Tippen vorbehalten). Nie Anmelden zu Pruefungen.
+    /// Rueckgabe: Ergebnis der Liste (nil, wenn sie nicht gelesen wurde).
+    private static func syncQIS(_ qis: QISConnection?, container c: ActiveContainer, userAction: Bool,
+                                forceGrades: Bool) async -> CertificatesSync.Report? {
+        guard let qis, qis.isConnected, qis.state != .needsLogin else { return nil }
         if qis.isRunning {
             await wait(seconds: 5 * 60) { qis.isRunning }        // laeuft schon (z. B. nach dem Verbinden): abwarten
         } else {
-            await qis.run(force: userAction && forceGrades)
+            await qis.runRenewingSession(force: userAction && forceGrades, userAction: userAction)
         }
-        guard qis.isConnected, !qis.isRunning else { return false }
+        guard qis.isConnected, !qis.isRunning else { return nil }
         switch qis.state {
         case .ok, .connected: break
-        default: return false
+        default: return nil
         }
-        let center = CertificateCenter(portal: .qis(qis))
-        if !userAction {
-            let list = try? await c.api.value("/api/certificates")
-            guard center.shouldRefresh(status: list?["status"]?.string, checkedAt: list?["checked_at"]?.string) else { return false }
-        }
-        guard let r = await center.refresh(), !r.cancelled else { return false }
-        return !r.ok && !r.needsLogin
+        guard let r = await CertificateCenter(portal: .qis(qis)).refresh(), !r.cancelled else { return nil }
+        return r
+    }
+
+    /// "Bescheinigungen: 2 verfügbar" (Ergebnis des Sync)
+    static func certificatesNote(_ offers: Int) -> String {
+        offers == 0 ? "Bescheinigungen: keine verfügbar" : "Bescheinigungen: \(offers) verfügbar"
     }
 
     static func studIPNote(_ phase: StudIPSync.Phase) -> String? {
@@ -273,6 +352,8 @@ struct UniversitySyncReport: Equatable {
     var synced: [String] = []
     /// uebersprungen oder gescheitert, je kurz ("QIS: Anmeldung nötig")
     var notes: [String] = []
+    /// gelungen, mit Ergebnis ("Bescheinigungen: 2 verfügbar")
+    var info: [String] = []
     /// die Hochschule hat das gespeicherte Passwort abgelehnt
     var rejected = false
 
@@ -285,6 +366,7 @@ struct UniversitySyncReport: Equatable {
         var parts: [String] = []
         if rejected { parts.append("Die Hochschule hat das gespeicherte Passwort abgelehnt.") }
         parts.append(synced.isEmpty ? "Nichts abgeglichen." : "Abgeglichen: \(UniversitySyncStart.list(synced)).")
+        parts += info.map { $0 + "." }
         parts += notes.map { $0 + "." }
         return parts.joined(separator: " ")
     }

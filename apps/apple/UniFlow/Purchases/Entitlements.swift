@@ -40,6 +40,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
+    case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen; can_use_due_reminders, ab Plus
+                             // seit 11.11.2026, vorher Free). Die Fristen-Liste bleibt in jedem Tarif
     case autoPlan            // Lernplan automatisch erstellen (GeneratePlanDialog, POST /api/calendar/generate, auch
                              // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
                              // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
@@ -64,7 +66,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
              .uniGrades, .ownChatGPT:
             return .free
-        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor:
+        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor,
+             .dueReminders:
             return .plus
         case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync:
             return .proAI
@@ -90,10 +93,11 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .uniGrades: return "Uni & Noten"
         case .ownChatGPT: return "Eigenes ChatGPT verbinden"
         case .communityRead: return "Community lesen, beitreten und mitmachen"
-        case .pencilWriting: return UFEditorAvailability.available ? "Schreiben mit Apple Pencil" : "Schreiben mit Apple Pencil (in der iPad-App)"
+        case .pencilWriting: return UFEditorAvailability.available ? UFDevice.adapt("Schreiben mit Apple Pencil") : "Schreiben mit Apple Pencil (in der iPad-App)"
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return UFEditorAvailability.available ? "Übung und Skript nebeneinander" : "Übung und Skript nebeneinander (in der iPad-App)"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .dueReminders: return "Erinnerungen an Abgaben und Klausuren"
         case .autoPlan: return "Lernplan automatisch erstellen"
         case .aiHelp: return "KI-Hilfe zu deinen Unterlagen"
         case .aiFlashcards: return "Karteikarten aus deinen Unterlagen"
@@ -115,6 +119,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
+        case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
         case .aiHelp: return "Zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“"
         case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen"
@@ -140,6 +145,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "users"
         case .splitView: return "columns"
         case .flashcards: return "cards"
+        case .dueReminders: return "bell"
         case .autoPlan: return "calendar"
         case .aiHelp: return "sparkles"
         case .aiFlashcards: return "cards"
@@ -275,7 +281,7 @@ enum UFPlanCard {
         guard UFFeatureMatrix.hasAvailableExtras(in: plan) else { return nil }
         switch plan {
         case .free: return plan.tagline
-        case .plus: return UFEditorAvailability.available ? "Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community"
+        case .plus: return UFEditorAvailability.available ? UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
             : "Karteikarten, Community und in der iPad-App mit Apple Pencil schreiben"
         case .proAI: return "Die StudiNow-KI für deine Unterlagen inklusive"
         }
@@ -615,6 +621,54 @@ final class Entitlements: ObservableObject {
     #endif
 }
 
+// MARK: - Schloss: gesperrte Funktionen sichtbar (Auftrag des Inhabers 12.11.2026)
+
+/// "Alle Funktionen, die in Plus und Pro AI enthalten sind, sollen bei Free ein Schloss haben, und alle, die in Pro AI
+/// enthalten sind und Plus nicht hat, bei Plus ein Schloss." Gesperrte Funktionen werden darum nicht ausgeblendet,
+/// sondern ueberall gleich gezeigt: Schloss-Symbol mit "ab Plus" bzw. "ab Pro AI" (`UFLockMark`), VoiceOver
+/// "gesperrt, ab Plus", Antippen oeffnet die Tarifwahl mit dem noetigen Tarif vorausgewaehlt (`UFPlanSheet(required:)`).
+/// Was es im Build oder auf dem Geraet gar nicht gibt (`UFAccess.comingSoon`, V2, Community ohne iCloud-Container),
+/// bleibt unsichtbar (App Review 3.1.2: nur zeigen, was es mit dem Tarif wirklich gibt).
+enum UFLock {
+    /// Kurzname ohne "StudiNow" ("Plus", "Pro AI")
+    static func short(_ p: UFPlan) -> String {
+        switch p {
+        case .free: return "Free"
+        case .plus: return "Plus"
+        case .proAI: return "Pro AI"
+        }
+    }
+
+    /// Text am Schloss: "ab Plus", "ab Pro AI"
+    static func badge(_ p: UFPlan) -> String { "ab \(short(p))" }
+
+    /// VoiceOver-Wert eines gesperrten Elements: "gesperrt, ab Plus"
+    static func accessibilityValue(_ p: UFPlan) -> String { "gesperrt, \(badge(p))" }
+
+    /// VoiceOver-Hinweis: was Antippen tut
+    static let hint = "Öffnet die Tarifwahl."
+
+    /// Menuepunkt bzw. Knopf mit Text: "Geteilt (ab Plus)"
+    static func label(_ title: String, _ p: UFPlan) -> String { "\(title) (\(badge(p)))" }
+
+    /// Symbol aller Schloesser (Menue, Leisten, Karten)
+    static let symbol = "lock.fill"
+
+    /// Schloss einer Funktion im Tarif: nil = frei (oder gar nicht vorhanden, dann zeigt die Stelle nichts)
+    static func plan(_ f: UFFeature, plan: UFPlan, ownChatGPT: Bool = false) -> UFPlan? {
+        UFFeatureMatrix.access(f, plan: plan, ownChatGPT: ownChatGPT).requiredPlan
+    }
+
+    /// Schloss einer KI-Stelle (KI-Hilfe, "KI fragen", "Bereich an KI", KI-Karteikarten, Wochentests): mit verbundener KI
+    /// (eigenes ChatGPT in jedem Tarif oder StudiNow-KI) frei; sonst das Schloss "ab Pro AI", solange der Tarif die
+    /// StudiNow-KI nicht enthaelt. Pro AI ohne Anmeldung ist kein Tarif-Thema (die Stelle zeigt den Weg zur Anmeldung).
+    /// `offerHidden`: Pro AI ist nicht zu kaufen (nur Store-Bilder der Fassung nur mit Plus) – dann kein Schloss.
+    static func ai(_ f: UFFeature = .aiHelp, plan: UFPlan, aiEnabled: Bool, offerHidden: Bool = false) -> UFPlan? {
+        guard !aiEnabled, !offerHidden else { return nil }
+        return Self.plan(f, plan: plan)
+    }
+}
+
 // MARK: - Gesperrte Funktionen sichtbar machen
 
 /// Weg zur Abo-Seite. Ohne gesetzte Aktion oeffnet der Baustein die Tarifwahl selbst als Blatt.
@@ -666,7 +720,8 @@ private struct UFRequiresModifier: ViewModifier {
                 .contentShape(Rectangle())
                 .onTapGesture { if case .locked = access { open() } }
                 .accessibilityElement(children: .combine)
-                .accessibilityHint(access == .comingSoon ? "Bald verfügbar" : "Gesperrt. Öffnet die Tarifwahl.")
+                .accessibilityValue(access.requiredPlan.map(UFLock.accessibilityValue) ?? "")
+                .accessibilityHint(access == .comingSoon ? "Bald verfügbar" : UFLock.hint)
                 .sheet(isPresented: $sheet) { UFPlanSheet(required: access.requiredPlan, close: { sheet = false }) }
         }
     }
@@ -676,9 +731,14 @@ private struct UFRequiresModifier: ViewModifier {
     }
 }
 
-/// kleines Schloss (bzw. "bald") an gesperrten Elementen
+/// kleines Schloss (bzw. "bald") an gesperrten Elementen: Schloss und "ab Plus" bzw. "ab Pro AI" (`UFLock.badge`)
 struct UFLockMark: View {
     let access: UFAccess
+
+    init(access: UFAccess) { self.access = access }
+
+    /// Schloss fuer einen Tarif (nil: nichts)
+    init(_ plan: UFPlan?) { access = plan.map { .locked($0) } ?? .allowed }
 
     var body: some View {
         switch access {
@@ -686,8 +746,8 @@ struct UFLockMark: View {
             EmptyView()
         case .locked(let p):
             HStack(spacing: 3) {
-                Image(systemName: "lock.fill").font(.system(size: 9, weight: .bold))
-                Text(p.name).ufFont(10.4, 650, lh: 1.2)
+                Image(systemName: UFLock.symbol).font(.system(size: 9, weight: .bold))
+                Text(UFLock.badge(p)).ufFont(10.4, 650, lh: 1.2).lineLimit(1).fixedSize()
             }
             .foregroundStyle(.white)
             .padding(.vertical, 2).padding(.horizontal, 6)
@@ -701,6 +761,58 @@ struct UFLockMark: View {
                 .overlay(Capsule().strokeBorder(UF.line, lineWidth: 1))
                 .accessibilityHidden(true)
         }
+    }
+}
+
+/// Tarifwahl als Blatt, sobald ein Schloss angetippt wurde (`UFPlanSheet(required:)`). Die Stelle setzt `plan`; ohne
+/// gesetzte Aktion `ufShowPlans` oeffnet das Blatt selbst.
+private struct UFPlanSheetHost: ViewModifier {
+    @Binding var plan: UFPlan?
+
+    func body(content: Content) -> some View {
+        content.sheet(item: $plan) { p in UFPlanSheet(required: p, close: { plan = nil }) }
+    }
+}
+
+extension View {
+    /// Blatt der Tarifwahl fuer ein angetipptes Schloss (`plan` = noetiger Tarif)
+    func ufPlanSheet(_ plan: Binding<UFPlan?>) -> some View { modifier(UFPlanSheetHost(plan: plan)) }
+
+    /// VoiceOver eines gesperrten Elements: "gesperrt, ab Plus", Hinweis "Öffnet die Tarifwahl." (nil: unveraendert)
+    @ViewBuilder
+    func ufLockAccessibility(_ plan: UFPlan?) -> some View {
+        if let plan {
+            accessibilityValue(UFLock.accessibilityValue(plan)).accessibilityHint(UFLock.hint)
+        } else {
+            self
+        }
+    }
+}
+
+/// Knopf einer gesperrten Funktion in Leisten und Listen: Inhalt gedimmt, Schloss "ab Plus" daneben, Antippen oeffnet die
+/// Tarifwahl mit dem Tarif. Fuer Stellen, die sonst ganz fehlten (Werkzeugleiste ohne Plus, "KI fragen" ohne KI).
+struct UFLockedButton<Label: View>: View {
+    let plan: UFPlan
+    let title: String
+    var identifier: String?
+    @ViewBuilder var label: () -> Label
+    @State private var sheet: UFPlan?
+
+    var body: some View {
+        Button { sheet = plan } label: {
+            HStack(spacing: 4) {
+                label().opacity(0.5)
+                UFLockMark(plan)
+            }
+            .frame(minWidth: 44, minHeight: 44)                             // Trefferflaeche mindestens 44 x 44 pt
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(UFLock.label(title, plan))
+        .accessibilityLabel(title)
+        .ufLockAccessibility(plan)
+        .accessibilityIdentifier(identifier ?? "lock.\(title)")
+        .ufPlanSheet($sheet)
     }
 }
 

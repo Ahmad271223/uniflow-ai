@@ -20,12 +20,17 @@ struct PlanView: View {
 
     /// planState im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var state = (view: "week", date: UFFmt.todayISO(), module: "")
+    /// letzte Pruefung der Lernziele vor dem Laden des Kalenders (hoechstens alle 30 Sekunden)
+    @MainActor static var goalsChecked: Date?
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
 
     var body: some View {
         Group {
-            if let data {
+            if (params.view ?? Self.state.view) == "ziele" {
+                // Lernziele in Stunden (Smart Planner 2.0, 12.11.2026): eigene Ansicht in derselben Leiste
+                GoalsPage { v in go(v, Self.state.date) }
+            } else if let data {
                 content(data)
             } else if let error {
                 UFContent { UFEmpty(icon: "alert", text: error) }
@@ -49,9 +54,11 @@ struct PlanView: View {
     private var phoneWeekList: Bool { PhoneWeekList.applies(width: windowWidth) }
 
     /// Ansichten der Leiste; ohne Platz fuer die Woche ohne "Woche" (sie zeigt dann 3 Tage, `PlanView.shownView`)
+    /// Breit wie `PlanViews.all` (mit "Lernziele", Smart Planner 2.0); am iPhone "Ziele" ohne Symbole, damit alle in eine Zeile passen
     static func views(compact: Bool, weekFits: Bool = true) -> [(value: String, label: String, icon: String?)] {
-        let all: [(value: String, label: String, icon: String?)] = [("day", "Tag", nil), ("3days", "3 Tage", nil), ("week", "Woche", nil),
-                                                                    ("month", "Monat", nil), ("list", "Liste", compact ? nil : "list")]
+        let all: [(value: String, label: String, icon: String?)] = compact
+            ? [("ziele", "Ziele", nil), ("day", "Tag", nil), ("3days", "3 Tage", nil), ("week", "Woche", nil), ("month", "Monat", nil), ("list", "Liste", nil)]
+            : PlanViews.all
         return weekFits ? all : all.filter { $0.value != "week" }
     }
 
@@ -64,7 +71,13 @@ struct PlanView: View {
         if let v = params.view { Self.state.view = v }
         if let d = params.date { Self.state.date = d }
         if let m = params.module { Self.state.module = m }
+        if Self.state.view == "ziele" { return }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
+        // Lernziele: vor dem Kalender kurz pruefen, ob umzuplanen ist (ohne KI; aendert nur bei neuen Eingaben)
+        if Self.goalsChecked.map({ Date().timeIntervalSince($0) > 30 }) ?? true {
+            Self.goalsChecked = Date()
+            _ = try? await api.value("/api/goals")
+        }
         var st = Self.state
         st.view = Self.shownView(st.view, weekFits: weekFits)
         let d = Fmt.date(st.date) ?? Date()
@@ -117,7 +130,7 @@ struct PlanView: View {
                                                                        : "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.") {
               if compact {
                 // iPhone: "Plan erstellen" sichtbar, die uebrigen Aktionen im Menue daneben
-                UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+                planButton(d)
                 Menu {
                     Button { actions.addPackage(date: Fmt.isoDay(d.view == "day" ? d.date : d.start)) } label: { Label("Lernpaket", systemImage: "plus") }
                     Button { actions.availability() } label: { Label("Verfügbarkeit", systemImage: "clock") }
@@ -143,7 +156,7 @@ struct PlanView: View {
                 UFButton("Woche retten", icon: "life-buoy") { Task { await actions.suggest(["rescue": true]) } }
                     .disabled(backlog.isEmpty)
                     .help(backlog.isEmpty ? "Nichts nachzuholen" : "")
-                UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+                planButton(d)
               }
             }
             if !backlog.isEmpty { backlogBanner(backlog, d) }
@@ -159,6 +172,13 @@ struct PlanView: View {
                 }
             }
         }
+    }
+
+    /// "Plan erstellen" (Lernplan automatisch): ohne PC ab Plus, in Free sichtbar mit Schloss (Auftrag des Inhabers
+    /// 12.11.2026, wie "Lernplan erstellen" auf der Uebersicht); Antippen oeffnet die Tarifwahl
+    @ViewBuilder private func planButton(_ d: PlanData) -> some View {
+        let b = UFButton("Plan erstellen", icon: "sparkles", kind: .primary) { actions.generatePlan(Fmt.isoDay(d.view == "week" ? d.start : d.date)) }
+        if session.api?.isLocal != false { b.ufRequires(.autoPlan) } else { b }
     }
 
     private func backlogBanner(_ backlog: [JSONValue], _ d: PlanData) -> some View {
@@ -260,7 +280,7 @@ struct PlanView: View {
     }
 
     private func regularBar(_ d: PlanData, wk: Bool) -> some View {
-        let views = Self.views(compact: false)
+        let views = PlanViews.all
         let modOptions = moduleOptions(d)
         return UFFlexWrap(gap: 8) {
             UFSegPill(options: views, selection: d.view) { v in go(v, Self.state.date) }

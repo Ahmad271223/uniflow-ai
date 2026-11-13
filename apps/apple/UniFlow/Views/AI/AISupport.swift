@@ -701,16 +701,21 @@ struct AIActionPill: View {
     var compact = false
     /// noch kleiner (Reihe ueber dem Feld im Gespraech): Symbol und Titel in Chip-Groesse
     var dense = false
+    /// Schloss (Auftrag des Inhabers 12.11.2026): ohne KI und ohne Pro AI sichtbar mit "ab Pro AI", Antippen oeffnet die
+    /// Tarifwahl statt der Aktion
+    var lock: UFPlan? = nil
     let action: () -> Void
+    @State private var sheet: UFPlan?
 
     var body: some View {
-        Button(action: action) {
+        Button { if let lock { sheet = lock } else { action() } } label: {
             Group {
                 if dense {
                     HStack(spacing: 6) {
                         UFIcon(icon, size: 14).foregroundStyle(pair.fg)
                         Text(title).ufFont(13.12, 600, lh: 1.25).foregroundStyle(UF.text)
                             .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                        if let lock { UFLockMark(lock) }
                     }
                     .padding(.vertical, 6).padding(.horizontal, 12)
                     .frame(minHeight: 34)
@@ -719,6 +724,7 @@ struct AIActionPill: View {
                         UFIcon(icon, size: 16).foregroundStyle(pair.fg)
                         Text(title).ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text)
                             .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                        if let lock { UFLockMark(lock) }
                     }
                     .padding(.vertical, 8).padding(.horizontal, 16)
                     .frame(minHeight: 44)
@@ -730,7 +736,10 @@ struct AIActionPill: View {
                         }
                         .frame(width: 40, height: 40)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(title).ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 6) {
+                                Text(title).ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                if let lock { UFLockMark(lock) }
+                            }
                             Text(sub).ufFont(12.8, lh: 1.3).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
@@ -746,6 +755,8 @@ struct AIActionPill: View {
         }
         .buttonStyle(UFPressStyle())
         .accessibilityLabel("\(title). \(sub)")
+        .ufLockAccessibility(lock)
+        .ufPlanSheet($sheet)
     }
 }
 

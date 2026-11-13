@@ -495,7 +495,7 @@ public actor LSFClient {
         let first = absolute(link.href)
         var pages = [first], seen = Set([first]), out: [QISGrade] = []
         var i = 0
-        while i < pages.count && i < 6 {
+        while i < pages.count && i < 60 {          // wie QIS der LUH (vorher 6: viele Studiengaenge/Reiter fehlten)
             let html = try await page(pages[i])
             let scan = HTMLScanner.scan(html)
             for table in scan.tables where !QISParser.isStammdaten(table) {
@@ -509,8 +509,9 @@ public actor LSFClient {
             }
             i += 1
         }
-        // dieselbe Leistung auf mehreren Reitern nur einmal (Pruefungsnr., Text, Semester, Versuch)
-        return QISParser.merge(out)
+        // dieselbe Leistung auf mehreren Reitern nur einmal; mehrere Versuche (gleiche Leistung, anderes Datum) bleiben
+        // getrennt (`QISParser.numberAttempts`, 12.11.2026)
+        return QISParser.merge(QISParser.numberAttempts(out))
     }
 
     /// Links aus `HTMLScanner` sind schon dekodiert (`HildesheimCAS.lsfAbsolute`)

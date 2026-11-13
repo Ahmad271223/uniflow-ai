@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 159,
+ "count": 179,
  "paths": [
   {
    "method": "DELETE",
@@ -100,6 +100,30 @@
    ],
    "request": {
     "path": "/api/folders/1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/goals/{}",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/goals/1"
    },
    "python": {
     "status": 404,
@@ -278,7 +302,8 @@
    "method": "GET",
    "shape": "/api/bg",
    "sources": [
-    "UniFlow/Design/ShellState.swift"
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Views/AI/QuizComposer.swift"
    ],
    "request": {
     "path": "/api/bg"
@@ -1149,6 +1174,7 @@
     "UniFlow/Services/NotesExport.swift",
     "UniFlow/Services/ResumeState.swift",
     "UniFlow/Views/DocumentView.swift",
+    "UniFlow/Views/Library/ZipFolderView.swift",
     "UniFlow/Views/Views.swift"
    ],
    "request": {
@@ -1200,6 +1226,7 @@
     "UniFlow/Services/DocumentStore.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Library/ZipFolderView.swift",
     "UniFlow/Views/Settings/SettingsPage.swift",
     "UniFlow/Views/Views.swift"
    ],
@@ -1302,6 +1329,211 @@
     "shape": {
      "type": "array",
      "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/goals",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsPage.swift",
+    "UniFlow/Views/Plan/PlanView.swift"
+   ],
+   "request": {
+    "path": "/api/goals"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "conflicts": {
+       "type": "array",
+       "item": null
+      },
+      "enabled": {
+       "type": "bool"
+      },
+      "last_change": {
+       "type": "null"
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      },
+      "modules_without_goal": {
+       "type": "array",
+       "item": null
+      },
+      "next_exam": {
+       "type": "null"
+      },
+      "plan": {
+       "type": "null"
+      },
+      "planned": {
+       "type": "bool"
+      },
+      "proposal": {
+       "type": "null"
+      },
+      "running": {
+       "type": "array",
+       "item": null
+      },
+      "settings": {
+       "type": "object",
+       "keys": {
+        "bedtime": {
+         "type": "number"
+        },
+        "bedtime_hm": {
+         "type": "string"
+        },
+        "break": {
+         "type": "number"
+        },
+        "commitments": {
+         "type": "array",
+         "item": null
+        },
+        "learn_days": {
+         "type": "array",
+         "item": {
+          "type": "number"
+         }
+        },
+        "leisure_minutes": {
+         "type": "number"
+        },
+        "max_block": {
+         "type": "number"
+        },
+        "max_day_minutes": {
+         "type": "number"
+        },
+        "max_week_minutes": {
+         "type": "number"
+        },
+        "min_block": {
+         "type": "number"
+        },
+        "sleep_hours": {
+         "type": "number"
+        },
+        "sleep_minutes": {
+         "type": "number"
+        },
+        "utilization": {
+         "type": "number"
+        }
+       }
+      },
+      "today": {
+       "type": "string"
+      },
+      "week": {
+       "type": "object",
+       "keys": {
+        "days": {
+         "type": "array",
+         "item": {
+          "type": "object",
+          "keys": {
+           "blocks": {
+            "type": "number"
+           },
+           "date": {
+            "type": "string"
+           },
+           "learned_minutes": {
+            "type": "number"
+           },
+           "planned_minutes": {
+            "type": "number"
+           }
+          }
+         }
+        },
+        "learned_minutes": {
+         "type": "number"
+        },
+        "planned_minutes": {
+         "type": "number"
+        },
+        "start": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/goals/settings",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/goals/settings"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "bedtime": {
+       "type": "number"
+      },
+      "bedtime_hm": {
+       "type": "string"
+      },
+      "break": {
+       "type": "number"
+      },
+      "commitments": {
+       "type": "array",
+       "item": null
+      },
+      "learn_days": {
+       "type": "array",
+       "item": {
+        "type": "number"
+       }
+      },
+      "leisure_minutes": {
+       "type": "number"
+      },
+      "max_block": {
+       "type": "number"
+      },
+      "max_day_minutes": {
+       "type": "number"
+      },
+      "max_week_minutes": {
+       "type": "number"
+      },
+      "min_block": {
+       "type": "number"
+      },
+      "sleep_hours": {
+       "type": "number"
+      },
+      "sleep_minutes": {
+       "type": "number"
+      },
+      "utilization": {
+       "type": "number"
+      }
+     }
     }
    },
    "expect": {
@@ -1454,8 +1686,10 @@
     "UniFlow/Views/AI/FlashcardComposer.swift",
     "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Exams/CardsPage.swift",
+    "UniFlow/Views/Library/ExternalImportViews.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
     "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/TutorPanel.swift",
     "UniFlow/Views/Views.swift"
    ],
    "request": {
@@ -2153,6 +2387,20 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/rooms/plan",
+   "sources": [
+    "UniFlow/Views/Rooms/RoomFinderViews.swift"
+   ],
+   "request": {
+    "path": "/api/rooms/plan"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet, Hildesheim (LocalRooms)"
    }
   },
   {
@@ -3736,6 +3984,33 @@
   },
   {
    "method": "PATCH",
+   "shape": "/api/goals/blocks/{}",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/goals/blocks/1",
+    "body": {
+     "locked": true
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "PATCH",
    "shape": "/api/library/files/{}",
    "sources": [
     "UniFlow/Views/Library/LibraryDialogs.swift"
@@ -3792,6 +4067,7 @@
    "method": "PATCH",
    "shape": "/api/modules/{}",
    "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Modules/WeeklyViews.swift",
     "UniFlow/Views/Settings/SettingsPage.swift"
@@ -3821,6 +4097,7 @@
    "method": "PATCH",
    "shape": "/api/packages/{}",
    "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanGrids.swift"
    ],
@@ -3967,7 +4244,8 @@
    "method": "POST",
    "shape": "/api/ai/flashcards",
    "sources": [
-    "UniFlow/Views/AI/FlashcardComposer.swift"
+    "UniFlow/Views/AI/FlashcardComposer.swift",
+    "UniFlow/Views/TutorPanel.swift"
    ],
    "request": {
     "path": "/api/ai/flashcards",
@@ -4000,6 +4278,38 @@
    "expect": {
     "status": 404,
     "reason": "KI entfaellt in V1"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/calendar/ai-apply",
+   "sources": [
+    "UniFlow/Views/Plan/AIPlanDialog.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/ai-apply",
+    "body": {
+     "blocks": []
+    }
+   },
+   "expect": {
+    "status": 400,
+    "reason": "nur auf dem Geraet (AIPlanEndpoints): keine Bloecke gewaehlt"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/calendar/ai-suggest",
+   "sources": [
+    "UniFlow/Views/Plan/AIPlanDialog.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/ai-suggest",
+    "body": {}
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet mit KI-Anbieter (AIPlanEndpoints)"
    }
   },
   {
@@ -4329,6 +4639,36 @@
   },
   {
    "method": "POST",
+   "shape": "/api/files/{}/assets",
+   "sources": [
+    "UniFlow/Services/DocumentStore.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/assets",
+    "form": {
+     "upload": [
+      "x.exe",
+      "MZ"
+     ]
+    }
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/files/{}/favorite",
    "sources": [
     "UniFlow/Views/Library/LibraryDialogs.swift",
@@ -4592,6 +4932,7 @@
    "method": "POST",
    "shape": "/api/folders",
    "sources": [
+    "UniFlow/Views/Library/ExternalImportViews.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift"
    ],
    "request": {
@@ -4622,6 +4963,134 @@
       },
       "parent_id": {
        "type": "null"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/goals/blocks/{}/check",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/goals/blocks/1/check",
+    "body": {
+     "date": "2026-11-18"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/goals/blocks/{}/done",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/goals/blocks/1/done",
+    "body": {
+     "minutes": 30
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/goals/blocks/{}/undone",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift",
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/goals/blocks/1/undone"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/goals/plan",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/goals/plan",
+    "body": {}
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/goals/plan/keep",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/goals/plan/keep"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
       }
      }
     }
@@ -4821,9 +5290,10 @@
    "method": "POST",
    "shape": "/api/notebooks",
    "sources": [
+    "UniFlow/Services/ExternalFileImport.swift",
     "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
-    "UniFlow/Views/Views.swift"
+    "UniFlow/Views/Library/ZipFolderView.swift"
    ],
    "request": {
     "path": "/api/notebooks",
@@ -4999,6 +5469,12 @@
       "id": {
        "type": "number"
       },
+      "locked": {
+       "type": "number"
+      },
+      "manual": {
+       "type": "number"
+      },
       "module_id": {
        "type": "null"
       },
@@ -5007,6 +5483,9 @@
       },
       "sort": {
        "type": "number"
+      },
+      "source": {
+       "type": "null"
       },
       "start_time": {
        "type": "null"
@@ -5108,6 +5587,134 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/sessions",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/sessions",
+    "body": {
+     "module_id": 1,
+     "minutes": 30
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/sessions/start",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift",
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/sessions/start",
+    "body": {
+     "module_id": 1
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/sessions/{}/pause",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/sessions/lerneinheit-1/pause"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/sessions/{}/resume",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/sessions/lerneinheit-1/resume"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/sessions/{}/stop",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/sessions/lerneinheit-1/stop"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -5707,14 +6314,116 @@
     }
    },
    "python": {
-    "status": 500,
+    "status": 404,
     "shape": {
-     "type": "null"
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
     }
    },
    "expect": {
     "status": 409,
     "reason": "Dokument fehlt in der Datenbank: Python 500 (Fremdschluessel), lokal 409 ohne version, die App behaelt die Notizen im Journal"
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/goals/settings",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift",
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/goals/settings",
+    "body": {
+     "utilization": 70,
+     "sleep_hours": 9
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "bedtime": {
+       "type": "number"
+      },
+      "bedtime_hm": {
+       "type": "string"
+      },
+      "break": {
+       "type": "number"
+      },
+      "commitments": {
+       "type": "array",
+       "item": null
+      },
+      "learn_days": {
+       "type": "array",
+       "item": {
+        "type": "number"
+       }
+      },
+      "leisure_minutes": {
+       "type": "number"
+      },
+      "max_block": {
+       "type": "number"
+      },
+      "max_day_minutes": {
+       "type": "number"
+      },
+      "max_week_minutes": {
+       "type": "number"
+      },
+      "min_block": {
+       "type": "number"
+      },
+      "sleep_hours": {
+       "type": "number"
+      },
+      "sleep_minutes": {
+       "type": "number"
+      },
+      "utilization": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/goals/{}",
+   "sources": [
+    "UniFlow/Views/Goals/GoalsDialogs.swift",
+    "UniFlow/Views/Goals/GoalsPage.swift"
+   ],
+   "request": {
+    "path": "/api/goals/1",
+    "body": {
+     "target_hours": 10
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {

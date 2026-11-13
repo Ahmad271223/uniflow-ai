@@ -196,6 +196,10 @@ public final class LocalRouter: @unchecked Sendable {
             return try await route.handler(req, context)
         } catch let e as LocalHTTPError {
             return e.response
+        } catch is CancellationError {
+            // abgebrochen ("Stopp" in der KI-Hilfe, 11.11.2026): kein unerwarteter Fehler fuers Protokoll; der Aufrufer
+            // wartet nicht mehr auf die Antwort (499 wie "Client Closed Request")
+            return .detail(499, "Abgebrochen")
         } catch {
             LocalBackendLog.unexpected(error, method: route.method, template: route.pattern.template)
             return .detail(500, Self.internalMessage(error))

@@ -79,6 +79,10 @@ struct PlanPickerView: View {
                 Text(UFPlanCatalog.proAIMissingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
                     .accessibilityAddTraits(.isStaticText)
             }
+            // Probe und Abo je Apple-ID (12.11.2026)
+            Text(UFTrialTexts.perAppleID).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("plans.perAppleID")
             footer.padding(.top, 22.4)
         }
         .task {
@@ -126,7 +130,8 @@ struct PlanPickerView: View {
     /// Zeile darunter (`trialStatus`)
     static func subtitle(proAI: Bool) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
-        s += "\(UFPlan.plus.name) fügt \(UFEditorAvailability.available ? "das Schreiben mit Apple Pencil" : "Karteikarten, Community und in der iPad-App das Schreiben mit Apple Pencil") hinzu"
+        s += UFEditorAvailability.available ? UFDevice.adapt("\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu")
+            : "\(UFPlan.plus.name) fügt Karteikarten, Community und in der iPad-App das Schreiben mit Apple Pencil hinzu"
         s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
@@ -365,7 +370,7 @@ struct PlanPickerView: View {
                 // Downgrade: Apple stellt erst zur naechsten Verlaengerung um, die Seite bleibt offen und sagt es
                 info = UFOfferText.pendingNote(plan, at: ent.expiresAt) + " Bis dahin bleibt \(before.name)."
             } else if ProAISignInHint.asksAfterPurchase(plan: plan, serviceAvailable: studoraAccount != nil && StudoraAccountLink.available,
-                                                        signedIn: studoraAccount?.user != nil) {
+                                                        signedIn: studoraAccount?.user != nil, accountOpen: studoraAccount?.canSignIn == true) {
                 signInAfterPurchase = true               // Karte "Pro AI ist aktiv" mit "Mit Apple anmelden"
             } else {
                 onDone()

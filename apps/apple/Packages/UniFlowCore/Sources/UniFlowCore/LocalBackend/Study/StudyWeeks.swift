@@ -75,6 +75,7 @@ public enum StudyWeeks {
     /// `week_label(start, w)`
     public static func weekLabel(start: Int, week w: Int) -> String {
         if w == LectureWeeks.generalWeek { return "Allgemein" }      // ohne Lehrwoche (`LectureWeeks`, Regel 4)
+        if w == ModuleLayout.unassignedWeek { return "Nicht zugeordnet" }   // unsicher oder Woche geloescht (`ModuleLayout`)
         if w == -2 { return "Klausuren & Altklausuren" }
         if w == -1 { return "Ältere Unterlagen" }
         if w < 1 { return "Vor Vorlesungsbeginn" }

@@ -33,8 +33,23 @@ Regeln (alle Reihenfolgen fest, damit Python und Swift dasselbe JSON liefern):
   abhaengigen mit, wenn noetig.
 - Ausgleich: ab dem aktuellen Semester wandert bei mehr als 36 LP das am wenigsten dringende Wahl(pflicht)modul
   (hoechstes empfohlenes Fachsemester, sonst spaeter im Katalog) ins naechste passende Semester.
-- Hinweise: endgueltig nicht bestanden, letzter (dritter) Versuch, fehlende Voraussetzung, Semester ab jetzt mit mehr
-  als 36 LP (nur Pflicht, nichts zu verschieben), Rueckstand (mindestens 10 LP hinter dem Verlaufsplan).
+- Hinweise: endgueltig nicht bestanden, letzter Versuch, fehlende Voraussetzung, Semester ab jetzt mit mehr
+  als 36 LP (nur Pflicht, nichts zu verschieben), Rueckstand (mindestens 10 LP hinter dem Verlaufsplan), Wahl erkannt.
+- Versuche ehrlich (11.11.2026): "letzter Versuch" nur, wenn QIS es meldet ("letzter Versuch" im Status/Vermerk) oder
+  Katalog bzw. Modul eine Hoechstzahl nennen (`max_attempts`, Vorgabe: unbekannt); "endgueltig" nur aus QIS oder bei
+  erreichter Hoechstzahl, nie pauschal ab dem dritten Versuch. `attempt_known`: QIS nennt die Nummer des Versuchs
+  (sonst ist sie aus den Fehlversuchen gezaehlt, z. B. LSF Hildesheim ohne Versuchsspalte). Zaehlung (12.11.2026,
+  echter LUH-Notenspiegel): Fehlversuche = verschiedene (Semester, Datum) nicht bestandener Pruefungszeilen, mindestens
+  die hoechste QIS-Versuchsnummer; der bestandene Versuch ist max(Fehlversuche + 1, QIS-Versuch). Zeigt QIS bei
+  Fehlversuch (SoSe 25) und bestandenem Eintrag (SoSe 26) beide als Versuch 1, ist der bestandene Versuch 2.
+- Wahl statt Pflicht (11.11.2026): ein Bereich, dessen Pflichtmodule zusammen mehr als das 1,5-fache seiner LP
+  (Obergrenze, sonst Bedarf; ohne Angabe: mehr als der ganze Studiengang) haben, bietet eine Wahl an: seine
+  Pflichtmodule gelten als Wahlpflicht (die mit empfohlenem Fachsemester bleiben Pflicht, solange sie allein in den
+  Bereich passen); Hinweis "wahl_erkannt". Voraussetzungen, die Wahlmodule sind, fehlen nie "im Plan".
+- Wahlfach aus QIS ohne Katalogmodul (11.11.2026): eine nicht zugeordnete QIS-Leistung unter einer QIS-Bereichszeile,
+  deren Name den Namen eines aktiven Wahlbereichs enthaelt ("Kompetenzbereich Studium Generale"), steht mit Stand im
+  Plan (`qis: true`, LP aus QIS, sonst die uebliche LP des Bereichs), zaehlt im Bereich und belegt dessen
+  naechstgelegenen freien Platz laut Verlaufsplan; eigene Eintraege gleichen Namens gehen vor.
 """
 from __future__ import annotations
 
@@ -58,7 +73,9 @@ TARGET_LP = 30
 CAP_LP = 36
 BEHIND_LP = 10
 ELECTIVE_KINDS = ("wahlpflicht", "wahl")
-NOTE_RANK = {"endgueltig": 0, "letzter_versuch": 1, "voraussetzung": 2, "ueberlast": 3, "rueckstand": 4}
+NOTE_RANK = {"endgueltig": 0, "letzter_versuch": 1, "voraussetzung": 2, "ueberlast": 3, "rueckstand": 4, "wahl_erkannt": 5}
+CHOICE_FACTOR = 1.5
+LAST_TRY_RE = re.compile(r"letzte[rnms]? ?(wiederholungs)?versuch|letztversuch")
 
 TERM_RE = re.compile(r"^\s*(WiSe|SoSe|Wintersemester|Sommersemester|WS|SS)\s*(\d{2,4})(?:\s*/\s*(\d{2,4}))?\s*$", re.I)
 ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7", "viii": "8", "ix": "9", "x": "10"}
@@ -101,24 +118,18 @@ MAX_CUSTOM_TITLE = 120
 # ----------------------------------------------------------------------------
 
 def parse_term(s) -> int | None:
-    """'WiSe 25/26', 'WS 2025/26', 'Wintersemester 2025/2026', 'SoSe 26', 'SS 2026' -> Zahl, sonst None"""
-    if not isinstance(s, str):
-        return None
-    m = TERM_RE.match(s)
-    if not m:
-        return None
-    year = int(m.group(2))
-    if year < 100:
-        year += 2000
-    winter = m.group(1).lower().startswith(("wi", "ws"))
-    return year * 2 + (1 if winter else 0)
+    """'WiSe 25/26', 'WS 2025/26', 'Wintersemester 2025/2026', 'SoSe 26', 'SS 2026', 'W25', '25/26 WS', '20252' -> Zahl,
+    sonst None (grades_model.parse_term, alle Schreibweisen des QIS seit 12.11.2026)"""
+    return grades_model.parse_term(s)
+
+
+def row_term(r: dict) -> int | None:
+    """Semester einer QIS-Zeile: Semesterspalte, sonst aus dem Pruefungsdatum (grades_model.row_term)"""
+    return grades_model.row_term(r)
 
 
 def term_name(t: int) -> str:
-    year = t // 2
-    if t % 2:
-        return f"WiSe {year % 100:02d}/{(year + 1) % 100:02d}"
-    return f"SoSe {year % 100:02d}"
+    return grades_model.term_name(t)
 
 
 def current_term(today: str) -> int:
@@ -191,6 +202,20 @@ def prereqs(m: dict) -> list[str]:
     return [p for p in v if isinstance(p, str)] if isinstance(v, list) else []
 
 
+def _rec_sem(m: dict) -> int | None:
+    s = num(m.get("semester"))
+    return int(s) if s is not None and s >= 1 else None
+
+
+def plan_prereqs(m: dict, by_id: dict) -> list[str]:
+    """Voraussetzungen, die der Plan beachtet: ohne die, die der Studienverlaufsplan selbst ins gleiche oder ein spaeteres
+    Fachsemester legt (dann nur eine Empfehlung; 11.11.2026, INFBSc22: Logik und formale Systeme im 2. vor Grundlagen
+    der Theoretischen Informatik im 3. Semester)"""
+    own = _rec_sem(m)
+    return [p for p in prereqs(m) if not (own is not None and p in by_id and _rec_sem(by_id[p]) is not None
+                                          and _rec_sem(by_id[p]) >= own)]
+
+
 def int_or_none(v) -> int | None:
     s = str(v).strip() if v is not None else ""
     return int(s) if DIGITS_RE.fullmatch(s) else None
@@ -203,7 +228,8 @@ def text_of(v) -> str:
 def row_result(r: dict) -> str | None:
     """passed | final | failed | registered | None (abgemeldet, krank ...)"""
     s = text_of(r.get("status")).strip().lower()
-    if s in ("bestanden", "anerkannt", "be"):
+    # bestanden wie im Notenspiegel (grades_model.is_passed, Regel des Inhabers 12.11.2026: QIS ist die Quelle)
+    if s in ("bestanden", "anerkannt", "be") or (r.get("level") is not None and r.get("passed") is True):
         return "passed"
     if s.startswith("endgültig") or s.startswith("endgueltig") or s == "en":
         return "final"
@@ -217,7 +243,7 @@ def row_result(r: dict) -> str | None:
 
 
 def is_bereich(r: dict) -> bool:
-    return r.get("level") == "bereich" or bool(grades_model.BEREICH_RE.match(text_of(r.get("text"))))
+    return r.get("level") == "bereich" or grades_model.is_bereich_text(text_of(r.get("text")))
 
 
 def fold(text) -> str:
@@ -237,6 +263,39 @@ def area_type_of(name, kind: str, titles: list[str]) -> str:
             if 2 * sum(1 for x in titles if word in fold(x)) >= len(titles):
                 return word
     return kind
+
+
+def says_last_try(r: dict) -> bool:
+    """QIS meldet ausdruecklich den letzten Versuch (Status, Vermerk oder eine andere Zelle als der Titel)"""
+    text = text_of(r.get("text")).strip()
+    cells = [text_of(r.get("status")), text_of(r.get("vermerk"))] + \
+        [c for c in text_of(r.get("raw")).split(" | ") if c.strip() != text]
+    return any(LAST_TRY_RE.search(fold(c)) for c in cells)
+
+
+def max_attempts_of(m: dict, catalog: dict) -> int | None:
+    """Hoechstzahl der Versuche: Modul, sonst Katalog (1..20), sonst unbekannt"""
+    for v in (m.get("max_attempts"), catalog.get("max_attempts")):
+        n = _int_value(v)
+        if n is not None and 1 <= n <= 20:
+            return n
+    return None
+
+
+def tokens(text) -> list[str]:
+    """Woerter (klein, Umlaute ausgeschrieben, nur Buchstaben/Ziffern)"""
+    return [t for t in NON_ALNUM_RE.sub(" ", fold(text)).split(" ") if t]
+
+
+def area_of_bereich(text, area_toks: list[tuple[str, list[str]]]) -> str | None:
+    """Bereich, dessen Name als Wortfolge in der QIS-Bereichszeile steht (der laengste, bei Gleichstand der erste)"""
+    toks = tokens(text)
+    best, best_n = None, 0
+    for aid, at in area_toks:
+        n = len(at)
+        if n > best_n and any(toks[i:i + n] == at for i in range(len(toks) - n + 1)):
+            best, best_n = aid, n
+    return best
 
 
 def credits_of(r: dict) -> float:
@@ -440,10 +499,45 @@ def _catalog_rank(c: dict) -> tuple:
 # Plan
 # ----------------------------------------------------------------------------
 
-def _index(mods: list[dict]) -> tuple[dict, dict]:
-    """(Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id), jeweils das erste Modul"""
+# Zusammengesetzte Modultitel (12.11.2026, iPad eines Nutzers, Maschinenbau B.Sc.): der Katalog nennt "Thermodynamik I /
+# Chemie" und "Tutorien oder Studium Generale", das QIS die Teile ("Thermodynamik I", "Grundzüge der Chemie", Modul
+# "Studium Generale"). Vorher passte nur der ganze Titel: die Leistungen und Anmeldungen standen als "nicht
+# zugeordnet" da und das Modul blieb offen. " / " heisst: alle Teile noetig; " oder ": einer reicht.
+PART_SPLIT_RE = re.compile(r"\s+/\s+|\s+oder\s+", re.I)
+OR_RE = re.compile(r"\s+oder\s+", re.I)
+# Teile kuerzer als das ("II") ordnen nichts zu
+MIN_PART_KEY = 4
+
+
+def title_parts(title) -> tuple[list[tuple[str, str]], bool]:
+    """Teile eines zusammengesetzten Modultitels als (Text, Namensschluessel) und ob alle noetig sind ("/") oder einer
+    reicht ("oder"); ([], False) fuer einen einfachen Titel"""
+    t = text_of(title).strip()
+    raw = [p.strip() for p in PART_SPLIT_RE.split(t)]
+    if len(raw) < 2 or any(not p for p in raw):
+        return [], False
+    return [(p, name_key(p)) for p in raw], not OR_RE.search(t)
+
+
+def part_index(text, parts: list[tuple[str, str]]) -> int | None:
+    """Teil, den ein QIS-Text nennt: gleicher Namensschluessel, sonst endet der Text mit dem Teil ("Grundzüge der
+    Chemie" -> "Chemie"); der laengste Teil gewinnt"""
+    k = name_key(text)
+    if not k:
+        return None
+    best, best_n = None, 0
+    for i, (_, pk) in enumerate(parts):
+        if len(pk) >= MIN_PART_KEY and (k == pk or k.endswith(" " + pk)) and len(pk) > best_n:
+            best, best_n = i, len(pk)
+    return best
+
+
+def _index(mods: list[dict]) -> tuple[dict, dict, dict]:
+    """(Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id, Teile -> Modul-id), jeweils das erste Modul; ein Teil
+    nur, wenn kein Modul so heisst"""
     by_code: dict[str, str] = {}
     by_key: dict[str, str] = {}
+    by_part: dict[str, list[tuple[str, str]]] = {}
     for m in mods:
         code = text_of(m.get("code")).strip()
         if code and code not in by_code:
@@ -451,24 +545,85 @@ def _index(mods: list[dict]) -> tuple[dict, dict]:
         k = name_key(m.get("title"))
         if k and k not in by_key:
             by_key[k] = m["id"]
-    return by_code, by_key
+    for m in mods:
+        parts, _ = title_parts(m.get("title"))
+        if parts and m["id"] not in by_part:
+            by_part[m["id"]] = [p for p in parts if p[1] not in by_key]
+    return by_code, by_key, by_part
 
 
-def _row_module(r: dict, by_code: dict, by_key: dict) -> str | None:
+def _part_module(text, by_part: dict) -> str | None:
+    """Modul, dessen Titel einen Teil nennt, den der Text nennt (der laengste Teil gewinnt, dann das erste Modul)"""
+    best, best_n = None, 0
+    for mid, parts in by_part.items():
+        i = part_index(text, parts)
+        if i is not None and len(parts[i][1]) > best_n:
+            best, best_n = mid, len(parts[i][1])
+    return best
+
+
+def _row_module(r: dict, by_code: dict, by_key: dict, by_part: dict | None = None) -> str | None:
+    """Katalogmodul einer QIS-Zeile: Pruefungsnummer, sonst Name; sonst das Modul ihrer QIS-Modulzeile (`modul_nr`,
+    `modul_text` aus grades_model, 12.11.2026: Leistungen eines Moduls ohne eigene Pruefungen wie "Studium Generale"
+    gehoeren zu diesem Modul, vorher standen sie als "nicht zugeordnet" da); sonst ein Teil eines zusammengesetzten
+    Titels (Name, dann Modulzeile)"""
     nr = text_of(r.get("pruefungsnr")).strip()
     mid = by_code.get(nr) if nr else None
-    return mid if mid is not None else by_key.get(name_key(r.get("text")))
+    if mid is None:
+        mid = by_key.get(name_key(r.get("text")))
+    if mid is None:
+        mnr = text_of(r.get("modul_nr")).strip()
+        mid = by_code.get(mnr) if mnr else None
+        if mid is None and text_of(r.get("modul_text")).strip():
+            mid = by_key.get(name_key(r.get("modul_text")))
+    if mid is None and by_part:
+        mid = _part_module(r.get("text"), by_part)
+        if mid is None and text_of(r.get("modul_text")).strip():
+            mid = _part_module(r.get("modul_text"), by_part)
+    return mid
+
+
+def _parts_state(m: dict, passed: list[dict]) -> tuple[list[str], list[str]]:
+    """(Texte der bestandenen QIS-Zeilen, offene Teile laut Katalog) eines Moduls, dessen Teile alle noetig sind; ([], [])
+    wenn das Modul einfach ist, einer reicht ("oder") oder eine bestandene Zeile fuer das ganze Modul steht (gleicher
+    Titel, Nummer oder eine Modulzeile, die keinen Teil nennt)"""
+    parts, need_all = title_parts(m.get("title"))
+    if not parts or not need_all or not passed:
+        return [], []
+    title_key, code = name_key(m.get("title")), text_of(m.get("code")).strip()
+    done: set[int] = set()
+    for r in passed:
+        if name_key(r.get("text")) == title_key or (code and text_of(r.get("pruefungsnr")).strip() == code):
+            return [], []
+        i = part_index(r.get("text"), parts)
+        if i is None:
+            if r.get("level") not in (None, "pruefung"):
+                return [], []                               # Modulzeile unter anderem Namen: das ganze Modul
+            continue
+        done.add(i)
+    if len(done) == len(parts):
+        return [], []
+    names: list[str] = []
+    for r in passed:
+        t = text_of(r.get("text")).strip()
+        if t and t not in names:
+            names.append(t)
+    return names, [p[0] for i, p in enumerate(parts) if i not in done]
 
 
 def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
     """{Modul-id: [Zeilen]} und die nicht zugeordneten Texte (sortiert, ohne Doppelte)"""
-    by_code, by_key = _index(mods)
+    by_code, by_key, by_part = _index(mods)
     hist: dict[str, list[dict]] = {}
     unmatched: set[str] = set()
     for r in grades:
-        if not isinstance(r, dict) or is_bereich(r):
+        if not isinstance(r, dict):
             continue
-        mid = _row_module(r, by_code, by_key)
+        # Bereichszeile nur, wenn kein Katalogmodul so heisst (11.11.2026: "Vertiefung der Betriebssysteme" ist im
+        # TI-Katalog ein Wahlpflichtmodul, die Bereichsregel "Vertiefung ..." hatte die bestandene Leistung verschluckt)
+        mid = _row_module(r, by_code, by_key, by_part)
+        if mid is None and is_bereich(r):
+            continue
         if mid is None:
             if text_of(r.get("text")).strip():
                 unmatched.add(text_of(r.get("text")).strip())
@@ -477,36 +632,83 @@ def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
     return hist, sorted(unmatched)
 
 
-def _attempts(rows: list[dict]) -> tuple[int, int | None, bool]:
-    """(Fehlversuche, Semester des letzten Fehlversuchs, endgueltig)"""
+def _attempts(rows: list[dict], max_attempts: int | None = None) -> tuple[int, int | None, bool, bool, bool]:
+    """(Fehlversuche, Semester des letzten Fehlversuchs, endgueltig, Versuchsnummer aus QIS, QIS meldet letzten Versuch).
+    Endgueltig nur, wenn QIS es meldet oder die bekannte Hoechstzahl erreicht ist (11.11.2026)"""
+    known = any(int_or_none(r.get("versuch")) for r in rows)
+    last = any(says_last_try(r) for r in rows)
     failed = [r for r in rows if row_result(r) in ("failed", "final")]
     if not failed:
-        return 0, None, False
+        return 0, None, False, known, last
     versuche = [int_or_none(r.get("versuch")) or 0 for r in failed]
-    terms = {parse_term(r.get("semester")) for r in failed}
-    n = max(max(versuche), len(terms))
-    known = [t for t in terms if t is not None]
-    final = any(row_result(r) == "final" for r in failed) or n >= 3
-    return n, (max(known) if known else None), final
+    terms = {row_term(r) for r in failed}
+    # ohne Versuchsspalte: jede nicht bestandene Pruefung (Semester, Datum) ist ein Versuch; Modulzeilen nur, wenn es
+    # keine Pruefungszeilen gibt (sonst stuenden Modul und Pruefung desselben Versuchs doppelt da)
+    exams = [r for r in failed if r.get("level") == "pruefung"] or failed
+    tries = {(row_term(r), text_of(r.get("datum")).strip()) for r in exams}
+    n = max(max(versuche), len(terms), len(tries))
+    seen = [t for t in terms if t is not None]
+    final = any(row_result(r) == "final" for r in failed) or (max_attempts is not None and n >= max_attempts)
+    return n, (max(seen) if seen else None), final, known, last
 
 
-def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> dict:
-    """Der volle Stand (fuer Plan und Moduldetail): {plan, state, hist}"""
+def effective_modules(catalog: dict) -> tuple[list[dict], list[dict]]:
+    """Module des Katalogs (ohne Doppelte) mit der Art, die der Plan nutzt, und die als Wahl erkannten Bereiche.
+    Wahl statt Pflicht (11.11.2026): haben die Pflichtmodule eines Bereichs zusammen mehr als das 1,5-fache seiner LP
+    (Obergrenze, sonst Bedarf; ohne Angabe mehr als der ganze Studiengang), ist der Bereich eine Wahl (z. B. ETBSc17:
+    196 Module mit 910 LP in einem Bereich, alle als Pflicht gelesen). Module mit empfohlenem Fachsemester bleiben
+    Pflicht, solange sie allein in den Bereich passen."""
     mods: list[dict] = []
     seen: set[str] = set()
     for m in catalog.get("modules") or []:
         if isinstance(m, dict) and isinstance(m.get("id"), str) and m["id"] and m["id"] not in seen:
             seen.add(m["id"])
             mods.append(m)
+    total = num(catalog.get("total_lp"))
+    if not total or total <= 0:
+        reg = num(catalog.get("regular_semesters"))
+        total = (int(reg) if reg and reg > 0 else 6) * TARGET_LP
+    found: list[dict] = []
+    changed: set[str] = set()
+    areas_seen: set[str] = set()
+    for a in catalog.get("areas") or []:
+        if not isinstance(a, dict) or not isinstance(a.get("id"), str) or not a["id"] or a["id"] in areas_seen:
+            continue
+        areas_seen.add(a["id"])
+        pf = [m for m in mods if m.get("area") == a["id"] and text_of(m.get("kind")) not in ELECTIVE_KINDS + ("abschluss",)]
+        lp = sum(lp_of(m) for m in pf)
+        mx, req = num(a.get("lp_max")), num(a.get("lp_required"))
+        cap = mx if mx and mx > 0 else (req if req and req > 0 else None)
+        if not pf or lp <= (cap * CHOICE_FACTOR if cap is not None else total):
+            continue
+        bound = cap if cap is not None else total
+        fixed = [m for m in pf if isinstance(num(m.get("semester")), (int, float)) and num(m.get("semester")) >= 1]
+        keep = {m["id"] for m in fixed} if sum(lp_of(m) for m in fixed) <= bound else set()
+        conv = [m for m in pf if m["id"] not in keep]
+        changed |= {m["id"] for m in conv}
+        found.append({"area": a["id"], "name": text_of(a.get("name")), "n": len(conv), "lp": sum(lp_of(m) for m in conv),
+                      "cap": cap, "total": total})
+    if changed:
+        mods = [dict(m, kind="wahlpflicht") if m["id"] in changed else m for m in mods]
+    return mods, found
+
+
+def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> dict:
+    """Der volle Stand (fuer Plan und Moduldetail): {plan, state, hist}"""
+    mods, recognized = effective_modules(catalog)
     order = {m["id"]: i for i, m in enumerate(mods)}
     by_id = {m["id"]: m for m in mods}
     current = current_term(today)
     hist, unmatched = _match(mods, grades)
 
+    # Studienbeginn: Einstellung, sonst das frueheste Semester mit einer QIS-Leistung (Semesterspalte oder Datum);
+    # liegt eine QIS-Leistung vor dem eingestellten Beginn, gilt das QIS (12.11.2026: hoehere Semester bekamen sonst den
+    # Beginn = aktuelles Semester, weil das Einstellungsblatt ihn ungefragt so speicherte, und alles Bestandene rutschte
+    # in dieses Semester). Pruefungsanmeldungen zaehlen nicht (sie liegen im aktuellen Semester).
+    terms = [row_term(r) for r in grades if isinstance(r, dict) and not is_bereich(r) and r.get("source") != "anmeldung"]
+    known = [t for t in terms if t is not None]
     start = parse_term(settings.get("start_term"))
-    if start is None:
-        terms = [parse_term(r.get("semester")) for r in grades if isinstance(r, dict) and not is_bereich(r)]
-        known = [t for t in terms if t is not None]
+    if start is None or (known and min(known) < start):
         start = min(known) if known else current
     regular = num(catalog.get("regular_semesters"))
     regular = int(regular) if regular and regular > 0 else 6
@@ -595,6 +797,9 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
             return False
         if text_of(m.get("kind")) in ELECTIVE_KINDS:
             return m["id"] in chosen
+        since = parse_term(m.get("required_from"))           # Pflicht erst ab diesem Studienbeginn (11.11.2026)
+        if since is not None and start < since:
+            return m["id"] in chosen
         prim = m.get("area")
         return m["id"] in chosen or not (isinstance(prim, str) and prim in group_of and prim not in active)
 
@@ -646,23 +851,32 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     for mid in included:
         m, rows = by_id[mid], hist.get(mid, [])
         turnus = turnus_of(m.get("turnus"))
-        failed_n, last_fail, final = _attempts(rows)
+        max_n = max_attempts_of(m, catalog)
         passed = [r for r in rows if row_result(r) == "passed"]
+        # Modul aus Teilen, die alle noetig sind ("Thermodynamik I / Chemie"): bestanden erst mit allen Teilen oder einer
+        # bestandenen Zeile fuer das ganze Modul; bis dahin zaehlen die bestandenen Teile nicht als Fehlversuche
+        done_parts, open_parts = _parts_state(m, passed)
+        if open_parts:
+            done = {part_index(r.get("text"), title_parts(m.get("title"))[0]) for r in passed} - {None}
+            rows = [r for r in rows if part_index(r.get("text"), title_parts(m.get("title"))[0]) not in done]
+            passed = []
+        failed_n, last_fail, final, known, qis_last = _attempts(rows, max_n)
         registered = [r for r in rows if row_result(r) == "registered"]
         st = {"status": None, "term": None, "attempt": None, "grade": None, "moved_from": None, "reason": None,
-              "failed": failed_n, "final": final, "placed": False}
+              "failed": failed_n, "final": final, "placed": False, "known": known, "max_attempts": max_n,
+              "qis_last": qis_last, "parts_done": done_parts if open_parts else [], "parts_open": open_parts}
         sem = sem_of(m) or slot_sem.get(mid)
         rec = start + sem - 1 if sem else None
         own = placed.get(mid)
         if passed:
             best = passed[0]
             for r in passed[1:]:
-                if (parse_term(r.get("semester")) or -1) >= (parse_term(best.get("semester")) or -1):
+                if (row_term(r) or -1) >= (row_term(best) or -1):
                     best = r
-            t = parse_term(best.get("semester"))
+            t = row_term(best)
             if t is None:
                 t = min(rec, current) if rec is not None else current
-            st.update(status="bestanden", term=max(t, start), attempt=failed_n + 1,
+            st.update(status="bestanden", term=max(t, start), attempt=max(failed_n + 1, int_or_none(best.get("versuch")) or 0),
                       grade=text_of(best.get("note")).strip() or None)
         elif registered:
             vs = [int_or_none(r.get("versuch")) for r in registered]
@@ -722,7 +936,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
                 if st["status"] not in ("plan", "nicht_bestanden") or st["placed"]:
                     continue
                 need, need_id = None, None
-                for p in prereqs(by_id[mid]):
+                for p in plan_prereqs(by_id[mid], by_id):
                     ps = state.get(p)
                     if ps is None or ps["status"] == "bestanden":
                         continue
@@ -758,8 +972,8 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
 
     # Eigene Eintraege (z. B. Studium generale einer anderen Fakultaet): Stand aus einer nicht zugeordneten QIS-Zeile
     # mit gleichem Namensschluessel, sonst im gewaehlten Fachsemester (fruehestens jetzt)
-    by_code, by_key = _index(mods)
-    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and _row_module(r, by_code, by_key) is None]
+    by_code, by_key, by_part = _index(mods)
+    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and _row_module(r, by_code, by_key, by_part) is None]
     custom = []
     for c in clean_custom(settings.get("custom")):
         key = name_key(c["title"])
@@ -768,13 +982,14 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         area = c["area"] if c["area"] in active else None
         e = {"id": c["id"], "title": c["title"], "code": None, "kind": akind[area] if area else "wahl", "area": area,
              "lp": c["lp"], "semester": c["semester"], "turnus": None, "status": None, "attempt": None, "grade": None,
-             "moved_from": None, "reason": None, "last_attempt": False, "placed": False, "hints": [], "custom": True}
+             "moved_from": None, "reason": None, "last_attempt": False, "attempt_known": False, "max_attempts": None,
+             "final": False, "placed": False, "hints": [], "custom": True}
         if passed_rows:
             best = passed_rows[0]
             for r in passed_rows[1:]:
-                if (parse_term(r.get("semester")) or -1) >= (parse_term(best.get("semester")) or -1):
+                if (row_term(r) or -1) >= (row_term(best) or -1):
                     best = r
-            t = parse_term(best.get("semester"))
+            t = row_term(best)
             e.update(status="bestanden", grade=text_of(best.get("note")).strip() or None)
             t = max(t if t is not None else current, start)
         elif any(row_result(r) == "registered" for r in rows):
@@ -784,6 +999,74 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
             t = max(start + c["semester"] - 1 if c["semester"] else lower, lower)
             e["status"] = "offen" if t <= current else "geplant"
         custom.append((t, e))
+
+    # Wahlfach aus QIS ohne Katalogmodul (11.11.2026): nicht zugeordnete Leistungen unter einer QIS-Bereichszeile, die
+    # einen aktiven Wahlbereich nennt, stehen mit Stand im Plan (wie eigene Eintraege, die gleichnamig vorgehen) und
+    # belegen den naechstgelegenen freien Platz ihres Bereichs laut Verlaufsplan
+    custom_keys = {name_key(e["title"]) for _, e in custom}
+    area_toks = [(aid, tokens(area_by[aid].get("name"))) for aid in choice]
+    groups_q: dict[str, list[dict]] = {}
+    area_q: dict[str, str] = {}
+    ctx = None
+    for r in grades:
+        if not isinstance(r, dict):
+            continue
+        if _row_module(r, by_code, by_key, by_part) is not None:
+            continue
+        if is_bereich(r):
+            ctx = area_of_bereich(r.get("text"), area_toks)
+            continue
+        if ctx is None or text_of(r.get("source")) == "anmeldung":
+            continue
+        key = name_key(r.get("text"))
+        if not key or key in custom_keys:
+            continue
+        groups_q.setdefault(key, []).append(r)
+        area_q.setdefault(key, ctx)
+    taken_q: set[str] = set()
+    for key, rows in groups_q.items():
+        area = area_q[key]
+        failed_n, last_fail, final, known, qis_last = _attempts(rows)
+        passed_rows = [r for r in rows if row_result(r) == "passed"]
+        registered = [r for r in rows if row_result(r) == "registered"]
+        if not passed_rows and not registered and not failed_n:
+            continue                                            # nur abgemeldet, krank ...
+        lps = sorted(lp_of(by_id[i]) for i in members[area] if lp_of(by_id[i]) > 0)
+        credits = max(credits_of(r) for r in rows)
+        lp = credits if credits > 0 else (lps[(len(lps) - 1) // 2] if lps else UNIT_LP)
+        lp = int(lp) if float(lp) == int(lp) else float(lp)
+        code = next((text_of(r.get("pruefungsnr")).strip() for r in rows if text_of(r.get("pruefungsnr")).strip()), None)
+        e = {"id": f"qis-{len(taken_q) + 1}", "title": text_of(rows[0].get("text")).strip(), "code": code,
+             "kind": akind[area], "area": area, "lp": lp, "semester": None, "turnus": None, "status": None,
+             "attempt": None, "grade": None, "moved_from": None, "reason": None, "last_attempt": False,
+             "attempt_known": known, "max_attempts": None, "final": False, "placed": False, "hints": [], "custom": False,
+             "qis": True}
+        if passed_rows:
+            best = passed_rows[0]
+            for r in passed_rows[1:]:
+                if (row_term(r) or -1) >= (row_term(best) or -1):
+                    best = r
+            t = max(row_term(best) or current, start)
+            e.update(status="bestanden", attempt=max(failed_n + 1, int_or_none(best.get("versuch")) or 0),
+                     grade=text_of(best.get("note")).strip() or None)
+        elif registered:
+            vs = [v for v in (int_or_none(r.get("versuch")) for r in registered) if v]
+            t = current
+            e.update(status="angemeldet", attempt=max(vs) if vs else failed_n + 1)
+        else:
+            t = max(last_fail + 1 if last_fail is not None else current, lower)
+            e.update(status="nicht_bestanden", attempt=failed_n, final=final,
+                     moved_from=term_name(last_fail) if last_fail is not None else None,
+                     reason="Nicht bestanden – nächster Versuch")
+        e["last_attempt"] = last_attempt({"status": e["status"], "final": final, "qis_last": qis_last,
+                                          "max_attempts": None, "attempt": e["attempt"]})
+        taken_q.add(e["id"])
+        free = [k for k, s in enumerate(slots) if k not in taken
+                and (not isinstance(s.get("areas"), list) or not s["areas"] or area in s["areas"])]
+        if free:
+            taken.add(min(free, key=lambda k: (abs(start + int(num(slots[k]["semester"])) - 1 - t), k)))
+        custom.append((t, e))
+        unmatched = [u for u in unmatched if u not in {text_of(r.get("text")).strip() for r in rows}]
 
     # Stand je Bereich: jedes Modul zaehlt einmal, im eigenen Bereich, sonst im ersten aktiven Bereich mit Platz
     target: dict[str, float | None] = {}
@@ -928,6 +1211,8 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     for g, ids in groups.items():
         if g in track:
             continue
+        if slots and all(aid in referenced for aid in ids):
+            continue                    # der Verlaufsplan hat Plaetze dafuer (INFBSc22: Nebenfach in "Wahl(pflicht)modul")
         lps = []
         for aid in ids:
             req, mx = num(area_by[aid].get("lp_required")), num(area_by[aid].get("lp_max"))
@@ -951,8 +1236,11 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
                                       for i in ids] + mine,
                           "slots": here, "lp_slots": sum(p["lp"] or 0 for p in here)})
 
-    lp_done = sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden") \
-        + sum(e["lp"] for _, e in custom if e["status"] == "bestanden")
+    # LP erreicht: die LP aller bestandenen QIS-Leistungen wie in Uni & Noten (grades_model.credits_done, Regel des
+    # Inhabers 12.11.2026), auch nicht zugeordnete; nur ohne jede LP-Angabe im QIS die Katalog-LP der bestandenen Module
+    lp_done = grades_model.credits_done(grades) or (
+        sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden")
+        + sum(e["lp"] for _, e in custom if e["status"] == "bestanden"))
     total = num(catalog.get("total_lp"))
     lp_total = total if total else sum(lp_of(by_id[i]) for i in included)
     lp_expected = sum(lp_of(by_id[i]) for i in included if sem_of(by_id[i]) and start + sem_of(by_id[i]) - 1 < current)
@@ -961,19 +1249,17 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     for mid in included:
         m, st = by_id[mid], state[mid]
         title = text_of(m.get("title"))
-        if st["status"] != "bestanden" and st["final"]:
-            notes.append(_note("endgueltig", mid, f"{title}: endgültig nicht bestanden – sprich mit der Studienberatung."))
-        elif (st["status"] == "nicht_bestanden" and st["attempt"] == 2) or (st["status"] == "angemeldet" and st["attempt"] == 3):
-            notes.append(_note("letzter_versuch", mid, f"{title}: Letzter Versuch – sprich mit der Studienberatung."))
+        attempt_notes(notes, mid, title, st)
         if st["status"] == "bestanden":
             continue
-        for p in prereqs(m):
+        for p in plan_prereqs(m, by_id):
             if p not in by_id:
                 continue
             ps = state.get(p)
             ptitle = text_of(by_id[p].get("title"))
             if ps is None:
-                notes.append(_note("voraussetzung", mid, f"{title}: Voraussetzung {ptitle} ist nicht im Plan."))
+                if text_of(by_id[p].get("kind")) not in ELECTIVE_KINDS:     # ein Wahlmodul muss nicht im Plan sein
+                    notes.append(_note("voraussetzung", mid, f"{title}: Voraussetzung {ptitle} ist nicht im Plan."))
             elif ps["status"] != "bestanden" and st["status"] == "angemeldet":
                 notes.append(_note("voraussetzung", mid, f"{title}: Voraussetzung {ptitle} ist noch nicht bestanden."))
     for sem in semesters:
@@ -984,6 +1270,16 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         notes.append(_note("rueckstand", None,
                            f"Du liegst {fmt_lp(lp_expected - lp_done)} LP hinter dem Studienverlaufsplan: {fmt_lp(lp_done)} "
                            f"von {fmt_lp(lp_expected)} LP bis zum Ende des {current - start}. Fachsemesters."))
+    for _, e in custom:
+        if e.get("qis"):
+            attempt_notes(notes, e["id"], e["title"], {"status": e["status"], "final": e["final"],
+                                                       "qis_last": e["last_attempt"] and not e["final"],
+                                                       "max_attempts": None, "attempt": e["attempt"]})
+    for f in recognized:
+        limit = (f"der Bereich verlangt {fmt_lp(f['cap'])} LP" if f["cap"] is not None
+                 else f"mehr als der ganze Studiengang ({fmt_lp(f['total'])} LP)")
+        notes.append(_note("wahl_erkannt", None, f"{f['name']}: {f['n']} Module mit {fmt_lp(f['lp'])} LP stehen im Katalog "
+                                                 f"als Pflicht, {limit} – StudiNow zeigt sie als Wahl."))
     notes.sort(key=lambda n: NOTE_RANK[n["kind"]])
 
     electives = []
@@ -1030,7 +1326,8 @@ def _entry(m: dict, st: dict, hints: list[str] | None = None) -> dict:
             "area": m.get("area"), "lp": lp_of(m), "semester": num(m.get("semester")), "turnus": m.get("turnus"),
             "status": st["status"], "attempt": st["attempt"], "grade": st["grade"],
             "moved_from": st["moved_from"], "reason": st["reason"], "last_attempt": last_attempt(st),
-            "placed": st["placed"], "hints": hints or []}
+            "attempt_known": st["known"], "max_attempts": st["max_attempts"],
+            "final": bool(st["final"]) and st["status"] != "bestanden", "placed": st["placed"], "hints": hints or []}
 
 
 def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
@@ -1039,26 +1336,44 @@ def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
     if st["status"] == "bestanden":
         return []
     out = []
+    if st.get("parts_open"):
+        out.append(f"Teil bestanden: {', '.join(st['parts_done'])} – es fehlt noch: {', '.join(st['parts_open'])}")
     turnus = turnus_of(m.get("turnus"))
     if not fits(st["term"], turnus):
         out.append(f"Laut Katalog nur im {'Wintersemester' if turnus == 'WS' else 'Sommersemester'} angeboten")
-    for p in prereqs(m):
+    for p in plan_prereqs(m, by_id):
         if p not in by_id:
             continue
         ps, ptitle = state.get(p), text_of(by_id[p].get("title"))
         if ps is None:
-            out.append(f"Voraussetzung {ptitle} ist nicht im Plan")
+            if text_of(by_id[p].get("kind")) not in ELECTIVE_KINDS:
+                out.append(f"Voraussetzung {ptitle} ist nicht im Plan")
         elif ps["status"] != "bestanden" and ps["term"] >= st["term"]:
             out.append(f"Voraussetzung {ptitle} liegt nicht davor")
     return out
 
 
 def last_attempt(st: dict) -> bool:
-    """Naechster bzw. angemeldeter Versuch ist der dritte, oder endgueltig nicht bestanden"""
-    if st["status"] == "bestanden":
+    """Endgueltig nicht bestanden, QIS meldet den letzten Versuch, oder bei bekannter Hoechstzahl: der naechste bzw.
+    angemeldete Versuch ist der letzte. Ohne Hoechstzahl nie aus der Zahl der Versuche (11.11.2026)"""
+    if st["status"] not in ("nicht_bestanden", "angemeldet"):
         return False
-    return bool(st["final"]) or (st["status"] == "nicht_bestanden" and st["attempt"] == 2) or \
-        (st["status"] == "angemeldet" and st["attempt"] == 3)
+    if st["final"] or st.get("qis_last"):
+        return True
+    mx = st.get("max_attempts")
+    if mx is None:
+        return False
+    return (st["status"] == "nicht_bestanden" and st["attempt"] == mx - 1) or \
+        (st["status"] == "angemeldet" and st["attempt"] == mx)
+
+
+def attempt_notes(notes: list, module_id: str, title: str, st: dict) -> None:
+    """Hinweis endgueltig nicht bestanden bzw. letzter Versuch (mit Grund: QIS oder Hoechstzahl der Pruefungsordnung)"""
+    if st["status"] != "bestanden" and st["final"]:
+        notes.append(_note("endgueltig", module_id, f"{title}: endgültig nicht bestanden – sprich mit der Studienberatung."))
+    elif last_attempt(st):
+        why = "laut QIS" if st.get("qis_last") else f"höchstens {st['max_attempts']} Versuche laut Prüfungsordnung"
+        notes.append(_note("letzter_versuch", module_id, f"{title}: Letzter Versuch ({why}) – sprich mit der Studienberatung."))
 
 
 def _note(kind: str, module_id: str | None, text: str) -> dict:
@@ -1141,7 +1456,10 @@ def module_response(conn, module_id: str, today: str, source=None) -> dict:
            "attempt": st["attempt"] if st else None, "grade": st["grade"] if st else None,
            "moved_from": st["moved_from"] if st else None, "reason": st["reason"] if st else None,
            "last_attempt": last_attempt(st) if st else False,
-           "attempts": [{"text": r.get("text"), "semester": r.get("semester"), "status": r.get("status"),
+           "attempt_known": st["known"] if st else False,
+           "max_attempts": max_attempts_of(m, cat),
+           "final": bool(st["final"]) and st["status"] != "bestanden" if st else False,
+           "attempts":[{"text": r.get("text"), "semester": r.get("semester"), "status": r.get("status"),
                          "grade": r.get("note"), "attempt": int_or_none(r.get("versuch")), "date": r.get("datum")}
                         for r in full["hist"].get(module_id, [])]}
 
@@ -1202,7 +1520,7 @@ def settings_response(conn, today: str, source=None) -> dict:
     catalogs = source.catalogs()
     suggested, _ = pick_catalog(catalogs, {}, grades)
     cat, _ = pick_catalog(catalogs, s, grades)
-    terms = [parse_term(r.get("semester")) for r in grades if not is_bereich(r)]
+    terms = [row_term(r) for r in grades if not is_bereich(r) and r.get("source") != "anmeldung"]
     known = [t for t in terms if t is not None]
     pos: list[str] = []
     for c in catalogs:
@@ -1215,8 +1533,8 @@ def settings_response(conn, today: str, source=None) -> dict:
     options = [{"id": m["id"], "title": text_of(m.get("title")), "kind": m.get("kind"), "lp": lp_of(m),
                 "semester": num(m.get("semester")), "area": m.get("area"),
                 "area_name": names.get(m.get("area")) if isinstance(m.get("area"), str) else None}
-               for m in (cat or {}).get("modules") or []
-               if isinstance(m, dict) and isinstance(m.get("id"), str) and m["id"] and text_of(m.get("kind")) in ELECTIVE_KINDS]
+               for m in (effective_modules(cat)[0] if cat else [])
+               if text_of(m.get("kind")) in ELECTIVE_KINDS]
     return {**s, "suggested_po": suggested.get("po") if suggested else None,
             "suggested_start_term": term_name(min(known)) if known else None,
             "abschluss": abschluss_of(grades), "po_options": pos,

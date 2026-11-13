@@ -106,7 +106,7 @@ final class IPhoneStudyPlanTests: IPhoneLearnTestCase {
     func testListWithSlotsAndChooserAsBottomSheet() throws {
         let t = transport(try enginePlan("wahlbereiche_offen"))
         let env = try hostPhone(StudyPlanPage(), api: api(t))
-        XCTAssertTrue(env.wait(timeout: 15) { self.element(env, label: "Offener Platz, Seminare", prefix: true) != nil }, dump(env))
+        XCTAssertTrue(env.wait(timeout: 15) { self.element(env, label: "Offener Platz, Wahlpflicht: Seminare", prefix: true) != nil }, dump(env))
         // Semesterliste: die Semester stehen untereinander (kein Board mit Spalten)
         let a = try XCTUnwrap(element(env, label: "WiSe 25/26,", prefix: true), dump(env))
         let b = try XCTUnwrap(element(env, label: "SoSe 26,", prefix: true), dump(env))
@@ -116,7 +116,7 @@ final class IPhoneStudyPlanTests: IPhoneLearnTestCase {
         assertFitsOnAllPhones(env, "Studienverlauf mit Plätzen")
         shoot(env, "iphone-studienverlauf-plaetze")
 
-        XCTAssertTrue(tap(env, "Offener Platz, Seminare", prefix: true))
+        XCTAssertTrue(tap(env, "Offener Platz, Wahlpflicht: Seminare", prefix: true))
         XCTAssertTrue(env.wait(timeout: 10) { self.sheetElement(env, "Seminar Datenbanken,") != nil }, sheetDump(env))
         env.pump(0.6)
         let f = sheetFrame(env)

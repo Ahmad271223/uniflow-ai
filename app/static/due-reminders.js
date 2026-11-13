@@ -16,7 +16,10 @@ const HORIZON = 26 * 3600 * 1000;       // Zeitgeber nur fuer die naechsten 26 S
 let ctx = null, timers = [], items = [], refreshT = 0;
 
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
-const enabled = () => store.get(KEY) === "on";
+// Erinnerungen ab Plus (Entscheidung 11.11.2026, Recht can_use_due_reminders); ohne Dienst bzw. Konto wie core.can
+const RIGHT = "can_use_due_reminders";
+const allowed = () => !(ctx?.state?.hosted || ctx?.state?.gated) || !!ctx?.state?.entitlements?.entitlements?.[RIGHT];
+const enabled = () => store.get(KEY) === "on" && allowed();
 function fired() { try { return new Set(JSON.parse(store.get(FIRED) || "[]")); } catch { return new Set(); } }
 function markFired(id) { const s = [...fired(), id].slice(-300); store.set(FIRED, JSON.stringify(s)); }
 const container = () => String(ctx?.state?.account?.id ?? ctx?.state?.appAccount?.user?.id ?? "local");
@@ -111,6 +114,7 @@ async function refresh() {
 // ---------------------------------------------------------------- Knopf in "Nächste Termine"
 function toggleHtml() {
   const { icon } = ctx; const on = enabled();
+  if (!allowed()) return `<a class="btn ghost sm due-toggle" href="#/abo" data-due-locked title="Erinnerungen an Abgaben und Klausuren gibt es ab StudiNow Plus">${icon("bell", 14)} Erinnern ab Plus</a>`;
   return `<button class="btn ghost sm due-toggle" data-due-toggle aria-pressed="${on}" aria-label="Erinnerungen an Fristen ${on ? "an" : "aus"}" title="${on ? "Erinnerungen an Abgaben, Tests und Prüfungen ausschalten" : "3 Tage, 1 Tag und am Morgen vor erkannten Fristen erinnern"}">${icon("bell", 14)} ${on ? "Erinnert" : "Erinnern"}</button>`;
 }
 async function toggle(btn) {
