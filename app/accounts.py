@@ -911,8 +911,8 @@ def _mark_deleted(conn, user_id: str, t: str) -> None:
 
 
 def _after_delete(user_id: str) -> bool:
-    """Schritte ausserhalb von accounts.db: Datenordner beiseitelegen, Community-Beitraege zurueckziehen. Beide
-    idempotent. Ein Fehler wird protokolliert, die Loeschung gilt trotzdem (Audit P20-08/P21-01: vorher 500 nach dem
+    """Schritte ausserhalb von accounts.db: Datenordner beiseitelegen, Community-Beitraege zurueckziehen, ein laufendes
+    Karten-Abo (Stripe) beenden. Alle idempotent. Ein Fehler wird protokolliert, die Loeschung gilt trotzdem (Audit P20-08/P21-01: vorher 500 nach dem
     Commit, Wiederholung unmoeglich, ein nicht beiseitegelegter Ordner blieb fuer immer). Der Status `deleted` ist der
     dauerhafte Auftrag: `purge_deleted` (taeglich) ruft das fuer jedes geloeschte Konto erneut auf."""
     import logging
@@ -929,6 +929,20 @@ def _after_delete(user_id: str) -> bool:
     except Exception:  # noqa: BLE001
         ok = False
         log.exception("Konto %s: Community-Beitraege nicht zurueckgezogen (wird nachgeholt)", user_id)
+    try:
+        # Karten-Abo (Stripe) mitkuendigen (Entscheidung des Inhabers vom 13.11.2026); ein Apple-Abo kann nur der
+        # Nutzer selbst kuendigen. Scheitert Stripe, versucht es purge_deleted taeglich erneut.
+        from . import billing, stripe_billing
+        bconn = billing.connect()
+        try:
+            ended = stripe_billing.cancel_for_deleted_account(bconn, user_id)
+        finally:
+            bconn.close()
+        if ended:
+            log.info("Konto %s: Stripe-Abo(s) beendet: %s", user_id, ", ".join(ended))
+    except Exception:  # noqa: BLE001
+        ok = False
+        log.exception("Konto %s: Stripe-Abo nicht beendet (wird nachgeholt)", user_id)
     return ok
 
 
