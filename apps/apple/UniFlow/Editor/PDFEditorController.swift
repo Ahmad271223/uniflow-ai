@@ -54,6 +54,8 @@ final class PageInkView: UIView {
     var undoBase = PKDrawing()
     /// Aenderung, waehrend der Stift noch aktiv ist (z. B. Radierer): Eintrag erst beim Absetzen anlegen.
     var undoPending = false
+    /// Aenderung, waehrend der Stift noch aktiv ist: beim Absetzen einmal sichern (`PencilTuning.saveOnLift`)
+    var storePending = false
     /// Fremde Ebenen wurden nach einer Speicherwarnung freigegeben und werden beim naechsten Anzeigen neu gebaut.
     var foreignReleased = false
     /// Korrekturvorschlag auf dieser Seite (Korrektur-Modus oder empfangene Korrektur, `CorrectionMode.swift`)
@@ -377,6 +379,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var freezeSystemGestures: FreezeSystemGestures?
 
     var onZoomChange: ((CGFloat) -> Void)?
+    private var lastZoomPublish: TimeInterval = 0
+    private var lastPublishedZoom: CGFloat = -1
+    /// Messung (`PencilFeelTests`): Sicherungen der Canvas an den Store und Zoom-Meldungen an SwiftUI
+    private(set) var canvasSaves = 0
+    private(set) var zoomPublishes = 0
     /// Anzeige-Index und Seitenschluessel der aktuellen Seite.
     var onPageChange: ((Int, String?) -> Void)?
     /// Seitenaufbau, den die PDFView gerade zeigt (kann kurz vom neuesten Stand im Store abweichen).
@@ -766,7 +773,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard let self, !Task.isCancelled else { return }
             let s = self.currentRenderScale
-            self.allOverlays.forEach { $0.setRenderScale(s, screen: self.screenScale) }
+            // nur sichtbare: geparkte bekommen den Zoom beim Wiederanzeigen (`pdfView(_:overlayViewFor:)`)
+            let targets = PencilTuning.rescaleVisibleOnly ? Array(self.live.values) : self.allOverlays
+            targets.forEach { $0.setRenderScale(s, screen: self.screenScale) }
+            self.publishZoom(force: true)
         }
     }
 
@@ -777,7 +787,21 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         }
         scheduleRenderScale()
         if lastFit > 0 { userZoomed = ZoomPolicy.isUserZoom(scale: pdfView.scaleFactor, fitScale: lastFit) }
-        onZoomChange?(lastFit > 0 ? pdfView.scaleFactor / lastFit : 1)
+        publishZoom(force: false)
+    }
+
+    /// Zoom an SwiftUI melden (Anzeige, gemerkte Stelle): beim Pinchen hoechstens alle `zoomPublishInterval`, am Ende
+    /// (`scheduleRenderScale`) sicher mit dem letzten Wert; nur bei geaendertem Wert
+    private func publishZoom(force: Bool) {
+        guard let report = onZoomChange else { return }
+        let value = lastFit > 0 ? pdfView.scaleFactor / lastFit : 1
+        guard value != lastPublishedZoom else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        if !force, PencilTuning.throttleZoomPublish, now - lastZoomPublish < PencilTuning.zoomPublishInterval { return }
+        lastZoomPublish = now
+        lastPublishedZoom = value
+        zoomPublishes += 1
+        report(value)
     }
 
     /// Stift scrollt nie; im Finger-Zeichenmodus scrollen zwei Finger. Mausrad und Trackpad (zwei Finger rollen, Pinch)
@@ -928,7 +952,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func pdfView(_ pdfView: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
         guard let overlay = overlayView as? PageInkView else { return }
         keepPaletteFocus(leaving: overlay)
-        // Scrollen schreibt nie (alles ist schon im Store), nur ein offener Rueckgaengig-Schritt wird abgeschlossen
+        // Scrollen schreibt nie (alles ist schon im Store), nur ein offener Rueckgaengig-Schritt wird abgeschlossen;
+        // eine noch nicht gesicherte Aenderung (Stift lag auf, `storePending`) jetzt sichern
+        if overlay.storePending { saveCanvas(overlay) }
         if overlay.loaded { commitPendingUndo(overlay) }
         if live[overlay.pageIndex] === overlay { live.removeValue(forKey: overlay.pageIndex) }
         guard overlay.generation == shownLayoutVersion else { return }       // Overlay eines alten Seitenaufbaus: verwerfen
@@ -947,6 +973,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Zahl der geparkten Overlays (nur fuer Tests)
     var parkedCountForTesting: Int { parked.count }
+    var parkedOverlaysForTesting: [PageInkView] { parked }
 
     /// Fremde Loesungsseiten fuer ein Overlay: nur PDF-Seiten, gedreht von der Drehung des Absenders auf die
     /// angezeigte Drehung dieser Seite (`/Rotate` + eigene Drehung aus `pageOrder`).
@@ -1182,7 +1209,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing else { return }
         // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
         guard overlay.loaded else { return }
-        store.canvasChanged(pageKey: overlay.pageKey, drawing: canvasView.drawing)
+        // Stift liegt noch auf (Radierer, Lasso; beim Stift kommt die Meldung kurz vor dem Absetzen): einmal beim
+        // Absetzen sichern statt bei jeder Zwischenmeldung (`PencilTuning.saveOnLift`)
+        if overlay.isDrawing, PencilTuning.saveOnLift { overlay.storePending = true } else { saveCanvas(overlay) }
         guard canEdit else { return }                        // ohne Schreiben im Tarif: kein Rueckgaengig-Schritt
         guard !documentUndo.isUndoing, !documentUndo.isRedoing else { return }
         // waehrend der Stift aufliegt (Radierer, Lasso) erst beim Absetzen einen Schritt anlegen
@@ -1198,13 +1227,24 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
-        if overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool { snapShape(on: overlay, endedAt: Date()) }
+        // Form erkannt: `snapShape` sichert die ersetzte Zeichnung selbst (ein Mal statt Strich + Form)
+        var snapped = false
+        if overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool { snapped = snapShape(on: overlay, endedAt: Date()) != nil }
+        if overlay.storePending, !snapped { saveCanvas(overlay) }
+        overlay.storePending = false
         if overlay.loaded { commitPendingUndo(overlay) }
         if overlay.deferredReload {
             overlay.deferredReload = false
             loadContent(into: overlay, remote: true)
         }
         if layoutWaitsForPencil, !live.values.contains(where: \.isDrawing) { showLayout() }
+    }
+
+    /// Zeichnung der Canvas an den Store (sichert sofort, `DocumentStore.canvasChanged`); zaehlt fuer die Messung
+    private func saveCanvas(_ overlay: PageInkView) {
+        overlay.storePending = false
+        canvasSaves += 1
+        store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing)
     }
 
     /// Formerkennung "zeichnen und halten" (`ShapeRecognizer`): Der eben beendete Strich (genau einer seit dem letzten
@@ -1223,6 +1263,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         overlay.isApplyingDrawing = true
         overlay.canvas.drawing = drawing
         overlay.isApplyingDrawing = false
+        overlay.storePending = false
+        canvasSaves += 1
         store.canvasChanged(pageKey: overlay.pageKey, drawing: drawing)
         return shape
     }
@@ -1527,6 +1569,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         while !readyToLeave, Date() < end {
             try? await Task.sleep(nanoseconds: 30_000_000)
         }
+        // Stift lag bis zum Ende der Wartezeit auf: Zwischenstand trotzdem sichern (`PencilTuning.saveOnLift`)
+        for v in allOverlays where v.storePending { saveCanvas(v) }
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
         return readyToLeave
     }

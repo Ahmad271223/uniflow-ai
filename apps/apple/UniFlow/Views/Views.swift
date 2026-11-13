@@ -364,8 +364,13 @@ struct LibraryView: View {
     private func load() async {
         guard let api = session.api else { return }
         do {
-            library = try await api.json("/api/library", as: LibraryResponse.self)
+            let lib = try await api.json("/api/library", as: LibraryResponse.self)
+            library = lib
             loadError = nil
+            // Reiter geloeschter Dokumente fallen heraus (Papierkorb, endgueltig geloescht); nur ein 404 zaehlt als weg
+            await router.tabs.pruneDeleted(listed: Set(lib.files.map(\.id)), trashed: Set((lib.trash ?? []).map(\.id))) { id in
+                do { _ = try await api.value("/api/files/\(id)"); return true } catch { return (error as? APIError)?.status != 404 }
+            }
         } catch {
             loadError = error.localizedDescription
         }

@@ -280,6 +280,10 @@ struct HTTPAnnotationTransport: AnnotationTransport {
 struct LibraryResponse: Decodable {
     let files: [LibFile]
     let modules: [LibModule]
+    /// Papierkorb (nur Kennungen gebraucht: Reiter geloeschter Dokumente fallen heraus, `DocumentTabList.pruneDeleted`)
+    var trash: [TrashedFile]?
+
+    struct TrashedFile: Decodable { let id: String }
 }
 
 struct LibModule: Decodable, Identifiable, Hashable {

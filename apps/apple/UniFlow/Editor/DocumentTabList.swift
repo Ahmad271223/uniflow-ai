@@ -32,8 +32,9 @@ struct DocumentTabEntry: Codable, Equatable, Identifiable {
 
 @MainActor
 final class DocumentTabList: ObservableObject {
-    /// hoechstens so viele Reiter (Auftrag: "~8–10"); darueber faellt der am laengsten nicht gezeigte heraus
-    static let limit = 10
+    /// hoechstens so viele Reiter: die zuletzt geoeffneten 15 Dokumente (Auftrag des Inhabers 13.11.2026; vorher 10);
+    /// darueber faellt der am laengsten nicht gezeigte heraus
+    static let limit = 15
     static let sceneKeyPrefix = "uniflow.docTabs.scene."
     static let lastKey = "uniflow.docTabs.last"
 
@@ -57,10 +58,24 @@ final class DocumentTabList: ObservableObject {
     /// beginnt leer, statt die Reiter des anderen zu doppeln)
     private static var lastTaken = false
 
+    /// Einstellungen des aktiven Containers (Tests: eigene Suiten, um einen Konto-Wechsel nachzustellen)
+    var containerDefaults: () -> UserDefaults? = { ActiveContainer.current?.defaults }
+
     /// `defaults` nil: Einstellungen des aktiven Containers (Konto- und Hochschulwechsel laden die Liste neu)
     init(defaults: UserDefaults? = nil) { fixedDefaults = defaults }
 
-    private var defaults: UserDefaults? { fixedDefaults ?? ActiveContainer.current?.defaults }
+    private var defaults: UserDefaults? { fixedDefaults ?? containerDefaults() }
+
+    /// Reiter fuer die Anzeige: nur, wenn die Liste aus den Einstellungen des gerade offenen Containers stammt. Nach
+    /// einem Konto- oder Hochschulwechsel steht bis zum Neuladen (`refresh`) nichts da statt der Reiter des anderen
+    /// Kontos (Datentrennung).
+    var visibleEntries: [DocumentTabEntry] {
+        // ohne Container (nur im Speicher) gilt die Liste, solange sie nie aus einem Container kam
+        defaults.map(ObjectIdentifier.init) == loadedFrom ? entries : []
+    }
+
+    /// Liste fuer den aktiven Container laden, falls sie von einem anderen stammt (beim Erscheinen der Reiterzeile)
+    func refresh() { loadIfNeeded() }
 
     // MARK: Oeffnen, wechseln, schliessen
 
@@ -183,6 +198,33 @@ final class DocumentTabList: ObservableObject {
             if wasActive { try? await Task.sleep(nanoseconds: 400_000_000) }
             DocumentWindows.open(fileID: id, page: page)
         }
+    }
+
+    // MARK: Geloeschte Dokumente
+
+    /// Dokumente aus der Leiste nehmen (Papierkorb, endgueltig geloescht); auch den aktiven Reiter, die Anzeige zeigt
+    /// das offene Dokument dann ohne "×"
+    func remove(_ ids: Set<String>) {
+        loadIfNeeded()
+        guard entries.contains(where: { ids.contains($0.id) }) else { return }
+        entries.removeAll { ids.contains($0.id) }
+        if let a = activeID, ids.contains(a) { activeID = nil }
+        save()
+    }
+
+    /// Abgleich mit der Bibliothek (`GET /api/library`): Reiter im Papierkorb fallen heraus; Reiter, die weder in der
+    /// Liste noch im Papierkorb stehen (endgueltig geloescht, oder nur ausgeblendet wie Dateien abgewaehlter Kurse),
+    /// fragt `exists` einzeln nach – nur was es wirklich nicht mehr gibt, faellt heraus
+    func pruneDeleted(listed: Set<String>, trashed: Set<String>, exists: (String) async -> Bool) async {
+        loadIfNeeded()
+        let source = defaults.map(ObjectIdentifier.init)
+        var gone = Set(entries.map(\.id).filter { trashed.contains($0) })
+        for id in entries.map(\.id) where !listed.contains(id) && !trashed.contains(id) {
+            if await !exists(id) { gone.insert(id) }
+        }
+        // inzwischen anderer Container (Konto-Wechsel): dessen Liste nicht anfassen
+        guard !gone.isEmpty, source == defaults.map(ObjectIdentifier.init) else { return }
+        remove(gone)
     }
 
     // MARK: Schutz des aktiven Dokuments
