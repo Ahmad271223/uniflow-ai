@@ -95,6 +95,6 @@ test("Oberflaeche: Hilfe beim Start installiert, Karte in Einstellungen → Erwe
   assert.match(misc, /consentCardHtml\(aiConsent\)/);
   assert.match(misc, /api\("\/ai\/consent", \{ method: "DELETE" \}\)/);
   assert.match(ui, /data-consent="yes"/);
-  assert.match(ui, /Zustimmen und fortfahren/);
+  assert.match(ui, /Okay, los/);
   assert.match(ui, /\/api\/ai\/consent/);
 });
