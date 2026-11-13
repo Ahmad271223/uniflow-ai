@@ -68,6 +68,9 @@ struct ModuleWeekDoneButton: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
+    /// iPhone (13.11.2026): nur das Zeichen, sonst bricht "Woche erledigt" im schmalen Wochenkopf Buchstabe fuer
+    /// Buchstabe um; die Beschriftung fuer VoiceOver bleibt
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         let p = ModuleDoneAction.progress(w)
@@ -86,7 +89,7 @@ struct ModuleWeekDoneButton: View {
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: all ? "checkmark.circle.fill" : "checkmark.circle").font(.system(size: 14, weight: .medium))
-                    Text("Woche erledigt").ufFont(13.12, 550)
+                    if !compact { Text("Woche erledigt").ufFont(13.12, 550).lineLimit(1).fixedSize() }
                 }
                 .foregroundStyle(all ? UF.okText : UF.text)
                 .padding(.horizontal, 9).padding(.vertical, 5)

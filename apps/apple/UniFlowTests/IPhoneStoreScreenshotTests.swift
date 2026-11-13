@@ -8,10 +8,14 @@ import XCTest
 /// App-Store-Bildschirmfotos fuer das iPhone 6,9" (iPhone 17 Pro Max: 440 x 956 Punkte, Massstab 3 = 1320 x 2868 Pixel,
 /// hochkant): die echten Ansichten der kompakten Huelle (untere Leiste, Blaetter von unten) mit denselben Demo-Inhalten
 /// wie die iPad-Bilder (`DemoContent` und `DemoContent.installStoreExtras`, erfundenes Modul "Demo: Grundlagen der
-/// Informatik", Rufname "Mia"). Mit UF_SCREENSHOT_DIR (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) schreibt der Test je
+/// Informatik", Rufname "Tobi"). Mit UF_SCREENSHOT_DIR (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) schreibt der Test je
 /// Ansicht hell und dunkel `<nn>-<name>-{light|dark}-portrait.png`; ohne prueft er nur, dass jede Ansicht erscheint.
-/// Reihenfolge und Bildunterschriften: docs/release/SCREENSHOTS.md, Abschnitt iPhone. Schein-Dienste (KI, Stud.IP,
-/// Community) und das Zusammensetzen von Seite und Blatt wie in `StoreScreenshotTests`; keine Anfrage an eine Hochschule.
+///
+/// Satz fuer 1.0.4 (13.11.2026, Build 39): Uebersicht, Lernkalender, Modul mit Erledigt-Haken, Uni-Mail mit
+/// "Mit KI verbessern", KI-Hilfe, Studienverlauf mit Noten, Mensa. Reihenfolge und Bildunterschriften:
+/// docs/release/SCREENSHOTS.md, Abschnitt iPhone. Tobi hat den Tarif Pro AI; die KI antwortet aus einem
+/// Schein-Transport bzw. einer Schein-KI im lokalen Backend, Stud.IP und Uni-Mail aus Nachbildungen im Speicher.
+/// Keine Anfrage an eine Hochschule (`UniStubProtocol` zaehlt mit), keine Hochschul-Logos, nur erfundene Daten.
 @MainActor
 final class IPhoneStoreScreenshotTests: XCTestCase {
 
@@ -22,6 +26,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
     private var manager: ContainerManager!
     private var account: AccountStore!
     private var container: ActiveContainer!
+    private var uniMail: UniMailConnection!
     private var outDir: URL?
 
     override func setUp() async throws {
@@ -29,11 +34,15 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         continueAfterFailure = true
         bed = try ContainerTestBed(name: "shots-phone", clock: .system)
         UniStubProtocol.install { _ in UniStubProtocol.Reply(status: 404) }          // jede Anfrage an eine Hochschule zaehlt
+        UniMailConnection.readsDemoForScreenshots = true
+        UFGreeting.hourOverride = 14                                                 // "Hallo Tobi" unabhaengig von der Uhrzeit
+        let sogo = DemoSOGoCompose()
         manager = ContainerManager(
             base: bed.containers,
             legacy: LegacyDataMigration.Sources(support: bed.appSupport.appendingPathComponent("UniFlow", isDirectory: true),
                                                 studip: bed.appSupport.appendingPathComponent("StudIP", isDirectory: true)),
-            keychain: bed.keychain, cookieService: bed.cookieService, defaults: bed.defaults, clock: bed.clock, publishesCurrent: true)
+            keychain: bed.keychain, cookieService: bed.cookieService, defaults: bed.defaults, clock: bed.clock, publishesCurrent: true,
+            uniMailTransport: { _ in sogo })
         account = bed.account(.luh)
         container = try bed.open(manager, account)
         account.markLoginDone()
@@ -43,11 +52,21 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         Rufname.write(StoreScreenshotTests.demoName, container.defaults)
         MessagesInbox.shared.defaultsOverride = container.defaults
         await MessagesInbox.shared.refresh(api: container.api)
-        Entitlements.shared.setPlanForTesting(.plus)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        // Schein-KI des lokalen Backends: nur "Mit KI verbessern" fragt sie (POST /api/ai/mail-rewrite)
+        let backend = try await container.host.backend()
+        backend.context.ai.set(MailAI())
         let host = container.host
         CommunityRoute.shared.service = CloudKitCommunityService(
             cloud: StoreScreenshotTests.EmptyCloud(), university: .luh, membership: CommunityMembership(defaults: container.defaults),
             courseKeys: { [] }, courses: { await CommunityCourses.spaces(host: host, university: UniversityKey.luh.rawValue) })
+        uniMail = try XCTUnwrap(manager.uniMail, "LUH hat Uni-Mail")
+        uniMail.refreshesAfterSignIn = false
+        let store = uniMail.websiteDataStore.httpCookieStore
+        await store.setCookie(bed.cookie("0xHIGHFLYxSOGo", "erfundene-sitzung", domain: SOGoSite.luh.host, path: "/SOGo"))
+        await store.setCookie(bed.cookie("XSRF-TOKEN", "erfunden", domain: SOGoSite.luh.host, path: "/SOGo"))
+        uniMail.signedIn(user: StoreScreenshotV11Tests.mailUser)
+        _ = await uniMail.refreshInbox()
         UFCompact.phoneOverride = true
         UFEditorAvailability.forcedReaderOnlyForTesting = true          // iPhone: Leseansicht statt Editor (11.11.2026)
         XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
@@ -62,14 +81,71 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         HostedEnvironment.accessibilityAutomation(false)
         UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault
         UFEditorAvailability.forcedReaderOnlyForTesting = UniFlowTestsPrincipal.readerOnlyDefault
+        UniMailConnection.readsDemoForScreenshots = false
+        UFGreeting.hourOverride = nil
+        UFFmt.todayOverride = nil
         CommunityRoute.shared.service = nil
         Entitlements.shared.setPlanForTesting(.free)
         MessagesInbox.shared.defaultsOverride = nil
         await MessagesInbox.shared.refresh(api: nil)
         XCTAssertEqual(UniStubProtocol.requests.count, 0, "keine Anfrage an eine Hochschule")
+        UniStubProtocol.reset()
         manager.deactivate()
         await bed.tearDown()
         try await super.tearDown()
+    }
+
+    // MARK: - Schein-Dienste nur fuer diese Bilder
+
+    /// Vorschlag der KI fuer "Mit KI verbessern" (erfunden, nichts verlaesst den Prozess)
+    private struct MailAI: AIProvider {
+        func answer(system: String, prompt: String) async throws -> String {
+            """
+            Sehr geehrte Frau Professorin Beispiel,
+
+            in Ihrer E-Mail zur Klausur „Grundlagen der Informatik“ ist mir eine Frage zur Probeklausur geblieben: \
+            Dürfen wir bei Aufgabe 3 (Zweierkomplement) eine eigene Formelsammlung benutzen?
+
+            Falls das in Ihrer Sprechstunde am Dienstag einfacher zu klären ist, komme ich gern vorbei.
+
+            Vielen Dank und viele Grüße
+            Tobi Muster
+            """
+        }
+    }
+
+    /// Posteingang wie `StoreScreenshotV11Tests.DemoSOGo`, dazu ein erfundener Entwurf fuer "Neue E-Mail"
+    /// (`Mail/0/compose` und `.../edit`). Geschrieben oder gesendet wird nie.
+    private final class DemoSOGoCompose: UniTransport, @unchecked Sendable {
+        private let inner = StoreScreenshotV11Tests.DemoSOGo()
+
+        static let draftText = """
+            hallo frau beispiel,
+            kurze frage zur probeklausur: darf man bei aufgabe 3 (zweierkomplement) eine eigene formelsammlung benutzen?
+            danke schonmal
+            tobi
+            """
+
+        func send(_ request: UniRequest) async throws -> UniResponse {
+            let path = request.url.path
+            func json(_ v: JSONValue) -> UniResponse {
+                UniResponse(status: 200, headers: ["Content-Type": "application/json"], finalURL: request.url, body: v.serialized())
+            }
+            if path.hasSuffix("/Mail/0/compose") {
+                return json(["accountId": "0", "mailboxPath": "Drafts", "draftId": "7"])
+            }
+            if path.hasSuffix("/edit") {
+                return json(["from": .string("Tobi Muster <\(StoreScreenshotV11Tests.mailUser)>"),
+                             "to": ["anna.beispiel@example.org"], "cc": [], "bcc": [],
+                             "subject": "Frage zur Probeklausur Grundlagen der Informatik",
+                             "text": .string(Self.draftText), "isHTML": 0, "attachmentAttrs": []])
+            }
+            return try await inner.send(request)
+        }
+
+        func download(_ request: UniRequest, to destination: URL) async throws -> UniResponse {
+            UniResponse(status: 404, finalURL: request.url)
+        }
     }
 
     // MARK: - Hosten und Fotografieren
@@ -80,6 +156,9 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
             .environment(\.ufDemoActive, true)
             .environment(\.ufDemoBarHidden, true)
             .environment(\.ufAIEnabled, ai)
+            .environment(\.ufStudiNowAI, ai)
+            .environment(\.ufAIAccess, ai ? .ready : .planRequired)
+            .environment(\.uniMail, uniMail)
             .environmentObject(manager!)
             .environmentObject(account!)
         let env = try hostWithEnvironment(root, api: api ?? container.api, size: Self.size, studip: manager.studip)
@@ -89,10 +168,14 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         return env
     }
 
-    private func shoot(_ env: HostedEnvironment, _ name: String, ink: Bool = false, present: (() -> Void)? = nil,
-                       sheetReady: @escaping () -> Bool = { true }) {
+    private func shoot(_ env: HostedEnvironment, _ name: String, ink: Bool = false, settle: Double = 1.0,
+                       present: (() -> Void)? = nil, sheetReady: @escaping () -> Bool = { true }) {
+        XCTAssertFalse(shows(env, DemoTexts.barTitle), "\(name): Store-Bild ohne Demo-Leiste")
+        for word in ["ChatGPT", "Pro AI holen", AIConsentText.title] {
+            XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
+        }
         guard let outDir else { return }
-        StoreScreenshotTests.shoot(env, name, folder: outDir, sizes: [(Self.size, "portrait")], scale: 3, ink: ink, settle: 1.0,
+        StoreScreenshotTests.shoot(env, name, folder: outDir, sizes: [(Self.size, "portrait")], scale: 3, ink: ink, settle: settle,
                                    present: present, sheetReady: sheetReady, cornerRadius: 36, statusBar: true)
     }
 
@@ -119,6 +202,20 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
 
     private func aiAPI(_ t: StoreScreenshotTests.Intercept) -> APIClient { APIClient(base: APIClient.localBase, transport: t) }
 
+    /// Nummer des erfundenen Demo-Moduls ("Demo: Grundlagen der Informatik")
+    private func demoModuleID() throws -> Int {
+        var id: Int?
+        let api = container.api
+        Task { @MainActor in
+            let v = try? await api.value("/api/modules")
+            let list = v?.items ?? []
+            id = list.first(where: { $0.s("name")?.hasPrefix("Demo") == true })?.i("id") ?? list.first?.i("id")
+        }
+        let end = Date().addingTimeInterval(20)
+        while id == nil && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+        return try XCTUnwrap(id, "Demo-Modul gefunden")
+    }
+
     // MARK: - Bedienungshilfen (ganzes Fenster: Blaetter liegen ausserhalb der gehosteten Ansicht)
 
     private func elements(_ env: HostedEnvironment) -> [NSObject] {
@@ -140,6 +237,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
             if let v = element as? UIView, !v.isHidden { for s in v.subviews { visit(s, depth: depth + 1) } }
         }
         visit(env.window, depth: 0)
+        if let sheet = env.hosting.presentedViewController?.view { visit(sheet, depth: 0) }
         return out
     }
 
@@ -209,26 +307,103 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         return true
     }
 
+    /// Sichtbar im Fenster (nicht hinter Kopf- oder Fussleiste)
+    private func visible(_ env: HostedEnvironment, label: String) -> Bool {
+        let bounds = env.window.bounds
+        for e in elements(env) {
+            guard let l = e.accessibilityLabel, l.hasPrefix(label) else { continue }
+            let f = e.accessibilityFrame
+            if f.minY > bounds.minY + 70, f.maxY < bounds.maxY - 90 { return true }
+        }
+        return false
+    }
+
+    /// So weit rollen, bis ein Element mit dieser Beschriftung ganz im Bild steht
+    @discardableResult
+    private func scrollUntil(_ env: HostedEnvironment, label: String, steps: Int = 10) -> Bool {
+        func lists(_ v: UIView) -> [UIScrollView] {
+            var out: [UIScrollView] = []
+            if let s = v as? UIScrollView, s.contentSize.height > s.bounds.height + 20 { out.append(s) }
+            for c in v.subviews where !c.isHidden { out += lists(c) }
+            return out
+        }
+        for _ in 0..<steps {
+            if visible(env, label: label) { return true }
+            guard let s = lists(env.window).max(by: { $0.bounds.height < $1.bounds.height }) else { return false }
+            let maxY = max(0, s.contentSize.height - s.bounds.height)
+            let next = min(maxY, s.contentOffset.y + s.bounds.height * 0.6)
+            if next <= s.contentOffset.y + 1 { break }
+            s.setContentOffset(CGPoint(x: s.contentOffset.x, y: next), animated: false)
+            env.pump(0.5)
+        }
+        return visible(env, label: label)
+    }
+
     private func waitForInk(_ env: HostedEnvironment, file: StaticString = #filePath, line: UInt = #line) {
         let ok = env.wait(timeout: 25) { StoreScreenshotTests.canvases(in: env.view).contains { !$0.drawing.strokes.isEmpty } }
-        XCTAssertTrue(ok, "Editor zeigt die Notizen nicht:\n" + dump(env), file: file, line: line)
+        XCTAssertTrue(ok, "Leseansicht zeigt die Notizen nicht:\n" + dump(env), file: file, line: line)
         env.pump(2.0)
     }
 
-    // MARK: - iPhone-Satz (01-08)
+    // MARK: - iPhone-Satz 1.0.4 (01-07)
 
-    func test01Start() throws {
+    /// 1 Uebersicht: "Hallo Tobi", Pruefungsanmeldung mit QIS-Knopf, heutiges Lernpaket, untere Leiste
+    func test01Uebersicht() throws {
         let env = try host(MainView())
         expect(env, "Grundlagen der Informatik")
         expect(env, StoreScreenshotTests.demoName)
-        expect(env, "Prüfungsanmeldung")
-        XCTAssertFalse(shows(env, DemoTexts.barTitle), "Store-Bild ohne Demo-Leiste")
-        shoot(env, "01-start")
+        if outDir != nil { expect(env, "Prüfungsanmeldung") }     // nur im Meldezeitraum (Bilder: 09.-22.11.2026)
+        shoot(env, "01-uebersicht")
     }
 
-    /// Skript mit Handschrift vom iPad in der Leseansicht, KI-Hilfe als Blatt von unten: "Ganzes Dokument",
-    /// "Ganze Vorlesung erklären"
-    func test02KIDokument() throws {
+    /// 2 Lernkalender: Woche als Liste (Montag-Sonntag) mit Uni-Terminen und Lernpaketen
+    func test02Lernkalender() throws {
+        let env = try host(MainView())
+        env.router.go(.plan(view: "week"))
+        expect(env, "Lernkalender")
+        env.pump(1.5)
+        shoot(env, "02-lernkalender", settle: 1.5)
+    }
+
+    /// 3 Modul mit Erledigt-Haken: Lehrwochen offen, abgehakte Dateien mit gruenem Haken, Fortschritt der Woche
+    func test03ModulErledigt() throws {
+        let id = try demoModuleID()
+        let env = try host(MainView())
+        env.router.go(.module(id))
+        expect(env, "Grundlagen der Informatik")
+        env.pump(1.0)
+        _ = env.openWeeks()
+        env.pump(1.0)
+        // zwei von drei Dateien abhaken (derselbe Stand wie die Lernpakete)
+        for label in ["Erledigt: Folien Woche 1 – Einführung", "Erledigt: Skript Kapitel 1"] {
+            _ = tap(env, label: label, prefix: true)
+            env.pump(0.8)
+        }
+        XCTAssertTrue(env.wait(timeout: 10) { self.shows(env, "erledigt") }, "Fortschritt der Woche:\n" + dump(env))
+        XCTAssertTrue(scrollUntil(env, label: "Erledigt: Skript Kapitel 1"), "Haken im Bild:\n" + dump(env))
+        env.pump(1.0)
+        shoot(env, "03-modul-erledigt", settle: 1.5)
+    }
+
+    /// 4 Uni-Mail "Mit KI verbessern": Fenster "Neue E-Mail" (am iPhone ganzseitig) mit eigenem Text und dem
+    /// Vorschlag der KI. Das Fenster wird direkt gehostet, weil ein ganzseitiges Blatt ueber der Seite nur schwarz
+    /// zusammengesetzt wird.
+    func test04UniMailKI() throws {
+        let env = try host(UniMailComposeSheet(connection: uniMail, request: UniMailComposeRequest())
+            .environment(\.ufCompact, true), ai: true)
+        expect(env, "Frage zur Probeklausur")
+        let tapped = env.wait(timeout: 10) { self.tap(env, label: "Mit KI verbessern") || self.tap(env, id: "unimail.ai") }
+        XCTAssertTrue(tapped, "„Mit KI verbessern“:\n" + dump(env))
+        expect(env, "Vorschlag der KI", timeout: 20)
+        expect(env, "Übernehmen")
+        _ = scrollUntil(env, label: "Übernehmen")
+        env.pump(1.0)
+        shoot(env, "04-uni-mail-ki", settle: 1.5)
+    }
+
+    /// 5 KI-Hilfe: Skript mit Handschrift vom iPad in der Leseansicht, KI-Hilfe als Blatt von unten
+    /// ("Ganzes Dokument", "Ganze Vorlesung erklären")
+    func test05KIHilfe() throws {
         StoreScreenshotTests.seedNotesPumping("demo-skript", api: container.api)
         let t = aiTransport()
         let env = try host(MainView(), api: aiAPI(t), ai: true)
@@ -249,74 +424,31 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
             env.pump(1.0)
         }
         if outDir != nil {
-            shoot(env, "02-ki-dokument", ink: true, present: present, sheetReady: { self.shows(env, "Prüfungsrelevant") || self.shows(env, "Zweierkomplement") })
+            shoot(env, "05-ki-hilfe", ink: true, present: present, sheetReady: { self.shows(env, "Prüfungsrelevant") || self.shows(env, "Zweierkomplement") })
         } else {
             present()
         }
         expect(env, "Zweierkomplement")
     }
 
-    func test03Karteikarten() throws {
-        let env = try host(MainView())
-        env.router.go(.cards)
-        expect(env, "heute fällig")
-        shoot(env, "03-karteikarten")
-    }
-
-    func test04Wochentest() throws {
-        let t = aiTransport()
-        let env = try host(MainView(), api: aiAPI(t), ai: true)
-        env.router.go(.exam(18, task: nil))
-        expect(env, "Punkte")
-        expect(env, "Hexadezimalsystem")
-        shoot(env, "04-wochentest")
-    }
-
-    func test05Studienverlauf() throws {
+    /// 6 Studienverlauf mit Noten: Leistungspunkte, bestandene Pruefungen (erfunden) und Pruefungsanmeldung
+    func test06Studienverlauf() throws {
         let env = try host(MainView())
         env.router.go(.studyPlan())
         expect(env, "Prüfungsanmeldung")
         XCTAssertFalse(shows(env, StudyPlanText.noQIS), "Studienverlauf mit Katalog")
-        shoot(env, "05-studienverlauf")
-    }
-
-    /// Nachricht des Tutoriums im Leser, darueber das Antwortfenster (Blatt von unten) mit Text
-    func test06Nachrichten() throws {
-        let toggle = StoreScreenshotTests.SheetSwitch()
-        let model = StoreScreenshotTests.replyModel(defaults: container.defaults)
-        let env = try host(StoreScreenshotTests.WithSheet(base: MainView(), toggle: toggle) {
-            MessageReplySheet(model: model).environment(\.ufCompact, true)
-        })
-        env.router.go(.messages)
-        expect(env, "Fragen zu Übungsblatt 1")
-        if !shows(env, "Bringt eure Lösungsansätze mit") {
-            XCTAssertTrue(tap(env, label: "Neu, Fragen zu Übungsblatt 1", prefix: true) || tap(env, label: "Fragen zu Übungsblatt 1", prefix: true), dump(env))
-        }
-        expect(env, "Bringt eure Lösungsansätze mit")
-        let ready = { () -> Bool in
-            guard model.phase == .ready else { return false }
-            if model.text != StoreScreenshotTests.replyText { model.text = StoreScreenshotTests.replyText }
-            return true
-        }
         env.pump(1.0)
-        shoot(env, "06-nachrichten", present: presentLarge(env) { toggle.shown = true }, sheetReady: ready)
-        toggle.shown = true
-        XCTAssertTrue(env.wait(timeout: 10) { ready() }, "Antwortfenster bereit: \(model.phase)")
-        expect(env, "Tutorium Grundlagen der Informatik")
+        shoot(env, "06-studienverlauf")
     }
 
-    /// Stundenplan der Woche; "In Stud.IP abgeben" gehoert zum Editor und bleibt am iPad
-    func test07Stundenplan() throws {
+    /// 7 Mensa: Speiseplan (erfunden) an einem Werktag; am Wochenende der naechste Montag als "heute"
+    func test07Mensa() throws {
+        UFFmt.todayOverride = StoreScreenshotV11Tests.nextServiceDay()
         let env = try host(MainView())
-        env.router.go(.timetable())
-        expect(env, "Grundlagen der Informatik")
-        shoot(env, "07-stundenplan")
-    }
-
-    func test08Community() throws {
-        let env = try host(MainView())
-        env.router.go(.community)
-        expect(env, "Deine Communities")
-        shoot(env, "08-community")
+        env.router.go(.mensa)
+        expect(env, "Gemüse-Kichererbsen-Curry mit Reis")
+        XCTAssertFalse(shows(env, "Geschlossen"), "Werktag mit Speiseplan:\n" + dump(env))
+        env.pump(1.0)
+        shoot(env, "07-mensa")
     }
 }

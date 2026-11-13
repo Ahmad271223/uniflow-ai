@@ -990,6 +990,9 @@ struct UniMailComposeSheet: View {
                             }
                         }
                         if compact {
+                            // iPhone (13.11.2026): "Mit KI verbessern" eigene Zeile darueber, darunter Anhang und Entwurf
+                            UniMailAIButton(access: aiAccess, busy: rewriting,
+                                            empty: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { tapAI() }
                             HStack(spacing: 8) {
                                 UFWideButton("Anhängen", icon: "upload") { importing = true }
                                     .accessibilityLabel("Datei anhängen")

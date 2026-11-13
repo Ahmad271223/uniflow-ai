@@ -1,6 +1,17 @@
-# Bildschirmfotos für den App Store (iPad)
+# Bildschirmfotos für den App Store (iPad und iPhone)
 
-## Endgültiger Satz mit Pro AI (Stand 07.11.2026, zum Hochladen)
+## Endgültiger Satz mit Pro AI (neu erzeugt 13.11.2026 für 1.0.4, zum Hochladen)
+
+**Neuer Lauf 13.11.2026 (Build 39, Version 1.0.4):** Derselbe Test, dieselben zehn Motive, neuer Ordner
+`~/Studora-Builds/appstore-screenshots-final-2026-11-13/` (dazu `tarif-portrait.png` und `tarif-landscape.png` aus
+demselben Lauf). Grund: der Satz vom 07.11.2026 zeigt den Stand von Version 1.0 und nicht mehr die heutige App
+(aufgeräumte Startseite mit Kennzahl-Zeile und Mensa unten, Knopf „Im QIS zur Prüfung anmelden“, Editor-Kopfzeile mit
+Reitern, Stift-Leiste in einer Zeile). Lauf auf einem Klon des Simulators „iPad“ (`4495AA80-…`), alle elf Tests grün,
+jede Datei 2064 × 2752 bzw. 2752 × 2064 (`sips` geprüft) und einzeln angesehen: kein Uni-Logo, kein echter Name, keine
+echte Note, keine Demo-Leiste, nichts überlappt. Die Beschreibung der Motive unten gilt unverändert; nur der Ordner und
+das Datum sind neu.
+
+### Satz vom 07.11.2026 (überholt, Beschreibung der Motive gilt weiter)
 
 Entscheidung des Inhabers 07.11.2026: **Pro AI wird mit Version 1.0 eingereicht**, die KI darf und soll gezeigt
 werden. Die früheren KI-Bilder (`~/Studora-Builds/appstore-screenshots/`, 05.11.2026) sind unbrauchbar: dort steht
@@ -39,7 +50,7 @@ Motive und die Prüf-Fotos der Tarifseite schreiben in denselben `UF_SCREENSHOT_
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 cd apps/apple && xcodegen generate
 UDID=$(xcrun simctl clone 5483AC27-A4C2-4704-91A5-46D1A9E1DF47 SN-shots)    # iPad Pro 13-inch (M5), siehe unten
-TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-final-2026-11-07 \
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-final-2026-11-13 \
   xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
   -derivedDataPath ~/Studora-Builds/dd-shots-0711 \
   -only-testing:UniFlowTests/StoreScreenshotFinalTests/test01Uebersicht ... -only-testing:UniFlowTests/StoreScreenshotFinalTests/test10Mensa
@@ -282,6 +293,65 @@ Kein echter Personenname, kein Hochschul-Logo; der Name einer Hochschule steht n
 StoreKit-Testkonfiguration.
 
 ## iPhone (6,9")
+
+### Satz für 1.0.4 (Stand 13.11.2026, zum Hochladen)
+
+**Sieben Motive**, je eine helle und eine dunkle Fassung, unter
+`~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/` (nicht im Repository), Dateien
+`<nn>-<name>-{light|dark}-portrait.png`, alle 1320 × 2868 (mit `sips` geprüft). Für den Store die **hellen sieben** in
+dieser Reihenfolge hochladen; die dunklen liegen als Alternative daneben. Der Satz vom 11.11.2026
+(`appstore-screenshots-iphone-2026-11-11/`, acht Motive) ist überholt – er ist älter als Build 38/39.
+
+Erzeugt vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests.swift` aus der kompakten Hülle (untere Leiste,
+Blätter von unten) mit denselben Demo-Inhalten und Zusätzen wie die iPad-Bilder (`DemoContent`,
+`DemoContent.installStoreExtras`, Rufname „Tobi“, Tarif Pro AI). Keine Anfrage an eine Hochschule
+(`UniStubProtocol` zählt mit), kein Uni-Logo, keine echten Namen oder Noten.
+
+| Nr. | Datei (hell) | Ansicht | Bildunterschrift (Vorschlag) |
+| --- | --- | --- | --- |
+| 1 | `01-uebersicht-light-portrait.png` | Übersicht: „Hallo Tobi – lass uns gemeinsam lernen.“, Kennzahl-Zeile, Karte „Prüfungsanmeldung“ (3 offen, 1 angemeldet) mit „Im QIS zur Prüfung anmelden“, untere Leiste | Dein Tag auf einen Blick – und welche Prüfungen du jetzt anmelden solltest. |
+| 2 | `02-lernkalender-light-portrait.png` | Lernkalender, Woche als Liste (Montag–Sonntag): Uni-Termin und erledigter Lernblock, Leiste mit „Ziele“ | Dein Wochenplan: Vorlesung, Übung und Wiederholung – automatisch verteilt. |
+| 3 | `03-modul-erledigt-light-portrait.png` | Moduldetail „Demo: Grundlagen der Informatik“, Lehrwoche 1 offen: Haken je Datei, „2/3 erledigt“, abgehakte Namen durchgestrichen | Hak ab, was du geschafft hast – auf allen deinen Geräten gleich. |
+| 4 | `04-uni-mail-ki-light-portrait.png` | „Neue E-Mail“ an eine erfundene Dozentin, eigener Text und darunter „Vorschlag der KI“ mit „Übernehmen“ | Die KI schreibt deine Uni-Mail höflich um – übernommen wird sie erst auf deinen Wunsch. |
+| 5 | `05-ki-hilfe-light-portrait.png` | KI-Hilfe über dem Skript (Leseansicht mit den Notizen vom iPad): Umfang „Ganzes Dokument“, „Ganze Vorlesung erklären“ mit Abschnitten und Seitenangaben | Die ganze Vorlesung erklärt, Abschnitt für Abschnitt mit Seitenangabe. |
+| 6 | `06-studienverlauf-light-portrait.png` | Studienverlauf „Informatik B.Sc.“: 59 von 180 LP, Bereiche und Wahl, Prüfungsanmeldung mit Zeiträumen | Studienverlauf mit Leistungspunkten und Prüfungsanmeldung. |
+| 7 | `07-mensa-light-portrait.png` | Mensa: Speiseplan heute (Hauptmensa), Preise für Studierende, vegan/vegetarisch, Nährwerte, Filter | Was gibt’s heute in der Mensa? Preise, Nährwerte und Filter. |
+
+Bild 4 und 5 zeigen die KI: nur verwenden, solange StudiNow Pro AI mitverkauft wird. **Am iPhone gibt es keinen
+Editor** (`UFEditorAvailability`): Bild 5 ist die Leseansicht; geschrieben wird mit dem Apple Pencil am iPad.
+
+Erfundene Inhalte nur im Test: die E-Mail in Bild 4 (Entwurf und Vorschlag) kommt aus einer SOGo-Nachbildung im
+Speicher und einer Schein-KI im lokalen Backend (`backend.context.ai.set`), nichts verlässt den Prozess. Bild 3 hakt
+zwei der drei Demo-Dateien ab. Das Fenster „Neue E-Mail“ wird direkt gehostet, weil ein ganzseitiges Blatt über der
+Seite nur schwarz zusammengesetzt wird (`drawHierarchy`).
+
+### Größe und Erzeugen
+
+| Gerät | Hochformat | Pflicht |
+| --- | --- | --- |
+| iPhone 6,9" (iPhone 17 Pro Max) | 1320 × 2868 px | ja, sobald eine Version mit iPhone eingereicht wird (App Store Connect rechnet für kleinere iPhones herunter) |
+
+Gerendert mit Maßstab 3 aus einem Fenster von 440 × 956 Punkten im Simulator „iPhone 17 Pro Max“; der Test prüft die
+Pixelgröße jedes Bildes. Oben zeichnet der Test die Statuszeile wie auf dem Gerät (9:41, Netz, WLAN, Akku), weil der
+Testaufbau keine eigene hat.
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate
+UDID=$(xcrun simctl create SN-shots-phone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-2)
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-iphone-2026-11-13 \
+  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-shots-phone -only-testing:UniFlowTests/IPhoneStoreScreenshotTests
+xcrun simctl delete "$UDID"
+```
+
+Der Ordner darf nur die 14 Store-Bilder enthalten (`tests/test_release_texts.py` prüft das): andere Tests mit
+`UF_SCREENSHOT_DIR` (z. B. `ModuleDoneAppTests`) in einen eigenen Ordner schreiben lassen.
+
+### Satz vom 11.11.2026 (überholt)
+
+Der Test erzeugt diese acht Motive nicht mehr (für 1.0.4 auf die sieben Motive oben umgebaut); die Bilder liegen
+weiter unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-11/`.
 
 Stand 11.11.2026, Zweig `iphone/universal` (vorher 05.11.2026, `feature/iphone`). Das iPhone hat keinen Editor: Bild 2
 zeigt die Leseansicht mit Notizen vom iPad, Bild 7 „Stundenplan“ statt „In Stud.IP abgeben“. Erzeugt vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests.swift`

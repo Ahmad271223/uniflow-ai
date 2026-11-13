@@ -16,7 +16,8 @@ FILES = ("README.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "IMPRESSUM.md"
 AI_WORDS = re.compile(r"\bKI\b|\bK\.I\.|künstliche[nr]? Intelligenz|\bClaude\b|\bGPT\b|\bLLM\b|Sprachmodell|KI-|Tutor"
                       r"|automatisch erstellte[nr]? (Test|Zusammenfassung)|(?-i:\bA\.?I\b)|artificial intelligence|OpenAI|ChatGPT", re.I)
 LIMITS = {"APP-STORE.md": {"name": 30, "subtitle": 30, "promo": 170, "description": 4000, "description-proai": 4000,
-                          "keywords": 100, "whats-new": 4000, "review-notes": 4000, "review-notes-proai": 4000},
+                          "keywords": 100, "whats-new": 4000, "whats-new-proai": 4000, "review-notes": 4000,
+                          "review-notes-proai": 4000},
           "PLAY-STORE.md": {"title": 30, "short": 80, "full": 4000}}
 
 
@@ -57,7 +58,7 @@ def test_ai_words_catch_english_forms():
 # eigenes ChatGPT aus ("bald verfuegbar", ChatGPTLink.isEnabled = false). Oeffentlich nennt nur die Beschreibung der
 # Fassung mit Pro AI die KI; die Fassung ohne Pro AI bleibt ohne KI, weil man sie dann nicht kaufen kann.
 NOT_PUBLIC = {"review-notes", "review-notes-proai"}
-PRO_AI_PUBLIC = {"description-proai"}
+PRO_AI_PUBLIC = {"description-proai", "whats-new-proai"}
 
 
 def test_store_texts_promise_no_ai():
@@ -131,21 +132,24 @@ def test_review_notes_describe_the_build_honestly():
     assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." in f["review-notes"]
     assert "Pro AI folgt" not in f["review-notes"]
     text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
-    assert "ÜBERHOLT, nicht verwenden" in text and "für 1.0 verwenden" in text
+    assert "ÜBERHOLT, nicht verwenden" in text and "für 1.0.4 verwenden" in text
     pro = f["review-notes-proai"]
     assert "sandbox" in pro and "100 credits" in pro and "section 8c" in pro and "never name, e-mail or university credentials" in pro
     # 07.11.2026 abends: Probe einmal je iPad, danach Pflicht-Entscheidung mit "Bei Free bleiben" ohne Kauf (3.1.2/5.1.1);
     # Frage nach frueheren Semestern (Demo hat keine); eigener Schluessel praezise je Funktion
     trial = _swift("Views/Settings/TrialBanner.swift")
     assert 'overTitle = "Deine Probe ist vorbei"' in trial and 'stayFree = "Bei Free bleiben"' in trial
-    assert '"Deine Probe ist vorbei"' in pro and '"Bei Free bleiben" is a valid choice without any purchase' in pro and "once per iPad" in pro
+    assert '"Deine Probe ist vorbei"' in pro and '"Bei Free bleiben" is a valid choice without any purchase' in pro and "once per device" in pro
     assert "Auch frühere Semester laden?" in _swift("Views/Library/OlderSemestersViews.swift")
     # 10.11.2026 (Einreichung 1.0.1): der Satz zu frueheren Semestern steht nicht mehr in den Hinweisen (4000 Zeichen,
     # in der Demo nicht sichtbar); dafuer der Stand der Abos, wie er in App Store Connect steht
     # 10.11.2026 (Einreichung 1.0.2): erste Zeile nennt das Neue statt der Geschichte von 1.0/1.0.1
     assert "monthly products are removed from sale" in pro
-    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.3:")
+    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.4:")
     assert '"Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang"' in pro
+    # 13.11.2026 (1.0.4): iPhone ohne Editor und "Mit KI verbessern" stehen ehrlich in den Hinweisen (Richtlinie 2.3.1)
+    assert "iPhone support" in pro and "The Pencil editor stays on iPad" in pro and "documents open in a reader" in pro
+    assert 'Uni-Mail "Mit KI verbessern" (Pro AI)' in pro and 'sent only with "Senden"' in pro
     assert "flashcards from a document need Plus, weekly tests Pro AI" in pro
     assert "Wochentests ab \\(UFPlan.proAI.name)" in _swift("Views/Settings/OpenAIKeyCard.swift")
     desc = f["description-proai"]
@@ -193,6 +197,8 @@ def test_app_store_texts_match_current_build():
                              "voller Anbindung an die Leibniz Universität Hannover.")
                 and "weitere Hochschulen folgen" in d), field
         assert "alle Hochschulen" not in d and "allen Hochschulen" not in d
+        assert "iPhone und iPad" in d, field                   # 1.0.4: universal, iPhone in der Beschreibung
+    assert "AUF IPHONE UND IPAD" in f["description-proai"]
     for field in ("description", "description-proai", "keywords", "promo", "whats-new", "subtitle", "name"):
         v = f[field]
         for bad in ("Hochschule Hannover", "Hildesheim", "Moodle", "Learnweb", "HISinOne", "PLuS", "Campusmanagement"):
@@ -200,7 +206,8 @@ def test_app_store_texts_match_current_build():
     assert "static let isEnabled = false" in _swift("Views/Timer/StudyTimer.swift")
     for field, value in f.items():
         assert "Zeitmesser" not in value and "Pomodoro" not in value, field
-    for field in ("description", "description-proai", "review-notes", "review-notes-proai", "keywords", "whats-new"):
+    for field in ("description", "description-proai", "review-notes", "review-notes-proai", "keywords", "whats-new",
+                  "whats-new-proai"):
         assert f"– {len(f[field])} Zeichen" in text, field
     # Endgueltiger Satz mit Pro AI (07.11.2026, zweiter Satz vom Nachmittag: flacher KI-Hilfe-Kopf, "Neue Mails
     # pruefen", nur LUH): genau zehn Bilder im Hochformat, je Motiv eine Fassung hell oder dunkel, im eigenen Ordner;
@@ -210,10 +217,18 @@ def test_app_store_texts_match_current_build():
     assert len(names) == 10 and len(set(names)) == 10, names
     assert [n[:2] for n in names] == [f"{i:02d}" for i in range(1, 11)], names
     assert any("-ki-" in n for n in names), "Pro AI eingereicht: der Satz zeigt die KI"
-    assert "appstore-screenshots-final-2026-11-07" in section
-    shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final-2026-11-07"
+    assert "appstore-screenshots-final-2026-11-13" in section
+    shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final-2026-11-13"
     if shots.is_dir():
-        assert sorted(p.name for p in shots.glob("*.png")) == sorted(names)
+        assert sorted(p.name for p in shots.glob("*.png")) == sorted(names + ["tarif-landscape.png", "tarif-portrait.png"])
+    # 1.0.4 (13.11.2026): dazu der Pflichtsatz iPhone 6,9", sieben Motive je hell und dunkel
+    phone = re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", section)
+    assert [n[:2] for n in phone] == [f"{i:02d}" for i in range(1, 8)], phone
+    assert "appstore-screenshots-iphone-2026-11-13" in section
+    phones = Path.home() / "Studora-Builds" / "appstore-screenshots-iphone-2026-11-13"
+    if phones.is_dir():
+        want = sorted([n for n in phone] + [n.replace("-light-", "-dark-") for n in phone])
+        assert sorted(p.name for p in phones.glob("*.png")) == want
     old = Path.home() / "Studora-Builds" / "appstore-screenshots"
     reserve = set(re.findall(r"`(reserve/\d\d[a-z]?-[a-z-]+-light-portrait\.png)`", text))
     assert reserve
