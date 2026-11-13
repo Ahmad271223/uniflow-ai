@@ -1,4 +1,4 @@
-# Dienst-Update 13.11.2026 – vorbereitet, noch nicht ausgerollt
+# Dienst-Update 13.11.2026 – ausgerollt 11:07
 
 Zweig `deploy/dienst-2026-11-13` (Worktree `~/Studora-Builds/wt-deploy`) = `develop` (f0964d1f) + Zweig
 `community/test-last-windows` (bis 3bb9b9d9) + Cache-Nummern vereinheitlicht (52c0d3b9). `develop` selbst ist nicht
@@ -71,5 +71,17 @@ damit Server und `develop` wieder gleich sind.
 
 ## Ergebnis
 
-Vorbereitet und getestet am 13.11.2026. Noch nicht ausgerollt: das macht der Inhaber oder – nach seiner ausdrücklichen
-Freigabe und mit SSH-Erlaubnis in den Einstellungen – eine Sitzung mit den Befehlen oben.
+Ausgerollt am 13.11.2026 um 11:07 (Berlin) auf Bitte des Inhabers („starte du bitte“), Stand `21ecc168`:
+
+- Vorher lief nachweislich `cc5f2c89` (Dateien `server.py`, `accounts.py`, `community.py` gleich).
+- Backup vorher: `/srv/uniflow/backups/uniflow-2026-11-13_1106.tar.gz` (8,2 MB, 15 Datenbanken).
+  Hinweis: `backup.sh` ist auf dem Server nicht ausführbar markiert, Aufruf mit `bash …/backup.sh`.
+- Bau und Start ohne Fehler, `app` und `jobs` „healthy“, Python 3.12.16 im Container.
+- `dienst-check.sh`: alle Prüfungen bestanden (Container, Platte 3 %, RAM 10 %, Zertifikat 82 Tage, Jobs, Löschlauf,
+  Backup, Kopie außer Haus, `/login` 200).
+- Von außen: `account-delete.js`, `views-goals.js`, `goals-logic.js` 200; `app.js` enthält „Konto löschen“;
+  `/api/goals` und Community-Fragen 401 (Route da, Anmeldung nötig); `/api/billing/plans` 200.
+- Nicht geprüft: Abläufe mit einem echten Konto (Anmelden, Lernziele anlegen, Konto löschen).
+- Apple-Schlüssel für den Widerruf beim Löschen ist noch nicht eingetragen (`LERNAPP_APPLE_*` leer).
+- `develop` ist seitdem weiter (`119b2e9f`, KI-Erklärungen einfacher, `app/ai.py`, `app/doc_explain.py`) und noch
+  nicht auf dem Server. Zusammenführen mit diesem Zweig geht ohne Konflikt (Probe-Merge 13.11.).
