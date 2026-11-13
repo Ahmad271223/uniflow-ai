@@ -38,3 +38,5 @@ apps/android/*.jks
 apps/android/*.keystore
 apps/android/.kotlin/
 apps/android/local.properties
+# Build-IDs aus tools/testflight_nachlauf.py
+tools/b[0-9]*.txt
