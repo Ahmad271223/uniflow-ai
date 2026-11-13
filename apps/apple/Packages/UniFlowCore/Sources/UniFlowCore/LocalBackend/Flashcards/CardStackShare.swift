@@ -76,7 +76,7 @@ public enum CardStackShare {
     /// Karten aus dem Klartext (`canonicalCards` oder `{"cards": [...]}` in anderer Form); leer, wenn keine Karte
     /// Frage und Antwort hat
     public static func parseCards(_ plaintext: Data) throws -> [AIAnswers.Flashcard] {
-        AIAnswers.checkFlashcards(try PyJSON.parse(plaintext))
+        AIAnswers.checkFlashcards(try PyJSON.parse(plaintext), quality: false)
     }
 
     // MARK: Wochenstapel beim Dienst (Abbild als SharedWeeklyTest)
@@ -89,7 +89,7 @@ public enum CardStackShare {
     /// Karten aus einem uebernommenen Wochenstapel; leer, wenn die Art nicht passt oder keine Karte brauchbar ist
     public static func cards(from test: SharedWeeklyTest, kind: String) -> [AIAnswers.Flashcard] {
         guard test.title == kind else { return [] }
-        return AIAnswers.checkFlashcards(test.questions)
+        return AIAnswers.checkFlashcards(test.questions, quality: false)
     }
 }
 

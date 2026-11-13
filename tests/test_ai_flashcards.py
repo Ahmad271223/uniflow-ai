@@ -10,7 +10,7 @@ def test_prompt_names_pages_count_topic_and_marks_text_as_material():
     p = ai.flashcards_prompt("Testmathe I", "vl02.pdf", [3, 4, 5], "  Konvergenz  ", 7, " Beweise ")
     assert p.startswith("Kurs: Testmathe I\nDatei: vl02.pdf, Seiten 3–5\n\nAUFGABE: Erstelle genau 7 Karteikarten")
     assert "SCHWERPUNKT: Beweise" in p and f"INHALT. {ai.UNTRUSTED}:\n<<<\nKonvergenz\n>>>" in p
-    assert p.endswith('{"cards": [{"question": "Frage", "answer": "Antwort"}]}')
+    assert p.endswith(ai.FLASHCARDS_ANSWER_FORM) and ai.FLASHCARDS_RULES in p
     assert "Seite 7\n" in ai.flashcards_prompt("K", "f.pdf", [7], "x")
     assert "[kein Text extrahierbar]" in ai.flashcards_prompt("K", "f.pdf", None, " \n") and "SCHWERPUNKT" not in ai.flashcards_prompt("K", "f.pdf", [], "x", 3, " ")
     assert len(ai.flashcards_prompt("K", "f.pdf", [], "x" * 20000)) < 20000 + 600, "Text gekuerzt"
@@ -21,9 +21,38 @@ def test_check_and_count():
     assert ai.check_flashcards({"cards": [{"question": " F ", "answer": " A "}, {"question": "", "answer": "x"}, "Text"]}) == [{"question": "F", "answer": "A"}]
     assert ai.check_flashcards([{"question": 1, "answer": 2}]) == [{"question": "1", "answer": "2"}]
     assert ai.check_flashcards({"cards": "nein"}) == [] and ai.check_flashcards("Text") == [] and ai.check_flashcards(None) == []
-    assert len(ai.check_flashcards({"cards": [{"question": "q", "answer": "a"}] * 50})) == ai.FLASHCARDS_MAX
+    assert len(ai.check_flashcards({"cards": [{"question": f"Was ist Begriff{i}?", "answer": "a"} for i in range(50)]})) == ai.FLASHCARDS_MAX
+    assert len(ai.check_flashcards({"cards": [{"question": "q", "answer": "a"}] * 50})) == 1, "gleiche Fragen nur einmal"
     assert [ai.flashcards_count(x) for x in (None, "", 0, -1, 5, "12", 31, "abc", 2.7)] == [10, 10, 10, 10, 5, 12, 30, 10, 2]
-    assert ai.FLASHCARDS_SCHEMA["required"] == ["cards"] and ai.FLASHCARDS_SCHEMA["properties"]["cards"]["items"]["required"] == ["question", "answer"]
+    item = ai.FLASHCARDS_SCHEMA["properties"]["cards"]["items"]
+    assert ai.FLASHCARDS_SCHEMA["required"] == ["cards"] and item["required"] == ["question", "answer", "kind", "page"]
+    assert item["properties"]["kind"]["enum"] == list(ai.FLASHCARDS_KINDS)
+
+
+def test_quality_rules_drop_weak_cards_and_add_the_page():
+    """13.11.2026: eine Idee je Karte (Laenge), keine Doppel (auch fast gleich), Frage verraet die Antwort nicht,
+    Seitenangabe nur fuer Seiten des Inhalts; der Prompt nennt die Regeln und markiert die Seiten."""
+    from app import ai
+    cards = ai.check_flashcards({"cards": [
+        {"question": "Wie lautet die Bedingung des Abtasttheorems?", "answer": "f_A > 2 · f_max", "kind": "formel", "page": 4},
+        {"question": "Wie lautet die Bedingung des Abtasttheorems genau?", "answer": "fast gleich", "page": 4},
+        {"question": "Wie heißt der Tiefpass vor der Abtastung (Anti-Aliasing-Filter)?", "answer": "Anti-Aliasing-Filter", "page": 5},
+        {"question": "Warum braucht man ein Anti-Aliasing-Filter?", "answer": "Sonst erscheinen hohe Frequenzen als tiefe.", "page": 5},
+        {"question": "Was ist ein Alias?", "answer": "x" * (ai.FLASHCARDS_ANSWER_CHARS + 1), "page": 5},
+        {"question": "Was ist T?", "answer": "Das Abtastintervall", "page": 9},
+        {"question": "Ja", "answer": "ja"},
+    ]}, [4, 5])
+    assert cards == [{"question": "Wie lautet die Bedingung des Abtasttheorems?", "answer": "f_A > 2 · f_max (S. 4)"},
+                     {"question": "Warum braucht man ein Anti-Aliasing-Filter?", "answer": "Sonst erscheinen hohe Frequenzen als tiefe. (S. 5)"},
+                     {"question": "Was ist T?", "answer": "Das Abtastintervall"}]
+    assert ai.check_flashcards([{"question": "F", "answer": "A", "page": 2}], {2: "V05.pdf, S. 2"}) == [{"question": "F", "answer": "A (V05.pdf, S. 2)"}]
+    assert len(ai.check_flashcards({"cards": [{"question": f"Was ist Begriff{i}?", "answer": "a"} for i in range(60)]}, limit=50)) == 50
+    two = ai.check_flashcards([{"question": "Welchen Wert hat die geometrische Reihe für q = 1/2?", "answer": "2"},
+                               {"question": "Welchen Wert hat die geometrische Reihe für q = 1/3?", "answer": "3/2"}])
+    assert len(two) == 2, "nur eine Zahl anders: keine Doppel"
+    assert ai.flashcards_pages_text([2, 3, 4], ["  Cauchy ", "", "Reihen"]) == "### Seite 2\nCauchy\n\n### Seite 4\nReihen"
+    for rule in ("Eine Idee je Karte", "verraet die Antwort nicht", "lueckentext", "Nur, was wirklich im Inhalt steht", "page:"):
+        assert rule in ai.FLASHCARDS_RULES
 
 
 def test_endpoint_uses_chosen_pages_and_schema_and_only_suggests(app, monkeypatch):
@@ -46,9 +75,17 @@ def test_endpoint_uses_chosen_pages_and_schema_and_only_suggests(app, monkeypatc
         assert st == 200, d
         assert d["pages"] == [2, 3] and d["count"] == 2
         assert d["cards"] == [{"question": "Was ist eine Cauchy-Folge?", "answer": "Glieder kommen sich beliebig nahe."}]
+        assert "### Seite 2\nSeite zwei Cauchy\n\n### Seite 3\nSeite drei Reihen" in seen["prompt"]
         assert seen["system"] == ai.SYSTEM and seen["schema"] == ai.FLASHCARDS_SCHEMA
         assert seen["prompt"].startswith("Kurs: Analysis\nDatei: vl03.pdf, Seiten 2–3\n") and "genau 2 Karteikarten" in seen["prompt"]
-        assert "Seite zwei Cauchy\n\nSeite drei Reihen" in seen["prompt"] and "Seite eins" not in seen["prompt"]
+        assert "Seite eins" not in seen["prompt"]
+        # Seitenangabe aus der Antwort: nur fuer gewaehlte Seiten
+        monkeypatch.setattr(ai, "ask", lambda prompt, system, schema=None: json.dumps({"cards": [
+            {"question": "Was ist eine Reihe?", "answer": "Folge der Partialsummen", "kind": "begriff", "page": 3},
+            {"question": "Was ist ein Grenzwert?", "answer": "steht auf Seite 1", "kind": "begriff", "page": 1}]}))
+        st, _, b = asgi_call(app, "POST", "/api/ai/flashcards", body=json.dumps({"file_id": "fc-datei", "pages": [2, 3]}))
+        assert st == 200 and [c["answer"] for c in json.loads(b)["cards"]] == ["Folge der Partialsummen (S. 3)", "steht auf Seite 1"]
+        monkeypatch.setattr(ai, "ask", fake_ask)
         # ohne Seitenangabe die ersten Seiten, Vorgabe fuer die Zahl
         st, _, b = asgi_call(app, "POST", "/api/ai/flashcards", body=json.dumps({"file_id": "fc-datei"}))
         assert st == 200 and json.loads(b)["pages"] == [1, 2, 3] and json.loads(b)["count"] == ai.FLASHCARDS_DEFAULT

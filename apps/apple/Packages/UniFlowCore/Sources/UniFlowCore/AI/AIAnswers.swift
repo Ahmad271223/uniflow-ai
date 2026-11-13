@@ -35,18 +35,80 @@ public enum AIAnswers {
     }
 
     /// `ai.check_flashcards`: Karten aus {"cards": [...]} oder einer Liste (Tutor-Modus flashcards); nur Karten mit
-    /// Frage und Antwort (`str()` wie in Python, aussen ohne Leerraum), hoechstens `flashcardsMax`; leer ohne Karten
-    public static func checkFlashcards(_ res: PyJSON) -> [Flashcard] {
+    /// Frage und Antwort (`str()` wie in Python, aussen ohne Leerraum), hoechstens `flashcardsMax`; leer ohne Karten.
+    /// Faellt weg (13.11.2026): Frage/Antwort zu lang (`flashcardsQuestionChars`/`flashcardsAnswerChars`), Frage gleich
+    /// Antwort, Frage verraet die Antwort, Frage gleich oder fast gleich einer frueheren Karte. `pages`: Seiten des
+    /// Inhalts; nennt die Karte eine davon (`page`), endet die Antwort mit " (S. N)". `quality: false` (nur fuer schon
+    /// gespeicherte Stapel, `CardStackShare`): ohne diese Pruefungen wie vor dem 13.11.2026, damit aeltere Stapel ganz bleiben.
+    public static func checkFlashcards(_ res: PyJSON, pages: [Int] = [], quality: Bool = true) -> [Flashcard] {
         let items: PyJSON? = { if case .object = res { return AIPrompts.get(res, "cards") }; return res }()
         guard case .array(let list)? = items else { return [] }
+        let allowed = Set(pages)
         var out: [Flashcard] = []
+        var seenNorm = Set<String>()
+        var seenWords: [Set<String>] = []
         for c in list {
             guard case .object = c else { continue }
             let q = PyText.strip(AIPrompts.str(AIPrompts.or(AIPrompts.get(c, "question"), .string(""))))
-            let a = PyText.strip(AIPrompts.str(AIPrompts.or(AIPrompts.get(c, "answer"), .string(""))))
-            if !q.isEmpty, !a.isEmpty { out.append(Flashcard(question: q, answer: a)) }
+            var a = PyText.strip(AIPrompts.str(AIPrompts.or(AIPrompts.get(c, "answer"), .string(""))))
+            guard !q.isEmpty, !a.isEmpty else { continue }
+            if !quality {
+                out.append(Flashcard(question: q, answer: a))
+                if out.count == AIPrompts.flashcardsMax { break }
+                continue
+            }
+            guard q.unicodeScalars.count <= AIPromptTexts.flashcardsQuestionChars,
+                  a.unicodeScalars.count <= AIPromptTexts.flashcardsAnswerChars else { continue }
+            let n = flashcardNorm(q), w = flashcardWords(q)
+            if n.isEmpty || n == flashcardNorm(a) || seenNorm.contains(n) || flashcardGivesAway(q, a)
+                || seenWords.contains(where: { flashcardSimilar(w, $0) }) { continue }
+            seenNorm.insert(n)
+            seenWords.append(w)
+            if case .int(let digits)? = AIPrompts.get(c, "page"), let page = Int(digits), allowed.contains(page) {
+                a += " (S. \(page))"
+            }
+            out.append(Flashcard(question: q, answer: a))
+            if out.count == AIPrompts.flashcardsMax { break }
         }
-        return Array(out.prefix(AIPrompts.flashcardsMax))
+        return out
+    }
+
+    /// Wortzeichen wie `\w` in Pythons `re` (str): Buchstaben (Lu, Ll, Lt, Lm, Lo), Zahlzeichen jeder Art und "_"
+    private static func isWord(_ u: Unicode.Scalar) -> Bool {
+        if u == "_" || u.properties.numericType != nil { return true }
+        switch u.properties.generalCategory {
+        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter: return true
+        default: return false
+        }
+    }
+
+    /// `ai.flashcard_norm`: klein, nur Wortzeichen, durch je ein Leerzeichen getrennt
+    public static func flashcardNorm(_ text: String) -> String {
+        var words: [String] = [], cur = String.UnicodeScalarView()
+        for u in text.lowercased().unicodeScalars {
+            if isWord(u) { cur.append(u) } else if !cur.isEmpty { words.append(String(cur)); cur = String.UnicodeScalarView() }
+        }
+        if !cur.isEmpty { words.append(String(cur)) }
+        return words.joined(separator: " ")
+    }
+
+    /// `ai.flashcard_words`: alle Woerter (auch Zahlen und Kurzes), damit sich Fragen, die sich nur in einer Zahl
+    /// unterscheiden, nicht gleichen
+    static func flashcardWords(_ text: String) -> Set<String> {
+        Set(flashcardNorm(text).split(separator: " ").map(String.init))
+    }
+
+    /// `ai.flashcard_similar`: beide mit mindestens drei Woertern und Jaccard >= `flashcardsSimilar`
+    static func flashcardSimilar(_ a: Set<String>, _ b: Set<String>) -> Bool {
+        a.count >= 3 && b.count >= 3
+            && Double(a.intersection(b).count) / Double(a.union(b).count) >= AIPromptTexts.flashcardsSimilar
+    }
+
+    /// `ai.flashcard_gives_away`: die ganze Antwort (mindestens 4 Zeichen, hoechstens 6 Woerter) steht woertlich in der Frage
+    static func flashcardGivesAway(_ question: String, _ answer: String) -> Bool {
+        let a = flashcardNorm(answer)
+        return a.unicodeScalars.count >= 4 && a.split(separator: " ").count <= 6
+            && " \(flashcardNorm(question)) ".contains(" \(a) ")
     }
 
     /// `ai.check_week_test`: nil = der Test hat die Form vom 29.10.2026 (15 Aufgaben, 4 leicht, 6 mittel, 5 schwer,

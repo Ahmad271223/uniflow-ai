@@ -299,8 +299,9 @@ public enum AIPrompts {
         return v >= 1 ? min(flashcardsMax, v) : flashcardsDefault
     }
 
-    /// `ai.flashcards_prompt(course, file_name, pages, text, count, topic)`: genau `count` Karten aus dem Text der
-    /// Seiten `pages` (aufsteigend) von `fileName`; `topic` grenzt den Stoff ein. Antwort in der Form von `flashcardsSchema`.
+    /// `ai.flashcards_prompt(course, file_name, pages, text, count, topic)`: `count` Karten nach `flashcardsRules` aus dem
+    /// Text der Seiten `pages` (aufsteigend, mit Ueberschriften aus `flashcardsPagesText`) von `fileName`; `topic` grenzt
+    /// den Stoff ein. Antwort in der Form von `flashcardsSchema`.
     public static func flashcards(course: String, fileName: String, pages: [Int], text: String, count: Int = 10,
                                   topic: String = "") -> String {
         var whereText = ""
@@ -308,16 +309,24 @@ public enum AIPrompts {
             whereText = pages.count == 1 ? ", Seite \(first)" : ", Seiten \(first)–\(last)"
         }
         var parts = ["Kurs: \(course)", "Datei: \(fileName)\(whereText)", "",
-                     "AUFGABE: Erstelle genau \(count) Karteikarten aus dem Inhalt. Vorn eine klare Frage, hinten eine kurze, "
-                     + "vollstaendige Antwort (1-3 Saetze, Formeln mit Unicode-Zeichen). Decke die wichtigsten Begriffe, Zusammenhaenge und "
-                     + "Rechenwege ab; keine Karte doppelt, nichts erfinden, was nicht im Inhalt steht."]
+                     "AUFGABE: Erstelle genau \(count) Karteikarten aus dem Inhalt, mit denen man sich gezielt auf die Klausur "
+                     + "vorbereitet: vorn eine Frage, hinten die Antwort.", "", AIPromptTexts.flashcardsRules]
         if !PyText.strip(topic).isEmpty {
             parts += ["", "SCHWERPUNKT: \(head(PyText.strip(topic), 300))"]
         }
         let content = head(PyText.strip(text), AIPromptTexts.flashcardsTextChars)
         parts += ["", "INHALT. \(AIPromptTexts.untrusted):", "<<<", content.isEmpty ? "[kein Text extrahierbar]" : content, ">>>",
-                  "", #"Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort"}]}"#]
+                  "", AIPromptTexts.flashcardsAnswerForm]
         return parts.joined(separator: "\n")
+    }
+
+    /// `ai.flashcards_pages_text(pages, texts)`: je Seite "### Seite N" und ihr Text (aussen ohne Leerraum), damit die KI
+    /// zu jeder Karte die Seite nennt; Seiten ohne Text fallen weg
+    public static func flashcardsPagesText(pages: [Int], texts: [String]) -> String {
+        zip(pages, texts).compactMap { p, t -> String? in
+            let s = PyText.strip(t)
+            return s.isEmpty ? nil : "### Seite \(p)\n\(s)"
+        }.joined(separator: "\n\n")
     }
 
     // MARK: Bewertung (`ai.grade_prompt`)

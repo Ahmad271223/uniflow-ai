@@ -68,7 +68,7 @@ enum CardStackEndpoints: LocalEndpointModule {
                 } catch let e as AIError {
                     throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
                 }
-                let cards = (try? AIAnswers.parseJSON(answer)).map(AIAnswers.checkFlashcards) ?? []
+                let cards = (try? AIAnswers.parseJSON(answer)).map { AIAnswers.checkFlashcards($0) } ?? []
                 guard !cards.isEmpty else {
                     throw LocalHTTPError(status: 502, detail: ["detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"])
                 }

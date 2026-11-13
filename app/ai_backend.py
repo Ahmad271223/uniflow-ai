@@ -152,8 +152,9 @@ WAIT_MAX_S = 60.0          # wait_for wartet hoechstens so lange (library_api re
 WAIT_POLL_MIN_S = 0.05     # und fragt hoechstens 20-mal je Sekunde
 CACHE_DAYS = 30
 
-# Obergrenze der Ausgabe-Tokens je Zweck (Denk-Tokens zaehlen mit); ueberschreibbar mit LERNAPP_AI_MAX_OUTPUT
-MAX_OUTPUT = {"tutor": 2000, "flashcards": 3000, "doc_index_page": 3000, "week_test": 9000, "test_generation": 8000,
+# Obergrenze der Ausgabe-Tokens je Zweck (Denk-Tokens zaehlen mit); ueberschreibbar mit LERNAPP_AI_MAX_OUTPUT.
+# flashcards 8000 statt 3000 (13.11.2026): ein KI-Auftrag hat bis 50 Karten (je rund 90 Tokens mit kind/page) plus Denk-Tokens.
+MAX_OUTPUT = {"tutor": 2000, "flashcards": 8000, "doc_index_page": 3000, "week_test": 9000, "test_generation": 8000,
               "weekly_test": 9000, "study_plan": 4000, "default": 2000}
 # Zwecke, die das Konto Credits kosten (app/credits.py); alles mit "tutor:" am Anfang auch
 CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan")
