@@ -28,7 +28,8 @@ def make(body: dict = Body(...)):
     token = accounts.login(email, "sehr-geheim-123")[1]
     accounts.end_trial(user["id"])
     accounts.set_plan(user["id"], body.get("plan") or "plus")
-    return {"token": token, "id": user["id"]}
+    # E-Mail und Passwort fuer Geraete, die sich wie die Windows-App selbst anmelden (tools/g2-geraete-rundgang.py)
+    return {"token": token, "id": user["id"], "email": email, "password": "sehr-geheim-123"}
 
 
 server.app.router.add_api_route("/__test/account", make, methods=["POST"])
