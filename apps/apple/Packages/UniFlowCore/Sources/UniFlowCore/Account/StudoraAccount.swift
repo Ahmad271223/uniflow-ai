@@ -74,9 +74,12 @@ public actor StudoraAccount {
         /// UniFlow-ID als UUID fuer `appAccountToken` beim Kauf im App Store (`apple_account_token`); nil, wenn der Dienst
         /// sie nicht liefert
         public var appleAccountToken: String?
+        /// hoechster bezahlter Tarif ohne die Probe (`paid_plan`: App Store, Stripe, Betrieb); nil, wenn der Dienst ihn
+        /// nicht meldet. Nur fuer die Anzeige: nach einem Kauf, der die Probe abdeckt, zeigt die App keine Probe mehr
+        public var paidPlan: String?
 
         public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, trialEndsAt: Date? = nil,
-                    needsPlanChoice: Bool = false, appleAccountToken: String? = nil) {
+                    needsPlanChoice: Bool = false, appleAccountToken: String? = nil, paidPlan: String? = nil) {
             self.plan = plan
             self.trialActive = trialActive
             self.trialDaysLeft = trialDaysLeft
@@ -84,6 +87,7 @@ public actor StudoraAccount {
             self.trialEndsAt = trialEndsAt
             self.needsPlanChoice = needsPlanChoice
             self.appleAccountToken = appleAccountToken
+            self.paidPlan = paidPlan
         }
     }
 
@@ -212,7 +216,8 @@ public actor StudoraAccount {
         let active = t?["active"]?.bool ?? false
         return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
                           trialPlan: active ? t?["plan"]?.string : nil, trialEndsAt: active ? Self.serviceDate(t?["ends_at"]?.string) : nil,
-                          needsPlanChoice: j["needs_plan_choice"]?.bool ?? false, appleAccountToken: j["apple_account_token"]?.string)
+                          needsPlanChoice: j["needs_plan_choice"]?.bool ?? false, appleAccountToken: j["apple_account_token"]?.string,
+                          paidPlan: j["paid_plan"]?.string)
     }
 
     /// Zeitpunkt aus dem Dienst (`datetime.isoformat()`, z. B. "2026-11-11T10:00:00.123456+00:00"): Sekundenbruchteile

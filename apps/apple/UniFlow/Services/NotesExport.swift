@@ -22,13 +22,10 @@ enum SideSheetLoader {
     /// einem Fenster offen ist, wird ueber dessen Store gelesen; sonst kurz geoeffnet und wieder freigegeben. Was sich
     /// nicht lesen laesst (geloescht, kein Notizbuch), bleibt still weg.
     static func sheets(for store: DocumentStore, api: APIClient, open: DocumentStore? = nil, only: Set<String>? = nil,
-                       loadImage: ShareExport.ImageLoader?) async -> [Part] {
-        var ids = store.sideSheetFileIDs
-        if let open, open.isNotebook, open.file.id != store.file.id, !ids.contains(open.file.id),
-           open.file.module_id == store.file.module_id {
-            ids.append(open.file.id)
-        }
+                       excluding: Set<String> = [], loadImage: ShareExport.ImageLoader?) async -> [Part] {
+        var ids = candidateIDs(for: store, open: open)
         if let only { ids = ids.filter(only.contains) }
+        ids.removeAll(where: excluding.contains)
         var out: [Part] = []
         for id in ids where id != store.file.id {
             if let part = await read(id, api: api, root: store.dataRoot, open: open, loadImage: loadImage) { out.append(part) }
@@ -36,8 +33,60 @@ enum SideSheetLoader {
         return out
     }
 
+    /// Verknuepfte Blaetter (`sideSheets`) und das gerade daneben offene Notizbuch, wenn es verknuepft ist oder zum
+    /// selben Modul gehoert, in dieser Reihenfolge
+    static func candidateIDs(for store: DocumentStore, open: DocumentStore?) -> [String] {
+        var ids = store.sideSheetFileIDs
+        if let open, open.isNotebook, open.file.id != store.file.id, !ids.contains(open.file.id),
+           open.file.module_id == store.file.module_id {
+            ids.append(open.file.id)
+        }
+        return ids.filter { $0 != store.file.id }
+    }
+
+    /// Ein Blatt daneben, wie es Druck, Export und "Daneben öffnen" nennen: Titel, zuletzt bearbeitet, im Papierkorb
+    struct Entry: Identifiable, Equatable, Sendable {
+        let id: String
+        let title: String
+        /// zuletzt geoeffnet bzw. angelegt (ISO), fuer die Anzeige
+        let edited: String?
+        /// im Papierkorb: geht nirgends mit, laesst sich unter "Daneben öffnen" wiederherstellen
+        let trashed: Bool
+
+        /// "zuletzt offen am 13.11., 09:40" (nur mit lesbarem Datum)
+        var editedLabel: String? {
+            guard let edited, let d = Fmt.dateTime(edited) else { return nil }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "de_DE")
+            f.dateFormat = "dd.MM., HH:mm"
+            return "zuletzt offen am \(f.string(from: d))"
+        }
+    }
+
+    /// Blaetter daneben eines Dokuments (Fehlerbericht des Inhabers 13.11.2026: ein altes Blatt erschien beim Drucken,
+    /// war in der App aber nirgends zu finden). Verknuepfte Blaetter und das offene; geloeschte Dateien fallen weg,
+    /// solche im Papierkorb bleiben mit `trashed` (wiederherstellbar).
+    static func entries(for store: DocumentStore, api: APIClient, open: DocumentStore? = nil) async -> [Entry] {
+        var out: [Entry] = []
+        for id in candidateIDs(for: store, open: open) {
+            if let e = await entry(id, api: api) { out.append(e) }
+        }
+        return out
+    }
+
+    /// Ein Blatt nach seiner ID: nil, wenn es die Datei nicht (mehr) gibt oder sie kein Notizbuch ist
+    static func entry(_ id: String, api: APIClient) async -> Entry? {
+        guard let meta = try? await api.value("/api/files/\(id)"), let kind = meta.s("kind"),
+              kind == "notebook" || kind == "whiteboard" else { return nil }
+        let title = meta.s("ai_title") ?? meta.s("title") ?? meta.s("name") ?? "Blatt"
+        return Entry(id: id, title: title, edited: meta.s("last_opened") ?? meta.s("downloaded_at"),
+                     trashed: !(meta.s("deleted_at") ?? "").isEmpty)
+    }
+
     private static func read(_ id: String, api: APIClient, root: URL, open: DocumentStore?, loadImage: ShareExport.ImageLoader?) async -> Part? {
         if let open, open.file.id == id { return await part(of: open, loadImage: loadImage) }
+        // Blatt im Papierkorb geht nirgends mit (vorher druckte "Drucken" ein geloeschtes Blatt mit, 13.11.2026)
+        guard let meta = try? await api.value("/api/files/\(id)"), (meta.s("deleted_at") ?? "").isEmpty else { return nil }
         if let shown = OpenDocuments.shared.openStore(fileID: id, namespace: api.namespace), shown.pdf != nil {
             return await part(of: shown, loadImage: loadImage)
         }
@@ -72,6 +121,8 @@ enum NotesExport {
         var fileStem: String?
         /// Unterordner in `AppTemp` (z. B. "abgabe"); der vorige Inhalt dieses Ordners wird entfernt
         var folder = "teilen"
+        /// Blaetter daneben, die diesmal nicht mitgehen (im Hinweis vor Drucken, Sichern, Teilen abgewaehlt)
+        var excludedSheets: Set<String> = []
 
         init(scope: ShareScope = .document, includeSideNotes: Bool = true, skipEmptyNotePages: Bool = true,
              fileStem: String? = nil, folder: String = "teilen") {
@@ -94,14 +145,16 @@ enum NotesExport {
     /// Dokument fuer den Export: Notizmodell mit den Blattseiten hinter ihrer Folie, die angezeigten Seiten dazu und
     /// die Bilder (eigene und die der Blaetter)
     @MainActor
-    static func exportDocument(for store: DocumentStore, api: APIClient?, options: Options) async throws
+    /// - Parameter open: gerade daneben offenes Blatt (geht mit, auch wenn noch nicht verknuepft; wie "Lösung teilen")
+    static func exportDocument(for store: DocumentStore, api: APIClient?, options: Options, open: DocumentStore? = nil) async throws
         -> (document: AnnotationDocument, layout: DisplayLayout, indices: [Int], images: [String: UIImage]) {
         await store.flush()
+        await open?.flush()
         guard store.originalPDF != nil else { throw ShareExportError.notLoaded }
         let main = SolutionSharing.withObjectsForLegacyStrokes(await store.pageStructureDocument())
         let loader = api.map(ShareExport.serverImageLoader)
         let parts = options.includeSideNotes && api != nil
-            ? await SideSheetLoader.sheets(for: store, api: api!, loadImage: loader) : []
+            ? await SideSheetLoader.sheets(for: store, api: api!, open: open, excluding: options.excludedSheets, loadImage: loader) : []
         let wholeDocument = options.scope == .document
         let merged = SideNotes.interleaved(main: main, sheets: parts.map(\.sheet),
                                            skipEmptyNotePages: options.skipEmptyNotePages && wholeDocument)
@@ -129,8 +182,8 @@ enum NotesExport {
     /// `store` muss geladen sein; ausstehende Striche werden vorher verarbeitet. Bilder werden nachgeladen
     /// (Zeitlimit), was fehlt, steht in `payload.missingImages`.
     @MainActor
-    static func pdf(for store: DocumentStore, api: APIClient, options: Options = Options()) async throws -> Result {
-        let (doc, layout, indices, images) = try await exportDocument(for: store, api: api, options: options)
+    static func pdf(for store: DocumentStore, api: APIClient, options: Options = Options(), open: DocumentStore? = nil) async throws -> Result {
+        let (doc, layout, indices, images) = try await exportDocument(for: store, api: api, options: options, open: open)
         var pages: [String: JSONValue] = [:]
         var missing = 0
         for i in indices {

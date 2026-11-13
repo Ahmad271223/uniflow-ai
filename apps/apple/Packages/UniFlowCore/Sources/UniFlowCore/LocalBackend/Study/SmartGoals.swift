@@ -157,12 +157,14 @@ enum SmartGoals {
 
     // MARK: Ziele
 
+    /// Lernziele der Module, die der Lernkalender plant (abgewaehlte Faecher: `StudyPlanModules`, kein Ziel, kein Block)
     static func goals(_ c: SQLiteConnection) throws -> [[String: JSONValue]] {
-        try c.rows("""
+        let off = try StudyPlanModules.offModuleIDs(c)
+        return try c.rows("""
             SELECT g.*, m.name, m.color, m.exam_date AS module_exam, m.priority AS module_priority
             FROM study_goals g JOIN modules m ON m.id=g.module_id
             WHERE COALESCE(m.active,1)=1 ORDER BY m.sort, m.id
-            """)
+            """).filter { !off.contains($0["module_id"]?.int.map { Int64($0) } ?? -1) }
     }
 
     struct Exam {
@@ -191,6 +193,9 @@ enum SmartGoals {
     static func saveGoal(_ c: SQLiteConnection, moduleID: Int, _ body: [String: JSONValue], clock uc: UniFlowClock) throws -> JSONValue {
         let mid = SQLiteValue.integer(Int64(moduleID))
         guard let m = try c.queryOne("SELECT * FROM modules WHERE id=?", [mid]) else { throw LocalHTTPError.notFound("Modul nicht gefunden") }
+        if try !StudyPlanModules.isPlanned(c, moduleID: mid) {
+            throw LocalHTTPError(status: 409, message: "„\(m["name"]?.string ?? "Modul")“ ist nicht im Lernkalender. Erst unter „Fächer im Lernkalender“ anhaken.")
+        }
         let ts = SQLiteValue.text(uc.nowISO)
         if try c.queryOne("SELECT 1 FROM study_goals WHERE module_id=?", [mid]) == nil {
             try c.execute("INSERT INTO study_goals(module_id, target_minutes, created_at, updated_at) VALUES (?,0,?,?)", [mid, ts, ts])
@@ -785,6 +790,7 @@ enum SmartGoals {
     /// `ensure`: Doppel zusammenfuehren, Verpasstes markieren, bei geaenderten Eingaben neu planen (klein sofort,
     /// gross oder Unterdeckung als Vorschlag). `auto: false` (Tarif ohne automatischen Lernplan): nur rechnen.
     static func ensure(_ c: SQLiteConnection, today t: Int, auto: Bool, clock uc: UniFlowClock) throws -> Ensured {
+        try StudyPlanModules.dropUnplanned(c, today: t)          // abgewaehlte Faecher (auch nach einem Abgleich)
         try dedupeBlocks(c)
         try markMissed(c, today: t, blockCredit: SP.credit(try sessionRows(c), nowTs: nowTs(uc))["blocks"]?.object ?? [:])
         var state = try object(c, stateKey)
@@ -914,8 +920,9 @@ enum SmartGoals {
                 next = ["module_id": mid, "name": g["name"] ?? .null, "date": .string(d), "days": daysLeft, "confirmed": .bool(ex.confirmed)]
             }
         }
+        let offIDs = try StudyPlanModules.offModuleIDs(c)
         let others: [JSONValue] = try c.rows("SELECT id, name, color, exam_date FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort, id")
-            .filter { !goalIDs.contains($0["id"] ?? .null) }
+            .filter { !goalIDs.contains($0["id"] ?? .null) && !offIDs.contains($0["id"]?.int.map { Int64($0) } ?? -1) }
             .map { ["module_id": $0["id"] ?? .null, "name": $0["name"] ?? .null, "color": $0["color"] ?? .null, "exam_date": $0["exam_date"] ?? .null] }
         let mon = StudyWeeks.monday(t)
         let wkSessions = b.sessions.filter { s in
@@ -982,9 +989,10 @@ enum SmartGoals {
 
     /// Smart Planner an: mindestens ein Lernziel fuer ein aktives Modul, das man schreibt (`study.smart_active`)
     static func active(_ c: SQLiteConnection) throws -> Bool {
-        try c.queryOne("""
-            SELECT 1 FROM study_goals g JOIN modules m ON m.id=g.module_id
-            WHERE COALESCE(m.active,1)=1 AND g.writing=1 AND g.target_minutes>0 LIMIT 1
-            """) != nil
+        let off = try StudyPlanModules.offModuleIDs(c)
+        return try c.query("""
+            SELECT g.module_id FROM study_goals g JOIN modules m ON m.id=g.module_id
+            WHERE COALESCE(m.active,1)=1 AND g.writing=1 AND g.target_minutes>0
+            """).contains { !off.contains($0["module_id"]?.int64 ?? -1) }
     }
 }

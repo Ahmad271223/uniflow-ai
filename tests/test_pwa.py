@@ -97,14 +97,14 @@ def test_offline_reload_comes_from_the_worker(served):
             page.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller !== null", timeout=20000)
             # erster Lauf unter dem Worker: alles geht durch ihn und landet in der Ablage
             page.reload()
-            page.wait_for_function("document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)", timeout=20000)
+            page.wait_for_function("document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)", timeout=20000)
             page.wait_for_function("""async () => (await caches.has('studora-shell-v1')) && (await (await caches.open('studora-api-v1')).keys()).some(r => r.url.includes('/api/dashboard'))""", timeout=20000)
             assert page.evaluate("fetch('/api/dashboard').then(r => r.headers.get('X-Studora-Offline'))") is None, "mit Netz nichts aus der Ablage"
             context.set_offline(True)
             page.reload()
-            page.wait_for_function("document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)", timeout=20000)
+            page.wait_for_function("document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)", timeout=20000)
             text = page.text_content("#view")
-            assert "Server nicht erreichbar" not in text and "Guten" in text
+            assert "Server nicht erreichbar" not in text and ("Guten" in text or "Hallo" in text)
             assert page.evaluate("fetch('/api/dashboard').then(r => r.headers.get('X-Studora-Offline'))") == "1"
             assert "Offline" in (page.text_content("#syncChip") or "")
             write = page.evaluate("fetch('/api/settings', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: '{}'}).then(async r => [r.status, (await r.json()).code])")
@@ -113,7 +113,7 @@ def test_offline_reload_comes_from_the_worker(served):
             assert page.evaluate("fetch('/api/account/info').then(() => 'ok', () => 'fehler')") == "fehler"
             context.set_offline(False)
             page.reload()
-            page.wait_for_function("document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)", timeout=20000)
+            page.wait_for_function("document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)", timeout=20000)
             assert page.evaluate("fetch('/api/dashboard').then(r => r.headers.get('X-Studora-Offline'))") is None
         finally:
             browser.close()
@@ -135,7 +135,7 @@ def test_first_visit_shows_no_update_notice(served):
             page = context.new_page()
             page.goto(served + "/#/dashboard")
             page.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller !== null", timeout=20000)
-            page.wait_for_function("document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)", timeout=20000)
+            page.wait_for_function("document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)", timeout=20000)
             page.wait_for_timeout(1500)                      # Zeit fuer ein (falsches) statechange nach clients.claim()
             assert "aktualisiert" not in (page.text_content("body") or ""), "kein Update-Hinweis beim ersten Aufruf"
             toast = page.query_selector("#toastEl")
@@ -188,7 +188,7 @@ def test_offline_notes_are_queued_and_sent_when_back_online(app, served):
             page.goto(served + "/#/dashboard")
             page.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller !== null", timeout=20000)
             page.reload()
-            page.wait_for_function("document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)", timeout=20000)
+            page.wait_for_function("document.querySelector('#view') && /Guten|Hallo/.test(document.querySelector('#view').textContent)", timeout=20000)
             editor_ready = "window.__app && __app.state.editors.length === 1 && !!__app.state.editors[0].model && !__app.state.editors[0].destroyed"
             page.evaluate(f"location.hash = '#/doc/{fid}'")
             page.wait_for_function(editor_ready, timeout=30000)
@@ -200,7 +200,7 @@ def test_offline_notes_are_queued_and_sent_when_back_online(app, served):
             page.wait_for_function(f"import('{queue_url}').then(m => m.notesQueue.pending()).then(p => p.length === 1 && p[0].fileId === '{fid}' && p[0].version === 1)", timeout=10000)
             # Editor schliessen (Uebersicht): der Eintrag bleibt in der Warteschlange, der Server weiss nichts davon
             page.evaluate("location.hash = '#/dashboard'")
-            page.wait_for_function("window.__app && __app.state.editors.length === 0 && /Guten/.test(document.querySelector('#view')?.textContent || '')", timeout=20000)
+            page.wait_for_function("window.__app && __app.state.editors.length === 0 && /Guten|Hallo/.test(document.querySelector('#view')?.textContent || '')", timeout=20000)
             assert "q1" not in json.dumps(_http(served, "GET", f"/api/files/{fid}/annotations")[1])
             # Datei ohne Netz erneut oeffnen: der lokale Stand (neuer als der Server) wird angezeigt, nicht ueberschrieben
             page.evaluate(f"location.hash = '#/doc/{fid}'")

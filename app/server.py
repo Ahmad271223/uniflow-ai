@@ -3405,7 +3405,7 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
     if body.get("expected_materials") is not None and not isinstance(body["expected_materials"], (list, str, dict)):
         raise HTTPException(400, "expected_materials: Liste erwartet")
     with db.cursor() as conn:
-        before = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,))
+        before = db.row(conn, "SELECT color, name FROM modules WHERE id=?", (module_id,))
         if body.get("color") not in (None, "") and not timetable.COLOR_RE.fullmatch(str(body["color"])):
             raise HTTPException(400, "Farbe als #rrggbb.")                 # wird in style-Attributen eingesetzt (3.11.2026)
         for k, v in body.items():
@@ -3425,6 +3425,8 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
         if "name" in body:
             conn.execute("UPDATE courses SET subject=? WHERE module_id=?", (body["name"], module_id))
             conn.execute("UPDATE study_packages SET subject=? WHERE module_id=?", (body["name"], module_id))
+            if before:
+                study.rename_plan_off(conn, before["name"], body["name"])        # "nicht im Lernkalender" bleibt
         return _found(db.row(conn, "SELECT * FROM modules WHERE id=?", (module_id,)), "Modul")
 
 

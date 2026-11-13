@@ -47,7 +47,7 @@ public struct AIRelayTask: Sendable, Equatable {
     /// Aufgaben, die der Dienst kennt (`ai_relay._tasks`); `study_plan` = KI-Lernplan (07.11.2026, AIStudyPlan.swift)
     public static func isKnown(_ name: String) -> Bool {
         if name.hasPrefix("tutor:") { return AIPromptTexts.tutorModes.contains { "tutor:" + $0.key == name } }
-        return ["flashcards", "week_test", "weekly", "grade", "study_plan"].contains(name)
+        return ["flashcards", "week_test", "weekly", "grade", "study_plan", MailRewrite.task].contains(name)
     }
 
     /// `tutor:<modus>`; unbekannte Modi wie in app/ai.py als `explain`

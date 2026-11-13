@@ -459,3 +459,31 @@ final class UniMailConnection: ObservableObject {
 }
 
 extension UniMailConnection: ContainerSync {}
+
+
+// MARK: - Mit KI verbessern (13.11.2026)
+
+extension UniMailConnection {
+    /// Fehler von "Mit KI verbessern" mit Code des Dienstes (z. B. quota_exhausted, plan_required)
+    struct RewriteError: Error, Equatable {
+        let code: String?
+        let message: String
+    }
+
+    /// Vorschlag der StudiNow-KI fuer den Text einer E-Mail (`POST /api/ai/mail-rewrite` im lokalen Backend, beim Dienst
+    /// Aufgabe `mail`: Pro AI, 50 je Monat). Gesendet wird hier nichts.
+    func rewrite(subject: String, text: String) async throws -> String {
+        let body = JSONValue.object(["subject": .string(subject), "text": .string(text)]).serialized()
+        let backend = try await host.backend()
+        let r = await backend.handle(LocalRequest(method: "POST", url: URL(string: "uniflow-local://device/api/ai/mail-rewrite")!,
+                                                  headers: ["Content-Type": "application/json"], body: body))
+        if r.status == 200, let t = r.json?["text"]?.string, !t.isEmpty { return t }
+        let detail = r.json?["detail"]
+        let code = detail?["code"]?.string ?? r.json?["code"]?.string
+        let text = detail?["detail"]?.string ?? detail?.string ?? "Die KI konnte die E-Mail gerade nicht verbessern. Bitte später erneut versuchen."
+        if r.status == 404 && code == nil {
+            throw RewriteError(code: "no_ai", message: "Die StudiNow-KI ist nicht verbunden. Melde dich in den Einstellungen mit deinem StudiNow-Konto an.")
+        }
+        throw RewriteError(code: code, message: MailRewrite.message(code: code, fallback: text))
+    }
+}

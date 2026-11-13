@@ -1,9 +1,11 @@
 import SwiftUI
 import UniFlowCore
 
-/// Übersicht 1:1 nach viewDashboard() in app/static/app.js: Begruessung mit Datum, Kennzahlen (heute geplant,
-/// Aufgaben erledigt, nachzuholen), "Heute für dich geplant" mit Lernpaketen, "Heute an der Uni", "Nächste Termine",
-/// "Diese Woche" mit Wochenstreifen, "Neu aus Stud.IP". Daten: GET /api/dashboard. Dazu die Karte "Neuigkeiten"
+/// Übersicht nach viewDashboard() in app/static/app.js: Begruessung mit Datum und Tageszeile (heute geplant,
+/// nachzuholen mit "neu planen"), "Heute für dich geplant" mit Lernpaketen, "Heute an der Uni", "Abgaben & Prüfungen",
+/// "Diese Woche" mit Wochenstreifen, "Neu aus Stud.IP", Mensa. Aufgeraeumt am 13.11.2026 mit Zustimmung des Inhabers
+/// (`DashboardTidy`): keine Kennzahl-Kacheln, kein "Nächste Termine", Mensa unten. Daten: GET /api/dashboard. Dazu die
+/// Karte "Neuigkeiten"
 /// (Ankuendigungen, Nachrichten, Aenderungen gebuendelt, `NewsCard`) aus GET /api/news; sie ersetzt die fruehere Karte
 /// "Ankündigungen".
 struct DashboardView: View {
@@ -92,8 +94,6 @@ struct DashboardView: View {
         let today = d["today"] ?? .null
         let pk = today.list("packages")
         let evs = StudIPCancellations.visible(today.list("events").filter { $0.s("status") != "verschoben" }, keys: studipCancelled)
-        // Aufgaben erledigt: dieselbe Zaehlung wie "Diese Woche" und der Lernkalender (`UFTaskProgress`, Woche Mo–So)
-        let week = UFTaskProgress.of(week: d["week"] ?? .null)
         let nextOpen = pk.flatMap { p in p.list("tasks").filter { !["erledigt", "uebersprungen"].contains($0.s("status") ?? "") } }.first
         let todayDate = today.s("date") ?? day
         let backlog = d.i("backlog") ?? 0
@@ -102,8 +102,9 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // "Hallo Ahmad – lass uns gemeinsam lernen." (Wunsch des Inhabers 04.11.2026, `UFGreeting`): Rufname,
                 // sonst Vorname der Apple-Anmeldung, sonst ohne Namen; `day` haelt die Tageszeit nach Mitternacht aktuell
-                UFPageHeadGreet(title: UFGreeting.text(name: greetingName), sub: dateLine(pk: pk, evs: evs)) {
-                    UFButton("Tagesansicht", icon: "calendar") { router.go(.plan(view: "day", date: todayDate)) }
+                // darunter die Tageszeile mit Minuten und Nachzuholendem (statt drei Kacheln, `DashboardTidy.summary`);
+                // "Tagesansicht" steht in der Karte "Heute für dich geplant"
+                UFPageHeadGreet(title: UFGreeting.text(name: greetingName), sub: Text(summary(today, pk: pk, evs: evs, backlog: backlog))) {
                     if let n = nextOpen {
                         UFButton("Weiterlernen", icon: "play", kind: .primary) {
                             // an der zuletzt gelesenen Seite weiter (wie "Öffnen" im Lernplan)
@@ -119,7 +120,8 @@ struct DashboardView: View {
                 // beiden; den Hinweis mit "Beenden" zeigt die App-Huelle ueber jeder Seite (`DemoActiveBar`)
                 // Probe (StudiNow-Konto oder, ohne Dienst, die Probe auf dem iPad); ohne Inhalt nichts
                 TrialBanner(link: studoraAccount).padding(.bottom, 19.2)
-                // Pro AI ohne Anmeldung beim StudiNow-Konto: Hinweis mit Anmeldeknopf (Inhaber 10.11.2026)
+                // Pro AI ohne Anmeldung beim StudiNow-Konto: Hinweis mit Anmeldeknopf (Inhaber 10.11.2026; beide Hinweise
+                // bleiben, Inhaber 13.11.2026)
                 if let s = studoraAccount { ProAISignInBanner(link: s).padding(.bottom, 19.2) }
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
@@ -127,44 +129,19 @@ struct DashboardView: View {
                 UpcomingExamsCard(api: api, token: day)
                 // "Prüfungsanmeldung" (05.11.2026, `ExamRegistrationCard`): nur im Meldezeitraum und in den 7 Tagen davor
                 ExamRegistrationCard(api: api, token: day)
-                // "Heute in der Mensa" (05.11.2026, `MensaTodayCard`): drei Hauptgerichte, am Wochenende und an
-                // geschlossenen Tagen keine Karte
-                MensaTodayCard(api: api, token: day)
-
-                // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
-                // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)
-                // Bedienungshilfen-Schriftgroessen: untereinander (dreispaltig brach "nachzu-holen" mitten im Wort)
-                UFGridLayout(columns: windowWidth > 640 && !typeSize.isAccessibilitySize ? 3 : 1, spacing: 16) {
-                    // Karten erscheinen beim ersten Oeffnen der Seite leicht gestaffelt (UFMotion), Zahlen rollen
-                    kpiCard(value: UFFmt.min(today.n("minutes")),
-                            label: "heute geplant" + freeText(today))
-                        .ufAppear("dashboard", index: 0)
-                    UFCard {
-                        // ohne Aufgaben kein "0 / 0" und kein leerer Balken (Audit 03.11.2026)
-                        if let text = week.text {
-                            UFKPI(value: text, label: "Aufgaben erledigt · diese Woche")
-                            UFProgress(value: week.fraction, ok: true).padding(.top, 6.4)
-                        } else {
-                            UFKPI(value: "–", label: "diese Woche keine Aufgaben geplant")
-                        }
-                    }
-                    .accessibilityIdentifier("dashboard.kpi.tasks")
-                    .ufAppear("dashboard", index: 1)
-                    backlogCard(backlog).ufAppear("dashboard", index: 2)
-                }
-                .environment(\.ufFillsCell, true)
-                .padding(.bottom, 19.2)
 
                 // Wunsch des Inhabers 03.11.2026: im Querformat endete die breite Spalte frueh, die schmale stapelte alles
                 // (Abgaben mit 14 Eintraegen, Neuigkeiten …) und kuerzte Zeilen mit "…". Jetzt: Heute, Uni-Termine und
                 // "Abgaben & Prüfungen" in der breiten Spalte, die uebrigen Karten jeweils in die kuerzere Spalte
                 // (`DashboardFlow`); hochkant eine Spalte in dieser Reihenfolge
                 DashboardFlow(twoColumns: windowWidth > 1100, spacing: 8) {
-                    todayCard(pk: pk).ufAppear("dashboard", index: 3).dashboardSlot(.main)
+                    todayCard(pk: pk, dayLink: todayDate).ufAppear("dashboard", index: 3).dashboardSlot(.main)
                     if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
                     DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
+                    // die Woche in der breiten Spalte (sieben Tage brauchen Platz; zaehlt auch "Aufgaben erledigt")
+                    weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 6).dashboardSlot(.main)
                     if !recent.isEmpty { RecentCard(items: recent).ufAppear("dashboard", index: 4).dashboardSlot(.flow) }
-                    upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4).dashboardSlot(.flow)
+                    // "Nächste Termine" entfaellt (13.11.2026): dieselben Eintraege wie "Abgaben & Prüfungen"
                     // "Deine Module" mit Lernstand (docs/LERNSTAND-2026-11-04.md), wie modulesCard im Web
                     if !Self.activeModules(d).isEmpty {
                         modulesCard(Self.activeModules(d)).ufAppear("dashboard", index: 5).dashboardSlot(.flow)
@@ -173,12 +150,26 @@ struct DashboardView: View {
                         NewsCard(items: news, today: todayDate, bulletinNew: bulletinNew, openBulletin: { router.go(.services) }) { showNews = true }
                             .ufAppear("dashboard", index: 6).dashboardSlot(.flow)
                     }
-                    weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 7).dashboardSlot(.flow)
                     newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0, demo: mode.isDemo).ufAppear("dashboard", index: 8).dashboardSlot(.flow)
+                    // "Heute in der Mensa" (`MensaTodayCard`, drei Hauptgerichte) am Ende statt ganz oben (13.11.2026);
+                    // am Wochenende und an geschlossenen Tagen keine Karte
+                    MensaTodayCard(api: api, token: day).dashboardSlot(.flow)
                 }
             }
             .frame(maxWidth: 1120, alignment: .leading)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url == DashboardTidy.rescueURL else { return .systemAction }
+                Task { await rescue() }
+                return .handled
+            })
         }
+    }
+
+    /// Zeile unter der Begruessung: Datum, Lernpakete, Minuten, Uni-Termine, Nachzuholendes
+    private func summary(_ today: JSONValue, pk: [JSONValue], evs: [JSONValue], backlog: Int) -> AttributedString {
+        let free = today.list("free").reduce(0.0) { $0 + ($1.n("minutes") ?? 0) }
+        return DashboardTidy.summary(date: UFFmt.longToday(), packages: pk.count, events: evs.filter { $0.s("status") == "teilnahme" }.count,
+                                     minutes: today.n("minutes"), free: free, backlog: backlog)
     }
 
     private func statusBar(_ mode: UFDataMode) -> Bool {
@@ -188,46 +179,6 @@ struct DashboardView: View {
     /// Name der Begruessung in der Reihenfolge von `UFGreeting.pick`; das StudiNow-Konto hat in V1 keinen Anzeigenamen
     private var greetingName: String? { UFGreeting.name(for: account.account) }    // dieselbe Quelle wie die Seitenleiste
 
-    /// "Sonntag, 25. Oktober · heute 2 Lernpakete · 3 Uni-Termine"
-    private func dateLine(pk: [JSONValue], evs: [JSONValue]) -> String {
-        var s = UFFmt.longToday() + " · "
-        s += pk.isEmpty ? "heute ist nichts geplant" : "heute \(pk.count) Lernpaket\(pk.count > 1 ? "e" : "")"
-        if !evs.isEmpty {
-            let n = evs.filter { $0.s("status") == "teilnahme" }.count
-            s += " · \(n) Uni-Termin\(n == 1 ? "" : "e")"                  // "1 Uni-Termin" (Store-Bilder 05.11.2026)
-        }
-        return s
-    }
-
-    private func freeText(_ today: JSONValue) -> String {
-        let free = today.list("free")
-        guard !free.isEmpty else { return "" }
-        return " · \(UFFmt.min(free.reduce(0) { $0 + ($1.n("minutes") ?? 0) })) frei"
-    }
-
-    private func kpiCard(value: String, label: String) -> some View {
-        UFCard { UFKPI(value: value, label: label) }
-    }
-
-    /// Dritte Kennzahl: Zahl rot, wenn etwas nachzuholen ist; "neu planen" startet "Meine Woche retten". Die Farbe
-    /// sitzt auf der Zahl (Daten), nicht als roter Rahmen um die ganze Karte (Chrom)
-    private func backlogCard(_ backlog: Int) -> some View {
-        UFCard {
-            VStack(alignment: .leading, spacing: 2.4) {
-                Text("\(backlog)").ufFont(21.6, 700).foregroundStyle(backlog > 0 ? UF.bad : UF.text)
-                    .ufNumber(backlog, numeric: Double(backlog))
-                HStack(spacing: 0) {
-                    Text("nachzuholen").ufFont(12.8).foregroundStyle(UF.muted)
-                    if backlog > 0 {
-                        Text(" · ").ufFont(12.8).foregroundStyle(UF.muted)
-                        Button("neu planen") { Task { await rescue() } }          // .kpi a { font-weight: 600 }
-                            .ufFont(12.8, 600).foregroundStyle(UF.accentText).buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: Karten
 
     /// "Lernplan erstellen": ohne PC ab Plus (`UFFeature.autoPlan`), Free sieht das Schloss
@@ -236,9 +187,13 @@ struct DashboardView: View {
         if api?.isLocal != false { b.ufRequires(.autoPlan) } else { b }
     }
 
-    private func todayCard(pk: [JSONValue]) -> some View {
+    /// `dayLink`: "Tagesansicht" (vorher ein Knopf oben neben "Weiterlernen")
+    private func todayCard(pk: [JSONValue], dayLink: String) -> some View {
         UFCard {
-            UFCardHead("Heute für dich geplant", icon: "play")
+            UFCardHead("Heute für dich geplant", icon: "play") {
+                Button("Tagesansicht") { router.go(.plan(view: "day", date: dayLink)) }
+                    .ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
+            }
             if pk.isEmpty {
                 UFEmpty(icon: "calendar", text: "Für heute ist nichts geplant.") {
                     autoPlanButton.padding(.top, 9.6)
@@ -271,41 +226,6 @@ struct DashboardView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func upcomingCard(_ up: [JSONValue]) -> some View {
-        UFCard {
-            UFCardHead("Nächste Termine", icon: "calendar")
-            if up.isEmpty {
-                Text("Keine Termine.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
-            } else {
-                let rows = Row.rows(Array(up.prefix(6)), key: "date")
-                ForEach(rows) { row in
-                    let u = row.value
-                    let isDeadline = u["deadline_id"].map { !$0.isNull } == true
-                    Button {
-                        // erkannter Termin: Quelle (PDF auf der Seite, Ankuendigung); Learnweb-Frist: Eintrag oeffnet das
-                        // Learnweb (nur http/https), sonst Lernplan bzw. Modul
-                        if u["detected"]?.bool == true { DueOpen.open(u, router: router, openURL: openURL) }
-                        else if isDeadline { if let url = UFDayExtras.safeURL(u.s("url")) { openURL(url) } }
-                        else if u["package_id"].map({ !$0.isNull }) == true { router.go(.plan(view: "day", date: u.s("date"))) }
-                        else if let m = u.i("module_id") { router.go(.module(m)) } else { router.go(.plan()) }
-                    } label: {
-                        // Titel in Textfarbe statt ganz in Linkfarbe, der Pfeil rechts zeigt, dass die Zeile oeffnet
-                        UFItemRow(UFFmt.shortName(u.s("title")), sub: Self.upcomingSub(u), wraps: true, leading: {
-                            UFDot(color: Color(hex: u.s("color")))
-                        }, trailing: {
-                            UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
-                        })
-                        .foregroundStyle(isDeadline && (u["overdue"]?.bool ?? false) ? UF.bad : UF.text)
-                    }
-                    .buttonStyle(.plain)
-                    .help(u.s("full_title") ?? u.s("title") ?? "")
-                    .accessibilityLabel(isDeadline ? "Frist: \(u.s("title") ?? "") · \(Self.upcomingSub(u))" : "\(u.s("title") ?? "") · \(Self.upcomingSub(u))")
-                    .ufBorderBottom(row.id != rows.last?.id)                     // .item:last-child { border-bottom: 0 }
-                }
             }
         }
     }
@@ -356,19 +276,6 @@ struct DashboardView: View {
                 .ufBorderBottom(row.id != rows.last?.id)
             }
         }
-    }
-
-    /// Unterzeile wie im Web: Frist "Datum Uhrzeit · Abgabe · Kurs" (ueberfaellig rot), sonst "Datum · Klausur/Wochentest/Lernpaket"
-    static func upcomingSub(_ u: JSONValue) -> String {
-        if u["deadline_id"].map({ !$0.isNull }) == true {
-            var s = UFFmt.short(u.s("date"))
-            if let t = u.s("time"), !t.isEmpty { s += " \(t)" }
-            s += " · \(u.s("kind_label") ?? "Frist")"
-            if let c = u.s("course_title"), !c.isEmpty { s += " · \(UFFmt.shortName(c))" }
-            return s
-        }
-        let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
-        return "\(UFFmt.short(u.s("date"))) · \(kind)"
     }
 
     private func weekCard(_ w: JSONValue, today: String) -> some View {
@@ -462,7 +369,8 @@ struct DashboardView: View {
 /// .page-head.greet: h1 wie .page-head h1 (1.9rem/700, -.02em; ueberschreibt .greet h1), Datum gedimmt; Aktionen rechts
 private struct UFPageHeadGreet<Actions: View>: View {
     let title: String
-    let sub: String
+    /// Datum und Tageszeile; aufgeraeumt mit dem Link "neu planen" (`DashboardTidy.summary`)
+    let sub: Text
     @ViewBuilder var actions: Actions
 
     var body: some View {
@@ -480,7 +388,7 @@ private struct UFPageHeadGreet<Actions: View>: View {
     private var titles: some View {
         VStack(alignment: .leading, spacing: 0) {                             // .greet .date: ohne margin-top (anders als .sub)
             Text(title).ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
-            Text(sub).ufFont(14.5).foregroundStyle(UF.muted)
+            sub.ufFont(14.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

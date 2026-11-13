@@ -369,6 +369,13 @@ final class StudiNowAITests: XCTestCase {
         let st = try await acc.planStatus()
         XCTAssertTrue(st.trialActive)
         XCTAssertEqual(st.appleAccountToken, "3F2504E0-4F89-11D3-9A0C-0305E82C3301")
+        XCTAssertNil(st.paidPlan, "ohne paid_plan: nil")
+        // bezahlter Tarif neben der Probe (13.11.2026: dann zeigt die App keine Probe mehr)
+        await fake.on("GET", "/api/entitlements", 200, ["plan": "pro_ai", "paid_plan": "pro_ai",
+                                                        "trial": ["active": true, "days_left": 2, "plan": "pro_ai"]])
+        let paid = try await acc.planStatus()
+        XCTAssertEqual(paid.paidPlan, "pro_ai")
+        XCTAssertEqual(paid.trialDaysLeft, 2)
     }
     // MARK: Stopp (11.11.2026)
 

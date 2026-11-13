@@ -92,6 +92,14 @@ final class TrialDisplayAppTests: XCTestCase {
         XCTAssertEqual(UFShownTrial.make(service: .proAI, serviceDaysLeft: 2, serviceEndsAt: nil, local: local, purchased: .plus),
                        UFShownTrial(source: .service, daysLeft: 2, endsAt: nil))
         XCTAssertEqual(UFShownTrial.make(service: .proAI, serviceDaysLeft: 2, serviceEndsAt: nil, local: local, purchased: .free)?.daysLeft, 2)
+        // 13.11.2026: Pro AI gekauft (auf diesem iPad oder laut Dienst) deckt die Probe ab -> keine Probe mehr anzeigen
+        XCTAssertNil(UFShownTrial.make(service: .proAI, serviceDaysLeft: 2, serviceEndsAt: nil, local: local, purchased: .proAI))
+        XCTAssertNil(UFShownTrial.make(service: .proAI, serviceDaysLeft: 2, serviceEndsAt: nil, local: local, purchased: .free,
+                                       servicePaid: .proAI))
+        XCTAssertNil(UFShownTrial.make(service: nil, serviceDaysLeft: 0, serviceEndsAt: nil, local: local, purchased: .free,
+                                       servicePaid: .proAI), "auch die iPad-Probe nicht")
+        XCTAssertEqual(UFShownTrial.make(service: .proAI, serviceDaysLeft: 2, serviceEndsAt: nil, local: local, purchased: .free,
+                                         servicePaid: .plus)?.daysLeft, 2, "Plus deckt die Probe nicht ab: sie bringt noch die KI")
         // Seitenleiste mit Plus und laufender Konto-Probe: Probe, der Knopf fuehrt ueber den Kauf hinaus
         let p = UFSidebarProfile.make(plan: .proAI, purchased: .plus, trialDaysLeft: 2)
         XCTAssertEqual(p.planLabel, "Probe · noch 2 Tage")

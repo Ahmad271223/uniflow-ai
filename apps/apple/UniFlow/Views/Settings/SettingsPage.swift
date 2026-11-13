@@ -765,6 +765,8 @@ private struct AccountTab: View {
                             }))
             }
             SettingsDivider()
+            PencilFeelSettingsRows()                                     // Glättung, Formen erkennen (13.11.2026)
+            SettingsDivider()
             EditorToolbarPlacementRow()                                  // Werkzeugleiste oben/unten/schwebend (12.11.2026)
             .padding(.bottom, -12)
         }
@@ -1110,6 +1112,8 @@ private struct LocalAccountTab: View {
                         SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
                             UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
                         }
+                        SettingsDivider()
+                        PencilFeelSettingsRows()                         // Glättung, Formen erkennen (13.11.2026)
                         SettingsDivider()
                         EditorToolbarPlacementRow()                      // Werkzeugleiste oben/unten/schwebend (12.11.2026)
                         .padding(.bottom, -12)
