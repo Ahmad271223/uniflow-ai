@@ -1,4 +1,4 @@
-"""Build-Herkunft der iPad-App (Audit P46-01/P47-04, 08.11.2026): docs/release/BUILD-HERKUNFT.md, project.yml und
+"""Build-Herkunft der Apple-App, iPad und iPhone (Audit P46-01/P47-04, 08.11.2026): docs/release/BUILD-HERKUNFT.md, project.yml und
 docs/release/APP-STORE.md nennen dieselbe aktuelle und dieselbe eingereichte Build-Nummer; jeder genannte Commit traegt
 seine Build-Nummer in project.yml; auf dem Mac des Inhabers stimmt jeder Export-Ordner Datei fuer Datei mit dem Commit.
 In GitHub Actions (flacher Checkout ohne alte Commits, kein ~/Studora-Builds) laufen nur die Text-Pruefungen."""
@@ -75,30 +75,61 @@ def test_released_builds_and_build_33():
     assert not re.search(r'MARKETING_VERSION: "1\.0"', yml), "1.0 wurde nie veroeffentlicht"
 
 
-def test_build_41_is_in_testflight_selected_for_1_0_4_and_not_submitted():
-    """Betriebsfakt 14.11.2026: Build 41 (6923136b, Tag ios-1.0.4-b41) ist seit 19:01 in TestFlight (VALID 19:46), fuer
-    Version 1.0.4 ausgewaehlt und noch nicht eingereicht (wartet auf das Server-Update fuer die Geraete-Regel und das
-    Okay des Inhabers); develop zaehlt als Build 42 weiter."""
+def test_build_41_is_submitted_as_1_0_4_after_the_server_update():
+    """Betriebsfakt 14.11.2026: Build 41 (6923136b, Tag ios-1.0.4-b41) ist seit 19:01 in TestFlight (VALID 19:46) und
+    seit 19:56 als Version 1.0.4 in der Pruefung (WAITING_FOR_REVIEW, Freigabe von Hand) - nach dem Server-Update fuer
+    die Geraete-Regel (19:55, derselbe Commit, DEPLOY-DIENST-2026-11-14.md) und dem Okay des Inhabers; develop zaehlt als
+    Build 42 weiter."""
     r = rows()
     b = r[41]
     assert b["commit"] == "6923136b" and b["date"] == "14.11.2026 19:01"
-    assert b["status"].startswith("hochgeladen (TestFlight), Version 1.0.4, iPad + iPhone")
-    for must in ("`luh hildesheim`", "nicht eingereicht", "für Version 1.0.4 ausgewählt", "Server-Update", "Okay des Inhabers",
-                 "VALID gemeldet 19:46", "„LUH-Tester“", "IN_BETA_TESTING", "WAITING_FOR_REVIEW", "`ios-1.0.4-b41`"):
+    assert b["status"].startswith("eingereicht: Version 1.0.4 am 14.11.2026 19:56 zur Prüfung gegeben")
+    for must in ("App Store WAITING_FOR_REVIEW", "Freigabe nach der Prüfung von Hand", "iPad + iPhone", "`luh hildesheim`",
+                 "Server-Update für die Geräte-Regel (ausgerollt 19:55, `DEPLOY-DIENST-2026-11-14.md`)", "Okay des Inhabers",
+                 "hochgeladen 19:01", "VALID gemeldet 19:46", "„LUH-Tester“", "IN_BETA_TESTING", "`ios-1.0.4-b41`"):
         assert must in b["status"], must
+    assert "nicht eingereicht" not in b["status"] and "wartet" not in b["status"]
     for must in ("Build 40 plus", "Mac-Reparatur", "Hildesheim", "iPhone-Wochenraster", "Geräte-Regel", "4 pt"):
         assert must in b["content"], must
+    assert "greift seit dem Server-Update vom 14.11.2026 19:55" in b["content"] and "greift erst nach" not in b["content"]
     assert r[40]["commit"] == "aefee598" and "nicht eingereicht" in r[40]["status"]
     assert r[42]["commit"] is None and r[42]["status"] == "noch nicht hochgeladen; develop nach Build 41"
     assert r[42]["content"] == "Änderungen nach `6923136b`"
-    assert submitted() is None and "In der Prüfung bei Apple: keine Version." in DOC.read_text(encoding="utf-8")
-    row = next(line for line in STORE.read_text(encoding="utf-8").splitlines() if line.startswith("| Version, Build |"))
-    assert "Builds 36 bis 41 (1.0.4) nur TestFlight" in row and "Build 41 vom 14.11.2026" in row, row
-    assert "für die Einreichung von 1.0.4 ausgewählt, noch nicht eingereicht" in row, row
-    assert "für StudiNow 1.0.4 (Build 41, " in STORE.read_text(encoding="utf-8").splitlines()[2]
+    doc = DOC.read_text(encoding="utf-8")
+    assert submitted() == 41
+    assert "In der Prüfung bei Apple: 1.0.4 mit Build 41 seit 14.11.2026 19:56." in doc and "keine Version" not in doc
+    # seit Build 40 nicht mehr nur LUH, seit Build 39 nicht mehr nur iPad
+    assert "bis Build 39\n`UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), ab Build 40 `luh hildesheim`" in doc
+    assert "Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh`" not in doc and "(StudiNow 1.0 und 1.0.1)" not in doc
+    store = STORE.read_text(encoding="utf-8")
+    row = next(line for line in store.splitlines() if line.startswith("| Version, Build |"))
+    assert "Build 41 in der Prüfung (Version 1.0.4, eingereicht am 14.11.2026 19:56, WAITING_FOR_REVIEW" in row, row
+    assert "Builds 36 bis 40 (1.0.4) nur TestFlight" in row and "noch nicht eingereicht" not in row, row
+    head = store.splitlines()[2]
+    assert "für StudiNow 1.0.4 (Build 41 ist seit 14.11.2026 19:56 in der Prüfung bei Apple, WAITING_FOR_REVIEW" in head
+    assert "noch nicht eingereicht" not in head
+    assert "10 iPad-Bilder und\n7 iPhone-Bilder, alle COMPLETE" in store
     sheet = (ROOT / "docs" / "release" / "EINREICHUNG-1-0-4.md").read_text(encoding="utf-8")
-    assert "1.0.4 wird mit Build 41 eingereicht" in sheet and "4. Build **41** auswählen" in sheet
-    assert "noch nicht zur Prüfung eingereicht" in sheet
+    assert "1.0.4 ist mit Build 41 eingereicht" in sheet and "**eingereicht am 14.11.2026 um 19:56**" in sheet
+    assert "WAITING_FOR_REVIEW" in sheet and "noch nicht zur Prüfung eingereicht" not in sheet and "wird mit Build 41" not in sheet
+    steps = sheet[sheet.index("## Reihenfolge in App Store Connect"):sheet.index("## 1. Name der App")]
+    for n, what in ((1, "Neue Version **1.0.4** anlegen"), (2, "Die sieben Textfelder"), (3, "Bildschirmfotos hochladen"),
+                    (4, "Build **41** auswählen"), (5, "Freigabe **von Hand**")):
+        assert f"{n}. **Erledigt (14.11.2026):** {what}" in steps, (n, what)
+    # das Server-Update, auf das die Einreichung gewartet hat: derselbe Commit wie Build 41, vor der Einreichung
+    deploy = (ROOT / "docs" / "release" / "DEPLOY-DIENST-2026-11-14.md").read_text(encoding="utf-8")
+    assert deploy.startswith("# Dienst-Update 14.11.2026 – ausgerollt 19:55\n")
+    for must in ("`d0d178b6` → `6923136b`", "derselbe Commit wie Build 41", "`app/device_limit.py` (neu)",
+                 "X-StudiNow-Caps: device_limit", "Ausgerollt am 14.11.2026 um 19:55 (Berlin) auf Freigabe des Inhabers",
+                 "uniflow-2026-11-14_1952.tar.gz", "`primary_device_id`, `primary_device_name`, `primary_device_set_at`",
+                 "Nicht geprüft: die Geräte-Regel mit einem echten Konto auf zwei echten Geräten",
+                 "git archive d0d178b6"):
+        assert must in deploy, must
+    if has_commit("6923136b") and has_commit("d0d178b6"):    # die Dateiliste des Dokuments ist die des Dienst-Codes
+        changed = git("diff", "--name-only", "d0d178b6", "6923136b", "--", "app", "deploy").stdout.split()
+        assert changed and not [f for f in changed if f.startswith("deploy/")], changed
+        table = deploy[deploy.index("## Was sich im Dienst-Code ändert"):deploy.index("## Tests")]
+        assert [f for f in changed if f"`{f}`" not in table] == [], "geaenderte Dienst-Dateien fehlen in der Tabelle"
     tag = git("rev-parse", "--verify", "--quiet", "ios-1.0.4-b41^{commit}")
     if tag.returncode == 0:                                  # im flachen Klon ohne Tags nichts zu pruefen
         assert tag.stdout.strip().startswith("6923136b"), tag.stdout

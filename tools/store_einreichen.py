@@ -1,7 +1,7 @@
 """Version im App Store anlegen und fuellen (14.11.2026). Aufruf im Projektordner:
     .venv/bin/python tools/store_einreichen.py texte   1.0.4          # Version anlegen, Texte und Pruefhinweise aus APP-STORE.md
     .venv/bin/python tools/store_einreichen.py bilder  1.0.4          # Bildschirmfotos iPad 13" und iPhone 6,9" ersetzen
-    .venv/bin/python tools/store_einreichen.py build   1.0.4 40       # Build waehlen
+    .venv/bin/python tools/store_einreichen.py build   1.0.4 41       # Build waehlen
     .venv/bin/python tools/store_einreichen.py senden  1.0.4          # zur Pruefung einreichen (nur mit Okay des Inhabers)
 Texte kommen aus den Bloecken `description-proai`, `whats-new-proai`, `keywords`, `promo`, `review-notes-proai` in
 docs/release/APP-STORE.md (von tests/test_release_texts.py geprueft). Freigabe nach der Pruefung von Hand (MANUAL)."""

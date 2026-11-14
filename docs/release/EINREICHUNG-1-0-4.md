@@ -1,16 +1,16 @@
 # Abschreib-Liste für App Store Connect – StudiNow 1.0.4
 
-**1.0.3 (Build 35) ist seit 13.11.2026 veröffentlicht; 1.0.4 wird mit Build 41 eingereicht (iPhone, iPad, Universität Hildesheim).** Stand 14.11.2026: Build 41 ist seit 19:01 in TestFlight (von Apple VALID 19:46) und in App Store Connect für Version 1.0.4 ausgewählt; **noch nicht zur Prüfung eingereicht** – das wartet auf das Server-Update für die Geräte-Regel und das Okay des Inhabers. Diese Liste ist nur zum Einfügen; die Felder sind dieselben
+**1.0.3 (Build 35) ist seit 13.11.2026 veröffentlicht; 1.0.4 ist mit Build 41 eingereicht (iPhone, iPad, Universität Hildesheim).** Stand 14.11.2026: **eingereicht am 14.11.2026 um 19:56**, Zustand WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand (MANUAL). Vorher: Build 41 seit 19:01 in TestFlight (von Apple VALID 19:46), Server-Update für die Geräte-Regel um 19:55 ausgerollt (`DEPLOY-DIENST-2026-11-14.md`), Okay des Inhabers. Hochgeladen sind die Texte (Beschreibung 3 995, Neue Funktionen 1 752, Prüfhinweise 3 968 Zeichen), 10 iPad-Bilder und 7 iPhone-Bilder (alle COMPLETE). Diese Liste ist nur zum Einfügen; die Felder sind dieselben
 wie in `docs/release/APP-STORE.md` (dort steht, warum sie so lauten) und von `tests/test_release_texts.py` geprüft.
 Sprache überall **Deutsch (de-DE)**. Jeden Block komplett markieren und einfügen – nichts abtippen.
 
 ## Reihenfolge in App Store Connect
 
-1. Neue Version **1.0.4** anlegen (Plattform iOS; macOS nicht einreichen).
-2. Die sieben Textfelder unten einfügen.
-3. Bildschirmfotos hochladen: **iPad 13"** (zehn Bilder) und **iPhone 6,9"** (sieben Bilder) – Listen ganz unten.
-4. Build **41** auswählen (seit 14.11.2026 in TestFlight und schon ausgewählt).
-5. Freigabe **von Hand** („Manuell veröffentlichen“), wie bei 1.0.1 bis 1.0.3.
+1. **Erledigt (14.11.2026):** Neue Version **1.0.4** anlegen (Plattform iOS; macOS nicht einreichen).
+2. **Erledigt (14.11.2026):** Die sieben Textfelder unten einfügen.
+3. **Erledigt (14.11.2026):** Bildschirmfotos hochladen: **iPad 13"** (zehn Bilder) und **iPhone 6,9"** (sieben Bilder) – Listen ganz unten.
+4. **Erledigt (14.11.2026):** Build **41** auswählen.
+5. **Erledigt (14.11.2026):** Freigabe **von Hand** („Manuell veröffentlichen“, MANUAL), wie bei 1.0.1 bis 1.0.3; eingereicht um 19:56.
 6. Abos nicht noch einmal anhängen: Plus und Pro AI sind schon freigegeben.
 
 
