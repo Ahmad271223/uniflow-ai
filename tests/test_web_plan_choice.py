@@ -121,6 +121,31 @@ def test_week_wish_subjects_topic_done_and_other_subject(served, plan):
     assert not any(p["subject"] == "Physik I" and p["status"] == "geplant" for p in pk.values()), "Physik abgewaehlt: kein geplantes Paket"
 
 
+def test_learning_steps_are_ticked_off_and_finish_the_task(served, plan):
+    """Echte Aufgabe mit Lernschritten (app/outline.py): alle vier abhaken -> Aufgabe erledigt; Oeffnen springt auf die
+    erste Seite der Aufgabe"""
+    d, call = plan
+    from app import db, outline
+    pid, tid = d["ids"]["today"]
+    with db.cursor() as conn:
+        conn.execute("UPDATE study_tasks SET type='vorlesung', file_id='f-x', title='2.3 Faltung · S. 25–29', page_from=25, page_to=29, steps=? WHERE id=?",
+                     (outline.steps_json("vorlesung", 25, 29), tid))
+
+    def body(page):
+        page.click(f".cal2-ev[data-pkg='{pid}']")
+        page.wait_for_selector(f"[data-step='{tid}:0']")
+        assert "auf S. 25–29" in page.inner_text(".task-steps")
+        assert page.get_attribute(f"[data-task='{tid}'] a.btn", "href").endswith("&page=25")
+        for i in range(4):
+            page.check(f"[data-step='{tid}:{i}']")
+            page.wait_for_selector(f"[data-step='{tid}:{i}']:checked", timeout=10000)
+        _toast(page, "Alle Lernschritte erledigt")
+
+    _run(served, body)
+    t = next(t for t in call("GET", f"/api/packages/{pid}")["tasks"] if t["id"] == tid)
+    assert t["status"] == "erledigt" and t["steps_done"] == "[0,1,2,3]"
+
+
 def test_narrow_window_has_the_week_button(served, plan):
     def body(page):
         page.click("#wishBtn")

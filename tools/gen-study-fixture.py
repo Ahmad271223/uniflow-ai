@@ -405,6 +405,53 @@ WISH: list[dict] = [
     {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
 ]
 
+# Echte Aufgaben mit Lernschritten (app/outline.py, 14.11.2026): VL03 hat eine Gliederung (wie aus den Lesezeichen
+# gelesen), daraus Aufgaben an Abschnittsgrenzen; Lernschritte abhaken; der Rest laeuft in der naechsten Lehrwoche weiter
+OUTLINE_SECTIONS = [
+    {"number": "1.1", "title": "Folgen", "chapter": "1 Folgen und Reihen", "from": 2, "to": 6},
+    {"number": "1.2", "title": "Reihen", "chapter": "1 Folgen und Reihen", "from": 7, "to": 12},
+    {"number": "1.3", "title": "Konvergenzkriterien", "chapter": "1 Folgen und Reihen", "from": 13, "to": 15},
+    {"number": "2.1", "title": "Potenzreihen", "chapter": "2 Potenzreihen", "from": 16, "to": 24},
+    {"number": "2.2", "title": "Taylorreihen und ihre Anwendung in der Näherungsrechnung", "chapter": "2 Potenzreihen", "from": 25, "to": 33},
+    {"number": "3", "title": "Fourier-Reihen", "chapter": "3 Fourier-Reihen", "from": 34, "to": 40},
+]
+OUTLINE: list[dict] = [
+    {"now": WISH_NOW, "sql": "WEEK3"},
+    {"now": WISH_NOW, "sql": ["INSERT INTO file_outline(file_id, chdate, page_count, sections, source) VALUES ('f-ma-v3', NULL, 40, '"
+                              + json.dumps(OUTLINE_SECTIONS, ensure_ascii=False, separators=(",", ":")) + "', 'outline')",
+                              # Skripte der Physik: mit Inhaltsverzeichnis wird eingeplant, ohne nicht (wie bisher)
+                              "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, seen_by_user, first_seen) "
+                              f"VALUES ('f-ph-s1', 'k-ph', 'Skript Physik.pdf', 9000, 'application/pdf', {_ts('2026-10-26T12:00')}, 'Skript', 'neu', 0, '2026-10-28T07:00:00')",
+                              "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, seen_by_user, first_seen) "
+                              f"VALUES ('f-ph-s2', 'k-ph', 'Formelsammlung.pdf', 3000, 'application/pdf', {_ts('2026-10-26T12:05')}, 'Skript', 'neu', 0, '2026-10-28T07:00:00')",
+                              "INSERT INTO analysis(file_id, doc_type, title, topics, est_minutes, created_at) VALUES ('f-ph-s1', 'skript', 'Skript Physik', '[]', 60, '2026-10-28T07:00:00')",
+                              "INSERT INTO analysis(file_id, doc_type, title, topics, est_minutes, created_at) VALUES ('f-ph-s2', 'skript', 'Formelsammlung', '[]', 20, '2026-10-28T07:00:00')",
+                              "INSERT INTO file_outline(file_id, chdate, page_count, sections, source) VALUES ('f-ph-s1', NULL, 12, '"
+                              + json.dumps([{"number": "1", "title": "Mechanik", "chapter": "1 Mechanik", "from": 1, "to": 7},
+                                            {"number": "2", "title": "Wärmelehre", "chapter": "2 Wärmelehre", "from": 8, "to": 12}],
+                                           ensure_ascii=False, separators=(",", ":")) + "', 'outline')",
+                              "INSERT INTO file_outline(file_id, chdate, page_count, sections, source) VALUES ('f-ph-s2', NULL, 4, '[]', 'none')"]},
+    {"method": "PUT", "path": "/api/settings", "body": {"subjects_per_day": "2"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-29", "days": 1}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-29&end=2026-10-29"},
+    {"method": "PUT", "path": "/api/settings", "body": {"hours_per_day": "2.00", "subjects_per_day": "1"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 1}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 0, "done": True}},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 1, "done": True}},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 2, "done": True}},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 3, "done": True}},     # alle: erledigt
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 2, "done": False}},    # wieder offen
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 9, "done": True}},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/steps", "body": {"index": 0, "done": "ja"}},
+    {"method": "POST", "path": "/api/tasks/99999/steps", "body": {"index": 0, "done": True}},
+    {"method": "GET", "path": "/api/packages/{pkg:2026-10-28:0}"},
+    # Montag, 2.11. (Lehrwoche 4): was von VL03 noch nicht im Plan stand, kommt jetzt
+    {"now": "2026-11-02T08:00:00", "sql": []},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-11-02", "days": 7}},
+    {"method": "GET", "path": "/api/calendar?start=2026-11-02&end=2026-11-08"},
+]
+
 # study._derive_status: alle Teilmengen der Aufgabenstatus, je vergangen und nicht
 DERIVE_STATUSES = ["geplant", "in_bearbeitung", "erledigt", "nachholen", "uebersprungen", "verschoben"]
 
@@ -513,6 +560,7 @@ def build(check: bool) -> int:
         fix_steps, fix_after = run(src, gen, "nachgebessert", FIXES_NOW, seed, FIXES)
         week_steps, week_after = run(src, gen, "lehrwoche", WEEK_NOW, seed, WEEK_RULE)
         wish_steps, wish_after = run(src, gen, "faecher_wunsch", WISH_NOW, seed, WISH)
+        outline_steps, outline_after = run(src, gen, "gliederung", WISH_NOW, seed, OUTLINE)
         derive = [{"statuses": list(c), "past": past, "status": study._derive_status(list(c), past)}
                   for n in range(len(DERIVE_STATUSES) + 1) for c in itertools.combinations(DERIVE_STATUSES, n) for past in (False, True)]
     finally:
@@ -521,7 +569,8 @@ def build(check: bool) -> int:
            "seed": [{"sql": q, "params": p} for q, p in seed], "steps": steps, "tables_after": after,
            "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after},
                          {"name": "lehrwoche", "now": WEEK_NOW, "steps": week_steps, "tables_after": week_after},
-                         {"name": "faecher_wunsch", "now": WISH_NOW, "steps": wish_steps, "tables_after": wish_after}],
+                         {"name": "faecher_wunsch", "now": WISH_NOW, "steps": wish_steps, "tables_after": wish_after},
+                         {"name": "gliederung", "now": WISH_NOW, "steps": outline_steps, "tables_after": outline_after}],
            "derive_status": derive}
     out = without_sync(out)                       # G2-Spalten: siehe schema_source
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)

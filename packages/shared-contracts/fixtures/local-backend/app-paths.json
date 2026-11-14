@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 191,
+ "count": 192,
  "paths": [
   {
    "method": "DELETE",
@@ -6185,6 +6185,34 @@
     "path": "/api/tasks/1/status",
     "body": {
      "status": "erledigt"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tasks/{}/steps",
+   "sources": [
+    "UniFlow/Views/Plan/PlanChoiceViews.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/99999/steps",
+    "body": {
+     "index": 0,
+     "done": true
     }
    },
    "python": {

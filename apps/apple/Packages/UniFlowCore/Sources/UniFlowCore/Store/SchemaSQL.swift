@@ -223,6 +223,16 @@ CREATE TABLE IF NOT EXISTS study_sessions (
     updated_at TEXT
 );
 
+-- Gliederung einer PDF aus ihren Lesezeichen (app/outline.py, 14.11.2026): Abschnitte mit Seiten als JSON; je Geraet
+-- gelesen, nicht abgeglichen (chdate: neue Fassung der Datei = neu lesen)
+CREATE TABLE IF NOT EXISTS file_outline (
+    file_id TEXT PRIMARY KEY,
+    chdate INTEGER,
+    page_count INTEGER,
+    sections TEXT,
+    source TEXT
+);
+
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

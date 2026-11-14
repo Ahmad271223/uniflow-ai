@@ -126,6 +126,8 @@ public enum StudyEndpoints: LocalEndpointModule {
             }
             let days = try T.span(try T.int(T.or(b["days"], 7), "days"))
             let replace = LocalModules.truthy(b["replace"])
+            // Gliederung neuer PDFs (echte Aufgaben statt Dateinamen, 14.11.2026; am PC in generate_packages)
+            try await StudyOutline.refresh(database: ctx.database, files: ctx.files)
             return .json(try await ctx.database.transaction { c in
                 try StudyPlan.generatePackages(c, start: start, days: days, replace: replace, clock: clock)
             })

@@ -253,10 +253,21 @@ export function taskRow(t) {
   const done = t.status === "erledigt";
   return `<div class="task-row ${t.status}" data-task="${t.id}"><div class="chk ${done ? "on" : ""}" data-done="${t.id}" title="${done ? "Als offen markieren" : "Als erledigt markieren"}">${done ? icon("check", 14) : ""}</div>
     <div class="tt"><b>${icon(TYPE_ICON[t.type] || "file", 14)} ${esc(t.title)}</b><span>${TYPE_TXT[t.type] || t.type} · ${t.est_minutes} min${t.start_time ? ` · ${t.start_time}–${t.end_time}` : ""} · ${STATUS_TXT[t.status]}${t.moved_from ? ` · verschoben von ${fmtShort(t.moved_from)}` : ""}${t.test_submitted ? ` · ${Math.round(t.test_score)}/${Math.round(t.test_max)} P.` : ""}</span></div>
-    ${t.file_id ? `<a class="btn sm" href="#/doc/${t.file_id}?task=${t.id}${t.last_page > 1 ? `&page=${t.last_page}` : ""}" title="Dokument öffnen">${icon("book", 14)} Öffnen</a>` : t.type === "test" ? `<button class="btn sm ${t.test_submitted ? "" : "primary"}" data-starttest="${t.id}">${icon("play", 14)} ${t.test_id ? (t.test_submitted ? "Ergebnis" : "Fortsetzen") : "Test starten"}</button>` : ""}
-    <button class="btn ghost icon sm" data-taskmenu="${t.id}" title="Mehr">${icon("more", 16)}</button></div>`;
+    ${t.file_id ? `<a class="btn sm" href="#/doc/${t.file_id}?task=${t.id}${t.last_page > 1 ? `&page=${t.last_page}` : t.page_from > 1 ? `&page=${t.page_from}` : ""}" title="Dokument öffnen">${icon("book", 14)} Öffnen</a>` : t.type === "test" ? `<button class="btn sm ${t.test_submitted ? "" : "primary"}" data-starttest="${t.id}">${icon("play", 14)} ${t.test_id ? (t.test_submitted ? "Ergebnis" : "Fortsetzen") : "Test starten"}</button>` : ""}
+    <button class="btn ghost icon sm" data-taskmenu="${t.id}" title="Mehr">${icon("more", 16)}</button></div>${stepsHtml(t)}`;
+}
+// Lernschritte zum Abhaken (echte Aufgaben, 14.11.2026; POST /api/tasks/{id}/steps, alle abgehakt = erledigt)
+const parseList = s => { try { const v = JSON.parse(s || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
+function stepsHtml(t) {
+  const steps = parseList(t.steps); if (!steps.length) return "";
+  const got = new Set(parseList(t.steps_done));
+  return `<div class="task-steps" style="margin:0 0 .5rem 2.1rem"><div class="small muted"><b>Lernschritte ${got.size}/${steps.length}</b></div>${steps.map((s, i) => `<label class="row small" style="gap:.5rem;align-items:flex-start;margin:.15rem 0"><input type="checkbox" data-step="${t.id}:${i}" ${got.has(i) ? "checked" : ""}><span${got.has(i) ? ' style="text-decoration:line-through;color:var(--muted)"' : ""}>${i + 1}. ${esc(s)}</span></label>`).join("")}</div>`;
 }
 export function bindTaskRows(host, refresh) {
+  $$("[data-step]", host).forEach(c => c.onchange = async () => {
+    const [id, i] = c.dataset.step.split(":").map(Number);
+    try { const r = await api(`/tasks/${id}/steps`, { method: "POST", body: { index: i, done: c.checked } }); if (r.status === "erledigt" && c.checked) toast("Alle Lernschritte erledigt ✓"); refresh(); } catch (e) { toast(e.message); }
+  });
   $$("[data-done]", host).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.done}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt"); refresh(); });
   $$("[data-starttest]", host).forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "Test wird erstellt…"; try { const r = await api(`/tasks/${b.dataset.starttest}/start-test`, { method: "POST" }); location.hash = `#/exams/${r.test_id}?task=${b.dataset.starttest}`; } catch (e) { toast(e.message, 5000); b.disabled = false; } });
   $$("[data-taskmenu]", host).forEach(b => b.onclick = () => {

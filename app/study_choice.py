@@ -326,7 +326,45 @@ def topic_done(conn, body, today: date) -> dict:
     return {"done": done, "freed": freed, "moved": moved, "message": ", ".join(parts) + "."}
 
 
+# ---------------------------------------------------------------- Lernschritte
+
+def check_step(conn, task_id: int, body) -> dict:
+    """Lernschritt abhaken (`{"index": i, "done": true|false}`, app/outline.py). Alle Schritte abgehakt: die Aufgabe
+    ist erledigt; einer wieder offen bei erledigter Aufgabe: sie ist wieder geplant. Abgehakte Schritte als JSON-Liste
+    ihrer Nummern (aufsteigend) in `steps_done`."""
+    t = db.row(conn, "SELECT * FROM study_tasks WHERE id=?", (task_id,))
+    if not t:
+        raise HTTPException(404, "Aufgabe nicht gefunden")
+    try:
+        steps = json.loads(t["steps"] or "[]")
+    except (TypeError, ValueError):
+        steps = []
+    if not isinstance(body, dict) or isinstance(body.get("index"), bool) or not isinstance(body.get("index"), int) \
+            or not 0 <= body["index"] < len(steps) or not isinstance(body.get("done"), bool):
+        raise HTTPException(422, f"index: Nummer eines Lernschritts (0 bis {max(0, len(steps) - 1)}), done: ja oder nein")
+    try:
+        got = json.loads(t["steps_done"] or "[]")
+    except (TypeError, ValueError):
+        got = []
+    done = {i for i in got if isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(steps)}
+    if body["done"]:
+        done.add(body["index"])
+    else:
+        done.discard(body["index"])
+    conn.execute("UPDATE study_tasks SET steps_done=? WHERE id=?", (_dumps(sorted(done)), task_id))
+    if len(done) == len(steps) and t["status"] in study.OPEN_TASKS:
+        study.set_task_status(conn, task_id, "erledigt", note="Alle Lernschritte erledigt")
+    elif len(done) < len(steps) and t["status"] == "erledigt":
+        study.set_task_status(conn, task_id, "geplant", note="Lernschritt wieder offen")
+    return db.row(conn, "SELECT * FROM study_tasks WHERE id=?", (task_id,))
+
+
 # ---------------------------------------------------------------- Endpunkte
+
+@router.post("/api/tasks/{task_id}/steps")
+def api_task_step(task_id: int, body=Body(default={})):
+    with db.cursor() as conn:
+        return check_step(conn, task_id, body)
 
 @router.get("/api/calendar/modules")
 def api_modules():

@@ -209,6 +209,10 @@
          "created_at": null,
          "start_time": null,
          "end_time": null,
+         "page_from": null,
+         "page_to": null,
+         "steps": null,
+         "steps_done": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2944,6 +2948,10 @@
          "created_at": null,
          "start_time": null,
          "end_time": null,
+         "page_from": null,
+         "page_to": null,
+         "steps": null,
+         "steps_done": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"

@@ -194,13 +194,32 @@ enum StudyPlan {
             if w < 1 { continue }                    // alte und vorsemesterliche Unterlagen und Klausuren nicht automatisch einplanen
             if let week, w != week { continue }
             weeks[w, default: ([], [], [])].files.append(f)
-            if f.docType == "vorlesung" { weeks[w]!.lectures.append(f) } else if f.docType == "uebung" { weeks[w]!.exercises.append(f) }
+            if f.docType == "vorlesung" {
+                weeks[w]!.lectures.append(f)
+            } else if f.docType == "skript", let o = try StudyOutline.load(c, fileID: SQLiteValue(json: f.id) ?? .null), !o.sections.isEmpty {
+                var g = f                            // Skript mit Inhaltsverzeichnis: Abschnitt fuer Abschnitt (14.11.2026)
+                g.json["outline"] = try outlineJSON(c, f.id)
+                weeks[w]!.lectures.append(g)
+            } else if f.docType == "uebung" {
+                weeks[w]!.exercises.append(f)
+            }
         }
         if let week {
-            let rest = try markerRest(c, moduleID: moduleID, week: week, dates: dates, files: files, doneWeeks: doneWeeks)
+            var rest = try markerRest(c, moduleID: moduleID, week: week, dates: dates, files: files, doneWeeks: doneWeeks)
+            rest += try sectionRest(c, week: week, dates: dates, files: files, doneWeeks: doneWeeks,
+                                    skip: Set(rest.compactMap { $0.id.string }))
             if !rest.isEmpty {                       // der aeltere Stoff zuerst
                 weeks[week, default: ([], [], [])].lectures.insert(contentsOf: rest, at: 0)
                 weeks[week]!.files.insert(contentsOf: rest, at: 0)
+            }
+        }
+        // Gliederung (Abschnitte mit Seiten) fuer echte Aufgaben (`outline.load`, 14.11.2026)
+        for w in weeks.keys {
+            for k in weeks[w]!.lectures.indices where weeks[w]!.lectures[k].json["outline"] == nil {
+                weeks[w]!.lectures[k].json["outline"] = try outlineJSON(c, weeks[w]!.lectures[k].id)
+            }
+            for k in weeks[w]!.exercises.indices where weeks[w]!.exercises[k].json["outline"] == nil {
+                weeks[w]!.exercises[k].json["outline"] = try outlineJSON(c, weeks[w]!.exercises[k].id)
             }
         }
         var out: [Unit] = []
@@ -246,7 +265,40 @@ enum StudyPlan {
             let est = max(10, -BerlinClock.floorDiv(-(try est(f)) * (to - page), count))
             var g = f
             g.json["pages"] = .array([.number(Double(page + 1)), .number(Double(to))])
+            g.json["est_whole"] = .number(Double(try StudyPlan.est(f)))
             g.json["est_minutes"] = .number(Double(est))
+            out.append(g)
+        }
+        return out
+    }
+
+    /// Gliederung einer Datei als JSON (`{"page_count", "sections"}`), ohne Zeile `null` (wie Pythons None)
+    static func outlineJSON(_ c: SQLiteConnection, _ id: JSONValue) throws -> JSONValue {
+        guard let o = try StudyOutline.load(c, fileID: SQLiteValue(json: id) ?? .null) else { return .null }
+        return ["page_count": .number(Double(o.pageCount)), "sections": .array(o.sections.map(\.json))]
+    }
+
+    /// `_section_rest`: Rest einer langen Unterlage mit Gliederung aus frueheren Lehrwochen (14.11.2026). Stand ein Teil
+    /// schon als Aufgabe im Plan (bis S. n), kommen die Seiten danach in diese Woche, bis alles einmal eingeplant ist;
+    /// nicht fuer erledigte Dateien, nicht doppelt je Lehrwoche, nicht neben einem Marker-Rest (`skip`)
+    static func sectionRest(_ c: SQLiteConnection, week: Int, dates: LocalModules.Dates, files: [LocalModules.FileRow],
+                            doneWeeks: Set<FileWeek>, skip: Set<String>) throws -> [LocalModules.FileRow] {
+        var out: [LocalModules.FileRow] = []
+        for f in files {
+            guard let id = f.id.string, !skip.contains(id), f.json["status"]?.string != "erledigt",
+                  ["vorlesung", "skript"].contains(f.docType ?? ""), !doneWeeks.contains(FileWeek(file: id, week: week)) else { continue }
+            let fw = try LocalModules.week(f, dates: dates)
+            guard 1 <= fw, fw < week else { continue }
+            let fid = SQLiteValue(json: f.id) ?? .null
+            guard let o = try StudyOutline.load(c, fileID: fid), o.pageCount > 0 else { continue }
+            let last = try c.queryOne("""
+                SELECT MAX(page_to) m FROM study_tasks WHERE file_id=? AND page_to IS NOT NULL
+                AND status IN ('geplant','in_bearbeitung','erledigt','nachholen','uebersprungen')
+                """, [fid])?["m"]?.int ?? 0
+            if last == 0 || last >= o.pageCount { continue }
+            var g = f
+            g.json["pages"] = .array([.number(Double(last + 1)), .number(Double(o.pageCount))])
+            g.json["outline"] = try outlineJSON(c, f.id)
             out.append(g)
         }
         return out
@@ -274,6 +326,9 @@ enum StudyPlan {
         let fileID: SQLiteValue
         let title: SQLiteValue
         let est: Int
+        /// Seiten der Aufgabe (echte Aufgaben nach der Gliederung, 14.11.2026)
+        var pageFrom: Int? = nil
+        var pageTo: Int? = nil
     }
 
     /// Warteschlange eines Moduls in `generate_packages`; `pending`: Aufgaben der angefangenen Einheit
@@ -302,6 +357,18 @@ enum StudyPlan {
             func add(_ kind: String, _ f: LocalModules.FileRow) throws {
                 let est = try est(f)
                 var title = T.or(f.json["ai_title"], f.json["name"] ?? .null)
+                if let o = f.json["outline"], !o.isNull, let pc = o["page_count"]?.int, pc > 0 {   // echte Aufgaben (14.11.2026)
+                    let secs = (o["sections"]?.array ?? []).compactMap(StudyOutline.Section.init)
+                    let p = f.json["pages"]?.array
+                    let (a, b) = p?.count == 2 ? (p![0].int ?? 1, p![1].int ?? pc) : (1, pc)
+                    let whole = LocalModules.truthy(f.json["est_whole"]) ? (f.json["est_whole"]?.int ?? est) : est
+                    let total = StudyOutline.estTotal(whole, pageCount: pc, kind: kind)
+                    for part in StudyOutline.parts(secs, pageCount: pc, total: total, budget: budget, first: a, last: b, name: T.text(title)) {
+                        tasks.append(NewTask(type: .text(kind), fileID: try T.bind(f.id, "file_id"), title: .text(part.title), est: part.est,
+                                             pageFrom: part.from, pageTo: part.to))
+                    }
+                    return
+                }
                 if let p = f.json["pages"]?.array, p.count == 2 {    // Rest nach dem Marker der Vorwoche
                     title = .string("\(T.text(title)) · S. \(p[0].int ?? 0)–\(p[1].int ?? 0)")
                 }
@@ -352,13 +419,18 @@ enum StudyPlan {
             VALUES (?,?,?,?,?,?, 'geplant', 0, 1, ?)
             """, [.text(iso(day)), moduleID, subject, title, weekNo, .integer(Int64(tasks.reduce(0) { $0 + $1.est })), now])
         let pid = c.lastInsertRowID
-        for (i, t) in tasks.enumerated() {
-            try c.execute("""
-                INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at)
-                VALUES (?,?,?,?,?,?,?, 'geplant', ?)
-                """, [.integer(pid), t.type, t.fileID, .null, t.title, .integer(Int64(i)), .integer(Int64(t.est)), now])
-        }
+        for (i, t) in tasks.enumerated() { try insertTask(c, package: pid, t, sort: .integer(Int64(i)), now: now) }
         return pid
+    }
+
+    /// `_insert_task`: Aufgabe mit Seiten (echte Aufgaben) und Lernschritten zum Abhaken (StudyOutline)
+    static func insertTask(_ c: SQLiteConnection, package pid: Int64, _ t: NewTask, sort: SQLiteValue, now: SQLiteValue) throws {
+        let steps: SQLiteValue = LocalModules.truthy(t.fileID) ? StudyOutline.stepsJSON(t.type.string ?? "", t.pageFrom, t.pageTo) : .null
+        try c.execute("""
+            INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at, page_from, page_to, steps)
+            VALUES (?,?,?,?,?,?,?, 'geplant', ?,?,?,?)
+            """, [.integer(pid), t.type, t.fileID, .null, t.title, sort, .integer(Int64(t.est)), now,
+                  t.pageFrom.map { .integer(Int64($0)) } ?? .null, t.pageTo.map { .integer(Int64($0)) } ?? .null, steps])
     }
 
     /// `_insert_package` fuer eine Lehrwoche eines Moduls (Planung)
@@ -549,10 +621,7 @@ enum StudyPlan {
                     while let t = q.pending.first, dayUsed + t.est <= budgetDay {
                         q.pending.removeFirst()
                         let n = try c.scalar("SELECT COUNT(*) n FROM study_tasks WHERE package_id=?", [.integer(pid)]) ?? .integer(0)
-                        try c.execute("""
-                            INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at)
-                            VALUES (?,?,?,?,?,?,?, 'geplant', ?)
-                            """, [.integer(pid), t.type, t.fileID, .null, t.title, n, .integer(Int64(t.est)), .text(clock.nowISO)])
+                        try insertTask(c, package: pid, t, sort: n, now: .text(clock.nowISO))
                         dayUsed += t.est
                         changed = true
                     }
@@ -911,6 +980,8 @@ public enum StudyAutoPlan {
     public static func afterSync(_ backend: LocalBackend, newFiles: Int) async throws -> JSONValue? {
         let ok = await MainActor.run(body: { allowed() })
         let clock = backend.context.clock
+        // Gliederung neu geladener PDFs lesen (echte Aufgaben statt Dateinamen, 14.11.2026)
+        try await StudyOutline.refresh(database: backend.context.database, files: backend.context.files)
         return try await backend.context.database.transaction { c in
             // abgewaehlte Faecher: auch Pakete, die ein anderes Geraet vor der Abwahl angelegt hat, kommen hier weg
             try StudyPlanModules.dropUnplanned(c, today: LocalTimetable.today(clock))

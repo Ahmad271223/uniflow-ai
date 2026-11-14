@@ -138,6 +138,8 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("GoalEditDialog", GoalEditDialog.Body.self),
         ("GoalSettingsDialog", GoalSettingsDialog.Body.self),
         ("PackageDrawer", PackageDrawer.Body.self),
+        ("TaskRow", TaskRow.Body.self),                                // Lernschritte (14.11.2026)
+        ("TaskStepsList", TaskStepsList.Body.self),
         ("ConfigDialog", ConfigDialog.Body.self),                      // Faecher, Wochenwunsch, Thema gemacht (14.11.2026)
         ("ConfigSubjectsSection", ConfigSubjectsSection.Body.self),
         ("WeekWishDialog", WeekWishDialog.Body.self),

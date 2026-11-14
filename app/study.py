@@ -14,7 +14,7 @@ import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from . import colors, db, holidays, mastery, module_layout
+from . import colors, db, holidays, mastery, module_layout, outline
 from .holidays import DEADLINE_LABELS
 
 PALETTE = colors.PALETTE          # Fachfarben: app/colors.py
@@ -605,13 +605,21 @@ def _units(conn, module_id: int, exclude_files: set[str], week: int | None = Non
         weeks[w]["files"].append(f)
         if f.get("doc_type") == "vorlesung":
             weeks[w]["vorlesungen"].append(f)
+        elif f.get("doc_type") == "skript" and (o := outline.load(conn, f["id"])) and o["sections"]:
+            f["outline"] = o                               # Skript mit Inhaltsverzeichnis: Abschnitt fuer Abschnitt (14.11.2026)
+            weeks[w]["vorlesungen"].append(f)
         elif f.get("doc_type") == "uebung":
             weeks[w]["uebungen"].append(f)
     if week is not None:
         rest = _marker_rest(conn, module_id, week, start, files, done_weeks)
+        rest += _section_rest(conn, week, start, files, done_weeks, {f["id"] for f in rest})
         if rest:
             weeks[week]["vorlesungen"][:0] = rest           # der aeltere Stoff zuerst
             weeks[week]["files"][:0] = rest
+    for u in weeks.values():                             # Gliederung (Abschnitte mit Seiten) fuer echte Aufgaben
+        for f in u["vorlesungen"] + u["uebungen"]:
+            if "outline" not in f:
+                f["outline"] = outline.load(conn, f["id"])
     out = []
     for w in sorted(weeks):
         u = weeks[w]
@@ -651,7 +659,29 @@ def _marker_rest(conn, module_id: int, week: int, start: date, files: list[dict]
         now = [m["page"] for m in ms if m["week_no"] == week and m["page"] > last["page"]]
         to = min(max(now), count) if now else count
         est = max(10, -(-_est(f) * (to - last["page"]) // count))
-        out.append({**f, "pages": [last["page"] + 1, to], "est_minutes": est})
+        out.append({**f, "pages": [last["page"] + 1, to], "est_minutes": est, "est_whole": _est(f)})
+    return out
+
+
+def _section_rest(conn, week: int, start: date, files: list[dict], done_weeks, skip: set) -> list[dict]:
+    """Rest einer langen Unterlage mit Gliederung (Skript) aus frueheren Lehrwochen (14.11.2026): Stand ein Teil schon
+    als Aufgabe im Plan (Seiten bis S. n), kommen die Seiten danach in diese Woche, bis alles einmal eingeplant ist.
+    Nicht fuer erledigte Dateien, nicht doppelt in derselben Lehrwoche, nicht wenn ein Marker-Rest gilt (`skip`)."""
+    out = []
+    for f in files:
+        if f["id"] in skip or f["status"] == "erledigt" or f.get("doc_type") not in ("vorlesung", "skript") or (f["id"], week) in done_weeks:
+            continue
+        if not 1 <= file_week(start, f) < week:
+            continue
+        o = outline.load(conn, f["id"])
+        if not o or not o["page_count"]:
+            continue
+        r = db.row(conn, """SELECT MAX(page_to) m FROM study_tasks WHERE file_id=? AND page_to IS NOT NULL
+                            AND status IN ('geplant','in_bearbeitung','erledigt','nachholen','uebersprungen')""", (f["id"],))
+        last = r["m"] if r else None
+        if not last or last >= o["page_count"]:
+            continue
+        out.append({**f, "pages": [last + 1, o["page_count"]], "outline": o})
     return out
 
 
@@ -743,6 +773,7 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     (`plan_window`), frueher kamen sie hier zuerst dran."""
     ensure_modules(conn)
     drop_unplanned(conn)                             # abgewaehlte Faecher (auch nach einem Abgleich)
+    outline.refresh(conn)                            # Gliederung neuer PDFs (echte Aufgaben statt Dateinamen)
     refresh_statuses(conn)
     s = db.get_settings(conn)
     t0 = today()
@@ -826,8 +857,7 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
                 while q["pending"] and day_used + q["pending"][0]["est"] <= budget_day:
                     t = q["pending"].pop(0)
                     n = db.row(conn, "SELECT COUNT(*) n FROM study_tasks WHERE package_id=?", (pid,))["n"]
-                    conn.execute("INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?, 'geplant', ?)",
-                                 (pid, t["type"], t["file_id"], None, t["title"], n, t["est"], db.now_iso()))
+                    _insert_task(conn, pid, t, n)
                     day_used += t["est"]
                     changed = True
                 _recalc_package(conn, pid)
@@ -1015,6 +1045,14 @@ def _next_tasks(q: dict, s: dict, budget: int) -> list[dict]:
         def add(kind, f):
             est = _est(f)
             title = f.get("ai_title") or f["name"]
+            o = f.get("outline")
+            if o and o["page_count"]:                       # echte Aufgaben nach Abschnitten bzw. Seiten (14.11.2026)
+                a, b = f["pages"] if f.get("pages") else (1, o["page_count"])
+                total = outline.est_total(f.get("est_whole") or _est(f), o["page_count"], kind)     # Dauer der ganzen Unterlage
+                for part in outline.parts(o["sections"], o["page_count"], total, budget, a, b, name=title):
+                    tasks.append({"type": kind, "file_id": f["id"], "title": part["title"], "est": part["est"],
+                                  "from": part["from"], "to": part["to"]})
+                return
             if f.get("pages"):                                  # Rest nach dem Marker der Vorwoche
                 title += f" · S. {f['pages'][0]}–{f['pages'][1]}"
             if est > budget:  # lange Materialien in Teile splitten (max. 4)
@@ -1052,9 +1090,16 @@ def _insert_package(conn, d: date, m: dict, tasks: list[dict], unit: dict | None
                        (d.isoformat(), m["id"], m["name"], title, (unit or {}).get("week"), sum(t["est"] for t in tasks), db.now_iso()))
     pid = cur.lastrowid
     for i, t in enumerate(tasks):
-        conn.execute("INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?, 'geplant', ?)",
-                     (pid, t["type"], t["file_id"], None, t["title"], i, t["est"], db.now_iso()))
+        _insert_task(conn, pid, t, i)
     return pid
+
+
+def _insert_task(conn, pid: int, t: dict, sort: int) -> None:
+    """Aufgabe mit Seiten (echte Aufgaben) und Lernschritten zum Abhaken (app/outline.py)"""
+    conn.execute("INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at, page_from, page_to, steps) "
+                 "VALUES (?,?,?,?,?,?,?, 'geplant', ?,?,?,?)",
+                 (pid, t["type"], t["file_id"], None, t["title"], sort, t["est"], db.now_iso(), t.get("from"), t.get("to"),
+                  outline.steps_json(t["type"], t.get("from"), t.get("to")) if t.get("file_id") else None))
 
 
 def smart_active(conn) -> bool:

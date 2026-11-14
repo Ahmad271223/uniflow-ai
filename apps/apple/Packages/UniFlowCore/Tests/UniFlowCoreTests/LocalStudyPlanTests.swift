@@ -120,6 +120,21 @@ final class LocalStudyPlanTests: XCTestCase {
         XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
     }
 
+    /// Echte Aufgaben nach der Gliederung einer Vorlesung, Lernschritte abhaken (alle: erledigt, einer offen: wieder
+    /// geplant), Rest der Unterlage in der naechsten Lehrwoche (Auftrag des Inhabers 14.11.2026, Teil 2)
+    func testOutlineTasksAndStepsMatchPythonServer() async throws {
+        let fx = try fixture()
+        let scenario = try XCTUnwrap(fx["scenarios"]?.array?.first { $0["name"] == "gliederung" })
+        let now = Now(try XCTUnwrap(scenario["now"]?.string))
+        let backend = try await seeded(fx, now: now)
+        let steps = scenario["steps"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(steps.filter { ($0["path"]?.string ?? "").hasSuffix("/steps") }.count, 8)
+        let problems = try await replay(steps, on: backend, now: now)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+        let t = try await tables(backend)
+        XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
+    }
+
     /// Schritte nacheinander an das lokale Backend; liefert die Abweichungen von Status und Antwort. "auto"-Schritte
     /// planen wie am PC nach einem Abgleich (`StudyPlan.autoPlanWeek`, `study.auto_plan_week`).
     private func replay(_ steps: [JSONValue], on backend: LocalBackend, now: Now) async throws -> [String] {

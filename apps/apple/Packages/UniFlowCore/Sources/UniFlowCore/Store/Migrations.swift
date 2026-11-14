@@ -147,6 +147,11 @@ public enum Migrations {
         .addColumn("study_packages", "locked", "INTEGER DEFAULT 0"),
         .addColumn("study_packages", "manual", "INTEGER DEFAULT 0"),
         .sql("CREATE INDEX IF NOT EXISTS ix_study_sessions_module ON study_sessions(module_id)"),
+        // Echte Lernaufgaben (14.11.2026, StudyOutline): Seiten der Aufgabe, Lernschritte (JSON), abgehakte Schritte
+        .addColumn("study_tasks", "page_from", "INTEGER"),
+        .addColumn("study_tasks", "page_to", "INTEGER"),
+        .addColumn("study_tasks", "steps", "TEXT"),
+        .addColumn("study_tasks", "steps_done", "TEXT"),
         // Haken "erledigt" je Datei (13.11.2026): schon erledigte Dateien bekommen ihren Eintrag fuer den Geraete-Abgleich
         .sql(Migrations.fileDoneBackfill),
     ]

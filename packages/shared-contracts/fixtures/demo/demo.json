@@ -1075,7 +1075,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 2,
@@ -1092,7 +1096,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 3,
@@ -1109,7 +1117,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 4,
@@ -1126,7 +1138,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -1682,7 +1698,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 6,
@@ -1699,7 +1719,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 7,
@@ -1716,7 +1740,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 8,
@@ -1733,7 +1761,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -2764,7 +2796,11 @@
         "moved_from": null,
         "created_at": "2026-10-01T09:00:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -3465,7 +3501,11 @@
         "moved_from": null,
         "created_at": "2026-10-01T09:00:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 2,
@@ -3482,7 +3522,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 3,
@@ -3499,7 +3543,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 4,
@@ -3516,7 +3564,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 5,
@@ -3533,7 +3585,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -4325,7 +4381,11 @@
         "moved_from": null,
         "created_at": "2026-10-01T09:00:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 2,
@@ -4342,7 +4402,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 3,
@@ -4359,7 +4423,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 4,
@@ -4376,7 +4444,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 5,
@@ -4393,7 +4465,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -4838,7 +4914,11 @@
         "moved_from": null,
         "created_at": "2026-10-01T09:00:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -5550,7 +5630,11 @@
         "moved_from": null,
         "created_at": "2026-10-01T09:00:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 6,
@@ -5567,7 +5651,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 7,
@@ -5584,7 +5672,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 8,
@@ -5601,7 +5693,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        },
        {
         "id": 9,
@@ -5618,7 +5714,11 @@
         "moved_from": null,
         "created_at": "2026-10-28T09:30:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [
@@ -6057,7 +6157,11 @@
         "moved_from": null,
         "created_at": "2026-10-01T09:00:00",
         "start_time": null,
-        "end_time": null
+        "end_time": null,
+        "page_from": null,
+        "page_to": null,
+        "steps": null,
+        "steps_done": null
        }
       ],
       "deadlines": [

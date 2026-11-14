@@ -239,9 +239,37 @@ enum StudyChoice {
                 "freed": .array(freed.map { ["date": .string($0.date), "start_time": $0.start.json ?? .null, "end_time": $0.end.json ?? .null] }),
                 "moved": .number(Double(moved)), "message": .string(parts.joined(separator: ", ") + ".")]
     }
+
+    // MARK: Lernschritte
+
+    /// `check_step`: Lernschritt abhaken (`{"index": i, "done": true|false}`); alle abgehakt: Aufgabe erledigt; einer
+    /// wieder offen bei erledigter Aufgabe: wieder geplant. `steps_done`: JSON-Liste der Nummern, aufsteigend
+    static func checkStep(_ c: SQLiteConnection, taskID: Int64, _ body: JSONValue, clock: UniFlowClock) throws -> JSONValue {
+        let id = SQLiteValue.integer(taskID)
+        guard let t = try c.queryOne("SELECT * FROM study_tasks WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Aufgabe nicht gefunden") }
+        let steps = (try? PyJSON.parse(t["steps"]?.string ?? "[]"))?.json.array ?? []
+        guard body.object != nil, let index = integer(body["index"]), 0 <= index, index < steps.count,
+              let done = body["done"]?.bool else {
+            throw LocalHTTPError(status: 422, message: "index: Nummer eines Lernschritts (0 bis \(max(0, steps.count - 1))), done: ja oder nein")
+        }
+        var got = Set(((try? PyJSON.parse(t["steps_done"]?.string ?? "[]"))?.json.array ?? []).compactMap { v -> Int64? in
+            guard let i = integer(v), 0 <= i, i < steps.count else { return nil }
+            return i
+        })
+        if done { got.insert(index) } else { got.remove(index) }
+        try c.execute("UPDATE study_tasks SET steps_done=? WHERE id=?",
+                      [.text(JSONValue.array(got.sorted().map { .number(Double($0)) }).jsonString()), id])
+        let status = t["status"]?.string ?? ""
+        if got.count == steps.count && openTasks.contains(status) {
+            _ = try StudyPlan.setTaskStatus(c, taskID: id, status: "erledigt", note: "Alle Lernschritte erledigt", clock: clock)
+        } else if got.count < steps.count && status == "erledigt" {
+            _ = try StudyPlan.setTaskStatus(c, taskID: id, status: "geplant", note: "Lernschritt wieder offen", clock: clock)
+        }
+        return try c.queryOne("SELECT * FROM study_tasks WHERE id=?", [id]).map { .object($0.json) } ?? .null
+    }
 }
 
-/// `/api/calendar/week-wish`, `/api/calendar/topic-done`
+/// `/api/calendar/week-wish`, `/api/calendar/topic-done`, `/api/tasks/{id}/steps`
 enum StudyChoiceEndpoints: LocalEndpointModule {
     static let name = "Wochenwunsch und Thema gemacht"
 
@@ -259,6 +287,12 @@ enum StudyChoiceEndpoints: LocalEndpointModule {
             let body = try req.jsonBody()
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { try StudyChoice.topicDone($0, body, clock: clock) })
+        }
+        router.post("/api/tasks/{task_id:int}/steps") { req, ctx in
+            let body = try req.jsonBody()
+            let id = Int64(req.intParam("task_id"))
+            let clock = ctx.clock
+            return .json(try await ctx.database.transaction { try StudyChoice.checkStep($0, taskID: id, body, clock: clock) })
         }
     }
 }

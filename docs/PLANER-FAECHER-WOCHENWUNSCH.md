@@ -56,3 +56,31 @@ im Lernpaket „Schon gemacht“ je Aufgabe und „Anderes Fach gemacht“.
   Unterlagen des Inhabers). Bekannt und nicht von hier: `gen-local-backend-fixture.py` schreibt vier ältere
   Abgleichsdateien (Bibliothek, Einstellungen, Stud.IP-Import, Module) anders als der iPad-Kern sie erwartet; sie
   bleiben auf dem develop-Stand.
+
+## Teil 2: Echte Aufgaben und Lernschritte (14.11.2026, nach den Beispielen „Signale und Systeme“)
+
+Beispiele des Inhabers (nicht im Repository, lokal unter ~/Studora-Builds/beispiel-unterlagen): Skript mit
+Inhaltsverzeichnis (123 Seiten, 10 Kapitel, rund 40 Abschnitte, Text lesbar) und Arbeitsblätter (71 eingescannte
+Seiten, 34 Merk- und Formelblätter AB 20–177, ohne Text und ohne Inhaltsverzeichnis, keine Rechenaufgaben).
+Entscheidung des Inhabers: Lernschritte ohne KI, in jedem Tarif.
+
+- **Gliederung** (`app/outline.py`, `StudyOutline.swift`): Lesezeichen der PDF → Abschnitte mit Nummer, Titel, Kapitel
+  und Seiten (Titelseite, Inhaltsverzeichnis, Literatur entfallen; Unterabschnitte der dritten Ebene gehören zu ihrem
+  Abschnitt). Gelesen beim Planen und nach dem Abgleich, gespeichert in `file_outline` (je Gerät, nicht abgeglichen).
+  pypdf am PC und PDFKit am iPad lesen dasselbe – geprüft an einer Muster-PDF (`outline-sample.pdf`) und am echten
+  SigSys-Skript (39 Abschnitte, gleiche Aufgaben).
+- **Echte Aufgaben**: statt „Skript.pdf (Teil 1/4)“ z. B. „1 Fourier-Reihe · S. 7–16“ (ganzes Kapitel) oder „2.1
+  Grundlegende Beziehungen bis 2.4 · S. 17–29“. Nie über eine Kapitelgrenze, nie länger als die Lernzeit je Fach;
+  ein zu langer Abschnitt nach Seiten („…, Teil 1/2 · S. 12–16“). Dauer nach Seiten (Skript/Vorlesung mindestens
+  4 Minuten je Seite). Was in der Lehrwoche nicht in den Plan passt, kommt in der nächsten Woche (ab der ersten noch
+  nicht geplanten Seite). Skripte werden jetzt eingeplant, wenn sie ein Inhaltsverzeichnis haben (vorher nie); ohne
+  Inhaltsverzeichnis bleibt alles wie bisher. Gescannte Unterlagen ohne Inhaltsverzeichnis: Seitenbereiche.
+- **Lernschritte** je Aufgabe (Vorlesung/Skript: Überfliegen – Lesen und Formeln herausschreiben – Beispiel nachrechnen
+  – in zwei Sätzen erklären; Übung: gegeben/gesucht – Formel suchen – rechnen – Ergebnis prüfen; Lösung: erst selbst,
+  vergleichen, schwierigste Stelle noch einmal). Abhaken je Schritt (`POST /api/tasks/{id}/steps`), alle abgehakt =
+  Aufgabe erledigt, einer wieder offen = wieder geplant. „Öffnen“ springt auf die erste Seite der Aufgabe.
+- Datenmodell: `study_tasks.page_from`, `page_to`, `steps` (JSON), `steps_done` (JSON), neue Tabelle `file_outline`.
+- Tests: `tests/test_outline.py`, `outline.json` (`StudyOutlineTests`), study-plan.json Szenario `gliederung`
+  (`LocalStudyPlanTests.testOutlineTasksAndStepsMatchPythonServer`), Browser `test_web_plan_choice.py`.
+- Offen: Arbeitsblätter als einzelne Blätter („AB 41 Fourier-Reihe“) bräuchten Texterkennung der eingescannten Seiten;
+  bis dahin Seitenbereiche. Lernschritte sind je Aufgabenart gleich, nicht je Inhalt.

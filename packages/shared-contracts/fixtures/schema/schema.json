@@ -196,6 +196,19 @@
         ],
         "indexes": []
       },
+      "file_outline": {
+        "columns": [
+          {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sections", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "source", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_file_outline_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["file_id"]}
+        ]
+      },
       "files": {
         "columns": [
           {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
@@ -625,6 +638,10 @@
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "page_from", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "page_to", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "steps", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "steps_done", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}

@@ -233,3 +233,72 @@ struct UFCheckMark: View {
             .frame(width: 20, height: 20)
     }
 }
+
+// MARK: - Lernschritte
+
+/// Lernschritte einer Aufgabe zum Abhaken (POST /api/tasks/{id}/steps; alle abgehakt = Aufgabe erledigt)
+struct TaskStepsList: View {
+    let t: JSONValue
+    var refresh: () -> Void
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+
+    /// Lernschritte aus dem JSON-Text der Aufgabe
+    static func steps(_ t: JSONValue) -> [String] {
+        guard let s = t.s("steps"), let d = s.data(using: .utf8), let v = try? JSONValue.parse(d) else { return [] }
+        return (v.array ?? []).compactMap(\.string)
+    }
+
+    /// Nummern der abgehakten Schritte
+    static func done(_ t: JSONValue) -> Set<Int> {
+        guard let s = t.s("steps_done"), let d = s.data(using: .utf8), let v = try? JSONValue.parse(d) else { return [] }
+        return Set((v.array ?? []).compactMap(\.int))
+    }
+
+    var body: some View {
+        let list = Self.steps(t), got = Self.done(t)
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Lernschritte \(got.count)/\(list.count)").ufFont(12.48, 600).foregroundStyle(UF.muted)
+            ForEach(list.indices, id: \.self) { i in
+                TaskStepRow(text: list[i], number: i + 1, on: got.contains(i)) { Task { await check(i, !got.contains(i)) } }
+            }
+        }
+        .accessibilityIdentifier("task.steps.\(t.i("id") ?? 0)")
+    }
+
+    private func check(_ i: Int, _ on: Bool) async {
+        guard let id = t.i("id"), let api = session.api else { return }
+        var out: JSONValue?
+        guard await toast.attempt("Abhaken", {
+            out = try await api.value("/api/tasks/\(id)/steps", method: "POST", body: ["index": .number(Double(i)), "done": .bool(on)])
+        }) else { return }
+        if out?.s("status") == "erledigt", t.s("status") != "erledigt" { toast.show("Alle Lernschritte erledigt ✓") }
+        refresh()
+        router.reload()
+    }
+}
+
+/// Ein Lernschritt: Kaestchen, Nummer, Text
+struct TaskStepRow: View {
+    let text: String
+    let number: Int
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 8) {
+                UFCheckMark(on: on).scaleEffect(0.85)
+                Text("\(number). \(text)").ufFont(13.12).foregroundStyle(on ? UF.muted : UF.text2)
+                    .strikethrough(on).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: 32)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Schritt \(number): \(text)")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}

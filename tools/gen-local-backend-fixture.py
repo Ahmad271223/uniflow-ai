@@ -131,6 +131,7 @@ SAMPLES: dict[str, dict] = {
     "GET /api/calendar/week-wish": {"path": "/api/calendar/week-wish"},
     "PUT /api/calendar/week-wish": {"path": "/api/calendar/week-wish", "body": {"modules": "kein Fach"}},
     "POST /api/calendar/topic-done": {"path": "/api/calendar/topic-done", "body": {"task_ids": [99999]}},
+    "POST /api/tasks/{}/steps": {"path": "/api/tasks/99999/steps", "body": {"index": 0, "done": True}},
     "POST /api/calendar/generate": {"path": "/api/calendar/generate", "body": {"start": "2026-10-26", "days": 1}},
     "POST /api/calendar/suggest": {"path": "/api/calendar/suggest", "body": {"rescue": True}},
     "POST /api/calendar/apply": {"path": "/api/calendar/apply", "body": {"moves": []}},

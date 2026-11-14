@@ -1,0 +1,667 @@
+{
+ "generator": "tools/gen-outline-fixture.py",
+ "pdf": "outline-sample.pdf",
+ "entries": [
+  [
+   0,
+   "Titel",
+   1
+  ],
+  [
+   0,
+   "Inhaltsverzeichnis",
+   2
+  ],
+  [
+   0,
+   "1 Signale",
+   4
+  ],
+  [
+   1,
+   "1.1 Zeitkontinuierliche Signale",
+   4
+  ],
+  [
+   1,
+   "1.2 Zeitdiskrete Signale",
+   7
+  ],
+  [
+   0,
+   "2 Fourier-Transformation",
+   10
+  ],
+  [
+   1,
+   "2.1 Definition",
+   10
+  ],
+  [
+   1,
+   "2.2 Eigenschaften der Fourier-Transformierten und Korrespondenzen",
+   12
+  ],
+  [
+   2,
+   "2.2.1 Linearität",
+   12
+  ],
+  [
+   2,
+   "2.2.2 Verschiebung",
+   14
+  ],
+  [
+   1,
+   "2.3 Faltung",
+   18
+  ],
+  [
+   0,
+   "3. Abtastung",
+   21
+  ],
+  [
+   0,
+   "4 Systeme",
+   24
+  ],
+  [
+   1,
+   "4.1 LTI-Systeme",
+   24
+  ],
+  [
+   1,
+   "4.2 Stabilität",
+   24
+  ],
+  [
+   0,
+   "Literatur",
+   28
+  ],
+  [
+   0,
+   "A Korrespondenzen",
+   29
+  ]
+ ],
+ "pages": 30,
+ "sections": [
+  {
+   "number": "1.1",
+   "title": "Zeitkontinuierliche Signale",
+   "chapter": "1 Signale",
+   "from": 4,
+   "to": 6
+  },
+  {
+   "number": "1.2",
+   "title": "Zeitdiskrete Signale",
+   "chapter": "1 Signale",
+   "from": 7,
+   "to": 9
+  },
+  {
+   "number": "2.1",
+   "title": "Definition",
+   "chapter": "2 Fourier-Transformation",
+   "from": 10,
+   "to": 11
+  },
+  {
+   "number": "2.2",
+   "title": "Eigenschaften der Fourier-Transformierten und Korrespondenzen",
+   "chapter": "2 Fourier-Transformation",
+   "from": 12,
+   "to": 17
+  },
+  {
+   "number": "2.3",
+   "title": "Faltung",
+   "chapter": "2 Fourier-Transformation",
+   "from": 18,
+   "to": 20
+  },
+  {
+   "number": "3",
+   "title": "Abtastung",
+   "chapter": "3. Abtastung",
+   "from": 21,
+   "to": 23
+  },
+  {
+   "number": "4.1",
+   "title": "LTI-Systeme",
+   "chapter": "4 Systeme",
+   "from": 24,
+   "to": 24
+  },
+  {
+   "number": "4.2",
+   "title": "Stabilität",
+   "chapter": "4 Systeme",
+   "from": 24,
+   "to": 28
+  },
+  {
+   "number": "A",
+   "title": "Korrespondenzen",
+   "chapter": "A Korrespondenzen",
+   "from": 29,
+   "to": 30
+  }
+ ],
+ "cases": [
+  {
+   "budget": 20,
+   "first": 1,
+   "last": null,
+   "total": 120,
+   "parts": [
+    {
+     "title": "1.1 Zeitkontinuierliche Signale · S. 4–6",
+     "est": 12,
+     "from": 4,
+     "to": 6
+    },
+    {
+     "title": "1.2 Zeitdiskrete Signale · S. 7–9",
+     "est": 12,
+     "from": 7,
+     "to": 9
+    },
+    {
+     "title": "2.1 Definition · S. 10–11",
+     "est": 8,
+     "from": 10,
+     "to": 11
+    },
+    {
+     "title": "2.2 Eigenschaften der Fourier-Transformierten und Korrespondenzen, Teil 1/2 · S. 12–16",
+     "est": 20,
+     "from": 12,
+     "to": 16
+    },
+    {
+     "title": "2.2 Eigenschaften der Fourier-Transformierten und Korrespondenzen, Teil 2/2 · S. 17",
+     "est": 5,
+     "from": 17,
+     "to": 17
+    },
+    {
+     "title": "2.3 Faltung · S. 18–20",
+     "est": 12,
+     "from": 18,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–23",
+     "est": 12,
+     "from": 21,
+     "to": 23
+    },
+    {
+     "title": "4 Systeme · S. 24–28",
+     "est": 20,
+     "from": 24,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 20,
+   "first": 11,
+   "last": 22,
+   "total": 120,
+   "parts": [
+    {
+     "title": "2.1 Definition · S. 11",
+     "est": 5,
+     "from": 11,
+     "to": 11
+    },
+    {
+     "title": "2.2 Eigenschaften der Fourier-Transformierten und Korrespondenzen, Teil 1/2 · S. 12–16",
+     "est": 20,
+     "from": 12,
+     "to": 16
+    },
+    {
+     "title": "2.2 Eigenschaften der Fourier-Transformierten und Korrespondenzen, Teil 2/2 · S. 17",
+     "est": 5,
+     "from": 17,
+     "to": 17
+    },
+    {
+     "title": "2.3 Faltung · S. 18–20",
+     "est": 12,
+     "from": 18,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–22",
+     "est": 8,
+     "from": 21,
+     "to": 22
+    }
+   ]
+  },
+  {
+   "budget": 20,
+   "first": 25,
+   "last": 30,
+   "total": 120,
+   "parts": [
+    {
+     "title": "4.2 Stabilität · S. 25–28",
+     "est": 16,
+     "from": 25,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 30,
+   "first": 1,
+   "last": null,
+   "total": 120,
+   "parts": [
+    {
+     "title": "1 Signale · S. 4–9",
+     "est": 24,
+     "from": 4,
+     "to": 9
+    },
+    {
+     "title": "2.1 Definition · S. 10–11",
+     "est": 8,
+     "from": 10,
+     "to": 11
+    },
+    {
+     "title": "2.2 Eigenschaften der Fourier-Transformierten und Korrespondenzen · S. 12–17",
+     "est": 24,
+     "from": 12,
+     "to": 17
+    },
+    {
+     "title": "2.3 Faltung · S. 18–20",
+     "est": 12,
+     "from": 18,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–23",
+     "est": 12,
+     "from": 21,
+     "to": 23
+    },
+    {
+     "title": "4 Systeme · S. 24–28",
+     "est": 20,
+     "from": 24,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 30,
+   "first": 11,
+   "last": 22,
+   "total": 120,
+   "parts": [
+    {
+     "title": "2.1 Definition bis 2.2 · S. 11–17",
+     "est": 28,
+     "from": 11,
+     "to": 17
+    },
+    {
+     "title": "2.3 Faltung · S. 18–20",
+     "est": 12,
+     "from": 18,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–22",
+     "est": 8,
+     "from": 21,
+     "to": 22
+    }
+   ]
+  },
+  {
+   "budget": 30,
+   "first": 25,
+   "last": 30,
+   "total": 120,
+   "parts": [
+    {
+     "title": "4.2 Stabilität · S. 25–28",
+     "est": 16,
+     "from": 25,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 45,
+   "first": 1,
+   "last": null,
+   "total": 120,
+   "parts": [
+    {
+     "title": "1 Signale · S. 4–9",
+     "est": 24,
+     "from": 4,
+     "to": 9
+    },
+    {
+     "title": "2 Fourier-Transformation · S. 10–20",
+     "est": 44,
+     "from": 10,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–23",
+     "est": 12,
+     "from": 21,
+     "to": 23
+    },
+    {
+     "title": "4 Systeme · S. 24–28",
+     "est": 20,
+     "from": 24,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 45,
+   "first": 11,
+   "last": 22,
+   "total": 120,
+   "parts": [
+    {
+     "title": "2 Fourier-Transformation · S. 11–20",
+     "est": 40,
+     "from": 11,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–22",
+     "est": 8,
+     "from": 21,
+     "to": 22
+    }
+   ]
+  },
+  {
+   "budget": 45,
+   "first": 25,
+   "last": 30,
+   "total": 120,
+   "parts": [
+    {
+     "title": "4.2 Stabilität · S. 25–28",
+     "est": 16,
+     "from": 25,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 60,
+   "first": 1,
+   "last": null,
+   "total": 120,
+   "parts": [
+    {
+     "title": "1 Signale · S. 4–9",
+     "est": 24,
+     "from": 4,
+     "to": 9
+    },
+    {
+     "title": "2 Fourier-Transformation · S. 10–20",
+     "est": 44,
+     "from": 10,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–23",
+     "est": 12,
+     "from": 21,
+     "to": 23
+    },
+    {
+     "title": "4 Systeme · S. 24–28",
+     "est": 20,
+     "from": 24,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 60,
+   "first": 11,
+   "last": 22,
+   "total": 120,
+   "parts": [
+    {
+     "title": "2 Fourier-Transformation · S. 11–20",
+     "est": 40,
+     "from": 11,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–22",
+     "est": 8,
+     "from": 21,
+     "to": 22
+    }
+   ]
+  },
+  {
+   "budget": 60,
+   "first": 25,
+   "last": 30,
+   "total": 120,
+   "parts": [
+    {
+     "title": "4.2 Stabilität · S. 25–28",
+     "est": 16,
+     "from": 25,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 200,
+   "first": 1,
+   "last": null,
+   "total": 120,
+   "parts": [
+    {
+     "title": "1 Signale · S. 4–9",
+     "est": 24,
+     "from": 4,
+     "to": 9
+    },
+    {
+     "title": "2 Fourier-Transformation · S. 10–20",
+     "est": 44,
+     "from": 10,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–23",
+     "est": 12,
+     "from": 21,
+     "to": 23
+    },
+    {
+     "title": "4 Systeme · S. 24–28",
+     "est": 20,
+     "from": 24,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 200,
+   "first": 11,
+   "last": 22,
+   "total": 120,
+   "parts": [
+    {
+     "title": "2 Fourier-Transformation · S. 11–20",
+     "est": 40,
+     "from": 11,
+     "to": 20
+    },
+    {
+     "title": "3 Abtastung · S. 21–22",
+     "est": 8,
+     "from": 21,
+     "to": 22
+    }
+   ]
+  },
+  {
+   "budget": 200,
+   "first": 25,
+   "last": 30,
+   "total": 120,
+   "parts": [
+    {
+     "title": "4.2 Stabilität · S. 25–28",
+     "est": 16,
+     "from": 25,
+     "to": 28
+    },
+    {
+     "title": "A Korrespondenzen · S. 29–30",
+     "est": 8,
+     "from": 29,
+     "to": 30
+    }
+   ]
+  },
+  {
+   "budget": 30,
+   "first": 1,
+   "last": null,
+   "total": 90,
+   "parts": [
+    {
+     "title": "Arbeitsblätter · S. 1–10",
+     "est": 30,
+     "from": 1,
+     "to": 10
+    },
+    {
+     "title": "Arbeitsblätter · S. 11–20",
+     "est": 30,
+     "from": 11,
+     "to": 20
+    },
+    {
+     "title": "Arbeitsblätter · S. 21–30",
+     "est": 30,
+     "from": 21,
+     "to": 30
+    }
+   ]
+  }
+ ],
+ "steps": {
+  "vorlesung": [
+   "Überfliegen: Überschriften, Formeln und Bilder auf S. 4–9 ansehen",
+   "Lesen und die wichtigsten Definitionen und Formeln herausschreiben",
+   "Ein Beispiel aus dem Abschnitt selbst nachrechnen",
+   "In zwei Sätzen erklären, worum es geht"
+  ],
+  "skript": [
+   "Überfliegen: Überschriften, Formeln und Bilder auf S. 4–9 ansehen",
+   "Lesen und die wichtigsten Definitionen und Formeln herausschreiben",
+   "Ein Beispiel aus dem Abschnitt selbst nachrechnen",
+   "In zwei Sätzen erklären, worum es geht"
+  ],
+  "uebung": [
+   "Aufgabe lesen: Was ist gegeben, was ist gesucht?",
+   "Passende Formel oder den passenden Abschnitt im Skript suchen",
+   "Lösungsweg aufschreiben und rechnen",
+   "Ergebnis prüfen: Einheit, Vorzeichen, Größenordnung"
+  ],
+  "loesung": [
+   "Erst ohne Lösung versuchen",
+   "Mit der Lösung vergleichen und Fehler markieren",
+   "Die schwierigste Stelle noch einmal ohne Lösung rechnen"
+  ],
+  "frei": [],
+  "ohne_seiten": [
+   "Überfliegen: Überschriften, Formeln und Bilder ansehen",
+   "Lesen und die wichtigsten Definitionen und Formeln herausschreiben",
+   "Ein Beispiel aus dem Abschnitt selbst nachrechnen",
+   "In zwei Sätzen erklären, worum es geht"
+  ]
+ }
+}

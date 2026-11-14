@@ -286,9 +286,18 @@ struct TaskRow: View {
     @State private var creatingTest = false
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            row
+            // Lernschritte zum Abhaken (echte Aufgaben, 14.11.2026)
+            if !TaskStepsList.steps(t).isEmpty { TaskStepsList(t: t, refresh: refresh).padding(.leading, 33.6).padding(.bottom, 6) }
+        }
+        .ufBorderBottom()
+    }
+
+    private var row: some View {
         let status = t.s("status") ?? "geplant"
         let done = status == "erledigt"
-        HStack(spacing: 11.2) {
+        return HStack(spacing: 11.2) {
             Button { Task { await toggle(done) } } label: {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(done ? UF.ok : .clear)
@@ -312,8 +321,9 @@ struct TaskRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             if let f = t.s("file_id") {
                 UFButton("Öffnen", icon: "book", size: .small) {
-                    let lp = t.i("last_page") ?? 1
-                    router.go(.doc(f, task: t.i("id"), page: lp > 1 ? lp : nil))
+                    // zuletzt gelesene Seite, sonst die erste Seite der Aufgabe (echte Aufgaben nach der Gliederung)
+                    let lp = t.i("last_page") ?? 1, first = t.i("page_from") ?? 1
+                    router.go(.doc(f, task: t.i("id"), page: lp > 1 ? lp : first > 1 ? first : nil))
                 }
             } else if t.s("type") == "test" && session.api?.isLocal != true {     // ohne PC keine Wochentests (KI)
                 let submitted = t["test_submitted"].map { !$0.isNull } ?? false
@@ -327,7 +337,6 @@ struct TaskRow: View {
         }
         .padding(.vertical, 8.8)
         .padding(.horizontal, 4.8)
-        .ufBorderBottom()
     }
 
     private var meta: String {

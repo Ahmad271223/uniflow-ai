@@ -230,6 +230,16 @@ CREATE TABLE IF NOT EXISTS study_sessions (
     updated_at TEXT
 );
 
+-- Gliederung einer PDF aus ihren Lesezeichen (app/outline.py, 14.11.2026): Abschnitte mit Seiten als JSON; je Geraet
+-- gelesen, nicht abgeglichen (chdate: neue Fassung der Datei = neu lesen)
+CREATE TABLE IF NOT EXISTS file_outline (
+    file_id TEXT PRIMARY KEY,
+    chdate INTEGER,
+    page_count INTEGER,
+    sections TEXT,
+    source TEXT
+);
+
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -806,6 +816,11 @@ def _init_db(conn) -> None:
     add_col("study_packages", "locked", "INTEGER DEFAULT 0")
     add_col("study_packages", "manual", "INTEGER DEFAULT 0")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_study_sessions_module ON study_sessions(module_id)")
+    # Echte Lernaufgaben (14.11.2026, app/outline.py): Seiten der Aufgabe, Lernschritte (JSON) und abgehakte Schritte
+    add_col("study_tasks", "page_from", "INTEGER")
+    add_col("study_tasks", "page_to", "INTEGER")
+    add_col("study_tasks", "steps", "TEXT")
+    add_col("study_tasks", "steps_done", "TEXT")
     conn.execute(FILE_DONE_BACKFILL)
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)

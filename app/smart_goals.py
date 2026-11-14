@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Body, HTTPException
 
-from . import db, smart_planner as sp, study, timetable
+from . import outline, db, smart_planner as sp, study, timetable
 
 BERLIN = ZoneInfo("Europe/Berlin")
 SETTINGS_KEY = "smart_planner"
@@ -734,8 +734,9 @@ def fill_materials(conn, t: date) -> dict:
         if a["parts"] > 1:
             title = f"{title} (Teil {a['part']}/{a['parts']})"
         n = db.row(conn, "SELECT COUNT(*) n FROM study_tasks WHERE package_id=?", (a["block_id"],))["n"]
-        conn.execute("""INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at)
-                        VALUES (?,?,?,?,?,?, 'geplant', ?)""", (a["block_id"], MATERIAL_KINDS[kind], a["file_id"], title, n, a["minutes"], ts))
+        conn.execute("""INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at, steps)
+                        VALUES (?,?,?,?,?,?, 'geplant', ?, ?)""", (a["block_id"], MATERIAL_KINDS[kind], a["file_id"], title, n, a["minutes"], ts,
+                                                              outline.steps_json(MATERIAL_KINDS[kind])))
     for o in r["overflow"]:
         o["title"] = titles[o["file_id"]][0]
     return r

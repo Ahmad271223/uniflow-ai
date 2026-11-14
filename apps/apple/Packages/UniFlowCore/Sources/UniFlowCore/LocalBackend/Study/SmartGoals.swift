@@ -769,9 +769,10 @@ enum SmartGoals {
             let bid = SQLiteValue(json: a["block_id"] ?? .null) ?? .null
             let cnt = try c.scalar("SELECT COUNT(*) n FROM study_tasks WHERE package_id=?", [bid]) ?? .integer(0)
             try c.execute("""
-                INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at)
-                VALUES (?,?,?,?,?,?,'geplant',?)
-                """, [bid, .text(materialKinds[kind] ?? "frei"), .text(fid), .text(title), cnt, .integer(Int64(SP.num(a["minutes"]))), ts])
+                INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at, steps)
+                VALUES (?,?,?,?,?,?,'geplant',?,?)
+                """, [bid, .text(materialKinds[kind] ?? "frei"), .text(fid), .text(title), cnt, .integer(Int64(SP.num(a["minutes"]))), ts,
+                      StudyOutline.stepsJSON(materialKinds[kind] ?? "frei")])
         }
         if case .array(let over) = r["overflow"] ?? .null {
             r["overflow"] = .array(over.map { o in
