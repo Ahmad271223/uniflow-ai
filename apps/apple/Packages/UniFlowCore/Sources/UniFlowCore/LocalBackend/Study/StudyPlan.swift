@@ -640,24 +640,27 @@ enum StudyPlan {
         }
     }
 
-    /// `_spill`: Aufgaben ohne Platz an ihrem Tag (`assignSlots`): ohne `spill` ohne Uhrzeit, sonst auf den naechsten
-    /// Lerntag; das ganze Paket wird verlegt, ein Rest wird ein eigenes Paket (gleiches Modul, Fach, Titel, Lehrwoche).
+    /// `_spill`: Aufgaben ohne Platz an ihrem Tag (`assignSlots`). Mit `spill` auf den naechsten Lerntag (das ganze
+    /// Paket wird verlegt, ein Rest wird ein eigenes Paket: gleiches Modul, Fach, Titel, Lehrwoche); ohne bleiben sie am
+    /// Tag, aber ohne Uhrzeit, ein Rest als eigenes Paket, damit jedes Paket mit Uhrzeit nur Aufgaben mit Uhrzeit hat und
+    /// seine geplanten Minuten zu seinem Block passen.
     static func spillTasks(_ c: SQLiteConnection, _ p: SQLiteRow, _ tasks: [SQLiteRow], day d: Int, spill: Int, whole: Bool, settings s: Settings) throws {
         let ids = tasks.map { $0["id"] ?? .null }
         let marks = Array(repeating: "?", count: ids.count).joined(separator: ",")
         try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id IN (\(marks))", ids)
         let pid = p["id"] ?? .null
         if whole { try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [pid]) }
-        guard spill > 0, let next = (1...7).map({ d + $0 }).first(where: { s.isLearnDay($0) }) else { return }
+        let next = spill > 0 ? (1...7).map({ d + $0 }).first(where: { s.isLearnDay($0) }) : nil
         let target: SQLiteValue
         if whole {
+            guard let next else { return }
             try c.execute("UPDATE study_packages SET date=? WHERE id=?", [.text(iso(next)), pid])
             target = pid
         } else {
             try c.execute("""
                 INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at)
                 VALUES (?,?,?,?,?,0,'geplant',?,?,?)
-                """, [.text(iso(next)), p["module_id"] ?? .null, p["subject"] ?? .null, p["title"] ?? .null, p["week_no"] ?? .null,
+                """, [.text(iso(next ?? d)), p["module_id"] ?? .null, p["subject"] ?? .null, p["title"] ?? .null, p["week_no"] ?? .null,
                       p["sort"] ?? .null, p["generated"] ?? .null, p["created_at"] ?? .null])
             target = .integer(c.lastInsertRowID)
             for (i, id) in ids.enumerated() {
@@ -666,6 +669,7 @@ enum StudyPlan {
             try recalcPackage(c, pid)
             try recalcPackage(c, target)
         }
+        guard let next else { return }
         try assignSlots(c, day: next, packageID: target, spill: spill - 1)
     }
 

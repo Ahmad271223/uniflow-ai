@@ -311,11 +311,13 @@ def test_package_stays_in_one_window_next_to_lecture(fresh):
     assert slots[late] == ("08:00", "08:30"), "kurzes Paket in die Luecke vor der Vorlesung"
     st, full = call(fresh, "GET", f"/api/packages/{early}")
     assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("12:00", "12:45"), ("13:00", "14:00")]
-    # passt in kein Fenster: Aufgaben der Reihe nach verteilt; die zweite hat keinen Platz mehr und bekommt keine
-    # Uhrzeit (frueher 21:10-27:50 hinter dem Tagesende, Fehler vom echten iPhone vom 14.11.2026)
+    # passt in kein Fenster: Aufgaben der Reihe nach verteilt; die zweite hat keinen Platz mehr: eigenes Paket am selben
+    # Tag ohne Uhrzeit (frueher 21:10-27:50 hinter dem Tagesende, Fehler vom echten iPhone vom 14.11.2026)
     assert slots[big] == ("14:15", "20:55")
     st, full = call(fresh, "GET", f"/api/packages/{big}")
-    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("14:15", "20:55"), (None, None)]
+    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("14:15", "20:55")]
+    rest = [p for p in day["packages"] if p["title"] == "zu gross fuer jedes Fenster" and p["id"] != big]
+    assert [(p["start_time"], p["planned_minutes"]) for p in rest] == [(None, 400)]
     with db.cursor() as conn:
         assert study.slot_conflicts(conn, date(2026, 10, 27), date(2026, 10, 27)) == []
 
