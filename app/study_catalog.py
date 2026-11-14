@@ -242,6 +242,61 @@ def merge_wide_registries(curated: dict, wides: list[dict]) -> dict:
     return out
 
 
+LSF_OVERVIEW_PATHS = {"hildesheim": Path(__file__).resolve().parent.parent / "packages" / "shared-contracts" / "study-sources-hildesheim-lsf.json"}
+LSF_ART_RANK = {"studiengang": 0, "fach-2fb-hauptfach": 1, "fach-med": 2, "fach-2fb-wahlpflicht-ergaenzung": 3}
+
+
+def load_lsf_overviews() -> dict:
+    """Uebersichten der LSF-Studiengangsplaene je Hochschule (tools/gen-hildesheim-lsf.py), fehlende fallen weg"""
+    out = {}
+    for uni, p in LSF_OVERVIEW_PATHS.items():
+        try:
+            out[uni] = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def apply_lsf_overview(registry: dict, university: str, overview: dict) -> dict:
+    """LSF-Uebersicht ins gemischte Register (14.11.2026): je Studiengang mit sicher zugeordnetem LSF-Eintrag den Link
+    `lsf` {nummer, url, text} (Wochenraster der Veranstaltungen dieses Semesters, kein Studienverlauf; bei Faechern die
+    Variante "Lehramt" zuerst) und die Schreibweisen `lsf_names` (aus der LSF-Uebersicht, nicht bestaetigt; helfen der
+    Suche und der Zuordnung des Notenspiegels). Neben-/Begleitfaecher ohne Registereintrag werden waehlbare Eintraege
+    ohne Katalog (kind "nebenfach", Abschluss "Nebenfach")."""
+    out = copy.deepcopy(registry)
+    uni = next((u for u in out.get("universities") or [] if u.get("id") == university), None)
+    if uni is None:
+        return out
+    by_key = {}
+    for p in uni.get("programs") or []:
+        for po in p.get("pos") or []:
+            if po.get("key"):
+                by_key.setdefault(po["key"], p)
+    groups: dict[str, tuple[dict, list]] = {}
+    minors: dict[str, list] = {}
+    for e in overview.get("entries") or []:
+        p = by_key.get(e.get("register_key")) if e.get("register_key") else None
+        if p is not None:
+            groups.setdefault(p["id"], (p, []))[1].append(e)
+        elif e.get("art") == "nebenfach" and e.get("studiengang"):
+            minors.setdefault(e["studiengang"], []).append(e)
+
+    def link(e):
+        return {"nummer": e["nummer"], "url": e.get("url"), "text": e["text"]}
+    for p, es in groups.values():
+        best = min(es, key=lambda e: (LSF_ART_RANK.get(e.get("art"), 9), e.get("variante") != "Lehramt", e.get("variante") is not None, e["nummer"]))
+        p["lsf"] = link(best)
+        p["lsf_names"] = list(dict.fromkeys(e["text"] for e in sorted(es, key=lambda e: e["nummer"])))
+    ids = {p.get("id") for p in uni.get("programs") or []}
+    for name, es in minors.items():
+        es = sorted(es, key=lambda e: e["nummer"])
+        pid = _unique(slug(f"nebenfach {name}"), ids)
+        uni["programs"].append({"id": pid, "program": name, "degree": "Nebenfach", "kind": "nebenfach", "qis_names": [],
+                                "regular_semesters": None, "total_lp": None, "po_document_url": None, "faculty": None,
+                                "pos": [], "lsf": link(es[0]), "lsf_names": list(dict.fromkeys(e["text"] for e in es))})
+    return out
+
+
 def load_wide_registries() -> list[dict]:
     """Breite Erhebungen, die es gibt (study-sources-luh.json, study-sources-hildesheim.json)"""
     out = []
@@ -405,8 +460,8 @@ def match_program(label: str, university: str = "luh", registry: dict | None = N
     for uni in reg.get("universities") or []:
         if uni.get("id") != university:
             continue
-        cands = [p for p in uni.get("programs") or []
-                 if key in {name_key(n) for n in [p.get("program") or ""] + list(p.get("qis_names") or [])}]
+        cands = [p for p in uni.get("programs") or [] if p.get("pos")
+                 and key in {name_key(n) for n in [p.get("program") or ""] + list(p.get("qis_names") or []) + lsf_keys(p)}]
         if parsed["degree"]:
             cands = [p for p in cands if _degree_class(p.get("degree") or "") == parsed["degree"]]
         if not cands:
@@ -445,6 +500,18 @@ def code_for_catalog_url(registry: dict, university: str, url: str | None) -> st
                 if po.get("url") == want and po.get("code"):
                     return po["code"]
     return None
+
+
+def lsf_keys(p: dict) -> list[str]:
+    """LSF-Schreibweisen eines Studiengangs fuer die Zuordnung: ganz und ohne Abschluss vorn ("B.A. Erziehungswissenschaft"
+    -> "Erziehungswissenschaft"); nur genaue Treffer, nichts geraten"""
+    out = []
+    for n in p.get("lsf_names") or []:
+        out.append(n)
+        d = HIS_DEGREE_RE.match(n)
+        if d:
+            out.append(n[d.end():])
+    return out
 
 
 def program_entry(registry: dict, university: str, code: str) -> tuple[dict, dict, dict] | None:
@@ -1932,6 +1999,18 @@ def _run_custom(conn, url: str, fetch, now: datetime, uni: str, reg: dict, base:
         pages = pdf_pages(r.data)
     except Exception:  # noqa: BLE001
         return fail("keine PDF", "unknown_format", MESSAGES["unknown_format"])
+    from . import study_catalog_hildesheim as hi
+    if hi.is_hildesheim_sto(pages):
+        # Hildesheimer "Studienordnung inklusive Modulhandbuch" (14.11.2026): Seiten mit Lage lesen (der rohe Text
+        # stellt die Feldnamen vor die Werte), Kopf aus der Titelseite, Abschluss und Kuerzel aus dem Register
+        try:
+            rows = hi.row_pages(pdf_items(r.data))
+        except Exception:  # noqa: BLE001
+            return fail("keine PDF", "unknown_format", MESSAGES["unknown_format"])
+        meta = hildesheim_link_meta(reg, uni, hi.hildesheim_sto_head(rows), url, now)
+        meta["source"] = {"url": url, "fetched_at": _iso(now), "sha256": hashlib.sha256(r.data).hexdigest()}
+        catalog, texts = hi.parse_hildesheim_sto(rows, meta)
+        return _store_custom(conn, catalog, texts, meta, url_key, info, now, fail)
     parts = modkat_parts(url)
     first = clean_pages(pages[:1])
     lines = first[0] if first else []
@@ -1951,14 +2030,42 @@ def _run_custom(conn, url: str, fetch, now: datetime, uni: str, reg: dict, base:
                 "code": code, "catalog_term": term, "regular_semesters": None, "total_lp": None}
     meta["source"] = {"url": url, "fetched_at": _iso(now), "sha256": hashlib.sha256(r.data).hexdigest()}
     catalog, texts = parse_luh_modkat(pages, meta)
+    return _store_custom(conn, catalog, texts, meta, url_key, info, now, fail)
+
+
+def _store_custom(conn, catalog: dict, texts: dict, meta: dict, url_key: str, info: dict, now: datetime, fail) -> dict:
+    """Gelesenen Katalog eines eigenen Links pruefen und ablegen (beide Leser)"""
     if not catalog["modules"] or validate(catalog):
         return fail("Format unbekannt", "unknown_format", MESSAGES["unknown_format"])
     key = store_catalog(conn, catalog, texts, "download", _iso(now))
     set_state(conn, url_key, {"at": _iso(now), "key": key})
-    state = dict(info, state="ready", origin="download", key=key, program=meta["program"], code=meta["code"],
-                 catalog_term=meta["catalog_term"], modules=len(catalog["modules"]), message=MESSAGES["ready"])
+    state = dict(info, state="ready", origin="download", key=key, program=catalog.get("program") or meta["program"],
+                 code=catalog.get("code") or meta["code"], catalog_term=catalog.get("catalog_term") or meta["catalog_term"],
+                 modules=len(catalog["modules"]), message=MESSAGES["ready"])
     set_state(conn, "status", state)
     return state
+
+
+def hildesheim_link_meta(reg: dict, uni: str, head: dict, url: str, now: datetime) -> dict:
+    """Kopf eines eigenen Links zu einer Hildesheimer Studienordnung -> meta fuer den Leser: Studiengang, PO und Semester
+    aus der Titelseite; Abschluss ("B.A.", steht in keiner PDF), Regelstudienzeit und Kuerzel aus dem Register, wenn es
+    den Studiengang mit dieser PO kennt, sonst "link-<hash>". Gleiche Regel in StudyCatalogPipeline.hildesheimMeta."""
+    program = head.get("program") or "Eigener Katalog"
+    level = "M" if (head.get("level") or "").startswith("Master") else "B"
+    prog = None
+    for u in reg.get("universities") or []:
+        if u.get("id") != uni:
+            continue
+        for p in u.get("programs") or []:
+            if name_key(p.get("program") or "") == name_key(program) and _degree_class(p.get("degree") or "") == level:
+                prog = p
+                break
+    po = head.get("po")
+    code = next((x.get("code") for x in (prog or {}).get("pos") or [] if po and str(x.get("po")) == str(po) and x.get("code")), None)
+    return {"university": uni, "program": program, "degree": (prog or {}).get("degree") or head.get("degree") or "unbekannt",
+            "po": po or "eigener Link", "code": code or "link-" + hashlib.sha256(url.encode()).hexdigest()[:12],
+            "catalog_term": head.get("catalog_term") or current_term(now.strftime("%Y-%m-%d")),
+            "regular_semesters": (prog or {}).get("regular_semesters"), "total_lp": head.get("total_lp")}
 
 
 def status(conn) -> dict:
@@ -2229,8 +2336,13 @@ def programs(registry: dict | None = None, university: str = "luh", seed: dict |
                 src = sources.get(x.get("source")) or {}
                 pos.append({"po": str(x.get("po")), "code": x.get("code"), "catalog_terms": list(x.get("catalog_terms") or []),
                             "loadable": bool(src.get("url_pattern")) or x.get("code") in seed_codes})
-            out.append({"id": p.get("id"), "program": p.get("program"), "degree": p.get("degree"), "faculty": p.get("faculty"),
-                        "regular_semesters": p.get("regular_semesters"), "total_lp": p.get("total_lp"), "pos": pos})
+            item = {"id": p.get("id"), "program": p.get("program"), "degree": p.get("degree"), "faculty": p.get("faculty"),
+                    "regular_semesters": p.get("regular_semesters"), "total_lp": p.get("total_lp"), "pos": pos}
+            if p.get("kind"):
+                item["kind"] = p["kind"]
+            if p.get("lsf_names"):
+                item["lsf_names"] = p["lsf_names"]
+            out.append(item)
     out.sort(key=lambda e: (name_key(e["program"] or ""), e["degree"] or ""))
     return out
 
@@ -2260,11 +2372,49 @@ def api_sync(body: dict | None = None):
 
 @router.get("/programs")
 def api_programs(q: str = ""):
-    """Studiengaenge des Registers zum Waehlen (Web); `q` filtert nach Name"""
+    """Studiengaenge des Registers zum Waehlen (Web); `q` sucht nach Woertern (`program_matches`)"""
     with db.cursor() as conn:
         uni = current_university(conn)
-    items = programs(university=uni, seed=seed_cached())
-    key = name_key(q) if q.strip() else ""
-    if key:
-        items = [e for e in items if key in name_key(e["program"] or "")]
+    items = filter_programs(programs(university=uni, seed=seed_cached()), q)
     return {"programs": items, "count": len(items)}
+
+
+# Suche "Was studierst du?" (14.11.2026): jedes Wort der Anfrage muss in einem Wort des Namens (oder Abschlusses,
+# Fachbereichs) stecken; Abschlusskuerzel zaehlen nicht; Kurzformen der Uni-Seiten ueber Wortfolgen im Namen. Gleiche
+# Regel in StudySources.programMatches (Swift) und study-plan-logic.js (filterPrograms); Faelle in
+# fixtures/study-catalog/program-search.json
+SEARCH_ALIASES = (
+    ("informationsmanagement und informationstechnologie", ("imit",)),
+    ("internationales informationsmanagement", ("iim",)),
+    ("deutsch als zweitsprache", ("daz", "daf")),
+    ("haupt und realschulen", ("hrs",)),
+    ("grund haupt und realschulen", ("ghr",)),
+    ("internationale kommunikation und uebersetzen", ("ikue", "iku")),
+    ("polyvalenter zwei faecher bachelor", ("2fb", "zweifach")),
+)
+DEGREE_WORDS = frozenset({"a", "b", "m", "sc", "ed", "ba", "bsc", "ma", "msc", "med"})
+
+
+def search_words(text) -> list[str]:
+    return TOKEN_RE.findall(_fold(text if isinstance(text, str) else ""))
+
+
+def filter_programs(items: list[dict], query: str) -> list[dict]:
+    """Suche ueber die Liste: zuerst nach Name, Abschluss und LSF-Schreibweisen; nur wenn das nichts findet, auch nach
+    Fakultaet ("informatik" findet nicht alle Studiengaenge der Fakultaet fuer Elektrotechnik und Informatik)"""
+    hits = [p for p in items if program_matches(p, query)]
+    return hits or [p for p in items if program_matches(p, query, faculty=True)]
+
+
+def program_matches(p: dict, query: str, faculty: bool = False) -> bool:
+    """Passt ein Eintrag aus `programs` zur Suche? Fakultaet nur mit `faculty` (zweite Stufe von `filter_programs`)"""
+    words = [w for w in search_words(query) if w not in DEGREE_WORDS]
+    if not words:
+        return True
+    name = " ".join(search_words(p.get("program")))
+    fac = (p.get("faculty") or "") if faculty else ""
+    hay = search_words(f"{p.get('program') or ''} {p.get('degree') or ''} {fac} {' '.join(p.get('lsf_names') or [])}")
+    for phrase, short in SEARCH_ALIASES:
+        if phrase in name:
+            hay += list(short)
+    return all(any(w in h for h in hay) for w in words)

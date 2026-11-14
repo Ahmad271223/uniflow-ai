@@ -127,3 +127,36 @@ def test_earlier_studies_group_by_program_with_passed_lp():
     assert [(x["program"], x["count"], x["lp"]) for x in e] == [("Erziehungswissenschaft", 2, 6.0),
                                                                  ("Betriebswirtschaftslehre (Begleitfach)", 1, 7.5)]
     assert e[0]["rows"][0] == {"text": "TM 1: Einführung", "note": "2,0", "status": "bestanden", "credits": "6", "semester": "WiSe 24/25"}
+
+
+def test_pasted_link_to_a_hildesheim_study_regulation_is_read(fresh, monkeypatch):
+    """Eigener Link zu einer Hildesheimer Studienordnung, die das Register nicht kennt: der Leser fuer dieses Format
+    liest sie (erfundene Seiten aus fixtures/study-catalog-hildesheim, mit Lage der Textstuecke)"""
+    import json
+    from pathlib import Path
+    from app import db
+    fx = json.loads((Path(__file__).resolve().parent.parent / "packages/shared-contracts/fixtures/study-catalog-hildesheim/lesefassung.json")
+                    .read_text(encoding="utf-8"))
+    monkeypatch.setattr(sc, "pdf_pages", lambda data: fx["pages"])
+    monkeypatch.setattr(sc, "pdf_items", lambda data: fx["items"])
+    link = "https://example.org/studienordnung.pdf"
+    with db.cursor() as conn:
+        conn.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('study_plan', ?)", (json.dumps({"po": None, "catalog_url": link}),))
+        st = sc.run_sync(conn, fetch=lambda url, etag=None, last_modified=None: sc.FetchResult(200, b"%PDF"), university="hildesheim")
+        assert st["state"] == "ready", st
+        assert st["program"] == fx["head"]["program"] and st["modules"] == len(fx["catalog"]["modules"]), st
+        assert st["code"].startswith("link-") and st["catalog_term"] == fx["head"]["catalog_term"]
+        cat, reason = sp.pick_catalog(sp.DbCatalogSource(conn).catalogs(), sp.load_settings(conn), sp.grade_rows(conn))
+        assert reason is None and cat["program"] == fx["head"]["program"] and cat["source"]["url"] == link
+
+
+def test_older_order_is_suggested_for_an_earlier_start():
+    code = "sozialpaedagogik|b.a.|2025"
+    s = sp.order_suggestion({}, code, "WiSe 24/25", "hildesheim")
+    assert s and s["program"] == "Sozial- und Organisationspädagogik" and s["po"] == "2020" and s["url"].endswith("fileID=4710")
+    assert sp.order_suggestion({}, code, "WiSe 26/27", "hildesheim") is None, "Testkonto: Beginn WiSe 26/27, neue Ordnung"
+    assert sp.order_suggestion({}, code, "WiSe 2025/26", "hildesheim") is None, "ab dem Stichsemester"
+    assert sp.order_suggestion({}, code, None, "hildesheim") is None, "ohne Studienbeginn nicht raten"
+    assert sp.order_suggestion({"order_ack": "order:" + code}, code, "WiSe 24/25", "hildesheim") is None, "abgelehnt"
+    assert sp.order_suggestion({"catalog_url": s["url"]}, code, "WiSe 24/25", "hildesheim") is None, "alte schon gewaehlt"
+    assert sp.order_suggestion({}, "erziehungswissenschaft|b.a.|2023", "WiSe 20/21", "hildesheim") is None

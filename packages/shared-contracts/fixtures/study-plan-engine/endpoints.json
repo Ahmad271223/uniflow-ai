@@ -337,8 +337,10 @@
     "lp_done": 0,
     "lp_expected": 0,
     "lp_total": 0,
+    "lsf_plan": null,
     "message": "Für deinen Studiengang gibt es noch keinen Katalog.",
     "notes": [],
+    "order_suggestion": null,
     "placements": {},
     "po": null,
     "po_confirmed": false,
@@ -744,6 +746,7 @@
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -753,6 +756,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
@@ -2184,6 +2188,7 @@
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -2193,6 +2198,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
@@ -3145,6 +3151,7 @@
     "lp_done": 0,
     "lp_expected": 5,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -3154,6 +3161,7 @@
       "tone": "info"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": true,
@@ -3409,8 +3417,10 @@
     "lp_done": 0,
     "lp_expected": 0,
     "lp_total": 0,
+    "lsf_plan": null,
     "message": "Für die Prüfungsordnung 1999 gibt es noch keinen Katalog.",
     "notes": [],
+    "order_suggestion": null,
     "placements": {},
     "po": null,
     "po_confirmed": true,
@@ -4235,6 +4245,7 @@
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -4244,6 +4255,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {
      "mathematik-3": "WiSe 27/28",
      "rechnernetze": "SoSe 27"

@@ -44,13 +44,13 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf",
+    "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 326,
-    "modules_est": 86,
-    "title": "Modulhandbuch Angewandte Informatik zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18"
+    "pages": 357,
+    "modules_est": 104,
+    "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)",
+    "date": "2026-04-03"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -102,13 +102,13 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf",
+    "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 326,
-    "modules_est": 118,
-    "title": "Modulhandbuch Angewandte Informatik zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18"
+    "pages": 357,
+    "modules_est": 124,
+    "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)",
+    "date": "2026-04-03"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -223,6 +223,59 @@
     "Data Analytics"
    ],
    "qis_labels_source": "geraten"
+  },
+  {
+   "key": "hildesheim|data-science|b.sc.|2023",
+   "university": "hildesheim",
+   "program": "Data Science",
+   "degree": "B.Sc.",
+   "kind": "studiengang",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "listed": false,
+   "po": "2023",
+   "po_documents": [
+    {
+     "title": "Prüfungsordnung Angewandte Informatik (AINF) (Bachelor of Science)",
+     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
+     "document_url": "https://www.uni-hildesheim.de/qm/processmanagement/document.php?docID=9790",
+     "date": "2023-10-27",
+     "issue": "184",
+     "page": 451
+    },
+    {
+     "title": "Neufassung der Gemeinsamen Prüfungsordnung der IT-Studiengänge (GPO IT 2023)",
+     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5067",
+     "document_url": "https://www.uni-hildesheim.de/qm/processmanagement/document.php?docID=9787",
+     "date": "2023-10-27",
+     "issue": "184",
+     "page": 9
+    }
+   ],
+   "catalog": {
+    "url": null,
+    "term": null,
+    "format": "none",
+    "document": {
+     "title": "Modulhandbuch Data Science Bachelor, PO 2023 (Stand 03.04.2026)",
+     "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-DS_BSc_PO2023_Stand_2026.04.03.pdf",
+     "date": "2026-04-03"
+    },
+    "reason": "Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete (Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP)"
+   },
+   "more_catalogs": [],
+   "study_plan_url": null,
+   "program_page": null,
+   "ordnungen_page": "https://www.uni-hildesheim.de/qm/processmanagement/regulations.php?page=study&study=65",
+   "start_terms": [],
+   "regular_semesters": 6,
+   "regular_semesters_source": "regel",
+   "total_lp": 180,
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Data Science PO-Version: 2023",
+    "Data Science"
+   ],
+   "qis_labels_source": "geraten",
+   "note": "Studienvariante des Bachelorprogramms Angewandte Informatik; Modulhandbuch nur auf der Seite des Fachbereichs 4, nicht im Studienangebot"
   },
   {
    "key": "hildesheim|deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
@@ -523,13 +576,13 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5141",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf",
+    "term": "WS 2024/25",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 351,
-    "modules_est": 90,
-    "title": "Modulhandbuch Informationsmanagement und Informationstechnologie zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18"
+    "pages": 329,
+    "modules_est": 87,
+    "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+    "date": "2024-10-24"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -581,13 +634,13 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5141",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf",
+    "term": "WS 2024/25",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 351,
-    "modules_est": 129,
-    "title": "Modulhandbuch Informationsmanagement und Informationstechnologie zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18"
+    "pages": 329,
+    "modules_est": 117,
+    "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+    "date": "2024-10-24"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -2305,10 +2358,13 @@
     }
    ],
    "catalog": {
-    "url": null,
-    "term": null,
-    "format": "none",
-    "reason": "keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt"
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-MINF_BSc_PO2023_Stand_2026.04.03.pdf",
+    "term": "SS 2026",
+    "format": "hildesheim-it-modulhandbuch",
+    "pages": 168,
+    "modules_est": 75,
+    "title": "Modulhandbuch Medieninformatik Bachelor, PO 2023 (Stand 03.04.2026)",
+    "date": "2026-04-03"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -2323,7 +2379,7 @@
     "Medieninformatik"
    ],
    "qis_labels_source": "geraten",
-   "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik; kein eigenes Modulhandbuch im Verkündungsblatt"
+   "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik; Modulhandbuch nur auf der Seite des Fachbereichs 4"
   },
   {
    "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
@@ -3230,13 +3286,13 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5142",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf",
+    "term": "WS 2024/25",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 326,
-    "modules_est": 83,
-    "title": "Modulhandbuch Umweltinformatik zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18"
+    "pages": 314,
+    "modules_est": 84,
+    "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+    "date": "2024-10-24"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -3289,13 +3345,13 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5142",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf",
+    "term": "WS 2024/25",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 326,
-    "modules_est": 105,
-    "title": "Modulhandbuch Umweltinformatik zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18"
+    "pages": 314,
+    "modules_est": 98,
+    "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+    "date": "2024-10-24"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -3390,34 +3446,34 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf",
+    "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 326,
-    "modules_est": 59,
-    "title": "Modulhandbuch Angewandte Informatik zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18",
+    "pages": 357,
+    "modules_est": 77,
+    "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)",
+    "date": "2026-04-03",
     "usage_program": "BSc Wirtschaftsinformatik"
    },
    "more_catalogs": [
     {
-     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5141",
-     "term": "WS 2023/24",
+     "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf",
+     "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
-     "pages": 351,
-     "modules_est": 69,
-     "title": "Modulhandbuch Informationsmanagement und Informationstechnologie zur PO 2024 (Bachelor / Master)",
-     "date": "2024-03-18",
+     "pages": 329,
+     "modules_est": 74,
+     "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+     "date": "2024-10-24",
      "usage_program": "BSc Wirtschaftsinformatik"
     },
     {
-     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5142",
-     "term": "WS 2023/24",
+     "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf",
+     "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
-     "pages": 326,
-     "modules_est": 54,
-     "title": "Modulhandbuch Umweltinformatik zur PO 2024 (Bachelor / Master)",
-     "date": "2024-03-18",
+     "pages": 314,
+     "modules_est": 61,
+     "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+     "date": "2024-10-24",
      "usage_program": "BSc Wirtschaftsinformatik"
     }
    ],
@@ -3470,34 +3526,34 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140",
-    "term": "WS 2023/24",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf",
+    "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
-    "pages": 326,
-    "modules_est": 87,
-    "title": "Modulhandbuch Angewandte Informatik zur PO 2024 (Bachelor / Master)",
-    "date": "2024-03-18",
+    "pages": 357,
+    "modules_est": 105,
+    "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)",
+    "date": "2026-04-03",
     "usage_program": "MSc Wirtschaftsinformatik"
    },
    "more_catalogs": [
     {
-     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5141",
-     "term": "WS 2023/24",
+     "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf",
+     "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
-     "pages": 351,
+     "pages": 329,
      "modules_est": 95,
-     "title": "Modulhandbuch Informationsmanagement und Informationstechnologie zur PO 2024 (Bachelor / Master)",
-     "date": "2024-03-18",
+     "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+     "date": "2024-10-24",
      "usage_program": "MSc Wirtschaftsinformatik"
     },
     {
-     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5142",
-     "term": "WS 2023/24",
+     "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf",
+     "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
-     "pages": 326,
-     "modules_est": 92,
-     "title": "Modulhandbuch Umweltinformatik zur PO 2024 (Bachelor / Master)",
-     "date": "2024-03-18",
+     "pages": 314,
+     "modules_est": 93,
+     "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
+     "date": "2024-10-24",
      "usage_program": "MSc Wirtschaftsinformatik"
     }
    ],

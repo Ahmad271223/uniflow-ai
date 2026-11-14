@@ -46,10 +46,9 @@ final class StudyProgramChangeTests: XCTestCase {
     func testProgramListMatchesPython() async throws {
         let s = StudySources.bundled
         let hi = s.programs(university: "hildesheim")
-        XCTAssertEqual(hi.count, 112)
+        XCTAssertEqual(hi.count, 177, "113 Studiengaenge (mit Data Science) und 64 Neben-/Begleitfaecher aus der LSF-Uebersicht")
         XCTAssertEqual(hi.prefix(4).map { "\($0["program"]?.string ?? "") \($0["degree"]?.string ?? "")" },
-                       ["Angewandte Informatik B.Sc.", "Angewandte Informatik M.Sc.", "Barrierefreie Kommunikation M.A.",
-                        "Biologie im Master Lehramt an Haupt- und Realschulen M.Ed."])
+                       ["Angewandte Informatik B.Sc.", "Angewandte Informatik M.Sc.", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften Nebenfach", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften Nebenfach"])
         let sop = try XCTUnwrap(hi.first { $0["program"]?.string == "Sozialpädagogik" })
         XCTAssertEqual(sop["pos"]?.array?.first?["code"]?.string, "sozialpaedagogik|b.a.|2025")
         XCTAssertEqual(sop["pos"]?.array?.first?["catalog_terms"], ["SS 2025"])
@@ -107,5 +106,76 @@ final class StudyProgramChangeTests: XCTestCase {
         // der neue Katalog nimmt nichts aus Erziehungswissenschaft; das Begleitfach kennt das Register nicht, es bleibt
         XCTAssertEqual(StudyPlanEngine.gradesForCatalog([a, b, c], catalog: ["program": "Sozialpädagogik"], university: "hildesheim")
             .compactMap { $0["text"]?.string }, ["BWL"])
+    }
+
+    /// Eigener Link zu einer Hildesheimer Studienordnung, die das Register nicht kennt: der Lauf liest sie mit dem Leser
+    /// fuer dieses Format (Textstuecke mit Lage, nicht der rohe PDFKit-Text); erfundene Seiten wie in Python
+    func testPastedLinkToAHildesheimStudyRegulationIsRead() async throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let fx = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/study-catalog-hildesheim/lesefassung.json")))
+        let pages = (fx["pages"]?.array ?? []).compactMap(\.string)
+        let items = (fx["items"]?.array ?? []).map { page in
+            (page.array ?? []).map { StudyPlanTextItem(x: $0.array?[0].double ?? 0, y: $0.array?[1].double ?? 0, text: $0.array?[2].string ?? "") }
+        }
+        let link = "https://example.org/studienordnung.pdf"
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.withConnection { c in
+            try Migrations.migrate(c, university: "hildesheim")
+            try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('study_plan', ?)", [.text(#"{"po": null, "catalog_url": "\#(link)"}"#)])
+        }
+        let loader = StudyCatalogPipelineTests.StubLoader()
+        loader.responses[link] = StudyCatalogFetchResult(status: 200, data: Data("%PDF".utf8))
+        let env = StudyCatalogPipeline.Environment(loader: loader, library: nil, pdfText: { _ in pages }, planText: { _ in items })
+        let st = await StudyCatalogPipeline.run(db: db, env: env)
+        XCTAssertEqual(st["state"]?.string, "ready", "\(st)")
+        XCTAssertEqual(st["program"]?.string, fx["head"]?["program"]?.string)
+        XCTAssertEqual(st["modules"]?.int, fx["catalog"]?["modules"]?.array?.count)
+        XCTAssertEqual(st["catalog_term"]?.string, fx["head"]?["catalog_term"]?.string)
+        XCTAssertEqual(st["code"]?.string?.hasPrefix("link-"), true)
+    }
+
+    /// Vorgaengerordnungen: Werte im Kern gleich packages/shared-contracts/study-orders.json; Vorschlag nur bei frueherem
+    /// Studienbeginn, nicht ohne Beginn, nicht nach Ablehnung oder mit der alten schon gewaehlt
+    func testOlderOrderSuggestion() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let file = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/study-orders.json")))
+        let fromFile = (file["orders"]?.array ?? []).map { o in
+            StudyPlanAPI.Order(university: o["university"]?.string ?? "", code: o["code"]?.string ?? "", since: o["since"]?.string ?? "",
+                               program: o["older"]?["program"]?.string ?? "", degree: o["older"]?["degree"]?.string ?? "",
+                               po: o["older"]?["po"]?.string ?? "", url: o["older"]?["url"]?.string ?? "")
+        }
+        XCTAssertEqual(StudyPlanAPI.orders, fromFile)
+        let code = "sozialpaedagogik|b.a.|2025"
+        var s = StudyPlanAPI.Settings(po: code, startTerm: nil, electives: [])
+        let sug = StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim")
+        XCTAssertEqual(sug["program"]?.string, "Sozial- und Organisationspädagogik")
+        XCTAssertEqual(sug["po"]?.string, "2020")
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 26/27", university: "hildesheim"), .null)
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: nil, university: "hildesheim"), .null)
+        s.orderAck = "order:" + code
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim"), .null)
+        s.orderAck = nil
+        s.catalogURL = sug["url"]?.string
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim"), .null)
+    }
+}
+
+/// Suche "Was studierst du?": dieselben Treffer wie Python (fixtures/study-catalog/program-search.json), jede Anfrage
+/// aus dem Studienangebot der Uni-Seiten findet mindestens einen Studiengang
+final class StudyProgramSearchTests: XCTestCase {
+    func testSameHitsAsPython() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let fx = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/study-catalog/program-search.json")))
+        let progs = StudySources.bundled.programs(university: "hildesheim")
+        XCTAssertEqual(progs.count, fx["programs"]?.int)
+        for c in fx["cases"]?.array ?? [] {
+            let q = c["query"]?.string ?? ""
+            let hits = StudySources.filterPrograms(progs, query: q).map { "\($0["program"]?.string ?? "") | \($0["degree"]?.string ?? "")" }
+            XCTAssertEqual(hits.sorted(), (c["hits"]?.array ?? []).compactMap(\.string).sorted(), q)
+            XCTAssertFalse(hits.isEmpty, q)
+        }
     }
 }

@@ -9,7 +9,7 @@
 // Regeln und HTML stehen in study-plan-logic.js (laeuft auch unter node: tests/js/study-plan*.test.mjs).
 import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=47";
 import { gateState } from "./account-gate.js?v=1";
-import * as L from "./study-plan-logic.js?v=5";
+import * as L from "./study-plan-logic.js?v=7";
 
 const POLL_MS = 2000;
 const OV_KEY = "studyplan.overview";
@@ -102,7 +102,7 @@ export async function viewStudyPlan(parts, params, view) {
       return;
     }
     if (p.available) {
-      body.innerHTML = `<div class="sp-stack">${edit ? "" : L.readOnlyHtml(icon)}${L.poCardHtml(p, icon)}${L.headerHtml(p, icon)}${L.earlierHtml(p, icon)}${errHtml()}${L.areasHtml(p, icon, edit)}${L.backlogHtml(p, icon)}`
+      body.innerHTML = `<div class="sp-stack">${edit ? "" : L.readOnlyHtml(icon)}${L.poCardHtml(p, icon)}${L.headerHtml(p, icon)}${L.lsfLinkHtml(p, icon)}${L.earlierHtml(p, icon)}${errHtml()}${L.areasHtml(p, icon, edit)}${L.backlogHtml(p, icon)}`
         + `<div class="sp-tools">${L.filterHtml(p, st.filter)}${toggleHtml()}</div>${L.boardHtml(p, st.filter, icon, { edit })}</div>`;
       bindPlan();
       if (!st.focusDone && st.focus) {
@@ -187,6 +187,14 @@ export async function viewStudyPlan(parts, params, view) {
       e.currentTarget.disabled = true;
       try { await saveSettings({ po: b.dataset.progCode }); st.catalog = await api("/study-catalog/status").catch(() => st.catalog); st.plan = null; st.pickUntil = Date.now() + 30000; await load(); }
       catch (x) { const el = $("#spPoErr", body); if (el) { el.hidden = false; el.textContent = `Speichern fehlgeschlagen: ${x.message}`; } e.currentTarget.disabled = false; }
+    }));
+    $$("[data-order-url], [data-order-ack]", body).forEach(b => b.addEventListener("click", async e => {
+      e.currentTarget.disabled = true;
+      try {
+        await saveSettings(b.dataset.orderUrl ? { catalog_url: b.dataset.orderUrl } : { order_ack: b.dataset.orderAck });
+        if (b.dataset.orderUrl) st.catalog = await api("/study-catalog/status").catch(() => st.catalog);
+        await load();
+      } catch (x) { const el = $("#spPoErr", body); if (el) { el.hidden = false; el.textContent = `Speichern fehlgeschlagen: ${x.message}`; } e.currentTarget.disabled = false; }
     }));
     $$("[data-prog-ack]", body).forEach(b => b.addEventListener("click", async e => {
       e.currentTarget.disabled = true;

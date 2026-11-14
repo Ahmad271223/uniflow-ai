@@ -14,6 +14,8 @@ struct IntroProgram: Identifiable, Equatable {
     let faculty: String?
     /// Kuerzel der neuesten Pruefungsordnung mit Katalog; nil: StudiNow kennt noch keinen Modulkatalog
     let code: String?
+    /// Schreibweisen aus der LSF-Uebersicht (Suche)
+    var lsfNames: [String] = []
 
     /// "Sozialpädagogik (B.A.)"
     var name: String { degree.map { "\(program) (\($0))" } ?? program }
@@ -27,15 +29,16 @@ struct IntroProgram: Identifiable, Equatable {
             guard let name = p.s("program"), !name.isEmpty else { return nil }
             let newest = p.list("pos").filter { $0.s("code") != nil }.max { ($0.s("po") ?? "") < ($1.s("po") ?? "") }
             return IntroProgram(id: p.s("id") ?? name, program: name, degree: p.s("degree"), faculty: p.s("faculty"),
-                                code: newest?.s("code"))
+                                code: newest?.s("code"), lsfNames: p.list("lsf_names").compactMap(\.string))
         }
     }
 
-    /// Filter nach Name wie im Studienverlauf
+    /// Suche wie im Kern (`StudySources.programMatches`: Woerter, Kurzformen wie IMIT, IIM, DaZ/DaF, HRS)
     static func filter(_ all: [IntroProgram], _ q: String) -> [IntroProgram] {
-        let key = StudyCatalogText.nameKey(q)
-        guard !key.isEmpty else { return all }
-        return all.filter { StudyCatalogText.nameKey($0.program).contains(key) }
+        StudySources.filterPrograms(all, query: q) {
+            ["program": .string($0.program), "degree": $0.degree.map { .string($0) } ?? .null,
+             "faculty": $0.faculty.map { .string($0) } ?? .null, "lsf_names": .array($0.lsfNames.map(JSONValue.string))]
+        }
     }
 }
 

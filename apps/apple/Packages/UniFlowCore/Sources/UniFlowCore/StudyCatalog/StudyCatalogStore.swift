@@ -145,10 +145,8 @@ public enum StudyCatalogEndpoints: LocalEndpointModule {
         // konnte bisher keinen anderen Studiengang waehlen als den aus dem Notenspiegel)
         router.get("/api/study-catalog/programs") { req, ctx in
             let uni = try await ctx.database.withConnection { try StudyCatalogPipeline.university($0) }
-            var items = StudySources.bundled.programs(university: uni, seedCodes: seedCodes)
             let q = req.query("q") ?? ""
-            let key = q.trimmingCharacters(in: .whitespaces).isEmpty ? "" : StudyCatalogText.nameKey(q)
-            if !key.isEmpty { items = items.filter { StudyCatalogText.nameKey($0["program"]?.string ?? "").contains(key) } }
+            let items = StudySources.filterPrograms(StudySources.bundled.programs(university: uni, seedCodes: seedCodes), query: q)
             return .json(["programs": .array(items), "count": .number(Double(items.count))])
         }
 

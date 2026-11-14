@@ -134,7 +134,7 @@ struct StudyPlanPage: View {
         }
         // eigener Traeger: zwei .sheet an derselben Ansicht oeffnen nicht verlaesslich
         .background {
-            Color.clear.sheet(isPresented: $showPrograms) {
+            Color.clear.ufSheet(isPresented: $showPrograms) {
                 StudyPlanProgramPicker(api: session.api, current: plan?.po, university: universityName) { await load() }
             }
         }
@@ -205,6 +205,7 @@ struct StudyPlanPage: View {
                             .accessibilityIdentifier("studyplan.link.failed")
                     }
                     StudyPlanHeaderCard(plan: p)
+                    if let l = p.lsfPlan { StudyPlanLSFLink(url: l.url, label: l.label) }
                     if !p.earlier.isEmpty { StudyPlanEarlierCard(studies: p.earlier) }
                     if let editError {
                         Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
@@ -227,6 +228,7 @@ struct StudyPlanPage: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if (p.programs.count > 1 && !p.poConfirmed) || p.programMismatch != nil { programCards(p) }
                     gapCard(p)
+                    if let l = p.lsfPlan { StudyPlanLSFLink(url: l.url, label: l.label) }
                     ExamRegistrationSection(api: session.api)
                 }
             }
@@ -271,7 +273,11 @@ struct StudyPlanPage: View {
 
     /// Oben: mehrere Studiengaenge -> Frage nach dem aktuellen; sonst die vorgeschlagene PO samt Studiengang bestaetigen
     @ViewBuilder private func programCards(_ p: StudyPlan) -> some View {
-        if let m = p.programMismatch, let code = m.code {
+        if let o = p.orderSuggestion {
+            StudyPlanOrderCard(suggestion: o, current: p.program ?? "Die neue Ordnung", busy: poBusy,
+                               takeOlder: { Task { await post(order: o, take: true) } }, keep: { Task { await post(order: o, take: false) } })
+            if let poError { Text(poError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true) }
+        } else if let m = p.programMismatch, let code = m.code {
             StudyPlanProgramMismatchCard(found: m, chosen: p.mismatchChosen ?? p.program ?? "dein Studiengang",
                                          source: StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil), busy: poBusy,
                                          switchTo: { Task { await confirmPO(code) } },
@@ -554,6 +560,23 @@ struct StudyPlanPage: View {
         }
         change(&body)
         _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
+    }
+
+    /// Bisherige Ordnung: Link zu ihrem Modulhandbuch (liest der Leser fuer Hildesheimer Studienordnungen); sonst den
+    /// Vorschlag nicht noch einmal zeigen
+    private func post(order o: StudyPlanOrderSuggestion, take: Bool) async {
+        guard let api = session.api else { return }
+        poBusy = true
+        defer { poBusy = false }
+        do {
+            let body: JSONValue = take ? ["catalog_url": .string(o.url)] : ["order_ack": .string("order:" + o.code)]
+            _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
+            if take { _ = try? await api.value("/api/study-catalog/status") }
+            poError = nil
+            await load()
+        } catch {
+            poError = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+        }
     }
 
     /// "Nein, bei … bleiben": diesen Studiengang aus dem Notenspiegel nicht noch einmal anbieten

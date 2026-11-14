@@ -3144,12 +3144,18 @@
       "lp_total": {
        "type": "number"
       },
+      "lsf_plan": {
+       "type": "null"
+      },
       "message": {
        "type": "string"
       },
       "notes": {
        "type": "array",
        "item": null
+      },
+      "order_suggestion": {
+       "type": "null"
       },
       "placements": {
        "type": "object",

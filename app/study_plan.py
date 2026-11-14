@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 import math
 import re
 from collections import Counter
@@ -1519,6 +1520,9 @@ def load_settings(conn) -> dict:
     ack = v.get("program_ack")
     if isinstance(ack, str) and ack.strip():
         out["program_ack"] = ack.strip()[:200]
+    ack = v.get("order_ack")
+    if isinstance(ack, str) and ack.strip():
+        out["order_ack"] = ack.strip()[:200]
     return out
 
 
@@ -1543,10 +1547,12 @@ def plan_response(conn, today: str, source=None) -> dict:
     uni = _university(conn)
     mine = grades_for_catalog(grades, cat, uni)
     out = unavailable(reason, settings["po"]) if cat is None else build_plan(cat, mine, settings, today)
-    if cat is None and reason == "no_catalog_po":
+    if cat is None and reason in ("no_catalog", "no_catalog_po"):
+        # gewaehlter Studiengang aus dem Register (auch ohne Katalog): ehrlich mit Namen statt "Verbinde das LSF"
         named = chosen_program_name(settings["po"], uni)
         if named:
             out["message"] = f"Für {named} gibt es noch keinen Modulkatalog."
+            out["program"] = named
     other = [r for r in grades if r not in mine and r.get("source") != "anmeldung" and not is_bereich(r)]
     out["earlier_studies"] = earlier_studies(other) if cat is not None else []
     if cat is not None and other:
@@ -1560,8 +1566,63 @@ def plan_response(conn, today: str, source=None) -> dict:
     progs = programs_of(grades, uni)
     out.update(suggested_po=suggested.get("po") if suggested else None, po_confirmed=settings["po"] is not None,
                qis_program=abschluss_of(grades), programs=progs if len(progs) > 1 else [],
-               program_mismatch=program_mismatch(progs, settings, uni))
+               program_mismatch=program_mismatch(progs, settings, uni),
+               order_suggestion=order_suggestion(settings, out.get("code") or settings.get("po"), out.get("start_term"), uni),
+               lsf_plan=lsf_plan(cat.get("code") if cat else settings.get("po"), uni))
     return out
+
+
+def lsf_plan(code: str | None, university: str, registry: dict | None = None) -> dict | None:
+    """Link zum LSF-"Studiengangsplan" des Studiengangs (Kuerzel oder ID; 14.11.2026): Wochenraster der Veranstaltungen
+    dieses Semesters, kein Studienverlauf. None ohne Eintrag."""
+    from .study_catalog import load_registry, program_entry
+    if not code:
+        return None
+    reg = registry or load_registry()
+    found = program_entry(reg, university, code)
+    prog = found[1] if found else next((p for u in reg.get("universities") or [] if u.get("id") == university
+                                        for p in u.get("programs") or [] if p.get("id") == code), None)
+    lsf = (prog or {}).get("lsf")
+    if not isinstance(lsf, dict) or not lsf.get("url"):
+        return None
+    return {"url": lsf["url"], "text": lsf.get("text"), "label": "Veranstaltungen dieses Semesters im LSF"}
+
+
+ORDERS_PATH = Path(__file__).resolve().parent.parent / "packages" / "shared-contracts" / "study-orders.json"
+_orders_cache: list | None = None
+
+
+def study_orders() -> list[dict]:
+    """Vorgaengerordnungen (packages/shared-contracts/study-orders.json, von Hand gepflegt)"""
+    global _orders_cache
+    if _orders_cache is None:
+        try:
+            _orders_cache = json.loads(ORDERS_PATH.read_text(encoding="utf-8")).get("orders") or []
+        except (OSError, ValueError):
+            _orders_cache = []
+    return _orders_cache
+
+
+def order_suggestion(settings: dict, code: str | None, start_term: str | None, university: str) -> dict | None:
+    """Neue Ordnung gewaehlt, Studienbeginn vor deren erstem Semester: die alte Ordnung vorschlagen (14.11.2026,
+    Sozialpaedagogik ab WiSe 2025/26, davor Sozial- und Organisationspaedagogik). None ohne passenden Eintrag, ohne
+    bekannten Studienbeginn, mit Beginn ab dem Stichsemester, wenn die alte schon gewaehlt (Link) oder der Vorschlag
+    abgelehnt ist (`order_ack`)."""
+    start = parse_term(start_term) if start_term else None
+    if not code or start is None:
+        return None
+    for o in study_orders():
+        if o.get("university") != university or o.get("code") != code:
+            continue
+        since = parse_term(o.get("since"))
+        older = o.get("older") or {}
+        if since is None or start >= since or settings.get("catalog_url") == older.get("url"):
+            return None
+        if settings.get("order_ack") == "order:" + code:
+            return None
+        return {"code": code, "since": o.get("since"), "start_term": start_term, "program": older.get("program"),
+                "degree": older.get("degree"), "po": older.get("po"), "url": older.get("url")}
+    return None
 
 
 def program_mismatch(progs: list[dict], settings: dict, university: str, registry: dict | None = None) -> dict | None:
@@ -1594,8 +1655,14 @@ def program_mismatch(progs: list[dict], settings: dict, university: str, registr
 def chosen_program_name(code: str | None, university: str, registry: dict | None = None) -> str | None:
     """Kuerzel aus dem Register -> "Sozialpädagogik (B.A., PO 2025)" fuer Meldungen; None fuer eine PO-Jahreszahl"""
     from .study_catalog import load_registry, program_entry
-    found = program_entry(registry or load_registry(), university, code) if code else None
+    reg = registry or load_registry()
+    found = program_entry(reg, university, code) if code else None
     if not found:
+        # Studiengang ohne Katalog: gewaehlt ueber seine ID (14.11.2026, "Was studierst du?")
+        for u in reg.get("universities") or []:
+            for p in u.get("programs") or [] if u.get("id") == university else []:
+                if code and p.get("id") == code:
+                    return f"{p.get('program')} ({p.get('degree')})" if p.get("degree") else p.get("program")
         return None
     _, prog, po = found
     extra = ", ".join(x for x in (prog.get("degree"), f"PO {po.get('po')}" if po.get("po") else None) if x)
@@ -1779,6 +1846,14 @@ def save_settings(conn, body: dict, today: str, source=None) -> dict:
         if v is not None and (not isinstance(v, list) or not all(isinstance(e, str) for e in v)):
             raise HTTPException(400, "minors muss eine Liste von Kuerzeln sein")
         s["minors"] = clean_minors(v)
+    if "order_ack" in body:
+        v = body["order_ack"]
+        if v is not None and not isinstance(v, str):
+            raise HTTPException(400, "order_ack muss Text sein")
+        if isinstance(v, str) and v.strip():
+            s["order_ack"] = v.strip()[:200]
+        else:
+            s.pop("order_ack", None)
     if "program_ack" in body:
         v = body["program_ack"]
         if v is not None and not isinstance(v, str):
@@ -1790,7 +1865,7 @@ def save_settings(conn, body: dict, today: str, source=None) -> dict:
     stored = {"po": s["po"], "start_term": s["start_term"], "electives": s["electives"]}
     if s.get("catalog_url"):
         stored["catalog_url"] = s["catalog_url"]
-    for k in ("tracks", "placements", "excluded", "custom", "minors", "program_ack"):
+    for k in ("tracks", "placements", "excluded", "custom", "minors", "program_ack", "order_ack"):
         if s.get(k):
             stored[k] = s[k]
     db.set_setting(conn, SETTINGS_KEY, stored)

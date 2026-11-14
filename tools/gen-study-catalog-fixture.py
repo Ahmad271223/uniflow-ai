@@ -653,6 +653,8 @@ def full_registry() -> bytes:
     packages/shared-contracts/study-sources-all.json, das Python und der Kern fuer die QIS-Zuordnung nutzen"""
     curated = json.loads(sc.REGISTRY_PATH.read_text(encoding="utf-8"))
     merged = sc.merge_wide_registries(curated, sc.load_wide_registries())
+    for uni, overview in sc.load_lsf_overviews().items():             # LSF-Links, -Schreibweisen, Nebenfaecher (14.11.2026)
+        merged = sc.apply_lsf_overview(merged, uni, overview)
     merged["note"] = ("ERZEUGT von tools/gen-study-catalog-fixture.py aus study-sources.json (gepflegt, vorn), "
                       "study-sources-luh.json (alle LUH-Studiengaenge; Quelle luh-grundstock = nur aus dem Grundstock der "
                       "App), study-sources-hildesheim.json (Universitaet Hildesheim; Quelle hildesheim-grundstock) und "
