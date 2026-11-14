@@ -846,7 +846,10 @@ def build_register() -> dict:
     # Faecher im Polyvalenten Zwei-Faecher-Bachelor (25 B.A., 26 B.Sc.) und im Master Lehramt (49 GS, 50 HRS)
     parents = {25: "Polyvalenter Zwei-Fächer-Bachelor-Studiengang", 26: "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
                49: "Master Lehramt an Grundschulen", 50: "Master Lehramt an Haupt- und Realschulen"}
-    used_variants = {spec["so"] for spec in PROGRAMS.values() if spec.get("variant") or spec.get("umbrella")}
+    # Ordnung einer Studienvariante, die zugleich das Fach im Zwei-Faecher-Bachelor regelt (5259: Englisch, Variante
+    # English Applied Linguistics; Quellenliste des Inhabers 14.11.2026): auch als Fach-Eintrag
+    also_subject = {5259}
+    used_variants = {spec["so"] for spec in PROGRAMS.values() if spec.get("variant") or spec.get("umbrella")} - also_subject
     seen_keys = {e["key"] for e in programs}
     for r in sorted(docs, key=_sort_key, reverse=True):
         if not is_catalog_doc(r) or r["kind"] == "Modulhandbuch" or r["file_id"] in used_variants:

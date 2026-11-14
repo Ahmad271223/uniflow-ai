@@ -448,6 +448,11 @@ const SEARCH_ALIASES = [
   ["grund haupt und realschulen", ["ghr"]],
   ["internationale kommunikation und uebersetzen", ["ikue", "iku"]],
   ["polyvalenter zwei faecher bachelor", ["2fb", "zweifach"]],
+  // Namen der Quellenliste des Inhabers (14.11.2026); "^": der Name beginnt damit (nicht die Fach-Eintraege)
+  ["polyvalenter zwei faecher bachelor studiengang", ["lehramt", "studieren", "grundschule", "haupt", "und", "realschule"]],
+  ["^lehramt an grundschulen", ["studieren"]],
+  ["^lehramt an haupt und realschulen", ["studieren"]],
+  ["kulturwissenschaften und kuenstlerische praxis", ["aesthetische"]],
 ];
 const DEGREE_WORDS = new Set(["a", "b", "m", "sc", "ed", "ba", "bsc", "ma", "msc", "med"]);
 export function searchWords(text) {
@@ -460,7 +465,9 @@ export function programMatches(p, q, faculty = false) {
   if (!words.length) return true;
   const name = searchWords(p.program).join(" ");
   const hay = searchWords(`${p.program || ""} ${p.degree || ""} ${faculty ? p.faculty || "" : ""} ${(p.lsf_names || []).join(" ")}`);
-  for (const [phrase, short] of SEARCH_ALIASES) if (name.includes(phrase)) hay.push(...short);
+  for (const [phrase, short] of SEARCH_ALIASES) {
+    if (phrase.startsWith("^") ? name.startsWith(phrase.slice(1)) : name.includes(phrase)) hay.push(...short);
+  }
   return words.every(w => hay.some(h => h.includes(w)));
 }
 export function filterPrograms(list, q) {

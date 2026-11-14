@@ -4243,6 +4243,49 @@
    "parent_program": "Master Lehramt an Haupt- und Realschulen"
   },
   {
+   "key": "hildesheim|englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "university": "hildesheim",
+   "program": "Englisch im Polyvalenten Zwei-Fächer-Bachelor",
+   "degree": "B.A./B.Sc.",
+   "kind": "fach",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "listed": true,
+   "po": "2025",
+   "po_documents": [
+    {
+     "title": "Neufassung der Prüfungsordnung für den Polyvalenten Zwei-Fächer-Bachelor-Studiengang (B.A.)",
+     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "document_url": "https://www.uni-hildesheim.de/qm/processmanagement/document.php?docID=9948",
+     "date": "2026-07-27",
+     "issue": "211",
+     "page": 22
+    }
+   ],
+   "catalog": {
+    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5259",
+    "term": "WS 2024/25",
+    "format": "hildesheim-modulbeschreibung",
+    "pages": 24,
+    "modules_est": 9,
+    "title": "Studienordnung für das Fach Englisch Polyvalente Zwei-Fächer-Bachelor-Studiengänge (B.A. / B.Sc.)",
+    "date": "2025-01-10"
+   },
+   "more_catalogs": [],
+   "study_plan_url": null,
+   "program_page": null,
+   "ordnungen_page": "https://www.uni-hildesheim.de/qm/processmanagement/regulations.php?page=study&study=25",
+   "start_terms": [],
+   "regular_semesters": 6,
+   "regular_semesters_source": "regel",
+   "total_lp": null,
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Englisch PO-Version: 2026",
+    "Englisch"
+   ],
+   "qis_labels_source": "geraten",
+   "parent_program": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang"
+  },
+  {
    "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
    "university": "hildesheim",
    "program": "Evangelische Theologie im Master Lehramt an Grundschulen",

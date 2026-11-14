@@ -171,6 +171,11 @@ public struct StudySources: Sendable {
         ("grund haupt und realschulen", ["ghr"]),
         ("internationale kommunikation und uebersetzen", ["ikue", "iku"]),
         ("polyvalenter zwei faecher bachelor", ["2fb", "zweifach"]),
+        // Namen der Quellenliste des Inhabers (14.11.2026); "^": der Name beginnt damit (nicht die Fach-Eintraege)
+        ("polyvalenter zwei faecher bachelor studiengang", ["lehramt", "studieren", "grundschule", "haupt", "und", "realschule"]),
+        ("^lehramt an grundschulen", ["studieren"]),
+        ("^lehramt an haupt und realschulen", ["studieren"]),
+        ("kulturwissenschaften und kuenstlerische praxis", ["aesthetische"]),
     ]
     static let degreeWords: Set<String> = ["a", "b", "m", "sc", "ed", "ba", "bsc", "ma", "msc", "med"]
 
@@ -195,7 +200,9 @@ public struct StudySources: Sendable {
         let lsf = (p["lsf_names"]?.array ?? []).compactMap(\.string).joined(separator: " ")
         let fac = faculty ? p["faculty"]?.string ?? "" : ""
         var hay = searchWords("\(p["program"]?.string ?? "") \(p["degree"]?.string ?? "") \(fac) \(lsf)")
-        for (phrase, short) in searchAliases where name.contains(phrase) { hay += short }
+        for (phrase, short) in searchAliases where phrase.hasPrefix("^") ? name.hasPrefix(String(phrase.dropFirst())) : name.contains(phrase) {
+            hay += short
+        }
         return words.allSatisfy { w in hay.contains { $0.contains(w) } }
     }
 

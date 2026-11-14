@@ -46,7 +46,7 @@ final class StudyProgramChangeTests: XCTestCase {
     func testProgramListMatchesPython() async throws {
         let s = StudySources.bundled
         let hi = s.programs(university: "hildesheim")
-        XCTAssertEqual(hi.count, 177, "113 Studiengaenge (mit Data Science) und 64 Neben-/Begleitfaecher aus der LSF-Uebersicht")
+        XCTAssertEqual(hi.count, 178, "114 Studiengaenge (mit Data Science, Englisch 2FB) und 64 Neben-/Begleitfaecher aus der LSF-Uebersicht")
         XCTAssertEqual(hi.prefix(4).map { "\($0["program"]?.string ?? "") \($0["degree"]?.string ?? "")" },
                        ["Angewandte Informatik B.Sc.", "Angewandte Informatik M.Sc.", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften Nebenfach", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften Nebenfach"])
         let sop = try XCTUnwrap(hi.first { $0["program"]?.string == "Sozialpädagogik" })

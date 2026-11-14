@@ -1,5 +1,5 @@
 {
- "catalogs": 107,
+ "catalogs": 108,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -284,6 +284,24 @@
    "program": "Englisch im Master Lehramt an Haupt- und Realschulen",
    "qis_labels": [
     "Abschluss: Master Studiengang: M.Ed. Englisch PO-Version: 2026",
+    "Englisch"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "library_key": "781b7212d60e905a7b55d00fc6bb624f78fb62802a9ff92cff4cb0962f3efe6b",
+   "modules": 9,
+   "po": "2025",
+   "program": "Englisch im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Englisch PO-Version: 2026",
     "Englisch"
    ],
    "study_plan": false,
@@ -1937,14 +1955,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 134366,
-   "catalogs": 107,
-   "raw_bytes": 1177551,
-   "sha256": "e04630cfeb52d425044a1f68f192105a73f0ddc4454d5683f4db6687afd3229f"
+   "bytes": 134533,
+   "catalogs": 108,
+   "raw_bytes": 1184030,
+   "sha256": "4fefe04f84a322be0deca50e0b48047d8e8f2b63688d1d64e5afaaeeda29a2df"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2180,
+ "modules": 2189,
  "university": "hildesheim",
  "v": 1
 }

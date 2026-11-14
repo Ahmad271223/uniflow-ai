@@ -7520,6 +7520,32 @@ enum StudySourcesData {
      ]
     },
     {
+     "id": "englisch-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Englisch im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Englisch"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5259"
+      }
+     ]
+    },
+    {
      "id": "evangelische-theologie-im-master-lehramt-an-grundschulen-m-ed",
      "program": "Evangelische Theologie im Master Lehramt an Grundschulen",
      "degree": "M.Ed.",
