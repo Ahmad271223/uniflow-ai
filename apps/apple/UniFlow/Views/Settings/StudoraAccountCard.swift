@@ -142,7 +142,7 @@ struct StudoraAccountCard: View {
                     .accessibilityIdentifier("account.syncNow")
             }
             // Raum je Uni-Konto: kurzer Hinweis, kein Sperr-Bildschirm (anderes Uni-Konto auf einem anderen Geraet,
-            // noch keine Uni-Anmeldung hier, Hochschule ohne sichere Kennung)
+            // noch keine Uni-Anmeldung hier); an Hochschulen ohne sichere Kennung keiner
             if let hint = link.uniSyncHint {
                 Text(UFDevice.adapt(hint)).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("account.uniHint")

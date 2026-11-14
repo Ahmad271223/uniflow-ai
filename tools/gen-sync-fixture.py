@@ -231,6 +231,9 @@ def build() -> dict:
                                "Raum hat, sieht und aendert auch ein Geraet mit Raum alles wie bisher (getrennt wird ab dem zweiten Raum). "
                                "Loescht ein Geraet mit Raum eine Zeile ohne Raum, gehoert die Loeschung seinem Raum: der Tombstone geht nur an "
                                "diesen Raum und nie an das Ursprungsgeraet, solange dessen Raum offen ist. "
+                               "Hochschule ohne sichere Kennung (Hildesheim, HsH): Kennung = 'ohne-kennung' (Schluessel nur aus Konto und "
+                               "Hochschule, kein studip_user); der Dienst rechnet ihn fuer das Konto der Anfrage nach, und ist sein Raum der "
+                               "einzige des Kontos, gilt fuer alle Geraete alles wie ohne Raum (Abgleich wie in 1.0.4). "
                                "Faehigkeit in X-StudiNow-Caps: uni_room",
                       "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=&limit=&uni_key=&studip_user=",
                                     "push": "POST /api/sync/push {device_id, items, deletes, uni_key?, studip_user?}"}},

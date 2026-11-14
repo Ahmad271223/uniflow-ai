@@ -313,14 +313,15 @@ final class DeviceSyncUniRoomTests: XCTestCase {
         XCTAssertFalse(next.contains { $0.local == "lieblingsfarbe" })
     }
 
-    // MARK: Ohne Schluessel
+    // MARK: Regel je Hochschule
 
-    func testWithoutAUniAccountTheAppDoesNotSyncAndLeavesTheDatabaseAlone() async throws {
+    /// LUH (sichere Kennung): vor dem ersten Stud.IP-Abgleich gibt es keinen Schluessel, die App gleicht nicht ab
+    func testAtTheLUHWithoutAUniAccountTheAppDoesNotSyncAndLeavesTheDatabaseAlone() async throws {
         let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
         try await db.withConnection { try Migrations.migrate($0) }
         try await db.transaction { try $0.execute("INSERT INTO modules(name) VALUES ('Eigenes Fach')") }
         let service = FakeService(pages: [Self.mixedPage])
-        let r = await DeviceSync(database: db, transport: service, device: "iphone-neu", requireUniAccount: true).run(account: "konto-1", university: "hildesheim")
+        let r = await DeviceSync(database: db, transport: service, device: "iphone-neu", requireUniAccount: true).run(account: "konto-1", university: "luh")
         XCTAssertTrue(r.ok)
         XCTAssertTrue(r.noUniAccount)
         let queries = await service.queries, pushes = await service.pushes
@@ -330,12 +331,57 @@ final class DeviceSyncUniRoomTests: XCTestCase {
         let left = try await names(db)
         XCTAssertEqual(left, ["Eigenes Fach"])
         // Hinweise in den Konto-Einstellungen
-        XCTAssertEqual(UniAccountKey.hint(r, university: "hildesheim"), UniAccountKey.notAvailableText)
         XCTAssertEqual(UniAccountKey.hint(r, university: "luh"), UniAccountKey.signInFirstText)
         var other = DeviceSyncResult()
         XCTAssertNil(UniAccountKey.hint(other, university: "luh"))
         other.otherUniAccount = true
         XCTAssertEqual(UniAccountKey.hint(other, university: "luh"), UniAccountKey.otherAccountText)
         XCTAssertNil(UniAccountKey.hint(nil, university: "luh"))
+    }
+
+    /// Hildesheim und HsH (keine sichere Kennung; Entscheidung des Inhabers vom 14.11.2026): der Abgleich laeuft wie in
+    /// 1.0.4 weiter, auch Notizen, ohne Hinweis. Die App schickt einen Schluessel nur aus StudiNow-Konto und Hochschule:
+    /// gleich auf allen Hildesheimer Geraeten des Kontos, anders als jeder LUH-Schluessel.
+    func testWithoutASecureIdentityTheSyncRunsAsBeforeWithAKeyFromAccountAndUniversity() async throws {
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.withConnection { c in
+            try Migrations.migrate(c)
+            try c.execute("INSERT INTO courses(id, title, semester) VALUES ('lw-1', 'Paedagogik', 'WiSe 2026/27')")
+            try c.execute("INSERT INTO files(id, course_id, name, mime, status) VALUES ('lw-datei', 'lw-1', 'Skript.pdf', 'application/pdf', 'neu')")
+            try c.execute("INSERT INTO modules(name) VALUES ('Paedagogik')")
+            try c.execute("INSERT INTO annotations(file_id, data, version) VALUES ('lw-datei', '{\"note\":\"meine\"}', 1)")
+        }
+        // derselbe Wert wie sync.university_key im Dienst (tests/test_sync_rooms.py)
+        let key = "843b8a58247bab16a76c4b05dbff067e9f9e7b65a5ef7c036b94458cfbe0cf6b"
+        XCTAssertEqual(UniAccountKey.key(account: "konto-1", university: "hildesheim", identity: UniAccountKey.universityOnly), key)
+        let current = try await db.withConnection { try UniAccountKey.current($0, account: "konto-1", university: "hildesheim") }
+        XCTAssertEqual(current, key)
+        let hsh = try await db.withConnection { try UniAccountKey.current($0, account: "konto-1", university: "hsh") }
+        XCTAssertNotNil(hsh)
+        XCTAssertNotEqual(hsh, key, "je Hochschule ein anderer Schluessel")
+        let luh = try await db.withConnection { try UniAccountKey.current($0, account: "konto-1", university: "luh") }
+        XCTAssertNil(luh, "LUH ohne Stud.IP-Abgleich: kein Schluessel")
+        XCTAssertNotEqual(UniAccountKey.key(account: "konto-1", university: "luh", identity: StudIPUserMark.hash(userID: "ada-123")), key)
+
+        let service = FakeService(pages: [Self.mixedPage])
+        let r = await DeviceSync(database: db, transport: service, device: "ipad-hi", requireUniAccount: true).run(account: "konto-1", university: "hildesheim")
+        XCTAssertTrue(r.ok, r.error ?? "")
+        XCTAssertFalse(r.noUniAccount)
+        XCTAssertGreaterThan(r.applied, 0, "holt wie bisher")
+        let queries = await service.queries
+        XCTAssertFalse(queries.isEmpty)
+        XCTAssertTrue(queries.allSatisfy { $0.contains("uni_key=\(key)") && !$0.contains("studip_user") }, queries.description)
+        let pushes = await service.pushes
+        XCTAssertEqual(pushes.first?["uni_key"]?.string, key)
+        XCTAssertNil(pushes.first?["studip_user"])
+        let sent = pushes.flatMap { $0["items"]?.array ?? [] }
+        XCTAssertTrue(sent.contains { $0["entity"]?.string == "modules" && $0["data"]?["name"]?.string == "Paedagogik" }, "sendet wie bisher")
+        XCTAssertTrue(sent.contains { $0["entity"]?.string == "annotations" && $0["id"]?.string == "lw-datei" }, "auch Notizen")
+        // kein Hinweis in den Konto-Einstellungen, auch nicht bei einem zweiten Raum im Konto
+        XCTAssertNil(UniAccountKey.hint(r, university: "hildesheim"))
+        var other = r
+        other.otherUniAccount = true
+        XCTAssertNil(UniAccountKey.hint(other, university: "hildesheim"))
+        XCTAssertNil(UniAccountKey.hint(other, university: "hsh"))
     }
 }

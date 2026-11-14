@@ -675,7 +675,8 @@
           {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
           {"name": "uni_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "studip_user", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "plain", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [

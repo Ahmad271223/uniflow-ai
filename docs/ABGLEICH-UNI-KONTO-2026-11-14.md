@@ -36,17 +36,38 @@ Kennung ist bei der LUH der schon lokal gespeicherte Hash der Stud.IP-Nutzer-ID 
 | Hildesheim | Learnweb-Nutzer-ID gilt nur je Semester-Instanz (learnweb2026, learnweb2027 …) | **keine sichere Kennung** |
 | HsH (nicht veröffentlicht) | Moodle-Nutzer-ID nur aus der Seite | **keine sichere Kennung** |
 
-Ohne sichere Kennung schickt das Gerät keinen Schlüssel und die neue App gleicht dort **nicht** zwischen Geräten ab
-(vorsichtigste Lösung: nicht mischen); Hinweis in den Konto-Einstellungen. Lokale Daten bleiben unberührt. Das gilt
-auch an der LUH, solange auf dem Gerät noch nie Stud.IP abgeglichen wurde. Eine Stelle im Code entscheidet das
-(`UniAccountKey.syncWithoutKey`); **offene Entscheidung des Inhabers**, weil es für Hildesheim den Abgleich der
-Version 1.0.4 zurücknimmt. Kandidat für eine sichere Hildesheimer Kennung: der Anmeldename aus
-`core_webservice_get_site_info` (nur bei Learnweb mit Schlüssel vorhanden, braucht einen Test am echten Zugang).
+**Regel je Hochschule (Entscheidung des Inhabers vom 14.11.2026: „Ja, wie bisher“).**
+
+- **LUH (sichere Kennung):** Abgleich nur mit dem Schlüssel des Uni-Kontos, Trennung wie unten beschrieben. Solange auf
+  dem Gerät noch nie Stud.IP abgeglichen wurde, gibt es keinen Schlüssel und die App gleicht nicht zwischen Geräten ab
+  (kurzer Hinweis in den Konto-Einstellungen). Lokale Daten bleiben unberührt.
+- **Hildesheim, HsH (keine sichere Kennung):** Der Abgleich läuft **wie in 1.0.4 weiter**, auch für Notizen (Pro AI),
+  ohne Hinweis. Die App schickt dort einen Schlüssel nur aus StudiNow-Konto und Hochschule
+  (`UniAccountKey.universityOnly`, Kennung = `ohne-kennung`). Alle Geräte dieser Hochschule unter dem Konto teilen damit
+  einen Raum. Der Dienst rechnet diesen Schlüssel für das Konto der Anfrage selbst nach (`sync.university_key`) und
+  merkt ihn am Raum (`sync_rooms.plain`): Ist das der einzige Raum des Kontos, zählt er für die Regeln nicht – dann
+  gilt für alle Geräte, auch für 1.0.4 ohne jeden Hash, alles wie vor den Räumen (Sehen, Ändern, Löschen, Notizen).
+
+**Mischfall LUH + Hildesheim unter einem StudiNow-Konto** (sicher zwei verschiedene Uni-Konten), dreifach abgesichert:
+1. Die App gleicht ein Gerät, dessen Hochschule nicht die des Kontos ist, gar nicht ab (`StudoraAccountLink.canSync`).
+2. Der Dienst führt je Konto **und Hochschule** eine eigene Datenbank (`config.user_data_dir`).
+3. Käme die Anfrage trotzdem in derselben Datenbank an: Der Hildesheimer Schlüssel enthält die Hochschule und ist
+   deshalb nie ein LUH-Schlüssel → zwei Räume → getrennt, in beide Richtungen kein Ändern und kein Löschen
+   (`tests/test_sync_rooms.py::test_luh_device_and_hildesheim_device_under_one_account_are_separated`).
+
+**Verbleibende Lücke, bewusst:** Zwei verschiedene Hildesheimer Uni-Konten unter einem StudiNow-Konto (gleiche
+Apple-ID) haben denselben Schlüssel und teilen weiter wie in 1.0.4.
+
+**Offener Folgeschritt:** der Learnweb-Anmeldename als Kennung (`core_webservice_get_site_info`, nur bei Learnweb mit
+Schlüssel vorhanden) – erst nach Prüfung am echten Testzugang. Dabei mitzudenken: Die Geräte wechseln dann vom
+gemeinsamen Raum der Hochschule in den Raum ihres Uni-Kontos; der Dienst muss diesen Raum als Nachfolger übernehmen
+(sonst gälten die bisherigen Zeilen als fremd).
 
 **Dienst.** Drei kleine Tabellen in der Konto-Datenbank, keine neue Spalte an den Datentabellen (eine Spalte hätte
 über die Trigger jede Zeile neu gestempelt):
 
-- `sync_rooms(id, uni_key, studip_user)` – ein Raum je Uni-Konto. Alter Hash und neuer Schlüssel zeigen auf denselben Raum.
+- `sync_rooms(id, uni_key, studip_user, plain)` – ein Raum je Uni-Konto. Alter Hash und neuer Schlüssel zeigen auf
+  denselben Raum. `plain` = 1: Raum einer Hochschule ohne sichere Kennung (Schlüssel ohne Nutzerkennung).
 - `sync_devices(device_id, room)` – in welchem Raum ein Gerät zuletzt war.
 - `sync_row_room(entity, entity_id, room, origin, assigned_at)` – Raum und Ursprungsgerät je Zeile.
 
@@ -92,7 +113,8 @@ Gerät mit Raum; Änderungen daran warten (`room_pending`) und kommen an, sobald
 | Client | schickt | Verhalten nach dem Dienst-Update |
 |---|---|---|
 | Apple 1.0.3, Builds 34–41 | `studip_user` | bekommt sofort einen Raum, kein 409 mehr. Ein Uni-Konto im StudiNow-Konto: alles wie bisher. Zwei: sieht und ändert nur noch seinen Raum; kein Aufräumen (das kann erst die neue App) |
-| Apple bis 1.0.2, Windows-App alt, Hildesheim 1.0.4 | nichts | Konto ohne Raum: genau wie bisher. Ein Raum: sieht und ändert weiter alles, löscht aber nur Eigenes und Web-Zeilen. Zwei Räume: sieht und ändert nur Zeilen ohne Raum |
+| Apple bis 1.0.2, Windows-App alt | nichts | Konto ohne Raum: genau wie bisher. Ein Raum: sieht und ändert weiter alles, löscht aber nur Eigenes und Web-Zeilen. Zwei Räume: sieht und ändert nur Zeilen ohne Raum |
+| Hildesheim 1.0.4 | nichts | genau wie bisher, auch neben Geräten mit der neuen App (deren Raum zählt dort nicht) |
 | Web | – | zeigt weiter alle Zeilen des Kontos (kein Uni-Zugang im Browser) |
 
 Kein Fall liefert einen Fehler, keiner löscht Daten auf einem Gerät eines anderen Uni-Kontos. Eine nicht angenommene
@@ -140,7 +162,10 @@ behält seine Fächer und legt sie, falls es sich doch meldet, in seinem Raum ne
 - Aufräum-Fall mit erfundenen Daten: `tests/test_sync_rooms_cleanup.py` (Client wie Windows gegen den Dienst),
   `DeviceSyncUniRoomTests` (Swift-Kern, Schein-Dienst), `DeviceSyncLiveTests.testTwoUniAccountsUnderOneAccountAreSeparatedAgain`
   (Swift-Kern gegen den echten Dienst: `tools/g2-testdienst.py`).
-- App: `AuditPaket40x45AppTests.testDeviceSyncWaitsForTheUniAccountAndThenSendsItsKey`.
+- App: `AuditPaket40x45AppTests.testDeviceSyncWaitsForTheUniAccountAndThenSendsItsKey`,
+  `testHildesheimKeepsSyncingWithoutASecureIdentity`, `testDeviceOfAnotherUniversityThanTheAccountDoesNotSync`.
+- Hildesheim und Mischfall im Dienst: `tests/test_sync_rooms.py` (`…keeps_syncing_as_in_1_0_4`,
+  `…luh_device_and_hildesheim_device…`, `…two_hildesheim_accounts…still_share`, `test_api_hildesheim_account…`).
 
 ## Server-Update
 

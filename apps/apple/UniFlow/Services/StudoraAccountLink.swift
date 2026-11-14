@@ -304,9 +304,9 @@ final class StudoraAccountLink: ObservableObject {
         let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
         guard current(), Self.canSync(user: user, university: university, blocked: demo) else { return false }
         // Raum je Uni-Konto (14.11.2026, `UniAccountKey`): geteilt wird nur zwischen Geraeten mit demselben Uni-Konto. Ohne
-        // Schluessel (noch keine Uni-Anmeldung, Hochschule ohne sichere Kennung) gleicht die App gar nicht ab
-        let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID,
-                                 requireUniAccount: !UniAccountKey.syncWithoutKey(university: university))
+        // Schluessel gleicht die App gar nicht ab; das trifft nur die LUH vor dem ersten Stud.IP-Abgleich. Hochschulen
+        // ohne sichere Kennung (Hildesheim) haben immer einen Schluessel aus Konto und Hochschule: dort wie in 1.0.4
+        let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID, requireUniAccount: true)
             .run(account: id, university: university)
         // die Daten liegen in der Datenbank vom Start (eigener Container); Stand und Meldung gelten nur fuer ihn
         guard current() else { return false }

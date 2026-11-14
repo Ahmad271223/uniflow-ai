@@ -24,6 +24,7 @@ je Uni-Konto gibt es einen Raum (`sync_rooms`), je Zeile Raum und Ursprungsgerae
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -55,6 +56,18 @@ PRIVATE_SETTINGS = {"lan_pin", "university", "studip_user_hash"}
 STUDIP_USER_RE = re.compile(r"^[0-9a-f]{16,128}$")
 UNI_KEY_RE = STUDIP_USER_RE                        # `uni_key`: SHA-256 hex ueber Konto | Hochschule | Uni-Kennung
 ROOM_META = "~meta"                                # Marker in sync_row_room (kein Tabellenname)
+# Hochschulen ohne sichere Kennung des Uni-Kontos (Hildesheim, HsH; Entscheidung des Inhabers vom 14.11.2026: dort
+# laeuft der Abgleich wie bisher): die App schickt einen Schluessel nur aus StudiNow-Konto und Hochschule
+# (`UniAccountKey.universityOnly` im Swift-Kern). Alle Geraete dieser Hochschule teilen dann einen Raum.
+UNIVERSITY_ONLY = "ohne-kennung"
+
+
+def university_key(account, university) -> str | None:
+    """Der Schluessel ohne Nutzerkennung, den ein Geraet dieser Hochschule unter diesem StudiNow-Konto schickt. Der
+    Dienst erkennt daran einen Raum, der kein einzelnes Uni-Konto bezeichnet (`sync_rooms.plain`)."""
+    if not account or not university:
+        return None
+    return hashlib.sha256(f"studinow-uni-konto|{account}|{university}|{UNIVERSITY_ONLY}".encode()).hexdigest()
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
 OP_RE = re.compile(r"^[A-Za-z0-9._:-]{8,100}$")             # Operations-ID eines Push-Eintrags (z. B. UUID)
 NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
@@ -128,8 +141,12 @@ def ensure_rooms(conn) -> None:
     """Tabellen der Raeume; einmalig das Ursprungsgeraet je vorhandener Zeile (zuerst `sync_ops`: wer hat angelegt,
     sonst `sync_device`: letzter Schreiber). Idempotent, vertraegt fehlende Tabellen, fasst keine Datenzeile an
     (eine Spalte an den Datentabellen haette ueber die Trigger jede Zeile neu gestempelt)."""
+    # `plain` = 1: Raum aus dem Schluessel ohne Nutzerkennung (`university_key`), also kein bestimmtes Uni-Konto
     conn.execute("""CREATE TABLE IF NOT EXISTS sync_rooms (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, uni_key TEXT UNIQUE, studip_user TEXT UNIQUE, created_at TEXT NOT NULL)""")
+        id INTEGER PRIMARY KEY AUTOINCREMENT, uni_key TEXT UNIQUE, studip_user TEXT UNIQUE, created_at TEXT NOT NULL,
+        plain INTEGER NOT NULL DEFAULT 0)""")
+    if "plain" not in {r[1] for r in conn.execute("PRAGMA table_info(sync_rooms)")}:     # Tabelle aus einem frueheren Stand dieses Zweigs
+        db.add_column(conn, "sync_rooms", "plain", "INTEGER NOT NULL DEFAULT 0")
     conn.execute("CREATE TABLE IF NOT EXISTS sync_devices (device_id TEXT PRIMARY KEY, room INTEGER NOT NULL, seen_at TEXT NOT NULL)")
     conn.execute("""CREATE TABLE IF NOT EXISTS sync_row_room (
         entity TEXT NOT NULL, entity_id TEXT NOT NULL, room INTEGER, origin TEXT, assigned_at TEXT,
@@ -170,7 +187,13 @@ class Rooms:
     """Raum des anfragenden Geraets und die Regeln dazu (docs/ABGLEICH-UNI-KONTO-2026-11-14.md).
 
     `room`: Nummer des Raums oder None (Geraet ohne Schluessel: Windows-App alt, Apple bis 1.0.2). `count`: Zahl der
-    Raeume des Kontos. `modern`: der Client kennt `foreign` (er schickt `uni_key` oder meldet die Faehigkeit `uni_room`).
+    Raeume des Kontos, die fuer die Regeln zaehlen; `total`: alle. `modern`: der Client kennt `foreign` (er schickt
+    `uni_key` oder meldet die Faehigkeit `uni_room`).
+
+    Hochschule ohne sichere Kennung (Hildesheim, HsH): ihre Geraete schicken einen Schluessel ohne Nutzerkennung und
+    teilen einen Raum (`sync_rooms.plain`). Ist das der einzige Raum des Kontos, zaehlt er nicht (`count` = 0): dann
+    gilt fuer alle Geraete, auch die ohne Schluessel, alles wie vor den Raeumen - der Abgleich dieser Hochschule laeuft
+    wie in 1.0.4. Kommt ein zweiter Raum dazu (ein Geraet mit einem echten Uni-Konto, z. B. LUH), wird getrennt.
 
     Getrennt wird, sobald der Dienst zwei Uni-Konten unter dem StudiNow-Konto kennt (zwei Raeume). Solange es nur
     einen Raum gibt, sieht und aendert jedes Geraet alles wie bisher (sonst waeren die Zeilen eines Geraets, das sich
@@ -198,7 +221,15 @@ class Rooms:
     def __init__(self, conn, device: str | None = None, room: int | None = None, modern: bool = False):
         self.conn, self.device, self.room, self.modern = conn, device, room, modern
         self.ready = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_row_room'").fetchone())
-        self.count = conn.execute("SELECT COUNT(*) FROM sync_rooms").fetchone()[0] if self.ready else 0
+        self.total = self.count = 0
+        self.recount()
+
+    def recount(self) -> None:
+        if not self.ready:
+            return
+        plain = [r[0] for r in self.conn.execute("SELECT plain FROM sync_rooms")]
+        self.total = len(plain)
+        self.count = 0 if len(plain) == 1 and plain[0] else len(plain)
 
     @property
     def legacy(self) -> bool:
@@ -304,10 +335,13 @@ class Rooms:
         return "1=1", []
 
 
-def resolve_room(conn, device: str | None, uni_key=None, studip_user=None, now: str | None = None) -> Rooms:
+def resolve_room(conn, device: str | None, uni_key=None, studip_user=None, now: str | None = None,
+                 plain_key: str | None = None) -> Rooms:
     """Raum des Geraets aus seinen Hashes; legt Raum und Geraet bei Bedarf an und ordnet die Zeilen zu, die dieses
     Geraet frueher ohne Raum angelegt hat (Altbestand). Ohne Hash: der zuletzt gemeldete Raum des Geraets, sonst
-    keiner. ValueError bei einem Wert, der kein Hex-Hash ist (wie bisher bei `studip_user`)."""
+    keiner. ValueError bei einem Wert, der kein Hex-Hash ist (wie bisher bei `studip_user`).
+    `plain_key`: der Schluessel ohne Nutzerkennung dieses Kontos und dieser Hochschule (`university_key`); ein Raum
+    mit genau diesem Schluessel bezeichnet kein einzelnes Uni-Konto (`Rooms`, `sync_rooms.plain`)."""
     for name, value in (("uni_key", uni_key), ("studip_user", studip_user)):
         if value not in (None, "") and (not isinstance(value, str) or not UNI_KEY_RE.match(value)):
             raise ValueError(f"{name} muss ein Hex-Hash sein")
@@ -330,8 +364,8 @@ def resolve_room(conn, device: str | None, uni_key=None, studip_user=None, now: 
             if key:                                             # Raum einer aelteren App bekommt den neuen Schluessel
                 conn.execute("UPDATE sync_rooms SET uni_key=? WHERE id=?", (key, room))
         else:
-            room = conn.execute("INSERT INTO sync_rooms(uni_key, studip_user, created_at) VALUES (?,?,?)",
-                                (key, None if by_user else user, now)).lastrowid
+            room = conn.execute("INSERT INTO sync_rooms(uni_key, studip_user, created_at, plain) VALUES (?,?,?,?)",
+                                (key, None if by_user else user, now, 1 if key and key == plain_key else 0)).lastrowid
         if device:
             known = conn.execute("SELECT room FROM sync_devices WHERE device_id=?", (device,)).fetchone()
             if not known or known[0] != room:                   # nur schreiben, wenn sich etwas aendert (jeder Abruf kommt hier vorbei)
@@ -352,7 +386,7 @@ def resolve_room(conn, device: str | None, uni_key=None, studip_user=None, now: 
         conn.execute("UPDATE sync_row_room SET room=?, assigned_at=? WHERE room IS NULL AND origin=? AND entity != ?",
                      (room, now, device, ROOM_META))
     ctx.room = room
-    ctx.count = conn.execute("SELECT COUNT(*) FROM sync_rooms").fetchone()[0]
+    ctx.recount()
     return ctx
 
 
@@ -489,7 +523,7 @@ def changes(conn, since: str | None, limit: int = MAX_PULL, rooms: Rooms | None 
     if tell:
         res["foreign"] = [{"entity": f["entity"], "id": _foreign_id(f["entity"], f["entity_id"])} for f in foreign]
     if rooms is not None and rooms.modern:
-        res["uni"] = {"rooms": rooms.count, "room": rooms.room is not None}
+        res["uni"] = {"rooms": rooms.total, "room": rooms.room is not None}
     return res
 
 

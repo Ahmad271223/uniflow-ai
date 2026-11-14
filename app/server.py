@@ -1073,7 +1073,9 @@ def _sync_rooms(conn, request, device, uni_key, studip_user):
     for name, value in (("studip_user", studip_user), ("uni_key", uni_key)):
         if value not in (None, "") and (not isinstance(value, str) or not sync.UNI_KEY_RE.match(value)):
             raise HTTPException(400, {"detail": f"{name} muss ein Hex-Hash sein", "code": f"{name}_invalid"})
-    rooms = sync.resolve_room(conn, device if isinstance(device, str) else None, uni_key, studip_user)
+    # Schluessel ohne Nutzerkennung dieses Kontos (Hochschule ohne sichere Kennung): der Dienst rechnet ihn selbst nach
+    plain = sync.university_key(config.current_user_id(), config.university()) if config.is_hosted() else None
+    rooms = sync.resolve_room(conn, device if isinstance(device, str) else None, uni_key, studip_user, plain_key=plain)
     rooms.modern = rooms.modern or SYNC_ROOM_CAP in device_limit.client_caps(request)
     return rooms
 

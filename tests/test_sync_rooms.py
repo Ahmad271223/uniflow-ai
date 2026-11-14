@@ -33,9 +33,21 @@ def conn(tmp_path):
     c.close()
 
 
+# Schluessel ohne Nutzerkennung (Hochschule ohne sichere Kennung): StudiNow-Konto "1" an der Uni Hildesheim bzw. LUH
+HI = hashlib.sha256(b"studinow-uni-konto|1|hildesheim|ohne-kennung").hexdigest()
+PLAIN = {"plain": None}      # was der Dienst fuer das Konto der Anfrage nachrechnet (`sync.university_key`); je Test gesetzt
+
+
 def _room(conn, device, key=None, user=None):
     from app import sync
-    return sync.resolve_room(conn, device, key, user)
+    return sync.resolve_room(conn, device, key, user, plain_key=PLAIN["plain"])
+
+
+@pytest.fixture(autouse=True)
+def _no_plain_key():
+    PLAIN["plain"] = None
+    yield
+    PLAIN["plain"] = None
 
 
 def _push(conn, device, items=None, deletes=None, key=None, user=None):
@@ -317,6 +329,95 @@ def test_pages_respect_the_room_and_the_late_assignment(conn):
     assert all("_ts" not in m for m in d["changes"].get("modules", []))
 
 
+# ---------------------------------------------------------------- Hochschule ohne sichere Kennung (Hildesheim, HsH)
+
+def test_university_without_secure_identity_keeps_syncing_as_in_1_0_4(conn):
+    """Entscheidung des Inhabers vom 14.11.2026: an Hochschulen ohne sichere Kennung laeuft der Abgleich wie bisher.
+    Die neue App schickt einen Schluessel nur aus StudiNow-Konto und Hochschule; ist dessen Raum der einzige im Konto,
+    gilt fuer alle Geraete - auch die aeltere App ohne jeden Hash - alles wie vor den Raeumen, auch Loeschen und Notizen."""
+    from app import sync
+    # derselbe Wert wie UniAccountKey im Swift-Kern (DeviceSyncUniRoomTests)
+    assert sync.university_key("konto-1", "hildesheim") == "843b8a58247bab16a76c4b05dbff067e9f9e7b65a5ef7c036b94458cfbe0cf6b"
+    assert sync.university_key("1", "hildesheim") == HI and sync.university_key(None, "hildesheim") is None
+    PLAIN["plain"] = HI                                         # das Konto der Anfrage ist ein Hildesheimer Konto
+    old = sync.push(conn, "ipad-1.0.4", [{"entity": "modules", "local_id": -1, "data": {"name": "Aus 1.0.4"}}])["results"][0]["id"]
+    new = _new(conn, "iphone-neu", "Aus der neuen App", key=HI)
+    ctx = _room(conn, "iphone-neu", HI)
+    assert (ctx.total, ctx.count, ctx.room is not None) == (1, 0, True) and conn.execute("SELECT plain FROM sync_rooms").fetchone()[0] == 1
+    # beide sehen alles; die aeltere App bekommt die Antwort in der bekannten Form
+    first = _pull(conn, "iphone-neu", HI)
+    assert _names(first) == ["Aus 1.0.4", "Aus der neuen App"] and first["foreign"] == [] and first["uni"] == {"rooms": 1, "room": True}
+    legacy = sync.changes(conn, None, rooms=_room(conn, "ipad-1.0.4"))
+    assert _names(legacy) == ["Aus 1.0.4", "Aus der neuen App"] and set(legacy) == {"cursor", "changes", "tombstones", "has_more"}
+    # aendern in beide Richtungen
+    out = _push(conn, "iphone-neu", [{"entity": "modules", "id": old, "base_version": 1, "data": {"color": "#111111"}}], key=HI)
+    assert out["results"][0]["status"] == "applied"
+    out = sync.push(conn, "ipad-1.0.4", [{"entity": "modules", "id": new, "base_version": 1, "data": {"color": "#222222"}}])
+    assert out["results"][0]["status"] == "applied"
+    # Notizen (Pro AI prueft die Schnittstelle, nicht der Raum): beide Geraete schreiben dieselbe Datei fort
+    out = _push(conn, "iphone-neu", [{"entity": "annotations", "id": "f1", "base_version": None, "data": {"note": "neu"}}], key=HI)
+    assert out["results"][0]["status"] == "applied"
+    out = sync.push(conn, "ipad-1.0.4", [{"entity": "annotations", "id": "f1", "base_version": 1, "data": {"note": "alt und neu"}}])
+    assert out["results"][0] == {"entity": "annotations", "id": "f1", "status": "applied", "version": 2}
+    assert _pull(conn, "iphone-neu", HI, since=first["cursor"])["changes"]["annotations"][0]["data"] == {"note": "alt und neu"}
+    # loeschen in beide Richtungen, die Loeschmarke erreicht jeweils das andere Geraet (auch das Ursprungsgeraet)
+    assert sync.push(conn, "ipad-1.0.4", [], [{"entity": "modules", "id": new}])["results"][0]["status"] == "deleted"
+    assert _push(conn, "iphone-neu", deletes=[{"entity": "modules", "id": old}], key=HI)["results"][0]["status"] == "deleted"
+    assert conn.execute("SELECT COUNT(*) FROM modules").fetchone()[0] == 0
+    assert {t["entity_id"] for t in _pull(conn, "iphone-neu", HI, since=first["cursor"])["tombstones"]} == {str(old), str(new)}
+    seen = sync.changes(conn, legacy["cursor"], rooms=_room(conn, "ipad-1.0.4"))["tombstones"]
+    assert {t["entity_id"] for t in seen} == {str(old), str(new)} and all(set(t) == {"entity", "entity_id", "deleted_at", "device"} for t in seen)
+
+
+def test_luh_device_and_hildesheim_device_under_one_account_are_separated(conn):
+    """Der Mischfall: ein StudiNow-Konto, ein LUH-Geraet mit dem Schluessel seines Uni-Kontos und ein Hildesheimer
+    Geraet mit dem Schluessel ohne Nutzerkennung. Das sind sicher zwei verschiedene Uni-Konten. Die App gleicht ein
+    Geraet der falschen Hochschule gar nicht erst ab (`StudoraAccountLink.canSync`), und der Dienst fuehrt je Hochschule
+    eine eigene Datenbank; kaeme die Anfrage trotzdem in derselben Datenbank an, trennen die Raeume."""
+    from app import sync
+    for plain in (hashlib.sha256(b"studinow-uni-konto|1|luh|ohne-kennung").hexdigest(), HI):
+        # einmal in der LUH-Datenbank des Kontos (dort ist der Hildesheimer Schluessel ein gewoehnlicher Raum), einmal in
+        # der Hildesheimer (dort zaehlt sein Raum erst, seit es einen zweiten gibt)
+        for t in ("modules", "sync_rooms", "sync_devices", "sync_tombstones"):
+            conn.execute(f"DELETE FROM {t}")
+        conn.execute("DELETE FROM sync_row_room WHERE entity != '~meta'")
+        PLAIN["plain"] = plain
+        hi = _new(conn, "ipad-hildesheim", "Paedagogik", key=HI)
+        alone = _room(conn, "ipad-hildesheim", HI)
+        assert alone.total == 1 and alone.count == (0 if plain == HI else 1)
+        luh = _new(conn, "iphone-luh", "Mathematik I", key=KA, user=A)
+        ctx = _room(conn, "iphone-luh", KA, A)
+        assert (ctx.total, ctx.count) == (2, 2), "zwei Raeume: ab jetzt wird getrennt"
+        d_luh, d_hi = _pull(conn, "iphone-luh", KA, A), _pull(conn, "ipad-hildesheim", HI)
+        assert _names(d_luh) == ["Mathematik I"] and _names(d_hi) == ["Paedagogik"]
+        assert d_luh["foreign"] == [{"entity": "modules", "id": hi}] and d_hi["foreign"] == [{"entity": "modules", "id": luh}]
+        # weder aendern noch loeschen ueber die Grenze, in beide Richtungen
+        out = _push(conn, "ipad-hildesheim", [{"entity": "modules", "id": luh, "base_version": 1, "data": {"name": "x"}}],
+                    [{"entity": "modules", "id": luh}], key=HI)
+        assert [r["status"] for r in out["results"]] == ["other_room", "other_room"]
+        out = _push(conn, "iphone-luh", [{"entity": "modules", "id": hi, "base_version": 1, "data": {"name": "x"}}],
+                    [{"entity": "modules", "id": hi}], key=KA, user=A)
+        assert [r["status"] for r in out["results"]] == ["other_room", "other_room"]
+        assert [r[0] for r in conn.execute("SELECT name FROM modules ORDER BY id")] == ["Paedagogik", "Mathematik I"]
+        # ein Geraet ohne jeden Hash macht in einem Konto mit zwei Raeumen nichts kaputt
+        out = sync.push(conn, "alt-ohne-hash", [{"entity": "modules", "id": luh, "base_version": 1, "data": {"name": "x"}}],
+                        [{"entity": "modules", "id": luh}, {"entity": "modules", "id": hi}])
+        assert [r["status"] for r in out["results"]] == ["room_pending"] * 3
+        assert _names(sync.changes(conn, None, rooms=_room(conn, "alt-ohne-hash"))) == []
+        assert conn.execute("SELECT COUNT(*) FROM modules").fetchone()[0] == 2 and conn.execute("SELECT COUNT(*) FROM sync_tombstones").fetchone()[0] == 0
+
+
+def test_two_hildesheim_accounts_under_one_account_still_share(conn):
+    """Die verbleibende Luecke, bewusst: zwei verschiedene Hildesheimer Uni-Konten unter einem StudiNow-Konto haben
+    denselben Schluessel (ohne Nutzerkennung) und teilen weiter wie in 1.0.4. Schliesst sich erst mit einer sicheren
+    Kennung (Folgeschritt: Learnweb-Anmeldename, nach Pruefung am echten Testzugang)."""
+    PLAIN["plain"] = HI
+    _new(conn, "ipad-erste-person", "Fach der ersten Person", key=HI)
+    _new(conn, "ipad-zweite-person", "Fach der zweiten Person", key=HI)
+    assert _names(_pull(conn, "ipad-erste-person", HI)) == ["Fach der ersten Person", "Fach der zweiten Person"]
+    assert conn.execute("SELECT COUNT(*) FROM sync_rooms").fetchone()[0] == 1
+
+
 # ---------------------------------------------------------------- Migration
 
 def test_migration_on_an_old_database_is_repeatable_and_touches_no_row(tmp_path):
@@ -455,3 +556,37 @@ def test_api_private_hash_cannot_be_set_by_devices(hosted):
     asgi_call(app, "PUT", "/api/settings", headers=h, body=json.dumps({"studip_user_hash": B}))
     st, d = _api_changes(app, h, "ipad-x", uni_key=KA)
     assert st == 200 and all(s["key"] != "studip_user_hash" for s in d["changes"].get("settings", []))
+
+
+def test_api_hildesheim_account_syncs_as_before_and_the_service_recognises_its_key(app, monkeypatch):
+    from app import accounts, config, sync
+    monkeypatch.setattr(config, "MODE", "hosted")
+    monkeypatch.setenv("LERNAPP_JOBS", "off")
+    for suffix in ("", "-wal", "-shm"):
+        accounts.db_path().with_name(accounts.db_path().name + suffix).unlink(missing_ok=True)
+    st, _, b = asgi_call(app, "POST", "/api/account/register",
+                         body=json.dumps({"email": "hildesheim@beispiel.de", "password": "sehr-geheim-123", "university": "hildesheim"}))
+    assert st == 201
+    d = json.loads(b)
+    h = {"Authorization": f"Bearer {d['token']}"}
+    key = sync.university_key(d["user"]["id"], "hildesheim")
+    try:
+        st, out = _api_push(app, h, "iphone-neu", "Aus der neuen App", uni_key=key)
+        assert st == 200 and out["results"][0]["status"] == "created"
+        new = out["results"][0]["id"]
+        st, out = _api_push(app, h, "ipad-1.0.4", "Aus 1.0.4")
+        assert st == 200
+        st, legacy = _api_changes(app, h, "ipad-1.0.4")
+        assert sorted(m["name"] for m in legacy["changes"]["modules"]) == ["Aus 1.0.4", "Aus der neuen App"]
+        assert set(legacy) == {"cursor", "changes", "tombstones", "has_more"}
+        st, modern = _api_changes(app, h, "iphone-neu", uni_key=key)
+        assert sorted(m["name"] for m in modern["changes"]["modules"]) == ["Aus 1.0.4", "Aus der neuen App"]
+        assert modern["uni"] == {"rooms": 1, "room": True} and modern["foreign"] == []
+        # die aeltere App loescht die Zeile der neuen: wie in 1.0.4, die neue bekommt die Loeschmarke
+        body = {"device_id": "ipad-1.0.4", "items": [], "deletes": [{"entity": "modules", "id": new}]}
+        st, _, b = asgi_call(app, "POST", "/api/sync/push", headers=h, body=json.dumps(body))
+        assert st == 200 and json.loads(b)["results"][0]["status"] == "deleted"
+        st, after = _api_changes(app, h, "iphone-neu", uni_key=key, since=modern["cursor"])
+        assert [t["entity_id"] for t in after["tombstones"]] == [str(new)]
+    finally:
+        accounts.db_path().unlink(missing_ok=True)
