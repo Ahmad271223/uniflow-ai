@@ -395,6 +395,27 @@ final class IPhoneRealShotsTests: XCTestCase {
         return true
     }
 
+    /// So weit rollen, bis keiner dieser Texte mehr im Bild steht (für Karten, die nicht aufs Bild sollen)
+    @discardableResult
+    private func scrollBisWeg(_ env: HostedEnvironment, _ texte: [String], steps: Int = 14) -> Bool {
+        func listen(_ v: UIView) -> [UIScrollView] {
+            var out: [UIScrollView] = []
+            if let s = v as? UIScrollView, s.contentSize.height > s.bounds.height + 20 { out.append(s) }
+            for c in v.subviews where !c.isHidden { out += listen(c) }
+            return out
+        }
+        for _ in 0..<steps {
+            if !texte.contains(where: { imBild(env, $0) }) { return true }
+            guard let s = listen(env.window).max(by: { $0.bounds.height < $1.bounds.height }) else { return false }
+            let maxY = max(0, s.contentSize.height - s.bounds.height)
+            let next = min(maxY, s.contentOffset.y + s.bounds.height * 0.35)
+            if abs(next - s.contentOffset.y) < 1 { break }
+            s.setContentOffset(CGPoint(x: s.contentOffset.x, y: next), animated: false)
+            env.pump(0.4)
+        }
+        return !texte.contains(where: { imBild(env, $0) })
+    }
+
     @discardableResult
     private func scrollUntil(_ env: HostedEnvironment, label: String, steps: Int = 12) -> Bool {
         func listen(_ v: UIView) -> [UIScrollView] {
@@ -427,6 +448,21 @@ final class IPhoneRealShotsTests: XCTestCase {
         control.selectedSegmentIndex = i
         control.sendActions(for: .valueChanged)
         env.pump(0.3)
+        return true
+    }
+
+    /// Segment wählen, dessen Titel so beginnt (die Filter heißen „Bestanden (7)“ und Ähnliches)
+    private func selectSegment(_ env: HostedEnvironment, prefix: String) -> Bool {
+        func find(_ v: UIView) -> (UISegmentedControl, Int)? {
+            if let s = v as? UISegmentedControl,
+               let i = (0..<s.numberOfSegments).first(where: { (s.titleForSegment(at: $0) ?? "").hasPrefix(prefix) }) { return (s, i) }
+            for c in v.subviews where !c.isHidden { if let r = find(c) { return r } }
+            return nil
+        }
+        guard let (control, i) = find(env.window) else { return false }
+        control.selectedSegmentIndex = i
+        control.sendActions(for: .valueChanged)
+        env.pump(0.5)
         return true
     }
 
@@ -553,16 +589,23 @@ final class IPhoneRealShotsTests: XCTestCase {
               sheetReady: { self.shows(env, "Zweierkomplement") || self.shows(env, "Prüfungsrelevant") })
     }
 
-    /// 6 Studienverlauf mit Leistungspunkten (ohne einzelne Noten im Bild – Entscheidung mit dem Inhaber)
+    /// 6 Studienverlauf: die Semester mit ihren Modulen. Zwei Dinge gehören nicht auf ein Store-Bild und werden
+    /// weggerollt: die Karte „Prüfungsanmeldung“ (sie nennt für diesen Studiengang „kennt StudiNow nicht sicher“) und
+    /// die Abzeichen „Verschoben“/„nachholen“ der ersten Semester. Einzelne Noten stehen hier ohnehin nicht
+    /// (der Filter zählt „Bestanden (0)“: der Studienverlauf kennt den Notenspiegel nicht als bestandene Module).
     func test06Studienverlauf() throws {
         let env = try host(MainView())
         env.router.go(.studyPlan())
         expect(env, "Studienverlauf")
-        env.pump(1.5)
-        // Einzelne Noten gehören nicht auf ein öffentliches Bild (Entscheidung 14.11.2026): nur Leistungspunkte
-        for heikel in ["nicht bestanden", "5,0", "Note"] {
+        env.pump(2.0)
+        let weg = ["Prüfungsanmeldung", "Prüfungsamt", "nicht sicher", "nachholen", "Verschoben",
+                   "Keine Module geplant", "nicht bestanden", "5,0"]
+        XCTAssertTrue(scrollBisWeg(env, weg, steps: 20), "Noch im Bild:\n" + dump(env))
+        env.pump(1.0)
+        for heikel in weg {
             XCTAssertFalse(imBild(env, heikel), "06: „\(heikel)“ wäre im Bild:\n" + dump(env))
         }
+        XCTAssertTrue(shows(env, "Fachsemester"), "Semester mit Modulen:\n" + dump(env))
         shoot(env, "06-studienverlauf", settle: 1.6)
     }
 
