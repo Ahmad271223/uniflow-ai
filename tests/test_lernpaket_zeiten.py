@@ -108,9 +108,13 @@ def test_without_spill_tasks_lose_their_time_instead_of_running_past_midnight(fr
         pk, tk = _all(conn)
     _valid(pk)
     _valid(tk)
-    assert {p["date"] for p in pk} == {"2026-11-12"} and [p["id"] for p in pk] == ids
+    assert {p["date"] for p in pk} == {"2026-11-12"} and [p["id"] for p in pk][:4] == ids
     assert all(p["end_time"] is None or p["end_time"] <= "21:00" for p in pk)
-    assert any(t["start_time"] is None for t in tk)
+    assert sum(t["est_minutes"] for t in tk) == 4 * 240, "nichts verloren, nichts gekappt"
+    # jedes Paket mit Uhrzeit hat nur Aufgaben mit Uhrzeit; was keinen Platz hat, liegt in Paketen ohne Uhrzeit
+    timed = {p["id"] for p in pk if p["start_time"]}
+    assert all((t["start_time"] is not None) == (t["package_id"] in timed) for t in tk)
+    assert any(not p["start_time"] for p in pk)
 
 
 def test_old_times_after_midnight_are_repaired_once(fresh):

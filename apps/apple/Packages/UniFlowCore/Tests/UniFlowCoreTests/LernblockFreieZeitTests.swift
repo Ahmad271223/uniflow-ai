@@ -143,7 +143,10 @@ final class LernblockFreieZeitTests: XCTestCase {
     }
 
     /// Mi 11.11.: "Programmieren I · Lehrwoche 4: Uebungen" mit zwei 60-min-Aufgaben: die erste vor der ersten
-    /// Vorlesung, die zweite passt in kein Fenster mehr -> hinter den letzten Termin samt Heimfahrt, volle 60 min
+    /// Vorlesung, die zweite passt in kein Fenster mehr. Bis Build 41 kam sie hinter den letzten Termin samt Heimfahrt
+    /// (20:15–21:15), also nach dem Lernende 21:00 (Fehler vom echten iPhone vom 14.11.2026: bis "25:15"). Jetzt bleibt
+    /// sie an diesem Tag, ungekappt, als eigenes Paket ohne Uhrzeit ("Uhrzeiten vergeben" verlegt nichts); das Paket
+    /// 08:00–09:00 hat nur noch seine 60 Minuten.
     func testMittwochProgrammierenNieUeberTermineUndNichtGekappt() async throws {
         let uhr = Uhr("2026-11-10T07:30:00")
         let b = try await backend(uhr)
@@ -152,9 +155,14 @@ final class LernblockFreieZeitTests: XCTestCase {
         try await slots(b, mittwoch)
         try await pruefeTag(b, mittwoch)
 
-        let teile = try await pakete(b, mittwoch).filter { $0["subject"]?.string == "Programmieren I" }
-        XCTAssertEqual(teile.map { "\($0["start_time"]?.string ?? "")–\($0["end_time"]?.string ?? "")" }, ["08:00–09:00", "20:15–21:15"])
+        let teile = try await pakete(b, mittwoch).filter { $0["subject"]?.string == "Programmieren I" }.sorted { ($0["id"]?.int ?? 0) < ($1["id"]?.int ?? 0) }
+        XCTAssertEqual(teile.map { "\($0["start_time"]?.string ?? "")–\($0["end_time"]?.string ?? "")" }, ["08:00–09:00", "–"])
         XCTAssertEqual(teile.map { $0["planned_minutes"]?.int ?? 0 }, [60, 60])
+        XCTAssertEqual(teile.map { $0["title"]?.string ?? "" }, ["Lehrwoche 4: Übungen", "Lehrwoche 4: Übungen"])
+        let rest = try await aufgaben(b, paket: teile[1]["id"])
+        XCTAssertEqual(rest.map { $0["title"]?.string ?? "" }, ["WSL einrichten"])
+        XCTAssertEqual(rest.map { $0["est_minutes"]?.int ?? 0 }, [60], "nicht gekappt")
+        XCTAssertEqual(rest.map { $0["start_time"] ?? .null }, [.null])
     }
 
     /// Ein Termin "nicht besucht" gibt seine Zeit frei: dort darf der Lernblock liegen (am Stueck, ungeteilt). Wird er
@@ -216,8 +224,17 @@ final class LernblockFreieZeitTests: XCTestCase {
         let h = try XCTUnwrap(di.first { $0["id"]?.int == Int(hand) })
         XCTAssertEqual([h["start_time"], h["end_time"]], ["16:15", "16:45"], "Uhrzeit von Hand ohne Konflikt bleibt")
         XCTAssertEqual(di.filter { $0["subject"]?.string == mfi }.count, 2, "altes Paket ueber mehrere Fenster geteilt")
-        let k = try XCTUnwrap(di.first { $0["id"]?.int == Int(gekappt) })
+        // Physik (45 min, war auf 30 gekappt) hat am Dienstag keinen Platz mehr: bis Build 41 kam es hinter den letzten
+        // Block (21:00–21:45, nach dem Lernende 21:00; Fehler vom 14.11.2026). Unberuehrt automatisch -> naechster
+        // Lerntag mit Platz, mit voller Dauer und in der Lernzeit
+        XCTAssertNil(di.first { $0["id"]?.int == Int(gekappt) })
+        let kRow = try await b.context.database.withConnection { try $0.rows("SELECT * FROM study_packages WHERE id=?", [.integer(gekappt)]).first }
+        let k = try XCTUnwrap(kRow)
+        let neuerTag = try XCTUnwrap(k["date"]?.string)
+        XCTAssertGreaterThan(neuerTag, dienstag)
         XCTAssertEqual(m(k["end_time"]) - m(k["start_time"]), 45, "gekappte Aufgabe hat wieder ihre volle Dauer")
+        XCTAssertTrue(m(k["start_time"]) >= 8 * 60 && m(k["end_time"]) <= 21 * 60, "in der Lernzeit: \(k)")
+        try await pruefeTag(b, neuerTag)
         let mo = try await pakete(b, montag)
         XCTAssertEqual([mo.first?["start_time"], mo.first?["end_time"]], ["08:00", "09:00"], "vergangener Tag bleibt")
         let mi = try await pakete(b, mittwoch).filter { $0["subject"]?.string == "Programmieren I" }
@@ -238,9 +255,11 @@ final class LernblockFreieZeitTests: XCTestCase {
         XCTAssertEqual(fixed, 0)
     }
 
-    /// Paket mit einer Aufgabe, die laenger ist als jedes freie Fenster (neues Dokument, `insertNewFiles`): nicht
-    /// gekappt in ein zu kleines Fenster, sondern hinter den letzten belegten Block
-    func testZuLangeAufgabeHinterDenLetztenBlock() async throws {
+    /// Paket mit einer Aufgabe, die laenger ist als jedes freie Fenster: nie gekappt in ein zu kleines Fenster (20:00–21:00)
+    /// und nie nach dem Lernende. Bis Build 41 kam es hinter den letzten belegten Block (20:00–21:30, nach dem Lernende
+    /// 21:00; Fehler vom echten iPhone vom 14.11.2026). Jetzt: "Uhrzeiten vergeben" laesst es ohne Uhrzeit am Tag;
+    /// automatisch geplant (z. B. neues Dokument, `insertNewFiles`) kommt es auf den naechsten Lerntag mit Platz.
+    func testZuLangeAufgabeNieGekapptUndNieNachDemLernende() async throws {
         let uhr = Uhr("2026-11-10T07:30:00")
         let b = try await backend(uhr)
         try await paket(b, uhr, dienstag, "Signale und Systeme", "Lehrwoche 4", [("Kapitel 4 lesen", 90)])
@@ -253,7 +272,14 @@ final class LernblockFreieZeitTests: XCTestCase {
         let p = try XCTUnwrap(ps.first { $0["id"]?.int == Int(id) })
         XCTAssertEqual([p["start_time"], p["end_time"]], ["16:15", "17:45"], "erstes Fenster mit genug Platz")
         let sig = try XCTUnwrap(ps.first { $0["subject"]?.string == "Signale und Systeme" })
-        XCTAssertEqual([sig["start_time"], sig["end_time"]], ["20:00", "21:30"], "hinter dem letzten Termin samt Heimfahrt")
+        XCTAssertEqual([sig["start_time"], sig["end_time"]], [.null, .null], "kein Platz an diesem Tag: ohne Uhrzeit, nicht nach 21:00")
+        let sigAufgaben = try await aufgaben(b, paket: sig["id"])
+        XCTAssertEqual(sigAufgaben.map { $0["est_minutes"]?.int ?? 0 }, [90], "nicht gekappt")
+        // automatisch: naechster Lerntag (Mittwoch), erstes Fenster mit 90 Minuten Platz
+        try await b.context.database.transaction { try StudyPlan.assignSlots($0, day: tag, packageID: sig["id"].flatMap(SQLiteValue.init(json:)), spill: StudyPlan.spillDays) }
+        let mi = try await pakete(b, mittwoch)
+        XCTAssertEqual(mi.filter { $0["subject"]?.string == "Signale und Systeme" }.map { "\($0["start_time"]?.string ?? "")–\($0["end_time"]?.string ?? "")" }, ["15:45–17:15"])
+        try await pruefeTag(b, mittwoch)
     }
 
     /// Heute neu gelegt: nie in schon vergangener Zeit. Ein alter Block 09:45–10:30 ueber Ue Numerik (10:15) wird um
