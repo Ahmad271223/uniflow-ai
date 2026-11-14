@@ -130,10 +130,50 @@ def test_switch_needs_a_session_with_a_device(hosted):
     account(hosted, "free", "ohne@beispiel.de")
     _, h1 = login(hosted, "ohne@beispiel.de", "ipad-1", "iPad")
     assert _j(asgi_call(hosted, "POST", "/api/account/device/primary"))[0] == 401
-    _, web = login(hosted, "ohne@beispiel.de", caps=False)                       # Sitzung ohne Geraete-Kennung
-    st, d = use_this(hosted, web)
+    _, nodev = login(hosted, "ohne@beispiel.de")                                 # Faehigkeit, aber Sitzung ohne Geraete-Kennung
+    st, d = use_this(hosted, nodev)
     assert st == 400 and d["code"] == "device_unknown"
     assert ent(hosted, h1)["device"]["is_primary"] is True, "das Hauptgeraet bleibt"
+
+
+def test_switch_refuses_web_and_windows_even_when_locked(hosted):
+    """Die Route liegt unter /api/account/ und geht damit durch die Abo-Sperre von Web und Windows
+    (access.LOCKED_WRITE_PREFIXES, tests/test_audit_paket_21_22.py und _25_27.py). Darum prueft sie selbst: nur
+    Apple-Apps mit der Faehigkeit. Die Windows-App meldet eine Geraete-Kennung an - ohne die Pruefung machte sie sich
+    zum Hauptgeraet und sperrte das iPad eines Free-Kontos aus."""
+    from app import access, account_api, device_limit
+    u = account(hosted, "free", "sperre@beispiel.de")
+    _, ipad = login(hosted, "sperre@beispiel.de", "ipad-1", "iPad")
+    assert access.for_user(u, "windows")["locked"] and access.for_user(u, "web")["locked"], "Free an Web/Windows: Abo-Sperre"
+    assert access.write_allowed_when_locked("POST", "/api/account/device/primary"), "die Sperre laesst die Route durch"
+    refused = {"status": 400, "code": "device_rule_not_applicable"}
+
+    def result(resp):
+        st, d = resp
+        return {"status": st, "code": (d or {}).get("code")}
+
+    # Windows-App: Sitzung MIT Geraete-Kennung, mit und ohne die Kopfzeile der Faehigkeit
+    _, win = login(hosted, "sperre@beispiel.de", "win-0123456789ab", "StudiNow für Windows", caps=False, extra={"X-StudiNow-Client": "windows"})
+    assert result(use_this(hosted, win)) == refused
+    assert result(use_this(hosted, {**win, **CAPS})) == refused
+    # Browser: nur das Cookie, auch mit der Kopfzeile
+    st, hdrs, _ = asgi_call(hosted, "POST", "/api/account/login", body=json.dumps({"email": "sperre@beispiel.de", "password": PW, "device_id": "browser-1"}))
+    cookie = next(v.decode().split(";")[0] for k, v in hdrs if k == b"set-cookie")
+    assert cookie.startswith(account_api.COOKIE + "=")
+    assert result(_j(asgi_call(hosted, "POST", "/api/account/device/primary", cookies=cookie))) == refused
+    assert result(_j(asgi_call(hosted, "POST", "/api/account/device/primary", cookies=cookie, headers=CAPS))) == refused
+    # aeltere Apple-App ohne die Faehigkeit (kennt die Regel nicht, ruft die Route nie auf)
+    _, old = login(hosted, "sperre@beispiel.de", "iphone-alt", "iPhone", caps=False)
+    assert result(use_this(hosted, old)) == refused
+    # nichts hat sich geaendert: das iPad ist weiter das eine Geraet
+    assert device_limit.primary(u["id"])["device_id"] == "ipad-1"
+    assert ent(hosted, ipad)["device"] == {**ent(hosted, ipad)["device"], "state": "ok", "is_primary": True, "primary_name": "iPad"}
+    # die Apple-App mit der Faehigkeit darf (Free ohne Abo: genau dafuer ist die Route da)
+    _, phone = login(hosted, "sperre@beispiel.de", "iphone-1", "iPhone")
+    st, d = use_this(hosted, phone)
+    assert st == 200 and d["device"]["is_primary"] and device_limit.primary(u["id"])["device_id"] == "iphone-1"
+    # und sie schaltet nichts Bezahltes frei
+    assert ent(hosted, phone)["plan"] == "free" and not ent(hosted, phone)["entitlements"]["can_sync_annotations"]
 
 
 # ---------------------------------------------------------------- Kauf hebt die Sperre auf, Ablauf setzt sie
@@ -297,6 +337,70 @@ def test_existing_database_gets_the_columns(hosted):
     d, h = login(hosted, "bestand@beispiel.de", "ipad-1", "iPad")
     assert d["device"]["state"] == "ok" and d["device"]["is_primary"]
     assert login(hosted, "bestand@beispiel.de", "iphone-1", "iPhone")[0]["device"]["state"] == "blocked"
+
+
+class _StaleTableInfo:
+    """Verbindung, deren PRAGMA table_info einen alten Stand liefert: so sieht es aus, wenn ein anderer Prozess die
+    Spalte zwischen Pruefen und ALTER angelegt hat (wie tests/test_audit_paket_11_12.py)."""
+
+    def __init__(self, conn, table, missing):
+        self._c, self._t, self._m = conn, table, missing
+
+    def execute(self, sql, *a):
+        if sql.strip() == f"PRAGMA table_info({self._t})":
+            return [r for r in self._c.execute(sql).fetchall() if r[1] not in self._m]
+        return self._c.execute(sql, *a)
+
+    def __getattr__(self, n):
+        return getattr(self._c, n)
+
+
+def _cols(conn, table):
+    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+
+
+def test_migration_survives_a_database_without_users(tmp_path):
+    """Alte oder halb angelegte accounts.db (nur identities, noch keine Tabelle users): die Migration bricht nicht mit
+    "no such table: users" ab, ist wiederholbar, und sobald es users gibt, kommen die Spalten nach."""
+    import sqlite3
+    from app import accounts
+    conn = sqlite3.connect(tmp_path / "halb.db")
+    conn.execute("CREATE TABLE identities (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL)")
+    accounts._migrate(conn)
+    accounts._migrate(conn)
+    assert _cols(conn, "users") == [], "keine Tabelle users angelegt, kein Fehler"
+    assert "email" in _cols(conn, "identities"), "die uebrigen Spalten kamen trotzdem"
+    conn.executescript(accounts.SCHEMA)                                  # naechster Start: Schema, dann Migration
+    assert not set(accounts.PRIMARY_DEVICE_COLUMNS) & set(_cols(conn, "users"))
+    accounts._migrate(conn)
+    assert _cols(conn, "users")[-3:] == list(accounts.PRIMARY_DEVICE_COLUMNS)
+    before = _cols(conn, "users")
+    accounts._migrate(conn)
+    accounts._migrate(conn)
+    assert _cols(conn, "users") == before, "wiederholbar"
+    conn.close()
+
+
+def test_migration_keeps_old_accounts_and_tolerates_a_parallel_start(tmp_path):
+    """users von vor der Geraete-Regel mit Konten: Spalten werden angehaengt, Zeilen bleiben. Hat ein anderer Prozess
+    eine Spalte zwischen Pruefen und ALTER angelegt (12 Dienst-Prozesse starten gleichzeitig), ist das kein Fehler."""
+    import sqlite3
+    from app import accounts, db
+    conn = sqlite3.connect(tmp_path / "alt.db")
+    conn.executescript(accounts.SCHEMA)
+    conn.execute("INSERT INTO users(id, email, university, created_at) VALUES ('u1', 'a@b.de', 'luh', '2026-11-01T00:00:00Z')")
+    conn.commit()
+    assert not set(accounts.PRIMARY_DEVICE_COLUMNS) & set(_cols(conn, "users")), "SCHEMA allein ist der Stand von vorher"
+    accounts._migrate(conn)
+    assert set(accounts.PRIMARY_DEVICE_COLUMNS) <= set(_cols(conn, "users"))
+    assert conn.execute("SELECT id, email, plan, primary_device_id, primary_device_name, primary_device_set_at FROM users").fetchall() \
+        == [("u1", "a@b.de", "free", None, None, None)], "alte Konten bleiben, ohne Hauptgeraet"
+    # der andere Prozess war schneller: table_info zeigt die Spalten noch nicht, ALTER meldet "duplicate column name"
+    for missing in ([accounts.PRIMARY_DEVICE_COLUMNS[0]], list(accounts.PRIMARY_DEVICE_COLUMNS)):
+        accounts._migrate(_StaleTableInfo(conn, "users", missing))
+    assert db.add_column(_StaleTableInfo(conn, "users", ["primary_device_id"]), "users", "primary_device_id", "TEXT") is False
+    assert _cols(conn, "users").count("primary_device_id") == 1
+    conn.close()
 
 
 def test_schema_describes_the_device_field():

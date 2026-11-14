@@ -133,6 +133,8 @@ def build(app=None) -> dict:
         web = call("Sitzung ohne Geraete-Kennung", "POST", "/api/account/login", {"email": "alt@beispiel.de", "password": PW}, capable=False)
         call("Dieses Geraet nutzen ohne Geraete-Kennung", "POST", "/api/account/device/primary", token=web["token"])
         call("Dieses Geraet nutzen ohne Sitzung", "POST", "/api/account/device/primary")
+        call("Dieses Geraet nutzen ohne die Faehigkeit (aeltere App, Web, Windows zaehlen nicht)", "POST", "/api/account/device/primary",
+             token=old["token"], capable=False)
     finally:
         if own:
             config.MODE = "local"
