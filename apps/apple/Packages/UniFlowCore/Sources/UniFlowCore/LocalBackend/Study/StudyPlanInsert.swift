@@ -85,7 +85,8 @@ extension StudyPlan {
                 let task = NewTask(type: .text(kind), fileID: try T.bind(f.id, "file_id"),
                                    title: try T.bind(T.or(f.json["ai_title"], f.json["name"] ?? .null), "title"), est: est)
                 let pid = try insertPackage(c, day: day, module: m, tasks: [task], unit: unit, clock: clock)
-                try assignSlots(c, day: day, onlyUnset: true, packageID: .integer(pid))
+                // automatisch: hat der Tag keinen Platz mehr, auf den naechsten Lerntag (nie nach der Lernzeit, 14.11.2026)
+                try assignSlots(c, day: day, onlyUnset: true, packageID: .integer(pid), spill: spillDays)
                 planned.insert(id)
                 days.append(day)
             }

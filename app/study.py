@@ -929,27 +929,31 @@ def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None 
 
 
 def _spill(conn, p: dict, task_ids: list[int], d: date, spill: int, whole: bool) -> None:
-    """Aufgaben ohne Platz an ihrem Tag (assign_slots): ohne `spill` ohne Uhrzeit, sonst auf den naechsten Lerntag;
-    das ganze Paket wird verlegt, ein Rest wird ein eigenes Paket (gleiches Modul, Fach, Titel, Lehrwoche)."""
+    """Aufgaben ohne Platz an ihrem Tag (assign_slots). Mit `spill` auf den naechsten Lerntag (das ganze Paket wird
+    verlegt, ein Rest wird ein eigenes Paket: gleiches Modul, Fach, Titel, Lehrwoche); ohne bleiben sie am Tag, aber
+    ohne Uhrzeit, ein Rest als eigenes Paket, damit jedes Paket mit Uhrzeit nur Aufgaben mit Uhrzeit hat und seine
+    geplanten Minuten zu seinem Block passen."""
     marks = ",".join("?" * len(task_ids))
     conn.execute(f"UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id IN ({marks})", task_ids)
     if whole:
         conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (p["id"],))
     learn = db.get_settings(conn)["learn_days"]
-    nd = next((d + timedelta(days=i) for i in range(1, 8) if (d + timedelta(days=i)).weekday() in learn), None)
-    if spill <= 0 or nd is None:
-        return
+    nd = next((d + timedelta(days=i) for i in range(1, 8) if (d + timedelta(days=i)).weekday() in learn), None) if spill > 0 else None
     if whole:
+        if nd is None:
+            return
         conn.execute("UPDATE study_packages SET date=? WHERE id=?", (nd.isoformat(), p["id"]))
         target = p["id"]
     else:
         target = conn.execute("""INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at)
                                  VALUES (?,?,?,?,?,0,'geplant',?,?,?)""",
-                              (nd.isoformat(), p["module_id"], p["subject"], p["title"], p["week_no"], p["sort"], p["generated"], p["created_at"])).lastrowid
+                              ((nd or d).isoformat(), p["module_id"], p["subject"], p["title"], p["week_no"], p["sort"], p["generated"], p["created_at"])).lastrowid
         for i, tid in enumerate(task_ids):
             conn.execute("UPDATE study_tasks SET package_id=?, sort=? WHERE id=?", (target, i, tid))
         _recalc_package(conn, p["id"])
         _recalc_package(conn, target)
+        if nd is None:
+            return
     assign_slots(conn, nd, package_id=target, spill=spill - 1)
 
 
