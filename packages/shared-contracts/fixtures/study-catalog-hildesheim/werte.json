@@ -1,0 +1,460 @@
+{
+ "note": "erfunden; nur der Aufbau folgt den Studienordnungen (tools/gen-study-catalog-hildesheim-fixture.py)",
+ "semester": [
+  {
+   "text": "1. Semester",
+   "semester": 1
+  },
+  {
+   "text": "1.-3. Semester",
+   "semester": 1
+  },
+  {
+   "text": "1. und 2. Semester",
+   "semester": 1
+  },
+  {
+   "text": "1./2. Semester",
+   "semester": 1
+  },
+  {
+   "text": "5. – 6. Semester",
+   "semester": 5
+  },
+  {
+   "text": "3. − 4. Semester",
+   "semester": 3
+  },
+  {
+   "text": "6. Fachsemester",
+   "semester": 6
+  },
+  {
+   "text": "1.und 2. Semester",
+   "semester": 1
+  },
+  {
+   "text": "Erstes bis drittes Semester",
+   "semester": 1
+  },
+  {
+   "text": "zweites Semester",
+   "semester": 2
+  },
+  {
+   "text": "2 Semester",
+   "semester": null
+  },
+  {
+   "text": "Ein oder zwei Semester",
+   "semester": null
+  },
+  {
+   "text": "Praktikum wird nach dem 2. oder nach dem 4. Semester empfohlen)",
+   "semester": null
+  },
+  {
+   "text": "5.",
+   "semester": null
+  },
+  {
+   "text": "",
+   "semester": null
+  },
+  {
+   "text": "1. Semester (empfohlen)",
+   "semester": null
+  },
+  {
+   "text": "10. Semester",
+   "semester": null
+  }
+ ],
+ "season": [
+  {
+   "text": "",
+   "turnus": "unbekannt"
+  },
+  {
+   "text": "jedes Semester",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "Jedes Semester",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "In jedem Sommersemester",
+   "turnus": "SS"
+  },
+  {
+   "text": "Veranstaltungen werden jedes Wintersemester angeboten",
+   "turnus": "WS"
+  },
+  {
+   "text": "TM1, TM2 im WS, TM 3, TM 4 im SoSe",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "Begleitseminare werden im WiSe angeboten",
+   "turnus": "WS"
+  },
+  {
+   "text": "im S oSe und im W iSe",
+   "turnus": "unbekannt"
+  },
+  {
+   "text": "ständig (je nach Absprache)",
+   "turnus": "unbekannt"
+  },
+  {
+   "text": "Angebot im SS",
+   "turnus": "SS"
+  },
+  {
+   "text": "Wasserspiele im Hof",
+   "turnus": "unbekannt"
+  },
+  {
+   "text": "jedem Semester ein Angebot",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "die übrigen Veranstaltungen im Sommer- oder im Wintersemester",
+   "turnus": "WS+SS"
+  }
+ ],
+ "lp": [
+  {
+   "lines": [],
+   "lp": null
+  },
+  {
+   "lines": [
+    "6 LP"
+   ],
+   "lp": 6
+  },
+  {
+   "lines": [
+    "6"
+   ],
+   "lp": 6
+  },
+  {
+   "lines": [
+    "4,5 LP"
+   ],
+   "lp": 4.5
+  },
+  {
+   "lines": [
+    "6 (TM 1: 2 SWS / 4 LP; TM 2: 2 SWS / 2 LP)"
+   ],
+   "lp": 6
+  },
+  {
+   "lines": [
+    "12 LP für Arbeit",
+    "3 LP für Begleitung"
+   ],
+   "lp": 15
+  },
+  {
+   "lines": [
+    "12 LP für Arbeit (schriftlich und",
+    "Kolloquium)",
+    "2,5 LP für Begleitung"
+   ],
+   "lp": 14.5
+  },
+  {
+   "lines": [
+    "je nach Wahl"
+   ],
+   "lp": null
+  },
+  {
+   "lines": [
+    "6 LP und mehr"
+   ],
+   "lp": null
+  },
+  {
+   "lines": [
+    "18LP"
+   ],
+   "lp": 18
+  }
+ ],
+ "parts": [
+  {
+   "lines": [
+    "Vorweg.",
+    "TM 1: Eins (Seminar; 2 SWS; 2 LP (WiSe))",
+    "TM 2: Zwei (Tutorium; 2 SWS; 2 LP (WiSe, SoSe))"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Eins",
+     "kind": "Seminar",
+     "sws": 2,
+     "lp": 2,
+     "term": "WS"
+    },
+    {
+     "number": 2,
+     "title": "Zwei",
+     "kind": "Tutorium",
+     "sws": 2,
+     "lp": 2,
+     "term": "WS+SS"
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Eins\", \"kind\": \"Seminar\", \"sws\": 2, \"lp\": 2, \"term\": \"WS\"}, {\"number\": 2, \"title\": \"Zwei\", \"kind\": \"Tutorium\", \"sws\": 2, \"lp\": 2, \"term\": \"WS+SS\"}]"
+  },
+  {
+   "lines": [
+    "TM 1: Eins (2 SWS / 2 LP)",
+    "TM 2: : Zwei (2 SWS / 4,5 LP)",
+    "TM3: Drei (Vorlesung; 2 SWS 3 LP (WS)"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Eins",
+     "kind": null,
+     "sws": 2,
+     "lp": 2,
+     "term": null
+    },
+    {
+     "number": 2,
+     "title": "Zwei",
+     "kind": null,
+     "sws": 2,
+     "lp": 4.5,
+     "term": null
+    },
+    {
+     "number": 3,
+     "title": "Drei",
+     "kind": "Vorlesung",
+     "sws": 2,
+     "lp": 3,
+     "term": "WS"
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Eins\", \"kind\": null, \"sws\": 2, \"lp\": 2, \"term\": null}, {\"number\": 2, \"title\": \"Zwei\", \"kind\": null, \"sws\": 2, \"lp\": 4.5, \"term\": null}, {\"number\": 3, \"title\": \"Drei\", \"kind\": \"Vorlesung\", \"sws\": 2, \"lp\": 3, \"term\": \"WS\"}]"
+  },
+  {
+   "lines": [
+    "TM 1: Eins (Seminar; 2 SWS; 3 LP) (WS)",
+    "TM 2: Zwei „mit Zusatz“ (2 SWS; 3 LP) (SoSe)",
+    "(Hinweis in Klammern)"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Eins",
+     "kind": "Seminar",
+     "sws": 2,
+     "lp": 3,
+     "term": "WS"
+    },
+    {
+     "number": 2,
+     "title": "Zwei „mit Zusatz“",
+     "kind": null,
+     "sws": 2,
+     "lp": 3,
+     "term": "SS"
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Eins\", \"kind\": \"Seminar\", \"sws\": 2, \"lp\": 3, \"term\": \"WS\"}, {\"number\": 2, \"title\": \"Zwei „mit Zusatz“\", \"kind\": null, \"sws\": 2, \"lp\": 3, \"term\": \"SS\"}]"
+  },
+  {
+   "lines": [
+    "TM 1: Eins oder Anderes (Erstens, Zweitens,",
+    "Drittens) (Vorlesung; 2 SWS; 6LP (SoSe, WiSe))",
+    "TM 2: Gebiet freier Wahl (Vorlesung, Seminar; 2 SWS; 3 LP (SoSe, WiSe))"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Eins oder Anderes (Erstens, Zweitens, Drittens)",
+     "kind": "Vorlesung",
+     "sws": 2,
+     "lp": 6,
+     "term": "WS+SS"
+    },
+    {
+     "number": 2,
+     "title": "Gebiet freier Wahl",
+     "kind": "Vorlesung, Seminar",
+     "sws": 2,
+     "lp": 3,
+     "term": "WS+SS"
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Eins oder Anderes (Erstens, Zweitens, Drittens)\", \"kind\": \"Vorlesung\", \"sws\": 2, \"lp\": 6, \"term\": \"WS+SS\"}, {\"number\": 2, \"title\": \"Gebiet freier Wahl\", \"kind\": \"Vorlesung, Seminar\", \"sws\": 2, \"lp\": 3, \"term\": \"WS+SS\"}]"
+  },
+  {
+   "lines": [
+    "TM 1: Eins (2 SWS / 3 + 3 LP)",
+    "(Nachsatz zu Eins)",
+    "TM 2: Ohne Angabe",
+    "TM 3: Drei (2 SWS / 1,5 LP) (nur nach Anmeldung)"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Eins",
+     "kind": null,
+     "sws": 2,
+     "lp": 6,
+     "term": null
+    },
+    {
+     "number": 3,
+     "title": "Drei",
+     "kind": null,
+     "sws": 2,
+     "lp": 1.5,
+     "term": null
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Eins\", \"kind\": null, \"sws\": 2, \"lp\": 6, \"term\": null}, {\"number\": 3, \"title\": \"Drei\", \"kind\": null, \"sws\": 2, \"lp\": 1.5, \"term\": null}]"
+  },
+  {
+   "lines": [
+    "TM 1: Nach Wahl:",
+    "- A",
+    "- B",
+    "(Vorlesung; 2 SWS; 2 LP (Wintersemester und Sommersemester))"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Nach Wahl: - A - B",
+     "kind": "Vorlesung",
+     "sws": 2,
+     "lp": 2,
+     "term": "WS+SS"
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Nach Wahl: - A - B\", \"kind\": \"Vorlesung\", \"sws\": 2, \"lp\": 2, \"term\": \"WS+SS\"}]"
+  },
+  {
+   "lines": [
+    "Klausur am Ende von TM 4",
+    "Leistung in TM 1 (Konzept) ist Voraussetzung"
+   ],
+   "parts": [],
+   "dumps": "[]"
+  },
+  {
+   "lines": [
+    "TM 1: Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel (2 SWS / 2 LP)"
+   ],
+   "parts": [
+    {
+     "number": 1,
+     "title": "Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel…",
+     "kind": null,
+     "sws": 2,
+     "lp": 2,
+     "term": null
+    }
+   ],
+   "dumps": "[{\"number\": 1, \"title\": \"Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel Sehr langer Titel…\", \"kind\": null, \"sws\": 2, \"lp\": 2, \"term\": null}]"
+  },
+  {
+   "lines": [],
+   "parts": [],
+   "dumps": "[]"
+  }
+ ],
+ "clip": [
+  {
+   "text": "",
+   "limit": 500,
+   "clip": null
+  },
+  {
+   "text": " ; , ",
+   "limit": 500,
+   "clip": null
+  },
+  {
+   "text": "Aktive Mitarbeit, ",
+   "limit": 500,
+   "clip": "Aktive Mitarbeit"
+  },
+  {
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "limit": 500,
+   "clip": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "text": "Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort ",
+   "limit": 500,
+   "clip": "Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort…"
+  },
+  {
+   "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+   "limit": 500,
+   "clip": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy…"
+  },
+  {
+   "text": "Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl ",
+   "limit": 60,
+   "clip": "Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und…"
+  }
+ ],
+ "detect": [
+  {
+   "name": "modkat",
+   "pages": [
+    "Modulkatalog\nfür den Studiengang\nTechnische Informatik - Bachelor\nim Wintersemester 2025/2026",
+    "Inhaltsverzeichnis\nProgrammieren ........ 3"
+   ],
+   "detect": false,
+   "head_dumps": "{\"program\": null, \"level\": null, \"degree\": null, \"stand\": null, \"heft\": null, \"po\": null, \"catalog_term\": null, \"total_lp\": null}"
+  },
+  {
+   "name": "titel ohne modultabelle",
+   "pages": [
+    "Studienordnung inklusive Modulhandbuch für den Bachelor-Studiengang Beetkunde im Fachbereich 9",
+    "Anlage 3 Modulhandbuch\nModultitel Hochbeet\nModulnummer 1"
+   ],
+   "detect": false,
+   "head_dumps": "{\"program\": \"Beetkunde\", \"level\": \"Bachelor\", \"degree\": \"Bachelor\", \"stand\": null, \"heft\": null, \"po\": null, \"catalog_term\": null, \"total_lp\": null}"
+  },
+  {
+   "name": "modultabelle ohne titel",
+   "pages": [
+    "Prüfungsordnung für den Bachelor-Studiengang Beetkunde",
+    "Bezeichnung Modul 1: Hochbeet"
+   ],
+   "detect": false,
+   "head_dumps": "{\"program\": null, \"level\": null, \"degree\": null, \"stand\": null, \"heft\": null, \"po\": null, \"catalog_term\": null, \"total_lp\": null}"
+  },
+  {
+   "name": "leer",
+   "pages": [],
+   "detect": false,
+   "head_dumps": "{\"program\": null, \"level\": null, \"degree\": null, \"stand\": null, \"heft\": null, \"po\": null, \"catalog_term\": null, \"total_lp\": null}"
+  },
+  {
+   "name": "treffer in einer zeile",
+   "pages": [
+    "Lesefassung\n(Stand 01.01.2031)\nNeufassung der Studienordnung inklusive\nModulhandbuch für den Bachelorstudiengang Beet - und\nWegekunde im Fachbereich 9\nAbschluss: Bachelor of Science",
+    "Bezeichnung: Modul 12 : Hochbeet"
+   ],
+   "detect": true,
+   "head_dumps": "{\"program\": \"Beet- und Wegekunde\", \"level\": \"Bachelor\", \"degree\": \"B.Sc.\", \"stand\": \"2031-01-01\", \"heft\": null, \"po\": \"2031\", \"catalog_term\": \"WS 2030/31\", \"total_lp\": null}"
+  }
+ ]
+}
