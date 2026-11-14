@@ -128,7 +128,9 @@ public enum DeviceRuleTexts {
         return "StudiNow Free läuft dann auf diesem Gerät. \(other) erscheint beim nächsten Öffnen dieser Hinweis. Deine Daten bleiben auf beiden Geräten erhalten."
     }
 
+    /// Plus gleicht Module, Stundenplan, Lernplan und Karteikarten schon ab; nur die Notizen bleiben je Geraet
+    /// (`can_sync_annotations` ab Pro AI). Darum nennt der Hinweis die Notizen.
     public static func plusText(price: String, mac: Bool = false) -> String {
-        "Abgleich zwischen \(devices(mac: mac)) gibt es mit Pro AI für \(yearly(price))."
+        "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen \(devices(mac: mac)) gibt es mit Pro AI für \(yearly(price))."
     }
 }

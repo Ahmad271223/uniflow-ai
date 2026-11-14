@@ -160,6 +160,7 @@ final class DeviceRuleTests: XCTestCase {
         XCTAssertEqual(DeviceRuleTexts.confirmText(primaryName: "iPad"),
                        "StudiNow Free läuft dann auf diesem Gerät. Auf dem anderen Gerät (iPad) erscheint beim nächsten Öffnen dieser Hinweis. Deine Daten bleiben auf beiden Geräten erhalten.")
         XCTAssertEqual(DeviceRuleTexts.plusTitle, "Plus läuft auf jedem Gerät für sich")
-        XCTAssertEqual(DeviceRuleTexts.plusText(price: price), "Abgleich zwischen iPhone und iPad gibt es mit Pro AI für 39,99 € im Jahr.")
+        XCTAssertEqual(DeviceRuleTexts.plusText(price: price),
+                       "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen iPhone und iPad gibt es mit Pro AI für 39,99 € im Jahr.")
     }
 }
