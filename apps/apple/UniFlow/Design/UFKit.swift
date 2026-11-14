@@ -272,40 +272,51 @@ struct UFDonut: View {
     let big: String
     let small: String
 
+    /// Schmale Karte (iPhone): Legende unter den Ring statt daneben. Nebeneinander brauchen Ring und Legende rund
+    /// 240 pt; darunter wurden die Beschriftungen auf null gequetscht und die Karte sehr hoch (Foto des Inhabers
+    /// 14.11.2026, Lernkalender am iPhone).
     var body: some View {
-        let total = segments.reduce(0) { $0 + $1.n }
-        HStack(spacing: 16) {
-            ZStack {
-                if total == 0 {
-                    Circle().fill(UF.line)
-                } else {
-                    ForEach(segments.indices, id: \.self) { i in
-                        let a = Double(segments[..<i].reduce(0) { $0 + $1.n }) / Double(total)
-                        let b = a + Double(segments[i].n) / Double(total)
-                        UFPieSlice(start: a, end: b).fill(segments[i].color)
-                    }
-                }
-                Circle().fill(UF.surface).frame(width: 76, height: 76)
-                VStack(spacing: 0) {
-                    Text(big).font(.uf(15.68, 700)).foregroundStyle(UF.text)
-                    Text(small).font(.uf(11.2)).foregroundStyle(UF.muted)
-                }
-                .multilineTextAlignment(.center)
-            }
-            .frame(width: 104, height: 104)
-            VStack(alignment: .leading, spacing: 6.4) {
-                ForEach(segments.indices, id: \.self) { i in
-                    HStack(spacing: 7.2) {
-                        Circle().fill(segments[i].color).frame(width: 9, height: 9)
-                        Text(segments[i].label).foregroundStyle(UF.text)
-                        Spacer(minLength: 4)
-                        Text("\(segments[i].n)").font(.uf(12.8, 700)).foregroundStyle(UF.text)
-                    }
-                    .ufFont(12.8)
-                }
-            }
-            .frame(maxWidth: .infinity)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) { ring; legend }
+            VStack(alignment: .leading, spacing: 12) { ring; legend }
         }
+    }
+
+    private var ring: some View {
+        let total = segments.reduce(0) { $0 + $1.n }
+        return ZStack {
+            if total == 0 {
+                Circle().fill(UF.line)
+            } else {
+                ForEach(segments.indices, id: \.self) { i in
+                    let a = Double(segments[..<i].reduce(0) { $0 + $1.n }) / Double(total)
+                    let b = a + Double(segments[i].n) / Double(total)
+                    UFPieSlice(start: a, end: b).fill(segments[i].color)
+                }
+            }
+            Circle().fill(UF.surface).frame(width: 76, height: 76)
+            VStack(spacing: 0) {
+                Text(big).font(.uf(15.68, 700)).foregroundStyle(UF.text)
+                Text(small).font(.uf(11.2)).foregroundStyle(UF.muted)
+            }
+            .multilineTextAlignment(.center)
+        }
+        .frame(width: 104, height: 104)
+    }
+
+    private var legend: some View {
+        VStack(alignment: .leading, spacing: 6.4) {
+            ForEach(segments.indices, id: \.self) { i in
+                HStack(spacing: 7.2) {
+                    Circle().fill(segments[i].color).frame(width: 9, height: 9)
+                    Text(segments[i].label).foregroundStyle(UF.text).lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer(minLength: 4)
+                    Text("\(segments[i].n)").font(.uf(12.8, 700)).foregroundStyle(UF.text)
+                }
+                .ufFont(12.8)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

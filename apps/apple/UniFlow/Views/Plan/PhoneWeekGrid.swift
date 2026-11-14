@@ -21,19 +21,23 @@ enum PhoneWeekGeometry {
 
     static func y(_ minute: Int, lo: Int) -> CGFloat { CGFloat(minute - lo) / 60 * hour }
 
-    /// Sichtbarer Zeitraum: 8–19 Uhr, erweitert um alles, was früher beginnt oder später endet (volle Stunden)
+    /// Sichtbarer Zeitraum: 8–19 Uhr, erweitert um alles, was früher beginnt oder später endet (volle Stunden).
+    /// Nie vor 0 und nie nach 24 Uhr: kaputte Zeiten aus altem Planer-Bestand ("25:15") zogen die Achse bis "26"
+    /// (Foto des Inhabers 14.11.2026).
     static func range(_ days: [JSONValue]) -> (lo: Int, hi: Int) {
         var starts = [8 * 60], ends = [19 * 60]
         for dd in days {
             for e in dd.list("events") where e.s("status") != "verschoben" {
-                starts.append(UFTime.hm(e.s("start"))); ends.append(UFTime.hm(e.s("end")))
+                let t = UFTime.span(e.s("start"), e.s("end"))
+                starts.append(t.start); ends.append(t.end)
             }
             for p in dd.list("packages") where p.s("start_time") != nil {
-                starts.append(UFTime.hm(p.s("start_time"))); ends.append(UFTime.hm(p.s("end_time")))
+                let t = UFTime.span(p.s("start_time"), p.s("end_time"))
+                starts.append(t.start); ends.append(t.end)
             }
         }
-        let lo = (starts.min() ?? 480) / 60 * 60
-        let hi = Int((Double(ends.max() ?? 1140) / 60).rounded(.up)) * 60
+        let lo = max(0, (starts.min() ?? 480) / 60 * 60)
+        let hi = min(UFTime.dayEnd, Int((Double(ends.max() ?? 1140) / 60).rounded(.up)) * 60)
         return (lo, max(lo + 60, hi))
     }
 
@@ -109,12 +113,12 @@ struct PhoneWeekEntry: Identifiable {
     /// Einträge eines Tages mit Uhrzeit, nach Beginn
     static func timed(_ dd: JSONValue) -> [PhoneWeekEntry] {
         let evs = dd.list("events").filter { $0.s("status") != "verschoben" }.enumerated().map { i, e in
-            PhoneWeekEntry(id: "e\(i)-\(e.i("event_id") ?? 0)", kind: .event, value: e,
-                           start: UFTime.hm(e.s("start")), end: UFTime.hm(e.s("end")))
+            let t = UFTime.span(e.s("start"), e.s("end"))
+            return PhoneWeekEntry(id: "e\(i)-\(e.i("event_id") ?? 0)", kind: .event, value: e, start: t.start, end: t.end)
         }
-        let pks = dd.list("packages").filter { $0.s("start_time") != nil }.map { p in
-            PhoneWeekEntry(id: "p\(p.i("id") ?? 0)", kind: .package, value: p,
-                           start: UFTime.hm(p.s("start_time")), end: UFTime.hm(p.s("end_time")))
+        let pks = dd.list("packages").filter { $0.s("start_time") != nil }.map { p -> PhoneWeekEntry in
+            let t = UFTime.span(p.s("start_time"), p.s("end_time"))
+            return PhoneWeekEntry(id: "p\(p.i("id") ?? 0)", kind: .package, value: p, start: t.start, end: t.end)
         }
         return (evs + pks).sorted { $0.start < $1.start }
     }

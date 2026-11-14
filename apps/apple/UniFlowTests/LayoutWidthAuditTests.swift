@@ -423,6 +423,89 @@ final class LayoutWidthAuditTests: XCTestCase {
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
+    /// Punkt 4 nach den Fotos vom 14.11.2026: jede iPhone-Seite auf 393 und 375 pt auf gequetschte Beschriftungen
+    /// und leere obere Haelften durchsehen (`squeezed`). Der Breiten-Audit allein war grün, obwohl das Geraet
+    /// „Math…“, „Le“, „Fr“ und eine halb leere Seite zeigte.
+    func testIPhoneNichtsGequetscht() throws {
+        let env = try host(MainView())
+        UFCompact.phoneOverride = true
+        defer { UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault }
+        env.hosting.traitOverrides.horizontalSizeClass = .compact
+        env.hosting.traitOverrides.verticalSizeClass = .regular
+        var report: [String] = []
+        let pages: [(String, UFRoute, String?)] = [
+            ("uebersicht", .dashboard, "Grundlagen der Informatik"),
+            ("lernkalender-woche", .plan(view: "week"), "Mein Fortschritt"),
+            ("lernkalender-tag", .plan(view: "day"), nil),
+            ("lernkalender-monat", .plan(view: "month"), nil),
+            ("lernkalender-liste", .plan(view: "list"), nil),
+            ("stundenplan", .timetable(), "Grundlagen der Informatik"),
+            ("module", .modules, "Grundlagen der Informatik"),
+            ("studienverlauf", .studyPlan(), nil),
+            ("dokumente", .files(), nil),
+            ("uni-noten", .services, nil),
+            ("einstellungen-zugang", .settings(tab: "account"), nil),
+            ("einstellungen-lernzeit", .settings(tab: "plan"), nil),
+        ]
+        for (name, route, marker) in pages {
+            for width in [CGFloat(393), 375] {
+                env.window.frame = CGRect(origin: .zero, size: CGSize(width: width, height: width == 393 ? 852 : 812))
+                env.view.frame = env.window.bounds
+                if case .settings = route { env.router.go(.dashboard); env.pump(0.3) }
+                env.router.go(route)
+                if let marker {
+                    _ = env.wait(timeout: 20) { Self.texts(env.view).contains { $0.contains(marker) } }
+                }
+                env.pump(1.0)
+                let found = Self.squeezed(in: env.window)
+                if !found.isEmpty {
+                    report.append("\(name) @ \(Int(width)) pt: \(found.count)\n" + found.prefix(12).map { "  " + $0.text }.joined(separator: "\n"))
+                }
+            }
+        }
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
+    /// Lernkalender am iPhone (Fotos des Inhabers 14.11.2026): „Mein Fortschritt“, „Nicht erledigt“, „Schnell
+    /// hinzufügen“ und der Monatskalender standen wie am iPad in zwei Spalten – „Math…“, „Le“, „Fr“, „Pe“ und
+    /// „Novemb er 2026“ abgeschnitten, die Fortschrittskarte hoch und fast leer. Am iPhone gehören die Karten
+    /// untereinander in voller Breite. Der Breiten-Audit war grün, weil nichts über den Rand ragte.
+    func testIPhoneKalenderKartenUntereinander() throws {
+        let env = try host(MainView())
+        UFCompact.phoneOverride = true
+        defer { UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault }
+        env.hosting.traitOverrides.horizontalSizeClass = .compact
+        env.hosting.traitOverrides.verticalSizeClass = .regular
+        for width in [CGFloat(393), 375] {
+            // hohes Fenster: alle Karten sind gezeichnet, ohne zu rollen
+            env.window.frame = CGRect(origin: .zero, size: CGSize(width: width, height: 2400))
+            env.view.frame = env.window.bounds
+            env.router.go(.dashboard)
+            env.pump(0.4)
+            env.router.go(.plan())
+            XCTAssertTrue(env.wait(timeout: 25) { Self.texts(env.view).contains("Mein Fortschritt") },
+                          "Lernkalender @ \(Int(width)): \(Self.texts(env.view).prefix(25))")
+            env.pump(1.0)
+            func box(_ label: String) throws -> CGRect {
+                let e = try XCTUnwrap(Self.elements(in: env.window).first { $0.accessibilityLabel == label },
+                                      "„\(label)“ fehlt @ \(Int(width))")
+                return e.accessibilityFrame
+            }
+            let cards = try ["Mein Fortschritt", "Nicht erledigt", "Schnell hinzufügen"].map { ($0, try box($0)) }
+            for i in cards.indices {
+                for j in cards.indices where j > i {
+                    let a = cards[i].1, b = cards[j].1
+                    XCTAssertFalse(a.minY < b.maxY && b.minY < a.maxY,
+                                   "„\(cards[i].0)“ und „\(cards[j].0)“ stehen nebeneinander @ \(Int(width)) pt")
+                }
+            }
+            // Knöpfe und Beschriftungen sind breit genug für ihren Text (vorher „Le“, „Fr“, „Pe“)
+            for name in ["Lernpaket", "Freie Zeit", "Persönlich"] {
+                XCTAssertGreaterThan(try box(name).width, 110, "„\(name)“ zu schmal @ \(Int(width)) pt")
+            }
+        }
+    }
+
     /// Termin-Detail (06.11.2026): Termin aus dem Stundenplan antippen -> Panel mit Modul, Raum (Route zu Fuss) und Lehrenden
     func testTerminDetail() throws {
         let env = try host(MainView())
@@ -623,6 +706,39 @@ final class LayoutWidthAuditTests: XCTestCase {
             let mid = r.midY
             if scrollers.contains(where: { mid >= $0.minY && mid <= $0.maxY && r.minX >= $0.minX - 1 }) { continue }
             note("Element „\((e.accessibilityLabel ?? e.accessibilityValue ?? "").prefix(60))“", r)
+        }
+        return out
+    }
+
+    /// Zweiter Blick nach den Fotos des Inhabers vom 14.11.2026: nicht nur „ragt heraus“, sondern „ist gequetscht“.
+    /// (a) Eine einzeilige Beschriftung, die in ihrer Flaeche nicht ganz Platz hat („Math…“, „Le“, „Fr“, „Pe“).
+    /// (b) Eine Seite, deren erster Inhalt erst weit unten beginnt (obere Haelfte leer, Einstieg 14.11.2026).
+    /// Die Schriftgroesse wird aus der Hoehe der Zeile geschaetzt; der Schwellenwert ist bewusst grosszuegig,
+    /// damit nur wirklich abgeschnittene Beschriftungen auffallen.
+    static func squeezed(in window: UIWindow) -> [Finding] {
+        var out: [Finding] = []
+        var first = CGFloat.greatestFiniteMagnitude
+        for e in elements(in: window) {
+            let r = e.accessibilityFrame
+            guard r.width > 2, r.height > 2, !r.isNull, !r.isInfinite, r.maxY > 0, r.minY > -1 else { continue }
+            first = min(first, r.minY)
+            guard e.accessibilityTraits.contains(.staticText), !e.accessibilityTraits.contains(.button) else { continue }
+            guard let label = e.accessibilityLabel, label.count >= 3, !label.contains("\n") else { continue }
+            guard r.height >= 11, r.height <= 30 else { continue }                     // nur einzeilige Beschriftungen
+            // "Bereich laut Notenspiegel: Pflichtmodule, 2,3, 35 LP": vor dem Doppelpunkt steht die Erklaerung fuer
+            // VoiceOver, auf dem Bildschirm steht nur der Teil danach - nur der muss passen
+            let shown = label.range(of: ": ").map { String(label[$0.upperBound...]) } ?? label
+            // die Hoehe enthaelt auch den Innenabstand (Kapseln, Knoepfe): vorsichtig schaetzen, lieber einen
+            // Befund zu wenig als falsche Treffer
+            let size = min(17, max(9, r.height / 1.75))
+            let need = (shown as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: .semibold)]).width
+            if need > r.width * 1.3 + 14 {
+                out.append(Finding(text: "abgeschnitten „\(shown.prefix(40))“ (\(Int(r.width)) pt breit, braucht rund \(Int(need)) pt)", rect: r))
+            }
+        }
+        if first < .greatestFiniteMagnitude, first > window.bounds.height * 0.3 {
+            out.append(Finding(text: "obere Haelfte leer: der erste Inhalt beginnt erst bei y \(Int(first)) von \(Int(window.bounds.height))",
+                               rect: CGRect(x: 0, y: 0, width: window.bounds.width, height: first)))
         }
         return out
     }
