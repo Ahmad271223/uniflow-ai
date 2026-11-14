@@ -1,7 +1,7 @@
 {
  "note": "Erzeugt von tools/gen-program-search-fixture.py - nicht von Hand aendern.",
  "university": "hildesheim",
- "programs": 178,
+ "programs": 179,
  "cases": [
   {
    "query": "Angewandte Informatik B.Sc.",
@@ -765,6 +765,7 @@
    "hits": [
     "Angewandte Informatik | B.Sc.",
     "Angewandte Informatik | M.Sc.",
+    "Informatik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Informationsmanagement und Informationstechnologie | B.Sc.",
     "Informationsmanagement und Informationstechnologie | M.Sc.",
     "Medieninformatik | B.Sc.",
@@ -826,6 +827,7 @@
     "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Geschichte (Nebenfach) | Nebenfach",
+    "Informatik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Informationsmanagement und Informationstechnologie | B.Sc.",
     "Informationsmanagement und Informationstechnologie | M.Sc.",
     "Informationstechnologie | Nebenfach",

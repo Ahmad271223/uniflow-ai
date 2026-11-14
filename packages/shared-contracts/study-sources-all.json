@@ -7787,6 +7787,32 @@
      ]
     },
     {
+     "id": "informatik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Informatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2016",
+       "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2016"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf"
+      }
+     ]
+    },
+    {
      "id": "katholische-theologie-im-master-lehramt-an-grundschulen-m-ed",
      "program": "Katholische Theologie im Master Lehramt an Grundschulen",
      "degree": "M.Ed.",

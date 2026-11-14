@@ -40,7 +40,7 @@ def _catalogs():
 def test_every_seed_catalog_loads_maps_and_shows_modules_with_lp():
     reg = sc.load_registry()
     cats = _catalogs()
-    assert len(cats) >= 107
+    assert len(cats) >= 108
     problems, no_lp, only_choice = [], {}, set()
     for c in cats:
         code = c.get("code")

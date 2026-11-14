@@ -1,5 +1,5 @@
 {
- "catalogs": 107,
+ "catalogs": 108,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -486,6 +486,24 @@
    ],
    "study_plan": false,
    "term": "SS 2021"
+  },
+  {
+   "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+   "library_key": "af019c8cc79927dcfbc4789e2155f84f3763bfd90c206aecced32c21a0a62194",
+   "modules": 18,
+   "po": "2016",
+   "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Informatik PO-Version: 2016",
+    "Informatik"
+   ],
+   "study_plan": false,
+   "term": "SS 2016"
   },
   {
    "code": "informationsmanagement-und-informationstechnologie|b.sc.|2024",
@@ -1937,14 +1955,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 133955,
-   "catalogs": 107,
-   "raw_bytes": 1181756,
-   "sha256": "833bdf41869a97c615386f908a87efb360e25bb01095afdae35773641d514c2f"
+   "bytes": 134895,
+   "catalogs": 108,
+   "raw_bytes": 1189704,
+   "sha256": "911e1ba7c985209c0955be509d8703324e6fde79635e2d05d63057af67ee559a"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2186,
+ "modules": 2204,
  "university": "hildesheim",
  "v": 1
 }

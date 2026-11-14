@@ -510,6 +510,11 @@ MEDIA = {
     "ewba": {"url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/"
                     "Modulhandbuch_fuer_den_Bachelor.pdf", "date": "2022-08-18", "format": "hildesheim-modultabelle",
              "title": "Modulhandbuch für den Bachelor-Studiengang Erziehungswissenschaft (Stand 18.08.2022)"},
+    # Fach Informatik im Zwei-Faecher-Bachelor, Ordnung 2016 (gilt fuer Studienbeginn vor dem 01.10.2026)
+    "inf2fb2016": {"url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/"
+                          "Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf", "date": "2016-05-20", "format": "hildesheim-modultabelle",
+                   "title": "Studienordnung für das Fach Informatik, Polyvalente Zwei-Fächer-Bachelor-Studiengänge (B.A./B.Sc.), "
+                            "Redaktioneller Stand 20.05.2016"},
     "ewma": {"url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/"
                     "Modulhandbuch_fuer_den_Master.pdf", "date": "2022-08-18", "format": "hildesheim-modultabelle",
              "title": "Modulhandbuch für den Masterstudiengang Erziehungswissenschaft mit den Schwerpunkten "
@@ -520,9 +525,15 @@ MEDIA = {
 MEDIA_ONLY = [
     {"program": "Data Science", "degree": "B.Sc.", "po_study": 65, "media": ["ds"],
      "hold": "Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete "
-             "(Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP)",
+             "(Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP), der Abschnitt "
+             "'Methodological Specialization' fehlt (ein Modul steht unter Abschlussprüfung), die Gebiete Medieninformatik "
+             "und Systemadministration fehlen",
      "note": "Studienvariante des Bachelorprogramms Angewandte Informatik; Modulhandbuch nur auf der Seite des Fachbereichs 4, "
              "nicht im Studienangebot"},
+    {"program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor", "degree": "B.A./B.Sc.", "kind": "fach", "po": "2016",
+     "po_study": 25, "parent": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang", "media": ["inf2fb2016"], "listed": True,
+     "note": "Ordnung 2016, gilt für Studienbeginn vor dem 01.10.2026 (§ 5 der Ordnung von 2026); die Ordnung 2026 "
+             "(Verkündungsblatt Heft 214) liest der Leser noch nicht"},
 ]
 
 
@@ -832,9 +843,9 @@ def build_register() -> dict:
                    "reason": spec["hold"]}
         else:
             cat = _media_catalog(spec["media"][0], spec["degree"])
-        programs.append(_entry(spec["program"], spec["degree"], "studiengang", po=_po_year(pos), pos=pos, catalog=cat,
-                               faculty=FACULTIES["4"], listed=False, page=None, sid=spec["po_study"], regular=None,
-                               note=spec.get("note")))
+        programs.append(_entry(spec["program"], spec["degree"], spec.get("kind") or "studiengang", po=spec.get("po") or _po_year(pos),
+                               pos=pos, catalog=cat, faculty=FACULTIES["4"], listed=bool(spec.get("listed")), page=None,
+                               sid=spec["po_study"], regular=None, parent=spec.get("parent"), note=spec.get("note")))
 
     # Studiengaenge nur im Verkuendungsblatt
     for sid in QM_ONLY:

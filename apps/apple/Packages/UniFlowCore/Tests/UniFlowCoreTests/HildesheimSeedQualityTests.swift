@@ -42,7 +42,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
 
     func testEverySeedCatalogLoadsMapsAndShowsModulesWithLP() throws {
         let s = try seed()
-        XCTAssertGreaterThanOrEqual(s.entries.count, 107)
+        XCTAssertGreaterThanOrEqual(s.entries.count, 108)
         var problems: [String] = [], noLP: [String: Int] = [:], onlyChoice = Set<String>()
         for e in s.entries {
             guard let text = s.payload(key: e.libraryKey), let cat = try? JSONValue.parse(Data(text.utf8)) else {

@@ -501,6 +501,25 @@
           "kind": "abschluss"
         }
       }
+    },
+    "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016": {
+      "source": "Studienordnung Informatik im Zwei-Fächer-Bachelor (Redaktioneller Stand 20.05.2016), Anlage 2: 18 Module INF-A11 bis INF-V27; Geschäftsprozessmanagement (INF-V26) und Robotik 1 (INF-V27) sind Wahlpflichtmodule. Pflicht und Wahl hängen von der Studienvariante ab (Anlage 1); hier gilt die Angabe im Modul.",
+      "drop_modules": [
+        "robotik-1-hilfreich-aber-nicht-zwingend-erforderlich-sind-kenntnisse-in-den-grun"
+      ],
+      "modules": {
+        "2-einfuehrung-in-die-informatik": {
+          "title": "Einführung in die Informatik"
+        },
+        "geschaeftsprozessmanagement": {
+          "kind": "wahlpflicht"
+        },
+        "robotik-1": {
+          "kind": "wahlpflicht",
+          "lp": 6,
+          "semester": 6
+        }
+      }
     }
   },
   "held": {
