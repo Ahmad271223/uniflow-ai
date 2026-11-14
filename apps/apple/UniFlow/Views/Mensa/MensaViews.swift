@@ -265,11 +265,11 @@ struct MensaPage: View {
         }
         .task(id: token) { await load() }
         .ufReload { await load() }
-        .sheet(item: $detail) { item in
+        .ufSheet(item: $detail) { item in
             MensaMealDetail(meal: item.meal, canteen: menu?["canteen"]?.s("name"), source: menu?["source"]?.s("attribution"))
                 .ufHalfSheet(when: compact)                 // iPhone: von unten, halb (Preise, Naehrwerte) und ganz
         }
-        .sheet(isPresented: $showFilters) {
+        .ufSheet(isPresented: $showFilters) {
             if let list { filterSheet(list).ufHalfSheet(when: compact) }
         }
         .accessibilityIdentifier("mensa.page")

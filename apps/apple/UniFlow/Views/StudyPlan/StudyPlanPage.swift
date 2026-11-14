@@ -100,7 +100,7 @@ struct StudyPlanPage: View {
                         .transition(.opacity)
                 }
             }
-            .sheet(item: $edit) { ref in editSheet(ref) }
+            .ufSheet(item: $edit) { ref in editSheet(ref) }
         }
         .background(UF.bg)
         // jede neue Ablage verbinden (auch nach einem Neuaufbau der Seite durch MainView)
@@ -114,7 +114,7 @@ struct StudyPlanPage: View {
         .task { await load() }
         .task(id: pollKey) { await poll() }
         .ufReload { await load() }
-        .sheet(item: $detail, onDismiss: {
+        .ufSheet(item: $detail, onDismiss: {
             if let p = pendingEdit { pendingEdit = nil; edit = p }
         }) { ref in
             StudyModuleSheet(startID: ref.id, api: session.api, titles: plan?.titles ?? [:],
@@ -127,7 +127,7 @@ struct StudyPlanPage: View {
                 router.go(route)
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .ufSheet(isPresented: $showSettings) {
             StudyPlanSettingsSheet(api: session.api, plan: plan) { await load() }
         }
         .accessibilityIdentifier("studyplan.page")

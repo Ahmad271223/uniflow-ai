@@ -63,7 +63,7 @@ struct CommunityPage: View {
                 unavailableCard(onDevice: mode.isOnDevice)
             }
         }
-        .sheet(isPresented: $showingShared) { SharedSolutionsSheet { showingShared = false } }
+        .ufSheet(isPresented: $showingShared) { SharedSolutionsSheet { showingShared = false } }
     }
 
     @ViewBuilder private var connectedContent: some View {

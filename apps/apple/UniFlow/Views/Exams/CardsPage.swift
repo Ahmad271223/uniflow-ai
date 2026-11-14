@@ -1715,7 +1715,7 @@ struct FlashcardReadOnlyHint: View {
                 Spacer(minLength: 0)
             }
         }
-        .sheet(isPresented: $sheet) { UFPlanSheet(required: .plus, close: { sheet = false }) }
+        .ufSheet(isPresented: $sheet) { UFPlanSheet(required: .plus, close: { sheet = false }) }
     }
 }
 

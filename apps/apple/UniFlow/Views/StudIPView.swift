@@ -26,7 +26,7 @@ struct StudIPView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .quickLookPreview($preview)
-        .sheet(isPresented: $showLogin) {
+        .ufSheet(isPresented: $showLogin) {
             StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
                 showLogin = false
                 studip.signedIn(cookies: cookies)

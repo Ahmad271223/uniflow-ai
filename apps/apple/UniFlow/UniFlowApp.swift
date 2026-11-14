@@ -383,7 +383,7 @@ struct RootView: View {
     var body: some View {
         OnboardingFlow { ContainerGate { IntroContainerStep(stage: account.stage) } }
             .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
-            .sheet(isPresented: $choosingPlan) {
+            .ufSheet(isPresented: $choosingPlan) {
                 PlanPickerView(context: .settings) { choosingPlan = false }
             }
             .onChange(of: ContainerTrigger(user: account.account?.userID, university: account.university)) { _, _ in

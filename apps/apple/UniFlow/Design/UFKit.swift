@@ -396,7 +396,7 @@ struct UFModalHost: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: UFSheetLayer.binding(overlay, index: 0, active: sheets)) { _ in
+            .ufSheet(item: UFSheetLayer.binding(overlay, index: 0, active: sheets)) { _ in
                 UFSheetLayer(overlay: overlay, index: 0)
             }
             .overlay {
@@ -479,7 +479,7 @@ struct UFSheetLayer: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .ufSheetPresentation(wide: l.wide)
-            .sheet(item: Self.binding(overlay, index: index + 1, active: true)) { _ in
+            .ufSheet(item: Self.binding(overlay, index: index + 1, active: true)) { _ in
                 UFSheetLayer(overlay: overlay, index: index + 1)
             }
         }
@@ -497,7 +497,7 @@ struct UFDrawerHost: ViewModifier {
     func body(content: Content) -> some View {
         let sheet = UFLayout.presentsAsSheet(horizontal: hSize, vertical: vSize)
         content
-        .sheet(item: Binding(get: { sheet ? overlay.drawer : nil }, set: { if $0 == nil { overlay.closeDrawer() } })) { d in
+        .ufSheet(item: Binding(get: { sheet ? overlay.drawer : nil }, set: { if $0 == nil { overlay.closeDrawer() } })) { d in
             d.content
                 .environment(\.ufClose, { overlay.closeDrawer() })
                 .ufSheetPresentation(wide: !d.half)
@@ -652,7 +652,7 @@ struct UFDateField: View {
             }
         }
         .buttonStyle(.plain)
-        .popover(isPresented: $open) {
+        .ufPopover(isPresented: $open) {
             VStack(alignment: .trailing, spacing: 8) {
                 DatePicker("", selection: Binding(get: { Fmt.date(iso) ?? Date() }, set: { iso = Fmt.isoDay($0) }),
                            displayedComponents: .date)
@@ -688,7 +688,7 @@ struct UFTimeField: View {
             }
         }
         .buttonStyle(.plain)
-        .popover(isPresented: $open) {
+        .ufPopover(isPresented: $open) {
             VStack(alignment: .trailing, spacing: 8) {
                 DatePicker("", selection: Binding(get: { Self.date(hm) }, set: { hm = Self.text($0) }), displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel)

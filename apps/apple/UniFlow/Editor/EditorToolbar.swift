@@ -552,7 +552,7 @@ struct EditorToolbar: View {
             }
         }
         .buttonStyle(EditorToolButtonStyle(selected: selected))
-        .popover(isPresented: Binding(get: { optionsFor == t }, set: { if !$0 { optionsFor = nil } })) {
+        .ufPopover(isPresented: Binding(get: { optionsFor == t }, set: { if !$0 { optionsFor = nil } })) {
             EditorToolOptions(tools: tools, tool: t) { optionsFor = nil }.padding(16)
         }
         .contextMenu { if hasOptions(t) { optionMenu(t) } }
@@ -604,7 +604,7 @@ struct EditorToolbar: View {
             .padding(.horizontal, 2)
         }
         .buttonStyle(EditorToolButtonStyle(selected: false))
-        .popover(isPresented: $attributesOpen) {
+        .ufPopover(isPresented: $attributesOpen) {
             EditorToolAttributes(tools: tools, tool: t)
         }
         .accessibilityLabel("Farbe und Stärke: \(t.title)")

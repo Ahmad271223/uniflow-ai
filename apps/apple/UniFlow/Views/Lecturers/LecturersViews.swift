@@ -187,12 +187,12 @@ struct LecturerList: View {
                     .ufBorderBottom(r.id != rows.last?.id)
             }
         }
-        .sheet(item: $compose) { req in
+        .ufSheet(item: $compose) { req in
             if let c = uniMail { UniMailComposeSheet(connection: c, request: req) { sent in if sent { toast.show("Gesendet.") } } }
         }
         // Abgleich ausdruecklich ins Fenster: auf dem Mac ("Designed for iPad") fehlte er dort (Absturz in
         // MessageReplyEntry, "No ObservableObject of type StudIPSync", Befund 09.11.2026)
-        .sheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender).environmentObject(studip) }
+        .ufSheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender).environmentObject(studip) }
     }
 
     private func mail(_ email: String, person: JSONValue) {

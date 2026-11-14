@@ -173,7 +173,7 @@ struct RoomPlaceView: View {
                 Text("\(attribution). Angaben ohne Gewähr.").ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         }
-        .sheet(item: $web) { t in RoomSafariView(url: t.url).ignoresSafeArea() }
+        .ufSheet(item: $web) { t in RoomSafariView(url: t.url).ignoresSafeArea() }
         .accessibilityIdentifier("rooms.place")
     }
 
@@ -455,7 +455,7 @@ struct UFRoomLink: View {
             .accessibilityLabel("Raum \(text)")
             .accessibilityHint("Zeigt den Ort mit Link zu Google Maps")
             .accessibilityIdentifier("room.link")
-            .sheet(isPresented: $open) { RoomResolveHost(text: text) }
+            .ufSheet(isPresented: $open) { RoomResolveHost(text: text) }
         } else {
             Text(text).ufFont(size).foregroundStyle(UF.text2)
         }
@@ -545,7 +545,7 @@ struct RoomFinderPage: View {
                 await search()
             }
         }
-        .sheet(item: $detail) { d in RoomDetailSheet(place: d.place, attribution: source?.s("attribution")) }
+        .ufSheet(item: $detail) { d in RoomDetailSheet(place: d.place, attribution: source?.s("attribution")) }
         .accessibilityIdentifier("rooms.page")
     }
 

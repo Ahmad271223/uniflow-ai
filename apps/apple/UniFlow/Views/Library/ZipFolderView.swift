@@ -377,7 +377,7 @@ struct ZipFolderView: View {
             importing = false
             replacing = nil
         }
-        .fullScreenCover(item: $editing, onDismiss: { model.refresh() }) { f in
+        .ufFullScreenCover(item: $editing, onDismiss: { model.refresh() }) { f in
             NavigationStack {
                 if UFEditorAvailability.readerOnly {
                     PhoneDocumentReader(file: f, api: model.api)
@@ -387,15 +387,15 @@ struct ZipFolderView: View {
                 }
             }
         }
-        .sheet(item: $previewing) { item in
+        .ufSheet(item: $previewing) { item in
             if let url = model.url(item) { ZipPreviewSheet(name: item.name, url: url) }
         }
-        .sheet(item: $textEditing) { item in
+        .ufSheet(item: $textEditing) { item in
             if let url = model.url(item) {
                 ZipTextEditorSheet(name: item.name, url: url) { model.saveText($0, to: item.path) }
             }
         }
-        .sheet(item: $exported) { f in ActivityView(items: [f.url]) }
+        .ufSheet(item: $exported) { f in ActivityView(items: [f.url]) }
     }
 
     // MARK: Teile

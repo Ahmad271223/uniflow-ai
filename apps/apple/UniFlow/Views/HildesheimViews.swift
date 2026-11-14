@@ -66,7 +66,7 @@ struct HildesheimSourcesBar: View {
                 }
                 if connection.anyConnected && HildesheimStatusLine.shows(connection) { HildesheimStatusLine(connection: connection) }
             }
-            .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
+            .ufSheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
         }
     }
 }
@@ -268,7 +268,7 @@ struct HildesheimSourcesCard: View {
                     .padding(.top, 9.6)
                 }
             }
-            .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
+            .ufSheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
             .confirmationDialog("Von Learnweb und LSF abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) {
                     Task {

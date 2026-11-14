@@ -54,7 +54,7 @@ struct MessageReplySheet: View {
         .onChange(of: focus) { _, f in if compact, f != nil { detent = .large } }
         .interactiveDismissDisabled(model.phase == .sending)
         .task { await model.start() }
-        .sheet(isPresented: $showingLogin) {
+        .ufSheet(isPresented: $showingLogin) {
             if let login {
                 login {
                     showingLogin = false

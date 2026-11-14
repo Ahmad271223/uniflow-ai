@@ -119,7 +119,7 @@ struct RecordingWeekBlocks: View {
                 .padding(.bottom, 14.4)
             }
         }
-        .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
+        .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
     }
 }
 
@@ -477,7 +477,7 @@ struct RecordingMatchBanner: View {
                 }
             }
             .task(id: "\(fileID)-\(library.revision)") { match = await library.match(fileID: fileID, text: text()) }
-            .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
+            .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
         }
     }
 }
@@ -517,7 +517,7 @@ struct RecordingPackageHints: View {
                 }
             }
             .task(id: "\(packageID)-\(library.revision)") { matches = await library.packageMatches(packageID: packageID) }
-            .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
+            .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
         }
     }
 }

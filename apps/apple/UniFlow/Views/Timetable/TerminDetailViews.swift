@@ -107,8 +107,8 @@ struct TerminRoomSection: View {
             ForEach(Array(rooms.enumerated()), id: \.offset) { _, r in row(r) }
         }
         .task(id: session.api?.base) { await loadFinder() }
-        .sheet(item: $search) { q in TerminRoomFinderSheet(query: q.text) }
-        .sheet(item: $details) { q in RoomResolveSheet(text: q.text, api: session.api) }
+        .ufSheet(item: $search) { q in TerminRoomFinderSheet(query: q.text) }
+        .ufSheet(item: $details) { q in RoomResolveSheet(text: q.text, api: session.api) }
     }
 
     @ViewBuilder private func row(_ r: TerminDetail.Room) -> some View {
@@ -288,14 +288,14 @@ struct TerminLecturersSection: View {
             }
         }
         .task(id: TerminDetail.lecturersQuery(event) ?? "") { await load() }
-        .sheet(item: $compose) { req in
+        .ufSheet(item: $compose) { req in
             if let c = uniMail { UniMailComposeSheet(connection: c, request: req) { sent in if sent { toast.show("Gesendet.") } } }
         }
         .background {
             Color.clear
-                .sheet(isPresented: $login, onDismiss: afterLogin) { if let c = uniMail { UniMailLoginView(connection: c) } }
+                .ufSheet(isPresented: $login, onDismiss: afterLogin) { if let c = uniMail { UniMailLoginView(connection: c) } }
                 // Abgleich ausdruecklich ins Fenster (Mac "Designed for iPad": fehlte sonst, wie in LecturerList)
-                .sheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender).environmentObject(studip) }
+                .ufSheet(item: $message) { req in MessageReplyEntry(original: req.original, mode: .sender).environmentObject(studip) }
         }
         .confirmationDialog(TerminDetailText.connectTitle, isPresented: $askConnect, titleVisibility: .visible) {
             Button(TerminDetailText.connect) { login = true }

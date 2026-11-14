@@ -54,7 +54,7 @@ struct StudoraAccountCard: View {
             }
         }
         .task { await link.refresh() }
-        .sheet(item: Binding(get: { exportURL.map(ExportItem.init) }, set: { exportURL = $0?.url })) { item in ActivityView(items: [item.url]) }
+        .ufSheet(item: Binding(get: { exportURL.map(ExportItem.init) }, set: { exportURL = $0?.url })) { item in ActivityView(items: [item.url]) }
     }
 
     /// Zeile zur StudiNow-KI: bereit mit Credits-Stand, bzw. was fehlt (Anmeldung); nil ohne Pro AI und ohne Probe

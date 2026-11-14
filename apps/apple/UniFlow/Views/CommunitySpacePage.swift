@@ -571,7 +571,7 @@ struct CommunitySpaceDiscussion: View {
         }
         .task(id: space.key) { await load() }
         // die Frage kommt aus dem Blatt zurueck (Antworten, Likes, geloescht) statt die ganze Liste neu zu laden
-        .sheet(item: $thread) { p in
+        .ufSheet(item: $thread) { p in
             CommunityThreadSheet(space: space, service: service, post: p, close: { thread = nil },
                                  changed: { fresh in
                                      if let i = posts?.firstIndex(where: { $0.id == fresh.id }) { posts?[i] = fresh }

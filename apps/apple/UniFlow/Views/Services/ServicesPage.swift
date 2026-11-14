@@ -496,7 +496,7 @@ private struct LSFGradesCard: View {
                 .padding(.top, 12.8).padding(.bottom, 5.6)
             Spacer(minLength: 0)
         }
-        .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
+        .ufSheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
     }
 }
 
@@ -547,7 +547,7 @@ struct HsHGradesCard: View {
                 .padding(.top, 12.8).padding(.bottom, 5.6)
             Spacer(minLength: 0)
         }
-        .sheet(isPresented: $login) { HsHLoginView(source: .campus, connection: connection) }
+        .ufSheet(isPresented: $login) { HsHLoginView(source: .campus, connection: connection) }
     }
 }
 
