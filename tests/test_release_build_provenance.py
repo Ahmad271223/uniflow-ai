@@ -75,6 +75,35 @@ def test_released_builds_and_build_33():
     assert not re.search(r'MARKETING_VERSION: "1\.0"', yml), "1.0 wurde nie veroeffentlicht"
 
 
+def test_build_41_is_in_testflight_selected_for_1_0_4_and_not_submitted():
+    """Betriebsfakt 14.11.2026: Build 41 (6923136b, Tag ios-1.0.4-b41) ist seit 19:01 in TestFlight (VALID 19:46), fuer
+    Version 1.0.4 ausgewaehlt und noch nicht eingereicht (wartet auf das Server-Update fuer die Geraete-Regel und das
+    Okay des Inhabers); develop zaehlt als Build 42 weiter."""
+    r = rows()
+    b = r[41]
+    assert b["commit"] == "6923136b" and b["date"] == "14.11.2026 19:01"
+    assert b["status"].startswith("hochgeladen (TestFlight), Version 1.0.4, iPad + iPhone")
+    for must in ("`luh hildesheim`", "nicht eingereicht", "für Version 1.0.4 ausgewählt", "Server-Update", "Okay des Inhabers",
+                 "VALID gemeldet 19:46", "„LUH-Tester“", "IN_BETA_TESTING", "WAITING_FOR_REVIEW", "`ios-1.0.4-b41`"):
+        assert must in b["status"], must
+    for must in ("Build 40 plus", "Mac-Reparatur", "Hildesheim", "iPhone-Wochenraster", "Geräte-Regel", "4 pt"):
+        assert must in b["content"], must
+    assert r[40]["commit"] == "aefee598" and "nicht eingereicht" in r[40]["status"]
+    assert r[42]["commit"] is None and r[42]["status"] == "noch nicht hochgeladen; develop nach Build 41"
+    assert r[42]["content"] == "Änderungen nach `6923136b`"
+    assert submitted() is None and "In der Prüfung bei Apple: keine Version." in DOC.read_text(encoding="utf-8")
+    row = next(line for line in STORE.read_text(encoding="utf-8").splitlines() if line.startswith("| Version, Build |"))
+    assert "Builds 36 bis 41 (1.0.4) nur TestFlight" in row and "Build 41 vom 14.11.2026" in row, row
+    assert "für die Einreichung von 1.0.4 ausgewählt, noch nicht eingereicht" in row, row
+    assert "für StudiNow 1.0.4 (Build 41, " in STORE.read_text(encoding="utf-8").splitlines()[2]
+    sheet = (ROOT / "docs" / "release" / "EINREICHUNG-1-0-4.md").read_text(encoding="utf-8")
+    assert "1.0.4 wird mit Build 41 eingereicht" in sheet and "4. Build **41** auswählen" in sheet
+    assert "noch nicht zur Prüfung eingereicht" in sheet
+    tag = git("rev-parse", "--verify", "--quiet", "ios-1.0.4-b41^{commit}")
+    if tag.returncode == 0:                                  # im flachen Klon ohne Tags nichts zu pruefen
+        assert tag.stdout.strip().startswith("6923136b"), tag.stdout
+
+
 def test_app_store_md_names_the_same_builds_as_project_yml_and_this_table():
     store = STORE.read_text(encoding="utf-8")
     row = next(line for line in store.splitlines() if line.startswith("| Version, Build |"))
@@ -125,7 +154,7 @@ def _export_differences(commit: str, export: Path) -> list[str]:
     return [f"fehlt: {p}" for p in missing] + [f"anders: {p}" for p in changed] + [f"zusaetzlich: {p}" for p in extra]
 
 
-@pytest.mark.parametrize("build", [21, 22, 23, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40])
+@pytest.mark.parametrize("build", [21, 22, 23, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41])
 def test_export_folder_is_exactly_the_commit(build):
     """Nur auf dem Mac des Inhabers: ~/Studora-Builds/export-bNN = git archive <commit> (bis auf erzeugte Dateien)."""
     v = rows()[build]

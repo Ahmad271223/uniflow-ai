@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 41 (Version 1.0.4, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: keine Version.
+Aktueller Stand in project.yml: Build 42 (Version 1.0.4, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: keine Version.
 Veröffentlicht: 1.0.3 mit Build 35 aus `ce6df886` (13.11.2026 23:53), davor 1.0.2 mit Build 31 und 1.0.1 mit Build 30.
 
 ## Builds
@@ -36,7 +36,8 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 38 | `ba427849` | 13.11.2026 16:17 | hochgeladen (TestFlight), Version 1.0.4, nicht eingereicht; intern sofort, „LUH-Tester“ nach der Beta-Prüfung (wartet auf Build 36) | Build 37 plus neuer App-Einstieg, Haken „erledigt“ je Datei und Woche, QIS direkt zur Prüfungsanmeldung, bessere KI-Karteikarten |
 | 39 | `5d6b6a45` | 13.11.2026 23:49 | hochgeladen (TestFlight), Version 1.0.4, erstmals iPad + iPhone, nicht eingereicht; intern und „LUH-Tester“ (extern IN_BETA_TESTING seit 23:51) | Build 38 plus iPhone-Version, Rückgängig holt nie Gelöschtes zurück, Formen erkennen am Gerät, „+ Seite“, Seiten im Notizblatt löschen mit Papierkorb, Uni-Mail neu anmelden statt „keine JSON-Antwort“, Erledigt-Haken über alle Geräte |
 | 40 | `aefee598` | 14.11.2026 13:41 | hochgeladen (TestFlight), Version 1.0.4, iPad + iPhone, **erstmals LUH und Universität Hildesheim** (`UFShippedUniversities` = `luh hildesheim`), nicht eingereicht (Inhaber wartet auf die Mac-Reparatur in Build 41); intern und „LUH-Tester“ | Build 39 plus Hildesheim im Store-Build, Store-Texte und Bilder für 1.0.4, neue Anschrift in den Rechtstexten |
-| 41 | – | 14.11.2026 | noch nicht hochgeladen; develop nach Build 40 | Änderungen nach `aefee598` |
+| 41 | `6923136b` | 14.11.2026 19:01 | hochgeladen (TestFlight), Version 1.0.4, iPad + iPhone, LUH und Universität Hildesheim (`UFShippedUniversities` = `luh hildesheim`), nicht eingereicht (in App Store Connect für Version 1.0.4 ausgewählt; wartet auf das Server-Update für die Geräte-Regel und das Okay des Inhabers); von Apple als VALID gemeldet 19:46, Testhinweis gesetzt; intern und „LUH-Tester“ (intern und extern IN_BETA_TESTING, Beta-Prüfung WAITING_FOR_REVIEW); Tag `ios-1.0.4-b41` | Build 40 plus Mac-Reparatur (`ufSheet`/`ufFullScreenCover`/`ufPopover`, kein Absturz beim Öffnen von Blättern), Hildesheim (Wochen nach Sitzungsdatum, Studiengang selbst wählen inkl. Begleitfach, früheres Studium getrennt, „Was studierst du?“ mit 176 Einträgen und Kurzform-Suche, LSF-Link, neuer Leser für Studienordnung mit Modulhandbuch, Grundstock 108 Kataloge / 2 204 Module, Register 119), iPhone-Wochenraster im Lernkalender, Geräte-Regel (Free gilt für ein Gerät, Plus-Hinweis; greift erst nach dem Server-Update), Griff der geteilten Ansicht reagiert erst ab 4 pt, Store-Texte 1.0.4 angepasst |
+| 42 | – | 14.11.2026 | noch nicht hochgeladen; develop nach Build 41 | Änderungen nach `6923136b` |
 
 ### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
 

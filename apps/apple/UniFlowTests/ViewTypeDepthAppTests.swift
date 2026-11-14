@@ -130,6 +130,18 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("ModuleFileDoneToggle", ModuleFileDoneToggle.Body.self),
         ("ModuleWeekDoneButton", ModuleWeekDoneButton.Body.self),
         ("ModuleUnassignedBar", ModuleUnassignedBar.Body.self),
+        // Studiengang waehlen (14.11.2026)
+        ("StudyPlanProgramQuestion", StudyPlanProgramQuestion.Body.self),
+        ("StudyPlanProgramPicker", StudyPlanProgramPicker.Body.self),
+        ("StudyPlanProgramRow", StudyPlanProgramRow.Body.self),
+        ("StudyPlanProgramMismatchCard", StudyPlanProgramMismatchCard.Body.self),
+        ("IntroProgramAnswer", IntroProgramAnswer.Body.self),
+        ("StudyPlanEarlierCard", StudyPlanEarlierCard.Body.self),
+        ("StudyPlanOrderCard", StudyPlanOrderCard.Body.self),
+        ("StudyPlanLSFLink", StudyPlanLSFLink.Body.self),
+        ("StudyProgramSettingsCard", StudyProgramSettingsCard.Body.self),
+        ("IntroProgramToggle", IntroProgramToggle.Body.self),
+        ("IntroChosenProgramRow", IntroChosenProgramRow.Body.self),
         // Lernziele (Smart Planner 2.0, 12.11.2026) und der Lernkalender, in den sie eingebettet sind
         ("PlanView", PlanView.Body.self),
         ("GoalsPage", GoalsPage.Body.self),

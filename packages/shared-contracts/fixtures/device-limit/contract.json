@@ -1,0 +1,764 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-device-limit-fixture.py aus der Python-Referenz (app/device_limit.py); nicht von Hand aendern.",
+ "capability": {
+  "header": "X-StudiNow-Caps",
+  "value": "device_limit",
+  "rule": "Die Regel greift nur fuer Apple-Apps, die diese Kopfzeile schicken. Aeltere Apps, Web und Windows bekommen kein Feld device und werden nie Hauptgeraet."
+ },
+ "states": [
+  "ok",
+  "blocked",
+  "hint_plus"
+ ],
+ "upgrade": {
+  "plan": "pro_ai",
+  "name": "StudiNow Pro AI",
+  "price_cents": 3999,
+  "currency": "EUR",
+  "period": "year"
+ },
+ "rule_cases": [
+  {
+   "plan": "free",
+   "device_id": "a",
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "free",
+   "device_id": "b",
+   "primary_device_id": "a",
+   "state": "blocked"
+  },
+  {
+   "plan": "free",
+   "device_id": null,
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "free",
+   "device_id": "b",
+   "primary_device_id": null,
+   "state": "ok"
+  },
+  {
+   "plan": "plus",
+   "device_id": "a",
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "plus",
+   "device_id": "b",
+   "primary_device_id": "a",
+   "state": "hint_plus"
+  },
+  {
+   "plan": "plus",
+   "device_id": null,
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "plus",
+   "device_id": "b",
+   "primary_device_id": null,
+   "state": "ok"
+  },
+  {
+   "plan": "pro_ai",
+   "device_id": "a",
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "pro_ai",
+   "device_id": "b",
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "pro_ai",
+   "device_id": null,
+   "primary_device_id": "a",
+   "state": "ok"
+  },
+  {
+   "plan": "pro_ai",
+   "device_id": "b",
+   "primary_device_id": null,
+   "state": "ok"
+  }
+ ],
+ "client_cases": [
+  {
+   "server_state": null,
+   "local_plan": "free",
+   "shown": "ok"
+  },
+  {
+   "server_state": null,
+   "local_plan": "plus",
+   "shown": "ok"
+  },
+  {
+   "server_state": null,
+   "local_plan": "pro_ai",
+   "shown": "ok"
+  },
+  {
+   "server_state": "ok",
+   "local_plan": "free",
+   "shown": "ok"
+  },
+  {
+   "server_state": "ok",
+   "local_plan": "plus",
+   "shown": "ok"
+  },
+  {
+   "server_state": "ok",
+   "local_plan": "pro_ai",
+   "shown": "ok"
+  },
+  {
+   "server_state": "blocked",
+   "local_plan": "free",
+   "shown": "blocked"
+  },
+  {
+   "server_state": "blocked",
+   "local_plan": "plus",
+   "shown": "hint_plus"
+  },
+  {
+   "server_state": "blocked",
+   "local_plan": "pro_ai",
+   "shown": "ok"
+  },
+  {
+   "server_state": "hint_plus",
+   "local_plan": "free",
+   "shown": "hint_plus"
+  },
+  {
+   "server_state": "hint_plus",
+   "local_plan": "plus",
+   "shown": "hint_plus"
+  },
+  {
+   "server_state": "hint_plus",
+   "local_plan": "pro_ai",
+   "shown": "ok"
+  },
+  {
+   "server_state": "unbekannt",
+   "local_plan": "free",
+   "shown": "ok"
+  },
+  {
+   "server_state": "unbekannt",
+   "local_plan": "plus",
+   "shown": "ok"
+  },
+  {
+   "server_state": "unbekannt",
+   "local_plan": "pro_ai",
+   "shown": "ok"
+  }
+ ],
+ "flows": [
+  {
+   "step": "Free: erstes Geraet anmelden (wird das eine Geraet)",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "free@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "ipad-1",
+    "device_name": "iPad"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "free@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "ok",
+     "is_primary": true,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Free: zweites Geraet anmelden (Hinweis-Bildschirm)",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "free@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "iphone-1",
+    "device_name": "iPhone"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "free@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "blocked",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Free: Stand auf dem ersten Geraet",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "free",
+    "paid_plan": "free",
+    "needs_plan_choice": true,
+    "device": {
+     "state": "ok",
+     "is_primary": true,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Free: Stand auf dem zweiten Geraet",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "free",
+    "paid_plan": "free",
+    "needs_plan_choice": true,
+    "device": {
+     "state": "blocked",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Free: Konto auf dem zweiten Geraet",
+   "method": "GET",
+   "path": "/api/account/me",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "device": {
+     "state": "blocked",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Free: dieses Geraet stattdessen nutzen",
+   "method": "POST",
+   "path": "/api/account/device/primary",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "device": {
+     "state": "ok",
+     "is_primary": true,
+     "primary_name": "iPhone",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Free: danach zeigt das andere Geraet den Hinweis",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "free",
+    "paid_plan": "free",
+    "needs_plan_choice": true,
+    "device": {
+     "state": "blocked",
+     "is_primary": false,
+     "primary_name": "iPhone",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Nach dem Kauf von Pro AI: kein Hinweis mehr",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "pro_ai",
+    "paid_plan": "pro_ai",
+    "needs_plan_choice": false,
+    "device": {
+     "state": "ok",
+     "is_primary": false,
+     "primary_name": "iPhone",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Plus: erstes Geraet anmelden",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "plus@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "ipad-1",
+    "device_name": "iPad"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "plus@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "plus",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "ok",
+     "is_primary": true,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Plus: zweites Geraet anmelden (einmaliger Hinweis, nie gesperrt)",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "plus@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "iphone-1",
+    "device_name": "iPhone"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "plus@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "plus",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "hint_plus",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Plus: Stand auf dem zweiten Geraet",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "plus",
+    "paid_plan": "plus",
+    "needs_plan_choice": false,
+    "device": {
+     "state": "hint_plus",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Pro AI: erstes Geraet anmelden",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "pro@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "ipad-1",
+    "device_name": "iPad"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "pro@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "pro_ai",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "ok",
+     "is_primary": true,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Pro AI: zweites Geraet anmelden (keine Einschraenkung)",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "pro@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "iphone-1",
+    "device_name": "iPhone"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "pro@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "pro_ai",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "ok",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Probe: erstes Geraet anmelden",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "probe@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "ipad-1",
+    "device_name": "iPad"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "probe@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "ok",
+     "is_primary": true,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Probe: zweites Geraet anmelden (zaehlt wie Pro AI)",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": true,
+   "auth": false,
+   "request": {
+    "email": "probe@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "iphone-1",
+    "device_name": "iPhone"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "probe@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "device": {
+     "state": "ok",
+     "is_primary": false,
+     "primary_name": "iPad",
+     "primary_set_at": "<zeit-utc>",
+     "upgrade_plan": "pro_ai",
+     "price_cents": 3999,
+     "currency": "EUR",
+     "period": "year"
+    }
+   }
+  },
+  {
+   "step": "Aeltere App ohne die Faehigkeit: erstes Geraet",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": false,
+   "auth": false,
+   "request": {
+    "email": "alt@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "ipad-1",
+    "device_name": "iPad"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "alt@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
+   "step": "Aeltere App ohne die Faehigkeit: zweites Geraet (merkt nichts)",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": false,
+   "auth": false,
+   "request": {
+    "email": "alt@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "iphone-1",
+    "device_name": "iPhone"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "alt@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   },
+   "note": "ohne X-StudiNow-Caps: kein Feld device, kein Hauptgeraet"
+  },
+  {
+   "step": "Aeltere App: Stand ohne Feld device",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "capability": false,
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "free",
+    "paid_plan": "free",
+    "needs_plan_choice": true
+   }
+  },
+  {
+   "step": "Sitzung ohne Geraete-Kennung",
+   "method": "POST",
+   "path": "/api/account/login",
+   "capability": false,
+   "auth": false,
+   "request": {
+    "email": "alt@beispiel.de",
+    "password": "sehr-geheim-123"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "alt@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
+   "step": "Dieses Geraet nutzen ohne Geraete-Kennung",
+   "method": "POST",
+   "path": "/api/account/device/primary",
+   "capability": true,
+   "auth": true,
+   "request": null,
+   "status": 400,
+   "response": {
+    "detail": "Dieses Gerät lässt sich nicht auswählen. Bitte melde dich in der App ab und wieder an.",
+    "code": "device_unknown"
+   }
+  },
+  {
+   "step": "Dieses Geraet nutzen ohne Sitzung",
+   "method": "POST",
+   "path": "/api/account/device/primary",
+   "capability": true,
+   "auth": false,
+   "request": null,
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Dieses Geraet nutzen ohne die Faehigkeit (aeltere App, Web, Windows zaehlen nicht)",
+   "method": "POST",
+   "path": "/api/account/device/primary",
+   "capability": false,
+   "auth": true,
+   "request": null,
+   "status": 400,
+   "response": {
+    "detail": "Die Geräte-Regel gilt nur in den Apps für iPhone, iPad und Mac.",
+    "code": "device_rule_not_applicable"
+   }
+  }
+ ]
+}

@@ -1,7 +1,8 @@
 """Endpunkte fuer Tarife, Abo-Stand, App-Store-Kaeufe und die ChatGPT-Integration.
 
 - GET  /api/billing/plans                 Tarife, Rechte, Kontingente, Kaufwege je Plattform (oeffentlich)
-- GET  /api/entitlements                  eigener Abo-Stand (Tarif, Rechte, Kontingente, Ablauf, geplanter Wechsel)
+- GET  /api/entitlements                  eigener Abo-Stand (Tarif, Rechte, Kontingente, Ablauf, geplanter Wechsel);
+                                          mit `X-StudiNow-Caps: device_limit` zusaetzlich `device` (app/device_limit.py)
 - POST /api/billing/apple/verify          gepruefter Kauf / Wiederherstellung aus der App {signed_transaction, signed_renewal?}
 - POST /api/billing/apple/notifications   App Store Server Notifications V2 {signedPayload} (oeffentlich, Signatur geprueft)
 - GET  /api/billing/ai-usage              KI-Kosten des Monats (nur Admin)
@@ -82,6 +83,15 @@ def get_entitlements(request: Request):
         # Credits des Monats (app/credits.py): period, allowance, used, reserved, remaining, resets_at, plan
         out["credits"] = ai_backend.credits_balance(u["id"])
         out["access"] = access.for_status(out, access.client_type(request), u.get("role"))
+        # Geraete-Regel (14.11.2026, app/device_limit.py): nur fuer Apple-Apps mit der Faehigkeit `device_limit`;
+        # aeltere Apps, Web und Windows bekommen das Feld nicht. Ein Fehler laesst es weg (die App sperrt dann nie).
+        from . import account_api, device_limit
+        if device_limit.applies(request):
+            try:
+                out["device"] = device_limit.status(u, account_api.token_of(request))
+            except Exception as e:  # noqa: BLE001
+                import logging
+                logging.getLogger("uniflow.billing").warning("Geraete-Regel nicht bestimmt: %s: %s", type(e).__name__, e)
     else:
         from . import account_mode
         if account_mode.required():

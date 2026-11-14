@@ -323,6 +323,40 @@ eigenen Zahlungsweg vor der Einreichung prüfen; Prüfkonto mit Abo für die Sto
 Nutzungsbedingungen (Stripe, Konto-Pflicht) anwaltlich prüfen. Nicht geändert: die geplanten Hochschul-Abgleiche des
 Dienstes laufen auch für gesperrte Konten weiter (`app/jobs.py`).
 
+## 3e. Geräte-Regel (14.11.2026)
+
+Auftrag des Inhabers vom 14.11.2026; Dienst `app/device_limit.py`, Swift-Kern `DeviceRule.swift`, App
+`DeviceRuleViews.swift`, Vertrag `packages/shared-contracts/fixtures/device-limit/contract.json`
+(`tools/gen-device-limit-fixture.py`).
+
+- **Free:** ein Konto gilt für **ein** Gerät. Ein zweites Apple-Gerät (iPhone, iPad, Mac-App) zeigt statt der App einen
+  Hinweis-Bildschirm: „StudiNow Free gilt für ein Gerät“ mit „Pro AI ansehen“ (Tarifseite, Preis aus StoreKit, Rückfall
+  39,99 € im Jahr), „Dieses Gerät stattdessen nutzen“ (nach Rückfrage; das andere Gerät zeigt den Hinweis beim nächsten
+  Kontakt) und „Abmelden“. Nach einem Kauf von Pro AI verschwindet er sofort.
+- **Plus:** läuft auf jedem Gerät und wird **nie gesperrt** (App-Review-Richtlinie 3.1.2: ein gekauftes Abo gilt auf
+  allen Geräten derselben Apple-ID). Auf dem zweiten Gerät einmal ein wegtippbarer Hinweis auf Pro AI. Am Abgleich ändert
+  sich nichts: Module, Stundenplan, Lernplan und Karteikarten gleichen in jedem Tarif ab, Notizen erst mit Pro AI
+  (`can_sync_annotations`).
+- **Pro AI und laufende Probe:** keine Einschränkung. Endet die Probe und das Konto ist Free, greift die Regel beim
+  nächsten Kontakt.
+- **Web und Windows** zählen nicht als Gerät.
+
+Technik: je Konto ein Hauptgerät (`users.primary_device_id`, `primary_device_name`, `primary_device_set_at`); das erste
+Apple-Gerät mit der Fähigkeit wird es. Die App meldet die Fähigkeit mit der Kopfzeile `X-StudiNow-Caps: device_limit`;
+nur dann enthalten die Anmelde-Antworten, `GET /api/account/me` und `GET /api/entitlements` das Feld
+`device: {state: ok | blocked | hint_plus, is_primary, primary_name, primary_set_at, upgrade_plan, price_cents, currency,
+period}`. `POST /api/account/device/primary` macht das fragende Gerät zum Hauptgerät; die Route nimmt nur Apple-Apps mit der
+Fähigkeit an (Web, Windows und ältere Apps: `400 device_rule_not_applicable`, auch bei Abo-Sperre, unter deren
+Ausnahmen `/api/account/` sie liegt). Ältere Apps (bis Build 40), Web
+und Windows schicken die Kopfzeile nicht: ihre Antworten sind unverändert, sie werden nie Hauptgerät.
+
+Grenzen: Der Dienst sperrt keine Daten-Anfragen, `blocked` ist eine Auskunft für die App. Die App sperrt nur nach einer
+ausdrücklichen Antwort des Dienstes (letzter Stand gemerkt), nie ohne Netz, nie bei unbekannter Antwort; mit einem auf
+dem Gerät gültigen Kauf von Pro AI nie, mit Plus nie. Wer die App ohne Sitzung beim StudiNow-Dienst nutzt (in den
+Einstellungen vom Konto abgemeldet, Anmeldung beim ersten Start gescheitert, Apple-Anmeldung aus der Zeit vor Build 34
+ohne spätere Konto-Anmeldung), wird nicht gezählt. „Konto löschen“ entfernt das Hauptgerät sofort; der Export nennt es
+(`konto.json`, `hauptgeraet`). Tests: `tests/test_device_limit.py`, `DeviceRuleTests`, `DeviceRuleAppTests`.
+
 ## 4. ChatGPT-Verbindung
 
 `chatgpt_connection_premium` (seit 05.11.2026 **in jedem Tarif**, auch Free; vorher ab Pro AI bzw. Pro Connect; der

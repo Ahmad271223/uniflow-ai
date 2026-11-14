@@ -1,0 +1,3619 @@
+{
+ "v": 1,
+ "university": "hildesheim",
+ "source": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&show=plan",
+ "fetched": "2026-11-14",
+ "semester": "WiSe 2026/27",
+ "note": "Uebersicht der LSF-Studiengangsplaene: je Eintrag das Wochenraster der Veranstaltungen des laufenden Semesters, kein Studienverlaufsplan (kein Fachsemester, kein Modul, keine LP). Schreibweisen aus der LSF-Uebersicht, nicht bestaetigt. Erzeugt von tools/gen-hildesheim-lsf.py - nicht von Hand aendern.",
+ "entries": [
+  {
+   "nummer": 1,
+   "text": "Polyvalenter Zwei-Fächer-Bachelor Lehramt (Grundschule)",
+   "art": "studiengang",
+   "studiengang": "Polyvalenter Zwei-Fächer-Bachelor",
+   "variante": "Lehramt (Grundschule)",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1&idcol=k_abstgv.abstgvnr&idval=1&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 2,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Englisch (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Englisch",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=2&idcol=k_abstgv.abstgvnr&idval=2&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 3,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=3&idcol=k_abstgv.abstgvnr&idval=3&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 4,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=4&idcol=k_abstgv.abstgvnr&idval=4&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 5,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=5&idcol=k_abstgv.abstgvnr&idval=5&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 6,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=6&idcol=k_abstgv.abstgvnr&idval=6&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 7,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Evangelische Theologie",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=7&idcol=k_abstgv.abstgvnr&idval=7&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 8,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Deutsch (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Deutsch",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=8&idcol=k_abstgv.abstgvnr&idval=8&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 9,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=9&idcol=k_abstgv.abstgvnr&idval=9&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 10,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Katholische Theologie",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=10&idcol=k_abstgv.abstgvnr&idval=10&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 11,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Kunst (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Kunst",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=11&idcol=k_abstgv.abstgvnr&idval=11&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 12,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Sport (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Sport",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=12&idcol=k_abstgv.abstgvnr&idval=12&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 13,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (GS)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=13&idcol=k_abstgv.abstgvnr&idval=13&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 14,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Musik (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Musik",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=14&idcol=k_abstgv.abstgvnr&idval=14&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 15,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Wahlpflichtfach) (Lehramt)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Philosophie",
+   "variante": "Wahlpflichtfach; Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=15&idcol=k_abstgv.abstgvnr&idval=15&purge=n&getglobal=n",
+   "register_key": "hildesheim|philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 16,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=16&idcol=k_abstgv.abstgvnr&idval=16&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 17,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=17&idcol=k_abstgv.abstgvnr&idval=17&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 19,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=19&idcol=k_abstgv.abstgvnr&idval=19&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 20,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=20&idcol=k_abstgv.abstgvnr&idval=20&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 21,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=21&idcol=k_abstgv.abstgvnr&idval=21&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 22,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=22&idcol=k_abstgv.abstgvnr&idval=22&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 23,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=23&idcol=k_abstgv.abstgvnr&idval=23&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 24,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=24&idcol=k_abstgv.abstgvnr&idval=24&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 25,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=25&idcol=k_abstgv.abstgvnr&idval=25&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 26,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=26&idcol=k_abstgv.abstgvnr&idval=26&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 27,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik und Sachunterricht (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik und Sachunterricht",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=27&idcol=k_abstgv.abstgvnr&idval=27&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 147,
+   "text": "Polyvalenter Zwei-Fächer-Bachelor individuell ohne Lehramtsoption",
+   "art": "studiengang",
+   "studiengang": "Polyvalenter Zwei-Fächer-Bachelor",
+   "variante": "individuell ohne Lehramtsoption",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=147&idcol=k_abstgv.abstgvnr&idval=147&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 148,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Englisch (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Englisch",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=148&idcol=k_abstgv.abstgvnr&idval=148&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 149,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=149&idcol=k_abstgv.abstgvnr&idval=149&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 150,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (Umweltsicherung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie",
+   "variante": "Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=150&idcol=k_abstgv.abstgvnr&idval=150&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 152,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (Umweltsicherung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie",
+   "variante": "Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=152&idcol=k_abstgv.abstgvnr&idval=152&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 153,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Evangelische Theologie",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=153&idcol=k_abstgv.abstgvnr&idval=153&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 154,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Deutsch (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Deutsch",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=154&idcol=k_abstgv.abstgvnr&idval=154&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 155,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=155&idcol=k_abstgv.abstgvnr&idval=155&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 156,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Katholische Theologie",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=156&idcol=k_abstgv.abstgvnr&idval=156&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 157,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Kunst (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Kunst",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=157&idcol=k_abstgv.abstgvnr&idval=157&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 158,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Sport (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Sport",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=158&idcol=k_abstgv.abstgvnr&idval=158&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 159,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=159&idcol=k_abstgv.abstgvnr&idval=159&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 160,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Musik (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Musik",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=160&idcol=k_abstgv.abstgvnr&idval=160&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 162,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=162&idcol=k_abstgv.abstgvnr&idval=162&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 163,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=163&idcol=k_abstgv.abstgvnr&idval=163&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 165,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=165&idcol=k_abstgv.abstgvnr&idval=165&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 174,
+   "text": "B.A. Erziehungswissenschaft",
+   "art": "studiengang",
+   "studiengang": "Erziehungswissenschaft",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=174&idcol=k_abstgv.abstgvnr&idval=174&purge=n&getglobal=n",
+   "register_key": "hildesheim|erziehungswissenschaft|b.a.|2023"
+  },
+  {
+   "nummer": 175,
+   "text": "B.A. Philosophie - Künste - Medien",
+   "art": "studiengang",
+   "studiengang": "Philosophie - Künste - Medien",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=175&idcol=k_abstgv.abstgvnr&idval=175&purge=n&getglobal=n",
+   "register_key": "hildesheim|philosophie-kuenste-medien|b.a.|2022"
+  },
+  {
+   "nummer": 176,
+   "text": "B.Sc. Psychologie mit Schwerpunkt Pädagogische Psychologie PO2009",
+   "art": "studiengang",
+   "studiengang": "Psychologie mit Schwerpunkt Pädagogische Psychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=176&idcol=k_abstgv.abstgvnr&idval=176&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie-mit-schwerpunkt-paedagogische-psychologie|b.sc.|2012"
+  },
+  {
+   "nummer": 182,
+   "text": "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität",
+   "art": "studiengang",
+   "studiengang": "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=182&idcol=k_abstgv.abstgvnr&idval=182&purge=n&getglobal=n",
+   "register_key": "hildesheim|erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023"
+  },
+  {
+   "nummer": 184,
+   "text": "M.Sc. Pädagogische Psychologie",
+   "art": "studiengang",
+   "studiengang": "Pädagogische Psychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=184&idcol=k_abstgv.abstgvnr&idval=184&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 188,
+   "text": "M.Sc. Informationsmanagement/-technologie",
+   "art": "studiengang",
+   "studiengang": "Informationsmanagement/-technologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=188&idcol=k_abstgv.abstgvnr&idval=188&purge=n&getglobal=n",
+   "register_key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024"
+  },
+  {
+   "nummer": 191,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Wahlpflichtfach) (Lehramt)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Wahlpflichtfach; Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=191&idcol=k_abstgv.abstgvnr&idval=191&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 192,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Wahlpflichtfach) (Lehramt)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Soziologie",
+   "variante": "Wahlpflichtfach; Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=192&idcol=k_abstgv.abstgvnr&idval=192&purge=n&getglobal=n",
+   "register_key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 202,
+   "text": "B.A. Szenische Künste",
+   "art": "studiengang",
+   "studiengang": "Szenische Künste",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=202&idcol=k_abstgv.abstgvnr&idval=202&purge=n&getglobal=n",
+   "register_key": "hildesheim|szenische-kuenste|b.a.|2022"
+  },
+  {
+   "nummer": 216,
+   "text": "B.Sc. Informationsmanagement/-technologie",
+   "art": "studiengang",
+   "studiengang": "Informationsmanagement/-technologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=216&idcol=k_abstgv.abstgvnr&idval=216&purge=n&getglobal=n",
+   "register_key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024"
+  },
+  {
+   "nummer": 251,
+   "text": "Nebenfach (Bachelor): Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften",
+   "art": "nebenfach",
+   "studiengang": "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=251&idcol=k_abstgv.abstgvnr&idval=251&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 252,
+   "text": "Nebenfach (Bachelor): Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften",
+   "art": "nebenfach",
+   "studiengang": "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=252&idcol=k_abstgv.abstgvnr&idval=252&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 258,
+   "text": "Polyvalenter Zwei-Fächer-Bachelor (Engl. Appl. Ling.)",
+   "art": "studiengang",
+   "studiengang": "Polyvalenter Zwei-Fächer-Bachelor",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=258&idcol=k_abstgv.abstgvnr&idval=258&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 259,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=259&idcol=k_abstgv.abstgvnr&idval=259&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 260,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=260&idcol=k_abstgv.abstgvnr&idval=260&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 261,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=261&idcol=k_abstgv.abstgvnr&idval=261&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 262,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=262&idcol=k_abstgv.abstgvnr&idval=262&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 263,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Evangelische Theologie",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=263&idcol=k_abstgv.abstgvnr&idval=263&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 264,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Deutsch (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Deutsch",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=264&idcol=k_abstgv.abstgvnr&idval=264&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 265,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=265&idcol=k_abstgv.abstgvnr&idval=265&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 266,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Katholische Theologie",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=266&idcol=k_abstgv.abstgvnr&idval=266&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 267,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Kunst (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Kunst",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=267&idcol=k_abstgv.abstgvnr&idval=267&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 268,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Sport (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Sport",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=268&idcol=k_abstgv.abstgvnr&idval=268&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 269,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=269&idcol=k_abstgv.abstgvnr&idval=269&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 270,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Musik (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Musik",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=270&idcol=k_abstgv.abstgvnr&idval=270&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 271,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=271&idcol=k_abstgv.abstgvnr&idval=271&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 272,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=272&idcol=k_abstgv.abstgvnr&idval=272&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 273,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=273&idcol=k_abstgv.abstgvnr&idval=273&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 285,
+   "text": "Polyvalenter Zwei-Fächer-Bachelor (Umweltsicherung)",
+   "art": "studiengang",
+   "studiengang": "Polyvalenter Zwei-Fächer-Bachelor",
+   "variante": "Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=285&idcol=k_abstgv.abstgvnr&idval=285&purge=n&getglobal=n",
+   "register_key": "hildesheim|umweltsicherung|b.sc.|2026"
+  },
+  {
+   "nummer": 286,
+   "text": "Polyvalenter Zwei-Fächer-Bachelor Lehramt (Haupt-/Realschule)",
+   "art": "studiengang",
+   "studiengang": "Polyvalenter Zwei-Fächer-Bachelor",
+   "variante": "Lehramt (Haupt-/Realschule)",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=286&idcol=k_abstgv.abstgvnr&idval=286&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 308,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Englisch (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Englisch",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=308&idcol=k_abstgv.abstgvnr&idval=308&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 309,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=309&idcol=k_abstgv.abstgvnr&idval=309&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 310,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=310&idcol=k_abstgv.abstgvnr&idval=310&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 311,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=311&idcol=k_abstgv.abstgvnr&idval=311&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 358,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (RS)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=358&idcol=k_abstgv.abstgvnr&idval=358&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 359,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (HS)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=359&idcol=k_abstgv.abstgvnr&idval=359&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 361,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=361&idcol=k_abstgv.abstgvnr&idval=361&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 362,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=362&idcol=k_abstgv.abstgvnr&idval=362&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 363,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=363&idcol=k_abstgv.abstgvnr&idval=363&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 364,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=364&idcol=k_abstgv.abstgvnr&idval=364&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 365,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=365&idcol=k_abstgv.abstgvnr&idval=365&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 366,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=366&idcol=k_abstgv.abstgvnr&idval=366&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 367,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=367&idcol=k_abstgv.abstgvnr&idval=367&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 368,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik und Sachunterricht (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik und Sachunterricht",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=368&idcol=k_abstgv.abstgvnr&idval=368&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 372,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Wirtschaftswissenschaft (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Wirtschaftswissenschaft",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=372&idcol=k_abstgv.abstgvnr&idval=372&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 373,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Biologie (Drittfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Biologie",
+   "variante": "Drittfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=373&idcol=k_abstgv.abstgvnr&idval=373&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 374,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Chemie (Drittfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Chemie",
+   "variante": "Drittfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=374&idcol=k_abstgv.abstgvnr&idval=374&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 375,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geographie (Drittfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Geographie",
+   "variante": "Drittfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=375&idcol=k_abstgv.abstgvnr&idval=375&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 391,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie und Sachunterricht",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=391&idcol=k_abstgv.abstgvnr&idval=391&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 394,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie und Sachunterricht",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=394&idcol=k_abstgv.abstgvnr&idval=394&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 411,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Englisch (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Englisch",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=411&idcol=k_abstgv.abstgvnr&idval=411&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 412,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Wirtschaft (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Wirtschaft",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=412&idcol=k_abstgv.abstgvnr&idval=412&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 413,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Biologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Biologie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=413&idcol=k_abstgv.abstgvnr&idval=413&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 414,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Chemie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Chemie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=414&idcol=k_abstgv.abstgvnr&idval=414&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 415,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geographie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Geographie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=415&idcol=k_abstgv.abstgvnr&idval=415&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 416,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Geschichte",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=416&idcol=k_abstgv.abstgvnr&idval=416&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 417,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Kunst (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Kunst",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=417&idcol=k_abstgv.abstgvnr&idval=417&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 418,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Sport (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Sport",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=418&idcol=k_abstgv.abstgvnr&idval=418&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 419,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Mathematik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Mathematik",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=419&idcol=k_abstgv.abstgvnr&idval=419&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 420,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Musik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Musik",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=420&idcol=k_abstgv.abstgvnr&idval=420&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 421,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Philosophie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=421&idcol=k_abstgv.abstgvnr&idval=421&purge=n&getglobal=n",
+   "register_key": "hildesheim|philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 422,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=422&idcol=k_abstgv.abstgvnr&idval=422&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 423,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Soziologie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=423&idcol=k_abstgv.abstgvnr&idval=423&purge=n&getglobal=n",
+   "register_key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 424,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Technik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Technik",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=424&idcol=k_abstgv.abstgvnr&idval=424&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 430,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Evangelische Theologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Evangelische Theologie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=430&idcol=k_abstgv.abstgvnr&idval=430&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 431,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Katholische Theologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Katholische Theologie",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=431&idcol=k_abstgv.abstgvnr&idval=431&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 448,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Englisch (Wahlpflichtbereich) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Englisch",
+   "variante": "Wahlpflichtbereich; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=448&idcol=k_abstgv.abstgvnr&idval=448&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 449,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Geschichte",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=449&idcol=k_abstgv.abstgvnr&idval=449&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 450,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Philosophie",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=450&idcol=k_abstgv.abstgvnr&idval=450&purge=n&getglobal=n",
+   "register_key": "hildesheim|philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 451,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=451&idcol=k_abstgv.abstgvnr&idval=451&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 452,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Soziologie",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=452&idcol=k_abstgv.abstgvnr&idval=452&purge=n&getglobal=n",
+   "register_key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 454,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Erziehungs- und Sozialwissenschaften (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Erziehungs- und Sozialwissenschaften",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=454&idcol=k_abstgv.abstgvnr&idval=454&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 463,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Englisch (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Englisch",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=463&idcol=k_abstgv.abstgvnr&idval=463&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 464,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Pädagogik",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=464&idcol=k_abstgv.abstgvnr&idval=464&purge=n&getglobal=n",
+   "register_key": "hildesheim|paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 467,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Physik (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Physik",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=467&idcol=k_abstgv.abstgvnr&idval=467&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 468,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Soziologie",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=468&idcol=k_abstgv.abstgvnr&idval=468&purge=n&getglobal=n",
+   "register_key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 469,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Technik (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Technik",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=469&idcol=k_abstgv.abstgvnr&idval=469&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 476,
+   "text": "M.A. Internationales Informationsmanagement - Sprachwissenschaft und Interkulturelle Kommunikation",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Sprachwissenschaft und Interkulturelle Kommunikation",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=476&idcol=k_abstgv.abstgvnr&idval=476&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024"
+  },
+  {
+   "nummer": 479,
+   "text": "M.A. Internationales Informationsmanagement - Informationswissenschaft",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Informationswissenschaft",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=479&idcol=k_abstgv.abstgvnr&idval=479&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement-informationswissenschaft|m.a.|2024"
+  },
+  {
+   "nummer": 498,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Englisch (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Englisch",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=498&idcol=k_abstgv.abstgvnr&idval=498&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 499,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=499&idcol=k_abstgv.abstgvnr&idval=499&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 500,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=500&idcol=k_abstgv.abstgvnr&idval=500&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 501,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=501&idcol=k_abstgv.abstgvnr&idval=501&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 502,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=502&idcol=k_abstgv.abstgvnr&idval=502&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 503,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Evangelische Theologie",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=503&idcol=k_abstgv.abstgvnr&idval=503&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 504,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Deutsch (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Deutsch",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=504&idcol=k_abstgv.abstgvnr&idval=504&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 505,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=505&idcol=k_abstgv.abstgvnr&idval=505&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 506,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Katholische Theologie",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=506&idcol=k_abstgv.abstgvnr&idval=506&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 507,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Kunst (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Kunst",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=507&idcol=k_abstgv.abstgvnr&idval=507&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 508,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Sport (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Sport",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=508&idcol=k_abstgv.abstgvnr&idval=508&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 509,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=509&idcol=k_abstgv.abstgvnr&idval=509&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 510,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Musik (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Musik",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=510&idcol=k_abstgv.abstgvnr&idval=510&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 512,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=512&idcol=k_abstgv.abstgvnr&idval=512&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 513,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=513&idcol=k_abstgv.abstgvnr&idval=513&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 514,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=514&idcol=k_abstgv.abstgvnr&idval=514&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 534,
+   "text": "Polyvalenter Zwei-Fächer-Bachelor Sport, Gesundheit und Leistung",
+   "art": "studiengang",
+   "studiengang": "Polyvalenter Zwei-Fächer-Bachelor",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=534&idcol=k_abstgv.abstgvnr&idval=534&purge=n&getglobal=n",
+   "register_key": "hildesheim|sport-gesundheit-und-leistung|b.a.|2026"
+  },
+  {
+   "nummer": 537,
+   "text": "Nebenfach (Bachelor): Bildende Kunst (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=537&idcol=k_abstgv.abstgvnr&idval=537&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 538,
+   "text": "Nebenfach (Bachelor): Bildende Kunst (SK)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=538&idcol=k_abstgv.abstgvnr&idval=538&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 541,
+   "text": "Nebenfach (Bachelor): Musik (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=541&idcol=k_abstgv.abstgvnr&idval=541&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 542,
+   "text": "Nebenfach (Bachelor): Musik (SK)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=542&idcol=k_abstgv.abstgvnr&idval=542&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 544,
+   "text": "Nebenfach (Bachelor): Philosophie (SK)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=544&idcol=k_abstgv.abstgvnr&idval=544&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 547,
+   "text": "Nebenfach (Bachelor): Medien (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Medien",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=547&idcol=k_abstgv.abstgvnr&idval=547&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 548,
+   "text": "Nebenfach (Bachelor): Medien (SK)",
+   "art": "nebenfach",
+   "studiengang": "Medien",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=548&idcol=k_abstgv.abstgvnr&idval=548&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 551,
+   "text": "Nebenfach (Bachelor): Theater (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=551&idcol=k_abstgv.abstgvnr&idval=551&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 552,
+   "text": "Nebenfach (Bachelor): Theater (SK)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=552&idcol=k_abstgv.abstgvnr&idval=552&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 554,
+   "text": "Nebenfach (Bachelor): Literatur (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Literatur",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=554&idcol=k_abstgv.abstgvnr&idval=554&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 556,
+   "text": "Nebenfach (Bachelor): Kulturpolitik (SK)",
+   "art": "nebenfach",
+   "studiengang": "Kulturpolitik",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=556&idcol=k_abstgv.abstgvnr&idval=556&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 557,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Pädagogik",
+   "variante": "Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=557&idcol=k_abstgv.abstgvnr&idval=557&purge=n&getglobal=n",
+   "register_key": "hildesheim|paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 559,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Pädagogik",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=559&idcol=k_abstgv.abstgvnr&idval=559&purge=n&getglobal=n",
+   "register_key": "hildesheim|paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 560,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Psychologie (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Psychologie",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=560&idcol=k_abstgv.abstgvnr&idval=560&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 561,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Sport (Vertiefungsbereich) (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Sport",
+   "variante": "Vertiefungsbereich; Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=561&idcol=k_abstgv.abstgvnr&idval=561&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 562,
+   "text": "Nebenfach (Bachelor): Literatur (SK)",
+   "art": "nebenfach",
+   "studiengang": "Literatur",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=562&idcol=k_abstgv.abstgvnr&idval=562&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 578,
+   "text": "Nebenfach (Bachelor): Englisch (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Englisch (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=578&idcol=k_abstgv.abstgvnr&idval=578&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 579,
+   "text": "Nebenfach (Bachelor): Biologie (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Biologie (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=579&idcol=k_abstgv.abstgvnr&idval=579&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 580,
+   "text": "Nebenfach (Bachelor): Chemie (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Chemie (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=580&idcol=k_abstgv.abstgvnr&idval=580&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 581,
+   "text": "Nebenfach (Bachelor): Geographie (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Geographie (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=581&idcol=k_abstgv.abstgvnr&idval=581&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 582,
+   "text": "Nebenfach (Bachelor): Evangelische Theologie (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Evangelische Theologie (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=582&idcol=k_abstgv.abstgvnr&idval=582&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 583,
+   "text": "Nebenfach (Bachelor): Geschichte (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Geschichte (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=583&idcol=k_abstgv.abstgvnr&idval=583&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 584,
+   "text": "Nebenfach (Bachelor): Katholische Theologie (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Katholische Theologie (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=584&idcol=k_abstgv.abstgvnr&idval=584&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 585,
+   "text": "Nebenfach (Bachelor): Kunst (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Kunst (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=585&idcol=k_abstgv.abstgvnr&idval=585&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 586,
+   "text": "Nebenfach (Bachelor): Sport (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Sport (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=586&idcol=k_abstgv.abstgvnr&idval=586&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 587,
+   "text": "Nebenfach (Bachelor): Musik (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Musik (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=587&idcol=k_abstgv.abstgvnr&idval=587&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 588,
+   "text": "Nebenfach (Bachelor): Philosophie (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=588&idcol=k_abstgv.abstgvnr&idval=588&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 589,
+   "text": "Nebenfach (Bachelor): Politikwissenschaft (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Politikwissenschaft (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=589&idcol=k_abstgv.abstgvnr&idval=589&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 590,
+   "text": "Nebenfach (Bachelor): Sachunterricht (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Sachunterricht (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=590&idcol=k_abstgv.abstgvnr&idval=590&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 592,
+   "text": "Nebenfach (Bachelor): Technik (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Technik (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=592&idcol=k_abstgv.abstgvnr&idval=592&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 610,
+   "text": "Nebenfach (Bachelor): Betriebswirtschaftslehre (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Betriebswirtschaftslehre (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=610&idcol=k_abstgv.abstgvnr&idval=610&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 633,
+   "text": "Nebenfach (Bachelor): Biologie (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Biologie (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=633&idcol=k_abstgv.abstgvnr&idval=633&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 637,
+   "text": "Nebenfach (Master): Betriebswirtschaftslehre (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Betriebswirtschaftslehre",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=637&idcol=k_abstgv.abstgvnr&idval=637&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 638,
+   "text": "Nebenfach (Master): Philosophie (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=638&idcol=k_abstgv.abstgvnr&idval=638&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 639,
+   "text": "Nebenfach (Master): Sozialwissenschaften (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Sozialwissenschaften",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=639&idcol=k_abstgv.abstgvnr&idval=639&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 640,
+   "text": "Nebenfach (Master): Informationstechnologie (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Informationstechnologie",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=640&idcol=k_abstgv.abstgvnr&idval=640&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 642,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Vertiefungsbereich Umweltsicherung (Umweltsicherung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Vertiefungsbereich Umweltsicherung",
+   "variante": "Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=642&idcol=k_abstgv.abstgvnr&idval=642&purge=n&getglobal=n",
+   "register_key": "hildesheim|umweltsicherung|b.sc.|2026"
+  },
+  {
+   "nummer": 648,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie mit Vertiefung (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie mit Vertiefung",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=648&idcol=k_abstgv.abstgvnr&idval=648&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 651,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Physik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Physik",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=651&idcol=k_abstgv.abstgvnr&idval=651&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 653,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Anwendungsbezogene fachliche Vertiefung (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Anwendungsbezogene fachliche Vertiefung",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=653&idcol=k_abstgv.abstgvnr&idval=653&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 654,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Katholische Theologie (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Katholische Theologie",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=654&idcol=k_abstgv.abstgvnr&idval=654&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 655,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Kunst (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Kunst",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=655&idcol=k_abstgv.abstgvnr&idval=655&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 668,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Anwendungsbezogene fachliche Vertiefung (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Anwendungsbezogene fachliche Vertiefung",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=668&idcol=k_abstgv.abstgvnr&idval=668&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 669,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Anwendungsbezogene fachliche Vertiefung (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Anwendungsbezogene fachliche Vertiefung",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=669&idcol=k_abstgv.abstgvnr&idval=669&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 670,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Informatik (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Informatik",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=670&idcol=k_abstgv.abstgvnr&idval=670&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 679,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=679&idcol=k_abstgv.abstgvnr&idval=679&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 680,
+   "text": "M.A. Deutsch als Zweitsprache/Deutsch als Fremdsprache",
+   "art": "studiengang",
+   "studiengang": "Deutsch als Zweitsprache/Deutsch als Fremdsprache",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=680&idcol=k_abstgv.abstgvnr&idval=680&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018"
+  },
+  {
+   "nummer": 685,
+   "text": "International Exchange Programme",
+   "art": "sonstige",
+   "studiengang": "International Exchange Programme",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=685&idcol=k_abstgv.abstgvnr&idval=685&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 687,
+   "text": "International Exchange Programme",
+   "art": "sonstige",
+   "studiengang": "International Exchange Programme",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=687&idcol=k_abstgv.abstgvnr&idval=687&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 693,
+   "text": "Hauptfach im 2-Fächer-Bachelor: International Exchange Programme (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "International Exchange Programme",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=693&idcol=k_abstgv.abstgvnr&idval=693&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 715,
+   "text": "B.A. Sozial- und Organisationspädagogik",
+   "art": "studiengang",
+   "studiengang": "Sozial- und Organisationspädagogik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=715&idcol=k_abstgv.abstgvnr&idval=715&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 717,
+   "text": "M.A. Sozial- und Organisationspädagogik",
+   "art": "studiengang",
+   "studiengang": "Sozial- und Organisationspädagogik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=717&idcol=k_abstgv.abstgvnr&idval=717&purge=n&getglobal=n",
+   "register_key": "hildesheim|sozial-und-organisationspaedagogik|m.a.|2025"
+  },
+  {
+   "nummer": 721,
+   "text": "M.Sc. Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne",
+   "art": "studiengang",
+   "studiengang": "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=721&idcol=k_abstgv.abstgvnr&idval=721&purge=n&getglobal=n",
+   "register_key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021"
+  },
+  {
+   "nummer": 723,
+   "text": "M.Sc. Psychologie",
+   "art": "studiengang",
+   "studiengang": "Psychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=723&idcol=k_abstgv.abstgvnr&idval=723&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie|m.sc.|2021"
+  },
+  {
+   "nummer": 729,
+   "text": "M.A. Philosophie und Künste interkulturell",
+   "art": "studiengang",
+   "studiengang": "Philosophie und Künste interkulturell",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=729&idcol=k_abstgv.abstgvnr&idval=729&purge=n&getglobal=n",
+   "register_key": "hildesheim|philosophie-und-kuenste-interkulturell|m.a.|2024"
+  },
+  {
+   "nummer": 730,
+   "text": "Hauptfach im M.Ed.: Englisch (GS)",
+   "art": "fach-med",
+   "studiengang": "Englisch",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=730&idcol=k_abstgv.abstgvnr&idval=730&purge=n&getglobal=n",
+   "register_key": "hildesheim|englisch-im-master-lehramt-an-grundschulen|m.ed.|2025"
+  },
+  {
+   "nummer": 731,
+   "text": "Hauptfach im M.Ed.: Evangelische Religion (GS)",
+   "art": "fach-med",
+   "studiengang": "Evangelische Religion",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=731&idcol=k_abstgv.abstgvnr&idval=731&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 732,
+   "text": "Hauptfach im M.Ed.: Deutsch (GS)",
+   "art": "fach-med",
+   "studiengang": "Deutsch",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=732&idcol=k_abstgv.abstgvnr&idval=732&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 733,
+   "text": "Hauptfach im M.Ed.: Katholische Religion (GS)",
+   "art": "fach-med",
+   "studiengang": "Katholische Religion",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=733&idcol=k_abstgv.abstgvnr&idval=733&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 734,
+   "text": "Hauptfach im M.Ed.: Kunst (GS)",
+   "art": "fach-med",
+   "studiengang": "Kunst",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=734&idcol=k_abstgv.abstgvnr&idval=734&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 735,
+   "text": "Hauptfach im M.Ed.: Sport (GS)",
+   "art": "fach-med",
+   "studiengang": "Sport",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=735&idcol=k_abstgv.abstgvnr&idval=735&purge=n&getglobal=n",
+   "register_key": "hildesheim|sport-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 736,
+   "text": "Hauptfach im M.Ed.: Mathematik (GS)",
+   "art": "fach-med",
+   "studiengang": "Mathematik",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=736&idcol=k_abstgv.abstgvnr&idval=736&purge=n&getglobal=n",
+   "register_key": "hildesheim|mathematik-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 737,
+   "text": "Hauptfach im M.Ed.: Musik (GS)",
+   "art": "fach-med",
+   "studiengang": "Musik",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=737&idcol=k_abstgv.abstgvnr&idval=737&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 738,
+   "text": "Hauptfach im M.Ed.: Sachunterricht (GS)",
+   "art": "fach-med",
+   "studiengang": "Sachunterricht",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=738&idcol=k_abstgv.abstgvnr&idval=738&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-master-lehramt-an-grundschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 739,
+   "text": "Hauptfach im M.Ed.: Englisch (HS)",
+   "art": "fach-med",
+   "studiengang": "Englisch",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=739&idcol=k_abstgv.abstgvnr&idval=739&purge=n&getglobal=n",
+   "register_key": "hildesheim|englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025"
+  },
+  {
+   "nummer": 740,
+   "text": "Hauptfach im M.Ed.: Wirtschaft (HS)",
+   "art": "fach-med",
+   "studiengang": "Wirtschaft",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=740&idcol=k_abstgv.abstgvnr&idval=740&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 741,
+   "text": "Hauptfach im M.Ed.: Biologie (HS)",
+   "art": "fach-med",
+   "studiengang": "Biologie",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=741&idcol=k_abstgv.abstgvnr&idval=741&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 742,
+   "text": "Hauptfach im M.Ed.: Chemie (HS)",
+   "art": "fach-med",
+   "studiengang": "Chemie",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=742&idcol=k_abstgv.abstgvnr&idval=742&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 743,
+   "text": "Hauptfach im M.Ed.: Erdkunde (HS)",
+   "art": "fach-med",
+   "studiengang": "Erdkunde",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=743&idcol=k_abstgv.abstgvnr&idval=743&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 744,
+   "text": "Hauptfach im M.Ed.: Evangelische Religion (HS)",
+   "art": "fach-med",
+   "studiengang": "Evangelische Religion",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=744&idcol=k_abstgv.abstgvnr&idval=744&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 745,
+   "text": "Hauptfach im M.Ed.: Deutsch (HS)",
+   "art": "fach-med",
+   "studiengang": "Deutsch",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=745&idcol=k_abstgv.abstgvnr&idval=745&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 746,
+   "text": "Hauptfach im M.Ed.: Geschichte (HS)",
+   "art": "fach-med",
+   "studiengang": "Geschichte",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=746&idcol=k_abstgv.abstgvnr&idval=746&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 747,
+   "text": "Hauptfach im M.Ed.: Katholische Religion (HS)",
+   "art": "fach-med",
+   "studiengang": "Katholische Religion",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=747&idcol=k_abstgv.abstgvnr&idval=747&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 748,
+   "text": "Hauptfach im M.Ed.: Kunst (HS)",
+   "art": "fach-med",
+   "studiengang": "Kunst",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=748&idcol=k_abstgv.abstgvnr&idval=748&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 749,
+   "text": "Hauptfach im M.Ed.: Sport (HS)",
+   "art": "fach-med",
+   "studiengang": "Sport",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=749&idcol=k_abstgv.abstgvnr&idval=749&purge=n&getglobal=n",
+   "register_key": "hildesheim|sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 750,
+   "text": "Hauptfach im M.Ed.: Mathematik (HS)",
+   "art": "fach-med",
+   "studiengang": "Mathematik",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=750&idcol=k_abstgv.abstgvnr&idval=750&purge=n&getglobal=n",
+   "register_key": "hildesheim|mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 751,
+   "text": "Hauptfach im M.Ed.: Musik (HS)",
+   "art": "fach-med",
+   "studiengang": "Musik",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=751&idcol=k_abstgv.abstgvnr&idval=751&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 752,
+   "text": "Hauptfach im M.Ed.: Physik (HS)",
+   "art": "fach-med",
+   "studiengang": "Physik",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=752&idcol=k_abstgv.abstgvnr&idval=752&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 753,
+   "text": "Hauptfach im M.Ed.: Politikwissenschaft (HS)",
+   "art": "fach-med",
+   "studiengang": "Politikwissenschaft",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=753&idcol=k_abstgv.abstgvnr&idval=753&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 754,
+   "text": "Hauptfach im M.Ed.: Technik (HS)",
+   "art": "fach-med",
+   "studiengang": "Technik",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=754&idcol=k_abstgv.abstgvnr&idval=754&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 755,
+   "text": "Hauptfach im M.Ed.: Englisch (RS)",
+   "art": "fach-med",
+   "studiengang": "Englisch",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=755&idcol=k_abstgv.abstgvnr&idval=755&purge=n&getglobal=n",
+   "register_key": "hildesheim|englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025"
+  },
+  {
+   "nummer": 756,
+   "text": "Hauptfach im M.Ed.: Wirtschaft (RS)",
+   "art": "fach-med",
+   "studiengang": "Wirtschaft",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=756&idcol=k_abstgv.abstgvnr&idval=756&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 757,
+   "text": "Hauptfach im M.Ed.: Biologie (RS)",
+   "art": "fach-med",
+   "studiengang": "Biologie",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=757&idcol=k_abstgv.abstgvnr&idval=757&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 758,
+   "text": "Hauptfach im M.Ed.: Chemie (RS)",
+   "art": "fach-med",
+   "studiengang": "Chemie",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=758&idcol=k_abstgv.abstgvnr&idval=758&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 759,
+   "text": "Hauptfach im M.Ed.: Erdkunde (RS)",
+   "art": "fach-med",
+   "studiengang": "Erdkunde",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=759&idcol=k_abstgv.abstgvnr&idval=759&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 760,
+   "text": "Hauptfach im M.Ed.: Evangelische Religion (RS)",
+   "art": "fach-med",
+   "studiengang": "Evangelische Religion",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=760&idcol=k_abstgv.abstgvnr&idval=760&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 761,
+   "text": "Hauptfach im M.Ed.: Deutsch (RS)",
+   "art": "fach-med",
+   "studiengang": "Deutsch",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=761&idcol=k_abstgv.abstgvnr&idval=761&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 762,
+   "text": "Hauptfach im M.Ed.: Geschichte (RS)",
+   "art": "fach-med",
+   "studiengang": "Geschichte",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=762&idcol=k_abstgv.abstgvnr&idval=762&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 763,
+   "text": "Hauptfach im M.Ed.: Katholische Religion (RS)",
+   "art": "fach-med",
+   "studiengang": "Katholische Religion",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=763&idcol=k_abstgv.abstgvnr&idval=763&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 764,
+   "text": "Hauptfach im M.Ed.: Kunst (RS)",
+   "art": "fach-med",
+   "studiengang": "Kunst",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=764&idcol=k_abstgv.abstgvnr&idval=764&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 765,
+   "text": "Hauptfach im M.Ed.: Sport (RS)",
+   "art": "fach-med",
+   "studiengang": "Sport",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=765&idcol=k_abstgv.abstgvnr&idval=765&purge=n&getglobal=n",
+   "register_key": "hildesheim|sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 766,
+   "text": "Hauptfach im M.Ed.: Mathematik (RS)",
+   "art": "fach-med",
+   "studiengang": "Mathematik",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=766&idcol=k_abstgv.abstgvnr&idval=766&purge=n&getglobal=n",
+   "register_key": "hildesheim|mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 767,
+   "text": "Hauptfach im M.Ed.: Musik (RS)",
+   "art": "fach-med",
+   "studiengang": "Musik",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=767&idcol=k_abstgv.abstgvnr&idval=767&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 768,
+   "text": "Hauptfach im M.Ed.: Physik (RS)",
+   "art": "fach-med",
+   "studiengang": "Physik",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=768&idcol=k_abstgv.abstgvnr&idval=768&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 769,
+   "text": "Hauptfach im M.Ed.: Politikwissenschaft (RS)",
+   "art": "fach-med",
+   "studiengang": "Politikwissenschaft",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=769&idcol=k_abstgv.abstgvnr&idval=769&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 770,
+   "text": "Hauptfach im M.Ed.: Technik (RS)",
+   "art": "fach-med",
+   "studiengang": "Technik",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=770&idcol=k_abstgv.abstgvnr&idval=770&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026"
+  },
+  {
+   "nummer": 774,
+   "text": "Hauptfach im M.Ed.: Bildungswissenschaften (GS)",
+   "art": "fach-med",
+   "studiengang": "Bildungswissenschaften",
+   "variante": "GS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=774&idcol=k_abstgv.abstgvnr&idval=774&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 776,
+   "text": "Hauptfach im M.Ed.: Bildungswissenschaften (HS)",
+   "art": "fach-med",
+   "studiengang": "Bildungswissenschaften",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=776&idcol=k_abstgv.abstgvnr&idval=776&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 778,
+   "text": "Hauptfach im M.Ed.: Bildungswissenschaften (RS)",
+   "art": "fach-med",
+   "studiengang": "Bildungswissenschaften",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=778&idcol=k_abstgv.abstgvnr&idval=778&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 781,
+   "text": "B.Sc. Wirtschaftsinformatik",
+   "art": "studiengang",
+   "studiengang": "Wirtschaftsinformatik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=781&idcol=k_abstgv.abstgvnr&idval=781&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaftsinformatik|b.sc.|2024"
+  },
+  {
+   "nummer": 782,
+   "text": "Nebenfach (Bachelor): Interkulturelle Kommunikation (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Interkulturelle Kommunikation (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=782&idcol=k_abstgv.abstgvnr&idval=782&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 783,
+   "text": "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Betriebswirtschaftslehre (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=783&idcol=k_abstgv.abstgvnr&idval=783&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 787,
+   "text": "Nebenfach (Bachelor): Geschichte (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Geschichte (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=787&idcol=k_abstgv.abstgvnr&idval=787&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 788,
+   "text": "Nebenfach (Bachelor): Musik (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Musik (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=788&idcol=k_abstgv.abstgvnr&idval=788&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 789,
+   "text": "Nebenfach (Bachelor): Philosophie (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=789&idcol=k_abstgv.abstgvnr&idval=789&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 791,
+   "text": "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Politikwissenschaft (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=791&idcol=k_abstgv.abstgvnr&idval=791&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 792,
+   "text": "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Medienwissenschaft (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=792&idcol=k_abstgv.abstgvnr&idval=792&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 795,
+   "text": "Nebenfach (Bachelor): Informationswissenschaft (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Informationswissenschaft (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=795&idcol=k_abstgv.abstgvnr&idval=795&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 796,
+   "text": "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Informationstechnologie (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=796&idcol=k_abstgv.abstgvnr&idval=796&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 797,
+   "text": "Nebenfach (Bachelor): Psychologie (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Psychologie (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=797&idcol=k_abstgv.abstgvnr&idval=797&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 799,
+   "text": "Nebenfach (Bachelor): Literatur und ästhetische Kommunikation (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Literatur und ästhetische Kommunikation (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=799&idcol=k_abstgv.abstgvnr&idval=799&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 803,
+   "text": "B.Sc. Psychologie mit Schwerpunkt Pädagogische Psychologie PO2014",
+   "art": "studiengang",
+   "studiengang": "Psychologie mit Schwerpunkt Pädagogische Psychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=803&idcol=k_abstgv.abstgvnr&idval=803&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie-mit-schwerpunkt-paedagogische-psychologie|b.sc.|2012"
+  },
+  {
+   "nummer": 805,
+   "text": "B.A. Internationales Informationsmanagement",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=805&idcol=k_abstgv.abstgvnr&idval=805&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement|b.a.|2024"
+  },
+  {
+   "nummer": 806,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie mit Vertiefung (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie mit Vertiefung",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=806&idcol=k_abstgv.abstgvnr&idval=806&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 807,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik mit Vertiefung (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik mit Vertiefung",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=807&idcol=k_abstgv.abstgvnr&idval=807&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 809,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Biologie (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Biologie",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=809&idcol=k_abstgv.abstgvnr&idval=809&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 811,
+   "text": "Nebenfach (Master): Bildende Kunst (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=811&idcol=k_abstgv.abstgvnr&idval=811&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 812,
+   "text": "Nebenfach (Master): Musik (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=812&idcol=k_abstgv.abstgvnr&idval=812&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 813,
+   "text": "Nebenfach (Master): Medien und Populäre Kultur (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Medien und Populäre Kultur",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=813&idcol=k_abstgv.abstgvnr&idval=813&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 814,
+   "text": "Nebenfach (Master): Theater (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=814&idcol=k_abstgv.abstgvnr&idval=814&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 815,
+   "text": "Nebenfach (Master): Literatur (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Literatur",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=815&idcol=k_abstgv.abstgvnr&idval=815&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 816,
+   "text": "M.Sc. Wirtschaftsinformatik",
+   "art": "studiengang",
+   "studiengang": "Wirtschaftsinformatik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=816&idcol=k_abstgv.abstgvnr&idval=816&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaftsinformatik|m.sc.|2024"
+  },
+  {
+   "nummer": 818,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Informatik (individuell)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Informatik",
+   "variante": "individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=818&idcol=k_abstgv.abstgvnr&idval=818&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 819,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Informatik (Lehramt)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Informatik",
+   "variante": "Lehramt",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=819&idcol=k_abstgv.abstgvnr&idval=819&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 820,
+   "text": "Hauptfach im M.Ed.: Informatik (HS)",
+   "art": "fach-med",
+   "studiengang": "Informatik",
+   "variante": "HS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=820&idcol=k_abstgv.abstgvnr&idval=820&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 821,
+   "text": "Hauptfach im M.Ed.: Informatik (RS)",
+   "art": "fach-med",
+   "studiengang": "Informatik",
+   "variante": "RS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=821&idcol=k_abstgv.abstgvnr&idval=821&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 826,
+   "text": "M.A. Internationale Fachkommunikation - Sprachen u. Technik",
+   "art": "studiengang",
+   "studiengang": "Internationale Fachkommunikation - Sprachen u. Technik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=826&idcol=k_abstgv.abstgvnr&idval=826&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationale-fachkommunikation-sprachen-und-technik|m.a.|2020"
+  },
+  {
+   "nummer": 829,
+   "text": "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (I+)",
+   "art": "nebenfach",
+   "studiengang": "Übersetzungswissenschaft (Nebenfach)",
+   "variante": "I+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=829&idcol=k_abstgv.abstgvnr&idval=829&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 832,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Wirtschaft (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Wirtschaft",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=832&idcol=k_abstgv.abstgvnr&idval=832&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 833,
+   "text": "Nebenfach (Master): Psychologie (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Psychologie",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=833&idcol=k_abstgv.abstgvnr&idval=833&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 835,
+   "text": "M.A. Medientext und Medienübersetzung",
+   "art": "studiengang",
+   "studiengang": "Medientext und Medienübersetzung",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=835&idcol=k_abstgv.abstgvnr&idval=835&purge=n&getglobal=n",
+   "register_key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024"
+  },
+  {
+   "nummer": 838,
+   "text": "B.Sc. Informationsmanagement/-technologie - Studienvariante Angewandte Informatik",
+   "art": "studiengang",
+   "studiengang": "Informationsmanagement/-technologie - Studienvariante Angewandte Informatik",
+   "variante": "Angewandte Informatik",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=838&idcol=k_abstgv.abstgvnr&idval=838&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 839,
+   "text": "M.Sc. Informationsmanagement/-technologie - Studienvariante Angewandte Informatik",
+   "art": "studiengang",
+   "studiengang": "Informationsmanagement/-technologie - Studienvariante Angewandte Informatik",
+   "variante": "Angewandte Informatik",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=839&idcol=k_abstgv.abstgvnr&idval=839&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 840,
+   "text": "M.Sc. Data Analytics",
+   "art": "studiengang",
+   "studiengang": "Data Analytics",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=840&idcol=k_abstgv.abstgvnr&idval=840&purge=n&getglobal=n",
+   "register_key": "hildesheim|data-analytics|m.sc.|2024"
+  },
+  {
+   "nummer": 841,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Informatik (Engl. Appl. Ling.)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Informatik",
+   "variante": "Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=841&idcol=k_abstgv.abstgvnr&idval=841&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 843,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Informatik (Sport, Gesundheit und Leistung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Informatik",
+   "variante": "Sport, Gesundheit und Leistung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=843&idcol=k_abstgv.abstgvnr&idval=843&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 848,
+   "text": "M.A. Literarisches Schreiben und Lektorieren",
+   "art": "studiengang",
+   "studiengang": "Literarisches Schreiben und Lektorieren",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=848&idcol=k_abstgv.abstgvnr&idval=848&purge=n&getglobal=n",
+   "register_key": "hildesheim|literarisches-schreiben-und-lektorieren|m.a.|2024"
+  },
+  {
+   "nummer": 851,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Informatik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Informatik",
+   "variante": "Wahlpflichtfach/Ergänzungsfach; individuell",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=851&idcol=k_abstgv.abstgvnr&idval=851&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 853,
+   "text": "Nebenfach (Bachelor): Bachelor keine Studienvariante",
+   "art": "nebenfach",
+   "studiengang": "Bachelor keine Studienvariante",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=853&idcol=k_abstgv.abstgvnr&idval=853&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 854,
+   "text": "Nebenfach (Master): Master keine Studienvariante",
+   "art": "nebenfach",
+   "studiengang": "Master keine Studienvariante",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=854&idcol=k_abstgv.abstgvnr&idval=854&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 855,
+   "text": "Nebenfach (Master): Schwerpunkt Klinische Psychologie (MSc Psychologie) (PSY)",
+   "art": "nebenfach",
+   "studiengang": "Schwerpunkt Klinische Psychologie (MSc Psychologie)",
+   "variante": "PSY",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=855&idcol=k_abstgv.abstgvnr&idval=855&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 856,
+   "text": "Nebenfach (Master): Schwerpunkt Pädagogische Psychologie (MSc Psychologie) (PSY)",
+   "art": "nebenfach",
+   "studiengang": "Schwerpunkt Pädagogische Psychologie (MSc Psychologie)",
+   "variante": "PSY",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=856&idcol=k_abstgv.abstgvnr&idval=856&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 857,
+   "text": "Nebenfach (Master): Schwerpunkt Rechtspsychologie (MSc Psychologie) (PSY)",
+   "art": "nebenfach",
+   "studiengang": "Schwerpunkt Rechtspsychologie (MSc Psychologie)",
+   "variante": "PSY",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=857&idcol=k_abstgv.abstgvnr&idval=857&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 862,
+   "text": "M.A. Soziale Dienste",
+   "art": "studiengang",
+   "studiengang": "Soziale Dienste",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=862&idcol=k_abstgv.abstgvnr&idval=862&purge=n&getglobal=n",
+   "register_key": "hildesheim|soziale-dienste|m.a.|2025"
+  },
+  {
+   "nummer": 863,
+   "text": "M.A. Barrierefreie Kommunikation",
+   "art": "studiengang",
+   "studiengang": "Barrierefreie Kommunikation",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=863&idcol=k_abstgv.abstgvnr&idval=863&purge=n&getglobal=n",
+   "register_key": "hildesheim|barrierefreie-kommunikation|m.a.|2019"
+  },
+  {
+   "nummer": 864,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Englisch (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Englisch",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=864&idcol=k_abstgv.abstgvnr&idval=864&purge=n&getglobal=n",
+   "register_key": "hildesheim|english-applied-linguistics|b.a.|2026"
+  },
+  {
+   "nummer": 865,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=865&idcol=k_abstgv.abstgvnr&idval=865&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 866,
+   "text": "Wirtschaft Vertiefung (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Wirtschaft Vertiefung",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=866&idcol=k_abstgv.abstgvnr&idval=866&purge=n&getglobal=n",
+   "register_key": "hildesheim|wirtschaft-plus|b.sc.|2026"
+  },
+  {
+   "nummer": 867,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=867&idcol=k_abstgv.abstgvnr&idval=867&purge=n&getglobal=n",
+   "register_key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 868,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=868&idcol=k_abstgv.abstgvnr&idval=868&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 869,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=869&idcol=k_abstgv.abstgvnr&idval=869&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 870,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Evangelische Theologie",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=870&idcol=k_abstgv.abstgvnr&idval=870&purge=n&getglobal=n",
+   "register_key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 871,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Deutsch (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Deutsch",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=871&idcol=k_abstgv.abstgvnr&idval=871&purge=n&getglobal=n",
+   "register_key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 872,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=872&idcol=k_abstgv.abstgvnr&idval=872&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 873,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Informatik (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Informatik",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=873&idcol=k_abstgv.abstgvnr&idval=873&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 874,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Katholische Theologie",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=874&idcol=k_abstgv.abstgvnr&idval=874&purge=n&getglobal=n",
+   "register_key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 875,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Kunst (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Kunst",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=875&idcol=k_abstgv.abstgvnr&idval=875&purge=n&getglobal=n",
+   "register_key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 876,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Sport (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Sport",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=876&idcol=k_abstgv.abstgvnr&idval=876&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 877,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Mathematik (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Mathematik",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=877&idcol=k_abstgv.abstgvnr&idval=877&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 878,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Musik (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Musik",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=878&idcol=k_abstgv.abstgvnr&idval=878&purge=n&getglobal=n",
+   "register_key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014"
+  },
+  {
+   "nummer": 879,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=879&idcol=k_abstgv.abstgvnr&idval=879&purge=n&getglobal=n",
+   "register_key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022"
+  },
+  {
+   "nummer": 880,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=880&idcol=k_abstgv.abstgvnr&idval=880&purge=n&getglobal=n",
+   "register_key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+  },
+  {
+   "nummer": 881,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=881&idcol=k_abstgv.abstgvnr&idval=881&purge=n&getglobal=n",
+   "register_key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 882,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Biologie und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=882&idcol=k_abstgv.abstgvnr&idval=882&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 883,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Physik und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Physik und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=883&idcol=k_abstgv.abstgvnr&idval=883&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 884,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Politikwissenschaft und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=884&idcol=k_abstgv.abstgvnr&idval=884&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 885,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=885&idcol=k_abstgv.abstgvnr&idval=885&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 886,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geographie und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geographie und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=886&idcol=k_abstgv.abstgvnr&idval=886&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 887,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Geschichte und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=887&idcol=k_abstgv.abstgvnr&idval=887&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 888,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Technik und Sachunterricht (Wirtschaft Plus)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Technik und Sachunterricht",
+   "variante": "Wirtschaft Plus",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=888&idcol=k_abstgv.abstgvnr&idval=888&purge=n&getglobal=n",
+   "register_key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 894,
+   "text": "B.Sc. Psychologie",
+   "art": "studiengang",
+   "studiengang": "Psychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=894&idcol=k_abstgv.abstgvnr&idval=894&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie|b.sc.|2021"
+  },
+  {
+   "nummer": 896,
+   "text": "B.A. Internationale Kommunikation u. Übersetzen",
+   "art": "studiengang",
+   "studiengang": "Internationale Kommunikation u. Übersetzen",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=896&idcol=k_abstgv.abstgvnr&idval=896&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationale-kommunikation-und-uebersetzen|b.a.|2024"
+  },
+  {
+   "nummer": 898,
+   "text": "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Übersetzungswissenschaft (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=898&idcol=k_abstgv.abstgvnr&idval=898&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 899,
+   "text": "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Betriebswirtschaftslehre (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=899&idcol=k_abstgv.abstgvnr&idval=899&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 900,
+   "text": "Nebenfach (Bachelor): Geschichte (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Geschichte (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=900&idcol=k_abstgv.abstgvnr&idval=900&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 901,
+   "text": "Nebenfach (Bachelor): Musik (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Musik (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=901&idcol=k_abstgv.abstgvnr&idval=901&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 902,
+   "text": "Nebenfach (Bachelor): Philosophie (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=902&idcol=k_abstgv.abstgvnr&idval=902&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 903,
+   "text": "Nebenfach (Bachelor): Politikwissenschaft (DIS)",
+   "art": "nebenfach",
+   "studiengang": "Politikwissenschaft",
+   "variante": "DIS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=903&idcol=k_abstgv.abstgvnr&idval=903&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 904,
+   "text": "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Politikwissenschaft (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=904&idcol=k_abstgv.abstgvnr&idval=904&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 905,
+   "text": "Nebenfach (Bachelor): Psychologie (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Psychologie (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=905&idcol=k_abstgv.abstgvnr&idval=905&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 906,
+   "text": "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Medienwissenschaft (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=906&idcol=k_abstgv.abstgvnr&idval=906&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 907,
+   "text": "Nebenfach (Bachelor): Soziologie (DIS)",
+   "art": "nebenfach",
+   "studiengang": "Soziologie",
+   "variante": "DIS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=907&idcol=k_abstgv.abstgvnr&idval=907&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 908,
+   "text": "Nebenfach (Bachelor): Soziologie (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Soziologie (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=908&idcol=k_abstgv.abstgvnr&idval=908&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 909,
+   "text": "Nebenfach (Bachelor): Literatur und ästhetische Kommunikation (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Literatur und ästhetische Kommunikation (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=909&idcol=k_abstgv.abstgvnr&idval=909&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 910,
+   "text": "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (IKS)",
+   "art": "nebenfach",
+   "studiengang": "Informationstechnologie (Nebenfach)",
+   "variante": "IKS",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=910&idcol=k_abstgv.abstgvnr&idval=910&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 911,
+   "text": "B.A. Internationales Informationsmanagement - Studienvariante Digitale Sozialwissenschaften",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Studienvariante Digitale Sozialwissenschaften",
+   "variante": "Digitale Sozialwissenschaften",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=911&idcol=k_abstgv.abstgvnr&idval=911&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024"
+  },
+  {
+   "nummer": 912,
+   "text": "B.A. Internationales Informationsmanagement - Studienvariante Interkulturelle Sprachwissenschaft",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Studienvariante Interkulturelle Sprachwissenschaft",
+   "variante": "Interkulturelle Sprachwissenschaft",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=912&idcol=k_abstgv.abstgvnr&idval=912&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024"
+  },
+  {
+   "nummer": 913,
+   "text": "M.Sc. Umwelt, Naturschutz und Nachhaltigkeit",
+   "art": "studiengang",
+   "studiengang": "Umwelt, Naturschutz und Nachhaltigkeit",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=913&idcol=k_abstgv.abstgvnr&idval=913&purge=n&getglobal=n",
+   "register_key": "hildesheim|umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021"
+  },
+  {
+   "nummer": 917,
+   "text": "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Übersetzungswissenschaft (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=917&idcol=k_abstgv.abstgvnr&idval=917&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 918,
+   "text": "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Betriebswirtschaftslehre (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=918&idcol=k_abstgv.abstgvnr&idval=918&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 919,
+   "text": "Nebenfach (Bachelor): Geschichte (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Geschichte (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=919&idcol=k_abstgv.abstgvnr&idval=919&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 920,
+   "text": "Nebenfach (Bachelor): Musikwissenschaft (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Musikwissenschaft (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=920&idcol=k_abstgv.abstgvnr&idval=920&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 921,
+   "text": "Nebenfach (Bachelor): Philosophie (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=921&idcol=k_abstgv.abstgvnr&idval=921&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 922,
+   "text": "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Politikwissenschaft (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=922&idcol=k_abstgv.abstgvnr&idval=922&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 923,
+   "text": "Nebenfach (Bachelor): Psychologie (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Psychologie (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=923&idcol=k_abstgv.abstgvnr&idval=923&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 924,
+   "text": "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Medienwissenschaft (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=924&idcol=k_abstgv.abstgvnr&idval=924&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 925,
+   "text": "Nebenfach (Bachelor): Soziologie (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Soziologie (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=925&idcol=k_abstgv.abstgvnr&idval=925&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 926,
+   "text": "Nebenfach (Bachelor): Literatur (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Literatur (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=926&idcol=k_abstgv.abstgvnr&idval=926&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 927,
+   "text": "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Informationstechnologie (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=927&idcol=k_abstgv.abstgvnr&idval=927&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 929,
+   "text": "M.Sc. Psychologie mit Schwerpunkt Klinische Psychologie und Psychotherapie",
+   "art": "studiengang",
+   "studiengang": "Psychologie mit Schwerpunkt Klinische Psychologie und Psychotherapie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=929&idcol=k_abstgv.abstgvnr&idval=929&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie|m.sc.|2021"
+  },
+  {
+   "nummer": 935,
+   "text": "Nebenfach (Bachelor): Bildende Kunst (KKP)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "KKP",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=935&idcol=k_abstgv.abstgvnr&idval=935&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 936,
+   "text": "Nebenfach (Bachelor): Musik (KKP)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "KKP",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=936&idcol=k_abstgv.abstgvnr&idval=936&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 937,
+   "text": "Nebenfach (Bachelor): Physik (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Physik (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=937&idcol=k_abstgv.abstgvnr&idval=937&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 938,
+   "text": "Nebenfach (Bachelor): Medien (KKP)",
+   "art": "nebenfach",
+   "studiengang": "Medien",
+   "variante": "KKP",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=938&idcol=k_abstgv.abstgvnr&idval=938&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 939,
+   "text": "Nebenfach (Bachelor): Theater (KKP)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "KKP",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=939&idcol=k_abstgv.abstgvnr&idval=939&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 940,
+   "text": "Nebenfach (Bachelor): Literatur (KKP)",
+   "art": "nebenfach",
+   "studiengang": "Literatur",
+   "variante": "KKP",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=940&idcol=k_abstgv.abstgvnr&idval=940&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 941,
+   "text": "B.A. Kulturwissenschaften und künstlerische Praxis",
+   "art": "studiengang",
+   "studiengang": "Kulturwissenschaften und künstlerische Praxis",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=941&idcol=k_abstgv.abstgvnr&idval=941&purge=n&getglobal=n",
+   "register_key": "hildesheim|kulturwissenschaften-und-kuenstlerische-praxis|b.a.|2022"
+  },
+  {
+   "nummer": 942,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geographie (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Geographie",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=942&idcol=k_abstgv.abstgvnr&idval=942&purge=n&getglobal=n",
+   "register_key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 943,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Mathematik (Ergänzungsfach) (Engl. Appl. Ling.)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Mathematik",
+   "variante": "Ergänzungsfach; Engl. Appl. Ling.",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=943&idcol=k_abstgv.abstgvnr&idval=943&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 944,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Psychologie (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Psychologie",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=944&idcol=k_abstgv.abstgvnr&idval=944&purge=n&getglobal=n",
+   "register_key": "hildesheim|psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 945,
+   "text": "Nebenfach (Bachelor): Bildende Kunst (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=945&idcol=k_abstgv.abstgvnr&idval=945&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 946,
+   "text": "Nebenfach (Bachelor): Musik (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=946&idcol=k_abstgv.abstgvnr&idval=946&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 947,
+   "text": "Nebenfach (Bachelor): Philosophie (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Philosophie",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=947&idcol=k_abstgv.abstgvnr&idval=947&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 948,
+   "text": "Nebenfach (Bachelor): Medien (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Medien",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=948&idcol=k_abstgv.abstgvnr&idval=948&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 949,
+   "text": "Nebenfach (Bachelor): Theater (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=949&idcol=k_abstgv.abstgvnr&idval=949&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 950,
+   "text": "Nebenfach (Bachelor): Kulturpolitik (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Kulturpolitik",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=950&idcol=k_abstgv.abstgvnr&idval=950&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 951,
+   "text": "B.A. Literarisches Schreiben und Kulturjournalismus",
+   "art": "studiengang",
+   "studiengang": "Literarisches Schreiben und Kulturjournalismus",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=951&idcol=k_abstgv.abstgvnr&idval=951&purge=n&getglobal=n",
+   "register_key": "hildesheim|literarisches-schreiben-und-kulturjournalismus|b.a.|2022"
+  },
+  {
+   "nummer": 952,
+   "text": "B.A. Internationales Informationsmanagement - Studienvariante Global Information Management",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Studienvariante Global Information Management",
+   "variante": "Global Information Management",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=952&idcol=k_abstgv.abstgvnr&idval=952&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 964,
+   "text": "Nebenfach (Bachelor): Film und Bewegtbild (KKP)",
+   "art": "nebenfach",
+   "studiengang": "Film und Bewegtbild",
+   "variante": "KKP",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=964&idcol=k_abstgv.abstgvnr&idval=964&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 965,
+   "text": "Nebenfach (Bachelor): Film und Bewegtbild (LSK)",
+   "art": "nebenfach",
+   "studiengang": "Film und Bewegtbild",
+   "variante": "LSK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=965&idcol=k_abstgv.abstgvnr&idval=965&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 966,
+   "text": "Nebenfach (Bachelor): Film und Bewegtbild (SK)",
+   "art": "nebenfach",
+   "studiengang": "Film und Bewegtbild",
+   "variante": "SK",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=966&idcol=k_abstgv.abstgvnr&idval=966&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 967,
+   "text": "Nebenfach (Bachelor): Interkulturelle Kommunikation (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Interkulturelle Kommunikation (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=967&idcol=k_abstgv.abstgvnr&idval=967&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 968,
+   "text": "B.A. Internationales Informationsmanagement - Studienvariante Linguistik",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Studienvariante Linguistik",
+   "variante": "Linguistik",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=968&idcol=k_abstgv.abstgvnr&idval=968&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement-linguistik|b.a.|2024"
+  },
+  {
+   "nummer": 969,
+   "text": "Nebenfach (Master): Bildende Kunst (KGT)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "KGT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=969&idcol=k_abstgv.abstgvnr&idval=969&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 970,
+   "text": "Nebenfach (Master): Bildende Kunst (KKT)",
+   "art": "nebenfach",
+   "studiengang": "Bildende Kunst",
+   "variante": "KKT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=970&idcol=k_abstgv.abstgvnr&idval=970&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 971,
+   "text": "Nebenfach (Master): Musik (KGT)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "KGT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=971&idcol=k_abstgv.abstgvnr&idval=971&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 972,
+   "text": "Nebenfach (Master): Musik (KKT)",
+   "art": "nebenfach",
+   "studiengang": "Musik",
+   "variante": "KKT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=972&idcol=k_abstgv.abstgvnr&idval=972&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 973,
+   "text": "Nebenfach (Master): Theater (KGT)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "KGT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=973&idcol=k_abstgv.abstgvnr&idval=973&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 974,
+   "text": "Nebenfach (Master): Theater (KKT)",
+   "art": "nebenfach",
+   "studiengang": "Theater",
+   "variante": "KKT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=974&idcol=k_abstgv.abstgvnr&idval=974&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 975,
+   "text": "Nebenfach (Master): Literatur (KKT)",
+   "art": "nebenfach",
+   "studiengang": "Literatur",
+   "variante": "KKT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=975&idcol=k_abstgv.abstgvnr&idval=975&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 976,
+   "text": "M.A. Künste und Gegenwartskulturen transdisziplinär",
+   "art": "studiengang",
+   "studiengang": "Künste und Gegenwartskulturen transdisziplinär",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=976&idcol=k_abstgv.abstgvnr&idval=976&purge=n&getglobal=n",
+   "register_key": "hildesheim|kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024"
+  },
+  {
+   "nummer": 977,
+   "text": "M.A. Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste Doppelabschluss",
+   "art": "studiengang",
+   "studiengang": "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste Doppelabschluss",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=977&idcol=k_abstgv.abstgvnr&idval=977&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 978,
+   "text": "M.A. Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste",
+   "art": "studiengang",
+   "studiengang": "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=978&idcol=k_abstgv.abstgvnr&idval=978&purge=n&getglobal=n",
+   "register_key": "hildesheim|kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste|m.a.|2024"
+  },
+  {
+   "nummer": 979,
+   "text": "Nebenfach (Master): Film und Populäre Kultur (KGT)",
+   "art": "nebenfach",
+   "studiengang": "Film und Populäre Kultur",
+   "variante": "KGT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=979&idcol=k_abstgv.abstgvnr&idval=979&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 980,
+   "text": "Nebenfach (Master): Film und Populäre Kultur (KKT)",
+   "art": "nebenfach",
+   "studiengang": "Film und Populäre Kultur",
+   "variante": "KKT",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=980&idcol=k_abstgv.abstgvnr&idval=980&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 982,
+   "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Ergänzungsfach) (Umweltsicherung)",
+   "art": "fach-2fb-wahlpflicht-ergaenzung",
+   "studiengang": "Geschichte",
+   "variante": "Ergänzungsfach; Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=982&idcol=k_abstgv.abstgvnr&idval=982&purge=n&getglobal=n",
+   "register_key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021"
+  },
+  {
+   "nummer": 983,
+   "text": "B.Sc. Angewandte Informatik",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=983&idcol=k_abstgv.abstgvnr&idval=983&purge=n&getglobal=n",
+   "register_key": "hildesheim|angewandte-informatik|b.sc.|2024"
+  },
+  {
+   "nummer": 984,
+   "text": "B.Sc. Angewandte Informatik / Studienprogramm Informationsmanagement/Informationstechnologie",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik / Studienprogramm Informationsmanagement/Informationstechnologie",
+   "variante": "Informationsmanagement/Informationstechnologie",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=984&idcol=k_abstgv.abstgvnr&idval=984&purge=n&getglobal=n",
+   "register_key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024"
+  },
+  {
+   "nummer": 985,
+   "text": "M.Sc. Angewandte Informatik",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=985&idcol=k_abstgv.abstgvnr&idval=985&purge=n&getglobal=n",
+   "register_key": "hildesheim|angewandte-informatik|m.sc.|2024"
+  },
+  {
+   "nummer": 986,
+   "text": "M.Sc. Data Analytics / Fundamental Track",
+   "art": "studiengang",
+   "studiengang": "Data Analytics / Fundamental Track",
+   "variante": "Fundamental Track",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=986&idcol=k_abstgv.abstgvnr&idval=986&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 987,
+   "text": "M.Sc. Angewandte Informatik / Studienprogramm Informationsmanagement/Informationstechnologie",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik / Studienprogramm Informationsmanagement/Informationstechnologie",
+   "variante": "Informationsmanagement/Informationstechnologie",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=987&idcol=k_abstgv.abstgvnr&idval=987&purge=n&getglobal=n",
+   "register_key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024"
+  },
+  {
+   "nummer": 988,
+   "text": "Nebenfach (Bachelor): Physik (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Physik (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=988&idcol=k_abstgv.abstgvnr&idval=988&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 989,
+   "text": "Nebenfach (Bachelor): Technik (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Technik (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=989&idcol=k_abstgv.abstgvnr&idval=989&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 990,
+   "text": "Nebenfach (Bachelor): Englisch/Bilinguales Lehren und Lernen (Begleitfach) (BES)",
+   "art": "nebenfach",
+   "studiengang": "Englisch/Bilinguales Lehren und Lernen (Begleitfach)",
+   "variante": "BES",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=990&idcol=k_abstgv.abstgvnr&idval=990&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 992,
+   "text": "B.A. Internationales Informationsmanagement - Studienvariante Informationswissenschaft und Interkulturelle Kommunikation",
+   "art": "studiengang",
+   "studiengang": "Internationales Informationsmanagement - Studienvariante Informationswissenschaft und Interkulturelle Kommunikation",
+   "variante": "Informationswissenschaft und Interkulturelle Kommunikation",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=992&idcol=k_abstgv.abstgvnr&idval=992&purge=n&getglobal=n",
+   "register_key": "hildesheim|internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024"
+  },
+  {
+   "nummer": 993,
+   "text": "B.A. Plus Kulturwissenschaften und künstlerische Praxis, Studienvariante Kulturpolitik im internationalen Vergleich",
+   "art": "studiengang",
+   "studiengang": "Plus Kulturwissenschaften und künstlerische Praxis, Studienvariante Kulturpolitik im internationalen Vergleich",
+   "variante": "Kulturpolitik im internationalen Vergleich",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=993&idcol=k_abstgv.abstgvnr&idval=993&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 994,
+   "text": "B.Sc. Angewandte Informatik / Studienprogramm Medieninformatik",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik / Studienprogramm Medieninformatik",
+   "variante": "Medieninformatik",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=994&idcol=k_abstgv.abstgvnr&idval=994&purge=n&getglobal=n",
+   "register_key": "hildesheim|medieninformatik|b.sc.|2023"
+  },
+  {
+   "nummer": 995,
+   "text": "B.Sc. Angewandte Informatik / Studienprogramm Umweltinformatik",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik / Studienprogramm Umweltinformatik",
+   "variante": "Umweltinformatik",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=995&idcol=k_abstgv.abstgvnr&idval=995&purge=n&getglobal=n",
+   "register_key": "hildesheim|umweltinformatik|b.sc.|2024"
+  },
+  {
+   "nummer": 996,
+   "text": "Nebenfach (Master): Übersetzungswissenschaft (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Übersetzungswissenschaft",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=996&idcol=k_abstgv.abstgvnr&idval=996&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 997,
+   "text": "Nebenfach (Master): Informationswissenschaft (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Informationswissenschaft",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=997&idcol=k_abstgv.abstgvnr&idval=997&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 998,
+   "text": "M.Sc. Angewandte Informatik / Studienprogramm Umweltinformatik",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik / Studienprogramm Umweltinformatik",
+   "variante": "Umweltinformatik",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=998&idcol=k_abstgv.abstgvnr&idval=998&purge=n&getglobal=n",
+   "register_key": "hildesheim|umweltinformatik|m.sc.|2024"
+  },
+  {
+   "nummer": 999,
+   "text": "Hauptfach/Studiengang Zertifikat Klinische Rechtspsychologie 94",
+   "art": "zertifikat",
+   "studiengang": "Klinische Rechtspsychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=999&idcol=k_abstgv.abstgvnr&idval=999&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1000,
+   "text": "Hauptfach/Studiengang Zertifikat Rechtspsychologie 94",
+   "art": "zertifikat",
+   "studiengang": "Rechtspsychologie",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1000&idcol=k_abstgv.abstgvnr&idval=1000&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1002,
+   "text": "M.Sc. Software Engineering",
+   "art": "studiengang",
+   "studiengang": "Software Engineering",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1002&idcol=k_abstgv.abstgvnr&idval=1002&purge=n&getglobal=n",
+   "register_key": "hildesheim|software-engineering|m.sc.|2024"
+  },
+  {
+   "nummer": 1003,
+   "text": "M.Sc. Data Analytics / Advanced Track",
+   "art": "studiengang",
+   "studiengang": "Data Analytics / Advanced Track",
+   "variante": "Advanced Track",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1003&idcol=k_abstgv.abstgvnr&idval=1003&purge=n&getglobal=n",
+   "register_key": "hildesheim|data-analytics-advanced-track|m.sc.|2024"
+  },
+  {
+   "nummer": 1004,
+   "text": "Nebenfach (Master): Politikwissenschaft - Psychologie - Soziologie - kompakt (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Politikwissenschaft - Psychologie - Soziologie - kompakt",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1004&idcol=k_abstgv.abstgvnr&idval=1004&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1005,
+   "text": "Nebenfach (Master): Sprachwissenschaft und Interkulturelle Kommunikation (MI+)",
+   "art": "nebenfach",
+   "studiengang": "Sprachwissenschaft und Interkulturelle Kommunikation",
+   "variante": "MI+",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1005&idcol=k_abstgv.abstgvnr&idval=1005&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1006,
+   "text": "Nebenfach (Bachelor): Film und Bewegtbild (Nebenfach) (IIM)",
+   "art": "nebenfach",
+   "studiengang": "Film und Bewegtbild (Nebenfach)",
+   "variante": "IIM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1006&idcol=k_abstgv.abstgvnr&idval=1006&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1007,
+   "text": "B.Sc. Angewandte Informatik / Studienprogramm Data Science",
+   "art": "studiengang",
+   "studiengang": "Angewandte Informatik / Studienprogramm Data Science",
+   "variante": "Data Science",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1007&idcol=k_abstgv.abstgvnr&idval=1007&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1008,
+   "text": "B.A. Sozialpädagogik",
+   "art": "studiengang",
+   "studiengang": "Sozialpädagogik",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1008&idcol=k_abstgv.abstgvnr&idval=1008&purge=n&getglobal=n",
+   "register_key": "hildesheim|sozialpaedagogik|b.a.|2025"
+  },
+  {
+   "nummer": 1009,
+   "text": "European M.A. Lexicography",
+   "art": "sonstige",
+   "studiengang": "European M.A. Lexicography",
+   "variante": null,
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1009&idcol=k_abstgv.abstgvnr&idval=1009&purge=n&getglobal=n",
+   "register_key": null
+  },
+  {
+   "nummer": 1010,
+   "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (Umweltsicherung)",
+   "art": "fach-2fb-hauptfach",
+   "studiengang": "Chemie",
+   "variante": "Umweltsicherung",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1010&idcol=k_abstgv.abstgvnr&idval=1010&purge=n&getglobal=n",
+   "register_key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025"
+  },
+  {
+   "nummer": 1015,
+   "text": "Nebenfach (Bachelor): Film und Bewegtbild (PKM)",
+   "art": "nebenfach",
+   "studiengang": "Film und Bewegtbild",
+   "variante": "PKM",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1015&idcol=k_abstgv.abstgvnr&idval=1015&purge=n&getglobal=n",
+   "register_key": null
+  }
+ ]
+}

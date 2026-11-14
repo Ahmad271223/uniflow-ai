@@ -49,9 +49,11 @@ struct PlanView: View {
 
     /// Sieben Tagesspalten brauchen mindestens 560 pt (iPhone hoch: nein; iPad im schmalen Split View und iPhone quer: ja)
     static func weekFits(width: CGFloat) -> Bool { width >= 560 }
-    /// iPhone hochkant (11.11.2026): "Woche" wieder da, als Liste Montag–Sonntag (`PhoneWeekListView`) statt sieben Spalten
+    /// iPhone hochkant: "Woche" ist seit 14.11.2026 ein eigenes schmales Raster (`PhoneWeekGrid`, sieben Spalten);
+    /// vorher (11.11.2026) eine Liste der Tage
     private var weekFits: Bool { !UFCompact.phoneLayouts || Self.weekFits(width: windowWidth) || phoneWeekList }      // iPad wie bisher
     private var phoneWeekList: Bool { PhoneWeekList.applies(width: windowWidth) }
+    /// Die Tagesliste gibt es am iPhone weiter unter "Liste" (`PlanTaskList`) und im Stundenplan (`PhoneWeekListView`).
 
     /// Ansichten der Leiste; ohne Platz fuer die Woche ohne "Woche" (sie zeigt dann 3 Tage, `PlanView.shownView`)
     /// Breit wie `PlanViews.all` (mit "Lernziele", Smart Planner 2.0); am iPhone "Ziele" ohne Symbole, damit alle in eine Zeile passen
@@ -217,11 +219,8 @@ struct PlanView: View {
         VStack(alignment: .leading, spacing: 0) {
             bar(d, wk: wk).padding(.bottom, 14.4)
             switch d.view {
-            case "week" where phoneWeekList:
-                PhoneWeekListView(days: d.days, packages: true,
-                                  openEvent: { e, date in actions.openOccurrence(e, date: date) },
-                                  openPackage: { p in actions.openPackage(p.i("id") ?? 0) },
-                                  addPackage: { date in actions.addPackage(date: date) })
+            // iPhone hochkant: echtes Wochenraster mit sieben Spalten (Auftrag des Inhabers 14.11.2026)
+            case "week" where phoneWeekList: PhoneWeekGrid(d: d)
             case "week", "3days": PlanWeekGrid(d: d)
             case "month": PlanMonthGrid(d: d)
             case "day":

@@ -87,7 +87,9 @@ LABELS: list[tuple[str, list[str]]] = [
               "Pflicht- / Wahlpflichtmodul", "Modultyp", "Art des Moduls", "Status des Moduls", "Modulart"]),
     ("forms", ["Lehr- und Lernformen", "Lehr-/Lernformen", "Lehrformen", "Lehrveranstaltungen", "Lehr- und Lernform",
                "Lehrveranstaltungsformen", "Teilmodule / Lehrformen", "Teilmodule"]),
-    ("content", ["Lehrinhalte", "Lerninhalte", "Inhalte des Moduls", "Inhaltliche Beschreibung", "Inhalte", "Inhalt"]),
+    # "Inhalte und Qualifikationsziele" bricht in der Tabelle um: "Inhalte und: …" / "Qualifikationsziele: …" (FB 1)
+    ("content", ["Lehrinhalte", "Lerninhalte", "Inhalte des Moduls", "Inhaltliche Beschreibung", "Inhalte und Qualifikationsziele",
+                 "Inhalte und", "Inhalte", "Inhalt"]),
     ("sws", ["Semesterwochenstunden", "SWS"]),
     ("prereq", ["Zugangsvoraussetzungen", "Teilnahmevoraussetzungen", "Voraussetzungen für die Teilnahme",
                 "Voraussetzung für die Teilnahme am Modul", "Voraussetzung für die Teilnahme",

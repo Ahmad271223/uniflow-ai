@@ -9,7 +9,7 @@
 // Regeln und HTML stehen in study-plan-logic.js (laeuft auch unter node: tests/js/study-plan*.test.mjs).
 import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=47";
 import { gateState } from "./account-gate.js?v=1";
-import * as L from "./study-plan-logic.js?v=3";
+import * as L from "./study-plan-logic.js?v=8";
 
 const POLL_MS = 2000;
 const OV_KEY = "studyplan.overview";
@@ -102,7 +102,7 @@ export async function viewStudyPlan(parts, params, view) {
       return;
     }
     if (p.available) {
-      body.innerHTML = `<div class="sp-stack">${edit ? "" : L.readOnlyHtml(icon)}${L.poCardHtml(p, icon)}${L.headerHtml(p, icon)}${errHtml()}${L.areasHtml(p, icon, edit)}${L.backlogHtml(p, icon)}`
+      body.innerHTML = `<div class="sp-stack">${edit ? "" : L.readOnlyHtml(icon)}${L.poCardHtml(p, icon)}${L.headerHtml(p, icon)}${L.lsfLinkHtml(p, icon)}${L.earlierHtml(p, icon)}${errHtml()}${L.areasHtml(p, icon, edit)}${L.backlogHtml(p, icon)}`
         + `<div class="sp-tools">${L.filterHtml(p, st.filter)}${toggleHtml()}</div>${L.boardHtml(p, st.filter, icon, { edit })}</div>`;
       bindPlan();
       if (!st.focusDone && st.focus) {
@@ -181,7 +181,27 @@ export async function viewStudyPlan(parts, params, view) {
       catch (x) { const el = $("#spPoErr", body); if (el) { el.hidden = false; el.textContent = `Speichern fehlgeschlagen: ${x.message}`; } e.currentTarget.disabled = false; }
     });
     $("#spPoChange", body)?.addEventListener("click", openSettings);
-    if (!editable()) $$("#spPoYes, #spPoChange", body).forEach(b => { b.disabled = true; });
+    $("#spPoOther", body)?.addEventListener("click", openPrograms);
+    $$("[data-prog-other]", body).forEach(b => b.addEventListener("click", openPrograms));
+    $$("[data-prog-code]", body).forEach(b => b.addEventListener("click", async e => {
+      e.currentTarget.disabled = true;
+      try { await saveSettings({ po: b.dataset.progCode }); st.catalog = await api("/study-catalog/status").catch(() => st.catalog); st.plan = null; st.pickUntil = Date.now() + 30000; await load(); }
+      catch (x) { const el = $("#spPoErr", body); if (el) { el.hidden = false; el.textContent = `Speichern fehlgeschlagen: ${x.message}`; } e.currentTarget.disabled = false; }
+    }));
+    $$("[data-order-url], [data-order-ack]", body).forEach(b => b.addEventListener("click", async e => {
+      e.currentTarget.disabled = true;
+      try {
+        await saveSettings(b.dataset.orderUrl ? { catalog_url: b.dataset.orderUrl } : { order_ack: b.dataset.orderAck });
+        if (b.dataset.orderUrl) st.catalog = await api("/study-catalog/status").catch(() => st.catalog);
+        await load();
+      } catch (x) { const el = $("#spPoErr", body); if (el) { el.hidden = false; el.textContent = `Speichern fehlgeschlagen: ${x.message}`; } e.currentTarget.disabled = false; }
+    }));
+    $$("[data-prog-ack]", body).forEach(b => b.addEventListener("click", async e => {
+      e.currentTarget.disabled = true;
+      try { await saveSettings({ program_ack: b.dataset.progAck }); await load(); }
+      catch (x) { const el = $("#spPoErr", body); if (el) { el.hidden = false; el.textContent = `Speichern fehlgeschlagen: ${x.message}`; } e.currentTarget.disabled = false; }
+    }));
+    if (!editable()) $$("#spPoYes, #spPoChange, #spPoOther, [data-prog-code], [data-prog-other], [data-prog-ack]", body).forEach(b => { b.disabled = true; });
   }
 
   body.addEventListener("click", e => {
@@ -620,7 +640,7 @@ export async function viewStudyPlan(parts, params, view) {
   // ---------------------------------------------------------------- Studiengang aus dem Register waehlen
   async function openPrograms() {
     const m = modal(`<div class="card-head"><h2>${icon("list", 18)} Studiengang wählen</h2><button class="btn ghost icon" data-close aria-label="Schließen">${icon("x", 16)}</button></div>`
-      + `<p class="muted small">Alle Studiengänge der Leibniz Universität Hannover, für die StudiNow Modulkataloge kennt. Wähle deine Prüfungsordnung (PO). Verbindlich ist die Ordnung, nach der du eingeschrieben bist.</p>`
+      + `<p class="muted small">Alle Studiengänge der ${L.esc(L.source().uni)}, für die StudiNow Modulkataloge kennt. Wähle deine Prüfungsordnung (PO). Verbindlich ist die Ordnung, nach der du eingeschrieben bist.</p>`
       + `<input class="input" id="spProgQ" type="search" placeholder="Studiengang suchen, z. B. Informatik" aria-label="Studiengang suchen" autocomplete="off"><div id="spProgList" class="sp-proglist"><div class="sp-status"><span class="sp-spin" aria-hidden="true"></span><span>Lädt …</span></div></div>`, { wide: true });
     const list = $("#spProgList", m);
     let all;

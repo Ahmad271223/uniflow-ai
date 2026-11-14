@@ -109,7 +109,57 @@ final class StudoraAccountLink: ObservableObject {
             Entitlements.shared.useServiceStatus(planStatus)
             updateAccountToken()
             updateAI()
+            // Geraete-Regel: jede Antwort des Dienstes zum Tarif ist eine ausdrueckliche Auskunft (ohne Feld: nichts gesperrt)
+            if let planStatus { noteDevice(planStatus.device) }
         }
+    }
+
+    // MARK: Geraete-Regel (Auftrag des Inhabers vom 14.11.2026, `DeviceRule`)
+
+    /// Letzte ausdrueckliche Auskunft des Dienstes zu diesem Geraet, beim Start aus dem Merker (`DeviceRuleMemory`).
+    /// nil: keine Auskunft (nicht angemeldet, aelterer Dienst) - dann zeigt die App nie einen Hinweis. Ohne Netz bleibt
+    /// der letzte Stand; gesperrt wird nur nach einer Antwort des Dienstes.
+    @Published private(set) var deviceStatus: DeviceRule.Status?
+    /// der einmalige Plus-Hinweis wurde auf diesem Geraet schon gezeigt (ohne Konto: gilt als gezeigt)
+    @Published private(set) var plusHintSeen = true
+    /// Merker je Apple-Nutzer (Tests geben einen eigenen)
+    var deviceMemory = DeviceRuleMemory()
+
+    /// Was dieses Geraet zeigt: Auskunft des Dienstes und der Tarif auf dem Geraet (Kauf, Probe). Nach einem Kauf von
+    /// Pro AI sofort `ok`, auch bevor der Dienst den Kauf kennt; mit Plus nie gesperrt.
+    func deviceGate(localPlan: UFPlan) -> DeviceRule.State {
+        guard account != nil else { return .ok }                      // ohne Konto-Anschluss gaebe es keinen Ausweg
+        return DeviceRule.shown(server: deviceStatus?.state, localPlan: localPlan.rawValue)
+    }
+
+    private func noteDevice(_ status: DeviceRule.Status?) {
+        if deviceStatus != status { deviceStatus = status }
+        if let scope { deviceMemory.save(status, scope: scope) }
+    }
+
+    /// keine Auskunft mehr (abgemeldet, Sitzung beendet, Konto geloescht): nichts zeigen, Merker weg
+    private func clearDevice() { noteDevice(nil) }
+
+    /// "Dieses Gerät stattdessen nutzen": dieses Geraet wird das eine Geraet des Kontos; das andere zeigt den Hinweis
+    /// beim naechsten Kontakt. false, wenn es nicht geklappt hat (kein Netz): dann bleibt alles, wie es war.
+    @discardableResult
+    func useThisDevice() async -> Bool {
+        var ok = false
+        let (a0, epoch) = (account, accountEpoch)
+        await run { a in
+            let status = try await a.useThisDevice()
+            guard let a0, self.stillCurrent(a0, epoch) else { return }
+            self.noteDevice(status)
+            ok = true
+        }
+        if ok { await refresh() }
+        return ok
+    }
+
+    /// Der Plus-Hinweis wurde gezeigt: nie wieder fuer diesen Apple-Nutzer auf diesem Geraet
+    func markPlusHintSeen() {
+        plusHintSeen = true
+        if let scope { deviceMemory.markPlusHintSeen(scope: scope) }
     }
     /// Weg zur StudiNow-KI (`StudiNowAIAccess`): bereit, Anmeldung fehlt, Tarif fehlt; die KI-Stellen richten sich danach
     @Published private(set) var aiAccess: StudiNowAIAccess = .planRequired
@@ -237,6 +287,8 @@ final class StudoraAccountLink: ObservableObject {
     @discardableResult
     func syncNow(force: Bool = false) async -> Bool {
         guard !syncing, let account, let host, let id = user?.id,
+              // Geraete-Regel: ein gesperrtes zweites Geraet (Free) gleicht nicht ab; die Daten hier bleiben, wie sie sind
+              deviceGate(localPlan: entitlements.plan) != .blocked,
               force || lastSyncAt.map({ Date().timeIntervalSince($0) >= Self.autoSyncInterval }) ?? true else { return false }
         // sofort belegt: zwei Anstoesse kurz nacheinander (Vordergrund, Knopf) starteten sonst zwei Laeufe, die beide
         // dieselben neuen Zeilen senden
@@ -320,6 +372,8 @@ final class StudoraAccountLink: ObservableObject {
         user = nil
         sessions = []
         planStatus = nil
+        deviceStatus = nil                                      // nur die Anzeige; der Merker gehoert zum vorigen Apple-Nutzer
+        plusHintSeen = true
         clearCredits()
         account = nil
         creditsClient = nil
@@ -337,6 +391,12 @@ final class StudoraAccountLink: ObservableObject {
             account = Self.serviceAccount(base: base, userScope: userScope)
             creditsClient = StudoraCredits.Client(base: base, http: URLSessionServiceTransport(), tokens: tokens)
             attachAI(base: base, http: URLSessionServiceTransport(timeout: 180), tokens: tokens)
+        }
+        // Geraete-Regel: der Hinweis vom letzten Mal ist sofort da; `refresh` bestaetigt ihn oder nimmt ihn weg
+        // (nicht angemeldet, anderes Geraet gewaehlt, Pro AI gekauft)
+        if account != nil {
+            deviceStatus = deviceMemory.load(scope: userScope)
+            plusHintSeen = deviceMemory.plusHintSeen(scope: userScope)
         }
         // Apple-Anmeldung vom ersten Start fuer genau diesen Apple-Nutzer: jetzt mit der Hochschule beim Dienst
         // tauschen (neues Konto), sonst nur den Stand laden
@@ -477,6 +537,7 @@ final class StudoraAccountLink: ObservableObject {
         user = nil
         sessions = []
         planStatus = nil
+        clearDevice()
         clearCredits()
         entitlements.verifyOnServer = nil
         updateAI()
@@ -556,7 +617,7 @@ final class StudoraAccountLink: ObservableObject {
             message = e.userMessage
             lastErrorCode = e.code
             messageAction = e.action
-            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil }
+            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil }
         } catch {
             guard stillCurrent(account, epoch) else { return }
             message = error.localizedDescription
@@ -568,13 +629,14 @@ final class StudoraAccountLink: ObservableObject {
     /// abmeldete bzw. ein anderer Apple-Nutzer kam, waehrend die Antwort noch unterwegs war (Audit P37-01).
     func refresh() async {
         guard let account else {
-            user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
+            user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
         }
         let epoch = accountEpoch
         let signedIn = await account.isSignedIn
         guard stillCurrent(account, epoch) else { return }
         guard signedIn else {
-            user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
+            // ohne Sitzung beim Dienst gibt es nichts zu zaehlen: kein Hinweis, Merker weg
+            user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
         }
         await run { a in
             let me = try await a.me()
@@ -783,6 +845,7 @@ final class StudoraAccountLink: ObservableObject {
         user = nil
         sessions = []
         planStatus = nil
+        clearDevice()
         clearCredits()
         entitlements.verifyOnServer = nil
         reportedPurchasesFor = nil
@@ -827,7 +890,8 @@ final class StudoraAccountLink: ObservableObject {
         // geloescht ist das Konto, mit dem es begann; der Stand eines inzwischen anderen Kontos bleibt
         guard ok, let a0, stillCurrent(a0, epoch) else { return ok }
         accountEpoch += 1
-        user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI()
+        if let scope { deviceMemory.forget(scope: scope) }
+        user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI()
         return ok
     }
 }

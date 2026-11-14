@@ -1,0 +1,1036 @@
+{
+ "note": "Erzeugt von tools/gen-program-search-fixture.py - nicht von Hand aendern.",
+ "university": "hildesheim",
+ "programs": 179,
+ "cases": [
+  {
+   "query": "Angewandte Informatik B.Sc.",
+   "hits": [
+    "Angewandte Informatik | B.Sc.",
+    "Angewandte Informatik | M.Sc.",
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc.",
+    "Medieninformatik | B.Sc.",
+    "Umweltinformatik | B.Sc.",
+    "Umweltinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "English Applied Linguistics B.A.",
+   "hits": [
+    "English Applied Linguistics | B.A."
+   ]
+  },
+  {
+   "query": "Erziehungswissenschaft B.A.",
+   "hits": [
+    "Erziehungswissenschaft | B.A.",
+    "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität | M.A."
+   ]
+  },
+  {
+   "query": "IMIT B.Sc.",
+   "hits": [
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc."
+   ]
+  },
+  {
+   "query": "Internationale Kommunikation und Übersetzen B.A.",
+   "hits": [
+    "Internationale Kommunikation und Übersetzen | B.A."
+   ]
+  },
+  {
+   "query": "Internationales Informationsmanagement B.A.",
+   "hits": [
+    "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften | Nebenfach",
+    "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften | Nebenfach",
+    "Internationales Informationsmanagement | B.A.",
+    "Internationales Informationsmanagement - Digitale Sozialwissenschaften | B.A.",
+    "Internationales Informationsmanagement – Informationswissenschaft | M.A.",
+    "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation | B.A.",
+    "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft | B.A.",
+    "Internationales Informationsmanagement – Linguistik | B.A.",
+    "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation | M.A."
+   ]
+  },
+  {
+   "query": "Digitale Sozialwissenschaften",
+   "hits": [
+    "Internationales Informationsmanagement - Digitale Sozialwissenschaften | B.A."
+   ]
+  },
+  {
+   "query": "Informationswissenschaft und interkulturelle Kommunikation",
+   "hits": [
+    "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation | B.A."
+   ]
+  },
+  {
+   "query": "Interkulturelle Sprachwissenschaft",
+   "hits": [
+    "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft | B.A.",
+    "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation | M.A.",
+    "Sprachwissenschaft und Interkulturelle Kommunikation | Nebenfach"
+   ]
+  },
+  {
+   "query": "Linguistik",
+   "hits": [
+    "Internationales Informationsmanagement – Linguistik | B.A."
+   ]
+  },
+  {
+   "query": "Kulturwissenschaften und künstlerische Praxis B.A.",
+   "hits": [
+    "Kulturwissenschaften und künstlerische Praxis | B.A."
+   ]
+  },
+  {
+   "query": "Lehramt Grundschule",
+   "hits": [
+    "Deutsch im Master Lehramt an Grundschulen | M.Ed.",
+    "Englisch im Master Lehramt an Grundschulen | M.Ed.",
+    "Evangelische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Katholische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Kunst im Master Lehramt an Grundschulen | M.Ed.",
+    "Lehramt an Grundschulen | M.Ed.",
+    "Mathematik im Master Lehramt an Grundschulen | M.Ed.",
+    "Musik im Master Lehramt an Grundschulen | M.Ed.",
+    "Pädagogik im Master Lehramt an Grundschulen | M.Ed.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc.",
+    "Psychologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Sachunterricht im Master Lehramt an Grundschulen | M.Ed.",
+    "Sport im Master Lehramt an Grundschulen | M.Ed."
+   ]
+  },
+  {
+   "query": "Lehramt Haupt- und Realschule",
+   "hits": [
+    "Biologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Chemie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Deutsch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Englisch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geographie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Katholische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Kunst im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Lehramt an Grund-, Haupt- und Realschulen | Staatsexamen",
+    "Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor) | M.Ed.",
+    "Mathematik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Musik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Pädagogik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Physik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Politikwissenschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc.",
+    "Psychologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Sport im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Technik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Wirtschaft im Master Lehramt an Haupt- und Realschulen | M.Ed."
+   ]
+  },
+  {
+   "query": "Literarisches Schreiben und Kulturjournalismus B.A.",
+   "hits": [
+    "Literarisches Schreiben und Kulturjournalismus | B.A."
+   ]
+  },
+  {
+   "query": "Medieninformatik B.Sc.",
+   "hits": [
+    "Medieninformatik | B.Sc."
+   ]
+  },
+  {
+   "query": "Philosophie, Künste, Medien B.A.",
+   "hits": [
+    "Philosophie – Künste – Medien | B.A."
+   ]
+  },
+  {
+   "query": "Polyvalenter Zwei-Fächer-Bachelor",
+   "hits": [
+    "English Applied Linguistics | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc.",
+    "Sport, Gesundheit und Leistung | B.A.",
+    "Umweltsicherung | B.Sc."
+   ]
+  },
+  {
+   "query": "Psychologie B.Sc.",
+   "hits": [
+    "Politikwissenschaft - Psychologie - Soziologie - kompakt | Nebenfach",
+    "Psychologie | B.Sc.",
+    "Psychologie | M.Sc.",
+    "Psychologie | Nebenfach",
+    "Psychologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Psychologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Psychologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie | M.Sc.",
+    "Psychologie mit Schwerpunkt Pädagogische Psychologie | B.Sc.",
+    "Psychologie (Nebenfach) | Nebenfach",
+    "Rechtspsychologie | M.Sc.",
+    "Schwerpunkt Klinische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Pädagogische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Rechtspsychologie (MSc Psychologie) | Nebenfach"
+   ]
+  },
+  {
+   "query": "Sozialpädagogik B.A.",
+   "hits": [
+    "Sozialpädagogik | B.A."
+   ]
+  },
+  {
+   "query": "Sport, Gesundheit und Leistung B.A.",
+   "hits": [
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sport, Gesundheit und Leistung | B.A.",
+    "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne | M.Sc.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Szenische Künste B.A.",
+   "hits": [
+    "Szenische Künste | B.A."
+   ]
+  },
+  {
+   "query": "Umweltsicherung B.Sc.",
+   "hits": [
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Pädagogik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Psychologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Soziologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Umweltsicherung | B.Sc.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Wirtschaft Plus B.Sc.",
+   "hits": [
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft Plus | B.Sc."
+   ]
+  },
+  {
+   "query": "Wirtschaftsinformatik B.Sc.",
+   "hits": [
+    "Wirtschaftsinformatik | B.Sc.",
+    "Wirtschaftsinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "Umweltinformatik B.Sc.",
+   "hits": [
+    "Umweltinformatik | B.Sc.",
+    "Umweltinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "Angewandte Informatik M.Sc.",
+   "hits": [
+    "Angewandte Informatik | B.Sc.",
+    "Angewandte Informatik | M.Sc.",
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc.",
+    "Medieninformatik | B.Sc.",
+    "Umweltinformatik | B.Sc.",
+    "Umweltinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "Barrierefreie Kommunikation M.A.",
+   "hits": [
+    "Barrierefreie Kommunikation | M.A."
+   ]
+  },
+  {
+   "query": "Data Analytics M.Sc.",
+   "hits": [
+    "Data Analytics | M.Sc.",
+    "Data Analytics (Advanced Track) | M.Sc.",
+    "Data Analytics (Cognitive Systems) | M.Sc."
+   ]
+  },
+  {
+   "query": "DaZ/DaF M.A.",
+   "hits": [
+    "Deutsch als Zweitsprache/Deutsch als Fremdsprache | M.A."
+   ]
+  },
+  {
+   "query": "Deutsch-Französischer Doppel-Master Kulturvermittlung M.A.",
+   "hits": [
+    "Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art | M.A."
+   ]
+  },
+  {
+   "query": "Erziehungswissenschaft (Kindheitspädagogik/Diversität) M.A.",
+   "hits": [
+    "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität | M.A."
+   ]
+  },
+  {
+   "query": "Future Analytics: AI & Audio Worlds",
+   "hits": [
+    "Future Analytics: AI & Audio Worlds | M.Sc."
+   ]
+  },
+  {
+   "query": "IMIT M.Sc.",
+   "hits": [
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc."
+   ]
+  },
+  {
+   "query": "Internationale Fachkommunikation, Sprachen und Technik M.A.",
+   "hits": [
+    "Internationale Fachkommunikation - Sprachen und Technik | M.A."
+   ]
+  },
+  {
+   "query": "IIM Informationswissenschaft M.A.",
+   "hits": [
+    "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften | Nebenfach",
+    "Internationales Informationsmanagement – Informationswissenschaft | M.A.",
+    "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation | B.A."
+   ]
+  },
+  {
+   "query": "IIM Sprachwissenschaft und Interkulturelle Kommunikation M.A.",
+   "hits": [
+    "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation | M.A."
+   ]
+  },
+  {
+   "query": "Kulturvermittlung, Kulturpolitik und Transformation M.A.",
+   "hits": [
+    "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste | M.A."
+   ]
+  },
+  {
+   "query": "Künste und Gegenwartskulturen transdisziplinär M.A.",
+   "hits": [
+    "Künste und Gegenwartskulturen transdisziplinär | M.A."
+   ]
+  },
+  {
+   "query": "Lehramt M.Ed.",
+   "hits": [
+    "Biologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Chemie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Deutsch im Master Lehramt an Grundschulen | M.Ed.",
+    "Deutsch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Englisch im Master Lehramt an Grundschulen | M.Ed.",
+    "Englisch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "English Applied Linguistics | B.A.",
+    "Evangelische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geographie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Katholische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Katholische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Kunst im Master Lehramt an Grundschulen | M.Ed.",
+    "Kunst im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Lehramt an Grund-, Haupt- und Realschulen | Staatsexamen",
+    "Lehramt an Grundschulen | M.Ed.",
+    "Lehramt an Grund- und Hauptschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor) | M.Ed.",
+    "Lehramt an Realschulen | M.Ed.",
+    "Mathematik im Master Lehramt an Grundschulen | M.Ed.",
+    "Mathematik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Musik im Master Lehramt an Grundschulen | M.Ed.",
+    "Musik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Pädagogik im Master Lehramt an Grundschulen | M.Ed.",
+    "Pädagogik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Philosophie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc.",
+    "Psychologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Psychologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Sachunterricht im Master Lehramt an Grundschulen | M.Ed.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Soziologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sport im Master Lehramt an Grundschulen | M.Ed.",
+    "Sport im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Technik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Lehramt HRS Quereinstieg M.Ed.",
+   "hits": [
+    "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor) | M.Ed."
+   ]
+  },
+  {
+   "query": "Literarisches Schreiben und Lektorieren M.A.",
+   "hits": [
+    "Literarisches Schreiben und Lektorieren | M.A."
+   ]
+  },
+  {
+   "query": "Medientext und Medienübersetzung M.A.",
+   "hits": [
+    "Medientext und Medienübersetzung | M.A."
+   ]
+  },
+  {
+   "query": "Philosophie und Künste interkulturell M.A.",
+   "hits": [
+    "Philosophie und Künste interkulturell | M.A."
+   ]
+  },
+  {
+   "query": "Psychologie M.Sc.",
+   "hits": [
+    "Politikwissenschaft - Psychologie - Soziologie - kompakt | Nebenfach",
+    "Psychologie | B.Sc.",
+    "Psychologie | M.Sc.",
+    "Psychologie | Nebenfach",
+    "Psychologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Psychologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Psychologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie | M.Sc.",
+    "Psychologie mit Schwerpunkt Pädagogische Psychologie | B.Sc.",
+    "Psychologie (Nebenfach) | Nebenfach",
+    "Rechtspsychologie | M.Sc.",
+    "Schwerpunkt Klinische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Pädagogische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Rechtspsychologie (MSc Psychologie) | Nebenfach"
+   ]
+  },
+  {
+   "query": "Psychologie Klinische Psychologie und Psychotherapie M.Sc.",
+   "hits": [
+    "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie | M.Sc."
+   ]
+  },
+  {
+   "query": "Sozial- und Organisationspädagogik M.A.",
+   "hits": [
+    "Sozial- und Organisationspädagogik | M.A."
+   ]
+  },
+  {
+   "query": "Software Engineering M.Sc.",
+   "hits": [
+    "Software Engineering | M.Sc."
+   ]
+  },
+  {
+   "query": "Soziale Dienste M.A.",
+   "hits": [
+    "Soziale Dienste | M.A."
+   ]
+  },
+  {
+   "query": "Sportwissenschaft M.Sc.",
+   "hits": [
+    "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne | M.Sc."
+   ]
+  },
+  {
+   "query": "Umweltinformatik M.Sc.",
+   "hits": [
+    "Umweltinformatik | B.Sc.",
+    "Umweltinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "Umwelt, Naturschutz und Nachhaltigkeit M.Sc.",
+   "hits": [
+    "Umwelt, Naturschutz und Nachhaltigkeit | M.Sc."
+   ]
+  },
+  {
+   "query": "Wirtschaftsinformatik M.Sc.",
+   "hits": [
+    "Wirtschaftsinformatik | B.Sc.",
+    "Wirtschaftsinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "Biologie",
+   "hits": [
+    "Biologie (Begleitfach) | Nebenfach",
+    "Biologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Biologie (Nebenfach) | Nebenfach",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Chemie",
+   "hits": [
+    "Chemie (Begleitfach) | Nebenfach",
+    "Chemie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Deutsch",
+   "hits": [
+    "Deutsch als Zweitsprache/Deutsch als Fremdsprache | M.A.",
+    "Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art | M.A.",
+    "Deutsch im Master Lehramt an Grundschulen | M.Ed.",
+    "Deutsch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Englisch",
+   "hits": [
+    "Englisch (Begleitfach) | Nebenfach",
+    "Englisch/Bilinguales Lehren und Lernen (Begleitfach) | Nebenfach",
+    "Englisch im Master Lehramt an Grundschulen | M.Ed.",
+    "Englisch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Englisch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A."
+   ]
+  },
+  {
+   "query": "Evangelische Theologie",
+   "hits": [
+    "Evangelische Theologie (Begleitfach) | Nebenfach",
+    "Evangelische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Geographie",
+   "hits": [
+    "Geographie (Begleitfach) | Nebenfach",
+    "Geographie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Geschichte",
+   "hits": [
+    "Geschichte (Begleitfach) | Nebenfach",
+    "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte (Nebenfach) | Nebenfach",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Katholische Theologie",
+   "hits": [
+    "Katholische Theologie (Begleitfach) | Nebenfach",
+    "Katholische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Katholische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Kunst",
+   "hits": [
+    "Bildende Kunst | Nebenfach",
+    "Kunst (Begleitfach) | Nebenfach",
+    "Kunst im Master Lehramt an Grundschulen | M.Ed.",
+    "Kunst im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Mathematik",
+   "hits": [
+    "Mathematik im Master Lehramt an Grundschulen | M.Ed.",
+    "Mathematik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Mathematik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Musik",
+   "hits": [
+    "Musik | Nebenfach",
+    "Musik (Begleitfach) | Nebenfach",
+    "Musik im Master Lehramt an Grundschulen | M.Ed.",
+    "Musik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Musik (Nebenfach) | Nebenfach",
+    "musik.welt -- Kulturelle Diversität in der musikalischen Bildung | M.A.",
+    "Musikwissenschaft (Nebenfach) | Nebenfach"
+   ]
+  },
+  {
+   "query": "Physik",
+   "hits": [
+    "Physik (Begleitfach) | Nebenfach",
+    "Physik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik (Nebenfach) | Nebenfach",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Politikwissenschaft",
+   "hits": [
+    "Politikwissenschaft | Nebenfach",
+    "Politikwissenschaft (Begleitfach) | Nebenfach",
+    "Politikwissenschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft (Nebenfach) | Nebenfach",
+    "Politikwissenschaft - Psychologie - Soziologie - kompakt | Nebenfach",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Sachunterricht",
+   "hits": [
+    "Sachunterricht (Begleitfach) | Nebenfach",
+    "Sachunterricht im Master Lehramt an Grundschulen | M.Ed.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Sport",
+   "hits": [
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sport (Begleitfach) | Nebenfach",
+    "Sport, Gesundheit und Leistung | B.A.",
+    "Sport im Master Lehramt an Grundschulen | M.Ed.",
+    "Sport im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Sport im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne | M.Sc.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc."
+   ]
+  },
+  {
+   "query": "Technik",
+   "hits": [
+    "Internationale Fachkommunikation - Sprachen und Technik | M.A.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Technik (Begleitfach) | Nebenfach",
+    "Technik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Technik (Nebenfach) | Nebenfach"
+   ]
+  },
+  {
+   "query": "Wirtschaft",
+   "hits": [
+    "Betriebswirtschaftslehre | Nebenfach",
+    "Betriebswirtschaftslehre (Begleitfach) | Nebenfach",
+    "Betriebswirtschaftslehre (Nebenfach) | Nebenfach",
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft Plus | B.Sc.",
+    "Wirtschaftsinformatik | B.Sc.",
+    "Wirtschaftsinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "Pädagogik",
+   "hits": [
+    "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität | M.A.",
+    "Inklusive Pädagogik und Kommunikation | M.A.",
+    "Pädagogik im Master Lehramt an Grundschulen | M.Ed.",
+    "Pädagogik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Pädagogik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sozialpädagogik | B.A.",
+    "Sozial- und Organisationspädagogik | M.A."
+   ]
+  },
+  {
+   "query": "Psychologie",
+   "hits": [
+    "Politikwissenschaft - Psychologie - Soziologie - kompakt | Nebenfach",
+    "Psychologie | B.Sc.",
+    "Psychologie | M.Sc.",
+    "Psychologie | Nebenfach",
+    "Psychologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Psychologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Psychologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie | M.Sc.",
+    "Psychologie mit Schwerpunkt Pädagogische Psychologie | B.Sc.",
+    "Psychologie (Nebenfach) | Nebenfach",
+    "Rechtspsychologie | M.Sc.",
+    "Schwerpunkt Klinische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Pädagogische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Rechtspsychologie (MSc Psychologie) | Nebenfach"
+   ]
+  },
+  {
+   "query": "Philosophie",
+   "hits": [
+    "Philosophie | Nebenfach",
+    "Philosophie (Begleitfach) | Nebenfach",
+    "Philosophie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Philosophie – Künste – Medien | B.A.",
+    "Philosophie (Nebenfach) | Nebenfach",
+    "Philosophie und Künste interkulturell | M.A."
+   ]
+  },
+  {
+   "query": "Soziologie",
+   "hits": [
+    "Politikwissenschaft - Psychologie - Soziologie - kompakt | Nebenfach",
+    "Soziologie | Nebenfach",
+    "Soziologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Soziologie (Nebenfach) | Nebenfach"
+   ]
+  },
+  {
+   "query": "Informatik",
+   "hits": [
+    "Angewandte Informatik | B.Sc.",
+    "Angewandte Informatik | M.Sc.",
+    "Informatik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc.",
+    "Medieninformatik | B.Sc.",
+    "Umweltinformatik | B.Sc.",
+    "Umweltinformatik | M.Sc.",
+    "Wirtschaftsinformatik | B.Sc.",
+    "Wirtschaftsinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "",
+   "hits": [
+    "Angewandte Informatik | B.Sc.",
+    "Angewandte Informatik | M.Sc.",
+    "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften | Nebenfach",
+    "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften | Nebenfach",
+    "Bachelor keine Studienvariante | Nebenfach",
+    "Barrierefreie Kommunikation | M.A.",
+    "Betriebswirtschaftslehre | Nebenfach",
+    "Betriebswirtschaftslehre (Begleitfach) | Nebenfach",
+    "Betriebswirtschaftslehre (Nebenfach) | Nebenfach",
+    "Bildende Kunst | Nebenfach",
+    "Biologie (Begleitfach) | Nebenfach",
+    "Biologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Biologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Biologie (Nebenfach) | Nebenfach",
+    "Chemie (Begleitfach) | Nebenfach",
+    "Chemie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Chemie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Data Analytics | M.Sc.",
+    "Data Analytics (Advanced Track) | M.Sc.",
+    "Data Analytics (Cognitive Systems) | M.Sc.",
+    "Data Science | B.Sc.",
+    "Deutsch als Zweitsprache/Deutsch als Fremdsprache | M.A.",
+    "Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art | M.A.",
+    "Deutsch im Master Lehramt an Grundschulen | M.Ed.",
+    "Deutsch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Deutsch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Englisch (Begleitfach) | Nebenfach",
+    "Englisch/Bilinguales Lehren und Lernen (Begleitfach) | Nebenfach",
+    "Englisch im Master Lehramt an Grundschulen | M.Ed.",
+    "Englisch im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Englisch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A.",
+    "Erziehungswissenschaft | B.A.",
+    "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität | M.A.",
+    "Evangelische Theologie (Begleitfach) | Nebenfach",
+    "Evangelische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Film und Bewegtbild | Nebenfach",
+    "Film und Bewegtbild (Nebenfach) | Nebenfach",
+    "Film und Populäre Kultur | Nebenfach",
+    "Future Analytics: AI & Audio Worlds | M.Sc.",
+    "Geographie (Begleitfach) | Nebenfach",
+    "Geographie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte (Begleitfach) | Nebenfach",
+    "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Geschichte (Nebenfach) | Nebenfach",
+    "Informatik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc.",
+    "Informationstechnologie | Nebenfach",
+    "Informationstechnologie (Nebenfach) | Nebenfach",
+    "Informationswissenschaft | Nebenfach",
+    "Informationswissenschaft (Nebenfach) | Nebenfach",
+    "Inklusive Pädagogik und Kommunikation | M.A.",
+    "Interkulturelle Kommunikation (Begleitfach) | Nebenfach",
+    "Interkulturelle Kommunikation (Nebenfach) | Nebenfach",
+    "Internationale Fachkommunikation - Sprachen und Technik | M.A.",
+    "Internationale Kommunikation und Übersetzen | B.A.",
+    "Internationales Informationsmanagement | B.A.",
+    "Internationales Informationsmanagement - Digitale Sozialwissenschaften | B.A.",
+    "Internationales Informationsmanagement – Informationswissenschaft | M.A.",
+    "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation | B.A.",
+    "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft | B.A.",
+    "Internationales Informationsmanagement – Linguistik | B.A.",
+    "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation | M.A.",
+    "Katholische Theologie (Begleitfach) | Nebenfach",
+    "Katholische Theologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Katholische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Künste und Gegenwartskulturen transdisziplinär | M.A.",
+    "Kulturpolitik | Nebenfach",
+    "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste | M.A.",
+    "Kulturwissenschaften und künstlerische Praxis | B.A.",
+    "Kunst (Begleitfach) | Nebenfach",
+    "Kunst im Master Lehramt an Grundschulen | M.Ed.",
+    "Kunst im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Kunst im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Lehramt an Grund-, Haupt- und Realschulen | Staatsexamen",
+    "Lehramt an Grundschulen | M.Ed.",
+    "Lehramt an Grund- und Hauptschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor) | M.Ed.",
+    "Lehramt an Realschulen | M.Ed.",
+    "Literarisches Schreiben und Kulturjournalismus | B.A.",
+    "Literarisches Schreiben und Lektorieren | M.A.",
+    "Literatur | Nebenfach",
+    "Literatur (Nebenfach) | Nebenfach",
+    "Literatur und ästhetische Kommunikation (Nebenfach) | Nebenfach",
+    "Master keine Studienvariante | Nebenfach",
+    "Mathematik im Master Lehramt an Grundschulen | M.Ed.",
+    "Mathematik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Mathematik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Medien | Nebenfach",
+    "Medieninformatik | B.Sc.",
+    "Medientext und Medienübersetzung | M.A.",
+    "Medien und Populäre Kultur | Nebenfach",
+    "Medienwissenschaft (Nebenfach) | Nebenfach",
+    "Musik | Nebenfach",
+    "Musik (Begleitfach) | Nebenfach",
+    "Musik im Master Lehramt an Grundschulen | M.Ed.",
+    "Musik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Musik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Musik (Nebenfach) | Nebenfach",
+    "musik.welt -- Kulturelle Diversität in der musikalischen Bildung | M.A.",
+    "Musikwissenschaft (Nebenfach) | Nebenfach",
+    "Organization Studies | M.A.",
+    "Pädagogik im Master Lehramt an Grundschulen | M.Ed.",
+    "Pädagogik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Pädagogik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Philosophie | Nebenfach",
+    "Philosophie (Begleitfach) | Nebenfach",
+    "Philosophie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Philosophie – Künste – Medien | B.A.",
+    "Philosophie (Nebenfach) | Nebenfach",
+    "Philosophie und Künste interkulturell | M.A.",
+    "Physik (Begleitfach) | Nebenfach",
+    "Physik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Physik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Physik (Nebenfach) | Nebenfach",
+    "Politikwissenschaft | Nebenfach",
+    "Politikwissenschaft (Begleitfach) | Nebenfach",
+    "Politikwissenschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Politikwissenschaft (Nebenfach) | Nebenfach",
+    "Politikwissenschaft - Psychologie - Soziologie - kompakt | Nebenfach",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc.",
+    "Psychologie | B.Sc.",
+    "Psychologie | M.Sc.",
+    "Psychologie | Nebenfach",
+    "Psychologie im Master Lehramt an Grundschulen | M.Ed.",
+    "Psychologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Psychologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie | M.Sc.",
+    "Psychologie mit Schwerpunkt Pädagogische Psychologie | B.Sc.",
+    "Psychologie (Nebenfach) | Nebenfach",
+    "Rechtspsychologie | M.Sc.",
+    "Sachunterricht (Begleitfach) | Nebenfach",
+    "Sachunterricht im Master Lehramt an Grundschulen | M.Ed.",
+    "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Schwerpunkt Klinische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Pädagogische Psychologie (MSc Psychologie) | Nebenfach",
+    "Schwerpunkt Rechtspsychologie (MSc Psychologie) | Nebenfach",
+    "Software Engineering | M.Sc.",
+    "Soziale Dienste | M.A.",
+    "Sozialpädagogik | B.A.",
+    "Sozial- und Organisationspädagogik | M.A.",
+    "Sozialwissenschaften | Nebenfach",
+    "Soziologie | Nebenfach",
+    "Soziologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Soziologie (Nebenfach) | Nebenfach",
+    "Sport (Begleitfach) | Nebenfach",
+    "Sport, Gesundheit und Leistung | B.A.",
+    "Sport im Master Lehramt an Grundschulen | M.Ed.",
+    "Sport im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Sport im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne | M.Sc.",
+    "Sprachwissenschaft und Interkulturelle Kommunikation | Nebenfach",
+    "Szenische Künste | B.A.",
+    "Technik (Begleitfach) | Nebenfach",
+    "Technik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Technik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Technik (Nebenfach) | Nebenfach",
+    "Theater | Nebenfach",
+    "Übersetzungswissenschaft | Nebenfach",
+    "Übersetzungswissenschaft (Nebenfach) | Nebenfach",
+    "Umweltinformatik | B.Sc.",
+    "Umweltinformatik | M.Sc.",
+    "Umwelt, Naturschutz und Nachhaltigkeit | M.Sc.",
+    "Umweltsicherung | B.Sc.",
+    "Umweltwissenschaft und Naturschutz | M.Sc.",
+    "Wirtschaft im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Wirtschaft Plus | B.Sc.",
+    "Wirtschaftsinformatik | B.Sc.",
+    "Wirtschaftsinformatik | M.Sc."
+   ]
+  },
+  {
+   "query": "imit",
+   "hits": [
+    "Informationsmanagement und Informationstechnologie | B.Sc.",
+    "Informationsmanagement und Informationstechnologie | M.Sc."
+   ]
+  },
+  {
+   "query": "IKÜ",
+   "hits": [
+    "Internationale Kommunikation und Übersetzen | B.A."
+   ]
+  },
+  {
+   "query": "daf",
+   "hits": [
+    "Deutsch als Zweitsprache/Deutsch als Fremdsprache | M.A."
+   ]
+  },
+  {
+   "query": "ghr",
+   "hits": [
+    "Lehramt an Grund-, Haupt- und Realschulen | Staatsexamen"
+   ]
+  },
+  {
+   "query": "2FB",
+   "hits": [
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc."
+   ]
+  },
+  {
+   "query": "sozialp",
+   "hits": [
+    "Sozialpädagogik | B.A."
+   ]
+  },
+  {
+   "query": "lehramt grundschule deutsch",
+   "hits": [
+    "Deutsch im Master Lehramt an Grundschulen | M.Ed."
+   ]
+  },
+  {
+   "query": "Lehramt studieren",
+   "hits": [
+    "Lehramt an Grundschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor) | M.Ed.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.A.",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang | B.Sc."
+   ]
+  },
+  {
+   "query": "Kulturwissenschaften und Ästhetische Praxis",
+   "hits": [
+    "Kulturwissenschaften und künstlerische Praxis | B.A."
+   ]
+  },
+  {
+   "query": "Englisch Zwei-Fächer-Bachelor",
+   "hits": [
+    "Englisch im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "English Applied Linguistics | B.A."
+   ]
+  },
+  {
+   "query": "Data Science",
+   "hits": [
+    "Data Science | B.Sc."
+   ]
+  }
+ ]
+}

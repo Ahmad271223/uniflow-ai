@@ -164,6 +164,12 @@
    "summary": "Konto loeschen: sofort gesperrt und abgemeldet, Daten nach 30 Tagen endgueltig weg."
   },
   {
+   "method": "POST",
+   "path": "/api/account/device/primary",
+   "public": false,
+   "summary": "Geraete-Regel: dieses Geraet wird das eine Geraet des Kontos (\"Dieses Gerät stattdessen nutzen\")."
+  },
+  {
    "method": "GET",
    "path": "/api/account/export",
    "public": false,

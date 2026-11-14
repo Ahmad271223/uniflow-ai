@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 import math
 import re
 from collections import Counter
@@ -446,26 +447,115 @@ class DbCatalogSource:
 # Katalog waehlen
 # ----------------------------------------------------------------------------
 
-def program_of(grades: list[dict]) -> str | None:
-    """Haeufigster Studiengang aus QIS `abschluss` ("Technische Informatik (PO-Version 2017)" -> "Technische
-    Informatik"); bei Gleichstand der zuerst gesehene"""
-    names = [PROGRAM_RE.sub("", text_of(r.get("abschluss"))).strip() for r in grades]
+PO_YEAR_RE = re.compile(r"PO[- ]?Version:?\s*([0-9]{4})", re.I)
+
+
+def current_label(labels: list) -> str | None:
+    """Studiengang der laufenden Einschreibung aus mehreren QIS-/LSF-Bezeichnungen (14.11.2026, erstes echtes
+    Hildesheim-Konto: nach einem Wechsel von Erziehungswissenschaft zu Sozialpaedagogik hatte nur der alte Studiengang
+    Leistungen und gewann als "haeufigster"). Die neueste PO-Version gewinnt, bei Gleichstand die meisten Zeilen, dann
+    die zuerst gesehene."""
+    names = [text_of(n).strip() for n in labels]
     names = [n for n in names if n]
     if not names:
         return None
     counts = Counter(names)
-    best = max(counts.values())
-    return next(n for n in names if counts[n] == best)
+    order = list(dict.fromkeys(names))
+
+    def year(n: str) -> int:
+        m = PO_YEAR_RE.search(n)
+        return int(m.group(1)) if m else -1
+    return max(order, key=lambda n: (year(n), counts[n], -order.index(n)))
+
+
+def program_of(grades: list[dict]) -> str | None:
+    """Studiengang aus QIS `abschluss` ("Technische Informatik (PO-Version 2017)" -> "Technische Informatik"), der
+    aktuelle bei mehreren (`current_label`)"""
+    label = abschluss_of(grades)
+    if not label:
+        return None
+    # LSF Hildesheim ("Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2022"):
+    # nur der Name, sonst passte nie ein Katalog
+    from .study_catalog import parse_abschluss
+    name = parse_abschluss(label)["name"] if label.lower().startswith("abschluss:") else PROGRAM_RE.sub("", label).strip()
+    return name or None
 
 
 def abschluss_of(grades: list[dict]) -> str | None:
-    names = [text_of(r.get("abschluss")).strip() for r in grades]
-    names = [n for n in names if n]
-    if not names:
-        return None
-    counts = Counter(names)
-    best = max(counts.values())
-    return next(n for n in names if counts[n] == best)
+    return current_label([r.get("abschluss") for r in grades])
+
+
+def programs_of(grades: list[dict], university: str, registry: dict | None = None) -> list[dict]:
+    """Alle Studiengaenge im Notenspiegel, der aktuelle zuerst: [{label, program, degree, po, code, grades}] (code nur,
+    wenn das Register den Studiengang kennt). Fuer die Frage "Welchen Studiengang studierst du gerade?"."""
+    from .study_catalog import load_registry, match_program, name_key, parse_abschluss
+    reg = registry or load_registry()
+    labels = [text_of(r.get("abschluss")).strip() for r in grades]
+    labels = [x for x in labels if x]
+    counts = Counter(labels)
+    rest = list(dict.fromkeys(labels))
+    order = []
+    while rest:
+        best = current_label(rest)
+        order.append(best)
+        rest = [x for x in rest if x != best]
+    out, seen = [], set()
+    for label in order:
+        m = match_program(label, university, reg) or {}
+        parsed = parse_abschluss(label)
+        program = m.get("program") or parsed["name"] or label
+        key = m.get("code") or name_key(program)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"label": label, "program": program, "degree": m.get("degree") or parsed["degree"],
+                    "po": m.get("po") or parsed["po"], "code": m.get("code"), "grades": counts[label]})
+    return out
+
+
+def earlier_studies(rows: list[dict]) -> list[dict]:
+    """Leistungen anderer Studiengaenge als "Früheres Studium" (14.11.2026, Studiengangswechsel): je Studiengang Name,
+    Abschluss, Anzahl, LP der bestandenen und die Zeilen, wie sie im Notenspiegel stehen; Reihenfolge des ersten
+    Auftretens. Zaehlen nicht im aktuellen Studiengang."""
+    from .study_catalog import parse_abschluss
+    out: dict[str, dict] = {}
+    for r in rows:
+        label = text_of(r.get("abschluss")).strip()
+        e = out.get(label)
+        if e is None:
+            parsed = parse_abschluss(label) if label.lower().startswith("abschluss:") else None
+            name = (parsed["name"] if parsed else PROGRAM_RE.sub("", label).strip()) or "Ohne Angabe"
+            e = out[label] = {"label": label, "program": name, "count": 0, "lp": 0.0, "rows": []}
+        e["count"] += 1
+        if text_of(r.get("status")).strip().lower().startswith("bestanden"):
+            e["lp"] += credits_of(r)
+        e["rows"].append({"text": r.get("text"), "note": r.get("note"), "status": r.get("status"),
+                          "credits": r.get("credits"), "semester": r.get("semester")})
+    return list(out.values())
+
+
+def grades_for_catalog(grades: list[dict], catalog: dict | None, university: str, registry: dict | None = None) -> list[dict]:
+    """Leistungen eines anderen Studiengangs nicht in diesen Katalog mischen (14.11.2026): eine Zeile, deren
+    `abschluss` laut Register zu einem anderen Studiengang gehoert als der Katalog, faellt weg. Zeilen ohne `abschluss`
+    und mit einer Bezeichnung, die das Register nicht kennt, bleiben; anerkannte Leistungen stehen im Notenspiegel unter
+    dem neuen Studiengang und zaehlen darum mit."""
+    if not catalog:
+        return grades
+    from .study_catalog import load_registry, match_program, name_key
+    want = name_key(text_of(catalog.get("program")))
+    if not want:
+        return grades
+    reg = registry or load_registry()
+    belongs: dict[str, bool] = {}
+    out = []
+    for g in grades:
+        label = text_of(g.get("abschluss")).strip()
+        if label and label not in belongs:
+            m = match_program(label, university, reg)
+            belongs[label] = m is None or name_key(m.get("program") or "") == want
+        if not label or belongs[label]:
+            out.append(g)
+    return out
 
 
 def pick_catalog(catalogs: list[dict], settings: dict, grades: list[dict]) -> tuple[dict | None, str | None]:
@@ -474,7 +564,13 @@ def pick_catalog(catalogs: list[dict], settings: dict, grades: list[dict]) -> tu
     cands = [c for c in catalogs if valid_catalog(c)]
     if not cands:
         return None, "no_catalog"
-    po = text_of(settings.get("po")).strip()
+    # eingefuegter Link: der Katalog von genau diesem Link gilt (14.11.2026, Hildesheim: Link zum Modulhandbuch
+    # Sozialpaedagogik, der Notenspiegel nennt nur Erziehungswissenschaft)
+    link = text_of(settings.get("catalog_url")).strip()
+    linked = [c for c in cands if link and isinstance(c.get("source"), dict) and c["source"].get("url") == link]
+    if linked:
+        cands = linked
+    po = "" if linked else text_of(settings.get("po")).strip()
     if po:
         cands = [c for c in cands if str(c.get("po") or "") == po or text_of(c.get("code")) == po]
         if not cands:
@@ -1418,7 +1514,25 @@ def load_settings(conn) -> dict:
     out["placements"] = clean_placements(v.get("placements"))
     out["excluded"] = clean_ids(v.get("excluded"))
     out["custom"] = clean_custom(v.get("custom"))
+    # Neben- bzw. Begleitfaecher (Kuerzel aus dem Register, Frage "Was studierst du?", 14.11.2026) und ein Studiengang aus
+    # dem Notenspiegel, bei dem der Nutzer schon "nein, ich bleibe" gesagt hat
+    out["minors"] = clean_minors(v.get("minors"))
+    ack = v.get("program_ack")
+    if isinstance(ack, str) and ack.strip():
+        out["program_ack"] = ack.strip()[:200]
+    ack = v.get("order_ack")
+    if isinstance(ack, str) and ack.strip():
+        out["order_ack"] = ack.strip()[:200]
     return out
+
+
+def clean_minors(v) -> list[str]:
+    """Neben-/Begleitfaecher: hoechstens 3 Kuerzel, Text bis 200 Zeichen, ohne Doppelte, Reihenfolge bleibt"""
+    out: list[str] = []
+    for x in v if isinstance(v, list) else []:
+        if isinstance(x, str) and x.strip() and x.strip()[:200] not in out:
+            out.append(x.strip()[:200])
+    return out[:3]
 
 
 def grade_rows(conn) -> list[dict]:
@@ -1430,11 +1544,134 @@ def plan_response(conn, today: str, source=None) -> dict:
     settings, grades = load_settings(conn), grade_rows(conn)
     catalogs = source.catalogs()
     cat, reason = pick_catalog(catalogs, settings, grades)
-    out = unavailable(reason, settings["po"]) if cat is None else build_plan(cat, grades, settings, today)
+    uni = _university(conn)
+    mine = grades_for_catalog(grades, cat, uni)
+    out = unavailable(reason, settings["po"]) if cat is None else build_plan(cat, mine, settings, today)
+    if cat is None and reason in ("no_catalog", "no_catalog_po"):
+        # gewaehlter Studiengang aus dem Register (auch ohne Katalog): ehrlich mit Namen statt "Verbinde das LSF"
+        named = chosen_program_name(settings["po"], uni)
+        if named:
+            out["message"] = f"Für {named} gibt es noch keinen Modulkatalog."
+            out["program"] = named
+    other = [r for r in grades if r not in mine and r.get("source") != "anmeldung" and not is_bereich(r)]
+    out["earlier_studies"] = earlier_studies(other) if cat is not None else []
+    if cat is not None and other:
+        # ehrlich sagen, warum Leistungen fehlen (Wechsel des Studiengangs, 14.11.2026)
+        names = [e["program"] for e in out["earlier_studies"]]
+        out["notes"] = list(out.get("notes") or []) + [{
+            "kind": "anderer_studiengang", "tone": "info", "module_id": None,
+            "text": f"{len(other)} Leistungen aus „{' / '.join(names)}“ stehen unten unter „Früheres Studium“ und zählen "
+                    f"hier nicht. Angerechnete Leistungen zählen, sobald der Notenspiegel sie beim aktuellen Studiengang führt."}]
     suggested, _ = pick_catalog(catalogs, {}, grades)
+    progs = programs_of(grades, uni)
     out.update(suggested_po=suggested.get("po") if suggested else None, po_confirmed=settings["po"] is not None,
-               qis_program=abschluss_of(grades))
+               qis_program=abschluss_of(grades), programs=progs if len(progs) > 1 else [],
+               program_mismatch=program_mismatch(progs, settings, uni),
+               order_suggestion=order_suggestion(settings, out.get("code") or settings.get("po"), out.get("start_term"), uni),
+               lsf_plan=lsf_plan(cat.get("code") if cat else settings.get("po"), uni))
     return out
+
+
+def lsf_plan(code: str | None, university: str, registry: dict | None = None) -> dict | None:
+    """Link zum LSF-"Studiengangsplan" des Studiengangs (Kuerzel oder ID; 14.11.2026): Wochenraster der Veranstaltungen
+    dieses Semesters, kein Studienverlauf. None ohne Eintrag."""
+    from .study_catalog import load_registry, program_entry
+    if not code:
+        return None
+    reg = registry or load_registry()
+    found = program_entry(reg, university, code)
+    prog = found[1] if found else next((p for u in reg.get("universities") or [] if u.get("id") == university
+                                        for p in u.get("programs") or [] if p.get("id") == code), None)
+    lsf = (prog or {}).get("lsf")
+    if not isinstance(lsf, dict) or not lsf.get("url"):
+        return None
+    return {"url": lsf["url"], "text": lsf.get("text"), "label": "Veranstaltungen dieses Semesters im LSF"}
+
+
+ORDERS_PATH = Path(__file__).resolve().parent.parent / "packages" / "shared-contracts" / "study-orders.json"
+_orders_cache: list | None = None
+
+
+def study_orders() -> list[dict]:
+    """Vorgaengerordnungen (packages/shared-contracts/study-orders.json, von Hand gepflegt)"""
+    global _orders_cache
+    if _orders_cache is None:
+        try:
+            _orders_cache = json.loads(ORDERS_PATH.read_text(encoding="utf-8")).get("orders") or []
+        except (OSError, ValueError):
+            _orders_cache = []
+    return _orders_cache
+
+
+def order_suggestion(settings: dict, code: str | None, start_term: str | None, university: str) -> dict | None:
+    """Neue Ordnung gewaehlt, Studienbeginn vor deren erstem Semester: die alte Ordnung vorschlagen (14.11.2026,
+    Sozialpaedagogik ab WiSe 2025/26, davor Sozial- und Organisationspaedagogik). None ohne passenden Eintrag, ohne
+    bekannten Studienbeginn, mit Beginn ab dem Stichsemester, wenn die alte schon gewaehlt (Link) oder der Vorschlag
+    abgelehnt ist (`order_ack`)."""
+    start = parse_term(start_term) if start_term else None
+    if not code or start is None:
+        return None
+    for o in study_orders():
+        if o.get("university") != university or o.get("code") != code:
+            continue
+        since = parse_term(o.get("since"))
+        older = o.get("older") or {}
+        if since is None or start >= since or settings.get("catalog_url") == older.get("url"):
+            return None
+        if settings.get("order_ack") == "order:" + code:
+            return None
+        return {"code": code, "since": o.get("since"), "start_term": start_term, "program": older.get("program"),
+                "degree": older.get("degree"), "po": older.get("po"), "url": older.get("url")}
+    return None
+
+
+def program_mismatch(progs: list[dict], settings: dict, university: str, registry: dict | None = None) -> dict | None:
+    """Gewaehlt ist ein Studiengang aus dem Register, der Notenspiegel nennt einen anderen mit neuerer PO (14.11.2026:
+    die Wahl des Nutzers gilt, aber einmal nachfragen statt still zu ueberschreiben). None ohne Wahl, bei gleichem
+    Studiengang, aelterer PO im Notenspiegel oder wenn der Nutzer genau diesen schon abgelehnt hat (`program_ack`)."""
+    from .study_catalog import load_registry, program_entry
+    chosen = settings.get("po")
+    if not chosen or not progs or not progs[0].get("code"):
+        return None
+    top = progs[0]
+    if top["code"] == chosen or top["code"] == settings.get("program_ack"):
+        return None
+    found = program_entry(registry or load_registry(), university, chosen)
+    if found is None:
+        return None
+    _, prog, po = found
+
+    def year(x) -> int:
+        try:
+            return int(str(x or "")[:4])
+        except ValueError:
+            return -1
+    if year(top.get("po")) <= year(po.get("po")):
+        return None
+    return {"code": top["code"], "program": top["program"], "degree": top.get("degree"), "po": top.get("po"),
+            "chosen": prog.get("program")}
+
+
+def chosen_program_name(code: str | None, university: str, registry: dict | None = None) -> str | None:
+    """Kuerzel aus dem Register -> "Sozialpädagogik (B.A., PO 2025)" fuer Meldungen; None fuer eine PO-Jahreszahl"""
+    from .study_catalog import load_registry, program_entry
+    reg = registry or load_registry()
+    found = program_entry(reg, university, code) if code else None
+    if not found:
+        # Studiengang ohne Katalog: gewaehlt ueber seine ID (14.11.2026, "Was studierst du?")
+        for u in reg.get("universities") or []:
+            for p in u.get("programs") or [] if u.get("id") == university else []:
+                if code and p.get("id") == code:
+                    return f"{p.get('program')} ({p.get('degree')})" if p.get("degree") else p.get("program")
+        return None
+    _, prog, po = found
+    extra = ", ".join(x for x in (prog.get("degree"), f"PO {po.get('po')}" if po.get("po") else None) if x)
+    return f"{prog.get('program')} ({extra})" if extra else prog.get("program")
+
+
+def _university(conn) -> str:
+    r = db.row(conn, "SELECT value FROM settings WHERE key='university'")
+    return (r["value"] if r and r["value"] else None) or "luh"
 
 
 def module_response(conn, module_id: str, today: str, source=None) -> dict:
@@ -1444,6 +1681,7 @@ def module_response(conn, module_id: str, today: str, source=None) -> dict:
     cat, _ = pick_catalog(source.catalogs(), settings, grades)
     if cat is None:
         raise HTTPException(404, "Kein Katalog")
+    grades = grades_for_catalog(grades, cat, _university(conn))
     full = compute(cat, grades, settings, today)
     m = full["by_id"].get(module_id)
     if m is None:
@@ -1603,10 +1841,31 @@ def save_settings(conn, body: dict, today: str, source=None) -> dict:
         if v is not None and (not isinstance(v, list) or not all(isinstance(c, dict) for c in v)):
             raise HTTPException(400, "custom muss eine Liste von Eintraegen sein")
         s["custom"] = clean_custom(v)
+    if "minors" in body:
+        v = body["minors"]
+        if v is not None and (not isinstance(v, list) or not all(isinstance(e, str) for e in v)):
+            raise HTTPException(400, "minors muss eine Liste von Kuerzeln sein")
+        s["minors"] = clean_minors(v)
+    if "order_ack" in body:
+        v = body["order_ack"]
+        if v is not None and not isinstance(v, str):
+            raise HTTPException(400, "order_ack muss Text sein")
+        if isinstance(v, str) and v.strip():
+            s["order_ack"] = v.strip()[:200]
+        else:
+            s.pop("order_ack", None)
+    if "program_ack" in body:
+        v = body["program_ack"]
+        if v is not None and not isinstance(v, str):
+            raise HTTPException(400, "program_ack muss Text sein")
+        if isinstance(v, str) and v.strip():
+            s["program_ack"] = v.strip()[:200]
+        else:
+            s.pop("program_ack", None)
     stored = {"po": s["po"], "start_term": s["start_term"], "electives": s["electives"]}
     if s.get("catalog_url"):
         stored["catalog_url"] = s["catalog_url"]
-    for k in ("tracks", "placements", "excluded", "custom"):
+    for k in ("tracks", "placements", "excluded", "custom", "minors", "program_ack", "order_ack"):
         if s.get(k):
             stored[k] = s[k]
     db.set_setting(conn, SETTINGS_KEY, stored)

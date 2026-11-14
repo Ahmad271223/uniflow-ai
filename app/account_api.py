@@ -15,7 +15,7 @@ from fastapi.routing import APIRoute
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import accounts, apple_signin, config, mail, social_login
+from . import accounts, apple_signin, config, device_limit, mail, social_login
 
 
 class NoStoreRoute(APIRoute):
@@ -101,6 +101,19 @@ def _device(body: dict, request: Request) -> tuple[str | None, str | None]:
     return (_text(body, "device_id") or None, _text(body, "device_name") or (request.headers.get("user-agent") or "")[:120] or None)
 
 
+def _with_device(out: dict, request: Request, user: dict, token: str | None, login: bool = False) -> dict:
+    """Geraete-Regel (app/device_limit.py, 14.11.2026): Feld `device` nur fuer Apple-Apps, die die Faehigkeit
+    `device_limit` melden. Alle anderen Clients (1.0.3, Builds 36-40, Web, Windows) bekommen die Antwort wie bisher.
+    Ein Fehler hier darf weder Anmeldung noch Konto-Abfrage scheitern lassen: dann fehlt das Feld (App sperrt nie)."""
+    if device_limit.applies(request, login=login):
+        try:
+            out["device"] = device_limit.status(user, token)
+        except Exception as e:  # noqa: BLE001
+            import logging
+            logging.getLogger("uniflow.account").warning("Geraete-Regel nicht bestimmt: %s: %s", type(e).__name__, e)
+    return out
+
+
 @router.get("/info")
 def info():
     """Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."""
@@ -134,7 +147,7 @@ def register(request: Request, body: dict = Body(...)):
     except Exception as e:  # noqa: BLE001
         import logging
         logging.getLogger("uniflow.account").warning("Willkommensmail nicht vorbereitet: %s: %s", type(e).__name__, e)
-    resp = JSONResponse({"user": user, "token": token}, status_code=201)
+    resp = JSONResponse(_with_device({"user": user, "token": token}, request, user, token, login=True), status_code=201)
     _set_cookie(resp, token)
     return resp
 
@@ -147,7 +160,7 @@ def login(request: Request, body: dict = Body(...)):
         user, token = accounts.login(_text(body, "email"), _text(body, "password"), *_device(body, request), client_ip=ip)
     except accounts.AccountError as e:
         raise _err(e)
-    resp = JSONResponse({"user": user, "token": token})
+    resp = JSONResponse(_with_device({"user": user, "token": token}, request, user, token, login=True))
     _set_cookie(resp, token)
     return resp
 
@@ -214,7 +227,8 @@ def login_provider(provider: str, request: Request, body: dict = Body(...)):
     except accounts.AccountError as e:
         raise _err(e)
     _keep_apple_token(provider, user["id"], info["subject"], body)
-    resp = JSONResponse({"user": user, "token": token, "created": created}, status_code=201 if created else 200)
+    resp = JSONResponse(_with_device({"user": user, "token": token, "created": created}, request, user, token, login=True),
+                        status_code=201 if created else 200)
     _set_cookie(resp, token)
     return resp
 
@@ -257,7 +271,26 @@ def unlink(provider: str, request: Request):
 def me(request: Request):
     _hosted_only()
     u = _user(request)
-    return {"user": u, "sessions": accounts.sessions(u["id"], token_of(request))}
+    return _with_device({"user": u, "sessions": accounts.sessions(u["id"], token_of(request))}, request, u, token_of(request))
+
+
+@router.post("/device/primary")
+def use_this_device(request: Request):
+    """Geraete-Regel: dieses Geraet wird das eine Geraet des Kontos ("Dieses Gerät stattdessen nutzen")."""
+    # Die Route liegt unter /api/account/ und geht damit auch bei der Abo-Sperre von Web und Windows durch
+    # (access.LOCKED_WRITE_PREFIXES). Darum prueft sie selbst: nur Apple-Apps, die die Regel kennen
+    # (X-StudiNow-Caps: device_limit, Bearer, nicht Web/Windows). Web und Windows zaehlen nicht als Geraet - die
+    # Windows-App meldet zwar eine Geraete-Kennung an, duerfte sich hier aber sonst zum Hauptgeraet machen und das
+    # iPad eines Free-Kontos aussperren.
+    _hosted_only()
+    u = _user(request)
+    if not device_limit.applies(request):
+        raise HTTPException(400, {"detail": "Die Geräte-Regel gilt nur in den Apps für iPhone, iPad und Mac.",
+                                  "code": "device_rule_not_applicable"})
+    try:
+        return {"device": device_limit.use_this(u, token_of(request))}
+    except accounts.AccountError as e:
+        raise _err(e)
 
 
 @router.delete("/sessions/{session_id}")

@@ -3119,6 +3119,10 @@
       "disclaimer": {
        "type": "string"
       },
+      "earlier_studies": {
+       "type": "array",
+       "item": null
+      },
       "electives": {
        "type": "array",
        "item": null
@@ -3140,12 +3144,18 @@
       "lp_total": {
        "type": "number"
       },
+      "lsf_plan": {
+       "type": "null"
+      },
       "message": {
        "type": "string"
       },
       "notes": {
        "type": "array",
        "item": null
+      },
+      "order_suggestion": {
+       "type": "null"
       },
       "placements": {
        "type": "object",
@@ -3159,6 +3169,13 @@
       },
       "program": {
        "type": "null"
+      },
+      "program_mismatch": {
+       "type": "null"
+      },
+      "programs": {
+       "type": "array",
+       "item": null
       },
       "qis_program": {
        "type": "null"
@@ -3253,6 +3270,10 @@
        "item": null
       },
       "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "minors": {
        "type": "array",
        "item": null
       },
@@ -5760,6 +5781,10 @@
        "item": null
       },
       "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "minors": {
        "type": "array",
        "item": null
       },

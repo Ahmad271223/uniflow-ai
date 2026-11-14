@@ -1,0 +1,18 @@
+{
+ "v": 1,
+ "note": "Vorgaengerordnungen, gepflegt von Hand (14.11.2026). Gilt eine neue Ordnung erst fuer Studienbeginn ab einem Semester, studiert man mit frueherem Beginn meist nach der alten weiter. Der Studienverlauf schlaegt die alte dann vor und laesst den Nutzer bestaetigen. Gelesen von app/study_plan.py (order_suggestion) und StudyPlanAPI.orders (Swift, gleiche Werte, geprueft in StudyProgramChangeTests).",
+ "orders": [
+  {
+   "university": "hildesheim",
+   "code": "sozialpaedagogik|b.a.|2025",
+   "since": "WiSe 2025/26",
+   "source": "Studienordnung inklusive Modulhandbuch für den Bachelor-Studiengang Sozialpädagogik, Verkündungsblatt Heft 204 vom 12.09.2025 (Übergangsregel: Studienbeginn vor dem 01.10.2025 nach der bisherigen Ordnung, Leistungen dort letztmalig im SoSe 2028, Wechsel auf Antrag)",
+   "older": {
+    "program": "Sozial- und Organisationspädagogik",
+    "degree": "B.A.",
+    "po": "2020",
+    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4710"
+   }
+  }
+ ]
+}
