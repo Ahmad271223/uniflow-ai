@@ -482,17 +482,44 @@ final class StudyPlanBoardAppTests: XCTestCase {
         p["qis_program"] = "Technische Informatik (PO-Version 2017)"
         let t = transport(plan: p)
         let env = try host(t)
-        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Deine Prüfungsordnung: PO 2022?") } }, dump(env.view))
+        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Dein Studiengang: Technische Informatik (B.Sc.), PO 2022?") } }, dump(env.view))
         XCTAssertTrue(labels(env.view).contains { $0.contains("QIS nennt „Technische Informatik (PO-Version 2017)“") })
-        XCTAssertTrue(labels(env.view).contains("Ändern"))
+        XCTAssertTrue(labels(env.view).contains("Andere PO"))
+        XCTAssertTrue(labels(env.view).contains("Anderer Studiengang"))
         XCTAssertTrue(tap(env.view, "Ja, PO 2022"))
         XCTAssertTrue(env.wait { t.count("POST", "/api/study-plan/settings") == 1 })
         XCTAssertEqual(t.bodies("POST", "/api/study-plan/settings").last?["po"], "2022")
         XCTAssertEqual(t.bodies("POST", "/api/study-plan/settings").last?["electives"], ["computergrafik"], "Rest bleibt")
         XCTAssertTrue(env.wait { t.count("GET", "/api/study-plan") >= 2 }, "Plan neu gelesen")
-        // "Ändern" oeffnet die Einstellungen
-        XCTAssertTrue(tap(env.view, "Ändern", exact: true))
+        // "Andere PO" oeffnet die Einstellungen
+        XCTAssertTrue(tap(env.view, "Andere PO", exact: true))
         XCTAssertTrue(env.wait { self.sheet(env).map { self.labels($0).contains("Studienverlauf einstellen") } ?? false }, dump(sheet(env)))
+    }
+
+    /// Wechsel des Studiengangs (14.11.2026): mehrere Studiengaenge im Notenspiegel -> Frage; ein Knopf waehlt das
+    /// Kuerzel, "Anderer Studiengang" oeffnet die Liste der Hochschule
+    func testProgramQuestionAndPicker() throws {
+        var p = Self.plan
+        p["suggested_po"] = "2025"
+        p["po_confirmed"] = false
+        p["programs"] = [["label": "Abschluss: [82] Bachelor Studiengang: [161] B.A. Sozialpädagogik PO-Version: 2025", "program": "Sozialpädagogik",
+                          "degree": "B.A.", "po": "2025", "code": "sozialpaedagogik|b.a.|2025", "grades": 1],
+                         ["label": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2023",
+                          "program": "Erziehungswissenschaft", "degree": "B.A.", "po": "2023", "code": "erziehungswissenschaft|b.a.|2023", "grades": 5]]
+        let t = transport(plan: p)
+        t.answer("/api/study-catalog/programs", ["programs": [["id": "sozialpaedagogik-b-a", "program": "Sozialpädagogik", "degree": "B.A.",
+                                                               "faculty": "Fachbereich 1", "pos": [["po": "2025", "code": "sozialpaedagogik|b.a.|2025",
+                                                                                                  "catalog_terms": ["SS 2025"], "loadable": false]]]],
+                                                 "count": 1])
+        let env = try host(t)
+        XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Welchen Studiengang studierst du gerade?") } }, dump(env.view))
+        XCTAssertFalse(labels(env.view).contains { $0.hasPrefix("Dein Studiengang:") }, "nur eine Frage")
+        XCTAssertTrue(tap(env.view, "Sozialpädagogik (B.A.) · PO 2025"))
+        XCTAssertTrue(env.wait { t.count("POST", "/api/study-plan/settings") == 1 })
+        XCTAssertEqual(t.bodies("POST", "/api/study-plan/settings").last?["po"], "sozialpaedagogik|b.a.|2025")
+        XCTAssertTrue(tap(env.view, "Anderer Studiengang", exact: true))
+        XCTAssertTrue(env.wait { self.sheet(env).map { self.labels($0).contains("Studiengang wählen") } ?? false }, dump(sheet(env)))
+        XCTAssertTrue(env.wait { self.sheet(env).map { self.labels($0).contains("Sozialpädagogik PO 2025") } ?? false }, dump(sheet(env)))
     }
 
     // MARK: Plan
@@ -729,7 +756,7 @@ final class StudyPlanBoardAppTests: XCTestCase {
         let loading = transport(plan: ["available": false, "reason": "catalog_loading", "program": "Technische Informatik", "degree": "B.Sc.", "po": "2022"])
         loading.answer("/api/study-catalog/status", ["state": "downloading", "message": "Lade Modulkatalog TIBSc22 (WS 2025/26) …", "progress": 0.4])
         let states: [(Transport, String, String)] = [
-            (transport(plan: po), "studienverlauf-05-po", "Deine Prüfungsordnung"),
+            (transport(plan: po), "studienverlauf-05-po", "Dein Studiengang"),
             (transport(plan: ["available": false, "reason": "no_qis"]), "studienverlauf-06-ohne-qis", StudyPlanText.noQIS),
             (loading, "studienverlauf-07-katalog-laedt", "Lade Modulkatalog"),
             (transport(plan: ["available": false, "reason": "no_catalog", "program": "Mechatronik", "degree": "B.Sc.", "po": "2019"]),

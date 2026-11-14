@@ -322,3 +322,42 @@ test("Quelle des Notenspiegels je Hochschule: QIS (LUH), LSF (Hildesheim), Campu
     assert.equal(L.customHint(), L.CUSTOM_HINT);
   } finally { L.setUniversity("luh"); }
 });
+
+test("Wechsel des Studiengangs (14.11.2026): Frage nach dem aktuellen Studiengang, sonst Studiengang samt PO bestaetigen", () => {
+  L.setUniversity("hildesheim");
+  try {
+    const plan = { po_confirmed: false, suggested_po: "2025", programs: [
+      { program: "Sozialpädagogik", degree: "B.A.", po: "2025", code: "sozialpaedagogik|b.a.|2025" },
+      { program: "Erziehungswissenschaft", degree: "B.A.", po: "2023", code: "erziehungswissenschaft|b.a.|2023" },
+      { program: "Unbekanntes Fach", degree: null, po: null, code: null }] };
+    const html = L.poCardHtml(plan, icon);
+    assert.match(html, /Welchen Studiengang studierst du gerade\?/);
+    assert.match(html, /data-prog-code="sozialpaedagogik\|b\.a\.\|2025">Sozialpädagogik \(B\.A\.\) · PO 2025/);
+    assert.match(html, /class="btn primary sm" data-prog-code="sozialpaedagogik/, "der aktuelle zuerst und hervorgehoben");
+    assert.match(html, /data-prog-other>Unbekanntes Fach \(Katalog fehlt\)/);
+    assert.match(html, /id="spPoOther">Anderer Studiengang/);
+    assert.equal(L.poCardHtml({ ...plan, po_confirmed: true }), "", "nach der Wahl keine Frage mehr");
+    const one = L.poCardHtml({ po_confirmed: false, suggested_po: "2023", program: "Erziehungswissenschaft", degree: "B.A.", programs: [] }, icon);
+    assert.match(one, /Dein Studiengang: Erziehungswissenschaft \(B\.A\.\), PO 2023\?/);
+    assert.match(one, /id="spPoOther">Anderer Studiengang/);
+  } finally { L.setUniversity("luh"); }
+});
+
+test("Notenspiegel nennt einen neueren Studiengang als den gewaehlten: einmal fragen", () => {
+  L.setUniversity("hildesheim");
+  try {
+    const html = L.poCardHtml({ po_confirmed: true, program_mismatch: { code: "sozialpaedagogik|b.a.|2025", program: "Sozialpädagogik", degree: "B.A.", po: "2025", chosen: "Erziehungswissenschaft" } }, icon);
+    assert.match(html, /Studierst du jetzt Sozialpädagogik \(B\.A\.\)\?/);
+    assert.match(html, /LSF nennt Sozialpädagogik \(B\.A\.\) \(PO 2025\), gewählt ist Erziehungswissenschaft\./);
+    assert.match(html, /data-prog-ack="sozialpaedagogik\|b\.a\.\|2025">Nein, bei Erziehungswissenschaft bleiben/);
+  } finally { L.setUniversity("luh"); }
+});
+
+test("Frueheres Studium getrennt (Studiengangswechsel)", () => {
+  const html = L.earlierHtml({ earlier_studies: [{ program: "Erziehungswissenschaft", count: 2, lp: 6, rows: [
+    { text: "TM 1: Einführung", note: "1,3", status: "bestanden", credits: "6" }, { text: "TM 2", note: null, status: "angemeldet", credits: "3" }] }] }, icon);
+  assert.match(html, /Früheres Studium/);
+  assert.match(html, /<b>Erziehungswissenschaft<\/b> <span class="muted small">2 Leistungen · 6 LP bestanden/);
+  assert.match(html, /TM 1: Einführung<\/span> <span class="muted small">1,3 · bestanden · 6 LP/);
+  assert.equal(L.earlierHtml({ earlier_studies: [] }), "");
+});

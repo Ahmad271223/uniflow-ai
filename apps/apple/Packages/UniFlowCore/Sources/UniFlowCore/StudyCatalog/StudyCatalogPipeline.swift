@@ -104,17 +104,11 @@ public enum StudyCatalogPipeline {
 
     // MARK: Eingaben aus der Datenbank
 
-    /// Haeufigster QIS-Studiengang (`grades.abschluss`), bei Gleichstand der zuerst gespeicherte
+    /// QIS-Studiengang (`grades.abschluss`) der laufenden Einschreibung: neueste PO-Version, dann der haeufigste, dann
+    /// der zuerst gespeicherte (`StudyPlanEngine.currentLabel`, 14.11.2026)
     static func qisLabel(_ c: SQLiteConnection) throws -> String? {
-        var counts: [String: Int] = [:]
-        var order: [String] = []
-        for r in try c.query("SELECT abschluss FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id") {
-            guard let a = r["abschluss"]?.string?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty else { continue }
-            if counts[a] == nil { order.append(a) }
-            counts[a, default: 0] += 1
-        }
-        let best = counts.values.max() ?? 0
-        return order.first { counts[$0] == best }
+        StudyPlanEngine.currentLabel(try c.query("SELECT abschluss FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id")
+            .compactMap { $0["abschluss"]?.string })
     }
 
     /// `settings.study_plan` (po, start_term, electives, catalog_url)
@@ -176,12 +170,15 @@ public enum StudyCatalogPipeline {
         let inputs = try await db.transaction { try Self.inputs($0) }
         var base: [String: JSONValue] = ["checked_at": .string(iso(now)), "qis_label": label.map { .string($0) } ?? .null,
                                          "inputs": .string(inputs)]
-        if let custom = cleanCatalogURL(settings["catalog_url"]?.string) {
+        let custom = cleanCatalogURL(settings["catalog_url"]?.string)
+        let linked = env.sources.code(forCatalogURL: custom, university: uni)
+        if let custom, linked == nil {
             return try await runCustom(url: custom, db: db, env: env, base: base, university: uni, label: label, force: force)
         }
-        let po = settings["po"]?.string.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
-        var match = label.flatMap { env.sources.match(label: $0, university: uni, po: po) }
-        if match == nil, let po { match = env.sources.match(code: po, university: uni, qisLabel: label) }
+        let po = linked ?? settings["po"]?.string.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
+        // selbst gewaehlter Studiengang (Kuerzel) vor dem haeufigsten aus dem Notenspiegel (14.11.2026, Wechsel des Studiengangs)
+        var match = po.flatMap { env.sources.match(code: $0, university: uni, qisLabel: label) }
+        if match == nil { match = label.flatMap { env.sources.match(label: $0, university: uni, po: po) } }
         guard let m = match else {
             let reason = label == nil ? "no_program" : "no_source"
             return try await save(db, merged(base, ["state": "not_found", "reason": .string(reason),

@@ -39,6 +39,8 @@ struct StudyPlanPage: View {
     @State private var filter: StudyPlanFilter = .all
     @State private var detail: StudyPlanDetailRef?
     @State private var showSettings = false
+    /// Blatt "Studiengang wählen" (14.11.2026)
+    @State private var showPrograms = false
     @State private var focusDone = false
     /// erste sichtbare Spalte des Boards (Semestername)
     @State private var boardStart: String?
@@ -130,6 +132,12 @@ struct StudyPlanPage: View {
         .sheet(isPresented: $showSettings) {
             StudyPlanSettingsSheet(api: session.api, plan: plan) { await load() }
         }
+        // eigener Traeger: zwei .sheet an derselben Ansicht oeffnen nicht verlaesslich
+        .background {
+            Color.clear.sheet(isPresented: $showPrograms) {
+                StudyPlanProgramPicker(api: session.api, current: plan?.po, university: universityName) { await load() }
+            }
+        }
         .accessibilityIdentifier("studyplan.page")
     }
 
@@ -189,8 +197,15 @@ struct StudyPlanPage: View {
                 }
             } else if p.available {
                 VStack(alignment: .leading, spacing: 16) {
-                    if let s = p.suggestedPO, !p.poConfirmed { poCard(p, suggested: s) }
+                    programCards(p)
+                    // eigener Link nicht lesbar, waehrend ein anderer Katalog angezeigt wird (14.11.2026): sonst sah man es nie
+                    if let c = catalog, c.failed {
+                        Label { Text("Dein Link zum Modulhandbuch: \(c.text)") } icon: { UFIcon("alert", size: 14) }
+                            .ufFont(13.12, lh: 1.4).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("studyplan.link.failed")
+                    }
                     StudyPlanHeaderCard(plan: p)
+                    if !p.earlier.isEmpty { StudyPlanEarlierCard(studies: p.earlier) }
                     if let editError {
                         Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("studyplan.edit.error")
@@ -210,6 +225,7 @@ struct StudyPlanPage: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 16) {
+                    if (p.programs.count > 1 && !p.poConfirmed) || p.programMismatch != nil { programCards(p) }
                     gapCard(p)
                     ExamRegistrationSection(api: session.api)
                 }
@@ -224,7 +240,7 @@ struct StudyPlanPage: View {
             HStack(alignment: .top, spacing: 12) {
                 StudyPlanIconTile(icon: "file-text", pair: CommunityPalette.sky)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Deine Prüfungsordnung: PO \(suggested)?").ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
+                    Text(Self.poTitle(p, suggested: suggested)).ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(poSub(p, suggested: suggested)).ufFont(13.12, lh: 1.4).foregroundStyle(UF.text2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -236,7 +252,9 @@ struct StudyPlanPage: View {
                 UFButton("Ja, PO \(suggested)", icon: "check", kind: .primary, size: .small) { Task { await confirmPO(suggested) } }
                     .disabled(poBusy)
                     .accessibilityIdentifier("studyplan.po.confirm")
-                UFButton("Ändern", size: .small) { showSettings = true }
+                UFButton("Anderer Studiengang", size: .small) { showPrograms = true }
+                    .accessibilityIdentifier("studyplan.po.program")
+                UFButton("Andere PO", size: .small) { showSettings = true }
                     .accessibilityIdentifier("studyplan.po.change")
             }
             .padding(.leading, 52)
@@ -249,6 +267,35 @@ struct StudyPlanPage: View {
         .background(RoundedRectangle(cornerRadius: UF.r).fill(Color.mix(UF.info, 0.07, UF.surface)))
         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(Color.mix(UF.info, 0.3, UF.line), lineWidth: 1))
         .accessibilityIdentifier("studyplan.po")
+    }
+
+    /// Oben: mehrere Studiengaenge -> Frage nach dem aktuellen; sonst die vorgeschlagene PO samt Studiengang bestaetigen
+    @ViewBuilder private func programCards(_ p: StudyPlan) -> some View {
+        if let m = p.programMismatch, let code = m.code {
+            StudyPlanProgramMismatchCard(found: m, chosen: p.mismatchChosen ?? p.program ?? "dein Studiengang",
+                                         source: StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil), busy: poBusy,
+                                         switchTo: { Task { await confirmPO(code) } },
+                                         stay: { Task { await acknowledge(code) } })
+            if let poError { Text(poError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true) }
+        } else if p.programs.count > 1 && !p.poConfirmed {
+            StudyPlanProgramQuestion(programs: p.programs, source: StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil),
+                                     busy: poBusy, pick: { code in Task { await confirmPO(code) } }, other: { showPrograms = true })
+            if let poError { Text(poError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true) }
+        } else if let s = p.suggestedPO, !p.poConfirmed {
+            poCard(p, suggested: s)
+        }
+    }
+
+    /// "Dein Studiengang: Erziehungswissenschaft (B.A.), PO 2023?" (vorher nur die PO: einen anderen Studiengang sah
+    /// man nicht)
+    static func poTitle(_ p: StudyPlan, suggested: String) -> String {
+        guard let program = p.program, !program.isEmpty else { return "Deine Prüfungsordnung: PO \(suggested)?" }
+        return "Dein Studiengang: \(program)\(p.degree.map { " (\($0))" } ?? ""), PO \(suggested)?"
+    }
+
+    /// Name der Hochschule fuer das Blatt "Studiengang wählen"
+    private var universityName: String {
+        hildesheim != nil ? "Universität Hildesheim" : hsh != nil ? "Hochschule Hannover" : "Leibniz Universität Hannover"
     }
 
     private func poSub(_ p: StudyPlan, suggested: String) -> String {
@@ -415,6 +462,9 @@ struct StudyPlanPage: View {
                     }
                     Text(StudyPlanText.noCatalogSub).ufFont(13.12, lh: 1.45).foregroundStyle(UF.text2)
                         .fixedSize(horizontal: false, vertical: true)
+                    // falscher Studiengang? (14.11.2026) selbst waehlen statt den aus dem Notenspiegel
+                    UFButton("Anderen Studiengang wählen", icon: "list", size: .small) { showPrograms = true }
+                        .accessibilityIdentifier("studyplan.nocatalog.program")
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 8) { linkField.frame(minWidth: 280); linkButton }
                         VStack(alignment: .leading, spacing: 8) { linkField; linkButton }
@@ -504,6 +554,20 @@ struct StudyPlanPage: View {
         }
         change(&body)
         _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
+    }
+
+    /// "Nein, bei … bleiben": diesen Studiengang aus dem Notenspiegel nicht noch einmal anbieten
+    private func acknowledge(_ code: String) async {
+        guard let api = session.api else { return }
+        poBusy = true
+        defer { poBusy = false }
+        do {
+            _ = try await api.value("/api/study-plan/settings", method: "POST", body: ["program_ack": .string(code)])
+            poError = nil
+            await load()
+        } catch {
+            poError = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+        }
     }
 
     private func confirmPO(_ po: String) async {
