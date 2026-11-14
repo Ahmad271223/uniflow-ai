@@ -130,7 +130,9 @@ def test_review_notes_describe_the_build_honestly():
         assert len(notes) <= 4000, (field, len(notes))
         # 1.0 nur LUH (Entscheidung 07.11.2026): HsH und Hildesheim erst mit 1.0.1 wieder nennen
         assert "Connected today: Leibniz Universität Hannover" in notes, field
-        assert "Hochschule Hannover" not in notes and "Hildesheim" not in notes, field
+        # 14.11.2026: 1.0.4 nennt die Universitaet Hildesheim (nur die genutzte Fassung mit Pro AI); die HsH weiter nicht
+        assert "Hochschule Hannover" not in notes, field
+        assert ("Hildesheim" in notes) == (field == "review-notes-proai"), field
         assert "Sign in with ChatGPT" not in notes and "consent" not in notes, field
     # Fassung nur Plus ist ueberholt (1.0 mit Pro AI); sie zitiert den Satz, den die App ohne Pro-AI-Produkt wirklich zeigt
     assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." in f["review-notes"]
@@ -186,7 +188,9 @@ def test_app_store_texts_match_current_build():
     # Store-Build ausgeblendet (project.yml UF_SHIPPED_UNIVERSITIES, Release "luh") und kommen mit 1.0.1
     assert "1.0 nur LUH, 1.0.1 mit HsH und Hildesheim" in text
     yml = (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")
-    assert re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "luh"\n', yml), "Release-Build nur LUH"
+    # 14.11.2026 (Inhaber): 1.0.4 mit Universitaet Hildesheim, Hochschule Hannover bleibt ausgeblendet
+    assert "1.0.4 mit Universität Hildesheim" in text
+    assert re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim"\n', yml), "Release-Build LUH und Hildesheim"
     assert re.search(r'Debug:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"\n', yml), "Debug und Tests alle drei"
     assert "UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)" in yml
     if (APPLE / "Info.plist").is_file():                 # von xcodegen erzeugt (gitignore), nur wo es liegt
@@ -198,14 +202,14 @@ def test_app_store_texts_match_current_build():
         assert ("Angebunden heute: Leibniz Universität Hannover (Stud.IP, QIS). Weitere Hochschulen folgen." in d
                 if field == "description" else
                 d.startswith("StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit "
-                             "voller Anbindung an die Leibniz Universität Hannover.")
+                             "voller Anbindung an die Leibniz Universität Hannover und die Universität Hildesheim.")
                 and "weitere Hochschulen folgen" in d), field
         assert "alle Hochschulen" not in d and "allen Hochschulen" not in d
         assert "iPhone und iPad" in d, field                   # 1.0.4: universal, iPhone in der Beschreibung
     assert "AUF IPHONE UND IPAD" in f["description-proai"]
     for field in ("description", "description-proai", "keywords", "promo", "whats-new", "subtitle", "name"):
         v = f[field]
-        for bad in ("Hochschule Hannover", "Hildesheim", "Moodle", "Learnweb", "HISinOne", "PLuS", "Campusmanagement"):
+        for bad in ("Hochschule Hannover", "Moodle", "HISinOne", "PLuS", "Campusmanagement"):
             assert bad not in v, (field, bad)
     assert "static let isEnabled = false" in _swift("Views/Timer/StudyTimer.swift")
     for field, value in f.items():

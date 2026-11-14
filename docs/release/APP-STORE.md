@@ -16,6 +16,8 @@ Universität Hildesheim (Learnweb, LSF, PLuS) bleiben im Code, sind im Store-Bui
 `UFReleaseUniversities`) und kommen 1–2 Tage später mit Update 1.0.1 – dann die Texte unten wieder um beide Hochschulen
 ergänzen (Beschreibung, Schlüsselwörter „Moodle“, „Hildesheim“, Prüfhinweise „Connected today“, Website).
 
+**1.0.4 mit Universität Hildesheim (Entscheidung des Inhabers 14.11.2026):** Der Store-Build bietet ab Build 40 die Leibniz Universität Hannover und die Universität Hildesheim an (`UF_SHIPPED_UNIVERSITIES` = `luh hildesheim` im Release, `apps/apple/project.yml`); die Hochschule Hannover bleibt ausgeblendet. Beschreibung, Schlüsselwörter, „Neu in dieser Version“ und Prüfhinweise nennen Hildesheim (Learnweb, LSF). Hinweis: Hildesheim ist mit nachgebauten Seiten getestet, nicht mit einem echten Konto.
+
 **1.0.4 wird mit Pro AI eingereicht (Entscheidung des Inhabers 07.11.2026, Dienst `app.studinow.app` läuft):** in App Store
 Connect gehören `description-proai`, `whats-new-proai` und `review-notes-proai` hinein, dazu die zwei Jahresabos (Plus und Pro AI; die
 Monatsabos sind seit 09.11.2026 aus dem Verkauf genommen, `ABO-NUR-JAHR-2026-11-09.md`). Die Fassungen „nur Plus“ bleiben
@@ -142,17 +144,17 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3998 Zeichen
+### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3983 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
 (ChatGPT, OpenAI) im öffentlichen Text.
 
 ```text description-proai
-StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover. Unterlagen, Termine, Nachrichten, Uni-Mail und Noten an einem Ort, dazu Lernkalender, Karteikarten, Apple Pencil und KI-Hilfe – auf iPhone und iPad.
+StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover und die Universität Hildesheim. Unterlagen, Termine, Nachrichten, Uni-Mail und Noten an einem Ort, dazu Lernkalender, Karteikarten, Apple Pencil und KI-Hilfe – auf iPhone und iPad.
 
 FÜR STUDIERENDE IN GANZ DEUTSCHLAND
-Angebunden: Stud.IP und QIS der LUH, weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es auslöst.
+Angebunden: LUH (Stud.IP, QIS) und Uni Hildesheim (Learnweb, LSF), weitere Hochschulen folgen. Du meldest dich auf der Anmeldeseite deiner Hochschule an; StudiNow holt neue Skripte, Übungsblätter und Folien, ordnet sie nach Modulen und Lehrwochen und übernimmt deine Termine. In die Hochschulsysteme schreibt die App nur, wenn du es auslöst.
 
 AUF IPHONE UND IPAD
 Unterwegs am iPhone lesen, abhaken, Mails und Lernplan; am iPad schreiben mit dem Apple Pencil. Tarif und Lernstand gelten auf allen Geräten.
@@ -161,7 +163,7 @@ DEINE UNI AN EINEM ORT
 • Nachrichten aus Stud.IP beantworten, Übungen dort abgeben – erst nach deiner Bestätigung
 • Uni-Mail und Uni-Kalender: lesen, antworten, weiterleiten, schreiben
 • Notenspiegel und Bescheinigungen wie Immatrikulations- oder BAföG-Bescheinigung als PDF
-• Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route zu Fuß
+• Lehrende mit E-Mail und Sprechstunde, Raumfinder mit Route
 • Studienverlauf mit Modulkatalogen von über 300 Studiengängen, Meldezeiträume der Prüfungsanmeldung mit Erinnerung und Link ins QIS
 • Speiseplan deiner Mensa mit Preisen und Allergenen (Studentenwerk Hannover, Studierendenwerk OstNiedersachsen; ohne Gewähr)
 • Übersicht für heute, Wochenraster, Lernkalender, Lernziele in Stunden; mit Plus Lernplan automatisch
@@ -175,12 +177,11 @@ KI-HILFE MIT STUDINOW PRO AI
 • Frag zur Seite, zu einer Markierung oder einem eingekreisten Bereich: erklären, zusammenfassen, Aufgabe lösen
 • Ganzes Dokument: „Ganze Vorlesung erklären“ oder „Alle Aufgaben erklären“ – ein Block je Abschnitt, mit Seitenangabe
 • Wochentests und Karteikarten aus deinen Unterlagen, KI-Lernplan als Vorschlag, E-Mails ans Prüfungsamt verbessern
-• Vor einem großen Lauf siehst du die Kosten
 Die KI ist freiwillig und braucht ein StudiNow-Konto (Anmelden mit Apple) – oder in jedem Tarif deinen eigenen API-Schlüssel für KI-Hilfe und KI-Lernplan. Nur was du ihr schickst, verlässt dein Gerät. KI-Antworten können Fehler enthalten.
 
 DEINE DATEN
 • Dateien, Notizen und Pläne liegen auf deinem Gerät. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
-• Dein Hochschul-Passwort gibst du auf der Anmeldeseite deiner Hochschule oder einmal unter „Uni-Zugang“ ein. Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses Geräts (nicht in iCloud) – abschaltbar, löschbar. An Server von StudiNow geht es nie.
+• Dein Hochschul-Passwort gibst du auf der Anmeldeseite deiner Hochschule oder einmal unter „Uni-Zugang“ ein. Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses Geräts (nicht in iCloud). An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
 StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
@@ -200,7 +201,7 @@ sie stehen hier nicht noch einmal. Keine fremden Marken (z. B. ChatGPT) in Name,
 aufnehmen (dann z. B. „Hochschule“ und „Noten“ weglassen, max. 100 Zeichen).
 
 ```text keywords
-Stud.IP,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Hannover,Hochschule,Noten
+Stud.IP,Learnweb,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Hildesheim,Noten
 ```
 
 ## Neue Funktionen in dieser Version (1.0.4)
@@ -208,10 +209,11 @@ Stud.IP,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Mensa,Hannov
 Zwei Fassungen wie bei der Beschreibung: `whats-new-proai` nennt die KI (Uni-Mail, Karteikarten) und gehört in App Store
 Connect, solange Pro AI mitverkauft wird; `whats-new` ist der Rückfall ohne KI.
 
-### Fassung ohne KI – Rückfall – 1097 Zeichen
+### Fassung ohne KI – Rückfall – 1234 Zeichen
 
 ```text whats-new
 Neu in 1.0.4:
+• Neu angebunden: Universität Hildesheim (Learnweb und LSF) – Kurse, Dateien, Termine und Noten wie an der Leibniz Universität Hannover.
 • StudiNow gibt es jetzt auch fürs iPhone: Übersicht, Stundenplan, Lernkalender, Module, Nachrichten, Uni-Mail, Noten und Mensa unterwegs – gelesen und abgehakt wird am iPhone, geschrieben mit dem Apple Pencil weiter am iPad.
 • Neuer Einstieg: Willkommen, kurzer Rundgang, ein paar Fragen zu Fächern und Prüfungstagen – danach steht dein erster Wochenplan.
 • Haken „erledigt“ im Modul: einzelne Dateien oder eine ganze Lehrwoche abhaken. Der Stand ist auf allen deinen Geräten gleich, Lernpakete und Lernfortschritt ziehen mit.
@@ -222,10 +224,11 @@ Neu in 1.0.4:
 • Viele kleine Verbesserungen und Fehler behoben.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden – 1332 Zeichen
+### Fassung mit Pro AI – für 1.0.4 verwenden – 1469 Zeichen
 
 ```text whats-new-proai
 Neu in 1.0.4:
+• Neu angebunden: Universität Hildesheim (Learnweb und LSF) – Kurse, Dateien, Termine und Noten wie an der Leibniz Universität Hannover.
 • StudiNow gibt es jetzt auch fürs iPhone: Übersicht, Stundenplan, Lernkalender, Module, Nachrichten, Uni-Mail, Noten und Mensa unterwegs – gelesen und abgehakt wird am iPhone, geschrieben mit dem Apple Pencil weiter am iPad.
 • Neuer Einstieg: Willkommen, kurzer Rundgang, ein paar Fragen zu Fächern und Prüfungstagen – danach steht dein erster Wochenplan.
 • Uni-Mail: „Mit KI verbessern“ schreibt deine E-Mail an Lehrende oder das Prüfungsamt höflich und klar um (mit Pro AI). Der Vorschlag ersetzt deinen Text erst, wenn du ihn übernimmst; gesendet wird erst mit „Senden“.
@@ -446,15 +449,15 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: iPhone, „Mit KI verbessern“ in der Uni-Mail) – 3987 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: iPhone, „Mit KI verbessern“ in der Uni-Mail) – 3985 Zeichen (max. 4000)
 
 ```text review-notes-proai
-New in 1.0.4: iPhone support, "Mit KI verbessern" in Uni-Mail (Pro AI), tick files and whole weeks as done, direct link to QIS, study goals, new onboarding.
+New in 1.0.4: iPhone support, Universität Hildesheim, "Mit KI verbessern" in Uni-Mail (Pro AI), tick files and whole weeks as done, direct link to QIS, study goals, new onboarding.
 
-StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features need a personal university account. Please use the built-in demo:
+StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover and, new, Universität Hildesheim. Its university features need a personal university account. Please use the built-in demo:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account and sends nothing to us.
-2. Choose a plan ("StudiNow Free" is enough) and "Leibniz Universität Hannover" (the only university here). A 7-day trial at Pro AI level starts automatically, no purchase or payment details, once per device.
+2. Choose a plan ("StudiNow Free" is enough) and "Leibniz Universität Hannover". A 7-day trial at Pro AI level starts automatically, no purchase or payment details, once per device.
 3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom. It adds an invented module with three PDFs, timetable and flashcards. Demo mode never contacts the university.
 A slim bar "Demo-Inhalte – erfunden, ohne Hochschule" marks the demo; "Beenden" removes all demo content.
 
@@ -477,9 +480,9 @@ The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image o
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device and our service; revokes Sign in with Apple).
 
-Community (guideline 1.2): course members share notes, ask and comment under a pseudonym (encrypted; CloudKit or our service). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours, remove content and ban users. Contact: support@studinow.app.
+Community (guideline 1.2): members share notes, ask and comment under a pseudonym (encrypted; CloudKit or our service). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours and remove content. Contact: support@studinow.app.
 
-No tracking, no ads, no third-party analytics. Not endorsed by universities; writes to them only on user action.
+No tracking, no ads, no analytics. Not endorsed by universities; writes there only on user action.
 ```
 
 ## Bildschirmfotos
