@@ -1,6 +1,6 @@
 # Abschreib-Liste für App Store Connect – StudiNow 1.0.4
 
-**1.0.3 (Build 35) ist seit 13.11.2026 veröffentlicht; 1.0.4 wird mit Build 41 eingereicht (iPhone, iPad, Universität Hildesheim).** Diese Liste ist nur zum Einfügen; die Felder sind dieselben
+**1.0.3 (Build 35) ist seit 13.11.2026 veröffentlicht; 1.0.4 wird mit Build 41 eingereicht (iPhone, iPad, Universität Hildesheim).** Stand 14.11.2026: Build 41 ist seit 19:01 in TestFlight (von Apple VALID 19:46) und in App Store Connect für Version 1.0.4 ausgewählt; **noch nicht zur Prüfung eingereicht** – das wartet auf das Server-Update für die Geräte-Regel und das Okay des Inhabers. Diese Liste ist nur zum Einfügen; die Felder sind dieselben
 wie in `docs/release/APP-STORE.md` (dort steht, warum sie so lauten) und von `tests/test_release_texts.py` geprüft.
 Sprache überall **Deutsch (de-DE)**. Jeden Block komplett markieren und einfügen – nichts abtippen.
 
@@ -9,7 +9,7 @@ Sprache überall **Deutsch (de-DE)**. Jeden Block komplett markieren und einfüg
 1. Neue Version **1.0.4** anlegen (Plattform iOS; macOS nicht einreichen).
 2. Die sieben Textfelder unten einfügen.
 3. Bildschirmfotos hochladen: **iPad 13"** (zehn Bilder) und **iPhone 6,9"** (sieben Bilder) – Listen ganz unten.
-4. Build **41** auswählen (muss vorher in TestFlight erscheinen).
+4. Build **41** auswählen (seit 14.11.2026 in TestFlight und schon ausgewählt).
 5. Freigabe **von Hand** („Manuell veröffentlichen“), wie bei 1.0.1 bis 1.0.3.
 6. Abos nicht noch einmal anhängen: Plus und Pro AI sind schon freigegeben.
 
@@ -178,18 +178,21 @@ der Tarifseite für Rückfragen der Prüfer.
 
 ## 9. Bildschirmfotos iPhone 6,9" (1320 × 2868)
 
-Ordner: `~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/` – die **hellen** sieben in dieser Reihenfolge:
+Ordner: `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/` (Satz vom 14.11.2026) – die **hellen** sieben in
+dieser Reihenfolge (am 14.11.2026 so hochgeladen):
 
-1. `01-uebersicht-light-portrait.png` – Übersicht mit „Im QIS zur Prüfung anmelden“
-2. `02-lernkalender-light-portrait.png` – Lernkalender, Woche als Liste
-3. `03-modul-erledigt-light-portrait.png` – Modul mit Haken, „2/3 erledigt“
-4. `04-uni-mail-ki-light-portrait.png` – Uni-Mail mit „Mit KI verbessern“
-5. `05-ki-hilfe-light-portrait.png` – KI-Hilfe über dem Skript
-6. `06-studienverlauf-light-portrait.png` – Studienverlauf mit Leistungspunkten
+1. `01-start-light-portrait.png` – Startseite: nächste Klausuren, heute geplant
+2. `02-lernkalender-light-portrait.png` – Lernkalender, Woche als Raster Mo–So
+3. `03-modul-light-portrait.png` – Modul mit Woche und Erledigt-Haken
+4. `04-uni-mail-ki-light-portrait.png` – Uni-Mail-Entwurf mit Vorschlag der KI
+5. `05-ki-hilfe-light-portrait.png` – KI-Hilfe erklärt eine Vorlesung
+6. `06-studienverlauf-light-portrait.png` – Studienverlauf: kommende Semester bis zur Bachelorarbeit
 7. `07-mensa-light-portrait.png` – Mensa
 
 Die `-dark-` Dateien daneben sind dieselben Motive im dunklen Erscheinungsbild – nur als Alternative, nicht zusätzlich
-hochladen.
+hochladen. Eigene Kontodaten des Inhabers, keine Daten Dritter: aufgenommen mit den Daten des eigenen Kontos des
+Inhabers (Entscheidung des Inhabers 14.11.2026), ohne Namen, ohne Matrikelnummer und ohne Daten Dritter. Der Satz vom
+13.11.2026 (`appstore-screenshots-iphone-2026-11-13/`, erfundene Demo-Inhalte, Woche als Liste) ist überholt.
 
 ## Was gleich bleibt
 

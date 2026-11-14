@@ -1,6 +1,6 @@
 # App Store Connect – Texte und Angaben (iPhone und iPad, Mac „Designed for iPad“)
 
-**Stand 13.11.2026 (iPhone und iPad, nur Jahresabos; 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.4 (Build 39; Build 35 ist seit 13.11.2026 als Version 1.0.3 veröffentlicht (live seit 23:53); 1.0.2 mit Build 31 veröffentlicht am 11.11.2026; 1.0.1 mit Build 30 seit 10.11.2026; Build 25 war als Version 1.0 freigegeben, wurde nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
+**Stand 14.11.2026 (iPhone und iPad, nur Jahresabos; 13.11.2026, 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.4 (Build 41, in App Store Connect ausgewählt, noch nicht eingereicht; Build 35 ist seit 13.11.2026 als Version 1.0.3 veröffentlicht (live seit 23:53); 1.0.2 mit Build 31 veröffentlicht am 11.11.2026; 1.0.1 mit Build 30 seit 10.11.2026; Build 25 war als Version 1.0 freigegeben, wurde nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
@@ -36,7 +36,8 @@ ist in der Demo ohne geöffnete Dateien leer und wird darum im Prüfhinweis nich
 
 **Neu in 1.0.4 (13.11.2026): iPhone.** Die App ist universal (`TARGETED_DEVICE_FAMILY` 1,2). Mit der ersten
 veröffentlichten Version mit iPhone verlangt App Store Connect **Bildschirmfotos 6,9"** (1320 × 2868); sie liegen unter
-`~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/` (Abschnitt Bildschirmfotos). Am iPhone gibt es **keinen
+`~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/` (Satz vom 14.11.2026 mit den eigenen Kontodaten des Inhabers,
+keine Daten Dritter; Abschnitt Bildschirmfotos). Am iPhone gibt es **keinen
 Editor**: Dokumente öffnen in einer Leseansicht mit den Notizen vom iPad; das steht so in den Prüfhinweisen. Apple lässt
 das iPhone später nicht mehr entfernen.
 
@@ -56,7 +57,7 @@ Frühere Übersicht der zwei Fassungen (Pro AI erst nach Sandbox-Kauf und KI-Fra
 | Name, Untertitel, Werbetext, Schlüsselwörter, Neue Funktionen | gleich | gleich |
 | Beschreibung | `description` | `description-proai` |
 | Hinweise für die App-Prüfung | `review-notes` | `review-notes-proai` |
-| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, `docs/release/SCREENSHOTS.md`) | **Satz vom 13.11.2026 mit Pro AI** (`~/Studora-Builds/appstore-screenshots-final-2026-11-13/` und, mit iPhone, `appstore-screenshots-iphone-2026-11-13/`; Abschnitt Bildschirmfotos) |
+| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, `docs/release/SCREENSHOTS.md`) | **iPad: Satz vom 13.11.2026 mit Pro AI** (`~/Studora-Builds/appstore-screenshots-final-2026-11-13/`); **iPhone: Satz vom 14.11.2026** (`appstore-screenshots-iphone-2026-11-14/`, eigene Kontodaten des Inhabers, keine Daten Dritter); Abschnitt Bildschirmfotos |
 
 Für 1.0.4 gilt die rechte Spalte (Plus und Pro AI).
 
@@ -256,7 +257,7 @@ Neu in 1.0.4:
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Vahrenwalder Straße 30, 30165 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0.4 (`MARKETING_VERSION` auf develop, seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 41** (`CURRENT_PROJECT_VERSION` auf develop); Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
+| Version, Build | 1.0.4 (`MARKETING_VERSION` auf develop, seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 42** (`CURRENT_PROJECT_VERSION` auf develop); Builds 36 bis 41 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim; Build 41 vom 14.11.2026 ist in App Store Connect für die Einreichung von 1.0.4 ausgewählt, noch nicht eingereicht); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv. Seit 12.11.2026 eine Anmeldung für alles: „Mit Apple anmelden“ beim Start trennt die Daten je Apple-Nutzer und meldet zugleich beim StudiNow-Dienst an (Token-Tausch beim Dienst; ein neues Konto direkt nach der Hochschulwahl; dieselbe Apple-ID = dasselbe Konto auf jedem Gerät). Rückfall bei Fehler/offline: Einstellungen → Konto. „Konto löschen“ in der App löscht Gerätedaten und Dienst-Konto und widerruft die Apple-Anmeldung bei Apple (Richtlinie 5.1.1(v); `app/apple_signin.py`, braucht `LERNAPP_APPLE_TEAM_ID`, `LERNAPP_APPLE_SIGNIN_KEY_ID`, `LERNAPP_APPLE_SIGNIN_KEY_FILE` am Server) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -491,12 +492,15 @@ No tracking, no ads, no analytics. Not endorsed by universities; writes there on
 ## Bildschirmfotos
 
 Pflicht für die Einreichung mit iPhone: ein Satz **iPad 13"** und ein Satz **iPhone 6,9"**. App Store Connect rechnet
-beide auf die kleineren Geräte herunter. Nur echte App-Inhalte mit erfundenen Daten, keine Uni-Logos, keine echten
-Namen oder Noten, keine eingebrannte Beschriftung, keine Demo-Leiste.
+beide auf die kleineren Geräte herunter. Nur echte App-Inhalte, keine Uni-Logos, keine eingebrannte Beschriftung, keine
+Demo-Leiste. Die iPad-Bilder zeigen erfundene Daten (keine echten Namen oder Noten); die iPhone-Bilder vom 14.11.2026
+zeigen die eigenen Kontodaten des Inhabers (seine Entscheidung vom 14.11.2026), ohne Namen, ohne Matrikelnummer und
+ohne Daten Dritter.
 
 ### iPad 13" (2064 × 2752)
 
-**Satz vom 13.11.2026 für 1.0.4** (Build 39) unter `~/Studora-Builds/appstore-screenshots-final-2026-11-13/`: genau
+**Satz vom 13.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 39, unverändert für die Einreichung mit
+Build 41) unter `~/Studora-Builds/appstore-screenshots-final-2026-11-13/`: genau
 zehn Bilder im Hochformat, je Motiv eine Fassung hell oder dunkel. Er zeigt den heutigen Stand – aufgeräumte Startseite
 mit Kennzahl-Zeile, Knopf „Im QIS zur Prüfung anmelden“, Kopfzeile des Editors mit Reitern und die Stift-Leiste in
 einer Zeile. Tobi hat den Tarif Pro AI (Seitenleiste „Pro AI“, kein „Pro AI holen“), die KI antwortet als StudiNow-KI
@@ -520,25 +524,28 @@ Deutsch) in dieser Reihenfolge:
 
 ### iPhone 6,9" (1320 × 2868)
 
-**Satz vom 13.11.2026 für 1.0.4** (Build 39) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/`: sieben
-Motive, je eine helle und eine dunkle Fassung (`<nn>-<name>-{light|dark}-portrait.png`). Für den Store die **hellen
-sieben** in dieser Reihenfolge hochladen (iPhone 6,9"-Display, Deutsch); die dunklen liegen als Alternative daneben.
-Erzeugt vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests` mit denselben erfundenen Demo-Inhalten wie die
-iPad-Bilder (`docs/release/SCREENSHOTS.md`, Abschnitt iPhone). Der Satz vom 11.11.2026
-(`appstore-screenshots-iphone-2026-11-11/`, acht Motive) ist überholt – er ist älter als Build 38/39.
+**Satz vom 14.11.2026 für 1.0.4** (Build 41) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`: sieben
+Motive, je eine helle und eine dunkle Fassung (`<nn>-<name>-{light|dark}-portrait.png`), jedes Bild 1320 × 2868. Für den
+Store sind die **hellen sieben** in dieser Reihenfolge hochgeladen (iPhone 6,9"-Display, Deutsch; 14.11.2026); die
+dunklen (`-dark-`) liegen als Alternative daneben. `tools/store_einreichen.py` zeigt auf diesen Ordner und diese
+Reihenfolge. **Eigene Kontodaten des Inhabers, keine Daten Dritter:** aufgenommen mit den Daten des eigenen Kontos des
+Inhabers (Entscheidung des Inhabers 14.11.2026), ohne Namen, ohne Matrikelnummer und ohne Daten Dritter. Überholt sind
+der Satz vom 13.11.2026 (`appstore-screenshots-iphone-2026-11-13/`, vom Test `IPhoneStoreScreenshotTests` mit
+erfundenen Demo-Inhalten erzeugt, Woche noch als Liste; `docs/release/SCREENSHOTS.md`, Abschnitt iPhone) und der Satz
+vom 11.11.2026 (`appstore-screenshots-iphone-2026-11-11/`, acht Motive).
 
 | Nr. | Datei (hell) | Motiv |
 |---|---|---|
-| 1 | `01-uebersicht-light-portrait.png` | Übersicht „Hallo Tobi“ mit Prüfungsanmeldung und „Im QIS zur Prüfung anmelden“ |
-| 2 | `02-lernkalender-light-portrait.png` | Lernkalender: Woche als Liste mit Uni-Terminen und Lernblöcken, Leiste mit „Ziele“ |
-| 3 | `03-modul-erledigt-light-portrait.png` | Modul mit Lehrwoche: Haken je Datei, „2/3 erledigt“ |
-| 4 | `04-uni-mail-ki-light-portrait.png` | Uni-Mail „Neue E-Mail“ mit „Mit KI verbessern“ und dem Vorschlag der KI |
-| 5 | `05-ki-hilfe-light-portrait.png` | KI-Hilfe über dem Skript: „Ganze Vorlesung erklären“ mit Seitenangaben |
-| 6 | `06-studienverlauf-light-portrait.png` | Studienverlauf: Leistungspunkte, bestandene Prüfungen, Prüfungsanmeldung |
-| 7 | `07-mensa-light-portrait.png` | Mensa: Speiseplan mit Preisen, Nährwerten und Kennzeichen |
+| 1 | `01-start-light-portrait.png` | Startseite: nächste Klausuren, heute geplant |
+| 2 | `02-lernkalender-light-portrait.png` | Lernkalender, Woche als Raster Mo–So |
+| 3 | `03-modul-light-portrait.png` | Modul mit Woche und Erledigt-Haken |
+| 4 | `04-uni-mail-ki-light-portrait.png` | Uni-Mail-Entwurf mit Vorschlag der KI |
+| 5 | `05-ki-hilfe-light-portrait.png` | KI-Hilfe erklärt eine Vorlesung |
+| 6 | `06-studienverlauf-light-portrait.png` | Studienverlauf: kommende Semester bis zur Bachelorarbeit |
+| 7 | `07-mensa-light-portrait.png` | Mensa |
 
 Bild 4 und 5 zeigen die KI: nur verwenden, solange StudiNow Pro AI mitverkauft wird (wie beim iPad). Am iPhone gibt es
-keinen Editor; Bild 5 ist die Leseansicht mit den Notizen vom iPad.
+keinen Editor; Dokumente öffnen dort in der Leseansicht.
 
 ### Ältere Sätze
 
