@@ -5287,12 +5287,12 @@ enum StudySourcesData {
        "code": "angewandte-informatik|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|angewandte-informatik|b.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
      ],
      "lsf": {
@@ -5321,12 +5321,12 @@ enum StudySourcesData {
        "code": "angewandte-informatik|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|angewandte-informatik|m.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
      ],
      "lsf": {
@@ -5405,6 +5405,19 @@ enum StudySourcesData {
      "lsf_names": [
       "M.Sc. Data Analytics"
      ]
+    },
+    {
+     "id": "data-science-b-sc",
+     "program": "Data Science",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Data Science"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": []
     },
     {
      "id": "deutsch-als-zweitsprache-deutsch-als-fremdsprache-m-a",
@@ -5530,12 +5543,12 @@ enum StudySourcesData {
        "code": "informationsmanagement-und-informationstechnologie|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5141"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
      ],
      "lsf": {
@@ -5565,12 +5578,12 @@ enum StudySourcesData {
        "code": "informationsmanagement-und-informationstechnologie|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5141"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
      ],
      "lsf": {
@@ -6204,7 +6217,28 @@ enum StudySourcesData {
      "total_lp": 180,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
      "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
-     "pos": []
+     "pos": [
+      {
+       "po": "2023",
+       "code": "medieninformatik|b.sc.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|medieninformatik|b.sc.|2023",
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-MINF_BSc_PO2023_Stand_2026.04.03.pdf"
+      }
+     ],
+     "lsf": {
+      "nummer": 994,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=994&idcol=k_abstgv.abstgvnr&idval=994&purge=n&getglobal=n",
+      "text": "B.Sc. Angewandte Informatik / Studienprogramm Medieninformatik"
+     },
+     "lsf_names": [
+      "B.Sc. Angewandte Informatik / Studienprogramm Medieninformatik"
+     ]
     },
     {
      "id": "medientext-und-medienuebersetzung-m-a",
@@ -6784,12 +6818,12 @@ enum StudySourcesData {
        "code": "umweltinformatik|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|umweltinformatik|b.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5142"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
      ],
      "lsf": {
@@ -6818,12 +6852,12 @@ enum StudySourcesData {
        "code": "umweltinformatik|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|umweltinformatik|m.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5142"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
      ],
      "lsf": {
@@ -6878,12 +6912,12 @@ enum StudySourcesData {
        "code": "wirtschaftsinformatik|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
      ],
      "lsf": {
@@ -6912,12 +6946,12 @@ enum StudySourcesData {
        "code": "wirtschaftsinformatik|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
        "format": "hildesheim-it-modulhandbuch",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5140"
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
      ],
      "lsf": {

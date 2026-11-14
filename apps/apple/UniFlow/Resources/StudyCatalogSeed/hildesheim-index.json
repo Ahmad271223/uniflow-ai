@@ -1,5 +1,5 @@
 {
- "catalogs": 105,
+ "catalogs": 106,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -8,8 +8,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|angewandte-informatik|b.sc.|2024",
-   "library_key": "0a349f5f18abe06f9bfabbfc9304d47daad22e79fd649c574d8eff18d398e9de",
-   "modules": 86,
+   "library_key": "a07bda6ebc828d95f18b87debc9c451fb04b46b5893f872015e93d279b0aea3f",
+   "modules": 104,
    "po": "2024",
    "program": "Angewandte Informatik",
    "qis_labels": [
@@ -17,7 +17,7 @@
     "Angewandte Informatik"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "SS 2026"
   },
   {
    "code": "angewandte-informatik|m.sc.|2024",
@@ -26,8 +26,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|angewandte-informatik|m.sc.|2024",
-   "library_key": "ee26fc54deb85f11944043a938123c02b774cedbd31fe5d9abfdcc53ba7d65ad",
-   "modules": 118,
+   "library_key": "10895ff645dd67e11ed3f6d99d07bccc8988bd45915980246115dd8891105d60",
+   "modules": 124,
    "po": "2024",
    "program": "Angewandte Informatik",
    "qis_labels": [
@@ -35,7 +35,7 @@
     "Angewandte Informatik"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "SS 2026"
   },
   {
    "code": "barrierefreie-kommunikation|m.a.|2019",
@@ -476,8 +476,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024",
-   "library_key": "dc90daa90c61389cafa9565fccf799d162b6cb023d1067cd9047e2c8e6bcdcf5",
-   "modules": 90,
+   "library_key": "e449d5c9a73380935abcf47ee2c521dad31be21ce9be1476f1e1037ed99aa784",
+   "modules": 87,
    "po": "2024",
    "program": "Informationsmanagement und Informationstechnologie",
    "qis_labels": [
@@ -485,7 +485,7 @@
     "Informationsmanagement und Informationstechnologie"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "WS 2024/25"
   },
   {
    "code": "informationsmanagement-und-informationstechnologie|m.sc.|2024",
@@ -494,8 +494,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024",
-   "library_key": "965c6c50a4bb22e21dff6e7e0c4defc0b422dc1dc5dc0a22bbc1391b37828acd",
-   "modules": 129,
+   "library_key": "6d85a7aae204b7a4a5cd692d062f8f652fe85e81c98813c2d20fc045ebde4c7c",
+   "modules": 117,
    "po": "2024",
    "program": "Informationsmanagement und Informationstechnologie",
    "qis_labels": [
@@ -503,7 +503,7 @@
     "Informationsmanagement und Informationstechnologie"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "WS 2024/25"
   },
   {
    "code": "inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
@@ -997,6 +997,24 @@
    ],
    "study_plan": false,
    "term": "SS 2025"
+  },
+  {
+   "code": "medieninformatik|b.sc.|2023",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|medieninformatik|b.sc.|2023",
+   "library_key": "1282478aaf8e31d7a73e380190048975cc8706d9b8f25af28af059e74beb2b1e",
+   "modules": 75,
+   "po": "2023",
+   "program": "Medieninformatik",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Medieninformatik PO-Version: 2023",
+    "Medieninformatik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
   },
   {
    "code": "medientext-und-medienuebersetzung|m.a.|2024",
@@ -1743,8 +1761,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|umweltinformatik|b.sc.|2024",
-   "library_key": "ae39bd359be7b1e470ae97944923fea87715ab37135a4ad0a9ecdeaad644078e",
-   "modules": 83,
+   "library_key": "7c7579e0ee497edc0652c9ba71e61359b4ac92a9a457399033d5d758f3cfd920",
+   "modules": 84,
    "po": "2024",
    "program": "Umweltinformatik",
    "qis_labels": [
@@ -1752,7 +1770,7 @@
     "Umweltinformatik"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "WS 2024/25"
   },
   {
    "code": "umweltinformatik|m.sc.|2024",
@@ -1761,8 +1779,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|umweltinformatik|m.sc.|2024",
-   "library_key": "1b4f11e7a2a274bc150ab353866575d3c8abb6907b84a82baf47583e273c2168",
-   "modules": 105,
+   "library_key": "31067157d8058c940c702eb4fbfea6959d9937a91ca6affe5d06fa53f5b05002",
+   "modules": 98,
    "po": "2024",
    "program": "Umweltinformatik",
    "qis_labels": [
@@ -1770,7 +1788,7 @@
     "Umweltinformatik"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "WS 2024/25"
   },
   {
    "code": "umweltsicherung|b.sc.|2026",
@@ -1869,8 +1887,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
-   "library_key": "86930ce5f5b63d8296d61554d552b4cc1eec11f0caf9a50cf44499e53bf20436",
-   "modules": 73,
+   "library_key": "995998804b7562ae8dc4112aaf89a09919e56269ece754467dd5514e5753e30d",
+   "modules": 94,
    "po": "2024",
    "program": "Wirtschaftsinformatik",
    "qis_labels": [
@@ -1878,7 +1896,7 @@
     "Wirtschaftsinformatik"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "SS 2026"
   },
   {
    "code": "wirtschaftsinformatik|m.sc.|2024",
@@ -1887,8 +1905,8 @@
    "file": "hildesheim.json.gz",
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
-   "library_key": "7b78a05fabcc14b979fe8df68a600d99cd2fb44c0c9a45aa5533a5458374e5c6",
-   "modules": 100,
+   "library_key": "c63c8d756a367fff049e4cf2447df06a4cbf529b2e299df5b26ddc8470142689",
+   "modules": 117,
    "po": "2024",
    "program": "Wirtschaftsinformatik",
    "qis_labels": [
@@ -1896,19 +1914,19 @@
     "Wirtschaftsinformatik"
    ],
    "study_plan": false,
-   "term": "WS 2023/24"
+   "term": "SS 2026"
   }
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 126096,
-   "catalogs": 105,
-   "raw_bytes": 1119110,
-   "sha256": "d554b7c72dc87969203c8da59423a385de736ef6d016e92a3ea99d9203c07a8e"
+   "bytes": 133698,
+   "catalogs": 106,
+   "raw_bytes": 1172198,
+   "sha256": "5975fef59a6a2ea36677e91e7dec08857bfb83ac5d15986e30fec343234c64ab"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2050,
+ "modules": 2166,
  "university": "hildesheim",
  "v": 1
 }

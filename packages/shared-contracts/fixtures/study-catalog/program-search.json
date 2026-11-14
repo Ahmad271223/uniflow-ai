@@ -1,7 +1,7 @@
 {
  "note": "Erzeugt von tools/gen-program-search-fixture.py - nicht von Hand aendern.",
  "university": "hildesheim",
- "programs": 176,
+ "programs": 177,
  "cases": [
   {
    "query": "Angewandte Informatik B.Sc.",
@@ -10,6 +10,7 @@
     "Angewandte Informatik | M.Sc.",
     "Informationsmanagement und Informationstechnologie | B.Sc.",
     "Informationsmanagement und Informationstechnologie | M.Sc.",
+    "Medieninformatik | B.Sc.",
     "Umweltinformatik | B.Sc.",
     "Umweltinformatik | M.Sc."
    ]
@@ -269,6 +270,7 @@
     "Angewandte Informatik | M.Sc.",
     "Informationsmanagement und Informationstechnologie | B.Sc.",
     "Informationsmanagement und Informationstechnologie | M.Sc.",
+    "Medieninformatik | B.Sc.",
     "Umweltinformatik | B.Sc.",
     "Umweltinformatik | M.Sc."
    ]
@@ -788,6 +790,7 @@
     "Data Analytics | M.Sc.",
     "Data Analytics (Advanced Track) | M.Sc.",
     "Data Analytics (Cognitive Systems) | M.Sc.",
+    "Data Science | B.Sc.",
     "Deutsch als Zweitsprache/Deutsch als Fremdsprache | M.A.",
     "Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art | M.A.",
     "Deutsch im Master Lehramt an Grundschulen | M.Ed.",

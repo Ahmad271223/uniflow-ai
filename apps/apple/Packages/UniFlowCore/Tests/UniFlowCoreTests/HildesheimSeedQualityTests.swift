@@ -43,7 +43,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
 
     func testEverySeedCatalogLoadsMapsAndShowsModulesWithLP() throws {
         let s = try seed()
-        XCTAssertGreaterThanOrEqual(s.entries.count, 105)
+        XCTAssertGreaterThanOrEqual(s.entries.count, 106)
         var problems: [String] = [], noLP: [String: Int] = [:], onlyChoice = Set<String>()
         for e in s.entries {
             guard let text = s.payload(key: e.libraryKey), let cat = try? JSONValue.parse(Data(text.utf8)) else {
@@ -83,14 +83,14 @@ final class HildesheimSeedQualityTests: XCTestCase {
     /// Studiengang ohne Katalog gewaehlt: ehrlicher Hinweis mit Namen statt leerer Seite (auch ohne jeden Katalog)
     func testChosenProgramWithoutCatalogSaysSo() async throws {
         let b = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: .fixed(berlin: "2026-11-14T10:00:00")!, university: "hildesheim")
-        let p = try XCTUnwrap(StudySources.bundled.programs(university: "hildesheim").first { $0["program"]?.string == "Medieninformatik" })
+        let p = try XCTUnwrap(StudySources.bundled.programs(university: "hildesheim").first { $0["program"]?.string == "Rechtspsychologie" })
         let id = try XCTUnwrap(p["id"]?.string)
         _ = await b.handle(LocalRequest(method: "POST", url: URL(string: "uniflow-local://device/api/study-plan/settings")!,
                                         body: JSONValue.object(["po": .string(id)]).serialized()))
         let r = await b.handle(LocalRequest(method: "GET", url: URL(string: "uniflow-local://device/api/study-plan")!))
         XCTAssertEqual(r.json?["available"]?.bool, false)
-        XCTAssertEqual(r.json?["message"]?.string, "Für Medieninformatik (B.Sc.) gibt es noch keinen Modulkatalog.")
-        XCTAssertEqual(r.json?["program"]?.string, "Medieninformatik (B.Sc.)")
+        XCTAssertEqual(r.json?["message"]?.string, "Für Rechtspsychologie (M.Sc.) gibt es noch keinen Modulkatalog.")
+        XCTAssertEqual(r.json?["program"]?.string, "Rechtspsychologie (M.Sc.)")
     }
 
     /// LSF-Uebersicht: Link je Studiengang, Schreibweisen fuer die Suche, Begleitfach des Testkontos waehlbar (wie Python)
