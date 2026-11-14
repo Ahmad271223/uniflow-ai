@@ -425,17 +425,20 @@ final class IPhoneRealShotsTests: XCTestCase {
         shoot(env, "01-start")
     }
 
-    /// 2 Lernkalender: zwei Kandidaten in einem Lauf – „Liste“ und „3 Tage“. Für den Store den, der voller wirkt;
-    /// „Woche“ zeigt am iPhone eine Tagesliste und passt nicht zum Namen (Rückmeldung des Inhabers 14.11.2026).
+    /// 2 Lernkalender in der Ansicht „Woche“ – mit dem echten Wochenraster am iPhone (sieben Spalten, Zweig
+    /// `iphone/wochenraster`, kommt mit Build 41). Der Test bricht ab, solange „Woche“ noch die Tagesliste zeigt:
+    /// genau das hat der Inhaber am 14.11.2026 beanstandet, so ein Bild darf nicht in den Store.
     func test02Lernkalender() throws {
         let env = try host(MainView())
-        env.router.go(.plan(view: "list"))
+        env.router.go(.plan(view: "week", date: Self.tag))
         expect(env, "Lernkalender")
-        env.pump(2.0)
-        shoot(env, "02-lernkalender-liste", settle: 1.6)
-        env.router.go(.plan(view: "3days", date: Self.tag))
-        env.pump(2.0)
-        shoot(env, "02-lernkalender-3tage", settle: 1.6)
+        env.pump(2.5)
+        XCTAssertFalse(shows(env, "Montag, 16. November"),
+                       "„Woche“ zeigt noch die Tagesliste – erst mit dem Wochenraster fotografieren:\n" + dump(env))
+        for tag in ["Mo", "Di", "Mi", "Do", "Fr"] {
+            XCTAssertTrue(shows(env, tag), "Spalte „\(tag)“ fehlt im Wochenraster:\n" + dump(env))
+        }
+        shoot(env, "02-lernkalender", settle: 1.8)
     }
 
     /// 3 Moduldetail mit Lehrwochen und Haken „erledigt“
