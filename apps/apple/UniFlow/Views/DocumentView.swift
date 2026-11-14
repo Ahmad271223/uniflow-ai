@@ -243,6 +243,8 @@ struct DocumentView: View {
     @State private var solutionSide: ForeignSolutionLayer?
     /// Dokument der geteilten Ansicht (ein Notizblatt daneben geht beim Teilen der Loesung mit)
     @State private var companionStore: DocumentStore?
+    /// Video oder Lernseite daneben (docs/VIDEO-LERNSEITEN-2026-11-14.md); nur ohne Blatt und Loesung daneben
+    @State private var webSide: WebSideItem?
     @State private var addingText = false
     // Seitenwerkzeuge (Editor-Schritt 5)
     @State private var goingToPage = false
@@ -490,7 +492,8 @@ struct DocumentView: View {
     /// Paar aus Hauptdokument und Spalte daneben (fuer den gemerkten Tausch)
     private var sideKey: String? {
         if let s = solutionSide { return SplitSides.pairKey(primary: store.file.id, side: "loesung:" + s.id) }
-        return companion.map { SplitSides.pairKey(primary: store.file.id, side: $0.file.id) }
+        if let c = companion { return SplitSides.pairKey(primary: store.file.id, side: c.file.id) }
+        return webSide.map { SplitSides.pairKey(primary: store.file.id, side: "web:" + $0.id) }
     }
 
     private func swapSides() {
@@ -868,6 +871,13 @@ struct DocumentView: View {
                             solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
                             onSolution: { id in
                                 if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
+                            }, onWeb: { item in
+                                companion = nil
+                                solutionSide = nil
+                                webSide = item
+                                if case .video(let v) = item {
+                                    DocumentVideoLinks.save(v, for: store.file.id, defaults: ActiveContainer.current?.defaults)
+                                }
                             }, onAppend: { f, template in
                                 solutionSide = nil
                                 companion = Companion(file: f, pdfPage: nil, appendTemplate: template, request: UUID().uuidString)
@@ -972,7 +982,9 @@ struct DocumentView: View {
         .onChange(of: showTutor) { _, open in if !readOnly { router.resume.noteTutor(open: open, of: store.file.id) } }
         .onChange(of: companion) { _, c in
             if !readOnly { router.resume.noteCompanion(id: c?.file.id, page: c?.pdfPage, of: store.file.id) }
+            if c != nil { webSide = nil }
         }
+        .onChange(of: solutionSide?.id) { _, id in if id != nil { webSide = nil } }
         .task {
             await store.load()
             // KI-Start "Im Dokument mit KI-Hilfe öffnen": die KI-Hilfe gleich offen (einmalig, nur fuer diese Datei)
@@ -1113,7 +1125,7 @@ struct DocumentView: View {
         }
     }
 
-    private var hasSidePane: Bool { companion != nil || solutionSide != nil }
+    private var hasSidePane: Bool { companion != nil || solutionSide != nil || webSide != nil }
 
     /// Rechte bzw. linke Spalte der geteilten Ansicht: ein zweites Dokument oder eine Loesung zum Ansehen
     @ViewBuilder private var sidePane: some View {
@@ -1122,6 +1134,9 @@ struct DocumentView: View {
                 .id("solution-" + s.id)
         } else if let c = companion {
             companionPane(c)
+        } else if let w = webSide {
+            WebSidePaneView(item: w) { webSide = nil }
+                .id("web-" + w.id)
         }
     }
 
@@ -1378,7 +1393,7 @@ struct DocumentView: View {
 
     /// Daneben oeffnen (zweites Dokument oder Loesung) bzw. Teilung beenden; ohne Plus das Schloss
     private func toggleSplit() {
-        if hasSidePane { companion = nil; solutionSide = nil }
+        if hasSidePane { companion = nil; solutionSide = nil; webSide = nil }
         else if entitlements.allows(.splitView) { choosingCompanion = true }
         else { lockedFeature = .splitView }
     }
@@ -2601,6 +2616,8 @@ struct CompanionPicker: View {
     var onSolution: (String) -> Void = { _ in }
     /// "Leeres Blatt", wenn es zu diesem Dokument schon ein Blatt gibt: dort unten eine Seite anfuegen (Blatt, Vorlage).
     /// nil: immer ein neues Notizbuch (alter Weg)
+    /// Video oder Lernseite daneben (nur mit Freigabe der geteilten Ansicht; nil = Abschnitt fehlt)
+    var onWeb: ((WebSideItem) -> Void)? = nil
     var onAppend: ((LibFile, String) -> Void)? = nil
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -2631,6 +2648,9 @@ struct CompanionPicker: View {
                                                   trash: { id in Task { await trashOwn(id) } }, openSheetID: openSheetID)
                     }
                     blankSection
+                    if let onWeb {
+                        WebSidePickerSection(documentID: excluding) { item in onWeb(item); dismiss() }
+                    }
                     documentSection
                 }
                 .padding(20)

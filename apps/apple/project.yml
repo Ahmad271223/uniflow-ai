@@ -24,6 +24,9 @@ targets:
     platform: iOS
     sources:
       - path: UniFlow
+      # Lernseiten neben dem Dokument: Grundstock der erlaubten Seiten (docs/VIDEO-LERNSEITEN-2026-11-14.md)
+      - path: ../../packages/shared-contracts/learning-sites.json
+        buildPhase: resources
     dependencies:
       - package: UniFlowCore
     # Team und "Mit Apple anmelden" nur mit der nicht eingecheckten Config/Team.xcconfig (siehe Config/Base.xcconfig)
