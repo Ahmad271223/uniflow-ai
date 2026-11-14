@@ -144,7 +144,7 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3983 Zeichen
+### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3995 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
@@ -184,7 +184,7 @@ DEINE DATEN
 • Dein Hochschul-Passwort gibst du auf der Anmeldeseite deiner Hochschule oder einmal unter „Uni-Zugang“ ein. Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses Geräts (nicht in iCloud). An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
-StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos (ein Gerät): Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -224,12 +224,14 @@ Neu in 1.0.4:
 • Viele kleine Verbesserungen und Fehler behoben.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden – 1469 Zeichen
+### Fassung mit Pro AI – für 1.0.4 verwenden – 1752 Zeichen
 
 ```text whats-new-proai
 Neu in 1.0.4:
 • Neu angebunden: Universität Hildesheim (Learnweb und LSF) – Kurse, Dateien, Termine und Noten wie an der Leibniz Universität Hannover.
-• StudiNow gibt es jetzt auch fürs iPhone: Übersicht, Stundenplan, Lernkalender, Module, Nachrichten, Uni-Mail, Noten und Mensa unterwegs – gelesen und abgehakt wird am iPhone, geschrieben mit dem Apple Pencil weiter am iPad.
+• StudiNow gibt es jetzt auch fürs iPhone: Übersicht, Stundenplan, Lernkalender, Module, Nachrichten, Uni-Mail, Noten und Mensa unterwegs – gelesen und abgehakt wird am iPhone, geschrieben mit dem Apple Pencil weiter am iPad. Der Lernkalender zeigt die Woche als Raster von Montag bis Sonntag.
+• Universität Hildesheim: Du wählst deinen Studiengang selbst (auch Begleitfach); ein früheres Studium steht getrennt.
+• StudiNow Free gilt für ein Gerät. Mit Pro AI nutzt du iPhone und iPad zusammen, mit Abgleich.
 • Neuer Einstieg: Willkommen, kurzer Rundgang, ein paar Fragen zu Fächern und Prüfungstagen – danach steht dein erster Wochenplan.
 • Uni-Mail: „Mit KI verbessern“ schreibt deine E-Mail an Lehrende oder das Prüfungsamt höflich und klar um (mit Pro AI). Der Vorschlag ersetzt deinen Text erst, wenn du ihn übernimmst; gesendet wird erst mit „Senden“.
 • Haken „erledigt“ im Modul: einzelne Dateien oder eine ganze Lehrwoche abhaken. Der Stand ist auf allen deinen Geräten gleich, Lernpakete und Lernfortschritt ziehen mit.
@@ -449,38 +451,39 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: iPhone, „Mit KI verbessern“ in der Uni-Mail) – 3985 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: iPhone, „Mit KI verbessern“ in der Uni-Mail) – 3968 Zeichen (max. 4000)
 
 ```text review-notes-proai
-New in 1.0.4: iPhone support, Universität Hildesheim, "Mit KI verbessern" in Uni-Mail (Pro AI), tick files and whole weeks as done, direct link to QIS, study goals, new onboarding.
+New in 1.0.4: iPhone support, Universität Hildesheim, "Mit KI verbessern" in Uni-Mail (Pro AI), tick files and weeks as done, Free on one device (see Devices).
 
-StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover and, new, Universität Hildesheim. Its university features need a personal university account. Please use the built-in demo:
+Connected today: Leibniz Universität Hannover and, new, Universität Hildesheim. Its university features need a personal university account. Please use the built-in demo:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account and sends nothing to us.
 2. Choose a plan ("StudiNow Free" is enough) and "Leibniz Universität Hannover". A 7-day trial at Pro AI level starts automatically, no purchase or payment details, once per device.
-3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom. It adds an invented module with three PDFs, timetable and flashcards. Demo mode never contacts the university.
+3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom. It adds an invented module with PDFs, timetable and flashcards. Demo mode never contacts the university.
 A slim bar "Demo-Inhalte – erfunden, ohne Hochschule" marks the demo; "Beenden" removes all demo content.
 
 After the trial: a screen "Deine Probe ist vorbei" shows Free, Plus and Pro AI (yearly) and closes only after a choice. "Bei Free bleiben" is a valid choice without any purchase.
 
-iPhone: same app and account, laid out for a small screen. The Pencil editor stays on iPad; on iPhone documents open in a reader with the iPad notes.
+iPhone: same app, small-screen layout. The Pencil editor stays on iPad; documents open in a reader.
+
+Devices: a Free account works on one device. The same account on a second device shows "StudiNow Free gilt für ein Gerät" with "Pro AI ansehen", "Dieses Gerät stattdessen nutzen" (moves Free to this device, no purchase) and "Abmelden". Plus and Pro AI work on all devices.
 
 University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this device's Keychain (not synced to iCloud); it is never sent to our servers. Type it once or delete it: "Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang".
 
 Subscriptions (yearly only, no introductory offers; the monthly products are removed from sale; yearly prices are 19.99 € and 39.99 € from 11 Nov 2026), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
 - "StudiNow Plus": Apple Pencil, exercise and script side by side, flashcards, study plan, course community.
 - "StudiNow Pro AI": everything in Plus, the StudiNow AI with 100 credits per month, note sync across devices.
-Terms and privacy: studinow.app/nutzungsbedingungen and /datenschutz.
 
 AI (Pro AI) runs on our own service (https://app.studinow.app) with the StudiNow account; first-launch "Sign in with Apple" signs in there too. Test:
 1. Buy "StudiNow Pro AI" in the sandbox (or skip: a new StudiNow account has a 7-day trial with 25 credits).
 2. Our service verifies the signed transaction and assigns the plan (if offline: "StudiNow-Konto" → "Mit Apple anmelden").
-3. Open a demo PDF, tap "KI-Hilfe" and ask about the page, or choose "Ganzes Dokument" → "Ganze Vorlesung erklären".
+3. Open a demo PDF, tap "KI-Hilfe" and ask about the page.
 The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Uni-Mail "Mit KI verbessern" (Pro AI) sends subject and text the same way and only proposes a text; it is taken over with "Übernehmen" and sent only with "Senden". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan for AI help and AI study plan; flashcards from a document need Plus, weekly tests Pro AI): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's key; no ChatGPT login exists in the build.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device and our service; revokes Sign in with Apple).
 
-Community (guideline 1.2): members share notes, ask and comment under a pseudonym (encrypted; CloudKit or our service). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours and remove content. Contact: support@studinow.app.
+Community (guideline 1.2): members share notes, ask and comment under a pseudonym. Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours and remove content. Contact: support@studinow.app.
 
 No tracking, no ads, no analytics. Not endorsed by universities; writes there only on user action.
 ```
