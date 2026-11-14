@@ -14,6 +14,7 @@ erklärung, die Nutzungsbedingungen und das Impressum; die Store-Texte prüft de
 | `SUPPORT.md` | Support-Seite mit Kontaktadresse und häufigen Fragen (Anmeldung bei der Uni, Daten auf dem iPad, Konto löschen) | `https://studinow.app/support` (Support-URL in App Store Connect) |
 | `STARTSEITE.md` | Startseite der Website im Stil einer Lernplattform (seit 05.11.2026): Einstieg, Vertrauensleiste, Funktionen mit Bildschirmfotos aus `website-img/` (Demo-Inhalte, hell/dunkel), Schritte, Tarife, Fragen; App-Store-Knopf mit „Bald verfügbar“, bis es den Store-Link gibt | `https://studinow.app` |
 | `APP-STORE.md` | App Store Connect: Name, Untertitel, Werbetext, Beschreibung, Schlüsselwörter, Altersfreigabe, App-Datenschutz, Abo-Produkt, Hinweise für die Prüfung | App Store Connect (de-DE) |
+| `EINREICHUNG-1-0-4.md` | Abschreib-Liste für 1.0.4: die sieben Textfelder in der Reihenfolge von App Store Connect, dazu die Bilder für iPad und iPhone (aus `APP-STORE.md` erzeugt) | App Store Connect (de-DE) |
 | `PLAY-STORE.md` | Play Console: Titel, Kurz- und Vollbeschreibung, Datensicherheit, Inhaltseinstufung, Zielgruppe, Abo-Produkt | Play Console (de-DE) |
 | `BETRIEB.md` | Betriebsanleitung für den gehosteten Dienst (Hosting-Paket `deploy/`: Docker, Caddy/TLS, `.env`, Backups, Updates, Löschfristen, Monitoring) | Inhaber, Server |
 | `angaben.json` | Angaben des Inhabers (Firma, Anschrift, USt-IdNr., E-Mail, Domain) – zur Veröffentlichung bestimmt, darum im Repository | `tools/rechtstexte-fuellen.py --check` |
