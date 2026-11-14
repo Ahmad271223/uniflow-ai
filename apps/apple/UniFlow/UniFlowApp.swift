@@ -23,6 +23,11 @@ struct UniFlowApp: App {
     @State private var weeklyTicker = WeeklyAutoTicker()
 
     init() {
+        // Testlauf am Mac nur mit eigener Kennung und eigenem Datenordner, sonst hier Schluss – vor Konto, Container
+        // und Dateien (MacTestGuard.swift, 14.11.2026). Nur Debug.
+        #if DEBUG
+        MacTestGuard.stopIfTestWouldTouchRealData()
+        #endif
         // Teilen-Dateien und empfangene Kopien frueherer Laeufe liegen ausserhalb der Container: weg (AppTemp; von
         // der Inbox nur alte Kopien, die eben empfangene oeffnet onOpenURL gleich)
         AppTemp.purgeAtLaunch()
