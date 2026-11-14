@@ -5349,28 +5349,7 @@ enum StudySourcesData {
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669",
      "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
-     "pos": [
-      {
-       "po": "2019",
-       "code": "barrierefreie-kommunikation|m.a.|2019",
-       "source": "hildesheim-grundstock",
-       "catalog_terms": [
-        "SS 2024"
-       ],
-       "study_plan": null,
-       "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
-       "format": "hildesheim-modultabelle",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5176"
-      }
-     ],
-     "lsf": {
-      "nummer": 863,
-      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=863&idcol=k_abstgv.abstgvnr&idval=863&purge=n&getglobal=n",
-      "text": "M.A. Barrierefreie Kommunikation"
-     },
-     "lsf_names": [
-      "M.A. Barrierefreie Kommunikation"
-     ]
+     "pos": []
     },
     {
      "id": "data-analytics-m-sc",
@@ -5477,7 +5456,28 @@ enum StudySourcesData {
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5091",
      "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
-     "pos": []
+     "pos": [
+      {
+       "po": "2023",
+       "code": "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/Modulhandbuch_fuer_den_Master.pdf"
+      }
+     ],
+     "lsf": {
+      "nummer": 182,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=182&idcol=k_abstgv.abstgvnr&idval=182&purge=n&getglobal=n",
+      "text": "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     },
+     "lsf_names": [
+      "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     ]
     },
     {
      "id": "erziehungswissenschaft-b-a",
@@ -5501,7 +5501,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hildesheim|erziehungswissenschaft|b.a.|2023",
        "format": "hildesheim-modultabelle",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5003"
+       "url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/Modulhandbuch_fuer_den_Bachelor.pdf"
       }
      ],
      "lsf": {
@@ -7499,6 +7499,32 @@ enum StudySourcesData {
      ]
     },
     {
+     "id": "englisch-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Englisch im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Englisch"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5259"
+      }
+     ]
+    },
+    {
      "id": "evangelische-theologie-im-master-lehramt-an-grundschulen-m-ed",
      "program": "Evangelische Theologie im Master Lehramt an Grundschulen",
      "degree": "M.Ed.",
@@ -7761,6 +7787,32 @@ enum StudySourcesData {
       "Hauptfach im 2-Fächer-Bachelor: Geschichte (Sport, Gesundheit und Leistung)",
       "Hauptfach im 2-Fächer-Bachelor: Geschichte (Wirtschaft Plus)",
       "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Ergänzungsfach) (Umweltsicherung)"
+     ]
+    },
+    {
+     "id": "informatik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Informatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2016",
+       "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2016"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf"
+      }
      ]
     },
     {

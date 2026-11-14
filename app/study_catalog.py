@@ -2391,6 +2391,11 @@ SEARCH_ALIASES = (
     ("grund haupt und realschulen", ("ghr",)),
     ("internationale kommunikation und uebersetzen", ("ikue", "iku")),
     ("polyvalenter zwei faecher bachelor", ("2fb", "zweifach")),
+    # Namen der Quellenliste des Inhabers (14.11.2026); "^": der Name beginnt damit (nicht die Fach-Eintraege)
+    ("polyvalenter zwei faecher bachelor studiengang", ("lehramt", "studieren", "grundschule", "haupt", "und", "realschule",)),
+    ("^lehramt an grundschulen", ("studieren",)),
+    ("^lehramt an haupt und realschulen", ("studieren",)),
+    ("kulturwissenschaften und kuenstlerische praxis", ("aesthetische",)),
 )
 DEGREE_WORDS = frozenset({"a", "b", "m", "sc", "ed", "ba", "bsc", "ma", "msc", "med"})
 
@@ -2415,6 +2420,6 @@ def program_matches(p: dict, query: str, faculty: bool = False) -> bool:
     fac = (p.get("faculty") or "") if faculty else ""
     hay = search_words(f"{p.get('program') or ''} {p.get('degree') or ''} {fac} {' '.join(p.get('lsf_names') or [])}")
     for phrase, short in SEARCH_ALIASES:
-        if phrase in name:
+        if (name.startswith(phrase[1:]) if phrase.startswith("^") else phrase in name):
             hay += list(short)
     return all(any(w in h for h in hay) for w in words)

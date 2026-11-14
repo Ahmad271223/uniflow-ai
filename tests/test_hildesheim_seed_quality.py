@@ -14,7 +14,6 @@ KNOWN_NO_LP = {
     "sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021": 1,
     "kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022": 1,
     "literarisches-schreiben-und-lektorieren|m.a.|2024": 2,
-    "barrierefreie-kommunikation|m.a.|2019": 3,
     "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018": 1,
     "internationale-kommunikation-und-uebersetzen|b.a.|2024": 2,
     "internationales-informationsmanagement|b.a.|2024": 10,
@@ -41,7 +40,7 @@ def _catalogs():
 def test_every_seed_catalog_loads_maps_and_shows_modules_with_lp():
     reg = sc.load_registry()
     cats = _catalogs()
-    assert len(cats) >= 106
+    assert len(cats) >= 108
     problems, no_lp, only_choice = [], {}, set()
     for c in cats:
         code = c.get("code")

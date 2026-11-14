@@ -161,6 +161,9 @@ def postprocess(catalog: dict, rules: dict, stats: dict) -> tuple[dict | None, l
     cat = copy.deepcopy(catalog)
     cat["v"] = 1
     n_before = len(cat.get("modules") or [])
+    drop = set((rules.get(cat.get("code")) or {}).get("drop_modules") or [])   # Bruchstuecke laut Handregel
+    if drop:
+        cat["modules"] = [m for m in cat.get("modules") or [] if m.get("id") not in drop]
     stats["kinds_fixed"] += luh_seed.fix_choice_kinds(cat)
     luh_seed.group_alternatives(cat)
     patterned = apply_area_patterns(cat, rules)

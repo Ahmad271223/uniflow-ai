@@ -15,7 +15,6 @@ final class HildesheimSeedQualityTests: XCTestCase {
         "sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021": 1,
         "kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022": 1,
         "literarisches-schreiben-und-lektorieren|m.a.|2024": 2,
-        "barrierefreie-kommunikation|m.a.|2019": 3,
         "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018": 1,
         "internationale-kommunikation-und-uebersetzen|b.a.|2024": 2,
         "internationales-informationsmanagement|b.a.|2024": 10,
@@ -43,7 +42,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
 
     func testEverySeedCatalogLoadsMapsAndShowsModulesWithLP() throws {
         let s = try seed()
-        XCTAssertGreaterThanOrEqual(s.entries.count, 106)
+        XCTAssertGreaterThanOrEqual(s.entries.count, 108)
         var problems: [String] = [], noLP: [String: Int] = [:], onlyChoice = Set<String>()
         for e in s.entries {
             guard let text = s.payload(key: e.libraryKey), let cat = try? JSONValue.parse(Data(text.utf8)) else {

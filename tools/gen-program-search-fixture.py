@@ -38,7 +38,8 @@ MASTER = ["Angewandte Informatik M.Sc.", "Barrierefreie Kommunikation M.A.", "Da
 FAECHER = ["Biologie", "Chemie", "Deutsch", "Englisch", "Evangelische Theologie", "Geographie", "Geschichte", "Katholische Theologie",
            "Kunst", "Mathematik", "Musik", "Physik", "Politikwissenschaft", "Sachunterricht", "Sport", "Technik", "Wirtschaft",
            "Pädagogik", "Psychologie", "Philosophie", "Soziologie", "Informatik"]
-EXTRA = ["", "imit", "IKÜ", "daf", "ghr", "2FB", "sozialp", "lehramt grundschule deutsch"]
+EXTRA = ["", "imit", "IKÜ", "daf", "ghr", "2FB", "sozialp", "lehramt grundschule deutsch", "Lehramt studieren", "Lehramt Grundschule",
+         "Lehramt Haupt- und Realschule", "Kulturwissenschaften und Ästhetische Praxis", "Englisch Zwei-Fächer-Bachelor", "Data Science"]
 
 
 def build() -> dict:
