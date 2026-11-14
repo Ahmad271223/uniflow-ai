@@ -78,7 +78,16 @@ In App Store Connect liegt ein alter Stand „1.0 PREPARE_FOR_SUBMISSION“. Den
    Zugangsdaten **nie selbst eingeben**.
 5. **Uni Hildesheim** freischalten erst, wenn jemand mit echtem Hildesheim-Konto Anmeldung, Dateien und Noten geprüft
    hat. Danach `UF_SHIPPED_UNIVERSITIES` erweitern.
-6. **Apple-Schlüssel „Sign in with Apple“** für den Widerruf beim Konto-Löschen legt der Inhaber selbst an
+6. **Mac-Version online bringen** (Wunsch des Inhabers 14.11., „komplett online, wenn sie fertig ist“). Die Mac-Version
+   ist keine eigene App, sondern die iPad-App auf Macs mit Apple-Chip („Designed for iPad“). Ablauf:
+   - Build 39 bzw. den Stand von 1.0.4 auf einem Mac mit Apple-Chip prüfen: Start, Übersicht, Einstellungen,
+     Editor mit Maus und Trackpad, Uni-Mail, KI, Abo-Kauf. Mac-Tests und Fixe gab es ab Build 27 (`afc919cc`); den
+     Bericht in `docs/release/APP-STORE.md` (Hinweis „Mac“) lesen.
+   - Ist alles in Ordnung, dann in App Store Connect unter **Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf
+     Apple-Silicon-Macs“ = verfügbar** setzen. Das geht nicht per API, sondern im Browser. Der Inhaber klickt selbst
+     oder gibt ausdrücklich frei.
+   - Die Plattform **macOS** (alter Entwurf „1.0 PREPARE_FOR_SUBMISSION“) **nie einreichen**.
+7. **Apple-Schlüssel „Sign in with Apple“** für den Widerruf beim Konto-Löschen legt der Inhaber selbst an
    (`LERNAPP_APPLE_SIGNIN_KEY_ID` und `…_KEY_FILE` in `deploy/.env` auf dem Server). Ohne ihn geht das Löschen trotzdem,
    nur ohne Widerruf bei Apple.
 
