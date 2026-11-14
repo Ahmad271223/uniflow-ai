@@ -5,7 +5,7 @@ einem Build gelten **nicht** für diesen Build. `tests/test_release_build_proven
 `apps/apple/project.yml` und `docs/release/APP-STORE.md` und – auf dem Mac des Inhabers, wo `~/Studora-Builds` liegt –
 die Export-Ordner gegen die Commits.
 
-Aktueller Stand in project.yml: Build 40 (Version 1.0.4, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: keine Version.
+Aktueller Stand in project.yml: Build 41 (Version 1.0.4, `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION`). In der Prüfung bei Apple: keine Version.
 Veröffentlicht: 1.0.3 mit Build 35 aus `ce6df886` (13.11.2026 23:53), davor 1.0.2 mit Build 31 und 1.0.1 mit Build 30.
 
 ## Builds
@@ -35,7 +35,8 @@ unten). Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), Team 78MQ
 | 37 | `6f1eff9d` | 13.11.2026 13:21 | hochgeladen (TestFlight), Version 1.0.4, nicht eingereicht; intern sofort, „LUH-Tester“ nach der Beta-Prüfung (wartet auf Build 36) | Build 36 plus KI-Mails (Pro AI), Probe-Karte nach Kauf weg, KI erklärt einfacher, Startseite aufgeräumt, letzte 15 Dokumente, Stift-Glättung und Formen, Blatt daneben, abgewählte Fächer nie geplant, Community-Fehler |
 | 38 | `ba427849` | 13.11.2026 16:17 | hochgeladen (TestFlight), Version 1.0.4, nicht eingereicht; intern sofort, „LUH-Tester“ nach der Beta-Prüfung (wartet auf Build 36) | Build 37 plus neuer App-Einstieg, Haken „erledigt“ je Datei und Woche, QIS direkt zur Prüfungsanmeldung, bessere KI-Karteikarten |
 | 39 | `5d6b6a45` | 13.11.2026 23:49 | hochgeladen (TestFlight), Version 1.0.4, erstmals iPad + iPhone, nicht eingereicht; intern und „LUH-Tester“ (extern IN_BETA_TESTING seit 23:51) | Build 38 plus iPhone-Version, Rückgängig holt nie Gelöschtes zurück, Formen erkennen am Gerät, „+ Seite“, Seiten im Notizblatt löschen mit Papierkorb, Uni-Mail neu anmelden statt „keine JSON-Antwort“, Erledigt-Haken über alle Geräte |
-| 40 | – | 14.11.2026 | noch nicht hochgeladen; develop nach Build 39 | Änderungen nach `5d6b6a45` |
+| 40 | `aefee598` | 14.11.2026 13:41 | hochgeladen (TestFlight), Version 1.0.4, iPad + iPhone, **erstmals LUH und Universität Hildesheim** (`UFShippedUniversities` = `luh hildesheim`), nicht eingereicht (Inhaber wartet auf die Mac-Reparatur in Build 41); intern und „LUH-Tester“ | Build 39 plus Hildesheim im Store-Build, Store-Texte und Bilder für 1.0.4, neue Anschrift in den Rechtstexten |
+| 41 | – | 14.11.2026 | noch nicht hochgeladen; develop nach Build 40 | Änderungen nach `aefee598` |
 
 ### Build 25 (als 1.0 freigegeben, nie veröffentlicht, am 10.11.2026 zurückgezogen)
 

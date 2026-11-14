@@ -1,6 +1,6 @@
 # Abschreib-Liste für App Store Connect – StudiNow 1.0.4
 
-**1.0.3 (Build 35) ist seit 13.11.2026 veröffentlicht; 1.0.4 wird mit Build 40 eingereicht (iPhone, iPad, Universität Hildesheim).** Diese Liste ist nur zum Einfügen; die Felder sind dieselben
+**1.0.3 (Build 35) ist seit 13.11.2026 veröffentlicht; 1.0.4 wird mit Build 41 eingereicht (iPhone, iPad, Universität Hildesheim).** Diese Liste ist nur zum Einfügen; die Felder sind dieselben
 wie in `docs/release/APP-STORE.md` (dort steht, warum sie so lauten) und von `tests/test_release_texts.py` geprüft.
 Sprache überall **Deutsch (de-DE)**. Jeden Block komplett markieren und einfügen – nichts abtippen.
 
@@ -9,7 +9,7 @@ Sprache überall **Deutsch (de-DE)**. Jeden Block komplett markieren und einfüg
 1. Neue Version **1.0.4** anlegen (Plattform iOS; macOS nicht einreichen).
 2. Die sieben Textfelder unten einfügen.
 3. Bildschirmfotos hochladen: **iPad 13"** (zehn Bilder) und **iPhone 6,9"** (sieben Bilder) – Listen ganz unten.
-4. Build **40** auswählen (muss vorher in TestFlight erscheinen).
+4. Build **41** auswählen (muss vorher in TestFlight erscheinen).
 5. Freigabe **von Hand** („Manuell veröffentlichen“), wie bei 1.0.1 bis 1.0.3.
 6. Abos nicht noch einmal anhängen: Plus und Pro AI sind schon freigegeben.
 
