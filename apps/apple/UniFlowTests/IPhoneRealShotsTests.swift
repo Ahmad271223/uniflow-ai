@@ -26,9 +26,20 @@ final class IPhoneRealShotsTests: XCTestCase {
     static let modulName = "Grundlagen digitaler Systeme"
     /// Datei, deren Seiten der Test selbst erzeugt (die PDFs liegen nicht in der Kopie)
     static let leseDatei = "GDS_Kap_2.pdf"
-    /// Fester Tag fuer alle Bilder: Montag, 16.11.2026 (Vorlesungen, Lernbloecke, Mensa offen, Meldezeitraum laeuft).
-    /// Der echte Tag der Aufnahme waere ein Samstag – dann sind Startseite und Kalender leer.
-    static let tag = "2026-11-16"
+    /// Alle Bilder zeigen den echten Tag der Aufnahme: die Kopfzeile der Übersicht nimmt immer das Datum des Geräts
+    /// (`UFFmt.longToday()`), ein gefälschter Tag im Rest der App führte zu „Samstag, 14. November“ neben der Woche
+    /// „16.–22. November“. Gefüllt wird stattdessen mit einem frisch erzeugten Lernplan ab heute.
+    static var tag: String { UFFmt.todayISO() }
+    /// Montag der kommenden Woche (für das Wochenraster)
+    static var naechsterMontag: String {
+        let cal = Calendar(identifier: .gregorian)
+        var d = Date()
+        for _ in 0..<8 {
+            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+            if cal.component(.weekday, from: d) == 2 { break }
+        }
+        return Fmt.isoDay(d)
+    }
 
     private var bed: ContainerTestBed!
     private var manager: ContainerManager!
@@ -46,11 +57,10 @@ final class IPhoneRealShotsTests: XCTestCase {
             throw XCTSkip("Nur mit UF_REAL_DB (Kopie der echten Datenbank); ohne sie gibt es nichts zu fotografieren.")
         }
         continueAfterFailure = true
-        bed = try ContainerTestBed(name: "shots-echt", clock: .fixed(berlin: "\(Self.tag)T10:30:00")!)
+        bed = try ContainerTestBed(name: "shots-echt", clock: .system)
         UniStubProtocol.install { _ in UniStubProtocol.Reply(status: 404) }
         UniMailConnection.readsDemoForScreenshots = true
         UFGreeting.hourOverride = 14
-        UFFmt.todayOverride = Self.tag
         let sogo = EntwurfSOGo()
         manager = ContainerManager(
             base: bed.containers,
@@ -73,6 +83,8 @@ final class IPhoneRealShotsTests: XCTestCase {
         try fm.copyItem(at: URL(fileURLWithPath: quelle), to: ziel)
 
         Entitlements.shared.setPlanForTesting(.proAI)
+        // Ohne Sitzung stünde auf jeder Seite die Karte „Stud.IP verbinden“; das Cookie ist erfunden und geht nie ins Netz
+        manager.studip.signedIn(cookies: [bed.cookie("Seminar_Session", "erfundene-sitzung", domain: "studip.uni-hannover.de")])
         MessagesInbox.shared.defaultsOverride = container.defaults
         await MessagesInbox.shared.refresh(api: container.api)
         let backend = try await container.host.backend()
@@ -118,9 +130,16 @@ final class IPhoneRealShotsTests: XCTestCase {
 
     /// Lernplan fuer diese Woche erzeugen (die Kopie hat keinen): `POST /api/calendar/generate` wie „Plan erstellen“
     private func planErzeugen() async throws {
+        let heute = UFFmt.todayISO()
         let r = try? await container.api.value("/api/calendar/generate", method: "POST",
-                                               body: ["start": .string(Self.tag), "days": 7, "replace": .bool(true)])
+                                               body: ["start": .string(heute), "days": 9, "replace": .bool(true)])
         if r == nil { XCTFail("Lernplan konnte nicht erzeugt werden") }
+        // Der Wochenlauf plant den laufenden Tag nicht mehr voll ein: drei Einheiten in freie Fenster von heute
+        // ("Lerneinheit automatisch einplanen" der App), damit die Übersicht nicht leer ist
+        for (von, bis) in [("09:00", "10:30"), ("13:00", "14:30"), ("16:00", "17:30")] {
+            _ = try? await container.api.value("/api/calendar/generate", method: "POST",
+                                               body: ["start": .string(heute), "window_start": .string(von), "window_end": .string(bis)])
+        }
     }
 
     /// Die PDFs liegen nicht in der Kopie (nur die Einträge). Für die Leseansicht eine Seite selbst schreiben und sie
@@ -249,6 +268,7 @@ final class IPhoneRealShotsTests: XCTestCase {
     // MARK: - Hosten und Fotografieren
 
     private func host<V: View>(_ view: V, api: APIClient? = nil, ai: Bool = false) throws -> HostedEnvironment {
+        Entitlements.shared.setPlanForTesting(.proAI)
         let root = view
             .environment(\.ufAIEnabled, ai)
             .environment(\.ufStudiNowAI, ai)
@@ -263,13 +283,17 @@ final class IPhoneRealShotsTests: XCTestCase {
         return env
     }
 
-    private func shoot(_ env: HostedEnvironment, _ name: String, settle: Double = 1.2) {
-        for wort in ["Demo", "ChatGPT", "Pro AI holen", "Fehler", "Nicht verbunden", AIConsentText.title] {
+    private func shoot(_ env: HostedEnvironment, _ name: String, settle: Double = 1.2,
+                       present: (() -> Void)? = nil, sheetReady: @escaping () -> Bool = { true }) {
+        for wort in ["Demo", "ChatGPT", "Pro AI holen", "Nicht verbunden", AIConsentText.title] {
             XCTAssertFalse(shows(env, wort), "\(name): „\(wort)“ im Bild:\n" + dump(env))
         }
-        guard let outDir else { return }
+        guard let outDir else {
+            present?()
+            return
+        }
         StoreScreenshotTests.shoot(env, name, folder: outDir, sizes: [(Self.size, "portrait")], scale: 3, ink: false,
-                                   settle: settle, cornerRadius: 36, statusBar: true)
+                                   settle: settle, present: present, sheetReady: sheetReady, cornerRadius: 36, statusBar: true)
     }
 
     // MARK: - Bedienungshilfen
@@ -346,6 +370,29 @@ final class IPhoneRealShotsTests: XCTestCase {
             if f.intersects(b), f.height > 0 { return true }
         }
         return false
+    }
+
+    /// Die Seite so weit rollen, dass dieses Element knapp unter der Kopfzeile steht
+    @discardableResult
+    private func scrollSoDass(_ env: HostedEnvironment, label: String, obenBei: CGFloat = 150) -> Bool {
+        func listen(_ v: UIView) -> [UIScrollView] {
+            var out: [UIScrollView] = []
+            if let s = v as? UIScrollView, s.contentSize.height > s.bounds.height + 20 { out.append(s) }
+            for c in v.subviews where !c.isHidden { out += listen(c) }
+            return out
+        }
+        for _ in 0..<8 {
+            guard let e = elements(env).first(where: { ($0.accessibilityLabel ?? "").hasPrefix(label) }),
+                  let s = listen(env.window).max(by: { $0.bounds.height < $1.bounds.height }) else { return false }
+            let delta = e.accessibilityFrame.minY - obenBei
+            if abs(delta) < 8 { return true }
+            let maxY = max(0, s.contentSize.height - s.bounds.height)
+            let next = min(maxY, max(0, s.contentOffset.y + delta))
+            if abs(next - s.contentOffset.y) < 1 { return true }
+            s.setContentOffset(CGPoint(x: s.contentOffset.x, y: next), animated: false)
+            env.pump(0.4)
+        }
+        return true
     }
 
     @discardableResult
@@ -430,14 +477,16 @@ final class IPhoneRealShotsTests: XCTestCase {
     /// genau das hat der Inhaber am 14.11.2026 beanstandet, so ein Bild darf nicht in den Store.
     func test02Lernkalender() throws {
         let env = try host(MainView())
-        env.router.go(.plan(view: "week", date: Self.tag))
+        // nächste Woche: dort stehen die wiederkehrenden Vorlesungen und die frisch geplanten Lernblöcke
+        env.router.go(.plan(view: "week", date: Self.naechsterMontag))
         expect(env, "Lernkalender")
         env.pump(2.5)
-        XCTAssertFalse(shows(env, "Montag, 16. November"),
-                       "„Woche“ zeigt noch die Tagesliste – erst mit dem Wochenraster fotografieren:\n" + dump(env))
         for tag in ["Mo", "Di", "Mi", "Do", "Fr"] {
-            XCTAssertTrue(shows(env, tag), "Spalte „\(tag)“ fehlt im Wochenraster:\n" + dump(env))
+            XCTAssertTrue(shows(env, tag), "Spalte „\(tag)“ fehlt im Wochenraster (noch die Tagesliste?):\n" + dump(env))
         }
+        // das Raster steht weit unten auf der Seite: nach oben rollen, damit der ganze Tag im Bild ist
+        scrollSoDass(env, label: "Mo", obenBei: 160)
+        env.pump(1.0)
         shoot(env, "02-lernkalender", settle: 1.8)
     }
 
@@ -450,11 +499,15 @@ final class IPhoneRealShotsTests: XCTestCase {
         env.pump(1.5)
         _ = env.openWeeks()
         env.pump(1.0)
-        for label in ["Erledigt: GDS_Einführung", "Erledigt: GDS_Kap_2"] {
-            _ = tap(env, label: label, prefix: true)
+        // die ersten beiden Dateien der ersten Lehrwoche abhaken (welche Dateien das sind, hängt am echten Modul)
+        let haken = elements(env).compactMap { $0.accessibilityLabel }.filter { $0.hasPrefix("Erledigt: ") }
+        XCTAssertGreaterThanOrEqual(haken.count, 2, "Dateien mit Haken:\n" + dump(env))
+        for label in haken.prefix(2) {
+            _ = tap(env, label: label)
             env.pump(0.8)
         }
-        _ = scrollUntil(env, label: "Erledigt: ")
+        // zur ersten abgehakten Datei rollen; der Wochenkopf mit „n/m erledigt“ steht dann darüber im Bild
+        scrollSoDass(env, label: haken[0], obenBei: 430)
         env.pump(1.0)
         shoot(env, "03-modul", settle: 1.6)
     }
@@ -472,26 +525,32 @@ final class IPhoneRealShotsTests: XCTestCase {
         shoot(env, "04-uni-mail-ki", settle: 1.6)
     }
 
-    /// 5 KI-Hilfe über der Leseansicht eines echten Skripts (Seiteninhalt von uns, die PDFs fehlen in der Kopie)
+    /// 5 KI-Hilfe als Blatt über der Leseansicht eines echten Skripts (der Seiteninhalt stammt vom Test, weil die
+    /// PDF-Dateien in der Kopie fehlen; Dateiname, Kurs und Modul sind echt)
     func test05KIHilfe() throws {
         let t = tutorTransport()
         let env = try host(MainView(), api: APIClient(base: APIClient.localBase, transport: t), ai: true)
         env.router.go(.doc(leseDateiID))
         expect(env, "Zahlensysteme")
         env.pump(1.5)
-        XCTAssertTrue(tap(env, id: "phoneReader.tutor") || tap(env, label: "KI-Hilfe"), "KI-Hilfe öffnen:\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 15) { self.selectScope(env, "Ganzes Dokument") }, "Umfang „Ganzes Dokument“:\n" + dump(env))
-        let gestartet = env.wait(timeout: 15) {
-            self.tap(env, id: "tutor.doc.lecture") || self.tap(env, label: "Ganze Vorlesung erklären")
-                || self.activate(in: env.hosting.presentedViewController?.view, label: "Ganze Vorlesung erklären")
+        let oeffnen = {
+            XCTAssertTrue(self.tap(env, id: "phoneReader.tutor") || self.tap(env, label: "KI-Hilfe"),
+                          "KI-Hilfe öffnen:\n" + self.dump(env))
+            XCTAssertTrue(env.wait(timeout: 15) { self.selectScope(env, "Ganzes Dokument") },
+                          "Umfang „Ganzes Dokument“:\n" + self.dump(env))
+            let gestartet = env.wait(timeout: 15) {
+                self.tap(env, id: "tutor.doc.lecture") || self.tap(env, label: "Ganze Vorlesung erklären")
+                    || self.activate(in: env.hosting.presentedViewController?.view, label: "Ganze Vorlesung erklären")
+            }
+            XCTAssertTrue(gestartet, self.dump(env))
+            XCTAssertTrue(env.wait(timeout: 20) { t.count("/api/ai/document/step") == 2 }, "zwei Teile geholt")
+            if let sheet = env.hosting.presentedViewController?.sheetPresentationController {
+                sheet.animateChanges { sheet.selectedDetentIdentifier = .large }
+            }
+            env.pump(1.5)
         }
-        XCTAssertTrue(gestartet, dump(env))
-        XCTAssertTrue(env.wait(timeout: 20) { t.count("/api/ai/document/step") == 2 }, "zwei Teile geholt")
-        if let sheet = env.hosting.presentedViewController?.sheetPresentationController {
-            sheet.animateChanges { sheet.selectedDetentIdentifier = .large }
-        }
-        env.pump(2.0)
-        shoot(env, "05-ki-hilfe", settle: 1.6)
+        shoot(env, "05-ki-hilfe", settle: 1.6, present: oeffnen,
+              sheetReady: { self.shows(env, "Zweierkomplement") || self.shows(env, "Prüfungsrelevant") })
     }
 
     /// 6 Studienverlauf mit Leistungspunkten (ohne einzelne Noten im Bild – Entscheidung mit dem Inhaber)
@@ -509,6 +568,7 @@ final class IPhoneRealShotsTests: XCTestCase {
 
     /// 7 Mensa an einem Werktag
     func test07Mensa() throws {
+        UFFmt.todayOverride = StoreScreenshotV11Tests.nextServiceDay()
         let env = try host(MainView())
         env.router.go(.mensa)
         env.pump(2.0)
