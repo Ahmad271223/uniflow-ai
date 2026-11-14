@@ -111,9 +111,9 @@ struct HildesheimConnectCard: View {
     }
 }
 
-/// Statusleiste: Stand je verbundener Quelle ("Learnweb: 16:30 ok", "LSF: Anmeldung nötig") und "Jetzt abgleichen"
-/// bzw. "Erneut versuchen" in einer Zeile; die Meldungen des letzten Abgleichs ("0 neue/geänderte Dateien …") stehen
-/// eingeklappt dahinter und klappen auf Tippen auf (Wunsch des Inhabers 03.11.2026: keine grosse Karte ueber dem Kalender)
+/// Hinweiszeile, nur wenn eine verbundene Quelle beim Abgleich scheiterte (`shows`): Stand je Quelle und "Erneut
+/// versuchen" in einer Zeile; die Meldungen des letzten Abgleichs klappen auf Tippen auf. Sonst keine Leiste: der
+/// Sync-Knopf oben rechts gleicht alle Portale ab (14.11.2026, vorher stand hier immer "Learnweb ok · LSF ok · Jetzt abgleichen")
 struct HildesheimStatusLine: View {
     @ObservedObject var connection: HildesheimConnection
     @State private var open = false
@@ -170,29 +170,15 @@ struct HildesheimStatusLine: View {
         .accessibilityIdentifier("hildesheim.status")
     }
 
-    /// Nur sichtbar, wenn es etwas zu sagen gibt: Abgleich laeuft, eine Quelle braucht Anmeldung oder scheiterte,
-    /// oder der letzte Abgleich brachte Neues (03.11.2026: "warum steht da oben immer abgehakt"); sonst reicht "Sync" oben
+    /// Nur bei einem Fehler einer verbundenen Quelle (14.11.2026, Wunsch des Inhabers nach der ersten Rueckmeldung
+    /// eines echten Hildesheim-Kontos: "der Sync oben rechts reicht"). Laufender Abgleich und sein Ergebnis zeigt der
+    /// Sync-Knopf oben rechts; "Anmeldung nötig" zeigt schon die Leiste "… erneut anmelden" darueber.
     static func shows(_ c: HildesheimConnection) -> Bool {
-        if c.isRunning { return true }
-        let sources = HildesheimConnection.Source.allCases.filter { c.isConnected($0) }
-        let problem = sources.contains {
-            switch c.state($0) { case .ok, .connected, .notConnected: return false; default: return true }
-        }
-        return problem || hasNews(c.messages)
+        shows(states: HildesheimConnection.Source.allCases.filter { c.isConnected($0) }.map { c.state($0) }, running: c.isRunning)
     }
 
-    /// Meldungen mit Aenderungen ("3 neue/geänderte Dateien", "Fristen: 4 (1 neu, 0 entfernt)") oder Fehlern;
-    /// ruhig sind nur die bekannten Meldungen ohne Neues (Muster aus `HildesheimSync`)
-    static let quiet = [
-        #"^0 neue/geänderte Dateien aus \d+ Learnweb-Kursen(, \d+ Kurse? aus früheren Semestern ohne Dateien.*)?$"#,
-        #"^Fristen: \d+ \(0 neu, 0 entfernt\)$"#,
-        #"^Ankündigungen: 0 neu \(0 mit Termin\), 0 entfernt$"#,
-        #"^Stundenplan: 0 neu, \d+ unverändert, 0 entfernt$"#,
-        #"^Notenspiegel: \d+ Leistungen$"#,
-    ]
-
-    static func hasNews(_ messages: [String]) -> Bool {
-        messages.contains { m in !quiet.contains { m.range(of: $0, options: .regularExpression) != nil } }
+    static func shows(states: [HildesheimConnection.State], running: Bool) -> Bool {
+        !running && states.contains { if case .failed = $0 { return true }; return false }
     }
 
     static func tone(_ s: HildesheimConnection.State) -> UFTone {
