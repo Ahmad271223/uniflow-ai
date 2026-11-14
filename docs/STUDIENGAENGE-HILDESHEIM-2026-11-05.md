@@ -149,15 +149,15 @@ Containers (`settings.university`).
 
 | Fachbereich | Kataloge | Einträge | Module | Formate |
 |---|---:|---:|---:|---|
-| Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 33 | 33 | 245 | hildesheim-modulbeschreibung 31, hildesheim-modultabelle 2 |
+| Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 259 | hildesheim-modulbeschreibung 31, hildesheim-modultabelle 3 |
 | Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 322 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
 | Fachbereich 3 – Sprach- und Informationswissenschaften | 18 | 18 | 210 | hildesheim-modulbeschreibung 15, hildesheim-modultabelle 3 |
 | Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 35 | 35 | 1345 | hildesheim-it-modulhandbuch 13, hildesheim-modulbeschreibung 22 |
 | fachbereichsübergreifend (Lehrerbildung) | 4 | 4 | 44 | hildesheim-modulbeschreibung 4 |
-| **zusammen** | **106** | **106** | **2166** | |
+| **zusammen** | **107** | **107** | **2180** | |
 
-Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-modulbeschreibung` 82 Kataloge / 803 Module; `hildesheim-modultabelle` 11 Kataloge / 228 Module.
-Registereinträge: 117, davon im Grundstock: 106.
+Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-modulbeschreibung` 82 Kataloge / 803 Module; `hildesheim-modultabelle` 12 Kataloge / 242 Module.
+Registereinträge: 117, davon im Grundstock: 107.
 
 Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS, Voraussetzungen = verweist auf andere Module):
 
@@ -165,16 +165,15 @@ Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS,
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `hildesheim-it-modulhandbuch` | 13 | 1135 | 100 % | 98 % | 71 % | 100 % | 0 % | 23 % | 26 % | 100 % |
 | `hildesheim-modulbeschreibung` | 82 | 803 | 92 % | 72 % | 82 % | 95 % | 86 % | 1 % | 9 % | 67 % |
-| `hildesheim-modultabelle` | 11 | 228 | 93 % | 85 % | 45 % | 91 % | 91 % | 0 % | 0 % | 82 % |
-| **zusammen** | **106** | **2166** | 96 % | 87 % | 73 % | 97 % | 41 % | 12 % | 17 % | 86 % |
+| `hildesheim-modultabelle` | 12 | 242 | 93 % | 80 % | 44 % | 90 % | 91 % | 0 % | 0 % | 83 % |
+| **zusammen** | **107** | **2180** | 96 % | 87 % | 72 % | 97 % | 42 % | 12 % | 17 % | 86 % |
 
-Kataloge mit Regeln/LP für Bereiche: 19; mit empfohlenem Semester je Modul: 91.
+Kataloge mit Regeln/LP für Bereiche: 20; mit empfohlenem Semester je Modul: 91.
 
-Ohne Katalog im Grundstock (11) – geht nicht, weil …:
+Ohne Katalog im Grundstock (10) – geht nicht, weil …:
 
 - Data Science (B.Sc.): Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete (Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP)
 - Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art (M.A.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
-- Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität (M.A.): Studienordnung (19 Seiten) ohne lesbare Modulbeschreibungen
 - Future Analytics: AI & Audio Worlds (M.Sc.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Lehramt an Grund-, Haupt- und Realschulen (Staatsexamen): Studienordnung (1 Seiten) ohne lesbare Modulbeschreibungen
 - Lehramt an Grund- und Hauptschulen (M.Ed.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
@@ -184,9 +183,9 @@ Ohne Katalog im Grundstock (11) – geht nicht, weil …:
 - Psychologie mit Schwerpunkt Pädagogische Psychologie (B.Sc.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Rechtspsychologie (M.Sc.): Studienordnung (3 Seiten) ohne lesbare Modulbeschreibungen
 
-Anfragen laut Zwischenspeicher: 204 (204 × 200), davon 148 PDFs, 92 MB, 05.11.2026 12:46–14.11.2026 14:04 UTC, kleinster Abstand 2.5 s.
-Datei `hildesheim.json.gz`: 131 KB gzip, 1145 KB JSON, 106 Kataloge.
-Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 21 Kataloge mit Handangaben, 0 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
+Anfragen laut Zwischenspeicher: 206 (206 × 200), davon 150 PDFs, 94 MB, 05.11.2026 12:46–14.11.2026 14:04 UTC, kleinster Abstand 2.5 s.
+Datei `hildesheim.json.gz`: 131 KB gzip, 1150 KB JSON, 107 Kataloge.
+Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 23 Kataloge mit Handangaben, 0 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
 
 Neu bauen: `.venv/bin/python tools/build-hildesheim-seed.py` (prüfen: `--check`, Vorschau: `--diff`).
 <!-- grundstock:end -->
@@ -194,8 +193,8 @@ Neu bauen: `.venv/bin/python tools/build-hildesheim-seed.py` (prüfen: `--check`
 ## Quellenliste des Inhabers (14.11.2026)
 
 Abgleich der Liste offizieller Quellen (28 Dokumente, davon 24 direkte PDFs) mit Register und Grundstock. Abruf: 28
-anonyme GETs, 3 s Pause, nur öffentliche Seiten; die fünf eingebauten FB-4-Handbücher wurden mit Prüfsumme in den
-Zwischenspeicher übernommen (keine zweite Anfrage). Keine PDFs im Repo. Bauweg: `MEDIA` und `MEDIA_ONLY` in
+anonyme GETs, 3 s Pause, nur öffentliche Seiten; die sieben eingebauten Handbücher (fünf FB 4, zwei FB 1) wurden mit
+Prüfsumme in den Zwischenspeicher übernommen (keine zweite Anfrage). Keine PDFs im Repo. Bauweg: `MEDIA` und `MEDIA_ONLY` in
 `tools/hildesheim-programs.py`. Prüfungsordnung, Schlüssel und Kürzel bleiben die des Verkündungsblatts; nur Quelle und
 Semester des Katalogs ändern sich.
 
@@ -208,20 +207,25 @@ Eingebaut (Leser liest sauber, `validate` bestanden, alle Handregeln der Wahlber
 | Umweltinformatik B.Sc. / M.Sc. | Modulhandbuch UINF, Stand 24.10.2024 | 83 → 84 / 105 → 98 |
 | Wirtschaftsinformatik B.Sc. / M.Sc. ("Verwendung" aus AI, IMIT, UINF) | die drei Handbücher oben | 73 → 94 / 100 → 117 |
 | Medieninformatik B.Sc. (Lücke geschlossen) | Modulhandbuch MINF, Stand 03.04.2026 | – → 75 |
+| Erziehungswissenschaft B.A. (gleiche Fassung, Text sauber) | Modulhandbuch Bachelor FB 1, Stand 18.08.2022 | 9 → 11 |
+| Erziehungswissenschaft M.A. Kindheitspädagogik/Diversität (Lücke geschlossen; fileID 4990 ist Bild) | Modulhandbuch Master FB 1, Fassung 18.08.2022 | – → 12 |
 
-Weniger Module bei IMIT und UINF M.Sc.: das neuere Handbuch streicht Module (z. B. Numerische Approximationsmethoden,
-Internet Marketing), es ist kein Lesefehler.
+Weniger Module bei IMIT und UINF M.Sc. sind echt: die neueren PDFs haben selbst weniger Modulüberschriften („Modul: …“:
+IMIT 215 → 202, UINF 204 → 196). Der Leser verliert je PDF so viele Überschriften wie beim alten Handbuch (UINF 16 → 14,
+IMIT 2 → 3, AI 1 → 1; Module, die keinem der beiden Abschlüsse zugeordnet sind).
+
+Erziehungswissenschaft (FB 1): Die Tabellenbeschriftung „Inhalte und Qualifikationsziele“ bricht um; der Leser kennt
+jetzt „Inhalte und“ als Feldnamen (kein Titelanhang „Inhalte und: …“ mehr, sonst ändert sich kein Katalog). Handregeln
+in `study-area-rules-hildesheim.json`: im Master sind 6a/6b Alternativen (eine Zeile mit 15 LP in der Übersicht, Bereich
+„Vertiefung“), Modul 7 „Wahlpflicht“ ist ein Pflichtmodul mit Wahl im Inhalt; Bachelor-/Mastermodul ist die
+Abschlussarbeit (nur hier: in den Lehramtsfächern ist das „Mastermodul“ das Fach, in dem die Arbeit geschrieben werden
+kann, und bleibt Wahl). Master: 77 LP Pflicht + 15 LP Vertiefung + 28 LP Mastermodul = 120 LP.
 
 Neu im Register, ohne Katalog (wählbar mit dem Hinweis „noch kein Modulkatalog“):
 - Data Science B.Sc. (PO 2023, Studienvariante der Angewandten Informatik, nicht im Studienangebot): der Leser legt den
   Abschnitt „Anwendungsgebiete (Wahl)“ als Pflicht ab (alle 73 Module im Semesterplan, 4. Semester 144 LP).
 
 Nicht eingebaut, mit Grund:
-- Erziehungswissenschaft M.A. Kindheitspädagogik/Diversität (Modulhandbuch auf der Seite des FB 1): Text lesbar
-  (12 Module), aber alle Module als Pflicht (auch das Wahlpflichtmodul 7), die Alternativen 6a/6b zählen doppelt
-  (135 statt 120 LP), sechs Titel tragen den Anhang „Inhalte und: …“. Bleibt ohne Katalog.
-- Erziehungswissenschaft B.A. (Modulhandbuch FB 1): gleiche Fassung wie fileID 5003, liest 11 statt 9 Module
-  (Modul 2 und 4 fehlen heute). Keine neuere Fassung; Vorschlag für später.
 - Informatik im Zwei-Fächer-Bachelor, Ordnung 2016 (gilt für Beginn vor 01.10.2026): kein Registereintrag, der Leser
   liefert 21 Module mit 3 Bruchstücken.
 - Informatik im Zwei-Fächer-Bachelor 2026 und Informatik im Master Lehramt HRS 2026 (Heft 214): Format unbekannt

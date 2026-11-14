@@ -5477,7 +5477,28 @@ enum StudySourcesData {
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5091",
      "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
-     "pos": []
+     "pos": [
+      {
+       "po": "2023",
+       "code": "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/Modulhandbuch_fuer_den_Master.pdf"
+      }
+     ],
+     "lsf": {
+      "nummer": 182,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=182&idcol=k_abstgv.abstgvnr&idval=182&purge=n&getglobal=n",
+      "text": "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     },
+     "lsf_names": [
+      "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     ]
     },
     {
      "id": "erziehungswissenschaft-b-a",
@@ -5501,7 +5522,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hildesheim|erziehungswissenschaft|b.a.|2023",
        "format": "hildesheim-modultabelle",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5003"
+       "url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/Modulhandbuch_fuer_den_Bachelor.pdf"
       }
      ],
      "lsf": {

@@ -1,5 +1,5 @@
 {
- "catalogs": 106,
+ "catalogs": 107,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -308,6 +308,24 @@
    "term": "WS 2024/25"
   },
   {
+   "code": "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+   "library_key": "10c523e4e433995d67e7d8c9a1288368015ee4fdc750e24b5a3cfd8ccd86c2c5",
+   "modules": 12,
+   "po": "2023",
+   "program": "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität PO-Version: 2023",
+    "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+   ],
+   "study_plan": false,
+   "term": "SS 2022"
+  },
+  {
    "code": "erziehungswissenschaft|b.a.|2023",
    "degree": "B.A.",
    "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
@@ -315,7 +333,7 @@
    "format": "hildesheim-modultabelle",
    "key": "hildesheim|erziehungswissenschaft|b.a.|2023",
    "library_key": "63c92638f99e0ddf24ed8b66166285bf0d33fe009c7498ab3f1d4edf8fbc34b4",
-   "modules": 9,
+   "modules": 11,
    "po": "2023",
    "program": "Erziehungswissenschaft",
    "qis_labels": [
@@ -1919,14 +1937,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 133698,
-   "catalogs": 106,
-   "raw_bytes": 1172198,
-   "sha256": "5975fef59a6a2ea36677e91e7dec08857bfb83ac5d15986e30fec343234c64ab"
+   "bytes": 134366,
+   "catalogs": 107,
+   "raw_bytes": 1177551,
+   "sha256": "e04630cfeb52d425044a1f68f192105a73f0ddc4454d5683f4db6687afd3229f"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2166,
+ "modules": 2180,
  "university": "hildesheim",
  "v": 1
 }
