@@ -1,0 +1,151 @@
+{
+ "note": "erfunden; nur der Aufbau folgt den Studienordnungen (tools/gen-study-catalog-hildesheim-fixture.py); roher PDFKit-Text, Feldnamen und Werte vermischt",
+ "pages": [
+  "Verkündungsblatt der Universität Hildesheim - Heft 999 - Nr. 03 / 2031 (14.02.2031) - Seite 60 -\nStudienordnung inklusive Modulhandbuch für den Bachelor-\nStudiengang Beetkunde im Fachbereich 9 – Garten- und\nLandschaftswissenschaften\nGesamtzahl der Leistungspunkte 21",
+  "Verkündungsblatt der Universität Hildesheim - Heft 999 - Nr. 03 / 2031 (14.02.2031) - Seite 61 -\nAnlage 3 Modulhandbuch\nBezeichnung Modul 1: Hochbeet\nKompetenzen und Lernziele Die Studierenden bauen ein Hochbeet.\nLerninhalte TM 1: Holz (Seminar; 2 SWS; 3 LP (WiSe))\nTM 2: Erde (Seminar; 2 SWS; 3 LP (WiSe))\nLeistungspunkte 6 LP\nSemesterwochenstunden 4 SWS\nStudienleistungen Aktive Teilnahme\nPrüfungsleistungen Modulprüfung: Baubericht\nArbeitsaufwand (Workload) 180 Stunden (60 Stunden Präsenzstudium, 120 Stunden\nSelbststudium)\nEmpfohlenes Fachsemester 1. Semester\nVoraussetzung für die\nTeilnahme am Modul\nVoraussetzung für die\nZulassung zur Prüfung\nkeine\nkeine\nModuldauer 2 Semester\nHäufigkeit des Angebots Zuständige Ständige\nPrüfungskommission\nModulverantwortliche TM 1 und TM 2 werden im Wintersemester angeboten\nStändige Prüfungskommission für den Bachelor-Studiengang\nBeetkunde\nSiehe Liste auf der Webseite\nBezeichnung Kompetenzen und Lernziele Lerninhalte Modul 2: Kräuterspirale – Planen und\nDie Studierenden planen eine Kräuterspirale.\nSteine und Kräuter\nLeistungspunkte 6\nSemesterwochenstunden 4\nStudienleistungen Aktive Mitarbeit\nPrüfungsleistung Arbeitsaufwand (Workload) Modulprüfung: Hausarbeit\n180 Stunden (60 Stunden Präsenzstudium, 120 Stunden\nSelbststudium)\n2. und 3. Semester\nkeine\nEmpfohlenes Fachsemester Voraussetzungen für die\nTeilnahme am Modul\nModuldauer Häufigkeit des Angebots Keine\nBezeichnung Modul 3: Teichbau\nKompetenzen und Lernziele Lerninhalte Die Studierenden legen einen Teich an.\nFolie und Wasser\nLeistungspunkte Semesterwochenstunden 4\n9 (TM 1: 2 SWS / 4,5 LP; TM 2: 2 SWS / 4,5 LP)\nPrüfungsleistungen Modulprüfung: Klausur\nEmpfohlenes Fachsemester 5."
+ ],
+ "meta": {
+  "university": "hildesheim",
+  "code": "link-roh",
+  "po": "eigener Link",
+  "catalog_term": "SS 2031",
+  "source": {
+   "url": "https://example.org/roh.pdf",
+   "fetched_at": null,
+   "sha256": null
+  }
+ },
+ "detect": true,
+ "head": {
+  "program": "Beetkunde",
+  "level": "Bachelor",
+  "degree": "Bachelor",
+  "stand": "2031-02-14",
+  "heft": "999",
+  "po": "2031",
+  "catalog_term": "WS 2030/31",
+  "total_lp": 21
+ },
+ "catalog": {
+  "v": 1,
+  "university": "hildesheim",
+  "program": "Beetkunde",
+  "degree": "Bachelor",
+  "po": "eigener Link",
+  "catalog_term": "SS 2031",
+  "code": "link-roh",
+  "regular_semesters": null,
+  "total_lp": 21,
+  "source": {
+   "url": "https://example.org/roh.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [],
+  "modules": [
+   {
+    "id": "hochbeet",
+    "title": "Hochbeet",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": null,
+    "turnus": "unbekannt",
+    "exam": null,
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": null,
+    "source_page": 2
+   },
+   {
+    "id": "kraeuterspirale-planen-und",
+    "title": "Kräuterspirale – Planen und",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": null,
+    "turnus": "unbekannt",
+    "exam": null,
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": null,
+    "source_page": 2
+   },
+   {
+    "id": "teichbau",
+    "title": "Teichbau",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": null,
+    "semester": null,
+    "turnus": "unbekannt",
+    "exam": null,
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": null,
+    "source_page": 2
+   }
+  ]
+ },
+ "module_texts": {
+  "hochbeet": {
+   "content": "TM 1: Holz (Seminar; 2 SWS; 3 LP (WiSe))\nTM 2: Erde (Seminar; 2 SWS; 3 LP (WiSe))",
+   "goals": "Die Studierenden bauen ein Hochbeet.",
+   "literature": null
+  },
+  "kraeuterspirale-planen-und": {
+   "content": "Die Studierenden planen eine Kräuterspirale.\nSteine und Kräuter",
+   "goals": null,
+   "literature": null
+  },
+  "teichbau": {
+   "content": "Die Studierenden legen einen Teich an.\nFolie und Wasser",
+   "goals": null,
+   "literature": null
+  }
+ },
+ "details": {
+  "hochbeet": {
+   "number": 1,
+   "sws": null,
+   "parts": [
+    {
+     "number": 1,
+     "title": "Holz",
+     "kind": "Seminar",
+     "sws": 2,
+     "lp": 3,
+     "term": "WS"
+    },
+    {
+     "number": 2,
+     "title": "Erde",
+     "kind": "Seminar",
+     "sws": 2,
+     "lp": 3,
+     "term": "WS"
+    }
+   ]
+  },
+  "kraeuterspirale-planen-und": {
+   "number": 2,
+   "sws": null,
+   "parts": []
+  },
+  "teichbau": {
+   "number": 3,
+   "sws": null,
+   "parts": []
+  }
+ },
+ "dumps": "{\"v\": 1, \"university\": \"hildesheim\", \"program\": \"Beetkunde\", \"degree\": \"Bachelor\", \"po\": \"eigener Link\", \"catalog_term\": \"SS 2031\", \"code\": \"link-roh\", \"regular_semesters\": null, \"total_lp\": 21, \"source\": {\"url\": \"https://example.org/roh.pdf\", \"fetched_at\": null, \"sha256\": null}, \"areas\": [], \"modules\": [{\"id\": \"hochbeet\", \"title\": \"Hochbeet\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": 6, \"semester\": null, \"turnus\": \"unbekannt\", \"exam\": null, \"coursework\": null, \"prerequisites\": [], \"language\": null, \"workload_h\": null, \"source_page\": 2}, {\"id\": \"kraeuterspirale-planen-und\", \"title\": \"Kräuterspirale – Planen und\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": 6, \"semester\": null, \"turnus\": \"unbekannt\", \"exam\": null, \"coursework\": null, \"prerequisites\": [], \"language\": null, \"workload_h\": null, \"source_page\": 2}, {\"id\": \"teichbau\", \"title\": \"Teichbau\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": null, \"semester\": null, \"turnus\": \"unbekannt\", \"exam\": null, \"coursework\": null, \"prerequisites\": [], \"language\": null, \"workload_h\": null, \"source_page\": 2}]}",
+ "texts_dumps": "{\"hochbeet\": {\"content\": \"TM 1: Holz (Seminar; 2 SWS; 3 LP (WiSe))\\nTM 2: Erde (Seminar; 2 SWS; 3 LP (WiSe))\", \"goals\": \"Die Studierenden bauen ein Hochbeet.\", \"literature\": null}, \"kraeuterspirale-planen-und\": {\"content\": \"Die Studierenden planen eine Kräuterspirale.\\nSteine und Kräuter\", \"goals\": null, \"literature\": null}, \"teichbau\": {\"content\": \"Die Studierenden legen einen Teich an.\\nFolie und Wasser\", \"goals\": null, \"literature\": null}}",
+ "details_dumps": "{\"hochbeet\": {\"number\": 1, \"sws\": null, \"parts\": [{\"number\": 1, \"title\": \"Holz\", \"kind\": \"Seminar\", \"sws\": 2, \"lp\": 3, \"term\": \"WS\"}, {\"number\": 2, \"title\": \"Erde\", \"kind\": \"Seminar\", \"sws\": 2, \"lp\": 3, \"term\": \"WS\"}]}, \"kraeuterspirale-planen-und\": {\"number\": 2, \"sws\": null, \"parts\": []}, \"teichbau\": {\"number\": 3, \"sws\": null, \"parts\": []}}",
+ "head_dumps": "{\"program\": \"Beetkunde\", \"level\": \"Bachelor\", \"degree\": \"Bachelor\", \"stand\": \"2031-02-14\", \"heft\": \"999\", \"po\": \"2031\", \"catalog_term\": \"WS 2030/31\", \"total_lp\": 21}"
+}
