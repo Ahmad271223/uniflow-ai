@@ -108,4 +108,31 @@ final class StudyProgramChangeTests: XCTestCase {
         XCTAssertEqual(StudyPlanEngine.gradesForCatalog([a, b, c], catalog: ["program": "Sozialpädagogik"], university: "hildesheim")
             .compactMap { $0["text"]?.string }, ["BWL"])
     }
+
+    /// Eigener Link zu einer Hildesheimer Studienordnung, die das Register nicht kennt: der Lauf liest sie mit dem Leser
+    /// fuer dieses Format (Textstuecke mit Lage, nicht der rohe PDFKit-Text); erfundene Seiten wie in Python
+    func testPastedLinkToAHildesheimStudyRegulationIsRead() async throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let fx = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/study-catalog-hildesheim/lesefassung.json")))
+        let pages = (fx["pages"]?.array ?? []).compactMap(\.string)
+        let items = (fx["items"]?.array ?? []).map { page in
+            (page.array ?? []).map { StudyPlanTextItem(x: $0.array?[0].double ?? 0, y: $0.array?[1].double ?? 0, text: $0.array?[2].string ?? "") }
+        }
+        let link = "https://example.org/studienordnung.pdf"
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.withConnection { c in
+            try Migrations.migrate(c, university: "hildesheim")
+            try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('study_plan', ?)", [.text(#"{"po": null, "catalog_url": "\#(link)"}"#)])
+        }
+        let loader = StudyCatalogPipelineTests.StubLoader()
+        loader.responses[link] = StudyCatalogFetchResult(status: 200, data: Data("%PDF".utf8))
+        let env = StudyCatalogPipeline.Environment(loader: loader, library: nil, pdfText: { _ in pages }, planText: { _ in items })
+        let st = await StudyCatalogPipeline.run(db: db, env: env)
+        XCTAssertEqual(st["state"]?.string, "ready", "\(st)")
+        XCTAssertEqual(st["program"]?.string, fx["head"]?["program"]?.string)
+        XCTAssertEqual(st["modules"]?.int, fx["catalog"]?["modules"]?.array?.count)
+        XCTAssertEqual(st["catalog_term"]?.string, fx["head"]?["catalog_term"]?.string)
+        XCTAssertEqual(st["code"]?.string?.hasPrefix("link-"), true)
+    }
 }

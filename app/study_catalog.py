@@ -1932,6 +1932,18 @@ def _run_custom(conn, url: str, fetch, now: datetime, uni: str, reg: dict, base:
         pages = pdf_pages(r.data)
     except Exception:  # noqa: BLE001
         return fail("keine PDF", "unknown_format", MESSAGES["unknown_format"])
+    from . import study_catalog_hildesheim as hi
+    if hi.is_hildesheim_sto(pages):
+        # Hildesheimer "Studienordnung inklusive Modulhandbuch" (14.11.2026): Seiten mit Lage lesen (der rohe Text
+        # stellt die Feldnamen vor die Werte), Kopf aus der Titelseite, Abschluss und Kuerzel aus dem Register
+        try:
+            rows = hi.row_pages(pdf_items(r.data))
+        except Exception:  # noqa: BLE001
+            return fail("keine PDF", "unknown_format", MESSAGES["unknown_format"])
+        meta = hildesheim_link_meta(reg, uni, hi.hildesheim_sto_head(rows), url, now)
+        meta["source"] = {"url": url, "fetched_at": _iso(now), "sha256": hashlib.sha256(r.data).hexdigest()}
+        catalog, texts = hi.parse_hildesheim_sto(rows, meta)
+        return _store_custom(conn, catalog, texts, meta, url_key, info, now, fail)
     parts = modkat_parts(url)
     first = clean_pages(pages[:1])
     lines = first[0] if first else []
@@ -1951,14 +1963,42 @@ def _run_custom(conn, url: str, fetch, now: datetime, uni: str, reg: dict, base:
                 "code": code, "catalog_term": term, "regular_semesters": None, "total_lp": None}
     meta["source"] = {"url": url, "fetched_at": _iso(now), "sha256": hashlib.sha256(r.data).hexdigest()}
     catalog, texts = parse_luh_modkat(pages, meta)
+    return _store_custom(conn, catalog, texts, meta, url_key, info, now, fail)
+
+
+def _store_custom(conn, catalog: dict, texts: dict, meta: dict, url_key: str, info: dict, now: datetime, fail) -> dict:
+    """Gelesenen Katalog eines eigenen Links pruefen und ablegen (beide Leser)"""
     if not catalog["modules"] or validate(catalog):
         return fail("Format unbekannt", "unknown_format", MESSAGES["unknown_format"])
     key = store_catalog(conn, catalog, texts, "download", _iso(now))
     set_state(conn, url_key, {"at": _iso(now), "key": key})
-    state = dict(info, state="ready", origin="download", key=key, program=meta["program"], code=meta["code"],
-                 catalog_term=meta["catalog_term"], modules=len(catalog["modules"]), message=MESSAGES["ready"])
+    state = dict(info, state="ready", origin="download", key=key, program=catalog.get("program") or meta["program"],
+                 code=catalog.get("code") or meta["code"], catalog_term=catalog.get("catalog_term") or meta["catalog_term"],
+                 modules=len(catalog["modules"]), message=MESSAGES["ready"])
     set_state(conn, "status", state)
     return state
+
+
+def hildesheim_link_meta(reg: dict, uni: str, head: dict, url: str, now: datetime) -> dict:
+    """Kopf eines eigenen Links zu einer Hildesheimer Studienordnung -> meta fuer den Leser: Studiengang, PO und Semester
+    aus der Titelseite; Abschluss ("B.A.", steht in keiner PDF), Regelstudienzeit und Kuerzel aus dem Register, wenn es
+    den Studiengang mit dieser PO kennt, sonst "link-<hash>". Gleiche Regel in StudyCatalogPipeline.hildesheimMeta."""
+    program = head.get("program") or "Eigener Katalog"
+    level = "M" if (head.get("level") or "").startswith("Master") else "B"
+    prog = None
+    for u in reg.get("universities") or []:
+        if u.get("id") != uni:
+            continue
+        for p in u.get("programs") or []:
+            if name_key(p.get("program") or "") == name_key(program) and _degree_class(p.get("degree") or "") == level:
+                prog = p
+                break
+    po = head.get("po")
+    code = next((x.get("code") for x in (prog or {}).get("pos") or [] if po and str(x.get("po")) == str(po) and x.get("code")), None)
+    return {"university": uni, "program": program, "degree": (prog or {}).get("degree") or head.get("degree") or "unbekannt",
+            "po": po or "eigener Link", "code": code or "link-" + hashlib.sha256(url.encode()).hexdigest()[:12],
+            "catalog_term": head.get("catalog_term") or current_term(now.strftime("%Y-%m-%d")),
+            "regular_semesters": (prog or {}).get("regular_semesters"), "total_lp": head.get("total_lp")}
 
 
 def status(conn) -> dict:
