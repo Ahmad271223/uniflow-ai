@@ -188,6 +188,8 @@ final class StudoraAccountLink: ObservableObject {
     /// Geraete-Abgleich (Vertrag G2): laeuft gerade, letztes Ergebnis in diesem Prozess
     @Published private(set) var syncing = false
     @Published private(set) var lastSync: DeviceSyncResult?
+    /// Hinweis zum Raum je Uni-Konto fuer die Konto-Einstellungen (`UniAccountKey.hint`); nil, wenn nichts zu sagen ist
+    var uniSyncHint: String? { UniAccountKey.hint(lastSync, university: university) }
     /// Automatisch hoechstens alle 3 Minuten (`sync_client.start_background`)
     static let autoSyncInterval: TimeInterval = 180
     private var lastSyncAt: Date?
@@ -301,14 +303,20 @@ final class StudoraAccountLink: ObservableObject {
         // Demo-Inhalte gehoeren nicht ins Konto; direkt aus der Datenbank, `demoActive` kommt beim Start erst spaeter
         let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
         guard current(), Self.canSync(user: user, university: university, blocked: demo) else { return false }
-        let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID).run(account: id)
+        // Raum je Uni-Konto (14.11.2026, `UniAccountKey`): geteilt wird nur zwischen Geraeten mit demselben Uni-Konto. Ohne
+        // Schluessel (noch keine Uni-Anmeldung, Hochschule ohne sichere Kennung) gleicht die App gar nicht ab
+        let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID,
+                                 requireUniAccount: !UniAccountKey.syncWithoutKey(university: university))
+            .run(account: id, university: university)
         // die Daten liegen in der Datenbank vom Start (eigener Container); Stand und Meldung gelten nur fuer ihn
         guard current() else { return false }
         lastSync = r
-        // nur ein gelungener Lauf zaehlt fuer die 3 Minuten; nach einem Fehler versucht es der naechste Anstoss (P37-09)
-        if r.ok { lastSyncAt = Date() }
-        // auch eine reine Zusammenfuehrung von Notizen ist eine Aenderung: offene Fenster laden neu (P37-05)
-        let changed = r.applied + r.deleted + r.notesMerged > 0
+        // nur ein gelungener Lauf zaehlt fuer die 3 Minuten; nach einem Fehler versucht es der naechste Anstoss (P37-09),
+        // ebenso solange der Schluessel fehlt (kostet keine Anfrage; nach der Uni-Anmeldung laeuft es dann gleich)
+        if r.ok && !r.noUniAccount { lastSyncAt = Date() }
+        // auch eine reine Zusammenfuehrung von Notizen ist eine Aenderung: offene Fenster laden neu (P37-05); ebenso
+        // Zeilen eines anderen Uni-Kontos, die hier entfernt wurden
+        let changed = r.applied + r.deleted + r.notesMerged + r.foreignRemoved > 0
         if changed { NotificationCenter.default.post(name: .uniflowAccountSynced, object: nil) }
         return changed
     }

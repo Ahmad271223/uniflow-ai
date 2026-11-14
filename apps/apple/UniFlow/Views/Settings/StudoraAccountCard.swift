@@ -73,6 +73,8 @@ struct StudoraAccountCard: View {
     static func syncText(_ r: DeviceSyncResult?) -> String {
         guard let r else { return "Noch nicht abgeglichen" }
         guard r.ok else { return r.error ?? "Abgleich fehlgeschlagen" }
+        // ohne Uni-Konto auf diesem Geraet wird nichts geteilt (`UniAccountKey`); warum, steht im Hinweis darunter
+        if r.noUniAccount { return "Auf diesem Gerät noch nicht abgeglichen" }
         var s = "Abgeglichen: \(r.applied) geholt, \(r.pushed) gesendet"
         if r.pending > 0 { s += ", \(r.pending) warten auf ihre Datei" }
         if r.planRequired { s += ". Notizen bleiben im Tarif Free auf diesem Gerät" }
@@ -138,6 +140,12 @@ struct StudoraAccountCard: View {
                 UFButton(link.syncing ? "Gleiche ab …" : "Jetzt abgleichen", icon: "sync", size: .small) { Task { await link.syncNow(force: true) } }
                     .disabled(link.syncing)
                     .accessibilityIdentifier("account.syncNow")
+            }
+            // Raum je Uni-Konto: kurzer Hinweis, kein Sperr-Bildschirm (anderes Uni-Konto auf einem anderen Geraet,
+            // noch keine Uni-Anmeldung hier, Hochschule ohne sichere Kennung)
+            if let hint = link.uniSyncHint {
+                Text(UFDevice.adapt(hint)).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("account.uniHint")
             }
             SettingsDivider()
             Text("Angemeldete Geräte").ufFont(13.12, 600).foregroundStyle(UF.text2)

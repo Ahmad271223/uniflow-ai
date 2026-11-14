@@ -43,13 +43,13 @@ final class DeviceRuleTests: XCTestCase {
         await answer(fake, try flow("Free: zweites Geraet anmelden (Hinweis-Bildschirm)"))
         _ = try await acc.login(email: "free@beispiel.de", password: "sehr-geheim-123")
         let login = await fake.last("/api/account/login")
-        XCTAssertEqual(login?.headers[DeviceRule.capabilityHeader], "device_limit")
+        XCTAssertEqual(login?.headers[DeviceRule.capabilityHeader], "device_limit, uni_room")
         let body = try JSONValue.parse(try XCTUnwrap(login?.body))
         XCTAssertEqual(body["device_id"], "iphone-1")
         await answer(fake, try flow("Free: Stand auf dem zweiten Geraet"))
         _ = try await acc.planStatus()
         let status = await fake.last("/api/entitlements")
-        XCTAssertEqual(status?.headers[DeviceRule.capabilityHeader], "device_limit")
+        XCTAssertEqual(status?.headers[DeviceRule.capabilityHeader], "device_limit, uni_room")
         XCTAssertNotNil(status?.headers["Authorization"])
     }
 

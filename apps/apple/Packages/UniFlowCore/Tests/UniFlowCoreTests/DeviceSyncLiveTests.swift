@@ -33,8 +33,9 @@ final class DeviceSyncLiveTests: XCTestCase {
         return b
     }
 
-    /// (Token, Konto-ID) eines neuen, bestaetigten Kontos nach der Probe
-    private func newAccount(plan: String = "plus") async throws -> (String, String) {
+    /// (Token, Konto-ID) eines neuen, bestaetigten Kontos nach der Probe. Pro AI: Notizen gleichen erst ab diesem Tarif
+    /// zwischen Geraeten ab (04.11.2026, `can_sync_annotations`); mit "plus" scheiterten die Notizen-Tests seitdem
+    private func newAccount(plan: String = "pro_ai") async throws -> (String, String) {
         let r = try await LiveHTTP().send(AIHTTPRequest(method: "POST", url: try base() + "/__test/account",
                                                         headers: ["Content-Type": "application/json"], body: JSONValue.object(["plan": .string(plan)]).serialized()))
         XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
@@ -195,5 +196,112 @@ final class DeviceSyncLiveTests: XCTestCase {
         _ = await run(a, id)
         let v = try await a.db.rows("SELECT value FROM settings WHERE key='hours_per_day'").first?["value"]?.string
         XCTAssertEqual(v, "6")
+    }
+
+    /// Raum je Uni-Konto (14.11.2026, `UniAccountKey`): der Befund vom echten iPhone mit erfundenen Daten gegen den echten
+    /// Dienst. Drei Geraete eines StudiNow-Kontos, zwei mit Adas Uni-Konto, eines mit Bobs. Erst gleichen alle ohne
+    /// Schluessel ab (so entstand die Vermischung), dann meldet jedes sein Uni-Konto.
+    func testTwoUniAccountsUnderOneAccountAreSeparatedAgain() async throws {
+        let (token, id) = try await newAccount()
+        let ipad = try await device("ipad-ada", token: token), other = try await device("ipad-bob", token: token)
+        let phone = try await device("iphone-ada", token: token)
+        let ada = (1...7).map { "Ada-Fach \($0)" }, bob = (1...8).map { "Bob-Fach \($0)" }
+        /// der eigene Stud.IP-Abgleich: Fach (falls es fehlt) und ein Kurs daran
+        func studip(_ d: Device, _ subjects: [String], _ prefix: String) async throws {
+            try await d.db.transaction { c in
+                for (i, name) in subjects.enumerated() {
+                    var mid = try c.scalar("SELECT id FROM modules WHERE name=?", [.text(name)])?.int
+                    if mid == nil {
+                        try c.execute("INSERT INTO modules(name, semester) VALUES (?, 'WiSe 2026/27')", [.text(name)])
+                        mid = Int(c.lastInsertRowID)
+                    }
+                    try c.execute("INSERT INTO courses(id, title, semester, subject, kind, module_id) VALUES (?,?,?,?, 'vorlesung', ?)",
+                                  [.text("\(prefix)-\(i)"), .text(name), .text("WiSe 2026/27"), .text(name), .integer(Int64(mid ?? 0))])
+                }
+            }
+        }
+        func uni(_ d: Device, _ user: String) async throws {
+            try await d.db.transaction { try StudIPUserMark.store($0, StudIPUserMark.hash(userID: user)) }
+        }
+        func events(_ d: Device) async throws -> Int { try await d.db.rows("SELECT COUNT(*) n FROM course_events").first?["n"]?.int ?? -1 }
+
+        try await studip(ipad, ada, "ada")
+        _ = await run(ipad, id)
+        try await studip(other, bob, "bob")
+        try await other.db.transaction { c in
+            let mid = Int64(try XCTUnwrap(c.scalar("SELECT id FROM modules WHERE name='Bob-Fach 1'")?.int))
+            for day in [0, 2] {
+                try c.execute("INSERT INTO course_events(module_id, course_id, title, weekday, start_time, end_time, kind) VALUES (?, 'bob-0', 'Bob-Vorlesung', ?, '08:15', '09:45', 'vorlesung')",
+                              [.integer(mid), .integer(Int64(day))])
+            }
+        }
+        _ = await run(other, id)
+        _ = await run(phone, id)
+        try await studip(phone, ada, "ada")
+        _ = await run(ipad, id)
+        // der Fehler: jedes Geraet hat alle 15 Faecher, das iPhone dazu Bobs Stundenplan
+        for d in [ipad, other, phone] {
+            let n = try await names(d)
+            XCTAssertEqual(n, (ada + bob).sorted())
+        }
+        let mixedEvents = try await events(phone)
+        XCTAssertEqual(mixedEvents, 2)
+
+        // das iPhone meldet sein Uni-Konto; Bobs Geraet ist dem Dienst noch unbekannt: nichts ist nachweislich fremd
+        try await uni(phone, "ada")
+        var r = await run(phone, id)
+        XCTAssertEqual(r.foreignRemoved, 0)
+        var n = try await names(phone)
+        XCTAssertEqual(n.count, 15, "im Zweifel bleibt alles")
+
+        // Bobs Geraet meldet sich: seine Zeilen gehoeren seinem Raum
+        try await uni(other, "bob")
+        _ = await run(other, id)
+        r = await run(phone, id)
+        XCTAssertEqual(r.foreignRemoved, 8 + 2)
+        XCTAssertTrue(r.otherUniAccount)
+        XCTAssertEqual(r.deleted, 0)
+        n = try await names(phone)
+        XCTAssertEqual(n, ada, "die 8 fremden gehen, die 7 eigenen bleiben")
+        let phoneEvents = try await events(phone)
+        XCTAssertEqual(phoneEvents, 0)
+
+        // Adas iPad meldet sich: gleiches Aufraeumen; danach verschwinden Adas (dort leere) Faecher auf Bobs Geraet
+        try await uni(ipad, "ada")
+        r = await run(ipad, id)
+        XCTAssertEqual(r.foreignRemoved, 8 + 2)
+        r = await run(other, id)
+        XCTAssertEqual(r.foreignRemoved, 7)
+        XCTAssertEqual(r.deleted, 0)
+        for d in [ipad, other, phone] { _ = await run(d, id) }
+        let onPad = try await names(ipad), onPhone = try await names(phone), onOther = try await names(other)
+        XCTAssertEqual([onPad, onPhone], [ada, ada])
+        XCTAssertEqual(onOther, bob, "auf dem anderen Geraet bleiben seine 8 Faecher")
+        let otherEvents = try await events(other)
+        XCTAssertEqual(otherEvents, 2)
+
+        // im Dienst ist nichts geloescht: ein neues Geraet je Uni-Konto bekommt genau seinen Raum
+        let newAda = try await device("mac-ada", token: token), newBob = try await device("mac-bob", token: token)
+        try await uni(newAda, "ada")
+        try await uni(newBob, "bob")
+        let ra = await run(newAda, id), rb = await run(newBob, id)
+        XCTAssertEqual([ra.deleted, rb.deleted], [0, 0])
+        let freshAda = try await names(newAda), freshBob = try await names(newBob)
+        XCTAssertEqual(freshAda, ada)
+        XCTAssertEqual(freshBob, bob)
+        let freshEvents = try await events(newBob)
+        XCTAssertEqual(freshEvents, 2)
+
+        // und der Abgleich im Raum laeuft weiter: Adas neues Fach kommt aufs iPhone, nicht zu Bob; Loeschen bleibt im Raum
+        try await ipad.db.transaction { try $0.execute("INSERT INTO modules(name, semester) VALUES ('Ada neu', 'WiSe 2026/27')") }
+        for d in [ipad, phone, other] { _ = await run(d, id) }
+        let p2 = try await names(phone), o2 = try await names(other)
+        XCTAssertTrue(p2.contains("Ada neu"))
+        XCTAssertEqual(o2, bob)
+        try await phone.db.transaction { try $0.execute("DELETE FROM modules WHERE name='Ada neu'") }
+        for d in [phone, ipad, other] { _ = await run(d, id) }
+        let p3 = try await names(ipad), o3 = try await names(other)
+        XCTAssertEqual(p3, ada)
+        XCTAssertEqual(o3, bob)
     }
 }

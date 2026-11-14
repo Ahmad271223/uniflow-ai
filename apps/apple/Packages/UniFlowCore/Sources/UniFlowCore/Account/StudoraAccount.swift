@@ -112,12 +112,15 @@ public actor StudoraAccount {
 
     public var isSignedIn: Bool { tokens.load() != nil }
 
+    /// Wert der Kopfzeile `X-StudiNow-Caps`: Geraete-Regel (`device_limit`) und Raum je Uni-Konto (`uni_room`)
+    public static let capabilities = [DeviceRule.capability, UniAccountKey.capability].joined(separator: ", ")
+
     // MARK: Anfragen
 
     func request(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true) async throws -> ServiceHTTPResponse {
-        // Faehigkeiten dieser App: nur damit schickt der Dienst die Geraete-Regel (`device`); aeltere Apps ohne die
-        // Kopfzeile bekommen die Antworten wie bisher
-        var headers = ["Accept": "application/json", DeviceRule.capabilityHeader: DeviceRule.capability]
+        // Faehigkeiten dieser App: nur damit schickt der Dienst die Geraete-Regel (`device`) und nennt im Abgleich, was
+        // einem anderen Uni-Konto gehoert; aeltere Apps ohne die Kopfzeile bekommen die Antworten wie bisher
+        var headers = ["Accept": "application/json", DeviceRule.capabilityHeader: Self.capabilities]
         if body != nil { headers["Content-Type"] = "application/json" }
         if auth {
             guard let t = tokens.load() else { throw AccountError(status: 401, code: "unauthenticated", message: "Anmeldung erforderlich.", retryAfter: nil) }

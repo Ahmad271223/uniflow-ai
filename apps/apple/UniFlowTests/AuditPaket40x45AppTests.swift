@@ -120,9 +120,14 @@ final class AuditPaket40x45AppTests: XCTestCase {
         return LocalBackendHost(directory: dir.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-11-09T08:00:00")!)
     }
 
-    /// Konto A angemeldet, Container mit lokalem Backend, Hochschule LUH
-    private func signedInLink(_ stub: ServiceStub, host: LocalBackendHost, scope: String = "p45-a-\(UUID().uuidString)") async -> StudoraAccountLink {
+    /// Konto A angemeldet, Container mit lokalem Backend, Hochschule LUH. `uniAccount`: der Stud.IP-Abgleich hat hier
+    /// schon einen Benutzer gemerkt (ohne ihn gleicht die App seit dem 14.11.2026 nicht zwischen Geraeten ab, `UniAccountKey`)
+    private func signedInLink(_ stub: ServiceStub, host: LocalBackendHost, scope: String = "p45-a-\(UUID().uuidString)",
+                              uniAccount: Bool = true) async -> StudoraAccountLink {
         let l = link(stub, scope: scope)
+        if uniAccount {
+            try? await host.backend().context.database.transaction { try StudIPUserMark.store($0, StudIPUserMark.hash(userID: "ada-test")) }
+        }
         l.attachHostForTesting(host, university: "luh")
         await l.refresh()
         XCTAssertEqual(l.user?.id, Self.userA)
@@ -274,10 +279,37 @@ final class AuditPaket40x45AppTests: XCTestCase {
         XCTAssertFalse(first)
         XCTAssertEqual(l.lastSync?.ok, true)
         let before = stub.count("GET /api/sync/changes")
-        l.use(userScope: scope, host: try backendHost(), university: "luh")
+        let second = try backendHost()
+        try await second.backend().context.database.transaction { try StudIPUserMark.store($0, StudIPUserMark.hash(userID: "ada-test")) }
+        l.use(userScope: scope, host: second, university: "luh")
         XCTAssertNil(l.lastSync, "Stand des vorigen Containers")
         _ = await l.syncNow()
         XCTAssertGreaterThan(stub.count("GET /api/sync/changes"), before, "neuer Container gleicht gleich ab")
+    }
+
+    /// Raum je Uni-Konto (14.11.2026, `UniAccountKey`): ohne Uni-Anmeldung auf diesem Geraet gleicht die App nicht ab
+    /// (keine Anfrage, kurzer Hinweis in den Konto-Einstellungen); sobald der Stud.IP-Abgleich den Benutzer kennt,
+    /// laeuft der naechste Anstoss ohne die 3-Minuten-Pause, und jede Anfrage traegt den Schluessel.
+    func testDeviceSyncWaitsForTheUniAccountAndThenSendsItsKey() async throws {
+        let stub = ServiceStub()
+        let host = try backendHost()
+        let l = await signedInLink(stub, host: host, uniAccount: false)
+        let changed = await l.syncNow(force: true)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(l.lastSync?.noUniAccount, true)
+        XCTAssertEqual(stub.count("GET /api/sync/changes") + stub.count("POST /api/sync/push"), 0, "nichts abgerufen, nichts gesendet")
+        XCTAssertEqual(l.uniSyncHint, UniAccountKey.signInFirstText)
+        XCTAssertEqual(StudoraAccountCard.syncText(l.lastSync), "Auf diesem Gerät noch nicht abgeglichen")
+        // der Stud.IP-Abgleich hat den Benutzer gemerkt (nur als Hash)
+        let identity = StudIPUserMark.hash(userID: "ada-test")
+        try await host.backend().context.database.transaction { try StudIPUserMark.store($0, identity) }
+        _ = await l.syncNow()
+        XCTAssertEqual(l.lastSync?.noUniAccount, false)
+        XCTAssertNil(l.uniSyncHint)
+        let key = UniAccountKey.key(account: Self.userA, university: "luh", identity: identity)
+        let pulls = stub.requests.filter { $0.hasPrefix("GET /api/sync/changes") }
+        XCTAssertFalse(pulls.isEmpty)
+        XCTAssertTrue(pulls.allSatisfy { $0.contains("uni_key=\(key)") && $0.contains("studip_user=\(identity)") }, pulls.description)
     }
 
     /// P37-09 / P45-08: ein fehlgeschlagener Abgleich zaehlt nicht als erledigt; der naechste automatische laeuft
