@@ -205,6 +205,7 @@ struct StudyPlanPage: View {
                             .accessibilityIdentifier("studyplan.link.failed")
                     }
                     StudyPlanHeaderCard(plan: p)
+                    if let l = p.lsfPlan { StudyPlanLSFLink(url: l.url, label: l.label) }
                     if !p.earlier.isEmpty { StudyPlanEarlierCard(studies: p.earlier) }
                     if let editError {
                         Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
@@ -227,6 +228,7 @@ struct StudyPlanPage: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if (p.programs.count > 1 && !p.poConfirmed) || p.programMismatch != nil { programCards(p) }
                     gapCard(p)
+                    if let l = p.lsfPlan { StudyPlanLSFLink(url: l.url, label: l.label) }
                     ExamRegistrationSection(api: session.api)
                 }
             }

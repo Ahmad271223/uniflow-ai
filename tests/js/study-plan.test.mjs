@@ -281,7 +281,7 @@ test("Studiengang waehlen: Register mit Suche, PO-Knoepfe, ohne Katalog ausgegra
   assert.match(html, /data-pick="TIBSc25"[^>]*>PO 2025/);
   assert.match(html, /data-pick="TIBSc22"/);
   assert.match(html, /class="chip on" data-pick="TIBSc22"/, "die gewaehlte Ordnung ist markiert");
-  assert.match(html, /<li class="off">[\s\S]*Geschichte[\s\S]*Katalog noch nicht bekannt/);
+  assert.match(html, /<li class="off">[\s\S]*Geschichte[\s\S]*data-pick="[^"]*">Wählen<\/button> <span class="muted small">Für diesen Studiengang gibt es noch keinen Modulkatalog\./, "ohne Katalog wählbar, mit ehrlichem Hinweis");
   assert.match(L.programsHtml(list, "xyz", ""), /Kein Studiengang gefunden/);
   assert.match(L.programsHtml(Array.from({ length: 70 }, (_, i) => ({ program: `Fach ${i}`, pos: [] })), "", "", 60), /10 weitere/);
   assert.ok(!L.programsHtml([{ program: "<script>", pos: [] }], "", "").includes("<script>"), "maskiert");
@@ -369,4 +369,22 @@ test("Bisherige Ordnung bei frueherem Studienbeginn vorschlagen", () => {
   assert.match(html, /Du hast im WiSe 24\/25 angefangen\. Sozialpädagogik gilt erst ab dem WiSe 2025\/26/);
   assert.match(html, /data-order-url="https:\/\/www\.uni-hildesheim\.de\/qm\/processmanagement\/download\.php\?fileID=4710"/);
   assert.match(html, /data-order-ack="order:sozialpaedagogik\|b\.a\.\|2025">Bei Sozialpädagogik bleiben/);
+});
+
+test("Suche Was studierst du: gleiche Treffer wie Python (fixtures/study-catalog/program-search.json)", () => {
+  const fx = JSON.parse(readFileSync(new URL("../../packages/shared-contracts/fixtures/study-catalog/program-search.json", import.meta.url), "utf8"));
+  const reg = JSON.parse(readFileSync(new URL("../../packages/shared-contracts/study-sources-all.json", import.meta.url), "utf8"));
+  const progs = reg.universities.find(u => u.id === "hildesheim").programs;
+  assert.equal(progs.length, fx.programs);
+  for (const c of fx.cases) {
+    const hits = L.filterPrograms(progs, c.query).map(p => `${p.program} | ${p.degree}`).sort();
+    assert.deepEqual(hits, [...c.hits].sort(), c.query);
+  }
+});
+
+test("Link zum LSF-Wochenraster, ehrlich beschriftet", () => {
+  const html = L.lsfLinkHtml({ lsf_plan: { url: "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&k_abstgv.abstgvnr=174", label: "Veranstaltungen dieses Semesters im LSF" } }, icon);
+  assert.match(html, /href="https:\/\/lsf\.uni-hildesheim\.de\/qisserver\/rds\?state=wplan&amp;k_abstgv\.abstgvnr=174"[^>]*>.*Veranstaltungen dieses Semesters im LSF/);
+  assert.equal(L.lsfLinkHtml({ lsf_plan: null }), "");
+  assert.equal(L.lsfLinkHtml({ lsf_plan: { url: "javascript:alert(1)" } }), "");
 });

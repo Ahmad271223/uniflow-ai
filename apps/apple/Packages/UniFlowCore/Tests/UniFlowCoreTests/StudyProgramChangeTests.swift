@@ -46,10 +46,9 @@ final class StudyProgramChangeTests: XCTestCase {
     func testProgramListMatchesPython() async throws {
         let s = StudySources.bundled
         let hi = s.programs(university: "hildesheim")
-        XCTAssertEqual(hi.count, 112)
+        XCTAssertEqual(hi.count, 176, "112 Studiengaenge und 64 Neben-/Begleitfaecher aus der LSF-Uebersicht")
         XCTAssertEqual(hi.prefix(4).map { "\($0["program"]?.string ?? "") \($0["degree"]?.string ?? "")" },
-                       ["Angewandte Informatik B.Sc.", "Angewandte Informatik M.Sc.", "Barrierefreie Kommunikation M.A.",
-                        "Biologie im Master Lehramt an Haupt- und Realschulen M.Ed."])
+                       ["Angewandte Informatik B.Sc.", "Angewandte Informatik M.Sc.", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften Nebenfach", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften Nebenfach"])
         let sop = try XCTUnwrap(hi.first { $0["program"]?.string == "Sozialpädagogik" })
         XCTAssertEqual(sop["pos"]?.array?.first?["code"]?.string, "sozialpaedagogik|b.a.|2025")
         XCTAssertEqual(sop["pos"]?.array?.first?["catalog_terms"], ["SS 2025"])
@@ -160,5 +159,23 @@ final class StudyProgramChangeTests: XCTestCase {
         s.orderAck = nil
         s.catalogURL = sug["url"]?.string
         XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim"), .null)
+    }
+}
+
+/// Suche "Was studierst du?": dieselben Treffer wie Python (fixtures/study-catalog/program-search.json), jede Anfrage
+/// aus dem Studienangebot der Uni-Seiten findet mindestens einen Studiengang
+final class StudyProgramSearchTests: XCTestCase {
+    func testSameHitsAsPython() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let fx = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/study-catalog/program-search.json")))
+        let progs = StudySources.bundled.programs(university: "hildesheim")
+        XCTAssertEqual(progs.count, fx["programs"]?.int)
+        for c in fx["cases"]?.array ?? [] {
+            let q = c["query"]?.string ?? ""
+            let hits = StudySources.filterPrograms(progs, query: q).map { "\($0["program"]?.string ?? "") | \($0["degree"]?.string ?? "")" }
+            XCTAssertEqual(hits.sorted(), (c["hits"]?.array ?? []).compactMap(\.string).sorted(), q)
+            XCTAssertFalse(hits.isEmpty, q)
+        }
     }
 }

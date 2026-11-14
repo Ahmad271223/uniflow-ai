@@ -1547,10 +1547,12 @@ def plan_response(conn, today: str, source=None) -> dict:
     uni = _university(conn)
     mine = grades_for_catalog(grades, cat, uni)
     out = unavailable(reason, settings["po"]) if cat is None else build_plan(cat, mine, settings, today)
-    if cat is None and reason == "no_catalog_po":
+    if cat is None and reason in ("no_catalog", "no_catalog_po"):
+        # gewaehlter Studiengang aus dem Register (auch ohne Katalog): ehrlich mit Namen statt "Verbinde das LSF"
         named = chosen_program_name(settings["po"], uni)
         if named:
             out["message"] = f"Für {named} gibt es noch keinen Modulkatalog."
+            out["program"] = named
     other = [r for r in grades if r not in mine and r.get("source") != "anmeldung" and not is_bereich(r)]
     out["earlier_studies"] = earlier_studies(other) if cat is not None else []
     if cat is not None and other:
@@ -1565,8 +1567,25 @@ def plan_response(conn, today: str, source=None) -> dict:
     out.update(suggested_po=suggested.get("po") if suggested else None, po_confirmed=settings["po"] is not None,
                qis_program=abschluss_of(grades), programs=progs if len(progs) > 1 else [],
                program_mismatch=program_mismatch(progs, settings, uni),
-               order_suggestion=order_suggestion(settings, out.get("code") or settings.get("po"), out.get("start_term"), uni))
+               order_suggestion=order_suggestion(settings, out.get("code") or settings.get("po"), out.get("start_term"), uni),
+               lsf_plan=lsf_plan(cat.get("code") if cat else settings.get("po"), uni))
     return out
+
+
+def lsf_plan(code: str | None, university: str, registry: dict | None = None) -> dict | None:
+    """Link zum LSF-"Studiengangsplan" des Studiengangs (Kuerzel oder ID; 14.11.2026): Wochenraster der Veranstaltungen
+    dieses Semesters, kein Studienverlauf. None ohne Eintrag."""
+    from .study_catalog import load_registry, program_entry
+    if not code:
+        return None
+    reg = registry or load_registry()
+    found = program_entry(reg, university, code)
+    prog = found[1] if found else next((p for u in reg.get("universities") or [] if u.get("id") == university
+                                        for p in u.get("programs") or [] if p.get("id") == code), None)
+    lsf = (prog or {}).get("lsf")
+    if not isinstance(lsf, dict) or not lsf.get("url"):
+        return None
+    return {"url": lsf["url"], "text": lsf.get("text"), "label": "Veranstaltungen dieses Semesters im LSF"}
 
 
 ORDERS_PATH = Path(__file__).resolve().parent.parent / "packages" / "shared-contracts" / "study-orders.json"
@@ -1636,8 +1655,14 @@ def program_mismatch(progs: list[dict], settings: dict, university: str, registr
 def chosen_program_name(code: str | None, university: str, registry: dict | None = None) -> str | None:
     """Kuerzel aus dem Register -> "Sozialpädagogik (B.A., PO 2025)" fuer Meldungen; None fuer eine PO-Jahreszahl"""
     from .study_catalog import load_registry, program_entry
-    found = program_entry(registry or load_registry(), university, code) if code else None
+    reg = registry or load_registry()
+    found = program_entry(reg, university, code) if code else None
     if not found:
+        # Studiengang ohne Katalog: gewaehlt ueber seine ID (14.11.2026, "Was studierst du?")
+        for u in reg.get("universities") or []:
+            for p in u.get("programs") or [] if u.get("id") == university else []:
+                if code and p.get("id") == code:
+                    return f"{p.get('program')} ({p.get('degree')})" if p.get("degree") else p.get("program")
         return None
     _, prog, po = found
     extra = ", ".join(x for x in (prog.get("degree"), f"PO {po.get('po')}" if po.get("po") else None) if x)

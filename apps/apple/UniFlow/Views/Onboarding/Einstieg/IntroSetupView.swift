@@ -227,7 +227,7 @@ struct IntroSetupView: View {
     private func saveProgram() {
         guard let api = session.api, let main = model.chosenPrograms.first else { return }
         var body: [String: JSONValue] = ["minors": .array(model.chosenPrograms.dropFirst().map { .string($0.key) })]
-        if let code = main.code { body["po"] = .string(code) }
+        body["po"] = .string(main.key)       // ohne Katalog die ID: der Studienverlauf sagt dann ehrlich "noch kein Modulkatalog"
         Task {
             _ = try? await api.value("/api/study-plan/settings", method: "POST", body: .object(body))
             _ = try? await api.value("/api/study-catalog/status")

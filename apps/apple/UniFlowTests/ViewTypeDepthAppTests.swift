@@ -138,6 +138,7 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("IntroProgramAnswer", IntroProgramAnswer.Body.self),
         ("StudyPlanEarlierCard", StudyPlanEarlierCard.Body.self),
         ("StudyPlanOrderCard", StudyPlanOrderCard.Body.self),
+        ("StudyPlanLSFLink", StudyPlanLSFLink.Body.self),
         ("StudyProgramSettingsCard", StudyProgramSettingsCard.Body.self),
         ("IntroProgramToggle", IntroProgramToggle.Body.self),
         ("IntroChosenProgramRow", IntroChosenProgramRow.Body.self),

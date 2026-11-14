@@ -149,8 +149,10 @@ public enum StudyPlanAPI {
         } else {
             out = StudyPlanEngine.unavailable(picked.reason ?? "no_catalog", po: settings.po)
             out["earlier_studies"] = .array([])
-            if picked.reason == "no_catalog_po", let named = chosenProgramName(settings.po, university: uni) {
+            // gewaehlter Studiengang aus dem Register (auch ohne Katalog): ehrlich mit Namen statt "Verbinde das LSF"
+            if ["no_catalog", "no_catalog_po"].contains(picked.reason ?? "no_catalog"), let named = chosenProgramName(settings.po, university: uni) {
                 out["message"] = .string("Für \(named) gibt es noch keinen Modulkatalog.")
+                out["program"] = .string(named)
             }
         }
         let suggested = StudyPlanEngine.pickCatalog(catalogs, settings: [:], grades: grades).catalog
@@ -162,6 +164,7 @@ public enum StudyPlanAPI {
         out["program_mismatch"] = programMismatch(progs, settings: settings, university: uni)
         out["order_suggestion"] = orderSuggestion(settings: settings, code: out["code"]?.string ?? settings.po,
                                                   startTerm: out["start_term"]?.string, university: uni)
+        out["lsf_plan"] = lsfPlan(picked.catalog?["code"]?.string ?? settings.po, university: uni)
         return .object(out)
     }
 
@@ -191,6 +194,15 @@ public enum StudyPlanAPI {
         }
     }
 
+    /// `lsf_plan`: Link zum LSF-"Studiengangsplan" (Wochenraster der Veranstaltungen dieses Semesters, kein Studienverlauf)
+    static func lsfPlan(_ code: String?, university: String, sources: StudySources = .bundled) -> JSONValue {
+        guard let code else { return .null }
+        let prog = sources.entry(university: university, code: code)?.1
+            ?? (sources.university(university)?["programs"]?.array ?? []).first { $0["id"]?.string == code }
+        guard let lsf = prog?["lsf"], let url = lsf["url"]?.string, !url.isEmpty else { return .null }
+        return ["url": .string(url), "text": lsf["text"] ?? .null, "label": "Veranstaltungen dieses Semesters im LSF"]
+    }
+
     /// Vorgaengerordnungen wie packages/shared-contracts/study-orders.json (gleiche Werte, StudyProgramChangeTests
     /// vergleicht mit der Datei)
     struct Order: Equatable {
@@ -215,7 +227,13 @@ public enum StudyPlanAPI {
 
     /// `chosen_program_name`: Kuerzel aus dem Register -> "Sozialpädagogik (B.A., PO 2025)"; nil fuer eine PO-Jahreszahl
     static func chosenProgramName(_ code: String?, university: String, sources: StudySources = .bundled) -> String? {
-        guard let code, let (_, prog, po) = sources.entry(university: university, code: code) else { return nil }
+        guard let code else { return nil }
+        guard let (_, prog, po) = sources.entry(university: university, code: code) else {
+            // Studiengang ohne Katalog: gewaehlt ueber seine ID (14.11.2026, "Was studierst du?")
+            guard let p = (sources.university(university)?["programs"]?.array ?? []).first(where: { $0["id"]?.string == code }) else { return nil }
+            let name = p["program"]?.string ?? code
+            return p["degree"]?.string.map { "\(name) (\($0))" } ?? name
+        }
         let p = StudySources.text(po["po"])
         let extra = [prog["degree"]?.string, p.isEmpty ? nil : "PO \(p)"].compactMap { $0 }.joined(separator: ", ")
         let name = prog["program"]?.string ?? code

@@ -3144,6 +3144,9 @@
       "lp_total": {
        "type": "number"
       },
+      "lsf_plan": {
+       "type": "null"
+      },
       "message": {
        "type": "string"
       },

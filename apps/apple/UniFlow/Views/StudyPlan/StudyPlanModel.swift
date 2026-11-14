@@ -350,6 +350,8 @@ struct StudyPlan: Equatable {
     let earlier: [StudyPlanEarlierStudy]
     /// alte Ordnung vorschlagen (Studienbeginn vor dem ersten Semester der gewaehlten)
     let orderSuggestion: StudyPlanOrderSuggestion?
+    /// Link zum LSF-Wochenraster des Studiengangs (kein Studienverlauf)
+    let lsfPlan: StudyPlanLSFRef?
     let semesters: [StudyPlanSemester]
     let currentTerm: String?
     let startTerm: String?
@@ -384,6 +386,9 @@ struct StudyPlan: Equatable {
         programs = v.list("programs").map(StudyPlanProgramChoice.init).filter { !$0.program.isEmpty }
         earlier = v.list("earlier_studies").map(StudyPlanEarlierStudy.init).filter { $0.count > 0 }
         orderSuggestion = v["order_suggestion"].flatMap { $0.isNull ? nil : StudyPlanOrderSuggestion($0) }
+        lsfPlan = v["lsf_plan"]?.s("url").flatMap(URL.init(string:)).map {
+            StudyPlanLSFRef(url: $0, label: v["lsf_plan"]?.s("label") ?? "Veranstaltungen dieses Semesters im LSF")
+        }
         if let mm = v["program_mismatch"], !mm.isNull, StudyPlanProgramChoice(mm).code != nil {
             programMismatch = StudyPlanProgramChoice(mm)
             mismatchChosen = mm.s("chosen")

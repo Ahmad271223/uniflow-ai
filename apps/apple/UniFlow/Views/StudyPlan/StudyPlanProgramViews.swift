@@ -133,11 +133,9 @@ struct StudyPlanProgramPicker: View {
         .accessibilityIdentifier("studyplan.programpicker")
     }
 
-    /// Filter nach Name (Kleinschreibung, ohne Umlaute-Unterschied wie im Web)
+    /// Suche wie im Kern (`StudySources.programMatches`)
     static func filter(_ all: [JSONValue], _ q: String) -> [JSONValue] {
-        let key = StudyCatalogText.nameKey(q)
-        guard !key.isEmpty else { return all }
-        return all.filter { StudyCatalogText.nameKey($0.s("program") ?? "").contains(key) }
+        StudySources.filterPrograms(all, query: q)
     }
 
     private func loadList() async {
@@ -209,7 +207,13 @@ struct StudyPlanProgramRow: View {
                     .accessibilityAddTraits(minor ? .isSelected : [])
             }
             if pos.isEmpty {
-                Text("Katalog noch nicht bekannt").ufFont(12.48).foregroundStyle(UF.muted)
+                // ohne Katalog trotzdem waehlbar (14.11.2026): der Studienverlauf sagt dann ehrlich, dass er fehlt
+                HStack(spacing: 8) {
+                    UFButton("Wählen", size: .small) { if let id = program.s("id") { choose(id) } }
+                        .disabled(busy)
+                        .accessibilityLabel("\(program.s("program") ?? "") wählen, noch ohne Modulkatalog")
+                    Text("Für diesen Studiengang gibt es noch keinen Modulkatalog.").ufFont(12.48).foregroundStyle(UF.muted)
+                }
             } else {
                 UFFlexWrap(gap: 6) {
                     ForEach(Array(pos.enumerated()), id: \.offset) { _, x in
@@ -426,4 +430,33 @@ struct StudyProgramSettingsCard: View {
         main = s?.s("po").map { StudyPlanProgramPicker.name(of: $0, in: all) }
         minors = (s?.list("minors") ?? []).compactMap(\.string).map { StudyPlanProgramPicker.name(of: $0, in: all) }
     }
+}
+
+/// Link zum LSF-"Studiengangsplan" (14.11.2026): das Wochenraster der Veranstaltungen dieses Semesters, ehrlich so
+/// beschriftet (kein Studienverlauf, keine Fachsemester)
+struct StudyPlanLSFLink: View {
+    let url: URL
+    let label: String
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button { openURL(url) } label: {
+            HStack(spacing: 6) {
+                UFIcon("calendar", size: 14)
+                Text(label).ufFont(13.6, 600)
+                UFIcon("external-link", size: 12)
+            }
+            .foregroundStyle(UF.accentText)
+            .ufHitArea()
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Öffnet das LSF im Browser: Wochenplan der Veranstaltungen, kein Studienverlauf")
+        .accessibilityIdentifier("studyplan.lsf")
+    }
+}
+
+/// Link zum LSF-Wochenraster (`lsf_plan`)
+struct StudyPlanLSFRef: Equatable {
+    let url: URL
+    let label: String
 }
