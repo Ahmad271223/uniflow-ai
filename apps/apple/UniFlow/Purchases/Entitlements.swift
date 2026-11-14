@@ -725,7 +725,7 @@ private struct UFRequiresModifier: ViewModifier {
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(access.requiredPlan.map(UFLock.accessibilityValue) ?? "")
                 .accessibilityHint(access == .comingSoon ? "Bald verfügbar" : UFLock.hint)
-                .sheet(isPresented: $sheet) { UFPlanSheet(required: access.requiredPlan, close: { sheet = false }) }
+                .ufSheet(isPresented: $sheet) { UFPlanSheet(required: access.requiredPlan, close: { sheet = false }) }
         }
     }
 
@@ -773,7 +773,7 @@ private struct UFPlanSheetHost: ViewModifier {
     @Binding var plan: UFPlan?
 
     func body(content: Content) -> some View {
-        content.sheet(item: $plan) { p in UFPlanSheet(required: p, close: { plan = nil }) }
+        content.ufSheet(item: $plan) { p in UFPlanSheet(required: p, close: { plan = nil }) }
     }
 }
 
@@ -859,7 +859,7 @@ struct UFLockedCard: View {
                     Spacer(minLength: 0)
                 }
             }
-            .sheet(isPresented: $sheet) { UFPlanSheet(required: ent.access(feature).requiredPlan, close: { sheet = false }) }
+            .ufSheet(isPresented: $sheet) { UFPlanSheet(required: ent.access(feature).requiredPlan, close: { sheet = false }) }
         }
     }
 

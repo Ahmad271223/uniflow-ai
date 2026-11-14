@@ -458,7 +458,7 @@ struct ExamRunPage: View {
         }
         .background(UF.bg.ignoresSafeArea())
         .animation(UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled), value: ask?.id)
-        .sheet(item: $askSheet) { c in
+        .ufSheet(item: $askSheet) { c in
             ExamAskPanel(context: c, close: { askSheet = nil }, sheet: true)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)

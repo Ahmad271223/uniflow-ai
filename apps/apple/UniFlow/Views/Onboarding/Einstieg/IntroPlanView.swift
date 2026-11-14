@@ -52,7 +52,7 @@ struct IntroPlanView: View {
                 await store.loadProducts()
                 await store.refreshEntitlements()
             }
-            .sheet(isPresented: $details) {
+            .ufSheet(isPresented: $details) {
                 ScrollView { PlanPickerView(context: .onboarding, entitlements: ent) { details = false; onDone() } }
                     .background(UF.bg)
             }

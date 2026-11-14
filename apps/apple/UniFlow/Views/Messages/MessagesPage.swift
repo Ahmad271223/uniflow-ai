@@ -156,11 +156,11 @@ struct MessagesPage: View {
             await load()
         }
         .ufReload { await load() }
-        .sheet(item: $composing, onDismiss: loadReplies) { c in
+        .ufSheet(item: $composing, onDismiss: loadReplies) { c in
             // Abgleich ausdruecklich ins Fenster (Mac "Designed for iPad": fehlte sonst, wie in LecturerList)
             MessageReplyEntry(original: c.original, mode: c.mode).environmentObject(studip)
         }
-        .sheet(item: $moodleReply) { t in
+        .ufSheet(item: $moodleReply) { t in
             let hsh = self.hsh, hildesheim = self.hildesheim
             if t.learnweb {
                 MoodleReplySheet(conversation: t.conversation, subject: t.subject, web: { await hildesheim?.moodleWeb() },

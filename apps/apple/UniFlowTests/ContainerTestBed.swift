@@ -107,6 +107,13 @@ final class ContainerTestBed {
         }
     }
 
+    /// Am Mac ("Designed for iPad") ueberspringen, mit Begruendung (14.11.2026, docs/MAC-DURCHLAUF-2026-11-14.md): fuer
+    /// Pruefungen, die nur am iPad oder iPhone passen (Bildschirmtastatur, vom Test gesetzte Fenstergroesse, Dialoge und
+    /// Bedienungshilfen, die der Mac als eigene Systemfenster bzw. anders liefert). Der Simulator prueft sie weiter.
+    nonisolated static func skipOnMac(_ reason: String) throws {
+        if ProcessInfo.processInfo.isiOSAppOnMac { throw XCTSkip("Am Mac übersprungen: \(reason)") }
+    }
+
     /// Quelltext-Pruefungen (sie lesen apps/apple/UniFlow im Repo): auf dem Mac ("Designed for iPad") verbietet die
     /// Sandbox das Lesen des Repo-Ordners (Befund 09.11.2026, docs/paritaet/MAC-B28-2026-11-09.md). Dann ueberspringen;
     /// die Quellen sind fuer iPad und Mac dieselben, der Simulator prueft sie.

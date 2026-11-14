@@ -207,7 +207,7 @@ struct InviteCard: View {
                     .accessibilityIdentifier("invite.open")
             }
         }
-        .sheet(isPresented: $open) { InviteSheet(link: link) }
+        .ufSheet(isPresented: $open) { InviteSheet(link: link) }
     }
 }
 
@@ -266,10 +266,10 @@ struct InviteView: View {
         }
         .background(UF.bg)
         .task { await model.load() }
-        .sheet(item: Binding(get: { model.lastClaim.map(ClaimItem.init) }, set: { if $0 == nil { model.lastClaim = nil } })) { item in
+        .ufSheet(item: Binding(get: { model.lastClaim.map(ClaimItem.init) }, set: { if $0 == nil { model.lastClaim = nil } })) { item in
             ClaimSheet(claim: item.claim)
         }
-        .sheet(item: $qrLink) { link in QRSheet(link: link) }
+        .ufSheet(item: $qrLink) { link in QRSheet(link: link) }
     }
 
     private func progress(_ o: InviteOverview) -> some View {

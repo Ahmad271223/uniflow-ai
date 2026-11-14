@@ -145,7 +145,7 @@ struct TrialDecisionCover: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content.fullScreenCover(isPresented: Binding(get: { shown }, set: { _ in })) {
+        content.ufFullScreenCover(isPresented: Binding(get: { shown }, set: { _ in })) {
             NavigationStack {
                 PlanPickerView(context: .trialOver, entitlements: ent) { ent.stayOnFreeAfterLocalTrial() }
             }

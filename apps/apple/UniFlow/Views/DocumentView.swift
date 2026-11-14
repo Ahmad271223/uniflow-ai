@@ -794,7 +794,7 @@ struct DocumentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .uniflowDocumentReleased)) { n in
             if n.userInfo?["key"] as? String == store.openKey { reopenHere(force: false) }
         }
-        .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
+        .ufSheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         // Menueleiste (Mac, iPad mit Tastatur): Befehle an dieses Dokument
         .focusedSceneObject(bridge)
         .onChange(of: bridge.menuRequest) { _, r in handleMenuRequest(r) }
@@ -841,7 +841,7 @@ struct DocumentView: View {
                     .environment(\.ufClose, { flashcardQuestion = nil })
             }
         }
-        .sheet(item: $markerPage) { mp in
+        .ufSheet(item: $markerPage) { mp in
             LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
                                goTo: { pdfPage in
                                    if let i = store.layout?.entries.firstIndex(where: { $0.kind == "pdf" && $0.pdfIndex == pdfPage }) {
@@ -858,11 +858,11 @@ struct DocumentView: View {
     /// Teil 3: Blaetter (Info, Papierkorb, Gliederung, Daneben, Loesungen, Abgabe, Export) und alte Fassung
     private var documentSheets: AnyView {
         documentPanels
-        .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
-        .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
-        .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
+        .ufSheet(isPresented: $showInfo) { InfoSheet(store: store) }
+        .ufSheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
+        .ufSheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
-        .sheet(isPresented: $choosingCompanion) {
+        .ufSheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
                             linkedSheetIDs: store.sideSheetFileIDs, openSheetID: companion?.file.id,
                             solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
@@ -876,15 +876,15 @@ struct DocumentView: View {
                 companion = Companion(file: f, pdfPage: nil)
             }
         }
-        .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
-        .sheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
-        .sheet(isPresented: $submittingToMoodle) { MoodleSubmitEntry(store: store, api: api) }
-        .sheet(isPresented: $mailingDocument) {
+        .ufSheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .ufSheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
+        .ufSheet(isPresented: $submittingToMoodle) { MoodleSubmitEntry(store: store, api: api) }
+        .ufSheet(isPresented: $mailingDocument) {
             if let uniMailConnection { UniMailDocumentEntry(store: store, api: api, connection: uniMailConnection) }
         }
         // Schloss angetippt: Tarifwahl mit dem noetigen Tarif vorausgewaehlt (Auftrag des Inhabers 12.11.2026)
-        .sheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
-        .fullScreenCover(item: $openedVersion) { v in
+        .ufSheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
+        .ufFullScreenCover(item: $openedVersion) { v in
             NavigationStack {
                 // Vollbild einer frueheren Fassung: derselbe Zurueck-Pfeil wie im Editor schliesst sie (vorher "Schließen")
                 DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true, onBack: { openedVersion = nil })
@@ -906,11 +906,11 @@ struct DocumentView: View {
             Task { await reloadSolutionLayers() }
         }
         .onChange(of: entitlements.plan) { _, _ in Task { await reloadSolutionLayers() } }
-        .sheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
+        .ufSheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
             // Sichern: Ordner waehlen (iPad: Dateien, Mac: Fenster "Sichern"), die PDF wird dorthin kopiert
             ExportToFolderView(url: f.url) { exportFile = nil }
         }
-        .sheet(item: Binding(get: { exportFile?.purpose == .share ? exportFile : nil }, set: { exportFile = $0 })) { f in
+        .ufSheet(item: Binding(get: { exportFile?.purpose == .share ? exportFile : nil }, set: { exportFile = $0 })) { f in
             VStack(spacing: 0) {
                 if let notice = f.notice {
                     Label(notice, systemImage: "exclamationmark.triangle")
@@ -2357,7 +2357,7 @@ struct CompanionPageMenu: View {
         .accessibilityLabel("Seiten und Blatt")
         .accessibilityIdentifier("companion.menu")
         .modifier(MacHelp(text: "Seiten und Blatt"))
-        .popover(isPresented: $open, arrowEdge: .top) { menu }
+        .ufPopover(isPresented: $open, arrowEdge: .top) { menu }
         .confirmationDialog(confirm == .sheet ? "Ganzes Blatt in den Papierkorb?" : "Seite \(bridge.pageIndex + 1) in den Papierkorb?",
                             isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
                             titleVisibility: .visible, presenting: confirm) { c in
@@ -2369,7 +2369,7 @@ struct CompanionPageMenu: View {
         } message: { c in
             Text(c == .sheet ? SideSheetTrash.confirmMessage(store.file.displayTitle) : Self.pageConfirmMessage)
         }
-        .sheet(isPresented: $showingTrash) { PageTrashSheet(bridge: bridge) }
+        .ufSheet(isPresented: $showingTrash) { PageTrashSheet(bridge: bridge) }
         .alert("Löschen", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(failure ?? "") }
@@ -2476,7 +2476,7 @@ struct CompanionAddPageButton: View {
         .accessibilityHint("Fragt nach dem Papier und fügt eine Seite unter der angezeigten ein")
         .accessibilityIdentifier("companion.addPage")
         .modifier(MacHelp(text: "Seite darunter einfügen"))
-        .popover(isPresented: $choosing, arrowEdge: .top) {
+        .ufPopover(isPresented: $choosing, arrowEdge: .top) {
             CompanionPaperChooser(current: Self.template(store.layout?.entries, at: bridge.pageIndex)) { t in
                 choosing = false
                 add(t)

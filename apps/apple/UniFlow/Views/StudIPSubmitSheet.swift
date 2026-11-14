@@ -32,7 +32,7 @@ struct StudIPSubmitSheet: View {
         }
         .interactiveDismissDisabled(model.phase == .uploading)
         .task { await model.start() }
-        .sheet(isPresented: $showingLogin) {
+        .ufSheet(isPresented: $showingLogin) {
             if let login {
                 login {
                     showingLogin = false

@@ -81,7 +81,7 @@ struct SolutionShareSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen", action: close) } }
         }
         .task { await load() }
-        .sheet(item: $shareFile) { f in ActivityView(items: [f.url]) }
+        .ufSheet(item: $shareFile) { f in ActivityView(items: [f.url]) }
         .ufModal(isPresented: $confirmingPublish) { publishDialog }
         .ufModal(isPresented: Binding(get: { updateID != nil }, set: { if !$0 { updateID = nil } })) { updateDialog }
     }
@@ -560,7 +560,7 @@ struct SharedSolutionsSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .onAppear { reload() }
-        .sheet(item: $shareFile) { f in ActivityView(items: [f.url]) }
+        .ufSheet(item: $shareFile) { f in ActivityView(items: [f.url]) }
         .ufModal(isPresented: Binding(get: { withdrawing != nil }, set: { if !$0 { withdrawing = nil } })) {
             if let e = withdrawing {
                 UFDialog("Lösung zurückziehen", icon: "trash") {

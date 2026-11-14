@@ -141,7 +141,7 @@ struct QISGradesCard: View {
             if connection.isConnected && connection.state != .needsLogin { QISPageReaderButton(connection: connection) }
             Spacer(minLength: 0)
         }
-        .sheet(isPresented: $login) { QISLoginView(connection: connection) }
+        .ufSheet(isPresented: $login) { QISLoginView(connection: connection) }
     }
 }
 
@@ -154,7 +154,7 @@ struct QISPageReaderButton: View {
     var body: some View {
         UFButton("Im QIS öffnen und Seite auslesen", icon: "arrow-right", size: .small) { open = true }
             .accessibilityIdentifier("qis.reader.open")
-            .sheet(isPresented: $open) { QISPageReaderView(connection: connection) }
+            .ufSheet(isPresented: $open) { QISPageReaderView(connection: connection) }
     }
 }
 
@@ -248,7 +248,7 @@ struct LUHSourcesCard: View {
             }
             .padding(.top, 8)
         }
-        .sheet(isPresented: $studipSheet) { NavigationStack { StudIPView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { studipSheet = false } } } } }
+        .ufSheet(isPresented: $studipSheet) { NavigationStack { StudIPView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { studipSheet = false } } } } }
     }
 
     /// Quelle links in der Zeile: Name und darunter klein, was sie liefert (vorher "Stud.IP (Dateien, Stundenplan)" in
@@ -306,7 +306,7 @@ struct LUHSourcesCard: View {
                         .disabled(connection.isRunning)
                 }
             }
-            .sheet(isPresented: $login) { QISLoginView(connection: connection) }
+            .ufSheet(isPresented: $login) { QISLoginView(connection: connection) }
             .confirmationDialog("Vom QIS abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
             } message: {

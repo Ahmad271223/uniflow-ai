@@ -175,6 +175,7 @@ final class PurchaseServiceRetryP78Tests: StoreKitSessionTestCase {
     /// (kein appAccountToken, keine Meldung), dann "StudiNow-Konto" -> "Mit Apple anmelden": die Anmeldung meldet den Kauf,
     /// der Dienst ordnet ihn diesem Konto zu (erstes meldendes Konto, P36-04) und gibt Pro AI mit 100 Credits.
     func testPurchaseBeforeSignInIsReportedWhenTheAccountSignsIn() async throws {
+        try requireVisibleTestPurchases()
         let service = Service()
         service.mode = .ok
         let ent = Entitlements(observe: false)

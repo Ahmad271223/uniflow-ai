@@ -291,7 +291,7 @@ struct CommunityChannelView: View {
             guard let host = ActiveContainer.current?.host else { return }
             local = await CommunityChannel.localFiles(fingerprints: Set(solutions.map(\.fingerprint)), host: host)
         }
-        .sheet(item: $open) { item in
+        .ufSheet(item: $open) { item in
             CommunityContributorsSheet(item: item, weekLabel: CommunityChannel.weekLabel(item.week, weeks: weeks), service: service,
                                        removed: { text, matches in
                                            open = nil
@@ -755,7 +755,7 @@ struct CommunityPeopleReader: View {
         .navigationBarTitleDisplayMode(.inline)
         // eigene PDF zur Loesung suchen (Korrektur nur mit derselben PDF)
         .task(id: current.solutionID) { await lookUpPDF(current) }
-        .sheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }   // Schloss: Tarifwahl (12.11.2026)
+        .ufSheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }   // Schloss: Tarifwahl (12.11.2026)
         .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
             if let s = reporting {
                 CommunityReportDialog(solution: s, service: service, done: { m in reporting = nil; notice = m })

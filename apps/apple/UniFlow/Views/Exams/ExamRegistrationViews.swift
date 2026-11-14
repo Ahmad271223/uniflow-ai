@@ -451,7 +451,7 @@ struct ExamRegistrationFetchButton: View {
                 }
             }
             .fixedSize(horizontal: !wide, vertical: !wide)
-            .sheet(isPresented: $login) { QISLoginView(connection: connection) }
+            .ufSheet(isPresented: $login) { QISLoginView(connection: connection) }
         }
 
         @ViewBuilder private func button(_ title: String, icon: String, action: @escaping () -> Void) -> some View {

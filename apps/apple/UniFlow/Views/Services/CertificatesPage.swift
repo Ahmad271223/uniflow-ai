@@ -42,8 +42,8 @@ struct CertificatesPage: View {
         }
         .ufReload { await load() }
         .onChange(of: center?.finished) { _, _ in Task { await load() } }
-        .sheet(item: $preview) { p in CertificatePreviewSheet(preview: p, reload: p.offerID.map { id in { await download(id, show: true) } }) }
-        .sheet(isPresented: $login) { loginSheet }
+        .ufSheet(item: $preview) { p in CertificatePreviewSheet(preview: p, reload: p.offerID.map { id in { await download(id, show: true) } }) }
+        .ufSheet(isPresented: $login) { loginSheet }
         .accessibilityIdentifier("certificates.page")
     }
 

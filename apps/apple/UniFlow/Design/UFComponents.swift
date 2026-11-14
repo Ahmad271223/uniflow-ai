@@ -920,7 +920,7 @@ private struct UFInlineModal<M: View>: ViewModifier {
                 }
             }
             .animation(UF.motion(.easeOut(duration: 0.12)), value: isPresented)
-            .sheet(isPresented: Binding(get: { isPresented && sheet }, set: { if !$0 { isPresented = false } })) {
+            .ufSheet(isPresented: Binding(get: { isPresented && sheet }, set: { if !$0 { isPresented = false } })) {
                 ScrollView { body() }
                     .scrollBounceBehavior(.basedOnSize)
                     .ufSheetPresentation()

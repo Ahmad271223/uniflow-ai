@@ -100,7 +100,9 @@ final class IPhoneNavigationTests: XCTestCase {
     }
 
     func testDeviceNameInTexts() {
-        XCTAssertEqual(UFDevice.name, UIDevice.current.userInterfaceIdiom == .phone ? "iPhone" : "iPad")
+        // am Mac ("Designed for iPad") heisst das Geraet in Texten "Mac" (`UFDevice`, 10.11.2026)
+        let expected = ProcessInfo.processInfo.isiOSAppOnMac ? "Mac" : (UIDevice.current.userInterfaceIdiom == .phone ? "iPhone" : "iPad")
+        XCTAssertEqual(UFDevice.name, expected)
     }
 
     // MARK: - Gehostet

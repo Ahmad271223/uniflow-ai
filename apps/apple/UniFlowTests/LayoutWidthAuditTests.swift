@@ -595,6 +595,9 @@ final class LayoutWidthAuditTests: XCTestCase {
             guard !v.isHidden, v.alpha > 0.01 else { return }
             // Abdunkelung hinter einem Blatt (System): reicht absichtlich ueber den Bildschirm hinaus
             if String(describing: type(of: v)) == "UIDimmingView" { return }
+            // Schattenrand um ein Blatt auf dem Mac ("Designed for iPad", Systemrahmen): 54 pt breiter als das Fenster
+            // (Befund 14.11.2026, alle iPhone-Blatt-Tests "1 zu breit"); am iPad und iPhone gibt es die Ansicht nicht
+            if String(describing: type(of: v)) == "UIDropShadowRimPartView" { return }
             let full = v.convert(v.bounds, to: window)
             let r = clipped(full, clip)
             if !exempt && bad(r) { note("View \(name(v))", r) }

@@ -686,7 +686,7 @@ private struct AccountTab: View {
                 hand = d.s.s("hand") ?? "right"
                 localHand = hand
             }
-            .sheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
+            .ufSheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
     }
 
     /// Stud.IP-Zugang: Status wie im Web; ohne Passwortfeld (Anmeldung auf der echten Stud.IP-Seite)
@@ -820,7 +820,7 @@ private struct AppAccountCards: View {
         }
         .environment(\.ufFillsCell, true)
         #if DEBUG
-        .sheet(isPresented: $plans) { SettingsSheet(close: { plans = false }) { SubscriptionView() } }
+        .ufSheet(isPresented: $plans) { SettingsSheet(close: { plans = false }) { SubscriptionView() } }
         #endif
     }
 

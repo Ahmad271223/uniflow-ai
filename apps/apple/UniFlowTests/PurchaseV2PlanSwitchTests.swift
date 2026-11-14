@@ -37,6 +37,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
     /// Kauf je Tarif: jeder Abo-Tarif schaltet sich selbst frei, mit allem aus Plus; nie mit appAccountToken (ohne
     /// Konto beim Dienst)
     func testPurchaseOfEachPlanUnlocksItWithEverythingFromPlus() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         for plan in UFPlan.paid {
             session.clearTransactions()
@@ -60,6 +61,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
 
     /// Upgrade in der Gruppe gilt sofort: Plus -> Pro AI; der ersetzte Kauf zaehlt nicht mehr, es gilt der hoechste Tarif
     func testUpgradeTakesEffectImmediatelyAndHighestPlanWins() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
         XCTAssertEqual(ent.plan, .plus)
@@ -83,6 +85,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
     /// Downgrade in der Gruppe gilt erst zur naechsten Verlaengerung: bis dahin bleibt Pro AI, der Wechsel ist
     /// vorgemerkt; nach der Verlaengerung gilt Plus
     func testDowngradeWaitsForNextRenewal() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let proAI = try XCTUnwrap(store.product(for: .proAI))
         _ = await store.purchase(proAI)
@@ -102,6 +105,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
 
     /// Ablauf eines Pro-Tarifs (gekuendigt, Zeitraum vorbei): zurueck auf Free, Notizen bleiben lesbar
     func testExpiryOfProPlanFallsBackToFree() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let pro = try XCTUnwrap(store.product(for: .proAI))
         _ = await store.purchase(pro)
@@ -129,6 +133,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
 
     /// Kaufanfrage fuer Pro AI: erst ausstehend und weiter Free, nach Freigabe Pro AI
     func testAskToBuyForProAIIsPendingUntilApproved() async throws {
+        try requireVisibleTestPurchases()
         session.askToBuyEnabled = true
         let (store, ent) = await makeStore()
         let proAI = try XCTUnwrap(store.product(for: .proAI))
@@ -156,6 +161,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
 
     /// Wiederherstellen eines Pro-Tarifs auf einer neuen Installation
     func testRestoreOfProPlanOnNewInstall() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .proAI)))
         XCTAssertEqual(ent.plan, .proAI)
