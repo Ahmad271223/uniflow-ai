@@ -665,7 +665,9 @@ final class StoreScreenshotTests: XCTestCase {
         env.router.go(.doc("demo-skript"))
         waitForInk(env)
         XCTAssertTrue(env.wait { self.shows(env, "Ganzes Dokument") }, dump(env))
-        XCTAssertTrue(tap("Ganzes Dokument", in: env), "Umfang „Ganzes Dokument“:\n" + dump(env))
+        // Mac-Testwirt: der Umschalter laesst sich nicht ueber die Bedienungshilfe ausloesen (`selectSegmentOnMac`)
+        XCTAssertTrue(tap("Ganzes Dokument", in: env) || ContainerTestBed.selectSegmentOnMac("Ganzes Dokument", in: env.window),
+                      "Umfang „Ganzes Dokument“:\n" + dump(env))
         env.pump(0.5)
         XCTAssertTrue(tap("Ganze Vorlesung erklären", in: env), dump(env))
         XCTAssertTrue(env.wait(timeout: 15) { t.count("/api/ai/document/step") == 2 }, "zwei Teile geholt")

@@ -105,7 +105,18 @@ final class ForeignInkWidthTests: XCTestCase {
                                     "points": .array([10, 10, 50, 10].map { .number($0) })])
         let page = SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 100, height: 100, rotation: 0, objects: [o])
         let view = ForeignLayerView(solutionID: "l1", page: page, images: [:], targetRotation: 0, label: "")
+        // In einem dunklen Fenster pruefen: ohne Fenster hat die Tinte die Vorgabe "hell" der Ebene noch nicht geerbt und
+        // meldet das Erscheinungsbild des Geraets (Mac-Durchlauf 14.11.2026: der Mac stand abends auf dunkel, der Test war
+        // rot; im hellen Simulator fiel das nie auf).
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 200, height: 200))
+        window.overrideUserInterfaceStyle = .dark
+        window.addSubview(view)
+        window.isHidden = false
+        window.layoutIfNeeded()
+        XCTAssertEqual(window.traitCollection.userInterfaceStyle, .dark)
         XCTAssertEqual(view.ink.traitCollection.userInterfaceStyle, .light)
+        window.isHidden = true
+        view.removeFromSuperview()
         XCTAssertFalse(view.ink.isUserInteractionEnabled)
         XCTAssertFalse(view.ink.drawingGestureRecognizer.isEnabled)
         XCTAssertEqual(view.strokeCount, 1)

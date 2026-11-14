@@ -317,7 +317,10 @@ final class CommunityCorrectionAppTests: XCTestCase {
         XCTAssertEqual(cv.pins.subviews.count, 1)
         XCTAssertNil(try XCTUnwrap(editor.overlayForTesting(at: 1)).correctionView, "Seite 2 hat keine Korrektur")
         // Tinte in der Warnfarbe, Eingabe nur auf den Nadeln (eigene Notizen bleiben schreibbar)
-        let warn = UIColor(UF.warn).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).uniflowRGBA.0
+        // Die Tinte bekommt die Warnfarbe des Erscheinungsbilds, das beim Anlegen gilt: hell #d9851e, dunkel #e9a04a.
+        // Der Simulator ist hell; der Mac des Inhabers schaltet abends auf dunkel (Mac-Durchlauf 14.11.2026: dort kam
+        // die dunkle Variante, der Test erwartete fest die helle).
+        let warn = UIColor(UF.warn).resolvedColor(with: UITraitCollection.current).uniflowRGBA.0
         XCTAssertEqual(cv.ink.drawing.strokes.first?.ink.color.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).uniflowRGBA.0, warn)
         XCTAssertNil(cv.hitTest(CGPoint(x: 5, y: 5), with: nil))
         let pin = try XCTUnwrap(cv.pins.subviews.first)

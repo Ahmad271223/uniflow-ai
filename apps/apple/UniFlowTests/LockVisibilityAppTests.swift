@@ -245,6 +245,18 @@ final class LockVisibilityAppTests: XCTestCase {
         XCTAssertEqual(editor.toolbarPlacement, .bottom)
         try shoot(env, "lage-unten-plus")
 
+        // Am Mac ("Designed for iPad") gibt es "Schwebend" nicht (`EditorToolbarPlacement.resolve`): die Wahl faellt auf
+        // "Oben fest", die Leiste steht wieder ueber der PDF. Der Rest des Tests gilt nur am iPad (Mac-Durchlauf
+        // 14.11.2026, docs/MAC-DURCHLAUF-2026-11-14.md).
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            UserDefaults.standard.set(EditorToolbarPlacement.floating.rawValue, forKey: EditorToolbarPlacement.key)
+            XCTAssertTrue(env.wait(timeout: 5) { (pen()?.midY ?? .infinity) < (pdf()?.minY ?? 0) }, "Mac: statt schwebend oben fest")
+            XCTAssertEqual(editor.toolbarPlacement, .top)
+            XCTAssertFalse(editor.floatingPaletteWanted, "Mac: keine Palette")
+            env.window.isHidden = true
+            return
+        }
+
         // schwebend: keine feste Leiste, Apples Palette am Editor (Simulator: Palette erscheint mit dem Erstantwortgeber)
         UserDefaults.standard.set(EditorToolbarPlacement.floating.rawValue, forKey: EditorToolbarPlacement.key)
         XCTAssertTrue(env.wait(timeout: 5) { bar() == nil }, "schwebend: keine feste Leiste")
@@ -279,24 +291,30 @@ final class LockVisibilityAppTests: XCTestCase {
     /// Plus: die Leiste mit Schloss unten
     func testFloatingAndBottomWithoutPlusShowTheLock() throws {
         Entitlements.shared.setPlanForTesting(.free)
-        UserDefaults.standard.set(EditorToolbarPlacement.floating.rawValue, forKey: EditorToolbarPlacement.key)
+        // Am Mac ("Designed for iPad") gibt es "Schwebend" nicht (`EditorToolbarPlacement.resolve`), also auch keinen
+        // Hinweis statt der Palette: dort nur der zweite Teil, unten fest ohne Plus (Mac-Durchlauf 14.11.2026)
+        let mac = ProcessInfo.processInfo.isiOSAppOnMac
+        UserDefaults.standard.set((mac ? EditorToolbarPlacement.bottom : .floating).rawValue, forKey: EditorToolbarPlacement.key)
         let env = try hostDocument()
-        XCTAssertTrue(env.wait(timeout: 20) { Self.element("editor.palette.locked", in: env.view) != nil },
-                      env.labels().joined(separator: "\n"))
-        env.pump(1.0)
-        let editor = try XCTUnwrap(EditorToolbarTests.pdfViews(in: env.view).first.flatMap(EditorToolbarTests.editor(of:)))
-        XCTAssertFalse(editor.floatingPaletteWanted, "ohne Plus keine Palette")
-        XCTAssertFalse(editor.floatingPalette?.isVisible ?? false)
-        let hint = try XCTUnwrap(Self.element("editor.palette.locked", in: env.view))
-        XCTAssertEqual(hint.accessibilityValue, "gesperrt, ab Plus")
-        XCTAssertGreaterThanOrEqual(hint.accessibilityFrame.height, 43.5)
-        try shoot(env, "lage-schwebend-free")
-        XCTAssertTrue(hint.accessibilityActivate())
-        XCTAssertTrue(env.wait(timeout: 10) { self.presentedLabels(env).contains("Mehr mit \(UFPlan.plus.name)") })
-        dismiss(env)
+        if !mac {
+            XCTAssertTrue(env.wait(timeout: 20) { Self.element("editor.palette.locked", in: env.view) != nil },
+                          env.labels().joined(separator: "\n"))
+            env.pump(1.0)
+            let editor = try XCTUnwrap(EditorToolbarTests.pdfViews(in: env.view).first.flatMap(EditorToolbarTests.editor(of:)))
+            XCTAssertFalse(editor.floatingPaletteWanted, "ohne Plus keine Palette")
+            XCTAssertFalse(editor.floatingPalette?.isVisible ?? false)
+            let hint = try XCTUnwrap(Self.element("editor.palette.locked", in: env.view))
+            XCTAssertEqual(hint.accessibilityValue, "gesperrt, ab Plus")
+            XCTAssertGreaterThanOrEqual(hint.accessibilityFrame.height, 43.5)
+            try shoot(env, "lage-schwebend-free")
+            XCTAssertTrue(hint.accessibilityActivate())
+            XCTAssertTrue(env.wait(timeout: 10) { self.presentedLabels(env).contains("Mehr mit \(UFPlan.plus.name)") })
+            dismiss(env)
+        }
 
         UserDefaults.standard.set(EditorToolbarPlacement.bottom.rawValue, forKey: EditorToolbarPlacement.key)
-        XCTAssertTrue(env.wait(timeout: 5) { Self.element("editor.toolbar.locked", in: env.view) != nil })
+        XCTAssertTrue(env.wait(timeout: mac ? 20 : 5) { Self.element("editor.toolbar.locked", in: env.view) != nil },
+                      env.labels().joined(separator: "\n"))
         env.pump(0.5)
         let bar = try XCTUnwrap(Self.element("editor.toolbar.locked", in: env.view)).accessibilityFrame
         let p = try XCTUnwrap(EditorToolbarTests.pdfViews(in: env.view).first.map { $0.convert($0.bounds, to: env.window) })
