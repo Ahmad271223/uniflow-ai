@@ -137,6 +137,8 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("StudyPlanProgramMismatchCard", StudyPlanProgramMismatchCard.Body.self),
         ("IntroProgramAnswer", IntroProgramAnswer.Body.self),
         ("StudyPlanEarlierCard", StudyPlanEarlierCard.Body.self),
+        ("StudyPlanOrderCard", StudyPlanOrderCard.Body.self),
+        ("StudyProgramSettingsCard", StudyProgramSettingsCard.Body.self),
         ("IntroProgramToggle", IntroProgramToggle.Body.self),
         ("IntroChosenProgramRow", IntroChosenProgramRow.Body.self),
         // Lernziele (Smart Planner 2.0, 12.11.2026) und der Lernkalender, in den sie eingebettet sind

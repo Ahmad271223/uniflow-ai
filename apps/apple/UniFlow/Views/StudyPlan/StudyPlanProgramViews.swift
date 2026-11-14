@@ -332,3 +332,98 @@ struct StudyPlanEarlierCard: View {
         .accessibilityIdentifier("studyplan.earlier")
     }
 }
+
+/// Vorschlag der alten Ordnung (`order_suggestion`)
+struct StudyPlanOrderSuggestion: Equatable {
+    let code: String
+    let since: String
+    let startTerm: String
+    let program: String
+    let degree: String?
+    let po: String?
+    let url: String
+
+    init?(_ v: JSONValue) {
+        guard let code = v.s("code"), let url = v.s("url"), let program = v.s("program") else { return nil }
+        self.code = code
+        self.url = url
+        self.program = program
+        since = v.s("since") ?? ""
+        startTerm = v.s("start_term") ?? ""
+        degree = v.s("degree")
+        po = v.s("po")
+    }
+}
+
+/// Karte "Für dich gilt vermutlich die bisherige Ordnung" (14.11.2026: Sozialpaedagogik gilt ab WiSe 2025/26, wer
+/// frueher angefangen hat, studiert nach Sozial- und Organisationspaedagogik weiter); bestaetigen, nicht raten
+struct StudyPlanOrderCard: View {
+    let suggestion: StudyPlanOrderSuggestion
+    let current: String
+    let busy: Bool
+    let takeOlder: () -> Void
+    let keep: () -> Void
+
+    var body: some View {
+        let older = suggestion.program + (suggestion.po.map { " (PO \($0))" } ?? "")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                StudyPlanIconTile(icon: "file-text", pair: CommunityPalette.sky)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Gilt für dich noch die bisherige Ordnung?").ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Du hast im \(suggestion.startTerm) angefangen. \(current) gilt erst ab dem \(suggestion.since); bei früherem Studienbeginn studierst du meist nach „\(older)“ weiter. Ein Wechsel ist auf Antrag möglich.")
+                        .ufFont(13.12, lh: 1.4).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+            UFFlexWrap(gap: 8) {
+                UFButton("Bisherige Ordnung nehmen", icon: "check", kind: .primary, size: .small) { takeOlder() }.disabled(busy)
+                UFButton("Bei \(current) bleiben", size: .small) { keep() }.disabled(busy)
+            }
+            .padding(.leading, 52)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(Color.mix(UF.info, 0.07, UF.surface)))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(Color.mix(UF.info, 0.3, UF.line), lineWidth: 1))
+        .accessibilityIdentifier("studyplan.order")
+    }
+}
+
+/// Einstellungen, Abschnitt "Studium": Studiengang mit Neben-/Begleitfach und "Ändern" (14.11.2026)
+struct StudyProgramSettingsCard: View {
+    @EnvironmentObject private var session: Session
+    @State private var main: String?
+    @State private var minors: [String] = []
+    @State private var picking = false
+    let university: String
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Studiengang", icon: "graduation")
+            Text(main.map { "Hauptfach: \($0)" } ?? "Noch nicht gewählt – StudiNow nimmt sonst den Studiengang aus deinem Notenspiegel.")
+                .ufFont(13.6).foregroundStyle(main == nil ? UF.muted : UF.text).fixedSize(horizontal: false, vertical: true)
+            if !minors.isEmpty {
+                Text("Neben- oder Begleitfach: " + minors.joined(separator: ", ")).ufFont(13.12).foregroundStyle(UF.text2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            UFButton(main == nil ? "Studiengang wählen" : "Studiengang ändern", icon: "list", size: .small) { picking = true }
+                .padding(.top, 8)
+                .accessibilityIdentifier("settings.program")
+        }
+        .task { await load() }
+        .sheet(isPresented: $picking) {
+            StudyPlanProgramPicker(api: session.api, current: nil, university: university) { await load() }
+        }
+    }
+
+    private func load() async {
+        guard let api = session.api else { return }
+        let s = try? await api.value("/api/study-plan/settings")
+        let all = (try? await api.value("/api/study-catalog/programs"))?.list("programs") ?? []
+        main = s?.s("po").map { StudyPlanProgramPicker.name(of: $0, in: all) }
+        minors = (s?.list("minors") ?? []).compactMap(\.string).map { StudyPlanProgramPicker.name(of: $0, in: all) }
+    }
+}

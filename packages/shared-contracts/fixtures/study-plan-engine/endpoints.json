@@ -339,6 +339,7 @@
     "lp_total": 0,
     "message": "Für deinen Studiengang gibt es noch keinen Katalog.",
     "notes": [],
+    "order_suggestion": null,
     "placements": {},
     "po": null,
     "po_confirmed": false,
@@ -753,6 +754,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
@@ -2193,6 +2195,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
@@ -3154,6 +3157,7 @@
       "tone": "info"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": true,
@@ -3411,6 +3415,7 @@
     "lp_total": 0,
     "message": "Für die Prüfungsordnung 1999 gibt es noch keinen Katalog.",
     "notes": [],
+    "order_suggestion": null,
     "placements": {},
     "po": null,
     "po_confirmed": true,
@@ -4244,6 +4249,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {
      "mathematik-3": "WiSe 27/28",
      "rechnernetze": "SoSe 27"

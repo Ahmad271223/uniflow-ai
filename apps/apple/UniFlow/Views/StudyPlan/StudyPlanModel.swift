@@ -348,6 +348,8 @@ struct StudyPlan: Equatable {
     let mismatchChosen: String?
     /// Leistungen anderer Studiengaenge ("Früheres Studium"), zaehlen nicht im aktuellen
     let earlier: [StudyPlanEarlierStudy]
+    /// alte Ordnung vorschlagen (Studienbeginn vor dem ersten Semester der gewaehlten)
+    let orderSuggestion: StudyPlanOrderSuggestion?
     let semesters: [StudyPlanSemester]
     let currentTerm: String?
     let startTerm: String?
@@ -381,6 +383,7 @@ struct StudyPlan: Equatable {
         qisProgram = v.s("qis_program") ?? v.s("qis_abschluss")
         programs = v.list("programs").map(StudyPlanProgramChoice.init).filter { !$0.program.isEmpty }
         earlier = v.list("earlier_studies").map(StudyPlanEarlierStudy.init).filter { $0.count > 0 }
+        orderSuggestion = v["order_suggestion"].flatMap { $0.isNull ? nil : StudyPlanOrderSuggestion($0) }
         if let mm = v["program_mismatch"], !mm.isNull, StudyPlanProgramChoice(mm).code != nil {
             programMismatch = StudyPlanProgramChoice(mm)
             mismatchChosen = mm.s("chosen")

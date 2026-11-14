@@ -359,6 +359,16 @@ export const programName = p => p && p.program ? `${p.program}${p.degree ? ` (${
 export function poCardHtml(plan, ic) {
   const progs = Array.isArray(plan.programs) ? plan.programs : [];
   const err = `<div class="sp-err small" id="spPoErr" hidden></div>`;
+  const os = plan.order_suggestion;
+  if (os && os.code && os.url) {
+    // bisherige Ordnung bei frueherem Studienbeginn vorschlagen, bestaetigen lassen (14.11.2026)
+    const older = `${os.program}${os.po ? ` (PO ${os.po})` : ""}`;
+    const cur = plan.program || "Die neue Ordnung";
+    return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>Gilt für dich noch die bisherige Ordnung?</b>`
+      + `<div class="muted small">${esc(`Du hast im ${os.start_term} angefangen. ${cur} gilt erst ab dem ${os.since}; bei früherem Studienbeginn studierst du meist nach „${older}“ weiter. Ein Wechsel ist auf Antrag möglich.`)}</div></div></div>`
+      + `<div class="row wrap"><button type="button" class="btn primary sm" data-order-url="${esc(os.url)}">${ic ? ic("check", 14) : ""} Bisherige Ordnung nehmen</button>`
+      + `<button type="button" class="btn sm" data-order-ack="${esc(`order:${os.code}`)}">Bei ${esc(cur)} bleiben</button></div>${err}</div>`;
+  }
   const mm = plan.program_mismatch;
   if (mm && mm.code) {
     // Wahl gilt, aber einmal fragen, wenn der Notenspiegel einen neueren Studiengang nennt (14.11.2026)

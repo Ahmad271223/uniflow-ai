@@ -1078,6 +1078,7 @@ private struct LocalAccountTab: View {
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @Environment(\.ufStudoraAccount) private var studoraAccount
+    @Environment(\.hildesheim) private var hildesheim
 
     var body: some View {
         // vier Gruppen mit Abschnittskopf (Konto, Studium, dieses iPad, Austausch) statt einer langen Kartenfolge
@@ -1099,6 +1100,9 @@ private struct LocalAccountTab: View {
                         HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH
                     }
                     if let term { UFCard { SemesterFields(term: term, reload: reload) } }
+                    if !studip.offersStudIP && hildesheim != nil {
+                        StudyProgramSettingsCard(university: "Universität Hildesheim")   // Studiengang (14.11.2026)
+                    }
                     DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen
                 }
                 .environment(\.ufFillsCell, true)

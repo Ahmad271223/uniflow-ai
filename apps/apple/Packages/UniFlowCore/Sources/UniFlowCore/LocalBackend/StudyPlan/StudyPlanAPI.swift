@@ -21,6 +21,8 @@ public enum StudyPlanAPI {
         /// Neben-/Begleitfaecher (Kuerzel, hoechstens 3) und ein abgelehnter Studiengang aus dem Notenspiegel (14.11.2026)
         var minors: [String] = []
         var programAck: String? = nil
+        /// Vorschlag der alten Ordnung abgelehnt ("order:<Kuerzel>")
+        var orderAck: String? = nil
 
         var json: [String: JSONValue] {
             var o: [String: JSONValue] = ["po": StudyPlanEngine.opt(po), "start_term": StudyPlanEngine.opt(startTerm),
@@ -32,6 +34,7 @@ public enum StudyPlanAPI {
             o["custom"] = .array(custom.map { .object($0.json) })
             o["minors"] = .array(minors.map(JSONValue.string))
             if let programAck { o["program_ack"] = .string(programAck) }
+            if let orderAck { o["order_ack"] = .string(orderAck) }
             return o
         }
 
@@ -48,6 +51,7 @@ public enum StudyPlanAPI {
             if !custom.isEmpty { m.append(PyJSON.Member("custom", .array(custom.map(\.stored)))) }
             if !minors.isEmpty { m.append(PyJSON.Member("minors", .array(minors.map(PyJSON.string)))) }
             if let programAck { m.append(PyJSON.Member("program_ack", .string(programAck))) }
+            if let orderAck { m.append(PyJSON.Member("order_ack", .string(orderAck))) }
             return .object(m)
         }
     }
@@ -70,7 +74,7 @@ public enum StudyPlanAPI {
                         catalogURL: StudyCatalogPipeline.cleanCatalogURL(v["catalog_url"]?.string),
                         tracks: StudyPlanEngine.cleanTracks(v["tracks"]), placements: StudyPlanEngine.cleanPlacements(v["placements"]),
                         excluded: StudyPlanEngine.cleanIDs(v["excluded"]), custom: StudyPlanEngine.cleanCustom(v["custom"]),
-                        minors: cleanMinors(v["minors"]), programAck: cleanAck(v["program_ack"]))
+                        minors: cleanMinors(v["minors"]), programAck: cleanAck(v["program_ack"]), orderAck: cleanAck(v["order_ack"]))
     }
 
     /// `clean_minors`: hoechstens 3 Kuerzel, Text bis 200 Zeichen, ohne Doppelte, Reihenfolge bleibt
@@ -156,6 +160,8 @@ public enum StudyPlanAPI {
         let progs = StudyPlanEngine.programsOf(grades, university: uni)
         out["programs"] = .array(progs.count > 1 ? progs : [])
         out["program_mismatch"] = programMismatch(progs, settings: settings, university: uni)
+        out["order_suggestion"] = orderSuggestion(settings: settings, code: out["code"]?.string ?? settings.po,
+                                                  startTerm: out["start_term"]?.string, university: uni)
         return .object(out)
     }
 
@@ -183,6 +189,28 @@ public enum StudyPlanAPI {
             return ["label": .string(l), "program": .string(e.program), "count": .number(Double(e.count)), "lp": .number(e.lp),
                     "rows": .array(e.rows)]
         }
+    }
+
+    /// Vorgaengerordnungen wie packages/shared-contracts/study-orders.json (gleiche Werte, StudyProgramChangeTests
+    /// vergleicht mit der Datei)
+    struct Order: Equatable {
+        let university, code, since, program, degree, po, url: String
+    }
+
+    static let orders: [Order] = [
+        Order(university: "hildesheim", code: "sozialpaedagogik|b.a.|2025", since: "WiSe 2025/26",
+              program: "Sozial- und Organisationspädagogik", degree: "B.A.", po: "2020",
+              url: "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4710"),
+    ]
+
+    /// `order_suggestion`: neue Ordnung gewaehlt, Studienbeginn vor deren erstem Semester -> die alte vorschlagen
+    static func orderSuggestion(settings: Settings, code: String?, startTerm: String?, university: String) -> JSONValue {
+        guard let code, let startTerm, let start = StudyPlanEngine.parseTerm(startTerm),
+              let o = orders.first(where: { $0.university == university && $0.code == code }),
+              let since = StudyPlanEngine.parseTerm(o.since), start < since,
+              settings.catalogURL != o.url, settings.orderAck != "order:" + code else { return .null }
+        return ["code": .string(code), "since": .string(o.since), "start_term": .string(startTerm), "program": .string(o.program),
+                "degree": .string(o.degree), "po": .string(o.po), "url": .string(o.url)]
     }
 
     /// `chosen_program_name`: Kuerzel aus dem Register -> "Sozialpädagogik (B.A., PO 2025)"; nil fuer eine PO-Jahreszahl
@@ -402,6 +430,13 @@ public enum StudyPlanAPI {
                 }
             }
             s.minors = cleanMinors(v)
+        }
+        if let v = body["order_ack"] {
+            switch v {
+            case .null: s.orderAck = nil
+            case .string: s.orderAck = cleanAck(v)
+            default: throw LocalHTTPError(status: 400, message: "order_ack muss Text sein")
+            }
         }
         if let v = body["program_ack"] {
             switch v {

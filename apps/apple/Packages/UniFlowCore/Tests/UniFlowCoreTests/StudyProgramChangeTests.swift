@@ -135,4 +135,30 @@ final class StudyProgramChangeTests: XCTestCase {
         XCTAssertEqual(st["catalog_term"]?.string, fx["head"]?["catalog_term"]?.string)
         XCTAssertEqual(st["code"]?.string?.hasPrefix("link-"), true)
     }
+
+    /// Vorgaengerordnungen: Werte im Kern gleich packages/shared-contracts/study-orders.json; Vorschlag nur bei frueherem
+    /// Studienbeginn, nicht ohne Beginn, nicht nach Ablehnung oder mit der alten schon gewaehlt
+    func testOlderOrderSuggestion() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let file = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/study-orders.json")))
+        let fromFile = (file["orders"]?.array ?? []).map { o in
+            StudyPlanAPI.Order(university: o["university"]?.string ?? "", code: o["code"]?.string ?? "", since: o["since"]?.string ?? "",
+                               program: o["older"]?["program"]?.string ?? "", degree: o["older"]?["degree"]?.string ?? "",
+                               po: o["older"]?["po"]?.string ?? "", url: o["older"]?["url"]?.string ?? "")
+        }
+        XCTAssertEqual(StudyPlanAPI.orders, fromFile)
+        let code = "sozialpaedagogik|b.a.|2025"
+        var s = StudyPlanAPI.Settings(po: code, startTerm: nil, electives: [])
+        let sug = StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim")
+        XCTAssertEqual(sug["program"]?.string, "Sozial- und Organisationspädagogik")
+        XCTAssertEqual(sug["po"]?.string, "2020")
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 26/27", university: "hildesheim"), .null)
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: nil, university: "hildesheim"), .null)
+        s.orderAck = "order:" + code
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim"), .null)
+        s.orderAck = nil
+        s.catalogURL = sug["url"]?.string
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim"), .null)
+    }
 }

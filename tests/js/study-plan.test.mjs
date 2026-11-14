@@ -361,3 +361,12 @@ test("Frueheres Studium getrennt (Studiengangswechsel)", () => {
   assert.match(html, /TM 1: Einführung<\/span> <span class="muted small">1,3 · bestanden · 6 LP/);
   assert.equal(L.earlierHtml({ earlier_studies: [] }), "");
 });
+
+test("Bisherige Ordnung bei frueherem Studienbeginn vorschlagen", () => {
+  const html = L.poCardHtml({ po_confirmed: true, program: "Sozialpädagogik", order_suggestion: { code: "sozialpaedagogik|b.a.|2025", since: "WiSe 2025/26", start_term: "WiSe 24/25",
+    program: "Sozial- und Organisationspädagogik", degree: "B.A.", po: "2020", url: "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4710" } }, icon);
+  assert.match(html, /Gilt für dich noch die bisherige Ordnung\?/);
+  assert.match(html, /Du hast im WiSe 24\/25 angefangen\. Sozialpädagogik gilt erst ab dem WiSe 2025\/26/);
+  assert.match(html, /data-order-url="https:\/\/www\.uni-hildesheim\.de\/qm\/processmanagement\/download\.php\?fileID=4710"/);
+  assert.match(html, /data-order-ack="order:sozialpaedagogik\|b\.a\.\|2025">Bei Sozialpädagogik bleiben/);
+});
