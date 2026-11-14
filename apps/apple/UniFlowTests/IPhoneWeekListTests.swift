@@ -5,10 +5,9 @@ import WebKit
 import XCTest
 @testable import UniFlow
 
-/// Befund des Inhabers am iPhone (11.11.2026): "Wochenansicht fehlt komplett, alles muss lesbar sein". Die Woche steht
-/// am iPhone hochkant als Liste Montag–Sonntag (`PhoneWeekListView`) im Lernkalender ("Woche" wieder in der Leiste) und
-/// im Stundenplan (statt abgeschnittener Spalten). Volle Titel, Zeit und Raum, nichts ragt ueber den Rand. Gegenprobe:
-/// iPad behaelt das Raster. Dazu Bildschirmfotos der echten Anmeldeseiten (QIS, Stud.IP) am iPhone.
+/// Liste der Tage am iPhone (`PhoneWeekListView`): seit 14.11.2026 nur noch im **Stundenplan** (der Lernkalender zeigt
+/// unter "Woche" das Raster `PhoneWeekGrid`, siehe `IPhoneWeekGridTests`). Volle Titel, Zeit und Raum, nichts ragt
+/// ueber den Rand. Dazu Bildschirmfotos der echten Anmeldeseiten (QIS, Stud.IP) am iPhone.
 @MainActor
 final class IPhoneWeekListTests: IPhoneLearnTestCase {
 
@@ -36,6 +35,7 @@ final class IPhoneWeekListTests: IPhoneLearnTestCase {
         }
     }
 
+    /// Die Liste (Stundenplan) bleibt lesbar: volle Titel, Zeit und Raum
     func testWeekListIsReadableOnAllPhones() throws {
         let view = ScrollView { PhoneWeekListView(days: week(), packages: true, openEvent: { _, _ in }).padding(16) }
         let env = try hostPhone(view, api: remote(Canned()))
