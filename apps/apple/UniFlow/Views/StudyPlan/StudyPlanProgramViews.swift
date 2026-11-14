@@ -418,7 +418,7 @@ struct StudyProgramSettingsCard: View {
                 .accessibilityIdentifier("settings.program")
         }
         .task { await load() }
-        .sheet(isPresented: $picking) {
+        .ufSheet(isPresented: $picking) {
             StudyPlanProgramPicker(api: session.api, current: nil, university: university) { await load() }
         }
     }

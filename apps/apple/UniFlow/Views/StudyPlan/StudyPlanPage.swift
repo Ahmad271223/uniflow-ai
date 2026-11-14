@@ -134,7 +134,7 @@ struct StudyPlanPage: View {
         }
         // eigener Traeger: zwei .sheet an derselben Ansicht oeffnen nicht verlaesslich
         .background {
-            Color.clear.sheet(isPresented: $showPrograms) {
+            Color.clear.ufSheet(isPresented: $showPrograms) {
                 StudyPlanProgramPicker(api: session.api, current: plan?.po, university: universityName) { await load() }
             }
         }
