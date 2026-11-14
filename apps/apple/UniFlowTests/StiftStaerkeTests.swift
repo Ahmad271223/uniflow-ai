@@ -94,6 +94,74 @@ final class StiftStaerkeTests: XCTestCase {
         await store.close()
     }
 
+    /// Feine und halbdurchsichtige Striche (Fineliner 0,5, Deckkraft 50 %) im echten Editor: schreiben, radieren,
+    /// Rueckgaengig, mit dem Lasso verschieben, sichern und neu laden - Staerke und Deckkraft bleiben
+    func testThinStrokesWorkWithUndoEraserLassoAndSaving() async throws {
+        let (editor, window, store) = try await openEditor()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        let end = Uhr.now() + 15
+        var overlay: PageInkView?
+        while Uhr.now() < end, overlay == nil {
+            overlay = editor.allOverlays.first { $0.pageIndex == 0 && $0.loaded && $0.window != nil }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        let o = try XCTUnwrap(overlay)
+        func tick() async { try? await Task.sleep(nanoseconds: 40_000_000) }
+        func set(_ d: PKDrawing) { o.isApplyingDrawing = true; o.canvas.drawing = d; o.isApplyingDrawing = false }
+        let color = UIColor.systemBlue.withAlphaComponent(0.5)
+        func thin(_ n: Int) -> PKStroke {
+            let pts = (0..<25).map { PKStrokePoint(location: CGPoint(x: 60 + CGFloat($0) * 5, y: 200 + CGFloat(n) * 30), timeOffset: Double($0) * 0.01,
+                                                   size: CGSize(width: 0.5, height: 0.5), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2) }
+            return PKStroke(ink: PKInk(.monoline, color: color), path: PKStrokePath(controlPoints: pts, creationDate: Date(timeIntervalSince1970: 1_950_000_000 + Double(n))))
+        }
+        for n in 0..<3 {
+            await tick()
+            o.canvas.tool = PKInkingTool(.monoline, color: color, width: 0.5)
+            editor.canvasViewDidBeginUsingTool(o.canvas)
+            var d = o.canvas.drawing
+            d.strokes.append(thin(n))
+            set(d)
+            editor.canvasViewDrawingDidChange(o.canvas)
+            editor.canvasViewDidEndUsingTool(o.canvas)
+        }
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes.count, 3)
+        // radieren (Objekt-Radierer), Rueckgaengig holt ihn zurueck
+        o.canvas.tool = PKEraserTool(.vector)
+        editor.canvasViewDidBeginUsingTool(o.canvas)
+        var e = o.canvas.drawing
+        e.strokes.remove(at: 1)
+        set(e)
+        editor.canvasViewDrawingDidChange(o.canvas)
+        editor.canvasViewDidEndUsingTool(o.canvas)
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes.count, 2)
+        editor.undo()
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes.count, 3, "Rueckgaengig nach Radieren")
+        // Lasso verschiebt (Transform), ein Rueckgaengig-Schritt
+        await tick()
+        var m = o.canvas.drawing
+        m.strokes[0].transform = CGAffineTransform(translationX: 30, y: 10)
+        editor.replaceInk(key: o.pageKey, before: o.canvas.drawing, after: m)
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes[0].transform.tx, 30)
+        editor.undo()
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes[0].transform.tx, 0, "Lasso rueckgaengig")
+        // sichern, neu laden: Staerke und Deckkraft wie gezeichnet
+        await store.flush()
+        let reloaded = await store.drawing(forPageKey: o.pageKey)
+        XCTAssertEqual(reloaded.strokes.count, 3)
+        for s in reloaded.strokes {
+            XCTAssertEqual(s.path[0].size.width, 0.5, accuracy: 0.02)
+            var a: CGFloat = 0
+            s.ink.color.getRed(nil, green: nil, blue: nil, alpha: &a)
+            XCTAssertEqual(a, 0.5, accuracy: 0.03)
+        }
+        await store.close()
+    }
+
     /// Dicke der gerenderten Linie in Pixeln (Mitte, senkrecht gemessen, Deckung ab 50 %)
     private func thickness(ink: PKInk.InkType, size w: CGFloat, scale: CGFloat) -> CGFloat {
         let pts = (0...60).map { i in
