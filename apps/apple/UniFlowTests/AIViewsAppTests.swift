@@ -283,6 +283,10 @@ final class AIViewsAppTests: XCTestCase {
     }
 
     func testDocIndexCardShowsKnownPageWithReferencesNotesAndRebuild() throws {
+        // Mac ("Designed for iPad"): der Bedienungshilfen-Baum dieser Karte schwankt im Testwirt (Befunde 09.11. und
+        // 14.11.2026): mal fehlt der Verweis "auch in Vorlesung …", mal steht "Deine Notizen dazu …" als Knopf im Baum und
+        // `accessibilityActivate()` liefert false. Mit der Maus von Hand pruefen (docs/MAC-DURCHLAUF-2026-11-14.md)
+        try ContainerTestBed.skipOnMac("Bedienungshilfen-Baum der Karte „Schon erklärt“ schwankt im Mac-Testwirt")
         let t = transport()
         let ready: JSONValue = ["file_id": "f-1", "page": 2, "status": "ready", "known": true, "source": "cloud", "can_build": true,
                                 "entry": ["summary": "Eigenwerte und das charakteristische Polynom.", "terms": ["Eigenwert"],
@@ -299,11 +303,7 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(shows(env.view, "Charakteristisches Polynom"))
         XCTAssertTrue(shows(env.view, "Aufgabe 1: Eigenwerte einer 2×2-Matrix bestimmen"))
         XCTAssertTrue(shows(env.view, "auch in Vorlesung 2, Seite 12"))
-        let notesOpened = tap("Deine Notizen dazu vom 31.10. auf Seite 5", in: env.view, exact: false)
-        // Mac ("Designed for iPad"): der Knopf steht mit Knopf-Eigenschaft im Bedienungshilfen-Baum, `accessibilityActivate()`
-        // liefert dort aber false (Befunde 09.11. und 14.11.2026); mit der Maus von Hand pruefen (docs/MAC-DURCHLAUF-2026-11-14.md)
-        if !notesOpened { try ContainerTestBed.skipOnMac("accessibilityActivate() des Verweises „Deine Notizen dazu …“ liefert am Mac false") }
-        XCTAssertTrue(notesOpened)
+        XCTAssertTrue(tap("Deine Notizen dazu vom 31.10. auf Seite 5", in: env.view, exact: false))
         XCTAssertEqual(opened.last?.0, "f-1")
         XCTAssertEqual(opened.last?.1, 5)
         XCTAssertTrue(tap("Neu erklären lassen", in: env.view, exact: false))
