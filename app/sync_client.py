@@ -42,6 +42,9 @@ from .annotation_merge import merge_document
 from .sync import ENTITIES, SYNC_COLS
 
 APPLIED_DEVICE = "~dienst"
+# Loeschmarke, deren Zeile im Dienst noch keinem Uni-Konto zugeordnet ist (`room_pending`): geht bei jedem Abgleich
+# wieder mit, bis der Dienst sie annimmt oder die Zeile einem anderen Uni-Konto gehoert
+PENDING_DEVICE = "~offen"
 PAGE = 2000
 PUSH_BATCH = 400
 LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input", "messages_seen_up_to",
@@ -571,7 +574,8 @@ class Client:
                 it["_local"] = lid
                 items.append(it)
         mark = _state(self.conn, "tomb_mark", "")
-        for t in db.rows(self.conn, "SELECT * FROM sync_tombstones WHERE device IS NULL AND deleted_at > ? ORDER BY deleted_at", (mark,)):
+        for t in db.rows(self.conn, "SELECT * FROM sync_tombstones WHERE (device IS NULL AND deleted_at > ?) OR device=? ORDER BY deleted_at",
+                         (mark, PENDING_DEVICE)):
             if t["entity"] not in ENTITIES or t["entity"] == "annotations":
                 continue
             for m in db.rows(self.conn, "SELECT remote_id FROM sync_link_map WHERE entity=? AND local_id=?", (t["entity"], t["entity_id"])):
@@ -683,7 +687,8 @@ class Client:
                 self.mark_applied_tombstones(mark)
             elif st == "other_room":
                 # die Zeile im Dienst gehoert einem anderen Uni-Konto: hier bleibt alles; Tabellen mit Nummern gehen als
-                # neue Zeile in den eigenen Raum, Einstellungen gelten als abgeglichen (bis zur naechsten Aenderung hier)
+                # neue Zeile in den eigenen Raum, Einstellungen gelten als abgeglichen (bis zur naechsten Aenderung hier).
+                # `room_pending` (Herkunft noch offen) braucht nichts: die Zeile bleibt geaendert und geht wieder mit
                 if not _int_pk(table):
                     self.set_map(table, lid, lid, 0, lv)
                 elif it.get("id") is not None:
@@ -694,7 +699,16 @@ class Client:
             r = next((v for k, v in by_key.items() if k[0] == d["entity"] and k[2] == str(d["id"])), None)
             if r is None:
                 continue
+            if r.get("status") == "room_pending":
+                # Herkunft der Zeile im Dienst noch offen: die Loeschung beim naechsten Abgleich noch einmal senden
+                self.conn.execute("UPDATE sync_tombstones SET device=? WHERE entity=? AND entity_id=? AND (device IS NULL OR device=?)",
+                                  (PENDING_DEVICE, d["entity"], str(d["_local"]), PENDING_DEVICE))
+                continue
+            if r.get("status") in ("deleted", "other_room", "edit_wins"):  # entschieden: nicht noch einmal senden
+                self.conn.execute("UPDATE sync_tombstones SET device=NULL WHERE entity=? AND entity_id=? AND device=?",
+                                  (d["entity"], str(d["_local"]), PENDING_DEVICE))
             if r.get("status") in ("deleted", "other_room"):
+                # `other_room`: hier geloescht, im Dienst bleibt die Zeile des anderen Uni-Kontos
                 self.conn.execute("DELETE FROM sync_link_map WHERE entity=? AND remote_id=?", (d["entity"], str(d["id"])))
             elif r.get("status") == "edit_wins":
                 c = conflicts.get((d["entity"], str(d["id"])))

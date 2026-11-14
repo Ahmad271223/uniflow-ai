@@ -232,3 +232,37 @@ def test_uni_key_is_the_same_on_every_platform(tmp_path):
     assert "ada-123" not in " ".join(str(r[0]) for r in c.execute("SELECT value FROM settings")), "die Kennung selbst wird nie gespeichert"
     assert sync_client._setting_local("studip_user_hash"), "geht nie in den Abgleich"
     c.close()
+
+
+def test_delete_of_a_row_of_unknown_origin_waits_until_the_origin_is_known(tmp_path, service):
+    """Das iPhone loescht ein Fach von Adas iPad und eines von Bobs Geraet, bevor der Dienst weiss, wem die beiden
+    Geraete gehoeren: im Dienst geschieht zunaechst nichts. Meldet sich das iPad im selben Raum, gilt die Loeschung
+    (auch dort); Bobs Fach bleibt bei Bob, die Loeschung des iPhones erreicht ihn nie."""
+    ipad, other, iphone = _mixed(tmp_path, service)
+    iphone.uni("ada", "neu")
+    iphone.sync()
+    iphone.conn.execute("UPDATE courses SET module_id=NULL WHERE module_id=(SELECT id FROM modules WHERE name=?)", (ADA[6],))
+    iphone.conn.execute("DELETE FROM modules WHERE name IN (?, ?)", (ADA[6], BOB[7]))
+    iphone.conn.execute("UPDATE modules SET color='#abcdef' WHERE name=?", (ADA[0],))
+    for _ in range(2):                                           # "noch offen": bleibt offen, kein Fehler, nichts geht verloren
+        st = iphone.sync()
+        assert st["pushed"] == 0 and len(iphone.subjects()) == 13
+    ipad.sync()
+    other.sync()
+    assert ADA[6] in ipad.subjects() and BOB[7] in other.subjects(), "im Dienst ist noch nichts geloescht"
+    # Bobs Geraet meldet sich: sein Fach ist fremd, die Loeschung des iPhones gilt dort nicht
+    other.uni("bob", "neu")
+    other.sync()
+    iphone.sync()
+    other.sync()
+    assert BOB[7] in other.subjects() and iphone.subjects() == ADA[:6]
+    # Adas iPad meldet sich im selben Raum: Loeschung und Aenderung des iPhones kommen jetzt an
+    ipad.uni("ada", "neu")
+    ipad.sync()
+    st = iphone.sync()
+    assert st["pushed"] == 1
+    ipad.sync()
+    assert ipad.subjects() == ADA[:6]
+    assert ipad.conn.execute("SELECT color FROM modules WHERE name=?", (ADA[0],)).fetchone()[0] == "#abcdef"
+    other.sync()
+    assert other.subjects() == BOB

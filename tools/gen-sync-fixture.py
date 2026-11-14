@@ -71,17 +71,23 @@ def build() -> dict:
         conn = fresh_conn()
         steps = []
 
-        def push(label, device, items, deletes=None):
-            out = sync.push(conn, device, items, deletes)
+        def push(label, device, items, deletes=None, **hashes):
+            # `hashes`: uni_key / studip_user des Geraets (Raum je Uni-Konto); ohne sie wie vor dem 14.11.2026
+            rooms = sync.resolve_room(conn, device, hashes.get("uni_key"), hashes.get("studip_user")) if hashes else None
+            out = sync.push(conn, device, items, deletes, rooms=rooms)
             conn.commit()
-            steps.append({"op": "push", "label": label, "device": device, "items": items, "deletes": deletes or [], "expect": scrub(out)})
+            steps.append({"op": "push", "label": label, "device": device, **hashes, "items": items, "deletes": deletes or [], "expect": scrub(out)})
             return out
 
-        def pull(label, since=None, limit=None):
-            out = sync.changes(conn, since, limit or sync.MAX_PULL)
+        def pull(label, since=None, limit=None, device=None, **hashes):
+            rooms = sync.resolve_room(conn, device, hashes.get("uni_key"), hashes.get("studip_user")) if hashes else None
+            out = sync.changes(conn, since, limit or sync.MAX_PULL, rooms=rooms)
+            conn.commit()
             step = {"op": "pull", "label": label, "since": "<cursor>" if since else None, "expect": scrub(out)}
             if limit:
                 step["limit"] = limit
+            if hashes:
+                step.update(device=device, **hashes)
             steps.append(step)
             return out
         steps_fn(push, pull, conn)
@@ -163,9 +169,35 @@ def build() -> dict:
              [{"entity": "study_tasks", "local_id": -9, "op_id": "op-ipad-0009", "data": {"package_id": -77, "type": "uebung", "title": "x"}}])
         pull("Stand danach: ein Modul, ein Paket, eine Aufgabe")
 
+    def raeume(push, pull, conn):
+        import hashlib
+        ada_user, bob_user = (hashlib.sha256(f"studip-user:{n}".encode()).hexdigest() for n in ("ada", "bob"))
+        ada = {"uni_key": hashlib.sha256(f"studinow-uni-konto|konto-1|luh|{ada_user}".encode()).hexdigest(), "studip_user": ada_user}
+        bob = {"uni_key": hashlib.sha256(f"studinow-uni-konto|konto-1|luh|{bob_user}".encode()).hexdigest(), "studip_user": bob_user}
+        push("Altbestand: ein Geraet ohne Hash legt ein Fach an", "ipad-bob", [{"entity": "modules", "local_id": -1, "data": {"name": "Bob alt"}}])
+        push("Adas iPad meldet sein Uni-Konto und legt ein Fach an: es gehoert zu Adas Raum", "ipad-ada",
+             [{"entity": "modules", "local_id": -1, "data": {"name": "Ada-Fach"}}], **ada)
+        r = pull("Adas iPhone (gleicher Schluessel): nur Adas Raum; 'Bob alt' kommt von einem Geraet unbekannter Herkunft und bleibt aus",
+                 device="iphone-ada", **ada)
+        push("Aeltere App auf Bobs Geraet (nur studip_user): eigener Raum statt 409; sein Altbestand wird zugeordnet", "ipad-bob",
+             [{"entity": "modules", "local_id": -2, "data": {"name": "Bob-Fach"}}], studip_user=bob["studip_user"])
+        pull("Adas iPhone danach: nichts Neues, aber Bobs Zeilen sind nachweislich fremd (foreign), uni.rooms = 2",
+             since=r["cursor"], device="iphone-ada", **ada)
+        pull("Bobs Geraet (aeltere App): seine beiden Faecher, Antwort ohne foreign/uni", device="ipad-bob", studip_user=bob["studip_user"])
+        push("Adas iPhone aendert und loescht Bobs Fach: other_room, nichts geschieht", "iphone-ada",
+             [{"entity": "modules", "id": 3, "base_version": 1, "data": {"name": "gekapert"}}], [{"entity": "modules", "id": 3}], **ada)
+        push("Aeltere App auf Bobs Geraet aendert und loescht Adas Fach: ebenfalls other_room (sie kennt es nicht und tut nichts)", "ipad-bob",
+             [{"entity": "modules", "id": 2, "base_version": 1, "data": {"name": "gekapert"}}], [{"entity": "modules", "id": 2}],
+             studip_user=bob["studip_user"])
+        push("Im eigenen Raum wird geloescht wie immer", "iphone-ada", [], [{"entity": "modules", "id": 2}], **ada)
+        pull("Ein Geraet ohne Hash in einem Konto mit zwei Raeumen: nur Zeilen ohne Raum (hier keine Faecher mehr)")
+        push("... und es aendert und loescht nichts in den Raeumen: room_pending (spaeter noch einmal senden)", "win-alt",
+             [{"entity": "modules", "id": 3, "base_version": 1, "data": {"name": "nein"}}], [{"entity": "modules", "id": 3}])
+        pull("Bobs neue App: sein Raum, Adas Tombstone kommt nicht an", device="iphone-bob", **bob)
+
     for name, fn in (("neu-anlegen-und-abrufen", neu), ("aenderungen-und-konflikte", aenderung), ("loeschen-und-wiederherstellen", loeschen),
                      ("notizen-base-version", notizen), ("einstellungen", einstellungen), ("abruf-in-seiten", seiten),
-                     ("wiederholt-senden-op-id", wiederholen)):
+                     ("wiederholt-senden-op-id", wiederholen), ("raeume-je-uni-konto", raeume)):
         case(name, fn)
     return {"_hinweis": "Erzeugt mit tools/gen-sync-fixture.py aus der Python-Referenz (app/sync.py); nicht von Hand aendern. "
                         "Zeitstempel des Servers sind '<zeit>'; Entscheidungen haengen nur von den Client-Zeitstempeln ab.",
@@ -181,7 +213,20 @@ def build() -> dict:
                       "update": "base_version == Serverversion -> applied; sonst conflict: je Feld gewinnt der spaetere Schreiber (updated_at vs sync_updated_at); traegt der Eintrag changed (Liste der seit der Basis des Geraets geaenderten Felder, data bleibt die ganze Zeile), zaehlen beim Konflikt nur diese Felder (Audit P73-F6, 09.11.2026)",
                       "delete": "deleted_at >= sync_updated_at des Servers -> deleted (Tombstone); sonst edit_wins; spaetere Aenderung nach Tombstone -> resurrected",
                       "annotations": "wie PUT /api/files/{id}/annotations: base_version muss der Serverversion entsprechen, sonst conflict mit data/version",
-                      "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=&limit=", "push": "POST /api/sync/push {device_id, items, deletes}"}},
+                      "rooms": "Raum je Uni-Konto (14.11.2026): das Geraet schickt uni_key (SHA-256 hex ueber 'studinow-uni-konto|<Konto-ID>|"
+                               "<Hochschule>|<Kennung>', Kennung = Hash der Stud.IP-Nutzer-ID) und, wenn vorhanden, studip_user (aeltere "
+                               "Apple-Apps nur diesen); beide zeigen auf denselben Raum. Mit Raum: Abruf, Aendern und Loeschen nur im Raum; "
+                               "Zeilen ohne Raum und ohne Ursprungsgeraet (Web) gehoeren zum einzigen Raum des Kontos. Ausserhalb, je Eintrag "
+                               "und ohne Wirkung im Dienst: status other_room (Zeile gehoert nachweislich einem anderen Raum: Verknuepfung "
+                               "loesen, Zeile hier behalten und als neue Zeile senden) oder room_pending (Herkunft der Zeile noch offen: "
+                               "nichts tun, beim naechsten Abgleich erneut senden); nie ein Fehler, nie gemerkt (op_id); aeltere Clients "
+                               "kennen beide nicht und tun nichts. Mit uni_key enthaelt der Abruf foreign [{entity, id}] (Zeilen eines "
+                               "anderen Raums: Verknuepfung loesen; lokale Zeile nur entfernen, wenn sie aus dem Dienst kam, unveraendert "
+                               "ist und nichts an ihr haengt, ohne Tombstone) und uni {rooms, room}. Ohne Hash: Konto ohne Raum wie bisher; "
+                               "mit einem Raum alles sichtbar, Raum-Zeilen aenderbar, nicht loeschbar; mit mehreren Raeumen nur Zeilen ohne Raum. "
+                               "Faehigkeit in X-StudiNow-Caps: uni_room",
+                      "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=&limit=&uni_key=&studip_user=",
+                                    "push": "POST /api/sync/push {device_id, items, deletes, uni_key?, studip_user?}"}},
             "cases": cases}
 
 

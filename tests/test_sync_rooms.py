@@ -123,10 +123,11 @@ def test_delete_and_edit_stay_inside_the_room(conn):
     out = _push(conn, "iphone-bob", [{"entity": "modules", "id": m, "base_version": 1, "data": {"name": "gekapert"}}],
                 [{"entity": "modules", "id": m}], key=KB, user=B)
     assert [r["status"] for r in out["results"]] == ["other_room", "other_room"] and out["conflicts"] == []
-    # aeltere App im anderen Raum: bekannte Ergebnisse, ebenfalls ohne Wirkung - nie ein Fehler
+    # aeltere App im anderen Raum: dasselbe Ergebnis; sie kennt es nicht und tut nichts (kein Fehler, kein stilles
+    # "uebernommen": die Zeile bleibt bei ihr als geaendert stehen)
     out = _push(conn, "ipad-bob", [{"entity": "modules", "id": m, "base_version": 1, "op_id": "ipad-bob.modules.9.2", "data": {"name": "gekapert"}}],
                 [{"entity": "modules", "id": m}], user=B)
-    assert [r["status"] for r in out["results"]] == ["applied", "deleted"]
+    assert out["results"] == [{"entity": "modules", "id": m, "status": "other_room"}] * 2 and out["conflicts"] == []
     row = conn.execute("SELECT name, sync_version FROM modules WHERE id=?", (m,)).fetchone()
     assert tuple(row) == ("Ada-Fach", 1), "Zeile unveraendert"
     after = _pull(conn, "ipad-ada", KA, A, since=cursor)
@@ -159,15 +160,21 @@ def test_legacy_rows_are_assigned_when_their_device_reports_its_uni_account(conn
     # Adas iPhone meldet sich mit Schluessel: es hat nichts davon angelegt
     first = _pull(conn, "iphone-ada", KA, A)
     assert _names(first) == [] and first["foreign"] == []
-    # ein Geraet mit Raum kann eine Zeile unbekannter Herkunft weder aendern noch loeschen
-    out = _push(conn, "iphone-ada", [{"entity": "modules", "id": m_bob, "base_version": 1, "data": {"name": "x"}}],
+    # ein Geraet mit Raum kann eine Zeile unbekannter Herkunft weder aendern noch loeschen: "noch offen", spaeter erneut
+    change = [{"entity": "modules", "id": m_ada, "base_version": 1, "op_id": "iphone-ada.modules.7.2", "data": {"name": "Ada alt, am iPhone umbenannt"}}]
+    out = _push(conn, "iphone-ada", change + [{"entity": "modules", "id": m_bob, "base_version": 1, "data": {"name": "x"}}],
                 [{"entity": "modules", "id": m_bob}], key=KA, user=A)
-    assert [r["status"] for r in out["results"]] == ["other_room", "other_room"]
-    assert conn.execute("SELECT name FROM modules WHERE id=?", (m_bob,)).fetchone()[0] == "Bob alt"
+    assert [r["status"] for r in out["results"]] == ["room_pending", "room_pending", "room_pending"]
+    assert [r[0] for r in conn.execute("SELECT name FROM modules ORDER BY id")] == ["Ada alt", "Bob alt"]
     # Adas iPad meldet seinen Schluessel: seine Zeile gehoert jetzt zum Raum; das iPhone holt sie nach (Cursor ist weiter)
     assert _names(_pull(conn, "ipad-ada", KA, A)) == ["Ada alt"]
     later = _pull(conn, "iphone-ada", KA, A, since=first["cursor"])
     assert _names(later) == ["Ada alt"] and later["foreign"] == []
+    # die Aenderung des iPhones von vorhin ging nicht verloren: derselbe Eintrag noch einmal gelingt jetzt
+    out = _push(conn, "iphone-ada", change, key=KA, user=A)
+    assert out["results"][0]["status"] == "applied" and "repeated" not in out["results"][0]
+    later = _pull(conn, "ipad-ada", KA, A, since=later["cursor"])
+    assert _names(later) == ["Ada alt, am iPhone umbenannt"]
     # Bobs Geraet meldet sich: seine Zeile ist nun nachweislich fremd
     assert _names(_pull(conn, "ipad-bob", user=B)) == ["Bob alt"]
     last = _pull(conn, "iphone-ada", KA, A, since=later["cursor"])
@@ -183,7 +190,7 @@ def test_device_without_hash_in_an_account_with_rooms(conn):
     assert _names(sync.changes(conn, None, rooms=_room(conn, "win-alt"))) == ["Ada-Fach", "Windows alt"]
     out = sync.push(conn, "win-alt", [{"entity": "modules", "id": a, "base_version": 1, "data": {"name": "Ada-Fach I"}}],
                     [{"entity": "modules", "id": a}])
-    assert [r["status"] for r in out["results"]] == ["applied", "deleted"]
+    assert [r["status"] for r in out["results"]] == ["applied", "room_pending"]
     assert conn.execute("SELECT name FROM modules WHERE id=?", (a,)).fetchone()[0] == "Ada-Fach I", "geaendert, nicht geloescht"
     # was das alte Geraet angelegt hat, geht an kein Geraet mit Raum (Herkunft unbekannt)
     assert _names(_pull(conn, "ipad-ada", KA, A)) == ["Ada-Fach I"]
@@ -192,7 +199,7 @@ def test_device_without_hash_in_an_account_with_rooms(conn):
     assert _names(sync.changes(conn, None, rooms=_room(conn, "win-alt"))) == ["Windows alt"]
     out = sync.push(conn, "win-alt", [{"entity": "modules", "id": a, "base_version": 2, "data": {"name": "nein"}},
                                       {"entity": "modules", "id": old, "base_version": 1, "data": {"name": "Windows alt 2"}}])
-    assert [r["status"] for r in out["results"]] == ["applied", "applied"]
+    assert [r["status"] for r in out["results"]] == ["room_pending", "applied"]
     assert [r[0] for r in conn.execute("SELECT name FROM modules ORDER BY id")] == ["Windows alt 2", "Ada-Fach I", "Bob-Fach"]
     # das eigene darf es weiter loeschen
     assert sync.push(conn, "win-alt", [], [{"entity": "modules", "id": old}])["results"][0]["status"] == "deleted"
@@ -213,7 +220,7 @@ def test_rows_from_the_web_go_to_the_only_room(conn):
     conn.execute("INSERT INTO modules(name, created_at) VALUES ('Web bei zwei Uni-Konten', '2026-11-14')")
     web2 = conn.execute("SELECT id FROM modules WHERE name LIKE 'Web bei%'").fetchone()[0]
     assert _names(_pull(conn, "ipad-ada", KA, A, since=first["cursor"])) == [] and _names(_pull(conn, "ipad-bob", KB, B)) == []
-    assert _push(conn, "ipad-bob", deletes=[{"entity": "modules", "id": web2}], key=KB, user=B)["results"][0]["status"] == "other_room"
+    assert _push(conn, "ipad-bob", deletes=[{"entity": "modules", "id": web2}], key=KB, user=B)["results"][0]["status"] == "room_pending"
     assert conn.execute("SELECT COUNT(*) FROM modules WHERE id=?", (web2,)).fetchone()[0] == 1
 
 
@@ -330,7 +337,7 @@ def test_migration_survives_missing_tables(tmp_path):
     raw = sqlite3.connect(tmp_path / "roh.db")
     raw.row_factory = sqlite3.Row
     ctx = sync.resolve_room(raw, "ipad", KA, A)
-    assert not ctx.ready and ctx.room is None and ctx.legacy and ctx.may_update("modules", 1, "x") and ctx.may_delete("modules", 1)
+    assert not ctx.ready and ctx.room is None and ctx.legacy and ctx.deny_update("modules", 1, "x") is None and ctx.deny_delete("modules", 1) is None
     raw.close()
 
 

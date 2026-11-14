@@ -170,7 +170,7 @@ class Rooms:
     """Raum des anfragenden Geraets und die Regeln dazu (docs/ABGLEICH-UNI-KONTO-2026-11-14.md).
 
     `room`: Nummer des Raums oder None (Geraet ohne Schluessel: Windows-App alt, Apple bis 1.0.2). `count`: Zahl der
-    Raeume des Kontos. `modern`: der Client kennt `other_room` und `foreign` (er schickt `uni_key`).
+    Raeume des Kontos. `modern`: der Client kennt `foreign` (er schickt `uni_key` oder meldet die Faehigkeit `uni_room`).
 
     Sehen (Abruf):  Geraet mit Raum: Zeilen seines Raums; dazu Zeilen ohne Raum und ohne Ursprungsgeraet (Web, Dienst),
                     solange das Konto genau einen Raum hat.
@@ -180,7 +180,13 @@ class Rooms:
     Loeschen:       Geraet mit Raum: eigener Raum (nicht, wenn Zeilen eines anderen Raums daran haengen); Web-Zeile
                     ohne Raum nur bei genau einem Raum.
                     Geraet ohne Raum: kein Raum im Konto -> wie bisher; sonst nur eigene oder Web-Zeilen ohne Raum.
-    Nie ein Fehler: was nicht erlaubt ist, bekommt `other_room` (neue App) bzw. ein stilles Ergebnis ohne Wirkung."""
+    Nie ein Fehler: was nicht erlaubt ist, bekommt je Eintrag ein Ergebnis ohne Wirkung im Dienst (`refused`):
+      `other_room`   - die Zeile gehoert nachweislich einem anderen Raum
+      `room_pending` - die Zeile stammt von einem Geraet, dessen Uni-Konto der Dienst noch nicht kennt (Altbestand,
+                       aeltere App): spaeter noch einmal senden; meldet sich das Geraet im selben Raum, gelingt es dann
+    Aeltere Apps kennen beide nicht und tun nichts: die Zeile bleibt bei ihnen als geaendert stehen und geht beim
+    naechsten Abgleich wieder mit (ein stilles "uebernommen" haette die Aenderung spaeter mit dem Stand des Dienstes
+    ueberschrieben). Nichts davon wird unter der `op_id` gemerkt."""
 
     def __init__(self, conn, device: str | None = None, room: int | None = None, modern: bool = False):
         self.conn, self.device, self.room, self.modern = conn, device, room, modern
@@ -207,33 +213,40 @@ class Rooms:
                           "ON CONFLICT(entity, entity_id) DO UPDATE SET room=excluded.room, origin=excluded.origin, assigned_at=excluded.assigned_at",
                           (entity, str(entity_id), self.room, self.device, now if self.room is not None else None))
 
-    def may_update(self, entity: str, entity_id, now: str) -> bool:
+    OTHER, PENDING = "other_room", "room_pending"
+
+    def deny_update(self, entity: str, entity_id, now: str) -> str | None:
+        """None = erlaubt (eine Web-Zeile ohne Raum gehoert danach diesem Raum), sonst `other_room` / `room_pending`."""
         if not self.ready:
-            return True
+            return None
         room, origin = self.of(entity, entity_id)
-        if self.room is None:
-            return room is None or self.count <= 1
+        if self.room is None:                                   # Geraet ohne Raum: nie "nachweislich fremd", nur "noch offen"
+            return None if room is None or self.count <= 1 else self.PENDING
         if room is not None:
-            return room == self.room
+            return None if room == self.room else self.OTHER
         if origin is not None and origin != self.device:
-            return False                                        # Zeile eines Geraets, dessen Uni-Konto noch unbekannt ist
+            return self.PENDING                                 # Zeile eines Geraets, dessen Uni-Konto noch unbekannt ist
         # Zeile ohne Ursprungsgeraet (Web, Dienst): gehoert ab jetzt diesem Raum
         self.conn.execute("INSERT INTO sync_row_room(entity, entity_id, room, origin, assigned_at) VALUES (?,?,?,NULL,?) "
                           "ON CONFLICT(entity, entity_id) DO UPDATE SET room=excluded.room, assigned_at=excluded.assigned_at",
                           (entity, str(entity_id), self.room, now))
-        return True
+        return None
 
-    def may_delete(self, entity: str, entity_id) -> bool:
+    def deny_delete(self, entity: str, entity_id) -> str | None:
+        """None = erlaubt, sonst `other_room` / `room_pending`. Loeschen bleibt im Raum."""
         if not self.ready:
-            return True
+            return None
         room, origin = self.of(entity, entity_id)
+        mine = origin is None or origin == self.device
         if self.room is None:
             if self.count == 0:
-                return True
-            return room is None and (origin is None or origin == self.device)
+                return None
+            return None if room is None and mine else self.PENDING
         if room is not None:
-            return room == self.room and not self._foreign_children(entity, entity_id)
-        return origin == self.device or (origin is None and self.count <= 1)
+            return None if room == self.room and not self._foreign_children(entity, entity_id) else self.OTHER
+        if origin == self.device or (origin is None and self.count <= 1):
+            return None
+        return self.PENDING
 
     def _foreign_children(self, entity: str, entity_id) -> bool:
         """Haengt an der Zeile etwas aus einem anderen Raum (Altbestand: zwei Uni-Konten hatten dasselbe Fach)? Dann
@@ -249,14 +262,10 @@ class Rooms:
                     return True
         return False
 
-    def refused(self, entity: str, entity_id, *, delete: bool = False, version=None) -> dict:
-        """Ergebnis fuer eine Zeile ausserhalb des eigenen Raums. Neue App: `other_room` (sie loest die Verknuepfung).
-        Aeltere App: das Ergebnis, das sie kennt, ohne Wirkung im Dienst; ihre lokale Aenderung bleibt lokal."""
-        if self.modern:
-            return {"entity": entity, "id": entity_id, "status": "other_room", "room": "other"}
-        if delete:
-            return {"entity": entity, "id": entity_id, "status": "deleted", "room": "other"}
-        return {"entity": entity, "id": entity_id, "status": "applied", "version": version or 1, "client_won": [], "room": "other"}
+    @staticmethod
+    def refused(entity: str, entity_id, status: str) -> dict:
+        """Ergebnis fuer eine Zeile, die dieses Geraet nicht aendern oder loeschen darf (`deny_update`, `deny_delete`)."""
+        return {"entity": entity, "id": entity_id, "status": status}
 
     def visible_sql(self, alias: str = "rr") -> tuple[str, list]:
         """Bedingung auf dem LEFT JOIN mit sync_row_room; nur ausserhalb von `legacy` benutzt."""
@@ -370,7 +379,8 @@ def changes(conn, since: str | None, limit: int = MAX_PULL, rooms: Rooms | None 
     Geraet raeumt sie bei sich auf) und `uni.rooms` (Zahl der Uni-Konten unter diesem StudiNow-Konto)."""
     since = since if since and TS_RE.match(since) else ""
     limit = max(1, min(int(limit or MAX_PULL), MAX_PULL))
-    filtered = rooms is not None and not rooms.legacy
+    rooms = rooms or Rooms(conn)                                # ohne Angabe: die Regeln fuer ein Geraet ohne Raum
+    filtered = not rooms.legacy
     vis, vis_params = rooms.visible_sql() if filtered else ("", [])
     ts_key = "_ts" if filtered else "sync_updated_at"
     fetched: dict[str, list] = {}
@@ -536,8 +546,9 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                     if table == "settings":
                         key = it.get("local_id")
                         old = db.row(conn, "SELECT sync_version FROM settings WHERE key=?", (key,))
-                        if old is not None and not rooms.may_update(table, key, now):
-                            results.append(rooms.refused(table, key, version=old["sync_version"]))
+                        deny = rooms.deny_update(table, key, now) if old is not None else None
+                        if deny:
+                            results.append(rooms.refused(table, key, deny))
                             continue
                         if old is None:
                             rooms.created(table, key, now)
@@ -559,8 +570,9 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                 server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
                 # vor allem anderen: eine Zeile ausserhalb des eigenen Raums wird weder geaendert noch wiederhergestellt,
                 # und ihr Tombstone ("deleted") erreicht dieses Geraet nicht (es loeschte sonst seine eigene Zeile)
-                if not rooms.may_update(table, rid, now):
-                    results.append(rooms.refused(table, rid, version=(server or {}).get("sync_version")))
+                deny = rooms.deny_update(table, rid, now)
+                if deny:
+                    results.append(rooms.refused(table, rid, deny))
                     continue
                 if server is None:
                     tomb = db.row(conn, "SELECT deleted_at FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
@@ -608,8 +620,7 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                                 "message": f"{table}: {e}"})
             finally:
                 # nicht gemerkt: Fehler und Zeilen ausserhalb des Raums (ein spaeterer Versuch darf gelingen)
-                if op and len(results) > n0 and results[-1].get("status") not in ("error", "plan_required") \
-                        and results[-1].get("room") != "other":
+                if op and len(results) > n0 and results[-1].get("status") not in ("error", "plan_required", Rooms.OTHER, Rooms.PENDING):
                     conn.execute("INSERT OR IGNORE INTO sync_ops(op_id, entity, result, device, created_at) VALUES (?,?,?,?,?)",
                                  (op, table, json.dumps(results[-1], ensure_ascii=False), device, now))
     for d in deletes or []:
@@ -628,8 +639,9 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             if server is None:
                 results.append({"entity": table, "id": rid, "status": "deleted"})
                 continue
-            if not rooms.may_delete(table, rid):                # Loeschen bleibt im Raum: Zeile und Tombstone unberuehrt
-                results.append(rooms.refused(table, rid, delete=True))
+            deny = rooms.deny_delete(table, rid)                # Loeschen bleibt im Raum: Zeile und Tombstone unberuehrt
+            if deny:
+                results.append(rooms.refused(table, rid, deny))
                 continue
             if when >= (server.get("sync_updated_at") or ""):
                 conn.execute(f"DELETE FROM {table} WHERE {pk}=?", (rid,))
@@ -649,8 +661,9 @@ def _push_annotation(conn, it: dict, device: str | None, now: str, rooms: Rooms 
     file_id = str(it.get("id") or it.get("local_id") or "")
     rooms = rooms or Rooms(conn, device)
     known = db.row(conn, "SELECT version FROM annotations WHERE file_id=?", (file_id,))
-    if known is not None and not rooms.may_update("annotations", file_id, now):
-        return rooms.refused("annotations", file_id, version=known["version"])
+    deny = rooms.deny_update("annotations", file_id, now) if known is not None else None
+    if deny:
+        return rooms.refused("annotations", file_id, deny)
     if not db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)):
         if not _register_device_file(conn, file_id, it.get("file")):
             return {"entity": "annotations", "id": file_id, "status": "unknown_file"}
