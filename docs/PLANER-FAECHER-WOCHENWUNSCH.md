@@ -47,5 +47,12 @@ im Lernpaket „Schon gemacht“ je Aufgabe und „Anderes Fach gemacht“.
 - Oberfläche (iPad und iPhone, gleiche Ansichten): `Views/Plan/PlanChoiceViews.swift` – Abschnitt „Fächer“ in
   „Lernkombination“, Knopf „Diese Woche“ (iPhone: im Menü „Mehr“), im Aufgaben-Menü „Thema schon gemacht“, im Lernpaket
   „Hier ein anderes Fach gemacht“.
-- Offen: Web/PC-Oberfläche (Endpunkte sind da), Prüfung am Gerät, `tools/gen-local-backend-fixture.py` meldet schon auf
-  develop fehlende Beispiele für Modul-Pfade anderer Sitzungen (Layout, Abschnitte, Vorschläge).
+- Web/PC (Nachtrag 14.11.): `app/static/plan-choice.js` – dieselben vier Stellen im Browser
+  (`tests/test_web_plan_choice.py`, feste Uhr).
+- App-Pfad-Abgleich (`app-paths.json`) wieder vollständig: Beispiele für die Modul-Pfade (Abschnitte, Einordnen,
+  Vorschläge, Haken, Layout). Dabei behoben: „Abschnitt anlegen/umbenennen“ in `ModuleLayoutViews.swift` schickte GET
+  statt POST und konnte so nie gespeichert werden; die übrigen Aufrufe nennen ihre Methode jetzt ausdrücklich.
+- Offen: Prüfung am Gerät; echte Aufgaben statt Dateinamen und Schritt-für-Schritt-Erklärungen (warten auf Beispiel-
+  Unterlagen des Inhabers). Bekannt und nicht von hier: `gen-local-backend-fixture.py` schreibt vier ältere
+  Abgleichsdateien (Bibliothek, Einstellungen, Stud.IP-Import, Module) anders als der iPad-Kern sie erwartet; sie
+  bleiben auf dem develop-Stand.

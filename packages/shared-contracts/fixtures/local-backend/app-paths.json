@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 179,
+ "count": 191,
  "paths": [
   {
    "method": "DELETE",
@@ -162,6 +162,30 @@
    },
    "expect": {
     "status": 400
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/modules/{}/layout",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/layout"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -548,6 +572,71 @@
       },
       "per_day_need": {
        "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/calendar/modules",
+   "sources": [
+    "UniFlow/Views/Onboarding/Einstieg/IntroSetupView.swift",
+    "UniFlow/Views/PlanDialogs.swift",
+    "UniFlow/Views/StudyGroupsViews.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/modules"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "asked": {
+       "type": "bool"
+      },
+      "kept": {
+       "type": "number"
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/calendar/week-wish",
+   "sources": [
+    "UniFlow/Views/Plan/PlanChoiceViews.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/week-wish"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "choices": {
+       "type": "array",
+       "item": null
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      },
+      "week": {
+       "type": "string"
       }
      }
     }
@@ -1949,6 +2038,7 @@
     "UniFlow/Views/CommunityStyle.swift",
     "UniFlow/Views/Exams/ExamsPage.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Onboarding/Einstieg/IntroSetupView.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanView.swift",
     "UniFlow/Views/Settings/SettingsLoader.swift",
@@ -1976,6 +2066,7 @@
     "UniFlow/Views/AI/QuizComposer.swift",
     "UniFlow/Views/CommunityChannelView.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift"
    ],
@@ -3337,6 +3428,7 @@
    "method": "GET",
    "shape": "/api/tasks/open",
    "sources": [
+    "UniFlow/Views/Plan/PlanChoiceViews.swift",
     "UniFlow/Views/Plan/PlanView.swift"
    ],
    "request": {
@@ -4013,6 +4105,7 @@
    "method": "PATCH",
    "shape": "/api/library/files/{}",
    "sources": [
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift"
    ],
    "request": {
@@ -4070,6 +4163,7 @@
     "UniFlow/Views/Goals/GoalsDialogs.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Modules/WeeklyViews.swift",
+    "UniFlow/Views/Onboarding/Einstieg/IntroSetupView.swift",
     "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
@@ -4374,6 +4468,43 @@
   },
   {
    "method": "POST",
+   "shape": "/api/calendar/modules",
+   "sources": [
+    "UniFlow/Views/Onboarding/Einstieg/IntroSetupView.swift",
+    "UniFlow/Views/Plan/PlanChoiceViews.swift",
+    "UniFlow/Views/PlanDialogs.swift",
+    "UniFlow/Views/StudyGroupsViews.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/modules",
+    "body": {
+     "asked": true
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "asked": {
+       "type": "bool"
+      },
+      "kept": {
+       "type": "number"
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/calendar/suggest",
    "sources": [
     "UniFlow/Views/DashboardView.swift",
@@ -4402,6 +4533,35 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/calendar/topic-done",
+   "sources": [
+    "UniFlow/Views/Plan/PlanChoiceViews.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/topic-done",
+    "body": {
+     "task_ids": [
+      99999
+     ]
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -4700,6 +4860,7 @@
    "shape": "/api/files/{}/opened",
    "sources": [
     "UniFlow/Views/DocumentView.swift",
+    "UniFlow/Views/Library/PhoneDocumentReader.swift",
     "UniFlow/Views/Views.swift"
    ],
    "request": {
@@ -5288,6 +5449,159 @@
   },
   {
    "method": "POST",
+   "shape": "/api/modules/{}/done",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleDoneViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/done",
+    "body": {
+     "file_ids": [
+      "f-unbekannt"
+     ],
+     "done": true
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules/{}/place",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/place",
+    "body": {
+     "file_ids": [
+      "f-unbekannt"
+     ],
+     "to": null
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules/{}/sections",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/sections",
+    "body": {
+     "title": "Klausurvorbereitung"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules/{}/sections/rename",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/sections/rename",
+    "body": {
+     "key": "w3",
+     "title": "Woche 3"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules/{}/suggestions/accept",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/suggestions/accept"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules/{}/suggestions/scan",
+   "sources": [
+    "UniFlow/Views/Modules/ModuleLayoutViews.swift"
+   ],
+   "request": {
+    "path": "/api/modules/999/suggestions/scan"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "erste Seiten lesen nur auf dem Gerät (Dateien liegen dort)"
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/notebooks",
    "sources": [
     "UniFlow/Services/ExternalFileImport.swift",
@@ -5863,6 +6177,7 @@
    "sources": [
     "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Exams/ExamsPage.swift",
+    "UniFlow/Views/Library/PhoneDocumentReader.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanGrids.swift"
    ],
@@ -6281,6 +6596,33 @@
    "expect": {
     "status": 200,
     "reason": "Hintergrundauftrag Wochentests (am PC _run_bg, 200)"
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/calendar/week-wish",
+   "sources": [
+    "UniFlow/Views/Plan/PlanChoiceViews.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/week-wish",
+    "body": {
+     "modules": "kein Fach"
+    }
+   },
+   "python": {
+    "status": 422,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 422
    }
   },
   {

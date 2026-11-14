@@ -3,7 +3,7 @@ import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debou
 import { viewDashboard as viewHome } from "./views-home.js?v=22";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=73";
 import { viewFiles } from "./views-lib.js?v=71";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=51";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=52";
 import { viewTimetable, openEvent } from "./views-tt.js?v=50";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=94";
 import { installConsentFetch } from "./ai-consent.js?v=2";   // Einwilligung vor der StudiNow-KI (06.11.2026)

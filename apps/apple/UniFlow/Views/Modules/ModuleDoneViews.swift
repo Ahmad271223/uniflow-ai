@@ -23,7 +23,7 @@ enum ModuleDoneAction {
     static func send(_ session: Session, _ toast: UFToastCenter, _ router: UFRouter, moduleID: Int, ids: [String], done: Bool,
                      message: String? = nil) async {
         guard !ids.isEmpty else { return }
-        await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/done",
+        await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/done", method: "POST",
                                      body: ["file_ids": .array(ids.map { .string($0) }), "done": .bool(done)], done: message)
     }
 }

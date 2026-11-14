@@ -165,7 +165,7 @@ struct ModuleSectionNameDialog: View {
         }
         guard let api = session.api else { return }
         do {
-            _ = try await api.value(path, body: body)
+            _ = try await api.value(path, method: "POST", body: body)       // Abschnitt anlegen/umbenennen: nur POST (vorher GET)
             close()
             router.reload()
         } catch { toast.show(error.localizedDescription, seconds: 4) }
@@ -202,7 +202,7 @@ struct ModuleWeekFileRow: View {
 
     private func place(_ key: String?) {
         Task {
-            await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/place",
+            await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/place", method: "POST",
                                          body: ["file_ids": [.string(id)], "to": key.map { .string($0) } ?? .null],
                                          done: key == nil ? "Wieder automatisch eingeordnet" : nil)
         }
@@ -257,7 +257,7 @@ struct ModuleUnassignedBar: View {
             HStack(spacing: 8) {
                 if suggestions > 0 {
                     UFButton("Vorschläge übernehmen (\(suggestions))", icon: "check", kind: .primary, size: .small) {
-                        Task { await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/suggestions/accept",
+                        Task { await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/suggestions/accept", method: "POST",
                                                             done: "Vorschläge übernommen") }
                     }
                     .accessibilityIdentifier("module.layout.accept")
@@ -276,7 +276,7 @@ struct ModuleUnassignedBar: View {
 
     private func scan() async {
         scanning = true
-        await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/suggestions/scan")
+        await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/suggestions/scan", method: "POST")
         scanning = false
     }
 }
@@ -302,7 +302,7 @@ struct ModuleDropZone: ViewModifier {
             .dropDestination(for: ModuleDragFile.self) { files, _ in
                 let ids = files.map(\.id)
                 guard !ids.isEmpty else { return false }
-                Task { await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/place",
+                Task { await ModuleLayoutAction.run(session, toast, router, "/api/modules/\(moduleID)/place", method: "POST",
                                                     body: ["file_ids": .array(ids.map { .string($0) }), "to": .string(key)]) }
                 return true
             } isTargeted: { targeted = $0 }

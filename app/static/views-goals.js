@@ -146,7 +146,7 @@ function bindBody(view, o) {
     const r = await send(`/sessions/${encodeURIComponent(b.dataset.tstop)}/stop`, "POST");
     if (r) toast(`${G.h(r.credited_minutes)} gelernt – gespeichert`);
   });
-  $$("[data-pkg]", view).forEach(c => c.onclick = async () => (await import("./views-plan.js?v=51")).openPackage(+c.dataset.pkg));
+  $$("[data-pkg]", view).forEach(c => c.onclick = async () => (await import("./views-plan.js?v=52")).openPackage(+c.dataset.pkg));
   $$("[data-opt]", view).forEach(b => b.onclick = async () => {
     const opt = o.plan.options[+b.dataset.opt];
     if (!confirm(`${opt.text || "Option"} – übernehmen und neu planen?`)) return;

@@ -4,7 +4,7 @@
 // GET /api/dashboard (study.dashboard); dazu Ergaenzungen, deren Fehler die Seite nicht anhalten: Neuigkeiten, Schwarzes
 // Brett und die Karte "Nächste Klausuren" (GET /api/exams/upcoming, exams.js; nur wenn es welche gibt).
 import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=47";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=51";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=52";
 import { openEvent } from "./views-tt.js?v=50";
 import { installBanner, bindInstallBanner } from "./pwa.js?v=18";
 import { staggerOnce, countUp } from "./motion.js?v=2";

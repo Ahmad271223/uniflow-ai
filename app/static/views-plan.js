@@ -3,6 +3,7 @@
 import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=47";
 import { tinyNames } from "./plan-names.js?v=30";
 import { progress, ofDays, weekDays, weekLabel, emptyText } from "./task-progress.js?v=1";
+import { subjectsHtml, bindSubjects, saveSubjects, weekWishDialog, topicDone, otherTopicDialog } from "./plan-choice.js?v=1";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
 const KIND_ICON = { vorlesung: "book", uebung: "pencil", gruppenuebung: "users", hoersaaluebung: "pencil", tutorium: "users", persoenlich: "user", sonstiges: "calendar" };
@@ -32,7 +33,7 @@ export async function viewPlan(_, params, view) {
   const days = cal.days.map(filt);
   view.innerHTML = `<div class="content wide" style="max-width:1600px;padding:1.3rem 1.5rem 3rem">
     <div class="page-head"><div><h1>Lernkalender</h1><div class="sub">Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.</div></div>
-      <div class="actions"><button class="btn" id="addPkgBtn">${icon("plus", 15)} Lernpaket</button><button class="btn" id="availBtn">${icon("clock", 15)} Verfügbarkeit</button><button class="btn" id="cfgBtn">${icon("settings", 15)} Lernkombination</button><button class="btn" id="rescueBtn" ${backlog.length ? "" : "disabled"} title="${backlog.length ? "" : "Nichts nachzuholen"}">${icon("life-buoy", 15)} Woche retten</button><button class="btn primary" id="genBtn">${icon("sparkles", 15)} Plan erstellen</button></div></div>
+      <div class="actions"><button class="btn" id="addPkgBtn">${icon("plus", 15)} Lernpaket</button><button class="btn" id="availBtn">${icon("clock", 15)} Verfügbarkeit</button><button class="btn" id="cfgBtn">${icon("settings", 15)} Lernkombination</button><button class="btn" id="wishBtn">${icon("star", 15)} Diese Woche</button><button class="btn" id="rescueBtn" ${backlog.length ? "" : "disabled"} title="${backlog.length ? "" : "Nichts nachzuholen"}">${icon("life-buoy", 15)} Woche retten</button><button class="btn primary" id="genBtn">${icon("sparkles", 15)} Plan erstellen</button></div></div>
     ${backlog.length ? `<div class="card" style="border-color:transparent;background:var(--bad-soft);margin-bottom:1rem"><div class="row wrap"><b style="color:var(--bad-text)">${icon("alert", 16)} ${backlog.length} Aufgabe${backlog.length > 1 ? "n müssen" : " muss"} nachgeholt werden</b><span class="spacer"></span><button class="btn sm" id="catchNow">Jetzt nachholen</button><button class="btn sm primary" id="catchPlan">Neu einplanen</button><button class="btn sm ghost" id="catchSkip">Bewusst überspringen</button></div></div>` : ""}
     <div class="cal2 ${["week", "3days"].includes(planState.view) ? "wk" : ""} ${sideOff() ? "side-off" : ""}" id="cal2"><div class="cal2-main">
       <div class="cal2-bar"><div class="seg pill">${[["ziele", "Lernziele"], ["day", "Tag"], ["3days", "3 Tage"], ["week", "Woche"], ["month", "Monat"], ["list", "Liste"]].map(([k, l]) => `<button class="${planState.view === k ? "active" : ""}" data-view="${k}">${k === "list" ? icon("list", 14) + " " : k === "ziele" ? icon("flag", 14) + " " : ""}${l}</button>`).join("")}</div>
@@ -58,6 +59,7 @@ export async function viewPlan(_, params, view) {
   $("#genBtn").onclick = () => generatePlan(iso(planState.view === "week" ? start : d));
   $("#cfgBtn").onclick = $("#cfgBtn2").onclick = () => configDialog(); $("#addPkgBtn").onclick = () => addPackageDialog(iso(planState.view === "day" ? d : start));
   $("#availBtn").onclick = () => availabilityDialog();
+  $("#wishBtn").onclick = () => weekWishDialog();
   $("#rescueBtn").onclick = () => suggestFlow({ rescue: true });
   $("#catchPlan")?.addEventListener("click", () => suggestFlow({})); $("#catchNow")?.addEventListener("click", () => go("list", planState.date));
   $("#catchSkip")?.addEventListener("click", async () => { if (confirm(`${backlog.length} offene Aufgaben als bewusst übersprungen markieren?`)) { await api("/tasks/skip", { method: "POST", body: { task_ids: backlog.map(b => b.id) } }); toast("Übersprungen"); state.route(); } });
@@ -233,12 +235,14 @@ export async function openPackage(id) {
   const GV = p.source === "smart" ? await import("./views-goals.js?v=2") : null;      // Lernblock aus den Lernzielen
   const html = `<div class="drawer-head"><span class="dot" style="background:${p.color || "var(--accent)"}"></span><div style="flex:1"><b>${esc(p.subject)}</b><div class="muted small">${esc(p.title)} · ${fmtShort(p.date)}${p.start_time ? ` · ${p.start_time}–${p.end_time}` : ""} · ${fmtMin(p.planned_minutes || 0)}</div></div>${statusPill(p.status)}<button class="btn ghost icon" data-close>${icon("x", 18)}</button></div>
     <div class="drawer-body">${GV ? GV.smartBlockHtml(p) : ""}<div class="stack" id="taskList">${p.tasks.map(t => taskRow(t)).join("")}</div>
+      ${p.source !== "smart" && p.date <= todayISO() && p.tasks.some(t => ["geplant", "in_bearbeitung", "nachholen"].includes(t.status)) ? `<button class="btn sm" id="pkOther" style="margin-top:.6rem">${icon("move", 14)} Hier ein anderes Fach gemacht</button>` : ""}
       ${p.status === "nachholen" || p.status === "teilweise" ? `<div class="card flat" style="margin-top:1rem;background:var(--bad-soft);border-color:transparent"><b>${p.tasks.filter(t => t.status === "nachholen").length} Aufgaben müssen nachgeholt werden.</b><div class="row wrap" style="margin-top:.5rem"><button class="btn sm primary" id="pkSuggest">Neu einplanen</button><button class="btn sm" id="pkSkip">Bewusst überspringen</button></div></div>` : ""}</div>
     <div class="drawer-foot"><button class="btn sm" id="pkMove">${icon("move", 14)} Verschieben</button><button class="btn sm" id="pkTime">${icon("clock", 14)} Uhrzeit</button><button class="btn sm" id="pkAddTask">${icon("plus", 14)} Aufgabe</button><span class="spacer"></span><button class="btn sm danger" id="pkDel">${icon("trash", 14)}</button></div>`;
   const host = drawer(html);
   bindTaskRows(host, () => openPackage(id));
   GV?.bindSmartBlock(host, p, () => openPackage(id));
   $("#pkSuggest", host)?.addEventListener("click", () => suggestFlow({ package_id: id }));
+  $("#pkOther", host)?.addEventListener("click", () => otherTopicDialog(p));
   $("#pkSkip", host)?.addEventListener("click", async () => { await api("/tasks/skip", { method: "POST", body: { task_ids: p.tasks.filter(t => t.status === "nachholen").map(t => t.id) } }); toast("Übersprungen"); state.route(); });
   $("#pkMove", host).onclick = () => moveDialog(`Lernpaket „${p.subject}“ verschieben`, async date => { await api(`/packages/${id}`, { method: "PATCH", body: { date } }); toast("Verschoben"); state.route(); }, p.date);
   $("#pkTime", host).onclick = () => { const m = modal(`<h3>Uhrzeit</h3><div class="row"><label class="field" style="flex:1">Beginn<input class="input" type="time" id="ptS" value="${p.start_time || "09:00"}"></label><label class="field" style="flex:1">Dauer<input class="input" type="number" id="ptD" value="${p.start_time && p.end_time && hm(p.end_time) > hm(p.start_time) ? hm(p.end_time) - hm(p.start_time) : p.planned_minutes || 60}" step="15"></label></div><div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="ptOk">Speichern</button></div>`); $("#ptOk", m).onclick = async () => { await api(`/packages/${id}`, { method: "PATCH", body: { start_time: $("#ptS", m).value, end_time: mh(hm($("#ptS", m).value) + (+$("#ptD", m).value)) } }); m.remove(); state.route(); }; };
@@ -257,9 +261,10 @@ export function bindTaskRows(host, refresh) {
   $$("[data-starttest]", host).forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "Test wird erstellt…"; try { const r = await api(`/tasks/${b.dataset.starttest}/start-test`, { method: "POST" }); location.hash = `#/exams/${r.test_id}?task=${b.dataset.starttest}`; } catch (e) { toast(e.message, 5000); b.disabled = false; } });
   $$("[data-taskmenu]", host).forEach(b => b.onclick = () => {
     const id = +b.dataset.taskmenu;
-    const m = modal(`<h3>Aufgabe</h3><div class="stack"><button class="btn" data-a="in_bearbeitung">${icon("play", 14)} In Bearbeitung</button><button class="btn" data-a="move">${icon("move", 14)} Auf anderen Tag verschieben</button><button class="btn" data-a="uebersprungen">${icon("x", 14)} Bewusst überspringen</button><button class="btn" data-a="edit">${icon("pencil", 14)} Titel / Dauer ändern</button><button class="btn danger" data-a="delete">${icon("trash", 14)} Löschen</button></div><div class="modal-foot"><button class="btn" data-close>Abbrechen</button></div>`);
+    const m = modal(`<h3>Aufgabe</h3><div class="stack"><button class="btn" data-a="topicdone">${icon("check", 14)} Thema schon gemacht</button><button class="btn" data-a="in_bearbeitung">${icon("play", 14)} In Bearbeitung</button><button class="btn" data-a="move">${icon("move", 14)} Auf anderen Tag verschieben</button><button class="btn" data-a="uebersprungen">${icon("x", 14)} Bewusst überspringen</button><button class="btn" data-a="edit">${icon("pencil", 14)} Titel / Dauer ändern</button><button class="btn danger" data-a="delete">${icon("trash", 14)} Löschen</button></div><div class="modal-foot"><button class="btn" data-close>Abbrechen</button></div>`);
     $$("[data-a]", m).forEach(x => x.onclick = async () => {
       const a = x.dataset.a; m.remove();
+      if (a === "topicdone") { try { await topicDone([id]); refresh(); } catch (e) { toast(e.message); } return; }
       if (a === "move") return moveDialog("Aufgabe verschieben", async date => { await api("/calendar/apply", { method: "POST", body: { moves: [{ task_id: id, to: date }] } }); toast("Verschoben"); refresh(); state.route(); });
       if (a === "delete") { if (confirm("Aufgabe löschen?")) { await api(`/tasks/${id}`, { method: "DELETE" }); refresh(); } return; }
       if (a === "edit") { const row = $(`[data-task="${id}"] .tt b`, host); const e = modal(`<h3>Aufgabe bearbeiten</h3><label class="field">Titel<input class="input" id="etT" value="${esc(row?.textContent.trim() || "")}"></label><label class="field">Dauer (Minuten)<input class="input" type="number" id="etM" value="45" min="5" step="5"></label><div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="etOk">Speichern</button></div>`); $("#etOk", e).onclick = async () => { await api(`/tasks/${id}`, { method: "PATCH", body: { title: $("#etT", e).value, est_minutes: +$("#etM", e).value } }); e.remove(); refresh(); }; return; }
@@ -300,7 +305,7 @@ export async function generatePlan(startDate) {
 }
 const PRESETS = { A: { n: "Intensiv", d: "1 Fach pro Tag · Vorlesung + Übungen + Wochentest", v: { subjects_per_day: 1, parts_lecture: 1, parts_exercise: 1, tests_per_subject: 1 } }, B: { n: "Intensiv mit Wiederholung", d: "1 Fach pro Tag · zusätzlich Wiederholung (Karteikarten)", v: { subjects_per_day: 1, parts_lecture: 1, parts_exercise: 1, tests_per_subject: 2 } }, C: { n: "Abwechslungsreich", d: "2 Fächer pro Tag · je Vorlesung + Übungen + Wochentest", v: { subjects_per_day: 2, parts_lecture: 1, parts_exercise: 1, tests_per_subject: 1 } }, D: { n: "Zwei Fächer mit Wiederholung", d: "2 Fächer pro Tag · zusätzlich Wiederholung", v: { subjects_per_day: 2, parts_lecture: 1, parts_exercise: 1, tests_per_subject: 2 } }, E: { n: "Benutzerdefiniert", d: "Alles selbst kombinieren", v: null } };
 export async function configDialog(after) {
-  const s = await api("/settings");
+  const [s, subj] = await Promise.all([api("/settings"), api("/calendar/modules").catch(() => null)]);
   const m = modal(`<h3>Meinen Lernplan konfigurieren</h3>
     <div class="stack" id="presets">${Object.entries(PRESETS).map(([k, p]) => `<label class="chip" style="justify-content:flex-start;padding:.5rem .8rem;border-radius:10px"><input type="radio" name="preset" value="${k}" style="margin-right:.4rem"><b>${k} – ${p.n}</b>&nbsp;<span class="muted">${p.d}</span></label>`).join("")}</div>
     <div class="grid cols-2" style="margin-top:.8rem">
@@ -311,6 +316,7 @@ export async function configDialog(after) {
       <label class="field">Wochentest pro Modul<select class="input" id="cTests"><option value="0" ${s.tests_per_subject == 0 ? "selected" : ""}>kein Test</option><option value="1" ${s.tests_per_subject == 1 ? "selected" : ""}>1 gemeinsamer Test</option><option value="2" ${s.tests_per_subject == 2 ? "selected" : ""}>1 Test + Wiederholung</option></select></label>
       <label class="field">Dauer Wochentest<select class="input" id="cTmin">${[15, 30, 45, 60, 90].map(n => `<option value="${n}" ${s.test_minutes == n ? "selected" : ""}>${n} min</option>`).join("")}</select></label></div>
     <label class="field">Lerntage<div class="row wrap" id="cDays">${DAYS.map((d, i) => `<button type="button" class="chip ${s.free_days.includes(i) ? "" : "on"}" data-d="${i}">${d}</button>`).join("")}</div></label>
+    ${subjectsHtml(subj)}
     <label class="field"><input type="checkbox" id="cExam" ${s.exam_priority ? "checked" : ""}> Klausurtermine stärker priorisieren</label>
     <div id="cFeas" class="small muted" style="margin:.4rem 0"></div>
     <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="cOk">Speichern</button></div>`);
@@ -318,7 +324,8 @@ export async function configDialog(after) {
   $$("select, input", m).forEach(el => el.addEventListener("input", upd)); upd();
   $$("input[name=preset]", m).forEach(r => r.onchange = () => { const p = PRESETS[r.value]; if (p.v) { $("#cSub", m).value = p.v.subjects_per_day; $("#cLec", m).value = p.v.parts_lecture; $("#cEx", m).value = p.v.parts_exercise; $("#cTests", m).value = p.v.tests_per_subject; } upd(); });
   $$("#cDays .chip", m).forEach(c => c.onclick = () => c.classList.toggle("on"));
-  $("#cOk", m).onclick = async () => { const free = $$("#cDays .chip", m).filter(c => !c.classList.contains("on")).map(c => +c.dataset.d); await api("/settings", { method: "PUT", body: { subjects_per_day: $("#cSub", m).value, parts_lecture: $("#cLec", m).value, parts_exercise: $("#cEx", m).value, tests_per_subject: $("#cTests", m).value, test_minutes: $("#cTmin", m).value, hours_per_day: (+$("#cMin", m).value / 60).toFixed(2), free_days: free, exam_priority: $("#cExam", m).checked } }); m.remove(); toast("Lernkombination gespeichert"); if (after) after(); else state.route(); };
+  bindSubjects(m);
+  $("#cOk", m).onclick = async () => { const free = $$("#cDays .chip", m).filter(c => !c.classList.contains("on")).map(c => +c.dataset.d); await api("/settings", { method: "PUT", body: { subjects_per_day: $("#cSub", m).value, parts_lecture: $("#cLec", m).value, parts_exercise: $("#cEx", m).value, tests_per_subject: $("#cTests", m).value, test_minutes: $("#cTmin", m).value, hours_per_day: (+$("#cMin", m).value / 60).toFixed(2), free_days: free, exam_priority: $("#cExam", m).checked } }); await saveSubjects(m); m.remove(); toast("Lernkombination gespeichert"); if (after) after(); else state.route(); };
 }
 export async function suggestFlow(body) {
   const r = await api("/calendar/suggest", { method: "POST", body });
