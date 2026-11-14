@@ -48,7 +48,7 @@ Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 
 Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröffentlichung ersetzt sein
 (`tests/test_release_texts.py` listet sie auf). **Stand 03.11.2026:** Die Angaben des Inhabers (IT solutions by Ahmad
-Fakih, Einzelunternehmen, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, USt-IdNr. DE462836430,
+Fakih, Einzelunternehmen, Inhaber Ahmad Fakih, Vahrenwalder Straße 30, 30165 Hannover, USt-IdNr. DE462836430,
 support@studinow.app, Domain studinow.app) sind in `angaben.json` eingetragen und in den Texten an Ort und Stelle
 eingesetzt (`[[Name]]`, `[[Anschrift]]`, `[[E-Mail]]`, `[[Domain]]`, `[[Datum]]`, `[[Jahr]]`, `[[USt-IdNr.]]`,
 `[[Aufsichtsbehörde]]`, `[[7 Tagen]]` gibt es in den Texten nicht mehr; das Impressum hat nur noch die Variante für

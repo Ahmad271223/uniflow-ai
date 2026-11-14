@@ -1,8 +1,6 @@
 # StudiNow-Konto löschen
 
-**Entwurf, Stand 12.11.2026 (26.10.2026).** Öffentliche Seite unter `https://studinow.app/konto-loeschen`. Google Play verlangt für Apps mit
-Kontoerstellung eine solche Seite; Apple verlangt die Löschung in der App (Richtlinie 5.1.1(v)) – beides ist
-abgedeckt.
+**Stand 14.11.2026.** So löschst du dein StudiNow-Konto und alle Daten dazu.
 
 ## In der App
 

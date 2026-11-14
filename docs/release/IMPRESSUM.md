@@ -1,16 +1,14 @@
 # Impressum
 
-**Entwurf, Stand 03.11.2026 (26.10.2026).** Pflichtangaben nach § 5 Digitale-Dienste-Gesetz (DDG; seit 14.05.2024
-anstelle von § 5 TMG). Dieselben Angaben gehören in App Store Connect als Händlerangaben (Digital Services Act) und in
-die Play Console (Kontaktdaten des Entwicklers); beide Stores zeigen sie öffentlich an.
+**Stand 14.11.2026.** Pflichtangaben nach § 5 Digitale-Dienste-Gesetz (DDG).
 
 ## Angaben nach § 5 DDG
 
 **Anbieter**<br>
 IT solutions by Ahmad Fakih<br>
 Einzelunternehmen, Inhaber: Ahmad Fakih<br>
-Baldurstraße 5<br>
-30657 Hannover<br>
+Vahrenwalder Straße 30<br>
+30165 Hannover<br>
 Deutschland
 
 **Kontakt**<br>

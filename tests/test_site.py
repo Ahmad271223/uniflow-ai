@@ -26,7 +26,7 @@ IMAGES = tuple(f"img/{p.name}" for p in sorted(IMG_SRC.glob("*.jpg")))
 AASA = ".well-known/apple-app-site-association"
 NESTED = ("i/index.html",) + IMAGES + (AASA,)
 TEAM_ID = re.compile(r"(?:\b[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
-COMPANY = ("IT solutions by Ahmad Fakih", "Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
+COMPANY = ("IT solutions by Ahmad Fakih", "Ahmad Fakih", "Vahrenwalder Straße 30", "30165 Hannover", "support@studinow.app")
 OPEN_ALLOWED: set[str] = set()                    # Hosting entschieden (08.11.2026): Hetzner, Nürnberg (EU)
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")
 

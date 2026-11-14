@@ -77,7 +77,7 @@ Sicherheit → Mit Apple anmelden → UniFlow). Ab V2 mit Server müssen die Tok
   Lernfortschritt (mit Nutzer verknüpft, kein Tracking, keine Werbung).
 - Datenschutzerklärung, Nutzungsbedingungen (EULA, eigene oder Apples Standard-EULA), Impressum und Support:
   Entwürfe in `docs/release/` (26.10.2026), seit 03.11.2026 mit den Angaben des Inhabers gefüllt (IT solutions by
-  Ahmad Fakih, Baldurstraße 5, 30657 Hannover, USt-IdNr. DE462836430, support@studinow.app; `docs/release/angaben.json`)
+  Ahmad Fakih, Vahrenwalder Straße 30, 30165 Hannover, USt-IdNr. DE462836430, support@studinow.app; `docs/release/angaben.json`)
   und als Website `site/` für `https://studinow.app` gebaut (`tools/gen-site.py`; Domain und Postfach ab 04.11.2026).
   Vor TestFlight anwaltlich prüfen; offen ist nur noch der Hoster des Dienstes (`[[Hoster]]` in der
   Datenschutzerklärung). Die Abo-Seite (PlanPickerView) und die Einstellungen (Karte „Rechtliches & Support“) öffnen

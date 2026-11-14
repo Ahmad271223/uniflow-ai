@@ -1,16 +1,12 @@
 # Nutzungsbedingungen StudiNow
 
-**Entwurf, Stand 13.11.2026 (26.10.2026; 09.11.2026: nur noch Jahresabos; 13.11.2026: Stripe-Abo endet mit der
-Kontolöschung). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
-(insbesondere Abschnitt 5: Widerrufsbelehrung und Erlöschen des Widerrufsrechts nach § 356 Abs. 5 BGB, Zuständigkeit
-von Apple/Google als Vertragspartner des Kaufs; Abschnitt 9: Haftung; Abschnitt 10: keine anteilige Erstattung bei
-Kontolöschung mit Stripe-Abo; Abschnitt 11).**
+**Stand 14.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
 Diese Bedingungen gelten für die Nutzung der StudiNow-Apps (iPad und Mac, Android, Windows), der Web-Oberfläche und
 des gehosteten StudiNow-Dienstes. Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),
-Baldurstraße 5, 30657 Hannover, E-Mail support@studinow.app („wir“). Mit dem Anlegen
+Vahrenwalder Straße 30, 30165 Hannover, E-Mail support@studinow.app („wir“). Mit dem Anlegen
 eines Kontos oder der Nutzung der App stimmst du diesen Bedingungen zu. Für den Kauf der App und des Abos über den
 App Store oder Google Play gelten zusätzlich die Bedingungen von Apple bzw. Google.
 
@@ -86,8 +82,10 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 100 Credits je
   Kalendermonat (auch beim Jahresabo). Nicht verbrauchte
   Credits verfallen am Monatsende; sind sie aufgebraucht, steht die KI von StudiNow bis zum nächsten Monat nicht zur
-  Verfügung, alle anderen Funktionen bleiben. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen
-  deiner Hochschule.
+  Verfügung, alle anderen Funktionen bleiben. Dazu kommen bis zu 50 E-Mails je Kalendermonat, die du in Uni-Mail mit
+  „Mit KI verbessern“ überarbeiten lassen kannst (ohne Credits); den Vorschlag übernimmst du nur, wenn du willst, und
+  gesendet wird nur mit „Senden“. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen deiner
+  Hochschule.
 - Den Preis zeigt die App vor dem Kauf an; er wird für ein Jahr im Voraus berechnet. Das Abo verlängert sich automatisch um ein Jahr, wenn du es nicht
   spätestens 24 Stunden vor Ablauf des laufenden Jahres kündigst. Nach einer Kündigung bleibt der Tarif bis zum Ende des bezahlten
   Jahres nutzbar. Kündigen und verwalten kannst du es in den

@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 13.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Stand 14.11.2026.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -31,7 +31,7 @@ nötig ist oder was du eingeschaltet hast.
 
 ## 2. Verantwortlicher
 
-IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Baldurstraße 5, 30657 Hannover, Deutschland,
+IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Vahrenwalder Straße 30, 30165 Hannover, Deutschland,
 E-Mail: support@studinow.app (siehe Impressum). Einen Datenschutzbeauftragten gibt es nicht, weil die
 gesetzlichen Voraussetzungen dafür nicht vorliegen.
 
@@ -255,7 +255,7 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 - Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bewusst); Moderation und Sperren Art. 6 Abs. 1
   lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer, Einhaltung der Regeln). Veröffentlichen ist freiwillig.
 
-## 8a. KI über dein ChatGPT (freiwillig) – Entwurf, vor Veröffentlichung rechtlich prüfen
+## 8a. KI über dein ChatGPT (freiwillig)
 
 - **Wann:** nur wenn du in den Einstellungen „ChatGPT verbinden“ wählst, dem Hinweis zustimmst und dich bei OpenAI
   anmeldest. Ohne Verbindung gibt es keine KI; alles andere in StudiNow funktioniert genauso.
@@ -356,7 +356,7 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bzw. nutzt die 
 Sperren Art. 6 Abs. 1 lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer). Alle drei Funktionen sind freiwillig;
 ohne sie funktioniert StudiNow genauso.
 
-## 8c. StudiNow-KI im Dienst (Tarif Pro AI) – Entwurf, vor Veröffentlichung rechtlich prüfen
+## 8c. StudiNow-KI im Dienst (Tarif Pro AI)
 
 - **Wann:** nur wenn du mit deinem StudiNow-Konto (Pro AI oder Probe, bestätigte E-Mail-Adresse) eine KI-Funktion im
   Dienst nutzt, z. B. eine Frage im Editor, eine Erklärung des ganzen Dokuments, Karteikarten oder einen Wochentest.
@@ -370,6 +370,8 @@ ohne sie funktioniert StudiNow genauso.
   - passende Stellen aus deinen Unterlagen und Lerntexte deines Kurses;
   - deine eigenen Notizen zur Seite, wenn du sie mitschickst;
   - bei Wochentests und Karteikarten die Texte der Unterlagen;
+  - bei „Mit KI verbessern“ in Uni-Mail der Text deiner E-Mail und ihr Betreff (nur zum Verstehen); Empfänger und
+    Anhänge werden nicht gesendet, die E-Mail selbst schickt weiterhin nur dein Uni-Postfach ab;
   - beim Einordnen einer Seite ohne Text das Bild der Seite.
 
   Nie gesendet werden dein Name, deine E-Mail-Adresse, Zugangsdaten, Hochschul-Sitzungen und Noten. OpenAI erhält zur
@@ -404,7 +406,7 @@ Produktkennung, Laufzeit, die zufällige Kontokennung `appAccountToken`), damit 
 Geräten mit derselben Apple-ID, ein anderes Konto kann es nicht übernehmen. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
 
-**Web und Windows (Entwurf, vor Veröffentlichung rechtlich prüfen):** Dort schließt du ein Abo – sobald wir den
+**Web und Windows:** Dort schließt du ein Abo – sobald wir den
 Abschluss eingerichtet haben – über den Zahlungsdienstleister Stripe ab (Stripe Payments Europe, Ltd., Irland; eigener
 Verantwortlicher für die Zahlungsabwicklung). Die Windows-App öffnet dafür die Bezahlseite von Stripe in deinem
 Browser. Wir übermitteln Stripe deine E-Mail-Adresse, eine Kundenkennung und den gewählten Tarif; Zahlungsdaten gibst

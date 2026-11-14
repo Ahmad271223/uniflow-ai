@@ -84,7 +84,7 @@ Gern zeige ich die App oder den Quelltext. Vielen Dank für Ihre Zeit.
 
 Mit freundlichen Grüßen
 Ahmad Fakih
-IT solutions by Ahmad Fakih · Baldurstraße 5 · 30657 Hannover · support@studinow.app
+IT solutions by Ahmad Fakih · Vahrenwalder Straße 30 · 30165 Hannover · support@studinow.app
 [[Matrikelnummer/LUH-ID, falls gewünscht]]
 
 ---
@@ -160,7 +160,7 @@ Gern zeige ich die App oder den Quelltext. Vielen Dank für Ihre Zeit.
 
 Mit freundlichen Grüßen
 Ahmad Fakih
-IT solutions by Ahmad Fakih · Baldurstraße 5 · 30657 Hannover · support@studinow.app
+IT solutions by Ahmad Fakih · Vahrenwalder Straße 30 · 30165 Hannover · support@studinow.app
 
 ---
 

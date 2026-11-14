@@ -80,7 +80,7 @@ def test_example_json_is_a_template_with_hints():
 
 def test_angaben_json_holds_the_owner_values_and_leaves_hosting_open():
     data = json.loads(ANGABEN.read_text(encoding="utf-8"))
-    assert data["name"] == COMPANY and data["strasse"] == "Baldurstraße 5" and data["plz_ort"] == "30657 Hannover"
+    assert data["name"] == COMPANY and data["strasse"] == "Vahrenwalder Straße 30" and data["plz_ort"] == "30165 Hannover"
     assert data["email"] == "support@studinow.app" and data["domain"] == "studinow.app" and data["datum"] == "03.11.2026"
     assert data["ustid"] == "DE462836430" and data["kleinunternehmer"] is False and data["unternehmen"]["firma"] == ""
     assert "Niedersachsen" in data["aufsichtsbehoerde"] and data["antwortfrist"] == "7 Tagen"
@@ -93,14 +93,17 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     """Die Rechtstexte tragen die Firmenangaben; offen sind nur die Platzhalter, deren Werte fehlen."""
     for name in LEGAL:
         text = (REL / name).read_text(encoding="utf-8")
-        assert "support@studinow.app" in text and "Entwurf" in text and "26.10.2026" in text, name
+        # 14.11.2026 (Inhaber: "mach Impressum, Datenschutz und AGB fertig"): kein Entwurfsvermerk mehr auf den
+        # veroeffentlichten Seiten, neue Anschrift Vahrenwalder Straße 30, 30165 Hannover
+        assert "support@studinow.app" in text and "Stand 14.11.2026" in text, name
+        assert "anwaltlich prüfen" not in text and "Entwurf, Stand" not in text, name
         assert "[[Name]]" not in text and "[[E-Mail]]" not in text and "[[Domain]]" not in text and "[[Datum]]" not in text, name
     ds = (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
     assert set(re.findall(r"\[\[([^\]]+)\]\]", ds)) == set(), "Hosting seit 08.11.2026 eingetragen (Hetzner, Nürnberg)"
     for name in ("IMPRESSUM.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
         assert "[[" not in (REL / name).read_text(encoding="utf-8"), name
     im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
-    assert "Baldurstraße 5<br>\n30657 Hannover<br>\nDeutschland" in im and "USt-IdNr. nach § 27a UStG: DE462836430" in im
+    assert "Vahrenwalder Straße 30<br>\n30165 Hannover<br>\nDeutschland" in im and "USt-IdNr. nach § 27a UStG: DE462836430" in im
     assert "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV" in im and "Variante" not in im
     # Nutzungsbedingungen 04.11.2026: drei Tarife, Probe wie Pro AI, Grenzen je Tarif (Abschnitt 5a)
     # 05.11.2026: Konto- und Abo-Pflicht in Web und Windows, Abschluss ueber Stripe (Datenschutz 5, 9, 12; Bedingungen 5)
@@ -115,14 +118,15 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # Hash der Stud.IP-Benutzerkennung im Geraeteabgleich (app/apple_signin.py, app/sync.py check_studip_user)
     # 13.11.2026: Konto loeschen auch im Web und unter Windows; ein Stripe-Abo endet mit der Loeschung (Bedingungen 5, 10;
     # Datenschutz 9, 15), keine anteilige Erstattung (anwaltlich pruefen)
-    assert "Stand 13.11.2026 (26.10.2026)" in ds and "Stand 13.11.2026 (26.10.2026; 09.11.2026: nur noch Jahresabos" in nb
+    assert "**Stand 14.11.2026.**" in ds and "**Stand 14.11.2026.**" in nb
     assert "beenden wir mit der Löschung sofort" in nb and "beenden wir mit der Löschung sofort" in ds
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
     assert "Jede Nutzung hat ein StudiNow-Konto" in ds and "iPad-App ohne StudiNow-Konto" not in ds
     assert "zugleich bei Apple" in ds and "Stud.IP-Benutzerkennung" in ds and "dieselbe apple-id" in ds.lower()
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
-    assert "Stand 13.11.2026 (26.10.2026)" in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
+    assert "Stand 14.11.2026." in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
+    assert "Mit KI verbessern" in ds and "50 E-Mails je Kalendermonat" in nb
     assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb and "verlängert sich automatisch um ein Jahr" in nb
     assert "pro Monat" not in nb.split("## 5a.")[0].split("## 5.")[-1], "kein Monatsabo in Abschnitt 5"
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
@@ -157,7 +161,10 @@ def test_fill_into_out_dir_leaves_sources_untouched_and_no_placeholders(filled):
         assert "[[" not in text and "]]" not in text, name
         for word in ("TODO", "TBD", "XXX"):
             assert word not in text, (name, word)
-        assert "Entwurf" in text and "26.10.2026" in text, "Vorbehalt der Vorlage bleibt (tests/test_release_texts.py)"
+        if name in LEGAL:
+            assert "Stand 14.11.2026" in text and "Entwurf, Stand" not in text, name
+        else:
+            assert "Entwurf" in text and "26.10.2026" in text, "Vorbehalt der Vorlage bleibt (tests/test_release_texts.py)"
     # Quelle unveraendert: dort stehen die offenen Platzhalter noch
     assert "Hetzner Online GmbH" in (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
     assert "Dateien geschrieben" in log and "Datum: heute" not in log, "datum steht fest in angaben.json"
@@ -167,11 +174,11 @@ def test_hosting_and_phone_values_are_inserted_and_owner_data_stays(filled):
     out, _ = filled
     ds = (out / "DATENSCHUTZ.md").read_text(encoding="utf-8")
     assert "läuft bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen (Deutschland), Serverstandort Nürnberg, Deutschland (EU)" in ds and "versendet\nSTRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland)" in ds
-    assert "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Baldurstraße 5, 30657 Hannover, Deutschland,\nE-Mail: support@studinow.app" in ds
+    assert "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Vahrenwalder Straße 30, 30165 Hannover, Deutschland,\nE-Mail: support@studinow.app" in ds
     assert "Behörde: Die Landesbeauftragte für den\nDatenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover." in ds
     assert "gibt es nicht, weil die\ngesetzlichen Voraussetzungen dafür nicht vorliegen." in ds and "Falls doch benannt" not in ds
     nb = (out / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
-    assert "Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),\nBaldurstraße 5, 30657 Hannover, E-Mail support@studinow.app" in nb
+    assert "Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),\nVahrenwalder Straße 30, 30165 Hannover, E-Mail support@studinow.app" in nb
     assert "`https://studinow.app/datenschutz`" in ds and "`https://studinow.app/impressum`" in nb
     assert "Anwaltlich prüfen" not in nb and "digitaler Inhalte.\n" in nb and "soweit gesetzlich zulässig.\n" in nb
     kl = (out / "KONTO-LOESCHEN.md").read_text(encoding="utf-8")
@@ -184,7 +191,7 @@ def test_impressum_keeps_the_sole_trader_block_and_ust_line(filled):
     out, _ = filled
     im = (out / "IMPRESSUM.md").read_text(encoding="utf-8")
     assert im.startswith("# Impressum\n") and "## Angaben nach § 5 DDG" in im and "## Weitere Angaben" in im
-    assert "IT solutions by Ahmad Fakih<br>\nEinzelunternehmen, Inhaber: Ahmad Fakih<br>\nBaldurstraße 5<br>\n30657 Hannover<br>\nDeutschland" in im
+    assert "IT solutions by Ahmad Fakih<br>\nEinzelunternehmen, Inhaber: Ahmad Fakih<br>\nVahrenwalder Straße 30<br>\n30165 Hannover<br>\nDeutschland" in im
     assert "E-Mail: support@studinow.app" in im and "Telefon" not in im
     assert "**Umsatzsteuer**<br>\nUSt-IdNr. nach § 27a UStG: DE462836430\n\n**Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV**<br>\nAhmad Fakih, Anschrift wie oben" in im
     assert "Variante" not in im and "Kleinunternehmer" not in im and "Registergericht" not in im and "*oder*" not in im

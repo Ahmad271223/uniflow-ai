@@ -30,6 +30,10 @@ def fields(name: str) -> dict[str, str]:
 def test_all_release_files_exist_and_are_marked_as_drafts():
     for f in FILES:
         text = (REL / f).read_text(encoding="utf-8")
+        if f in ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
+            # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py)
+            assert "Stand 14.11.2026" in text and "Entwurf, Stand" not in text, f
+            continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
 
 
@@ -243,7 +247,7 @@ def test_placeholders_use_one_syntax_and_are_listed():
 
 
 # Angaben des Inhabers vom 03.11.2026 (docs/release/angaben.json), zur Veroeffentlichung bestimmt
-OWNER = ("IT solutions by Ahmad Fakih", "Inhaber: Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
+OWNER = ("IT solutions by Ahmad Fakih", "Inhaber: Ahmad Fakih", "Vahrenwalder Straße 30", "30165 Hannover", "support@studinow.app")
 
 
 def test_legal_texts_carry_the_owner_data_and_only_hosting_is_open():

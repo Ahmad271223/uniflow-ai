@@ -32,7 +32,7 @@ def test_legal_page_renders_markdown_with_csp(app, page):
     assert ("noch auszufüllen" in html) == ("[[" in md), page
     assert "support@studinow.app" in html
     if page != "konto-loeschen":
-        assert "IT solutions by Ahmad Fakih" in html and "Baldurstraße 5" in html
+        assert "IT solutions by Ahmad Fakih" in html and "Vahrenwalder Straße 30" in html
 
 
 def test_tables_lists_and_escaping(app):
