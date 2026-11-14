@@ -54,6 +54,7 @@ final class StartseiteBilderAppTests: XCTestCase {
         HostedEnvironment.accessibilityAutomation(false)
         UserDefaults.standard.set(oldSidebar, forKey: "sidebar")
         UFGreeting.hourOverride = nil
+        UFFmt.todayOverride = nil
         Entitlements.shared.useLocalTrial(startedAt: nil)
         Entitlements.shared.setPlanForTesting(.free)
         UniStubProtocol.reset()
@@ -173,6 +174,9 @@ final class StartseiteBilderAppTests: XCTestCase {
     /// Demo-Inhalte, Free, keine Probe: aufgeraeumte Uebersicht (13.11.2026, `DashboardTidy`); nichts verschwindet
     /// ersatzlos
     func test01DemoFree() throws {
+        // Mensa hat am Wochenende zu Recht keine Gerichte (keine Karte): dann gilt der naechste Montag als "heute",
+        // sonst schlug der Test samstags und sonntags fehl (14.11.2026); werktags bleibt heute heute
+        UFFmt.todayOverride = StoreScreenshotV11Tests.nextServiceDay()
         try pumping { try await self.openDemo() }
         let env = try host()
         XCTAssertTrue(env.wait(timeout: 20) { self.texts(env).contains { $0.contains("Hallo Ada") } }, "Uebersicht erscheint")

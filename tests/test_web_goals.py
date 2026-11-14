@@ -1,9 +1,15 @@
 """Lernziele (Smart Planner 2.0) am PC und im Browser (app/static/views-goals.js, 13.11.2026), wie GoalsPage.swift auf
 dem iPad: Reiter "Lernziele" im Lernkalender, erste Ziele anlegen, Plan erstellen, Stoppuhr starten und beenden, Zeit
 eintragen, Zeitrahmen, bei zu wenig Zeit die Optionen (nichts ohne Klick), Lernblock im Lernpaket sperren, schmal ohne
-Ueberbreite. Erfundene Module, kein Netz. Ohne Chromium wird uebersprungen (wie tests/test_pwa.py)."""
+Ueberbreite. Erfundene Module, kein Netz. Ohne Chromium wird uebersprungen (wie tests/test_pwa.py).
+
+Feste Uhr auf beiden Seiten: Freitag, 13.11.2026, 12:00 Berlin, ab da laeuft die Zeit normal weiter (Stoppuhr). Vorher
+stand nur der Dienst fest und der Browser nahm das echte Datum; am Samstag schickte "Zeit eintragen" dann "heute" =
+14.11. und der Dienst wies es als Zukunft ab (14.11.2026)."""
 import json
-from datetime import date
+import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from conftest import asgi_call
@@ -13,12 +19,20 @@ from test_pwa import _browser, served  # noqa: F401  (Fixture `served`)
 READY = "document.querySelector('#view .goals .goals-kpis, #view .goals [data-newgoal], #view .goals .goals-feas')"
 
 
+T0 = datetime(2026, 11, 13, 12, 0, tzinfo=ZoneInfo("Europe/Berlin"))
+
+
 @pytest.fixture()
 def modules(app, tmp_path, monkeypatch):
-    from app import db, study
+    from app import db, smart_goals, study
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "goals.db")
     db.init_db()
-    monkeypatch.setattr(study, "today", lambda: date(2026, 11, 13))
+    started = time.monotonic()
+
+    def now():                                  # T0, dann echte verstrichene Zeit (wie die Uhr im Browser)
+        return T0 + timedelta(seconds=time.monotonic() - started)
+    monkeypatch.setattr(smart_goals, "now", now)
+    monkeypatch.setattr(study, "today", lambda: now().date())
 
     def call(method, path, body=None):
         st, _, b = asgi_call(app, method, path, body=json.dumps(body) if body is not None else None)
@@ -44,8 +58,11 @@ def _run(base, body, width=1400, height=900, hash_="#/plan?view=ziele"):
         if browser is None:
             pytest.skip("kein Chromium fuer Playwright")
         try:
-            context = browser.new_context(bypass_csp=True, viewport={"width": width, "height": height}, service_workers="block")
+            context = browser.new_context(bypass_csp=True, viewport={"width": width, "height": height}, service_workers="block",
+                                          timezone_id="Europe/Berlin")
             page = context.new_page()
+            page.clock.install(time=T0)                         # gleiche Uhr wie der Dienst ...
+            page.clock.resume()                                 # ... und sie laeuft (Stoppuhr)
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.on("dialog", lambda d: d.accept())               # Rueckfragen (Option uebernehmen) bestaetigen
