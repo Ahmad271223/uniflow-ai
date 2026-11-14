@@ -245,6 +245,8 @@ struct DocumentView: View {
     @State private var companionStore: DocumentStore?
     /// Video oder Lernseite daneben (docs/VIDEO-LERNSEITEN-2026-11-14.md); nur ohne Blatt und Loesung daneben
     @State private var webSide: WebSideItem?
+    /// "Daneben öffnen" mit Video und Lernseite zuerst (aus dem Menue "Video oder Lernseite daneben")
+    @State private var pickerWebFirst = false
     @State private var addingText = false
     // Seitenwerkzeuge (Editor-Schritt 5)
     @State private var goingToPage = false
@@ -878,7 +880,7 @@ struct DocumentView: View {
                                 if case .video(let v) = item {
                                     DocumentVideoLinks.save(v, for: store.file.id, defaults: ActiveContainer.current?.defaults)
                                 }
-                            }, onAppend: { f, template in
+                            }, webFirst: $pickerWebFirst, onAppend: { f, template in
                                 solutionSide = nil
                                 companion = Companion(file: f, pdfPage: nil, appendTemplate: template, request: UUID().uuidString)
                             }) { f in
@@ -1394,8 +1396,16 @@ struct DocumentView: View {
     /// Daneben oeffnen (zweites Dokument oder Loesung) bzw. Teilung beenden; ohne Plus das Schloss
     private func toggleSplit() {
         if hasSidePane { companion = nil; solutionSide = nil; webSide = nil }
-        else if entitlements.allows(.splitView) { choosingCompanion = true }
+        else if entitlements.allows(.splitView) { pickerWebFirst = false; choosingCompanion = true }
         else { lockedFeature = .splitView }
+    }
+
+    /// "Video oder Lernseite daneben": "Daneben öffnen" mit Video und Lernseite oben; ohne Plus die Tarifwahl
+    /// (wie "Geteilt", Plan freigegeben 14.11.2026)
+    private func openWebSidePicker() {
+        guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        pickerWebFirst = true
+        choosingCompanion = true
     }
 
     // MARK: Eine Kopfzeile ("Oben fest", 12.11.2026)
@@ -1590,6 +1600,13 @@ struct DocumentView: View {
         Group {
                 // "Bereich an KI" auch ohne Leiste und ohne Schreiben im Tarif (05.11.2026)
                 Section("KI-Hilfe") { areaMenuItems }
+                // Video oder Lernseite neben dem Dokument (Plus wie "Geteilt"; ohne Plus mit Schloss, oeffnet die Tarifwahl)
+                if !readOnly {
+                    Button { openWebSidePicker() } label: {
+                        Label(Self.lockedLabel("Video oder Lernseite daneben …", entitlements.access(.splitView)), systemImage: "play.rectangle.on.rectangle")
+                    }
+                    .accessibilityIdentifier("doc.webSide")
+                }
                 if !planAllowsWriting && !readOnly {
                     // Free: jeder schreibende Eintrag sichtbar mit Schloss (statt grau), Antippen oeffnet die Tarifwahl
                     // (Auftrag des Inhabers 12.11.2026); eigener Typ, damit das Menue flach bleibt
@@ -2618,6 +2635,9 @@ struct CompanionPicker: View {
     /// nil: immer ein neues Notizbuch (alter Weg)
     /// Video oder Lernseite daneben (nur mit Freigabe der geteilten Ansicht; nil = Abschnitt fehlt)
     var onWeb: ((WebSideItem) -> Void)? = nil
+    /// Video und Lernseite oben (Einstieg ueber "Video oder Lernseite daneben")
+    /// als Binding: ein Wert, den nur der Inhalt des Blatts liest, kaeme sonst mit dem alten Stand an
+    var webFirst: Binding<Bool> = .constant(false)
     var onAppend: ((LibFile, String) -> Void)? = nil
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -2641,16 +2661,20 @@ struct CompanionPicker: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    if let onWeb, webFirst.wrappedValue {
+                        WebSidePickerSection(documentID: excluding, moduleID: moduleID) { item in onWeb(item); dismiss() }
+                    }
                     if !solutions.isEmpty { solutionSection }
                     if !ownSheets.isEmpty {
                         CompanionOwnSheetsSection(sheets: ownSheets, open: { id in Task { await openOwn(id, restore: false) } },
                                                   restore: { id in Task { await openOwn(id, restore: true) } },
                                                   trash: { id in Task { await trashOwn(id) } }, openSheetID: openSheetID)
                     }
-                    blankSection
-                    if let onWeb {
-                        WebSidePickerSection(documentID: excluding) { item in onWeb(item); dismiss() }
+                    if !webFirst.wrappedValue { blankSection }
+                    if let onWeb, !webFirst.wrappedValue {
+                        WebSidePickerSection(documentID: excluding, moduleID: moduleID) { item in onWeb(item); dismiss() }
                     }
+                    if webFirst.wrappedValue { blankSection }
                     documentSection
                 }
                 .padding(20)

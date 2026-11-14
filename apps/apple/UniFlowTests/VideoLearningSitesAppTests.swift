@@ -175,4 +175,58 @@ final class VideoLearningSitesAppTests: XCTestCase {
         DocumentVideoLinks.save(nil, for: "f1", defaults: d)
         XCTAssertNil(DocumentVideoLinks.load("f1", defaults: d))
     }
+    /// Format fuer "Zeit merken" (zweiter Schritt) schon da: Zeitmarken je Seite; alte Fassung (nur Link) lesbar;
+    /// dasselbe Video behaelt seine Marken, ein anderes beginnt leer
+    func testVideoRecordIsReadyForTimeMarks() throws {
+        let suite = "uniflow.tests.video.marks.\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { d.removePersistentDomain(forName: suite) }
+        // erste Fassung: nur der Link
+        d.set(try JSONEncoder().encode(VideoLink(videoID: "dQw4w9WgXcQ")), forKey: DocumentVideoLinks.key("f1"))
+        XCTAssertEqual(DocumentVideoLinks.record("f1", defaults: d)?.link.videoID, "dQw4w9WgXcQ")
+        XCTAssertEqual(DocumentVideoLinks.record("f1", defaults: d)?.marks, [])
+        var r = try XCTUnwrap(DocumentVideoLinks.record("f1", defaults: d))
+        r.marks = [.init(pageKey: "p2", seconds: 750)]
+        d.set(try JSONEncoder().encode(r), forKey: DocumentVideoLinks.key("f1"))
+        DocumentVideoLinks.save(VideoLink(videoID: "dQw4w9WgXcQ", start: 30), for: "f1", defaults: d)
+        XCTAssertEqual(DocumentVideoLinks.record("f1", defaults: d)?.marks, [.init(pageKey: "p2", seconds: 750)], "dasselbe Video")
+        XCTAssertEqual(DocumentVideoLinks.record("f1", defaults: d)?.link.start, 30)
+        DocumentVideoLinks.save(VideoLink(videoID: "aqz-KE-bpKQ"), for: "f1", defaults: d)
+        XCTAssertEqual(DocumentVideoLinks.record("f1", defaults: d)?.marks, [], "anderes Video: neue Marken")
+        let json = String(decoding: try XCTUnwrap(d.data(forKey: DocumentVideoLinks.key("f1"))), as: UTF8.self)
+        XCTAssertTrue(json.contains("\"version\":1") && json.contains("\"marks\""))
+    }
+
+    /// Free: Eintrag sichtbar mit Schloss "(ab Plus)" (oeffnet die Tarifwahl), Plus: ohne Schloss
+    func testEntryIsLockedForFreeLikeSplitView() {
+        let title = "Video oder Lernseite daneben …"
+        XCTAssertEqual(UFFeatureMatrix.access(.splitView, plan: .free).isAllowed, false)
+        XCTAssertTrue(DocumentView.lockedLabel(title, UFFeatureMatrix.access(.splitView, plan: .free)).contains("Plus"))
+        XCTAssertEqual(DocumentView.lockedLabel(title, UFFeatureMatrix.access(.splitView, plan: .plus)), title)
+    }
+
+    /// Lernseiten gruppiert wie in der Auswahl; jede Seite der Liste landet in genau einer Gruppe
+    func testPickerGroupsCoverEverySite() {
+        let kinds = WebSidePickerSection.groups.map(\.kinds)
+        for s in LearningSites.builtIn {
+            XCTAssertEqual(kinds.filter { $0.contains(s.kind) }.count, 1, s.id)
+        }
+        XCTAssertEqual(WebSidePickerSection.lastSubtitle(VideoLink(videoID: "dQw4w9WgXcQ", start: 750)), "ab 12:30")
+        XCTAssertEqual(WebSidePickerSection.lastSubtitle(VideoLink(videoID: "dQw4w9WgXcQ")), "von vorn")
+    }
+    /// Wikipedia (Entscheidung: von Anfang an dabei): Suche und Artikel bleiben in der Spalte, alles, was aus
+    /// Wikipedia herausfuehrt (Einzelnachweise, Commons, Spenden, Schwesterprojekte), oeffnet ausserhalb der App
+    func testWikipediaStaysWikipediaAndEverythingElseOpensOutside() throws {
+        let s = try XCTUnwrap(LearningSites.builtIn.first { $0.id == "wikipedia-de" })
+        for inside in ["https://de.m.wikipedia.org/wiki/Fourier-Transformation", "https://de.wikipedia.org/wiki/Spezial:Suche?search=Laplace",
+                       "https://de.m.wikipedia.org/w/index.php?title=Signal&action=info"] {
+            XCTAssertEqual(LearningSitePolicy.decide(URL(string: inside), mainFrame: true, site: s), .allow, inside)
+        }
+        for out in ["https://commons.wikimedia.org/wiki/File:X.png", "https://donate.wikimedia.org/", "https://de.wiktionary.org/wiki/Signal",
+                    "https://en.wikipedia.org/wiki/Signal", "https://doi.org/10.1000/182", "https://www.ieee.org/"] {
+            let u = URL(string: out)!
+            XCTAssertEqual(LearningSitePolicy.decide(u, mainFrame: true, site: s), .openOutside(u), out)
+            XCTAssertEqual(LearningSitePolicy.decide(u, mainFrame: false, site: s), .cancel, "eingebettet: \(out)")
+        }
+    }
 }

@@ -62,4 +62,35 @@ final class WebSideUITests: XCTestCase {
         while Date() < end { if !e.exists { return true }; RunLoop.current.run(until: Date().addingTimeInterval(0.25)) }
         return !e.exists
     }
+    /// Einstieg ueber "Mehr" › "Video oder Lernseite daneben …": Auswahl mit Video und Lernseiten oben (Bild fuer den
+    /// Inhaber), dann ein YouTube-Video daneben
+    func testEntryFromMoreMenuShowsVideoAndSitesFirst() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UFDemo", "YES", "-UFRoute", "#/doc/demo-blatt", "-uniflow.toolbarPlacement", "bottom"]
+        app.launch()
+        let more = app.buttons["Mehr"].firstMatch
+        XCTAssertTrue(more.waitForExistence(timeout: 20))
+        more.tap()
+        let entry = app.buttons["doc.webSide"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 5), "Eintrag im Menue „Mehr“")
+        entry.tap()
+        let field = app.textFields["web.videoLink"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "Video oben in der Auswahl")
+        RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+        shot("4-auswahl-video-lernseiten")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'web.site.'")).firstMatch.waitForExistence(timeout: 5),
+                      "Lernseiten gleich darunter")
+        let wiki = app.buttons["web.site.wikipedia-de"]
+        for _ in 0..<4 where !(wiki.exists && wiki.isHittable) { app.swipeUp() }
+        XCTAssertTrue(wiki.waitForExistence(timeout: 5), "Wikipedia in der Liste")
+        shot("4b-auswahl-lernseiten-weiter")
+        for _ in 0..<4 where !field.isHittable { app.swipeDown() }
+        field.tap()
+        field.typeText("https://youtu.be/aqz-KE-bpKQ?t=95")
+        app.buttons["web.videoOpen"].tap()
+        XCTAssertTrue(app.buttons["video.close"].waitForExistence(timeout: 10), "Video daneben")
+        RunLoop.current.run(until: Date().addingTimeInterval(8))
+        shot("5-video-spalte")
+        app.terminate()
+    }
 }

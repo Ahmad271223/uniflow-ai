@@ -254,19 +254,44 @@ enum WebSideStore {
     }
 }
 
-// MARK: - Video-Link je Dokument (nur auf dem Geraet)
+// MARK: - Video je Dokument (nur auf dem Geraet)
 
-/// Zuletzt neben einem Dokument geoeffnetes Video, je Dokument in den Einstellungen des Containers (nie an den Dienst)
+/// Gemerktes Video zu einem Dokument. `marks` bereitet "Zeit merken" vor (Stelle im Video je Notizseite, zweiter Schritt
+/// laut Entscheidung des Inhabers 14.11.2026): heute leer, das Format traegt es schon, damit spaeter nichts umgebaut
+/// werden muss.
+struct DocumentVideoRecord: Codable, Equatable, Sendable {
+    /// Stelle im Video zu einer Seite (Seitenschluessel des Dokuments bzw. Blatts daneben)
+    struct Mark: Codable, Equatable, Sendable {
+        var pageKey: String
+        var seconds: Int
+    }
+
+    var version = 1
+    var link: VideoLink
+    var marks: [Mark] = []
+}
+
+/// Zuletzt neben einem Dokument geoeffnetes Video, je Dokument in den Einstellungen des Containers (nie an den Dienst,
+/// kein Abgleich zwischen Geraeten - Entscheidung des Inhabers 14.11.2026)
 enum DocumentVideoLinks {
     static func key(_ fileID: String) -> String { "uniflow.videoDaneben." + fileID }
 
-    static func load(_ fileID: String, defaults: UserDefaults?) -> VideoLink? {
+    static func record(_ fileID: String, defaults: UserDefaults?) -> DocumentVideoRecord? {
         guard let d = defaults?.data(forKey: key(fileID)) else { return nil }
-        return try? JSONDecoder().decode(VideoLink.self, from: d)
+        if let r = try? JSONDecoder().decode(DocumentVideoRecord.self, from: d), r.version == 1 { return r }
+        // erste Fassung (nur der Link)
+        return (try? JSONDecoder().decode(VideoLink.self, from: d)).map { DocumentVideoRecord(link: $0) }
     }
 
+    static func load(_ fileID: String, defaults: UserDefaults?) -> VideoLink? { record(fileID, defaults: defaults)?.link }
+
+    /// Neues Video: Zeitmarken eines anderen Videos fallen weg; dasselbe Video behaelt sie
     static func save(_ link: VideoLink?, for fileID: String, defaults: UserDefaults?) {
         guard let defaults else { return }
-        if let link, let d = try? JSONEncoder().encode(link) { defaults.set(d, forKey: key(fileID)) } else { defaults.removeObject(forKey: key(fileID)) }
+        guard let link else { defaults.removeObject(forKey: key(fileID)); return }
+        var r = record(fileID, defaults: defaults) ?? DocumentVideoRecord(link: link)
+        if r.link.videoID != link.videoID { r.marks = [] }
+        r.link = link
+        if let d = try? JSONEncoder().encode(r) { defaults.set(d, forKey: key(fileID)) }
     }
 }

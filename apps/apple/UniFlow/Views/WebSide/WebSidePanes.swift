@@ -9,11 +9,14 @@ import WebKit
 /// Was in der Spalte daneben steht (neben Blatt und Loesung)
 enum WebSideItem: Equatable, Identifiable {
     case video(VideoLink)
+    /// Vorlesungsaufzeichnung aus den eigenen Kursen (Opencast, eigener Player ohne Browser)
+    case recording(OpencastEntry)
     case site(LearningSite)
 
     var id: String {
         switch self {
         case .video(let v): return "video:" + v.videoID
+        case .recording(let e): return "recording:" + e.id
         case .site(let s): return "site:" + s.id
         }
     }
@@ -42,9 +45,14 @@ struct VideoSidePane: View {
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .background(Color.black)
                 .accessibilityIdentifier("video.player")
-            Text("Video von YouTube. Links aus dem Video öffnen außerhalb der App.")
-                .ufFont(12).foregroundStyle(UF.muted).padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Schreib im Dokument mit, während das Video läuft.", systemImage: "pencil.and.scribble")
+                    .ufFont(13.12, 600).foregroundStyle(UF.text2)
+                Text("Video von YouTube im eingebetteten Player. Links aus dem Video, das YouTube-Logo und „Ansehen auf YouTube“ öffnen außerhalb der App.")
+                    .ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
         }
         .background(UF.surface2)
@@ -204,6 +212,7 @@ struct WebSidePaneView: View {
     var body: some View {
         switch item {
         case .video(let v): VideoSidePane(link: v, dataStore: WebSideStore.dataStore(), onClose: onClose)
+        case .recording(let e): RecordingSidePane(entry: e, onClose: onClose)
         case .site(let s): LearningSitePane(site: s, dataStore: WebSideStore.dataStore(), onClose: onClose)
         }
     }
@@ -239,55 +248,138 @@ extension WebSideStore {
     }
 }
 
-/// Abschnitte "Video" und "Lernseite" unter "Daneben öffnen" (vorlaeufig, Gestaltung nach Freigabe des Plans)
+/// Aufzeichnung daneben: derselbe Player wie im Moduldetail (gestreamt oder geladen), Kopf der Spalte mit X
+struct RecordingSidePane: View {
+    let entry: OpencastEntry
+    let onClose: () -> Void
+    @EnvironmentObject private var studip: StudIPSync
+
+    var body: some View { RecordingPlayerView(entry: entry, library: studip.recordings, onClosePane: onClose) }
+}
+
+/// Abschnitte "Video" und "Lernseite" unter "Daneben öffnen" (Plan freigegeben 14.11.2026)
 struct WebSidePickerSection: View {
     let documentID: String
+    var moduleID: Int?
     let onPick: (WebSideItem) -> Void
+    @EnvironmentObject private var studip: StudIPSync
     @State private var link = ""
     @State private var problem: String?
+    @State private var recordings: [OpencastEntry] = []
 
     private var last: VideoLink? { DocumentVideoLinks.load(documentID, defaults: ActiveContainer.current?.defaults) }
     private var sites: [LearningSite] { LearningSites.sites(for: ActiveContainer.current?.key.university) }
 
+    /// Gruppen der Lernseiten in dieser Reihenfolge
+    static let groups: [(title: String, kinds: Set<String>)] = [
+        ("Deine Hochschule", ["university", "library"]),
+        ("Nachschlagen", ["reference", "dictionary"]),
+        ("Rechnen und Üben", ["tool", "learning"]),
+    ]
+
     var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            videoSection
+            sitesSection
+        }
+        .task(id: moduleID) {
+            guard let moduleID else { return }
+            let all = await studip.recordings.blocks(moduleID: moduleID).flatMap(\.entries).filter { !$0.gone }
+            recordings = Array(all.sorted { ($0.video.created ?? 0) > ($1.video.created ?? 0) }.prefix(6))
+        }
+    }
+
+    private var videoSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Video").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-            Text("YouTube-Link einfügen. Es läuft nur dieses Video; Links daraus öffnen außerhalb der App.")
+            Text("Schau ein Video und schreib im Dokument mit. Es läuft nur dieses eine Video; Links daraus öffnen außerhalb der App.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
-                UFTextInput("youtube.com/watch?v=…", text: $link)
+                UFTextInput("YouTube-Link einfügen", text: $link)
                     .accessibilityIdentifier("web.videoLink")
+                    .onSubmit(openLink)
                 UFButton("Öffnen", icon: "play", kind: .primary, size: .small) { openLink() }
                     .accessibilityIdentifier("web.videoOpen")
             }
-            if let problem { Text(problem).ufFont(13.12).foregroundStyle(UF.bad) }
-            if let last {
-                Button { onPick(.video(last)) } label: {
-                    Label("Zuletzt hier: YouTube-Video \(last.videoID)", systemImage: "clock.arrow.circlepath").ufFont(13.12, 600)
-                }
-                .buttonStyle(.plain).foregroundStyle(UF.accentText)
+            if let problem {
+                Text(problem).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("web.videoProblem")
             }
-            Text("Lernseite").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text).padding(.top, 8)
-            Text("Nur diese Seiten, ohne Adresszeile. Links zu anderen Seiten öffnen außerhalb der App.")
-                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
-                ForEach(sites) { s in
-                    Button { onPick(.site(s)) } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: s.symbol).foregroundStyle(UF.accent).frame(width: 22)
-                            Text(s.name).ufFont(13.6, 600).foregroundStyle(UF.text).lineLimit(2).multilineTextAlignment(.leading)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(12)
-                        .background(UF.surface, in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(UF.line, lineWidth: 1))
-                        .contentShape(RoundedRectangle(cornerRadius: 12))
+            if last != nil || !recordings.isEmpty {
+                VStack(spacing: 0) {
+                    if let last {
+                        row(icon: "play.rectangle", title: "Zuletzt hier: YouTube-Video", sub: Self.lastSubtitle(last),
+                            id: "web.lastVideo") { onPick(.video(last)) }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("web.site.\(s.id)")
+                    ForEach(Array(recordings.enumerated()), id: \.element.id) { i, e in
+                        if i > 0 || last != nil { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
+                        row(icon: "video", title: e.video.title, sub: "Aufzeichnung · \(e.label) · \(e.courseTitle)",
+                            id: "web.recording.\(i)") { onPick(.recording(e)) }
+                    }
+                }
+                .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
+            }
+        }
+    }
+
+    static func lastSubtitle(_ v: VideoLink) -> String {
+        v.start > 0 ? "ab \(v.start / 60):\(String(format: "%02d", v.start % 60))" : "von vorn"
+    }
+
+    private var sitesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Lernseite").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+            Text("Ausgewählte Seiten zum Nachschlagen, ohne Adresszeile. Links zu anderen Seiten öffnen außerhalb der App.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            ForEach(Self.groups, id: \.title) { g in
+                let list = sites.filter { g.kinds.contains($0.kind) }
+                if !list.isEmpty {
+                    Text(g.title).ufFont(12.8, 600).foregroundStyle(UF.muted).padding(.top, 4)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 10)], spacing: 10) {
+                        ForEach(list) { site in tile(site) }
+                    }
                 }
             }
         }
+    }
+
+    private func tile(_ s: LearningSite) -> some View {
+        Button { onPick(.site(s)) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: s.symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(UF.accent)
+                    .frame(width: 34, height: 34).background(UF.accentSoft, in: RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(s.name).ufFont(13.6, 600).foregroundStyle(UF.text).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(s.start.host?.replacingOccurrences(of: "www.", with: "") ?? "").ufFont(11.5).foregroundStyle(UF.muted).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .background(UF.surface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(UF.line, lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("web.site.\(s.id)")
+    }
+
+    private func row(icon: String, title: String, sub: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon).foregroundStyle(UF.accent).frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
+                    Text(sub).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Text("Daneben öffnen").ufFont(12.8, 600).foregroundStyle(UF.accentText)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
     }
 
     private func openLink() {

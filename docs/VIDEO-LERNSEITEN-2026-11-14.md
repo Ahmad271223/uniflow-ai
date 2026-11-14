@@ -73,17 +73,48 @@ Grundstock. Das braucht ein Dienst-Update (Freigabe des Inhabers).
 
 ## 4. Altersfreigabe
 
-„Uneingeschränkter Webzugang“ bleibt **nein**: Es gibt keinen freien Browser, keine Adresszeile und keine Suche über
-das Netz; jede Lernseite ist auf ihre eigenen Hosts begrenzt, YouTube nur als einzelnes eingebettetes Video. Vorschlag
-für die Begründung in `docs/release/APP-STORE.md` (Tabelle Altersfreigabe):
+**Ausgangslage.** Apple fragt im Fragebogen nach „Unrestricted Web Access“ und meint damit, dass Nutzer in der App
+beliebige Webseiten öffnen bzw. frei surfen können (eingebettete Browser-Funktion). Eine Apple-Quelle, die eine feste
+Liste ausdrücklich ausnimmt, haben wir nicht. Die Antwort „nein“ stützt sich deshalb auf das, was die App technisch
+zulässt – und das ist mit Tests belegt:
+
+| Merkmal eines Browsers | StudiNow |
+|---|---|
+| Adresszeile, beliebige Adresse eintippen | gibt es nicht |
+| Suche im ganzen Netz | gibt es nicht (keine Suchmaschine in der Liste) |
+| Links zu anderen Seiten folgen | nein: jede Navigation außerhalb der Hosts der gewählten Seite öffnet außerhalb der App (Safari); eingebettete fremde Rahmen werden nicht geladen (`LearningSitePolicy`, Tests) |
+| neue Fenster, Downloads | nein (außerhalb der App bzw. gar nicht) |
+| YouTube | nur ein einzelnes Video im offiziellen eingebetteten Player; Startseite, Suche, andere Videos öffnen außerhalb (`VideoSidePolicy`, Tests) |
+| Liste der Seiten | fest, von uns gepflegt, im Code geprüft (nur `https`, keine Platzhalter, keine Suchmaschinen/KI-Dienste – Test bricht sonst) |
+
+**Vorschlag Prüfhinweis (App Review Notes, Englisch):**
+
+> StudiNow does not contain a general-purpose web browser. Next to a document, students can open (1) a single YouTube
+> video they paste a link to, played in YouTube's official embedded player (privacy-enhanced mode), and (2) one page
+> from a fixed, curated list of learning sites (their university's website and library, Wikipedia, Duden, LEO
+> dictionary, GeoGebra calculator, Serlo). There is no address bar and no web search. Navigation is restricted to the
+> hosts of the chosen site; any link to another site, the YouTube logo or "Watch on YouTube" opens outside the app in
+> Safari. University sign-in pages are shown only for logging in. We therefore answer "Unrestricted Web Access" with No.
+
+**Vorschlag für `docs/release/APP-STORE.md`, Zeile „Uneingeschränkter Webzugang“ (nein), Begründung:**
 
 > Webansichten nur für die Anmeldeseiten der Hochschulen, für einzelne YouTube-Videos im offiziellen eingebetteten
-> Player und für eine feste Liste von Lernseiten (Hochschule, Bibliothek, Wikipedia, Wörterbücher, Rechner), jeweils
-> auf deren eigene Adressen begrenzt, ohne Adresszeile und ohne Suche im Netz; alle anderen Links öffnen außerhalb der
-> App.
+> Player und für eine feste Liste von Lernseiten (Hochschule, Bibliothek, Wikipedia, Duden, LEO, GeoGebra, Serlo),
+> jeweils auf deren eigene Adressen begrenzt, ohne Adresszeile und ohne Suche im Netz; alle anderen Links öffnen
+> außerhalb der App.
 
-Offene Frage: Wikipedia enthält Artikel zu allen Themen. Mit begrenzten Hosts ist das kein freier Webzugang; wer ganz
-sicher gehen will, lässt Wikipedia beim ersten Schritt weg (Entscheidung 3).
+**Wikipedia – Einschätzung.** In der Spalte bleiben Wikipedia-Suche und Links zwischen Artikeln erlaubt (dieselben
+Hosts `de.wikipedia.org`/`de.m.wikipedia.org`); Einzelnachweise, Weblinks, Wikimedia Commons, Spendenseiten und alles
+andere öffnen außerhalb der App (Test: andere Hosts → außerhalb, Unterrahmen → nicht geladen). Das ist **kein freies
+Surfen**: Man kommt nie auf eine andere Seite als Wikipedia, und es gibt keine Suche über das Netz.
+
+Eine Begrenzung auf „einen gesuchten Artikel lesen“ empfehle ich **nicht**: Die Wikipedia-Suche erreicht ohnehin
+jeden Artikel, die Begrenzung änderte also nicht, welche Inhalte erreichbar sind, nähme aber das Nachschlagen
+verwandter Begriffe (Links im Artikel) weg. Der eigentliche Punkt für die Freigabe ist nicht das Surfen, sondern der
+**Inhalt**: Wikipedia hat Artikel zu allen Themen, auch zu Sexualität, Drogen oder Gewalt (sachlich, als Lexikon). Wenn
+Apple das als Inhalt der App wertet, beträfe es die Fragen zu Inhalten, nicht „Webzugang“. Unsere Zielgruppe sind
+Studierende (Datenschutzerklärung: nicht unter 16), eine höhere Stufe wäre unkritisch. Entscheidung des Inhabers:
+Wikipedia von Anfang an dabei.
 
 ## 5. Datenschutz
 
@@ -109,7 +140,7 @@ sicher gehen will, lässt Wikipedia beim ersten Schritt weg (Entscheidung 3).
 **App-Datenschutz (Nutrition Labels):** keine Änderung – wir erfassen nichts Neues; YouTube und die Lernseiten sind
 Seiten, die der Nutzer selbst aufruft (wie ein Link). Vorsichtshalber im Abschnitt „Drittanbieter“ erwähnen.
 
-## 6. Tarif (Vorschlag, Entscheidung beim Inhaber)
+## 6. Tarif (entschieden: Plus)
 
 Vorschlag: **Plus**, wie „Übung und Skript nebeneinander“ (`UFFeature.splitView`) – es ist dieselbe geteilte Ansicht.
 In Free steht der Eintrag mit Schloss („ab Plus“). Alternative: Video in Free, Lernseiten in Plus (mehr Anreiz zum
@@ -122,15 +153,29 @@ Ausprobieren, aber zwei Regeln für dieselbe Ansicht).
 - **iPhone** (ohne Editor): Vorschlag für später – Video über dem Leser (oben das Video, darunter das Dokument),
   Lernseiten als eigenes Blatt. Nicht im ersten Schritt.
 
-## 8. Offene Entscheidungen für den Inhaber
+## 8. Entscheidungen des Inhabers (14.11.2026, Plan freigegeben: „Ja, so bauen“)
 
-1. Liste der Lernseiten wie oben? (streichen, ergänzen)
-2. Tarif: Plus für beides (Vorschlag) oder Video in Free?
-3. Wikipedia im ersten Schritt dabei?
-4. „Zeit merken“ (Stelle im Video zur Notizseite) gleich mit, oder erst Stufe 2?
-5. Video-Link nur auf dem Gerät (Vorschlag) oder über den Geräteabgleich auf alle Geräte?
+1. Liste der Lernseiten: wie vorgeschlagen.
+2. Tarif: Plus für Video und Lernseiten (wie „Übung und Skript nebeneinander“); Free sieht den Eintrag mit Schloss
+   „(ab Plus)“, Antippen öffnet die Tarifwahl.
+3. Wikipedia: von Anfang an dabei.
+4. „Zeit merken“: zweiter Schritt, jetzt nicht gebaut; das gespeicherte Format trägt die Zeitmarken schon
+   (`DocumentVideoRecord.marks`, Version 1).
+5. Video-Link: nur auf dem Gerät, kein Abgleich.
 
-## 9. Schon gebaut (technische Grundlage, ohne fertige Oberfläche)
+## 9. Gebaut (Stand 14.11.2026)
+
+- **Einstieg:** „Mehr“ › „Video oder Lernseite daneben …“ (Free: mit Schloss, öffnet die Tarifwahl) und „Geteilt“ ›
+  „Daneben öffnen“. Mit dem Menüeintrag stehen Video und Lernseiten oben.
+- **Auswahl:** Video (YouTube-Link einfügen, „Zuletzt hier“, Aufzeichnungen des Moduls aus Opencast) und Lernseiten in
+  Gruppen „Deine Hochschule“, „Nachschlagen“, „Rechnen und Üben“.
+- **Spalten:** YouTube-Video (offizieller Player, Hinweis, „Auf YouTube öffnen“), Aufzeichnung (vorhandener Player
+  ohne Browser, Kopf der Spalte mit X), Lernseite (Zurück, Startseite, „In Safari öffnen“, X; keine Adresszeile).
+- **iPhone:** nicht gebaut; Vorschlag: Video über dem Leser (oben das Video, darunter das Dokument), Lernseiten als
+  eigenes Blatt.
+
+## 10. Erste Grundlage (vor der Freigabe)
+
 
 - `VideoLink`: YouTube-Links erkennen (alle Formen, Startzeit), alles andere ablehnen.
 - `VideoSidePolicy` / `LearningSitePolicy`: Entscheidung je Navigation (in der Spalte laden, außerhalb öffnen,
@@ -145,3 +190,14 @@ Ausprobieren, aber zwei Regeln für dieselbe Ansicht).
   Video daneben, schließen. Dazu grün: `ViewTypeDepthAppTests`, `SplitSidesAppTests`, `SheetGateAppTests`.
   (Volle Suite noch nicht – auf dem Rechner lief der Testlauf für Build 42.)
 - Bilder: `~/Studora-Builds/video/bilder/` (1 Auswahl, 2 Wikipedia daneben, 3 YouTube-Video daneben).
+
+## 11. Tests (Stand Oberfläche, 14.11.2026)
+
+- Nur einzelne Testklassen auf eigenem Simulator-Klon (auf dem Rechner lief der volle Lauf für Build 42):
+  `VideoLearningSitesAppTests` 13/13 (u. a. Wikipedia bleibt Wikipedia, Format für Zeitmarken, Schloss für Free),
+  zusammen mit `ViewTypeDepthAppTests`, `SheetGateAppTests`, `LockVisibilityAppTests`, `SplitSidesAppTests`,
+  `NotesExportAppTests`: 44/44.
+- `UniFlowUITests/WebSideUITests` 2/2 mit echten Berührungen (Lernseite und Video über „Daneben öffnen“; Einstieg über
+  „Mehr“ › „Video oder Lernseite daneben …“).
+- Volle Suite: steht aus (fährt die Hauptsitzung auf dem Kandidaten).
+- Bilder: `~/Studora-Builds/video/bilder/` – 4 Auswahl Video/Lernseiten, 5 Video-Spalte, 2 Wikipedia daneben.
