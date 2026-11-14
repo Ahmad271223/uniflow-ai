@@ -4,7 +4,7 @@
 und loescht sie danach. Inhalt:
 
 - `LIESMICH.txt`: was wo liegt
-- `konto.json`: Konto, Sitzungen und Geraete, verknuepfte Anmeldewege, Tarife und Kaeufe, Nutzungszaehler, KI-Nutzung,
+- `konto.json`: Konto, Sitzungen und Geraete (mit dem Hauptgeraet der Geraete-Regel), verknuepfte Anmeldewege, Tarife und Kaeufe, Nutzungszaehler, KI-Nutzung,
   Abgleich-Auftraege, gespeicherte Hochschul-Zugangsdaten (Name und Benutzername; Passwoerter, Schluessel und Cookies
   nur als "gespeichert", damit eine verlorene ZIP keine Zugaenge verraet)
 - `daten/`: der Nutzerordner je Hochschule: Datenbanken (`lernapp.db`, konsistent ueber die SQLite-Sicherung kopiert)
@@ -63,6 +63,8 @@ def _account(user: dict) -> dict:
             "seiten_erklaerungen": _rows(conn, "SELECT record_name, file_key, page, mode, variant, payload, version, created_at "
                                                "FROM page_explain WHERE owner_id=? ORDER BY created_at", (uid,)),
         }
+    from . import device_limit
+    out["hauptgeraet"] = device_limit.primary(uid)          # Geraete-Regel (14.11.2026): das eine Geraet eines Free-Kontos
     creds = {}
     for name, value in sorted(vault.env_for(uid).items()):
         creds[name] = value if name.endswith("_USER") else SECRET_HINT
