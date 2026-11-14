@@ -297,8 +297,8 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
             for w in Self.debugWords {
                 for t in texts where t.contains(w) && !Self.debugAllowed.contains(t) { fail("@\(suffix): Debug-Rest „\(w)“ in „\(t.prefix(90))“") }
             }
-            // am Mac ("Designed for iPad") hat die erste Seite des Rundgangs fuenf Texte (Fortschritt, Ueberspringen, Titel,
-            // Text, Weiter); am iPad kommt die Bildlaufanzeige als sechster dazu (Befund 14.11.2026)
+            // am Mac ("Designed for iPad") liefert der Bedienungshilfen-Baum der ersten Seite des Rundgangs fuenf Texte
+            // (Fortschritt, Ueberspringen, Titel, Text, Weiter), am iPad mindestens sechs (Befund 14.11.2026)
             let fewest = ProcessInfo.processInfo.isiOSAppOnMac ? 5 : 6
             if texts.count < fewest { fail("@\(suffix): nur \(texts.count) Texte – leere Seite?\n" + texts.joined(separator: "\n")) }
             let over = overflows(env)
