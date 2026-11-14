@@ -3119,6 +3119,10 @@
       "disclaimer": {
        "type": "string"
       },
+      "earlier_studies": {
+       "type": "array",
+       "item": null
+      },
       "electives": {
        "type": "array",
        "item": null
@@ -3159,6 +3163,13 @@
       },
       "program": {
        "type": "null"
+      },
+      "program_mismatch": {
+       "type": "null"
+      },
+      "programs": {
+       "type": "array",
+       "item": null
       },
       "qis_program": {
        "type": "null"
@@ -3253,6 +3264,10 @@
        "item": null
       },
       "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "minors": {
        "type": "array",
        "item": null
       },
@@ -5760,6 +5775,10 @@
        "item": null
       },
       "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "minors": {
        "type": "array",
        "item": null
       },
