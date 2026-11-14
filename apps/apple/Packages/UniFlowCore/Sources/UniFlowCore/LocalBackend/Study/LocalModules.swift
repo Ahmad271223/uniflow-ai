@@ -146,6 +146,8 @@ public enum LocalModules {
         var stored: [String: LectureWeeks.Stored] = [:]
         /// eigene Ordnung des Nutzers je Modul (`ModuleLayout`)
         var layouts: [Int64: ModuleLayout.Layout] = [:]
+        /// Seminare und Blockveranstaltungen mit wenigen Terminwochen (`SessionWeeks`): Modul -> Wochen mit Terminen
+        var sessions: [Int64: SessionWeeks] = [:]
 
         init(_ c: SQLiteConnection, clock: UniFlowClock) throws {
             today = BerlinClock.parseISODate(clock.today) ?? 0
@@ -153,6 +155,7 @@ public enum LocalModules {
             start = try term.map { $0.firstMonday } ?? StudyWeeks.semesterStart(c, today: today)
             stored = try LectureWeeks.stored(c)
             layouts = try ModuleLayout.load(c)
+            if let term, !stored.isEmpty { sessions = try SessionWeeks.load(c, term: term, start: start, stored: stored) }
         }
 
         init(today: Int, start: Int) {
@@ -180,7 +183,12 @@ public enum LocalModules {
     static func autoWeek(_ f: FileRow, dates: Dates) throws -> Int {
         if f.docType != "klausur", f.json["sub_label"]?.string != "Klausur-Lösung", let id = f.json["id"]?.string,
            let s = dates.stored[id] {
-            return LectureWeeks.displayWeek(s, start: dates.start)
+            let w = LectureWeeks.displayWeek(s, start: dates.start)
+            // Seminar/Block mit wenigen Terminwochen: "Sitzung n" in die Woche des passenden Termins
+            if let m = f.json["module_id"]?.int, let sw = dates.sessions[Int64(m)], let term = dates.term {
+                return sw.week(for: s, displayWeek: w, term: term) ?? w
+            }
+            return w
         }
         return try week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int, chdate: f.chdate,
                  start: dates.start, today: dates.today)
