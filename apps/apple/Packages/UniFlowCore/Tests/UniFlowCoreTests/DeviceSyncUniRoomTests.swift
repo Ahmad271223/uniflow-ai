@@ -256,6 +256,8 @@ final class DeviceSyncUniRoomTests: XCTestCase {
             try c.execute("UPDATE courses SET module_id=NULL WHERE module_id=(SELECT id FROM modules WHERE name='Ada-Fach 2')")
             try c.execute("DELETE FROM modules WHERE name='Ada-Fach 2'")
         }
+        // die Loeschung liegt nicht in derselben Millisekunde wie der folgende Abruf (dessen Marken gehoeren dem Dienst)
+        try await Task.sleep(nanoseconds: 5_000_000)
         let pending: JSONValue = ["results": [["entity": "modules", "id": 1, "status": "room_pending"], ["entity": "modules", "id": 2, "status": "room_pending"]],
                                   "mapping": .array([]), "conflicts": .array([])]
         await service.add(result: pending)

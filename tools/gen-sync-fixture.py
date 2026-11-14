@@ -80,13 +80,13 @@ def build() -> dict:
             return out
 
         def pull(label, since=None, limit=None, device=None, **hashes):
-            rooms = sync.resolve_room(conn, device, hashes.get("uni_key"), hashes.get("studip_user")) if hashes else None
+            rooms = sync.resolve_room(conn, device, hashes.get("uni_key"), hashes.get("studip_user")) if hashes or device else None
             out = sync.changes(conn, since, limit or sync.MAX_PULL, rooms=rooms)
             conn.commit()
             step = {"op": "pull", "label": label, "since": "<cursor>" if since else None, "expect": scrub(out)}
             if limit:
                 step["limit"] = limit
-            if hashes:
+            if hashes or device:
                 step.update(device=device, **hashes)
             steps.append(step)
             return out
@@ -177,11 +177,11 @@ def build() -> dict:
         push("Altbestand: ein Geraet ohne Hash legt ein Fach an", "ipad-bob", [{"entity": "modules", "local_id": -1, "data": {"name": "Bob alt"}}])
         push("Adas iPad meldet sein Uni-Konto und legt ein Fach an: es gehoert zu Adas Raum", "ipad-ada",
              [{"entity": "modules", "local_id": -1, "data": {"name": "Ada-Fach"}}], **ada)
-        r = pull("Adas iPhone (gleicher Schluessel): nur Adas Raum; 'Bob alt' kommt von einem Geraet unbekannter Herkunft und bleibt aus",
+        r = pull("Adas iPhone (gleicher Schluessel), ein Raum im Konto: alles wie bisher, auch 'Bob alt'; nichts ist fremd",
                  device="iphone-ada", **ada)
         push("Aeltere App auf Bobs Geraet (nur studip_user): eigener Raum statt 409; sein Altbestand wird zugeordnet", "ipad-bob",
              [{"entity": "modules", "local_id": -2, "data": {"name": "Bob-Fach"}}], studip_user=bob["studip_user"])
-        pull("Adas iPhone danach: nichts Neues, aber Bobs Zeilen sind nachweislich fremd (foreign), uni.rooms = 2",
+        pull("Adas iPhone danach, zwei Raeume: nichts Neues, Bobs Zeilen sind nachweislich fremd (foreign), uni.rooms = 2",
              since=r["cursor"], device="iphone-ada", **ada)
         pull("Bobs Geraet (aeltere App): seine beiden Faecher, Antwort ohne foreign/uni", device="ipad-bob", studip_user=bob["studip_user"])
         push("Adas iPhone aendert und loescht Bobs Fach: other_room, nichts geschieht", "iphone-ada",
@@ -194,6 +194,10 @@ def build() -> dict:
         push("... und es aendert und loescht nichts in den Raeumen: room_pending (spaeter noch einmal senden)", "win-alt",
              [{"entity": "modules", "id": 3, "base_version": 1, "data": {"name": "nein"}}], [{"entity": "modules", "id": 3}])
         pull("Bobs neue App: sein Raum, Adas Tombstone kommt nicht an", device="iphone-bob", **bob)
+        push("Ein Geraet ohne Hash legt noch ein Fach an (Herkunft offen)", "win-alt", [{"entity": "modules", "local_id": -3, "data": {"name": "Herkunft offen"}}])
+        push("Bei zwei Raeumen wartet eine Aenderung daran (room_pending); loeschen darf Adas Raum es - die Loeschung gehoert dann ihm",
+             "iphone-ada", [{"entity": "modules", "id": 4, "base_version": 1, "data": {"name": "nein"}}], [{"entity": "modules", "id": 4}], **ada)
+        pull("Das Ursprungsgeraet ohne Hash bekommt diese Loeschmarke nicht", device="win-alt")
 
     for name, fn in (("neu-anlegen-und-abrufen", neu), ("aenderungen-und-konflikte", aenderung), ("loeschen-und-wiederherstellen", loeschen),
                      ("notizen-base-version", notizen), ("einstellungen", einstellungen), ("abruf-in-seiten", seiten),
@@ -223,7 +227,10 @@ def build() -> dict:
                                "kennen beide nicht und tun nichts. Mit uni_key enthaelt der Abruf foreign [{entity, id}] (Zeilen eines "
                                "anderen Raums: Verknuepfung loesen; lokale Zeile nur entfernen, wenn sie aus dem Dienst kam, unveraendert "
                                "ist und nichts an ihr haengt, ohne Tombstone) und uni {rooms, room}. Ohne Hash: Konto ohne Raum wie bisher; "
-                               "mit einem Raum alles sichtbar, Raum-Zeilen aenderbar, nicht loeschbar; mit mehreren Raeumen nur Zeilen ohne Raum. "
+                               "mit einem Raum alles sichtbar, Raum-Zeilen aenderbar, nicht loeschbar; mit mehreren Raeumen nur Zeilen ohne Raum. Solange das Konto nur einen "
+                               "Raum hat, sieht und aendert auch ein Geraet mit Raum alles wie bisher (getrennt wird ab dem zweiten Raum). "
+                               "Loescht ein Geraet mit Raum eine Zeile ohne Raum, gehoert die Loeschung seinem Raum: der Tombstone geht nur an "
+                               "diesen Raum und nie an das Ursprungsgeraet, solange dessen Raum offen ist. "
                                "Faehigkeit in X-StudiNow-Caps: uni_room",
                       "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=&limit=&uni_key=&studip_user=",
                                     "push": "POST /api/sync/push {device_id, items, deletes, uni_key?, studip_user?}"}},

@@ -50,15 +50,23 @@ Version 1.0.4 zurücknimmt. Kandidat für eine sichere Hildesheimer Kennung: der
 - `sync_devices(device_id, room)` – in welchem Raum ein Gerät zuletzt war.
 - `sync_row_room(entity, entity_id, room, origin, assigned_at)` – Raum und Ursprungsgerät je Zeile.
 
-Regeln (`app/sync.py`, Abschnitt „Räume“):
+Regeln (`app/sync.py`, Klasse `Rooms`):
 
-- Neue Zeile eines Geräts mit Raum gehört zu diesem Raum. Abruf: ein Gerät mit Raum bekommt nur Zeilen und
-  Löschmarken seines Raums, dazu Zeilen ohne Raum und ohne Ursprungsgerät (Web), solange das Konto genau einen Raum hat.
-- Ändern und Löschen nur im eigenen Raum. Sonst je Eintrag eine Antwort ohne Wirkung im Dienst, nie ein Fehler:
-  `other_room` (die Zeile gehört nachweislich einem anderen Raum) oder `room_pending` (die Zeile stammt von einem
-  Gerät, dessen Uni-Konto der Dienst noch nicht kennt – später noch einmal senden). Ältere Apps kennen beide nicht und
-  tun nichts: die Änderung bleibt bei ihnen vorgemerkt und geht beim nächsten Abgleich wieder mit. (Ein stilles
-  „übernommen“ wäre gefährlich gewesen: der Stand des Dienstes hätte die Änderung später überschrieben.)
+- **Getrennt wird, sobald der Dienst zwei Uni-Konten unter dem StudiNow-Konto kennt** (zwei Räume). Solange es nur
+  einen Raum gibt, sieht und ändert jedes Gerät alles wie bisher. Grund: Zeilen eines Geräts, das sich nie wieder meldet
+  (App neu installiert, altes Handy), lassen sich keinem Uni-Konto zuordnen; wären sie ab dem ersten Tag unsichtbar,
+  fehlten sie fast jedem Nutzer mit nur einem Uni-Konto.
+- Ab zwei Räumen: Neue Zeilen gehören zum Raum des Geräts. Ein Gerät mit Raum bekommt nur Zeilen und Löschmarken
+  seines Raums und ändert nur sie. Zeilen ohne Raum (Web, Geräte unbekannter Herkunft) gehen an kein Gerät mit Raum.
+- **Löschen ist immer geschützt**, auch bei nur einem Raum: Löscht ein Gerät mit Raum eine Zeile ohne Raum, gehört
+  die Löschung seinem Raum. Die Löschmarke geht nur an diesen Raum und nie an das Ursprungsgerät, solange dessen
+  Uni-Konto offen ist. Gehört es später zu einem anderen Raum, erfährt es die Zeile als fremd, behält seine Fassung
+  und legt sie in seinem Raum neu an. Gehört es zum selben Raum, holt es die Löschmarke dann nach.
+- Was nicht erlaubt ist, bekommt je Eintrag eine Antwort ohne Wirkung im Dienst, nie einen Fehler: `other_room` (die
+  Zeile gehört nachweislich einem anderen Raum) oder `room_pending` (Herkunft der Zeile noch offen – später noch
+  einmal senden). Ältere Apps kennen beide nicht und tun nichts: die Änderung bleibt bei ihnen vorgemerkt und geht
+  beim nächsten Abgleich wieder mit. (Ein stilles „übernommen“ wäre gefährlich: der Stand des Dienstes hätte die
+  Änderung später überschrieben.)
 - Löschen einer Zeile, an der Zeilen eines anderen Raums hängen, wird nicht ausgeführt.
 - Doppelte Fächer (gleicher Name) werden im Dienst nur noch innerhalb eines Raums zusammengelegt
   (`study.merge_duplicate_modules`).
@@ -70,25 +78,29 @@ Regeln (`app/sync.py`, Abschnitt „Räume“):
 legt die drei Tabellen an (`IF NOT EXISTS`), überspringt fehlende Datentabellen, trägt einmalig je vorhandener Zeile das
 Ursprungsgerät ein: zuerst aus `sync_ops` („angelegt von“), sonst `sync_device` (letzter Schreiber). Ein Marker
 (`~meta/backfill`) verhindert die Wiederholung. Es wird nichts gelöscht und keine Datenzeile angefasst.
+`sync_ops` reicht 90 Tage zurück (also über den 11.11.2026 hinaus). Wo der Eintrag fehlt und ein fremdes Gerät die
+Zeile zuletzt geändert hat, kann der Rückfall falsch zuordnen; das Aufräumen behält dann auf dem eigenen Gerät alles
+mit Inhalt und legt es als eigene Zeile neu an – schlimmstenfalls bleibt auf dem anderen Gerät ein leeres Fach stehen.
 
 **Altbestand.** Zeilen ohne Raum bleiben im Dienst. Meldet ein Gerät zum ersten Mal Schlüssel oder Hash, bekommen
 alle Zeilen mit diesem Ursprungsgerät seinen Raum (`assigned_at` = jetzt; Geräte desselben Raums holen sie damit
-nach, auch wenn ihr Zeitstempel schon weiter ist). Zeilen eines noch unbekannten Geräts gehen an kein Gerät mit Raum.
+nach, auch wenn ihr Zeitstempel schon weiter ist). Ab zwei Räumen gehen Zeilen eines noch unbekannten Geräts an kein
+Gerät mit Raum; Änderungen daran warten (`room_pending`) und kommen an, sobald sich das Gerät im selben Raum meldet.
 
 ## Ältere Clients
 
 | Client | schickt | Verhalten nach dem Dienst-Update |
 |---|---|---|
-| Apple 1.0.3, Builds 34–41 | `studip_user` | bekommt sofort einen Raum, sieht und ändert nur noch ihn; kein 409 mehr; kein Aufräumen |
-| Apple bis 1.0.2, Windows-App alt, Hildesheim 1.0.4 | nichts | Konto ohne Raum: alles wie bisher. Konto mit einem Raum: sieht weiter alles, darf Raum-Zeilen ändern, aber nicht löschen. Konto mit zwei Räumen: sieht und ändert nur Zeilen ohne Raum |
+| Apple 1.0.3, Builds 34–41 | `studip_user` | bekommt sofort einen Raum, kein 409 mehr. Ein Uni-Konto im StudiNow-Konto: alles wie bisher. Zwei: sieht und ändert nur noch seinen Raum; kein Aufräumen (das kann erst die neue App) |
+| Apple bis 1.0.2, Windows-App alt, Hildesheim 1.0.4 | nichts | Konto ohne Raum: genau wie bisher. Ein Raum: sieht und ändert weiter alles, löscht aber nur Eigenes und Web-Zeilen. Zwei Räume: sieht und ändert nur Zeilen ohne Raum |
 | Web | – | zeigt weiter alle Zeilen des Kontos (kein Uni-Zugang im Browser) |
 
-Kein Fall liefert einen Fehler, keiner löscht Daten. Eine abgelehnte Löschung bleibt lokal gelöscht, im Dienst und
-auf den Geräten des anderen Raums bleibt die Zeile.
+Kein Fall liefert einen Fehler, keiner löscht Daten auf einem Gerät eines anderen Uni-Kontos. Eine nicht angenommene
+Löschung bleibt lokal gelöscht; im Dienst und auf den anderen Geräten bleibt die Zeile.
 
-Übergang, solange nicht alle Geräte eines Uni-Kontos sich gemeldet haben: Was ein noch unbekanntes Gerät angelegt
-hat, geht an kein Gerät mit Raum; Änderungen daran warten (`room_pending`) und kommen an, sobald sich das Gerät im
-selben Raum meldet. Apple-Geräte ab 1.0.3 melden sich beim nächsten Öffnen der App von selbst (ohne App-Update).
+Bewusste Grenze: Solange der Dienst nur ein Uni-Konto kennt, kann er ein stilles Gerät mit einem zweiten Uni-Konto
+nicht erkennen. Was davon schon vermischt ist, bleibt bis dahin, wie es ist; neu mischen kann nur noch ein Gerät, das
+gar keinen Hash schickt (App bis 1.0.2). Apple-Geräte ab 1.0.3 melden sich beim nächsten Öffnen der App von selbst.
 
 ## Aufräumen auf dem Gerät (neue App)
 
@@ -110,8 +122,9 @@ und App: Sobald das andere Gerät einmal abgeglichen hat (ab App 1.0.3 genügt d
 Stud.IP-Hash schon), nennt der Dienst seine Zeilen als fremd → die 8 leeren Fächer samt Terminen verschwinden auf dem
 iPhone, ohne Löschmarke. Die 7 eigenen bleiben. Auf dem anderen Gerät bleiben seine 8 Fächer; die 7 fremden, dort
 leeren Fächer verschwinden dort, sobald es die neue App hat. **Meldet sich das andere Gerät nie wieder** (abgemeldet,
-gelöscht, App bis 1.0.2), bleibt der Beweis aus und die 8 Fächer bleiben auf dem iPhone stehen; sie von Hand zu
-löschen ist dann gefahrlos (bleibt lokal, der Dienst löscht nichts).
+gelöscht, App bis 1.0.2), bleibt der Beweis aus und die 8 Fächer bleiben auf dem iPhone stehen. Sie von Hand zu
+löschen ist dann gefahrlos: die Löschung gilt für die eigenen Geräte; das andere Gerät bekommt die Löschmarke nie,
+behält seine Fächer und legt sie, falls es sich doch meldet, in seinem Raum neu an.
 
 ## Web und Windows
 

@@ -151,35 +151,71 @@ def test_tombstone_of_another_room_never_reaches_a_device_as_deleted(conn):
 
 
 def test_legacy_rows_are_assigned_when_their_device_reports_its_uni_account(conn):
-    """Altbestand: zwei Geraete haben ohne Hash gesendet. Wer dazugehoert, weiss der Dienst erst, wenn das
-    Ursprungsgeraet sich meldet; bis dahin geht die Zeile an kein Geraet mit Raum, und niemand loescht sie."""
+    """Altbestand: zwei Geraete haben ohne Hash gesendet. Solange der Dienst nur ein Uni-Konto kennt, bleibt alles wie
+    bisher (sonst waeren die Zeilen eines Geraets, das sich nie wieder meldet, fuer die anderen verloren). Meldet sich
+    das zweite Uni-Konto, wird getrennt: seine Zeilen sind nachweislich fremd, Zeilen unbekannter Herkunft warten."""
     from app import sync
     m_ada = sync.push(conn, "ipad-ada", [{"entity": "modules", "local_id": -1, "data": {"name": "Ada alt"}}])["results"][0]["id"]
     m_bob = sync.push(conn, "ipad-bob", [{"entity": "modules", "local_id": -1, "data": {"name": "Bob alt"}}])["results"][0]["id"]
     assert _names(sync.changes(conn, None)) == ["Ada alt", "Bob alt"], "so entstand die Vermischung"
-    # Adas iPhone meldet sich mit Schluessel: es hat nichts davon angelegt
+    # Adas iPhone meldet sich mit Schluessel; ein Raum im Konto: es sieht und aendert alles wie bisher, nichts ist fremd
     first = _pull(conn, "iphone-ada", KA, A)
-    assert _names(first) == [] and first["foreign"] == []
-    # ein Geraet mit Raum kann eine Zeile unbekannter Herkunft weder aendern noch loeschen: "noch offen", spaeter erneut
-    change = [{"entity": "modules", "id": m_ada, "base_version": 1, "op_id": "iphone-ada.modules.7.2", "data": {"name": "Ada alt, am iPhone umbenannt"}}]
-    out = _push(conn, "iphone-ada", change + [{"entity": "modules", "id": m_bob, "base_version": 1, "data": {"name": "x"}}],
-                [{"entity": "modules", "id": m_bob}], key=KA, user=A)
-    assert [r["status"] for r in out["results"]] == ["room_pending", "room_pending", "room_pending"]
+    assert _names(first) == ["Ada alt", "Bob alt"] and first["foreign"] == [] and first["uni"]["rooms"] == 1
+    out = _push(conn, "iphone-ada", [{"entity": "modules", "id": m_ada, "base_version": 1, "data": {"color": "#111111"}}], key=KA, user=A)
+    assert out["results"][0]["status"] == "applied"
+    assert conn.execute("SELECT room FROM sync_row_room WHERE entity='modules' AND entity_id=?", (str(m_ada),)).fetchone()[0] is None, \
+        "eine Aenderung ordnet die Zeile eines anderen Geraets keinem Raum zu (sie waere sonst nie mehr als fremd erkennbar)"
+    # Bobs Geraet meldet sich (aeltere App): zweiter Raum, seine Zeile ist nun nachweislich fremd
+    assert _names(_pull(conn, "ipad-bob", user=B)) == ["Bob alt"]
+    second = _pull(conn, "iphone-ada", KA, A, since=first["cursor"])
+    assert second["changes"] == {} and second["foreign"] == [{"entity": "modules", "id": m_bob}] and second["uni"]["rooms"] == 2
+    # ab jetzt wartet, was von einem Geraet unbekannter Herkunft stammt (Adas iPad hat sich noch nicht gemeldet)
+    change = [{"entity": "modules", "id": m_ada, "base_version": 2, "op_id": "iphone-ada.modules.7.3", "data": {"name": "Ada alt, am iPhone umbenannt"}}]
+    out = _push(conn, "iphone-ada", change + [{"entity": "modules", "id": m_bob, "base_version": 1, "data": {"name": "x"}}], key=KA, user=A)
+    assert [r["status"] for r in out["results"]] == ["room_pending", "other_room"]
     assert [r[0] for r in conn.execute("SELECT name FROM modules ORDER BY id")] == ["Ada alt", "Bob alt"]
     # Adas iPad meldet seinen Schluessel: seine Zeile gehoert jetzt zum Raum; das iPhone holt sie nach (Cursor ist weiter)
     assert _names(_pull(conn, "ipad-ada", KA, A)) == ["Ada alt"]
-    later = _pull(conn, "iphone-ada", KA, A, since=first["cursor"])
+    later = _pull(conn, "iphone-ada", KA, A, since=second["cursor"])
     assert _names(later) == ["Ada alt"] and later["foreign"] == []
     # die Aenderung des iPhones von vorhin ging nicht verloren: derselbe Eintrag noch einmal gelingt jetzt
     out = _push(conn, "iphone-ada", change, key=KA, user=A)
     assert out["results"][0]["status"] == "applied" and "repeated" not in out["results"][0]
-    later = _pull(conn, "ipad-ada", KA, A, since=later["cursor"])
-    assert _names(later) == ["Ada alt, am iPhone umbenannt"]
-    # Bobs Geraet meldet sich: seine Zeile ist nun nachweislich fremd
-    assert _names(_pull(conn, "ipad-bob", user=B)) == ["Bob alt"]
-    last = _pull(conn, "iphone-ada", KA, A, since=later["cursor"])
-    assert last["changes"] == {} and last["foreign"] == [{"entity": "modules", "id": m_bob}]
+    assert _names(_pull(conn, "ipad-ada", KA, A, since=later["cursor"])) == ["Ada alt, am iPhone umbenannt"]
     assert {m_ada, m_bob} == {r[0] for r in conn.execute("SELECT id FROM modules")}, "nichts geloescht"
+
+
+def test_delete_of_a_row_of_unknown_origin_never_reaches_its_origin(conn):
+    """Ada loescht am iPhone zwei Faecher, die von Geraeten stammen, deren Uni-Konto der Dienst noch nicht kennt. Die
+    Loeschung gilt fuer Adas Raum. Das Ursprungsgeraet bekommt die Loeschmarke nicht, solange es unbekannt ist:
+    gehoert es zu einem anderen Uni-Konto, behaelt es seine Zeile (und erfaehrt sie als fremd); gehoert es zu Adas,
+    holt es die Marke nach, sobald es sich meldet."""
+    from app import sync
+    m_ada = sync.push(conn, "ipad-ada", [{"entity": "modules", "local_id": -1, "data": {"name": "Ada alt"}}])["results"][0]["id"]
+    m_bob = sync.push(conn, "ipad-bob", [{"entity": "modules", "local_id": -1, "data": {"name": "Bob alt"}}])["results"][0]["id"]
+    goal = sync.push(conn, "ipad-bob", [{"entity": "study_goals", "local_id": -1, "data": {"module_id": m_bob, "target_grade": 2.0}}])["results"][0]["id"]
+    cur_ada = sync.changes(conn, None, rooms=_room(conn, "ipad-ada"))["cursor"]
+    cur_bob = sync.changes(conn, None, rooms=_room(conn, "ipad-bob"))["cursor"]
+    out = _push(conn, "iphone-ada", deletes=[{"entity": "modules", "id": m_ada}, {"entity": "modules", "id": m_bob}], key=KA, user=A)
+    assert [r["status"] for r in out["results"]] == ["deleted", "deleted"]
+    assert conn.execute("SELECT COUNT(*) FROM modules").fetchone()[0] == 0
+    # Adas zweites Geraet (gleicher Raum) bekommt die Loeschmarken, auch die des mitgeloeschten Lernziels
+    marks = {(t["entity"], t["entity_id"]) for t in _pull(conn, "mac-ada", KA, A)["tombstones"]}
+    assert marks == {("modules", str(m_ada)), ("modules", str(m_bob)), ("study_goals", str(goal))}
+    # die Ursprungsgeraete, noch ohne Hash: keine Loeschmarke fuer die eigenen Zeilen
+    seen = sync.changes(conn, cur_ada, rooms=_room(conn, "ipad-ada"))["tombstones"]
+    assert {(t["entity"], t["entity_id"]) for t in seen} == {("modules", str(m_bob)), ("study_goals", str(goal))}
+    assert all(set(t) == {"entity", "entity_id", "deleted_at", "device"} for t in seen), "Form der Loeschmarken wie bisher"
+    assert [t["entity_id"] for t in sync.changes(conn, cur_bob, rooms=_room(conn, "ipad-bob"))["tombstones"]] == [str(m_ada)]
+    # Bob meldet sich (anderes Uni-Konto): keine Marke, seine geloeschten Zeilen sind fuer ihn "fremd" -> er behaelt
+    # seine Fassung und legt sie in seinem Raum neu an (DeviceSync.releaseForeign)
+    d = _pull(conn, "ipad-bob", KB, B, since=cur_bob)
+    assert d["tombstones"] == [] and {(f["entity"], f["id"]) for f in d["foreign"]} == {("modules", m_bob), ("study_goals", goal), ("modules", m_ada)}
+    out = _push(conn, "ipad-bob", [{"entity": "modules", "id": m_bob, "base_version": 1, "updated_at": "2000-01-01T00:00:00.000Z", "data": {"name": "Bob alt"}}], key=KB, user=B)
+    assert out["results"][0]["status"] == "other_room", "weder 'deleted' (er loeschte seine Zeile) noch Wiederherstellen in Adas Raum"
+    # Adas iPad meldet sich mit der aelteren App (nur studip_user, Cursor bleibt): jetzt bekommt es die Marke seiner Zeile
+    d = _pull(conn, "ipad-ada", user=A, since=cur_ada)
+    assert {(t["entity"], t["entity_id"]) for t in d["tombstones"]} >= {("modules", str(m_ada))}
 
 
 def test_device_without_hash_in_an_account_with_rooms(conn):
@@ -192,8 +228,8 @@ def test_device_without_hash_in_an_account_with_rooms(conn):
                     [{"entity": "modules", "id": a}])
     assert [r["status"] for r in out["results"]] == ["applied", "room_pending"]
     assert conn.execute("SELECT name FROM modules WHERE id=?", (a,)).fetchone()[0] == "Ada-Fach I", "geaendert, nicht geloescht"
-    # was das alte Geraet angelegt hat, geht an kein Geraet mit Raum (Herkunft unbekannt)
-    assert _names(_pull(conn, "ipad-ada", KA, A)) == ["Ada-Fach I"]
+    # ein Raum: auch das Geraet mit Raum sieht alles wie bisher, also die Zeile des alten Geraets
+    assert _names(_pull(conn, "ipad-ada", KA, A)) == ["Ada-Fach I", "Windows alt"]
     # zwei Raeume: das alte Geraet sieht und aendert nur noch Zeilen ohne Raum
     _new(conn, "ipad-bob", "Bob-Fach", key=KB, user=B)
     assert _names(sync.changes(conn, None, rooms=_room(conn, "win-alt"))) == ["Windows alt"]
@@ -215,13 +251,15 @@ def test_rows_from_the_web_go_to_the_only_room(conn):
     out = _push(conn, "ipad-ada", [{"entity": "modules", "id": web, "base_version": 1, "data": {"name": "Im Browser, am iPad umbenannt"}}], key=KA, user=A)
     assert out["results"][0]["status"] == "applied"
     assert _push(conn, "ipad-ada", deletes=[{"entity": "modules", "id": web}], key=KA, user=A)["results"][0]["status"] == "deleted"
-    # zwei Raeume: eine Web-Zeile gehoert zu keinem; kein Geraet mit Raum bekommt sie oder loescht sie
+    # zwei Raeume: eine Web-Zeile gehoert zu keinem; kein Geraet mit Raum bekommt sie
     _room(conn, "ipad-bob", KB, B)
     conn.execute("INSERT INTO modules(name, created_at) VALUES ('Web bei zwei Uni-Konten', '2026-11-14')")
     web2 = conn.execute("SELECT id FROM modules WHERE name LIKE 'Web bei%'").fetchone()[0]
     assert _names(_pull(conn, "ipad-ada", KA, A, since=first["cursor"])) == [] and _names(_pull(conn, "ipad-bob", KB, B)) == []
-    assert _push(conn, "ipad-bob", deletes=[{"entity": "modules", "id": web2}], key=KB, user=B)["results"][0]["status"] == "room_pending"
-    assert conn.execute("SELECT COUNT(*) FROM modules WHERE id=?", (web2,)).fetchone()[0] == 1
+    # ein Geraet, das sie von frueher kennt, darf sie loeschen; die Loeschmarke bleibt in seinem Raum
+    assert _push(conn, "ipad-bob", deletes=[{"entity": "modules", "id": web2}], key=KB, user=B)["results"][0]["status"] == "deleted"
+    assert [t["entity_id"] for t in _pull(conn, "iphone-bob", KB, B)["tombstones"]] == [str(web2)]
+    assert str(web2) not in [t["entity_id"] for t in _pull(conn, "ipad-ada", KA, A)["tombstones"]]
 
 
 def test_settings_and_notes_with_the_same_key_stay_with_the_first_room(conn):
