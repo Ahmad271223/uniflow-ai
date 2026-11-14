@@ -9,16 +9,13 @@ import sys, time, json
 sys.path.insert(0, sys.argv[1])
 from asc import call
 APP = "6830632088"; GROUP = "3541cafb-8a8c-4766-bb7a-bf29ef622cde"
-NOTES = ("Build 39 (Version 1.0.4) – jetzt auch fürs iPhone (ohne Editor, mit KI). Bitte testen:\n"
-         "• Rückgängig holt keine gelöschten Striche mehr zurück\n"
-         "• Formen erkennen: Linie/Rechteck/Kreis zeichnen und kurz stehen bleiben\n"
-         "• Blatt daneben: „+ Seite“, „…“ › Seite löschen, Papierkorb\n"
-         "• Uni-Mail lädt wieder (statt „keine JSON-Antwort“)\n"
-         "• Haken „erledigt“ gleichen sich zwischen Geräten ab\n"
+NOTES = ("Build 40 (Version 1.0.4) – iPad und iPhone. Neu:\n"
+         "• Universität Hildesheim (Learnweb, LSF) ist jetzt wählbar – bitte mit Hildesheim-Konto testen\n"
+         "• Sonst wie Build 39: Rückgängig, Formen erkennen, Blatt daneben, Uni-Mail, Haken „erledigt“\n"
          "Fehler bitte per Screenshot in TestFlight melden.")
 bid = None
 for _ in range(90):
-    st, d = call("GET", f"/v1/builds?filter[app]={APP}&filter[version]=39&limit=5")
+    st, d = call("GET", f"/v1/builds?filter[app]={APP}&filter[version]=40&limit=5")
     items = (d or {}).get("data") or []
     if items:
         b = items[0]; bid = b["id"]; state = b["attributes"]["processingState"]
@@ -26,7 +23,7 @@ for _ in range(90):
         if state in ("FAILED", "INVALID"): print("Build", state); sys.exit(1)
     time.sleep(30)
 print(time.strftime("%H:%M"), "VALID", bid)
-open(sys.argv[1] + "/b39.txt", "w").write(bid)
+open(sys.argv[1] + "/b40.txt", "w").write(bid)
 st, d = call("GET", f"/v1/builds/{bid}/betaBuildLocalizations")
 loc = next((l for l in (d or {}).get("data", []) if l["attributes"]["locale"] == "de-DE"), None)
 if loc:
