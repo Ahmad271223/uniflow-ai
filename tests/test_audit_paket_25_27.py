@@ -397,7 +397,12 @@ LOCKED_WRITE_ROUTES = {
     "DELETE /api/account/sessions/{session_id}", "POST /api/account/logout", "POST /api/account/logout-all",
     "POST /api/account/password", "POST /api/account/password/reset-request", "POST /api/account/verify-email",
     "POST /api/account/verify-email/resend", "POST /api/account/password/reset", "POST /api/account/university",
-    "POST /api/account/delete", "POST /api/billing/apple/verify", "POST /api/billing/stripe/checkout",
+    "POST /api/account/delete",
+    # Geraete-Regel (14.11.2026), bewusst geprueft: Hauptgeraet wechseln gehoert zu Free-Konten ohne Abo und gibt keine
+    # Bezahlfunktion frei; fuer Web und Windows antwortet die Route 400 device_rule_not_applicable (nur Apple-Apps mit
+    # X-StudiNow-Caps: device_limit), am eigenen PC 501 not_hosted (tests/test_device_limit.py)
+    "POST /api/account/device/primary",
+    "POST /api/billing/apple/verify", "POST /api/billing/stripe/checkout",
     "POST /api/billing/stripe/portal", "POST /api/billing/stripe/webhook", "POST /api/billing/plan-choice",
     "POST /api/billing/apple/notifications", "POST /api/billing/offer-codes", "POST /api/app-account/login",
     "POST /api/app-account/browser-login", "POST /api/app-account/logout", "POST /api/app-account/checkout",

@@ -277,8 +277,16 @@ def me(request: Request):
 @router.post("/device/primary")
 def use_this_device(request: Request):
     """Geraete-Regel: dieses Geraet wird das eine Geraet des Kontos ("Dieses Gerät stattdessen nutzen")."""
+    # Die Route liegt unter /api/account/ und geht damit auch bei der Abo-Sperre von Web und Windows durch
+    # (access.LOCKED_WRITE_PREFIXES). Darum prueft sie selbst: nur Apple-Apps, die die Regel kennen
+    # (X-StudiNow-Caps: device_limit, Bearer, nicht Web/Windows). Web und Windows zaehlen nicht als Geraet - die
+    # Windows-App meldet zwar eine Geraete-Kennung an, duerfte sich hier aber sonst zum Hauptgeraet machen und das
+    # iPad eines Free-Kontos aussperren.
     _hosted_only()
     u = _user(request)
+    if not device_limit.applies(request):
+        raise HTTPException(400, {"detail": "Die Geräte-Regel gilt nur in den Apps für iPhone, iPad und Mac.",
+                                  "code": "device_rule_not_applicable"})
     try:
         return {"device": device_limit.use_this(u, token_of(request))}
     except accounts.AccountError as e:

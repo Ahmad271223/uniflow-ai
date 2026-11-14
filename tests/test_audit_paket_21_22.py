@@ -272,6 +272,11 @@ LOCKED_WRITE_ROUTES = {
     ("POST", "/api/account/password"), ("POST", "/api/account/password/reset-request"), ("POST", "/api/account/verify-email"),
     ("POST", "/api/account/verify-email/resend"), ("POST", "/api/account/password/reset"), ("POST", "/api/account/university"),
     ("POST", "/api/account/delete"),
+    # Geraete-Regel (14.11.2026): "Dieses Gerät stattdessen nutzen" ist Kontoverwaltung eines Kontos OHNE Abo (Free gilt
+    # fuer ein Geraet) und schaltet nichts Bezahltes frei. Die Route nimmt nur Apple-Apps mit X-StudiNow-Caps:
+    # device_limit an; Web und Windows (die einzigen Clients mit Abo-Sperre) bekommen 400 device_rule_not_applicable
+    # und aendern nichts (tests/test_device_limit.py::test_switch_refuses_web_and_windows_even_when_locked).
+    ("POST", "/api/account/device/primary"),
     ("POST", "/api/billing/apple/verify"), ("POST", "/api/billing/stripe/checkout"), ("POST", "/api/billing/stripe/portal"),
     ("POST", "/api/billing/stripe/webhook"), ("POST", "/api/billing/plan-choice"), ("POST", "/api/billing/apple/notifications"),
     ("POST", "/api/billing/offer-codes"),                       # nur Admin (Admins sind ohnehin von der Pflicht ausgenommen)

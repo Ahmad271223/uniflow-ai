@@ -125,7 +125,8 @@ def status(user: dict, token: str | None, claim: bool = True) -> dict:
 
 def use_this(user: dict, token: str | None) -> dict:
     """"Dieses Geraet stattdessen nutzen": das Geraet dieser Sitzung wird Hauptgeraet. Braucht eine Geraete-Kennung
-    (die Apple-Apps schicken sie beim Anmelden mit); sonst 400 device_unknown."""
+    (die Apple-Apps schicken sie beim Anmelden mit); sonst 400 device_unknown. Der Aufrufer prueft vorher `applies`
+    (POST /api/account/device/primary): auch die Windows-App meldet eine Geraete-Kennung an, zaehlt aber nicht."""
     uid = user["id"]
     with accounts.cursor() as conn:
         s = _session_device(conn, uid, token)

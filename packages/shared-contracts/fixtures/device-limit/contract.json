@@ -746,6 +746,19 @@
     "detail": "Anmeldung erforderlich.",
     "code": "unauthenticated"
    }
+  },
+  {
+   "step": "Dieses Geraet nutzen ohne die Faehigkeit (aeltere App, Web, Windows zaehlen nicht)",
+   "method": "POST",
+   "path": "/api/account/device/primary",
+   "capability": false,
+   "auth": true,
+   "request": null,
+   "status": 400,
+   "response": {
+    "detail": "Die Geräte-Regel gilt nur in den Apps für iPhone, iPad und Mac.",
+    "code": "device_rule_not_applicable"
+   }
   }
  ]
 }
