@@ -452,6 +452,7 @@ enum StudyPlan {
         let today = T.today(clock)
         try StudyPlanModules.dropUnplanned(c, today: today)       // abgewaehlte Faecher: keine Pakete (Build 37)
         try refreshStatuses(c, today: today)
+        try repairTimes(c, today: today)                           // Uhrzeiten nach Mitternacht aus Build 41 und frueher
         let s = try Settings(c)
         let start = start ?? today
         let end = start + days - 1
@@ -529,7 +530,7 @@ enum StudyPlan {
             }
         }
         // Zeitslots in freien Fenstern des Stundenplans vergeben
-        for i in 0..<max(0, days) { try assignSlots(c, day: start + i) }
+        for i in 0..<max(0, days) { try assignSlots(c, day: start + i, spill: spillDays) }
         let feas = try feasibility(c, clock: clock)
         return ["created": .number(Double(created)), "message": .string("\(created) Lernpakete erstellt"), "feasibility": feas]
     }
@@ -556,13 +557,18 @@ enum StudyPlan {
     ///
     /// Passt es in keines, werden seine Aufgaben auf mehrere Fenster verteilt und das Paket geteilt: je Fenster ein
     /// eigenes Paket desselben Tages (`splitPackage`). Eine Aufgabe liegt immer mit ihrer vollen Dauer in einem Fenster
-    /// mit genug Platz; passt sie in keines mehr, kommt sie hinter den letzten belegten Block des Tages (Termin samt
-    /// Heimfahrt, Sperrzeit, Lernslot), wie an einem Tag ohne freies Fenster. Vorher bekam das Paket Beginn der ersten
+    /// mit genug Platz; passt sie in keines mehr, hat sie an diesem Tag keinen Platz (siehe unten). Vorher bekam das Paket Beginn der ersten
     /// und Ende der letzten Aufgabe: ein Lernblock von 09:45 bis 17:30 ueber allen Vorlesungen, und eine zu lange Aufgabe
     /// wurde im zu kleinen Fenster gekappt (45 min als 09:45–10:15) und ragte in den naechsten Termin (Fehlerbericht
     /// des Inhabers vom 10.11.2026: Lernbloecke nie waehrend besuchter Termine).
     /// `notBefore`: erste nutzbare Minute (heute: jetzt), damit ein neu gelegter Block nicht in schon vergangener Zeit liegt.
-    static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil, notBefore: Int? = nil) throws {
+    ///
+    /// Nie ausserhalb der Lernzeit (Fehler vom echten iPhone, 14.11.2026): Vorher kam, was in kein Fenster mehr passte,
+    /// hinter den letzten belegten Block, ohne Tagesgrenze, z. B. 23:15 bis "25:15" bei Lernzeit 08–21 Uhr. Jetzt
+    /// bekommen solche Aufgaben keine Uhrzeit; mit `spill` (automatische Planung) kommen sie auf den naechsten Lerntag
+    /// (das ganze Paket wird verlegt, ein Rest wird ein eigenes Paket), hoechstens `spill` Lerntage weit (`_spill`).
+    static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil, notBefore: Int? = nil,
+                            spill: Int = 0) throws {
         let s = try Settings(c)
         var pkgs = try c.query("SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id",
                                [.text(iso(d))])
@@ -573,25 +579,19 @@ enum StudyPlan {
         let lo = try LocalFreeWindows.hm(s.raw["learn_start"], key: "learn_start"), hi = try LocalFreeWindows.hm(s.raw["learn_end"], key: "learn_end")
         var windows = try LocalFreeWindows.windows(lo: lo, hi: hi, blocks: blocks, settings: s.raw)
             .map { w in (start: w["start"]?.int ?? 0, end: w["end"]?.int ?? 0) }
-        // hinter dem letzten belegten Block (Termin samt Heimfahrt, Sperrzeit, Lernslot); vorher ab Lernbeginn, also
-        // ueber den Terminen des Tages (Abnahme 07.11.2026, zuerst in Python)
-        var after = max(lo, blocks.map(\.end).max() ?? 0)
-        if let last = blocks.last(where: { $0.kind == "event" }) { after = max(after, last.end + (s.raw["travel_minutes"]?.int ?? 30)) }
         if let notBefore {
-            after = max(after, notBefore)
             windows = windows.map { (start: max($0.start, notBefore), end: $0.end) }.filter { $0.end > $0.start }
         }
-        if windows.isEmpty { windows = [(after, after + 24 * 60)] }       // kein freies Fenster: hintereinander dort
         let brk = s.breakMinutes
         var free = windows.map(\.start)               // naechste freie Minute je Fenster
-        var latest: Int?                              // Ende der spaetesten hier gelegten Aufgabe
         for p in pkgs {
             let tasks = try c.query("SELECT id, est_minutes, status FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort",
                                     [p["id"] ?? .null])
             if tasks.isEmpty { continue }
             let needs = try tasks.map { LocalModules.truthy($0["est_minutes"]) ? try int($0["est_minutes"], "est_minutes") : 45 }
-            // Lage je Aufgabe; slot = Fenster, -1 = hinter dem letzten belegten Block
+            // Lage je Aufgabe (slot = Fenster); was in keines mehr passt, kommt in `rest`
             var placed: [(task: SQLiteRow, start: Int, end: Int, slot: Int)] = []
+            var rest: [SQLiteRow] = []
             // Am Stueck in das erste freie Fenster mit genug Platz: sonst lag der Lernblock ueber dem naechsten Termin
             // (Korrektur vom 26.10.2026, zuerst in Python)
             let total = needs.reduce(0, +) + brk * max(0, needs.count - 1)
@@ -604,7 +604,7 @@ enum StudyPlan {
                 free[k] = cur
             } else {
                 // der Reihe nach: jede Aufgabe ganz in das naechste Fenster mit genug Platz, nie gekappt; passt eine in
-                // keines mehr, liegen sie und die folgenden hinter dem letzten belegten Block
+                // keines mehr, haben sie und die folgenden an diesem Tag keinen Platz
                 var k = 0
                 for (t, need) in zip(tasks, needs) {
                     while k < windows.count && free[k] + need > windows[k].end { k += 1 }
@@ -612,16 +612,11 @@ enum StudyPlan {
                         placed.append((t, free[k], free[k] + need, k))
                         free[k] += need + brk
                     } else {
-                        let st = max(after, latest.map { $0 + brk } ?? after)
-                        placed.append((t, st, st + need, -1))
-                        // ein Fenster, in das diese Aufgabe hineinreicht, ist ab hier belegt
-                        for i in windows.indices where windows[i].end > st { free[i] = max(free[i], st + need + brk) }
+                        rest.append(t)
                     }
-                    latest = max(latest ?? 0, placed[placed.count - 1].end)
                 }
             }
             for x in placed {
-                latest = max(latest ?? 0, x.end)
                 try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
                               [.text(LocalFreeWindows.mh(x.start)), .text(LocalFreeWindows.mh(x.end)), x.task["id"] ?? .null])
             }
@@ -641,7 +636,113 @@ enum StudyPlan {
                 }
             }
             if groups.count > 1 { try recalcPackage(c, pid) }
+            if !rest.isEmpty { try spillTasks(c, p, rest, day: d, spill: spill, whole: placed.isEmpty, settings: s) }
         }
+    }
+
+    /// `_spill`: Aufgaben ohne Platz an ihrem Tag (`assignSlots`): ohne `spill` ohne Uhrzeit, sonst auf den naechsten
+    /// Lerntag; das ganze Paket wird verlegt, ein Rest wird ein eigenes Paket (gleiches Modul, Fach, Titel, Lehrwoche).
+    static func spillTasks(_ c: SQLiteConnection, _ p: SQLiteRow, _ tasks: [SQLiteRow], day d: Int, spill: Int, whole: Bool, settings s: Settings) throws {
+        let ids = tasks.map { $0["id"] ?? .null }
+        let marks = Array(repeating: "?", count: ids.count).joined(separator: ",")
+        try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id IN (\(marks))", ids)
+        let pid = p["id"] ?? .null
+        if whole { try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [pid]) }
+        guard spill > 0, let next = (1...7).map({ d + $0 }).first(where: { s.isLearnDay($0) }) else { return }
+        let target: SQLiteValue
+        if whole {
+            try c.execute("UPDATE study_packages SET date=? WHERE id=?", [.text(iso(next)), pid])
+            target = pid
+        } else {
+            try c.execute("""
+                INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at)
+                VALUES (?,?,?,?,?,0,'geplant',?,?,?)
+                """, [.text(iso(next)), p["module_id"] ?? .null, p["subject"] ?? .null, p["title"] ?? .null, p["week_no"] ?? .null,
+                      p["sort"] ?? .null, p["generated"] ?? .null, p["created_at"] ?? .null])
+            target = .integer(c.lastInsertRowID)
+            for (i, id) in ids.enumerated() {
+                try c.execute("UPDATE study_tasks SET package_id=?, sort=? WHERE id=?", [target, .integer(Int64(i)), id])
+            }
+            try recalcPackage(c, pid)
+            try recalcPackage(c, target)
+        }
+        try assignSlots(c, day: next, packageID: target, spill: spill - 1)
+    }
+
+    static let spillDays = 14          // so viele Lerntage weiter sucht ein automatisches Paket Platz (SPILL_DAYS)
+    static let dayEnd = 24 * 60        // spaetestes Ende einer Uhrzeit ("24:00", DAY_END)
+
+    /// `_clock(v)`: "HH:MM" in Minuten (auch Stunden ab 24), sonst nil
+    static func clock(_ v: SQLiteValue?) -> Int? {
+        guard let s = v?.string else { return nil }
+        let parts = s.split(separator: ":", omittingEmptySubsequences: false)
+        func digits(_ p: Substring) -> Bool { p.unicodeScalars.allSatisfy { (0x30...0x39).contains($0.value) } }
+        guard parts.count == 2, (1...2).contains(parts[0].unicodeScalars.count), parts[1].unicodeScalars.count == 2,
+              digits(parts[0]), digits(parts[1]), let h = Int(parts[0]), let m = Int(parts[1]) else { return nil }
+        return h * 60 + m
+    }
+
+    /// `_bad_span(start, end)`: Uhrzeit, die es nicht gibt: Beginn ab 24:00, Ende nach 24:00 oder Ende nicht nach dem Beginn
+    static func badSpan(_ start: SQLiteValue?, _ end: SQLiteValue?) -> Bool {
+        guard let a = clock(start), let b = clock(end) else { return false }
+        return a >= dayEnd || b > dayEnd || b <= a
+    }
+
+    /// `_fit_day(a, b)`: Ende hoechstens 24:00; beginnt der Zeitraum erst nach Mitternacht, endet er um 24:00 mit
+    /// derselben Dauer
+    static func fitDay(_ a: Int, _ b: Int) -> (Int, Int) {
+        a >= dayEnd ? (max(0, dayEnd - (b - a)), dayEnd) : (a, min(b, dayEnd))
+    }
+
+    /// `repair_times(conn)`: Uhrzeiten nach Mitternacht reparieren (Altbestand bis Build 41: "25:15", Ende vor Beginn;
+    /// Fehler vom echten iPhone vom 14.11.2026). Automatisch erzeugte, unberuehrte Pakete ab heute werden neu eingeplant
+    /// (`assignSlots` mit Weitergabe an den naechsten Lerntag), alle anderen (von Hand geaendert, begonnen, erledigt,
+    /// vergangen) nur gekappt: Ende hoechstens 24:00 (beginnt ein Paket erst nach Mitternacht, endet es um 24:00 mit
+    /// derselben Dauer), Aufgaben mit Beginn nach Mitternacht ohne Uhrzeit. Geloescht wird nichts. Laeuft mit jedem
+    /// Lernkalender und jeder Planung; was einmal gueltig ist, bleibt unberuehrt, darum keine Schleife zwischen zwei
+    /// Geraeten, die beide reparieren. Liefert die Zahl reparierter Pakete.
+    @discardableResult
+    static func repairTimes(_ c: SQLiteConnection, today: Int) throws -> Int {
+        let pre = "(p.start_time >= '24:' OR p.end_time > '24:00' OR p.end_time <= p.start_time)"     // grob, genau: badSpan
+        let preTask = "(t.start_time >= '24:' OR t.end_time > '24:00' OR t.end_time <= t.start_time)"
+        var rows = try c.query("""
+            SELECT DISTINCT p.* FROM study_packages p LEFT JOIN study_tasks t ON t.package_id=p.id
+            WHERE \(pre) OR \(preTask) ORDER BY p.date, p.sort, p.id
+            """)
+        if rows.isEmpty { return 0 }
+        let ids = rows.map { $0["id"] ?? .null }
+        var tasks: [SQLiteValue: [SQLiteRow]] = [:]
+        for t in try c.query("SELECT id, package_id, start_time, end_time FROM study_tasks WHERE package_id IN (\(Array(repeating: "?", count: ids.count).joined(separator: ","))) ORDER BY id", ids)
+        where badSpan(t["start_time"], t["end_time"]) {
+            tasks[t["package_id"] ?? .null, default: []].append(t)
+        }
+        rows = rows.filter { badSpan($0["start_time"], $0["end_time"]) || tasks[$0["id"] ?? .null] != nil }
+        if rows.isEmpty { return 0 }
+        let redo = Set(try c.query("SELECT p.id FROM study_packages p WHERE p.date >= ? AND COALESCE(p.source,'')<>'smart' AND \(StudyPlanModules.untouchedAutoSQL)",
+                                   [.text(iso(today))]).map { $0["id"] ?? .null })
+        for p in rows {
+            let pid = p["id"] ?? .null
+            if redo.contains(pid), let text = p["date"]?.string, let d = BerlinClock.parseISODate(text) {
+                try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [pid])
+                try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben')", [pid])
+                try assignSlots(c, day: d, packageID: pid, spill: spillDays)
+                continue
+            }
+            if badSpan(p["start_time"], p["end_time"]), var a = clock(p["start_time"]), var b = clock(p["end_time"]) {
+                if b <= a { b = a + max(15, p["planned_minutes"]?.int ?? 0) }
+                (a, b) = fitDay(a, b)
+                try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", [.text(LocalFreeWindows.mh(a)), .text(LocalFreeWindows.mh(b)), pid])
+            }
+            for t in tasks[pid] ?? [] {
+                guard let ta = clock(t["start_time"]), let tb = clock(t["end_time"]) else { continue }
+                if ta >= dayEnd || tb <= ta {
+                    try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id=?", [t["id"] ?? .null])
+                } else {
+                    try c.execute("UPDATE study_tasks SET end_time=? WHERE id=?", [.text(LocalFreeWindows.mh(min(tb, dayEnd))), t["id"] ?? .null])
+                }
+            }
+        }
+        return rows.count
     }
 
     /// Teil eines Pakets als eigenes Paket desselben Tages in einem eigenen freien Fenster (`assignSlots`): gleiches
@@ -739,7 +840,12 @@ enum StudyPlan {
             }
             // heute nicht vor der aktuellen Minute (sonst landete ein neu gelegter Block in schon vergangener Zeit)
             let notBefore = now.flatMap { $0.day == d ? $0.minutes : nil }
-            for id in redo { try assignSlots(c, day: d, packageID: id, notBefore: notBefore) }
+            // was an diesem Tag keinen Platz mehr hat: unberuehrte automatische Pakete auf den naechsten Lerntag, die
+            // uebrigen ohne Uhrzeit (vorher hinter den letzten Block, auch nach Mitternacht; Fehler vom 14.11.2026)
+            let marks = Array(repeating: "?", count: redo.count).joined(separator: ",")
+            let auto = Set(try c.query("SELECT p.id FROM study_packages p WHERE p.id IN (\(marks)) AND COALESCE(p.source,'')<>'smart' AND \(StudyPlanModules.untouchedAutoSQL)",
+                                       redo).map { $0["id"] ?? .null })
+            for id in redo { try assignSlots(c, day: d, packageID: id, notBefore: notBefore, spill: auto.contains(id) ? spillDays : 0) }
             fixed += redo.count
         }
         return fixed
@@ -779,14 +885,21 @@ enum StudyPlan {
             return
         }
         let a = try clockMinutes(start)
-        var b = LocalModules.truthy(end) ? try clockMinutes(end) : a + (LocalModules.truthy(p["planned_minutes"]) ? try int(p["planned_minutes"], "planned_minutes") : 0)
+        guard a < dayEnd else { throw LocalHTTPError(status: 400, message: "Der Beginn muss vor 24:00 liegen.") }
+        var b = min(dayEnd, LocalModules.truthy(end) ? try clockMinutes(end) : a + (LocalModules.truthy(p["planned_minutes"]) ? try int(p["planned_minutes"], "planned_minutes") : 0))
         guard b > a else { throw LocalHTTPError(status: 400, message: "Das Ende muss nach dem Beginn liegen.") }
         if LocalModules.truthy(p["start_time"]) {
             let shift = a - (try LocalFreeWindows.hm(p["start_time"]?.json, key: "start_time"))
             for t in try c.query("SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", [id]) {
-                let ts = try LocalFreeWindows.hm(t["start_time"]?.json, key: "start_time"), te = try LocalFreeWindows.hm(t["end_time"]?.json, key: "end_time") + shift
+                let ts = try LocalFreeWindows.hm(t["start_time"]?.json, key: "start_time") + shift
+                let te = min(dayEnd, try LocalFreeWindows.hm(t["end_time"]?.json, key: "end_time") + shift)
+                // hoechstens bis 24:00 (vorher "25:15"; Fehler vom 14.11.2026): begaenne die Aufgabe erst danach, ohne Uhrzeit
+                if ts >= dayEnd || te <= ts {
+                    try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id=?", [t["id"] ?? .null])
+                    continue
+                }
                 try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
-                              [.text(LocalFreeWindows.mh(ts + shift)), .text(LocalFreeWindows.mh(te)), t["id"] ?? .null])
+                              [.text(LocalFreeWindows.mh(ts)), .text(LocalFreeWindows.mh(te)), t["id"] ?? .null])
                 b = max(b, te)
             }
         }
@@ -799,7 +912,7 @@ enum StudyPlan {
     /// mit der hoechsten Bewertung, dessen erste Aufgabe passt; weitere Aufgaben der Einheit, solange sie mit Pause
     /// passen; Dateien ungeteilt. Falsche Uhrzeit: 400.
     static func planWindow(_ c: SQLiteConnection, day d: Int, start: JSONValue?, end: JSONValue?, clock: UniFlowClock) throws -> JSONValue {
-        let a = try clockMinutes(start), b = try clockMinutes(end)
+        let a = try clockMinutes(start), b = min(dayEnd, try clockMinutes(end))     // hoechstens bis 24:00
         guard b > a else { throw LocalHTTPError(status: 400, message: "Das Ende muss nach dem Beginn liegen.") }
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)

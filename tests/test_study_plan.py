@@ -53,11 +53,13 @@ def test_package_time_is_saved_and_tasks_follow(fresh):
     st, full = call(fresh, "GET", f"/api/packages/{pid}")
     assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("10:00", "10:45"), ("11:00", "11:30")]
     # ohne Ende: geplante Dauer (75 Minuten), aber nie vor dem Ende der letzten Aufgabe (mit Pause 90 Minuten);
-    # Ende nach Mitternacht als 24:45
+    # hoechstens bis 24:00 (frueher "24:45", Fehler vom echten iPhone vom 14.11.2026): die zweite Aufgabe begaenne
+    # erst nach Mitternacht und hat keine Uhrzeit mehr
     st, p = call(fresh, "PATCH", f"/api/packages/{pid}", {"start_time": "23:15"})
-    assert (p["start_time"], p["end_time"]) == ("23:15", "24:45")
+    assert (p["start_time"], p["end_time"]) == ("23:15", "24:00")
     st, full = call(fresh, "GET", f"/api/packages/{pid}")
-    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("23:15", "24:00"), ("24:15", "24:45")]
+    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("23:15", "24:00"), (None, None)]
+    assert call(fresh, "PATCH", f"/api/packages/{pid}", {"start_time": "24:10"})[0] == 400
 
     # ungueltig: 400, nichts geaendert (auch nicht der Titel aus derselben Anfrage)
     for body in ({"start_time": "25 Uhr"}, {"start_time": "10:00", "end_time": "09:00"}, {"start_time": "10:60"},
@@ -309,10 +311,11 @@ def test_package_stays_in_one_window_next_to_lecture(fresh):
     assert slots[late] == ("08:00", "08:30"), "kurzes Paket in die Luecke vor der Vorlesung"
     st, full = call(fresh, "GET", f"/api/packages/{early}")
     assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("12:00", "12:45"), ("13:00", "14:00")]
-    # passt in kein Fenster: Aufgaben wie bisher der Reihe nach verteilt (die zweite hinter das Tagesende)
-    assert slots[big] == ("14:15", "27:50")
+    # passt in kein Fenster: Aufgaben der Reihe nach verteilt; die zweite hat keinen Platz mehr und bekommt keine
+    # Uhrzeit (frueher 21:10-27:50 hinter dem Tagesende, Fehler vom echten iPhone vom 14.11.2026)
+    assert slots[big] == ("14:15", "20:55")
     st, full = call(fresh, "GET", f"/api/packages/{big}")
-    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("14:15", "20:55"), ("21:10", "27:50")]
+    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("14:15", "20:55"), (None, None)]
     with db.cursor() as conn:
         assert study.slot_conflicts(conn, date(2026, 10, 27), date(2026, 10, 27)) == []
 
