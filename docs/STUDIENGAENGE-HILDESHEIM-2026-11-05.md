@@ -151,13 +151,13 @@ Containers (`settings.university`).
 |---|---:|---:|---:|---|
 | Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 259 | hildesheim-modulbeschreibung 31, hildesheim-modultabelle 3 |
 | Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 322 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
-| Fachbereich 3 – Sprach- und Informationswissenschaften | 19 | 19 | 219 | hildesheim-modulbeschreibung 16, hildesheim-modultabelle 3 |
+| Fachbereich 3 – Sprach- und Informationswissenschaften | 18 | 18 | 216 | hildesheim-modulbeschreibung 16, hildesheim-modultabelle 2 |
 | Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 35 | 35 | 1345 | hildesheim-it-modulhandbuch 13, hildesheim-modulbeschreibung 22 |
 | fachbereichsübergreifend (Lehrerbildung) | 4 | 4 | 44 | hildesheim-modulbeschreibung 4 |
-| **zusammen** | **108** | **108** | **2189** | |
+| **zusammen** | **107** | **107** | **2186** | |
 
-Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-modulbeschreibung` 83 Kataloge / 812 Module; `hildesheim-modultabelle` 12 Kataloge / 242 Module.
-Registereinträge: 118, davon im Grundstock: 108.
+Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-modulbeschreibung` 83 Kataloge / 812 Module; `hildesheim-modultabelle` 11 Kataloge / 239 Module.
+Registereinträge: 118, davon im Grundstock: 107.
 
 Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS, Voraussetzungen = verweist auf andere Module):
 
@@ -165,13 +165,14 @@ Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS,
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `hildesheim-it-modulhandbuch` | 13 | 1135 | 100 % | 98 % | 71 % | 100 % | 0 % | 23 % | 26 % | 100 % |
 | `hildesheim-modulbeschreibung` | 83 | 812 | 92 % | 73 % | 83 % | 95 % | 86 % | 1 % | 9 % | 67 % |
-| `hildesheim-modultabelle` | 12 | 242 | 93 % | 80 % | 44 % | 90 % | 91 % | 0 % | 0 % | 83 % |
-| **zusammen** | **108** | **2189** | 96 % | 87 % | 72 % | 97 % | 42 % | 12 % | 17 % | 86 % |
+| `hildesheim-modultabelle` | 11 | 239 | 95 % | 81 % | 44 % | 90 % | 91 % | 0 % | 0 % | 84 % |
+| **zusammen** | **107** | **2186** | 96 % | 87 % | 72 % | 97 % | 42 % | 12 % | 17 % | 86 % |
 
 Kataloge mit Regeln/LP für Bereiche: 20; mit empfohlenem Semester je Modul: 92.
 
-Ohne Katalog im Grundstock (10) – geht nicht, weil …:
+Ohne Katalog im Grundstock (11) – geht nicht, weil …:
 
+- Barrierefreie Kommunikation (M.A.): Modulbeschreibungen im Format „Kennnummer | Workload | Credits“ liest der Leser noch nicht; er fand nur drei Querverweise („Modul 7.2 geöffnet für …“) statt der 11 Module
 - Data Science (B.Sc.): Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete (Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP)
 - Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art (M.A.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Future Analytics: AI & Audio Worlds (M.Sc.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
@@ -184,8 +185,8 @@ Ohne Katalog im Grundstock (10) – geht nicht, weil …:
 - Rechtspsychologie (M.Sc.): Studienordnung (3 Seiten) ohne lesbare Modulbeschreibungen
 
 Anfragen laut Zwischenspeicher: 206 (206 × 200), davon 150 PDFs, 94 MB, 05.11.2026 12:46–14.11.2026 14:04 UTC, kleinster Abstand 2.5 s.
-Datei `hildesheim.json.gz`: 131 KB gzip, 1156 KB JSON, 108 Kataloge.
-Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 23 Kataloge mit Handangaben, 0 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
+Datei `hildesheim.json.gz`: 131 KB gzip, 1154 KB JSON, 107 Kataloge.
+Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 22 Kataloge mit Handangaben, 0 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
 
 Neu bauen: `.venv/bin/python tools/build-hildesheim-seed.py` (prüfen: `--check`, Vorschau: `--diff`).
 <!-- grundstock:end -->
@@ -238,8 +239,9 @@ Nicht eingebaut, mit Grund:
   liefert 21 Module mit 3 Bruchstücken.
 - Informatik im Zwei-Fächer-Bachelor 2026 und Informatik im Master Lehramt HRS 2026 (Heft 214): Format unbekannt
   (Titelzeile „INF-B1: „Titel““, LP als letzte Tabellenspalte); braucht eine Leser-Erweiterung.
-- Barrierefreie Kommunikation M.A. 2024: Format unbekannt („Kennnummer | Workload | Credits“), der Leser greift
-  Querverweise; bleibt der Grundstock vom 05.11. (3 Module, in der Liste „Module ohne LP“).
+- Barrierefreie Kommunikation M.A. 2024: Format unbekannt („Kennnummer | Workload | Credits“), der Leser greift nur
+  drei Querverweise („Modul 7.2 geöffnet für …“). Bisher standen diese drei als Module im Grundstock; jetzt
+  `CATALOG_HOLD` in `tools/hildesheim-programs.py`: wählbar ohne Katalog mit Hinweis, bis der Leser das Format kennt.
 - Ältere Fassungen (IMIT/AI PO 2016, Sport GHR 2020, Szenische Künste, Kulturwissenschaften 2010, IKÜ 2009 mit
   Wahlpflichtfächern, Englisch, Technik M.Ed. 2021, Sozialpädagogik 2019): älter als das Register, nicht ersetzt.
   Sozialpädagogik 2019 (fileID 4710) ist schon als „bisherige Ordnung“ angebunden.

@@ -1,5 +1,5 @@
 {
- "catalogs": 108,
+ "catalogs": 107,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -36,24 +36,6 @@
    ],
    "study_plan": false,
    "term": "SS 2026"
-  },
-  {
-   "code": "barrierefreie-kommunikation|m.a.|2019",
-   "degree": "M.A.",
-   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
-   "file": "hildesheim.json.gz",
-   "format": "hildesheim-modultabelle",
-   "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
-   "library_key": "d3c11ee6de67cf735db939ec9c85be860e5caf6259a460bddfa9416566dadc2c",
-   "modules": 3,
-   "po": "2019",
-   "program": "Barrierefreie Kommunikation",
-   "qis_labels": [
-    "Abschluss: Master Studiengang: M.A. Barrierefreie Kommunikation PO-Version: 2019",
-    "Barrierefreie Kommunikation"
-   ],
-   "study_plan": false,
-   "term": "SS 2024"
   },
   {
    "code": "biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
@@ -1955,14 +1937,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 134533,
-   "catalogs": 108,
-   "raw_bytes": 1184030,
-   "sha256": "4fefe04f84a322be0deca50e0b48047d8e8f2b63688d1d64e5afaaeeda29a2df"
+   "bytes": 133955,
+   "catalogs": 107,
+   "raw_bytes": 1181756,
+   "sha256": "833bdf41869a97c615386f908a87efb360e25bb01095afdae35773641d514c2f"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2189,
+ "modules": 2186,
  "university": "hildesheim",
  "v": 1
 }

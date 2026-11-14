@@ -667,6 +667,13 @@ def _po_year(pos: list[dict], fallback: str | None = None) -> str | None:
 
 
 MIN_MODULES = 3      # weniger gelesene Module: Bruchstuecke einer anderen Vorlage, kein Katalog
+# Register-Eintraege, deren Katalog der Leser nur als Bruchstuecke liest (geprueft 14.11.2026): lieber "kein Katalog"
+# mit Grund als falsche Module im Studienverlauf
+CATALOG_HOLD = {
+    "hildesheim|barrierefreie-kommunikation|m.a.|2019":
+        "Modulbeschreibungen im Format „Kennnummer | Workload | Credits“ liest der Leser noch nicht; er fand nur drei "
+        "Querverweise („Modul 7.2 geöffnet für …“) statt der 11 Module",
+}
 
 
 def _catalog_of(r: dict | None, fmt: str, degree: str, usage: str | None = None, label: str | None = None) -> dict:
@@ -883,6 +890,12 @@ def build_register() -> dict:
             seen_keys.add(e["key"])
             programs.append(e)
 
+    for e in programs:                       # Kataloge, die nur Bruchstuecke liefern: ehrlich ohne Katalog
+        why = CATALOG_HOLD.get(e["key"])
+        if why and e["catalog"].get("url"):
+            c = e["catalog"]
+            e["catalog"] = {"url": None, "term": None, "format": "none",
+                            "document": {"title": c.get("title"), "url": c["url"], "date": c.get("date")}, "reason": why}
     programs.sort(key=lambda e: ({"studiengang": 0, "vertiefung": 1, "fach": 2}[e["kind"]], e["key"]))
     return {
         "v": 1, "university": "hildesheim", "generated": "2026-11-05", "generator": "tools/hildesheim-programs.py",

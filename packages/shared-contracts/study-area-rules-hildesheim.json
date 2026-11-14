@@ -468,19 +468,6 @@
         }
       ]
     },
-    "barrierefreie-kommunikation|m.a.|2019": {
-      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669 (PO Barrierefreie Kommunikation, § 22)",
-      "area_patterns": [
-        {
-          "match": "Profil",
-          "set": {
-            "kind": "wahl",
-            "lp_required": 10,
-            "rule": "Profilmodul (Forschung oder Praxis): 10 LP."
-          }
-        }
-      ]
-    },
     "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023": {
       "source": "Modulhandbuch Master Erziehungswissenschaft (FB 1, Fassung 18.08.2022), Übersicht: 6a und 6b teilen sich eine Zeile mit 15 LP im zweiten Studienjahr",
       "add_areas": [
@@ -514,6 +501,22 @@
           "kind": "abschluss"
         }
       }
+    }
+  },
+  "held": {
+    "note": "Regeln fuer Kataloge, die gerade nicht im Grundstock sind (CATALOG_HOLD in tools/hildesheim-programs.py); zurueck nach 'catalogs', sobald der Leser das Format kennt (14.11.2026)",
+    "barrierefreie-kommunikation|m.a.|2019": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669 (PO Barrierefreie Kommunikation, § 22)",
+      "area_patterns": [
+        {
+          "match": "Profil",
+          "set": {
+            "kind": "wahl",
+            "lp_required": 10,
+            "rule": "Profilmodul (Forschung oder Praxis): 10 LP."
+          }
+        }
+      ]
     }
   }
 }

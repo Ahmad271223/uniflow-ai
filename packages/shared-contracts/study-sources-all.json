@@ -5346,28 +5346,7 @@
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669",
      "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
-     "pos": [
-      {
-       "po": "2019",
-       "code": "barrierefreie-kommunikation|m.a.|2019",
-       "source": "hildesheim-grundstock",
-       "catalog_terms": [
-        "SS 2024"
-       ],
-       "study_plan": null,
-       "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
-       "format": "hildesheim-modultabelle",
-       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5176"
-      }
-     ],
-     "lsf": {
-      "nummer": 863,
-      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=863&idcol=k_abstgv.abstgvnr&idval=863&purge=n&getglobal=n",
-      "text": "M.A. Barrierefreie Kommunikation"
-     },
-     "lsf_names": [
-      "M.A. Barrierefreie Kommunikation"
-     ]
+     "pos": []
     },
     {
      "id": "data-analytics-m-sc",

@@ -144,13 +144,15 @@
     }
    ],
    "catalog": {
-    "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5176",
-    "term": "SS 2024",
-    "format": "hildesheim-modultabelle",
-    "pages": 28,
-    "modules_est": 3,
-    "title": "Neufassung der Studienordnung für den Masterstudiengang „Barrierefreie Kommunikation“ an der Universität Hildesheim Fachbereich 3 - Sprach- und Informationswissenschaften",
-    "date": "2024-08-28"
+    "url": null,
+    "term": null,
+    "format": "none",
+    "document": {
+     "title": "Neufassung der Studienordnung für den Masterstudiengang „Barrierefreie Kommunikation“ an der Universität Hildesheim Fachbereich 3 - Sprach- und Informationswissenschaften",
+     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5176",
+     "date": "2024-08-28"
+    },
+    "reason": "Modulbeschreibungen im Format „Kennnummer | Workload | Credits“ liest der Leser noch nicht; er fand nur drei Querverweise („Modul 7.2 geöffnet für …“) statt der 11 Module"
    },
    "more_catalogs": [],
    "study_plan_url": null,
