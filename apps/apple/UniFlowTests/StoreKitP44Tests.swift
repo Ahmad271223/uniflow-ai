@@ -192,6 +192,7 @@ final class PurchaseP44Tests: StoreKitSessionTestCase {
     /// P44-11: gekuendigtes Abo laeuft bei offener App ab. Apple schickt dafuer keine neue Transaktion
     /// (Transaction.updates bleibt still); vorher blieb Plus bis zum naechsten Kauf, Neustart oder Wiederherstellen
     func testCancelledSubscriptionEndsWhileTheAppStaysOpen() async throws {
+        try requireVisibleTestPurchases()
         session.timeRate = .oneRenewalEveryTenSeconds
         defer { session.timeRate = .realTime }
         let (_, quiet) = await makeStore()
@@ -226,6 +227,7 @@ final class PurchaseP44Tests: StoreKitSessionTestCase {
     /// 08.11.2026; mit schneller Zeit meldet sie gar keine Frist), darum ist die Regel selbst rot/gruen in
     /// `testResolverHonoursGracePeriod`, hier nur der Weg ueber StoreKit
     func testBillingGracePeriodKeepsThePlan() async throws {
+        try requireVisibleTestPurchases()
         session.billingGracePeriodIsEnabled = true
         session.shouldEnterBillingRetryOnRenewal = true
         defer { session.billingGracePeriodIsEnabled = false; session.shouldEnterBillingRetryOnRenewal = false }

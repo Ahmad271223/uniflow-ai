@@ -220,7 +220,7 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
         let view = try show(CommunitySpacePage(key: "k", space: space, service: service, localFile: { $0 == "fO" ? "file-own" : nil },
                                                shared: { [] }))
         let message = "Deine Lösung „Übungsblatt 3“ hat einen Korrekturhinweis von Ben bekommen"
-        XCTAssertTrue(pump { self.shows(view, message) }, "\(texts(view))")
+        XCTAssertTrue(pump { self.shows(view, message) }, "Tarif \(Entitlements.shared.plan.rawValue): \(texts(view))")
         XCTAssertFalse(shows(view, "von Ida"), "Hinweise anderer Communities stehen nicht hier")
         XCTAssertTrue(shows(view, "1 Markierung · 1 Randnotiz"))
 

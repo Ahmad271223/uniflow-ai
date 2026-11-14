@@ -396,7 +396,10 @@ struct RootView: View {
                 if let id { Entitlements.shared.beginLocalTrial(userID: id) } else { Entitlements.shared.useLocalTrial(startedAt: nil) }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Entitlements.shared.refreshLocalTrial() }   // Resttage nach dem Tageswechsel
+                // Resttage nach dem Tageswechsel; nie unter XCTest: am Mac kommt die Szene im Testwirt oft neu in den
+                // Vordergrund, und das Neurechnen ueberschriebe den Tarif, den ein Test gesetzt hat (`setPlanForTesting`,
+                // CommunityCorrectionWiringAppTests am Mac, 14.11.2026)
+                if phase == .active, !StudIPSync.isUnderTest() { Entitlements.shared.refreshLocalTrial() }
             }
             // nach dem Ende der Probe: Free, Plus oder Pro AI waehlen (TrialDecisionCover, Inhaber 07.11.2026)
             .modifier(TrialDecisionCover(active: account.stage == .ready))

@@ -297,7 +297,10 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
             for w in Self.debugWords {
                 for t in texts where t.contains(w) && !Self.debugAllowed.contains(t) { fail("@\(suffix): Debug-Rest „\(w)“ in „\(t.prefix(90))“") }
             }
-            if texts.count < 6 { fail("@\(suffix): nur \(texts.count) Texte – leere Seite?\n" + texts.joined(separator: "\n")) }
+            // am Mac ("Designed for iPad") hat die erste Seite des Rundgangs fuenf Texte (Fortschritt, Ueberspringen, Titel,
+            // Text, Weiter); am iPad kommt die Bildlaufanzeige als sechster dazu (Befund 14.11.2026)
+            let fewest = ProcessInfo.processInfo.isiOSAppOnMac ? 5 : 6
+            if texts.count < fewest { fail("@\(suffix): nur \(texts.count) Texte – leere Seite?\n" + texts.joined(separator: "\n")) }
             let over = overflows(env)
             if !over.isEmpty {
                 fail("@\(suffix) (\(Int(size.width)) x \(Int(size.height))): \(over.count) zu breit\n" + over.prefix(20).map { "  " + $0.text }.joined(separator: "\n"))
@@ -723,7 +726,10 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         station(env, "58-studip-verbindung", markers: ["Abmelden", "Jetzt abgleichen"])
         XCTAssertTrue(tap("Abmelden", in: env), "Abmelden:\n" + dump(env))
         XCTAssertTrue(env.wait(timeout: 10) { self.shows(env, "Von Stud.IP abmelden?") }, "Rueckfrage:\n" + dump(env))
-        station(env, "59-abmelden-dialog", markers: ["Von Stud.IP abmelden?", "Abmelden und Dateien löschen"])
+        // am Mac ("Designed for iPad") zeichnet das System die Rueckfrage als eigenes Mac-Fenster: der Titel steht im
+        // Baum der App, die Knoepfe nicht (Befund 09.11. und 14.11.2026; von Hand geprueft: bedienbar)
+        station(env, "59-abmelden-dialog", markers: ProcessInfo.processInfo.isiOSAppOnMac
+                    ? ["Von Stud.IP abmelden?"] : ["Von Stud.IP abmelden?", "Abmelden und Dateien löschen"])
         // abbrechen: der Dialog von iOS; ohne antippbares "Abbrechen" schliessen
         if !tap("Abbrechen", in: env) {
             var vc = env.hosting.presentedViewController

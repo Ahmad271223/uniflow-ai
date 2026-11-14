@@ -29,6 +29,16 @@ class StoreKitSessionTestCase: XCTestCase {
         session = nil
     }
 
+    /// Mac ("Designed for iPad"): Die StoreKit-Testsitzung bucht jeden Kauf (`SKTestSession.allTransactions`), aber
+    /// StoreKit 2 (`Transaction.currentEntitlements`) sieht im Testwirt hoechstens den ersten Kauf eines Prozesses, alle
+    /// weiteren nicht; der Tarif bleibt dann "free" (Befunde 08.11., 09.11. und 14.11.2026,
+    /// docs/MAC-DURCHLAUF-2026-11-14.md). Jeder Test, der einen Testkauf braucht, ruft das zuerst und wird am Mac
+    /// uebersprungen. Am iPad und iPhone geschieht hier nichts. Den Kauf am Mac selbst kann nur ein Mensch pruefen
+    /// (Sandbox-Konto).
+    func requireVisibleTestPurchases() throws {
+        try ContainerTestBed.skipOnMac("StoreKit 2 sieht Käufe der StoreKit-Testsitzung im Mac-Testwirt nicht verlässlich (Kauf am Mac von Hand prüfen)")
+    }
+
     /// Bedingung wiederholt pruefen (StoreKit-Testsitzung arbeitet asynchron), hoechstens `seconds`
     func eventually(_ seconds: Double = 8, _ check: () async -> Bool) async -> Bool {
         let end = Date().addingTimeInterval(seconds)
@@ -108,6 +118,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     }
 
     func testPlusPurchaseUnlocksPlusWithoutIntroOffer() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         let outcome = await store.purchase(plus)
@@ -129,6 +140,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
 
     /// Jahresabo (seit 09.11.2026 das einzige Abo): Tarif, Zahlweise und Ablauf nach einem Jahr
     func testYearlyPurchaseUnlocksPlanWithYearlyBilling() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let yearly = try XCTUnwrap(store.product(for: .proAI))
         let outcome = await store.purchase(yearly)
@@ -143,6 +155,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
 
     /// Pro AI kaufen gibt Pro AI (StoreKit-Berechtigung wie heute); auf dem iPad derselbe Umfang wie Plus
     func testProAIPurchaseUnlocksProAI() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let proAI = try XCTUnwrap(store.product(for: .proAI))
         let outcome = await store.purchase(proAI)
@@ -156,6 +169,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
 
     /// Verlaengerung: Tarif bleibt Plus, der Ablauf rueckt nach vorn
     func testRenewalKeepsPlus() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         let outcome = await store.purchase(plus)
@@ -171,6 +185,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// Vorrang: ein gekaufter Tarif gilt vor der Probe auf dem iPad; nach Ablauf des Abos faellt die App nur auf Free,
     /// wenn auch die Probe vorbei ist
     func testPurchasedPlanTakesPrecedenceOverLocalTrial() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let now = Date()
         ent.useLocalTrial(startedAt: now, now: now)
@@ -189,6 +204,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
 
     /// Kaufanfrage (Familienfreigabe, "Ask to Buy"): erst ausstehend und weiter Free, nach Freigabe Plus
     func testAskToBuyIsPendingUntilApproved() async throws {
+        try requireVisibleTestPurchases()
         session.askToBuyEnabled = true
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
@@ -219,6 +235,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     }
 
     func testExpiryFallsBackToFree() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         _ = await store.purchase(plus)
@@ -238,6 +255,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     }
 
     func testRefundRevokesPlan() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         _ = await store.purchase(plus)
@@ -255,6 +273,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// 223: Der Beobachter von Transaction.updates (wie `Entitlements.shared` ab App-Start) schaltet eine spaeter
     /// freigegebene Kaufanfrage von selbst frei – ohne dass eine Ansicht refresh() aufruft
     func testTransactionUpdatesListenerUnlocksApprovedAskToBuyWithoutRefresh() async throws {
+        try requireVisibleTestPurchases()
         session.askToBuyEnabled = true
         let ent = Entitlements(observe: true)
         _ = await eventually { !ent.loading }
@@ -278,6 +297,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// .paymentCancelled` kommt als `StoreKitError.unknown` an, gemessen unter Xcode 27.1): darum die Zuordnung des
     /// Dialog-Ergebnisses direkt, den Fehlerweg ueber die Testsitzung.
     func testCancelledPurchaseIsNoErrorAndFailedPurchaseUnlocksNothing() async throws {
+        try requireVisibleTestPurchases()
         XCTAssertEqual(PurchaseStore.outcome(of: .userCancelled), .cancelled)
         XCTAssertEqual(PurchaseStore.outcome(of: .pending), .pending)
         let thrownCancel = PurchaseStore.failure(StoreKitError.userCancelled)
@@ -304,6 +324,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// nicht weiter. Hier ueber die Server-Pruefung (V2-Haken); eine von StoreKit unverifizierte Transaktion geht
     /// denselben Weg (`Entitlements.handle` -> false).
     func testRejectedVerificationTellsTheUser() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         ent.verifyOnServer = { _ in false }
         let plus = try XCTUnwrap(store.product(for: .plus))
@@ -315,6 +336,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// 229: Store nicht erreichbar (hier: keine bekannten Produkte): verstaendliche Meldung mit "Erneut versuchen",
     /// der zuletzt bekannte Tarif und die Notizen bleiben
     func testUnreachableStoreKeepsPlanAndExplains() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
         XCTAssertEqual(ent.plan, .plus)
@@ -331,6 +353,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     }
 
     func testRestoreOnNewInstall() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
         XCTAssertEqual(ent.plan, .plus)
