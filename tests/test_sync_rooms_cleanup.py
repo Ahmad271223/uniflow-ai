@@ -272,3 +272,43 @@ def test_delete_before_the_other_devices_are_known_stays_in_the_own_uni_account(
     fresh.uni("bob", "neu")
     fresh.sync()
     assert fresh.subjects() == BOB
+
+
+def test_one_uni_account_keeps_working_as_before_even_with_a_device_that_never_returns(tmp_path, service):
+    """Der Normalfall: ein Uni-Konto, zwei Geraete mit der aelteren App (schicken nur den Stud.IP-Hash) und ein drittes,
+    das frueher Faecher angelegt hat und sich nie wieder meldet (App neu installiert, altes Handy). Nach dem
+    Dienst-Update aendert sich nichts: alle Zeilen bleiben sichtbar, Aendern und Loeschen kommen auf dem anderen Geraet
+    an, und ein neues Geraet bekommt alles."""
+    gone, ipad, iphone = (Device(tmp_path, n, service) for n in ("alt-installiert", "ipad-ada", "iphone-ada"))
+    gone.studip(ADA[:3], "ada")
+    gone.sync()
+    ipad.studip(ADA, "ada")
+    ipad.sync()
+    iphone.studip(ADA, "ada")
+    iphone.sync()
+    # ab hier ist der Dienst neu; "alt-installiert" meldet sich nie wieder
+    ipad.uni("ada", "hash")
+    iphone.uni("ada", "hash")
+    ipad.sync()
+    iphone.sync()
+    assert ipad.subjects() == ADA and iphone.subjects() == ADA
+    # eine Zeile des verschwundenen Geraets aendern
+    ipad.conn.execute("UPDATE modules SET color='#101010' WHERE name=?", (ADA[0],))
+    assert ipad.sync()["pushed"] == 1
+    iphone.sync()
+    assert iphone.conn.execute("SELECT color FROM modules WHERE name=?", (ADA[0],)).fetchone()[0] == "#101010"
+    # eine Zeile des verschwundenen Geraets loeschen
+    iphone.conn.execute("UPDATE courses SET module_id=NULL WHERE module_id=(SELECT id FROM modules WHERE name=?)", (ADA[1],))
+    iphone.conn.execute("DELETE FROM modules WHERE name=?", (ADA[1],))
+    iphone.sync()
+    assert ipad.sync()["deleted"] == 1 and ADA[1] not in ipad.subjects()
+    # ein neues Geraet mit der neuen App: alles da, nichts fremd, kein Hinweis auf ein zweites Uni-Konto
+    new = Device(tmp_path, "mac-ada", service)
+    new.uni("ada", "neu")
+    st = new.sync()
+    assert new.subjects() == [n for n in ADA if n != ADA[1]] and st["foreign_removed"] == 0 and st["other_uni"] is False
+    # und zurueck: was das neue Geraet anlegt, kommt bei den aelteren Apps an
+    new.conn.execute("INSERT INTO modules(name, semester, created_at) VALUES ('Am Mac angelegt', 'WiSe 2026/27', '2026-11-15')")
+    new.sync()
+    ipad.sync()
+    assert "Am Mac angelegt" in ipad.subjects()
