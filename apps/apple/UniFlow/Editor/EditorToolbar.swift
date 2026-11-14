@@ -48,12 +48,15 @@ final class EditorToolState: ObservableObject {
         var drawsOnCanvas: Bool { isInk || self == .eraser || self == .lasso }
         /// Farbe waehlbar (Text und Form: eigene Farbe, anfangs die des Stifts)
         var hasColor: Bool { isInk || self == .text || self == .shape }
-        /// Staerken waehlbar
+        /// Staerken waehlbar (Seitenpunkte; bei Seitenbreite auf dem iPad hochkant 1 Seitenpunkt = 1,38 Bildschirmpunkte).
+        /// Jede Stufe liegt in den Grenzen von PencilKit (`validWidthRange`, `StiftStaerkeTests`): Stift ab 0,88,
+        /// Fineliner 0,5 bis 4, Textmarker ab 7,5. Vorher (bis 14.11.2026) Stift ab 1, Fineliner 0,8 bis 6 (6 wurde
+        /// still auf 4 begrenzt, gleich der Stufe davor), Textmarker ab 6 (still 7,5). Wunsch des Inhabers: duenner.
         var widths: [CGFloat] {
             switch self {
-            case .pen: return [1, 2, 3.5, 6, 10]
-            case .fineliner: return [0.8, 1.5, 2.5, 4, 6]
-            case .marker: return [6, 10, 15, 22, 30]
+            case .pen: return [0.88, 2, 3.5, 6, 10]
+            case .fineliner: return [0.5, 0.8, 1.5, 2.5, 4]
+            case .marker: return [7.5, 10, 15, 22, 30]
             case .shape: return [1, 2, 4]
             default: return []
             }
