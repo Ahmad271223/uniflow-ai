@@ -341,6 +341,13 @@ struct StudyPlan: Equatable {
     let suggestedPO: String?
     let poConfirmed: Bool
     let qisProgram: String?
+    /// mehrere Studiengaenge im Notenspiegel (Wechsel, 14.11.2026), der aktuelle zuerst; leer bei einem
+    let programs: [StudyPlanProgramChoice]
+    /// Notenspiegel nennt einen neueren Studiengang als den gewaehlten (einmal nachfragen) und der gewaehlte
+    let programMismatch: StudyPlanProgramChoice?
+    let mismatchChosen: String?
+    /// Leistungen anderer Studiengaenge ("Früheres Studium"), zaehlen nicht im aktuellen
+    let earlier: [StudyPlanEarlierStudy]
     let semesters: [StudyPlanSemester]
     let currentTerm: String?
     let startTerm: String?
@@ -372,6 +379,15 @@ struct StudyPlan: Equatable {
         suggestedPO = v.s("suggested_po") ?? v.i("suggested_po").map(String.init)
         poConfirmed = v["po_confirmed"]?.bool ?? (suggestedPO == nil)
         qisProgram = v.s("qis_program") ?? v.s("qis_abschluss")
+        programs = v.list("programs").map(StudyPlanProgramChoice.init).filter { !$0.program.isEmpty }
+        earlier = v.list("earlier_studies").map(StudyPlanEarlierStudy.init).filter { $0.count > 0 }
+        if let mm = v["program_mismatch"], !mm.isNull, StudyPlanProgramChoice(mm).code != nil {
+            programMismatch = StudyPlanProgramChoice(mm)
+            mismatchChosen = mm.s("chosen")
+        } else {
+            programMismatch = nil
+            mismatchChosen = nil
+        }
         currentTerm = current
         startTerm = v.s("start_term")
         areas = v.list("areas").map(StudyPlanArea.init).filter { !$0.id.isEmpty }

@@ -18,6 +18,9 @@ public enum StudyPlanAPI {
         var placements: [(String, String)] = []
         var excluded: [String] = []
         var custom: [StudyPlanEngine.CustomEntry] = []
+        /// Neben-/Begleitfaecher (Kuerzel, hoechstens 3) und ein abgelehnter Studiengang aus dem Notenspiegel (14.11.2026)
+        var minors: [String] = []
+        var programAck: String? = nil
 
         var json: [String: JSONValue] {
             var o: [String: JSONValue] = ["po": StudyPlanEngine.opt(po), "start_term": StudyPlanEngine.opt(startTerm),
@@ -27,6 +30,8 @@ public enum StudyPlanAPI {
             o["placements"] = .object(Dictionary(placements.map { ($0.0, JSONValue.string($0.1)) }, uniquingKeysWith: { a, _ in a }))
             o["excluded"] = .array(excluded.map(JSONValue.string))
             o["custom"] = .array(custom.map { .object($0.json) })
+            o["minors"] = .array(minors.map(JSONValue.string))
+            if let programAck { o["program_ack"] = .string(programAck) }
             return o
         }
 
@@ -41,6 +46,8 @@ public enum StudyPlanAPI {
             }
             if !excluded.isEmpty { m.append(PyJSON.Member("excluded", .array(excluded.map(PyJSON.string)))) }
             if !custom.isEmpty { m.append(PyJSON.Member("custom", .array(custom.map(\.stored)))) }
+            if !minors.isEmpty { m.append(PyJSON.Member("minors", .array(minors.map(PyJSON.string)))) }
+            if let programAck { m.append(PyJSON.Member("program_ack", .string(programAck))) }
             return .object(m)
         }
     }
@@ -62,7 +69,37 @@ public enum StudyPlanAPI {
         return Settings(po: po, startTerm: start, electives: sortedUnique(v["electives"]?.array?.compactMap(\.string) ?? []),
                         catalogURL: StudyCatalogPipeline.cleanCatalogURL(v["catalog_url"]?.string),
                         tracks: StudyPlanEngine.cleanTracks(v["tracks"]), placements: StudyPlanEngine.cleanPlacements(v["placements"]),
-                        excluded: StudyPlanEngine.cleanIDs(v["excluded"]), custom: StudyPlanEngine.cleanCustom(v["custom"]))
+                        excluded: StudyPlanEngine.cleanIDs(v["excluded"]), custom: StudyPlanEngine.cleanCustom(v["custom"]),
+                        minors: cleanMinors(v["minors"]), programAck: cleanAck(v["program_ack"]))
+    }
+
+    /// `clean_minors`: hoechstens 3 Kuerzel, Text bis 200 Zeichen, ohne Doppelte, Reihenfolge bleibt
+    static func cleanMinors(_ v: JSONValue?) -> [String] {
+        var out: [String] = []
+        for x in v?.array ?? [] {
+            guard let t = x.string.map({ String(PyText.strip($0).unicodeScalars.prefix(200)) }), !t.isEmpty,
+                  !out.contains(where: { $0.unicodeScalars.elementsEqual(t.unicodeScalars) }) else { continue }
+            out.append(t)
+        }
+        return Array(out.prefix(3))
+    }
+
+    static func cleanAck(_ v: JSONValue?) -> String? {
+        guard let t = v?.string.map({ String(PyText.strip($0).unicodeScalars.prefix(200)) }), !t.isEmpty else { return nil }
+        return t
+    }
+
+    /// `program_mismatch`: gewaehlt ist ein Studiengang aus dem Register, der Notenspiegel nennt einen anderen mit neuerer
+    /// PO; einmal nachfragen (nil ohne Wahl, bei gleichem, aelterem oder schon abgelehntem Studiengang)
+    static func programMismatch(_ progs: [JSONValue], settings: Settings, university: String,
+                                sources: StudySources = .bundled) -> JSONValue {
+        guard let chosen = settings.po, let top = progs.first, let code = top["code"]?.string,
+              code != chosen, code != settings.programAck,
+              let (_, prog, po) = sources.entry(university: university, code: chosen) else { return .null }
+        func year(_ v: JSONValue?) -> Int { Int(String(StudySources.text(v).prefix(4))) ?? -1 }
+        guard year(top["po"]) > year(po["po"]) else { return .null }
+        return ["code": .string(code), "program": top["program"] ?? .null, "degree": top["degree"] ?? .null, "po": top["po"] ?? .null,
+                "chosen": prog["program"] ?? .null]
     }
 
     /// Notenspiegel plus die angemeldeten Pruefungen von der eigenen QIS-Seite (`exam_registrations`, nur Geraet).
@@ -88,27 +125,89 @@ public enum StudyPlanAPI {
         let settings = try loadSettings(c), grades = try gradeRows(c)
         let catalogs = try source.catalogs()
         let picked = StudyPlanEngine.pickCatalog(catalogs, settings: settings.json, grades: grades)
+        let uni = try university(c)
+        let mine = StudyPlanEngine.gradesForCatalog(grades, catalog: picked.catalog, university: uni)
         var out: [String: JSONValue]
         if let cat = picked.catalog {
-            out = StudyPlanEngine.compute(catalog: cat, grades: grades, settings: settings.json, today: today).plan
+            out = StudyPlanEngine.compute(catalog: cat, grades: mine, settings: settings.json, today: today).plan
+            // ehrlich sagen, warum Leistungen fehlen (Wechsel des Studiengangs, 14.11.2026)
+            let kept = Set(mine.map { JSONValue.object($0) })
+            let other = grades.filter { !kept.contains(.object($0)) && $0["source"]?.string != "anmeldung" && !StudyPlanEngine.isBereich($0) }
+            let earlier = earlierStudies(other)
+            out["earlier_studies"] = .array(earlier)
+            if !other.isEmpty {
+                let names = earlier.compactMap { $0["program"]?.string }
+                let text = "\(other.count) Leistungen aus „\(names.joined(separator: " / "))“ stehen unten unter „Früheres Studium“ und zählen "
+                    + "hier nicht. Angerechnete Leistungen zählen, sobald der Notenspiegel sie beim aktuellen Studiengang führt."
+                out["notes"] = .array((out["notes"]?.array ?? []) + [["kind": "anderer_studiengang", "tone": "info", "module_id": .null,
+                                                                       "text": .string(text)]])
+            }
         } else {
             out = StudyPlanEngine.unavailable(picked.reason ?? "no_catalog", po: settings.po)
+            out["earlier_studies"] = .array([])
+            if picked.reason == "no_catalog_po", let named = chosenProgramName(settings.po, university: uni) {
+                out["message"] = .string("Für \(named) gibt es noch keinen Modulkatalog.")
+            }
         }
         let suggested = StudyPlanEngine.pickCatalog(catalogs, settings: [:], grades: grades).catalog
         out["suggested_po"] = suggested.map { $0["po"] ?? .null } ?? .null
         out["po_confirmed"] = .bool(settings.po != nil)
         out["qis_program"] = StudyPlanEngine.opt(StudyPlanEngine.abschlussOf(grades))
+        let progs = StudyPlanEngine.programsOf(grades, university: uni)
+        out["programs"] = .array(progs.count > 1 ? progs : [])
+        out["program_mismatch"] = programMismatch(progs, settings: settings, university: uni)
         return .object(out)
+    }
+
+    /// `earlier_studies`: Leistungen anderer Studiengaenge als "Früheres Studium" (je Studiengang Name, Anzahl, LP der
+    /// bestandenen und die Zeilen; Reihenfolge des ersten Auftretens). Zaehlen nicht im aktuellen Studiengang.
+    static func earlierStudies(_ rows: [[String: JSONValue]]) -> [JSONValue] {
+        var order: [String] = []
+        var acc: [String: (program: String, count: Int, lp: Double, rows: [JSONValue])] = [:]
+        for r in rows {
+            let label = PyText.strip(StudyPlanEngine.textOf(r["abschluss"]))
+            if acc[label] == nil {
+                let name = label.lowercased().hasPrefix("abschluss:") ? StudySources.parseAbschluss(label).name : StudyPlanEngine.programName(r)
+                acc[label] = (name.isEmpty ? "Ohne Angabe" : name, 0, 0, [])
+                order.append(label)
+            }
+            acc[label]!.count += 1
+            if PyText.strip(StudyPlanEngine.textOf(r["status"])).lowercased().hasPrefix("bestanden") {
+                acc[label]!.lp += StudyPlanEngine.creditsOf(r)
+            }
+            acc[label]!.rows.append(["text": r["text"] ?? .null, "note": r["note"] ?? .null, "status": r["status"] ?? .null,
+                                     "credits": r["credits"] ?? .null, "semester": r["semester"] ?? .null])
+        }
+        return order.map { l in
+            let e = acc[l]!
+            return ["label": .string(l), "program": .string(e.program), "count": .number(Double(e.count)), "lp": .number(e.lp),
+                    "rows": .array(e.rows)]
+        }
+    }
+
+    /// `chosen_program_name`: Kuerzel aus dem Register -> "Sozialpädagogik (B.A., PO 2025)"; nil fuer eine PO-Jahreszahl
+    static func chosenProgramName(_ code: String?, university: String, sources: StudySources = .bundled) -> String? {
+        guard let code, let (_, prog, po) = sources.entry(university: university, code: code) else { return nil }
+        let p = StudySources.text(po["po"])
+        let extra = [prog["degree"]?.string, p.isEmpty ? nil : "PO \(p)"].compactMap { $0 }.joined(separator: ", ")
+        let name = prog["program"]?.string ?? code
+        return extra.isEmpty ? name : "\(name) (\(extra))"
+    }
+
+    /// Hochschule dieses Datenbereichs (`settings.university`)
+    static func university(_ c: SQLiteConnection) throws -> String {
+        try c.queryOne("SELECT value FROM settings WHERE key='university'")?["value"]?.string ?? "luh"
     }
 
     /// `GET /api/study-plan/module/{id}`: Fakten, lokaler Text, eigener Stand, Kurse und Dateien der App; 404 ohne
     /// Katalog oder Modul
     public static func module(_ c: SQLiteConnection, id moduleID: String, today: String, source: StudyCatalogSource? = nil) throws -> JSONValue {
         let source = source ?? DatabaseStudyCatalogSource(c)
-        let settings = try loadSettings(c), grades = try gradeRows(c)
-        guard let cat = StudyPlanEngine.pickCatalog(try source.catalogs(), settings: settings.json, grades: grades).catalog else {
+        let settings = try loadSettings(c), allGrades = try gradeRows(c)
+        guard let cat = StudyPlanEngine.pickCatalog(try source.catalogs(), settings: settings.json, grades: allGrades).catalog else {
             throw LocalHTTPError(status: 404, message: "Kein Katalog")
         }
+        let grades = StudyPlanEngine.gradesForCatalog(allGrades, catalog: cat, university: try university(c))
         let full = StudyPlanEngine.compute(catalog: cat, grades: grades, settings: settings.json, today: today)
         guard let m = full.byID[moduleID] else { throw LocalHTTPError(status: 404, message: "Modul nicht im Katalog") }
         let textOf = StudyPlanEngine.textOf, opt = StudyPlanEngine.opt as (String?) -> JSONValue
@@ -295,6 +394,21 @@ public enum StudyPlanAPI {
                 }
             }
             s.custom = StudyPlanEngine.cleanCustom(v)
+        }
+        if let v = body["minors"] {
+            if !v.isNull {
+                guard let list = v.array, list.allSatisfy({ $0.string != nil }) else {
+                    throw LocalHTTPError(status: 400, message: "minors muss eine Liste von Kuerzeln sein")
+                }
+            }
+            s.minors = cleanMinors(v)
+        }
+        if let v = body["program_ack"] {
+            switch v {
+            case .null: s.programAck = nil
+            case .string: s.programAck = cleanAck(v)
+            default: throw LocalHTTPError(status: 400, message: "program_ack muss Text sein")
+            }
         }
         try LocalSettings.write(c, key: StudyPlanEngine.settingsKey, value: s.stored)
         return try settings(c, today: today, source: source)

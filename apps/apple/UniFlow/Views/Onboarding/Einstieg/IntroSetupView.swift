@@ -2,8 +2,9 @@ import SwiftUI
 import UniFlowCore
 
 // Fragen im Gespraech (neuer Einstieg, nach der Uni-Anmeldung): der Begleiter fragt, die Antworten erscheinen als
-// eigene Sprechblasen; auf breiten Bildschirmen links das Gespraech, rechts die Antwort. Drei Fragen:
+// eigene Sprechblasen; auf breiten Bildschirmen links das Gespraech, rechts die Antwort. Drei Fragen (Uni Hildesheim vier):
 //  1. Rufname fuer die Begruessung (`Rufname.save`, vorbelegt mit dem Vornamen aus der Apple-Anmeldung)
+//  1a. nur Universitaet Hildesheim (14.11.2026): "Was studierst du?" mit allen Studiengaengen (`IntroProgramAnswer`)
 //  2. Faecher fuer den Lernkalender (`GET/POST /api/calendar/modules`, wie "Was soll in den Lernkalender?"; gilt danach
 //     als gefragt, die Frage kommt nicht noch einmal von selbst)
 //  3. Pruefungstermine der gewaehlten Faecher: was QIS schon kennt, steht da; sonst "In 7 Tagen", "In etwa einem
@@ -53,11 +54,23 @@ enum IntroExamChoice: String, CaseIterable, Identifiable {
 
 /// Ablauf der Fragen (reine Logik, IntroAppTests)
 struct IntroSetupModel: Equatable {
-    enum Step: Int, CaseIterable { case name, modules, exams, ready }
+    enum Step: Int, CaseIterable { case name, program, modules, exams, ready }
 
     var step: Step = .name
     var name: String = ""
     var modules: [IntroSetupModule] = []
+    /// Frage nach dem Studiengang (Universitaet Hildesheim), Liste und Wahl (erster = Hauptfach, hoechstens drei)
+    var askProgram = false
+    var programs: [IntroProgram] = []
+    var chosenPrograms: [IntroProgram] = []
+
+    /// Studiengang waehlen bzw. wieder entfernen (hoechstens drei: Hauptfach und zwei Neben-/Begleitfaecher)
+    mutating func toggleProgram(_ p: IntroProgram) {
+        if let i = chosenPrograms.firstIndex(of: p) { chosenPrograms.remove(at: i) } else if chosenPrograms.count < 3 { chosenPrograms.append(p) }
+    }
+
+    /// Fragen, die gestellt werden (fuer den Fortschritt oben)
+    var shownSteps: [Step] { [.name] + (askProgram ? [.program] : []) + [.modules, .exams] }
 
     var planned: [IntroSetupModule] { modules.filter(\.planned) }
     /// Faecher mit Termin (aus QIS oder eingetragen)
@@ -70,11 +83,13 @@ struct IntroSetupModel: Equatable {
         switch s {
         case .name:
             return "Schön, dass du da bist! Wie sollen wir dich nennen?"
+        case .program:
+            return (displayName.map { "Hallo \($0)! " } ?? "") + "Was studierst du an der Universität Hildesheim?"
         case .modules:
             if modules.isEmpty {
                 return "Ich habe noch keine Fächer gefunden. Sobald Stud.IP sie geliefert hat, wählst du sie in den Einstellungen unter „Lernzeit“."
             }
-            return (displayName.map { "Hallo \($0)! " } ?? "") + "Für welche Fächer soll StudiNow Lernzeit planen?"
+            return (askProgram || displayName == nil ? "" : "Hallo \(displayName!)! ") + "Für welche Fächer soll StudiNow Lernzeit planen?"
         case .exams:
             let known = planned.filter(\.examFromUni).count
             let lead = known == 0 ? "" : (known == 1 ? "Einen Prüfungstermin kenne ich schon aus QIS. " : "\(known) Prüfungstermine kenne ich schon aus QIS. ")
@@ -88,6 +103,10 @@ struct IntroSetupModel: Equatable {
     func answer(_ s: Step) -> String? {
         switch s {
         case .name: return displayName.map { "Nenn mich \($0)." }
+        case .program:
+            guard let main = chosenPrograms.first else { return nil }
+            let rest = chosenPrograms.dropFirst().map(\.name)
+            return rest.isEmpty ? "\(main.name)." : "\(main.name), dazu \(rest.joined(separator: " und "))."
         case .modules:
             let p = planned
             if modules.isEmpty { return nil }
@@ -106,14 +125,15 @@ struct IntroSetupModel: Equatable {
     /// Fragen ohne Inhalt fallen weg: ohne Faecher keine Termin-Frage
     func next(after s: Step) -> Step {
         switch s {
-        case .name: return .modules
+        case .name: return askProgram ? .program : .modules
+        case .program: return .modules
         case .modules: return planned.isEmpty ? .ready : .exams
         case .exams, .ready: return .ready
         }
     }
 
-    /// Fortschritt oben (drei Fragen)
-    var progressIndex: Int { min(step.rawValue, 2) }
+    /// Fortschritt oben (drei bzw. vier Fragen)
+    var progressIndex: Int { shownSteps.firstIndex(of: step) ?? shownSteps.count - 1 }
 
     /// Termin setzen (nur Faecher ohne Termin aus QIS)
     mutating func setExam(_ name: String, day: String?, none: Bool = false) {
@@ -167,13 +187,23 @@ struct IntroSetupView: View {
     @State private var model = IntroSetupModel()
     @State private var loaded = false
 
+    @Environment(\.hildesheim) private var hildesheim
+
     var body: some View {
         IntroSetupLayout(model: $model, onAnswer: answer, onSkipAll: { onDone(false) }, onFinish: finish)
             .task {
                 guard !loaded else { return }
                 loaded = true
                 model.name = UFGreeting.name(for: account.account) ?? ""
+                model.askProgram = hildesheim != nil
                 guard let api = session.api else { return }
+                if model.askProgram {
+                    model.programs = IntroProgram.list((try? await api.value("/api/study-catalog/programs")) ?? .null)
+                    // schon gewaehlt (erneuter Einstieg): vorbelegen
+                    let s = try? await api.value("/api/study-plan/settings")
+                    let keys = [s?.s("po")].compactMap { $0 } + (s?.list("minors").compactMap(\.string) ?? [])
+                    model.chosenPrograms = keys.compactMap { k in model.programs.first { $0.key == k } }
+                }
                 let cal = try? await api.value("/api/calendar/modules")
                 let list = try? await api.value("/api/modules")
                 model.modules = IntroSetupModel.modules(calendar: cal ?? .null, list: list ?? .null)
@@ -184,11 +214,24 @@ struct IntroSetupView: View {
     private func answer(_ step: IntroSetupModel.Step) {
         switch step {
         case .name: Rufname.save(model.displayName)
+        case .program: saveProgram()
         case .modules: saveModules()
         case .exams: saveExams()
         case .ready: finish(); return
         }
         withAnimation(UFMotion.animation(reduce: !UFMotion.moves)) { model.step = model.next(after: step) }
+    }
+
+    /// Hauptfach als Studiengang des Studienverlaufs (gilt vor dem LSF), weitere als Neben-/Begleitfaecher; danach die
+    /// Suche nach dem Modulkatalog anstossen. Ohne Wahl ("Später") bleibt alles, wie es ist.
+    private func saveProgram() {
+        guard let api = session.api, let main = model.chosenPrograms.first else { return }
+        var body: [String: JSONValue] = ["minors": .array(model.chosenPrograms.dropFirst().map { .string($0.key) })]
+        if let code = main.code { body["po"] = .string(code) }
+        Task {
+            _ = try? await api.value("/api/study-plan/settings", method: "POST", body: .object(body))
+            _ = try? await api.value("/api/study-catalog/status")
+        }
     }
 
     private func saveModules() {
@@ -223,7 +266,7 @@ struct IntroSetupLayout: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            IntroTopBar(count: 3, index: model.progressIndex, skipTitle: "Später", onSkip: model.step == .ready ? nil : onSkipAll)
+            IntroTopBar(count: model.shownSteps.count, index: model.progressIndex, skipTitle: "Später", onSkip: model.step == .ready ? nil : onSkipAll)
             GeometryReader { geo in
                 if geo.size.width >= 900 {
                     HStack(alignment: .top, spacing: 32) {
@@ -269,8 +312,8 @@ struct IntroChatHistory: View {
         }
     }
 
-    /// Termin-Frage ohne geplante Faecher wurde gar nicht gestellt
-    private func skipped(_ s: IntroSetupModel.Step) -> Bool { s == .exams && model.planned.isEmpty }
+    /// Termin-Frage ohne geplante Faecher, Studiengang ausserhalb von Hildesheim: gar nicht gestellt
+    private func skipped(_ s: IntroSetupModel.Step) -> Bool { (s == .exams && model.planned.isEmpty) || (s == .program && !model.askProgram) }
 }
 
 /// Antwortflaeche zur aktuellen Frage
@@ -283,6 +326,7 @@ struct IntroAnswerPanel: View {
         VStack(alignment: .leading, spacing: 18) {
             switch model.step {
             case .name: IntroNameAnswer(name: $model.name)
+            case .program: IntroProgramAnswer(model: $model)
             case .modules: IntroModulesAnswer(modules: $model.modules)
             case .exams: IntroExamsAnswer(model: $model)
             case .ready: IntroReadyAnswer(model: model)
@@ -293,6 +337,11 @@ struct IntroAnswerPanel: View {
                 if model.step == .name {
                     Button("Ohne Namen weiter") { model.name = ""; onAnswer(.name) }
                         .ufFont(14.5, 550).foregroundStyle(UF.text2).buttonStyle(.plain).ufHitArea()
+                }
+                if model.step == .program {
+                    Button("Später") { model.chosenPrograms = []; onAnswer(.program) }
+                        .ufFont(14.5, 550).foregroundStyle(UF.text2).buttonStyle(.plain).ufHitArea()
+                        .accessibilityIdentifier("intro.program.later")
                 }
             }
         }

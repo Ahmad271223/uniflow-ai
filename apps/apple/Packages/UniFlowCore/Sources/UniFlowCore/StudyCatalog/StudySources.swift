@@ -148,6 +148,44 @@ public struct StudySources: Sendable {
                      po: Self.text(po["po"]), code: code, qisLabel: qisLabel, qisPO: nil, needsConfirmation: false)
     }
 
+    /// `programs`: Studiengaenge des Registers zur Auswahl ([{id, program, degree, faculty, regular_semesters, total_lp,
+    /// pos: [{po, code, catalog_terms, loadable}]}] nach Name); Eintraege ohne Katalog haben `pos: []`. `loadable`: der
+    /// Katalog laesst sich laden (Muster der Quelle) oder liegt im Grundstock (`seedCodes`).
+    public func programs(university: String, seedCodes: Set<String> = []) -> [JSONValue] {
+        guard let uni = self.university(university) else { return [] }
+        var out: [(key: String, degree: String, value: JSONValue)] = []
+        for p in uni["programs"]?.array ?? [] {
+            var pos: [JSONValue] = []
+            for x in p["pos"]?.array ?? [] {
+                let src = source(uni, x)
+                let code = x["code"]?.string
+                let pattern = src?["url_pattern"]?.string ?? ""
+                pos.append(.object(["po": .string(Self.text(x["po"])), "code": code.map { .string($0) } ?? .null,
+                                    "catalog_terms": .array(x["catalog_terms"]?.array ?? []),
+                                    "loadable": .bool(!pattern.isEmpty || code.map { seedCodes.contains($0) } ?? false)]))
+            }
+            let program = p["program"]?.string ?? ""
+            out.append((StudyCatalogText.nameKey(program), p["degree"]?.string ?? "",
+                        .object(["id": p["id"] ?? .null, "program": p["program"] ?? .null, "degree": p["degree"] ?? .null,
+                                 "faculty": p["faculty"] ?? .null, "regular_semesters": p["regular_semesters"] ?? .null,
+                                 "total_lp": p["total_lp"] ?? .null, "pos": .array(pos)])))
+        }
+        return out.sorted { a, b in
+            a.key != b.key ? PyText.less(a.key, b.key) : PyText.less(a.degree, b.degree)
+        }.map(\.value)
+    }
+
+    /// `code_for_catalog_url`: Kuerzel des Registers, dessen Katalog unter diesem Link liegt (eingefuegter Link zu einem
+    /// bekannten Katalog kommt aus dem Grundstock, 14.11.2026)
+    public func code(forCatalogURL url: String?, university: String) -> String? {
+        let want = (url ?? "").trimmingCharacters(in: .whitespaces)
+        guard !want.isEmpty, let uni = self.university(university) else { return nil }
+        for p in uni["programs"]?.array ?? [] {
+            for po in p["pos"]?.array ?? [] where po["url"]?.string == want { if let c = po["code"]?.string { return c } }
+        }
+        return nil
+    }
+
     /// (Hochschule, Studiengang, PO) zum Kuerzel
     public func entry(university: String, code: String) -> (JSONValue, JSONValue, JSONValue)? {
         guard let uni = self.university(university) else { return nil }

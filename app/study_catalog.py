@@ -303,7 +303,7 @@ def merge_luh_registry(curated: dict, luh: dict) -> dict:
             term = c.get("term") if term_number(c.get("term")) else (modkat_parts(c["url"]) or (None, None))[1]
             po = {"po": str(e.get("po") or "unbekannt"), "code": code, "source": FEI_SOURCE if fei else src_id,
                   "catalog_terms": [term] if term else [], "study_plan": None, "key": e.get("key"),
-                  "format": c.get("format")}
+                  "format": c.get("format"), "url": c["url"]}
             if c.get("label"):
                 po["label"] = c["label"]
             pos.append(po)
@@ -427,6 +427,23 @@ def match_program(label: str, university: str = "luh", registry: dict | None = N
         return {"university": university, "program_id": prog.get("id"), "program": prog.get("program"),
                 "degree": prog.get("degree"), "po": str(chosen.get("po")), "code": chosen.get("code"),
                 "qis_label": label, "qis_po": parsed["po"], "needs_confirmation": not confirmed}
+    return None
+
+
+def code_for_catalog_url(registry: dict, university: str, url: str | None) -> str | None:
+    """Kuerzel des Registers, dessen Katalog unter diesem Link liegt (14.11.2026: ein eingefuegter Link zum
+    Hildesheimer Modulhandbuch ist der Katalog eines bekannten Studiengangs; der kommt dann aus dem Grundstock, statt
+    das PDF mit dem LUH-Leser zu versuchen)"""
+    want = (url or "").strip()
+    if not want:
+        return None
+    for uni in registry.get("universities") or []:
+        if uni.get("id") != university:
+            continue
+        for p in uni.get("programs") or []:
+            for po in p.get("pos") or []:
+                if po.get("url") == want and po.get("code"):
+                    return po["code"]
     return None
 
 
@@ -1625,15 +1642,11 @@ def _parse_iso(s) -> datetime | None:
 
 
 def qis_label(conn) -> str | None:
-    """Haeufigster QIS-Studiengang (`grades.abschluss`), bei Gleichstand der zuerst gespeicherte"""
+    """QIS-Studiengang (`grades.abschluss`) der laufenden Einschreibung: bei mehreren die neueste PO-Version, dann der
+    haeufigste, dann der zuerst gespeicherte (`study_plan.current_label`, 14.11.2026)"""
+    from .study_plan import current_label
     rows = db.rows(conn, "SELECT abschluss FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id")
-    counts: dict = {}
-    for r in rows:
-        counts[r["abschluss"].strip()] = counts.get(r["abschluss"].strip(), 0) + 1
-    if not counts:
-        return None
-    best = max(counts.values())
-    return next(k for k, v in counts.items() if v == best)
+    return current_label([r["abschluss"] for r in rows])
 
 
 def plan_settings(conn) -> dict:
@@ -1759,12 +1772,15 @@ def run_sync(conn, fetch=urllib_fetch, now: datetime | None = None, university: 
     label = qis_label(conn)
     base = {"checked_at": _iso(now), "qis_label": label, "inputs": inputs(conn)}
     custom = clean_catalog_url(settings.get("catalog_url"))
-    if custom:
+    linked = code_for_catalog_url(reg, uni, custom)
+    if custom and not linked:
         return _run_custom(conn, custom, fetch, now, uni, reg, base, force)
-    po = str(settings.get("po") or "").strip() or None
-    suggestion = match_program(label or "", uni, reg, po) if label else None
+    po = linked or str(settings.get("po") or "").strip() or None
+    # Selbst gewaehlter Studiengang (Kuerzel) gilt vor dem haeufigsten aus dem Notenspiegel (14.11.2026: nach einem
+    # Wechsel von Erziehungswissenschaft zu Sozialpaedagogik hat nur der alte Studiengang Leistungen und gewann immer)
+    found = program_entry(reg, uni, po) if po else None
+    suggestion = None if found else (match_program(label or "", uni, reg, po) if label else None)
     if suggestion is None and po:
-        found = program_entry(reg, uni, po)
         if found:
             _, p, x = found
             suggestion = {"university": uni, "program_id": p.get("id"), "program": p.get("program"), "degree": p.get("degree"),
