@@ -1184,7 +1184,9 @@ struct DocumentView: View {
         }
         .frame(width: 12)
         .contentShape(Rectangle())
-        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
+        // Erst ab 4 pt Bewegung: ein aufgelegter Handballen auf dem Griff darf die Breite nicht springen lassen,
+        // sonst rutscht das X der Spalte daneben unter dem Stift weg (echtes iPad, 14.11.2026).
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
             let x = g.location.x
             let f = sideLeft ? x / max(width, 1) : (width - x) / max(width, 1)
             splitFraction = min(0.65, max(0.2, Double(f)))
