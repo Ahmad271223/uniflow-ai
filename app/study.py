@@ -655,6 +655,15 @@ def _marker_rest(conn, module_id: int, week: int, start: date, files: list[dict]
     return out
 
 
+def _exam_within(m: dict, d: date, days: int) -> bool:
+    """Klausur des Moduls in den naechsten `days` Tagen ab d (einschliesslich)"""
+    try:
+        e = date.fromisoformat(m.get("exam_date") or "")
+    except ValueError:
+        return False
+    return 0 <= (e - d).days <= days
+
+
 def _module_score(m: dict, open_units: int, settings: dict) -> float:
     score = (m.get("priority") or 2) * 10 + open_units
     if settings["exam_priority"] and m.get("exam_date"):
@@ -760,6 +769,11 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     budget_day = s["minutes_per_day"]
     per_pkg = max(30, budget_day // max(1, s["subjects_per_day"]))
     created = 0
+    # Wochenwunsch (14.11.2026): in dieser Woche zuerst Faecher mit Klausur in den naechsten 14 Tagen, dann die
+    # Wunschfaecher; andere nur, wenn die nicht reichen
+    from . import study_choice
+    wish = study_choice.wish_for(conn, t0)
+    wish_rot: dict[int, list[int]] = {}
     existing_days = {r["date"]: r["n"] for r in db.rows(conn, "SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", (start.isoformat(), end.isoformat()))}
     for i in range(days):
         d = start + timedelta(days=i)
@@ -768,25 +782,42 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
         from . import timetable
         if not timetable.free_windows(conn, d):
             continue  # Tag ohne freie Zeit (Termine bis Lernende): nichts automatisch planen (Abnahme 07.11.2026)
-        queues, rr = per_week.get(studip_terms.lecture_week(sem, d, free), ({}, []))
+        lw = studip_terms.lecture_week(sem, d, free)
+        queues, rr = per_week.get(lw, ({}, []))
         picked: list[tuple[dict, int]] = []
         day_used = 0
-        attempts = 0
-        while len(picked) < s["subjects_per_day"] and rr and attempts < len(rr):
-            mid = rr.pop(0)
-            q = queues[mid]
-            tasks = _next_tasks(q, s, per_pkg)
-            if tasks:
-                pid = _insert_package(conn, d, q["module"], tasks, q.get("cur_unit"))
-                day_used += sum(t["est"] for t in tasks)
-                picked.append((q, pid))
-                created += 1
-                if q["pending"] or q["pos"] < len(q["units"]):
-                    rr.append(mid)
-            else:
-                attempts += 1
-                if q["pos"] < len(q["units"]) or q["pending"]:
-                    rr.append(mid)
+
+        def pick(rot: list[int], exclude: set) -> None:
+            nonlocal day_used, created
+            attempts = 0
+            while len(picked) < s["subjects_per_day"] and rot and attempts < len(rot):
+                mid = rot.pop(0)
+                q = queues[mid]
+                if mid in exclude:
+                    rot.append(mid)
+                    attempts += 1
+                    continue
+                tasks = _next_tasks(q, s, per_pkg)
+                if tasks:
+                    pid = _insert_package(conn, d, q["module"], tasks, q.get("cur_unit"))
+                    day_used += sum(t["est"] for t in tasks)
+                    picked.append((q, pid))
+                    created += 1
+                    if q["pending"] or q["pos"] < len(q["units"]):
+                        rot.append(mid)
+                else:
+                    attempts += 1
+                    if q["pos"] < len(q["units"]) or q["pending"]:
+                        rot.append(mid)
+        if wish and wish[0] <= d <= wish[1]:
+            if lw not in wish_rot:
+                soon = [mid for mid in rr if _exam_within(queues[mid]["module"], d, 14)]
+                soon.sort(key=lambda mid: queues[mid]["module"]["exam_date"])
+                wish_rot[lw] = soon + [mid for mid in wish[2] if mid in queues and mid not in soon]
+            pick(wish_rot[lw], set())
+            pick(rr, {q["module"]["id"] for q, _ in picked})
+        else:
+            pick(rr, set())
         # Restzeit des Tages mit weiteren Aufgaben der gewaehlten Faecher auffuellen (keine neuen Einheiten)
         changed = True
         while changed and day_used < budget_day:

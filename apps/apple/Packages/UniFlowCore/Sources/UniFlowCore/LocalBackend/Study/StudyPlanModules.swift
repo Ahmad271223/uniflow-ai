@@ -151,18 +151,43 @@ public enum StudyPlanModules {
     /// "gefragt" merken, z. B. "Später"). Nicht genannte Module behalten ihre Wahl. Abgewaehlte Module verlieren sofort
     /// ihre unberuehrten automatischen Lernpakete; `"remove_own": true` (nach Rueckfrage) auch die selbst angelegten
     /// bzw. geaenderten kuenftigen.
-    public static func save(_ c: SQLiteConnection, _ body: JSONValue, today: Int) throws {
+    public static func save(_ c: SQLiteConnection, _ body: JSONValue, today: Int, clock: UniFlowClock) throws {
+        let bad = LocalHTTPError(status: 422, message: "modules: Liste aus name und planned")
+        guard body.object != nil else { throw bad }
         var names = try off(c)
-        for m in body["modules"]?.array ?? [] {
-            guard let name = m["name"]?.string, !name.isEmpty, let on = m["planned"]?.bool else {
-                throw LocalHTTPError(status: 422, message: "modules: Liste aus name und planned")
-            }
+        let mods = body["modules"].flatMap { $0.isNull ? nil : $0 }
+        if let mods, mods.array == nil { throw bad }
+        for m in mods?.array ?? [] {
+            guard let name = m["name"]?.string, !name.isEmpty, let on = m["planned"]?.bool else { throw bad }
             if on { names.remove(name) } else { names.insert(name) }
         }
-        if body["modules"] != nil { try write(c, off: names) }
         if let own = body["remove_own"], own.bool == nil { throw LocalHTTPError(status: 422, message: "remove_own: ja oder nein") }
+        let add = body["add"].flatMap { $0.isNull ? nil : $0 }
+        if let add { names.remove(try addSubject(c, add, clock: clock)) }
+        if mods != nil || add != nil { try write(c, off: names) }
         try dropUnplanned(c, today: today, own: body["remove_own"]?.bool == true)
         try markAsked(c)
+    }
+
+    static let nameMax = 200
+
+    /// Eigenes Fach (Planer-Einstellungen, 14.11.2026): ein vorhandenes Modul gleichen Namens wird aktiv, sonst entsteht
+    /// ein neues Modul wie bei `POST /api/modules`
+    static func addSubject(_ c: SQLiteConnection, _ raw: JSONValue, clock: UniFlowClock) throws -> String {
+        let name = PyText.strip(raw.string ?? "")
+        guard !name.isEmpty, name.unicodeScalars.count <= nameMax else {
+            throw LocalHTTPError(status: 422, message: "add: Name des Fachs (höchstens \(nameMax) Zeichen)")
+        }
+        if let m = try c.queryOne("SELECT id, active FROM modules WHERE name=? ORDER BY id LIMIT 1", [.text(name)]) {
+            if let a = m["active"], !a.isNull, !LocalModules.truthy(a) {
+                try c.execute("UPDATE modules SET active=1, active_custom=1 WHERE id=?", [m["id"] ?? .null])
+            }
+        } else {
+            let n = try c.scalar("SELECT COUNT(*) n FROM modules")?.int64 ?? 0
+            try c.execute("INSERT INTO modules(name, semester, color, color_custom, sort, created_at) VALUES (?,?,?,?,?,?)",
+                          [.text(name), .null, .text(try ModuleColors.next(c)), .integer(0), .integer(n), .text(clock.nowISO)])
+        }
+        return name
     }
 }
 
@@ -178,8 +203,9 @@ enum StudyPlanModulesEndpoints: LocalEndpointModule {
         router.post("/api/calendar/modules") { req, ctx in
             let body = try req.jsonBody()
             let today = LocalTimetable.today(ctx.clock)
+            let clock = ctx.clock
             return .json(try await ctx.database.transaction { c in
-                try StudyPlanModules.save(c, body, today: today)
+                try StudyPlanModules.save(c, body, today: today, clock: clock)
                 return try StudyPlanModules.overview(c, today: today)
             })
         }

@@ -108,6 +108,21 @@ def plan_cases():
                                          "settings": {"utilization": rnd.choice([30, 60, 100]), "max_block": rnd.choice([60, 90, 120]),
                                                       "break": rnd.choice([0, 10, 15]), "max_week_minutes": rnd.choice([0, 0, 1200])},
                                          "accept_partial": rnd.random() < 0.5}))
+    # Wochenwunsch (14.11.2026): die erste Woche vor allem das Fach mit der spaetesten Klausur; eng: die fruehe Klausur
+    # braucht die Zeit trotzdem
+    cases.append(("wochenwunsch", dict(base, wish={"from": d[0]["date"], "to": d[6]["date"], "modules": [3]})))
+    tight = mkdays(21, win=((540, 720),), weekdays=range(7))
+    cases.append(("wochenwunsch_eng", {"days": tight, "settings": {"utilization": 100}, "wish": {"from": tight[0]["date"], "to": tight[6]["date"], "modules": [2]},
+                                       "modules": [{"id": 1, "exam_date": tight[8]["date"], "remaining_minutes": 20 * 60},
+                                                   {"id": 2, "exam_date": tight[20]["date"], "remaining_minutes": 10 * 60}]}))
+    rnd = random.Random(1411)
+    for case in range(12):
+        src = cases[-14 - case][1]                              # Zufallsfaelle von oben, dazu ein Wunsch
+        n = len(src["days"])
+        a = rnd.randint(0, n - 1)
+        ids = [m["id"] for m in src["modules"]]
+        cases.append((f"zufall_wunsch_{case}", dict(src, wish={"from": src["days"][a]["date"], "to": src["days"][min(n - 1, a + 6)]["date"],
+                                                              "modules": rnd.sample(ids, rnd.randint(1, len(ids)))})))
     return [{"name": n, "input": i, "output": sp.plan(i)} for n, i in cases]
 
 

@@ -324,6 +324,12 @@ def _allocate(inp: dict, s: dict, mods: list[dict], wins: list, cap: list[int], 
         if o is not None:
             prefer.setdefault(b["date"], {}).setdefault(o, []).append([b["start"], b["end"]])
     later = {o: sum(v.values()) for o, v in mfix.items()}
+    # Wochenwunsch (14.11.2026): an diesen Tagen bekommen die Wunschfaecher die Zeit der anderen; die Zwischenfristen
+    # danach sichern jede Klausur ab
+    wish = inp.get("wish") or {}
+    wish_ids = [w for w in (wish.get("modules") or [])]
+    wish_orders = {m["order"] for m in mods if m["id"] in wish_ids}
+    wish_from, wish_to = wish.get("from") or "", wish.get("to") or ""
     min_u, max_u = s["min_block"] // UNIT, s["max_block"] // UNIT
     rem = {m["order"]: m["rem"] for m in mods}
     planned: dict[int, int] = {}
@@ -351,6 +357,25 @@ def _allocate(inp: dict, s: dict, mods: list[dict], wins: list, cap: list[int], 
             o = m["order"]
             x[o] = min(x[o], left)
             left -= x[o]
+        if wish_orders and wish_from <= days[d]["date"] <= wish_to and any(m["order"] in wish_orders for m in act):
+            before = dict(x)
+            pool = 0
+            for m in act:
+                if m["order"] not in wish_orders:
+                    pool += x[m["order"]]
+                    x[m["order"]] = 0
+            for m in act:
+                o = m["order"]
+                if o in wish_orders and pool > 0:
+                    a = min(pool, rem[o] - x[o])
+                    x[o] += a
+                    pool -= a
+            for m in act:                                  # was die Wunschfaecher nicht brauchen, bleibt bei den anderen
+                o = m["order"]
+                if o not in wish_orders and pool > 0:
+                    a = min(pool, before[o])
+                    x[o] += a
+                    pool -= a
         # Zwischenfristen: was heute mindestens fuer die Klausuren bis E noetig ist, damit es danach noch passt
         for e in sorted({m["E"] for m in act}):
             group = [m for m in act if m["E"] <= e]

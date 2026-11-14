@@ -447,6 +447,12 @@ enum StudyPlan {
     /// werden nur Pakete aus `replaceable` ersetzt, und erst, wenn es etwas zu planen gibt (Korrekturen vom
     /// 26.10.2026, zuerst in Python). Ein Tag bekommt nur Stoff seiner Lehrwoche und den Skriptrest nach dem Marker der
     /// Vorwoche (Regel des Inhabers vom 30.10.2026); aeltere offene Unterlagen plant das freie Fenster (`planWindow`).
+    /// `_exam_within`: Klausur des Moduls in den naechsten `days` Tagen ab `day` (einschliesslich)
+    static func examWithin(_ m: SQLiteRow, day: Int, days: Int) -> Bool {
+        guard let s = m["exam_date"]?.string, s.count == 10, let e = BerlinClock.parseISODate(s) else { return false }
+        return 0 <= e - day && e - day <= days
+    }
+
     static func generatePackages(_ c: SQLiteConnection, start: Int?, days: Int, replace: Bool, clock: UniFlowClock) throws -> JSONValue {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
@@ -477,6 +483,10 @@ enum StudyPlan {
         let budgetDay = s.minutesPerDay
         let perPackage = max(30, BerlinClock.floorDiv(budgetDay, max(1, s.subjectsPerDay)))
         var created = 0
+        // Wochenwunsch (14.11.2026): in dieser Woche zuerst Faecher mit Klausur in den naechsten 14 Tagen, dann die
+        // Wunschfaecher; andere nur, wenn die nicht reichen
+        let wish = try StudyChoice.wishFor(c, today: today)
+        var wishRot: [Int: [Int64]] = [:]
         var existing: Set<String> = []
         for r in try c.query("SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", [.text(iso(start)), .text(iso(end))])
             where LocalModules.truthy(r["n"]) {
@@ -493,21 +503,43 @@ enum StudyPlan {
             defer { if perWeek[lw] != nil { perWeek[lw]!.rr = rr } }
             var picked: [(Queue, Int64)] = []
             var dayUsed = 0
-            var attempts = 0
-            while picked.count < s.subjectsPerDay && !rr.isEmpty && attempts < rr.count {
-                let mid = rr.removeFirst()
-                let q = queues[mid]!
-                let tasks = try nextTasks(q, settings: s, budget: perPackage)
-                if !tasks.isEmpty {
-                    let pid = try insertPackage(c, day: d, module: q.module, tasks: tasks, unit: q.current, clock: clock)
-                    dayUsed += tasks.reduce(0) { $0 + $1.est }
-                    picked.append((q, pid))
-                    created += 1
-                    if !q.pending.isEmpty || q.pos < q.units.count { rr.append(mid) }
-                } else {
-                    attempts += 1
-                    if q.pos < q.units.count || !q.pending.isEmpty { rr.append(mid) }
+            func pick(_ rot: inout [Int64], exclude: Set<Int64>) throws {
+                var attempts = 0
+                while picked.count < s.subjectsPerDay && !rot.isEmpty && attempts < rot.count {
+                    let mid = rot.removeFirst()
+                    let q = queues[mid]!
+                    if exclude.contains(mid) {
+                        rot.append(mid)
+                        attempts += 1
+                        continue
+                    }
+                    let tasks = try nextTasks(q, settings: s, budget: perPackage)
+                    if !tasks.isEmpty {
+                        let pid = try insertPackage(c, day: d, module: q.module, tasks: tasks, unit: q.current, clock: clock)
+                        dayUsed += tasks.reduce(0) { $0 + $1.est }
+                        picked.append((q, pid))
+                        created += 1
+                        if !q.pending.isEmpty || q.pos < q.units.count { rot.append(mid) }
+                    } else {
+                        attempts += 1
+                        if q.pos < q.units.count || !q.pending.isEmpty { rot.append(mid) }
+                    }
                 }
+            }
+            if let wish, wish.monday <= d, d <= wish.sunday {
+                if wishRot[lw] == nil {
+                    // stabil wie Pythons sort: bei gleichem Klausurtag bleibt die Reihenfolge der Warteschlange
+                    let soon = rr.enumerated().filter { examWithin(queues[$0.element]!.module, day: d, days: 14) }
+                        .sorted { a, b in
+                            let x = queues[a.element]!.module["exam_date"]?.string ?? "", y = queues[b.element]!.module["exam_date"]?.string ?? ""
+                            return x != y ? PyText.less(x, y) : a.offset < b.offset
+                        }.map(\.element)
+                    wishRot[lw] = soon + wish.ids.filter { queues[$0] != nil && !soon.contains($0) }
+                }
+                try pick(&wishRot[lw]!, exclude: [])
+                try pick(&rr, exclude: Set(picked.compactMap { $0.0.module["id"]?.int64 }))
+            } else {
+                try pick(&rr, exclude: [])
             }
             // Restzeit des Tages mit weiteren Aufgaben der gewaehlten Faecher auffuellen (keine neuen Einheiten)
             var changed = true

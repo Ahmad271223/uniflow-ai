@@ -663,6 +663,10 @@ def build(conn, t: date, partial: bool = False) -> dict:
     inp = {"days": days, "modules": modules, "fixed": fixed,
            "settings": {k: s[k] for k in ("utilization", "min_block", "max_block", "break", "max_week_minutes", "max_day_minutes")},
            "accept_partial": partial}
+    from . import study_choice
+    w = study_choice.wish_for(conn, t)              # Wochenwunsch: nur, wenn es einen gibt (Pruefsumme sonst wie bisher)
+    if w:
+        inp["wish"] = {"from": w[0].isoformat(), "to": w[1].isoformat(), "modules": w[2]}
     # bisheriger Plan: Lagen behalten, wo es geht. Teil der Pruefsumme, damit ein von Hand geloeschter Block neu verteilt
     # wird; nach dem Anwenden rechnet der naechste Aufruf einmal nach (ohne Aenderung) und steht dann still.
     inp["prefer"] = [{"module_id": p["module_id"], "date": p["date"], "start": timetable.hm(p["start_time"]), "end": timetable.hm(p["end_time"])}

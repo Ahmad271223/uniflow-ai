@@ -135,6 +135,8 @@ struct ConfigDialog: View {
     @State private var testMin = 45
     @State private var learnDays: Set<Int> = Set(0..<7)
     @State private var examPriority = false
+    @State private var subjects: [PlanModuleItem] = []                  // Faecher im Lernkalender (14.11.2026)
+    @EnvironmentObject private var overlay: UFOverlay
 
     private struct Preset { let key, name, desc: String; let v: (sub: Int, lec: Int, ex: Int, tests: Int)? }
     private let presets: [Preset] = [
@@ -197,6 +199,7 @@ struct ConfigDialog: View {
                     }
                 }
             }
+            if !subjects.isEmpty { ConfigSubjectsSection(items: $subjects, api: api) }
             UFCheckbox("Klausurtermine stärker priorisieren", isOn: $examPriority)
             feasibility.ufFont(13.12).padding(.vertical, 6.4)
         } foot: {
@@ -221,6 +224,7 @@ struct ConfigDialog: View {
     }
 
     private func load() async {
+        if let o = try? await api?.value("/api/calendar/modules") { subjects = PlanModuleItem.list(o) }
         guard let s = try? await api?.value("/api/settings") else { return }
         sub = s.i("subjects_per_day") ?? Int(s.s("subjects_per_day") ?? "") ?? 1
         minutes = s.i("minutes_per_day") ?? Int(((s.n("hours_per_day") ?? Double(s.s("hours_per_day") ?? "") ?? 2) * 60).rounded())
@@ -245,6 +249,13 @@ struct ConfigDialog: View {
         ]
         do {
             _ = try await api.value("/api/settings", method: "PUT", body: body)
+            if !subjects.isEmpty {
+                // abgewaehlte Faecher: automatische Pakete sind gleich weg, eigene bzw. geaenderte nur nach Rueckfrage
+                let saved = try await api.value("/api/calendar/modules", method: "POST", body: PlanModulesSheet.body(subjects))
+                if let kept = saved["kept"]?.int, kept > 0, await overlay.confirm(PlanModulesText.keptQuestion(kept)) {
+                    _ = try await api.value("/api/calendar/modules", method: "POST", body: ["remove_own": true])
+                }
+            }
             toast.show("Lernkombination gespeichert")
             onDone(true)
         } catch { toast.show(error.localizedDescription) }

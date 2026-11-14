@@ -677,6 +677,10 @@ enum SmartGoals {
         for k in ["utilization", "min_block", "max_block", "break", "max_week_minutes", "max_day_minutes"] { setsOut[k] = s[k] }
         var inp: [String: JSONValue] = ["days": .array(dayList), "modules": .array(modules), "fixed": .array(fixed),
                                         "settings": .object(setsOut), "accept_partial": .bool(partial)]
+        // Wochenwunsch (14.11.2026): nur, wenn es einen gibt (Pruefsumme sonst wie bisher)
+        if let w = try StudyChoice.wishFor(c, today: t) {
+            inp["wish"] = ["from": .string(T.iso(w.monday)), "to": .string(T.iso(w.sunday)), "modules": .array(w.ids.map { .number(Double($0)) })]
+        }
         // bisheriger Plan: Lagen behalten, wo es geht; Teil der Pruefsumme (ein geloeschter Block wird neu verteilt)
         inp["prefer"] = .array(try c.rows(autoSQL + " ORDER BY date, start_time, id", [.text(ti)]).compactMap { p in
             guard let a = hm(p["start_time"]), let b = hm(p["end_time"]) else { return nil }

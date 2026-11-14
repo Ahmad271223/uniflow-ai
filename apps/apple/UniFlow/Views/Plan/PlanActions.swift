@@ -33,6 +33,16 @@ struct PlanActions {
         }
     }
 
+    /// "Diese Woche": Wunschfaecher der laufenden Woche
+    func weekWish() {
+        overlay.modal { WeekWishDialog() }
+    }
+
+    /// Im Termin dieses Lernpakets ein anderes Fach gemacht
+    func otherTopic(_ p: JSONValue) {
+        overlay.modal { OtherTopicDialog(package: p) }
+    }
+
     func addPackage(date: String, minutes: Int = 60) {
         overlay.modal { AddPackageDialog(date: date, minutes: minutes) }
     }
@@ -191,6 +201,12 @@ struct PackageDrawer: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Row.rows(tasks)) { row in TaskRow(t: row.value) { Task { await load(first: false) } } }
+            }
+            if p.s("source") != "smart", (p.s("date") ?? "") <= UFFmt.todayISO(),
+               tasks.contains(where: { ["geplant", "in_bearbeitung", "nachholen"].contains($0.s("status") ?? "") }) {
+                UFButton(PlanChoiceText.other, icon: "move", size: .small) { actions.otherTopic(p) }
+                    .padding(.top, 9.6)
+                    .accessibilityIdentifier("package.otherTopic")
             }
             // passende Opencast-Aufzeichnungen zu den Aufgaben, nur bei sicherem Treffer (lokal)
             if session.api?.isLocal == true { RecordingPackageHints(packageID: id) }
@@ -363,6 +379,9 @@ struct TaskMenuDialog: View {
     var body: some View {
         UFDialog("Aufgabe") {
             VStack(alignment: .leading, spacing: 8) {
+                menuButton(PlanChoiceText.done, icon: "check") {
+                    if await PlanChoiceActions.topicDone([id], api: session.api, toast: toast, router: router) { refresh() }
+                }
                 menuButton("In Bearbeitung", icon: "play") { await setStatus("in_bearbeitung") }
                 menuButton("Auf anderen Tag verschieben", icon: "move") {
                     PlanEnv.make(session, overlay, toast, router).move(title: "Aufgabe verschieben") { date in

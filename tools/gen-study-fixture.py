@@ -363,6 +363,48 @@ WEEK_RULE: list[dict] = [
     {"auto": 5},
 ]
 
+# Faecher, Wochenwunsch, "Thema gemacht" (app/study_choice.py, Auftrag des Inhabers 14.11.2026)
+WISH_NOW = "2026-10-28T09:00:00"
+WISH: list[dict] = [
+    {"now": WISH_NOW, "sql": "WEEK3"},
+    {"method": "GET", "path": "/api/calendar/modules"},
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"add": "Eigenes Lesen"}},
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"add": "Altmodul"}},       # altes Modul wieder aktiv
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"add": "   "}},
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"modules": [{"name": "Testphysik"}]}},
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"modules": [{"name": "Altmodul", "planned": False}], "remove_own": "ja"}},
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"modules": [{"name": "Altmodul", "planned": False}]}},
+    {"method": "GET", "path": "/api/calendar/week-wish"},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 5}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    {"method": "PUT", "path": "/api/calendar/week-wish", "body": {"modules": ["Testphysik"]}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    {"method": "GET", "path": "/api/calendar/week-wish"},
+    {"method": "PUT", "path": "/api/calendar/week-wish", "body": {"modules": ["Altmodul"]}},
+    {"method": "PUT", "path": "/api/calendar/week-wish", "body": {"modules": "Testphysik"}},
+    # Chemie-Thema vom Freitag heute im Physik-Termin gemacht: Freitag wird frei, Physik rueckt dorthin
+    {"method": "POST", "path": "/api/calendar/topic-done", "body": {"task_ids": ["{task:2026-10-30:0:0}"], "in_package": "{pkg:2026-10-28:0}"}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    # Thema im eigenen Paket von heute gemacht (dieselbe Datei woanders wird mit erledigt)
+    {"method": "POST", "path": "/api/calendar/topic-done", "body": {"task_ids": ["{task:2026-10-28:1:1}"]}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    {"method": "POST", "path": "/api/calendar/topic-done", "body": {"task_ids": []}},
+    {"method": "POST", "path": "/api/calendar/topic-done", "body": {"task_ids": [99999]}},
+    {"method": "POST", "path": "/api/calendar/topic-done", "body": {"task_ids": [1], "in_package": 99999}},
+    # Klausur in 8 Tagen: bleibt trotz Wunsch "Testphysik" vorn (nichts geht verloren)
+    {"now": WISH_NOW, "sql": ["UPDATE modules SET exam_date='2026-11-05' WHERE name='Testmathematik I'",
+                              "DELETE FROM study_tasks WHERE status<>'erledigt'", "DELETE FROM study_packages WHERE status NOT IN ('erledigt','teilweise')",
+                              "UPDATE files SET status='neu' WHERE status='erledigt' AND id NOT IN (SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL)"]},
+    {"method": "PUT", "path": "/api/calendar/week-wish", "body": {"modules": ["Testphysik", "Testchemie"]}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    # Wunsch leeren, Fach abwaehlen: nie verplant, auch nicht mit Wunsch
+    {"method": "PUT", "path": "/api/calendar/week-wish", "body": {"modules": []}},
+    {"method": "POST", "path": "/api/calendar/modules", "body": {"modules": [{"name": "Testmathematik I", "planned": False}]}},
+    {"method": "PUT", "path": "/api/calendar/week-wish", "body": {"modules": ["Testmathematik I"]}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 5, "replace": True}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+]
+
 # study._derive_status: alle Teilmengen der Aufgabenstatus, je vergangen und nicht
 DERIVE_STATUSES = ["geplant", "in_bearbeitung", "erledigt", "nachholen", "uebersprungen", "verschoben"]
 
@@ -470,6 +512,7 @@ def build(check: bool) -> int:
         steps, after = run(src, gen, "lernplan", START, seed, STEPS)
         fix_steps, fix_after = run(src, gen, "nachgebessert", FIXES_NOW, seed, FIXES)
         week_steps, week_after = run(src, gen, "lehrwoche", WEEK_NOW, seed, WEEK_RULE)
+        wish_steps, wish_after = run(src, gen, "faecher_wunsch", WISH_NOW, seed, WISH)
         derive = [{"statuses": list(c), "past": past, "status": study._derive_status(list(c), past)}
                   for n in range(len(DERIVE_STATUSES) + 1) for c in itertools.combinations(DERIVE_STATUSES, n) for past in (False, True)]
     finally:
@@ -477,7 +520,8 @@ def build(check: bool) -> int:
     out = {"generator": "tools/gen-study-fixture.py", "now": START, "timezone": "Europe/Berlin",
            "seed": [{"sql": q, "params": p} for q, p in seed], "steps": steps, "tables_after": after,
            "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after},
-                         {"name": "lehrwoche", "now": WEEK_NOW, "steps": week_steps, "tables_after": week_after}],
+                         {"name": "lehrwoche", "now": WEEK_NOW, "steps": week_steps, "tables_after": week_after},
+                         {"name": "faecher_wunsch", "now": WISH_NOW, "steps": wish_steps, "tables_after": wish_after}],
            "derive_status": derive}
     out = without_sync(out)                       # G2-Spalten: siehe schema_source
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)

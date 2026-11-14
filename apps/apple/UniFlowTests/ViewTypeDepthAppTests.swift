@@ -138,6 +138,10 @@ final class ViewTypeDepthAppTests: XCTestCase {
         ("GoalEditDialog", GoalEditDialog.Body.self),
         ("GoalSettingsDialog", GoalSettingsDialog.Body.self),
         ("PackageDrawer", PackageDrawer.Body.self),
+        ("ConfigDialog", ConfigDialog.Body.self),                      // Faecher, Wochenwunsch, Thema gemacht (14.11.2026)
+        ("ConfigSubjectsSection", ConfigSubjectsSection.Body.self),
+        ("WeekWishDialog", WeekWishDialog.Body.self),
+        ("OtherTopicDialog", OtherTopicDialog.Body.self),
         // Uni-Mail "Mit KI verbessern" (13.11.2026)
         ("UniMailComposeSheet", UniMailComposeSheet.Body.self),
         ("UniMailAIButton", UniMailAIButton.Body.self),

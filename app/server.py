@@ -90,6 +90,8 @@ from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route
 app.include_router(study_catalog.router)
 from . import smart_goals  # noqa: E402 - Smart Planner 2.0: Lernziele in Stunden, Lernzeit (/api/goals, /api/sessions)
 app.include_router(smart_goals.router)
+from . import study_choice  # noqa: E402 - Faecher, Wochenwunsch, Thema gemacht (14.11.2026)
+app.include_router(study_choice.router)
 from . import timetable_questions  # noqa: E402 - Rueckfragen zum Stud.IP-Kalender, Ausfaelle laut Stud.IP (/api/timetable/studip-*)
 app.include_router(timetable_questions.router)
 from . import due_api  # noqa: E402 - Fristen aus Dateien erkennen (/api/due, app/due_store.py, 05.11.2026)

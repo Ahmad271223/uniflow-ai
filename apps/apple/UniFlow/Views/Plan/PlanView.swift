@@ -135,6 +135,7 @@ struct PlanView: View {
                     Button { actions.addPackage(date: Fmt.isoDay(d.view == "day" ? d.date : d.start)) } label: { Label("Lernpaket", systemImage: "plus") }
                     Button { actions.availability() } label: { Label("Verfügbarkeit", systemImage: "clock") }
                     Button { actions.config() } label: { Label("Lernkombination", systemImage: "gearshape") }
+                    Button { actions.weekWish() } label: { Label(PlanChoiceText.week, systemImage: "star") }
                     Button { Task { await actions.suggest(["rescue": true]) } } label: { Label("Woche retten", systemImage: "lifepreserver") }
                         .disabled(backlog.isEmpty)
                 } label: {
@@ -153,6 +154,8 @@ struct PlanView: View {
                 // Verfuegbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten) gehoert zu den Lernslots: seit 03.11.2026 hier statt im Stundenplan
                 UFButton("Verfügbarkeit", icon: "clock") { actions.availability() }
                 UFButton("Lernkombination", icon: "settings") { actions.config() }
+                UFButton(PlanChoiceText.week, icon: "star") { actions.weekWish() }
+                    .accessibilityIdentifier("plan.weekWish")
                 UFButton("Woche retten", icon: "life-buoy") { Task { await actions.suggest(["rescue": true]) } }
                     .disabled(backlog.isEmpty)
                     .help(backlog.isEmpty ? "Nichts nachzuholen" : "")

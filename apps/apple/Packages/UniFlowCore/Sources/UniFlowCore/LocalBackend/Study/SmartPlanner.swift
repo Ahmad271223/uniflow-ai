@@ -212,8 +212,13 @@ enum SmartPlanner {
         let settings: Settings
         let modules: [Mod]
         let partial: Bool
+        /// Wochenwunsch (14.11.2026): an diesen Tagen bekommen die Wunschfaecher die Zeit der anderen
+        let wishFrom: String, wishTo: String, wishIDs: [JSONValue]
 
         init(_ inp: JSONValue) throws {
+            wishFrom = inp["wish"]?["from"]?.string ?? ""
+            wishTo = inp["wish"]?["to"]?.string ?? ""
+            wishIDs = inp["wish"]?["modules"]?.array ?? []
             days = (inp["days"]?.array ?? []).map {
                 Day(date: $0["date"]?.string ?? "", weekday: num($0["weekday"]), windows: ivs($0["windows"]), reserve: ivs($0["reserve"]))
             }
@@ -440,6 +445,7 @@ enum SmartPlanner {
             if let o = mods.first(where: { $0.id == b.module })?.order { prefer[b.date, default: [:]][o, default: []].append((b.start, b.end)) }
         }
         var rem = Dictionary(uniqueKeysWithValues: mods.map { ($0.order, $0.rem) })
+        let wishOrders = Set(mods.filter { m in inp.wishIDs.contains(m.id) }.map(\.order))
         var planned: [Int: Int] = [:]
         var blocks: [(module: Int, day: Int, a: Int, b: Int)] = []
         for d in inp.days.indices {
@@ -461,6 +467,25 @@ enum SmartPlanner {
             for m in act {
                 x[m.order] = min(x[m.order]!, left)
                 left -= x[m.order]!
+            }
+            let date = inp.days[d].date
+            if !wishOrders.isEmpty, !less(date, inp.wishFrom), !less(inp.wishTo, date), act.contains(where: { wishOrders.contains($0.order) }) {
+                let before = x
+                var pool = 0
+                for m in act where !wishOrders.contains(m.order) {
+                    pool += x[m.order]!
+                    x[m.order] = 0
+                }
+                for m in act where wishOrders.contains(m.order) && pool > 0 {
+                    let a = min(pool, rem[m.order]! - x[m.order]!)
+                    x[m.order]! += a
+                    pool -= a
+                }
+                for m in act where !wishOrders.contains(m.order) && pool > 0 {     // Rest bleibt bei den anderen
+                    let a = min(pool, before[m.order]!)
+                    x[m.order]! += a
+                    pool -= a
+                }
             }
             for e in Set(act.map(\.E)).sorted() {
                 let group = act.filter { $0.E <= e }

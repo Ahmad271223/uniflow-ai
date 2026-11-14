@@ -116,6 +116,12 @@ SAMPLES: dict[str, dict] = {
     "POST /api/courses/{}/module": {"path": "/api/courses/k1/module", "body": {"module_id": None}},
     "GET /api/calendar": {"path": "/api/calendar?start=2026-10-26&end=2026-11-01"},
     "GET /api/calendar/feasibility": {"path": "/api/calendar/feasibility"},
+    # Faecher, Wochenwunsch, Thema gemacht (app/study_choice.py, 14.11.2026; ausfuehrlich in study-plan.json)
+    "GET /api/calendar/modules": {"path": "/api/calendar/modules"},
+    "POST /api/calendar/modules": {"path": "/api/calendar/modules", "body": {"asked": True}},
+    "GET /api/calendar/week-wish": {"path": "/api/calendar/week-wish"},
+    "PUT /api/calendar/week-wish": {"path": "/api/calendar/week-wish", "body": {"modules": "kein Fach"}},
+    "POST /api/calendar/topic-done": {"path": "/api/calendar/topic-done", "body": {"task_ids": [99999]}},
     "POST /api/calendar/generate": {"path": "/api/calendar/generate", "body": {"start": "2026-10-26", "days": 1}},
     "POST /api/calendar/suggest": {"path": "/api/calendar/suggest", "body": {"rescue": True}},
     "POST /api/calendar/apply": {"path": "/api/calendar/apply", "body": {"moves": []}},
