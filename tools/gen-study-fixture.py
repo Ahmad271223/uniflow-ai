@@ -20,7 +20,8 @@ Inhalt:
 - scenarios: weitere Ablaeufe auf eigener, frischer Datenbank mit demselben Seed ("nachgebessert": Korrekturen nach
   der Pruefung von S6 am 26.10.2026: freies Fenster, Plan ab Montag, Uhrzeit von Hand, Verschieben, "Uhrzeiten
   vergeben", leere Pakete, Ersetzen; "lehrwoche": nur der Stoff der Lehrwoche, Skriptrest nach dem Marker der
-  Vorwoche, study.auto_plan_week als Schritt {"auto": neue Dateien, "result": ...}), je mit now, steps und
+  Vorwoche, study.auto_plan_week als Schritt {"auto": neue Dateien, "result": ...}; "lernzeit": nie nach der Lernzeit
+  und nie nach 24:00, voller Tag -> naechster Lerntag, Altbestand mit "25:15" repariert), je mit now, steps und
   tables_after
 - derive_status: study._derive_status fuer alle Kombinationen der Aufgabenstatus
 
@@ -452,6 +453,55 @@ OUTLINE: list[dict] = [
     {"method": "GET", "path": "/api/calendar?start=2026-11-02&end=2026-11-08"},
 ]
 
+# Lernpakete nie nach der Lernzeit (Fehler vom echten iPhone vom 14.11.2026: 23:15 bis "25:15" bei Lernzeit 08–21 Uhr,
+# 4 Stunden je Tag, 2 Faecher je Tag). Donnerstag ist bis 20:00 gesperrt: was nicht in 20:00–21:00 passt, kommt auf den
+# naechsten Lerntag. Danach Altbestand mit "25:15" (wie aus Build 41): unberuehrt automatisch -> neu eingeplant, von
+# Hand, vergangen oder Ende vor Beginn -> gekappt; ein zweiter Kalenderaufruf aendert nichts mehr.
+TIMES_NOW = "2026-10-28T09:00:00"
+
+
+def _old(date_: str, start: str, end: str, minutes: int, status: str, generated: int, manual: int, tasks: list[tuple],
+         module: tuple[int, str] = (1, "Testmathematik I"), title: str = "") -> list[str]:
+    out = [f"INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, manual, created_at, start_time, end_time) "
+           f"VALUES ('{date_}', {module[0]}, '{module[1]}', '{title or 'Altbestand ' + date_}', 3, {minutes}, '{status}', 0, {generated}, {manual}, "
+           f"'2026-10-27T16:25:40', '{start}', '{end}')"]
+    for i, (typ, est, st, ts, te) in enumerate(tasks):
+        out.append(f"INSERT INTO study_tasks(package_id, type, title, sort, est_minutes, status, start_time, end_time, created_at) "
+                   f"VALUES ((SELECT MAX(id) FROM study_packages), '{typ}', 'Alte Aufgabe {i + 1}', {i}, {est}, '{st}', '{ts}', '{te}', '2026-10-27T16:25:40')")
+    return out
+
+
+TIMES: list[dict] = [
+    {"now": TIMES_NOW, "sql": "WEEK3"},
+    {"method": "PUT", "path": "/api/settings", "body": {
+        "learn_start": "08:00", "learn_end": "21:00", "hours_per_day": 4, "break_minutes": 15, "subjects_per_day": 2,
+        "blocked_times": [{"weekday": 0, "start": "12:00", "end": "13:00", "title": "Mittag"}, {"weekday": 3, "start": "08:00", "end": "20:00", "title": "Ganztags"}]}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 5}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-03"},
+    {"now": TIMES_NOW, "sql": (
+        _old("2026-11-04", "23:15", "25:15", 105, "geplant", 1, 0, [("vorlesung", 45, "geplant", "23:15", "24:00"), ("uebung", 60, "geplant", "24:15", "25:15")])
+        + _old("2026-11-05", "23:00", "25:15", 105, "geplant", 0, 1, [("vorlesung", 45, "geplant", "23:00", "23:45"), ("uebung", 60, "geplant", "24:00", "25:00")])
+        + _old("2026-10-27", "23:15", "25:15", 60, "nachholen", 1, 0, [("uebung", 60, "nachholen", "24:15", "25:15")])
+        + _old("2026-11-06", "20:45", "01:15", 60, "geplant", 0, 1, [("frei", 60, "geplant", "20:45", "21:45")])
+        # Donnerstag (bis 20:00 gesperrt): 20:00-21:00 ist schon belegt -> ganzes Paket auf Freitag; eine Woche spaeter
+        # passt die erste Aufgabe noch, die zweite wird ein eigenes Paket am Freitag
+        + _old("2026-10-29", "23:15", "25:15", 105, "geplant", 1, 0, [("vorlesung", 45, "geplant", "23:15", "24:00"), ("uebung", 60, "geplant", "24:15", "25:15")])
+        + _old("2026-11-12", "23:15", "25:15", 105, "geplant", 1, 0, [("vorlesung", 45, "geplant", "23:15", "24:00"), ("uebung", 60, "geplant", "24:15", "25:15")])
+        # viele Faecher an einem Tag (zwei Geraete haben geplant), alle bis "25:15": Mittwoch 08:00-21:00 voll, der Rest
+        # auf Donnerstag (dort nur 20:00-21:00 frei)
+        + [q for i in range(7) for q in _old("2026-11-18", "23:15", "25:15", 105, "geplant", 1, 0,
+                                             [("vorlesung", 45, "geplant", "23:15", "24:00"), ("uebung", 60, "geplant", "24:15", "25:15")],
+                                             module=[(1, "Testmathematik I"), (2, "Testphysik"), (3, "Programmierkurs Beispiel")][i % 3],
+                                             title=f"Doppelt geplant {i + 1}")])},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-27&end=2026-11-22"},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-27&end=2026-11-06"},
+    # von Hand: Ende hoechstens 24:00, Beginn ab 24:00 ungueltig
+    {"method": "PATCH", "path": "/api/packages/{pkg:2026-11-05:0}", "body": {"start_time": "22:30"}},
+    {"method": "PATCH", "path": "/api/packages/{pkg:2026-11-05:0}", "body": {"start_time": "23:30", "end_time": "25:15"}},
+    {"method": "PATCH", "path": "/api/packages/{pkg:2026-11-05:0}", "body": {"start_time": "24:10"}},
+    {"method": "GET", "path": "/api/packages/{pkg:2026-11-05:0}"},
+]
+
 # study._derive_status: alle Teilmengen der Aufgabenstatus, je vergangen und nicht
 DERIVE_STATUSES = ["geplant", "in_bearbeitung", "erledigt", "nachholen", "uebersprungen", "verschoben"]
 
@@ -561,6 +611,7 @@ def build(check: bool) -> int:
         week_steps, week_after = run(src, gen, "lehrwoche", WEEK_NOW, seed, WEEK_RULE)
         wish_steps, wish_after = run(src, gen, "faecher_wunsch", WISH_NOW, seed, WISH)
         outline_steps, outline_after = run(src, gen, "gliederung", WISH_NOW, seed, OUTLINE)
+        times_steps, times_after = run(src, gen, "lernzeit", TIMES_NOW, seed, TIMES)
         derive = [{"statuses": list(c), "past": past, "status": study._derive_status(list(c), past)}
                   for n in range(len(DERIVE_STATUSES) + 1) for c in itertools.combinations(DERIVE_STATUSES, n) for past in (False, True)]
     finally:
@@ -570,7 +621,8 @@ def build(check: bool) -> int:
            "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after},
                          {"name": "lehrwoche", "now": WEEK_NOW, "steps": week_steps, "tables_after": week_after},
                          {"name": "faecher_wunsch", "now": WISH_NOW, "steps": wish_steps, "tables_after": wish_after},
-                         {"name": "gliederung", "now": WISH_NOW, "steps": outline_steps, "tables_after": outline_after}],
+                         {"name": "gliederung", "now": WISH_NOW, "steps": outline_steps, "tables_after": outline_after},
+                         {"name": "lernzeit", "now": TIMES_NOW, "steps": times_steps, "tables_after": times_after}],
            "derive_status": derive}
     out = without_sync(out)                       # G2-Spalten: siehe schema_source
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)

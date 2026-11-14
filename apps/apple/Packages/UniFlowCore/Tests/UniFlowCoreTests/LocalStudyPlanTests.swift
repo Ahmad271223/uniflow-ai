@@ -135,6 +135,34 @@ final class LocalStudyPlanTests: XCTestCase {
         XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
     }
 
+    /// Fehler vom echten iPhone vom 14.11.2026 (Szenario "lernzeit"): Lernpakete mit 23:15 bis "25:15" bei Lernzeit
+    /// 08–21 Uhr. Automatische Pakete liegen nie nach der Lernzeit; was an einem Tag keinen Platz hat, kommt auf den
+    /// naechsten Lerntag (ganzes Paket oder der Rest als eigenes Paket). Altbestand mit "25:15": unberuehrt automatisch
+    /// neu eingeplant, von Hand, vergangen oder Ende vor Beginn gekappt; der zweite Kalenderaufruf aendert nichts mehr.
+    /// Von Hand hoechstens bis 24:00.
+    func testLearningTimeScenarioMatchesPythonServer() async throws {
+        let fx = try fixture()
+        let scenario = try XCTUnwrap(fx["scenarios"]?.array?.first { $0["name"] == "lernzeit" })
+        let now = Now(try XCTUnwrap(scenario["now"]?.string))
+        let backend = try await seeded(fx, now: now)
+        let steps = scenario["steps"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(steps.count, 10)
+        let problems = try await replay(steps, on: backend, now: now)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+        let t = try await tables(backend)
+        XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
+        // unabhaengig von Python: keine Uhrzeit nach 24:00, automatische Pakete ab heute in 08:00-21:00
+        for p in t["study_packages"]?.array ?? [] {
+            guard let a = p["start_time"]?.string, let b = p["end_time"]?.string else { continue }
+            XCTAssertTrue(a < b && b <= "24:00", "\(p)")
+            if p["generated"]?.int == 1, (p["date"]?.string ?? "") >= "2026-10-28" { XCTAssertTrue(a >= "08:00" && b <= "21:00", "\(p)") }
+        }
+        for task in t["study_tasks"]?.array ?? [] {
+            guard let a = task["start_time"]?.string, let b = task["end_time"]?.string else { continue }
+            XCTAssertTrue(a < b && b <= "24:00", "\(task)")
+        }
+    }
+
     /// Schritte nacheinander an das lokale Backend; liefert die Abweichungen von Status und Antwort. "auto"-Schritte
     /// planen wie am PC nach einem Abgleich (`StudyPlan.autoPlanWeek`, `study.auto_plan_week`).
     private func replay(_ steps: [JSONValue], on backend: LocalBackend, now: Now) async throws -> [String] {

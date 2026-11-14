@@ -775,6 +775,7 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     drop_unplanned(conn)                             # abgewaehlte Faecher (auch nach einem Abgleich)
     outline.refresh(conn)                            # Gliederung neuer PDFs (echte Aufgaben statt Dateinamen)
     refresh_statuses(conn)
+    repair_times(conn)                               # Uhrzeiten nach Mitternacht aus Build 41 und frueher
     s = db.get_settings(conn)
     t0 = today()
     start = start or t0
@@ -863,15 +864,25 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
                 _recalc_package(conn, pid)
     # Zeitslots in freien Fenstern des Stundenplans vergeben
     for i in range(days):
-        assign_slots(conn, start + timedelta(days=i))
+        assign_slots(conn, start + timedelta(days=i), spill=SPILL_DAYS)
     feas = feasibility(conn)
     return {"created": created, "message": f"{created} Lernpakete erstellt", "feasibility": feas}
 
 
-def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None = None) -> None:
+SPILL_DAYS = 14          # so viele Lerntage weiter sucht ein automatisches Paket Platz, wenn sein Tag voll ist
+DAY_END = 24 * 60        # spaetestes Ende einer Uhrzeit ("24:00")
+
+
+def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None = None, spill: int = 0) -> None:
     """Weist den Lernpaketen eines Tages Uhrzeiten in den freien Fenstern zu (Hochschultermine, Sperrzeiten,
     Fahrtzeit beruecksichtigt). Ein Paket liegt am Stueck im ersten Fenster mit genug Platz; passt es in keines,
-    werden seine Aufgaben auf mehrere Fenster verteilt. Mit `package_id` nur dieses Paket (verschobenes Paket)."""
+    werden seine Aufgaben auf mehrere Fenster verteilt. Mit `package_id` nur dieses Paket (verschobenes Paket).
+
+    Nie ausserhalb der Lernzeit (Fehler vom echten iPhone, 14.11.2026): Frueher kam, was nicht mehr in die Fenster
+    passte, "hinter den letzten belegten Block", ohne Tagesgrenze, z. B. 23:15 bis "25:15" bei Lernzeit 08–21 Uhr.
+    Jetzt bekommen Aufgaben, die in keinem Fenster Platz haben, keine Uhrzeit; mit `spill` (automatische Planung)
+    kommen sie auf den naechsten Lerntag (ein ganzes Paket wird verlegt, ein Rest wird ein eigenes Paket), hoechstens
+    `spill` Lerntage weit."""
     from . import timetable
     s = db.get_settings(conn)
     pkgs = db.rows(conn, "SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id", (d.isoformat(),))
@@ -882,15 +893,6 @@ def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None 
     if not pkgs:
         return
     windows = [dict(w) for w in timetable.free_windows(conn, d, s, include_packages=True)]
-    if not windows:
-        # kein freies Fenster: hinter dem letzten belegten Block (Termin samt Heimfahrt, Sperrzeit, Lernslot),
-        # hintereinander. Vorher ab Lernbeginn, also ueber den Terminen des Tages (Abnahme 07.11.2026).
-        blocks = timetable.busy_blocks(conn, d, s)
-        after = max([timetable.hm(s["learn_start"])] + [b["end"] for b in blocks])
-        campus = [b for b in blocks if b["kind"] == "event"]
-        if campus:
-            after = max(after, campus[-1]["end"] + s["travel_minutes"])
-        windows = [{"start": after, "end": after + 24 * 60}]
     brk = s["break_minutes"]
     free = [w["start"] for w in windows]          # naechste freie Minute je Fenster
     for p in pkgs:
@@ -904,6 +906,7 @@ def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None 
         total = sum(needs) + brk * max(0, len(needs) - 1)
         k = next((j for j, w in enumerate(windows) if free[j] + total <= w["end"]), 0)
         first, last = None, None
+        rest = []
         for t, need in zip(tasks, needs):
             placed = False
             while k < len(windows):
@@ -917,14 +920,102 @@ def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None 
                     placed = True
                     break
                 k += 1
-            if not placed:  # ueber das Tagesende hinaus (hinter das letzte Fenster)
-                st = free[-1]
-                conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(st), timetable.mh(st + need), t["id"]))
-                first = first if first is not None else st
-                last = st + need
-                free[-1] = st + need + brk
+            if not placed:            # kein Platz mehr an diesem Tag (frueher: hinter das letzte Fenster)
+                rest.append(t["id"])
         if first is not None:
             conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(first), timetable.mh(last), p["id"]))
+        if rest:
+            _spill(conn, p, rest, d, spill, whole=first is None)
+
+
+def _spill(conn, p: dict, task_ids: list[int], d: date, spill: int, whole: bool) -> None:
+    """Aufgaben ohne Platz an ihrem Tag (assign_slots): ohne `spill` ohne Uhrzeit, sonst auf den naechsten Lerntag;
+    das ganze Paket wird verlegt, ein Rest wird ein eigenes Paket (gleiches Modul, Fach, Titel, Lehrwoche)."""
+    marks = ",".join("?" * len(task_ids))
+    conn.execute(f"UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id IN ({marks})", task_ids)
+    if whole:
+        conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (p["id"],))
+    learn = db.get_settings(conn)["learn_days"]
+    nd = next((d + timedelta(days=i) for i in range(1, 8) if (d + timedelta(days=i)).weekday() in learn), None)
+    if spill <= 0 or nd is None:
+        return
+    if whole:
+        conn.execute("UPDATE study_packages SET date=? WHERE id=?", (nd.isoformat(), p["id"]))
+        target = p["id"]
+    else:
+        target = conn.execute("""INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at)
+                                 VALUES (?,?,?,?,?,0,'geplant',?,?,?)""",
+                              (nd.isoformat(), p["module_id"], p["subject"], p["title"], p["week_no"], p["sort"], p["generated"], p["created_at"])).lastrowid
+        for i, tid in enumerate(task_ids):
+            conn.execute("UPDATE study_tasks SET package_id=?, sort=? WHERE id=?", (target, i, tid))
+        _recalc_package(conn, p["id"])
+        _recalc_package(conn, target)
+    assign_slots(conn, nd, package_id=target, spill=spill - 1)
+
+
+def _clock(v) -> int | None:
+    """'HH:MM' in Minuten (auch Stunden ab 24), sonst None"""
+    m = re.fullmatch(r"([0-9]{1,2}):([0-9]{2})", v) if isinstance(v, str) else None
+    return int(m.group(1)) * 60 + int(m.group(2)) if m else None
+
+
+def _fit_day(a: int, b: int) -> tuple[int, int]:
+    """Zeitraum in den Tag holen: Ende hoechstens 24:00; beginnt er erst nach Mitternacht, endet er um 24:00 mit
+    derselben Dauer"""
+    if a >= DAY_END:
+        return max(0, DAY_END - (b - a)), DAY_END
+    return a, min(b, DAY_END)
+
+
+def _bad_span(start, end) -> bool:
+    """Uhrzeit, die es nicht gibt: Beginn ab 24:00, Ende nach 24:00 oder Ende nicht nach dem Beginn"""
+    a, b = _clock(start), _clock(end)
+    return a is not None and b is not None and (a >= DAY_END or b > DAY_END or b <= a)
+
+
+def repair_times(conn) -> int:
+    """Uhrzeiten nach Mitternacht reparieren (Altbestand bis Build 41: "25:15", Ende vor Beginn). Automatisch erzeugte,
+    unberuehrte Pakete ab heute werden neu eingeplant (assign_slots mit Weitergabe an den naechsten Lerntag), alle
+    anderen (von Hand geaendert, begonnen, erledigt, vergangen) nur gekappt: Ende hoechstens 24:00 (beginnt ein Paket
+    erst nach Mitternacht, endet es um 24:00 mit derselben Dauer), Aufgaben mit Beginn nach Mitternacht ohne Uhrzeit.
+    Geloescht wird nichts. Laeuft mit jedem Lernkalender und jeder Planung; was einmal gueltig ist, bleibt unberuehrt,
+    darum keine Schleife zwischen zwei Geraeten, die beide reparieren. Liefert die Zahl reparierter Pakete."""
+    from . import timetable
+    pre = "(p.start_time >= '24:' OR p.end_time > '24:00' OR p.end_time <= p.start_time)"     # grob, genau: _bad_span
+    pre_task = "(t.start_time >= '24:' OR t.end_time > '24:00' OR t.end_time <= t.start_time)"
+    rows = db.rows(conn, f"""SELECT DISTINCT p.* FROM study_packages p LEFT JOIN study_tasks t ON t.package_id=p.id
+                             WHERE {pre} OR {pre_task} ORDER BY p.date, p.sort, p.id""")
+    if not rows:
+        return 0
+    ids = [p["id"] for p in rows]
+    tasks = defaultdict(list)
+    for t in db.rows(conn, f"SELECT id, package_id, start_time, end_time FROM study_tasks WHERE package_id IN ({','.join('?' * len(ids))}) ORDER BY id", ids):
+        if _bad_span(t["start_time"], t["end_time"]):
+            tasks[t["package_id"]].append(t)
+    rows = [p for p in rows if _bad_span(p["start_time"], p["end_time"]) or tasks[p["id"]]]
+    if not rows:
+        return 0
+    redo = {r["id"] for r in db.rows(conn, f"SELECT p.id FROM study_packages p WHERE p.date >= ? AND COALESCE(p.source,'')<>'smart' AND {UNTOUCHED_AUTO_SQL}",
+                                     (today().isoformat(),))}
+    for p in rows:
+        if p["id"] in redo:
+            conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (p["id"],))
+            conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben')", (p["id"],))
+            assign_slots(conn, date.fromisoformat(p["date"]), package_id=p["id"], spill=SPILL_DAYS)
+            continue
+        if _bad_span(p["start_time"], p["end_time"]):
+            a, b = _clock(p["start_time"]), _clock(p["end_time"])
+            if b <= a:
+                b = a + max(15, int(p["planned_minutes"] or 0))
+            a, b = _fit_day(a, b)
+            conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(a), timetable.mh(b), p["id"]))
+        for t in tasks[p["id"]]:
+            ta, tb = _clock(t["start_time"]), _clock(t["end_time"])
+            if ta >= DAY_END or tb <= ta:
+                conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id=?", (t["id"],))
+            else:
+                conn.execute("UPDATE study_tasks SET end_time=? WHERE id=?", (timetable.mh(min(tb, DAY_END)), t["id"]))
+    return len(rows)
 
 
 def set_package_time(conn, package_id: int, start: str | None, end: str | None) -> None:
@@ -934,7 +1025,9 @@ def set_package_time(conn, package_id: int, start: str | None, end: str | None) 
     denselben Abstand mit, und das Paket endet nie vor seiner letzten Aufgabe: Die geplante Dauer zaehlt die Pausen
     zwischen den Aufgaben nicht mit, und der Dialog schickt Beginn + Dauer als Ende. Frueher wurde das Paket dadurch
     kuerzer als seine Aufgaben, die Zeit dahinter galt als frei, und das naechste Paket lag in einer Aufgabe, die
-    noch lief (Korrektur vom 26.10.2026). Ungueltige Uhrzeit: ValueError."""
+    noch lief (Korrektur vom 26.10.2026). Das Ende ist hoechstens 24:00 (frueher ging auch "25:15", Fehler vom echten
+    iPhone vom 14.11.2026); Aufgaben, die dadurch erst nach Mitternacht begaennen, verlieren ihre Uhrzeit. Ungueltige
+    Uhrzeit oder Beginn ab 24:00: ValueError."""
     p = db.row(conn, "SELECT start_time, planned_minutes FROM study_packages WHERE id=?", (package_id,))
     if not p:
         return
@@ -943,16 +1036,20 @@ def set_package_time(conn, package_id: int, start: str | None, end: str | None) 
         conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=?", (package_id,))
         return
     a = _clock_minutes(start)
-    b = _clock_minutes(end) if end else a + int(p["planned_minutes"] or 0)
+    if a >= DAY_END:
+        raise ValueError("Der Beginn muss vor 24:00 liegen.")
+    b = min(DAY_END, _clock_minutes(end) if end else a + int(p["planned_minutes"] or 0))
     if b <= a:
         raise ValueError("Das Ende muss nach dem Beginn liegen.")
     from . import timetable
     if p["start_time"]:
         shift = a - timetable.hm(p["start_time"])
         for t in db.rows(conn, "SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", (package_id,)):
-            te = timetable.hm(t["end_time"]) + shift
-            conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
-                         (timetable.mh(timetable.hm(t["start_time"]) + shift), timetable.mh(te), t["id"]))
+            ts, te = timetable.hm(t["start_time"]) + shift, min(DAY_END, timetable.hm(t["end_time"]) + shift)
+            if ts >= DAY_END or te <= ts:
+                conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE id=?", (t["id"],))
+                continue
+            conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(ts), timetable.mh(te), t["id"]))
             b = max(b, te)
     conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(a), timetable.mh(b), package_id))
 
@@ -984,7 +1081,7 @@ def plan_window(conn, d: date, start: str, end: str) -> dict:
     Dateien werden nicht geteilt: Ein erster Teil im Fenster liesse die uebrigen Teile ungeplant (die Datei gilt dann
     als eingeplant). Ungueltige Uhrzeit: ValueError."""
     from . import timetable
-    a, b = _clock_minutes(start), _clock_minutes(end)
+    a, b = _clock_minutes(start), min(DAY_END, _clock_minutes(end))     # hoechstens bis 24:00
     if b <= a:
         raise ValueError("Das Ende muss nach dem Beginn liegen.")
     ensure_modules(conn)
@@ -1215,6 +1312,7 @@ def feasibility(conn) -> dict:
 def calendar(conn, start: date, end: date) -> dict:
     ensure_modules(conn)
     refresh_statuses(conn)
+    repair_times(conn)                               # Uhrzeiten nach Mitternacht aus Build 41 und frueher
     pkgs = db.rows(conn, """SELECT p.*, m.color, m.name AS module_name FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id
                              WHERE p.date BETWEEN ? AND ? ORDER BY p.date, p.sort, p.id""", (start.isoformat(), end.isoformat()))
     ids = [p["id"] for p in pkgs]

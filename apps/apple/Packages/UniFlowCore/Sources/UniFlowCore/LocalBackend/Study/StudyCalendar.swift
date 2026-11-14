@@ -18,6 +18,7 @@ enum StudyCalendar {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
         if refresh { try StudyPlan.refreshStatuses(c, today: today) }
+        try StudyPlan.repairTimes(c, today: today)              // Uhrzeiten nach Mitternacht aus Build 41 und frueher
         // Lernbloecke ab heute, die einen besuchten Termin ueberschneiden (Stundenplan geaendert, alte Pakete ueber
         // mehrere Fenster), neu legen, bevor die Woche gezeigt wird (Fehlerbericht des Inhabers vom 10.11.2026)
         try StudyPlan.repairSlots(c, from: max(start, today), to: end, now: LocalTimetableImport.isoDateTime(.string(clock.nowISO)))
