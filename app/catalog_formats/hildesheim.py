@@ -722,7 +722,7 @@ def _it_kind(top: str, title: str) -> str:
 
 
 # Formate, deren Leser Seitentexte im Layout-Modus brauchen (Builder und Register waehlen damit die Textgewinnung)
-LAYOUT_FORMATS = ("hildesheim-modultabelle",)
+LAYOUT_FORMATS = ("hildesheim-modultabelle", "hildesheim-kuerzel-modultabelle", "hildesheim-kennnummer-tabelle")
 
 
 def pages_for(fmt: str, data: bytes) -> list[str]:
