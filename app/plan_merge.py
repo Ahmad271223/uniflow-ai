@@ -171,12 +171,12 @@ def merge_duplicates(conn, hosted: bool | None = None) -> dict:
     for t in drop:
         conn.execute("DELETE FROM study_tasks WHERE id=?", (t["id"],))
     for pid in sorted({t["package_id"] for t in drop}):
+        p = db.row(conn, "SELECT source, start_time, end_time FROM study_packages WHERE id=?", (pid,))
+        if p["source"] == "smart":                              # Block des Stundenplaners: bleibt als Lernzeit stehen,
+            continue                                            # Dauer = Stundenbudget; Unterlagen fuellt der Planer nach
         if not db.row(conn, "SELECT 1 FROM study_tasks WHERE package_id=?", (pid,)):
             conn.execute("DELETE FROM study_packages WHERE id=?", (pid,))
             out["packages"] += 1
-            continue
-        p = db.row(conn, "SELECT source, start_time, end_time FROM study_packages WHERE id=?", (pid,))
-        if p["source"] == "smart":                              # Block des Stundenplaners: Dauer = Stundenbudget
             continue
         study._recalc_package(conn, pid)
         # der Block reicht nur noch ueber die Aufgaben, die geblieben sind (nie laenger als vorher)

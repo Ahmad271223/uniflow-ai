@@ -792,6 +792,8 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     ensure_modules(conn)
     drop_unplanned(conn)                             # abgewaehlte Faecher (auch nach einem Abgleich)
     outline.refresh(conn)                            # Gliederung neuer PDFs (echte Aufgaben statt Dateinamen)
+    from . import plan_merge
+    plan_merge.merge_duplicates(conn)                # dieselbe Unterlage von zwei Geraeten geplant: nur einmal
     refresh_statuses(conn)
     repair_times(conn)                               # Uhrzeiten nach Mitternacht aus Build 41 und frueher
     s = db.get_settings(conn)
@@ -1333,6 +1335,8 @@ def feasibility(conn) -> dict:
 
 def calendar(conn, start: date, end: date) -> dict:
     ensure_modules(conn)
+    from . import plan_merge
+    plan_merge.merge_duplicates(conn)                # dieselbe Unterlage von zwei Geraeten geplant: nur einmal (15.11.2026)
     refresh_statuses(conn)
     repair_times(conn)                               # Uhrzeiten nach Mitternacht aus Build 41 und frueher
     pkgs = db.rows(conn, """SELECT p.*, m.color, m.name AS module_name FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id

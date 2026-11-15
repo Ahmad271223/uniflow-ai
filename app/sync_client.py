@@ -809,6 +809,17 @@ def run(force: bool = False) -> dict:
             c.retry_notes = False
             c.use_uni_account(account, config.university())
             c.pull()
+            # Planung des Kontos uebernehmen statt der eigenen: doppelt geplante Unterlagen zusammenfuehren, Tageslimit
+            # ueber alle Geraete (app/plan_merge.py). Nach dem Abruf und vor dem Senden: eigene, noch nicht gesendete
+            # Doppel gehen gar nicht erst ins Konto; Loeschmarken fuer Doppel im Konto gehen gleich mit.
+            from . import plan_merge
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                c.stats["plan_merged"] = plan_merge.after_pull(conn, hosted=False)
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
             c.push()
             for _ in range(2):
                 if not c.retry_notes:
