@@ -925,21 +925,24 @@ private struct AppAccountCards: View {
     }
 }
 
-/// Zeile "Credits" auf der Tarif-Karte (04.11.2026, docs/ABO-SYSTEM.md Abschnitt 6a): der echte Stand des Monats vom
-/// Dienst mit einem ehrlichen Satz dazu; ohne Konto beim Dienst oder ohne Stand bleibt sie weg. Beobachtet den Anschluss,
+/// Zeile "Credits" auf der Tarif-Karte (04.11.2026, docs/ABO-SYSTEM.md Abschnitt 6a): der echte Stand beider Toepfe
+/// vom Dienst ("Diesen Monat: x von 100 · Gekauft: y", 15.11.2026) mit einem ehrlichen Satz dazu und dem Eintrag
+/// "Credits kaufen"; ohne Konto beim Dienst oder ohne Stand bleibt sie weg. Beobachtet den Anschluss,
 /// damit eine berechnete Antwort den Rest sofort nachzieht.
 struct StudoraCreditsRow: View {
     @ObservedObject var link: StudoraAccountLink
 
     /// Wie viele Credits es gibt, ohne Centbetrag (Entscheidung des Inhabers 11.11.2026: „das müssen Nutzer nicht wissen“);
     /// die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
-    static let explanation = "Pro AI hat 100 Credits im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang – welcher Tarif was enthält, steht unter „Tarif wechseln“."
+    static let explanation = "Pro AI hat 100 Credits im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang. Gekaufte Credits verfallen nicht. Welcher Tarif was enthält, steht unter „Tarif wechseln“."
 
     var body: some View {
         if let c = link.credits, let value = AICost.balanceLine(c, trial: link.planStatus?.trialActive ?? false, labelled: false) {
             VStack(alignment: .leading, spacing: 4.8) {
                 SettingsValue(label: "Credits", value: value)
                 Text(Self.explanation).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                // "Credits kaufen" (nur, wenn das Konto kaufen darf) bzw. der Hinweis auf ruhende gekaufte Credits
+                CreditShopEntry(link: link)
             }
             .padding(.top, 7.2)
             .accessibilityIdentifier("settings.credits")

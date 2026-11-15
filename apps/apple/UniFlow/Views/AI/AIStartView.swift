@@ -44,6 +44,8 @@ struct AIStartView: View {
     @State private var error: String?
     /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
     @State private var errorAction: StudiNowAIAction?
+    /// Blatt "Credits kaufen" (oeffnet von selbst, wenn die Credits nicht reichen und das Konto kaufen darf)
+    @State private var creditShop = false
     /// Das Gespraech auf dieser Seite (frisch oder aus "Zuletzt" geoeffnet), aelteste zuerst
     @State private var turns: [Answer] = []
     /// Frage, deren Antwort gerade laeuft (steht schon als Blase im Verlauf)
@@ -125,6 +127,7 @@ struct AIStartView: View {
         .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
         // StudiNow-KI: Credits-Stand frisch vom Dienst (GET /api/entitlements), danach nach jeder Antwort
         .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
+        .ufCreditShop(isPresented: $creditShop, opensFor: errorAction)
         .ufReload { await load() }
         // anderes Modul: ein Dokument des anderen Moduls passt nicht mehr, das zuletzt geoeffnete des neuen ist dran
         .onChange(of: module) { _, _ in
@@ -420,8 +423,9 @@ struct AIStartView: View {
                     .accessibilityIdentifier("ai.start.error")
                 if let errorAction {
                     // Tarif (Recht, Kontingent, Credits) bzw. Anmeldung beim StudiNow-Konto
-                    UFButton(StudoraAccountLink.errorButton(errorAction), icon: errorAction == .signIn ? "user" : "star", size: .small) {
-                        router.go(.settings(tab: "account"))
+                    UFButton(StudoraAccountLink.errorButton(errorAction),
+                             icon: errorAction == .signIn ? "user" : errorAction == .credits ? "sparkles" : "star", size: .small) {
+                        if errorAction == .credits { creditShop = true } else { router.go(.settings(tab: "account")) }
                     }
                         .accessibilityIdentifier("ai.start.plans")
                 }

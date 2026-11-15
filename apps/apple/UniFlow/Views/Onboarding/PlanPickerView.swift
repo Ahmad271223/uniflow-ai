@@ -79,6 +79,8 @@ struct PlanPickerView: View {
                 Text(UFPlanCatalog.proAIMissingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
                     .accessibilityAddTraits(.isStaticText)
             }
+            // Credit-Pakete (15.11.2026): Stand beider Toepfe und "Credits kaufen", nur auf der Tarifseite der Einstellungen
+            if context == .settings, let studoraAccount { CreditShopCard(link: studoraAccount).padding(.top, 16) }
             // Probe und Abo je Apple-ID (12.11.2026)
             Text(UFTrialTexts.perAppleID).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
                 .fixedSize(horizontal: false, vertical: true)

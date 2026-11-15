@@ -1132,6 +1132,8 @@ struct ExamAskPanel: View {
     @State private var busy = false
     @State private var error: String?
     @State private var creditsExhausted = false
+    /// Blatt "Credits kaufen", wenn die Credits nicht reichen und das Konto kaufen darf (sonst der Weg zum Tarif)
+    @State private var creditShop = false
     @State private var restored = false
 
     struct Message: Identifiable, Equatable {
@@ -1162,7 +1164,11 @@ struct ExamAskPanel: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(error).ufFont(13.12).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
                                     .accessibilityIdentifier("exam.ask.error")
-                                if creditsExhausted {
+                                if creditsExhausted, CreditPacks.offersShop(studoraAccount?.credits?.balance) {
+                                    UFButton(CreditShopEntry.button, icon: "sparkles", size: .small) { creditShop = true }
+                                        .accessibilityIdentifier("exam.ask.credits")
+                                        .ufCreditShop(isPresented: $creditShop)
+                                } else if creditsExhausted {
                                     UFButton("Tarif ansehen", icon: "star", size: .small) {
                                         if let close { close() } else { closeDialog() }
                                         router.go(.settings(tab: "account"))
@@ -1369,6 +1375,7 @@ struct ExamAskPanel: View {
             if typed { draft = q }
             self.error = error.localizedDescription
             creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+            if creditsExhausted, CreditPacks.offersShop(studoraAccount?.credits?.balance) { creditShop = true }
         }
         // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Kostenzeile nennt es
         await chatgpt?.refresh()

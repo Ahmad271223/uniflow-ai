@@ -113,7 +113,21 @@ final class PlanContractTests: XCTestCase {
             let groups = try XCTUnwrap(sk["subscriptionGroups"]?.array, file)
             XCTAssertEqual(groups.count, 1, "eine Abo-Gruppe, damit Apple Upgrade, Downgrade und Doppel-Abos regelt: \(file)")
             XCTAssertEqual(groups.first?["name"]?.string, "StudiNow", file)
-            XCTAssertEqual(sk["products"]?.array?.count, 0, file)
+            // dazu die zwei Credit-Pakete als Verbrauchskaeufe (15.11.2026, `CreditPacks`): Produkt, Groesse und
+            // Listenpreis wie im Vertrag (plans.json `credit_packs.packs`); die App zeigt den Preis aus dem Store
+            let packs = try XCTUnwrap(sk["products"]?.array, file)
+            let contractPacks = try XCTUnwrap(contract()["credit_packs"]?["packs"]?.array, file)
+            XCTAssertEqual(packs.compactMap { $0["productID"]?.string }, CreditPacks.productIDs, file)
+            XCTAssertEqual(contractPacks.compactMap { $0["product_id"]?.string }, CreditPacks.productIDs, file)
+            for (p, c) in zip(packs, contractPacks) {
+                let tag = "\(file): \(p["productID"]?.string ?? "?")"
+                XCTAssertEqual(p["type"]?.string, "Consumable", tag)
+                XCTAssertEqual(p["displayPrice"]?.string, String(format: "%.2f", (c["price_cents"]?.double ?? 0) / 100), tag)
+                XCTAssertEqual(p["localizations"]?.array?.first?["displayName"]?.string, CreditText.packLabel(Int(c["credits"]?.double ?? 0)), tag)
+                XCTAssertLessThanOrEqual(p["localizations"]?.array?.first?["description"]?.string?.count ?? 99, 45, tag)
+                XCTAssertEqual(p["familyShareable"]?.bool, false, tag)
+            }
+            XCTAssertEqual(contractPacks.compactMap { $0["credits"]?.double.map { Int($0) } }, CreditPacks.defaultPacks.map(\.credits), file)
             let subs = try XCTUnwrap(groups.first?["subscriptions"]?.array, file)
             // nur die Jahresabos (Entscheidung des Inhabers vom 09.11.2026), kein Monatsabo
             XCTAssertEqual(subs.compactMap { $0["productID"]?.string }, plans.compactMap(\.productID), file)

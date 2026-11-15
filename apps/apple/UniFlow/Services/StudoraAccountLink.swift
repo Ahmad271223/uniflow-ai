@@ -176,6 +176,11 @@ final class StudoraAccountLink: ObservableObject {
     /// Was die letzte KI-Antwort gekostet hat (`charged`), fuer die Kostenzeile; nil bis zur ersten Antwort mit Stand
     @Published private(set) var lastCharge: StudoraCredits.Charge?
     private var creditsClient: StudoraCredits.Client?
+    /// Credit-Pakete des Dienstes (Credits je Produkt-ID, `credit_packs` aus `GET /api/entitlements`); bis zur Antwort
+    /// die Pakete aus dem Vertrag
+    @Published private(set) var creditPacks: [CreditPacks.Pack] = CreditPacks.defaultPacks
+    /// Laden fuer Credit-Pakete (Tests geben einen eigenen)
+    var creditStore: CreditStore = .shared
     @Published private(set) var busy = false
     @Published var message: String?
     /// Handlung zur letzten Fehlermeldung (z. B. Bestaetigungslink erneut senden)
@@ -555,13 +560,39 @@ final class StudoraAccountLink: ObservableObject {
         lastCharge = nil
     }
 
-    /// Stand neu laden (`GET /api/entitlements`); ein Fehler laesst den letzten Stand stehen, abgemeldet wird er nil
+    /// Stand neu laden (`GET /api/entitlements`: beide Toepfe und die Pakete); ein Fehler laesst den letzten Stand
+    /// stehen, abgemeldet wird er nil
     func refreshCredits() async {
         guard let creditsClient else { clearCredits(); return }
         let epoch = accountEpoch
-        let c = try? await creditsClient.fetch()
+        let state = try? await creditsClient.fetchState()
         guard accountEpoch == epoch else { return }                 // inzwischen anderes Konto: der Stand gehoert nicht hierher
-        if let c { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
+        if let c = state?.credits { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
+        if let packs = state?.packs, packs != creditPacks { creditPacks = packs }
+    }
+
+    // MARK: Credit-Pakete (Auftrag des Inhabers vom 15.11.2026, CreditStore.swift)
+
+    /// Einen Kauf beim Dienst verbuchen (`POST /api/billing/credits/apple`). Kommt ein Ergebnis zurueck, ist der Kauf
+    /// verbucht und `CreditStore` schliesst ihn ab; jeder Fehler laesst ihn offen. Der neue Stand gilt sofort.
+    func bookCreditPurchase(_ jws: String) async throws -> CreditPacks.PurchaseResult {
+        guard let account, let id = user?.id else { throw CreditStore.NotSignedIn() }
+        let result = try await account.bookCreditPurchase(signedTransaction: jws)
+        if isCurrent(account, id), let b = result.balance {
+            credits = StudoraCredits(b)
+            lastCharge = nil
+        }
+        return result
+    }
+
+    /// Kaeufe von Credit-Paketen laufen ueber dieses Konto: melden, verbuchen, erst danach abschliessen
+    private func hookCreditPurchases() {
+        let store = creditStore
+        store.book = { [weak self] jws in
+            guard let self else { throw CancellationError() }
+            return try await self.bookCreditPurchase(jws)
+        }
+        entitlements.creditPurchase = { result in _ = await store.handle(result) }
     }
 
     /// Antwort von `/api/ai/tutor` oder `/api/ai/flashcards`: neuer Stand und was sie gekostet hat (`charged`,
@@ -585,7 +616,11 @@ final class StudoraAccountLink: ObservableObject {
     /// Knopf zu einem Fehler der KI: Tarif bei fehlendem Recht, Kontingent oder Credits (beim 429 `credits_exhausted`
     /// wird der Stand uebernommen), Anmeldung ohne gueltige Sitzung; nil = nur die Meldung
     static func errorAction(_ error: Error, account: StudoraAccountLink?) -> StudiNowAIAction? {
-        if account?.noteAIError(error) ?? StudoraCredits.isExhausted(error) { return .plans }
+        if account?.noteAIError(error) ?? StudoraCredits.isExhausted(error) {
+            // Credits reichen nicht: darf das Konto Pakete kaufen (Regel des Dienstes), fuehrt der Weg zum Blatt
+            // "Credits kaufen", sonst wie bisher zum Tarif
+            return CreditPacks.offersShop(account?.credits?.balance) ? .credits : .plans
+        }
         let code = (error as? APIError)?.code ?? (error as? AccountError)?.code
         let action = StudiNowAIText.action(code: code)
         if action == .signIn, let account { Task { await account.refresh() } }      // Sitzung beendet: Karte und KI-Stellen zeigen es
@@ -594,7 +629,11 @@ final class StudoraAccountLink: ObservableObject {
 
     /// Beschriftung des Knopfs zu `errorAction`
     nonisolated static func errorButton(_ action: StudiNowAIAction) -> String {
-        action == .signIn ? "Mit StudiNow-Konto anmelden" : "Tarif ansehen"
+        switch action {
+        case .signIn: return "Mit StudiNow-Konto anmelden"
+        case .credits: return CreditShopEntry.button
+        case .plans: return "Tarif ansehen"
+        }
     }
 
     private func run(_ op: @escaping (StudoraAccount) async throws -> Void) async {
@@ -653,7 +692,10 @@ final class StudoraAccountLink: ObservableObject {
         updateAI()
         guard user != nil else { return }
         hookPurchases()
+        hookCreditPurchases()
         if reportedPurchasesFor != user?.id { await reportPurchases() }
+        // bezahlte, aber noch nicht verbuchte Credit-Pakete nachholen (Dienst war nicht erreichbar, App beendet)
+        if await creditStore.processUnfinished() > 0 { await refreshCredits() }
         if PendingInvite.current() != nil { _ = await redeemPendingInvite() }
     }
 
@@ -926,7 +968,7 @@ enum AccountDeletion {
     }
 }
 
-/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 0,9 Cent echter KI-Kosten, Pro AI
+/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 0,65 Cent echter KI-Kosten, Pro AI
 /// 100 je Kalendermonat, Probe 25, andere Tarife 0. Stand aus `credits` in `GET /api/entitlements` und in den
 /// KI-Antworten (`/api/ai/tutor`, `/api/ai/flashcards`: zusaetzlich `charged`, `replay`). Reihenfolge der Bezahlung:
 /// Geteiltes (0) -> eigenes ChatGPT (0) -> Credits. Am eigenen PC und ohne Konto ist der Stand nil.
@@ -939,6 +981,39 @@ struct StudoraCredits: Equatable {
     /// Beginn des naechsten Monats (ISO mit Versatz, Europe/Berlin): ab dann gibt es neue Credits
     var resetsAt: String?
     var plan: String?
+    /// gekaufte Credits, noch nicht verbraucht (verfallen nie; 15.11.2026, `CreditPacks`)
+    var purchased = 0
+    /// gekaufte Credits sind jetzt nutzbar (der Tarif hat die StudiNow-KI); sonst ruhen sie beim Konto
+    var purchasedUsable = false
+    /// das Konto darf Credit-Pakete kaufen (Regel des Dienstes)
+    var canBuy = false
+
+    /// Was jetzt fuer die KI da ist: Rest des Monats plus nutzbare gekaufte Credits
+    var available: Int { remaining + (purchasedUsable ? purchased : 0) }
+
+    /// derselbe Stand in der Form des Kerns (Texte in `CreditText`)
+    var balance: CreditPacks.Balance {
+        CreditPacks.Balance(period: period, allowance: allowance, used: used, remaining: remaining, purchased: purchased,
+                            purchasedUsable: purchasedUsable, canBuy: canBuy, resetsAt: resetsAt, plan: plan)
+    }
+
+    init(period: String, allowance: Int, used: Int, remaining: Int, resetsAt: String? = nil, plan: String? = nil,
+         purchased: Int = 0, purchasedUsable: Bool = false, canBuy: Bool = false) {
+        self.period = period
+        self.allowance = allowance
+        self.used = used
+        self.remaining = remaining
+        self.resetsAt = resetsAt
+        self.plan = plan
+        self.purchased = purchased
+        self.purchasedUsable = purchasedUsable
+        self.canBuy = canBuy
+    }
+
+    init(_ b: CreditPacks.Balance) {
+        self.init(period: b.period, allowance: b.allowance, used: b.used, remaining: b.remaining, resetsAt: b.resetsAt, plan: b.plan,
+                  purchased: b.purchased, purchasedUsable: b.purchasedUsable, canBuy: b.canBuy)
+    }
 
     /// Was die letzte KI-Antwort gekostet hat (`charged`); `replay`: gespeicherte Antwort zur selben request_id, nichts
     /// neu berechnet
@@ -952,12 +1027,7 @@ struct StudoraCredits: Equatable {
 
     /// `credits` einer Antwort; nil, wenn es fehlt oder null ist (eigener PC, kein Konto)
     static func parse(_ v: JSONValue?) -> StudoraCredits? {
-        guard let v, let allowance = v["allowance"]?.double else { return nil }
-        let used = Int(v["used"]?.double ?? 0)
-        let reserved = Int(v["reserved"]?.double ?? 0)
-        let remaining = v["remaining"]?.double.map(Int.init) ?? max(0, Int(allowance) - used - reserved)
-        return StudoraCredits(period: v["period"]?.string ?? "", allowance: Int(allowance), used: used, remaining: max(0, remaining),
-                              resetsAt: v["resets_at"]?.string, plan: v["plan"]?.string)
+        CreditPacks.Balance.parse(v).map(StudoraCredits.init)
     }
 
     /// `charged`/`replay` einer KI-Antwort (im `credits`-Objekt, zur Sicherheit auch oben); nil ohne Credits-Stand
@@ -988,12 +1058,15 @@ struct StudoraCredits: Equatable {
         let http: ServiceHTTPTransport
         let tokens: AccountTokenStore
 
-        func fetch() async throws -> StudoraCredits? {
+        func fetch() async throws -> StudoraCredits? { try await fetchState()?.credits }
+
+        /// Stand beider Toepfe und die Pakete des Dienstes (`credits`, `credit_packs`); nil ohne Token oder ohne Antwort
+        func fetchState() async throws -> (credits: StudoraCredits?, packs: [CreditPacks.Pack])? {
             guard let t = tokens.load() else { return nil }
             let url = (base.hasSuffix("/") ? String(base.dropLast()) : base) + "/api/entitlements"
             let r = try await http.send(AIHTTPRequest(method: "GET", url: url, headers: ["Accept": "application/json", "Authorization": "Bearer \(t)"], body: nil))
             guard (200..<300).contains(r.status), let j = try? JSONValue.parse(r.body) else { return nil }
-            return parse(j["credits"])
+            return (parse(j["credits"]), CreditPacks.packs(from: j["credit_packs"]))
         }
     }
 }

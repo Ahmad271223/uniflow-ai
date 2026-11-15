@@ -159,10 +159,18 @@ public enum CreditText {
 
     /// Stand beider Toepfe: "Diesen Monat: 37 von 100 · Gekauft: 80". Ohne Monats-Credits im Tarif steht nur der
     /// gekaufte Topf (ruht er, mit dem Weg dahin), ganz ohne Credits "Keine Credits in deinem Tarif"; nil ohne Stand.
-    public static func balanceLine(_ b: CreditPacks.Balance?) -> String? {
+    /// `monthNote`: Zusatz zum Monats-Topf in Klammern ("neu am 1. Dezember", in der Probe "Probe, neu am ..."), damit
+    /// klar ist, dass nur der Monat neu kommt. `labelled`: mit "Credits" davor, wo die Zeile ohne Ueberschrift steht.
+    public static func balanceLine(_ b: CreditPacks.Balance?, monthNote: String? = nil, labelled: Bool = false) -> String? {
         guard let b else { return nil }
-        if b.allowance > 0 { return "Diesen Monat: \(b.remaining) von \(b.allowance) · Gekauft: \(b.purchased)" }
-        if b.purchased > 0 { return b.purchasedUsable ? "Gekauft: \(b.purchased)" : "Gekauft: \(b.purchased) · nutzbar mit StudiNow Pro AI" }
+        if b.allowance > 0 {
+            let note = (monthNote ?? "").isEmpty ? "" : " (\(monthNote ?? ""))"
+            return "\(labelled ? "Credits diesen Monat" : "Diesen Monat"): \(b.remaining) von \(b.allowance)\(note) · Gekauft: \(b.purchased)"
+        }
+        if b.purchased > 0 {
+            let head = "\(labelled ? "Credits gekauft" : "Gekauft"): \(b.purchased)"
+            return b.purchasedUsable ? head : "\(head) · nutzbar mit StudiNow Pro AI"
+        }
         return noCredits
     }
 

@@ -94,6 +94,8 @@ public enum StudiNowAIAction: String, Sendable, Equatable {
     case plans
     /// "Mit StudiNow-Konto anmelden" (Einstellungen → Konto & Tarif)
     case signIn
+    /// "Credits kaufen": die Credits reichen nicht und das Konto darf Pakete kaufen (15.11.2026, CreditPacks.swift)
+    case credits
 }
 
 /// Texte zu den Fehlern der StudiNow-KI (Status und Code des Dienstes, app/ai_relay.py, app/entitlements.py,

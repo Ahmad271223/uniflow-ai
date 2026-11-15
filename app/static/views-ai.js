@@ -3,8 +3,8 @@
 // unten. Regeln in ai-start-logic.js (tests/js/ai-start.test.mjs); Fragen gehen an POST /api/ai/tutor wie die KI-Hilfe
 // im Editor. Erreichbar über das Raster-Symbol in der KI-Hilfe und den Knopf "KI-Start" bei Tests & Wiederholung.
 import { $, $$, api, esc, icon, toast, state } from "./core.js?v=47";
-import * as L from "./ai-start-logic.js?v=2";
-import { followUps, MODE_LABELS, needsPlan } from "./ai-panel.js?v=2";
+import * as L from "./ai-start-logic.js?v=3";
+import { followUps, MODE_LABELS, needsPlan } from "./ai-panel.js?v=3";
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -13,7 +13,7 @@ const store = {
 const RECENTS_KEY = "uf.ai.recents", COUNT_KEY = () => `uf.ai.count.${L.monthKey()}`;
 
 export async function viewAiStart(_, params, view) {
-  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=73")]);
+  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=74")]);
   // in der Seitenleiste leuchtet "Tests & Wiederholung" (wie auf dem iPad)
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === "exams"));
   const st = { module: 0, fileId: "", question: "", turns: [], pending: null, busy: false, error: null, exhausted: false, help: false, credits: null, explain: null, loaded: false, source: null };

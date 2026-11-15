@@ -392,6 +392,10 @@ final class Entitlements: ObservableObject {
     /// iPad hat kein Konto beim Dienst, der Tarif kommt nur aus StoreKit.
     var verifyOnServer: ((String) async -> Bool)?
 
+    /// Transaktion eines Credit-Pakets (Verbrauchskauf, `CreditPacks`): geht an `CreditStore.handle`, der sie beim
+    /// Dienst verbucht und erst danach abschliesst. Ohne Abnehmer bleibt sie offen und wird spaeter nachgeholt.
+    var creditPurchase: ((VerificationResult<StoreKit.Transaction>) async -> Void)?
+
     private var updates: Task<Void, Never>?
 
     /// `observe: false` nur fuer Tests und Vorschauen mit festem Tarif
@@ -610,6 +614,12 @@ final class Entitlements: ObservableObject {
     @discardableResult
     func handle(_ result: VerificationResult<StoreKit.Transaction>) async -> Bool {
         guard case .verified(let transaction) = result else { return false }
+        if CreditPacks.isPack(transaction.productID) {
+            // Credit-Paket (15.11.2026): kein Abo, aendert den Tarif nicht und wird hier NIE abgeschlossen - erst der
+            // Dienst muss es verbucht haben, sonst waere ein bezahlter Kauf verloren (`CreditStore.handle`)
+            await creditPurchase?(result)
+            return true
+        }
         transactionCount += 1
         var ok = true
         if let verify = verifyOnServer { ok = await verify(result.jwsRepresentation) }

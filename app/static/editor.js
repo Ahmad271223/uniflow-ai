@@ -23,7 +23,7 @@ import { SCOPES, CHIPS, scopeBody, docModeFor, progressText, storedNote, needsCo
 // Formerkennung nach Halten (05.11.2026, wie ShapeRecognizer.swift): Linie, Rechteck, Ellipse, Dreieck, Pfeil
 import { holdNote, heldStill, snapStroke, snapEnabled, setSnapEnabled } from "./editor-shapes.js?v=1";
 // KI-Hilfe als Gespraech mit drei farbigen Reitern (05.11.2026, wie TutorPanel.swift) und "Als Karteikarte" aus markiertem Text
-import { createAiPanel } from "./ai-panel.js?v=2";
+import { createAiPanel } from "./ai-panel.js?v=3";
 import { openCardDialog } from "./editor-card.js?v=1";
 import { attachFreeze } from "./editor-freeze.js?v=1";   // Ansicht fixieren / Zum Abpausen einfrieren
 export { IDB };
