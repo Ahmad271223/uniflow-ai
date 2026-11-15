@@ -373,7 +373,9 @@ def test_link_requires_verified_email(hosted, keys):
     assert _j(asgi_call(hosted, "POST", "/api/account/link/google", body=body, headers=_bearer(reg["token"])))[0] == 200
 
 
-def test_list_and_unlink_identities(hosted, keys):
+def test_list_and_unlink_identities(hosted, keys, monkeypatch):
+    from datetime import timedelta
+
     from app import accounts
     reg = _register(hosted)
     accounts.mark_email_verified(reg["user"]["id"])
@@ -381,11 +383,18 @@ def test_list_and_unlink_identities(hosted, keys):
     assert _j(asgi_call(hosted, "GET", "/api/account/identities"))[0] == 401
     assert _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))[1] == {"identities": []}
     assert _j(asgi_call(hosted, "DELETE", "/api/account/identities/google", headers=h))[1]["code"] == "identity_not_found"
+    # Die Liste ist nach Zeitpunkt der Verknuepfung sortiert (accounts.now, volle Sekunden), bei gleicher Sekunde nach
+    # Anbieter. Die Uhr steht deshalb fuer beide Verknuepfungen fest (15.11.2026): vorher nahm der Test die echte Uhr
+    # und erwartete stillschweigend "dieselbe Sekunde" - lag ein Sekundenwechsel zwischen Google und Apple (unter Last
+    # haeufiger), kam ["google", "apple"] und der Test war rot. Beide Faelle werden jetzt ausdruecklich geprueft.
+    t0 = accounts.now()
+    monkeypatch.setattr(accounts, "now", lambda: t0)
     for prov, tok in (("google", keys.token(google_claims(sub="g-1", email=None))),
                       ("apple", keys.token(apple_claims(), alg="ES256", kid="ec-1"))):
         assert _j(asgi_call(hosted, "POST", f"/api/account/link/{prov}", body=json.dumps({"id_token": tok}), headers=h))[0] == 200
     st, d, _ = _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))
-    assert st == 200 and [i["provider"] for i in d["identities"]] == ["apple", "google"]
+    assert st == 200 and [i["provider"] for i in d["identities"]] == ["apple", "google"], "gleiche Sekunde: nach Anbieter"
+    assert {i["created_at"] for i in d["identities"]} == {accounts.iso(t0)}
     assert all("subject" not in i for i in d["identities"]), "die Kennung des Anbieters wird nicht ausgeliefert"
     assert _j(asgi_call(hosted, "DELETE", "/api/account/identities/google", headers=h))[:2] == (200, {"ok": True})
     assert [i["provider"] for i in _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))[1]["identities"]] == ["apple"]
@@ -394,7 +403,17 @@ def test_list_and_unlink_identities(hosted, keys):
     assert st == 400 and d["code"] == "email_required"
     # fremde Konten sind nicht erreichbar: die Liste gehoert immer der Sitzung
     other = _register(hosted, "other@beispiel.de", "anderes-pw-123")
-    assert _j(asgi_call(hosted, "GET", "/api/account/identities", headers=_bearer(other["token"])))[1] == {"identities": []}
+    ho = _bearer(other["token"])
+    assert _j(asgi_call(hosted, "GET", "/api/account/identities", headers=ho))[1] == {"identities": []}
+    # verschiedene Sekunden: die aeltere Verknuepfung steht vorn, auch gegen das Alphabet (Google vor Apple)
+    accounts.mark_email_verified(other["user"]["id"])
+    for prov, tok, at in (("google", keys.token(google_claims(sub="g-2", email=None)), t0),
+                          ("apple", keys.token(apple_claims(sub="apple-2"), alg="ES256", kid="ec-1"), t0 + timedelta(seconds=1))):
+        monkeypatch.setattr(accounts, "now", lambda at=at: at)
+        assert _j(asgi_call(hosted, "POST", f"/api/account/link/{prov}", body=json.dumps({"id_token": tok}), headers=ho))[0] == 200
+    listed = _j(asgi_call(hosted, "GET", "/api/account/identities", headers=ho))[1]["identities"]
+    assert [i["provider"] for i in listed] == ["google", "apple"]
+    assert [i["provider"] for i in _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))[1]["identities"]] == ["apple"]
 
 
 def test_unlink_last_login_method_of_passwordless_account_is_refused(hosted, keys):

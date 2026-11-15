@@ -1,0 +1,25 @@
+# Bekannte Wackel-Tests: unter Last des Rechners gelegentlich rot, einzeln gruen. tools/tests-voll.sh wiederholt einen
+# roten Test aus dieser Liste EINMAL einzeln und weist ihn als "wiederholt" aus; alle anderen roten Tests bleiben rot.
+# Erklaerung: docs/TESTLAEUFE.md
+#
+# Format: je Zeile `datei.py` (alle Tests der Datei) oder `datei.py::testname` (ohne Parameter), dahinter `#` mit Grund.
+# Hier steht nur, was von Zeit oder Rechnerlast abhaengt. Ein Test mit einer gefundenen Ursache gehoert repariert
+# und nicht in diese Liste (15.11.2026: test_modules_race und test_social_login sind repariert und stehen nicht hier).
+# Die Lasttests (tests/lasttests.txt) zaehlen von selbst dazu.
+
+test_web_abo.py                  # Browser (Playwright/Chromium): Wartezeiten 15-30 s reichen unter hoher Last nicht
+test_web_community_channel.py    # Browser
+test_web_editor_ai.py            # Browser
+test_web_flashcard_stacks.py     # Browser
+test_web_goals.py                # Browser; fiel am 14./15.11.2026 unter Last aus
+test_web_hosted_e2e.py           # Browser
+test_web_konto_loeschen.py       # Browser
+test_web_module_done.py          # Browser
+test_web_older_semesters.py      # Browser; 15.11.2026 unter Last 200: Abruf lief in die Zeitgrenze, Anzeige "Offline"
+test_web_overview.py             # Browser
+test_web_plan_choice.py          # Browser
+test_web_studyplan.py            # Browser
+test_web_windows_shell.py        # Browser
+test_studip_inhalte_browser.py   # Browser
+test_launch_4000.py              # misst Zeiten (20 ms je Aufruf, unter 1 s); fiel unter Last vereinzelt aus
+test_ai_lastfest.py              # misst Zeiten bei gleichzeitigen KI-Fragen

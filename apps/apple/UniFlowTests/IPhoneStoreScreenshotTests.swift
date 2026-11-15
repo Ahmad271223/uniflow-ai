@@ -5,15 +5,22 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-/// App-Store-Bildschirmfotos fuer das iPhone 6,9" (iPhone 17 Pro Max: 440 x 956 Punkte, Massstab 3 = 1320 x 2868 Pixel,
-/// hochkant): die echten Ansichten der kompakten Huelle (untere Leiste, Blaetter von unten) mit denselben Demo-Inhalten
-/// wie die iPad-Bilder (`DemoContent` und `DemoContent.installStoreExtras`, erfundenes Modul "Demo: Grundlagen der
-/// Informatik", Rufname "Tobi"). Mit UF_SCREENSHOT_DIR (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) schreibt der Test je
-/// Ansicht hell und dunkel `<nn>-<name>-{light|dark}-portrait.png`; ohne prueft er nur, dass jede Ansicht erscheint.
+/// Ansichten der kompakten Huelle (iPhone 17 Pro Max: 440 x 956 Punkte, hochkant; untere Leiste, Blaetter von unten)
+/// mit denselben Demo-Inhalten wie die iPad-Bilder (`DemoContent` und `DemoContent.installStoreExtras`, erfundenes Modul
+/// "Demo: Grundlagen der Informatik", Rufname "Tobi"): jede der sieben Ansichten erscheint, ohne Demo-Leiste und ohne
+/// Anfrage an eine Hochschule. Laeuft so in jeder iPhone-Suite, ohne Umgebung.
 ///
-/// Satz fuer 1.0.4 (13.11.2026, Build 39): Uebersicht, Lernkalender, Modul mit Erledigt-Haken, Uni-Mail mit
-/// "Mit KI verbessern", KI-Hilfe, Studienverlauf mit Noten, Mensa. Reihenfolge und Bildunterschriften:
-/// docs/release/SCREENSHOTS.md, Abschnitt iPhone. Tobi hat den Tarif Pro AI; die KI antwortet aus einem
+/// **Ueberholt als Weg zu den App-Store-Bildern (15.11.2026).** Bis 13.11.2026 schrieb diese Klasse mit
+/// `UF_SCREENSHOT_DIR` den iPhone-Satz mit Demo-Inhalten (`01-uebersicht…`, "Woche als Liste",
+/// `appstore-screenshots-iphone-2026-11-13/`). Hochgeladen ist seit 14.11.2026 der Satz mit den eigenen Kontodaten des
+/// Inhabers (`01-start` … `07-mensa`); ihn erzeugt allein `IPhoneRealShotsTests` (Befehl: docs/release/SCREENSHOTS.md,
+/// Abschnitt iPhone). Damit nicht zwei Wege in denselben Store-Ordner schreiben, liest diese Klasse `UF_SCREENSHOT_DIR`
+/// nicht mehr. Wer die Demo-Fassung ansehen will: `UF_DEMO_SHOT_DIR` (xcodebuild: `TEST_RUNNER_UF_DEMO_SHOT_DIR`) auf
+/// einen eigenen Ordner, nie einen Store-Ordner (`appstore-screenshots…` wird abgelehnt); dann je Ansicht hell und
+/// dunkel `<nn>-<name>-{light|dark}-portrait.png`, Massstab 3 = 1320 x 2868 Pixel.
+///
+/// Motive (Stand 13.11.2026, Build 39): Uebersicht, Lernkalender, Modul mit Erledigt-Haken, Uni-Mail mit
+/// "Mit KI verbessern", KI-Hilfe, Studienverlauf mit Noten, Mensa. Tobi hat den Tarif Pro AI; die KI antwortet aus einem
 /// Schein-Transport bzw. einer Schein-KI im lokalen Backend, Stud.IP und Uni-Mail aus Nachbildungen im Speicher.
 /// Keine Anfrage an eine Hochschule (`UniStubProtocol` zaehlt mit), keine Hochschul-Logos, nur erfundene Daten.
 @MainActor
@@ -70,10 +77,15 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         UFCompact.phoneOverride = true
         UFEditorAvailability.forcedReaderOnlyForTesting = true          // iPhone: Leseansicht statt Editor (11.11.2026)
         XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
-        if let dir = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !dir.isEmpty {
+        // Nicht UF_SCREENSHOT_DIR: den Store-Satz schreibt nur IPhoneRealShotsTests (siehe Kopf dieser Datei)
+        if let dir = ProcessInfo.processInfo.environment["UF_DEMO_SHOT_DIR"], !dir.isEmpty {
             let url = URL(fileURLWithPath: dir, isDirectory: true)
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-            outDir = url
+            if url.lastPathComponent.hasPrefix("appstore-screenshots") {
+                XCTFail("UF_DEMO_SHOT_DIR zeigt auf einen Store-Ordner (\(url.lastPathComponent)): Demo-Bilder gehören nicht dorthin")
+            } else {
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                outDir = url
+            }
         }
     }
 
@@ -345,7 +357,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         env.pump(2.0)
     }
 
-    // MARK: - iPhone-Satz 1.0.4 (01-07)
+    // MARK: - Demo-Ansichten 01-07 (bis 13.11.2026 der iPhone-Satz fuer 1.0.4, ueberholt)
 
     /// 1 Uebersicht: "Hallo Tobi", Pruefungsanmeldung mit QIS-Knopf, heutiges Lernpaket, untere Leiste
     func test01Uebersicht() throws {

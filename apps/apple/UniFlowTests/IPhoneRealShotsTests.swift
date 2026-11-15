@@ -8,6 +8,10 @@ import XCTest
 /// App-Store-Bilder fuer das iPhone 6,9" mit **echten Daten** statt Demo-Inhalten (Auftrag des Inhabers 14.11.2026):
 /// 440 x 956 Punkte, Massstab 3 = 1320 x 2868 Pixel, hochkant, hell und dunkel.
 ///
+/// Das ist der EINE Weg zum hochgeladenen iPhone-Satz (`01-start` … `07-mensa`, 14.11.2026); Befehl und Ordner:
+/// docs/release/SCREENSHOTS.md, Abschnitt iPhone. `IPhoneStoreScreenshotTests` (Demo-Inhalte, Satz vom 13.11.2026)
+/// schreibt seit 15.11.2026 nicht mehr nach `UF_SCREENSHOT_DIR`.
+///
 /// Der Test laeuft nur mit `UF_REAL_DB` (xcodebuild: `TEST_RUNNER_UF_REAL_DB`) – dem Pfad einer **gesaeuberten Kopie**
 /// der Datenbank des Inhabers – und `UF_SCREENSHOT_DIR`; sonst wird er uebersprungen. Die Kopie wird vor der ersten
 /// Anfrage in den Container gelegt; das Original bleibt unberuehrt, geschrieben wird nur in die Kopie im Container.

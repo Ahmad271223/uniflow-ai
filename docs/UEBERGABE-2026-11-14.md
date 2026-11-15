@@ -97,6 +97,8 @@ Immer `export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` setzen. 
 also `${C}:pfad` statt `$C:pfad`, weil `:a` sonst als Modifikator gilt.
 
 - **Tests:**
+  - **Seit 15.11.2026 zwei benannte Läufe** (`docs/TESTLAEUFE.md`): `tools/tests-schnell.sh` (ohne Lasttests, für
+    Agents und Sitzungen) und `tools/tests-voll.sh` (alles, einmal vor einem Build, nie zwei zugleich).
   - Python: `.venv/bin/python -m pytest -q -p no:cacheprovider --ignore=tests/test_pwa.py`
   - Browser-Logik: `node --test tests/js/`
   - Swift-Kern: im Ordner `apps/apple/Packages/UniFlowCore` `swift test`
@@ -105,7 +107,8 @@ also `${C}:pfad` statt `$C:pfad`, weil `:a` sonst als Modifikator gilt.
   - **Simulator:** immer einen Klon von `4495AA80-7860-4F6F-9FCD-C83CCED19021` nehmen
     (`xcrun simctl clone 4495AA80-… "Name"`). Frische Simulatoren haben kein StoreKit-Setup und keine deutsche Sprache.
   - **Wacklig unter Last** (einzeln grün):
-    - `test_modules_race.py::test_merge_duplicate_modules_keeps_everything`;
+    - `test_modules_race.py::test_merge_duplicate_modules_keeps_everything` (repariert am 15.11.2026, Ursache in
+      `docs/TESTLAEUFE.md`);
     - Playwright-Webtests (`test_web_overview`, `test_web_hosted_e2e`, `test_web_studyplan`);
     - `SyncAllPortalsTests.testUniMailRunsSideBySideWithQIS`.
 - **Release-Fallen:**

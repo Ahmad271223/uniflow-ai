@@ -15,6 +15,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest  # noqa: E402
 
+LASTTESTS = Path(__file__).with_name("lasttests.txt")
+
+
+def lasttests() -> set[str]:
+    """Eintraege aus tests/lasttests.txt als `datei.py::testname` (Kommentare und Leerzeilen weg)."""
+    out = set()
+    for line in LASTTESTS.read_text(encoding="utf-8").splitlines():
+        entry = line.split("#", 1)[0].strip()
+        if entry:
+            out.add(entry)
+    return out
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    """Marker `last` fuer die Lasttests aus tests/lasttests.txt (eine Liste an einer Stelle statt Dekoratoren in vielen
+    Dateien). tryfirst: der Marker muss stehen, bevor pytest `-m "not last"` auswertet. Ohne `-m` aendert das nichts:
+    der Aufruf ohne Optionen laesst weiter alles laufen (docs/TESTLAEUFE.md)."""
+    names = lasttests()
+    for item in items:
+        path = getattr(item, "path", None)
+        if path is None or path.parent != LASTTESTS.parent:
+            continue
+        test = item.nodeid.split("::", 1)[-1].split("[", 1)[0]
+        if f"{path.name}::{test}" in names:
+            item.add_marker(pytest.mark.last)
+
 
 def legacy_vault(user_id, values):
     """Altbestand im Tresor anlegen, wie ihn der Dienst bis 06.11.2026 schrieb (vault.set_values nimmt seitdem keine
