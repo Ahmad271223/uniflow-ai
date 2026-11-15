@@ -58,6 +58,11 @@ struct CreditShopSheet: View {
                         .accessibilityIdentifier("credits.shop.balance")
                 }
                 if canBuy {
+                    // Plus: was die Credits dort koennen (nur der KI-Chat), ehrlich vor dem Kauf
+                    if let scope = CreditText.scopeNote(balance) {
+                        Text(scope).ufFont(13.6, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("credits.shop.scope")
+                    }
                     VStack(spacing: 10) {
                         ForEach(link.creditPacks) { pack in packButton(pack) }
                     }
@@ -212,5 +217,43 @@ struct CreditShopCard: View {
             }
             .accessibilityIdentifier("plans.credits")
         }
+    }
+}
+
+/// Schloss "ab Pro AI" ueber einer Gruppe von KI-Knoepfen (Plus mit dem KI-Chat, 15.11.2026): die Knoepfe bleiben
+/// sichtbar, sind gedimmt und nicht antippbar; Antippen der Gruppe oeffnet die Tarifwahl mit Pro AI (kein toter Knopf).
+/// Ohne `plan` unveraendert.
+private struct UFPlanLockGroup: ViewModifier {
+    let plan: UFPlan?
+    let identifier: String
+    @Environment(\.ufShowPlans) private var showPlans
+    @State private var sheet: UFPlan?
+
+    func body(content: Content) -> some View {
+        if let plan {
+            content
+                .allowsHitTesting(false)
+                .opacity(0.5)
+                .overlay(alignment: .topTrailing) { UFLockMark(plan).padding(.trailing, 2) }
+                .contentShape(Rectangle())
+                .onTapGesture { if let showPlans { showPlans() } else { sheet = plan } }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(CreditText.chatLock)
+                .accessibilityValue(UFLock.accessibilityValue(plan))
+                .accessibilityHint(UFLock.hint)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { if let showPlans { showPlans() } else { sheet = plan } }
+                .accessibilityIdentifier(identifier)
+                .ufPlanSheet($sheet)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    /// Gruppe von Knoepfen mit dem Schloss "ab <Tarif>" sperren (nil: frei); Antippen oeffnet die Tarifwahl
+    func ufPlanLockGroup(_ plan: UFPlan?, identifier: String) -> some View {
+        modifier(UFPlanLockGroup(plan: plan, identifier: identifier))
     }
 }

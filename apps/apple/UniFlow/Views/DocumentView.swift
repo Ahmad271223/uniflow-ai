@@ -235,6 +235,8 @@ struct DocumentView: View {
     @EnvironmentObject private var router: UFRouter
     /// KI ueber das ChatGPT-Abo verbunden (Vorlesungsmarker; die KI-Hilfe zeigt ohne Verbindung den Weg dorthin)
     @Environment(\.ufAIEnabled) private var aiEnabled
+    /// nur der KI-Chat (Plus): die KI-Hilfe laesst sich oeffnen, Fragen geht aus gekauften Credits
+    @Environment(\.ufAIChatOnly) private var aiChatOnly
     @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @State private var showInfo = false
     @State private var showTrash = false
@@ -529,7 +531,9 @@ struct DocumentView: View {
 
     /// Schloss der KI-Stellen im Editor (KI-Hilfe, "KI fragen", "Bereich an KI"): ohne KI und ohne Pro AI "ab Pro AI"
     private var aiLock: UFPlan? {
-        UFLock.ai(.aiHelp, plan: entitlements.plan, aiEnabled: aiEnabled, offerHidden: proAIOfferHidden)
+        // Plus mit dem KI-Chat (15.11.2026): die KI-Hilfe oeffnet sich (Fragen geht), das Schloss sitzt dort an den
+        // Lernhilfe-Knoepfen
+        UFLock.ai(.aiHelp, plan: entitlements.plan, aiEnabled: aiEnabled || aiChatOnly, offerHidden: proAIOfferHidden)
     }
 
     /// Feste Werkzeugleiste (eigener Typ, damit `documentChrome` flach bleibt, `ViewTypeDepthAppTests`). In der einen
@@ -537,7 +541,7 @@ struct DocumentView: View {
     private func toolbarStrip(embedded: Bool = false) -> EditorToolbar {
         EditorToolbar(tools: tools.tools, mode: bridge.toolbar, undo: { [bridge] in bridge.undo() }, redo: { [bridge] in bridge.redo() },
                       onPick: { [bridge] t in bridge.toolbarPicked(t) },
-                      askAI: aiEnabled && !proAIOfferHidden && !embedded ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil,
+                      askAI: (aiEnabled || aiChatOnly) && !proAIOfferHidden && !embedded ? { [bridge] in bridge.controller?.askAIFromToolbar() } : nil,
                       askAILock: embedded ? nil : aiLock, atBottom: toolbarPlacement == .bottom, embedded: embedded)
     }
 
@@ -1064,7 +1068,7 @@ struct DocumentView: View {
                       foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
-                      onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled,
+                      onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled || aiChatOnly,
                       freezeMode: freeze.mode, traceContrast: freezeContrast, toolbarPlacement: toolbarPlacement)
             .ignoresSafeArea(edges: tracing ? .all : .bottom)
             .overlay(alignment: .bottom) { if !chromeHidden { pageInfo } }

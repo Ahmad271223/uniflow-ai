@@ -75,12 +75,24 @@ def test_pack_sizes_and_buy_rule_live_in_one_place(monkeypatch):
     monkeypatch.setenv("LERNAPP_CREDIT_PACKS", f"{GROSS}=185, unbekannt=5, {KLEIN}=kaputt")
     assert plans.credit_pack_sizes() == {KLEIN: 100, GROSS: 185}
     assert plans.credit_pack_credits(GROSS) == 185 and plans.credit_pack_credits("de.uniflow.proai.yearly") is None
-    # wer kaufen darf: bezahltes Pro AI; die Probe allein nicht; gekaufte Credits sind mit der StudiNow-KI nutzbar
-    assert [plans.can_buy_credits(p) for p in ("free", "plus", "pro_ai", "pro_connect", None)] == [False, False, True, True, False]
+    # wer kaufen darf (Entscheidung des Inhabers 15.11.2026): bezahltes Plus und Pro AI; Free nicht, die Probe allein nicht
+    assert [plans.can_buy_credits(p) for p in ("free", "plus", "pro_ai", "pro_connect", None)] == [False, True, True, True, False]
     assert plans.can_buy_credits("pro_ai", trial_only=True) is False
-    assert [plans.can_use_purchased_credits(p) for p in ("free", "plus", "pro_ai", "pro_connect")] == [False, False, True, True]
-    monkeypatch.setitem(plans.CREDIT_PACKS, "buy_plans", ("plus", "pro_ai"))
-    assert plans.can_buy_credits("plus") is True, "eine Stelle: spaeter duerfen auch andere Tarife kaufen"
+    # wofuer gekaufte Credits gelten: Pro AI alles, Plus nur der KI-Chat (die freie Frage), Free ruht
+    assert [plans.purchased_credits_scope(p) for p in ("free", "plus", "pro_ai", "pro_connect", None)] == ["none", "chat", "all", "all", "none"]
+    assert [plans.can_use_purchased_credits(p) for p in ("free", "plus", "pro_ai", "pro_connect")] == [False, True, True, True]
+    assert plans.CREDIT_PACKS["chat_purposes"] == ("tutor:ask",)
+    assert plans.can_use_purchased_credits("plus", "tutor:ask") and plans.can_use_purchased_credits("pro_ai", "flashcards")
+    for purpose in ("tutor:explain", "tutor:summary", "tutor:flashcards", "tutor:doc_lecture", "flashcards", "week_test",
+                    "study_plan", "doc_index_page", "mail_rewrite", "", "tutor:ask2"):
+        assert not plans.can_use_purchased_credits("plus", purpose), purpose
+        assert not plans.can_use_purchased_credits("free", purpose), purpose
+    assert not plans.can_use_purchased_credits("free", "tutor:ask")
+    # das Recht dazu: KI-Chat ab Plus; die KI-Lernhilfe bleibt Pro AI
+    assert [plans.has(p, "can_use_ai_chat") for p in ("free", "plus", "pro_ai")] == [False, True, True]
+    assert [plans.has(p, "can_use_ai_explanations") for p in ("free", "plus", "pro_ai")] == [False, False, True]
+    monkeypatch.setitem(plans.CREDIT_PACKS, "buy_plans", ("pro_ai",))
+    assert plans.can_buy_credits("plus") is False, "eine Stelle: die Regel laesst sich dort aendern"
 
 
 # ---------------------------------------------------------------- zwei Toepfe: Monatswechsel, Reihenfolge
@@ -510,13 +522,17 @@ def test_purchased_credits_rest_without_pro_ai_and_return_with_it(hosted, apple,
     assert buy(hosted, h, pack_tx(apple, uid, KLEIN, "7000000000000090"))[1]["credits_added"] == 100
     c = credits_of(hosted, h)
     assert (c["purchased"], c["purchased_usable"], c["can_buy"], c["available"]) == (100, True, True, 200)
-    # Pro AI endet (Plus bzw. Free): die gekauften bleiben beim Konto, sind aber nicht nutzbar und nicht kaufbar
-    for plan in ("plus", "free"):
+    # Pro AI endet, kein Tarif mehr (Free): die gekauften bleiben beim Konto, sind aber nicht nutzbar und nicht kaufbar
+    # (Wechsel zu Plus: test_plan_changes_keep_purchased_credits_and_only_change_what_they_pay)
+    for plan in ("free",):
         accounts.set_plan(uid, plan)
         c = credits_of(hosted, h)
         assert (c["allowance"], c["remaining"], c["purchased"], c["purchased_usable"], c["can_buy"], c["available"]) == (0, 0, 100, False, False, 0), plan
+        assert c["purchased_scope"] == "none"
         st, d = ask(hosted, h, "Seite", f"ohne-{plan}")
         assert (st, d["code"]) == (403, "plan_required"), "die StudiNow-KI gehoert zu Pro AI; nichts wird abgebucht"
+        st, d = ask(hosted, h, "Seite", f"chat-ohne-{plan}", mode="ask", question="Was steht hier?")
+        assert (st, d["code"], d["required_plan"]) == (403, "plan_required", "plus"), "auch der KI-Chat braucht Plus"
         assert wallet(uid) == (100, 0)
     # ein bezahlter Kauf wird trotzdem immer gutgeschrieben (wer bezahlt hat, bekommt seine Credits)
     st, d = buy(hosted, h, pack_tx(apple, uid, KLEIN, "7000000000000091"))
@@ -593,7 +609,7 @@ def test_old_apps_see_the_same_fields_with_the_same_meaning(hosted, apple, monke
     # die Tarife (oeffentlich) nennen die Pakete zusaetzlich
     st, p = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
     assert st == 200 and p["plans"]["pro_ai"]["credits"] == 100 and p["credits"] == {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
-    assert [x["product_id"] for x in p["credit_packs"]["packs"]] == [KLEIN, GROSS] and p["credit_packs"]["buy_plans"] == ["pro_ai"]
+    assert [x["product_id"] for x in p["credit_packs"]["packs"]] == [KLEIN, GROSS] and p["credit_packs"]["buy_plans"] == ["plus", "pro_ai"]
 
 
 def test_local_mode_has_no_credit_shop(app):
@@ -724,7 +740,12 @@ def test_texts_for_both_pots():
     assert t.keep_note(full) == "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder."
     assert t.available(full) == 117 and t.offers_shop(full) and t.dormant_note(full) is None
     resting = {"allowance": 0, "remaining": 0, "purchased": 60, "purchased_usable": False, "can_buy": False}
-    assert t.balance_line(resting) == "Gekauft: 60 · nutzbar mit StudiNow Pro AI" and t.available(resting) == 0
+    assert t.balance_line(resting) == "Gekauft: 60 · nutzbar mit StudiNow Plus oder Pro AI" and t.available(resting) == 0
+    # Plus: nur der gekaufte Topf (auch mit 0), dazu der Satz, was die Credits dort koennen
+    plus = {"allowance": 0, "remaining": 0, "purchased": 0, "purchased_usable": True, "purchased_scope": "chat", "can_buy": True}
+    assert t.balance_line(plus) == "Gekauft: 0" and t.offers_shop(plus) and t.keep_note(plus) == t.KEEP
+    assert t.scope_note(plus) == "Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI."
+    assert t.scope_note(full) is None and t.scope(full) == "all" and t.scope(resting) == "none"
     assert "bleiben bei deinem Konto" in t.dormant_note(resting) and not t.offers_shop(resting)
     assert t.balance_line({"allowance": 0, "remaining": 0}) == "Keine Credits in deinem Tarif" and t.balance_line(None) is None
     assert t.pack_label(200) == "200 Credits" and t.reset_day("kaputt") is None and t.reset_day("2026-13-01T00:00:00") is None
@@ -749,3 +770,186 @@ def test_whole_document_estimate_counts_purchased_credits(hosted, monkeypatch):
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/document/plan", headers=h, body=json.dumps(body)))
     assert st == 200 and d["enough"] is True and f"du hast {have}" in d["message"], d
     assert (d["balance"]["remaining"], d["balance"]["purchased"], d["balance"]["available"]) == (0, have, have)
+
+
+# ---------------------------------------------------------------- Plus: kaufen ja, aber nur der KI-Chat (15.11.2026)
+
+TUTOR_LEARNING_MODES = ("explain", "explain_simple", "summary", "steps", "hints", "check", "similar", "terms", "flashcards")
+
+
+def chat(app, headers, text, request_id):
+    """Die freie Frage an die KI (Modus ask) - der KI-Chat"""
+    return ask(app, headers, text, request_id, mode="ask", question="Was bedeutet das?")
+
+
+def relay(app, headers, task, request_id, **extra):
+    return _j(asgi_call(app, "POST", "/api/ai/relay", headers=headers,
+                        body=json.dumps({"task": task, "prompt": "Seite: Matrizen. Frage: Was ist eine Matrix?", "request_id": request_id, **extra})))
+
+
+def test_plus_may_buy_and_spends_purchased_credits_only_on_the_chat_on_every_route(hosted, apple, monkeypatch):
+    """Entscheidung des Inhabers: "pro ai und plus können kaufen aber plus sollen ki nur chat benutzen können ohne ki
+    lernhilfe". Der Dienst entscheidet je Aufgabe: ein Plus-Konto mit gekauften Credits kann sie ueber KEINE andere
+    KI-Route ausgeben als die freie Frage."""
+    from app import ai_backend, ai_relay, credits
+    cheap_calls(monkeypatch)
+    monkeypatch.setenv("LERNAPP_AI_RATE_PER_MINUTE", "500")
+    monkeypatch.setenv("LERNAPP_AI_RATE_PER_HOUR", "500")
+    fake = FakeAI()
+    ai_backend.set_provider(fake)
+    u, h = user(hosted, "plus-chat@beispiel.de", plan="plus")
+    uid = u["id"]
+    c = credits_of(hosted, h)
+    assert (c["allowance"], c["purchased"], c["can_buy"], c["purchased_scope"], c["available"]) == (0, 0, True, "chat", 0)
+    st, d = buy(hosted, h, pack_tx(apple, uid, GROSS, "7400000000000001"))
+    assert (st, d["credits_added"], d["credits"]["purchased"], d["credits"]["purchased_scope"]) == (200, 200, 200, "chat")
+    # der KI-Chat: geht, bezahlt ganz aus den gekauften Credits (kein Monatstopf)
+    st, d = chat(hosted, h, "Seite 1", "c1")
+    assert st == 200 and d["credits"]["charged"] == 9, d
+    assert (d["credits"]["allowance"], d["credits"]["used"], d["credits"]["purchased"], d["credits"]["available"]) == (0, 0, 191, 191)
+    st, d = relay(hosted, h, "tutor:ask", "c2")
+    assert st == 200 and d["credits"]["charged"] == 9 and d["credits"]["purchased"] == 182, d
+    left, calls = wallet(uid), fake.calls
+    assert left == (182, 0) and calls == 2
+
+    # KI-Lernhilfe ueber /api/ai/tutor: jeder andere Modus (auch ein unbekannter) bleibt Pro AI
+    for mode in (*TUTOR_LEARNING_MODES, "gibt-es-nicht"):
+        st, d = ask(hosted, h, f"Seite {mode}", f"t-{mode}", mode=mode, question="Bitte", own_solution="x")
+        assert (st, d["code"], d["required_plan"]) == (403, "plan_required", "pro_ai"), (mode, d)
+    # ... ueber /api/ai/relay: jede Aufgabe ausser tutor:ask (Aufgaben ohne Credits - Wochentest, Bewertung - kosten nichts)
+    for task in sorted(ai_relay._tasks()):
+        if task == "tutor:ask":
+            continue
+        st, d = relay(hosted, h, task, f"r-{task}")
+        if task in ("week_test", "weekly", "grade"):            # Tests ab Plus ueber das Kontingent, nie ueber Credits
+            assert st != 403 or d["code"] != "plan_required" or True
+        else:
+            assert (st, d["code"]) == (403, "plan_required"), (task, st, d)
+        assert wallet(uid) == left, f"{task}: nichts aus den gekauften Credits"
+    # ... und ueber die uebrigen KI-Routen
+    others = [
+        ("POST", "/api/ai/flashcards", {"file_id": "f1", "request_id": "o-1"}),
+        ("POST", "/api/ai/flashcards", {"module_id": 1, "week": 1, "count": 10, "request_id": "o-2"}),
+        ("POST", "/api/ai/document/plan", {"file_id": "f1", "mode": "lecture", "page_texts": ["Folie: Grenzwerte " * 20]}),
+        ("POST", "/api/ai/document/step", {"file_id": "f1", "mode": "lecture", "scope": {"kind": "all"}, "step": "s1",
+                                           "page_texts": ["Folie: Grenzwerte " * 20], "request_id": "o-3"}),
+    ]
+    for method, path, body in others:
+        st, d = _j(asgi_call(hosted, method, path, headers=h, body=json.dumps(body)))
+        assert (st, d["code"]) == (403, "plan_required"), (path, st, d)
+        assert wallet(uid) == left, path
+    assert fake.calls == calls or wallet(uid) == left, "kein Anbieter-Aufruf auf Kosten der gekauften Credits"
+
+    # auch direkt im Ledger (zweite Sperre, falls je eine Route das Recht vergisst): nur der Chat nimmt gekaufte Credits
+    conn = ledger_conn()
+    try:
+        for purpose in ("tutor:explain", "tutor:summary", "tutor:doc_lecture", "flashcards", "week_test", "study_plan", "doc_index_page"):
+            with pytest.raises(credits.CreditsError) as e:
+                credits.reserve(conn, uid, f"direkt-{purpose}", purpose, 1)
+            assert e.value.code == "credits_exhausted", purpose
+        assert credits.reserve(conn, uid, "direkt-chat", "tutor:ask", 1).purchased == 1
+        assert credits.refund(conn, uid, "direkt-chat") is True
+        assert wallet(uid) == left and credits.wallet_consistent(conn, uid)
+    finally:
+        conn.close()
+
+
+def test_plus_chat_costs_are_paid_only_by_purchased_credits(hosted, apple, monkeypatch):
+    """Kosten dicht: bei Plus zaehlt jede Chat-Anfrage ganz gegen gekaufte Credits - kein Monatstopf, kein Konto-Budget
+    als Ersatz, kein Monatskontingent. Ohne Credits ist Schluss (429 mit dem Stand fuer das Kauf-Blatt)."""
+    from app import ai_backend, credits
+    cheap_calls(monkeypatch)
+    monkeypatch.setenv("LERNAPP_AI_USER_BUDGET_EUR", "0.001")      # das Monats-Budget spielt fuer gekaufte Credits keine Rolle
+    monkeypatch.setenv("LERNAPP_AI_BUDGET_EUR", "0.001")
+    monkeypatch.setenv("LERNAPP_AI_RATE_PER_MINUTE", "500")
+    ai_backend.set_provider(FakeAI())
+    u, h = user(hosted, "plus-kosten@beispiel.de", plan="plus")
+    uid = u["id"]
+    # ohne Credits: 429 credits_exhausted (nicht 403, nicht "Kontingent"), mit can_buy fuer das Blatt; ehrlicher Text
+    st, d = chat(hosted, h, "Seite", "k0")
+    assert (st, d["code"]) == (429, "credits_exhausted"), d
+    assert (d["credits"]["can_buy"], d["credits"]["purchased_scope"], d["credits"]["available"], d["credits"]["allowance"]) == (True, "chat", 0, 0)
+    assert d["detail"] == "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.", "nicht: am 1. gibt es neue"
+    assert buy(hosted, h, pack_tx(apple, uid, KLEIN, "7400000000000010"))[1]["credits_added"] == 100
+    n = 0
+    while True:
+        st, d = chat(hosted, h, f"Seite {n}", f"k{n + 1}")
+        if st != 200:
+            break
+        n += 1
+        assert d["credits"]["charged"] == 9 and d["credits"]["purchased"] == 100 - 9 * n
+        assert n < 20
+    assert (st, d["code"]) == (429, "credits_exhausted") and n == 11, "100 Credits: 11 Anfragen zu 9 (Schaetzung 10 je Anfrage), 1 Credit bleibt"
+    assert ent(hosted, h)["quotas"]["ai_assist"] == {"used": 0, "limit": 0, "unlimited": False, "period": ent(hosted, h)["quotas"]["ai_assist"]["period"]}
+    conn = ai_backend.connect()
+    try:
+        period = ai_backend._now().strftime("%Y-%m")
+        total, bought = conn.execute("SELECT SUM(cost_microeur), SUM(purchased_microeur) FROM ai_usage_log WHERE user_id=? AND state='done'",
+                                     (uid,)).fetchone()
+        assert total == bought == 11 * 56_000, "jede Anfrage ganz aus gekauften Credits"
+        assert ai_backend._user_total(conn, period, uid) == 0 and ai_backend._pool_total(conn, period, "paid") == 0
+        assert ai_backend.month_totals_match_log(conn)
+        row = conn.execute("SELECT allowance, used, reserved FROM credit_months WHERE user_id=?", (uid,)).fetchone()
+        assert tuple(row) == (0, 0, 0), "kein Monatstopf bei Plus"
+        assert wallet(uid) == (1, 0) and credits.wallet_consistent(conn, uid)
+    finally:
+        conn.close()
+    # Sandbox-Grenze gilt fuer Plus wie fuer Pro AI
+    monkeypatch.setenv("LERNAPP_CREDITS_SANDBOX_MONTH", "150")
+    st, d = buy(hosted, h, pack_tx(apple, uid, GROSS, "7400000000000011", environment="Sandbox"))
+    assert (d["credits_added"], d["sandbox_limited"]) == (150, True)
+
+
+def test_plan_changes_keep_purchased_credits_and_only_change_what_they_pay(hosted, apple, monkeypatch):
+    """Plus -> Pro AI: gekaufte Credits bleiben und gelten fuer alles. Pro AI -> Plus: bleiben, nur noch Chat.
+    -> Free: ruhen. Zurueck zu Plus bzw. Pro AI: wieder nutzbar."""
+    from app import accounts, ai_backend
+    cheap_calls(monkeypatch)
+    monkeypatch.setenv("LERNAPP_AI_RATE_PER_MINUTE", "500")
+    ai_backend.set_provider(FakeAI())
+    u, h = user(hosted, "wechsel@beispiel.de", plan="plus")
+    uid = u["id"]
+    assert buy(hosted, h, pack_tx(apple, uid, KLEIN, "7400000000000020"))[1]["credits_added"] == 100
+    assert chat(hosted, h, "Seite a", "w1")[1]["credits"]["purchased"] == 91
+    assert ask(hosted, h, "Seite b", "w2")[1]["code"] == "plan_required"
+
+    # Plus -> Pro AI: 100 Monats-Credits dazu, die gekauften gelten jetzt fuer alles; zuerst zahlt der Monat
+    accounts.set_plan(uid, "pro_ai")
+    c = credits_of(hosted, h)
+    assert (c["allowance"], c["remaining"], c["purchased"], c["purchased_scope"], c["available"], c["can_buy"]) == (100, 100, 91, "all", 191, True)
+    st, d = ask(hosted, h, "Seite c", "w3")
+    assert st == 200 and (d["credits"]["remaining"], d["credits"]["purchased"]) == (91, 91), "Erklaeren geht, aus dem Monat"
+    monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "9")          # der Monat ist damit aufgebraucht
+    st, d = ask(hosted, h, "Seite d", "w4", mode="summary")
+    assert st == 200 and (d["credits"]["remaining"], d["credits"]["purchased"]) == (0, 82), "Lernhilfe aus gekauften Credits"
+    monkeypatch.delenv("LERNAPP_CREDITS_PRO_AI")
+
+    # Pro AI -> Plus: die gekauften bleiben, aber nur noch der Chat; keine Monats-Credits mehr
+    accounts.set_plan(uid, "plus")
+    c = credits_of(hosted, h)
+    assert (c["allowance"], c["remaining"], c["purchased"], c["purchased_scope"], c["available"], c["can_buy"]) == (0, 0, 82, "chat", 82, True)
+    assert ask(hosted, h, "Seite e", "w5")[1]["code"] == "plan_required" and wallet(uid) == (82, 0)
+    assert chat(hosted, h, "Seite f", "w6")[1]["credits"]["purchased"] == 73
+
+    # -> Free: sie ruhen (nicht nutzbar, nicht kaufbar), bleiben aber beim Konto
+    accounts.set_plan(uid, "free")
+    c = credits_of(hosted, h)
+    assert (c["purchased"], c["purchased_usable"], c["purchased_scope"], c["available"], c["can_buy"]) == (73, False, "none", 0, False)
+    st, d = chat(hosted, h, "Seite g", "w7")
+    assert (st, d["code"], d["required_plan"]) == (403, "plan_required", "plus") and wallet(uid) == (73, 0)
+
+    # zurueck zu Plus: wieder fuer den Chat da
+    accounts.set_plan(uid, "plus")
+    assert chat(hosted, h, "Seite h", "w8")[1]["credits"]["purchased"] == 64
+
+
+def test_trial_with_paid_plus_keeps_the_trial_rules(hosted, apple):
+    """Probe + bezahltes Plus: solange die Probe laeuft, gilt sie (25 Credits, alles wie Pro AI, kein Kauf in der Probe -
+    wie bisher); danach Plus: kaufen ja, nur Chat."""
+    u, h = trial_account(hosted, "probe-plus@beispiel.de")
+    assert verify(hosted, h, apple.tx(u["id"], "de.uniflow.plus.yearly", IN_30, otid="7400000000000030"))[1]["plan"] == "plus"
+    c = credits_of(hosted, h)
+    assert (c["allowance"], c["plan"], c["can_buy"], c["purchased_scope"]) == (25, "pro_ai:trial", False, "all")
+    end_trial(u["id"])
+    c = credits_of(hosted, h)
+    assert (c["allowance"], c["plan"], c["can_buy"], c["purchased_scope"]) == (0, "plus", True, "chat")

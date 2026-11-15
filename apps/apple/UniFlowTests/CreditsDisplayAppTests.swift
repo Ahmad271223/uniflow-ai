@@ -135,8 +135,17 @@ final class CreditsDisplayAppTests: XCTestCase {
         let bought = StudoraCredits.parse(balance(used: 100, remaining: 0, extra: ["purchased": 80, "purchased_usable": true, "can_buy": true]))
         XCTAssertEqual(AICost.balanceLine(bought, labelled: false), "Diesen Monat: 0 von 100 (neu am 1. Dezember) · Gekauft: 80")
         XCTAssertEqual(bought?.available, 80)
-        let resting = StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "plus", extra: ["purchased": 60, "purchased_usable": false]))
-        XCTAssertEqual(AICost.balanceLine(resting), "Credits gekauft: 60 · nutzbar mit StudiNow Pro AI")
+        let resting = StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "free", extra: ["purchased": 60, "purchased_usable": false]))
+        XCTAssertEqual(AICost.balanceLine(resting), "Credits gekauft: 60 · nutzbar mit StudiNow Plus oder Pro AI")
+        // Plus (15.11.2026): nur der gekaufte Topf, auch mit 0 - kein "Diesen Monat: x von 100"
+        let plus = StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "plus",
+                                                extra: ["purchased": 40, "purchased_usable": true, "purchased_scope": "chat", "can_buy": true]))
+        XCTAssertEqual(AICost.balanceLine(plus, labelled: false), "Gekauft: 40")
+        XCTAssertEqual(plus?.purchasedScope, .chat)
+        XCTAssertEqual(plus?.available, 40)
+        let plusEmpty = StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "plus",
+                                                     extra: ["purchased": 0, "purchased_usable": true, "purchased_scope": "chat", "can_buy": true]))
+        XCTAssertEqual(AICost.balanceLine(plusEmpty), "Credits gekauft: 0")
         XCTAssertEqual(resting?.available, 0)
         // Free/Plus/Pro Connect: kein Rahmen, ehrlich gesagt
         XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "plus"))), "Keine Credits in deinem Tarif")
@@ -223,6 +232,7 @@ final class CreditsDisplayAppTests: XCTestCase {
         XCTAssertTrue(t.contains("25"))
         XCTAssertTrue(t.contains("Tarif wechseln"))
         XCTAssertTrue(t.contains("Gekaufte Credits verfallen nicht"), "zwei Toepfe (15.11.2026)")
+        XCTAssertTrue(t.contains("mit Plus reichen sie für Fragen an die KI"), "Plus: nur der KI-Chat")
         XCTAssertLessThanOrEqual(t.filter { $0 == "." }.count, 3, "kurz: hoechstens drei Saetze")
     }
 }

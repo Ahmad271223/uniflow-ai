@@ -197,6 +197,7 @@ def test_whole_page_is_shared_and_costs_nothing_the_second_time(pc, monkeypatch)
 
 @pytest.mark.parametrize("case,status,code", [
     ("plus", 403, "plan_required"),
+    ("plus_chat", 429, "credits_exhausted"),
     ("unverified", 403, "email_unverified"),
     ("no_credits", 429, "credits_exhausted"),
     ("trial_over", 402, "subscription_required"),
@@ -206,10 +207,12 @@ def test_service_errors_reach_the_pc_unchanged(pc, monkeypatch, case, status, co
     cheap_calls(monkeypatch)
     if case == "no_credits":
         monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "0")
-    plan = {"plus": "plus", "trial_over": "free"}.get(case, "pro_ai")
+    plan = {"plus": "plus", "plus_chat": "plus", "trial_over": "free"}.get(case, "pro_ai")
     account(app, f"{case}@beispiel.de", plan=plan, verified=case != "unverified")
     link(app, f"{case}@beispiel.de")
-    st, d = tutor(app, mode="ask", page_text="Seite", question="Was steht hier?")
+    # Plus (15.11.2026): die freie Frage ist der KI-Chat (ohne gekaufte Credits 429), Erklaeren bleibt Pro AI (403)
+    st, d = (tutor(app, mode="explain", page_text="Seite") if case == "plus"
+             else tutor(app, mode="ask", page_text="Seite", question="Was steht hier?"))
     assert (st, d["code"]) == (status, code), d
     assert isinstance(d["detail"], str) and d["detail"]
     if case == "plus":

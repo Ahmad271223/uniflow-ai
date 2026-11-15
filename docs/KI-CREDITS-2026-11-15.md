@@ -11,6 +11,10 @@ Rechnung, 9 was in App Store Connect anzulegen ist, 10 die Textvorschläge, 11 d
 - Gekaufte Credits bleiben, bis sie verbraucht sind.
 - Nachträge vom 15.11.: **1 Credit = 0,65 Cent** echte KI-Kosten (vorher 0,9), überall gleich – Monats-Credits, Probe
   und gekaufte Credits. Kleines Paket **100 Credits für 1,99 €**, großes Paket **200 Credits für 3,99 €**.
+- Entscheidung vom 15.11. zu „wer darf kaufen“ (wörtlich: „pro ai und plus können kaufen aber plus sollen ki nur chat
+  benutzen können ohne ki lernhilfe also nur ki chat eingebaut“): **Plus und Pro AI kaufen. Plus nutzt gekaufte Credits
+  nur für den KI-Chat** (die freie Frage an die KI); die KI-Lernhilfe (Erklären, Karteikarten, Tests, Lernplan,
+  Zusammenfassungen, KI-Mail) bleibt Pro AI. Free kauft nicht.
 
 ## 2. Zwei Töpfe je Konto (Dienst, `app/credits.py`)
 
@@ -21,12 +25,24 @@ Rechnung, 9 was in App Store Connect anzulegen ist, 10 die Textvorschläge, 11 d
 
 - **Verbrauch:** zuerst die Monats-Credits, erst danach die gekauften (ältester Kauf zuerst). Eine Anfrage kann aus
   beiden Töpfen bezahlt werden (Rest des Monats + gekaufte).
-- **Nutzbar** sind gekaufte Credits, solange das Konto die StudiNow-KI hat (Pro AI oder laufende Probe;
-  `plans.can_use_purchased_credits`). Ohne Pro AI ruhen sie beim Konto und sind wieder da, sobald Pro AI wieder läuft.
-- **Kaufen** darf, wer bezahltes Pro AI hat. Diese Regel steht an EINER Stelle: `plans.CREDIT_PACKS["buy_plans"]`
-  (dazu `buy_in_trial`). Der Dienst liefert sie als `credits.can_buy`; die App fragt nur dieses Feld. Sollen später auch
-  Plus oder Free kaufen dürfen: dort eintragen, sonst nichts.
-  Der Dienst verbucht einen bezahlten Kauf trotzdem immer (wer bezahlt hat, bekommt seine Credits).
+- **Wofür gekaufte Credits gelten** (`plans.purchased_credits_scope`, im Stand als `purchased_scope`):
+
+  | Tarif | Gekaufte Credits gelten für | Monats-Credits |
+  |---|---|---|
+  | Pro AI, laufende Probe | alles (`all`) | 100 bzw. 25 |
+  | Plus | nur den KI-Chat (`chat`): die freie Frage, Aufgabe `tutor:ask` | keine |
+  | Free | nichts (`none`): sie ruhen beim Konto | keine |
+
+  Wechsel: Plus → Pro AI: die Credits bleiben und gelten für alles. Pro AI → Plus: sie bleiben, nur noch Chat.
+  → Free: sie ruhen und sind wieder da, sobald Plus oder Pro AI läuft.
+- **Der Dienst entscheidet je Aufgabe, an zwei Stellen:** am Recht der Route (neues Recht `can_use_ai_chat` ab Plus für
+  die freie Frage; alle anderen KI-Routen verlangen weiter die Pro-AI-Rechte) und beim Reservieren der Credits
+  (`credits.reserve` nimmt gekaufte Credits bei Plus nur für `CREDIT_PACKS["chat_purposes"]`). Über keine andere
+  KI-Route kann ein Plus-Konto Credits ausgeben (Test je Route in `tests/test_credit_packs.py`).
+- **Kaufen** darf, wer bezahltes Plus oder Pro AI hat; Free nicht, und solange nur die Probe die KI trägt, auch nicht
+  (auch nicht mit bezahltem Plus in der Probewoche – dort gelten die 25 Probe-Credits). Diese Regel steht an EINER
+  Stelle: `plans.CREDIT_PACKS["buy_plans"]` (dazu `buy_in_trial`). Der Dienst liefert sie als `credits.can_buy`; die App
+  fragt nur dieses Feld. Der Dienst verbucht einen bezahlten Kauf trotzdem immer (wer bezahlt hat, bekommt seine Credits).
 - **Paketgröße** ist EINE Einstellung im Dienst: `plans.CREDIT_PACKS["packs"]` (Credits je Produkt-ID, änderbar mit
   `LERNAPP_CREDIT_PACKS`, z. B. `de.uniflow.credits.gross=185`). Die App zeigt die Zahl vom Dienst und den Preis aus
   StoreKit. Die Produkt-IDs tragen keine Zahl: `de.uniflow.credits.klein`, `de.uniflow.credits.gross`.
@@ -67,6 +83,9 @@ gekauften Credits weichen es nicht auf.
   bezahlt, wenn sie dafür reichen. So blockiert das Monats-Budget gekaufte Credits nie.
 - Das Monatskontingent „150 KI-Anfragen“ (`ai_assist`) sperrt nicht, solange gekaufte Credits da sind; das Rate-Limit
   (6 je Minute, 60 je Stunde) gilt weiter.
+- **Plus:** kein Monatstopf, kein Monatskontingent, kein Konto-Budget als Ersatz – jede Chat-Anfrage wird ganz aus
+  gekauften Credits bezahlt. Ohne Credits antwortet der Dienst `429 credits_exhausted` („Du hast keine Credits mehr.
+  Credits kaufst du in der App für iPhone und iPad.“) mit dem Stand; die App zeigt dann die Pakete.
 - **Kaufe aus der Testumgebung** (Sandbox: TestFlight, Prüfung durch Apple – ohne Geld) zählen, sonst fiele die Prüfung
   durch, aber höchstens `LERNAPP_CREDITS_SANDBOX_MONTH` Credits je Konto und Monat (Standard 400 = höchstens 2,60 €).
   Ohne diese Grenze könnte ein Tester beliebig viele Pakete kostenlos kaufen.
@@ -116,6 +135,9 @@ Stripe im Web) füllt später denselben Topf mit eigener Quelle.
 - Fehlertext und Code bei leeren Credits bleiben für alte Apps gleich („Credits für diesen Monat aufgebraucht – am 1.
   gibt es neue.“, `credits_exhausted`, Knopf „Tarif ansehen“).
 - `credit_eur` in den Antworten ist jetzt 0.0065 statt 0.009 (die Apps zeigen den Wert nicht).
+- Plus in alten Apps: die iPad-App schickt mit Plus nichts an die StudiNow-KI (wie bisher, Tarif-Hinweis). Fragt ein
+  Plus-Konto über Web oder Windows mit der freien Frage, antwortet der Dienst jetzt 429 (keine Credits) statt 403
+  (Tarif) bzw. beantwortet sie aus gekauften Credits.
 
 ## 7. Aufbau
 
@@ -123,9 +145,9 @@ Stripe im Web) füllt später denselben Topf mit eigener Quelle.
 
 | Datei | Was |
 |---|---|
-| `app/plans.py` | `CREDIT_PACKS` (Pakete, Kaufregel, Nutzungsrecht), `credit_packs()`, `credit_pack_credits()`, `can_buy_credits()`, `can_use_purchased_credits()`; Vertrag `credit_packs` |
+| `app/plans.py` | `CREDIT_PACKS` (Pakete, Kaufregel, Nutzungsrecht), `credit_packs()`, `credit_pack_credits()`, `can_buy_credits()`, `purchased_credits_scope()`, `can_use_purchased_credits(plan, purpose)`; Recht `can_use_ai_chat` (ab Plus); Vertrag `credit_packs` |
 | `app/ai_prices.py` | `MICROEUR_PER_CREDIT = 6_500` |
-| `app/credits.py` | Tabellen `credit_wallets`, `credit_purchases`; Spalten `reserved_purchased`, `charged_purchased`, `purchased_microeur` an `credit_ledger`; `reserve`/`settle`/`refund` mit zwei Töpfen; `grant_purchase`, `refund_purchase`, `restore_purchase`; Stand mit `purchased`, `purchased_usable`, `available`, `can_buy` |
+| `app/credits.py` | Tabellen `credit_wallets`, `credit_purchases`; Spalten `reserved_purchased`, `charged_purchased`, `purchased_microeur` an `credit_ledger`; `reserve`/`settle`/`refund` mit zwei Töpfen; `grant_purchase`, `refund_purchase`, `restore_purchase`; Stand mit `purchased`, `purchased_usable`, `purchased_scope`, `available`, `can_buy` |
 | `app/ai_backend.py` | Spalte `ai_usage_log.purchased_microeur`, Trigger und Monatssummen ohne den gekauften Teil, Ausweichen auf „ganz aus gekauften Credits“, `month_report.purchased_cost_eur` |
 | `app/apple_store.py` | `apply_credit_purchase`, `verify_credit_purchase`, Pakete in `verify_purchase` und `handle_notification`, Grenze für Sandbox-Käufe |
 | `app/billing_api.py` | `POST /api/billing/credits/apple`; `credit_packs` in `GET /api/entitlements` |
@@ -136,9 +158,10 @@ Stripe im Web) füllt später denselben Topf mit eigener Quelle.
 Felder (alle neu und zusätzlich):
 
 - `credits` (in `GET /api/entitlements`, KI-Antworten, 429): `purchased` (gekaufte, frei), `purchased_usable`,
-  `available` (Rest des Monats + nutzbare gekaufte), `can_buy`.
+  `purchased_scope` (`all` | `chat` | `none`), `available` (Rest des Monats + nutzbare gekaufte), `can_buy`.
 - `credit_packs` (in `GET /api/entitlements`): `packs: [{product_id, credits}]`, `purchase.apple/web {available, note}`.
-- `GET /api/billing/plans`: `credit_packs {packs [{product_id, credits, price_cents, currency}], buy_plans, buy_in_trial, use_right}`.
+- `GET /api/billing/plans`: `credit_packs {packs [{product_id, credits, price_cents, currency}], buy_plans, buy_in_trial, use_right,
+  chat_right, chat_purposes}`; `entitlements.can_use_ai_chat`.
 - `POST /api/billing/credits/apple` → `{status, credits_added, credits_removed, product_id, transaction_id, environment,
   other_account, sandbox_limited, credits}`; `status`: `granted | already_granted | refunded | already_refunded`.
   Fehler: 400 `jws_invalid`/`unknown_product`/`wrong_app`, 400 `jws_untrusted`, 401, 503 `apple_not_configured`.
@@ -164,13 +187,27 @@ der lokalen Datenbank der App.
 
 - Blatt nur über `.ufSheet`; Preise nur aus `Product.displayPrice`; Zahl der Credits vom Dienst.
 - Anzeige: „Diesen Monat: x von 100 (neu am 1. Dezember) · Gekauft: y“ – der Zusatz in Klammern gehört zum Monat.
-- Wer nicht kaufen darf (Probe, Plus, Free), sieht bei leeren Credits wie bisher „Tarif ansehen“; ruhende gekaufte
-  Credits nennt die App ehrlich („… bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Pro AI läuft“).
+- Wer nicht kaufen darf (Probe, Free), sieht bei leeren Credits wie bisher „Tarif ansehen“; ruhende gekaufte
+  Credits nennt die App ehrlich („… bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Plus oder Pro AI
+  läuft“).
+- **Plus (nur der KI-Chat):** `StudoraAccountLink.aiChatOnly` (Regel `StudiNowAIAccess.chatOnly`); ins Backend hängt
+  `StudiNowChatAI`, das nur die freie Frage an den Dienst gibt. Die KI-Hilfe im Dokument öffnet sich: Eingabefeld und
+  Anschlussfragen gehen, die Knöpfe unter „Erklären“, „Karteikarten“ und „Test“ tragen das Schloss „ab Pro AI“
+  (Antippen öffnet die Tarifwahl), darunter steht „Mit StudiNow Plus stellst du der KI Fragen. Erklären, Karteikarten
+  und Tests gibt es mit StudiNow Pro AI.“ Auf KI-Start ist „Fragen“ frei, die anderen Kacheln bleiben gesperrt; „KI
+  fragen“ bei Testaufgaben geht. Alle übrigen KI-Stellen (Karteikarten erstellen, Wochentest, KI-Lernplan, KI-Mail)
+  bleiben wie bisher gesperrt „ab Pro AI“. Anzeige: „Gekauft: y“. Das Kauf-Blatt nennt vor dem Kauf, was Plus mit
+  Credits kann. Die KI-Einwilligung beim ersten Senden gilt wie bei Pro AI (sie sitzt in der StudiNow-KI selbst).
+- Tarifkarten: Plus „KI-Chat mit gekauften Credits“, Pro AI „KI-Lernhilfe zu deinen Unterlagen … mit 100 Credits im
+  Monat, weitere Credits zum Nachkaufen“ (`UFFeature.aiChat`, `UFEntitlement.canUseAIChat`).
 
 ### Web und Windows
 
 Stand beider Töpfe in der KI-Hilfe und auf „Abo & Tarife“ mit dem Hinweis „Credits kaufst du in der App für iPhone und
-iPad.“ (`app/static/credit-packs-logic.js`). Kaufen gibt es dort noch nicht.
+iPad.“ (`app/static/credit-packs-logic.js`). Kaufen gibt es dort noch nicht. Plus sieht „Gekauft: y“ und den Satz, dass
+Credits dort für Fragen an die KI reichen; die Tarifkarten nennen „KI-Chat mit gekauften Credits“ (Plus) und „weitere
+Credits zum Nachkaufen“ (Pro AI). Die KI-Hilfe im Web ist für Plus nicht umgebaut (keine Schlösser an den
+Lernhilfe-Knöpfen): der Dienst lässt dort nur die freie Frage durch und weist alles andere mit dem Tarif-Hinweis ab.
 
 ## 8. Rechnung je Paket (Deutschland, 19 % Umsatzsteuer)
 
@@ -226,14 +263,16 @@ bis zum nächsten Monat nicht zur Verfügung, alle anderen Funktionen bleiben.�
 
 Neuer Absatz:
 
-> **Credit-Pakete.** Mit StudiNow Pro AI kannst du in der App für iPhone, iPad und Mac zusätzliche Credits für die KI
+> **Credit-Pakete.** Mit StudiNow Plus oder Pro AI kannst du in der App für iPhone, iPad und Mac Credits für die KI
 > von StudiNow kaufen (Stand: 100 Credits für 1,99 € und 200 Credits für 3,99 € inkl. USt; den Preis zeigt die App vor
 > dem Kauf). Das ist ein einmaliger Kauf über deine Apple-ID, kein Abo. Gekaufte Credits gehören zu deinem
-> StudiNow-Konto, gelten auf allen deinen Geräten und verfallen nicht. Verbraucht werden zuerst deine Monats-Credits,
-> danach die gekauften. Gekaufte Credits kannst du nutzen, solange du StudiNow Pro AI hast; endet Pro AI, bleiben sie
-> bei deinem Konto und sind wieder nutzbar, sobald Pro AI wieder läuft. Gekaufte Credits lassen sich nicht in Geld
-> umtauschen, nicht auszahlen und nicht auf ein anderes Konto übertragen. Löschst du dein StudiNow-Konto, verfallen
-> noch vorhandene gekaufte Credits mit dem Konto.
+> StudiNow-Konto, gelten auf allen deinen Geräten und verfallen nicht. Mit Pro AI werden zuerst deine Monats-Credits
+> verbraucht, danach die gekauften; sie gelten dort für alle KI-Funktionen. Mit Plus gelten gekaufte Credits nur für
+> den KI-Chat, also für Fragen an die KI; Erklärungen, Karteikarten, Tests und die übrige KI-Lernhilfe gibt es mit
+> Pro AI. Plus enthält keine Monats-Credits. Endet dein Tarif (Free), bleiben gekaufte Credits bei deinem Konto und
+> sind wieder nutzbar, sobald Plus oder Pro AI wieder läuft. Gekaufte Credits lassen sich nicht in Geld umtauschen,
+> nicht auszahlen und nicht auf ein anderes Konto übertragen. Löschst du dein StudiNow-Konto, verfallen noch
+> vorhandene gekaufte Credits mit dem Konto.
 >
 > **Erstattung und Widerruf.** Vertragspartner für den Kauf ist Apple. Erstattungen beantragst du bei Apple
 > (reportaproblem.apple.com). Erstattet Apple einen Kauf, entfernen wir die noch nicht verbrauchten Credits dieses
@@ -242,7 +281,9 @@ Neuer Absatz:
 
 (Den letzten Satz bitte rechtlich prüfen lassen; bei Käufen über Apple gelten Apples Bedingungen.)
 
-In der Tabelle der Tarife zusätzlich eine Zeile: „Credit-Pakete zum Nachkaufen (verfallen nicht) | – | – | ✓“.
+In der Tabelle der Tarife zusätzlich zwei Zeilen: „KI-Chat (Fragen an die KI) mit gekauften Credits | – | ✓ | ✓“ und
+„Credit-Pakete zum Nachkaufen (verfallen nicht) | – | ✓ | ✓“. Im Absatz zu Plus ergänzen: „Mit Plus kannst du Credits
+kaufen und der KI damit Fragen stellen (KI-Chat); Plus enthält keine Monats-Credits.“
 
 ### Datenschutz
 
@@ -265,28 +306,38 @@ Beschreibung, im Absatz zu Pro AI:
 > Credits aufgebraucht? Mit Pro AI kannst du Credits nachkaufen: 100 oder 200 Credits als einmaligen Kauf. Gekaufte
 > Credits verfallen nicht.
 
+Beschreibung, im Absatz zu Plus:
+
+> Neu mit Plus: KI-Chat. Kaufe Credits und stelle der KI Fragen zu deinen Unterlagen. Erklärungen, Karteikarten und
+> Tests gibt es mit Pro AI.
+
 Neu in dieser Version:
 
-> Neu: Credits nachkaufen. Sind deine Monats-Credits für die StudiNow-KI aufgebraucht, holst du dir mit Pro AI 100 oder
-> 200 Credits dazu. Gekaufte Credits verfallen nicht. Deine Monats-Credits gibt es wie gewohnt am 1. wieder.
+> Neu: Credits kaufen. Sind deine Monats-Credits für die StudiNow-KI aufgebraucht, holst du dir mit Pro AI 100 oder
+> 200 Credits dazu. Gekaufte Credits verfallen nicht; deine Monats-Credits gibt es wie gewohnt am 1. wieder. Neu mit
+> Plus: KI-Chat – mit gekauften Credits stellst du der KI Fragen zu deinen Unterlagen.
 
 ### Review notes for Apple (English)
 
 > New in this version: consumable in-app purchases "100 Credits" (de.uniflow.credits.klein) and "200 Credits"
 > (de.uniflow.credits.gross). Credits pay for requests to the StudiNow AI.
 >
-> Where to find them: sign in with Apple and buy "StudiNow Pro AI" in the sandbox (Settings → Account & plan → Change
-> plan). Then open Settings → Account & plan: the plan card shows "Credits" with the line "Diesen Monat: x von 100 ·
-> Gekauft: y" and the button "Credits kaufen". The same sheet opens automatically when an AI request fails because the
-> monthly credits are used up ("Deine Credits sind aufgebraucht").
+> Where to find them: sign in with Apple and buy "StudiNow Pro AI" or "StudiNow Plus" in the sandbox (Settings →
+> Account & plan → Change plan). Then open Settings → Account & plan: the plan card shows "Credits" with the line
+> "Diesen Monat: x von 100 · Gekauft: y" (Plus: "Gekauft: y") and the button "Credits kaufen". The same sheet opens
+> automatically when an AI request fails because the credits are used up ("Deine Credits sind aufgebraucht").
 >
 > How it works: the plan includes 100 credits per calendar month, which are refilled every month and do not carry
 > over. Purchased credits are separate: they never expire, they are used only after the monthly credits are used up,
 > and they stay with the StudiNow account across devices. The purchase is verified on our server (signed transaction)
-> and credited exactly once; the transaction is finished only after the server has credited it. Credit packs can only
-> be bought with an active Pro AI subscription, because credits are only useful with the AI; if the subscription ends,
-> purchased credits remain on the account and become usable again when Pro AI is active again. The app says so.
-> There is nothing to restore: purchased credits are stored with the account, not on the device.
+> and credited exactly once; the transaction is finished only after the server has credited it. Credit packs can be
+> bought with an active Plus or Pro AI subscription. With Pro AI, purchased credits pay for every AI feature. With
+> Plus (no monthly credits), purchased credits pay only for the AI chat: open a document, tap the AI button ("KI-Hilfe")
+> and type a question; the buttons for explanations, flashcards and tests show a lock "ab Pro AI" and open the plan
+> page, and the purchase sheet says so before buying ("Mit Credits kannst du Fragen an die KI stellen. Erklärungen,
+> Karteikarten und Tests gibt es mit Pro AI."). If the subscription ends, purchased credits remain on the account and
+> become usable again when Plus or Pro AI is active again. The app says so. There is nothing to restore: purchased
+> credits are stored with the account, not on the device.
 
 ### Wo heute ein Credit-Wert oder die alte Regel steht
 
@@ -326,7 +377,11 @@ Neu in dieser Version:
 
 ## 12. Offene Entscheidungen für den Inhaber
 
-- **Wer kaufen darf:** gebaut ist „nur mit bezahltem Pro AI“ (Probe, Plus, Free nicht). Änderbar an einer Stelle.
+- **Wer kaufen darf:** entschieden am 15.11. (Plus und Pro AI; Plus nur KI-Chat) und so gebaut. Offen bleibt nur die
+  Probewoche: wer in der Probe schon Plus bezahlt hat, kann erst nach der Probe Credits kaufen (in der Probe gelten
+  die 25 Probe-Credits für alles). Änderbar an einer Stelle (`buy_in_trial`).
+- **KI-Chat im Web für Plus:** der Dienst erlaubt ihn (mit gekauften Credits), die Web-Oberfläche zeigt aber keine
+  Schlösser an den Lernhilfe-Knöpfen. Wenn das Web für Plus genauso aussehen soll wie die App, ist das ein eigener Auftrag.
 - **Preise:** 1,99 € und 3,99 € (der Inhaber sagte „2 €“ und „4 €“; die übrigen Preise enden auf ,99). Die App zeigt
   immer den Preis aus dem Store.
 - **Web und Windows:** dort wird nur der Stand gezeigt. Ein Kauf über Stripe wäre möglich (der Topf ist vorbereitet),

@@ -21,58 +21,71 @@
  ],
  "buy_rule": {
   "buy_plans": [
+   "plus",
    "pro_ai"
   ],
   "buy_in_trial": false,
   "use_right": "can_use_ai_explanations",
+  "chat_right": "can_use_ai_chat",
+  "chat_purposes": [
+   "tutor:ask"
+  ],
   "cases": [
    {
     "plan": "free",
     "trial_only": false,
     "can_buy": false,
-    "purchased_usable": false
+    "purchased_usable": false,
+    "purchased_scope": "none"
    },
    {
     "plan": "free",
     "trial_only": true,
     "can_buy": false,
-    "purchased_usable": false
+    "purchased_usable": false,
+    "purchased_scope": "none"
    },
    {
     "plan": "plus",
     "trial_only": false,
-    "can_buy": false,
-    "purchased_usable": false
+    "can_buy": true,
+    "purchased_usable": true,
+    "purchased_scope": "chat"
    },
    {
     "plan": "plus",
     "trial_only": true,
     "can_buy": false,
-    "purchased_usable": false
+    "purchased_usable": true,
+    "purchased_scope": "chat"
    },
    {
     "plan": "pro_ai",
     "trial_only": false,
     "can_buy": true,
-    "purchased_usable": true
+    "purchased_usable": true,
+    "purchased_scope": "all"
    },
    {
     "plan": "pro_ai",
     "trial_only": true,
     "can_buy": false,
-    "purchased_usable": true
+    "purchased_usable": true,
+    "purchased_scope": "all"
    },
    {
     "plan": "pro_connect",
     "trial_only": false,
     "can_buy": true,
-    "purchased_usable": true
+    "purchased_usable": true,
+    "purchased_scope": "all"
    },
    {
     "plan": "pro_connect",
     "trial_only": true,
     "can_buy": false,
-    "purchased_usable": true
+    "purchased_usable": true,
+    "purchased_scope": "all"
    }
   ]
  },
@@ -95,9 +108,11 @@
   "title_shop": "Credits kaufen",
   "not_now": "Nicht jetzt",
   "keep": "Gekaufte Credits verfallen nicht.",
-  "buy_needs_pro_ai": "Credits kaufen kannst du mit StudiNow Pro AI.",
+  "buy_needs_pro_ai": "Credits kaufen kannst du mit StudiNow Plus oder Pro AI.",
   "web_hint": "Credits kaufst du in der App für iPhone und iPad.",
-  "no_credits": "Keine Credits in deinem Tarif"
+  "no_credits": "Keine Credits in deinem Tarif",
+  "chat_only": "Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI.",
+  "chat_lock": "Mit StudiNow Plus stellst du der KI Fragen. Erklären, Karteikarten und Tests gibt es mit StudiNow Pro AI."
  },
  "balance_cases": [
   {
@@ -113,6 +128,7 @@
     "credit_eur": 0.0065,
     "purchased": 80,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 117,
     "can_buy": true
    },
@@ -120,6 +136,8 @@
     "line": "Diesen Monat: 37 von 100 · Gekauft: 80",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 117,
     "offers_shop": true,
     "reset_day": "1. Dezember"
@@ -138,6 +156,7 @@
     "credit_eur": 0.0065,
     "purchased": 80,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 80,
     "can_buy": true
    },
@@ -145,6 +164,8 @@
     "line": "Diesen Monat: 0 von 100 · Gekauft: 80",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 80,
     "offers_shop": true,
     "reset_day": "1. Dezember"
@@ -163,6 +184,7 @@
     "credit_eur": 0.0065,
     "purchased": 0,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 0,
     "can_buy": true
    },
@@ -170,6 +192,8 @@
     "line": "Diesen Monat: 0 von 100 · Gekauft: 0",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 0,
     "offers_shop": true,
     "reset_day": "1. Dezember"
@@ -188,6 +212,7 @@
     "credit_eur": 0.0065,
     "purchased": 0,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 100,
     "can_buy": true
    },
@@ -195,6 +220,8 @@
     "line": "Diesen Monat: 100 von 100 · Gekauft: 0",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 100,
     "offers_shop": true,
     "reset_day": "1. Dezember"
@@ -213,6 +240,7 @@
     "credit_eur": 0.0065,
     "purchased": 0,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 9,
     "can_buy": false
    },
@@ -220,13 +248,15 @@
     "line": "Diesen Monat: 9 von 25 · Gekauft: 0",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 25 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 9,
     "offers_shop": false,
     "reset_day": "1. Dezember"
    }
   },
   {
-   "name": "Plus mit ruhenden gekauften Credits",
+   "name": "Plus mit gekauften Credits: nur der KI-Chat",
    "credits": {
     "period": "2026-11",
     "allowance": 0,
@@ -237,14 +267,73 @@
     "resets_at": "2026-12-01T00:00:00+01:00",
     "credit_eur": 0.0065,
     "purchased": 60,
+    "purchased_usable": true,
+    "purchased_scope": "chat",
+    "available": 60,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Gekauft: 60",
+    "keep_note": "Gekaufte Credits verfallen nicht.",
+    "dormant_note": null,
+    "scope": "chat",
+    "scope_note": "Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI.",
+    "available": 60,
+    "offers_shop": true,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Plus ohne Credits: darf kaufen",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 0,
+    "used": 0,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "plus",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 0,
+    "purchased_usable": true,
+    "purchased_scope": "chat",
+    "available": 0,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht.",
+    "dormant_note": null,
+    "scope": "chat",
+    "scope_note": "Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI.",
+    "available": 0,
+    "offers_shop": true,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Free mit ruhenden gekauften Credits",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 0,
+    "used": 0,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "free",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 60,
     "purchased_usable": false,
+    "purchased_scope": "none",
     "available": 0,
     "can_buy": false
    },
    "expect": {
-    "line": "Gekauft: 60 · nutzbar mit StudiNow Pro AI",
+    "line": "Gekauft: 60 · nutzbar mit StudiNow Plus oder Pro AI",
     "keep_note": "Gekaufte Credits verfallen nicht.",
-    "dormant_note": "Du hast noch 60 gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Pro AI läuft.",
+    "dormant_note": "Du hast noch 60 gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Plus oder Pro AI läuft.",
+    "scope": "none",
+    "scope_note": null,
     "available": 0,
     "offers_shop": false,
     "reset_day": "1. Dezember"
@@ -263,6 +352,7 @@
     "credit_eur": 0.0065,
     "purchased": 0,
     "purchased_usable": false,
+    "purchased_scope": "none",
     "available": 0,
     "can_buy": false
    },
@@ -270,6 +360,8 @@
     "line": "Keine Credits in deinem Tarif",
     "keep_note": "Gekaufte Credits verfallen nicht.",
     "dormant_note": null,
+    "scope": "none",
+    "scope_note": null,
     "available": 0,
     "offers_shop": false,
     "reset_day": "1. Dezember"
@@ -288,6 +380,7 @@
     "credit_eur": 0.0065,
     "purchased": 12,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 17,
     "can_buy": true
    },
@@ -295,6 +388,8 @@
     "line": "Diesen Monat: 5 von 100 · Gekauft: 12",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Januar wieder.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 17,
     "offers_shop": true,
     "reset_day": "1. Januar"
@@ -316,6 +411,8 @@
     "line": "Diesen Monat: 37 von 100 · Gekauft: 0",
     "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
+    "scope": "none",
+    "scope_note": null,
     "available": 37,
     "offers_shop": false,
     "reset_day": "1. Dezember"
@@ -334,6 +431,7 @@
     "credit_eur": 0.0065,
     "purchased": 3,
     "purchased_usable": true,
+    "purchased_scope": "all",
     "available": 3,
     "can_buy": true
    },
@@ -341,6 +439,8 @@
     "line": "Diesen Monat: 0 von 100 · Gekauft: 3",
     "keep_note": "Gekaufte Credits verfallen nicht.",
     "dormant_note": null,
+    "scope": "all",
+    "scope_note": null,
     "available": 3,
     "offers_shop": true,
     "reset_day": null
@@ -368,6 +468,7 @@
      "credit_eur": 0.0065,
      "purchased": 0,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 100,
      "can_buy": true
     },
@@ -424,6 +525,7 @@
      "credit_eur": 0.0065,
      "purchased": 100,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 200,
      "can_buy": true
     }
@@ -458,6 +560,7 @@
      "credit_eur": 0.0065,
      "purchased": 100,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 200,
      "can_buy": true
     }
@@ -492,6 +595,7 @@
      "credit_eur": 0.0065,
      "purchased": 300,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 400,
      "can_buy": true
     }
@@ -517,6 +621,7 @@
      "credit_eur": 0.0065,
      "purchased": 270,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 270,
      "can_buy": true
     },
@@ -583,6 +688,7 @@
      "credit_eur": 0.0065,
      "purchased": 200,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 200,
      "can_buy": true
     },
@@ -639,6 +745,7 @@
      "credit_eur": 0.0065,
      "purchased": 200,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 200,
      "can_buy": true
     }
@@ -660,8 +767,8 @@
     "code": "credits_exhausted",
     "credits": {
      "period": "<monat>",
-     "allowance": 0,
-     "used": 0,
+     "allowance": 100,
+     "used": 100,
      "reserved": 0,
      "remaining": 0,
      "plan": "pro_ai",
@@ -669,10 +776,146 @@
      "credit_eur": 0.0065,
      "purchased": 0,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 0,
      "can_buy": true,
      "needed": 220
     }
+   }
+  },
+  {
+   "step": "Plus ohne Credits: der KI-Chat antwortet 429 mit dem Stand (Pakete kaufen), Erklaeren 403",
+   "method": "POST",
+   "path": "/api/ai/tutor",
+   "auth": true,
+   "request": {
+    "mode": "ask",
+    "page_text": "Matrizen",
+    "question": "Was ist eine Matrix?",
+    "request_id": "plus-leer-1"
+   },
+   "status": 429,
+   "response": {
+    "detail": "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.",
+    "code": "credits_exhausted",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 0,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "plus",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 0,
+     "purchased_usable": true,
+     "purchased_scope": "chat",
+     "available": 0,
+     "can_buy": true,
+     "needed": 222
+    }
+   }
+  },
+  {
+   "step": "Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "plus",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 0,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "plus",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 200,
+     "purchased_usable": true,
+     "purchased_scope": "chat",
+     "available": 200,
+     "can_buy": true
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Plus: der KI-Chat (freie Frage) laeuft aus gekauften Credits",
+   "method": "POST",
+   "path": "/api/ai/tutor",
+   "auth": true,
+   "request": {
+    "mode": "ask",
+    "page_text": "Matrizen",
+    "question": "Was ist eine Matrix?",
+    "request_id": "plus-chat-1"
+   },
+   "status": 200,
+   "response": {
+    "answer": "Erklärung: Eine Matrix ist ein rechteckiges Zahlenschema.",
+    "cards": null,
+    "sources": [],
+    "credits": {
+     "period": "<monat>",
+     "allowance": 0,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "plus",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 191,
+     "purchased_usable": true,
+     "purchased_scope": "chat",
+     "available": 191,
+     "can_buy": true,
+     "charged": 9,
+     "replay": false
+    },
+    "explain": null
+   }
+  },
+  {
+   "step": "Plus: Erklaeren ist KI-Lernhilfe und bleibt Pro AI (403, nichts abgebucht)",
+   "method": "POST",
+   "path": "/api/ai/tutor",
+   "auth": true,
+   "request": {
+    "mode": "explain",
+    "page_text": "Matrizen",
+    "request_id": "plus-lernhilfe-1"
+   },
+   "status": 403,
+   "response": {
+    "detail": "Diese Funktion gibt es ab StudiNow Pro AI.",
+    "code": "plan_required",
+    "entitlement": "can_use_ai_explanations",
+    "required_plan": "pro_ai"
    }
   },
   {
@@ -693,8 +936,9 @@
      "plan": "free",
      "resets_at": "<zeit>",
      "credit_eur": 0.0065,
-     "purchased": 200,
+     "purchased": 191,
      "purchased_usable": false,
+     "purchased_scope": "none",
      "available": 0,
      "can_buy": false
     },
@@ -740,9 +984,10 @@
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.0065,
-     "purchased": 200,
+     "purchased": 191,
      "purchased_usable": true,
-     "available": 200,
+     "purchased_scope": "all",
+     "available": 191,
      "can_buy": true
     },
     "credit_packs": {
@@ -789,6 +1034,7 @@
      "credit_eur": 0.0065,
      "purchased": 0,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 25,
      "can_buy": false
     },
@@ -887,6 +1133,7 @@
      "credit_eur": 0.0065,
      "purchased": 0,
      "purchased_usable": true,
+     "purchased_scope": "all",
      "available": 100,
      "can_buy": true
     }

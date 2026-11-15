@@ -163,6 +163,10 @@ final class StudoraAccountLink: ObservableObject {
     }
     /// Weg zur StudiNow-KI (`StudiNowAIAccess`): bereit, Anmeldung fehlt, Tarif fehlt; die KI-Stellen richten sich danach
     @Published private(set) var aiAccess: StudiNowAIAccess = .planRequired
+    /// Nur der KI-Chat (Entscheidung des Inhabers 15.11.2026): angemeldet mit Plus, ohne Pro AI und ohne Probe. Dann
+    /// antwortet die StudiNow-KI auf die freie Frage (`StudiNowChatAI`), bezahlt allein aus gekauften Credits;
+    /// `aiAccess` bleibt `.planRequired`, alle uebrigen KI-Stellen zeigen wie bisher den Tarif-Hinweis.
+    @Published private(set) var aiChatOnly = false
     /// StudiNow-KI dieses Apple-Nutzers (nil ohne Dienst-Adresse); haengt nur mit `aiAccess == .ready` im Backend
     private(set) var studinowAI: StudiNowAI?
     private var tokenStore: AccountTokenStore?
@@ -550,11 +554,18 @@ final class StudoraAccountLink: ObservableObject {
         let access = StudiNowAIAccess.decide(serviceConfigured: studinowAI != nil, signedIn: signedIn, localPlan: entitlements.plan.rawValue,
                                              servicePlan: planStatus?.plan, serviceTrialActive: planStatus?.trialActive ?? false)
         if access != aiAccess { aiAccess = access }
+        let chat = StudiNowAIAccess.chatOnly(serviceConfigured: studinowAI != nil, signedIn: signedIn, localPlan: entitlements.plan.rawValue,
+                                             servicePlan: planStatus?.plan, serviceTrialActive: planStatus?.trialActive ?? false)
+        if chat != aiChatOnly { aiChatOnly = chat }
         guard let host else { return }
         attachTask?.cancel()
         attachTask = Task { @MainActor [weak self] in
             guard let backend = try? await host.backend(), let self, !Task.isCancelled else { return }
-            backend.context.ai.setService(self.aiAccess == .ready ? self.studinowAI : nil)
+            // Pro AI bzw. Probe: die StudiNow-KI fuer alles; Plus: nur der KI-Chat (jede andere Aufgabe weist
+            // `StudiNowChatAI` ab, ohne dass etwas an den Dienst geht); sonst haengt nichts
+            let service: AIProvider? = self.aiAccess == .ready ? self.studinowAI
+                : self.aiChatOnly ? self.studinowAI.map(StudiNowChatAI.init) : nil
+            backend.context.ai.setService(service)
         }
     }
 
@@ -1008,6 +1019,8 @@ struct StudoraCredits: Equatable {
     var purchasedUsable = false
     /// das Konto darf Credit-Pakete kaufen (Regel des Dienstes)
     var canBuy = false
+    /// wofuer gekaufte Credits gelten: alles (Pro AI, Probe), nur der KI-Chat (Plus) oder nichts (Free: sie ruhen)
+    var purchasedScope: CreditPacks.Scope = .none
 
     /// Was jetzt fuer die KI da ist: Rest des Monats plus nutzbare gekaufte Credits
     var available: Int { remaining + (purchasedUsable ? purchased : 0) }
@@ -1015,11 +1028,11 @@ struct StudoraCredits: Equatable {
     /// derselbe Stand in der Form des Kerns (Texte in `CreditText`)
     var balance: CreditPacks.Balance {
         CreditPacks.Balance(period: period, allowance: allowance, used: used, remaining: remaining, purchased: purchased,
-                            purchasedUsable: purchasedUsable, canBuy: canBuy, resetsAt: resetsAt, plan: plan)
+                            purchasedUsable: purchasedUsable, purchasedScope: purchasedScope, canBuy: canBuy, resetsAt: resetsAt, plan: plan)
     }
 
     init(period: String, allowance: Int, used: Int, remaining: Int, resetsAt: String? = nil, plan: String? = nil,
-         purchased: Int = 0, purchasedUsable: Bool = false, canBuy: Bool = false) {
+         purchased: Int = 0, purchasedUsable: Bool = false, canBuy: Bool = false, purchasedScope: CreditPacks.Scope? = nil) {
         self.period = period
         self.allowance = allowance
         self.used = used
@@ -1029,11 +1042,12 @@ struct StudoraCredits: Equatable {
         self.purchased = purchased
         self.purchasedUsable = purchasedUsable
         self.canBuy = canBuy
+        self.purchasedScope = purchasedScope ?? (purchasedUsable ? .all : .none)
     }
 
     init(_ b: CreditPacks.Balance) {
         self.init(period: b.period, allowance: b.allowance, used: b.used, remaining: b.remaining, resetsAt: b.resetsAt, plan: b.plan,
-                  purchased: b.purchased, purchasedUsable: b.purchasedUsable, canBuy: b.canBuy)
+                  purchased: b.purchased, purchasedUsable: b.purchasedUsable, canBuy: b.canBuy, purchasedScope: b.purchasedScope)
     }
 
     /// Was die letzte KI-Antwort gekostet hat (`charged`); `replay`: gespeicherte Antwort zur selben request_id, nichts
@@ -1109,6 +1123,9 @@ extension EnvironmentValues {
 private struct UFAIAccessKey: EnvironmentKey { static let defaultValue: StudiNowAIAccess = .planRequired }
 /// Die KI-Stellen antworten gerade ueber die StudiNow-KI (mit Credits), nicht ueber das eigene ChatGPT
 private struct UFStudiNowAIKey: EnvironmentKey { static let defaultValue = false }
+/// Nur der KI-Chat (Plus, 15.11.2026): die freie Frage geht an die StudiNow-KI, bezahlt aus gekauften Credits; die
+/// KI-Lernhilfe (Erklaeren, Karteikarten, Tests) bleibt gesperrt "ab Pro AI"
+private struct UFAIChatOnlyKey: EnvironmentKey { static let defaultValue = false }
 
 extension EnvironmentValues {
     var ufAIAccess: StudiNowAIAccess {
@@ -1119,6 +1136,11 @@ extension EnvironmentValues {
     var ufStudiNowAI: Bool {
         get { self[UFStudiNowAIKey.self] }
         set { self[UFStudiNowAIKey.self] = newValue }
+    }
+
+    var ufAIChatOnly: Bool {
+        get { self[UFAIChatOnlyKey.self] }
+        set { self[UFAIChatOnlyKey.self] = newValue }
     }
 }
 
@@ -1135,5 +1157,8 @@ struct UFAIAccessProvider: ViewModifier {
             .environment(\.ufAIEnabled, chatgpt.enabled || studinow)
             .environment(\.ufStudiNowAI, studinow)
             .environment(\.ufAIAccess, account.aiAccess)
+            // nur der KI-Chat: `ufAIEnabled` bleibt aus (alle anderen KI-Stellen wie bisher gesperrt), die KI-Hilfe,
+            // KI-Start und "KI fragen" lesen dieses Kennzeichen; mit eigenem ChatGPT gilt das eigene ChatGPT
+            .environment(\.ufAIChatOnly, !chatgpt.enabled && account.aiChatOnly)
     }
 }

@@ -46,6 +46,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
                              // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
                              // `Entitlements.ownChatGPTConnected`): dann auch in Free (UFFeatureMatrix.access `ownChatGPT`)
+    case aiChat              // KI-Chat mit gekauften Credits (Entscheidung des Inhabers 15.11.2026, can_use_ai_chat): die freie
+                             // Frage an die StudiNow-KI in der KI-Hilfe, auf KI-Start und bei Testaufgaben. Plus hat keine
+                             // Monats-Credits; bezahlt wird allein aus gekauften Credits (CreditPacks). Erklaeren,
+                             // Karteikarten und Tests bleiben Pro AI (`aiHelp`, `aiFlashcards`, `weeklyTests`).
     // Pro AI: StudiNow-KI und Abgleich ueber das StudiNow-Konto (UFDeviceSupport.withAccount). Die KI selbst gibt
     // `StudiNowAIAccess` frei (Pro AI bzw. Probe und angemeldet), die Matrix sagt nur, ab welchem Tarif.
     case aiHelp              // KI-Hilfe im Editor: Seite, markierter Bereich, ganzes Dokument (TutorPanel, TutorDocumentRun)
@@ -67,7 +71,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
              .uniGrades, .ownChatGPT:
             return .free
         case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor,
-             .dueReminders:
+             .dueReminders, .aiChat:
             return .plus
         case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync:
             return .proAI
@@ -99,7 +103,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
         case .dueReminders: return "Erinnerungen an Abgaben und Klausuren"
         case .autoPlan: return "Lernplan automatisch erstellen"
-        case .aiHelp: return "KI-Hilfe zu deinen Unterlagen"
+        case .aiChat: return "KI-Chat mit gekauften Credits"
+        case .aiHelp: return "KI-Lernhilfe zu deinen Unterlagen"
         case .aiFlashcards: return "Karteikarten aus deinen Unterlagen"
         case .weeklyTests: return "Wochentests erstellen"
         case .deviceSync: return "Notizen auf allen deinen Geräten"
@@ -121,7 +126,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
         case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
-        case .aiHelp: return "Zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“"
+        case .aiChat: return "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI"
+        case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit 100 Credits im Monat, weitere Credits zum Nachkaufen"
         case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen"
         case .weeklyTests: return "Aus deinen Unterlagen, mit der StudiNow-KI"
         case .deviceSync: return "Abgleich über dein StudiNow-Konto"
@@ -147,6 +153,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .flashcards: return "cards"
         case .dueReminders: return "bell"
         case .autoPlan: return "calendar"
+        case .aiChat: return "sparkles"
         case .aiHelp: return "sparkles"
         case .aiFlashcards: return "cards"
         case .weeklyTests: return "exam"

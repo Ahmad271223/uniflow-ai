@@ -1125,6 +1125,8 @@ struct ExamAskPanel: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var closeDialog
     @Environment(\.ufAIEnabled) private var aiEnabled
+    /// nur der KI-Chat (Plus): die Frage zur Aufgabe ist eine freie Frage und geht aus gekauften Credits
+    @Environment(\.ufAIChatOnly) private var chatOnly
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.ufChatGPTLink) private var chatgpt
     @State private var messages: [Message] = []
@@ -1146,7 +1148,7 @@ struct ExamAskPanel: View {
     }
 
     /// ohne verbundene KI auf dem Geraet fragt nur ein Dienst bzw. eigener Server
-    private var canAsk: Bool { aiEnabled || session.api?.isLocal == false }
+    private var canAsk: Bool { aiEnabled || chatOnly || session.api?.isLocal == false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

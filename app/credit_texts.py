@@ -4,8 +4,11 @@ Oberflaechen. Der Dienst zeigt selbst nichts an; `tools/gen-credit-packs-fixture
 Web-Oberflaeche (app/static/ai-panel.js) pruefen ihre eigenen Texte dagegen.
 
 Eingabe ist immer der Stand, wie ihn der Dienst liefert (`credits` aus GET /api/entitlements, app/credits.py):
-`allowance`/`remaining` = Monats-Credits, `purchased` = gekaufte, `purchased_usable`, `can_buy`, `resets_at`.
-Ein Stand ohne `purchased` (aelterer Dienst) zaehlt als 0 gekaufte Credits.
+`allowance`/`remaining` = Monats-Credits, `purchased` = gekaufte, `purchased_usable`, `purchased_scope`, `can_buy`,
+`resets_at`. Ein Stand ohne `purchased` (aelterer Dienst) zaehlt als 0 gekaufte Credits.
+
+Wofuer gekaufte Credits gelten (`purchased_scope`, Entscheidung des Inhabers 15.11.2026): "all" mit Pro AI und in der
+Probe, "chat" mit Plus (nur Fragen an die KI), "none" mit Free (sie ruhen beim Konto).
 """
 from __future__ import annotations
 
@@ -15,7 +18,10 @@ TITLE_EXHAUSTED = "Deine Credits sind aufgebraucht"
 TITLE_SHOP = "Credits kaufen"
 NOT_NOW = "Nicht jetzt"
 KEEP = "Gekaufte Credits verfallen nicht."
-BUY_NEEDS_PRO_AI = "Credits kaufen kannst du mit StudiNow Pro AI."
+BUY_NEEDS_PRO_AI = "Credits kaufen kannst du mit StudiNow Plus oder Pro AI."
+# Plus: was gekaufte Credits koennen (Blatt mit den Paketen) und was an den Lernhilfe-Knoepfen der KI-Hilfe steht
+CHAT_ONLY = "Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI."
+CHAT_LOCK = "Mit StudiNow Plus stellst du der KI Fragen. Erklären, Karteikarten und Tests gibt es mit StudiNow Pro AI."
 WEB_HINT = "Credits kaufst du in der App für iPhone und iPad."
 NO_CREDITS = "Keine Credits in deinem Tarif"
 
@@ -43,16 +49,29 @@ def pack_label(credits: int) -> str:
     return f"{_int(credits)} Credits"
 
 
+def scope(c: dict | None) -> str:
+    """Wofuer die gekauften Credits gelten: all | chat | none (`purchased_scope`; ohne das Feld aus `purchased_usable`)"""
+    if not isinstance(c, dict):
+        return "none"
+    s = c.get("purchased_scope")
+    if s in ("all", "chat", "none"):
+        return s
+    return "all" if c.get("purchased_usable") else "none"
+
+
 def balance_line(c: dict | None) -> str | None:
     """Stand beider Toepfe: "Diesen Monat: 37 von 100 · Gekauft: 80". Ohne Monats-Credits im Tarif steht nur der
-    gekaufte Topf (ruht er, mit dem Weg dahin), ganz ohne Credits "Keine Credits in deinem Tarif"; None ohne Stand."""
+    gekaufte Topf: bei Plus "Gekauft: 80" (auch mit 0), ruhend mit dem Weg dahin; ganz ohne Credits und ohne Kaufrecht
+    "Keine Credits in deinem Tarif"; None ohne Stand."""
     if not isinstance(c, dict):
         return None
     allowance, remaining, bought = _int(c.get("allowance")), _int(c.get("remaining")), _int(c.get("purchased"))
     if allowance > 0:
         return f"Diesen Monat: {remaining} von {allowance} · Gekauft: {bought}"
+    if scope(c) != "none":
+        return f"Gekauft: {bought}"
     if bought > 0:
-        return f"Gekauft: {bought}" if c.get("purchased_usable") else f"Gekauft: {bought} · nutzbar mit StudiNow Pro AI"
+        return f"Gekauft: {bought} · nutzbar mit StudiNow Plus oder Pro AI"
     return NO_CREDITS
 
 
@@ -72,7 +91,12 @@ def dormant_note(c: dict | None) -> str | None:
         return None
     n = _int(c.get("purchased"))
     return (f"Du hast noch {n} gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, "
-            "sobald StudiNow Pro AI läuft.")
+            "sobald StudiNow Plus oder Pro AI läuft.")
+
+
+def scope_note(c: dict | None) -> str | None:
+    """Satz im Blatt mit den Paketen fuer Plus: was gekaufte Credits dort koennen. None, wenn sie fuer alles gelten."""
+    return CHAT_ONLY if scope(c) == "chat" else None
 
 
 def available(c: dict | None) -> int:

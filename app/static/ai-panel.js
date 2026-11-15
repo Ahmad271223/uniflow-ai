@@ -5,7 +5,7 @@
 // Der Teil bis `createAiPanel` ist reine Logik ohne DOM (tests/js/ai-panel.test.mjs); `createAiPanel` zeichnet und
 // spricht mit POST /api/ai/tutor. Das ganze Dokument (Umfang, Schnellknoepfe) bleibt in doc-explain-logic.js / editor.js.
 import { SCOPES, CHIPS, docModeFor } from "./doc-explain-logic.js?v=1";
-import { balanceLine, available } from "./credit-packs-logic.js?v=1";
+import { balanceLine, available } from "./credit-packs-logic.js?v=2";
 
 /** Reiter: Kennung, Titel, Symbol, Modi in der Reihenfolge der Knoepfe (jeder Modus ausser "ask" gehoert genau einem Reiter) */
 export const TABS = [

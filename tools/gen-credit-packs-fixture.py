@@ -64,11 +64,12 @@ def balance_cases() -> list[dict]:
     """Staende, wie der Dienst sie liefert, mit den Texten der Referenz (app/credit_texts.py)."""
     from app import credit_texts as texts
 
-    def state(allowance, remaining, purchased=None, usable=True, can_buy=True, resets_at="2026-12-01T00:00:00+01:00", plan="pro_ai"):
+    def state(allowance, remaining, purchased=None, usable=True, can_buy=True, resets_at="2026-12-01T00:00:00+01:00", plan="pro_ai",
+              scope=None):
         c = {"period": "2026-11", "allowance": allowance, "used": max(0, allowance - remaining), "reserved": 0, "remaining": remaining,
              "plan": plan, "resets_at": resets_at, "credit_eur": 0.0065}
         if purchased is not None:
-            c.update({"purchased": purchased, "purchased_usable": usable,
+            c.update({"purchased": purchased, "purchased_usable": usable, "purchased_scope": scope or ("all" if usable else "none"),
                       "available": remaining + (purchased if usable else 0), "can_buy": can_buy})
         return c
 
@@ -78,7 +79,9 @@ def balance_cases() -> list[dict]:
         ("Pro AI, alles aufgebraucht", state(100, 0, 0)),
         ("Pro AI ohne Kauf", state(100, 100, 0)),
         ("Probe: 25 Credits, kaufen geht nicht", state(25, 9, 0, can_buy=False, plan="pro_ai:trial")),
-        ("Plus mit ruhenden gekauften Credits", state(0, 0, 60, usable=False, can_buy=False, plan="plus")),
+        ("Plus mit gekauften Credits: nur der KI-Chat", state(0, 0, 60, scope="chat", plan="plus")),
+        ("Plus ohne Credits: darf kaufen", state(0, 0, 0, scope="chat", plan="plus")),
+        ("Free mit ruhenden gekauften Credits", state(0, 0, 60, usable=False, can_buy=False, plan="free")),
         ("Free ohne Credits", state(0, 0, 0, usable=False, can_buy=False, plan="free")),
         ("Jahreswechsel", state(100, 5, 12, resets_at="2027-01-01T00:00:00+01:00")),
         ("aelterer Dienst ohne die neuen Felder", state(100, 37)),
@@ -86,6 +89,7 @@ def balance_cases() -> list[dict]:
     ]
     return [{"name": name, "credits": c,
              "expect": {"line": texts.balance_line(c), "keep_note": texts.keep_note(c), "dormant_note": texts.dormant_note(c),
+                        "scope": texts.scope(c), "scope_note": texts.scope_note(c),
                         "available": texts.available(c), "offers_shop": texts.offers_shop(c), "reset_day": texts.reset_day(c.get("resets_at"))}}
             for name, c in cases]
 
@@ -170,14 +174,22 @@ def build(app=None) -> dict:
         buy("Die App meldet die erstattete Transaktion: nichts mehr gutzuschreiben, abschliessen",
             pack_tx(signer, pro["id"], klein, "9000000000000001", revoked=True))
 
-        os.environ["LERNAPP_CREDITS_PRO_AI"] = "0"
         os.environ["LERNAPP_AI_PRICE_IN_EUR"], os.environ["LERNAPP_AI_PRICE_OUT_EUR"] = "350", "350"
         ai_backend.set_provider(FakeAI())
         leer, tok_leer = register("leer@beispiel.de", "pro_ai")
+        spend(leer["id"], 100, "monat-leer")
         call("Credits reichen nicht: 429 mit dem Stand (die App zeigt das Blatt, weil can_buy true ist)", "POST", "/api/ai/tutor",
              {"mode": "explain", "page_text": "Matrizen", "request_id": "leer-1"}, token=tok_leer)
-        os.environ.pop("LERNAPP_CREDITS_PRO_AI", None)
+        _, tok_plus = register("plus@beispiel.de", "plus")
+        call("Plus ohne Credits: der KI-Chat antwortet 429 mit dem Stand (Pakete kaufen), Erklaeren 403", "POST", "/api/ai/tutor",
+             {"mode": "ask", "page_text": "Matrizen", "question": "Was ist eine Matrix?", "request_id": "plus-leer-1"}, token=tok_plus)
 
+        accounts.set_plan(pro["id"], "plus")
+        call("Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat", "GET", "/api/entitlements", token=tok)
+        call("Plus: der KI-Chat (freie Frage) laeuft aus gekauften Credits", "POST", "/api/ai/tutor",
+             {"mode": "ask", "page_text": "Matrizen", "question": "Was ist eine Matrix?", "request_id": "plus-chat-1"}, token=tok)
+        call("Plus: Erklaeren ist KI-Lernhilfe und bleibt Pro AI (403, nichts abgebucht)", "POST", "/api/ai/tutor",
+             {"mode": "explain", "page_text": "Matrizen", "request_id": "plus-lernhilfe-1"}, token=tok)
         accounts.set_plan(pro["id"], "free")
         call("Pro AI ist vorbei: die gekauften Credits bleiben beim Konto und ruhen", "GET", "/api/entitlements", token=tok)
         accounts.set_plan(pro["id"], "pro_ai")
@@ -205,7 +217,7 @@ def build(app=None) -> dict:
 
     packs = plans.credit_packs()
     buy_cases = [{"plan": plan, "trial_only": trial, "can_buy": plans.can_buy_credits(plan, trial),
-                  "purchased_usable": plans.can_use_purchased_credits(plan)}
+                  "purchased_usable": plans.can_use_purchased_credits(plan), "purchased_scope": plans.purchased_credits_scope(plan)}
                  for plan in ("free", "plus", "pro_ai", "pro_connect") for trial in (False, True)]
     return {
         "_hinweis": "Erzeugt mit tools/gen-credit-packs-fixture.py aus der Python-Referenz (app/plans.py, app/credits.py, "
@@ -214,7 +226,8 @@ def build(app=None) -> dict:
         "packs": [{**p, "label": credit_texts.pack_label(p["credits"]),
                    "max_cost_microeur": p["credits"] * ai_prices.MICROEUR_PER_CREDIT} for p in packs],
         "buy_rule": {"buy_plans": list(plans.CREDIT_PACKS["buy_plans"]), "buy_in_trial": plans.CREDIT_PACKS["buy_in_trial"],
-                     "use_right": plans.CREDIT_PACKS["use_right"], "cases": buy_cases},
+                     "use_right": plans.CREDIT_PACKS["use_right"], "chat_right": plans.CREDIT_PACKS["chat_right"],
+                     "chat_purposes": list(plans.CREDIT_PACKS["chat_purposes"]), "cases": buy_cases},
         "purchase": {"path": "/api/billing/credits/apple", "request": {"signed_transaction": "<Transaction.jwsRepresentation>"},
                      "finish_rule": "Die App ruft finish() nur nach Status 200 (jeder status-Wert). Bei jedem anderen Status und "
                                     "ohne Antwort bleibt der Kauf offen und wird beim naechsten Start erneut gemeldet.",
@@ -222,7 +235,7 @@ def build(app=None) -> dict:
                      "exhausted_code": "credits_exhausted"},
         "texts": {"title_exhausted": credit_texts.TITLE_EXHAUSTED, "title_shop": credit_texts.TITLE_SHOP, "not_now": credit_texts.NOT_NOW,
                   "keep": credit_texts.KEEP, "buy_needs_pro_ai": credit_texts.BUY_NEEDS_PRO_AI, "web_hint": credit_texts.WEB_HINT,
-                  "no_credits": credit_texts.NO_CREDITS},
+                  "no_credits": credit_texts.NO_CREDITS, "chat_only": credit_texts.CHAT_ONLY, "chat_lock": credit_texts.CHAT_LOCK},
         "balance_cases": balance_cases(),
         "flows": flows,
     }
