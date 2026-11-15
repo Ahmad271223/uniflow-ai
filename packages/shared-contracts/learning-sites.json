@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "about": "Lernseiten neben dem Dokument (iPad): feste Liste erlaubter Seiten, kein freier Browser (docs/VIDEO-LERNSEITEN-2026-11-14.md). hosts: genau dieser Host oder eine Unterdomain davon; nur https; keine Platzhalter. university: nur fuer diese Hochschule (luh, hildesheim, hsh), sonst fuer alle.",
+  "sites": [
+    {"id": "uni-luh", "name": "Leibniz Universität Hannover", "kind": "university", "university": "luh",
+     "start": "https://www.uni-hannover.de/de/", "hosts": ["uni-hannover.de"]},
+    {"id": "tib", "name": "TIB-Portal (Bibliothek)", "kind": "library", "university": "luh",
+     "start": "https://www.tib.eu/de/", "hosts": ["tib.eu"]},
+    {"id": "uni-hildesheim", "name": "Universität Hildesheim", "kind": "university", "university": "hildesheim",
+     "start": "https://www.uni-hildesheim.de/", "hosts": ["uni-hildesheim.de"]},
+    {"id": "ub-hildesheim", "name": "Universitätsbibliothek Hildesheim", "kind": "library", "university": "hildesheim",
+     "start": "https://www.uni-hildesheim.de/bibliothek/", "hosts": ["uni-hildesheim.de"]},
+    {"id": "hsh", "name": "Hochschule Hannover", "kind": "university", "university": "hsh",
+     "start": "https://www.hs-hannover.de/", "hosts": ["hs-hannover.de"]},
+    {"id": "bib-hsh", "name": "Bibliothek der Hochschule Hannover", "kind": "library", "university": "hsh",
+     "start": "https://www.hs-hannover.de/ueber-uns/organisation/bibliothek/", "hosts": ["hs-hannover.de"]},
+    {"id": "wikipedia-de", "name": "Wikipedia", "kind": "reference",
+     "start": "https://de.m.wikipedia.org/", "hosts": ["de.wikipedia.org", "de.m.wikipedia.org"]},
+    {"id": "wikipedia-en", "name": "Wikipedia (Englisch)", "kind": "reference",
+     "start": "https://en.m.wikipedia.org/", "hosts": ["en.wikipedia.org", "en.m.wikipedia.org"]},
+    {"id": "duden", "name": "Duden", "kind": "reference",
+     "start": "https://www.duden.de/", "hosts": ["duden.de"]},
+    {"id": "leo", "name": "LEO Wörterbuch", "kind": "dictionary",
+     "start": "https://dict.leo.org/englisch-deutsch/", "hosts": ["dict.leo.org"]},
+    {"id": "geogebra", "name": "GeoGebra Rechner", "kind": "tool",
+     "start": "https://www.geogebra.org/calculator", "hosts": ["geogebra.org"]},
+    {"id": "serlo", "name": "Serlo", "kind": "learning",
+     "start": "https://de.serlo.org/mathe", "hosts": ["de.serlo.org"]}
+  ]
+}

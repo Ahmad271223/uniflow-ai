@@ -654,5 +654,7 @@ final class ContainerManager: ObservableObject {
         UniAutoLogin.detach(store)
         await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         try? await WKWebsiteDataStore.remove(forIdentifier: id)
+        // Video- und Lernseiten-Spalten dieses Containers (eigener Speicher, docs/VIDEO-LERNSEITEN-2026-11-14.md)
+        await WebSideStore.remove(container: id)
     }
 }
