@@ -330,18 +330,23 @@
     "current_term": null,
     "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "earlier_studies": [],
     "electives": [],
     "excluded": [],
     "groups": [],
     "lp_done": 0,
     "lp_expected": 0,
     "lp_total": 0,
+    "lsf_plan": null,
     "message": "Für deinen Studiengang gibt es noch keinen Katalog.",
     "notes": [],
+    "order_suggestion": null,
     "placements": {},
     "po": null,
     "po_confirmed": false,
     "program": null,
+    "program_mismatch": null,
+    "programs": [],
     "qis_program": "Technische Informatik (PO-Version 2017)",
     "reason": "no_catalog",
     "semesters": [],
@@ -363,6 +368,7 @@
     "elective_options": [],
     "electives": [],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": null,
     "po_options": [],
@@ -636,6 +642,7 @@
     "current_term": "WiSe 26/27",
     "degree": "B.Sc.",
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "earlier_studies": [],
     "electives": [
      {
       "area": "wahlpflicht",
@@ -739,6 +746,7 @@
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -748,10 +756,13 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
     "program": "Technische Informatik",
+    "program_mismatch": null,
+    "programs": [],
     "qis_program": "Technische Informatik (PO-Version 2017)",
     "reason": null,
     "semesters": [
@@ -1475,6 +1486,7 @@
     ],
     "electives": [],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": null,
     "po_options": [
@@ -1847,6 +1859,7 @@
      "robotik"
     ],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": null,
     "po_options": [
@@ -2071,6 +2084,7 @@
     "current_term": "WiSe 26/27",
     "degree": "B.Sc.",
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "earlier_studies": [],
     "electives": [
      {
       "area": "wahlpflicht",
@@ -2174,6 +2188,7 @@
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -2183,10 +2198,13 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
     "program": "Technische Informatik",
+    "program_mismatch": null,
+    "programs": [],
     "qis_program": "Technische Informatik (PO-Version 2017)",
     "reason": null,
     "semesters": [
@@ -2872,6 +2890,7 @@
      "robotik"
     ],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": "INFBSc22",
     "po_options": [
@@ -2910,14 +2929,14 @@
        "programmieren-1"
       ],
       "count": 1,
-      "count_done": 1,
+      "count_done": 0,
       "group": null,
       "id": "informatik",
       "kind": "pflicht",
-      "lp_done": 5,
+      "lp_done": 0,
       "lp_max": null,
       "lp_open": 45,
-      "lp_planned": 0,
+      "lp_planned": 5,
       "lp_required": 50,
       "modules_required": null,
       "name": "Grundlagen der Informatik",
@@ -3067,49 +3086,103 @@
     "current_term": "WiSe 26/27",
     "degree": "B.Sc.",
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "earlier_studies": [
+     {
+      "count": 7,
+      "label": "Technische Informatik (PO-Version 2017)",
+      "lp": 0.0,
+      "program": "Technische Informatik",
+      "rows": [
+       {
+        "credits": "",
+        "note": "2,3",
+        "semester": "WiSe 25/26",
+        "status": "bestanden",
+        "text": "Programmieren I"
+       },
+       {
+        "credits": "",
+        "note": "2,3",
+        "semester": "WiSe 25/26",
+        "status": "bestanden",
+        "text": "Mathematik I"
+       },
+       {
+        "credits": "",
+        "note": "2,3",
+        "semester": "WiSe 25/26",
+        "status": "bestanden",
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "credits": "",
+        "note": "2,3",
+        "semester": "WiSe 25/26",
+        "status": "bestanden",
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "credits": "",
+        "note": "2,3",
+        "semester": "WiSe 25/26",
+        "status": "bestanden",
+        "text": "Grundlagen der theoretischen Informatik"
+       },
+       {
+        "credits": "",
+        "note": "5,0",
+        "semester": "SoSe 26",
+        "status": "nicht bestanden",
+        "text": "Programmieren II"
+       },
+       {
+        "credits": "",
+        "note": "2,0",
+        "semester": "SoSe 26",
+        "status": "bestanden",
+        "text": "Mathematik II"
+       }
+      ]
+     }
+    ],
     "electives": [],
     "excluded": [],
     "groups": [],
-    "lp_done": 5,
+    "lp_done": 0,
     "lp_expected": 5,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
-    "notes": [],
+    "notes": [
+     {
+      "kind": "anderer_studiengang",
+      "module_id": null,
+      "text": "7 Leistungen aus „Technische Informatik“ stehen unten unter „Früheres Studium“ und zählen hier nicht. Angerechnete Leistungen zählen, sobald der Notenspiegel sie beim aktuellen Studiengang führt.",
+      "tone": "info"
+     }
+    ],
+    "order_suggestion": null,
     "placements": {},
     "po": "2022",
     "po_confirmed": true,
     "program": "Informatik",
+    "program_mismatch": {
+     "chosen": "Informatik",
+     "code": "TIBSc25",
+     "degree": "B.Sc.",
+     "po": "2025",
+     "program": "Technische Informatik"
+    },
+    "programs": [],
     "qis_program": "Technische Informatik (PO-Version 2017)",
     "reason": null,
     "semesters": [
      {
       "current": false,
       "fachsemester": 1,
-      "lp": 5,
+      "lp": 0,
       "lp_slots": 0,
-      "modules": [
-       {
-        "area": "informatik",
-        "attempt": 1,
-        "attempt_known": false,
-        "code": null,
-        "final": false,
-        "grade": "2,3",
-        "hints": [],
-        "id": "programmieren-1",
-        "kind": "pflicht",
-        "last_attempt": false,
-        "lp": 5,
-        "max_attempts": null,
-        "moved_from": null,
-        "placed": false,
-        "reason": null,
-        "semester": 1,
-        "status": "bestanden",
-        "title": "Programmieren I",
-        "turnus": "WS"
-       }
-      ],
+      "modules": [],
       "slots": [],
       "term": "WiSe 25/26"
      },
@@ -3125,6 +3198,37 @@
      {
       "current": true,
       "fachsemester": 3,
+      "lp": 5,
+      "lp_slots": 0,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": null,
+        "attempt_known": false,
+        "code": null,
+        "final": false,
+        "grade": null,
+        "hints": [],
+        "id": "programmieren-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "max_attempts": null,
+        "moved_from": "WiSe 25/26",
+        "placed": false,
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 1,
+        "status": "offen",
+        "title": "Programmieren I",
+        "turnus": "WS"
+       }
+      ],
+      "slots": [],
+      "term": "WiSe 26/27"
+     },
+     {
+      "current": false,
+      "fachsemester": 4,
       "lp": 0,
       "lp_slots": 5,
       "modules": [],
@@ -3145,15 +3249,6 @@
         "type": "schluessel"
        }
       ],
-      "term": "WiSe 26/27"
-     },
-     {
-      "current": false,
-      "fachsemester": 4,
-      "lp": 0,
-      "lp_slots": 0,
-      "modules": [],
-      "slots": [],
       "term": "SoSe 27"
      },
      {
@@ -3240,14 +3335,7 @@
     "start_term": "WiSe 25/26",
     "suggested_po": "2022",
     "university": "luh",
-    "unmatched": [
-     "Elektrotechnische Grundlagen I",
-     "Grundlagen der theoretischen Informatik",
-     "Grundlagen digitaler Systeme",
-     "Mathematik I",
-     "Mathematik II",
-     "Programmieren II"
-    ]
+    "unmatched": []
    },
    "status": 200
   },
@@ -3283,6 +3371,7 @@
      "robotik"
     ],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": "1999",
     "po_options": [
@@ -3321,18 +3410,23 @@
     "current_term": null,
     "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "earlier_studies": [],
     "electives": [],
     "excluded": [],
     "groups": [],
     "lp_done": 0,
     "lp_expected": 0,
     "lp_total": 0,
+    "lsf_plan": null,
     "message": "Für die Prüfungsordnung 1999 gibt es noch keinen Katalog.",
     "notes": [],
+    "order_suggestion": null,
     "placements": {},
     "po": null,
     "po_confirmed": true,
     "program": null,
+    "program_mismatch": null,
+    "programs": [],
     "qis_program": "Technische Informatik (PO-Version 2017)",
     "reason": "no_catalog_po",
     "semesters": [],
@@ -3430,6 +3524,7 @@
      "robotik"
     ],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": null,
     "po_options": [
@@ -3576,6 +3671,7 @@
      "robotik"
     ],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": null,
     "po_options": [
@@ -3808,6 +3904,7 @@
     "excluded": [
      "stochastik"
     ],
+    "minors": [],
     "placements": {
      "mathematik-3": "WiSe 27/28",
      "rechnernetze": "SoSe 27"
@@ -4036,6 +4133,7 @@
     "current_term": "WiSe 26/27",
     "degree": "B.Sc.",
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "earlier_studies": [],
     "electives": [
      {
       "area": "wahlpflicht",
@@ -4147,6 +4245,7 @@
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
+    "lsf_plan": null,
     "message": null,
     "notes": [
      {
@@ -4156,6 +4255,7 @@
       "tone": "warn"
      }
     ],
+    "order_suggestion": null,
     "placements": {
      "mathematik-3": "WiSe 27/28",
      "rechnernetze": "SoSe 27"
@@ -4163,6 +4263,8 @@
     "po": "2022",
     "po_confirmed": false,
     "program": "Technische Informatik",
+    "program_mismatch": null,
+    "programs": [],
     "qis_program": "Technische Informatik (PO-Version 2017)",
     "reason": null,
     "semesters": [
@@ -4942,6 +5044,7 @@
     "excluded": [
      "stochastik"
     ],
+    "minors": [],
     "placements": {
      "mathematik-3": "WiSe 27/28",
      "rechnernetze": "SoSe 27"
@@ -5136,6 +5239,7 @@
     ],
     "electives": [],
     "excluded": [],
+    "minors": [],
     "placements": {},
     "po": null,
     "po_options": [

@@ -17,9 +17,14 @@ Abruf: `changes(conn, since)` liefert alle Zeilen und Tombstones nach dem Cursor
  - Loeschen: gewinnt, wenn es nicht aelter ist als die letzte Aenderung auf dem Server, sonst bleibt die Zeile
    (Konflikt `edit_wins`); eine Aenderung nach einem Tombstone stellt die Zeile wieder her
 Eigene Dokumente mit Inhalt (Notizbuecher, importierte PDFs) folgen spaeter; Hochschuldateien laedt jedes Geraet selbst.
+
+Raeume je Uni-Konto (14.11.2026, docs/ABGLEICH-UNI-KONTO-2026-11-14.md): Geraete desselben StudiNow-Kontos teilen nur,
+wenn sie zum selben Uni-Konto gehoeren. Das Geraet meldet einen Hash (`uni_key`, aeltere Apple-Apps `studip_user`);
+je Uni-Konto gibt es einen Raum (`sync_rooms`), je Zeile Raum und Ursprungsgeraet (`sync_row_room`). Regeln: `Rooms`.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -44,34 +49,25 @@ ENTITIES: dict[str, dict] = {
     "annotations": {"pk": "file_id", "fk": {}},
 }
 SYNC_COLS = ("sync_version", "sync_updated_at", "sync_device")
-# nie zwischen Geraeten. `studip_user_hash`: Hash der Stud.IP-Benutzerkennung, der dieses Konto (je Hochschule) gehoert
-# (check_studip_user); setzt nur der Dienst, kein Geraet kann ihn per Push aendern oder loeschen
+# nie zwischen Geraeten. `studip_user_hash`: Hash der Stud.IP-Benutzerkennung des Geraets (lokal, `StudIPUserMark`); im
+# Dienst stand er vom 12. bis 14.11.2026 je Konto (erster Benutzer sperrte den zweiten aus, 409), seitdem ordnen die
+# Raeume (`Rooms`) zu. Der Schluessel bleibt privat: kein Geraet kann ihn per Push setzen oder loeschen.
 PRIVATE_SETTINGS = {"lan_pin", "university", "studip_user_hash"}
 STUDIP_USER_RE = re.compile(r"^[0-9a-f]{16,128}$")
-STUDIP_USER_MISMATCH = ("Dieses StudiNow-Konto gleicht bereits die Daten eines anderen Stud.IP-Benutzers ab. "
-                        "Der Abgleich zwischen Geräten ist angehalten.")
+UNI_KEY_RE = STUDIP_USER_RE                        # `uni_key`: SHA-256 hex ueber Konto | Hochschule | Uni-Kennung
+ROOM_META = "~meta"                                # Marker in sync_row_room (kein Tabellenname)
+# Hochschulen ohne sichere Kennung des Uni-Kontos (Hildesheim, HsH; Entscheidung des Inhabers vom 14.11.2026: dort
+# laeuft der Abgleich wie bisher): die App schickt einen Schluessel nur aus StudiNow-Konto und Hochschule
+# (`UniAccountKey.universityOnly` im Swift-Kern). Alle Geraete dieser Hochschule teilen dann einen Raum.
+UNIVERSITY_ONLY = "ohne-kennung"
 
 
-class StudIPUserMismatch(Exception):
-    """Das Geraet ist mit einem anderen Stud.IP-Benutzer angemeldet als dem, dessen Daten dieses Konto abgleicht."""
-
-
-def check_studip_user(conn, value) -> None:
-    """Datentrennung im Geraete-Abgleich (12.11.2026): die App schickt den Hash ihrer Stud.IP-Benutzerkennung mit
-    (`studip_user`). Noch keiner gemerkt -> merken; gleich -> weiter; anders -> StudIPUserMismatch, bevor etwas gelesen
-    oder geschrieben wird. Ohne Wert (Windows-App, aeltere Apps, Hochschule ohne Stud.IP) aendert sich nichts.
-    ValueError bei einem Wert, der kein Hex-Hash ist."""
-    if value is None or value == "":
-        return
-    if not isinstance(value, str) or not STUDIP_USER_RE.match(value):
-        raise ValueError("studip_user muss ein Hex-Hash sein")
-    row = db.row(conn, "SELECT value FROM settings WHERE key='studip_user_hash'")
-    known = (row or {}).get("value")
-    if not known:
-        conn.execute("INSERT INTO settings(key, value) VALUES ('studip_user_hash', ?) "
-                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (value,))
-    elif known != value:
-        raise StudIPUserMismatch(STUDIP_USER_MISMATCH)
+def university_key(account, university) -> str | None:
+    """Der Schluessel ohne Nutzerkennung, den ein Geraet dieser Hochschule unter diesem StudiNow-Konto schickt. Der
+    Dienst erkennt daran einen Raum, der kein einzelnes Uni-Konto bezeichnet (`sync_rooms.plain`)."""
+    if not account or not university:
+        return None
+    return hashlib.sha256(f"studinow-uni-konto|{account}|{university}|{UNIVERSITY_ONLY}".encode()).hexdigest()
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
 OP_RE = re.compile(r"^[A-Za-z0-9._:-]{8,100}$")             # Operations-ID eines Push-Eintrags (z. B. UUID)
 NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
@@ -136,6 +132,262 @@ def ensure_schema(conn) -> None:
                   VALUES ('{table}', CAST(OLD.{pk} AS TEXT), {NOW_SQL}, NULL); END""")
         # Bestand ohne Zeitstempel (Datenbanken von vor der Synchronisierung)
         conn.execute(f"UPDATE {table} SET sync_updated_at = {NOW_SQL}, sync_version = COALESCE(sync_version, 1) WHERE sync_updated_at IS NULL")
+    ensure_rooms(conn)
+
+
+# ---------------------------------------------------------------- Raeume je Uni-Konto
+
+def ensure_rooms(conn) -> None:
+    """Tabellen der Raeume; einmalig das Ursprungsgeraet je vorhandener Zeile (zuerst `sync_ops`: wer hat angelegt,
+    sonst `sync_device`: letzter Schreiber). Idempotent, vertraegt fehlende Tabellen, fasst keine Datenzeile an
+    (eine Spalte an den Datentabellen haette ueber die Trigger jede Zeile neu gestempelt)."""
+    # `plain` = 1: Raum aus dem Schluessel ohne Nutzerkennung (`university_key`), also kein bestimmtes Uni-Konto
+    conn.execute("""CREATE TABLE IF NOT EXISTS sync_rooms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, uni_key TEXT UNIQUE, studip_user TEXT UNIQUE, created_at TEXT NOT NULL,
+        plain INTEGER NOT NULL DEFAULT 0)""")
+    if "plain" not in {r[1] for r in conn.execute("PRAGMA table_info(sync_rooms)")}:     # Tabelle aus einem frueheren Stand dieses Zweigs
+        db.add_column(conn, "sync_rooms", "plain", "INTEGER NOT NULL DEFAULT 0")
+    conn.execute("CREATE TABLE IF NOT EXISTS sync_devices (device_id TEXT PRIMARY KEY, room INTEGER NOT NULL, seen_at TEXT NOT NULL)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS sync_row_room (
+        entity TEXT NOT NULL, entity_id TEXT NOT NULL, room INTEGER, origin TEXT, assigned_at TEXT,
+        PRIMARY KEY (entity, entity_id))""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sync_row_room_origin ON sync_row_room(origin)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sync_row_room_assigned ON sync_row_room(assigned_at)")
+    if conn.execute("SELECT 1 FROM sync_row_room WHERE entity=? AND entity_id='backfill'", (ROOM_META,)).fetchone():
+        return
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    for table, meta in ENTITIES.items():
+        if table not in tables or "sync_device" not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
+            continue
+        conn.execute(f"""INSERT OR IGNORE INTO sync_row_room(entity, entity_id, room, origin, assigned_at)
+                         SELECT '{table}', CAST({meta['pk']} AS TEXT), NULL, sync_device, NULL FROM {table}
+                         WHERE sync_device IS NOT NULL AND sync_device != ''""")
+    if "sync_ops" in tables:
+        ops = conn.execute("SELECT entity, result, device FROM sync_ops WHERE device IS NOT NULL AND device != '' ORDER BY created_at").fetchall()
+        for entity, result, device in ops:
+            try:
+                res = json.loads(result)
+            except (TypeError, ValueError):
+                continue
+            if entity not in ENTITIES or entity not in tables or not isinstance(res, dict) or res.get("id") is None:
+                continue
+            if res.get("status") not in ("created", "resurrected"):
+                continue
+            pk = ENTITIES[entity]["pk"]
+            if not conn.execute(f"SELECT 1 FROM {entity} WHERE CAST({pk} AS TEXT)=?", (str(res["id"]),)).fetchone():
+                continue
+            conn.execute("INSERT INTO sync_row_room(entity, entity_id, room, origin, assigned_at) VALUES (?,?,NULL,?,NULL) "
+                         "ON CONFLICT(entity, entity_id) DO UPDATE SET origin=excluded.origin WHERE sync_row_room.room IS NULL",
+                         (entity, str(res["id"]), device))
+    conn.execute("INSERT OR IGNORE INTO sync_row_room(entity, entity_id, room, origin, assigned_at) VALUES (?, 'backfill', NULL, NULL, ?)",
+                 (ROOM_META, now_utc()))
+
+
+class Rooms:
+    """Raum des anfragenden Geraets und die Regeln dazu (docs/ABGLEICH-UNI-KONTO-2026-11-14.md).
+
+    `room`: Nummer des Raums oder None (Geraet ohne Schluessel: Windows-App alt, Apple bis 1.0.2). `count`: Zahl der
+    Raeume des Kontos, die fuer die Regeln zaehlen; `total`: alle. `modern`: der Client kennt `foreign` (er schickt
+    `uni_key` oder meldet die Faehigkeit `uni_room`).
+
+    Hochschule ohne sichere Kennung (Hildesheim, HsH): ihre Geraete schicken einen Schluessel ohne Nutzerkennung und
+    teilen einen Raum (`sync_rooms.plain`). Ist das der einzige Raum des Kontos, zaehlt er nicht (`count` = 0): dann
+    gilt fuer alle Geraete, auch die ohne Schluessel, alles wie vor den Raeumen - der Abgleich dieser Hochschule laeuft
+    wie in 1.0.4. Kommt ein zweiter Raum dazu (ein Geraet mit einem echten Uni-Konto, z. B. LUH), wird getrennt.
+
+    Getrennt wird, sobald der Dienst zwei Uni-Konten unter dem StudiNow-Konto kennt (zwei Raeume). Solange es nur
+    einen Raum gibt, sieht und aendert jedes Geraet alles wie bisher (sonst waeren die Zeilen eines Geraets, das sich
+    nie wieder meldet - neu installierte App, altes Handy - fuer alle anderen verloren); nur das Loeschen ist schon
+    dann geschuetzt.
+
+    Sehen (Abruf):  hoechstens ein Raum: alles. Ab zwei Raeumen: Geraet mit Raum nur die Zeilen und Loeschmarken
+                    seines Raums; Geraet ohne Raum nur Zeilen ohne Raum.
+    Aendern:        Geraet mit Raum: eigener Raum; eine Zeile ohne Raum und ohne Ursprungsgeraet (Web, Dienst)
+                    uebernimmt es dabei; eine Zeile ohne Raum von einem anderen Geraet nur, solange es einen Raum gibt.
+                    Geraet ohne Raum: Zeilen ohne Raum; Raum-Zeilen nur, solange es hoechstens einen Raum gibt.
+    Loeschen:       Geraet mit Raum: eigener Raum (nicht, wenn Zeilen eines anderen Raums daran haengen) und Zeilen
+                    ohne Raum - die Loeschung gehoert dann seinem Raum: die Loeschmarke geht nur an diesen Raum, nie
+                    an das Ursprungsgeraet, solange dessen Uni-Konto offen ist. Gehoert es spaeter zu einem anderen
+                    Raum, erfaehrt es die Zeile als fremd (`foreign`) und legt seine eigene Fassung neu an.
+                    Geraet ohne Raum: kein Raum im Konto -> wie bisher; sonst nur eigene oder Web-Zeilen ohne Raum.
+    Nie ein Fehler: was nicht erlaubt ist, bekommt je Eintrag ein Ergebnis ohne Wirkung im Dienst (`refused`):
+      `other_room`   - die Zeile gehoert nachweislich einem anderen Raum
+      `room_pending` - die Zeile stammt von einem Geraet, dessen Uni-Konto der Dienst noch nicht kennt (Altbestand,
+                       aeltere App): spaeter noch einmal senden; meldet sich das Geraet im selben Raum, gelingt es dann
+    Aeltere Apps kennen beide nicht und tun nichts: die Zeile bleibt bei ihnen als geaendert stehen und geht beim
+    naechsten Abgleich wieder mit (ein stilles "uebernommen" haette die Aenderung spaeter mit dem Stand des Dienstes
+    ueberschrieben). Nichts davon wird unter der `op_id` gemerkt."""
+
+    def __init__(self, conn, device: str | None = None, room: int | None = None, modern: bool = False):
+        self.conn, self.device, self.room, self.modern = conn, device, room, modern
+        self.ready = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_row_room'").fetchone())
+        self.total = self.count = 0
+        self.recount()
+
+    def recount(self) -> None:
+        if not self.ready:
+            return
+        plain = [r[0] for r in self.conn.execute("SELECT plain FROM sync_rooms")]
+        self.total = len(plain)
+        self.count = 0 if len(plain) == 1 and plain[0] else len(plain)
+
+    @property
+    def legacy(self) -> bool:
+        """Zeilen im Abruf wie vor den Raeumen: solange das Konto hoechstens einen Raum hat."""
+        return not self.ready or self.count <= 1
+
+    def of(self, entity: str, entity_id) -> tuple[int | None, str | None]:
+        """(Raum, Ursprungsgeraet) einer Zeile; ohne Eintrag (None, None)."""
+        if not self.ready:
+            return None, None
+        r = self.conn.execute("SELECT room, origin FROM sync_row_room WHERE entity=? AND entity_id=?", (entity, str(entity_id))).fetchone()
+        return (r[0], r[1]) if r else (None, None)
+
+    def created(self, entity: str, entity_id, now: str) -> None:
+        """Neue Zeile dieses Geraets: Ursprung merken, mit Raum gleich zuordnen."""
+        if not self.ready or (self.device is None and self.room is None):
+            return
+        self.conn.execute("INSERT INTO sync_row_room(entity, entity_id, room, origin, assigned_at) VALUES (?,?,?,?,?) "
+                          "ON CONFLICT(entity, entity_id) DO UPDATE SET room=excluded.room, origin=excluded.origin, assigned_at=excluded.assigned_at",
+                          (entity, str(entity_id), self.room, self.device, now if self.room is not None else None))
+
+    OTHER, PENDING = "other_room", "room_pending"
+
+    def deny_update(self, entity: str, entity_id, now: str) -> str | None:
+        """None = erlaubt (eine Web-Zeile ohne Raum gehoert danach diesem Raum), sonst `other_room` / `room_pending`."""
+        if not self.ready:
+            return None
+        room, origin = self.of(entity, entity_id)
+        if self.room is None:                                   # Geraet ohne Raum: nie "nachweislich fremd", nur "noch offen"
+            return None if room is None or self.count <= 1 else self.PENDING
+        if room is not None:
+            return None if room == self.room else self.OTHER
+        if origin is not None and origin != self.device:
+            # Zeile eines Geraets, dessen Uni-Konto noch unbekannt ist: bei nur einem Raum wie bisher aendern (ohne die
+            # Zeile dem Raum zuzuordnen - sonst waere sie spaeter nicht mehr als fremd erkennbar), sonst warten
+            return None if self.count <= 1 else self.PENDING
+        # Zeile ohne Ursprungsgeraet (Web, Dienst) oder eigene: gehoert ab jetzt diesem Raum
+        self.conn.execute("INSERT INTO sync_row_room(entity, entity_id, room, origin, assigned_at) VALUES (?,?,?,NULL,?) "
+                          "ON CONFLICT(entity, entity_id) DO UPDATE SET room=excluded.room, assigned_at=excluded.assigned_at",
+                          (entity, str(entity_id), self.room, now))
+        return None
+
+    def deny_delete(self, entity: str, entity_id) -> str | None:
+        """None = erlaubt, sonst `other_room` / `room_pending`. Loeschen bleibt im Raum."""
+        if not self.ready:
+            return None
+        room, origin = self.of(entity, entity_id)
+        mine = origin is None or origin == self.device
+        if self.room is None:
+            if self.count == 0:
+                return None
+            return None if room is None and mine else self.PENDING
+        if (room is not None and room != self.room) or self._foreign_children(entity, entity_id):
+            return self.OTHER
+        return None
+
+    def deleted(self, mark: str, now: str) -> None:
+        """Nach einer angenommenen Loeschung: geloeschte Zeilen ohne Raum (die Zeile selbst und was ON DELETE CASCADE
+        mitnahm: Loeschmarken ab `mark`) gehoeren mit ihrer Marke dem Raum des loeschenden Geraets; der Ursprung
+        bleibt stehen. So erreicht die Marke nur diesen Raum."""
+        if not self.ready or self.room is None:
+            return
+        self.conn.execute("""INSERT INTO sync_row_room(entity, entity_id, room, origin, assigned_at)
+                             SELECT s.entity, s.entity_id, ?, NULL, ? FROM sync_tombstones s WHERE s.deleted_at >= ?
+                             ON CONFLICT(entity, entity_id) DO UPDATE SET room=excluded.room, assigned_at=excluded.assigned_at
+                             WHERE sync_row_room.room IS NULL""", (self.room, now, mark))
+
+    def _foreign_children(self, entity: str, entity_id) -> bool:
+        """Haengt an der Zeile etwas aus einem anderen Raum (Altbestand: zwei Uni-Konten hatten dasselbe Fach)? Dann
+        nicht loeschen: ON DELETE CASCADE naehme es dem anderen Raum weg."""
+        for child, meta in ENTITIES.items():
+            for col, target in meta["fk"].items():
+                if target != entity or not self.conn.execute(f"PRAGMA table_info({child})").fetchone():
+                    continue
+                hit = self.conn.execute(
+                    f"""SELECT 1 FROM {child} c JOIN sync_row_room rr ON rr.entity=? AND rr.entity_id=CAST(c.{meta['pk']} AS TEXT)
+                        WHERE c.{col}=? AND rr.room IS NOT NULL AND rr.room != ? LIMIT 1""", (child, entity_id, self.room)).fetchone()
+                if hit:
+                    return True
+        return False
+
+    @staticmethod
+    def refused(entity: str, entity_id, status: str) -> dict:
+        """Ergebnis fuer eine Zeile, die dieses Geraet nicht aendern oder loeschen darf (`deny_update`, `deny_delete`)."""
+        return {"entity": entity, "id": entity_id, "status": status}
+
+    def visible_sql(self, alias: str = "rr") -> tuple[str, list]:
+        """Bedingung auf dem LEFT JOIN mit sync_row_room fuer Zeilen und Loeschmarken ab zwei Raeumen."""
+        if self.room is None:
+            return f"{alias}.room IS NULL", []
+        return f"{alias}.room = ?", [self.room]
+
+    def tombstone_sql(self, alias: str = "rr") -> tuple[str, list] | None:
+        """Bedingung fuer Loeschmarken; None = Abfrage wie vor den Raeumen (Konto ohne Raum).
+        Ein Raum: alle Marken - ausser fuer ein Geraet ohne Raum die Marken seiner eigenen Zeilen, die ein Raum
+        geloescht hat (sein Uni-Konto ist offen; wendete es die Marke an, verloere ein fremdes Uni-Konto seine Zeile)."""
+        if not self.ready or self.count == 0:
+            return None
+        if self.count >= 2:
+            return self.visible_sql(alias)
+        if self.room is None and self.device:
+            return f"({alias}.origin IS NULL OR {alias}.origin != ? OR {alias}.room IS NULL)", [self.device]
+        return "1=1", []
+
+
+def resolve_room(conn, device: str | None, uni_key=None, studip_user=None, now: str | None = None,
+                 plain_key: str | None = None) -> Rooms:
+    """Raum des Geraets aus seinen Hashes; legt Raum und Geraet bei Bedarf an und ordnet die Zeilen zu, die dieses
+    Geraet frueher ohne Raum angelegt hat (Altbestand). Ohne Hash: der zuletzt gemeldete Raum des Geraets, sonst
+    keiner. ValueError bei einem Wert, der kein Hex-Hash ist (wie bisher bei `studip_user`).
+    `plain_key`: der Schluessel ohne Nutzerkennung dieses Kontos und dieser Hochschule (`university_key`); ein Raum
+    mit genau diesem Schluessel bezeichnet kein einzelnes Uni-Konto (`Rooms`, `sync_rooms.plain`)."""
+    for name, value in (("uni_key", uni_key), ("studip_user", studip_user)):
+        if value not in (None, "") and (not isinstance(value, str) or not UNI_KEY_RE.match(value)):
+            raise ValueError(f"{name} muss ein Hex-Hash sein")
+    key, user = uni_key or None, studip_user or None
+    device = (device if isinstance(device, str) else "")[:80] or None
+    ctx = Rooms(conn, device, None, modern=bool(key))
+    if not ctx.ready:
+        return ctx
+    now = now or now_utc()
+    room = None
+    if key or user:
+        by_key = conn.execute("SELECT id, studip_user FROM sync_rooms WHERE uni_key=?", (key,)).fetchone() if key else None
+        by_user = conn.execute("SELECT id, uni_key FROM sync_rooms WHERE studip_user=?", (user,)).fetchone() if user else None
+        if by_key:
+            room = by_key[0]
+            if user and not by_key[1] and not by_user:          # alten Hash nachtragen: aeltere Apps finden denselben Raum
+                conn.execute("UPDATE sync_rooms SET studip_user=? WHERE id=?", (user, room))
+        elif by_user and (not key or not by_user[1]):
+            room = by_user[0]
+            if key:                                             # Raum einer aelteren App bekommt den neuen Schluessel
+                conn.execute("UPDATE sync_rooms SET uni_key=? WHERE id=?", (key, room))
+        else:
+            room = conn.execute("INSERT INTO sync_rooms(uni_key, studip_user, created_at, plain) VALUES (?,?,?,?)",
+                                (key, None if by_user else user, now, 1 if key and key == plain_key else 0)).lastrowid
+        if device:
+            known = conn.execute("SELECT room FROM sync_devices WHERE device_id=?", (device,)).fetchone()
+            if not known or known[0] != room:                   # nur schreiben, wenn sich etwas aendert (jeder Abruf kommt hier vorbei)
+                conn.execute("INSERT INTO sync_devices(device_id, room, seen_at) VALUES (?,?,?) "
+                             "ON CONFLICT(device_id) DO UPDATE SET room=excluded.room, seen_at=excluded.seen_at", (device, room, now))
+                # Zeilen dieses Geraets, die sein Raum schon geloescht hat, als es selbst noch unbekannt war: die
+                # Loeschmarke wurde ihm bis jetzt vorenthalten (`tombstone_sql`); jetzt gehoert es dazu und holt sie nach
+                conn.execute("""UPDATE sync_row_room SET assigned_at=? WHERE origin=? AND room=? AND EXISTS (
+                                    SELECT 1 FROM sync_tombstones s WHERE s.entity=sync_row_room.entity AND s.entity_id=sync_row_room.entity_id)""",
+                             (now, device, room))
+    elif device:
+        r = conn.execute("SELECT room FROM sync_devices WHERE device_id=?", (device,)).fetchone()
+        room = r[0] if r else None
+    if room is not None and device and conn.execute(
+            "SELECT 1 FROM sync_row_room WHERE room IS NULL AND origin=? AND entity != ? LIMIT 1", (device, ROOM_META)).fetchone():
+        # Altbestand und alles, was das Geraet ohne Raum angelegt hat: gehoert jetzt seinem Raum. `assigned_at` laesst
+        # die anderen Geraete des Raums die Zeilen nachholen, auch wenn ihr Cursor schon weiter ist.
+        conn.execute("UPDATE sync_row_room SET room=?, assigned_at=? WHERE room IS NULL AND origin=? AND entity != ?",
+                     (room, now, device, ROOM_META))
+    ctx.room = room
+    ctx.recount()
+    return ctx
 
 
 def _columns(conn, table: str) -> list[str]:
@@ -166,18 +418,19 @@ def _row_out(table: str, r: dict) -> dict:
 MAX_PULL = 2000
 
 
-def _page(conn, sql_more: str, sql_same: str, since: str, limit: int, ts_key: str) -> tuple[list[dict], str | None]:
+def _page(conn, sql_more: str, sql_same: str, since: str, limit: int, ts_key: str, extra: tuple = ()) -> tuple[list[dict], str | None]:
     """Hoechstens `limit` Zeilen nach `since`, aufsteigend nach Zeitstempel; bei abgeschnittener Liste kommen alle
     Zeilen mit dem letzten Zeitstempel dazu (gleiche Zeitstempel lassen sich mit einem Zeit-Cursor nicht teilen).
-    Liefert (Zeilen, Grenze) - Grenze = letzter Zeitstempel, wenn es danach weitere Zeilen geben kann, sonst None."""
-    rows = db.rows(conn, sql_more, (since, limit))
+    Liefert (Zeilen, Grenze) - Grenze = letzter Zeitstempel, wenn es danach weitere Zeilen geben kann, sonst None.
+    `extra`: weitere Parameter der Bedingung (Raum), in beiden Abfragen nach dem Zeitstempel."""
+    rows = db.rows(conn, sql_more, (since, *extra, limit))
     if len(rows) < limit:
         return rows, None
     last = rows[-1][ts_key]
-    return [r for r in rows if r[ts_key] < last] + db.rows(conn, sql_same, (last,)), last
+    return [r for r in rows if r[ts_key] < last] + db.rows(conn, sql_same, (last, *extra)), last
 
 
-def changes(conn, since: str | None, limit: int = MAX_PULL) -> dict:
+def changes(conn, since: str | None, limit: int = MAX_PULL, rooms: Rooms | None = None) -> dict:
     """Alle Aenderungen nach `since` (Cursor aus der letzten Antwort; None = alles), seitenweise.
 
     Je Tabelle hoechstens `limit` Zeilen (plus Gleichstand am Ende). Wird eine Tabelle abgeschnitten, gilt fuer alle
@@ -185,50 +438,107 @@ def changes(conn, since: str | None, limit: int = MAX_PULL) -> dict:
     einschliesslich der Grenze, der Cursor ist die Grenze und `has_more` ist true. Vorher (bis 28.10.2026) war der
     Cursor das Maximum ueber alle Tabellen; bei mehr als `limit` Aenderungen in einer Tabelle gingen Zeilen verloren.
     Clients rufen weiter ab, solange `has_more` true ist; der Cursor bleibt ein Zeitstempel (alte Clients holen den
-    Rest beim naechsten Abgleich)."""
+    Rest beim naechsten Abgleich).
+
+    `rooms` (14.11.2026): nur was das Geraet sehen darf (`Rooms`). Eine Zeile zaehlt dann ab dem spaeteren von
+    Aenderung und Zuordnung zum Raum (`assigned_at`): wird Altbestand zugeordnet, holen ihn die Geraete des Raums nach.
+    Neue Apps (`rooms.modern`) bekommen dazu `foreign` (Zeilen, die nachweislich einem anderen Raum gehoeren: das
+    Geraet raeumt sie bei sich auf) und `uni.rooms` (Zahl der Uni-Konten unter diesem StudiNow-Konto)."""
     since = since if since and TS_RE.match(since) else ""
     limit = max(1, min(int(limit or MAX_PULL), MAX_PULL))
+    rooms = rooms or Rooms(conn)                                # ohne Angabe: die Regeln fuer ein Geraet ohne Raum
+    filtered = not rooms.legacy                                 # ab zwei Raeumen
+    vis, vis_params = rooms.visible_sql() if filtered else ("", [])
+    ts_key = "_ts" if filtered else "sync_updated_at"
     fetched: dict[str, list] = {}
     bounds: list[str] = []
     for table, meta in ENTITIES.items():
         pk = meta["pk"]
-        rows, bound = _page(conn, f"SELECT * FROM {table} WHERE sync_updated_at > ? ORDER BY sync_updated_at, {pk} LIMIT ?",
-                            f"SELECT * FROM {table} WHERE sync_updated_at = ? ORDER BY {pk}", since, limit, "sync_updated_at")
+        if filtered:
+            ts = "MAX(COALESCE(t.sync_updated_at, ''), COALESCE(rr.assigned_at, ''))"
+            join = (f"SELECT t.*, {ts} AS _ts FROM {table} t LEFT JOIN sync_row_room rr "
+                    f"ON rr.entity='{table}' AND rr.entity_id=CAST(t.{pk} AS TEXT)")
+            rows, bound = _page(conn, f"{join} WHERE {ts} > ? AND {vis} ORDER BY _ts, t.{pk} LIMIT ?",
+                                f"{join} WHERE {ts} = ? AND {vis} ORDER BY t.{pk}", since, limit, ts_key, tuple(vis_params))
+        else:
+            rows, bound = _page(conn, f"SELECT * FROM {table} WHERE sync_updated_at > ? ORDER BY sync_updated_at, {pk} LIMIT ?",
+                                f"SELECT * FROM {table} WHERE sync_updated_at = ? ORDER BY {pk}", since, limit, ts_key)
         fetched[table] = rows
         if bound:
             bounds.append(bound)
-    tomb, bound = _page(conn, "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at > ? "
-                              "ORDER BY deleted_at, entity, entity_id LIMIT ?",
-                        "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at = ? ORDER BY entity, entity_id",
-                        since, limit, "deleted_at")
+    tomb_rule = rooms.tombstone_sql()
+    if tomb_rule:
+        # wie bei den Zeilen zaehlt das spaetere von Loeschung und Zuordnung (ein Geraet, das sich erst jetzt meldet,
+        # holt die Marken seiner frueher im Raum geloeschten Zeilen nach); nur fuer Geraete mit Raum
+        tv, tv_params = tomb_rule
+        ts = "MAX(s.deleted_at, COALESCE(rr.assigned_at, ''))" if rooms.room is not None else "s.deleted_at"
+        join = (f"SELECT s.entity, s.entity_id, s.deleted_at, s.device, {ts} AS _ts FROM sync_tombstones s LEFT JOIN sync_row_room rr "
+                "ON rr.entity=s.entity AND rr.entity_id=s.entity_id")
+        tomb, bound = _page(conn, f"{join} WHERE {ts} > ? AND {tv} ORDER BY _ts, s.entity, s.entity_id LIMIT ?",
+                            f"{join} WHERE {ts} = ? AND {tv} ORDER BY s.entity, s.entity_id", since, limit, "_ts", tuple(tv_params))
+    else:
+        tomb, bound = _page(conn, "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at > ? "
+                                  "ORDER BY deleted_at, entity, entity_id LIMIT ?",
+                            "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at = ? ORDER BY entity, entity_id",
+                            since, limit, "deleted_at")
     if bound:
         bounds.append(bound)
+    foreign: list[dict] = []
+    tell = rooms is not None and rooms.modern and rooms.ready and rooms.room is not None
+    if tell:
+        cond = "room IS NOT NULL AND room != ? AND entity != ?"
+        foreign, bound = _page(conn, f"SELECT entity, entity_id, assigned_at FROM sync_row_room WHERE assigned_at > ? AND {cond} "
+                                     "ORDER BY assigned_at, entity, entity_id LIMIT ?",
+                               f"SELECT entity, entity_id, assigned_at FROM sync_row_room WHERE assigned_at = ? AND {cond} "
+                               "ORDER BY entity, entity_id", since, limit, "assigned_at", (rooms.room, ROOM_META))
+        if bound:
+            bounds.append(bound)
     cut = min(bounds) if bounds else None
     out: dict[str, list] = {}
     newest = since
     for table, rows in fetched.items():
         if cut:
-            rows = [r for r in rows if (r["sync_updated_at"] or "") <= cut]
+            rows = [r for r in rows if (r[ts_key] or "") <= cut]
         if rows:
-            newest = max(newest, rows[-1]["sync_updated_at"] or "")
+            newest = max(newest, rows[-1][ts_key] or "")
         if table == "settings":
             rows = [r for r in rows if r["key"] not in PRIVATE_SETTINGS]
+        if filtered:
+            rows = [{k: v for k, v in r.items() if k != "_ts"} for r in rows]
         if rows:
             out[table] = [_row_out(table, r) for r in rows]
+    tomb_ts = "_ts" if tomb_rule else "deleted_at"
     if cut:
-        tomb = [t for t in tomb if t["deleted_at"] <= cut]
+        tomb = [t for t in tomb if t[tomb_ts] <= cut]
+        foreign = [f for f in foreign if f["assigned_at"] <= cut]
     if tomb:
-        newest = max(newest, tomb[-1]["deleted_at"])
+        newest = max(newest, tomb[-1][tomb_ts])
+        tomb = [{k: v for k, v in t.items() if k != "_ts"} for t in tomb]
+    if foreign:
+        newest = max(newest, foreign[-1]["assigned_at"])
     cursor = (cut or newest or since) or None
     if cursor:
         _clock_past(cursor)
-    return {"cursor": cursor, "changes": out, "tombstones": tomb, "has_more": cut is not None}
+    res = {"cursor": cursor, "changes": out, "tombstones": tomb, "has_more": cut is not None}
+    if tell:
+        res["foreign"] = [{"entity": f["entity"], "id": _foreign_id(f["entity"], f["entity_id"])} for f in foreign]
+    if rooms is not None and rooms.modern:
+        res["uni"] = {"rooms": rooms.total, "room": rooms.room is not None}
+    return res
 
 
 # ---------------------------------------------------------------- Senden
 
 def _coerce_id(table: str, value):
     return str(value) if ENTITIES[table]["pk"] != "id" else int(value)
+
+
+def _foreign_id(table: str, value: str):
+    """ID im Abruf wie in den Zeilen selbst: Zahl bei Tabellen mit `id`, sonst Text."""
+    try:
+        return _coerce_id(table, value) if table in ENTITIES else value
+    except ValueError:
+        return value
 
 
 def _resolve_fk(table: str, data: dict, mapping: dict[tuple[str, int], int]) -> dict:
@@ -254,15 +564,20 @@ def _merge_fields(server: dict, client: dict, client_ts: str, server_ts: str, co
     return out, won
 
 
-def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None = None, now: str | None = None) -> dict:
+def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None = None, now: str | None = None,
+         rooms: Rooms | None = None) -> dict:
     """items: [{entity, id | local_id, op_id?, base_version, updated_at, data}], deletes: [{entity, id, deleted_at}].
+
+    `rooms` (14.11.2026): Raum des Geraets (`resolve_room`); ohne Angabe der zuletzt gemeldete Raum des Geraets. Neue
+    Zeilen gehoeren zum Raum; Aendern und Loeschen ausserhalb des Raums hat keine Wirkung (`Rooms.refused`).
 
     `op_id` (optional, 8-100 Zeichen [A-Za-z0-9._:-], z. B. eine UUID je Eintrag, beim Wiederholen dieselbe): das
     Ergebnis wird gemerkt; derselbe Eintrag noch einmal bekommt dasselbe Ergebnis mit `repeated: true` und dieselbe
     ID-Zuordnung, statt eine neue Zeile doppelt anzulegen. Fehler werden nicht gemerkt (ein spaeterer Versuch darf
     gelingen)."""
     now = now or now_utc()
-    device = (device or "")[:80] or None
+    device = (device if isinstance(device, str) else "")[:80] or None
+    rooms = rooms or resolve_room(conn, device, now=now)
     results, mapping, conflicts = [], {}, []
     by_entity: dict[str, list[dict]] = {}
     for it in items or []:
@@ -294,7 +609,7 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                     results.append({"entity": table, "local_id": it.get("local_id"), "status": "error", "message": str(e)})
                     continue
                 if table == "annotations":
-                    results.append(_push_annotation(conn, it, device, now))
+                    results.append(_push_annotation(conn, it, device, now, rooms))
                     continue
                 client_ts = it.get("updated_at") if TS_RE.match(it.get("updated_at") or "") else now
                 rid = it.get("id")
@@ -302,6 +617,14 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                     data["sync_version"], data["sync_updated_at"], data["sync_device"] = 1, now, device
                     keys = list(data)
                     if table == "settings":
+                        key = it.get("local_id")
+                        old = db.row(conn, "SELECT sync_version FROM settings WHERE key=?", (key,))
+                        deny = rooms.deny_update(table, key, now) if old is not None else None
+                        if deny:
+                            results.append(rooms.refused(table, key, deny))
+                            continue
+                        if old is None:
+                            rooms.created(table, key, now)
                         conn.execute("INSERT INTO settings(key, value, sync_version, sync_updated_at, sync_device) VALUES (?,?,?,?,?) "
                                      "ON CONFLICT(key) DO UPDATE SET value=excluded.value, sync_version=settings.sync_version+1, "
                                      "sync_updated_at=excluded.sync_updated_at, sync_device=excluded.sync_device",
@@ -311,12 +634,19 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                         continue
                     cur = conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
                     new_id = cur.lastrowid
+                    rooms.created(table, new_id, now)
                     if isinstance(it.get("local_id"), int) and it["local_id"] < 0:
                         mapping[(table, it["local_id"])] = new_id
                     results.append({"entity": table, "local_id": it.get("local_id"), "id": new_id, "status": "created", "version": 1})
                     continue
                 rid = _coerce_id(table, rid)
                 server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
+                # vor allem anderen: eine Zeile ausserhalb des eigenen Raums wird weder geaendert noch wiederhergestellt,
+                # und ihr Tombstone ("deleted") erreicht dieses Geraet nicht (es loeschte sonst seine eigene Zeile)
+                deny = rooms.deny_update(table, rid, now)
+                if deny:
+                    results.append(rooms.refused(table, rid, deny))
+                    continue
                 if server is None:
                     tomb = db.row(conn, "SELECT deleted_at FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
                     if tomb and tomb["deleted_at"] >= client_ts:
@@ -327,6 +657,7 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                     keys = list(data)
                     conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
                     conn.execute("DELETE FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
+                    rooms.created(table, rid, now)
                     results.append({"entity": table, "id": rid, "status": "resurrected" if tomb else "created", "version": 1})
                     continue
                 sv = server.get("sync_version") or 1
@@ -361,7 +692,8 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                 results.append({"entity": table, "id": it.get("id"), "local_id": it.get("local_id"), "status": "error",
                                 "message": f"{table}: {e}"})
             finally:
-                if op and len(results) > n0 and results[-1].get("status") not in ("error", "plan_required"):
+                # nicht gemerkt: Fehler und Zeilen ausserhalb des Raums (ein spaeterer Versuch darf gelingen)
+                if op and len(results) > n0 and results[-1].get("status") not in ("error", "plan_required", Rooms.OTHER, Rooms.PENDING):
                     conn.execute("INSERT OR IGNORE INTO sync_ops(op_id, entity, result, device, created_at) VALUES (?,?,?,?,?)",
                                  (op, table, json.dumps(results[-1], ensure_ascii=False), device, now))
     for d in deletes or []:
@@ -380,8 +712,14 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             if server is None:
                 results.append({"entity": table, "id": rid, "status": "deleted"})
                 continue
+            deny = rooms.deny_delete(table, rid)                # Loeschen bleibt im Raum: Zeile und Tombstone unberuehrt
+            if deny:
+                results.append(rooms.refused(table, rid, deny))
+                continue
             if when >= (server.get("sync_updated_at") or ""):
+                mark = conn.execute(f"SELECT {NOW_SQL}").fetchone()[0]
                 conn.execute(f"DELETE FROM {table} WHERE {pk}=?", (rid,))
+                rooms.deleted(mark, now)
                 conn.execute("UPDATE sync_tombstones SET device=?, deleted_at=? WHERE entity=? AND entity_id=?", (device, now, table, str(rid)))
                 results.append({"entity": table, "id": rid, "status": "deleted"})
             else:
@@ -393,15 +731,22 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             "conflicts": conflicts, "server_time": now}
 
 
-def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
+def _push_annotation(conn, it: dict, device: str | None, now: str, rooms: Rooms | None = None) -> dict:
     """Notizen: gleiche Regel wie PUT /api/files/{id}/annotations (base_version, 409 -> Konflikt mit Serverstand)."""
     file_id = str(it.get("id") or it.get("local_id") or "")
+    rooms = rooms or Rooms(conn, device)
+    known = db.row(conn, "SELECT version FROM annotations WHERE file_id=?", (file_id,))
+    deny = rooms.deny_update("annotations", file_id, now) if known is not None else None
+    if deny:
+        return rooms.refused("annotations", file_id, deny)
     if not db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)):
         if not _register_device_file(conn, file_id, it.get("file")):
             return {"entity": "annotations", "id": file_id, "status": "unknown_file"}
     data = it.get("data") or {}
     cur = db.row(conn, "SELECT version, data FROM annotations WHERE file_id=?", (file_id,))
     cur_v = (cur["version"] or 1) if cur else 0
+    if cur is None:
+        rooms.created("annotations", file_id, now)
     base = it.get("base_version")
     if cur and (base is None or int(base) != cur_v):
         return {"entity": "annotations", "id": file_id, "status": "conflict", "version": cur_v, "data": _json_dict(cur["data"])}

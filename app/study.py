@@ -73,17 +73,35 @@ def merge_duplicate_modules(conn) -> int:
     einmalig fuer Datenbanken mit dem Fehler von ensure_modules und danach ohne Wirkung. Bleiben darf das Modul mit den
     meisten Kursen (sonst das aelteste); alles, was auf die anderen zeigt, zeigt danach darauf: Kurse, Termine,
     Lernpakete, Ordner, Tests, verworfene Wochentests. Eigene Angaben eines Doppels (Pruefungstermin, selbst gewaehlte
-    Farbe, Symbol) gehen nicht verloren, wenn das bleibende Modul keine hat. Liefert die Zahl der entfernten Doppel."""
+    Farbe, Symbol) gehen nicht verloren, wenn das bleibende Modul keine hat. Liefert die Zahl der entfernten Doppel.
+
+    Nur innerhalb eines Raums (14.11.2026, `sync.Rooms`): zwei Uni-Konten unter einem StudiNow-Konto haben oft dasselbe
+    Fach; das sind zwei Zeilen, kein Doppel. Module ohne Raum zaehlen zum einzigen Raum des Kontos, bei mehreren Raeumen
+    fuer sich."""
     cols = {r[1] for r in conn.execute("PRAGMA table_info(modules)")}
     groups = conn.execute("""SELECT name, COALESCE(semester, '') AS sem FROM modules GROUP BY name, COALESCE(semester, '')
                              HAVING COUNT(*) > 1""").fetchall()
+    rooms: dict[int, int] = {}
+    only_room = None
+    if groups and conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_row_room'").fetchone():
+        rooms = {int(r[0]): r[1] for r in conn.execute(
+            "SELECT entity_id, room FROM sync_row_room WHERE entity='modules' AND room IS NOT NULL") if str(r[0]).lstrip("-").isdigit()}
+        known = [r[0] for r in conn.execute("SELECT id FROM sync_rooms")]
+        only_room = known[0] if len(known) == 1 else None
     removed = 0
     for name, sem in groups:
         ids = [r[0] for r in conn.execute(
             """SELECT m.id FROM modules m WHERE m.name=? AND COALESCE(m.semester, '')=?
                ORDER BY (SELECT COUNT(*) FROM courses c WHERE c.module_id=m.id) DESC, m.id""", (name, sem))]
-        keep, dups = ids[0], ids[1:]
-        for dup in dups:
+        keep_of: dict = {}
+        pairs = []
+        for mid in ids:
+            room = rooms.get(mid, only_room)
+            if room in keep_of:
+                pairs.append((keep_of[room], mid))
+            else:
+                keep_of[room] = mid
+        for keep, dup in pairs:
             k = dict(zip([d[0] for d in conn.execute("SELECT * FROM modules LIMIT 0").description],
                          conn.execute("SELECT * FROM modules WHERE id=?", (keep,)).fetchone()))
             d = dict(zip(k.keys(), conn.execute("SELECT * FROM modules WHERE id=?", (dup,)).fetchone()))

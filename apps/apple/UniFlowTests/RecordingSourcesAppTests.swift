@@ -98,8 +98,13 @@ final class RecordingSourcesAppTests: XCTestCase {
 
     private static let cookie = HTTPCookie(properties: [.name: "Studip_Session", .value: "erfunden", .domain: "studip.uni-hannover.de", .path: "/"])!
 
+    /// Mit eigenem, leerem Cookie-Speicher. Ohne ihn nimmt `StudIPSync` den Speicher des aktiven Containers der App: Am
+    /// Mac ("Designed for iPad") laeuft der Testwirt im echten Container der App, und war der Inhaber dort in Stud.IP
+    /// angemeldet, sah `testCookiesOnlyForStudIPFiles` dessen echte Sitzung (Mac-Durchlauf 14.11.2026, nur gelesen).
     private func sync(_ dev: Device) throws -> StudIPSync {
-        StudIPSync(root: dev.layout.studip, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.layout.root, container: dev.layout)
+        let empty = StudIPCookieStore(service: "de.uniflow.ai.studip.test.\(UUID().uuidString)", account: "session-cookies.test")
+        return StudIPSync(root: dev.layout.studip, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.layout.root,
+                          cookies: empty, container: dev.layout)
     }
 
     private func moduleID(_ dev: Device, _ name: String) async throws -> Int {

@@ -104,17 +104,11 @@ public enum StudyCatalogPipeline {
 
     // MARK: Eingaben aus der Datenbank
 
-    /// Haeufigster QIS-Studiengang (`grades.abschluss`), bei Gleichstand der zuerst gespeicherte
+    /// QIS-Studiengang (`grades.abschluss`) der laufenden Einschreibung: neueste PO-Version, dann der haeufigste, dann
+    /// der zuerst gespeicherte (`StudyPlanEngine.currentLabel`, 14.11.2026)
     static func qisLabel(_ c: SQLiteConnection) throws -> String? {
-        var counts: [String: Int] = [:]
-        var order: [String] = []
-        for r in try c.query("SELECT abschluss FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id") {
-            guard let a = r["abschluss"]?.string?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty else { continue }
-            if counts[a] == nil { order.append(a) }
-            counts[a, default: 0] += 1
-        }
-        let best = counts.values.max() ?? 0
-        return order.first { counts[$0] == best }
+        StudyPlanEngine.currentLabel(try c.query("SELECT abschluss FROM grades WHERE abschluss IS NOT NULL AND trim(abschluss) <> '' ORDER BY id")
+            .compactMap { $0["abschluss"]?.string })
     }
 
     /// `settings.study_plan` (po, start_term, electives, catalog_url)
@@ -176,12 +170,15 @@ public enum StudyCatalogPipeline {
         let inputs = try await db.transaction { try Self.inputs($0) }
         var base: [String: JSONValue] = ["checked_at": .string(iso(now)), "qis_label": label.map { .string($0) } ?? .null,
                                          "inputs": .string(inputs)]
-        if let custom = cleanCatalogURL(settings["catalog_url"]?.string) {
+        let custom = cleanCatalogURL(settings["catalog_url"]?.string)
+        let linked = env.sources.code(forCatalogURL: custom, university: uni)
+        if let custom, linked == nil {
             return try await runCustom(url: custom, db: db, env: env, base: base, university: uni, label: label, force: force)
         }
-        let po = settings["po"]?.string.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
-        var match = label.flatMap { env.sources.match(label: $0, university: uni, po: po) }
-        if match == nil, let po { match = env.sources.match(code: po, university: uni, qisLabel: label) }
+        let po = linked ?? settings["po"]?.string.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
+        // selbst gewaehlter Studiengang (Kuerzel) vor dem haeufigsten aus dem Notenspiegel (14.11.2026, Wechsel des Studiengangs)
+        var match = po.flatMap { env.sources.match(code: $0, university: uni, qisLabel: label) }
+        if match == nil { match = label.flatMap { env.sources.match(label: $0, university: uni, po: po) } }
         guard let m = match else {
             let reason = label == nil ? "no_program" : "no_source"
             return try await save(db, merged(base, ["state": "not_found", "reason": .string(reason),
@@ -478,6 +475,31 @@ public enum StudyCatalogPipeline {
         let r = await env.loader.fetch(url: url, etag: nil, lastModified: nil)
         guard r.status == 200 else { return try await fail(r.error ?? "HTTP \(r.status)", "download", messages["error_download"]!) }
         guard let pages = env.pdfText(r.data) else { return try await fail("keine PDF", "unknown_format", messages["unknown_format"]!) }
+        func store(_ parsed: ParsedStudyCatalog, _ meta: StudyCatalogMeta) async throws -> JSONValue {
+            guard parsed.moduleCount > 0, StudyCatalogValidator.validate(parsed.catalog.json).isEmpty else {
+                return try await fail("Format unbekannt", "unknown_format", messages["unknown_format"]!)
+            }
+            let key = try await db.transaction { c -> String in
+                let k = try StudyCatalogStore.store(c, payload: parsed.catalogDumps, texts: parsed.texts.json, origin: "download", now: iso(now))
+                try StudyCatalogStore.setState(c, urlKey, ["at": .string(iso(now)), "key": .string(k)])
+                return k
+            }
+            return try await save(db, merged(info, ["state": "ready", "origin": "download", "key": .string(key), "program": .string(meta.program),
+                                                    "code": .string(meta.code), "catalog_term": .string(meta.catalogTerm),
+                                                    "modules": .number(Double(parsed.moduleCount)), "message": .string(messages["ready"]!)]))
+        }
+        // Hildesheimer "Studienordnung inklusive Modulhandbuch" (14.11.2026): Seiten mit Lage lesen (der rohe PDFKit-Text
+        // stellt die Feldnamen vor die Werte), Kopf aus der Titelseite, Abschluss und Kuerzel aus dem Register
+        if StudyCatalogHildesheimParser.detect(pages: pages) {
+            guard let items = env.planText(r.data) else { return try await fail("keine PDF", "unknown_format", messages["unknown_format"]!) }
+            let rows = StudyCatalogHildesheimParser.rowPages(items)
+            var meta = hildesheimMeta(StudyCatalogHildesheimParser.head(pages: rows), url: url, university: university, sources: env.sources,
+                                      today: day(now))
+            meta.sourceURL = url
+            meta.fetchedAt = iso(now)
+            meta.sha256 = SolutionSHA256.hex(r.data)
+            return try await store(StudyCatalogHildesheimParser.parse(pages: rows, meta: meta), meta)
+        }
         let clean = StudyCatalogParser.cleanPages(Array(pages.prefix(1)))
         let titleTerm = StudyCatalogText.termFromTitle((clean.first ?? []).joined(separator: " "))
         var meta: StudyCatalogMeta
@@ -496,18 +518,28 @@ public enum StudyCatalogPipeline {
         meta.sourceURL = url
         meta.fetchedAt = iso(now)
         meta.sha256 = SolutionSHA256.hex(r.data)
-        let parsed = StudyCatalogParser.parse(pages: pages, meta: meta)
-        guard parsed.moduleCount > 0, StudyCatalogValidator.validate(parsed.catalog.json).isEmpty else {
-            return try await fail("Format unbekannt", "unknown_format", messages["unknown_format"]!)
+        return try await store(StudyCatalogParser.parse(pages: pages, meta: meta), meta)
+    }
+
+    /// `hildesheim_link_meta`: Kopf einer Hildesheimer Studienordnung -> meta fuer den Leser; Studiengang, PO und Semester
+    /// aus der Titelseite, Abschluss ("B.A." steht in keiner PDF), Regelstudienzeit und Kuerzel aus dem Register, wenn
+    /// es den Studiengang mit dieser PO kennt, sonst "link-<hash>"
+    static func hildesheimMeta(_ head: StudyCatalogHildesheimParser.Head, url: String, university: String, sources: StudySources,
+                               today: String) -> StudyCatalogMeta {
+        let program = head.program ?? "Eigener Katalog"
+        let level = (head.level ?? "").hasPrefix("Master") ? "M" : "B"
+        let prog = (sources.university(university)?["programs"]?.array ?? []).first {
+            StudyCatalogText.nameKey($0["program"]?.string ?? "") == StudyCatalogText.nameKey(program)
+                && StudySources.degreeClass($0["degree"]?.string) == level
         }
-        let key = try await db.transaction { c -> String in
-            let k = try StudyCatalogStore.store(c, payload: parsed.catalogDumps, texts: parsed.texts.json, origin: "download", now: iso(now))
-            try StudyCatalogStore.setState(c, urlKey, ["at": .string(iso(now)), "key": .string(k)])
-            return k
-        }
-        return try await save(db, merged(info, ["state": "ready", "origin": "download", "key": .string(key), "program": .string(meta.program),
-                                                "code": .string(meta.code), "catalog_term": .string(meta.catalogTerm),
-                                                "modules": .number(Double(parsed.moduleCount)), "message": .string(messages["ready"]!)]))
+        let code = head.po.flatMap { po in (prog?["pos"]?.array ?? []).first { StudySources.text($0["po"]) == po }?["code"]?.string }
+        var meta = StudyCatalogMeta(university: university, program: program,
+                                    degree: prog?["degree"]?.string ?? head.degree ?? "unbekannt", po: head.po ?? "eigener Link",
+                                    code: code ?? ("link-" + String(SolutionSHA256.hex(Data(url.utf8)).prefix(12))),
+                                    catalogTerm: head.catalogTerm ?? StudyCatalogText.currentTerm(today: today))
+        meta.regularSemesters = prog?["regular_semesters"]?.int
+        meta.totalLP = head.totalLP
+        return meta
     }
 }
 

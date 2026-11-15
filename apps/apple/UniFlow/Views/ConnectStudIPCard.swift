@@ -168,7 +168,7 @@ struct ConnectStudIPCard: View {
                     .fixedSize()
                     .accessibilityIdentifier("connectBar.studip")
             }
-            .sheet(isPresented: $showLogin) { login }
+            .ufSheet(isPresented: $showLogin) { login }
         } else if mode.showsConnectCard {
             let expired = mode.studIPExpired
             UFCard {
@@ -194,7 +194,7 @@ struct ConnectStudIPCard: View {
                 UFButton(expired || isFailed ? "Erneut anmelden" : "Stud.IP verbinden", icon: "arrow-right", kind: .primary) { showLogin = true }
                     .padding(.top, 12.8)
             }
-            .sheet(isPresented: $showLogin) { login }
+            .ufSheet(isPresented: $showLogin) { login }
         }
     }
 

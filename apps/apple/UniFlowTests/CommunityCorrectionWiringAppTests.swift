@@ -220,7 +220,14 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
         let view = try show(CommunitySpacePage(key: "k", space: space, service: service, localFile: { $0 == "fO" ? "file-own" : nil },
                                                shared: { [] }))
         let message = "Deine Lösung „Übungsblatt 3“ hat einen Korrekturhinweis von Ben bekommen"
-        XCTAssertTrue(pump { self.shows(view, message) }, "\(texts(view))")
+        let shown = pump { self.shows(view, message) }
+        // Mac ("Designed for iPad"): StoreKit meldet sich im Testwirt spaeter noch einmal (nach Tests mit einer
+        // StoreKit-Testsitzung), `Entitlements.shared` rechnet neu und ueberschreibt den in `setUp` gesetzten Tarif mit
+        // "free"; die Seite zeigt dann die Sperrkarte (Befund 14.11.2026, einzeln am Mac gruen)
+        if !shown, Entitlements.shared.plan != .plus {
+            try ContainerTestBed.skipOnMac("StoreKit hat den im Test gesetzten Tarif überschrieben (\(Entitlements.shared.plan.rawValue))")
+        }
+        XCTAssertTrue(shown, "Tarif \(Entitlements.shared.plan.rawValue): \(texts(view))")
         XCTAssertFalse(shows(view, "von Ida"), "Hinweise anderer Communities stehen nicht hier")
         XCTAssertTrue(shows(view, "1 Markierung · 1 Randnotiz"))
 

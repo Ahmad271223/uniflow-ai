@@ -758,6 +758,20 @@ enum UFTime {
 
     /// mh(495) = "08:15"
     static func mh(_ m: Int) -> String { String(format: "%02d:%02d", m / 60, m % 60) }
+
+    /// Ende des Tages in Minuten (24:00)
+    static let dayEnd = 24 * 60
+
+    /// Uhrzeit fuer eine Zeitleiste: nie vor 0 Uhr, nie nach 24 Uhr. Alte Lernpakete des Planers (11./12.11.2026)
+    /// haben Zeiten wie "25:15"; ohne Grenze zog sich die Achse der Woche bis "26" (Foto des Inhabers 14.11.2026).
+    static func clock(_ s: String?) -> Int { min(dayEnd, max(0, hm(s))) }
+
+    /// Beginn und Ende eines Blocks fuer eine Zeitleiste: beide im Tag, Ende immer nach dem Beginn (kaputte Daten:
+    /// Stunde ab 24, Ende vor Beginn). Ein Block, der ueber Mitternacht laeuft, endet sichtbar um 24 Uhr.
+    static func span(_ start: String?, _ end: String?) -> (start: Int, end: Int) {
+        let a = min(clock(start), dayEnd - 5)
+        return (a, min(dayEnd, max(a + 5, clock(end))))
+    }
 }
 
 /// Einzeltermin aus dem eigenen Stud.IP-Kalender ohne Serie: nur anzeigen (Teilnahme und Notizen gibt es fuer Serien)

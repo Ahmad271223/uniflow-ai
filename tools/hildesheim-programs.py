@@ -430,22 +430,26 @@ _PAGES: dict = {}
 
 def parsed(file_id: int, fmt: str, degree: str = "B.Sc.", usage: str | None = None) -> dict | None:
     """Katalog aus dem Zwischenspeicher lesen (nur zum Zaehlen und zur Formatbestimmung)"""
-    key = (file_id, fmt, degree, usage)
+    return parsed_url(download_url(file_id), fmt, degree, usage)
+
+
+def parsed_url(url: str, fmt: str, degree: str = "B.Sc.", usage: str | None = None) -> dict | None:
+    key = (url, fmt, degree, usage)
     if key in _PARSED:
         return _PARSED[key]
-    p = cached_path(download_url(file_id))
+    p = cached_path(url)
     out = None
     if p is not None:
         sys.path.insert(0, str(ROOT))
         from app import study_catalog as sc
         from app.catalog_formats import get_parser
         from app.catalog_formats.hildesheim import LAYOUT_FORMATS, pages_for
-        pk = (file_id, fmt in LAYOUT_FORMATS)
+        pk = (url, fmt in LAYOUT_FORMATS)
         if pk not in _PAGES:
             _PAGES[pk] = pages_for(fmt, p.read_bytes())
         pages = _PAGES[pk]
         meta = {"university": "hildesheim", "program": "x", "degree": degree, "po": "x", "code": "x",
-                "catalog_term": "WS 2026/27", "source": {"url": download_url(file_id)}}
+                "catalog_term": "WS 2026/27", "source": {"url": url}}
         if usage:
             meta["usage_program"] = usage
         cat, _ = get_parser(fmt)(pages, meta)
@@ -484,14 +488,80 @@ DEGREE_OF = {"bsc": "B.Sc.", "ba": "B.A.", "msc": "M.Sc.", "ma": "M.A.", "medu":
 DEGREE_LONG = {"B.Sc.": "Bachelor of Science", "B.A.": "Bachelor of Arts", "M.Sc.": "Master of Science",
                "M.A.": "Master of Arts", "M.Ed.": "Master of Education", "B.A./B.Sc.": "Bachelor"}
 
+# Modulhandbuecher, die nur auf den Seiten der Fachbereiche liegen (nicht im Verkuendungsblatt): neuere Fassungen der
+# FB-4-Handbuecher 5140/5141/5142, das einzige Handbuch fuer Medieninformatik und Data Science, die lesbaren
+# Handbuecher Erziehungswissenschaft (FB 1). "format" fehlt: FB-4-Handbuch. Quelle: Liste des
+# Inhabers vom 14.11.2026; einmal anonym geholt und mit Pruefsumme in den Zwischenspeicher uebernommen (nie hier geholt:
+# ohne Zwischenspeicher bricht der Lauf ab). Pruefungsordnung und Schluessel bleiben die des Verkuendungsblatts.
+FB4_MHB = "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/"
+MEDIA = {
+    "ai": {"url": FB4_MHB + "Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf", "date": "2026-04-03",
+           "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)"},
+    "ds": {"url": FB4_MHB + "Modulhandbuch_AI-DS_BSc_PO2023_Stand_2026.04.03.pdf", "date": "2026-04-03",
+           "title": "Modulhandbuch Data Science Bachelor, PO 2023 (Stand 03.04.2026)"},
+    "minf": {"url": FB4_MHB + "Modulhandbuch_AI-MINF_BSc_PO2023_Stand_2026.04.03.pdf", "date": "2026-04-03",
+             "title": "Modulhandbuch Medieninformatik Bachelor, PO 2023 (Stand 03.04.2026)"},
+    "uinf": {"url": FB4_MHB + "Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf", "date": "2024-10-24",
+             "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)"},
+    "imit": {"url": FB4_MHB + "Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf", "date": "2024-10-24",
+             "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 "
+                      "(Stand 24.10.2024)"},
+    # Fachbereich 1: gleiche Fassung wie im Verkuendungsblatt (18.08.2022), aber Text statt Bild bzw. sauberer Satz
+    "ewba": {"url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/"
+                    "Modulhandbuch_fuer_den_Bachelor.pdf", "date": "2022-08-18", "format": "hildesheim-modultabelle",
+             "title": "Modulhandbuch für den Bachelor-Studiengang Erziehungswissenschaft (Stand 18.08.2022)"},
+    # Fach Informatik im Zwei-Faecher-Bachelor, Ordnung 2016 (gilt fuer Studienbeginn vor dem 01.10.2026)
+    "inf2fb2016": {"url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/"
+                          "Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf", "date": "2016-05-20", "format": "hildesheim-modultabelle",
+                   "title": "Studienordnung für das Fach Informatik, Polyvalente Zwei-Fächer-Bachelor-Studiengänge (B.A./B.Sc.), "
+                            "Redaktioneller Stand 20.05.2016"},
+    "ewma": {"url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/"
+                    "Modulhandbuch_fuer_den_Master.pdf", "date": "2022-08-18", "format": "hildesheim-modultabelle",
+             "title": "Modulhandbuch für den Masterstudiengang Erziehungswissenschaft mit den Schwerpunkten "
+                      "Kindheitspädagogik/Diversität (Fassung vom 18.08.2022)"},
+}
+# Studienvarianten ohne Eintrag im Studienfinder, deren Handbuch nur unter /media/ liegt; "hold": Grund, warum der
+# Katalog (noch) nicht eingebaut ist (Eintrag dann waehlbar ohne Katalog)
+MEDIA_ONLY = [
+    {"program": "Data Science", "degree": "B.Sc.", "po_study": 65, "media": ["ds"],
+     "hold": "Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete "
+             "(Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP), der Abschnitt "
+             "'Methodological Specialization' fehlt (ein Modul steht unter Abschlussprüfung), die Gebiete Medieninformatik "
+             "und Systemadministration fehlen",
+     "note": "Studienvariante des Bachelorprogramms Angewandte Informatik; Modulhandbuch nur auf der Seite des Fachbereichs 4, "
+             "nicht im Studienangebot"},
+    {"program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor", "degree": "B.A./B.Sc.", "kind": "fach", "po": "2016",
+     "po_study": 25, "parent": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang", "media": ["inf2fb2016"], "listed": True,
+     "note": "Ordnung 2016, gilt für Studienbeginn vor dem 01.10.2026 (§ 5 der Ordnung von 2026); die Ordnung 2026 "
+             "(Verkündungsblatt Heft 214) liest der Leser noch nicht"},
+]
+
+
+def _media_catalog(name: str, degree: str, usage: str | None = None) -> dict:
+    """Katalog aus einem Handbuch in MEDIA (Format des FB-4-Handbuchs); fehlt es im Zwischenspeicher: Abbruch"""
+    sys.path.insert(0, str(ROOT))
+    from app import study_catalog as sc
+    m = MEDIA[name]
+    fmt = m.get("format") or "hildesheim-it-modulhandbuch"
+    info = parsed_url(m["url"], fmt, degree, usage)
+    if not info or info["modules"] < MIN_MODULES:
+        raise SystemExit(f"Modulhandbuch {name} fehlt im Zwischenspeicher oder ist nicht lesbar: {m['url']}")
+    out = {"url": m["url"], "term": sc.current_term(m["date"]), "format": fmt, "pages": info["pages"],
+           "modules_est": info["modules"], "title": m["title"], "date": m["date"]}
+    if usage:
+        out["usage_program"] = usage
+    return out
+
+
 # Studienfinder (uid) -> Verkuendungsblatt-Studiengang (study) und Katalog. "it": Modulhandbuch des FB 4 (fileID),
 # "usage": Studiengang ohne eigenes Handbuch, Module aus der "Verwendung" der FB-4-Handbuecher; "so": Studienordnung
-# mit Modulbeschreibungen (fileID, sonst die neueste geltende des Studiengangs); "kind"/"parent": Studienvariante.
+# mit Modulbeschreibungen (fileID, sonst die neueste geltende des Studiengangs); "kind"/"parent": Studienvariante;
+# "media": Katalog aus MEDIA statt "it" (PO und Schluessel weiter aus "it").
 # Nicht im Register: Promotion (3), Lehramt-Infoseite (42, siehe 38).
 PROGRAMS: dict[int, dict] = {
-    4: {"study": 3, "usage": "MSc Wirtschaftsinformatik", "it": [5140, 5141, 5142]},
+    4: {"study": 3, "usage": "MSc Wirtschaftsinformatik", "it": [5140, 5141, 5142], "media": ["ai", "imit", "uinf"]},
     5: {"study": 51},
-    6: {"it": [5142], "po_study": 66, "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik"},
+    6: {"it": [5142], "media": ["uinf"], "po_study": 66, "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik"},
     7: {"study": 52},
     8: {"study": 56},
     9: {"study": 38},
@@ -508,36 +578,36 @@ PROGRAMS: dict[int, dict] = {
     20: {"study": 13},
     21: {"study": 9},
     22: {"study": 63, "aliases": [22]},
-    23: {"study": 6, "it": [5141]},
-    24: {"study": 32},
+    23: {"study": 6, "it": [5141], "media": ["imit"]},
+    24: {"study": 32, "media": ["ewma"]},
     25: {},
     26: {"study": 48},
     27: {"study": 67, "it": [5143], "tracks": [("Advanced Track", 5144), ("Cognitive Systems", 5145)]},
     28: {"study": 55},
-    29: {"study": 66, "it": [5140]},
-    30: {"study": 4, "usage": "BSc Wirtschaftsinformatik", "it": [5140, 5141, 5142]},
+    29: {"study": 66, "it": [5140], "media": ["ai"]},
+    30: {"study": 4, "usage": "BSc Wirtschaftsinformatik", "it": [5140, 5141, 5142], "media": ["ai", "imit", "uinf"]},
     31: {"study": 26, "so": 4671, "variant": True},
     32: {"study": 26, "so": 5261, "variant": True},
-    33: {"it": [5142], "po_study": 65, "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik"},
+    33: {"it": [5142], "media": ["uinf"], "po_study": 65, "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik"},
     34: {"study": 17},
     35: {"study": 25, "so": 5131, "variant": True},
     36: {"study": 69},
     37: {"study": 58},
     38: {"split": [("B.A.", 25), ("B.Sc.", 26)], "so": 5317, "umbrella": True},
     39: {"study": 33},
-    40: {"po_study": 65, "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik; kein eigenes "
-                                "Modulhandbuch im Verkündungsblatt"},
+    40: {"po_study": 65, "media": ["minf"], "note": "Studienvariante des Bachelor- und Masterprogramms Angewandte Informatik; "
+                                                    "Modulhandbuch nur auf der Seite des Fachbereichs 4"},
     41: {"study": 14, "so": 5209},
     43: {"study": 61, "aliases": [23]},
     44: {"study": 62, "aliases": [20]},
     45: {"study": 10},
     46: {"study": 14, "so": 5209},
     47: {"study": 14, "so": 5209},
-    48: {"study": 8, "it": [5141]},
-    50: {"study": 31},
+    48: {"study": 8, "it": [5141], "media": ["imit"]},
+    50: {"study": 31, "media": ["ewba"]},
     51: {"study": 25, "so": 5259, "variant": True},
     52: {"study": 14, "so": 5209},
-    53: {"study": 65, "it": [5140]},
+    53: {"study": 65, "it": [5140], "media": ["ai"]},
     54: {"study": 14, "so": 5209},
     56: {},
     57: {"po_study": 50},
@@ -608,6 +678,13 @@ def _po_year(pos: list[dict], fallback: str | None = None) -> str | None:
 
 
 MIN_MODULES = 3      # weniger gelesene Module: Bruchstuecke einer anderen Vorlage, kein Katalog
+# Register-Eintraege, deren Katalog der Leser nur als Bruchstuecke liest (geprueft 14.11.2026): lieber "kein Katalog"
+# mit Grund als falsche Module im Studienverlauf
+CATALOG_HOLD = {
+    "hildesheim|barrierefreie-kommunikation|m.a.|2019":
+        "Modulbeschreibungen im Format „Kennnummer | Workload | Credits“ liest der Leser noch nicht; er fand nur drei "
+        "Querverweise („Modul 7.2 geöffnet für …“) statt der 11 Module",
+}
 
 
 def _catalog_of(r: dict | None, fmt: str, degree: str, usage: str | None = None, label: str | None = None) -> dict:
@@ -735,6 +812,10 @@ def build_register() -> dict:
                 first = main_so(sid, spec.get("so")) if own else None
                 cat = _catalog_of(first, "hildesheim-modulbeschreibung", degree or "B.A.")
                 po = _po_year(pos)
+            if spec.get("media"):
+                deg_m = degree if degree else "B.Sc."
+                cat = _media_catalog(spec["media"][0], deg_m, spec.get("usage"))
+                more = [_media_catalog(n, deg_m, spec.get("usage")) for n in spec["media"][1:]]
             text = (parsed(first["file_id"], cat["format"] if cat.get("url") else "hildesheim-modulbeschreibung",
                            degree or "B.A.") or {}).get("first_page") if first else None
             fac = _faculty(text, cat_fb)
@@ -753,6 +834,19 @@ def build_register() -> dict:
                                        faculty=fac, listed=True, page=page, sid=sid, regular=regular,
                                        parent=name))
 
+    # Studienvarianten nur mit Handbuch unter /media/ (kein Studienfinder-Eintrag)
+    for spec in MEDIA_ONLY:
+        pos = _pos_of(docs, spec["po_study"])
+        if spec.get("hold"):
+            m = MEDIA[spec["media"][0]]
+            cat = {"url": None, "term": None, "format": "none", "document": {"title": m["title"], "url": m["url"], "date": m["date"]},
+                   "reason": spec["hold"]}
+        else:
+            cat = _media_catalog(spec["media"][0], spec["degree"])
+        programs.append(_entry(spec["program"], spec["degree"], spec.get("kind") or "studiengang", po=spec.get("po") or _po_year(pos),
+                               pos=pos, catalog=cat, faculty=FACULTIES["4"], listed=bool(spec.get("listed")), page=None,
+                               sid=spec["po_study"], regular=None, parent=spec.get("parent"), note=spec.get("note")))
+
     # Studiengaenge nur im Verkuendungsblatt
     for sid in QM_ONLY:
         st = studies.get(sid)
@@ -770,7 +864,10 @@ def build_register() -> dict:
     # Faecher im Polyvalenten Zwei-Faecher-Bachelor (25 B.A., 26 B.Sc.) und im Master Lehramt (49 GS, 50 HRS)
     parents = {25: "Polyvalenter Zwei-Fächer-Bachelor-Studiengang", 26: "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
                49: "Master Lehramt an Grundschulen", 50: "Master Lehramt an Haupt- und Realschulen"}
-    used_variants = {spec["so"] for spec in PROGRAMS.values() if spec.get("variant") or spec.get("umbrella")}
+    # Ordnung einer Studienvariante, die zugleich das Fach im Zwei-Faecher-Bachelor regelt (5259: Englisch, Variante
+    # English Applied Linguistics; Quellenliste des Inhabers 14.11.2026): auch als Fach-Eintrag
+    also_subject = {5259}
+    used_variants = {spec["so"] for spec in PROGRAMS.values() if spec.get("variant") or spec.get("umbrella")} - also_subject
     seen_keys = {e["key"] for e in programs}
     for r in sorted(docs, key=_sort_key, reverse=True):
         if not is_catalog_doc(r) or r["kind"] == "Modulhandbuch" or r["file_id"] in used_variants:
@@ -804,6 +901,12 @@ def build_register() -> dict:
             seen_keys.add(e["key"])
             programs.append(e)
 
+    for e in programs:                       # Kataloge, die nur Bruchstuecke liefern: ehrlich ohne Katalog
+        why = CATALOG_HOLD.get(e["key"])
+        if why and e["catalog"].get("url"):
+            c = e["catalog"]
+            e["catalog"] = {"url": None, "term": None, "format": "none",
+                            "document": {"title": c.get("title"), "url": c["url"], "date": c.get("date")}, "reason": why}
     programs.sort(key=lambda e: ({"studiengang": 0, "vertiefung": 1, "fach": 2}[e["kind"]], e["key"]))
     return {
         "v": 1, "university": "hildesheim", "generated": "2026-11-05", "generator": "tools/hildesheim-programs.py",

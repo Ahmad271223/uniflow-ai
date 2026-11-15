@@ -186,7 +186,7 @@ struct StudyGroupsCard: View {
                 }
                 .padding(.top, 12.8)
             }
-            .sheet(item: $editing) { e in
+            .ufSheet(item: $editing) { e in
                 ScrollView {
                     StudyGroupsSheet(groups: e.groups, modules: e.modules, choices: studip.groupSettings.choices, asQuestion: false)
                         .padding(16)

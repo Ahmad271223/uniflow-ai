@@ -29,7 +29,7 @@ struct LibraryVideoLinks: View {
         .task(id: "\(moduleID)-\(studip.recordings.revision)") {
             entries = await studip.recordings.blocks(moduleID: moduleID).flatMap(\.entries)
         }
-        .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: studip.recordings) }
+        .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: studip.recordings) }
     }
 
     /// Modul eines Bibliothekspfads "m<id>" (nur der Modulordner selbst, nicht seine Unterordner)

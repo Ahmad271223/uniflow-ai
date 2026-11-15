@@ -1142,6 +1142,7 @@ final class FlashcardsAppTests: XCTestCase {
     /// Ergebnis: Ring, falsche Aufgaben mit "Frag die KI zu Aufgabe n"; der Knopf oeffnet die KI-Hilfe, die erste
     /// Frage traegt Aufgabe, eigene und richtige Antwort als Kontext (POST /api/ai/tutor, mode ask)
     func testResultAsksTheAIWithTheQuestionContext() throws {
+        try ContainerTestBed.requireNoActiveContainer("das Gespräch „exam:8:1“ bliebe in der KI-Ablage der App liegen")
         HostedEnvironment.accessibilityAutomation(true)
         addTeardownBlock { HostedEnvironment.accessibilityAutomation(false) }
         let t = Canned()

@@ -1,0 +1,1255 @@
+{
+ "note": "erfunden; nur der Aufbau folgt den Studienordnungen (tools/gen-study-catalog-hildesheim-fixture.py); Textstuecke mit Lage [x, y, text] -> row_pages -> pages",
+ "items": [
+  [
+   [
+    300.0,
+    40.0,
+    "Lesefassung"
+   ],
+   [
+    300.0,
+    53.4,
+    "(Stand 02.03.2032)"
+   ],
+   [
+    71.0,
+    66.8,
+    "Fassung: Verkündungsblatt Heft 998 Nr. 01 / 2031 vom 05.01.2031, geändert mit"
+   ],
+   [
+    71.0,
+    80.2,
+    "Verkündungsblatt Heft 999 Nr. 02 / 2032 vom 02.03.2032"
+   ],
+   [
+    71.0,
+    93.6,
+    "Neufassung der Studienordnung inklusive Modulhandbuch für den"
+   ],
+   [
+    71.0,
+    107.0,
+    "Master-Studiengang „Wald- und"
+   ],
+   [
+    71.0,
+    120.4,
+    "Wiesenpädagogik“ im Fachbereich 9 – Garten- und Landschaftswissenschaften"
+   ],
+   [
+    71.0,
+    133.8,
+    "Präambel"
+   ],
+   [
+    71.0,
+    147.2,
+    "Der Studiengang schließt mit dem Grad Master of Arts (M.A.) ab."
+   ],
+   [
+    71.0,
+    160.6,
+    "§ 4"
+   ],
+   [
+    71.0,
+    174.0,
+    "(1) Sie gilt erstmals für Studierende, die ihr Studium im Master-Studiengang Wald- und"
+   ],
+   [
+    71.0,
+    187.4,
+    "Wiesenpädagogik zum Sommersemester 2031"
+   ],
+   [
+    71.0,
+    200.8,
+    "aufgenommen haben."
+   ]
+  ],
+  [
+   [
+    300.0,
+    40.0,
+    "Lesefassung"
+   ],
+   [
+    300.0,
+    53.4,
+    "(Stand 02.03.2032)"
+   ],
+   [
+    71.0,
+    66.8,
+    "Anlage 1"
+   ],
+   [
+    71.0,
+    80.2,
+    "Überblick über die Module des Studiengangs:"
+   ],
+   [
+    71.0,
+    93.6,
+    "Modul Modulverantw. SWS LP Seite"
+   ],
+   [
+    71.0,
+    107.0,
+    "1 Waldeingangsphase Muster/ Beispiel 6 6"
+   ],
+   [
+    71.0,
+    120.4,
+    "2 Wiesenkunde Muster 4 6"
+   ],
+   [
+    71.0,
+    133.8,
+    "3 Pilze Beispiel 4 9"
+   ],
+   [
+    71.0,
+    147.2,
+    "4 Moose Muster 8 12"
+   ],
+   [
+    71.0,
+    160.6,
+    "Gesamtzahl der Leistungspunkte 33"
+   ],
+   [
+    71.0,
+    174.0,
+    "Anlage 2 Studienablaufplan"
+   ],
+   [
+    71.0,
+    187.4,
+    "Modul 1. Semester 2. Semester"
+   ],
+   [
+    71.0,
+    200.8,
+    "(SoSe) (WiSe)"
+   ],
+   [
+    71.0,
+    214.2,
+    "1: Waldeingangsphase Beginn im SoSe"
+   ]
+  ],
+  [
+   [
+    300.0,
+    40.0,
+    "Lesefassung"
+   ],
+   [
+    300.0,
+    53.4,
+    "(Stand 02.03.2032)"
+   ],
+   [
+    71.0,
+    66.8,
+    "Anlage Modulhandbuch"
+   ],
+   [
+    74.0,
+    80.2,
+    "Bezeichnung"
+   ],
+   [
+    74.0,
+    99.6,
+    "Kompetenzen und Lernziele"
+   ],
+   [
+    74.0,
+    132.4,
+    "Lerninhalte"
+   ],
+   [
+    74.0,
+    192.0,
+    "Leistungspunkte"
+   ],
+   [
+    74.0,
+    211.4,
+    "Semesterwochenstunden"
+   ],
+   [
+    74.0,
+    230.8,
+    "Studienleistungen"
+   ],
+   [
+    74.0,
+    250.2,
+    "Lehr- und Lernformen"
+   ],
+   [
+    74.0,
+    269.6,
+    "Verwendbarkeit des Moduls"
+   ],
+   [
+    74.0,
+    289.0,
+    "Prüfungsleistungen"
+   ],
+   [
+    74.0,
+    308.4,
+    "Arbeitsaufwand (Workload)"
+   ],
+   [
+    74.0,
+    327.8,
+    "Empfohlenes Fachsemester"
+   ],
+   [
+    74.0,
+    347.2,
+    "Voraussetzung für die"
+   ],
+   [
+    74.0,
+    360.6,
+    "Teilnahme am Modul"
+   ],
+   [
+    74.0,
+    380.0,
+    "Voraussetzung für die"
+   ],
+   [
+    74.0,
+    393.4,
+    "Zulassung zur Prüfung"
+   ],
+   [
+    74.0,
+    412.8,
+    "Moduldauer"
+   ],
+   [
+    74.0,
+    432.2,
+    "Häufigkeit des Angebots"
+   ],
+   [
+    74.0,
+    465.0,
+    "Zuständige Ständige"
+   ],
+   [
+    74.0,
+    478.4,
+    "Prüfungskommission:"
+   ],
+   [
+    74.0,
+    497.8,
+    "Modulverantwortliche"
+   ],
+   [
+    74.0,
+    517.2,
+    "Bezeichnung"
+   ],
+   [
+    74.0,
+    536.6,
+    "Kompetenzen und Lernziele"
+   ],
+   [
+    74.0,
+    556.0,
+    "Lerninhalte"
+   ],
+   [
+    74.0,
+    615.6,
+    "Leistungspunkte"
+   ],
+   [
+    74.0,
+    635.0,
+    "Semesterwochenstunden"
+   ],
+   [
+    74.0,
+    654.4,
+    "Studienleistung"
+   ],
+   [
+    74.0,
+    673.8,
+    "Lehr- und Lernformen"
+   ],
+   [
+    74.0,
+    693.2,
+    "Verwendbarkeit des Moduls"
+   ],
+   [
+    74.0,
+    712.6,
+    "Prüfungsleistungen"
+   ],
+   [
+    74.0,
+    732.0,
+    "Arbeitsaufwand (workload)"
+   ],
+   [
+    74.0,
+    764.8,
+    "Semester"
+   ],
+   [
+    221.5,
+    80.2,
+    "Modul 1: Waldeingangsphase"
+   ],
+   [
+    221.5,
+    99.6,
+    "Die Studierenden kennen den Musterwald und"
+   ],
+   [
+    221.5,
+    113.0,
+    "seine Wege."
+   ],
+   [
+    221.5,
+    132.4,
+    "Der Wald wird vorgestellt."
+   ],
+   [
+    221.5,
+    145.8,
+    "TM 1: Grundlagen des Waldgangs (2 SWS / 2 LP)"
+   ],
+   [
+    221.5,
+    159.2,
+    "TM 2: Wegekunde (2 SWS / 2 LP)"
+   ],
+   [
+    221.5,
+    172.6,
+    "TM 3: : Rindenlehre (Übung; 2 SWS; 2 LP) (SoSe)"
+   ],
+   [
+    221.5,
+    192.0,
+    "6 LP"
+   ],
+   [
+    221.5,
+    211.4,
+    "6 SWS"
+   ],
+   [
+    221.5,
+    230.8,
+    "Aktive Teilnahme, Präsentation"
+   ],
+   [
+    221.5,
+    250.2,
+    "Übung, Seminar"
+   ],
+   [
+    221.5,
+    269.6,
+    "Masterstudiengang Wald- und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    289.0,
+    "Modulprüfung ( unbenotet): Waldbericht"
+   ],
+   [
+    221.5,
+    308.4,
+    "180 Stunden (90 Stunden Präsenzstudium, 90 Stunden Selbststudium)"
+   ],
+   [
+    221.5,
+    327.8,
+    "1. Semester"
+   ],
+   [
+    221.5,
+    347.2,
+    "Keine"
+   ],
+   [
+    221.5,
+    380.0,
+    "keine"
+   ],
+   [
+    221.5,
+    412.8,
+    "Ein oder zwei Semester"
+   ],
+   [
+    221.5,
+    432.2,
+    "TM 1 und TM 2 jeweils im Sommersemester"
+   ],
+   [
+    221.5,
+    445.6,
+    "TM 3 jedes Semester"
+   ],
+   [
+    219.5,
+    465.1,
+    "Ständige Prüfungskommission"
+   ],
+   [
+    381.5,
+    465.0,
+    "für den Master-Studiengang Wald-"
+   ],
+   [
+    221.5,
+    478.4,
+    "und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    497.8,
+    "Muster, Beispiel"
+   ],
+   [
+    221.5,
+    517.2,
+    "Modul 2: Wiesenkunde"
+   ],
+   [
+    221.5,
+    536.6,
+    "Die Studierenden kennen die Gräser der Musterwiese."
+   ],
+   [
+    221.5,
+    556.0,
+    "1) Einführung in die Wiese"
+   ],
+   [
+    221.5,
+    569.4,
+    "2) Nach Wahl"
+   ],
+   [
+    221.5,
+    582.8,
+    "- Halme"
+   ],
+   [
+    221.5,
+    596.2,
+    "- Blüten"
+   ],
+   [
+    221.5,
+    615.6,
+    "6 (TM 1: 2 SWS / 4 LP; TM 2: 2 SWS / 2 LP)"
+   ],
+   [
+    221.5,
+    635.0,
+    "4"
+   ],
+   [
+    221.5,
+    673.8,
+    "Vorlesung"
+   ],
+   [
+    221.5,
+    693.2,
+    "Masterstudiengang Wald- und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    712.6,
+    "Modulprüfung: Klausur zur Vorlesung „Einführung in die Wiese“"
+   ],
+   [
+    221.5,
+    732.0,
+    "180 Stunden (60 Stunden Präsenzstudium, 120 Stunden"
+   ],
+   [
+    221.5,
+    745.4,
+    "Selbststudium)"
+   ],
+   [
+    221.5,
+    764.8,
+    "1. und 2. Semester"
+   ]
+  ],
+  [
+   [
+    300.0,
+    40.0,
+    "Lesefassung"
+   ],
+   [
+    300.0,
+    53.4,
+    "(Stand 02.03.2032)"
+   ],
+   [
+    74.0,
+    66.8,
+    "Voraussetzungen für die"
+   ],
+   [
+    74.0,
+    80.2,
+    "Teilnahme am Modul"
+   ],
+   [
+    74.0,
+    99.6,
+    "Voraussetzungen für die"
+   ],
+   [
+    74.0,
+    113.0,
+    "Zulassung zur Prüfung"
+   ],
+   [
+    74.0,
+    132.4,
+    "Häufigkeit"
+   ],
+   [
+    74.0,
+    151.8,
+    "Moduldauer"
+   ],
+   [
+    74.0,
+    171.2,
+    "Zuständige Ständige"
+   ],
+   [
+    74.0,
+    184.6,
+    "Prüfungskommission:"
+   ],
+   [
+    74.0,
+    204.0,
+    "Modulverantwortliche"
+   ],
+   [
+    74.0,
+    223.4,
+    "Bezeichnung"
+   ],
+   [
+    74.0,
+    256.2,
+    "Kompetenzen und Lernziele"
+   ],
+   [
+    74.0,
+    275.6,
+    "Lerninhalte"
+   ],
+   [
+    74.0,
+    335.2,
+    "Leistungspunkte"
+   ],
+   [
+    74.0,
+    354.6,
+    "Semesterwochenstunden"
+   ],
+   [
+    74.0,
+    374.0,
+    "Studienleistungen"
+   ],
+   [
+    74.0,
+    393.4,
+    "Lehr- und Lernformen"
+   ],
+   [
+    74.0,
+    412.8,
+    "Verwendbarkeit des Moduls"
+   ],
+   [
+    74.0,
+    432.2,
+    "Prüfungsleistung"
+   ],
+   [
+    74.0,
+    451.6,
+    "Arbeitsaufwand (Workload)"
+   ],
+   [
+    74.0,
+    484.4,
+    "Empfolenes Fachsemester"
+   ],
+   [
+    74.0,
+    503.8,
+    "Voraussetzung für die"
+   ],
+   [
+    74.0,
+    517.2,
+    "Teilnahme am Modul"
+   ],
+   [
+    74.0,
+    536.6,
+    "Voraussetzung für die"
+   ],
+   [
+    74.0,
+    550.0,
+    "Zulassung zur Prüfung"
+   ],
+   [
+    74.0,
+    569.4,
+    "Moduldauer"
+   ],
+   [
+    74.0,
+    588.8,
+    "Häufigkeit des Angebots"
+   ],
+   [
+    74.0,
+    608.2,
+    "Zuständige Ständige"
+   ],
+   [
+    74.0,
+    621.6,
+    "Prüfungskommission:"
+   ],
+   [
+    74.0,
+    641.0,
+    "Modulverantwortliche"
+   ],
+   [
+    74.0,
+    660.4,
+    "Bezeichnung"
+   ],
+   [
+    74.0,
+    679.8,
+    "Kompetenzen und Lernziele"
+   ],
+   [
+    74.0,
+    699.2,
+    "Lerninhalte"
+   ],
+   [
+    74.0,
+    718.6,
+    "Leistungspunkte"
+   ],
+   [
+    74.0,
+    738.0,
+    "Semesterwochenstunden"
+   ],
+   [
+    74.0,
+    757.4,
+    "Studienleistungen"
+   ],
+   [
+    74.0,
+    776.8,
+    "Lehr- und Lernformen"
+   ],
+   [
+    74.0,
+    796.2,
+    "Verwendbarkeit des Moduls"
+   ],
+   [
+    74.0,
+    815.6,
+    "Prüfungsleistungen"
+   ],
+   [
+    74.0,
+    875.2,
+    "Arbeitsaufwand (Workload)"
+   ],
+   [
+    74.0,
+    894.6,
+    "Empfohlene Fachsemester"
+   ],
+   [
+    74.0,
+    914.0,
+    "Voraussetzung für die"
+   ],
+   [
+    74.0,
+    927.4,
+    "Teilnahme am Modul"
+   ],
+   [
+    74.0,
+    946.8,
+    "Voraussetzung für die"
+   ],
+   [
+    74.0,
+    960.2,
+    "Zulassung zu den Prüfungen"
+   ],
+   [
+    74.0,
+    979.6,
+    "Moduldauer"
+   ],
+   [
+    74.0,
+    999.0,
+    "Häufigkeit des Angebots"
+   ],
+   [
+    74.0,
+    1018.4,
+    "Zuständige Ständige"
+   ],
+   [
+    74.0,
+    1031.8,
+    "Prüfungskommission:"
+   ],
+   [
+    74.0,
+    1051.2,
+    "Modulverantwortliche"
+   ],
+   [
+    221.5,
+    66.8,
+    "Keine"
+   ],
+   [
+    221.5,
+    99.6,
+    "Vorlesung „Einführung in die Wiese“ muss erfolgreich"
+   ],
+   [
+    221.5,
+    113.0,
+    "absolviert sein"
+   ],
+   [
+    221.5,
+    132.4,
+    "Jedes Semester"
+   ],
+   [
+    221.5,
+    151.8,
+    "Ein oder zwei Semester"
+   ],
+   [
+    219.5,
+    171.3,
+    "Ständige Prüfungskommission"
+   ],
+   [
+    381.5,
+    171.2,
+    "für den Master-Studiengang Wald-"
+   ],
+   [
+    221.5,
+    184.6,
+    "und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    204.0,
+    "Muster"
+   ],
+   [
+    221.5,
+    223.4,
+    "Modul 3: Pilze und Flechten III – Sammeln,"
+   ],
+   [
+    221.5,
+    236.8,
+    "Bestimmen und Bewahren"
+   ],
+   [
+    221.5,
+    256.2,
+    "Die Studierenden bestimmen Pilze sicher."
+   ],
+   [
+    221.5,
+    275.6,
+    "Das Modul gliedert sich in zwei Teilmodule:"
+   ],
+   [
+    221.5,
+    289.0,
+    "TM1: Pilzkunde oder Flechtenkunde (Bestimmung,"
+   ],
+   [
+    221.5,
+    302.4,
+    "Lagerung, Schutz) (2 SWS / 3 + 3 LP)"
+   ],
+   [
+    221.5,
+    315.8,
+    "TM 2: Vertiefung freier Wahl (Seminar; 2 SWS 3 LP (WS)"
+   ],
+   [
+    221.5,
+    335.2,
+    "9 LP"
+   ],
+   [
+    221.5,
+    354.6,
+    "4 SWS"
+   ],
+   [
+    221.5,
+    374.0,
+    "Aktive Mitarbeit"
+   ],
+   [
+    221.5,
+    393.4,
+    "Vorlesung mit Übungen"
+   ],
+   [
+    221.5,
+    412.8,
+    "Masterstudiengang Wald- und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    432.2,
+    "Modulprüfung: Klausur"
+   ],
+   [
+    221.5,
+    451.6,
+    "270 Stunden (60 Stunden Präsenzstudium, 210 Stunden"
+   ],
+   [
+    221.5,
+    465.0,
+    "Selbststudium)"
+   ],
+   [
+    221.5,
+    484.4,
+    "3. − 4. Semester"
+   ],
+   [
+    221.5,
+    503.8,
+    "Absolvierung des Moduls Wiesenkunde (Modul 2)"
+   ],
+   [
+    221.5,
+    536.6,
+    "Erfolgreicher Abschluss der Module Waldeingangsphase und"
+   ],
+   [
+    221.5,
+    550.0,
+    "Wiesenkunde (Modul 1, Modul 2)"
+   ],
+   [
+    221.5,
+    569.4,
+    "zwei Semester"
+   ],
+   [
+    221.5,
+    588.8,
+    "nach Aushang"
+   ],
+   [
+    219.5,
+    608.3,
+    "Ständige Prüfungskommission"
+   ],
+   [
+    381.5,
+    608.2,
+    "für den Master-Studiengang Wald-"
+   ],
+   [
+    221.5,
+    621.6,
+    "und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    641.0,
+    "Beispiel"
+   ],
+   [
+    221.5,
+    660.4,
+    "Modul 4: Moose"
+   ],
+   [
+    221.5,
+    679.8,
+    "Die Studierenden unterscheiden Moose."
+   ],
+   [
+    221.5,
+    699.2,
+    "Konkrete Inhalte entsprechend der Wahl der Veranstaltungen"
+   ],
+   [
+    221.5,
+    718.6,
+    "12"
+   ],
+   [
+    221.5,
+    738.0,
+    "8 (vier Teilmodule à 2 SWS und 3 LP)"
+   ],
+   [
+    221.5,
+    757.4,
+    "Aktive Mitarbeit, Präsentation, schriftliche Ausarbeitungen"
+   ],
+   [
+    221.5,
+    776.8,
+    "Vorlesung, Seminar, Übung"
+   ],
+   [
+    221.5,
+    796.2,
+    "Masterstudiengang Wald- und Wiesenpädagogik"
+   ],
+   [
+    221.5,
+    815.6,
+    "Teilmodulprüfungen (unbenotet): Präsentation, schriftliche"
+   ],
+   [
+    221.5,
+    829.0,
+    "Ausarbeitung etc."
+   ],
+   [
+    221.5,
+    842.4,
+    "Begründung: Das Modul kann nur in mehreren Teilen"
+   ],
+   [
+    221.5,
+    855.8,
+    "geprüft werden."
+   ],
+   [
+    221.5,
+    875.2,
+    "360 Stunden (Aufteilung ist variabel)"
+   ],
+   [
+    221.5,
+    894.6,
+    "Erstes bis drittes Semester"
+   ],
+   [
+    221.5,
+    914.0,
+    "keine"
+   ],
+   [
+    221.5,
+    946.8,
+    "Ggf. lehrveranstaltungsspezifisch"
+   ],
+   [
+    221.5,
+    979.6,
+    "Zwei Semester"
+   ],
+   [
+    221.5,
+    999.0,
+    "In jedem Wintersemester"
+   ],
+   [
+    219.5,
+    1018.5,
+    "Ständige Prüfungskommission"
+   ],
+   [
+    381.5,
+    1018.4,
+    "für den Master-Studiengang Wald-"
+   ],
+   [
+    221.5,
+    1031.8,
+    "und Wiesenpädagogik"
+   ],
+   [
+    219.5,
+    1051.3,
+    "Ständige Prüfungskommission"
+   ],
+   [
+    381.5,
+    1051.2,
+    "für den Masterstudiengang Wald-"
+   ],
+   [
+    221.5,
+    1064.6,
+    "und Wiesenpädagogik"
+   ]
+  ]
+ ],
+ "pages": [
+  "Lesefassung\n(Stand 02.03.2032)\nFassung: Verkündungsblatt Heft 998 Nr. 01 / 2031 vom 05.01.2031, geändert mit\nVerkündungsblatt Heft 999 Nr. 02 / 2032 vom 02.03.2032\nNeufassung der Studienordnung inklusive Modulhandbuch für den\nMaster-Studiengang „Wald- und\nWiesenpädagogik“ im Fachbereich 9 – Garten- und Landschaftswissenschaften\nPräambel\nDer Studiengang schließt mit dem Grad Master of Arts (M.A.) ab.\n§ 4\n(1) Sie gilt erstmals für Studierende, die ihr Studium im Master-Studiengang Wald- und\nWiesenpädagogik zum Sommersemester 2031\naufgenommen haben.",
+  "Lesefassung\n(Stand 02.03.2032)\nAnlage 1\nÜberblick über die Module des Studiengangs:\nModul Modulverantw. SWS LP Seite\n1 Waldeingangsphase Muster/ Beispiel 6 6\n2 Wiesenkunde Muster 4 6\n3 Pilze Beispiel 4 9\n4 Moose Muster 8 12\nGesamtzahl der Leistungspunkte 33\nAnlage 2 Studienablaufplan\nModul 1. Semester 2. Semester\n(SoSe) (WiSe)\n1: Waldeingangsphase Beginn im SoSe",
+  "Lesefassung\n(Stand 02.03.2032)\nAnlage Modulhandbuch\nBezeichnung Modul 1: Waldeingangsphase\nKompetenzen und Lernziele Die Studierenden kennen den Musterwald und\nseine Wege.\nLerninhalte Der Wald wird vorgestellt.\nTM 1: Grundlagen des Waldgangs (2 SWS / 2 LP)\nTM 2: Wegekunde (2 SWS / 2 LP)\nTM 3: : Rindenlehre (Übung; 2 SWS; 2 LP) (SoSe)\nLeistungspunkte 6 LP\nSemesterwochenstunden 6 SWS\nStudienleistungen Aktive Teilnahme, Präsentation\nLehr- und Lernformen Übung, Seminar\nVerwendbarkeit des Moduls Masterstudiengang Wald- und Wiesenpädagogik\nPrüfungsleistungen Modulprüfung ( unbenotet): Waldbericht\nArbeitsaufwand (Workload) 180 Stunden (90 Stunden Präsenzstudium, 90 Stunden Selbststudium)\nEmpfohlenes Fachsemester 1. Semester\nVoraussetzung für die Keine\nTeilnahme am Modul\nVoraussetzung für die keine\nZulassung zur Prüfung\nModuldauer Ein oder zwei Semester\nHäufigkeit des Angebots TM 1 und TM 2 jeweils im Sommersemester\nTM 3 jedes Semester\nZuständige Ständige Ständige Prüfungskommission für den Master-Studiengang Wald-\nPrüfungskommission: und Wiesenpädagogik\nModulverantwortliche Muster, Beispiel\nBezeichnung Modul 2: Wiesenkunde\nKompetenzen und Lernziele Die Studierenden kennen die Gräser der Musterwiese.\nLerninhalte 1) Einführung in die Wiese\n2) Nach Wahl\n- Halme\n- Blüten\nLeistungspunkte 6 (TM 1: 2 SWS / 4 LP; TM 2: 2 SWS / 2 LP)\nSemesterwochenstunden 4\nStudienleistung\nLehr- und Lernformen Vorlesung\nVerwendbarkeit des Moduls Masterstudiengang Wald- und Wiesenpädagogik\nPrüfungsleistungen Modulprüfung: Klausur zur Vorlesung „Einführung in die Wiese“\nArbeitsaufwand (workload) 180 Stunden (60 Stunden Präsenzstudium, 120 Stunden\nSelbststudium)\nSemester 1. und 2. Semester",
+  "Lesefassung\n(Stand 02.03.2032)\nVoraussetzungen für die Keine\nTeilnahme am Modul\nVoraussetzungen für die Vorlesung „Einführung in die Wiese“ muss erfolgreich\nZulassung zur Prüfung absolviert sein\nHäufigkeit Jedes Semester\nModuldauer Ein oder zwei Semester\nZuständige Ständige Ständige Prüfungskommission für den Master-Studiengang Wald-\nPrüfungskommission: und Wiesenpädagogik\nModulverantwortliche Muster\nBezeichnung Modul 3: Pilze und Flechten III – Sammeln,\nBestimmen und Bewahren\nKompetenzen und Lernziele Die Studierenden bestimmen Pilze sicher.\nLerninhalte Das Modul gliedert sich in zwei Teilmodule:\nTM1: Pilzkunde oder Flechtenkunde (Bestimmung,\nLagerung, Schutz) (2 SWS / 3 + 3 LP)\nTM 2: Vertiefung freier Wahl (Seminar; 2 SWS 3 LP (WS)\nLeistungspunkte 9 LP\nSemesterwochenstunden 4 SWS\nStudienleistungen Aktive Mitarbeit\nLehr- und Lernformen Vorlesung mit Übungen\nVerwendbarkeit des Moduls Masterstudiengang Wald- und Wiesenpädagogik\nPrüfungsleistung Modulprüfung: Klausur\nArbeitsaufwand (Workload) 270 Stunden (60 Stunden Präsenzstudium, 210 Stunden\nSelbststudium)\nEmpfolenes Fachsemester 3. − 4. Semester\nVoraussetzung für die Absolvierung des Moduls Wiesenkunde (Modul 2)\nTeilnahme am Modul\nVoraussetzung für die Erfolgreicher Abschluss der Module Waldeingangsphase und\nZulassung zur Prüfung Wiesenkunde (Modul 1, Modul 2)\nModuldauer zwei Semester\nHäufigkeit des Angebots nach Aushang\nZuständige Ständige Ständige Prüfungskommission für den Master-Studiengang Wald-\nPrüfungskommission: und Wiesenpädagogik\nModulverantwortliche Beispiel\nBezeichnung Modul 4: Moose\nKompetenzen und Lernziele Die Studierenden unterscheiden Moose.\nLerninhalte Konkrete Inhalte entsprechend der Wahl der Veranstaltungen\nLeistungspunkte 12\nSemesterwochenstunden 8 (vier Teilmodule à 2 SWS und 3 LP)\nStudienleistungen Aktive Mitarbeit, Präsentation, schriftliche Ausarbeitungen\nLehr- und Lernformen Vorlesung, Seminar, Übung\nVerwendbarkeit des Moduls Masterstudiengang Wald- und Wiesenpädagogik\nPrüfungsleistungen Teilmodulprüfungen (unbenotet): Präsentation, schriftliche\nAusarbeitung etc.\nBegründung: Das Modul kann nur in mehreren Teilen\ngeprüft werden.\nArbeitsaufwand (Workload) 360 Stunden (Aufteilung ist variabel)\nEmpfohlene Fachsemester Erstes bis drittes Semester\nVoraussetzung für die keine\nTeilnahme am Modul\nVoraussetzung für die Ggf. lehrveranstaltungsspezifisch\nZulassung zu den Prüfungen\nModuldauer Zwei Semester\nHäufigkeit des Angebots In jedem Wintersemester\nZuständige Ständige Ständige Prüfungskommission für den Master-Studiengang Wald-\nPrüfungskommission: und Wiesenpädagogik\nModulverantwortliche Ständige Prüfungskommission für den Masterstudiengang Wald-\nund Wiesenpädagogik"
+ ],
+ "meta": {
+  "university": "hildesheim",
+  "code": "link-ba9876543210",
+  "source": {
+   "url": "https://example.org/lesefassung-wald.pdf",
+   "fetched_at": null,
+   "sha256": null
+  }
+ },
+ "detect": true,
+ "head": {
+  "program": "Wald- und Wiesenpädagogik",
+  "level": "Master",
+  "degree": "M.A.",
+  "stand": "2032-03-02",
+  "heft": null,
+  "po": "2032",
+  "catalog_term": "SS 2031",
+  "total_lp": 33
+ },
+ "catalog": {
+  "v": 1,
+  "university": "hildesheim",
+  "program": "Wald- und Wiesenpädagogik",
+  "degree": "M.A.",
+  "po": "2032",
+  "catalog_term": "SS 2031",
+  "code": "link-ba9876543210",
+  "regular_semesters": null,
+  "total_lp": 33,
+  "source": {
+   "url": "https://example.org/lesefassung-wald.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [],
+  "modules": [
+   {
+    "id": "waldeingangsphase",
+    "title": "Waldeingangsphase",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": 1,
+    "turnus": "WS+SS",
+    "exam": "Modulprüfung ( unbenotet): Waldbericht",
+    "coursework": "Aktive Teilnahme, Präsentation",
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 180,
+    "source_page": 3
+   },
+   {
+    "id": "wiesenkunde",
+    "title": "Wiesenkunde",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": 1,
+    "turnus": "WS+SS",
+    "exam": "Modulprüfung: Klausur zur Vorlesung „Einführung in die Wiese“",
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 180,
+    "source_page": 3
+   },
+   {
+    "id": "pilze-und-flechten-3-sammeln-bestimmen-und-bewahren",
+    "title": "Pilze und Flechten III – Sammeln, Bestimmen und Bewahren",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": 9,
+    "semester": 3,
+    "turnus": "unbekannt",
+    "exam": "Modulprüfung: Klausur",
+    "coursework": "Aktive Mitarbeit",
+    "prerequisites": [
+     "wiesenkunde",
+     "waldeingangsphase"
+    ],
+    "language": null,
+    "workload_h": 270,
+    "source_page": 4
+   },
+   {
+    "id": "moose",
+    "title": "Moose",
+    "code": null,
+    "area": null,
+    "kind": "pflicht",
+    "lp": 12,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Teilmodulprüfungen (unbenotet): Präsentation, schriftliche Ausarbeitung etc.",
+    "coursework": "Aktive Mitarbeit, Präsentation, schriftliche Ausarbeitungen",
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 360,
+    "source_page": 4
+   }
+  ]
+ },
+ "module_texts": {
+  "waldeingangsphase": {
+   "content": "Der Wald wird vorgestellt.\nTM 1: Grundlagen des Waldgangs (2 SWS / 2 LP)\nTM 2: Wegekunde (2 SWS / 2 LP)\nTM 3: : Rindenlehre (Übung; 2 SWS; 2 LP) (SoSe)",
+   "goals": "Die Studierenden kennen den Musterwald und\nseine Wege.",
+   "literature": null
+  },
+  "wiesenkunde": {
+   "content": "1) Einführung in die Wiese\n2) Nach Wahl\n- Halme\n- Blüten",
+   "goals": "Die Studierenden kennen die Gräser der Musterwiese.",
+   "literature": null
+  },
+  "pilze-und-flechten-3-sammeln-bestimmen-und-bewahren": {
+   "content": "Das Modul gliedert sich in zwei Teilmodule:\nTM1: Pilzkunde oder Flechtenkunde (Bestimmung,\nLagerung, Schutz) (2 SWS / 3 + 3 LP)\nTM 2: Vertiefung freier Wahl (Seminar; 2 SWS 3 LP (WS)",
+   "goals": "Die Studierenden bestimmen Pilze sicher.",
+   "literature": null
+  },
+  "moose": {
+   "content": "Konkrete Inhalte entsprechend der Wahl der Veranstaltungen",
+   "goals": "Die Studierenden unterscheiden Moose.",
+   "literature": null
+  }
+ },
+ "details": {
+  "waldeingangsphase": {
+   "number": 1,
+   "sws": 6,
+   "parts": [
+    {
+     "number": 1,
+     "title": "Grundlagen des Waldgangs",
+     "kind": null,
+     "sws": 2,
+     "lp": 2,
+     "term": null
+    },
+    {
+     "number": 2,
+     "title": "Wegekunde",
+     "kind": null,
+     "sws": 2,
+     "lp": 2,
+     "term": null
+    },
+    {
+     "number": 3,
+     "title": "Rindenlehre",
+     "kind": "Übung",
+     "sws": 2,
+     "lp": 2,
+     "term": "SS"
+    }
+   ]
+  },
+  "wiesenkunde": {
+   "number": 2,
+   "sws": 4,
+   "parts": []
+  },
+  "pilze-und-flechten-3-sammeln-bestimmen-und-bewahren": {
+   "number": 3,
+   "sws": 4,
+   "parts": [
+    {
+     "number": 1,
+     "title": "Pilzkunde oder Flechtenkunde (Bestimmung, Lagerung, Schutz)",
+     "kind": null,
+     "sws": 2,
+     "lp": 6,
+     "term": null
+    },
+    {
+     "number": 2,
+     "title": "Vertiefung freier Wahl",
+     "kind": "Seminar",
+     "sws": 2,
+     "lp": 3,
+     "term": "WS"
+    }
+   ]
+  },
+  "moose": {
+   "number": 4,
+   "sws": 8,
+   "parts": []
+  }
+ },
+ "dumps": "{\"v\": 1, \"university\": \"hildesheim\", \"program\": \"Wald- und Wiesenpädagogik\", \"degree\": \"M.A.\", \"po\": \"2032\", \"catalog_term\": \"SS 2031\", \"code\": \"link-ba9876543210\", \"regular_semesters\": null, \"total_lp\": 33, \"source\": {\"url\": \"https://example.org/lesefassung-wald.pdf\", \"fetched_at\": null, \"sha256\": null}, \"areas\": [], \"modules\": [{\"id\": \"waldeingangsphase\", \"title\": \"Waldeingangsphase\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": 6, \"semester\": 1, \"turnus\": \"WS+SS\", \"exam\": \"Modulprüfung ( unbenotet): Waldbericht\", \"coursework\": \"Aktive Teilnahme, Präsentation\", \"prerequisites\": [], \"language\": null, \"workload_h\": 180, \"source_page\": 3}, {\"id\": \"wiesenkunde\", \"title\": \"Wiesenkunde\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": 6, \"semester\": 1, \"turnus\": \"WS+SS\", \"exam\": \"Modulprüfung: Klausur zur Vorlesung „Einführung in die Wiese“\", \"coursework\": null, \"prerequisites\": [], \"language\": null, \"workload_h\": 180, \"source_page\": 3}, {\"id\": \"pilze-und-flechten-3-sammeln-bestimmen-und-bewahren\", \"title\": \"Pilze und Flechten III – Sammeln, Bestimmen und Bewahren\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": 9, \"semester\": 3, \"turnus\": \"unbekannt\", \"exam\": \"Modulprüfung: Klausur\", \"coursework\": \"Aktive Mitarbeit\", \"prerequisites\": [\"wiesenkunde\", \"waldeingangsphase\"], \"language\": null, \"workload_h\": 270, \"source_page\": 4}, {\"id\": \"moose\", \"title\": \"Moose\", \"code\": null, \"area\": null, \"kind\": \"pflicht\", \"lp\": 12, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Teilmodulprüfungen (unbenotet): Präsentation, schriftliche Ausarbeitung etc.\", \"coursework\": \"Aktive Mitarbeit, Präsentation, schriftliche Ausarbeitungen\", \"prerequisites\": [], \"language\": null, \"workload_h\": 360, \"source_page\": 4}]}",
+ "texts_dumps": "{\"waldeingangsphase\": {\"content\": \"Der Wald wird vorgestellt.\\nTM 1: Grundlagen des Waldgangs (2 SWS / 2 LP)\\nTM 2: Wegekunde (2 SWS / 2 LP)\\nTM 3: : Rindenlehre (Übung; 2 SWS; 2 LP) (SoSe)\", \"goals\": \"Die Studierenden kennen den Musterwald und\\nseine Wege.\", \"literature\": null}, \"wiesenkunde\": {\"content\": \"1) Einführung in die Wiese\\n2) Nach Wahl\\n- Halme\\n- Blüten\", \"goals\": \"Die Studierenden kennen die Gräser der Musterwiese.\", \"literature\": null}, \"pilze-und-flechten-3-sammeln-bestimmen-und-bewahren\": {\"content\": \"Das Modul gliedert sich in zwei Teilmodule:\\nTM1: Pilzkunde oder Flechtenkunde (Bestimmung,\\nLagerung, Schutz) (2 SWS / 3 + 3 LP)\\nTM 2: Vertiefung freier Wahl (Seminar; 2 SWS 3 LP (WS)\", \"goals\": \"Die Studierenden bestimmen Pilze sicher.\", \"literature\": null}, \"moose\": {\"content\": \"Konkrete Inhalte entsprechend der Wahl der Veranstaltungen\", \"goals\": \"Die Studierenden unterscheiden Moose.\", \"literature\": null}}",
+ "details_dumps": "{\"waldeingangsphase\": {\"number\": 1, \"sws\": 6, \"parts\": [{\"number\": 1, \"title\": \"Grundlagen des Waldgangs\", \"kind\": null, \"sws\": 2, \"lp\": 2, \"term\": null}, {\"number\": 2, \"title\": \"Wegekunde\", \"kind\": null, \"sws\": 2, \"lp\": 2, \"term\": null}, {\"number\": 3, \"title\": \"Rindenlehre\", \"kind\": \"Übung\", \"sws\": 2, \"lp\": 2, \"term\": \"SS\"}]}, \"wiesenkunde\": {\"number\": 2, \"sws\": 4, \"parts\": []}, \"pilze-und-flechten-3-sammeln-bestimmen-und-bewahren\": {\"number\": 3, \"sws\": 4, \"parts\": [{\"number\": 1, \"title\": \"Pilzkunde oder Flechtenkunde (Bestimmung, Lagerung, Schutz)\", \"kind\": null, \"sws\": 2, \"lp\": 6, \"term\": null}, {\"number\": 2, \"title\": \"Vertiefung freier Wahl\", \"kind\": \"Seminar\", \"sws\": 2, \"lp\": 3, \"term\": \"WS\"}]}, \"moose\": {\"number\": 4, \"sws\": 8, \"parts\": []}}",
+ "head_dumps": "{\"program\": \"Wald- und Wiesenpädagogik\", \"level\": \"Master\", \"degree\": \"M.A.\", \"stand\": \"2032-03-02\", \"heft\": null, \"po\": \"2032\", \"catalog_term\": \"SS 2031\", \"total_lp\": 33}"
+}

@@ -229,11 +229,33 @@ def test_app_store_texts_match_current_build():
     shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final-2026-11-13"
     if shots.is_dir():
         assert sorted(p.name for p in shots.glob("*.png")) == sorted(names + ["tarif-landscape.png", "tarif-portrait.png"])
-    # 1.0.4 (13.11.2026): dazu der Pflichtsatz iPhone 6,9", sieben Motive je hell und dunkel
+    # 1.0.4: dazu der Pflichtsatz iPhone 6,9", sieben Motive je hell und dunkel. Seit 14.11.2026 (aufgenommen mit
+    # Build 41, unveraendert fuer die Einreichung mit Build 42 am 15.11.2026) der Satz mit
+    # den eigenen Kontodaten des Inhabers (seine Entscheidung, keine Daten Dritter); der Satz vom 13.11.2026 mit
+    # erfundenen Demo-Inhalten ("Hallo Tobi", Woche als Liste) ist ueberholt und steht nur noch einmal so da
     phone = re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", section)
-    assert [n[:2] for n in phone] == [f"{i:02d}" for i in range(1, 8)], phone
-    assert "appstore-screenshots-iphone-2026-11-13" in section
-    phones = Path.home() / "Studora-Builds" / "appstore-screenshots-iphone-2026-11-13"
+    assert phone == ["01-start-light-portrait.png", "02-lernkalender-light-portrait.png", "03-modul-light-portrait.png",
+                     "04-uni-mail-ki-light-portrait.png", "05-ki-hilfe-light-portrait.png",
+                     "06-studienverlauf-light-portrait.png", "07-mensa-light-portrait.png"], phone
+    part = section[section.index('### iPhone 6,9"'):section.index("### Ältere Sätze")]
+    assert ("**Satz vom 14.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 41, unverändert für die Einreichung mit\n"
+            "Build 42) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`") in part
+    assert "Eigene Kontodaten des Inhabers, keine Daten Dritter" in part and "Entscheidung des Inhabers 14.11.2026" in part
+    assert "ohne Namen, ohne Matrikelnummer" in part and "1320 × 2868" in part
+    assert "Woche als Raster Mo–So" in part and "Hallo Tobi" not in part
+    assert text.count("appstore-screenshots-iphone-2026-11-13") == 1, "alter Satz nur noch einmal: als ueberholt"
+    assert part.index("Überholt sind") < part.index("appstore-screenshots-iphone-2026-11-13")
+    # Abschreib-Liste und Upload-Werkzeug nennen denselben Ordner und dieselben sieben Bilder in derselben Reihenfolge
+    sheet = (REL / "EINREICHUNG-1-0-4.md").read_text(encoding="utf-8")
+    sheet = sheet[sheet.index("## 9. Bildschirmfotos iPhone"):sheet.index("## Was gleich bleibt")]
+    assert "Ordner: `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`" in sheet
+    assert re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", sheet) == phone
+    assert "Eigene Kontodaten des Inhabers, keine Daten Dritter" in sheet
+    tool = (ROOT / "tools" / "store_einreichen.py").read_text(encoding="utf-8")
+    tool = tool[tool.index('"APP_IPHONE_67"'):tool.index("\n}\n", tool.index('"APP_IPHONE_67"'))]
+    assert '"appstore-screenshots-iphone-2026-11-14"' in tool
+    assert re.findall(r'"(\d\d-[a-z-]+-light-portrait\.png)"', tool) == phone
+    phones = Path.home() / "Studora-Builds" / "appstore-screenshots-iphone-2026-11-14"
     if phones.is_dir():
         want = sorted([n for n in phone] + [n.replace("-light-", "-dark-") for n in phone])
         assert sorted(p.name for p in phones.glob("*.png")) == want

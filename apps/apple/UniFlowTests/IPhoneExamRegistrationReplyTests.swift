@@ -262,6 +262,10 @@ final class IPhoneMessageReplyTests: IPhoneLearnTestCase {
         XCTAssertTrue(send.accessibilityTraits.contains(.notEnabled), "ohne Text gesperrt")
         assertFitsOnAllPhones(env, "Antworten halb")
 
+        // Ab hier die Bildschirmtastatur des iPhones (ganzes Blatt beim Tippen, Senden ueber der Tastatur): am Mac
+        // ("Designed for iPad") gibt es keine, das Blatt bleibt beim Tippen halb hoch und nichts wird verdeckt
+        try ContainerTestBed.skipOnMac("Bildschirmtastatur des iPhones (ganzes Blatt beim Tippen) gibt es am Mac nicht")
+
         // Tippen ins Textfeld: ganzes Blatt. Fenster so gross wie der Bildschirm des Simulators (die Tastatur rechnet
         // vom Bildschirmrand, ein groesseres Fenster laege mit seinem unteren Teil darunter)
         env.window.frame = env.window.screen.bounds

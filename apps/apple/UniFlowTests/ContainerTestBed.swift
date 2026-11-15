@@ -107,6 +107,45 @@ final class ContainerTestBed {
         }
     }
 
+    /// Am Mac ("Designed for iPad") ueberspringen, mit Begruendung (14.11.2026, docs/MAC-DURCHLAUF-2026-11-14.md): fuer
+    /// Pruefungen, die nur am iPad oder iPhone passen (Bildschirmtastatur, vom Test gesetzte Fenstergroesse, Dialoge und
+    /// Bedienungshilfen, die der Mac als eigene Systemfenster bzw. anders liefert). Der Simulator prueft sie weiter.
+    nonisolated static func skipOnMac(_ reason: String) throws {
+        if ProcessInfo.processInfo.isiOSAppOnMac { throw XCTSkip("Am Mac übersprungen: \(reason)") }
+    }
+
+    /// Fuer Tests, die ueber einen gemeinsamen Dienst in die Ablage des aktiven Containers schreiben (KI-Gespraeche,
+    /// `TutorConversations.shared`). Im Simulator hat der Testwirt keinen aktiven Container, dort wird nichts gelesen
+    /// und nichts geschrieben. Am Mac ("Designed for iPad") laeuft der Testwirt im echten Container der App: Ist dort
+    /// jemand angemeldet, blieb das Testgespraech in dessen Daten liegen, und der Test fand es beim naechsten Lauf vor
+    /// (Befund 14.11.2026, docs/MAC-DURCHLAUF-2026-11-14.md, Abschnitt 6). Dann ueberspringen.
+    @MainActor static func requireNoActiveContainer(_ what: String) throws {
+        if ActiveContainer.current != nil {
+            throw XCTSkip("Übersprungen: der Testwirt hat einen aktiven Container (am Mac der echte der App); \(what)")
+        }
+    }
+
+    /// Segment eines Umschalters (`UISegmentedControl`) waehlen, wie es ein Klick tut. Nur fuer den Mac-Testwirt
+    /// ("Designed for iPad"): dort findet der Test das Segment als Knopf, `accessibilityActivate()` liefert aber false
+    /// (Befunde 09.11. und 14.11.2026, docs/MAC-DURCHLAUF-2026-11-14.md). Am iPad und iPhone gibt die Funktion immer
+    /// false zurueck, dort bleibt die Pruefung ueber die Bedienungshilfe streng. Den Klick mit der Maus prueft am Mac
+    /// ein Mensch.
+    @MainActor static func selectSegmentOnMac(_ title: String, in view: UIView) -> Bool {
+        guard ProcessInfo.processInfo.isiOSAppOnMac else { return false }
+        var queue: [UIView] = [view]
+        while !queue.isEmpty {
+            let v = queue.removeFirst()
+            if let control = v as? UISegmentedControl,
+               let i = (0..<control.numberOfSegments).first(where: { control.titleForSegment(at: $0) == title }) {
+                control.selectedSegmentIndex = i
+                control.sendActions(for: .valueChanged)
+                return true
+            }
+            queue.append(contentsOf: v.subviews)
+        }
+        return false
+    }
+
     /// Quelltext-Pruefungen (sie lesen apps/apple/UniFlow im Repo): auf dem Mac ("Designed for iPad") verbietet die
     /// Sandbox das Lesen des Repo-Ordners (Befund 09.11.2026, docs/paritaet/MAC-B28-2026-11-09.md). Dann ueberspringen;
     /// die Quellen sind fuer iPad und Mac dieselben, der Simulator prueft sie.

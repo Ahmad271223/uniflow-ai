@@ -149,10 +149,14 @@ struct IntroTopBar: View {
                         .ufHitArea()
                         .accessibilityIdentifier("intro.skip")
                 } else {
-                    Color.clear
+                    // Platzhalter mit fester Hoehe: eine Farbflaeche ohne Hoehe waere beliebig hoch, die Kopfzeile
+                    // nahm dann die halbe Seite ein und der Rest war nach unten geschoben und oben abgeschnitten
+                    // (Foto des Inhabers 14.11.2026, Schritt "Ich richte deinen Lernplan ein …" ohne "Später")
+                    Color.clear.frame(height: 44)
                 }
             }
             .frame(minWidth: 110, alignment: .trailing)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)

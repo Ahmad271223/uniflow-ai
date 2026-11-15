@@ -374,13 +374,89 @@ public enum StudyPlanEngine {
         return names.first { counts[$0.unicodeScalars.map(\.value)] == best }
     }
 
-    /// Studiengang aus QIS `abschluss` ohne Klammerzusatz
-    static func programOf(_ grades: [[String: JSONValue]]) -> String? {
-        mostCommon(grades.map { PyText.strip(programRE.sub(textOf($0["abschluss"]))) }.filter { !$0.isEmpty })
+    private static let poYearRE = PyRegex(#"PO[- ]?Version:?\s*([0-9]{4})"#, ignoreCase: true)
+
+    /// `current_label`: Studiengang der laufenden Einschreibung aus mehreren QIS-/LSF-Bezeichnungen (14.11.2026, erstes
+    /// echtes Hildesheim-Konto: nach einem Wechsel hatte nur der alte Studiengang Leistungen und gewann als
+    /// "haeufigster"). Die neueste PO-Version gewinnt, bei Gleichstand die meisten Zeilen, dann die zuerst gesehene.
+    static func currentLabel(_ labels: [String]) -> String? {
+        let names = labels.map { PyText.strip($0) }.filter { !$0.isEmpty }
+        guard !names.isEmpty else { return nil }
+        var counts: [[UInt32]: Int] = [:]
+        var order: [String] = []
+        for n in names {
+            let k = n.unicodeScalars.map(\.value)
+            if counts[k] == nil { order.append(n) }
+            counts[k, default: 0] += 1
+        }
+        func year(_ n: String) -> Int { poYearRE.search(n)?.group(1).flatMap { Int($0) } ?? -1 }
+        var best = order[0]
+        for n in order.dropFirst() {
+            let a = (year(n), counts[n.unicodeScalars.map(\.value)] ?? 0), b = (year(best), counts[best.unicodeScalars.map(\.value)] ?? 0)
+            if a > b { best = n }
+        }
+        return best
     }
 
+    /// Studiengang aus QIS `abschluss` ohne Klammerzusatz, der aktuelle bei mehreren (`currentLabel`)
+    static func programOf(_ grades: [[String: JSONValue]]) -> String? {
+        guard let label = abschlussOf(grades) else { return nil }
+        // LSF Hildesheim ("Abschluss: … Studiengang: … PO-Version: …"): nur der Name
+        let p = label.lowercased().hasPrefix("abschluss:") ? StudySources.parseAbschluss(label).name : PyText.strip(programRE.sub(label))
+        return p.isEmpty ? nil : p
+    }
+
+    /// Name des Studiengangs einer Zeile ohne Klammerzusatz (`PROGRAM_RE.sub("", abschluss).strip()`)
+    static func programName(_ r: [String: JSONValue]) -> String { PyText.strip(programRE.sub(textOf(r["abschluss"]))) }
+
     static func abschlussOf(_ grades: [[String: JSONValue]]) -> String? {
-        mostCommon(grades.map { PyText.strip(textOf($0["abschluss"])) }.filter { !$0.isEmpty })
+        currentLabel(grades.map { textOf($0["abschluss"]) })
+    }
+
+    /// `programs_of`: alle Studiengaenge im Notenspiegel, der aktuelle zuerst
+    static func programsOf(_ grades: [[String: JSONValue]], university: String, sources: StudySources = .bundled) -> [JSONValue] {
+        let labels = grades.map { PyText.strip(textOf($0["abschluss"])) }.filter { !$0.isEmpty }
+        var counts: [[UInt32]: Int] = [:]
+        for l in labels { counts[l.unicodeScalars.map(\.value), default: 0] += 1 }
+        var rest: [String] = []
+        for l in labels where !rest.contains(where: { $0.unicodeScalars.elementsEqual(l.unicodeScalars) }) { rest.append(l) }
+        var order: [String] = []
+        while let best = currentLabel(rest) {
+            order.append(best)
+            rest.removeAll { $0.unicodeScalars.elementsEqual(best.unicodeScalars) }
+        }
+        var out: [JSONValue] = [], seen = Set<String>()
+        for label in order {
+            let m = sources.match(label: label, university: university)
+            let parsed = StudySources.parseAbschluss(label)
+            let program = m?.program ?? (parsed.name.isEmpty ? label : parsed.name)
+            let key = m?.code ?? StudyCatalogText.nameKey(program)
+            guard seen.insert(key).inserted else { continue }
+            func t(_ v: String?) -> JSONValue { v.map { .string($0) } ?? .null }
+            out.append(.object(["label": .string(label), "program": .string(program), "degree": t(m?.degree ?? parsed.degree),
+                                "po": t(m?.po ?? parsed.po), "code": t(m?.code),
+                                "grades": .number(Double(counts[label.unicodeScalars.map(\.value)] ?? 0))]))
+        }
+        return out
+    }
+
+    /// `grades_for_catalog`: Leistungen eines anderen Studiengangs (laut Register) nicht in diesen Katalog mischen;
+    /// Zeilen ohne `abschluss` und unbekannte Bezeichnungen bleiben
+    static func gradesForCatalog(_ grades: [[String: JSONValue]], catalog: JSONValue?, university: String,
+                                 sources: StudySources = .bundled) -> [[String: JSONValue]] {
+        guard let catalog else { return grades }
+        let want = StudyCatalogText.nameKey(textOf(catalog["program"]))
+        guard !want.isEmpty else { return grades }
+        var belongs: [String: Bool] = [:]
+        return grades.filter { g in
+            let label = PyText.strip(textOf(g["abschluss"]))
+            guard !label.isEmpty else { return true }
+            if belongs[label] == nil {
+                let m = sources.match(label: label, university: university)
+                belongs[label] = m == nil || StudyCatalogText.nameKey(m?.program ?? "") == want
+            }
+            return belongs[label]!
+        }
     }
 
     private static func rankGreater(_ a: JSONValue, _ b: JSONValue) -> Bool {
@@ -396,7 +472,11 @@ public enum StudyPlanEngine {
                                    grades: [[String: JSONValue]]) -> (catalog: JSONValue?, reason: String?) {
         var cands = catalogs.filter(validCatalog)
         if cands.isEmpty { return (nil, "no_catalog") }
-        let po = PyText.strip(textOf(settings["po"]))
+        // eingefuegter Link: der Katalog von genau diesem Link gilt (14.11.2026)
+        let link = PyText.strip(textOf(settings["catalog_url"]))
+        let linked = link.isEmpty ? [] : cands.filter { $0["source"]?["url"]?.string == link }
+        if !linked.isEmpty { cands = linked }
+        let po = linked.isEmpty ? PyText.strip(textOf(settings["po"])) : ""
         if !po.isEmpty {
             cands = cands.filter { pyStr($0["po"]) == po || textOf($0["code"]) == po }
             if cands.isEmpty { return (nil, "no_catalog_po") }

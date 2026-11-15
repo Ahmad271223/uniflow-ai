@@ -69,6 +69,7 @@ final class AboNurJahrAppTests: StoreKitSessionTestCase {
 
     /// Kauf des Jahresabos schaltet den Tarif frei, Zahlweise jaehrlich
     func testYearlyPlusPurchaseUnlocksPlus() async throws {
+        try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         let outcome = await store.purchase(plus)

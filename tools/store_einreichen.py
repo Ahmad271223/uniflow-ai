@@ -1,11 +1,11 @@
 """Version im App Store anlegen und fuellen (14.11.2026). Aufruf im Projektordner:
     .venv/bin/python tools/store_einreichen.py texte   1.0.4          # Version anlegen, Texte und Pruefhinweise aus APP-STORE.md
     .venv/bin/python tools/store_einreichen.py bilder  1.0.4          # Bildschirmfotos iPad 13" und iPhone 6,9" ersetzen
-    .venv/bin/python tools/store_einreichen.py build   1.0.4 40       # Build waehlen
+    .venv/bin/python tools/store_einreichen.py build   1.0.4 42       # Build waehlen
     .venv/bin/python tools/store_einreichen.py senden  1.0.4          # zur Pruefung einreichen (nur mit Okay des Inhabers)
 Texte kommen aus den Bloecken `description-proai`, `whats-new-proai`, `keywords`, `promo`, `review-notes-proai` in
 docs/release/APP-STORE.md (von tests/test_release_texts.py geprueft). Freigabe nach der Pruefung von Hand (MANUAL)."""
-import hashlib, pathlib, re, sys, time, urllib.request
+import hashlib, pathlib, re, sys, time, urllib.error, urllib.request
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from asc import call
 
@@ -17,8 +17,8 @@ SHOTS = {
         "01-uebersicht-light.png", "02-ki-frage-dark.png", "03-ki-karteikarten-light.png", "04-community-diskussion-dark.png",
         "05-uni-mail-light.png", "06-stundenplan-termin-light.png", "07-skript-uebung-stift-dark.png", "08-wochentest-ki-dark.png",
         "09-raumfinder-light.png", "10-mensa-light.png"]),
-    "APP_IPHONE_67": (BUILDS / "appstore-screenshots-iphone-2026-11-13", [
-        "01-uebersicht-light-portrait.png", "02-lernkalender-light-portrait.png", "03-modul-erledigt-light-portrait.png",
+    "APP_IPHONE_67": (BUILDS / "appstore-screenshots-iphone-2026-11-14", [
+        "01-start-light-portrait.png", "02-lernkalender-light-portrait.png", "03-modul-light-portrait.png",
         "04-uni-mail-ki-light-portrait.png", "05-ki-hilfe-light-portrait.png", "06-studienverlauf-light-portrait.png",
         "07-mensa-light-portrait.png"]),
 }
@@ -81,8 +81,16 @@ def upload(set_id, path):
     for op in d["data"]["attributes"]["uploadOperations"]:
         req = urllib.request.Request(op["url"], method=op["method"], data=data[op["offset"]:op["offset"] + op["length"]],
                                      headers={h["name"]: h["value"] for h in op["requestHeaders"]})
-        with urllib.request.urlopen(req) as r:
-            assert r.status < 300, r.status
+        for attempt in range(5):                  # Netzfehler beim Hochladen der Bilddaten wiederholen
+            try:
+                with urllib.request.urlopen(req, timeout=180) as r:
+                    assert r.status < 300, r.status
+                break
+            except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as e:
+                if attempt == 4 or isinstance(e, urllib.error.HTTPError):
+                    raise
+                print("  Netzfehler, neuer Versuch:", type(e).__name__)
+                time.sleep(15 * (attempt + 1))
     ok(*call("PATCH", f"/v1/appScreenshots/{sid}", {"data": {"type": "appScreenshots", "id": sid, "attributes": {
         "uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}}), f"Bild {path.name} abschliessen")
     print("  hochgeladen", path.name)

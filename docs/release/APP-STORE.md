@@ -1,6 +1,6 @@
 # App Store Connect – Texte und Angaben (iPhone und iPad, Mac „Designed for iPad“)
 
-**Stand 13.11.2026 (iPhone und iPad, nur Jahresabos; 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.4 (Build 39; Build 35 ist seit 13.11.2026 als Version 1.0.3 veröffentlicht (live seit 23:53); 1.0.2 mit Build 31 veröffentlicht am 11.11.2026; 1.0.1 mit Build 30 seit 10.11.2026; Build 25 war als Version 1.0 freigegeben, wurde nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
+**Stand 15.11.2026 (iPhone und iPad, nur Jahresabos; 14.11.2026, 13.11.2026, 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.4 (Build 42 ist seit 15.11.2026 10:13 in der Prüfung bei Apple, WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand; Build 41 war am 14.11.2026 von 19:56 bis 21:54 eingereicht und wurde zurückgezogen; Build 35 ist seit 13.11.2026 als Version 1.0.3 veröffentlicht (live seit 23:53); 1.0.2 mit Build 31 veröffentlicht am 11.11.2026; 1.0.1 mit Build 30 seit 10.11.2026; Build 25 war als Version 1.0 freigegeben, wurde nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
@@ -16,7 +16,7 @@ Universität Hildesheim (Learnweb, LSF, PLuS) bleiben im Code, sind im Store-Bui
 `UFReleaseUniversities`) und kommen 1–2 Tage später mit Update 1.0.1 – dann die Texte unten wieder um beide Hochschulen
 ergänzen (Beschreibung, Schlüsselwörter „Moodle“, „Hildesheim“, Prüfhinweise „Connected today“, Website).
 
-**1.0.4 mit Universität Hildesheim (Entscheidung des Inhabers 14.11.2026):** Der Store-Build bietet ab Build 40 die Leibniz Universität Hannover und die Universität Hildesheim an (`UF_SHIPPED_UNIVERSITIES` = `luh hildesheim` im Release, `apps/apple/project.yml`); die Hochschule Hannover bleibt ausgeblendet. Beschreibung, Schlüsselwörter, „Neu in dieser Version“ und Prüfhinweise nennen Hildesheim (Learnweb, LSF). Hinweis: Hildesheim ist mit nachgebauten Seiten getestet, nicht mit einem echten Konto.
+**1.0.4 mit Universität Hildesheim (Entscheidung des Inhabers 14.11.2026):** Der Store-Build bietet ab Build 40 die Leibniz Universität Hannover und die Universität Hildesheim an (`UF_SHIPPED_UNIVERSITIES` = `luh hildesheim` im Release, `apps/apple/project.yml`); die Hochschule Hannover bleibt ausgeblendet. Beschreibung, Schlüsselwörter, „Neu in dieser Version“ und Prüfhinweise nennen Hildesheim (Learnweb, LSF). Hinweis: Hildesheim ist seit 14.11.2026 mit einem echten Testkonto geprüft (davor nur mit nachgebauten Seiten).
 
 **1.0.4 wird mit Pro AI eingereicht (Entscheidung des Inhabers 07.11.2026, Dienst `app.studinow.app` läuft):** in App Store
 Connect gehören `description-proai`, `whats-new-proai` und `review-notes-proai` hinein, dazu die zwei Jahresabos (Plus und Pro AI; die
@@ -36,7 +36,8 @@ ist in der Demo ohne geöffnete Dateien leer und wird darum im Prüfhinweis nich
 
 **Neu in 1.0.4 (13.11.2026): iPhone.** Die App ist universal (`TARGETED_DEVICE_FAMILY` 1,2). Mit der ersten
 veröffentlichten Version mit iPhone verlangt App Store Connect **Bildschirmfotos 6,9"** (1320 × 2868); sie liegen unter
-`~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/` (Abschnitt Bildschirmfotos). Am iPhone gibt es **keinen
+`~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/` (Satz vom 14.11.2026 mit den eigenen Kontodaten des Inhabers,
+keine Daten Dritter; Abschnitt Bildschirmfotos). Am iPhone gibt es **keinen
 Editor**: Dokumente öffnen in einer Leseansicht mit den Notizen vom iPad; das steht so in den Prüfhinweisen. Apple lässt
 das iPhone später nicht mehr entfernen.
 
@@ -56,7 +57,7 @@ Frühere Übersicht der zwei Fassungen (Pro AI erst nach Sandbox-Kauf und KI-Fra
 | Name, Untertitel, Werbetext, Schlüsselwörter, Neue Funktionen | gleich | gleich |
 | Beschreibung | `description` | `description-proai` |
 | Hinweise für die App-Prüfung | `review-notes` | `review-notes-proai` |
-| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, `docs/release/SCREENSHOTS.md`) | **Satz vom 13.11.2026 mit Pro AI** (`~/Studora-Builds/appstore-screenshots-final-2026-11-13/` und, mit iPhone, `appstore-screenshots-iphone-2026-11-13/`; Abschnitt Bildschirmfotos) |
+| Bildschirmfotos | Satz Build 11 ohne KI (`~/Studora-Builds/appstore-screenshots-v11/`, `docs/release/SCREENSHOTS.md`) | **iPad: Satz vom 13.11.2026 mit Pro AI** (`~/Studora-Builds/appstore-screenshots-final-2026-11-13/`); **iPhone: Satz vom 14.11.2026** (`appstore-screenshots-iphone-2026-11-14/`, eigene Kontodaten des Inhabers, keine Daten Dritter); Abschnitt Bildschirmfotos |
 
 Für 1.0.4 gilt die rechte Spalte (Plus und Pro AI).
 
@@ -144,7 +145,7 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3983 Zeichen
+### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3995 Zeichen
 
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
@@ -184,7 +185,7 @@ DEINE DATEN
 • Dein Hochschul-Passwort gibst du auf der Anmeldeseite deiner Hochschule oder einmal unter „Uni-Zugang“ ein. Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses Geräts (nicht in iCloud). An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
-StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos (ein Gerät): Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -224,12 +225,14 @@ Neu in 1.0.4:
 • Viele kleine Verbesserungen und Fehler behoben.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden – 1469 Zeichen
+### Fassung mit Pro AI – für 1.0.4 verwenden – 1752 Zeichen
 
 ```text whats-new-proai
 Neu in 1.0.4:
 • Neu angebunden: Universität Hildesheim (Learnweb und LSF) – Kurse, Dateien, Termine und Noten wie an der Leibniz Universität Hannover.
-• StudiNow gibt es jetzt auch fürs iPhone: Übersicht, Stundenplan, Lernkalender, Module, Nachrichten, Uni-Mail, Noten und Mensa unterwegs – gelesen und abgehakt wird am iPhone, geschrieben mit dem Apple Pencil weiter am iPad.
+• StudiNow gibt es jetzt auch fürs iPhone: Übersicht, Stundenplan, Lernkalender, Module, Nachrichten, Uni-Mail, Noten und Mensa unterwegs – gelesen und abgehakt wird am iPhone, geschrieben mit dem Apple Pencil weiter am iPad. Der Lernkalender zeigt die Woche als Raster von Montag bis Sonntag.
+• Universität Hildesheim: Du wählst deinen Studiengang selbst (auch Begleitfach); ein früheres Studium steht getrennt.
+• StudiNow Free gilt für ein Gerät. Mit Pro AI nutzt du iPhone und iPad zusammen, mit Abgleich.
 • Neuer Einstieg: Willkommen, kurzer Rundgang, ein paar Fragen zu Fächern und Prüfungstagen – danach steht dein erster Wochenplan.
 • Uni-Mail: „Mit KI verbessern“ schreibt deine E-Mail an Lehrende oder das Prüfungsamt höflich und klar um (mit Pro AI). Der Vorschlag ersetzt deinen Text erst, wenn du ihn übernimmst; gesendet wird erst mit „Senden“.
 • Haken „erledigt“ im Modul: einzelne Dateien oder eine ganze Lehrwoche abhaken. Der Stand ist auf allen deinen Geräten gleich, Lernpakete und Lernfortschritt ziehen mit.
@@ -244,7 +247,7 @@ Neu in 1.0.4:
 
 | Feld | Wert |
 |---|---|
-| Plattform, Geräte | **nur die iOS-App** in App Store Connect (App-ID 6830632088); macOS nicht einreichen, der alte macOS-1.0-Entwurf bleibt liegen (Hinweis oben). Seit 1.0.4 (Build 39) **iPhone und iPad** (`TARGETED_DEVICE_FAMILY` 1,2; iPadOS/iOS 17 oder neuer); Mac mit Apple-Chip über „Designed for iPad“ (Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“; am Mac noch nicht getestet, sonst abschalten). Achtung: Ist eine Version mit iPhone veröffentlicht, lässt Apple das iPhone nicht mehr entfernen. Für die Store-Einreichung sind dann iPhone-Bilder 6,9" Pflicht (für TestFlight nicht) |
+| Plattform, Geräte | **nur die iOS-App** in App Store Connect (App-ID 6830632088); macOS nicht einreichen, der alte macOS-1.0-Entwurf bleibt liegen (Hinweis oben). Seit 1.0.4 (Build 39) **iPhone und iPad** (`TARGETED_DEVICE_FAMILY` 1,2; iPadOS/iOS 17 oder neuer); Mac mit Apple-Chip über „Designed for iPad“ (Preise und Verfügbarkeit → „iPhone- und iPad-Apps auf Apple-Silicon-Macs“; Mac-Durchlauf am 14.11.2026: der Absturz beim Öffnen von Blättern ist behoben (in Build 41), die zweite Hälfte der Mac-Tests ist noch offen). Achtung: Ist eine Version mit iPhone veröffentlicht, lässt Apple das iPhone nicht mehr entfernen. Für die Store-Einreichung sind dann iPhone-Bilder 6,9" Pflicht (für TestFlight nicht) |
 | Primäre Sprache | Deutsch |
 | Kategorie | Bildung; zweite Kategorie: Produktivität |
 | Support-URL | `https://studinow.app/support` (Kontakt per E-Mail support@studinow.app) |
@@ -254,7 +257,7 @@ Neu in 1.0.4:
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Vahrenwalder Straße 30, 30165 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0.4 (`MARKETING_VERSION` auf develop, seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 41** (`CURRENT_PROJECT_VERSION` auf develop); Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
+| Version, Build | 1.0.4 (`MARKETING_VERSION` auf develop, seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 43** (`CURRENT_PROJECT_VERSION` auf develop); Build 42 in der Prüfung (Version 1.0.4, eingereicht am 15.11.2026 10:13, WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand); Build 41 am 14.11.2026 19:56 eingereicht und um 21:54 zurückgezogen (Fehler im iPhone-Layout am echten Gerät), seitdem nur TestFlight; Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv. Seit 12.11.2026 eine Anmeldung für alles: „Mit Apple anmelden“ beim Start trennt die Daten je Apple-Nutzer und meldet zugleich beim StudiNow-Dienst an (Token-Tausch beim Dienst; ein neues Konto direkt nach der Hochschulwahl; dieselbe Apple-ID = dasselbe Konto auf jedem Gerät). Rückfall bei Fehler/offline: Einstellungen → Konto. „Konto löschen“ in der App löscht Gerätedaten und Dienst-Konto und widerruft die Apple-Anmeldung bei Apple (Richtlinie 5.1.1(v); `app/apple_signin.py`, braucht `LERNAPP_APPLE_TEAM_ID`, `LERNAPP_APPLE_SIGNIN_KEY_ID`, `LERNAPP_APPLE_SIGNIN_KEY_FILE` am Server) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -449,38 +452,39 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: iPhone, „Mit KI verbessern“ in der Uni-Mail) – 3985 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: iPhone, „Mit KI verbessern“ in der Uni-Mail) – 3968 Zeichen (max. 4000)
 
 ```text review-notes-proai
-New in 1.0.4: iPhone support, Universität Hildesheim, "Mit KI verbessern" in Uni-Mail (Pro AI), tick files and whole weeks as done, direct link to QIS, study goals, new onboarding.
+New in 1.0.4: iPhone support, Universität Hildesheim, "Mit KI verbessern" in Uni-Mail (Pro AI), tick files and weeks as done, Free on one device (see Devices).
 
-StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover and, new, Universität Hildesheim. Its university features need a personal university account. Please use the built-in demo:
+Connected today: Leibniz Universität Hannover and, new, Universität Hildesheim. Its university features need a personal university account. Please use the built-in demo:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account and sends nothing to us.
 2. Choose a plan ("StudiNow Free" is enough) and "Leibniz Universität Hannover". A 7-day trial at Pro AI level starts automatically, no purchase or payment details, once per device.
-3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom. It adds an invented module with three PDFs, timetable and flashcards. Demo mode never contacts the university.
+3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom. It adds an invented module with PDFs, timetable and flashcards. Demo mode never contacts the university.
 A slim bar "Demo-Inhalte – erfunden, ohne Hochschule" marks the demo; "Beenden" removes all demo content.
 
 After the trial: a screen "Deine Probe ist vorbei" shows Free, Plus and Pro AI (yearly) and closes only after a choice. "Bei Free bleiben" is a valid choice without any purchase.
 
-iPhone: same app and account, laid out for a small screen. The Pencil editor stays on iPad; on iPhone documents open in a reader with the iPad notes.
+iPhone: same app, small-screen layout. The Pencil editor stays on iPad; documents open in a reader.
+
+Devices: a Free account works on one device. The same account on a second device shows "StudiNow Free gilt für ein Gerät" with "Pro AI ansehen", "Dieses Gerät stattdessen nutzen" (moves Free to this device, no purchase) and "Abmelden". Plus and Pro AI work on all devices.
 
 University password: the switch "Passwort auf diesem iPad merken" (on by default) keeps it only in this device's Keychain (not synced to iCloud); it is never sent to our servers. Type it once or delete it: "Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang".
 
 Subscriptions (yearly only, no introductory offers; the monthly products are removed from sale; yearly prices are 19.99 € and 39.99 € from 11 Nov 2026), plan page "Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen":
 - "StudiNow Plus": Apple Pencil, exercise and script side by side, flashcards, study plan, course community.
 - "StudiNow Pro AI": everything in Plus, the StudiNow AI with 100 credits per month, note sync across devices.
-Terms and privacy: studinow.app/nutzungsbedingungen and /datenschutz.
 
 AI (Pro AI) runs on our own service (https://app.studinow.app) with the StudiNow account; first-launch "Sign in with Apple" signs in there too. Test:
 1. Buy "StudiNow Pro AI" in the sandbox (or skip: a new StudiNow account has a 7-day trial with 25 credits).
 2. Our service verifies the signed transaction and assigns the plan (if offline: "StudiNow-Konto" → "Mit Apple anmelden").
-3. Open a demo PDF, tap "KI-Hilfe" and ask about the page, or choose "Ganzes Dokument" → "Ganze Vorlesung erklären".
+3. Open a demo PDF, tap "KI-Hilfe" and ask about the page.
 The first AI request shows "KI-Hilfe: Was wird gesendet?": page text (or image of a circled area), question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Uni-Mail "Mit KI verbessern" (Pro AI) sends subject and text the same way and only proposes a text; it is taken over with "Übernehmen" and sent only with "Senden". Own OpenAI key ("Einstellungen" → "Erweitert" → "Eigenes ChatGPT", every plan for AI help and AI study plan; flashcards from a document need Plus, weekly tests Pro AI): after the notice and ticking "Ich stimme zu …", the same content goes directly from the iPad to OpenAI on the user's key; no ChatGPT login exists in the build.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto löschen" (device and our service; revokes Sign in with Apple).
 
-Community (guideline 1.2): members share notes, ask and comment under a pseudonym (encrypted; CloudKit or our service). Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours and remove content. Contact: support@studinow.app.
+Community (guideline 1.2): members share notes, ask and comment under a pseudonym. Every post can be reported ("Melden") and its author blocked ("Blockieren"). We review reports within 24 hours and remove content. Contact: support@studinow.app.
 
 No tracking, no ads, no analytics. Not endorsed by universities; writes there only on user action.
 ```
@@ -488,12 +492,17 @@ No tracking, no ads, no analytics. Not endorsed by universities; writes there on
 ## Bildschirmfotos
 
 Pflicht für die Einreichung mit iPhone: ein Satz **iPad 13"** und ein Satz **iPhone 6,9"**. App Store Connect rechnet
-beide auf die kleineren Geräte herunter. Nur echte App-Inhalte mit erfundenen Daten, keine Uni-Logos, keine echten
-Namen oder Noten, keine eingebrannte Beschriftung, keine Demo-Leiste.
+beide auf die kleineren Geräte herunter. Nur echte App-Inhalte, keine Uni-Logos, keine eingebrannte Beschriftung, keine
+Demo-Leiste. Die iPad-Bilder zeigen erfundene Daten (keine echten Namen oder Noten); die iPhone-Bilder vom 14.11.2026
+zeigen die eigenen Kontodaten des Inhabers (seine Entscheidung vom 14.11.2026), ohne Namen, ohne Matrikelnummer und
+ohne Daten Dritter. Für die Einreichung von 1.0.4 am 14.11.2026 sind beide Sätze hochgeladen: 10 iPad-Bilder und
+7 iPhone-Bilder, alle COMPLETE. Die neue Einreichung vom 15.11.2026 mit Build 42 nutzt dieselben Texte und Bilder
+unverändert.
 
 ### iPad 13" (2064 × 2752)
 
-**Satz vom 13.11.2026 für 1.0.4** (Build 39) unter `~/Studora-Builds/appstore-screenshots-final-2026-11-13/`: genau
+**Satz vom 13.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 39, unverändert für die Einreichung mit
+Build 42) unter `~/Studora-Builds/appstore-screenshots-final-2026-11-13/`: genau
 zehn Bilder im Hochformat, je Motiv eine Fassung hell oder dunkel. Er zeigt den heutigen Stand – aufgeräumte Startseite
 mit Kennzahl-Zeile, Knopf „Im QIS zur Prüfung anmelden“, Kopfzeile des Editors mit Reitern und die Stift-Leiste in
 einer Zeile. Tobi hat den Tarif Pro AI (Seitenleiste „Pro AI“, kein „Pro AI holen“), die KI antwortet als StudiNow-KI
@@ -517,25 +526,29 @@ Deutsch) in dieser Reihenfolge:
 
 ### iPhone 6,9" (1320 × 2868)
 
-**Satz vom 13.11.2026 für 1.0.4** (Build 39) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/`: sieben
-Motive, je eine helle und eine dunkle Fassung (`<nn>-<name>-{light|dark}-portrait.png`). Für den Store die **hellen
-sieben** in dieser Reihenfolge hochladen (iPhone 6,9"-Display, Deutsch); die dunklen liegen als Alternative daneben.
-Erzeugt vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests` mit denselben erfundenen Demo-Inhalten wie die
-iPad-Bilder (`docs/release/SCREENSHOTS.md`, Abschnitt iPhone). Der Satz vom 11.11.2026
-(`appstore-screenshots-iphone-2026-11-11/`, acht Motive) ist überholt – er ist älter als Build 38/39.
+**Satz vom 14.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 41, unverändert für die Einreichung mit
+Build 42) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`: sieben
+Motive, je eine helle und eine dunkle Fassung (`<nn>-<name>-{light|dark}-portrait.png`), jedes Bild 1320 × 2868. Für den
+Store sind die **hellen sieben** in dieser Reihenfolge hochgeladen (iPhone 6,9"-Display, Deutsch; 14.11.2026); die
+dunklen (`-dark-`) liegen als Alternative daneben. `tools/store_einreichen.py` zeigt auf diesen Ordner und diese
+Reihenfolge. **Eigene Kontodaten des Inhabers, keine Daten Dritter:** aufgenommen mit den Daten des eigenen Kontos des
+Inhabers (Entscheidung des Inhabers 14.11.2026), ohne Namen, ohne Matrikelnummer und ohne Daten Dritter. Überholt sind
+der Satz vom 13.11.2026 (`appstore-screenshots-iphone-2026-11-13/`, vom Test `IPhoneStoreScreenshotTests` mit
+erfundenen Demo-Inhalten erzeugt, Woche noch als Liste; `docs/release/SCREENSHOTS.md`, Abschnitt iPhone) und der Satz
+vom 11.11.2026 (`appstore-screenshots-iphone-2026-11-11/`, acht Motive).
 
 | Nr. | Datei (hell) | Motiv |
 |---|---|---|
-| 1 | `01-uebersicht-light-portrait.png` | Übersicht „Hallo Tobi“ mit Prüfungsanmeldung und „Im QIS zur Prüfung anmelden“ |
-| 2 | `02-lernkalender-light-portrait.png` | Lernkalender: Woche als Liste mit Uni-Terminen und Lernblöcken, Leiste mit „Ziele“ |
-| 3 | `03-modul-erledigt-light-portrait.png` | Modul mit Lehrwoche: Haken je Datei, „2/3 erledigt“ |
-| 4 | `04-uni-mail-ki-light-portrait.png` | Uni-Mail „Neue E-Mail“ mit „Mit KI verbessern“ und dem Vorschlag der KI |
-| 5 | `05-ki-hilfe-light-portrait.png` | KI-Hilfe über dem Skript: „Ganze Vorlesung erklären“ mit Seitenangaben |
-| 6 | `06-studienverlauf-light-portrait.png` | Studienverlauf: Leistungspunkte, bestandene Prüfungen, Prüfungsanmeldung |
-| 7 | `07-mensa-light-portrait.png` | Mensa: Speiseplan mit Preisen, Nährwerten und Kennzeichen |
+| 1 | `01-start-light-portrait.png` | Startseite: nächste Klausuren, heute geplant |
+| 2 | `02-lernkalender-light-portrait.png` | Lernkalender, Woche als Raster Mo–So |
+| 3 | `03-modul-light-portrait.png` | Modul mit Woche und Erledigt-Haken |
+| 4 | `04-uni-mail-ki-light-portrait.png` | Uni-Mail-Entwurf mit Vorschlag der KI |
+| 5 | `05-ki-hilfe-light-portrait.png` | KI-Hilfe erklärt eine Vorlesung |
+| 6 | `06-studienverlauf-light-portrait.png` | Studienverlauf: kommende Semester bis zur Bachelorarbeit |
+| 7 | `07-mensa-light-portrait.png` | Mensa |
 
 Bild 4 und 5 zeigen die KI: nur verwenden, solange StudiNow Pro AI mitverkauft wird (wie beim iPad). Am iPhone gibt es
-keinen Editor; Bild 5 ist die Leseansicht mit den Notizen vom iPad.
+keinen Editor; Dokumente öffnen dort in der Leseansicht.
 
 ### Ältere Sätze
 

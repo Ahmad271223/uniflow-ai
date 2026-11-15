@@ -468,6 +468,62 @@
         }
       ]
     },
+    "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023": {
+      "source": "Modulhandbuch Master Erziehungswissenschaft (FB 1, Fassung 18.08.2022), Übersicht: 6a und 6b teilen sich eine Zeile mit 15 LP im zweiten Studienjahr",
+      "add_areas": [
+        {
+          "id": "vertiefung",
+          "name": "Vertiefung (Modul 6a oder 6b)",
+          "kind": "wahlpflicht",
+          "lp_required": 15,
+          "semester": 3,
+          "rule": "Eines der Module 6a Vertiefung Kindheitspädagogik oder 6b Vertiefung Diversität (15 LP), im zweiten Studienjahr."
+        }
+      ],
+      "modules": {
+        "modul-6a-vertiefung-kindheitspaedagogik": {
+          "area": "vertiefung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6b-vertiefung-diversitaet": {
+          "area": "vertiefung",
+          "kind": "wahlpflicht"
+        },
+        "modul-11-mastermodul": {
+          "kind": "abschluss"
+        }
+      }
+    },
+    "erziehungswissenschaft|b.a.|2023": {
+      "source": "Modulhandbuch Bachelor Erziehungswissenschaft (FB 1, Stand 18.08.2022): Modul 11 Bachelormodul ist die Bachelorarbeit; dazu 39 LP Studium Generale/Begleitfach außerhalb der Modulliste",
+      "modules": {
+        "modul-11-bachelormodul": {
+          "kind": "abschluss"
+        }
+      }
+    },
+    "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016": {
+      "source": "Studienordnung Informatik im Zwei-Fächer-Bachelor (Redaktioneller Stand 20.05.2016), Anlage 2: 18 Module INF-A11 bis INF-V27; Geschäftsprozessmanagement (INF-V26) und Robotik 1 (INF-V27) sind Wahlpflichtmodule. Pflicht und Wahl hängen von der Studienvariante ab (Anlage 1); hier gilt die Angabe im Modul.",
+      "drop_modules": [
+        "robotik-1-hilfreich-aber-nicht-zwingend-erforderlich-sind-kenntnisse-in-den-grun"
+      ],
+      "modules": {
+        "2-einfuehrung-in-die-informatik": {
+          "title": "Einführung in die Informatik"
+        },
+        "geschaeftsprozessmanagement": {
+          "kind": "wahlpflicht"
+        },
+        "robotik-1": {
+          "kind": "wahlpflicht",
+          "lp": 6,
+          "semester": 6
+        }
+      }
+    }
+  },
+  "held": {
+    "note": "Regeln fuer Kataloge, die gerade nicht im Grundstock sind (CATALOG_HOLD in tools/hildesheim-programs.py); zurueck nach 'catalogs', sobald der Leser das Format kennt (14.11.2026)",
     "barrierefreie-kommunikation|m.a.|2019": {
       "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669 (PO Barrierefreie Kommunikation, § 22)",
       "area_patterns": [

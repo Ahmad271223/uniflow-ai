@@ -253,7 +253,9 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         XCTAssertFalse(AIHelpContent.start.items.joined().contains("Im Editor"))
         XCTAssertFalse(CommunityPage.howItWorks.map(\.text).joined().contains("im Editor"))
         UFEditorAvailability.forcedReaderOnlyForTesting = false
-        XCTAssertEqual(UFFeature.pencilWriting.title, "Schreiben mit Apple Pencil")
+        // am Mac ("Designed for iPad") gibt es keinen Apple Pencil: "Schreiben mit Maus oder Trackpad" (`UFDevice.adapt`)
+        XCTAssertEqual(UFFeature.pencilWriting.title,
+                       ProcessInfo.processInfo.isiOSAppOnMac ? "Schreiben mit Maus oder Trackpad" : "Schreiben mit Apple Pencil")
         XCTAssertTrue(LibraryEmptyCard.text(connected: false, source: "Stud.IP").contains("Notizbuch"))
         XCTAssertTrue(AIHelpContent.start.items.joined().contains("Im Editor"))
     }

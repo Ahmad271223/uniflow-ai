@@ -14,7 +14,7 @@ struct WelcomeView: View {
     static let reasons: [(String, String, String)] = [
         ("graduation", "Hochschul-Zuordnung", "Deine Hochschule, ihre Verbindungen (z. B. Stud.IP) und deine Kurse werden deinem Konto zugeordnet – getrennt je Hochschule."),
         ("user", "Getrennte Daten", UFDevice.adapt("Dateien, Notizen und Uni-Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Hochschul-Passwörter und Dateien aus Stud.IP gehen nie an StudiNow.")),
-        ("sync", "StudiNow-Konto", "Dieselbe Anmeldung meldet dich beim StudiNow-Dienst an: für die StudiNow-KI mit Credits, deinen Tarif auf allen Geräten und den Abgleich von Modulen, Stundenplan, Lernplan und Karteikarten zwischen deinen Geräten (Notizen mit Pro AI)."),
+        ("sync", "StudiNow-Konto", "Dieselbe Anmeldung meldet dich beim StudiNow-Dienst an: für die StudiNow-KI mit Credits, deinen Tarif auf allen Geräten und den Abgleich von Modulen, Stundenplan, Lernplan und Karteikarten zwischen deinen Geräten (Notizen mit Pro AI). StudiNow Free gilt für ein Gerät."),
         ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store. Mit derselben Apple-ID hast du auf jedem Gerät dasselbe StudiNow-Konto und dasselbe Abo."),
     ]
 

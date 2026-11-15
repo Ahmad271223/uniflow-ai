@@ -294,7 +294,18 @@ StoreKit-Testkonfiguration.
 
 ## iPhone (6,9")
 
-### Satz für 1.0.4 (Stand 13.11.2026, zum Hochladen)
+### Satz vom 14.11.2026 (hochgeladen für 1.0.4; aufgenommen mit Build 41, unverändert für Build 42)
+
+Im Store liegen seit der Einreichung vom 14.11.2026 die **hellen sieben** Bilder aus
+`~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/` (nicht im Repository; je Motiv auch `-dark-`, alle
+1320 × 2868): `01-start`, `02-lernkalender` (Woche als Raster Mo–So), `03-modul`, `04-uni-mail-ki`, `05-ki-hilfe`,
+`06-studienverlauf`, `07-mensa`. Sie zeigen die eigenen Kontodaten des Inhabers (seine Entscheidung vom 14.11.2026),
+ohne Namen, ohne Matrikelnummer und ohne Daten Dritter. Der Testcode dafür liegt auf dem Zweig
+`bilder/iphone-1-0-4-echt` (Commit `22d2c3e5`) und ist **nicht in develop**; `IPhoneStoreScreenshotTests` in develop
+erzeugt weiter den Satz vom 13.11.2026 unten. Reihenfolge und Motive: `docs/release/APP-STORE.md`, Abschnitt
+Bildschirmfotos.
+
+### Satz vom 13.11.2026 (Demo-Inhalte, überholt)
 
 **Sieben Motive**, je eine helle und eine dunkle Fassung, unter
 `~/Studora-Builds/appstore-screenshots-iphone-2026-11-13/` (nicht im Repository), Dateien
@@ -345,7 +356,8 @@ TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-iphone-2
 xcrun simctl delete "$UDID"
 ```
 
-Der Ordner darf nur die 14 Store-Bilder enthalten (`tests/test_release_texts.py` prüft das): andere Tests mit
+Der Ordner darf nur die 14 Store-Bilder enthalten (`tests/test_release_texts.py` prüft das seit 14.11.2026 für den
+Ordner `appstore-screenshots-iphone-2026-11-14/`, nicht mehr für diesen): andere Tests mit
 `UF_SCREENSHOT_DIR` (z. B. `ModuleDoneAppTests`) in einen eigenen Ordner schreiben lassen.
 
 ### Satz vom 11.11.2026 (überholt)

@@ -93,7 +93,9 @@ final class TutorCardsRunAppTests: XCTestCase {
     }
 
     private func tap(_ label: String, in view: UIView) -> Bool {
-        button(label, in: view)?.accessibilityActivate() ?? false
+        if button(label, in: view)?.accessibilityActivate() == true { return true }
+        // Mac-Testwirt: der Umschalter "Ganzes Dokument" laesst sich nicht ueber die Bedienungshilfe ausloesen
+        return ContainerTestBed.selectSegmentOnMac(label, in: view)
     }
 
     private func card(_ q: String, _ a: String) -> JSONValue { ["question": .string(q), "answer": .string(a)] }

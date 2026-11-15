@@ -164,7 +164,7 @@ struct UniMailSourcesCard: View {
                 }
             }
             .accessibilityIdentifier("unimail.card")
-            .sheet(isPresented: $login) { UniMailLoginView(connection: connection) }
+            .ufSheet(isPresented: $login) { UniMailLoginView(connection: connection) }
             .confirmationDialog("Von Uni-Mail abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
             } message: { Text(UniMailConnection.signOutMessage) }
@@ -298,17 +298,17 @@ struct UniMailMain: View {
         }
         .task(id: connection.isConnected) { await start() }
         // mittelbreit (iPad hochkant, Split View) als Blatt; iPhone als Ebene der Seite (oben)
-        .sheet(item: Binding(get: { wide || compact ? nil : selected }, set: { selected = $0 })) { s in
+        .ufSheet(item: Binding(get: { wide || compact ? nil : selected }, set: { selected = $0 })) { s in
             NavigationStack {
                 ScrollView { UniMailReader(connection: connection, ref: s, boxes: boxes, onAction: handle).padding(16) }
                     .navigationTitle("E-Mail").navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schließen") { selected = nil } } }
             }
         }
-        .sheet(item: $compose) { r in UniMailComposeSheet(connection: connection, request: r) { sent in if sent { toast.show("Gesendet.") } } }
+        .ufSheet(item: $compose) { r in UniMailComposeSheet(connection: connection, request: r) { sent in if sent { toast.show("Gesendet.") } } }
         // iPhone: abgemeldet zur Ordnerebene zurueck (die E-Mail ist dort eine eigene Ebene); iPad wie bisher
         .onChange(of: connection.isConnected) { _, on in if !on && compact { selected = nil; showFolders = false } }
-        .sheet(isPresented: $login) { UniMailLoginView(connection: connection) }
+        .ufSheet(isPresented: $login) { UniMailLoginView(connection: connection) }
         .accessibilityIdentifier("unimail.page")
     }
 
@@ -763,7 +763,7 @@ struct UniMailReader: View {
             }
         }
         .task { await load() }
-        .sheet(item: $shareItem) { item in ActivityView(items: [item.url]) }
+        .ufSheet(item: $shareItem) { item in ActivityView(items: [item.url]) }
         .accessibilityIdentifier("unimail.reader")
     }
 

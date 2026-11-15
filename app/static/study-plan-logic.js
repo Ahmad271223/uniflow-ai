@@ -26,9 +26,9 @@ export const T = {
 /** Quelle des Notenspiegels je Hochschule (wie grades_source in app/universities.py): LUH QIS, Uni Hildesheim LSF,
  *  HsH Campusmanagement (HISinOne). study-plan.js setzt die Hochschule aus den Einstellungen; ohne Angabe gilt LUH. */
 export const SOURCES = {
-  luh: { name: "QIS", aus: "aus QIS", wie: "in QIS", verbinde: "Verbinde QIS" },
-  hildesheim: { name: "LSF", aus: "aus dem LSF", wie: "im LSF", verbinde: "Verbinde das LSF" },
-  hsh: { name: "Campusmanagement", aus: "aus dem Campusmanagement", wie: "im Campusmanagement", verbinde: "Melde dich im Campusmanagement an" },
+  luh: { name: "QIS", aus: "aus QIS", wie: "in QIS", verbinde: "Verbinde QIS", uni: "Leibniz Universität Hannover" },
+  hildesheim: { name: "LSF", aus: "aus dem LSF", wie: "im LSF", verbinde: "Verbinde das LSF", uni: "Universität Hildesheim" },
+  hsh: { name: "Campusmanagement", aus: "aus dem Campusmanagement", wie: "im Campusmanagement", verbinde: "Melde dich im Campusmanagement an", uni: "Hochschule Hannover" },
 };
 let uniKey = "luh";
 export function setUniversity(k) { uniKey = SOURCES[k] ? k : "luh"; }
@@ -336,12 +336,69 @@ export function boardHtml(plan, filter, ic, opts = null) {
 }
 
 /** Pruefungsordnung bestaetigen: erscheint, solange die PO nur vorgeschlagen ist */
+/** Abschnitt "Früheres Studium" (Studiengangswechsel, 14.11.2026): Leistungen anderer Studiengaenge, getrennt und
+ *  aufklappbar; sie zaehlen nicht im aktuellen Studiengang */
+export function earlierHtml(plan, ic) {
+  const list = Array.isArray(plan.earlier_studies) ? plan.earlier_studies.filter(e => e && e.count > 0) : [];
+  if (!list.length) return "";
+  const lp = n => (Math.round(Number(n || 0) * 10) / 10).toString().replace(".", ",");
+  return `<div class="card sp-earlier" id="spEarlier"><div class="card-head"><h2>${ic ? ic("graduation", 18) : ""} Früheres Studium</h2></div>`
+    + `<p class="muted small">Diese Leistungen gehören zu einem anderen Studiengang und zählen hier nicht. Angerechnete Leistungen zählen, sobald der Notenspiegel sie beim aktuellen Studiengang führt.</p>`
+    + list.map(e => `<details><summary><b>${esc(e.program)}</b> <span class="muted small">${e.count} ${e.count === 1 ? "Leistung" : "Leistungen"} · ${lp(e.lp)} LP bestanden</span></summary><ul class="sp-earlier-rows">`
+      + (e.rows || []).map(r => `<li><span>${esc(r.text || "")}</span> <span class="muted small">${esc([r.note, r.status, r.credits ? `${r.credits} LP` : null].filter(Boolean).join(" · "))}</span></li>`).join("")
+      + `</ul></details>`).join("")
+    + `</div>`;
+}
+
+/** Link zum LSF-Wochenraster des Studiengangs (kein Studienverlauf, 14.11.2026) */
+export function lsfLinkHtml(plan, ic) {
+  const l = plan.lsf_plan;
+  if (!l || !/^https:\/\//.test(l.url || "")) return "";
+  return `<p class="sp-lsf"><a href="${esc(l.url)}" target="_blank" rel="noopener">${ic ? ic("calendar", 14) : ""} ${esc(l.label || "Veranstaltungen dieses Semesters im LSF")}</a></p>`;
+}
+
+/** Name eines Studiengangs mit Abschluss: "Sozialpädagogik (B.A.)" */
+export const programName = p => p && p.program ? `${p.program}${p.degree ? ` (${p.degree})` : ""}` : "";
+
+/** Karte oben: mehrere Studiengaenge im Notenspiegel (Wechsel, 14.11.2026) -> "Welchen Studiengang studierst du
+ *  gerade?" mit einem Knopf je Studiengang; sonst die vorgeschlagene PO samt Studiengang bestaetigen oder einen
+ *  anderen Studiengang waehlen */
 export function poCardHtml(plan, ic) {
+  const progs = Array.isArray(plan.programs) ? plan.programs : [];
+  const err = `<div class="sp-err small" id="spPoErr" hidden></div>`;
+  const os = plan.order_suggestion;
+  if (os && os.code && os.url) {
+    // bisherige Ordnung bei frueherem Studienbeginn vorschlagen, bestaetigen lassen (14.11.2026)
+    const older = `${os.program}${os.po ? ` (PO ${os.po})` : ""}`;
+    const cur = plan.program || "Die neue Ordnung";
+    return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>Gilt für dich noch die bisherige Ordnung?</b>`
+      + `<div class="muted small">${esc(`Du hast im ${os.start_term} angefangen. ${cur} gilt erst ab dem ${os.since}; bei früherem Studienbeginn studierst du meist nach „${older}“ weiter. Ein Wechsel ist auf Antrag möglich.`)}</div></div></div>`
+      + `<div class="row wrap"><button type="button" class="btn primary sm" data-order-url="${esc(os.url)}">${ic ? ic("check", 14) : ""} Bisherige Ordnung nehmen</button>`
+      + `<button type="button" class="btn sm" data-order-ack="${esc(`order:${os.code}`)}">Bei ${esc(cur)} bleiben</button></div>${err}</div>`;
+  }
+  const mm = plan.program_mismatch;
+  if (mm && mm.code) {
+    // Wahl gilt, aber einmal fragen, wenn der Notenspiegel einen neueren Studiengang nennt (14.11.2026)
+    return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>${esc(`Studierst du jetzt ${programName(mm)}?`)}</b>`
+      + `<div class="muted small">${esc(`${source().name} nennt ${programName(mm)}${mm.po ? ` (PO ${mm.po})` : ""}, gewählt ist ${mm.chosen || "ein anderer Studiengang"}.`)}</div></div></div>`
+      + `<div class="row wrap"><button type="button" class="btn primary sm" data-prog-code="${esc(mm.code)}">${ic ? ic("check", 14) : ""} Ja, ${esc(mm.program)}</button>`
+      + `<button type="button" class="btn sm" data-prog-ack="${esc(mm.code)}">Nein, bei ${esc(mm.chosen || "meinem Studiengang")} bleiben</button></div>${err}</div>`;
+  }
+  if (progs.length > 1 && !plan.po_confirmed) {
+    const btns = progs.map((p, i) => p.code
+      ? `<button type="button" class="btn ${i === 0 ? "primary " : ""}sm" data-prog-code="${esc(p.code)}">${esc(programName(p))}${p.po ? ` · PO ${esc(p.po)}` : ""}</button>`
+      : `<button type="button" class="btn sm" data-prog-other>${esc(programName(p))} (Katalog fehlt)</button>`).join("");
+    return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>Welchen Studiengang studierst du gerade?</b>`
+      + `<div class="muted small">${esc(`${source().name} nennt mehrere Studiengänge. Leistungen aus einem früheren Studiengang zählen nur, wenn sie anerkannt sind.`)}</div></div></div>`
+      + `<div class="row wrap">${btns}<button type="button" class="btn sm" id="spPoOther">Anderer Studiengang</button></div>${err}</div>`;
+  }
   if (!plan.suggested_po || plan.po_confirmed) return "";
+  const name = programName(plan);
   const q = plan.qis_program ? `${source().name} nennt „${plan.qis_program}“. Der passende aktuelle Katalog gehört zur PO ${plan.suggested_po} – stimmt das?` : "StudiNow hat die passende Ordnung vorgeschlagen. Bestätige sie oder wähle eine andere.";
-  return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>Deine Prüfungsordnung: PO ${esc(plan.suggested_po)}?</b><div class="muted small">${esc(q)}</div></div></div>`
-    + `<div class="row wrap"><button type="button" class="btn primary sm" id="spPoYes">${ic ? ic("check", 14) : ""} Ja, PO ${esc(plan.suggested_po)}</button><button type="button" class="btn sm" id="spPoChange">Ändern</button></div>`
-    + `<div class="sp-err small" id="spPoErr" hidden></div></div>`;
+  const title = name ? `Dein Studiengang: ${name}, PO ${plan.suggested_po}?` : `Deine Prüfungsordnung: PO ${plan.suggested_po}?`;
+  return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>${esc(title)}</b><div class="muted small">${esc(q)}</div></div></div>`
+    + `<div class="row wrap"><button type="button" class="btn primary sm" id="spPoYes">${ic ? ic("check", 14) : ""} Ja, PO ${esc(plan.suggested_po)}</button><button type="button" class="btn sm" id="spPoOther">Anderer Studiengang</button><button type="button" class="btn sm" id="spPoChange">Andere PO</button></div>`
+    + err + `</div>`;
 }
 
 // ---------------------------------------------------------------- HTML: Zustaende ohne Plan
@@ -380,9 +437,42 @@ export function otherGapHtml(plan, ic) {
 // ---------------------------------------------------------------- HTML: Studiengang waehlen (Register)
 
 /** nach Name filtern (ohne Umlaute und Gross-/Kleinschreibung) */
+/** Suche "Was studierst du?" wie study_catalog.program_matches (Python) und StudySources.programMatches (Swift):
+ *  jedes Wort der Anfrage steckt in einem Wort von Name, Abschluss oder Fachbereich, Abschlusskuerzel zaehlen nicht, Kurzformen
+ *  der Uni-Seiten (IMIT, IIM, DaZ/DaF, HRS, GHR, IKÜ, 2FB) ueber Wortfolgen im Namen */
+const SEARCH_ALIASES = [
+  ["informationsmanagement und informationstechnologie", ["imit"]],
+  ["internationales informationsmanagement", ["iim"]],
+  ["deutsch als zweitsprache", ["daz", "daf"]],
+  ["haupt und realschulen", ["hrs"]],
+  ["grund haupt und realschulen", ["ghr"]],
+  ["internationale kommunikation und uebersetzen", ["ikue", "iku"]],
+  ["polyvalenter zwei faecher bachelor", ["2fb", "zweifach"]],
+  // Namen der Quellenliste des Inhabers (14.11.2026); "^": der Name beginnt damit (nicht die Fach-Eintraege)
+  ["polyvalenter zwei faecher bachelor studiengang", ["lehramt", "studieren", "grundschule", "haupt", "und", "realschule"]],
+  ["^lehramt an grundschulen", ["studieren"]],
+  ["^lehramt an haupt und realschulen", ["studieren"]],
+  ["kulturwissenschaften und kuenstlerische praxis", ["aesthetische"]],
+];
+const DEGREE_WORDS = new Set(["a", "b", "m", "sc", "ed", "ba", "bsc", "ma", "msc", "med"]);
+export function searchWords(text) {
+  const s = String(text || "").toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .normalize("NFKD").replace(/\p{Mn}/gu, "");
+  return s.match(/[a-z0-9]+/g) || [];
+}
+export function programMatches(p, q, faculty = false) {
+  const words = searchWords(q).filter(w => !DEGREE_WORDS.has(w));
+  if (!words.length) return true;
+  const name = searchWords(p.program).join(" ");
+  const hay = searchWords(`${p.program || ""} ${p.degree || ""} ${faculty ? p.faculty || "" : ""} ${(p.lsf_names || []).join(" ")}`);
+  for (const [phrase, short] of SEARCH_ALIASES) {
+    if (phrase.startsWith("^") ? name.startsWith(phrase.slice(1)) : name.includes(phrase)) hay.push(...short);
+  }
+  return words.every(w => hay.some(h => h.includes(w)));
+}
 export function filterPrograms(list, q) {
-  const k = normalized(q);
-  return (list || []).filter(p => !k || normalized(`${p.program} ${p.degree || ""} ${p.faculty || ""}`).includes(k));
+  const hits = (list || []).filter(p => programMatches(p, q));        // zuerst Name; Fakultaet nur, wenn das nichts findet
+  return hits.length ? hits : (list || []).filter(p => programMatches(p, q, true));
 }
 
 /** Liste der Studiengaenge des Registers: je Studiengang die Pruefungsordnungen als Knoepfe (Kuerzel = settings.po),
@@ -394,7 +484,7 @@ export function programsHtml(list, q, current, limit = 60) {
   return `<ul class="sp-prog">${shown.map(p => {
     const has = (p.pos || []).length > 0;
     const pos = has ? `<div class="sp-prog-po">${p.pos.map(x => `<button type="button" class="chip${current && (current === x.code || current === x.po) ? " on" : ""}" data-pick="${esc(x.code)}" title="${esc(x.catalog_terms?.length ? `Katalog ${x.catalog_terms.join(", ")}` : "Katalog im Grundstock")}">PO ${esc(x.po)}</button>`).join("")}</div>`
-      : `<span class="muted small">Katalog noch nicht bekannt</span>`;
+      : `<div class="sp-prog-po"><button type="button" class="chip${current && current === p.id ? " on" : ""}" data-pick="${esc(p.id)}">Wählen</button> <span class="muted small">Für diesen Studiengang gibt es noch keinen Modulkatalog.</span></div>`;
     return `<li class="${has ? "" : "off"}"><div class="sp-prog-t"><b>${esc(p.program)}</b> <span class="muted">${esc(p.degree || "")}</span>${p.faculty ? `<small>${esc(p.faculty)}</small>` : ""}</div>${pos}</li>`;
   }).join("")}</ul>${items.length > shown.length ? `<p class="muted small">${items.length - shown.length} weitere – tippe mehr vom Namen ein.</p>` : ""}`;
 }

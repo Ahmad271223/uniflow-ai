@@ -53,6 +53,31 @@ final class IPhoneIntroTests: IPhoneLearnTestCase {
         XCTAssertEqual(IntroArtFit<EmptyView>.scale(width: 900), 1, "iPad: nie vergroessern")
     }
 
+    /// Die Kopfzeile des Einstiegs ist eine Zeile, keine halbe Seite. Foto des Inhabers 14.11.2026: im Schritt
+    /// „Ich richte deinen Lernplan ein …“ (ohne „Später“) war die obere Hälfte leer, die Sprechblase oben
+    /// abgeschnitten – der Platzhalter neben dem Fortschritt war beliebig hoch.
+    func testSetupStepsUseTheWholePage() throws {
+        for size in [IPhoneLearnTestCase.phoneSmall, IPhoneLearnTestCase.phone, IPhoneLearnTestCase.phoneMax] {
+            for step in [IntroSetupModel.Step.name, .modules, .exams, .ready] {
+                let env = try hostPhone(SetupShot(model: IntroShotsAppTests.sampleSetup(step: step)), api: remote(Canned()), size: size)
+                XCTAssertTrue(env.wait { !self.texts(env).isEmpty }, dump(env))
+                env.pump(0.4)
+                let steps = try XCTUnwrap(elements(env).first { ($0.accessibilityLabel ?? "").hasPrefix("Schritt ") },
+                                          "Fortschritt fehlt: \(dump(env))")
+                // eine Zeile unter der Statusleiste, nicht die halbe Seite (vorher reichte sie bis zur Mitte)
+                let top = env.window.safeAreaInsets.top
+                XCTAssertLessThan(frame(steps).maxY, top + 80, "Kopfzeile ist eine Zeile (\(step), \(Int(size.width)) pt)")
+                // der erste Inhalt steht direkt darunter und ist vollständig sichtbar (nichts oben abgeschnitten)
+                let others = elements(env).filter { $0 !== steps && !($0.accessibilityLabel ?? "").isEmpty }
+                    .map { frame($0) }.filter { $0.height > 1 && $0.width > 1 }
+                let first = try XCTUnwrap(others.min { $0.minY < $1.minY }, dump(env))
+                XCTAssertLessThan(first.minY, frame(steps).maxY + 70, "oben bleibt keine halbe Seite leer (\(step), \(Int(size.width)) pt)")
+                XCTAssertGreaterThan(first.minY, -1, "nichts ragt oben aus dem Bild (\(step))")
+                if step == .ready { shoot(env, "iphone-einstieg-fertig-\(Int(size.width))") }
+            }
+        }
+    }
+
     func testUniMailAIButtonAndProposalFitThePhone() throws {
         var taps = 0
         let view = VStack(alignment: .leading, spacing: 12) {

@@ -23,6 +23,11 @@ struct UniFlowApp: App {
     @State private var weeklyTicker = WeeklyAutoTicker()
 
     init() {
+        // Testlauf am Mac nur mit eigener Kennung und eigenem Datenordner, sonst hier Schluss – vor Konto, Container
+        // und Dateien (MacTestGuard.swift, 14.11.2026). Nur Debug.
+        #if DEBUG
+        MacTestGuard.stopIfTestWouldTouchRealData()
+        #endif
         // Teilen-Dateien und empfangene Kopien frueherer Laeufe liegen ausserhalb der Container: weg (AppTemp; von
         // der Inbox nur alte Kopien, die eben empfangene oeffnet onOpenURL gleich)
         AppTemp.purgeAtLaunch()
@@ -381,9 +386,16 @@ struct RootView: View {
     }
 
     var body: some View {
-        OnboardingFlow { ContainerGate { IntroContainerStep(stage: account.stage) } }
+        // Geraete-Regel (14.11.2026): Free auf einem zweiten Geraet zeigt statt der App den Hinweis-Bildschirm, Plus
+        // einmal einen Hinweis (DeviceRuleViews.swift). Nur nach einer Antwort des StudiNow-Dienstes, nie ohne Netz.
+        DeviceRuleGate(link: containers.account, entitlements: .shared, signedIn: account.account != nil, ready: account.stage == .ready) {
+            OnboardingFlow { ContainerGate { IntroContainerStep(stage: account.stage) } }
+                // nach dem Ende der Probe: Free, Plus oder Pro AI waehlen (TrialDecisionCover, Inhaber 07.11.2026); nicht
+                // ueber dem Hinweis-Bildschirm der Geraete-Regel
+                .modifier(TrialDecisionCover(active: account.stage == .ready))
+        }
             .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
-            .sheet(isPresented: $choosingPlan) {
+            .ufSheet(isPresented: $choosingPlan) {
                 PlanPickerView(context: .settings) { choosingPlan = false }
             }
             .onChange(of: ContainerTrigger(user: account.account?.userID, university: account.university)) { _, _ in
@@ -398,8 +410,6 @@ struct RootView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Entitlements.shared.refreshLocalTrial() }   // Resttage nach dem Tageswechsel
             }
-            // nach dem Ende der Probe: Free, Plus oder Pro AI waehlen (TrialDecisionCover, Inhaber 07.11.2026)
-            .modifier(TrialDecisionCover(active: account.stage == .ready))
             // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
             // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto
             .onChange(of: containers.generation) { _, _ in overlay.closeAll() }

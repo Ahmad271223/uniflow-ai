@@ -61,7 +61,7 @@ struct TextDocumentView: View {
             }
         }
         .background(UF.bg)
-        .sheet(isPresented: Binding(get: { compact && showTutor }, set: { if !$0 { showTutor = false } })) {
+        .ufSheet(isPresented: Binding(get: { compact && showTutor }, set: { if !$0 { showTutor = false } })) {
             tutor(inSheet: true).ufHalfSheet()
         }
         .navigationTitle(file.displayTitle)

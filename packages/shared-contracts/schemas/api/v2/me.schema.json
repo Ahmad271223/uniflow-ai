@@ -13,6 +13,21 @@
     "pending_plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", null] },
     "mode": { "enum": ["hosted", "local"] },
     "apple_account_token": { "type": "string" },
+    "device": {
+      "description": "Geraete-Regel (14.11.2026, app/device_limit.py). Nur fuer Apple-Apps, die X-StudiNow-Caps: device_limit schicken; aeltere Apps, Web und Windows bekommen das Feld nicht. blocked: Free auf einem zweiten Geraet (Hinweis-Bildschirm); hint_plus: Plus auf einem zweiten Geraet (einmaliger Hinweis, nie gesperrt).",
+      "type": "object",
+      "required": ["state", "is_primary", "upgrade_plan", "price_cents", "currency", "period"],
+      "properties": {
+        "state": { "enum": ["ok", "blocked", "hint_plus"] },
+        "is_primary": { "type": "boolean" },
+        "primary_name": { "type": ["string", "null"] },
+        "primary_set_at": { "type": ["string", "null"] },
+        "upgrade_plan": { "enum": ["pro_ai"] },
+        "price_cents": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string" },
+        "period": { "enum": ["year"] }
+      }
+    },
     "entitlements": {
       "type": "object",
       "required": ["can_view_pdf", "can_annotate_pdf", "can_use_pencilkit", "can_sync_annotations", "can_write_community_comments",

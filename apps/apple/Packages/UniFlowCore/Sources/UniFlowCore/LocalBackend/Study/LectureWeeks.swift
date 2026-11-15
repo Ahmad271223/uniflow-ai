@@ -248,6 +248,32 @@ public enum LectureWeeks {
     private static let sectionNumDateRE = HText.regex(#"^(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?\s?(?:-|–|bis)"#)
     private static let sectionWeekRE = HText.regex(#"^(?:(?:lehr|vorlesungs)?woche|week)\s?0?(\d{1,2})\b|^0?(\d{1,2})\.\s?(?:lehr|vorlesungs)?woche\b"#)
     private static let sectionKWRE = HText.regex(#"^kw\s?0?(\d{1,2})\b"#)
+    /// Abschnitt einer Sitzung mit Datum (Learnweb Hildesheim, echtes Konto 14.11.2026): "1. Sitzung (29.10.2026)",
+    /// "Sitzung 3 am 12.11.", "Termin 2: 05.11.2026", "Blocktag 1 – 14.11.2026". Ein "Stand: 29.10.2026" ist kein
+    /// Sitzungstag (Seminarplan).
+    private static let sessionSectionRE = HText.regex(
+        #"^(?:\d{1,2}\.\s?)?(?:sitzung|seminarsitzung|termin|seminartermin|veranstaltung|treffen|blocktag|blocktermin|block)(?:\s?\d{1,2})?\b(.*)$"#)
+    private static let sessionDateRE = HText.regex(#"(?<!stand:\s)(?<!stand\s)\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?"#)
+
+    /// Tag einer Sitzung aus dem Abschnittstitel; nil ohne Sitzungswort oder Datum
+    static func sessionDay(_ section: String?, term: Term) -> Int? {
+        let t = HText.collapse(HText.nfc(section ?? "").lowercased())
+        guard let m = HText.match(sessionSectionRE, t), let rest = m.groups[1] ?? nil,
+              let d = HText.match(sessionDateRE, rest), let day = Int(d.groups[1] ?? ""), let mo = Int(d.groups[2] ?? "") else { return nil }
+        let year = (d.groups[3] ?? nil).flatMap { Int($0) }.map { $0 < 100 ? $0 + 2000 : $0 }
+        let y0 = BerlinClock.civil(term.start).year
+        for y in year.map({ [$0] }) ?? [y0, y0 + 1] {
+            guard let dn = validDay(y, mo, day) else { continue }
+            // Sitzungen bis 7 Wochen nach dem rechnerischen Ende zaehlen mit (Seminar bis Mitte Februar)
+            if dn >= term.firstMonday - 7, dn <= term.end + 49 { return dn }
+        }
+        return nil
+    }
+
+    /// Montag der Woche eines Sitzungstags: in der Vorlesungszeit die Lehrwoche, danach die Kalenderwoche
+    static func sessionMonday(_ day: Int, term: Term) -> Int {
+        term.weekMonday(forDay: day) ?? StudyWeeks.monday(day)
+    }
 
     /// Regel 1: Montag der Lehrwoche eines Wochen-Abschnitts, nil fuer andere Abschnitte (Themen, "Allgemeines")
     public static func sectionWeek(_ section: String?, term: Term) -> (monday: Int, detail: String)? {
@@ -259,6 +285,9 @@ public enum LectureWeeks {
         }
         if let m = HText.match(sectionKWRE, t), let k = Int(m.groups[1] ?? ""), let mon = term.monday(ofCalendarWeek: k) {
             return (mon, "Abschnitt KW \(k)")
+        }
+        if let day = sessionDay(section, term: term) {
+            return (sessionMonday(day, term: term), "Abschnitt Sitzung \(BerlinClock.isoDate(day))")
         }
         var dm: (Int, Int, Int?)?
         if let m = HText.match(sectionWordDateRE, t), let d = Int(m.groups[1] ?? ""), let mo = months[m.groups[2] ?? ""] {
@@ -356,6 +385,11 @@ public enum LectureWeeks {
         return t
     }
 
+    /// Kurs mit mindestens zwei Abschnitten "Sitzung mit Datum"
+    static func isSessionCourse(_ files: [Input], term: Term) -> Bool {
+        Set(files.compactMap { f in sessionDay(f.section, term: term).map { _ in f.section ?? "" } }).count >= 2
+    }
+
     /// Reihen eines Kurses je Art: (kleinste, groesste Nummer), fuer "Blatt 0" und gestauchte Reihen
     static func series(_ files: [Input]) -> [NumberKind: (min: Int, max: Int)] {
         var out: [NumberKind: (min: Int, max: Int)] = [:]
@@ -373,6 +407,7 @@ public enum LectureWeeks {
     public static func assign(_ files: [Input], all: [Input]? = nil, term: Term, courseKind: String? = nil) -> [Assignment] {
         let rows = series(all ?? files)
         let count = term.lectureMondays.count
+        let sessions = isSessionCourse(all ?? files, term: term)
         var out: [Assignment] = []
         for f in files {
             let hint = nameHint(of: f)
@@ -384,6 +419,12 @@ public enum LectureWeeks {
             // 1. Wochen-Abschnitt
             if let s = sectionWeek(f.section, term: term) {
                 out.append(make(s.monday, .section, s.detail))
+                continue
+            }
+            // Kurs mit Sitzungsabschnitten: Dateien anderer Abschnitte (Seminarplan, Anforderungen) sind Allgemein-Material,
+            // nicht die Woche ihres Datums oder einer Nummer im Namen
+            if sessions, let sec = f.section, !HText.collapse(sec).isEmpty {
+                out.append(make(nil, .general, "Abschnitt ohne Sitzung"))
                 continue
             }
             // 2. Nummer im Namen
@@ -532,6 +573,29 @@ public enum LectureWeeks {
         return t
     }
 
+    /// Kurs mit Sitzungsabschnitten (14.11.2026): fruehere Zuordnungen ueber Name, Datum oder "Allgemein", die nach den
+    /// Sitzungsabschnitten anders ausfallen, einmal neu bewerten (sie werden geloescht und gleich neu zugeordnet); danach
+    /// stimmen sie und bleiben
+    static func reassessSessions(_ c: SQLiteConnection, courseID: String, semester: String?, university: String,
+                                 files: [Input], now: String) throws {
+        guard let row = try c.queryOne("SELECT * FROM lecture_course_terms WHERE course_id=?", [.text(courseID)]),
+              let start = row["lecture_start"]?.string.flatMap(BerlinClock.parseISODate),
+              let end = row["lecture_end"]?.string.flatMap(BerlinClock.parseISODate) else { return }
+        let term = Term(semester: row["semester"]?.string ?? semester ?? "", start: start, end: end,
+                        breaks: decodeBreaks(row["breaks"]?.string), source: row["source"]?.string ?? "")
+        guard isSessionCourse(files, term: term) else { return }
+        let kind = try c.scalar("SELECT kind FROM courses WHERE id=?", [.text(courseID)])?.string
+        let fresh = Dictionary(uniqueKeysWithValues: assign(files, all: files, term: term, courseKind: kind).map { ($0.fileID, $0) })
+        for r in try c.query("SELECT file_id, week_monday, rule, detail FROM lecture_file_weeks WHERE course_id=? AND rule IN ('name','datum','allgemein')",
+                             [.text(courseID)]) {
+            guard let id = r["file_id"]?.string, let a = fresh[id] else { continue }
+            let mon = a.monday.map { BerlinClock.isoDate($0) }
+            if a.rule.rawValue != r["rule"]?.string || a.detail != r["detail"]?.string || mon != r["week_monday"]?.string {
+                try c.execute("DELETE FROM lecture_file_weeks WHERE file_id=?", [.text(id)])
+            }
+        }
+    }
+
     /// IDs der Dateien, die schon eine Zuordnung haben
     public static func assignedIDs(_ c: SQLiteConnection, courseID: String) throws -> Set<String> {
         guard try hasTables(c) else { return [] }
@@ -549,6 +613,7 @@ public enum LectureWeeks {
         // nur diese Zeilen (rule "name", detail "nummer N"), nie Abschnitt, Datum oder eine Wahl des Nutzers
         try c.execute("DELETE FROM lecture_file_weeks WHERE course_id=? AND rule='name' AND detail LIKE ?",
                       [.text(courseID), .text(legacyLeadingDetail + "%")])
+        try reassessSessions(c, courseID: courseID, semester: semester, university: university, files: files, now: now)
         let done = try assignedIDs(c, courseID: courseID)
         var todo = files.filter { !done.contains($0.id) }
         guard !todo.isEmpty else { return [] }
@@ -652,7 +717,9 @@ public enum LectureWeeks {
         let m = start + 7 * (w - 1)
         let dates = "\(StudyWeeks.dayMonth(m)) – \(StudyWeeks.dayMonth(m + 6))"
         if term.isBreakWeek(monday: m) { return "Vorlesungsfrei · \(dates)" }
-        guard m >= term.firstMonday, let n = term.lectureWeek(ofMonday: m) else { return StudyWeeks.weekLabel(start: start, week: w) }
+        guard m >= term.firstMonday, var n = term.lectureWeek(ofMonday: m) else { return StudyWeeks.weekLabel(start: start, week: w) }
+        // nach dem rechnerischen Ende (Sitzung im Februar, 14.11.2026): weiterzaehlen statt die letzte Lehrwoche zu wiederholen
+        if let last = term.lectureMondays.last, m > last { n += (m - last) / 7 }
         return "Woche \(n) · \(dates)"
     }
 

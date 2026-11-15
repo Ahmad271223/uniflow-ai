@@ -132,18 +132,21 @@ struct PlanWeekGrid: View {
         let evs = dd.list("events").filter { $0.s("status") != "verschoben" }
         let pks = dd.list("packages").filter { $0.s("start_time") != nil }
         if evs.isEmpty && pks.isEmpty && !UFDayExtras.hasAny(dd) { return 0.75 }
-        let lanes = planLanes(evs.map { (UFTime.hm($0.s("start")), UFTime.hm($0.s("end"))) }
-                              + pks.map { (UFTime.hm($0.s("start_time")), UFTime.hm($0.s("end_time"))) })
+        let lanes = planLanes(evs.map { UFTime.span($0.s("start"), $0.s("end")) }
+                              + pks.map { UFTime.span($0.s("start_time"), $0.s("end_time")) })
         return 1 + 0.6 * CGFloat(max(0, (lanes.map(\.n).max() ?? 1) - 1))
     }
 
+    /// Nie vor 0 und nie nach 24 Uhr: alte Lernpakete mit "25:15" zogen die Achse ueber Mitternacht (14.11.2026)
     private func range(_ days: [JSONValue]) -> (Int, Int) {
         var starts = [8 * 60], ends = [19 * 60]
         for dd in days {
-            for e in dd.list("events") { starts.append(UFTime.hm(e.s("start"))); ends.append(UFTime.hm(e.s("end"))) }
-            for p in dd.list("packages") where p.s("start_time") != nil { starts.append(UFTime.hm(p.s("start_time"))); ends.append(UFTime.hm(p.s("end_time"))) }
+            for e in dd.list("events") { let t = UFTime.span(e.s("start"), e.s("end")); starts.append(t.start); ends.append(t.end) }
+            for p in dd.list("packages") where p.s("start_time") != nil {
+                let t = UFTime.span(p.s("start_time"), p.s("end_time")); starts.append(t.start); ends.append(t.end)
+            }
         }
-        let lo = starts.min() ?? 480, hi = ends.max() ?? 1140
+        let lo = max(0, starts.min() ?? 480), hi = min(UFTime.dayEnd, ends.max() ?? 1140)
         return (lo / 60 * 60, Int((Double(hi) / 60).rounded(.up)) * 60)
     }
 
@@ -206,7 +209,7 @@ struct PlanWeekGrid: View {
         let today = date == UFFmt.todayISO()
         let evs = dd.list("events").filter { $0.s("status") != "verschoben" }
         let pks = dd.list("packages").filter { $0.s("start_time") != nil }
-        let L = planLanes(evs.map { (UFTime.hm($0.s("start")), UFTime.hm($0.s("end"))) } + pks.map { (UFTime.hm($0.s("start_time")), UFTime.hm($0.s("end_time"))) })
+        let L = planLanes(evs.map { UFTime.span($0.s("start"), $0.s("end")) } + pks.map { UFTime.span($0.s("start_time"), $0.s("end_time")) })
         let free = (d.free[date] ?? []).filter { ($0.i("end") ?? 0) > lo && ($0.i("start") ?? 0) < hi }
         let height = px(hi, lo)
         return GeometryReader { g in
@@ -374,7 +377,8 @@ struct PlanEventBlock: View {
     let open: () -> Void
 
     var body: some View {
-        let f = planBlockFrame(s: UFTime.hm(e.s("start")), e: UFTime.hm(e.s("end")), lane: lane, W: W, px: px)
+        let t = UFTime.span(e.s("start"), e.s("end"))
+        let f = planBlockFrame(s: t.start, e: t.end, lane: lane, W: W, px: px)
         let off = e.s("status") != "teilnahme"
         let ec = Color(hex: e.s("color"))
         // Namen nach der echten Breite (03.11.2026): breit Kurzname mit Zeit; schmal (< 92 pt) Kurzname ohne Ende-Zeit,
@@ -442,7 +446,8 @@ struct PlanPackageBlock: View {
     let toggle: () -> Void
 
     var body: some View {
-        let f = planBlockFrame(s: UFTime.hm(p.s("start_time")), e: UFTime.hm(p.s("end_time")), lane: lane, W: W, px: px)
+        let t = UFTime.span(p.s("start_time"), p.s("end_time"))
+        let f = planBlockFrame(s: t.start, e: t.end, lane: lane, W: W, px: px)
         let status = p.s("status") ?? "geplant"
         let tasks = p.list("tasks")
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
@@ -612,8 +617,10 @@ struct PlanDayTimeline: View {
         let dd = d.days.first ?? .null
         let evs = dt.list("events").filter { $0.s("status") != "verschoben" && (d.moduleFilter == nil || $0.i("module_id") == d.moduleFilter) }
         let pks = dd.list("packages").filter { $0.s("start_time") != nil }
-        let lo = max(0, ([7 * 60] + evs.map { UFTime.hm($0.s("start")) } + pks.map { UFTime.hm($0.s("start_time")) }).min() ?? 420)
-        let hi = min(24 * 60, ([20 * 60] + evs.map { UFTime.hm($0.s("end")) } + pks.map { UFTime.hm($0.s("end_time")) }).max() ?? 1200)
+        let lo = max(0, ([7 * 60] + evs.map { UFTime.span($0.s("start"), $0.s("end")).start }
+                         + pks.map { UFTime.span($0.s("start_time"), $0.s("end_time")).start }).min() ?? 420)
+        let hi = min(UFTime.dayEnd, ([20 * 60] + evs.map { UFTime.span($0.s("start"), $0.s("end")).end }
+                                     + pks.map { UFTime.span($0.s("start_time"), $0.s("end_time")).end }).max() ?? 1200)
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * HH }
         let unslotted = dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }
         let free = dt.list("free")
@@ -658,7 +665,8 @@ struct PlanDayTimeline: View {
                     ForEach(pks.indices, id: \.self) { i in packageRow(pks[i], W: W, px: px) }
                     ForEach(dt.list("blocked").indices, id: \.self) { i in
                         let b = dt.list("blocked")[i]
-                        let top = px(UFTime.hm(b.s("start"))), h = px(UFTime.hm(b.s("end"))) - top
+                        let bt = UFTime.span(b.s("start"), b.s("end"))
+                        let top = px(bt.start), h = px(bt.end) - top
                         Text(b.s("title").flatMap { $0.isEmpty ? nil : $0 } ?? "Sperrzeit").ufFont(10.56).foregroundStyle(UF.muted)
                             .padding(.vertical, 1.6).padding(.horizontal, 4.8)
                             .frame(width: max(0, W - 62), height: max(0, h), alignment: .topLeading)
@@ -699,7 +707,8 @@ struct PlanDayTimeline: View {
 
     /// .day2-ev (Uni-Termin)
     private func eventRow(_ e: JSONValue, W: CGFloat, px: (Int) -> CGFloat, date: String) -> some View {
-        let top = px(UFTime.hm(e.s("start"))), h = max(58, px(UFTime.hm(e.s("end"))) - top - 6)
+        let t = UFTime.span(e.s("start"), e.s("end"))
+        let top = px(t.start), h = max(58, px(t.end) - top - 6)
         let off = e.s("status") != "teilnahme"
         let ec = Color(hex: e.s("color"))
         let kind = e.s("kind") ?? ""
@@ -746,7 +755,8 @@ struct PlanDayTimeline: View {
 
     /// .day2-ev.study (Lernpaket)
     private func packageRow(_ p: JSONValue, W: CGFloat, px: (Int) -> CGFloat) -> some View {
-        let top = px(UFTime.hm(p.s("start_time"))), h = max(58, px(UFTime.hm(p.s("end_time"))) - top - 6)
+        let t = UFTime.span(p.s("start_time"), p.s("end_time"))
+        let top = px(t.start), h = max(58, px(t.end) - top - 6)
         let tasks = p.list("tasks")
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
         return HStack(spacing: 12.8) {
@@ -819,8 +829,13 @@ struct PlanSide: View {
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
 
+    /// Am iPhone immer untereinander in voller Breite (Foto des Inhabers 14.11.2026: zwei Spalten nebeneinander,
+    /// "Math…", "Le", "Fr", "Novemb er 2026" abgeschnitten, "Mein Fortschritt" hoch und fast leer). Am iPad bleibt
+    /// es bei zwei Spalten unter 1100 pt.
+    private var sideBySide: Bool { wrap && !UFCompact.phoneLayouts }
+
     var body: some View {
-        if wrap {
+        if sideBySide {
             UFGridLayout(columns: 2, spacing: 14.4) { cards }.environment(\.ufFillsCell, false)
         } else {
             VStack(alignment: .leading, spacing: 14.4) { cards }

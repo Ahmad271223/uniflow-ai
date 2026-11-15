@@ -70,13 +70,13 @@ struct PhoneDocumentReader: View {
         }
         .background(UF.bg)
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showSearch) {
+        .ufSheet(isPresented: $showSearch) {
             SearchSheet(store: store, startAt: { reader.pageIndex }) { hit in
                 if let sel = hit.selection { reader.show(sel) } else { reader.goToPage(hit.pageIndex) }
             }
             .ufHalfSheet()
         }
-        .sheet(isPresented: $showTutor) {
+        .ufSheet(isPresented: $showTutor) {
             TutorPanel(fileID: store.file.id, fileName: store.file.displayTitle,
                        page: { store.entry(forPageIndex: reader.pageIndex)?.pdfIndex ?? (reader.pageIndex + 1) },
                        selection: { reader.selectionText },
@@ -89,7 +89,7 @@ struct PhoneDocumentReader: View {
             Button("Meine geteilten Lösungen …") { openSolutionSheet(.shared) }
             Button("Abbrechen", role: .cancel) {}
         } message: { Text(SolutionTexts.ownNotesOnly) }
-        .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .ufSheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .alert("Zu Seite", isPresented: $goingToPage) {
             TextField("Seite", text: $goToText).keyboardType(.numberPad)
             Button("Abbrechen", role: .cancel) {}

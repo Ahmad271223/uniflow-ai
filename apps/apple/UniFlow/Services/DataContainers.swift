@@ -586,6 +586,8 @@ final class ContainerManager: ObservableObject {
         if !OpenAIKeyKeychainStore.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftOpenAIKey) }
         // Anmeldung am StudiNow-Konto auf diesem Geraet (das Konto beim Dienst loescht "Konto löschen" dort)
         if !StudoraAccountKeychain.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftAccount) }
+        // Merker der Geraete-Regel dieses Apple-Nutzers (Hinweis vom letzten Start, "Plus-Hinweis gezeigt")
+        DeviceRuleMemory(defaults: appDefaults).forget(scope: DataContainerKey.userScope(userID))
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
         // empfangene Loesungen, die noch ausserhalb der Container lagen (Documents/Inbox)
@@ -652,5 +654,7 @@ final class ContainerManager: ObservableObject {
         UniAutoLogin.detach(store)
         await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         try? await WKWebsiteDataStore.remove(forIdentifier: id)
+        // Video- und Lernseiten-Spalten dieses Containers (eigener Speicher, docs/VIDEO-LERNSEITEN-2026-11-14.md)
+        await WebSideStore.remove(container: id)
     }
 }

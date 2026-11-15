@@ -752,7 +752,7 @@ struct CommunitySolutionsSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .task { await load() }
-        .sheet(isPresented: Binding(get: { discussing != nil }, set: { if !$0 { discussing = nil } })) {
+        .ufSheet(isPresented: Binding(get: { discussing != nil }, set: { if !$0 { discussing = nil } })) {
             if let s = discussing { CommunityReaderSheet(solution: s, service: service) { discussing = nil } }
         }
         .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
@@ -1140,8 +1140,8 @@ struct CommunitySettingsCard: View {
                 .task { await reload() }
             }
         }
-        .sheet(item: $showingCode) { g in StudyGroupCodeSheet(group: g) { showingCode = nil } }
-        .sheet(isPresented: $plansSheet) { UFPlanSheet(required: .plus, close: { plansSheet = false }) }
+        .ufSheet(item: $showingCode) { g in StudyGroupCodeSheet(group: g) { showingCode = nil } }
+        .ufSheet(isPresented: $plansSheet) { UFPlanSheet(required: .plus, close: { plansSheet = false }) }
         .ufModal(isPresented: Binding(get: { leaving != nil }, set: { if !$0 { leaving = nil } })) {
             if let g = leaving {
                 UFDialog("Lerngruppe verlassen", icon: "users") {

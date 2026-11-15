@@ -278,7 +278,7 @@ struct HsHSourcesCard: View {
                 }
             }
             .accessibilityIdentifier("hsh.card")
-            .sheet(item: $login) { s in HsHLoginView(source: s, connection: connection) }
+            .ufSheet(item: $login) { s in HsHLoginView(source: s, connection: connection) }
             .confirmationDialog("Von Moodle und Campusmanagement abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
             } message: {

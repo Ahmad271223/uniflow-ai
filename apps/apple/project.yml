@@ -12,10 +12,11 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    # App Store 1.0.1 (Build 30 eingereicht am 10.11.2026; 1.0 mit Build 25 wurde nie veroeffentlicht); Build 31 ist 1.0.2 (veroeffentlicht 11.11.2026); Build 33 wird 1.0.3. Build-Nummer: eine fortlaufende ganze Zahl ueber alle Uploads hinweg,
+    # App Store: 1.0.1 = Build 30 (10.11.2026), 1.0.2 = Build 31 (11.11.2026), 1.0.3 = Build 35 (13.11.2026); 1.0 mit Build 25 wurde nie veroeffentlicht; 1.0.4 = Build 42, eingereicht am 15.11.2026 (Build 41 am 14.11.2026 eingereicht und zurueckgezogen)
+    # (docs/release/BUILD-HERKUNFT.md). Build-Nummer: eine fortlaufende ganze Zahl ueber alle Uploads hinweg,
     # je Upload +1, nie zurueck (0.2.0 hatte Build 2). Neue Version (1.0.1, 1.1) -> MARKETING_VERSION, Build weiterzaehlen.
     MARKETING_VERSION: "1.0.4"
-    CURRENT_PROJECT_VERSION: "41"
+    CURRENT_PROJECT_VERSION: "43"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
   UniFlow:
@@ -23,6 +24,9 @@ targets:
     platform: iOS
     sources:
       - path: UniFlow
+      # Lernseiten neben dem Dokument: Grundstock der erlaubten Seiten (docs/VIDEO-LERNSEITEN-2026-11-14.md)
+      - path: ../../packages/shared-contracts/learning-sites.json
+        buildPhase: resources
     dependencies:
       - package: UniFlowCore
     # Team und "Mit Apple anmelden" nur mit der nicht eingecheckten Config/Team.xcconfig (siehe Config/Base.xcconfig)
@@ -51,6 +55,14 @@ targets:
         # 1.0.1 - dann Release auf "luh hildesheim hsh" setzen. Debug und Tests sehen alle drei.
         Debug:
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"
+          # Testlauf am Mac ("Designed for iPad", 14.11.2026, docs/MAC-TESTLAUF-EIGENER-ORDNER-2026-11-14.md): am Mac
+          # waere der Testwirt sonst dieselbe App wie die installierte (gleiche Kennung = gleicher Datenordner,
+          # gleicher Schluesselbund, gleiche Einstellungen) und laese und aenderte die echten Daten des Nutzers.
+          # tools/mac-test.sh setzt dafuer UF_DEBUG_BUNDLE_ID=de.uniflow.ai.mactest. Nur Debug: Release (TestFlight,
+          # App Store) nimmt die feste Kennung oben und kennt diese Einstellung nicht. Ohne Angabe bleibt alles wie
+          # bisher (Simulator, iPad, iPhone, Xcode).
+          UF_DEBUG_BUNDLE_ID: de.uniflow.ai
+          PRODUCT_BUNDLE_IDENTIFIER: $(UF_DEBUG_BUNDLE_ID)
         # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet
         Release:
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim"
@@ -114,7 +126,7 @@ targets:
           - UIInterfaceOrientationPortrait
         # iCloud-Container der Community (leer ohne Config/Team.xcconfig; dann "Community nicht verfügbar")
         UFCloudKitContainer: $(UF_CLOUDKIT_CONTAINER)
-        # Hochschulen zur Wahl in diesem Build (Release nur "luh", siehe UF_SHIPPED_UNIVERSITIES oben)
+        # Hochschulen zur Wahl in diesem Build (Release seit Build 40 "luh hildesheim", siehe UF_SHIPPED_UNIVERSITIES oben)
         UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)
         # Schrift der Web-App (Inter, Google Fonts, SIL Open Font License: UniFlow/Resources/Fonts/Inter-OFL.txt)
         UIAppFonts:

@@ -95,7 +95,7 @@ struct UFLearnSheetHost: ViewModifier {
         content
             .environment(\.ufLearnSheets, compact ? sheets : nil)
             .environment(\.ufLearnCompact, compact)
-            .sheet(item: $sheets.item) { item in
+            .ufSheet(item: $sheets.item) { item in
                 UFLearnSheetFrame(item: item, sheets: sheets) { sheets.dismiss() }
             }
     }

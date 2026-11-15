@@ -283,6 +283,10 @@ final class AIViewsAppTests: XCTestCase {
     }
 
     func testDocIndexCardShowsKnownPageWithReferencesNotesAndRebuild() throws {
+        // Mac ("Designed for iPad"): der Bedienungshilfen-Baum dieser Karte schwankt im Testwirt (Befunde 09.11. und
+        // 14.11.2026): mal fehlt der Verweis "auch in Vorlesung …", mal steht "Deine Notizen dazu …" als Knopf im Baum und
+        // `accessibilityActivate()` liefert false. Mit der Maus von Hand pruefen (docs/MAC-DURCHLAUF-2026-11-14.md)
+        try ContainerTestBed.skipOnMac("Bedienungshilfen-Baum der Karte „Schon erklärt“ schwankt im Mac-Testwirt")
         let t = transport()
         let ready: JSONValue = ["file_id": "f-1", "page": 2, "status": "ready", "known": true, "source": "cloud", "can_build": true,
                                 "entry": ["summary": "Eigenwerte und das charakteristische Polynom.", "terms": ["Eigenwert"],

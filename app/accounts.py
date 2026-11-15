@@ -169,6 +169,18 @@ def _migrate(conn) -> None:
     # Apple: Refresh-Token (AES-GCM, app/vault.py) und Client-ID, fuer den Widerruf beim Loeschen (app/apple_signin.py)
     db.add_column(conn, "identities", "apple_refresh_enc", "TEXT")
     db.add_column(conn, "identities", "apple_client_id", "TEXT")
+    # Geraete-Regel (14.11.2026, app/device_limit.py): das eine Geraet eines Free-Kontos ("Hauptgeraet"). Nur wenn es
+    # die Tabelle users gibt: `cursor()` legt sie vorher an (SCHEMA), aber eine alte oder halb angelegte Datei, auf der
+    # nur die Migration laeuft, darf den Start nicht mit "no such table: users" abbrechen - die Spalten kommen dann beim
+    # naechsten Start nach dem Anlegen. Wiederholbar und unter gleichzeitigem Start mehrerer Prozesse wie die uebrigen
+    # Spalten (db.add_column).
+    if _has_table(conn, "users"):
+        for col in PRIMARY_DEVICE_COLUMNS:
+            db.add_column(conn, "users", col, "TEXT")
+
+
+# Spalten der Geraete-Regel an users (app/device_limit.py); Konto loeschen leert sie sofort (_mark_deleted)
+PRIMARY_DEVICE_COLUMNS = ("primary_device_id", "primary_device_name", "primary_device_set_at")
 
 
 @contextmanager
@@ -899,8 +911,10 @@ def revoke_apple(user_id: str, tokens: list[tuple[str | None, str | None]]) -> i
 
 
 def _mark_deleted(conn, user_id: str, t: str) -> None:
-    """Sperren, abmelden, Adresse freigeben (umbenannt), Passwort-Hash, Anmeldewege und Reset-Token sofort weg."""
-    conn.execute("UPDATE users SET status='deleted', deleted_at=?, email=?, pw_hash=NULL WHERE id=?",
+    """Sperren, abmelden, Adresse freigeben (umbenannt), Passwort-Hash, Anmeldewege, Reset-Token und das Hauptgeraet
+    (Geraete-Regel, app/device_limit.py) sofort weg."""
+    conn.execute("UPDATE users SET status='deleted', deleted_at=?, email=?, pw_hash=NULL, primary_device_id=NULL, "
+                 "primary_device_name=NULL, primary_device_set_at=NULL WHERE id=?",
                  (t, f"deleted-{user_id}@invalid", user_id))
     conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (t, user_id))
     conn.execute("DELETE FROM identities WHERE user_id=?", (user_id,))

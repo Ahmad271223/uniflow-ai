@@ -137,7 +137,19 @@ public enum StudyCatalogStore {
 public enum StudyCatalogEndpoints: LocalEndpointModule {
     public static let name = "Modulkatalog"
 
+    /// Kuerzel im Grundstock der App (einmal gelesen)
+    static let seedCodes: Set<String> = Set(StudyCatalogSeed.bundledAll()?.entries.map(\.code) ?? [])
+
     public static func register(on router: LocalRouter) {
+        // Studiengaenge des Registers zum Waehlen (wie `api_programs`); `q` filtert nach Name (14.11.2026: die App
+        // konnte bisher keinen anderen Studiengang waehlen als den aus dem Notenspiegel)
+        router.get("/api/study-catalog/programs") { req, ctx in
+            let uni = try await ctx.database.withConnection { try StudyCatalogPipeline.university($0) }
+            let q = req.query("q") ?? ""
+            let items = StudySources.filterPrograms(StudySources.bundled.programs(university: uni, seedCodes: seedCodes), query: q)
+            return .json(["programs": .array(items), "count": .number(Double(items.count))])
+        }
+
         router.get("/api/study-catalog/status") { _, ctx in
             let (status, inputs, hasRun) = try await ctx.database.transaction { c in
                 (try StudyCatalogStore.status(c), try StudyCatalogPipeline.inputs(c), try StudyCatalogStore.state(c, "status") != nil)

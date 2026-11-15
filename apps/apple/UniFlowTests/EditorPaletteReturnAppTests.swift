@@ -110,6 +110,10 @@ final class EditorPaletteReturnAppTests: XCTestCase {
     /// das Feld Erstantwortgeber (Stift/Scribble oder Hardware-Tastatur: keine Tastatur zum Schliessen), und die Palette
     /// kam erst nach dem Neuoeffnen der Datei zurueck. Ein Textobjekt auf der Seite verliert den Fokus dabei nicht.
     func testWritingOnThePageAgainAfterTheChatBringsThePaletteBack() async throws {
+        // Am Mac nimmt der Editor einem Textfeld den Fokus beim Schreiben bewusst nicht weg
+        // (`PDFEditorController.reclaimFocusForWriting`: "Am Mac nichts erzwingen"; dort gibt es keine Bildschirmtastatur,
+        // die die Leiste verdeckt, und die Leiste steht ohne Fokus)
+        try ContainerTestBed.skipOnMac("der Editor holt den Fokus beim Schreiben am Mac bewusst nicht zurück")
         let store = try await openStore()
         let editor = PDFEditorController(store: store, tools: tools())
         let (_, root) = show(editor)

@@ -243,6 +243,10 @@ struct DocumentView: View {
     @State private var solutionSide: ForeignSolutionLayer?
     /// Dokument der geteilten Ansicht (ein Notizblatt daneben geht beim Teilen der Loesung mit)
     @State private var companionStore: DocumentStore?
+    /// Video oder Lernseite daneben (docs/VIDEO-LERNSEITEN-2026-11-14.md); nur ohne Blatt und Loesung daneben
+    @State private var webSide: WebSideItem?
+    /// "Daneben öffnen" mit Video und Lernseite zuerst (aus dem Menue "Video oder Lernseite daneben")
+    @State private var pickerWebFirst = false
     @State private var addingText = false
     // Seitenwerkzeuge (Editor-Schritt 5)
     @State private var goingToPage = false
@@ -490,7 +494,8 @@ struct DocumentView: View {
     /// Paar aus Hauptdokument und Spalte daneben (fuer den gemerkten Tausch)
     private var sideKey: String? {
         if let s = solutionSide { return SplitSides.pairKey(primary: store.file.id, side: "loesung:" + s.id) }
-        return companion.map { SplitSides.pairKey(primary: store.file.id, side: $0.file.id) }
+        if let c = companion { return SplitSides.pairKey(primary: store.file.id, side: c.file.id) }
+        return webSide.map { SplitSides.pairKey(primary: store.file.id, side: "web:" + $0.id) }
     }
 
     private func swapSides() {
@@ -794,7 +799,7 @@ struct DocumentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .uniflowDocumentReleased)) { n in
             if n.userInfo?["key"] as? String == store.openKey { reopenHere(force: false) }
         }
-        .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
+        .ufSheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         // Menueleiste (Mac, iPad mit Tastatur): Befehle an dieses Dokument
         .focusedSceneObject(bridge)
         .onChange(of: bridge.menuRequest) { _, r in handleMenuRequest(r) }
@@ -841,7 +846,7 @@ struct DocumentView: View {
                     .environment(\.ufClose, { flashcardQuestion = nil })
             }
         }
-        .sheet(item: $markerPage) { mp in
+        .ufSheet(item: $markerPage) { mp in
             LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
                                goTo: { pdfPage in
                                    if let i = store.layout?.entries.firstIndex(where: { $0.kind == "pdf" && $0.pdfIndex == pdfPage }) {
@@ -858,17 +863,24 @@ struct DocumentView: View {
     /// Teil 3: Blaetter (Info, Papierkorb, Gliederung, Daneben, Loesungen, Abgabe, Export) und alte Fassung
     private var documentSheets: AnyView {
         documentPanels
-        .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
-        .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
-        .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
+        .ufSheet(isPresented: $showInfo) { InfoSheet(store: store) }
+        .ufSheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
+        .ufSheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
-        .sheet(isPresented: $choosingCompanion) {
+        .ufSheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
                             linkedSheetIDs: store.sideSheetFileIDs, openSheetID: companion?.file.id,
                             solutions: foreignLayers.map { ($0.id, $0.label) }, solutionHint: SplitSides.solutionHint(hand: hand),
                             onSolution: { id in
                                 if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
-                            }, onAppend: { f, template in
+                            }, onWeb: { item in
+                                companion = nil
+                                solutionSide = nil
+                                webSide = item
+                                if case .video(let v) = item {
+                                    DocumentVideoLinks.save(v, for: store.file.id, defaults: ActiveContainer.current?.defaults)
+                                }
+                            }, webFirst: $pickerWebFirst, onAppend: { f, template in
                                 solutionSide = nil
                                 companion = Companion(file: f, pdfPage: nil, appendTemplate: template, request: UUID().uuidString)
                             }) { f in
@@ -876,15 +888,15 @@ struct DocumentView: View {
                 companion = Companion(file: f, pdfPage: nil)
             }
         }
-        .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
-        .sheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
-        .sheet(isPresented: $submittingToMoodle) { MoodleSubmitEntry(store: store, api: api) }
-        .sheet(isPresented: $mailingDocument) {
+        .ufSheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .ufSheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
+        .ufSheet(isPresented: $submittingToMoodle) { MoodleSubmitEntry(store: store, api: api) }
+        .ufSheet(isPresented: $mailingDocument) {
             if let uniMailConnection { UniMailDocumentEntry(store: store, api: api, connection: uniMailConnection) }
         }
         // Schloss angetippt: Tarifwahl mit dem noetigen Tarif vorausgewaehlt (Auftrag des Inhabers 12.11.2026)
-        .sheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
-        .fullScreenCover(item: $openedVersion) { v in
+        .ufSheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
+        .ufFullScreenCover(item: $openedVersion) { v in
             NavigationStack {
                 // Vollbild einer frueheren Fassung: derselbe Zurueck-Pfeil wie im Editor schliesst sie (vorher "Schließen")
                 DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true, onBack: { openedVersion = nil })
@@ -906,11 +918,11 @@ struct DocumentView: View {
             Task { await reloadSolutionLayers() }
         }
         .onChange(of: entitlements.plan) { _, _ in Task { await reloadSolutionLayers() } }
-        .sheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
+        .ufSheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
             // Sichern: Ordner waehlen (iPad: Dateien, Mac: Fenster "Sichern"), die PDF wird dorthin kopiert
             ExportToFolderView(url: f.url) { exportFile = nil }
         }
-        .sheet(item: Binding(get: { exportFile?.purpose == .share ? exportFile : nil }, set: { exportFile = $0 })) { f in
+        .ufSheet(item: Binding(get: { exportFile?.purpose == .share ? exportFile : nil }, set: { exportFile = $0 })) { f in
             VStack(spacing: 0) {
                 if let notice = f.notice {
                     Label(notice, systemImage: "exclamationmark.triangle")
@@ -972,7 +984,9 @@ struct DocumentView: View {
         .onChange(of: showTutor) { _, open in if !readOnly { router.resume.noteTutor(open: open, of: store.file.id) } }
         .onChange(of: companion) { _, c in
             if !readOnly { router.resume.noteCompanion(id: c?.file.id, page: c?.pdfPage, of: store.file.id) }
+            if c != nil { webSide = nil }
         }
+        .onChange(of: solutionSide?.id) { _, id in if id != nil { webSide = nil } }
         .task {
             await store.load()
             // KI-Start "Im Dokument mit KI-Hilfe öffnen": die KI-Hilfe gleich offen (einmalig, nur fuer diese Datei)
@@ -1113,7 +1127,7 @@ struct DocumentView: View {
         }
     }
 
-    private var hasSidePane: Bool { companion != nil || solutionSide != nil }
+    private var hasSidePane: Bool { companion != nil || solutionSide != nil || webSide != nil }
 
     /// Rechte bzw. linke Spalte der geteilten Ansicht: ein zweites Dokument oder eine Loesung zum Ansehen
     @ViewBuilder private var sidePane: some View {
@@ -1122,6 +1136,9 @@ struct DocumentView: View {
                 .id("solution-" + s.id)
         } else if let c = companion {
             companionPane(c)
+        } else if let w = webSide {
+            WebSidePaneView(item: w) { webSide = nil }
+                .id("web-" + w.id)
         }
     }
 
@@ -1184,7 +1201,9 @@ struct DocumentView: View {
         }
         .frame(width: 12)
         .contentShape(Rectangle())
-        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
+        // Erst ab 4 pt Bewegung: ein aufgelegter Handballen auf dem Griff darf die Breite nicht springen lassen,
+        // sonst rutscht das X der Spalte daneben unter dem Stift weg (echtes iPad, 14.11.2026).
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
             let x = g.location.x
             let f = sideLeft ? x / max(width, 1) : (width - x) / max(width, 1)
             splitFraction = min(0.65, max(0.2, Double(f)))
@@ -1376,9 +1395,17 @@ struct DocumentView: View {
 
     /// Daneben oeffnen (zweites Dokument oder Loesung) bzw. Teilung beenden; ohne Plus das Schloss
     private func toggleSplit() {
-        if hasSidePane { companion = nil; solutionSide = nil }
-        else if entitlements.allows(.splitView) { choosingCompanion = true }
+        if hasSidePane { companion = nil; solutionSide = nil; webSide = nil }
+        else if entitlements.allows(.splitView) { pickerWebFirst = false; choosingCompanion = true }
         else { lockedFeature = .splitView }
+    }
+
+    /// "Video oder Lernseite daneben": "Daneben öffnen" mit Video und Lernseite oben; ohne Plus die Tarifwahl
+    /// (wie "Geteilt", Plan freigegeben 14.11.2026)
+    private func openWebSidePicker() {
+        guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        pickerWebFirst = true
+        choosingCompanion = true
     }
 
     // MARK: Eine Kopfzeile ("Oben fest", 12.11.2026)
@@ -1573,6 +1600,13 @@ struct DocumentView: View {
         Group {
                 // "Bereich an KI" auch ohne Leiste und ohne Schreiben im Tarif (05.11.2026)
                 Section("KI-Hilfe") { areaMenuItems }
+                // Video oder Lernseite neben dem Dokument (Plus wie "Geteilt"; ohne Plus mit Schloss, oeffnet die Tarifwahl)
+                if !readOnly {
+                    Button { openWebSidePicker() } label: {
+                        Label(Self.lockedLabel("Video oder Lernseite daneben …", entitlements.access(.splitView)), systemImage: "play.rectangle.on.rectangle")
+                    }
+                    .accessibilityIdentifier("doc.webSide")
+                }
                 if !planAllowsWriting && !readOnly {
                     // Free: jeder schreibende Eintrag sichtbar mit Schloss (statt grau), Antippen oeffnet die Tarifwahl
                     // (Auftrag des Inhabers 12.11.2026); eigener Typ, damit das Menue flach bleibt
@@ -2357,7 +2391,7 @@ struct CompanionPageMenu: View {
         .accessibilityLabel("Seiten und Blatt")
         .accessibilityIdentifier("companion.menu")
         .modifier(MacHelp(text: "Seiten und Blatt"))
-        .popover(isPresented: $open, arrowEdge: .top) { menu }
+        .ufPopover(isPresented: $open, arrowEdge: .top) { menu }
         .confirmationDialog(confirm == .sheet ? "Ganzes Blatt in den Papierkorb?" : "Seite \(bridge.pageIndex + 1) in den Papierkorb?",
                             isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
                             titleVisibility: .visible, presenting: confirm) { c in
@@ -2369,7 +2403,7 @@ struct CompanionPageMenu: View {
         } message: { c in
             Text(c == .sheet ? SideSheetTrash.confirmMessage(store.file.displayTitle) : Self.pageConfirmMessage)
         }
-        .sheet(isPresented: $showingTrash) { PageTrashSheet(bridge: bridge) }
+        .ufSheet(isPresented: $showingTrash) { PageTrashSheet(bridge: bridge) }
         .alert("Löschen", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(failure ?? "") }
@@ -2476,7 +2510,7 @@ struct CompanionAddPageButton: View {
         .accessibilityHint("Fragt nach dem Papier und fügt eine Seite unter der angezeigten ein")
         .accessibilityIdentifier("companion.addPage")
         .modifier(MacHelp(text: "Seite darunter einfügen"))
-        .popover(isPresented: $choosing, arrowEdge: .top) {
+        .ufPopover(isPresented: $choosing, arrowEdge: .top) {
             CompanionPaperChooser(current: Self.template(store.layout?.entries, at: bridge.pageIndex)) { t in
                 choosing = false
                 add(t)
@@ -2599,6 +2633,11 @@ struct CompanionPicker: View {
     var onSolution: (String) -> Void = { _ in }
     /// "Leeres Blatt", wenn es zu diesem Dokument schon ein Blatt gibt: dort unten eine Seite anfuegen (Blatt, Vorlage).
     /// nil: immer ein neues Notizbuch (alter Weg)
+    /// Video oder Lernseite daneben (nur mit Freigabe der geteilten Ansicht; nil = Abschnitt fehlt)
+    var onWeb: ((WebSideItem) -> Void)? = nil
+    /// Video und Lernseite oben (Einstieg ueber "Video oder Lernseite daneben")
+    /// als Binding: ein Wert, den nur der Inhalt des Blatts liest, kaeme sonst mit dem alten Stand an
+    var webFirst: Binding<Bool> = .constant(false)
     var onAppend: ((LibFile, String) -> Void)? = nil
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -2622,13 +2661,20 @@ struct CompanionPicker: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    if let onWeb, webFirst.wrappedValue {
+                        WebSidePickerSection(documentID: excluding, moduleID: moduleID) { item in onWeb(item); dismiss() }
+                    }
                     if !solutions.isEmpty { solutionSection }
                     if !ownSheets.isEmpty {
                         CompanionOwnSheetsSection(sheets: ownSheets, open: { id in Task { await openOwn(id, restore: false) } },
                                                   restore: { id in Task { await openOwn(id, restore: true) } },
                                                   trash: { id in Task { await trashOwn(id) } }, openSheetID: openSheetID)
                     }
-                    blankSection
+                    if !webFirst.wrappedValue { blankSection }
+                    if let onWeb, !webFirst.wrappedValue {
+                        WebSidePickerSection(documentID: excluding, moduleID: moduleID) { item in onWeb(item); dismiss() }
+                    }
+                    if webFirst.wrappedValue { blankSection }
                     documentSection
                 }
                 .padding(20)

@@ -158,7 +158,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|architektur-und-staedtebau|m.sc.|2020",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/architektur_und_staedtebau/Modulkatalog_MSc-ArchStaedtebau_PO2020_01.pdf"
       }
      ]
     },
@@ -182,7 +183,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|architektur|b.sc.|2019",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/architektur/Modulkatalog_BSc-Architektur_PO2019_01.pdf"
       }
      ]
     },
@@ -206,7 +208,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|atlantic-studies-in-history-culture-and-society|m.a.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.hist.uni-hannover.de/fileadmin/hist/News_und_Veranstaltungen/PDF/Modulkatalog_Atlantic_Studies_ab_WiSe_2026_2027.pdf"
       }
      ]
     },
@@ -230,7 +233,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|bau-und-umweltingenieurwesen|b.sc.|2025",
-       "format": "fbg-modulhandbuch"
+       "format": "fbg-modulhandbuch",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Studium/Bauingenieurwesen/Modulhandbuecher/PO_25/Modulhandbuch_PO25_BU.pdf"
       }
      ]
     },
@@ -254,7 +258,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|bauingenieurwesen|m.sc.|2025",
-       "format": "fbg-modulhandbuch"
+       "format": "fbg-modulhandbuch",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Studium/Bauingenieurwesen/Modulhandbuecher/PO_25/Modulhandbuch_PO25_BAU.pdf"
       }
      ]
     },
@@ -278,7 +283,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|bildungswissenschaften|m.a.|2020",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.ifbe.uni-hannover.de/fileadmin/ifbe/PDF/MA_BW_Modulkatalog_ab_WS_26-27_Stand_2026-09-08.pdf"
       }
      ]
     },
@@ -317,6 +323,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|biochemie|b.sc.|2024",
        "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Biochemie-BSc/20251001_Modulhandbuch_BScBC_Pflicht.pdf",
        "label": "Pflichtmodule"
       }
      ]
@@ -343,7 +350,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|biologie|b.sc.|2018",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Biologie/Detail-Biologie-BSc/Modulkataloge/2026_Modulkatalog_Biologie_WiSe26-27_final.pdf"
       }
      ]
     },
@@ -370,7 +378,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|biomedizintechnik|m.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_BMT_MSc_PO_17.pdf"
       },
       {
        "po": "2026",
@@ -381,7 +390,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|biomedizintechnik|m.sc.|2026",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_BMT_MSC_PO_26.pdf"
       }
      ]
     },
@@ -406,7 +416,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-1|m.sc.|2017",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-MSc/Modulhandbuch-Chemie-Master-PO2017.pdf"
       },
       {
        "po": "2024",
@@ -415,7 +426,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-1|m.sc.|2024",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-MSc/Modulkatalog-Chemie-Master-PO2024.pdf"
       }
      ]
     },
@@ -440,7 +452,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie|b.sc.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-BSc/Modulhandbuch_Bachelor_Chemie_20230918.pdf"
       },
       {
        "po": "2024",
@@ -449,7 +462,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie|b.sc.|2024",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-BSc/20240827_Modulkatalog_Bachelor_Chemie.pdf"
       }
      ]
     },
@@ -473,7 +487,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|computational-methods-in-engineering|m.sc.|2025",
-       "format": "fbg-modulhandbuch"
+       "format": "fbg-modulhandbuch",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Studium/Bauingenieurwesen/Modulhandbuecher/PO_25/Modulhandbuch_PO25_CME.pdf"
       }
      ]
     },
@@ -511,7 +526,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|digital-business|b.sc.|2026",
-       "format": "wiwi-modulhandbuch"
+       "format": "wiwi-modulhandbuch",
+       "url": "https://www.wiwi.uni-hannover.de/fileadmin/wiwi/pdf/modulhandbuch/semesterunabhaengig/Modulhandbuch_Bachelor_Digital_Business.pdf"
       },
       {
        "po": "2026",
@@ -523,6 +539,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|digital-business|b.sc.|2026",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-DiBu-WS_2026_27.pdf",
        "label": "Informatik-Anteil (FEI)"
       }
      ]
@@ -549,7 +566,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|elektrotechnik-und-informationstechnik-1|m.sc.|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-ETMSc17-WS_2026_27.pdf"
       }
      ]
     },
@@ -576,7 +594,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|elektrotechnik-und-informationstechnik|b.sc.|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-ETBSc17-WS_2026_27.pdf"
       },
       {
        "po": "2025",
@@ -587,7 +606,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|elektrotechnik-und-informationstechnik|b.sc.|2025",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-ETBSc25-WS_2026_27.pdf"
       }
      ]
     },
@@ -613,7 +633,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|energietechnik-1|m.sc.|2020",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-EntMsc24-WS_2026_27.pdf"
       }
      ]
     },
@@ -639,7 +660,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|energietechnik|b.sc.|2020",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-EntBsc24-WS_2026_27.pdf"
       }
      ]
     },
@@ -774,7 +796,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geodaesie-und-geoinformatik|b.sc.|2025",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Geodaesie/Dokumente/Bachelor_GuG/20260305_Modulkatalog_GuG_Bachelor_PO25.pdf"
       }
      ]
     },
@@ -798,7 +821,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geographie|b.a.-b.sc.|2015",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Studiengangsuebergreifende_Dokumente/Modulkatalog_Bachelor_Geographie.pdf"
       }
      ]
     },
@@ -822,7 +846,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geowissenschaften-1|m.sc.|2020",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geowissenschaften/Detail-Geowissenschaften-MSc/Modulkatalog_Master_Geowissenschaften2025.pdf"
       }
      ]
     },
@@ -846,7 +871,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geowissenschaften|b.sc.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geowissenschaften/Detail-Geowissenschaften-BSc/Modulkatalog_Bachelor_Geowissenschaften2025.pdf"
       }
      ]
     },
@@ -872,7 +898,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|geschichte-ma|m.a.|2020",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.hist.uni-hannover.de/fileadmin/hist/News_und_Veranstaltungen/PDF/Modulkataloge_MA_Geschichte_WS_26_27.pdf"
       }
      ]
     },
@@ -896,7 +923,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|hochschule-wissenschaft-gesellschaft|m.a.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.ish.uni-hannover.de/fileadmin/ish/ma_wug/Dokumente/Modulhandbuch/Modulhandbuch_MA_Hochschule__Wissenschaft__Gesellschaft_Stand_10_09_2025.pdf"
       }
      ]
     },
@@ -922,7 +950,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|informatik-1|m.sc.|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-INFMSc25-WS_2026_27.pdf"
       }
      ]
     },
@@ -1016,6 +1045,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|konstruktiver-ingenieurbau-fernstudium|m.sc.|2019",
        "format": "fbg-modulhandbuch",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Studium/Bauingenieurwesen/Modulhandbuecher/PO_25/Modulhandbuch_PO25_BAU.pdf",
        "label": "Modulhandbuch Bauingenieurwesen (M.Sc.)"
       }
      ]
@@ -1041,6 +1071,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|landschaftsarchitektur-und-umweltplanung|b.sc.|2024",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/LAUM/Modulbeschreibungen/Bachelor_LaUp_Modulkatalog_Pflicht_20231205.pdf",
        "label": "Pflichtmodule"
       }
      ]
@@ -1066,6 +1097,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|landschaftsarchitektur|m.sc.|2015",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/LAUM/Modulbeschreibungen/Modulkatalog_MA_LA_Pflicht_2026.pdf",
        "label": "Pflichtmodule"
       }
      ]
@@ -1091,7 +1123,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|landschaftswissenschaften|m.sc.|2019",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Detail-Landschaftswissens-MSc/ModulkatalogLawi_PO19_2026.pdf"
       },
       {
        "po": "2026",
@@ -1100,7 +1133,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|landschaftswissenschaften|m.sc.|2026",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Detail-Landschaftswissens-MSc/ModulkatalogLawi_PO2026.pdf"
       }
      ]
     },
@@ -1223,7 +1257,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|life-science-1-1|m.sc.|2022",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/LifeScience/Detail-LifeScience-MSc/Dokumente/2023_Modulhandbuch_Master_LS-PO-2022.pdf"
       },
       {
        "po": "2024",
@@ -1232,7 +1267,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|life-science-1-1|m.sc.|2024",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/LifeScience/Detail-LifeScience-MSc/Dokumente/2025_07_16_Modulkatalog_MSc_LS__final.pdf"
       }
      ]
     },
@@ -1257,6 +1293,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|life-science|b.sc.|2016",
        "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/LifeScience/Detail-LifeScience-BSc/Dokumente/Modulkatalog_Bachelor_Life_Science_Pflicht.pdf",
        "label": "Pflichtmodule"
       }
      ]
@@ -1284,7 +1321,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|maschinenbau-1|m.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_MB_MSc_PO_17.pdf"
       },
       {
        "po": "2026",
@@ -1295,7 +1333,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|maschinenbau-1|m.sc.|2026",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_MB_MSc_PO_26.pdf"
       }
      ]
     },
@@ -1322,7 +1361,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|maschinenbau|b.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_MB_BSC_PO_17.pdf"
       },
       {
        "po": "2026",
@@ -1333,7 +1373,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|maschinenbau|b.sc.|2026",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_MB_BSC_PO_26.pdf"
       }
      ]
     },
@@ -1357,7 +1398,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|mathematik-1|m.sc.|2020",
-       "format": "maphy-katalog"
+       "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_fach_mathe_2026.pdf"
       }
      ]
     },
@@ -1381,7 +1423,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|mathematik|b.sc.|2020",
-       "format": "maphy-katalog"
+       "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_fach_mathe_2026.pdf"
       }
      ]
     },
@@ -1408,7 +1451,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|mechatronik-und-robotik|m.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modukatalog_Mech_MSc_PO_17.pdf"
       },
       {
        "po": "2025",
@@ -1419,7 +1463,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|mechatronik-und-robotik|m.sc.|2025",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_Mech_MSc_PO_25.pdf"
       }
      ]
     },
@@ -1446,7 +1491,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|mechatronik|b.sc.|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-MechBSc17-WS_2026_27.pdf"
       },
       {
        "po": "2025",
@@ -1457,7 +1503,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|mechatronik|b.sc.|2025",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-MechBSc25-WS_2026_27.pdf"
       }
      ]
     },
@@ -1483,7 +1530,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|medizintechnik|b.sc.|2026",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_MT_BSC_PO_26.pdf"
       }
      ]
     },
@@ -1537,7 +1585,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|molekulare-mikrobiologie|m.sc.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Biologie/Detail-MolekulareMikrobiologie-MSc/PDF/Modulkatalog_Molekulare_Mikrobiologie_26-27.pdf"
       }
      ]
     },
@@ -1577,7 +1626,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|nachhaltige-gesundheitsfoerderung-durch-sport|m.sc.|2019",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Master_Nachhaltige_Gesundheitsfoerderung_durch_Sport_WiSe26.27.pdf"
       }
      ]
     },
@@ -1603,7 +1653,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|nachhaltige-ingenieurwissenschaft-1|m.sc.|2024",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_NIng_MSc_PO_24.pdf"
       }
      ]
     },
@@ -1629,7 +1680,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|nachhaltige-ingenieurwissenschaft|b.sc.|2021",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_NIng_BSC_PO_21.pdf"
       }
      ]
     },
@@ -1654,6 +1706,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|nanotechnologie-1|m.sc.|2016",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.lnqe.uni-hannover.de/fileadmin/lnqe/downloads/Studiengang_Allgemein/Modulkatalog_Nanotechnologie.pdf",
        "label": "Kurs- und Modulkatalog Nanotechnologie"
       }
      ]
@@ -1679,6 +1732,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|nanotechnologie|b.sc.|2016",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.lnqe.uni-hannover.de/fileadmin/lnqe/downloads/Studiengang_Allgemein/Modulkatalog_Nanotechnologie.pdf",
        "label": "Kurs- und Modulkatalog Nanotechnologie"
       }
      ]
@@ -1733,7 +1787,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|optische-technologien-laser-und-photonik-bsc|b.sc.|2022",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_OT_BSC_PO_22.pdf"
       }
      ]
     },
@@ -1760,7 +1815,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|optische-technologien|m.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_OT_MSC_PO_17_Deu.pdf"
       },
       {
        "po": "2026",
@@ -1771,7 +1827,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|optische-technologien|m.sc.|2026",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_OT_MSc_PO_26_Deu.pdf"
       }
      ]
     },
@@ -1797,7 +1854,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|pflanzenbiotechnologie-2|b.sc.|2022",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Pflanzenwissenschaften/Detail-Pflanzenbiotechnologie-BSc-PO2022/Modulkatalog_BSc_Pflanzenbiotechnologie_26-27.pdf"
       }
      ]
     },
@@ -1823,7 +1881,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|pflanzenbiotechnologie|m.sc.|2022",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Pflanzenwissenschaften/Detail-Pflanzenbiotechnologie-MSc/Modulkatalog_MSc_PBT_26-27.pdf"
       }
      ]
     },
@@ -1847,7 +1906,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|philosophy-of-science|m.a.|2018",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.philos.uni-hannover.de/fileadmin/philos/Dateien/Modulkataloge/Modulkatalog_Philosophy_of_Science_WiSe2022.23.pdf"
       }
      ]
     },
@@ -1871,7 +1931,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|physik-1|m.sc.|2020",
-       "format": "maphy-katalog"
+       "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_fach_physik_2026.pdf"
       }
      ]
     },
@@ -1895,7 +1956,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|physik|b.sc.|2020",
-       "format": "maphy-katalog"
+       "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_fach_physik_2026.pdf"
       }
      ]
     },
@@ -1921,7 +1983,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politikwissenschaft-1|m.a.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/MA_Polwiss_Modulkatalog_Stand_10_26.pdf"
       }
      ]
     },
@@ -1947,7 +2010,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politikwissenschaft|b.a.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/BA_Polwiss_Modulkatalog_Stand_10_26.pdf"
       }
      ]
     },
@@ -1973,7 +2037,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|produktion-und-logistik-bsc|b.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_PL_BSC_PO_17.pdf"
       }
      ]
     },
@@ -1999,7 +2064,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|produktion-und-logistik-msc|m.sc.|2017",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_PL_MSc_PO_17.pdf"
       }
      ]
     },
@@ -2023,7 +2089,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|quantum-engineering|m.sc.|2022",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/Modulkatalog_QE_03112026.pdf"
       }
      ]
     },
@@ -2061,7 +2128,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|religion-in-the-public-sphere-1|m.a.|2021",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.irw.uni-hannover.de/fileadmin/rewi/Relpub/2026_08_28_RELPUB_module_catalogue.pdf"
       }
      ]
     },
@@ -2085,7 +2153,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|sonderpaedagogik-und-rehabilitationswissenschaften|m.a.|2019",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ifs.uni-hannover.de/fileadmin/ifs/Studium/Studiengaenge/Studium_M.A._Sonderpaedagogik_und_Rehabilitationswissenschaften/Modulkataloge_M.A._10_2026.pdf"
       }
      ]
     },
@@ -2109,7 +2178,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|sonderpaedagogik|b.a.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ifs.uni-hannover.de/fileadmin/ifs/Studium/Studiengaenge/Studium_B.A._Sonderpaedagogik/BA_Modulkataloge_10_2026.pdf"
       }
      ]
     },
@@ -2133,7 +2203,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|sozialwissenschaften|b.a.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.ish.uni-hannover.de/fileadmin/ish/institut/dokumente/Modulkatalog_Sowi_November_2025.pdf"
       }
      ]
     },
@@ -2157,7 +2228,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|soziologie|m.a.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.ish.uni-hannover.de/fileadmin/ish/institut/dokumente/Modulkatalog_MA_Soziologie_April_2025_.pdf"
       }
      ]
     },
@@ -2197,7 +2269,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|technische-informatik-1|m.sc.|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIMSc25-WS_2026_27.pdf"
       }
      ]
     },
@@ -2221,7 +2294,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|umweltingenieurwesen|m.sc.|2025",
-       "format": "fbg-modulhandbuch"
+       "format": "fbg-modulhandbuch",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Studium/Bauingenieurwesen/Modulhandbuecher/PO_25/Modulhandbuch_PO25_UIW.pdf"
       }
      ]
     },
@@ -2245,7 +2319,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|umweltmeteorologie|b.sc.|2022",
-       "format": "maphy-katalog"
+       "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_fach_umweltmeteorlogie_2026.pdf"
       }
      ]
     },
@@ -2297,7 +2372,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|wirtschaftsgeographie-innovation-und-nachhaltigkeit|m.sc.|2025",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Detail-Wirtschaftsgeographie-MSc/Modulkatalog_MSc_WIN.pdf"
       }
      ]
     },
@@ -2321,7 +2397,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|wirtschaftsgeographie-ma|m.a.|2022",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Detail-Wirtschaftsgeographie-MA/Modulkatalog_MA_WiGeo_Feb_2025.pdf"
       }
      ]
     },
@@ -2347,7 +2424,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|wirtschaftsingenieurwesen-1|m.sc.|2018",
-       "format": "wiwi-modulhandbuch"
+       "format": "wiwi-modulhandbuch",
+       "url": "https://www.wiwi.uni-hannover.de/fileadmin/wiwi/pdf/modulhandbuch/sose2026/Modulhandbuch_Master_Wirtschaftsingenieurwesen_Sommersemester_2026.pdf"
       }
      ]
     },
@@ -2373,7 +2451,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|wirtschaftsingenieurwesen|b.sc.|2022",
-       "format": "wiwi-modulhandbuch"
+       "format": "wiwi-modulhandbuch",
+       "url": "https://www.wiwi.uni-hannover.de/fileadmin/wiwi/pdf/modulhandbuch/sose2026/Modulhandbuch_Bachelor_Wirtschaftsingenieurwesen_Sommersemester_2026.pdf"
       },
       {
        "po": "2022",
@@ -2385,6 +2464,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|wirtschaftsingenieurwesen|b.sc.|2022",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-WiIngBSc22-WS_2026_27.pdf",
        "label": "technischer Teil (FEI)"
       }
      ]
@@ -2411,7 +2491,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|wirtschaftswissenschaft-1|m.sc.|2018",
-       "format": "wiwi-modulhandbuch"
+       "format": "wiwi-modulhandbuch",
+       "url": "https://www.wiwi.uni-hannover.de/fileadmin/wiwi/pdf/modulhandbuch/sose2026/Modulhandbuch_Master_Wirtschaftswissenschaft_Sommersemester_2026.pdf"
       }
      ]
     },
@@ -2437,7 +2518,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|wirtschaftswissenschaft|b.sc.|2017",
-       "format": "wiwi-modulhandbuch"
+       "format": "wiwi-modulhandbuch",
+       "url": "https://www.wiwi.uni-hannover.de/fileadmin/wiwi/pdf/modulhandbuch/sose2026/Modulhandbuch_Bachelor_Wirtschaftswissenschaft_Sommersemester_2026.pdf"
       }
      ]
     },
@@ -2463,7 +2545,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|ai-driven-mechatronics-and-robotics|m.sc.|2025",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_AI-driven_MSc_PO_25.pdf"
       }
      ]
     },
@@ -2488,6 +2571,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|european-master-in-landscape-architecture-emila|m.sc.|2015",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/LAUM/Modulbeschreibungen/Modulkatalog_MA_LA_Pflicht_2026.pdf",
        "label": "Pflichtmodule Landschaftsarchitektur (M.Sc.)"
       }
      ]
@@ -2512,7 +2596,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geodaesie-und-geoinformatik-vertiefung-geomatik|m.sc.|2025",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Geodaesie/Dokumente/Master_GuG/20260310_Modulkatalog_GuG_Master_PO25.pdf"
       }
      ]
     },
@@ -2536,7 +2621,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geodaesie-und-geoinformatik-vertiefung-navigation-und-umweltrobotik|m.sc.|2025",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Geodaesie/Dokumente/Master_GuG/20260310_Modulkatalog_GuG_Master_PO25.pdf"
       }
      ]
     },
@@ -2560,7 +2646,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|geodaesie-und-geoinformatik-vertiefung-remote-sensing-and-gis|m.sc.|2025",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.fbg.uni-hannover.de/fileadmin/fbg/Geodaesie/Dokumente/Master_GuG/20260310_Modulkatalog_GuG_Master_PO25.pdf"
       }
      ]
     },
@@ -2586,7 +2673,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|informatik-vertiefung-logic-and-computation|m.sc.-double-degree|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-INFMSc25-WS_2026_27.pdf"
       }
      ]
     },
@@ -2612,7 +2700,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|mechanical-engineering-mechanical-engineering-track|m.sc.|2026",
-       "format": "mb-modulkatalog"
+       "format": "mb-modulkatalog",
+       "url": "https://www.maschinenbau.uni-hannover.de/fileadmin/maschinenbau/Modulkataloge_Tutorien_Labore/Modulkatalog_ME_MSc_PO_26.pdf"
       }
      ]
     },
@@ -2638,7 +2727,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|microelectronics-engineering-electrical-engineering-and-information-technology-track-master-of-science|m.sc.|2017",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-ETMSc17-WS_2026_27.pdf"
       }
      ]
     },
@@ -2662,7 +2752,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|religion-in-the-public-sphere-double-degree-track|m.a.-double-degree|2021",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.irw.uni-hannover.de/fileadmin/rewi/Relpub/2026_08_28_RELPUB_module_catalogue.pdf"
       }
      ]
     },
@@ -2688,6 +2779,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|renewable-energy-and-electrical-power-engineering-track|m.sc.-double-degree|unbekannt",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-EntMsc24-WS_2026_27.pdf",
        "label": "Zuordnung geschaetzt"
       }
      ]
@@ -2713,6 +2805,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|umwelt-und-regionalplanung-major-naturschutz-und-landschaftsplanung|m.sc.|2020",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/LAUM/Modulbeschreibungen/Modulkatalog_MA_URP_Pflicht_2026.pdf",
        "label": "Pflichtmodule"
       }
      ]
@@ -2738,6 +2831,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|umwelt-und-regionalplanung-major-regionalplanung|m.sc.|2020",
        "format": "luh-modulbeschreibung",
+       "url": "https://www.archland.uni-hannover.de/fileadmin/archland/STUDIUM/LAUM/Modulbeschreibungen/Modulkatalog_MA_URP_Pflicht_2026.pdf",
        "label": "Pflichtmodule"
       }
      ]
@@ -2762,7 +2856,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|wirtschaftsgeographie-innovation-und-nachhaltigkeit-double-degree-track|m.sc.-double-degree|2025",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Detail-Wirtschaftsgeographie-MSc/Modulkatalog_MSc_WIN.pdf"
       }
      ]
     },
@@ -2852,7 +2947,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|biologie-im-faecheruebergreifenden-bachelor|b.sc.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Biologie/Detail-Biologie-FueBa/Modulkataloge/2026_Modulkatalog_FueBa_Biologie_WiSe26-27_draft.pdf"
       }
      ]
     },
@@ -2878,7 +2974,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|biologie-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Biologie/Detail-Biologie-MEd/Modulkataloge/2026_Modulkatalog_MEd_Biologie_WiSe26-27_draft.pdf"
       }
      ]
     },
@@ -2904,7 +3001,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-im-bachelorstudiengang-technical-education|b.sc.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-TEd/Modulkatalog_TE_LBS_Chemie.pdf"
       }
      ]
     },
@@ -2930,7 +3028,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-im-faecheruebergreifenden-bachelor|b.sc.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-FueBa/Modulkatalog_FUEBA_Chemie.pdf"
       }
      ]
     },
@@ -2956,7 +3055,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-TEd/Modulkatalog_TE_LBS_Chemie.pdf"
       }
      ]
     },
@@ -2982,7 +3082,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-TEd/Modulkatalog_TE_LBS_Chemie.pdf"
       }
      ]
     },
@@ -3008,7 +3109,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|chemie-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Chemie-Biochemie/Detail-Chemie-MEd/Modulhandbuch_MEd_LaG_Chemie.pdf"
       }
      ]
     },
@@ -3180,7 +3282,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|elektrotechnik-im-bachelorstudiengang-technical-education|b.sc.|2016",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_BSc_ET-WS_2026_27.pdf"
       }
      ]
     },
@@ -3208,7 +3311,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|elektrotechnik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_Sp_ET-WS_2026_27.pdf"
       }
      ]
     },
@@ -3236,7 +3340,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|elektrotechnik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_ET-WS_2026_27.pdf"
       }
      ]
     },
@@ -3264,7 +3369,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|englisch-im-bachelorstudiengang-technical-education|b.sc.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.engsem.uni-hannover.de/fileadmin/engsem/Studium/Modulkatalog_Fach_Englisch_WiSe2025-26.pdf"
       }
      ]
     },
@@ -3292,7 +3398,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|englisch-im-faecheruebergreifenden-bachelor|b.a.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.engsem.uni-hannover.de/fileadmin/engsem/Studium/Modulkatalog_Fach_Englisch_WiSe2025-26.pdf"
       }
      ]
     },
@@ -3320,7 +3427,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|englisch-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.engsem.uni-hannover.de/fileadmin/engsem/Studium/Modulkatalog_Fach_Englisch_WiSe2025-26.pdf"
       }
      ]
     },
@@ -3348,7 +3456,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|englisch-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.engsem.uni-hannover.de/fileadmin/engsem/Studium/Modulkatalog_Fach_Englisch_WiSe2025-26.pdf"
       }
      ]
     },
@@ -3374,7 +3483,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|erdkunde-geographie-im-faecheruebergreifenden-bachelor|b.a.-b.sc.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Studiengangsuebergreifende_Dokumente/Modulkatalog_Bachelor_Geographie.pdf"
       }
      ]
     },
@@ -3400,7 +3510,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|erdkunde-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Geographie/Studiengangsuebergreifende_Dokumente/Modulkatalog_Bachelor_Geographie.pdf"
       }
      ]
     },
@@ -3587,6 +3698,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|geschichte-im-bachelorstudiengang-sonderpaedagogik|b.a.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.hist.uni-hannover.de/fileadmin/hist/News_und_Veranstaltungen/PDF/Modulkatalog_LAG_FueBa_SoPaed.pdf",
        "label": "Modulkatalog Lehramt Gymnasium, FueBa, Sonderpaedagogik"
       }
      ]
@@ -3614,6 +3726,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|geschichte-im-faecheruebergreifenden-bachelor|b.a.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.hist.uni-hannover.de/fileadmin/hist/News_und_Veranstaltungen/PDF/Modulkatalog_LAG_FueBa_SoPaed.pdf",
        "label": "Modulkatalog Lehramt Gymnasium, FueBa, Sonderpaedagogik"
       }
      ]
@@ -3641,6 +3754,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|geschichte-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.hist.uni-hannover.de/fileadmin/hist/News_und_Veranstaltungen/PDF/Modulkatalog_LAG_FueBa_SoPaed.pdf",
        "label": "Modulkatalog Lehramt Gymnasium, FueBa, Sonderpaedagogik"
       }
      ]
@@ -3668,6 +3782,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|geschichte-im-masterstudiengang-lehramt-fuer-sonderpaedagogik|m.ed.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.hist.uni-hannover.de/fileadmin/hist/News_und_Veranstaltungen/PDF/Modulkatalog_LAG_FueBa_SoPaed.pdf",
        "label": "Modulkatalog Lehramt Gymnasium, FueBa, Sonderpaedagogik"
       }
      ]
@@ -3744,7 +3859,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|informatik-im-bachelorstudiengang-technical-education|b.sc.|2016",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_BSc_INF-WS_2026_27.pdf"
       }
      ]
     },
@@ -3773,6 +3889,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|informatik-im-faecheruebergreifenden-bachelor|b.sc.|2016",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_BSc_EINF-WS_2026_27.pdf",
        "label": "Erstfach"
       },
       {
@@ -3785,6 +3902,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|informatik-im-faecheruebergreifenden-bachelor|b.sc.|2016",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_BSc_ZINF-WS_2026_27.pdf",
        "label": "Zweitfach"
       }
      ]
@@ -3813,7 +3931,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|informatik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_Sp-INF-WS_2026_27.pdf"
       }
      ]
     },
@@ -3841,7 +3960,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|informatik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
-       "format": "modkat-FEI"
+       "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_INF-WS_2026_27.pdf"
       }
      ]
     },
@@ -3870,6 +3990,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|informatik-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_EINF-WS_2026_27.pdf",
        "label": "Erstfach"
       },
       {
@@ -3882,6 +4003,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|informatik-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "modkat-FEI",
+       "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_ZINF-WS_2026_27.pdf",
        "label": "Zweitfach"
       }
      ]
@@ -4052,7 +4174,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|lebensmittelwissenschaft-im-bachelorstudiengang-technical-education|b.sc.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Lebensmittelwissenschaft/Detail-Lebensmittelwissens-TEd/___Modulkatalog-BA-Tec.Ed.-LMW_2026-10-01.pdf"
       }
      ]
     },
@@ -4078,7 +4201,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|lebensmittelwissenschaft-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Lebensmittelwissenschaft/Detail-Lebensmittelwissens-MEd-sprint/Modulkatalog-MA-LBS-Sprint_LMW.pdf"
       }
      ]
     },
@@ -4104,7 +4228,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|lebensmittelwissenschaft-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.naturwissenschaften.uni-hannover.de/fileadmin/naturwissenschaften/NAT_Studium/Studienangebot/Lebensmittelwissenschaft/Detail-Lebensmittelwissens-MEd/___Modulkatalog-MA-LBS-LMW_2026-10-01.pdf"
       }
      ]
     },
@@ -4131,6 +4256,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-bachelorstudiengang-sonderpaedagogik|b.a.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4158,6 +4284,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-bachelorstudiengang-technical-education|b.sc.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4185,6 +4312,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-faecheruebergreifenden-bachelor|b.sc.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4212,6 +4340,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4239,6 +4368,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4266,6 +4396,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4293,6 +4424,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|mathematik-im-masterstudiengang-lehramt-fuer-sonderpaedagogik|m.ed.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_mathe_PO_2026.pdf",
        "label": "Modulkatalog Lehraemter Mathematik"
       }
      ]
@@ -4447,7 +4579,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|philosophie-im-faecheruebergreifenden-bachelor|b.a.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.philos.uni-hannover.de/fileadmin/philos/Dateien/Modulkataloge/Modulkatalog_Philosophie_Fu__BaMasterLGZertifikat_WiSe_2025.26_20250801.pdf"
       }
      ]
     },
@@ -4473,7 +4606,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|philosophie-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.philos.uni-hannover.de/fileadmin/philos/Dateien/Modulkataloge/Modulkatalog_Philosophie_Fu__BaMasterLGZertifikat_WiSe_2025.26_20250801.pdf"
       }
      ]
     },
@@ -4500,6 +4634,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|physik-im-bachelorstudiengang-technical-education|b.sc.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_physik_2026.pdf",
        "label": "Modulkatalog Lehraemter Physik"
       }
      ]
@@ -4527,6 +4662,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|physik-im-faecheruebergreifenden-bachelor|b.sc.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_physik_2026.pdf",
        "label": "Modulkatalog Lehraemter Physik"
       }
      ]
@@ -4554,6 +4690,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|physik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_physik_2026.pdf",
        "label": "Modulkatalog Lehraemter Physik"
       }
      ]
@@ -4581,6 +4718,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|physik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_physik_2026.pdf",
        "label": "Modulkatalog Lehraemter Physik"
       }
      ]
@@ -4608,6 +4746,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|physik-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "maphy-katalog",
+       "url": "https://www.maphy.uni-hannover.de/fileadmin/maphy/Studium/Studierende/Modulkataloge/Modulkataloge_2026/katalog_LA_physik_2026.pdf",
        "label": "Modulkatalog Lehraemter Physik"
       }
      ]
@@ -4636,7 +4775,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/MA_LBS-Sprint_Pol_Modulkatalog_Stand_10_26__1_.pdf"
       }
      ]
     },
@@ -4664,7 +4804,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politikwissenschaft-politik-im-bachelorstudiengang-technical-education|b.sc.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/BSc_TE_Pol_Modulkatalog_Stand_10_26.pdf"
       }
      ]
     },
@@ -4692,7 +4833,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politikwissenschaft-politik-im-faecheruebergreifenden-bachelor|b.a.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/FUEBA_Pol_Modulkatalog_Stand_10_26.pdf"
       }
      ]
     },
@@ -4720,7 +4862,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politikwissenschaft-politik-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/MA_Lbs_Pol_Modulkatalog_Stand_10_26.pdf"
       }
      ]
     },
@@ -4748,7 +4891,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "luh|politikwissenschaft-politik-wirtschaft-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "phil-kv-tabelle"
+       "format": "phil-kv-tabelle",
+       "url": "https://www.ipw.uni-hannover.de/fileadmin/ipw/Institut_Dateien/Modulkataloge_WiSe_2026-27/MA_LG_Pol_Wi_Modulkatalog_Stand_10_26.pdf"
       }
      ]
     },
@@ -4774,7 +4918,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|religionswissenschaft-werte-und-normen-im-faecheruebergreifenden-bachelor|b.a.|2016",
-       "format": "scanned"
+       "format": "scanned",
+       "url": "https://www.irw.uni-hannover.de/fileadmin/rewi/studium/261001_Modulhandbuch_FueBA_Stand_Oktober_26.pdf"
       }
      ]
     },
@@ -4899,6 +5044,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-bachelorstudiengang-sonderpaedagogik|b.a.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -4928,6 +5074,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-bachelorstudiengang-technical-education|b.sc.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -4957,6 +5104,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-faecheruebergreifenden-bachelor|b.a.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -4986,6 +5134,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-masterstudiengang-lehramt-an-berufsbildenden-schulen-fuer-fachbachelor-lbs-sprint|m.ed.|2026",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -5015,6 +5164,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-masterstudiengang-lehramt-an-berufsbildenden-schulen|m.ed.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -5044,6 +5194,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -5073,6 +5224,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "luh|sport-im-masterstudiengang-lehramt-fuer-sonderpaedagogik|m.ed.|2016",
        "format": "phil-kv-tabelle",
+       "url": "https://www.sportwiss.uni-hannover.de/fileadmin/sportwiss/Modulhandbuch/Modulkatalog_Fach_Sport_WiSe2026-27.pdf",
        "label": "Modulkatalog der Lehramtsstudiengaenge Sport"
       }
      ]
@@ -5099,7 +5251,8 @@ enum StudySourcesData {
        "catalog_terms": [],
        "study_plan": null,
        "key": "luh|werte-und-normen-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
-       "format": "luh-modulbeschreibung"
+       "format": "luh-modulbeschreibung",
+       "url": "https://www.philos.uni-hannover.de/fileadmin/philos/Dateien/Modulkataloge/Modulkatalog_Werte_und_Normen_WiSe_2026.27.pdf"
       }
      ]
     }
@@ -5134,12 +5287,21 @@ enum StudySourcesData {
        "code": "angewandte-informatik|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|angewandte-informatik|b.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 983,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=983&idcol=k_abstgv.abstgvnr&idval=983&purge=n&getglobal=n",
+      "text": "B.Sc. Angewandte Informatik"
+     },
+     "lsf_names": [
+      "B.Sc. Angewandte Informatik"
      ]
     },
     {
@@ -5159,12 +5321,21 @@ enum StudySourcesData {
        "code": "angewandte-informatik|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|angewandte-informatik|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 985,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=985&idcol=k_abstgv.abstgvnr&idval=985&purge=n&getglobal=n",
+      "text": "M.Sc. Angewandte Informatik"
+     },
+     "lsf_names": [
+      "M.Sc. Angewandte Informatik"
      ]
     },
     {
@@ -5178,19 +5349,7 @@ enum StudySourcesData {
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669",
      "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
-     "pos": [
-      {
-       "po": "2019",
-       "code": "barrierefreie-kommunikation|m.a.|2019",
-       "source": "hildesheim-grundstock",
-       "catalog_terms": [
-        "SS 2024"
-       ],
-       "study_plan": null,
-       "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
-       "format": "hildesheim-modultabelle"
-      }
-     ]
+     "pos": []
     },
     {
      "id": "data-analytics-m-sc",
@@ -5213,9 +5372,31 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|data-analytics|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5143"
       }
+     ],
+     "lsf": {
+      "nummer": 840,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=840&idcol=k_abstgv.abstgvnr&idval=840&purge=n&getglobal=n",
+      "text": "M.Sc. Data Analytics"
+     },
+     "lsf_names": [
+      "M.Sc. Data Analytics"
      ]
+    },
+    {
+     "id": "data-science-b-sc",
+     "program": "Data Science",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Data Science"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": []
     },
     {
      "id": "deutsch-als-zweitsprache-deutsch-als-fremdsprache-m-a",
@@ -5238,8 +5419,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4867"
       }
+     ],
+     "lsf": {
+      "nummer": 680,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=680&idcol=k_abstgv.abstgvnr&idval=680&purge=n&getglobal=n",
+      "text": "M.A. Deutsch als Zweitsprache/Deutsch als Fremdsprache"
+     },
+     "lsf_names": [
+      "M.A. Deutsch als Zweitsprache/Deutsch als Fremdsprache"
      ]
     },
     {
@@ -5266,7 +5456,28 @@ enum StudySourcesData {
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5091",
      "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
-     "pos": []
+     "pos": [
+      {
+       "po": "2023",
+       "code": "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet|m.a.|2023",
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/Modulhandbuch_fuer_den_Master.pdf"
+      }
+     ],
+     "lsf": {
+      "nummer": 182,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=182&idcol=k_abstgv.abstgvnr&idval=182&purge=n&getglobal=n",
+      "text": "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     },
+     "lsf_names": [
+      "M.A. Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     ]
     },
     {
      "id": "erziehungswissenschaft-b-a",
@@ -5289,8 +5500,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|erziehungswissenschaft|b.a.|2023",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/Modulhandbuch_fuer_den_Bachelor.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 174,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=174&idcol=k_abstgv.abstgvnr&idval=174&purge=n&getglobal=n",
+      "text": "B.A. Erziehungswissenschaft"
+     },
+     "lsf_names": [
+      "B.A. Erziehungswissenschaft"
      ]
     },
     {
@@ -5323,12 +5543,22 @@ enum StudySourcesData {
        "code": "informationsmanagement-und-informationstechnologie|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 216,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=216&idcol=k_abstgv.abstgvnr&idval=216&purge=n&getglobal=n",
+      "text": "B.Sc. Informationsmanagement/-technologie"
+     },
+     "lsf_names": [
+      "B.Sc. Informationsmanagement/-technologie",
+      "B.Sc. Angewandte Informatik / Studienprogramm Informationsmanagement/Informationstechnologie"
      ]
     },
     {
@@ -5348,12 +5578,22 @@ enum StudySourcesData {
        "code": "informationsmanagement-und-informationstechnologie|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-IMIT_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 188,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=188&idcol=k_abstgv.abstgvnr&idval=188&purge=n&getglobal=n",
+      "text": "M.Sc. Informationsmanagement/-technologie"
+     },
+     "lsf_names": [
+      "M.Sc. Informationsmanagement/-technologie",
+      "M.Sc. Angewandte Informatik / Studienprogramm Informationsmanagement/Informationstechnologie"
      ]
     },
     {
@@ -5377,7 +5617,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4728"
       }
      ]
     },
@@ -5402,8 +5643,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationale-fachkommunikation-sprachen-und-technik|m.a.|2020",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4785"
       }
+     ],
+     "lsf": {
+      "nummer": 826,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=826&idcol=k_abstgv.abstgvnr&idval=826&purge=n&getglobal=n",
+      "text": "M.A. Internationale Fachkommunikation - Sprachen u. Technik"
+     },
+     "lsf_names": [
+      "M.A. Internationale Fachkommunikation - Sprachen u. Technik"
      ]
     },
     {
@@ -5427,8 +5677,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationale-kommunikation-und-uebersetzen|b.a.|2024",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5107"
       }
+     ],
+     "lsf": {
+      "nummer": 896,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=896&idcol=k_abstgv.abstgvnr&idval=896&purge=n&getglobal=n",
+      "text": "B.A. Internationale Kommunikation u. Übersetzen"
+     },
+     "lsf_names": [
+      "B.A. Internationale Kommunikation u. Übersetzen"
      ]
     },
     {
@@ -5452,8 +5711,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5209"
       }
+     ],
+     "lsf": {
+      "nummer": 911,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=911&idcol=k_abstgv.abstgvnr&idval=911&purge=n&getglobal=n",
+      "text": "B.A. Internationales Informationsmanagement - Studienvariante Digitale Sozialwissenschaften"
+     },
+     "lsf_names": [
+      "B.A. Internationales Informationsmanagement - Studienvariante Digitale Sozialwissenschaften"
      ]
     },
     {
@@ -5477,8 +5745,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5209"
       }
+     ],
+     "lsf": {
+      "nummer": 992,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=992&idcol=k_abstgv.abstgvnr&idval=992&purge=n&getglobal=n",
+      "text": "B.A. Internationales Informationsmanagement - Studienvariante Informationswissenschaft und Interkulturelle Kommunikation"
+     },
+     "lsf_names": [
+      "B.A. Internationales Informationsmanagement - Studienvariante Informationswissenschaft und Interkulturelle Kommunikation"
      ]
     },
     {
@@ -5502,8 +5779,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement-informationswissenschaft|m.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5154"
       }
+     ],
+     "lsf": {
+      "nummer": 479,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=479&idcol=k_abstgv.abstgvnr&idval=479&purge=n&getglobal=n",
+      "text": "M.A. Internationales Informationsmanagement - Informationswissenschaft"
+     },
+     "lsf_names": [
+      "M.A. Internationales Informationsmanagement - Informationswissenschaft"
      ]
     },
     {
@@ -5527,8 +5813,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5209"
       }
+     ],
+     "lsf": {
+      "nummer": 912,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=912&idcol=k_abstgv.abstgvnr&idval=912&purge=n&getglobal=n",
+      "text": "B.A. Internationales Informationsmanagement - Studienvariante Interkulturelle Sprachwissenschaft"
+     },
+     "lsf_names": [
+      "B.A. Internationales Informationsmanagement - Studienvariante Interkulturelle Sprachwissenschaft"
      ]
     },
     {
@@ -5552,8 +5847,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement-linguistik|b.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5209"
       }
+     ],
+     "lsf": {
+      "nummer": 968,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=968&idcol=k_abstgv.abstgvnr&idval=968&purge=n&getglobal=n",
+      "text": "B.A. Internationales Informationsmanagement - Studienvariante Linguistik"
+     },
+     "lsf_names": [
+      "B.A. Internationales Informationsmanagement - Studienvariante Linguistik"
      ]
     },
     {
@@ -5577,8 +5881,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5211"
       }
+     ],
+     "lsf": {
+      "nummer": 476,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=476&idcol=k_abstgv.abstgvnr&idval=476&purge=n&getglobal=n",
+      "text": "M.A. Internationales Informationsmanagement - Sprachwissenschaft und Interkulturelle Kommunikation"
+     },
+     "lsf_names": [
+      "M.A. Internationales Informationsmanagement - Sprachwissenschaft und Interkulturelle Kommunikation"
      ]
     },
     {
@@ -5602,8 +5915,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|internationales-informationsmanagement|b.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5209"
       }
+     ],
+     "lsf": {
+      "nummer": 805,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=805&idcol=k_abstgv.abstgvnr&idval=805&purge=n&getglobal=n",
+      "text": "B.A. Internationales Informationsmanagement"
+     },
+     "lsf_names": [
+      "B.A. Internationales Informationsmanagement"
      ]
     },
     {
@@ -5628,8 +5950,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5043"
       }
+     ],
+     "lsf": {
+      "nummer": 976,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=976&idcol=k_abstgv.abstgvnr&idval=976&purge=n&getglobal=n",
+      "text": "M.A. Künste und Gegenwartskulturen transdisziplinär"
+     },
+     "lsf_names": [
+      "M.A. Künste und Gegenwartskulturen transdisziplinär"
      ]
     },
     {
@@ -5654,8 +5985,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste|m.a.|2024",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5044"
       }
+     ],
+     "lsf": {
+      "nummer": 978,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=978&idcol=k_abstgv.abstgvnr&idval=978&purge=n&getglobal=n",
+      "text": "M.A. Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste"
+     },
+     "lsf_names": [
+      "M.A. Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste"
      ]
     },
     {
@@ -5680,8 +6020,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|kulturwissenschaften-und-kuenstlerische-praxis|b.a.|2022",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5109"
       }
+     ],
+     "lsf": {
+      "nummer": 941,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=941&idcol=k_abstgv.abstgvnr&idval=941&purge=n&getglobal=n",
+      "text": "B.A. Kulturwissenschaften und künstlerische Praxis"
+     },
+     "lsf_names": [
+      "B.A. Kulturwissenschaften und künstlerische Praxis"
      ]
     },
     {
@@ -5731,7 +6080,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5320"
       }
      ]
     },
@@ -5769,7 +6119,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5320"
       }
      ]
     },
@@ -5808,8 +6159,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|literarisches-schreiben-und-kulturjournalismus|b.a.|2022",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5021"
       }
+     ],
+     "lsf": {
+      "nummer": 951,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=951&idcol=k_abstgv.abstgvnr&idval=951&purge=n&getglobal=n",
+      "text": "B.A. Literarisches Schreiben und Kulturjournalismus"
+     },
+     "lsf_names": [
+      "B.A. Literarisches Schreiben und Kulturjournalismus"
      ]
     },
     {
@@ -5833,8 +6193,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|literarisches-schreiben-und-lektorieren|m.a.|2024",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5045"
       }
+     ],
+     "lsf": {
+      "nummer": 848,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=848&idcol=k_abstgv.abstgvnr&idval=848&purge=n&getglobal=n",
+      "text": "M.A. Literarisches Schreiben und Lektorieren"
+     },
+     "lsf_names": [
+      "M.A. Literarisches Schreiben und Lektorieren"
      ]
     },
     {
@@ -5848,7 +6217,28 @@ enum StudySourcesData {
      "total_lp": 180,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
      "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
-     "pos": []
+     "pos": [
+      {
+       "po": "2023",
+       "code": "medieninformatik|b.sc.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|medieninformatik|b.sc.|2023",
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-MINF_BSc_PO2023_Stand_2026.04.03.pdf"
+      }
+     ],
+     "lsf": {
+      "nummer": 994,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=994&idcol=k_abstgv.abstgvnr&idval=994&purge=n&getglobal=n",
+      "text": "B.Sc. Angewandte Informatik / Studienprogramm Medieninformatik"
+     },
+     "lsf_names": [
+      "B.Sc. Angewandte Informatik / Studienprogramm Medieninformatik"
+     ]
     },
     {
      "id": "medientext-und-medienuebersetzung-m-a",
@@ -5871,8 +6261,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5196"
       }
+     ],
+     "lsf": {
+      "nummer": 835,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=835&idcol=k_abstgv.abstgvnr&idval=835&purge=n&getglobal=n",
+      "text": "M.A. Medientext und Medienübersetzung"
+     },
+     "lsf_names": [
+      "M.A. Medientext und Medienübersetzung"
      ]
     },
     {
@@ -5896,7 +6295,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|musik-welt-kulturelle-diversitaet-in-der-musikalischen-bildung|m.a.|2018",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4607"
       }
      ]
     },
@@ -5934,8 +6334,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|philosophie-kuenste-medien|b.a.|2022",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5359"
       }
+     ],
+     "lsf": {
+      "nummer": 175,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=175&idcol=k_abstgv.abstgvnr&idval=175&purge=n&getglobal=n",
+      "text": "B.A. Philosophie - Künste - Medien"
+     },
+     "lsf_names": [
+      "B.A. Philosophie - Künste - Medien"
      ]
     },
     {
@@ -5959,8 +6368,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|philosophie-und-kuenste-interkulturell|m.a.|2024",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4717"
       }
+     ],
+     "lsf": {
+      "nummer": 729,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=729&idcol=k_abstgv.abstgvnr&idval=729&purge=n&getglobal=n",
+      "text": "M.A. Philosophie und Künste interkulturell"
+     },
+     "lsf_names": [
+      "M.A. Philosophie und Künste interkulturell"
      ]
     },
     {
@@ -5985,7 +6403,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|polyvalenter-zwei-faecher-bachelor-studiengang|b.a.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5317"
       }
      ]
     },
@@ -6011,7 +6430,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|polyvalenter-zwei-faecher-bachelor-studiengang|b.sc.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5317"
       }
      ]
     },
@@ -6036,8 +6456,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie|m.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5282"
       }
+     ],
+     "lsf": {
+      "nummer": 929,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=929&idcol=k_abstgv.abstgvnr&idval=929&purge=n&getglobal=n",
+      "text": "M.Sc. Psychologie mit Schwerpunkt Klinische Psychologie und Psychotherapie"
+     },
+     "lsf_names": [
+      "M.Sc. Psychologie mit Schwerpunkt Klinische Psychologie und Psychotherapie"
      ]
     },
     {
@@ -6074,8 +6503,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|psychologie|b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5281"
       }
+     ],
+     "lsf": {
+      "nummer": 894,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=894&idcol=k_abstgv.abstgvnr&idval=894&purge=n&getglobal=n",
+      "text": "B.Sc. Psychologie"
+     },
+     "lsf_names": [
+      "B.Sc. Psychologie"
      ]
     },
     {
@@ -6099,8 +6537,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|psychologie|m.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5283"
       }
+     ],
+     "lsf": {
+      "nummer": 723,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=723&idcol=k_abstgv.abstgvnr&idval=723&purge=n&getglobal=n",
+      "text": "M.Sc. Psychologie"
+     },
+     "lsf_names": [
+      "M.Sc. Psychologie"
      ]
     },
     {
@@ -6137,8 +6584,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|software-engineering|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5146"
       }
+     ],
+     "lsf": {
+      "nummer": 1002,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1002&idcol=k_abstgv.abstgvnr&idval=1002&purge=n&getglobal=n",
+      "text": "M.Sc. Software Engineering"
+     },
+     "lsf_names": [
+      "M.Sc. Software Engineering"
      ]
     },
     {
@@ -6162,8 +6618,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sozial-und-organisationspaedagogik|m.a.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5275"
       }
+     ],
+     "lsf": {
+      "nummer": 717,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=717&idcol=k_abstgv.abstgvnr&idval=717&purge=n&getglobal=n",
+      "text": "M.A. Sozial- und Organisationspädagogik"
+     },
+     "lsf_names": [
+      "M.A. Sozial- und Organisationspädagogik"
      ]
     },
     {
@@ -6187,8 +6652,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|soziale-dienste|m.a.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5277"
       }
+     ],
+     "lsf": {
+      "nummer": 862,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=862&idcol=k_abstgv.abstgvnr&idval=862&purge=n&getglobal=n",
+      "text": "M.A. Soziale Dienste"
+     },
+     "lsf_names": [
+      "M.A. Soziale Dienste"
      ]
     },
     {
@@ -6212,8 +6686,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sozialpaedagogik|b.a.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5273"
       }
+     ],
+     "lsf": {
+      "nummer": 1008,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1008&idcol=k_abstgv.abstgvnr&idval=1008&purge=n&getglobal=n",
+      "text": "B.A. Sozialpädagogik"
+     },
+     "lsf_names": [
+      "B.A. Sozialpädagogik"
      ]
     },
     {
@@ -6237,8 +6720,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4855"
       }
+     ],
+     "lsf": {
+      "nummer": 721,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=721&idcol=k_abstgv.abstgvnr&idval=721&purge=n&getglobal=n",
+      "text": "M.Sc. Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne"
+     },
+     "lsf_names": [
+      "M.Sc. Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne"
      ]
     },
     {
@@ -6262,8 +6754,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|szenische-kuenste|b.a.|2022",
-       "format": "hildesheim-modultabelle"
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5019"
       }
+     ],
+     "lsf": {
+      "nummer": 202,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=202&idcol=k_abstgv.abstgvnr&idval=202&purge=n&getglobal=n",
+      "text": "B.A. Szenische Künste"
+     },
+     "lsf_names": [
+      "B.A. Szenische Künste"
      ]
     },
     {
@@ -6287,8 +6788,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4853"
       }
+     ],
+     "lsf": {
+      "nummer": 913,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=913&idcol=k_abstgv.abstgvnr&idval=913&purge=n&getglobal=n",
+      "text": "M.Sc. Umwelt, Naturschutz und Nachhaltigkeit"
+     },
+     "lsf_names": [
+      "M.Sc. Umwelt, Naturschutz und Nachhaltigkeit"
      ]
     },
     {
@@ -6308,12 +6818,21 @@ enum StudySourcesData {
        "code": "umweltinformatik|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|umweltinformatik|b.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 995,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=995&idcol=k_abstgv.abstgvnr&idval=995&purge=n&getglobal=n",
+      "text": "B.Sc. Angewandte Informatik / Studienprogramm Umweltinformatik"
+     },
+     "lsf_names": [
+      "B.Sc. Angewandte Informatik / Studienprogramm Umweltinformatik"
      ]
     },
     {
@@ -6333,12 +6852,21 @@ enum StudySourcesData {
        "code": "umweltinformatik|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "WS 2024/25"
        ],
        "study_plan": null,
        "key": "hildesheim|umweltinformatik|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-UINF_PO2023-PO2024_Stand_2024.10.24.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 998,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=998&idcol=k_abstgv.abstgvnr&idval=998&purge=n&getglobal=n",
+      "text": "M.Sc. Angewandte Informatik / Studienprogramm Umweltinformatik"
+     },
+     "lsf_names": [
+      "M.Sc. Angewandte Informatik / Studienprogramm Umweltinformatik"
      ]
     },
     {
@@ -6362,7 +6890,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|umweltwissenschaft-und-naturschutz|m.sc.|2011",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=3909"
       }
      ]
     },
@@ -6383,12 +6912,21 @@ enum StudySourcesData {
        "code": "wirtschaftsinformatik|b.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 781,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=781&idcol=k_abstgv.abstgvnr&idval=781&purge=n&getglobal=n",
+      "text": "B.Sc. Wirtschaftsinformatik"
+     },
+     "lsf_names": [
+      "B.Sc. Wirtschaftsinformatik"
      ]
     },
     {
@@ -6408,12 +6946,21 @@ enum StudySourcesData {
        "code": "wirtschaftsinformatik|m.sc.|2024",
        "source": "hildesheim-grundstock",
        "catalog_terms": [
-        "WS 2023/24"
+        "SS 2026"
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-AI_PO2023-PO2024_Stand_2026.04.03.pdf"
       }
+     ],
+     "lsf": {
+      "nummer": 816,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=816&idcol=k_abstgv.abstgvnr&idval=816&purge=n&getglobal=n",
+      "text": "M.Sc. Wirtschaftsinformatik"
+     },
+     "lsf_names": [
+      "M.Sc. Wirtschaftsinformatik"
      ]
     },
     {
@@ -6437,8 +6984,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|data-analytics-advanced-track|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5144"
       }
+     ],
+     "lsf": {
+      "nummer": 1003,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1003&idcol=k_abstgv.abstgvnr&idval=1003&purge=n&getglobal=n",
+      "text": "M.Sc. Data Analytics / Advanced Track"
+     },
+     "lsf_names": [
+      "M.Sc. Data Analytics / Advanced Track"
      ]
     },
     {
@@ -6462,7 +7018,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|data-analytics-cognitive-systems|m.sc.|2024",
-       "format": "hildesheim-it-modulhandbuch"
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5145"
       }
      ]
     },
@@ -6487,8 +7044,25 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|english-applied-linguistics|b.a.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5259"
       }
+     ],
+     "lsf": {
+      "nummer": 258,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=258&idcol=k_abstgv.abstgvnr&idval=258&purge=n&getglobal=n",
+      "text": "Polyvalenter Zwei-Fächer-Bachelor (Engl. Appl. Ling.)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Englisch (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Englisch (Engl. Appl. Ling.)",
+      "Polyvalenter Zwei-Fächer-Bachelor (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Englisch (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Englisch (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Englisch (Wahlpflichtbereich) (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Englisch (Ergänzungsfach) (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Englisch (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Englisch (Wirtschaft Plus)"
      ]
     },
     {
@@ -6512,8 +7086,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sport-gesundheit-und-leistung|b.a.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5131"
       }
+     ],
+     "lsf": {
+      "nummer": 534,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=534&idcol=k_abstgv.abstgvnr&idval=534&purge=n&getglobal=n",
+      "text": "Polyvalenter Zwei-Fächer-Bachelor Sport, Gesundheit und Leistung"
+     },
+     "lsf_names": [
+      "Polyvalenter Zwei-Fächer-Bachelor Sport, Gesundheit und Leistung"
      ]
     },
     {
@@ -6537,8 +7120,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|umweltsicherung|b.sc.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5261"
       }
+     ],
+     "lsf": {
+      "nummer": 285,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=285&idcol=k_abstgv.abstgvnr&idval=285&purge=n&getglobal=n",
+      "text": "Polyvalenter Zwei-Fächer-Bachelor (Umweltsicherung)"
+     },
+     "lsf_names": [
+      "Polyvalenter Zwei-Fächer-Bachelor (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Vertiefungsbereich Umweltsicherung (Umweltsicherung)"
      ]
     },
     {
@@ -6562,8 +7155,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaft-plus|b.sc.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4671"
       }
+     ],
+     "lsf": {
+      "nummer": 866,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=866&idcol=k_abstgv.abstgvnr&idval=866&purge=n&getglobal=n",
+      "text": "Wirtschaft Vertiefung (Wirtschaft Plus)"
+     },
+     "lsf_names": [
+      "Wirtschaft Vertiefung (Wirtschaft Plus)"
      ]
     },
     {
@@ -6587,8 +7189,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5340"
       }
+     ],
+     "lsf": {
+      "nummer": 741,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=741&idcol=k_abstgv.abstgvnr&idval=741&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Biologie (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Biologie (HS)",
+      "Hauptfach im M.Ed.: Biologie (RS)"
      ]
     },
     {
@@ -6612,8 +7224,26 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5269"
       }
+     ],
+     "lsf": {
+      "nummer": 4,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=4&idcol=k_abstgv.abstgvnr&idval=4&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Biologie (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Biologie (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Biologie (Drittfach) (Umweltsicherung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Biologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie mit Vertiefung (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Biologie (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie (Wirtschaft Plus)"
      ]
     },
     {
@@ -6637,8 +7267,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5341"
       }
+     ],
+     "lsf": {
+      "nummer": 742,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=742&idcol=k_abstgv.abstgvnr&idval=742&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Chemie (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Chemie (HS)",
+      "Hauptfach im M.Ed.: Chemie (RS)"
      ]
     },
     {
@@ -6662,8 +7302,24 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5271"
       }
+     ],
+     "lsf": {
+      "nummer": 5,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=5&idcol=k_abstgv.abstgvnr&idval=5&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Chemie (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Chemie (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Chemie (Drittfach) (Umweltsicherung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Chemie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie (Umweltsicherung)"
      ]
     },
     {
@@ -6687,8 +7343,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|deutsch-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5339"
       }
+     ],
+     "lsf": {
+      "nummer": 732,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=732&idcol=k_abstgv.abstgvnr&idval=732&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Deutsch (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Deutsch (GS)"
      ]
     },
     {
@@ -6712,8 +7377,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5339"
       }
+     ],
+     "lsf": {
+      "nummer": 745,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=745&idcol=k_abstgv.abstgvnr&idval=745&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Deutsch (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Deutsch (HS)",
+      "Hauptfach im M.Ed.: Deutsch (RS)"
      ]
     },
     {
@@ -6737,8 +7412,21 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5186"
       }
+     ],
+     "lsf": {
+      "nummer": 8,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=8&idcol=k_abstgv.abstgvnr&idval=8&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Deutsch (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Deutsch (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Deutsch (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Deutsch (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Deutsch (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Deutsch (Wirtschaft Plus)"
      ]
     },
     {
@@ -6762,8 +7450,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|englisch-im-master-lehramt-an-grundschulen|m.ed.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5218"
       }
+     ],
+     "lsf": {
+      "nummer": 730,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=730&idcol=k_abstgv.abstgvnr&idval=730&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Englisch (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Englisch (GS)"
      ]
     },
     {
@@ -6787,7 +7484,43 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5218"
+      }
+     ],
+     "lsf": {
+      "nummer": 739,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=739&idcol=k_abstgv.abstgvnr&idval=739&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Englisch (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Englisch (HS)",
+      "Hauptfach im M.Ed.: Englisch (RS)"
+     ]
+    },
+    {
+     "id": "englisch-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Englisch im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Englisch"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|englisch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5259"
       }
      ]
     },
@@ -6812,8 +7545,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5325"
       }
+     ],
+     "lsf": {
+      "nummer": 731,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=731&idcol=k_abstgv.abstgvnr&idval=731&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Evangelische Religion (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Evangelische Religion (GS)"
      ]
     },
     {
@@ -6837,8 +7579,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5325"
       }
+     ],
+     "lsf": {
+      "nummer": 744,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=744&idcol=k_abstgv.abstgvnr&idval=744&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Evangelische Religion (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Evangelische Religion (HS)",
+      "Hauptfach im M.Ed.: Evangelische Religion (RS)"
      ]
     },
     {
@@ -6862,8 +7614,22 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4875"
       }
+     ],
+     "lsf": {
+      "nummer": 7,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=7&idcol=k_abstgv.abstgvnr&idval=7&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Evangelische Theologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Evangelische Theologie (Wirtschaft Plus)"
      ]
     },
     {
@@ -6887,7 +7653,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4538"
       },
       {
        "po": "2026",
@@ -6898,7 +7665,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5342"
       }
      ]
     },
@@ -6923,8 +7691,26 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5270"
       }
+     ],
+     "lsf": {
+      "nummer": 6,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=6&idcol=k_abstgv.abstgvnr&idval=6&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Geographie (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Geographie (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geographie (Drittfach) (Umweltsicherung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geographie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie mit Vertiefung (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie (Wirtschaft Plus)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geographie (Ergänzungsfach) (Engl. Appl. Ling.)"
      ]
     },
     {
@@ -6948,8 +7734,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5326"
       }
+     ],
+     "lsf": {
+      "nummer": 746,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=746&idcol=k_abstgv.abstgvnr&idval=746&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Geschichte (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Geschichte (HS)",
+      "Hauptfach im M.Ed.: Geschichte (RS)"
      ]
     },
     {
@@ -6973,7 +7769,49 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4900"
+      }
+     ],
+     "lsf": {
+      "nummer": 9,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=9&idcol=k_abstgv.abstgvnr&idval=9&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Geschichte (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte (Wirtschaft Plus)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Geschichte (Ergänzungsfach) (Umweltsicherung)"
+     ]
+    },
+    {
+     "id": "informatik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Informatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2016",
+       "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2016"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
+       "format": "hildesheim-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf"
       }
      ]
     },
@@ -6998,8 +7836,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|katholische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5327"
       }
+     ],
+     "lsf": {
+      "nummer": 733,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=733&idcol=k_abstgv.abstgvnr&idval=733&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Katholische Religion (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Katholische Religion (GS)"
      ]
     },
     {
@@ -7023,8 +7870,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5327"
       }
+     ],
+     "lsf": {
+      "nummer": 747,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=747&idcol=k_abstgv.abstgvnr&idval=747&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Katholische Religion (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Katholische Religion (HS)",
+      "Hauptfach im M.Ed.: Katholische Religion (RS)"
      ]
     },
     {
@@ -7048,8 +7905,23 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4958"
       }
+     ],
+     "lsf": {
+      "nummer": 10,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=10&idcol=k_abstgv.abstgvnr&idval=10&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Katholische Theologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Sport, Gesundheit und Leistung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Katholische Theologie (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Katholische Theologie (Wirtschaft Plus)"
      ]
     },
     {
@@ -7073,8 +7945,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|kunst-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5332"
       }
+     ],
+     "lsf": {
+      "nummer": 734,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=734&idcol=k_abstgv.abstgvnr&idval=734&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Kunst (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Kunst (GS)"
      ]
     },
     {
@@ -7098,8 +7979,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5332"
       }
+     ],
+     "lsf": {
+      "nummer": 748,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=748&idcol=k_abstgv.abstgvnr&idval=748&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Kunst (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Kunst (HS)",
+      "Hauptfach im M.Ed.: Kunst (RS)"
      ]
     },
     {
@@ -7123,8 +8014,23 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5007"
       }
+     ],
+     "lsf": {
+      "nummer": 11,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=11&idcol=k_abstgv.abstgvnr&idval=11&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Kunst (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Kunst (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Kunst (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Kunst (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Kunst (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Kunst (Sport, Gesundheit und Leistung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Kunst (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Kunst (Wirtschaft Plus)"
      ]
     },
     {
@@ -7148,8 +8054,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|mathematik-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5344"
       }
+     ],
+     "lsf": {
+      "nummer": 736,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=736&idcol=k_abstgv.abstgvnr&idval=736&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Mathematik (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Mathematik (GS)"
      ]
     },
     {
@@ -7173,8 +8088,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5344"
       }
+     ],
+     "lsf": {
+      "nummer": 750,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=750&idcol=k_abstgv.abstgvnr&idval=750&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Mathematik (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Mathematik (HS)",
+      "Hauptfach im M.Ed.: Mathematik (RS)"
      ]
     },
     {
@@ -7198,7 +8123,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4208"
       },
       {
        "po": "2025",
@@ -7209,7 +8135,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5268"
       }
      ]
     },
@@ -7234,8 +8161,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|musik-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5333"
       }
+     ],
+     "lsf": {
+      "nummer": 737,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=737&idcol=k_abstgv.abstgvnr&idval=737&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Musik (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Musik (GS)"
      ]
     },
     {
@@ -7259,8 +8195,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5333"
       }
+     ],
+     "lsf": {
+      "nummer": 751,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=751&idcol=k_abstgv.abstgvnr&idval=751&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Musik (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Musik (HS)",
+      "Hauptfach im M.Ed.: Musik (RS)"
      ]
     },
     {
@@ -7284,8 +8230,22 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4257"
       }
+     ],
+     "lsf": {
+      "nummer": 14,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=14&idcol=k_abstgv.abstgvnr&idval=14&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Musik (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Musik (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Musik (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Musik (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Musik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Musik (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Musik (Wirtschaft Plus)"
      ]
     },
     {
@@ -7309,7 +8269,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|paedagogik-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5330"
       }
      ]
     },
@@ -7334,7 +8295,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|paedagogik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5330"
       }
      ]
     },
@@ -7359,8 +8321,19 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4858"
       }
+     ],
+     "lsf": {
+      "nummer": 464,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=464&idcol=k_abstgv.abstgvnr&idval=464&purge=n&getglobal=n",
+      "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (Umweltsicherung)"
+     },
+     "lsf_names": [
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (Umweltsicherung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Pädagogik (Ergänzungsfach) (Engl. Appl. Ling.)"
      ]
     },
     {
@@ -7384,8 +8357,19 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5338"
       }
+     ],
+     "lsf": {
+      "nummer": 15,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=15&idcol=k_abstgv.abstgvnr&idval=15&purge=n&getglobal=n",
+      "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Wahlpflichtfach) (Lehramt)"
+     },
+     "lsf_names": [
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Wahlpflichtfach) (Lehramt)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Philosophie (Ergänzungsfach) (Engl. Appl. Ling.)"
      ]
     },
     {
@@ -7409,7 +8393,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4539"
       },
       {
        "po": "2026",
@@ -7420,7 +8405,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5345"
       }
      ]
     },
@@ -7445,8 +8431,23 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5092"
       }
+     ],
+     "lsf": {
+      "nummer": 16,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=16&idcol=k_abstgv.abstgvnr&idval=16&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Physik (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Physik (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Physik (Ergänzungsfach) (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik (Sport, Gesundheit und Leistung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Physik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik (Wirtschaft Plus)"
      ]
     },
     {
@@ -7470,8 +8471,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5328"
       }
+     ],
+     "lsf": {
+      "nummer": 753,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=753&idcol=k_abstgv.abstgvnr&idval=753&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Politikwissenschaft (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Politikwissenschaft (HS)",
+      "Hauptfach im M.Ed.: Politikwissenschaft (RS)"
      ]
     },
     {
@@ -7495,8 +8506,25 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5335"
       }
+     ],
+     "lsf": {
+      "nummer": 17,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=17&idcol=k_abstgv.abstgvnr&idval=17&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Wahlpflichtfach) (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Sport, Gesundheit und Leistung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Politikwissenschaft (Ergänzungsfach) (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft (Wirtschaft Plus)"
      ]
     },
     {
@@ -7520,7 +8548,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|psychologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5329"
       }
      ]
     },
@@ -7545,7 +8574,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|psychologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5329"
       }
      ]
     },
@@ -7570,8 +8600,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4895"
       }
+     ],
+     "lsf": {
+      "nummer": 560,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=560&idcol=k_abstgv.abstgvnr&idval=560&purge=n&getglobal=n",
+      "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Psychologie (Ergänzungsfach) (Umweltsicherung)"
+     },
+     "lsf_names": [
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Psychologie (Ergänzungsfach) (Umweltsicherung)"
      ]
     },
     {
@@ -7595,8 +8634,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sachunterricht-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5334"
       }
+     ],
+     "lsf": {
+      "nummer": 738,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=738&idcol=k_abstgv.abstgvnr&idval=738&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Sachunterricht (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Sachunterricht (GS)"
      ]
     },
     {
@@ -7620,8 +8668,41 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4941"
       }
+     ],
+     "lsf": {
+      "nummer": 20,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=20&idcol=k_abstgv.abstgvnr&idval=20&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft und Sachunterricht (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik und Sachunterricht (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik und Sachunterricht (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Biologie und Sachunterricht (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Physik und Sachunterricht (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Politikwissenschaft und Sachunterricht (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Chemie und Sachunterricht (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Geographie und Sachunterricht (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Geschichte und Sachunterricht (Wirtschaft Plus)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik und Sachunterricht (Wirtschaft Plus)"
      ]
     },
     {
@@ -7645,8 +8726,20 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5336"
       }
+     ],
+     "lsf": {
+      "nummer": 192,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=192&idcol=k_abstgv.abstgvnr&idval=192&purge=n&getglobal=n",
+      "text": "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Wahlpflichtfach) (Lehramt)"
+     },
+     "lsf_names": [
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Wahlpflichtfach) (Lehramt)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Soziologie (Ergänzungsfach) (Umweltsicherung)"
      ]
     },
     {
@@ -7670,8 +8763,17 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sport-im-master-lehramt-an-grundschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5331"
       }
+     ],
+     "lsf": {
+      "nummer": 735,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=735&idcol=k_abstgv.abstgvnr&idval=735&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Sport (GS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Sport (GS)"
      ]
     },
     {
@@ -7695,8 +8797,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5331"
       }
+     ],
+     "lsf": {
+      "nummer": 749,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=749&idcol=k_abstgv.abstgvnr&idval=749&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Sport (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Sport (HS)",
+      "Hauptfach im M.Ed.: Sport (RS)"
      ]
     },
     {
@@ -7720,7 +8832,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4271"
       },
       {
        "po": "2022",
@@ -7731,7 +8844,8 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5204"
       }
      ]
     },
@@ -7756,8 +8870,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5346"
       }
+     ],
+     "lsf": {
+      "nummer": 754,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=754&idcol=k_abstgv.abstgvnr&idval=754&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Technik (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Technik (HS)",
+      "Hauptfach im M.Ed.: Technik (RS)"
      ]
     },
     {
@@ -7781,8 +8905,23 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4906"
       }
+     ],
+     "lsf": {
+      "nummer": 19,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=19&idcol=k_abstgv.abstgvnr&idval=19&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Technik (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Technik (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Technik (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Technik (Ergänzungsfach) (Umweltsicherung)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik (Sport, Gesundheit und Leistung)",
+      "Hauptfach im 2-Fächer-Bachelor: Technik (Wirtschaft Plus)"
      ]
     },
     {
@@ -7806,8 +8945,18 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5347"
       }
+     ],
+     "lsf": {
+      "nummer": 740,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=740&idcol=k_abstgv.abstgvnr&idval=740&purge=n&getglobal=n",
+      "text": "Hauptfach im M.Ed.: Wirtschaft (HS)"
+     },
+     "lsf_names": [
+      "Hauptfach im M.Ed.: Wirtschaft (HS)",
+      "Hauptfach im M.Ed.: Wirtschaft (RS)"
      ]
     },
     {
@@ -7831,8 +8980,1355 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
-       "format": "hildesheim-modulbeschreibung"
+       "format": "hildesheim-modulbeschreibung",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4254"
       }
+     ],
+     "lsf": {
+      "nummer": 3,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=3&idcol=k_abstgv.abstgvnr&idval=3&purge=n&getglobal=n",
+      "text": "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Lehramt)"
+     },
+     "lsf_names": [
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Lehramt)",
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Engl. Appl. Ling.)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Wirtschaftswissenschaft (Ergänzungsfach) (Umweltsicherung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Wirtschaft (Wahlpflichtfach/Ergänzungsfach) (individuell)",
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Sport, Gesundheit und Leistung)",
+      "Wahlpflicht-/Ergänzungs-/Vertiefungsfach 2-Fächer-Bachelor: Wirtschaft (Ergänzungsfach) (Engl. Appl. Ling.)",
+      "Hauptfach im 2-Fächer-Bachelor: Wirtschaft (Wirtschaft Plus)"
+     ]
+    },
+    {
+     "id": "nebenfach-bachelor-internationales-informationsmanagement-mit-dem-schwerpunkt-angewandte-sprachwissenschaften",
+     "program": "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 251,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=251&idcol=k_abstgv.abstgvnr&idval=251&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften"
+     ]
+    },
+    {
+     "id": "nebenfach-bachelor-internationales-informationsmanagement-mit-dem-schwerpunkt-angewandte-informationswissenschaften",
+     "program": "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 252,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=252&idcol=k_abstgv.abstgvnr&idval=252&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften"
+     ]
+    },
+    {
+     "id": "nebenfach-bildende-kunst",
+     "program": "Bildende Kunst",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 537,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=537&idcol=k_abstgv.abstgvnr&idval=537&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Bildende Kunst (PKM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Bildende Kunst (PKM)",
+      "Nebenfach (Bachelor): Bildende Kunst (SK)",
+      "Nebenfach (Master): Bildende Kunst (PKM)",
+      "Nebenfach (Bachelor): Bildende Kunst (KKP)",
+      "Nebenfach (Bachelor): Bildende Kunst (LSK)",
+      "Nebenfach (Master): Bildende Kunst (KGT)",
+      "Nebenfach (Master): Bildende Kunst (KKT)"
+     ]
+    },
+    {
+     "id": "nebenfach-musik",
+     "program": "Musik",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 541,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=541&idcol=k_abstgv.abstgvnr&idval=541&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Musik (PKM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Musik (PKM)",
+      "Nebenfach (Bachelor): Musik (SK)",
+      "Nebenfach (Master): Musik (PKM)",
+      "Nebenfach (Bachelor): Musik (KKP)",
+      "Nebenfach (Bachelor): Musik (LSK)",
+      "Nebenfach (Master): Musik (KGT)",
+      "Nebenfach (Master): Musik (KKT)"
+     ]
+    },
+    {
+     "id": "nebenfach-philosophie",
+     "program": "Philosophie",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 544,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=544&idcol=k_abstgv.abstgvnr&idval=544&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Philosophie (SK)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Philosophie (SK)",
+      "Nebenfach (Master): Philosophie (MI+)",
+      "Nebenfach (Bachelor): Philosophie (LSK)"
+     ]
+    },
+    {
+     "id": "nebenfach-medien",
+     "program": "Medien",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 547,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=547&idcol=k_abstgv.abstgvnr&idval=547&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Medien (PKM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Medien (PKM)",
+      "Nebenfach (Bachelor): Medien (SK)",
+      "Nebenfach (Bachelor): Medien (KKP)",
+      "Nebenfach (Bachelor): Medien (LSK)"
+     ]
+    },
+    {
+     "id": "nebenfach-theater",
+     "program": "Theater",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 551,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=551&idcol=k_abstgv.abstgvnr&idval=551&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Theater (PKM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Theater (PKM)",
+      "Nebenfach (Bachelor): Theater (SK)",
+      "Nebenfach (Master): Theater (PKM)",
+      "Nebenfach (Bachelor): Theater (KKP)",
+      "Nebenfach (Bachelor): Theater (LSK)",
+      "Nebenfach (Master): Theater (KGT)",
+      "Nebenfach (Master): Theater (KKT)"
+     ]
+    },
+    {
+     "id": "nebenfach-literatur",
+     "program": "Literatur",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 554,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=554&idcol=k_abstgv.abstgvnr&idval=554&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Literatur (PKM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Literatur (PKM)",
+      "Nebenfach (Bachelor): Literatur (SK)",
+      "Nebenfach (Master): Literatur (PKM)",
+      "Nebenfach (Bachelor): Literatur (KKP)",
+      "Nebenfach (Master): Literatur (KKT)"
+     ]
+    },
+    {
+     "id": "nebenfach-kulturpolitik",
+     "program": "Kulturpolitik",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 556,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=556&idcol=k_abstgv.abstgvnr&idval=556&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Kulturpolitik (SK)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Kulturpolitik (SK)",
+      "Nebenfach (Bachelor): Kulturpolitik (LSK)"
+     ]
+    },
+    {
+     "id": "nebenfach-englisch-begleitfach",
+     "program": "Englisch (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 578,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=578&idcol=k_abstgv.abstgvnr&idval=578&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Englisch (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Englisch (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-biologie-begleitfach",
+     "program": "Biologie (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 579,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=579&idcol=k_abstgv.abstgvnr&idval=579&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Biologie (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Biologie (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-chemie-begleitfach",
+     "program": "Chemie (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 580,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=580&idcol=k_abstgv.abstgvnr&idval=580&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Chemie (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Chemie (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-geographie-begleitfach",
+     "program": "Geographie (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 581,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=581&idcol=k_abstgv.abstgvnr&idval=581&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Geographie (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Geographie (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-evangelische-theologie-begleitfach",
+     "program": "Evangelische Theologie (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 582,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=582&idcol=k_abstgv.abstgvnr&idval=582&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Evangelische Theologie (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Evangelische Theologie (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-geschichte-begleitfach",
+     "program": "Geschichte (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 583,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=583&idcol=k_abstgv.abstgvnr&idval=583&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Geschichte (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Geschichte (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-katholische-theologie-begleitfach",
+     "program": "Katholische Theologie (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 584,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=584&idcol=k_abstgv.abstgvnr&idval=584&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Katholische Theologie (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Katholische Theologie (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-kunst-begleitfach",
+     "program": "Kunst (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 585,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=585&idcol=k_abstgv.abstgvnr&idval=585&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Kunst (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Kunst (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-sport-begleitfach",
+     "program": "Sport (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 586,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=586&idcol=k_abstgv.abstgvnr&idval=586&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Sport (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Sport (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-musik-begleitfach",
+     "program": "Musik (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 587,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=587&idcol=k_abstgv.abstgvnr&idval=587&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Musik (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Musik (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-philosophie-begleitfach",
+     "program": "Philosophie (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 588,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=588&idcol=k_abstgv.abstgvnr&idval=588&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Philosophie (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Philosophie (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-politikwissenschaft-begleitfach",
+     "program": "Politikwissenschaft (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 589,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=589&idcol=k_abstgv.abstgvnr&idval=589&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Politikwissenschaft (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Politikwissenschaft (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-sachunterricht-begleitfach",
+     "program": "Sachunterricht (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 590,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=590&idcol=k_abstgv.abstgvnr&idval=590&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Sachunterricht (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Sachunterricht (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-technik-begleitfach",
+     "program": "Technik (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 592,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=592&idcol=k_abstgv.abstgvnr&idval=592&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Technik (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Technik (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-betriebswirtschaftslehre-begleitfach",
+     "program": "Betriebswirtschaftslehre (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 610,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=610&idcol=k_abstgv.abstgvnr&idval=610&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Betriebswirtschaftslehre (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Betriebswirtschaftslehre (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-biologie-nebenfach",
+     "program": "Biologie (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 633,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=633&idcol=k_abstgv.abstgvnr&idval=633&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Biologie (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Biologie (Nebenfach) (I+)"
+     ]
+    },
+    {
+     "id": "nebenfach-betriebswirtschaftslehre",
+     "program": "Betriebswirtschaftslehre",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 637,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=637&idcol=k_abstgv.abstgvnr&idval=637&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Betriebswirtschaftslehre (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Betriebswirtschaftslehre (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-sozialwissenschaften",
+     "program": "Sozialwissenschaften",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 639,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=639&idcol=k_abstgv.abstgvnr&idval=639&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Sozialwissenschaften (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Sozialwissenschaften (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-informationstechnologie",
+     "program": "Informationstechnologie",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 640,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=640&idcol=k_abstgv.abstgvnr&idval=640&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Informationstechnologie (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Informationstechnologie (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-interkulturelle-kommunikation-nebenfach",
+     "program": "Interkulturelle Kommunikation (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 782,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=782&idcol=k_abstgv.abstgvnr&idval=782&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Interkulturelle Kommunikation (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Interkulturelle Kommunikation (Nebenfach) (I+)"
+     ]
+    },
+    {
+     "id": "nebenfach-betriebswirtschaftslehre-nebenfach",
+     "program": "Betriebswirtschaftslehre (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 783,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=783&idcol=k_abstgv.abstgvnr&idval=783&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Betriebswirtschaftslehre (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-geschichte-nebenfach",
+     "program": "Geschichte (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 787,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=787&idcol=k_abstgv.abstgvnr&idval=787&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Geschichte (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Geschichte (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Geschichte (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Geschichte (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-musik-nebenfach",
+     "program": "Musik (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 788,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=788&idcol=k_abstgv.abstgvnr&idval=788&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Musik (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Musik (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Musik (Nebenfach) (IKS)"
+     ]
+    },
+    {
+     "id": "nebenfach-philosophie-nebenfach",
+     "program": "Philosophie (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 789,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=789&idcol=k_abstgv.abstgvnr&idval=789&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Philosophie (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Philosophie (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Philosophie (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Philosophie (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-politikwissenschaft-nebenfach",
+     "program": "Politikwissenschaft (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 791,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=791&idcol=k_abstgv.abstgvnr&idval=791&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Politikwissenschaft (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-medienwissenschaft-nebenfach",
+     "program": "Medienwissenschaft (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 792,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=792&idcol=k_abstgv.abstgvnr&idval=792&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Medienwissenschaft (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-informationswissenschaft-nebenfach",
+     "program": "Informationswissenschaft (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 795,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=795&idcol=k_abstgv.abstgvnr&idval=795&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Informationswissenschaft (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Informationswissenschaft (Nebenfach) (I+)"
+     ]
+    },
+    {
+     "id": "nebenfach-informationstechnologie-nebenfach",
+     "program": "Informationstechnologie (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 796,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=796&idcol=k_abstgv.abstgvnr&idval=796&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Informationstechnologie (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-psychologie-nebenfach",
+     "program": "Psychologie (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 797,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=797&idcol=k_abstgv.abstgvnr&idval=797&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Psychologie (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Psychologie (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Psychologie (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Psychologie (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-literatur-und-aesthetische-kommunikation-nebenfach",
+     "program": "Literatur und ästhetische Kommunikation (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 799,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=799&idcol=k_abstgv.abstgvnr&idval=799&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Literatur und ästhetische Kommunikation (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Literatur und ästhetische Kommunikation (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Literatur und ästhetische Kommunikation (Nebenfach) (IKS)"
+     ]
+    },
+    {
+     "id": "nebenfach-medien-und-populaere-kultur",
+     "program": "Medien und Populäre Kultur",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 813,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=813&idcol=k_abstgv.abstgvnr&idval=813&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Medien und Populäre Kultur (PKM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Medien und Populäre Kultur (PKM)"
+     ]
+    },
+    {
+     "id": "nebenfach-uebersetzungswissenschaft-nebenfach",
+     "program": "Übersetzungswissenschaft (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 829,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=829&idcol=k_abstgv.abstgvnr&idval=829&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (I+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (I+)",
+      "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Übersetzungswissenschaft (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-psychologie",
+     "program": "Psychologie",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 833,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=833&idcol=k_abstgv.abstgvnr&idval=833&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Psychologie (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Psychologie (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-bachelor-keine-studienvariante",
+     "program": "Bachelor keine Studienvariante",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 853,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=853&idcol=k_abstgv.abstgvnr&idval=853&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Bachelor keine Studienvariante"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Bachelor keine Studienvariante"
+     ]
+    },
+    {
+     "id": "nebenfach-master-keine-studienvariante",
+     "program": "Master keine Studienvariante",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 854,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=854&idcol=k_abstgv.abstgvnr&idval=854&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Master keine Studienvariante"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Master keine Studienvariante"
+     ]
+    },
+    {
+     "id": "nebenfach-schwerpunkt-klinische-psychologie-msc-psychologie",
+     "program": "Schwerpunkt Klinische Psychologie (MSc Psychologie)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 855,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=855&idcol=k_abstgv.abstgvnr&idval=855&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Schwerpunkt Klinische Psychologie (MSc Psychologie) (PSY)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Schwerpunkt Klinische Psychologie (MSc Psychologie) (PSY)"
+     ]
+    },
+    {
+     "id": "nebenfach-schwerpunkt-paedagogische-psychologie-msc-psychologie",
+     "program": "Schwerpunkt Pädagogische Psychologie (MSc Psychologie)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 856,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=856&idcol=k_abstgv.abstgvnr&idval=856&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Schwerpunkt Pädagogische Psychologie (MSc Psychologie) (PSY)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Schwerpunkt Pädagogische Psychologie (MSc Psychologie) (PSY)"
+     ]
+    },
+    {
+     "id": "nebenfach-schwerpunkt-rechtspsychologie-msc-psychologie",
+     "program": "Schwerpunkt Rechtspsychologie (MSc Psychologie)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 857,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=857&idcol=k_abstgv.abstgvnr&idval=857&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Schwerpunkt Rechtspsychologie (MSc Psychologie) (PSY)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Schwerpunkt Rechtspsychologie (MSc Psychologie) (PSY)"
+     ]
+    },
+    {
+     "id": "nebenfach-politikwissenschaft",
+     "program": "Politikwissenschaft",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 903,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=903&idcol=k_abstgv.abstgvnr&idval=903&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Politikwissenschaft (DIS)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Politikwissenschaft (DIS)"
+     ]
+    },
+    {
+     "id": "nebenfach-soziologie",
+     "program": "Soziologie",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 907,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=907&idcol=k_abstgv.abstgvnr&idval=907&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Soziologie (DIS)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Soziologie (DIS)"
+     ]
+    },
+    {
+     "id": "nebenfach-soziologie-nebenfach",
+     "program": "Soziologie (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 908,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=908&idcol=k_abstgv.abstgvnr&idval=908&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Soziologie (Nebenfach) (IKS)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Soziologie (Nebenfach) (IKS)",
+      "Nebenfach (Bachelor): Soziologie (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-musikwissenschaft-nebenfach",
+     "program": "Musikwissenschaft (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 920,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=920&idcol=k_abstgv.abstgvnr&idval=920&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Musikwissenschaft (Nebenfach) (IIM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Musikwissenschaft (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-literatur-nebenfach",
+     "program": "Literatur (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 926,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=926&idcol=k_abstgv.abstgvnr&idval=926&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Literatur (Nebenfach) (IIM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Literatur (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-physik-begleitfach",
+     "program": "Physik (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 937,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=937&idcol=k_abstgv.abstgvnr&idval=937&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Physik (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Physik (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-film-und-bewegtbild",
+     "program": "Film und Bewegtbild",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 964,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=964&idcol=k_abstgv.abstgvnr&idval=964&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Film und Bewegtbild (KKP)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Film und Bewegtbild (KKP)",
+      "Nebenfach (Bachelor): Film und Bewegtbild (LSK)",
+      "Nebenfach (Bachelor): Film und Bewegtbild (SK)",
+      "Nebenfach (Bachelor): Film und Bewegtbild (PKM)"
+     ]
+    },
+    {
+     "id": "nebenfach-interkulturelle-kommunikation-begleitfach",
+     "program": "Interkulturelle Kommunikation (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 967,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=967&idcol=k_abstgv.abstgvnr&idval=967&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Interkulturelle Kommunikation (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Interkulturelle Kommunikation (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-film-und-populaere-kultur",
+     "program": "Film und Populäre Kultur",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 979,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=979&idcol=k_abstgv.abstgvnr&idval=979&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Film und Populäre Kultur (KGT)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Film und Populäre Kultur (KGT)",
+      "Nebenfach (Master): Film und Populäre Kultur (KKT)"
+     ]
+    },
+    {
+     "id": "nebenfach-physik-nebenfach",
+     "program": "Physik (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 988,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=988&idcol=k_abstgv.abstgvnr&idval=988&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Physik (Nebenfach) (IIM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Physik (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-technik-nebenfach",
+     "program": "Technik (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 989,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=989&idcol=k_abstgv.abstgvnr&idval=989&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Technik (Nebenfach) (IIM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Technik (Nebenfach) (IIM)"
+     ]
+    },
+    {
+     "id": "nebenfach-englisch-bilinguales-lehren-und-lernen-begleitfach",
+     "program": "Englisch/Bilinguales Lehren und Lernen (Begleitfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 990,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=990&idcol=k_abstgv.abstgvnr&idval=990&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Englisch/Bilinguales Lehren und Lernen (Begleitfach) (BES)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Englisch/Bilinguales Lehren und Lernen (Begleitfach) (BES)"
+     ]
+    },
+    {
+     "id": "nebenfach-uebersetzungswissenschaft",
+     "program": "Übersetzungswissenschaft",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 996,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=996&idcol=k_abstgv.abstgvnr&idval=996&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Übersetzungswissenschaft (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Übersetzungswissenschaft (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-informationswissenschaft",
+     "program": "Informationswissenschaft",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 997,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=997&idcol=k_abstgv.abstgvnr&idval=997&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Informationswissenschaft (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Informationswissenschaft (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-politikwissenschaft-psychologie-soziologie-kompakt",
+     "program": "Politikwissenschaft - Psychologie - Soziologie - kompakt",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 1004,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1004&idcol=k_abstgv.abstgvnr&idval=1004&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Politikwissenschaft - Psychologie - Soziologie - kompakt (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Politikwissenschaft - Psychologie - Soziologie - kompakt (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-sprachwissenschaft-und-interkulturelle-kommunikation",
+     "program": "Sprachwissenschaft und Interkulturelle Kommunikation",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 1005,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1005&idcol=k_abstgv.abstgvnr&idval=1005&purge=n&getglobal=n",
+      "text": "Nebenfach (Master): Sprachwissenschaft und Interkulturelle Kommunikation (MI+)"
+     },
+     "lsf_names": [
+      "Nebenfach (Master): Sprachwissenschaft und Interkulturelle Kommunikation (MI+)"
+     ]
+    },
+    {
+     "id": "nebenfach-film-und-bewegtbild-nebenfach",
+     "program": "Film und Bewegtbild (Nebenfach)",
+     "degree": "Nebenfach",
+     "kind": "nebenfach",
+     "qis_names": [],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": null,
+     "pos": [],
+     "lsf": {
+      "nummer": 1006,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=1006&idcol=k_abstgv.abstgvnr&idval=1006&purge=n&getglobal=n",
+      "text": "Nebenfach (Bachelor): Film und Bewegtbild (Nebenfach) (IIM)"
+     },
+     "lsf_names": [
+      "Nebenfach (Bachelor): Film und Bewegtbild (Nebenfach) (IIM)"
      ]
     }
    ]
@@ -7871,6 +10367,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|angewandte-informatik|b.sc.|bin|2019",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/Informatik/Modulhandbuecher/2024-04-29-modules-BIN-19WS-DE.pdf",
        "label": "Modulverzeichnis (Stand 29.04.2024 für Prüfungsordnung 2019-WS)"
       }
      ]
@@ -7897,6 +10394,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|angewandte-informatik|m.sc.|min|2020",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/Informatik/Modulhandbuecher/2024-04-29-modules-MIN-20WS-DE.pdf",
        "label": "Modulverzeichnis (Stand 29.04.2024 für Prüfungsordnung 2020-WS)"
       }
      ]
@@ -7955,6 +10453,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|betriebswirtschaftslehre|b.sc.|bba|2018",
        "format": "hsh-code-kopf",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/BWL/Ordnungen/Modulhandbuch_neue_PO_Module_BBA_Stand_21.08.2026.pdf",
        "label": "Modulhandbuch (PO 2018)"
       }
      ]
@@ -7983,6 +10482,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|bildungswissenschaften-fuer-pflege-und-gesundheitsberufe|m.a.|mbg",
        "format": "hsh-modultitel",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Master/MGB__MBG__MMG/Mudulhandbuecher/07.4-MBG_Modulhandbuch_Stand_01.09.2026.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -8009,6 +10509,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|biotechnologie-und-umwelttechnik|b.eng.|biu",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Studiengaenge/Modulhandbuch_Biotechnologie_und_Umwelttechnik.pdf",
        "label": "Modulhandbuch BIU"
       }
      ]
@@ -8035,6 +10536,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|design-und-medien|m.a.|mdm|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_MDM_PO_2022_23.pdf",
        "label": "Modulhandbuch Master-Studiengang Design und Medien"
       }
      ]
@@ -8061,6 +10563,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|digitale-transformation|m.sc.|mdt|2018",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/05-MDT-Modulhandbuch-PO2018.pdf",
        "label": "Modulhandbuch PO 2018"
       },
       {
@@ -8071,6 +10574,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|digitale-transformation|m.sc.|mdt|2021",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/05-MDT-Studien-Modulhandbuch-PO2021-240317.pdf",
        "label": "Studien- und Modulhandbuch"
       }
      ]
@@ -8128,6 +10632,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|erweiterte-pflegepraxis-advanced-nursing-practice-anp-community-health-nursing-chn|m.sc.|mep",
        "format": "hsh-modultitel",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Master/MEP/Modulhandbuecher/20261030_Modulhandbuch__Master_ANP_CHN.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -8156,6 +10661,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|fernsehjournalismus-und-dokumentarfilm|m.a.|mtv|2022",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_MTV_ab_WiSe_22_23.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -8197,6 +10703,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|future-food-systems|b.eng.|lvt",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Studiengaenge/Modulhandbuch_Future_Food_Systems.pdf",
        "label": "Modulhandbuch LVT"
       }
      ]
@@ -8223,6 +10730,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|future-food-systems|m.eng.|mlv|2025",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Studiengaenge/Modulhandbuch_Future_Food_Systems.pdf",
        "label": "Modulhanbuch: Future Food Systems - Lebensmitteltechnologie und Verpackungstechnologie (LVT) (PO 2025)"
       }
      ]
@@ -8263,6 +10771,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|green-engineering-energietechnik-und-verfahrenstechnik|b.eng.|gev",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Studium/Studiengaenge/GEV/Modulbeschreibung_Maschinenbau_nicht_dual_2025-09-19.pdf",
        "label": "Entwurf Modulbeschreibung"
       }
      ]
@@ -8291,6 +10800,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|heilpaedagogik-inklusive-bildung-und-begleitung-berufsbegleitend|b.a.|hbi",
        "format": "hsh-modul-code",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Modulhandbuch_HBI_Stand_23.08.2023.pdf",
        "label": "Studienbeginn 2021-2023"
       }
      ]
@@ -8334,6 +10844,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|informationsmanagement|b.a.|bim|2024",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BIM_ab_WiSe_24_25.pdf",
        "label": "ab WiSe 2024/25"
       },
       {
@@ -8346,6 +10857,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|informationsmanagement|b.a.|bim|2026",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BIM_ab_WiSe_26_27.pdf",
        "label": "Modulhandbuch ab WiSe 26/27"
       }
      ]
@@ -8374,6 +10886,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|informationsmanagement-berufsbegleitend|b.a.|bib|2024",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BIB_ab_WiSe_24_25.pdf",
        "label": "ab WiSe 2024/25"
       },
       {
@@ -8386,6 +10899,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|informationsmanagement-berufsbegleitend|b.a.|bib|2026",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BIB_ab_WiSe_26_27.pdf",
        "label": "ab WiSe 26/27"
       }
      ]
@@ -8414,6 +10928,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|ingenieurinformatik-maschinenbau|b.eng.|iim|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/IIM-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Ingenieurinformatik Maschinenbau IIM (PO ab WS2019)"
       }
      ]
@@ -8442,6 +10957,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|sensor-und-automatisierungstechnik|m.eng.|esa|2025",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/ESA-Modulhandbuch_PO_WS_2025-26.pdf",
        "label": "Modulhandbuch ESA, PO 2025/26"
       }
      ]
@@ -8470,6 +10986,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mechatronik|b.eng.|mec|2023",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/Modulhandbuch_MEC_WS2023_V3.pdf",
        "label": "Online-Modulhandbuch"
       },
       {
@@ -8482,6 +10999,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mechatronik|b.eng.|mec|2026",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/Modulhandbuch_MEC_WS2026.pdf",
        "label": "Online-Modulhanbuch"
       }
      ]
@@ -8510,6 +11028,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|technisches-informationsdesign-und-technische-redaktion|b.sc.|itr|2025",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/Modulhandbuch_1202_75_ITR_WS2025_final.pdf",
        "label": "Modulkatalog"
       }
      ]
@@ -8538,6 +11057,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|nachhaltige-elektrische-energieversorgung|b.eng.|nev|2025",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/Modulhandbuch_NEV_WS2025_Stand_15.04.2025_01.pdf",
        "label": "Modulhandbuch NEV"
       }
      ]
@@ -8566,6 +11086,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieur-elektrotechnik|b.eng.|ewi|2018",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/2018_2_Modulhandbuch_EWI.pdf",
        "label": "Modulhandbuch EWI"
       },
       {
@@ -8578,6 +11099,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieur-elektrotechnik|b.eng.|ewi|2025",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/Modulhandbuch_EWI_WS2025_Stand_15.04.2025_01.pdf",
        "label": "Modulhandbuch EWI (PO WS 2025/26)"
       }
      ]
@@ -8606,6 +11128,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2010",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WIM-WS2010-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Wirtschaftsingenieur Maschinenbau WIM (PO ab WS2010)"
       },
       {
@@ -8618,6 +11141,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2016",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WIM-WS2016-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Wirtschaftsingenieur Maschinenbau WIM (PO ab WS2016)"
       },
       {
@@ -8630,6 +11154,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WIM-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Wirtschaftsingenieur Maschinenbau WIM (PO ab WS2019)"
       }
      ]
@@ -8658,6 +11183,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau-entwicklung|m.eng.|med|2010",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MED-WS2010-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Maschinenbau-Entwicklung MED (PO ab WS2010)"
       }
      ]
@@ -8684,6 +11210,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|milch-und-verpackungswirtschaft|m.eng.|mmv|2011",
        "format": "hsh-modul-code",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/Modulhandbuch_MMV_19.07.11.pdf",
        "label": "Modulhandbuch: Milch- und Verpackungswirtschaft MMV (PO ab WS2011)"
       }
      ]
@@ -8710,6 +11237,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|lebensmittelverpackungstechnologie|b.eng.|lmv|2011",
        "format": "hsh-modul-code",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/LMV_20102.pdf",
        "label": "Modulhandbuch: Lebensmittelverpackungstechnologie LMV (PO ab WS2011)"
       }
      ]
@@ -8736,6 +11264,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|milchwirtschaftliche-lebensmitteltechnologie|b.eng.|bml|2011",
        "format": "hsh-modul-code",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/BML_20102.pdf",
        "label": "Modulhandbuch: Milchwirtschaftliche Lebensmitteltechnologie BML (PO ab WS2011)"
       }
      ]
@@ -8762,6 +11291,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|technologie-nachwachsender-rohstoffe|b.eng.|tnr|2011",
        "format": "hsh-modul-code",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/TNR_20102.pdf",
        "label": "Modulhandbuch: Technologie Nachwachsender Rohstoffe TNR (PO ab WS2011)"
       }
      ]
@@ -8790,6 +11320,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieur-in-technischer-vertrieb-dual|b.eng.|wtd|2012",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WTD-WS2012-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Wirtschaftsingenieur/in (Technischer Vertrieb) WTD (dual, PO ab WiSe 2012)"
       },
       {
@@ -8802,6 +11333,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieur-in-technischer-vertrieb-dual|b.eng.|wtd|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WTD-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch - WTD"
       }
      ]
@@ -8845,6 +11377,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|produktionstechnik-dual|b.eng.|ptd|2012",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/PTD-WS2012-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Produktionstechnik PTD (dual, PO ab WS2012)"
       },
       {
@@ -8857,6 +11390,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|produktionstechnik-dual|b.eng.|ptd|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/PTD-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Produktionstechnik PTD (dual, PO ab WS2019)"
       },
       {
@@ -8867,6 +11401,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|produktionstechnik-dual|b.eng.|ptd|2025",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/2025_Modulhandbuch_PTD.pdf",
        "label": "Modulhandbuch: Produktionstechnik PTD (dual, PO ab WiSe 2025)"
       }
      ]
@@ -8893,6 +11428,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsingenieurwesen-maschinenbau-dual|b.eng.|wid|2025",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/2025_Modulhandbuch_WID.pdf",
        "label": "Modulhandbuch: Wirtschaftsingenieurwesen WID (dual, PO ab WiSe 2025)"
       }
      ]
@@ -8921,6 +11457,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|ingenieurinformatik-maschinenbau-dual|b.eng.|iid|2022",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/IID-WS2022-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Ingenieurinformatik Maschinenbau IID (dual, PO ab WiSe 2022)"
       },
       {
@@ -8931,6 +11468,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|ingenieurinformatik-maschinenbau-dual|b.eng.|iid|2025",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/2025_Modulhandbuch_IID.pdf",
        "label": "Modulhandbuch: Ingenieurinformatik Maschinenbau IID (dual, PO ab WiSe 2025)"
       }
      ]
@@ -8989,6 +11527,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mechatronik-dual|b.eng.|mtd|2012",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MTD-WS2012-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2012)"
       },
       {
@@ -9001,6 +11540,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mechatronik-dual|b.eng.|mtd|2017",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MTD-WS2017-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2017)"
       },
       {
@@ -9013,6 +11553,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mechatronik-dual|b.eng.|mtd|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MTD-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2019)"
       },
       {
@@ -9023,6 +11564,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mechatronik-dual|b.eng.|mtd|2025",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/2025_Modulhandbuch_MTD.pdf",
        "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2025)"
       }
      ]
@@ -9051,6 +11593,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|konstruktionstechnik-dual|b.eng.|ktd|2012",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/KTD-WS2012-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Konstruktionstechnik KTD (dual, PO ab WiSe 2012)"
       },
       {
@@ -9063,6 +11606,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|konstruktionstechnik-dual|b.eng.|ktd|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/KTD-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Konstruktionstechnik KTD (dual, PO ab WiSe 2019)"
       },
       {
@@ -9073,6 +11617,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|konstruktionstechnik-dual|b.eng.|ktd|2025",
        "format": "hsh-wpf-tabelle",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/2025_Modulhandbuch_KTD.pdf",
        "label": "Modulhandbuch: Konstruktionstechnik KTD (dual, PO ab WiSe 2025)"
       }
      ]
@@ -9101,6 +11646,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|prozess-engineering-und-produktionsmanagement|m.eng.|pep|2019",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/PEP-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Prozess-Engineering und Produktionsmanagement PEP (PO ab WS2019)"
       }
      ]
@@ -9142,6 +11688,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mode-konzept-design-kommunikation|b.a.|bmo|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_BMO_PO_2022.pdf",
        "label": "Modulhandbuch Bachelor-Studiengang Modedesign"
       }
      ]
@@ -9168,6 +11715,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|visuelle-kommunikation|b.a.|bvk|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_BVK_PO_2022_23.pdf",
        "label": "Modulhandbuch Bachelor-Studiengang Visuelle Kommunikation"
       }
      ]
@@ -9194,6 +11742,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mediendesign|b.a.|bme|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_BME_PO_2022_23.pdf",
        "label": "Modulhandbuch Bachelor-Studiengang Mediendesign"
       }
      ]
@@ -9220,6 +11769,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|medizinisches-informationsmanagement|m.sc.|mmi|2020",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_MMI_2019.pdf",
        "label": "Medizinisches Informationsmanagement ab SoSe 2020"
       }
      ]
@@ -9248,6 +11798,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|journalistik|b.a.|bjo|2022",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BJO_ab_WiSe_22_23.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -9274,6 +11825,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|innenarchitektur|b.a.|bia|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_BIA_PO_2022_23.pdf",
        "label": "Modulhandbuch Bachelor-Studiengang Innenarchitektur"
       }
      ]
@@ -9302,6 +11854,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|integrated-media-communication-imc-dual|b.a.|dual|2019",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_IMC_ab_WiSe_19_20.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -9330,6 +11883,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|medizinisches-informationsmanagement|b.sc.|bmi|2024",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BMI_20241101.pdf",
        "label": "Modulhandbuch ab WiSe 24/25"
       }
      ]
@@ -9356,6 +11910,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|produktdesign|b.a.|bpd|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_BPD_PO_2022.pdf",
        "label": "Modulhandbuch Bachelor-Studiengang Produktdesign"
       }
      ]
@@ -9384,6 +11939,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|public-relations|b.a.|bpr|2022",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BPR_ab_WiSe_22_23.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -9410,6 +11966,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|szenografie-kostuem-experimentelle-gestaltung|b.a.|ske|2022",
        "format": "hsh-code-kopf",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/Modulhandbuch_BSKE_PO_2022.pdf",
        "label": "Modulhandbuch Bachelor-Studiengang Szenografie-Kostüm-Experimentelle Gestaltung"
       }
      ]
@@ -9438,6 +11995,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|veranstaltungsmanagement|b.a.|bvm|2015",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/BVM_Modulhandbuch_ab_2015.pdf",
        "label": "Modulhandbuch - ab Studienbeginn 2015"
       },
       {
@@ -9450,6 +12008,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|veranstaltungsmanagement|b.a.|bvm|2018",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher2/BVM_Modulhandbuch_ab_2018.pdf",
        "label": "Modulhandbuch - ab Studienbeginn 2018"
       },
       {
@@ -9462,6 +12021,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|veranstaltungsmanagement|b.a.|bvm|2022",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_BVM_ab_WiSe_22_23_Stand_20250716.pdf",
        "label": "Modulhandbuch - ab Studienbeginn 2022"
       }
      ]
@@ -9490,6 +12050,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|kommunikationsmanagement|m.a.|mko|2022",
        "format": "hsh-modultitel",
+       "url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Modulhandbuecher/Modulhandbuch_MKO_ab_WiSe_22_23.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -9516,6 +12077,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|mediendesigninformatik|b.sc.|mdi|2023",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/Informatik/Modulhandbuecher/2024-04-29-modules-MDI-23WS-DE.pdf",
        "label": "Modulverzeichnis (Stand 29.04.2024 für Prüfungsordnung 2023-WS)"
       }
      ]
@@ -9542,6 +12104,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verwaltungsinformatik|b.sc.|vif|2020",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/05-VIF-Studien-Modulhandbuch-PO2020-240301.pdf",
        "label": "Studien- und Modulhandbuch PO 2020"
       },
       {
@@ -9552,6 +12115,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verwaltungsinformatik|b.sc.|vif|2025",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/05-VIF-Modulhandbuch-VIF-Polizei-25-10-27.pdf",
        "label": "Modulhandbuch - PO 2025 Polizei"
       },
       {
@@ -9562,6 +12126,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verwaltungsinformatik|b.sc.|vif|2026",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/26-09-23-VIF-Modulhandbuch.pdf",
        "label": "Modulhandbuch PO 2026"
       }
      ]
@@ -9588,6 +12153,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsinformatik|b.sc.|bis|2016",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/05-BIS-Studien-Modulhandbuch-PO2016.pdf",
        "label": "Studien- und Modulhandbuch PO 2016"
       },
       {
@@ -9598,6 +12164,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsinformatik|b.sc.|bis|2018",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/05-BIS-Studien-Modulhandbuch-BIS-PO_2018-25-10-07.pdf",
        "label": "Studien-Modulhandbuch PO 2018"
       },
       {
@@ -9608,6 +12175,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wirtschaftsinformatik|b.sc.|bis|2026",
        "format": "hsh-modul-code",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/26-11-02_Modulhandbuch.pdf",
        "label": "Modulhandbuch BIS PO 2026"
       }
      ]
@@ -9636,6 +12204,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|international-business-studies|b.sc.|ibs|2018",
        "format": "hsh-code-kopf",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/BWL/Ordnungen/Modulhandbuch_IBS_PO_2018__2024__Stand_01_09_2025.pdf",
        "label": "Modulhandbuch (PO 2018)"
       }
      ]
@@ -9664,6 +12233,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|unternehmensentwicklung|m.sc.|mbd|2018",
        "format": "hsh-code-kopf",
+       "url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/BWL/Ordnungen/Modulhandbuch_MBD_final.pdf",
        "label": "Modulhandbuch MBD (PO 2018)"
       }
      ]
@@ -9706,6 +12276,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|pflege|b.a.|bdp",
        "format": "hsh-modultitel",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Master/MEP/Modulhandbuecher/07.3-BDP-Modulhandbuch_BA_Pflege_Stand-2025_10_06_01.pdf",
        "label": "Modulhandbuch BA Pflege"
       }
      ]
@@ -9734,6 +12305,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-grundstaendig|b.a.|bsw|2020",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_grundstaendig/Modulhandbuch_BSW/012-MH-BSW-PO-2020-26.02.2021-Online.pdf",
        "label": "Modulhandbuch WiSe 2020 & SoSe 2021"
       },
       {
@@ -9746,6 +12318,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-grundstaendig|b.a.|bsw|2021",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_grundstaendig/Modulhandbuch_BSW/021-MH-BSW-PO-2021-WiSe_2025-26-Stand-16.03.2025-web.pdf",
        "label": "Modulhandbuch WiSe 2025/26"
       },
       {
@@ -9758,6 +12331,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-grundstaendig|b.a.|bsw|2026",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_grundstaendig/Modulhandbuch_BSW/022-MH-BSW-PO-2026-Stand-16.03.2026-web.pdf",
        "label": "Modulhandbuch SoSe 2026"
       }
      ]
@@ -9786,6 +12360,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2018",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Relpaed/Modulhandbuch/008-Modulhandbuch-BRS-PO-2018-2019-09-02-Online.pdf",
        "label": "Modulhandbuch"
       },
       {
@@ -9798,6 +12373,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2020",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Relpaed/Modulhandbuch/010_MH-BRS-PO-2020-WiSe-2020-21-Stand-11.08.2020-Online.pdf",
        "label": "Modulhandbuch"
       },
       {
@@ -9810,6 +12386,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2021",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Relpaed/Modulhandbuch/016-MH-BRS-PO-2021-WiSe-25-26-Stand-14.07.2025-web.pdf",
        "label": "Modulhandbuch"
       },
       {
@@ -9822,6 +12399,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2026",
        "format": "hsh-modul-nummer",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Relpaed/Modulhandbuch/017-MH-BRS-PO-2026-WiSe-26-27-Stand-12.08.2026-web.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -9865,6 +12443,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|management-fuer-pflege-und-gesundheitsberufe|m.a.|mmg",
        "format": "hsh-modultitel",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Master/MGB__MBG__MMG/Mudulhandbuecher/07.5-MMG_Modulhandbuch_Stand_01.09.2026.pdf",
        "label": "Modulhandbuch"
       }
      ]
@@ -9894,6 +12473,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|lbs-sprint-berufliche-fachrichtung-pflege|master|mlp",
        "format": "hsh-modultitel",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Master/MGB__MBG__MMG/Mudulhandbuecher/Modulbeschreibung_LBS_Sprint_FR_Pflege_09.09.2024_DS_DG.pdf",
        "label": "Modulbeschreibung"
       }
      ]
@@ -9922,6 +12502,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2017",
        "format": "hsh-code-kopf",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_berufsbgeleitend/Modulhandbuch_SBW/Modulhandbuch-SBW-seit_SoSe_2017.pdf",
        "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn SoSe 2017 bis SoSe 2020)"
       },
       {
@@ -9934,6 +12515,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2024",
        "format": "hsh-code-kopf",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_berufsbgeleitend/Modulhandbuch_SBW/Modulhandbuch-SBW-SoSe-2024-Stand-22.01.2024-web.pdf",
        "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn SoSe 2021 bis SoSe 2023)"
       },
       {
@@ -9946,6 +12528,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2025",
        "format": "hsh-code-kopf",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_berufsbgeleitend/Modulhandbuch_SBW/Modulhandbuch-SBW-SoSe-2025-Stand-05.02.2025.pdf",
        "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn seit SoSe 2025)"
       },
       {
@@ -9958,6 +12541,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2026",
        "format": "hsh-modul-code",
+       "url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_berufsbgeleitend/Modulhandbuch_SBW/Modulhandbuch_ab_SoSe26_Webversion_neu.pdf",
        "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn seit SoSe 2026)"
       }
      ]
@@ -9986,6 +12570,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-adt",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/67_ADT_WS2025_Stand_15.04.2025_01.pdf",
        "label": "Vertiefung ADT"
       },
       {
@@ -9998,6 +12583,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-eae",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/68_EAE_WS2025_Stand_15.04.2025_01.pdf",
        "label": "Vertiefung EAE"
       },
       {
@@ -10010,6 +12596,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-sel",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/70_SEL_WS2025_Stand_15.04.2025_01.pdf",
        "label": "Vertiefung SEL"
       },
       {
@@ -10022,6 +12609,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-ski",
        "format": "hsh-modul-code",
+       "url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/40_Modulkatalog/69_SKI_WS2025_Stand_15.04.2025_01.pdf",
        "label": "Vertiefung SKI"
       }
      ]
@@ -10050,6 +12638,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2010-et",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/VEU-ET-WS2010-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Energietechnik VEU-ET (PO ab WS2010)"
       },
       {
@@ -10062,6 +12651,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2010-vu",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/VEU-VU-WS2010-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Verfahrens- und Umwelttechnik VEU-VU (PO ab WS2010)"
       },
       {
@@ -10074,6 +12664,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2016-et",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/VEU-ET-WS2016-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Energietechnik VEU-ET (PO ab WS2016)"
       },
       {
@@ -10086,6 +12677,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2016-vu",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/VEU-VU-WS2016-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Verfahrens- und Umwelttechnik VEU-VU (PO ab WS2016)"
       },
       {
@@ -10098,6 +12690,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2019-et",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/VEU-ET-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch - VEU - ET"
       },
       {
@@ -10110,6 +12703,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2019-vu",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/VEU-VU-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch - VEU - VU"
       }
      ]
@@ -10138,6 +12732,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2012-bo",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WMM-BO-WS2012-Modulhandbuch.pdf",
        "label": "Modulhandbuch: WMM - Betriebsorganisation WMM-BO (dual, PO ab WS2012)"
       },
       {
@@ -10150,6 +12745,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2012-pe",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WMM-PE-WS2012-Modulhandbuch.pdf",
        "label": "Modulhandbuch: WMM - Produktentwicklung WMM-PE (dual, PO abWS2012)"
       },
       {
@@ -10162,6 +12758,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2019-bo",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WMM-BO-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch - WMM BO"
       },
       {
@@ -10174,6 +12771,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2019-pe",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/WMM-PE-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch - WMM PE"
       }
      ]
@@ -10202,6 +12800,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau|b.eng.|mab|2010-am",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MAB-AM-WS2010-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Allgemeiner Maschinenbau MAB-AM (PO ab WS2010)"
       },
       {
@@ -10214,6 +12813,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau|b.eng.|mab|2010-ps",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MAB-PS-WS2010-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Produktionssysteme MAB-PS (PO ab WS2010)"
       },
       {
@@ -10226,6 +12826,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau|b.eng.|mab|2016-am",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MAB-AM-WS2016-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Allgemeiner Maschinenbau MAB-AM (PO ab WS2016)"
       },
       {
@@ -10238,6 +12839,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau|b.eng.|mab|2016-ps",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MAB-PS-WS2016-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Produktionssysteme MAB-PS (PO ab WS2016)"
       },
       {
@@ -10250,6 +12852,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau|b.eng.|mab|2019-am",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MAB-AM-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Allgemeiner Maschinenbau MAB-AM (PO ab WS2019)"
       },
       {
@@ -10262,6 +12865,7 @@ enum StudySourcesData {
        "study_plan": null,
        "key": "hsh|maschinenbau|b.eng.|mab|2019-ps",
        "format": "hsh-modultitel",
+       "url": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/MAB-PS-WS2019-Modulhandbuch.pdf",
        "label": "Modulhandbuch: Produktionssysteme MAB-PS (PO ab WS2019)"
       }
      ]

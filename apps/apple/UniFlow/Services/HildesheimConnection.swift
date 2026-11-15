@@ -108,6 +108,9 @@ final class HildesheimConnection: ObservableObject {
         messages = defaults.stringArray(forKey: Keys.messages) ?? []
         learnweb = storedState(.learnweb)
         lsf = storedState(.lsf)
+        // Modulkatalog: Ausloeser fuer die Seite Studienverlauf (14.11.2026: fehlte fuer Hildesheim; die Suche lief nie,
+        // weder fuer den Studiengang aus dem LSF noch fuer eine eigene Wahl oder einen eingefuegten Link)
+        StudyCatalogSync.attach(host: host)
         // unterbrochenes Abmelden (App beendet, Schluesselbund gesperrt): den Rest gleich nachholen
         if defaults.bool(forKey: Keys.signOutPending) { Task { await self.finishPendingSignOut() } }
     }
@@ -643,7 +646,10 @@ final class HildesheimConnection: ObservableObject {
                 succeeded = false
             }
         }
-        if r.completed.contains(Part.grades) { defaults.set(now, forKey: Keys.gradesRun) }
+        if r.completed.contains(Part.grades) {
+            defaults.set(now, forKey: Keys.gradesRun)
+            StudyCatalogSync.trigger(host: host)     // Studiengang aus dem Notenspiegel -> Modulkatalog suchen (Hintergrund)
+        }
         // wartende Learnweb-Dateien: merken (nur Listen) bzw. erledigt, sobald ein voller Learnweb-Teil durchlief (auch
         // wenn das LSF dabei eine neue Anmeldung braucht)
         if scope == .lists, r.waiting > 0 {

@@ -62,7 +62,8 @@ final class PlanContractTests: XCTestCase {
         for e in UFEntitlement.allCases {
             let r = try XCTUnwrap(rights[e.rawValue], e.rawValue)
             XCTAssertEqual(r["from"]?.string, e.from.rawValue, e.rawValue)
-            XCTAssertEqual(r["label"]?.string, e.label, e.rawValue)
+            // am Mac ("Designed for iPad") nennt die App Maus und Trackpad statt des Apple Pencil (`UFDevice.adapt`)
+            XCTAssertEqual(r["label"]?.string.map { UFDevice.adapt($0) }, e.label, e.rawValue)
             XCTAssertEqual(r["status"]?.string, e.status.rawValue, e.rawValue)
         }
         // Rechte je Tarif (plans.<tarif>.entitlements), so wie der Dienst sie ausliefert
@@ -313,7 +314,8 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
                         "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
-                        "Erinnerungen an Abgaben und Klausuren", "Lernplan automatisch erstellen"])
+                        "Erinnerungen an Abgaben und Klausuren", "Lernplan automatisch erstellen"]
+                           .map { UFDevice.adapt($0) })   // am Mac „Schreiben mit Maus oder Trackpad“
         // Free (07.11.2026): Lernkalender von Hand, der automatische Lernplan gehoert zu Plus
         XCTAssertFalse((UFPlanCard.included(.free).map { $0.title + " " + ($0.detail ?? "") }).joined().contains("automatisch"))
         XCTAssertEqual(UFPlanCard.included(.plus).last?.detail, "Lernslots in deinen freien Zeiten")
@@ -354,7 +356,8 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus StudiNow Plus, dazu:")
         // Kurzbeschreibung der Karten: Plus ohne Wochentests (gehoeren zu Pro AI), Pro AI ohne ChatGPT
         XCTAssertEqual(UFPlanCard.tagline(.free), UFPlan.free.tagline)
-        XCTAssertEqual(UFPlanCard.tagline(.plus), "Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
+        XCTAssertEqual(UFPlanCard.tagline(.plus),                       // am Mac „Mit Maus oder Trackpad …“
+                       UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community"))
         XCTAssertEqual(UFPlanCard.tagline(.proAI), "Die StudiNow-KI für deine Unterlagen inklusive")
         // Seitenkopf nie "gratis" (kein Einfuehrungsangebot); die Probe steht in eigener Zeile (testTrialStatusOnPlanPage)
         XCTAssertFalse(PlanPickerView.subtitle(proAI: true).contains("gratis"))

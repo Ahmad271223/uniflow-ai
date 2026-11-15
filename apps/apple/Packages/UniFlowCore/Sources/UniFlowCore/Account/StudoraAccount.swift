@@ -77,9 +77,12 @@ public actor StudoraAccount {
         /// hoechster bezahlter Tarif ohne die Probe (`paid_plan`: App Store, Stripe, Betrieb); nil, wenn der Dienst ihn
         /// nicht meldet. Nur fuer die Anzeige: nach einem Kauf, der die Probe abdeckt, zeigt die App keine Probe mehr
         public var paidPlan: String?
+        /// Geraete-Regel (`device`, DeviceRule.swift): Auskunft zu diesem Geraet; nil, wenn der Dienst sie nicht schickt
+        public var device: DeviceRule.Status?
 
         public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, trialEndsAt: Date? = nil,
-                    needsPlanChoice: Bool = false, appleAccountToken: String? = nil, paidPlan: String? = nil) {
+                    needsPlanChoice: Bool = false, appleAccountToken: String? = nil, paidPlan: String? = nil,
+                    device: DeviceRule.Status? = nil) {
             self.plan = plan
             self.trialActive = trialActive
             self.trialDaysLeft = trialDaysLeft
@@ -88,6 +91,7 @@ public actor StudoraAccount {
             self.needsPlanChoice = needsPlanChoice
             self.appleAccountToken = appleAccountToken
             self.paidPlan = paidPlan
+            self.device = device
         }
     }
 
@@ -108,10 +112,15 @@ public actor StudoraAccount {
 
     public var isSignedIn: Bool { tokens.load() != nil }
 
+    /// Wert der Kopfzeile `X-StudiNow-Caps`: Geraete-Regel (`device_limit`) und Raum je Uni-Konto (`uni_room`)
+    public static let capabilities = [DeviceRule.capability, UniAccountKey.capability].joined(separator: ", ")
+
     // MARK: Anfragen
 
     func request(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true) async throws -> ServiceHTTPResponse {
-        var headers = ["Accept": "application/json"]
+        // Faehigkeiten dieser App: nur damit schickt der Dienst die Geraete-Regel (`device`) und nennt im Abgleich, was
+        // einem anderen Uni-Konto gehoert; aeltere Apps ohne die Kopfzeile bekommen die Antworten wie bisher
+        var headers = ["Accept": "application/json", DeviceRule.capabilityHeader: Self.capabilities]
         if body != nil { headers["Content-Type"] = "application/json" }
         if auth {
             guard let t = tokens.load() else { throw AccountError(status: 401, code: "unauthenticated", message: "Anmeldung erforderlich.", retryAfter: nil) }
@@ -217,7 +226,14 @@ public actor StudoraAccount {
         return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
                           trialPlan: active ? t?["plan"]?.string : nil, trialEndsAt: active ? Self.serviceDate(t?["ends_at"]?.string) : nil,
                           needsPlanChoice: j["needs_plan_choice"]?.bool ?? false, appleAccountToken: j["apple_account_token"]?.string,
-                          paidPlan: j["paid_plan"]?.string)
+                          paidPlan: j["paid_plan"]?.string, device: DeviceRule.Status.parse(j["device"]))
+    }
+
+    /// Geraete-Regel: "Dieses Gerät stattdessen nutzen" (`POST /api/account/device/primary`). Danach ist dieses Geraet
+    /// das eine Geraet des Kontos; das andere zeigt den Hinweis beim naechsten Kontakt. Rueckgabe: neue Auskunft.
+    @discardableResult
+    public func useThisDevice() async throws -> DeviceRule.Status? {
+        DeviceRule.Status.parse(json(try await request("POST", "/api/account/device/primary"))["device"])
     }
 
     /// Zeitpunkt aus dem Dienst (`datetime.isoformat()`, z. B. "2026-11-11T10:00:00.123456+00:00"): Sekundenbruchteile

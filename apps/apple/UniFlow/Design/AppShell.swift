@@ -1162,7 +1162,7 @@ struct UFMobileNav: View {
                 .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
                 .accessibilityHint(isMore ? "Weitere Bereiche und Einstellungen" : "")
                 .accessibilityIdentifier("mobileNav.\(item.id)")
-                .popover(isPresented: isMore ? $showMore : .constant(false), arrowEdge: .bottom) {
+                .ufPopover(isPresented: isMore ? $showMore : .constant(false), arrowEdge: .bottom) {
                     UFMoreSheet(items: more) { r in
                         showMore = false
                         router.go(r)
@@ -1457,7 +1457,7 @@ struct UFHeader: View {
         .background(UF.surface.opacity(0.88))
         .ufBorderBottom()
         .zIndex(15)
-        .fullScreenCover(isPresented: $searchOpen) {
+        .ufFullScreenCover(isPresented: $searchOpen) {
             UFSearchScreen { r in
                 searchOpen = false
                 router.go(r)

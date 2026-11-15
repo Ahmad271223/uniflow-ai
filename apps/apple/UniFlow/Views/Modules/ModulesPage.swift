@@ -591,8 +591,11 @@ struct ModulePage: View {
         let toggle = { if open { opened.remove(wk) } else { opened.insert(wk) } }
         let groupsOrder = ["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"]
         let fallback = ["vorlesungen": "Vorlesung", "uebungen": "Übung", "loesungen": "Lösung", "skripte": "Skript", "klausuren": "Klausur", "sonstiges": "Sonstiges"]
+        // Am iPhone bricht der Kopf um: Titel, Anzahl, Menue, "Zusammenfassen" und der Erledigt-Knopf passen nicht in
+        // eine Zeile, sie quetschten sich zu "Woche 1 ·" / "09.11. -" / "15.11." und "3 Dokument e" (Bild 14.11.2026)
+        let headLayout = UFCompact.phoneLayouts ? AnyLayout(UFFlexWrap(gap: 9.6, rowGap: 6)) : AnyLayout(HStackLayout(spacing: 9.6))
         return UFCard {
-            HStack(spacing: 9.6) {
+            headLayout {
                 // Pfeil zeigt den Zustand: nach unten offen, nach rechts zugeklappt
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 90 : 0))
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)

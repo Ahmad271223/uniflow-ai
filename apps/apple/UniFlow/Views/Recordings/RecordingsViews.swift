@@ -119,7 +119,7 @@ struct RecordingWeekBlocks: View {
                 .padding(.bottom, 14.4)
             }
         }
-        .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
+        .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
     }
 }
 
@@ -477,7 +477,7 @@ struct RecordingMatchBanner: View {
                 }
             }
             .task(id: "\(fileID)-\(library.revision)") { match = await library.match(fileID: fileID, text: text()) }
-            .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
+            .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
         }
     }
 }
@@ -517,7 +517,7 @@ struct RecordingPackageHints: View {
                 }
             }
             .task(id: "\(packageID)-\(library.revision)") { matches = await library.packageMatches(packageID: packageID) }
-            .fullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
+            .ufFullScreenCover(item: $playing) { e in RecordingPlayerView(entry: e, library: library) }
         }
     }
 }
@@ -528,6 +528,8 @@ struct RecordingPackageHints: View {
 struct RecordingPlayerView: View {
     let entry: OpencastEntry
     @ObservedObject var library: RecordingLibrary
+    /// in der Spalte neben dem Dokument (Video daneben, 14.11.2026): Kopf der Spalte mit X statt "Schließen"
+    var onClosePane: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var mode: Mode = .loading
     @State private var player: AVPlayer?
@@ -545,6 +547,20 @@ struct RecordingPlayerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let onClosePane {
+                UFPaneHeader(entry.video.title, icon: "play", closeLabel: "Aufzeichnung schließen", closeID: "recording.close",
+                             close: { stop(); onClosePane() }) { qualityMenu }
+            } else {
+                fullScreenHeader
+            }
+            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(Color.black.ignoresSafeArea())
+        .task { await start() }
+        .onDisappear { stop() }
+    }
+
+    private var fullScreenHeader: some View {
             HStack(spacing: 9.6) {
                 UFButton("Schließen", icon: "x", kind: .ghost, size: .small) { close() }
                 VStack(alignment: .leading, spacing: 0) {
@@ -571,11 +587,20 @@ struct RecordingPlayerView: View {
             .padding(.horizontal, 16).padding(.vertical, 10)
             .background(UF.surface)
             .ufBorderBottom()
-            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Qualitaet in der Spalte daneben (nur bei mehreren Fassungen)
+    @ViewBuilder private var qualityMenu: some View {
+        if case .player(_, let current) = mode, entry.video.media.count > 1 {
+            Menu {
+                ForEach(entry.video.media, id: \.quality) { d in
+                    Button { switchQuality(d.quality) } label: {
+                        if d.quality == current { Label(d.quality, systemImage: "checkmark") } else { Text(d.quality) }
+                    }
+                }
+            } label: { Text(current).ufFont(12.8, 600).foregroundStyle(UF.accentText) }
+            .accessibilityLabel("Qualität wählen")
         }
-        .background(Color.black.ignoresSafeArea())
-        .task { await start() }
-        .onDisappear { stop() }
     }
 
     private var subtitle: String {

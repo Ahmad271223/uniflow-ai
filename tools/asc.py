@@ -28,14 +28,22 @@ def token() -> str:
 
 def call(method: str, path: str, data=None):
     url = path if path.startswith("http") else "https://api.appstoreconnect.apple.com" + path
-    req = urllib.request.Request(url, method=method, data=json.dumps(data).encode() if data is not None else None,
-                                 headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req) as r:
-            raw = r.read()
-            return r.status, json.loads(raw) if raw else None
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read() or b"null")
+    # Netzfehler (DNS, Verbindung zurueckgesetzt, Zeitueberschreitung) bis zu fuenfmal wiederholen (14.11.2026: wackliges Netz
+    # brach Bilder-Upload und TestFlight-Nachlauf ab). Eine HTTP-Antwort, auch ein Fehler, wird nie wiederholt.
+    for attempt in range(5):
+        req = urllib.request.Request(url, method=method, data=json.dumps(data).encode() if data is not None else None,
+                                     headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                raw = r.read()
+                return r.status, json.loads(raw) if raw else None
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read() or b"null")
+        except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as e:
+            if attempt == 4:
+                raise
+            print("Netzfehler, neuer Versuch:", type(e).__name__, file=sys.stderr)
+            time.sleep(15 * (attempt + 1))
 
 
 if __name__ == "__main__":
