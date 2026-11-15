@@ -342,4 +342,36 @@ final class StudyPlanMergeTests: XCTestCase {
         let left = await service.all("study_packages").compactMap { $0["date"]?.string }
         XCTAssertEqual(left, [Self.wed], "im Konto genau eine, und zwar dieselbe")
     }
+
+    // MARK: Kopie einer echten Datenbank (nur lokal)
+
+    /// Nur mit STUDY_PLAN_MERGE_COPY=<Pfad einer Kopie>: wie die App nach dem Update (Schema, dann Zusammenfuehren) auf
+    /// einer weiteren Kopie; gibt nur Zahlen aus (Pakete je Tag vorher und nachher), keine Namen. Nie im Repository.
+    func testRealCopyIfGiven() async throws {
+        guard let source = ProcessInfo.processInfo.environment["STUDY_PLAN_MERGE_COPY"] else { throw XCTSkip("STUDY_PLAN_MERGE_COPY fehlt") }
+        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("plan-merge-\(UUID().uuidString).sqlite").path
+        try FileManager.default.copyItem(atPath: source, toPath: copy)
+        defer { try? FileManager.default.removeItem(atPath: copy) }
+        let db = try SQLiteDatabase(path: copy)
+        try await db.withConnection { try Migrations.migrate($0) }
+        let today = try XCTUnwrap(BerlinClock.parseISODate(ProcessInfo.processInfo.environment["STUDY_PLAN_MERGE_TODAY"] ?? Self.clock.today))
+        func days(_ c: SQLiteConnection) throws -> [String] {
+            try c.query("SELECT date, COUNT(*) n, SUM(status NOT IN ('verschoben','uebersprungen')) open FROM study_packages GROUP BY date ORDER BY date")
+                .map { "\($0["date"]?.string ?? ""): \($0["n"]?.int ?? 0) (\($0["open"]?.int ?? 0) offen)" }
+        }
+        let (before, result, after, again, files) = try await db.transaction { c -> ([String], JSONValue, [String], JSONValue, Int) in
+            try DeviceSyncSchema.ensure(c)
+            let before = try days(c)
+            let result = try StudyPlanMerge.afterPull(c, today: today).json
+            let after = try days(c)
+            let again = try StudyPlanMerge.afterPull(c, today: today).json
+            let twice = try c.scalar("""
+                SELECT COUNT(*) FROM (SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status IN ('geplant','in_bearbeitung','erledigt','nachholen')
+                GROUP BY file_id HAVING COUNT(*) > 1)
+                """)?.int ?? -1
+            return (before, result, after, again, twice)
+        }
+        print("PLAN-MERGE vorher \(before)\nPLAN-MERGE Ergebnis \(result.jsonString())\nPLAN-MERGE nachher \(after)\nPLAN-MERGE noch doppelte Dateien \(files)")
+        XCTAssertEqual(again, StudyPlanMerge.Result().json, "ein zweiter Lauf aendert nichts")
+    }
 }
