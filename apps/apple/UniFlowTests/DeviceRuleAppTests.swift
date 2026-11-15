@@ -170,6 +170,10 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
 
     // MARK: Hinweis-Bildschirm auf iPad und iPhone
 
+    /// Wortlaut der Geraete in den Hinweisen: am iPad und iPhone "iPhone und iPad"; laeuft die App am Mac ("Designed for
+    /// iPad"), nennt sie auch den Mac (Mac-Durchlauf 14.11.2026, docs/MAC-DURCHLAUF-2026-11-14.md)
+    private static var devices: String { ProcessInfo.processInfo.isiOSAppOnMac ? "iPhone, iPad und Mac" : "iPhone und iPad" }
+
     private func blockedLayout(taps: @escaping (String) -> Void = { _ in }) -> some View {
         DeviceLimitLayout(primaryName: "iPad", price: "39,99 €", onPlans: { taps("plans") }, onUseThis: { taps("use") }, onSignOut: { taps("out") })
     }
@@ -178,7 +182,7 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         XCTAssertTrue(env.wait(timeout: 5) { self.shows(env, DeviceRuleTexts.blockedTitle) }, "\(name): \(dump(env))", file: file, line: line)
         let title = element(env, label: DeviceRuleTexts.blockedTitle)
         XCTAssertEqual(title?.accessibilityTraits.contains(.header), true, "\(name): Überschrift für VoiceOver", file: file, line: line)
-        let spoken = "Dein Konto läuft schon auf einem anderen Gerät (iPad). Mit Pro AI nutzt du StudiNow auf iPhone und iPad – mit Abgleich. 39,99 € im Jahr."
+        let spoken = "Dein Konto läuft schon auf einem anderen Gerät (iPad). Mit Pro AI nutzt du StudiNow auf \(Self.devices) – mit Abgleich. 39,99 € im Jahr."
         XCTAssertNotNil(element(env, label: spoken), "\(name): \(dump(env))", file: file, line: line)
         for label in ["Pro AI ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"] {
             let b = button(env, label)
@@ -374,7 +378,7 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
                                 api: remote(Canned()))
         XCTAssertTrue(env.wait(timeout: 5) { self.shows(env, DeviceRuleTexts.plusTitle) }, dump(env))
         XCTAssertEqual(element(env, label: DeviceRuleTexts.plusTitle)?.accessibilityTraits.contains(.header), true)
-        XCTAssertTrue(shows(env, "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen iPhone und iPad gibt es mit Pro AI für 39,99 € im Jahr."), dump(env))
+        XCTAssertTrue(shows(env, "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen \(Self.devices) gibt es mit Pro AI für 39,99 € im Jahr."), dump(env))
         assertFitsOnAllPhones(env, "geraete-plus-hinweis")
         XCTAssertTrue(tap(env, "Pro AI ansehen") && tap(env, "Verstanden"))
         XCTAssertEqual(taps, ["plans", "close"])

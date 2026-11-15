@@ -52,9 +52,8 @@ final class QISAnmeldungAppTests: XCTestCase {
     }
 
     static func fixture(_ name: String) throws -> String {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<4 { url.deleteLastPathComponent() }
-        return try String(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/exam-registration/\(name)"), encoding: .utf8)
+        // Mac ("Designed for iPad"): Sandbox, dann die Kopie im Testbundle (ContainerTestBed.repoURL)
+        try String(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/exam-registration/\(name)"), encoding: .utf8)
     }
 
     func testOpenBrowserKeepsTheAppOutOfTheQISSession() async throws {

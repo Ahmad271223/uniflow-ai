@@ -399,6 +399,7 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         XCTAssertTrue(tap(env.view, "Plan zurücksetzen", exact: true))
         XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Zurücksetzen", exact: true) != nil } ?? false }, dump(sheet(env)))
         XCTAssertEqual(t.count("POST", "/api/study-plan/settings"), 3, "erst nach Bestaetigung")
+        try ContainerTestBed.skipOnMac("die Rückfrage „Plan zurücksetzen?“ zeichnet der Mac als eigenes Systemfenster; „Zurücksetzen“ lässt sich im Testwirt nicht über die Bedienungshilfe auslösen (von Hand prüfen)")
         XCTAssertTrue(tap(try XCTUnwrap(sheet(env)), "Zurücksetzen", exact: true))
         XCTAssertTrue(env.wait { t.count("POST", "/api/study-plan/settings") == 4 }, dump(sheet(env)))
         XCTAssertEqual(lastPost(t), ["placements": .null, "excluded": .null])

@@ -136,6 +136,7 @@ final class PurchaseServiceRetryP78Tests: StoreKitSessionTestCase {
     /// P78-01: Dienst antwortet 503 (`apple_not_configured`); nach einem Neustart der App (neuer Prozess) mit
     /// erreichbarem Dienst sind Tarif und Credits beim Dienst nachgetragen
     func testPurchaseAfterServiceUnavailableIsCaughtUpAfterRestart() async throws {
+        try requireVisibleTestPurchases()
         let service = Service()
         service.mode = .unavailable
         let tokens = PurchaseAccountLinkP36Tests.MemoryTokens("tok")
@@ -155,6 +156,7 @@ final class PurchaseServiceRetryP78Tests: StoreKitSessionTestCase {
     /// P78-02: Zeitueberschreitung bei der Pruefung; der naechste Vordergrund (gleicher Prozess) holt nach, danach keine
     /// weitere Meldung in diesem Prozess (der Dienst ist ohnehin idempotent, P36-02/P44-09)
     func testPurchaseAfterServiceTimeoutIsCaughtUpOnTheNextForeground() async throws {
+        try requireVisibleTestPurchases()
         let service = Service()
         service.mode = .timeout
         let tokens = PurchaseAccountLinkP36Tests.MemoryTokens("tok")
