@@ -175,7 +175,7 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: plusOnly, loading: false, current: .proAI))
         // Konto-Hinweis nur auf der Pro-AI-Karte (07.11.2026), Credits wie im Vertrag
         XCTAssertEqual(UFPlanCatalog.serviceNote(.proAI), UFPlanCatalog.proAIServiceNote)
-        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 100 Credits im Monat.")
+        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 100 Credits im Monat, weitere Credits zum Nachkaufen.")
         XCTAssertFalse(UFPlanCatalog.proAIServiceNote.contains("denselben Umfang"))
         XCTAssertNil(UFPlanCatalog.serviceNote(.plus))
         XCTAssertNil(UFPlanCatalog.serviceNote(.free))
@@ -276,7 +276,10 @@ final class PlanContractTests: XCTestCase {
                     XCTAssertFalse(f.isV2, "\(e.rawValue): \(f.rawValue)")
                     XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), .allowed, "\(e.rawValue): \(f.rawValue)")
                 }
-                if case .withAccount = e.onDevice { XCTAssertEqual(e.from, .proAI, "mit Konto nur die Pro-AI-Rechte: \(e.rawValue)") }
+                // mit Konto: die Pro-AI-Rechte und der KI-Chat ab Plus (gekaufte Credits liegen beim Konto, 15.11.2026)
+                if case .withAccount = e.onDevice {
+                    XCTAssertEqual(e.from, e == .canUseAIChat ? .plus : .proAI, "mit Konto nur die Pro-AI-Rechte und der KI-Chat: \(e.rawValue)")
+                }
             case .needsService:
                 XCTAssertFalse(e.availableOnDevice, e.rawValue)
                 XCTAssertTrue(e.deviceFeatures.isEmpty, e.rawValue)
@@ -327,16 +330,20 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
                         "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
-                        "Erinnerungen an Abgaben und Klausuren", "Lernplan automatisch erstellen"])
+                        "Erinnerungen an Abgaben und Klausuren", "Lernplan automatisch erstellen", "KI-Chat mit gekauften Credits"])
         // Free (07.11.2026): Lernkalender von Hand, der automatische Lernplan gehoert zu Plus
         XCTAssertFalse((UFPlanCard.included(.free).map { $0.title + " " + ($0.detail ?? "") }).joined().contains("automatisch"))
-        XCTAssertEqual(UFPlanCard.included(.plus).last?.detail, "Lernslots in deinen freien Zeiten")
+        XCTAssertEqual(UFPlanCard.included(.plus).first { $0.title == UFFeature.autoPlan.title }?.detail, "Lernslots in deinen freien Zeiten")
+        // Plus (Entscheidung des Inhabers 15.11.2026): KI-Chat mit gekauften Credits - ehrlich, was nicht dazugehoert
+        XCTAssertEqual(UFPlanCard.included(.plus).last?.detail,
+                       "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI")
         XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title),
-                       ["KI-Hilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
+                       ["KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
                         "Notizen auf allen deinen Geräten"])
         let help = try? XCTUnwrap(UFPlanCard.included(.proAI).first)
         XCTAssertTrue(help?.detail?.contains("„Ganze Vorlesung erklären“") == true)
         XCTAssertTrue(help?.detail?.contains("„Alle Aufgaben erklären“") == true)
+        XCTAssertTrue(help?.detail?.contains("100 Credits im Monat, weitere Credits zum Nachkaufen") == true)
         XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title.contains("Community") }, "Free ohne Community")
 
         // was es auf dem iPad nicht gibt, steht auf keiner Karte; "ChatGPT" nur in der Zeile des eigenen Schluessels
@@ -345,7 +352,8 @@ final class PlanContractTests: XCTestCase {
             for r in UFPlanCard.included(plan) {
                 XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: forbidden, options: .regularExpression), r.title)
                 if r.title != UFFeature.ownChatGPT.title { XCTAssertFalse((r.title + " " + (r.detail ?? "")).contains("ChatGPT"), r.title) }
-                if plan != .proAI {
+                // unter Pro AI nennt nur die Zeile des KI-Chats (Plus) die KI
+                if plan != .proAI, r.title != UFFeature.aiChat.title {
                     XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: #"\bKI\b|KI-|allen deinen Geräten"#, options: .regularExpression),
                                  "KI und Abgleich gehoeren zu Pro AI: \(r.title)")
                 }

@@ -22,6 +22,8 @@ struct AIStartView: View {
     @Environment(\.ufAIAccess) private var aiAccess
     @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @Environment(\.ufStudiNowAI) private var studinowAI
+    /// nur der KI-Chat (Plus): Fragen geht, die uebrigen Aktionen tragen weiter das Schloss "ab Pro AI"
+    @Environment(\.ufAIChatOnly) private var chatOnly
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.ufWindowWidth) private var windowWidth
@@ -126,7 +128,7 @@ struct AIStartView: View {
         .ufLearnSheetHost(learnSheets)
         .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
         // StudiNow-KI: Credits-Stand frisch vom Dienst (GET /api/entitlements), danach nach jeder Antwort
-        .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
+        .task(id: studinowAI || chatOnly) { if studinowAI || chatOnly { await studoraAccount?.refreshCredits() } }
         .ufCreditShop(isPresented: $creditShop, opensFor: errorAction)
         .ufReload { await load() }
         // anderes Modul: ein Dokument des anderen Moduls passt nicht mehr, das zuletzt geoeffnete des neuen ist dran
@@ -160,7 +162,8 @@ struct AIStartView: View {
                     topBar
                     VStack(spacing: 0) {
                         head
-                        if !aiEnabled { connectCard.padding(.bottom, 20) }
+                        if !aiEnabled && !chatOnly { connectCard.padding(.bottom, 20) }
+                        if chatOnly { chatOnlyNote.padding(.bottom, 16) }
                         actions.padding(.bottom, 16)
                         composer(large: true)
                         statusBlock.padding(.top, 8)
@@ -190,7 +193,8 @@ struct AIStartView: View {
                     topBar
                     VStack(spacing: 0) {
                         head
-                        if !aiEnabled { connectCard.padding(.bottom, 16) }
+                        if !aiEnabled && !chatOnly { connectCard.padding(.bottom, 16) }
+                        if chatOnly { chatOnlyNote.padding(.bottom, 12) }
                         compactActions.padding(.bottom, 8)
                     }
                     .frame(minHeight: max(0, geo.size.height * 0.5), alignment: .center)
@@ -257,6 +261,14 @@ struct AIStartView: View {
         }
     }
 
+    /// Plus: was hier geht (Fragen) und was Pro AI braucht
+    private var chatOnlyNote: some View {
+        Text(CreditText.chatLock).ufFont(13.12, lh: 1.4).foregroundStyle(UF.muted)
+            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("ai.start.chatOnly")
+    }
+
     // MARK: Aktionen
 
     private var actions: some View {
@@ -292,7 +304,7 @@ struct AIStartView: View {
 
     @ViewBuilder private func pills(compact: Bool, dense: Bool = false) -> some View {
         AIActionPill(title: "Fragen", sub: "Zur Seite, zur Aufgabe, zum Begriff", icon: "sparkles", pair: CommunityPalette.teal, compact: compact, dense: dense,
-                     lock: lock(.aiHelp)) {
+                     lock: chatOnly ? nil : lock(.aiHelp)) {
             help = false
             askFocused = true
         }
@@ -336,7 +348,7 @@ struct AIStartView: View {
 
     private func composer(large: Bool) -> some View {
         AIComposer(placeholder: "Frag etwas … z. B. Erkläre mir den Satz von Bolzano", text: $question, focused: $askFocused, large: large,
-                   canSend: aiEnabled && !busy && !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   canSend: (aiEnabled || chatOnly) && !busy && !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                    sendLabel: "Frage senden", placeholderOneLine: compact, inputID: "ai.start.input", sendID: "ai.start.ask",
                    send: { Task { await ask() } }) {
             moduleMenu
@@ -439,7 +451,8 @@ struct AIStartView: View {
         // ueber die StudiNow-KI nie "über dein ChatGPT": dann der Credits-Stand bzw. "StudiNow-KI (Pro AI)"
         AICost.status(chatgpt: aiEnabled && !studinowAI, model: chatgpt?.activeModel, plan: studinowAI ? .proAI : ent.plan,
                       requestsThisMonth: recents.requestsThisMonth,
-                      credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge, trial: studoraAccount?.planStatus?.trialActive ?? false)
+                      credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge, trial: studoraAccount?.planStatus?.trialActive ?? false,
+                      chatOnly: chatOnly)
     }
 
     // MARK: Hilfe ohne KI
@@ -534,11 +547,12 @@ struct AIStartView: View {
             }
             .accessibilityElement(children: .combine)
             AIMarkdownText(a.text, size: 15.2).accessibilityIdentifier("ai.start.answer")
-            let followUps = last ? AIFollowUps.suggest(after: a.mode).filter { $0.mode != "flashcards" } : []
+            // im KI-Chat (Plus) nur Anschlussfragen, die Fragen sind
+            let followUps = last ? AIFollowUps.suggest(after: a.mode).filter { $0.mode != "flashcards" && (!chatOnly || $0.mode == "ask") } : []
             if !followUps.isEmpty || (last && a.fileID != nil) {
                 UFFlexWrap(gap: 8, rowGap: 8) {
                     ForEach(followUps) { s in
-                        UFChip(text: s.label, icon: "sparkles") { Task { await followUp(s, after: a) } }.disabled(busy || !aiEnabled)
+                        UFChip(text: s.label, icon: "sparkles") { Task { await followUp(s, after: a) } }.disabled(busy || !(aiEnabled || chatOnly))
                     }
                     if let id = a.fileID {
                         UFChip(text: "Im Dokument mit KI-Hilfe öffnen", icon: "book") {

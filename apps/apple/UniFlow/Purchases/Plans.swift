@@ -164,7 +164,7 @@ enum UFPlanCatalog {
 
     /// Zeile auf der Pro-AI-Karte: die StudiNow-KI und der Abgleich laufen ueber das StudiNow-Konto (Anmeldung mit Apple
     /// in den Einstellungen, StudoraAccountLink), dazu die Credits aus dem Vertrag
-    static let proAIServiceNote = "Braucht ein StudiNow-Konto (Anmelden mit Apple). \(UFPlan.proAI.monthlyCredits) Credits im Monat."
+    static let proAIServiceNote = "Braucht ein StudiNow-Konto (Anmelden mit Apple). \(UFPlan.proAI.monthlyCredits) Credits im Monat, weitere Credits zum Nachkaufen."
 
     /// dezenter, nicht anklickbarer Hinweis unter den Karten, wenn der Store das Pro-AI-Produkt gerade nicht liefert
     /// (Pro AI wird mit 1.0 verkauft, Entscheidung 07.11.2026: kein "folgt"/"kommt später", nur der ehrliche Grund)
@@ -218,6 +218,9 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canUseFlashcards = "can_use_flashcards"
     /// Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen) ab Plus (Entscheidung 11.11.2026)
     case canUseDueReminders = "can_use_due_reminders"
+    /// KI-Chat (Entscheidung des Inhabers 15.11.2026): die freie Frage an die KI ab Plus, bezahlt allein aus gekauften
+    /// Credits; die KI-Lernhilfe (Erklaeren, Karteikarten, Tests) bleibt Pro AI
+    case canUseAIChat = "can_use_ai_chat"
     // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect)
     case canUseAdvancedAnalytics = "can_use_advanced_analytics"
     case canUseAdvancedPlanner = "can_use_advanced_planner"
@@ -243,7 +246,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
              .chatgptConnectionPremium:
             return .free
         case .canReadCommunity, .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
-             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards, .canUseDueReminders:
+             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards, .canUseDueReminders, .canUseAIChat:
             return .plus
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .canUseAIExplanations, .canUseAIGeneratedQuestions,
@@ -269,6 +272,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canGenerateStudoraAITests: return "Neue KI-Tests von StudiNow"
         case .canUseFlashcards: return "Eigene Karteikarten mit Wiederholung"
         case .canUseDueReminders: return "Erinnerungen an Abgaben und Klausuren"
+        case .canUseAIChat: return "KI-Chat mit gekauften Credits (Fragen an die KI)"
         case .canUseAdvancedAnalytics: return "Lernstatistik über alle Module"
         case .canUseAdvancedPlanner: return "Intelligente Lernplanung (Empfehlungen für die Woche)"
         case .canReviewWrongAnswers: return "Automatische Wiederholung falscher Antworten"
@@ -334,6 +338,8 @@ extension UFEntitlement {
         case .canUseFlashcards: return .onDevice([.flashcards])
         // Mitteilungen 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren (DueReminderScheduler)
         case .canUseDueReminders: return .onDevice([.dueReminders])
+        // KI-Chat ab Plus (15.11.2026): die freie Frage an die StudiNow-KI, mit StudiNow-Konto und gekauften Credits
+        case .canUseAIChat: return .withAccount([.aiChat])
         // StudiNow-KI (Pro AI): KI-Hilfe mit Erklaeren und Zusammenfassen, KI-Karteikarten und Wochentests
         case .canUseAIExplanations, .canUseAISummaries: return .withAccount([.aiHelp])
         case .canUseAIGeneratedQuestions: return .withAccount([.aiFlashcards, .weeklyTests])

@@ -117,10 +117,15 @@ final class EntitlementTests: XCTestCase {
                        // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026);
                        // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel in jedem Tarif (07.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
-                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .dueReminders, .autoPlan])
-                       // Erinnerungen an Abgaben und Klausuren ab Plus (Entscheidung 11.11.2026)
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .dueReminders, .autoPlan, .aiChat])
+                       // Erinnerungen an Abgaben und Klausuren ab Plus (Entscheidung 11.11.2026); KI-Chat mit gekauften
+                       // Credits ab Plus (Entscheidung des Inhabers 15.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync])
-        for f in UFFeature.allCases where f.minimumPlan < .proAI {
+        // unter Pro AI nennt nur der KI-Chat (Plus, mit gekauften Credits) die KI; die KI-Lernhilfe bleibt Pro AI
+        XCTAssertEqual(UFFeature.aiChat.minimumPlan, .plus)
+        XCTAssertEqual(UFFeature.aiChat.title, "KI-Chat mit gekauften Credits")
+        XCTAssertTrue(UFFeature.aiChat.detail?.contains("Erklären, Karteikarten und Tests gibt es mit Pro AI") == true)
+        for f in UFFeature.allCases where f.minimumPlan < .proAI && f != .aiChat {
             XCTAssertFalse(f.title.contains("KI"), f.rawValue)
             XCTAssertFalse((f.detail ?? "").contains("KI"), f.rawValue)
         }

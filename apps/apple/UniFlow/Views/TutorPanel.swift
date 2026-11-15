@@ -40,6 +40,8 @@ struct TutorPanel: View {
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufAIAccess) private var aiAccess
     @Environment(\.ufStudiNowAI) private var studinowAI
+    /// nur der KI-Chat (Plus): die freie Frage geht, Erklaeren/Karteikarten/Test tragen das Schloss "ab Pro AI"
+    @Environment(\.ufAIChatOnly) private var chatOnly
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.openURL) private var openURL
@@ -150,7 +152,9 @@ struct TutorPanel: View {
     @State private var aiTask: Task<Void, Never>?
 
     /// KI erreichbar (`ufAIEnabled`); sonst zeigt die Leiste den Anhang und den Tarif-Hinweis
-    private var canAsk: Bool { aiEnabled }
+    private var canAsk: Bool { aiEnabled || chatOnly }
+    /// Antworten kommen ueber die StudiNow-KI (Credits): mit Pro AI bzw. Probe oder mit Plus im KI-Chat
+    private var viaStudiNow: Bool { studinowAI || chatOnly }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -166,7 +170,7 @@ struct TutorPanel: View {
         // Weitermachen wie zuvor (04.11.2026): das gemerkte Gespraech dieses Dokuments mit Antworten, Karten,
         // Anschlussfragen und "Schon erklärt" wieder zeigen (`TutorConversations`, bleibt auf dem Geraet)
         .onAppear { restoreConversation() }
-        .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
+        .task(id: viaStudiNow) { if viaStudiNow { await studoraAccount?.refreshCredits() } }
         .ufCreditShop(isPresented: $creditShop, opensFor: errorAction)
         .onChange(of: fileID) { _, _ in messages = []; error = nil; restoreConversation() }
         .task(id: request.wrappedValue?.id) {
@@ -174,6 +178,9 @@ struct TutorPanel: View {
             request.wrappedValue = nil
             // ohne KI nicht still verwerfen: der Text steht dann als Anhang da, darunter der Hinweis
             guard canAsk else { attached = TutorAttachment(kind: .selection, text: r.selection, page: page()); return }
+            // nur der KI-Chat (Plus): "Erklären" zum markierten Text ist Lernhilfe - der Text steht als Anhang da, die
+            // Frage dazu stellt man selbst
+            if chatOnly { attached = TutorAttachment(kind: .selection, text: r.selection, page: page()); inputFocused = true; return }
             run { await send(mode: r.mode, selection: r.selection) }
         }
         .task(id: attachment.wrappedValue?.id) {
@@ -220,6 +227,7 @@ struct TutorPanel: View {
     /// Kopf der Leiste (`TutorPanelHead`): Reiter, Umfang und eine Reihe Aktionen zum seitlichen Wischen
     private var tabBar: some View {
         TutorPanelHead(tab: $tab, scope: $docScope, from: $docFrom, to: $docTo, busy: busy, checking: checking,
+                       locked: chatOnly ? .proAI : nil,
                        mode: { activate(mode: $0) },
                        doc: { mode in run { await startDoc(mode: mode) } },
                        cards: { run { await startCards() } },
@@ -341,11 +349,17 @@ struct TutorPanel: View {
                 Text("Frag etwas zur offenen Seite").ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Oder wähle oben Erklären, Karteikarten oder Test. Markierter Text wird mitgeschickt.")
+            Text(chatOnly ? Self.chatOnlyHint : "Oder wähle oben Erklären, Karteikarten oder Test. Markierter Text wird mitgeschickt.")
                 .ufFont(13.12, lh: 1.45).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 4)
     }
+
+    /// Leerzustand mit Plus (nur der KI-Chat)
+    static let chatOnlyHint = "Markierter Text wird mitgeschickt. Bezahlt wird aus deinen gekauften Credits."
+
+    /// Frage des Sendeknopfs im KI-Chat, wenn nur ein Anhang da ist (mit Pro AI waere das der Modus "Erklären")
+    static let chatOnlyAttachmentQuestion = "Erklär mir das."
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -357,7 +371,7 @@ struct TutorPanel: View {
                        text: $input, focused: $inputFocused,
                        canSend: Self.canSend(busy: busy, input: input, attached: attached != nil, checking: checking),
                        sendLabel: checking ? "Lösung prüfen" : "Senden", inputID: "tutor.input", sendID: "tutor.ask",
-                       send: { run { await send(mode: Self.composerMode(checking: checking, input: input, attached: attached != nil)) } }) {
+                       send: { run { await send(mode: chatOnly ? "ask" : Self.composerMode(checking: checking, input: input, attached: attached != nil)) } }) {
                 if checking {
                     Button { checking = false } label: {
                         AIComposerPill(icon: "check", text: "Lösung prüfen", tint: Tab.test.pair.fg, fill: Tab.test.pair.bg)
@@ -369,7 +383,7 @@ struct TutorPanel: View {
             }
             Text(Self.footer(page: attached?.page ?? page(), model: chatgpt?.activeModel, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
                              adopted: Self.storedLabel(messages.last?.explain) != nil, trial: studoraAccount?.planStatus?.trialActive ?? false,
-                             studinow: studinowAI))
+                             studinow: viaStudiNow))
                 .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 6)
@@ -446,7 +460,9 @@ struct TutorPanel: View {
                     }
                     // zwei bis drei Anschlussfragen je nach Modus (lokal; Antippen fragt im selben Gespraech nach) in
                     // einer Reihe zum Wischen, damit sie der Antwort keine Zeilen nehmen
-                    let followUps = Self.showsFollowUps(at: index, in: messages) ? AIFollowUps.suggest(after: msg.mode) : []
+                    // im KI-Chat (Plus) nur Anschlussfragen, die Fragen sind
+                    let followUps = (Self.showsFollowUps(at: index, in: messages) ? AIFollowUps.suggest(after: msg.mode) : [])
+                        .filter { !chatOnly || $0.mode == "ask" }
                     if !followUps.isEmpty {
                         AIChipRail {
                             ForEach(followUps) { s in
@@ -536,9 +552,12 @@ struct TutorPanel: View {
     /// freien Platz oder bleibt lokal
     private func send(mode: String, selection given: String? = nil, force: Bool = false, docIntent: Bool = true) async {
         guard let api = session.api, !busy else { return }
-        let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Wunsch fuers ganze Dokument im Eingabefeld ("Erkläre die ganze Vorlesung", "Löse alle Aufgaben", "Seiten 5 bis 12")
-        if mode == "ask", docIntent, given == nil, attached == nil, DocExplain.parseIntent(typed) != nil {
+        var typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // nur der KI-Chat (Plus): mit Anhang und ohne Text ist die Frage "Erklär mir das." (freie Frage, nicht der Modus)
+        if chatOnly, mode == "ask", typed.isEmpty { typed = Self.chatOnlyAttachmentQuestion }
+        // Wunsch fuers ganze Dokument im Eingabefeld ("Erkläre die ganze Vorlesung", "Löse alle Aufgaben", "Seiten 5 bis 12");
+        // im KI-Chat (Plus) bleibt es eine Frage zur Seite: der Lauf fuers Dokument ist Lernhilfe
+        if mode == "ask", docIntent, !chatOnly, given == nil, attached == nil, DocExplain.parseIntent(typed) != nil {
             await startDoc(question: typed)
             return
         }
@@ -778,6 +797,8 @@ struct TutorPanelHead: View {
     let busy: Bool
     /// "Lösung prüfen" ist an: der Chip erscheint gefuellt
     let checking: Bool
+    /// Tarif, ab dem die Aktionen der Reiter gelten; gesetzt mit Plus im KI-Chat (Schloss "ab Pro AI", `ufPlanLockGroup`)
+    var locked: UFPlan?
     /// ein Modus wurde angetippt (explain, steps, check, flashcards, similar …); die Leiste entscheidet, was passiert
     let mode: (String) -> Void
     /// Lauf fuer das Dokument (lecture, tasks)
@@ -796,7 +817,12 @@ struct TutorPanelHead: View {
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Bereiche der KI-Hilfe")
             .accessibilityIdentifier("tutor.tabs")
-            actions
+            VStack(alignment: .leading, spacing: 8) { actions }
+                .ufPlanLockGroup(locked, identifier: "tutor.locked")
+            if locked != nil {
+                Text(CreditText.chatLock).ufFont(12, lh: 1.35).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 8)
         .background(UF.surface)

@@ -130,7 +130,8 @@ enum AICost {
     /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)
     /// steht der echte Rest statt der Schaetzung (`creditsLine`)
     static func status(chatgpt: Bool, model: String?, plan: UFPlan, requestsThisMonth: Int, usage: (used: Int, total: Int)? = nil,
-                       credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false) -> String {
+                       credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false,
+                       chatOnly: Bool = false) -> String {
         if let usage { return "\(usage.used) von \(usage.total) Credits" }
         let count = requestsThisMonth == 1 ? "1 Anfrage diesen Monat" : "\(requestsThisMonth) Anfragen diesen Monat"
         let m = chatgpt && !(model ?? "").isEmpty ? " · \(model!)" : ""
@@ -139,6 +140,8 @@ enum AICost {
         }
         if chatgpt { return "\(count) · \(ownWay)\(m)" }
         if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
+        // Plus mit dem KI-Chat, Stand noch nicht geladen
+        if chatOnly { return "\(count) · \(UFFeature.aiChat.title)" }
         return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · "
                 : OpenAIKeyLink.isOffered ? "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · " : "KI kommt mit StudiNow Pro AI · ") + count
     }
