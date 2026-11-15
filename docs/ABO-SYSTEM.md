@@ -442,8 +442,10 @@ für Monats-Credits, Probe und gekaufte Credits; Preistabelle je Modell in `app/
 - **Zwei Töpfe (15.11.2026, `docs/KI-CREDITS-2026-11-15.md`):** Monats-Credits (dieser Abschnitt) und gekaufte Credits
   aus den Credit-Paketen (`credit_wallets`, `credit_purchases`; verfallen nie). Verbraucht werden zuerst die
   Monats-Credits. Der Stand `credits` behält seine Felder für den Monat und bekommt zusätzlich `purchased`,
-  `purchased_usable`, `available`, `can_buy`; `GET /api/entitlements` liefert dazu `credit_packs`. Kosten, die gekaufte
-  Credits bezahlen, zählen nicht gegen die Budgets aus Abschnitt 6.
+  `purchased_usable`, `purchased_scope`, `available`, `can_buy`; `GET /api/entitlements` liefert dazu `credit_packs`.
+  Kosten, die gekaufte Credits bezahlen, zählen nicht gegen die Budgets aus Abschnitt 6. Kaufen dürfen Plus und Pro AI;
+  mit Plus gelten gekaufte Credits nur für den KI-Chat (Recht `can_use_ai_chat`, Aufgabe `tutor:ask`), die
+  KI-Lernhilfe bleibt Pro AI.
 - **Rahmen je Kalendermonat (Europe/Berlin):** Pro AI 100 (`LERNAPP_CREDITS_PRO_AI`, höchstens 0,65 EUR Kosten je Konto),
   Plus/Free 0 (`LERNAPP_CREDITS_PLUS`, `_FREE`), 7-Tage-Probe 25 (`LERNAPP_CREDITS_TRIAL`); Standardwerte aus
   `plans.CREDITS`. Alte Zeilen mit `pro_connect` gelten wie Pro AI.

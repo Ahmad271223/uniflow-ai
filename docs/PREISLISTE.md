@@ -34,7 +34,8 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 | **Fertige Fragen zu jeder Vorlesungswoche** (2–3 Sätze à 15 Fragen, Lösungen und Erklärungen schon da, `can_use_prepared_week_sets`) | – | – | ✓ |
 | KI-Erklärungen, Lernfragen, Zusammenfassungen im Dienst (`ai_assist`) | 0 | 0 | 150 / Monat |
 | Credits für die StudiNow-KI (1 Credit = 0,65 Cent Kosten beim Anbieter (100 Credits = höchstens 0,65 €; seit 15.11.2026, vorher 0,9 Cent)) | 0 | 0 | 100 / Monat |
-| Credit-Pakete zum Nachkaufen (Verbrauchskauf im App Store, verfallen nicht; Größen und Preise in `docs/KI-CREDITS-2026-11-15.md`) | – | – | 100 und 200 Credits |
+| Credit-Pakete zum Nachkaufen (Verbrauchskauf im App Store, verfallen nicht; Größen und Preise in `docs/KI-CREDITS-2026-11-15.md`) | – | 100 und 200 Credits | 100 und 200 Credits |
+| KI-Chat: freie Frage an die StudiNow-KI (`can_use_ai_chat`, Entscheidung 15.11.2026) | – | ✓ nur mit gekauften Credits | ✓ |
 | Testliste im Dienst (`GET /api/tests`) | letzte 10 | letzte 10 | alle |
 
 ¹ Zählt auf `ai_assist` (150 / Monat) und kostet Credits; bestätigte E-Mail nötig.
