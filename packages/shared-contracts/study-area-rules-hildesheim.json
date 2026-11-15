@@ -735,6 +735,55 @@
           "kind": "abschluss"
         }
       }
+    },
+    "data-science|b.sc.|2023": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc. 2023, Variante Data Science, § 5 Abs. 1 Satz 2 und 5: Pflichtmodule laut Handbuch 111 LP, Wirtschaftspraktikum 12 LP, Abschlussprüfung 15 LP, Wahlmodule aus dem Gebiet Data Science 12 LP, weitere Wahlmodule bis 180 LP). „Operations Research 1“ steht im Verzeichnis des Handbuchs (Stand 03.04.2026) in der Tabelle der Abschlussprüfung und noch einmal im Gebiet Betriebswirtschaft; es ist ein Wahlmodul dieses Gebiets.",
+      "area_patterns": [
+        {
+          "match": "^Methodological Specialization",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 12,
+            "semester": 5,
+            "rule": "Wahlmodule aus dem Gebiet Data Science: 12 LP."
+          }
+        },
+        {
+          "match": "^Anwendungsgebiete",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Weitere Wahlmodule bis 180 LP: mindestens 4 LP Seminar, in einem Gebiet mindestens 22 LP, höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ],
+      "modules": {
+        "operations-research-1": {
+          "area": "anwendungsgebiete-wahl-betriebswirtschaft-und-informationswissenschaft-gebiet-be",
+          "kind": "wahl"
+        }
+      }
+    },
+    "medieninformatik|b.sc.|2023": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc. 2023, Variante Medieninformatik, § 5 Abs. 1 Satz 6)",
+      "area_patterns": [
+        {
+          "match": "^Wahlbereich – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Wahlmodule aus Gebieten der Informatik: 16 LP, davon mindestens 4 LP Seminar und 6 LP Praktikum, in einem Gebiet mindestens 12 LP."
+          }
+        },
+        {
+          "match": "^Wahlbereich – (?!Informatik)",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Weitere Wahlmodule bis 180 LP, höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ]
     }
   }
 }

@@ -27,6 +27,10 @@ Pruefungsleistung, empfohlenes Semester ("BSc 1", "MSc 1-3"), Turnus, Dauer des 
 Requirements, Exam, Recommended Term, Turn, Duration, Use, Language). Ein Handbuch gilt fuer Bachelor und Master; der
 Katalog eines Eintrags nimmt die Bereiche seines Abschlusses (Verzeichnis: Abschnitt mit "Bachelor"/"Master", sonst
 der vorige), ein Modul in mehreren Bereichen steht einmal (erster Bereich) und in `areas[].modules` der anderen.
+Handbuecher nur eines Abschlusses (Studienvarianten Medieninformatik und Data Science: "Bachelor" auf der Titelseite,
+kein Abschnitt nennt den Abschluss) gelten ganz fuer diesen Abschluss, auch wenn ein Modul "empfohlenes Semester MSc 1"
+nennt. Studiengaenge ohne eigenes Handbuch (Wirtschaftsinformatik, `usage_program`) bekommen ihre Module aus der
+"Verwendung" und dazu die Abschlusspruefung ihres Abschlusses.
 
 Beide liefern (Katalog im geteilten Format, lokale Texte) wie die LUH-Leser (formats_a_common.build_catalog).
 """
@@ -498,6 +502,9 @@ TOC_HEAD_RE = re.compile(r"^(?:Modul Lehrform/SWS LP S\.|Module Type/HPW CPs P ?
 TOC_ENTRY_END_RE = re.compile(r"(?:^|\s)([0-9]{1,3})$")
 TOP_RE = re.compile(r"^(?:Pflichtmodule|Pflichtbereich|Wahlmodule im|Wahlbereich|Wahlpflichtbereich|Weitere Module je Bereich|"
                     r"Compulsory|Elective|Master Thesis|Thesis)", re.I)
+# Wahlabschnitte im deutschen Handbuch Data Science (B.Sc.): eigene oberste Ebene. In den englischen Handbuechern (Data
+# Analytics, Software Engineering) ist "Methodological Specialization" ein Unterabschnitt und bleibt es.
+TOP_DE_RE = re.compile(r"^(?:Methodological Specialization|Anwendungsgebiete)\b")
 
 
 def _it_label(lines: list[str], i: int) -> tuple[str, int, int] | None:
@@ -562,10 +569,11 @@ def _toc(lines: list[str]) -> list[dict]:
         if first and TOP_RE.match(line) and line in seen_tops:
             continue                                       # Kolumnentitel wiederholt einen schon gesehenen Abschnitt
         if TOC_HEAD_RE.match(line):
+            german = line.startswith("Modul ")
             for h in pending:
                 if re.fullmatch(r"[0-9]+", h):
                     continue
-                if TOP_RE.match(h):
+                if TOP_RE.match(h) or (german and TOP_DE_RE.match(h)):
                     top, mid, leaf = h, None, None
                     seen_tops.add(h)
                 elif h.startswith(("Gebiet", "Area")):
@@ -722,19 +730,28 @@ def parse_it(pages: list[str], meta: dict) -> tuple[dict, dict]:
                     raw.append(r)
                     break
     elif toc:
+        # Handbuch nur eines Abschlusses (Titelseite "Medieninformatik / Bachelor / Modulhandbuch", kein Abschnitt des
+        # Verzeichnisses nennt Bachelor oder Master): alle Eintraege gehoeren zu diesem Abschluss, auch Module, deren
+        # empfohlenes Semester aus einem anderen Studiengang stammt ("MSc 1", "BSc 3, MSc 1") - sonst fehlen Pflichtmodule
+        single = None
+        if not any(_it_degree(e["top"] or "") for e in toc):
+            first = _it_degrees(" ".join(per_page[0]) if per_page else "")
+            single = next(iter(first)) if len(first) == 1 else None
         for e in toc:
             rec = raw_by_page.get(e["page"])
             top = e["top"] or ""
             if rec is None:
                 continue
-            deg = _it_degree(top)
+            deg = single or _it_degree(top)
             sem = rec["_sem_degree"]
-            if deg is None or (sem and deg not in sem):
+            if single is None and (deg is None or (sem and deg not in sem)):
                 deg = "M" if sem == {"M"} else ("B" if sem == {"B"} else deg)   # empfohlenes Semester "MSc 1-3" gilt
             if deg != want:
                 continue
             area = top if not e["area"] else (f"{top} – {e['area']}" if top else e["area"])
             r = dict(rec)
+            if single and sem and single not in sem:
+                r["semester"] = None                       # "MSc 1" in einem Bachelor-Handbuch: kein Semester dieses Studiengangs
             r["area"] = clip(area, 200)
             r["kind"] = _it_kind(f"{top} – {e['area'] or ''}", rec["title"])
             raw.append(r)

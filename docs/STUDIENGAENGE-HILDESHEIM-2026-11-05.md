@@ -169,29 +169,28 @@ Containers (`settings.university`).
 | Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 254 | hildesheim-modulbeschreibung 32, hildesheim-modultabelle 2 |
 | Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 320 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
 | Fachbereich 3 – Sprach- und Informationswissenschaften | 19 | 19 | 227 | hildesheim-kennnummer-tabelle 2, hildesheim-modulbeschreibung 16, hildesheim-modultabelle 1 |
-| Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 38 | 38 | 1386 | hildesheim-it-modulhandbuch 13, hildesheim-kuerzel-modultabelle 2, hildesheim-modulbeschreibung 22, hildesheim-modultabelle 1 |
+| Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 39 | 39 | 1523 | hildesheim-it-modulhandbuch 14, hildesheim-kuerzel-modultabelle 2, hildesheim-modulbeschreibung 22, hildesheim-modultabelle 1 |
 | fachbereichsübergreifend (Lehrerbildung) | 4 | 4 | 44 | hildesheim-modulbeschreibung 4 |
-| **zusammen** | **111** | **111** | **2231** | |
+| **zusammen** | **112** | **112** | **2368** | |
 
-Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1137 Module; `hildesheim-kennnummer-tabelle` 2 Kataloge / 22 Module; `hildesheim-kuerzel-modultabelle` 2 Kataloge / 20 Module; `hildesheim-modulbeschreibung` 84 Kataloge / 820 Module; `hildesheim-modultabelle` 10 Kataloge / 232 Module.
-Registereinträge: 121, davon im Grundstock: 111.
+Nach Format: `hildesheim-it-modulhandbuch` 14 Kataloge / 1274 Module; `hildesheim-kennnummer-tabelle` 2 Kataloge / 22 Module; `hildesheim-kuerzel-modultabelle` 2 Kataloge / 20 Module; `hildesheim-modulbeschreibung` 84 Kataloge / 820 Module; `hildesheim-modultabelle` 10 Kataloge / 232 Module.
+Registereinträge: 121, davon im Grundstock: 112.
 
 Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS, Voraussetzungen = verweist auf andere Module):
 
 | Format | Kataloge | Module | LP | Semester | Turnus | Prüfung | Studienl. | Vorauss. | Sprache | Aufwand |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `hildesheim-it-modulhandbuch` | 13 | 1137 | 100 % | 98 % | 71 % | 100 % | 0 % | 23 % | 26 % | 100 % |
+| `hildesheim-it-modulhandbuch` | 14 | 1274 | 100 % | 96 % | 72 % | 100 % | 0 % | 24 % | 25 % | 100 % |
 | `hildesheim-kennnummer-tabelle` | 2 | 22 | 100 % | 100 % | 91 % | 95 % | 45 % | 0 % | 0 % | 100 % |
 | `hildesheim-kuerzel-modultabelle` | 2 | 20 | 100 % | 100 % | 100 % | 100 % | 25 % | 0 % | 0 % | 90 % |
 | `hildesheim-modulbeschreibung` | 84 | 820 | 95 % | 76 % | 83 % | 95 % | 86 % | 1 % | 9 % | 68 % |
 | `hildesheim-modultabelle` | 10 | 232 | 99 % | 86 % | 49 % | 91 % | 97 % | 2 % | 0 % | 90 % |
-| **zusammen** | **111** | **2231** | 98 % | 89 % | 74 % | 97 % | 43 % | 12 % | 17 % | 87 % |
+| **zusammen** | **112** | **2368** | 98 % | 88 % | 74 % | 97 % | 40 % | 14 % | 16 % | 88 % |
 
-Kataloge mit Regeln/LP für Bereiche: 26; mit empfohlenem Semester je Modul: 98.
+Kataloge mit Regeln/LP für Bereiche: 28; mit empfohlenem Semester je Modul: 99.
 
-Ohne Katalog im Grundstock (10) – geht nicht, weil …:
+Ohne Katalog im Grundstock (9) – geht nicht, weil …:
 
-- Data Science (B.Sc.): Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete (Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP), der Abschnitt 'Methodological Specialization' fehlt (ein Modul steht unter Abschlussprüfung), die Gebiete Medieninformatik und Systemadministration fehlen
 - Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art (M.A.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Future Analytics: AI & Audio Worlds (M.Sc.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Lehramt an Grund-, Haupt- und Realschulen (Staatsexamen): Studienordnung (1 Seiten) ohne lesbare Modulbeschreibungen
@@ -203,8 +202,8 @@ Ohne Katalog im Grundstock (10) – geht nicht, weil …:
 - Rechtspsychologie (M.Sc.): Studienordnung (3 Seiten) ohne lesbare Modulbeschreibungen
 
 Anfragen laut Zwischenspeicher: 209 (209 × 200), davon 153 PDFs, 96 MB, 05.11.2026 12:46–14.11.2026 14:04 UTC, kleinster Abstand -12.8 s.
-Datei `hildesheim.json.gz`: 134 KB gzip, 1172 KB JSON, 111 Kataloge.
-Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 29 Kataloge mit Handangaben, 1 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
+Datei `hildesheim.json.gz`: 141 KB gzip, 1239 KB JSON, 112 Kataloge.
+Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 31 Kataloge mit Handangaben, 1 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
 
 Neu bauen: `.venv/bin/python tools/build-hildesheim-seed.py` (prüfen: `--check`, Vorschau: `--diff`).
 <!-- grundstock:end -->
@@ -256,7 +255,7 @@ Ergebnis: die 18 Module INF-A11 bis INF-V27. Pflicht und Wahl hängen in dieser 
 (Anlage 1, 13 Varianten); der Katalog nimmt die Angabe aus der Modulbeschreibung. Die Ordnung 2026 (Heft 214) ist seit
 15.11.2026 eingebaut (Abschnitt „Nachzug“).
 
-Neu im Register, ohne Katalog (wählbar mit dem Hinweis „noch kein Modulkatalog“):
+Neu im Register, am 14.11. noch ohne Katalog (seit 15.11.2026 eingebaut, Abschnitt „Nachzug“, Teil C):
 - Data Science B.Sc. (PO 2023, Studienvariante der Angewandten Informatik, nicht im Studienangebot): der Leser legt den
   Abschnitt „Anwendungsgebiete (Wahl)“ als Pflicht ab (alle 73 Module im Semesterplan, 4. Semester 144 LP), der
   Abschnitt „Methodological Specialization“ fehlt (ein Modul landet unter Abschlussprüfung), die Gebiete
@@ -336,6 +335,33 @@ Was bleibt (feste Liste in `tests/test_hildesheim_seed_quality.py` und `Hildeshe
   mindestens 21 LP, Spezialisierung mindestens 51 LP, Wahlbereich höchstens 18 LP). Es fehlte aber die Abschlussprüfung
   (Masterarbeit 27 LP + Kolloquium 3 LP): das Handbuch nennt Wirtschaftsinformatik in der „Verwendung“ dieses Moduls
   nicht. Der Leser nimmt die Abschlussprüfung des Abschlusses jetzt immer dazu; ebenso im Bachelor (12 + 3 LP).
+
+**C. Data Science B.Sc. (PO 2023) ist eingebaut – und Medieninformatik B.Sc. berichtigt.** Die eigentliche Ursache war
+eine andere als am 14.11. notiert: Die Handbücher der Studienvarianten gelten nur für einen Abschluss („Data Science /
+Bachelor / Modulhandbuch“ auf der Titelseite, kein Abschnitt nennt Bachelor oder Master). Der FB-4-Leser teilte trotzdem
+nach dem empfohlenen Semester in Bachelor und Master und ließ jedes Modul weg, dessen Semester aus einem anderen
+Studiengang stammt („MSc 1“, „BSc 3, MSc 1“) – auch Pflichtmodule. Jetzt gilt: nennt kein Abschnitt des Verzeichnisses
+einen Abschluss, gehören alle Einträge zum Abschluss der Titelseite; ein reines Master-Semester wird dabei nicht als
+Semester übernommen.
+
+| Eintrag | Module vorher → nachher | Prüfung gegen die Ordnung (PO Angewandte Informatik B.Sc. 2023, § 5 Abs. 1) |
+|---|---:|---|
+| Data Science B.Sc. (bisher ohne Katalog) | – → 106 | Pflicht 123 LP (Data Science 45, Informatik 36, Mathematik 30, Wirtschaftspraktikum 12) + Abschlussprüfung 15 LP + Wahlmodule Data Science 12 LP + weitere Wahlmodule 30 LP = 180 LP |
+| Medieninformatik B.Sc. (am 14.11. eingebaut) | 75 → 106 | Es fehlten 7 der 9 Pflichtmodule „Medieninformatik-Pflicht“ (Digitale Medien, Gestaltung Interaktiver Systeme, Medieninformatik, Praktikum und Seminar Medieninformatik, Medienpsychologie, Medienrecht und -ethik) und 24 Wahlmodule. Pflicht jetzt 140 LP (Informatik 54, Mathematik 30, Medieninformatik 44, Praktikum 12) + Abschlussprüfung 15 LP + Wahl 25 LP = 180 LP |
+
+Handregeln für Data Science (drei, alle mit Quelle): „Methodological Specialization“ = Wahlmodule aus dem Gebiet Data
+Science, 12 LP; „Anwendungsgebiete (Wahl)“ samt Soft Skills = weitere Wahlmodule (mindestens 4 LP Seminar, in einem Gebiet
+mindestens 22 LP, höchstens 6 LP Softskills); „Operations Research 1“ steht im Verzeichnis des Handbuchs in der Tabelle
+der Abschlussprüfung und noch einmal im Gebiet Betriebswirtschaft – es ist ein Wahlmodul dieses Gebiets. Die beiden
+Abschnittsnamen gelten nur im deutschen Handbuch als oberste Ebene (in den englischen Handbüchern Data Analytics und
+Software Engineering ist „Methodological Specialization“ ein Unterabschnitt). Für Medieninformatik stehen die Regeln der
+PO (Informatik-Wahl 16 LP, weitere Wahlmodule) als Text an den Wahlbereichen. Fünf Pflichtmodule von Data Science
+(Big Data Analytics, Deep Learning, Data and Privacy Protection, Lab Course Programming Machine Learning, Modern
+Optimization Techniques) haben kein empfohlenes Semester: das Handbuch nennt für sie nur Master-Semester.
+
+Aufgefallen, nicht geändert: Im Katalog Software Engineering M.Sc. stehen 60 von 61 Modulen als Pflicht, weil die
+Abschnitte nach „Compulsory Modules“ („Methodological Specialization (Elective Modules)“ …) keine eigene oberste Ebene
+bilden. Das braucht einen Abgleich mit der PO Software Engineering und ist ein eigener Auftrag.
 
 Nicht gemacht: Die beiden Leser sind im Abgleich des Geräts (eigener Katalog-Link) nicht verdrahtet; die drei Kataloge
 kommen aus dem Grundstock, ein eingefügter Link auf eine dieser PDFs führt über das Register dorthin.

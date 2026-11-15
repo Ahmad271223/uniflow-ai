@@ -254,15 +254,13 @@
     }
    ],
    "catalog": {
-    "url": null,
-    "term": null,
-    "format": "none",
-    "document": {
-     "title": "Modulhandbuch Data Science Bachelor, PO 2023 (Stand 03.04.2026)",
-     "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-DS_BSc_PO2023_Stand_2026.04.03.pdf",
-     "date": "2026-04-03"
-    },
-    "reason": "Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete (Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP), der Abschnitt 'Methodological Specialization' fehlt (ein Modul steht unter Abschlussprüfung), die Gebiete Medieninformatik und Systemadministration fehlen"
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-DS_BSc_PO2023_Stand_2026.04.03.pdf",
+    "term": "SS 2026",
+    "format": "hildesheim-it-modulhandbuch",
+    "pages": 165,
+    "modules_est": 106,
+    "title": "Modulhandbuch Data Science Bachelor, PO 2023 (Stand 03.04.2026)",
+    "date": "2026-04-03"
    },
    "more_catalogs": [],
    "study_plan_url": null,
@@ -2359,7 +2357,7 @@
     "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
     "pages": 168,
-    "modules_est": 75,
+    "modules_est": 106,
     "title": "Modulhandbuch Medieninformatik Bachelor, PO 2023 (Stand 03.04.2026)",
     "date": "2026-04-03"
    },

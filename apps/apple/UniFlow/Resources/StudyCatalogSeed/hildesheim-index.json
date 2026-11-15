@@ -1,5 +1,5 @@
 {
- "catalogs": 111,
+ "catalogs": 112,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -180,6 +180,24 @@
    ],
    "study_plan": false,
    "term": "WS 2023/24"
+  },
+  {
+   "code": "data-science|b.sc.|2023",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|data-science|b.sc.|2023",
+   "library_key": "81db6badcf83be77fbdf8a33a1599a69a1c859499ef73d629c24d01083085128",
+   "modules": 106,
+   "po": "2023",
+   "program": "Data Science",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Data Science PO-Version: 2023",
+    "Data Science"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
   },
   {
    "code": "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
@@ -1096,7 +1114,7 @@
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|medieninformatik|b.sc.|2023",
    "library_key": "1282478aaf8e31d7a73e380190048975cc8706d9b8f25af28af059e74beb2b1e",
-   "modules": 75,
+   "modules": 106,
    "po": "2023",
    "program": "Medieninformatik",
    "qis_labels": [
@@ -2009,14 +2027,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 136836,
-   "catalogs": 111,
-   "raw_bytes": 1200269,
-   "sha256": "d5e6027eb302a3937a8057cce5c801f2b177db1185d519076efd9dcd52d22e6b"
+   "bytes": 144174,
+   "catalogs": 112,
+   "raw_bytes": 1268358,
+   "sha256": "8cfa501dff0ae63244f46ea7fdc28c55f78a94f7e1f467fdf864818e01f151e5"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2231,
+ "modules": 2368,
  "university": "hildesheim",
  "v": 1
 }

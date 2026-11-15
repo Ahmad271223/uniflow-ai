@@ -30,7 +30,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
 
     func testEverySeedCatalogLoadsMapsAndShowsModulesWithLP() throws {
         let s = try seed()
-        XCTAssertGreaterThanOrEqual(s.entries.count, 111)
+        XCTAssertGreaterThanOrEqual(s.entries.count, 112)
         var problems: [String] = [], noLP: [String: Int] = [:], onlyChoice = Set<String>()
         for e in s.entries {
             guard let text = s.payload(key: e.libraryKey), let cat = try? JSONValue.parse(Data(text.utf8)) else {
@@ -58,7 +58,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(progs.count, 112)
         let without = progs.filter { $0["pos"]?.array?.isEmpty ?? true }
         XCTAssertEqual(without.filter { $0["kind"]?.string == "nebenfach" }.count, 64, "Neben-/Begleitfaecher aus der LSF-Uebersicht")
-        XCTAssertEqual(without.filter { $0["kind"]?.string != "nebenfach" }.count, 10)
+        XCTAssertEqual(without.filter { $0["kind"]?.string != "nebenfach" }.count, 9)
         for p in progs {
             let name = p["program"]?.string ?? ""
             XCTAssertTrue(StudySources.programMatches(p, query: name), name)

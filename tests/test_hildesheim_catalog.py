@@ -312,6 +312,25 @@ def test_it_reader_bachelor_master_toc_and_usage():
     assert len(u["modules"]) == 3
     um, _ = parse(_it_pages() + [thesis], dict(META, degree="M.Sc.", usage_program="MSc Beispielinformatik"))
     assert not any(x["kind"] == "abschluss" for x in um["modules"]), "die Abschlussprüfung des anderen Abschlusses gehoert nicht dazu"
+    # Handbuch nur eines Abschlusses (Medieninformatik, Data Science: "Bachelor" auf der Titelseite, kein Abschnitt nennt
+    # den Abschluss): alle Eintraege zaehlen, auch Pflichtmodule mit "empfohlenes Semester MSc 1" (dann ohne Semester);
+    # "Methodological Specialization" und "Anwendungsgebiete (Wahl)" sind eigene Wahlabschnitte
+    toc = ["Pﬂichtmodule", "Informatik", "Modul Lehrform/SWS LP S.", "Beispielprogrammierung 2 SWS Vorlesung 6 3",
+           "Beispiellernen 2 SWS Vorlesung 6 4", "Methodological Specialization", "Modul Lehrform/SWS LP S.",
+           "Beispielsehen 2 SWS Vorlesung 6 5", "Anwendungsgebiete (Wahl)", "Informatik", "Gebiet Beispielsysteme",
+           "Modul Lehrform/SWS LP S.", "Beispielsysteme 2 SWS Vorlesung 4 6"]
+    mods = [("Beispielprogrammierung", "BSc 1"), ("Beispiellernen", "MSc 1"), ("Beispielsehen", "MSc 1-3"), ("Beispielsysteme", "BSc 4, MSc 1")]
+    one = ["Universität Hildesheim\nBeispielinformatik\nBachelor\nModulhandbuch\n" + FOOT.format(1), "\n".join(toc) + "\n2\n" + FOOT.format(2)]
+    for n, (title, sem) in enumerate(mods):
+        one.append("\n".join(["Bereich – " + title, "Modul: " + title, "Leistungspunkte 6 LP", "Prüfungsleistung Klausur",
+                              "empfohlenes Semester " + sem, "Turnus jedes Wintersemester", str(n + 3), FOOT.format(n + 3)]))
+    o, _ = parse(one, dict(META, degree="B.Sc."))
+    assert [(x["title"], x["kind"], x["semester"]) for x in o["modules"]] == [
+        ("Beispielprogrammierung", "pflicht", 1), ("Beispiellernen", "pflicht", None), ("Beispielsehen", "wahlpflicht", None),
+        ("Beispielsysteme", "wahlpflicht", 4)]
+    assert [a["name"] for a in o["areas"]] == ["Pflichtmodule – Informatik", "Methodological Specialization",
+                                               "Anwendungsgebiete (Wahl) – Informatik – Gebiet Beispielsysteme"]
+    assert parse(one, dict(META, degree="M.Sc."))[0]["modules"] == [], "ein Bachelor-Handbuch hat keinen Master-Katalog"
     # englische Fassung (Data Analytics, Software Engineering): ohne gedruckte Seitenzahlen
     pages = [p.replace("\n3\n", "\n").replace("\n4\n", "\n").replace("\n5\n", "\n") for p in _it_pages(english=True)]
     e, _ = parse(pages, dict(META, degree="M.Sc."))
