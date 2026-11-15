@@ -32,7 +32,7 @@ const POSITION = {
 };
 
 // Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
-const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations", "can_use_prepared_week_sets"]);
+const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_chat", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations", "can_use_prepared_week_sets"]);
 
 function featureRows(contract, key) {
   const order = contract.order, idx = order.indexOf(key);

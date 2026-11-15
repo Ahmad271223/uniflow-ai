@@ -7,7 +7,7 @@ import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow
 import { viewTimetable, openEvent } from "./views-tt.js?v=50";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=96";
 import { installConsentFetch } from "./ai-consent.js?v=2";   // Einwilligung vor der StudiNow-KI (06.11.2026)
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=56";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=57";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=8";
 import { chipState } from "./sync-chip.js?v=1";
