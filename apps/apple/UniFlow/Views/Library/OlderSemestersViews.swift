@@ -74,6 +74,11 @@ struct OlderSemestersQuestionHost: ViewModifier {
         (overview["choice"]?.isNull ?? true) && !(overview["semesters"]?.array ?? []).isEmpty
     }
 
+    /// Ist das laufende Semester fertig geladen (kein Abgleich laeuft, keiner ist unterbrochen)? Erst dann die Frage.
+    static func currentSemesterDone(studipRunning: Bool, studipInterrupted: Bool, hildesheimRunning: Bool?, hildesheimInterrupted: Bool?) -> Bool {
+        !studipRunning && !studipInterrupted && hildesheimRunning != true && hildesheimInterrupted != true
+    }
+
     /// Antwort speichern: `yes` = Nur WLAN (Stufe d laedt danach im Hintergrund), sonst Aus. Rueckgabe: gespeicherte Wahl
     @discardableResult
     static func answer(yes: Bool, api: APIClient) async throws -> OlderSemesters.Mode {
@@ -87,8 +92,12 @@ struct OlderSemestersQuestionHost: ViewModifier {
         checking = true
         defer { checking = false }
         let key = containers.active?.layout.root.path ?? ""
-        guard !StudIPSync.isUnderTest(), !Self.shown.contains(key), let api = session.api, api.isLocal, !studip.isRunning,
-              hildesheim?.isRunning != true, hsh?.isRunning != true,
+        // nicht waehrend eines Abgleichs und nicht, solange ein unterbrochener Lauf noch fortgesetzt wird (15.11.2026):
+        // die Frage sagt "hat die Dateien deines aktuellen Semesters geladen" - das muss dann auch stimmen
+        guard !StudIPSync.isUnderTest(), !Self.shown.contains(key), let api = session.api, api.isLocal,
+              Self.currentSemesterDone(studipRunning: studip.isRunning, studipInterrupted: studip.interrupted,
+                                       hildesheimRunning: hildesheim?.isRunning, hildesheimInterrupted: hildesheim?.interrupted),
+              hsh?.isRunning != true,
               let overview = try? await api.value("/api/older-semesters"), Self.shouldAsk(overview) else { return }
         // nichts speichern, bevor geantwortet ist: bis dahin laedt Stufe (d) nichts (nie gefragt = Aus)
         Self.shown.insert(key)

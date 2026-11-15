@@ -46,6 +46,9 @@ struct UniMailLoginPane<Bottom: View>: View {
     @ViewBuilder let bottom: Bottom
     @StateObject private var load = UFWebLoadState()
     @State private var done = false
+    /// "Fertig" getippt, aber SOGo zeigt noch kein Konto
+    @State private var notRecognized = false
+    @State private var checking = false
 
     init(connection: UniMailConnection, onSignedIn: @escaping () -> Void, @ViewBuilder bottom: () -> Bottom) {
         self.connection = connection
@@ -61,9 +64,48 @@ struct UniMailLoginPane<Bottom: View>: View {
                 VStack(spacing: 0) {
                     UniversityLoginHint()
                     UniRememberPasswordToggle(dataStore: connection.websiteDataStore)
+                    // keine Sackgasse (15.11.2026): erkennt die App die Anmeldung nicht von selbst, uebernimmt "Fertig"
+                    // die Sitzung der Seite; sonst sagt die Zeile klar, was fehlt
+                    HStack(spacing: 9.6) {
+                        Text(notRecognized ? UniMailConnection.notRecognizedText : "Angemeldet, aber das Fenster bleibt offen? Dann tippe auf „Fertig“.")
+                            .ufFont(12.8).foregroundStyle(notRecognized ? UF.warnText : UF.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        UFButton(checking ? "Prüft …" : "Fertig", size: .small) { finish() }
+                            .fixedSize()
+                            .disabled(checking)
+                            .accessibilityIdentifier("unimail.login.finish")
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 8)
+                    .background(UF.bg)
                     bottom
                 }
             }
+            .task {
+                // SOGo ist eine Ein-Seiten-Anwendung: wechselt sie nach der Anmeldung ohne neues Laden der Seite auf
+                // /SOGo/so/<benutzer>/…, meldet sich die Webansicht nicht. Darum die Adresse zusaetzlich beobachten.
+                while !done, !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    if let web = load.webView { pageLoaded(web) }
+                }
+            }
+    }
+
+    /// "Fertig": Adresse der Webansicht pruefen, sonst die Sitzung der Seite uebernehmen (`adoptExistingSession`)
+    private func finish() {
+        if let web = load.webView { pageLoaded(web) }
+        guard !done, !checking else { return }
+        checking = true
+        Task {
+            let ok = await connection.adoptExistingSession(userAction: true)
+            checking = false
+            if ok, !done {
+                done = true
+                onSignedIn()
+            } else if !done {
+                notRecognized = true
+            }
+        }
     }
 
     /// Konto aus der Adresse der Webansicht (nur HTTPS auf dem Rechner von SOGo dieser Hochschule); Nachbildung im
@@ -118,6 +160,11 @@ struct UniMailSourcesCard: View {
                     UFBadge(UniMailConnection.statusText(connection.state), tone: Self.tone(connection.state)).fixedSize()
                 }
                 Text(connection.hint).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                if connection.autoConnectFailed, !connection.isConnected {
+                    Text(UniMailConnection.autoConnectFailedText).ufFont(13.12, 600).foregroundStyle(UF.warnText)
+                        .fixedSize(horizontal: false, vertical: true).padding(.top, 4)
+                        .accessibilityIdentifier("unimail.autoConnectFailed")
+                }
                 if let u = connection.user, connection.isConnected {
                     Text("Konto: \(u)").ufFont(12.8).foregroundStyle(UF.text2).padding(.top, 4)
                 }

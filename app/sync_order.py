@@ -144,6 +144,25 @@ def newest_first(courses: list[dict]) -> list[dict]:
     return [c for _, c in indexed]
 
 
+def size_class(size) -> int:
+    """Groessenklasse einer Datei: 0 = klein (bis 2 MB), 1 = mittel oder unbekannt (bis 20 MB), 2 = gross
+    (`DownloadPlan.sizeClass` in der App)."""
+    if not size or size <= 0:
+        return 1
+    if size <= 2 * 1024 * 1024:
+        return 0
+    return 1 if size <= 20 * 1024 * 1024 else 2
+
+
+def download_order(files: list[dict]) -> list[dict]:
+    """Reihenfolge der Downloads (15.11.2026, `DownloadPlan.order` in der App): laufendes Semester vor dem naechsten
+    und vor frueheren (`stage`: 0, 1, 2), darin kleine vor grossen (`size_class`), darin neue vor alten (`changed`,
+    Unix-Zeit), sonst wie geliefert."""
+    indexed = list(enumerate(files))
+    indexed.sort(key=lambda p: (p[1].get("stage") or 0, size_class(p[1].get("size")), -(p[1].get("changed") or 0), p[0]))
+    return [f for _, f in indexed]
+
+
 # --- Stufen ausfuehren --------------------------------------------------------------------------------------------
 
 def run_stages(steps, log=None, on_stage=None) -> list[tuple[str, str, bool]]:

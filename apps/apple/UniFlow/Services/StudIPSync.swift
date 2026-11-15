@@ -1,4 +1,5 @@
 import Foundation
+import QuartzCore
 import Security
 import UIKit
 import UniFlowCore
@@ -172,6 +173,16 @@ final class StudIPSync: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .signedOut
+    /// Fortschritt der Dateien, solange ein Abgleich Listen liest oder laedt (15.11.2026, `SyncProgress`, dasselbe Bild
+    /// wie an der Uni Hildesheim): "Deine Kurse werden geladen: 121 von 250 Dateien". nil sonst
+    @Published private(set) var progress: SyncProgress?
+    /// Ein voller Abgleich hat begonnen und ist nicht zu Ende gelaufen (App beendet, Hintergrundzeit abgelaufen):
+    /// beim naechsten Oeffnen sofort weiter (`runIfDue`); bis dahin zeigt die Leiste "wird fortgesetzt"
+    var interrupted: Bool { phase == .idle && defaults.object(forKey: Keys.runOpen) != nil }
+    /// Hintergrundzeit von iOS fuer einen laufenden Abgleich (Tests: Attrappe)
+    var backgroundTime: UFBackgroundTime = .system
+    /// Gleichzeitigkeit der Downloads des letzten Laufs (Tests)
+    private(set) var lastLanes: DownloadLanes?
 
     /// "Meldung schließen" an der Fehlermeldung (07.11.2026): Fehler ausblenden, bis der naechste Abgleich scheitert
     func dismissFailure() {
@@ -252,6 +263,8 @@ final class StudIPSync: ObservableObject {
         static let folderCheckIndex = "uniflow.studip.folderCheckIndex"
         /// Letzter Lauf mit Aufzeichnungen und Lernstoff (`slowPartsInterval`)
         static let slowPartsAt = "uniflow.studip.slowPartsAt"
+        /// Beginn eines vollen Abgleichs, der noch nicht zu Ende gelaufen ist (`interrupted`)
+        static let runOpen = "uniflow.studip.runOpen"
     }
 
     /// Aufzeichnungen (Opencast) und Lernstoff (Courseware, Wiki, Forum) fragen je Kurs mehrere Seiten ab; beim Oeffnen
@@ -761,7 +774,8 @@ final class StudIPSync: ObservableObject {
             let ready = await ensureSession(.foreground)
             // erneuert: `signedIn` hat den Abgleich schon gestartet; abgelaufen: "Erneut anmelden"
             guard ready == .ready || ready == .unknown, phase == .idle || isFailed else { return }
-            if let last = lastRun, !downloadsPending, Date().timeIntervalSince(last) < 30 * 60 { return }
+            // ein unterbrochener Lauf setzt sofort fort (15.11.2026)
+            if let last = lastRun, !downloadsPending, !interrupted, Date().timeIntervalSince(last) < 30 * 60 { return }
             await run()
         }
     }
@@ -973,13 +987,70 @@ final class StudIPSync: ObservableObject {
         guard ContainerRuns.claim(root, by: self) else { return nil }
         defer { ContainerRuns.release(root, by: self) }
         phase = .running("Kurse werden geladen …")
+        // voller Lauf der aktuellen Kurse: als offen merken, bis er zu Ende gelaufen ist (`interrupted`)
+        let tracksOpen = scope == .full && !olderOnly
+        if tracksOpen { defaults.set(Date(), forKey: Keys.runOpen) }
+        progress = SyncProgress(older: olderOnly)
         let task = Task { await self.perform(client: client, scope: scope, olderOnly: olderOnly, olderCourses: olderCourses) }
         current = task
         runningOlderOnly = olderOnly
+        // Wechselt die App in den Hintergrund oder wird das Geraet gesperrt, laeuft der Abgleich mit der Hintergrundzeit
+        // von iOS weiter; ist sie um, endet er sauber als abgebrochen und setzt beim Zurueckkommen fort
+        let extra = backgroundTime.begin("StudiNow lädt deine Kurse") { task.cancel() }
         let end = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        extra.end()
         current = nil
         runningOlderOnly = false
+        progress = nil
+        // zu Ende gelaufen oder mit einer Fehlermeldung beendet: nicht mehr offen; abgebrochen bzw. abgelaufen: bleibt
+        if tracksOpen, end != .cancelled, end != .sessionExpired { defaults.removeObject(forKey: Keys.runOpen) }
         return end
+    }
+
+    /// Zeit des Geraets fuer Abstaende (nicht `ProcessInfo.systemUptime`)
+    private func uptime() -> CFTimeInterval { CACurrentMediaTime() }
+
+    /// Fortschritt der Dateien melden: Balken (`progress`) und der Text des Standes (`phase`), nur waehrend eines Laufs
+    private func note(_ p: SyncProgress) {
+        guard isRunning else { return }
+        // spaeter gemeldete, aber aeltere Staende ueberholen nichts (die Downloads melden aus mehreren Aufgaben)
+        if let old = progress, old.step == p.step, old.filesDone > p.filesDone { return }
+        let stepChanged = progress?.step != p.step
+        progress = p
+        phase = .running(p.title)
+        // Seiten neu laden lassen: Listen fertig bzw. alle paar Sekunden waehrend der Downloads
+        let now = uptime()
+        if stepChanged || now - lastStageAt >= HildesheimConnection.stageInterval {
+            if p.coursesDone > 0 || p.filesDone > 0 || p.step == .files { stagesReady += 1 }
+            lastStageAt = now
+        }
+    }
+    private var lastStageAt: CFTimeInterval = 0
+
+    /// Ein Download des Laufs (aus der Dateiliste oder nachgeholt aus dem Register)
+    struct DownloadJob: Sendable {
+        let id: String, courseID: String, name: String, size: Int
+        let row: UniStore.FileRow
+        /// Ablage relativ zum Stud.IP-Ordner
+        let path: String
+    }
+
+    /// Zaehler der Downloads eines Laufs; mehrere Downloads schreiben zugleich hinein
+    final class DownloadTally: @unchecked Sendable {
+        private let lock = NSLock()
+        private var done = 0, ok = 0, bad = 0, refusedFiles = 0
+        private var courses = Set<String>()
+        private var error: Error?
+        func loaded() { lock.withLock { ok += 1 } }
+        func failed(course: String, refused: Bool) { lock.withLock { bad += 1; if refused { refusedFiles += 1 }; courses.insert(course) } }
+        func finished() -> Int { lock.withLock { done += 1; return done } }
+        /// Fehler, der den ganzen Lauf beendet (der erste gilt)
+        func stop(_ e: Error) { lock.withLock { if error == nil { error = e } } }
+        var fatal: Error? { lock.withLock { error } }
+        var loadedCount: Int { lock.withLock { ok } }
+        var failedCount: Int { lock.withLock { bad } }
+        var refusedCount: Int { lock.withLock { refusedFiles } }
+        var failedCourses: Set<String> { lock.withLock { courses } }
     }
 
     /// Anhalten, bevor der Container geloescht wird: laufenden Abgleich abbrechen und auf sein Ende warten (danach
@@ -1099,7 +1170,7 @@ final class StudIPSync: ObservableObject {
                                         checkIndex: defaults.integer(forKey: Keys.folderCheckIndex), now: Date())
             var checks: [StudIPFolderCheck] = []
             var done = 0
-            if !fileCourses.isEmpty { phase = .running("Dateien werden geprüft: 0 von \(fileCourses.count) \(fileCourses.count == 1 ? "Kurs" : "Kursen")") }
+            if !fileCourses.isEmpty { note(SyncProgress(step: .lists, coursesTotal: fileCourses.count, older: olderOnly)) }
             try await withThrowingTaskGroup(of: (Int, Result<StudIPFileListing, Error>).self) { group in
                 var next = 0
                 func addNext() {
@@ -1115,7 +1186,7 @@ final class StudIPSync: ObservableObject {
                     try Task.checkCancellation()
                     let c = fileCourses[i]
                     done += 1
-                    phase = .running("Dateien werden geprüft: \(done) von \(fileCourses.count) \(fileCourses.count == 1 ? "Kurs" : "Kursen")")
+                    note(SyncProgress(step: .lists, coursesDone: done, coursesTotal: fileCourses.count, current: c.title, older: olderOnly))
                     let files: [StudIPFile]
                     switch result {
                     case .success(let listing):
@@ -1146,6 +1217,8 @@ final class StudIPSync: ObservableObject {
                         try StudIPLibrary.storeLinks($0, courseID: c.id, files, complete: complete, now: started)
                         // Videodateien zusaetzlich als Aufzeichnungen (Stream und Laden auf Wunsch, `OpencastStore`)
                         try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
+                        // Liste gelesen: das Modul zeigt ab jetzt seine Dateien statt "werden noch geladen" (`SyncPending`)
+                        if complete { try SyncPending.markListed($0, courseID: c.id, now: started) }
                         return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
                     }
                 }
@@ -1184,11 +1257,6 @@ final class StudIPSync: ObservableObject {
             // Aufzeichnungen mit "Abspielen" (Stream) und "Laden". Links ebenso nicht. Alles andere wird geladen, auch
             // mit "is-downloadable": false (`downloadCandidates`, Befund 07.11.2026)
             let download = Self.downloadCandidates(wanted)
-            var failed = 0
-            /// davon ausdruecklich von Stud.IP verweigert (403/404): kein sofortiger neuer Lauf deswegen
-            var refused = 0
-            /// Kurse mit einer nicht geladenen Datei (ein frueheres Semester gilt dann nicht als fertig geladen)
-            var failedCourses = Set<String>()
             // Absagen (403/404) fragt der automatische Abgleich erst nach `DownloadFailures.refusedRetryAfter` erneut;
             // jede andere nicht geladene Datei bei jedem Lauf ("Jetzt laden" in der Dateiansicht fragt immer)
             let failures = (try? await db.withConnection { try DownloadFailures.all($0) }) ?? [:]
@@ -1197,75 +1265,101 @@ final class StudIPSync: ObservableObject {
             let restingIDs = Set(resting.map(\.id))
             // nur Listen (kurzer Hintergrundlauf): die Dateien laedt der naechste volle Lauf
             let toLoad = scope == .full ? download.filter { !restingIDs.contains($0.id) } : []
-            /// Fehlversuch je Datei sichtbar machen ("Nicht geladen – erneut versuchen" in der Dateiansicht)
-            func noteFailure(_ f: StudIPFile, _ error: Error) async {
-                failed += 1
-                failedCourses.insert(f.courseID)
-                let d = DownloadFailures.describe(error)
-                if d.status == 403 || d.status == 404 { refused += 1 }
-                let at = clock.nowISO
-                _ = try? await db.transaction { try DownloadFailures.record($0, fileID: f.id, message: d.message, status: d.status, now: at) }
-            }
-            // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit
-            // Notizen aufbewahren (S7), an ihren Platz, eintragen, Seitentexte und Notizen der neuen Fassung; ein Abbruch
-            // hinterlaesst keine halbe Datei als "geladen". Vor jeder Datei der freie Platz: ein voller Speicher haelt
-            // den Lauf an (`DeviceStorage.Full`), statt Datei fuer Datei zu scheitern
-            for (i, f) in toLoad.enumerated() {
-                try Task.checkCancellation()
-                guard DeviceStorage.fits(Int64(f.size), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
-                phase = .running(Self.downloadStep(i, of: toLoad.count, name: f.name))
-                let rel = StudIPImport.relativePath(for: f)
-                do {
-                    try await downloads.load(StudIPLibrary.fileRow(f, base: Self.base), to: rel, db: db, clock: clock) { part in
-                        try await client.download(fileID: f.id, to: part, name: f.name)
-                    }
-                } catch where DeviceStorage.isFull(error) {
-                    throw DeviceStorage.Full()
-                } catch let e as StudIPError where e.affectsOnlyItem {
-                    // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
-                    await noteFailure(f, e)
-                    continue
-                } catch let e as URLError where !Self.endsRun(e) {
-                    // z. B. Zeitueberschreitung bei einer grossen Datei: nur diese Datei, die uebrigen kommen trotzdem
-                    await noteFailure(f, e)
-                    continue
-                } catch let e as UniDownloads.Failure {
-                    // leere Antwort statt der Datei oder alte Fassung mit Notizen nicht gesichert (S7): die alte Fassung
-                    // bleibt, der naechste Abgleich laedt erneut
-                    await noteFailure(f, e)
-                    continue
-                }
-                loaded += 1
-            }
             // Nachholen unabhaengig von der Dateiliste (Befund iPad 08.11.2026): Dateien der aktuellen Kurse, die im
             // Register stehen, aber keinen Ablageort haben, laedt jeder volle Lauf - auch wenn die Liste dieses Laufs
             // sie nicht (mehr) nannte. Absagen (403/404) ruhen wie oben; alles andere wird erneut versucht.
+            var jobs = toLoad.map { DownloadJob(id: $0.id, courseID: $0.courseID, name: $0.name, size: $0.size,
+                                                row: StudIPLibrary.fileRow($0, base: Self.base), path: StudIPImport.relativePath(for: $0)) }
             if scope == .full, !olderOnly {
                 let tried = Set(toLoad.map(\.id)).union(restingIDs)
                 let courseIDs = Set(fileCourses.map(\.id))
                 let missing = (try? await db.withConnection { try Self.notLoadedFiles($0, courseIDs: courseIDs) }) ?? []
-                let catchUp = missing.filter { !tried.contains($0.id) && DownloadFailures.dueForAutomaticRetry(failures[$0.id], now: nowISO) }
-                for (i, row) in catchUp.enumerated() {
-                    try Task.checkCancellation()
-                    guard DeviceStorage.fits(Int64(row.size ?? 0), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
-                    phase = .running(Self.downloadStep(i, of: catchUp.count, name: row.name))
-                    let f = StudIPFile(id: row.id, courseID: row.courseID, name: row.name, size: row.size ?? 0, mimeType: row.mime, changed: "")
-                    do {
-                        try await downloads.load(row.row, to: StudIPImport.relativePath(fileID: row.id, name: row.name), db: db, clock: clock) { part in
-                            try await client.download(fileID: row.id, to: part, name: row.name)
-                        }
-                    } catch where DeviceStorage.isFull(error) {
-                        throw DeviceStorage.Full()
-                    } catch let e as StudIPError where e.affectsOnlyItem {
-                        await noteFailure(f, e); continue
-                    } catch let e as URLError where !Self.endsRun(e) {
-                        await noteFailure(f, e); continue
-                    } catch let e as UniDownloads.Failure {
-                        await noteFailure(f, e); continue
-                    }
-                    loaded += 1
-                }
+                jobs += missing.filter { !tried.contains($0.id) && DownloadFailures.dueForAutomaticRetry(failures[$0.id], now: nowISO) }
+                    .map { DownloadJob(id: $0.id, courseID: $0.courseID, name: $0.name, size: $0.size ?? 0, row: $0.row,
+                                       path: StudIPImport.relativePath(fileID: $0.id, name: $0.name)) }
             }
+            // Reihenfolge (15.11.2026, `DownloadPlan.order`): laufendes Semester vor dem naechsten, kleine und neue
+            // Dateien zuerst; massvoll nebeneinander (`DownloadLanes`: 3 zugleich, nach 429/5xx einzeln). Je Datei ueber
+            // `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit Notizen aufbewahren
+            // (S7), an ihren Platz, eintragen; ein Abbruch hinterlaesst keine halbe Datei als "geladen". Vor jeder Datei
+            // der freie Platz: ein voller Speicher haelt den Lauf an (`DeviceStorage.Full`)
+            let stages = Dictionary(fileCourses.map { c in
+                (c.id, olderOnly ? 2 : (SyncOrder.stage(active: true, semester: c.semesterTitle, current: term) == .upcoming ? 1 : 0))
+            }, uniquingKeysWith: { a, _ in a })
+            let titles = Dictionary(fileCourses.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
+            let ordered = DownloadPlan.order(jobs, stage: { stages[$0.courseID] ?? 0 }, size: { $0.size }, changed: { $0.row.chdate })
+            let tally = DownloadTally()
+            let lanes = DownloadLanes()
+            lastLanes = lanes
+            let folder = root, clock = self.clock, total = ordered.count
+            if total > 0 { note(SyncProgress(step: .files, filesTotal: total, current: ordered.first.flatMap { titles[$0.courseID] }, older: olderOnly)) }
+            // je Stufe nacheinander: das naechste Semester beginnt erst, wenn das laufende geladen ist (`SyncOrder`)
+            for wanted in 0...2 where tally.fatal == nil && !Task.isCancelled {
+            await DownloadPlan.forEach(ordered.filter { (stages[$0.courseID] ?? 0) == wanted }, lanes: lanes) { [weak self] _, f in
+                if Task.isCancelled || tally.fatal != nil { tally.stop(CancellationError()); return false }
+                /// Fehlversuch je Datei sichtbar machen ("Nicht geladen – erneut versuchen" in der Dateiansicht)
+                func noteFailure(_ error: Error) async {
+                    let d = DownloadFailures.describe(error)
+                    tally.failed(course: f.courseID, refused: d.status == 403 || d.status == 404)
+                    let at = clock.nowISO
+                    _ = try? await db.transaction { try DownloadFailures.record($0, fileID: f.id, message: d.message, status: d.status, now: at) }
+                }
+                var secondTry = false
+                while true {
+                    do {
+                        guard DeviceStorage.fits(Int64(f.size), free: DeviceStorage.availableBytes(at: folder)) else { throw DeviceStorage.Full() }
+                        try Task.checkCancellation()
+                        try await downloads.load(f.row, to: f.path, db: db, clock: clock) { part in
+                            try await client.download(fileID: f.id, to: part, name: f.name)
+                        }
+                        tally.loaded()
+                    } catch where DeviceStorage.isFull(error) {
+                        tally.stop(DeviceStorage.Full())
+                        return false
+                    } catch let e as StudIPError where e.affectsOnlyItem {
+                        // Stud.IP bremst (429) oder ist gestoert (5xx): ab jetzt einzeln; diese Datei bekommt genau einen
+                        // weiteren Versuch, sobald sie allein an der Reihe ist. Sonst wie run_sync ("Download-Fehler"):
+                        // naechste Datei; der naechste Abgleich versucht es erneut
+                        if DownloadPlan.isOverload(e) {
+                            await lanes.slowDown()
+                            if !secondTry {
+                                secondTry = true
+                                await lanes.leave()
+                                await lanes.enter()
+                                continue
+                            }
+                        }
+                        await noteFailure(e)
+                    } catch let e as URLError where !Self.endsRun(e) {
+                        // z. B. Zeitueberschreitung bei einer grossen Datei: nur diese Datei, die uebrigen kommen trotzdem
+                        await noteFailure(e)
+                    } catch let e as UniDownloads.Failure {
+                        // leere Antwort statt der Datei oder alte Fassung mit Notizen nicht gesichert (S7): die alte Fassung
+                        // bleibt, der naechste Abgleich laedt erneut
+                        await noteFailure(e)
+                    } catch {
+                        tally.stop(error)                         // abgelaufen, kein Netz, Abbruch: der Lauf endet
+                        return false
+                    }
+                    break
+                }
+                let done = tally.finished()
+                await self?.note(SyncProgress(step: .files, filesDone: done, filesTotal: total, current: titles[f.courseID], older: olderOnly))
+                return true
+            }
+            }
+            loaded = tally.loadedCount
+            let failed = tally.failedCount
+            /// davon ausdruecklich von Stud.IP verweigert (403/404): kein sofortiger neuer Lauf deswegen
+            let refused = tally.refusedCount
+            /// Kurse mit einer nicht geladenen Datei (ein frueheres Semester gilt dann nicht als fertig geladen)
+            let failedCourses = tally.failedCourses
+            if let fatal = tally.fatal { throw fatal }
+            try Task.checkCancellation()
+            progress = nil                                    // Dateien sind da; die weiteren Schritte ohne Balken
+            // die Dateien des laufenden Semesters sind durch: der Lauf gilt nicht mehr als unterbrochen, auch wenn danach
+            // noch Neuigkeiten, Aufzeichnungen und Lernstoff kommen (sonst stuende waehrenddessen "noch nicht vollständig")
+            if scope == .full, !olderOnly { defaults.removeObject(forKey: Keys.runOpen) }
             await refreshEntries()                            // Dateien schon zeigen, waehrend Ergaenzungen laden
             if !olderOnly { stagesReady += 1 }
             /// ehrlicher Stand fuer die weiteren Schritte ("3 neue Dateien · Aufzeichnungen …")

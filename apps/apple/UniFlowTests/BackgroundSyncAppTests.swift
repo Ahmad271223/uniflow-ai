@@ -537,7 +537,7 @@ final class BackgroundSyncAppTests: XCTestCase {
 
         // langer Lauf: laedt die wartende Datei (die gesperrte verweigert Stud.IP); nichts mehr neu, keine zweite Mitteilung
         try await launch(b, .processing)
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
+        XCTAssertEqual(stud.downloads.sorted(), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
         XCTAssertFalse(m.studip.downloadsPending)
         XCTAssertNotNil(m.studip.lastRun)
         XCTAssertEqual(n.posts.count, 1, "jede neue Datei wird nur einmal gemeldet")

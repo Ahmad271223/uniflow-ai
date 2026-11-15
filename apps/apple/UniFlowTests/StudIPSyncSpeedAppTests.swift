@@ -202,6 +202,78 @@ final class StudIPSyncSpeedAppTests: XCTestCase {
         XCTAssertLessThanOrEqual(stud.maxOpen, StudIPClient.defaultConcurrency)
     }
 
+    /// Erster Abgleich (15.11.2026, docs/ERST-ABGLEICH-2026-11-15.md): Fortschritt in Worten (erst die Dateilisten aller
+    /// Kurse, dann die Downloads), drei Downloads zugleich, nach 429 nur noch einer; die gebremste Datei steht mit Grund
+    /// da, alle anderen kommen. Danach ist die Anzeige weg.
+    func testFirstRunReportsProgressLoadsThreeAtOnceAndSlowsDownAfter429() async throws {
+        let dev = try device()
+        let stud = portal()
+        stud.latencyMillis = 10
+        stud.set("/jsonapi.php/v1/file-refs/f1a1/content", HTTPReply(status: 429, contentType: "text/plain", body: Data()))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        var steps: [SyncProgress] = []
+        let watch = sync.$progress.compactMap { $0 }.sink { steps.append($0) }
+        defer { watch.cancel() }
+        let end = await sync.run(client: client(stud))
+        XCTAssertEqual(end, .completed)
+        XCTAssertNil(sync.progress, "nach dem Lauf keine Anzeige mehr")
+        XCTAssertFalse(sync.interrupted)
+        let lists = steps.filter { $0.step == .lists }
+        XCTAssertEqual(lists.last?.title, "Deine Kurse werden geladen: 6 von 6 Kursen")
+        let files = steps.filter { $0.step == .files }
+        XCTAssertEqual(files.first?.title, "Deine Kurse werden geladen: 0 von 48 Dateien")
+        XCTAssertEqual(files.last?.title, "Deine Kurse werden geladen: 48 von 48 Dateien")
+        let firstFile = try XCTUnwrap(steps.firstIndex { $0.step == .files })
+        XCTAssertFalse(steps[firstFile...].contains { $0.step == .lists }, "alle Dateilisten vor dem ersten Download")
+        XCTAssertEqual(sync.entries.count, 47, "alle ausser der gebremsten Datei")
+        let lanes = try XCTUnwrap(sync.lastLanes)
+        let (slowed, limit, peak, after) = await (lanes.slowed, lanes.limit, lanes.peak, lanes.peakAfterSlowdown)
+        XCTAssertTrue(slowed)
+        XCTAssertEqual(limit, 1)
+        XCTAssertEqual(peak, 3, "vor der Bremse drei zugleich")
+        XCTAssertEqual(after, 1, "nach 429 einzeln")
+        let db = try await dev.host.backend().context.database
+        let failure = try await db.withConnection { try DownloadFailures.entry($0, fileID: "f1a1") }
+        XCTAssertEqual(failure?.status, 429)
+        let pending = try await db.withConnection { try SyncPending.overview($0) }
+        XCTAssertEqual(pending.unlisted, 0, "jeder Kurs ist gelistet")
+        XCTAssertEqual(pending.waiting, 1)
+    }
+
+    /// Unterbrechung (15.11.2026): laeuft die Hintergrundzeit von iOS ab, endet der Lauf sauber und bleibt als offen
+    /// gemerkt; der naechste Lauf laedt nur, was fehlt, und raeumt den Merker weg.
+    func testInterruptedRunIsRememberedAndContinuesWithTheRest() async throws {
+        let dev = try device()
+        let stud = portal()
+        stud.latencyMillis = 15
+        let d = try defaults()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: d)
+        var expire: (@MainActor () -> Void)?
+        sync.backgroundTime = UFBackgroundTime { _, expired in
+            expire = expired
+            return UFBackgroundTime.Handle { _ in }
+        }
+        let run = Task { await sync.run(client: self.client(stud)) }
+        let limit = Date().addingTimeInterval(20)
+        while (sync.progress?.step != .files || (sync.progress?.filesDone ?? 0) < 5), Date() < limit { try await Task.sleep(nanoseconds: 5_000_000) }
+        XCTAssertNotNil(d.object(forKey: StudIPSync.Keys.runOpen), "laufender Abgleich ist als offen gemerkt")
+        try XCTUnwrap(expire)()
+        let end = await run.value
+        XCTAssertEqual(end, .cancelled)
+        XCTAssertNil(sync.progress)
+        XCTAssertNotNil(d.object(forKey: StudIPSync.Keys.runOpen), "unterbrochen: bleibt offen, der naechste Start setzt sofort fort")
+        let first = sync.entries.count
+        XCTAssertGreaterThanOrEqual(first, 5)
+        XCTAssertLessThan(first, 48)
+
+        stud.clear()
+        let second = await sync.run(client: client(stud))
+        XCTAssertEqual(second, .completed)
+        XCTAssertEqual(sync.entries.count, 48)
+        XCTAssertEqual(stud.count { $0.hasSuffix("/content") }, 48 - first, "nur die fehlenden Dateien, keine noch einmal")
+        XCTAssertNil(d.object(forKey: StudIPSync.Keys.runOpen))
+    }
+
     /// 11.11.2026 ("Sync dauert ewig"): "fertig" kommt, sobald Dateien, Stundenplan und Neuigkeiten da sind;
     /// Aufzeichnungen und Lernstoff laufen danach im selben Lauf, der Lernplan losgeloest danach
     func testReadyBeforeRecordingsTextsAndStudyPlan() async throws {

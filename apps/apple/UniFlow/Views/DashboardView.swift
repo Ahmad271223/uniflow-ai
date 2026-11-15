@@ -173,7 +173,7 @@ struct DashboardView: View {
     }
 
     private func statusBar(_ mode: UFDataMode) -> Bool {
-        UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase).showsStatusBar
+        UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase, interrupted: studip.interrupted).showsStatusBar
     }
 
     /// Name der Begruessung in der Reihenfolge von `UFGreeting.pick`; das StudiNow-Konto hat in V1 keinen Anzeigenamen

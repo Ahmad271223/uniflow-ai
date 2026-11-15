@@ -30,6 +30,16 @@ enum FileLoadState: Equatable {
     /// keine Stud.IP-Datei (eigene Datei, Learnweb): laedt der Abgleich ihrer Quelle
     case otherSource
 
+    /// Ergebnis des Einzel-Downloads aus dem Learnweb (15.11.2026); nil bzw. unbekannt: keine Datei dieser Quelle
+    init(_ outcome: HildesheimSync.SingleLoad?) {
+        switch outcome {
+        case .loaded?: self = .loaded
+        case .needsLogin?: self = .needsLogin
+        case .failed(let m)?: self = .failed(m)
+        case .unknown?, nil: self = .otherSource
+        }
+    }
+
     init(_ outcome: StudIPSync.FileLoadOutcome) {
         switch outcome {
         case .loaded: self = .loaded
@@ -40,25 +50,32 @@ enum FileLoadState: Equatable {
     }
 
     /// Ueberschrift unter dem Dateinamen
-    var headline: String {
+    var headline: String { headline(source: "Stud.IP") }
+
+    /// Erklaerung (verspricht nur, was passiert)
+    var detail: String { detail(source: "Stud.IP") }
+
+    /// `source`: "Stud.IP" bzw. "Learnweb" (woher die Datei kommt)
+    func headline(source: String) -> String {
         switch self {
         case .idle: return UFDevice.adapt("Noch nicht auf diesem iPad")
         case .loading: return "Wird geladen …"
         case .loaded: return "Geladen"
-        case .needsLogin: return "Stud.IP-Anmeldung nötig"
+        case .needsLogin: return "\(source)-Anmeldung nötig"
         case .failed: return "Nicht geladen"
         case .otherSource: return UFDevice.adapt("Noch nicht auf diesem iPad")
         }
     }
 
-    /// Erklaerung (verspricht nur, was passiert)
-    var detail: String {
+    func detail(source: String) -> String {
+        let place = source == "Stud.IP" ? "in Stud.IP" : "im \(source)"
+        let from = source == "Stud.IP" ? "von Stud.IP" : "aus dem \(source)"
         switch self {
-        case .idle: return UFDevice.adapt("Die Datei steht in Stud.IP. „Jetzt laden“ holt sie sofort auf dieses iPad.")
-        case .loading: return UFDevice.adapt("Die Datei kommt gerade von Stud.IP auf dieses iPad.")
+        case .idle: return UFDevice.adapt("Die Datei steht \(place). „Jetzt laden“ holt sie sofort auf dieses iPad.")
+        case .loading: return UFDevice.adapt("Die Datei kommt gerade \(from) auf dieses iPad.")
         case .loaded: return "Die Datei ist da und öffnet sich gleich."
         case .needsLogin:
-            return "Melde dich unter Einstellungen → Stud.IP neu an. Danach lädt „Erneut versuchen“ die Datei, und jeder Abgleich holt fehlende Dateien nach."
+            return (source == "Stud.IP" ? "Melde dich unter Einstellungen → Stud.IP neu an." : "Melde dich in den Einstellungen neu beim \(source) an.") + " Danach lädt „Erneut versuchen“ die Datei, und jeder Abgleich holt fehlende Dateien nach."
         case .failed(let m): return m + " Jeder Abgleich versucht es wieder; „Erneut versuchen“ fragt sofort."
         case .otherSource: return "Diese Datei kommt mit dem Abgleich ihrer Quelle; „Sync“ oben startet ihn."
         }
@@ -78,6 +95,8 @@ struct FileLoadPanel: View {
     let file: LibFile
     var onLoaded: (() async -> Void)?
     @Environment(\.studipFiles) private var studip
+    /// Uni Hildesheim: Learnweb-Dateien laedt die Verbindung des Containers einzeln (15.11.2026)
+    @Environment(\.hildesheim) private var hildesheim
     /// beginnt mit "Wird geladen": beim Oeffnen laedt die Ansicht sofort selbst; vorher kurz "Noch nicht auf diesem
     /// iPad" mit "Jetzt laden" zu zeigen, blitzte bei jedem Oeffnen auf (Befund vom iPad 07.11.2026, 23:35)
     @State private var state: FileLoadState = .loading
@@ -91,7 +110,7 @@ struct FileLoadPanel: View {
             if state == .loading, !showWhileLoading {
                 UF.bg.ignoresSafeArea()
             } else {
-                FileLoadPanelContent(title: file.displayTitle, size: file.size, state: state) { Task { await retry() } }
+                FileLoadPanelContent(title: file.displayTitle, size: file.size, state: state, source: hildesheim == nil ? "Stud.IP" : "Learnweb") { Task { await retry() } }
             }
         }
         .task(id: file.id) {
@@ -114,9 +133,14 @@ struct FileLoadPanel: View {
     }
 
     private func run() async {
-        guard let studip else { state = .otherSource; return }
         state = .loading
-        state = FileLoadState(await studip.loadFile(id: file.id))
+        if let hildesheim {
+            state = FileLoadState(await hildesheim.loadFile(id: file.id))
+        } else if let studip {
+            state = FileLoadState(await studip.loadFile(id: file.id))
+        } else {
+            state = .otherSource
+        }
         if state == .loaded { await onLoaded?() }
     }
 }
@@ -126,6 +150,8 @@ struct FileLoadPanelContent: View {
     let title: String
     var size: Int?
     let state: FileLoadState
+    /// "Stud.IP" bzw. "Learnweb"
+    var source = "Stud.IP"
     let retry: () -> Void
 
     private var icon: String {
@@ -143,10 +169,10 @@ struct FileLoadPanelContent: View {
                 .foregroundStyle(state == .loaded ? UF.ok : UF.muted)
                 .accessibilityHidden(true)
             Text(title).ufFont(19, 650, lh: 1.3).foregroundStyle(UF.text).multilineTextAlignment(.center).lineLimit(3)
-            Text(state.headline).ufFont(14.5, 600, lh: 1.3)
+            Text(state.headline(source: source)).ufFont(14.5, 600, lh: 1.3)
                 .foregroundStyle(isProblem ? UF.badText : UF.text2)
                 .accessibilityIdentifier("file.load.state")
-            Text(state.detail).ufFont(14, lh: 1.45).foregroundStyle(UF.text2).multilineTextAlignment(.center)
+            Text(state.detail(source: source)).ufFont(14, lh: 1.45).foregroundStyle(UF.text2).multilineTextAlignment(.center)
                 .frame(maxWidth: 460)
                 .fixedSize(horizontal: false, vertical: true)
             if state == .loading {

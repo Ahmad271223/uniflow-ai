@@ -775,6 +775,100 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertEqual(h.learnweb, .ok(clock.now))
     }
 
+    /// Erster Abgleich (15.11.2026, docs/ERST-ABGLEICH-2026-11-15.md): waehrend geladen wird, steht der Fortschritt da
+    /// (die Listen sind schon gespeichert, die Module wissen, was noch kommt); laeuft die Hintergrundzeit von iOS ab,
+    /// endet der Lauf sauber und gilt als unterbrochen - nicht als fertig; Antippen laedt eine Datei einzeln; der
+    /// naechste Lauf laedt nur den Rest, danach verschwindet die Anzeige.
+    func testFirstSyncShowsProgressSurvivesInterruptionAndLoadsOnTap() async throws {
+        let ics = try repo("packages/shared-contracts/fixtures/hildesheim/lsf-course.ics")
+        let contents = try repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json")
+        let m = manager()
+        let (c, h) = try hildesheim(m, account(.hildesheim))
+        XCTAssertTrue(h.learnwebSignedIn(token: try XCTUnwrap(LearnwebToken(token)), base: base))
+        XCTAssertNil(h.shownProgress, "ohne Lauf keine Leiste")
+        var expire: (@MainActor () -> Void)?
+        h.backgroundTime = UFBackgroundTime { _, expired in
+            expire = expired
+            return UFBackgroundTime.Handle { _ in }
+        }
+        let gate = StubGate()
+        let uni = Self.uniHildesheim(base: base, lsf: lsf, token: token, ics: ics, contents: contents)
+        UniStubProtocol.install { r in
+            if r.url.path.contains("/webservice/pluginfile.php/") { gate.pass() }
+            return uni(r)
+        }
+        let first = Task { await h.run() }
+        try await waitUntil("Learnweb-Download laeuft") { gate.wasReached }
+        try await waitUntil("Fortschritt der Dateien") { h.progress?.step == .files }
+        let total = try XCTUnwrap(h.progress?.filesTotal)
+        XCTAssertGreaterThan(total, 0)
+        XCTAssertTrue(h.progress?.title.hasPrefix("Deine Kurse werden geladen: 0 von \(total) Datei") == true, h.progress?.title ?? "-")
+        XCTAssertEqual(h.shownProgress, h.progress.map(UFSyncProgressBar.Content.running))
+        XCTAssertFalse(h.interrupted, "laeuft noch")
+        XCTAssertNotNil(expire, "Hintergrundzeit von iOS angefordert")
+        // die Dateilisten stehen schon in der Datenbank: das Modul zeigt seine Dateien und weiss, was noch kommt
+        let db = try await c.host.backend().context.database
+        let pending = try await db.withConnection { try SyncPending.overview($0) }
+        XCTAssertEqual(pending.waiting, total)
+        XCTAssertEqual(pending.unlisted, 0)
+
+        // iOS: die Hintergrundzeit ist um
+        try XCTUnwrap(expire)()
+        gate.release()
+        let report = try unwrap(await first.value)
+        XCTAssertTrue(report.cancelled)
+        XCTAssertNil(h.progress)
+        XCTAssertNil(h.lastRun, "ein unterbrochener Lauf zaehlt nicht als Abgleich")
+        XCTAssertTrue(h.interrupted)
+        XCTAssertEqual(h.shownProgress, .interrupted, "kein Zustand, der wie fertig aussieht")
+
+        // Antippen laedt eine Datei einzeln
+        let waiting = try await db.rows("SELECT id FROM files WHERE (local_path IS NULL OR local_path = '') AND course_id LIKE 'lw-%' ORDER BY name")
+        let id = try XCTUnwrap(waiting.first?["id"]?.string)
+        let one = await h.loadFile(id: id)
+        XCTAssertEqual(one, .loaded)
+        let path = try await db.scalar("SELECT local_path FROM files WHERE id=?", [.text(id)])?.string
+        XCTAssertTrue(c.layout.files().exists(stored: path))
+
+        // Fortsetzen: nur der Rest, danach ist die Anzeige weg
+        let stages = h.stagesReady
+        let second = try unwrap(await h.run())
+        XCTAssertFalse(second.cancelled)
+        XCTAssertEqual(second.newFiles.count, waiting.count - 1, "nichts noch einmal")
+        XCTAssertFalse(h.interrupted)
+        XCTAssertNil(h.shownProgress)
+        XCTAssertEqual(h.learnweb, .ok(clock.now))
+        XCTAssertGreaterThan(h.stagesReady, stages, "Seiten laden schon waehrend des Abgleichs neu")
+        let left = try await db.withConnection { try SyncPending.overview($0) }
+        XCTAssertTrue(left.isEmpty)
+    }
+
+    /// "Sync" waehrend der erste Datei-Abgleich noch laeuft (15.11.2026): nicht mehr nur "läuft bereits" - der Knopf
+    /// startet den Abgleich aller Portale (verbindet die Uni-Mail) und wartet dann auf den laufenden Datei-Abgleich
+    func testSyncButtonDuringTheFirstRunStillStartsTheOtherPortals() async throws {
+        let ics = try repo("packages/shared-contracts/fixtures/hildesheim/lsf-course.ics")
+        let contents = try repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json")
+        let m = manager()
+        let (_, h) = try hildesheim(m, account(.hildesheim))
+        XCTAssertTrue(h.learnwebSignedIn(token: try XCTUnwrap(LearnwebToken(token)), base: base))
+        let gate = StubGate()
+        let uni = Self.uniHildesheim(base: base, lsf: lsf, token: token, ics: ics, contents: contents)
+        UniStubProtocol.install { r in
+            if r.url.path.contains("/webservice/pluginfile.php/") { gate.pass() }
+            return uni(r)
+        }
+        let first = Task { await h.run() }
+        try await waitUntil("Learnweb-Download laeuft") { gate.wasReached }
+        XCTAssertTrue(h.isRunning)
+        var result: UniversitySyncReport?
+        XCTAssertEqual(m.startUniversitySync(forceGrades: false) { result = $0 }, .started("Learnweb wird abgeglichen …"))
+        XCTAssertEqual(m.startUniversitySync(), .alreadyRunning, "ein zweiter Tipp startet nichts doppelt")
+        gate.release()
+        _ = await first.value
+        try await waitUntil("Ergebnis des Sync", timeout: 30) { result != nil }
+        XCTAssertTrue(try XCTUnwrap(result).text.hasPrefix("Abgeglichen: Learnweb."), result?.text ?? "-")
+    }
+
     func testStatusTexts() {
         let now = UniFlowClock.fixed(berlin: "2026-10-26T16:30:00")!.now
         let earlier = UniFlowClock.fixed(berlin: "2026-10-25T09:05:00")!.now

@@ -591,12 +591,18 @@ private struct UFReloadModifier: ViewModifier {
             .onChange(of: studip.finishedRuns) { _, _ in Task { await action() } }
             .onChange(of: studip.stagesReady) { _, _ in Task { await action() } }     // Zwischenstand des Abgleichs
             .onReceive(hildesheimRuns) { _ in Task { await action() } }
+            .onReceive(hildesheimStages) { _ in Task { await action() } }       // Zwischenstand des Abgleichs (15.11.2026)
             .onReceive(hshRuns) { _ in Task { await action() } }
     }
 
     /// Ende jedes Abgleichs der Hochschule Hannover (ohne Verbindung nie)
     private var hshRuns: AnyPublisher<Int, Never> {
         hsh.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()
+    }
+
+    /// Zwischenstaende eines laufenden Hildesheimer Abgleichs (Dateilisten gelesen, weitere Dateien geladen)
+    private var hildesheimStages: AnyPublisher<Int, Never> {
+        hildesheim.map { $0.$stagesReady.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()
     }
 
     /// Ende jedes Hildesheimer Abgleichs (ohne Verbindung nie)

@@ -498,7 +498,12 @@ struct ModulePage: View {
             if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
             if session.api?.isLocal == true && studip.offersStudIP { ModuleLecturersCard(moduleID: id, moduleName: m.s("name")) }
-            if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
+            // solange der Abgleich die Dateien dieses Moduls noch holt: "Dateien werden noch geladen …" (15.11.2026)
+            if session.api?.isLocal == true {
+                ModulePendingHint(moduleID: id, empty: weeks.isEmpty)
+            } else if weeks.isEmpty {
+                UFCard { UFEmpty(icon: "file", text: ModulePendingHint.emptyText, small: true) }
+            }
             if let focus, !weeks.isEmpty, opened.count < weeks.count {
                 ModuleFocusBar(label: focus.label) { UFMotion.toggle { opened = Set(weeks.compactMap { $0.i("week") }) } }
             }

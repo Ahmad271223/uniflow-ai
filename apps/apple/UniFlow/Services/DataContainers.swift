@@ -391,6 +391,9 @@ final class ContainerManager: ObservableObject {
         uniMail = SOGoSite.for(key.university).map {             // LUH, Uni Hildesheim; HsH ohne SOGo
             UniMailConnection(container: c, site: $0, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport)
         }
+        // Uni Hildesheim (15.11.2026): nach der Anmeldung bei Learnweb oder LSF die Uni-Mail gleich mitverbinden, ohne
+        // auf den Datei-Abgleich zu warten (`connectMailAfterSignIn`)
+        hildesheim?.onSignedIn = { [weak self] in Task { @MainActor in await self?.connectMailAfterSignIn() } }
         syncs.removeAll { $0.sync == nil }
         syncs.append(SyncRef(key: key, sync: studip))
         if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }

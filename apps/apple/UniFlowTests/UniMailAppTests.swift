@@ -218,6 +218,36 @@ final class UniMailAppTests: XCTestCase {
         XCTAssertTrue(left.contains { $0.name == "learnweb" }, "andere Cookies der Hochschule bleiben")
     }
 
+    /// Uni-Mail gleich mitverbinden (15.11.2026): liegt im Datenspeicher der Webansicht schon eine SOGo-Sitzung, leitet
+    /// SOGo die Startseite auf /SOGo/so/<benutzer>/… weiter - dann ist Uni-Mail verbunden, ohne Passwort. Zeigt SOGo
+    /// die Anmeldeseite, bleibt es bei "nicht verbunden" (kein Fehler, keine Schleife).
+    func testHildesheimAdoptsAnExistingSessionWithoutPassword() async throws {
+        let m = manager()
+        _ = try bed.open(m, bed.account(.hildesheim))
+        let mail = try XCTUnwrap(m.uniMail, "Uni Hildesheim hat Uni-Mail")
+        mail.refreshesAfterSignIn = false
+        let page = try Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/fixtures/sogo/raw/login-page.html"))
+        // nicht angemeldet: SOGo zeigt das Formular
+        UniStubProtocol.install { _ in UniStubProtocol.Reply(status: 200, headers: ["Content-Type": "text/html"], body: page) }
+        let no = await mail.adoptExistingSession()
+        XCTAssertFalse(no)
+        XCTAssertFalse(mail.isConnected)
+        XCTAssertFalse(mail.autoConnectFailed)
+        // angemeldet: Weiterleitung auf das Konto
+        let host = hiHost, account = hiUser
+        UniStubProtocol.install { seen in
+            if seen.url.path == "/SOGo/" || seen.url.path == "/SOGo" {
+                return UniStubProtocol.Reply(status: 302, headers: ["Location": "https://\(host)/SOGo/so/\(account)/Mail/view"], body: Data())
+            }
+            return UniStubProtocol.Reply(status: 200, headers: ["Content-Type": "text/html"], body: Data("<html></html>".utf8))
+        }
+        let yes = await mail.adoptExistingSession()
+        XCTAssertTrue(yes)
+        XCTAssertTrue(mail.isConnected)
+        XCTAssertEqual(mail.user, hiUser)
+        XCTAssertTrue(UniStubProtocol.requests.allSatisfy { $0.url.host == hiHost }, "nur der SOGo-Rechner der Uni Hildesheim")
+    }
+
     func testHildesheimSessionExpiredByRedirectToOtherHost() async throws {
         try install(login: true)
         let (_, _, mail) = try await connectedHildesheim()

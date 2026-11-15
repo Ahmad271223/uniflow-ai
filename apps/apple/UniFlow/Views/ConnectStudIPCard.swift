@@ -94,6 +94,8 @@ struct UFNoServerContent: Equatable {
         case syncing(String)
         /// Abgleich fehlgeschlagen (z. B. offline): Meldung mit "Erneut versuchen"
         case failed(String)
+        /// ein unterbrochener Abgleich wird gleich fortgesetzt (15.11.2026, `StudIPSync.interrupted`)
+        case resuming
     }
 
     let showsConnectCard: Bool
@@ -105,14 +107,15 @@ struct UFNoServerContent: Equatable {
     /// Statusleiste oberhalb einer lokalen Seite zeigen: Abgleich laeuft oder ist fehlgeschlagen
     var showsStatusBar: Bool { status != nil }
 
-    static func resolve(kind: UFNoServerPage.Kind, mode: UFDataMode, phase: StudIPSync.Phase) -> UFNoServerContent {
+    static func resolve(kind: UFNoServerPage.Kind, mode: UFDataMode, phase: StudIPSync.Phase, interrupted: Bool = false) -> UFNoServerContent {
         // die abgeglichenen Dateien zeigen die Seiten seit S3 selbst; hier nur der Abgleichstand bei verbundenem Stud.IP
         var status: Status?
         if mode == .local(.connected) {
             switch phase {
             case .running(let step): status = .syncing(step)
             case .failed(let message): status = .failed(message)
-            case .signedOut, .needsLogin, .idle: status = nil
+            case .idle: status = interrupted ? .resuming : nil
+            case .signedOut, .needsLogin: status = nil
             }
         }
         return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status, text: text(kind), soon: false)
@@ -294,7 +297,7 @@ struct UFNoServerBody: View {
     @EnvironmentObject private var router: UFRouter
 
     var body: some View {
-        let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase)
+        let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase, interrupted: studip.interrupted)
         VStack(alignment: .leading, spacing: 16) {
             // ausserhalb der Uebersicht nur die einzeilige Leiste (Audit 03.11.2026)
             if c.showsConnectCard { ConnectStudIPCard(mode: mode, compact: true) }
@@ -329,8 +332,21 @@ struct UFStudIPStatusCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
+        // Dateilisten und Downloads: dieselbe Anzeige wie an der Uni Hildesheim (15.11.2026)
+        if case .syncing = status, let progress = studip.progress, progress.step != .courses {
+            UFSyncProgressBar(content: .running(progress))
+        } else if status == .resuming {
+            UFSyncProgressBar(content: .interrupted)
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
         UFCard(flat: true) {
             switch status {
+            case .resuming:
+                EmptyView()
             case .syncing(let step):
                 HStack(spacing: 9.6) {
                     ProgressView().tint(UF.accent)
@@ -370,7 +386,7 @@ struct UFStudIPStatusBar: View {
 
     var body: some View {
         // im laufenden Test (Fokus) keine Abgleich-Leiste: sie lag ueber dem Test und dem Zurueck (Geraetetest 07.11.2026)
-        if !router.examFocus, let status = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase).status {
+        if !router.examFocus, let status = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase, interrupted: studip.interrupted).status {
             UFStudIPStatusCard(status: status)
         }
     }
@@ -420,7 +436,7 @@ struct UFServerGate<Content: View>: View {
 
     var body: some View {
         let mode = UFDataMode.current(api: session.api, studip: studip, demo: demo)
-        let presentation = UFGatePresentation.resolve(spec: spec, mode: mode, phase: studip.phase)
+        let presentation = UFGatePresentation.resolve(spec: spec, mode: mode, phase: studip.phase, interrupted: studip.interrupted)
         if presentation == .empty {
             UFNoServerPage(spec: spec, mode: mode)
         } else if case .local = mode {
@@ -443,13 +459,13 @@ struct UFServerGate<Content: View>: View {
 enum UFGatePresentation: Equatable {
     case page, pageBelowConnectCard, pageBelowStudIPStatus, empty
 
-    static func resolve(spec: UFNoServerPage.Spec, mode: UFDataMode, phase: StudIPSync.Phase) -> UFGatePresentation {
+    static func resolve(spec: UFNoServerPage.Spec, mode: UFDataMode, phase: StudIPSync.Phase, interrupted: Bool = false) -> UFGatePresentation {
         guard case .local = mode else { return .page }
         guard spec.local || (spec.localWithOtherSources && mode.hasOtherSources) else { return .empty }
         guard spec.barAbove else { return .page }
         if mode.showsConnectCard { return .pageBelowConnectCard }
         // Abgleichstand und Fehler oberhalb der Seite; die Dateien zeigt die Seite selbst (S3)
-        return UFNoServerContent.resolve(kind: spec.kind, mode: mode, phase: phase).showsStatusBar ? .pageBelowStudIPStatus : .page
+        return UFNoServerContent.resolve(kind: spec.kind, mode: mode, phase: phase, interrupted: interrupted).showsStatusBar ? .pageBelowStudIPStatus : .page
     }
 }
 
