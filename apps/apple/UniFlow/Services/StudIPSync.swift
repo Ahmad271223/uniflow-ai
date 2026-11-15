@@ -1007,7 +1007,7 @@ final class StudIPSync: ObservableObject {
         return end
     }
 
-    /// Zeit des Geraets fuer Abstaende (nicht `ProcessInfo.systemUptime`)
+    /// Zeit des Geraets fuer Abstaende (Uhr der Bildschirmzeit, keine Laufzeit des Systems seit dem Start)
     private func uptime() -> CFTimeInterval { CACurrentMediaTime() }
 
     /// Fortschritt der Dateien melden: Balken (`progress`) und der Text des Standes (`phase`), nur waehrend eines Laufs
