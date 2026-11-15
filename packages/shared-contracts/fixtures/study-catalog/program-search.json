@@ -1,7 +1,7 @@
 {
  "note": "Erzeugt von tools/gen-program-search-fixture.py - nicht von Hand aendern.",
  "university": "hildesheim",
- "programs": 179,
+ "programs": 180,
  "cases": [
   {
    "query": "Angewandte Informatik B.Sc.",
@@ -116,6 +116,7 @@
     "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Geographie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
+    "Informatik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Katholische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Kunst im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Lehramt an Grund-, Haupt- und Realschulen | Staatsexamen",
@@ -376,6 +377,7 @@
     "Geographie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
+    "Informatik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Katholische Theologie im Master Lehramt an Grundschulen | M.Ed.",
     "Katholische Theologie im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
@@ -765,6 +767,7 @@
    "hits": [
     "Angewandte Informatik | B.Sc.",
     "Angewandte Informatik | M.Sc.",
+    "Informatik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Informatik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Informationsmanagement und Informationstechnologie | B.Sc.",
     "Informationsmanagement und Informationstechnologie | M.Sc.",
@@ -827,6 +830,7 @@
     "Geschichte im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Geschichte im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Geschichte (Nebenfach) | Nebenfach",
+    "Informatik im Master Lehramt an Haupt- und Realschulen | M.Ed.",
     "Informatik im Polyvalenten Zwei-Fächer-Bachelor | B.A./B.Sc.",
     "Informationsmanagement und Informationstechnologie | B.Sc.",
     "Informationsmanagement und Informationstechnologie | M.Sc.",

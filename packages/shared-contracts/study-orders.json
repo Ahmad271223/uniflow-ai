@@ -13,6 +13,18 @@
     "po": "2020",
     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4710"
    }
+  },
+  {
+   "university": "hildesheim",
+   "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "since": "WiSe 2026/27",
+   "source": "Studienordnung für das Fach Informatik, Polyvalente Zwei-Fächer-Bachelor-Studiengänge, Verkündungsblatt Heft 214 vom 27.08.2026, § 5 (gilt erstmals für Studienbeginn im Wintersemester 2026/27; Studienbeginn vor dem 01.10.2026 nach der bisherigen Ordnung, Leistungen dort bis 30.09.2030, Wechsel auf schriftliche Erklärung)",
+   "older": {
+    "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
+    "degree": "B.A./B.Sc.",
+    "po": "2016",
+    "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf"
+   }
   }
  ]
 }

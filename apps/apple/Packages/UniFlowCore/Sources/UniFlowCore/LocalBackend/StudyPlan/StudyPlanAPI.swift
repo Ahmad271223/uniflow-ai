@@ -213,6 +213,10 @@ public enum StudyPlanAPI {
         Order(university: "hildesheim", code: "sozialpaedagogik|b.a.|2025", since: "WiSe 2025/26",
               program: "Sozial- und Organisationspädagogik", degree: "B.A.", po: "2020",
               url: "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4710"),
+        // Informatik im Zwei-Faecher-Bachelor: Ordnung 2026 gilt ab Studienbeginn WiSe 2026/27, davor die Ordnung 2016
+        Order(university: "hildesheim", code: "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026", since: "WiSe 2026/27",
+              program: "Informatik im Polyvalenten Zwei-Fächer-Bachelor", degree: "B.A./B.Sc.", po: "2016",
+              url: "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf"),
     ]
 
     /// `order_suggestion`: neue Ordnung gewaehlt, Studienbeginn vor deren erstem Semester -> die alte vorschlagen

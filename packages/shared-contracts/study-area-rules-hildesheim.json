@@ -520,22 +520,18 @@
           "semester": 6
         }
       }
-    }
-  },
-  "held": {
-    "note": "Regeln fuer Kataloge, die gerade nicht im Grundstock sind (CATALOG_HOLD in tools/hildesheim-programs.py); zurueck nach 'catalogs', sobald der Leser das Format kennt (14.11.2026)",
-    "barrierefreie-kommunikation|m.a.|2019": {
-      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669 (PO Barrierefreie Kommunikation, § 22)",
-      "area_patterns": [
-        {
-          "match": "Profil",
-          "set": {
-            "kind": "wahl",
-            "lp_required": 10,
-            "rule": "Profilmodul (Forschung oder Praxis): 10 LP."
-          }
+    },
+    "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026": {
+      "source": "Studienordnung für das Fach Informatik im Zwei-Fächer-Bachelor, Verkündungsblatt Heft 214 vom 27.08.2026, § 2 (57 LP Fachstudium) und Anlage 1 (Pflicht- und Wahlpflichtmodule je Studienvariante); Pflicht sind im Katalog nur die Module, die in beiden Varianten Pflicht sind",
+      "areas": {
+        "pflichtmodule": {
+          "rule": "In jeder Studienvariante Pflicht: INF-B1, INF-B2, INF-B3, INF-A1, INF-A2 (30 LP)."
+        },
+        "wahlpflichtmodule": {
+          "lp_required": 27,
+          "rule": "Lehramtsoption Haupt- und Realschule (Inf_Us): INF-B4 und INF-A3 sind Pflicht, dazu 12 LP aus INF-V1 bis INF-V7 (INF-V1 zwingend ohne Mathematik als weiteres Fach, mit Mathematik nicht wählbar). EAL, SGL, Wirtschaft Plus: INF-A4 und INF-V1 sind Pflicht, dazu 18 LP aus INF-A3 und INF-V2 bis INF-V7. Weitere Module aus dem Modulhandbuch Angewandte Informatik nur mit Genehmigung der Fachstudienberatung."
         }
-      ]
+      }
     }
   }
 }

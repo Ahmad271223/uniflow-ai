@@ -1,5 +1,5 @@
 {
- "catalogs": 108,
+ "catalogs": 111,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -36,6 +36,24 @@
    ],
    "study_plan": false,
    "term": "SS 2026"
+  },
+  {
+   "code": "barrierefreie-kommunikation|m.a.|2019",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-kennnummer-tabelle",
+   "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
+   "library_key": "d3c11ee6de67cf735db939ec9c85be860e5caf6259a460bddfa9416566dadc2c",
+   "modules": 11,
+   "po": "2019",
+   "program": "Barrierefreie Kommunikation",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Barrierefreie Kommunikation PO-Version: 2019",
+    "Barrierefreie Kommunikation"
+   ],
+   "study_plan": false,
+   "term": "SS 2024"
   },
   {
    "code": "biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
@@ -488,6 +506,24 @@
    "term": "SS 2021"
   },
   {
+   "code": "informatik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-kuerzel-modultabelle",
+   "key": "hildesheim|informatik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "8bc9817a18414c3743a1e1e6dd49eebfab12ccb56a4d282b0af20bdbebe73d6d",
+   "modules": 5,
+   "po": "2026",
+   "program": "Informatik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Informatik PO-Version: 2026",
+    "Informatik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
    "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
    "degree": "B.A./B.Sc.",
    "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
@@ -504,6 +540,24 @@
    ],
    "study_plan": false,
    "term": "SS 2016"
+  },
+  {
+   "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-kuerzel-modultabelle",
+   "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "library_key": "d554be0c64253ade47cfdd2738d8e990c9d0c1944ce9781adcb5223506da097f",
+   "modules": 15,
+   "po": "2026",
+   "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Informatik PO-Version: 2026",
+    "Informatik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
   },
   {
    "code": "informationsmanagement-und-informationstechnologie|b.sc.|2024",
@@ -1955,14 +2009,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 134895,
-   "catalogs": 108,
-   "raw_bytes": 1189704,
-   "sha256": "911e1ba7c985209c0955be509d8703324e6fde79635e2d05d63057af67ee559a"
+   "bytes": 136914,
+   "catalogs": 111,
+   "raw_bytes": 1202582,
+   "sha256": "675a273938b6f4565a05a48678a1434f80b1fce9353d313fd2b00538e8a9c72c"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2204,
+ "modules": 2235,
  "university": "hildesheim",
  "v": 1
 }
