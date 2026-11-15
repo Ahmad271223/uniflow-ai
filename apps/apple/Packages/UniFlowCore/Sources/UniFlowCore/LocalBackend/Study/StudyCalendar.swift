@@ -17,6 +17,7 @@ enum StudyCalendar {
     static func calendar(_ c: SQLiteConnection, from start: Int, to end: Int, clock: UniFlowClock, refresh: Bool = true) throws -> [String: JSONValue] {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
+        try StudyPlanMerge.mergeDuplicates(c)                   // dieselbe Unterlage von zwei Geraeten geplant: nur einmal (15.11.2026)
         if refresh { try StudyPlan.refreshStatuses(c, today: today) }
         try StudyPlan.repairTimes(c, today: today)              // Uhrzeiten nach Mitternacht aus Build 41 und frueher
         // Lernbloecke ab heute, die einen besuchten Termin ueberschneiden (Stundenplan geaendert, alte Pakete ueber

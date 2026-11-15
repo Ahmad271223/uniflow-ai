@@ -529,6 +529,7 @@ enum StudyPlan {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
         try StudyPlanModules.dropUnplanned(c, today: today)       // abgewaehlte Faecher: keine Pakete (Build 37)
+        try StudyPlanMerge.mergeDuplicates(c)                      // dieselbe Unterlage von zwei Geraeten geplant: nur einmal
         try refreshStatuses(c, today: today)
         try repairTimes(c, today: today)                           // Uhrzeiten nach Mitternacht aus Build 41 und frueher
         let s = try Settings(c)

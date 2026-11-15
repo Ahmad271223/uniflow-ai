@@ -30,6 +30,10 @@ public struct DeviceSyncResult: Equatable, Sendable {
     public var otherUniAccount = false
     /// Dieses Geraet hat (noch) keinen Schluessel fuer sein Uni-Konto: nichts abgerufen, nichts gesendet
     public var noUniAccount = false
+    /// Lernplan: doppelt geplante Aufgaben, die hier entfernt wurden (zwei Geraete hatten dieselbe Unterlage geplant,
+    /// `StudyPlanMerge`), und Pakete, die wegen des Tageslimits ueber alle Geraete verlegt wurden
+    public var planMerged = 0
+    public var planMoved = 0
     public var errors: [String] = []
 
     public init() {}
@@ -127,13 +131,18 @@ public actor DeviceSync {
     /// App setzt das; der Kern laesst es fuer Werkzeuge und Tests offen.
     private let requireUniAccount: Bool
 
+    /// Lernplan nach dem Abruf zusammenfuehren (`StudyPlanMerge.afterPull`). Aus nur in Tests, die den Stand bis Build 42
+    /// nachstellen (aeltere App neben der neuen).
+    private let mergePlans: Bool
+
     public init(database: SQLiteDatabase, transport: DeviceSyncTransport, device: String, clock: UniFlowClock = .system,
-                requireUniAccount: Bool = false) {
+                requireUniAccount: Bool = false, mergePlans: Bool = true) {
         self.database = database
         self.transport = transport
         self.device = device
         self.clock = clock
         self.requireUniAccount = requireUniAccount
+        self.mergePlans = mergePlans
     }
 
     /// Ein vollstaendiger Abgleich; wirft nie, das Ergebnis nennt den Fehler. Anderes `account`: Zuordnung und Cursor
@@ -166,6 +175,18 @@ public actor DeviceSync {
                 return core.stats
             }
             try await pull(core)
+            // Planung des Kontos uebernehmen statt der eigenen: doppelt geplante Unterlagen zusammenfuehren, Tageslimit
+            // ueber alle Geraete. Nach dem Abruf und vor dem Senden: eigene, noch nicht gesendete Doppel gehen gar nicht
+            // erst ins Konto; Loeschmarken fuer Doppel im Konto gehen gleich mit.
+            if mergePlans {
+                let today = LocalTimetable.today(clock)
+                let merged = try await database.transaction { c -> StudyPlanMerge.Result in
+                    guard try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='study_packages'") != nil else { return .init() }
+                    return try StudyPlanMerge.afterPull(c, today: today)
+                }
+                core.stats.planMerged = merged.tasks
+                core.stats.planMoved = merged.moved + merged.empty
+            }
             try await push(core)
             for _ in 0..<2 where core.retryNotes {
                 core.retryNotes = false
