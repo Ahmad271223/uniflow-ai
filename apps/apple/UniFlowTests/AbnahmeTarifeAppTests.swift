@@ -474,9 +474,13 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         XCTAssertTrue(tap("Zurückziehen", in: env), "Zurückziehen:\n" + dump(env))
         env.pump(0.8)
         XCTAssertTrue(env.wait(timeout: 5) { self.shows(env, "Lösung zurückziehen") }, "Rückfrage sichtbar:\n" + dump(env))
-        // Rueckfrage bestaetigen: der Knopf der Rueckfrage liegt zuoberst (am iPhone steht davor noch der Menue-Eintrag)
-        let confirm = allElements(env).last { $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel == "Zurückziehen" }
-        XCTAssertTrue(confirm?.accessibilityActivate() ?? false, "Rückfrage bestätigen:\n" + dump(env))
+        // Rueckfrage bestaetigen: neben dem Knopf der Rueckfrage traegt auch die Zeile (iPad: Knopf, iPhone: Menue-Eintrag)
+        // die Beschriftung "Zurückziehen" - der Reihe nach antippen, bis die Loesung zurueckgezogen ist (die Zeile noch
+        // einmal anzutippen oeffnet nur dieselbe Rueckfrage)
+        for candidate in allElements(env) where candidate.accessibilityTraits.contains(.button) && candidate.accessibilityLabel == "Zurückziehen" {
+            guard candidate.accessibilityActivate() else { continue }
+            if env.wait(timeout: 3, until: { self.container!.solutions.sharedEntries().first?.publishedAt == nil }) { break }
+        }
         XCTAssertTrue(env.wait(timeout: 10) { self.container!.solutions.sharedEntries().first?.publishedAt == nil },
                       "\(p): zurückgezogen\n" + dump(env))
         let left = try pumping { try await service.findMatching(fingerprint: pkg.header.fingerprint) }
