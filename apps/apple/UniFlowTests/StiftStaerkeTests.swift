@@ -94,6 +94,139 @@ final class StiftStaerkeTests: XCTestCase {
         await store.close()
     }
 
+    /// Feine und halbdurchsichtige Striche (Fineliner 0,5, Deckkraft 50 %) im echten Editor: schreiben, radieren,
+    /// Rueckgaengig, mit dem Lasso verschieben, sichern und neu laden - Staerke und Deckkraft bleiben
+    func testThinStrokesWorkWithUndoEraserLassoAndSaving() async throws {
+        let (editor, window, store) = try await openEditor()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        let end = Uhr.now() + 15
+        var overlay: PageInkView?
+        while Uhr.now() < end, overlay == nil {
+            overlay = editor.allOverlays.first { $0.pageIndex == 0 && $0.loaded && $0.window != nil }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        let o = try XCTUnwrap(overlay)
+        func tick() async { try? await Task.sleep(nanoseconds: 40_000_000) }
+        func set(_ d: PKDrawing) { o.isApplyingDrawing = true; o.canvas.drawing = d; o.isApplyingDrawing = false }
+        let color = UIColor.systemBlue.withAlphaComponent(0.5)
+        func thin(_ n: Int) -> PKStroke {
+            let pts = (0..<25).map { PKStrokePoint(location: CGPoint(x: 60 + CGFloat($0) * 5, y: 200 + CGFloat(n) * 30), timeOffset: Double($0) * 0.01,
+                                                   size: CGSize(width: 0.5, height: 0.5), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2) }
+            return PKStroke(ink: PKInk(.monoline, color: color), path: PKStrokePath(controlPoints: pts, creationDate: Date(timeIntervalSince1970: 1_950_000_000 + Double(n))))
+        }
+        for n in 0..<3 {
+            await tick()
+            o.canvas.tool = PKInkingTool(.monoline, color: color, width: 0.5)
+            editor.canvasViewDidBeginUsingTool(o.canvas)
+            var d = o.canvas.drawing
+            d.strokes.append(thin(n))
+            set(d)
+            editor.canvasViewDrawingDidChange(o.canvas)
+            editor.canvasViewDidEndUsingTool(o.canvas)
+        }
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes.count, 3)
+        // radieren (Objekt-Radierer), Rueckgaengig holt ihn zurueck
+        o.canvas.tool = PKEraserTool(.vector)
+        editor.canvasViewDidBeginUsingTool(o.canvas)
+        var e = o.canvas.drawing
+        e.strokes.remove(at: 1)
+        set(e)
+        editor.canvasViewDrawingDidChange(o.canvas)
+        editor.canvasViewDidEndUsingTool(o.canvas)
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes.count, 2)
+        editor.undo()
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes.count, 3, "Rueckgaengig nach Radieren")
+        // Lasso verschiebt (Transform), ein Rueckgaengig-Schritt
+        await tick()
+        var m = o.canvas.drawing
+        m.strokes[0].transform = CGAffineTransform(translationX: 30, y: 10)
+        editor.replaceInk(key: o.pageKey, before: o.canvas.drawing, after: m)
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes[0].transform.tx, 30)
+        editor.undo()
+        await tick()
+        XCTAssertEqual(o.canvas.drawing.strokes[0].transform.tx, 0, "Lasso rueckgaengig")
+        // sichern, neu laden: Staerke und Deckkraft wie gezeichnet
+        await store.flush()
+        let reloaded = await store.drawing(forPageKey: o.pageKey)
+        XCTAssertEqual(reloaded.strokes.count, 3)
+        for s in reloaded.strokes {
+            XCTAssertEqual(s.path[0].size.width, 0.5, accuracy: 0.02)
+            var a: CGFloat = 0
+            s.ink.color.getRed(nil, green: nil, blue: nil, alpha: &a)
+            XCTAssertEqual(a, 0.5, accuracy: 0.03)
+        }
+        await store.close()
+    }
+
+    /// Rundweg Fineliner 0,5 und 0,8 ueber die Wege des Editors: PencilKit-Daten allein, unser JSON mit nativer
+    /// Zeichnung (`pkdrawing`) und nur aus den Objekten (wie nach einer Aenderung im Browser). Verglichen werden
+    /// Tintenart, Breite je Stuetzpunkt, `renderBounds` und die gezeichnete Dicke bei 4-facher Vergroesserung.
+    func testFinelinerRoundTripKeepsItsWidth() throws {
+        var lines: [String] = []
+        let scale = 4 * 1.38 * UIScreen.main.scale
+        for w in [0.5, 0.8] as [CGFloat] {
+            let pts = (0...60).map { i in
+                PKStrokePoint(location: CGPoint(x: 10 + CGFloat(i) * 2, y: 20 + sin(CGFloat(i) / 6) * 4), timeOffset: Double(i) * 0.01,
+                              size: CGSize(width: w, height: w), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+            }
+            let original = PKStroke(ink: PKInk(.monoline, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: Date(timeIntervalSince1970: 1_960_000_000)))
+            let d0 = PKDrawing(strokes: [original])
+            let viaData = try PKDrawing(data: d0.dataRepresentation())
+            let page = StrokeConverter.update(from: d0, previous: ["objects": []], state: InkPageState()).page
+            let viaJSON = StrokeConverter.drawing(fromPage: page).0
+            var objectsOnly = page.object ?? [:]
+            objectsOnly["pkdrawing"] = nil
+            let viaObjects = StrokeConverter.drawing(fromPage: .object(objectsOnly)).0
+            func describe(_ name: String, _ d: PKDrawing) -> String {
+                guard let s = d.strokes.first else { return "\(name): kein Strich" }
+                let sizes = (0..<s.path.count).map { s.path[$0].size.width }
+                let px = thickness(drawing: d, scale: scale)
+                return String(format: "%@: Tinte %@, Breite je Punkt %.3f-%.3f (%d Punkte), renderBounds-Hoehe %.2f, gezeichnet %.1f px = %.3f Seitenpunkte",
+                              name, String(s.ink.inkType.rawValue.split(separator: ".").last ?? ""), sizes.min() ?? 0, sizes.max() ?? 0, s.path.count,
+                              s.renderBounds.height, px, px / scale)
+            }
+            // Breite je Punkt und Umriss bleiben auf allen Wegen gleich (nur die Tintenart der PencilKit-Daten aendert sich)
+            for (name, d) in [("PencilKit-Daten", viaData), ("JSON + pkdrawing", viaJSON), ("nur JSON", viaObjects)] {
+                let s = try XCTUnwrap(d.strokes.first, name)
+                XCTAssertEqual((0..<s.path.count).map { s.path[$0].size.width }.max() ?? 0, w, accuracy: 0.01, "\(name) \(w): Breite")
+                XCTAssertEqual(s.renderBounds.height, original.renderBounds.height, accuracy: 0.5, "\(name) \(w): Umriss")
+            }
+            lines.append("Fineliner \(w):")
+            lines.append("  " + describe("vorher           ", d0))
+            lines.append("  " + describe("PencilKit-Daten  ", viaData))
+            lines.append("  " + describe("JSON + pkdrawing ", viaJSON))
+            lines.append("  " + describe("nur JSON-Objekte ", viaObjects))
+            // Vergleich: dieselben Punkte mit Stift-Tinte
+            let asPen = PKDrawing(strokes: [PKStroke(ink: PKInk(.pen, color: .black), path: original.path)])
+            lines.append("  " + describe("gleiche Punkte als Stift", asPen))
+        }
+        print("[Rundweg]\n" + lines.joined(separator: "\n"))
+    }
+
+    private func thickness(drawing d: PKDrawing, scale: CGFloat) -> CGFloat {
+        let rect = CGRect(x: 0, y: 0, width: 140, height: 40)
+        var img = UIImage()
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent { img = d.image(from: rect, scale: scale) }
+        guard let cg = img.cgImage else { return 0 }
+        let width = cg.width, height = cg.height
+        var data = [UInt8](repeating: 0, count: width * height * 4)
+        let ctx = CGContext(data: &data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+        var values: [CGFloat] = []
+        for x in stride(from: width / 4, to: 3 * width / 4, by: max(1, width / 40)) {
+            var cover: CGFloat = 0
+            for y in 0..<height { cover += CGFloat(data[(y * width + x) * 4 + 3]) / 255 }
+            values.append(cover)
+        }
+        values.sort()
+        return values.isEmpty ? 0 : values[values.count / 2]                // Median ueber die Spalten
+    }
+
     /// Dicke der gerenderten Linie in Pixeln (Mitte, senkrecht gemessen, Deckung ab 50 %)
     private func thickness(ink: PKInk.InkType, size w: CGFloat, scale: CGFloat) -> CGFloat {
         let pts = (0...60).map { i in
