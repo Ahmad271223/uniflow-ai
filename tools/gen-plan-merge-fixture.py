@@ -184,6 +184,11 @@ CASES: list[dict] = [
      "seed": [pkg(1, WED, 1, A, 120, start="08:00", end="10:00", device=DIENST), P(101, 1), task(1, 1, "vorlesung", "a-1", "Folien A.pdf", 120, start="08:00", end="10:00", device=DIENST), T(201, 1),
               pkg(2, WED, 2, A, 120, start="10:15", end="12:15", device=DIENST), P(102, 2), task(2, 2, "vorlesung", "b-1", "Folien B.pdf", 120, start="10:15", end="12:15", device=DIENST), T(202, 2),
               pkg(3, WED, 2, B, 60, start="12:30", end="13:30"), task(3, 3, "uebung", "b-2", "Blatt B.pdf", 60, start="12:30", end="13:30")]},
+    {"name": "limit_zuerst_geplant", "about": "Das eigene, noch nicht gesendete Paket war zuerst geplant: es bleibt, das spaeter geplante "
+     "aus dem Konto weicht. Das andere Geraet sieht dieselben Anlagezeiten und verlegt dasselbe Paket (nicht jedes sein eigenes).",
+     "seed": [pkg(1, WED, 1, B, 120, start="08:00", end="10:00", device=DIENST), P(101, 1), task(1, 1, "vorlesung", "a-1", "Folien A.pdf", 120, start="08:00", end="10:00", device=DIENST), T(201, 1),
+              pkg(2, WED, 2, B, 120, start="10:15", end="12:15", device=DIENST), P(102, 2), task(2, 2, "vorlesung", "b-1", "Folien B.pdf", 120, start="10:15", end="12:15", device=DIENST), T(202, 2),
+              pkg(3, WED, 2, A, 120, start="12:30", end="14:30"), task(3, 3, "uebung", "b-2", "Blatt B.pdf", 120, start="12:30", end="14:30")]},
     {"name": "limit_faecher", "about": "2 Faecher je Tag: drei Faecher am Mittwoch, das zuletzt geplante weicht. Am Donnerstag liegen "
      "schon zwei andere Faecher, also Freitag.",
      "seed": [pkg(1, WED, 1, A, 60, start="08:00", end="09:00", device=DIENST), P(101, 1), task(1, 1, "uebung", "a-1", "Blatt A.pdf", 60, start="08:00", end="09:00", device=DIENST), T(201, 1),

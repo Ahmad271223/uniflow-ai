@@ -197,7 +197,7 @@ def balance_days(conn, today: date | None = None) -> int:
     kuenftigen Tag danach Pakete aus dem Konto neben eigenen und ist der Tag damit ueber dem Limit (Lernzeit je Tag
     schon aufgebraucht, mehr Faecher als eingestellt) oder liegen zwei Bloecke uebereinander, weicht das zuletzt
     geplante unberuehrte automatische Paket: anderes freies Fenster bzw. der naechste Lerntag mit Platz. Welches
-    weicht, bestimmt dieselbe Reihenfolge wie beim Zusammenfuehren, also auf jedem Geraet dasselbe. Von Hand
+    weicht, haengt nur an abgeglichenen Werten (Anlagezeit, dann Nummer im Dienst), also auf jedem Geraet dasselbe. Von Hand
     Angelegtes, Begonnenes, Gesperrtes und Bloecke des Stundenplaners bleiben immer liegen. Heute bleibt, wie es ist.
     Nur auf einem Geraet mit Geraete-Abgleich (im Dienst liegt nichts "aus dem Konto neben eigenem"). Liefert die Zahl
     verlegter Pakete."""
@@ -248,7 +248,13 @@ def balance_days(conn, today: date | None = None) -> int:
         used = sum(int(p["planned_minutes"] or 0) for p in stay)
         subs = {subject(p) for p in stay}
         spans = [(p["start_time"], p["end_time"]) for p in stay if p["start_time"] and p["end_time"]]
-        for p in sorted(can_move, key=lambda p: _order(remote, p["id"], p["created_at"])):
+        # zuerst geplant bleibt zuerst liegen. Anders als beim Zusammenfuehren zaehlt hier nicht, ob die Zeile schon im
+        # Konto steht: sonst verlegte jedes der beiden Geraete sein eigenes, noch nicht gesendetes Paket.
+        def first_planned(p: dict) -> tuple:
+            in_account, planned_at, number, row_id = _order(remote, p["id"], p["created_at"])
+            return (planned_at, in_account, number, row_id)
+
+        for p in sorted(can_move, key=first_planned):
             if used < budget and (subject(p) in subs or len(subs) < subjects_max):
                 if p["start_time"] and p["end_time"] and any(p["start_time"] < b and p["end_time"] > a for a, b in spans):
                     unslot(p["id"])                             # zwei Bloecke uebereinander: neues freies Fenster

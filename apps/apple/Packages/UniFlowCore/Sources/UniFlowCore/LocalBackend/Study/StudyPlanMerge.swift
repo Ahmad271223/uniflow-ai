@@ -243,7 +243,7 @@ enum StudyPlanMerge {
     /// kuenftigen Tag danach Pakete aus dem Konto neben eigenen und ist der Tag damit ueber dem Limit (Lernzeit je Tag
     /// schon aufgebraucht, mehr Faecher als eingestellt) oder liegen zwei Bloecke uebereinander, weicht das zuletzt
     /// geplante unberuehrte automatische Paket: anderes freies Fenster bzw. der naechste Lerntag mit Platz. Welches
-    /// weicht, bestimmt dieselbe Reihenfolge wie beim Zusammenfuehren, also auf jedem Geraet dasselbe. Von Hand
+    /// weicht, haengt nur an abgeglichenen Werten (Anlagezeit, dann Nummer im Dienst), also auf jedem Geraet dasselbe. Von Hand
     /// Angelegtes, Begonnenes, Gesperrtes und Bloecke des Stundenplaners bleiben immer liegen. Heute bleibt, wie es ist.
     /// Liefert die Zahl verlegter Pakete.
     @discardableResult
@@ -301,8 +301,14 @@ enum StudyPlanMerge {
             var used = stay.reduce(0) { $0 + minutes($1) }
             var subs = Set(stay.map(subject))
             var spans = stay.compactMap(span)
+            // zuerst geplant bleibt zuerst liegen. Anders als beim Zusammenfuehren zaehlt hier nicht, ob die Zeile schon
+            // im Konto steht: sonst verlegte jedes der beiden Geraete sein eigenes, noch nicht gesendetes Paket.
             let ordered = canMove.map { (row: $0, order: order(remote, id: $0["id"]?.int64 ?? 0, plannedAt: $0["created_at"]?.string)) }
-                .sorted { $0.order < $1.order }.map(\.row)
+                .sorted { a, b in
+                    if a.order.plannedAt != b.order.plannedAt { return PyText.less(a.order.plannedAt, b.order.plannedAt) }
+                    if a.order.local != b.order.local { return a.order.local < b.order.local }
+                    return a.order.number != b.order.number ? a.order.number < b.order.number : a.order.id < b.order.id
+                }.map(\.row)
             for first in ordered {
                 var p = first
                 guard let id = p["id"]?.int64 else { continue }
