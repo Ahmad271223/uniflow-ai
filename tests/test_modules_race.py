@@ -7,6 +7,22 @@ merge_duplicate_modules führt vorhandene Doppel beim Start zusammen, ohne etwas
 import threading
 import time
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def eigene_datenbank(app, monkeypatch, tmp_path):
+    """Jeder Test dieser Datei arbeitet auf einer eigenen, leeren Datenbank (15.11.2026).
+
+    Vorher lief alles auf der gemeinsamen Test-Datenbank des ganzen Laufs. merge_duplicate_modules zaehlt aber ALLE
+    Doppel der Datenbank: seit 13.11.2026 legt tests/test_module_done.py je Test die Module "Done-Analysis" und
+    "Done-Physik" neu an und laesst sie stehen - im vollen Lauf standen sie damit doppelt da, der Test bekam 4 statt 2
+    zusammengefuehrte Doppel und war rot (einzeln gruen). Mit eigener Datenbank gilt die genaue Zahl wieder, egal was
+    andere Tests hinterlassen; und init_db() im dritten Test raeumt nicht mehr in den Daten anderer Tests auf."""
+    from app import db
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "module-wettlauf.db")
+    db.init_db()
+
 
 def _clean(conn, name):
     ids = [r[0] for r in conn.execute("SELECT id FROM modules WHERE name=?", (name,))]
@@ -76,6 +92,7 @@ def test_merge_duplicate_modules_keeps_everything(app):
         conn.execute("INSERT INTO dismissed_tests(module_id, week_no, dismissed_at) VALUES (?, 2, '2026-10-27')", (empty2,))
         conn.execute("INSERT INTO dismissed_tests(module_id, week_no, dismissed_at) VALUES (?, 3, '2026-10-27')", (empty2,))
         try:
+            assert conn.execute("SELECT COUNT(*) FROM modules").fetchone()[0] == 3, "eigene Datenbank: nur die drei Doppel"
             assert study.merge_duplicate_modules(conn) == 2
             left = [r[0] for r in conn.execute("SELECT id FROM modules WHERE name=?", (name,))]
             assert left == [real], "es bleibt das Modul mit den Kursen"
