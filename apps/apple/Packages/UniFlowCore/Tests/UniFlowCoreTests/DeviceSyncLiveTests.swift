@@ -304,4 +304,57 @@ final class DeviceSyncLiveTests: XCTestCase {
         XCTAssertEqual(p3, ada)
         XCTAssertEqual(o3, bob)
     }
+
+    // MARK: Lernplan: zwei Geraete planen dieselbe Woche (15.11.2026, `StudyPlanMerge`)
+
+    /// Gegen den echten Dienst: Beide Geraete haben dieselbe Datei selbst eingeplant, an verschiedenen Tagen. Mit dem
+    /// Stand bis Build 42 stehen danach beide Planungen im Konto und auf jedem Geraet. Mit der neuen App bleibt die
+    /// frueher geplante, ueberall dieselbe; die aeltere App uebernimmt die Loeschmarke; weitere Laeufe aendern nichts.
+    func testTwoDevicesPlanningTheSameFileEndWithOnePackage() async throws {
+        let (token, id) = try await newAccount()
+        let pad = try await device("ipad-plan", token: token), phone = try await device("iphone-plan", token: token)
+        func plan(_ d: Device, day: String, at: String) async throws {
+            try await d.db.transaction { c in
+                try c.execute("INSERT INTO modules(name, semester) VALUES ('Mathe I', 'WiSe 26/27')")
+                let mid = c.lastInsertRowID
+                try c.execute("""
+                    INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time)
+                    VALUES (?, ?, 'Mathe I', 'Woche 5', 5, 60, 'geplant', 0, 1, ?, '08:00', '09:00')
+                    """, [.text(day), .integer(mid), .text(at)])
+                try c.execute("""
+                    INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at, start_time, end_time)
+                    VALUES (?, 'uebung', ?, 'Blatt1.pdf', 0, 60, 'geplant', ?, '08:00', '09:00')
+                    """, [.integer(c.lastInsertRowID), .text(Self.file), .text(at)])
+            }
+        }
+        func days(_ d: Device) async throws -> [String] {
+            try await d.db.rows("SELECT p.date FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.file_id=? ORDER BY p.date", [.text(Self.file)])
+                .compactMap { $0["date"]?.string }
+        }
+        try await plan(pad, day: "2026-12-02", at: "2026-11-28T16:25:40")
+        try await plan(phone, day: "2026-12-03", at: "2026-11-29T15:30:30")
+        // Stand bis Build 42 auf beiden
+        let oldPad = Device(db: pad.db, sync: DeviceSync(database: pad.db, transport: pad.account, device: "ipad-plan", mergePlans: false), account: pad.account)
+        let oldPhone = Device(db: phone.db, sync: DeviceSync(database: phone.db, transport: phone.account, device: "iphone-plan", mergePlans: false), account: phone.account)
+        for d in [oldPad, oldPhone, oldPad] { _ = await run(d, id) }
+        let doubledPad = try await days(oldPad), doubledPhone = try await days(oldPhone)
+        XCTAssertEqual(doubledPad, ["2026-12-02", "2026-12-03"], "die Ursache: beide Planungen nebeneinander")
+        XCTAssertEqual(doubledPhone, ["2026-12-02", "2026-12-03"])
+        // das iPad bekommt die neue App, das iPhone bleibt bei der aelteren
+        let merged = await run(pad, id)
+        XCTAssertEqual(merged.planMerged, 1)
+        _ = await run(oldPhone, id)
+        let onPad = try await days(pad), onPhone = try await days(oldPhone)
+        XCTAssertEqual(onPad, ["2026-12-02"], "die frueher geplante bleibt")
+        XCTAssertEqual(onPhone, ["2026-12-02"], "die aeltere App uebernimmt die Loeschmarke")
+        for d in [pad, oldPhone, pad, phone] {
+            let r = await run(d, id)
+            XCTAssertEqual([r.pushed, r.deleted, r.planMerged], [0, 0, 0], "kein Hin und Her")
+        }
+        // ein drittes, neues Geraet bekommt genau eine Planung
+        let mac = try await device("mac-plan", token: token)
+        _ = await run(mac, id)
+        let onMac = try await days(mac)
+        XCTAssertEqual(onMac, ["2026-12-02"])
+    }
 }
