@@ -279,8 +279,15 @@ def test_pc_submission_only_where_moodle_is(app, monkeypatch, fresh_db):
     st, d = _j(asgi_call(app, "GET", "/api/moodle/assign"))
     assert st == 404 and d["code"] == "not_available"
     monkeypatch.setattr(config, "UNIVERSITY", "hildesheim")
+    # Die Learnweb-Adresse sucht der Dienst ueber die oeffentliche Schnittstelle der Uni Hildesheim. Bis 15.11.2026
+    # fragte dieser Test dabei den echten Server (www.uni-hildesheim.de, zweimal je Lauf) und war ohne Netz rot;
+    # jetzt antwortet eine Nachbildung, gefragt wird wie im Dienst.
+    from app import learnweb
+    asked = []
+    monkeypatch.setattr(learnweb, "_public_sitename", lambda base, timeout=15: asked.append(base) or "Learnweb")
     inst = moodle.instance()
     assert inst["name"] == "Learnweb" and inst["session"] == "LEARNWEB_COOKIES"
+    assert asked and inst["base"] == asked[0] and asked[0].startswith(learnweb.LEARNWEB_ROOT + "/learnweb")
 
 
 def test_hsh_sync_reads_moodle_messages_with_the_session(fresh_db):
