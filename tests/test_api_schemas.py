@@ -93,7 +93,7 @@ def schema_v2(name):
 
 
 def test_v2_examples_match_draft_schemas():
-    for name in ("auth-tokens", "me", "quota-consume", "apple-verify"):
+    for name in ("auth-tokens", "me", "quota-consume", "apple-verify", "credit-purchase"):
         example = json.loads((CONTRACTS / "fixtures" / "api-v2" / f"{name}.json").read_text(encoding="utf-8"))
         assert check(example, schema_v2(name)) == [], name
 

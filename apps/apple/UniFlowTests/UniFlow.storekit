@@ -1,7 +1,38 @@
 {
   "identifier": "5F1D2C3B",
   "nonRenewingSubscriptions": [],
-  "products": [],
+  "products": [
+    {
+      "displayPrice": "1.99",
+      "familyShareable": false,
+      "internalID": "6500000021",
+      "localizations": [
+        {
+          "description": "100 Credits für die StudiNow-KI",
+          "displayName": "100 Credits",
+          "locale": "de"
+        }
+      ],
+      "productID": "de.uniflow.credits.klein",
+      "referenceName": "Credits klein",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "3.99",
+      "familyShareable": false,
+      "internalID": "6500000022",
+      "localizations": [
+        {
+          "description": "200 Credits für die StudiNow-KI",
+          "displayName": "200 Credits",
+          "locale": "de"
+        }
+      ],
+      "productID": "de.uniflow.credits.gross",
+      "referenceName": "Credits groß",
+      "type": "Consumable"
+    }
+  ],
   "settings": {
     "_compatibilityTimeRate": {
       "3": 6

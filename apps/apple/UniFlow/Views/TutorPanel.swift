@@ -155,6 +155,8 @@ struct TutorPanel: View {
     @State private var error: String?
     /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
     @State private var errorAction: StudiNowAIAction?
+    /// Blatt "Credits kaufen" (oeffnet von selbst, wenn die Credits nicht reichen und das Konto kaufen darf)
+    @State private var creditShop = false
     @State private var tab: Tab = .explain
     /// Umfang und Lauf fuer das ganze Dokument (05.11.2026, TutorDocumentRun.swift): "Diese Seite | Ganzes Dokument |
     /// Seiten …", "Ganze Vorlesung erklären", "Alle Aufgaben erklären"
@@ -188,6 +190,7 @@ struct TutorPanel: View {
         // Anschlussfragen und "Schon erklärt" wieder zeigen (`TutorConversations`, bleibt auf dem Geraet)
         .onAppear { restoreConversation() }
         .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
+        .ufCreditShop(isPresented: $creditShop, opensFor: errorAction)
         .onChange(of: fileID) { _, _ in messages = []; error = nil; restoreConversation() }
         .task(id: request.wrappedValue?.id) {
             guard let r = request.wrappedValue else { return }
@@ -330,8 +333,9 @@ struct TutorPanel: View {
                                     .accessibilityIdentifier("tutor.error")
                                 if let errorAction {
                                     // Tarif (Recht, Kontingent, Credits) bzw. Anmeldung beim StudiNow-Konto
-                                    UFButton(StudoraAccountLink.errorButton(errorAction), icon: errorAction == .signIn ? "user" : "star", size: .small) {
-                                        leave(.settings(tab: "account"))
+                                    UFButton(StudoraAccountLink.errorButton(errorAction),
+                                             icon: errorAction == .signIn ? "user" : errorAction == .credits ? "sparkles" : "star", size: .small) {
+                                        if errorAction == .credits { creditShop = true } else { leave(.settings(tab: "account")) }
                                     }
                                         .accessibilityIdentifier("tutor.plans")
                                 }

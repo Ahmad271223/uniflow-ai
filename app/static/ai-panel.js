@@ -5,6 +5,7 @@
 // Der Teil bis `createAiPanel` ist reine Logik ohne DOM (tests/js/ai-panel.test.mjs); `createAiPanel` zeichnet und
 // spricht mit POST /api/ai/tutor. Das ganze Dokument (Umfang, Schnellknoepfe) bleibt in doc-explain-logic.js / editor.js.
 import { SCOPES, CHIPS, docModeFor } from "./doc-explain-logic.js?v=1";
+import { balanceLine, available } from "./credit-packs-logic.js?v=1";
 
 /** Reiter: Kennung, Titel, Symbol, Modi in der Reihenfolge der Knoepfe (jeder Modus ausser "ask" gehoert genau einem Reiter) */
 export const TABS = [
@@ -64,16 +65,16 @@ export function resetLabel(iso) {
 }
 
 /** Kostenzeile aus der Antwort des Dienstes (`credits`, `explain`): gespeichert "Schon erklärt · 0 Credits", Wiederholung
- *  "Schon berechnet · 0 Credits", berechnet "– 3 Credits (37 übrig)", sonst der Stand; am eigenen PC (ohne Credits) leer */
+ *  "Schon berechnet · 0 Credits", berechnet "– 3 Credits (37 übrig)" (uebrig = Rest des Monats plus nutzbare gekaufte),
+ *  sonst der Stand beider Toepfe "Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 80" (15.11.2026,
+ *  credit-packs-logic.js); am eigenen PC (ohne Credits) leer */
 export function creditsLine(credits, explain) {
   if (storedLabel(explain)) return "Schon erklärt · 0 Credits";
   if (!credits) return "";
   if (credits.replay) return "Schon berechnet · 0 Credits";
   const n = Number(credits.charged) || 0;
-  if (n > 0) return `– ${n === 1 ? "1 Credit" : `${n} Credits`}${Number.isFinite(credits.remaining) ? ` (${credits.remaining} übrig)` : ""}`;
-  if (!(credits.allowance > 0)) return "Keine Credits in deinem Tarif";
-  const reset = resetLabel(credits.resets_at);
-  return `Credits: ${credits.remaining} von ${credits.allowance} übrig${reset ? ` · ${reset}` : ""}`;
+  if (n > 0) return `– ${n === 1 ? "1 Credit" : `${n} Credits`}${Number.isFinite(credits.remaining) ? ` (${available(credits)} übrig)` : ""}`;
+  return balanceLine(credits, { monthNote: resetLabel(credits.resets_at) || "", labelled: true });
 }
 
 /** Weg der KI vor der ersten Antwort (GET /api/ai/source, 05.11.2026): am PC mit Konto der Credits-Stand, sonst der Weg */

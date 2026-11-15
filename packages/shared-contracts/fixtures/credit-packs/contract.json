@@ -1,0 +1,896 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-credit-packs-fixture.py aus der Python-Referenz (app/plans.py, app/credits.py, app/credit_texts.py); nicht von Hand aendern.",
+ "credit_microeur": 6500,
+ "packs": [
+  {
+   "product_id": "de.uniflow.credits.klein",
+   "credits": 100,
+   "price_cents": 199,
+   "currency": "EUR",
+   "label": "100 Credits",
+   "max_cost_microeur": 650000
+  },
+  {
+   "product_id": "de.uniflow.credits.gross",
+   "credits": 200,
+   "price_cents": 399,
+   "currency": "EUR",
+   "label": "200 Credits",
+   "max_cost_microeur": 1300000
+  }
+ ],
+ "buy_rule": {
+  "buy_plans": [
+   "pro_ai"
+  ],
+  "buy_in_trial": false,
+  "use_right": "can_use_ai_explanations",
+  "cases": [
+   {
+    "plan": "free",
+    "trial_only": false,
+    "can_buy": false,
+    "purchased_usable": false
+   },
+   {
+    "plan": "free",
+    "trial_only": true,
+    "can_buy": false,
+    "purchased_usable": false
+   },
+   {
+    "plan": "plus",
+    "trial_only": false,
+    "can_buy": false,
+    "purchased_usable": false
+   },
+   {
+    "plan": "plus",
+    "trial_only": true,
+    "can_buy": false,
+    "purchased_usable": false
+   },
+   {
+    "plan": "pro_ai",
+    "trial_only": false,
+    "can_buy": true,
+    "purchased_usable": true
+   },
+   {
+    "plan": "pro_ai",
+    "trial_only": true,
+    "can_buy": false,
+    "purchased_usable": true
+   },
+   {
+    "plan": "pro_connect",
+    "trial_only": false,
+    "can_buy": true,
+    "purchased_usable": true
+   },
+   {
+    "plan": "pro_connect",
+    "trial_only": true,
+    "can_buy": false,
+    "purchased_usable": true
+   }
+  ]
+ },
+ "purchase": {
+  "path": "/api/billing/credits/apple",
+  "request": {
+   "signed_transaction": "<Transaction.jwsRepresentation>"
+  },
+  "finish_rule": "Die App ruft finish() nur nach Status 200 (jeder status-Wert). Bei jedem anderen Status und ohne Antwort bleibt der Kauf offen und wird beim naechsten Start erneut gemeldet.",
+  "statuses": [
+   "granted",
+   "already_granted",
+   "refunded",
+   "already_refunded"
+  ],
+  "exhausted_code": "credits_exhausted"
+ },
+ "texts": {
+  "title_exhausted": "Deine Credits sind aufgebraucht",
+  "title_shop": "Credits kaufen",
+  "not_now": "Nicht jetzt",
+  "keep": "Gekaufte Credits verfallen nicht.",
+  "buy_needs_pro_ai": "Credits kaufen kannst du mit StudiNow Pro AI.",
+  "web_hint": "Credits kaufst du in der App für iPhone und iPad.",
+  "no_credits": "Keine Credits in deinem Tarif"
+ },
+ "balance_cases": [
+  {
+   "name": "Pro AI, beide Toepfe gefuellt",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 63,
+    "reserved": 0,
+    "remaining": 37,
+    "plan": "pro_ai",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 80,
+    "purchased_usable": true,
+    "available": 117,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Diesen Monat: 37 von 100 · Gekauft: 80",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "dormant_note": null,
+    "available": 117,
+    "offers_shop": true,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Pro AI, Monat leer, gekaufte da",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 100,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "pro_ai",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 80,
+    "purchased_usable": true,
+    "available": 80,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Diesen Monat: 0 von 100 · Gekauft: 80",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "dormant_note": null,
+    "available": 80,
+    "offers_shop": true,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Pro AI, alles aufgebraucht",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 100,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "pro_ai",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 0,
+    "purchased_usable": true,
+    "available": 0,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Diesen Monat: 0 von 100 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "dormant_note": null,
+    "available": 0,
+    "offers_shop": true,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Pro AI ohne Kauf",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 0,
+    "reserved": 0,
+    "remaining": 100,
+    "plan": "pro_ai",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 0,
+    "purchased_usable": true,
+    "available": 100,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Diesen Monat: 100 von 100 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "dormant_note": null,
+    "available": 100,
+    "offers_shop": true,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Probe: 25 Credits, kaufen geht nicht",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 25,
+    "used": 16,
+    "reserved": 0,
+    "remaining": 9,
+    "plan": "pro_ai:trial",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 0,
+    "purchased_usable": true,
+    "available": 9,
+    "can_buy": false
+   },
+   "expect": {
+    "line": "Diesen Monat: 9 von 25 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 25 Monats-Credits gibt es am 1. Dezember wieder.",
+    "dormant_note": null,
+    "available": 9,
+    "offers_shop": false,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Plus mit ruhenden gekauften Credits",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 0,
+    "used": 0,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "plus",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 60,
+    "purchased_usable": false,
+    "available": 0,
+    "can_buy": false
+   },
+   "expect": {
+    "line": "Gekauft: 60 · nutzbar mit StudiNow Pro AI",
+    "keep_note": "Gekaufte Credits verfallen nicht.",
+    "dormant_note": "Du hast noch 60 gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Pro AI läuft.",
+    "available": 0,
+    "offers_shop": false,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Free ohne Credits",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 0,
+    "used": 0,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "free",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 0,
+    "purchased_usable": false,
+    "available": 0,
+    "can_buy": false
+   },
+   "expect": {
+    "line": "Keine Credits in deinem Tarif",
+    "keep_note": "Gekaufte Credits verfallen nicht.",
+    "dormant_note": null,
+    "available": 0,
+    "offers_shop": false,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Jahreswechsel",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 95,
+    "reserved": 0,
+    "remaining": 5,
+    "plan": "pro_ai",
+    "resets_at": "2027-01-01T00:00:00+01:00",
+    "credit_eur": 0.0065,
+    "purchased": 12,
+    "purchased_usable": true,
+    "available": 17,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Diesen Monat: 5 von 100 · Gekauft: 12",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Januar wieder.",
+    "dormant_note": null,
+    "available": 17,
+    "offers_shop": true,
+    "reset_day": "1. Januar"
+   }
+  },
+  {
+   "name": "aelterer Dienst ohne die neuen Felder",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 63,
+    "reserved": 0,
+    "remaining": 37,
+    "plan": "pro_ai",
+    "resets_at": "2026-12-01T00:00:00+01:00",
+    "credit_eur": 0.0065
+   },
+   "expect": {
+    "line": "Diesen Monat: 37 von 100 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "dormant_note": null,
+    "available": 37,
+    "offers_shop": false,
+    "reset_day": "1. Dezember"
+   }
+  },
+  {
+   "name": "Stand ohne lesbares Datum",
+   "credits": {
+    "period": "2026-11",
+    "allowance": 100,
+    "used": 100,
+    "reserved": 0,
+    "remaining": 0,
+    "plan": "pro_ai",
+    "resets_at": "",
+    "credit_eur": 0.0065,
+    "purchased": 3,
+    "purchased_usable": true,
+    "available": 3,
+    "can_buy": true
+   },
+   "expect": {
+    "line": "Diesen Monat: 0 von 100 · Gekauft: 3",
+    "keep_note": "Gekaufte Credits verfallen nicht.",
+    "dormant_note": null,
+    "available": 3,
+    "offers_shop": true,
+    "reset_day": null
+   }
+  }
+ ],
+ "flows": [
+  {
+   "step": "Pro AI: Stand vor dem Kauf (beide Toepfe, Pakete, wo man kaufen kann)",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "pro_ai",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 100,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 0,
+     "purchased_usable": true,
+     "available": 100,
+     "can_buy": true
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Kleines Paket kaufen: gutgeschrieben, danach darf die App abschliessen",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 200,
+   "response": {
+    "status": "granted",
+    "credits_added": 100,
+    "credits_removed": 0,
+    "product_id": "de.uniflow.credits.klein",
+    "transaction_id": "9000000000000001",
+    "environment": "Production",
+    "other_account": false,
+    "sandbox_limited": false,
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 100,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 100,
+     "purchased_usable": true,
+     "available": 200,
+     "can_buy": true
+    }
+   }
+  },
+  {
+   "step": "Dieselbe Transaktion noch einmal (Wiederholung nach Netzfehler): nichts doppelt",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 200,
+   "response": {
+    "status": "already_granted",
+    "credits_added": 0,
+    "credits_removed": 0,
+    "product_id": "de.uniflow.credits.klein",
+    "transaction_id": "9000000000000001",
+    "environment": "Production",
+    "other_account": false,
+    "sandbox_limited": false,
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 100,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 100,
+     "purchased_usable": true,
+     "available": 200,
+     "can_buy": true
+    }
+   }
+  },
+  {
+   "step": "Grosses Paket kaufen",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 200,
+   "response": {
+    "status": "granted",
+    "credits_added": 200,
+    "credits_removed": 0,
+    "product_id": "de.uniflow.credits.gross",
+    "transaction_id": "9000000000000002",
+    "environment": "Production",
+    "other_account": false,
+    "sandbox_limited": false,
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 100,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 300,
+     "purchased_usable": true,
+     "available": 400,
+     "can_buy": true
+    }
+   }
+  },
+  {
+   "step": "Verbrauch: erst die 100 Monats-Credits, dann 30 gekaufte",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "pro_ai",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 270,
+     "purchased_usable": true,
+     "available": 270,
+     "can_buy": true
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Apple meldet die Erstattung des kleinen Pakets: nur sein Rest (70) geht weg",
+   "method": "POST",
+   "path": "/api/billing/apple/notifications",
+   "auth": false,
+   "request": {
+    "signedPayload": "<signierte-mitteilung>"
+   },
+   "status": 200,
+   "response": {
+    "ok": true,
+    "type": "REFUND",
+    "applied": true,
+    "status": "refunded",
+    "credits_added": 0,
+    "credits_removed": 70,
+    "product_id": "de.uniflow.credits.klein"
+   }
+  },
+  {
+   "step": "Stand nach der Erstattung",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "pro_ai",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 200,
+     "purchased_usable": true,
+     "available": 200,
+     "can_buy": true
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Die App meldet die erstattete Transaktion: nichts mehr gutzuschreiben, abschliessen",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 200,
+   "response": {
+    "status": "already_refunded",
+    "credits_added": 0,
+    "credits_removed": 0,
+    "product_id": "de.uniflow.credits.klein",
+    "transaction_id": "9000000000000001",
+    "environment": "Production",
+    "other_account": false,
+    "sandbox_limited": false,
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 200,
+     "purchased_usable": true,
+     "available": 200,
+     "can_buy": true
+    }
+   }
+  },
+  {
+   "step": "Credits reichen nicht: 429 mit dem Stand (die App zeigt das Blatt, weil can_buy true ist)",
+   "method": "POST",
+   "path": "/api/ai/tutor",
+   "auth": true,
+   "request": {
+    "mode": "explain",
+    "page_text": "Matrizen",
+    "request_id": "leer-1"
+   },
+   "status": 429,
+   "response": {
+    "detail": "Credits für diesen Monat aufgebraucht – am 1. gibt es neue.",
+    "code": "credits_exhausted",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 0,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 0,
+     "purchased_usable": true,
+     "available": 0,
+     "can_buy": true,
+     "needed": 220
+    }
+   }
+  },
+  {
+   "step": "Pro AI ist vorbei: die gekauften Credits bleiben beim Konto und ruhen",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "free",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 0,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "free",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 200,
+     "purchased_usable": false,
+     "available": 0,
+     "can_buy": false
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Pro AI laeuft wieder: die gekauften Credits sind wieder nutzbar",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "pro_ai",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 100,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 200,
+     "purchased_usable": true,
+     "available": 200,
+     "can_buy": true
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Probe: 25 Credits, kaufen geht erst mit Pro AI",
+   "method": "GET",
+   "path": "/api/entitlements",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "plan": "pro_ai",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 25,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 25,
+     "plan": "pro_ai:trial",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 0,
+     "purchased_usable": true,
+     "available": 25,
+     "can_buy": false
+    },
+    "credit_packs": {
+     "packs": [
+      {
+       "product_id": "de.uniflow.credits.klein",
+       "credits": 100
+      },
+      {
+       "product_id": "de.uniflow.credits.gross",
+       "credits": 200
+      }
+     ],
+     "purchase": {
+      "apple": {
+       "available": true,
+       "note": "Credits kaufst du in der App für iPhone und iPad."
+      },
+      "web": {
+       "available": false,
+       "note": "Credits kaufst du in der App für iPhone und iPad. Gekaufte Credits gelten danach auch hier."
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "Beschaedigte Kaufdaten: 400, die App schliesst nicht ab",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "kaputt"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Die signierten Kaufdaten sind beschädigt.",
+    "code": "jws_invalid"
+   }
+  },
+  {
+   "step": "Unbekanntes Produkt: 400",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Unbekanntes Credit-Paket.",
+    "code": "unknown_product"
+   }
+  },
+  {
+   "step": "Ohne Anmeldung: 401",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": false,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Ein anderes Konto meldet den Kauf: die Credits gehen an das Konto, das gekauft hat",
+   "method": "POST",
+   "path": "/api/billing/credits/apple",
+   "auth": true,
+   "request": {
+    "signed_transaction": "<signierte-transaktion>"
+   },
+   "status": 200,
+   "response": {
+    "status": "granted",
+    "credits_added": 100,
+    "credits_removed": 0,
+    "product_id": "de.uniflow.credits.klein",
+    "transaction_id": "9000000000000005",
+    "environment": "Production",
+    "other_account": true,
+    "sandbox_limited": false,
+    "credits": {
+     "period": "<monat>",
+     "allowance": 100,
+     "used": 0,
+     "reserved": 0,
+     "remaining": 100,
+     "plan": "pro_ai",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.0065,
+     "purchased": 0,
+     "purchased_usable": true,
+     "available": 100,
+     "can_buy": true
+    }
+   }
+  }
+ ]
+}

@@ -280,6 +280,11 @@ LOCKED_WRITE_ROUTES = {
     ("POST", "/api/billing/apple/verify"), ("POST", "/api/billing/stripe/checkout"), ("POST", "/api/billing/stripe/portal"),
     ("POST", "/api/billing/stripe/webhook"), ("POST", "/api/billing/plan-choice"), ("POST", "/api/billing/apple/notifications"),
     ("POST", "/api/billing/offer-codes"),                       # nur Admin (Admins sind ohnehin von der Pflicht ausgenommen)
+    # Credit-Pakete (15.11.2026), bewusst durch die Sperre erlaubt: die Route verbucht nur einen von Apple signierten,
+    # schon bezahlten Verbrauchskauf (genau einmal) und schaltet nichts frei - ohne Pro AI ruhen die Credits. Wer
+    # bezahlt hat, muss seine Credits bekommen, auch wenn das Abo inzwischen abgelaufen ist. Kaufen kann man nur in der
+    # Apple-App (keine Abo-Sperre); Web und Windows haben den Weg nicht (tests/test_credit_packs.py).
+    ("POST", "/api/billing/credits/apple"),
     ("POST", "/api/app-login/code"), ("POST", "/api/app-login/token"),
 }
 

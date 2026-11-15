@@ -11,10 +11,10 @@ const credits = { period: "2026-11", allowance: 100, used: 8, reserved: 0, remai
 test("Weg der KI vor der ersten Antwort", () => {
   assert.equal(P.sourceLine(null), "");
   assert.equal(P.sourceLine({ source: "chatgpt" }), "über dein ChatGPT · 0 Credits");
-  assert.equal(P.sourceLine({ source: "studinow", credits }), "Credits: 92 von 100 übrig · neu am 1. Dezember");
+  assert.equal(P.sourceLine({ source: "studinow", credits }), "Credits diesen Monat: 92 von 100 (neu am 1. Dezember) · Gekauft: 0");
   assert.equal(P.sourceLine({ source: "studinow", credits: null }), "StudiNow-KI · mit Credits");
   assert.equal(P.sourceLine({ source: "none" }), "Keine KI verbunden");
-  assert.equal(P.footerLine(3, null, null, { source: "studinow", credits }), "Seite 3 · Credits: 92 von 100 übrig · neu am 1. Dezember");
+  assert.equal(P.footerLine(3, null, null, { source: "studinow", credits }), "Seite 3 · Credits diesen Monat: 92 von 100 (neu am 1. Dezember) · Gekauft: 0");
   // nach einer Antwort zaehlt deren Stand
   assert.equal(P.footerLine(3, { ...credits, charged: 8, remaining: 84 }, null, { source: "studinow", credits }), "Seite 3 · – 8 Credits (84 übrig)");
   assert.equal(P.footerLine(3, null, { stored: true, source: "cloud" }, { source: "studinow", credits }), "Seite 3 · Schon erklärt · 0 Credits");

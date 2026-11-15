@@ -4,6 +4,8 @@
 - GET  /api/entitlements                  eigener Abo-Stand (Tarif, Rechte, Kontingente, Ablauf, geplanter Wechsel);
                                           mit `X-StudiNow-Caps: device_limit` zusaetzlich `device` (app/device_limit.py)
 - POST /api/billing/apple/verify          gepruefter Kauf / Wiederherstellung aus der App {signed_transaction, signed_renewal?}
+- POST /api/billing/credits/apple         Credit-Paket (Verbrauchskauf) aus der App {signed_transaction}: genau einmal
+                                          gutschreiben, Antwort mit dem neuen Stand (docs/KI-CREDITS-2026-11-15.md)
 - POST /api/billing/apple/notifications   App Store Server Notifications V2 {signedPayload} (oeffentlich, Signatur geprueft)
 - GET  /api/billing/ai-usage              KI-Kosten des Monats (nur Admin)
 - GET  /api/integrations/chatgpt          Stand der offiziellen ChatGPT-Verbindung
@@ -38,6 +40,16 @@ def _hosted() -> None:
     if not config.is_hosted():
         raise HTTPException(501, {"detail": "Abos gibt es nur mit StudiNow-Konto im Dienst; auf dem eigenen PC ist alles frei.",
                                   "code": "not_hosted"})
+
+
+def credit_pack_info() -> dict:
+    """Credit-Pakete fuer die Clients (`credit_packs` in GET /api/entitlements): Groesse je Produkt-ID - die App zeigt
+    diese Zahl und den Preis aus StoreKit - und wo man kaufen kann. Im Web und unter Windows gibt es noch keinen Kauf;
+    ein anderer Bezahlweg fuellt spaeter denselben Topf (credits.grant_purchase)."""
+    return {"packs": [{"product_id": p["product_id"], "credits": p["credits"]} for p in plans.credit_packs()],
+            "purchase": {"apple": {"available": True, "note": "Credits kaufst du in der App für iPhone und iPad."},
+                         "web": {"available": False, "note": "Credits kaufst du in der App für iPhone und iPad. "
+                                                              "Gekaufte Credits gelten danach auch hier."}}}
 
 
 def purchase_channels() -> dict:
@@ -81,7 +93,9 @@ def get_entitlements(request: Request):
         u = _user(request)
         out["apple_account_token"] = apple_store.account_token(u["id"])
         # Credits des Monats (app/credits.py): period, allowance, used, reserved, remaining, resets_at, plan
+        # dazu der gekaufte Topf (15.11.2026): purchased, purchased_usable, available, can_buy - zusaetzliche Felder
         out["credits"] = ai_backend.credits_balance(u["id"])
+        out["credit_packs"] = credit_pack_info()
         out["access"] = access.for_status(out, access.client_type(request), u.get("role"))
         # Geraete-Regel (14.11.2026, app/device_limit.py): nur fuer Apple-Apps mit der Faehigkeit `device_limit`;
         # aeltere Apps, Web und Windows bekommen das Feld nicht. Ein Fehler laesst es weg (die App sperrt dann nie).
@@ -116,6 +130,31 @@ def apple_verify(request: Request, body: dict = Body(...)):
         conn.close()
     out["entitlements"] = entitlements.status(request)
     return out
+
+
+@router.post("/api/billing/credits/apple")
+def apple_credit_purchase(request: Request, body: dict = Body(...)):
+    """Credit-Paket aus dem App Store melden. Die App ruft `finish()` erst nach einer Antwort 200; dieselbe Transaktion
+    darf beliebig oft gemeldet werden (`already_granted`). Bewusst ohne Pruefung des Tarifs und durch die Abo-Sperre
+    erlaubt: wer bezahlt hat, bekommt seine Credits (ohne Pro AI ruhen sie). `other_account`: der Kauf gehoert laut
+    appAccountToken zu einem anderen Konto und wurde dort gutgeschrieben; `credits` ist immer der Stand des Anfragenden."""
+    _hosted()
+    u = _user(request)
+    signed = body.get("signed_transaction")
+    if not isinstance(signed, str) or not signed:
+        raise HTTPException(400, {"detail": "signed_transaction fehlt.", "code": "jws_invalid"})
+    from . import ai_backend, credits
+    conn = credits.connect()
+    try:
+        done = apple_store.verify_credit_purchase(conn, u["id"], signed)
+    except (apple_store.AppleError, billing.BillingError) as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    finally:
+        conn.close()
+    return {"status": done["status"], "credits_added": done["credits_added"], "credits_removed": done["credits_removed"],
+            "product_id": done["product_id"], "transaction_id": done["transaction_id"], "environment": done["environment"],
+            "other_account": done["other_account"], "sandbox_limited": done["sandbox_limited"],
+            "credits": ai_backend.credits_balance(u["id"])}
 
 
 # ---------------------------------------------------------------- Stripe (Web, Windows) und Tarifwahl nach der Probe

@@ -130,7 +130,9 @@ def plan(request: Request, body: dict = Body(...)):
         # Modellmischung: je Schritt der Preis des teuersten Modells seines Weges (Aufgaben gehen an Sonnet)
         credits = sum(de.estimate_step_credits(s, ai_backend.estimate_model(f"tutor:doc_{s['kind']}")) for s in todo)
         balance = ai_backend.credits_balance(request.state.user["id"]) if getattr(request.state, "user", None) else None
-        remaining = balance.get("remaining") if balance else None
+        # was jetzt da ist: Rest des Monats plus nutzbare gekaufte Credits (15.11.2026) - sonst hiesse es "Reicht nicht",
+        # obwohl gekaufte Credits die Anfrage bezahlen
+        remaining = balance.get("available", balance.get("remaining")) if balance else None
     est = de.estimate_message(way, len(todo), len(steps) - len(todo), credits, remaining)
     title = ("Ganze Vorlesung erklären" if mode == "lecture" else "Alle Aufgaben erklären") + " · " + scope["label"]
     return {"intent": True, "mode": mode, "scope": scope, "title": title, "pages": scope["to"] - scope["from"] + 1,

@@ -116,10 +116,10 @@ def link(app, email):
 
 
 def cheap_calls(monkeypatch):
-    """Ein Aufruf der Attrappe (120+40 Tokens) kostet 8 Credits, Schaetzung fest 10 (wie tests/test_credits.py)."""
+    """Ein Aufruf der Attrappe (120+40 Tokens) kostet 56.000 Millionstel EUR = 9 Credits (0,65 Cent je Credit), Schaetzung fest 10 (wie tests/test_credits.py)."""
     from app import ai_prices
-    monkeypatch.setenv("LERNAPP_AI_PRICE_IN_EUR", "500")
-    monkeypatch.setenv("LERNAPP_AI_PRICE_OUT_EUR", "500")
+    monkeypatch.setenv("LERNAPP_AI_PRICE_IN_EUR", "350")
+    monkeypatch.setenv("LERNAPP_AI_PRICE_OUT_EUR", "350")
     monkeypatch.setenv("LERNAPP_AI_USER_BUDGET_EUR", "100")
     monkeypatch.setattr(ai_prices, "estimate_credits", lambda *a, **k: 10)
 

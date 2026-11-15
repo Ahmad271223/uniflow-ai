@@ -29,11 +29,11 @@ def ledger_conn():
 
 
 def cheap_calls(monkeypatch):
-    """Ein FakeAI-Aufruf (120+40 Tokens) kostet bei 500 EUR je 1 Mio. Tokens 80.000 Millionstel EUR = 8 Credits; die
+    """Ein FakeAI-Aufruf (120+40 Tokens) kostet bei 350 EUR je 1 Mio. Tokens 56.000 Millionstel EUR = 9 Credits (0,65 Cent je Credit); die
     Schaetzung vor dem Aufruf ist fest 10 Credits."""
     from app import ai_prices
-    monkeypatch.setenv("LERNAPP_AI_PRICE_IN_EUR", "500")
-    monkeypatch.setenv("LERNAPP_AI_PRICE_OUT_EUR", "500")
+    monkeypatch.setenv("LERNAPP_AI_PRICE_IN_EUR", "350")
+    monkeypatch.setenv("LERNAPP_AI_PRICE_OUT_EUR", "350")
     monkeypatch.setenv("LERNAPP_AI_USER_BUDGET_EUR", "100")
     monkeypatch.setattr(ai_prices, "estimate_credits", lambda *a, **k: 10)
 
@@ -78,7 +78,7 @@ def test_month_row_appears_lazily_on_first_use_and_follows_the_plan(hosted):
         assert conn.execute("SELECT COUNT(*) FROM credit_months").fetchone()[0] == 0, "kein naechtlicher Lauf, keine Vorab-Zeile"
         c = credits_of(hosted, h)
         assert (c["period"], c["allowance"], c["used"], c["reserved"], c["remaining"], c["plan"]) == (credits.period_of(), 100, 0, 0, 100, "pro_ai")
-        assert c["resets_at"] == credits.resets_at() and c["credit_eur"] == 0.009
+        assert c["resets_at"] == credits.resets_at() and c["credit_eur"] == 0.0065
         assert conn.execute("SELECT COUNT(*) FROM credit_months WHERE user_id=?", (u["id"],)).fetchone()[0] == 1
         # neuer Monat = neue Zeile mit frischem Rahmen; die alte bleibt (Verfall am Monatsende)
         credits.reserve(conn, u["id"], "x", "tutor:explain", 3, now=T0)
@@ -114,13 +114,13 @@ def test_reserve_settle_refund_arithmetic(hosted):
     try:
         r = credits.reserve(conn, uid, "a", "tutor:explain", 12, now=T0, model="gpt-6-luna")
         assert (r.reserved, r.replay, r.balance["reserved"], r.balance["remaining"]) == (12, False, 12, 88)
-        # abgerechnet wird die echte Nutzung: 2,3 Cent -> 3 Credits (aufgerundet), die Reservierung wird frei
-        assert credits.settle(conn, uid, "a", 23_000, model="gpt-6-luna", input_tokens=900, cached_tokens=100, output_tokens=40, now=T0) == 3
+        # abgerechnet wird die echte Nutzung: 1,7 Cent -> 3 Credits zu 0,65 Cent (aufgerundet), die Reservierung wird frei
+        assert credits.settle(conn, uid, "a", 17_000, model="gpt-6-luna", input_tokens=900, cached_tokens=100, output_tokens=40, now=T0) == 3
         b = credits.balance(conn, uid, now=T0)
         assert (b["used"], b["reserved"], b["remaining"]) == (3, 0, 97)
         row = conn.execute("SELECT state, reserved, charged, cost_microeur, input_tokens, cached_tokens, output_tokens, model, day "
                            "FROM credit_ledger WHERE user_id=? AND request_id='a'", (uid,)).fetchone()
-        assert tuple(row) == ("settled", 12, 3, 23_000, 900, 100, 40, "gpt-6-luna", "2026-11-10")
+        assert tuple(row) == ("settled", 12, 3, 17_000, 900, 100, 40, "gpt-6-luna", "2026-11-10")
         # Fehler ohne Nutzung: Reservierung zurueck, nichts berechnet
         credits.reserve(conn, uid, "b", "flashcards", 5, now=T0)
         assert credits.refund(conn, uid, "b") is True
@@ -159,7 +159,7 @@ def test_request_id_is_never_charged_twice(hosted):
         with pytest.raises(ai_backend.AIUnavailable) as e2:
             ai_backend.replay(uid, "r1", now=T0)
         assert e2.value.status == 409
-        credits.settle(conn, uid, "r1", 15_000, result="Antwort A", now=T0)
+        credits.settle(conn, uid, "r1", 11_000, result="Antwort A", now=T0)
         # fertig: dieselbe ID liefert die gespeicherte Antwort, ohne neue Kosten
         again = credits.reserve(conn, uid, "r1", "tutor:explain", 4, now=T0 + timedelta(hours=23))
         assert (again.replay, again.result, again.charged, again.reserved) == (True, "Antwort A", 2, 0)
@@ -206,7 +206,7 @@ def test_tutor_charges_credits_and_reports_the_balance(hosted, monkeypatch):
     try:
         row = conn.execute("SELECT purpose, funding, state, model, reserved, charged, cost_microeur, input_tokens, output_tokens, result "
                            "FROM credit_ledger WHERE user_id=? AND request_id='q1'", (u["id"],)).fetchone()
-        assert tuple(row) == ("tutor:explain", "credits", "settled", "fake", 10, 9, 80_000, 120, 40, d["answer"])
+        assert tuple(row) == ("tutor:explain", "credits", "settled", "fake", 10, 9, 56_000, 120, 40, d["answer"])
     finally:
         conn.close()
 
@@ -294,7 +294,7 @@ def test_cost_comes_only_from_usage_never_from_the_client(hosted, monkeypatch):
     monkeypatch.delenv("LERNAPP_AI_PRICE_IN_EUR")
     monkeypatch.delenv("LERNAPP_AI_PRICE_OUT_EUR")
     assert ai_prices.cost_microeur("gpt-6-luna-2026-10-01", 1000, 50, 400) == 600 * 0.10 + 400 * 0.01 + 50 * 0.50 == 89
-    assert ai_prices.credits_for(89) == 1 and ai_prices.credits_for(9_000) == 1 and ai_prices.credits_for(9_001) == 2
+    assert ai_prices.credits_for(89) == 1 and ai_prices.credits_for(6_500) == 1 and ai_prices.credits_for(6_501) == 2
     assert ai_prices.price("gibt-es-nicht") is None, "ohne Preis sperrt der Dienst"
     assert ai_backend.Completion.from_usage("x", {"output": []}, "m").input_tokens == 0
 
@@ -326,7 +326,7 @@ def test_purge_removes_credit_rows_of_the_account_but_keeps_costs(hosted, monkey
     conn = ledger_conn()
     try:
         credits.reserve(conn, uid, "p1", "tutor:explain", 4, now=T0, model="gpt-6-luna")
-        credits.settle(conn, uid, "p1", 25_000, model="gpt-6-luna", input_tokens=50, output_tokens=5, result="geheime Antwort", now=T0)
+        credits.settle(conn, uid, "p1", 18_000, model="gpt-6-luna", input_tokens=50, output_tokens=5, result="geheime Antwort", now=T0)
     finally:
         conn.close()
     accounts.delete_account(uid, "sehr-geheim-123")
@@ -336,7 +336,7 @@ def test_purge_removes_credit_rows_of_the_account_but_keeps_costs(hosted, monkey
         assert conn.execute("SELECT COUNT(*) FROM credit_months WHERE user_id=?", (uid,)).fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM credit_ledger WHERE user_id=?", (uid,)).fetchone()[0] == 0
         rows = conn.execute("SELECT user_id, cost_microeur, charged, result FROM credit_ledger WHERE request_id='p1'").fetchall()
-        assert len(rows) == 1 and rows[0][0].startswith("deleted:") and rows[0][1:] == (25_000, 3, None), "Kosten ohne Konto, ohne Antwort"
+        assert len(rows) == 1 and rows[0][0].startswith("deleted:") and rows[0][1:] == (18_000, 3, None), "Kosten ohne Konto, ohne Antwort"
 
 
 def test_admin_costs_view(hosted, monkeypatch):
@@ -351,8 +351,8 @@ def test_admin_costs_view(hosted, monkeypatch):
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/ai-costs?days=7", headers=hadmin))
     assert st == 200, d
     assert d["month"]["period"] == credits.period_of()
-    assert (d["month"]["requests"], d["month"]["accounts"], d["month"]["credits"], d["month"]["cost_eur"]) == (2, 1, 18, 0.16)
-    assert d["month"]["cost_per_account_eur"] == 0.16 and d["month"]["accounts_exhausted"] == 0 and d["month"]["max_used_credits"] == 18
+    assert (d["month"]["requests"], d["month"]["accounts"], d["month"]["credits"], d["month"]["cost_eur"]) == (2, 1, 18, 0.112)
+    assert d["month"]["cost_per_account_eur"] == 0.112 and d["month"]["accounts_exhausted"] == 0 and d["month"]["max_used_credits"] == 18
     day = d["per_day_model"][0]
     assert (day["day"], day["model"], day["requests"], day["credits"], day["input_tokens"], day["output_tokens"]) == (credits.day_of(), "fake", 2, 18, 240, 80)
     assert d["prices_checked"] == "2026-11-05" and any(p["model"] == "gpt-6-luna" for p in d["prices"])
@@ -411,7 +411,7 @@ def test_parallel_reservations_never_exceed_the_allowance(hosted):
         conn = ledger_conn()
         try:
             if i < 2 * len(ids):
-                return credits.settle(conn, uid, rid, 30_000, now=T0)
+                return credits.settle(conn, uid, rid, 26_000, now=T0)
             return credits.refund(conn, uid, rid)
         finally:
             conn.close()

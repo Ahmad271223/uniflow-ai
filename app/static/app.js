@@ -1,13 +1,13 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=47";
 import { viewDashboard as viewHome } from "./views-home.js?v=22";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=73";
-import { viewFiles } from "./views-lib.js?v=71";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=74";
+import { viewFiles } from "./views-lib.js?v=72";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=53";
 import { viewTimetable, openEvent } from "./views-tt.js?v=50";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=94";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=95";
 import { installConsentFetch } from "./ai-consent.js?v=2";   // Einwilligung vor der StudiNow-KI (06.11.2026)
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=54";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=55";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=8";
 import { chipState } from "./sync-chip.js?v=1";
@@ -15,7 +15,7 @@ import { trialHintHtml } from "./trial-hint.js?v=2";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=18";
 import { navHtml, accountHtml } from "./shell-nav.js?v=5";
 import { viewStudyPlan } from "./study-plan.js?v=11";   // Studienverlauf (05.11.2026)
-import { viewAiStart } from "./views-ai.js?v=9";                       // KI-Start (#/ki), Paket B 05.11.2026
+import { viewAiStart } from "./views-ai.js?v=10";                       // KI-Start (#/ki), Paket B 05.11.2026
 import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
 import { createBackNav, backButtonHtml, showsBack } from "./back-nav.js?v=1";   // Zurueck-Pfeil (06.11.2026)
 

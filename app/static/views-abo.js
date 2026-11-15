@@ -12,6 +12,7 @@
 // planChoicePrompt (Tarif wählen oder bei Free bleiben) gilt nur noch ohne Abo-Pflicht.
 import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=47";
 import { GATE_TEXTS, exportHref } from "./account-gate.js?v=1";
+import { balanceLine, showsCredits, webNote } from "./credit-packs-logic.js?v=1";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {
@@ -115,9 +116,12 @@ export async function viewAbo(_, params, view) {
       <div class="plan-facts">${facts}</div>
       <ul class="plan-list">${featureRows(contract, key)}</ul></article>`;
   }).join("");
+  // Credits mit zwei Toepfen (15.11.2026): Stand anzeigen; kaufen kann man hier noch nicht (Hinweis auf die App)
+  const creditsNote = !local && showsCredits(me.credits)
+    ? `<div class="abo-note" id="aboCredits">${icon("sparkles", 18)}<div><b>${esc(balanceLine(me.credits))}</b><p>${esc(webNote(me.credits, me.credit_packs))}</p></div></div>` : "";
   view.innerHTML = `<div class="content abo" style="max-width:1180px">
     <div class="page-head"><div><h1>Abo & Tarife</h1><div class="sub">${local ? "Eigener PC" : locked ? esc(GATE_TEXTS.lockedTitle) : onTrial ? `Probe: alles wie ${esc(me.plan_name)}` : `Dein Tarif: ${esc(me.plan_name)}`}</div></div></div>
-    <section class="abo-now" aria-label="Aktueller Stand">${lockNote}${appleNote}${trial}${afterCheckout}${term}${quotas ? `<div class="abo-quotas">${quotas}</div>` : ""}</section>
+    <section class="abo-now" aria-label="Aktueller Stand">${lockNote}${appleNote}${trial}${afterCheckout}${term}${creditsNote}${quotas ? `<div class="abo-quotas">${quotas}</div>` : ""}</section>
     <h2 class="abo-h">Tarif wählen</h2>
     <div class="plans">${cards}</div>
     <div class="abo-more">

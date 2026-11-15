@@ -53,6 +53,11 @@ def _account(user: dict) -> dict:
             "ki_credits_anfragen": _rows(conn, "SELECT period, day, purpose, funding, state, model, reserved, charged, cost_microeur, "
                                                "input_tokens, cached_tokens, output_tokens, images, created_at, settled_at "
                                                "FROM credit_ledger WHERE user_id=? ORDER BY created_at", (uid,)),
+            # gekaufte Credits (15.11.2026): Stand und jeder Kauf
+            "ki_credits_gekauft": _rows(conn, "SELECT balance, reserved, updated_at FROM credit_wallets WHERE user_id=?", (uid,)),
+            "ki_credits_kaeufe": _rows(conn, "SELECT source, transaction_id, product_id, credits, remaining, state, refunded_credits, "
+                                             "environment, purchased_at, created_at, refunded_at FROM credit_purchases "
+                                             "WHERE user_id=? ORDER BY created_at", (uid,)),
             "einladungen": _invites(conn, uid),
             "abgleich_auftraege": _rows(conn, "SELECT kind, trigger, status, requested_at, started_at, finished_at, message, new_files "
                                               "FROM sync_jobs WHERE user_id=? ORDER BY id", (uid,)),

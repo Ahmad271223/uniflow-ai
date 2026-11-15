@@ -115,7 +115,7 @@ final class StudiNowAIAppTests: XCTestCase {
         XCTAssertEqual(StudoraAccountLink.errorButton(.signIn), "Mit StudiNow-Konto anmelden")
         XCTAssertEqual(StudoraAccountLink.errorButton(.plans), "Tarif ansehen")
         XCTAssertEqual(StudoraAccountCard.aiLine(.ready, credits: StudoraCredits.parse(credits), trial: false),
-                       "StudiNow-KI bereit · 37 von 100 übrig · neu am 1. Dezember")
+                       "StudiNow-KI bereit · Diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
         XCTAssertNotNil(StudoraAccountCard.aiLine(.signInRequired, credits: nil, trial: false))
         XCTAssertNil(StudoraAccountCard.aiLine(.planRequired, credits: nil, trial: false))
         // Hinweis auf der Uebersicht (Inhaber 10.11.2026): nur, wenn genau die Anmeldung fehlt
@@ -315,7 +315,7 @@ final class StudiNowAIAppTests: XCTestCase {
 
     func testFooterAndStatusNameTheStudiNowAI() {
         let c = StudoraCredits.parse(credits)
-        XCTAssertEqual(TutorPanel.footer(page: 2, model: nil, credits: c, studinow: true), "Seite 2 · StudiNow-KI · Credits: 37 von 100 übrig · neu am 1. Dezember")
+        XCTAssertEqual(TutorPanel.footer(page: 2, model: nil, credits: c, studinow: true), "Seite 2 · StudiNow-KI · Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
         XCTAssertEqual(TutorPanel.footer(page: 2, model: nil, credits: c, charge: .init(credits: 3, replay: false), studinow: true),
                        "Seite 2 · StudiNow-KI · – 3 Credits (37 übrig)")
         XCTAssertEqual(TutorPanel.footer(page: 2, model: nil, studinow: true), "Seite 2 · StudiNow-KI")

@@ -28,6 +28,37 @@
         "period": { "enum": ["year"] }
       }
     },
+    "credits": {
+      "description": "Credits der StudiNow-KI (app/credits.py); am eigenen PC null. allowance/used/reserved/remaining sind die Monats-Credits (unveraendert seit 04.11.2026). Seit 15.11.2026 zusaetzlich und freiwillig der gekaufte Topf: purchased (frei), purchased_usable (der Tarif hat die StudiNow-KI, sonst ruhen sie), available (Rest des Monats + nutzbare gekaufte), can_buy (plans.can_buy_credits). Aeltere Apps lesen die neuen Felder nicht.",
+      "type": ["object", "null"],
+      "required": ["period", "allowance", "used", "reserved", "remaining", "resets_at", "credit_eur"],
+      "properties": {
+        "period": { "type": "string" },
+        "allowance": { "type": "integer", "minimum": 0 },
+        "used": { "type": "integer", "minimum": 0 },
+        "reserved": { "type": "integer", "minimum": 0 },
+        "remaining": { "type": "integer", "minimum": 0 },
+        "plan": { "type": ["string", "null"] },
+        "resets_at": { "type": "string" },
+        "credit_eur": { "type": "number", "minimum": 0 },
+        "purchased": { "type": "integer", "minimum": 0 },
+        "purchased_usable": { "type": "boolean" },
+        "available": { "type": "integer", "minimum": 0 },
+        "can_buy": { "type": "boolean" }
+      }
+    },
+    "credit_packs": {
+      "description": "Credit-Pakete zum Nachkaufen (15.11.2026, plans.CREDIT_PACKS): Credits je Produkt-ID - die App zeigt diese Zahl und den Preis aus StoreKit - und wo man kaufen kann. Freiwilliges Feld.",
+      "type": "object",
+      "required": ["packs", "purchase"],
+      "properties": {
+        "packs": { "type": "array", "items": { "type": "object", "required": ["product_id", "credits"],
+                   "properties": { "product_id": { "type": "string" }, "credits": { "type": "integer", "minimum": 1 } } } },
+        "purchase": { "type": "object", "required": ["apple", "web"],
+                      "properties": { "apple": { "type": "object", "required": ["available"], "properties": { "available": { "type": "boolean" }, "note": { "type": "string" } } },
+                                      "web": { "type": "object", "required": ["available"], "properties": { "available": { "type": "boolean" }, "note": { "type": "string" } } } } }
+      }
+    },
     "entitlements": {
       "type": "object",
       "required": ["can_view_pdf", "can_annotate_pdf", "can_use_pencilkit", "can_sync_annotations", "can_write_community_comments",

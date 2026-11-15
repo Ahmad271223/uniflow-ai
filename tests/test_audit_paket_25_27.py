@@ -404,7 +404,10 @@ LOCKED_WRITE_ROUTES = {
     "POST /api/account/device/primary",
     "POST /api/billing/apple/verify", "POST /api/billing/stripe/checkout",
     "POST /api/billing/stripe/portal", "POST /api/billing/stripe/webhook", "POST /api/billing/plan-choice",
-    "POST /api/billing/apple/notifications", "POST /api/billing/offer-codes", "POST /api/app-account/login",
+    "POST /api/billing/apple/notifications", "POST /api/billing/offer-codes",
+    # Credit-Pakete (15.11.2026), bewusst geprueft: verbucht nur einen von Apple signierten, schon bezahlten Kauf genau
+    # einmal und gibt keine Bezahlfunktion frei (ohne Pro AI ruhen die Credits); am eigenen PC 501 not_hosted
+    "POST /api/billing/credits/apple", "POST /api/app-account/login",
     "POST /api/app-account/browser-login", "POST /api/app-account/logout", "POST /api/app-account/checkout",
     "POST /api/app-account/portal", "POST /api/app-account/delete", "POST /api/app-login/code", "POST /api/app-login/token", "POST /api/studora/logout",
     "POST /api/university/reset", "POST /api/desktop/open", "POST /api/desktop/windows/{window_id}/state"}

@@ -301,6 +301,27 @@
   "pro_ai": 100,
   "trial": 25
  },
+ "credit_packs": {
+  "packs": [
+   {
+    "product_id": "de.uniflow.credits.klein",
+    "credits": 100,
+    "price_cents": 199,
+    "currency": "EUR"
+   },
+   {
+    "product_id": "de.uniflow.credits.gross",
+    "credits": 200,
+    "price_cents": 399,
+    "currency": "EUR"
+   }
+  ],
+  "buy_plans": [
+   "pro_ai"
+  ],
+  "buy_in_trial": false,
+  "use_right": "can_use_ai_explanations"
+ },
  "integrations": {
   "chatgpt": {
    "status": "disabled",

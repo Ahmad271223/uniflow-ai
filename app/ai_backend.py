@@ -19,7 +19,8 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
     LERNAPP_AI_REASONING_EFFORT Denkaufwand fuer Denkmodelle (REASONING_EFFORTS, Standard low; leer/none = nicht senden)
     LERNAPP_AI_BUDGET_EUR      Gesamtbudget je Monat fuer alle Konten (Standard 50); erreicht -> Sperre
     LERNAPP_AI_USER_BUDGET_EUR Budget je Konto und Monat (Standard 2; die eigentliche Grenze je Konto sind die Credits,
-                               app/credits.py)
+                               app/credits.py). Kosten, die gekaufte Credits bezahlen, zaehlen hier und im
+                               Gesamtbudget nicht mit (sie sind durch den Kauf begrenzt, 15.11.2026)
     LERNAPP_AI_TRIAL_BUDGET_EUR eigenes Budget je Monat fuer alle Probekonten zusammen (Standard 5); die Probe frisst
                                nie das Budget der zahlenden Konten
     LERNAPP_AI_RATE_PER_MINUTE Anfragen je Konto und Minute (Standard 6)
@@ -29,7 +30,7 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
                                Bibliothek frisst nie das Budget der Konten, die Konten nie das der Bibliothek.
 
 Credits (app/credits.py, 04.11.2026): Fragen, Erklaerungen, Karteikarten, Dokument-Index und Wochentests ueber den
-Dienst kosten das Konto Credits (1 Credit = 0,9 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
+Dienst kosten das Konto Credits (1 Credit = 0,65 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
 rechnet danach mit `usage` der Antwort ab. Erzeugen fuer den gemeinsamen Fragenpool der Bibliothek (test_generation) und
 die automatischen Wochentests (weekly_test) zaehlen weiter ueber die Kontingente des Tarifs (app/plans.py QUOTAS).
 
@@ -49,7 +50,8 @@ deterministisch aus request_id und Zweck einen Anbieter (Standard: OpenAI gpt-6-
 Bedrock Frankfurt etwa 25 % fuer schwere Faelle; DeepSeek in der EU nur auf Wunsch). Vor dem Aufruf wird die harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das TEUERSTE Modell
 der Kette reserviert; reicht der Rest der Credits nicht, wird die Ausgabegrenze verkleinert oder abgelehnt. Faellt der
 gewaehlte Anbieter aus, ohne etwas zu berechnen (5xx, 429, keine Verbindung), uebernimmt der naechste innerhalb derselben
-Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr als seine Credits (Pro AI 100 = 1 EUR).
+Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr als seine Credits (Pro AI 100 = 0,65 EUR,
+dazu gekaufte Credits: deren Kosten zaehlen nicht gegen die Becken, `ai_usage_log.purchased_microeur`).
 """
 from __future__ import annotations
 
@@ -84,6 +86,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_log (
     cost_microeur INTEGER NOT NULL DEFAULT 0,  -- Millionstel EUR
     trial INTEGER NOT NULL DEFAULT 0,          -- 1 = Probekonto (eigenes Budget-Becken)
     library INTEGER NOT NULL DEFAULT 0,        -- 1 = Vorarbeit der Bibliothek fuer alle Konten (eigenes Becken, ohne Konto)
+    purchased_microeur INTEGER NOT NULL DEFAULT 0,  -- Teil der Kosten, den gekaufte Credits bezahlen: zaehlt in keinem Becken
     state TEXT NOT NULL DEFAULT 'reserved',    -- reserved | done | failed
     created_at TEXT NOT NULL
 );
@@ -120,7 +123,8 @@ CREATE TABLE IF NOT EXISTS ai_usage_user_month (
 
 # Beitrag einer Zeile von ai_usage_log zu den Monatssummen und ihr Becken (fuer die Trigger und den Neuaufbau)
 _POOL_SQL = "CASE WHEN {r}.library=1 THEN 'library' WHEN {r}.trial=1 THEN 'trial' ELSE 'paid' END"
-_COST_SQL = "CASE WHEN {r}.state<>'failed' THEN {r}.cost_microeur ELSE 0 END"
+# Kosten, die gekaufte Credits bezahlen (purchased_microeur, 15.11.2026), zaehlen nicht mit: sie sind durch den Kauf begrenzt
+_COST_SQL = "CASE WHEN {r}.state<>'failed' THEN MAX({r}.cost_microeur - {r}.purchased_microeur, 0) ELSE 0 END"
 
 TRIGGERS = """
 CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_ins AFTER INSERT ON ai_usage_log BEGIN
@@ -129,7 +133,7 @@ CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_ins AFTER INSERT ON ai_usage_log
     INSERT INTO ai_usage_user_month(period, user_id, cost_microeur) SELECT NEW.period, NEW.user_id, {cost_new} WHERE NEW.user_id IS NOT NULL
         ON CONFLICT(period, user_id) DO UPDATE SET cost_microeur = cost_microeur + excluded.cost_microeur;
 END;
-CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_upd AFTER UPDATE OF period, trial, library, state, cost_microeur, user_id ON ai_usage_log BEGIN
+CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_upd AFTER UPDATE OF period, trial, library, state, cost_microeur, purchased_microeur, user_id ON ai_usage_log BEGIN
     UPDATE ai_usage_month SET cost_microeur = cost_microeur - ({cost_old}) WHERE period=OLD.period AND pool={pool_old};
     INSERT INTO ai_usage_month(period, pool, cost_microeur) VALUES (NEW.period, {pool_new}, {cost_new})
         ON CONFLICT(period, pool) DO UPDATE SET cost_microeur = cost_microeur + excluded.cost_microeur;
@@ -143,6 +147,12 @@ CREATE TRIGGER IF NOT EXISTS trg_ai_usage_month_del AFTER DELETE ON ai_usage_log
 END;
 """.format(pool_new=_POOL_SQL.format(r="NEW"), cost_new=_COST_SQL.format(r="NEW"),
            pool_old=_POOL_SQL.format(r="OLD"), cost_old=_COST_SQL.format(r="OLD"))
+
+# Sperren aus den Monats-Becken (gesamt, Probe, je Konto): sie halten gekaufte Credits nie auf (_Call.prepare)
+BUDGET_CODES = frozenset({"ai_budget_exhausted", "ai_trial_budget_exhausted", "ai_user_budget_exhausted"})
+
+# Kosten einer Zeile, die in den Becken zaehlen (ohne den Teil, den gekaufte Credits bezahlen)
+_NET_SQL = "MAX(cost_microeur - purchased_microeur, 0)"
 
 RESERVE_MICROEUR = 20_000           # Reservierung je Anfrage vor dem Aufruf (2 Cent), danach echte Kosten
 # Sperre gegen doppelte Generierung: verwaist erst nach 30 min - deutlich ueber der Frist einer Antwort (DEADLINE_S 600 s,
@@ -1033,8 +1043,34 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     db.add_column(conn, "ai_usage_log", "trial", "INTEGER NOT NULL DEFAULT 0")
     db.add_column(conn, "ai_usage_log", "library", "INTEGER NOT NULL DEFAULT 0")
     db.add_column(conn, "ai_cache", "model", "TEXT")
-    _run_statements(conn, TRIGGERS)
+    db.add_column(conn, "ai_usage_log", "purchased_microeur", "INTEGER NOT NULL DEFAULT 0")
+    _refresh_triggers(conn)
     _rebuild_once(conn)
+
+
+TRIGGER_NAMES = ("trg_ai_usage_month_ins", "trg_ai_usage_month_upd", "trg_ai_usage_month_del")
+
+
+def _refresh_triggers(conn: sqlite3.Connection) -> None:
+    """Trigger der Monatssummen anlegen; Trigger aus einem aelteren Stand (ohne `purchased_microeur`) werden ersetzt.
+    Wiederholbar und sicher bei gleichzeitigem Start mehrerer Prozesse: Loeschen und Anlegen in EINER Schreibtransaktion,
+    so entsteht kein Augenblick ohne Trigger. Ein Prozess mit aelterem Code laesst die neuen Trigger stehen (er legt mit
+    IF NOT EXISTS an) und schreibt `purchased_microeur` nie - die Summen bleiben richtig."""
+    own = not conn.in_transaction
+    if own:
+        conn.execute("BEGIN IMMEDIATE")
+    try:
+        for name in TRIGGER_NAMES:
+            row = conn.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?", (name,)).fetchone()
+            if row and "purchased_microeur" not in (row[0] or ""):
+                conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+        _run_statements(conn, TRIGGERS)
+        if own:
+            conn.execute("COMMIT")
+    except Exception:
+        if own and conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
 
 
 _rebuilt: set = set()
@@ -1069,8 +1105,8 @@ def rebuild_month_totals(conn: sqlite3.Connection) -> None:
         conn.execute("DELETE FROM ai_usage_month")
         conn.execute("DELETE FROM ai_usage_user_month")
         conn.execute(f"INSERT INTO ai_usage_month(period, pool, cost_microeur) SELECT period, {_POOL_SQL.format(r='ai_usage_log')}, "
-                     "COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE state<>'failed' GROUP BY 1, 2")
-        conn.execute("INSERT INTO ai_usage_user_month(period, user_id, cost_microeur) SELECT period, user_id, COALESCE(SUM(cost_microeur),0) "
+                     f"COALESCE(SUM({_NET_SQL}),0) FROM ai_usage_log WHERE state<>'failed' GROUP BY 1, 2")
+        conn.execute(f"INSERT INTO ai_usage_user_month(period, user_id, cost_microeur) SELECT period, user_id, COALESCE(SUM({_NET_SQL}),0) "
                      "FROM ai_usage_log WHERE state<>'failed' AND user_id IS NOT NULL GROUP BY 1, 2")
         if own:
             conn.execute("COMMIT")
@@ -1082,10 +1118,10 @@ def rebuild_month_totals(conn: sqlite3.Connection) -> None:
 
 def month_totals_match_log(conn: sqlite3.Connection) -> bool:
     """Pruefung (Tests, Betrieb): stimmen die laufenden Summen mit ai_usage_log ueberein?"""
-    pools = {(p, k): v for p, k, v in conn.execute(f"SELECT period, {_POOL_SQL.format(r='ai_usage_log')}, COALESCE(SUM(cost_microeur),0) "
+    pools = {(p, k): v for p, k, v in conn.execute(f"SELECT period, {_POOL_SQL.format(r='ai_usage_log')}, COALESCE(SUM({_NET_SQL}),0) "
                                                    "FROM ai_usage_log WHERE state<>'failed' GROUP BY 1, 2")}
     have = {(p, k): v for p, k, v in conn.execute("SELECT period, pool, cost_microeur FROM ai_usage_month WHERE cost_microeur<>0")}
-    users = {(p, u): v for p, u, v in conn.execute("SELECT period, user_id, COALESCE(SUM(cost_microeur),0) FROM ai_usage_log "
+    users = {(p, u): v for p, u, v in conn.execute(f"SELECT period, user_id, COALESCE(SUM({_NET_SQL}),0) FROM ai_usage_log "
                                                    "WHERE state<>'failed' AND user_id IS NOT NULL GROUP BY 1, 2")}
     have_u = {(p, u): v for p, u, v in conn.execute("SELECT period, user_id, cost_microeur FROM ai_usage_user_month WHERE cost_microeur<>0")}
     return {k: v for k, v in pools.items() if v} == have and {k: v for k, v in users.items() if v} == have_u
@@ -1176,15 +1212,24 @@ def check_library(calls: int = 1, now: datetime | None = None) -> None:
 
 
 def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: datetime | None = None, *,
-            rate_limit: bool = True, amount_microeur: int | None = None, library: bool = False) -> int:
+            rate_limit: bool = True, amount_microeur: int | None = None, library: bool = False,
+            purchased_microeur: int = 0, monthly_microeur: int = 0) -> int:
     """Budget und Rate-Limit pruefen und eine Reservierung eintragen (atomar). Liefert die Protokoll-ID.
     `rate_limit=False` fuer Auftraege des Dienstes selbst (Seiten eines Index-Uploads nacheinander, Wiederholungen nach
     einer unbrauchbaren Antwort); `amount_microeur` = Reservierung statt der festen 2 Cent (Schaetzung der Anfrage).
     `library=True`: Vorarbeit der Bibliothek fuer alle Konten; nur das eigene Becken (LERNAPP_AI_LIBRARY_BUDGET_EUR)
-    zaehlt, ohne Konto, ohne Budget und Rate-Limit je Konto (die Sperre je Inhalt verhindert Doppeltes)."""
+    zaehlt, ohne Konto, ohne Budget und Rate-Limit je Konto (die Sperre je Inhalt verhindert Doppeltes).
+    `purchased_microeur`: Gegenwert des Teils der Credits-Reservierung, der aus gekauften Credits kommt (app/credits.py).
+    Dieser Teil der Reservierung zaehlt weder gegen das Budget des Kontos noch gegen das Becken - gekaufte Credits
+    werden vom Monats-Budget nie blockiert; begrenzt sind sie durch den Kauf selbst. `monthly_microeur`: Gegenwert des
+    Teils aus den Monats-Credits; er zaehlt zuerst und immer mit."""
     t = _now(now)
     period = t.strftime("%Y-%m")
     amount = max(RESERVE_MICROEUR, int(amount_microeur or 0))
+    monthly, purchased = max(0, int(monthly_microeur or 0)), max(0, int(purchased_microeur or 0))
+    # ganz aus gekauften Credits: die ganze Reservierung zaehlt nicht; gemischt: der Monats-Teil zaehlt zuerst
+    bought = amount if purchased and not monthly else min(max(0, amount - monthly), purchased)
+    counted = amount - bought                       # nur das zaehlt in den Becken
     conn.execute("BEGIN IMMEDIATE")
     if library:
         try:
@@ -1203,13 +1248,13 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
         # kommen aus ai_usage_month (laufend, Trigger), nicht aus einer Summe ueber den ganzen Monat
         pool = _pool_total(conn, period, "trial" if trial else "paid")
         if trial:
-            if pool + amount > trial_budget_microeur():
+            if counted and pool + counted > trial_budget_microeur():
                 raise AIUnavailable("ai_trial_budget_exhausted", "Das Probe-Kontingent der StudiNow-KI ist für diesen Monat ausgeschöpft.", 429)
-        elif pool + amount > budget_microeur():
+        elif counted and pool + counted > budget_microeur():
             raise AIUnavailable("ai_budget_exhausted", "Das KI-Budget von StudiNow für diesen Monat ist ausgeschöpft.", 503)
         if user_id:
             mine = _user_total(conn, period, user_id)
-            if mine + amount > user_budget_microeur():
+            if counted and mine + counted > user_budget_microeur():
                 raise AIUnavailable("ai_user_budget_exhausted", "Dein KI-Kostenrahmen für diesen Monat ist erreicht.", 429)
             if rate_limit:
                 recent = conn.execute("SELECT COUNT(*) FROM ai_usage_log WHERE user_id=? AND created_at>?",
@@ -1220,8 +1265,8 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
                                     (user_id, (t - timedelta(hours=1)).isoformat())).fetchone()[0]
                 if hour >= rate_per_hour():
                     raise AIUnavailable("ai_rate_limited", "Zu viele KI-Anfragen in dieser Stunde. Bitte später noch einmal.", 429)
-        cur = conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, trial, state, created_at) VALUES (?,?,?,?,?,?,?)",
-                           (user_id, period, purpose, amount, trial, "reserved", t.isoformat()))
+        cur = conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, purchased_microeur, trial, state, created_at) "
+                           "VALUES (?,?,?,?,?,?,?,?)", (user_id, period, purpose, amount, bought, trial, "reserved", t.isoformat()))
         conn.execute("COMMIT")
         return cur.lastrowid
     except Exception:
@@ -1238,16 +1283,27 @@ def _cost(c: Completion, requested_model: str | None) -> int:
 def settle(conn: sqlite3.Connection, log_id: int, c: Completion | None, provider_label: str = "", requested_model: str | None = None,
            cost_override: int | None = None) -> int:
     """Protokollzeile abschliessen; liefert die Kosten in Millionstel EUR (0 bei Fehler ohne Nutzung). `cost_override`:
-    Nutzung unbekannt -> die reservierte Obergrenze."""
+    Nutzung unbekannt -> die reservierte Obergrenze. Der gekaufte Teil (`purchased_microeur`) wird hier auf 0 gesetzt und
+    nach der Abrechnung der Credits mit dem echten Wert nachgetragen (`set_purchased_share`): dazwischen zaehlt die
+    Zeile voll, nie zu wenig."""
     if c is None:
-        conn.execute("UPDATE ai_usage_log SET state='failed', cost_microeur=0 WHERE id=?", (log_id,))
+        conn.execute("UPDATE ai_usage_log SET state='failed', cost_microeur=0, purchased_microeur=0 WHERE id=?", (log_id,))
         return 0
     # nie negativ (Audit P8-06): Kosten und Tokens sind Betraege; eine Obergrenze gibt es hier absichtlich nicht - das
     # Becken zaehlt die echten Kosten (die Reservierung ist eine Schaetzung), die harte Grenze je Konto halten die Credits
     cost = max(0, int(cost_override) if cost_override is not None else _cost(c, requested_model))
-    conn.execute("UPDATE ai_usage_log SET state='done', provider=?, model=?, input_tokens=?, output_tokens=?, cost_microeur=? WHERE id=?",
+    conn.execute("UPDATE ai_usage_log SET state='done', provider=?, model=?, input_tokens=?, output_tokens=?, cost_microeur=?, "
+                 "purchased_microeur=0 WHERE id=?",
                  (provider_label, c.model, max(0, int(c.input_tokens or 0)), max(0, int(c.output_tokens or 0)), cost, log_id))
     return cost
+
+
+def set_purchased_share(conn: sqlite3.Connection, log_id: int, purchased_microeur: int) -> None:
+    """Teil der Kosten einer abgeschlossenen Zeile, den gekaufte Credits bezahlt haben (app/credits.py `purchased_share`):
+    er zaehlt nicht gegen die Becken und das Budget des Kontos. Nie mehr als die Kosten der Zeile."""
+    if purchased_microeur > 0:
+        conn.execute("UPDATE ai_usage_log SET purchased_microeur=MIN(cost_microeur, ?) WHERE id=? AND state='done'",
+                     (int(purchased_microeur), log_id))
 
 
 def month_report(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
@@ -1258,8 +1314,11 @@ def month_report(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
                        (period,)).fetchone()
     by = conn.execute("SELECT COALESCE(provider, ''), COUNT(*), COALESCE(SUM(cost_microeur),0) FROM ai_usage_log "
                       "WHERE period=? AND state='done' GROUP BY provider", (period,)).fetchall()
+    bought = conn.execute("SELECT COALESCE(SUM(purchased_microeur),0) FROM ai_usage_log WHERE period=? AND state='done'", (period,)).fetchone()
     return {"period": period, "requests": r[0], "input_tokens": r[1], "output_tokens": r[2],
             "cost_eur": round(r[3] / 1_000_000, 6), "budget_eur": budget_microeur() / 1_000_000,
+            # davon aus gekauften Credits bezahlt (zaehlt nicht gegen budget_eur; 15.11.2026)
+            "purchased_cost_eur": round(bought[0] / 1_000_000, 6),
             "library_requests": lib[0], "library_cost_eur": round(lib[1] / 1_000_000, 6),
             "library_budget_eur": library_budget_microeur() / 1_000_000,
             "by_provider": {p or "?": {"requests": n, "cost_eur": round(cst / 1_000_000, 6),
@@ -1401,7 +1460,9 @@ class _Call:
                 try:
                     self.held = ledger.reserve(conn, self.user_id, self.rid, self.purpose, self._estimate(self.max_out), self.now, model=self.requested)
                 except ledger.CreditsError as e:
-                    remaining = int(((e.extra or {}).get("credits") or {}).get("remaining") or 0)
+                    state = (e.extra or {}).get("credits") or {}
+                    # Rest des Monats plus nutzbare gekaufte Credits (`available`); aeltere Staende kennen nur `remaining`
+                    remaining = int(state.get("available", state.get("remaining")) or 0)
                     fit = min(ai_prices.max_output_within(m, self.system, self.prompt, remaining * ai_prices.MICROEUR_PER_CREDIT, self.images,
                                                           self.schema) for m in self.models) if e.code == "credits_exhausted" and remaining > 0 else 0
                     fit = min(fit, self.max_out - 1)
@@ -1421,14 +1482,40 @@ class _Call:
             self.ceiling = self._worst(self.max_out)     # hoechstens so viel kann diese Anfrage kosten (auch mit Ersatz)
             try:
                 # Becken (gesamt, Probe, je Konto): Reservierung wie bisher; die harte Grenze je Konto halten die Credits
-                self.log_id = reserve(conn, self.user_id, self.purpose, self.now, rate_limit=self.rate_limit,
-                                      amount_microeur=self.budget_reserve, library=self.library)
+                self.log_id = self._reserve_budget(conn)
+            except AIUnavailable as e:
+                # Das Monats-Budget sperrt den Monats-Teil der Anfrage. Gekaufte Credits blockiert es nie: reichen sie
+                # fuer die ganze Anfrage, wird sie ganz aus ihnen bezahlt (15.11.2026); sonst bleibt es beim Fehler.
+                if not (self.held and e.code in BUDGET_CODES and self.held.reserved > self.held.purchased):
+                    if self.held:
+                        ledger.refund(conn, self.user_id, self.rid)
+                    raise
+                amount = self.held.reserved
+                ledger.refund(conn, self.user_id, self.rid)
+                try:
+                    self.held = ledger.reserve(conn, self.user_id, self.rid, self.purpose, amount, self.now, model=self.requested,
+                                               purchased_only=True)
+                except ledger.CreditsError:
+                    self.held = None
+                    raise e
+                try:
+                    self.log_id = self._reserve_budget(conn)
+                except Exception:
+                    ledger.refund(conn, self.user_id, self.rid)
+                    raise
             except Exception:
                 if self.held:
                     ledger.refund(conn, self.user_id, self.rid)
                 raise
         finally:
             conn.close()
+
+    def _reserve_budget(self, conn) -> int:
+        """Reservierung in den Becken; der Teil aus gekauften Credits zaehlt dort nicht (siehe `reserve`)."""
+        bought = (self.held.purchased if self.held else 0) * ai_prices.MICROEUR_PER_CREDIT
+        monthly = ((self.held.reserved - self.held.purchased) if self.held else 0) * ai_prices.MICROEUR_PER_CREDIT
+        return reserve(conn, self.user_id, self.purpose, self.now, rate_limit=self.rate_limit, amount_microeur=self.budget_reserve,
+                       library=self.library, purchased_microeur=bought, monthly_microeur=monthly)
 
     def options(self, i: int) -> dict:
         p = self.chain[i]
@@ -1445,6 +1532,8 @@ class _Call:
                                               cached_tokens=c.cached_tokens, output_tokens=c.output_tokens, images=c.images,
                                               result=c.text if self.keep_result and c.text else None, now=self.now)
             c.credits_reserved = self.held.reserved
+            # was davon gekaufte Credits bezahlt haben, zaehlt nicht gegen das Monats-Budget
+            set_purchased_share(conn, self.log_id, ledger.purchased_share(conn, self.user_id, self.rid))
         return cost
 
     def label(self, i: int) -> str:

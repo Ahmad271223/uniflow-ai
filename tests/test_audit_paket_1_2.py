@@ -309,7 +309,7 @@ def test_11_balance_dict_clips_negative_rest_and_reports_period_and_reset():
     from app import credits
     d = credits._balance_dict((10, 8, 5, "pro_ai"), T0)
     assert d["remaining"] == 0 and d["period"] == "2026-11" and d["resets_at"] == "2026-12-01T00:00:00+01:00"
-    assert d["credit_eur"] == 0.009 and d["plan"] == "pro_ai" and (d["allowance"], d["used"], d["reserved"]) == (10, 8, 5)
+    assert d["credit_eur"] == 0.0065 and d["plan"] == "pro_ai" and (d["allowance"], d["used"], d["reserved"]) == (10, 8, 5)
     assert credits._balance_dict((100, 20, 30, "x"), T0)["remaining"] == 50
 
 
@@ -488,7 +488,7 @@ def test_18_refund_twice_and_after_settle(hosted):
         assert credits.refund(conn, uid, "a") is True and credits.refund(conn, uid, "a") is False
         assert tuple(conn.execute("SELECT used, reserved FROM credit_months WHERE user_id=?", (uid,)).fetchone()) == (0, 0)
         credits.reserve(conn, uid, "b", "tutor", 7, now=T0)
-        credits.settle(conn, uid, "b", 18_000, now=T0)
+        credits.settle(conn, uid, "b", 13_000, now=T0)
         assert credits.refund(conn, uid, "b") is False and credits.refund(conn, uid, "nie") is False
         assert tuple(conn.execute("SELECT used, reserved FROM credit_months WHERE user_id=?", (uid,)).fetchone()) == (2, 0)
         # parallel settle/refund derselben Reservierung: genau eine Wirkung
@@ -497,7 +497,7 @@ def test_18_refund_twice_and_after_settle(hosted):
         def race(i):
             c = credits.connect()
             try:
-                return credits.settle(c, uid, "c", 27_000, now=T0) if i % 2 else credits.refund(c, uid, "c")
+                return credits.settle(c, uid, "c", 19_000, now=T0) if i % 2 else credits.refund(c, uid, "c")
             finally:
                 c.close()
         out = _threads(6, race)

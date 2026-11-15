@@ -136,9 +136,30 @@ QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Test
                 "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)",
                 "ai_mail": "E-Mails mit KI verbessern"}
 
-# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 0,9 Cent OpenAI-Kosten): Pro AI 100,
+# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 0,65 Cent KI-Kosten, 15.11.2026): Pro AI 100,
 # sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.
 CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
+
+# Credit-Pakete zum Nachkaufen (Auftrag des Inhabers vom 15.11.2026, docs/KI-CREDITS-2026-11-15.md): Verbrauchskaeufe im
+# App Store. Gekaufte Credits verfallen nie und werden erst nach den Monats-Credits verbraucht (app/credits.py).
+# - `packs`: Credits je Produkt-ID - die EINE Stelle fuer die Paketgroesse. Die Produkt-IDs tragen keine Zahl, damit eine
+#   andere Groesse kein neues Produkt braucht; der Betrieb kann sie mit LERNAPP_CREDIT_PACKS aendern
+#   (z. B. "de.uniflow.credits.gross=185"). Die App zeigt die Zahl vom Dienst und den Preis aus StoreKit;
+#   `price_cents` ist nur der Listenpreis fuer Vertrag, Tests und die Rechnung.
+# - `buy_plans` / `buy_in_trial`: die EINE Stelle fuer "wer darf kaufen" (Vorgabe: nur bezahltes Pro AI). Sollen spaeter
+#   auch Plus oder Free kaufen duerfen, hier eintragen; der Dienst meldet es als `credits.can_buy`.
+# - `use_right`: gekaufte Credits sind nutzbar, solange der Tarif dieses Recht hat (StudiNow-KI: Pro AI, Probe); sonst
+#   ruhen sie beim Konto.
+CREDIT_PACKS: dict = {
+    "packs": {
+        "de.uniflow.credits.klein": {"credits": 100, "price_cents": 199},
+        "de.uniflow.credits.gross": {"credits": 200, "price_cents": 399},
+    },
+    "currency": "EUR",
+    "buy_plans": ("pro_ai",),
+    "buy_in_trial": False,
+    "use_right": "can_use_ai_explanations",
+}
 
 # Integrationen, die nicht am Tarif haengen duerfen, bis die Bedingungen des Anbieters es erlauben
 INTEGRATIONS: dict[str, dict] = {
@@ -198,6 +219,51 @@ def plan_for_product(product_id: str | None) -> str | None:
     return LEGACY_PRODUCTS.get(product_id)
 
 
+# ---------------------------------------------------------------- Credit-Pakete
+
+def credit_pack_sizes() -> dict[str, int]:
+    """Credits je Produkt-ID: Standard aus CREDIT_PACKS, vom Betrieb aenderbar mit LERNAPP_CREDIT_PACKS
+    ("produkt=zahl,produkt=zahl"). Unbekannte Produkte und unbrauchbare Zahlen in der Variable zaehlen nicht."""
+    import os
+    sizes = {pid: int(p["credits"]) for pid, p in CREDIT_PACKS["packs"].items()}
+    for part in (os.environ.get("LERNAPP_CREDIT_PACKS") or "").split(","):
+        pid, _, raw = part.strip().partition("=")
+        if pid.strip() in sizes:
+            try:
+                n = int(raw.strip())
+            except ValueError:
+                continue
+            if 0 < n <= 100_000:
+                sizes[pid.strip()] = n
+    return sizes
+
+
+def credit_pack_credits(product_id: str | None) -> int | None:
+    """Credits eines Pakets; None, wenn das Produkt kein Credit-Paket ist."""
+    return credit_pack_sizes().get(product_id or "")
+
+
+def credit_packs() -> list[dict]:
+    """Die Pakete in der Reihenfolge der Anzeige (kleines zuerst): Produkt-ID, Credits, Listenpreis."""
+    sizes = credit_pack_sizes()
+    return [{"product_id": pid, "credits": sizes[pid], "price_cents": p["price_cents"], "currency": CREDIT_PACKS["currency"]}
+            for pid, p in CREDIT_PACKS["packs"].items()]
+
+
+def can_buy_credits(plan: str | None, trial_only: bool = False) -> bool:
+    """Darf dieses Konto Credit-Pakete kaufen? Die eine Regel (CREDIT_PACKS): der Tarif steht in `buy_plans`; ein Konto,
+    das den Tarif nur aus der Probe hat, nur mit `buy_in_trial`."""
+    p = LEGACY_PLANS.get(plan or "", plan)
+    if p not in CREDIT_PACKS["buy_plans"]:
+        return False
+    return CREDIT_PACKS["buy_in_trial"] or not trial_only
+
+
+def can_use_purchased_credits(plan: str | None) -> bool:
+    """Sind gekaufte Credits mit diesem Tarif nutzbar (StudiNow-KI im Tarif, auch in der Probe)? Sonst ruhen sie."""
+    return has(LEGACY_PLANS.get(plan or "", plan) or "", CREDIT_PACKS["use_right"])
+
+
 # Probe fuer jedes neue Konto (Entscheidung 30.10.2026, iPad 04.11.2026): 7 Tage alles wie Pro AI mit CREDITS["trial"]
 # Credits, danach Aufforderung, einen Tarif zu waehlen; ohne Wahl gilt Free, Daten bleiben. Quelle "trial" in
 # app/billing.py, nie verlaengerbar, einmal je Konto.
@@ -214,6 +280,8 @@ def contract() -> dict:
         "entitlements": ENTITLEMENTS,
         "quotas": {"labels": QUOTA_LABELS, "fair_use": FAIR_USE},
         "credits": dict(CREDITS),
+        "credit_packs": {"packs": credit_packs(), "buy_plans": list(CREDIT_PACKS["buy_plans"]),
+                         "buy_in_trial": CREDIT_PACKS["buy_in_trial"], "use_right": CREDIT_PACKS["use_right"]},
         "integrations": {k: {"status": v["status"], "reason": v["reason"], "plan_gating_allowed": v["plan_gating_allowed"]}
                          for k, v in INTEGRATIONS.items()},
     }

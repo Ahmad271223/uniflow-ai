@@ -111,7 +111,7 @@ final class AIRecents: ObservableObject {
 // MARK: - Kosten und Kontingent
 
 /// Was eine KI-Aktion kostet, ehrlich: ueber das eigene ChatGPT-Abo gibt es keine Credits von StudiNow, nur die Anfrage
-/// beim Abo; Credits gibt es erst mit Pro AI ueber den Dienst (in V1 nicht kaufbar). Ein gemeinsamer Wochentest, der
+/// beim Abo; Credits gibt es erst mit Pro AI ueber den Dienst (seit 15.11.2026 dazu Pakete zum Nachkaufen). Ein gemeinsamer Wochentest, der
 /// uebernommen wurde, kostet nichts.
 enum AICost {
     /// Weg der KI ohne StudiNow-KI (eigenes ChatGPT bzw. eigener Server): "über dein ChatGPT", solange es angeboten
@@ -147,24 +147,24 @@ enum AICost {
 
     /// Die Kostenzeile aus dem echten Stand, in der Reihenfolge der Bezahlung: eine uebernommene gemeinsame Antwort
     /// "Schon erklärt · 0 Credits", das eigene ChatGPT "Dein ChatGPT – 0 Credits", eine berechnete Antwort
-    /// "– 3 Credits (37 übrig)", sonst der Stand "Credits: 37 von 100 übrig · neu am 1. Dezember". nil ohne Stand.
+    /// "– 3 Credits (37 übrig)" (uebrig = Rest des Monats plus nutzbare gekaufte), sonst der Stand beider Toepfe
+    /// (`balanceLine`). nil ohne Stand.
     static func creditsLine(credits: StudoraCredits?, chatgpt: Bool, adopted: Bool = false, charge: StudoraCredits.Charge? = nil,
                             trial: Bool = false) -> String? {
         if adopted { return "Schon erklärt · 0 Credits" }
         if chatgpt { return "Dein ChatGPT – 0 Credits" }
-        if let charge, let line = chargeLine(charge, remaining: credits?.remaining) { return line }
+        if let charge, let line = chargeLine(charge, remaining: credits?.available) { return line }
         return balanceLine(credits, trial: trial)
     }
 
-    /// "Credits: 37 von 100 übrig · neu am 1. Dezember"; in der Probe mit "Probe"; ohne Rahmen im Tarif ehrlich
-    /// "Keine Credits in deinem Tarif"; nil ohne Stand. `labelled: false` laesst "Credits: " weg (Einstellungen)
+    /// Stand beider Toepfe (15.11.2026, `CreditText.balanceLine`): "Credits diesen Monat: 37 von 100 (neu am
+    /// 1. Dezember) · Gekauft: 80"; in der Probe "(Probe, neu am ...)". Der Zusatz in Klammern gehoert zum Monat: nur der
+    /// kommt neu, gekaufte Credits verfallen nicht. Ohne Monats-Credits steht nur der gekaufte Topf, ganz ohne Credits
+    /// ehrlich "Keine Credits in deinem Tarif"; nil ohne Stand. `labelled: false` laesst "Credits" weg (Einstellungen).
     static func balanceLine(_ c: StudoraCredits?, trial: Bool = false, labelled: Bool = true) -> String? {
         guard let c else { return nil }
-        guard c.allowance > 0 else { return "Keine Credits in deinem Tarif" }
-        var s = (labelled ? "Credits: " : "") + "\(c.remaining) von \(c.allowance) übrig"
-        if trial { s += " · Probe" }
-        if let reset = resetLabel(c.resetsAt) { s += " · \(reset)" }
-        return s
+        let note = [trial ? "Probe" : nil, resetLabel(c.resetsAt)].compactMap { $0 }.joined(separator: ", ")
+        return CreditText.balanceLine(c.balance, monthNote: note, labelled: labelled)
     }
 
     /// Eine berechnete Antwort: "– 3 Credits (37 übrig)", "– 1 Credit (37 übrig)"; eine Wiederholung derselben Anfrage

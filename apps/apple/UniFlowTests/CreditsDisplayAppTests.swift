@@ -26,6 +26,9 @@ final class CreditsDisplayAppTests: XCTestCase {
     func testParsesTheCreditsObjectAndStaysNilWithout() {
         let c = StudoraCredits.parse(balance())
         XCTAssertEqual(c, StudoraCredits(period: "2026-11", allowance: 100, used: 63, remaining: 37, resetsAt: "2026-12-01T00:00:00+01:00", plan: "pro_ai"))
+        // aelterer Dienst ohne die Felder des gekauften Topfs: 0 gekaufte, kein Kauf
+        XCTAssertEqual([c?.purchased, c?.available], [0, 37])
+        XCTAssertEqual([c?.purchasedUsable, c?.canBuy], [false, false])
         XCTAssertNil(StudoraCredits.parse(nil), "ohne Feld")
         XCTAssertNil(StudoraCredits.parse(.null), "am eigenen PC ist credits null")
         XCTAssertNil(StudoraCredits.parse(["period": "2026-11"]), "ohne Rahmen kein Stand")
@@ -117,16 +120,24 @@ final class CreditsDisplayAppTests: XCTestCase {
 
     func testBalanceLineWithPluralsZeroAndMissingData() {
         let c = StudoraCredits.parse(balance())
-        XCTAssertEqual(AICost.balanceLine(c), "Credits: 37 von 100 übrig · neu am 1. Dezember")
-        XCTAssertEqual(AICost.balanceLine(c, labelled: false), "37 von 100 übrig · neu am 1. Dezember")
-        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(used: 100, remaining: 0))), "Credits: 0 von 100 übrig · neu am 1. Dezember")
-        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(used: 99, remaining: 1))), "Credits: 1 von 100 übrig · neu am 1. Dezember")
-        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(resetsAt: nil))), "Credits: 37 von 100 übrig", "ohne Datum keine Erfindung")
-        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(resetsAt: "kein datum"))), "Credits: 37 von 100 übrig")
+        // zwei Toepfe (15.11.2026): "Diesen Monat: x von 100 · Gekauft: y"; der Zusatz in Klammern gehoert zum Monat
+        XCTAssertEqual(AICost.balanceLine(c), "Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
+        XCTAssertEqual(AICost.balanceLine(c, labelled: false), "Diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
+        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(used: 100, remaining: 0))), "Credits diesen Monat: 0 von 100 (neu am 1. Dezember) · Gekauft: 0")
+        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(used: 99, remaining: 1))), "Credits diesen Monat: 1 von 100 (neu am 1. Dezember) · Gekauft: 0")
+        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(resetsAt: nil))), "Credits diesen Monat: 37 von 100 · Gekauft: 0", "ohne Datum keine Erfindung")
+        XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(resetsAt: "kein datum"))), "Credits diesen Monat: 37 von 100 · Gekauft: 0")
         XCTAssertNil(AICost.balanceLine(nil))
         // Probe: 25 im Monat, als Probe gekennzeichnet
         XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(allowance: 25, used: 4, remaining: 21)), trial: true),
-                       "Credits: 21 von 25 übrig · Probe · neu am 1. Dezember")
+                       "Credits diesen Monat: 21 von 25 (Probe, neu am 1. Dezember) · Gekauft: 0")
+        // gekaufte Credits stehen daneben; ruhen sie (kein Pro AI), sagt die Zeile, womit sie nutzbar sind
+        let bought = StudoraCredits.parse(balance(used: 100, remaining: 0, extra: ["purchased": 80, "purchased_usable": true, "can_buy": true]))
+        XCTAssertEqual(AICost.balanceLine(bought, labelled: false), "Diesen Monat: 0 von 100 (neu am 1. Dezember) · Gekauft: 80")
+        XCTAssertEqual(bought?.available, 80)
+        let resting = StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "plus", extra: ["purchased": 60, "purchased_usable": false]))
+        XCTAssertEqual(AICost.balanceLine(resting), "Credits gekauft: 60 · nutzbar mit StudiNow Pro AI")
+        XCTAssertEqual(resting?.available, 0)
         // Free/Plus/Pro Connect: kein Rahmen, ehrlich gesagt
         XCTAssertEqual(AICost.balanceLine(StudoraCredits.parse(balance(allowance: 0, used: 0, remaining: 0, plan: "plus"))), "Keine Credits in deinem Tarif")
     }
@@ -156,9 +167,9 @@ final class CreditsDisplayAppTests: XCTestCase {
         XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: true, charge: .init(credits: 3, replay: false)), "Dein ChatGPT – 0 Credits")
         XCTAssertEqual(AICost.creditsLine(credits: nil, chatgpt: true), "Dein ChatGPT – 0 Credits")
         XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false, charge: .init(credits: 3, replay: false)), "– 3 Credits (37 übrig)")
-        XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false, charge: .init(credits: 0, replay: false)), "Credits: 37 von 100 übrig · neu am 1. Dezember")
-        XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false), "Credits: 37 von 100 übrig · neu am 1. Dezember")
-        XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false, trial: true), "Credits: 37 von 100 übrig · Probe · neu am 1. Dezember")
+        XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false, charge: .init(credits: 0, replay: false)), "Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
+        XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false), "Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
+        XCTAssertEqual(AICost.creditsLine(credits: c, chatgpt: false, trial: true), "Credits diesen Monat: 37 von 100 (Probe, neu am 1. Dezember) · Gekauft: 0")
         XCTAssertNil(AICost.creditsLine(credits: nil, chatgpt: false), "ohne Stand und ohne ChatGPT nichts zu sagen")
     }
 
@@ -169,7 +180,7 @@ final class CreditsDisplayAppTests: XCTestCase {
         XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI (Pro AI)")
         // mit Stand: der echte Rest statt der Schaetzung
         XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2, credits: c),
-                       "2 Anfragen diesen Monat · Credits: 37 von 100 übrig · neu am 1. Dezember")
+                       "2 Anfragen diesen Monat · Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
         XCTAssertEqual(AICost.status(chatgpt: true, model: "gpt-x", plan: .proAI, requestsThisMonth: 1, credits: c),
                        "1 Anfrage diesen Monat · Dein ChatGPT – 0 Credits · gpt-x")
         XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 3, credits: c, charge: .init(credits: 3, replay: false)),
@@ -181,7 +192,7 @@ final class CreditsDisplayAppTests: XCTestCase {
         XCTAssertEqual(TutorPanel.footer(page: 3, model: "gpt-x", credits: c), "Seite 3 · Dein ChatGPT – 0 Credits · gpt-x")
         XCTAssertEqual(TutorPanel.footer(page: 3, model: nil, credits: c, adopted: true), "Seite 3 · Schon erklärt · 0 Credits")
         XCTAssertEqual(TutorPanel.footer(page: 3, model: nil, credits: c, charge: .init(credits: 3, replay: false)), "Seite 3 · – 3 Credits (37 übrig)")
-        XCTAssertEqual(TutorPanel.footer(page: 1, model: nil, credits: c, charge: .init(credits: 0, replay: false)), "Seite 1 · Credits: 37 von 100 übrig · neu am 1. Dezember")
+        XCTAssertEqual(TutorPanel.footer(page: 1, model: nil, credits: c, charge: .init(credits: 0, replay: false)), "Seite 1 · Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
     }
 
     // MARK: 429
@@ -211,6 +222,7 @@ final class CreditsDisplayAppTests: XCTestCase {
         XCTAssertTrue(t.contains("100"))
         XCTAssertTrue(t.contains("25"))
         XCTAssertTrue(t.contains("Tarif wechseln"))
-        XCTAssertEqual(t.filter { $0 == "." }.count, 1, "ein Satz")
+        XCTAssertTrue(t.contains("Gekaufte Credits verfallen nicht"), "zwei Toepfe (15.11.2026)")
+        XCTAssertLessThanOrEqual(t.filter { $0 == "." }.count, 3, "kurz: hoechstens drei Saetze")
     }
 }

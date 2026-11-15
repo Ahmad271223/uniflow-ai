@@ -2,7 +2,7 @@
 // (tests/js/ai-start.test.mjs): ruhiger Start mit einer Frage und fuenf farbigen Aktionen, danach ein Gespraech mit
 // Eingabe unten. Kontext ist das gewaehlte Modul und ein angehaengtes Dokument (dessen erste Seite); Fragen gehen an
 // POST /api/ai/tutor wie die KI-Hilfe im Editor. "Hilfe" fragt keine KI (0 Credits). Gezeichnet wird in views-ai.js.
-import { creditsLine, sourceLine } from "./ai-panel.js?v=2";
+import { creditsLine, sourceLine } from "./ai-panel.js?v=3";
 
 /** Aktionen in der Reihenfolge der Pillen; `tone` ist die Farbe (CSS-Klasse tone-<tone>) */
 export const ACTIONS = [
