@@ -24,6 +24,12 @@ public struct DeviceSyncResult: Equatable, Sendable {
     /// Das Konto gleicht schon die Daten eines anderen Stud.IP-Benutzers ab (409 `studip_user_mismatch`): nichts
     /// abgerufen, nichts gesendet (`StudIPUserMark`)
     public var studipUserMismatch = false
+    /// Raum je Uni-Konto (`UniAccountKey`): Zeilen eines anderen Uni-Kontos, die hier entfernt wurden (ohne Loeschmarke)
+    public var foreignRemoved = 0
+    /// Unter demselben StudiNow-Konto gibt es ein weiteres Uni-Konto (Hinweis in den Konto-Einstellungen)
+    public var otherUniAccount = false
+    /// Dieses Geraet hat (noch) keinen Schluessel fuer sein Uni-Konto: nichts abgerufen, nichts gesendet
+    public var noUniAccount = false
     public var errors: [String] = []
 
     public init() {}
@@ -117,27 +123,47 @@ public actor DeviceSync {
     /// Uhr fuer Lernaufgaben, die ein auf einem anderen Geraet gesetzter Haken schliesst (`ModuleDone`)
     private let clock: UniFlowClock
 
-    public init(database: SQLiteDatabase, transport: DeviceSyncTransport, device: String, clock: UniFlowClock = .system) {
+    /// Ohne Schluessel fuer das Uni-Konto (`UniAccountKey`) gar nicht abgleichen: lieber nicht teilen als mischen. Die
+    /// App setzt das; der Kern laesst es fuer Werkzeuge und Tests offen.
+    private let requireUniAccount: Bool
+
+    public init(database: SQLiteDatabase, transport: DeviceSyncTransport, device: String, clock: UniFlowClock = .system,
+                requireUniAccount: Bool = false) {
         self.database = database
         self.transport = transport
         self.device = device
         self.clock = clock
+        self.requireUniAccount = requireUniAccount
     }
 
     /// Ein vollstaendiger Abgleich; wirft nie, das Ergebnis nennt den Fehler. Anderes `account`: Zuordnung und Cursor
-    /// vergessen (lokale Daten bleiben).
-    public func run(account: String) async -> DeviceSyncResult {
+    /// vergessen (lokale Daten bleiben). `university`: Hochschule des Datenbereichs (sonst `settings.university`).
+    public func run(account: String, university: String? = nil) async -> DeviceSyncResult {
         let core = DeviceSyncCore(device: device)
         core.clock = clock
         do {
-            core.studipUser = try await database.transaction { c -> String? in
+            let required = requireUniAccount
+            let ready = try await database.transaction { c -> Bool in
+                // Uni-Konto dieses Datenbereichs (nur Hashes); der Dienst teilt nur innerhalb desselben Uni-Kontos
+                core.studipUser = (try? StudIPUserMark.stored(c)) ?? nil
+                core.uniKey = (try? UniAccountKey.current(c, account: account, university: university)) ?? nil
+                if required && core.uniKey == nil { return false }
                 try DeviceSyncSchema.ensure(c)
                 if try DeviceSyncCore.state(c, "account") != account {
                     for t in ["sync_link_map", "sync_link_state", "sync_link_pending"] { try c.execute("DELETE FROM \(t)") }
                     try DeviceSyncCore.setState(c, "account", account)
                 }
-                // Stud.IP-Benutzer dieses Datenbereichs (nur Hash); der Dienst vergleicht ihn vor jedem Lesen und Schreiben
-                return (try? StudIPUserMark.stored(c)) ?? nil
+                // erster Abgleich mit Schluessel (oder ein anderes Uni-Konto): einmal alles neu abrufen, damit der Dienst
+                // vollstaendig nennt, was einem anderen Uni-Konto gehoert (`foreign`); die Zuordnung bleibt
+                if let key = core.uniKey, try DeviceSyncCore.state(c, UniAccountKey.stateKey) != key {
+                    try DeviceSyncCore.setState(c, "cursor", nil)
+                    try DeviceSyncCore.setState(c, UniAccountKey.stateKey, key)
+                }
+                return true
+            }
+            guard ready else {
+                core.stats.noUniAccount = true
+                return core.stats
             }
             try await pull(core)
             try await push(core)
@@ -169,6 +195,7 @@ public actor DeviceSync {
             var q = "limit=\(DeviceSyncCore.page)&device_id=\(Self.escaped(device))"
             if let cursor { q += "&since=\(Self.escaped(cursor))" }
             if let u = core.studipUser { q += "&studip_user=\(Self.escaped(u))" }
+            if let k = core.uniKey { q += "&uni_key=\(Self.escaped(k))" }
             let d = try await transport.syncChanges(query: q)
             let before = cursor
             cursor = d["cursor"]?.string ?? before
@@ -199,6 +226,7 @@ public actor DeviceSync {
             var fields: [String: JSONValue] = ["device_id": .string(device), "items": .array(batch.map { .object($0.body) }),
                                                "deletes": .array(last ? deletes.map(\.body) : [])]
             if let u = core.studipUser { fields["studip_user"] = .string(u) }
+            if let k = core.uniKey { fields["uni_key"] = .string(k) }
             let body: JSONValue = .object(fields)
             let res = try await transport.syncPush(body)
             try await database.transaction { c in
@@ -236,6 +264,9 @@ final class DeviceSyncCore: @unchecked Sendable {
     }
 
     static let appliedDevice = "~dienst"
+    /// Loeschmarke, deren Zeile im Dienst noch keinem Uni-Konto zugeordnet ist (`room_pending`): geht bei jedem Abgleich
+    /// wieder mit, bis der Dienst sie annimmt oder die Zeile einem anderen Uni-Konto gehoert
+    static let pendingDevice = "~offen"
     static let page = 2000
     static let pushBatch = 400
     /// Einstellungen nur dieses Geraets (gehen nicht in den Abgleich, kommen nicht an): die zehn der Windows-App
@@ -255,6 +286,8 @@ final class DeviceSyncCore: @unchecked Sendable {
     let device: String
     /// Hash des Stud.IP-Benutzers dieses Datenbereichs (`StudIPUserMark`); nil ohne Stud.IP bzw. vor dem ersten Abgleich
     var studipUser: String?
+    /// Schluessel fuer das Uni-Konto dieses Datenbereichs (`UniAccountKey`); nil ohne sichere Kennung
+    var uniKey: String?
     var retryNotes = false
     var clock: UniFlowClock = .system
     var stats = DeviceSyncResult()
@@ -393,6 +426,8 @@ final class DeviceSyncCore: @unchecked Sendable {
             }
         }
         for t in d["tombstones"]?.array ?? [] { try applyTombstone(c, t) }
+        try applyForeign(c, d["foreign"]?.array ?? [])
+        if (d["uni"]?["rooms"]?.int ?? 0) > 1 { stats.otherUniAccount = true }
         try retryPending(c)
         // Haken je Datei von einem anderen Geraet: offene Lernaufgaben zur Datei hier ebenfalls erledigen
         try ModuleDone.closeTasksOfDoneFiles(c, clock: clock)
@@ -562,6 +597,88 @@ final class DeviceSyncCore: @unchecked Sendable {
         stats.deleted += 1
     }
 
+    // MARK: Raum je Uni-Konto (`UniAccountKey`, wie `release_foreign` in app/sync_client.py)
+
+    /// Verweise auf eine Zeile ausserhalb der Fremdschluessel des Abgleichs (Tabellen nur dieses Geraets)
+    static let refColumns: [String: [String]] = ["modules": ["module_id"], "folders": ["folder_id"], "course_events": ["event_id"],
+                                                 "study_packages": ["package_id"], "flashcard_stacks": ["stack_id"]]
+    /// Karteikarten haengen ueber den Namen am Fach
+    static let moduleNameRefs = ["flashcard_stacks", "flashcards"]
+
+    /// `foreign` aus dem Abruf: Zeilen, die im Dienst nachweislich einem anderen Uni-Konto gehoeren. Kinder vor Eltern.
+    func applyForeign(_ c: SQLiteConnection, _ entries: [JSONValue]) throws {
+        guard !entries.isEmpty else { return }
+        var by: [String: [String]] = [:]
+        for f in entries {
+            guard let table = f["entity"]?.string, Self.entity(table) != nil, let id = Self.text(f["id"]) else { continue }
+            by[table, default: []].append(id)
+        }
+        for e in DeviceSyncSchema.entities.reversed() {
+            for rid in by[e.name] ?? [] { try releaseForeign(c, e.name, rid) }
+        }
+    }
+
+    /// Haengt auf diesem Geraet etwas an der Zeile (Kurs, Datei, Termin, Lernpaket, Karte ...)? Geprueft werden die
+    /// Fremdschluessel des Abgleichs, alle in der Datenbank erklaerten Fremdschluessel und alle Tabellen mit der
+    /// ueblichen Verweisspalte (`module_id` ...); bei Faechern dazu Karteikarten ueber den Namen.
+    private func hasDependents(_ c: SQLiteConnection, _ table: String, _ lid: String, _ row: Row) throws -> Bool {
+        var refs: Set<[String]> = []
+        for e in DeviceSyncSchema.entities {
+            for (col, target) in e.fk where target == table { refs.insert([e.name, col]) }
+        }
+        let tables = try c.rows("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").compactMap { $0["name"]?.string }
+        var columns: [String: Set<String>] = [:]
+        for t in tables {
+            let cols = Set(try c.columnNames(t))
+            columns[t] = cols
+            for col in Self.refColumns[table] ?? [] where cols.contains(col) { refs.insert([t, col]) }
+            for fk in try c.rows("PRAGMA foreign_key_list(\"\(t)\")") {
+                if fk["table"]?.string == table, let from = fk["from"]?.string, cols.contains(from) { refs.insert([t, from]) }
+            }
+        }
+        let key = pkValue(table, lid)
+        for r in refs where columns[r[0]] != nil {
+            if try c.queryOne("SELECT 1 FROM \"\(r[0])\" WHERE \"\(r[1])\"=? LIMIT 1", [key]) != nil { return true }
+        }
+        if table == "modules", let name = row["name"]?.string, !name.trimmingCharacters(in: .whitespaces).isEmpty {
+            for t in Self.moduleNameRefs where columns[t]?.contains("subject") == true {
+                if try c.queryOne("SELECT 1 FROM \"\(t)\" WHERE lower(trim(subject))=lower(trim(?)) LIMIT 1", [.text(name)]) != nil { return true }
+            }
+        }
+        return false
+    }
+
+    /// Eine Zeile gehoert im Dienst nachweislich einem anderen Uni-Konto: Verknuepfung loesen. Die lokale Zeile
+    /// verschwindet nur, wenn sie aus dem Dienst kam, hier nie geaendert wurde und nichts an ihr haengt; die Loeschmarke
+    /// gehoert dann dem Dienst (`~dienst`) und wird nie gesendet. Sonst bleibt die Zeile und geht beim naechsten Senden
+    /// als neue Zeile in den eigenen Raum, samt ihrer Kinder. Im Zweifel behalten.
+    func releaseForeign(_ c: SQLiteConnection, _ table: String, _ rid: String) throws {
+        guard let e = Self.entity(table) else { return }
+        try c.execute("DELETE FROM sync_link_pending WHERE entity=? AND remote_id=?", [.text(table), .text(rid)])
+        guard let m = try map(c, table, remote: rid), let lid = m["local_id"]?.string else { return }
+        try c.execute("DELETE FROM sync_link_map WHERE entity=? AND remote_id=?", [.text(table), .text(rid)])
+        // dieselbe Zeile gibt es auch im eigenen Raum
+        if try c.queryOne("SELECT 1 FROM sync_link_map WHERE entity=? AND local_id=?", [.text(table), .text(lid)]) != nil { return }
+        guard let cur = try localRow(c, table, lid) else { return }
+        guard e.intPK else { return }                           // Einstellungen und Notizen bleiben, wie sie sind
+        let untouched = cur["sync_device"]?.string == Self.appliedDevice && cur["sync_version"]?.int == m["local_version"]?.int
+        if untouched, try !hasDependents(c, table, lid, cur) {
+            let mark = try now(c)
+            try c.execute("DELETE FROM \(table) WHERE \(e.pk)=?", [pkValue(table, lid)])
+            try markAppliedTombstones(c, mark)                  // keine Loeschmarke fuer andere Geraete
+            stats.foreignRemoved += 1
+            keyIndex[table] = nil
+            return
+        }
+        // bleibt: als eigene Zeile neu senden; die Kinder zeigen im Dienst noch auf die fremde Zeile
+        try c.execute("UPDATE \(table) SET sync_device=NULL WHERE \(e.pk)=?", [pkValue(table, lid)])
+        for child in DeviceSyncSchema.entities {
+            for (col, target) in child.fk where target == table {
+                try c.execute("UPDATE \(child.name) SET \(col)=\(col) WHERE \(col)=?", [pkValue(table, lid)])
+            }
+        }
+    }
+
     private func retryPending(_ c: SQLiteConnection) throws {
         for p in try c.rows("SELECT * FROM sync_link_pending ORDER BY rowid") {
             guard let table = p["entity"]?.string, let rid = p["remote_id"]?.string, let text = p["payload"]?.string,
@@ -653,7 +770,8 @@ final class DeviceSyncCore: @unchecked Sendable {
             }
         }
         let mark = try Self.state(c, "tomb_mark") ?? ""
-        for t in try c.rows("SELECT * FROM sync_tombstones WHERE device IS NULL AND deleted_at > ? ORDER BY deleted_at", [.text(mark)]) {
+        for t in try c.rows("SELECT * FROM sync_tombstones WHERE (device IS NULL AND deleted_at > ?) OR device=? ORDER BY deleted_at",
+                            [.text(mark), .text(Self.pendingDevice)]) {
             guard let table = t["entity"]?.string, let e = Self.entity(table), table != "annotations",
                   let lid = t["entity_id"]?.string, let at = t["deleted_at"]?.string else { continue }
             for m in try c.rows("SELECT remote_id FROM sync_link_map WHERE entity=? AND local_id=?", [.text(table), .text(lid)]) {
@@ -740,6 +858,15 @@ final class DeviceSyncCore: @unchecked Sendable {
                 let mark = try now(c)
                 try c.execute("DELETE FROM \(table) WHERE \(meta(table).pk)=?", [pkValue(table, lid)])
                 try markAppliedTombstones(c, mark)
+            case "other_room":
+                // die Zeile im Dienst gehoert einem anderen Uni-Konto: hier bleibt alles. Tabellen mit Nummern gehen als
+                // neue Zeile in den eigenen Raum, Einstellungen gelten als abgeglichen (bis zur naechsten Aenderung hier).
+                // `room_pending` (Herkunft noch offen) braucht nichts: die Zeile bleibt geaendert und geht wieder mit
+                if !meta(table).intPK {
+                    try setMap(c, table, remote: lid, local: lid, remoteVersion: 0, localVersion: lv)
+                } else if let itemID {
+                    try releaseForeign(c, table, itemID)
+                }
             case "error":
                 stats.errors.append("\(table): \(Self.text(r["message"]) ?? "")")
             default: break
@@ -748,7 +875,21 @@ final class DeviceSyncCore: @unchecked Sendable {
         for d in deletes {
             guard let r = results.first(where: { $0["entity"]?.string == d.table && Self.text($0["id"]) == d.id }) else { continue }
             let st = r["status"]?.string
-            guard st == "deleted" || st == "edit_wins" else { continue }
+            let local = try localOf(c, d.table, d.id)
+            if st == "room_pending" {
+                // Herkunft der Zeile im Dienst noch offen: die Loeschung beim naechsten Abgleich noch einmal senden
+                if let local {
+                    try c.execute("UPDATE sync_tombstones SET device=? WHERE entity=? AND entity_id=? AND (device IS NULL OR device=?)",
+                                  [.text(Self.pendingDevice), .text(d.table), .text(local), .text(Self.pendingDevice)])
+                }
+                continue
+            }
+            if let local, st == "deleted" || st == "edit_wins" || st == "other_room" {   // entschieden: nicht noch einmal senden
+                try c.execute("UPDATE sync_tombstones SET device=NULL WHERE entity=? AND entity_id=? AND device=?",
+                              [.text(d.table), .text(local), .text(Self.pendingDevice)])
+            }
+            // `other_room`: hier geloescht, im Dienst bleibt die Zeile des anderen Uni-Kontos
+            guard st == "deleted" || st == "edit_wins" || st == "other_room" else { continue }
             try c.execute("DELETE FROM sync_link_map WHERE entity=? AND remote_id=?", [.text(d.table), .text(d.id)])
             if st == "edit_wins", let server = conflicts["\(d.table)|\(d.id)"]?["server"]?.object {
                 try applyRow(c, d.table, server)                // im Dienst geaendert: Zeile kommt zurueck
@@ -760,6 +901,9 @@ final class DeviceSyncCore: @unchecked Sendable {
         let fid = it.local
         let data = it.body["data"] ?? .object([:])
         switch r["status"]?.string {
+        case "other_room":
+            // Notizen eines anderen Uni-Kontos zur selben Datei: hier bleibt alles, gilt bis zur naechsten Aenderung als abgeglichen
+            try setMap(c, "annotations", remote: fid, local: fid, remoteVersion: 0, localVersion: cur?["sync_version"]?.int)
         case "applied":
             try setMap(c, "annotations", remote: fid, local: fid, remoteVersion: r["version"]?.int, localVersion: cur?["sync_version"]?.int, base: data.jsonString())
             stats.pushed += 1

@@ -56,8 +56,11 @@ final class AuditPaket40x45AppTests: XCTestCase {
         var requests: [String] { lock.withLock { log } }
         func count(_ prefix: String) -> Int { requests.filter { $0.hasPrefix(prefix) }.count }
 
-        static func user(_ id: String, _ mail: String) -> JSONValue {
-            ["id": .string(id), "email": .string(mail), "email_verified": true, "university": "luh", "plan": "pro_ai", "role": "user"]
+        /// Hochschule von Konto A (`/api/account/me`)
+        var accountUniversity = "luh"
+
+        static func user(_ id: String, _ mail: String, university: String = "luh") -> JSONValue {
+            ["id": .string(id), "email": .string(mail), "email_verified": true, "university": .string(university), "plan": "pro_ai", "role": "user"]
         }
 
         func send(_ r: AIHTTPRequest) async throws -> ServiceHTTPResponse {
@@ -72,7 +75,7 @@ final class AuditPaket40x45AppTests: XCTestCase {
             switch (r.method, path) {
             case ("GET", "/api/account/me"):
                 if isA, meDelayA > 0 { try await Task.sleep(nanoseconds: meDelayA) }
-                return ok(["user": isA ? Self.user(AuditPaket40x45AppTests.userA, "a@beispiel.de") : Self.user(AuditPaket40x45AppTests.userB, "b@beispiel.de"),
+                return ok(["user": isA ? Self.user(AuditPaket40x45AppTests.userA, "a@beispiel.de", university: accountUniversity) : Self.user(AuditPaket40x45AppTests.userB, "b@beispiel.de"),
                            "sessions": .array([])])
             case ("GET", "/api/entitlements"):
                 return ok(["plan": isA ? "pro_ai" : "plus", "trial": ["active": false]])
@@ -120,10 +123,15 @@ final class AuditPaket40x45AppTests: XCTestCase {
         return LocalBackendHost(directory: dir.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-11-09T08:00:00")!)
     }
 
-    /// Konto A angemeldet, Container mit lokalem Backend, Hochschule LUH
-    private func signedInLink(_ stub: ServiceStub, host: LocalBackendHost, scope: String = "p45-a-\(UUID().uuidString)") async -> StudoraAccountLink {
+    /// Konto A angemeldet, Container mit lokalem Backend, Hochschule LUH. `uniAccount`: der Stud.IP-Abgleich hat hier
+    /// schon einen Benutzer gemerkt (ohne ihn gleicht die App seit dem 14.11.2026 nicht zwischen Geraeten ab, `UniAccountKey`)
+    private func signedInLink(_ stub: ServiceStub, host: LocalBackendHost, scope: String = "p45-a-\(UUID().uuidString)",
+                              uniAccount: Bool = true, university: String = "luh") async -> StudoraAccountLink {
         let l = link(stub, scope: scope)
-        l.attachHostForTesting(host, university: "luh")
+        if uniAccount {
+            try? await host.backend().context.database.transaction { try StudIPUserMark.store($0, StudIPUserMark.hash(userID: "ada-test")) }
+        }
+        l.attachHostForTesting(host, university: university)
         await l.refresh()
         XCTAssertEqual(l.user?.id, Self.userA)
         return l
@@ -274,10 +282,67 @@ final class AuditPaket40x45AppTests: XCTestCase {
         XCTAssertFalse(first)
         XCTAssertEqual(l.lastSync?.ok, true)
         let before = stub.count("GET /api/sync/changes")
-        l.use(userScope: scope, host: try backendHost(), university: "luh")
+        let second = try backendHost()
+        try await second.backend().context.database.transaction { try StudIPUserMark.store($0, StudIPUserMark.hash(userID: "ada-test")) }
+        l.use(userScope: scope, host: second, university: "luh")
         XCTAssertNil(l.lastSync, "Stand des vorigen Containers")
         _ = await l.syncNow()
         XCTAssertGreaterThan(stub.count("GET /api/sync/changes"), before, "neuer Container gleicht gleich ab")
+    }
+
+    /// Raum je Uni-Konto (14.11.2026, `UniAccountKey`): ohne Uni-Anmeldung auf diesem Geraet gleicht die App nicht ab
+    /// (keine Anfrage, kurzer Hinweis in den Konto-Einstellungen); sobald der Stud.IP-Abgleich den Benutzer kennt,
+    /// laeuft der naechste Anstoss ohne die 3-Minuten-Pause, und jede Anfrage traegt den Schluessel.
+    func testDeviceSyncWaitsForTheUniAccountAndThenSendsItsKey() async throws {
+        let stub = ServiceStub()
+        let host = try backendHost()
+        let l = await signedInLink(stub, host: host, uniAccount: false)
+        let changed = await l.syncNow(force: true)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(l.lastSync?.noUniAccount, true)
+        XCTAssertEqual(stub.count("GET /api/sync/changes") + stub.count("POST /api/sync/push"), 0, "nichts abgerufen, nichts gesendet")
+        XCTAssertEqual(l.uniSyncHint, UniAccountKey.signInFirstText)
+        XCTAssertEqual(StudoraAccountCard.syncText(l.lastSync), "Auf diesem Gerät noch nicht abgeglichen")
+        // der Stud.IP-Abgleich hat den Benutzer gemerkt (nur als Hash)
+        let identity = StudIPUserMark.hash(userID: "ada-test")
+        try await host.backend().context.database.transaction { try StudIPUserMark.store($0, identity) }
+        _ = await l.syncNow()
+        XCTAssertEqual(l.lastSync?.noUniAccount, false)
+        XCTAssertNil(l.uniSyncHint)
+        let key = UniAccountKey.key(account: Self.userA, university: "luh", identity: identity)
+        let pulls = stub.requests.filter { $0.hasPrefix("GET /api/sync/changes") }
+        XCTAssertFalse(pulls.isEmpty)
+        XCTAssertTrue(pulls.allSatisfy { $0.contains("uni_key=\(key)") && $0.contains("studip_user=\(identity)") }, pulls.description)
+    }
+
+    /// Hochschule ohne sichere Kennung (Hildesheim; Entscheidung des Inhabers vom 14.11.2026): der Abgleich laeuft wie
+    /// in 1.0.4, ohne Uni-Anmeldung als Voraussetzung und ohne Hinweis in den Konto-Einstellungen. Jede Anfrage traegt
+    /// den Schluessel aus StudiNow-Konto und Hochschule, keinen Stud.IP-Hash.
+    func testHildesheimKeepsSyncingWithoutASecureIdentity() async throws {
+        let stub = ServiceStub()
+        stub.accountUniversity = "hildesheim"
+        let l = await signedInLink(stub, host: try backendHost(), uniAccount: false, university: "hildesheim")
+        _ = await l.syncNow(force: true)
+        XCTAssertEqual(l.lastSync?.ok, true)
+        XCTAssertEqual(l.lastSync?.noUniAccount, false)
+        XCTAssertNil(l.uniSyncHint)
+        let key = UniAccountKey.key(account: Self.userA, university: "hildesheim", identity: UniAccountKey.universityOnly)
+        let pulls = stub.requests.filter { $0.hasPrefix("GET /api/sync/changes") }
+        XCTAssertFalse(pulls.isEmpty, "gleicht ab wie bisher")
+        XCTAssertTrue(pulls.allSatisfy { $0.contains("uni_key=\(key)") && !$0.contains("studip_user") }, pulls.description)
+        XCTAssertGreaterThan(stub.count("POST /api/sync/push"), 0, "sendet wie bisher (Einstellungen dieses Datenbereichs)")
+    }
+
+    /// Mischfall unter einem StudiNow-Konto: das Konto gehoert zur LUH, dieses Geraet ist auf Hildesheim gestellt. Es
+    /// gleicht gar nicht ab (`canSync`), also kommt nichts aus Hildesheim in die LUH-Daten des Kontos und umgekehrt.
+    func testDeviceOfAnotherUniversityThanTheAccountDoesNotSync() async throws {
+        let stub = ServiceStub()
+        let l = await signedInLink(stub, host: try backendHost(), uniAccount: false, university: "hildesheim")
+        let changed = await l.syncNow(force: true)
+        XCTAssertFalse(changed)
+        XCTAssertNil(l.lastSync)
+        XCTAssertEqual(stub.count("GET /api/sync/changes") + stub.count("POST /api/sync/push"), 0, "nichts abgerufen, nichts gesendet")
+        XCTAssertNil(l.uniSyncHint)
     }
 
     /// P37-09 / P45-08: ein fehlgeschlagener Abgleich zaehlt nicht als erledigt; der naechste automatische laeuft

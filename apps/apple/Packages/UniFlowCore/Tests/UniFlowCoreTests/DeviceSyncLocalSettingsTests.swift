@@ -25,7 +25,7 @@ final class DeviceSyncLocalSettingsTests: XCTestCase {
 
     func testEveryWindowsDeviceLocalKeyIsDeviceLocalOnTheIPadToo() throws {
         let windows = try windowsLocalSettings()
-        XCTAssertEqual(windows.count, 10, "Liste in app/sync_client.py gefunden")
+        XCTAssertEqual(windows.count, 11, "Liste in app/sync_client.py gefunden (seit 14.11.2026 mit studip_user_hash)")
         for k in windows.sorted() {
             XCTAssertTrue(DeviceSyncCore.settingIsLocal(k), "\(k) bleibt auf dem Geraet (wie in der Windows-App)")
         }

@@ -1155,6 +1155,9 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                 try:
                     me = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/me", headers={"Accept": "application/vnd.api+json"}).json()
                     uid = me["data"]["id"]
+                    # Uni-Konto dieses PCs fuer den Geraete-Abgleich (nur als Hash, nur lokal; Raum je Uni-Konto, 14.11.2026)
+                    from . import sync_client
+                    sync_client.remember_studip_user(conn, uid)
                     store_schedule_entries(conn, fetch_schedule_entries(page, uid))
                 except Exception as e:  # noqa: BLE001
                     log(f"Persoenlicher Stundenplan nicht gelesen: {e}")

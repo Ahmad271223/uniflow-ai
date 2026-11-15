@@ -634,6 +634,17 @@
         ],
         "indexes": []
       },
+      "sync_devices": {
+        "columns": [
+          {"name": "device_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "room", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "seen_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_sync_devices_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["device_id"]}
+        ]
+      },
       "sync_log": {
         "columns": [
           {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
@@ -657,6 +668,35 @@
         "foreign_keys": [],
         "indexes": [
           {"name": "sqlite_autoindex_sync_ops_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["op_id"]}
+        ]
+      },
+      "sync_rooms": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "uni_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "studip_user", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "plain", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_sync_rooms_1", "unique": 1, "origin": "u", "partial": 0, "columns": ["uni_key"]},
+          {"name": "sqlite_autoindex_sync_rooms_2", "unique": 1, "origin": "u", "partial": 0, "columns": ["studip_user"]}
+        ]
+      },
+      "sync_row_room": {
+        "columns": [
+          {"name": "entity", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
+          {"name": "entity_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 2},
+          {"name": "room", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "origin", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "assigned_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "idx_sync_row_room_assigned", "unique": 0, "origin": "c", "partial": 0, "columns": ["assigned_at"]},
+          {"name": "idx_sync_row_room_origin", "unique": 0, "origin": "c", "partial": 0, "columns": ["origin"]},
+          {"name": "sqlite_autoindex_sync_row_room_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["entity", "entity_id"]}
         ]
       },
       "sync_tombstones": {
@@ -814,7 +854,7 @@
         ]
       }
     },
-    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "idx_tombstones_time": "CREATE INDEX idx_tombstones_time ON sync_tombstones(deleted_at)", "ix_markers_mod": "CREATE INDEX ix_markers_mod ON lecture_markers(module_id, file_id)", "ix_study_sessions_module": "CREATE INDEX ix_study_sessions_module ON study_sessions(module_id)", "ix_task_mod": "CREATE INDEX ix_task_mod ON task_index(module_id, source)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1", "ux_tests_def_user": "CREATE UNIQUE INDEX ux_tests_def_user ON tests(def_id, user_id) WHERE def_id IS NOT NULL"},
+    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "idx_sync_row_room_assigned": "CREATE INDEX idx_sync_row_room_assigned ON sync_row_room(assigned_at)", "idx_sync_row_room_origin": "CREATE INDEX idx_sync_row_room_origin ON sync_row_room(origin)", "idx_tombstones_time": "CREATE INDEX idx_tombstones_time ON sync_tombstones(deleted_at)", "ix_markers_mod": "CREATE INDEX ix_markers_mod ON lecture_markers(module_id, file_id)", "ix_study_sessions_module": "CREATE INDEX ix_study_sessions_module ON study_sessions(module_id)", "ix_task_mod": "CREATE INDEX ix_task_mod ON task_index(module_id, source)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1", "ux_tests_def_user": "CREATE UNIQUE INDEX ux_tests_def_user ON tests(def_id, user_id) WHERE def_id IS NOT NULL"},
     "user_version": 0
   },
   "settings": [

@@ -238,7 +238,7 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         XCTAssertFalse(shows(env, "Die App"), "statt der App")
         XCTAssertEqual(l.deviceStatus?.state, .blocked)
         XCTAssertEqual(DeviceRuleMemory(defaults: defaults).load(scope: scope)?.state, .blocked, "für den nächsten Start gemerkt")
-        XCTAssertTrue(service.requests.allSatisfy { $0.headers[DeviceRule.capabilityHeader] == DeviceRule.capability })
+        XCTAssertTrue(service.requests.allSatisfy { $0.headers[DeviceRule.capabilityHeader] == StudoraAccount.capabilities })
         assertBlockedScreen(env, "zweites Gerät")
 
         // Rückfrage: Abbrechen ändert nichts

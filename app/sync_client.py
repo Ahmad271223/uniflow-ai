@@ -23,9 +23,15 @@ Ablauf je Lauf (`run`): abrufen -> senden -> noch einmal abrufen (Ergebnisse von
   der Stud.IP-Abgleich dieses PCs noch nicht geladen hat), warten in `sync_link_pending` und werden bei jedem Lauf
   erneut versucht.
 Nie abgeglichen: Einstellungen dieses Geraets (`LOCAL_SETTINGS`), Hochschuldateien selbst, Zugangsdaten.
+
+Raum je Uni-Konto (14.11.2026, docs/ABGLEICH-UNI-KONTO-2026-11-14.md): kennt dieser PC seinen Stud.IP-Benutzer (Hash in
+`settings.studip_user_hash`, vom Stud.IP-Abgleich), schickt der Client `uni_key` und `studip_user` mit; der Dienst
+liefert dann nur Zeilen desselben Uni-Kontos. Zeilen, die nachweislich einem anderen Uni-Konto gehoeren (`foreign` im
+Abruf), raeumt `release_foreign` hier auf, ohne Loeschmarke fuer andere Geraete.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -36,10 +42,19 @@ from .annotation_merge import merge_document
 from .sync import ENTITIES, SYNC_COLS
 
 APPLIED_DEVICE = "~dienst"
+# Loeschmarke, deren Zeile im Dienst noch keinem Uni-Konto zugeordnet ist (`room_pending`): geht bei jedem Abgleich
+# wieder mit, bis der Dienst sie annimmt oder die Zeile einem anderen Uni-Konto gehoert
+PENDING_DEVICE = "~offen"
 PAGE = 2000
 PUSH_BATCH = 400
 LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input", "messages_seen_up_to",
-                  "studip_reply_drafts", "studip_replies", "studip_submissions", "exam_registration_run"}
+                  "studip_reply_drafts", "studip_replies", "studip_submissions", "exam_registration_run", "studip_user_hash"}
+STUDIP_USER_KEY = "studip_user_hash"
+# Verweise auf eine Zeile ausserhalb der Fremdschluessel des Abgleichs (Tabellen nur dieses Geraets): Spalte je Tabelle
+REF_COLUMNS = {"modules": ("module_id",), "folders": ("folder_id",), "course_events": ("event_id",),
+               "study_packages": ("package_id",), "flashcard_stacks": ("stack_id",)}
+# Karteikarten haengen ueber den Namen am Fach
+MODULE_NAME_REFS = ("flashcard_stacks", "flashcards")
 # Spalten, die nur auf diesem Geraet etwas bedeuten (IDs von Tabellen ausserhalb des Abgleichs)
 LOCAL_COLS = {"study_tasks": {"test_id"}}
 _SECRET_RE = re.compile(r"token|secret|passw|pin$|_path$|_dir$|service", re.I)
@@ -69,6 +84,29 @@ def _state(conn, key, default=None):
 def _set_state(conn, key, value) -> None:
     conn.execute("INSERT INTO sync_link_state(key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                  (key, None if value is None else str(value)))
+
+
+def studip_user_hash(user_id: str) -> str:
+    """Hash der Stud.IP-Kennung wie auf iPad und iPhone (`StudIPUserMark.hash`); die Kennung selbst wird nie gespeichert."""
+    return hashlib.sha256(("studip-user:" + str(user_id)).encode()).hexdigest()
+
+
+def remember_studip_user(conn, user_id) -> None:
+    """Vom Stud.IP-Abgleich dieses PCs: der Benutzer, dem die Daten hier gehoeren (nur als Hash, nur lokal)."""
+    if not user_id:
+        return
+    h = studip_user_hash(user_id)
+    old = conn.execute("SELECT value FROM settings WHERE key=?", (STUDIP_USER_KEY,)).fetchone()
+    if not old or old[0] != h:
+        conn.execute("INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (STUDIP_USER_KEY, h))
+
+
+def uni_key(account, university, identity) -> str | None:
+    """Schluessel fuer das Uni-Konto: SHA-256 ueber StudiNow-Konto | Hochschule | Kennung (hier: Hash der Stud.IP-
+    Kennung). Gleich auf allen Geraeten desselben Uni-Kontos (`UniAccountKey.key` im Swift-Kern); None ohne Kennung."""
+    if not account or not university or not identity:
+        return None
+    return hashlib.sha256(f"studinow-uni-konto|{account}|{university}|{identity}".encode()).hexdigest()
 
 
 def reset(conn) -> None:
@@ -141,8 +179,105 @@ class Client:
         self.token, self.url = token, url
         self.retry_notes = False
         self._nk: dict[str, dict] = {}
+        # Uni-Konto dieses PCs (`use_uni_account`): beide None = wie bisher, ohne Raum
+        self.uni_key: str | None = None
+        self.studip_user: str | None = None
         self.stats = {"pulled": 0, "applied": 0, "pushed": 0, "deleted": 0, "conflicts": 0, "pending": 0, "notes_merged": 0,
-                      "plan_required": False, "errors": []}
+                      "plan_required": False, "errors": [], "foreign_removed": 0, "other_uni": False}
+
+    # ------------------------------------------------ Raum je Uni-Konto
+    def use_uni_account(self, account, university) -> None:
+        """Schluessel aus dem lokalen Hash des Stud.IP-Benutzers. Neuer oder anderer Schluessel: einmal alles neu
+        abrufen (Cursor vergessen, Zuordnung bleibt), damit `foreign` vollstaendig ankommt."""
+        r = self.conn.execute("SELECT value FROM settings WHERE key=?", (STUDIP_USER_KEY,)).fetchone()
+        ident = r[0] if r and r[0] else None
+        self.studip_user = ident
+        self.uni_key = uni_key(account, university, ident)
+        if self.uni_key and _state(self.conn, "uni_key") != self.uni_key:
+            _set_state(self.conn, "cursor", None)
+            _set_state(self.conn, "uni_key", self.uni_key)
+
+    def _has_dependents(self, table, lid, row) -> bool:
+        """Haengt auf diesem Geraet etwas an der Zeile (Kurs, Datei, Termin, Lernpaket, Karte ...)? Geprueft werden die
+        Fremdschluessel des Abgleichs, alle in der Datenbank erklaerten Fremdschluessel und alle Tabellen mit der
+        ueblichen Verweisspalte (`module_id` ...); bei Faechern dazu Karteikarten ueber den Namen."""
+        key = int(lid) if _int_pk(table) else lid
+        refs: set[tuple[str, str]] = set()
+        for child, meta in ENTITIES.items():
+            refs.update((child, col) for col, target in meta["fk"].items() if target == table)
+        tables = [r[0] for r in self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+        for t in tables:
+            cols = {r[1] for r in self.conn.execute(f'PRAGMA table_info("{t}")')}
+            refs.update((t, c) for c in REF_COLUMNS.get(table, ()) if c in cols)
+            for fk in self.conn.execute(f'PRAGMA foreign_key_list("{t}")'):
+                if fk[2] == table and fk[3] in cols:
+                    refs.add((t, fk[3]))
+        for t, col in refs:
+            if t not in tables:
+                continue
+            if self.conn.execute(f'SELECT 1 FROM "{t}" WHERE "{col}"=? LIMIT 1', (key,)).fetchone():
+                return True
+        if table == "modules" and (row.get("name") or "").strip():
+            for t in MODULE_NAME_REFS:
+                if t in tables and "subject" in {r[1] for r in self.conn.execute(f'PRAGMA table_info("{t}")')}:
+                    if self.conn.execute(f'SELECT 1 FROM "{t}" WHERE lower(trim(subject))=lower(trim(?)) LIMIT 1', (row["name"],)).fetchone():
+                        return True
+        return False
+
+    def release_foreign(self, table, remote_id) -> None:
+        """Eine Zeile gehoert im Dienst nachweislich einem anderen Uni-Konto: Verknuepfung loesen. Die lokale Zeile
+        verschwindet nur, wenn sie aus dem Dienst kam, hier nie geaendert wurde und nichts an ihr haengt; sonst bleibt
+        sie und geht beim naechsten Senden als neue Zeile in den eigenen Raum (im Zweifel behalten)."""
+        if table not in ENTITIES:
+            return
+        rid = str(remote_id)
+        self.conn.execute("DELETE FROM sync_link_pending WHERE entity=? AND remote_id=?", (table, rid))
+        m = db.row(self.conn, "SELECT * FROM sync_link_map WHERE entity=? AND remote_id=?", (table, rid))
+        if not m:
+            return
+        lid = m["local_id"]
+        self.conn.execute("DELETE FROM sync_link_map WHERE entity=? AND remote_id=?", (table, rid))
+        if self.conn.execute("SELECT 1 FROM sync_link_map WHERE entity=? AND local_id=?", (table, lid)).fetchone():
+            return                                              # dieselbe Zeile gibt es auch im eigenen Raum
+        cur = self.local_row(table, lid)
+        if cur is None:
+            return
+        if not _int_pk(table):
+            return                                              # Einstellungen und Notizen bleiben, wie sie sind
+        pk = ENTITIES[table]["pk"]
+        key = int(lid)
+        untouched = cur.get("sync_device") == APPLIED_DEVICE and cur.get("sync_version") == m.get("local_version")
+        if untouched and not self._has_dependents(table, lid, cur):
+            mark = service_now_sql(self.conn)
+            self.conn.execute(f"DELETE FROM {table} WHERE {pk}=?", (key,))
+            self.mark_applied_tombstones(mark)                  # keine Loeschmarke fuer andere Geraete
+            self.stats["foreign_removed"] += 1
+            self._nk.pop(table, None)
+            return
+        # bleibt: als eigene Zeile neu senden, samt der Kinder (sie zeigen im Dienst noch auf die fremde Zeile)
+        self.conn.execute(f"UPDATE {table} SET sync_device=NULL WHERE {pk}=?", (key,))
+        for child, meta in ENTITIES.items():
+            for col, target in meta["fk"].items():
+                if target == table:
+                    self.conn.execute(f"UPDATE {child} SET {col}={col} WHERE {col}=?", (key,))
+
+    def apply_foreign(self, entries) -> None:
+        """`foreign` aus dem Abruf: Kinder vor Eltern."""
+        by: dict[str, list] = {}
+        for f in entries or []:
+            if isinstance(f, dict) and f.get("entity") in ENTITIES and f.get("id") is not None:
+                by.setdefault(f["entity"], []).append(f["id"])
+        for table in reversed(list(ENTITIES)):
+            for rid in by.get(table, []):
+                self.release_foreign(table, rid)
+
+    def _room_query(self) -> str:
+        q = ""
+        if self.studip_user:
+            q += f"&studip_user={self.studip_user}"
+        if self.uni_key:
+            q += f"&uni_key={self.uni_key}"
+        return q
 
     # ------------------------------------------------ Zuordnung
     def local_of(self, table, remote_id) -> str | None:
@@ -330,7 +465,7 @@ class Client:
     def pull(self) -> None:
         cursor = _state(self.conn, "cursor")
         for _ in range(200):
-            q = "limit=%d&device_id=%s" % (PAGE, self.device) + (f"&since={cursor}" if cursor else "")
+            q = "limit=%d&device_id=%s" % (PAGE, self.device) + (f"&since={cursor}" if cursor else "") + self._room_query()
             d = _call("GET", "/api/sync/changes", query=q, token=self.token, url=self.url)
             self.conn.execute("BEGIN IMMEDIATE")
             try:
@@ -342,6 +477,9 @@ class Client:
                             self.stats["applied"] += 1
                 for t in d.get("tombstones") or []:
                     self.apply_tombstone(t)
+                self.apply_foreign(d.get("foreign"))
+                if ((d.get("uni") or {}).get("rooms") or 0) > 1:
+                    self.stats["other_uni"] = True
                 self.retry_pending()
                 # Haken je Datei von einem anderen Geraet: offene Lernaufgaben zur Datei hier ebenfalls erledigen
                 from . import study
@@ -436,7 +574,8 @@ class Client:
                 it["_local"] = lid
                 items.append(it)
         mark = _state(self.conn, "tomb_mark", "")
-        for t in db.rows(self.conn, "SELECT * FROM sync_tombstones WHERE device IS NULL AND deleted_at > ? ORDER BY deleted_at", (mark,)):
+        for t in db.rows(self.conn, "SELECT * FROM sync_tombstones WHERE (device IS NULL AND deleted_at > ?) OR device=? ORDER BY deleted_at",
+                         (mark, PENDING_DEVICE)):
             if t["entity"] not in ENTITIES or t["entity"] == "annotations":
                 continue
             for m in db.rows(self.conn, "SELECT remote_id FROM sync_link_map WHERE entity=? AND local_id=?", (t["entity"], t["entity_id"])):
@@ -458,6 +597,10 @@ class Client:
         for i, batch in enumerate(batches):
             body = {"device_id": self.device, "items": [{k: v for k, v in it.items() if not k.startswith("_")} for it in batch],
                     "deletes": [{k: v for k, v in d.items() if not k.startswith("_")} for d in deletes] if i == len(batches) - 1 else []}
+            if self.studip_user:
+                body["studip_user"] = self.studip_user
+            if self.uni_key:
+                body["uni_key"] = self.uni_key
             res = _call("POST", "/api/sync/push", body, token=self.token, url=self.url)
             self.conn.execute("BEGIN IMMEDIATE")
             try:
@@ -542,13 +685,30 @@ class Client:
                 mark = service_now_sql(self.conn)
                 self.conn.execute(f"DELETE FROM {table} WHERE {pk}=?", (int(lid) if _int_pk(table) else lid,))
                 self.mark_applied_tombstones(mark)
+            elif st == "other_room":
+                # die Zeile im Dienst gehoert einem anderen Uni-Konto: hier bleibt alles; Tabellen mit Nummern gehen als
+                # neue Zeile in den eigenen Raum, Einstellungen gelten als abgeglichen (bis zur naechsten Aenderung hier).
+                # `room_pending` (Herkunft noch offen) braucht nichts: die Zeile bleibt geaendert und geht wieder mit
+                if not _int_pk(table):
+                    self.set_map(table, lid, lid, 0, lv)
+                elif it.get("id") is not None:
+                    self.release_foreign(table, it["id"])
             elif st == "error":
                 self.stats["errors"].append(f"{table}: {r.get('message')}")
         for d in deletes:
             r = next((v for k, v in by_key.items() if k[0] == d["entity"] and k[2] == str(d["id"])), None)
             if r is None:
                 continue
-            if r.get("status") == "deleted":
+            if r.get("status") == "room_pending":
+                # Herkunft der Zeile im Dienst noch offen: die Loeschung beim naechsten Abgleich noch einmal senden
+                self.conn.execute("UPDATE sync_tombstones SET device=? WHERE entity=? AND entity_id=? AND (device IS NULL OR device=?)",
+                                  (PENDING_DEVICE, d["entity"], str(d["_local"]), PENDING_DEVICE))
+                continue
+            if r.get("status") in ("deleted", "other_room", "edit_wins"):  # entschieden: nicht noch einmal senden
+                self.conn.execute("UPDATE sync_tombstones SET device=NULL WHERE entity=? AND entity_id=? AND device=?",
+                                  (d["entity"], str(d["_local"]), PENDING_DEVICE))
+            if r.get("status") in ("deleted", "other_room"):
+                # `other_room`: hier geloescht, im Dienst bleibt die Zeile des anderen Uni-Kontos
                 self.conn.execute("DELETE FROM sync_link_map WHERE entity=? AND remote_id=?", (d["entity"], str(d["id"])))
             elif r.get("status") == "edit_wins":
                 c = conflicts.get((d["entity"], str(d["id"])))
@@ -559,7 +719,10 @@ class Client:
     def after_annotation(self, it, r, cur) -> None:
         fid = it["_local"]
         st = r.get("status")
-        if st == "applied":
+        if st == "other_room":
+            # Notizen eines anderen Uni-Kontos zur selben Datei: hier bleibt alles, gilt bis zur naechsten Aenderung als abgeglichen
+            self.set_map("annotations", fid, fid, 0, cur.get("sync_version") if cur else None)
+        elif st == "applied":
             self.set_map("annotations", fid, fid, r.get("version"), cur.get("sync_version") if cur else None,
                          json.dumps(it["data"], ensure_ascii=False))
             self.stats["pushed"] += 1
@@ -644,6 +807,7 @@ def run(force: bool = False) -> dict:
                 _set_state(conn, "account", account)
             c = Client(conn, st.get("device_id") or "win", token=st.get("token") or "", url=service_link.service_url(st) or None)
             c.retry_notes = False
+            c.use_uni_account(account, config.university())
             c.pull()
             c.push()
             for _ in range(2):
@@ -669,7 +833,7 @@ def run(force: bool = False) -> dict:
         if (s.get("user") or {}).get("id") != (st.get("user") or {}).get("id"):
             return out                                          # inzwischen anderes Konto: dessen Stand bleibt, wie er ist
         s["sync_last"] = {k: out[k] for k in out if k in ("ok", "at", "pulled", "applied", "pushed", "deleted", "conflicts", "pending",
-                                                          "notes_merged", "plan_required", "error")}
+                                                          "notes_merged", "plan_required", "error", "foreign_removed", "other_uni")}
         service_link.save_state(s)
     except OSError:
         pass

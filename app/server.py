@@ -1047,26 +1047,37 @@ def sync_now(ai: bool = True):
 
 
 @app.get("/api/sync/changes")
-def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000),
-                     studip_user: str | None = None):
+def api_sync_changes(request: Request, since: str | None = None, device_id: str | None = None,
+                     limit: int = Query(default=2000, ge=1, le=2000), studip_user: str | None = None, uni_key: str | None = None):
     """Vertrag G2: Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones, seitenweise:
-    weiter abrufen, solange `has_more` true ist. Optional `studip_user` (Hash der Stud.IP-Benutzerkennung des Geraets):
-    gehoert das Konto schon einem anderen Stud.IP-Benutzer, 409 `studip_user_mismatch` (`sync.check_studip_user`)."""
+    weiter abrufen, solange `has_more` true ist. Optional `uni_key` (Hash fuer das Uni-Konto des Geraets, neue Apps)
+    und `studip_user` (Hash der Stud.IP-Benutzerkennung, Apple-Apps ab 1.0.3): das Geraet bekommt nur, was zu seinem
+    Uni-Konto gehoert (`sync.Rooms`, 14.11.2026). Vom 12. bis 14.11.2026 bekam der zweite Stud.IP-Benutzer eines Kontos
+    hier 409 `studip_user_mismatch`; den Fehler gibt es nicht mehr."""
     from . import sync
     with db.cursor() as conn:
-        _check_studip_user(conn, studip_user)
-        return sync.changes(conn, since, limit)
+        if uni_key or studip_user:
+            # der erste Abruf eines Geraets legt Raum und Zuordnung an: Schreibsperre gleich, damit zwei Geraete, die
+            # im selben Moment zum ersten Mal kommen, nacheinander laufen (wie beim Senden)
+            conn.execute("BEGIN IMMEDIATE")
+        return sync.changes(conn, since, limit, rooms=_sync_rooms(conn, request, device_id, uni_key, studip_user))
 
 
-def _check_studip_user(conn, value) -> None:
-    """`sync.check_studip_user` mit den HTTP-Fehlern: 400 bei kaputtem Wert, 409 `studip_user_mismatch`."""
-    from . import sync
-    try:
-        sync.check_studip_user(conn, value)
-    except sync.StudIPUserMismatch as e:
-        raise HTTPException(409, {"detail": str(e), "code": "studip_user_mismatch"})
-    except ValueError as e:
-        raise HTTPException(400, {"detail": str(e), "code": "studip_user_invalid"})
+SYNC_ROOM_CAP = "uni_room"      # X-StudiNow-Caps: die App kennt `foreign` und `other_room` (UniAccountKey.capability)
+
+
+def _sync_rooms(conn, request, device, uni_key, studip_user):
+    """`sync.resolve_room` mit den HTTP-Fehlern: 400 bei einem Wert, der kein Hex-Hash ist. Neue Apps erkennt der
+    Dienst am Schluessel selbst oder an der Faehigkeit `uni_room` in `X-StudiNow-Caps` (wie `device_limit`)."""
+    from . import device_limit, sync
+    for name, value in (("studip_user", studip_user), ("uni_key", uni_key)):
+        if value not in (None, "") and (not isinstance(value, str) or not sync.UNI_KEY_RE.match(value)):
+            raise HTTPException(400, {"detail": f"{name} muss ein Hex-Hash sein", "code": f"{name}_invalid"})
+    # Schluessel ohne Nutzerkennung dieses Kontos (Hochschule ohne sichere Kennung): der Dienst rechnet ihn selbst nach
+    plain = sync.university_key(config.current_user_id(), config.university()) if config.is_hosted() else None
+    rooms = sync.resolve_room(conn, device if isinstance(device, str) else None, uni_key, studip_user, plain_key=plain)
+    rooms.modern = rooms.modern or SYNC_ROOM_CAP in device_limit.client_caps(request)
+    return rooms
 
 
 @app.post("/api/sync/push")
@@ -1090,8 +1101,9 @@ def api_sync_push(request: Request, body: dict = Body(...)):
         items = [it for it in items if not new_card(it)]
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")
-        _check_studip_user(conn, body.get("studip_user"))      # vor jedem Schreiben (Datentrennung, 12.11.2026)
-        out = sync.push(conn, body.get("device_id"), items, deletes)
+        # Raum des Geraets vor jedem Schreiben (Datentrennung je Uni-Konto, 14.11.2026)
+        rooms = _sync_rooms(conn, request, body.get("device_id"), body.get("uni_key"), body.get("studip_user"))
+        out = sync.push(conn, body.get("device_id"), items, deletes, rooms=rooms)
     out["results"] = ([{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
                         "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused]
                       + [{"entity": it.get("entity"), "local_id": it.get("local_id"), "status": "plan_required",
