@@ -67,7 +67,9 @@ test("Kostenzeile: gespeichert, Wiederholung, berechnet, Stand; am eigenen PC le
   assert.equal(creditsLine({ charged: 0, remaining: 0, allowance: 100, purchased: 80, purchased_usable: true, resets_at: "2026-12-01T00:00:00+01:00" }, null),
     "Credits diesen Monat: 0 von 100 (neu am 1. Dezember) · Gekauft: 80");
   assert.equal(creditsLine({ charged: 3, remaining: 0, allowance: 100, purchased: 77, purchased_usable: true }, null), "– 3 Credits (77 übrig)");
-  assert.equal(creditsLine({ charged: 0, remaining: 0, allowance: 0, purchased: 60, purchased_usable: false }, null), "Credits gekauft: 60 · nutzbar mit StudiNow Pro AI");
+  assert.equal(creditsLine({ charged: 0, remaining: 0, allowance: 0, purchased: 60, purchased_usable: false }, null), "Credits gekauft: 60 · nutzbar mit StudiNow Plus oder Pro AI");
+  // Plus (15.11.2026): nur der gekaufte Topf, auch mit 0
+  assert.equal(creditsLine({ charged: 0, remaining: 0, allowance: 0, purchased: 0, purchased_usable: true, purchased_scope: "chat" }, null), "Credits gekauft: 0");
   assert.equal(creditsLine({ charged: 0, remaining: 0, allowance: 0 }, null), "Keine Credits in deinem Tarif");
   assert.equal(creditsLine(null, null), "");
   assert.equal(resetLabel("quatsch"), null); assert.equal(resetLabel("2026-13-01"), null);

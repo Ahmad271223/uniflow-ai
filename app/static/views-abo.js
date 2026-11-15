@@ -12,7 +12,7 @@
 // planChoicePrompt (Tarif wählen oder bei Free bleiben) gilt nur noch ohne Abo-Pflicht.
 import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=47";
 import { GATE_TEXTS, exportHref } from "./account-gate.js?v=1";
-import { balanceLine, showsCredits, webNote } from "./credit-packs-logic.js?v=1";
+import { balanceLine, showsCredits, webNote } from "./credit-packs-logic.js?v=2";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {
@@ -26,8 +26,9 @@ const QUOTA_TXT = (q, key, labels) => {
 const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos. Ohne Community und ohne StudiNow-KI.",
   // Plus gilt je Geraet (Entscheidung 04.11.2026): Notizen-Abgleich zwischen iPad, PC und Web erst mit Pro AI
-  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), Community, eigene Karteikarten und Wochentests.",
-  pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig, Notizen auf allen Geräten.",
+  // Plus (Entscheidung des Inhabers 15.11.2026): KI-Chat mit gekauften Credits; die KI-Lernhilfe bleibt Pro AI
+  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), Community, eigene Karteikarten und Wochentests. KI-Chat mit gekauften Credits.",
+  pro_ai: "Komfortabel: KI-Lernhilfe inklusive mit 100 Credits im Monat, weitere Credits zum Nachkaufen. Kein eigenes ChatGPT-Konto nötig, Notizen auf allen Geräten.",
 };
 
 // Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
@@ -92,7 +93,7 @@ export async function viewAbo(_, params, view) {
     const q = p.quotas;
     const facts = [
       p.entitlements.can_annotate_pdf ? `${icon("pen", 13)} PDF-Bearbeitung und Apple Pencil` : `${icon("book", 13)} PDFs lesen, keine Bearbeitung`,
-      p.credits ? `${icon("sparkles", 13)} ${p.credits} Credits für die StudiNow-KI pro Monat` : null,
+      p.credits ? `${icon("sparkles", 13)} ${p.credits} Credits für die StudiNow-KI pro Monat, weitere Credits zum Nachkaufen` : null,
       ...[QUOTA_TXT(q, "ai_tests_new", labels), QUOTA_TXT(q, "library_tests", labels), QUOTA_TXT(q, "ai_assist", labels)]
         .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die StudiNow-KI eingerichtet ist)` : t),
       labels.card_stacks_adopted ? QUOTA_TXT(q, "card_stacks_adopted", labels) : null,
