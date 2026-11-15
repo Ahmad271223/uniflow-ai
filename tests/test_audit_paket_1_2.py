@@ -497,7 +497,7 @@ def test_18_refund_twice_and_after_settle(hosted):
         def race(i):
             c = credits.connect()
             try:
-                return credits.settle(c, uid, "c", 27_000, now=T0) if i % 2 else credits.refund(c, uid, "c")
+                return credits.settle(c, uid, "c", 19_000, now=T0) if i % 2 else credits.refund(c, uid, "c")
             finally:
                 c.close()
         out = _threads(6, race)
