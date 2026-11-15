@@ -32,6 +32,11 @@ final class UniMailConnection: ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var finishedRuns = 0
     @Published private(set) var calendarMessage: String?
+    /// Die automatische Anmeldung mit dem gespeicherten Uni-Zugang hat nicht geklappt (15.11.2026): die Karte sagt dann
+    /// klar "bitte einmal von Hand anmelden" statt nur "nicht verbunden". Weg mit der naechsten Anmeldung.
+    @Published private(set) var autoConnectFailed = false
+    static let autoConnectFailedText = "Die automatische Anmeldung bei Uni-Mail hat nicht geklappt. Bitte melde dich einmal von Hand an – danach bleibt Uni-Mail verbunden."
+    static let notRecognizedText = "Die Anmeldung wurde noch nicht erkannt. Bitte melde dich oben auf der Seite an; danach schließt sich dieses Fenster von selbst."
     /// Zahl der Anfragen an .../send (Tests; nie mehr als Knopfdruecke)
     private(set) var sendCount = 0
 
@@ -129,6 +134,7 @@ final class UniMailConnection: ObservableObject {
         defaults.set(true, forKey: Keys.connected)
         defaults.set(u, forKey: Keys.user)
         user = u
+        autoConnectFailed = false
         set(.connected)
         let store = websiteDataStore
         UniAutoLogin.clearSignedOut(.sogo, store: store)       // angemeldet: die Abmelden-Sperre faellt
@@ -251,7 +257,30 @@ final class UniMailConnection: ObservableObject {
             found.user = u
             return true
         }
-        guard d == .retryOnce, signOuts == before, !isConnected, !stopped, let account = found.user else { return false }
+        guard d == .retryOnce, signOuts == before, !isConnected, !stopped, let account = found.user else {
+            if signOuts == before, !isConnected, !stopped { autoConnectFailed = true }
+            return false
+        }
+        signedIn(user: account)
+        return true
+    }
+
+    /// Schon bei SOGo angemeldet? (15.11.2026) Liegt im Datenspeicher der Webansicht eine gueltige SOGo-Sitzung (z. B.
+    /// der Mensch hat sich auf der Seite angemeldet, die App hat es aber nicht erkannt), leitet SOGo die Startseite auf
+    /// /SOGo/so/<benutzer>/… weiter: dann ist Uni-Mail verbunden, ohne Passwort und ohne Webansicht. Nur eine lesende
+    /// Anfrage an den SOGo-Rechner dieser Hochschule. `userAction`: der Mensch hat es eben verlangt ("Fertig" im
+    /// Anmeldefenster) - gilt auch nach einem frueheren bewussten Abmelden.
+    @discardableResult
+    func adoptExistingSession(userAction: Bool = false) async -> Bool {
+        guard !isConnected, !stopped else { return isConnected }
+        guard !DebugUniStub.isActive else { return false }       // Nachbildung der Anmeldeseite: nie ein echtes Netz
+        guard userAction || !UniAutoLogin.signedOut(.sogo, store: websiteDataStore) else { return false }
+        if await host.demoActive() { return false }
+        let before = signOuts
+        await UniWebSessions.ready(websiteDataStore)
+        let transport = await makeTransport(websiteDataStore)
+        guard let resp = try? await transport.send(UniRequest(url: site.loginURL)), signOuts == before, !isConnected, !stopped,
+              let account = SOGo.user(fromURL: resp.finalURL, site: site) else { return false }
         signedIn(user: account)
         return true
     }

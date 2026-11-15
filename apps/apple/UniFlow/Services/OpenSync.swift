@@ -120,7 +120,9 @@ extension ContainerManager {
         // angemeldete Pruefungen), PLuS-Bescheinigungen (nur die Liste) und Uni-Mail -, vorher mit dem gespeicherten
         // Uni-Zugang verbinden
         if let hildesheim, let c = active {
-            if OpenSync.running.contains(c.key) || hildesheim.isRunning { return .alreadyRunning }
+            // laeuft der Datei-Abgleich schon (z. B. der erste nach dem Verbinden, 25 Minuten am 15.11.2026), verbindet der
+            // Knopf trotzdem die uebrigen Portale (Uni-Mail) und wartet dann auf ihn - vorher nur "läuft bereits"
+            if OpenSync.running.contains(c.key) { return .alreadyRunning }
             let stored = hasStoredLogin
             let names = HildesheimConnection.Source.allCases.filter { stored || hildesheim.isConnected($0) }.map(\.rawValue)
                 + ((uniMail.map { stored || $0.isConnected } ?? false) ? [OpenSync.uniMail] : [])
@@ -236,6 +238,8 @@ extension ContainerManager {
         }
         guard active === c else { return report }
         let mail = uniMail
+        // eine schon vorhandene SOGo-Sitzung uebernehmen (ohne Passwort), bevor der Posteingang gelesen wird
+        if let mail, !mail.isConnected, OpenSync.allowed() { _ = await mail.adoptExistingSession() }
         async let m: Void = Self.syncMail(mail)
         async let h: Void = Self.syncHildesheim(hildesheim, forceGrades: userAction && forceGrades)
         _ = await (m, h)

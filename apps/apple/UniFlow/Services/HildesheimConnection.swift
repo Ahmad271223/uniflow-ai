@@ -101,6 +101,9 @@ final class HildesheimConnection: ObservableObject {
     private let retry: UniRetry
     /// nach einer Anmeldung sofort abgleichen (Tests schalten das ab)
     var syncsAfterSignIn = true
+    /// Nach einer Anmeldung bei Learnweb oder LSF (15.11.2026): der `ContainerManager` verbindet die Uni-Mail gleich
+    /// mit, ohne auf den Datei-Abgleich zu warten
+    var onSignedIn: (@MainActor () -> Void)?
     /// Hintergrundzeit von iOS fuer einen laufenden Abgleich (Tests: Attrappe)
     var backgroundTime: UFBackgroundTime = .system
     /// Daten mit Dateischutz lesbar (iPad entsperrt)? Nur der Hintergrund fragt (Learnweb-Schluessel, Tests: fest)
@@ -256,7 +259,12 @@ final class HildesheimConnection: ObservableObject {
         // eine Anmeldung fuer beide Dienste: dieselbe CAS-Sitzung verbindet den anderen gleich mit (ohne Eingabe);
         // waehrend `connectWithStoredLogin` verbindet dieses die Quellen nacheinander selbst (nie zwei Webansichten)
         if !connectingStored, let other = Source.allCases.first(where: { $0 != s && !isConnected($0) }), silentLoginAllowed {
-            Task { _ = await silentLogin(other) }
+            Task {
+                _ = await silentLogin(other)
+                onSignedIn?()                                  // danach (nie zwei unsichtbare Anmeldungen zugleich)
+            }
+        } else if !connectingStored {
+            onSignedIn?()
         }
         if isRunning {
             connectedDuringRun.insert(s)

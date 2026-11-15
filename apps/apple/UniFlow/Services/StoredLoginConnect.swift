@@ -54,6 +54,25 @@ extension ContainerManager {
         return r
     }
 
+    /// Uni-Mail gleich mitverbinden (15.11.2026, Befund vom iPad: die Uni-Mail kam erst nach dem Ende des 25 Minuten
+    /// langen ersten Datei-Abgleichs, weil nur der Abgleich aller Portale sie verband). Nach der Anmeldung bei Learnweb
+    /// oder LSF: erst eine vorhandene SOGo-Sitzung uebernehmen (ohne Passwort), sonst mit dem gespeicherten Uni-Zugang
+    /// anmelden (`UniMailConnection.connectWithStoredLogin`, genau ein Versuch, nie nach bewusstem Abmelden). Wartet
+    /// nie auf den Datei-Abgleich. Rueckgabe: Uni-Mail ist danach verbunden.
+    @discardableResult
+    func connectMailAfterSignIn(userAction: Bool = false) async -> Bool {
+        // nie automatisch unter XCTest oder mit Startargumenten fuer Bildvergleiche (`OpenSync.allowed`)
+        guard OpenSync.allowed(), let c = active, let mail = uniMail, problem == nil else { return false }
+        if mail.isConnected { return true }
+        if let running = storedLoginRun { _ = await running.value }
+        guard active === c, !mail.isConnected else { return mail.isConnected }
+        if await mail.adoptExistingSession() { return true }
+        let store = studip.websiteDataStore
+        guard UniAutoLogin.appActive, !UniAutoLogin.signedOut(.sogo, store: store), let e = UniAutoLogin.entry(store),
+              UniAutoLogin.resolvedCredential(.sogo, entry: e) != nil else { return false }
+        return await mail.connectWithStoredLogin(userAction: userAction)
+    }
+
     /// Stand eines Dienstes vor dem Verbinden
     private enum PortalStand { case connected, expired, notConnected }
 
