@@ -160,3 +160,21 @@ def test_older_order_is_suggested_for_an_earlier_start():
     assert sp.order_suggestion({"order_ack": "order:" + code}, code, "WiSe 24/25", "hildesheim") is None, "abgelehnt"
     assert sp.order_suggestion({"catalog_url": s["url"]}, code, "WiSe 24/25", "hildesheim") is None, "alte schon gewaehlt"
     assert sp.order_suggestion({}, "erziehungswissenschaft|b.a.|2023", "WiSe 20/21", "hildesheim") is None
+
+
+def test_informatik_teaching_subject_has_two_orders_and_the_older_one_comes_from_the_seed():
+    """Informatik im Zwei-Faecher-Bachelor (15.11.2026): Ordnung 2026 ab Studienbeginn WiSe 2026/27, davor die Ordnung
+    2016; der Vorschlag nennt den Link der alten Ordnung, und der ist ein Katalog des Grundstocks (kein PDF-Abruf)"""
+    new, old = (f"informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|{y}" for y in ("2026", "2016"))
+    s = sp.order_suggestion({}, new, "WiSe 2025/26", "hildesheim")
+    assert s and s["po"] == "2016" and s["program"] == "Informatik im Polyvalenten Zwei-Fächer-Bachelor" and s["since"] == "WiSe 2026/27"
+    assert sp.order_suggestion({}, new, "WiSe 2026/27", "hildesheim") is None, "ab dem Stichsemester gilt die neue"
+    assert sp.order_suggestion({}, new, "SoSe 2026", "hildesheim")["url"] == s["url"]
+    assert sp.order_suggestion({}, old, "WiSe 2020/21", "hildesheim") is None, "alte Ordnung gewaehlt: kein Vorschlag"
+    assert sp.order_suggestion({"catalog_url": s["url"]}, new, "WiSe 2025/26", "hildesheim") is None
+    reg = sc.load_registry()
+    assert sc.code_for_catalog_url(reg, "hildesheim", s["url"]) == old
+    seed = {c["code"]: c for c in sc.load_seed().values() if c["university"] == "hildesheim"}
+    assert len(seed[old]["modules"]) == 18 and len(seed[new]["modules"]) == 15
+    _, prog, _ = sc.program_entry(reg, "hildesheim", new)
+    assert {str(po["po"]) for po in prog["pos"]} == {"2016", "2026"}, "ein Studiengang, zwei Ordnungen"

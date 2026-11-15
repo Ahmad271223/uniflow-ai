@@ -279,7 +279,8 @@ def requests_line(crawl: Path) -> str:
 def report(items: list[dict], index: dict, problems: list[str], stats: dict, register: dict, crawl: Path | None = None) -> str:
     lines = [DOC_START, "## Grundstock (Modulkataloge in der App)", "",
              "Erzeugt von `tools/build-hildesheim-seed.py` aus dem Zwischenspeicher `~/Studora-Builds/hildesheim/crawl/`",
-             "(Leser in `app/catalog_formats/hildesheim.py`). Ressource `apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz`",
+             "(Leser in `app/catalog_formats/hildesheim.py` und `app/study_catalog_hildesheim_layout.py`). Ressource",
+             "`apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz`",
              "(gzip, nur geteilte Fakten), Verzeichnis `hildesheim-index.json`. Die App nimmt den Grundstock der Hochschule des",
              "Containers (`settings.university`).", ""]
     lines += ["| Fachbereich | Kataloge | Einträge | Module | Formate |", "|---|---:|---:|---:|---|"]

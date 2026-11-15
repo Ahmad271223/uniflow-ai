@@ -1,0 +1,503 @@
+{
+ "note": "erfunden; nur der Aufbau folgt den Studienordnungen (tools/gen-study-catalog-hildesheim-layout-fixture.py)",
+ "lines": [
+  {
+   "text": " Studiensemester                   Dauer des Moduls         Häufigkeit des Ange-            Status Modul",
+   "lines": [
+    [
+     [
+      1,
+      "Studiensemester"
+     ],
+     [
+      35,
+      "Dauer des Moduls"
+     ],
+     [
+      60,
+      "Häufigkeit des Ange-"
+     ],
+     [
+      92,
+      "Status Modul"
+     ]
+    ]
+   ],
+   "dumps": "[[[1, \"Studiensemester\"], [35, \"Dauer des Moduls\"], [60, \"Häufigkeit des Ange-\"], [92, \"Status Modul\"]]]"
+  },
+  {
+   "text": "  a b   c",
+   "lines": [
+    [
+     [
+      2,
+      "a b"
+     ],
+     [
+      8,
+      "c"
+     ]
+    ]
+   ],
+   "dumps": "[[[2, \"a b\"], [8, \"c\"]]]"
+  },
+  {
+   "text": "x",
+   "lines": [
+    [
+     [
+      0,
+      "x"
+     ]
+    ]
+   ],
+   "dumps": "[[[0, \"x\"]]]"
+  },
+  {
+   "text": "",
+   "lines": [],
+   "dumps": "[]"
+  },
+  {
+   "text": "     ",
+   "lines": [],
+   "dumps": "[]"
+  },
+  {
+   "text": "\tTab  und\tTab",
+   "lines": [
+    [
+     [
+      1,
+      "Tab"
+     ],
+     [
+      6,
+      "und Tab"
+     ]
+    ]
+   ],
+   "dumps": "[[[1, \"Tab\"], [6, \"und Tab\"]]]"
+  },
+  {
+   "text": " Schiﬀ  ﬂach  weit",
+   "lines": [
+    [
+     [
+      1,
+      "Schiff"
+     ],
+     [
+      9,
+      "flach"
+     ],
+     [
+      16,
+      "weit"
+     ]
+    ]
+   ],
+   "dumps": "[[[1, \"Schiff\"], [9, \"flach\"], [16, \"weit\"]]]"
+  },
+  {
+   "text": "Sil­ben  tren​nung",
+   "lines": [
+    [
+     [
+      0,
+      "Silben"
+     ],
+     [
+      8,
+      "trennung"
+     ]
+    ]
+   ],
+   "dumps": "[[[0, \"Silben\"], [8, \"trennung\"]]]"
+  },
+  {
+   "text": "eins\r\nzwei\fdrei  vier",
+   "lines": [
+    [
+     [
+      0,
+      "eins"
+     ]
+    ],
+    [
+     [
+      0,
+      "zwei"
+     ]
+    ],
+    [
+     [
+      0,
+      "drei"
+     ],
+     [
+      6,
+      "vier"
+     ]
+    ]
+   ],
+   "dumps": "[[[0, \"eins\"]], [[0, \"zwei\"]], [[0, \"drei\"], [6, \"vier\"]]]"
+  },
+  {
+   "text": "Verkündungsblatt der Universität Hildesheim - Heft 214 - Nr. 07 / 2026 (27.08.2026) - Seite 6 -",
+   "lines": [],
+   "dumps": "[]"
+  },
+  {
+   "text": "   Verkündungsblatt der Stiftung Universität Hildesheim – Heft 9 – Nr. 1 / 2031   – Seite 12 –",
+   "lines": [],
+   "dumps": "[]"
+  },
+  {
+   "text": "Verkündungsblatt der Universität Hildesheim erscheint  im Heft",
+   "lines": [
+    [
+     [
+      0,
+      "Verkündungsblatt der Universität Hildesheim erscheint"
+     ],
+     [
+      55,
+      "im Heft"
+     ]
+    ]
+   ],
+   "dumps": "[[[0, \"Verkündungsblatt der Universität Hildesheim erscheint\"], [55, \"im Heft\"]]]"
+  },
+  {
+   "text": "Ende mit Leerzeichen   ",
+   "lines": [
+    [
+     [
+      0,
+      "Ende mit Leerzeichen"
+     ]
+    ]
+   ],
+   "dumps": "[[[0, \"Ende mit Leerzeichen\"]]]"
+  }
+ ],
+ "join": [
+  {
+   "parts": [],
+   "text": ""
+  },
+  {
+   "parts": [
+    ""
+   ],
+   "text": ""
+  },
+  {
+   "parts": [
+    "Vortrag und Ausarbei-",
+    "tung oder Portfolio"
+   ],
+   "text": "Vortrag und Ausarbeitung oder Portfolio"
+  },
+  {
+   "parts": [
+    "Haupt-",
+    "und Realschulen"
+   ],
+   "text": "Haupt- und Realschulen"
+  },
+  {
+   "parts": [
+    "Web- und Daten-",
+    "banken-Praktikum"
+   ],
+   "text": "Web- und Datenbanken-Praktikum"
+  },
+  {
+   "parts": [
+    "Klausur oder mündliche",
+    "Prüfung"
+   ],
+   "text": "Klausur oder mündliche Prüfung"
+  },
+  {
+   "parts": [
+    "Poster mit Präsentation ) oder ( Werkstück",
+    "plus Reflexion ; mind. 1"
+   ],
+   "text": "Poster mit Präsentation) oder (Werkstück plus Reflexion; mind. 1"
+  },
+  {
+   "parts": [
+    "Unter-",
+    "Übertitelung"
+   ],
+   "text": "Unter- Übertitelung"
+  },
+  {
+   "parts": [
+    "E-",
+    "Klausur"
+   ],
+   "text": "E- Klausur"
+  },
+  {
+   "parts": [
+    "Teil-",
+    "sowie Vollzeit"
+   ],
+   "text": "Teil- sowie Vollzeit"
+  },
+  {
+   "parts": [
+    "TM1:",
+    "",
+    "Mündliche Prüfung"
+   ],
+   "text": "TM1: Mündliche Prüfung"
+  },
+  {
+   "parts": [
+    "Ände-",
+    "rung",
+    "en -",
+    "ökologisch"
+   ],
+   "text": "Änderung en ökologisch"
+  }
+ ],
+ "season": [
+  {
+   "text": "WiSe",
+   "turnus": "WS"
+  },
+  {
+   "text": "SoSe",
+   "turnus": "SS"
+  },
+  {
+   "text": "Beginn jeweils im WiSe",
+   "turnus": "WS"
+  },
+  {
+   "text": "jedes Semester",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "Jährlich: TM 1.1 & TM 1.2 im WS, TM 1.3 im SoSe",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "Jährlich: TM 2.1, TM 2.2, TM 2.3 im WS",
+   "turnus": "WS"
+  },
+  {
+   "text": "individuell",
+   "turnus": "unbekannt"
+  },
+  {
+   "text": "",
+   "turnus": "unbekannt"
+  },
+  {
+   "text": "Wintersemester und Sommersemester",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "jedem Semester",
+   "turnus": "WS+SS"
+  },
+  {
+   "text": "SS",
+   "turnus": "SS"
+  },
+  {
+   "text": "wissen",
+   "turnus": "unbekannt"
+  }
+ ],
+ "facts": [
+  {
+   "items": [],
+   "references": true,
+   "text": null
+  },
+  {
+   "items": [
+    [
+     "-"
+    ]
+   ],
+   "references": true,
+   "text": null
+  },
+  {
+   "items": [
+    [
+     "--- entfällt ---"
+    ]
+   ],
+   "references": true,
+   "text": null
+  },
+  {
+   "items": [
+    [
+     "Keine"
+    ],
+    [
+     "entfällt"
+    ]
+   ],
+   "references": true,
+   "text": null
+  },
+  {
+   "items": [
+    [
+     "TM1: Hausübungen"
+    ],
+    [
+     "TM2: Referat mit Hand-",
+     "out"
+    ]
+   ],
+   "references": false,
+   "text": "TM1: Hausübungen; TM2: Referat mit Handout"
+  },
+  {
+   "items": [
+    [
+     "s. RStO für die Masterstudiengänge,",
+     "Modulbeschreibung „Modul Praxisphase“"
+    ]
+   ],
+   "references": false,
+   "text": null
+  },
+  {
+   "items": [
+    [
+     "s. RStO für die Masterstudiengänge,",
+     "Modulbeschreibung „Modul Praxisphase“"
+    ]
+   ],
+   "references": true,
+   "text": "s. RStO für die Masterstudiengänge, Modulbeschreibung „Modul Praxisphase“"
+  },
+  {
+   "items": [
+    [
+     "siehe Rahmenstudienordnung"
+    ],
+    [
+     "Hausübungen ;"
+    ]
+   ],
+   "references": false,
+   "text": "Hausübungen"
+  },
+  {
+   "items": [
+    [
+     "Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht "
+    ]
+   ],
+   "references": true,
+   "text": "Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht Bericht…"
+  },
+  {
+   "items": [
+    [
+     "WortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWort"
+    ]
+   ],
+   "references": true,
+   "text": "WortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWortWor…"
+  },
+  {
+   "items": [
+    [
+     "Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl "
+    ],
+    [
+     "zweiter Eintrag"
+    ]
+   ],
+   "references": true,
+   "text": "Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre und Öl Ähre…"
+  }
+ ],
+ "detect": [
+  {
+   "name": "leer",
+   "pages": [],
+   "detect": {
+    "kuerzel": false,
+    "kennnummer": false
+   }
+  },
+  {
+   "name": "studienordnung inklusive modulhandbuch",
+   "pages": [
+    "Studienordnung inklusive Modulhandbuch für den Bachelor-Studiengang Beetkunde",
+    "Bezeichnung Modul 1: Hochbeet\nLeistungspunkte 6 LP"
+   ],
+   "detect": {
+    "kuerzel": false,
+    "kennnummer": false
+   }
+  },
+  {
+   "name": "titel ohne tabelle",
+   "pages": [
+    " GAR-B1: „Einführung in die Gartenkunde“\n Lehrinhalte          Beete"
+   ],
+   "detect": {
+    "kuerzel": false,
+    "kennnummer": false
+   }
+  },
+  {
+   "name": "titel mit tabelle",
+   "pages": [
+    " GAR-B1: „Einführung“\n Studiensemester                   Dauer des Moduls   Häufigkeit   Status Modul\n 1                                 1                  WiSe         Pflichtmodul"
+   ],
+   "detect": {
+    "kuerzel": true,
+    "kennnummer": false
+   }
+  },
+  {
+   "name": "kopf ohne titel",
+   "pages": [
+    " Kennnummer   Workload   Credits   Studiensemester\n              300 h      10        1. Sem."
+   ],
+   "detect": {
+    "kuerzel": false,
+    "kennnummer": false
+   }
+  },
+  {
+   "name": "kopf mit titel",
+   "pages": [
+    " TG 3 Wasserbau\n Kennnummer   Workload   Credits   Studiensemester\n              300 h      10        1. Sem."
+   ],
+   "detect": {
+    "kuerzel": false,
+    "kennnummer": true
+   }
+  },
+  {
+   "name": "titel zu weit ueber dem kopf",
+   "pages": [
+    " TG 3 Wasserbau\n eins\n zwei\n Kennnummer   Workload   Credits\n              300 h      10"
+   ],
+   "detect": {
+    "kuerzel": false,
+    "kennnummer": false
+   }
+  }
+ ]
+}

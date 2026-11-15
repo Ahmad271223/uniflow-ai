@@ -46,7 +46,10 @@ final class StudyProgramChangeTests: XCTestCase {
     func testProgramListMatchesPython() async throws {
         let s = StudySources.bundled
         let hi = s.programs(university: "hildesheim")
-        XCTAssertEqual(hi.count, 179, "115 Studiengaenge (mit Data Science, Englisch 2FB, Informatik 2FB 2016) und 64 Neben-/Begleitfaecher aus der LSF-Uebersicht")
+        XCTAssertEqual(hi.count, 180, "116 Studiengaenge (mit Data Science, Englisch 2FB, Informatik 2FB mit den Ordnungen 2016 und 2026, Informatik M.Ed.) und 64 Neben-/Begleitfaecher aus der LSF-Uebersicht")
+        let inf = try XCTUnwrap(hi.first { $0["program"]?.string == "Informatik im Polyvalenten Zwei-Fächer-Bachelor" })
+        XCTAssertEqual(Set((inf["pos"]?.array ?? []).compactMap { $0["code"]?.string }),
+                       ["informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016", "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"])
         XCTAssertEqual(hi.prefix(4).map { "\($0["program"]?.string ?? "") \($0["degree"]?.string ?? "")" },
                        ["Angewandte Informatik B.Sc.", "Angewandte Informatik M.Sc.", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Informationswissenschaften Nebenfach", "Bachelor Internationales Informationsmanagement mit dem Schwerpunkt Angewandte Sprachwissenschaften Nebenfach"])
         let sop = try XCTUnwrap(hi.first { $0["program"]?.string == "Sozialpädagogik" })
@@ -159,6 +162,14 @@ final class StudyProgramChangeTests: XCTestCase {
         s.orderAck = nil
         s.catalogURL = sug["url"]?.string
         XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: s, code: code, startTerm: "WiSe 24/25", university: "hildesheim"), .null)
+        // Informatik im Zwei-Faecher-Bachelor: Ordnung 2026 ab WiSe 2026/27, davor 2016 (Katalog aus dem Grundstock)
+        let inf = "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026"
+        let fresh = StudyPlanAPI.Settings(po: inf, startTerm: nil, electives: [])
+        let old = StudyPlanAPI.orderSuggestion(settings: fresh, code: inf, startTerm: "WiSe 2025/26", university: "hildesheim")
+        XCTAssertEqual(old["po"]?.string, "2016")
+        XCTAssertEqual(StudySources.bundled.code(forCatalogURL: old["url"]?.string, university: "hildesheim"),
+                       "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016")
+        XCTAssertEqual(StudyPlanAPI.orderSuggestion(settings: fresh, code: inf, startTerm: "WiSe 2026/27", university: "hildesheim"), .null)
     }
 }
 

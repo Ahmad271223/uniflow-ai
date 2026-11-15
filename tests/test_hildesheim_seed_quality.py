@@ -40,7 +40,7 @@ def _catalogs():
 def test_every_seed_catalog_loads_maps_and_shows_modules_with_lp():
     reg = sc.load_registry()
     cats = _catalogs()
-    assert len(cats) >= 108
+    assert len(cats) >= 111
     problems, no_lp, only_choice = [], {}, set()
     for c in cats:
         code = c.get("code")
@@ -77,7 +77,7 @@ def test_every_register_entry_is_findable_and_selectable(app, tmp_path, monkeypa
     without = [p for p in progs if not p["pos"]]
     minors = [p for p in without if p.get("kind") == "nebenfach"]
     assert len(minors) == 64, "Neben-/Begleitfaecher aus der LSF-Uebersicht"
-    assert len(without) - len(minors) == 11, [p["program"] for p in without if p.get("kind") != "nebenfach"]
+    assert len(without) - len(minors) == 10, [p["program"] for p in without if p.get("kind") != "nebenfach"]
     for p in progs:
         assert sc.program_matches(p, p["program"]), p["program"]
         key = p["pos"][0]["code"] if p["pos"] else p["id"]

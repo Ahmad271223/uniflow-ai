@@ -5349,7 +5349,28 @@ enum StudySourcesData {
      "total_lp": 120,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669",
      "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
-     "pos": []
+     "pos": [
+      {
+       "po": "2019",
+       "code": "barrierefreie-kommunikation|m.a.|2019",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2024"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
+       "format": "hildesheim-kennnummer-tabelle",
+       "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5176"
+      }
+     ],
+     "lsf": {
+      "nummer": 863,
+      "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&act=stg&pool=stg&P.subc=plan&k_abstgv.abstgvnr=863&idcol=k_abstgv.abstgvnr&idval=863&purge=n&getglobal=n",
+      "text": "M.A. Barrierefreie Kommunikation"
+     },
+     "lsf_names": [
+      "M.A. Barrierefreie Kommunikation"
+     ]
     },
     {
      "id": "data-analytics-m-sc",
@@ -7790,6 +7811,32 @@ enum StudySourcesData {
      ]
     },
     {
+     "id": "informatik-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Informatik im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Informatik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "informatik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informatik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-kuerzel-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/zsb/Uni_Hildesheim_Webseite/Studienangebot/Masterstudium/lehramt/2_2026-08-27_Heft_214_StO-Informatik-MEd-so.pdf"
+      }
+     ]
+    },
+    {
      "id": "informatik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
      "program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor",
      "degree": "B.A./B.Sc.",
@@ -7812,6 +7859,18 @@ enum StudySourcesData {
        "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2016",
        "format": "hildesheim-modultabelle",
        "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/Lehramt_Informatik/Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf"
+      },
+      {
+       "po": "2026",
+       "code": "informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informatik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "format": "hildesheim-kuerzel-modultabelle",
+       "url": "https://www.uni-hildesheim.de/media/zsb/Uni_Hildesheim_Webseite/Studienangebot/Bachelorstudium/p2fb_lehramt/1_2026-08-27_Heft_214_StO-Informatik-2FB-so.pdf"
       }
      ]
     },

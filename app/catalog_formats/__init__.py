@@ -22,6 +22,9 @@ FORMATS["hildesheim-modulbeschreibung"] = "app.catalog_formats.hildesheim:parse_
 FORMATS["hildesheim-it-modulhandbuch"] = "app.catalog_formats.hildesheim:parse_it"
 # Seitentexte im Layout-Modus (app.catalog_formats.hildesheim.layout_pages), nicht pdf_pages
 FORMATS["hildesheim-modultabelle"] = "app.catalog_formats.hildesheim:parse_modultabelle"
+# Tabellen-Leser mit Swift-Gegenstueck (app/study_catalog_hildesheim_layout.py), ebenfalls Layout-Modus
+FORMATS["hildesheim-kuerzel-modultabelle"] = "app.study_catalog_hildesheim_layout:parse_kuerzel_modultabelle"
+FORMATS["hildesheim-kennnummer-tabelle"] = "app.study_catalog_hildesheim_layout:parse_kennnummer_tabelle"
 
 
 def get_parser(name: str):

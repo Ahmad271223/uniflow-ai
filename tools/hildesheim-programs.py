@@ -515,6 +515,18 @@ MEDIA = {
                           "Studienordnung_2-F-Bachelor-B.Sc-Informatik.pdf", "date": "2016-05-20", "format": "hildesheim-modultabelle",
                    "title": "Studienordnung für das Fach Informatik, Polyvalente Zwei-Fächer-Bachelor-Studiengänge (B.A./B.Sc.), "
                             "Redaktioneller Stand 20.05.2016"},
+    # Fach Informatik im Lehramt, Ordnungen vom 27.08.2026 (Heft 214; im Verkuendungsblatt liegen unter fileID 5349/5354
+    # nur die Paragrafen ohne Anlagen): vollstaendig auf den Seiten der Studienberatung
+    "inf2fb2026": {"url": "https://www.uni-hildesheim.de/media/zsb/Uni_Hildesheim_Webseite/Studienangebot/Bachelorstudium/"
+                          "p2fb_lehramt/1_2026-08-27_Heft_214_StO-Informatik-2FB-so.pdf", "date": "2026-08-27",
+                   "format": "hildesheim-kuerzel-modultabelle",
+                   "title": "Studienordnung für das Fach Informatik, Polyvalente Zwei-Fächer-Bachelor-Studiengänge (B.A./B.Sc.), "
+                            "Verkündungsblatt Heft 214 vom 27.08.2026"},
+    "infmed2026": {"url": "https://www.uni-hildesheim.de/media/zsb/Uni_Hildesheim_Webseite/Studienangebot/Masterstudium/"
+                          "lehramt/2_2026-08-27_Heft_214_StO-Informatik-MEd-so.pdf", "date": "2026-08-27",
+                   "format": "hildesheim-kuerzel-modultabelle",
+                   "title": "Studienordnung für das Fach Informatik, Master-Studiengang „Lehramt an Haupt- und Realschulen“ (M.Ed.), "
+                            "Verkündungsblatt Heft 214 vom 27.08.2026"},
     "ewma": {"url": "https://www.uni-hildesheim.de/media/fb1/erziehungswissenschaft_allg/Info_zum_Studiengang_Erziehungswissenschaft/"
                     "Modulhandbuch_fuer_den_Master.pdf", "date": "2022-08-18", "format": "hildesheim-modultabelle",
              "title": "Modulhandbuch für den Masterstudiengang Erziehungswissenschaft mit den Schwerpunkten "
@@ -532,8 +544,17 @@ MEDIA_ONLY = [
              "nicht im Studienangebot"},
     {"program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor", "degree": "B.A./B.Sc.", "kind": "fach", "po": "2016",
      "po_study": 25, "parent": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang", "media": ["inf2fb2016"], "listed": True,
-     "note": "Ordnung 2016, gilt für Studienbeginn vor dem 01.10.2026 (§ 5 der Ordnung von 2026); die Ordnung 2026 "
-             "(Verkündungsblatt Heft 214) liest der Leser noch nicht"},
+     "note": "Ordnung 2016, gilt für Studienbeginn vor dem 01.10.2026 (§ 5 der Ordnung von 2026, Leistungen danach bis "
+             "30.09.2030); für späteren Beginn gilt die Ordnung 2026"},
+    {"program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor", "degree": "B.A./B.Sc.", "kind": "fach", "po": "2026",
+     "po_study": 25, "parent": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang", "media": ["inf2fb2026"], "listed": True,
+     "note": "Ordnung 2026 (Verkündungsblatt Heft 214), gilt erstmals für Studienbeginn im Wintersemester 2026/27; wer "
+             "vorher begonnen hat, studiert nach der Ordnung 2016 weiter (Wechsel auf schriftliche Erklärung möglich). Pflicht "
+             "sind hier nur die Module, die in jeder Studienvariante Pflicht sind (Anlage 1)"},
+    {"program": "Informatik im Master Lehramt an Haupt- und Realschulen", "degree": "M.Ed.", "kind": "fach", "po": "2026",
+     "po_study": 50, "parent": "Master Lehramt an Haupt- und Realschulen", "media": ["infmed2026"], "listed": True,
+     "note": "Ordnung 2026 (Verkündungsblatt Heft 214), gilt erstmals für Studienbeginn im Wintersemester 2026/27; das Fach "
+             "umfasst 10 LP (INF-M1, INF-M2), dazu die Module der Rahmenstudienordnung (Praxisphase, Projektband, Mastermodul)"},
 ]
 
 
@@ -680,11 +701,9 @@ def _po_year(pos: list[dict], fallback: str | None = None) -> str | None:
 MIN_MODULES = 3      # weniger gelesene Module: Bruchstuecke einer anderen Vorlage, kein Katalog
 # Register-Eintraege, deren Katalog der Leser nur als Bruchstuecke liest (geprueft 14.11.2026): lieber "kein Katalog"
 # mit Grund als falsche Module im Studienverlauf
-CATALOG_HOLD = {
-    "hildesheim|barrierefreie-kommunikation|m.a.|2019":
-        "Modulbeschreibungen im Format „Kennnummer | Workload | Credits“ liest der Leser noch nicht; er fand nur drei "
-        "Querverweise („Modul 7.2 geöffnet für …“) statt der 11 Module",
-}
+CATALOG_HOLD: dict[str, str] = {}      # 15.11.2026: Barrierefreie Kommunikation liest jetzt hildesheim-kennnummer-tabelle
+# weitere Tabellen-Vorlagen (app/study_catalog_hildesheim_layout.py): gelten, wenn ihr Leser mehr Module findet
+TABLE_FORMATS = ("hildesheim-kennnummer-tabelle", "hildesheim-kuerzel-modultabelle")
 
 
 def _catalog_of(r: dict | None, fmt: str, degree: str, usage: str | None = None, label: str | None = None) -> dict:
@@ -697,6 +716,10 @@ def _catalog_of(r: dict | None, fmt: str, degree: str, usage: str | None = None,
         alt = parsed(r["file_id"], "hildesheim-modultabelle", degree)
         if alt and alt["modules"] > (info or {}).get("modules", 0) * 1.2 + 1:
             fmt, info = "hildesheim-modultabelle", alt
+        for other in TABLE_FORMATS:
+            alt = parsed(r["file_id"], other, degree)
+            if alt and alt["modules"] >= MIN_MODULES and alt["modules"] > (info or {}).get("modules", 0):
+                fmt, info = other, alt
     if not info or info["modules"] < MIN_MODULES:
         n = (info or {}).get("modules", 0)
         reason = (f"Studienordnung ({(info or {}).get('pages', '?')} Seiten) ohne lesbare Modulbeschreibungen"
@@ -928,6 +951,13 @@ def build_register() -> dict:
                                        "zweispaltige Tabelle (Layout-Modus): Kennzeichnung, Workload 'x SWS / y LP', "
                                        "Leistungsnachweise Studium/Pruefung, Praesenz des Moduls im Studienangebot; FB 3 "
                                        "mit Kopfzeile Studiensemester | Dauer | Haeufigkeit | Status",
+            "hildesheim-kuerzel-modultabelle": "Studienordnungen des Fachs Informatik im Lehramt ab 2026 (Layout-Modus): "
+                                               "Titelzeile 'INF-B1: „Titel“', Kopfzeile Studiensemester | Dauer | Haeufigkeit | "
+                                               "Status, LP in der letzten Spalte von Lehr-/Lernformen; Pflicht nur, wenn in "
+                                               "jeder Studienvariante der Anlage 1 Pflichtmodul",
+            "hildesheim-kennnummer-tabelle": "Modulhandbuch Barrierefreie Kommunikation (Layout-Modus): Titelzeile 'BK 1 Titel', "
+                                             "Kopfzeile Kennnummer | Workload | Credits | Studiensemester | Haeufigkeit | Dauer, "
+                                             "nummerierte Zeilen 1 Lehrveranstaltungen bis 11 Sonstige Informationen",
             "none": "keine Modulbeschreibungen im Verkuendungsblatt gefunden bzw. lesbar"},
         "programs": programs,
     }
