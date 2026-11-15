@@ -22,6 +22,7 @@
         "allowance": { "type": "integer", "minimum": 0 }, "used": { "type": "integer", "minimum": 0 },
         "reserved": { "type": "integer", "minimum": 0 }, "remaining": { "type": "integer", "minimum": 0 },
         "purchased": { "type": "integer", "minimum": 0 }, "purchased_usable": { "type": "boolean" },
+        "purchased_scope": { "enum": ["all", "chat", "none"] },
         "available": { "type": "integer", "minimum": 0 }, "can_buy": { "type": "boolean" }
       }
     }

@@ -122,9 +122,11 @@ def consume(request: Request, feature: str, request_id: str, once: bool = False)
         r = billing.consume(conn, user["id"], feature, request_id, legacy=_legacy(user))
     finally:
         conn.close()
-    if not r.ok and feature in PURCHASED_CREDITS_FEATURES and _has_purchased_credits(user["id"]):
+    if not r.ok and feature in PURCHASED_CREDITS_FEATURES and (r.limit == 0 or _has_purchased_credits(user["id"])):
         # Gekaufte Credits (15.11.2026): das Monatskontingent der KI-Anfragen sperrt sie nicht. Die Anfrage zaehlt nicht
         # mehr mit; bezahlt wird sie aus den Credits (app/credits.py), das Rate-Limit je Minute und Stunde gilt weiter.
+        # Tarif ohne dieses Kontingent (Plus mit dem KI-Chat, Recht der Route schon geprueft): allein die Credits
+        # entscheiden - ohne Credits antwortet der Dienst 429 credits_exhausted (die App zeigt dann die Pakete).
         return billing.ConsumeResult(ok=True, used=r.used, limit=r.limit, period=r.period)
     if not r.ok:
         label = plans.QUOTA_LABELS.get(feature, feature)

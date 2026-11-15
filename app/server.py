@@ -1558,8 +1558,10 @@ def page_text(file_id: str, page: int = 1):
 # KI-Tutor im Editor und Karteikarten
 # ----------------------------------------------------------------------------
 
+# "ask" ist der KI-Chat (15.11.2026, plans.CREDIT_PACKS chat_purposes): ab Plus, dort allein aus gekauften Credits
 TUTOR_ENTITLEMENT = {"summary": "can_use_ai_summaries", "flashcards": "can_use_ai_generated_questions",
-                     "similar": "can_use_ai_generated_questions", "terms": "can_use_ai_explanations"}
+                     "similar": "can_use_ai_generated_questions", "terms": "can_use_ai_explanations",
+                     "ask": "can_use_ai_chat"}
 
 
 @app.post("/api/ai/tutor")

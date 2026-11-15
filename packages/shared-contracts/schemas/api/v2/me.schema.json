@@ -43,6 +43,7 @@
         "credit_eur": { "type": "number", "minimum": 0 },
         "purchased": { "type": "integer", "minimum": 0 },
         "purchased_usable": { "type": "boolean" },
+        "purchased_scope": { "description": "wofuer gekaufte Credits gelten: all (KI-Lernhilfe im Tarif: Pro AI, Probe), chat (Plus: nur der KI-Chat, Aufgabe tutor:ask), none (Free: sie ruhen)", "enum": ["all", "chat", "none"] },
         "available": { "type": "integer", "minimum": 0 },
         "can_buy": { "type": "boolean" }
       }
@@ -61,7 +62,7 @@
     },
     "entitlements": {
       "type": "object",
-      "required": ["can_view_pdf", "can_annotate_pdf", "can_use_pencilkit", "can_sync_annotations", "can_write_community_comments",
+      "required": ["can_view_pdf", "can_annotate_pdf", "can_use_pencilkit", "can_sync_annotations", "can_write_community_comments", "can_use_ai_chat",
                    "can_share_solutions", "can_use_advanced_planner", "can_use_advanced_analytics", "can_access_shared_tests",
                    "can_generate_studora_ai_tests", "chatgpt_connection_premium"],
       "additionalProperties": { "type": "boolean" }

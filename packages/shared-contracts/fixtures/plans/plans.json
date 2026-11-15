@@ -36,6 +36,7 @@
     "can_generate_studora_ai_tests": false,
     "can_use_flashcards": false,
     "can_use_due_reminders": false,
+    "can_use_ai_chat": false,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -81,6 +82,7 @@
     "can_generate_studora_ai_tests": true,
     "can_use_flashcards": true,
     "can_use_due_reminders": true,
+    "can_use_ai_chat": true,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -126,6 +128,7 @@
     "can_generate_studora_ai_tests": true,
     "can_use_flashcards": true,
     "can_use_due_reminders": true,
+    "can_use_ai_chat": true,
     "can_use_advanced_analytics": true,
     "can_use_advanced_planner": true,
     "can_review_wrong_answers": true,
@@ -224,6 +227,11 @@
    "label": "Erinnerungen an Abgaben und Klausuren",
    "status": "available"
   },
+  "can_use_ai_chat": {
+   "from": "plus",
+   "label": "KI-Chat mit gekauften Credits (Fragen an die KI)",
+   "status": "available"
+  },
   "can_use_advanced_analytics": {
    "from": "pro_ai",
    "label": "Lernstatistik über alle Module",
@@ -317,10 +325,15 @@
    }
   ],
   "buy_plans": [
+   "plus",
    "pro_ai"
   ],
   "buy_in_trial": false,
-  "use_right": "can_use_ai_explanations"
+  "use_right": "can_use_ai_explanations",
+  "chat_right": "can_use_ai_chat",
+  "chat_purposes": [
+   "tutor:ask"
+  ]
  },
  "integrations": {
   "chatgpt": {

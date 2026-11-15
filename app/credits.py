@@ -25,8 +25,9 @@ Regeln:
 Zwei Toepfe je Konto (Auftrag des Inhabers 15.11.2026, docs/KI-CREDITS-2026-11-15.md):
 - Monats-Credits (`credit_months`, wie oben): jeden Monat neu bis zum Rahmen des Tarifs, der Rest verfaellt.
 - Gekaufte Credits (`credit_wallets` = Stand je Konto, `credit_purchases` = jeder Kauf): verfallen nie, bleiben ueber
-  Monatswechsel, Tarifwechsel und Probe-Ende. Nutzbar, solange der Tarif die StudiNow-KI hat
-  (`plans.can_use_purchased_credits`); sonst ruhen sie. Wer kaufen darf: `plans.can_buy_credits` (die eine Stelle).
+  Monatswechsel, Tarifwechsel und Probe-Ende. Wofuer sie gelten, haengt am Tarif (`plans.purchased_credits_scope`):
+  mit der KI-Lernhilfe (Pro AI, Probe) fuer alles, mit Plus nur fuer den KI-Chat (`reserve` nimmt sie dort nur fuer
+  die Aufgaben aus `plans.CREDIT_PACKS["chat_purposes"]`), mit Free ruhen sie. Wer kaufen darf: `plans.can_buy_credits`.
 - Verbrauch: zuerst der Rest des Monats, erst danach die gekauften (`reserve` teilt die Reservierung so auf, `settle`
   rechnet in derselben Reihenfolge ab; aeltester Kauf zuerst). Mehr als Monats-Credits + gekaufte Credits geht nie.
 - Ein Kauf wird genau einmal verbucht (`grant_purchase`: Quelle + Transaktions-ID sind der Schluessel, wiederholbar).
@@ -34,7 +35,8 @@ Zwei Toepfe je Konto (Auftrag des Inhabers 15.11.2026, docs/KI-CREDITS-2026-11-1
 - Der Teil der Kosten, den gekaufte Credits bezahlen, zaehlt nicht gegen das Monats-Budget des Kontos
   (`credit_ledger.purchased_microeur` -> `ai_usage_log.purchased_microeur`, app/ai_backend.py).
 - Die bisherigen Felder des Stands (`allowance`, `used`, `reserved`, `remaining`) bleiben die Monats-Credits; neu und
-  zusaetzlich: `purchased`, `purchased_usable`, `available`, `can_buy` (alte Apps lesen sie nicht).
+  zusaetzlich: `purchased`, `purchased_usable`, `purchased_scope` (all | chat | none), `available`, `can_buy` (alte Apps
+  lesen sie nicht).
 
 Tabellen in accounts.db (neben ai_usage_log): credit_months (Monatsstand je Konto), credit_ledger (jede Anfrage mit
 Modell, Tokens, Kosten), credit_wallets und credit_purchases (gekaufte Credits). Die Kostenansicht des Betriebs
@@ -52,6 +54,8 @@ from . import ai_prices, billing, db, plans
 
 TZ = ZoneInfo("Europe/Berlin")
 EXHAUSTED_MESSAGE = "Credits für diesen Monat aufgebraucht – am 1. gibt es neue."
+# Plus mit dem KI-Chat (15.11.2026): keine Monats-Credits, am 1. kommt nichts Neues - es helfen nur gekaufte Credits
+EXHAUSTED_NO_MONTHLY_MESSAGE = "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad."
 # Tarif -> Umgebungsvariable und Standard aus dem Vertrag (plans.CREDITS: 100 fuer Pro AI, sonst 0, Probe 25)
 ALLOWANCE_ENV = {"pro_ai": ("LERNAPP_CREDITS_PRO_AI", plans.CREDITS["pro_ai"]),
                  "plus": ("LERNAPP_CREDITS_PLUS", plans.CREDITS["plus"]), "free": ("LERNAPP_CREDITS_FREE", plans.CREDITS["free"])}
@@ -234,8 +238,9 @@ def _wallet(conn: sqlite3.Connection, user_id: str, state: dict | None = None) -
     r = conn.execute("SELECT balance, reserved FROM credit_wallets WHERE user_id=?", (user_id,)).fetchone()
     bal, res = (int(r[0]), int(r[1])) if r else (0, 0)
     plan, trial = (state or {}).get("plan"), bool((state or {}).get("trial"))
-    return {"balance": bal, "reserved": res, "free": max(0, bal - res),
-            "usable": plans.can_use_purchased_credits(plan), "can_buy": plans.can_buy_credits(plan, trial)}
+    scope = plans.purchased_credits_scope(plan)
+    return {"balance": bal, "reserved": res, "free": max(0, bal - res), "plan": plan, "scope": scope,
+            "usable": scope != "none", "can_buy": plans.can_buy_credits(plan, trial)}
 
 
 def _balance_dict(row, now: datetime, wallet: dict | None = None) -> dict:
@@ -243,12 +248,14 @@ def _balance_dict(row, now: datetime, wallet: dict | None = None) -> dict:
     bleiben unveraendert; dazu der gekaufte Topf: `purchased` (frei), `purchased_usable`, `available` (Rest des Monats +
     nutzbare gekaufte) und `can_buy`."""
     allow, used, reserved, plan = row
-    w = wallet or {"free": 0, "usable": False, "can_buy": False}
+    w = wallet or {"free": 0, "usable": False, "can_buy": False, "scope": "none"}
     remaining = max(0, allow - used - reserved)
     return {"period": period_of(now), "allowance": allow, "used": used, "reserved": reserved,
             "remaining": remaining, "plan": plan, "resets_at": resets_at(now),
             "credit_eur": ai_prices.MICROEUR_PER_CREDIT / 1_000_000,
             "purchased": w["free"], "purchased_usable": bool(w["usable"]),
+            # wofuer die gekauften Credits gelten: all (KI-Lernhilfe im Tarif), chat (Plus: nur der KI-Chat), none (ruhen)
+            "purchased_scope": w.get("scope") or ("all" if w["usable"] else "none"),
             "available": remaining + (w["free"] if w["usable"] else 0), "can_buy": bool(w["can_buy"])}
 
 
@@ -342,10 +349,13 @@ def reserve(conn: sqlite3.Connection, user_id: str, request_id: str, purpose: st
             return Reservation(request_id, 0, replay=True, result=old[1], charged=old[2], balance=_balance_dict(row, t, wallet))
         allow, used, reserved, _plan = row
         month_free = 0 if purchased_only else max(0, allow - used - reserved)
-        bought_free = wallet["free"] if wallet["usable"] else 0
+        # gekaufte Credits nur fuer Aufgaben, fuer die sie mit diesem Tarif gelten (Plus: nur der KI-Chat)
+        bought_free = wallet["free"] if plans.can_use_purchased_credits(wallet["plan"], purpose) else 0
         if estimate > month_free + bought_free:
             conn.execute("COMMIT")
-            raise CreditsError("credits_exhausted", EXHAUSTED_MESSAGE, 429,
+            # Plus (nur KI-Chat, keine Monats-Credits): dort kommt am 1. nichts Neues - ehrlicher Text
+            message = EXHAUSTED_NO_MONTHLY_MESSAGE if allow <= 0 and wallet["scope"] == "chat" else EXHAUSTED_MESSAGE
+            raise CreditsError("credits_exhausted", message, 429,
                                {"credits": {**_balance_dict(row, t, wallet), "needed": estimate}})
         from_month = min(estimate, month_free)              # zuerst die Monats-Credits
         from_bought = estimate - from_month                 # erst danach die gekauften

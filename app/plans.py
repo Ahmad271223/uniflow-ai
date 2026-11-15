@@ -92,6 +92,11 @@ ENTITLEMENTS: dict[str, dict] = {
     # Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen 3 Tage, 1 Tag und am Morgen vorher) ab Plus
     # (Entscheidung des Inhabers 11.11.2026, vorher in jedem Tarif). Die Fristen-Liste selbst bleibt in Free sichtbar.
     "can_use_due_reminders": {"from": "plus", "label": "Erinnerungen an Abgaben und Klausuren", "status": "available"},
+    # KI-Chat (Entscheidung des Inhabers 15.11.2026: "pro ai und plus können kaufen aber plus sollen ki nur chat benutzen
+    # können ohne ki lernhilfe"): die freie Frage an die KI in der KI-Hilfe (Aufgabe `tutor:ask`, CREDIT_PACKS
+    # `chat_purposes`). Plus hat keine Monats-Credits: der Chat laeuft dort allein aus gekauften Credits. Alles andere
+    # (Erklaeren, Karteikarten, Tests, Lernplan, Zusammenfassungen, KI-Mail) bleibt KI-Lernhilfe ab Pro AI.
+    "can_use_ai_chat": {"from": "plus", "label": "KI-Chat mit gekauften Credits (Fragen an die KI)", "status": "available"},
     # Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect). Die Endpunkte /api/learning/* gibt es,
     # eine Oberflaeche dafuer noch nicht (Web und iPad): darum coming_soon, nie als enthalten beworben.
     "can_use_advanced_analytics": {"from": "pro_ai", "label": "Lernstatistik über alle Module", "status": "coming_soon"},
@@ -146,19 +151,24 @@ CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
 #   andere Groesse kein neues Produkt braucht; der Betrieb kann sie mit LERNAPP_CREDIT_PACKS aendern
 #   (z. B. "de.uniflow.credits.gross=185"). Die App zeigt die Zahl vom Dienst und den Preis aus StoreKit;
 #   `price_cents` ist nur der Listenpreis fuer Vertrag, Tests und die Rechnung.
-# - `buy_plans` / `buy_in_trial`: die EINE Stelle fuer "wer darf kaufen" (Vorgabe: nur bezahltes Pro AI). Sollen spaeter
-#   auch Plus oder Free kaufen duerfen, hier eintragen; der Dienst meldet es als `credits.can_buy`.
-# - `use_right`: gekaufte Credits sind nutzbar, solange der Tarif dieses Recht hat (StudiNow-KI: Pro AI, Probe); sonst
-#   ruhen sie beim Konto.
+# - `buy_plans` / `buy_in_trial`: die EINE Stelle fuer "wer darf kaufen" (Entscheidung des Inhabers 15.11.2026: bezahltes
+#   Plus und Pro AI; Free nicht; in der Probe allein nicht). Der Dienst meldet es als `credits.can_buy`.
+# - `use_right`: mit diesem Recht (KI-Lernhilfe: Pro AI, Probe) gelten gekaufte Credits fuer ALLES.
+# - `chat_right` / `chat_purposes`: mit diesem Recht (ab Plus) gelten gekaufte Credits NUR fuer den KI-Chat, also nur fuer
+#   die hier genannten Aufgaben. Das prueft der Dienst zweimal: am Recht der Route (app/server.py TUTOR_ENTITLEMENT,
+#   app/ai_relay.py TUTOR_RIGHT) und beim Reservieren der Credits (app/credits.py) - ueber keine andere KI-Route kann
+#   ein Plus-Konto Credits ausgeben. Ohne beide Rechte (Free) ruhen gekaufte Credits beim Konto.
 CREDIT_PACKS: dict = {
     "packs": {
         "de.uniflow.credits.klein": {"credits": 100, "price_cents": 199},
         "de.uniflow.credits.gross": {"credits": 200, "price_cents": 399},
     },
     "currency": "EUR",
-    "buy_plans": ("pro_ai",),
+    "buy_plans": ("plus", "pro_ai"),
     "buy_in_trial": False,
     "use_right": "can_use_ai_explanations",
+    "chat_right": "can_use_ai_chat",
+    "chat_purposes": ("tutor:ask",),
 }
 
 # Integrationen, die nicht am Tarif haengen duerfen, bis die Bedingungen des Anbieters es erlauben
@@ -259,9 +269,27 @@ def can_buy_credits(plan: str | None, trial_only: bool = False) -> bool:
     return CREDIT_PACKS["buy_in_trial"] or not trial_only
 
 
-def can_use_purchased_credits(plan: str | None) -> bool:
-    """Sind gekaufte Credits mit diesem Tarif nutzbar (StudiNow-KI im Tarif, auch in der Probe)? Sonst ruhen sie."""
-    return has(LEGACY_PLANS.get(plan or "", plan) or "", CREDIT_PACKS["use_right"])
+def purchased_credits_scope(plan: str | None) -> str:
+    """Wofuer gelten gekaufte Credits mit diesem Tarif? "all" (KI-Lernhilfe im Tarif: Pro AI, Probe), "chat" (nur der
+    KI-Chat: Plus) oder "none" (Free: sie ruhen beim Konto)."""
+    p = LEGACY_PLANS.get(plan or "", plan) or ""
+    if has(p, CREDIT_PACKS["use_right"]):
+        return "all"
+    return "chat" if has(p, CREDIT_PACKS["chat_right"]) else "none"
+
+
+def is_chat_purpose(purpose: str | None) -> bool:
+    """Ist diese KI-Aufgabe der KI-Chat (die freie Frage)? Nur dafuer gelten gekaufte Credits bei Plus."""
+    return (purpose or "") in CREDIT_PACKS["chat_purposes"]
+
+
+def can_use_purchased_credits(plan: str | None, purpose: str | None = None) -> bool:
+    """Sind gekaufte Credits mit diesem Tarif nutzbar? Ohne `purpose`: ueberhaupt (Pro AI, Probe, Plus). Mit `purpose`
+    (Aufgabe der Anfrage, z. B. "tutor:ask"): fuer genau diese Aufgabe - bei Plus nur der KI-Chat."""
+    scope = purchased_credits_scope(plan)
+    if scope == "all":
+        return True
+    return scope == "chat" and (purpose is None or is_chat_purpose(purpose))
 
 
 # Probe fuer jedes neue Konto (Entscheidung 30.10.2026, iPad 04.11.2026): 7 Tage alles wie Pro AI mit CREDITS["trial"]
@@ -281,7 +309,8 @@ def contract() -> dict:
         "quotas": {"labels": QUOTA_LABELS, "fair_use": FAIR_USE},
         "credits": dict(CREDITS),
         "credit_packs": {"packs": credit_packs(), "buy_plans": list(CREDIT_PACKS["buy_plans"]),
-                         "buy_in_trial": CREDIT_PACKS["buy_in_trial"], "use_right": CREDIT_PACKS["use_right"]},
+                         "buy_in_trial": CREDIT_PACKS["buy_in_trial"], "use_right": CREDIT_PACKS["use_right"],
+                         "chat_right": CREDIT_PACKS["chat_right"], "chat_purposes": list(CREDIT_PACKS["chat_purposes"])},
         "integrations": {k: {"status": v["status"], "reason": v["reason"], "plan_gating_allowed": v["plan_gating_allowed"]}
                          for k, v in INTEGRATIONS.items()},
     }
