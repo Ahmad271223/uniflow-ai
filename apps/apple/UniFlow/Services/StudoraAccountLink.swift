@@ -262,6 +262,18 @@ final class StudoraAccountLink: ObservableObject {
         if await syncNow(force: true) { onRemoteChanges?() }
     }
 
+    /// Vor dem Einordnen neuer Dokumente in den Lernplan (`StudyAutoPlan.pullAccountFirst`): einmal mit dem Konto
+    /// abgleichen, damit die Planung eines anderen Geraets schon hier steht. Ohne Konto sofort fertig; laeuft gerade
+    /// ein Abgleich, wird kurz auf ihn gewartet (er holt dasselbe).
+    func pullBeforePlanning() async {
+        guard account != nil else { return }
+        if syncing {
+            for _ in 0..<60 where syncing && !Task.isCancelled { try? await Task.sleep(nanoseconds: 250_000_000) }
+            return
+        }
+        if await syncNow(force: true) { onRemoteChanges?() }
+    }
+
     /// App im Vordergrund: alle 3 Minuten abrufen (`syncNow` ohne `force` laesst Laeufe kurz nach einem anderen aus)
     func startForegroundSync() {
         polling?.cancel()
@@ -321,7 +333,8 @@ final class StudoraAccountLink: ObservableObject {
         if r.ok && !r.noUniAccount { lastSyncAt = Date() }
         // auch eine reine Zusammenfuehrung von Notizen ist eine Aenderung: offene Fenster laden neu (P37-05); ebenso
         // Zeilen eines anderen Uni-Kontos, die hier entfernt wurden
-        let changed = r.applied + r.deleted + r.notesMerged + r.foreignRemoved > 0
+        // und ein zusammengefuehrter Lernplan (doppelt geplante Unterlagen, Tageslimit ueber alle Geraete)
+        let changed = r.applied + r.deleted + r.notesMerged + r.foreignRemoved + r.planMerged + r.planMoved > 0
         if changed { NotificationCenter.default.post(name: .uniflowAccountSynced, object: nil) }
         return changed
     }

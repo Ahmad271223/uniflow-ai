@@ -333,6 +333,24 @@ final class AuditPaket40x45AppTests: XCTestCase {
         XCTAssertGreaterThan(stub.count("POST /api/sync/push"), 0, "sendet wie bisher (Einstellungen dieses Datenbereichs)")
     }
 
+    /// Lernplan (15.11.2026): vor dem Einordnen neuer Dokumente holt die App die Planung des Kontos, damit zwei Geraete
+    /// dieselbe Woche nicht doppelt planen (`StudyAutoPlan.pullAccountFirst`). Mit Konto ein Abgleich, auch kurz nach
+    /// dem letzten; ohne Konto keine Anfrage und kein Warten.
+    func testPlanningPullsTheAccountFirst() async throws {
+        let stub = ServiceStub()
+        let l = await signedInLink(stub, host: try backendHost())
+        _ = await l.syncNow(force: true)
+        let before = stub.count("GET /api/sync/changes")
+        XCTAssertGreaterThan(before, 0)
+        await l.pullBeforePlanning()
+        XCTAssertGreaterThan(stub.count("GET /api/sync/changes"), before, "holt die Planung des Kontos, auch innerhalb der 3 Minuten")
+        XCTAssertNotNil(StudyAutoPlan.pullAccountFirst, "die App haengt den Abruf vor das Einordnen")
+        let none = StudoraAccountLink(entitlements: Entitlements(observe: false))
+        let started = Date()
+        await none.pullBeforePlanning()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 2, "ohne Konto sofort fertig")
+    }
+
     /// Mischfall unter einem StudiNow-Konto: das Konto gehoert zur LUH, dieses Geraet ist auf Hildesheim gestellt. Es
     /// gleicht gar nicht ab (`canSync`), also kommt nichts aus Hildesheim in die LUH-Daten des Kontos und umgekehrt.
     func testDeviceOfAnotherUniversityThanTheAccountDoesNotSync() async throws {
