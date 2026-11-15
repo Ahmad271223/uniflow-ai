@@ -1,5 +1,6 @@
 import Foundation
 import os
+import QuartzCore
 import UIKit
 import UniFlowCore
 import WebKit
@@ -57,12 +58,32 @@ final class HildesheimConnection: ObservableObject {
     @Published private(set) var lastRun: Date?
     /// Zahl der beendeten Abgleiche; offene Seiten laden danach neu (`ufReload`)
     @Published private(set) var finishedRuns = 0
+    /// Zwischenstaende eines laufenden Abgleichs (15.11.2026, wie `StudIPSync.stagesReady`): Dateilisten gelesen, weitere
+    /// Dateien geladen. Seiten mit `ufReload` laden dann schon neu. Vorher luden sie erst am Ende des Laufs: beim ersten
+    /// Abgleich blieben die Module bis dahin leer, obwohl die Dateien schon da waren.
+    @Published private(set) var stagesReady = 0
+    /// letzter Zwischenstand (Schritt, Zeitpunkt): hoechstens alle `stageInterval` Sekunden einer
+    private var lastStage: (step: SyncProgress.Step, at: CFTimeInterval)?
+    static let stageInterval: CFTimeInterval = 3
     /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
     @Published private(set) var olderFilesNote: String?
     /// "Angemeldete Prüfungen abrufen" (Pruefungsanmeldung, "Meine POS-Anmeldungen" im LSF) laeuft
     @Published private(set) var registrationsRunning = false
     /// Bericht des letzten Abgleichs (Tests, Diagnose)
     private(set) var lastReport: HildesheimSync.Report?
+    /// Fortschritt der Dateien, solange ein Abgleich laeuft (15.11.2026, `SyncProgress`): "Deine Kurse werden geladen:
+    /// 121 von 250 Dateien". nil ohne Lauf - die Anzeige verschwindet dann von selbst
+    @Published private(set) var progress: SyncProgress?
+    /// Ein voller Abgleich hat begonnen und ist nicht zu Ende gelaufen (App beendet, Hintergrundzeit abgelaufen,
+    /// abgebrochen): beim naechsten Oeffnen sofort weiter, ohne die 30 Minuten (`runWhenDue`). Bis dahin zeigt die
+    /// Anzeige "wird fortgesetzt" statt nichts - kein Zustand, der wie fertig aussieht.
+    var interrupted: Bool { !isRunning && defaults.object(forKey: Keys.runOpen) != nil }
+    /// Was die Leiste oberhalb der Seiten zeigt: laufender Fortschritt, sonst ein unterbrochener Lauf
+    var shownProgress: UFSyncProgressBar.Content? {
+        if let progress { return .running(progress) }
+        if isRunning { return .running(SyncProgress()) }
+        return interrupted && anyConnected ? .interrupted : nil
+    }
 
     /// Transport je Lauf aus dem Datenspeicher der Webansichten (Tests: feste Antworten)
     typealias TransportFactory = @MainActor (WKWebsiteDataStore) async -> UniTransport
@@ -80,6 +101,8 @@ final class HildesheimConnection: ObservableObject {
     private let retry: UniRetry
     /// nach einer Anmeldung sofort abgleichen (Tests schalten das ab)
     var syncsAfterSignIn = true
+    /// Hintergrundzeit von iOS fuer einen laufenden Abgleich (Tests: Attrappe)
+    var backgroundTime: UFBackgroundTime = .system
     /// Daten mit Dateischutz lesbar (iPad entsperrt)? Nur der Hintergrund fragt (Learnweb-Schluessel, Tests: fest)
     var protectedDataAvailable: @MainActor () -> Bool = { UIApplication.shared.isProtectedDataAvailable }
     /// laufender Abgleich (zum Anhalten vor dem Loeschen des Containers, `stop`)
@@ -126,6 +149,8 @@ final class HildesheimConnection: ObservableObject {
         static let gradesRun = "uniflow.hildesheim.grades.lastRun"
         /// ein Lauf nur mit Listen (Hintergrund, S8) fand Learnweb-Dateien zum Laden; weg nach einem vollen Lauf
         static let downloadsPending = "uniflow.hildesheim.downloadsPending"
+        /// Beginn eines vollen Abgleichs, der noch nicht zu Ende gelaufen ist (`interrupted`)
+        static let runOpen = "uniflow.hildesheim.runOpen"
         /// Abmelden begonnen, Schluessel oder Webdaten noch nicht nachweislich weg (`finishPendingSignOut`)
         static let signOutPending = "uniflow.hildesheim.signOutPending"
         static func ok(_ s: Source) -> String { "uniflow.hildesheim.\(s.rawValue.lowercased()).ok" }
@@ -260,7 +285,7 @@ final class HildesheimConnection: ObservableObject {
             task.cancel()
             _ = await task.value
         }
-        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
+        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending, Keys.runOpen, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der CAS-Anmeldeseite
         UniAutoLogin.forget(websiteDataStore)                    // gemerktes Passwort der Uni Hildesheim (Schluesselbund)
         renewal = UniRenewalState()
@@ -324,7 +349,8 @@ final class HildesheimConnection: ObservableObject {
     }
 
     private func runWhenDue() {
-        if let last = lastRun, !downloadsPending, clock.now.timeIntervalSince(last) < 30 * 60 { return }
+        // ein unterbrochener Lauf setzt sofort fort (15.11.2026)
+        if let last = lastRun, !downloadsPending, !interrupted, clock.now.timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
     }
 
@@ -452,14 +478,25 @@ final class HildesheimConnection: ObservableObject {
         // gleicht ein anderes Objekt desselben Containers noch ab (Wechsel A → B → A), keinen zweiten Lauf (P2-2)
         guard ContainerRuns.claim(layout.learnweb, by: self) else { return nil }
         isRunning = true
+        // voller Lauf der aktuellen Kurse: als offen merken, bis er zu Ende gelaufen ist (`interrupted`)
+        let tracksOpen = scope == .full && !olderOnly
+        if tracksOpen { defaults.set(clock.now, forKey: Keys.runOpen) }
         let task = Task {
             olderOnly ? await self.performOlder() : await self.perform(forceGrades: forceGrades, scope: scope, background: background)
         }
         current = task
+        // Wechselt die App in den Hintergrund oder wird das Geraet gesperrt, laeuft der Abgleich mit der Hintergrundzeit
+        // von iOS weiter; ist sie um, endet er sauber als abgebrochen (keine halbe Datei) und setzt beim Zurueckkommen fort
+        let extra = background ? nil : backgroundTime.begin("StudiNow lädt deine Kurse") { task.cancel() }
         let report = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        extra?.end()
         current = nil
         ContainerRuns.release(layout.learnweb, by: self)
         isRunning = false
+        progress = nil
+        lastStage = nil
+        // zu Ende gelaufen (auch mit einzelnen Fehlern): nicht mehr offen; abgebrochen oder gar nicht begonnen: bleibt
+        if tracksOpen, let report, !report.cancelled, report.refused == nil { defaults.removeObject(forKey: Keys.runOpen) }
         finishedRuns += 1
         if !connectedDuringRun.isEmpty {
             connectedDuringRun = []
@@ -479,6 +516,49 @@ final class HildesheimConnection: ObservableObject {
         guard let task = current else { return }
         task.cancel()
         _ = await task.value
+    }
+
+    /// Fortschritt aus dem Kern (kommt aus beliebigen Aufgaben) auf den Hauptfaden; nach dem Ende des Laufs verworfen
+    private var progressSink: @Sendable (SyncProgress) -> Void {
+        { [weak self] p in
+            Task { @MainActor in
+                guard let self, self.isRunning else { return }
+                // spaeter gemeldete, aber aeltere Staende ueberholen nichts (die Meldungen kommen aus mehreren Aufgaben)
+                if let old = self.progress, old.step == p.step, old.filesDone > p.filesDone || old.coursesDone > p.coursesDone { return }
+                self.progress = p
+                self.noteStage(p)
+            }
+        }
+    }
+
+    /// Seiten neu laden lassen, wenn der Abgleich einen Schritt weiter ist (Listen fertig) oder seit dem letzten Mal
+    /// `stageInterval` Sekunden geladen hat
+    private func noteStage(_ p: SyncProgress) {
+        let now = CACurrentMediaTime()
+        guard let last = lastStage else {
+            lastStage = (p.step, now)
+            return
+        }
+        guard last.step != p.step || now - last.at >= Self.stageInterval else { return }
+        lastStage = (p.step, now)
+        stagesReady += 1
+    }
+
+    /// Datei auf Antippen einzeln laden (15.11.2026, `FileLoadPanel`): gelistet, aber noch nicht auf dem Geraet, z. B.
+    /// waehrend der erste Abgleich noch laeuft. Mit der Learnweb-Verbindung dieses Containers, neben einem laufenden
+    /// Abgleich (eigener Zwischenordner). nil: keine Learnweb-Verbindung.
+    func loadFile(id: String) async -> HildesheimSync.SingleLoad? {
+        guard isConnected(.learnweb), !stopped else { return nil }
+        if await demoActive() { return .failed("Im Beispielmodus lädt StudiNow keine Dateien.") }
+        let transport = await makeTransport(websiteDataStore)
+        let lw = await learnwebAccess(transport: transport, background: false)
+        guard let api = lw.api, let database = try? await host.backend().context.database else {
+            return lw.loginNeeded ? .needsLogin : .failed(lw.message ?? "Learnweb ist gerade nicht erreichbar.")
+        }
+        let r = await HildesheimSync(db: database, container: layout, learnweb: api, lsf: nil, transport: transport,
+                                     clock: clock, retry: retry, tools: AppDocumentTools()).loadFile(id: id)
+        if r == .needsLogin { set(.learnweb, .needsLogin) }
+        return r
     }
 
     /// "Dateien laden" fuer Kurse frueherer Semester (Bibliothek, Frage nach dem ersten Abgleich): nur Learnweb, nur
@@ -526,7 +606,7 @@ final class HildesheimConnection: ObservableObject {
             return nil
         }
         let r = await HildesheimSync(db: database, container: layout, learnweb: api, lsf: nil, transport: transport,
-                                     clock: clock, retry: retry, tools: AppDocumentTools())
+                                     clock: clock, retry: retry, tools: AppDocumentTools(), onProgress: progressSink)
             .run(includeGrades: false, downloads: true, olderOnly: true)
         olderFilesNote = r.cancelled ? nil : r.needsLogin.isEmpty
             ? "\(r.newFiles.count) \(r.newFiles.count == 1 ? "Datei" : "Dateien") aus früheren Semestern geladen"
@@ -559,7 +639,7 @@ final class HildesheimConnection: ObservableObject {
         if lw.api != nil || lsfClient != nil {
             // Seitentexte mit PDFKit (Suche, Seitenzuordnung einer neuen Fassung, S7)
             report = await HildesheimSync(db: database, container: layout, learnweb: lw.api, lsf: lsfClient, transport: transport,
-                                          clock: clock, retry: retry, tools: AppDocumentTools())
+                                          clock: clock, retry: retry, tools: AppDocumentTools(), onProgress: progressSink)
                 .run(includeGrades: includeGrades, downloads: scope == .full)
             if !report.cancelled { await StudIPSync.autoPlan(host: host, newFiles: report.newFiles.count, weekly: scope == .full) }   // Lernplan und Wochentests wie nach run_sync
         }

@@ -64,6 +64,9 @@ struct HildesheimSourcesBar: View {
                         ForEach(open) { s in HildesheimConnectCard(source: s, state: connection.state(s)) { login = s } }
                     }
                 }
+                // solange geladen wird (oder ein unterbrochener Lauf fortgesetzt wird): ruhiger Fortschritt, danach nichts
+                // (15.11.2026; die Dauerleiste "Learnweb ok · LSF ok" kommt nicht zurueck)
+                if let progress = connection.shownProgress { UFSyncProgressBar(content: progress) }
                 if connection.anyConnected && HildesheimStatusLine.shows(connection) { HildesheimStatusLine(connection: connection) }
             }
             .ufSheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
