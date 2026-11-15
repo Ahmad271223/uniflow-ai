@@ -300,10 +300,39 @@ Im Store liegen seit der Einreichung vom 14.11.2026 die **hellen sieben** Bilder
 `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/` (nicht im Repository; je Motiv auch `-dark-`, alle
 1320 × 2868): `01-start`, `02-lernkalender` (Woche als Raster Mo–So), `03-modul`, `04-uni-mail-ki`, `05-ki-hilfe`,
 `06-studienverlauf`, `07-mensa`. Sie zeigen die eigenen Kontodaten des Inhabers (seine Entscheidung vom 14.11.2026),
-ohne Namen, ohne Matrikelnummer und ohne Daten Dritter. Der Testcode dafür liegt auf dem Zweig
-`bilder/iphone-1-0-4-echt` (Commit `22d2c3e5`) und ist **nicht in develop**; `IPhoneStoreScreenshotTests` in develop
-erzeugt weiter den Satz vom 13.11.2026 unten. Reihenfolge und Motive: `docs/release/APP-STORE.md`, Abschnitt
+ohne Namen, ohne Matrikelnummer und ohne Daten Dritter. Reihenfolge und Motive: `docs/release/APP-STORE.md`, Abschnitt
 Bildschirmfotos.
+
+**Der eine Weg zu diesem Satz (seit 15.11.2026):** der Test `apps/apple/UniFlowTests/IPhoneRealShotsTests.swift`. Er
+kam mit dem Zweig `bilder/iphone-1-0-4-echt` (Commit `22d2c3e5`) und steht seit dem Kandidaten für Build 43 im
+Hauptstand. Er läuft nur mit `UF_REAL_DB` (Pfad einer **gesäuberten Kopie** der Datenbank des Inhabers) und schreibt
+nach `UF_SCREENSHOT_DIR`; ohne `UF_REAL_DB` wird er übersprungen, in jeder normalen Suite also auch. Der frühere Weg
+`IPhoneStoreScreenshotTests` (Demo-Inhalte, Satz vom 13.11.2026 unten) schreibt **nicht mehr** nach
+`UF_SCREENSHOT_DIR`: er bleibt als Prüfung der Ansichten mit Demo-Inhalten und kann den Store-Ordner nicht mehr mit
+dem alten Satz füllen (`tests/test_testlaeufe.py` prüft beides).
+
+Die gesäuberte Kopie und das Skript dazu liegen bewusst **außerhalb** des Repositorys:
+`~/Studora-Builds/bilder-iphone-1114/` (`daten/uniflow.sqlite`, `saeubern.py`, Ablauf in `ABLAUF.md`, sichtbare Daten
+in `SICHTBARE-DATEN.md`). Gesäubert heißt: keine Lehrenden, keine Nachrichten, keine Ankündigungen, kein Schwarzes
+Brett, keine Aufzeichnungen, kein Name Dritter in Modul-, Kurs- oder Dateinamen, kein Rufname.
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate
+UDID=$(xcrun simctl create SN-bilder-iphone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max)
+TEST_RUNNER_UF_REAL_DB=$HOME/Studora-Builds/bilder-iphone-1114/daten/uniflow.sqlite \
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-iphone-<JJJJ-MM-TT> \
+  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-bilder-iphone -only-testing:UniFlowTests/IPhoneRealShotsTests
+xcrun simctl delete "$UDID"
+```
+
+Ein neuer Lauf gehört in einen **neuen** Ordner mit Datum; den hochgeladenen Ordner `…-2026-11-14/` nicht
+überschreiben. Gerät: iPhone 17 Pro Max (440 × 956 Punkte, Maßstab 3 = 1320 × 2868; ein iPhone 17 gäbe 1179 × 2556 und
+würde abgelehnt). Der Test bricht ab, wenn „Woche“ noch die Tagesliste zeigt, wenn eine Note im Bild stünde oder wenn
+eine Anfrage an eine Hochschule gezählt wird. Der Ordner darf nur die 14 Store-Bilder enthalten
+(`tests/test_release_texts.py` prüft das für `appstore-screenshots-iphone-2026-11-14/`): andere Tests mit
+`UF_SCREENSHOT_DIR` (z. B. `ModuleDoneAppTests`) in einen eigenen Ordner schreiben lassen.
 
 ### Satz vom 13.11.2026 (Demo-Inhalte, überholt)
 
@@ -313,7 +342,11 @@ Bildschirmfotos.
 dieser Reihenfolge hochladen; die dunklen liegen als Alternative daneben. Der Satz vom 11.11.2026
 (`appstore-screenshots-iphone-2026-11-11/`, acht Motive) ist überholt – er ist älter als Build 38/39.
 
-Erzeugt vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests.swift` aus der kompakten Hülle (untere Leiste,
+**Nicht mehr hochgeladen und nicht mehr so erzeugbar:** seit 15.11.2026 schreibt `IPhoneStoreScreenshotTests` nicht
+mehr nach `UF_SCREENSHOT_DIR` (siehe oben). Wer die Demo-Fassung ansehen will, setzt `TEST_RUNNER_UF_DEMO_SHOT_DIR` auf
+einen eigenen Ordner (kein Store-Ordner, `appstore-screenshots…` lehnt der Test ab).
+
+Erzeugt wurde der Satz vom Test `apps/apple/UniFlowTests/IPhoneStoreScreenshotTests.swift` aus der kompakten Hülle (untere Leiste,
 Blätter von unten) mit denselben Demo-Inhalten und Zusätzen wie die iPad-Bilder (`DemoContent`,
 `DemoContent.installStoreExtras`, Rufname „Tobi“, Tarif Pro AI). Keine Anfrage an eine Hochschule
 (`UniStubProtocol` zählt mit), kein Uni-Logo, keine echten Namen oder Noten.
@@ -336,7 +369,7 @@ Speicher und einer Schein-KI im lokalen Backend (`backend.context.ai.set`), nich
 zwei der drei Demo-Dateien ab. Das Fenster „Neue E-Mail“ wird direkt gehostet, weil ein ganzseitiges Blatt über der
 Seite nur schwarz zusammengesetzt wird (`drawHierarchy`).
 
-### Größe und Erzeugen
+### Größe (gilt für jeden iPhone-Satz)
 
 | Gerät | Hochformat | Pflicht |
 | --- | --- | --- |
@@ -344,21 +377,8 @@ Seite nur schwarz zusammengesetzt wird (`drawHierarchy`).
 
 Gerendert mit Maßstab 3 aus einem Fenster von 440 × 956 Punkten im Simulator „iPhone 17 Pro Max“; der Test prüft die
 Pixelgröße jedes Bildes. Oben zeichnet der Test die Statuszeile wie auf dem Gerät (9:41, Netz, WLAN, Akku), weil der
-Testaufbau keine eigene hat.
-
-```sh
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-cd apps/apple && xcodegen generate
-UDID=$(xcrun simctl create SN-shots-phone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-2)
-TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-iphone-2026-11-13 \
-  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
-  -derivedDataPath ~/Studora-Builds/dd-shots-phone -only-testing:UniFlowTests/IPhoneStoreScreenshotTests
-xcrun simctl delete "$UDID"
-```
-
-Der Ordner darf nur die 14 Store-Bilder enthalten (`tests/test_release_texts.py` prüft das seit 14.11.2026 für den
-Ordner `appstore-screenshots-iphone-2026-11-14/`, nicht mehr für diesen): andere Tests mit
-`UF_SCREENSHOT_DIR` (z. B. `ModuleDoneAppTests`) in einen eigenen Ordner schreiben lassen.
+Testaufbau keine eigene hat. Der Befehl zum Erzeugen steht oben beim Satz vom 14.11.2026; den früheren Befehl mit
+`-only-testing:UniFlowTests/IPhoneStoreScreenshotTests` gibt es nicht mehr (er schriebe keine Bilder).
 
 ### Satz vom 11.11.2026 (überholt)
 
@@ -381,15 +401,9 @@ Statuszeile wie auf dem Gerät (9:41, Netz, WLAN, Akku), weil der Testaufbau kei
 Antworten, Abgeben) ganz hoch bzw. in der Höhe, die die App wählt: halb hoch ist das Blatt aus Glas, das sich im Test
 nicht zeichnen lässt.
 
-```sh
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-cd apps/apple && xcodegen generate
-UDID=$(xcrun simctl create SN-shots-phone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-2)
-TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/appstore-screenshots-iphone \
-  xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
-  -derivedDataPath ~/Studora-Builds/dd-shots-phone -only-testing:UniFlowTests/IPhoneStoreScreenshotTests
-xcrun simctl delete "$UDID"
-```
+Der damalige Befehl (`TEST_RUNNER_UF_SCREENSHOT_DIR=…/appstore-screenshots-iphone` mit
+`-only-testing:UniFlowTests/IPhoneStoreScreenshotTests`) gilt nicht mehr: der Test schreibt seit 15.11.2026 nicht mehr
+nach `UF_SCREENSHOT_DIR`.
 
 Bild 2 und 4 zeigen die KI: nur mit Entscheidung B (sonst weglassen; es bleiben 6 Bilder).
 
