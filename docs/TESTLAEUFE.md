@@ -46,7 +46,7 @@ Je Teil eine Zeile, am Ende `ERGEBNIS`:
 
 ```
 == Voller Lauf (mit Lasttests) – Last des Rechners: 5 ==
-pytest: 3619 bestanden, 1 rot, 5 übersprungen, 2 erwartet rot (7:10 min)
+pytest: 3611 bestanden, 1 rot, 5 übersprungen, 2 erwartet rot (7:40 min)
   wiederholt: tests/test_web_goals.py::test_narrow_window_without_horizontal_overflow – im vollen Lauf rot, einzeln grün (bekannter Wackel-Test)
 node: bestanden (456 Tests)
 ERGEBNIS: bestanden, 1 wiederholt (Wackel-Tests erst einzeln grün) – Protokoll: …/voll-2026-11-15-170000.log
@@ -89,19 +89,21 @@ Ein neuer Lasttest bekommt eine Zeile in `tests/lasttests.txt` (Datei, Testname,
 
 ## Dauer
 
-Gemessen am 15.11.2026 auf dem Mac. Beide Läufe liefen neben fremder Arbeit (andere Agents, `xcodebuild`), die
-Zahlen sind deshalb Obergrenzen; die Lasttests allein brauchen bei ruhigem Rechner 69 s.
+Gemessen am 15.11.2026 auf dem Mac, beide Läufe direkt nacheinander über die Skripte, Rechnerlast beim Start 14
+(andere Agents arbeiteten nebenher), beide ohne roten Test:
 
-| Lauf | Tests | Dauer laut pytest | Rechnerlast dabei |
-| --- | --- | --- | --- |
-| schneller Lauf (pytest ohne Lasttests) | 3 602 | 8:25 min | 7 bis 40 |
-| voller Lauf (pytest mit Lasttests) | 3 612 | 8:00 min | bis 200 |
-| nur die Lasttests (`-m last`) | 10 | 1:09 min | 11 |
-| `node --test tests/js/` | 456 | 1 s | – |
+| Lauf | Tests | Dauer laut pytest |
+| --- | --- | --- |
+| schneller Lauf (pytest ohne Lasttests) | 3 609 (10 abgewählt) | 6:33 min |
+| voller Lauf (pytest mit Lasttests) | 3 619 | 7:38 min |
+| nur die Lasttests (`-m last`) | 10 | 1:09 min |
+| `node --test tests/js/` | 456 | 1 s |
 
-Der schnelle Lauf spart also rund eine Minute Laufzeit, nicht mehr: kein einzelner Test ist lang, die Zeit steckt in
-der Menge (3 600 Tests, ein Prozess). Wichtiger ist, was er nicht tut: er startet keine Prozess-Stürme (bis zu 12
-Python-Prozesse zugleich, eigene Dienste), mehrere schnelle Läufe nebeneinander bleiben deshalb verträglich.
+Der schnelle Lauf spart also gut eine Minute, nicht mehr: kein einzelner Test ist lang, die Zeit steckt in der Menge
+(3 600 Tests in einem Prozess; allein die Passwort-Hashes der Testkonten, 1 900-mal scrypt, kosten rund eine Minute).
+Wichtiger ist, was er nicht tut: er startet keine Prozess-Stürme (bis zu 12 Python-Prozesse zugleich, eigene
+Dienste), mehrere schnelle Läufe nebeneinander bleiben deshalb verträglich. Unter fremder Last dauern beide Läufe
+länger (voller Lauf neben einem `xcodebuild` bei Last 200: 8:00 min und drei rote Tests).
 
 ## Bekannte Wackel-Tests
 
