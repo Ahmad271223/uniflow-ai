@@ -60,16 +60,18 @@ bundle_id=$(plutil -extract CFBundleIdentifier raw "$APP/Info.plist" 2>/dev/null
 ent=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null)
 app_id=$(print -r -- "$ent" | plutil -extract application-identifier raw - 2>/dev/null)
 groups=$(print -r -- "$ent" | plutil -extract keychain-access-groups json - 2>/dev/null)
-if [ "$bundle_id" != "$TEST_ID" ] || [ "$app_id" != "$TEAM.$TEST_ID" ] || [ "$groups" != "[\"$TEAM.$TEST_ID\"]" ]; then
+# Schluesselbund-Bereiche: entweder gar keine genannt (dann gilt allein die App-ID, so signiert Xcode mit der leeren
+# Berechtigungsdatei; Befund 15.11.2026) oder genau der eigene
+if [ "$bundle_id" != "$TEST_ID" ] || [ "$app_id" != "$TEAM.$TEST_ID" ] || { [ -n "$groups" ] && [ "$groups" != "[\"$TEAM.$TEST_ID\"]" ]; }; then
   echo "Abbruch vor dem Start: Die gebaute App hat nicht die Test-Kennung oder nicht nur den eigenen Schlüsselbund-Bereich."
   echo "  Kennung: $bundle_id   App-ID: $app_id   Schlüsselbund: $groups"
   exit 1
 fi
-if print -r -- "$ent" | grep -q "$TEAM.$REAL_ID<\|icloud\|applesignin"; then
+if print -r -- "$ent" | grep -q "$TEAM.$REAL_ID<\|$TEAM\.\*\|icloud\|applesignin"; then
   echo "Abbruch vor dem Start: Die Signatur nennt Bereiche der echten App (iCloud, Mit Apple anmelden oder deren Kennung)."
   exit 1
 fi
-echo "Signatur in Ordnung: $app_id, eigener Schlüsselbund-Bereich."
+echo "Signatur in Ordnung: $app_id, nur der eigene Schlüsselbund-Bereich."
 
 if [ $# -eq 0 ]; then set -- -only-testing:UniFlowTests; fi
 xcodebuild test-without-building -project UniFlow.xcodeproj -scheme UniFlow -destination "$DEST" -derivedDataPath "$DD" \

@@ -1,6 +1,7 @@
 # Tests am Mac laufen in einem eigenen Ordner
 
-Stand: 14.11.2026, Zweig `fix/mac-test-abschottung` (von `fix/mac-durchlauf`, darin `develop` `1c2fd03a`).
+Stand: 15.11.2026, Zweig `fix/mac-test-abschottung` (erster Teil `70e5743e` ist im Kandidaten für Build 43; der Zweig
+sitzt auf dem Kandidaten `946542c2`).
 Anlass: `docs/MAC-DURCHLAUF-2026-11-14.md`, Abschnitt 6.3.
 
 ## Kurz
@@ -52,7 +53,8 @@ Die Schwäche von Weg (b): Er wirkt nur, wenn der Testlauf richtig gestartet wir
    „Testlauf am Mac abgebrochen …“ mit dem Hinweis auf das Skript.
 4. **Neuer Test `MacTestIsolationTests`:** Er merkt sich, was die App beim Start des Testlaufs vorfand, und schlägt
    fehl, wenn das ein geöffneter Container, Stud.IP-Cookies oder eine KI-Ablage waren. Er prüft auch den Riegel und
-   dass der Mac-Lauf die Test-Kennung hat. Er läuft auch im Simulator (dort muss die Test-App ebenfalls leer sein).
+   dass der Mac-Lauf die Test-Kennung hat. Am Mac prüft er zusätzlich, dass Datenordner und Schlüsselbund leer sind
+   (Einzelheiten unter „Korrektur vom 15.11.2026“).
 
 ## So startet man Tests am Mac
 
@@ -68,24 +70,53 @@ Mehrere Klassen: weitere `-only-testing:UniFlowTests/<Klasse>` anhängen. Das Pr
 Nicht mehr verwenden: `xcodebuild test … variant=Designed for iPad` von Hand und
 `~/Studora-Builds/wt-editor-mac-test.sh`. Beide enden jetzt am Riegel.
 
-## Stand der Prüfung
+## Geprüft am 15.11.2026
 
-**Noch nicht fertig geprüft.** Am 14.11.2026 gegen 23:10 Uhr hat die Hauptsitzung um Ruhe auf dem Rechner gebeten
-(voller Testlauf für Build 42). Meine zwei Läufe (Mac-Bau der Test-App, Simulator-Lauf) habe ich darum abgebrochen.
+Stand: Kandidat für Build 43 (`946542c2`) plus die Korrektur unten.
 
-| Prüfung | Stand |
+| Prüfung | Ergebnis |
 |---|---|
-| Kennung je Bauart (`xcodebuild -showBuildSettings`): Debug ohne Angabe `de.uniflow.ai`, Debug mit Angabe `de.uniflow.ai.mactest`, Release mit und ohne Angabe `de.uniflow.ai`, Testbundle unverändert | geprüft, stimmt |
-| Python-Prüfungen zur Projektdatei (`tests/test_release_gate.py`, `test_release_build_provenance.py`, `test_release_texts.py`) | 45 bestanden |
-| Signieren der Test-App mit dem allgemeinen Team-Profil, ohne Zugriff auf das Apple-Konto | Xcode nimmt es an (der Bau lief bis ins Übersetzen, dann abgebrochen). Die Signatur der fertigen App ist noch nicht geprüft. |
-| Übersetzen der neuen Dateien | **offen** (kein Bau zu Ende gelaufen) |
-| Lauf im iPad-Simulator-Klon („iPad Testordner“, Klon von `4495AA80-…`) | **offen** |
-| Lauf am Mac über `tools/mac-test.sh`, klassenweise | **offen** (braucht Entwarnung und einen entsperrten Mac) |
-| `tutor-conversations.json` im echten Ordner vor und nach dem Mac-Lauf gleich | **offen**. Stand vorher: zuletzt geändert 14.11.2026 20:36:10, 4318 Bytes |
+| Kennung je Bauart: Test-Bau ohne Angabe `de.uniflow.ai`, mit Angabe `de.uniflow.ai.mactest`; Store-Bau mit und ohne Angabe `de.uniflow.ai`; Testbundle unverändert | stimmt |
+| Python-Prüfungen zur Projektdatei (3 Dateien, 14.11.) | 45 bestanden |
+| Signatur der Test-App | Kennung `78MQGF36BD.de.uniflow.ai.mactest`, allgemeines Team-Profil, kein iCloud, kein „Mit Apple anmelden“, kein Schlüsselbund-Bereich der echten App. Im Apple-Konto wurde nichts angelegt. |
+| iPad-Simulator (Klon von `4495AA80-…`): Wächter allein | 3 bestanden, 1 mit Begründung übersprungen (nur Mac) |
+| iPad-Simulator: Wächter nach anderen Klassen (`DataSeparationAppTests`, `FlashcardsAppTests`, `LockVisibilityAppTests`, `RecordingSourcesAppTests`, dazu `StudoraNameTests`, `TutorCardsRunAppTests`, `ViewTypeDepthAppTests`) | 66 Tests, 0 Fehler |
+| iPad-Simulator: Wächter danach noch einmal allein, im selben Klon | grün |
+| Mac über `tools/mac-test.sh`: Wächter und `StudoraNameTests` | 6 Tests, 0 Fehler; alle 4 Wächter-Tests bestanden |
+| Mac: `RecordingSourcesAppTests`, `FlashcardsAppTests`, `LockVisibilityAppTests`, `TutorCardsRunAppTests`, `KeychainTests`, `DataSeparationAppTests`, `ViewTypeDepthAppTests` | 61 Tests, 0 Fehler. Der Karteikarten-Test, der sich am Mac bisher übersprang (`testResultAsksTheAIWithTheQuestionContext`), läuft jetzt und ist grün. |
+| Mac: Wächter noch einmal nach diesen Klassen (zweiter Lauf im Test-Ordner) | 4 von 4 |
+| Riegel: Mac-Test auf dem alten Weg gestartet | endet sofort („exited with code 78“), kein Test läuft, die Meldung steht im Protokoll |
+| Dein echter Ordner vor und nach allen Mac-Läufen (auch nach der Riegel-Probe) | **unverändert**: KI-Ablage zuletzt geändert 14.11.2026 20:36:10 (4318 Bytes), die zweite 09.11.2026 17:57:32, Einstellungen 14.11.2026 22:12:49, 761 Web-Datenspeicher |
 
-Für die offenen Läufe vorgesehen: `MacTestIsolationTests`, `StudoraNameTests`, `RecordingSourcesAppTests`,
-`FlashcardsAppTests`, `LockVisibilityAppTests`, `TutorCardsRunAppTests`, `ViewTypeDepthAppTests`, `KeychainTests`,
-`DataSeparationAppTests`.
+Protokolle: `~/Studora-Builds/mac-test/` (`sim-allein`, `sim-nach-anderen`, `sim-allein-danach`, `mac-2` bis `mac-4`,
+`mac-riegel`).
+
+### Korrektur vom 15.11.2026: Wächter war im Simulator fälschlich rot
+
+Im vollen iPad-Lauf für Build 43 schlug der Wächter an: „Container-Ordner im Datenordner der App: 1 statt 0“.
+
+- **Ursache:** nicht die Reihenfolge der Tests. Der Vorlage-Simulator `4495AA80-…` trägt selbst einen alten
+  Container-Ordner vom 30.10.2026 (aus der Benutzung von Hand). Jeder Klon erbt ihn. Geöffnet ist er nicht, niemand
+  ist dort angemeldet.
+- **Was der Wächter jetzt prüft:**
+  - *überall* (Mac, iPad, iPhone): Die App hat beim Start des Testlaufs keinen Container geöffnet, sieht keine
+    Stud.IP-Cookies eines geöffneten Containers und keine Gespräche in der KI-Ablage. Das hängt nicht von der
+    Reihenfolge ab, weil der Stand beim Laden der Tests gemerkt wird, vor dem ersten Test.
+  - *nur am Mac, zusätzlich und streng:* Der Datenordner und der Schlüsselbund der App sind leer, auch ohne
+    geöffneten Container (kein Container-Ordner, keine KI-Ablage, keine gespeicherte Stud.IP-Sitzung), und der Lauf
+    hat die Test-Kennung.
+- **Warum der Ordner-Teil nur am Mac gilt:** Am Mac gehört der Ordner des Testlaufs nur dem Testlauf und ist neu;
+  Tests schreiben nie hinein (sie nehmen eigene Temp-Ordner). Liegt dort etwas, stimmt etwas nicht. Im Simulator
+  sagt ein Ordner nichts aus: Dort gibt es keine echten Daten, nur Reste der Vorlage. Der Teil ist dort mit
+  Begründung übersprungen, nicht abgeschaltet; alles, was im Simulator etwas aussagt, wird weiter geprüft.
+
+### Beim Prüfen gefunden und behoben
+
+- Ein leerer Wert für die Berechtigungen auf der Befehlszeile reicht Xcode nicht; es braucht eine leere Datei
+  (`Config/MacTest.entitlements`).
+- Die Signaturprüfung im Skript war zu eng: Xcode nennt bei der Test-App gar keinen Schlüsselbund-Bereich, dann gilt
+  allein die eigene App-Kennung. Das Skript lässt das jetzt zu und bricht weiter ab, sobald ein fremder Bereich oder
+  ein Bereich für alle Apps des Teams genannt ist.
 
 ## Aufräumen im echten Ordner – nicht gemacht, bitte entscheiden
 
