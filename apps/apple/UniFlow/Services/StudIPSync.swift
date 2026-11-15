@@ -1293,7 +1293,9 @@ final class StudIPSync: ObservableObject {
             lastLanes = lanes
             let folder = root, clock = self.clock, total = ordered.count
             if total > 0 { note(SyncProgress(step: .files, filesTotal: total, current: ordered.first.flatMap { titles[$0.courseID] }, older: olderOnly)) }
-            await DownloadPlan.forEach(ordered, lanes: lanes) { [weak self] _, f in
+            // je Stufe nacheinander: das naechste Semester beginnt erst, wenn das laufende geladen ist (`SyncOrder`)
+            for wanted in 0...2 where tally.fatal == nil && !Task.isCancelled {
+            await DownloadPlan.forEach(ordered.filter { (stages[$0.courseID] ?? 0) == wanted }, lanes: lanes) { [weak self] _, f in
                 if Task.isCancelled || tally.fatal != nil { tally.stop(CancellationError()); return false }
                 /// Fehlversuch je Datei sichtbar machen ("Nicht geladen – erneut versuchen" in der Dateiansicht)
                 func noteFailure(_ error: Error) async {
@@ -1345,6 +1347,7 @@ final class StudIPSync: ObservableObject {
                 await self?.note(SyncProgress(step: .files, filesDone: done, filesTotal: total, current: titles[f.courseID], older: olderOnly))
                 return true
             }
+            }
             loaded = tally.loadedCount
             let failed = tally.failedCount
             /// davon ausdruecklich von Stud.IP verweigert (403/404): kein sofortiger neuer Lauf deswegen
@@ -1354,6 +1357,9 @@ final class StudIPSync: ObservableObject {
             if let fatal = tally.fatal { throw fatal }
             try Task.checkCancellation()
             progress = nil                                    // Dateien sind da; die weiteren Schritte ohne Balken
+            // die Dateien des laufenden Semesters sind durch: der Lauf gilt nicht mehr als unterbrochen, auch wenn danach
+            // noch Neuigkeiten, Aufzeichnungen und Lernstoff kommen (sonst stuende waehrenddessen "noch nicht vollständig")
+            if scope == .full, !olderOnly { defaults.removeObject(forKey: Keys.runOpen) }
             await refreshEntries()                            // Dateien schon zeigen, waehrend Ergaenzungen laden
             if !olderOnly { stagesReady += 1 }
             /// ehrlicher Stand fuer die weiteren Schritte ("3 neue Dateien · Aufzeichnungen …")

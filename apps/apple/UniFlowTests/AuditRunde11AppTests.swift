@@ -211,9 +211,15 @@ final class AuditRunde11AppTests: XCTestCase {
         XCTAssertFalse(h.isRunning, "Abgleich beendet, bevor Abmelden zurueckkehrt")
         let report = await run.value
         XCTAssertEqual(report?.cancelled, true, "angehalten statt zu Ende gelaufen")
+        // seit 15.11.2026 laufen bis zu 3 Downloads zugleich. Der Stub antwortet nacheinander und verzeichnet den zweiten,
+        // schon vor dem Abmelden begonnenen Download erst, wenn der erste freigegeben ist: kurz abwarten, dann zaehlen.
+        // Mehr als die beiden Dateien dieses Kurses darf nie angefragt worden sein.
+        try await Task.sleep(nanoseconds: 300_000_000)
         let requestsAfter = UniStubProtocol.requests.count
         try await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertEqual(UniStubProtocol.requests.count, requestsAfter, "nach dem Abmelden keine Anfrage mehr")
+        XCTAssertEqual(UniStubProtocol.requests.count, requestsAfter,
+                       "nach dem Abmelden keine Anfrage mehr: \(UniStubProtocol.requests.suffix(3).map { $0.url.path })")
+        XCTAssertLessThanOrEqual(UniStubProtocol.requests.filter { $0.url.path.contains("/webservice/pluginfile.php/") }.count, 2)
         XCTAssertEqual(h.learnweb, .notConnected)
         XCTAssertEqual(h.lsf, .notConnected)
         XCTAssertTrue(h.messages.isEmpty)

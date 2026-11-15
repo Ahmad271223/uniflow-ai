@@ -151,7 +151,8 @@ final class LocalDocumentsAppTests: XCTestCase {
         let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
         await sync.run(client: client(stud))
         XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"], "auch mit is-downloadable false versucht (07.11.2026); Stud.IP verweigert sie")
+        // seit 15.11.2026 laufen bis zu 3 Downloads zugleich: welche Dateien gefragt werden, zaehlt, nicht die Reihenfolge
+        XCTAssertEqual(stud.downloads.sorted(), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"], "auch mit is-downloadable false versucht (07.11.2026); Stud.IP verweigert sie")
 
         // Dokumente: beide Dateien, die PDF ist geladen und oeffnet sich im Editor
         let lib = try await dev.api.value("/api/library")
@@ -683,7 +684,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(sync.finishedRuns, 1)
         XCTAssertEqual(UFDataMode.resolve(api: dev.api, studIP: StudIPLink(sync.phase, hasSession: true)), .local(.expired))
         XCTAssertTrue(UFDataMode.resolve(api: dev.api, studIP: StudIPLink(sync.phase, hasSession: true)).showsConnectCard, "Karte „Erneut anmelden“")
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
+        XCTAssertEqual(stud.downloads.sorted(), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
         let d1 = try await dev.api.value("/api/files/d1")
         XCTAssertEqual(d1["exists"], true, "Dateien bleiben")
         let summary = try XCTUnwrap(sync.lastSummary)
@@ -966,7 +967,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
         XCTAssertEqual(sync.selectedCourses, ["c1"], "Auswahl unveraendert: nur das aktuelle Semester")
         XCTAssertFalse(stud.requested.contains { $0.contains("/courses/c-alt/") }, "\(stud.requested)")
-        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
+        XCTAssertEqual(stud.downloads.sorted(), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d2/content"])
         let old = try await dev.api.value("/api/courses").items.first { $0.s("id") == "c-alt" }
         XCTAssertEqual(old?.i("active"), 0, "alter Kurs gespeichert, aber aus")
         XCTAssertNil(old?.i("module_id"), "kein Modul fuer den alten Kurs")

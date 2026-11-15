@@ -669,8 +669,10 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
 
         // Erstabgleich mit Fortschritt
         expect(env, "Kurse und Dateien aus Stud.IP")
+        // seit 15.11.2026 laden drei Dateien zugleich: der Abgleich kann fertig sein, bevor "läuft" zu sehen ist
+        let runningTitle = FirstSyncProgress.title(finished: false, anyLoaded: false)
+        _ = env.wait(timeout: 5) { finished || self.shows(env, runningTitle) }
         if !finished {
-            expect(env, FirstSyncProgress.title(finished: false, anyLoaded: false), timeout: 5)
             station(env, "51-erstabgleich-laeuft", back: false, markers: ["Kurse und Dateien aus Stud.IP", "Stundenplan", "Noten aus QIS", "QIS später anmelden"], settle: 0.3)
         } else {
             remark("Erstabgleich war schon fertig, bevor die Seite stand (kein Bild „läuft“)")
