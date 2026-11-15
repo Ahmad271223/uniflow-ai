@@ -260,3 +260,25 @@ def test_hosted_calendar_merges_what_two_older_apps_pushed(two_devices, monday):
     pkgs, tasks, tombs = _service(app, ipad)
     assert [p["id"] for p in pkgs] == [first["study_packages"]] and [t["id"] for t in tasks] == [first["study_tasks"]]
     assert sorted(t["entity"] for t in tombs) == ["study_packages", "study_tasks"]
+
+
+def test_windows_app_pulls_the_account_before_it_plans(two_devices, monday, monkeypatch):
+    """Vor dem automatischen Planen holt die Windows-App die Planung des Kontos: die Datei steht dann schon im Plan
+    und wird nicht noch einmal geplant. Im Dienst selbst und ohne Konto geschieht nichts."""
+    app, ipad = two_devices
+    from app import config, db, study, sync_client
+    remote = _ipad_plans(app, ipad, WED, "2026-11-14T16:25:40")
+    study.pull_account_first()
+    with db.cursor() as conn:
+        assert FILE in study._planned_files(conn), "die Planung des iPads steht hier, bevor geplant wird"
+        assert [r["date"] for r in db.rows(conn, "SELECT date FROM study_packages")] == [WED]
+    assert [p["id"] for p in _service(app, ipad)[0]] == [remote["study_packages"]]
+    calls = []
+    monkeypatch.setattr(sync_client, "run", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr(config, "MODE", "hosted")
+    study.pull_account_first()
+    monkeypatch.undo()
+    monkeypatch.setattr(sync_client, "run", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr(sync_client, "enabled", lambda: False)
+    study.pull_account_first()
+    assert calls == []

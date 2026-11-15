@@ -1091,12 +1091,30 @@ public enum StudyAutoPlan {
     /// ist (Abnahme Lernkalender vom 07.11.2026). Ohne App (Kern-Tests, PC) immer erlaubt.
     @MainActor public static var allowed: () -> Bool = { true }
 
+    /// Vor dem Einordnen erst die Planung des Kontos holen (Geraete-Abgleich der App, 15.11.2026): Hat ein anderes
+    /// Geraet die neuen Dokumente schon eingeplant, stehen sie dann im Plan und werden hier nicht noch einmal
+    /// eingeordnet. Vorher plante jedes Geraet nach seinem eigenen Abgleich mit der Hochschule und beim Oeffnen sofort,
+    /// der Geraete-Abgleich lief daneben: zwei Planungen derselben Woche. Ohne Konto, ohne Netz oder nach
+    /// `pullTimeout` wird trotzdem geplant; ein Doppel fuehrt dann der naechste Abgleich zusammen (`StudyPlanMerge`).
+    @MainActor public static var pullAccountFirst: (@Sendable () async -> Void)?
+    /// So lange wartet das Einordnen hoechstens auf den Geraete-Abgleich
+    @MainActor public static var pullTimeout: TimeInterval = 20
+
     /// Ergebnis der Einordnung, nil = am Plan nichts geaendert (aus, Tarif ohne automatischen Lernplan, keine neuen
     /// Dokumente). `newFiles` ist nur noch ein Hinweis des Abgleichs: welche Dokumente neu sind, weiss der Planer
     /// selbst (`study_plan_seen_files`), darum zaehlt eine doppelt gemeldete Datei einmal. Ohne Tarif werden die
     /// Dateien nur gemerkt (spaeter Plus plant dann nicht alles Alte auf einmal ein).
     public static func afterSync(_ backend: LocalBackend, newFiles: Int) async throws -> JSONValue? {
         let ok = await MainActor.run(body: { allowed() })
+        let (pull, wait) = await MainActor.run(body: { (pullAccountFirst, pullTimeout) })
+        if ok, let pull {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await pull() }
+                group.addTask { try? await Task.sleep(nanoseconds: UInt64(max(0, wait) * 1_000_000_000)) }
+                await group.next()
+                group.cancelAll()
+            }
+        }
         let clock = backend.context.clock
         // Gliederung neu geladener PDFs lesen (echte Aufgaben statt Dateinamen, 14.11.2026)
         try await StudyOutline.refresh(database: backend.context.database, files: backend.context.files)

@@ -246,4 +246,60 @@ final class LernplanEinordnenTests: XCTestCase {
         XCTAssertEqual(after.packages, base.packages)
         XCTAssertEqual(after.tasks, base.tasks)
     }
+
+    // MARK: (f) Zwei Geraete: erst die Planung des Kontos holen, dann einordnen (15.11.2026)
+
+    /// Vorher ordnete jedes Geraet nach seinem eigenen Abgleich mit der Hochschule sofort ein, der Geraete-Abgleich lief
+    /// daneben: dieselben neuen Dokumente standen danach zweimal im Plan. Jetzt holt die App vor dem Einordnen die
+    /// Planung des Kontos (`StudyAutoPlan.pullAccountFirst`); was ein anderes Geraet schon eingeplant hat, wird nicht
+    /// noch einmal eingeordnet. Ohne Netz wartet das Einordnen hoechstens `pullTimeout`.
+    func testPlanOfTheAccountIsPulledBeforeNewDocumentsArePlaced() async throws {
+        let now = PlanNow("2026-10-26T07:30:00")
+        let b = try await backend(now)
+        try await addFiles(b, course: "k-ma-vl", [("n-ma-v3", "VL03 Reihen.pdf", "Vorlesung", "2026-10-26T06:00:00")])
+        _ = await send(b, "POST", "/api/calendar/generate", ["start": "2026-10-26", "days": 7])
+        _ = try await StudyAutoPlan.afterSync(b, newFiles: 1)                  // erster Lauf: nur merken
+        now.set("2026-10-26T18:00:00")
+        try await addFiles(b, course: "k-ph", [("n-ph-v3", "Folien Kapitel 3.pdf", "Vorlesung", "2026-10-26T12:00:00"),
+                                                ("n-ph-u3", "Übungsblatt 3.pdf", "Übungen", "2026-10-26T13:00:00")])
+        // der Geraete-Abgleich bringt die Planung des anderen Geraets: es hat die Folien schon auf Donnerstag gelegt
+        let db = b.context.database
+        await MainActor.run {
+            StudyAutoPlan.pullAccountFirst = {
+                _ = try? await db.transaction { c in
+                    try c.execute("""
+                        INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time)
+                        VALUES ('2026-10-29', 2, 'Testphysik', 'Woche 3', 3, 45, 'geplant', 0, 1, '2026-10-26T17:00:00', '18:00', '18:45')
+                        """)
+                    try c.execute("""
+                        INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at, start_time, end_time)
+                        VALUES (?, 'vorlesung', 'n-ph-v3', 'Folien Kapitel 3.pdf', 0, 45, 'geplant', '2026-10-26T17:00:00', '18:00', '18:45')
+                        """, [.integer(c.lastInsertRowID)])
+                }
+            }
+        }
+        let r = try await StudyAutoPlan.afterSync(b, newFiles: 2)
+        await MainActor.run { StudyAutoPlan.pullAccountFirst = nil }
+        XCTAssertEqual(r?["created"]?.int, 1, "nur das Blatt, das noch kein Geraet eingeplant hat: \(String(describing: r))")
+        let files = try await db.withConnection { c in
+            try c.query("SELECT file_id, COUNT(*) n FROM study_tasks WHERE file_id IN ('n-ph-v3','n-ph-u3') GROUP BY file_id ORDER BY file_id")
+                .map { "\($0["file_id"]?.string ?? "") \($0["n"]?.int ?? 0)" }
+        }
+        XCTAssertEqual(files, ["n-ph-u3 1", "n-ph-v3 1"], "jede Unterlage genau einmal")
+
+        // ohne Netz: der Abgleich antwortet nicht, das Einordnen wartet nur kurz und plant dann selbst
+        try await addFiles(b, course: "k-ph", [("n-ph-u4", "Übungsblatt 4.pdf", "Übungen", "2026-10-26T14:00:00")])
+        await MainActor.run {
+            StudyAutoPlan.pullTimeout = 0.05
+            StudyAutoPlan.pullAccountFirst = { try? await Task.sleep(nanoseconds: 30_000_000_000) }
+        }
+        let started = Date()
+        let late = try await StudyAutoPlan.afterSync(b, newFiles: 1)
+        await MainActor.run {
+            StudyAutoPlan.pullAccountFirst = nil
+            StudyAutoPlan.pullTimeout = 20
+        }
+        XCTAssertEqual(late?["created"]?.int, 1, "\(String(describing: late))")
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10, "das Einordnen haengt nie am Geraete-Abgleich")
+    }
 }

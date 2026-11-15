@@ -1287,6 +1287,19 @@ def drop_unplanned(conn) -> int:
     return n
 
 
+def pull_account_first() -> None:
+    """Vor dem automatischen Planen erst die Planung des Kontos holen (Windows-App mit StudiNow-Konto, 15.11.2026):
+    Hat ein anderes Geraet die Woche schon geplant, steht sie dann hier und wird nicht noch einmal geplant. Ohne Konto,
+    im Dienst selbst oder ohne Netz geschieht nichts; ein Doppel fuehrt der naechste Abgleich zusammen (plan_merge)."""
+    from . import config, sync_client
+    if config.is_hosted() or not sync_client.enabled():
+        return
+    try:
+        sync_client.run()
+    except Exception as e:  # noqa: BLE001 - das Planen haengt nie am Geraete-Abgleich
+        print(f"Abgleich vor dem Planen: {e}")
+
+
 def auto_plan_week(conn, new_files: int, log=print) -> dict | None:
     """Nach einem Abgleich (am PC `_full_sync`, auf dem iPad nach dem Stud.IP-Abgleich): mit `auto_plan` die laufende
     Woche ab heute planen, wenn neue Dateien kamen oder in dieser Woche noch kein automatisches Paket liegt. Ersetzt

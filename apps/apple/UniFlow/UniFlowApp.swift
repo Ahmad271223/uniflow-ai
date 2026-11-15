@@ -46,6 +46,9 @@ struct UniFlowApp: App {
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
         let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory,
                                  uniMailTransport: DebugUniStub.transportFactory)
+        // Lernplan: vor dem Einordnen neuer Dokumente erst die Planung des Kontos holen, damit zwei Geraete dieselbe Woche
+        // nicht doppelt planen (15.11.2026)
+        StudyAutoPlan.pullAccountFirst = { [weak c] in await c?.account.pullBeforePlanning() }
         // eine Apple-Anmeldung fuer alles (12.11.2026): die Anmeldung beim ersten Start meldet auch beim StudiNow-Dienst an
         a.onFirstLogin = { [weak c] p in Task { @MainActor in await c?.account.adoptFirstLogin(p) } }
         c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen

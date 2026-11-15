@@ -982,6 +982,7 @@ def _full_sync():
         raise RuntimeError(res.get("message") or "Abgleich fehlgeschlagen")
     _after_current()
     n = planner.analyze_pending()
+    study.pull_account_first()          # Windows-App mit Konto: erst die Planung der anderen Geraete holen (15.11.2026)
     with db.cursor() as conn:
         s = db.get_settings(conn)
         # Lernkalender: laufende Woche nach neuen Dateien planen (nur Stoff der Lehrwoche und Skriptrest nach dem Marker
