@@ -53,3 +53,34 @@ jeweilige Kurs an der Reihe war – ohne jeden Hinweis, dass noch geladen wird.
 6. **Uni-Mail**: wird mit dem gespeicherten Zugang sofort mitverbunden, auch während Learnweb noch lädt; „Sync“ wartet
    dafür nicht mehr auf den Datei-Abgleich. Ohne gespeichertes Passwort: klarer Hinweis „einmal von Hand anmelden“.
    Offene Beobachtung der echten Hildesheimer SOGo-Seite: siehe Bericht.
+
+## Umgesetzt (Stand 15.11.2026 abends)
+
+- **Weiterer Befund beim Bauen:** An der Uni Hildesheim luden die offenen Seiten erst am ENDE des ganzen Laufs neu
+  (`ufReload` hörte nur auf `finishedRuns`). Auch schon geladene Kurse blieben also bis zum Schluss leer, wenn man die
+  Seite nicht wechselte. Jetzt laden die Seiten während des Abgleichs alle paar Sekunden neu (`stagesReady`).
+- Kern: `Sync/SyncProgress.swift` (`SyncProgress`, `SyncPending`, `DownloadPlan`, `DownloadLanes`),
+  `HildesheimSync` (Listen je Stufe zuerst, Downloads geordnet und 3 zugleich, `loadFile`), `DownloadFailures`
+  (Gründe für Learnweb-Dateien). Python: `sync_order.download_order`/`size_class` mit denselben Testfällen.
+- App: `Views/SyncProgressViews.swift` (Leiste, Modul-Hinweis, Hintergrundzeit), `HildesheimConnection` und
+  `StudIPSync` (`progress`, `interrupted`, `stagesReady`, `runOpen`), `FileLoadPanel` (Learnweb), `OpenSync`,
+  `StoredLoginConnect.connectMailAfterSignIn`, `UniMailConnection.adoptExistingSession`, Anmeldefenster der Uni-Mail.
+- Messung im Test (nachgestelltes Learnweb, 14 Kurse, 140 Dateien, 15 ms je Anfrage): nacheinander 3,37 s, mit drei
+  Downloads zugleich 1,21 s (rund 2,8-mal so schnell). Am echten Gerät hängt die Dauer vor allem an der Leitung und
+  daran, ob die App offen bleibt.
+- Unterbrechung: iOS gibt einer App im Hintergrund in der Regel rund 30 Sekunden. Solange läuft der Abgleich weiter,
+  dann endet er sauber. Beim Zurückkommen startet er von selbst und lädt nur, was fehlt (Listen werden kurz neu
+  gelesen, keine Datei zweimal geladen). Ein Laden über viele Minuten bei gesperrtem Gerät geht damit NICHT; dafür
+  bräuchte es Hintergrund-Downloads des Systems (eigener, größerer Umbau, siehe offene Punkte).
+
+## Offen
+
+- Uni-Mail Hildesheim: das Formular `hildesheimSOGo` (automatisches Ausfüllen) ist weiter nicht an der echten Seite
+  bestätigt. Einmal im Browser prüfen: https://webmail.uni-hildesheim.de/SOGo/ – (1) heißen die Felder wie an der LUH
+  (Benutzername `input[name="userName"]` bzw. `ng-model="app.creds.username"`, Passwort `input#passwordField`,
+  Knopf `button[type="submit"]`)? (2) Meldet man sich mit dem UNI-Account an oder mit der E-Mail-Adresse? (3) Gibt es
+  nach dem Passwort einen zweiten Schritt (Code)? (4) Steht nach der Anmeldung `/SOGo/so/<benutzer>/…` in der Adresse?
+  (5) Welcher Text erscheint bei falschem Passwort?
+- Laden bei gesperrtem Gerät über die 30 Sekunden hinaus (Hintergrund-Downloads von iOS).
+- Hochschule Hannover: bekommt Listen zuerst und drei Downloads zugleich aus dem Kern, die neue Anzeige noch nicht.
+- Am echten iPad/iPhone/Mac noch nicht gesehen (nur Simulator und Tests).
