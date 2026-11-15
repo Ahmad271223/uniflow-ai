@@ -1,0 +1,19 @@
+# Lasttests: bekommen beim Sammeln den Marker `last` (tests/conftest.py, pytest.ini). Erklaerung: docs/TESTLAEUFE.md
+#
+# Hier steht ein Test, wenn er viele Prozesse oder Sitzungen zugleich startet (ab vier Python-Prozessen, ein eigener
+# Dienst mit Arbeitern, Dutzende gleichzeitige Anfragen) oder laenger als etwa 20 Sekunden braucht. Solche Tests
+# treiben die Last des Rechners hoch und lassen Tests anderer Laeufe kippen, wenn mehrere Laeufe nebeneinander laufen.
+#
+# Format: je Zeile `datei.py::testname` (ohne Parameter in eckigen Klammern; gilt fuer alle Parameter), dahinter `#`
+# mit Dauer und Grund. tests/test_testlaeufe.py prueft, dass es jeden Eintrag noch gibt.
+# Dauer: gemessen am 15.11.2026 auf dem Mac bei ruhigem Rechner (nur diese Tests, zusammen 69 s).
+
+test_audit_p58_87_golive.py::test_p82_soak_tool_keeps_every_acknowledged_write_and_survives_a_killed_worker  # 16 s; tools/lasttest-dauer.py: eigener Dienst mit 2 API-Prozessen, 60 Sitzungen, 16 Anfragen zugleich, KI-Attrappe, ein Prozess wird beendet
+test_audit_paket_15_16.py::test_p16_01_twelve_processes_on_a_fresh_data_dir_agree  # 15 s; 3 Runden mit 12 Python-Prozessen zugleich
+test_audit_paket_11_12.py::test_p11_02_twelve_processes_start_together  # 2 x 10 s; je 2 Runden mit 12 Python-Prozessen zugleich
+test_audit_paket_50_54.py::test_p54_09_accounts_db_wal_stays_bounded_under_sustained_multi_process_load  # 4 s; 6 Prozesse schreiben 4 s lang in dieselbe Datenbank, 400 Sitzungen
+test_audit_p58_87_golive.py::test_p82_ki_lasttest_reaches_the_fake_provider_in_hosted_mode  # 4 s; tools/lasttest-ki.py: eigener Dienst, KI-Attrappe, 12 Anfragen
+test_audit_p58_87_golive.py::test_p84_03_backup_restores_into_an_empty_folder_with_identical_content_and_a_working_service  # 2 s; eigener Dienst, Sicherung und Rueckspielen als eigene Prozesse
+test_ai_lastfest.py::test_ai_questions_run_async_and_leave_other_endpoints_fast  # 1,6 s; 60 KI-Fragen zugleich, misst Antwortzeiten (kippt unter fremder Last)
+test_audit_paket_17_18.py::test_p17_08_parallel_first_start_moves_data_exactly_once  # 1,5 s; 6 Python-Prozesse zugleich
+test_audit_p58_87_ki.py::test_p63_03_four_processes_never_book_past_the_shared_month_budget  # 0,3 s; 4 Python-Prozesse zugleich
