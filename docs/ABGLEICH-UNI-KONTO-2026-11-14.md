@@ -71,6 +71,11 @@ gemeinsamen Raum der Hochschule in den Raum ihres Uni-Kontos; der Dienst muss di
 - `sync_devices(device_id, room)` – in welchem Raum ein Gerät zuletzt war.
 - `sync_row_room(entity, entity_id, room, origin, assigned_at)` – Raum und Ursprungsgerät je Zeile.
 
+Die drei Tabellen gibt es **nur im Dienst** (wie `sync_ops`); das Gerät kennt nur seinen eigenen Schlüssel
+(`sync_link_state`). Der Schema-Vergleich „lokale Swift-Datenbank = Python init_db“ nimmt sie deshalb aus
+(`SQLiteStoreTests`, `serviceOnlyTables`), und `testRoomTablesExistOnlyAtTheService` hält fest, dass sie im Dienst
+stehen und auf dem Gerät nie entstehen.
+
 Regeln (`app/sync.py`, Klasse `Rooms`):
 
 - **Getrennt wird, sobald der Dienst zwei Uni-Konten unter dem StudiNow-Konto kennt** (zwei Räume). Solange es nur

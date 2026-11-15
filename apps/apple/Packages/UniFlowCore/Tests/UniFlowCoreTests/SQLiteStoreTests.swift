@@ -93,8 +93,15 @@ final class SQLiteStoreTests: XCTestCase {
     /// gegen doppelte Zeilen) sync_ops an. Das iPad V1 hat keine
     /// Konten und keinen Geraete-Sync: Fixture ohne diese Teile, der strenge Vergleich steht als erwartete Abweichung
     /// in den Tests (`expectKnownFailure`), damit er mit G2 wieder greift.
+    ///
+    /// Raum je Uni-Konto (14.11.2026, app/sync.py `ensure_rooms`): `sync_rooms`, `sync_devices` und `sync_row_room` liegen
+    /// wie `sync_ops` nur in der Konto-Datenbank des Dienstes (welches Geraet in welchem Raum ist, welcher Raum einer
+    /// Zeile gehoert). Das Geraet kennt nur seinen eigenen Schluessel (`sync_link_state`); die Tabellen gehoeren nicht in
+    /// die lokale Datenbank. `testRoomTablesExistOnlyAtTheService` haelt beide Seiten fest.
     private static let syncColumns: Set<String> = ["sync_version", "sync_updated_at", "sync_device"]
-    private static let syncTables: Set<String> = ["sync_tombstones", "idx_tombstones_time", "sync_ops"]
+    private static let serviceOnlyTables: Set<String> = ["sync_ops", "sync_rooms", "sync_devices", "sync_row_room"]
+    private static let syncTables: Set<String> = serviceOnlyTables.union(["sync_tombstones", "idx_tombstones_time",
+                                                                          "idx_sync_row_room_origin", "idx_sync_row_room_assigned"])
 
     private func withoutSync(_ value: JSONValue?) -> JSONValue? {
         guard let value else { return nil }
@@ -115,8 +122,33 @@ final class SQLiteStoreTests: XCTestCase {
         }
     }
 
+    /// Die Ausnahmen des Schema-Vergleichs sind keine Luecke: Jede reine Dienst-Tabelle steht wirklich im Schema des
+    /// Dienstes (Fixture aus init_db), und keine davon entsteht auf dem Geraet - weder beim Anlegen der Datenbank noch
+    /// beim ersten Geraete-Abgleich (`DeviceSyncSchema.ensure`). Kaeme eine Raum-Tabelle doch aufs Geraet oder
+    /// verschwaende sie im Dienst, schlaegt dieser Test an, statt dass der Vergleich still etwas ueberspringt.
+    func testRoomTablesExistOnlyAtTheService() throws {
+        for name in ["schema.json", "legacy.json"] {
+            let service = try fixture(name)["schema"]?["tables"]?.object ?? [:]
+            for table in Self.serviceOnlyTables.sorted() {
+                XCTAssertNotNil(service[table], "\(table) fehlt im Schema des Dienstes (\(name)): Ausnahme im Vergleich pruefen")
+            }
+            let indexes = try fixture(name)["schema"]?["index_sql"]?.object ?? [:]
+            for index in Self.syncTables.subtracting(Self.serviceOnlyTables).filter({ $0.hasPrefix("idx_") }).sorted() {
+                XCTAssertNotNil(indexes[index], "\(index) fehlt im Schema des Dienstes (\(name))")
+            }
+        }
+        let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(c, clock: clock)
+        try DeviceSyncSchema.ensure(c)                                   // Stand nach dem ersten Geraete-Abgleich
+        let local = Set(try c.query("SELECT name FROM sqlite_master WHERE type IN ('table', 'index')").compactMap { $0[0].string })
+        XCTAssertTrue(local.contains("sync_tombstones") && local.contains("sync_link_state"), "der Abgleich des Geraets hat seine eigenen Tabellen")
+        for name in Self.serviceOnlyTables.union(["idx_sync_row_room_origin", "idx_sync_row_room_assigned"]).sorted() {
+            XCTAssertFalse(local.contains(name), "\(name) gehoert nur in die Konto-Datenbank des Dienstes")
+        }
+    }
+
     private func assertSchemaExceptSync(_ actual: JSONValue, _ expected: JSONValue?, file: StaticString = #filePath, line: UInt = #line) {
-        expectKnownFailure("G2-Sync-Spalten, sync_tombstones und sync_ops (PC-Stand) fehlen im iPad V1 ohne Konten", strict: true) {
+        expectKnownFailure("G2-Sync-Spalten, sync_tombstones, sync_ops und die Raum-Tabellen (Dienst-Stand) fehlen im iPad V1 ohne Konten", strict: true) {
             assertSchema(actual, expected, file: file, line: line)
         }
         assertSchema(actual, withoutSync(expected), file: file, line: line)
