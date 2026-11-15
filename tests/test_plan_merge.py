@@ -91,6 +91,16 @@ def test_older_app_without_outline_next_to_the_new_one():
     assert sorted(t["title"] for t in c["study_tasks"]) == ["10_12112026.pdf", "Skript.pdf", "Skript.pdf · S. 30–60"]
 
 
+def test_empty_package_from_the_account_frees_its_time_slot():
+    """Nur ein automatisches Paket, das leer aus dem Konto kam: ohne Uhrzeit. Hier angelegte leere Pakete, eigene und
+    Bloecke des Stundenplaners bleiben (sonst aenderte jeder Lernkalender fremde Zeilen)."""
+    c = _case("leeres_paket")
+    by = {p["id"]: p for p in c["study_packages"]}
+    assert (by[1]["status"], by[1]["start_time"], by[1]["planned_minutes"]) == ("verschoben", None, 0)
+    assert all((by[i]["status"], by[i]["start_time"]) == ("geplant", s) for i, s in ((2, "10:00"), (3, "14:00"), (4, "19:15")))
+    assert c["result"]["empty"] == 1 and c["tombstones"] == [], "nichts geloescht"
+
+
 def test_weekly_test_once_per_subject_and_week_free_tasks_stay():
     c = _case("wochentest")
     assert sorted((t["type"], t["package_id"]) for t in c["study_tasks"]) == [

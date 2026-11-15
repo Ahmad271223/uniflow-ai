@@ -50,7 +50,8 @@ Dienst dieselbe Regel). Stehen zwei Aufgaben für dieselbe Unterlage im Plan, bl
 
 Entfernt wird nur eine unberührte automatische Aufgabe, und nur, wenn eine andere dieselbe Unterlage abdeckt. Ein Paket
 verschwindet erst, wenn es dadurch leer ist; sonst passen danach seine Minuten und sein Block wieder. Blöcke des
-Stundenplaners bleiben als Lernzeit stehen. Ein automatisches Paket ganz ohne Aufgaben belegt keine Uhrzeit mehr.
+Stundenplaners bleiben als Lernzeit stehen. Ein automatisches Paket, das ganz ohne Aufgaben aus dem Konto kam, belegt
+keine Uhrzeit mehr (es wird nicht gelöscht; hier angelegte leere Pakete bleiben, wie sie sind).
 
 Was als dieselbe Unterlage gilt: gleiche Seiten bzw. gleicher Teil; die ganze Datei gegen Abschnitte aus der Gliederung
 (ältere App ohne Gliederung neben der neuen, dieselbe Lehrwoche); verschieden geteilt („Teil 1/2“ gegen „Teil 1/3“).

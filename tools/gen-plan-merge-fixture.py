@@ -162,9 +162,10 @@ CASES: list[dict] = [
               task(3, 3, "vorlesung", "f-skript", "Skript.pdf", 60, device=DIENST), T(203, 3),
               pkg(4, THU, 2, B, 40), P(104, 4), task(4, 4, "vorlesung", "f-skript", "Skript.pdf · S. 30–60", 40), T(204, 4),
               pkg(5, FRI, 2, B, 40, week=6, title="Woche 6 · 23.11. – 29.11."), P(105, 5), task(5, 5, "vorlesung", "f-skript", "Skript.pdf · S. 30–60", 40), T(205, 5)]},
-    {"name": "leeres_paket", "about": "Automatisches Paket ohne jede Aufgabe (seine Aufgaben stehen in der Planung des anderen Geraets): "
-     "belegt keine Uhrzeit mehr. Ein eigenes leeres Paket bleibt, wie es ist.",
+    {"name": "leeres_paket", "about": "Automatisches Paket ohne jede Aufgabe, das so aus dem Konto kam (seine Aufgaben stehen in der "
+     "Planung des anderen Geraets): belegt keine Uhrzeit mehr. Ein eigenes oder hier angelegtes leeres Paket bleibt, wie es ist.",
      "seed": [pkg(1, WED, 1, A, 60, start="19:15", end="20:15", device=DIENST), P(101, 1),
+              pkg(4, THU, 1, A, 60, start="19:15", end="20:15"), P(104, 4),
               pkg(2, WED, 2, A, 30, start="10:00", end="10:30", generated=0, title="Eigenes Kapitel"), P(102, 2),
               pkg(3, WED, 3, A, 120, start="14:00", end="16:00", source="smart", title="Selbststudium", week=None), P(103, 3)]},
     {"name": "stundenplaner", "about": "Bloecke des Stundenplaners bleiben als Lernzeit stehen, auch wenn ihre doppelte Unterlage geht.",

@@ -150,16 +150,20 @@ enum StudyPlanMerge {
     static func mergeDuplicates(_ c: SQLiteConnection) throws -> Result {
         var out = Result()
         let untouched = try untouched(c)
-        // Paket ohne jede Aufgabe (seine Aufgaben stehen in der Planung des anderen Geraets): wie nach dem Verschieben
-        // der letzten Aufgabe (`recalcPackage`) belegt es keine Uhrzeit mehr. Nicht loeschen: kaemen seine Aufgaben
-        // noch, stellt `refreshStatuses` den Status wieder her.
-        for p in try c.query("""
-            SELECT p.id FROM study_packages p WHERE COALESCE(p.source,'')<>'smart'
-            AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) ORDER BY p.id
-            """) {
-            guard let id = p["id"]?.int64, untouched.contains(id) else { continue }
-            try StudyPlan.recalcPackage(c, .integer(id))
-            out.empty += 1
+        // Paket ohne jede Aufgabe, das so aus dem Konto kam und hier nie geaendert wurde (seine Aufgaben stehen in der
+        // Planung des anderen Geraets): wie nach dem Verschieben der letzten Aufgabe (`recalcPackage`) belegt es keine
+        // Uhrzeit mehr. Nicht loeschen: kaemen seine Aufgaben noch, stellt `refreshStatuses` den Status wieder her.
+        // Nur auf einem Geraet mit Geraete-Abgleich (ohne ihn gibt es die Spalte nicht); ein hier angelegtes leeres
+        // Paket bleibt, wie es ist.
+        if try c.columnNames("study_packages").contains("sync_device") {
+            for p in try c.query("""
+                SELECT p.id FROM study_packages p WHERE COALESCE(p.source,'')<>'smart' AND p.sync_device=?
+                AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) ORDER BY p.id
+                """, [.text(appliedDevice)]) {
+                guard let id = p["id"]?.int64, untouched.contains(id) else { continue }
+                try StudyPlan.recalcPackage(c, .integer(id))
+                out.empty += 1
+            }
         }
         let marks = Array(repeating: "?", count: cover.count).joined(separator: ",")
         let tasks = try c.query("""

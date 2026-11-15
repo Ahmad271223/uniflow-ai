@@ -1530,10 +1530,12 @@
   },
   {
    "name": "leeres_paket",
-   "about": "Automatisches Paket ohne jede Aufgabe (seine Aufgaben stehen in der Planung des anderen Geraets): belegt keine Uhrzeit mehr. Ein eigenes leeres Paket bleibt, wie es ist.",
+   "about": "Automatisches Paket ohne jede Aufgabe, das so aus dem Konto kam (seine Aufgaben stehen in der Planung des anderen Geraets): belegt keine Uhrzeit mehr. Ein eigenes oder hier angelegtes leeres Paket bleibt, wie es ist.",
    "seed": [
     "INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time, source, locked, manual, sync_version, sync_updated_at, sync_device) VALUES (1, '2026-11-18', 1, 'Fach A', 'Woche 5 · 16.11. – 22.11.', 5, 60, 'geplant', 0, 1, '2026-11-14T16:25:40', '19:15', '20:15', NULL, 0, 0, 1, '2026-11-16T08:00:00.000Z', '~dienst')",
     "INSERT INTO sync_link_map(entity, remote_id, local_id, remote_version, local_version) VALUES ('study_packages', '101', '1', 1, 1)",
+    "INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time, source, locked, manual, sync_version, sync_updated_at, sync_device) VALUES (4, '2026-11-19', 1, 'Fach A', 'Woche 5 · 16.11. – 22.11.', 5, 60, 'geplant', 0, 1, '2026-11-14T16:25:40', '19:15', '20:15', NULL, 0, 0, 1, '2026-11-16T08:00:00.000Z', NULL)",
+    "INSERT INTO sync_link_map(entity, remote_id, local_id, remote_version, local_version) VALUES ('study_packages', '104', '4', 1, 1)",
     "INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time, source, locked, manual, sync_version, sync_updated_at, sync_device) VALUES (2, '2026-11-18', 2, 'Fach B', 'Eigenes Kapitel', 5, 30, 'geplant', 0, 0, '2026-11-14T16:25:40', '10:00', '10:30', NULL, 0, 0, 1, '2026-11-16T08:00:00.000Z', NULL)",
     "INSERT INTO sync_link_map(entity, remote_id, local_id, remote_version, local_version) VALUES ('study_packages', '102', '2', 1, 1)",
     "INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at, start_time, end_time, source, locked, manual, sync_version, sync_updated_at, sync_device) VALUES (3, '2026-11-18', 3, 'Fach C', 'Selbststudium', NULL, 120, 'geplant', 0, 1, '2026-11-14T16:25:40', '14:00', '16:00', 'smart', 0, 0, 1, '2026-11-16T08:00:00.000Z', NULL)",
@@ -1603,6 +1605,24 @@
      "start_time": "14:00",
      "end_time": "16:00",
      "source": "smart",
+     "locked": 0,
+     "manual": 0
+    },
+    {
+     "id": 4,
+     "date": "2026-11-19",
+     "module_id": 1,
+     "subject": "Fach A",
+     "title": "Woche 5 · 16.11. – 22.11.",
+     "week_no": 5,
+     "planned_minutes": 60,
+     "status": "geplant",
+     "sort": 0,
+     "generated": 1,
+     "created_at": "2026-11-14T16:25:40",
+     "start_time": "19:15",
+     "end_time": "20:15",
+     "source": null,
      "locked": 0,
      "manual": 0
     }

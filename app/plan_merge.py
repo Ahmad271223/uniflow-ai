@@ -119,14 +119,16 @@ def merge_duplicates(conn, hosted: bool | None = None) -> dict:
     tables = _tables(conn)
     untouched = _untouched(conn)
     out = {"tasks": 0, "packages": 0, "empty": 0}
-    # Paket ohne jede Aufgabe (seine Aufgaben stehen in der Planung des anderen Geraets): wie nach dem Verschieben der
-    # letzten Aufgabe (`study._recalc_package`) belegt es keine Uhrzeit mehr. Nicht loeschen: kaemen seine Aufgaben
-    # noch, stellt refresh_statuses den Status wieder her.
-    for p in db.rows(conn, """SELECT p.id FROM study_packages p WHERE COALESCE(p.source,'')<>'smart'
-                              AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) ORDER BY p.id"""):
-        if p["id"] in untouched:
-            study._recalc_package(conn, p["id"])
-            out["empty"] += 1
+    # Paket ohne jede Aufgabe, das so aus dem Konto kam und hier nie geaendert wurde (seine Aufgaben stehen in der
+    # Planung des anderen Geraets): wie nach dem Verschieben der letzten Aufgabe (`study._recalc_package`) belegt es
+    # keine Uhrzeit mehr. Nicht loeschen: kaemen seine Aufgaben noch, stellt refresh_statuses den Status wieder her.
+    # Nur auf einem Geraet mit Geraete-Abgleich; ein hier angelegtes leeres Paket bleibt, wie es ist.
+    if "sync_device" in {r["name"] for r in db.rows(conn, "PRAGMA table_info(study_packages)")}:
+        for p in db.rows(conn, """SELECT p.id FROM study_packages p WHERE COALESCE(p.source,'')<>'smart' AND p.sync_device=?
+                                  AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) ORDER BY p.id""", (APPLIED_DEVICE,)):
+            if p["id"] in untouched:
+                study._recalc_package(conn, p["id"])
+                out["empty"] += 1
     cols = {r["name"] for r in db.rows(conn, "PRAGMA table_info(study_tasks)")}
     extra = "".join(f", t.{c}" for c in ("page_from", "page_to", "steps_done", "test_id") if c in cols)
     marks = ",".join("?" * len(COVER))
