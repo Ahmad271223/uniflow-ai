@@ -97,6 +97,15 @@ final class PlanerModulWocheAppTests: XCTestCase {
         let suite = "uniflow-planer-modul-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        // seit 15.11.2026 liest die Zeile "Dateien werden noch geladen" im Modul den ContainerManager aus der Umgebung
+        // (in der App haengt er an der Wurzel); hier ein leerer ohne geoeffnetes Konto
+        let bed = try ContainerTestBed(name: "planer-modul", clock: .system)
+        addTeardownBlock { await bed.tearDown() }
+        let manager = ContainerManager(
+            base: bed.containers,
+            legacy: LegacyDataMigration.Sources(support: bed.appSupport.appendingPathComponent("UniFlow", isDirectory: true),
+                                                studip: bed.appSupport.appendingPathComponent("StudIP", isDirectory: true)),
+            keychain: bed.keychain, cookieService: bed.cookieService, defaults: bed.defaults, clock: bed.clock, publishesCurrent: false)
         let root = view
             .modifier(UFDrawerHost(overlay: overlay))
             .modifier(UFModalHost(overlay: overlay))
@@ -106,6 +115,7 @@ final class PlanerModulWocheAppTests: XCTestCase {
             .environmentObject(overlay)
             .environmentObject(UFToastCenter())
             .environmentObject(StudIPSync())
+            .environmentObject(manager)
         let frame = CGRect(origin: .zero, size: size)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
