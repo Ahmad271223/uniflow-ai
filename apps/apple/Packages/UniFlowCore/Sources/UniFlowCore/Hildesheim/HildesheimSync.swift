@@ -276,10 +276,20 @@ public actor HildesheimSync {
     private let retry: UniRetry
     /// Seitentexte geladener PDFs fuer Suche und Seitenzuordnung einer neuen Fassung (S7; App: PDFKit, ohne: keine)
     private let tools: LocalDocumentTools
+    /// Fortschritt der Dateien fuer die Anzeige (`SyncProgress`); kommt aus beliebigen Aufgaben, die App reicht ihn an
+    /// den Hauptfaden weiter
+    private let onProgress: (@Sendable (SyncProgress) -> Void)?
+    /// Gleichzeitigkeit der Downloads dieses Laufs (Tests und Bericht lesen `peak` und `slowed`)
+    public let downloadLanes: DownloadLanes
+    /// gewuenschte Gleichzeitigkeit (1 = streng nacheinander wie vor dem 15.11.2026, fuer Messungen)
+    private let lanesWanted: Int
 
     public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: (any UniCampusClient)?, transport: UniTransport,
                 clock: UniFlowClock = .system, retry: UniRetry = UniRetry(), tools: LocalDocumentTools = NoDocumentTools(),
-                names: SourceNames = .hildesheim) {
+                names: SourceNames = .hildesheim, lanes: Int = DownloadPlan.lanes, onProgress: (@Sendable (SyncProgress) -> Void)? = nil) {
+        self.onProgress = onProgress
+        lanesWanted = max(1, lanes)
+        downloadLanes = DownloadLanes(lanes)
         self.db = db
         self.names = names
         self.container = container
@@ -365,6 +375,51 @@ public actor HildesheimSync {
         return report
     }
 
+    /// Ergebnis von `loadFile` (eine Datei auf Antippen)
+    public enum SingleLoad: Sendable, Equatable {
+        case loaded
+        /// Anmeldung abgelaufen oder Schluessel ungueltig
+        case needsLogin
+        /// gescheitert, mit verstaendlichem Grund (steht auch je Datei in `DownloadFailures`)
+        case failed(String)
+        /// keine Datei dieser Quelle (eigene Datei, andere Hochschule, Link)
+        case unknown
+    }
+
+    /// Eine gelistete, noch nicht geladene Datei sofort laden (15.11.2026: Antippen im Modul, waehrend der Abgleich noch
+    /// laeuft oder unterbrochen wurde), auf demselben Weg wie der Abgleich (`UniDownloads`: eigener Zwischenordner,
+    /// Pruefungen, Hash, Eintrag). Darf neben einem laufenden Abgleich laufen. Die Adresse kommt aus der Datenbank und
+    /// muss zum Rechner dieser Quelle gehoeren (`LearnwebAPI.downloadRequest`).
+    public func loadFile(id: String) async -> SingleLoad {
+        guard let learnweb, await refusal() == nil else { return .unknown }
+        do {
+            guard let r = try await db.rows("""
+                SELECT id, name, size, mime, chdate, revision, download_url, studip_folder, local_path FROM files
+                WHERE id=? AND course_id <> '__user__' AND deleted_at IS NULL AND COALESCE(kind, '') <> 'link'
+                """, [.text(id)]).first, let url = r["download_url"]?.string, !url.isEmpty else { return .unknown }
+            let files = container.files()
+            if let path = r["local_path"]?.string, !path.isEmpty, files.exists(stored: path) { return .loaded }
+            let name = r["name"]?.string ?? id
+            let file = Learnweb.File(id: id, name: name, size: r["size"]?.int.flatMap { $0 > 0 ? $0 : nil }, mime: r["mime"]?.string,
+                                     chdate: r["chdate"]?.int, revision: r["revision"]?.int, downloadURL: url,
+                                     folder: r["studip_folder"]?.string ?? "")
+            guard let req = try? await learnweb.downloadRequest(file) else { return .unknown }
+            let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: names.files)
+            try downloads.begin()
+            defer { downloads.end() }
+            try await downloads.load(file.row, to: StudIPImport.relativePath(fileID: id, name: name), db: db, clock: clock,
+                                     fetch: Self.fetch(req, name: name, shownURL: url, transport: transport, retry: retry))
+            return .loaded
+        } catch {
+            if Self.isLoginError(error) { return .needsLogin }
+            if Self.isCancellation(error) { return .failed("Abgebrochen.") }
+            let d = DownloadFailures.describe(error)
+            let at = clock.nowISO
+            _ = try? await db.transaction { try DownloadFailures.record($0, fileID: id, message: d.message, status: d.status, now: at) }
+            return .failed(d.message)
+        }
+    }
+
     /// Nur der Container der Uni Hildesheim mit seiner Kennzeichnung (streng: ohne Kennzeichnung nicht) und eine
     /// Datenbank dieser Hochschule (`settings.university`) werden beschrieben; sonst die Meldung, warum nicht.
     private func refusal() async -> String? {
@@ -430,66 +485,174 @@ public actor HildesheimSync {
         let files = container.files()
         let all = current + older
         let olderIDs = Set(older.map(\.id))
-        // Jeder Kurs einzeln: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
-        courseLoop: for (i, c) in all.enumerated() {
-            /// Learnweb-Teil beenden: Abbruch oder abgelaufene Anmeldung; dieser und alle weiteren Kurse bleiben offen
-            func stop(_ error: Error) -> Bool {
-                if Self.isCancellation(error) {
-                    report.cancelled = true
-                } else if Self.isLoginError(error) {
-                    if !report.needsLogin.contains(names.files) { report.needsLogin.append(names.files) }
-                } else {
-                    return false
-                }
-                report.notAttempted = all[i...].map(\.id)
-                return true
+        let term = SyncOrder.currentTerm(today: clock.today, university: names.university)
+        // Ablauf seit 15.11.2026 (docs/ERST-ABGLEICH-2026-11-15.md): erst die Dateilisten ALLER Kurse (die Module zeigen
+        // ihre Dateien sofort, Antippen laedt einzeln), dann die Downloads - laufendes Semester vor frueheren, kleine und
+        // neue Dateien zuerst, massvoll nebeneinander (`DownloadPlan`). Vorher Kurs fuer Kurs Liste und Downloads: der
+        // letzte Kurs blieb leer, bis alle davor geladen waren. Jeder Kurs einzeln: ein Fehler in einem Kurs verwirft
+        // nicht die schon geholten Dateien.
+        let state = LearnwebRun(SyncProgress(step: .lists, coursesTotal: all.count, older: olderOnly))
+        let notify = onProgress
+        /// Stand melden (der Stand selbst ist schon geaendert, auch ohne Empfaenger)
+        @Sendable func tell(_ p: SyncProgress) { notify?(p) }
+        tell(state.with { $0.progress })
+        /// Abbruch oder abgelaufene Anmeldung beenden den Learnweb-Teil; alles andere betrifft nur Kurs bzw. Datei
+        @Sendable func stops(_ error: Error) -> Bool {
+            if Self.isCancellation(error) {
+                state.with { $0.cancelled = true }
+            } else if Self.isLoginError(error) {
+                state.with { $0.loginNeeded = true }
+            } else {
+                return false
             }
-            if Task.isCancelled, stop(CancellationError()) { break courseLoop }
+            return true
+        }
+        let listLanes = DownloadLanes(min(DownloadPlan.listLanes, lanesWanted))
+        let db = self.db, clock = self.clock
+        let fetched = HeaderDates()
+        /// Stufe je Kurs (`SyncOrder`): 0 laufendes Semester, 1 naechstes, 2 fruehere (nur auf Wunsch)
+        func stage(_ c: Learnweb.Course) -> Int {
+            if olderIDs.contains(c.id) { return 2 }
+            return SyncOrder.stage(active: true, semester: c.semester, current: term) == .upcoming ? 1 : 0
+        }
+        // je Stufe: erst alle Listen, dann die Downloads; das naechste Semester beginnt erst nach dem laufenden
+        for wanted in 0...2 {
+        let group = all.enumerated().filter { stage($0.element) == wanted }.map { ($0.offset, $0.element) }
+        if group.isEmpty || state.stopped || Task.isCancelled { continue }
+        tell(state.with { $0.progress.step = .lists; return $0.progress })
+        await DownloadPlan.forEach(group, lanes: listLanes) { _, entry in
+            let (i, c) = entry
+            if Task.isCancelled || state.stopped { _ = stops(CancellationError()); return false }
             do {
                 let list = try await api.files(moodleID: c.moodleID)
-                report.filesListed += list.count
-                if list.isEmpty { report.coursesWithoutFiles.append(c.title) }
                 let now = clock.nowISO
-                let todo = try await db.transaction { conn in
-                    try UniStore.storeFiles(conn, courseID: c.id, list.map(\.row), now: now, fileExists: { files.exists(stored: $0) })
+                let todo = try await db.transaction { conn -> [UniStore.FileRow] in
+                    let todo = try UniStore.storeFiles(conn, courseID: c.id, list.map(\.row), now: now, fileExists: { files.exists(stored: $0) })
+                    try SyncPending.markListed(conn, courseID: c.id, now: now)
+                    return todo
                 }
-                // nur Listen: die Dateien laedt der naechste volle Abgleich (beim Oeffnen der App oder im langen
-                // Hintergrundlauf mit Netz)
-                guard loadFiles else {
-                    report.waiting += todo.count
-                    await assignWeeks(api, course: c, list: list, fetched: [:], network: false)
-                    continue
-                }
-                var courseFailed = false
-                let fetched = HeaderDates()
-                for row in todo {
-                    guard let f = list.first(where: { $0.id == row.id }) else { continue }
+                // Lehrwochen aus Name, Ordner und Abschnitt sofort; das Datum aus dem Download kommt danach
+                await self.assignWeeks(api, course: c, list: list, fetched: [:], network: false)
+                tell(state.with { s in
+                    s.lists[i] = list
+                    s.todo[i] = todo
+                    s.progress.coursesDone += 1
+                    if loadFiles { s.progress.filesTotal += todo.count }
+                    s.progress.current = c.title
+                    return s.progress
+                })
+            } catch {
+                if DownloadPlan.isOverload(error) { await listLanes.slowDown() }
+                if stops(error) { return false }
+                tell(state.with { s in
+                    s.failedCourses[i] = "\(c.title): \(Self.describe(error))"
+                    s.progress.coursesDone += 1
+                    return s.progress
+                })
+            }
+            return true
+        }
+        // Downloads: alle Kurse zusammen in der Reihenfolge der Wichtigkeit
+        var items: [DownloadItem] = []
+        let (lists, todos) = state.with { ($0.lists, $0.todo) }
+        for (i, _) in group {
+            for row in todos[i] ?? [] {
+                if let f = lists[i]?.first(where: { $0.id == row.id }) { items.append(DownloadItem(course: i, row: row, file: f)) }
+            }
+        }
+        /// Kurs fertig geladen: Lehrwochen mit dem Datum der Downloads (`LectureWeeks`, einmal je Datei, danach gemerkt);
+        /// ein Kurs eines frueheren Semesters ohne Fehler wird beim naechsten Abgleich nicht erneut abgefragt
+        @Sendable func finishCourse(_ i: Int) async {
+            let c = all[i]
+            guard let list = lists[i] else { return }
+            if !Task.isCancelled { await self.assignWeeks(api, course: c, list: list, fetched: fetched.all, network: true) }
+            if olderIDs.contains(c.id), !state.with({ $0.failedDownloads.contains(i) }) {
+                let now = clock.nowISO
+                _ = try? await db.transaction { try OlderSemesters.markLoaded($0, courseIDs: [c.id], now: now) }
+                state.with { $0.olderLoaded.append(c.id) }
+            }
+        }
+        if loadFiles, !state.stopped, !Task.isCancelled {
+            let ordered = DownloadPlan.order(items, stage: { _ in wanted }, size: { $0.row.size }, changed: { $0.file.chdate })
+            tell(state.with { s in
+                for item in ordered { s.remaining[item.course, default: 0] += 1 }
+                s.progress.step = .files
+                s.progress.filesTotal = s.progress.filesDone + ordered.count
+                s.progress.current = ordered.first.map { all[$0.course].title }
+                return s.progress
+            })
+            let lanes = downloadLanes
+            let retry = self.retry, transport = self.transport
+            await DownloadPlan.forEach(ordered, lanes: lanes) { _, item in
+                if Task.isCancelled || state.stopped { _ = stops(CancellationError()); return false }
+                let row = item.row
+                var secondTry = false
+                while true {
                     do {
                         try Task.checkCancellation()
-                        let req = try await api.downloadRequest(f)
+                        let req = try await api.downloadRequest(item.file)
                         try await downloads.load(row, to: StudIPImport.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
                                                  fetch: Self.fetch(req, name: row.name, shownURL: row.downloadURL, transport: transport, retry: retry,
                                                                    onDate: { [id = row.id] in fetched.set(id, $0) }))
-                        report.newFiles.append(row.id)
+                        state.with { $0.newFiles.append(row.id) }
                     } catch {
-                        if stop(error) { break courseLoop }
-                        report.failedFiles.append(row.name)
-                        courseFailed = true
+                        if stops(error) { return false }
+                        // die Hochschule bremst (429) oder ist gestoert (5xx): ab jetzt einzeln; diese Datei bekommt nach
+                        // einer Pause genau einen weiteren Versuch, sobald sie allein an der Reihe ist
+                        if DownloadPlan.isOverload(error) {
+                            await lanes.slowDown()
+                            if !secondTry {
+                                secondTry = true
+                                await lanes.leave()
+                                try? await Task.sleep(nanoseconds: retry.delayNanos(1))
+                                await lanes.enter()
+                                continue
+                            }
+                        }
+                        let message = DownloadFailures.describe(error)
+                        let at = clock.nowISO
+                        _ = try? await db.transaction { try DownloadFailures.record($0, fileID: row.id, message: message.message, status: message.status, now: at) }
+                        state.with { s in
+                            s.failedFiles.append(row.name)
+                            s.failedDownloads.insert(item.course)
+                        }
                     }
+                    break
                 }
-                // Lehrwochen selbst bestimmen (`LectureWeeks`): einmal je Datei, danach gemerkt
-                if !Task.isCancelled { await assignWeeks(api, course: c, list: list, fetched: fetched.all, network: true) }
-                // Kurs eines frueheren Semesters vollstaendig: der naechste Abgleich fragt ihn nicht erneut ab
-                if olderIDs.contains(c.id), !courseFailed {
-                    let now = clock.nowISO
-                    try? await db.transaction { try OlderSemesters.markLoaded($0, courseIDs: [c.id], now: now) }
-                    report.olderLoaded.append(c.id)
+                let (p, courseDone) = state.with { s -> (SyncProgress, Bool) in
+                    s.progress.filesDone += 1
+                    s.progress.current = all[item.course].title
+                    s.remaining[item.course, default: 1] -= 1
+                    return (s.progress, s.remaining[item.course] == 0)
                 }
-            } catch {
-                if stop(error) { break courseLoop }
-                report.failedCourses.append(c.title)
-                report.courseErrors.append("\(c.title): \(Self.describe(error))")
+                notify?(p)
+                if courseDone { await finishCourse(item.course) }
+                return true
             }
+            // Kurse ohne neue Datei: Lehrwochen frueher geladener Dateien nachholen (wie bisher nach jedem Kurs)
+            for (i, _) in group where !state.stopped && !Task.isCancelled && lists[i] != nil && state.with({ $0.remaining[i] == nil }) {
+                await finishCourse(i)
+            }
+        }
+        }
+        // Zwischenstand in den Bericht (Reihenfolge der Kurse)
+        let done = state.snapshot
+        report.filesListed = all.indices.reduce(0) { $0 + (done.lists[$1]?.count ?? 0) }
+        report.coursesWithoutFiles = all.indices.filter { done.lists[$0]?.isEmpty == true }.map { all[$0].title }
+        report.failedCourses = all.indices.filter { done.failedCourses[$0] != nil }.map { all[$0].title }
+        report.courseErrors = all.indices.compactMap { done.failedCourses[$0] }
+        report.newFiles = done.newFiles
+        report.failedFiles = done.failedFiles
+        report.olderLoaded = done.olderLoaded
+        if !loadFiles { report.waiting = all.indices.reduce(0) { $0 + (done.todo[$1]?.count ?? 0) } }
+        if Task.isCancelled || done.cancelled { report.cancelled = true }
+        if done.loginNeeded, !report.needsLogin.contains(names.files) { report.needsLogin.append(names.files) }
+        if report.cancelled || done.loginNeeded {
+            // nicht (fertig) abgefragt: ohne Liste oder mit Dateien, die noch nicht an der Reihe waren
+            report.notAttempted = all.indices.filter { i in
+                (done.lists[i] == nil && done.failedCourses[i] == nil) || (loadFiles && (done.remaining[i] ?? (done.todo[i]?.count ?? 0)) > 0)
+            }.map { all[$0].id }
+            if report.notAttempted.isEmpty { report.notAttempted = all.map(\.id) }
         }
         if report.cancelled {
             report.messages.append("\(names.files) abgebrochen")
@@ -603,6 +766,42 @@ public actor HildesheimSync {
             // Aenderungszeit der Datei fuer die Lehrwoche (ueber die Sitzung fehlt `timemodified`)
             onDate(LectureWeeks.parseHTTPDate(resp.headers["last-modified"]))
         }
+    }
+
+    /// Ein Download des Laufs: Kurs (Index in der Reihenfolge des Laufs), Zeile der Datenbank, Datei der Liste
+    struct DownloadItem: Sendable {
+        let course: Int
+        let row: UniStore.FileRow
+        let file: Learnweb.File
+    }
+
+    /// Zwischenstand eines Learnweb-Laufs; Listen und Downloads mehrerer Kurse schreiben zugleich hinein (`with`)
+    final class LearnwebRun: @unchecked Sendable {
+        struct Values {
+            var progress: SyncProgress
+            /// je Kurs (Index in der Reihenfolge des Laufs): gelesene Liste, Dateien zum Laden, Fehlertext der Liste
+            var lists: [Int: [Learnweb.File]] = [:]
+            var todo: [Int: [UniStore.FileRow]] = [:]
+            var failedCourses: [Int: String] = [:]
+            /// noch nicht versuchte Downloads je Kurs; Kurse mit einem gescheiterten Download
+            var remaining: [Int: Int] = [:]
+            var failedDownloads: Set<Int> = []
+            var newFiles: [String] = []
+            var failedFiles: [String] = []
+            var olderLoaded: [String] = []
+            var cancelled = false
+            var loginNeeded = false
+        }
+
+        private let lock = NSLock()
+        private var values: Values
+
+        init(_ progress: SyncProgress) { values = Values(progress: progress) }
+
+        @discardableResult
+        func with<T>(_ body: (inout Values) -> T) -> T { lock.lock(); defer { lock.unlock() }; return body(&values) }
+        var snapshot: Values { with { $0 } }
+        var stopped: Bool { with { $0.cancelled || $0.loginNeeded } }
     }
 
     /// Aenderungszeiten aus den Downloads eines Kurses (Datei-ID -> `Last-Modified`, nil ohne Kopf)

@@ -247,11 +247,12 @@ final class LearnwebFileGapTests: XCTestCase {
 
         // kurzer Hintergrundlauf (nur Listen): ebenso nur aktive Kurse
         let lists = await sync.run(downloads: false)
-        XCTAssertEqual(contentsRequests(), ["302", "303", "305"])
+        // seit 15.11.2026 laufen bis zu 3 Dateilisten zugleich: welche Kurse gefragt werden, zaehlt, nicht die Reihenfolge
+        XCTAssertEqual(contentsRequests().sorted(), ["302", "303", "305"])
         XCTAssertEqual(lists.waiting, 3)
 
         let r = await sync.run()
-        XCTAssertEqual(contentsRequests(), ["302", "303", "305", "302", "303", "305"], "alte und ausgeschaltete Kurse: keine Dateiliste")
+        XCTAssertEqual(contentsRequests().sorted(), ["302", "302", "303", "303", "305", "305"], "alte und ausgeschaltete Kurse: keine Dateiliste")
         XCTAssertEqual(r.olderCourses, ["lw-301", "lw-304"])
         XCTAssertEqual(r.courses, 5, "alle sichtbaren Kurse bleiben gespeichert")
         XCTAssertEqual(r.newFiles.sorted(), ["lw-302-\(String(HText.sha256Hex("/k302.pdf").prefix(8)))",

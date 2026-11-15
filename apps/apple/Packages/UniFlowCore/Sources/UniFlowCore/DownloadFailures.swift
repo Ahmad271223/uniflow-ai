@@ -106,6 +106,19 @@ public enum DownloadFailures {
             return ("Die Stud.IP-Anmeldung ist abgelaufen. Bitte neu bei Stud.IP anmelden.", nil)
         case StudIPError.badResponse:
             return ("Statt der Datei kam eine Webseite von Stud.IP zurück.", nil)
+        // Learnweb/Moodle (15.11.2026): dieselben Gruende in Worten ohne "Stud.IP"
+        case HildesheimError.http(let status, _) where status == 403:
+            return ("Die Hochschule gibt diese Datei gerade nicht zum Herunterladen frei (Fehler 403).", status)
+        case HildesheimError.http(let status, _) where status == 404:
+            return ("Die Hochschule findet diese Datei nicht mehr (Fehler 404). Sie wurde vielleicht entfernt oder verschoben.", status)
+        case HildesheimError.http(let status, _) where status == 429 || status >= 500:
+            return ("Die Seite der Hochschule ist gerade überlastet oder gestört (Fehler \(status)). Später erneut versuchen.", status)
+        case HildesheimError.http(let status, _):
+            return ("Die Hochschule hat die Datei nicht geliefert (Fehler \(status)).", status)
+        case HildesheimError.sessionExpired, HildesheimError.invalidToken:
+            return ("Die Anmeldung bei der Hochschule ist abgelaufen. Bitte neu anmelden.", nil)
+        case HildesheimError.htmlInsteadOfFile, HildesheimError.badResponse:
+            return ("Statt der Datei kam eine Webseite der Hochschule zurück.", nil)
         case is UniDownloads.Failure:
             return ("Die Datei kam leer oder unvollständig an und wurde nicht gespeichert.", nil)
         case let e as URLError:
