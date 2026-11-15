@@ -69,8 +69,12 @@ final class StudyCatalogHildesheimLayoutParserTests: XCTestCase {
 
     func testKennnummerIsByteEqualToPython() throws {
         let m = try check("kennnummer.json")
-        XCTAssertEqual(["TG 1", "TG 2", "TG 10", "TG 11"].map { m[$0]?["lp"]?.double }, [13, 11, 10, 20])
-        XCTAssertEqual(["TG 1", "TG 2", "TG 10", "TG 11"].map { m[$0]?["turnus"]?.string }, ["WS+SS", "WS", "unbekannt", "unbekannt"])
+        let codes = ["TG 1", "TG 2", "TG 5", "TG 7", "TG 10", "TG 11"]
+        XCTAssertEqual(m.count, codes.count)
+        XCTAssertEqual(codes.map { m[$0]?["lp"]?.double }, [13, 11, 10, 13, 10, 20])
+        XCTAssertEqual(codes.map { m[$0]?["turnus"]?.string }, ["WS+SS", "WS", "SS", "WS", "unbekannt", "unbekannt"])
+        XCTAssertEqual(m["TG 5"]?["title"]?.string, "Vertiefungsbereich Wasserbau I: Theorie", "Titel ueber zwei Zeilen")
+        XCTAssertEqual(m["TG 7"]?["kind"]?.string, "wahlpflicht")
         XCTAssertEqual(m["TG 11"]?["kind"]?.string, "abschluss")
         XCTAssertEqual(m["TG 1"]?["exam"]?.string, "Klausur")
         XCTAssertEqual(m["TG 10"]?["exam"], .null)

@@ -6282,7 +6282,7 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
-       "format": "hildesheim-modultabelle",
+       "format": "hildesheim-kennnummer-tabelle",
        "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5196"
       }
      ],
@@ -6741,7 +6741,7 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
-       "format": "hildesheim-modultabelle",
+       "format": "hildesheim-modulbeschreibung",
        "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4855"
       }
      ],

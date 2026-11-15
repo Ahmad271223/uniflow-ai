@@ -8,21 +8,17 @@ import XCTest
 /// tests/test_hildesheim_seed_quality.py. Dazu jeder Registereintrag: per Name zu finden und waehlbar.
 final class HildesheimSeedQualityTests: XCTestCase {
 
-    /// Module ohne LP je Kuerzel (Lesefehler des Grundstocks vom 05.11.2026), gleich der Python-Liste
+    /// Module ohne LP je Kuerzel, gleich der Python-Liste (Stand 15.11.2026: nur noch Module, fuer die die Ordnung eine
+    /// Spanne je Studienvariante nennt; Gruende in tests/test_hildesheim_seed_quality.py)
     static let knownNoLP: [String: Int] = [
-        "literarisches-schreiben-und-lektorieren|m.a.|2024": 2,
         "internationale-kommunikation-und-uebersetzen|b.a.|2024": 2,
         "internationales-informationsmanagement|b.a.|2024": 8,
         "internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024": 8,
         "internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024": 8,
         "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024": 8,
         "internationales-informationsmanagement-linguistik|b.a.|2024": 8,
-        "medientext-und-medienuebersetzung|m.a.|2024": 8,
-        "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017": 1,
-        "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026": 1,
-        "wirtschaft-plus|b.sc.|2026": 6,
     ]
-    static let knownOnlyChoice: Set<String> = ["umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021", "wirtschaftsinformatik|m.sc.|2024"]
+    static let knownOnlyChoice: Set<String> = []
 
     private func seed() throws -> StudyCatalogSeed {
         var url = URL(fileURLWithPath: #filePath)

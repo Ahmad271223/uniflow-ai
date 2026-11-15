@@ -836,7 +836,7 @@
    "format": "hildesheim-modultabelle",
    "key": "hildesheim|kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
    "library_key": "3f568749285f5fb984fb587b19004f735c2d98da234a82409e6053248e86b34b",
-   "modules": 14,
+   "modules": 13,
    "po": "2024",
    "program": "Künste und Gegenwartskulturen transdisziplinär",
    "qis_labels": [
@@ -1111,10 +1111,10 @@
    "degree": "M.A.",
    "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
    "file": "hildesheim.json.gz",
-   "format": "hildesheim-modultabelle",
+   "format": "hildesheim-kennnummer-tabelle",
    "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
    "library_key": "d6541592a5ec1601d493e24eab0405609e882c3f1e52c41275551cb42804a0f6",
-   "modules": 10,
+   "modules": 11,
    "po": "2024",
    "program": "Medientext und Medienübersetzung",
    "qis_labels": [
@@ -1330,7 +1330,7 @@
    "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
    "library_key": "98a2401ff7d9fb18bb4be812b40c31ea8e6985ef97ed93994be3449ce0171672",
-   "modules": 5,
+   "modules": 6,
    "po": "2026",
    "program": "Physik im Master Lehramt an Haupt- und Realschulen",
    "qis_labels": [
@@ -1759,10 +1759,10 @@
    "degree": "M.Sc.",
    "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
    "file": "hildesheim.json.gz",
-   "format": "hildesheim-modultabelle",
+   "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
    "library_key": "d27c11dc0a317fd86fc5c47a6c92c2d0ee7367545a47b28d10867723ad52b82f",
-   "modules": 14,
+   "modules": 10,
    "po": "2021",
    "program": "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne",
    "qis_labels": [
@@ -1834,7 +1834,7 @@
    "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021",
    "library_key": "03847f565b52af27de6c58aa9b7695a503eaec52d202d21e8913fa8bdb8ee5b8",
-   "modules": 19,
+   "modules": 20,
    "po": "2021",
    "program": "Umwelt, Naturschutz und Nachhaltigkeit",
    "qis_labels": [
@@ -1978,7 +1978,7 @@
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
    "library_key": "995998804b7562ae8dc4112aaf89a09919e56269ece754467dd5514e5753e30d",
-   "modules": 94,
+   "modules": 95,
    "po": "2024",
    "program": "Wirtschaftsinformatik",
    "qis_labels": [
@@ -1996,7 +1996,7 @@
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
    "library_key": "c63c8d756a367fff049e4cf2447df06a4cbf529b2e299df5b26ddc8470142689",
-   "modules": 117,
+   "modules": 118,
    "po": "2024",
    "program": "Wirtschaftsinformatik",
    "qis_labels": [
@@ -2009,10 +2009,10 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 136439,
+   "bytes": 136836,
    "catalogs": 111,
-   "raw_bytes": 1200223,
-   "sha256": "06996a451265575e21878121ef5ef29eefb7920fa5cb9facdf02b059d87094e3"
+   "raw_bytes": 1200269,
+   "sha256": "d5e6027eb302a3937a8057cce5c801f2b177db1185d519076efd9dcd52d22e6b"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",

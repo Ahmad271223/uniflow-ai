@@ -1887,7 +1887,7 @@
     "term": "SS 2023",
     "format": "hildesheim-modultabelle",
     "pages": 33,
-    "modules_est": 14,
+    "modules_est": 13,
     "title": "Neufassung der Studienordnung für den Masterstudiengang Künste und Gegenwartskulturen transdisziplinär (KGKT) im Fachbereich 2 - Kulturwissenschaften und Ästhetische Kommunikation",
     "date": "2023-08-14"
    },
@@ -2400,9 +2400,9 @@
    "catalog": {
     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5196",
     "term": "WS 2024/25",
-    "format": "hildesheim-modultabelle",
+    "format": "hildesheim-kennnummer-tabelle",
     "pages": 25,
-    "modules_est": 10,
+    "modules_est": 11,
     "title": "Neufassung der Studienordnung für den Masterstudiengang „Medientext und Medienübersetzung“ an der Universität Hildesheim, Fachbereich 3 - Sprach- und Informationswissenschaften",
     "date": "2024-11-08"
    },
@@ -3135,9 +3135,9 @@
    "catalog": {
     "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4855",
     "term": "SS 2021",
-    "format": "hildesheim-modultabelle",
+    "format": "hildesheim-modulbeschreibung",
     "pages": 25,
-    "modules_est": 14,
+    "modules_est": 10,
     "title": "Neufassung der Studienordnung für den Masterstudiengang „Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne“ (M.Sc.) im Fachbereich 1 - Erziehungs- und Sozialwissenschaften der Stiftung Universität Hildesheim",
     "date": "2021-05-26"
    },
@@ -3237,7 +3237,7 @@
     "term": "SS 2021",
     "format": "hildesheim-modulbeschreibung",
     "pages": 44,
-    "modules_est": 19,
+    "modules_est": 20,
     "title": "Neufassung der Studienordnung für den Master of Science Umwelt, Naturschutz und Nachhaltigkeit M.Sc. im Fachbereich 4: Mathematik, Naturwissenschaften, Wirtschaft und Informatik der Universität Hildesheim",
     "date": "2021-05-10"
    },
@@ -3447,7 +3447,7 @@
     "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
     "pages": 357,
-    "modules_est": 77,
+    "modules_est": 78,
     "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)",
     "date": "2026-04-03",
     "usage_program": "BSc Wirtschaftsinformatik"
@@ -3458,7 +3458,7 @@
      "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
      "pages": 329,
-     "modules_est": 74,
+     "modules_est": 75,
      "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
      "date": "2024-10-24",
      "usage_program": "BSc Wirtschaftsinformatik"
@@ -3468,7 +3468,7 @@
      "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
      "pages": 314,
-     "modules_est": 61,
+     "modules_est": 62,
      "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
      "date": "2024-10-24",
      "usage_program": "BSc Wirtschaftsinformatik"
@@ -3527,7 +3527,7 @@
     "term": "SS 2026",
     "format": "hildesheim-it-modulhandbuch",
     "pages": 357,
-    "modules_est": 105,
+    "modules_est": 106,
     "title": "Modulhandbuch Angewandte Informatik Bachelor/Master, PO 2023 und PO 2024 (Stand 03.04.2026)",
     "date": "2026-04-03",
     "usage_program": "MSc Wirtschaftsinformatik"
@@ -3538,7 +3538,7 @@
      "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
      "pages": 329,
-     "modules_est": 95,
+     "modules_est": 96,
      "title": "Modulhandbuch Informationsmanagement und Informationstechnologie Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
      "date": "2024-10-24",
      "usage_program": "MSc Wirtschaftsinformatik"
@@ -3548,7 +3548,7 @@
      "term": "WS 2024/25",
      "format": "hildesheim-it-modulhandbuch",
      "pages": 314,
-     "modules_est": 93,
+     "modules_est": 94,
      "title": "Modulhandbuch Umweltinformatik Bachelor/Master, PO 2023 und PO 2024 (Stand 24.10.2024)",
      "date": "2024-10-24",
      "usage_program": "MSc Wirtschaftsinformatik"
@@ -5561,7 +5561,7 @@
     "term": "SS 2026",
     "format": "hildesheim-modulbeschreibung",
     "pages": 12,
-    "modules_est": 5,
+    "modules_est": 6,
     "title": "Neufassung der Studienordnung für das Fach Physik Master-Studiengang „Lehramt an Haupt- und Realschulen“ (M. Ed.)",
     "date": "2026-07-30"
    },

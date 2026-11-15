@@ -12,8 +12,9 @@ echten Ordnung.
                        Spalte, Teilmodule, Modul ueber die Seitengrenze (Kolumnentitel), Abkuerzungen, Anlage 3
   kuerzel-master.json  Fach im Master: "Status Modul" nennt Pflicht/Wahlpflicht, LP des ganzen Moduls in einer Zeile
                        "s. RStO ...   13", Zeilen mit "-", Titel mit Zusatz nach den Anfuehrungszeichen
-  kennnummer.json      Masterstudiengang: Titelzeile "TG 1 Titel", Kopf "Kennnummer | Workload | Credits | ...", Werte
-                       darunter (umbrochen), nummerierte Zeilen 1-11, Studien-/Pruefungsleistung in Zeile 6 oder 7
+  kennnummer.json      Masterstudiengang: Titelzeile "TG 1 Titel" bzw. "Modul TG 5 – Titel" (auch ueber zwei Zeilen,
+                       "(Wahlpflichtmodul)"), Kopf "Kennnummer | Workload | Credits | ...", Werte darunter (umbrochen),
+                       nummerierte Zeilen 1-11, Studien-/Pruefungsleistung in Zeile 6 oder 7
   werte.json           Einzelfaelle: Zellen einer Zeile, Zusammenfuegen, Turnus, Leistungen, Erkennung
 Je Fall: {note, pages, meta, detect {kuerzel, kennnummer}, catalog, module_texts, dumps, texts_dumps}; dumps =
 kanonischer Text (`app.study_catalog.dumps`), den Swift byte-gleich liefern muss.
@@ -445,6 +446,38 @@ KN_PAGES = [
          kn_row(11, "Sonstige Informationen")),
     page(head(997, 11),
          "",
+         L((1, "Modul TG 5 – Vertiefungsbereich Wasserbau I:")),
+         L((1, "Theorie")),
+         *kn_head()[1:],
+         L((57, "mester"), (76, "gebots")),
+         kn_values("300 h", "10", "2. Sem.", "Jedes", "1 Semester"),
+         L((73, "Sommersemester")),
+         kn_row(1, "Lehrveranstaltungen", (36, "Kontaktzeit"), (62, "Selbststudium"), (88, "geplante Grup-")),
+         kn_row(2, "Lernergebnisse / Kompetenzen"),
+         kn("Die Studierenden kennen Verfahren des Wasserbaus.")),
+    page(head(997, 12),
+         "",
+         L((1, "Modul TG 5 – Vertiefungsbereich Wasserbau I:")),
+         L((1, "Theorie")),
+         kn_row(3, "Inhalte"),
+         kn("Theorie"),
+         kn("des Wasserbaus an Beispielen."),
+         kn_row(6, "Prüfungsformen"),
+         kn("Hausarbeit oder"),
+         kn("Projektarbeit (z.B. Poster mit Präsentation)"),
+         "",
+         L((1, "Modul TG 7 – Fachsprache 2 (Wahlpflichtmodul)")),
+         *kn_head()[1:],
+         L((57, "mester"), (76, "gebots")),
+         kn_values("390 h", "13", "3. Sem.", "Jedes Winterse-", "1 Semester"),
+         L((80, "mester")),
+         kn_row(1, "Lehrveranstaltungen", (36, "Kontaktzeit"), (62, "Selbststudium"), (88, "geplante Grup-")),
+         kn_row(6, "Prüfungsformen"),
+         kn("Klausur"),
+         kn_row(11, "Sonstige Informationen"),
+         kn("Das Modul 7 ist ein Wahlpflichtmodul; es muss eines von zwei Modulen TG 7 oder TG 8 belegt werden.")),
+    page(head(997, 13),
+         "",
          L((1, "TG 10 Profilmodul: Forschung oder Praxis")),
          *kn_head(),
          kn_values("300 h", "10", "4. Sem.", "individuell", "variabel je"),
@@ -469,9 +502,9 @@ KN_PAGES = [
          kn("entfällt"),
          kn_row(9, "Stellenwert der Note für die Endnote"),
          kn("--- entfällt, da unbenotet ---")),
-    page(head(997, 12),
+    page(head(997, 14),
          "",
-         L((1, "TG 11 Masterarbeit")),
+         L((1, "TG 11 Abschluss")),
          *kn_head(),
          kn_values("600 h", "20", "4. Sem.", "Individuell", "4 Monate"),
          kn_row(1, "Lehrveranstaltungen", (36, "Kontaktzeit"), (62, "Selbststudium"), (88, "geplante Gruppen-")),

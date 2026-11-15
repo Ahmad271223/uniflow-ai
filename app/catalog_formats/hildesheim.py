@@ -168,8 +168,10 @@ def _label_at(lines: list[str], i: int) -> tuple[str, int, int] | None:
         rest = line[col:]
         m = re.match(r"\s*[)\]]?\s*\*?\s*(?:\([^)]{0,40}\))?\s*\*?\s*:?\s*", rest)
         after = rest[m.end():] if m else rest
-        if len(key) < SHORT and not (rest.lstrip(" *").startswith(":") or not after.strip()):
-            continue                                       # kurzer Name nur mit ':' oder allein
+        if len(key) < SHORT and (not (rest.lstrip(" *").startswith(":") or not after.strip()) or rest[:1] in (")", "]")):
+            continue                                       # kurzer Name nur mit ':' oder allein; "(6" / "LP)" ist ein Zeilenrest
+        if field == "lp" and after[:1].islower() and not rest.lstrip(" *").startswith(":"):
+            continue                                       # Fliesstext: "... werden die restlichen / Leistungspunkte im Rahmen ..."
         return field, i + li, col + (m.end() if m else 0)
     return None
 
@@ -278,6 +280,8 @@ def _title_start(lines: list[str], i: int, floor: int) -> int:
     for j in range(i - 1, max(floor, i - 4) - 1, -1):
         if AREA_RE.match(lines[j]) or ANLAGE_RE.match(lines[j]):
             return j + 1 if j + 1 < i else i - 1          # Bereichsueberschrift gehoert nicht zum Titel
+        if j < i - 1 and _label_at(lines, j):
+            break                                          # ueber ein Feld hinweg reicht kein Titel (Physik M.Ed. 2026, PHY-B7)
         if TITLE_START_RE.match(lines[j]) and not _label_at(lines, j):
             return j
     return i - 1 if i - 1 >= floor else i
@@ -331,6 +335,15 @@ def parse_modulbeschreibung(pages: list[str], meta: dict, require_facts: bool = 
             m["start"] = first
         else:
             m["start"] = _title_start(lines, first, floor)
+            if not TITLE_START_RE.match(lines[m["start"]]):
+                # Titel "Modul 1: ..." mit einem Absatz Fliesstext vor dem ersten Feld (Umwelt, Naturschutz und
+                # Nachhaltigkeit): weiter oben suchen, aber nie ueber ein Feld oder eine Ueberschrift hinweg
+                for j in range(first - 2, max(floor, first - 14) - 1, -1):
+                    if _label_at(lines, j) or AREA_RE.match(lines[j]) or ANLAGE_RE.match(lines[j]):
+                        break
+                    if FAR_TITLE_RE.match(lines[j]):
+                        m["start"], m["title_end"] = j, j + (2 if lines[j].endswith("-") else 1)
+                        break
         floor = first + 1
     for k, m in enumerate(modules):
         m["end"] = modules[k + 1]["start"] if k + 1 < len(modules) else len(lines)
@@ -377,7 +390,10 @@ def parse_modulbeschreibung(pages: list[str], meta: dict, require_facts: bool = 
         if "title" in vals and vals["title"]:
             title = vals["title"].split("\n")[0] if len(vals["title"]) > 120 else vals["title"]
         else:
-            title = " ".join(lines[m["start"]:m["hits"][0][0]])
+            title = " ".join(lines[m["start"]:m.get("title_end", m["hits"][0][0])])
+            if len(title) > 200 and TITLE_START_RE.match(lines[m["start"]]):
+                # Titelzeile, danach ein Absatz Fliesstext bis zum ersten Feld: nur die Titelzeile
+                title = " ".join(lines[m["start"]:m["start"] + (2 if lines[m["start"]].endswith("-") else 1)])
         title = _clean_title(title)
         if not title or title.lower().startswith("teilmodul") or len(title) > 200 or JUNK_TITLE_RE.search(title):
             continue
@@ -390,6 +406,8 @@ def parse_modulbeschreibung(pages: list[str], meta: dict, require_facts: bool = 
             m_lp = re.search(r"(?<![0-9.,])([0-9]{1,2}(?:[.,]5)?)\s*(?:LP|ECTS|Leistungspunkte|CP)\b", vals.get("workload") or "")
             lp = number(m_lp.group(1)) if m_lp else None
         wl = _workload(vals.get("workload"), lp)
+        if isinstance(wl, float) and wl == int(wl):
+            wl = int(wl)
         if require_facts and lp is None and not vals.get("exam") and not vals.get("coursework") and not vals.get("semester") \
                 and not vals.get("kind"):
             continue                                       # Zeile einer Moduluebersicht, keine Beschreibung
@@ -421,6 +439,7 @@ def parse_modulbeschreibung(pages: list[str], meta: dict, require_facts: bool = 
 # "Modul- / Teilmodulbezeichnung") sowie Teilmodule, deren Titelzeile fehlt ("Leistungspunkte 30")
 JUNK_TITLE_RE = re.compile(r"^[0-9]+\s+[A-ZÄÖÜ]|Modulbeauftragte|hauptamtlich Lehrende|^Verkündungsblatt|^Anlage\b|^Seite\b|"
                            r"^Themen LP$|^/ ?Teilmodul|^Leistungspunkte\b")
+FAR_TITLE_RE = re.compile(r"^Modul\s+[0-9A-Z][\w.\-]{0,8}\s*:\s*\S")
 PART_NUMBER_RE = re.compile(r"\bTM ?[0-9]{1,2}[a-z]?\b")   # "TM 1 und TM 2: 4. Semester": Teilmodulnummern sind kein Semester
 CREDITS_RE = re.compile(r"\s*([0-9]{1,3}(?:[.,]5)?)\s*LP\s*=")
 TITLE_LP_RE = re.compile(r"\(([0-9]{1,3}(?:[.,]5)?) ?LP\)\s*$")
@@ -692,6 +711,16 @@ def parse_it(pages: list[str], meta: dict) -> tuple[dict, dict]:
                 r["area"] = clip(area, 200) or None
                 r["kind"] = _it_kind(area, rec["title"])
                 raw.append(r)
+        # Die Abschlusspruefung des Abschlusses gehoert zu jedem FB-4-Studiengang (PO § 4 Abs. 1), auch wenn die
+        # "Verwendung" des Moduls ihn nicht nennt (Wirtschaftsinformatik: B.Sc. 12 + 3 LP, M.Sc. 27 + 3 LP wie im Handbuch)
+        final = "Abschlussprüfung " + ("Master" if want == "M" else "Bachelor")
+        if not any(r["title"] == final for r in raw):
+            for rec in order:
+                if rec["title"] == final:
+                    r = dict(rec)
+                    r["area"], r["kind"] = "Abschlussprüfung", "abschluss"
+                    raw.append(r)
+                    break
     elif toc:
         for e in toc:
             rec = raw_by_page.get(e["page"])
@@ -795,7 +824,9 @@ TABLE_LABELS: list[tuple[str, list[str]]] = [
     ("freq", ["Präsenz des Moduls im Studienangebot", "Häufigkeit / Turnus"]),
     ("lead", ["Verantwortlich", "Modulverantwortliche"]),
     ("usage", ["Verflechtung"]),
-    ("workload", ["Kontaktstunden (h)", "Selbststudium (h)", "Gesamt (h)", "Lehr-/Lernformen; Arbeitsaufwand"]),
+    # "Workload Kontaktstunden": die Feldnamen "Workload" / "Kontaktstunden (h)" stehen in einer Zeile vor "8 SWS / 42 LP"
+    ("workload", ["Kontaktstunden (h)", "Selbststudium (h)", "Gesamt (h)", "Lehr-/Lernformen; Arbeitsaufwand",
+                  "Workload Kontaktstunden", "Workload Kontaktstun"]),
     ("remarks", ["Bemerkungen / Voraussetzungen", "Stellenwert der Note für die Endnote"]),
 ]
 _TABLE_KEYS = sorted({_fold(n) for _, names in LABELS + TABLE_LABELS for n in names}, key=len, reverse=True)

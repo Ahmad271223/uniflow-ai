@@ -6,23 +6,26 @@ Dazu jeder Registereintrag: ueber seinen Namen zu finden und waehlbar; ohne Kata
 from app import study_catalog as sc
 from app import study_plan as sp
 
-# Module ohne LP (Lesefehler des Grundstocks vom 05.11.2026: Tabellenreste wie "Themen LP", "Leistungspunkte 30",
-# Querverweise wie "Modul 7.2 geöffnet für …", LP nur in Teilmodulen). Je Kuerzel die Anzahl.
+# Module ohne LP. Stand 15.11.2026 nach dem Nachzug (vorher 19 Kataloge / 80 Module, Lesefehler behoben; siehe
+# docs/STUDIENGAENGE-HILDESHEIM-2026-11-05.md, Abschnitt "Nachzug"). Was bleibt, hat in der Ordnung keine feste Zahl:
+# - Internationales Informationsmanagement B.A. (fuenf Eintraege, eine Ordnung): die Ordnung rechnet in Teilmodulen, je
+#   Modul steht eine Spanne je Studienvariante ("IIM, IKS, LIN, DISO, GIM: 0-16 LP"); 7 Module beginnen bei 0 LP, das
+#   Modul Peer Credits hat keine LP-Angabe.
+# - Internationale Kommunikation und Uebersetzen B.A.: Modul 2 hat je Studienvariante 20 bzw. 10 LP, das Auslandsmodul
+#   steht nur in der Moduluebersicht.
+# Je Kuerzel die Anzahl.
 KNOWN_NO_LP = {
-    "literarisches-schreiben-und-lektorieren|m.a.|2024": 2,
     "internationale-kommunikation-und-uebersetzen|b.a.|2024": 2,
     "internationales-informationsmanagement|b.a.|2024": 8,
     "internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024": 8,
     "internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024": 8,
     "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024": 8,
     "internationales-informationsmanagement-linguistik|b.a.|2024": 8,
-    "medientext-und-medienuebersetzung|m.a.|2024": 8,
-    "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017": 1,
-    "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026": 1,
-    "wirtschaft-plus|b.sc.|2026": 6,
 }
-# Kataloge ohne Semesterlage: alle Module stehen nur zur Wahl (kein leerer Plan, aber kein Semesterplan)
-KNOWN_ONLY_CHOICE = {"umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021", "wirtschaftsinformatik|m.sc.|2024"}
+# Kataloge ohne Semesterlage: alle Module stehen nur zur Wahl (kein leerer Plan, aber kein Semesterplan). Seit 15.11.2026
+# keiner mehr: Umwelt, Naturschutz und Nachhaltigkeit hat die Semester aus dem Studienaufbau der Ordnung (und das fehlende
+# Pflichtmodul 1), Wirtschaftsinformatik M.Sc. die Abschlusspruefung (PO § 4 Abs. 1 Nr. 4).
+KNOWN_ONLY_CHOICE: set = set()
 
 
 def _catalogs():

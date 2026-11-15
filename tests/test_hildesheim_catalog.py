@@ -211,12 +211,27 @@ GAP_PAGES = [
                "Modul Bsp 6-1: Begleitveranstaltung", "Modulzuordnung Bsp 6: Praxismodul", "Leistungspunkte 2",
                "Empfohlenes Semester 2. Semester",
                "Modulbezeichnung Themen LP", "Modulverantwortliche N. N.", "Prüfungsleistungen Bericht"]),
+    # Titel "Modul 1: ..." mit einem Absatz Fliesstext vor dem ersten Feld; "Leistungspunkte im Rahmen ..." ist Text,
+    # "LP)" ein Zeilenrest von "(8 LP)" und beides kein Feldname
+    "\n".join([FOOT.format(23),
+               "Modul 1: Erfundenes Anpassungsmodul (Pflicht)",
+               "Mit der Zulassung werden Auflagen im Umfang von bis zu 9 LP formuliert. Diese Auflagen sind hier",
+               "zu absolvieren. Sofern weniger als 9 LP studiert werden müssen, werden die restlichen",
+               "Leistungspunkte im Rahmen des TM 6 erbracht.",
+               "Modulleiter: N. N.",
+               "Lehr- und Lernformen: Vorlesung, Seminar",
+               "Teilmodule: TM 1: Erfundene Bestimmungsübungen (6 LP)", "TM 2: Erfundene Übung im Freiland (8",
+               "LP)", "TM 3: Wahlveranstaltung (3 LP)",
+               "LP: 9", "Dauer in Semestern: 2", "Prüfungsart/-form: Teilmodulprüfungen"]),
 ]
 
 
 def test_modulbeschreibung_reader_keeps_bare_numbers_and_split_modules():
     cat, _ = get_parser("hildesheim-modulbeschreibung")(GAP_PAGES, META)
     assert sc.validate(cat) == []
+    far = cat["modules"].pop()
+    assert far["title"] == "Modul 1: Erfundenes Anpassungsmodul (Pflicht)", "Titel ueber dem Fliesstext, nicht dessen letzte Zeile"
+    assert far["lp"] == 9, "weder 'Leistungspunkte im Rahmen ...' noch der Zeilenrest 'LP)' ist die LP-Angabe"
     m = {x["code"]: x for x in cat["modules"]}
     assert list(m) == ["Bsp_BM1", "Bsp_AM2", "Bsp_VM3", "Bsp_M10", None], [x["title"] for x in cat["modules"]]
     bm, am, vm, final, praxis = m.values()
@@ -288,6 +303,15 @@ def test_it_reader_bachelor_master_toc_and_usage():
     u, _ = parse(_it_pages(), dict(META, degree="B.Sc.", usage_program="BSc Beispielinformatik"))
     assert {x["title"]: next(a["name"] for a in u["areas"] if a["id"] == x["area"]) for x in u["modules"]} == \
         {"Beispielprogrammierung": "Pflichtmodule – Informatik", "Beispielsysteme": "Wahlbereich – Informatik"}
+    # ... und die Abschlusspruefung des Abschlusses, auch wenn ihre "Verwendung" den Studiengang nicht nennt
+    thesis = "\n".join(["Bereich – Abschlussprüfung Bachelor", "Modul: Abschlussprüfung Bachelor", "Lehrform/SWS Abschlussarbeit",
+                        "Leistungspunkte 15 LP", "Prüfungsleistung Bachelorarbeit und Kolloquium", "empfohlenes Semester BSc 6",
+                        "Verwendung", "• Bachelor- und Masterstudienprogramm Anderes Fach – Abschlussprüfung", "6", FOOT.format(6)])
+    u, _ = parse(_it_pages() + [thesis], dict(META, degree="B.Sc.", usage_program="BSc Beispielinformatik"))
+    assert [(x["title"], x["kind"], x["lp"], x["semester"]) for x in u["modules"]][-1] == ("Abschlussprüfung Bachelor", "abschluss", 15, 6)
+    assert len(u["modules"]) == 3
+    um, _ = parse(_it_pages() + [thesis], dict(META, degree="M.Sc.", usage_program="MSc Beispielinformatik"))
+    assert not any(x["kind"] == "abschluss" for x in um["modules"]), "die Abschlussprüfung des anderen Abschlusses gehoert nicht dazu"
     # englische Fassung (Data Analytics, Software Engineering): ohne gedruckte Seitenzahlen
     pages = [p.replace("\n3\n", "\n").replace("\n4\n", "\n").replace("\n5\n", "\n") for p in _it_pages(english=True)]
     e, _ = parse(pages, dict(META, degree="M.Sc."))
