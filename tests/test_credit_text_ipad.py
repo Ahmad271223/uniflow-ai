@@ -1,5 +1,6 @@
 """Text der Credits in der iPad-/Mac-App (SettingsPage.swift, StudoraCreditsRow.explanation) passt zum Dienst:
-1 Credit = 0,9 Cent echter KI-Kosten (Entscheidung des Inhabers 08.11.2026, app/ai_prices.MICROEUR_PER_CREDIT).
+1 Credit = 0,65 Cent echter KI-Kosten (Entscheidung des Inhabers 15.11.2026, vorher 0,9 Cent seit 08.11.2026;
+app/ai_prices.MICROEUR_PER_CREDIT).
 Bis Build 28 stand dort "1 Credit ist 1 Cent"."""
 import re
 from pathlib import Path
@@ -14,9 +15,9 @@ def explanation() -> str:
     return m.group(1)
 
 
-def test_service_values_one_credit_at_point_nine_cent():
+def test_service_values_one_credit_at_point_six_five_cent():
     from app import ai_prices
-    assert ai_prices.MICROEUR_PER_CREDIT == 9000
+    assert ai_prices.MICROEUR_PER_CREDIT == 6500
 
 
 def test_app_text_names_point_nine_cent_not_one_cent():

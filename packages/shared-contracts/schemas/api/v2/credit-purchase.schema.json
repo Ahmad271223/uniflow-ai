@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v2/credit-purchase.json",
+  "title": "POST /api/billing/credits/apple (Antwort) – Credit-Paket verbuchen, app/apple_store.py verify_credit_purchase (15.11.2026). Anfrage: {signed_transaction}. Bei 200 darf die App die Transaktion abschliessen (finish), bei jedem anderen Status nicht.",
+  "type": "object",
+  "required": ["status", "credits_added", "credits_removed", "product_id", "transaction_id", "other_account", "credits"],
+  "properties": {
+    "status": { "description": "granted: jetzt gutgeschrieben; already_granted: war schon verbucht; refunded: erstattet (jetzt oder frueher), nichts gutgeschrieben; already_refunded: Erstattung war schon verbucht",
+                "enum": ["granted", "already_granted", "refunded", "already_refunded"] },
+    "credits_added": { "type": "integer", "minimum": 0 },
+    "credits_removed": { "type": "integer", "minimum": 0 },
+    "product_id": { "type": "string" },
+    "transaction_id": { "type": "string" },
+    "environment": { "enum": ["Sandbox", "Production", "Xcode", null] },
+    "other_account": { "description": "der Kauf gehoert laut appAccountToken zu einem anderen StudiNow-Konto und steht dort", "type": "boolean" },
+    "sandbox_limited": { "description": "Kauf aus der Testumgebung ueber der Grenze je Konto und Monat: weniger oder nichts gutgeschrieben", "type": "boolean" },
+    "credits": {
+      "description": "Stand des anfragenden Kontos danach (wie `credits` in GET /api/entitlements)",
+      "type": ["object", "null"],
+      "required": ["period", "allowance", "used", "reserved", "remaining", "resets_at", "purchased", "purchased_usable", "available", "can_buy"],
+      "properties": {
+        "allowance": { "type": "integer", "minimum": 0 }, "used": { "type": "integer", "minimum": 0 },
+        "reserved": { "type": "integer", "minimum": 0 }, "remaining": { "type": "integer", "minimum": 0 },
+        "purchased": { "type": "integer", "minimum": 0 }, "purchased_usable": { "type": "boolean" },
+        "available": { "type": "integer", "minimum": 0 }, "can_buy": { "type": "boolean" }
+      }
+    }
+  }
+}

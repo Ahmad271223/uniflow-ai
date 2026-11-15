@@ -389,13 +389,13 @@ def test_94_late_settlement_after_expiry_is_capped_by_the_free_credits(hosted, m
         later = t0 + timedelta(minutes=credits.stale_minutes() + 1)
         assert credits.balance(conn, u["id"], now=later)["reserved"] == 0          # verfallen
         credits.reserve(conn, u["id"], "b", "tutor:ask", 90, now=later)             # Rest fast verbraucht
-        assert credits.settle(conn, u["id"], "b", 90 * 9_000, now=later) == 90
-        charged = credits.settle(conn, u["id"], "a", 40 * 9_000, now=later)        # verspaetet: nur noch 10 frei
+        assert credits.settle(conn, u["id"], "b", 90 * 6_500, now=later) == 90
+        charged = credits.settle(conn, u["id"], "a", 40 * 6_500, now=later)        # verspaetet: nur noch 10 frei
         assert charged == 10
         b = credits.balance(conn, u["id"], now=later)
         assert (b["used"], b["remaining"]) == (100, 0)
         cost = conn.execute("SELECT cost_microeur, state FROM credit_ledger WHERE user_id=? AND request_id='a'", (u["id"],)).fetchone()
-        assert tuple(cost) == (360_000, "settled"), "echte Kosten bleiben im Protokoll"
+        assert tuple(cost) == (260_000, "settled"), "echte Kosten bleiben im Protokoll"
     finally:
         conn.close()
 

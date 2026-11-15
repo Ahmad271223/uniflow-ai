@@ -122,6 +122,10 @@ def consume(request: Request, feature: str, request_id: str, once: bool = False)
         r = billing.consume(conn, user["id"], feature, request_id, legacy=_legacy(user))
     finally:
         conn.close()
+    if not r.ok and feature in PURCHASED_CREDITS_FEATURES and _has_purchased_credits(user["id"]):
+        # Gekaufte Credits (15.11.2026): das Monatskontingent der KI-Anfragen sperrt sie nicht. Die Anfrage zaehlt nicht
+        # mehr mit; bezahlt wird sie aus den Credits (app/credits.py), das Rate-Limit je Minute und Stunde gilt weiter.
+        return billing.ConsumeResult(ok=True, used=r.used, limit=r.limit, period=r.period)
     if not r.ok:
         label = plans.QUOTA_LABELS.get(feature, feature)
         raise HTTPException(429, {"detail": f"{label}: Kontingent für diesen Monat aufgebraucht ({r.used} von {r.limit}).",
@@ -129,6 +133,23 @@ def consume(request: Request, feature: str, request_id: str, once: bool = False)
     if r.duplicate and not once:
         raise HTTPException(409, {"detail": "Diese Anfrage wurde schon verarbeitet.", "code": "duplicate_request"})
     return r
+
+
+# Kontingente, die nur die Monats-Credits begleiten: mit gekauften Credits sperren sie nicht (siehe consume)
+PURCHASED_CREDITS_FEATURES = frozenset({"ai_assist"})
+
+
+def _has_purchased_credits(user_id: str) -> bool:
+    """Hat das Konto freie, jetzt nutzbare gekaufte Credits? Ein Fehler heisst nein (dann gilt das Kontingent)."""
+    from . import credits
+    try:
+        conn = credits.connect()
+        try:
+            return credits.purchased_free(conn, user_id) > 0
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def refund(request: Request, feature: str, request_id: str, period: str | None = None) -> None:

@@ -1,0 +1,5 @@
+{ "status": "granted", "credits_added": 100, "credits_removed": 0, "product_id": "de.uniflow.credits.klein",
+  "transaction_id": "2000000987654321", "environment": "Production", "other_account": false, "sandbox_limited": false,
+  "credits": { "period": "2026-11", "allowance": 100, "used": 100, "reserved": 0, "remaining": 0, "plan": "pro_ai",
+               "resets_at": "2026-12-01T00:00:00+01:00", "credit_eur": 0.0065,
+               "purchased": 100, "purchased_usable": true, "available": 100, "can_buy": true } }

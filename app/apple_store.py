@@ -16,6 +16,12 @@ Upgrade/Downgrade, Kuendigung, Ablauf, Erstattung) an `POST /api/billing/apple/n
 Zuordnung zum Konto: `appAccountToken` der Transaktion = UniFlow-ID als UUID (die App setzt sie beim Kauf). Ohne
 Token gilt das Konto, das die Transaktion zuerst meldet; dieselbe `originalTransactionId` kann nie ein zweites Konto
 freischalten (app/billing.py). Ohne konfigurierte Wurzel antwortet der Server ehrlich 503 `apple_not_configured`.
+
+Credit-Pakete (Verbrauchskaeufe, 15.11.2026, docs/KI-CREDITS-2026-11-15.md): dieselbe Pruefung der Signatur; ein Produkt
+aus `plans.CREDIT_PACKS` fuellt den gekauften Topf des Kontos (`apply_credit_purchase` -> app/credits.py), jede
+`transactionId` genau einmal. Wege: `POST /api/billing/credits/apple` (neue Apps), `POST /api/billing/apple/verify`
+(falls eine aeltere App so einen Kauf meldet) und Apples Mitteilungen (`ONE_TIME_CHARGE` schreibt gut, `REFUND`/`REVOKE`
+zieht die noch vorhandenen Credits dieses Kaufs ab, `REFUND_REVERSED` gibt sie zurueck).
 """
 from __future__ import annotations
 
@@ -69,7 +75,23 @@ class AppleError(Exception):
         self.code, self.message, self.status = code, message, status
 
 
+# Quelle der Kaeufe in credit_purchases
+CREDIT_SOURCE = "app_store"
+# Umgebungen ohne echtes Geld (TestFlight, Pruefung durch Apple, Xcode): Kaeufe zaehlen, aber nur bis zu einer Grenze
+TEST_ENVIRONMENTS = ("Sandbox", "Xcode")
+
+
 # ---------------------------------------------------------------- Konfiguration
+
+def sandbox_credit_limit() -> int:
+    """Grenze fuer Credit-Pakete aus der Testumgebung (Sandbox: TestFlight und Apples Pruefung kaufen dort ohne Geld) je
+    Konto und Kalendermonat (LERNAPP_CREDITS_SANDBOX_MONTH, Standard 400 = hoechstens 2,60 EUR KI-Kosten). Ohne Grenze
+    koennte ein Tester beliebig viele Pakete kostenlos kaufen - gekaufte Credits zaehlen ja nicht gegen das Monats-Budget."""
+    try:
+        return max(0, int(os.environ.get("LERNAPP_CREDITS_SANDBOX_MONTH") or 400))
+    except ValueError:
+        return 400
+
 
 def bundle_id() -> str:
     return os.environ.get("LERNAPP_APPLE_BUNDLE_ID", "de.uniflow.ai")
@@ -292,10 +314,103 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
             "original_transaction_id": otid, "environment": row[5], "stale": stale}
 
 
+# ---------------------------------------------------------------- Credit-Pakete (Verbrauchskaeufe)
+
+def is_credit_pack(tx: dict) -> bool:
+    return plans.credit_pack_credits(tx.get("productId") if isinstance(tx.get("productId"), str) else None) is not None
+
+
+def _account_exists(conn: sqlite3.Connection, user_id: str) -> bool:
+    """Gibt es das Konto noch? Ohne Tabelle `users` (reine Abrechnungsdatei in Tests und Werkzeugen) gilt: ja."""
+    try:
+        return conn.execute("SELECT 1 FROM users WHERE id=?", (user_id,)).fetchone() is not None
+    except sqlite3.OperationalError as e:
+        if "no such table" not in str(e):
+            raise
+        return True
+
+
+def _credit_schema(conn: sqlite3.Connection) -> None:
+    """Tabellen des gekauften Topfs auf dieser Verbindung sicherstellen (billing.connect legt sie nicht an)."""
+    from . import accounts, credits, db
+    db.schema_once(conn, "credits", accounts.db_path(), credits.ensure_schema)
+
+
+def apply_credit_purchase(conn: sqlite3.Connection, user_id: str | None, tx: dict,
+                          notification: tuple[str, str | None] | None = None, now: datetime | None = None) -> dict:
+    """Gepruefte Transaktion eines Credit-Pakets anwenden: gutschreiben (genau einmal je `transactionId`), bei
+    Erstattung/Widerruf die noch vorhandenen Credits dieses Kaufs abziehen, bei zurueckgenommener Erstattung zurueckgeben.
+
+    Konto: das aus `appAccountToken` (wer gekauft hat, bekommt die Credits - auch wenn ein anderes Konto den Kauf
+    meldet); gibt es dieses Konto nicht mehr oder fehlt das Token, das meldende Konto; ein schon verbuchter Kauf bleibt
+    bei seinem Konto. Der Tarif spielt hier keine Rolle: wer bezahlt hat, bekommt seine Credits (ohne Pro AI ruhen sie).
+    In einer laufenden Transaktion aufrufbar."""
+    from . import credits as ledger
+    if tx.get("bundleId") != bundle_id():
+        raise AppleError("wrong_app", "Der Kauf gehört nicht zu StudiNow.")
+    product = tx.get("productId")
+    size = plans.credit_pack_credits(product if isinstance(product, str) else None)
+    if size is None:
+        raise AppleError("unknown_product", "Unbekanntes Credit-Paket.")
+    tid = str(tx.get("transactionId") or tx.get("originalTransactionId") or "")
+    if not tid:
+        raise AppleError("jws_invalid", "Die Kaufdaten nennen keine Kennung des Kaufs.")
+    t = billing._now(now)
+    env = tx.get("environment") if isinstance(tx.get("environment"), str) else None
+    ntype = (notification or (None, None))[0]
+    known = conn.execute("SELECT user_id FROM credit_purchases WHERE source=? AND transaction_id=?", (CREDIT_SOURCE, tid)).fetchone()
+    tok = token_owner(tx)
+    if known:
+        uid = known[0]
+    elif tok and _account_exists(conn, tok):
+        uid = tok
+    else:
+        uid = user_id
+    limited = False
+    if ntype == "REFUND_REVERSED":
+        out = ledger.restore_purchase(conn, CREDIT_SOURCE, tid, now=t)
+    elif tx.get("revocationDate") or ntype in REVOKING:
+        out = ledger.refund_purchase(conn, CREDIT_SOURCE, tid, user_id=uid, product_id=product, credits=size, environment=env, now=t)
+    elif ntype is not None and ntype != "ONE_TIME_CHARGE":
+        # andere Mitteilungen zu einem Paket aendern nichts
+        out = {"status": "ignored", "credits_added": 0, "credits_removed": 0, "user_id": uid}
+    else:
+        if not uid:
+            raise AppleError("unknown_account", "Zu diesem Kauf gibt es kein StudiNow-Konto.", 404)
+        if not known and env in TEST_ENVIRONMENTS:
+            # Testumgebung: hoechstens sandbox_credit_limit() Credits je Konto und Kalendermonat (Berlin)
+            month_start = datetime.fromisoformat(f"{ledger.period_of(t)}-01T00:00:00").replace(tzinfo=ledger.TZ).astimezone(timezone.utc)
+            room = max(0, sandbox_credit_limit() - ledger.granted_since(conn, uid, month_start.isoformat(), TEST_ENVIRONMENTS))
+            limited, size = size > room, min(size, room)
+        out = ledger.grant_purchase(conn, uid, CREDIT_SOURCE, tid, size, product_id=product, environment=env,
+                                    purchased_at=_ms_iso(tx.get("purchaseDate")), now=t)
+    owner = out.get("user_id") or uid
+    return {"kind": "credits", "status": out["status"], "credits_added": out["credits_added"],
+            "credits_removed": out["credits_removed"], "transaction_id": tid, "product_id": product, "user_id": owner,
+            "environment": env, "other_account": bool(user_id and owner and owner != user_id), "sandbox_limited": limited}
+
+
+def verify_credit_purchase(conn: sqlite3.Connection, user_id: str, signed_transaction: str,
+                           roots: list[x509.Certificate] | None = None, now: datetime | None = None) -> dict:
+    """Credit-Paket aus der App melden (POST /api/billing/credits/apple): Signatur pruefen, genau einmal gutschreiben."""
+    tx = verify_jws(signed_transaction, roots)
+    _credit_schema(conn)
+    return apply_credit_purchase(conn, user_id, tx, now=now)
+
+
 def verify_purchase(conn: sqlite3.Connection, user_id: str, signed_transaction: str, signed_renewal: str | None = None,
                     roots: list[x509.Certificate] | None = None, now: datetime | None = None) -> dict:
     """Kauf oder Wiederherstellung aus der App (POST /api/billing/apple/verify)."""
     tx = verify_jws(signed_transaction, roots)
+    if is_credit_pack(tx):
+        # Credit-Paket ueber die Abo-Route (eine App, die den neuen Weg nicht kennt, meldet jede Transaktion hier und
+        # schliesst sie danach ab): gutschreiben statt ablehnen, sonst waere der Kauf bezahlt und verloren. Die Antwort
+        # hat die Felder der Abo-Antwort (ohne Tarif), dazu `credit_purchase`.
+        _credit_schema(conn)
+        done = apply_credit_purchase(conn, user_id, tx, now=now)
+        return {"plan": None, "status": None, "expires_at": None, "will_renew": False, "pending_plan": None,
+                "original_transaction_id": done["transaction_id"], "environment": done["environment"], "stale": False,
+                "credit_purchase": done}
     renewal = verify_jws(signed_renewal, roots) if signed_renewal else None
     tok = token_owner(tx)
     if tok and tok != user_id:
@@ -325,11 +440,23 @@ def handle_notification(conn: sqlite3.Connection, signed_payload: str, roots: li
         return {"ok": True, "type": ntype, "applied": False}
     tx = verify_jws(data["signedTransactionInfo"], roots)
     renewal = verify_jws(data["signedRenewalInfo"], roots) if data.get("signedRenewalInfo") else None
+    pack = is_credit_pack(tx)
+    if pack:
+        _credit_schema(conn)
     conn.execute("BEGIN IMMEDIATE")
     try:
         if nid and conn.execute("SELECT 1 FROM apple_notifications WHERE notification_uuid=?", (nid,)).fetchone():
             conn.execute("COMMIT")
             return {"ok": True, "type": ntype, "applied": False, "duplicate": True}
+        if pack:
+            # Credit-Paket: Kauf (ONE_TIME_CHARGE), Erstattung (REFUND/REVOKE), zurueckgenommene Erstattung
+            done = apply_credit_purchase(conn, None, tx, (ntype, subtype), now=now)
+            if nid:
+                conn.execute("INSERT INTO apple_notifications(notification_uuid, original_transaction_id, notification_type, subtype, "
+                             "signed_date, received_at) VALUES (?,?,?,?,?,?)",
+                             (nid, done["transaction_id"], ntype, subtype, note.get("signedDate"), billing._now(now).isoformat()))
+            conn.execute("COMMIT")
+            return {"ok": True, "type": ntype, "applied": bool(done["credits_added"] or done["credits_removed"]), **done}
         out = apply_transaction(conn, None, tx, renewal, (ntype, subtype), now=now)
         if nid:
             conn.execute("INSERT INTO apple_notifications(notification_uuid, original_transaction_id, notification_type, subtype, "

@@ -965,7 +965,7 @@ def _after_delete(user_id: str) -> bool:
 # Audit 08.11.2026, Paket 57 (P57-05): Tarifauswahl, Stripe-Kunde und -Abo, App-Anmeldecodes und die Monatssumme der
 # KI-Kosten je Konto blieben vorher mit der Konto-ID stehen (tests/test_audit_paket_55_57.py).
 ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
-                  "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months",
+                  "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months", "credit_wallets",
                   "invites", "invite_redemptions", "invite_rewards",
                   "plan_choices", "stripe_customers", "stripe_subscription_state", "app_login_codes", "ai_usage_user_month")
 
@@ -995,6 +995,9 @@ def _purge_user(conn, user_id: str) -> None:
     if "credit_ledger" in tables:                           # Kosten bleiben fuer die Kostenansicht, ohne Konto und ohne Antworten
         import secrets
         conn.execute("UPDATE credit_ledger SET user_id=?, result=NULL WHERE user_id=?", ("deleted:" + secrets.token_hex(8), user_id))
+    if "credit_purchases" in tables:                        # Kaeufe bleiben ohne Konto: Buchhaltung, und dieselbe Transaktion
+        import secrets                                      # kann nie ein zweites Mal gutgeschrieben werden
+        conn.execute("UPDATE credit_purchases SET user_id=?, remaining=0 WHERE user_id=?", ("deleted:" + secrets.token_hex(8), user_id))
     if "page_explain" in tables:                            # Erklaerungsspeicher: Chiffrate bleiben, Besitzer anonym (app/page_explain.py)
         from . import page_explain
         page_explain.forget_owner(conn, user_id)
