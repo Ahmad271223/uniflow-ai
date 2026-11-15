@@ -66,7 +66,7 @@ kein Crawler und meldet sich nicht als `ClaudeBot`. **Nie angefragt**: Learnweb,
 | `hildesheim-modultabelle` | 11 | 11 | FB 2 (Kulturwissenschaften, Szenische Künste, Literarisches Schreiben, KGKT, KKT, PKM), FB 3 (IKÜ, Barrierefreie Kommunikation, Medientext, SuT, DaZ/DaF) und Erziehungswissenschaft: zweispaltige Tabellen, gelesen im Layout-Modus |
 | `hildesheim-it-modulhandbuch` | 12 | 7 | FB 4 (Angewandte Informatik, IMIT, Umweltinformatik, Data Analytics, Software Engineering; auch englisch) |
 | `hildesheim-kuerzel-modultabelle` | 2 | 2 | Fach Informatik im Lehramt ab 2026 (Heft 214): Titelzeile „INF-B1: „Titel““, Kopf „Studiensemester \| Dauer \| Häufigkeit \| Status“, LP in der letzten Spalte von „Lehr-/Lernformen; Arbeitsaufwand“ (seit 15.11.2026) |
-| `hildesheim-kennnummer-tabelle` | 1 | 1 | Barrierefreie Kommunikation M.A.: Titelzeile „BK 1 Titel“, Kopf „Kennnummer \| Workload \| Credits \| Studiensemester \| Häufigkeit \| Dauer“, nummerierte Zeilen 1–11 (seit 15.11.2026) |
+| `hildesheim-kennnummer-tabelle` | 2 | 2 | Barrierefreie Kommunikation M.A. und Medientext und Medienübersetzung M.A.: Titelzeile „BK 1 Titel“ bzw. „Modul MuM 1 – Titel“, Kopf „Kennnummer \| Workload \| Credits \| Studiensemester \| Häufigkeit \| Dauer“, nummerierte Zeilen 1–11 (seit 15.11.2026) |
 | `none` | 11 | – | siehe „geht nicht, weil …“ im Abschnitt „Grundstock“ (Stand der Zahlen dieser Tabelle: 05.11.; aktuell im Abschnitt „Grundstock“) |
 
 **`hildesheim-modulbeschreibung`**: Feldnamen brechen über bis zu drei Zeilen um („Pflicht- oder / Wahlpflichtmodul:“)
@@ -363,5 +363,8 @@ Aufgefallen, nicht geändert: Im Katalog Software Engineering M.Sc. stehen 60 vo
 Abschnitte nach „Compulsory Modules“ („Methodological Specialization (Elective Modules)“ …) keine eigene oberste Ebene
 bilden. Das braucht einen Abgleich mit der PO Software Engineering und ist ein eigener Auftrag.
 
-Nicht gemacht: Die beiden Leser sind im Abgleich des Geräts (eigener Katalog-Link) nicht verdrahtet; die drei Kataloge
+Nicht gemacht: Die beiden Leser sind im Abgleich des Geräts (eigener Katalog-Link) nicht verdrahtet; die Kataloge
 kommen aus dem Grundstock, ein eingefügter Link auf eine dieser PDFs führt über das Register dorthin.
+
+Stand nach dem Nachzug: 121 Registereinträge, 112 mit Katalog (vorher 119 / 108), 2 368 Module (vorher 2 204); ohne
+Katalog bleiben 9 Einträge, alle ohne lesbare Modulbeschreibungen im Verkündungsblatt (Liste im Abschnitt „Grundstock“).
