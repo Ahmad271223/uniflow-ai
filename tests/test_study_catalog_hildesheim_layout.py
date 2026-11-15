@@ -99,13 +99,17 @@ def test_kuerzel_master_status_total_line_and_title_suffix():
 def test_kennnummer_header_values_and_numbered_rows():
     c = _j("kennnummer.json")
     m = _mods(c)
-    assert list(m) == ["TG 1", "TG 2", "TG 10", "TG 11"]
-    assert [v["title"] for v in m.values()] == ["Grundlagen der Teichgestaltung", "Uferpflanzen", "Profilmodul: Forschung oder Praxis",
-                                                "Masterarbeit"]
-    assert [v["lp"] for v in m.values()] == [13, 11, 10, 20] and [v["workload_h"] for v in m.values()] == [390, 330, 300, 600]
-    assert [v["semester"] for v in m.values()] == [1, 1, 4, 4]
-    assert [v["turnus"] for v in m.values()] == ["WS+SS", "WS", "unbekannt", "unbekannt"]
-    assert [v["kind"] for v in m.values()] == ["pflicht", "pflicht", "pflicht", "abschluss"]
+    assert list(m) == ["TG 1", "TG 2", "TG 5", "TG 7", "TG 10", "TG 11"]
+    assert [v["title"] for v in m.values()] == ["Grundlagen der Teichgestaltung", "Uferpflanzen", "Vertiefungsbereich Wasserbau I: Theorie",
+                                                "Fachsprache 2 (Wahlpflichtmodul)", "Profilmodul: Forschung oder Praxis", "Abschluss"]
+    assert [v["lp"] for v in m.values()] == [13, 11, 10, 13, 10, 20]
+    assert [v["workload_h"] for v in m.values()] == [390, 330, 300, 390, 300, 600]
+    assert [v["semester"] for v in m.values()] == [1, 1, 2, 3, 4, 4]
+    assert [v["turnus"] for v in m.values()] == ["WS+SS", "WS", "SS", "WS", "unbekannt", "unbekannt"], "umbrochene Häufigkeit, auch zentriert"
+    assert [v["kind"] for v in m.values()] == ["pflicht", "pflicht", "pflicht", "wahlpflicht", "pflicht", "abschluss"]
+    # Titelzeile "Modul TG 5 – Titel" ueber zwei Zeilen; auf der Folgeseite stehen beide Zeilen noch einmal
+    assert m["TG 5"]["exam"] == "Hausarbeit oder Projektarbeit (z.B. Poster mit Präsentation)"
+    assert c["module_texts"][m["TG 5"]["id"]]["content"] == "Theorie\ndes Wasserbaus an Beispielen.", "nur der Kolumnentitel faellt weg"
     assert m["TG 1"]["exam"] == "Klausur"
     assert m["TG 1"]["coursework"] == "1.1. oder 1.3: Bestehen der Klausur; 1.2. Aktive, regelmäßige Teilnahme"
     assert m["TG 2"]["exam"] == "2.1: Hausarbeit oder Projektarbeit (z.B. Poster mit Präsentation) im jeweils anderen Teilmodul"

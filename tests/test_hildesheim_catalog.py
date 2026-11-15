@@ -176,6 +176,75 @@ def test_modulbeschreibung_reader_on_constructed_pages():
     assert not any(k in m for m in cat["modules"] for k in ("content", "goals", "literature"))
 
 
+# Nachzug 15.11.2026 (erfunden, Aufbau wie in den Ordnungen): Wert allein in einer Zeile, Modul ueber die Seitengrenze mit
+# dem Kopf des naechsten Moduls dazwischen, LP nur im Titel, LP in "Vergabe von Credits", Kopfzeile einer Uebersicht
+GAP_PAGES = [
+    "\n".join([FOOT.format(20), "Anlage 2: Modulhandbuch",
+               "Basismodul (BM) 1: Erfundene Grundlagen", "Modulnummer: Bsp_BM1", "Modulleitung: N. N.",
+               "Pflicht- oder", "Wahlpflichtmodul*:", "Pflichtmodul",
+               "Lehr- und Lernformen: TM 1: Vorlesung (2 SWS) 3 LP", "TM 2: Seminar (2 SWS) 3 LP",
+               "Anzahl der Leistungs-", "punkte*:", "6",
+               "Workload getrennt nach", "Präsenzstudium und", "Selbststudium*:", "5 SWS", "180h (75h Kontaktstunden, 105h Selbststudium)",
+               "Dauer in Semestern:", "2",
+               "Empfohlenes", "Studiensemester:", "TM 1: 3. Fachsemester", "TM 2: 4. Fachsemester",
+               "Prüfungsleistungen", "(Art, Umfang):", "Klausur (90 Minuten)",
+               "Aufbaumodul 2: Erfundene Anwendungen", "Modulnummer: Bsp_AM2", "Modulleitung: N. N.",
+               "Pflicht- oder Wahlpflichtmodul: Pflichtmodul",
+               "Zugangsvoraussetzungen: Keine", "7"]),
+    "\n".join([FOOT.format(21),
+               "Vertiefungsmodul 3: Erfundene Vertiefung", "Modulnummer: Bsp_VM3", "Modulleitung: N. N.",
+               "Verwendbarkeit des Moduls: Beispielkunde",
+               "Aufbaumodul 2: Erfundene Anwendungen",
+               "Anzahl der Leistungspunkte*: 9 LP", "Empfohlenes Studiensemester: TM 1 und TM 2: 4",
+               "Prüfungsleistungen (Art, Umfang): Hausarbeit",
+               "Vertiefungsmodul 3: Erfundene Vertiefung",
+               "Pflicht- oder Wahlpflichtmodul: Wahlpflichtmodul",
+               "Anzahl der Leistungspunkte*: 5 LP", "Empfohlenes Studiensemester: 5 und 6",
+               "Prüfungsleistungen (Art, Umfang): Referat"]),
+    "\n".join([FOOT.format(22),
+               "Modul 10: Masterarbeit und Kolloquium (30 LP)", "Modulnummer: Bsp_M10", "Modulleitung: N. N.",
+               "Pflicht- oder Wahlpflichtmodul: Pflichtmodul", "Prüfungsleistungen (Art, Umfang): Masterarbeit",
+               "Modul Bsp 6: Praxismodul", "Modulverantwortliche N. N.", "Status Pflicht",
+               "Studienleistung 2 LP für die Teilnahme an der Begleitveranstaltung",
+               "Modulprüfung 30 LP (siehe Teilmodulbeschreibungen)",
+               "Voraussetzung für die Vergabe", "von Credits", " 32 LP = Studienleistung (2 LP) + Modulprüfung (30 LP)",
+               "Modul Bsp 6-1: Begleitveranstaltung", "Modulzuordnung Bsp 6: Praxismodul", "Leistungspunkte 2",
+               "Empfohlenes Semester 2. Semester",
+               "Modulbezeichnung Themen LP", "Modulverantwortliche N. N.", "Prüfungsleistungen Bericht"]),
+    # Titel "Modul 1: ..." mit einem Absatz Fliesstext vor dem ersten Feld; "Leistungspunkte im Rahmen ..." ist Text,
+    # "LP)" ein Zeilenrest von "(8 LP)" und beides kein Feldname
+    "\n".join([FOOT.format(23),
+               "Modul 1: Erfundenes Anpassungsmodul (Pflicht)",
+               "Mit der Zulassung werden Auflagen im Umfang von bis zu 9 LP formuliert. Diese Auflagen sind hier",
+               "zu absolvieren. Sofern weniger als 9 LP studiert werden müssen, werden die restlichen",
+               "Leistungspunkte im Rahmen des TM 6 erbracht.",
+               "Modulleiter: N. N.",
+               "Lehr- und Lernformen: Vorlesung, Seminar",
+               "Teilmodule: TM 1: Erfundene Bestimmungsübungen (6 LP)", "TM 2: Erfundene Übung im Freiland (8",
+               "LP)", "TM 3: Wahlveranstaltung (3 LP)",
+               "LP: 9", "Dauer in Semestern: 2", "Prüfungsart/-form: Teilmodulprüfungen"]),
+]
+
+
+def test_modulbeschreibung_reader_keeps_bare_numbers_and_split_modules():
+    cat, _ = get_parser("hildesheim-modulbeschreibung")(GAP_PAGES, META)
+    assert sc.validate(cat) == []
+    far = cat["modules"].pop()
+    assert far["title"] == "Modul 1: Erfundenes Anpassungsmodul (Pflicht)", "Titel ueber dem Fliesstext, nicht dessen letzte Zeile"
+    assert far["lp"] == 9, "weder 'Leistungspunkte im Rahmen ...' noch der Zeilenrest 'LP)' ist die LP-Angabe"
+    m = {x["code"]: x for x in cat["modules"]}
+    assert list(m) == ["Bsp_BM1", "Bsp_AM2", "Bsp_VM3", "Bsp_M10", None], [x["title"] for x in cat["modules"]]
+    bm, am, vm, final, praxis = m.values()
+    # "6" allein in einer Zeile ist der Wert, keine Seitenzahl; die "7" am Seitenende ist die Seitenzahl
+    assert (bm["lp"], bm["workload_h"], bm["semester"]) == (6, 180, 3), "TM-Nummern sind kein Semester"
+    # Kopf des naechsten Moduls vor dem Rest des vorigen: Felder unter dem wiederholten Titel gehoeren zum vorigen
+    assert (am["lp"], am["semester"], am["exam"], am["kind"]) == (9, 4, "Hausarbeit", "pflicht")
+    assert (vm["lp"], vm["semester"], vm["exam"], vm["kind"]) == (5, 5, "Referat", "wahlpflicht")
+    assert final["lp"] == 30 and final["kind"] == "abschluss", "LP nur im Titel"
+    assert praxis["title"] == "Modul Bsp 6: Praxismodul" and praxis["lp"] == 32, "LP des Moduls aus 'Vergabe von Credits', nicht vom Teilmodul"
+    assert not any(x["title"] == "Themen LP" for x in cat["modules"]), "Kopfzeile einer Uebersichtstabelle ist kein Modul"
+
+
 def _it_pages(english: bool = False) -> list[str]:
     """Erfundenes FB-4-Handbuch: Titelseite, Verzeichnis (Seitenzahlen im Handbuch), drei Module, Kolumnentitel"""
     if english:
@@ -234,6 +303,34 @@ def test_it_reader_bachelor_master_toc_and_usage():
     u, _ = parse(_it_pages(), dict(META, degree="B.Sc.", usage_program="BSc Beispielinformatik"))
     assert {x["title"]: next(a["name"] for a in u["areas"] if a["id"] == x["area"]) for x in u["modules"]} == \
         {"Beispielprogrammierung": "Pflichtmodule – Informatik", "Beispielsysteme": "Wahlbereich – Informatik"}
+    # ... und die Abschlusspruefung des Abschlusses, auch wenn ihre "Verwendung" den Studiengang nicht nennt
+    thesis = "\n".join(["Bereich – Abschlussprüfung Bachelor", "Modul: Abschlussprüfung Bachelor", "Lehrform/SWS Abschlussarbeit",
+                        "Leistungspunkte 15 LP", "Prüfungsleistung Bachelorarbeit und Kolloquium", "empfohlenes Semester BSc 6",
+                        "Verwendung", "• Bachelor- und Masterstudienprogramm Anderes Fach – Abschlussprüfung", "6", FOOT.format(6)])
+    u, _ = parse(_it_pages() + [thesis], dict(META, degree="B.Sc.", usage_program="BSc Beispielinformatik"))
+    assert [(x["title"], x["kind"], x["lp"], x["semester"]) for x in u["modules"]][-1] == ("Abschlussprüfung Bachelor", "abschluss", 15, 6)
+    assert len(u["modules"]) == 3
+    um, _ = parse(_it_pages() + [thesis], dict(META, degree="M.Sc.", usage_program="MSc Beispielinformatik"))
+    assert not any(x["kind"] == "abschluss" for x in um["modules"]), "die Abschlussprüfung des anderen Abschlusses gehoert nicht dazu"
+    # Handbuch nur eines Abschlusses (Medieninformatik, Data Science: "Bachelor" auf der Titelseite, kein Abschnitt nennt
+    # den Abschluss): alle Eintraege zaehlen, auch Pflichtmodule mit "empfohlenes Semester MSc 1" (dann ohne Semester);
+    # "Methodological Specialization" und "Anwendungsgebiete (Wahl)" sind eigene Wahlabschnitte
+    toc = ["Pﬂichtmodule", "Informatik", "Modul Lehrform/SWS LP S.", "Beispielprogrammierung 2 SWS Vorlesung 6 3",
+           "Beispiellernen 2 SWS Vorlesung 6 4", "Methodological Specialization", "Modul Lehrform/SWS LP S.",
+           "Beispielsehen 2 SWS Vorlesung 6 5", "Anwendungsgebiete (Wahl)", "Informatik", "Gebiet Beispielsysteme",
+           "Modul Lehrform/SWS LP S.", "Beispielsysteme 2 SWS Vorlesung 4 6"]
+    mods = [("Beispielprogrammierung", "BSc 1"), ("Beispiellernen", "MSc 1"), ("Beispielsehen", "MSc 1-3"), ("Beispielsysteme", "BSc 4, MSc 1")]
+    one = ["Universität Hildesheim\nBeispielinformatik\nBachelor\nModulhandbuch\n" + FOOT.format(1), "\n".join(toc) + "\n2\n" + FOOT.format(2)]
+    for n, (title, sem) in enumerate(mods):
+        one.append("\n".join(["Bereich – " + title, "Modul: " + title, "Leistungspunkte 6 LP", "Prüfungsleistung Klausur",
+                              "empfohlenes Semester " + sem, "Turnus jedes Wintersemester", str(n + 3), FOOT.format(n + 3)]))
+    o, _ = parse(one, dict(META, degree="B.Sc."))
+    assert [(x["title"], x["kind"], x["semester"]) for x in o["modules"]] == [
+        ("Beispielprogrammierung", "pflicht", 1), ("Beispiellernen", "pflicht", None), ("Beispielsehen", "wahlpflicht", None),
+        ("Beispielsysteme", "wahlpflicht", 4)]
+    assert [a["name"] for a in o["areas"]] == ["Pflichtmodule – Informatik", "Methodological Specialization",
+                                               "Anwendungsgebiete (Wahl) – Informatik – Gebiet Beispielsysteme"]
+    assert parse(one, dict(META, degree="M.Sc."))[0]["modules"] == [], "ein Bachelor-Handbuch hat keinen Master-Katalog"
     # englische Fassung (Data Analytics, Software Engineering): ohne gedruckte Seitenzahlen
     pages = [p.replace("\n3\n", "\n").replace("\n4\n", "\n").replace("\n5\n", "\n") for p in _it_pages(english=True)]
     e, _ = parse(pages, dict(META, degree="M.Sc."))

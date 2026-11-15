@@ -8,29 +8,17 @@ import XCTest
 /// tests/test_hildesheim_seed_quality.py. Dazu jeder Registereintrag: per Name zu finden und waehlbar.
 final class HildesheimSeedQualityTests: XCTestCase {
 
-    /// Module ohne LP je Kuerzel (Lesefehler des Grundstocks vom 05.11.2026), gleich der Python-Liste
+    /// Module ohne LP je Kuerzel, gleich der Python-Liste (Stand 15.11.2026: nur noch Module, fuer die die Ordnung eine
+    /// Spanne je Studienvariante nennt; Gruende in tests/test_hildesheim_seed_quality.py)
     static let knownNoLP: [String: Int] = [
-        "inklusive-paedagogik-und-kommunikation|m.a.|unbekannt": 1,
-        "politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026": 2,
-        "sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021": 1,
-        "kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022": 1,
-        "literarisches-schreiben-und-lektorieren|m.a.|2024": 2,
-        "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018": 1,
         "internationale-kommunikation-und-uebersetzen|b.a.|2024": 2,
-        "internationales-informationsmanagement|b.a.|2024": 10,
-        "internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024": 10,
-        "internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024": 10,
-        "internationales-informationsmanagement-informationswissenschaft|m.a.|2024": 2,
-        "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024": 10,
-        "internationales-informationsmanagement-linguistik|b.a.|2024": 10,
-        "internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024": 1,
-        "medientext-und-medienuebersetzung|m.a.|2024": 8,
-        "mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025": 1,
-        "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017": 1,
-        "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026": 1,
-        "wirtschaft-plus|b.sc.|2026": 6,
+        "internationales-informationsmanagement|b.a.|2024": 8,
+        "internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024": 8,
+        "internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024": 8,
+        "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024": 8,
+        "internationales-informationsmanagement-linguistik|b.a.|2024": 8,
     ]
-    static let knownOnlyChoice: Set<String> = ["umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021", "wirtschaftsinformatik|m.sc.|2024"]
+    static let knownOnlyChoice: Set<String> = []
 
     private func seed() throws -> StudyCatalogSeed {
         var url = URL(fileURLWithPath: #filePath)
@@ -42,7 +30,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
 
     func testEverySeedCatalogLoadsMapsAndShowsModulesWithLP() throws {
         let s = try seed()
-        XCTAssertGreaterThanOrEqual(s.entries.count, 111)
+        XCTAssertGreaterThanOrEqual(s.entries.count, 112)
         var problems: [String] = [], noLP: [String: Int] = [:], onlyChoice = Set<String>()
         for e in s.entries {
             guard let text = s.payload(key: e.libraryKey), let cat = try? JSONValue.parse(Data(text.utf8)) else {
@@ -70,7 +58,7 @@ final class HildesheimSeedQualityTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(progs.count, 112)
         let without = progs.filter { $0["pos"]?.array?.isEmpty ?? true }
         XCTAssertEqual(without.filter { $0["kind"]?.string == "nebenfach" }.count, 64, "Neben-/Begleitfaecher aus der LSF-Uebersicht")
-        XCTAssertEqual(without.filter { $0["kind"]?.string != "nebenfach" }.count, 10)
+        XCTAssertEqual(without.filter { $0["kind"]?.string != "nebenfach" }.count, 9)
         for p in progs {
             let name = p["program"]?.string ?? ""
             XCTAssertTrue(StudySources.programMatches(p, query: name), name)

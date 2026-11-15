@@ -66,7 +66,7 @@ kein Crawler und meldet sich nicht als `ClaudeBot`. **Nie angefragt**: Learnweb,
 | `hildesheim-modultabelle` | 11 | 11 | FB 2 (Kulturwissenschaften, Szenische Künste, Literarisches Schreiben, KGKT, KKT, PKM), FB 3 (IKÜ, Barrierefreie Kommunikation, Medientext, SuT, DaZ/DaF) und Erziehungswissenschaft: zweispaltige Tabellen, gelesen im Layout-Modus |
 | `hildesheim-it-modulhandbuch` | 12 | 7 | FB 4 (Angewandte Informatik, IMIT, Umweltinformatik, Data Analytics, Software Engineering; auch englisch) |
 | `hildesheim-kuerzel-modultabelle` | 2 | 2 | Fach Informatik im Lehramt ab 2026 (Heft 214): Titelzeile „INF-B1: „Titel““, Kopf „Studiensemester \| Dauer \| Häufigkeit \| Status“, LP in der letzten Spalte von „Lehr-/Lernformen; Arbeitsaufwand“ (seit 15.11.2026) |
-| `hildesheim-kennnummer-tabelle` | 1 | 1 | Barrierefreie Kommunikation M.A.: Titelzeile „BK 1 Titel“, Kopf „Kennnummer \| Workload \| Credits \| Studiensemester \| Häufigkeit \| Dauer“, nummerierte Zeilen 1–11 (seit 15.11.2026) |
+| `hildesheim-kennnummer-tabelle` | 2 | 2 | Barrierefreie Kommunikation M.A. und Medientext und Medienübersetzung M.A.: Titelzeile „BK 1 Titel“ bzw. „Modul MuM 1 – Titel“, Kopf „Kennnummer \| Workload \| Credits \| Studiensemester \| Häufigkeit \| Dauer“, nummerierte Zeilen 1–11 (seit 15.11.2026) |
 | `none` | 11 | – | siehe „geht nicht, weil …“ im Abschnitt „Grundstock“ (Stand der Zahlen dieser Tabelle: 05.11.; aktuell im Abschnitt „Grundstock“) |
 
 **`hildesheim-modulbeschreibung`**: Feldnamen brechen über bis zu drei Zeilen um („Pflicht- oder / Wahlpflichtmodul:“)
@@ -166,32 +166,31 @@ Containers (`settings.university`).
 
 | Fachbereich | Kataloge | Einträge | Module | Formate |
 |---|---:|---:|---:|---|
-| Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 259 | hildesheim-modulbeschreibung 31, hildesheim-modultabelle 3 |
-| Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 322 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
-| Fachbereich 3 – Sprach- und Informationswissenschaften | 19 | 19 | 227 | hildesheim-kennnummer-tabelle 1, hildesheim-modulbeschreibung 16, hildesheim-modultabelle 2 |
-| Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 38 | 38 | 1383 | hildesheim-it-modulhandbuch 13, hildesheim-kuerzel-modultabelle 2, hildesheim-modulbeschreibung 22, hildesheim-modultabelle 1 |
+| Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 254 | hildesheim-modulbeschreibung 32, hildesheim-modultabelle 2 |
+| Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 320 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
+| Fachbereich 3 – Sprach- und Informationswissenschaften | 19 | 19 | 227 | hildesheim-kennnummer-tabelle 2, hildesheim-modulbeschreibung 16, hildesheim-modultabelle 1 |
+| Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 39 | 39 | 1523 | hildesheim-it-modulhandbuch 14, hildesheim-kuerzel-modultabelle 2, hildesheim-modulbeschreibung 22, hildesheim-modultabelle 1 |
 | fachbereichsübergreifend (Lehrerbildung) | 4 | 4 | 44 | hildesheim-modulbeschreibung 4 |
-| **zusammen** | **111** | **111** | **2235** | |
+| **zusammen** | **112** | **112** | **2368** | |
 
-Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-kennnummer-tabelle` 1 Kataloge / 11 Module; `hildesheim-kuerzel-modultabelle` 2 Kataloge / 20 Module; `hildesheim-modulbeschreibung` 83 Kataloge / 812 Module; `hildesheim-modultabelle` 12 Kataloge / 257 Module.
-Registereinträge: 121, davon im Grundstock: 111.
+Nach Format: `hildesheim-it-modulhandbuch` 14 Kataloge / 1274 Module; `hildesheim-kennnummer-tabelle` 2 Kataloge / 22 Module; `hildesheim-kuerzel-modultabelle` 2 Kataloge / 20 Module; `hildesheim-modulbeschreibung` 84 Kataloge / 820 Module; `hildesheim-modultabelle` 10 Kataloge / 232 Module.
+Registereinträge: 121, davon im Grundstock: 112.
 
 Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS, Voraussetzungen = verweist auf andere Module):
 
 | Format | Kataloge | Module | LP | Semester | Turnus | Prüfung | Studienl. | Vorauss. | Sprache | Aufwand |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `hildesheim-it-modulhandbuch` | 13 | 1135 | 100 % | 98 % | 71 % | 100 % | 0 % | 23 % | 26 % | 100 % |
-| `hildesheim-kennnummer-tabelle` | 1 | 11 | 100 % | 100 % | 82 % | 91 % | 91 % | 0 % | 0 % | 100 % |
+| `hildesheim-it-modulhandbuch` | 14 | 1274 | 100 % | 96 % | 72 % | 100 % | 0 % | 24 % | 25 % | 100 % |
+| `hildesheim-kennnummer-tabelle` | 2 | 22 | 100 % | 100 % | 91 % | 95 % | 45 % | 0 % | 0 % | 100 % |
 | `hildesheim-kuerzel-modultabelle` | 2 | 20 | 100 % | 100 % | 100 % | 100 % | 25 % | 0 % | 0 % | 90 % |
-| `hildesheim-modulbeschreibung` | 83 | 812 | 92 % | 73 % | 83 % | 95 % | 86 % | 1 % | 9 % | 67 % |
-| `hildesheim-modultabelle` | 12 | 257 | 95 % | 82 % | 48 % | 89 % | 91 % | 2 % | 0 % | 84 % |
-| **zusammen** | **111** | **2235** | 96 % | 87 % | 73 % | 97 % | 42 % | 12 % | 17 % | 86 % |
+| `hildesheim-modulbeschreibung` | 84 | 820 | 95 % | 76 % | 83 % | 95 % | 86 % | 1 % | 9 % | 68 % |
+| `hildesheim-modultabelle` | 10 | 232 | 99 % | 86 % | 49 % | 91 % | 97 % | 2 % | 0 % | 90 % |
+| **zusammen** | **112** | **2368** | 98 % | 88 % | 74 % | 97 % | 40 % | 14 % | 16 % | 88 % |
 
-Kataloge mit Regeln/LP für Bereiche: 21; mit empfohlenem Semester je Modul: 96.
+Kataloge mit Regeln/LP für Bereiche: 28; mit empfohlenem Semester je Modul: 99.
 
-Ohne Katalog im Grundstock (10) – geht nicht, weil …:
+Ohne Katalog im Grundstock (9) – geht nicht, weil …:
 
-- Data Science (B.Sc.): Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete (Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP), der Abschnitt 'Methodological Specialization' fehlt (ein Modul steht unter Abschlussprüfung), die Gebiete Medieninformatik und Systemadministration fehlen
 - Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art (M.A.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Future Analytics: AI & Audio Worlds (M.Sc.): keine geltende Studienordnung mit Modulbeschreibungen und kein Modulhandbuch im Verkündungsblatt
 - Lehramt an Grund-, Haupt- und Realschulen (Staatsexamen): Studienordnung (1 Seiten) ohne lesbare Modulbeschreibungen
@@ -203,8 +202,8 @@ Ohne Katalog im Grundstock (10) – geht nicht, weil …:
 - Rechtspsychologie (M.Sc.): Studienordnung (3 Seiten) ohne lesbare Modulbeschreibungen
 
 Anfragen laut Zwischenspeicher: 209 (209 × 200), davon 153 PDFs, 96 MB, 05.11.2026 12:46–14.11.2026 14:04 UTC, kleinster Abstand -12.8 s.
-Datei `hildesheim.json.gz`: 134 KB gzip, 1174 KB JSON, 111 Kataloge.
-Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 24 Kataloge mit Handangaben, 1 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
+Datei `hildesheim.json.gz`: 141 KB gzip, 1239 KB JSON, 112 Kataloge.
+Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 31 Kataloge mit Handangaben, 1 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
 
 Neu bauen: `.venv/bin/python tools/build-hildesheim-seed.py` (prüfen: `--check`, Vorschau: `--diff`).
 <!-- grundstock:end -->
@@ -256,7 +255,7 @@ Ergebnis: die 18 Module INF-A11 bis INF-V27. Pflicht und Wahl hängen in dieser 
 (Anlage 1, 13 Varianten); der Katalog nimmt die Angabe aus der Modulbeschreibung. Die Ordnung 2026 (Heft 214) ist seit
 15.11.2026 eingebaut (Abschnitt „Nachzug“).
 
-Neu im Register, ohne Katalog (wählbar mit dem Hinweis „noch kein Modulkatalog“):
+Neu im Register, am 14.11. noch ohne Katalog (seit 15.11.2026 eingebaut, Abschnitt „Nachzug“, Teil C):
 - Data Science B.Sc. (PO 2023, Studienvariante der Angewandten Informatik, nicht im Studienangebot): der Leser legt den
   Abschnitt „Anwendungsgebiete (Wahl)“ als Pflicht ab (alle 73 Module im Semesterplan, 4. Semester 144 LP), der
   Abschnitt „Methodological Specialization“ fehlt (ein Modul landet unter Abschlussprüfung), die Gebiete
@@ -301,5 +300,71 @@ und 2026. Angelegt wie bei der Sozialpädagogik: ein Studiengang mit zwei Ordnun
 die Ordnung 2016 vorgeschlagen und bestätigt selbst; ihr Katalog kommt aus dem Grundstock. Für den Master gibt es im
 Register keine ältere Informatik-Ordnung, also keinen Vorschlag.
 
-Nicht gemacht: Die beiden Leser sind im Abgleich des Geräts (eigener Katalog-Link) nicht verdrahtet; die drei Kataloge
+**B. LP-Lücken und die zwei Kataloge ohne Semesterlage.** Vorher 19 Kataloge mit zusammen 80 Modulen ohne LP, nachher 6
+Kataloge mit 42 Modulen; jede Leser-Änderung wurde an allen 111 Katalogen verglichen (alt gegen neu, je Modul).
+
+| Ursache (Leser `app/catalog_formats/hildesheim.py`, wenn nicht anders genannt) | behoben in |
+|---|---|
+| Eine Zahl allein in einer Zeile galt als Seitenzahl und fiel weg – auch der Wert unter „Anzahl der Leistungspunkte:“. Jetzt nur noch am Seitenrand. Vorher kamen die LP dann geraten aus dem Workload, zum Teil falsch | Politikwissenschaft 2FB (2), IIM-IW M.A. (2), IIM-SWIKK M.A. (1), je 2 Module der fünf IIM-Bachelor-Einträge; still falsche LP berichtigt (Philosophie–Künste–Medien: fünf Module 9 → 6 LP laut Modulübersicht, Politikwissenschaft AM 2b/VM 2b 7 → 5) |
+| Seitenumbruch: erst der Kopf des nächsten Moduls, dann unter wiederholtem Titel der Rest des vorigen | Mathematik 2FB 2025 (Aufbaumodul 3: 9 LP) |
+| LP des Moduls nur in „Vergabe von Credits: 17 LP = Studienleistung + Modulprüfung“; „Leistungspunkte“ darunter gehören zu Teilmodulen | DaZ/DaF M.A. (LP-Summe 18 → 120) |
+| LP nur im Titel „(30 LP)“; Leser-Wahl: der Leser der Modulbeschreibungen liefert jetzt genau die 10 Module mit 120 LP | Sportwissenschaft M.Sc. |
+| Kopfzeilen von Übersichtstabellen („Modulbezeichnung \| Themen \| LP“, „Modul- / Teilmodulbezeichnung“) und Teilmodul-Reste als Modul | Inklusive Pädagogik, Kunst 2FB, DaZ/DaF, Künste und Gegenwartskulturen |
+| Feldname über den Zeilenumbruch: „Workload Kontaktstun-/den (h) … 8 SWS / 16 LP“ | Literarisches Schreiben und Lektorieren (42 und 16 LP) |
+| Gleiche Vorlage wie Barrierefreie Kommunikation („Kennnummer \| Workload \| Credits“), Titelzeile „Modul MuM 1 – Titel“, auch über zwei Zeilen: jetzt `hildesheim-kennnummer-tabelle` (Python und Swift, Fixture erweitert) | Medientext und Medienübersetzung: 10 → 11 Module (MuM 6 fehlte), 8 → 0 ohne LP, 120 LP mit einem der Wahlpflichtmodule MuM 7/8 (Handregel mit Quelle) |
+| Handregel mit Quelle, weil die Ordnung die LP an anderer Stelle nennt | Wirtschaft Plus (Anlage 1 und Abschnitt „Wahlmodul Wirtschaftsinformatik“: BM06/BM07 je 6 LP, WI01–03 je 6, WI04/05 je 3 LP; BM07 stand fälschlich mit 1 LP), Physik M.Ed. 2017/2026 (gemeinsame Beschreibung der Vertiefungsmodule: U5 wie V5 3 LP, eines von beiden) |
+| „(8 / LP)“ als Zeilenrest und „… die restlichen / Leistungspunkte im Rahmen …“ im Fließtext galten als Feld „LP“; Titel mit einem Absatz Fließtext vor dem ersten Feld; kein Titel über ein Feld hinweg | Umwelt, Naturschutz und Nachhaltigkeit (Modul 1 fehlte, Modul 2: 3 → 20 LP), Physik M.Ed. 2026 (Pflichtmodul B7 fehlte), Projektband Deutsch M.Ed. 2 → 12 LP, Umweltsicherung, Sachunterricht u. a. |
+| „TM 1: 3. Fachsemester“: die Teilmodulnummer galt als Semester | 79 Module mit berichtigtem Semester |
+
+Was bleibt (feste Liste in `tests/test_hildesheim_seed_quality.py` und `HildesheimSeedQualityTests.swift`):
+- **Internationales Informationsmanagement B.A.** (fünf Einträge, eine Ordnung, je 8 Module): Die Ordnung rechnet in
+  Teilmodulen; je Modul steht eine Spanne je Studienvariante („IIM, IKS, LIN, DISO, GIM: 0–16 LP; DRIKK: 4–8 LP“). Sieben
+  Module beginnen bei 0 LP (reine Wahl), „Peer Credits“ hat keine LP-Angabe. Eine feste Zahl wäre geraten. Sauber ginge es
+  nur mit einem Katalog je Studienvariante auf Ebene der Teilmodule (Anlage 1 nennt je Teilmodul LP und Pflicht/Wahl je
+  Variante) – eigener Auftrag. Bis dahin sind die fünf Kataloge gleich und nennen bei Spannen die untere Grenze.
+- **Internationale Kommunikation und Übersetzen B.A.** (2 Module): Modul 2 hat je Studienvariante 20 bzw. 10 LP („Modul
+  Gesamt“ in zwei Zeilen), das Auslandsmodul steht nur in der Modulübersicht. Auch die übrigen LP dieses Katalogs hängen
+  an der Variante (Modul 3: gelesen 3 LP, laut Übersicht 17 bzw. 10) – der Katalog braucht dieselbe Arbeit wie IIM.
+
+**Kataloge ohne Semesterlage** (vorher 2, nachher 0):
+- *Umwelt, Naturschutz und Nachhaltigkeit M.Sc.*: Es stimmte nicht. Pflichtmodul 1 (Anpassungs- und Komplementärmodul,
+  9 LP) fehlte, Modul 2 hatte 3 statt 20 LP, und die vier Vertiefungsrichtungen (je 18 LP, eine davon) standen als
+  Pflicht. Jetzt 20 Module; Pflicht 56 LP + eine Vertiefungsrichtung 18 LP + Praxis, Projekt, Mastermodul 46 LP = 120 LP
+  wie in der Tabelle „Studienaufbau“. Semester und Vertiefungsrichtungen als Handregel aus dieser Tabelle.
+- *Wirtschaftsinformatik M.Sc.*: Dass alle Fachmodule Wahlpflicht sind, stimmt (PO § 4 Abs. 1: Forschungsmethodik
+  mindestens 21 LP, Spezialisierung mindestens 51 LP, Wahlbereich höchstens 18 LP). Es fehlte aber die Abschlussprüfung
+  (Masterarbeit 27 LP + Kolloquium 3 LP): das Handbuch nennt Wirtschaftsinformatik in der „Verwendung“ dieses Moduls
+  nicht. Der Leser nimmt die Abschlussprüfung des Abschlusses jetzt immer dazu; ebenso im Bachelor (12 + 3 LP).
+
+**C. Data Science B.Sc. (PO 2023) ist eingebaut – und Medieninformatik B.Sc. berichtigt.** Die eigentliche Ursache war
+eine andere als am 14.11. notiert: Die Handbücher der Studienvarianten gelten nur für einen Abschluss („Data Science /
+Bachelor / Modulhandbuch“ auf der Titelseite, kein Abschnitt nennt Bachelor oder Master). Der FB-4-Leser teilte trotzdem
+nach dem empfohlenen Semester in Bachelor und Master und ließ jedes Modul weg, dessen Semester aus einem anderen
+Studiengang stammt („MSc 1“, „BSc 3, MSc 1“) – auch Pflichtmodule. Jetzt gilt: nennt kein Abschnitt des Verzeichnisses
+einen Abschluss, gehören alle Einträge zum Abschluss der Titelseite; ein reines Master-Semester wird dabei nicht als
+Semester übernommen.
+
+| Eintrag | Module vorher → nachher | Prüfung gegen die Ordnung (PO Angewandte Informatik B.Sc. 2023, § 5 Abs. 1) |
+|---|---:|---|
+| Data Science B.Sc. (bisher ohne Katalog) | – → 106 | Pflicht 123 LP (Data Science 45, Informatik 36, Mathematik 30, Wirtschaftspraktikum 12) + Abschlussprüfung 15 LP + Wahlmodule Data Science 12 LP + weitere Wahlmodule 30 LP = 180 LP |
+| Medieninformatik B.Sc. (am 14.11. eingebaut) | 75 → 106 | Es fehlten 7 der 9 Pflichtmodule „Medieninformatik-Pflicht“ (Digitale Medien, Gestaltung Interaktiver Systeme, Medieninformatik, Praktikum und Seminar Medieninformatik, Medienpsychologie, Medienrecht und -ethik) und 24 Wahlmodule. Pflicht jetzt 140 LP (Informatik 54, Mathematik 30, Medieninformatik 44, Praktikum 12) + Abschlussprüfung 15 LP + Wahl 25 LP = 180 LP |
+
+Handregeln für Data Science (drei, alle mit Quelle): „Methodological Specialization“ = Wahlmodule aus dem Gebiet Data
+Science, 12 LP; „Anwendungsgebiete (Wahl)“ samt Soft Skills = weitere Wahlmodule (mindestens 4 LP Seminar, in einem Gebiet
+mindestens 22 LP, höchstens 6 LP Softskills); „Operations Research 1“ steht im Verzeichnis des Handbuchs in der Tabelle
+der Abschlussprüfung und noch einmal im Gebiet Betriebswirtschaft – es ist ein Wahlmodul dieses Gebiets. Die beiden
+Abschnittsnamen gelten nur im deutschen Handbuch als oberste Ebene (in den englischen Handbüchern Data Analytics und
+Software Engineering ist „Methodological Specialization“ ein Unterabschnitt). Für Medieninformatik stehen die Regeln der
+PO (Informatik-Wahl 16 LP, weitere Wahlmodule) als Text an den Wahlbereichen. Fünf Pflichtmodule von Data Science
+(Big Data Analytics, Deep Learning, Data and Privacy Protection, Lab Course Programming Machine Learning, Modern
+Optimization Techniques) haben kein empfohlenes Semester: das Handbuch nennt für sie nur Master-Semester.
+
+Aufgefallen, nicht geändert: Im Katalog Software Engineering M.Sc. stehen 60 von 61 Modulen als Pflicht, weil die
+Abschnitte nach „Compulsory Modules“ („Methodological Specialization (Elective Modules)“ …) keine eigene oberste Ebene
+bilden. Das braucht einen Abgleich mit der PO Software Engineering und ist ein eigener Auftrag.
+
+Nicht gemacht: Die beiden Leser sind im Abgleich des Geräts (eigener Katalog-Link) nicht verdrahtet; die Kataloge
 kommen aus dem Grundstock, ein eingefügter Link auf eine dieser PDFs führt über das Register dorthin.
+
+Stand nach dem Nachzug: 121 Registereinträge, 112 mit Katalog (vorher 119 / 108), 2 368 Module (vorher 2 204); ohne
+Katalog bleiben 9 Einträge, alle ohne lesbare Modulbeschreibungen im Verkündungsblatt (Liste im Abschnitt „Grundstock“).

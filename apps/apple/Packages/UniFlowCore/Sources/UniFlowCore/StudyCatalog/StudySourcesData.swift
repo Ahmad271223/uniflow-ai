@@ -5417,7 +5417,20 @@ enum StudySourcesData {
      "total_lp": 180,
      "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
      "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
-     "pos": []
+     "pos": [
+      {
+       "po": "2023",
+       "code": "data-science|b.sc.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|data-science|b.sc.|2023",
+       "format": "hildesheim-it-modulhandbuch",
+       "url": "https://www.uni-hildesheim.de/media/fb4/dekanat/Ordnungen/AINF/PO2023-PO2024/MHB/Modulhandbuch_AI-DS_BSc_PO2023_Stand_2026.04.03.pdf"
+      }
+     ]
     },
     {
      "id": "deutsch-als-zweitsprache-deutsch-als-fremdsprache-m-a",
@@ -6282,7 +6295,7 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
-       "format": "hildesheim-modultabelle",
+       "format": "hildesheim-kennnummer-tabelle",
        "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5196"
       }
      ],
@@ -6741,7 +6754,7 @@ enum StudySourcesData {
        ],
        "study_plan": null,
        "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
-       "format": "hildesheim-modultabelle",
+       "format": "hildesheim-modulbeschreibung",
        "url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4855"
       }
      ],

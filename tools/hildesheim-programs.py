@@ -536,10 +536,6 @@ MEDIA = {
 # Katalog (noch) nicht eingebaut ist (Eintrag dann waehlbar ohne Katalog)
 MEDIA_ONLY = [
     {"program": "Data Science", "degree": "B.Sc.", "po_study": 65, "media": ["ds"],
-     "hold": "Modulhandbuch (Stand 03.04.2026) liest der Leser noch nicht sauber: der Abschnitt 'Anwendungsgebiete "
-             "(Wahl)' landet als Pflicht (alle 73 Module im Semesterplan, 4. Semester 144 LP), der Abschnitt "
-             "'Methodological Specialization' fehlt (ein Modul steht unter Abschlussprüfung), die Gebiete Medieninformatik "
-             "und Systemadministration fehlen",
      "note": "Studienvariante des Bachelorprogramms Angewandte Informatik; Modulhandbuch nur auf der Seite des Fachbereichs 4, "
              "nicht im Studienangebot"},
     {"program": "Informatik im Polyvalenten Zwei-Fächer-Bachelor", "degree": "B.A./B.Sc.", "kind": "fach", "po": "2016",

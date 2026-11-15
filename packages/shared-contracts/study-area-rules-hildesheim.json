@@ -532,6 +532,258 @@
           "rule": "Lehramtsoption Haupt- und Realschule (Inf_Us): INF-B4 und INF-A3 sind Pflicht, dazu 12 LP aus INF-V1 bis INF-V7 (INF-V1 zwingend ohne Mathematik als weiteres Fach, mit Mathematik nicht wählbar). EAL, SGL, Wirtschaft Plus: INF-A4 und INF-V1 sind Pflicht, dazu 18 LP aus INF-A3 und INF-V2 bis INF-V7. Weitere Module aus dem Modulhandbuch Angewandte Informatik nur mit Genehmigung der Fachstudienberatung."
         }
       }
+    },
+    "wirtschaft-plus|b.sc.|2026": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4671 (Rahmenstudienordnung Wirtschaft Plus, Anlage 1 Modulübersicht: WirPlus_BM06 und WirPlus_BM07 je 6 LP, WI-Bereich 6 LP; Abschnitt „Wahlmodul Wirtschaftsinformatik“: WirPlus_WM_WI01 bis WI03 jeweils 6 LP, WI04 und WI05 jeweils 3 LP). Die Beschreibungen dieser Module stehen im Modulhandbuch Wirtschaftsinformatik, die Ordnung nennt nur die LP.",
+      "add_areas": [
+        {
+          "id": "wahlmodul-wirtschaftsinformatik",
+          "name": "Wahlmodul Wirtschaftsinformatik",
+          "kind": "wahlpflicht",
+          "lp_required": 6,
+          "lp_max": null,
+          "rule": "Eines der Module WirPlus_WM_WI01, WI02 oder WI03 (je 6 LP) oder die beiden Module WI04 und WI05 (je 3 LP)."
+        }
+      ],
+      "modules": {
+        "basismodul-6-einfuehrung-in-die-wirtschaftsinformatik": {
+          "lp": 6
+        },
+        "basismodul-7-geschaeftsprozessmanagement": {
+          "lp": 6
+        },
+        "betriebliche-informationssysteme": {
+          "lp": 6,
+          "kind": "wahlpflicht",
+          "area": "wahlmodul-wirtschaftsinformatik"
+        },
+        "praktikum-prozessmodellierung": {
+          "lp": 6,
+          "kind": "wahlpflicht",
+          "area": "wahlmodul-wirtschaftsinformatik"
+        },
+        "it-studienprojekt-b-sc-wi": {
+          "lp": 6,
+          "kind": "wahlpflicht",
+          "area": "wahlmodul-wirtschaftsinformatik"
+        },
+        "aktuelle-forschungsgegenstaende-und-methoden-der-wirtschaftsin": {
+          "lp": 3,
+          "kind": "wahlpflicht",
+          "area": "wahlmodul-wirtschaftsinformatik"
+        },
+        "seminar-wirtschaftsinformatik-fuer-wirtschaft-plus": {
+          "lp": 3,
+          "kind": "wahlpflicht",
+          "area": "wahlmodul-wirtschaftsinformatik"
+        }
+      }
+    },
+    "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4539 (Studienordnung Physik M.Ed., Anlage 1 „Einteilung in Pflicht- und Wahlpflichtmodule“: U5 und V5 sind Wahlpflichtmodule, von denen eines zu belegen ist; 02 (Projektband) und Z3 (Masterabschluss) sind Wahlpflichtmodule; „Gemeinsame Elemente der Modulbeschreibung für alle Module des Vertiefungsbereichs“: 3 LP)",
+      "areas": {
+        "vertiefungsmodule": {
+          "kind": "wahlpflicht",
+          "lp_required": 3,
+          "rule": "Eines der beiden Vertiefungsmodule: U5 (unbenotet) oder V5 (benotet), je 3 LP."
+        }
+      },
+      "modules": {
+        "vertiefungsmodul-unbenotet": {
+          "lp": 3,
+          "kind": "wahlpflicht"
+        },
+        "vertiefungsmodul-benotet": {
+          "kind": "wahlpflicht"
+        },
+        "projektband": {
+          "kind": "wahlpflicht"
+        },
+        "masterabschluss": {
+          "kind": "wahlpflicht"
+        }
+      }
+    },
+    "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5345 (Studienordnung Physik M.Ed., Anlage 1 „Einteilung in Pflicht- und Wahlpflichtmodule“: U5 und V5 sind Wahlpflichtmodule, von denen eines zu belegen ist; P1 (Projektband) und Z3 (Mastermodul) sind Wahlpflichtmodule; „Gemeinsame Elemente der Modulbeschreibung für alle Module des Vertiefungsbereichs“: 3 LP)",
+      "areas": {
+        "vertiefungsmodule": {
+          "kind": "wahlpflicht",
+          "lp_required": 3,
+          "rule": "Eines der beiden Vertiefungsmodule: U5 (unbenotet) oder V5 (benotet), je 3 LP."
+        }
+      },
+      "modules": {
+        "vertiefungsmodul-unbenotet": {
+          "lp": 3,
+          "kind": "wahlpflicht"
+        },
+        "vertiefungsmodul-benotet": {
+          "kind": "wahlpflicht"
+        },
+        "projektband": {
+          "kind": "wahlpflicht"
+        },
+        "mastermodul": {
+          "kind": "wahlpflicht"
+        }
+      }
+    },
+    "medientext-und-medienuebersetzung|m.a.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5196 (Studienordnung Medientext und Medienübersetzung, Modulbeschreibungen MuM 7 und MuM 8, Zeile 11: „Das Modul 7 ist ein Wahlpflichtmodul; es muss eines von zwei Modulen MuM 7 oder MuM 8 belegt werden“; je 13 LP, zusammen mit den übrigen Modulen 120 LP)",
+      "add_areas": [
+        {
+          "id": "wahlpflichtmodul",
+          "name": "Wahlpflichtmodul",
+          "kind": "wahlpflicht",
+          "lp_required": 13,
+          "lp_max": null,
+          "rule": "Eines der beiden Module MuM 7 (Fremdsprache 2) oder MuM 8 (Barrierefreie Kommunikation), je 13 LP."
+        }
+      ],
+      "modules": {
+        "fremdsprache-2-wahlpflichtmodul": {
+          "area": "wahlpflichtmodul"
+        },
+        "barrierefreie-kommunikation-wahlpflichtmodul": {
+          "area": "wahlpflichtmodul"
+        }
+      }
+    },
+    "umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4853 (Studienordnung Umwelt, Naturschutz und Nachhaltigkeitsbildung, § 6: Vertiefungsrichtungen 6-1 bis 6-4 „optional“; Tabelle „Studienaufbau“: M 6-1 oder M 6-2 oder M 6-3 oder M 6-4 mit 18 LP, Semester je Modul (M 1 bis M 4: 1.–2., M 5: 2., M 8: 3., M 9: 3.–4.), Summe 120 LP; Modul 9 ist das Master-Abschlussmodul). Das Praxismodul M 7 liegt in der vorlesungsfreien Zeit und hat kein Semester.",
+      "add_areas": [
+        {
+          "id": "vertiefungsrichtung",
+          "name": "Vertiefungsrichtung",
+          "kind": "wahlpflicht",
+          "lp_required": 18,
+          "lp_max": null,
+          "semester": 1,
+          "rule": "Eine der vier Vertiefungsrichtungen mit ihren drei Modulen (zusammen 18 LP): Naturschutz (6-1), Nachhaltige Entwicklung und Nachhaltigkeitsbildung (6-2), Paläobiologie und Bioarchäologie (6-3) oder Geoökologie (6-4); 1. bis 3. Semester."
+        }
+      ],
+      "modules": {
+        "modul-6-1-1-grundlagen-naturschutz-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-1-2-naturschutzpraxis-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-1-3-wahl-naturschutz-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-2-1-grundlagen-nachhaltige-entwicklung-und-nachhaltigkeitsbildung-pflich": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-2-2-praxis-der-nachhaltigkeitsbildung-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-2-3-wahl-nachhaltige-entwicklung-und-nachhaltigkeitsbildung-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-3-1-palaeobiologie-und-bioarchaeologie-1-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-3-2-palaeobiologie-und-bioarchaeologie-2-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-3-3-spezielle-veranstaltungen-zu-ausgewaehlten-themen-der-palaeobiologie": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-4-1-geooekologische-grundlagen-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-4-2-geooekologische-praxis-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-6-4-3-wahl-geooekologie-pflicht": {
+          "area": "vertiefungsrichtung",
+          "kind": "wahlpflicht"
+        },
+        "modul-1-anpassungs-und-komplementaermodul-pflicht": {
+          "semester": 1
+        },
+        "modul-2-charakterisierung-von-biozoenosen-biotopen-und-landschaften-pflicht": {
+          "semester": 1
+        },
+        "modul-3-umweltchemie-und-oekotoxikologie-pflicht": {
+          "semester": 1
+        },
+        "modul-4-umwelt-gesellschaft-und-nachhaltigkeit-pflicht": {
+          "semester": 1
+        },
+        "modul-5-methoden-der-datenerfassung-und-dateninterpretation-pflicht": {
+          "semester": 2
+        },
+        "modul-8-forschungsorientiertes-studienprojekt-pflicht": {
+          "semester": 3
+        },
+        "modul-9-mastermodul-pflicht": {
+          "semester": 3,
+          "kind": "abschluss"
+        }
+      }
+    },
+    "data-science|b.sc.|2023": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc. 2023, Variante Data Science, § 5 Abs. 1 Satz 2 und 5: Pflichtmodule laut Handbuch 111 LP, Wirtschaftspraktikum 12 LP, Abschlussprüfung 15 LP, Wahlmodule aus dem Gebiet Data Science 12 LP, weitere Wahlmodule bis 180 LP). „Operations Research 1“ steht im Verzeichnis des Handbuchs (Stand 03.04.2026) in der Tabelle der Abschlussprüfung und noch einmal im Gebiet Betriebswirtschaft; es ist ein Wahlmodul dieses Gebiets.",
+      "area_patterns": [
+        {
+          "match": "^Methodological Specialization",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 12,
+            "semester": 5,
+            "rule": "Wahlmodule aus dem Gebiet Data Science: 12 LP."
+          }
+        },
+        {
+          "match": "^Anwendungsgebiete",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Weitere Wahlmodule bis 180 LP: mindestens 4 LP Seminar, in einem Gebiet mindestens 22 LP, höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ],
+      "modules": {
+        "operations-research-1": {
+          "area": "anwendungsgebiete-wahl-betriebswirtschaft-und-informationswissenschaft-gebiet-be",
+          "kind": "wahl"
+        }
+      }
+    },
+    "medieninformatik|b.sc.|2023": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc. 2023, Variante Medieninformatik, § 5 Abs. 1 Satz 6)",
+      "area_patterns": [
+        {
+          "match": "^Wahlbereich – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Wahlmodule aus Gebieten der Informatik: 16 LP, davon mindestens 4 LP Seminar und 6 LP Praktikum, in einem Gebiet mindestens 12 LP."
+          }
+        },
+        {
+          "match": "^Wahlbereich – (?!Informatik)",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Weitere Wahlmodule bis 180 LP, höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ]
     }
   }
 }

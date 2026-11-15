@@ -25,14 +25,15 @@ Leerzeichen. `layout_lines` macht daraus je Zeile die Zellen mit ihrer Spalte (Z
   Variante stehen als Handangabe in study-area-rules-hildesheim.json).
 
 `hildesheim-kennnummer-tabelle` - Masterstudiengang Barrierefreie Kommunikation (Heft 193):
-  BK 1 Grundlagen der Barrierefreien Kommunikation             Titelzeile ohne das Wort "Modul"
+  BK 1 Grundlagen der Barrierefreien Kommunikation             Titelzeile, auch "Modul MuM 1 – Titel" (Medientext und
+                                                               Medienübersetzung) und ueber zwei Zeilen
   Kennnummer | Workload | Credits | Studiensemester | Häufigkeit des Angebots | Dauer    Kopf, Werte in der Zeile darunter
   1 Lehrveranstaltungen | Kontaktzeit | Selbststudium | geplante Gruppengröße
   2 Lernergebnisse (learning outcomes)/Kompetenzen, 3 Inhalte, 4 Lehrformen, 5 Teilnahmevoraussetzungen,
   6 Prüfungsformen, 7 Voraussetzungen für die Vergabe von Leistungspunkten (darin "Studienleistungen:" und
   "Prüfungsleistung:"), 8 Verwendung des Moduls, 9 Stellenwert der Note für die Endnote, 10 Modulbeauftragte/r und
   hauptamtlich Lehrende, 11 Sonstige Informationen
-  Alle Module sind Pflicht (zusammen die Leistungspunkte des Studiengangs), die Masterarbeit ist `abschluss`.
+  Module sind Pflicht, mit "(Wahlpflichtmodul)" im Titel Wahlpflicht, die Masterarbeit ist `abschluss`.
 
 Was nicht sicher lesbar ist, bleibt leer. `prerequisites` und `language` bleiben leer, `areas` nur beim ersten Format
 mit Anlage der Studienvarianten ("Pflichtmodule", "Wahlpflichtmodule").
@@ -49,7 +50,7 @@ KENNNUMMER_FORMAT = "hildesheim-kennnummer-tabelle"
 
 HEADER_RE = re.compile(r"^Verkündungsblatt der (?:Stiftung )?Universität Hildesheim ?[-–] ?Heft .*[-–] ?Seite ?[0-9]+ ?[-–]?$")
 ANNEX_RE = re.compile(r"^Anlage ([0-9]+)[a-z]? ?: ?(.*)$")
-FINAL_RE = re.compile(r"bachelorarbeit|masterarbeit|abschlussarbeit|^abschlussmodul")
+FINAL_RE = re.compile(r"bachelorarbeit|masterarbeit|abschlussarbeit|^abschlussmodul|^abschluss$")
 NONE_VALUES = ("", "-", "–", "keine", "keiner", "nein", "entfällt")
 REFERENCE_RE = re.compile(r"^(?:s\. |siehe )")
 MAX_FACT = 200            # Pruefungs- und Studienleistung im Grundstock hoechstens so lang
@@ -80,7 +81,8 @@ K_COL_TOLERANCE = 2
 K_KEEP = ("content", "forms")   # Abschnitte, die ueber den Kolumnentitel der Folgeseite weiterlaufen
 
 # zweites Format
-N_TITLE_RE = re.compile(r"^([A-Z]{1,4}) ?([0-9]{1,2}) (.+)$")
+N_TITLE_RE = re.compile(r"^(?:Modul )?([A-Z][A-Za-z]{0,3}) ?([0-9]{1,2}) (?:[–-] )?(.+)$")
+N_ELECTIVE_RE = re.compile(r"\(Wahlpflicht(?:modul)?\)")
 N_HEAD_KEY = "KennnummerWorkloadCredits"
 N_WORKLOAD_RE = re.compile(r"^([0-9]{2,4}) ?h$")
 N_SEMESTER_RE = re.compile(r"^([1-9])\.")
@@ -396,15 +398,18 @@ def _kennnummer_read(pages: list[str]) -> list[dict]:
         end = starts[n + 1][0] if n + 1 < len(starts) else len(flat)
         r = {"code": m.group(1) + " " + m.group(2), "title": m.group(3).strip(" "), "page": flat[k][0], "workload": None,
              "lp": None, "semester": None, "freq": [], "sections": {}}
-        running = r["code"] + " " + r["title"]
-        freq_col = dur_col = None
+        running = [texts[k]]                               # Kolumnentitel der Folgeseiten
+        if h - k == 2 and flat[k + 1][1][0][0] <= N_LABEL_INDENT:      # Titel ueber zwei Zeilen
+            r["title"] = _join([r["title"], texts[k + 1]])
+            running.append(texts[k + 1])
+        sem_end = dur_col = None
         key = None
         for i in range(h + 1, end):
             cells = flat[i][1]
             text = texts[i]
             if ANNEX_RE.match(text) and cells[0][0] <= N_LABEL_INDENT:
                 break
-            if text == running:                            # Kolumnentitel der Folgeseite
+            if text == running[0] or (len(running) == 2 and text == running[1] and texts[i - 1] == running[0]):
                 continue
             if r["workload"] is None and key is None:
                 w = next((j for j, c in enumerate(cells) if N_WORKLOAD_RE.match(c[1])), None)
@@ -416,7 +421,7 @@ def _kennnummer_read(pages: list[str]) -> list[dict]:
                 sm = N_SEMESTER_RE.match(cells[w + 2][1]) if w + 2 < len(cells) else None
                 r["semester"] = int(sm.group(1)) if sm else None
                 if w + 3 < len(cells):
-                    freq_col = cells[w + 3][0]
+                    sem_end = cells[w + 2][0] + len(cells[w + 2][1])
                     r["freq"].append(cells[w + 3][1])
                 dur_col = cells[w + 4][0] if w + 4 < len(cells) else None
                 continue
@@ -428,8 +433,9 @@ def _kennnummer_read(pages: list[str]) -> list[dict]:
                 r["sections"].setdefault(key, [])
                 continue
             if key is None:
-                if freq_col is not None:                   # umbrochene Werte der Kopfzeile: nur die Spalte Haeufigkeit
-                    r["freq"].extend(c[1] for c in cells if c[0] >= freq_col - K_COL_TOLERANCE
+                if sem_end is not None:                    # umbrochene Werte der Kopfzeile: nur die Spalte Haeufigkeit
+                    # (zentriert gesetzt: rechts vom Ende der Semester-Zelle, links von der Spalte Dauer)
+                    r["freq"].extend(c[1] for c in cells if c[0] > sem_end
                                      and (dur_col is None or c[0] < dur_col - K_COL_TOLERANCE))
                 continue
             r["sections"][key].append(text)
@@ -471,7 +477,7 @@ def parse_kennnummer_tabelle(pages: list[str], meta: dict) -> tuple[dict, dict]:
         mid = _unique(slug(r["title"]), ids)
         s = r["sections"]
         exam, credit = _kennnummer_split(s.get("exam") or []), _kennnummer_split(s.get("credit") or [])
-        kind = "abschluss" if FINAL_RE.search(r["title"].lower()) else "pflicht"
+        kind = "abschluss" if FINAL_RE.search(r["title"].lower()) else ("wahlpflicht" if N_ELECTIVE_RE.search(r["title"]) else "pflicht")
         modules.append(_module(mid, r["title"], r["code"], None, kind, r["lp"], r["semester"], _season(_join(r["freq"])),
                                exam["plain"] or exam["exam"] or credit["exam"], exam["coursework"] or credit["coursework"],
                                r["workload"], r["page"]))

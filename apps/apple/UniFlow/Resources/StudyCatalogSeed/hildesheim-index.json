@@ -1,5 +1,5 @@
 {
- "catalogs": 111,
+ "catalogs": 112,
  "entries": [
   {
    "code": "angewandte-informatik|b.sc.|2024",
@@ -182,6 +182,24 @@
    "term": "WS 2023/24"
   },
   {
+   "code": "data-science|b.sc.|2023",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|data-science|b.sc.|2023",
+   "library_key": "81db6badcf83be77fbdf8a33a1599a69a1c859499ef73d629c24d01083085128",
+   "modules": 106,
+   "po": "2023",
+   "program": "Data Science",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Data Science PO-Version: 2023",
+    "Data Science"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
    "code": "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
    "degree": "M.A.",
    "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
@@ -189,7 +207,7 @@
    "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
    "library_key": "d6a50921e52f72a001d8d277a1b54a993224af62043c8cd3eca846d202759874",
-   "modules": 8,
+   "modules": 7,
    "po": "2018",
    "program": "Deutsch als Zweitsprache/Deutsch als Fremdsprache",
    "qis_labels": [
@@ -603,7 +621,7 @@
    "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
    "library_key": "5d49ef49a86cc115ec033a753b1682c6e978f5213cceba1baac426bf38700bec",
-   "modules": 5,
+   "modules": 4,
    "po": "unbekannt",
    "program": "Inklusive Pädagogik und Kommunikation",
    "qis_labels": [
@@ -836,7 +854,7 @@
    "format": "hildesheim-modultabelle",
    "key": "hildesheim|kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
    "library_key": "3f568749285f5fb984fb587b19004f735c2d98da234a82409e6053248e86b34b",
-   "modules": 14,
+   "modules": 13,
    "po": "2024",
    "program": "Künste und Gegenwartskulturen transdisziplinär",
    "qis_labels": [
@@ -932,7 +950,7 @@
    "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
    "library_key": "ad49b1841b92faf6b2521a12f0da12198839ebbeec8a0f7db9a9cc26254a6be0",
-   "modules": 8,
+   "modules": 7,
    "po": "2022",
    "program": "Kunst im Polyvalenten Zwei-Fächer-Bachelor",
    "qis_labels": [
@@ -1096,7 +1114,7 @@
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|medieninformatik|b.sc.|2023",
    "library_key": "1282478aaf8e31d7a73e380190048975cc8706d9b8f25af28af059e74beb2b1e",
-   "modules": 75,
+   "modules": 106,
    "po": "2023",
    "program": "Medieninformatik",
    "qis_labels": [
@@ -1111,10 +1129,10 @@
    "degree": "M.A.",
    "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
    "file": "hildesheim.json.gz",
-   "format": "hildesheim-modultabelle",
+   "format": "hildesheim-kennnummer-tabelle",
    "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
    "library_key": "d6541592a5ec1601d493e24eab0405609e882c3f1e52c41275551cb42804a0f6",
-   "modules": 10,
+   "modules": 11,
    "po": "2024",
    "program": "Medientext und Medienübersetzung",
    "qis_labels": [
@@ -1330,7 +1348,7 @@
    "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
    "library_key": "98a2401ff7d9fb18bb4be812b40c31ea8e6985ef97ed93994be3449ce0171672",
-   "modules": 5,
+   "modules": 6,
    "po": "2026",
    "program": "Physik im Master Lehramt an Haupt- und Realschulen",
    "qis_labels": [
@@ -1759,10 +1777,10 @@
    "degree": "M.Sc.",
    "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
    "file": "hildesheim.json.gz",
-   "format": "hildesheim-modultabelle",
+   "format": "hildesheim-modulbeschreibung",
    "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
    "library_key": "d27c11dc0a317fd86fc5c47a6c92c2d0ee7367545a47b28d10867723ad52b82f",
-   "modules": 14,
+   "modules": 10,
    "po": "2021",
    "program": "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne",
    "qis_labels": [
@@ -1978,7 +1996,7 @@
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
    "library_key": "995998804b7562ae8dc4112aaf89a09919e56269ece754467dd5514e5753e30d",
-   "modules": 94,
+   "modules": 95,
    "po": "2024",
    "program": "Wirtschaftsinformatik",
    "qis_labels": [
@@ -1996,7 +2014,7 @@
    "format": "hildesheim-it-modulhandbuch",
    "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
    "library_key": "c63c8d756a367fff049e4cf2447df06a4cbf529b2e299df5b26ddc8470142689",
-   "modules": 117,
+   "modules": 118,
    "po": "2024",
    "program": "Wirtschaftsinformatik",
    "qis_labels": [
@@ -2009,14 +2027,14 @@
  ],
  "files": {
   "hildesheim.json.gz": {
-   "bytes": 136914,
-   "catalogs": 111,
-   "raw_bytes": 1202582,
-   "sha256": "675a273938b6f4565a05a48678a1434f80b1fce9353d313fd2b00538e8a9c72c"
+   "bytes": 144174,
+   "catalogs": 112,
+   "raw_bytes": 1268358,
+   "sha256": "8cfa501dff0ae63244f46ea7fdc28c55f78a94f7e1f467fdf864818e01f151e5"
   }
  },
  "generator": "tools/build-hildesheim-seed.py",
- "modules": 2235,
+ "modules": 2368,
  "university": "hildesheim",
  "v": 1
 }

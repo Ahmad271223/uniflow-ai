@@ -17,9 +17,11 @@ import Foundation
 /// Pflichtmodul, sonst Wahlpflicht.
 ///
 /// `kennnummerFormat` ("hildesheim-kennnummer-tabelle"): Masterstudiengang Barrierefreie Kommunikation. Titelzeile
-/// "BK 1 Titel", Kopf "Kennnummer | Workload | Credits | Studiensemester | Häufigkeit des Angebots | Dauer" mit den
+/// "BK 1 Titel" (auch "Modul MuM 1 – Titel", auch ueber zwei Zeilen), Kopf "Kennnummer | Workload | Credits |
+/// Studiensemester | Häufigkeit des Angebots | Dauer" mit den
 /// Werten darunter, nummerierte Zeilen "1 Lehrveranstaltungen" bis "11 Sonstige Informationen"; Studien- und
-/// Pruefungsleistung aus Zeile 6 bzw. 7. Alle Module Pflicht, die Masterarbeit `abschluss`.
+/// Pruefungsleistung aus Zeile 6 bzw. 7. Module sind Pflicht, mit "(Wahlpflichtmodul)" im Titel Wahlpflicht, die
+/// Masterarbeit `abschluss`.
 ///
 /// Was nicht sicher lesbar ist, bleibt leer; `prerequisites` und `language` bleiben leer.
 public enum StudyCatalogHildesheimLayoutParser {
@@ -31,7 +33,7 @@ public enum StudyCatalogHildesheimLayoutParser {
 
     static let headerRx = #"^Verkündungsblatt der (?:Stiftung )?Universität Hildesheim ?[-–] ?Heft .*[-–] ?Seite ?[0-9]+ ?[-–]?$"#
     static let annexRx = "^Anlage ([0-9]+)[a-z]? ?: ?(.*)$"
-    static let finalRx = "bachelorarbeit|masterarbeit|abschlussarbeit|^abschlussmodul"
+    static let finalRx = "bachelorarbeit|masterarbeit|abschlussarbeit|^abschlussmodul|^abschluss$"
     static let noneValues: Set<String> = ["", "-", "–", "keine", "keiner", "nein", "entfällt"]
     static let referenceRx = #"^(?:s\. |siehe )"#
     static let joinWords: Set<String> = ["und", "oder", "bzw", "bzw.", "sowie"]
@@ -61,7 +63,8 @@ public enum StudyCatalogHildesheimLayoutParser {
     static let kKeep: Set<String> = ["content", "forms"]
 
     // zweites Format
-    static let nTitleRx = "^([A-Z]{1,4}) ?([0-9]{1,2}) (.+)$"
+    static let nTitleRx = "^(?:Modul )?([A-Z][A-Za-z]{0,3}) ?([0-9]{1,2}) (?:[–-] )?(.+)$"
+    static let nElectiveRx = #"\(Wahlpflicht(?:modul)?\)"#
     static let nHeadKey = "KennnummerWorkloadCredits"
     static let nWorkloadRx = "^([0-9]{2,4}) ?h$"
     static let nSemesterRx = #"^([1-9])\."#
@@ -437,21 +440,25 @@ public enum StudyCatalogHildesheimLayoutParser {
             let end = n + 1 < starts.count ? starts[n + 1].title : flat.count
             var r = KennnummerRaw(code: (s.match[1] ?? "") + " " + (s.match[2] ?? ""), title: StudyCatalogText.strip(s.match[3] ?? ""),
                                   page: flat[s.title].page)
-            let running = r.code + " " + r.title
-            var freqCol: Int?, durCol: Int?
+            var running = [texts[s.title]]                 // Kolumnentitel der Folgeseiten
+            if s.head - s.title == 2 && flat[s.title + 1].cells[0].col <= nLabelIndent {   // Titel ueber zwei Zeilen
+                r.title = join([r.title, texts[s.title + 1]])
+                running.append(texts[s.title + 1])
+            }
+            var semEnd: Int?, durCol: Int?
             var key: String?
             for i in (s.head + 1)..<max(end, s.head + 1) {
                 let cells = flat[i].cells
                 let text = texts[i]
                 if CatalogRx.match(annexRx, text) != nil && cells[0].col <= nLabelIndent { break }
-                if text == running { continue }                // Kolumnentitel der Folgeseite
+                if text == running[0] || (running.count == 2 && text == running[1] && texts[i - 1] == running[0]) { continue }
                 if r.workload == nil && key == nil {
                     guard let w = cells.firstIndex(where: { CatalogRx.matches(nWorkloadRx, $0.text) }) else { continue }
                     r.workload = Int(CatalogRx.match(nWorkloadRx, cells[w].text)?[1] ?? "")
                     if w + 1 < cells.count && CatalogRx.matches(numberRx, cells[w + 1].text) { r.lp = number(cells[w + 1].text) }
                     if w + 2 < cells.count, let m = CatalogRx.match(nSemesterRx, cells[w + 2].text) { r.semester = Int(m[1] ?? "") }
                     if w + 3 < cells.count {
-                        freqCol = cells[w + 3].col
+                        semEnd = cells[w + 2].col + StudyCatalogText.length(cells[w + 2].text)
                         r.freq.append(cells[w + 3].text)
                     }
                     durCol = w + 4 < cells.count ? cells[w + 4].col : nil
@@ -467,8 +474,9 @@ public enum StudyCatalogHildesheimLayoutParser {
                     continue
                 }
                 guard let key else {
-                    if let freqCol {                           // umbrochene Werte der Kopfzeile: nur die Spalte Haeufigkeit
-                        r.freq += cells.filter { $0.col >= freqCol - colTolerance && (durCol == nil || $0.col < durCol! - colTolerance) }.map(\.text)
+                    if let semEnd {                            // umbrochene Werte der Kopfzeile: nur die Spalte Haeufigkeit
+                        // (zentriert gesetzt: rechts vom Ende der Semester-Zelle, links von der Spalte Dauer)
+                        r.freq += cells.filter { $0.col > semEnd && (durCol == nil || $0.col < durCol! - colTolerance) }.map(\.text)
                     }
                     continue
                 }
@@ -511,7 +519,8 @@ public enum StudyCatalogHildesheimLayoutParser {
         for r in kennnummerRead(pages) where r.workload != nil || r.lp != nil {
             let id = StudyCatalogParser.unique(StudyCatalogText.slug(r.title), &ids)
             let exam = kennnummerSplit(r.sections["exam"] ?? []), credit = kennnummerSplit(r.sections["credit"] ?? [])
-            let kind = CatalogRx.search(finalRx, r.title.lowercased()) != nil ? "abschluss" : "pflicht"
+            let kind = CatalogRx.search(finalRx, r.title.lowercased()) != nil ? "abschluss"
+                : (CatalogRx.search(nElectiveRx, r.title) != nil ? "wahlpflicht" : "pflicht")
             modules.append(module(id: id, title: r.title, code: r.code, area: nil, kind: kind, lp: r.lp, semester: r.semester,
                                   turnus: season(join(r.freq)), exam: exam.plain ?? exam.exam ?? credit.exam,
                                   coursework: exam.coursework ?? credit.coursework, workload: r.workload, page: r.page))
