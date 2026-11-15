@@ -229,7 +229,8 @@ def test_app_store_texts_match_current_build():
     shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final-2026-11-13"
     if shots.is_dir():
         assert sorted(p.name for p in shots.glob("*.png")) == sorted(names + ["tarif-landscape.png", "tarif-portrait.png"])
-    # 1.0.4: dazu der Pflichtsatz iPhone 6,9", sieben Motive je hell und dunkel. Seit 14.11.2026 (Build 41) der Satz mit
+    # 1.0.4: dazu der Pflichtsatz iPhone 6,9", sieben Motive je hell und dunkel. Seit 14.11.2026 (aufgenommen mit
+    # Build 41, unveraendert fuer die Einreichung mit Build 42 am 15.11.2026) der Satz mit
     # den eigenen Kontodaten des Inhabers (seine Entscheidung, keine Daten Dritter); der Satz vom 13.11.2026 mit
     # erfundenen Demo-Inhalten ("Hallo Tobi", Woche als Liste) ist ueberholt und steht nur noch einmal so da
     phone = re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", section)
@@ -237,7 +238,8 @@ def test_app_store_texts_match_current_build():
                      "04-uni-mail-ki-light-portrait.png", "05-ki-hilfe-light-portrait.png",
                      "06-studienverlauf-light-portrait.png", "07-mensa-light-portrait.png"], phone
     part = section[section.index('### iPhone 6,9"'):section.index("### Ältere Sätze")]
-    assert "**Satz vom 14.11.2026 für 1.0.4** (Build 41)" in part and "appstore-screenshots-iphone-2026-11-14" in part
+    assert ("**Satz vom 14.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 41, unverändert für die Einreichung mit\n"
+            "Build 42) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`") in part
     assert "Eigene Kontodaten des Inhabers, keine Daten Dritter" in part and "Entscheidung des Inhabers 14.11.2026" in part
     assert "ohne Namen, ohne Matrikelnummer" in part and "1320 × 2868" in part
     assert "Woche als Raster Mo–So" in part and "Hallo Tobi" not in part

@@ -12,11 +12,11 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    # App Store: 1.0.1 = Build 30 (10.11.2026), 1.0.2 = Build 31 (11.11.2026), 1.0.3 = Build 35 (13.11.2026); 1.0 mit Build 25 wurde nie veroeffentlicht; 1.0.4 = Build 41, eingereicht am 14.11.2026
+    # App Store: 1.0.1 = Build 30 (10.11.2026), 1.0.2 = Build 31 (11.11.2026), 1.0.3 = Build 35 (13.11.2026); 1.0 mit Build 25 wurde nie veroeffentlicht; 1.0.4 = Build 42, eingereicht am 15.11.2026 (Build 41 am 14.11.2026 eingereicht und zurueckgezogen)
     # (docs/release/BUILD-HERKUNFT.md). Build-Nummer: eine fortlaufende ganze Zahl ueber alle Uploads hinweg,
     # je Upload +1, nie zurueck (0.2.0 hatte Build 2). Neue Version (1.0.1, 1.1) -> MARKETING_VERSION, Build weiterzaehlen.
     MARKETING_VERSION: "1.0.4"
-    CURRENT_PROJECT_VERSION: "42"
+    CURRENT_PROJECT_VERSION: "43"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
   UniFlow:

@@ -73,3 +73,5 @@ Einreichung von 1.0.4). Ausgerollt wurde `6923136b`, derselbe Commit wie Build 4
 - Nicht geprüft: die Geräte-Regel mit einem echten Konto auf zwei echten Geräten und mit einem echten Kauf
 - Zurück: `git archive d0d178b6 | ssh …` wie oben; der alte Stand verträgt die neuen Spalten
 - Danach: Version 1.0.4 mit Build 41 um 19:56 zur Prüfung eingereicht (`docs/release/BUILD-HERKUNFT.md`)
+- Nachtrag 15.11.2026: Die Einreichung mit Build 41 wurde am 14.11.2026 um 21:54 zurückgezogen; der Server läuft seit
+  15.11.2026 01:17 auf `fc66fba4` (`DEPLOY-DIENST-2026-11-15.md`), 1.0.4 ist mit Build 42 neu eingereicht

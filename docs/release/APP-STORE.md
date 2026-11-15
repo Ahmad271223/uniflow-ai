@@ -1,6 +1,6 @@
 # App Store Connect – Texte und Angaben (iPhone und iPad, Mac „Designed for iPad“)
 
-**Stand 14.11.2026 (iPhone und iPad, nur Jahresabos; 13.11.2026, 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.4 (Build 41 ist seit 14.11.2026 19:56 in der Prüfung bei Apple, WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand; Build 35 ist seit 13.11.2026 als Version 1.0.3 veröffentlicht (live seit 23:53); 1.0.2 mit Build 31 veröffentlicht am 11.11.2026; 1.0.1 mit Build 30 seit 10.11.2026; Build 25 war als Version 1.0 freigegeben, wurde nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
+**Stand 15.11.2026 (iPhone und iPad, nur Jahresabos; 14.11.2026, 13.11.2026, 09.11.2026, 07.11.2026, 26.10.2026), Sprache de-DE, für StudiNow 1.0.4 (Build 42 ist seit 15.11.2026 10:13 in der Prüfung bei Apple, WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand; Build 41 war am 14.11.2026 von 19:56 bis 21:54 eingereicht und wurde zurückgezogen; Build 35 ist seit 13.11.2026 als Version 1.0.3 veröffentlicht (live seit 23:53); 1.0.2 mit Build 31 veröffentlicht am 11.11.2026; 1.0.1 mit Build 30 seit 10.11.2026; Build 25 war als Version 1.0 freigegeben, wurde nie veröffentlicht und am 10.11. zurückgezogen; Build 27 und 28 nur auf dem Gerät des Inhabers).** Die Felder stehen in
 `text`-Blöcken mit Feldnamen und sind **fertig zum Einfügen** (keine Platzhalter mehr, seit 06.11.2026 ohne die
 Schalter aus `angaben.json`). `tests/test_release_texts.py` prüft Längen, Pflichtsätze und dass die Fassung ohne Pro AI
 keine KI bewirbt. Zeichen inklusive Leerzeichen, gezählt wie App Store Connect (Unicode-Zeichen).
@@ -257,7 +257,7 @@ Neu in 1.0.4:
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Vahrenwalder Straße 30, 30165 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0.4 (`MARKETING_VERSION` auf develop, seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 42** (`CURRENT_PROJECT_VERSION` auf develop); Build 41 in der Prüfung (Version 1.0.4, eingereicht am 14.11.2026 19:56, WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand); Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
+| Version, Build | 1.0.4 (`MARKETING_VERSION` auf develop, seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 43** (`CURRENT_PROJECT_VERSION` auf develop); Build 42 in der Prüfung (Version 1.0.4, eingereicht am 15.11.2026 10:13, WAITING_FOR_REVIEW, Freigabe nach der Prüfung von Hand); Build 41 am 14.11.2026 19:56 eingereicht und um 21:54 zurückgezogen (Fehler im iPhone-Layout am echten Gerät), seitdem nur TestFlight; Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv. Seit 12.11.2026 eine Anmeldung für alles: „Mit Apple anmelden“ beim Start trennt die Daten je Apple-Nutzer und meldet zugleich beim StudiNow-Dienst an (Token-Tausch beim Dienst; ein neues Konto direkt nach der Hochschulwahl; dieselbe Apple-ID = dasselbe Konto auf jedem Gerät). Rückfall bei Fehler/offline: Einstellungen → Konto. „Konto löschen“ in der App löscht Gerätedaten und Dienst-Konto und widerruft die Apple-Anmeldung bei Apple (Richtlinie 5.1.1(v); `app/apple_signin.py`, braucht `LERNAPP_APPLE_TEAM_ID`, `LERNAPP_APPLE_SIGNIN_KEY_ID`, `LERNAPP_APPLE_SIGNIN_KEY_FILE` am Server) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -496,12 +496,13 @@ beide auf die kleineren Geräte herunter. Nur echte App-Inhalte, keine Uni-Logos
 Demo-Leiste. Die iPad-Bilder zeigen erfundene Daten (keine echten Namen oder Noten); die iPhone-Bilder vom 14.11.2026
 zeigen die eigenen Kontodaten des Inhabers (seine Entscheidung vom 14.11.2026), ohne Namen, ohne Matrikelnummer und
 ohne Daten Dritter. Für die Einreichung von 1.0.4 am 14.11.2026 sind beide Sätze hochgeladen: 10 iPad-Bilder und
-7 iPhone-Bilder, alle COMPLETE.
+7 iPhone-Bilder, alle COMPLETE. Die neue Einreichung vom 15.11.2026 mit Build 42 nutzt dieselben Texte und Bilder
+unverändert.
 
 ### iPad 13" (2064 × 2752)
 
 **Satz vom 13.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 39, unverändert für die Einreichung mit
-Build 41) unter `~/Studora-Builds/appstore-screenshots-final-2026-11-13/`: genau
+Build 42) unter `~/Studora-Builds/appstore-screenshots-final-2026-11-13/`: genau
 zehn Bilder im Hochformat, je Motiv eine Fassung hell oder dunkel. Er zeigt den heutigen Stand – aufgeräumte Startseite
 mit Kennzahl-Zeile, Knopf „Im QIS zur Prüfung anmelden“, Kopfzeile des Editors mit Reitern und die Stift-Leiste in
 einer Zeile. Tobi hat den Tarif Pro AI (Seitenleiste „Pro AI“, kein „Pro AI holen“), die KI antwortet als StudiNow-KI
@@ -525,7 +526,8 @@ Deutsch) in dieser Reihenfolge:
 
 ### iPhone 6,9" (1320 × 2868)
 
-**Satz vom 14.11.2026 für 1.0.4** (Build 41) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`: sieben
+**Satz vom 14.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 41, unverändert für die Einreichung mit
+Build 42) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`: sieben
 Motive, je eine helle und eine dunkle Fassung (`<nn>-<name>-{light|dark}-portrait.png`), jedes Bild 1320 × 2868. Für den
 Store sind die **hellen sieben** in dieser Reihenfolge hochgeladen (iPhone 6,9"-Display, Deutsch; 14.11.2026); die
 dunklen (`-dark-`) liegen als Alternative daneben. `tools/store_einreichen.py` zeigt auf diesen Ordner und diese

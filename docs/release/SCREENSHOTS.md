@@ -294,7 +294,7 @@ StoreKit-Testkonfiguration.
 
 ## iPhone (6,9")
 
-### Satz vom 14.11.2026 (hochgeladen für 1.0.4, Build 41)
+### Satz vom 14.11.2026 (hochgeladen für 1.0.4; aufgenommen mit Build 41, unverändert für Build 42)
 
 Im Store liegen seit der Einreichung vom 14.11.2026 die **hellen sieben** Bilder aus
 `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/` (nicht im Repository; je Motiv auch `-dark-`, alle
