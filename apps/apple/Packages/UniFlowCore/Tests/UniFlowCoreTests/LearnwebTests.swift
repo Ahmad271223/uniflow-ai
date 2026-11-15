@@ -316,13 +316,17 @@ final class LearnwebTests: XCTestCase {
             }
         }
         let (db, layout) = try await container()
+        // `lanes: 1`: streng nacheinander, damit "danach nichts mehr" eindeutig ist (seit 15.11.2026 laufen sonst bis zu
+        // 3 Downloads zugleich; was schon unterwegs ist, kommt dann noch an)
         let report = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(token), transport: net, retry: noWait),
-                                          lsf: nil, transport: net, clock: clock, retry: noWait).run()
+                                          lsf: nil, transport: net, clock: clock, retry: noWait, lanes: 1).run()
         let stored = try await db.rows("SELECT name, local_path FROM files WHERE local_path IS NOT NULL ORDER BY name")
         XCTAssertEqual(stored.compactMap { $0["name"]?.string }, ["daten.json", "seite.html"], "echte HTML- und JSON-Dateien bleiben erlaubt")
         XCTAssertEqual(report.failedFiles, ["a.pdf", "d.pdf"], "Webseite statt PDF und 404 nicht gespeichert")
         XCTAssertEqual(report.needsLogin, ["Learnweb"], "ungueltiger Schluessel: neu anmelden")
-        XCTAssertEqual(report.notAttempted, ["lw-101", "lw-102"], "danach nichts mehr, auch nicht f.pdf und Kurs 102")
+        // die Dateilisten aller Kurse kommen seit 15.11.2026 vor den Downloads: Kurs 102 ist schon gelesen (ohne Dateien),
+        // offen bleibt nur Kurs 101 mit f.pdf
+        XCTAssertEqual(report.notAttempted, ["lw-101"], "danach nichts mehr, auch nicht f.pdf")
         XCTAssertEqual(report.completed, [], "an der Anmeldung gescheitert: Learnweb nicht als fertig gemeldet")
         XCTAssertEqual(net.count("\(pf)/f.pdf"), 0)
         XCTAssertFalse(report.messages.joined().contains("TOKEN123"))
@@ -424,8 +428,9 @@ final class LearnwebTests: XCTestCase {
             return self.ajax(.string(#"{"section": [], "cm": []}"#))
         }
         let (db, layout) = try await container()
+        // `lanes: 1`: streng nacheinander (sonst sind bis zu 3 Dateilisten zugleich unterwegs)
         let r = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .session, transport: net, retry: noWait),
-                                     lsf: nil, transport: net, clock: clock, retry: noWait).run()
+                                     lsf: nil, transport: net, clock: clock, retry: noWait, lanes: 1).run()
         XCTAssertEqual(r.needsLogin, ["Learnweb"])
         XCTAssertEqual(r.notAttempted, ["lw-2", "lw-3"])
         XCTAssertTrue(r.failedCourses.isEmpty, "abgelaufene Anmeldung ist kein Fehler der Kurse")
@@ -452,8 +457,9 @@ final class LearnwebTests: XCTestCase {
             }
         }
         let (db, layout) = try await container()
+        // `lanes: 1`: streng nacheinander (sonst sind bis zu 3 Dateilisten zugleich unterwegs)
         let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(token), transport: net, retry: noWait),
-                                  lsf: LSFClient(transport: net, retry: noWait), transport: net, clock: clock, retry: noWait)
+                                  lsf: LSFClient(transport: net, retry: noWait), transport: net, clock: clock, retry: noWait, lanes: 1)
         let r = await Task { await sync.run() }.value
         return (r, net)
     }

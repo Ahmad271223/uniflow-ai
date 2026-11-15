@@ -508,6 +508,7 @@ public actor HildesheimSync {
             return true
         }
         let listLanes = DownloadLanes(min(DownloadPlan.listLanes, lanesWanted))
+        let olderListLanes = DownloadLanes(1)
         let db = self.db, clock = self.clock
         let fetched = HeaderDates()
         /// Stufe je Kurs (`SyncOrder`): 0 laufendes Semester, 1 naechstes, 2 fruehere (nur auf Wunsch)
@@ -520,7 +521,8 @@ public actor HildesheimSync {
         let group = all.enumerated().filter { stage($0.element) == wanted }.map { ($0.offset, $0.element) }
         if group.isEmpty || state.stopped || Task.isCancelled { continue }
         tell(state.with { $0.progress.step = .lists; return $0.progress })
-        await DownloadPlan.forEach(group, lanes: listLanes) { _, entry in
+        // fruehere Semester (Stufe d) gedrosselt und in ihrer Reihenfolge: neuestes Semester zuerst, eine Liste zur Zeit
+        await DownloadPlan.forEach(group, lanes: wanted == 2 ? olderListLanes : listLanes) { _, entry in
             let (i, c) = entry
             if Task.isCancelled || state.stopped { _ = stops(CancellationError()); return false }
             do {
@@ -573,7 +575,9 @@ public actor HildesheimSync {
             }
         }
         if loadFiles, !state.stopped, !Task.isCancelled {
-            let ordered = DownloadPlan.order(items, stage: { _ in wanted }, size: { $0.row.size }, changed: { $0.file.chdate })
+            // laufendes und naechstes Semester: ueber alle Kurse klein und neu zuerst; fruehere Semester: Kurs fuer Kurs
+            // (neuestes Semester zuerst), darin klein und neu zuerst
+            let ordered = DownloadPlan.order(items, stage: { wanted == 2 ? $0.course : 0 }, size: { $0.row.size }, changed: { $0.file.chdate })
             tell(state.with { s in
                 for item in ordered { s.remaining[item.course, default: 0] += 1 }
                 s.progress.step = .files
