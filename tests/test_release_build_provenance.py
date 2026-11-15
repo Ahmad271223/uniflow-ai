@@ -142,7 +142,7 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     """Betriebsfakt 15.11.2026: Build 42 (fc66fba4, Tag ios-1.0.4-b42) ist seit 10:11 in TestFlight (VALID 10:12) und
     seit 10:13 als Version 1.0.4 in der Pruefung (WAITING_FOR_REVIEW, Freigabe von Hand), Texte und Bilder unveraendert
     vom 14.11.; der Server laeuft seit 01:17 auf demselben Commit (DEPLOY-DIENST-2026-11-15.md, nur app/study.py);
-    develop zaehlt als Build 43 weiter."""
+    Build 43 (e2e26e56) liegt seit 15.11. 19:41 nur intern in TestFlight; develop zaehlt als Build 44 weiter."""
     r = rows()
     b = r[42]
     assert b["commit"] == "fc66fba4" and b["date"] == "15.11.2026 10:11"
@@ -159,8 +159,13 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
                  "Fineliner 0,5/0,8/1,5/2,5/4", "Netzfehler bei App Store Connect",
                  "Python 3564", "JS 456", "Swift-Kern 1565", "iPad 1802", "iPhone 139"):
         assert must in b["content"], must
-    assert r[43]["commit"] is None and r[43]["status"] == "noch nicht hochgeladen; develop nach Build 42"
-    assert r[43]["content"] == "Änderungen nach `fc66fba4`" and project_build() == 43
+    # Build 43 (15.11.2026 19:41): nur intern in TestFlight, nicht an die LUH-Tester, nicht eingereicht; develop ist Build 44
+    assert r[43]["commit"] == "e2e26e56" and r[43]["date"] == "15.11.2026 19:41"
+    assert r[43]["status"].startswith("nur TestFlight, nur interne Gruppe „Intern (Inhaber)“")
+    for must in ("NICHT an „LUH-Tester“", "keine Beta-Prüfung", "nicht eingereicht", "Der Dienst läuft noch auf `fc66fba4`"):
+        assert must in r[43]["status"], must
+    assert r[44]["commit"] is None and r[44]["status"] == "noch nicht hochgeladen; develop nach Build 43"
+    assert r[44]["content"] == "Änderungen nach `e2e26e56`" and project_build() == 44
     doc = DOC.read_text(encoding="utf-8")
     assert submitted() == 42
     assert "In der Prüfung bei Apple: 1.0.4 mit Build 42 seit 15.11.2026 10:13." in doc
