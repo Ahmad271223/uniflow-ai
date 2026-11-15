@@ -182,6 +182,40 @@ public enum StudiNowAIAccess: String, Sendable, Equatable {
         }
         return proLocally ? .signInRequired : .planRequired
     }
+
+    /// Nur der KI-Chat (Entscheidung des Inhabers 15.11.2026): angemeldet mit Plus (auf dem Geraet oder beim Dienst),
+    /// ohne Pro AI und ohne Probe. Dann antwortet die StudiNow-KI auf die freie Frage, bezahlt allein aus gekauften
+    /// Credits; alles andere (Erklaeren, Karteikarten, Tests) bleibt Pro AI. `decide` liefert dafuer weiter
+    /// `.planRequired`, damit alle uebrigen KI-Stellen wie bisher den Tarif-Hinweis zeigen.
+    public static func chatOnly(serviceConfigured: Bool, signedIn: Bool, localPlan: String, servicePlan: String?,
+                                serviceTrialActive: Bool) -> Bool {
+        guard serviceConfigured, signedIn,
+              decide(serviceConfigured: serviceConfigured, signedIn: signedIn, localPlan: localPlan, servicePlan: servicePlan,
+                     serviceTrialActive: serviceTrialActive) == .planRequired else { return false }
+        return localPlan == "plus" || servicePlan == "plus"
+    }
+}
+
+/// Die StudiNow-KI fuer Plus: nur der KI-Chat (`CreditPacks.chatTasks`, die freie Frage). Jede andere Aufgabe wird hier
+/// abgewiesen, ohne dass etwas an den Dienst geht - der Dienst prueft dasselbe noch einmal (Recht der Route und
+/// Reservierung der Credits).
+public final class StudiNowChatAI: AIProvider, @unchecked Sendable {
+    public let inner: StudiNowAI
+
+    public init(_ inner: StudiNowAI) { self.inner = inner }
+
+    public var isMetered: Bool { true }
+
+    public func answer(system: String, prompt: String) async throws -> String {
+        try await answer(system: system, prompt: prompt, schema: nil)
+    }
+
+    public func answer(system: String, prompt: String, schema: JSONValue?) async throws -> String {
+        guard let task = AIRelayTask.current, CreditPacks.chatTasks.contains(task.name) else {
+            throw StudiNowAI.error(403, "plan_required", CreditText.chatLock, extra: ["required_plan": "pro_ai"])
+        }
+        return try await inner.answer(system: system, prompt: prompt, schema: schema)
+    }
 }
 
 /// Die StudiNow-KI als `AIProvider` des lokalen Backends: Prompt + Aufgabe an `POST /api/ai/relay`, Antworttext zurueck,

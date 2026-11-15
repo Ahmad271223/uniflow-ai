@@ -73,6 +73,20 @@ final class CreditPacksTests: XCTestCase {
             XCTAssertEqual(b?.available, c["purchased_usable"]?.bool == true ? 5 : 0, "\(c)")
         }
         XCTAssertFalse(CreditPacks.offersShop(nil))
+        // Entscheidung des Inhabers 15.11.2026: Plus und Pro AI kaufen (bezahlt), Free nicht, in der Probe allein nicht;
+        // gekaufte Credits gelten mit Pro AI fuer alles, mit Plus nur fuer den KI-Chat, mit Free ruhen sie
+        let rule = try XCTUnwrap(try creditContract()["buy_rule"])
+        XCTAssertEqual(rule["buy_plans"]?.array?.compactMap(\.string), ["plus", "pro_ai"])
+        XCTAssertEqual(rule["buy_in_trial"]?.bool, false)
+        XCTAssertEqual(Set(rule["chat_purposes"]?.array?.compactMap(\.string) ?? []), CreditPacks.chatTasks)
+        let scopes = Dictionary(cases.filter { $0["trial_only"]?.bool == false }.compactMap { c in
+            c["plan"]?.string.flatMap { p in c["purchased_scope"]?.string.map { (p, $0) } }
+        }, uniquingKeysWith: { a, _ in a })
+        XCTAssertEqual(scopes, ["free": "none", "plus": "chat", "pro_ai": "all", "pro_connect": "all"])
+        for s in ["all", "chat", "none"] { XCTAssertNotNil(CreditPacks.Scope(rawValue: s)) }
+        // ein Stand ohne das Feld (oder mit einem unbekannten Wert) richtet sich nach purchased_usable
+        XCTAssertEqual(CreditPacks.Balance.parse(["allowance": 100, "remaining": 1, "purchased_usable": true])?.purchasedScope, .all)
+        XCTAssertEqual(CreditPacks.Balance.parse(["allowance": 0, "remaining": 0, "purchased_scope": "neu"])?.purchasedScope, CreditPacks.Scope.none)
     }
 
     // MARK: Stand und Texte
@@ -87,6 +101,8 @@ final class CreditPacksTests: XCTestCase {
             XCTAssertEqual(CreditText.balanceLine(b), e["line"]?.string, name)
             XCTAssertEqual(CreditText.keepNote(b), e["keep_note"]?.string, name)
             XCTAssertEqual(CreditText.dormantNote(b), e["dormant_note"]?.string, name)
+            XCTAssertEqual(b.purchasedScope.rawValue, e["scope"]?.string, name)
+            XCTAssertEqual(CreditText.scopeNote(b), e["scope_note"]?.string, name)
             XCTAssertEqual(b.available, e["available"]?.double.map { Int($0) }, name)
             XCTAssertEqual(CreditPacks.offersShop(b), e["offers_shop"]?.bool, name)
             XCTAssertEqual(CreditText.resetDay(b.resetsAt), e["reset_day"]?.string, name)
@@ -99,6 +115,8 @@ final class CreditPacksTests: XCTestCase {
         XCTAssertEqual(CreditText.buyNeedsProAI, t["buy_needs_pro_ai"]?.string)
         XCTAssertEqual(CreditText.webHint, t["web_hint"]?.string)
         XCTAssertEqual(CreditText.noCredits, t["no_credits"]?.string)
+        XCTAssertEqual(CreditText.chatOnly, t["chat_only"]?.string)
+        XCTAssertEqual(CreditText.chatLock, t["chat_lock"]?.string)
         XCTAssertNil(CreditPacks.Balance.parse(nil))
         XCTAssertNil(CreditPacks.Balance.parse(.null))
         XCTAssertNil(CreditText.balanceLine(nil))
@@ -163,13 +181,14 @@ final class CreditPacksTests: XCTestCase {
         await answer(fake, try flow("Pro AI ist vorbei: die gekauften Credits bleiben beim Konto und ruhen"))
         s = try await acc.creditState()
         let resting = try XCTUnwrap(s.balance)
-        XCTAssertEqual([resting.purchased, resting.available, resting.allowance], [200, 0, 0])
+        XCTAssertEqual([resting.purchased, resting.available, resting.allowance], [191, 0, 0])
         XCTAssertFalse(resting.purchasedUsable || resting.canBuy)
-        XCTAssertEqual(CreditText.balanceLine(resting), "Gekauft: 200 · nutzbar mit StudiNow Pro AI")
+        XCTAssertEqual(resting.purchasedScope, CreditPacks.Scope.none)
+        XCTAssertEqual(CreditText.balanceLine(resting), "Gekauft: 191 · nutzbar mit StudiNow Plus oder Pro AI")
         XCTAssertNotNil(CreditText.dormantNote(resting))
         await answer(fake, try flow("Pro AI laeuft wieder: die gekauften Credits sind wieder nutzbar"))
         s = try await acc.creditState()
-        XCTAssertEqual(s.balance?.available, 200)
+        XCTAssertEqual(s.balance?.available, 191)
         XCTAssertEqual(s.balance?.canBuy, true)
         await answer(fake, try flow("Probe: 25 Credits, kaufen geht erst mit Pro AI"))
         s = try await acc.creditState()
@@ -179,6 +198,70 @@ final class CreditPacksTests: XCTestCase {
         let other = try await acc.bookCreditPurchase(signedTransaction: "jws-5")
         XCTAssertTrue(other.otherAccount)
         XCTAssertEqual(other.balance?.purchased, 0)
+    }
+
+    // MARK: Plus: kaufen ja, aber nur der KI-Chat
+
+    /// Wechsel zu Plus: die gekauften Credits bleiben und gelten nur noch fuer den Chat; der Chat laeuft ganz aus ihnen,
+    /// Erklaeren bleibt Pro AI; ohne Credits kommt der Stand fuer das Blatt mit den Paketen
+    func testPlusKeepsPurchasedCreditsForTheChatOnly() async throws {
+        let (acc, fake, _) = make()
+        await answer(fake, try flow("Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat"))
+        let s = try await acc.creditState()
+        let plus = try XCTUnwrap(s.balance)
+        XCTAssertEqual([plus.allowance, plus.remaining, plus.purchased, plus.available], [0, 0, 200, 200])
+        XCTAssertEqual(plus.purchasedScope, .chat)
+        XCTAssertTrue(plus.purchasedUsable && plus.canBuy)
+        XCTAssertEqual(CreditText.balanceLine(plus), "Gekauft: 200", "bei Plus kein 'Diesen Monat: x von 100'")
+        XCTAssertEqual(CreditText.scopeNote(plus), CreditText.chatOnly)
+        XCTAssertEqual(CreditText.keepNote(plus), CreditText.keep, "ohne Monats-Credits kein Satz zum Monat")
+        let chat = try flow("Plus: der KI-Chat (freie Frage) laeuft aus gekauften Credits")
+        XCTAssertEqual(chat["status"]?.double, 200)
+        XCTAssertEqual(chat["request"]?["mode"]?.string, "ask")
+        let after = try XCTUnwrap(CreditPacks.Balance.parse(chat["response"]?["credits"]))
+        XCTAssertEqual([after.used, after.purchased], [100, 191], "nichts aus einem Monatstopf, alles aus den gekauften")
+        let locked = try flow("Plus: Erklaeren ist KI-Lernhilfe und bleibt Pro AI (403, nichts abgebucht)")
+        XCTAssertEqual(locked["status"]?.double, 403)
+        XCTAssertEqual(locked["response"]?["code"]?.string, "plan_required")
+        XCTAssertEqual(locked["response"]?["required_plan"]?.string, "pro_ai")
+        let empty = try flow("Plus ohne Credits: der KI-Chat antwortet 429 mit dem Stand (Pakete kaufen), Erklaeren 403")
+        XCTAssertEqual(empty["status"]?.double, 429)
+        XCTAssertEqual(empty["response"]?["code"]?.string, "credits_exhausted")
+        let none = try XCTUnwrap(CreditPacks.Balance.parse(empty["response"]?["credits"]))
+        XCTAssertTrue(CreditPacks.offersShop(none))
+        XCTAssertEqual(none.purchasedScope, .chat)
+        XCTAssertEqual(CreditText.balanceLine(none), "Gekauft: 0")
+        XCTAssertEqual(empty["response"]?["detail"]?.string, "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.")
+    }
+
+    /// Auf dem Geraet: mit Plus antwortet die StudiNow-KI nur auf die freie Frage; jede andere Aufgabe wird abgewiesen,
+    /// ohne dass etwas an den Dienst geht
+    func testChatOnlyProviderSendsOnlyTheFreeQuestion() async throws {
+        let fake = FakeService(), store = MemoryTokenStore("tok")
+        let ai = StudiNowAI(base: "https://dienst.example", http: fake, tokens: store, consent: FixedConsent(true))
+        let chat = StudiNowChatAI(ai)
+        XCTAssertTrue(chat.isMetered)
+        await fake.on("POST", "/api/ai/relay", 200, ["answer": "Eine Matrix ist ein Zahlenschema.", "credits": ["allowance": 0, "remaining": 0, "purchased": 91,
+                                                                                                                 "purchased_usable": true, "purchased_scope": "chat"]])
+        let answer = try await AIRelayTask.$current.withValue(AIRelayTask("tutor:ask")) { try await chat.answer(system: "s", prompt: "Was ist eine Matrix?") }
+        XCTAssertEqual(answer, "Eine Matrix ist ein Zahlenschema.")
+        let sent = await fake.last("/api/ai/relay")
+        XCTAssertEqual(try JSONValue.parse(try XCTUnwrap(sent?.body))["task"], "tutor:ask")
+        let before = await fake.requests.count
+        for task in ["tutor:explain", "tutor:summary", "tutor:flashcards", "flashcards", "week_test", "weekly", "grade", "study_plan", "mail"] {
+            do {
+                _ = try await AIRelayTask.$current.withValue(AIRelayTask(task)) { try await chat.answer(system: "s", prompt: "p", schema: nil) }
+                XCTFail("\(task): nur der Chat darf an den Dienst")
+            } catch let e as LocalHTTPError {
+                XCTAssertEqual(e.status, 403, task)
+                XCTAssertEqual(e.detail["code"]?.string, "plan_required", task)
+                XCTAssertEqual(e.detail["required_plan"]?.string, "pro_ai", task)
+                XCTAssertEqual(e.detail["detail"]?.string, CreditText.chatLock, task)
+            }
+        }
+        do { _ = try await chat.answer(system: "s", prompt: "ohne Aufgabe"); XCTFail("ohne Aufgabe") } catch is LocalHTTPError {}
+        let after = await fake.requests.count
+        XCTAssertEqual(after, before, "nichts ging an den Dienst")
     }
 
     /// Abschliessen (finish) nur nach einem Ergebnis: jeder Fehler und jede unlesbare Antwort wirft

@@ -9,6 +9,9 @@ import Foundation
 /// die App schickt die signierte Transaktion an den Dienst und schliesst sie erst ab, wenn der Dienst sie verbucht hat.
 /// Wie viele Credits ein Paket hat, sagt der Dienst (`credit_packs.packs`), den Preis der Store. Wer kaufen darf, sagt
 /// der Dienst (`credits.can_buy`); die App fragt nur dieses Feld.
+///
+/// Wofuer gekaufte Credits gelten, haengt am Tarif (Entscheidung des Inhabers 15.11.2026, `purchased_scope`): mit Pro AI
+/// und in der Probe fuer alles, mit Plus nur fuer den KI-Chat (die freie Frage an die KI), mit Free ruhen sie.
 public enum CreditPacks {
     /// Der Dienst verbucht ein Paket (`POST`, Rumpf `{signed_transaction}`)
     public static let purchasePath = "/api/billing/credits/apple"
@@ -46,6 +49,19 @@ public enum CreditPacks {
         return sent.isEmpty ? defaultPacks : sent
     }
 
+    /// Wofuer gekaufte Credits mit dem Tarif des Kontos gelten (`purchased_scope`)
+    public enum Scope: String, Sendable, Equatable {
+        /// KI-Lernhilfe im Tarif (Pro AI, Probe): fuer alles
+        case all
+        /// Plus: nur der KI-Chat (die freie Frage, Aufgabe `tutor:ask`)
+        case chat
+        /// Free: sie ruhen beim Konto
+        case none
+    }
+
+    /// Aufgaben der StudiNow-KI, die der KI-Chat sind (plans.json `credit_packs.chat_purposes`)
+    public static let chatTasks: Set<String> = ["tutor:ask"]
+
     /// Stand beider Toepfe (`credits` aus `GET /api/entitlements`, aus KI-Antworten und aus der Antwort auf einen Kauf)
     public struct Balance: Equatable, Sendable {
         /// "2026-11"
@@ -57,8 +73,10 @@ public enum CreditPacks {
         public var remaining: Int
         /// gekaufte Credits, noch nicht verbraucht
         public var purchased: Int
-        /// gekaufte Credits sind jetzt nutzbar (der Tarif hat die StudiNow-KI); sonst ruhen sie beim Konto
+        /// gekaufte Credits sind jetzt nutzbar (Pro AI, Probe, Plus); sonst ruhen sie beim Konto
         public var purchasedUsable: Bool
+        /// wofuer sie gelten: alles, nur der KI-Chat (Plus) oder nichts
+        public var purchasedScope: Scope
         /// das Konto darf Pakete kaufen (Regel des Dienstes)
         public var canBuy: Bool
         /// Beginn des naechsten Monats (ISO mit Versatz, Europe/Berlin): ab dann gibt es neue Monats-Credits
@@ -66,13 +84,14 @@ public enum CreditPacks {
         public var plan: String?
 
         public init(period: String = "", allowance: Int, used: Int = 0, remaining: Int, purchased: Int = 0, purchasedUsable: Bool = false,
-                    canBuy: Bool = false, resetsAt: String? = nil, plan: String? = nil) {
+                    purchasedScope: Scope? = nil, canBuy: Bool = false, resetsAt: String? = nil, plan: String? = nil) {
             self.period = period
             self.allowance = allowance
             self.used = used
             self.remaining = remaining
             self.purchased = purchased
             self.purchasedUsable = purchasedUsable
+            self.purchasedScope = purchasedScope ?? (purchasedUsable ? .all : .none)
             self.canBuy = canBuy
             self.resetsAt = resetsAt
             self.plan = plan
@@ -88,8 +107,10 @@ public enum CreditPacks {
             let used = Int(v["used"]?.double ?? 0)
             let reserved = Int(v["reserved"]?.double ?? 0)
             let remaining = v["remaining"]?.double.map { Int($0) } ?? max(0, Int(allowance) - used - reserved)
+            // `purchased_scope` fehlt bei einem Stand ohne das Feld: dann aus `purchased_usable`; unbekannte Werte ebenso
             return Balance(period: v["period"]?.string ?? "", allowance: max(0, Int(allowance)), used: max(0, used), remaining: max(0, remaining),
                            purchased: max(0, Int(v["purchased"]?.double ?? 0)), purchasedUsable: v["purchased_usable"]?.bool ?? false,
+                           purchasedScope: v["purchased_scope"]?.string.flatMap(Scope.init(rawValue:)),
                            canBuy: v["can_buy"]?.bool ?? false, resetsAt: v["resets_at"]?.string, plan: v["plan"]?.string)
         }
     }
@@ -139,7 +160,11 @@ public enum CreditText {
     public static let titleShop = "Credits kaufen"
     public static let notNow = "Nicht jetzt"
     public static let keep = "Gekaufte Credits verfallen nicht."
-    public static let buyNeedsProAI = "Credits kaufen kannst du mit StudiNow Pro AI."
+    public static let buyNeedsProAI = "Credits kaufen kannst du mit StudiNow Plus oder Pro AI."
+    /// Plus: was gekaufte Credits dort koennen (Blatt mit den Paketen)
+    public static let chatOnly = "Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI."
+    /// Plus: Hinweis an den gesperrten Lernhilfe-Knoepfen der KI-Hilfe
+    public static let chatLock = "Mit StudiNow Plus stellst du der KI Fragen. Erklären, Karteikarten und Tests gibt es mit StudiNow Pro AI."
     public static let webHint = "Credits kaufst du in der App für iPhone und iPad."
     public static let noCredits = "Keine Credits in deinem Tarif"
 
@@ -167,10 +192,10 @@ public enum CreditText {
             let note = (monthNote ?? "").isEmpty ? "" : " (\(monthNote ?? ""))"
             return "\(labelled ? "Credits diesen Monat" : "Diesen Monat"): \(b.remaining) von \(b.allowance)\(note) · Gekauft: \(b.purchased)"
         }
-        if b.purchased > 0 {
-            let head = "\(labelled ? "Credits gekauft" : "Gekauft"): \(b.purchased)"
-            return b.purchasedUsable ? head : "\(head) · nutzbar mit StudiNow Pro AI"
-        }
+        // ohne Monats-Credits nur der gekaufte Topf: bei Plus auch mit 0 ("Gekauft: 0"), ruhend mit dem Weg dahin
+        let head = "\(labelled ? "Credits gekauft" : "Gekauft"): \(b.purchased)"
+        if b.purchasedScope != .none { return head }
+        if b.purchased > 0 { return "\(head) · nutzbar mit StudiNow Plus oder Pro AI" }
         return noCredits
     }
 
@@ -184,7 +209,12 @@ public enum CreditText {
     /// Ehrlicher Hinweis, wenn gekaufte Credits ruhen (Pro AI ist vorbei): sie bleiben beim Konto. nil sonst.
     public static func dormantNote(_ b: CreditPacks.Balance?) -> String? {
         guard let b, !b.purchasedUsable, b.purchased > 0 else { return nil }
-        return "Du hast noch \(b.purchased) gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Pro AI läuft."
+        return "Du hast noch \(b.purchased) gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Plus oder Pro AI läuft."
+    }
+
+    /// Satz im Blatt mit den Paketen fuer Plus: was gekaufte Credits dort koennen; nil, wenn sie fuer alles gelten
+    public static func scopeNote(_ b: CreditPacks.Balance?) -> String? {
+        b?.purchasedScope == .chat ? chatOnly : nil
     }
 
     /// Nach einem Kauf: "100 Credits gutgeschrieben." bzw. was stattdessen geschah

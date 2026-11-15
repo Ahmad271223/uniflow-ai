@@ -326,6 +326,23 @@ final class StudiNowAITests: XCTestCase {
         XCTAssertEqual(d(true, "free", nil), .planRequired, "Stand des Dienstes noch nicht geladen, Free auf dem iPad")
     }
 
+    /// Nur der KI-Chat (15.11.2026): angemeldet mit Plus, ohne Pro AI und ohne Probe; `decide` bleibt dabei planRequired
+    func testChatOnlyIsPlusSignedInWithoutProAIOrTrial() {
+        func c(_ signedIn: Bool, _ local: String, _ service: String? = nil, _ trial: Bool = false, configured: Bool = true) -> Bool {
+            StudiNowAIAccess.chatOnly(serviceConfigured: configured, signedIn: signedIn, localPlan: local, servicePlan: service, serviceTrialActive: trial)
+        }
+        XCTAssertTrue(c(true, "plus", "plus"))
+        XCTAssertTrue(c(true, "plus", nil), "Plus aus dem App Store, Stand des Dienstes noch nicht geladen")
+        XCTAssertTrue(c(true, "free", "plus"), "Plus beim Dienst (im Web gekauft)")
+        XCTAssertFalse(c(false, "plus"), "ohne Anmeldung keine StudiNow-KI")
+        XCTAssertFalse(c(true, "free", "free"), "Free")
+        XCTAssertFalse(c(true, "pro_ai", "plus"), "Pro AI: alles, nicht nur der Chat")
+        XCTAssertFalse(c(true, "plus", "plus", true), "laufende Probe: alles wie Pro AI")
+        XCTAssertFalse(c(true, "plus", "plus", configured: false))
+        XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: true, localPlan: "plus", servicePlan: "plus", serviceTrialActive: false),
+                       .planRequired, "die uebrigen KI-Stellen zeigen wie bisher den Tarif-Hinweis")
+    }
+
     // MARK: Konto
 
     func testAppleSignInSendsUniversityEmailAndNonceAndVerifyReportsTheJWS() async throws {
