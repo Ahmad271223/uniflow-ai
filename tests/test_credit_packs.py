@@ -699,3 +699,34 @@ def test_account_deletion_and_export_cover_purchased_credits(hosted, apple):
     v, hv = user(hosted, "danach@beispiel.de", plan="pro_ai")
     st, d = buy(hosted, hv, pack_tx(apple, uid, KLEIN, "7300000000000001"))
     assert (st, d["status"], d["credits_added"]) == (200, "already_granted", 0) and wallet(v["id"]) == (0, 0)
+
+
+# ---------------------------------------------------------------- gemeinsame Fixture (Swift-Kern, Web)
+
+def test_credit_packs_fixture_is_current(hosted):
+    """packages/shared-contracts/fixtures/credit-packs/contract.json stammt aus der Python-Referenz; der Swift-Kern
+    (CreditPacksTests.swift) und die Web-Oberflaeche (tests/js/credit-packs.test.mjs) lesen dieselbe Datei."""
+    import importlib.util
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    stored = json.loads((root / "packages/shared-contracts/fixtures/credit-packs/contract.json").read_text(encoding="utf-8"))
+    spec = importlib.util.spec_from_file_location("gen_credit_packs_fixture", root / "tools" / "gen-credit-packs-fixture.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.build(hosted) == stored, "python tools/gen-credit-packs-fixture.py neu ausfuehren"
+
+
+def test_texts_for_both_pots():
+    from app import credit_texts as t
+    full = {"allowance": 100, "remaining": 37, "purchased": 80, "purchased_usable": True, "can_buy": True,
+            "resets_at": "2026-12-01T00:00:00+01:00"}
+    assert t.balance_line(full) == "Diesen Monat: 37 von 100 · Gekauft: 80"
+    assert t.keep_note(full) == "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder."
+    assert t.available(full) == 117 and t.offers_shop(full) and t.dormant_note(full) is None
+    resting = {"allowance": 0, "remaining": 0, "purchased": 60, "purchased_usable": False, "can_buy": False}
+    assert t.balance_line(resting) == "Gekauft: 60 · nutzbar mit StudiNow Pro AI" and t.available(resting) == 0
+    assert "bleiben bei deinem Konto" in t.dormant_note(resting) and not t.offers_shop(resting)
+    assert t.balance_line({"allowance": 0, "remaining": 0}) == "Keine Credits in deinem Tarif" and t.balance_line(None) is None
+    assert t.pack_label(200) == "200 Credits" and t.reset_day("kaputt") is None and t.reset_day("2026-13-01T00:00:00") is None
+    for text in (t.TITLE_EXHAUSTED, t.TITLE_SHOP, t.KEEP, t.BUY_NEEDS_PRO_AI, t.WEB_HINT, t.keep_note(full), t.dormant_note(resting)):
+        assert "Cent" not in text and "€" not in text, "kein Preis und kein Centwert im Code: der Preis kommt aus dem Store"
