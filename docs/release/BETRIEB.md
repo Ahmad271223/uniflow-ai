@@ -467,7 +467,8 @@ Standard 1.048.576.
 1. **500 Tester (TestFlight):** nichts weiter; `LERNAPP_AI_TRIAL_BUDGET_EUR=200` setzen (Probekonten sind in der
    TestFlight-Phase die Regel) und täglich `python -m app.ai_backend`-Monatsbericht bzw. `docker stats` ansehen.
 2. **1.000–2.000 Nutzer:** CX33, `UVICORN_WORKERS=8`, `API_MEMORY=3G`; `LERNAPP_AI_BUDGET_EUR` am erwarteten Verbrauch
-   ausrichten (100 Credits = 0,90 EUR je Pro-AI-Konto und Monat als Obergrenze).
+   ausrichten (100 Credits = 0,65 EUR je Pro-AI-Konto und Monat als Obergrenze, seit 15.11.2026; Kosten aus gekauften
+   Credits zählen nicht gegen dieses Budget, `docs/KI-CREDITS-2026-11-15.md`).
 3. **5.000 Nutzer:** CX43 oder zwei Server (Caddy vor zwei App-Containern geht erst, wenn accounts.db nicht mehr SQLite ist –
    docs/SKALIERUNG-GROSS.md); OpenAI-Stufe prüfen (Tokens/Minute), ggf. zweites Modell in `LERNAPP_AI_ROUTES`.
 4. **Immer:** vor Änderungen `tools/lasttest-ki.py` lokal laufen lassen (`--ai 2000 --normal 200`), Tabelle hier
