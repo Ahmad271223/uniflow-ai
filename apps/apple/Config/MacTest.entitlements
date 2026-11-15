@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Nur fuer Testlaeufe am Mac mit der Test-Kennung de.uniflow.ai.mactest (tools/mac-test.sh, 14.11.2026,
+  docs/MAC-TESTLAUF-EIGENER-ORDNER-2026-11-14.md). Bewusst leer: ohne "Mit Apple anmelden", iCloud und Associated
+  Domains genuegt das allgemeine Team-Profil, die Test-Kennung braucht keinen Eintrag im Apple-Entwicklerkonto.
+  Die App selbst nimmt weiter UniFlow/UniFlow.entitlements (Config/Team.xcconfig).
+-->
+<plist version="1.0">
+<dict/>
+</plist>

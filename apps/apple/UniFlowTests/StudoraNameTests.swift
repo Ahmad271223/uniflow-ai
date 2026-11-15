@@ -8,7 +8,9 @@ final class StudoraNameTests: XCTestCase {
     @MainActor
     func testHomeScreenNameIsStudoraAndIdentifiersStay() {
         XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, "StudiNow")
-        XCTAssertEqual(Bundle.main.bundleIdentifier, "de.uniflow.ai", "Bundle-ID bleibt")
+        // am Mac laeuft der Test mit eigener Kennung im eigenen Datenordner (MacTestIsolationTests, 14.11.2026)
+        let onMac = ProcessInfo.processInfo.isiOSAppOnMac
+        XCTAssertEqual(Bundle.main.bundleIdentifier, onMac ? "de.uniflow.ai.mactest" : "de.uniflow.ai", "Bundle-ID bleibt")
         let docTypes = Bundle.main.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]]
         XCTAssertEqual(docTypes?.first?["CFBundleTypeName"] as? String, "StudiNow-Lösung")
         XCTAssertEqual(UFPlan.plus.productID, "de.uniflow.plus.yearly", "Produkt-ID bleibt bei de.uniflow (nur Jahresabo, 09.11.2026)")

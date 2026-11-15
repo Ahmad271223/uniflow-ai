@@ -10,8 +10,12 @@ import XCTest
 /// Breiten-Audit) setzen compact weiter selbst am Fenster bzw. Hosting-Controller. Auf dem iPad aendert sich nichts.
 @objc(UniFlowTestsPrincipal)
 final class UniFlowTestsPrincipal: NSObject, XCTestObservation {
+    /// Stand der App beim Laden des Testbundles, vor dem ersten Test (`MacTestIsolationTests`)
+    nonisolated(unsafe) private(set) static var start: TestStartSnapshot?
+
     override init() {
         super.init()
+        Self.start = MainActor.assumeIsolated { TestStartSnapshot.take() }
         XCTestObservationCenter.shared.addTestObserver(self)
     }
 

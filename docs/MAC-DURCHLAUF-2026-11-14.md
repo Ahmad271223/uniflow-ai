@@ -253,6 +253,9 @@ Container gibt, treffen dadurch auf echte Daten:
 Stud.IP-Abgleich ohne eigenen Cookie-Speicher an und nähmen am Mac den des echten Containers. Ich habe nur die zwei
 Tests abgesichert, die rot waren.
 
+**Nachtrag 14.11.2026 abends:** Umgesetzt auf dem Zweig `fix/mac-test-abschottung`: Mac-Testläufe bekommen eine
+eigene Kennung mit eigenem Ordner, siehe `docs/MAC-TESTLAUF-EIGENER-ORDNER-2026-11-14.md`.
+
 **Vorschlag (eigene Aufgabe, nicht in diesem Zweig):** Unter XCTest darf die App am Mac den echten Container gar
 nicht erst öffnen, oder die Mac-Testläufe bekommen eine eigene App-Kennung mit eigenem Ordner. Bis dahin: Mac-Läufe
 nur, wenn es sein muss, und danach die Test-Gespräche in der Mac-App löschen.
