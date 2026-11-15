@@ -730,3 +730,22 @@ def test_texts_for_both_pots():
     assert t.pack_label(200) == "200 Credits" and t.reset_day("kaputt") is None and t.reset_day("2026-13-01T00:00:00") is None
     for text in (t.TITLE_EXHAUSTED, t.TITLE_SHOP, t.KEEP, t.BUY_NEEDS_PRO_AI, t.WEB_HINT, t.keep_note(full), t.dormant_note(resting)):
         assert "Cent" not in text and "€" not in text, "kein Preis und kein Centwert im Code: der Preis kommt aus dem Store"
+
+
+def test_whole_document_estimate_counts_purchased_credits(hosted, monkeypatch):
+    """"Ganzes Dokument": die Vorab-Rechnung nimmt, was jetzt da ist (Rest des Monats + gekaufte), nicht nur den Monat -
+    sonst stuende dort "Reicht nicht", obwohl gekaufte Credits bezahlen."""
+    from app import ai_backend
+    cheap_calls(monkeypatch)
+    ai_backend.set_provider(FakeAI())
+    monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "0")
+    u, h = user(hosted, "dokument@beispiel.de", plan="pro_ai")
+    body = {"file_id": "f-doc", "page": 1, "mode": "lecture",
+            "page_texts": [f"Folie {i}: Der Grenzwert einer Folge ist der Wert, dem sie sich annähert. " * 12 for i in range(1, 7)]}
+    st, d = _j(asgi_call(hosted, "POST", "/api/ai/document/plan", headers=h, body=json.dumps(body)))
+    assert st == 200 and d["estimate"]["way"] == "credits" and d["enough"] is False and "Reicht nicht" in d["message"], d
+    have = d["estimate"]["credits"] + 5
+    give(u["id"], have)
+    st, d = _j(asgi_call(hosted, "POST", "/api/ai/document/plan", headers=h, body=json.dumps(body)))
+    assert st == 200 and d["enough"] is True and f"du hast {have}" in d["message"], d
+    assert (d["balance"]["remaining"], d["balance"]["purchased"], d["balance"]["available"]) == (0, have, have)

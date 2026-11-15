@@ -435,16 +435,22 @@ ohne Aufräumlauf zurück.
 ## 6a. Credits (04.11.2026, `app/credits.py`, `app/ai_prices.py`)
 
 Entscheidung des Inhabers: Fragen, Erklärungen, Karteikarten, Dokument-Index und Wochentests über den Dienst kosten das
-Konto **Credits**; 1 Credit = 0,9 Cent echter OpenAI-Kosten (Preistabelle je Modell in `app/ai_prices.py`, USD → EUR mit
+Konto **Credits**; 1 Credit = 0,65 Cent echter KI-Kosten (Entscheidung des Inhabers 15.11.2026, vorher 0,9 Cent; ein Kurs
+für Monats-Credits, Probe und gekaufte Credits; Preistabelle je Modell in `app/ai_prices.py`, USD → EUR mit
 `LERNAPP_AI_USD_EUR`, Standard 1:1; Überschreibungen `LERNAPP_AI_PRICES`; ohne Preis für das Modell sperrt der Dienst).
 
-- **Rahmen je Kalendermonat (Europe/Berlin):** Pro AI 100 (`LERNAPP_CREDITS_PRO_AI`, höchstens 1 EUR Kosten je Konto),
+- **Zwei Töpfe (15.11.2026, `docs/KI-CREDITS-2026-11-15.md`):** Monats-Credits (dieser Abschnitt) und gekaufte Credits
+  aus den Credit-Paketen (`credit_wallets`, `credit_purchases`; verfallen nie). Verbraucht werden zuerst die
+  Monats-Credits. Der Stand `credits` behält seine Felder für den Monat und bekommt zusätzlich `purchased`,
+  `purchased_usable`, `available`, `can_buy`; `GET /api/entitlements` liefert dazu `credit_packs`. Kosten, die gekaufte
+  Credits bezahlen, zählen nicht gegen die Budgets aus Abschnitt 6.
+- **Rahmen je Kalendermonat (Europe/Berlin):** Pro AI 100 (`LERNAPP_CREDITS_PRO_AI`, höchstens 0,65 EUR Kosten je Konto),
   Plus/Free 0 (`LERNAPP_CREDITS_PLUS`, `_FREE`), 7-Tage-Probe 25 (`LERNAPP_CREDITS_TRIAL`); Standardwerte aus
   `plans.CREDITS`. Alte Zeilen mit `pro_connect` gelten wie Pro AI.
   Nicht Verbrauchtes verfällt; die Zeile des Monats (`credit_months`) entsteht bei der ersten Nutzung, kein nächtlicher
   Lauf. Der Rahmen folgt dem aktuellen Tarif: wer mitten im Monat Pro AI abschließt, hat sofort 100.
 - **Ablauf je Anfrage** (`ai_backend.complete`): Schätzung reservieren (`reserve`), Aufruf, mit `usage` der Antwort
-  abrechnen (`settle`, aufgerundet auf ganze Cent) oder bei einem Fehler ohne Kosten zurückgeben (`refund`); eine
+  abrechnen (`settle`, aufgerundet auf ganze Credits) oder bei einem Fehler ohne Kosten zurückgeben (`refund`); eine
   abgebrochene Antwort mit `usage` wird abgerechnet. Reicht der Rest nicht für die Reservierung: `429 credits_exhausted`
   mit „Credits für diesen Monat aufgebraucht – am 1. gibt es neue.“ und dem Stand unter `credits` (mit `needed`).
   Liegengebliebene Reservierungen verfallen nach 15 Minuten. Dem Client wird nie geglaubt: Kosten nur aus `usage`.

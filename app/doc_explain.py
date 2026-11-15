@@ -496,7 +496,7 @@ def parse_blocks(answer: str, step: dict) -> list[dict]:
 
 def estimate_step_credits(step: dict, model: str | None) -> int:
     """Erwartete Credits eines Schritts (StudiNow-KI): Eingabe aus der Textlaenge, Ausgabe nach Art; mindestens 1, weil
-    jede Anfrage auf ganze Cent aufgerundet wird"""
+    jede Anfrage auf ganze Credits aufgerundet wird"""
     from . import ai_prices
     chars = len(SYSTEM) + sum(len(x) + 2 for x in step.get("parts") or []) + 900
     if step["kind"] == "overview":
