@@ -249,3 +249,18 @@ def test_run_stages_orders_by_priority_and_survives_errors():
 def test_routes_are_registered(app):
     from app import sync_order_api
     assert {r.path for r in sync_order_api.router.routes} == {"/api/sync-order", "/api/module-semesters"}
+
+
+def test_download_order_small_and_new_first_current_semester_first():
+    """Dieselben Faelle wie FirstSyncTests.testDownloadOrderMatchesPython (`DownloadPlan.order`)."""
+    from app import sync_order
+    files = [
+        {"id": "alt-klein", "stage": 2, "size": 10, "changed": 9}, {"id": "gross", "stage": 0, "size": 50_000_000, "changed": 9},
+        {"id": "klein-alt", "stage": 0, "size": 2_000, "changed": 1}, {"id": "klein-neu", "stage": 0, "size": 2_000, "changed": 5},
+        {"id": "unbekannt", "stage": 0, "size": None, "changed": None}, {"id": "mittel", "stage": 0, "size": 3_000_000, "changed": 2},
+        {"id": "naechstes", "stage": 1, "size": 10, "changed": 9}, {"id": "null", "stage": 0, "size": 0, "changed": 3},
+    ]
+    assert [f["id"] for f in sync_order.download_order(files)] == [
+        "klein-neu", "klein-alt", "null", "mittel", "unbekannt", "gross", "naechstes", "alt-klein"]
+    mb = 1024 * 1024
+    assert [sync_order.size_class(s) for s in (None, 0, 1, 2 * mb, 2 * mb + 1, 20 * mb, 20 * mb + 1)] == [1, 1, 0, 0, 1, 1, 2]
