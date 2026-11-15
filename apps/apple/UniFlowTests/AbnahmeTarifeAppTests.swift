@@ -469,9 +469,14 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         XCTAssertTrue(tap("Meine geteilten Lösungen", in: env), "Meine geteilten Lösungen:\n" + dump(env))
         XCTAssertTrue(env.wait(timeout: 10) { self.shows(env, "Übungsblatt 3") && self.shows(env, "Zurückziehen") }, "eigene Lösung sichtbar\n" + dump(env))
         station(env, "\(p)-04-meine-geteilten", markers: ["Übungsblatt 3", "Zurückziehen"])
+        // iPhone (schmal): die Aktionen der Zeile stehen im Menue "Aktionen" - erst oeffnen, dann den Eintrag waehlen
+        if tap("Aktionen", in: env) { env.pump(0.8) }
         XCTAssertTrue(tap("Zurückziehen", in: env), "Zurückziehen:\n" + dump(env))
-        env.pump(0.6)
-        _ = tap("Zurückziehen", in: env)                                       // Rueckfrage bestaetigen
+        env.pump(0.8)
+        XCTAssertTrue(env.wait(timeout: 5) { self.shows(env, "Lösung zurückziehen") }, "Rückfrage sichtbar:\n" + dump(env))
+        // Rueckfrage bestaetigen: der Knopf der Rueckfrage liegt zuoberst (am iPhone steht davor noch der Menue-Eintrag)
+        let confirm = allElements(env).last { $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel == "Zurückziehen" }
+        XCTAssertTrue(confirm?.accessibilityActivate() ?? false, "Rückfrage bestätigen:\n" + dump(env))
         XCTAssertTrue(env.wait(timeout: 10) { self.container!.solutions.sharedEntries().first?.publishedAt == nil },
                       "\(p): zurückgezogen\n" + dump(env))
         let left = try pumping { try await service.findMatching(fingerprint: pkg.header.fingerprint) }
