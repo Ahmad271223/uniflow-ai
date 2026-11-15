@@ -176,6 +176,60 @@ def test_modulbeschreibung_reader_on_constructed_pages():
     assert not any(k in m for m in cat["modules"] for k in ("content", "goals", "literature"))
 
 
+# Nachzug 15.11.2026 (erfunden, Aufbau wie in den Ordnungen): Wert allein in einer Zeile, Modul ueber die Seitengrenze mit
+# dem Kopf des naechsten Moduls dazwischen, LP nur im Titel, LP in "Vergabe von Credits", Kopfzeile einer Uebersicht
+GAP_PAGES = [
+    "\n".join([FOOT.format(20), "Anlage 2: Modulhandbuch",
+               "Basismodul (BM) 1: Erfundene Grundlagen", "Modulnummer: Bsp_BM1", "Modulleitung: N. N.",
+               "Pflicht- oder", "Wahlpflichtmodul*:", "Pflichtmodul",
+               "Lehr- und Lernformen: TM 1: Vorlesung (2 SWS) 3 LP", "TM 2: Seminar (2 SWS) 3 LP",
+               "Anzahl der Leistungs-", "punkte*:", "6",
+               "Workload getrennt nach", "Präsenzstudium und", "Selbststudium*:", "5 SWS", "180h (75h Kontaktstunden, 105h Selbststudium)",
+               "Dauer in Semestern:", "2",
+               "Empfohlenes", "Studiensemester:", "TM 1: 3. Fachsemester", "TM 2: 4. Fachsemester",
+               "Prüfungsleistungen", "(Art, Umfang):", "Klausur (90 Minuten)",
+               "Aufbaumodul 2: Erfundene Anwendungen", "Modulnummer: Bsp_AM2", "Modulleitung: N. N.",
+               "Pflicht- oder Wahlpflichtmodul: Pflichtmodul",
+               "Zugangsvoraussetzungen: Keine", "7"]),
+    "\n".join([FOOT.format(21),
+               "Vertiefungsmodul 3: Erfundene Vertiefung", "Modulnummer: Bsp_VM3", "Modulleitung: N. N.",
+               "Verwendbarkeit des Moduls: Beispielkunde",
+               "Aufbaumodul 2: Erfundene Anwendungen",
+               "Anzahl der Leistungspunkte*: 9 LP", "Empfohlenes Studiensemester: TM 1 und TM 2: 4",
+               "Prüfungsleistungen (Art, Umfang): Hausarbeit",
+               "Vertiefungsmodul 3: Erfundene Vertiefung",
+               "Pflicht- oder Wahlpflichtmodul: Wahlpflichtmodul",
+               "Anzahl der Leistungspunkte*: 5 LP", "Empfohlenes Studiensemester: 5 und 6",
+               "Prüfungsleistungen (Art, Umfang): Referat"]),
+    "\n".join([FOOT.format(22),
+               "Modul 10: Masterarbeit und Kolloquium (30 LP)", "Modulnummer: Bsp_M10", "Modulleitung: N. N.",
+               "Pflicht- oder Wahlpflichtmodul: Pflichtmodul", "Prüfungsleistungen (Art, Umfang): Masterarbeit",
+               "Modul Bsp 6: Praxismodul", "Modulverantwortliche N. N.", "Status Pflicht",
+               "Studienleistung 2 LP für die Teilnahme an der Begleitveranstaltung",
+               "Modulprüfung 30 LP (siehe Teilmodulbeschreibungen)",
+               "Voraussetzung für die Vergabe", "von Credits", " 32 LP = Studienleistung (2 LP) + Modulprüfung (30 LP)",
+               "Modul Bsp 6-1: Begleitveranstaltung", "Modulzuordnung Bsp 6: Praxismodul", "Leistungspunkte 2",
+               "Empfohlenes Semester 2. Semester",
+               "Modulbezeichnung Themen LP", "Modulverantwortliche N. N.", "Prüfungsleistungen Bericht"]),
+]
+
+
+def test_modulbeschreibung_reader_keeps_bare_numbers_and_split_modules():
+    cat, _ = get_parser("hildesheim-modulbeschreibung")(GAP_PAGES, META)
+    assert sc.validate(cat) == []
+    m = {x["code"]: x for x in cat["modules"]}
+    assert list(m) == ["Bsp_BM1", "Bsp_AM2", "Bsp_VM3", "Bsp_M10", None], [x["title"] for x in cat["modules"]]
+    bm, am, vm, final, praxis = m.values()
+    # "6" allein in einer Zeile ist der Wert, keine Seitenzahl; die "7" am Seitenende ist die Seitenzahl
+    assert (bm["lp"], bm["workload_h"], bm["semester"]) == (6, 180, 3), "TM-Nummern sind kein Semester"
+    # Kopf des naechsten Moduls vor dem Rest des vorigen: Felder unter dem wiederholten Titel gehoeren zum vorigen
+    assert (am["lp"], am["semester"], am["exam"], am["kind"]) == (9, 4, "Hausarbeit", "pflicht")
+    assert (vm["lp"], vm["semester"], vm["exam"], vm["kind"]) == (5, 5, "Referat", "wahlpflicht")
+    assert final["lp"] == 30 and final["kind"] == "abschluss", "LP nur im Titel"
+    assert praxis["title"] == "Modul Bsp 6: Praxismodul" and praxis["lp"] == 32, "LP des Moduls aus 'Vergabe von Credits', nicht vom Teilmodul"
+    assert not any(x["title"] == "Themen LP" for x in cat["modules"]), "Kopfzeile einer Uebersichtstabelle ist kein Modul"
+
+
 def _it_pages(english: bool = False) -> list[str]:
     """Erfundenes FB-4-Handbuch: Titelseite, Verzeichnis (Seitenzahlen im Handbuch), drei Module, Kolumnentitel"""
     if english:

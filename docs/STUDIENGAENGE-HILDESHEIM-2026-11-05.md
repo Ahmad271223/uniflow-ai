@@ -166,14 +166,14 @@ Containers (`settings.university`).
 
 | Fachbereich | Kataloge | Einträge | Module | Formate |
 |---|---:|---:|---:|---|
-| Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 259 | hildesheim-modulbeschreibung 31, hildesheim-modultabelle 3 |
-| Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 322 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
-| Fachbereich 3 – Sprach- und Informationswissenschaften | 19 | 19 | 227 | hildesheim-kennnummer-tabelle 1, hildesheim-modulbeschreibung 16, hildesheim-modultabelle 2 |
-| Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 38 | 38 | 1383 | hildesheim-it-modulhandbuch 13, hildesheim-kuerzel-modultabelle 2, hildesheim-modulbeschreibung 22, hildesheim-modultabelle 1 |
+| Fachbereich 1 – Erziehungs- und Sozialwissenschaften | 34 | 34 | 258 | hildesheim-modulbeschreibung 31, hildesheim-modultabelle 3 |
+| Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation | 16 | 16 | 321 | hildesheim-modulbeschreibung 10, hildesheim-modultabelle 6 |
+| Fachbereich 3 – Sprach- und Informationswissenschaften | 19 | 19 | 226 | hildesheim-kennnummer-tabelle 1, hildesheim-modulbeschreibung 16, hildesheim-modultabelle 2 |
+| Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik | 38 | 38 | 1382 | hildesheim-it-modulhandbuch 13, hildesheim-kuerzel-modultabelle 2, hildesheim-modulbeschreibung 22, hildesheim-modultabelle 1 |
 | fachbereichsübergreifend (Lehrerbildung) | 4 | 4 | 44 | hildesheim-modulbeschreibung 4 |
-| **zusammen** | **111** | **111** | **2235** | |
+| **zusammen** | **111** | **111** | **2231** | |
 
-Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-kennnummer-tabelle` 1 Kataloge / 11 Module; `hildesheim-kuerzel-modultabelle` 2 Kataloge / 20 Module; `hildesheim-modulbeschreibung` 83 Kataloge / 812 Module; `hildesheim-modultabelle` 12 Kataloge / 257 Module.
+Nach Format: `hildesheim-it-modulhandbuch` 13 Kataloge / 1135 Module; `hildesheim-kennnummer-tabelle` 1 Kataloge / 11 Module; `hildesheim-kuerzel-modultabelle` 2 Kataloge / 20 Module; `hildesheim-modulbeschreibung` 83 Kataloge / 808 Module; `hildesheim-modultabelle` 12 Kataloge / 257 Module.
 Registereinträge: 121, davon im Grundstock: 111.
 
 Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS, Voraussetzungen = verweist auf andere Module):
@@ -183,9 +183,9 @@ Vollständigkeit der Felder (Anteil der Module mit Wert; Turnus nur WS/SS/WS+SS,
 | `hildesheim-it-modulhandbuch` | 13 | 1135 | 100 % | 98 % | 71 % | 100 % | 0 % | 23 % | 26 % | 100 % |
 | `hildesheim-kennnummer-tabelle` | 1 | 11 | 100 % | 100 % | 82 % | 91 % | 91 % | 0 % | 0 % | 100 % |
 | `hildesheim-kuerzel-modultabelle` | 2 | 20 | 100 % | 100 % | 100 % | 100 % | 25 % | 0 % | 0 % | 90 % |
-| `hildesheim-modulbeschreibung` | 83 | 812 | 92 % | 73 % | 83 % | 95 % | 86 % | 1 % | 9 % | 67 % |
+| `hildesheim-modulbeschreibung` | 83 | 808 | 94 % | 75 % | 83 % | 95 % | 86 % | 1 % | 9 % | 67 % |
 | `hildesheim-modultabelle` | 12 | 257 | 95 % | 82 % | 48 % | 89 % | 91 % | 2 % | 0 % | 84 % |
-| **zusammen** | **111** | **2235** | 96 % | 87 % | 73 % | 97 % | 42 % | 12 % | 17 % | 86 % |
+| **zusammen** | **111** | **2231** | 97 % | 88 % | 73 % | 97 % | 42 % | 12 % | 17 % | 86 % |
 
 Kataloge mit Regeln/LP für Bereiche: 21; mit empfohlenem Semester je Modul: 96.
 
@@ -203,7 +203,7 @@ Ohne Katalog im Grundstock (10) – geht nicht, weil …:
 - Rechtspsychologie (M.Sc.): Studienordnung (3 Seiten) ohne lesbare Modulbeschreibungen
 
 Anfragen laut Zwischenspeicher: 209 (209 × 200), davon 153 PDFs, 96 MB, 05.11.2026 12:46–14.11.2026 14:04 UTC, kleinster Abstand -12.8 s.
-Datei `hildesheim.json.gz`: 134 KB gzip, 1174 KB JSON, 111 Kataloge.
+Datei `hildesheim.json.gz`: 133 KB gzip, 1172 KB JSON, 111 Kataloge.
 Nachbearbeitung: 6 Module in Wahlbereichen von `pflicht` auf `wahlpflicht`/`wahl`, 24 Kataloge mit Handangaben, 1 doppelte Module, 0 ungültige, 0 ohne PDF/Leser verworfen.
 
 Neu bauen: `.venv/bin/python tools/build-hildesheim-seed.py` (prüfen: `--check`, Vorschau: `--diff`).
