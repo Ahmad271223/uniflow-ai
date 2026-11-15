@@ -83,4 +83,17 @@ final class TutorConversationsAppTests: XCTestCase {
         try Data("kein json".utf8).write(to: url)
         XCTAssertTrue(TutorConversations(fileURL: url).recent().isEmpty)
     }
+
+    /// "Kopieren" unter jeder KI-Antwort (15.11.2026): Text ohne Markdown-Zeichen, Karteikarten als Frage + Antwort
+    func testCopyTextOfAnAnswerHasNoMarkdownSigns() {
+        let answer = "## Zahlensysteme\n\nJede Zahl ist eine **Summe von Potenzen**.\n- dezimal 10\n  * dual 2\n\n13 = 8 + 4 + 1 = **1101** (dual), a*b bleibt"
+        XCTAssertEqual(TutorPanel.copyText(answer),
+                       "Zahlensysteme\n\nJede Zahl ist eine Summe von Potenzen.\n• dezimal 10\n  • dual 2\n\n13 = 8 + 4 + 1 = 1101 (dual), a*b bleibt")
+        XCTAssertEqual(TutorPanel.copyText("  \n"), "")
+        let plain = TutorPanel.Message(fromUser: false, text: "**Kernidee:** x")
+        XCTAssertEqual(TutorPanel.copyText(for: plain), "Kernidee: x")
+        var cards = TutorPanel.Message(fromUser: false, text: "")
+        cards.cards = [.object(["question": "Was ist **2 + 2**?", "answer": "4"]), .object(["question": "Dual 5?", "answer": "101"])]
+        XCTAssertEqual(TutorPanel.copyText(for: cards), "Was ist 2 + 2?\n4\n\nDual 5?\n101")
+    }
 }

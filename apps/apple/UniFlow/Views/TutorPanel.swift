@@ -119,6 +119,27 @@ struct TutorPanel: View {
     /// "Neu erklaeren lassen" nur unter einer gespeicherten Antwort
     static func offersRebuild(_ explain: JSONValue?) -> Bool { storedLabel(explain) != nil }
 
+    /// Text einer KI-Antwort fuer die Zwischenablage (15.11.2026, Wunsch des Inhabers: "Kopieren" unter jeder Antwort):
+    /// ohne Markdown-Zeichen (Ueberschriften-Rauten, Fett-Sterne), Aufzaehlungen als "•"; Formeln und der Rest bleiben wie sie sind
+    static func copyText(_ text: String) -> String {
+        text.components(separatedBy: "\n").map { line -> String in
+            var l = line
+            if let r = l.range(of: #"^\s{0,3}#{1,6}\s+"#, options: .regularExpression) { l.removeSubrange(r) }
+            if let r = l.range(of: #"^\s*[-*]\s+"#, options: .regularExpression) {
+                let indent = String(l[r].prefix { $0 == " " || $0 == "\t" })
+                l.replaceSubrange(r, with: indent + "• ")
+            }
+            return l.replacingOccurrences(of: "**", with: "")
+        }
+        .joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Was "Kopieren" unter einer Antwort in die Zwischenablage legt: der Antworttext, bei Karteikarten Frage und Antwort je Karte
+    static func copyText(for m: Message) -> String {
+        guard !m.cards.isEmpty else { return copyText(m.text) }
+        return m.cards.map { copyText($0.s("question") ?? "") + "\n" + copyText($0.s("answer") ?? "") }.joined(separator: "\n\n")
+    }
+
     /// Anschlussfragen nur unter der letzten Antwort des Gespraechs (ruhiger Verlauf)
     static func showsFollowUps(at index: Int, in messages: [Message]) -> Bool {
         guard messages.indices.contains(index), !messages[index].fromUser else { return false }
@@ -127,6 +148,8 @@ struct TutorPanel: View {
 
     @State private var messages: [Message] = []
     @State private var input = ""
+    /// Antwort, deren "Kopieren" gerade bestaetigt wird (kurz "Kopiert")
+    @State private var copiedID: UUID?
     @State private var checking = false
     @State private var busy = false
     @State private var error: String?
@@ -455,8 +478,25 @@ struct TutorPanel: View {
                     }
                 }
                 sourceLinks(msg.sources.filter { $0["cited"]?.bool == true })
+                copyButton(msg)
             }
         }
+    }
+
+    /// "Kopieren" unter jeder Antwort: legt den Text in die Zwischenablage und zeigt kurz "Kopiert"
+    @ViewBuilder private func copyButton(_ msg: Message) -> some View {
+        let done = copiedID == msg.id
+        UFButton(done ? "Kopiert" : "Kopieren", icon: done ? "check" : "copy", kind: .ghost, size: .small) {
+            UIPasteboard.general.string = Self.copyText(for: msg)
+            let id = msg.id
+            copiedID = id
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_600_000_000)
+                if copiedID == id { copiedID = nil }
+            }
+        }
+        .accessibilityLabel(done ? "Antwort kopiert" : "Antwort kopieren")
+        .accessibilityIdentifier("tutor.copy")
     }
 
     @ViewBuilder private func sourceLinks(_ cited: [JSONValue]) -> some View {
