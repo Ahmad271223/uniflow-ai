@@ -186,7 +186,13 @@ final class StartseiteBilderAppTests: XCTestCase {
         XCTAssertFalse(t.contains { $0 == "Nächste Termine" }, "Nächste Termine entfaellt")
         XCTAssertTrue(t.contains { $0.contains("Abgaben & Prüfungen") }, "Abgaben stehen in Abgaben & Prüfungen")
         XCTAssertTrue(t.contains { $0.contains("Diese Woche") }, "Aufgaben erledigt steht in Diese Woche")
-        XCTAssertTrue(t.contains { $0.contains("nachzuholen") && $0.contains("geplant") }, "Minuten und Nachzuholendes in der Tageszeile:\n" + t.joined(separator: "\n"))
+        // Die Tageszeile nennt die geplanten Minuten; "nachzuholen" steht nur da, wenn in dieser Woche schon ein Tag
+        // vorbei ist - montags gibt es nichts nachzuholen (16.11.2026: der Test war an einem echten Montag rot)
+        XCTAssertTrue(t.contains { $0.contains("Lernpaket") && $0.contains("geplant") }, "Minuten in der Tageszeile:\n" + t.joined(separator: "\n"))
+        let today = UFFmt.todayOverride.flatMap { Fmt.date($0) } ?? Date()
+        if Calendar(identifier: .gregorian).component(.weekday, from: today) != 2 {     // 2 = Montag
+            XCTAssertTrue(t.contains { $0.contains("nachzuholen") && $0.contains("geplant") }, "Nachzuholendes in der Tageszeile:\n" + t.joined(separator: "\n"))
+        }
         XCTAssertTrue(t.contains { $0 == "Tagesansicht" }, "Tagesansicht als Link in Heute für dich geplant")
         XCTAssertTrue(t.contains { $0.contains("Heute in der Mensa") }, "Mensa bleibt (unten)")
         if let outDir {
