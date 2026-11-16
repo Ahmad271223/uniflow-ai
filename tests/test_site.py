@@ -117,15 +117,21 @@ def test_support_page_answers_the_three_questions():
 
 def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     """Startseite (Wunsch des Inhabers vom 05.11.2026, Vorbild Lernplattform): Einstieg mit Versprechen und App-Store-Knopf
-    (noch ohne Store-Link: "#" und "Bald verfügbar"), Vertrauensleiste, Funktionen mit Bildschirmfotos, Schritte, Tarife
+    (seit 16.11.2026 mit Store-Link, "Jetzt im App Store" fuer iPad und iPhone), Vertrauensleiste, Funktionen mit Bildschirmfotos, Schritte, Tarife
     aus app/plans.py, Fragen als details/summary, Abschluss. Die Website nennt die KI-Hilfe (Entscheidung 05.11.2026);
     die Store-Felder bleiben ohne KI (tests/test_release_texts.py). Keine erfundenen Zahlen, Stimmen oder Suchfelder."""
     html = page("index.html")
     flat = re.sub(r"\s+", " ", html)                 # die Quelle ist hart umbrochen
     assert '<main id="inhalt" class="home">' in html and '<h1 id="hero-title">Dein Studium an einem Ort.</h1>' in html
     assert "<title>StudiNow – dein Studium an einem Ort</title>" in html
-    assert html.count('<a class="btn btn-store') == 2 and html.count('href="#" aria-describedby=') == 2
-    assert "Im App Store laden" in html and "Bald verfügbar" in html and "iPhone-Version kommt bald" in flat
+    # 16.11.2026 (1.0.4 im App Store, Okay des Inhabers): beide Knoepfe fuehren in den App Store, iPad und iPhone
+    assert html.count('<a class="btn btn-store') == 2
+    assert html.count('href="https://apps.apple.com/de/app/id6830632088" aria-describedby=') == 2 and 'href="#"' not in html
+    assert "Im App Store laden" in html and "<strong>Jetzt im App Store</strong> für iPad und iPhone." in flat
+    assert "Bald verfügbar" not in html and "iPhone-Version kommt bald" not in flat and "iPhone-Version folgt" not in flat
+    iphone = flat.split("Gibt es StudiNow fürs iPhone?")[1].split("</details>")[0]
+    for s in ("Ja.", "Apple Pencil weiter am iPad", "StudiNow Free gilt für ein Gerät", "mit Pro AI nutzt du iPhone und iPad zusammen"):
+        assert s in iphone, s
     for anchor in ("laden", "uni", "funktionen", "so-gehts", "preise", "fragen"):
         assert f'id="{anchor}"' in html, anchor
     for s in ("Stud.IP", "QIS", "Apple Pencil", "„Erkläre die ganze Vorlesung“", "„Erkläre alle Aufgaben“",
@@ -135,21 +141,23 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
         assert s in flat, s
     # Wunsch des Inhabers 05.11.2026: ganz Deutschland ansprechen, aber ehrlich nur die angebundenen Hochschulen nennen
     # (Richtlinie 2.3, keine irrefuehrende Werbung); Systeme als Chips; Mensa mit Quellen und "ohne Gewähr".
-    # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1)
+    # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1).
+    # 16.11.2026: mit 1.0.4 ist die Universitaet Hildesheim angebunden; die Hochschule Hannover bleibt "in Kürze"
     assert '<p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>' in html
-    assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>\. In Kürze: Hochschule Hannover und "
-                     r"Universität Hildesheim\. Weitere Hochschulen folgen\.", flat)
-    assert "Heute für die Leibniz Universität Hannover." in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" in flat
+    assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong> und <strong>Universität Hildesheim</strong>\. "
+                     r"In Kürze: Hochschule Hannover\. Weitere Hochschulen folgen\.", flat)
+    assert "Heute für die Leibniz Universität Hannover und die Universität Hildesheim." in flat
+    assert "In Kürze Hochschule Hannover, weitere Hochschulen" in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" not in flat
     assert "Deine fehlt?" in flat and 'href="mailto:support@studinow.app">Schreib uns</a>' in flat
     assert not re.search(r"alle(n)? (deutschen )?Hochschulen|jede(r)? Hochschule|alle(n)? Unis", flat), "nicht alle Hochschulen angebunden"
     assert "Zuerst für die Leibniz Universität Hannover" not in flat
     assert not re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>, <strong>Hochschule Hannover", flat), "HsH erst 1.0.1"
-    assert ('<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li>'
-            '<li class="soon">In Kürze: Moodle, HISinOne, LSF</li></ul>') in html
+    assert ('<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Learnweb</li><li>LSF</li>'
+            '<li class="soon">In Kürze: Moodle, HISinOne</li></ul>') in html
     assert "Abgeben in Stud.IP</h3>" in html and "(Moodle in Kürze)" in flat
     faq = flat.split("Für welche Hochschulen ist StudiNow?")[1].split("</details>")[0]
-    for s in ("ganz Deutschland", "zum Start mit voller Anbindung an die Leibniz Universität Hannover", "In Kürze folgen die Hochschule Hannover",
-              "Universität Hildesheim", "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
+    for s in ("ganz Deutschland", "zum Start mit voller Anbindung an die Leibniz Universität Hannover", "In Kürze folgt die Hochschule Hannover",
+              "und die Universität Hildesheim (Learnweb, LSF)", "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
         assert s in faq, s
     assert "Modulkatalogen von über 300 Studiengängen und Fächern" in flat or "Modulkataloge von über 300 Studiengängen und Fächern" in flat
     mensa = flat.split('id="mensa"')[1].split("</section>")[0]
@@ -197,7 +205,8 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and "<script" not in html
     assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../favicon.png"' in html and 'href="../index.html"' in html
     assert '<main id="inhalt" class="doc invite">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
-    assert 'class="btn btn-store"' in html and "Im App Store laden" in html and "Bald verfügbar" in html
+    assert 'class="btn btn-store" href="https://apps.apple.com/de/app/id6830632088"' in html and "Im App Store laden" in html
+    assert "<strong>Jetzt im App Store</strong> für iPad und iPhone." in html and "Bald verfügbar" not in html
     for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
               "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 € für das Jahr)", "30 Tage", "Pro Person zählt eine Einladung",
               "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):

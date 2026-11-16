@@ -11,8 +11,8 @@ wir fragen nie danach.
 
 ### Wie melde ich mich bei meiner Uni an?
 
-StudiNow öffnet das Anmeldefenster deiner Hochschule (Leibniz Universität Hannover: Stud.IP mit WebSSO; sobald eine
-App-Version die Universität Hildesheim anbindet: Learnweb und LSF mit CAS-Anmeldung). Dort gibst du deine
+StudiNow öffnet das Anmeldefenster deiner Hochschule (Leibniz Universität Hannover: Stud.IP mit WebSSO; Universität
+Hildesheim: Learnweb und LSF mit CAS-Anmeldung). Dort gibst du deine
 Hochschul-Zugangsdaten ein – bei der Hochschule,
 nicht bei uns. StudiNow speichert nie dein Passwort (auf dem iPad nur deinen Benutzernamen, damit er beim nächsten Mal
 schon dasteht); die App behält die Sitzung der Hochschule, bis du dich abmeldest oder die Hochschule sie beendet. Merken kann die Zugangsdaten auf Wunsch iOS selbst (Passwort-Autofill

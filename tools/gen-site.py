@@ -43,7 +43,7 @@ DOMAIN = "studinow.app"
 PAGES = [
     ("STARTSEITE.md", "index.html", "Start",
      "StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die "
-     "Leibniz Universität Hannover. Skripte, Termine und Nachrichten aufs iPad: Apple Pencil, KI-Hilfe, Wochentests, "
+     "Leibniz Universität Hannover und die Universität Hildesheim. Skripte, Termine und Nachrichten aufs iPad und iPhone: Apple Pencil, KI-Hilfe, Wochentests, "
      "Karteikarten und Mensa. Ohne Tracking."),
     ("SUPPORT.md", "support.html", "Support",
      "Hilfe zu StudiNow: Anmeldung bei der Hochschule, Daten auf dem iPad, Konto löschen, Abo. Kontakt support@studinow.app."),
