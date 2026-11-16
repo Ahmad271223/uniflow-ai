@@ -536,6 +536,164 @@ final class LayoutWidthAuditTests: XCTestCase {
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
+    // MARK: - Hintergrundbild (Absturz 15.11.2026 auf iPad Air 4, iPadOS 18.7, Build 44, App im Hintergrund)
+
+    /// Geht die App in den Hintergrund, macht iPadOS Bilder der Szene in mehreren Groessen (quer, hoch, schmal). Dabei
+    /// stuerzte Build 44 am iPad Air (iPadOS 18.7.8) zweimal ab: `UINavigationBar layoutSubviews` unter
+    /// `UIPanelController _updateToNewPublicState` (die geteilte Ansicht des Dokuments passt sich der neuen Groesse an).
+    /// Der Test stellt den Groessenwechsel bei geoeffnetem Dokument und auf den uebrigen Seiten nach.
+    ///
+    /// Ursache (16.11.2026, `LibraryView.splitView`): Wurde das Fenster schmal, klappte die Teilung zu einem Stapel
+    /// zusammen, dessen Navigationsleiste das Dokument ausblendet ("Oben fest"); beim naechsten breiten Fenster brach
+    /// UIKit ab ("Layout requested for visible navigation bar … top item belongs to a different navigation bar").
+    /// Seitdem klappt die Teilung am iPad nie zusammen.
+    ///
+    /// **Der Absturz tritt nur mit iPadOS 18 und 26 auf, nicht mit 27.** Mit iPadOS 27 besteht der Groessenwechsel auch
+    /// ohne die Behebung; dort wacht dieser Test darueber, dass die Teilung nicht zusammenklappt, die Dokumentliste
+    /// nicht ueber dem Dokument liegt und der Editor nicht neu entsteht. Der Absturz selbst ist am 16.11.2026 auf einem
+    /// Simulator mit iPadOS 26.2 geprueft (vorher Absturz beim vierten Schritt, auch mit dem Stand von Version 1.0.4;
+    /// nachher gruen). Bei Aenderungen an `LibraryView.splitView` dort erneut laufen lassen:
+    /// `xcrun simctl create "Absturz 26" com.apple.CoreSimulator.SimDeviceType.iPad-Air-5th-generation
+    /// com.apple.CoreSimulator.SimRuntime.iOS-26-2`, dann diesen Test mit `-destination "id=…"`. iPadOS 18 gibt es hier
+    /// nicht als Simulator: am echten iPad von Hand pruefen (Dokument oeffnen, App mehrmals in den Hintergrund und
+    /// zurueck, Split View auf ein Drittel und wieder breit).
+    func testGroessenwechselWieBeimHintergrundbild() throws {
+        let env = try host(MainView())
+        UserDefaults.standard.set("full", forKey: "sidebar")
+        defer { UserDefaults.standard.removeObject(forKey: EditorToolbarPlacement.key) }
+        let sizes: [(CGSize, UIUserInterfaceSizeClass)] = [
+            (CGSize(width: 1180, height: 820), .regular), (CGSize(width: 820, height: 1180), .regular),
+            (CGSize(width: 375, height: 820), .compact), (CGSize(width: 1180, height: 820), .regular),
+            (CGSize(width: 320, height: 1180), .compact), (CGSize(width: 820, height: 1180), .regular),
+            (CGSize(width: 590, height: 820), .compact), (CGSize(width: 1180, height: 820), .regular)]
+        // Dokument: "Oben fest" blendet die Navigationsleiste aus (dort der Absturz); "Unten fest" zeigt sie (dort lag
+        // nach schmal -> breit die Dokumentliste ueber dem Dokument)
+        let documents: [(String, EditorToolbarPlacement)] = [("demo-skript", .top), ("demo-blatt", .top), ("demo-skript", .bottom)]
+        for (id, placement) in documents {
+            let what = "\(id), Leiste \(placement.rawValue)"
+            UserDefaults.standard.set(placement.rawValue, forKey: EditorToolbarPlacement.key)
+            env.router.go(.dashboard)
+            env.pump(0.3)
+            env.router.go(.doc(id))
+            XCTAssertTrue(env.wait(timeout: 25) { !Self.editors(env).isEmpty }, "Editor fehlt (\(what))")
+            env.pump(1.5)
+            let before = Self.editors(env)
+            for (size, h) in sizes {
+                Self.resize(env, size, h)
+                let step = "\(what), \(Int(size.width)) x \(Int(size.height))"
+                let split = try XCTUnwrap(Self.splitController(env), "geteilte Ansicht fehlt (\(step))")
+                XCTAssertFalse(split.isCollapsed, "Teilung zusammengeklappt (\(step)): danach stuerzt iPadOS 18/26 ab")
+                XCTAssertEqual(split.displayMode, .secondaryOnly, "Dokumentliste liegt ueber dem Dokument (\(step))")
+                XCTAssertEqual(split.viewControllers.count, 3, "Modul- und Dokumentliste gehoeren weiter zur Teilung (\(step))")
+                XCTAssertTrue(split.presentsWithGesture, "Listen lassen sich weiter vom linken Rand hereinziehen (\(step))")
+                XCTAssertEqual(Self.editors(env), before, "Editor beim Groessenwechsel neu aufgebaut (\(step))")
+            }
+        }
+        UserDefaults.standard.removeObject(forKey: EditorToolbarPlacement.key)
+        // uebrige Seiten (ohne geteilte Ansicht): nichts stuerzt ab
+        for route in [UFRoute.dashboard, .files(), .modules, .plan(), .timetable(), .aiStart, .settings(tab: "account")] {
+            env.router.go(route)
+            env.pump(2)
+            for (size, h) in sizes { Self.resize(env, size, h) }
+        }
+        env.hosting.traitOverrides.horizontalSizeClass = .regular
+        XCTAssertNotNil(env.window.rootViewController)
+    }
+
+    /// Dokument in einem schmalen Fenster geoeffnet (Slide Over, Split View ein Drittel, kleines Fenster in iPadOS 26),
+    /// dann breit und wieder schmal: die Teilung entsteht gleich breit und bleibt es, das Dokument steht da (nicht die
+    /// Dokumentliste), der Editor bleibt derselbe. Die Dokumentliste mit Suchfeld und "PDF importieren" laesst sich
+    /// weiter hereinholen und wieder schliessen.
+    func testDokumentImSchmalenFensterDannBreit() throws {
+        let env = try host(MainView())
+        Self.resize(env, CGSize(width: 375, height: 820), .compact)
+        env.router.go(.doc("demo-skript"))
+        XCTAssertTrue(env.wait(timeout: 25) { !Self.editors(env).isEmpty }, "Editor fehlt im schmalen Fenster")
+        env.pump(1.5)
+        let before = Self.editors(env)
+        let sizes: [(CGSize, UIUserInterfaceSizeClass)] = [
+            (CGSize(width: 375, height: 820), .compact), (CGSize(width: 1180, height: 820), .regular),
+            (CGSize(width: 320, height: 1180), .compact), (CGSize(width: 1180, height: 820), .regular)]
+        for (size, h) in sizes {
+            Self.resize(env, size, h)
+            let split = try XCTUnwrap(Self.splitController(env))
+            XCTAssertFalse(split.isCollapsed, "Teilung zusammengeklappt bei \(Int(size.width)) pt")
+            XCTAssertEqual(split.displayMode, .secondaryOnly, "Dokumentliste liegt ueber dem Dokument bei \(Int(size.width)) pt")
+            XCTAssertEqual(Self.editors(env), before, "Editor neu aufgebaut bei \(Int(size.width)) pt")
+            // nur die Teilung selbst gilt als breit: ihr Inhalt sieht weiter die echte Breitenklasse des Fensters
+            let editor = Self.controllers(env.hosting).first { $0 is PDFEditorController }
+            XCTAssertEqual(editor?.traitCollection.horizontalSizeClass, h, "Breitenklasse im Dokument bei \(Int(size.width)) pt")
+        }
+        // wie das Wischen vom linken Rand: Dokumentliste ueber dem Dokument, danach wieder weg
+        let split = try XCTUnwrap(Self.splitController(env))
+        split.show(.supplementary)
+        XCTAssertTrue(env.wait(timeout: 10) { Self.texts(env.window).contains { $0.contains("Dokumente suchen") } },
+                      "Dokumentliste mit Suchfeld fehlt: " + Self.texts(env.window).joined(separator: " | "))
+        XCTAssertTrue(Self.texts(env.window).contains { $0.contains("PDF importieren") }, "Knopf „PDF importieren“ fehlt")
+        XCTAssertEqual(Self.editors(env), before, "Editor neu aufgebaut, als die Dokumentliste erschien")
+        split.hide(.supplementary)
+        XCTAssertTrue(env.wait(timeout: 10) { split.displayMode == .secondaryOnly }, "Dokumentliste schliesst nicht")
+        XCTAssertEqual(Self.editors(env), before)
+        env.hosting.traitOverrides.horizontalSizeClass = .regular
+    }
+
+    /// Eingrenzung des Absturzes: Ein Stapel allein (`NavigationStack` wie in den Blaettern der App, mit Suchfeld,
+    /// Knopf in der Leiste und einer zweiten Seite, die die Navigationsleiste ausblendet) uebersteht dieselben
+    /// Groessenwechsel auch mit iPadOS 26. Betroffen war nur die geteilte Ansicht des Dokuments
+    /// (`NavigationSplitView`, die einzige der App), weil nur sie Seiten zwischen zwei Navigationsleisten umhaengt.
+    func testGroessenwechselImStapelMitSuchfeld() throws {
+        struct Stapel: View {
+            @State var query = ""
+            @State var path: [Int]
+            var body: some View {
+                NavigationStack(path: $path) {
+                    List(0..<20, id: \.self) { Text("Zeile \($0)") }
+                        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Suchen")
+                        .navigationTitle("Liste")
+                        .toolbar { Button("Fertig") {} }
+                        .navigationDestination(for: Int.self) { n in
+                            Text("Seite \(n)").toolbar(.hidden, for: .navigationBar)
+                        }
+                }
+            }
+        }
+        let sizes: [(CGSize, UIUserInterfaceSizeClass)] = [
+            (CGSize(width: 1180, height: 820), .regular), (CGSize(width: 375, height: 820), .compact),
+            (CGSize(width: 1180, height: 820), .regular), (CGSize(width: 320, height: 1180), .compact),
+            (CGSize(width: 820, height: 1180), .regular)]
+        for path in [[], [1]] {
+            let env = try hostWithEnvironment(Stapel(path: path), size: sizes[0].0)
+            env.pump(0.5)
+            for (size, h) in sizes { Self.resize(env, size, h) }
+            XCTAssertTrue(Self.texts(env.window).contains { $0.contains(path.isEmpty ? "Zeile 0" : "Seite 1") },
+                          Self.texts(env.window).joined(separator: " | "))
+            env.window.isHidden = true
+        }
+    }
+
+    /// Fenster in neuer Groesse und Breitenklasse, sofort gelegt (wie `layoutBelowIfNeeded` im Absturz-Stapel)
+    private static func resize(_ env: HostedEnvironment, _ size: CGSize, _ horizontal: UIUserInterfaceSizeClass) {
+        env.hosting.traitOverrides.horizontalSizeClass = horizontal
+        env.window.frame = CGRect(origin: .zero, size: size)
+        env.view.frame = env.window.bounds
+        env.window.layoutIfNeeded()
+        env.pump(0.3)
+    }
+
+    private static func controllers(_ vc: UIViewController) -> [UIViewController] {
+        [vc] + vc.children.flatMap { controllers($0) }
+    }
+
+    /// Geteilte Ansicht des Dokuments (`NavigationSplitView` in `LibraryView`)
+    private static func splitController(_ env: HostedEnvironment) -> UISplitViewController? {
+        controllers(env.hosting).lazy.compactMap { $0 as? UISplitViewController }.first
+    }
+
+    /// Die Editoren im Fenster (dieselben Objekte = nichts wurde neu aufgebaut: Scroll-Stelle und Striche bleiben)
+    private static func editors(_ env: HostedEnvironment) -> [ObjectIdentifier] {
+        controllers(env.hosting).compactMap { $0 as? PDFEditorController }.map(ObjectIdentifier.init)
+    }
+
     // MARK: - Hosten
 
     private func host<V: View>(_ view: V, api: APIClient? = nil, ai: Bool = false) throws -> HostedEnvironment {
