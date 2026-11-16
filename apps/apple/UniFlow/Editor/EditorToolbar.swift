@@ -55,7 +55,8 @@ final class EditorToolState: ObservableObject {
         var widths: [CGFloat] {
             switch self {
             case .pen: return [0.88, 2, 3.5, 6, 10]
-            case .fineliner: return [0.5, 0.8, 1.5, 2.5, 4]
+            // Variante "Feiner Fineliner" (`PencilLab`): zwei duennere Stufen davor
+            case .fineliner: return (PencilLab.current == .fine ? PencilLab.fineSteps : []) + [0.5, 0.8, 1.5, 2.5, 4]
             case .marker: return [7.5, 10, 15, 22, 30]
             case .shape: return [1, 2, 4]
             default: return []
@@ -64,7 +65,8 @@ final class EditorToolState: ObservableObject {
 
         var inkType: PKInkingTool.InkType? {
             switch self {
-            case .pen: return .pen
+            // Variante "Stift als Fueller" (`PencilLab`): nur neue Striche, vorhandene behalten ihre Tinte
+            case .pen: return PencilLab.current == .fountain ? .fountainPen : .pen
             case .fineliner: return .monoline
             case .marker: return .marker
             default: return nil
@@ -177,7 +179,7 @@ final class EditorToolState: ObservableObject {
     static func widthLimits(_ t: Tool) -> ClosedRange<CGFloat> {
         // nach innen auf zwei Stellen (PencilKit meldet z. B. 0,8782 fuer den Stift; gezeigt und gespeichert wird 0,88)
         if let ink = t.inkType {
-            let r = ink.validWidthRange
+            let r = PencilLab.lowerBound(for: ink)...ink.validWidthRange.upperBound
             return ((r.lowerBound * 100).rounded(.up) / 100)...((r.upperBound * 100).rounded(.down) / 100)
         }
         return (t.widths.min() ?? 0)...(t.widths.max() ?? 0)
@@ -252,6 +254,7 @@ final class EditorToolState: ObservableObject {
     private(set) var previous: Tool?
 
     let changes = PassthroughSubject<Change, Never>()
+    private var labObserver: AnyCancellable?
     private let defaults: UserDefaults
     private let key: String
 
@@ -260,6 +263,13 @@ final class EditorToolState: ObservableObject {
         self.defaults = defaults
         self.key = key
         load()
+        // Schriftbild umgeschaltet (`PencilLab`): Leiste neu zeichnen, Zeichenflaechen bekommen das Werkzeug neu
+        labObserver = NotificationCenter.default.publisher(for: PencilLab.changed).sink { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.objectWillChange.send()
+                self?.changes.send(.style)
+            }
+        }
     }
 
     // MARK: Werkzeug
@@ -404,7 +414,7 @@ final class EditorToolState: ObservableObject {
     func inkingTool(_ t: Tool) -> PKInkingTool? {
         guard let type = t.inkType else { return nil }
         let s = style(t)
-        let range = type.validWidthRange
+        let range = PencilLab.lowerBound(for: type)...type.validWidthRange.upperBound
         let w = min(max(s.width, range.lowerBound), range.upperBound)
         let color = (UIColor(hex: s.hex) ?? .black).withAlphaComponent(s.alpha)
         return PKInkingTool(type, color: color, width: w)
