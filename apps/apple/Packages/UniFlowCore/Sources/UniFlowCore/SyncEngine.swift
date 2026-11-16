@@ -229,6 +229,9 @@ public actor SyncEngine {
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var unresolvedConflict: String?
     private var isShutDown = false
+    /// Zaehlt jedes `shutdown`: Eine Runde, die davor begonnen hat, arbeitet ihr Ergebnis danach nicht mehr ein
+    /// (`stopAfterShutdown`). Ein ausdrueckliches `syncNow` NACH dem Schliessen laeuft wie bisher ganz durch.
+    private var shutdownCount = 0
     /// Seiten, deren Datei im Journal beschaedigt war: lokaler Stand unbekannt, bis der Serverstand eingearbeitet ist
     private var unknownPages: Set<String> = []
     /// Wurzelfelder unbekannt (meta.json fehlt neben Seiten oder ist beschaedigt): erst vom Server, bis dahin weder
@@ -345,6 +348,7 @@ public actor SyncEngine {
     ///   Notizen in einer neueren Formatversion (im Journal oder auf dem Server) oeffnen ebenso nur zum Ansehen.
     public func open(pdfPageCount: Int, openElsewhere: Bool = false) async -> OpenResult {
         self.pdfPageCount = pdfPageCount
+        let startedAt = shutdownCount
         if openElsewhere { viewOnly = .openElsewhere }
         var snapshot: JournalSnapshot?
         do {
@@ -367,7 +371,9 @@ public actor SyncEngine {
             reachable = true
             noteReachable()
             if viewOnly == nil, let v = AnnotationDocument.newerVersion(server.root) { viewOnly = .newerFormat(v) }
-            if journalUnreadable {
+            if shutdownCount != startedAt {
+                // schon wieder geschlossen: nichts mehr ins Journal (siehe `stopAfterShutdown`)
+            } else if journalUnreadable {
                 adoptServer(server, persist: false)
             } else if snapshot == nil {
                 adoptServer(server)
@@ -492,6 +498,7 @@ public actor SyncEngine {
     /// beim naechsten Oeffnen hochgeladen.
     public func shutdown() {
         isShutDown = true
+        shutdownCount += 1
         debounceTask?.cancel()
         debounceTask = nil
         serverRetryScheduled = false
@@ -565,6 +572,7 @@ public actor SyncEngine {
     }
 
     private func uploadLoop() async {
+        let startedAt = shutdownCount
         if uploading || uploadsBlocked {
             if !uploading { resumeIdleWaiters() }
             return
@@ -575,6 +583,7 @@ public actor SyncEngine {
             // Unbekannter lokaler Stand (beschaedigte oder veraltete Dateien): erst den Serverstand einarbeiten
             do {
                 let server = try await transport.fetch(documentID: documentID)
+                if stopAfterShutdown(startedAt) { return }
                 fetchRequested = false
                 noteReachable()
                 retryDelay = 2
@@ -610,9 +619,11 @@ public actor SyncEngine {
             do {
                 outcome = try await transport.put(documentID: documentID, root: root, baseVersion: serverVersion, snapshot: snapshot)
             } catch {
+                if stopAfterShutdown(startedAt) { return }
                 handleTransportError(error)
                 return
             }
+            if stopAfterShutdown(startedAt) { return }
             noteReachable()
             switch outcome {
             case .saved(let version):
@@ -653,6 +664,20 @@ public actor SyncEngine {
         uploading = false
         refreshStatus()
         resumeIdleWaiters()
+    }
+
+    /// Das Dokument wurde geschlossen (`shutdown`), waehrend eine Anfrage unterwegs war: Ihr Ergebnis wird NICHT mehr
+    /// eingearbeitet - keine Bestaetigung, kein Zusammenfuehren, nichts mehr ins Journal (`startedAt`: Stand von
+    /// `shutdownCount` beim Beginn der Runde). Sonst schriebe diese Engine ihren (inzwischen alten) Stand ueber
+    /// Seiten, die ein neu geoeffnetes Dokument seitdem geaendert hat (16.11.2026: ein Strich fehlte danach im
+    /// Journal, `RundeNachSchliessenTests`). Was der Dienst dabei schon gespeichert hat, findet das naechste Oeffnen
+    /// als neuere Version und fuehrt es zusammen (gleiche Staende ohne Konflikt). Aenderungen des Editors
+    /// (`updatePage`) gehen auch nach `shutdown` weiter ins Journal.
+    private func stopAfterShutdown(_ startedAt: Int) -> Bool {
+        guard shutdownCount != startedAt else { return false }
+        uploading = false
+        resumeIdleWaiters()
+        return true
     }
 
     /// Serverstand in einer neueren Formatversion (ein anderes Geraet mit neuerer App hat gespeichert): nie
