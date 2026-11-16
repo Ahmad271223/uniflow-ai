@@ -15,4 +15,9 @@ enum PencilTuning {
     /// letztes Mal am Ende). Vorher bei jedem Bild des Pinchens: jedes Mal rechnete SwiftUI die ganze Dokumentansicht neu.
     static var throttleZoomPublish = true
     static let zoomPublishInterval: TimeInterval = 0.12
+    /// Meldung des Inhabers 16.11.2026 ("beim Absetzen geht der Strich kurz weg"): Wird der eben beendete Strich
+    /// ersetzt (erkannte Form, Glaettung "Leicht"/"Aus"), setzt der Editor die ganze Zeichnung neu, und PencilKit
+    /// zeichnet alles neu - bis dahin fehlte die Tinte. Jetzt liegt solange ein Deckbild darueber
+    /// (`PageInkView.replaceLastStroke`). `false`: ohne Deckbild, wie bis 17.11.
+    static var coverWhenStrokeIsReplaced = true
 }

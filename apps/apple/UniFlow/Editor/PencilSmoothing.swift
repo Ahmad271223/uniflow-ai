@@ -128,6 +128,21 @@ enum RawStroke {
         return last.time - samples[firstStill].time
     }
 
+    /// Liegen die Messpunkte dort, wo der Strich liegt? Vergleich der Umrisse (Seitenpunkte): PencilKit glaettet nur
+    /// um Bruchteile eines Punkts, ein fremder Strich liegt woanders. `tolerance` grosszuegig (Stift schraeg gehalten,
+    /// Glaettung am Strichende).
+    static func fits(_ stroke: PKStroke, samples: [RawPencilSample], tolerance: CGFloat = 14) -> Bool {
+        guard let first = samples.first, stroke.path.count > 0 else { return false }
+        var box = CGRect(origin: first.location, size: .zero)
+        for s in samples.dropFirst() { box = box.union(CGRect(origin: s.location, size: .zero)) }
+        var path = CGRect.null
+        for i in 0..<stroke.path.count {
+            path = path.union(CGRect(origin: stroke.path[i].location.applying(stroke.transform), size: .zero))
+        }
+        return abs(box.minX - path.minX) <= tolerance && abs(box.maxX - path.maxX) <= tolerance
+            && abs(box.minY - path.minY) <= tolerance && abs(box.maxY - path.maxY) <= tolerance
+    }
+
     /// Rohpunkte, die naeher als dieser Abstand (Seitenpunkte) am vorigen liegen, fallen weg (Stillstand)
     static let minimumStep: CGFloat = 0.05
 

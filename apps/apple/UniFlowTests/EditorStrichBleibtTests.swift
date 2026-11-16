@@ -1,6 +1,5 @@
 import PDFKit
 import PencilKit
-import SwiftUI
 import UIKit
 import UniFlowCore
 import XCTest
@@ -67,7 +66,7 @@ final class EditorStrichBleibtTests: XCTestCase {
         for smoothing in [PencilSmoothing.off, .light] {
             UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
             let r = try await lauf("Glaettung \(smoothing.rawValue), zwei Striche", strokes: 2, abstand: 0.4, vorhanden: 60, order: .absetzenZuerst,
-                                   warten: 6, rohpunkte: true)
+                                   warten: 6, rohpunkte: true, deckbild: true)
             pruefe(r, erlaubtNeu: 2)
         }
     }
@@ -78,7 +77,7 @@ final class EditorStrichBleibtTests: XCTestCase {
         var r = try await lauf("Formerkennung aus, Linie gehalten", strokes: 1, vorhanden: 60, order: .absetzenZuerst, warten: 5, gehalten: true)
         pruefe(r, erlaubtNeu: 0)
         UserDefaults.standard.removeObject(forKey: ShapeSnapSetting.key)
-        r = try await lauf("Formerkennung an, Linie gehalten", strokes: 1, vorhanden: 60, order: .absetzenZuerst, warten: 5, gehalten: true)
+        r = try await lauf("Formerkennung an, Linie gehalten", strokes: 1, vorhanden: 60, order: .absetzenZuerst, warten: 5, gehalten: true, deckbild: true)
         pruefe(r, erlaubtNeu: 1)
     }
 
@@ -109,39 +108,387 @@ final class EditorStrichBleibtTests: XCTestCase {
         pruefe(r, erlaubtNeu: 0)
     }
 
-    /// Ganze Dokumentansicht wie in der App (Kopfzeile, Leiste, Sicherungsanzeige): echter Strich, danach laufen die
-    /// Speicher-Runden und die Anzeigen wechseln
-    func testEchterStrichInDerGanzenDokumentansicht() async throws {
-        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
-        XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true))
-        addTeardownBlock { @MainActor in HostedEnvironment.accessibilityAutomation(false) }
-        Entitlements.shared.setPlanForTesting(.plus)
-        addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(.free) }
-        let t = AIViewsAppTests.Transport()
-        let id = "f-strich-\(UUID().uuidString.prefix(8))"
-        t.answer("/api/files/\(id)/content", data: Skript.pdf(pages: 3, .schlicht), type: "application/pdf")
-        t.answer("/api/files/\(id)/annotations", ["data": AnnotationDocument.emptyRoot, "version": 0, "updated_at": .null])
-        t.answer("/api/related", ["results": []])
-        let meta: JSONValue = ["id": .string(id), "name": "Skript.pdf", "title": "Skript", "kind": "pdf", "module_id": 1,
-                               "downloaded_at": "2026-11-11T09:00:00", "page_count": 3, "doc_type": "skript"]
-        let file = try JSONDecoder().decode(LibFile.self, from: meta.serialized())
-        let api = APIClient(base: URL(string: "http://erfunden.test/")!, transport: t)
-        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api) }, api: api,
-                                          size: CGSize(width: 1080, height: 810))
-        // warten ohne die Hauptschleife zu blockieren (das Laden laeuft in Aufgaben auf dem Hauptthread)
-        let until = Uhr.now() + 20
-        while Uhr.now() < until, EditorToolbarTests.pdfViews(in: env.view).first?.document == nil {
-            try await Task.sleep(nanoseconds: 50_000_000)
+    // MARK: Auftrag 17.11.2026: Stift absetzen (Flackern, Verlust), auf dem alten Editor
+
+    /// Schnelles Schreiben: Der zweite Strich setzt auf, bevor PencilKit den ersten gemeldet hat (die Meldung kommt
+    /// dann waehrend des zweiten Strichs). Beim Absetzen des zweiten darf der ERSTE nicht mit den Daten des zweiten
+    /// behandelt werden: nicht aus dessen Messpunkten neu gebaut (er laege dann auf dem zweiten, der erste waere weg)
+    /// und nicht als "am Ende gehalten" zur Form gemacht.
+    func testZweiterStrichSetztAufBevorDerErsteGemeldetIst() async throws {
+        let faelle: [(String, PencilSmoothing, Bool)] = [("Glaettung Aus", .off, false), ("Glaettung Leicht", .light, false),
+                                                          ("Standard, erster Strich eine Linie", .normal, true)]
+        for (name, smoothing, linie) in faelle {
+            UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
+            let fx = try await makeFixture(pages: 2)
+            let store = try await openStore(fx)
+            let shown = show(store, pencilOnly: true)
+            let editor = shown.editor
+            let overlay = try await waitForOverlay(editor, page: 0)
+            let canvas = overlay.canvas
+            let s1 = linie ? Self.gerade(from: CGPoint(x: 120, y: 250), to: CGPoint(x: 240, y: 252), vor: 1.0)
+                           : Self.strich(at: CGPoint(x: 120, y: 250), n: 0, marker: false, gehalten: false)
+            let s2 = Self.strich(at: CGPoint(x: 330, y: 330), n: 1, marker: false, gehalten: false)
+            let m1 = Self.mitte(s1), m2 = Self.mitte(s2)
+            let log0 = ZeichnungSpion.log.count
+            func setze(_ stroke: PKStroke) {
+                var d = canvas.drawing
+                d.strokes.append(stroke)
+                ZeichnungSpion.own = true
+                overlay.isApplyingDrawing = true
+                canvas.drawing = d
+                overlay.isApplyingDrawing = false
+                ZeichnungSpion.own = false
+            }
+            // Strich 1: aufsetzen, absetzen - noch nicht gemeldet
+            editor.canvasViewDidBeginUsingTool(canvas)
+            overlay.rawRecorder.setSamplesForTesting(Self.rohpunkte(s1))
+            editor.canvasViewDidEndUsingTool(canvas)
+            // Strich 2 setzt auf; jetzt erst meldet PencilKit Strich 1
+            editor.canvasViewDidBeginUsingTool(canvas)
+            setze(s1)
+            editor.canvasViewDrawingDidChange(canvas)
+            try await Task.sleep(nanoseconds: 650_000_000)                  // der zweite Strich dauert
+            overlay.rawRecorder.setSamplesForTesting(Self.rohpunkte(s2))
+            editor.canvasViewDidEndUsingTool(canvas)
+            let nachAbsetzen = canvas.drawing
+            XCTAssertEqual(nachAbsetzen.strokes.count, 1, "\(name): Strich 2 ist noch nicht gemeldet")
+            let ort1 = nachAbsetzen.strokes.first.map { Self.mitte($0) } ?? .zero
+            XCTAssertLessThan(hypot(ort1.x - m1.x, ort1.y - m1.y), 6, "\(name): der erste Strich liegt noch an seiner Stelle (\(ort1) statt \(m1))")
+            if linie {
+                XCTAssertEqual(nachAbsetzen.strokes.first?.path.count, s1.path.count, "\(name): der erste Strich ist nicht zur Form geworden")
+            }
+            setze(s2)
+            editor.canvasViewDrawingDidChange(canvas)
+            try await Task.sleep(nanoseconds: 400_000_000)
+            let d = canvas.drawing
+            XCTAssertEqual(d.strokes.count, 2, "\(name): beide Striche da")
+            let orte = d.strokes.map { Self.mitte($0) }
+            if orte.count == 2 {
+                XCTAssertLessThan(hypot(orte[0].x - m1.x, orte[0].y - m1.y), 6, "\(name): Strich 1 an seiner Stelle")
+                XCTAssertLessThan(hypot(orte[1].x - m2.x, orte[1].y - m2.y), 6, "\(name): Strich 2 an seiner Stelle")
+            }
+            let sets = ZeichnungSpion.log[log0...].filter { $0.canvas == ObjectIdentifier(canvas) && !$0.own }
+            let wo = orte.map { "\(Int($0.x)),\(Int($0.y))" }.joined(separator: " und ")
+            print("[Strich] verschraenkt, \(name): gezeichnet bei \(Int(m1.x)),\(Int(m1.y)) und \(Int(m2.x)),\(Int(m2.y)); danach liegen die Striche bei \(wo); vom Programm neu gesetzt \(sets.count) Mal")
+            if smoothing == .normal { XCTAssertEqual(sets.count, 0, "\(name): nichts wird ersetzt") }
+            await store.flush()
+            let saved = await store.objects(forPageKey: "p1").filter { $0["type"]?.string == "stroke" }.count
+            XCTAssertEqual(saved, 2, "\(name): gespeichert")
+            await store.close()
+            hide(shown)
         }
-        XCTAssertNotNil(EditorToolbarTests.pdfViews(in: env.view).first?.document, "PDF fehlt:\n" + env.labels().joined(separator: "\n"))
-        try await Task.sleep(nanoseconds: 1_500_000_000)
-        let editor = try XCTUnwrap(EditorToolbarTests.pdfViews(in: env.view).first.flatMap(EditorToolbarTests.editor(of:)))
-        editor.pencilOnly = false
+    }
+
+    /// Viele kurze Striche schnell hintereinander mit echter Beruehrung (Punkte, i-Punkte, Kommas): Keiner geht
+    /// verloren, jeder bleibt an seiner Stelle - mit Glaettung Standard, Leicht und Aus.
+    func testVieleKurzeStricheSchnellHintereinanderGehenNichtVerloren() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        for smoothing in [PencilSmoothing.normal, .light, .off] {
+            UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
+            let fx = try await makeFixture(pages: 2)
+            let store = try await openStore(fx)
+            let shown = show(store, pencilOnly: false)
+            let editor = shown.editor
+            let overlay = try await waitForOverlay(editor, page: 0)
+            // im Simulator gibt es keinen Pencil: die Messpunkte kommen hier vom Finger
+            overlay.rawRecorder.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue), NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            let canvas = overlay.canvas
+            let log0 = ZeichnungSpion.log.count
+            let rebuilds0 = editor.rawRebuilds
+            let count = 36
+            var wanted: [CGPoint] = []
+            for i in 0..<count {
+                let page = CGPoint(x: 90 + CGFloat(i % 12) * 34, y: 200 + CGFloat(i / 12) * 34)
+                let a = overlay.content.convert(page, to: nil)
+                var pts: [CGPoint] = []
+                switch i % 3 {
+                case 0:                                                      // Punkt
+                    pts = [a, CGPoint(x: a.x + 0.5, y: a.y + 0.5)]
+                case 1:                                                      // Komma
+                    for k in 0...4 { pts.append(CGPoint(x: a.x - CGFloat(k) * 1.2, y: a.y + CGFloat(k) * 2.5)) }
+                default:                                                     // kurzer Bogen
+                    for k in 0...8 { pts.append(CGPoint(x: a.x + CGFloat(k) * 2.5, y: a.y + sin(CGFloat(k)) * 3)) }
+                }
+                let mid = CGPoint(x: (pts[0].x + pts[pts.count - 1].x) / 2, y: (pts[0].y + pts[pts.count - 1].y) / 2)
+                wanted.append(overlay.content.convert(mid, from: nil))
+                try await TestFinger.strich(pts, in: shown.window, step: 0.006)
+                try await Task.sleep(nanoseconds: 45_000_000)                // sofort der naechste
+            }
+            let until = Uhr.now() + 4
+            while Uhr.now() < until, canvas.drawing.strokes.count < count { try await Task.sleep(nanoseconds: 20_000_000) }
+            try await Task.sleep(nanoseconds: 1_200_000_000)
+            let strokes = canvas.drawing.strokes
+            let mitten = strokes.map { Self.mitte($0) }
+            // jede gewollte Stelle hat einen Strich in der Naehe
+            var missing = 0
+            for w in wanted where !mitten.contains(where: { hypot($0.x - w.x, $0.y - w.y) < 9 }) { missing += 1 }
+            let sets = ZeichnungSpion.log[log0...].filter { $0.canvas == ObjectIdentifier(canvas) && !$0.own }
+            let shrunk = sets.filter { $0.after < $0.before }.count
+            print("[Strich] \(count) kurze Striche schnell, Glaettung \(smoothing.rawValue): \(strokes.count) Striche in der Zeichnung, \(missing) Stellen ohne Strich; vom Programm neu gesetzt \(sets.count) Mal, davon mit weniger Strichen \(shrunk); aus Messpunkten neu gebaut \(editor.rawRebuilds - rebuilds0)")
+            XCTAssertEqual(strokes.count, count, "Glaettung \(smoothing.rawValue): kein Strich verloren")
+            XCTAssertEqual(missing, 0, "Glaettung \(smoothing.rawValue): jeder Strich an seiner Stelle")
+            XCTAssertEqual(shrunk, 0, "Glaettung \(smoothing.rawValue): die Zeichnung wurde nie kleiner gesetzt")
+            if smoothing == .normal { XCTAssertEqual(sets.count, 0, "Standard: nichts wird neu gesetzt") }
+            await store.flush()
+            let saved = await store.objects(forPageKey: "p1").filter { $0["type"]?.string == "stroke" }.count
+            XCTAssertEqual(saved, count, "Glaettung \(smoothing.rawValue): gespeichert")
+            await store.close()
+            hide(shown)
+        }
+    }
+
+    /// Bild fuer Bild: Nach dem Absetzen eines echten Strichs wird gut 1 s lang in jedem Durchlauf der Hauptschleife
+    /// das Bild des Fensters geprueft - die Tinte des neuen Strichs fehlt in keinem. Mit Glaettung Standard (nichts
+    /// wird ersetzt) und Aus bzw. Leicht (der Strich wird beim Absetzen einmal durch den aus den Messpunkten ersetzt).
+    func testNeuerStrichFehltInKeinemBildNachDemAbsetzen() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        // letzter Fall: Gegenprobe ohne Deckbild (so war es bis 17.11.2026) - dort fehlt die Tinte in einzelnen Bildern
+        let faelle: [(PencilSmoothing, Int, Bool)] = [(.normal, 0, true), (.off, 0, true), (.light, 300, true), (.off, 900, true), (.off, 300, false)]
+        addTeardownBlock { @MainActor in PencilTuning.coverWhenStrokeIsReplaced = true }
+        for (smoothing, vorhanden, deckbild) in faelle {
+            PencilTuning.coverWhenStrokeIsReplaced = deckbild
+            UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
+            let fx = try await makeFixture(pages: 2)
+            var store = try await openStore(fx)
+            if vorhanden > 0 {
+                store.canvasChanged(pageKey: "p1", drawing: Self.volleSeite(strokes: vorhanden, zeilen: 10))
+                await store.flush()
+                await store.close()
+                store = try await openStore(fx)
+            }
+            let shown = show(store, pencilOnly: false)
+            let editor = shown.editor
+            let overlay = try await waitForOverlay(editor, page: 0)
+            overlay.rawRecorder.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue), NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+            editor.tools.setWidth(6, for: .pen)                             // kraeftig, damit die Pixel sicher zaehlen
+            editor.tools.select(.pen)
+            try await Task.sleep(nanoseconds: 1_500_000_000)
+            let canvas = overlay.canvas
+            var worst = 1.0, frames = 0, gaps = 0, sets = 0
+            let rebuilds0 = editor.rawRebuilds
+            // die uebrige Schrift der Seite (oben): fehlt sie beim Ersetzen auch?
+            let rest = overlay.content.convert(CGRect(x: 30, y: 36, width: 320, height: 70), to: nil)
+            let restFull = vorhanden > 0 ? Self.dunkel(shown.window, rest) : 0
+            var restLeast = restFull
+            for i in 0..<4 {
+                // freie Stelle unter der vorhandenen Schrift (die fuellt die oberen zehn Zeilen)
+                let a = overlay.content.convert(CGPoint(x: 110 + CGFloat(i) * 110, y: 330), to: nil)
+                var pts: [CGPoint] = []
+                for k in 0...22 { pts.append(CGPoint(x: a.x + CGFloat(k) * 4, y: a.y + sin(CGFloat(k) / 3) * 14)) }
+                let region = CGRect(x: a.x - 8, y: a.y - 26, width: 104, height: 52)
+                let before = Self.dunkel(shown.window, region)
+                let log0 = ZeichnungSpion.log.count
+                let n0 = canvas.drawing.strokes.count
+                let finger = TestFinger(at: pts[0], in: shown.window)
+                for p in pts.dropFirst() {
+                    try await Task.sleep(nanoseconds: 8_000_000)
+                    finger.move(to: p)
+                }
+                try await Task.sleep(nanoseconds: 30_000_000)
+                let drawn = Self.dunkel(shown.window, region) - before          // Tinte des laufenden Strichs, Finger liegt noch auf
+                finger.lift()
+                var least = Int.max
+                var series: [Int] = []
+                let end = Uhr.now() + 1.2
+                while Uhr.now() < end {
+                    let now = Self.dunkel(shown.window, region) - before
+                    least = min(least, now)
+                    series.append(now)
+                    frames += 1
+                    if vorhanden > 0, frames % 2 == 0 { restLeast = min(restLeast, Self.dunkel(shown.window, rest)) }
+                    await Task.yield()
+                    try await Task.sleep(nanoseconds: 1_000_000)
+                }
+                let final = series.last ?? 0
+                XCTAssertGreaterThan(final, 150, "Messaufbau: der Strich ist im Bild zu sehen (\(final) dunkle Pixel)")
+                XCTAssertEqual(canvas.drawing.strokes.count, n0 + 1, "Strich angenommen")
+                let ratio = final > 0 ? Double(least) / Double(final) : 0
+                worst = min(worst, ratio)
+                if ratio < 0.6 { gaps += 1 }
+                sets += ZeichnungSpion.log[log0...].filter { $0.canvas == ObjectIdentifier(canvas) && !$0.own }.count
+                if i == 0 {
+                    let verlauf = series.prefix(40).map(String.init).joined(separator: " ")
+                    print("[Strich]   Verlauf dunkle Pixel (Strich 1, Glaettung \(smoothing.rawValue), \(vorhanden) vorhanden): beim Schreiben \(drawn), danach \(verlauf)")
+                }
+            }
+            let restText = vorhanden > 0 ? "; uebrige Schrift der Seite mindestens \(restFull > 0 ? restLeast * 100 / restFull : 100) % zu sehen" : ""
+            print("[Strich] Bild fuer Bild, Glaettung \(smoothing.rawValue), \(vorhanden) Striche vorhanden, \(deckbild ? "mit Deckbild" : "OHNE Deckbild (Gegenprobe, wie vorher)"): 4 Striche, \(frames) Bilder; wenigste Tinte \(Int(worst * 100)) % des Endstands; Striche mit Luecke \(gaps); vom Programm neu gesetzt \(sets) Mal; aus Messpunkten neu gebaut \(editor.rawRebuilds - rebuilds0)\(restText)")
+            if deckbild {
+                XCTAssertEqual(gaps, 0, "Glaettung \(smoothing.rawValue): die Tinte des neuen Strichs fehlt in keinem Bild")
+                if vorhanden > 0 { XCTAssertGreaterThan(restLeast * 100, restFull * 90, "die uebrige Schrift der Seite bleibt zu sehen") }
+            }
+            if smoothing != .normal { XCTAssertEqual(editor.rawRebuilds - rebuilds0, 4, "Messaufbau: jeder Strich wurde aus den Messpunkten neu gebaut") }
+            await store.close()
+            hide(shown)
+        }
+    }
+
+    /// Zaehlung je abgesetztem Strich in jeder Kombination der Einstellungen: wie oft setzt das Programm die Zeichnung
+    /// neu, wechselt die Zoomstufe der Zeichenflaeche, legt ein Deckbild.
+    func testZaehlungJeStrichInAllenEinstellungen() async throws {
+        let fx = try await makeFixture(pages: 2)
+        let store = try await openStore(fx)
+        let shown = show(store, pencilOnly: true)
+        defer { hide(shown) }
+        let editor = shown.editor
         let overlay = try await waitForOverlay(editor, page: 0)
-        let r = try await beobachte("ganze Dokumentansicht, echte Beruehrung, vier Striche", editor: editor, overlay: overlay, window: env.window,
-                                    strokes: 4, abstand: 0.4, order: .echt, warten: 10, tool: .pen, rohpunkte: false, gehalten: false)
-        pruefe(r, erlaubtNeu: 0)
-        await editor.store.close()
+        let canvas = overlay.canvas
+        try await Task.sleep(nanoseconds: 800_000_000)
+        var lines: [String: [String]] = [:]
+        var order: [String] = []
+        var n = 0, unexpected = 0
+        let tools: [EditorToolState.Tool] = [.pen, .fineliner, .marker]
+        for smoothing in [PencilSmoothing.normal, .light, .off] {
+            UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
+            for shapes in [true, false] {
+                UserDefaults.standard.set(shapes, forKey: ShapeSnapSetting.key)
+                for ruler in [false, true] {
+                    for tool in tools {
+                        for width in tool.widths {
+                            for held in [false, true] {
+                                editor.tools.setWidth(width, for: tool)
+                                editor.tools.select(tool)
+                                canvas.isRulerActive = ruler
+                                let log0 = ZeichnungSpion.log.count, z0 = PageInkView.rescalesMade, c0 = PageInkView.coversMade
+                                let before = canvas.drawing.strokes.count
+                                let p = CGPoint(x: 40 + CGFloat(n % 3) * 170, y: 40 + CGFloat((n / 3) % 18) * 40)
+                                let stroke = Self.strich(at: p, n: n, marker: tool == .marker, gehalten: held)
+                                Self.meldeStrich(stroke, on: overlay, editor: editor, order: .absetzenZuerst, rohpunkte: true)
+                                n += 1
+                                let sets = ZeichnungSpion.log[log0...].filter { $0.canvas == ObjectIdentifier(canvas) && !$0.own }
+                                let zooms = PageInkView.rescalesMade - z0, covers = PageInkView.coversMade - c0
+                                XCTAssertEqual(canvas.drawing.strokes.count, before + 1)
+                                XCTAssertTrue(sets.allSatisfy { $0.after == $0.before }, "nie kleiner gesetzt")
+                                XCTAssertEqual(zooms, 0, "kein Zoomwechsel der Zeichenflaeche beim Absetzen")
+                                // ein Ersetzen ist nur gewollt, wenn die Einstellung es verlangt: Glaettung Leicht/Aus
+                                // (nicht mit Lineal) oder eine erkannte Form (am Ende gehalten, nicht Textmarker)
+                                let mayReplace = (smoothing != .normal && !ruler) || (shapes && held && tool != .marker)
+                                if !mayReplace, !sets.isEmpty { unexpected += 1 }
+                                XCTAssertLessThanOrEqual(sets.count, 1, "hoechstens einmal je Strich")
+                                let key = "Glaettung \(smoothing.rawValue), Formen \(shapes ? "an" : "aus"), Lineal \(ruler ? "an" : "aus"), \(tool.rawValue), \(held ? "am Ende gehalten" : "normal")"
+                                if lines[key] == nil { order.append(key) }
+                                lines[key, default: []].append("\(sets.count)/\(zooms)/\(covers)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        canvas.isRulerActive = false
+        var report: [String] = []
+        for key in order {
+            let values = lines[key] ?? []
+            let same = Set(values).count == 1
+            report.append("\(key): " + (same ? "\(values[0]) bei allen \(values.count) Staerken" : values.joined(separator: " ")))
+        }
+        print("[Strich] Zaehlung je Strich (neu gesetzt/Zoomwechsel/Deckbild), \(n) Striche:\n  " + report.joined(separator: "\n  "))
+        XCTAssertEqual(unexpected, 0, "ohne Glaettung Leicht/Aus und ohne erkannte Form wird nie neu gesetzt")
+        await store.close()
+    }
+
+    /// Grenzen von PencilKit fuer die Strichstaerke je Tinte (so duenn und so dick geht es), dazu die Stufen der Leiste
+    func testGrenzenDerStrichstaerkeVonPencilKit() throws {
+        var out: [String] = []
+        let types: [(String, PKInkingTool.InkType)] = [("Stift (pen)", .pen), ("Fineliner (monoline)", .monoline), ("Textmarker (marker)", .marker),
+                                                        ("Bleistift (pencil)", .pencil), ("Fueller (fountainPen)", .fountainPen),
+                                                        ("Wasserfarbe (watercolor)", .watercolor), ("Kreide (crayon)", .crayon)]
+        for (name, type) in types {
+            let r = type.validWidthRange
+            out.append(String(format: "%@: %.4f bis %.2f pt, Vorgabe %.2f", name, r.lowerBound, r.upperBound, type.defaultWidth))
+        }
+        let tools: [EditorToolState.Tool] = [.pen, .fineliner, .marker]
+        for t in tools {
+            out.append("Stufen \(t.rawValue): " + t.widths.map { String(format: "%.2f", $0) }.joined(separator: " / "))
+        }
+        print("[Strich] Strichstaerken von PencilKit (Seitenpunkte; 1 pt = 0,353 mm auf dem Papier):\n  " + out.joined(separator: "\n  "))
+        XCTAssertEqual(PKInkingTool.InkType.monoline.validWidthRange.lowerBound, 0.5, accuracy: 0.01)
+        XCTAssertLessThan(PKInkingTool.InkType.pen.validWidthRange.lowerBound, 0.9)
+    }
+
+    // MARK: Stiftgefuehl: was PencilKit hergibt (Messung)
+
+    /// Messung fuer "Striche noch duenner" und "gleichmaessiger": echte Striche (Finger) mit dem Stift auf der duennsten
+    /// Stufe, dem Fineliner, mit Breiten UNTER der Grenze von PencilKit, und derselbe Strich mit halbierten
+    /// Punktgroessen. Ausgegeben: Breite, die das Werkzeug wirklich annimmt, Punktgroessen des Strichs und die
+    /// gezeichnete Dicke (aus dem Bild gemessen).
+    func testMessungWieDuennPencilKitSchreibt() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let fx = try await makeFixture(pages: 2)
+        let store = try await openStore(fx)
+        let shown = show(store, pencilOnly: false)
+        defer { hide(shown) }
+        let editor = shown.editor
+        let overlay = try await waitForOverlay(editor, page: 0)
+        let canvas = overlay.canvas
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+        let faelle: [(String, PKInkingTool)] = [
+            ("Stift, duennste Stufe 0,88", PKInkingTool(.pen, color: .black, width: 0.88)),
+            ("Stift, verlangt 0,40 (unter der Grenze)", PKInkingTool(.pen, color: .black, width: 0.4)),
+            ("Fineliner, duennste Stufe 0,50", PKInkingTool(.monoline, color: .black, width: 0.5)),
+            ("Fineliner, verlangt 0,35 (unter der Grenze)", PKInkingTool(.monoline, color: .black, width: 0.35)),
+            ("Fineliner, verlangt 0,25 (unter der Grenze)", PKInkingTool(.monoline, color: .black, width: 0.25)),
+            ("Fineliner, verlangt 0,10 (unter der Grenze)", PKInkingTool(.monoline, color: .black, width: 0.1)),
+            ("Fueller, duennste 1,50", PKInkingTool(.fountainPen, color: .black, width: 1.5)),
+            ("Bleistift, duennste 2,40", PKInkingTool(.pencil, color: .black, width: 2.4)),
+        ]
+        var out: [String] = []
+        for (i, fall) in faelle.enumerated() {
+            canvas.tool = fall.1
+            let taken = (canvas.tool as? PKInkingTool)?.width ?? -1
+            let a = overlay.content.convert(CGPoint(x: 100, y: 100 + CGFloat(i) * 36), to: nil)
+            var pts: [CGPoint] = []
+            for k in 0...40 { pts.append(CGPoint(x: a.x + CGFloat(k) * 5, y: a.y)) }
+            let n0 = canvas.drawing.strokes.count
+            try await TestFinger.strich(pts, in: shown.window, step: 0.008)
+            let until = Uhr.now() + 3
+            while Uhr.now() < until, canvas.drawing.strokes.count == n0 { try await Task.sleep(nanoseconds: 20_000_000) }
+            guard let stroke = canvas.drawing.strokes.last, canvas.drawing.strokes.count == n0 + 1 else {
+                out.append("\(fall.0): kein Strich")
+                continue
+            }
+            let sizes = (0..<stroke.path.count).map { stroke.path[$0].size.width }
+            let drawn = Self.dicke(stroke)
+            out.append(String(format: "%@: Werkzeug nimmt %.2f an; Punktgroessen %.2f bis %.2f; gezeichnet %.2f pt dick (%.2f mm auf dem Papier)",
+                              fall.0, taken, sizes.min() ?? 0, sizes.max() ?? 0, drawn, drawn * 0.3528))
+            // derselbe Strich mit halben Punktgroessen (so koennte ein Strich NACH dem Absetzen duenner werden)
+            if i == 0 || i == 2 {
+                let half = (0..<stroke.path.count).map { k -> PKStrokePoint in
+                    let p = stroke.path[k]
+                    return PKStrokePoint(location: p.location, timeOffset: p.timeOffset, size: CGSize(width: p.size.width / 2, height: p.size.height / 2),
+                                         opacity: p.opacity, force: p.force, azimuth: p.azimuth, altitude: p.altitude)
+                }
+                let thinner = PKStroke(ink: stroke.ink, path: PKStrokePath(controlPoints: half, creationDate: stroke.path.creationDate), transform: stroke.transform)
+                out.append(String(format: "   derselbe Strich mit halben Punktgroessen: gezeichnet %.2f pt dick", Self.dicke(thinner)))
+            }
+        }
+        print("[Strich] Was PencilKit beim Schreiben hergibt (Finger, gleichmaessiger Druck):\n  " + out.joined(separator: "\n  "))
+        await store.close()
+    }
+
+    /// Gezeichnete Dicke eines waagerechten Strichs in Seitenpunkten: Bild von PencilKit in 16-facher Aufloesung, in
+    /// fuenf Spalten die Deckung aufsummiert (Median)
+    static func dicke(_ stroke: PKStroke) -> CGFloat {
+        let rect = stroke.renderBounds.insetBy(dx: -3, dy: -3)
+        let scale: CGFloat = 16
+        var image = UIImage()
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            image = PKDrawing(strokes: [stroke]).image(from: rect, scale: scale)
+        }
+        guard let cg = image.cgImage else { return 0 }
+        let w = cg.width, h = cg.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var runs: [CGFloat] = []
+        for k in 1...5 {
+            let x = w * k / 6
+            var sum = 0.0
+            for y in 0..<h { sum += Double(px[(y * w + x) * 4 + 3]) / 255 }      // Deckung aufsummiert (auch halbe Pixel)
+            runs.append(CGFloat(sum) / scale)
+        }
+        return runs.sorted()[2]
     }
 
     // MARK: Ablauf
@@ -192,7 +539,7 @@ final class EditorStrichBleibtTests: XCTestCase {
     /// Dokument mit eigener Datenbank oeffnen (wie in der App: Journal, Speicher-Runden mit den Standardzeiten), auf
     /// Seite 1 `vorhanden` Striche, dann `strokes` Striche schreiben und `warten` Sekunden beobachten
     private func lauf(_ name: String, strokes: Int, abstand: Double = 0.3, vorhanden: Int, order: Reihenfolge, warten: Double,
-                      tool: EditorToolState.Tool = .pen, rohpunkte: Bool = false, gehalten: Bool = false) async throws -> Ergebnis {
+                      tool: EditorToolState.Tool = .pen, rohpunkte: Bool = false, gehalten: Bool = false, deckbild: Bool = false) async throws -> Ergebnis {
         let fx = try await makeFixture(pages: 3)
         var store = try await openStore(fx)
         if vorhanden > 0 {
@@ -208,7 +555,7 @@ final class EditorStrichBleibtTests: XCTestCase {
         // erst schreiben, wenn nach dem Oeffnen alles steht (Laden, erste Runden)
         try await Task.sleep(nanoseconds: 1_500_000_000)
         let r = try await beobachte(name, editor: shown.editor, overlay: overlay, window: shown.window, strokes: strokes, abstand: abstand,
-                                    order: order, warten: warten, tool: tool, rohpunkte: rohpunkte, gehalten: gehalten)
+                                    order: order, warten: warten, tool: tool, rohpunkte: rohpunkte, gehalten: gehalten, deckbild: deckbild)
         // nichts verloren: nach dem Sichern stehen alle Striche im gespeicherten Stand
         await store.flush()
         let saved = await store.objects(forPageKey: "p1").filter { $0["type"]?.string == "stroke" }.count
@@ -218,7 +565,8 @@ final class EditorStrichBleibtTests: XCTestCase {
     }
 
     private func beobachte(_ name: String, editor: PDFEditorController, overlay: PageInkView, window: UIWindow, strokes: Int, abstand: Double,
-                           order: Reihenfolge, warten: Double, tool: EditorToolState.Tool, rohpunkte: Bool, gehalten: Bool) async throws -> Ergebnis {
+                           order: Reihenfolge, warten: Double, tool: EditorToolState.Tool, rohpunkte: Bool, gehalten: Bool,
+                           deckbild: Bool = false) async throws -> Ergebnis {
         editor.tools.select(tool)
         try await Task.sleep(nanoseconds: 300_000_000)
         var r = Ergebnis()
@@ -244,8 +592,9 @@ final class EditorStrichBleibtTests: XCTestCase {
             most = max(most, n)
             if canvas.alpha != 1 || canvas.isHidden { r.verstoesse.append("\(t): Zeichenflaeche nicht sichtbar (alpha \(canvas.alpha), versteckt \(canvas.isHidden))") }
             if abs(canvas.zoomScale - zoom0) > 0.001 { r.verstoesse.append("\(t): Zoomstufe der Zeichenflaeche \(zoom0) -> \(canvas.zoomScale)") }
+            // wird der Strich gewollt ersetzt (Form, Glaettung), liegt solange ein Deckbild darueber: kein Verstoss
             let l = Self.layers(overlay)
-            if l != layers0 { r.verstoesse.append("\(t): Ebenen der Seite geaendert: \(layers0) -> \(l)") }
+            if l != layers0, !deckbild { r.verstoesse.append("\(t): Ebenen der Seite geaendert: \(layers0) -> \(l)") }
             if ObjectIdentifier(editor) != editorID || editor.view.window == nil { r.verstoesse.append("\(t): Editor neu aufgebaut") }
             let live = editor.allOverlays.first { $0.pageIndex == pageIndex && $0.window != nil && $0.generation == editor.shownLayoutVersion }
             if live !== overlay { r.verstoesse.append("\(t): Seite neu aufgebaut") }
@@ -314,7 +663,7 @@ final class EditorStrichBleibtTests: XCTestCase {
     }
 
     /// Dunkle Pixel im Bild des Fensters in `rect` (Punkte des Fensters), wie es auf dem Bildschirm steht
-    private static func dunkel(_ window: UIWindow, _ rect: CGRect) -> Int {
+    static func dunkel(_ window: UIWindow, _ rect: CGRect) -> Int {
         let r = rect.intersection(window.bounds).integral
         guard !r.isNull, r.width > 2, r.height > 2 else { return 0 }
         let format = UIGraphicsImageRendererFormat()
@@ -391,8 +740,33 @@ final class EditorStrichBleibtTests: XCTestCase {
         return PKStroke(ink: ink, path: PKStrokePath(controlPoints: pts, creationDate: Date().addingTimeInterval(-2)))
     }
 
+    /// Gerade Linie, vor `vor` Sekunden begonnen (0,3 s lang gezogen, nicht gehalten)
+    private static func gerade(from a: CGPoint, to b: CGPoint, vor: TimeInterval) -> PKStroke {
+        let pts = (0..<30).map { i -> PKStrokePoint in
+            let t = CGFloat(i) / 29
+            return PKStrokePoint(location: CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t), timeOffset: Double(i) * 0.01,
+                                 size: CGSize(width: 2.4, height: 2.4), opacity: 1, force: 0.9, azimuth: 0.8, altitude: 1.1)
+        }
+        return PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: Date().addingTimeInterval(-vor)))
+    }
+
+    /// Messpunkte wie vom Stift entlang eines Strichs (240 je Sekunde)
+    private static func rohpunkte(_ stroke: PKStroke) -> [RawPencilSample] {
+        let n = stroke.path.count
+        return (0..<((n - 1) * 4 + 1)).map { i in
+            let p = stroke.path.interpolatedLocation(at: CGFloat(i) / 4)
+            return RawPencilSample(location: p.applying(stroke.transform), time: 500 + Double(i) / 240)
+        }
+    }
+
+    /// Mitte eines Strichs (Seitenpunkte)
+    private static func mitte(_ s: PKStroke) -> CGPoint {
+        let b = s.renderBounds
+        return CGPoint(x: b.midX, y: b.midY)
+    }
+
     /// Dicht beschriebene Seite wie echte Handschrift (je Strich 30 bis 50 Punkte), obere zwei Drittel der Seite
-    static func volleSeite(strokes count: Int) -> PKDrawing {
+    static func volleSeite(strokes count: Int, zeilen: Int = 22) -> PKDrawing {
         var seed: UInt64 = 0x5712_1C40
         func next() -> UInt64 {
             seed &+= 0x9E37_79B9_7F4A_7C15
@@ -403,7 +777,7 @@ final class EditorStrichBleibtTests: XCTestCase {
         }
         var strokes: [PKStroke] = []
         for s in 0..<count {
-            let line = (s / 40) % 22, col = s % 40
+            let line = (s / 40) % zeilen, col = s % 40
             let x0 = 30 + CGFloat(col) * 13.5 + CGFloat(next() % 4)
             let y0 = 40 + CGFloat(line) * 21 + CGFloat(next() % 5)
             let n = 30 + Int(next() % 21)
@@ -421,19 +795,19 @@ final class EditorStrichBleibtTests: XCTestCase {
 
     // MARK: Aufbau
 
-    private struct Fixture {
+    struct Fixture {
         let root: URL
         let api: APIClient
         let file: LibFile
     }
 
-    private struct Shown {
+    struct Shown {
         let editor: PDFEditorController
         let window: UIWindow
     }
 
     /// Eigene Datenbank und PDF in einem Temp-Ordner
-    private func makeFixture(pages: Int) async throws -> Fixture {
+    func makeFixture(pages: Int) async throws -> Fixture {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-strich-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: temp) }
@@ -461,7 +835,7 @@ final class EditorStrichBleibtTests: XCTestCase {
         return Fixture(root: root, api: api, file: file)
     }
 
-    private func openStore(_ fx: Fixture) async throws -> DocumentStore {
+    func openStore(_ fx: Fixture) async throws -> DocumentStore {
         let store = DocumentStore(file: fx.file, api: fx.api, root: fx.root)
         await store.load()
         XCTAssertNil(store.errorMessage, store.errorMessage ?? "")
@@ -469,7 +843,7 @@ final class EditorStrichBleibtTests: XCTestCase {
     }
 
     /// Fenster wie ein iPad quer (1080 x 810 pt)
-    private func show(_ store: DocumentStore, pencilOnly: Bool) -> Shown {
+    func show(_ store: DocumentStore, pencilOnly: Bool) -> Shown {
         let suite = "uniflow.tests.strich-werkzeuge.\(UUID().uuidString)"
         let toolDefaults = UserDefaults(suiteName: suite) ?? .standard
         addTeardownBlock { toolDefaults.removePersistentDomain(forName: suite) }
@@ -486,14 +860,14 @@ final class EditorStrichBleibtTests: XCTestCase {
         return Shown(editor: editor, window: window)
     }
 
-    private func hide(_ shown: Shown) {
+    func hide(_ shown: Shown) {
         guard shown.window.rootViewController != nil else { return }
         shown.editor.showToolPicker(false)
         shown.window.isHidden = true
         shown.window.rootViewController = nil
     }
 
-    private func waitForOverlay(_ editor: PDFEditorController, page: Int, timeout: Double = 20) async throws -> PageInkView {
+    func waitForOverlay(_ editor: PDFEditorController, page: Int, timeout: Double = 20) async throws -> PageInkView {
         let end = Uhr.now() + timeout
         while Uhr.now() < end {
             if let o = editor.allOverlays.first(where: { $0.pageIndex == page && $0.window != nil && $0.generation == editor.shownLayoutVersion }),
