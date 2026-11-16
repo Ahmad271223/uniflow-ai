@@ -146,6 +146,8 @@ struct LibraryView: View {
     @State private var fileSelection: String?
     @State private var query = ""
     @State private var columns: NavigationSplitViewVisibility = .all
+    /// Breitenklasse des Fensters; am iPad bekommen die Spalten sie zurueck, die Teilung selbst nicht (`splitView`)
+    @Environment(\.horizontalSizeClass) private var windowSizeClass
     /// Kompakt (iPhone): gleich das Dokument zeigen. Sonst stand erst die Dokumentliste da und das Dokument schob sich
     /// darueber; Zurueck fuehrt ueber das eigene "Zurück" des Dokuments zur vorigen Seite der App
     @State private var compactColumn: NavigationSplitViewColumn = .detail
@@ -211,6 +213,18 @@ struct LibraryView: View {
 
     /// iPhone: beim Zusammenklappen zuerst das Dokument (`compactColumn`); iPad (auch schmal) wie bis Build 32 ohne
     /// bevorzugte Spalte (Vorgabe 11.11.2026: iPad unveraendert)
+    ///
+    /// iPad: Die Teilung selbst gilt immer als breit (`.regular`), damit sie nie zwischen "Spalten" und "Stapel"
+    /// wechselt (Absturz 15.11.2026 am iPad Air mit iPadOS 18; ebenso iPadOS 26 und Version 1.0.4). Wurde das Fenster
+    /// schmal, schob UIKit die beiden Listen in den Stapel des Dokuments, dessen Navigationsleiste ausgeblendet ist
+    /// ("Oben fest"). Wurde es wieder breit - auch nur fuer die Bilder, die iPadOS im Hintergrund in mehreren Groessen
+    /// macht -, hing der Titel "Dokumente" noch an der ausgeblendeten Leiste und UIKit brach ab ("Layout requested for
+    /// visible navigation bar … when the top item belongs to a different navigation bar"). Mit sichtbarer Leiste
+    /// ("Unten fest", "Schwebend") stuerzte nichts ab, dafuer lag danach die Dokumentliste ueber dem Dokument.
+    /// Suchfeld und Knoepfe der Listen spielen keine Rolle (einzeln geprueft). Die Listen bleiben Spalten, die sich wie
+    /// bisher vom linken Rand ueber das Dokument ziehen lassen. Der Inhalt der Spalten bekommt die echte Breitenklasse
+    /// des Fensters zurueck (`windowSizeClass`) und sieht aus wie vorher.
+    /// Test: `LayoutWidthAuditTests.testGroessenwechselWieBeimHintergrundbild`.
     @ViewBuilder private var splitView: some View {
         if UFCompact.phoneLayouts {
             NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
@@ -222,12 +236,13 @@ struct LibraryView: View {
             }
         } else {
             NavigationSplitView(columnVisibility: $columns) {
-                sidebarColumn
+                sidebarColumn.environment(\.horizontalSizeClass, windowSizeClass)
             } content: {
-                contentColumn
+                contentColumn.environment(\.horizontalSizeClass, windowSizeClass)
             } detail: {
-                detailColumn
+                detailColumn.environment(\.horizontalSizeClass, windowSizeClass)
             }
+            .environment(\.horizontalSizeClass, .regular)
         }
     }
 

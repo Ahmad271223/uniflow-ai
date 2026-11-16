@@ -166,10 +166,17 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     assert r[43]["status"].startswith("nur TestFlight, nur interne Gruppe „Intern (Inhaber)“")
     for must in ("NICHT an „LUH-Tester“", "keine Beta-Prüfung", "nicht eingereicht", "Der Dienst läuft noch auf `fc66fba4`"):
         assert must in r[43]["status"], must
-    assert r[44]["commit"] is None and r[44]["status"] == "noch nicht hochgeladen; develop nach Build 43"
-    assert r[44]["content"] == "Änderungen nach `e2e26e56`" and project_build() == 44
+    # Build 44 (16.11.2026): Hotfix 1.0.5 aus 10cf2836 (Store-Stand + Absturz-Korrektur + Speicher-Runde nach dem
+    # Schliessen), 23:42 eingereicht; develop ist Build 45 (Version 1.0.6)
+    assert r[44]["commit"] == "10cf2836" and r[44]["date"] == "16.11.2026 23:37"
+    assert r[44]["status"].startswith("eingereicht: Version 1.0.5 am 16.11.2026 23:42 zur Prüfung gegeben")
+    for must in ("WAITING_FOR_REVIEW", "Freigabe nach der Prüfung von Hand", "`release/1.0.5-hotfix`", "`ios-1.0.5-b44`", "Server unverändert auf `fc66fba4`"):
+        assert must in r[44]["status"], must
+    for must in ("Stand der Store-Version 1.0.4 (Build 42, `fc66fba4`) plus genau zwei Korrekturen", "`Views.swift`", "`SyncEngine.swift`", "iPadOS 26.2"):
+        assert must in r[44]["content"], must
+    assert r[45]["commit"] is None and r[45]["status"] == "noch nicht hochgeladen; develop nach Build 44" and project_build() == 45
     doc = DOC.read_text(encoding="utf-8")
-    assert submitted() is None
+    assert submitted() == 44
     assert "Im App Store: 1.0.4 mit Build 42 seit 16.11.2026 10:49 (von Apple genehmigt, vom Inhaber freigegeben)." in doc
     assert "keine Version" not in doc and "mit Build 41 seit" not in doc
     # seit Build 40 nicht mehr nur LUH, seit Build 39 nicht mehr nur iPad
@@ -180,7 +187,7 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     assert "Build 42 als Version 1.0.4 veröffentlicht am 16.11.2026 10:49 (eingereicht am 15.11.2026 10:13" in row, row
     assert "Builds 36 bis 40 (1.0.4) nur TestFlight" in row and "noch nicht eingereicht" not in row, row
     head = store.splitlines()[2]
-    assert "für StudiNow 1.0.4 (Build 42 ist seit 16.11.2026 10:49 als Version 1.0.4 veröffentlicht" in head
+    assert "Build 42 ist seit 16.11.2026 10:49 als Version 1.0.4 veröffentlicht" in head and "Build 44 ist seit 16.11.2026 23:42 als Version 1.0.5 in der Prüfung" in head
     assert "noch nicht eingereicht" not in head
     assert "10 iPad-Bilder und\n7 iPhone-Bilder, alle COMPLETE" in store
     assert "Die neue Einreichung vom 15.11.2026 mit Build 42 nutzt dieselben Texte und Bilder\nunverändert." in store
