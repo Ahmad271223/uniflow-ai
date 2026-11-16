@@ -558,6 +558,8 @@ final class LayoutWidthAuditTests: XCTestCase {
     /// nicht als Simulator: am echten iPad von Hand pruefen (Dokument oeffnen, App mehrmals in den Hintergrund und
     /// zurueck, Split View auf ein Drittel und wieder breit).
     func testGroessenwechselWieBeimHintergrundbild() throws {
+        // nur iPad: am iPhone klappt die Teilung mit Absicht zum Stapel zusammen (dort unveraendert)
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .phone, "nur iPad")
         let env = try host(MainView())
         UserDefaults.standard.set("full", forKey: "sidebar")
         defer { UserDefaults.standard.removeObject(forKey: EditorToolbarPlacement.key) }
@@ -605,6 +607,8 @@ final class LayoutWidthAuditTests: XCTestCase {
     /// Dokumentliste), der Editor bleibt derselbe. Die Dokumentliste mit Suchfeld und "PDF importieren" laesst sich
     /// weiter hereinholen und wieder schliessen.
     func testDokumentImSchmalenFensterDannBreit() throws {
+        // nur iPad: am iPhone klappt die Teilung mit Absicht zum Stapel zusammen (dort unveraendert)
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .phone, "nur iPad")
         let env = try host(MainView())
         Self.resize(env, CGSize(width: 375, height: 820), .compact)
         env.router.go(.doc("demo-skript"))
@@ -642,6 +646,8 @@ final class LayoutWidthAuditTests: XCTestCase {
     /// Groessenwechsel auch mit iPadOS 26. Betroffen war nur die geteilte Ansicht des Dokuments
     /// (`NavigationSplitView`, die einzige der App), weil nur sie Seiten zwischen zwei Navigationsleisten umhaengt.
     func testGroessenwechselImStapelMitSuchfeld() throws {
+        // nur iPad: am iPhone klappt die Teilung mit Absicht zum Stapel zusammen (dort unveraendert)
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .phone, "nur iPad")
         struct Stapel: View {
             @State var query = ""
             @State var path: [Int]
