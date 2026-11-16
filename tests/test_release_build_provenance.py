@@ -146,7 +146,9 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     r = rows()
     b = r[42]
     assert b["commit"] == "fc66fba4" and b["date"] == "15.11.2026 10:11"
-    assert b["status"].startswith("eingereicht: Version 1.0.4 am 15.11.2026 10:13 neu zur Prüfung gegeben")
+    # 16.11.2026 10:49: von Apple genehmigt und vom Inhaber freigegeben
+    assert b["status"].startswith("veröffentlicht: Version 1.0.4 am 16.11.2026 10:49 vom Inhaber freigegeben (von Apple genehmigt, READY_FOR_SALE")
+    assert "eingereicht: Version 1.0.4 am 15.11.2026 10:13 neu zur Prüfung gegeben" in b["status"]
     for must in ("App Store WAITING_FOR_REVIEW", "Freigabe nach der Prüfung von Hand", "ersetzt den zurückgezogenen Build 41",
                  "Texte und Bilder unverändert vom 14.11.2026",
                  "Server seit 15.11.2026 01:17 auf demselben Commit (`DEPLOY-DIENST-2026-11-15.md`)",
@@ -167,23 +169,23 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     assert r[44]["commit"] is None and r[44]["status"] == "noch nicht hochgeladen; develop nach Build 43"
     assert r[44]["content"] == "Änderungen nach `e2e26e56`" and project_build() == 44
     doc = DOC.read_text(encoding="utf-8")
-    assert submitted() == 42
-    assert "In der Prüfung bei Apple: 1.0.4 mit Build 42 seit 15.11.2026 10:13." in doc
+    assert submitted() is None
+    assert "Im App Store: 1.0.4 mit Build 42 seit 16.11.2026 10:49 (von Apple genehmigt, vom Inhaber freigegeben)." in doc
     assert "keine Version" not in doc and "mit Build 41 seit" not in doc
     # seit Build 40 nicht mehr nur LUH, seit Build 39 nicht mehr nur iPad
     assert "bis Build 39\n`UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), ab Build 40 `luh hildesheim`" in doc
     assert "Alle Builds: Release, `UF_SHIPPED_UNIVERSITIES=luh`" not in doc and "(StudiNow 1.0 und 1.0.1)" not in doc
     store = STORE.read_text(encoding="utf-8")
     row = next(line for line in store.splitlines() if line.startswith("| Version, Build |"))
-    assert "Build 42 in der Prüfung (Version 1.0.4, eingereicht am 15.11.2026 10:13, WAITING_FOR_REVIEW" in row, row
+    assert "Build 42 als Version 1.0.4 veröffentlicht am 16.11.2026 10:49 (eingereicht am 15.11.2026 10:13" in row, row
     assert "Builds 36 bis 40 (1.0.4) nur TestFlight" in row and "noch nicht eingereicht" not in row, row
     head = store.splitlines()[2]
-    assert "für StudiNow 1.0.4 (Build 42 ist seit 15.11.2026 10:13 in der Prüfung bei Apple, WAITING_FOR_REVIEW" in head
+    assert "für StudiNow 1.0.4 (Build 42 ist seit 16.11.2026 10:49 als Version 1.0.4 veröffentlicht" in head
     assert "noch nicht eingereicht" not in head
     assert "10 iPad-Bilder und\n7 iPhone-Bilder, alle COMPLETE" in store
     assert "Die neue Einreichung vom 15.11.2026 mit Build 42 nutzt dieselben Texte und Bilder\nunverändert." in store
     sheet = (REL / "EINREICHUNG-1-0-4.md").read_text(encoding="utf-8")
-    assert "1.0.4 ist mit Build 42 eingereicht" in sheet and "**eingereicht am 15.11.2026 um 10:13** mit Build 42" in sheet
+    assert "1.0.4 mit Build 42 ist seit 16.11.2026 10:49 veröffentlicht" in sheet and "**eingereicht am 15.11.2026 um 10:13** mit Build 42" in sheet
     assert "WAITING_FOR_REVIEW" in sheet and "noch nicht zur Prüfung eingereicht" not in sheet
     assert "`DEPLOY-DIENST-2026-11-15.md`" in sheet and "unverändert vom 14.11.2026" in sheet
     steps = sheet[sheet.index("## Reihenfolge in App Store Connect"):sheet.index("## 1. Name der App")]
