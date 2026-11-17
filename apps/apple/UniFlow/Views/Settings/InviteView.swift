@@ -194,7 +194,7 @@ enum InviteQR {
 
 // MARK: - Karte in den Einstellungen
 
-/// Einstellungen → Zugang & Darstellung → "Freunde einladen": kurzer Text und der Weg zur Seite; ohne Konto der Hinweis
+/// Einstellungen → Konto & Tarif → "Freunde einladen": kurzer Text und der Weg zur Seite; ohne Konto der Hinweis
 struct InviteCard: View {
     @ObservedObject var link: StudoraAccountLink
     @State private var open = false

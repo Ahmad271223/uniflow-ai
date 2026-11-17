@@ -48,7 +48,7 @@ struct UniRememberPasswordToggle: View {
     }
 }
 
-/// Karte "Uni-Zugang" (Einstellungen, Zugang & Darstellung, erste Karte unter Studium): Schalter "Benutzername und Passwort sind überall gleich"; an: ein
+/// Karte "Uni-Zugang" (Einstellungen, erste Karte unter "Uni-Zugang & Abgleich"): Schalter "Benutzername und Passwort sind überall gleich"; an: ein
 /// Formular fuer alle Dienste, aus: Stud.IP, QIS und Uni-Mail (SOGo) untereinander, jedes mit eigenem Formular,
 /// Status und "Entfernen". Gilt fuer den offenen Container (Apple-Nutzer und Hochschule).
 struct UniAutoLoginCard: View {
