@@ -23,24 +23,25 @@ final class IPhoneNavigationTests: XCTestCase {
     // MARK: - Untere Leiste und "Mehr"
 
     func testTabBarIsStartCalendarModulesDocumentsMore() {
-        XCTAssertEqual(UFNavItem.mobile.map(\.id), ["dashboard", "plan", "modules", "files", "more"])
-        XCTAssertEqual(UFNavItem.mobile.map(\.title), ["Start", "Kalender", "Module", "Dokumente", "Mehr"])
+        // ohne Lernkalender (Auftrag 17.11.2026) steht der Stundenplan an Stelle von "Kalender"
+        XCTAssertEqual(UFNavItem.mobile.map(\.id), ["dashboard", "timetable", "modules", "files", "more"])
+        XCTAssertEqual(UFNavItem.mobile.map(\.title), ["Start", "Stundenplan", "Module", "Dokumente", "Mehr"])
     }
 
     /// Jeder sichtbare Bereich ist genau einmal erreichbar: in der Leiste oder in "Mehr"; Einstellungen immer zuletzt
     func testMoreListsEveryOtherVisibleAreaPerPlatformAndPlan() {
         let cases: [(name: String, visible: [UFNavItem], more: [String])] = [
             ("iPhone ohne KI", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true),
-             ["timetable", "studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
+             ["studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
             ("iPhone mit KI und Nachrichten", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true, messages: true),
-             ["messages", "timetable", "studyplan", "exams", "cards", "services", "mensa", "rooms", "community", "settings"]),
+             ["messages", "studyplan", "exams", "cards", "services", "mensa", "rooms", "community", "settings"]),
             // Uni-Mail (LUH, 05.11.2026) und Raumfinder stehen in "Mehr" (nicht in der Leiste)
             ("iPhone LUH mit Uni-Mail", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, messages: true, uniMail: true),
-             ["messages", "unimail", "timetable", "studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
+             ["messages", "unimail", "studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
             ("ohne iCloud", UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: true),
-             ["timetable", "studyplan", "cards", "services", "mensa", "rooms", "settings"]),
+             ["studyplan", "cards", "services", "mensa", "rooms", "settings"]),
             ("eigener Server", UFNavItem.visible(local: false, gradesOnDevice: true, community: true),
-             ["timetable", "studyplan", "exams", "services", "mensa", "rooms", "community", "settings"]),
+             ["studyplan", "exams", "services", "mensa", "rooms", "community", "settings"]),
         ]
         for c in cases {
             let more = UFNavItem.more(visible: c.visible)
@@ -55,10 +56,10 @@ final class IPhoneNavigationTests: XCTestCase {
 
     func testMoreIsMarkedForItsAreasAndCountsTheirBadges() {
         let more = UFNavItem.more(visible: UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, messages: true))
-        for r in [UFRoute.messages, .timetable(), .studyPlan(), .cards, .services, .community, .communitySpace("x"), .settings()] {
+        for r in [UFRoute.messages, .studyPlan(), .cards, .services, .community, .communitySpace("x"), .settings()] {
             XCTAssertTrue(UFMobileNav.moreActive(r, items: more), "\(r)")
         }
-        for r in [UFRoute.dashboard, .plan(), .modules, .module(3), .files(), .doc("d")] {
+        for r in [UFRoute.dashboard, .timetable(), .modules, .module(3), .files(), .doc("d")] {
             XCTAssertFalse(UFMobileNav.moreActive(r, items: more), "\(r)")
         }
         XCTAssertEqual(UFMobileNav.moreBadge(["messages": 3, "community": 2, "dashboard": 9], items: more), 5)
@@ -140,7 +141,7 @@ final class IPhoneNavigationTests: XCTestCase {
         let env = try shell(compact: true, size: CGSize(width: 402, height: 874))
         let found = ids(env.view)
         for id in ["header.home", "header.search", "header.sync", "header.profile",
-                   "mobileNav.dashboard", "mobileNav.plan", "mobileNav.modules", "mobileNav.files", "mobileNav.more"] {
+                   "mobileNav.dashboard", "mobileNav.timetable", "mobileNav.modules", "mobileNav.files", "mobileNav.more"] {
             XCTAssertTrue(found.contains(id), "\(id) fehlt: \(found.sorted())")
         }
         XCTAssertFalse(found.contains("header.menu"), "kompakt keine Schublade")

@@ -370,6 +370,9 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
 
     /// 2 Lernkalender: Woche als Liste (Montag-Sonntag) mit Uni-Terminen und Lernpaketen
     func test02Lernkalender() throws {
+        let learnCalendar = LearnCalendar.enabled                                // prueft den Lernkalender: Schalter an
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let env = try host(MainView())
         env.router.go(.plan(view: "week"))
         expect(env, "Lernkalender")

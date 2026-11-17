@@ -136,9 +136,11 @@ final class AuditApp20261103Tests: XCTestCase {
     func testMoreListsRemainingAreasWithBadges() {
         let visible = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: false)
         let more = UFNavItem.more(visible: visible)
-        XCTAssertEqual(more.map(\.title), ["Stundenplan", "Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Raumfinder", "Community", "Einstellungen"])
+        // ohne Lernkalender (17.11.2026) steht der Stundenplan in der unteren Leiste, nicht mehr in "Mehr"
+        XCTAssertEqual(more.map(\.title), ["Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Raumfinder", "Community", "Einstellungen"])
         XCTAssertEqual(UFNavItem.mobile.last?.title, "Mehr")
-        XCTAssertTrue(UFMobileNav.moreActive(.timetable(), items: more))
+        XCTAssertTrue(UFMobileNav.moreActive(.studyPlan(), items: more))
+        XCTAssertFalse(UFMobileNav.moreActive(.timetable(), items: more))
         XCTAssertTrue(UFMobileNav.moreActive(.settings(), items: more))
         XCTAssertTrue(UFMobileNav.moreActive(.exams, items: more), "ohne KI fuehrt #/exams zu den Karteikarten")
         XCTAssertFalse(UFMobileNav.moreActive(.dashboard, items: more))

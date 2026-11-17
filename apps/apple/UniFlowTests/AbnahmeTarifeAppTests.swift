@@ -528,12 +528,20 @@ final class AbnahmeTarifeAppTests: XCTestCase {
 
         // Lernkalender und Stundenplan (frei)
         env.router.go(.plan())
-        station(env, "\(p)-09-lernkalender", markers: ["Lernkalender"])
-        // Auftrag des Inhabers 12.11.2026: gesperrt heisst sichtbar mit Schloss ("Plan erstellen" ab Plus, Seitenleiste)
-        if plan >= .plus {
-            XCTAssertNil(lockedElement(env, containing: "Plan erstellen"), "\(p): Plan erstellen frei")
+        if LearnCalendar.enabled {
+            station(env, "\(p)-09-lernkalender", markers: ["Lernkalender"])
+            // Auftrag des Inhabers 12.11.2026: gesperrt heisst sichtbar mit Schloss ("Plan erstellen" ab Plus, Seitenleiste)
+            if plan >= .plus {
+                XCTAssertNil(lockedElement(env, containing: "Plan erstellen"), "\(p): Plan erstellen frei")
+            } else {
+                XCTAssertNotNil(lockedElement(env, containing: "Plan erstellen"), "\(p): Plan erstellen mit Schloss\n" + dump(env))
+            }
         } else {
-            XCTAssertNotNil(lockedElement(env, containing: "Plan erstellen"), "\(p): Plan erstellen mit Schloss\n" + dump(env))
+            // Lernkalender ausgeblendet (Auftrag 17.11.2026): die Route fuehrt zum Stundenplan, kein Menuepunkt
+            XCTAssertEqual(env.router.route, .timetable(), "\(p): Lernkalender ausgeblendet")
+            XCTAssertNil(allElements(env).first { EditorToolbarTests.identifier($0) == "nav.plan" }, "\(p): kein Lernkalender in der Seitenleiste")
+            env.router.go(.dashboard)
+            env.pump(0.5)
         }
         let cardsLock = allElements(env).first { EditorToolbarTests.identifier($0) == "nav.cards" }?.accessibilityValue ?? ""
         XCTAssertEqual(cardsLock, plan >= .plus ? "" : UFLock.accessibilityValue(.plus), "\(p): Karteikarten in der Seitenleiste")

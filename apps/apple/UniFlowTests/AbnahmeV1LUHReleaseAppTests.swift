@@ -550,7 +550,12 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         station(env, "24-bescheinigungen", markers: ["Bescheinigungen"])
 
         env.router.go(.plan())
-        station(env, "25-lernkalender", markers: ["Lernkalender"])
+        if LearnCalendar.enabled {
+            station(env, "25-lernkalender", markers: ["Lernkalender"])
+        } else {
+            // Lernkalender ausgeblendet (Auftrag 17.11.2026): die Route fuehrt zum Stundenplan
+            XCTAssertEqual(env.router.route, .timetable(), "Lernkalender ausgeblendet")
+        }
 
         env.router.go(.files())
         station(env, "26-dokumente", markers: ["Dokumente & Notizen"])

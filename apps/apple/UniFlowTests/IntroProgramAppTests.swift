@@ -28,13 +28,20 @@ final class IntroProgramAppTests: XCTestCase {
     func testStepOnlyForHildesheimWithMultipleChoice() {
         var m = IntroSetupModel()
         m.name = "Lea"
-        XCTAssertEqual(m.next(after: .name), .modules, "ohne Hildesheim keine Frage")
-        XCTAssertEqual(m.shownSteps.count, 3)
+        // ohne Lernkalender (ausgeliefert, 17.11.2026) entfaellt die Faecher-Frage: ohne Faecher gleich fertig
+        XCTAssertFalse(m.planSubjects)
+        XCTAssertEqual(m.next(after: .name), .ready, "ohne Hildesheim keine Frage")
+        XCTAssertEqual(m.shownSteps.count, 2)
         m.askProgram = true
         m.programs = IntroProgram.list(Self.list)
         XCTAssertEqual(m.next(after: .name), .program)
-        XCTAssertEqual(m.next(after: .program), .modules)
-        XCTAssertEqual(m.shownSteps.count, 4)
+        XCTAssertEqual(m.next(after: .program), .ready)
+        XCTAssertEqual(m.shownSteps.count, 3)
+        // mit Lernkalender wie bisher: danach die Faecher
+        var withPlanner = m
+        withPlanner.planSubjects = true
+        XCTAssertEqual(withPlanner.next(after: .program), .modules)
+        XCTAssertEqual(withPlanner.shownSteps.count, 4)
         m.step = .program
         XCTAssertEqual(m.progressIndex, 1)
         XCTAssertEqual(m.question(.program), "Hallo Lea! Was studierst du an der Universität Hildesheim?")
