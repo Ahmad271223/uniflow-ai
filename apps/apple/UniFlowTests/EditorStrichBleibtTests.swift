@@ -380,9 +380,10 @@ final class EditorStrichBleibtTests: XCTestCase {
                                 XCTAssertEqual(canvas.drawing.strokes.count, before + 1)
                                 XCTAssertTrue(sets.allSatisfy { $0.after == $0.before }, "nie kleiner gesetzt")
                                 XCTAssertEqual(zooms, 0, "kein Zoomwechsel der Zeichenflaeche beim Absetzen")
-                                // ersetzt wird nur noch eine erkannte Form (am Ende gehalten, nicht Textmarker); die
-                                // Glaettung setzt nichts mehr neu (abgeschaltet, `PencilTuning`)
-                                let mayReplace = shapes && held && tool != .marker
+                                // ersetzt wird nur noch eine erkannte Form (am Ende gehalten; seit 17.11.2026 auch die
+                                // gerade Linie mit dem Textmarker, `ShapeRecognizer.lineOnly`); die Glaettung setzt nichts
+                                // mehr neu (abgeschaltet, `PencilTuning`)
+                                let mayReplace = shapes && held
                                 if !mayReplace, !sets.isEmpty { unexpected += 1 }
                                 XCTAssertLessThanOrEqual(sets.count, 1, "hoechstens einmal je Strich")
                                 let key = "Glaettung \(smoothing.rawValue), Formen \(shapes ? "an" : "aus"), Lineal \(ruler ? "an" : "aus"), \(tool.rawValue), \(held ? "am Ende gehalten" : "normal")"
