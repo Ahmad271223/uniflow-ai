@@ -32,6 +32,7 @@ final class SyncAllPortalsTests: XCTestCase {
         savedAllowed = OpenSync.allowed
         OpenSync.last = [:]
         OpenSync.running = []
+        AutoSync.timeZone = { TimeZone(identifier: "Europe/Berlin")! }
     }
 
     override func tearDown() async throws {
@@ -39,6 +40,7 @@ final class SyncAllPortalsTests: XCTestCase {
         OpenSync.allowed = savedAllowed
         OpenSync.last = [:]
         OpenSync.running = []
+        AutoSync.timeZone = { TimeZone.current }
         UniAutoLogin.runnerOverride = nil
         UniAutoLogin.appActiveOverride = nil
         for s in services { SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: s] as CFDictionary) }
@@ -315,20 +317,26 @@ final class SyncAllPortalsTests: XCTestCase {
     }
 
     /// Beim Oeffnen (still) liest der Sync die Liste der Bescheinigungen IMMER (11.11.2026), nicht erst nach 7 Tagen
-    func testOpenSyncAlwaysReadsTheCertificateList() async throws {
+    /// Seit 17.11.2026: der Abgleich von selbst liest die Liste mit QIS, aber hoechstens alle 6 Stunden (der Knopf immer)
+    func testAutomaticSyncReadsTheCertificateListWithQISAtMostEverySixHours() async throws {
         let (m, c, q, _) = try await luh(qis: true, mail: false)
         try install()
-        // Liste eben erst gelesen (frischer Stand), danach oeffnet die App
         let first = await CertificateCenter(portal: .qis(q)).refresh()
         XCTAssertEqual(first?.ok, true)
         let menuReads = { UniStubProtocol.requests.filter { $0.url.absoluteString.contains("moduleParameter=studentReportsMenu") }.count }
         XCTAssertEqual(menuReads(), 1)
         OpenSync.allowed = { true }
-        XCTAssertTrue(m.syncAllOnOpen(now: bed.clock.now))
-        try await bed.waitUntil("Abgleich beim Oeffnen", timeout: 30) { OpenSync.running.isEmpty }
-        XCTAssertEqual(menuReads(), 2, "die Liste im Sync beim Oeffnen neu gelesen")
+        // 10:31 Berliner Zeit: QIS nach der Regel faellig
+        let t1 = bed.clock.now.addingTimeInterval(31 * 60)
+        XCTAssertTrue(m.runAutomaticSync(now: t1).contains(OpenSync.qis))
+        try await bed.waitUntil("Abgleich von selbst", timeout: 30) { OpenSync.running.isEmpty }
+        XCTAssertEqual(menuReads(), 2, "die Liste mit QIS gelesen")
         let list = try await c.api.value("/api/certificates")
         XCTAssertEqual(list["status"]?.string, "ok")
+        // 31 Minuten spaeter: QIS wieder faellig, die Liste noch nicht (6 Stunden)
+        XCTAssertTrue(m.runAutomaticSync(now: t1.addingTimeInterval(31 * 60)).contains(OpenSync.qis))
+        try await bed.waitUntil("zweiter Abgleich von selbst", timeout: 30) { OpenSync.running.isEmpty }
+        XCTAssertEqual(menuReads(), 2, "Liste nicht in jedem Abgleich von selbst")
         assertOnlyReading()
     }
 

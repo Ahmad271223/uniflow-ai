@@ -126,9 +126,9 @@ extension ContainerManager {
                 // eine abgelaufene Quelle meldet sich nach dem Lauf selbst still neu an (`HsHConnection.run`)
                 await hsh.run(forceGrades: true)
             } else if let h = self.hildesheim {
-                _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false, forceGrades: true, only: due)
+                _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false, forceGrades: true, only: due, now: now)
             } else if self.syncsAllPortals {
-                _ = await self.runAllPortals(container: c, userAction: false, forceGrades: due.contains(OpenSync.qis), only: due)
+                _ = await self.runAllPortals(container: c, userAction: false, forceGrades: due.contains(OpenSync.qis), only: due, now: now)
             }
             OpenSync.running.remove(key)
             guard self.active === c else { return }

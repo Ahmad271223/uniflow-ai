@@ -174,8 +174,8 @@ extension ContainerManager {
     /// Noten ab); beim Oeffnen gelten fuer die Noten die eigenen 20 Stunden. Die Liste der Bescheinigungen liest jeder solche Sync (nur lesend).
     /// `forceGrades`: Noten auch vor Ablauf ihrer eigenen 20 Stunden (Knopf; von selbst, wenn QIS nach der Regel faellig
     /// ist). `only`: nur diese Portale.
-    private func runAllPortals(container c: ActiveContainer, userAction: Bool, forceGrades: Bool,
-                               only: Set<String>? = nil) async -> UniversitySyncReport {
+    func runAllPortals(container c: ActiveContainer, userAction: Bool, forceGrades: Bool,
+                               only: Set<String>? = nil, now: Date = Date()) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
             let r = await OpenSync.storedLoginConnect(self, userAction)
@@ -190,7 +190,7 @@ extension ContainerManager {
         func wanted(_ name: String) -> Bool { only?.contains(name) ?? true }
         let studip = studip, qis = wanted(OpenSync.qis) ? qis : nil, mail = wanted(OpenSync.uniMail) ? uniMail : nil
         // Liste der Bescheinigungen: beim Knopf immer; von selbst hoechstens alle `AutoSync.certificatesInterval`
-        let certificatesWanted = userAction || autoCertificatesDue(c)
+        let certificatesWanted = userAction || autoCertificatesDue(c, now: now)
         // Uni-Mail, Stud.IP und QIS nebeneinander (11.11.2026; vorher wartete alles auf den Posteingang). Die
         // unsichtbaren Anmeldungen bleiben je Datenspeicher nacheinander (`UniAutoLogin`, `Entry.tail`)
         async let m: Void = Self.syncMail(mail)
@@ -218,7 +218,7 @@ extension ContainerManager {
     /// der PLuS-Bescheinigungen (nur lesend, erzeugt nichts). `forceGrades`: Noten auch vor Ablauf der 20 Stunden.
     /// `only`: nur diese Portale (Abgleich von selbst: die faelligen; Learnweb und LSF laufen zusammen); nil: alle.
     func runHildesheimPortals(container c: ActiveContainer, hildesheim: HildesheimConnection, userAction: Bool,
-                              forceGrades: Bool, only: Set<String>? = nil) async -> UniversitySyncReport {
+                              forceGrades: Bool, only: Set<String>? = nil, now: Date = Date()) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
             let r = await OpenSync.storedLoginConnect(self, userAction)
@@ -230,7 +230,7 @@ extension ContainerManager {
         func wanted(_ name: String) -> Bool { only?.contains(name) ?? true }
         let files = HildesheimConnection.Source.allCases.contains { wanted($0.rawValue) }
         let mail = wanted(OpenSync.uniMail) ? uniMail : nil
-        let certificatesWanted = userAction || autoCertificatesDue(c)
+        let certificatesWanted = userAction || autoCertificatesDue(c, now: now)
         // eine schon vorhandene SOGo-Sitzung uebernehmen (ohne Passwort), bevor der Posteingang gelesen wird
         if let mail, !mail.isConnected, OpenSync.allowed() { _ = await mail.adoptExistingSession() }
         async let m: Void = Self.syncMail(mail)
