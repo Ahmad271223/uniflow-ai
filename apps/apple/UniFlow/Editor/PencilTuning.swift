@@ -15,4 +15,8 @@ enum PencilTuning {
     /// letztes Mal am Ende). Vorher bei jedem Bild des Pinchens: jedes Mal rechnete SwiftUI die ganze Dokumentansicht neu.
     static var throttleZoomPublish = true
     static let zoomPublishInterval: TimeInterval = 0.12
+    /// Haenger nach "Seite drehen" (17.11.2026): Der Editor tauscht den Seitenaufbau nicht mehr mitten in einer
+    /// SwiftUI-Aktualisierung, sondern einen Durchlauf spaeter (`PDFEditorController.showLayoutAfterUpdate`).
+    /// `false`: sofort, wie bis Build 44 (Gegenprobe).
+    static var layoutAfterSwiftUIUpdate = true
 }

@@ -215,6 +215,8 @@ struct DocumentView: View {
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
+    /// Anteil beim Anfassen des Griffs der Teilung (`SplitWidth.dragged`); nil = wird nicht gezogen
+    @State private var splitDragStart: Double?
     /// Lage der Werkzeuge (Einstellungen, 12.11.2026): oben fest, unten fest oder schwebend (`EditorToolbarPlacement`)
     @AppStorage(EditorToolbarPlacement.key) private var toolbarPlacementRaw = EditorToolbarPlacement.standard.rawValue
     /// an der Kopfzeile getauschte Paare (SplitSides.swift), wie die Breite der Teilung auf dem Geraet gemerkt
@@ -630,7 +632,14 @@ struct DocumentView: View {
 
     /// Feste Spalten neben der KI-Hilfe (Seitenleiste, Spalte daneben mit Griff): die PDF behaelt daneben ihren Platz
     private func tutorReserved(_ total: CGFloat) -> CGFloat {
-        (showSidebar ? 201 : 0) + (hasSidePane ? total * splitFraction + 12 : 0)
+        (showSidebar ? 201 : 0) + (hasSidePane ? total * shownSplitFraction(total) + SplitWidth.handle : 0)
+    }
+
+    /// Angezeigter Anteil der Spalte daneben: der gemerkte, aber so, dass das Hauptdokument neben Seitenleiste und
+    /// KI-Hilfe seine Mindestbreite behaelt (`SplitWidth`)
+    private func shownSplitFraction(_ total: CGFloat) -> Double {
+        SplitWidth.clamp(splitFraction, total: total,
+                         fixed: SplitWidth.fixedColumns(sidebar: showSidebar && !chromeHidden, tutor: showTutor && !chromeHidden))
     }
 
     /// Breite der KI-Hilfe: gemerkt (am Rand gezogen) oder Standard, in den Grenzen des Fensters
@@ -709,7 +718,7 @@ struct DocumentView: View {
                         // Spalte daneben links oder rechts (SplitSides); dieselben Ansichten, wenn die Seite wechselt
                         SplitRow(sideLeft: sideLeft) {
                             if hasSidePane, !chromeHidden {
-                                sidePane.frame(width: geo.size.width * splitFraction)
+                                sidePane.frame(width: geo.size.width * shownSplitFraction(geo.size.width))
                                     .environment(\.ufPaneSwap, paneSwap(width: geo.size.width))
                                 splitHandle(width: geo.size.width)
                             }
@@ -1207,11 +1216,15 @@ struct DocumentView: View {
         .contentShape(Rectangle())
         // Erst ab 4 pt Bewegung: ein aufgelegter Handballen auf dem Griff darf die Breite nicht springen lassen,
         // sonst rutscht das X der Spalte daneben unter dem Stift weg (echtes iPad, 14.11.2026).
+        // Der WEG des Fingers ab dem Anfassen zaehlt, nicht seine Stelle in der Zeile: mit KI-Hilfe oder Seitenleiste
+        // davor sprang die Spalte sonst bei jedem Anfassen groesser und liess sich nicht mehr kleiner ziehen (17.11.2026).
         .gesture(DragGesture(minimumDistance: 4, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
-            let x = g.location.x
-            let f = sideLeft ? x / max(width, 1) : (width - x) / max(width, 1)
-            splitFraction = min(0.65, max(0.2, Double(f)))
-        })
+            let from = splitDragStart ?? shownSplitFraction(width)
+            if splitDragStart == nil { splitDragStart = from }
+            splitFraction = SplitWidth.dragged(from: from, translation: g.translation.width, sideLeft: sideLeft, total: width,
+                                               fixed: SplitWidth.fixedColumns(sidebar: showSidebar && !chromeHidden,
+                                                                              tutor: showTutor && !chromeHidden))
+        }.onEnded { _ in splitDragStart = nil })
         .accessibilityLabel("Breite der geteilten Ansicht")
     }
 
@@ -3508,7 +3521,10 @@ struct PDFEditorView: UIViewControllerRepresentable {
     /// Anzeige nur neu auf, wenn sich die Seitenstruktur geaendert hat.
     func updateUIViewController(_ vc: PDFEditorController, context: Context) {
         if vc.pencilOnly != pencilOnly { vc.pencilOnly = pencilOnly }
-        if vc.shownLayoutVersion != layoutVersion { vc.showLayout() }
+        // nie den Seitenaufbau tauschen, waehrend SwiftUI gerade aktualisiert (Haenger 17.11.2026, `showLayoutAfterUpdate`)
+        if vc.shownLayoutVersion != layoutVersion {
+            if PencilTuning.layoutAfterSwiftUIUpdate { vc.showLayoutAfterUpdate() } else { vc.showLayout() }
+        }
         if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
         if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }
         if vc.canEdit != canEdit { vc.canEdit = canEdit }

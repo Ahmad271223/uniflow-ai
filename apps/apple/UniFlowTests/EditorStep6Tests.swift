@@ -97,6 +97,24 @@ final class EditorStep6Tests: XCTestCase {
         await store.close()
     }
 
+    /// Haenger am iPad des Inhabers (17.11.2026): "Seite drehen" -> SwiftUI ruft `updateUIViewController` -> der Editor
+    /// tauschte den Seitenaufbau MITTEN in der Aktualisierung, der Fokuswechsel dabei liess SwiftUI nie zurueckkehren.
+    /// Der Weg aus SwiftUI (`showLayoutAfterUpdate`) tauscht darum erst einen Durchlauf spaeter, und nur einmal.
+    func testNeuaufbauAusSwiftUILaeuftErstNachDerAktualisierung() async throws {
+        let (store, editor) = try await open()
+        let before = editor.shownLayoutVersion
+        XCTAssertEqual(before, store.layoutVersion)
+        await store.rotatePage(key: "p2")
+        XCTAssertNotEqual(store.layoutVersion, before, "Drehen ergibt einen neuen Seitenaufbau")
+        editor.showLayoutAfterUpdate()
+        editor.showLayoutAfterUpdate()                                   // SwiftUI aktualisiert oft mehrmals hintereinander
+        XCTAssertEqual(editor.shownLayoutVersion, before, "nicht waehrend der laufenden Aktualisierung")
+        try await wait("Aufbau nach der Aktualisierung gezeigt") { editor.shownLayoutVersion == store.layoutVersion }
+        XCTAssertEqual(editor.pdfView.document?.page(at: 1)?.rotation, 90, "die gedrehte Seite steht da")
+        XCTAssertTrue(PencilTuning.layoutAfterSwiftUIUpdate, "ausgeliefert wird der Weg nach der Aktualisierung")
+        await store.close()
+    }
+
     /// Text markieren: Auswahl "Pythagoras" auf Seite 1 ergibt eine Markierung in Seitenpunkten an der Stelle des Textes
     /// (oben links bei etwa 100/200), Unterstreichen eine Linie knapp unter der Zeile. Auf der gedrehten Seite 2 liegt
     /// die Markierung gedreht (Text senkrecht). Gegenprobe: ohne Auswahl entsteht nichts.

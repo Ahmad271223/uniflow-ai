@@ -839,6 +839,28 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     // MARK: Anzeige-PDF (neu aufbauen, wenn sich die Seitenstruktur aendert)
 
+    /// Ein Neuaufbau aus `updateUIViewController` ist schon fuer den naechsten Durchlauf bestellt
+    private var layoutScheduled = false
+
+    /// Neuaufbau aus `PDFEditorView.updateUIViewController`: erst NACH der laufenden SwiftUI-Aktualisierung.
+    ///
+    /// Haenger am iPad des Inhabers (17.11.2026, iPadOS 27.2, Mitschnitt `~/Studora-Builds/haenger-ipad-17-11.trace`):
+    /// "Seite drehen" aus dem Menue -> neue Seitenliste -> SwiftUI ruft `updateUIViewController` -> `showLayout()` setzt
+    /// `pdfView.document` -> PDFKit haengt neue Ansichten ein und UIKit gibt dabei den Fokus weiter
+    /// (`_promoteSelfOrDescendantToFirstResponderIfNecessary`) -> die SwiftUI-Huelle erfaehrt den Fokuswechsel
+    /// (`_UIHostingView._didChange(toFirstResponder:)`) und will ihre Ansichten aktualisieren, WAEHREND sie gerade
+    /// aktualisiert: Der Hauptthread kam aus AttributeGraph nie zurueck (12 s lang jede Probe an derselben Stelle,
+    /// App eingefroren). Darum laeuft der Tausch einen Durchlauf spaeter, ausserhalb der Aktualisierung.
+    func showLayoutAfterUpdate() {
+        guard !layoutScheduled else { return }
+        layoutScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.layoutScheduled = false
+            self.showLayout()
+        }
+    }
+
     /// Zeigt den aktuellen Seitenaufbau. Bleibt auf derselben Seite (ueber den Seitenschluessel) und beim Zoom.
     /// Der Rueckgaengig-Verlauf haengt am Seitenschluessel und bleibt erhalten.
     func showLayout() {
