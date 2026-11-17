@@ -1,0 +1,45 @@
+import UniFlowCore
+import XCTest
+@testable import UniFlow
+
+/// Klausur-Generator, Stufe (a): Texte und Zaehler des Auswahl-Blatts (`ExamGeneratorPicker`). Die Regeln selbst
+/// prueft der Kern (`ExamGeneratorSelectionTests`).
+final class ExamGeneratorAppTests: XCTestCase {
+    private typealias Item = ExamGeneratorSelection.Item
+    private let limits = ExamGeneratorSelection.limits
+
+    func testCountersShowWhatTheOwnerLimits() {
+        var c = ExamGeneratorSelection.Check()
+        c.materialPages = 212; c.examFiles = 4; c.exerciseFiles = 10
+        XCTAssertEqual(ExamGenerator.counter(.material, c, limits: limits), "212 von 300 Seiten")
+        XCTAssertEqual(ExamGenerator.counter(.exams, c, limits: limits), "4 von 10")
+        XCTAssertEqual(ExamGenerator.counter(.exercises, c, limits: limits), "10 von 10")
+        XCTAssertFalse(ExamGenerator.isOver(.material, c, limits: limits))
+        XCTAssertFalse(ExamGenerator.isOver(.exercises, c, limits: limits), "genau 10 ist erlaubt")
+    }
+
+    func testGroupTurnsRedOnlyWhenItsOwnLimitIsExceeded() {
+        var c = ExamGeneratorSelection.Check()
+        c.materialPages = 301
+        XCTAssertTrue(ExamGenerator.isOver(.material, c, limits: limits))
+        XCTAssertFalse(ExamGenerator.isOver(.exams, c, limits: limits))
+        c = ExamGeneratorSelection.Check(); c.examSolutions = 11
+        XCTAssertTrue(ExamGenerator.isOver(.exams, c, limits: limits), "auch zu viele Lösungen färben die Gruppe")
+        c = ExamGeneratorSelection.Check(); c.exerciseFiles = 11
+        XCTAssertTrue(ExamGenerator.isOver(.exercises, c, limits: limits))
+    }
+
+    func testRowIsSpokenWithTypePagesAndState() {
+        let vl = Item(id: "a", title: "VL01 Folgen", label: "Vorlesung", group: .material, isSolution: false, pages: 24)
+        XCTAssertEqual(ExamGenerator.rowAccessibility(vl, selected: true), "VL01 Folgen, Vorlesung, 24 Seiten, ausgewählt")
+        XCTAssertEqual(ExamGenerator.rowAccessibility(vl, selected: false), "VL01 Folgen, Vorlesung, 24 Seiten, nicht ausgewählt")
+        let one = Item(id: "b", title: "Blatt 1", label: "Übung", group: .exercises, isSolution: false, pages: 1)
+        XCTAssertEqual(ExamGenerator.rowAccessibility(one, selected: false), "Blatt 1, Übung, 1 Seite, nicht ausgewählt")
+        let missing = Item(id: "c", title: "VL02", label: "Vorlesung", group: .material, isSolution: false, pages: nil)
+        XCTAssertEqual(ExamGenerator.rowAccessibility(missing, selected: true), "VL02, Vorlesung, nicht auf dem Gerät")
+    }
+
+    func testSectionsNameTheThreeGroups() {
+        XCTAssertEqual(ExamGeneratorSelection.Group.allCases.map(ExamGenerator.sectionTitle), ["Vorlesung und Skript", "Altklausuren", "Übungen"])
+    }
+}

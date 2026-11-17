@@ -494,6 +494,8 @@ struct ModulePage: View {
                 // ohne KI und ohne Pro AI sichtbar mit Schloss (Auftrag des Inhabers 12.11.2026), Pro AI ohne Anmeldung nicht
                 UFLockedCard(.weeklyTests, entitlements: ent).padding(.bottom, 14.4)
             }
+            // Klausur-Generator (17.11.2026): Probeklausuren als PDF aus den Unterlagen des Moduls, nur auf dem Geraet
+            if session.api?.isLocal == true { ExamGeneratorCard(moduleID: id, moduleName: m.s("name") ?? "") }
             // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
             if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie
