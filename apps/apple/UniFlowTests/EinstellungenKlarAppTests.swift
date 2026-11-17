@@ -148,7 +148,8 @@ final class EinstellungenKlarAppTests: XCTestCase {
              // Erinnerungen: der Schalter (ab Plus) oder die Sperrkarte, beide beginnen so
              [UniAutoLoginCard.title, "Stud.IP & QIS", "Uni-Kalender", "Im Hintergrund abgleichen", "Semester", "Erinnerungen an Abgaben",
               "Hochschule", "Daten dieser Hochschule löschen"]),
-            ("look", ["settings.pencilSmoothing", "settings.shapeSnap", "settings.toolbarPlacement"],
+            // "Glättung" gibt es nur, solange sie etwas bewirkt (seit 17.11.2026 aus: kostete Striche, `PencilTuning`)
+            ("look", (PencilTuning.rebuildFromRawPointsAfterLift ? ["settings.pencilSmoothing"] : []) + ["settings.shapeSnap", "settings.toolbarPlacement"],
              ["Darstellung", "Hell", "Dunkel", pointer, "Schreibhand", EditorToolbarPlacementRow.title]),
             ("modules", [], ["Modul anlegen", "Zuordnung automatisch prüfen", "Grundlagen der Informatik"]),
             ("community", [], ["Community"]),
