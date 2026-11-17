@@ -134,11 +134,18 @@ SEED_FILES = [
 ]
 
 
+# Eingetragen (`first_seen`) fuer "Neu" (study.new_file_sql: nie geoeffnet und vor hoechstens 24 Stunden eingetragen).
+# Die Uhr steht am Tag der Zeitumstellung (25.10.2026, 14:30:05 Winterzeit): die Grenze sind wirkliche 24 Stunden,
+# also 24.10. 15:30:05 Sommerzeit - genau dann ist eine Datei noch neu, eine Sekunde frueher nicht mehr. Alle anderen
+# kamen am 24.10. um 8 Uhr und sind nicht mehr neu.
+FIRST_SEEN = {"tf-ma-3": "2026-10-25T08:00:00", "tf-ue-2": "2026-10-24T15:30:05", "tf-ma-2": "2026-10-24T15:30:04"}
+
+
 def _files_seed() -> list[tuple[str, list]]:
     """INSERT der Dateien (Unix-Zeiten erst hier: TZ=Europe/Berlin ist dann gesetzt)"""
     return [("INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
              [fid, course, name, 1000 + i, "application/pdf", int(datetime.fromisoformat(when).timestamp()), folder,
-              "gelesen" if i % 3 == 0 else "neu", "2026-10-24T08:00:00"])
+              "gelesen" if i % 3 == 0 else "neu", FIRST_SEEN.get(fid, "2026-10-24T08:00:00")])
             for i, (fid, course, name, folder, when) in enumerate(SEED_FILES)]
 
 

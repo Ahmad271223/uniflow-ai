@@ -4,11 +4,9 @@ import { renderThumbnail, TEMPLATES } from "./editor.js?v=75";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 import { currentHeading, courseIdOf, findCourse } from "./older-semesters.js?v=4";
 import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=8";
-import { kindIcon, kindText } from "./filekinds.js?v=2";   // Word, PowerPoint, Audio mit eigenem Symbol (docs/DATEIARTEN.md)
+import { kindIcon, kindText, isNewFile } from "./filekinds.js?v=3";   // Word, PowerPoint, Audio mit eigenem Symbol (docs/DATEIARTEN.md)
 
-// "Neu" wie auf der Uebersicht, den Modulkarten und in der iPad-App (study.NEW_FILE_SQL): noch nicht angesehen
-// (seen_by_user 0); aeltere Antworten ohne das Feld: Lernstand "neu"
-export function isNewFile(f) { return f.seen_by_user != null ? Number(f.seen_by_user) === 0 : f.status === "neu"; }
+// "Neu" (isNewFile): nie geoeffnet und hoechstens 24 Stunden in der App - eine Regel in filekinds.js (is_new vom Server)
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
 const CHIPS = [["all", "Alle"], ["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["notes", "Notizen"], ["sonstiges", "Sonstiges"]];

@@ -81,12 +81,15 @@ enum UFSourceText {
     static func newFiles(_ university: UniversityKey, demo: Bool) -> String { demo ? "Neue Dateien (Demo)" : newFiles(university) }
 }
 
-/// "Neu" an allen Stellen gleich (Uebersicht "Neu aus …", Modulkarten, Bibliothek; Backend `LocalLibrary.newFileSQL`):
-/// eine Datei ist neu, solange sie nicht angesehen wurde (`seen_by_user` 0; Oeffnen und "Gesehen" setzen es). Aeltere
-/// PC-Server ohne das Feld: wie bisher der Lernstand `status` "neu". (Audit 03.11.2026: 1 neue Datei auf der Uebersicht,
-/// 3 im Modul und in der Bibliothek.)
+/// "Neu" an allen Stellen gleich (Uebersicht "Neu aus …", Modulkarten, Bibliothek, Dateizeilen im Modul und am Termin;
+/// Backend `LocalLibrary.newFileSQL`): eine Datei ist neu, wenn sie noch nicht angesehen wurde UND vor hoechstens 24
+/// Stunden in die App gekommen ist (Auftrag des Inhabers 17.11.2026). Das rechnet der Kern aus und liefert `is_new`
+/// je Datei; die App rechnet nicht selbst mit Zeiten. Aeltere PC-Server ohne `is_new`: nicht angesehen
+/// (`seen_by_user` 0), noch aeltere ohne beides: Lernstand `status` "neu". (Audit 03.11.2026: 1 neue Datei auf der
+/// Uebersicht, 3 im Modul und in der Bibliothek.)
 enum UFNewFiles {
     static func isNew(_ f: JSONValue) -> Bool {
+        if let new = f["is_new"], !new.isNull { return (new.int ?? (new.bool == true ? 1 : 0)) != 0 }
         if let seen = f["seen_by_user"], !seen.isNull { return (seen.int ?? (seen.bool == true ? 1 : 0)) == 0 }
         return f.s("status") == "neu"
     }

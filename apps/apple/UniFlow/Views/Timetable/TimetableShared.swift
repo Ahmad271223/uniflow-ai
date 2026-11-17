@@ -400,7 +400,8 @@ struct FreedTimeDialog: View {
     }
 }
 
-/// a.doc-row im Termin-Panel: Icon, Titel (500) und direkt dahinter Typ · Minuten (inline wie im Web)
+/// a.doc-row im Termin-Panel: Icon, Titel (500) und direkt dahinter Typ · Minuten (inline wie im Web). "Neu" nach der
+/// einen Regel (`UFNewFiles`: nie geoeffnet und hoechstens 24 Stunden in der App), nicht mehr am Lernstand.
 struct UFEventDocRow: View {
     let f: JSONValue
     let open: () -> Void
@@ -412,7 +413,7 @@ struct UFEventDocRow: View {
                 UFIcon(f.s("doc_type") == "uebung" ? "pencil" : "book", size: 16).foregroundStyle(UF.accentText).frame(width: 24)
                 (Text(f.s("ai_title") ?? f.s("name") ?? "").font(.uf(14.5, 500)).foregroundColor(st == "erledigt" ? UF.muted : UF.accentText)
                     .strikethrough(st == "erledigt")
-                 + Text(st == "neu" ? "  Neu  " : "").font(.uf(10.88, 600)).foregroundColor(UF.accentText)
+                 + Text(UFNewFiles.isNew(f) ? "  Neu  " : "").font(.uf(10.88, 600)).foregroundColor(UF.accentText)
                  + Text("\(f.s("doc_type") ?? "")\(f.i("est_minutes").map { " · ca. \($0) min" } ?? "")").font(.uf(12.48)).foregroundColor(UF.muted))
                     .lineSpacing(4)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -717,11 +717,12 @@ struct UFDocRow: View {
         Button(action: open) {
             HStack(spacing: 9.6) {
                 // Typ-Symbol gedimmt; Titel in Textfarbe statt Linkfarbe (eine Liste aus lauter blauen Zeilen hat
-                // keine Hierarchie), nur "Neu" traegt den Akzent
+                // keine Hierarchie), nur "Neu" traegt den Akzent. "Neu" nach der einen Regel (`UFNewFiles`: nie
+                // geoeffnet und hoechstens 24 Stunden in der App), nicht mehr am Lernstand; durchgestrichen bleibt am Lernstand
                 UFIcon(ShellState.typeIcon[f.s("doc_type") ?? ""] ?? "file", size: 17).foregroundStyle(UF.text2).frame(width: 24)
                 (Text(f.s("ai_title") ?? f.s("name") ?? "").font(.uf(size(14.5), 500)).foregroundColor(st == "erledigt" ? UF.muted : UF.text)
                     .strikethrough(st == "erledigt")
-                 + Text(st == "neu" ? "  Neu  " : "  ").font(.uf(size(11.52), 650)).foregroundColor(UF.accentText)
+                 + Text(UFNewFiles.isNew(f) ? "  Neu  " : "  ").font(.uf(size(11.52), 650)).foregroundColor(UF.accentText)
                  + Text(sub).font(.uf(size(12.48))).foregroundColor(UF.muted))
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)

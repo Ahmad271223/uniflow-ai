@@ -1019,11 +1019,11 @@ def _sync_without_ai():
 @app.get("/api/overview")
 def overview():
     with db.cursor() as conn:
-        new_files = db.rows(conn, """
+        new_files = db.rows(conn, f"""
             SELECT f.id, f.name, f.first_seen, f.chdate, f.status, c.title AS course_title, c.subject,
                    a.doc_type, a.difficulty, a.est_minutes, a.title AS ai_title
             FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-            WHERE f.seen_by_user=0 AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC LIMIT 100""")
+            WHERE {study.new_file_sql()} AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC LIMIT 100""")
         recent = db.rows(conn, """
             SELECT f.id, f.name, f.first_seen, f.chdate, f.status, c.title AS course_title, c.subject,
                    a.doc_type, a.difficulty, a.est_minutes, a.title AS ai_title
@@ -1175,7 +1175,7 @@ def courses():
     with db.cursor() as conn:
         return db.rows(conn, f"""
             SELECT c.*, (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id) AS file_count,
-                   (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND {study.NEW_FILE_SQL}) AS new_count
+                   (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND {study.new_file_sql()}) AS new_count
             FROM courses c ORDER BY c.subject, c.kind, c.title""")
 
 
@@ -4390,8 +4390,8 @@ def api_library():
     with db.cursor() as conn:
         study.ensure_modules(conn)
         folders = db.rows(conn, "SELECT * FROM folders ORDER BY name")
-        files = db.rows(conn, """SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
-                                        f.download_url, f.content_sha256, f.seen_by_user,
+        files = db.rows(conn, f"""SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
+                                        f.download_url, f.content_sha256, f.seen_by_user, {study.is_new_column()},
                                         c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                                         (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
                                  FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id

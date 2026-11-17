@@ -81,16 +81,18 @@ final class AuditRunde0910AppTests: XCTestCase {
         return dir
     }
 
-    /// Lokales Backend mit einem Kurs und einer neuen Datei (fuer "Neu aus Stud.IP" mit Knopf "Gesehen")
+    /// Lokales Backend mit einem Kurs und einer neuen Datei (fuer "Neu aus Stud.IP" mit Knopf "Gesehen"); "neu" heisst
+    /// seit 17.11.2026 auch: vor hoechstens 24 Stunden eingetragen (`first_seen`)
     private func seededHost(now: String = "2026-10-26T07:30:00") async throws -> LocalBackendHost {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: now)!)
         let backend = try await host.backend()
         try await backend.context.database.transaction { c in
             try c.execute("INSERT INTO courses(id, title, semester, subject, kind, created_at) VALUES (?,?,?,?,?,?)",
                           [.text("k-ma"), .text("Testmathematik I"), .text("WiSe 2026/27"), .text("Testmathematik I"), .text("vorlesung"), .text("2026-10-01T08:00:00")])
-            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind) VALUES (?,?,?,?,?, 'neu', 'pdf')",
+            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind, first_seen) VALUES (?,?,?,?,?, 'neu', 'pdf', ?)",
                           [.text("f-v1"), .text("k-ma"), .text("VL01.pdf"), .text("Vorlesung"),
-                           .integer(Int64(UniFlowClock.fixed(berlin: "2026-10-12T10:00:00")!.now.timeIntervalSince1970))])
+                           .integer(Int64(UniFlowClock.fixed(berlin: "2026-10-12T10:00:00")!.now.timeIntervalSince1970)),
+                           .text(UniFlowClock.fixed(berlin: now)!.nowISO)])
         }
         return host
     }

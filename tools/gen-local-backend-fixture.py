@@ -846,9 +846,13 @@ def _module_seed() -> list[list]:
         ("f-in-01", "k-inaktiv", "VL01.pdf", "Vorlesung", "2026-10-13T08:30", "neu"),
         ("f-erst-01", "k-erst", "Willkommen.pdf", None, "2026-10-05T10:00", "neu"),
     ]
+    # "Neu" (study.new_file_sql: nie geoeffnet und vor hoechstens 24 Stunden eingetragen), Uhr der Szenarien
+    # 20.11.2026 10 Uhr: f-ma-07 kam gestern Mittag (neu), f-ma-06 vorgestern (nicht mehr neu), f-in-01 heute im
+    # inaktiven Kurs (zaehlt nicht), alle anderen vor Wochen
+    first_seen = {"f-ma-07": "2026-11-19T12:00:00", "f-ma-06": "2026-11-18T23:59:59", "f-in-01": "2026-11-20T08:00:00"}
     for fid, cid, name, folder, when, status in files:
         out.append(["INSERT INTO files(id, course_id, name, size, chdate, status, studip_folder, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
-                    [fid, cid, name, 1000, _berlin_ts(when) if when else None, status, folder, "pdf", "2026-10-20T08:00:00"]])
+                    [fid, cid, name, 1000, _berlin_ts(when) if when else None, status, folder, "pdf", first_seen.get(fid, "2026-10-20T08:00:00")]])
     for fid, typ, title, topics in [("f-bt-06", "vorlesung", "Einführung in Beispielsignale", '["Beispielsignale", "Faltung"]'),
                                     ("f-bt-07", "vorlesung", "Zweite Analyse", "kein json"),
                                     ("f-ma-05", "uebung", None, '[42, "x"]'),
@@ -978,6 +982,7 @@ def study_modules(src: SchemaSource, app) -> dict:
         materials = []
         for today in EVENT_TODAYS:
             study.today = lambda d=date.fromisoformat(today): d
+            db.now_iso = lambda n=f"{today}T00:00:00": n         # "Neu" je Datei (study.mark_new) rechnet mit der Uhr
             with db.cursor() as conn:
                 start = study.semester_start(conn)
                 for mid in module_ids + [99, 0, None]:
@@ -987,6 +992,7 @@ def study_modules(src: SchemaSource, app) -> dict:
                     materials.append({"today": today, "module_id": mid, "days": days})
         # eine Antwort vollstaendig (Werte der Dateien wie im Moduldetail)
         study.today = lambda: date(2026, 11, 20)
+        db.now_iso = lambda: "2026-11-20T00:00:00"
         with db.cursor() as conn:
             material_sample = {"today": "2026-11-20", "module_id": 1, "day": "2026-10-21",
                                "response": timetable.materials_for_event(conn, {"module_id": 1}, date(2026, 10, 21))}
@@ -1168,7 +1174,11 @@ def _file(fid, cid, name, chdate, *, mime="application/pdf", local=True, kind="p
     return row
 
 
-# Erfundene Datenbank: Kurse wie nach dem Abgleich (ohne Fach, S3) und wie vom PC (mit Fach, fuer ensure_modules)
+# Erfundene Datenbank: Kurse wie nach dem Abgleich (ohne Fach, S3) und wie vom PC (mit Fach, fuer ensure_modules).
+# "Neu" (study.new_file_sql: nie geoeffnet und vor hoechstens 24 Stunden eingetragen): die Uhr steht am Tag der
+# Zeitumstellung (25.10.2026, 14:30:05 Winterzeit), die Grenze sind wirkliche 24 Stunden, also 24.10. 15:30:05
+# Sommerzeit. f1 kam heute frueh (neu), f9 genau an der Grenze (neu), f10 eine Sekunde frueher (nicht mehr neu), f7
+# heute im inaktiven Kurs (zaehlt nicht), alle anderen vor Tagen (nicht mehr neu).
 LIB_SEED = {
     "courses": [
         _course("k1", "Testkurs Algebra", number="T-101"),
@@ -1184,17 +1194,17 @@ LIB_SEED = {
         {"id": 3, "name": "Unterordner", "parent_id": 2, "module_id": None, "color": None, "created_at": "2026-10-21T10:02:00"},
     ],
     "files": [
-        _file("f1", "k1", "Folien 1.pdf", 1792400011),
+        _file("f1", "k1", "Folien 1.pdf", 1792400011, first_seen="2026-10-25T09:00:00"),
         _file("f2", "k1", "Blatt 2.pdf", 1792500012, status="gelesen", seen=1, folder="Übungen", favorite=1,
               last_opened="2026-10-22T08:00:00", folder_id=2),
         _file("f3", "k2", "notizen.txt", 1792300013, mime=None, kind="file"),
         _file("f4", "k2", "seite.html", 1792200014, mime="text/html", kind="file"),
         _file("f5", "k1", "Grafik ä.png", 1792100015, mime="image/png", kind="image"),
         _file("f6", "k1", "Nicht geladen.pdf", 1792000016, local=False),
-        _file("f7", "k3", "Alt.pdf", 1791900017),
+        _file("f7", "k3", "Alt.pdf", 1791900017, first_seen="2026-10-25T09:30:00"),
         _file("f8", "k2", "Fehlt.pdf", 1791800018),
-        _file("f9", "k4", "Mechanik VL01.pdf", 1791700019, folder="Vorlesung"),
-        _file("f10", "k5", "Mechanik Blatt 1.pdf", 1791600020, folder="Übung"),
+        _file("f9", "k4", "Mechanik VL01.pdf", 1791700019, folder="Vorlesung", first_seen="2026-10-24T15:30:05"),
+        _file("f10", "k5", "Mechanik Blatt 1.pdf", 1791600020, folder="Übung", first_seen="2026-10-24T15:30:04"),
         _file("f11", "k6", "Begrüßung.pdf", 1791500021),
         {"id": "u1", "course_id": "__user__", "name": "Mein Heft", "size": 0, "mime": None, "author": "Ich", "chdate": 1791400022,
          "download_url": "", "local_path": None, "downloaded_at": "2026-10-21T11:00:00", "first_seen": "2026-10-21T11:00:00",
