@@ -19,7 +19,7 @@ import XCTest
 /// Jedes Geraet bekommt einen eigenen Zugang (`device`), alle teilen die Datenbank. Nur im Speicher, kein Netz.
 final class ProductionLikeStore: @unchecked Sendable {
     struct Field: Equatable { let kind: String; let queryable: Bool }
-    struct RecordType {
+    struct RecordType: Equatable {
         var fields: [String: Field] = [:]
         var recordNameQueryable = false
         /// Rolle (`_world`, `_icloud`, `_creator`) -> Rechte (`READ`, `CREATE`, `WRITE`)
@@ -65,6 +65,108 @@ final class ProductionLikeStore: @unchecked Sendable {
             .appendingPathComponent("Config/cloudkit-schema.ckdb")
         return try String(contentsOf: url, encoding: .utf8)
     }
+
+    /// Schema fuer die Tests: die Datei aus dem Repo; ist sie nicht lesbar (Mac "Designed for iPad": der Testwirt laeuft
+    /// in der Sandbox), die Kopie der Community-Typen unten. `CommunityVierAktionenAppTests` prueft im Simulator, dass
+    /// die Kopie der Datei gleicht.
+    static func schema() -> String { (try? schemaFromRepo()) ?? communitySchemaCopy }
+
+    /// Typen der Community aus Config/cloudkit-schema.ckdb (Stand 04.11.2026), ohne die Systemfelder ausser `___recordID`
+    static let communitySchemaCopy = """
+        RECORD TYPE Solution (
+            "___recordID"    REFERENCE QUERYABLE,
+            solutionID       STRING,
+            fingerprint      STRING QUERYABLE,
+            university       STRING QUERYABLE,
+            courseKey        STRING QUERYABLE,
+            visibility       STRING,
+            groupKey         STRING,
+            displayName      STRING,
+            title            STRING,
+            pageCount        INT64,
+            week             INT64,
+            createdAt        STRING,
+            package          ASSET,
+            ownerRecordName  STRING,
+            withdrawn        INT64,
+            GRANT WRITE TO "_creator",
+            GRANT CREATE TO "_icloud",
+            GRANT READ TO "_world"
+        );
+        RECORD TYPE Report (
+            "___recordID"       REFERENCE QUERYABLE,
+            solutionID          STRING QUERYABLE,
+            reason              STRING,
+            note                STRING,
+            reporterRecordName  STRING,
+            commentID           STRING,
+            createdAt           STRING QUERYABLE SORTABLE,
+            GRANT WRITE TO "_creator",
+            GRANT READ TO "_creator",
+            GRANT CREATE TO "_icloud"
+        );
+        RECORD TYPE StudyGroup (
+            "___recordID"    REFERENCE QUERYABLE,
+            groupKey         STRING,
+            name             STRING,
+            university       STRING,
+            ownerRecordName  STRING,
+            createdAt        STRING,
+            GRANT WRITE TO "_creator",
+            GRANT CREATE TO "_icloud",
+            GRANT READ TO "_world"
+        );
+        RECORD TYPE Block (
+            "___recordID"    REFERENCE QUERYABLE,
+            ownerRecordName  STRING,
+            createdAt        STRING,
+            GRANT WRITE TO "_creator",
+            GRANT CREATE TO "_icloud",
+            GRANT READ TO "_world"
+        );
+        RECORD TYPE Ban (
+            "___recordID"    REFERENCE QUERYABLE,
+            ownerRecordName  STRING,
+            GRANT WRITE TO "_creator",
+            GRANT READ TO "_world"
+        );
+        RECORD TYPE Comment (
+            "___recordID"    REFERENCE QUERYABLE,
+            solutionID       STRING QUERYABLE,
+            parentID         STRING,
+            status           STRING,
+            createdAt        STRING,
+            editedAt         STRING,
+            payload          STRING,
+            ownerRecordName  STRING,
+            removedID        STRING,
+            createdOrder     INT64,
+            GRANT WRITE TO "_creator",
+            GRANT CREATE TO "_icloud",
+            GRANT READ TO "_world"
+        );
+        RECORD TYPE Like (
+            "___recordID"    REFERENCE QUERYABLE,
+            solutionID       STRING QUERYABLE,
+            ownerRecordName  STRING,
+            createdAt        STRING,
+            GRANT WRITE TO "_creator",
+            GRANT CREATE TO "_icloud",
+            GRANT READ TO "_world"
+        );
+        RECORD TYPE Correction (
+            "___recordID"    REFERENCE QUERYABLE,
+            solutionID       STRING QUERYABLE,
+            solutionOwner    STRING QUERYABLE,
+            payload          STRING,
+            createdAt        STRING,
+            ownerRecordName  STRING,
+            createdOrder     INT64,
+            GRANT WRITE TO "_creator",
+            GRANT CREATE TO "_icloud",
+            GRANT READ TO "_world"
+        );
+        """
 
     /// Liest `RECORD TYPE Name ( feld TYP [QUERYABLE] …, GRANT RECHT TO "rolle", … );`
     static func parse(_ text: String) -> [String: RecordType] {

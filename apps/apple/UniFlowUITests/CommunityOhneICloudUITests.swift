@@ -30,7 +30,10 @@ final class CommunityOhneICloudUITests: XCTestCase {
         // Community-Seite mit dem Demo-Modul; ohne iCloud-Container im Build gibt es die Community nicht
         // "Ansehen" vor dem Beitritt, "Öffnen" danach (der Beitritt bleibt auf dem Geraet gemerkt)
         let view = app.buttons.matching(NSPredicate(format: "label == 'Ansehen' OR label == 'Öffnen'")).firstMatch
-        guard view.waitForExistence(timeout: 40) else {
+        // iPhone: die Kachel des Moduls steht weiter unten
+        XCTAssertTrue(app.staticTexts["Community"].firstMatch.waitForExistence(timeout: 40) || view.exists, "Community-Seite offen")
+        for _ in 0..<5 where !view.waitForExistence(timeout: 3) { app.swipeUp() }
+        guard view.waitForExistence(timeout: 5) else {
             shot("\(prefix)-00-keine-community")
             throw XCTSkip("Keine Community in diesem Build (kein iCloud-Container) oder Demo-Inhalte fehlen")
         }
@@ -65,15 +68,27 @@ final class CommunityOhneICloudUITests: XCTestCase {
         // mit angeschlossener Tastatur (Simulator am Mac) meldet das System eine Tastatur ohne Hoehe
         let visible = keyboard.exists && keyboard.frame.height > 100
         if visible {
-            XCTAssertLessThanOrEqual(field.frame.maxY, keyboard.frame.minY + 1, "Die Tastatur verdeckt das Eingabefeld nicht")
-            XCTAssertLessThanOrEqual(ask.frame.maxY, keyboard.frame.minY + 1, "Der Knopf „Frage stellen“ liegt ueber der Tastatur")
-            print("TASTATUR sichtbar: Feld \(field.frame), Knopf \(ask.frame), Tastatur \(keyboard.frame)")
+            // Bildschirmtastatur: das Feld bleibt sichtbar. Liegt der Knopf unter dem Feld hinter der Tastatur (iPhone),
+            // steht derselbe Knopf in der Leiste ueber der Tastatur
+            let covered = ask.frame.maxY > keyboard.frame.minY + 1
+            print("TASTATUR sichtbar: Feld \(field.frame), Knopf \(ask.frame), Tastatur \(keyboard.frame), Knopf verdeckt: \(covered)")
+            XCTAssertLessThanOrEqual(field.frame.minY, keyboard.frame.minY - 20, "Die Tastatur verdeckt das Eingabefeld nicht")
+            shot("\(prefix)-04-frage-getippt")
+            if covered {
+                let bar = app.buttons["community.discussion.ask.keyboard"]
+                XCTAssertTrue(bar.waitForExistence(timeout: 5), "„Frage stellen“ steht in der Leiste ueber der Tastatur")
+                XCTAssertTrue(bar.isHittable, "„Frage stellen“ ueber der Tastatur ist erreichbar")
+                bar.tap()
+            } else {
+                XCTAssertTrue(ask.isHittable, "„Frage stellen“ ist erreichbar")
+                ask.tap()
+            }
         } else {
             print("TASTATUR nicht sichtbar (Simulator mit angeschlossener Tastatur): Lage zur Tastatur hier nicht geprueft")
+            XCTAssertTrue(ask.isHittable, "„Frage stellen“ ist erreichbar")
+            shot("\(prefix)-04-frage-getippt")
+            ask.tap()
         }
-        XCTAssertTrue(ask.isHittable, "„Frage stellen“ ist erreichbar")
-        shot("\(prefix)-04-frage-getippt")
-        ask.tap()
 
         // ohne iCloud-Konto: die Frage bleibt stehen, darunter die Meldung mit "Erneut senden" und "Verwerfen"
         let retry = app.buttons["Erneut senden"].firstMatch

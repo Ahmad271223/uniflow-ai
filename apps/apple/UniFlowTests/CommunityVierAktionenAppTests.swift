@@ -26,11 +26,48 @@ final class CommunityVierAktionenAppTests: IPhoneLearnTestCase {
         return s
     }
 
+    /// Lage der Bildschirmtastatur (Bildschirmkoordinaten); `.null`, solange keine zu sehen war
+    private final class KeyboardWatch: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = CGRect.null
+        private var token: NSObjectProtocol?
+        var frame: CGRect { lock.withLock { value } }
+
+        init() {
+            token = NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidChangeFrameNotification, object: nil, queue: nil) { [weak self] n in
+                guard let self, let end = n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                self.lock.withLock { self.value = end }
+            }
+        }
+
+        deinit { if let token { NotificationCenter.default.removeObserver(token) } }
+    }
+
+    private var keyboard = KeyboardWatch()
+
     override func setUp() {
         super.setUp()
+        keyboard = KeyboardWatch()
         let before = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
         addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
+    }
+
+    /// iPhone: Eingabefeld und Senden-Knopf liegen ueber der Bildschirmtastatur, wenn eine zu sehen ist (iPhone-Simulator);
+    /// sonst (iPad-Simulator mit schmalem Fenster, Tastatur des Mac angeschlossen) stehen sie unten fest
+    private func assertComposerAboveKeyboard(_ env: HostedEnvironment, field label: String, send: String, file: StaticString = #filePath, line: UInt = #line) {
+        env.pump(0.6)
+        let field = frame(element(env, label: label)), button = frame(button(env, send))
+        let kb = keyboard.frame
+        if !kb.isNull, kb.height > 100, kb.minY < env.window.bounds.height - 1 {
+            XCTAssertLessThanOrEqual(field.maxY, kb.minY + 1, "die Tastatur verdeckt das Feld „\(label)“ nicht: Feld \(field), Tastatur \(kb)", file: file, line: line)
+            XCTAssertLessThanOrEqual(button.maxY, kb.minY + 1, "„\(send)“ liegt ueber der Tastatur: Knopf \(button), Tastatur \(kb)", file: file, line: line)
+            XCTAssertGreaterThan(field.minY, 60, "das Feld ist nicht oben aus dem Bild geschoben: \(field)", file: file, line: line)
+            print("TASTATUR sichtbar (\(label)): Feld \(field), Knopf \(button), Tastatur \(kb)")
+        } else {
+            XCTAssertGreaterThan(field.minY, Self.phone.height * 0.6, "Feld „\(label)“ unten fest: \(field)", file: file, line: line)
+            print("TASTATUR nicht sichtbar (\(label)): Feld unten fest \(field)")
+        }
     }
 
     // MARK: Hilfen
@@ -50,7 +87,7 @@ final class CommunityVierAktionenAppTests: IPhoneLearnTestCase {
     }
 
     private func store() throws -> ProductionLikeStore {
-        ProductionLikeStore(schema: try ProductionLikeStore.schemaFromRepo(), assetDir: try tempDir())
+        ProductionLikeStore(schema: ProductionLikeStore.schema(), assetDir: try tempDir())
     }
 
     /// Geraet einer Person: eigener Zugang zur gemeinsamen Datenbank, eigene Mitgliedschaft (beigetreten), Pseudonym =
@@ -150,7 +187,16 @@ final class CommunityVierAktionenAppTests: IPhoneLearnTestCase {
 
     /// Die Schemadatei kennt, was die vier Aktionen brauchen (und der Nachbau liest sie richtig)
     func testSchemaDateiDecktDieVierAktionen() throws {
-        let types = ProductionLikeStore.parse(try ProductionLikeStore.schemaFromRepo())
+        // am Mac ("Designed for iPad") liest der Testwirt das Repo nicht: dort gilt die Kopie im Test; hier (Simulator)
+        // muss sie fuer die Typen der Community genau der Datei gleichen
+        if let file = try? ProductionLikeStore.schemaFromRepo() {
+            let fromFile = ProductionLikeStore.parse(file), copy = ProductionLikeStore.parse(ProductionLikeStore.communitySchemaCopy)
+            XCTAssertEqual(Set(copy.keys), ["Solution", "Report", "StudyGroup", "Block", "Ban", "Comment", "Like", "Correction"])
+            for (name, type) in copy { XCTAssertEqual(fromFile[name], type, "Kopie im Test weicht von Config/cloudkit-schema.ckdb ab: \(name)") }
+        } else if !ProcessInfo.processInfo.isiOSAppOnMac {
+            XCTFail("Config/cloudkit-schema.ckdb ist nicht lesbar")
+        }
+        let types = ProductionLikeStore.parse(ProductionLikeStore.schema())
         let comment = try XCTUnwrap(types["Comment"]), like = try XCTUnwrap(types["Like"]), report = try XCTUnwrap(types["Report"])
         for field in ["solutionID", "parentID", "status", "createdAt", "editedAt", "payload", "ownerRecordName", "removedID"] {
             XCTAssertEqual(comment.fields[field]?.kind, "STRING", field)
@@ -170,7 +216,7 @@ final class CommunityVierAktionenAppTests: IPhoneLearnTestCase {
         XCTAssertEqual(types["Ban"]?.recordNameQueryable, true, "die App fragt alle Sperren ab")
         XCTAssertFalse(types["Ban"]?.allows("CREATE", "_icloud") ?? true, "Sperren legt nur der Inhaber im Dashboard an")
         // der Nachbau lehnt ab, was Production ablehnt
-        let store = ProductionLikeStore(schema: try ProductionLikeStore.schemaFromRepo(), assetDir: try tempDir())
+        let store = try store()
         let cloud = store.device("_user-x")
         let bad = CommunityRecord(type: "Comment", name: "c-1", fields: ["text": .string("Klartext")])
         XCTAssertThrowsError(try awaiting { try await cloud.create(bad, in: .publicDB) })
@@ -546,8 +592,7 @@ final class CommunityVierAktionenAppTests: IPhoneLearnTestCase {
         assertReachable(sheet, "Antworten")
         if geraet == .iPhone {
             assertFits(sheet, "frage")
-            let field = frame(element(sheet, label: "Antworten …"))
-            XCTAssertGreaterThan(field.minY, Self.phone.height * 0.6, "Antwortfeld unten fest (ueber der Tastatur): \(field)")
+            assertComposerAboveKeyboard(sheet, field: "Antworten …", send: "Antworten")
         }
         XCTAssertTrue(tap(sheet, "Antworten"))
         XCTAssertTrue(sheet.wait(timeout: 3) { self.shows(sheet, "Mit der Kettenregel.") && self.shows(sheet, "1 Antwort") }, dump(sheet))
@@ -587,8 +632,7 @@ final class CommunityVierAktionenAppTests: IPhoneLearnTestCase {
         assertReachable(env, "Senden")
         if geraet == .iPhone {
             assertFits(env, "leser-diskussion")
-            let field = frame(element(env, label: "Kommentar schreiben …"))
-            XCTAssertGreaterThan(field.minY, Self.phone.height * 0.6, "Kommentarfeld unten fest (ueber der Tastatur): \(field)")
+            assertComposerAboveKeyboard(env, field: "Kommentar schreiben …", send: "Senden")
         }
         XCTAssertTrue(tap(env, "Senden"))
         XCTAssertTrue(env.wait(timeout: 3) { self.shows(env, "Warum das Minus in 2b?") && self.shows(env, "Diskussion (2)") }, dump(env))
