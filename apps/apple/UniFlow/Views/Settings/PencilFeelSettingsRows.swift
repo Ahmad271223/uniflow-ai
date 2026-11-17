@@ -5,19 +5,32 @@ import SwiftUI
 struct PencilFeelSettingsRows: View {
     @AppStorage(PencilSmoothing.key) private var smoothing = PencilSmoothing.standard.rawValue
     @AppStorage(ShapeSnapSetting.key) private var shapes = true
+    @AppStorage(PencilLab.key) private var lab = PencilLab.standard.rawValue
 
     var body: some View {
-        SettingsRow(PencilSmoothing.title, icon: "pen", note: PencilSmoothing.note) {
-            UFSegmented(options: PencilSmoothing.options, selection: $smoothing)
-                .accessibilityIdentifier("settings.pencilSmoothing")
+        // Glaettung nur, solange sie etwas bewirkt (`PencilTuning.rebuildFromRawPointsAfterLift`, seit 17.11.2026 aus)
+        if PencilTuning.rebuildFromRawPointsAfterLift {
+            SettingsRow(PencilSmoothing.title, icon: "pen", note: PencilSmoothing.note) {
+                UFSegmented(options: PencilSmoothing.options, selection: $smoothing)
+                    .accessibilityIdentifier("settings.pencilSmoothing")
+            }
+            SettingsDivider()
         }
-        SettingsDivider()
         SettingsRow(ShapeSnapSetting.title, icon: "square", note: ShapeSnapSetting.note) {
             Toggle(isOn: $shapes) { Text(shapes ? "An" : "Aus").ufFont(13.12).foregroundStyle(UF.muted) }
                 .tint(UF.accent)
                 .fixedSize()
                 .accessibilityLabel(ShapeSnapSetting.title)
                 .accessibilityIdentifier("settings.shapeSnap")
+        }
+        // Schriftbild zum Vergleichen: nur, wenn freigeschaltet (`PencilLab.visible`)
+        if PencilLab.visible {
+            SettingsDivider()
+            SettingsRow(PencilLab.title, icon: "pen", note: PencilLab.note) {
+                UFSegmented(options: PencilLab.options, selection: $lab)
+                    .accessibilityIdentifier("settings.pencilLab")
+            }
+            .onChange(of: lab) { _, _ in NotificationCenter.default.post(name: PencilLab.changed, object: nil) }
         }
     }
 }

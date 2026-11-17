@@ -15,15 +15,16 @@ final class StiftStaerkeTests: XCTestCase {
     func testEveryWidthStepIsInsidePencilKitLimitsAndDistinct() {
         for t in EditorToolState.Tool.canvasTools {
             guard let ink = t.inkType else { continue }
-            let r = ink.validWidthRange
+            let r = EditorToolState.inkLimits(ink)                       // was PencilKit wirklich annimmt (17.11.2026)
             for w in t.widths { XCTAssertTrue(r.contains(w), "\(t.title) \(w) ausserhalb \(r)") }
             XCTAssertEqual(Set(t.widths.map { min(max($0, r.lowerBound), r.upperBound) }).count, t.widths.count, "\(t.title): Stufen verschieden")
         }
         XCTAssertEqual(EditorToolState.Tool.pen.widths.first, 0.88, "duennster Stift = Untergrenze von PencilKit")
-        XCTAssertEqual(EditorToolState.Tool.fineliner.widths.first, 0.5, "duennster Fineliner = Untergrenze von PencilKit")
+        XCTAssertEqual(EditorToolState.Tool.fineliner.widths.first, 0.25, "duennster Fineliner: ein Bildpunkt bei 100 % Zoom")
+        XCTAssertEqual(EditorToolState.Tool.fountain.widths.first, 1, "duennster Fueller")
         // Standard unveraendert und als Stufe vorhanden
         let tools = EditorToolState(defaults: UserDefaults(suiteName: "uniflow.tests.staerke.\(UUID().uuidString)")!)
-        for t in [EditorToolState.Tool.pen, .fineliner, .marker] { XCTAssertTrue(t.widths.contains(tools.style(t).width), "\(t.title) Standard") }
+        for t in [EditorToolState.Tool.pen, .fineliner, .fountain, .marker] { XCTAssertTrue(t.widths.contains(tools.style(t).width), "\(t.title) Standard") }
     }
 
     func testMeasureWidthLimitsZoomAndRenderedThickness() async throws {

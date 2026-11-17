@@ -148,6 +148,10 @@ final class PencilSmoothingTests: XCTestCase {
 
     /// Die zwei Zeilen in den Stift-Einstellungen: bedienbar, schreiben die Einstellung; Bild hell und dunkel
     func testSettingsRowsSwitchSmoothingAndShapes() throws {
+        // Glaettung "Leicht"/"Aus" ist seit 17.11.2026 abgeschaltet (`PencilTuning.rebuildFromRawPointsAfterLift`): fuer
+        // diesen Test ausdruecklich an, danach zurueck
+        PencilTuning.rebuildFromRawPointsAfterLift = true
+        addTeardownBlock { @MainActor in PencilTuning.rebuildFromRawPointsAfterLift = false }
         UserDefaults.standard.removeObject(forKey: PencilSmoothing.key)
         UserDefaults.standard.removeObject(forKey: ShapeSnapSetting.key)
         defer {

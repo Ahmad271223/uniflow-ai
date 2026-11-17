@@ -528,8 +528,12 @@ struct DocumentView: View {
         EditorToolbarPlacement.resolve(toolbarPlacementRaw, isMac: PDFEditorController.isMac)
     }
 
-    /// "Oben fest": eine Kopfzeile statt Navigationsleiste und Werkzeugleiste (`EditorHeaderBar`)
-    private var usesHeader: Bool { toolbarPlacement == .top }
+    /// Eine Kopfzeile statt Navigationsleiste und Reiterstreifen (`EditorHeaderBar`): seit 17.11.2026 in jeder Lage der
+    /// Werkzeuge (`EditorHeaderLayout.everywhere`), vorher nur bei "Oben fest"
+    private var usesHeader: Bool { EditorHeaderLayout.everywhere || toolsInHeader }
+
+    /// "Oben fest": die Werkzeuge stehen in der Kopfzeile; sonst ist die Zeile flacher und traegt nur Reiter und Knoepfe
+    private var toolsInHeader: Bool { toolbarPlacement == .top }
 
     /// Schloss der KI-Stellen im Editor (KI-Hilfe, "KI fragen", "Bereich an KI"): ohne KI und ohne Pro AI "ab Pro AI"
     private var aiLock: UFPlan? {
@@ -553,7 +557,7 @@ struct DocumentView: View {
     /// Platz der Werkzeuge oben bzw. unten (Leiste, Leiste mit Schloss ohne Plus, Hinweis bei "Schwebend"); "Oben fest"
     /// stehen sie in der einen Kopfzeile (`editorHeader`), hier dann nichts
     private func toolbarSlot(_ edge: EditorToolbarSlot.Edge) -> EditorToolbarSlot {
-        let shown = !chromeHidden && !(usesHeader && edge == .top)
+        let shown = !chromeHidden && !(toolsInHeader && edge == .top)
         let locked = shown && writingLocked
         return EditorToolbarSlot(edge: edge, placement: toolbarPlacement,
                                  toolbar: shown && bridge.toolbar.visible && toolbarPlacement != .floating ? toolbarStrip() : nil,
@@ -1430,7 +1434,8 @@ struct DocumentView: View {
     /// Zurueck, Reiter, Werkzeuge, Knoepfe in einer Zeile (`EditorHeaderBar`); eigene Typen hinter Schnitten, damit
     /// `documentChrome` flach bleibt (`ViewTypeDepthAppTests`)
     private var editorHeader: AnyView {
-        EditorHeaderBar(leading: { layout in headerLeading(layout) }, tools: headerTools, actions: { layout in headerActions(layout) })
+        EditorHeaderBar(flat: !toolsInHeader, leading: { layout in headerLeading(layout) }, tools: toolsInHeader ? headerTools : nil,
+                        actions: { layout in headerActions(layout) })
             .ufTypeCut("DocumentView.header")
     }
 
@@ -1438,7 +1443,16 @@ struct DocumentView: View {
         HStack(spacing: 0) {
             // Zurueck: schliesst das Dokument dorthin, wo es geoeffnet wurde (die Reiter bleiben)
             UFBackButton(style: .header, compact: true, action: onBack)
-                .frame(width: EditorToolbar.hitSide, height: EditorToolbar.hitSide)
+                .frame(width: EditorToolbar.hitSide, height: layout.rowHeight)
+            if !layout.hasTools {
+                // ohne Werkzeuge in der Zeile ist Platz: Logo (zur Uebersicht) und Seiten links wie in der Navigationsleiste
+                UFLogoMenu().frame(height: layout.rowHeight)
+                if !layout.compactActions {
+                    EditorHeaderButton(title: "Seiten", icon: "rectangle.stack", selected: showSidebar, identifier: "doc.pages") {
+                        withAnimation(UF.motion(.default)) { showSidebar.toggle() }
+                    }
+                }
+            }
             DocumentTabStrip(tabs: router.tabs, currentID: store.file.id, currentTitle: store.file.displayTitle,
                              maxWidth: layout.tabMaxWidth, asMenu: layout.tabsAsMenu, enabled: tabsEnabled)
         }
@@ -1464,17 +1478,39 @@ struct DocumentView: View {
                                    selected: taskDone, identifier: "doc.task.done") { Task { await markTaskDone() } }
                     .disabled(taskDone)
             }
-            // Stand nur bei Problemen in der Zeile (offline, nicht gesichert, Konflikt); sonst oben im Menue "Mehr"
-            if StatusLabel.needsAttention(store.status) {
+            // Stand nur bei Problemen in der Zeile (offline, nicht gesichert, Konflikt); sonst oben im Menue "Mehr". Ohne
+            // Werkzeuge in der Zeile immer (klein, wie in der Navigationsleiste)
+            if StatusLabel.needsAttention(store.status) || layout.showsAllActions {
                 StatusLabel(status: store.status).padding(.horizontal, 2)
             }
             SyncIssueBadge(store: store)
-            if !layout.compactActions {
+            if !layout.compactActions, layout.hasTools {
                 EditorHeaderButton(title: "Seiten", icon: "rectangle.stack", selected: showSidebar, identifier: "doc.pages") {
                     withAnimation(UF.motion(.default)) { showSidebar.toggle() }
                 }
             }
-            headerAIButton(narrow: layout.narrow)
+            if layout.showsAllActions {
+                // ohne Werkzeuge in der Zeile: was "Oben fest" im Menue "Mehr" steht, einzeln wie in der Navigationsleiste
+                if offersLectureMarker {
+                    EditorHeaderButton(title: "Vorlesung bis hier",
+                                       icon: markers.needsReview ? "bookmark.trianglebadge.exclamationmark" : "bookmark",
+                                       identifier: "doc.lectureMarker") { openLectureMarker() }
+                }
+                EditorHeaderButton(title: "Suchen", icon: "magnifyingglass", identifier: "doc.search") { showSearch = true }
+            }
+            headerAIButton(narrow: layout.smallAILock)
+            if layout.showsAllActions {
+                let penLabel = EditorPointer.toggleLabel(isMac: PDFEditorController.isMac, pencilOnly: pencilOnly)
+                EditorHeaderButton(title: penLabel.title, icon: penLabel.icon, identifier: "doc.pencilOnly") {
+                    pencilOnly.toggle()
+                    if PDFEditorController.isMac { bridge.hint = EditorBridge.Hint(text: EditorPointer.macHint(pencilOnly: pencilOnly)) }
+                }
+                .modifier(MacHelp(text: EditorPointer.macHint(pencilOnly: pencilOnly)))
+                Menu { layersMenuItems } label: { EditorHeaderMenuLabel(icon: "square.3.layers.3d") }
+                    .disabled(store.pdf == nil)
+                    .accessibilityLabel("Ebenen")
+                    .accessibilityIdentifier("doc.layers")
+            }
             if !layout.compactActions {
                 EditorHeaderButton(title: !hasSidePane ? Self.lockedLabel("Geteilt", entitlements.access(.splitView)) : "Teilung beenden",
                                    icon: "rectangle.split.2x1", selected: hasSidePane, identifier: "doc.split") { toggleSplit() }
@@ -1488,7 +1524,7 @@ struct DocumentView: View {
                     .accessibilityLabel(exporting ? "Exportiert…" : "Teilen")
                     .accessibilityIdentifier("doc.share")
             }
-            Menu { headerMoreItems(compact: layout.compactActions) } label: { EditorHeaderMenuLabel(icon: "ellipsis.circle") }
+            Menu { headerMoreItems(compact: layout.compactActions, inline: layout.showsAllActions) } label: { EditorHeaderMenuLabel(icon: "ellipsis.circle") }
                 .accessibilityLabel("Mehr")
                 .accessibilityIdentifier("doc.more")
             if !layout.compactActions {
@@ -1526,8 +1562,9 @@ struct DocumentView: View {
 
     /// Menue "Mehr" der Kopfzeile: was frueher einzeln in der Navigationsleiste stand (Suchen, Vorlesung bis hier,
     /// Stift/Finger, Ebenen), schmal dazu Seiten, Daneben und Teilen, dann das bisherige Menue "Mehr"
-    @ViewBuilder private func headerMoreItems(compact: Bool) -> some View {
-        Section(store.status.label) {
+    /// - Parameter inline: diese Knoepfe stehen einzeln in der Zeile (ohne Werkzeuge, breit genug): hier nicht noch einmal
+    @ViewBuilder private func headerMoreItems(compact: Bool, inline: Bool = false) -> some View {
+        if !inline { Section(store.status.label) {
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
             if offersLectureMarker {
                 Button { openLectureMarker() } label: {
@@ -1540,7 +1577,7 @@ struct DocumentView: View {
                 if PDFEditorController.isMac { bridge.hint = EditorBridge.Hint(text: EditorPointer.macHint(pencilOnly: pencilOnly)) }
             } label: { Label(penLabel.title, systemImage: penLabel.icon) }
             layersMenu
-        }
+        } }
         if compact {
             Section {
                 Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
@@ -1832,7 +1869,12 @@ struct DocumentView: View {
 
     /// Ebenen: eigene Notizen und passende empfangene Loesungen ein-/ausblenden.
     private var layersMenu: some View {
-        Menu {
+        Menu { layersMenuItems } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
+            .disabled(store.pdf == nil)
+    }
+
+    /// Inhalt des Menues "Ebenen" (Navigationsleiste, Menue "Mehr" und Knopf der flachen Kopfzeile)
+    @ViewBuilder private var layersMenuItems: some View {
             Button { ownNotesVisible.toggle() } label: {
                 Label("Meine Notizen", systemImage: ownNotesVisible ? "checkmark.circle.fill" : "circle")
             }
@@ -1884,8 +1926,6 @@ struct DocumentView: View {
                     Label(Self.lockedLabel("Lösungen anderer ansehen", entitlements.access(.communityRead)), systemImage: UFLock.symbol)
                 }
             }
-        } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
-        .disabled(store.pdf == nil)
     }
 
     /// Teilen braucht Plus; die Liste "Meine geteilten Lösungen" (Zurueckziehen, Entfernen) steht allen offen
