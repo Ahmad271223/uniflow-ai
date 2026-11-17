@@ -461,6 +461,69 @@ final class FormenHandzeichnungTests: XCTestCase {
         XCTAssertEqual(ShapeRecognizer.recognize(bow)?.name, "line")
     }
 
+    // MARK: Textmarker: nur die gerade Linie
+
+    /// Mit dem Textmarker (`lineOnly`) wird jede gezeichnete Linie zur Linie, genau so lang wie gezeichnet; Vierecke,
+    /// Dreiecke, Kreise und alle Zeichen bleiben, wie gezogen. Ein Pfeil wird hoechstens zur Linie (kleiner Haken).
+    func testTextmarkerErkenntNurDieLinie() {
+        var lines = 0, others: [String] = []
+        for s in KorpusStrich.alle {
+            let got = ShapeRecognizer.recognize(s.erkennungspunkte, lineOnly: true)
+            switch s.art {
+            case .linie:
+                guard case .line(let a, let b)? = got else { XCTFail("\(s.name): mit dem Textmarker keine Linie"); continue }
+                lines += 1
+                // gleiche Laenge wie mit dem Stift (dort gegen den gezeichneten Strich geprueft)
+                guard case .line(let pa, let pb)? = ShapeRecognizer.recognize(s.erkennungspunkte) else { continue }
+                XCTAssertEqual(hypot(b.x - a.x, b.y - a.y), hypot(pb.x - pa.x, pb.y - pa.y), accuracy: 0.01, s.name)
+            case .pfeil:
+                if let got { XCTAssertEqual(got.name, "line", "\(s.name): mit dem Textmarker nie ein Pfeil") }
+            default:
+                if let got { others.append("\(s.name) -> \(got.name)") }
+            }
+        }
+        XCTAssertEqual(lines, 40)
+        XCTAssertTrue(others.isEmpty, "mit dem Textmarker wird nur die Linie zur Form: \(others)")
+        print("[Formen] Textmarker: \(lines) von 40 Linien zur Linie; von 228 Vierecken, Dreiecken, Kreisen und Zeichen zur Form: \(others.count)")
+    }
+
+    /// Nahezu waagerecht rastet die Marker-Linie genau waagerecht ein (Textzeile markieren); sonst bleibt die Richtung,
+    /// auch fast senkrecht. Der Strich selbst behaelt Tinte, Farbe, Deckkraft und Breite des Markers.
+    func testTextmarkerLinieWaagerechtUndMitDerTinteDesMarkers() throws {
+        let p = Self.p
+        guard case .line(let a, let b)? = ShapeRecognizer.recognize(Self.along([p(100, 300), p(400, 312)]), lineOnly: true) else { return XCTFail("Linie") }
+        XCTAssertEqual(a.y, b.y, "2,3 Grad: genau waagerecht")
+        XCTAssertEqual(abs(b.x - a.x), hypot(300, 12), accuracy: 0.5, "so lang wie gezeichnet")
+        guard case .line(let c, let d)? = ShapeRecognizer.recognize(Self.along([p(100, 300), p(108, 500)]), lineOnly: true) else { return XCTFail("Linie") }
+        XCTAssertEqual(d.x - c.x, 8, accuracy: 0.5, "fast senkrecht: bleibt, wie gezeichnet (der Stift rastet hier senkrecht ein)")
+        guard case .line(let e, let f)? = ShapeRecognizer.recognize(Self.along([p(100, 300), p(108, 500)])) else { return XCTFail("Linie") }
+        XCTAssertEqual(e.x, f.x, "Stift: senkrecht eingerastet")
+        XCTAssertNil(ShapeRecognizer.recognize(Self.along([p(100, 100), p(300, 100), p(300, 200), p(100, 200), p(100, 100)]), lineOnly: true), "Rahmen bleibt")
+        XCTAssertNil(ShapeRecognizer.recognize(Self.kreis(p(200, 200), 40, von: 0), lineOnly: true), "Kringel bleibt")
+
+        // als Strich: Marker bleibt Marker (Farbe mit 50 % Deckkraft, Breite 14), nur gerade
+        let ink = PKInk(.marker, color: UIColor.systemYellow.withAlphaComponent(0.5))
+        let pts = Self.along([p(100, 300), p(400, 306)]).enumerated().map { i, q in
+            PKStrokePoint(location: q, timeOffset: Double(i) * 0.004, size: CGSize(width: 14, height: 14), opacity: 0.8, force: 1, azimuth: 0, altitude: .pi / 2)
+        }
+        let original = PKStroke(ink: ink, path: PKStrokePath(controlPoints: pts, creationDate: Date(timeIntervalSinceReferenceDate: 800_000_000)))
+        let ideal = try XCTUnwrap(ShapeRecognizer.replacement(for: original))
+        XCTAssertEqual(ideal.ink.inkType, .marker)
+        var alpha: CGFloat = 0
+        ideal.ink.color.getRed(nil, green: nil, blue: nil, alpha: &alpha)
+        XCTAssertEqual(alpha, 0.5, accuracy: 0.01, "Deckkraft der Tinte")
+        XCTAssertEqual(ideal.ink.color.uniflowRGBA.hex, ink.color.uniflowRGBA.hex, "Farbe der Tinte")
+        XCTAssertEqual(ideal.path[0].size.width, 14); XCTAssertEqual(ideal.path[0].opacity, 0.8, accuracy: 0.001)
+        let first = ideal.path[0].location, last = ideal.path[ideal.path.count - 1].location
+        XCTAssertEqual(first.y, last.y, "waagerecht")
+        XCTAssertEqual(abs(last.x - first.x), hypot(300, 6), accuracy: 0.5)
+        // ein Rahmen mit dem Marker wird nicht ersetzt
+        let frame = Self.along([p(100, 100), p(300, 100), p(300, 200), p(100, 200), p(100, 100)]).enumerated().map { i, q in
+            PKStrokePoint(location: q, timeOffset: Double(i) * 0.004, size: CGSize(width: 14, height: 14), opacity: 0.8, force: 1, azimuth: 0, altitude: .pi / 2)
+        }
+        XCTAssertNil(ShapeRecognizer.replacement(for: PKStroke(ink: ink, path: PKStrokePath(controlPoints: frame, creationDate: Date()))))
+    }
+
     struct TinteMass {
         var sichtbar: CGFloat = 0
         /// so weit reicht die Tinte ueber den Anfangs- bzw. Endpunkt hinaus (negativ: sie hoert davor auf)

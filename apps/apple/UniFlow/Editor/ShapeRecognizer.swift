@@ -60,15 +60,17 @@ enum ShapeRecognizer {
 
     // MARK: Halten am Ende
 
-    /// Formen erkennt nur ein Stift-Werkzeug (Stift, Fineliner, Bleistift, Fueller) - nicht der Textmarker und
-    /// nicht der Radierer, das Lasso oder das Lineal.
+    /// Formen erkennt ein Stift-Werkzeug (Stift, Fineliner, Bleistift, Fueller) - und der Textmarker, aber der nur die
+    /// gerade Linie (`lineOnly`). Nicht: Wasserfarbe, Radierer, Lasso, Lineal.
     static func snaps(_ tool: PKTool) -> Bool {
         guard let ink = tool as? PKInkingTool else { return false }
-        switch ink.inkType {
-        case .marker, .watercolor: return false
-        default: return true
-        }
+        return ink.inkType != .watercolor
     }
+
+    /// Textmarker (Wunsch 17.11.2026): zeichnen und am Ende halten macht den Strich gerade - zum Markieren einer
+    /// Textzeile. Nur die Linie: Ein Rahmen um einen Absatz oder ein Kringel um ein Wort bleibt, wie gezogen. Nahezu
+    /// waagerecht rastet die Linie genau waagerecht ein, sonst bleibt die gezeichnete Richtung (auch fast senkrecht).
+    static func lineOnly(_ ink: PKInk) -> Bool { ink.inkType == .marker }
 
     /// Stand der Stift am Ende still? Zwei Wege, weil PencilKit beim stillen Stift nicht unbedingt weitere Punkte
     /// anlegt: die Dauer der Punkte im Umkreis `holdRadius` um den letzten Punkt, und die Zeit zwischen der letzten
@@ -90,7 +92,8 @@ enum ShapeRecognizer {
     // MARK: Erkennen
 
     /// Form zu einer Punktfolge (Seitenpunkte, in Zeichenreihenfolge); nil, wenn es keine der fuenf Formen ist
-    static func recognize(_ raw: [CGPoint]) -> Shape? {
+    /// - Parameter lineOnly: nur die gerade Linie (Textmarker, `lineOnly`), waagerecht eingerastet, nie senkrecht
+    static func recognize(_ raw: [CGPoint], lineOnly: Bool = false) -> Shape? {
         let drawn = drawnPath(raw)
         // Gleichmaessig abtasten: alle 3 pt, bei kleinen Formen feiner (rund 100 Punkte), damit auch ein Viereck von
         // 25 pt noch Seiten und Ecken hat
@@ -100,6 +103,7 @@ enum ShapeRecognizer {
         let box = bounds(pts)
         // das Stueck, das mit dem Halte-Knaeuel abgeschnitten wurde (`trimRadius`), gehoert zur gezeichneten Laenge
         guard length + trimRadius >= minimumLength, max(box.width, box.height) >= minimumSize else { return nil }
+        if lineOnly { return line(pts, all: raw, vertical: false) }
         if let loop = closedLoop(pts, length: length) {
             if let shape = polygon(loop) { return shape }
             // Kreis oder Ellipse: Die engen Enden einer flachen Ellipse sehen aus wie Ecken, und wo Anfang und Ende
@@ -231,7 +235,7 @@ enum ShapeRecognizer {
     static func replacement(for stroke: PKStroke) -> PKStroke? {
         guard stroke.mask == nil else { return nil }
         let points = stroke.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(stroke.transform) }
-        guard let shape = recognize(points) else { return nil }
+        guard let shape = recognize(points, lineOnly: lineOnly(stroke.ink)) else { return nil }
         return idealStroke(shape, like: stroke)
     }
 
@@ -240,7 +244,7 @@ enum ShapeRecognizer {
     /// Linie: Ausgleichsgerade durch den Strich. Sie reicht vom ersten bis zum aeussersten Punkt der Zeichnung - auch
     /// die Punkte, die beim Halten am Ende entstanden sind, zaehlen dafuer mit (`all`). Vorher endete die Linie am
     /// ersten Punkt des Halte-Knaeuels: bis zu 6 pt (`trimRadius`) und einen Abtastschritt zu frueh, bei jeder Linie.
-    private static func line(_ pts: [CGPoint], all: [CGPoint]) -> Shape? {
+    private static func line(_ pts: [CGPoint], all: [CGPoint], vertical: Bool = true) -> Shape? {
         guard let fit = fitLine(pts[...]) else { return nil }
         var u = fit.direction
         let a = pts[0], b = pts[pts.count - 1]
@@ -275,7 +279,7 @@ enum ShapeRecognizer {
         guard changes < 2 else { return nil }
         let from = CGPoint(x: fit.point.x + u.x * low, y: fit.point.y + u.y * low)
         let to = CGPoint(x: fit.point.x + u.x * high, y: fit.point.y + u.y * high)
-        return .line(from: from, to: snapAxis(from: from, to: to))
+        return .line(from: from, to: snapAxis(from: from, to: to, vertical: vertical))
     }
 
     /// Ausgleichsgerade (Hauptachse) durch Punkte: Schwerpunkt und Richtung
@@ -295,13 +299,13 @@ enum ShapeRecognizer {
     }
 
     /// Waagerecht oder senkrecht einrasten (bis 5 Grad daneben)
-    static func snapAxis(from a: CGPoint, to b: CGPoint) -> CGPoint {
+    static func snapAxis(from a: CGPoint, to b: CGPoint, vertical: Bool = true) -> CGPoint {
         let dx = b.x - a.x, dy = b.y - a.y
         let angle = abs(atan2(dy, dx)) * 180 / .pi
         // gleich lang wie gezeichnet (gedreht, nicht gestaucht)
         let length = hypot(dx, dy)
         if angle <= 5 || angle >= 175 { return CGPoint(x: a.x + (dx >= 0 ? length : -length), y: a.y) }
-        if abs(angle - 90) <= 5 { return CGPoint(x: a.x, y: a.y + (dy >= 0 ? length : -length)) }
+        if vertical, abs(angle - 90) <= 5 { return CGPoint(x: a.x, y: a.y + (dy >= 0 ? length : -length)) }
         return b
     }
 
@@ -803,5 +807,6 @@ enum ShapeSnapSetting {
     static var enabled: Bool { UserDefaults.standard.object(forKey: key) == nil || UserDefaults.standard.bool(forKey: key) }
     static let title = "Formen erkennen"
     static let note = "Linie, Rechteck, Quadrat, Dreieck, Kreis, Ellipse oder Pfeil zeichnen und am Ende kurz stehen bleiben "
-        + "(½ Sekunde): StudiNow macht die Form gerade bzw. rund. Normales Schreiben bleibt, wie es ist. Ein Mal Rückgängig nimmt die Form wieder weg."
+        + "(½ Sekunde): StudiNow macht die Form gerade bzw. rund. Mit dem Textmarker wird so nur die gerade Linie daraus. "
+        + "Normales Schreiben bleibt, wie es ist. Ein Mal Rückgängig nimmt die Form wieder weg."
 }

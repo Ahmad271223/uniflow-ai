@@ -198,7 +198,11 @@ final class EditorStepEFHKTests: XCTestCase {
         let ink = PKInk(.marker, color: .systemGreen)
         let original = stroke(along([CGPoint(x: 100, y: 100), CGPoint(x: 300, y: 100), CGPoint(x: 300, y: 200), CGPoint(x: 100, y: 200)],
                                     closed: true), hold: 0.6, ink: ink)
-        let ideal = try XCTUnwrap(ShapeRecognizer.replacement(for: original))
+        // Seit 17.11.2026 macht der Textmarker selbst nur noch die Linie zur Form (`ShapeRecognizer.lineOnly`): Der Rahmen
+        // wird nicht mehr ersetzt. Dass die ideale Form die Tinte des Originals behaelt, wird darum direkt geprueft.
+        XCTAssertNil(ShapeRecognizer.replacement(for: original), "Rahmen mit dem Textmarker bleibt, wie gezogen")
+        let points = original.path.interpolatedPoints(by: .distance(2)).map(\.location)
+        let ideal = ShapeRecognizer.idealStroke(try XCTUnwrap(ShapeRecognizer.recognize(points)), like: original)
         XCTAssertEqual(ideal.ink.inkType, .marker)
         XCTAssertEqual(ideal.ink.color.uniflowRGBA.hex, ink.color.uniflowRGBA.hex)
         XCTAssertEqual(ideal.path.creationDate, original.path.creationDate)

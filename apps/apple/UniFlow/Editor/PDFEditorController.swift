@@ -282,31 +282,72 @@ final class PageInkView: UIView {
     /// PencilKit fertig gezeichnet hat (`inkRendered`), fruehestens nach `replacementCoverMinimum`.
     func replaceLastStroke(with stroke: PKStroke) {
         var drawing = canvas.drawing
-        guard !drawing.strokes.isEmpty else { return }
+        guard let old = drawing.strokes.last else { return }
         drawing.strokes[drawing.strokes.count - 1] = stroke
-        if PencilTuning.coverWhenStrokeIsReplaced { coverReplacement(stroke) }
+        if PencilTuning.coverWhenStrokeIsReplaced { coverReplacement(stroke, replacing: old, others: Array(drawing.strokes.dropLast())) }
         canvas.drawing = drawing
         Self.replacementsMade += 1
         StiftZaehler.bump(.ersetzt)
     }
 
-    private func coverReplacement(_ stroke: PKStroke) {
+    /// Deckt diese Tinte? (Textmarker, Wasserfarbe und Farben mit Deckkraft unter 100 % scheinen durch)
+    static func isOpaque(_ ink: PKInk) -> Bool {
+        var alpha: CGFloat = 1
+        ink.color.getWhite(nil, alpha: &alpha)
+        return alpha >= 0.999 && ink.inkType != .marker && ink.inkType != .watercolor
+    }
+
+    /// Messung (Tests): wie oft ein Deckbild an der Stelle eines durchscheinenden Strichs ausgespart wurde
+    private(set) static var translucentCoversMade = 0
+    /// Deckbild an der Stelle eines durchscheinenden Strichs aussparen. `false`: wie bis 17.11.2026 (Gegenprobe im Test
+    /// `testFormenTextmarkerNurLinieUndFueller`: die Markierung ist dann fuer die Dauer des Deckbilds doppelt zu sehen)
+    static var spareTranslucentStroke = true
+
+    private func coverReplacement(_ stroke: PKStroke, replacing old: PKStroke, others: [PKStroke]) {
         guard window != nil else { return }
         let page = CGRect(origin: .zero, size: geometry.pageSize)
         let cover = UIView(frame: page)
         cover.isUserInteractionEnabled = false
         cover.backgroundColor = .clear
-        if let shot = canvas.snapshotView(afterScreenUpdates: false) {
+        let opaque = Self.isOpaque(stroke.ink)
+        let shot = canvas.snapshotView(afterScreenUpdates: false)
+        if let shot {
             shot.transform = canvas.transform
             shot.center = canvas.center
             shot.isUserInteractionEnabled = false
             cover.addSubview(shot)
         }
-        // Deckende Tinte: der neue Strich als Bild, sofort (ein Strich, unter 1 ms). Durchscheinende Tinte (Textmarker,
-        // Stift mit Deckkraft unter 100 %) wuerde doppelt uebereinander dunkler: dort nur das Bild von eben.
-        var alpha: CGFloat = 1
-        stroke.ink.color.getWhite(nil, alpha: &alpha)
-        let opaque = alpha >= 0.999 && stroke.ink.inkType != .marker && stroke.ink.inkType != .watercolor
+        // Deckende Tinte: der neue Strich als Bild, sofort (ein Strich, unter 1 ms).
+        // Durchscheinende Tinte (Textmarker, Stift mit Deckkraft unter 100 %): Laege das Bild von eben (mit dem alten
+        // Strich) ueber dem neuen Strich, den PencilKit darunter zeichnet, waere der Strich fuer die Dauer des Deckbilds
+        // doppelt da und dort, wo beide sich decken, dunkler. Darum ist das Deckbild an der Stelle des alten und des
+        // neuen Strichs ausgespart; dort zeigt PencilKit den neuen Strich selbst, genau ein Mal. Deckende Striche, die
+        // durch diese Stelle laufen (Handschrift unter der Markierung), liegen als Bild darueber und blinken nicht.
+        let hole = old.renderBounds.union(stroke.renderBounds).insetBy(dx: -3, dy: -3).intersection(page).integral
+        if Self.spareTranslucentStroke, !opaque, let shot, !hole.isNull, hole.width >= 1, hole.height >= 1 {
+            let zoom = shot.bounds.width / max(1, page.width)
+            let path = UIBezierPath(rect: shot.bounds)
+            path.append(UIBezierPath(rect: CGRect(x: hole.minX * zoom, y: hole.minY * zoom, width: hole.width * zoom, height: hole.height * zoom)))
+            let mask = CAShapeLayer()
+            mask.frame = shot.bounds
+            mask.fillRule = .evenOdd
+            mask.path = path.cgPath
+            shot.layer.mask = mask
+            let crossing = others.filter { Self.isOpaque($0.ink) && $0.renderBounds.intersects(hole) }
+            if !crossing.isEmpty {
+                let wanted = max(1, lastRenderScale > 0 ? lastRenderScale : UIScreen.main.scale)
+                let scale = max(1, min(wanted, (4_000_000 / max(1, hole.width * hole.height)).squareRoot()))
+                var image = UIImage()
+                UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+                    image = PKDrawing(strokes: crossing).image(from: hole, scale: scale)
+                }
+                let view = UIImageView(image: image)
+                view.frame = hole
+                view.isUserInteractionEnabled = false
+                cover.addSubview(view)
+            }
+            Self.translucentCoversMade += 1
+        }
         let rect = stroke.renderBounds.insetBy(dx: -2, dy: -2).intersection(page).integral
         if opaque, !rect.isNull, rect.width >= 1, rect.height >= 1 {
             // so scharf wie die Zeichenflaeche; ein sehr langer Strich bei starkem Zoom hoechstens 4 Mio. Pixel
@@ -1588,7 +1629,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Returns: die erkannte Form (fuer Tests), sonst nil
     @discardableResult
     func snapShape(on overlay: PageInkView, endedAt: Date, held: TimeInterval? = nil) -> ShapeRecognizer.Shape? {
-        // Formen erkennt nur ein Stift-Werkzeug; mit dem Textmarker bleibt der Strich, wie gezogen
+        // Formen erkennt nur ein Stift-Werkzeug; der Textmarker nur die gerade Linie (`ShapeRecognizer.lineOnly`)
         guard canEdit, shapeSnapEnabled, ShapeRecognizer.snaps(overlay.canvas.tool) else { return nil }
         var drawing = overlay.canvas.drawing
         guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil else { return nil }
@@ -1597,7 +1638,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         ShapeLog.log.debug("Formerkennung: gehalten \(held ?? -1, privacy: .public) s, PencilKit still \(still, privacy: .public)")
         guard still else { return nil }
         let points = stroke.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(stroke.transform) }
-        guard let shape = ShapeRecognizer.recognize(points) else { return nil }
+        guard let shape = ShapeRecognizer.recognize(points, lineOnly: ShapeRecognizer.lineOnly(stroke.ink)) else { return nil }
         let ideal = ShapeRecognizer.idealStroke(shape, like: stroke)
         drawing.strokes[drawing.strokes.count - 1] = ideal
         overlay.isApplyingDrawing = true

@@ -299,6 +299,167 @@ extension EditorStrichBleibtTests {
         await store.close()
     }
 
+    /// Dunkelster Bildpunkt (Summe aus Rot, Gruen, Blau; 765 = weiss) im Bild des Fensters in `rect` (Punkte des Fensters)
+    static func dunkelster(_ window: UIWindow, _ rect: CGRect) -> Int {
+        let r = rect.intersection(window.bounds).integral
+        guard !r.isNull, r.width > 2, r.height > 2 else { return 765 }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        format.preferredRange = .standard
+        let image = UIGraphicsImageRenderer(bounds: r, format: format).image { _ in
+            _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+        }
+        guard let cg = image.cgImage else { return 765 }
+        let w = cg.width, h = cg.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 765 }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var darkest = 765
+        for i in stride(from: 0, to: w * h * 4, by: 4) { darkest = min(darkest, Int(px[i]) + Int(px[i + 1]) + Int(px[i + 2])) }
+        return darkest
+    }
+
+    /// Textmarker (Ergaenzung 17.11.2026) und Fueller mit echter Beruehrung, die Haltezeit kommt wie am Geraet aus den
+    /// Messpunkten der Beruehrung (`RawPencilRecorder`):
+    /// - Textmarker, Linie gezeichnet und gehalten: wird gerade, genau waagerecht, so lang wie gezeichnet, bleibt
+    ///   Textmarker; waehrend des Tauschs ist die Markierung in keinem Bild dunkler als danach (nicht doppelt);
+    ///   ein Mal Rueckgaengig nimmt sie weg.
+    /// - Textmarker, Viereck gezeichnet und gehalten: bleibt, wie gezogen. Textmarker ohne Halten: nie ersetzt.
+    /// - Fueller: Viereck und Linie werden zur Form und bleiben Fueller.
+    func testFormenTextmarkerNurLinieUndFueller() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let fx = try await makeFixture(pages: 2)
+        let store = try await openStore(fx)
+        let shown = show(store, pencilOnly: false)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        let overlay = try await waitForOverlay(editor, page: 0)
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let canvas = overlay.canvas
+        // Messpunkte auch vom Finger: die Haltezeit laeuft dann denselben Weg wie mit dem Apple Pencil
+        overlay.rawRecorder.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue), NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+        let frei = Self.freieFlaeche(overlay, in: window)
+        let alle = Handzeichnung.alle(maxBreite: frei.width - 24, maxHoehe: frei.height - 24)
+        let linie = try XCTUnwrap(alle.first { $0.name.hasPrefix("Linie 150 pt, 3°") })
+        let viereck = try XCTUnwrap(alle.first { $0.name.hasPrefix("Viereck 150 pt (150 x 94), Start Ecke") })
+        let mitte = CGPoint(x: frei.midX, y: frei.midY)
+        let id = ObjectIdentifier(canvas)
+        var report: [String] = []
+        func ersetzt(seit log0: Int) -> Int { ZeichnungSpion.log[log0...].filter { $0.canvas == id && !$0.own }.count }
+        func zeichne(_ f: Handzeichnung, halten: Bool, bei y: CGFloat) async throws -> PKStroke? {
+            let n0 = canvas.drawing.strokes.count
+            let bahn = halten ? f.bahn : Array(f.bahn.dropLast(f.knaeuel))
+            let pts = bahn.map { overlay.content.convert(CGPoint(x: $0.x + mitte.x, y: $0.y + y), to: nil) }
+            try await Self.zeichne(pts, knaeuel: halten ? f.knaeuel : 0, halten: halten ? 0.8 : 0, in: window)
+            let until = Uhr.now() + 4
+            while Uhr.now() < until, canvas.drawing.strokes.count <= n0 { try await Task.sleep(nanoseconds: 10_000_000) }
+            XCTAssertEqual(canvas.drawing.strokes.count, n0 + 1, "\(f.name): ein Strich")
+            return canvas.drawing.strokes.last
+        }
+
+        // 1. Textmarker, Linie gehalten
+        editor.tools.select(.marker)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual((canvas.tool as? PKInkingTool)?.inkType, .marker, "Messaufbau: Textmarker gewaehlt")
+        let y1 = frei.minY + 70
+        let box = Handzeichnung.bounds(linie.bahn).offsetBy(dx: mitte.x, dy: y1).insetBy(dx: -14, dy: -14)
+        let region = overlay.content.convert(box, to: nil)
+        // Gegenprobe "wie bis 17.11.": Deckbild ohne Aussparung - die Markierung liegt dann doppelt uebereinander
+        PageInkView.spareTranslucentStroke = false
+        addTeardownBlock { @MainActor in PageInkView.spareTranslucentStroke = true }
+        _ = try await zeichne(linie, halten: true, bei: y1)
+        var ohne: [Int] = []
+        let bis = Uhr.now() + 1.6
+        while Uhr.now() < bis {
+            ohne.append(Self.dunkelster(window, region))
+            try await Task.sleep(nanoseconds: 12_000_000)
+        }
+        try await Task.sleep(nanoseconds: 600_000_000)
+        let ohneDanach = Self.dunkelster(window, region)
+        report.append("Gegenprobe ohne Aussparung im Deckbild: dunkelste Stelle waehrend des Tauschs \(ohne.min() ?? 0), danach \(ohneDanach)")
+        XCTAssertLessThan(ohne.min() ?? 765, ohneDanach - 24, "Messaufbau: ohne Aussparung ist die doppelte Markierung im Bild zu sehen")
+        PageInkView.spareTranslucentStroke = true
+        editor.undo()
+        try await Task.sleep(nanoseconds: 900_000_000)
+        var log0 = ZeichnungSpion.log.count
+        let covers0 = PageInkView.translucentCoversMade
+        _ = try await zeichne(linie, halten: true, bei: y1)
+        // jedes Bild nach dem Absetzen: wie dunkel ist die dunkelste Stelle der Markierung?
+        var dunkel: [Int] = []
+        let ende = Uhr.now() + 1.6
+        while Uhr.now() < ende {
+            dunkel.append(Self.dunkelster(window, region))
+            try await Task.sleep(nanoseconds: 12_000_000)
+        }
+        try await Task.sleep(nanoseconds: 600_000_000)
+        let danach = Self.dunkelster(window, region)
+        Self.bild(window, overlay, box.insetBy(dx: -20, dy: -20), name: "textmarker-nachher")
+        XCTAssertEqual(ersetzt(seit: log0), 1, "Textmarker-Linie gehalten: ein Mal ersetzt")
+        XCTAssertEqual(PageInkView.translucentCoversMade, covers0 + 1, "Deckbild an der Stelle der Markierung ausgespart")
+        XCTAssertLessThan(danach, 740, "Messaufbau: die Markierung ist im Bild zu sehen (dunkelste Stelle \(danach) von 765)")
+        XCTAssertGreaterThanOrEqual(dunkel.min() ?? 0, danach - 24, "Markierung in keinem Bild dunkler als danach (doppelt): \(dunkel.min() ?? 0) gegen \(danach)")
+        if let s = canvas.drawing.strokes.last {
+            let a = s.path[0].location.applying(s.transform), b = s.path[s.path.count - 1].location.applying(s.transform)
+            let xs = linie.bahn.map { $0.x + mitte.x }
+            XCTAssertEqual(s.ink.inkType, .marker, "bleibt Textmarker")
+            XCTAssertEqual(a.y, b.y, accuracy: 0.01, "3 Grad schief gezeichnet: genau waagerecht")
+            XCTAssertEqual(abs(b.x - a.x), (xs.max() ?? 0) - (xs.min() ?? 0), accuracy: 2.5, "so lang wie gezeichnet")
+            let straight = s.path.interpolatedPoints(by: .distance(2)).map { abs($0.location.applying(s.transform).y - a.y) }.max() ?? 9
+            XCTAssertLessThanOrEqual(straight, 0.3, "gerade")
+            report.append(String(format: "Textmarker, Linie gehalten: gerade, waagerecht, %.1f pt lang (gezeichnet %.1f pt); dunkelste Stelle waehrend des Tauschs %d, danach %d (765 = weiss, kleiner = dunkler)",
+                                 abs(b.x - a.x), (xs.max() ?? 0) - (xs.min() ?? 0), dunkel.min() ?? 0, danach))
+        }
+        let n1 = canvas.drawing.strokes.count
+        editor.undo()
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertEqual(canvas.drawing.strokes.count, n1 - 1, "ein Mal Rueckgaengig nimmt die Markierung weg")
+
+        // 2. Textmarker, Viereck gehalten: bleibt
+        log0 = ZeichnungSpion.log.count
+        if let s = try await zeichne(viereck, halten: true, bei: mitte.y + 20) {
+            try await Task.sleep(nanoseconds: 1_200_000_000)
+            XCTAssertEqual(ersetzt(seit: log0), 0, "Textmarker-Viereck gehalten: nicht ersetzt")
+            XCTAssertEqual(canvas.drawing.strokes.last?.path.count, s.path.count, "derselbe Strich")
+            report.append("Textmarker, Viereck gehalten: \(ersetzt(seit: log0)) Mal ersetzt (bleibt, wie gezogen)")
+        }
+        editor.undo()
+        try await Task.sleep(nanoseconds: 900_000_000)
+
+        // 3. Textmarker ohne Halten: nie
+        log0 = ZeichnungSpion.log.count
+        _ = try await zeichne(linie, halten: false, bei: y1)
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        XCTAssertEqual(ersetzt(seit: log0), 0, "Textmarker ohne Halten: nicht ersetzt")
+        report.append("Textmarker, Linie ohne Halten: \(ersetzt(seit: log0)) Mal ersetzt")
+        editor.undo()
+        try await Task.sleep(nanoseconds: 900_000_000)
+
+        // 4. Fueller: alle Formen
+        editor.tools.select(.fountain)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual((canvas.tool as? PKInkingTool)?.inkType, .fountainPen, "Messaufbau: Fueller gewaehlt")
+        for (f, erlaubt, y) in [(viereck, ["rectangle", "square"], mitte.y + 20), (linie, ["line"], y1)] {
+            log0 = ZeichnungSpion.log.count
+            guard try await zeichne(f, halten: true, bei: y) != nil else { continue }
+            try await Task.sleep(nanoseconds: 1_600_000_000)
+            guard let s = canvas.drawing.strokes.last else { continue }
+            let points = s.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(s.transform) }
+            let shape = ShapeRecognizer.recognize(points)
+            let exact = shape.map { ShapeRecognizer.maxDistance(points, toPolygon: Self.ecken($0)) } ?? 99
+            XCTAssertEqual(ersetzt(seit: log0), 1, "Fueller, \(f.name): ein Mal ersetzt")
+            XCTAssertTrue(erlaubt.contains(shape?.name ?? "-"), "Fueller, \(f.name): wurde \(shape?.name ?? "keine Form")")
+            XCTAssertLessThanOrEqual(exact, 0.6, "Fueller, \(f.name): ideale Form")
+            XCTAssertEqual(s.ink.inkType, .fountainPen, "bleibt Fueller")
+            report.append("Füller, \(f.name.prefix(24)) gehalten: wurde \(shape?.name ?? "keine Form"), bleibt Füller")
+            editor.undo()
+            try await Task.sleep(nanoseconds: 900_000_000)
+        }
+        print("[Formen] Textmarker und Fueller, echte Beruehrung:\n  " + report.joined(separator: "\n  "))
+        await store.close()
+    }
+
     /// Eckpunkte der Form als Linienzug (Linie: Anfang und Ende)
     static func ecken(_ shape: ShapeRecognizer.Shape) -> [CGPoint] {
         switch shape {
