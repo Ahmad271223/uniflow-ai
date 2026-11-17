@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from . import intake_api
 from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, module_layout, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
@@ -68,6 +69,7 @@ app.include_router(community_cards_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
 app.include_router(doc_index.router)
+app.include_router(intake_api.router)     # Ticket fuer den Datei-Eingang (app/intake_server.py, 18.11.2026)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
 from . import sync_order_api  # noqa: E402 - Stufen des Abgleichs und Module je Semester (05.11.2026)

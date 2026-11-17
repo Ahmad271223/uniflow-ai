@@ -248,6 +248,8 @@ final class ContainerManager: ObservableObject {
         self.appDefaults = defaults
         self.clock = clock
         self.publishesCurrent = publishesCurrent
+        // Datei-Eingang (18.11.2026): nur der Container der App, nicht der von Tests
+        if publishesCurrent { CourseFileIntakeRunner.link = account }
         self.hildesheimTransport = hildesheimTransport
         self.qisTransport = qisTransport
         self.hshTransport = hshTransport

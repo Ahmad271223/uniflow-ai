@@ -1,0 +1,49 @@
+# Datei-Eingang auf einem EIGENEN Rechner (Auftrag des Inhabers 18.11.2026: "nur an anderen server schicken ... geordnet").
+# Start aus dem Ordner deploy/eingang/:  docker compose up -d --build
+# Variablen aus deploy/eingang/.env (Vorlage .env.example). Der StudiNow-Dienst braucht dazu
+# LERNAPP_INTAKE_URL=https://<EINGANG_DOMAIN> und dasselbe LERNAPP_INTAKE_SECRET.
+# NICHT ohne Okay des Inhabers starten (Datenschutzerklaerung und Zustimmungstext muessen vorher stehen).
+name: studinow-eingang
+
+services:
+  eingang:
+    build:
+      context: ../..
+      dockerfile: deploy/eingang/Dockerfile
+    image: studinow-eingang:latest
+    container_name: studinow-eingang
+    restart: unless-stopped
+    environment:
+      LERNAPP_INTAKE_SECRET: "${LERNAPP_INTAKE_SECRET:?deploy/eingang/.env fehlt oder LERNAPP_INTAKE_SECRET ist leer}"
+      INTAKE_DATA_DIR: /data
+    volumes:
+      - eingang-data:/data      # dateien/ (je Datei einmal), geordnet/ (Hochschule/Studiengang/Semester/Modul/Art), eingang.db
+    expose:
+      - "8780"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2
+    container_name: studinow-eingang-caddy
+    restart: unless-stopped
+    depends_on:
+      - eingang
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      EINGANG_DOMAIN: ${EINGANG_DOMAIN:?deploy/eingang/.env fehlt oder EINGANG_DOMAIN ist leer}
+      EINGANG_ACME_EMAIL: ${EINGANG_ACME_EMAIL:?deploy/eingang/.env fehlt oder EINGANG_ACME_EMAIL ist leer}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  eingang-data:
+  caddy-data:
+  caddy-config:

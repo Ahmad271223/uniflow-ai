@@ -42,6 +42,8 @@ struct StudoraAccountCard: View {
                 AIConsentRow(link: link, center: link.consentCenter)
             }
             if let u = link.user { signedIn(u) } else { signIn }
+            // Datei-Eingang (18.11.2026): nur mit Konto
+            if link.user != nil { CourseFileIntakeRow() }
             if let m = link.message {
                 Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("account.message")

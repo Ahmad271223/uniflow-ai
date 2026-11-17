@@ -1,0 +1,24 @@
+# TLS vor dem Datei-Eingang. Nur die Pfade /intake/v1/*; alles andere 404. Zugriffsprotokoll aus (keine IP-Adressen).
+{
+	email {$EINGANG_ACME_EMAIL}
+}
+
+{$EINGANG_DOMAIN} {
+	request_body {
+		max_size 90MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+	handle /intake/v1/* {
+		reverse_proxy eingang:8780
+	}
+	handle {
+		respond 404
+	}
+	log {
+		output discard
+	}
+}
