@@ -3508,7 +3508,10 @@ struct PDFEditorView: UIViewControllerRepresentable {
     /// Anzeige nur neu auf, wenn sich die Seitenstruktur geaendert hat.
     func updateUIViewController(_ vc: PDFEditorController, context: Context) {
         if vc.pencilOnly != pencilOnly { vc.pencilOnly = pencilOnly }
-        if vc.shownLayoutVersion != layoutVersion { vc.showLayout() }
+        // nie den Seitenaufbau tauschen, waehrend SwiftUI gerade aktualisiert (Haenger 17.11.2026, `showLayoutAfterUpdate`)
+        if vc.shownLayoutVersion != layoutVersion {
+            if PencilTuning.layoutAfterSwiftUIUpdate { vc.showLayoutAfterUpdate() } else { vc.showLayout() }
+        }
         if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
         if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }
         if vc.canEdit != canEdit { vc.canEdit = canEdit }
