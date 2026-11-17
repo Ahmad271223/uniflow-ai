@@ -102,7 +102,7 @@ Jede Zahl in jedem Dokument wird mit sympy nachgerechnet, bevor sie aufgeschrieb
 
 Das PDF-Programm liegt bereits im Repo unter `tools/klausur_pdf/` (gebaut und getestet am 17.11.2026, Anleitung in `tools/klausur_pdf/README.md`). Verwende es und erweitere es nur bei Bedarf; nach jeder Änderung `python -m pytest tests -q` im Ordner `tools/klausur_pdf` laufen lassen. Aufruf aus einem anderen Ordner: `PYTHONPATH=<Repo>/tools/klausur_pdf python -m klausur_pdf …`. Fehlt es (anderer Checkout), baue es nach den folgenden Anforderungen.
 
-Plattform: Unter Windows liegen die Fächer in `C:\Users\ahmad\Documents\UniFlow-Export\`. Auf dem Mac gibt es diesen Ordner nur, wenn er dorthin kopiert wurde; dann den Pfad im Aufruf angeben. Die Schrift sucht das Programm selbst (DejaVu Sans, Arial Unicode auf dem Mac, Cambria Math unter Windows); mit `python -m klausur_pdf fonts` prüfen, dass „fehlende Zeichen: keine“ gemeldet wird.
+Plattform: Unter Windows liegen die Fächer in `C:\Users\ahmad\Documents\UniFlow-Export\`. Auf dem Mac gibt es diesen Ordner nur, wenn er dorthin kopiert wurde; dann den Pfad im Aufruf angeben. Die Schrift sucht das Programm selbst (DejaVu Sans, Arial Unicode auf dem Mac, Cambria Math unter Windows); mit `python -m klausur_pdf fonts` prüfen, dass „fehlende Zeichen: keine“ gemeldet wird. Auf dem Mac gibt es kein `python`: dort für das PDF-Programm und für `_pruefung.py` immer `<Repo>/.venv/bin/python` nehmen (reportlab und sympy sind dort installiert, geprüft am 17.11.2026), nichts systemweit installieren.
 
 **Anforderungen:**
 

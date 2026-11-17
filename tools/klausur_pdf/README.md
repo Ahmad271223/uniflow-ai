@@ -10,11 +10,15 @@ hervorgehoben) und Formelblatt-PDFs („Aufgabe: …“ über jeder Formel).
 python -m pip install -r tools/klausur_pdf/requirements.txt
 cd tools/klausur_pdf
 python -m klausur_pdf fonts          # muss „fehlende Zeichen: keine“ melden
-python -m pytest tests -q            # 8 Tests
+python -m pytest tests -q            # 10 Tests
 ```
 
+Auf dem Mac gibt es kein `python`. Dort die Projekt-Umgebung nehmen, also überall `~/uniflow-ai/.venv/bin/python`
+statt `python` (dort sind reportlab, pytest und sympy installiert).
+
 Die Schrift wird automatisch gesucht (DejaVu Sans unter Linux, Arial Unicode oder DejaVu auf dem Mac, Cambria Math
-unter Windows). Eine andere Schrift: Umgebungsvariable `KLAUSUR_PDF_FONT=/pfad/zur/schrift.ttf` (bei `.ttc`
+unter Windows). Fettdruck kommt aus der passenden Fettschrift (auf dem Mac Arial Bold). Fehlt ihr ein Zeichen, zum
+Beispiel ∠ oder ℝ, steht nur dieses eine Zeichen in der Grundschrift, der Rest bleibt fett. Eine andere Schrift: Umgebungsvariable `KLAUSUR_PDF_FONT=/pfad/zur/schrift.ttf` (bei `.ttc`
 `pfad#index`), optional `KLAUSUR_PDF_FONT_BOLD`.
 
 ## Aufruf

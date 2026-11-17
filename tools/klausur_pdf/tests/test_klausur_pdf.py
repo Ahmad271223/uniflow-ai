@@ -14,7 +14,8 @@ pytest.importorskip("reportlab")
 
 from klausur_pdf import EingabeFehler, aus_dict, lade_json, lade_markdown  # noqa: E402
 from klausur_pdf.__main__ import main  # noqa: E402
-from klausur_pdf.fonts import registriere  # noqa: E402
+from klausur_pdf.fonts import kann, registriere  # noqa: E402
+from klausur_pdf.render import fett, schritt_markup  # noqa: E402
 
 
 def _ist_pdf(p: Path) -> bool:
@@ -84,3 +85,29 @@ def test_ungueltige_eingabe():
 def test_json_lesbar():
     d = lade_json(HIER / "beispiel.json")
     assert d.loesungen[0].teile[1].ergebnis == "t = 3/2 oder t = −15/2"
+
+
+def test_fettdruck_mischt_schriften():
+    s = registriere()
+    if s.titel == s.normal:
+        pytest.skip("keine Fettschrift auf diesem Rechner")
+    auf = f'<font name="{s.titel}">'
+    # Text, den die Fettschrift ganz kann: ein einziger fetter Lauf
+    assert fett("Schritt 1:") == f"{auf}Schritt 1:</font>"
+    assert fett("a &amp; b") == f"{auf}a &amp; b</font>"
+    # Tags bleiben stehen, der Text davor und danach ist fett
+    assert fett("eins<br/>zwei") == f"{auf}eins</font><br/>{auf}zwei</font>"
+    # Zeichen, die der Fettschrift fehlen, bleiben in der Grundschrift; der Rest ist fett
+    fehlt = next((z for z in "∠ℝ∈₀▶" if not kann(s.titel, z)), None)
+    if fehlt:
+        assert fett(f"x {fehlt} y") == f"{auf}x </font>{fehlt}{auf} y</font>"
+
+
+def test_schritt_nummer_nicht_doppelt():
+    ohne_tags = lambda t: __import__("re").sub(r"<[^>]+>", "", t)  # noqa: E731
+    assert ohne_tags(schritt_markup("a = 2", 3)) == "Schritt 3: a = 2"
+    assert ohne_tags(schritt_markup("Schritt 1: a = 2", 3)) == "Schritt 1: a = 2"
+    assert ohne_tags(schritt_markup("**Schritt 1:** a = 2", 3)) == "Schritt 1: a = 2"
+    # die Nummer ist in allen drei Fällen hervorgehoben
+    for zeile in ("a = 2", "Schritt 1: a = 2", "**Schritt 1:** a = 2"):
+        assert schritt_markup(zeile, 1).startswith(("<font", "<b>"))

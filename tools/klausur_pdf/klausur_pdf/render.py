@@ -10,10 +10,11 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table,
                                 TableStyle)
 
-from .fonts import kann, registriere
+from .fonts import registriere
 from .model import Dokument
 
 ERGEBNIS_FARBE = colors.HexColor("#E8F1FB")
@@ -28,15 +29,43 @@ def dateiname(text: str) -> str:
     return s or "Dokument"
 
 
+_MARKUP_TEILE = re.compile(r"(<[^>]+>|&[a-zA-Z]+;|&#\d+;)")
+
+
 def fett(markup: str) -> str:
-    """Fettdruck für bereits escapten Text: echte Fettschrift, wenn sie alle Zeichen kann."""
+    """Fettdruck für bereits escapten Text.
+
+    Gibt es eine Fettschrift, wird sie für alle Zeichen benutzt, die sie kann. Einzelne
+    Zeichen, die ihr fehlen (auf dem Mac zum Beispiel ∠ ℝ ∈ in Arial Bold), bleiben in der
+    Grundschrift, der Rest der Zeile ist trotzdem fett.
+    """
     sch = registriere()
-    roh = re.sub(r"<[^>]+>", "", markup)
-    for a, b in (("&nbsp;", " "), ("&lt;", "<"), ("&gt;", ">"), ("&amp;", "&")):
-        roh = roh.replace(a, b)
-    if sch.titel != sch.normal and kann(sch.titel, roh):
-        return f'<font name="{sch.titel}">{markup}</font>'
-    return f"<b>{markup}</b>"
+    if sch.titel == sch.normal:
+        return f"<b>{markup}</b>"
+    vorrat = pdfmetrics.getFont(sch.titel).face.charToGlyph
+    aus: list[str] = []
+    lauf: list[str] = []
+
+    def schliesse() -> None:
+        if lauf:
+            aus.append(f'<font name="{sch.titel}">{"".join(lauf)}</font>')
+            lauf.clear()
+
+    for teil in _MARKUP_TEILE.split(markup):
+        if teil.startswith("<"):  # Tag: unverändert durchreichen
+            schliesse()
+            aus.append(teil)
+        elif teil.startswith("&"):  # &amp; &lt; &gt; &nbsp; kann jede Schrift
+            lauf.append(teil)
+        else:
+            for z in teil:
+                if ord(z) in vorrat or z in "\n\t":
+                    lauf.append(z)
+                else:
+                    schliesse()
+                    aus.append(z)
+    schliesse()
+    return "".join(aus)
 
 
 def inline(text: str) -> str:
@@ -44,6 +73,20 @@ def inline(text: str) -> str:
     t = escape(text.replace("`", ""))
     t = re.sub(r"\*\*(.+?)\*\*", lambda m: fett(m.group(1)), t)
     return t.replace("\n", "<br/>")
+
+
+def schritt_markup(text: str, nr: int) -> str:
+    """Eine Lösungszeile mit fettem „Schritt n:“ davor.
+
+    Steht die Nummer schon im Text („Schritt 2: …“ oder „**Schritt 2:** …“), wird sie nicht
+    noch einmal davorgesetzt, sondern nur fett gemacht.
+    """
+    if re.match(r"(?i)\s*\*\*\s*schritt\s*\d", text):
+        return inline(text)
+    m = re.match(r"(?i)\s*(schritt\s*\d+\s*[:.]?)\s*(.*)", text, re.S)
+    if m:
+        return fett(inline(m.group(1))) + " " + inline(m.group(2))
+    return fett(f"Schritt {nr}:") + " " + inline(text)
 
 
 class _Stile:
@@ -180,10 +223,7 @@ def baue_loesungen(d: Dokument, out: Path) -> Path | None:
             if t.merke:
                 block.append(_kasten(Paragraph(fett("Merke:") + " " + inline(t.merke), st.text), MERKE_FARBE, breite))
             for i, s in enumerate(t.schritte, 1):
-                text = inline(s)
-                if not re.match(r"(?i)\s*(<b>)?schritt\s*\d", s):
-                    text = fett(f"Schritt {i}:") + " " + text
-                block.append(Paragraph(text, st.schritt))
+                block.append(Paragraph(schritt_markup(s, i), st.schritt))
             if t.ergebnis:
                 block.append(Spacer(1, 1.5 * mm))
                 block.append(_kasten(Paragraph("▶ " + fett(inline(t.ergebnis)), st.text), ERGEBNIS_FARBE, breite))

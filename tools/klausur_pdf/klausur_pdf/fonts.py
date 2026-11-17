@@ -22,8 +22,10 @@ _KANDIDATEN = [
     ("/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"),
     # macOS
     ("/Library/Fonts/DejaVuSans.ttf", "/Library/Fonts/DejaVuSans-Bold.ttf"),
-    ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", None),
-    ("/Library/Fonts/Arial Unicode.ttf", None),
+    # Arial Unicode hat keinen fetten Schnitt; Arial Bold passt dazu und liegt auf jedem Mac.
+    # Zeichen, die Arial Bold nicht kann (∠ ℝ ∈ ₀ ▶), setzt render.fett() in der Grundschrift.
+    ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+    ("/Library/Fonts/Arial Unicode.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
     ("/System/Library/Fonts/Supplemental/STIXTwoText.ttf", None),
     # Windows
     ("C:/Windows/Fonts/DejaVuSans.ttf", "C:/Windows/Fonts/DejaVuSans-Bold.ttf"),
@@ -39,7 +41,7 @@ class Schrift:
     fett: str
     pfad: str
     fehlend: str  # Zeichen, die in der Schrift fehlen (leer = alles da)
-    titel: str = "KP-Normal"  # Fettschrift für Überschriften (nur wenn kann() passt)
+    titel: str = "KP-Normal"  # Fettschrift, auch wenn ihr einzelne Mathezeichen fehlen (siehe render.fett)
 
 
 def _lade(name: str, spec: str) -> TTFont | None:
@@ -94,8 +96,8 @@ def registriere() -> Schrift:
     if fett_spec:
         fb = _lade("KP-Fett", fett_spec)
         if fb is not None:
-            # Für Überschriften reicht eine Fettschrift mit Grundzeichen; ob ein
-            # bestimmter Text passt, prüft kann().
+            # Für Fettdruck reicht eine Fettschrift mit Grundzeichen; render.fett()
+            # setzt Zeichen, die ihr fehlen, einzeln in der Grundschrift.
             pdfmetrics.registerFont(fb)
             titel_name = "KP-Fett"
         # Fettschrift nur nehmen, wenn sie genauso viele Zeichen kann wie die
