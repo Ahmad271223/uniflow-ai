@@ -22,6 +22,9 @@ struct StudoraAccountCard: View {
     /// Rueckfall: die Anmeldung beim Dienst hat (noch) nicht geklappt
     static let fallback = "Die Anmeldung beim StudiNow-Dienst fehlt auf diesem Gerät noch (z. B. weil du beim Start offline warst). Tippe auf „Mit Apple anmelden“ – mit derselben Apple-ID wie oben. Noch kein Konto? „Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits für die StudiNow-KI). Hast du dein Konto in der Windows-App mit E-Mail angelegt, melde dich mit E-Mail und Passwort an."
 
+    /// Erster Satz von `fallback` (bleibt sichtbar, der Rest steht hinter "Mehr dazu")
+    static let fallbackShort = "Die Anmeldung beim StudiNow-Dienst fehlt auf diesem Gerät noch (z. B. weil du beim Start offline warst)."
+
     var body: some View {
         VStack(alignment: .leading, spacing: 9.6) {
             HStack(spacing: 9.6) {
@@ -30,9 +33,8 @@ struct StudoraAccountCard: View {
                 Spacer()
                 UFBadge(link.user == nil ? "nicht verbunden" : "verbunden", tone: link.user == nil ? .neutral : .ok)
             }
-            Text(Self.purpose)
-                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("account.purpose")
+            // wofuer das Konto da ist: hinter "Mehr dazu" (Text unveraendert, 17.11.2026)
+            SettingsMore(text: Self.purpose, identifier: "account.purpose", size: 13.12, title: "Mehr zum StudiNow-Konto")
             if let line = Self.aiLine(link.aiAccess, credits: link.credits, trial: link.planStatus?.trialActive ?? false) {
                 Text(line).ufFont(13.12, 600).foregroundStyle(link.aiAccess == .ready ? UF.text2 : UF.warn)
                     .fixedSize(horizontal: false, vertical: true)
@@ -84,7 +86,8 @@ struct StudoraAccountCard: View {
 
     private var signIn: some View {
         VStack(alignment: .leading, spacing: 9.6) {
-            Text(Self.fallback).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            // zu steht der erste Satz da, offen der ganze Text
+            SettingsMore(summary: Self.fallbackShort, text: Self.fallback, identifier: "account.fallback")
             // "Mit Apple anmelden": Token-Tausch beim Dienst; ein neues Konto bekommt die Hochschule dieses iPads
             SignInWithAppleButton(.signIn, onRequest: { link.prepareAppleRequest($0) }, onCompletion: { result in
                 Task { await link.handleAppleSignIn(result) }

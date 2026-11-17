@@ -838,7 +838,7 @@ final class StoreScreenshotTests: XCTestCase {
     func test14Einstellungen() throws {
         let env = try host(MainView())
         env.router.go(.settings(tab: "account"))
-        expect(env, "Zugang & Darstellung")
+        expect(env, "Konto & Tarif")
         shoot(env, "14-einstellungen", reserve: true)
     }
 

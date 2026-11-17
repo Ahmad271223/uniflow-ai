@@ -578,12 +578,29 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         let env = try host()
         expect(env, "Hallo Ada")
 
+        // Bereiche der Einstellungen (17.11.2026): Konto & Tarif, Uni-Zugang & Abgleich, Hilfe & Rechtliches
         env.router.go(.settings(tab: "account"))
-        station(env, "30-einstellungen-zugang",
-                markers: ["Zugang & Darstellung", "Konto", "Tarif", "Hochschule", UniversityKey.luh.profile.name, UniversityPickerView.moreNote,
-                          "Rechtliches & Support", "Support", "Nutzungsbedingungen", "Datenschutzerklärung", "Impressum", "Stud.IP & QIS",
-                          "Konto löschen", "Daten dieser Hochschule löschen", "Tarif wechseln"])
+        station(env, "30-einstellungen-konto", markers: ["Konto & Tarif", "Konto", "Tarif", "Konto löschen", "Tarif wechseln"])
+        env.router.go(.dashboard); env.pump(0.3)
+        env.router.go(.settings(tab: "help"))
+        station(env, "30b-einstellungen-hilfe",
+                markers: ["Hilfe & Rechtliches", "Rechtliches & Support", "Support", "Nutzungsbedingungen", "Datenschutzerklärung", "Impressum"])
+        env.router.go(.dashboard); env.pump(0.3)
+        env.router.go(.settings(tab: "uni"))
+        station(env, "30c-einstellungen-uni",
+                markers: ["Uni-Zugang & Abgleich", "Hochschule", UniversityKey.luh.profile.name, UniversityPickerView.moreNote, "Stud.IP & QIS",
+                          "Daten dieser Hochschule löschen"])
         XCTAssertFalse(shows(env, "Hochschule wechseln"), "1.0: kein Wechsel-Dialog mit einer einzigen Hochschule")
+
+        // Daten dieser Hochschule loeschen: Rueckfrage ohne Namen anderer Hochschulen, abbrechen
+        XCTAssertTrue(tap("Daten dieser Hochschule löschen", in: env), "Daten löschen:\n" + dump(env))
+        expect(env, "Daten der \(UniversityKey.luh.profile.name) löschen?")
+        station(env, "34-hochschule-loeschen-dialog", markers: ["Daten der \(UniversityKey.luh.profile.name) löschen?", "anderer Hochschulen bleiben unberührt", "Abbrechen"])
+        XCTAssertTrue(tap("Abbrechen", in: env))
+        XCTAssertTrue(env.wait { !self.shows(env, "löschen?") }, "Dialog zu")
+        env.router.go(.dashboard); env.pump(0.3)
+        env.router.go(.settings(tab: "account"))
+        expect(env, "Tarif wechseln")
 
         // Tarif wechseln: Blatt mit den Jahresabos (09.11.2026, kein Umschalter Monatlich/Jaehrlich)
         XCTAssertTrue(tap("Tarif wechseln", in: env), "Tarif wechseln:\n" + dump(env))
@@ -603,20 +620,15 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         XCTAssertTrue(tap("Abbrechen", in: env))
         XCTAssertTrue(env.wait { !self.shows(env, "Konto löschen?") }, "Dialog zu")
 
-        // Daten dieser Hochschule loeschen: Rueckfrage ohne Namen anderer Hochschulen, abbrechen
-        XCTAssertTrue(tap("Daten dieser Hochschule löschen", in: env), "Daten löschen:\n" + dump(env))
-        expect(env, "Daten der \(UniversityKey.luh.profile.name) löschen?")
-        station(env, "34-hochschule-loeschen-dialog", markers: ["Daten der \(UniversityKey.luh.profile.name) löschen?", "anderer Hochschulen bleiben unberührt", "Abbrechen"])
-        XCTAssertTrue(tap("Abbrechen", in: env))
-        XCTAssertTrue(env.wait { !self.shows(env, "löschen?") }, "Dialog zu")
-
         // uebrige Reiter (die Einstellungen lesen den Reiter beim Erscheinen: ueber die Uebersicht neu oeffnen)
         env.router.go(.dashboard); env.pump(0.3)
         env.router.go(.settings(tab: "modules"))
         station(env, "35-einstellungen-module", markers: ["Module", "Grundlagen der Informatik"])
-        env.router.go(.dashboard); env.pump(0.3)
-        env.router.go(.settings(tab: "plan"))
-        station(env, "36-einstellungen-lernzeit", markers: ["Lernzeit"])
+        if LearnCalendar.enabled {                                             // sonst gibt es den Bereich nicht
+            env.router.go(.dashboard); env.pump(0.3)
+            env.router.go(.settings(tab: "plan"))
+            station(env, "36-einstellungen-lernzeit", markers: ["Lernzeit"])
+        }
         env.router.go(.dashboard); env.pump(0.3)
         env.router.go(.settings(tab: "advanced"))
         // „Eigenes ChatGPT“ aus (11.11.2026): Erweitert ohne die Karte
@@ -726,7 +738,7 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         station(env, "56-modul-wochen-studip", markers: ["Mathematik", "Woche 1", "Woche 2", "01_Vorlesung_Mengen"])
 
         // Einstellungen: Stud.IP verbunden, Abmelden-Dialog (abbrechen)
-        env.router.go(.settings(tab: "account"))
+        env.router.go(.settings(tab: "uni"))
         station(env, "57-einstellungen-studip-verbunden", markers: ["Stud.IP & QIS", "verbunden", "Öffnen"])
         XCTAssertTrue(tap("Öffnen", in: env), "Stud.IP öffnen:\n" + dump(env))
         XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, "Abmelden") }, "Stud.IP-Blatt:\n" + dump(env))

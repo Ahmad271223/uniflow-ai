@@ -27,6 +27,15 @@ struct BackgroundSyncCard: View {
     /// Ehrlicher Satz zu den Zeiten (Wunsch 8/15/20 Uhr, iOS garantiert keine Uhrzeit)
     static let timingText = "iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr. Ein kurzer Lauf holt neue Kurse, Dateilisten und den Stundenplan, ein längerer mit Netz lädt die neuen Dateien. Sicher ist der Abgleich beim Öffnen der App. Der längere Lauf erzeugt dabei auch fällige Wochentests, wenn die KI verbunden ist – auch bei ausgeschaltetem Abgleich."
 
+    /// Erste Saetze der Erklaerungen: bleiben sichtbar, der ganze Text steht hinter "Mehr dazu" (17.11.2026)
+    static let timingShort = "iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr."
+    static func notifyShort(_ university: UniversityKey?) -> String {
+        let text = notifyText(university)
+        return text.range(of: "). ").map { String(text[..<$0.lowerBound]) + ")." } ?? text
+    }
+    static let newsShort = "Jede Art hat einen eigenen Schalter."
+    static let reloginShort = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast."
+
     /// Erklaerung unter "Benachrichtigen" mit der Quelle der Hochschule
     static func notifyText(_ university: UniversityKey?) -> String {
         let files = university == .hildesheim ? "Learnweb" : university == .hsh ? "Moodle" : "Stud.IP"
@@ -84,11 +93,9 @@ struct BackgroundSyncCard: View {
                 }
                 .tint(UF.accent)
                 .accessibilityIdentifier("background.enabled")
-                Text(BackgroundSyncCard.timingText)
-                    .ufFont(12.8).foregroundStyle(UF.muted)
+                // lange Erklaerungen hinter "Mehr dazu" (17.11.2026): zu steht der erste Satz da, offen der ganze Text
+                SettingsMore(summary: BackgroundSyncCard.timingShort, text: BackgroundSyncCard.timingText, identifier: "background.timing")
                     .padding(.top, 4)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("background.timing")
                 if enabled, background.refreshStatus() != .available {
                     Text(BackgroundSyncCard.refreshOffText)
                         .ufFont(12.8, 600).foregroundStyle(UF.warn)
@@ -103,10 +110,9 @@ struct BackgroundSyncCard: View {
                 .tint(UF.accent)
                 .disabled(!enabled || asking)
                 .accessibilityIdentifier("background.notify")
-                Text(BackgroundSyncCard.notifyText(background.containers.key?.university))
-                    .ufFont(12.8).foregroundStyle(UF.muted)
+                SettingsMore(summary: BackgroundSyncCard.notifyShort(background.containers.key?.university),
+                             text: BackgroundSyncCard.notifyText(background.containers.key?.university), identifier: "background.notifyText")
                     .padding(.top, 4)
-                    .fixedSize(horizontal: false, vertical: true)
                 if let hint {
                     Text(hint)
                         .ufFont(12.8, 600).foregroundStyle(UF.warn)
@@ -126,10 +132,8 @@ struct BackgroundSyncCard: View {
                 .tint(UF.accent)
                 .disabled(!enabled)
                 .accessibilityIdentifier("background.relogin")
-                Text(BackgroundSyncCard.reloginText)
-                    .ufFont(12.8).foregroundStyle(UF.muted)
+                SettingsMore(summary: BackgroundSyncCard.reloginShort, text: BackgroundSyncCard.reloginText, identifier: "background.reloginText")
                     .padding(.top, 4)
-                    .fixedSize(horizontal: false, vertical: true)
                 if MacBackgroundTicker.isMac {
                     Text(BackgroundSyncCard.macText)
                         .ufFont(12.8).foregroundStyle(UF.muted)
@@ -195,10 +199,8 @@ struct BackgroundSyncCard: View {
                     .accessibilityIdentifier("background.news.gradeValue")
                 }
             }
-            Text(BackgroundSyncCard.newsText)
-                .ufFont(12.8).foregroundStyle(UF.muted)
+            SettingsMore(summary: BackgroundSyncCard.newsShort, text: BackgroundSyncCard.newsText, identifier: "background.newsText")
                 .padding(.top, 4)
-                .fixedSize(horizontal: false, vertical: true)
         }
 
         /// Einschalten fragt iOS (einmal; abgelehnt: Hinweis, Schalter bleibt aus)
