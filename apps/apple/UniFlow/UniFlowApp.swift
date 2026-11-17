@@ -13,7 +13,7 @@ struct UniFlowApp: App {
     @StateObject private var session: Session
     // Navigation, Seitenleiste, Meldungen und Dialoge gibt es je Fenster (`SceneObjects`, Audit Robustheit 03.11.2026,
     // P3-3); vorher sprangen zwei Fenster gemeinsam zwischen Seiten, Meldungen erschienen in beiden
-    @State private var scenes = SceneRegistry()
+    @State private var scenes: SceneRegistry
     @StateObject private var timer = StudyTimer()
     /// Abgleich im Hintergrund (S8): Aufgaben bei iOS, Termine fruehestens 8, 15 und 20 Uhr
     @StateObject private var background: BackgroundSyncController
@@ -21,6 +21,8 @@ struct UniFlowApp: App {
     @Environment(\.scenePhase) private var scenePhase
     /// gemeinsame Wochentests im Vordergrund alle 10 min (am PC `_weekly_loop`)
     @State private var weeklyTicker = WeeklyAutoTicker()
+    /// Abgleich von selbst bei offener App: zwischen 8 und 18 Uhr alle 30 Minuten (AutoSync.swift, Auftrag 17.11.2026)
+    @State private var autoTicker: AutoSyncTicker
 
     init() {
         // Testlauf am Mac nur mit eigener Kennung und eigenem Datenordner, sonst hier Schluss – vor Konto, Container
@@ -62,8 +64,24 @@ struct UniFlowApp: App {
         if !StudIPSync.isUnderTest() {
             b.register()
             Task { await b.schedule() }
-            b.startMacTicker()                                            // nur am Mac: alle 20–30 Minuten, solange die App laeuft
+            // am Mac laeuft statt des frueheren Takts (20–30 Minuten, rund um die Uhr) der Zeitgeber unten weiter, auch
+            // wenn die App nicht vorn ist - mit derselben Regel 8 bis 18 Uhr
         }
+        // Zeitgeber bei offener App (Auftrag des Inhabers 17.11.2026): fragt nur die Regel; vorn der Abgleich wie beim
+        // Oeffnen, am Mac im Hintergrund der Hintergrundlauf (mit stiller Neuanmeldung ohne Fenster)
+        let registry = SceneRegistry()
+        let ticker = AutoSyncTicker(next: { [weak c] now in c?.nextAutomaticSync(now: now) ?? now.addingTimeInterval(AutoSyncTicker.maxSleep) },
+                                    tick: { [weak c, weak b] now in
+                                        guard let c else { return }
+                                        if AppActivity.isInBackground() {
+                                            if MacBackgroundTicker.isMac { await b?.perform(.refresh) }
+                                        } else {
+                                            c.runAutomaticSync(now: now)
+                                        }
+                                    })
+        ticker.editing = { [weak registry] in registry?.routers.contains { $0.route.isDocument } ?? false }
+        _scenes = State(initialValue: registry)
+        _autoTicker = State(initialValue: ticker)
         _account = StateObject(wrappedValue: a)
         _containers = StateObject(wrappedValue: c)
         _session = StateObject(wrappedValue: s)
@@ -215,15 +233,15 @@ struct UniFlowApp: App {
             LibraryImportCommands()
         }
         .onChange(of: scenePhase) { _, phase in
-            // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
+            // beim Oeffnen und bei der Rueckkehr: von selbst nur zwischen 8 und 18 Uhr, je Portal hoechstens alle 30 Minuten
+            // (Auftrag des Inhabers 17.11.2026, AutoSync.swift); ausserhalb nur der Knopf "Sync"
             if phase == .active {
                 containers.removeRememberedPasswords()                     // einmalig, falls beim Start gesperrt
-                // beim Oeffnen und nach mehr als 15 min im Hintergrund einmal alles (Uni-Mail zuerst), sonst die
-                // bisherigen Abstaende je Quelle (OpenSync, Entscheidung des Inhabers 07.11.2026)
                 containers.syncAllOnOpen()
                 // Lernplan: neue Dokumente eines Hintergrundabgleichs einordnen, sonst nichts am Plan aendern
                 if LearnCalendar.enabled, let host = containers.active?.host { Task.detached { await StudIPSync.placeNewDocumentsOnOpen(host: host) } }
                 weeklyTicker.resume()
+                if !StudIPSync.isUnderTest() { autoTicker.start() }        // alle 30 Minuten im Fenster 8–18 Uhr
                 askForLoginIfDue()
                 // Geraete-Abgleich: Daten anderer Geraete in jedem Fenster zeigen (Abgleich nach Aenderungen, im Takt)
                 let routers = { [scenes] in for router in scenes.routers where !router.route.isDocument { router.reload() } }
@@ -235,8 +253,10 @@ struct UniFlowApp: App {
                 containers.account.startForegroundSync()                   // offen: alle 3 Minuten abrufen
             } else {
                 weeklyTicker.pause()
+                // iPad/iPhone: iOS haelt die App im Hintergrund ohnehin an; am Mac laeuft sie weiter (dann der Hintergrundlauf)
+                if phase == .background, !MacBackgroundTicker.isMac { autoTicker.stop() }
             }
-            // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8) und die Uni-Anmeldung
+            // beim Wechsel in den Hintergrund den naechsten Termin (im Fenster 8–18 Uhr) neu bestellen und die Uni-Anmeldung
             // der Webansicht merken: beendet iOS die App, ist sie beim naechsten Oeffnen wieder da (`UniWebSessions`)
             if phase == .background {
                 Task { await containers.saveWebSessions() }

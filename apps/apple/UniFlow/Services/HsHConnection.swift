@@ -432,6 +432,7 @@ extension HsHConnection: ContainerSync {}
 
 extension HsHConnection: BackgroundSyncable {
     var fileSource: String { "Moodle" }
+    var autoPortals: [String] { Source.allCases.map(\.rawValue) }
     var usableSources: [String] { sources(background: true).map(\.rawValue).sorted() }
     var loginNeededSources: [String] { Source.allCases.filter { isConnected($0) && state($0) == .needsLogin }.map(\.rawValue) }
 

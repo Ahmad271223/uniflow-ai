@@ -76,21 +76,29 @@ extension ContainerManager {
         return out
     }
 
-    /// Portale, die nach der Regel jetzt faellig sind (im Fenster, Abstand um, keine Pause nach "ueberlastet")
-    func autoSyncDue(now: Date) -> Set<String> {
+    /// Portale, die nach der Regel jetzt faellig sind (im Fenster, Abstand um, keine Pause nach "ueberlastet").
+    /// `timeZone`: nil = `AutoSync.timeZone()`. `continueAtOnce`: wartende Arbeit ohne `AutoSyncLedger.retryGap` (der
+    /// lange Hintergrundlauf laedt die Dateien eines eben gelaufenen kurzen Laufs; iOS bestimmt dort ohnehin den Takt)
+    func autoSyncDue(now: Date, timeZone: TimeZone? = nil, continueAtOnce: Bool = false) -> Set<String> {
         guard let c = active else { return [] }
-        let ledger = autoLedger(c), tz = AutoSync.timeZone()
-        return Set(autoSyncPortals.filter { ledger.isDue($0.name, lastSuccess: $0.lastSuccess, pending: $0.pending, now: now, timeZone: tz) }
-            .map(\.name))
+        let ledger = autoLedger(c), tz = timeZone ?? AutoSync.timeZone()
+        return Set(autoSyncPortals.filter {
+            ledger.isDue($0.name, lastSuccess: $0.lastSuccess, pending: $0.pending, now: now, timeZone: tz,
+                         retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
+        }.map(\.name))
     }
 
     /// Fruehester naechster Abgleich von selbst (fuer den Zeitgeber und den Wunschtermin an iOS). Ohne Portal: der
     /// naechste Zeitpunkt im Fenster, damit ein spaeter verbundenes Portal mitkommt.
-    func nextAutomaticSync(now: Date) -> Date {
-        let tz = AutoSync.timeZone()
+    func nextAutomaticSync(now: Date, timeZone: TimeZone? = nil) -> Date {
+        let tz = timeZone ?? AutoSync.timeZone()
         guard let c = active else { return AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz) }
         let ledger = autoLedger(c)
-        let times = autoSyncPortals.map { ledger.nextRun($0.name, lastSuccess: $0.lastSuccess, now: now, timeZone: tz) }
+        let times = autoSyncPortals.map { p -> Date in
+            // wartende Arbeit (unterbrochen, Dateien noch nicht geladen) darf frueher weitergehen
+            if p.pending, ledger.isDue(p.name, lastSuccess: p.lastSuccess, pending: true, now: now, timeZone: tz) { return now }
+            return ledger.nextRun(p.name, lastSuccess: p.lastSuccess, now: now, timeZone: tz)
+        }
         return times.min() ?? AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz)
     }
 
@@ -174,6 +182,9 @@ extension ContainerManager {
 /// Zeitgeber des Abgleichs von selbst bei offener App: wartet bis zum naechsten faelligen Zeitpunkt und ruft dann `tick`
 /// (der fragt die Regel und startet, was faellig ist). Auf iPad und iPhone laeuft er, solange die App vorn ist (im
 /// Hintergrund haelt iOS die App ohnehin an); am Mac ("Designed for iPad"), solange die App laeuft.
+/// Schreiben im Editor: Ist ein Dokument offen (`editing`), schiebt der Zeitgeber den Abgleich auf, bis es zu ist, aber
+/// hoechstens `maxHold` (der Abgleich selbst laeuft ohnehin abseits des Hauptthreads; so faellt auch das Schreiben in
+/// die Datenbank und das Laden der Dateien nicht mitten in einen Strich). Der Knopf "Sync" wartet nie.
 @MainActor
 final class AutoSyncTicker {
     /// nie laenger am Stueck schlafen: eine verstellte Uhr, eine neue Zeitzone oder ein eben verbundenes Portal zaehlen
@@ -181,9 +192,22 @@ final class AutoSyncTicker {
     static let maxSleep: TimeInterval = 5 * 60
     /// nie kuerzer (kein Dauerfeuer, wenn ein Lauf nicht starten kann)
     static let minSleep: TimeInterval = 15
+    /// Dokument offen: so lange hoechstens aufschieben, dann trotzdem
+    static let maxHold: TimeInterval = 10 * 60
+    /// waehrend des Aufschubs so oft nachsehen, ob das Dokument zu ist
+    static let holdPoll: TimeInterval = 60
 
     /// Wartezeit bis `next`, begrenzt auf `minSleep` … `maxSleep`
     static func delay(next: Date, now: Date) -> TimeInterval { min(max(next.timeIntervalSince(now), minSleep), maxSleep) }
+
+    /// Aufschieben? Nur mit offenem Dokument und nur bis `maxHold` nach dem ersten Aufschub (Uhr zurueckgestellt: nicht
+    /// mehr aufschieben)
+    static func holds(editing: Bool, heldSince: Date?, now: Date) -> Bool {
+        guard editing else { return false }
+        guard let heldSince else { return true }
+        let age = now.timeIntervalSince(heldSince)
+        return age >= 0 && age < maxHold
+    }
 
     private let next: @MainActor (Date) -> Date
     private let tick: @MainActor (Date) async -> Void
@@ -191,7 +215,13 @@ final class AutoSyncTicker {
     var now: () -> Date = { Date() }
     /// Warten; false, wenn abgebrochen (Tests: spulen die Uhr vor)
     var sleep: (TimeInterval) async -> Bool = { s in (try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000))) != nil }
+    /// Ist gerade ein Dokument im Editor offen? (App: ein Fenster zeigt ein Dokument)
+    var editing: @MainActor () -> Bool = { false }
+    /// seit wann aufgeschoben wird (nil: nicht)
+    private(set) var heldSince: Date?
     private var task: Task<Void, Never>?
+    /// am Mac: App Nap wuerde den Takt sonst stark verzoegern (erlaubt den Ruhezustand des Macs)
+    private var activity: NSObjectProtocol?
 
     /// - Parameters:
     ///   - next: fruehester naechster faelliger Zeitpunkt (`ContainerManager.nextAutomaticSync`)
@@ -205,18 +235,38 @@ final class AutoSyncTicker {
 
     func start() {
         guard task == nil else { return }
+        if MacBackgroundTicker.isMac {
+            activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep],
+                                                             reason: "StudiNow gleicht zwischen 8 und 18 Uhr alle 30 Minuten ab")
+        }
         task = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let wait = self.sleep, delay = Self.delay(next: self.next(self.now()), now: self.now())
+                let wait = self.sleep
+                let delay = self.heldSince != nil ? Self.holdPoll : Self.delay(next: self.next(self.now()), now: self.now())
                 guard await wait(delay), !Task.isCancelled, self.task != nil else { return }
-                await self.tick(self.now())
+                await self.fire()
             }
         }
+    }
+
+    /// Ein Takt: faellig und kein Aufschub → `tick`
+    func fire() async {
+        let now = self.now()
+        guard next(now) <= now else { return }
+        if Self.holds(editing: editing(), heldSince: heldSince, now: now) {
+            if heldSince == nil { heldSince = now }
+            return
+        }
+        heldSince = nil
+        await tick(now)
     }
 
     func stop() {
         task?.cancel()
         task = nil
+        heldSince = nil
+        if let activity { ProcessInfo.processInfo.endActivity(activity) }
+        activity = nil
     }
 }

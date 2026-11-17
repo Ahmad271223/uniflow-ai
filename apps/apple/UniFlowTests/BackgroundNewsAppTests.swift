@@ -83,6 +83,7 @@ final class BackgroundNewsAppTests: XCTestCase {
         b.now = { self.now }
         b.timeZone = { TimeZone(identifier: "Europe/Berlin")! }
         b.weeklyTick = { _ in .off }
+        b.autoDue = { _, _, _, _ in BackgroundSyncAppTests.allPortals }   // Regel 8–18 Uhr: eigene Tests
         return (b, n)
     }
 

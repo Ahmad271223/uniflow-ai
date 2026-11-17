@@ -284,6 +284,8 @@ final class BackgroundSyncAppTests: XCTestCase {
         b.now = { Date(timeIntervalSince1970: 1_793_005_200) }   // 2026-10-26 (Montag) 10:00 Berlin
         b.timeZone = { TimeZone(identifier: "Europe/Berlin")! }
         b.graceNanos = 3_000_000_000
+        // Regel 8–18 Uhr (17.11.2026): hier alle Portale faellig; eigene Tests pruefen die Regel (`AutoSyncAppTests`)
+        b.autoDue = { _, _, _, _ in Self.allPortals }
         return (b, s, n)
     }
 
@@ -318,6 +320,7 @@ final class BackgroundSyncAppTests: XCTestCase {
     }
 
     private let berlin = TimeZone(identifier: "Europe/Berlin")!
+    static let allPortals: Set<String> = ["Stud.IP", "QIS", "Uni-Mail", "Learnweb", "LSF", "Moodle", "Campusmanagement"]
 
     private func local(_ d: Date) -> String {
         let f = DateFormatter()
@@ -352,18 +355,18 @@ final class BackgroundSyncAppTests: XCTestCase {
         let (b, s, _) = controller(m, a)
         XCTAssertTrue(BackgroundSyncSettings(defaults: bed.defaults).enabled, "Vorgabe an")
 
-        // 10:00 -> beide um 15:00
+        // Regel 8–18 Uhr, alle 30 Minuten (17.11.2026): 10:00 ohne bisherigen Abgleich -> beide gleich (fruehestens jetzt)
         let first = await b.schedule()
-        XCTAssertEqual(first.mapValues(local), [.refresh: "2026-10-26 15:00", .processing: "2026-10-26 15:00"])
-        XCTAssertEqual(b.nextPlanned.map(local), "2026-10-26 15:00")
+        XCTAssertEqual(first.mapValues(local), [.refresh: "2026-10-26 10:00", .processing: "2026-10-26 10:00"])
+        XCTAssertEqual(b.nextPlanned.map(local), "2026-10-26 10:00")
 
-        // 21:00: der kurze Lauf ist dran gewesen (verbraucht), der lange steht noch auf 15:00 und bleibt
+        // 21:00: der kurze Lauf ist dran gewesen (verbraucht), der lange steht noch auf 10:00 und bleibt
         b.now = { Date(timeIntervalSince1970: 1_793_044_800) }    // 2026-10-26 21:00
         s.pendingRequests[.refresh] = nil
         s.submitted = []
         let second = await b.schedule(ran: .refresh)
-        XCTAssertEqual(second.mapValues(local), [.refresh: "2026-10-27 08:00"], "nach 20 Uhr der naechste Morgen")
-        XCTAssertEqual((s.pendingRequests[.processing] ?? nil).map(local), "2026-10-26 15:00", "langer Lauf nicht nach hinten geschoben")
+        XCTAssertEqual(second.mapValues(local), [.refresh: "2026-10-27 08:00"], "nach 18 Uhr der naechste Morgen um 8")
+        XCTAssertEqual((s.pendingRequests[.processing] ?? nil).map(local), "2026-10-26 10:00", "langer Lauf nicht nach hinten geschoben")
         // die gerade gelaufene Aufgabe bestellt immer neu, auch wenn iOS sie noch fuehrt
         let third = await b.schedule(ran: .processing)
         XCTAssertEqual(third.mapValues(local), [.processing: "2026-10-27 08:00"])
@@ -664,6 +667,73 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(spy.credentialReads, [])
     }
 
+    // MARK: Regel 8 bis 18 Uhr, alle 30 Minuten (Auftrag des Inhabers 17.11.2026)
+
+    func testBackgroundRunOutsideTheWindowAsksNoUniversityAndOrdersEightOClock() async throws {
+        let m = manager()
+        let (a, luh) = try ready(m, .luh)
+        let (b, s, n) = controller(m, a)
+        b.autoDue = { c, now, tz, kind in m.autoSyncDue(now: now, timeZone: tz, continueAtOnce: kind == .processing) }
+        let fake = FakeSync()
+        fake.report = BackgroundSyncReport(newFiles: 3)
+        b.target = { _ in fake }
+        var grades = 0
+        b.gradesStep = { _ in grades += 1 }
+        var relogins = 0
+        b.relogin = { _, _ in relogins += 1; return true }
+        b.expiredPortals = { _ in ["Stud.IP", "QIS"] }
+        b.hasStoredLogin = { _ in true }
+        // 18:00 gehoert nicht mehr dazu, 07:59 noch nicht
+        for (stamp, label) in [(1_793_034_000.0, "18:00"), (1_793_084_340.0, "07:59 am Dienstag")] {
+            b.now = { Date(timeIntervalSince1970: stamp) }
+            try await launch(b, .processing)
+            XCTAssertEqual(fake.kinds, [], "\(label): kein Abgleich")
+            XCTAssertEqual(b.lastRecord?.outcome, .skipped(.outsideWindow), label)
+            XCTAssertEqual(b.lastDue, [], label)
+        }
+        XCTAssertEqual(grades, 0, "keine Noten ausserhalb des Fensters")
+        XCTAssertEqual(relogins, 0, "keine stille Neuanmeldung ausserhalb des Fensters")
+        XCTAssertTrue(n.posts.isEmpty)
+        XCTAssertNil(m.autoLedger(luh).lastAttempt("Stud.IP"), "ausserhalb nichts vermerkt")
+        XCTAssertEqual(UniStubProtocol.requests.count, 0, "keine Anfrage an eine Hochschule")
+        // Wunschtermin an iOS: 08:00 am naechsten Morgen (nicht 20 Uhr wie frueher)
+        b.now = { Date(timeIntervalSince1970: 1_793_034_000) }    // 18:00
+        s.pendingRequests = [:]
+        let next = await b.schedule()
+        XCTAssertEqual(next.mapValues(local), [.refresh: "2026-10-27 08:00", .processing: "2026-10-27 08:00"])
+        XCTAssertEqual(BackgroundSkipReason.outsideWindow.text, "außerhalb von 8 bis 18 Uhr")
+    }
+
+    func testBackgroundRunOnlyForDuePortalsAndRecordsTheAttemptFirst() async throws {
+        let m = manager()
+        let (a, luh) = try ready(m, .luh)
+        let (b, s, _) = controller(m, a)
+        let fake = FakeSync()
+        b.target = { _ in fake }
+        var grades = 0
+        b.gradesStep = { _ in grades += 1 }
+        // nur QIS faellig: Stud.IP ruht, die Noten kommen
+        b.autoDue = { _, _, _, _ in ["QIS"] }
+        try await launch(b, .refresh)
+        XCTAssertEqual(fake.kinds, [])
+        XCTAssertEqual(b.lastRecord?.outcome, .skipped(.notDue))
+        XCTAssertEqual(grades, 1)
+        let ledger = m.autoLedger(luh)
+        XCTAssertEqual(ledger.lastAttempt("QIS"), b.now(), "Versuch vor dem Lauf vermerkt")
+        XCTAssertNil(ledger.lastAttempt("Stud.IP"))
+        // Stud.IP faellig: der Abgleich laeuft, QIS nicht
+        b.autoDue = { _, _, _, _ in ["Stud.IP"] }
+        try await launch(b, .refresh)
+        XCTAssertEqual(fake.kinds, [.refresh])
+        XCTAssertEqual(grades, 1, "QIS nicht faellig: kein zweiter Notenabruf")
+        XCTAssertEqual(ledger.lastAttempt("Stud.IP"), b.now())
+        // echte Regel: eben (10:00) versucht -> 10:29 nichts faellig, Wunschtermin 10:30; 10:30 wieder faellig
+        b.autoDue = { c, now, tz, kind in m.autoSyncDue(now: now, timeZone: tz, continueAtOnce: kind == .processing) }
+        XCTAssertEqual(m.autoLedger(luh).isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(29 * 60), timeZone: berlin), false)
+        XCTAssertEqual(m.autoLedger(luh).isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(30 * 60), timeZone: berlin), true)
+        _ = s
+    }
+
     // MARK: Kein Lauf waehrend eines Wechsels oder neben einem Abgleich
 
     func testNoRunDuringSwitchSetupOrAnotherSyncOrWhenOff() async throws {
@@ -888,11 +958,11 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(b.nextPlanned.map(local), "2026-10-26 15:00")
         XCTAssertEqual((s.pendingRequests[.processing] ?? nil).map(local), "2026-10-26 15:00")
 
-        // eingeschaltet: beide; der lange zum frueheren der beiden Termine (hier derselbe)
+        // eingeschaltet: beide; der lange zum frueheren der beiden Termine (Regel 8–18 Uhr: gleich, 10:00)
         BackgroundSyncSettings(defaults: bed.defaults).enabled = true
         s.pendingRequests = [:]
         let on = await b.schedule()
-        XCTAssertEqual(on.mapValues(local), [.refresh: "2026-10-26 15:00", .processing: "2026-10-26 15:00"])
+        XCTAssertEqual(on.mapValues(local), [.refresh: "2026-10-26 10:00", .processing: "2026-10-26 10:00"])
 
         // Plan veroeffentlicht und ausgeschaltet: wieder beide abbestellt
         _ = try await backend.context.database.execute("UPDATE wt_plans SET status='veroeffentlicht'")

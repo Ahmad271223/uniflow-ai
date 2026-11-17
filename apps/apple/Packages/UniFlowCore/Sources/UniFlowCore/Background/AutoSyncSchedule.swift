@@ -170,13 +170,15 @@ public struct AutoSyncLedger {
     ///     und fruehestens `retryGap` nach dem letzten Versuch von selbst (scheitert die Fortsetzung immer wieder,
     ///     fragt der Zeitgeber sonst im Minutentakt)
     ///   - interval: eigener Abstand dieses Aufrufs (z. B. die Liste der Bescheinigungen seltener); nil: der des Plans
+    ///   - retryGap: Abstand fuer wartende Arbeit (Vorgabe `retryGap`; 0 im langen Hintergrundlauf, der die Dateien eines
+    ///     eben gelaufenen kurzen Laufs laedt)
     public func isDue(_ portal: String, lastSuccess: Date?, pending: Bool = false, now: Date, timeZone: TimeZone,
-                      interval: TimeInterval? = nil) -> Bool {
+                      interval: TimeInterval? = nil, retryGap: TimeInterval = AutoSyncLedger.retryGap) -> Bool {
         guard schedule.isInWindow(now, timeZone: timeZone), pausedUntil(portal, now: now) == nil else { return false }
         if pending {
             guard let attempt = lastAttempt(portal) else { return true }
             let age = now.timeIntervalSince(attempt)
-            return age < 0 || age >= Self.retryGap
+            return age < 0 || age >= retryGap
         }
         var s = schedule
         if let interval { s.interval = interval }
