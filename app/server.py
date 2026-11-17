@@ -63,6 +63,8 @@ async def _lifespan(_app):
 
 app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)
 app.include_router(account_api.router)
+from . import wake_push_api  # noqa: E402 - Weck-Signal: Apple-App meldet ihr Push-Token (/api/account/push-token, app/wake_push.py)
+app.include_router(wake_push_api.router)
 app.include_router(community_api.router)
 app.include_router(community_cards_api.router)
 app.include_router(billing_api.router)
