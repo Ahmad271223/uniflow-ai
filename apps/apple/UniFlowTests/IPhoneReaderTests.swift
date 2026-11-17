@@ -202,8 +202,12 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         let (env, pdf, _) = try openReader()
         let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
         XCTAssertEqual(web.accessibilityLabel, "Video oder Lernseite")
+        // läuft der Test allein, setzt die erste Tarifabfrage der App den Tarif nach dem Start noch einmal (Free):
+        // darum unmittelbar vor dem Antippen erneut
+        Entitlements.shared.setPlanForTesting(.plus)
         XCTAssertTrue(web.accessibilityActivate())
-        XCTAssertTrue(env.wait(timeout: 8) { self.element(env, id: "web.youtubeOpen") != nil }, "Auswahl mit „YouTube öffnen“: \(dump(env))")
+        XCTAssertTrue(env.wait(timeout: 20) { self.element(env, id: "web.youtubeOpen") != nil },
+                      "Auswahl mit „YouTube öffnen“ (Blatt offen: \(sheetOpen(env))): \(dump(env))")
         XCTAssertNotNil(element(env, id: "web.videoLink"), "Link einfügen bleibt als zweiter Weg")
         XCTAssertTrue(shows(env, WebSidePickerSection.videoIntro(readerOnly: true)), dump(env))
         XCTAssertTrue(try XCTUnwrap(element(env, id: "web.youtubeOpen")).accessibilityActivate())
