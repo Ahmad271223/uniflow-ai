@@ -72,6 +72,189 @@ final class VideoLearningSitesAppTests: XCTestCase {
         XCTAssertEqual(VideoSidePolicy.decide(nil, mainFrame: true), .cancel)
     }
 
+    // MARK: YouTube direkt (Auftrag 17.11.2026)
+
+    private func yt(_ s: String, main: Bool = true) -> WebSideDecision { YouTubeSidePolicy.decide(URL(string: s), mainFrame: main) }
+
+    func testYouTubePaneAllowsStartSearchWatchShortsChannelAndConsent() {
+        XCTAssertEqual(YouTubeSidePolicy.start.absoluteString, "https://m.youtube.com/")
+        XCTAssertEqual(YouTubeSidePolicy.decide(YouTubeSidePolicy.start, mainFrame: true), .allow)
+        for inside in ["https://m.youtube.com/", "https://m.youtube.com/results?search_query=fourier+reihe",
+                       "https://m.youtube.com/watch?v=dQw4w9WgXcQ", "https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=90s",
+                       "https://m.youtube.com/shorts/dQw4w9WgXcQ", "https://m.youtube.com/@3blue1brown",
+                       "https://m.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw", "https://m.youtube.com/playlist?list=PL123",
+                       "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "https://youtube.com/watch?v=dQw4w9WgXcQ",
+                       "https://M.YouTube.com/feed/trending", "https://youtu.be/dQw4w9WgXcQ",
+                       "https://consent.youtube.com/m?continue=https%3A%2F%2Fm.youtube.com%2F&gl=DE",
+                       "https://consent.youtube.com/save", "about:blank"] {
+            XCTAssertEqual(yt(inside), .allow, inside)
+        }
+    }
+
+    func testYouTubePaneOpensEveryOtherSiteOutside() {
+        for out in ["https://example.com/", "https://www.google.com/search?q=x", "https://de.wikipedia.org/wiki/Fourier-Reihe",
+                    "https://policies.google.com/privacy", "https://support.google.com/youtube", "https://apps.apple.com/app/youtube/id544007664",
+                    "https://music.youtube.com/", "https://studio.youtube.com/", "https://www.youtubekids.com/", "https://tv.youtube.com/",
+                    "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ", "https://googleads.g.doubleclick.net/aclk?x=1",
+                    "mailto:info@example.org", "tel:+4951112345"] {
+            let u = URL(string: out)!
+            XCTAssertEqual(yt(out), .openOutside(u), out)
+        }
+        // YouTubes Weiterleitung zu einer fremden Seite (Link in einer Beschreibung): ausserhalb, nicht in der Spalte
+        let redirect = "https://www.youtube.com/redirect?event=video_description&q=https%3A%2F%2Fexample.com%2F"
+        XCTAssertEqual(yt(redirect), .openOutside(URL(string: redirect)!))
+        // http nie in der Spalte
+        XCTAssertEqual(yt("http://m.youtube.com/watch?v=dQw4w9WgXcQ"), .openOutside(URL(string: "https://m.youtube.com/watch?v=dQw4w9WgXcQ")!))
+    }
+
+    func testYouTubePaneRejectsLookalikeHostsAndUnsafeSchemes() {
+        for trick in ["https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ", "https://evil-youtube.com/", "https://m.youtube.com.evil.example/",
+                      "https://evilyoutube.com/", "https://youtube.com@evil.example/", "https://m.youtube.com:443@evil.example/watch",
+                      "https://evil.example/?u=https://m.youtube.com/", "https://m.youtube.com./", "https://xn--yutube-cxa.com/",
+                      "https://youtu.be.evil.example/dQw4w9WgXcQ", "https://consent.youtube.com.evil.example/"] {
+            let d = yt(trick)
+            XCTAssertNotEqual(d, .allow, trick)
+            XCTAssertNotEqual(d, .signIn, trick)
+            XCTAssertEqual(yt(trick, main: false), .cancel, "eingebettet: \(trick)")
+            XCTAssertFalse(YouTubeSidePolicy.isResource(URL(string: trick)), trick)
+        }
+        for bad in ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "file:///etc/passwd", "blob:https://m.youtube.com/abc",
+                    "vnd.youtube://watch?v=dQw4w9WgXcQ", "youtube://watch?v=dQw4w9WgXcQ", "itms-apps://apps.apple.com/app/id544007664",
+                    "ftp://m.youtube.com/"] {
+            XCTAssertEqual(yt(bad), .cancel, bad)
+            XCTAssertEqual(yt(bad, main: false), .cancel, "eingebettet: \(bad)")
+        }
+        XCTAssertEqual(YouTubeSidePolicy.decide(nil, mainFrame: true), .cancel)
+    }
+
+    /// Anmelden mit dem Google-Konto: nie in der Spalte (die App sieht kein Passwort) - Hinweis statt Seite; versteckt
+    /// eingebettet gar nicht
+    func testYouTubePaneNeverLoadsGoogleSignIn() {
+        for s in ["https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fm.youtube.com%2F",
+                  "https://accounts.google.com/v3/signin/identifier?continue=x", "https://accounts.google.de/accounts/SetSID",
+                  "https://accounts.youtube.com/accounts/CheckConnection", "https://myaccount.google.com/",
+                  "https://m.youtube.com/signin?next=%2F", "https://www.youtube.com/signin_prompt?app=m", "http://accounts.google.com/"] {
+            XCTAssertEqual(yt(s), .signIn, s)
+            XCTAssertEqual(yt(s, main: false), .cancel, "eingebettet: \(s)")
+            XCTAssertTrue(YouTubeSidePolicy.isSignIn(URL(string: s)!), s)
+        }
+        XCTAssertFalse(YouTubeSidePolicy.isSignIn(URL(string: "https://m.youtube.com/watch?v=dQw4w9WgXcQ")!))
+        XCTAssertFalse(YouTubeSidePolicy.isSignIn(URL(string: "https://example.com/signin")!), "fremde Seite: ausserhalb, kein Hinweis")
+        // die anderen Spalten kennen die Entscheidung nicht
+        XCTAssertNotEqual(VideoSidePolicy.decide(URL(string: "https://accounts.google.com/"), mainFrame: true), .signIn)
+    }
+
+    /// Player, Einwilligung, Bilder, Videodaten und Werbung von YouTube/Google bleiben erlaubt (nichts wird ausgeblendet)
+    func testYouTubePaneAllowsYouTubeFramesAndResources() {
+        for sub in ["https://www.youtube.com/embed/dQw4w9WgXcQ", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+                    "https://consent.youtube.com/m?continue=x", "https://rr3---sn-4g5e6nsz.googlevideo.com/videoplayback?x=1",
+                    "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg", "https://www.gstatic.com/youtube/img/x.png",
+                    "https://yt3.ggpht.com/abc=s88", "https://googleads.g.doubleclick.net/pagead/id", "https://www.google.com/recaptcha/api2/anchor",
+                    "https://tpc.googlesyndication.com/safeframe/1-0-40/html/container.html"] {
+            XCTAssertEqual(yt(sub, main: false), .allow, sub)
+            XCTAssertTrue(YouTubeSidePolicy.isResource(URL(string: sub)), sub)
+        }
+        XCTAssertEqual(yt("about:blank", main: false), .allow)
+        XCTAssertEqual(yt("about:srcdoc", main: false), .allow)
+        XCTAssertEqual(yt("https://example.com/frame", main: false), .cancel, "fremde Rahmen nicht laden")
+        XCTAssertEqual(yt("http://www.youtube.com/embed/dQw4w9WgXcQ", main: false), .cancel, "nur https")
+        XCTAssertFalse(YouTubeSidePolicy.isResource(URL(string: "http://i.ytimg.com/vi/x.jpg")))
+        XCTAssertFalse(YouTubeSidePolicy.isResource(URL(string: "https://cdn.example.com/x.js")))
+        XCTAssertFalse(YouTubeSidePolicy.isResource(nil))
+    }
+
+    /// "Zuletzt hier" geht auch fuer ein auf der YouTube-Seite angesehenes Video und oeffnet es wieder dort
+    func testWatchedVideoIsRememberedAndReopensOnYouTube() throws {
+        XCTAssertEqual(YouTubeSidePolicy.watchedVideo(URL(string: "https://m.youtube.com/watch?v=dQw4w9WgXcQ&pp=abc")),
+                       VideoLink(videoID: "dQw4w9WgXcQ"))
+        XCTAssertEqual(YouTubeSidePolicy.watchedVideo(URL(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s"))?.start, 90)
+        for no in ["https://m.youtube.com/", "https://m.youtube.com/results?search_query=x", "https://m.youtube.com/shorts/dQw4w9WgXcQ",
+                   "https://m.youtube.com/@kanal", "https://m.youtube.com/watch?v=kurz", "https://example.com/watch?v=dQw4w9WgXcQ",
+                   "https://consent.youtube.com/watch?v=dQw4w9WgXcQ", "http://m.youtube.com/watch?v=dQw4w9WgXcQ",
+                   "https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ"] {
+            XCTAssertNil(YouTubeSidePolicy.watchedVideo(URL(string: no)), no)
+        }
+        XCTAssertNil(YouTubeSidePolicy.watchedVideo(nil))
+
+        let suite = "uniflow.tests.youtube.\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { d.removePersistentDomain(forName: suite) }
+        let v = VideoLink(videoID: "dQw4w9WgXcQ")
+        DocumentVideoLinks.save(v, for: "f1", defaults: d, onYouTube: true)
+        let r = try XCTUnwrap(DocumentVideoLinks.record("f1", defaults: d))
+        XCTAssertEqual(r.onYouTube, true)
+        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1"), .youTube(YouTubeVisit(documentID: "f1", video: v)))
+        XCTAssertEqual(YouTubeVisit(documentID: "f1", video: v).startURL.absoluteString, "https://m.youtube.com/watch?v=dQw4w9WgXcQ")
+        XCTAssertEqual(YouTubeVisit(documentID: "f1").startURL, YouTubeSidePolicy.start)
+        XCTAssertEqual(YouTubeSidePolicy.decide(YouTubeVisit(documentID: "f1", video: VideoLink(videoID: "dQw4w9WgXcQ", start: 90)).startURL,
+                                                mainFrame: true), .allow)
+        // eingefuegter Link (wie bisher): eingebetteter Player
+        DocumentVideoLinks.save(v, for: "f1", defaults: d)
+        let pasted = try XCTUnwrap(DocumentVideoLinks.record("f1", defaults: d))
+        XCTAssertNil(pasted.onYouTube)
+        XCTAssertEqual(WebSidePickerSection.lastItem(pasted, documentID: "f1"), .video(v))
+        // Stand vor dem 17.11.2026 (ohne das Feld) bleibt lesbar
+        d.set(Data(#"{"version":1,"link":{"videoID":"dQw4w9WgXcQ","start":30},"marks":[]}"#.utf8), forKey: DocumentVideoLinks.key("f2"))
+        XCTAssertEqual(DocumentVideoLinks.load("f2", defaults: d), VideoLink(videoID: "dQw4w9WgXcQ", start: 30))
+        XCTAssertNotEqual(WebSideItem.youTube(YouTubeVisit(documentID: "f1")).id, WebSideItem.video(v).id)
+    }
+
+    /// Hinweis vor dem ersten Oeffnen: Entscheidung gemerkt (je Container), Text nennt Google und die Uebertragung
+    func testYouTubeNoticeIsShownOnceAndSaysWhatHappens() throws {
+        let suite = "uniflow.tests.youtube.notice.\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { d.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(YouTubeNotice.accepted(defaults: d))
+        XCTAssertFalse(YouTubeNotice.accepted(defaults: nil))
+        YouTubeNotice.accept(defaults: d)
+        XCTAssertTrue(YouTubeNotice.accepted(defaults: d))
+        YouTubeNotice.reset(defaults: d)
+        XCTAssertFalse(YouTubeNotice.accepted(defaults: d))
+        XCTAssertTrue(YouTubeNotice.text.contains("Google") && YouTubeNotice.text.contains("übertragen") && YouTubeNotice.text.contains("Cookies"))
+        XCTAssertTrue(YouTubeNotice.detail.contains("Anmelden"))
+    }
+
+    /// Web-Ansicht der YouTube-Spalte: mobile Seite, Abspielen in der Seite (kein erzwungenes Vollbild), Bild-in-Bild und
+    /// Vollbild moeglich, kein Skript der App, eigener Speicher; "YouTube-Daten löschen" trifft nur YouTube/Google
+    func testYouTubeWebViewPlaysInlineWithoutAppScripts() {
+        let store = WKWebsiteDataStore.nonPersistent()
+        let c = WebSideWebView.configuration(dataStore: store, mobile: true)
+        XCTAssertTrue(c.websiteDataStore === store)
+        XCTAssertTrue(c.allowsInlineMediaPlayback)
+        XCTAssertTrue(c.allowsPictureInPictureMediaPlayback)
+        XCTAssertTrue(c.preferences.isElementFullscreenEnabled)
+        XCTAssertEqual(c.defaultWebpagePreferences.preferredContentMode, .mobile)
+        XCTAssertTrue(c.userContentController.userScripts.isEmpty)
+        XCTAssertFalse(c.preferences.javaScriptCanOpenWindowsAutomatically)
+        XCTAssertEqual(WebSideWebView.configuration(dataStore: store).defaultWebpagePreferences.preferredContentMode, .recommended,
+                       "Lernseiten wie bisher")
+        for name in ["youtube.com", "google.com", "googlevideo.com", "ytimg.com", "YouTube.com", "doubleclick.net", "youtu.be"] {
+            XCTAssertTrue(WebSideStore.isYouTubeData(name), name)
+        }
+        for name in ["wikipedia.org", "duden.de", "uni-hannover.de", "notyoutube.com", "youtube.com.evil.example", ""] {
+            XCTAssertFalse(WebSideStore.isYouTubeData(name), name)
+        }
+        XCTAssertEqual(YouTubeSidePane.outsideURL(current: URL(string: "https://m.youtube.com/watch?v=dQw4w9WgXcQ")).absoluteString,
+                       "https://m.youtube.com/watch?v=dQw4w9WgXcQ")
+        for other in ["https://consent.youtube.com/m?continue=x", "https://example.com/", "https://accounts.google.com/"] {
+            XCTAssertEqual(YouTubeSidePane.outsideURL(current: URL(string: other)).absoluteString, "https://www.youtube.com/", other)
+        }
+        XCTAssertEqual(YouTubeSidePane.outsideURL(current: nil).absoluteString, "https://www.youtube.com/")
+    }
+
+    /// iPhone (Auftrag 17.11.2026 "auch iPhone und macOS"): Video bzw. Seite ueber dem Dokument; Texte sprechen dort
+    /// nicht vom Schreiben und nicht von "daneben"; die Teilung laesst das Dokument nie verschwinden
+    func testPhoneWordingAndSplitAboveReader() {
+        XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: false).contains("schreib im Dokument mit"))
+        XCTAssertFalse(WebSidePickerSection.videoIntro(readerOnly: true).contains("schreib"))
+        XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: true).contains("über dem Dokument"))
+        XCTAssertEqual(WebSidePickerSection.openLabel(readerOnly: false), "Daneben öffnen")
+        XCTAssertEqual(WebSidePickerSection.openLabel(readerOnly: true), "Öffnen")
+        XCTAssertEqual(WebSideOverReaderLayout.clamp(WebSideOverReaderLayout.start), WebSideOverReaderLayout.start)
+        XCTAssertEqual(WebSideOverReaderLayout.clamp(0), 0.3)
+        XCTAssertEqual(WebSideOverReaderLayout.clamp(1), 0.78)
+    }
+
     // MARK: Sperre Lernseite
 
     private var wiki: LearningSite {
