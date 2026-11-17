@@ -11,35 +11,84 @@ import SwiftUI
 // Wird es schmal (hochkant, geteilte Ansicht), bricht nichts um: die Objektwerkzeuge ruecken in einen Knopf mit Liste,
 // die Werkzeugreihe laesst sich waagerecht schieben, Seiten/Daneben/Teilen wandern ins Menue "Mehr", die Reiter werden
 // zuletzt ein Knopf mit Liste. Eigene kleine Typen (nicht in `DocumentView.body` geschachtelt, `ViewTypeDepthAppTests`).
+//
+// 17.11.2026 (Inhaber, mit Foto der Lage "Unten fest": "oben Leiste dünner machen, damit man mehr Platz zum Schreiben
+// hat"): Die eine Zeile gilt jetzt auch bei "Unten fest" und "Schwebend". Dort lagen oben noch die Navigationsleiste des
+// Systems (55 pt, runde Knoepfe in Kapseln) und der Streifen der offenen Dokumente (44 pt, auch bei nur einem
+// Dokument): 99 pt. Jetzt eine flache Zeile von 40 pt ohne Werkzeuge (die bleiben unten bzw. in Apples Palette): links
+// Zurueck, Logo, Seiten und die Reiter (der aktive Reiter ist zugleich der Titel), rechts einzeln Stand, Lesezeichen,
+// Suche, KI, Finger/Stift, Ebenen, Daneben, Teilen, Mehr und "Leiste ausblenden". Knoepfe 44 pt breit, 40 pt hoch.
+// Gemessen in `EditorObenFlachTests` (quer und hoch): Dokument beginnt 59 pt weiter oben (99 -> 40 pt, 60 % weniger).
 
 /// Was bei einer Breite in die Zeile passt (rein, `EditorHeaderTests`)
 struct EditorHeaderLayout: Equatable {
     let width: CGFloat
+    /// Die Werkzeuge stehen in der Zeile ("Oben fest"). Ohne sie ("Unten fest", "Schwebend", 17.11.2026) ist die Zeile
+    /// flacher, und die Knoepfe des Dokuments stehen einzeln da, solange die Breite reicht.
+    var hasTools = true
 
-    /// Hoehe der Zeile: eine Trefferflaeche (wie die Werkzeugleiste)
+    /// Die eine Kopfzeile gilt in jeder Lage der Werkzeuge (Auftrag des Inhabers 17.11.2026: "oben Leiste dünner
+    /// machen, damit man mehr Platz zum Schreiben hat"). Vorher zeigten "Unten fest" und "Schwebend" oben die
+    /// Navigationsleiste des Systems und darunter den Streifen der offenen Dokumente (zusammen 99 pt, jetzt 40 pt).
+    /// `false`: wie bis 17.11. (Navigationsleiste und Reiterstreifen ausser bei "Oben fest").
+    static let everywhere = true
+
+    /// Hoehe der Zeile mit Werkzeugen: eine Trefferflaeche (wie die Werkzeugleiste)
     static let height: CGFloat = EditorToolbar.height
+    /// Hoehe der Zeile ohne Werkzeuge: Knoepfe 44 pt breit und 40 pt hoch
+    static let flatHeight: CGFloat = 40
+    /// Platz der Knoepfe rechts in der Zeile ohne Werkzeuge (Stand, Lesezeichen, Suche, KI, Daneben, Finger, Ebenen,
+    /// Teilen, Mehr, Ausblenden) und links (Zurueck, Logo, Seiten); den Rest bekommen die Reiter
+    static let flatActionsWidth: CGFloat = 470
+    static let flatLeadingWidth: CGFloat = 132
 
-    /// Seiten, Daneben, Teilen und "Leiste ausblenden" stehen im Menue "Mehr" (hochkant auf dem 11-Zoll-iPad, geteilte
-    /// Ansicht)
-    var compactActions: Bool { width < 900 }
+    var rowHeight: CGFloat { hasTools ? Self.height : Self.flatHeight }
+
+    /// Seiten, Daneben, Teilen und "Leiste ausblenden" stehen im Menue "Mehr" (mit Werkzeugen: hochkant auf dem
+    /// 11-Zoll-iPad, geteilte Ansicht; ohne Werkzeuge erst in der geteilten Ansicht)
+    var compactActions: Bool { width < (hasTools ? 900 : 720) }
     /// Reiter nur als ein Knopf mit Liste (sehr schmal, z. B. ein Drittel in der geteilten Ansicht)
     var tabsAsMenu: Bool { width < 560 }
-    /// hoechste Breite der Reiter; den Rest bekommen die Werkzeuge
-    var tabMaxWidth: CGFloat { (width * (compactActions ? 0.2 : 0.34)).rounded() }
+    /// hoechste Breite der Reiter; den Rest bekommen die Werkzeuge bzw. die Knoepfe
+    var tabMaxWidth: CGFloat {
+        if hasTools { return (width * (compactActions ? 0.2 : 0.34)).rounded() }
+        if compactActions { return max(140, width - 240).rounded() }
+        return max(140, width - Self.flatLeadingWidth - Self.flatActionsWidth - 16).rounded()
+    }
+    /// Ohne Werkzeuge und breit genug: Stand, Lesezeichen, Suche, Finger und Ebenen stehen einzeln in der Zeile (mit
+    /// Werkzeugen im Menue "Mehr")
+    var showsAllActions: Bool { !hasTools && !compactActions }
     /// sehr schmal: Stand nur bei Problemen, KI als Symbol mit Schloss statt mit Schild, damit die Stifte Platz haben
     var narrow: Bool { tabsAsMenu }
+    /// KI ohne Pro AI als Symbol mit kleinem Schloss statt mit Schild "ab Pro AI": sehr schmal, und immer in der
+    /// flachen Zeile ohne Werkzeuge (das Schild ist 44 pt hoch und ragte ueber die 40-pt-Zeile hinaus)
+    var smallAILock: Bool { narrow || !hasTools }
+}
+
+private struct UFHeaderRowKey: EnvironmentKey { static let defaultValue: CGFloat = EditorToolbar.hitSide }
+
+extension EnvironmentValues {
+    /// Hoehe der Kopfzeile des Dokuments, in der ein Knopf oder die Reiter stehen (44 pt, ohne Werkzeuge 40 pt)
+    var ufHeaderRow: CGFloat {
+        get { self[UFHeaderRowKey.self] }
+        set { self[UFHeaderRowKey.self] = newValue }
+    }
 }
 
 /// Die eine Kopfzeile: links (Zurueck, Reiter), Werkzeuge, rechts die Knoepfe des Dokuments. Inhalte kommen fertig als
 /// `AnyView` aus `DocumentView` (deren Zustand), die Zeile ordnet sie nur an.
 struct EditorHeaderBar: View {
+    /// ohne Werkzeuge in der Zeile ("Unten fest", "Schwebend"): flacher
+    var flat = false
     let leading: (EditorHeaderLayout) -> AnyView
     let tools: AnyView?
     let actions: (EditorHeaderLayout) -> AnyView
 
+    private var height: CGFloat { flat ? EditorHeaderLayout.flatHeight : EditorHeaderLayout.height }
+
     var body: some View {
         GeometryReader { geo in
-            let layout = EditorHeaderLayout(width: geo.size.width)
+            let layout = EditorHeaderLayout(width: geo.size.width, hasTools: !flat)
             HStack(spacing: 0) {
                 leading(layout)
                 if let tools {
@@ -47,30 +96,42 @@ struct EditorHeaderBar: View {
                     tools
                 }
                 Spacer(minLength: 4)
-                actions(layout)
+                if flat, !layout.compactActions {
+                    // passt es doch nicht (z. B. "Erledigt" und ein Hinweis mit Text zugleich): die seltenen ins Menue
+                    // "Mehr" statt abgeschnitten
+                    ViewThatFits(in: .horizontal) {
+                        actions(layout)
+                        actions(EditorHeaderLayout(width: min(layout.width, 719), hasTools: false))
+                    }
+                } else {
+                    actions(layout)
+                }
             }
-            .frame(width: geo.size.width, height: EditorHeaderLayout.height)
+            .frame(width: geo.size.width, height: height)
+            .environment(\.ufHeaderRow, height)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("editor.header")
         }
-        .frame(height: EditorHeaderLayout.height)
+        .frame(height: height)
         .background(UF.surface.ignoresSafeArea(edges: .top))
         .overlay(alignment: .bottom) { UF.line.frame(height: 1) }
     }
 }
 
-/// Knopf der Kopfzeile: Symbol 17 pt, Trefferflaeche 44 x 44 pt, gewaehlt in der Akzentfarbe (wie die Werkzeuge)
+/// Knopf der Kopfzeile: Symbol 17 pt, Trefferflaeche 44 pt breit und so hoch wie die Zeile (44 pt, ohne Werkzeuge
+/// 40 pt), gewaehlt in der Akzentfarbe (wie die Werkzeuge)
 struct EditorHeaderButton: View {
     let title: String
     let icon: String
     var selected = false
     var identifier: String?
     let action: () -> Void
+    @Environment(\.ufHeaderRow) private var row
 
     var body: some View {
         Button(action: action) {
             Image(systemName: icon).font(.system(size: 17, weight: .medium))
-                .frame(width: EditorToolbar.hitSide, height: EditorToolbar.hitSide)
+                .frame(width: EditorToolbar.hitSide, height: row)
         }
         .buttonStyle(EditorToolButtonStyle(selected: selected))
         .accessibilityLabel(title)
@@ -83,10 +144,11 @@ struct EditorHeaderButton: View {
 /// Aussehen eines Menue-Knopfs der Kopfzeile (Teilen, Mehr): wie `EditorHeaderButton`
 struct EditorHeaderMenuLabel: View {
     let icon: String
+    @Environment(\.ufHeaderRow) private var row
 
     var body: some View {
         Image(systemName: icon).font(.system(size: 17, weight: .medium)).foregroundStyle(UF.text)
-            .frame(width: EditorToolbar.hitSide, height: EditorToolbar.hitSide)
+            .frame(width: EditorToolbar.hitSide, height: row)
             .contentShape(Rectangle())
     }
 }
@@ -140,6 +202,8 @@ struct DocumentTabStrip: View {
     /// Reiter bedienbar; aus (alte Fassung, Dokument aus einem ZIP): nur der Titel
     var enabled = true
     @EnvironmentObject private var router: UFRouter
+    /// Hoehe der Zeile, in der die Reiter stehen (Kopfzeile ohne Werkzeuge: 40 pt, sonst 44 pt)
+    @Environment(\.ufHeaderRow) private var rowHeight
     /// Breite aller Reiter (gemessen): so breit wird die Leiste, hoechstens `maxWidth`, der Rest ist zu wischen
     @State private var fullWidth: CGFloat = 0
 
@@ -217,6 +281,9 @@ struct DocumentTabStrip: View {
         HStack(spacing: 4) { ForEach(items) { tab($0) } }.padding(.horizontal, 2)
     }
 
+    /// Rand ueber und unter einem Reiter (Reiter 32 pt hoch, in der flachen Zeile 30 pt)
+    private var pillInset: CGFloat { rowHeight < EditorToolbar.hitSide ? 5 : 6 }
+
     private var strip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -224,7 +291,7 @@ struct DocumentTabStrip: View {
                     ForEach(items) { tab($0).id($0.id) }
                 }
                 .padding(.horizontal, 2)
-                .frame(height: EditorToolbar.hitSide)
+                .frame(height: rowHeight)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Zuletzt geöffnete Dokumente")
                 .accessibilityIdentifier("doc.tabs")
@@ -233,7 +300,7 @@ struct DocumentTabStrip: View {
             .onAppear { proxy.scrollTo(currentID) }
             .onChange(of: currentID) { _, id in withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id) } }
         }
-        .frame(height: EditorToolbar.hitSide)
+        .frame(height: rowHeight)
     }
 
     private func tab(_ e: DocumentTabEntry) -> some View {
@@ -247,7 +314,7 @@ struct DocumentTabStrip: View {
                         .ufFont(12.8, active ? 650 : 500, lh: 1.2)
                 }
                 .padding(.leading, 10).padding(.trailing, canClose ? 2 : 10)
-                .frame(height: EditorToolbar.hitSide)
+                .frame(height: rowHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -260,7 +327,7 @@ struct DocumentTabStrip: View {
                     Image(systemName: "xmark").font(.system(size: 9.5, weight: .bold))
                         .frame(width: 22, height: 22)
                         .background(Circle().fill(active ? UF.accent.opacity(0.12) : Color.clear))
-                        .frame(width: 28, height: EditorToolbar.hitSide)
+                        .frame(width: 28, height: rowHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -270,8 +337,8 @@ struct DocumentTabStrip: View {
             }
         }
         .foregroundStyle(active ? UF.accentText : UF.text2)
-        .background(RoundedRectangle(cornerRadius: 9).fill(active ? UF.accentSoft : UF.surface2).padding(.vertical, 6))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(active ? UF.accent.opacity(0.3) : UF.line, lineWidth: 1).padding(.vertical, 6))
+        .background(RoundedRectangle(cornerRadius: 9).fill(active ? UF.accentSoft : UF.surface2).padding(.vertical, pillInset))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(active ? UF.accent.opacity(0.3) : UF.line, lineWidth: 1).padding(.vertical, pillInset))
         .help(e.title)
         .contextMenu { if canClose { contextItems(e) } }
     }
@@ -310,9 +377,9 @@ struct DocumentTabStrip: View {
             }
             .foregroundStyle(UF.accentText)
             .padding(.horizontal, 10)
-            .frame(height: 32)
+            .frame(height: rowHeight - 2 * pillInset)
             .background(RoundedRectangle(cornerRadius: 9).fill(UF.accentSoft))
-            .frame(height: EditorToolbar.hitSide)
+            .frame(height: rowHeight)
             .contentShape(Rectangle())
         }
         .accessibilityLabel("Offene Dokumente: \(currentTitle)")
