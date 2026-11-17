@@ -539,6 +539,18 @@ struct CommunitySpaceDiscussion: View {
                     }
                     UFTextArea(placeholder: "Frage stellen …", text: $draft, minHeight: 44)
                         .accessibilityIdentifier("community.discussion.field")
+                        // iPhone (17.11.2026): die Bildschirmtastatur verdeckt den Knopf unter dem Feld. Derselbe Knopf
+                        // steht darum, sobald etwas getippt ist, auch in der Leiste ueber der Tastatur.
+                        .toolbar {
+                            if compact, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Frage stellen") { ask() }
+                                        .fontWeight(.semibold)
+                                        .accessibilityIdentifier("community.discussion.ask.keyboard")
+                                }
+                            }
+                        }
                 }
                 let foot = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
                 foot {
