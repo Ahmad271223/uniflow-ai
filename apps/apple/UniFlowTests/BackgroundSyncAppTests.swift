@@ -401,6 +401,29 @@ final class BackgroundSyncAppTests: XCTestCase {
 
     // MARK: Lauf mit gefaelschtem Abgleich
 
+    /// Nach dem Abgleich werden Termine erkannt und Erinnerungen geplant, bevor die Aufgabe bei iOS endet (17.11.2026:
+    /// vorher lief das losgeloest, iOS konnte die App davor anhalten); ohne Lauf (keine nutzbare Sitzung) nichts
+    func testRunWaitsForDueRefreshBeforeTheTaskCompletes() async throws {
+        let m = manager()
+        let (a, _) = try ready(m, .luh)
+        let (b, _, _) = controller(m, a)
+        let fake = FakeSync()
+        fake.report = BackgroundSyncReport(newFiles: 1)
+        b.target = { _ in fake }
+        let task = FakeTask()
+        var seen: [Int] = []
+        b.dueRefresh = {
+            try? await Task.sleep(nanoseconds: 60_000_000)
+            seen.append(task.completions.count)
+        }
+        try await launch(b, .refresh, task: task)
+        XCTAssertEqual(seen, [0], "geplant, bevor die Aufgabe abgeschlossen ist")
+        XCTAssertEqual(task.completions, [true])
+        fake.usableSources = []
+        try await launch(b, .refresh)
+        XCTAssertEqual(seen, [0], "ohne Abgleich kein Planen")
+    }
+
     func testRunWithFakeSyncNotifiesOnceWithoutFileNamesAndKeepsStatePerContainer() async throws {
         let m = manager()
         let (a, luh) = try ready(m, .luh)

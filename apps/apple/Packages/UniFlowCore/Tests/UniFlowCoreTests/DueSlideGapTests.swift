@@ -186,6 +186,15 @@ final class DueSlideGapTests: XCTestCase {
         XCTAssertEqual(todo.first?.pages.count, DueStore.ocrPagesPerFile)
     }
 
+    /// Foliensatz vom Vorjahr mit alter Titelfolie, Klausurfolie aber aktuell: das Datum mit Jahr gilt, Daten ohne Jahr nicht
+    func testReusedDeckWithOldTitleSlideKeepsDatedExam() async throws {
+        let b = try await backend()
+        try await addFile(b, container: nil, id: "f1", name: "VL01_Einfuehrung.pdf")
+        try await addPages(b, id: "f1", ["Statistik I\nWintersemester 2025/26", "Klausur: 17.11.2026, 10:00 Uhr", "Kurztest am 24.11.", "Abgabe bis 13.11."])
+        let list = try await json(b, "GET", "/api/due")
+        XCTAssertEqual(titles(list), ["2026-11-17 klausur Klausur"])
+    }
+
     // MARK: 2. Vorbehalte
 
     func testNoteIsShownWithTheDate() async throws {

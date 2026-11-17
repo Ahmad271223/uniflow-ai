@@ -121,15 +121,18 @@ public enum DueStore {
         return BerlinClock.local(utc: Int(s)).day
     }
 
-    /// Fundstellen einer Datei: Seiten (`pages`) und Dateiname. Nennt der Kopf ein anderes Semester, keine.
+    /// Fundstellen einer Datei: Seiten (`pages`) und Dateiname. Nennt der Kopf ein anderes Semester (Foliensatz vom
+    /// Vorjahr, Titelfolie nicht angepasst), gelten nur Daten mit Jahr im laufenden Semester ("Klausur: 17.11.2026");
+    /// Daten ohne Jahr stammen dort meist aus dem alten Durchgang. Bis 17.11.2026 fiel eine solche Datei ganz weg.
     static func scanFile(id: String, name: String, chdate: JSONValue?, courseID: String?, pages: [(Int, String)], firstPage: String?,
                          window: DueDetection.Window) -> [Row] {
+        var otherSemester = false
         if let s = DueDetection.headSemester(firstPage: firstPage, name: name), !window.semesters.isEmpty, !window.semesters.contains(s) {
-            return []
+            otherSemester = true
         }
         let old = DueDetection.has(oldExamNameRE, name)
         let ctx = DueDetection.Context(window: window, reference: day(unix: chdate), name: name, head: DueDetection.headLines(firstPage),
-                                       allowYearless: !old, allowExams: !old)
+                                       allowYearless: !old && !otherSemester, allowExams: !old)
         var out: [Row] = []
         for (page, text) in pages {
             for h in DueDetection.detect(text, context: ctx) {
@@ -366,6 +369,9 @@ public enum DueStore {
     /// je Datei hoechstens so viele Seiten per Texterkennung fuer die Termine (ein eingescanntes Buch haelt die Reihe
     /// nicht auf; andere Stellen der App erkennen weitere Seiten bei Bedarf)
     static let ocrPagesPerFile = 80
+    /// Vorauswahl in SQL: nur Seiten mit so wenig Text kommen als "ohne Textebene" in Frage (weniger als 20 Buchstaben,
+    /// `PageOCRStore.isSparse`). Ohne sie wanderte jede Seite jeder Datei durch die Abfrage (12 000 Seiten: 3,5 s je Aufruf).
+    static let ocrMaxChars = 100
 
     /// Seiten ohne Textebene, die noch nicht erkannt wurden: je Datei (neueste zuerst) ihre Seitennummern, zusammen
     /// hoechstens `limit` Seiten; nur lokale PDFs gewaehlter Kurse mit Seitentexten der aktuellen Fassung. Dateien,
@@ -378,7 +384,7 @@ public enum DueStore {
         for r in try c.query("""
             SELECT p.file_id, p.page, p.text FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
             WHERE \(fileFilter) AND COALESCE(f.local_path, '') <> '' AND lower(f.local_path) LIKE '%.pdf'
-              AND COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND p.page <= ? AND length(p.text) < 200 \(done)
+              AND COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND p.page <= ? AND length(p.text) < \(ocrMaxChars) \(done)
               AND NOT EXISTS (SELECT 1 FROM due_meta m WHERE m.key='ocrfail:' || f.id AND m.value=CAST(COALESCE(f.chdate, 0) AS TEXT))
             ORDER BY f.chdate DESC, p.file_id, p.page
             """, [.integer(Int64(ocrPagesPerFile))]) {

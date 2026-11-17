@@ -126,6 +126,8 @@ struct DashboardView: View {
                 if let s = studoraAccount { ProAISignInBanner(link: s).padding(.bottom, 19.2) }
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
+                // Klausur oder Test heute/morgen und neu erkannte Klausurtermine ganz oben (17.11.2026, `DueSoonCard`)
+                DueSoonCard()
                 // "Nächste Klausuren" (04.11.2026, `UpcomingExamsCard`): aus allen Quellen, nur wenn es welche gibt
                 UpcomingExamsCard(api: api, token: day)
                 // "Prüfungsanmeldung" (05.11.2026, `ExamRegistrationCard`): nur im Meldezeitraum und in den 7 Tagen davor

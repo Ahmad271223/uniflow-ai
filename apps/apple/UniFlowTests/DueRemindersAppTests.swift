@@ -144,8 +144,8 @@ final class DueRemindersAppTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: DueReminderScheduler.enabledKey))
         let prefix = "de.uniflow.ai.due.\(c.layout.identifier.uuidString)."
         XCTAssertTrue(ids(fake).allSatisfy { $0.hasPrefix(prefix) })
-        XCTAssertEqual(fake.pending.count, 7, "Abgabe mit Uhrzeit: 4, Kurzklausur ohne: 3")
-        XCTAssertEqual(s.scheduled, 7)
+        XCTAssertEqual(fake.pending.count, 8, "Abgabe mit Uhrzeit: 4, Kurzklausur ohne: 4 (seit 17.11.2026 auch 7 Tage vorher)")
+        XCTAssertEqual(s.scheduled, 8)
         let h2 = try XCTUnwrap(fake.pending.values.first { $0.identifier.hasSuffix(".h2") })
         XCTAssertEqual(h2.title, "In 2 Stunden: Abgabe Blatt 3")
         XCTAssertEqual(h2.route, "#/doc/f-b3")
@@ -179,7 +179,7 @@ final class DueRemindersAppTests: XCTestCase {
         s.attach(m)
         await s.settle()
         _ = await s.setEnabled(true)
-        XCTAssertEqual(fake.pending.count, 7, "mit Plus geplant")
+        XCTAssertEqual(fake.pending.count, 8, "mit Plus geplant")
 
         plus = false                                    // Probe bzw. Abo zu Ende
         await s.refresh(recompute: false)
@@ -195,7 +195,7 @@ final class DueRemindersAppTests: XCTestCase {
 
         plus = true                                     // wieder Plus: derselbe Schalter plant wieder
         await s.refresh(recompute: false)
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
     }
 
     func testDeniedStaysOffAndSchedulesNothing() async throws {
@@ -238,7 +238,7 @@ final class DueRemindersAppTests: XCTestCase {
         _ = try await c.api.value("/api/due/\(kk)", method: "PATCH", body: ["hidden": true])
         await s.refresh(recompute: false)
         XCTAssertFalse(ids(fake).contains { $0.contains(".\(kk).") })
-        XCTAssertEqual(fake.removed.filter { $0.contains(".\(kk).") }.count, 3)
+        XCTAssertEqual(fake.removed.filter { $0.contains(".\(kk).") }.count, 4)
         // Uhrzeit der Abgabe geaendert: gleiche Kennung, neuer Zeitpunkt
         let before = try XCTUnwrap(fake.pending.values.first { $0.identifier.hasSuffix("\(abgabe).h2") }?.fireAt)
         _ = try await c.api.value("/api/due/\(abgabe)", method: "PATCH", body: ["time": "12:00"])
@@ -263,7 +263,7 @@ final class DueRemindersAppTests: XCTestCase {
         let s = scheduler(fake)
         s.attach(m)
         _ = await s.setEnabled(true)
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
         _ = await s.setEnabled(false)
         XCTAssertEqual(fake.pending.count, 0)
         XCTAssertEqual(fake.foreign.count, 1, "Mitteilung des Hintergrundabgleichs bleibt")
@@ -286,7 +286,7 @@ final class DueRemindersAppTests: XCTestCase {
         _ = await s.setEnabled(true)
         await s.settle()
         let luhPrefix = "de.uniflow.ai.due.\(luh.layout.identifier.uuidString)."
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
 
         // Wechsel zur Uni Hildesheim: Learnweb-Frist dort
         a.chooseUniversity(.hildesheim)
@@ -306,7 +306,7 @@ final class DueRemindersAppTests: XCTestCase {
         let hiPrefix = "de.uniflow.ai.due.\(hi.layout.identifier.uuidString)."
         XCTAssertTrue(ids(fake).allSatisfy { $0.hasPrefix(hiPrefix) }, "nur Erinnerungen des offenen Containers")
         XCTAssertEqual(fake.pending.count, 4)
-        XCTAssertEqual(fake.removed.filter { $0.hasPrefix(luhPrefix) }.count, 7)
+        XCTAssertEqual(fake.removed.filter { $0.hasPrefix(luhPrefix) }.count, 8)
         XCTAssertEqual(fake.pending.values.first { $0.identifier.hasSuffix(".h2") }?.route, "https://learnweb.example.test/a")
 
         // zurueck zur LUH: deren Erinnerungen wieder, Hildesheim zurueckgenommen
@@ -315,7 +315,7 @@ final class DueRemindersAppTests: XCTestCase {
         await s.settle()
         await s.refresh(recompute: false)
         XCTAssertTrue(ids(fake).allSatisfy { $0.hasPrefix(luhPrefix) })
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
     }
 
     func testAtMostSixtyAndNothingWithoutContainer() async throws {

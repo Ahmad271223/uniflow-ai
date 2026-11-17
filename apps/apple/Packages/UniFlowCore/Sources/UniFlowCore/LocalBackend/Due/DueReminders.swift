@@ -58,6 +58,15 @@ public enum DueReminders {
         public var body: String
         public var route: String?
         public var itemID: String
+
+        public init(identifier: String, fireAt: Date, title: String, body: String, route: String?, itemID: String) {
+            self.identifier = identifier
+            self.fireAt = fireAt
+            self.title = title
+            self.body = body
+            self.route = route
+            self.itemID = itemID
+        }
     }
 
     /// Kennungen dieses Containers beginnen so
