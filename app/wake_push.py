@@ -695,7 +695,7 @@ def main(argv: list[str]) -> int:
         print("Aufruf: python -m app.wake_push --status")
         return 2
     st = status()
-    print("Weck-Signal: bereit, der Dienst sendet." if st["ready"] else st["note"])
+    print("Weck-Signal: bereit (eingeschaltet, Schlüssel gefunden)." if st["ready"] else st["note"])
     print(f"Zeitplan: {st['window']}")
     print(f"Bundle-ID (apns-topic): {st['topic']}")
     print("Gemeldete Geräte: " + (", ".join(f"{n} ({env})" for env, n in sorted(st["devices"].items())) or "keine"))

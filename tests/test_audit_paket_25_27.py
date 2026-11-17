@@ -402,6 +402,11 @@ LOCKED_WRITE_ROUTES = {
     # Bezahlfunktion frei; fuer Web und Windows antwortet die Route 400 device_rule_not_applicable (nur Apple-Apps mit
     # X-StudiNow-Caps: device_limit), am eigenen PC 501 not_hosted (tests/test_device_limit.py)
     "POST /api/account/device/primary",
+    # Weck-Signal (17.11.2026, app/wake_push_api.py), bewusst geprueft: das APNs-Token eines Geraets melden bzw.
+    # zuruecknehmen ist Kontoverwaltung und gibt keine Bezahlfunktion frei; fuer Web und Windows (die einzigen Clients
+    # mit Abo-Sperre) antworten beide Routen 400 push_not_applicable und aendern nichts, am eigenen PC 501 not_hosted
+    # (tests/test_wake_push.py)
+    "PUT /api/account/push-token", "DELETE /api/account/push-token",
     "POST /api/billing/apple/verify", "POST /api/billing/stripe/checkout",
     "POST /api/billing/stripe/portal", "POST /api/billing/stripe/webhook", "POST /api/billing/plan-choice",
     "POST /api/billing/apple/notifications", "POST /api/billing/offer-codes",

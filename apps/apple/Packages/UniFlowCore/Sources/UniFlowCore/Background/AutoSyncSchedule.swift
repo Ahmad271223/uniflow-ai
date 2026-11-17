@@ -117,6 +117,8 @@ public enum AutoSyncOverload {
 /// mit "Daten dieser Hochschule löschen"). Keine Geheimnisse, nur Zeitpunkte.
 public struct AutoSyncLedger {
     public static let prefix = "uniflow.autosync."
+    /// Mindestabstand zwischen zwei Versuchen von selbst, wenn Arbeit wartet (`isDue(pending:)`)
+    public static let retryGap: TimeInterval = 5 * 60
 
     public let defaults: UserDefaults
     public var schedule: AutoSyncSchedule
@@ -164,12 +166,18 @@ public struct AutoSyncLedger {
     /// - Parameters:
     ///   - lastSuccess: letzter gelungener Abgleich des Portals (auch von Hand); nil: noch keiner
     ///   - pending: ein begonnener Abgleich wartet auf seine Fortsetzung (unterbrochen, Dateien eines Laufs nur mit
-    ///     Listen noch nicht geladen): dann ohne Abstand, aber weiter nur im Fenster und nie in einer Pause
+    ///     Listen noch nicht geladen): dann ohne den Abstand des Plans, aber weiter nur im Fenster, nie in einer Pause
+    ///     und fruehestens `retryGap` nach dem letzten Versuch von selbst (scheitert die Fortsetzung immer wieder,
+    ///     fragt der Zeitgeber sonst im Minutentakt)
     ///   - interval: eigener Abstand dieses Aufrufs (z. B. die Liste der Bescheinigungen seltener); nil: der des Plans
     public func isDue(_ portal: String, lastSuccess: Date?, pending: Bool = false, now: Date, timeZone: TimeZone,
                       interval: TimeInterval? = nil) -> Bool {
         guard schedule.isInWindow(now, timeZone: timeZone), pausedUntil(portal, now: now) == nil else { return false }
-        if pending { return true }
+        if pending {
+            guard let attempt = lastAttempt(portal) else { return true }
+            let age = now.timeIntervalSince(attempt)
+            return age < 0 || age >= Self.retryGap
+        }
         var s = schedule
         if let interval { s.interval = interval }
         return s.isDue(last: reference(portal, lastSuccess: lastSuccess), now: now, timeZone: timeZone)

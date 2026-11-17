@@ -262,6 +262,9 @@ final class AutoSyncScheduleTests: XCTestCase {
         ledger.recordAttempt("Stud.IP", at: try at("2026-11-17 10:00", tz))
         XCTAssertFalse(ledger.isDue("Stud.IP", lastSuccess: nil, now: now, timeZone: tz))
         XCTAssertTrue(ledger.isDue("Stud.IP", lastSuccess: nil, pending: true, now: now, timeZone: tz))
+        XCTAssertFalse(ledger.isDue("Stud.IP", lastSuccess: nil, pending: true, now: try at("2026-11-17 10:04", tz), timeZone: tz),
+                       "scheitert die Fortsetzung, dann fruehestens nach 5 Minuten wieder")
+        XCTAssertTrue(ledger.isDue("QIS", lastSuccess: nil, pending: true, now: now, timeZone: tz), "ohne bisherigen Versuch sofort")
         XCTAssertFalse(ledger.isDue("Stud.IP", lastSuccess: nil, pending: true, now: try at("2026-11-17 19:00", tz), timeZone: tz))
     }
 

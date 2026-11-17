@@ -333,6 +333,24 @@ def test_endpoints_exist_only_in_the_hosted_service(app):
     assert (st, data["code"]) == (501, "not_hosted")
 
 
+def test_web_and_windows_clients_are_refused_even_when_locked(hosted):
+    """Die Routen liegen unter /api/account/ und gehen damit an der Abo-Sperre von Web und Windows vorbei: sie nehmen
+    darum nur die Apple-Apps an (Bearer ohne Client-Kopfzeile). Web (Cookie) und Windows aendern nichts."""
+    token = tokens_with_offset(0)[0]
+    user, h = _account(hosted, "a@beispiel.de")
+    assert _put(hosted, h, token)[0] == 200
+    bearer = h["Authorization"][len("Bearer "):]
+    body = json.dumps({"token": tokens_with_offset(1)[0], "platform": "ios", "timezone": "Europe/Berlin"})
+    for extra in ({"X-StudiNow-Client": "windows"}, {"X-StudiNow-Client": "web"}):
+        for method in ("PUT", "DELETE"):
+            st, data, _ = _json(asgi_call(hosted, method, "/api/account/push-token", body=body, headers={**h, **extra}))
+            assert (st, data["code"]) == (400, "push_not_applicable"), (method, extra)
+    for method in ("PUT", "DELETE"):                        # Browser: Sitzung im Cookie
+        st, data, _ = _json(asgi_call(hosted, method, "/api/account/push-token", body=body, cookies=f"uniflow_session={bearer}"))
+        assert (st, data["code"]) == (400, "push_not_applicable"), method
+    assert [r["token"] for r in _rows()] == [token], "nichts dazugekommen, nichts geloescht"
+
+
 def test_set_token_stores_only_the_allowed_fields(hosted):
     from app import wake_push
     token = tokens_with_offset(4)[0]
@@ -432,8 +450,9 @@ def test_delete_without_body_removes_the_device_of_this_session(hosted):
     ({"platform": {"x": 1}}, "invalid_input"),
 ])
 def test_invalid_input_is_refused_and_nothing_is_stored(hosted, over, code):
+    over = dict(over)
     _, h = _account(hosted, "a@beispiel.de")
-    st, data, _ = _put(hosted, h, "a" * 64, **over)
+    st, data, _ = _put(hosted, h, over.pop("token", "a" * 64), **over)
     assert (st, data["code"]) == (400, code) and data["detail"]
     assert _rows() == []
 
@@ -670,7 +689,8 @@ def test_jwt_is_reused_for_fifty_minutes(switched_on):
     assert (wake_push.JWT_REFRESH_S, wake_push.JWT_MIN_INTERVAL_S) == (50 * 60, 20 * 60)
     token = tokens_with_offset(0)[0]
     _user_with_tokens("a@beispiel.de", [token])
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     start = berlin(2026, 11, 17, 8, 0)
     for minutes in (0, 30, 60, 90, 120):
         assert sender.tick(start + timedelta(minutes=minutes))["sent"] == 1
@@ -687,7 +707,8 @@ def test_jwt_is_never_renewed_within_twenty_minutes_even_if_apple_rejects_it(swi
     monkeypatch.setattr(wake_push, "CONFIG_PAUSE_S", 60)
     a, b, c = (tokens_with_offset(k)[0] for k in (0, 10, 25))
     _user_with_tokens("a@beispiel.de", [a, b, c])
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     day = lambda h, mi: berlin(2026, 11, 17, h, mi)  # noqa: E731
     assert sender.tick(day(8, 0))["sent"] == 1
     first = apns.calls[-1]["headers"]["authorization"]
@@ -742,7 +763,8 @@ def test_a_full_day_through_the_sender_gives_twenty_signals_per_device(switched_
     t0, t29 = tokens_with_offset(0)[0], tokens_with_offset(29)[0]
     _user_with_tokens("a@beispiel.de", [t0, t29])
     _user_with_tokens("b@beispiel.de", tokens_with_offset(5, 1), tz="America/New_York")
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     start = berlin(2026, 11, 17, 0, 0)
     for i in range(24 * 60):                               # jede Minute ein Durchlauf, zwischendurch ein "Neustart"
         if i % 300 == 0:
@@ -793,7 +815,8 @@ def test_apple_asks_to_slow_down_and_the_service_pauses_instead_of_storming(swit
     from app import wake_push
     tokens = tokens_with_offset(0, 5)
     _user_with_tokens("a@beispiel.de", tokens)
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     apns.default = apple(status, reason)
     now = berlin(2026, 11, 17, 10, 0)
     out = sender.tick(now)
@@ -825,7 +848,8 @@ def test_pause_grows_only_up_to_a_limit_and_respects_retry_after(switched_on):
     from app import wake_push
     token = tokens_with_offset(0)[0]
     _user_with_tokens("a@beispiel.de", [token])
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     apns.default = apple(503, "ServiceUnavailable")
     now, pauses = berlin(2026, 11, 17, 8, 0), []
     for _ in range(8):
@@ -845,7 +869,8 @@ def test_no_connection_pauses_too_and_does_not_send_twice(switched_on):
     from app import wake_push
     tokens = tokens_with_offset(0, 3)
     _user_with_tokens("a@beispiel.de", tokens)
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     apns.responses[tokens[0]] = TimeoutError("keine Antwort")
     now = berlin(2026, 11, 17, 10, 0)
     out = sender.tick(now)
@@ -861,7 +886,8 @@ def test_setup_errors_from_apple_pause_long_and_are_said_once(switched_on, caplo
     from app import wake_push
     tokens = tokens_with_offset(0, 3)
     _user_with_tokens("a@beispiel.de", tokens)
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     apns.default = apple(400, "BadTopic")
     now = berlin(2026, 11, 17, 10, 0)
     with caplog.at_level(logging.DEBUG):
@@ -879,7 +905,8 @@ def test_switched_off_by_default_nothing_is_sent_and_it_is_said_once(hosted, cap
     from app import wake_push
     assert wake_push.settings().enabled is False, "Standard: aus"
     _user_with_tokens("a@beispiel.de", tokens_with_offset(0, 2))
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     with caplog.at_level(logging.DEBUG):
         for minutes in (0, 30, 60):
             assert sender.tick(berlin(2026, 11, 17, 10, 0) + timedelta(minutes=minutes)) == {"sent": 0, "removed": 0, "errors": 0, "state": "off"}
@@ -910,7 +937,8 @@ def test_switched_on_without_a_complete_key_sends_nothing_and_says_why_once(swit
     else:
         monkeypatch.delenv(missing)
     _user_with_tokens("a@beispiel.de", tokens_with_offset(0, 2))
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     with caplog.at_level(logging.DEBUG):
         for minutes in (0, 30, 60):
             assert sender.tick(berlin(2026, 11, 17, 10, 0) + timedelta(minutes=minutes))["state"] == "off"
@@ -925,7 +953,8 @@ def test_a_file_that_is_not_a_key_sends_nothing_and_keeps_the_section_open(switc
     apns_key[0].write_text("kein Schluessel", encoding="utf-8")
     token = tokens_with_offset(0)[0]
     _user_with_tokens("a@beispiel.de", [token])
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     with caplog.at_level(logging.DEBUG):
         assert sender.tick(berlin(2026, 11, 17, 10, 0))["state"] == "off"
         assert sender.tick(berlin(2026, 11, 17, 10, 5))["state"] == "paused"
@@ -954,7 +983,8 @@ def test_log_never_contains_a_token_only_a_short_hash(switched_on, caplog):
     from app import wake_push
     gone, odd, fine, down = tokens_with_offset(0, 4)
     _user_with_tokens("a@beispiel.de", [gone, odd, fine, down])
-    apns, sender = FakeApns(), wake_push.Sender(apns)
+    apns = FakeApns()
+    sender = wake_push.Sender(apns)
     apns.responses = {gone: apple(410, "Unregistered"), odd: apple(400, "Seltsam\nGEFÄLSCHTE ZEILE " + odd),
                       down: OSError(f"connect https://api.push.apple.com/3/device/{down} failed")}
     with caplog.at_level(logging.DEBUG):

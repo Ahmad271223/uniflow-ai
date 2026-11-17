@@ -277,6 +277,11 @@ LOCKED_WRITE_ROUTES = {
     # device_limit an; Web und Windows (die einzigen Clients mit Abo-Sperre) bekommen 400 device_rule_not_applicable
     # und aendern nichts (tests/test_device_limit.py::test_switch_refuses_web_and_windows_even_when_locked).
     ("POST", "/api/account/device/primary"),
+    # Weck-Signal (17.11.2026, app/wake_push_api.py): die Apple-App meldet ihr APNs-Token bzw. nimmt die Meldung
+    # zurueck. Kontoverwaltung, schaltet nichts Bezahltes frei. Web und Windows (die einzigen Clients mit Abo-Sperre)
+    # bekommen 400 push_not_applicable und aendern nichts
+    # (tests/test_wake_push.py::test_web_and_windows_clients_are_refused_even_when_locked).
+    ("PUT", "/api/account/push-token"), ("DELETE", "/api/account/push-token"),
     ("POST", "/api/billing/apple/verify"), ("POST", "/api/billing/stripe/checkout"), ("POST", "/api/billing/stripe/portal"),
     ("POST", "/api/billing/stripe/webhook"), ("POST", "/api/billing/plan-choice"), ("POST", "/api/billing/apple/notifications"),
     ("POST", "/api/billing/offer-codes"),                       # nur Admin (Admins sind ohnehin von der Pflicht ausgenommen)
