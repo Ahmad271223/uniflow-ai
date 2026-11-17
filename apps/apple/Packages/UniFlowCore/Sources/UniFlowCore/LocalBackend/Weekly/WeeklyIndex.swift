@@ -96,10 +96,28 @@ extension Weekly {
     }
 
     static let solExt = PyRegex(#"\.[a-z0-9]+$"#)
-    static let solWords = PyRegex(#"musterl(ö|oe)sung(en)?|l(ö|oe)sung(en)?|l(ö|oe)s\b|lsg|solutions?|mit|und|_|-|\s|\(|\)"#)
+    /// `SOL_WORDS`: was aus dem Dateinamen faellt, bevor Aufgabe und Loesung verglichen werden: Loesungswoerter ("sol"
+    /// nur als eigenes Wortstueck, `StudyClassify.solPiece`), Fuellwoerter als eigenes Wort ("Lösungen zu PK" -> "pk")
+    /// und Trennzeichen
+    static let solWords = PyRegex(#"musterl(ö|oe)sung(en)?|l(ö|oe)sung(en)?|l(ö|oe)s\b|lsg|solutions?|"# + StudyClassify.solPiece
+        + #"|(?<![a-zäöüß])(zu[rm]?|f(ü|ue)r|von)(?![a-zäöüß])|mit|und|_|-|\s|\(|\)"#)
+    /// `PAPER`: Papierformat vorn oder hinten ("A4-Loesung-Klausur-WS2122")
+    static let paper = PyRegex(#"^a[345][ _\-]+|[ _\-]+a[345]$"#)
+    /// `ID_TAIL`: "kk1b" -> "1b": Buchstaben, dann die Kennung ab der ersten Ziffer
+    static let idTail = PyRegex(#"^[a-zäöüß]+(\d.*)$"#)
+
+    /// `_stem(name)`
+    static func stem(_ name: String) -> String { solExt.sub(PyText.lower(name)) }
 
     /// `_solution_key(name)`
-    static func solutionKey(_ name: String) -> String { solWords.sub(solExt.sub(PyText.lower(name))) }
+    static func solutionKey(_ name: String) -> String { solWords.sub(stem(name)) }
+
+    /// `_plain_key(name)`: Schluessel ohne Papierformat am Rand, sonst stoert die 4 aus "A4" den Zahlenvergleich. Nur
+    /// wenn genug Name uebrig bleibt: "A4.pdf" und "A4_lsg.pdf" (Aufgabe 4) behalten ihren Schluessel "a4".
+    static func plainKey(_ name: String) -> String {
+        let k = solWords.sub(paper.sub(stem(name)))
+        return len(k) >= 4 ? k : solutionKey(name)
+    }
 
     static let digitRuns = PyRegex(#"\d+"#)
 
@@ -204,35 +222,108 @@ extension Weekly {
         return (done, skipped)
     }
 
-    /// `_link_solutions(conn, module_id)`: Musterloesung je Aufgabe ueber den Dateinamen und die Nummer
+    /// Ordner einer Datei: Kurs und Stud.IP-Ordner (`(course_id, studip_folder or "")`)
+    struct LinkFolder: Hashable {
+        var course: String?
+        var name: String
+    }
+
+    /// Zeile aus `task_index` mit Schluessel und Ordner ihrer Datei
+    struct LinkRow {
+        var row: [String: JSONValue], fileID: String, nr: String, key: String, plain: String, folder: LinkFolder
+
+        init(_ r: [String: JSONValue]) {
+            row = r
+            fileID = r["file_id"]?.string ?? ""
+            nr = r["nr"]?.string ?? ""
+            let name = r["name"]?.string ?? ""
+            key = Weekly.solutionKey(name)
+            plain = Weekly.plainKey(name)
+            folder = LinkFolder(course: r["course_id"]?.string, name: r["studip_folder"]?.string ?? "")
+        }
+    }
+
+    /// `_link_solutions(conn, module_id)`: Musterloesung je Aufgabe: erst die Loesungsdatei zur Aufgabendatei finden,
+    /// dann die Aufgabe mit derselben Nummer. Reihenfolge (17.11.2026, vorher nur 4.), der erste Treffer gilt:
+    /// 1. gleicher Ordner (Kurs + Stud.IP-Ordner), gleicher Name ohne Loesungswort oder Teilwort mit gleichen Zahlen
+    /// 2. gleicher Ordner, gleiche Kennung: "kk1b.pdf" und "sol1b.pdf", "Übung 3.pdf" und "Lösung 3.pdf"; nur wenn im
+    ///    Ordner genau eine Aufgabendatei und genau eine Loesungsdatei diese Kennung haben
+    /// 3. gleicher Ordner, Sammeldatei ("Lösungen.pdf" neben den Klausuren): nur Altklausuren, nur eine Sammeldatei im
+    ///    Ordner, und nur Aufgabennummern, die im Ordner in genau einer Klausur vorkommen. In task_index steht je Datei
+    ///    jede Nummer nur einmal; haben "KK1" bis "KK4" alle eine "Aufgabe 1", ist nicht zu erkennen, zu welcher die
+    ///    "Aufgabe 1" der Sammeldatei gehoert. Dann bleibt die Aufgabe ohne Loesung (lieber keine als eine falsche).
+    /// 4. ganzes Modul wie bisher (Loesungen in einem eigenen Ordner)
     static func linkSolutions(_ c: SQLiteConnection, _ moduleID: Int) throws {
         let mid = SQLiteValue.integer(Int64(moduleID))
         let sols = try c.rows("""
-            SELECT t.file_id, t.nr, t.text, f.name FROM task_index t JOIN files f ON f.id=t.file_id
+            SELECT t.file_id, t.nr, t.text, f.name, f.course_id, f.studip_folder FROM task_index t JOIN files f ON f.id=t.file_id
             WHERE t.module_id=? AND t.source='loesung'
-            """, [mid])
+            """, [mid]).map(LinkRow.init)
         if sols.isEmpty { return }
-        var keys: [String] = [], byKey: [String: [String: [String: JSONValue]]] = [:]
-        for s in sols {
-            let k = solutionKey(s["name"]?.string ?? "")
-            if byKey[k] == nil { keys.append(k) }
-            byKey[k, default: [:]][s["nr"]?.string ?? ""] = s
-        }
-        for t in try c.rows("""
-            SELECT t.id, t.nr, f.name FROM task_index t JOIN files f ON f.id=t.file_id
+        let tasks = try c.rows("""
+            SELECT t.id, t.nr, t.file_id, t.source, f.name, f.course_id, f.studip_folder FROM task_index t JOIN files f ON f.id=t.file_id
             WHERE t.module_id=? AND t.source!='loesung'
-            """, [mid]) {
-            let k = solutionKey(t["name"]?.string ?? "")
-            var cand = byKey[k]
-            if cand == nil || cand!.isEmpty {
-                cand = keys.first { kk in
-                    !kk.isEmpty && !k.isEmpty && (k.contains(kk) || kk.contains(k)) && min(len(kk), len(k)) >= 4 && numbers(kk) == numbers(k)
-                }.flatMap { byKey[$0] }
+            """, [mid]).map(LinkRow.init)
+
+        // Loesungen (Nummer -> Zeile) je Schluessel, fuer einen Ordner oder (folder nil) das ganze Modul
+        struct TableID: Hashable {
+            var folder: LinkFolder?
+            var plain: Bool
+        }
+        struct Table { var keys: [String] = [], byKey: [String: [String: LinkRow]] = [:] }
+        var tables: [TableID: Table] = [:]
+        /// gleicher Schluessel, sonst Teilwort mit gleichen Zahlen
+        func named(_ k: String, _ folder: LinkFolder?, plain: Bool) -> [String: LinkRow]? {
+            let id = TableID(folder: folder, plain: plain)
+            if tables[id] == nil {
+                var t = Table()
+                for s in sols where folder == nil || s.folder == folder {
+                    let key = plain ? s.plain : s.key
+                    if t.byKey[key] == nil { t.keys.append(key) }
+                    t.byKey[key, default: [:]][s.nr] = s
+                }
+                tables[id] = t
             }
-            let s = cand?[t["nr"]?.string ?? ""]
+            let t = tables[id]!
+            if let hit = t.byKey[k], !hit.isEmpty { return hit }
+            return t.keys.first { kk in
+                !kk.isEmpty && !k.isEmpty && (k.contains(kk) || kk.contains(k)) && min(len(kk), len(k)) >= 4 && numbers(kk) == numbers(k)
+            }.flatMap { t.byKey[$0] }
+        }
+
+        struct FolderTail: Hashable {
+            var folder: LinkFolder
+            var tail: String
+        }
+        var solFiles: [LinkFolder: [String: [String: [String: LinkRow]]]] = [:]     // Ordner -> Schluessel -> Datei -> Nummer -> Zeile
+        var taskFiles: [FolderTail: Set<String>] = [:]
+        var examNrs: [LinkFolder: [String: Set<String>]] = [:]
+        for s in sols { solFiles[s.folder, default: [:]][s.key, default: [:]][s.fileID, default: [:]][s.nr] = s }
+        for t in tasks {
+            if let tail = idTail.match(t.key)?.group(1) { taskFiles[FolderTail(folder: t.folder, tail: tail), default: []].insert(t.fileID) }
+            if t.row["source"]?.string == "altklausur" { examNrs[t.folder, default: [:]][t.nr, default: []].insert(t.fileID) }
+        }
+
+        func solutions(for t: LinkRow) -> [String: LinkRow] {
+            let folder = t.folder
+            if let cand = named(t.key, folder, plain: false) ?? named(t.plain, folder, plain: true) { return cand }
+            if let tail = idTail.match(t.key)?.group(1), let twins = solFiles[folder]?[tail], twins.count == 1,
+               taskFiles[FolderTail(folder: folder, tail: tail)]?.count == 1 {
+                return twins.values.first!
+            }
+            if t.row["source"]?.string == "altklausur", !folder.name.isEmpty, let whole = solFiles[folder]?[""], whole.count == 1 {
+                return whole.values.first!.filter { examNrs[folder]?[$0.key]?.count == 1 }
+            }
+            return named(t.key, nil, plain: false) ?? named(t.plain, nil, plain: true) ?? [:]
+        }
+
+        var found: [String: [String: LinkRow]] = [:]
+        for t in tasks {
+            if found[t.fileID] == nil { found[t.fileID] = solutions(for: t) }
+            let s = found[t.fileID]?[t.nr]
             try c.execute("UPDATE task_index SET solution_file_id=?, solution_text=? WHERE id=?",
-                          [s.map { v($0["file_id"]) } ?? .null, s.map { .text(String(($0["text"]?.string ?? "").unicodeScalars.prefix(5000))) } ?? .null,
-                           v(t["id"])])
+                          [s.map { v($0.row["file_id"]) } ?? .null,
+                           s.map { .text(String(($0.row["text"]?.string ?? "").unicodeScalars.prefix(5000))) } ?? .null, v(t.row["id"])])
         }
     }
 

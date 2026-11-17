@@ -409,8 +409,8 @@
    "name": "lsg_03.pdf",
    "folder": null,
    "ai_type": null,
-   "type": "sonstiges",
-   "label": "Sonstiges"
+   "type": "loesung",
+   "label": "Lösung"
   },
   {
    "name": "blatt3_lsg.pdf",
@@ -817,6 +817,342 @@
    "ai_type": null,
    "type": "sonstiges",
    "label": "Sonstiges"
+  },
+  {
+   "name": "sol0b.pdf",
+   "folder": "Alte Klausuren/WS 21/22",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "sol3a.pdf",
+   "folder": "Alte Klausuren/WS 21/22",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "kk3a.pdf",
+   "folder": "Alte Klausuren/WS 21/22",
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Altklausur"
+  },
+  {
+   "name": "kk3a_sol.pdf",
+   "folder": "Kurzklausuren",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "sol.pdf",
+   "folder": "Probeklausur",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "SOL 2.PDF",
+   "folder": "Klausur",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "sol-4.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "sol",
+   "folder": "Klausur",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "blatt3.sol.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Solar.pdf",
+   "folder": "Vorlesung",
+   "ai_type": null,
+   "type": "vorlesung",
+   "label": "Vorlesung"
+  },
+  {
+   "name": "Konsole.pdf",
+   "folder": "Vorlesung",
+   "ai_type": null,
+   "type": "vorlesung",
+   "label": "Vorlesung"
+  },
+  {
+   "name": "Sol-Gel-Verfahren.pdf",
+   "folder": "Vorlesung",
+   "ai_type": null,
+   "type": "vorlesung",
+   "label": "Vorlesung"
+  },
+  {
+   "name": "sol gel.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "äsol1.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "ßsol_1.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "1sol2.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "sols.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Lsg_SS21.pdf",
+   "folder": "",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Lsg_SS21.pdf",
+   "folder": "Klausuren",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "lsg2.pdf",
+   "folder": "Übung 2",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "2lsg3.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "xlsgy.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "ölsg.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "lsgü.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Loesung.pdf",
+   "folder": "Alte Prüfungen/SS 21",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "Musterlösung.pdf",
+   "folder": "Pruefung WS 20",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "Probeprüfung Lösung.pdf",
+   "folder": "",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "solution.pdf",
+   "folder": "Exam 2021",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "Solutions.pdf",
+   "folder": "Old Exams",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "Loesung.pdf",
+   "folder": "Examination",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "Lösung.pdf",
+   "folder": "Examen",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Klausur-Lösung"
+  },
+  {
+   "name": "Example_solution.pdf",
+   "folder": "Übung",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Lösung.pdf",
+   "folder": "Examples",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Pruefung_SS21.pdf",
+   "folder": "Alte Prüfungen/SS 21",
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Altklausur"
+  },
+  {
+   "name": "Aufgaben.pdf",
+   "folder": "Prüfung",
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Klausur"
+  },
+  {
+   "name": "Altprüfung.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Altklausur"
+  },
+  {
+   "name": "Prüfungsaufgaben.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Klausur"
+  },
+  {
+   "name": "Prüfungsaufgabe 3.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Klausur"
+  },
+  {
+   "name": "Prüfungsordnung.pdf",
+   "folder": "",
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Lösung.pdf",
+   "folder": "Prüfungsvorleistung",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Lösung Selbstüberprüfung.pdf",
+   "folder": "Übung",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Ueberpruefung.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Blatt3.pdf",
+   "folder": "Prüfungsvorleistungen",
+   "ai_type": null,
+   "type": "uebung",
+   "label": "Übung"
+  },
+  {
+   "name": "Prüfung.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Prüfungß.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Prüfung2.pdf",
+   "folder": null,
+   "ai_type": null,
+   "type": "klausur",
+   "label": "Klausur"
+  },
+  {
+   "name": "Lösung Blatt 3.pdf",
+   "folder": "Übungen",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
+  },
+  {
+   "name": "Blatt3_lsg.pdf",
+   "folder": "Übungsblätter",
+   "ai_type": null,
+   "type": "loesung",
+   "label": "Lösung"
   },
   {
    "name": "Prog1-01-Introduction.pdf",

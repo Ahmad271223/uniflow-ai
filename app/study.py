@@ -219,6 +219,18 @@ def week_label(start: date, w: int) -> str:
 # Dokumenttyp aus Stud.IP-Ordner + Dateiname (schlaegt die KI-Einschaetzung, wenn eindeutig)
 # ----------------------------------------------------------------------------
 
+# Loesungswort im Dateinamen. "lsg" zaehlt auch als eigenes Wortstueck ohne Buchstaben davor und danach
+# ("Lsg_WS23.pdf", "lsg1.pdf"), "sol" nur vor einer Nummer, vor "_" oder "." oder am Ende ("sol1b.pdf", "kk1_sol.pdf",
+# "sol.pdf"), nie mitten im Wort ("Solar", "Konsole", "Sol-Gel"). Stand 17.11.2026, vorher blieben "sol1b.pdf" neben
+# "kk1b.pdf" Altklausuren und "Lsg_WS23.pdf" ohne Einordnung.
+SOL_PIECE = r"(?<![a-zäöüß])sol(?=[ _\-]?\d|[_.]|$)"
+SOLUTION_NAME = r"l(ö|oe)s|\blsg\b|_lsg|lsg\.|solution|musterl|(?<![a-zäöüß])lsg(?![a-zäöüß])|" + SOL_PIECE
+# "Prüfung" und "Exam" als eigenes Wort stehen fuer "Klausur" ("Alte Prüfungen", "Prüfungsaufgaben", "Exam WS23"),
+# nicht "Prüfungsordnung", "Prüfungsvorleistung", "Überprüfung", "Example"
+EXAM_WORD = r"(?<!ber)pr(ü|ue)fung(en|saufgaben?)?(?![a-zäöüß])"
+EXAM_WORD_EN = r"(?<![a-zäöüß])exam(s|en|ination)?(?![a-zäöüß])"
+
+
 def effective_type(name: str, folder: str | None, ai_type: str | None, course_kind: str | None = None) -> tuple[str, str]:
     """Liefert (doc_type, label). label z. B. 'Gruppenuebung', 'Hoersaaluebung', 'Altklausur'. Ohne Stichwort und ohne
     KI entscheidet bei PDFs die Art des Kurses: Folien heissen oft nur 'Prog1-01-Introduction.pdf' oder 'GDS_Kap_2.pdf'."""
@@ -226,10 +238,10 @@ def effective_type(name: str, folder: str | None, ai_type: str | None, course_ki
     nm = (name or "").lower()
     if re.search(r"klausurergebnis|raumverteilung|organisat|termine|ankuendigung|ankündigung|ablaufplan", fl):
         return "organisatorisch", "Organisatorisches"
-    if re.search(r"l(ö|oe)s|\blsg\b|_lsg|lsg\.|solution|musterl", nm):
-        return "loesung", "Klausur-Lösung" if re.search(r"klausur|kurztest|\bkk\d|\bgk\d?", fl) else "Lösung"
-    if re.search(r"alte klausur|altklausur|probeklausur|klausur|kurztest|\bkk\d|\bgk\d?\b|exam", fl):
-        return "klausur", "Altklausur" if re.search(r"alte klausur|altklausur|\bws ?\d|\bss ?\d", fl) else "Klausur"
+    if re.search(SOLUTION_NAME, nm):
+        return "loesung", "Klausur-Lösung" if re.search(r"klausur|kurztest|\bkk\d|\bgk\d?|" + EXAM_WORD + "|" + EXAM_WORD_EN, fl) else "Lösung"
+    if re.search(r"alte klausur|altklausur|probeklausur|klausur|kurztest|\bkk\d|\bgk\d?\b|exam|" + EXAM_WORD, fl):
+        return "klausur", "Altklausur" if re.search(r"alte klausur|altklausur|alte pr(ü|ue)fung|altpr(ü|ue)fung|\bws ?\d|\bss ?\d", fl) else "Klausur"
     if re.search(r"gruppen(ü|ue)bung|\bg(ü|ue|u)\d", fl):
         return "uebung", "Gruppenübung"
     if re.search(r"h(ö|oe)rsaal|zentral(ü|ue)bung|\bz(ü|ue)\d|\bh(ü|ue)\d|\bhu\d", fl):

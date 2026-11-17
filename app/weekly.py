@@ -577,10 +577,29 @@ def _nr_key(nr: str):
     return (int(m.group(1)), int(m.group(2) or 0), m.group(3)) if m else (999, 0, nr)
 
 
+# Was aus dem Dateinamen faellt, bevor Aufgabe und Loesung verglichen werden: Loesungswoerter ("sol" nur als eigenes
+# Wortstueck vor einer Nummer, vor "_" oder am Ende, wie study.SOLUTION_NAME), Fuellwoerter als eigenes Wort
+# ("Lösungen zu PK" -> "pk") und Trennzeichen
+SOL_WORDS = (r"musterl(ö|oe)sung(en)?|l(ö|oe)sung(en)?|l(ö|oe)s\b|lsg|solutions?|" + study.SOL_PIECE
+             + r"|(?<![a-zäöüß])(zu[rm]?|f(ü|ue)r|von)(?![a-zäöüß])|mit|und|_|-|\s|\(|\)")
+PAPER = r"^a[345][ _\-]+|[ _\-]+a[345]$"                  # Papierformat vorn oder hinten: "A4-Loesung-Klausur-WS2122"
+ID_TAIL = re.compile(r"^[a-zäöüß]+(\d.*)$")              # "kk1b" -> "1b": Buchstaben, dann die Kennung ab der ersten Ziffer
+
+
+def _stem(name: str) -> str:
+    return re.sub(r"\.[a-z0-9]+$", "", (name or "").lower())
+
+
 def _solution_key(name: str) -> str:
-    s = re.sub(r"\.[a-z0-9]+$", "", (name or "").lower())
-    s = re.sub(r"musterl(ö|oe)sung(en)?|l(ö|oe)sung(en)?|l(ö|oe)s\b|lsg|solutions?|mit|und|_|-|\s|\(|\)", "", s)
-    return s
+    return re.sub(SOL_WORDS, "", _stem(name))
+
+
+def _plain_key(name: str) -> str:
+    """Schluessel ohne Papierformat am Rand ("A4-Loesung-Beispiel-Klausuraufgaben-WS2122" -> wie die Klausur), sonst
+    stoert die 4 den Zahlenvergleich. Nur wenn genug Name uebrig bleibt: "A4.pdf" und "A4_lsg.pdf" (Aufgabe 4)
+    behalten ihren Schluessel "a4"."""
+    k = re.sub(SOL_WORDS, "", re.sub(PAPER, "", _stem(name)))
+    return k if len(k) >= 4 else _solution_key(name)
 
 
 def _numbers(key: str) -> list[int]:
@@ -671,19 +690,69 @@ def index_module(conn, module_id: int, now: datetime | None = None, log=lambda *
 
 
 def _link_solutions(conn, module_id: int) -> None:
-    sols = db.rows(conn, """SELECT t.file_id, t.nr, t.text, f.name FROM task_index t JOIN files f ON f.id=t.file_id
+    """Musterloesung je Aufgabe: erst die Loesungsdatei zur Aufgabendatei finden, dann die Aufgabe mit derselben Nummer.
+    Reihenfolge (17.11.2026, vorher nur 4.), der erste Treffer gilt:
+    1. gleicher Ordner (Kurs + Stud.IP-Ordner), gleicher Name ohne Loesungswort oder Teilwort mit gleichen Zahlen
+    2. gleicher Ordner, gleiche Kennung: "kk1b.pdf" und "sol1b.pdf", "Übung 3.pdf" und "Lösung 3.pdf"; nur wenn im
+       Ordner genau eine Aufgabendatei und genau eine Loesungsdatei diese Kennung haben
+    3. gleicher Ordner, Sammeldatei ("Lösungen.pdf" neben den Klausuren): nur Altklausuren, nur eine Sammeldatei im
+       Ordner, und nur Aufgabennummern, die im Ordner in genau einer Klausur vorkommen. In task_index steht je Datei
+       jede Nummer nur einmal; haben "KK1" bis "KK4" alle eine "Aufgabe 1", ist nicht zu erkennen, zu welcher die
+       "Aufgabe 1" der Sammeldatei gehoert. Dann bleibt die Aufgabe ohne Loesung (lieber keine als eine falsche).
+    4. ganzes Modul wie bisher (Loesungen in einem eigenen Ordner)
+    Gleiche Namen in mehreren Semesterordnern ("WS 22/KK1loes.pdf", "WS 23/KK1loes.pdf") trifft damit der eigene Ordner."""
+    sols = db.rows(conn, """SELECT t.file_id, t.nr, t.text, f.name, f.course_id, f.studip_folder FROM task_index t JOIN files f ON f.id=t.file_id
                             WHERE t.module_id=? AND t.source='loesung'""", (module_id,))
     if not sols:
         return
-    by_key = defaultdict(dict)
-    for s in sols:
-        by_key[_solution_key(s["name"])][s["nr"]] = s
-    for t in db.rows(conn, """SELECT t.id, t.nr, f.name FROM task_index t JOIN files f ON f.id=t.file_id
-                              WHERE t.module_id=? AND t.source!='loesung'""", (module_id,)):
-        k = _solution_key(t["name"])
-        cand = by_key.get(k) or next((v for kk, v in by_key.items() if kk and k and (kk in k or k in kk) and min(len(kk), len(k)) >= 4
+    tasks = db.rows(conn, """SELECT t.id, t.nr, t.file_id, t.source, f.name, f.course_id, f.studip_folder FROM task_index t JOIN files f ON f.id=t.file_id
+                             WHERE t.module_id=? AND t.source!='loesung'""", (module_id,))
+    for r in sols + tasks:
+        r["key"], r["plain"], r["folder"] = _solution_key(r["name"]), _plain_key(r["name"]), (r["course_id"], r["studip_folder"] or "")
+
+    tables = {}
+
+    def named(k: str, folder, field: str):
+        """Loesungen (Nummer -> Zeile) zum Schluessel k: gleicher Schluessel, sonst Teilwort mit gleichen Zahlen"""
+        if (folder, field) not in tables:
+            by_key = defaultdict(dict)
+            for s in sols:
+                if folder is None or s["folder"] == folder:
+                    by_key[s[field]][s["nr"]] = s
+            tables[(folder, field)] = by_key
+        by_key = tables[(folder, field)]
+        return by_key.get(k) or next((v for kk, v in by_key.items() if kk and k and (kk in k or k in kk) and min(len(kk), len(k)) >= 4
                                       and _numbers(kk) == _numbers(k)), None)
-        s = (cand or {}).get(t["nr"])
+
+    sol_files, task_files, exam_nrs = defaultdict(dict), defaultdict(set), defaultdict(lambda: defaultdict(set))
+    for s in sols:                                           # Ordner -> Schluessel -> Loesungsdateien (Nummer -> Zeile)
+        sol_files[s["folder"]].setdefault(s["key"], {}).setdefault(s["file_id"], {})[s["nr"]] = s
+    for t in tasks:
+        m = ID_TAIL.match(t["key"])
+        if m:
+            task_files[(t["folder"], m.group(1))].add(t["file_id"])
+        if t["source"] == "altklausur":
+            exam_nrs[t["folder"]][t["nr"]].add(t["file_id"])
+
+    def solutions_for(t: dict) -> dict:
+        folder = t["folder"]
+        cand = named(t["key"], folder, "key") or named(t["plain"], folder, "plain")
+        if cand:
+            return cand
+        m = ID_TAIL.match(t["key"])
+        twins = sol_files[folder].get(m.group(1), {}) if m else {}
+        if len(twins) == 1 and len(task_files[(folder, m.group(1))]) == 1:
+            return next(iter(twins.values()))
+        whole = sol_files[folder].get("", {})
+        if t["source"] == "altklausur" and folder[1] and len(whole) == 1:
+            return {nr: s for nr, s in next(iter(whole.values())).items() if len(exam_nrs[folder][nr]) == 1}
+        return named(t["key"], None, "key") or named(t["plain"], None, "plain") or {}
+
+    found = {}
+    for t in tasks:
+        if t["file_id"] not in found:
+            found[t["file_id"]] = solutions_for(t)
+        s = found[t["file_id"]].get(t["nr"])
         conn.execute("UPDATE task_index SET solution_file_id=?, solution_text=? WHERE id=?",
                      (s["file_id"] if s else None, s["text"][:5000] if s else None, t["id"]))
 
