@@ -154,9 +154,12 @@ final class TestFinger {
     }
 
     /// Ein Strich mit dem Finger ueber `points` (Punkte des Fensters), je Punkt eine Pause von `step` Sekunden
-    static func strich(_ points: [CGPoint], in window: UIWindow, step: Double = 0.012, haltenAmEnde: Double = 0) async throws {
-        guard let first = points.first else { return }
+    /// - Returns: Art der Ansicht, die die Beruehrung beim Aufsetzen getroffen hat (fuer die Fehlersuche)
+    @discardableResult
+    static func strich(_ points: [CGPoint], in window: UIWindow, step: Double = 0.012, haltenAmEnde: Double = 0) async throws -> String {
+        guard let first = points.first else { return "-" }
         let finger = TestFinger(at: first, in: window)
+        let hit = finger.view.map { String(describing: type(of: $0)) } ?? "nichts"
         for p in points.dropFirst() {
             try await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
             finger.move(to: p)
@@ -170,5 +173,6 @@ final class TestFinger {
         }
         try await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
         finger.lift()
+        return hit
     }
 }

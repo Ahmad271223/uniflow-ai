@@ -27,6 +27,10 @@ final class EditorStrichBleibtTests: XCTestCase {
     override func tearDown() async throws {
         UserDefaults.standard.removeObject(forKey: PencilSmoothing.key)
         UserDefaults.standard.removeObject(forKey: ShapeSnapSetting.key)
+        // Gegenproben stellen diese Schalter um: immer zurueck auf den Stand der App
+        PencilTuning.rebuildFromRawPointsAfterLift = false
+        PencilTuning.liftBelongsToItsStroke = true
+        PencilTuning.coverWhenStrokeIsReplaced = true
     }
 
     // MARK: Strich wie von PencilKit gemeldet (Zeichnung gesetzt, Meldungen von Hand)
@@ -60,9 +64,20 @@ final class EditorStrichBleibtTests: XCTestCase {
         pruefe(r, erlaubtNeu: 0)
     }
 
-    /// Glaettung "Aus"/"Leicht": Der Strich wird beim Absetzen einmal durch den aus den Messpunkten ersetzt (gewollt,
-    /// so auch in Build 43) - genau einmal je Strich, nie kleiner.
+    /// Glaettung "Aus"/"Leicht" setzt seit 17.11.2026 nichts mehr neu (abgeschaltet, `PencilTuning`): wie "Normal".
+    func testGlaettungAusUndLeichtSetzenNichtsMehrNeu() async throws {
+        for smoothing in [PencilSmoothing.off, .light] {
+            UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
+            let r = try await lauf("Glaettung \(smoothing.rawValue), abgeschaltet, zwei Striche", strokes: 2, abstand: 0.4, vorhanden: 60,
+                                   order: .absetzenZuerst, warten: 4, rohpunkte: true)
+            pruefe(r, erlaubtNeu: 0)
+        }
+    }
+
+    /// Gegenprobe mit dem Schalter (so war es bis 17.11.2026): Der Strich wird beim Absetzen einmal durch den aus den
+    /// Messpunkten ersetzt - genau einmal je Strich, nie kleiner.
     func testGlaettungAusUndLeichtSetzenJeStrichEinmal() async throws {
+        PencilTuning.rebuildFromRawPointsAfterLift = true
         for smoothing in [PencilSmoothing.off, .light] {
             UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
             let r = try await lauf("Glaettung \(smoothing.rawValue), zwei Striche", strokes: 2, abstand: 0.4, vorhanden: 60, order: .absetzenZuerst,
@@ -115,6 +130,7 @@ final class EditorStrichBleibtTests: XCTestCase {
     /// behandelt werden: nicht aus dessen Messpunkten neu gebaut (er laege dann auf dem zweiten, der erste waere weg)
     /// und nicht als "am Ende gehalten" zur Form gemacht.
     func testZweiterStrichSetztAufBevorDerErsteGemeldetIst() async throws {
+        PencilTuning.rebuildFromRawPointsAfterLift = true                   // mit Neubau aus den Messpunkten (Gegenprobe-Schalter)
         let faelle: [(String, PencilSmoothing, Bool)] = [("Glaettung Aus", .off, false), ("Glaettung Leicht", .light, false),
                                                           ("Standard, erster Strich eine Linie", .normal, true)]
         for (name, smoothing, linie) in faelle {
@@ -229,7 +245,7 @@ final class EditorStrichBleibtTests: XCTestCase {
             XCTAssertEqual(strokes.count, count, "Glaettung \(smoothing.rawValue): kein Strich verloren")
             XCTAssertEqual(missing, 0, "Glaettung \(smoothing.rawValue): jeder Strich an seiner Stelle")
             XCTAssertEqual(shrunk, 0, "Glaettung \(smoothing.rawValue): die Zeichnung wurde nie kleiner gesetzt")
-            if smoothing == .normal { XCTAssertEqual(sets.count, 0, "Standard: nichts wird neu gesetzt") }
+            XCTAssertEqual(sets.count, 0, "Glaettung \(smoothing.rawValue): nach einem normalen Strich wird nichts neu gesetzt")
             await store.flush()
             let saved = await store.objects(forPageKey: "p1").filter { $0["type"]?.string == "stroke" }.count
             XCTAssertEqual(saved, count, "Glaettung \(smoothing.rawValue): gespeichert")
@@ -243,6 +259,9 @@ final class EditorStrichBleibtTests: XCTestCase {
     /// wird ersetzt) und Aus bzw. Leicht (der Strich wird beim Absetzen einmal durch den aus den Messpunkten ersetzt).
     func testNeuerStrichFehltInKeinemBildNachDemAbsetzen() async throws {
         try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        // mit Neubau aus den Messpunkten (Gegenprobe-Schalter): das Ersetzen selbst darf nicht blitzen; so bleibt auch
+        // die erkannte Form ohne Luecke (dasselbe Ersetzen)
+        PencilTuning.rebuildFromRawPointsAfterLift = true
         // letzter Fall: Gegenprobe ohne Deckbild (so war es bis 17.11.2026) - dort fehlt die Tinte in einzelnen Bildern
         let faelle: [(PencilSmoothing, Int, Bool)] = [(.normal, 0, true), (.off, 0, true), (.light, 300, true), (.off, 900, true), (.off, 300, false)]
         addTeardownBlock { @MainActor in PencilTuning.coverWhenStrokeIsReplaced = true }
@@ -361,9 +380,9 @@ final class EditorStrichBleibtTests: XCTestCase {
                                 XCTAssertEqual(canvas.drawing.strokes.count, before + 1)
                                 XCTAssertTrue(sets.allSatisfy { $0.after == $0.before }, "nie kleiner gesetzt")
                                 XCTAssertEqual(zooms, 0, "kein Zoomwechsel der Zeichenflaeche beim Absetzen")
-                                // ein Ersetzen ist nur gewollt, wenn die Einstellung es verlangt: Glaettung Leicht/Aus
-                                // (nicht mit Lineal) oder eine erkannte Form (am Ende gehalten, nicht Textmarker)
-                                let mayReplace = (smoothing != .normal && !ruler) || (shapes && held && tool != .marker)
+                                // ersetzt wird nur noch eine erkannte Form (am Ende gehalten, nicht Textmarker); die
+                                // Glaettung setzt nichts mehr neu (abgeschaltet, `PencilTuning`)
+                                let mayReplace = shapes && held && tool != .marker
                                 if !mayReplace, !sets.isEmpty { unexpected += 1 }
                                 XCTAssertLessThanOrEqual(sets.count, 1, "hoechstens einmal je Strich")
                                 let key = "Glaettung \(smoothing.rawValue), Formen \(shapes ? "an" : "aus"), Lineal \(ruler ? "an" : "aus"), \(tool.rawValue), \(held ? "am Ende gehalten" : "normal")"
@@ -383,7 +402,7 @@ final class EditorStrichBleibtTests: XCTestCase {
             report.append("\(key): " + (same ? "\(values[0]) bei allen \(values.count) Staerken" : values.joined(separator: " ")))
         }
         print("[Strich] Zaehlung je Strich (neu gesetzt/Zoomwechsel/Deckbild), \(n) Striche:\n  " + report.joined(separator: "\n  "))
-        XCTAssertEqual(unexpected, 0, "ohne Glaettung Leicht/Aus und ohne erkannte Form wird nie neu gesetzt")
+        XCTAssertEqual(unexpected, 0, "ohne erkannte Form wird in keiner Einstellung neu gesetzt")
         await store.close()
     }
 
@@ -888,6 +907,7 @@ enum ZeichnungSpion {
         let before: Int
         let after: Int
         let own: Bool
+        var at = Uhr.now()
     }
 
     static var log: [Eintrag] = []

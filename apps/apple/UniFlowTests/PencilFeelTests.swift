@@ -108,6 +108,10 @@ final class PencilFeelTests: XCTestCase {
     func testSmoothingOffRebuildsTheStrokeFromRawPointsOnLift() async throws {
         UserDefaults.standard.set(PencilSmoothing.off.rawValue, forKey: PencilSmoothing.key)
         defer { UserDefaults.standard.removeObject(forKey: PencilSmoothing.key) }
+        // Glaettung "Leicht"/"Aus" ist seit 17.11.2026 abgeschaltet (`PencilTuning.rebuildFromRawPointsAfterLift`): fuer
+        // diesen Test ausdruecklich an, danach zurueck
+        PencilTuning.rebuildFromRawPointsAfterLift = true
+        addTeardownBlock { @MainActor in PencilTuning.rebuildFromRawPointsAfterLift = false }
         let fx = try await makeFixture(pdf: Skript.pdf(pages: 2, .schlicht), pageCount: 2)
         let store = try await openStore(fx)
         let shown = show(store)
@@ -268,7 +272,13 @@ final class PencilFeelTests: XCTestCase {
     }
 
     private func show(_ store: DocumentStore) -> Shown {
-        let editor = PDFEditorController(store: store)
+        // eigener Werkzeug-Stand: die Standard-Einstellungen der Test-App merken sich das zuletzt gewaehlte Werkzeug
+        // ueber Tests hinweg (z. B. den Radierer aus `EditorVerbesserungTests`); der Strich hier waere dann kein
+        // Stiftstrich und wuerde nicht aus den Messpunkten neu gebaut (so gefunden im Lauf vom 17.11.2026)
+        let suite = "uniflow.tests.stift-werkzeuge.\(UUID().uuidString)"
+        let toolDefaults = UserDefaults(suiteName: suite) ?? .standard
+        addTeardownBlock { toolDefaults.removePersistentDomain(forName: suite) }
+        let editor = PDFEditorController(store: store, tools: EditorToolState(defaults: toolDefaults))
         editor.pencilOnly = true
         editor.ownNotesVisible = true
         editor.canEdit = true

@@ -135,6 +135,10 @@ final class PenSettingsTests: XCTestCase {
     /// Das Blatt im Feld "Farbe und Stärke": oeffnen, duenner bis zur Grenze (Hinweis auf den Fineliner), zum
     /// Fineliner, Deckkraft, Glaettung, merken, zuruecksetzen; Bilder hell und dunkel
     func testSettingsPanelInTheAttributesField() throws {
+        // Glaettung "Leicht"/"Aus" ist seit 17.11.2026 abgeschaltet (`PencilTuning.rebuildFromRawPointsAfterLift`): fuer
+        // diesen Test ausdruecklich an, danach zurueck
+        PencilTuning.rebuildFromRawPointsAfterLift = true
+        addTeardownBlock { @MainActor in PencilTuning.rebuildFromRawPointsAfterLift = false }
         let (tools, _) = freshTools()
         tools.select(.pen)
         XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true))

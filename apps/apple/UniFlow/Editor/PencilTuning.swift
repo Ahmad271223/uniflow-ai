@@ -20,4 +20,22 @@ enum PencilTuning {
     /// zeichnet alles neu - bis dahin fehlte die Tinte. Jetzt liegt solange ein Deckbild darueber
     /// (`PageInkView.replaceLastStroke`). `false`: ohne Deckbild, wie bis 17.11.
     static var coverWhenStrokeIsReplaced = true
+    /// Meldung des Inhabers 17.11.2026 ("ab und zu geht ein Strich ganz weg"): Jedes Absetzen gehoert zu SEINEM Strich
+    /// (`PageInkView.lifts`), ersetzt wird nur, wenn kein weiterer Strich unterwegs ist, und solange ein abgesetzter
+    /// Strich noch nicht gemeldet ist, wird die Seite nicht aus dem Speicher (neu) geladen: der Strich waere in dem
+    /// geladenen Stand noch nicht enthalten. `false`: wie bis 17.11. - ein gemerktes Absetzen, Laden sofort
+    /// (Gegenprobe im Test `EditorStrichBleibtTests`).
+    static var liftBelongsToItsStroke = true
+    /// Glaettung "Leicht"/"Aus" baut den Strich nach dem Absetzen aus den Messpunkten neu und setzt dafuer die Zeichnung
+    /// neu - bei JEDEM Strich. Gemessen 17.11.2026 (`EditorStrichBleibtTests`): PencilKit verliert dann einen Strich,
+    /// der wenige Millisekunden nach diesem Neu-Setzen beginnt (er wird gezeichnet, aber nie in die Zeichnung
+    /// uebernommen: 7 bis 9 von 10 bei 8 ms Abstand), und kann danach ganz aufhoeren, Striche zu liefern. Das laesst
+    /// sich nicht sicher verhindern (niemand weiss, wann der naechste Strich beginnt). Darum ist der Neubau AUS:
+    /// Nach einem normalen Strich wird die Zeichnung in keiner Einstellung mehr neu gesetzt, die Einstellung
+    /// "Glaettung" ist ausgeblendet. `true`: wie bis 17.11. (mit Deckbild und den Sicherungen dieses Tages), fuer die
+    /// Gegenprobe im Test und falls der Inhaber die Glaettung trotz des Risikos zurueck will.
+    static var rebuildFromRawPointsAfterLift = false
+    /// So lange muss die Zeichenflaeche unberuehrt sein, bevor eine geladene Seite aus dem Speicher neu gesetzt wird
+    /// (fremde Aenderung): nie mitten im Schreibfluss
+    static let reloadQuietSeconds: CFTimeInterval = 1
 }

@@ -68,6 +68,24 @@ final class PageInkView: UIView {
     var lifts: [StrokeLift] = []
     /// Der laufende Strich ist schon gemeldet (PencilKit meldet manche Striche kurz vor dem Absetzen)
     var reportedWhileDrawing = false
+    /// Sieht jede Beruehrung der Zeichenflaeche sofort (`InkTouchTracker`)
+    let touchTracker = InkTouchTracker()
+    /// Liegt gerade ein Stift (oder, wenn auch der Finger schreibt, ein Finger) auf der Zeichenflaeche? Dann hat
+    /// womoeglich schon der NAECHSTE Strich begonnen, auch wenn PencilKit ihn noch nicht gemeldet hat
+    /// (`canvasViewDidBeginUsingTool` kommt spaeter als die Beruehrung): Jetzt die Zeichnung neu zu setzen, braeche
+    /// ihn ab - der Strich waere weg (Meldung des Inhabers 17.11.2026, im Simulator nachgestellt:
+    /// `EditorStrichBleibtTests.testWaechterKeinStrichGehtVerloren`).
+    var touchCouldDraw: Bool {
+        touchTracker.pencilsDown > 0 || (canvas.drawingPolicy != .pencilOnly && touchTracker.othersDown > 0)
+    }
+    /// Ist ein Strich abgesetzt, aber von PencilKit noch nicht gemeldet? Dann steht er noch nicht in `canvas.drawing`
+    /// und nicht im Speicher: Solange darf die Zeichnung nicht neu gesetzt werden.
+    var hasOpenLift: Bool { lifts.contains { $0.isRecent } }
+    /// Zeitpunkt der letzten Aenderung, nach der weniger Striche da sein duerfen (Radierer, Lasso, Rueckgaengig, neu
+    /// geladen): fuer die Pruefung "Strich fehlt nach dem Absetzen" (`StiftZaehler`)
+    var lastShrinkAllowed: CFTimeInterval = 0
+    /// Eine Nachpruefung fuer ein verschobenes Laden ist schon bestellt (`PDFEditorController.scheduleDeferredReload`)
+    var reloadCheckScheduled = false
     /// Fremde Ebenen wurden nach einer Speicherwarnung freigegeben und werden beim naechsten Anzeigen neu gebaut.
     var foreignReleased = false
     /// Korrekturvorschlag auf dieser Seite (Korrektur-Modus oder empfangene Korrektur, `CorrectionMode.swift`)
@@ -105,6 +123,7 @@ final class PageInkView: UIView {
         content.addSubview(objectsView)
         content.addSubview(canvas)
         canvas.addGestureRecognizer(rawRecorder)
+        canvas.addGestureRecognizer(touchTracker)
         addSubview(content)
     }
 
@@ -268,6 +287,7 @@ final class PageInkView: UIView {
         if PencilTuning.coverWhenStrokeIsReplaced { coverReplacement(stroke) }
         canvas.drawing = drawing
         Self.replacementsMade += 1
+        StiftZaehler.bump(.ersetzt)
     }
 
     private func coverReplacement(_ stroke: PKStroke) {
@@ -1142,6 +1162,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let c = overlay.canvas
         c.drawingPolicy = drawingPolicy
         c.delegate = self
+        // alle Finger und der Stift sind weg: ein Laden, das darauf gewartet hat, kann laufen
+        overlay.touchTracker.onAllEnded = { [weak self, weak overlay] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                guard let self, let overlay else { return }
+                self.reloadIfDeferred(overlay)
+            }
+        }
         c.tool = canvasTool
         c.isRulerActive = tools.ruler
         if Self.isMac { mouseSupport.adoptContextMenu(of: c) }   // Rechtsklick: unser Menue statt dem der Zeichenflaeche
@@ -1195,6 +1222,19 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Canvas entstanden sind, bleiben erhalten.
     private func apply(_ drawing: PKDrawing, to overlay: PageInkView, remote: Bool = false) {
         if overlay.isDrawing { overlay.deferredReload = true; return }
+        // Ein Strich ist abgesetzt, aber von PencilKit noch nicht gemeldet: Er steht weder in der Zeichenflaeche noch im
+        // geladenen Stand. Jetzt (neu) setzen koennte ihn kosten (Meldung 17.11.2026: "ab und zu geht ein Strich ganz
+        // weg") - erst nach seiner Meldung (`reloadIfDeferred`). Gilt auch fuer das erste Laden einer Seite, auf der
+        // man sofort losschreibt.
+        // Eine schon geladene Seite wird ausserdem nur in einer Schreibpause neu gesetzt: PencilKit verliert einen
+        // Strich, der wenige Millisekunden nach dem Neu-Setzen beginnt (`PencilTuning.rebuildFromRawPointsAfterLift`).
+        if PencilTuning.liftBelongsToItsStroke,
+           overlay.hasOpenLift || overlay.touchCouldDraw
+            || (overlay.loaded && overlay.touchTracker.quiet < PencilTuning.reloadQuietSeconds) {
+            overlay.deferredReload = true
+            scheduleDeferredReload(overlay)
+            return
+        }
         // Neu setzen baut alle Striche neu auf (sie verschwinden kurz): gleicher Stand bleibt stehen
         if overlay.loaded, drawing == overlay.canvas.drawing { return }
         var next = drawing
@@ -1204,6 +1244,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             // fremde Aenderung auf dieser Seite: alte Schnappschuesse wuerden sie wieder zuruecknehmen
             dropUndo(forKey: overlay.pageKey)
         }
+        if overlay.loaded { StiftZaehler.bump(.neuGeladen) }
+        overlay.lastShrinkAllowed = CACurrentMediaTime()
         overlay.isApplyingDrawing = true
         overlay.canvas.drawing = next
         overlay.isApplyingDrawing = false
@@ -1312,6 +1354,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         store.canvasChanged(pageKey: key, drawing: drawing)
         if let overlay = boundOverlay(forKey: key) {
             if overlay.loaded {
+                overlay.lastShrinkAllowed = CACurrentMediaTime()            // Rueckgaengig/Wiederholen: weniger Striche sind gewollt
                 overlay.isApplyingDrawing = true
                 overlay.canvas.drawing = drawing
                 overlay.isApplyingDrawing = false
@@ -1353,26 +1396,56 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         canvasView.superview?.superview as? PageInkView
     }
 
+    /// Nur Tests: Ablauf der Meldungen von PencilKit mitschreiben (Fehlersuche "Strich geht verloren")
+    var inkTrace: ((String) -> Void)?
+
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+        inkTrace?("Zeichnung geaendert (\(canvasView.drawing.strokes.count) Striche\(overlay(of: canvasView)?.isApplyingDrawing == true ? ", vom Programm" : ""))")
         guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing else { return }
+        defer { reloadIfDeferred(overlay) }                         // der Strich ist da: ein verschobenes Laden kann laufen
         // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
-        guard overlay.loaded else { return }
+        guard overlay.loaded else {
+            // der gemeldete Strich ist nicht mehr "unterwegs" (das Laden wartet auf ihn, `apply`)
+            if PencilTuning.liftBelongsToItsStroke, canvasView.tool is PKInkingTool {
+                StiftZaehler.bump(.gemeldet)
+                overlay.lifts.removeAll { !$0.isRecent }
+                if !overlay.lifts.isEmpty { overlay.lifts.removeFirst() } else if overlay.isDrawing { overlay.reportedWhileDrawing = true }
+            }
+            return
+        }
         // Welcher Strich wird hier gemeldet? Steht ein Absetzen aus, gehoert die Meldung zum aeltesten (`lifts`):
         // jetzt Form erkennen bzw. aus Rohpunkten bauen (gleicher Schritt) - aber nur, wenn kein weiterer Strich
         // unterwegs ist (laeuft schon oder ist abgesetzt und noch nicht gemeldet): Neu-Setzen der Zeichnung braeche
         // ihn ab oder verloere ihn. Dann bleibt der Strich, wie PencilKit ihn gezeichnet hat.
         if canvasView.tool is PKInkingTool {
-            overlay.lifts.removeAll { !$0.isRecent }
-            if !overlay.lifts.isEmpty {
-                let lift = overlay.lifts.removeFirst()
-                if !overlay.isDrawing, overlay.lifts.isEmpty, !documentUndo.isUndoing, !documentUndo.isRedoing {
-                    finishStroke(on: overlay, lift)
-                } else {
-                    strokesLeftAsDrawn += 1
+            StiftZaehler.bump(.gemeldet)
+            if !PencilTuning.liftBelongsToItsStroke {
+                // Gegenprobe, wie bis 17.11.2026: ein gemerktes Absetzen, egal zu welchem Strich
+                if !overlay.isDrawing, let lift = overlay.lifts.first {
+                    overlay.lifts = []
+                    if lift.isRecent, !documentUndo.isUndoing, !documentUndo.isRedoing { finishStroke(on: overlay, lift) }
                 }
-            } else if overlay.isDrawing {
-                overlay.reportedWhileDrawing = true                 // der laufende Strich selbst, kurz vor dem Absetzen
+            } else {
+                let stale = overlay.lifts.filter { !$0.isRecent }.count
+                if stale > 0 {
+                    StiftZaehler.bump(.ohneMeldung, by: stale)
+                    overlay.lifts.removeAll { !$0.isRecent }
+                }
+                if !overlay.lifts.isEmpty {
+                    let lift = overlay.lifts.removeFirst()
+                    // nicht, wenn der Stift schon wieder aufliegt: der naechste Strich hat dann schon begonnen
+                    if !overlay.isDrawing, overlay.lifts.isEmpty, !overlay.touchCouldDraw, !documentUndo.isUndoing, !documentUndo.isRedoing {
+                        finishStroke(on: overlay, lift)
+                    } else {
+                        strokesLeftAsDrawn += 1
+                        StiftZaehler.bump(.nichtNachbearbeitet)
+                    }
+                } else if overlay.isDrawing {
+                    overlay.reportedWhileDrawing = true             // der laufende Strich selbst, kurz vor dem Absetzen
+                }
             }
+        } else {
+            overlay.lastShrinkAllowed = CACurrentMediaTime()        // Radierer, Lasso: weniger Striche sind gewollt
         }
         // Stift liegt noch auf (Radierer, Lasso; beim Stift kommt die Meldung kurz vor dem Absetzen): einmal beim
         // Absetzen sichern statt bei jeder Zwischenmeldung (`PencilTuning.saveOnLift`)
@@ -1385,6 +1458,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
         // ein Absetzen, dessen Meldung noch aussteht, bleibt gemerkt (`PageInkView.lifts`)
+        inkTrace?("Werkzeug an")
+        if !PencilTuning.liftBelongsToItsStroke { overlay(of: canvasView)?.lifts = [] }
         overlay(of: canvasView)?.reportedWhileDrawing = false
         overlay(of: canvasView)?.isDrawing = true
         reclaimFocusForWriting()
@@ -1397,26 +1472,41 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView) else { return }
+        inkTrace?("Werkzeug aus")
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
         let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
         // Form erkannt: `snapShape` sichert die ersetzte Zeichnung selbst (ein Mal statt Strich + Form)
         var snapped = false
-        if overlay.loaded, lift.inking {
-            if overlay.reportedWhileDrawing {
+        if lift.inking {
+            StiftZaehler.bump(.abgesetzt)
+            let expected = canvasView.drawing.strokes.count + (overlay.reportedWhileDrawing ? 0 : 1)
+            if !PencilTuning.liftBelongsToItsStroke {
+                // Gegenprobe, wie bis 17.11.2026 (nur auf geladenen Seiten)
+                if overlay.loaded {
+                    if overlay.undoPending { snapped = finishStroke(on: overlay, lift) } else { overlay.lifts = [lift] }
+                }
+            } else if overlay.reportedWhileDrawing {
                 // DIESER Strich ist schon gemeldet. Steht noch die Meldung eines frueheren aus, bleibt er, wie er ist.
-                if overlay.lifts.isEmpty { snapped = finishStroke(on: overlay, lift) } else { strokesLeftAsDrawn += 1 }
+                if overlay.loaded, overlay.lifts.isEmpty, !overlay.touchCouldDraw { snapped = finishStroke(on: overlay, lift) } else { strokesLeftAsDrawn += 1 }
             } else {
-                overlay.lifts.append(lift)                                  // Meldung kommt gleich
+                // Meldung kommt gleich. Auch auf einer Seite, die noch laedt: das Laden wartet dann auf den Strich.
+                overlay.lifts.append(lift)
             }
+            checkStrokeArrived(on: overlay, expected: expected)
         }
         overlay.reportedWhileDrawing = false
         if overlay.storePending, !snapped { saveCanvas(overlay) }
         overlay.storePending = false
         if overlay.loaded { commitPendingUndo(overlay) }
         if overlay.deferredReload {
-            overlay.deferredReload = false
-            loadContent(into: overlay, remote: true)
+            if PencilTuning.liftBelongsToItsStroke, overlay.hasOpenLift {
+                // der eben abgesetzte Strich ist noch nicht gemeldet: erst danach neu laden (`reloadIfDeferred`)
+                scheduleDeferredReload(overlay)
+            } else {
+                overlay.deferredReload = false
+                loadContent(into: overlay, remote: true)
+            }
         }
         if layoutWaitsForPencil, !live.values.contains(where: \.isDrawing) { showLayout() }
     }
@@ -1436,8 +1526,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard lift.inking else { return false }
         // Zweite Sicherung: Die Messpunkte muessen zu dem Strich passen, der ersetzt wuerde (gleiche Stelle). Passen sie
         // nicht (PencilKit hat einen Strich verworfen oder anders gemeldet als erwartet), bleibt der Strich, wie er ist.
-        if !lift.samples.isEmpty, let last = overlay.canvas.drawing.strokes.last, !RawStroke.fits(last, samples: lift.samples) {
+        if PencilTuning.liftBelongsToItsStroke, !lift.samples.isEmpty, let last = overlay.canvas.drawing.strokes.last,
+           !RawStroke.fits(last, samples: lift.samples) {
             strokesLeftAsDrawn += 1
+            StiftZaehler.bump(.nichtNachbearbeitet)
             return false
         }
         let hold = RawStroke.heldDuration(lift.samples, radius: ShapeRecognizer.holdRadius)
@@ -1449,6 +1541,46 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Messung: Striche, die nicht nachbearbeitet wurden, weil ein weiterer Strich unterwegs war oder die Messpunkte
     /// nicht zum Strich passten (sie bleiben, wie PencilKit sie gezeichnet hat)
     private(set) var strokesLeftAsDrawn = 0
+    /// Messung: Laden einer Seite, das auf die Meldung eines abgesetzten Strichs gewartet hat
+    private(set) var reloadsDeferredForLift = 0
+
+    /// Ein Laden, das auf einen Strich gewartet hat, laeuft jetzt - wenn kein Strich mehr unterwegs ist
+    private func reloadIfDeferred(_ overlay: PageInkView) {
+        guard overlay.deferredReload, !overlay.isDrawing, !overlay.hasOpenLift, !overlay.touchCouldDraw else { return }
+        // geladene Seite: erst in einer Schreibpause (`apply`); sonst spaeter noch einmal nachsehen
+        if overlay.loaded, overlay.touchTracker.quiet < PencilTuning.reloadQuietSeconds {
+            scheduleDeferredReload(overlay, counted: false)
+            return
+        }
+        overlay.deferredReload = false
+        loadContent(into: overlay, remote: true)
+    }
+
+    /// Sicherheitsnetz: Kommt die Meldung zu einem abgesetzten Strich nie (PencilKit hat ihn verworfen), laeuft das
+    /// verschobene Laden, sobald das Absetzen nicht mehr frisch ist (`StrokeLift.isRecent`, 1 s)
+    private func scheduleDeferredReload(_ overlay: PageInkView, counted: Bool = true) {
+        if counted {
+            reloadsDeferredForLift += 1
+            StiftZaehler.bump(.neuLadenVerschoben)
+        }
+        guard !overlay.reloadCheckScheduled else { return }
+        overlay.reloadCheckScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.15) { [weak self, weak overlay] in
+            guard let self, let overlay else { return }
+            overlay.reloadCheckScheduled = false
+            self.reloadIfDeferred(overlay)
+        }
+    }
+
+    /// Pruefung fuer den Zaehler auf dem Geraet (`StiftZaehler`): 2 s nach dem Absetzen muessen mindestens `expected`
+    /// Striche in der Zeichenflaeche liegen - ausser es wurde seitdem radiert, zurueckgenommen oder neu geladen.
+    private func checkStrokeArrived(on overlay: PageInkView, expected: Int) {
+        let lifted = CACurrentMediaTime()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak overlay] in
+            guard let overlay, overlay.window != nil, overlay.lastShrinkAllowed < lifted else { return }
+            if overlay.canvas.drawing.strokes.count < expected { StiftZaehler.bump(.fehltNachAbsetzen) }
+        }
+    }
 
     /// Formerkennung "zeichnen und halten" (`ShapeRecognizer`): Der eben beendete Strich (genau einer seit dem letzten
     /// Rueckgaengig-Stand) wird durch die ideale Form ersetzt, wenn der Stift am Ende still stand. Der Tausch landet im
@@ -1486,6 +1618,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Returns: true, wenn der Strich ersetzt wurde
     @discardableResult
     func rebuildFromRawPoints(on overlay: PageInkView, samples: [RawPencilSample], smoothing: PencilSmoothing) -> Bool {
+        // abgeschaltet: jedes Neu-Setzen nach einem Strich kann den naechsten Strich kosten (`PencilTuning`)
+        guard PencilTuning.rebuildFromRawPointsAfterLift else { return false }
         guard canEdit, smoothing != .normal else { return false }
         let drawing = overlay.canvas.drawing
         guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last,
@@ -2465,6 +2599,57 @@ extension UndoManager {
         guard groupsByEvent, groupingLevel == 1, !isUndoing, !isRedoing else { return }
         endUndoGrouping()
         beginUndoGrouping()
+    }
+}
+
+/// Sieht jede Beruehrung einer Zeichenflaeche in dem Moment, in dem sie aufsetzt - frueher als PencilKit einen Strich
+/// meldet. Erkennt nie etwas, haelt keine Beruehrung zurueck und laesst sich nicht verdraengen (wie
+/// `RawPencilRecorder`). Gezaehlt werden nur Beruehrungen, die noch aufliegen.
+final class InkTouchTracker: UIGestureRecognizer {
+    private var touches: Set<UITouch> = []
+    private var lastEnded: CFTimeInterval = 0
+    /// Alle Beruehrungen sind zu Ende
+    var onAllEnded: (() -> Void)?
+    /// Seit so vielen Sekunden liegt nichts mehr auf (0, solange etwas aufliegt)
+    var quiet: CFTimeInterval { down.isEmpty ? CACurrentMediaTime() - lastEnded : 0 }
+
+    override init(target: Any?, action: Selector?) {
+        super.init(target: target, action: action)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+        allowedTouchTypes = [UITouch.TouchType.direct, .indirect, .pencil, .indirectPointer].map { NSNumber(value: $0.rawValue) }
+    }
+
+    convenience init() { self.init(target: nil, action: nil) }
+
+    private var down: [UITouch] { touches.filter { $0.phase != .ended && $0.phase != .cancelled } }
+    /// Stifte, die gerade aufliegen
+    var pencilsDown: Int { down.filter { $0.type == .pencil }.count }
+    /// Finger (und Zeiger), die gerade aufliegen
+    var othersDown: Int { down.filter { $0.type != .pencil }.count }
+
+    override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+    override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        self.touches.formUnion(touches)
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { finish(touches) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { finish(touches) }
+
+    private func finish(_ ended: Set<UITouch>) {
+        touches.subtract(ended)
+        lastEnded = CACurrentMediaTime()
+        guard touches.isEmpty else { return }
+        state = .failed
+        onAllEnded?()
+    }
+
+    override func reset() {
+        super.reset()
+        touches = []
     }
 }
 

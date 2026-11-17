@@ -64,7 +64,8 @@ struct PenSettingsPanel: View {
             PenStrokePreview(style: s, tool: tool)
             widthRows(s)
             opacityRows(s)
-            smoothingRows
+            // nur, solange sie etwas bewirkt (`PencilTuning.rebuildFromRawPointsAfterLift`, seit 17.11.2026 aus)
+            if PencilTuning.rebuildFromRawPointsAfterLift { smoothingRows }
             presetRows
         }
         .padding(16)
