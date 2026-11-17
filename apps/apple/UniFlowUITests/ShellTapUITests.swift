@@ -132,8 +132,12 @@ final class ShellTapUITests: XCTestCase {
         XCTAssertTrue(labels.contains { $0.contains("Klausur") }, "\(labels)")
         shot(isPhone ? "iphone-stundenplan-hinweise" : "ipad-stundenplan-hinweise")
         chips.firstMatch.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["hint.kind"].waitForExistence(timeout: 8), "Detail des Hinweises öffnet")
+        // Detailblatt: Kennungen "hint.…" (Art, Datum, Quelle) und "Schließen"
+        let detail = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'hint.'")).firstMatch
+        let opened = detail.waitForExistence(timeout: 8)
         shot(isPhone ? "iphone-stundenplan-hinweis-detail" : "ipad-stundenplan-hinweis-detail")
+        XCTAssertTrue(opened, "Detail des Hinweises öffnet")
+        XCTAssertTrue(app.buttons["Schließen"].exists, "Detailblatt mit „Schließen“")
         XCTAssertFalse(app.buttons["nav.plan"].exists, "kein Lernkalender im Menü")
     }
 

@@ -23,7 +23,8 @@ final class LernstandAppTests: XCTestCase {
             XCTAssertEqual(LernstandText.label(m), c["label"]?.string, c["name"]?.string ?? "")
             XCTAssertEqual(LernstandText.sub(m), m == nil || m == .null ? LernstandText.hint : m?["reason"]?.string, c["name"]?.string ?? "")
         }
-        XCTAssertEqual(fx["hint"]?.string, LernstandText.hint, "Hinweis ohne Lernstand steht im Fixture")
+        XCTAssertEqual(fx["hint"]?.string, LernstandText.hint(planner: true), "Hinweis ohne Lernstand steht im Fixture")
+        XCTAssertEqual(LernstandText.hint, "Steigt mit Wochentests und bewerteten Karteikarten.", "ohne Lernkalender (17.11.2026) ohne Lernaufgaben")
     }
 
     func testVoiceOverAndMissingField() {
