@@ -193,3 +193,44 @@ struct SplitRow: Layout {
         }
     }
 }
+
+/// Breite der Spalte daneben in der geteilten Ansicht (Anteil der Fensterbreite, gemerkt in `uniflow.splitFraction`).
+///
+/// Meldung des Inhabers 17.11.2026 (iPad: links KI-Hilfe, Mitte Skript, rechts anderes Skript): "größer ging, aber
+/// kleiner ziehen nach links nicht mehr". Der Griff rechnete den Anteil aus der STELLE des Fingers in der ganzen Zeile
+/// und nahm an, die Spalte beginne am Fensterrand. Liegt die KI-Hilfe (oder die Seitenleiste) davor, sprang die Spalte
+/// bei jedem Anfassen um deren Breite groesser, bis zum Anschlag (auf dem Geraet standen 65 % und die KI-Hilfe auf dem
+/// Minimum, das Hauptdokument war noch 120 pt breit); kleiner ging erst nach rund 280 pt Weg nach links.
+/// Jetzt zaehlt der WEG des Fingers ab dem Anfassen, und das Hauptdokument behaelt neben den uebrigen Spalten seine
+/// Mindestbreite. Reine Regeln: UniFlowTests/SplitWidthAppTests.swift.
+enum SplitWidth {
+    static let minFraction = 0.2
+    static let maxFraction = 0.65
+    /// Breite des Griffs zwischen den Spalten
+    static let handle: CGFloat = 12
+
+    /// Spalten, die neben der Teilung fest stehen: Seitenleiste (200 + Linie) und die KI-Hilfe in ihrer schmalsten
+    /// Breite samt Linie (breiter gezogen gibt sie zuerst nach, `TutorPanelWidth.maxWidth`)
+    static func fixedColumns(sidebar: Bool, tutor: Bool) -> CGFloat {
+        (sidebar ? 201 : 0) + (tutor ? TutorPanelWidth.minWidth + 1 : 0)
+    }
+
+    /// Groesster Anteil: 65 %, aber das Hauptdokument behaelt `TutorPanelWidth.minDocument`; nie unter 20 %
+    static func maxFraction(total: CGFloat, fixed: CGFloat) -> Double {
+        guard total > 0 else { return maxFraction }
+        let room = Double((total - fixed - handle - TutorPanelWidth.minDocument) / total)
+        return max(minFraction, min(maxFraction, room))
+    }
+
+    /// Anteil in den Grenzen des Fensters (der gemerkte Wert bleibt, angezeigt wird der begrenzte)
+    static func clamp(_ fraction: Double, total: CGFloat, fixed: CGFloat) -> Double {
+        min(maxFraction(total: total, fixed: fixed), max(minFraction, fraction))
+    }
+
+    /// Anteil beim Ziehen: Start plus Weg des Fingers. Spalte links waechst mit dem Griff nach rechts, Spalte rechts
+    /// mit dem Griff nach links - gleich, wo in der Zeile die Spalte liegt.
+    static func dragged(from start: Double, translation: CGFloat, sideLeft: Bool, total: CGFloat, fixed: CGFloat) -> Double {
+        let delta = Double((sideLeft ? translation : -translation) / max(total, 1))
+        return clamp(start + delta, total: total, fixed: fixed)
+    }
+}
