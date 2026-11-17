@@ -20,13 +20,17 @@ final class Neu24StundenAppTests: XCTestCase {
     }
 
     /// Lokales Backend, Uhr 17.11.2026 13:20:05: ein Kurs mit vier nie als gelesen markierten Dateien - 23 Stunden alt,
-    /// 25 Stunden alt, 23 Stunden alt aber geoeffnet, ohne Eintragezeit
+    /// 25 Stunden alt, 23 Stunden alt aber geoeffnet, ohne Eintragezeit. Die Dateiliste des Kurses wurde am 1.10. zum
+    /// ersten Mal eingelesen (`first_listed_at`): alles hier kam danach dazu.
     private func seededHost() async throws -> LocalBackendHost {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: now)!)
         let backend = try await host.backend()
         let chdate = Int64(UniFlowClock.fixed(berlin: "2026-11-10T10:00:00")!.now.timeIntervalSince1970)
         try await backend.context.database.transaction { c in
-            try c.execute("INSERT INTO courses(id, title, semester, subject, kind, created_at) VALUES ('k-ma','Testmathematik I','WiSe 2026/27','Testmathematik I','vorlesung','2026-10-01T08:00:00')")
+            try c.execute("""
+                INSERT INTO courses(id, title, semester, subject, kind, created_at, first_listed_at)
+                VALUES ('k-ma','Testmathematik I','WiSe 2026/27','Testmathematik I','vorlesung','2026-10-01T08:00:00','2026-10-01T08:00:00')
+                """)
             let files: [(String, String, String?, Int)] = [
                 ("f-jung", "Frischblatt.pdf", "2026-11-16T14:20:05", 0), ("f-alt", "Altblatt.pdf", "2026-11-16T12:20:05", 0),
                 ("f-offen", "Offenblatt.pdf", "2026-11-16T14:20:05", 1), ("f-ohne", "Ohnezeitblatt.pdf", nil, 0),

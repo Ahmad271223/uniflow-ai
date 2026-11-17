@@ -161,7 +161,7 @@ final class FirstStartAppTests: XCTestCase {
 
         // Startbildschirm: Dateien, Stundenplan, Module
         let dash = try await c.api.value("/api/dashboard")
-        XCTAssertEqual(dash["new_total"], 5, "fuenf erfundene Dateien aus drei Kursen")
+        XCTAssertEqual(dash["new_total"], 0, "erster Abgleich: was schon da war, gilt nicht als neu (17.11.2026)")
         let lib = try await c.api.value("/api/library")
         let names = (lib["files"]?.array ?? []).compactMap { $0["name"]?.string }.sorted()
         XCTAssertEqual(names, ["01_Vorlesung_Mengen.pdf", "02_Vorlesung_Induktion.pdf", "Blatt01.pdf", "Programmieren_VL01.pdf", "Uebungsblatt_01.pdf"])

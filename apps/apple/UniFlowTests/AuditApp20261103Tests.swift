@@ -59,7 +59,7 @@ final class AuditApp20261103Tests: XCTestCase {
         XCTAssertEqual(UFNewFiles.count([["seen_by_user": 0], ["seen_by_user": 1], ["seen_by_user": 0]]), 2)
         XCTAssertFalse(UFNewFiles.isNew(["is_new": 0, "seen_by_user": 0, "status": "neu"]), "aelter als 24 Stunden")
         XCTAssertEqual(LocalLibrary.newFileSQL(since: "2026-11-02T10:00:00"),
-                       "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='2026-11-02T10:00:00')")
+                       "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='2026-11-02T10:00:00' AND \(LocalLibrary.afterFirstListingSQL))")
         XCTAssertEqual(UFSourceText.newFiles(.luh, demo: true), "Neue Dateien (Demo)")
         XCTAssertEqual(UFSourceText.newFiles(.luh, demo: false), "Neu aus Stud.IP")
     }
