@@ -1,0 +1,33 @@
+{
+  "typ": "klausur",
+  "fach": "Mathematik für die Ingenieurwissenschaften I",
+  "titel": "Probeklausur 1",
+  "untertitel": "Kurzklausur 1, Format wie Original",
+  "meta": {"dauer": "30 Minuten", "punkte": 10, "hilfsmittel": "keine", "semester": "WS 2026/27", "datum": "Beispiel"},
+  "hinweis": "Bitte geben Sie bei allen Lösungen den Rechenweg an. Ergebnisse exakt und gekürzt angeben.",
+  "aufgaben": [
+    {"nr": 1, "punkte": "2 + 2", "text": "Seien a = (1, 2, 2), b = (2, −1, 2) und c = (1, t, 0) mit t ∈ ℝ.",
+     "teile": [
+       {"label": "a", "text": "Berechnen Sie ∠(a, b) und die Fläche des von a und b aufgespannten Parallelogramms."},
+       {"label": "b", "text": "Bestimmen Sie alle t ∈ ℝ, für die der Spat aus a, b, c das Volumen 9 hat."}
+     ]},
+    {"nr": 2, "punkte": "3", "text": "Die Ebene E geht durch P = (1, 0, 2), Q = (2, 1, 2) und R = (1, 1, 3). Bestimmen Sie eine Koordinatendarstellung von E und den Abstand von X = (2, 0, 4) zu E.", "teile": []},
+    {"nr": 3, "punkte": "1 + 2", "text": "",
+     "teile": [
+       {"label": "a", "text": "Berechnen Sie (3 + i)/(1 − 2i) in Normalform."},
+       {"label": "b", "text": "Bestimmen Sie die Eulerform von z = −1 + √3·i."}
+     ]}
+  ],
+  "loesungen": [
+    {"nr": 1, "merke": "Winkel über cos ∠ = a·b / (‖a‖‖b‖); Fläche = ‖a × b‖; Volumen = |det(a, b, c)|.",
+     "teile": [
+       {"label": "a", "schritte": ["a·b = 2 − 2 + 4 = 4, ‖a‖ = ‖b‖ = 3", "cos ∠(a, b) = 4/9", "a × b = (6, 2, −5), ‖a × b‖ = √65"], "ergebnis": "∠(a, b) = arccos(4/9), Fläche √65"},
+       {"label": "b", "schritte": ["det(a, b, c) = (a × b)·c = 2t + 6", "|2t + 6| = 9 ⇒ 2t + 6 = 9 oder 2t + 6 = −9"], "ergebnis": "t = 3/2 oder t = −15/2"}
+     ]},
+    {"nr": 2, "teile": [{"label": "", "schritte": ["n = (Q − P) × (R − P) = (1, 1, 0) × (0, 1, 1) = (1, −1, 1)", "n·P = 3 ⇒ E: x − y + z = 3", "d = |2 − 0 + 4 − 3| / √3"], "ergebnis": "E: x − y + z = 3, d = √3"}]},
+    {"nr": 3, "teile": [
+      {"label": "a", "schritte": ["mit 1 + 2i erweitern: (3 + i)(1 + 2i)/5 = (1 + 7i)/5"], "ergebnis": "1/5 + 7/5·i"},
+      {"label": "b", "schritte": ["|z| = 2, z liegt im 2. Quadranten, φ = 2π/3"], "ergebnis": "z = 2·e^(i·2π/3)"}
+    ], "wichtig": "Quadrant beim Argument beachten."}
+  ]
+}
