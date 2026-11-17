@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking                               // HTTPCookie liegt unter Linux dort
+#endif
 
 /// Abruf bei SOGo (Uni-Mail, Uni-Kalender der LUH bzw. der Uni Hildesheim, `SOGoSite`) mit der Sitzung der Webansicht,
 /// wie `SOGoWeb` in app/sogo.py. Anfragen gehen nur an den Rechner der eigenen Hochschule.

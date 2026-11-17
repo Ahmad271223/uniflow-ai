@@ -249,7 +249,7 @@ public enum SOGo {
     /// `re.sub` mit Funktion: Treffer von hinten ersetzen
     static func sub(_ r: NSRegularExpression, _ s: String, _ f: ([String?]) -> String) -> String {
         let ns = s as NSString
-        let out = NSMutableString(string: ns)
+        let out = NSMutableString(string: s)              // unter Linux nimmt init(string:) nur einen String
         for m in r.matches(in: s, range: NSRange(location: 0, length: ns.length)).reversed() {
             var groups: [String?] = []
             for i in 0..<m.numberOfRanges {

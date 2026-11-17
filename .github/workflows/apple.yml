@@ -37,12 +37,14 @@ jobs:
     name: UniFlowCore (Linux, swift test)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    container: swift:6.0-jammy
+    # Gleiche Swift-Version wie Xcode auf dem Mac (18.11.2026: Swift 6.4.2). Mit 6.0 scheiterte der Lauf an
+    # Unterschieden des Compilers (Typpruefung "in reasonable time", Namen im eigenen Tupel), nicht an echten Fehlern.
+    container: swift:6.4-jammy
     steps:
       - uses: actions/checkout@v4
       - name: Swift-Version
         run: swift --version
-      - name: SQLite-Kopfdateien (CSQLite braucht sqlite3.h, fehlt im swift:6.0-jammy-Abbild)
+      - name: SQLite-Kopfdateien (CSQLite braucht sqlite3.h, fehlt im swift:*-jammy-Abbild)
         run: apt-get update -qq && apt-get install -y -qq libsqlite3-dev
       - name: Tests
         shell: bash
