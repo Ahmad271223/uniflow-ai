@@ -27,7 +27,7 @@ final class LocalModulesAppTests: XCTestCase {
         var calls: [(path: String, status: Int)] { lock.withLock { log } }
     }
 
-    /// Konto ohne Schluesselbund und ohne Apple (die Einstellungen zeigen kurz "Zugang & Darstellung")
+    /// Konto ohne Schluesselbund und ohne Apple (die Einstellungen zeigen kurz "Konto & Tarif")
     private final class MemorySecrets: AccountSecretStore {
         var values: [String: String] = [:]
         func get(_ key: String) -> String? { values[key] }

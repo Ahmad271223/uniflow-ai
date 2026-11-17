@@ -170,10 +170,16 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "lehrende", route: .lecturers, marker: "Lehrende und Tutor/innen deiner Kurse")
         // Bescheinigungen (06.11.2026): noch nicht gelesen, Hinweis "Liste aktualisieren" (kein Netz)
         report += audit(env, "bescheinigungen", route: .certificates, marker: "Liste aktualisieren")
-        report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
+        // Bereiche der Einstellungen (17.11.2026); "Lernzeit" nur mit Lernkalender
+        report += audit(env, "einstellungen-start", route: .settings(), marker: "Einstellungen")
+        report += audit(env, "einstellungen-konto", route: .settings(tab: "account"), marker: "Konto & Tarif")
+        report += audit(env, "einstellungen-uni", route: .settings(tab: "uni"), marker: UniAutoLoginCard.title)
+        report += audit(env, "einstellungen-darstellung", route: .settings(tab: "look"), marker: "Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
-        report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")
-        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Erweitert")
+        if LearnCalendar.enabled { report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit") }
+        report += audit(env, "einstellungen-austausch", route: .settings(tab: "community"), marker: "Community")
+        report += audit(env, "einstellungen-hilfe", route: .settings(tab: "help"), marker: "Rechtliches & Support")
+        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Vorab einordnen")
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
@@ -207,10 +213,16 @@ final class LayoutWidthAuditTests: XCTestCase {
         let env = try host(MainView())
         var report: [String] = []
         let v = Self.iphone
-        report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung", variants: v)
+        // iPhone (17.11.2026): Startseite als Liste der Bereiche, jeder Bereich eine Unterseite
+        report += audit(env, "einstellungen-start", route: .settings(), marker: "Hilfe & Rechtliches", variants: v)
+        report += audit(env, "einstellungen-konto", route: .settings(tab: "account"), marker: "Konto & Tarif", variants: v)
+        report += audit(env, "einstellungen-uni", route: .settings(tab: "uni"), marker: UniAutoLoginCard.title, variants: v)
+        report += audit(env, "einstellungen-darstellung", route: .settings(tab: "look"), marker: "Darstellung", variants: v)
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik", variants: v)
-        report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit", variants: v)
-        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Erweitert", variants: v)
+        if LearnCalendar.enabled { report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit", variants: v) }
+        report += audit(env, "einstellungen-austausch", route: .settings(tab: "community"), marker: "Community", variants: v)
+        report += audit(env, "einstellungen-hilfe", route: .settings(tab: "help"), marker: "Rechtliches & Support", variants: v)
+        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Vorab einordnen", variants: v)
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
@@ -291,7 +303,7 @@ final class LayoutWidthAuditTests: XCTestCase {
         env.hosting.traitOverrides.verticalSizeClass = .regular
         env.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
         env.view.frame = env.window.bounds
-        env.router.go(.settings(tab: "account"))
+        env.router.go(.settings(tab: "uni"))
         XCTAssertTrue(env.wait(timeout: 20) { Self.texts(env.window).contains(UniAutoLoginCard.title) },
                       "Uni-Zugang fehlt: " + Self.texts(env.window).joined(separator: " | "))
         // bis ans Ende scrollen, damit auch die unteren Karten gezeichnet sind
@@ -310,9 +322,14 @@ final class LayoutWidthAuditTests: XCTestCase {
             }
             return seen
         }
-        let texts = all()
+        var texts = all()
         XCTAssertTrue(texts.contains(UniAutoLoginCard.sameTitle), "Haken „überall gleich“")
         XCTAssertTrue(texts.contains("Abgleichen") || texts.contains("Abgleich läuft"), "Sync in der Kopfzeile")
+        // Darstellung ist seit 17.11.2026 ein eigener Bereich: auch dort keine Stift-Zeilen am iPhone
+        env.router.go(.settings(tab: "look"))
+        XCTAssertTrue(env.wait(timeout: 20) { Self.texts(env.window).contains("Darstellung") }, "Bereich Darstellung fehlt")
+        texts = all()
+        XCTAssertFalse(texts.contains { $0.contains("Darstellung & Stift") }, "am iPhone heisst der Bereich nur „Darstellung“")
         XCTAssertFalse(texts.contains("Schreibhand"), "keine Schreibhand am iPhone")
         XCTAssertFalse(texts.contains { $0.contains("Stift & Touch") || $0.contains("Nur Stift schreibt") }, "keine Stift-Zeile am iPhone")
     }
@@ -354,8 +371,9 @@ final class LayoutWidthAuditTests: XCTestCase {
             ("03b-lernkalender-monat", .plan(view: "month")), ("03c-lernkalender-liste", .plan(view: "list")),
             ("04-stundenplan", .timetable()), ("05-module", .modules),
             ("07-studienverlauf", .studyPlan()), ("08-uni-noten", .services),
-            ("09-einstellungen-zugang", .settings(tab: "account")), ("09b-einstellungen-module", .settings(tab: "modules")),
-            ("09c-einstellungen-lernzeit", .settings(tab: "plan")), ("09d-einstellungen-erweitert", .settings(tab: "advanced")),
+            ("09-einstellungen-start", .settings()), ("09a-einstellungen-konto", .settings(tab: "account")),
+            ("09b-einstellungen-module", .settings(tab: "modules")), ("09c-einstellungen-uni", .settings(tab: "uni")),
+            ("09d-einstellungen-erweitert", .settings(tab: "advanced")),
         ]
         if let moduleID { pages.insert(("06-modul", .module(moduleID)), at: 7) }
         let size = Self.iphone[1].size
@@ -444,8 +462,9 @@ final class LayoutWidthAuditTests: XCTestCase {
             ("studienverlauf", .studyPlan(), nil),
             ("dokumente", .files(), nil),
             ("uni-noten", .services, nil),
-            ("einstellungen-zugang", .settings(tab: "account"), nil),
-            ("einstellungen-lernzeit", .settings(tab: "plan"), nil),
+            ("einstellungen-start", .settings(), nil),
+            ("einstellungen-konto", .settings(tab: "account"), nil),
+            ("einstellungen-uni", .settings(tab: "uni"), nil),
         ]
         for (name, route, marker) in pages {
             for width in [CGFloat(393), 375] {

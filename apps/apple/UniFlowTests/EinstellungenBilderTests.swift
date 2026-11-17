@@ -66,18 +66,43 @@ final class EinstellungenBilderTests: XCTestCase {
     /// "IPhone" im Namen: `UniFlowTestsPrincipal` schaltet die iPhone-Fassung ein
     func testEinstellungenIPhone() throws {
         UFCompact.phoneOverride = true
-        defer { UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault }
+        UFEditorAvailability.forcedReaderOnlyForTesting = true                 // am iPhone kein Editor, also keine Stift-Zeilen
+        defer {
+            UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault
+            UFEditorAvailability.forcedReaderOnlyForTesting = UniFlowTestsPrincipal.readerOnlyDefault
+        }
         try shootAll(size: Self.iphone, prefix: "iphone", compact: true)
+    }
+
+    /// iPhone quer (874 x 402) und sehr grosse Schrift (Bedienungshilfen 3): Startseite und zwei Unterseiten
+    func testEinstellungenIPhoneQuerUndGrosseSchrift() throws {
+        UFCompact.phoneOverride = true
+        UFEditorAvailability.forcedReaderOnlyForTesting = true
+        defer {
+            UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault
+            UFEditorAvailability.forcedReaderOnlyForTesting = UniFlowTestsPrincipal.readerOnlyDefault
+        }
+        let some: [String?] = [nil, "account", "uni"]
+        try shootAll(size: CGSize(width: 874, height: 402), prefix: "iphone-quer", compact: true, vertical: .compact, only: some)
+        try shootAll(size: Self.iphone, prefix: "iphone-grosse-schrift", compact: true, typeSize: .accessibility3, only: some)
+    }
+
+    /// Schmales Fenster (iPad Split View 1/2, schmales Mac-Fenster: 590 pt) und iPad hoch (834 x 1210)
+    func testEinstellungenSchmalesFensterUndHoch() throws {
+        let some: [String?] = [nil, "account", "uni", "look"]
+        try shootAll(size: CGSize(width: 590, height: 834), prefix: "fenster-schmal", compact: false, only: some)
+        try shootAll(size: CGSize(width: 834, height: 1210), prefix: "ipad-hoch", compact: false, only: some)
     }
 
     // MARK: - Aufnahme
 
     private var tabs: [String?] {
-        let raw = ProcessInfo.processInfo.environment["UF_SETTINGS_TABS"] ?? "start,account,uni,look,modules,plan,community,help,advanced,dev"
+        let raw = ProcessInfo.processInfo.environment["UF_SETTINGS_TABS"] ?? "start,account,uni,look,modules,community,help,advanced,dev"
         return raw.split(separator: ",").map { $0 == "start" ? nil : String($0) }
     }
 
-    private func shootAll(size: CGSize, prefix: String, compact: Bool) throws {
+    private func shootAll(size: CGSize, prefix: String, compact: Bool, vertical: UIUserInterfaceSizeClass = .regular,
+                          typeSize: DynamicTypeSize? = nil, only: [String?]? = nil) throws {
         let dir = URL(fileURLWithPath: ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"] ?? "", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let root = MainView()
@@ -88,12 +113,14 @@ final class EinstellungenBilderTests: XCTestCase {
             .environment(\.uniMail, manager.uniMail)
             .environmentObject(manager!)
             .environmentObject(account!)
-        let env = try hostWithEnvironment(root, api: container.api, size: size, studip: manager.studip)
+        let env = try typeSize.map { try hostWithEnvironment(root.environment(\.dynamicTypeSize, $0), api: container.api, size: size, studip: manager.studip) }
+            ?? hostWithEnvironment(root, api: container.api, size: size, studip: manager.studip)
+        defer { env.window.isHidden = true }
         if compact {
             env.hosting.traitOverrides.horizontalSizeClass = .compact
-            env.hosting.traitOverrides.verticalSizeClass = .regular
+            env.hosting.traitOverrides.verticalSizeClass = vertical
         }
-        for (i, tab) in tabs.enumerated() {
+        for (i, tab) in (only ?? tabs).enumerated() {
             let name = String(format: "%@-%02d-%@", prefix, i + 1, tab ?? "start")
             env.router.go(.dashboard); env.pump(0.4)
             env.window.frame = CGRect(origin: .zero, size: size)

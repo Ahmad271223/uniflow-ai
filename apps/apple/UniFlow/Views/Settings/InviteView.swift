@@ -27,7 +27,12 @@ enum InviteTexts {
     static let qr = "QR-Code"
     static let qrHint = "Mit der \(UFDevice.textName)-Kamera scannen: öffnet StudiNow, wenn es installiert ist, sonst die Einladungsseite."
     static let qrAppHint = "Nur für \(UFDevice.textName)s, auf denen StudiNow schon installiert ist (öffnet die App direkt)."
-    static let shareText = "Ich nutze StudiNow fürs Studium – Skripte, Stundenplan und Lernkalender auf dem \(UFDevice.textName). Hier ist meine Einladung:"
+    /// Text zum Teilen; den Lernkalender nennt er nur, solange es ihn in der App gibt (`LearnCalendar.enabled`, 17.11.2026)
+    static var shareText: String { shareText(learnCalendar: LearnCalendar.enabled) }
+    static func shareText(learnCalendar: Bool) -> String {
+        "Ich nutze StudiNow fürs Studium – " + (learnCalendar ? "Skripte, Stundenplan und Lernkalender" : "Skripte und Stundenplan")
+            + " auf dem \(UFDevice.textName). Hier ist meine Einladung:"
+    }
     static let received = "Einladung gespeichert. Sie zählt, sobald du dein StudiNow-Konto angelegt und dich angemeldet hast."
     static let accepted = "Einladung angenommen – danke!"
     static let alreadyAccepted = "Diese Einladung war schon angenommen."
