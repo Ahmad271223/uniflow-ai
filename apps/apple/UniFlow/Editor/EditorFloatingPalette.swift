@@ -151,6 +151,7 @@ final class EditorFloatingPalette: NSObject, PKToolPickerObserver {
         switch t {
         case .pen: return "com.apple.ink.pen"
         case .fineliner: return "com.apple.ink.monoline"
+        case .fountain: return "com.apple.ink.fountainpen"
         case .marker: return "com.apple.ink.marker"
         case .eraser: return "com.apple.tool.eraser"
         case .lasso: return "com.apple.tool.lasso"
@@ -185,10 +186,11 @@ final class EditorFloatingPalette: NSObject, PKToolPickerObserver {
 
     func toolPickerFramesObscuredDidChange(_ toolPicker: PKToolPicker) {}
 
-    /// Werkzeug der Leiste zu Apples Werkzeug (Stift, Fineliner, Textmarker; Apples weitere Stifte als Stift)
+    /// Werkzeug der Leiste zu Apples Werkzeug (Stift, Fineliner, Fueller, Textmarker; Apples weitere Stifte als Stift)
     static func tool(for ink: PKInkingTool.InkType) -> EditorToolState.Tool {
         switch ink {
         case .monoline: return .fineliner
+        case .fountainPen: return .fountain
         case .marker: return .marker
         default: return .pen
         }

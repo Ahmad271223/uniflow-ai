@@ -93,7 +93,7 @@ final class EditorPaletteTests: XCTestCase {
     /// fuer VoiceOver und einem Symbol, das es gibt
     func testToolbarCarriesAppleToolsAndOurObjectTools() throws {
         typealias T = EditorToolState.Tool
-        XCTAssertEqual(T.canvasTools, [.pen, .fineliner, .marker, .eraser, .lasso])
+        XCTAssertEqual(T.canvasTools, [.pen, .fineliner, .fountain, .marker, .eraser, .lasso])
         XCTAssertEqual(T.objectTools.first, .area, "Bereich an KI vorn (05.11.2026)")
         XCTAssertEqual(Set(T.objectTools.compactMap(\.paletteID)), Set(EditorPalette.customIDs), "alle Objektwerkzeuge")
         XCTAssertEqual(Set(T.canvasTools + T.objectTools), Set(T.allCases), "nichts fehlt, nichts doppelt")
@@ -102,8 +102,8 @@ final class EditorPaletteTests: XCTestCase {
             XCTAssertNotNil(UIImage(systemName: t.icon), "Symbol fuer \(t.rawValue)")
             XCTAssertEqual(t.drawsOnCanvas, t.objectTool == nil, t.rawValue)
         }
-        for t in [T.pen, .fineliner, .marker] {
-            XCTAssertTrue((3...5).contains(t.widths.count), "3 bis 5 Staerken: \(t.rawValue)")
+        for t in [T.pen, .fineliner, .fountain, .marker] {
+            XCTAssertTrue((3...7).contains(t.widths.count), "3 bis 7 Staerken: \(t.rawValue)")
             XCTAssertGreaterThanOrEqual(EditorToolState.colors(for: t).count, 5)
         }
         XCTAssertEqual(T.shape.widths.count, 3)

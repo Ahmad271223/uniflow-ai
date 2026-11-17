@@ -146,6 +146,83 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         XCTAssertEqual(pdf.document?.index(for: try XCTUnwrap(pdf.currentPage)), 1)
     }
 
+    /// Kopf der Leseansicht flach (Auftrag des Inhabers 17.11.2026: "oben Leiste dünner", auch am iPhone): eine Zeile
+    /// statt zwei, jeder Knopf 44 pt antippbar. Vorher (mit diesem Test gemessen, 390, 402 und 440 pt breit): 102 pt.
+    static let headerBefore: CGFloat = 102
+    func testHeaderIsOneFlatRowOnPhone() throws {
+        hintSeenForTesting(true)
+        var lines: [String] = []
+        for (name, size) in [("klein", IPhoneLearnTestCase.phoneSmall), ("iPhone", IPhoneLearnTestCase.phone), ("gross", IPhoneLearnTestCase.phoneMax)] {
+            let (env, pdf, _) = try openReader(size: size, task: 7)
+            env.pump(0.6)
+            let top = pdf.convert(pdf.bounds, to: env.window).minY
+            let bars = top - env.window.safeAreaInsets.top
+            lines.append(String(format: "[Oben] iPhone %@ (%.0f x %.0f): Statuszeile %.0f pt, Dokument beginnt bei %.0f pt, Kopf %.0f pt hoch",
+                                name, size.width, size.height, env.window.safeAreaInsets.top, top, bars))
+            XCTAssertLessThanOrEqual(bars, PhoneDocumentReader.flatHeaderHeight + 2, "\(name): eine flache Zeile")
+            XCTAssertLessThanOrEqual(bars, Self.headerBefore * 2 / 3, "\(name): mindestens ein Drittel flacher als vorher")
+            // nichts fehlt, nichts ragt hinaus, alles in einer Zeile
+            var mids: [CGFloat] = []
+            for id in ["phoneReader.page", "phoneReader.search", "phoneReader.share", "phoneReader.done", "phoneReader.tutor"] {
+                let e = try XCTUnwrap(element(env, id: id), "\(name): \(id) fehlt: \(dump(env))")
+                let f = frame(e)
+                XCTAssertGreaterThanOrEqual(f.minX, -0.5, "\(name): \(id)")
+                XCTAssertLessThanOrEqual(f.maxX, size.width + 0.5, "\(name): \(id) ragt ueber den Rand")
+                XCTAssertGreaterThanOrEqual(f.minY, env.window.safeAreaInsets.top - 0.5, "\(name): \(id) unter der Statuszeile")
+                XCTAssertLessThanOrEqual(f.maxY, top + 0.5, "\(name): \(id) im Kopf")
+                if id == "phoneReader.page" {
+                    XCTAssertGreaterThanOrEqual(f.height, 43.5, "\(name): Titel und Seite 44 pt antippbar")
+                } else {
+                    mids.append(f.midY)
+                }
+            }
+            XCTAssertLessThanOrEqual((mids.max() ?? 0) - (mids.min() ?? 0), 1, "\(name): Knoepfe auf einer Hoehe")
+            XCTAssertTrue(shows(env, "Seite 1 von 3"), dump(env))
+            shoot(env, "iphone-kopf-\(name)")
+            env.window.isHidden = true
+        }
+        print(lines.joined(separator: "\n"))
+    }
+
+    private func hintSeenForTesting(_ seen: Bool) {
+        let before = UserDefaults.standard.object(forKey: "uniflow.phoneReader.hintSeen")
+        UserDefaults.standard.set(seen, forKey: "uniflow.phoneReader.hintSeen")
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: "uniflow.phoneReader.hintSeen") }
+    }
+
+    /// Fueller, feiner Fineliner und durchscheinender Textmarker vom iPad (17.11.2026) erscheinen in der Leseansicht
+    /// mit ihrer Tinte; eine Tintenart, die diese Fassung nicht kennt, als normaler Stift
+    func testReaderShowsFountainFineAndMarkerStrokes() throws {
+        func stroke(_ id: String, tool: String, pkInk: String?, width: Double, opacity: Double, y: Double) -> JSONValue {
+            var o: [String: JSONValue] = ["id": .string(id), "type": "stroke", "tool": .string(tool), "color": "#1d2130", "width": .number(width),
+                                          "opacity": .number(opacity), "points": [80, .number(y), 200, .number(y + 6), 320, .number(y), 440, .number(y + 8)],
+                                          "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1]
+            if let pkInk { o["pkInk"] = .string(pkInk) }
+            return .object(o)
+        }
+        let notes: JSONValue = ["version": 2, "pages": ["p1": ["objects": [
+            stroke("fu", tool: "fountain", pkInk: PKInk.InkType.fountainPen.rawValue, width: 2.8, opacity: 1, y: 200),
+            stroke("fi", tool: "pen", pkInk: PKInk.InkType.monoline.rawValue, width: 2.25, opacity: 1, y: 240),
+            stroke("ma", tool: "marker", pkInk: PKInk.InkType.marker.rawValue, width: 10, opacity: 0.175, y: 280),
+            stroke("un", tool: "kalligrafie", pkInk: "com.apple.ink.reedcalligraphy", width: 3, opacity: 1, y: 320),
+        ]]]]
+        let d = document(notes: notes)
+        let env = try hostPhone(NavigationStack { PhoneDocumentReader(file: d.file, api: d.api) }, api: d.api, size: IPhoneLearnTestCase.phone)
+        var found: PDFView?
+        XCTAssertTrue(env.wait(timeout: 15) {
+            found = self.pdfView(in: env.window)
+            return found?.document?.pageCount == 3
+        }, dump(env))
+        let ink = try XCTUnwrap(overlay(try XCTUnwrap(found), page: 0))
+        XCTAssertTrue(env.wait(timeout: 10) { ink.loaded }, "Notizen nicht geladen")
+        XCTAssertEqual(ink.canvas.drawing.strokes.map { $0.ink.inkType }, [.fountainPen, .monoline, .marker, .pen])
+        var alpha: CGFloat = 0
+        ink.canvas.drawing.strokes[2].ink.color.getRed(nil, green: nil, blue: nil, alpha: &alpha)
+        XCTAssertEqual(alpha, 0.5, accuracy: 0.02, "Textmarker mit 50 % bleibt durchscheinend")
+        XCTAssertEqual(ink.canvas.drawing.strokes[1].path[0].size.width, 2.25, accuracy: 0.01, "feiner Fineliner bleibt fein")
+        env.window.isHidden = true
+    }
+
     func testReaderFitsAllPhoneSizesAndLargeType() throws {
         for size in [IPhoneLearnTestCase.phoneSmall, IPhoneLearnTestCase.phone, IPhoneLearnTestCase.phoneMax] {
             let (env, _, _) = try openReader(size: size)

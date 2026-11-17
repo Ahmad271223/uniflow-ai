@@ -357,7 +357,7 @@ final class EditorStrichBleibtTests: XCTestCase {
         var lines: [String: [String]] = [:]
         var order: [String] = []
         var n = 0, unexpected = 0
-        let tools: [EditorToolState.Tool] = [.pen, .fineliner, .marker]
+        let tools: [EditorToolState.Tool] = [.pen, .fineliner, .fountain, .marker]
         for smoothing in [PencilSmoothing.normal, .light, .off] {
             UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
             for shapes in [true, false] {
@@ -416,7 +416,7 @@ final class EditorStrichBleibtTests: XCTestCase {
             let r = type.validWidthRange
             out.append(String(format: "%@: %.4f bis %.2f pt, Vorgabe %.2f", name, r.lowerBound, r.upperBound, type.defaultWidth))
         }
-        let tools: [EditorToolState.Tool] = [.pen, .fineliner, .marker]
+        let tools: [EditorToolState.Tool] = [.pen, .fineliner, .fountain, .marker]
         for t in tools {
             out.append("Stufen \(t.rawValue): " + t.widths.map { String(format: "%.2f", $0) }.joined(separator: " / "))
         }
