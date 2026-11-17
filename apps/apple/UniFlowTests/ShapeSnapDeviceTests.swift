@@ -113,12 +113,16 @@ final class ShapeSnapDeviceTests: XCTestCase {
 
     // MARK: Werkzeuge
 
-    /// Formen erkennt nur der Stift (auch Fineliner, Bleistift, Füller), nicht der Textmarker und nicht der Radierer
+    /// Formen erkennt der Stift (auch Fineliner, Bleistift, Füller); der Textmarker seit 17.11.2026 nur die gerade
+    /// Linie (`lineOnly`); Wasserfarbe, Radierer und Lasso nichts
     func testOnlyPenToolsSnapShapes() {
         for type in [PKInkingTool.InkType.pen, .pencil, .monoline, .fountainPen] {
             XCTAssertTrue(ShapeRecognizer.snaps(PKInkingTool(type, color: .black, width: 3)), "\(type.rawValue) ist ein Stift")
+            XCTAssertFalse(ShapeRecognizer.lineOnly(PKInk(type, color: .black)), "\(type.rawValue): alle Formen")
         }
-        XCTAssertFalse(ShapeRecognizer.snaps(PKInkingTool(.marker, color: .yellow, width: 20)), "Textmarker nicht")
+        XCTAssertTrue(ShapeRecognizer.snaps(PKInkingTool(.marker, color: .yellow, width: 20)), "Textmarker: ja ...")
+        XCTAssertTrue(ShapeRecognizer.lineOnly(PKInk(.marker, color: .yellow)), "... aber nur die Linie")
+        XCTAssertFalse(ShapeRecognizer.snaps(PKInkingTool(.watercolor, color: .blue, width: 20)), "Wasserfarbe nicht")
         XCTAssertFalse(ShapeRecognizer.snaps(PKEraserTool(.bitmap)), "Radierer nicht")
         XCTAssertFalse(ShapeRecognizer.snaps(PKLassoTool()), "Lasso nicht")
     }
