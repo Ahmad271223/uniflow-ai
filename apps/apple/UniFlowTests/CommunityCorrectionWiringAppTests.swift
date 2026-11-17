@@ -470,6 +470,10 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         // Community ab Plus (05.11.2026): die Seiten pruefen den Tarif ueber Entitlements.shared
+        // Beim Start des Testwirts fragt `Entitlements.shared` einmal StoreKit; kam die Antwort erst nach dem Setzen des
+        // Tarifs, stand er wieder auf Free und die Seite zeigte die Sperrkarte (17.11.2026: je nach Auslastung des Mac
+        // der erste Test der Klasse rot). Darum die Abfrage hier abwarten, dann erst den Tarif setzen.
+        await Entitlements.shared.refresh()
         planBefore = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
         CorrectionLaunch.shared.pending.keys.forEach { _ = CorrectionLaunch.shared.take(fileID: $0) }
