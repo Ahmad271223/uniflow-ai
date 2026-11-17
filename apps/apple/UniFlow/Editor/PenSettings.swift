@@ -26,7 +26,7 @@ enum PenSettingsText {
         case .pen: return "Wird breiter, je fester du aufdrückst – wie ein Kugelschreiber."
         case .fineliner: return "Fein und immer gleich breit, egal wie fest du drückst – am besten für kleine Schrift."
         case .fountain: return "Sehr feiner Strich, der beim Aufdrücken kräftiger wird – wie ein Füller, für schöne Handschrift."
-        case .marker: return "Durchscheinend zum Hervorheben, der Text darunter bleibt lesbar. Für gerade Linien das Lineal dazunehmen."
+        case .marker: return "Durchscheinend zum Hervorheben, der Text darunter bleibt lesbar. Für eine gerade Linie am Ende kurz halten."
         default: return ""
         }
     }
