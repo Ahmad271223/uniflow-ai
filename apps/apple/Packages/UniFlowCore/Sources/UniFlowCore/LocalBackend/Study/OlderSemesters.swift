@@ -232,15 +232,17 @@ public enum OlderSemesters {
         ]
     }
 
-    /// Dateien eines Kurses (auch eines inaktiven), ohne Papierkorb; mit Einordnung wie `/api/library`
-    static func courseFiles(_ c: SQLiteConnection, courseID: String) throws -> [JSONValue]? {
+    /// Dateien eines Kurses (auch eines inaktiven), ohne Papierkorb; mit Einordnung und `is_new` wie `/api/library`
+    /// (ohne `is_new` fiele die App auf den Lernstand zurueck: jede nie geoeffnete Datei bliebe fuer immer "Neu")
+    static func courseFiles(_ c: SQLiteConnection, courseID: String, clock: UniFlowClock) throws -> [JSONValue]? {
         guard try c.queryOne("SELECT 1 FROM courses WHERE id=?", [.text(courseID)]) != nil else { return nil }
         return try c.rows("""
             SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind,
                    f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder, f.download_url, f.content_sha256,
                    c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                    (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at,
-                   CASE WHEN COALESCE(f.local_path, '')<>'' THEN 1 ELSE 0 END AS downloaded
+                   CASE WHEN COALESCE(f.local_path, '')<>'' THEN 1 ELSE 0 END AS downloaded,
+                   \(LocalLibrary.isNewColumn(since: LocalLibrary.newSince(clock)))
             FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
             WHERE f.course_id=? AND f.deleted_at IS NULL ORDER BY COALESCE(f.studip_folder, ''), f.name, f.id
             """, [.text(courseID)]).map { .object(StudyClassify.enrichFile($0)) }
@@ -285,8 +287,8 @@ enum OlderSemesterEndpoints: LocalEndpointModule {
         }
 
         router.get("/api/older-semesters/courses/{course_id}/files") { req, ctx in
-            let id = req.param("course_id")
-            guard let files = try await ctx.database.withConnection({ try OlderSemesters.courseFiles($0, courseID: id) }) else {
+            let id = req.param("course_id"), clock = ctx.clock
+            guard let files = try await ctx.database.withConnection({ try OlderSemesters.courseFiles($0, courseID: id, clock: clock) }) else {
                 throw LocalHTTPError.notFound("Kurs nicht gefunden")
             }
             return .json(.array(files))

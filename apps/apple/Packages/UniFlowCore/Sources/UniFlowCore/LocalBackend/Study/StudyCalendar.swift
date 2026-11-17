@@ -156,7 +156,7 @@ enum StudyCalendar {
         let cal = try calendar(c, from: t, to: t, clock: clock, refresh: false)
         var today = cal["days"]?.array?.first?.object ?? [:]
         let mods = try LocalModules.overview(c, clock: clock)
-        let newFiles = try LocalLibrary.newFiles(c)
+        let newFiles = try LocalLibrary.newFiles(c, clock: clock)
         let weekStart = StudyWeeks.monday(t)
         let week = (try calendar(c, from: weekStart, to: weekStart + 6, clock: clock, refresh: false))["days"]?.array ?? []
         let wkTotal = week.reduce(0) { $0 + ($1["tasks_total"]?.int ?? 0) }

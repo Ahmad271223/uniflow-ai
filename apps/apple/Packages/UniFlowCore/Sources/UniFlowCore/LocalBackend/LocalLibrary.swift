@@ -8,46 +8,73 @@ public enum LocalLibrary {
     // MARK: Abfragen wie app/server.py
 
     /// Dateien in `GET /api/library` (mit Quelle und Fingerabdruck wie am PC: `download_url`, `content_sha256`;
-    /// `source` setzt `StudyClassify.enrichFile`)
-    static let librarySQL = """
+    /// `source` setzt `StudyClassify.enrichFile`). `is_new` (1/0) rechnet der Kern aus (`newFileSQL`), die App zeigt
+    /// und zaehlt "Neu" nur danach.
+    static func librarySQL(newSince: String) -> String {
+        """
         SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
-               f.download_url, f.content_sha256, f.seen_by_user,
+               f.download_url, f.content_sha256, f.seen_by_user, \(isNewColumn(since: newSince)),
                c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
         FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
         WHERE f.deleted_at IS NULL AND c.active=1 ORDER BY f.chdate DESC
         """
+    }
 
     /// `GET /api/library`: Ordner, Dateien (mit Einordnung), Module, Papierkorb. Schreibt (ensure_modules), darum in
     /// einer Transaktion aufrufen.
     static func library(_ c: SQLiteConnection, clock: UniFlowClock) throws -> JSONValue {
         try LocalModules.ensureModules(c, clock: clock)
         let folders = try c.rows("SELECT * FROM folders ORDER BY name")
-        let files = try c.rows(librarySQL).map(StudyClassify.enrichFile)
+        let files = try c.rows(librarySQL(newSince: newSince(clock))).map(StudyClassify.enrichFile)
         let trash = try c.rows("SELECT id, COALESCE(title, name) AS title, deleted_at, kind FROM files WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC")
         let mods = try c.rows("SELECT id, name, color FROM modules ORDER BY sort, name")
         return ["folders": .array(folders.map(JSONValue.object)), "files": .array(files.map(JSONValue.object)),
                 "modules": .array(mods.map(JSONValue.object)), "trash": .array(trash.map(JSONValue.object))]
     }
 
-    /// "Neu" an allen Stellen gleich (`study.NEW_FILE_SQL`): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und
-    /// "Gesehen" setzen es), aus einem aktiven Kurs - Uebersicht "Neu aus …", Modulkarten, Bibliothek ("seen_by_user"
-    /// je Datei), Kurse. Der Lernstand `status` zaehlt dafuer nicht (Audit 03.11.2026: 1 vs. 3 neue Dateien).
-    public static let newFileSQL = "f.seen_by_user=0"
+    // MARK: "Neu" (eine Regel fuer alle Stellen)
 
-    /// Neue Dateien in `study.dashboard`: nicht gesehen, aus aktiven Kursen, neueste zuerst
-    static func newFiles(_ c: SQLiteConnection) throws -> [JSONValue] {
+    /// So viele Stunden gilt eine Datei nach dem Eintragen in die App (`files.first_seen`) hoechstens als "neu"
+    /// (Auftrag des Inhabers 17.11.2026: "wenn etwas laenger als 24 Std in der App ist, automatisch nicht mehr neu").
+    public static let newFileHours = 24
+
+    /// Grenze fuer `first_seen` (Ortszeit Berlin wie `UniFlowClock.nowISO`): ab diesem Zeitpunkt eingetragene Dateien
+    /// sind noch neu. Wirkliche 24 Stunden, auch ueber die Zeitumstellung.
+    public static func newSince(_ clock: UniFlowClock) -> String {
+        BerlinClock.localISO(utc: clock.utcSeconds - newFileHours * 3600)
+    }
+
+    /// "Neu" an allen Stellen gleich (`study.new_file_sql`): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und
+    /// "Gesehen" setzen es) UND vor hoechstens `newFileHours` Stunden eingetragen (`first_seen`; fehlt es, ist die Datei
+    /// nicht neu). Danach verschwindet "Neu" von selbst; `seen_by_user` und der Lernstand `status` bleiben, wie sie
+    /// sind (Audit 03.11.2026: der Lernstand zaehlt fuer "Neu" nicht). Gilt fuer die Uebersicht "Neu aus …",
+    /// Modulkarten, Kurse, Bibliothek und die Dateizeilen in Modulen und im Stundenplan (`is_new` je Datei).
+    /// `since` kommt aus `newSince` (nur Ziffern, "-", "T", ":"), darum als Text in der Abfrage.
+    public static func newFileSQL(since: String) -> String {
+        "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='\(since)')"
+    }
+
+    public static func newFileSQL(_ clock: UniFlowClock) -> String { newFileSQL(since: newSince(clock)) }
+
+    /// Spalte `is_new` (1/0) fuer Dateilisten mit `files f`
+    static func isNewColumn(since: String) -> String {
+        "CASE WHEN \(newFileSQL(since: since)) THEN 1 ELSE 0 END AS is_new"
+    }
+
+    /// Neue Dateien in `study.dashboard`: neu (`newFileSQL`), aus aktiven Kursen, neueste zuerst
+    static func newFiles(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [JSONValue] {
         try c.rows("""
             SELECT f.id, f.name, f.first_seen, f.chdate, c.subject, c.module_id, a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes
             FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-            WHERE \(newFileSQL) AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC
+            WHERE \(newFileSQL(clock)) AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC
             """).map(JSONValue.object)
     }
 
-    /// `study.new_files_count`: neue Dateien eines Moduls (aktive Kurse)
-    static func newFilesCount(_ c: SQLiteConnection, moduleID: SQLiteValue) throws -> Int {
-        try c.scalar("SELECT COUNT(*) FROM files f JOIN courses c ON c.id=f.course_id WHERE c.active=1 AND c.module_id=? AND \(newFileSQL)",
-                     [moduleID])?.int ?? 0
+    /// `study.new_file_ids`: Kennungen der neuen Dateien eines Moduls (aktive Kurse); ihre Zahl ist `new_count`
+    static func newFileIDs(_ c: SQLiteConnection, moduleID: SQLiteValue, since: String) throws -> Set<String> {
+        Set(try c.query("SELECT f.id FROM files f JOIN courses c ON c.id=f.course_id WHERE c.active=1 AND c.module_id=? AND \(newFileSQL(since: since))",
+                        [moduleID]).compactMap { $0["id"]?.string })
     }
 
     /// Letzter Abgleich (`SELECT * FROM sync_log ORDER BY id DESC LIMIT 1`)

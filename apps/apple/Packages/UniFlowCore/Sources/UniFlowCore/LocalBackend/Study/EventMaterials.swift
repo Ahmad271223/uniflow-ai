@@ -28,6 +28,8 @@ extension LocalModules {
         if same.isEmpty {
             same = Array(files.filter { latestMaterialTypes.contains($0.docType ?? "") }.suffix(4))
         }
-        return same.prefix(8).map { .object($0.json) }
+        var out = Array(same.prefix(8))
+        try markNew(c, &out, moduleID: moduleID, since: dates.newSince)       // "Neu" in der Zeile: eine Regel (`LocalLibrary.newFileSQL`)
+        return out.map { .object($0.json) }
     }
 }

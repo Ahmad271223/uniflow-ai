@@ -887,7 +887,7 @@
     1792483200,
     "Vorlesung",
     "gelesen",
-    "2026-10-24T08:00:00"
+    "2026-10-24T15:30:04"
    ]
   },
   {
@@ -901,7 +901,7 @@
     1792598400,
     "Lösungen",
     "neu",
-    "2026-10-24T08:00:00"
+    "2026-10-24T15:30:05"
    ]
   },
   {
@@ -915,7 +915,7 @@
     1792877400,
     "Vorlesung",
     "neu",
-    "2026-10-24T08:00:00"
+    "2026-10-25T08:00:00"
    ]
   },
   {
@@ -3368,7 +3368,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      }
     ],
     "event": {
@@ -3493,7 +3494,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      }
     ],
     "event": {
@@ -3598,7 +3600,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      }
     ],
     "event": {
@@ -4305,7 +4308,8 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": 3,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 1
     }
    ]
   },
@@ -4339,7 +4343,8 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": 2,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 0
     }
    ]
   },
@@ -4373,7 +4378,8 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": null,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 0
     }
    ]
   },
@@ -4407,7 +4413,8 @@
      "ai_doc_type": null,
      "sub_label": "Skript",
      "week_hint": null,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 0
     }
    ]
   },
@@ -4441,7 +4448,8 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": 1,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 0
     },
     {
      "id": "tf-ue-1",
@@ -4468,7 +4476,8 @@
      "ai_doc_type": null,
      "sub_label": "Übung",
      "week_hint": 1,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 0
     },
     {
      "id": "tf-ma-2",
@@ -4495,7 +4504,8 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": 2,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 0
     },
     {
      "id": "tf-ma-3",
@@ -4522,7 +4532,8 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": 3,
-     "source": "studip"
+     "source": "studip",
+     "is_new": 1
     }
    ]
   },
@@ -4563,7 +4574,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 7,
-     "new_count": 7,
+     "new_count": 2,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -4614,7 +4625,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -4665,7 +4676,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -6905,7 +6916,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": null,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      }
     ],
     "event": {
@@ -7003,7 +7015,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 2,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      }
     ],
     "event": {
@@ -7082,7 +7095,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 2,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      }
     ],
     "event": {
@@ -7145,7 +7159,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 1,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      },
      {
       "id": "tf-ue-1",
@@ -7172,7 +7187,8 @@
       "ai_doc_type": null,
       "sub_label": "Übung",
       "week_hint": 1,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      },
      {
       "id": "tf-ma-2",
@@ -7199,7 +7215,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 2,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 0
      },
      {
       "id": "tf-ma-3",
@@ -7226,7 +7243,8 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 3,
-      "source": "studip"
+      "source": "studip",
+      "is_new": 1
      }
     ],
     "event": {
@@ -8745,7 +8763,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 7,
-     "new_count": 7,
+     "new_count": 2,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -8795,7 +8813,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -8846,7 +8864,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,

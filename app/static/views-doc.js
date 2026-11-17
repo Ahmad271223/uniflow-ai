@@ -3,7 +3,7 @@ import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadg
 import { PdfEditor } from "./editor.js?v=75";
 import { setupLectureMarker } from "./views-weekly.js?v=17";
 import { afterCloseTab, emptyDocHtml, isExercise as isExerciseFile, splitRole, paneBLeft } from "./doc-nav.js?v=2";
-import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
+import { sourceKind, pagesHtml } from "./filekinds.js?v=3";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
