@@ -298,7 +298,8 @@ final class LayoutWidthAuditTests: XCTestCase {
         doc.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
         doc.view.frame = doc.window.bounds
         doc.router.go(.doc("demo-skript"))
-        XCTAssertTrue(doc.wait(timeout: 25) { Self.texts(doc.window).contains { $0.hasPrefix("Seite 1 von") } },
+        // flacher Kopf (17.11.2026): Titel und Seite sind ein Knopf "Titel, Seite 1 von 3"
+        XCTAssertTrue(doc.wait(timeout: 25) { Self.texts(doc.window).contains { $0.contains("Seite 1 von") } },
                       "Leseansicht fehlt: " + Self.texts(doc.window).joined(separator: " | "))
         XCTAssertFalse(Self.texts(doc.window).contains("Teilen"), "kein Editor-Menü am iPhone")
         XCTAssertTrue(Self.texts(doc.window).contains("KI-Hilfe"))
