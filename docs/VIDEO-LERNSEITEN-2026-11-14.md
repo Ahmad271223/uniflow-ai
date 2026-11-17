@@ -201,3 +201,108 @@ Ausprobieren, aber zwei Regeln für dieselbe Ansicht).
   „Mehr“ › „Video oder Lernseite daneben …“).
 - Volle Suite: steht aus (fährt die Hauptsitzung auf dem Kandidaten).
 - Bilder: `~/Studora-Builds/video/bilder/` – 4 Auswahl Video/Lernseiten, 5 Video-Spalte, 2 Wikipedia daneben.
+
+## 12. 17.11.2026: YouTube direkt öffnen
+
+Auftrag des Inhabers (17.11.2026, wörtlich): „kannst du statt YouTube-Link dazu YouTube öffnen selber, dann können die
+selber YouTube öffnen“. Ergänzung am selben Tag: „ganzen Änderungen auf iPhone-App auch umsetzen und macOS“.
+Zweig `editor/youtube-oeffnen` (von develop `13f11669`). Nicht in develop, nichts gepusht, nichts zu Apple.
+
+**Das ändert die Entscheidung vom 14.11.** („keine YouTube-Startseite, keine Suche, keine Vorschläge in der App“,
+Abschnitt 2 „Gesperrt“ und die Zeile „YouTube“ in der Tabelle von Abschnitt 4): In der Spalte „YouTube“ gibt es jetzt
+Startseite, Suche, Vorschläge, Kurzvideos und Kanäle von YouTube. Es bleibt dabei: kein allgemeiner Browser, keine
+Adresszeile, nur YouTube.
+
+### Was sich ändert
+
+- **Haupteinstieg:** Knopf „YouTube öffnen“ im Abschnitt „Video“ (unter „Daneben öffnen“ bzw. „Video oder Lernseite
+  daneben …“). Er lädt die mobile YouTube-Seite `https://m.youtube.com/` in der Spalte neben dem Dokument.
+- **Kopf der Spalte:** Zurück, Vor, Neu laden, Startseite von YouTube, „…“ (Auf YouTube öffnen (außerhalb der App),
+  YouTube-Daten löschen), X. Keine Adresszeile, keine freie Eingabe von Adressen.
+- **Nur YouTube** (`YouTubeSidePolicy` in `WebSideRules.swift`, reine Funktionen mit Tests):
+
+  | Navigation | Was geschieht |
+  |---|---|
+  | `m.youtube.com`, `www.youtube.com`, `youtube.com`, `youtu.be` (Start, Suche, Video, Kurzvideo, Kanal, Playlist), nur `https` | bleibt in der Spalte |
+  | `consent.youtube.com` (Einwilligung von YouTube) | bleibt in der Spalte |
+  | jede andere Seite (Links in Beschreibungen, YouTubes Weiterleitung `/redirect`, Kanal-Links nach außen, Werbung, „App öffnen“, `policies.google.com`, `music.`/`studio.youtube.com`) | wird nicht geladen, öffnet außerhalb der App |
+  | Anmelden bei Google (`accounts.google.*`, `accounts.youtube.com`, `myaccount.google.com`, YouTube-Pfad `/signin…`) | wird nie geladen; unten in der Spalte der Hinweis „Anmelden geht hier nicht“ mit „Außerhalb öffnen“. Die App sieht nie ein Passwort |
+  | `javascript:`, `data:`, `file:`, `blob:`, App-Adressen (`youtube://`) | verworfen |
+  | eingebettete Rahmen | nur von YouTube/Google (Player, Einwilligung, Werbung); fremde Rahmen und versteckte Anmelde-Rahmen werden nicht geladen |
+  | Täuschungs-Hosts (`youtube.com.evil.example`, `evil-youtube.com`, `youtube.com@evil.example`) | nie in der Spalte |
+
+  Bilder, Skripte und Videodaten (`ytimg.com`, `googlevideo.com`, `gstatic.com`) lädt die YouTube-Seite als
+  Unterressourcen selbst; dazu fragt WebKit die App nicht. Die App blendet nichts aus und setzt kein eigenes Skript in
+  die Seite – Werbung, Einwilligung und Bedienelemente von YouTube bleiben, wie sie sind.
+- **Hinweis vor dem ersten Öffnen** (einmal je Nutzer-Datenbereich, gemerkt nur auf dem Gerät): „YouTube ist ein Dienst
+  von Google. Wenn du YouTube öffnest, werden Daten an Google übertragen, zum Beispiel deine IP-Adresse, Angaben zu
+  deinem Gerät und was du suchst und ansiehst. Über Cookies und Einwilligung entscheidest du auf der Seite von YouTube
+  selbst.“ – „Öffnen“ / „Abbrechen“. Solange der Hinweis steht, gibt es keine Web-Ansicht: vorher geht nichts an YouTube.
+- **iPhone** (Leseansicht, keine Spalte): neuer Knopf „Video oder Lernseite“ im Kopf der Leseansicht (Plus wie am iPad,
+  sonst die Tarifwahl). Die Auswahl ist dieselbe (YouTube öffnen, Zuletzt hier, Aufzeichnungen, Link einfügen,
+  Lernseiten); das Video bzw. die Seite steht **über dem Dokument** (quer: links daneben), der Griff dazwischen
+  verschiebt die Teilung, X schließt. Damit gibt es Video und Lernseiten jetzt auch am iPhone.
+- **Mac** („Designed for iPad“): dieselbe Spalte und derselbe Knopf wie am iPad, kein eigener Code.
+
+### Entscheidung: Was passiert beim Antippen eines Videos?
+
+**Es spielt direkt auf der YouTube-Seite in der Spalte** (nicht Wechsel in den eingebetteten Player). Gründe:
+
+1. YouTube wechselt zwischen Suche und Video, ohne die Seite neu zu laden. Die App erfährt den Wechsel nur nachträglich
+   über die Adresse; ein Umschalten in den eingebetteten Player hieße: das Video lädt zweimal, die Spalte springt.
+2. Der eingebettete Player zeigt viele Videos gar nicht (Einbetten vom Kanal abgeschaltet, Altersbeschränkung).
+3. Für den Nutzer ist es ein Ort: Zurück führt zu den Suchergebnissen, das nächste Video ist einen Tipp entfernt.
+4. Die Seite von YouTube bleibt unverändert – das ist gegenüber YouTube die sauberste Lage.
+
+Preis dafür: Vorschläge, Kurzvideos und Kommentare von YouTube stehen in der Spalte (Ablenkung; siehe Altersfreigabe).
+Wer nur ein einzelnes Video ohne alles drumherum will, nimmt weiter „Link einfügen“.
+
+**„Zuletzt hier: YouTube-Video“** geht in beiden Fällen: Ein auf der YouTube-Seite geöffnetes Video (`/watch?v=…`)
+wird am Dokument gemerkt (nur auf dem Gerät, `DocumentVideoRecord.onYouTube`) und öffnet wieder auf der YouTube-Seite;
+ein eingefügter Link öffnet wie bisher im eingebetteten Player mit Startzeit. Kurzvideos, Kanäle und Suchen werden
+nicht gemerkt. Die Stelle im Video merkt die App bei YouTube-Seiten nicht (dafür müsste sie in die Seite hineinlesen).
+
+### Entscheidung: Datenspeicher
+
+Die YouTube-Spalte nutzt **denselben eigenen, dauerhaften Speicher wie die Lernseiten** (`WebSideStore`, je
+Nutzer-Datenbereich, getrennt von den Hochschul-Anmeldungen und vom Standardspeicher; wird mit dem Datenbereich
+gelöscht). Gründe: Die Antwort auf YouTubes Einwilligungsfrage bleibt erhalten – auch ein „Alle ablehnen“ – und muss
+nicht bei jedem Start neu gegeben werden. Ein flüchtiger Speicher würde jedes Mal neu fragen. Weil Anmelden in der
+Spalte nicht geht, hängen die Cookies an keinem Google-Konto. Im Simulator beobachtet: YouTube zeigt nach dem ersten
+Video eine Startseite mit Vorschlägen aus dem bisher Angesehenen – YouTube erkennt das Gerät also über seine Cookies
+wieder. Dagegen gibt es in der Spalte unter „…“ **„YouTube-Daten löschen“** (entfernt Cookies und gespeicherte Daten
+von YouTube/Google aus diesem Speicher; Lernseiten bleiben). An den StudiNow-Dienst geht weiterhin nichts.
+
+### Abspielen
+
+Inline in der Spalte (kein erzwungenes Vollbild), Bild-in-Bild erlaubt, Vollbild über den Knopf des Players möglich
+(`isElementFullscreenEnabled`), mobile Fassung der Seite (`preferredContentMode = .mobile`, sonst fragt das iPad wie
+ein Mac und bekäme die breite Seite). Das Video läuft weiter, während man im Dokument schreibt. Ton bei geschlossener
+App: nein – die App hat keine Hintergrund-Freigabe für Ton, und YouTube erlaubt Hintergrund-Wiedergabe nur mit Premium.
+
+### Was gleich bleibt
+
+- „YouTube-Link einfügen“ (kleiner, als zweite Möglichkeit) mit eingebettetem Player `youtube-nocookie.com`, Startzeit
+  und `VideoSidePolicy` – unverändert. Ebenso „Auf YouTube öffnen (außerhalb der App)“ und die Aufzeichnungen der Kurse.
+- Lernseiten: Liste, `LearningSitePolicy`, kein Eintrag „YouTube“ in `learning-sites.json` (der Test verbietet ihn weiter).
+- Tarif: Plus wie „Übung und Skript nebeneinander“. Nichts an den Dienst, kein Abgleich zwischen Geräten.
+
+### Was vor einer Einreichung zu klären ist (nicht geändert, nur benannt)
+
+- **Altersfreigabe / Prüfhinweis:** Der Vorschlag für den Prüfhinweis in Abschnitt 4 („a single YouTube video …
+  There is no … web search“) stimmt so nicht mehr. Siehe Bericht vom 17.11.2026 zu „Uneingeschränkter Webzugang“,
+  „Nutzergenerierte Inhalte“ und „Werbung“.
+- **Datenschutzerklärung:** Sie nennt YouTube bisher nicht. Der Textvorschlag in Abschnitt 5 beschreibt nur den
+  eingebetteten Player; für „YouTube öffnen“ braucht es zusätzlich: Die App lädt die Seite von YouTube
+  (`youtube.com`), nicht nur den Player im erweiterten Datenschutzmodus; YouTube setzt Cookies nach seiner eigenen
+  Einwilligungsabfrage; sie bleiben auf dem Gerät in einem eigenen Speicher, bis der Nutzer sie löscht.
+- **Nutzungsbedingungen von YouTube** (Seite in einer Web-Ansicht, Funktion hinter Plus): siehe Bericht.
+
+### Tests und Bilder (17.11.2026)
+
+- `VideoLearningSitesAppTests` (Regeln: YouTube erlaubt, fremde Seiten außerhalb, Täuschungs-Hosts, unsichere
+  Adressen, Anmeldung, Rahmen und Unterressourcen, Merken, Hinweis, Web-Ansicht, iPhone-Texte) und `IPhoneReaderTests`
+  (Knopf, Auswahl, Hinweis über dem Dokument ohne Web-Ansicht, Tarifwahl ohne Plus).
+- `UniFlowUITests/WebSideUITests`: `testYouTubeBesideDocument` (iPad) und `testYouTubeAboveReaderOnPhone` (iPhone) mit
+  echtem Netz. Sie hängen an den deutschen Beschriftungen der YouTube-Seite.
+- Bilder: `~/Studora-Builds/aufraeumen-17-11/youtube/`.

@@ -181,7 +181,7 @@ struct YouTubeSidePane: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(YouTubeNotice.title).ufFont(17, 650, em: -0.01).foregroundStyle(UF.text)
                 Text(YouTubeNotice.text).ufFont(14.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-                Text(YouTubeNotice.detail).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                // Knoepfe vor dem Zusatz: am iPhone (halbe Hoehe ueber dem Dokument) bleiben sie ohne Blaettern sichtbar
                 HStack(spacing: 8) {
                     UFButton("Öffnen", icon: "play", kind: .primary) {
                         YouTubeNotice.accept(defaults: Self.defaults)
@@ -191,7 +191,7 @@ struct YouTubeSidePane: View {
                     UFButton("Abbrechen", action: onClose)
                         .accessibilityIdentifier("youtube.noticeCancel")
                 }
-                .padding(.top, 4)
+                Text(YouTubeNotice.detail).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
             .padding(18)
             .frame(maxWidth: 460, alignment: .leading)
