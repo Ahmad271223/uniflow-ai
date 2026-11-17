@@ -4,6 +4,8 @@ import UniFlowCore
 
 // Video und Lernseiten neben dem Dokument (Wunsch des Inhabers 14.11.2026, docs/VIDEO-LERNSEITEN-2026-11-14.md).
 // Entscheidung des Inhabers: nur Lernseiten, KEIN freier Browser ("Uneingeschraenkter Webzugang" bleibt nein).
+// Auftrag 17.11.2026: YouTube selbst in der Spalte oeffnen (suchen, ansehen), weiter ohne Adresszeile und nur YouTube
+// (`YouTubeSidePolicy`); der eingefuegte Link bleibt als zweiter Weg.
 // Hier nur reine Regeln (ohne WebKit), damit sie sich vollstaendig testen lassen: welcher Link ein Video ist, welche
 // Navigation in der Spalte bleiben darf, welche Lernseiten es gibt.
 
@@ -90,6 +92,11 @@ struct VideoLink: Equatable, Hashable, Codable, Sendable {
         URL(string: "https://www.youtube.com/watch?v=\(videoID)" + (start > 0 ? "&t=\(start)s" : ""))!
     }
 
+    /// Dasselbe Video auf der mobilen YouTube-Seite (Spalte "YouTube", `YouTubeSidePolicy`)
+    var mobileWatchURL: URL {
+        URL(string: "https://m.youtube.com/watch?v=\(videoID)" + (start > 0 ? "&t=\(start)s" : ""))!
+    }
+
     /// Kleine Player-Seite: nur das iframe des offiziellen Players, sonst nichts (kein Skript der App in der Seite)
     var playerHTML: String {
         """
@@ -116,6 +123,8 @@ enum WebSideDecision: Equatable {
     case openOutside(URL)
     /// nicht laden, nichts tun (z. B. javascript:, Dateien, eingebettete fremde Rahmen)
     case cancel
+    /// nicht laden, Hinweis zeigen: Anmelden (Google-Konto) geht in der Spalte nicht - die App sieht nie ein Passwort
+    case signIn
 }
 
 enum WebSideHosts {
@@ -153,6 +162,100 @@ enum VideoSidePolicy {
         }
         return .allow
     }
+}
+
+// MARK: - YouTube direkt (Auftrag 17.11.2026)
+
+/// Spalte "YouTube": die mobile YouTube-Seite selbst (Start, Suche, Video, Kanal), ohne Adresszeile. Im Hauptrahmen nur
+/// YouTube und dessen Einwilligungsseite; jede andere Seite oeffnet ausserhalb der App. Anmelden (Google-Konto) wird in
+/// der Spalte nie geladen. Eingebettete Rahmen nur von YouTube/Google (Player, Einwilligung, Werbung - sie duerfen nicht
+/// ausgeblendet werden). Bilder, Skripte und Videodaten (ytimg, googlevideo, gstatic) laedt die Seite als
+/// Unterressourcen selbst; dazu fragt WebKit die App nicht.
+enum YouTubeSidePolicy {
+    /// Startseite der Spalte (mobile Seite: passt in eine schmale Spalte)
+    static let start = URL(string: "https://m.youtube.com/")!
+
+    /// Seiten im Hauptrahmen: genau diese Hosts. Andere Unterdomains (music., studio., kids., tv.) sind eigene Dienste
+    /// und oeffnen ausserhalb.
+    static let pageHosts: Set<String> = ["m.youtube.com", "www.youtube.com", "youtube.com", "youtu.be", "consent.youtube.com"]
+
+    /// Eingebettete Rahmen und Unterressourcen von YouTube/Google (Host oder Unterdomain)
+    static let resourceHosts = ["youtube.com", "youtube-nocookie.com", "google.com", "googlevideo.com", "ytimg.com", "ggpht.com",
+                                "gstatic.com", "googleusercontent.com", "doubleclick.net", "googlesyndication.com",
+                                "googleadservices.com"]
+
+    /// Anmeldung bei Google bzw. Kontoverwaltung: Host "accounts.google.*", "accounts.youtube.com", "myaccount.google.com"
+    /// oder der YouTube-Pfad "/signin…"
+    static func isSignIn(_ url: URL) -> Bool {
+        let host = url.host?.lowercased() ?? ""
+        if host.hasPrefix("accounts.google.") || host == "accounts.youtube.com" || host == "myaccount.google.com" { return true }
+        guard pageHosts.contains(host) else { return false }
+        let first = url.path.split(separator: "/").first.map { $0.lowercased() } ?? ""
+        return first.hasPrefix("signin")
+    }
+
+    static func decide(_ url: URL?, mainFrame: Bool) -> WebSideDecision {
+        guard let url else { return .cancel }
+        let scheme = url.scheme?.lowercased() ?? ""
+        if scheme == "about" { return .allow }
+        // javascript:, data:, file:, blob:, App-Schemata: nie laden; Mail und Telefon ausserhalb
+        guard scheme == "https" || scheme == "http" else { return mainFrame ? WebSideHosts.outside(url) : .cancel }
+        if isSignIn(url) { return mainFrame ? .signIn : .cancel }
+        let host = url.host?.lowercased() ?? ""
+        guard mainFrame else {
+            return scheme == "https" && WebSideHosts.matches(host, resourceHosts) ? .allow : .cancel
+        }
+        guard pageHosts.contains(host) else { return .openOutside(url) }
+        // http auf YouTube: in der Spalte nur ueber https (dieselbe Adresse, ausserhalb - wie bei den Lernseiten)
+        if scheme == "http" {
+            guard var c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return .cancel }
+            c.scheme = "https"
+            return c.url.map(WebSideDecision.openOutside) ?? .cancel
+        }
+        // "/redirect?q=…": YouTubes Weiterleitung zu einer fremden Seite (Links in Beschreibungen) - ausserhalb
+        if url.path.split(separator: "/").first?.lowercased() == "redirect" { return .openOutside(url) }
+        return .allow
+    }
+
+    /// Unterressource (Bild, Skript, Videodaten) von YouTube/Google? Nur zur Einordnung und fuer Tests: WebKit laedt
+    /// Unterressourcen ohne Rueckfrage, die App blendet nichts aus (auch keine Werbung).
+    static func isResource(_ url: URL?) -> Bool {
+        guard let url, url.scheme?.lowercased() == "https" else { return false }
+        return WebSideHosts.matches(url.host, resourceHosts)
+    }
+
+    /// Video, das gerade auf der YouTube-Seite offen ist ("/watch?v=…"), zum Merken am Dokument. Kurzvideos (Shorts),
+    /// Kanaele und Suchseiten werden nicht gemerkt.
+    static func watchedVideo(_ url: URL?) -> VideoLink? {
+        guard let url, url.scheme?.lowercased() == "https", let host = url.host?.lowercased(), pageHosts.contains(host),
+              host != "consent.youtube.com", url.path == "/watch" else { return nil }
+        return VideoLink.parse(url.absoluteString)
+    }
+}
+
+/// Ein Besuch der Spalte "YouTube" neben einem Dokument: Startseite oder das zuletzt dort angesehene Video
+struct YouTubeVisit: Equatable, Hashable, Sendable {
+    /// Dokument, an dem das zuletzt angesehene Video gemerkt wird
+    let documentID: String
+    /// zuletzt angesehenes Video ("Zuletzt hier"); nil = Startseite
+    var video: VideoLink?
+
+    var startURL: URL { video?.mobileWatchURL ?? YouTubeSidePolicy.start }
+}
+
+/// Hinweis vor dem ersten "YouTube öffnen" (Daten gehen an Google). Die Entscheidung wird je Container gemerkt, nur auf
+/// dem Geraet. Solange sie fehlt, entsteht keine Web-Ansicht - es geht also vorher nichts an YouTube.
+enum YouTubeNotice {
+    static let key = "uniflow.youtubeDaneben.hinweisOK"
+    static let title = "YouTube öffnen?"
+    static let text = "YouTube ist ein Dienst von Google. Wenn du YouTube öffnest, werden Daten an Google übertragen, "
+        + "zum Beispiel deine IP-Adresse, Angaben zu deinem Gerät und was du suchst und ansiehst. "
+        + "Über Cookies und Einwilligung entscheidest du auf der Seite von YouTube selbst."
+    static let detail = "StudiNow erfährt nicht, was du suchst oder ansiehst. Anmelden mit einem Google-Konto geht hier nicht."
+
+    static func accepted(defaults: UserDefaults?) -> Bool { defaults?.bool(forKey: key) ?? false }
+    static func accept(defaults: UserDefaults?) { defaults?.set(true, forKey: key) }
+    static func reset(defaults: UserDefaults?) { defaults?.removeObject(forKey: key) }
 }
 
 // MARK: - Lernseiten
@@ -245,6 +348,12 @@ enum LearningSites {
 /// (`ContainerManager.websiteDataStore`): keine Uni-Cookies, kein Autologin, keine Zugangsdaten. Kennung aus der UUID
 /// des Containers abgeleitet (feste Zuordnung, beim Loeschen des Containers mit entfernt).
 enum WebSideStore {
+    /// Gespeicherte Daten von YouTube/Google in diesem Speicher (Name eines Eintrags = Domain, z. B. "youtube.com") -
+    /// fuer "YouTube-Daten löschen" in der Spalte
+    static func isYouTubeData(_ domain: String) -> Bool {
+        WebSideHosts.matches(domain.lowercased(), YouTubeSidePolicy.resourceHosts + ["youtu.be"])
+    }
+
     static func identifier(forContainer id: UUID) -> UUID {
         let d = Array(SHA256.hash(data: Data((id.uuidString + "|lernseiten").utf8)))
         var b = Array(d.prefix(16))
@@ -269,6 +378,9 @@ struct DocumentVideoRecord: Codable, Equatable, Sendable {
     var version = 1
     var link: VideoLink
     var marks: [Mark] = []
+    /// auf der YouTube-Seite in der Spalte gefunden (17.11.2026): "Zuletzt hier" oeffnet es wieder dort; nil/false = aus
+    /// einem eingefuegten Link (eingebetteter Player)
+    var onYouTube: Bool?
 }
 
 /// Zuletzt neben einem Dokument geoeffnetes Video, je Dokument in den Einstellungen des Containers (nie an den Dienst,
@@ -285,13 +397,15 @@ enum DocumentVideoLinks {
 
     static func load(_ fileID: String, defaults: UserDefaults?) -> VideoLink? { record(fileID, defaults: defaults)?.link }
 
-    /// Neues Video: Zeitmarken eines anderen Videos fallen weg; dasselbe Video behaelt sie
-    static func save(_ link: VideoLink?, for fileID: String, defaults: UserDefaults?) {
+    /// Neues Video: Zeitmarken eines anderen Videos fallen weg; dasselbe Video behaelt sie. `onYouTube`: auf der
+    /// YouTube-Seite in der Spalte angesehen (sonst eingefuegter Link)
+    static func save(_ link: VideoLink?, for fileID: String, defaults: UserDefaults?, onYouTube: Bool = false) {
         guard let defaults else { return }
         guard let link else { defaults.removeObject(forKey: key(fileID)); return }
         var r = record(fileID, defaults: defaults) ?? DocumentVideoRecord(link: link)
         if r.link.videoID != link.videoID { r.marks = [] }
         r.link = link
+        r.onYouTube = onYouTube ? true : nil
         if let d = try? JSONEncoder().encode(r) { defaults.set(d, forKey: key(fileID)) }
     }
 }
