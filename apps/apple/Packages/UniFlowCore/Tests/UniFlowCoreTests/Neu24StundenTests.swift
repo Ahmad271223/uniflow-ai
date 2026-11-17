@@ -3,9 +3,10 @@ import XCTest
 @testable import UniFlowCore
 
 // "Neu" nur 24 Stunden (Auftrag des Inhabers 17.11.2026: "wenn etwas laenger als 24 Std in der App ist, automatisch
-// nicht mehr neu"). Eine Regel fuer alle Stellen (`LocalLibrary.newFileSQL`): nie geoeffnet UND vor hoechstens 24
-// Stunden eingetragen (`first_seen`). Uebersicht, Modulkarte, Moduldetail, Kurse, Bibliothek, Dateizeilen im Modul und
-// am Termin muessen dasselbe sagen; `seen_by_user` und der Lernstand `status` bleiben unveraendert.
+// nicht mehr neu"). Eine Regel fuer alle Stellen (`LocalLibrary.newFileSQL`): nie geoeffnet, vor hoechstens 24
+// Stunden eingetragen (`first_seen`) und nach dem ersten Einlesen des Kurses dazugekommen (`courses.first_listed_at`,
+// eigene Tests in `NeuNachErstemEinlesenTests`). Uebersicht, Modulkarte, Moduldetail, Kurse, Bibliothek, Dateizeilen im
+// Modul und am Termin muessen dasselbe sagen; `seen_by_user` und der Lernstand `status` bleiben unveraendert.
 final class Neu24StundenTests: XCTestCase {
     /// Dienstag, 17.11.2026 13:20:05 (Berlin)
     private let now = "2026-11-17T13:20:05"
@@ -15,10 +16,14 @@ final class Neu24StundenTests: XCTestCase {
         return try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: UniFlowClock.fixed(berlin: local ?? now)!, files: files)
     }
 
-    /// Ein Kurs "Testanalysis" (Vorlesung) mit den genannten Dateien: (Kennung, first_seen, seen_by_user)
+    /// Ein Kurs "Testanalysis" (Vorlesung) mit den genannten Dateien: (Kennung, first_seen, seen_by_user). Die
+    /// Dateiliste des Kurses wurde am 1.11. zum ersten Mal eingelesen: alles hier kam danach dazu.
     private func seed(_ b: LocalBackend, _ files: [(id: String, firstSeen: String?, seen: Int)]) async throws {
         let db = b.context.database
-        try await db.execute("INSERT INTO courses(id, title, subject, kind, active, semester) VALUES ('k1','Testanalysis','Testanalysis','vorlesung',1,'WiSe 2026/27')")
+        try await db.execute("""
+            INSERT INTO courses(id, title, subject, kind, active, semester, first_listed_at)
+            VALUES ('k1','Testanalysis','Testanalysis','vorlesung',1,'WiSe 2026/27','2026-11-01T08:00:00')
+            """)
         for f in files {
             try await db.execute("""
                 INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen, status, seen_by_user, kind)
@@ -66,7 +71,8 @@ final class Neu24StundenTests: XCTestCase {
         // wirkliche 24 Stunden ueber die Zeitumstellung (25.10.2026, 3 Uhr -> 2 Uhr): 14:30 Winterzeit - 24 h = 15:30 Sommerzeit
         XCTAssertEqual(LocalLibrary.newSince(UniFlowClock.fixed(berlin: "2026-10-25T14:30:05")!), "2026-10-24T15:30:05")
         XCTAssertEqual(LocalLibrary.newFileSQL(since: "2026-11-16T13:20:05"),
-                       "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='2026-11-16T13:20:05')")
+                       "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='2026-11-16T13:20:05' "
+                       + "AND (f.id LIKE 'demo-%' OR f.first_seen>(SELECT k.first_listed_at FROM courses k WHERE k.id=f.course_id)))")
         XCTAssertEqual(LocalLibrary.newFileSQL(UniFlowClock.fixed(berlin: now)!), LocalLibrary.newFileSQL(since: "2026-11-16T13:20:05"))
     }
 

@@ -781,6 +781,9 @@
        "file_count": {
         "type": "number"
        },
+       "first_listed_at": {
+        "type": "null"
+       },
        "id": {
         "type": "string"
        },

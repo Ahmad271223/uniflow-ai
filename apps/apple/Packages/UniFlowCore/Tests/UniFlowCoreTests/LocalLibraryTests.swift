@@ -450,11 +450,15 @@ final class LocalAnnotationsTests: XCTestCase {
             XCTAssertFalse(route.placeholder, "\(m) \(p)")
         }
         // Uebersicht seit S6 echt (StudyEndpoints), mit den neuen Dateien aus S3. "Neu" nur 24 Stunden nach dem
-        // Eintragen (`LocalLibrary.newFileSQL`, 17.11.2026): ohne `first_seen` ist die Datei nicht neu
+        // Eintragen und nur, was nach dem ersten Einlesen des Kurses kam (`LocalLibrary.newFileSQL`, 17.11.2026):
+        // ohne `first_seen` oder ohne eingelesene Liste ist die Datei nicht neu
         XCTAssertEqual(b.route(method: "GET", path: "/api/dashboard")?.placeholder, false)
         let old = await b.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
         XCTAssertEqual(old.json?["new_total"], 0)
         try await b.context.database.execute("UPDATE files SET first_seen='2026-10-25T09:00:00' WHERE id='d1'")
+        let unlisted = await b.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
+        XCTAssertEqual(unlisted.json?["new_total"], 0)
+        try await b.context.database.execute("UPDATE courses SET first_listed_at='2026-10-24T09:00:00' WHERE id='k1'")
         let dash = await b.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
         XCTAssertEqual(dash.json?["new_total"], 1)
         XCTAssertEqual(dash.json?["new_files"]?.array?.first?["id"], "d1")

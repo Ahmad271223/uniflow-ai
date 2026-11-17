@@ -105,6 +105,16 @@ public enum UniStore {
                                     today: today ?? PyText.slice(now, 0, 10))
     }
 
+    /// `mark_first_listing`: die Dateiliste dieses Kurses ist zum ersten Mal vollstaendig eingelesen (auch eine leere):
+    /// Zeitpunkt merken, genau einmal (`courses.first_listed_at`). "Neu" ist nur, was danach dazukommt
+    /// (`LocalLibrary.newFileSQL`); was beim ersten Einlesen schon da war, gilt nicht als neu. `now` ist derselbe
+    /// Zeitpunkt, den `storeFiles` als `first_seen` schreibt. Bricht ein Abgleich mitten im Kurs ab, setzt erst der
+    /// naechste vollstaendige Lauf den Zeitpunkt - die Reste waren dann "schon da". Aufgerufen aus
+    /// `SyncPending.markListed` (Stud.IP-Abgleich der App und `HildesheimSync`, je Kurs nach vollstaendiger Liste).
+    public static func markFirstListing(_ conn: SQLiteConnection, courseID: String, now: String) throws {
+        try conn.execute("UPDATE courses SET first_listed_at=? WHERE id=? AND first_listed_at IS NULL", [.text(now), .text(courseID)])
+    }
+
     /// Erster Teil von `store_course_files`: Dateizeilen eines Kurses schreiben. Rueckgabe in Reihenfolge der Liste:
     /// Dateien, die (neu) geladen werden muessen, weil sie neu sind, eine neuere Fassung haben (`versionStamp`:
     /// Aenderungszeit, beim Learnweb ueber die Sitzung die Revision), ohne Ablageort oder lokal verschwunden

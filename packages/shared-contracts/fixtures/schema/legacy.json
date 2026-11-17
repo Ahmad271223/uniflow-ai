@@ -1,5 +1,6 @@
 {
   "generator": "tools/gen-schema-fixture.py",
+  "now": "2026-10-25T14:30:05",
   "setup_sql": [
     "CREATE TABLE courses (id TEXT PRIMARY KEY, title TEXT NOT NULL, number TEXT, semester TEXT, subject TEXT, kind TEXT,",
     "                      active INTEGER DEFAULT 1, test_minutes INTEGER DEFAULT 90, created_at TEXT);",
@@ -13,6 +14,8 @@
     "                    duration_min INTEGER, questions TEXT NOT NULL, created_at TEXT, started_at TEXT, submitted_at TEXT,",
     "                    answers TEXT, score REAL, max_score REAL, feedback TEXT);",
     "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);",
+    "CREATE TABLE sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT, finished_at TEXT, ok INTEGER,",
+    "                       new_files INTEGER DEFAULT 0, message TEXT);",
     "CREATE TABLE modules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, semester TEXT, color TEXT, icon TEXT,",
     "                      priority INTEGER DEFAULT 2, exam_date TEXT, sort INTEGER DEFAULT 0, created_at TEXT);",
     "CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, subject TEXT, question TEXT NOT NULL,",
@@ -21,16 +24,19 @@
     "INSERT INTO courses(id, title, kind, created_at) VALUES ('k1', 'Testkurs Algebra', 'vorlesung', '2026-09-30T08:00:00');",
     "INSERT INTO courses(id, title, kind, active, created_at) VALUES ('k2', 'Testkurs Algebra Uebung', 'uebung', 0, '2026-09-30T08:01:00');",
     "INSERT INTO courses(id, title, kind, created_at) VALUES ('__user__', 'Eigene Dokumente', 'sonstiges', '2026-09-01T07:00:00');",
-    "INSERT INTO files(id, course_id, name, size, mime, chdate, status) VALUES ('f1', 'k1', 'Folien_01.pdf', 1024, 'application/pdf', 1760000000, 'gelesen');",
+    "INSERT INTO files(id, course_id, name, size, mime, chdate, status, first_seen) VALUES ('f1', 'k1', 'Folien_01.pdf', 1024, 'application/pdf', 1760000000, 'gelesen', '2026-10-01T09:00:00');",
     "INSERT INTO files(id, course_id, name, mime, studip_folder) VALUES ('f2', 'k2', 'blatt1.py', 'text/x-python', 'Uebungen');",
     "INSERT INTO files(id, course_id, name, mime) VALUES ('f3', 'k2', 'Skizze.PNG', 'image/png');",
-    "INSERT INTO files(id, course_id, name) VALUES ('f4', 'k1', 'archiv.zip');",
+    "INSERT INTO files(id, course_id, name, first_seen) VALUES ('f4', 'k1', 'archiv.zip', '2026-10-05T09:00:00');",
     "INSERT INTO files(id, course_id, name) VALUES ('f5', 'k1', 'Tafel.JPeG');",
     "INSERT INTO files(id, course_id, name) VALUES ('f6', 'k1', 'Altklausur.PDF');",
     "INSERT INTO files(id, course_id, name) VALUES ('u1', '__user__', 'Mein Notizbuch');",
     "INSERT INTO annotations(file_id, data, updated_at, version) VALUES ('f1', '{\"version\":2,\"pages\":{}}', '2026-10-02T10:00:00', 3);",
     "INSERT INTO annotations(file_id, data, updated_at) VALUES ('f6', '{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}', '2026-10-03T11:00:00');",
     "INSERT INTO tests(subject, title, duration_min, questions, score) VALUES ('Algebra', 'Probetest', 45, '[]', 7.5);",
+    "INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES ('2026-10-01T09:00:00', '2026-10-01T09:05:00', 0, 0, 'Stud.IP nicht erreichbar');",
+    "INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES ('2026-10-02T09:00:00', '2026-10-02T09:04:00', 1, 1, '1 neue/geaenderte Dateien');",
+    "INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES ('2026-10-05T09:00:00', '2026-10-05T09:03:00', 1, 1, '1 neue/geaenderte Dateien');",
     "INSERT INTO settings(key, value) VALUES ('hours_per_day', '6');",
     "INSERT INTO settings(key, value) VALUES ('user_name', 'Testperson');",
     "INSERT INTO settings(key, value) VALUES ('eigener_schluessel', 'x');",
@@ -160,7 +166,8 @@
           {"name": "semester_ends_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "description", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "miscellaneous", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "miscellaneous", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "first_listed_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -924,15 +931,15 @@
   },
   "rows": {
     "courses": [
-      {"id": "k1", "title": "Testkurs Algebra", "number": null, "semester": null, "subject": null, "kind": "vorlesung", "active": 1, "test_minutes": 90, "created_at": "2026-09-30T08:00:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null},
-      {"id": "k2", "title": "Testkurs Algebra Uebung", "number": null, "semester": null, "subject": null, "kind": "uebung", "active": 0, "test_minutes": 90, "created_at": "2026-09-30T08:01:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null},
-      {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "created_at": "2026-09-01T07:00:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null}
+      {"id": "k1", "title": "Testkurs Algebra", "number": null, "semester": null, "subject": null, "kind": "vorlesung", "active": 1, "test_minutes": 90, "created_at": "2026-09-30T08:00:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null, "first_listed_at": "2026-10-02T09:04:00"},
+      {"id": "k2", "title": "Testkurs Algebra Uebung", "number": null, "semester": null, "subject": null, "kind": "uebung", "active": 0, "test_minutes": 90, "created_at": "2026-09-30T08:01:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null, "first_listed_at": "2026-10-25T14:30:05"},
+      {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "created_at": "2026-09-01T07:00:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null, "first_listed_at": null}
     ],
     "files": [
-      {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": "2026-10-01T09:00:00", "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
       {"id": "f2", "course_id": "k2", "name": "blatt1.py", "size": null, "mime": "text/x-python", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": "Uebungen", "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
       {"id": "f3", "course_id": "k2", "name": "Skizze.PNG", "size": null, "mime": "image/png", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
-      {"id": "f4", "course_id": "k1", "name": "archiv.zip", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f4", "course_id": "k1", "name": "archiv.zip", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": "2026-10-05T09:00:00", "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
       {"id": "f5", "course_id": "k1", "name": "Tafel.JPeG", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
       {"id": "f6", "course_id": "k1", "name": "Altklausur.PDF", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
       {"id": "u1", "course_id": "__user__", "name": "Mein Notizbuch", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null}

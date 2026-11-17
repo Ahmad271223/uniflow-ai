@@ -466,6 +466,16 @@ CREATE TABLE IF NOT EXISTS sync_log (
 # (bei jedem Start, nur fehlende); woertlich auch in Migrations.swift
 FILE_DONE_BACKFILL = ("INSERT OR IGNORE INTO settings(key, value) SELECT 'file_done:' || id, '1' FROM files "
                       "WHERE status = 'erledigt'")
+# "Neu" erst nach dem ersten Einlesen (17.11.2026, study.new_file_sql): `courses.first_listed_at` ist der Zeitpunkt, an
+# dem die Dateiliste des Kurses zum ersten Mal vollstaendig eingelesen wurde (auch wenn sie leer war); gesetzt genau
+# einmal (studip_sync.mark_first_listing). Neu ist nur, was danach dazukommt. Einmalig beim Anlegen der Spalte fuer
+# Kurse, die es schon gibt: das Ende des ersten erfolgreichen Abgleichs, der nach der ersten Datei des Kurses fertig
+# wurde (was bis dahin kam, war "schon da"; was ein spaeterer Abgleich brachte, kann neu bleiben); ohne Dateien oder
+# ohne solchen Abgleich der Zeitpunkt der Umstellung. Niemand sieht nach dem Update ploetzlich hunderte neue Dateien.
+# Woertlich auch in Migrations.swift.
+FIRST_LISTED_BACKFILL = ("UPDATE courses SET first_listed_at = COALESCE((SELECT MIN(s.finished_at) FROM sync_log s "
+                         "WHERE s.ok = 1 AND s.finished_at >= (SELECT MIN(f.first_seen) FROM files f WHERE f.course_id = courses.id)), ?) "
+                         "WHERE first_listed_at IS NULL AND id <> '__user__'")
 # Einstellungen mit diesem Praefix sind Haken je Datei, keine Einstellungen (get_settings laesst sie weg)
 FILE_DONE_PREFIX = "file_done:"
 
@@ -821,6 +831,9 @@ def _init_db(conn) -> None:
     add_col("study_tasks", "page_to", "INTEGER")
     add_col("study_tasks", "steps", "TEXT")
     add_col("study_tasks", "steps_done", "TEXT")
+    # "Neu" erst nach dem ersten Einlesen eines Kurses (17.11.2026): Zeitpunkt je Kurs, Bestand einmalig nachtragen
+    if add_column(conn, "courses", "first_listed_at", "TEXT"):
+        conn.execute(FIRST_LISTED_BACKFILL, (now_iso(),))
     conn.execute(FILE_DONE_BACKFILL)
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)

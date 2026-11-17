@@ -2672,7 +2672,7 @@
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-ma-v",
     "Testmathematik I",
@@ -2681,11 +2681,12 @@
     "Testmathematik I",
     "vorlesung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-ma-gu",
     "Gruppenübung Testmathematik I",
@@ -2694,11 +2695,12 @@
     "Testmathematik I",
     "gruppenuebung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-ma-fs",
     "Testmathematik I - Fragestunden",
@@ -2707,11 +2709,12 @@
     "Testmathematik I",
     "uebung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-ma-zu",
     "Zentralübung Testmathematik I",
@@ -2720,11 +2723,12 @@
     "Testmathematik I",
     "hoersaaluebung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-bt-v",
     "12345 Grundlagen der Beispieltechnik (Tranche A)",
@@ -2733,11 +2737,12 @@
     "Grundlagen der Beispieltechnik",
     "vorlesung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-bt-u",
     "Übung zu Grundlagen der Beispieltechnik",
@@ -2746,11 +2751,12 @@
     "Grundlagen der Beispieltechnik",
     "uebung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-pi-v",
     "Probeinformatik",
@@ -2759,11 +2765,12 @@
     "Probeinformatik",
     "vorlesung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-pi-t",
     "Tutorium Probeinformatik",
@@ -2772,11 +2779,12 @@
     "Probeinformatik",
     "tutorium",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-erst",
     "Begrüßung der Erstsemester",
@@ -2785,11 +2793,12 @@
     "Begrüßung der Erstsemester",
     "sonstiges",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-alt",
     "Altes Fach vom Sommer",
@@ -2798,11 +2807,12 @@
     "Altes Fach vom Sommer",
     "vorlesung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-inaktiv",
     "Inaktiver Testkurs",
@@ -2811,11 +2821,12 @@
     "Inaktiver Testkurs",
     "vorlesung",
     0,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-leer",
     "Übung",
@@ -2824,11 +2835,12 @@
     "",
     "uebung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-pt-v",
     "Grundlagen der Prüfungstechnik",
@@ -2837,11 +2849,12 @@
     "Grundlagen der Prüfungstechnik",
     "vorlesung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
-   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    [
     "k-pt-u",
     "Übung zu Grundlagen der Prüfungstechnik",
@@ -2850,7 +2863,8 @@
     "Grundlagen der Prüfungstechnik",
     "uebung",
     1,
-    "2026-10-01T08:00:00"
+    "2026-10-01T08:00:00",
+    "2026-10-20T08:00:00"
    ]
   ],
   [
@@ -7540,6 +7554,99 @@
         "auto_label": "Klausuren & Altklausuren"
        }
       ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:0",
+        "week": 0,
+        "label": "Vor Vorlesungsbeginn"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-2",
+        "week": -2,
+        "label": "Klausuren & Altklausuren"
+       }
+      ],
+      "layout_custom": false,
       "files": [
        {
         "id": "f-ma-11",
@@ -8038,100 +8145,7 @@
         "section": "w:1",
         "placed": false
        }
-      ],
-      "targets": [
-       {
-        "key": "w:-4",
-        "week": -4,
-        "label": "Nicht zugeordnet"
-       },
-       {
-        "key": "w:-3",
-        "week": -3,
-        "label": "Allgemein"
-       },
-       {
-        "key": "w:0",
-        "week": 0,
-        "label": "Vor Vorlesungsbeginn"
-       },
-       {
-        "key": "w:1",
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10."
-       },
-       {
-        "key": "w:2",
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10."
-       },
-       {
-        "key": "w:3",
-        "week": 3,
-        "label": "Woche 3 · 26.10. – 01.11."
-       },
-       {
-        "key": "w:4",
-        "week": 4,
-        "label": "Woche 4 · 02.11. – 08.11."
-       },
-       {
-        "key": "w:5",
-        "week": 5,
-        "label": "Woche 5 · 09.11. – 15.11."
-       },
-       {
-        "key": "w:6",
-        "week": 6,
-        "label": "Woche 6 · 16.11. – 22.11."
-       },
-       {
-        "key": "w:7",
-        "week": 7,
-        "label": "Woche 7 · 23.11. – 29.11."
-       },
-       {
-        "key": "w:8",
-        "week": 8,
-        "label": "Woche 8 · 30.11. – 06.12."
-       },
-       {
-        "key": "w:9",
-        "week": 9,
-        "label": "Woche 9 · 07.12. – 13.12."
-       },
-       {
-        "key": "w:10",
-        "week": 10,
-        "label": "Woche 10 · 14.12. – 20.12."
-       },
-       {
-        "key": "w:11",
-        "week": 11,
-        "label": "Woche 11 · 21.12. – 27.12."
-       },
-       {
-        "key": "w:12",
-        "week": 12,
-        "label": "Woche 12 · 28.12. – 03.01."
-       },
-       {
-        "key": "w:13",
-        "week": 13,
-        "label": "Woche 13 · 04.01. – 10.01."
-       },
-       {
-        "key": "w:14",
-        "week": 14,
-        "label": "Woche 14 · 11.01. – 17.01."
-       },
-       {
-        "key": "w:-2",
-        "week": -2,
-        "label": "Klausuren & Altklausuren"
-       }
-      ],
-      "layout_custom": false
+      ]
      }
     },
     {
@@ -8548,6 +8562,94 @@
         "auto_label": "Ältere Unterlagen"
        }
       ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false,
       "files": [
        {
         "id": "f-bt-08",
@@ -8896,95 +8998,7 @@
         "section": "w:1",
         "placed": false
        }
-      ],
-      "targets": [
-       {
-        "key": "w:-4",
-        "week": -4,
-        "label": "Nicht zugeordnet"
-       },
-       {
-        "key": "w:-3",
-        "week": -3,
-        "label": "Allgemein"
-       },
-       {
-        "key": "w:1",
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10."
-       },
-       {
-        "key": "w:2",
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10."
-       },
-       {
-        "key": "w:3",
-        "week": 3,
-        "label": "Woche 3 · 26.10. – 01.11."
-       },
-       {
-        "key": "w:4",
-        "week": 4,
-        "label": "Woche 4 · 02.11. – 08.11."
-       },
-       {
-        "key": "w:5",
-        "week": 5,
-        "label": "Woche 5 · 09.11. – 15.11."
-       },
-       {
-        "key": "w:6",
-        "week": 6,
-        "label": "Woche 6 · 16.11. – 22.11."
-       },
-       {
-        "key": "w:7",
-        "week": 7,
-        "label": "Woche 7 · 23.11. – 29.11."
-       },
-       {
-        "key": "w:8",
-        "week": 8,
-        "label": "Woche 8 · 30.11. – 06.12."
-       },
-       {
-        "key": "w:9",
-        "week": 9,
-        "label": "Woche 9 · 07.12. – 13.12."
-       },
-       {
-        "key": "w:10",
-        "week": 10,
-        "label": "Woche 10 · 14.12. – 20.12."
-       },
-       {
-        "key": "w:11",
-        "week": 11,
-        "label": "Woche 11 · 21.12. – 27.12."
-       },
-       {
-        "key": "w:12",
-        "week": 12,
-        "label": "Woche 12 · 28.12. – 03.01."
-       },
-       {
-        "key": "w:13",
-        "week": 13,
-        "label": "Woche 13 · 04.01. – 10.01."
-       },
-       {
-        "key": "w:14",
-        "week": 14,
-        "label": "Woche 14 · 11.01. – 17.01."
-       },
-       {
-        "key": "w:-1",
-        "week": -1,
-        "label": "Ältere Unterlagen"
-       }
-      ],
-      "layout_custom": false
+      ]
      }
     },
     {
@@ -9013,13 +9027,6 @@
       },
       "courses": [],
       "weeks": [],
-      "files": [],
-      "progress": 0,
-      "mastery": null,
-      "new_count": 0,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": [],
       "targets": [
        {
         "key": "w:-4",
@@ -9102,7 +9109,14 @@
         "label": "Woche 14 · 11.01. – 17.01."
        }
       ],
-      "layout_custom": false
+      "layout_custom": false,
+      "files": [],
+      "progress": 0,
+      "mastery": null,
+      "new_count": 0,
+      "open_tasks": 0,
+      "next_package": null,
+      "notes": []
      }
     },
     {
@@ -9364,6 +9378,99 @@
         "auto_label": "Klausuren & Altklausuren"
        }
       ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:27",
+        "week": 27,
+        "label": "Woche 27 · 12.04. – 18.04."
+       },
+       {
+        "key": "w:-2",
+        "week": -2,
+        "label": "Klausuren & Altklausuren"
+       }
+      ],
+      "layout_custom": false,
       "files": [
        {
         "id": "f-pi-01",
@@ -9521,100 +9628,7 @@
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
-      "notes": [],
-      "targets": [
-       {
-        "key": "w:-4",
-        "week": -4,
-        "label": "Nicht zugeordnet"
-       },
-       {
-        "key": "w:-3",
-        "week": -3,
-        "label": "Allgemein"
-       },
-       {
-        "key": "w:1",
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10."
-       },
-       {
-        "key": "w:2",
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10."
-       },
-       {
-        "key": "w:3",
-        "week": 3,
-        "label": "Woche 3 · 26.10. – 01.11."
-       },
-       {
-        "key": "w:4",
-        "week": 4,
-        "label": "Woche 4 · 02.11. – 08.11."
-       },
-       {
-        "key": "w:5",
-        "week": 5,
-        "label": "Woche 5 · 09.11. – 15.11."
-       },
-       {
-        "key": "w:6",
-        "week": 6,
-        "label": "Woche 6 · 16.11. – 22.11."
-       },
-       {
-        "key": "w:7",
-        "week": 7,
-        "label": "Woche 7 · 23.11. – 29.11."
-       },
-       {
-        "key": "w:8",
-        "week": 8,
-        "label": "Woche 8 · 30.11. – 06.12."
-       },
-       {
-        "key": "w:9",
-        "week": 9,
-        "label": "Woche 9 · 07.12. – 13.12."
-       },
-       {
-        "key": "w:10",
-        "week": 10,
-        "label": "Woche 10 · 14.12. – 20.12."
-       },
-       {
-        "key": "w:11",
-        "week": 11,
-        "label": "Woche 11 · 21.12. – 27.12."
-       },
-       {
-        "key": "w:12",
-        "week": 12,
-        "label": "Woche 12 · 28.12. – 03.01."
-       },
-       {
-        "key": "w:13",
-        "week": 13,
-        "label": "Woche 13 · 04.01. – 10.01."
-       },
-       {
-        "key": "w:14",
-        "week": 14,
-        "label": "Woche 14 · 11.01. – 17.01."
-       },
-       {
-        "key": "w:27",
-        "week": 27,
-        "label": "Woche 27 · 12.04. – 18.04."
-       },
-       {
-        "key": "w:-2",
-        "week": -2,
-        "label": "Klausuren & Altklausuren"
-       }
-      ],
-      "layout_custom": false
+      "notes": []
      }
     },
     {
@@ -9729,74 +9743,6 @@
         "auto_label": "Ältere Unterlagen"
        }
       ],
-      "files": [
-       {
-        "id": "f-alt-01",
-        "name": "VL01.pdf",
-        "chdate": 1776153600,
-        "status": "erledigt",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-alt",
-        "studip_folder": "Vorlesung",
-        "content_sha256": null,
-        "course_title": "Altes Fach vom Sommer",
-        "course_kind": "vorlesung",
-        "subject": "Altes Fach vom Sommer",
-        "module_id": 5,
-        "doc_type": "vorlesung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": 1,
-        "source": "studip",
-        "is_new": 0,
-        "section": "w:-1",
-        "placed": false
-       },
-       {
-        "id": "f-alt-02",
-        "name": "Blatt 1.pdf",
-        "chdate": 1776672000,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-alt",
-        "studip_folder": null,
-        "content_sha256": null,
-        "course_title": "Altes Fach vom Sommer",
-        "course_kind": "vorlesung",
-        "subject": "Altes Fach vom Sommer",
-        "module_id": 5,
-        "doc_type": "uebung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Übung",
-        "week_hint": 1,
-        "source": "studip",
-        "is_new": 0,
-        "section": "w:-1",
-        "placed": false
-       }
-      ],
-      "progress": 50,
-      "mastery": null,
-      "new_count": 0,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": [],
       "targets": [
        {
         "key": "w:-4",
@@ -9884,7 +9830,75 @@
         "label": "Ältere Unterlagen"
        }
       ],
-      "layout_custom": false
+      "layout_custom": false,
+      "files": [
+       {
+        "id": "f-alt-01",
+        "name": "VL01.pdf",
+        "chdate": 1776153600,
+        "status": "erledigt",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-alt",
+        "studip_folder": "Vorlesung",
+        "content_sha256": null,
+        "course_title": "Altes Fach vom Sommer",
+        "course_kind": "vorlesung",
+        "subject": "Altes Fach vom Sommer",
+        "module_id": 5,
+        "doc_type": "vorlesung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Vorlesung",
+        "week_hint": 1,
+        "source": "studip",
+        "is_new": 0,
+        "section": "w:-1",
+        "placed": false
+       },
+       {
+        "id": "f-alt-02",
+        "name": "Blatt 1.pdf",
+        "chdate": 1776672000,
+        "status": "neu",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-alt",
+        "studip_folder": null,
+        "content_sha256": null,
+        "course_title": "Altes Fach vom Sommer",
+        "course_kind": "vorlesung",
+        "subject": "Altes Fach vom Sommer",
+        "module_id": 5,
+        "doc_type": "uebung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Übung",
+        "week_hint": 1,
+        "source": "studip",
+        "is_new": 0,
+        "section": "w:-1",
+        "placed": false
+       }
+      ],
+      "progress": 50,
+      "mastery": null,
+      "new_count": 0,
+      "open_tasks": 0,
+      "next_package": null,
+      "notes": []
      }
     },
     {
@@ -9920,13 +9934,6 @@
        }
       ],
       "weeks": [],
-      "files": [],
-      "progress": 0,
-      "mastery": null,
-      "new_count": 0,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": [],
       "targets": [
        {
         "key": "w:-4",
@@ -10009,7 +10016,14 @@
         "label": "Woche 14 · 11.01. – 17.01."
        }
       ],
-      "layout_custom": false
+      "layout_custom": false,
+      "files": [],
+      "progress": 0,
+      "mastery": null,
+      "new_count": 0,
+      "open_tasks": 0,
+      "next_package": null,
+      "notes": []
      }
     },
     {
@@ -10045,13 +10059,6 @@
        }
       ],
       "weeks": [],
-      "files": [],
-      "progress": 0,
-      "mastery": null,
-      "new_count": 0,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": [],
       "targets": [
        {
         "key": "w:-4",
@@ -10134,7 +10141,14 @@
         "label": "Woche 14 · 11.01. – 17.01."
        }
       ],
-      "layout_custom": false
+      "layout_custom": false,
+      "files": [],
+      "progress": 0,
+      "mastery": null,
+      "new_count": 0,
+      "open_tasks": 0,
+      "next_package": null,
+      "notes": []
      }
     },
     {
@@ -11054,6 +11068,99 @@
         "auto_label": "Klausuren & Altklausuren"
        }
       ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:0",
+        "week": 0,
+        "label": "Vor Vorlesungsbeginn"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-2",
+        "week": -2,
+        "label": "Klausuren & Altklausuren"
+       }
+      ],
+      "layout_custom": false,
       "files": [
        {
         "id": "f-ma-11",
@@ -11549,100 +11656,7 @@
         "section": "w:1",
         "placed": false
        }
-      ],
-      "targets": [
-       {
-        "key": "w:-4",
-        "week": -4,
-        "label": "Nicht zugeordnet"
-       },
-       {
-        "key": "w:-3",
-        "week": -3,
-        "label": "Allgemein"
-       },
-       {
-        "key": "w:0",
-        "week": 0,
-        "label": "Vor Vorlesungsbeginn"
-       },
-       {
-        "key": "w:1",
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10."
-       },
-       {
-        "key": "w:2",
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10."
-       },
-       {
-        "key": "w:3",
-        "week": 3,
-        "label": "Woche 3 · 26.10. – 01.11."
-       },
-       {
-        "key": "w:4",
-        "week": 4,
-        "label": "Woche 4 · 02.11. – 08.11."
-       },
-       {
-        "key": "w:5",
-        "week": 5,
-        "label": "Woche 5 · 09.11. – 15.11."
-       },
-       {
-        "key": "w:6",
-        "week": 6,
-        "label": "Woche 6 · 16.11. – 22.11."
-       },
-       {
-        "key": "w:7",
-        "week": 7,
-        "label": "Woche 7 · 23.11. – 29.11."
-       },
-       {
-        "key": "w:8",
-        "week": 8,
-        "label": "Woche 8 · 30.11. – 06.12."
-       },
-       {
-        "key": "w:9",
-        "week": 9,
-        "label": "Woche 9 · 07.12. – 13.12."
-       },
-       {
-        "key": "w:10",
-        "week": 10,
-        "label": "Woche 10 · 14.12. – 20.12."
-       },
-       {
-        "key": "w:11",
-        "week": 11,
-        "label": "Woche 11 · 21.12. – 27.12."
-       },
-       {
-        "key": "w:12",
-        "week": 12,
-        "label": "Woche 12 · 28.12. – 03.01."
-       },
-       {
-        "key": "w:13",
-        "week": 13,
-        "label": "Woche 13 · 04.01. – 10.01."
-       },
-       {
-        "key": "w:14",
-        "week": 14,
-        "label": "Woche 14 · 11.01. – 17.01."
-       },
-       {
-        "key": "w:-2",
-        "week": -2,
-        "label": "Klausuren & Altklausuren"
-       }
-      ],
-      "layout_custom": false
+      ]
      }
     },
     {
@@ -12059,6 +12073,94 @@
         "auto_label": "Ältere Unterlagen"
        }
       ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false,
       "files": [
        {
         "id": "f-bt-08",
@@ -12407,95 +12509,7 @@
         "section": "w:1",
         "placed": false
        }
-      ],
-      "targets": [
-       {
-        "key": "w:-4",
-        "week": -4,
-        "label": "Nicht zugeordnet"
-       },
-       {
-        "key": "w:-3",
-        "week": -3,
-        "label": "Allgemein"
-       },
-       {
-        "key": "w:1",
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10."
-       },
-       {
-        "key": "w:2",
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10."
-       },
-       {
-        "key": "w:3",
-        "week": 3,
-        "label": "Woche 3 · 26.10. – 01.11."
-       },
-       {
-        "key": "w:4",
-        "week": 4,
-        "label": "Woche 4 · 02.11. – 08.11."
-       },
-       {
-        "key": "w:5",
-        "week": 5,
-        "label": "Woche 5 · 09.11. – 15.11."
-       },
-       {
-        "key": "w:6",
-        "week": 6,
-        "label": "Woche 6 · 16.11. – 22.11."
-       },
-       {
-        "key": "w:7",
-        "week": 7,
-        "label": "Woche 7 · 23.11. – 29.11."
-       },
-       {
-        "key": "w:8",
-        "week": 8,
-        "label": "Woche 8 · 30.11. – 06.12."
-       },
-       {
-        "key": "w:9",
-        "week": 9,
-        "label": "Woche 9 · 07.12. – 13.12."
-       },
-       {
-        "key": "w:10",
-        "week": 10,
-        "label": "Woche 10 · 14.12. – 20.12."
-       },
-       {
-        "key": "w:11",
-        "week": 11,
-        "label": "Woche 11 · 21.12. – 27.12."
-       },
-       {
-        "key": "w:12",
-        "week": 12,
-        "label": "Woche 12 · 28.12. – 03.01."
-       },
-       {
-        "key": "w:13",
-        "week": 13,
-        "label": "Woche 13 · 04.01. – 10.01."
-       },
-       {
-        "key": "w:14",
-        "week": 14,
-        "label": "Woche 14 · 11.01. – 17.01."
-       },
-       {
-        "key": "w:-1",
-        "week": -1,
-        "label": "Ältere Unterlagen"
-       }
-      ],
-      "layout_custom": false
+      ]
      }
     }
    ]
@@ -12847,74 +12861,6 @@
         "auto_label": "Ältere Unterlagen"
        }
       ],
-      "files": [
-       {
-        "id": "f-alt-01",
-        "name": "VL01.pdf",
-        "chdate": 1776153600,
-        "status": "erledigt",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-alt",
-        "studip_folder": "Vorlesung",
-        "content_sha256": null,
-        "course_title": "Altes Fach vom Sommer",
-        "course_kind": "vorlesung",
-        "subject": "Altes Fach vom Sommer",
-        "module_id": 5,
-        "doc_type": "vorlesung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": 1,
-        "source": "studip",
-        "is_new": 0,
-        "section": "w:-1",
-        "placed": false
-       },
-       {
-        "id": "f-alt-02",
-        "name": "Blatt 1.pdf",
-        "chdate": 1776672000,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-alt",
-        "studip_folder": null,
-        "content_sha256": null,
-        "course_title": "Altes Fach vom Sommer",
-        "course_kind": "vorlesung",
-        "subject": "Altes Fach vom Sommer",
-        "module_id": 5,
-        "doc_type": "uebung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Übung",
-        "week_hint": 1,
-        "source": "studip",
-        "is_new": 0,
-        "section": "w:-1",
-        "placed": false
-       }
-      ],
-      "progress": 50,
-      "mastery": null,
-      "new_count": 0,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": [],
       "targets": [
        {
         "key": "w:-4",
@@ -13002,7 +12948,75 @@
         "label": "Ältere Unterlagen"
        }
       ],
-      "layout_custom": false
+      "layout_custom": false,
+      "files": [
+       {
+        "id": "f-alt-01",
+        "name": "VL01.pdf",
+        "chdate": 1776153600,
+        "status": "erledigt",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-alt",
+        "studip_folder": "Vorlesung",
+        "content_sha256": null,
+        "course_title": "Altes Fach vom Sommer",
+        "course_kind": "vorlesung",
+        "subject": "Altes Fach vom Sommer",
+        "module_id": 5,
+        "doc_type": "vorlesung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Vorlesung",
+        "week_hint": 1,
+        "source": "studip",
+        "is_new": 0,
+        "section": "w:-1",
+        "placed": false
+       },
+       {
+        "id": "f-alt-02",
+        "name": "Blatt 1.pdf",
+        "chdate": 1776672000,
+        "status": "neu",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-alt",
+        "studip_folder": null,
+        "content_sha256": null,
+        "course_title": "Altes Fach vom Sommer",
+        "course_kind": "vorlesung",
+        "subject": "Altes Fach vom Sommer",
+        "module_id": 5,
+        "doc_type": "uebung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Übung",
+        "week_hint": 1,
+        "source": "studip",
+        "is_new": 0,
+        "section": "w:-1",
+        "placed": false
+       }
+      ],
+      "progress": 50,
+      "mastery": null,
+      "new_count": 0,
+      "open_tasks": 0,
+      "next_package": null,
+      "notes": []
      }
     }
    ]
@@ -14245,6 +14259,94 @@
         "auto_label": "Ältere Unterlagen"
        }
       ],
+      "targets": [
+       {
+        "key": "w:-4",
+        "week": -4,
+        "label": "Nicht zugeordnet"
+       },
+       {
+        "key": "w:-3",
+        "week": -3,
+        "label": "Allgemein"
+       },
+       {
+        "key": "w:1",
+        "week": 1,
+        "label": "Woche 1 · 12.10. – 18.10."
+       },
+       {
+        "key": "w:2",
+        "week": 2,
+        "label": "Woche 2 · 19.10. – 25.10."
+       },
+       {
+        "key": "w:3",
+        "week": 3,
+        "label": "Woche 3 · 26.10. – 01.11."
+       },
+       {
+        "key": "w:4",
+        "week": 4,
+        "label": "Woche 4 · 02.11. – 08.11."
+       },
+       {
+        "key": "w:5",
+        "week": 5,
+        "label": "Woche 5 · 09.11. – 15.11."
+       },
+       {
+        "key": "w:6",
+        "week": 6,
+        "label": "Woche 6 · 16.11. – 22.11."
+       },
+       {
+        "key": "w:7",
+        "week": 7,
+        "label": "Woche 7 · 23.11. – 29.11."
+       },
+       {
+        "key": "w:8",
+        "week": 8,
+        "label": "Woche 8 · 30.11. – 06.12."
+       },
+       {
+        "key": "w:9",
+        "week": 9,
+        "label": "Woche 9 · 07.12. – 13.12."
+       },
+       {
+        "key": "w:10",
+        "week": 10,
+        "label": "Woche 10 · 14.12. – 20.12."
+       },
+       {
+        "key": "w:11",
+        "week": 11,
+        "label": "Woche 11 · 21.12. – 27.12."
+       },
+       {
+        "key": "w:12",
+        "week": 12,
+        "label": "Woche 12 · 28.12. – 03.01."
+       },
+       {
+        "key": "w:13",
+        "week": 13,
+        "label": "Woche 13 · 04.01. – 10.01."
+       },
+       {
+        "key": "w:14",
+        "week": 14,
+        "label": "Woche 14 · 11.01. – 17.01."
+       },
+       {
+        "key": "w:-1",
+        "week": -1,
+        "label": "Ältere Unterlagen"
+       }
+      ],
+      "layout_custom": false,
       "files": [
        {
         "id": "f-bt-08",
@@ -14623,95 +14725,7 @@
         "section": "w:1",
         "placed": false
        }
-      ],
-      "targets": [
-       {
-        "key": "w:-4",
-        "week": -4,
-        "label": "Nicht zugeordnet"
-       },
-       {
-        "key": "w:-3",
-        "week": -3,
-        "label": "Allgemein"
-       },
-       {
-        "key": "w:1",
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10."
-       },
-       {
-        "key": "w:2",
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10."
-       },
-       {
-        "key": "w:3",
-        "week": 3,
-        "label": "Woche 3 · 26.10. – 01.11."
-       },
-       {
-        "key": "w:4",
-        "week": 4,
-        "label": "Woche 4 · 02.11. – 08.11."
-       },
-       {
-        "key": "w:5",
-        "week": 5,
-        "label": "Woche 5 · 09.11. – 15.11."
-       },
-       {
-        "key": "w:6",
-        "week": 6,
-        "label": "Woche 6 · 16.11. – 22.11."
-       },
-       {
-        "key": "w:7",
-        "week": 7,
-        "label": "Woche 7 · 23.11. – 29.11."
-       },
-       {
-        "key": "w:8",
-        "week": 8,
-        "label": "Woche 8 · 30.11. – 06.12."
-       },
-       {
-        "key": "w:9",
-        "week": 9,
-        "label": "Woche 9 · 07.12. – 13.12."
-       },
-       {
-        "key": "w:10",
-        "week": 10,
-        "label": "Woche 10 · 14.12. – 20.12."
-       },
-       {
-        "key": "w:11",
-        "week": 11,
-        "label": "Woche 11 · 21.12. – 27.12."
-       },
-       {
-        "key": "w:12",
-        "week": 12,
-        "label": "Woche 12 · 28.12. – 03.01."
-       },
-       {
-        "key": "w:13",
-        "week": 13,
-        "label": "Woche 13 · 04.01. – 10.01."
-       },
-       {
-        "key": "w:14",
-        "week": 14,
-        "label": "Woche 14 · 11.01. – 17.01."
-       },
-       {
-        "key": "w:-1",
-        "week": -1,
-        "label": "Ältere Unterlagen"
-       }
-      ],
-      "layout_custom": false
+      ]
      }
     },
     {
@@ -14826,74 +14840,6 @@
         "auto_label": "Ältere Unterlagen"
        }
       ],
-      "files": [
-       {
-        "id": "f-alt-01",
-        "name": "VL01.pdf",
-        "chdate": 1776153600,
-        "status": "erledigt",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-alt",
-        "studip_folder": "Vorlesung",
-        "content_sha256": null,
-        "course_title": "Altes Fach vom Sommer",
-        "course_kind": "vorlesung",
-        "subject": "Altes Fach vom Sommer",
-        "module_id": 5,
-        "doc_type": "vorlesung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": 1,
-        "source": "studip",
-        "is_new": 0,
-        "section": "w:-1",
-        "placed": false
-       },
-       {
-        "id": "f-alt-02",
-        "name": "Blatt 1.pdf",
-        "chdate": 1776672000,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-alt",
-        "studip_folder": null,
-        "content_sha256": null,
-        "course_title": "Altes Fach vom Sommer",
-        "course_kind": "vorlesung",
-        "subject": "Altes Fach vom Sommer",
-        "module_id": 5,
-        "doc_type": "uebung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Übung",
-        "week_hint": 1,
-        "source": "studip",
-        "is_new": 0,
-        "section": "w:-1",
-        "placed": false
-       }
-      ],
-      "progress": 50,
-      "mastery": null,
-      "new_count": 0,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": [],
       "targets": [
        {
         "key": "w:-4",
@@ -14981,7 +14927,75 @@
         "label": "Ältere Unterlagen"
        }
       ],
-      "layout_custom": false
+      "layout_custom": false,
+      "files": [
+       {
+        "id": "f-alt-01",
+        "name": "VL01.pdf",
+        "chdate": 1776153600,
+        "status": "erledigt",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-alt",
+        "studip_folder": "Vorlesung",
+        "content_sha256": null,
+        "course_title": "Altes Fach vom Sommer",
+        "course_kind": "vorlesung",
+        "subject": "Altes Fach vom Sommer",
+        "module_id": 5,
+        "doc_type": "vorlesung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Vorlesung",
+        "week_hint": 1,
+        "source": "studip",
+        "is_new": 0,
+        "section": "w:-1",
+        "placed": false
+       },
+       {
+        "id": "f-alt-02",
+        "name": "Blatt 1.pdf",
+        "chdate": 1776672000,
+        "status": "neu",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-alt",
+        "studip_folder": null,
+        "content_sha256": null,
+        "course_title": "Altes Fach vom Sommer",
+        "course_kind": "vorlesung",
+        "subject": "Altes Fach vom Sommer",
+        "module_id": 5,
+        "doc_type": "uebung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Übung",
+        "week_hint": 1,
+        "source": "studip",
+        "is_new": 0,
+        "section": "w:-1",
+        "placed": false
+       }
+      ],
+      "progress": 50,
+      "mastery": null,
+      "new_count": 0,
+      "open_tasks": 0,
+      "next_package": null,
+      "notes": []
      }
     }
    ]

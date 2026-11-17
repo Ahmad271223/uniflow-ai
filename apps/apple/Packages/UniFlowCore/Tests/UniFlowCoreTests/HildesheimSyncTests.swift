@@ -317,6 +317,14 @@ final class HildesheimSyncTests: XCTestCase {
         let got3 = try await db.scalar("SELECT COUNT(*) FROM event_exceptions")?.int
         XCTAssertEqual(got3, 2)
 
+        // "Neu" erst nach dem ersten Einlesen (17.11.2026): beide Kurse (auch der leere) merken sich den Zeitpunkt
+        // ihrer ersten vollstaendigen Dateiliste; was dabei kam, ist nicht neu (`LocalLibrary.newFileSQL`)
+        let at = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let listed = try await db.rows("SELECT first_listed_at FROM courses WHERE id LIKE 'lw-%'")
+        XCTAssertEqual(listed.map { $0["first_listed_at"]?.string }, [at.nowISO, at.nowISO])
+        let fresh = try await db.scalar("SELECT COUNT(*) FROM files f WHERE \(LocalLibrary.newFileSQL(at))")?.int
+        XCTAssertEqual(fresh, 0)
+
         // zweiter Lauf: keine neuen Downloads, Stundenplan unveraendert
         let downloadsBefore = t.count("\(base)/webservice/pluginfile.php")
         let r2 = await sync.run()

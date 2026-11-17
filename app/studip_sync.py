@@ -886,6 +886,14 @@ def _real_pdf(target: Path) -> bool:
         return False
 
 
+def mark_first_listing(conn, course_id: str, started: str) -> None:
+    """Die Dateiliste dieses Kurses ist zum ersten Mal vollstaendig eingelesen (auch eine leere): Zeitpunkt merken,
+    genau einmal (`courses.first_listed_at`, im Swift-Kern UniStore.markFirstListing). "Neu" ist nur, was danach
+    dazukommt (study.new_file_sql); was beim ersten Einlesen schon da war, gilt nicht als neu. Bricht ein Abgleich
+    mitten im Kurs ab, setzt erst der naechste vollstaendige Lauf den Zeitpunkt - die Reste waren dann "schon da"."""
+    conn.execute("UPDATE courses SET first_listed_at=? WHERE id=? AND first_listed_at IS NULL", (started, course_id))
+
+
 def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str, str], download_fn, started: str,
                        new_files: list[str], pause: float = 0.2, now: int | None = None) -> dict:
     """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target, size) holen
@@ -990,6 +998,7 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 _release_target(target)
             if pause:
                 time.sleep(pause)
+    mark_first_listing(conn, c["id"], started)        # alle Zeilen der Liste stehen: ab jetzt ist Neues "neu"
     return result
 
 

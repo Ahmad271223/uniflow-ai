@@ -46,14 +46,23 @@ public enum LocalLibrary {
     }
 
     /// "Neu" an allen Stellen gleich (`study.new_file_sql`): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und
-    /// "Gesehen" setzen es) UND vor hoechstens `newFileHours` Stunden eingetragen (`first_seen`; fehlt es, ist die Datei
-    /// nicht neu). Danach verschwindet "Neu" von selbst; `seen_by_user` und der Lernstand `status` bleiben, wie sie
-    /// sind (Audit 03.11.2026: der Lernstand zaehlt fuer "Neu" nicht). Gilt fuer die Uebersicht "Neu aus …",
-    /// Modulkarten, Kurse, Bibliothek und die Dateizeilen in Modulen und im Stundenplan (`is_new` je Datei).
+    /// "Gesehen" setzen es), vor hoechstens `newFileHours` Stunden eingetragen (`first_seen`; fehlt es, ist die Datei
+    /// nicht neu) UND nach dem ersten vollstaendigen Einlesen ihres Kurses dazugekommen (`afterFirstListingSQL`).
+    /// Danach verschwindet "Neu" von selbst; `seen_by_user` und der Lernstand `status` bleiben, wie sie sind (Audit
+    /// 03.11.2026: der Lernstand zaehlt fuer "Neu" nicht). Gilt fuer die Uebersicht "Neu aus …", Modulkarten, Kurse,
+    /// Bibliothek und die Dateizeilen in Modulen und im Stundenplan (`is_new` je Datei).
     /// `since` kommt aus `newSince` (nur Ziffern, "-", "T", ":"), darum als Text in der Abfrage.
     public static func newFileSQL(since: String) -> String {
-        "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='\(since)')"
+        "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='\(since)' AND \(afterFirstListingSQL))"
     }
+
+    /// `study.AFTER_FIRST_LISTING_SQL`: nach dem ersten Einlesen des Kurses dazugekommen (`courses.first_listed_at`,
+    /// `UniStore.markFirstListing`). Was beim allerersten Einlesen eines Kurses schon da war, gilt gar nicht als neu
+    /// (Auftrag des Inhabers 17.11.2026, "Ja, so bauen") - auch nicht bei einer zweiten Quelle, einem spaeter belegten
+    /// Kurs oder frueheren Semestern. Ohne Zeitpunkt (Liste noch nie fertig gelesen, eigene Dokumente `__user__`) ist
+    /// nichts neu; Demo-Dateien (`DemoContent.idPrefix`) sind ausgenommen, damit "Neue Dateien (Demo)" nicht leer ist.
+    public static let afterFirstListingSQL =
+        "(f.id LIKE '\(DemoContent.idPrefix)%' OR f.first_seen>(SELECT k.first_listed_at FROM courses k WHERE k.id=f.course_id))"
 
     public static func newFileSQL(_ clock: UniFlowClock) -> String { newFileSQL(since: newSince(clock)) }
 
