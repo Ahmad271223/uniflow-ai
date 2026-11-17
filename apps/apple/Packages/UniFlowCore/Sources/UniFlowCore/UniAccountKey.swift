@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// Raum je Uni-Konto im Geraete-Abgleich (14.11.2026, docs/ABGLEICH-UNI-KONTO-2026-11-14.md; Dienst: `sync.Rooms`).
@@ -29,9 +28,10 @@ public enum UniAccountKey {
     /// Platzhalter statt einer Kennung: Schluessel nur aus StudiNow-Konto und Hochschule (`sync.UNIVERSITY_ONLY`)
     public static let universityOnly = "ohne-kennung"
 
-    /// SHA-256 (hex, klein); gleich in `app/sync_client.py::uni_key` (Windows)
+    /// SHA-256 (hex, klein); gleich in `app/sync_client.py::uni_key` (Windows). Ueber `SolutionSHA256` statt CryptoKit,
+    /// damit der Kern auch unter Linux baut (GitHub-Lauf "Apple"); `LinuxHashTests` haelt den Wert fest.
     public static func key(account: String, university: String, identity: String) -> String {
-        SHA256.hash(data: Data("studinow-uni-konto|\(account)|\(university)|\(identity)".utf8)).map { String(format: "%02x", $0) }.joined()
+        SolutionSHA256.hex(Data("studinow-uni-konto|\(account)|\(university)|\(identity)".utf8))
     }
 
     /// Kennung des Uni-Kontos in diesem Datenbereich (schon ein Hash); nil vor der ersten Uni-Anmeldung und bei
