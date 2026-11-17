@@ -132,7 +132,8 @@ struct UFNoServerContent: Equatable {
 
     private static func text(_ kind: UFNoServerPage.Kind) -> String {
         switch kind {
-        case .dashboard: return "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da."
+        case .dashboard: return LearnCalendar.text("Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da.",
+                                                   off: "Hier stehen deine Uni-Termine, Abgaben und neuen Dateien – noch ist nichts da.")
         case .plan: return "Noch keine Lernpakete geplant."
         case .timetable: return "Noch keine Termine im Stundenplan."
         case .modules: return "Noch keine Module."

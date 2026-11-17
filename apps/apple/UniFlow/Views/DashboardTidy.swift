@@ -16,6 +16,12 @@ enum DashboardTidy {
     /// interne Adresse des Links "neu planen" in der Zeile unter der Begruessung
     static let rescueURL = URL(string: "studinow-intern://dashboard/neu-planen")!
 
+    /// Ohne Lernkalender (`LearnCalendar`, Auftrag 17.11.2026): nur Datum und Uni-Termine von heute, nichts von
+    /// Lernpaketen, "geplant" oder "nachzuholen" - "Dienstag, 17. November · 2 Uni-Termine"
+    static func summary(date: String, events: Int) -> AttributedString {
+        AttributedString(events > 0 ? "\(date) · heute \(events) Uni-Termin\(events == 1 ? "" : "e")" : date)
+    }
+
     /// "Freitag, 13. November · heute 1 Lernpaket · 25 min geplant, 13 h frei · 3 nachzuholen – neu planen"
     static func summary(date: String, packages: Int, events: Int, minutes: Double?, free: Double?, backlog: Int) -> AttributedString {
         var s = AttributedString(date + " · ")

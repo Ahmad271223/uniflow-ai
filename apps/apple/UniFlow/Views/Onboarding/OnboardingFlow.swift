@@ -94,7 +94,8 @@ struct IntroContainerStep: View {
                 let toPlan = account.introPlannedModules
                 account.markPlanShown()
                 // ohne Verlauf: auf der ersten Seite nach dem Einstieg gibt es keinen Zurück-Pfeil
-                if toPlan { router.replace(UFRoute(hash: IntroContainerStep.firstRoute)) }
+                // ohne Lernkalender (`LearnCalendar`, 17.11.2026) immer die Übersicht
+                if toPlan, LearnCalendar.enabled { router.replace(UFRoute(hash: IntroContainerStep.firstRoute)) }
             }
         default: MainView()
         }

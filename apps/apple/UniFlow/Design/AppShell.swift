@@ -171,7 +171,7 @@ final class UFRouter: ObservableObject {
 
     /// `start`: erste Seite ohne Verlauf (sonst die Startseite; Tests fuer "Zurück ohne Verlauf")
     init(start: UFRoute = .dashboard) {
-        route = start
+        route = LearnCalendar.route(start)                       // ohne Lernkalender nie dessen Seite (17.11.2026)
         tabs.sceneID = { [weak resume] in resume?.sceneID ?? "" }
     }
 
@@ -187,6 +187,7 @@ final class UFRouter: ObservableObject {
     func badge(for navKey: String) -> Int { badges[navKey] ?? 0 }
 
     func go(_ r: UFRoute) {
+        let r = LearnCalendar.route(r)                           // Lernkalender aus: Stundenplan desselben Tages
         guard r != route else { return }
         history.append(route)
         if history.count > 50 { history.removeFirst() }
@@ -203,6 +204,7 @@ final class UFRouter: ObservableObject {
     /// Seite ersetzen, ohne den Verlauf zu verlaengern (Reiterwechsel: Zurueck fuehrt weiter dorthin, wo das erste
     /// Dokument geoeffnet wurde); Vollbild und Pruefungsfokus bleiben
     func replace(_ r: UFRoute) {
+        let r = LearnCalendar.route(r)
         guard r != route else { return }
         localBack = nil
         route = r
@@ -223,8 +225,8 @@ final class UFRouter: ObservableObject {
     var showsBackArrow: Bool { Self.showsBackArrow(on: route) }
     static func showsBackArrow(on r: UFRoute) -> Bool { r != .dashboard }
 
-    /// iPhone (kompakt, docs/IPHONE-2026-11-04.md): die Bereiche der unteren Leiste (Start, Kalender, Module,
-    /// Dokumente) sind Wurzeln wie die Tabs des Systems und tragen keinen Pfeil (Dokumente hat in Ordnern das eigene
+    /// iPhone (kompakt, docs/IPHONE-2026-11-04.md): die Bereiche der unteren Leiste (Start, Kalender bzw. ohne
+    /// Lernkalender Stundenplan, Module, Dokumente) sind Wurzeln wie die Tabs des Systems und tragen keinen Pfeil (Dokumente hat in Ordnern das eigene
     /// "‹ Ordner"); jede andere Seite (aus "Mehr", ein Modul, eine Community) genau einen in der Kopfzeile, ebenso
     /// jede Wurzel, solange in ihr etwas offen ist (`localBack`). Blaetter mit NavigationStack haben das Zurueck des
     /// Systems, das Dokument das seiner Werkzeugleiste (Kopfzeile aus).
@@ -233,6 +235,7 @@ final class UFRouter: ObservableObject {
         if local { return true }
         switch r {
         case .dashboard, .plan, .modules, .files: return false
+        case .timetable: return LearnCalendar.enabled            // ohne Lernkalender steht der Stundenplan in der Leiste
         default: return true
         }
     }
@@ -260,6 +263,7 @@ final class UFRouter: ObservableObject {
 
     /// Seite zeigen, ohne den Verlauf zu verlaengern (Zurueck)
     private func show(_ r: UFRoute) {
+        let r = LearnCalendar.route(r)
         localBack = nil
         route = r
         drawerOpen = false
@@ -287,7 +291,11 @@ struct UFNavItem: Identifiable {
     /// ("ab Plus" bzw. "ab Pro AI"); Antippen oeffnet die Seite und die Tarifwahl mit diesem Tarif. nil = frei
     var lock: UFPlan? = nil
 
-    static let main: [UFNavItem] = [
+    /// Alle Bereiche; ohne Lernkalender (`LearnCalendar.enabled == false`, Auftrag 17.11.2026) fehlt "Lernkalender" in
+    /// Seitenleiste, Schublade, "Mehr" und im Logo-Menue des Editors - der Stundenplan ist dann der Kalender
+    static var main: [UFNavItem] { LearnCalendar.enabled ? areas : areas.filter { $0.id != "plan" } }
+
+    private static let areas: [UFNavItem] = [
         UFNavItem(id: "dashboard", title: "Übersicht", icon: "home", route: .dashboard),
         UFNavItem(id: "plan", title: "Lernkalender", icon: "calendar", route: .plan()),
         UFNavItem(id: "timetable", title: "Stundenplan", icon: "clock", route: .timetable()),
@@ -393,16 +401,20 @@ struct UFNavItem: Identifiable {
     /// Zahl im Abzeichen: ab 100 "99+"
     static func badgeLabel(_ count: Int) -> String { count > 99 ? "99+" : "\(count)" }
 
-    /// untere Leiste (mobileNav in app.js)
-    static let mobile: [UFNavItem] = [
-        UFNavItem(id: "dashboard", title: "Start", icon: "home", route: .dashboard),
-        UFNavItem(id: "plan", title: "Kalender", icon: "calendar", route: .plan()),
-        UFNavItem(id: "modules", title: "Module", icon: "book", route: .modules),
-        UFNavItem(id: "files", title: "Dokumente", icon: "folder", route: .files()),
-        UFNavItem(id: "more", title: "Mehr", icon: "more", route: .settings()),
-    ]
+    /// untere Leiste (mobileNav in app.js). Ohne Lernkalender (17.11.2026) steht an zweiter Stelle der Stundenplan
+    /// statt "Kalender"; er faellt damit aus der Liste "Mehr" (`more(visible:)`).
+    static var mobile: [UFNavItem] {
+        [
+            UFNavItem(id: "dashboard", title: "Start", icon: "home", route: .dashboard),
+            LearnCalendar.enabled ? UFNavItem(id: "plan", title: "Kalender", icon: "calendar", route: .plan())
+                                  : UFNavItem(id: "timetable", title: "Stundenplan", icon: "clock", route: .timetable()),
+            UFNavItem(id: "modules", title: "Module", icon: "book", route: .modules),
+            UFNavItem(id: "files", title: "Dokumente", icon: "folder", route: .files()),
+            UFNavItem(id: "more", title: "Mehr", icon: "more", route: .settings()),
+        ]
+    }
 
-    /// Eintrag "Einstellungen" (Fuss der Seitenleiste, Liste "Mehr")
+    /// Eintrag "Einstellungen" (Liste "Mehr"; in der Seitenleiste oeffnet seit 17.11.2026 die Profilkarte die Einstellungen)
     static let settings = UFNavItem(id: "settings", title: "Einstellungen", icon: "settings", route: .settings())
 
     /// Liste hinter "Mehr" in der unteren Leiste: alle sichtbaren Bereiche, die dort nicht stehen, dann die
@@ -479,6 +491,13 @@ struct UFSidebarProfile: Equatable {
 
     /// "Plus holen" / "Pro AI holen"
     var upgradeTitle: String? { upgrade.map { "\(Self.short($0)) holen" } }
+
+    /// VoiceOver der Profilkarte: "Ahmad, Tarif Plus" und "Öffnet die Einstellungen" (17.11.2026; vorher "Öffnet dein
+    /// Konto"). Gilt fuer Seitenleiste, "Mehr" und den Avatar der Kopfzeile am iPhone.
+    static func accessibilityLabel(name: String, plan: String) -> String { "\(name), \(plan)" }
+    static let accessibilityHint = "Öffnet die Einstellungen"
+    /// Ziel der Profilkarte: die Einstellungen (Startseite, kein bestimmter Reiter)
+    static let target: UFRoute = .settings()
 
     static func short(_ p: UFPlan) -> String {
         switch p {
@@ -774,8 +793,8 @@ extension EnvironmentValues {
 
 /// Seitenleiste (Neugestaltung 04.11.2026): Logo, Gruppen mit kleinen Ueberschriften ("STUDIUM", "LERNEN",
 /// "GEMEINSAM", `UFNavGroup`), die Lern-Eintraege als farbige Kapseln (aktiv gefuellt, sonst umrandet), unten fest das
-/// Profil mit Initialen, Namen der Begruessung, Tarif und "Plus holen" bzw. "Pro AI holen", dann Einstellungen und
-/// Einklappen. Eingeklappt nur Symbole (unten nur der Avatar). Welche Eintraege erscheinen und welcher markiert ist,
+/// Profil mit Initialen, Namen der Begruessung, Tarif, Zahnrad (Antippen = Einstellungen, 17.11.2026) und "Plus holen"
+/// bzw. "Pro AI holen", dann Einklappen. Das Logo oben fuehrt zur Übersicht. Eingeklappt nur Symbole (unten der Avatar). Welche Eintraege erscheinen und welcher markiert ist,
 /// bleibt bei `UFNavItem.visible` und `UFNavItem.active`.
 struct UFSidebar: View {
     @EnvironmentObject private var router: UFRouter
@@ -806,14 +825,20 @@ struct UFSidebar: View {
                                       plan: ent.plan, proAIHidden: proAIOfferHidden)
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 9.6) {                                       // .brand
-                UFLogoImage(size: 30)
-                if !collapsed { Text("StudiNow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
+            // Logo und Name fuehren immer zur Übersicht (Auftrag des Inhabers 17.11.2026), auch eingeklappt
+            Button { router.go(.dashboard) } label: {
+                HStack(spacing: 9.6) {                                   // .brand
+                    UFLogoImage(size: 30)
+                    if !collapsed { Text("StudiNow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
+                }
+                .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 16, trailing: 8))
+                .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)
+                .contentShape(Rectangle())
             }
-            .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 16, trailing: 8))
-            .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("StudiNow")
+            .buttonStyle(UFPressStyle())
+            .help("Zur Übersicht")
+            .accessibilityLabel("StudiNow, zur Übersicht")
+            .accessibilityIdentifier("sidebar.home")
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
                 VStack(alignment: .leading, spacing: collapsed ? 8 : 14) {
@@ -854,8 +879,8 @@ struct UFSidebar: View {
                 .padding(.bottom, 8)
             }
             VStack(spacing: 4) {                                         // .side-foot
+                // die Profilkarte oeffnet die Einstellungen (Zahnrad rechts); keine eigene Zeile mehr (17.11.2026)
                 profile.padding(.bottom, 4)
-                navRow("Einstellungen", icon: "settings", active: router.route.navKey == "settings") { router.go(.settings()) }
                 if allowCollapse {
                     navRow("Einklappen", icon: "panel-left", active: false) { sidebarMode = sidebarMode == "min" ? "full" : "min" }
                 }
@@ -898,43 +923,66 @@ struct UFSidebar: View {
         .overlay(Circle().strokeBorder(UF.accent.opacity(0.35), lineWidth: 1))
     }
 
+    /// Profilkarte (Männchen bzw. Initialen, Name, Tarif): Antippen oeffnet die Einstellungen, rechts ein Zahnrad, damit
+    /// man es findet (Auftrag des Inhabers 17.11.2026: "wenn man auf das Männchen klickt unten links ... kommt
+    /// Einstellung"; die eigene Zeile "Einstellungen" entfaellt). Die ganze Karte ist Trefferflaeche bis an den Rand,
+    /// "Plus holen" bleibt ein eigener Knopf darunter. Eingeklappt: der Avatar mit kleinem Zahnrad.
     @ViewBuilder private var profile: some View {
         let p = UFSidebarProfile.make(ent)
         let shownName = name ?? "Dein Konto"
-        let openAccount = { router.go(.settings(tab: "account")) }
+        let openSettings = { router.go(UFSidebarProfile.target) }
+        let active = router.route.navKey == "settings"
         if collapsed {
-            Button(action: openAccount) { avatar.frame(maxWidth: .infinity).ufHitArea() }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(shownName), \(p.planAccessibility)")
-                .accessibilityHint("Öffnet dein Konto")
-                .accessibilityIdentifier("sidebar.profile")
-                .help("\(shownName) · \(p.planLabel)")
-        } else {
-            let info = Button(action: openAccount) {
-                HStack(spacing: 9.6) {
-                    avatar
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(shownName).ufFont(13.6, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
-                        Text(p.planLabel).ufFont(11.84, 500, lh: 1.25).foregroundStyle(UF.muted).lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
+            Button(action: openSettings) {
+                avatar
+                    .overlay(alignment: .bottomTrailing) {
+                        UFIcon("settings", size: 10).foregroundStyle(active ? UF.accentText : UF.text2)
+                            .frame(width: 17, height: 17)
+                            .background(Circle().fill(UF.surface))
+                            .overlay(Circle().strokeBorder(UF.line, lineWidth: 1))
+                            .offset(x: 5, y: 5)
+                            .accessibilityHidden(true)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity, minHeight: UFHit.minSide)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(shownName), \(p.planAccessibility)")
-            .accessibilityHint("Öffnet dein Konto")
-            .accessibilityAddTraits(.isButton)
+            .buttonStyle(UFPressStyle())
+            .help("Einstellungen · \(shownName) · \(p.planLabel)")
+            // ohne .accessibilityElement(children: .ignore): der Knopf behaelt seine Aktion (VoiceOver loest ihn direkt aus)
+            .accessibilityLabel(UFSidebarProfile.accessibilityLabel(name: shownName, plan: p.planAccessibility))
+            .accessibilityHint(UFSidebarProfile.accessibilityHint)
+            .accessibilityAddTraits(active ? .isSelected : [])
             .accessibilityIdentifier("sidebar.profile")
-            VStack(alignment: .leading, spacing: 8) {
-                info
-                if let title = p.upgradeTitle, !(proAIOfferHidden && p.upgrade == .proAI) { upgradeButton(title) }
+        } else {
+            let upgrade = p.upgradeTitle.flatMap { proAIOfferHidden && p.upgrade == .proAI ? nil : $0 }
+            VStack(alignment: .leading, spacing: 0) {
+                Button(action: openSettings) {
+                    HStack(spacing: 9.6) {
+                        avatar
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(shownName).ufFont(13.6, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
+                            Text(p.planLabel).ufFont(11.84, 500, lh: 1.25).foregroundStyle(UF.muted).lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        UFIcon("settings", size: 17).foregroundStyle(active ? UF.accentText : UF.text2)
+                            .accessibilityHidden(true)
+                    }
+                    // Abstand der Karte gehoert zum Knopf: antippbar bis an den Rand (vorher 10 pt toter Rand)
+                    .padding(EdgeInsets(top: 10, leading: 10, bottom: upgrade == nil ? 10 : 4, trailing: 10))
+                    .frame(maxWidth: .infinity, minHeight: UFHit.minSide, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(UFPressStyle())
+                .help("Einstellungen")
+                .accessibilityLabel(UFSidebarProfile.accessibilityLabel(name: shownName, plan: p.planAccessibility))
+                .accessibilityHint(UFSidebarProfile.accessibilityHint)
+                .accessibilityAddTraits(active ? .isSelected : [])
+                .accessibilityIdentifier("sidebar.profile")
+                if let upgrade { upgradeButton(upgrade).padding(EdgeInsets(top: 4, leading: 10, bottom: 10, trailing: 10)) }
             }
-            .padding(10)
-            .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
-            .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: UF.r).fill(active ? UF.accentSoft : UF.surface2))
+            .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(active ? UF.accent.opacity(0.35) : UF.line, lineWidth: 1))
         }
     }
 
@@ -1283,7 +1331,7 @@ struct UFMoreSheet: View {
 }
 
 /// Profil oben in "Mehr" (iPhone): Initialen, Name der Begruessung, Tarif und Knopf zum naechsthoeheren Tarif; Tippen
-/// oeffnet das Konto (wie das Profil der Seitenleiste, `UFSidebarProfile`)
+/// oeffnet die Einstellungen (wie das Profil der Seitenleiste, `UFSidebarProfile`)
 struct UFMoreProfile: View {
     let go: (UFRoute) -> Void
     @EnvironmentObject private var shell: ShellState
@@ -1297,7 +1345,7 @@ struct UFMoreProfile: View {
         let shown = name ?? "Dein Konto"
         let ini = UFSidebarProfile.initials(server: shell.initials, appleName: account.account?.name, greetingName: name)
         VStack(alignment: .leading, spacing: 10) {
-            Button { go(.settings(tab: "account")) } label: {
+            Button { go(UFSidebarProfile.target) } label: {
                 HStack(spacing: 10) {
                     Group {
                         if ini.isEmpty { UFIcon("user", size: 18) } else { Text(ini).font(.uf(14, 700)) }
@@ -1317,8 +1365,8 @@ struct UFMoreProfile: View {
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(shown), \(p.planAccessibility)")
-            .accessibilityHint("Öffnet dein Konto")
+            .accessibilityLabel(UFSidebarProfile.accessibilityLabel(name: shown, plan: p.planAccessibility))
+            .accessibilityHint(UFSidebarProfile.accessibilityHint)
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("more.profile")
             if let title = p.upgradeTitle {
@@ -1442,12 +1490,13 @@ struct UFHeader: View {
             iconButton("sync", label: shell.syncRunning || studip.isRunning ? "Abgleich läuft" : "Abgleichen", id: "header.sync") { sync() }
                 .disabled(shell.syncRunning || studip.isRunning)
                 .opacity(shell.syncRunning || studip.isRunning ? 0.5 : 1)
-            Button { router.go(.settings(tab: "account")) } label: {
+            // Profil oben rechts oeffnet die Einstellungen (17.11.2026, wie die Profilkarte der Seitenleiste)
+            Button { router.go(UFSidebarProfile.target) } label: {
                 avatar(size: 32).frame(width: 44, height: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(account.account == nil ? "Profil, nicht angemeldet" : "Profil")
-            .accessibilityHint("Öffnet dein Konto")
+            .accessibilityHint(UFSidebarProfile.accessibilityHint)
             .accessibilityIdentifier("header.profile")
         }
         .padding(.leading, 16)
@@ -1515,8 +1564,8 @@ struct UFHeader: View {
             if !narrow && StudyTimer.isEnabled {
                 UFButton(icon: "clock", kind: .ghost) { timer.toggle() }     // #profileBtn: Zeitmesser
             }
-            // Kein Profil-Kreis mehr in der Kopfzeile (Inhaber 12.11.2026: „der Kreis hat eh keine Funktion“); das Konto
-            // oeffnet „Dein Konto“ unten in der Seitenleiste
+            // Kein Profil-Kreis mehr in der Kopfzeile (Inhaber 12.11.2026: „der Kreis hat eh keine Funktion“); die
+            // Einstellungen oeffnet die Profilkarte unten in der Seitenleiste (17.11.2026)
         }
         .padding(.horizontal, narrow ? 11.2 : 17.6)
         .frame(height: UF.header)

@@ -38,9 +38,11 @@ struct UniFlowApp: App {
         // Tarifpruefung erscheint (Pruefpunkt 223)
         _ = Entitlements.shared
         // Lernplan nach dem Abgleich (auto_plan) nur, wenn der Tarif automatisch planen darf (ab Plus; Free von Hand)
-        StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) }
+        // Lernkalender aus (`LearnCalendar`, 17.11.2026): nach dem Abgleich und beim Oeffnen wird nichts geplant
+        LearnCalendar.applyDebugLaunch()
+        StudyAutoPlan.allowed = { LearnCalendar.autoPlans(tariff: Entitlements.shared.allows(.autoPlan)) }
         // Lernziele (Smart Planner 2.0): automatisch umplanen wie der Lernplan erst ab Plus; Ziele, Lernzeit, Übersicht frei
-        SmartGoalsEndpoints.autoAllowed = { Entitlements.shared.allows(.autoPlan) }
+        SmartGoalsEndpoints.autoAllowed = { LearnCalendar.autoPlans(tariff: Entitlements.shared.allows(.autoPlan)) }
         DueNotificationDelegate.install()                                 // Antippen einer Erinnerung oeffnet die Quelle; fragt nichts
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
@@ -220,7 +222,7 @@ struct UniFlowApp: App {
                 // bisherigen Abstaende je Quelle (OpenSync, Entscheidung des Inhabers 07.11.2026)
                 containers.syncAllOnOpen()
                 // Lernplan: neue Dokumente eines Hintergrundabgleichs einordnen, sonst nichts am Plan aendern
-                if let host = containers.active?.host { Task.detached { await StudIPSync.placeNewDocumentsOnOpen(host: host) } }
+                if LearnCalendar.enabled, let host = containers.active?.host { Task.detached { await StudIPSync.placeNewDocumentsOnOpen(host: host) } }
                 weeklyTicker.resume()
                 askForLoginIfDue()
                 // Geraete-Abgleich: Daten anderer Geraete in jedem Fenster zeigen (Abgleich nach Aenderungen, im Takt)

@@ -302,9 +302,12 @@ struct EventDrawer: View {
             }
         } foot: {
             UFButton("Bearbeiten", icon: "pencil", size: .small) { actions.eventDialog(e, preset: ["date": .string(date)]) }
-            UFButton("Lernblock danach", icon: "plus", size: .small) {
-                let end = UFTime.hm(occ.s("end"))
-                actions.useFreeWindow(date: date, start: end, end: min(end + 90, 22 * 60), materials: mats, moduleID: e.i("module_id"))
+            // ohne Lernkalender (`LearnCalendar`, 17.11.2026) kein Lernblock aus dem Termin heraus
+            if LearnCalendar.enabled {
+                UFButton("Lernblock danach", icon: "plus", size: .small) {
+                    let end = UFTime.hm(occ.s("end"))
+                    actions.useFreeWindow(date: date, start: end, end: min(end + 90, 22 * 60), materials: mats, moduleID: e.i("module_id"))
+                }
             }
             UFFlexSpacer()
             UFButton(icon: "trash", kind: .danger, size: .small) {
@@ -361,7 +364,8 @@ struct EventDrawer: View {
                                     body: ["event_id": .number(Double(eventID)), "date": .string(date), "mode": .string(mode)])
         } catch { toast.show("Teilnahme speichern fehlgeschlagen: \(error.localizedDescription)", seconds: 4); return }
         let freed = r.i("freed_minutes") ?? 0
-        if ["today_skip", "permanent_skip", "cancelled"].contains(mode) && freed >= 30 {
+        // "Du hast jetzt … frei – Zeit nutzen" legt einen Lernblock an: nur mit Lernkalender
+        if LearnCalendar.enabled && ["today_skip", "permanent_skip", "cancelled"].contains(mode) && freed >= 30 {
             let w = r.list("windows").first
             let start = w?.i("start") ?? UFTime.hm(occ.s("start")), end = w?.i("end") ?? UFTime.hm(occ.s("end"))
             let materials = r.list("materials"), module = e.i("module_id")
