@@ -116,6 +116,11 @@ public struct PyRegex: @unchecked Sendable {
                                        withTemplate: NSRegularExpression.escapedTemplate(for: replacement))
     }
 
+    /// `re.finditer(p, s)`: alle Treffer mit ihren Gruppen
+    public func matches(_ s: String) -> [PyMatch] {
+        regex.matches(in: s, options: [], range: Self.range(s)).map { PyMatch(result: $0, text: s) }
+    }
+
     /// `re.findall(p, s)` fuer Muster ohne Gruppe
     public func findAll(_ s: String) -> [String] {
         regex.matches(in: s, options: [], range: Self.range(s)).compactMap { m in Range(m.range, in: s).map { String(s[$0]) } }

@@ -14,9 +14,8 @@ public enum StudyClassify {
                                     "klausur": "Klausur", "organisatorisch": "Organisatorisches"]
 
     private static let orga = PyRegex("klausurergebnis|raumverteilung|organisat|termine|ankuendigung|ankündigung|ablaufplan")
-    /// `study.SOL_PIECE`: "sol" als eigenes Wortstueck vor einer Nummer, vor "_" oder "." oder am Ende ("sol1b.pdf",
-    /// "kk1_sol.pdf"), nie mitten im Wort ("Solar", "Konsole", "Sol-Gel"); auch fuer `Weekly.solWords`
-    static let solPiece = #"(?<![a-zäöüß])sol(?=[ _\-]?\d|[_.]|$)"#
+    /// `study.SOL_PIECE`: "sol" als eigenes Wortstueck (`ExamPairs.solPiece`)
+    static let solPiece = ExamPairs.solPiece
     /// `study.SOLUTION_NAME`: Loesungswort im Dateinamen, "lsg" auch als eigenes Wortstueck ("Lsg_WS23.pdf")
     private static let solution = PyRegex(#"l(ö|oe)s|\blsg\b|_lsg|lsg\.|solution|musterl|(?<![a-zäöüß])lsg(?![a-zäöüß])|"# + solPiece)
     /// `study.EXAM_WORD`, `study.EXAM_WORD_EN`: "Prüfung" und "Exam" als eigenes Wort stehen fuer "Klausur" ("Alte

@@ -14,7 +14,7 @@ import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from . import colors, db, holidays, mastery, module_layout, outline
+from . import colors, db, exam_pairs, holidays, mastery, module_layout, outline
 from .holidays import DEADLINE_LABELS
 
 PALETTE = colors.PALETTE          # Fachfarben: app/colors.py
@@ -223,7 +223,7 @@ def week_label(start: date, w: int) -> str:
 # ("Lsg_WS23.pdf", "lsg1.pdf"), "sol" nur vor einer Nummer, vor "_" oder "." oder am Ende ("sol1b.pdf", "kk1_sol.pdf",
 # "sol.pdf"), nie mitten im Wort ("Solar", "Konsole", "Sol-Gel"). Stand 17.11.2026, vorher blieben "sol1b.pdf" neben
 # "kk1b.pdf" Altklausuren und "Lsg_WS23.pdf" ohne Einordnung.
-SOL_PIECE = r"(?<![a-zäöüß])sol(?=[ _\-]?\d|[_.]|$)"
+SOL_PIECE = exam_pairs.SOL_PIECE
 SOLUTION_NAME = r"l(ö|oe)s|\blsg\b|_lsg|lsg\.|solution|musterl|(?<![a-zäöüß])lsg(?![a-zäöüß])|" + SOL_PIECE
 # "Prüfung" und "Exam" als eigenes Wort stehen fuer "Klausur" ("Alte Prüfungen", "Prüfungsaufgaben", "Exam WS23"),
 # nicht "Prüfungsordnung", "Prüfungsvorleistung", "Überprüfung", "Example"
@@ -396,6 +396,11 @@ def module_detail(conn, module_id: int) -> dict:
                  "auto_label": week_label(start, w)}
         if w == module_layout.UNASSIGNED:
             block["suggestions"] = len([f for f in fl if "suggest_week" in f])
+        if w == -2:
+            # Block "Klausuren & Altklausuren" geordnet (17.11.2026): nach Jahrgang, jede Klausur mit ihrer Loesung
+            # direkt darunter; dieselbe Paarung wie im Aufgabenindex (weekly._link_solutions). Die Gruppen nach Art
+            # (klausuren, loesungen) bleiben fuer aeltere Ansichten.
+            block["exam_groups"] = exam_pairs.groups(grp["klausuren"] + grp["loesungen"], exam_pairs.links(pair_files(files)))
         out_weeks.append(block)
     courses = db.rows(conn, "SELECT id, title, kind, number FROM courses WHERE module_id=? ORDER BY kind, title", (module_id,))
     tasks = db.rows(conn, """SELECT t.*, p.date FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
@@ -411,6 +416,12 @@ def module_detail(conn, module_id: int) -> dict:
             "mastery": mastery.for_module(conn, module_id, m["name"]),
             "new_count": new_files_count(conn, module_id), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
             "next_package": next_pkg, "notes": [f for f in files if f["has_notes"]]}
+
+
+def pair_files(files: list[dict]) -> list[dict]:
+    """Dateien eines Moduls, unter denen Aufgabe und Loesung zusammenfinden (exam_pairs.links): Uebungen, Loesungen,
+    Klausuren. Dieselbe Auswahl fuer das Moduldetail und den Aufgabenindex, damit beide dasselbe Paar meinen."""
+    return [f for f in files if f.get("doc_type") in ("uebung", "loesung", "klausur")]
 
 
 def _bulk(start: date, files: list[dict]) -> set[str]:

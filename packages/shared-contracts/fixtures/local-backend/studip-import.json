@@ -3942,7 +3942,45 @@
        "key": "w:-2",
        "custom": false,
        "renamed": false,
-       "auto_label": "Klausuren & Altklausuren"
+       "auto_label": "Klausuren & Altklausuren",
+       "exam_groups": [
+        {
+         "label": "WS 25/26",
+         "files": [
+          {
+           "id": "v5",
+           "name": "Altklausur WS 2025.pdf",
+           "chdate": 1792130400,
+           "status": "neu",
+           "favorite": 0,
+           "last_opened": null,
+           "size": 10,
+           "course_id": "m1",
+           "studip_folder": "Alte Klausuren",
+           "content_sha256": "109397d15c040428925f589b414cc93080611d5f9206619204f037b1f4839706",
+           "course_title": "Testmathematik I",
+           "course_kind": "vorlesung",
+           "subject": "Testmathematik I",
+           "module_id": 1,
+           "doc_type": "klausur",
+           "ai_title": null,
+           "difficulty": null,
+           "est_minutes": null,
+           "topics": null,
+           "summary": null,
+           "has_notes": null,
+           "ai_doc_type": null,
+           "sub_label": "Altklausur",
+           "week_hint": null,
+           "source": "studip",
+           "section": "w:-2",
+           "placed": false,
+           "exam_role": "klausur",
+           "solution_of": null
+          }
+         ]
+        }
+       ]
       }
      ],
      "files": [

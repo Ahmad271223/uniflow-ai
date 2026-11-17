@@ -73,6 +73,32 @@ final class AltklausurLoesungenTests: XCTestCase {
         }
     }
 
+    // MARK: Moduldetail
+
+    /// Befund am iPad (17.11.2026): im Block "Klausuren & Altklausuren" stehen nur Klausuren. Mit dem Muster des echten
+    /// Kurses (Kursart Uebung, Ordner je Jahrgang, Dateien von 2023) liefert das Moduldetail die Loesung im Block.
+    func testDetailShowsExamAndSolutionInTheExamBlock() async throws {
+        let b = try await backend()
+        let clock = UniFlowClock.fixed(berlin: "2026-11-17T09:00:00")!
+        let detail = try await b.context.database.transaction { c -> [String: JSONValue]? in
+            try c.execute("INSERT INTO modules(id, name, color, created_at) VALUES (7, 'Testmathe', '#123456', '2026-10-01')")
+            try c.execute("INSERT INTO courses(id, title, kind, created_at, module_id, active) VALUES ('k2', 'Übung zu Testmathe I', 'uebung', '2026-10-01', 7, 1)")
+            for (id, name, folder) in [("e1", "KK1.pdf", "Alte Klausuren/WS 22/23"), ("s1", "KK1loes.pdf", "Alte Klausuren/WS 22/23"),
+                                       ("e2", "kk3a.pdf", "Alte Klausuren/WS 21/22"), ("s2", "sol3a.pdf", "Alte Klausuren/WS 21/22"),
+                                       ("e3", "KK2.pdf", "Alte Klausuren/WS 20/21"), ("s3", "Lösungen.pdf", "Alte Klausuren/WS 20/21")] {
+                try c.execute("INSERT INTO files(id, course_id, name, chdate, kind, studip_folder) VALUES (?, 'k2', ?, 1676000000, 'pdf', ?)",
+                              [.text(id), .text(name), .text(folder)])
+            }
+            return try LocalModules.detail(c, moduleID: .integer(7), clock: clock)
+        }
+        let block = try XCTUnwrap(detail?["weeks"]?.array?.first { $0["week"]?.int == -2 }, "Block Klausuren & Altklausuren fehlt")
+        XCTAssertEqual(block["label"]?.string, "Klausuren & Altklausuren")
+        XCTAssertEqual(Set((block["klausuren"]?.array ?? []).compactMap { $0["id"]?.string }), ["e1", "e2", "e3"])
+        XCTAssertEqual(Set((block["loesungen"]?.array ?? []).compactMap { $0["id"]?.string }), ["s1", "s2", "s3"])
+        XCTAssertEqual(block["count"]?.int, 6)
+        XCTAssertEqual(detail?["weeks"]?.array?.count, 1, "keine Loesung in einer anderen Woche")
+    }
+
     // MARK: Schluessel
 
     func testKeysOfExamAndSolutionFit() {

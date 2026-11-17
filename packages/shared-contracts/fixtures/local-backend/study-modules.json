@@ -7855,7 +7855,81 @@
         "key": "w:-2",
         "custom": false,
         "renamed": false,
-        "auto_label": "Klausuren & Altklausuren"
+        "auto_label": "Klausuren & Altklausuren",
+        "exam_groups": [
+         {
+          "label": "WS 25/26",
+          "files": [
+           {
+            "id": "f-ma-08",
+            "name": "Probeklausur 2025.pdf",
+            "chdate": 1794301200,
+            "status": "neu",
+            "favorite": 0,
+            "last_opened": null,
+            "size": 1000,
+            "course_id": "k-ma-v",
+            "studip_folder": "Alte Klausuren/WS 25/26",
+            "content_sha256": null,
+            "course_title": "Testmathematik I",
+            "course_kind": "vorlesung",
+            "subject": "Testmathematik I",
+            "module_id": 1,
+            "doc_type": "klausur",
+            "ai_title": null,
+            "difficulty": null,
+            "est_minutes": null,
+            "topics": null,
+            "summary": null,
+            "has_notes": null,
+            "ai_doc_type": null,
+            "sub_label": "Altklausur",
+            "week_hint": null,
+            "source": "studip",
+            "section": "w:-2",
+            "placed": false,
+            "exam_role": "klausur",
+            "solution_of": null
+           }
+          ]
+         },
+         {
+          "label": "Alte Klausuren",
+          "files": [
+           {
+            "id": "f-ma-09",
+            "name": "Musterlösung Probeklausur.pdf",
+            "chdate": 1794387600,
+            "status": "neu",
+            "favorite": 0,
+            "last_opened": null,
+            "size": 1000,
+            "course_id": "k-ma-v",
+            "studip_folder": "Alte Klausuren",
+            "content_sha256": null,
+            "course_title": "Testmathematik I",
+            "course_kind": "vorlesung",
+            "subject": "Testmathematik I",
+            "module_id": 1,
+            "doc_type": "loesung",
+            "ai_title": null,
+            "difficulty": null,
+            "est_minutes": null,
+            "topics": null,
+            "summary": null,
+            "has_notes": null,
+            "ai_doc_type": null,
+            "sub_label": "Klausur-Lösung",
+            "week_hint": null,
+            "source": "studip",
+            "section": "w:-2",
+            "placed": false,
+            "exam_role": "weitere_loesung",
+            "solution_of": null
+           }
+          ]
+         }
+        ]
        }
       ],
       "files": [
@@ -9637,7 +9711,45 @@
         "key": "w:-2",
         "custom": false,
         "renamed": false,
-        "auto_label": "Klausuren & Altklausuren"
+        "auto_label": "Klausuren & Altklausuren",
+        "exam_groups": [
+         {
+          "label": "Kurztests",
+          "files": [
+           {
+            "id": "f-pi-04",
+            "name": "Kurztest 1.pdf",
+            "chdate": 1793617200,
+            "status": "neu",
+            "favorite": 0,
+            "last_opened": null,
+            "size": 1000,
+            "course_id": "k-pi-v",
+            "studip_folder": "Kurztests",
+            "content_sha256": null,
+            "course_title": "Probeinformatik",
+            "course_kind": "vorlesung",
+            "subject": "Probeinformatik",
+            "module_id": 4,
+            "doc_type": "klausur",
+            "ai_title": null,
+            "difficulty": null,
+            "est_minutes": null,
+            "topics": null,
+            "summary": null,
+            "has_notes": null,
+            "ai_doc_type": null,
+            "sub_label": "Klausur",
+            "week_hint": null,
+            "source": "studip",
+            "section": "w:-2",
+            "placed": false,
+            "exam_role": "klausur",
+            "solution_of": null
+           }
+          ]
+         }
+        ]
        }
       ],
       "files": [
@@ -11303,7 +11415,81 @@
         "key": "w:-2",
         "custom": false,
         "renamed": false,
-        "auto_label": "Klausuren & Altklausuren"
+        "auto_label": "Klausuren & Altklausuren",
+        "exam_groups": [
+         {
+          "label": "WS 25/26",
+          "files": [
+           {
+            "id": "f-ma-08",
+            "name": "Probeklausur 2025.pdf",
+            "chdate": 1794301200,
+            "status": "neu",
+            "favorite": 0,
+            "last_opened": null,
+            "size": 1000,
+            "course_id": "k-ma-v",
+            "studip_folder": "Alte Klausuren/WS 25/26",
+            "content_sha256": null,
+            "course_title": "Testmathematik I",
+            "course_kind": "vorlesung",
+            "subject": "Testmathematik I",
+            "module_id": 1,
+            "doc_type": "klausur",
+            "ai_title": null,
+            "difficulty": null,
+            "est_minutes": null,
+            "topics": null,
+            "summary": null,
+            "has_notes": null,
+            "ai_doc_type": null,
+            "sub_label": "Altklausur",
+            "week_hint": null,
+            "source": "studip",
+            "section": "w:-2",
+            "placed": false,
+            "exam_role": "klausur",
+            "solution_of": null
+           }
+          ]
+         },
+         {
+          "label": "Alte Klausuren",
+          "files": [
+           {
+            "id": "f-ma-09",
+            "name": "Musterlösung Probeklausur.pdf",
+            "chdate": 1794387600,
+            "status": "neu",
+            "favorite": 0,
+            "last_opened": null,
+            "size": 1000,
+            "course_id": "k-ma-v",
+            "studip_folder": "Alte Klausuren",
+            "content_sha256": null,
+            "course_title": "Testmathematik I",
+            "course_kind": "vorlesung",
+            "subject": "Testmathematik I",
+            "module_id": 1,
+            "doc_type": "loesung",
+            "ai_title": null,
+            "difficulty": null,
+            "est_minutes": null,
+            "topics": null,
+            "summary": null,
+            "has_notes": null,
+            "ai_doc_type": null,
+            "sub_label": "Klausur-Lösung",
+            "week_hint": null,
+            "source": "studip",
+            "section": "w:-2",
+            "placed": false,
+            "exam_role": "weitere_loesung",
+            "solution_of": null
+           }
+          ]
+         }
+        ]
        }
       ],
       "files": [
