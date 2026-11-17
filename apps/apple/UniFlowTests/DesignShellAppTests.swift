@@ -175,7 +175,7 @@ final class DesignShellAppTests: XCTestCase {
         // "Plus holen" fuehrt zu den Tarifen
         let button = try XCTUnwrap(elementsWith("Plus holen", in: env.view).first)
         XCTAssertTrue(button.accessibilityActivate())
-        XCTAssertTrue(env.wait { env.router.route == .settings(tab: "plan") }, "\(env.router.route)")
+        XCTAssertTrue(env.wait { env.router.route == .settings(tab: "account") }, "\(env.router.route)")
     }
 
     func testCollapsedSidebarShowsOnlyAvatarAtBottom() throws {

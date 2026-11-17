@@ -19,7 +19,7 @@ enum StudyGroupsText {
         (n == 1 ? "Du bist bei Stud.IP in einer Studiengruppe." : "Du bist bei Stud.IP in \(n) Studiengruppen.")
             + " Was soll StudiNow damit tun? Alles bleibt aus, bis du es einschaltest."
     }
-    static let note = UFDevice.adapt("Ändern kannst du das jederzeit unter Einstellungen → Stud.IP. StudiNow liest Stud.IP nur und ändert dort nichts.")
+    static let note = UFDevice.adapt("Ändern kannst du das jederzeit unter Einstellungen → Uni-Zugang & Abgleich. StudiNow liest Stud.IP nur und ändert dort nichts.")
     static let files = "Dateien durchsuchen und zu Dokumente & Notizen hinzufügen"
     static let module = "Einem Modul zuordnen"
     static let timetable = "Termine in den Stundenplan"

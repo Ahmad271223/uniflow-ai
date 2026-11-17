@@ -5,7 +5,6 @@ import SwiftUI
 struct PencilFeelSettingsRows: View {
     @AppStorage(PencilSmoothing.key) private var smoothing = PencilSmoothing.standard.rawValue
     @AppStorage(ShapeSnapSetting.key) private var shapes = true
-    @AppStorage(PencilLab.key) private var lab = PencilLab.standard.rawValue
 
     var body: some View {
         // Glaettung nur, solange sie etwas bewirkt (`PencilTuning.rebuildFromRawPointsAfterLift`, seit 17.11.2026 aus)
@@ -22,15 +21,6 @@ struct PencilFeelSettingsRows: View {
                 .fixedSize()
                 .accessibilityLabel(ShapeSnapSetting.title)
                 .accessibilityIdentifier("settings.shapeSnap")
-        }
-        // Schriftbild zum Vergleichen: nur, wenn freigeschaltet (`PencilLab.visible`)
-        if PencilLab.visible {
-            SettingsDivider()
-            SettingsRow(PencilLab.title, icon: "pen", note: PencilLab.note) {
-                UFSegmented(options: PencilLab.options, selection: $lab)
-                    .accessibilityIdentifier("settings.pencilLab")
-            }
-            .onChange(of: lab) { _, _ in NotificationCenter.default.post(name: PencilLab.changed, object: nil) }
         }
     }
 }

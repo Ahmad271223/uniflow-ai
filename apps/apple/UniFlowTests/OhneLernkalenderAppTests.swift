@@ -265,7 +265,7 @@ final class OhneLernkalenderAppTests: XCTestCase {
                 // "Plus holen" oeffnet weiter die Tarife, nicht die Einstellungen der Karte
                 env.router.go(.dashboard)
                 XCTAssertTrue(env.activate("Plus holen"))
-                XCTAssertTrue(env.wait { env.router.route == .settings(tab: "plan") }, "\(env.router.route)")
+                XCTAssertTrue(env.wait { env.router.route == .settings(tab: "account") }, "\(env.router.route)")
             }
         }
     }

@@ -32,7 +32,6 @@ extension EditorStrichBleibtTests {
         XCTAssertTrue(T.fountain.isInk && T.fountain.isPen && T.fountain.drawsOnCanvas && T.fountain.hasColor)
         XCTAssertEqual(EditorToolState.colors(for: .fountain).map(\.hex), EditorToolState.inkColors.map(\.hex))
         XCTAssertFalse(PenSettingsText.character(.fountain).isEmpty)
-        XCTAssertFalse(PencilLab.visible, "die Testauswahl gibt es nicht mehr")
 
         // Grenzen: Fineliner bis 0,18, Fueller ab 1 (beides unter dem, was PencilKit meldet)
         XCTAssertEqual(EditorToolState.widthLimits(.fineliner).lowerBound, 0.18, accuracy: 0.001)

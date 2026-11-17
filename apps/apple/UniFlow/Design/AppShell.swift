@@ -1003,7 +1003,7 @@ struct UFSidebar: View {
             switch Self.upgradeTarget(hasShowPlans: showPlans != nil, hasSwitchPlan: switchPlan != nil) {
             case .showPlans: showPlans?()
             case .switchPlan: switchPlan?()
-            case .settingsPlanTab: router.go(.settings(tab: "plan"))
+            case .settingsPlanTab: router.go(.settings(tab: "account"))      // Tarif steht in "Konto & Tarif"
             }
         } label: {
             HStack(spacing: 6) {
@@ -1371,7 +1371,7 @@ struct UFMoreProfile: View {
             .accessibilityIdentifier("more.profile")
             if let title = p.upgradeTitle {
                 Button {
-                    if let showPlans { showPlans() } else { go(.settings(tab: "plan")) }
+                    if let showPlans { showPlans() } else { go(.settings(tab: "account")) }
                 } label: {
                     HStack(spacing: 6) {
                         Text(title).ufFont(14, 650, lh: 1.2).lineLimit(1)
@@ -1427,7 +1427,7 @@ struct UFHeader: View {
         }
         let start = containers.startUniversitySync { report in toast.show(report.text, seconds: 5) }
         toast.show(start.text)
-        if case .notConnected = start { router.go(.settings(tab: "account")) }
+        if case .notConnected = start { router.go(.settings(tab: "uni")) }
     }
 
     let narrow: Bool

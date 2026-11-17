@@ -75,7 +75,7 @@ enum FileLoadState: Equatable {
         case .loading: return UFDevice.adapt("Die Datei kommt gerade \(from) auf dieses iPad.")
         case .loaded: return "Die Datei ist da und öffnet sich gleich."
         case .needsLogin:
-            return (source == "Stud.IP" ? "Melde dich unter Einstellungen → Stud.IP neu an." : "Melde dich in den Einstellungen neu beim \(source) an.") + " Danach lädt „Erneut versuchen“ die Datei, und jeder Abgleich holt fehlende Dateien nach."
+            return (source == "Stud.IP" ? "Melde dich unter Einstellungen → Uni-Zugang & Abgleich neu an." : "Melde dich in den Einstellungen neu beim \(source) an.") + " Danach lädt „Erneut versuchen“ die Datei, und jeder Abgleich holt fehlende Dateien nach."
         case .failed(let m): return m + " Jeder Abgleich versucht es wieder; „Erneut versuchen“ fragt sofort."
         case .otherSource: return "Diese Datei kommt mit dem Abgleich ihrer Quelle; „Sync“ oben startet ihn."
         }
