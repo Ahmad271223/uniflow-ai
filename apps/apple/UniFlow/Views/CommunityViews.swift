@@ -101,9 +101,16 @@ enum CommunityTexts {
         record.count > 10 ? "Nutzer …" + String(record.suffix(6)) : "Nutzer " + record
     }
 
-    static func message(_ error: Error) -> String {
+    /// Meldung eines Fehlers fuer die Oberflaeche; auf iPhone und Mac mit dem Namen des Geraets (17.11.2026: am iPhone
+    /// stand "Melde dich auf diesem iPad bei iCloud an")
+    static func message(_ error: Error) -> String { UFDevice.adapt(rawMessage(error)) }
+
+    static func rawMessage(_ error: Error) -> String {
         (error as? CommunityServiceError)?.localizedDescription ?? (error as? SolutionError)?.description ?? error.localizedDescription
     }
+
+    /// Rueckmeldung nach "Melden" an einem Kommentar, einer Frage oder einer Antwort
+    static let commentReported = "Danke – der Beitrag wurde gemeldet."
 }
 
 /// Beitrittslink im QR-Code einer Lerngruppe: uniflow://community/join/<Code>
@@ -535,6 +542,7 @@ struct CommunityReaderSheet: View {
         HStack(spacing: 8) {
             UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
                 .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .keyboardShortcut(.return, modifiers: .command)          // Tastatur (Mac, iPad): Befehl-Eingabe sendet
             if composerTitle != nil {
                 UFButton("Abbrechen", size: .small) { resetComposer() }
             }
@@ -623,16 +631,36 @@ struct CommunityReaderSheet: View {
         }
     }
 
+    /// Senden oder Speichern. Der Text bleibt im Feld, bis der Dienst ihn hat (bei einem Fehler steht er noch da). Danach
+    /// steht der Kommentar sicher im Verlauf: die Suche von CloudKit kennt einen eben angelegten Datensatz manchmal erst
+    /// nach einem Moment, dann fehlte er in der neu geholten Liste (17.11.2026) – das Feld war leer, der Kommentar nicht zu
+    /// sehen, und wer noch einmal sendete, hatte ihn doppelt.
     private func send() {
         let text = draft, parent = replyTo?.id, edit = editing?.id, place = spot
-        act {
-            if let edit {
-                _ = try await service.editComment(id: edit, text: text)
-            } else {
-                _ = try await service.addComment(solutionID: solution.solutionID, text: text, parentID: parent, pageKey: place?.page, anchor: place?.anchor)
-            }
-            resetComposer()
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                let saved: CommunityComment
+                if let edit {
+                    saved = try await service.editComment(id: edit, text: text)
+                } else {
+                    saved = try await service.addComment(solutionID: solution.solutionID, text: text, parentID: parent, pageKey: place?.page, anchor: place?.anchor)
+                }
+                resetComposer()
+                error = nil
+                let fresh = (try? await service.comments(solutionID: solution.solutionID)) ?? comments
+                comments = Self.including(saved, in: fresh)
+            } catch { self.error = CommunityTexts.message(error) }
         }
+    }
+
+    /// Frisch geholter Verlauf mit dem eben gespeicherten Kommentar: fehlt er noch, kommt er an seine Stelle (Antwort
+    /// unter ihren Kommentar), sonst ersetzt der gespeicherte Stand den geholten
+    static func including(_ saved: CommunityComment, in fresh: [CommunityComment]) -> [CommunityComment] {
+        var list = fresh
+        if let i = list.firstIndex(where: { $0.id == saved.id }) { list[i] = saved } else { CommunityPendingSend.insert(saved, into: &list) }
+        return list
     }
 
     private func remove(_ c: CommunityComment) { act { try await service.deleteComment(id: c.id) } }
