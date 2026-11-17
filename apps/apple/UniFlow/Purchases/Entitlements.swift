@@ -84,6 +84,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
     /// erst ab V2 vorhanden (UniFlow-Editor)
     var isV2: Bool { self == .uniflowEditor }
 
+    /// Teil des Lernkalenders (ansehen, Lernbloecke planen, automatisch planen): mit `LearnCalendar.enabled == false`
+    /// (17.11.2026) auf keiner Tarifkarte und in keinem Vergleich genannt; Produkte, Preise und Kaeufe bleiben
+    var isLearnCalendar: Bool { self == .studyCalendar || self == .studyPlanning || self == .autoPlan }
+
     /// Bezeichnung auf der Abo-Seite und in der Sperrkarte
     var title: String {
         switch self {
@@ -118,7 +122,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App"
-        case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen und Lernplan-Vorschläge – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
+        case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen\(LearnCalendar.text(" und Lernplan-Vorschläge", off: "")) – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und \(UFEditorAvailability.available ? "im Editor" : "auf leeren Seiten") ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
@@ -225,7 +229,7 @@ enum UFFeatureMatrix {
     /// Funktionen, die ein Tarif mehr bietet als der naechstkleinere (Inhalt der Tarifkarten)
     static func added(in plan: UFPlan) -> [UFFeature] {
         UFFeature.allCases.filter { $0.minimumPlan == plan && ($0 != .timer || StudyTimer.isEnabled)
-            && ($0 != .ownChatGPT || OpenAIKeyLink.isOffered) }
+            && ($0 != .ownChatGPT || OpenAIKeyLink.isOffered) && (LearnCalendar.enabled || !$0.isLearnCalendar) }
     }
 
     /// Herabstufen (Abschnitt 4, "Regeln"): Notizen bleiben vollstaendig erhalten, lesbar und exportierbar;

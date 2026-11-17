@@ -57,6 +57,9 @@ struct IntroSetupModel: Equatable {
     enum Step: Int, CaseIterable { case name, program, modules, exams, ready }
 
     var step: Step = .name
+    /// Frage nach den Faechern fuer den Lernkalender stellen? Ohne Lernkalender (`LearnCalendar`, 17.11.2026) entfaellt
+    /// sie; die Pruefungstermine werden dann fuer alle aktuellen Faecher gefragt
+    var planSubjects = LearnCalendar.enabled
     var name: String = ""
     var modules: [IntroSetupModule] = []
     /// Frage nach dem Studiengang (Universitaet Hildesheim), Liste und Wahl (erster = Hauptfach, hoechstens drei)
@@ -70,7 +73,7 @@ struct IntroSetupModel: Equatable {
     }
 
     /// Fragen, die gestellt werden (fuer den Fortschritt oben)
-    var shownSteps: [Step] { [.name] + (askProgram ? [.program] : []) + [.modules, .exams] }
+    var shownSteps: [Step] { [.name] + (askProgram ? [.program] : []) + (planSubjects ? [.modules] : []) + [.exams] }
 
     var planned: [IntroSetupModule] { modules.filter(\.planned) }
     /// Faecher mit Termin (aus QIS oder eingetragen)
@@ -93,9 +96,11 @@ struct IntroSetupModel: Equatable {
         case .exams:
             let known = planned.filter(\.examFromUni).count
             let lead = known == 0 ? "" : (known == 1 ? "Einen Prüfungstermin kenne ich schon aus QIS. " : "\(known) Prüfungstermine kenne ich schon aus QIS. ")
-            return lead + "Wann sind deine anderen Prüfungen?"
+            // ohne die Fächer-Frage (Lernkalender aus) steht die Begrüßung hier
+            let hello = planSubjects || askProgram || displayName == nil ? "" : "Hallo \(displayName!)! "
+            return hello + lead + "Wann sind deine anderen Prüfungen?"
         case .ready:
-            return "Alles klar" + (displayName.map { ", \($0)" } ?? "") + "! Ich richte deinen Lernplan ein …"
+            return "Alles klar" + (displayName.map { ", \($0)" } ?? "") + (planSubjects ? "! Ich richte deinen Lernplan ein …" : "! Ich richte alles ein …")
         }
     }
 
@@ -109,7 +114,7 @@ struct IntroSetupModel: Equatable {
             return rest.isEmpty ? "\(main.name)." : "\(main.name), dazu \(rest.joined(separator: " und "))."
         case .modules:
             let p = planned
-            if modules.isEmpty { return nil }
+            if modules.isEmpty || !planSubjects { return nil }
             if p.isEmpty { return "Erst mal keine." }
             let names = p.prefix(3).map(\.name).joined(separator: ", ")
             return p.count > 3 ? "\(names) und \(p.count - 3) weitere." : names + "."
@@ -125,12 +130,15 @@ struct IntroSetupModel: Equatable {
     /// Fragen ohne Inhalt fallen weg: ohne Faecher keine Termin-Frage
     func next(after s: Step) -> Step {
         switch s {
-        case .name: return askProgram ? .program : .modules
-        case .program: return .modules
+        case .name: return askProgram ? .program : afterProgram
+        case .program: return afterProgram
         case .modules: return planned.isEmpty ? .ready : .exams
         case .exams, .ready: return .ready
         }
     }
+
+    /// Nach Name bzw. Studiengang: die Faecher fuer den Lernkalender; ohne Lernkalender gleich die Pruefungstermine
+    private var afterProgram: Step { planSubjects ? .modules : (planned.isEmpty ? .ready : .exams) }
 
     /// Fortschritt oben (drei bzw. vier Fragen)
     var progressIndex: Int { shownSteps.firstIndex(of: step) ?? shownSteps.count - 1 }
@@ -235,7 +243,7 @@ struct IntroSetupView: View {
     }
 
     private func saveModules() {
-        guard let api = session.api, !model.modules.isEmpty else { return }
+        guard model.planSubjects, let api = session.api, !model.modules.isEmpty else { return }
         let items = model.modules.map { PlanModuleItem(name: $0.name, color: $0.color, planned: $0.planned) }
         Task {
             _ = try? await api.value("/api/calendar/modules", method: "POST", body: PlanModulesSheet.body(items))
@@ -254,7 +262,7 @@ struct IntroSetupView: View {
         }
     }
 
-    private func finish() { onDone(!model.planned.isEmpty && model.step == .ready) }
+    private func finish() { onDone(model.planSubjects && !model.planned.isEmpty && model.step == .ready) }
 }
 
 /// Aufbau der Fragen (ohne Netz, fuer Bilder und Tests)
@@ -313,7 +321,9 @@ struct IntroChatHistory: View {
     }
 
     /// Termin-Frage ohne geplante Faecher, Studiengang ausserhalb von Hildesheim: gar nicht gestellt
-    private func skipped(_ s: IntroSetupModel.Step) -> Bool { (s == .exams && model.planned.isEmpty) || (s == .program && !model.askProgram) }
+    private func skipped(_ s: IntroSetupModel.Step) -> Bool {
+        (s == .exams && model.planned.isEmpty) || (s == .program && !model.askProgram) || (s == .modules && !model.planSubjects)
+    }
 }
 
 /// Antwortflaeche zur aktuellen Frage
@@ -505,9 +515,15 @@ struct IntroReadyAnswer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             IntroReadyRow(text: model.displayName.map { "Begrüßung für \($0)" } ?? "Begrüßung mit deinem Vornamen", index: 0)
-            IntroReadyRow(text: model.planned.isEmpty ? "Fächer wählst du später" : "\(model.planned.count) \(model.planned.count == 1 ? "Fach" : "Fächer") im Lernkalender", index: 1)
-            IntroReadyRow(text: model.withExam.isEmpty ? "Prüfungstermine ergänzt QIS" : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Kalender", index: 2)
-            IntroReadyRow(text: "Dein erster Lernplan", index: 3)
+            if model.planSubjects {
+                IntroReadyRow(text: model.planned.isEmpty ? "Fächer wählst du später" : "\(model.planned.count) \(model.planned.count == 1 ? "Fach" : "Fächer") im Lernkalender", index: 1)
+                IntroReadyRow(text: model.withExam.isEmpty ? "Prüfungstermine ergänzt QIS" : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Kalender", index: 2)
+                IntroReadyRow(text: "Dein erster Lernplan", index: 3)
+            } else {
+                // ohne Lernkalender: Stundenplan mit den Hinweisen statt des ersten Lernplans
+                IntroReadyRow(text: model.withExam.isEmpty ? "Prüfungstermine ergänzt QIS" : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Stundenplan", index: 1)
+                IntroReadyRow(text: "Dein Stundenplan mit Terminen und Fristen", index: 2)
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)

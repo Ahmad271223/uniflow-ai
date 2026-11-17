@@ -1050,8 +1050,11 @@ final class LocalDocumentsAppTests: XCTestCase {
     func testDatedEntriesAndRoomsReadLikeTheWeb() {
         XCTAssertEqual(PlanEventBlock.rooms("Raum F303: Testsaal · Raum 031: e-Classroom · Raum F102"), "Raum F303 · Raum 031 · Raum F102")
         XCTAssertEqual(PlanEventBlock.rooms("Hörsaal 1"), "Hörsaal 1")
-        XCTAssertEqual(DatedEventDialog.text("2026-11-16"),
+        XCTAssertEqual(DatedEventDialog.text("2026-11-16", planner: true),
                        "Termin aus deinem Stud.IP-Kalender (16.11.2026). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.")
+        // ohne Lernkalender (ausgeliefert, 17.11.2026) ohne den Satz zur belegten Zeit
+        XCTAssertEqual(DatedEventDialog.text("2026-11-16"),
+                       "Termin aus deinem Stud.IP-Kalender (16.11.2026). Teilnahme und Notizen gibt es für Serien im Stundenplan.")
         XCTAssertEqual(StudIPSync.olderCoursesNote(0), nil)
         XCTAssertEqual(StudIPSync.olderCoursesNote(3), "3 Kurse aus früheren Semestern nicht eingeplant (Einstellungen → Module)")
         // Kursliste der Stud.IP-Seite: fruehere Semester markiert, unbekanntes Semester nicht

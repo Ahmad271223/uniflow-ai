@@ -752,6 +752,9 @@ final class StoreScreenshotTests: XCTestCase {
     }
 
     func test09Lernkalender() throws {
+        let learnCalendar = LearnCalendar.enabled                                // prueft den Lernkalender: Schalter an
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let env = try host(MainView())
         env.router.go(.plan())
         expect(env, "Lernkalender")

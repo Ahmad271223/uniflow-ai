@@ -659,7 +659,7 @@ struct ExamRunPage: View {
 
     private func leave() {
         router.examFocus = false
-        router.go(task != nil ? .plan() : .exams)
+        router.go(task != nil && LearnCalendar.enabled ? .plan() : .exams)
     }
 
     /// `position`: schmal die Aufgabe auf dem Bildschirm ("Aufgabe 3 von 15" statt "Fortschritt")

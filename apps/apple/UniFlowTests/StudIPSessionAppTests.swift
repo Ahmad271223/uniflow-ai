@@ -61,7 +61,8 @@ final class StudIPSessionAppTests: XCTestCase {
         XCTAssertFalse(UFCancel.unsure(e), "bestaetigt: keine Entscheidung noetig")
         XCTAssertEqual(UFCancel.source(e), "Stud.IP (Termin abgesagt)")
         XCTAssertEqual(UFCancel.helpText(e), "fällt aus laut Stud.IP (Termin abgesagt)")
-        XCTAssertTrue(DatedEventDialog.text("2026-11-17", cancelled: true).contains("die Zeit ist frei"))
+        XCTAssertTrue(DatedEventDialog.text("2026-11-17", cancelled: true, planner: true).contains("die Zeit ist frei"))
+        XCTAssertTrue(DatedEventDialog.text("2026-11-17", cancelled: true).hasSuffix("In Stud.IP abgesagt."), "ohne Lernkalender")
         // die Zeit ist frei: der Tag hat keinen belegten Block fuer den Termin
         let day = try awaiting { try await api.value("/api/timetable/day?date=2026-11-17") }
         XCTAssertTrue(day.list("free").contains { ($0.i("start") ?? 9999) <= 600 && ($0.i("end") ?? 0) >= 690 }, "\(day.list("free"))")

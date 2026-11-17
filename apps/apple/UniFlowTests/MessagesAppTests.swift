@@ -109,7 +109,7 @@ final class MessagesAppTests: XCTestCase {
 
     func testNavItemSitsRightAfterOverviewInStudy() {
         let local = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: false, messages: true)
-        XCTAssertEqual(Array(local.map(\.id).prefix(3)), ["dashboard", "messages", "plan"])
+        XCTAssertEqual(Array(local.map(\.id).prefix(3)), ["dashboard", "messages", "timetable"])
         let item = try? XCTUnwrap(local.first { $0.id == "messages" })
         XCTAssertEqual(item?.title, "Nachrichten")
         XCTAssertEqual(item?.icon, "message")

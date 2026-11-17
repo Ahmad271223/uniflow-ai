@@ -10,6 +10,9 @@ enum IntroTourPage: Int, CaseIterable, Identifiable {
 
     var id: Int { rawValue }
 
+    /// Seiten, die gezeigt werden: ohne Lernkalender (`LearnCalendar`, 17.11.2026) ohne "Ein Lernplan, der mitdenkt"
+    static var shown: [IntroTourPage] { allCases.filter { LearnCalendar.enabled || $0 != .plan } }
+
     var title: String {
         switch self {
         case .uni: return "Deine Hochschule kommt zu dir"
@@ -24,7 +27,7 @@ enum IntroTourPage: Int, CaseIterable, Identifiable {
         case .uni:
             return UFDevice.adapt("Kurse, Dateien, Stundenplan und Noten holt StudiNow selbst von Stud.IP und QIS – geordnet nach Fächern, direkt auf dein iPad.")
         case .exams:
-            return "Klausurtermine aus QIS landen automatisch im Kalender. Fehlt einer, trägst du ihn mit zwei Tipps ein."
+            return "Klausurtermine aus QIS landen automatisch im \(LearnCalendar.text("Kalender", off: "Stundenplan")). Fehlt einer, trägst du ihn mit zwei Tipps ein."
         case .plan:
             return "Der Smart Planner verteilt Lernzeit auf deine freien Stunden – passend zu Prüfungen und Lernzielen."
         case .notes:
@@ -42,14 +45,16 @@ struct IntroTourView: View {
     private var current: IntroTourPage { page ?? start }
 
     var body: some View {
-        IntroTourLayout(page: current, onBack: current == .uni ? nil : { go(-1) }, onNext: { go(1) }, onSkip: onDone)
+        IntroTourLayout(page: current, onBack: current == IntroTourPage.shown.first ? nil : { go(-1) }, onNext: { go(1) }, onSkip: onDone)
     }
 
     private func go(_ step: Int) {
-        guard let next = IntroTourPage(rawValue: current.rawValue + step) else {
+        let pages = IntroTourPage.shown
+        guard let i = pages.firstIndex(of: current), pages.indices.contains(i + step) else {
             if step > 0 { onDone() }
             return
         }
+        let next = pages[i + step]
         withAnimation(UFMotion.animation(reduce: !UFMotion.moves)) { page = next }
     }
 }
@@ -61,11 +66,11 @@ struct IntroTourLayout: View {
     let onNext: () -> Void
     let onSkip: () -> Void
 
-    private var last: Bool { page == IntroTourPage.allCases.last }
+    private var last: Bool { page == IntroTourPage.shown.last }
 
     var body: some View {
         VStack(spacing: 0) {
-            IntroTopBar(count: IntroTourPage.allCases.count, index: page.rawValue, onBack: onBack, onSkip: last ? nil : onSkip)
+            IntroTopBar(count: IntroTourPage.shown.count, index: IntroTourPage.shown.firstIndex(of: page) ?? 0, onBack: onBack, onSkip: last ? nil : onSkip)
             GeometryReader { geo in
                 ScrollView {
                     VStack(spacing: 0) {

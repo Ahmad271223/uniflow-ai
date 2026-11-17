@@ -325,6 +325,18 @@ final class PlanContractTests: XCTestCase {
     /// (eigener OpenAI-Schluessel, 07.11.2026) steht ehrlich auf der Free-Karte ("in jedem Tarif"); nichts
     /// "in Vorbereitung", nichts, was es auf dem iPad nicht gibt
     func testPlanCardsListOnlyWhatWorks() {
+        // Lernkalender ausgeblendet (`LearnCalendar`, 17.11.2026): die Karten nennen ihn nicht; die Rechte des Vertrags
+        // (can_use_basic_planner) bleiben. Mit Schalter an stehen die Zeilen wieder da (unten).
+        XCTAssertFalse(LearnCalendar.enabled)
+        XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
+                       [UFFeature.studipSync, .readDocuments, .modulesTimetable, .viewNotes, .uniGrades].map(\.title))
+        XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
+                       ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
+                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
+                        "Erinnerungen an Abgaben und Klausuren", "KI-Chat mit gekauften Credits"]
+                           .map { UFDevice.adapt($0) })
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = false }
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
                         .viewNotes, .uniGrades].map(\.title))             // ohne „Eigenes ChatGPT“ (aus seit 11.11.2026)

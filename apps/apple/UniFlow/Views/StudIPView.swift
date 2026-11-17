@@ -162,7 +162,7 @@ struct StudIPView: View {
                     .padding(.top, 2)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(title).ufFont(14.5, 550).foregroundStyle(UF.text).multilineTextAlignment(.leading)
-                        if let semester { Text(older ? "\(semester) · früheres Semester, nicht eingeplant" : semester).ufFont(12.8).foregroundStyle(UF.muted) }
+                        if let semester { Text(older ? "\(semester) · früheres Semester" + LearnCalendar.text(", nicht eingeplant", off: "") : semester).ufFont(12.8).foregroundStyle(UF.muted) }
                     }
                     Spacer(minLength: 0)
                 }

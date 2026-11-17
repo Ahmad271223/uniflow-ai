@@ -13,3 +13,28 @@ import Foundation
 enum LearnCalendar {
     static var enabled = false
 }
+
+extension LearnCalendar {
+    /// Seite, die wirklich gezeigt wird: ohne Lernkalender fuehrt jede Route dorthin (Menue, Links wie `#/plan` und
+    /// `#/tasks`, Suchtreffer, wiederhergestellte letzte Seite, Mitteilungen) auf den Stundenplan desselben Tages.
+    /// `UFRouter` wendet das bei jedem Seitenwechsel an; mit Schalter an bleibt die Route, wie sie ist.
+    static func route(_ r: UFRoute) -> UFRoute {
+        guard !enabled, case .plan(_, let date, _) = r else { return r }
+        return .timetable(date: date)
+    }
+
+    /// Text je nach Schalter: `on` wie bis Build 44, `off` ohne Lernkalender, Lernpakete und Lernplanung
+    static func text(_ on: String, off: String) -> String { enabled ? on : off }
+
+    /// Darf die App von selbst planen (nach dem Abgleich, beim Oeffnen, Lernziele)? Ohne Lernkalender nie, sonst nach
+    /// Tarif (`UFFeature.autoPlan`). Haengt an `StudyAutoPlan.allowed` und `SmartGoalsEndpoints.autoAllowed`.
+    static func autoPlans(tariff: Bool) -> Bool { enabled && tariff }
+
+    /// Nur Debug-Builds: `-UFLearnCalendar YES` schaltet den Lernkalender fuer Bildvergleiche ein (vor dem ersten Bild,
+    /// `UniFlowApp.init`); ohne das Argument gilt der ausgelieferte Standard
+    static func applyDebugLaunch(defaults d: UserDefaults = .standard) {
+        #if DEBUG
+        if d.object(forKey: "UFLearnCalendar") != nil { enabled = d.bool(forKey: "UFLearnCalendar") }
+        #endif
+    }
+}

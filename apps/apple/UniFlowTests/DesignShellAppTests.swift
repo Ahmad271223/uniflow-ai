@@ -34,7 +34,7 @@ final class DesignShellAppTests: XCTestCase {
         XCTAssertEqual(groups.map(\.id), ["study", "learn", "everyday", "together"])
         XCTAssertEqual(groups.map(\.label), ["STUDIUM", "LERNEN", "ALLTAG", "GEMEINSAM"])
         XCTAssertEqual(ids(groups)["everyday"], ["mensa", "rooms"], "Mensa und Raumfinder unter Alltag")
-        XCTAssertEqual(ids(groups)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services"],
+        XCTAssertEqual(ids(groups)["study"], ["dashboard", "timetable", "modules", "studyplan", "files", "services"],
                        "Uni & Noten gehoert zum Studium")
         XCTAssertEqual(ids(groups)["learn"], ["exams"])
         XCTAssertEqual(ids(groups)["together"], ["community"])
@@ -57,7 +57,7 @@ final class DesignShellAppTests: XCTestCase {
         // ohne Notenspiegel auf dem Geraet: kein Uni & Noten
         g = UFNavGroup.groups(UFNavItem.visible(local: true, gradesOnDevice: false, community: false, flashcards: false, ai: false))
         XCTAssertEqual(g.map(\.id), ["study", "everyday"])
-        XCTAssertEqual(ids(g)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files"])
+        XCTAssertEqual(ids(g)["study"], ["dashboard", "timetable", "modules", "studyplan", "files"])
     }
 
     /// Jeder sichtbare Eintrag steht genau einmal in einer Gruppe, in allen Kombinationen
@@ -168,7 +168,9 @@ final class DesignShellAppTests: XCTestCase {
         XCTAssertTrue(l.contains { $0.hasSuffix("Tarif Free") }, "Tarif wird vorgelesen")
         XCTAssertTrue(l.contains("Übersicht"))
         XCTAssertTrue(l.contains("Karteikarten"))
-        XCTAssertTrue(l.contains("Einstellungen"))
+        // keine eigene Zeile "Einstellungen" mehr: die Profilkarte oeffnet sie (17.11.2026, OhneLernkalenderAppTests)
+        XCTAssertFalse(l.contains("Einstellungen"))
+        XCTAssertFalse(l.contains("Lernkalender"), "Lernkalender ausgeblendet")
         XCTAssertTrue(l.contains("Einklappen"))
         // "Plus holen" fuehrt zu den Tarifen
         let button = try XCTUnwrap(elementsWith("Plus holen", in: env.view).first)

@@ -131,7 +131,7 @@ struct PlanPickerView: View {
     /// Untertitel: die angebotenen Tarife (Pro AI nur mit Produkt aus dem Store); die laufende Probe steht in eigener
     /// Zeile darunter (`trialStatus`)
     static func subtitle(proAI: Bool) -> String {
-        var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
+        var s = "Mit \(UFPlan.free.name) \(LearnCalendar.text("planst du dein Lernen", off: "siehst du deinen Stundenplan")), öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
         s += UFEditorAvailability.available ? UFDevice.adapt("\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu")
             : "\(UFPlan.plus.name) fügt Karteikarten, Community und in der iPad-App das Schreiben mit Apple Pencil hinzu"
         s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "

@@ -96,7 +96,7 @@ private struct BusyCourseCard: View {
                         if on { attend.insert(id) } else { attend.remove(id) }
                     }))
                 }
-                Text("Abgewählte Termine werden grau und geben die Zeit für Lernblöcke frei.").ufFont(13.12).foregroundStyle(UF.muted)
+                Text(LearnCalendar.text("Abgewählte Termine werden grau und geben die Zeit für Lernblöcke frei.", off: "Abgewählte Termine werden grau.")).ufFont(13.12).foregroundStyle(UF.muted)
                 UFButton(saving ? "Wird gespeichert …" : "Speichern", kind: .primary, size: .small) {
                     guard !saving else { return }
                     saving = true

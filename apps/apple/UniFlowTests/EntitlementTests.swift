@@ -111,13 +111,19 @@ final class EntitlementTests: XCTestCase {
 
     /// Funktionen der Tarifkarten (Abschnitt 4): KI nur bei Pro AI (StudiNow-KI mit Konto, PlanContractTests)
     func testPlanCards() {
+        // ohne Lernkalender (`LearnCalendar`, 17.11.2026) nennen die Karten ihn nicht; mit Schalter an wie bisher
+        XCTAssertEqual(UFFeatureMatrix.added(in: .free), [.studipSync, .readDocuments, .modulesTimetable, .viewNotes, .uniGrades])
+        LearnCalendar.enabled = true
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
                        [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .viewNotes, .uniGrades])
+        XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .dueReminders, .autoPlan, .aiChat])
+        LearnCalendar.enabled = false
                        // „Eigenes ChatGPT“ aus (OpenAIKeyLink.isOffered, Vorgabe 11.11.2026): nicht auf der Free-Karte
                        // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026);
                        // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel in jedem Tarif (07.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
-                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .dueReminders, .autoPlan, .aiChat])
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .dueReminders, .aiChat])
                        // Erinnerungen an Abgaben und Klausuren ab Plus (Entscheidung 11.11.2026); KI-Chat mit gekauften
                        // Credits ab Plus (Entscheidung des Inhabers 15.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync])

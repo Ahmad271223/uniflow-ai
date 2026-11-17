@@ -34,6 +34,13 @@ struct TimetableView: View {
             : "Noch sind keine Termine deiner Kurse abgeholt; sie kommen mit dem nächsten Abgleich. Bis dahin kannst du eine Kalenderdatei (ICS) importieren oder Termine selbst eintragen."
     }
 
+    /// Hinweis unter dem Raster; ohne Lernkalender (17.11.2026) ohne den Satz zu den Lernbloecken
+    static var footHint: String {
+        "Tippe auf einen Termin: Teilnahme ändern, bearbeiten, Unterlagen öffnen."
+            + LearnCalendar.text(" Nicht besuchte Veranstaltungen geben Zeit frei, die du für Lernblöcke nutzen kannst.",
+                                 off: " Die Hinweise oben am Tag (Termin, Anmeldung, Test, Klausur) kannst du antippen.")
+    }
+
     private let H: CGFloat = 56
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
 
@@ -101,7 +108,7 @@ struct TimetableView: View {
                 if !cols.hidden.isEmpty { weekendHint(cols.hidden) }
                 grid(days, lo: lo, hi: hi)
             }
-            Text("Tippe auf einen Termin: Teilnahme ändern, bearbeiten, Unterlagen öffnen. Nicht besuchte Veranstaltungen geben Zeit frei, die du für Lernblöcke nutzen kannst.")
+            Text(Self.footHint)
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 9.6)
         }
     }
@@ -715,7 +722,8 @@ struct TimetablePreviewDialog: View {
             let summary = "\(res.i("new") ?? 0) neu, \(res.i("updated") ?? 0) aktualisiert\(removedN > 0 ? ", \(removedN) entfernt" : "")"
             // Lernslots, die jetzt mit Terminen zusammenfallen, legt der Lernkalender neu (03.11.2026: kein Dialog und
             // kein reslot mehr im Stundenplan) – eine Zeile, und die Ansicht wechselt dorthin
-            let conflicts = res.list("conflicts").count
+            // ohne Lernkalender (17.11.2026) kein Hinweis auf Lernslots und kein Wechsel dorthin
+            let conflicts = LearnCalendar.enabled ? res.list("conflicts").count : 0
             if conflicts > 0 {
                 toast.show("\(summary) · \(Self.conflictHint(conflicts))", seconds: 6)
                 router.go(.plan())

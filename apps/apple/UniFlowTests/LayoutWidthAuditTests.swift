@@ -122,12 +122,23 @@ final class LayoutWidthAuditTests: XCTestCase {
 
     // MARK: - Seiten
 
+    /// Die Seiten des Lernkalenders gehoeren weiter zum Audit (er kommt wieder, Auftrag 17.11.2026): fuer sie gilt der
+    /// Schalter an; alles andere laeuft mit dem ausgelieferten Standard (aus)
+    private func withLearnCalendar<T>(_ body: () throws -> T) rethrows -> T {
+        let before = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = before }
+        return try body()
+    }
+
+    private static func isPlan(_ r: UFRoute) -> Bool { if case .plan = r { return true }; return false }
+
     func testStudium() throws {
         let env = try host(MainView())
         var report: [String] = []
         report += audit(env, "uebersicht", route: .dashboard, marker: "Grundlagen der Informatik")
         report += audit(env, "nachrichten", route: .messages, marker: nil)
-        report += audit(env, "lernkalender", route: .plan(), marker: "Übungsblatt 1")
+        report += withLearnCalendar { audit(env, "lernkalender", route: .plan(), marker: "Übungsblatt 1") }
         report += audit(env, "stundenplan", route: .timetable(), marker: "Grundlagen der Informatik")
         report += audit(env, "module", route: .modules, marker: "Grundlagen der Informatik")
         let api = container.api
@@ -187,9 +198,11 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "uebersicht", route: .dashboard, marker: "Grundlagen der Informatik", variants: v)
         report += audit(env, "nachrichten", route: .messages, marker: nil, variants: v)
         // iPhone hoch: Woche als 3 Tage ab heute, die Abgabe der Demo liegt spaeter
-        report += audit(env, "lernkalender", route: .plan(), marker: "Lernkalender", variants: v)
-        report += audit(env, "lernkalender-monat", route: .plan(view: "month"), marker: nil, variants: v)
-        report += audit(env, "lernkalender-liste", route: .plan(view: "list"), marker: nil, variants: v)
+        report += withLearnCalendar {
+            audit(env, "lernkalender", route: .plan(), marker: "Lernkalender", variants: v)
+                + audit(env, "lernkalender-monat", route: .plan(view: "month"), marker: nil, variants: v)
+                + audit(env, "lernkalender-liste", route: .plan(view: "list"), marker: nil, variants: v)
+        }
         report += audit(env, "stundenplan", route: .timetable(), marker: "Grundlagen der Informatik", variants: v)
         report += audit(env, "module", route: .modules, marker: "Grundlagen der Informatik", variants: v)
         let api = container.api
@@ -358,6 +371,7 @@ final class LayoutWidthAuditTests: XCTestCase {
             ("09c-einstellungen-lernzeit", .settings(tab: "plan")), ("09d-einstellungen-erweitert", .settings(tab: "advanced")),
         ]
         if let moduleID { pages.insert(("06-modul", .module(moduleID)), at: 7) }
+        if !LearnCalendar.enabled { pages.removeAll { Self.isPlan($0.1) } }       // ausgeblendet: keine Bilder davon
         let size = Self.iphone[1].size
         env.hosting.traitOverrides.horizontalSizeClass = .compact
         env.hosting.traitOverrides.verticalSizeClass = .regular
@@ -447,7 +461,10 @@ final class LayoutWidthAuditTests: XCTestCase {
             ("einstellungen-zugang", .settings(tab: "account"), nil),
             ("einstellungen-lernzeit", .settings(tab: "plan"), nil),
         ]
+        let before = LearnCalendar.enabled
+        defer { LearnCalendar.enabled = before }
         for (name, route, marker) in pages {
+            LearnCalendar.enabled = Self.isPlan(route) || before                 // Lernkalender-Seiten mit Schalter an
             for width in [CGFloat(393), 375] {
                 env.window.frame = CGRect(origin: .zero, size: CGSize(width: width, height: width == 393 ? 852 : 812))
                 env.view.frame = env.window.bounds
@@ -471,6 +488,9 @@ final class LayoutWidthAuditTests: XCTestCase {
     /// „Novemb er 2026“ abgeschnitten, die Fortschrittskarte hoch und fast leer. Am iPhone gehören die Karten
     /// untereinander in voller Breite. Der Breiten-Audit war grün, weil nichts über den Rand ragte.
     func testIPhoneKalenderKartenUntereinander() throws {
+        let learnCalendar = LearnCalendar.enabled                                // prueft den Lernkalender: Schalter an
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let env = try host(MainView())
         UFCompact.phoneOverride = true
         defer { UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault }
