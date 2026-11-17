@@ -1219,6 +1219,11 @@ final class StudIPSync: ObservableObject {
                         try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
                         // Liste gelesen: das Modul zeigt ab jetzt seine Dateien statt "werden noch geladen" (`SyncPending`)
                         if complete { try SyncPending.markListed($0, courseID: c.id, now: started) }
+                        // "Neu" erst nach dem ersten Einlesen (17.11.2026): der Kurs merkt sich einmal, wann seine Liste
+                        // zum ersten Mal gelesen und (in dieser Transaktion ganz) gespeichert wurde - auch wenn Stud.IP
+                        // einzelne Unterordner nicht zeigt (403/404, meist dauerhaft): sonst waere in solchen Kursen nie
+                        // etwas neu. Eine nicht lesbare Liste kommt hier nicht an (der Kurs bleibt ohne Zeitpunkt).
+                        try UniStore.markFirstListing($0, courseID: c.id, now: started)
                         return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
                     }
                 }

@@ -30,8 +30,13 @@ final class StudIPLibraryTests: XCTestCase {
         }
         try await db.transaction { try StudIPLibrary.storeCourses($0, courses, startedAt: now) }
         var wanted: [StudIPFile] = []
-        for (_, list) in lists {
-            wanted += try await db.transaction { try StudIPLibrary.storeFiles($0, list, startedAt: now, base: base, localFiles: files) }
+        for (courseID, list) in lists {
+            wanted += try await db.transaction {
+                // wie der Abgleich der App je Kurs (StudIPSync): Liste vollstaendig gelesen, beim ersten Mal merkt sich
+                // der Kurs den Zeitpunkt (`courses.first_listed_at`, in Python am Ende von store_course_files)
+                try SyncPending.markListed($0, courseID: courseID, now: now)
+                return try StudIPLibrary.storeFiles($0, list, startedAt: now, base: base, localFiles: files)
+            }
         }
         if abortBeforeDownloads { return (wanted.map(\.id), []) }
         var loaded: [String] = []

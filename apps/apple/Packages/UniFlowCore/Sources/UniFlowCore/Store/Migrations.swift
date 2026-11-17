@@ -64,6 +64,8 @@ public enum Migrations {
         case sql(String)
         /// Spalte anhaengen, wenn sie fehlt, und nur dann einmal `then` ausfuehren (einmalige Umstellung)
         case addColumnOnce(String, String, String, then: @Sendable (SQLiteConnection) throws -> Void)
+        /// wie `addColumnOnce`, die einmalige Umstellung bekommt den Zeitpunkt des Laufs (`now_iso()`)
+        case addColumnOnceAt(String, String, String, then: @Sendable (SQLiteConnection, _ now: String) throws -> Void)
     }
 
     /// Die Migrationen fuer bestehende Datenbanken aus `init_db()`, woertlich und in derselben Reihenfolge.
@@ -152,6 +154,8 @@ public enum Migrations {
         .addColumn("study_tasks", "page_to", "INTEGER"),
         .addColumn("study_tasks", "steps", "TEXT"),
         .addColumn("study_tasks", "steps_done", "TEXT"),
+        // "Neu" erst nach dem ersten Einlesen eines Kurses (17.11.2026): Zeitpunkt je Kurs, Bestand einmalig nachtragen
+        .addColumnOnceAt("courses", "first_listed_at", "TEXT", then: { try $0.execute(firstListedBackfill, [.text($1)]) }),
         // Haken "erledigt" je Datei (13.11.2026): schon erledigte Dateien bekommen ihren Eintrag fuer den Geraete-Abgleich
         .sql(Migrations.fileDoneBackfill),
     ]
@@ -159,6 +163,17 @@ public enum Migrations {
     /// `db.FILE_DONE_BACKFILL`, woertlich (bei jedem Start, nur fehlende Eintraege)
     static let fileDoneBackfill = "INSERT OR IGNORE INTO settings(key, value) SELECT 'file_done:' || id, '1' FROM files "
         + "WHERE status = 'erledigt'"
+
+    /// `db.FIRST_LISTED_BACKFILL`, woertlich. `courses.first_listed_at` ist der Zeitpunkt, an dem die Dateiliste des
+    /// Kurses zum ersten Mal vollstaendig eingelesen wurde (auch wenn sie leer war); gesetzt genau einmal
+    /// (`UniStore.markFirstListing`). Neu ist nur, was danach dazukommt (`LocalLibrary.newFileSQL`). Einmalig beim
+    /// Anlegen der Spalte fuer Kurse, die es schon gibt: das Ende des ersten erfolgreichen Abgleichs, der nach der
+    /// ersten Datei des Kurses fertig wurde (was bis dahin kam, war "schon da"; was ein spaeterer Abgleich brachte,
+    /// kann neu bleiben); ohne Dateien oder ohne solchen Abgleich der Zeitpunkt der Umstellung. Niemand sieht nach dem
+    /// Update ploetzlich hunderte neue Dateien.
+    static let firstListedBackfill = "UPDATE courses SET first_listed_at = COALESCE((SELECT MIN(s.finished_at) FROM sync_log s "
+        + "WHERE s.ok = 1 AND s.finished_at >= (SELECT MIN(f.first_seen) FROM files f WHERE f.course_id = courses.id)), ?) "
+        + "WHERE first_listed_at IS NULL AND id <> '__user__'"
 
     /// `db.FLASHCARD_RESULT_BACKFILL`: einmalige Vorbelegung von flashcards.last_result, woertlich
     static let flashcardResultBackfill = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"
@@ -260,6 +275,11 @@ public enum Migrations {
                     if !(try conn.columnNames(table)).contains(column) {
                         try conn.execute("ALTER TABLE \(table) ADD COLUMN \(column) \(decl)")
                         try then(conn)
+                    }
+                case .addColumnOnceAt(let table, let column, let decl, let then):
+                    if !(try conn.columnNames(table)).contains(column) {
+                        try conn.execute("ALTER TABLE \(table) ADD COLUMN \(column) \(decl)")
+                        try then(conn, clock.nowISO)
                     }
                 }
             }

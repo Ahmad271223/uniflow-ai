@@ -31,11 +31,11 @@ final class LocalDocumentsAppTests: XCTestCase {
 
     private static let clock = UniFlowClock.fixed(berlin: "2026-10-25T14:30:05")!
 
-    /// Geraet mit lokalem Backend; mit `container` dasselbe Geraet nach einem Neustart der App
-    private func device(_ container: URL? = nil) throws -> Device {
+    /// Geraet mit lokalem Backend; mit `container` dasselbe Geraet nach einem Neustart der App (`clock`: spaeter)
+    private func device(_ container: URL? = nil, clock: UniFlowClock = LocalDocumentsAppTests.clock) throws -> Device {
         let c = try container ?? tempDir()
         let host = LocalBackendHost(directory: c.appendingPathComponent("Library/Application Support/UniFlow/db", isDirectory: true),
-                                    clock: Self.clock,
+                                    clock: clock,
                                     files: LocalFiles(container: c, dataDirectory: "Library/Application Support/UniFlow", tools: AppDocumentTools()))
         return Device(container: c, host: host, api: APIClient(base: APIClient.localBase, transport: LocalTransport(host: host)),
                       studipRoot: c.appendingPathComponent("Library/Application Support/StudIP", isDirectory: true))
@@ -142,6 +142,71 @@ final class LocalDocumentsAppTests: XCTestCase {
         return (v["data"]?["pages"]?[page]?["objects"]?.array ?? []).filter { $0["type"]?.string == "stroke" }
     }
 
+    // MARK: "Neu" erst nach dem ersten Einlesen (Auftrag des Inhabers 17.11.2026)
+
+    /// Der wirkliche Stud.IP-Abgleich der App: der erste Lauf zeigt nichts als neu (der Kurs merkt sich den Zeitpunkt
+    /// seiner ersten vollstaendigen Dateiliste), der zweite nur die Datei, die dazukam; 25 Stunden spaeter nichts mehr.
+    func testFirstSyncShowsNothingNewLaterFileIsNew() async throws {
+        try await firstSyncThenLaterFile(hiddenFolder: false)
+    }
+
+    /// Dasselbe in einem Kurs mit einem Unterordner, den Stud.IP nicht zeigt (403/404, z. B. Gruppenordner): die Liste
+    /// gilt nie als vollstaendig, der Kurs merkt sich den Zeitpunkt trotzdem - sonst waere dort nie etwas neu.
+    func testFirstSyncWithHiddenFolderStillMarksNewLater() async throws {
+        try await firstSyncThenLaterFile(hiddenFolder: true)
+    }
+
+    private func firstSyncThenLaterFile(hiddenFolder: Bool) async throws {
+        let dev = try device()
+        let pdf = makePDF("Testblatt")
+        let stud = fakeStudIP(pdf: pdf)
+        if hiddenFolder {
+            // Unterordner "Gruppe A": seine Dateiliste beantwortet Stud.IP nicht (404)
+            stud.json("/jsonapi.php/v1/folders/r1/folders?page[limit]=200", #"{"data":[{"id":"s1","attributes":{"name":"Gruppe A"}}]}"#)
+        }
+        let settings = try defaults()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: settings)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        let first = try await dev.api.value("/api/dashboard")
+        XCTAssertEqual(first["new_total"], 0, "erstes Einlesen: nichts neu")
+        XCTAssertEqual(first.list("modules").first?.i("new_count"), 0)
+        let lib1 = try await dev.api.value("/api/library")
+        XCTAssertEqual(lib1.list("files").count, 2)
+        XCTAssertEqual(UFNewFiles.count(lib1.list("files")), 0)
+        let listed = try await dev.host.backend().context.database.scalar("SELECT first_listed_at FROM courses WHERE id='c1'")?.string
+        XCTAssertEqual(listed, "2026-10-25T14:30:05")
+        // Gegenprobe: mit dem versteckten Ordner gilt die Liste wirklich nicht als vollstaendig (`SyncPending.markListed` lief nicht)
+        let complete = try await dev.host.backend().context.database.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='course_file_lists'")?.int
+        XCTAssertEqual(complete, hiddenFolder ? 0 : 1)
+
+        // zwei Stunden spaeter liegt eine dritte Datei im Kurs
+        let later = UniFlowClock.fixed(berlin: "2026-10-25T16:30:00")!
+        stud.json("/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"d1","attributes":{"name":"Blatt 3.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-19T10:00:00+02:00","is-downloadable":true}},
+                     {"id":"d2","attributes":{"name":"Gesperrt.pdf","filesize":5,"mime-type":"application/pdf","chdate":"2026-10-19T11:00:00+02:00","is-downloadable":false}},
+                     {"id":"d3","attributes":{"name":"Blatt 4.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-25T16:00:00+02:00","is-downloadable":true}}]}
+            """#)
+        stud.set("/jsonapi.php/v1/file-refs/d3/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        let dev2 = try device(dev.container, clock: later)
+        let sync2 = StudIPSync(root: dev2.studipRoot, host: dev2.host, clock: later, defaults: settings)
+        await sync2.run(client: client(stud))
+        XCTAssertEqual(sync2.phase, .idle, "\(sync2.phase)")
+        let dash = try await dev2.api.value("/api/dashboard")
+        XCTAssertEqual(dash["new_total"], 1)
+        XCTAssertEqual(dash.list("new_files").compactMap { $0.s("id") }, ["d3"])
+        XCTAssertEqual(dash.list("modules").first?.i("new_count"), 1)
+        let lib2 = try await dev2.api.value("/api/library")
+        XCTAssertEqual(lib2.list("files").filter(UFNewFiles.isNew).compactMap { $0.s("id") }, ["d3"])
+        let kept = try await dev2.host.backend().context.database.scalar("SELECT first_listed_at FROM courses WHERE id='c1'")?.string
+        XCTAssertEqual(kept, "2026-10-25T14:30:05", "der Zeitpunkt wird genau einmal gesetzt")
+
+        // 25 Stunden nach dem zweiten Abgleich: Neu ist von selbst weg
+        let dev3 = try device(dev.container, clock: UniFlowClock.fixed(berlin: "2026-10-26T17:30:00")!)
+        let next = try await dev3.api.value("/api/dashboard")
+        XCTAssertEqual(next["new_total"], 0)
+    }
+
     // MARK: Abnahme S3: Stud.IP verbinden -> Dokumente erscheinen -> im Editor oeffnen und schreiben, offline
 
     func testStudIPFilesAppearAndOpenInEditorOffline() async throws {
@@ -186,9 +251,10 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertNil(LibraryCourses.courseID(""))
         XCTAssertEqual(LibraryCourses.title(of: d1, in: courses), "Testkurs Numerik")
         XCTAssertNil(LibraryCourses.title(of: ["course_id": "__user__"], in: courses))
-        // Uebersicht: "Neu aus Stud.IP" und letzter Abgleich
+        // Uebersicht: "Neu aus Stud.IP" und letzter Abgleich. Erstes Einlesen des Kurses (17.11.2026): was dabei schon da
+        // war, gilt nicht als neu (testFirstSyncShowsNothingNewLaterFileIsNew)
         let dash = try await dev.api.value("/api/dashboard")
-        XCTAssertEqual(dash["new_total"], 2)
+        XCTAssertEqual(dash["new_total"], 0)
         XCTAssertEqual(dash["last_sync"]?["message"], "1 neue/geaenderte Dateien")
         XCTAssertEqual(dash["last_sync"]?["ok"], 1)
         // Pfad relativ zum App-Container

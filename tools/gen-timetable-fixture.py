@@ -56,8 +56,10 @@ for cid, title, kind, module, active in [
     ("k-sonst", "Begrüßung der Erstsemester", "sonstiges", None, 1),
     ("k-alt", "Altkurs Inaktiv", "vorlesung", None, 0),
 ]:
-    SEED.append(("INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                 [cid, title, None, "WiSe 2026/27", None, kind, active, module, "2026-10-01T09:00:00"]))
+    # first_listed_at: Dateiliste zum ersten Mal eingelesen am 24.10. um 8 Uhr (wie first_seen der meisten Dateien: sie
+    # waren "schon da"); neu ist nur, was danach kam (FIRST_SEEN, study.new_file_sql)
+    SEED.append(("INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                 [cid, title, None, "WiSe 2026/27", None, kind, active, module, "2026-10-01T09:00:00", "2026-10-24T08:00:00"]))
 EVENT_COLS = "module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at"
 for ev in [
     [1, "k-ma-vl", "Testmathematik I", "vorlesung", 0, "10:00", "11:30", "Raum A", "Prof. Beispiel", "weekly", None, None, 1, "studip", None],

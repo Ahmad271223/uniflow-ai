@@ -25,6 +25,10 @@ OUT = ROOT / "packages" / "shared-contracts" / "fixtures" / "schema"
 
 # Aelterer Stand (erfunden, aber im Aufbau wie fruehe Versionen): nur einige Tabellen, ohne die spaeteren Spalten.
 # annotations hat version und files hat studip_folder schon (halb migrierte Datenbank), terms fehlt ganz.
+# sync_log wie heute, mit einem gescheiterten und zwei fertigen Abgleichen: daraus traegt die Migration je Kurs nach,
+# wann seine Dateiliste zum ersten Mal eingelesen war (courses.first_listed_at, db.FIRST_LISTED_BACKFILL) - k1 (erste
+# Datei am 1.10. um 9 Uhr) das Ende des ersten erfolgreichen Abgleichs danach, k2 (Dateien ohne Zeitpunkt) den
+# Zeitpunkt der Umstellung, eigene Dokumente nichts.
 LEGACY_SQL = """
 CREATE TABLE courses (id TEXT PRIMARY KEY, title TEXT NOT NULL, number TEXT, semester TEXT, subject TEXT, kind TEXT,
                       active INTEGER DEFAULT 1, test_minutes INTEGER DEFAULT 90, created_at TEXT);
@@ -38,6 +42,8 @@ CREATE TABLE tests (id INTEGER PRIMARY KEY AUTOINCREMENT, subject TEXT NOT NULL,
                     duration_min INTEGER, questions TEXT NOT NULL, created_at TEXT, started_at TEXT, submitted_at TEXT,
                     answers TEXT, score REAL, max_score REAL, feedback TEXT);
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT, finished_at TEXT, ok INTEGER,
+                       new_files INTEGER DEFAULT 0, message TEXT);
 CREATE TABLE modules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, semester TEXT, color TEXT, icon TEXT,
                       priority INTEGER DEFAULT 2, exam_date TEXT, sort INTEGER DEFAULT 0, created_at TEXT);
 CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, subject TEXT, question TEXT NOT NULL,
@@ -46,16 +52,19 @@ CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, sub
 INSERT INTO courses(id, title, kind, created_at) VALUES ('k1', 'Testkurs Algebra', 'vorlesung', '2026-09-30T08:00:00');
 INSERT INTO courses(id, title, kind, active, created_at) VALUES ('k2', 'Testkurs Algebra Uebung', 'uebung', 0, '2026-09-30T08:01:00');
 INSERT INTO courses(id, title, kind, created_at) VALUES ('__user__', 'Eigene Dokumente', 'sonstiges', '2026-09-01T07:00:00');
-INSERT INTO files(id, course_id, name, size, mime, chdate, status) VALUES ('f1', 'k1', 'Folien_01.pdf', 1024, 'application/pdf', 1760000000, 'gelesen');
+INSERT INTO files(id, course_id, name, size, mime, chdate, status, first_seen) VALUES ('f1', 'k1', 'Folien_01.pdf', 1024, 'application/pdf', 1760000000, 'gelesen', '2026-10-01T09:00:00');
 INSERT INTO files(id, course_id, name, mime, studip_folder) VALUES ('f2', 'k2', 'blatt1.py', 'text/x-python', 'Uebungen');
 INSERT INTO files(id, course_id, name, mime) VALUES ('f3', 'k2', 'Skizze.PNG', 'image/png');
-INSERT INTO files(id, course_id, name) VALUES ('f4', 'k1', 'archiv.zip');
+INSERT INTO files(id, course_id, name, first_seen) VALUES ('f4', 'k1', 'archiv.zip', '2026-10-05T09:00:00');
 INSERT INTO files(id, course_id, name) VALUES ('f5', 'k1', 'Tafel.JPeG');
 INSERT INTO files(id, course_id, name) VALUES ('f6', 'k1', 'Altklausur.PDF');
 INSERT INTO files(id, course_id, name) VALUES ('u1', '__user__', 'Mein Notizbuch');
 INSERT INTO annotations(file_id, data, updated_at, version) VALUES ('f1', '{"version":2,"pages":{}}', '2026-10-02T10:00:00', 3);
 INSERT INTO annotations(file_id, data, updated_at) VALUES ('f6', '{"version":2,"pages":{"p1":{"objects":[]}}}', '2026-10-03T11:00:00');
 INSERT INTO tests(subject, title, duration_min, questions, score) VALUES ('Algebra', 'Probetest', 45, '[]', 7.5);
+INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES ('2026-10-01T09:00:00', '2026-10-01T09:05:00', 0, 0, 'Stud.IP nicht erreichbar');
+INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES ('2026-10-02T09:00:00', '2026-10-02T09:04:00', 1, 1, '1 neue/geaenderte Dateien');
+INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES ('2026-10-05T09:00:00', '2026-10-05T09:03:00', 1, 1, '1 neue/geaenderte Dateien');
 INSERT INTO settings(key, value) VALUES ('hours_per_day', '6');
 INSERT INTO settings(key, value) VALUES ('user_name', 'Testperson');
 INSERT INTO settings(key, value) VALUES ('eigener_schluessel', 'x');
@@ -73,6 +82,9 @@ INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Ohne Fac
 INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Fach als Text', 'a', '2026-10-20T08:00:00', 'abc', 'x');
 INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Fach als Kommazahl', 'a', '2026-10-20T08:00:00', 2.5, '2026-10-21');
 """
+
+# Zeitpunkt der Migration (eingefrorene Uhr, wie SQLiteStoreTests)
+LEGACY_NOW = "2026-10-25T14:30:05"
 
 # Tabellen, deren Zeilen nach der Migration in legacy.json stehen
 LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms", "modules", "flashcards", "flashcard_stacks"]
@@ -170,13 +182,20 @@ def legacy(src: SchemaSource) -> dict:
         c.executescript(LEGACY_SQL)
     c.close()
     src.use_db(path)
-    src.db.init_db()
+    # Uhr wie im Swift-Test (UniFlowClock.fixed): der Zeitpunkt der Umstellung steht in courses.first_listed_at
+    saved_now = src.db.now_iso
+    src.db.now_iso = lambda: LEGACY_NOW
+    try:
+        src.db.init_db()
+    finally:
+        src.db.now_iso = saved_now
     with src.db.connect() as conn:
         src.scriptsearch.ensure_table(conn)
     conn = sqlite3.connect(path)
     try:
         return {
             "generator": "tools/gen-schema-fixture.py",
+            "now": LEGACY_NOW,
             "setup_sql": LEGACY_SQL.strip("\n").splitlines(),       # Zeilen, in Swift mit "\\n" verbunden
             "schema": snapshot(conn),
             "rows": {t: rows(conn, t) for t in LEGACY_ROWS},

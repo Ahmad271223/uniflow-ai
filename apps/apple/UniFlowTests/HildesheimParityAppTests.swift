@@ -127,9 +127,13 @@ final class HildesheimParityAppTests: XCTestCase {
         let dump = try await c.host.backend().context.database.rows("SELECT * FROM grades")
         XCTAssertFalse(JSONValue.array(dump.map(JSONValue.object)).jsonString().contains("Beispiel"), "Stammdaten nie gespeichert")
 
-        // Uebersicht: neue Dateien mit der Quelle der Hochschule, Termine des Tages
+        // Uebersicht: neue Dateien mit der Quelle der Hochschule, Termine des Tages. Erstes Einlesen (17.11.2026): was
+        // dabei schon da war, gilt nicht als neu; jeder Learnweb-Kurs merkt sich den Zeitpunkt seiner ersten Liste
         let dash = try await c.api.value("/api/dashboard")
-        XCTAssertEqual(dash["new_total"], 4)
+        XCTAssertEqual(dash["new_total"], 0)
+        let listed = try await c.host.backend().context.database.rows("SELECT first_listed_at FROM courses WHERE id<>'__user__'")
+        XCTAssertFalse(listed.isEmpty)
+        XCTAssertTrue(listed.allSatisfy { $0["first_listed_at"]?.string?.isEmpty == false }, "\(listed)")
         XCTAssertEqual(UFSourceText.newFiles(.hildesheim), "Neu aus Learnweb")
         XCTAssertEqual(UFDataMode.current(api: c.api, studip: m.studip), .local(.otherSources), "Karten Learnweb/LSF statt Stud.IP")
         XCTAssertTrue(UFNavItem.visible(local: true, gradesOnDevice: true, community: false).contains { $0.id == "services" })

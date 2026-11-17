@@ -123,7 +123,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -140,7 +141,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -157,7 +159,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -174,7 +177,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -191,7 +195,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -489,7 +494,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -506,7 +512,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -523,7 +530,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -540,7 +548,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -557,7 +566,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -839,7 +849,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -856,7 +867,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -873,7 +885,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -890,7 +903,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -907,7 +921,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -1191,7 +1206,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -1208,7 +1224,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -1225,7 +1242,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -1242,7 +1260,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -1259,7 +1278,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -1552,7 +1572,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -1569,7 +1590,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -1586,7 +1608,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -1603,7 +1626,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -1620,7 +1644,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -1888,7 +1913,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -1905,7 +1931,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -1922,7 +1949,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -1939,7 +1967,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -1956,7 +1985,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -2450,7 +2480,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": null
       },
       {
        "id": "b1",
@@ -2467,7 +2498,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "b2",
@@ -2484,7 +2516,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "e1",
@@ -2501,7 +2534,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m1",
@@ -2518,7 +2552,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m2",
@@ -2535,7 +2570,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m3",
@@ -2552,7 +2588,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m4",
@@ -2569,7 +2606,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       }
      ],
      "files": [
@@ -4694,6 +4732,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": null,
       "file_count": 0,
       "new_count": 0
      },
@@ -4713,6 +4752,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
       "new_count": 0
      },
@@ -4732,6 +4772,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
       "new_count": 0
      },
@@ -4751,6 +4792,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
       "new_count": 0
      },
@@ -4770,6 +4812,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
       "new_count": 0
      },
@@ -4789,6 +4832,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
       "new_count": 0
      },
@@ -4808,6 +4852,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 4,
       "new_count": 0
      },
@@ -4827,6 +4872,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 5,
       "new_count": 0
      }
@@ -4850,7 +4896,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": null
     },
     {
      "id": "b1",
@@ -4867,7 +4914,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "b2",
@@ -4884,7 +4932,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "e1",
@@ -4901,7 +4950,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m1",
@@ -4918,7 +4968,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m2",
@@ -4935,7 +4986,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m3",
@@ -4952,7 +5004,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m4",
@@ -4969,7 +5022,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     }
    ],
    "modules": [

@@ -331,12 +331,18 @@ def week_topic(files: list[dict]) -> str:
 
 
 # "Neu" heisst an allen Stellen dasselbe (Uebersicht "Neu aus …", Modulkarten "n neue Inhalte", Bibliothek, Kurse,
-# Dateizeilen in Modulen und am Termin): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und "Gesehen" setzen es) UND
-# vor hoechstens NEW_FILE_HOURS Stunden eingetragen (`first_seen`; fehlt es, ist die Datei nicht neu). Danach
-# verschwindet "Neu" von selbst; `seen_by_user` und der Lernstand `status` ("neu" | "gelesen" | "erledigt") bleiben, wie
-# sie sind (Auftrag des Inhabers 17.11.2026: "wenn etwas laenger als 24 Std in der App ist, automatisch nicht mehr
-# neu"; Audit der iPad-App 03.11.2026: der Lernstand zaehlt fuer "Neu" nicht). Im iPad-Kern: LocalLibrary.newFileSQL.
+# Dateizeilen in Modulen und am Termin): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und "Gesehen" setzen es), vor
+# hoechstens NEW_FILE_HOURS Stunden eingetragen (`first_seen`; fehlt es, ist die Datei nicht neu) UND nach dem ersten
+# vollstaendigen Einlesen ihres Kurses dazugekommen (`courses.first_listed_at`, studip_sync.mark_first_listing): was
+# beim allerersten Einlesen eines Kurses schon da war, gilt gar nicht als neu - auch nicht bei einer zweiten Quelle,
+# einem spaeter belegten Kurs oder frueheren Semestern. Ohne Zeitpunkt (Liste noch nie fertig gelesen, eigene Dokumente
+# `__user__`) ist nichts neu; Demo-Dateien ("demo-") sind ausgenommen. Danach verschwindet "Neu" von selbst;
+# `seen_by_user` und der Lernstand `status` ("neu" | "gelesen" | "erledigt") bleiben, wie sie sind (Auftraege des
+# Inhabers 17.11.2026: "wenn etwas laenger als 24 Std in der App ist, automatisch nicht mehr neu", "Ja, so bauen";
+# Audit der iPad-App 03.11.2026: der Lernstand zaehlt fuer "Neu" nicht). Im iPad-Kern: LocalLibrary.newFileSQL.
 NEW_FILE_HOURS = 24
+# Bedingung "nach dem ersten Einlesen des Kurses dazugekommen" fuer `files f` (Demo-Dateien ausgenommen)
+AFTER_FIRST_LISTING_SQL = "(f.id LIKE 'demo-%' OR f.first_seen>(SELECT k.first_listed_at FROM courses k WHERE k.id=f.course_id))"
 
 
 def new_since() -> str:
@@ -348,7 +354,8 @@ def new_since() -> str:
 
 def new_file_sql(since: str | None = None) -> str:
     """SQL-Bedingung "neu" fuer `files f`; `since` aus `new_since()` (nur Ziffern, "-", "T", ":")."""
-    return f"(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='{since or new_since()}')"
+    return (f"(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='{since or new_since()}' "
+            f"AND {AFTER_FIRST_LISTING_SQL})")
 
 
 def is_new_column(since: str | None = None) -> str:
