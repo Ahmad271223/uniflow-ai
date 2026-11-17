@@ -3,6 +3,7 @@ import PencilKit
 import SwiftUI
 import UIKit
 import UniFlowCore
+import WebKit
 import XCTest
 @testable import UniFlow
 
@@ -188,6 +189,47 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         sheet?.dismiss(animated: false)
         env.pump(0.5)
         _ = transport
+    }
+
+    /// Video, YouTube oder Lernseite auch am iPhone (Auftrag 17.11.2026): Knopf in der Leseansicht, mit Plus die Auswahl
+    /// mit "YouTube öffnen". Danach steht ueber dem Dokument zuerst nur der Hinweis (noch keine Web-Ansicht, nichts geht
+    /// an YouTube); "Abbrechen" schliesst wieder, das Dokument bleibt dasselbe. Ohne Plus die Tarifwahl.
+    func testVideoOrLearningSiteAbovePhoneReader() throws {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        defer { Entitlements.shared.setPlanForTesting(before) }
+        YouTubeNotice.reset(defaults: YouTubeSidePane.defaults)
+        let (env, pdf, _) = try openReader()
+        let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
+        XCTAssertEqual(web.accessibilityLabel, "Video oder Lernseite")
+        XCTAssertTrue(web.accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 8) { self.element(env, id: "web.youtubeOpen") != nil }, "Auswahl mit „YouTube öffnen“: \(dump(env))")
+        XCTAssertNotNil(element(env, id: "web.videoLink"), "Link einfügen bleibt als zweiter Weg")
+        XCTAssertTrue(shows(env, WebSidePickerSection.videoIntro(readerOnly: true)), dump(env))
+        XCTAssertTrue(try XCTUnwrap(element(env, id: "web.youtubeOpen")).accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 8) { self.element(env, id: "youtube.noticeOpen") != nil && !self.sheetOpen(env) },
+                      "Hinweis über dem Dokument: \(dump(env))")
+        XCTAssertTrue(shows(env, "Dienst von Google"), dump(env))
+        func webViews(_ v: UIView) -> Int { (v is WKWebView ? 1 : 0) + v.subviews.map(webViews).reduce(0, +) }
+        XCTAssertEqual(webViews(env.window), 0, "vor „Öffnen“ keine Web-Ansicht")
+        XCTAssertTrue(pdfView(in: env.window) === pdf, "das Dokument bleibt dieselbe Ansicht")
+        for e in elements(env) {
+            guard let id = identifier(e), id.hasPrefix("youtube."), !frame(e).isNull, frame(e).width > 0 else { continue }
+            XCTAssertLessThanOrEqual(frame(e).maxX, IPhoneLearnTestCase.phone.width + 0.5, id)
+        }
+        shoot(env, "iphone-youtube-hinweis")
+        XCTAssertTrue(try XCTUnwrap(element(env, id: "youtube.noticeCancel")).accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 5) { self.element(env, id: "youtube.noticeOpen") == nil }, "Abbrechen schließt")
+        XCTAssertFalse(YouTubeNotice.accepted(defaults: YouTubeSidePane.defaults), "Abbrechen merkt nichts")
+        XCTAssertTrue(pdfView(in: env.window) === pdf)
+
+        // ohne Plus: Tarifwahl statt Auswahl
+        Entitlements.shared.setPlanForTesting(.free)
+        let (free, _, _) = try openReader()
+        XCTAssertTrue(try XCTUnwrap(element(free, id: "phoneReader.web")).accessibilityActivate())
+        XCTAssertTrue(free.wait(timeout: 5) { self.sheetOpen(free) }, "Tarifwahl")
+        XCTAssertNil(element(free, id: "web.youtubeOpen"), dump(free))
+        dismissSheet(free)
     }
 
     /// Dialog "Lösung teilen" aus der Leseansicht: die Notizen vom iPad werden gelesen (Vorschau), "Als Datei teilen"

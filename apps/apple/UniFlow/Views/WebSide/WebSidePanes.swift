@@ -49,8 +49,10 @@ struct VideoSidePane: View {
                 .background(Color.black)
                 .accessibilityIdentifier("video.player")
             VStack(alignment: .leading, spacing: 8) {
-                Label("Schreib im Dokument mit, während das Video läuft.", systemImage: "pencil.and.scribble")
-                    .ufFont(13.12, 600).foregroundStyle(UF.text2)
+                if !UFEditorAvailability.readerOnly {
+                    Label("Schreib im Dokument mit, während das Video läuft.", systemImage: "pencil.and.scribble")
+                        .ufFont(13.12, 600).foregroundStyle(UF.text2)
+                }
                 Text("Video von YouTube im eingebetteten Player. Links aus dem Video, das YouTube-Logo und „Ansehen auf YouTube“ öffnen außerhalb der App.")
                     .ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
@@ -448,6 +450,91 @@ struct WebSidePaneView: View {
     }
 }
 
+// MARK: - iPhone: ueber dem Dokument (Auftrag 17.11.2026 "auch auf iPhone und macOS")
+
+/// iPhone-Leseansicht (kein Platz fuer eine Spalte daneben): Video, YouTube oder Lernseite stehen ueber dem Dokument
+/// (quer: links daneben), mit demselben Kopf und X wie die Spalte am iPad. Der Griff dazwischen verschiebt die Teilung.
+/// Ohne Auswahl (`item == nil`) nur das Dokument, unveraendert.
+struct WebSideOverReader<Content: View>: View {
+    let item: WebSideItem?
+    let onClose: () -> Void
+    @ViewBuilder var content: Content
+    /// Anteil der Hoehe (quer: Breite) fuer Video bzw. Seite
+    @State private var fraction = WebSideOverReaderLayout.start
+    @State private var dragStart: CGFloat?
+
+    var body: some View {
+        GeometryReader { geo in
+            let wide = geo.size.width > geo.size.height
+            let total = wide ? geo.size.width : geo.size.height
+            let layout = wide ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
+            layout {
+                if let item {
+                    WebSidePaneView(item: item, onClose: onClose)
+                        .id("web-" + item.id)
+                        .frame(width: wide ? total * fraction : nil, height: wide ? nil : total * fraction)
+                    handle(wide: wide, total: total)
+                }
+                content
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+    }
+
+    private func handle(wide: Bool, total: CGFloat) -> some View {
+        ZStack {
+            UF.surface2
+            Capsule().fill(UF.muted.opacity(0.6)).frame(width: wide ? 4 : 36, height: wide ? 36 : 4)
+        }
+        .frame(width: wide ? 16 : nil, height: wide ? nil : 16)
+        .contentShape(Rectangle().inset(by: -10))
+        .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .onChanged { g in
+                let start = dragStart ?? fraction
+                dragStart = start
+                let moved = wide ? g.translation.width : g.translation.height
+                fraction = WebSideOverReaderLayout.clamp(start + moved / max(1, total))
+            }
+            .onEnded { _ in dragStart = nil })
+        .accessibilityLabel("Teilung verschieben")
+        .accessibilityIdentifier("web.over.handle")
+    }
+}
+
+enum WebSideOverReaderLayout {
+    static let start: CGFloat = 0.5
+    /// Video bzw. Seite nie kleiner als ein knappes Drittel und nie so gross, dass das Dokument verschwindet
+    static func clamp(_ f: CGFloat) -> CGFloat { min(0.78, max(0.3, f)) }
+}
+
+/// Auswahl "Video oder Lernseite" als eigenes Blatt (iPhone-Leseansicht): derselbe Abschnitt wie am iPad unter
+/// "Daneben öffnen". Ein eingefuegter Link wird wie dort am Dokument gemerkt.
+struct WebSidePickerSheet: View {
+    let documentID: String
+    var moduleID: Int?
+    let onPick: (WebSideItem) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                WebSidePickerSection(documentID: documentID, moduleID: moduleID) { item in
+                    if case .video(let v) = item {
+                        DocumentVideoLinks.save(v, for: documentID, defaults: ActiveContainer.current?.defaults)
+                    }
+                    onPick(item)
+                    dismiss()
+                }
+                .padding(20)
+            }
+            .background(UF.bg)
+            .navigationTitle("Video oder Lernseite")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
+        }
+    }
+}
+
 extension WebSideStore {
     @MainActor private static var cache: [UUID: WKWebsiteDataStore] = [:]
     @MainActor private static var ephemeral: WKWebsiteDataStore?
@@ -538,7 +625,7 @@ struct WebSidePickerSection: View {
     private var videoSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Video").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-            Text("Such dein Video bei YouTube und schreib im Dokument mit. Links zu anderen Seiten öffnen außerhalb der App.")
+            Text(Self.videoIntro(readerOnly: UFEditorAvailability.readerOnly))
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             UFButton("YouTube öffnen", icon: "play", kind: .primary) { onPick(.youTube(YouTubeVisit(documentID: documentID))) }
                 .accessibilityIdentifier("web.youtubeOpen")
@@ -574,6 +661,16 @@ struct WebSidePickerSection: View {
             }
         }
     }
+
+    /// Einleitung des Abschnitts "Video": am iPhone wird gelesen, nicht geschrieben, und das Video steht ueber dem Dokument
+    static func videoIntro(readerOnly: Bool) -> String {
+        readerOnly
+            ? "Such dein Video bei YouTube und schau es über dem Dokument. Links zu anderen Seiten öffnen außerhalb der App."
+            : "Such dein Video bei YouTube und schreib im Dokument mit. Links zu anderen Seiten öffnen außerhalb der App."
+    }
+
+    /// Beschriftung rechts in den Zeilen "Zuletzt hier" und der Aufzeichnungen
+    static func openLabel(readerOnly: Bool) -> String { readerOnly ? "Öffnen" : "Daneben öffnen" }
 
     static func lastSubtitle(_ v: VideoLink) -> String {
         v.start > 0 ? "ab \(v.start / 60):\(String(format: "%02d", v.start % 60))" : "von vorn"
@@ -625,7 +722,7 @@ struct WebSidePickerSection: View {
                     Text(sub).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                Text("Daneben öffnen").ufFont(12.8, 600).foregroundStyle(UF.accentText)
+                Text(Self.openLabel(readerOnly: UFEditorAvailability.readerOnly)).ufFont(12.8, 600).foregroundStyle(UF.accentText)
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
             .contentShape(Rectangle())

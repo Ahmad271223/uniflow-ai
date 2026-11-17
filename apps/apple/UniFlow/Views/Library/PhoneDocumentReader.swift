@@ -49,6 +49,10 @@ struct PhoneDocumentReader: View {
     /// "Lösung teilen" wie am iPad (Wunsch des Inhabers 11.11.2026): fertige Notizen vom iPad am iPhone teilen
     @State private var choosingShare = false
     @State private var solutionSheet: SolutionSheet?
+    /// Video, YouTube oder Lernseite ueber dem Dokument (am iPhone statt der Spalte daneben; Auftrag 17.11.2026)
+    @State private var webSide: WebSideItem?
+    @State private var choosingWeb = false
+    @State private var lockedFeature: UFFeature?
     @ObservedObject private var entitlements = Entitlements.shared
     @AppStorage("uniflow.phoneReader.hintSeen") private var hintSeen = false
     @EnvironmentObject private var router: UFRouter
@@ -66,7 +70,7 @@ struct PhoneDocumentReader: View {
         VStack(spacing: 0) {
             header
             if !hintSeen { hint }
-            content
+            WebSideOverReader(item: webSide, onClose: { webSide = nil }) { content }
         }
         .background(UF.bg)
         .toolbar(.hidden, for: .navigationBar)
@@ -90,6 +94,10 @@ struct PhoneDocumentReader: View {
             Button("Abbrechen", role: .cancel) {}
         } message: { Text(SolutionTexts.ownNotesOnly) }
         .ufSheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .ufSheet(isPresented: $choosingWeb) {
+            WebSidePickerSheet(documentID: store.file.id, moduleID: store.file.module_id) { item in webSide = item }
+        }
+        .ufSheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
         .alert("Zu Seite", isPresented: $goingToPage) {
             TextField("Seite", text: $goToText).keyboardType(.numberPad)
             Button("Abbrechen", role: .cancel) {}
@@ -141,6 +149,9 @@ struct PhoneDocumentReader: View {
                 UFButton(nil, icon: "users", kind: .ghost, size: .small) { choosingShare = true }
                     .disabled(store.layout == nil || store.pdf == nil)
                     .accessibilityLabel("Lösung teilen").accessibilityIdentifier("phoneReader.share")
+                // Video oder Lernseite ueber dem Dokument (Plus wie am iPad "daneben"; ohne Plus die Tarifwahl)
+                UFButton(nil, icon: "play", kind: webSide != nil ? .primary : .ghost, size: .small) { openWebPicker() }
+                    .accessibilityLabel("Video oder Lernseite").accessibilityIdentifier("phoneReader.web")
                 if task != nil {
                     UFButton(nil, icon: "check", kind: taskDone ? .primary : .ghost, size: .small) {
                         Task { await markTaskDone() }
@@ -157,6 +168,12 @@ struct PhoneDocumentReader: View {
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(UF.surface)
         .ufBorderBottom()
+    }
+
+    /// Wie am iPad "Video oder Lernseite daneben": mit Plus die Auswahl, sonst die Tarifwahl
+    func openWebPicker() {
+        guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        choosingWeb = true
     }
 
     /// Wie am iPad: Teilen braucht Plus, "Meine geteilten Lösungen" (Zurueckziehen) steht allen offen

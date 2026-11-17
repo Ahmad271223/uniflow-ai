@@ -242,6 +242,19 @@ final class VideoLearningSitesAppTests: XCTestCase {
         XCTAssertEqual(YouTubeSidePane.outsideURL(current: nil).absoluteString, "https://www.youtube.com/")
     }
 
+    /// iPhone (Auftrag 17.11.2026 "auch iPhone und macOS"): Video bzw. Seite ueber dem Dokument; Texte sprechen dort
+    /// nicht vom Schreiben und nicht von "daneben"; die Teilung laesst das Dokument nie verschwinden
+    func testPhoneWordingAndSplitAboveReader() {
+        XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: false).contains("schreib im Dokument mit"))
+        XCTAssertFalse(WebSidePickerSection.videoIntro(readerOnly: true).contains("schreib"))
+        XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: true).contains("über dem Dokument"))
+        XCTAssertEqual(WebSidePickerSection.openLabel(readerOnly: false), "Daneben öffnen")
+        XCTAssertEqual(WebSidePickerSection.openLabel(readerOnly: true), "Öffnen")
+        XCTAssertEqual(WebSideOverReaderLayout.clamp(WebSideOverReaderLayout.start), WebSideOverReaderLayout.start)
+        XCTAssertEqual(WebSideOverReaderLayout.clamp(0), 0.3)
+        XCTAssertEqual(WebSideOverReaderLayout.clamp(1), 0.78)
+    }
+
     // MARK: Sperre Lernseite
 
     private var wiki: LearningSite {
