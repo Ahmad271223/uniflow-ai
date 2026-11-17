@@ -342,6 +342,8 @@ final class KlausurAusFolienAppTests: XCTestCase {
         XCTAssertEqual(UFDayExtraChips.text(pin, compact: true), "10:00 Klausur")
         let chip = hints[1]
         XCTAssertEqual(chip.kindText, "Klausur / Prüfung")
+        XCTAssertTrue(UFDayExtraChips.isDetectedExam(chip), "als Klausur-Pin gezeigt, nicht in der Modulfarbe")
+        XCTAssertFalse(UFDayExtraChips.isDetectedExam(UFHint.deadline(["id": "d3", "detected": true, "kind": "abgabe", "title": "Abgabe"], date: "2026-11-17")))
         XCTAssertEqual(chip.detectedItem?.s("note"), "Im Text steht Mittwoch, der 17.11. ist aber ein Dienstag.")
         XCTAssertEqual(chip.detectedItem.flatMap(DueOpen.route), "#/doc/f6?page=3")
         // Klausur aus einer anderen Quelle (Stud.IP-Termin): kein erkannter Termin am Pin

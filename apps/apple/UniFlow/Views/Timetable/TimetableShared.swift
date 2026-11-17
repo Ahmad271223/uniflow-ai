@@ -731,6 +731,10 @@ struct UFDayExtraChips: View {
         _ = overlay.modal { UFHintDialog(hint: h, events: events) }
     }
 
+    /// Erkannte Kurzklausur, Probeklausur oder erkannter Test (17.11.2026): als Klausur-Pin gezeigt, nicht in der
+    /// Modulfarbe (eine gruene "Kurzklausur" sah aus wie "vorlesungsfrei")
+    static func isDetectedExam(_ h: UFHint) -> Bool { h.category == .detected && (h.kind == "klausur" || h.kind == "test") }
+
     /// Text des Chips: kompakt Uhrzeit und Art, sonst mit Titel
     static func text(_ h: UFHint, compact: Bool) -> String {
         let what: String
@@ -745,7 +749,7 @@ struct UFDayExtraChips: View {
     }
 
     private func chip(_ h: UFHint) -> some View {
-        if h.category == .exam { return AnyView(examChip(h)) }
+        if h.category == .exam || Self.isDetectedExam(h) { return AnyView(examChip(h)) }
         return AnyView(plainChip(h))
     }
 
