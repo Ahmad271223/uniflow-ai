@@ -33,7 +33,7 @@ class CardsAI:
             return Completion(json.dumps({"total": 6, "max": 10, "per_question": [], "summary": "Gut.", "weak_topics": []}), 120, 40, "fake")
         if self.week_test is not None and "Wochentest" in prompt:
             return Completion(json.dumps(self.week_test.pop(0) if isinstance(self.week_test, list) else self.week_test), 120, 40, "fake")
-        return Completion("**Erklärung:** Ein Grenzwert ist der Wert, dem sich eine Folge annähert [1].", 120, 40, "fake")
+        return Completion("## 1. Grenzwert\n\n**Erklärung:** Ein Grenzwert ist der Wert, dem sich eine Folge annähert [1].", 120, 40, "fake")
 
 
 @pytest.fixture

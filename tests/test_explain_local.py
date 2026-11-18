@@ -29,7 +29,7 @@ def ask(app, monkeypatch):
 
     def fake(prompt, system):
         calls.append(prompt)
-        return f"Antwort {len(calls)} zur Seite [1] und [2]."
+        return f"## Antwort {len(calls)} zur Seite [1] und [2]."
     monkeypatch.setattr(ai, "ask", fake)
     return calls
 
@@ -37,11 +37,11 @@ def ask(app, monkeypatch):
 def test_first_answer_is_live_second_comes_from_the_store(app, ask):
     text = uniq()
     st, a = tutor(app, {"mode": "explain", "page": 3, "page_text": text})
-    assert st == 200 and a["answer"] == "Antwort 1 zur Seite [1] und [2]."
+    assert st == 200 and a["answer"] == "## Antwort 1 zur Seite [1] und [2]."
     assert a["explain"] == {"stored": False, "variant": 1, "shared": False}
     st, b = tutor(app, {"mode": "explain", "page": 3, "page_text": text})
     assert st == 200 and len(ask) == 1, "kein zweiter KI-Aufruf"
-    assert b["answer"].startswith("Antwort 1 zur Seite"), b["answer"]
+    assert b["answer"].startswith("## Antwort 1 zur Seite"), b["answer"]
     assert "[1]" not in b["answer"] and "[2]" not in b["answer"], "Quellenmarken des ersten Fragenden werden nicht weitergereicht"
     assert b["explain"]["stored"] is True and b["explain"]["source"] == "local" and b["explain"]["variant"] == 1
     assert b["explain"]["created_at"] and b["sources"] == [] and b["cards"] is None
@@ -82,10 +82,10 @@ def test_force_asks_again_and_fills_up_to_three_variants_without_overwriting(app
     assert len(ask) == 3
     st, d = tutor(app, {**body, "force": True})
     assert st == 200 and d["explain"]["variant"] == 0, "alle drei belegt: die neue Antwort bleibt nur auf dem Bildschirm"
-    assert d["answer"].startswith("Antwort 4")
+    assert d["answer"].startswith("## Antwort 4")
     # Leser nehmen die niedrigste Variante; die vierte Antwort hat nichts ueberschrieben
     st, d = tutor(app, body)
-    assert d["explain"]["stored"] is True and d["explain"]["variant"] == 1 and d["answer"].startswith("Antwort 1") and len(ask) == 4
+    assert d["explain"]["stored"] is True and d["explain"]["variant"] == 1 and d["answer"].startswith("## Antwort 1") and len(ask) == 4
 
 
 def test_unusable_requests_do_not_touch_the_store(app, ask):
@@ -101,9 +101,18 @@ def test_unusable_requests_do_not_touch_the_store(app, ask):
 
 # ---------------------------------------------------------------- Dienst (gehostet)
 
+class StyledAI(FakeAI):
+    """Attrappe mit einer Erklaerung im aktuellen Stil (Abschnitt, Block-Formel; explain_local.current_style)"""
+
+    def complete(self, system, prompt, schema=None):
+        c = super().complete(system, prompt, schema)
+        c.text = "## 1. Matrix\n\n" + c.text + "\n\n$$\\boxed{A}$$"
+        return c
+
+
 def test_hosted_stored_answer_costs_nothing_and_does_not_count(hosted, monkeypatch):  # noqa: F811
     from app import ai_backend
-    fake = FakeAI()
+    fake = StyledAI()
     ai_backend.set_provider(fake)
     cheap_calls(monkeypatch)
     u, h = user(hosted, "speicher-a@beispiel.de", plan="pro_ai")

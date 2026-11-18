@@ -610,8 +610,27 @@ struct AIStartView: View {
             case .heading(_, let t), .paragraph(let t): return String(AIMarkdown.inline(MathText.plain(t)).characters)
             case .bullets(let items), .numbered(let items): return items.map { String(AIMarkdown.inline(MathText.plain($0)).characters) }.joined(separator: " · ")
             case .code(let c): return c
+            case .math(let tex): return MathText.plain("$" + tex + "$")
+            case .rule: return ""
+            case .quote(let inner): return plain(blocksText(inner))
+            case .table(let header, let rows): return ([header] + rows).map { $0.map { MathText.plain($0) }.joined(separator: " | ") }.joined(separator: " · ")
             }
-        }.joined(separator: " ")
+        }.filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// Bloecke eines Merke-Kastens zurueck in Markdown (nur fuer die Vorschau)
+    private static func blocksText(_ blocks: [AIMarkdown.Block]) -> String {
+        blocks.map { b -> String in
+            switch b {
+            case .heading(_, let t), .paragraph(let t): return t
+            case .bullets(let items), .numbered(let items): return items.map { "- " + $0 }.joined(separator: "\n")
+            case .code(let c): return c
+            case .math(let tex): return "$$" + tex + "$$"
+            case .rule: return ""
+            case .quote(let inner): return blocksText(inner)
+            case .table(let header, let rows): return ([header] + rows).map { $0.joined(separator: " | ") }.joined(separator: "\n")
+            }
+        }.joined(separator: "\n\n")
     }
 
     // MARK: Senden

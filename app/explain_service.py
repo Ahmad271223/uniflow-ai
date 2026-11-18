@@ -128,8 +128,9 @@ def usable(file_id: str | None, mode: str) -> bool:
 # ---------------------------------------------------------------- Lesen und Veroeffentlichen
 
 def lookup(file_id: str, page: int, mode: str, text: str) -> dict | None:
-    """Niedrigste lesbare Variante beim Dienst: {answer, variant, created_at, model} oder None (auch offline)."""
-    from . import ai_relay
+    """Niedrigste lesbare Variante beim Dienst im aktuellen Stil (explain_local.current_style): {answer, variant,
+    created_at, model} oder None (auch offline)."""
+    from . import ai_relay, explain_local
     if not usable(file_id, mode):
         return None
     k = page_keys(file_id, page, text)
@@ -145,7 +146,7 @@ def lookup(file_id: str, page: int, mode: str, text: str) -> dict | None:
             continue
         plain = open_payload(str(rec.get("payload") or ""), file_sha=k["file_sha"], page_hash=k["page_hash"], file_key=k["file_key"],
                              page=int(page), mode=mode, variant=int(rec.get("variant") or 0))
-        if plain:
+        if plain and explain_local.current_style(mode, plain.get("text") or ""):
             return {"answer": plain["text"], "variant": int(rec["variant"]), "created_at": rec.get("created_at") or plain.get("createdAt"),
                     "model": plain.get("model")}
     return None

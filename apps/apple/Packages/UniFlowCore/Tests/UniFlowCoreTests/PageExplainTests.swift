@@ -198,13 +198,13 @@ final class PageExplainTests: XCTestCase {
     func testTutorSharesWholePageAnswersAndSecondDeviceGetsThemWithoutAI() async throws {
         let (first, dir) = try await seeded([Seed(id: "f-vl1", name: "VL01 Eigenwerte.pdf", pages: twoPages)])
         let cloud = FakeExplainCloud()
-        let ai = FakeAI("Die **Eigenwerte** sind die Nullstellen [1] des charakteristischen Polynoms [2].")
+        let ai = FakeAI("## Eigenwerte\nDie **Eigenwerte** sind die Nullstellen [1] des charakteristischen Polynoms [2].")
         first.context.ai.set(ai)
         first.context.docIndex.configure(cloud: nil, cipher: cipher, explainCloud: cloud)
 
         // 1. der erste fragt live: Antwort unveraendert (mit Quellen), gespeichert und als Variante 1 geteilt
         let r1 = try await tutor(first, ["file_id": "f-vl1", "page": 1, "mode": "explain"])
-        XCTAssertEqual(r1["answer"]?.string, "Die **Eigenwerte** sind die Nullstellen [1] des charakteristischen Polynoms [2].")
+        XCTAssertEqual(r1["answer"]?.string, "## Eigenwerte\nDie **Eigenwerte** sind die Nullstellen [1] des charakteristischen Polynoms [2].")
         XCTAssertEqual(r1["explain"]?["stored"]?.bool, false)
         XCTAssertEqual(r1["explain"]?["variant"]?.int, 1)
         XCTAssertEqual(r1["explain"]?["shared"]?.bool, true)
@@ -218,7 +218,7 @@ final class PageExplainTests: XCTestCase {
         XCTAssertFalse(records[0].payload.contains("Eigenwerte"))
         let hash = DocIndexFingerprint.pageHash(text: twoPages[0], fileSHA: sha, page: 1)
         let content = try PageExplainCrypto.open(records[0].payload, fileSHA: sha, pageHash: hash, fileKey: key, page: 1, mode: "explain", variant: 1, cipher: cipher)
-        XCTAssertEqual(content.text, "Die **Eigenwerte** sind die Nullstellen des charakteristischen Polynoms.", "Quellenmarken entfernt")
+        XCTAssertEqual(content.text, "## Eigenwerte\nDie **Eigenwerte** sind die Nullstellen des charakteristischen Polynoms.", "Quellenmarken entfernt")
         XCTAssertEqual(content.createdAt, clock.nowISO)
 
         // 2. derselbe Nutzer noch einmal: aus dem eigenen Zwischenspeicher, keine KI
@@ -230,7 +230,7 @@ final class PageExplainTests: XCTestCase {
 
         // 3. zweiter Nutzer mit derselben Datei: sofort da, 0 Credits, nichts erneut gespeichert
         let (second, _) = try await seeded([Seed(id: "f-x", name: "VL01 Eigenwerte.pdf", pages: twoPages)], container: dir)
-        let ai2 = FakeAI("sollte nicht gefragt werden")
+        let ai2 = FakeAI("## sollte nicht gefragt werden")
         second.context.ai.set(ai2)
         second.context.docIndex.configure(cloud: nil, cipher: cipher, explainCloud: cloud)
         let r3 = try await tutor(second, ["file_id": "f-x", "page": 1, "mode": "explain"])
@@ -247,27 +247,27 @@ final class PageExplainTests: XCTestCase {
         XCTAssertEqual(r4["explain"]?["source"]?.string, "cloud")
 
         // 4. "Neu erklaeren lassen": live, naechster Platz (2); danach gilt lokal die juengste Antwort
-        ai2.reply = "Zweite Erklärung."
+        ai2.reply = "## Zweite Erklärung."
         let r5 = try await tutor(second, ["file_id": "f-x", "page": 1, "mode": "explain", "force": true])
-        XCTAssertEqual(r5["answer"]?.string, "Zweite Erklärung.")
+        XCTAssertEqual(r5["answer"]?.string, "## Zweite Erklärung.")
         XCTAssertEqual(r5["explain"]?["stored"]?.bool, false)
         XCTAssertEqual(r5["explain"]?["variant"]?.int, 2)
         XCTAssertEqual(ai2.prompts.count, 1)
         XCTAssertEqual(cloud.all.map(\.variant), [1, 2])
         let r6 = try await tutor(second, ["file_id": "f-x", "page": 1, "mode": "explain"])
-        XCTAssertEqual(r6["answer"]?.string, "Zweite Erklärung.")
+        XCTAssertEqual(r6["answer"]?.string, "## Zweite Erklärung.")
         XCTAssertEqual(r6["explain"]?["source"]?.string, "local")
 
         // 5. Platz 3, dann sind alle belegt: die naechste Antwort bleibt lokal (Variante 0), nichts beim Dienst
         _ = try await tutor(second, ["file_id": "f-x", "page": 1, "mode": "explain", "force": true])
         XCTAssertEqual(cloud.all.map(\.variant), [1, 2, 3])
-        ai2.reply = "Vierte Erklärung."
+        ai2.reply = "## Vierte Erklärung."
         let r7 = try await tutor(second, ["file_id": "f-x", "page": 1, "mode": "explain", "force": true])
         XCTAssertEqual(r7["explain"]?["variant"]?.int, 0)
         XCTAssertEqual(r7["explain"]?["shared"]?.bool, false)
         XCTAssertEqual(cloud.all.count, 3, "nie ueberschreiben")
         let r8 = try await tutor(second, ["file_id": "f-x", "page": 1, "mode": "explain"])
-        XCTAssertEqual(r8["answer"]?.string, "Vierte Erklärung.")
+        XCTAssertEqual(r8["answer"]?.string, "## Vierte Erklärung.")
 
         // 6. Markierung, Frage, pruefen, Karteikarten: live und ungeteilt
         let before = cloud.all.count
@@ -285,6 +285,31 @@ final class PageExplainTests: XCTestCase {
         let (third, _) = try await seeded([Seed(id: "f-other", name: "VL02 Fremd.pdf", pages: twoPages)], container: dir)
         let otherSHA = try await third.context.database.scalar("SELECT content_sha256 FROM files WHERE id='f-other'")?.string ?? ""
         XCTAssertThrowsError(try PageExplainCrypto.open(records[0].payload, fileSHA: otherSHA, pageHash: hash, fileKey: key, page: 1, mode: "explain", variant: 1, cipher: cipher))
+    }
+
+    /// Antwortstil wie ChatGPT (18.11.2026): eine gemerkte Erklaerung im alten, flachen Stil (ein Absatz) kommt nicht
+    /// wieder; die Seite wird neu erklaert und belegt den naechsten Platz, ohne die alte zu ueberschreiben
+    func testOldFlatExplanationIsNotShownAgain() async throws {
+        XCTAssertFalse(PageExplain.isCurrentStyle("Die Normaldarstellung schreibt eine komplexe Zahl als $x+yi$ …", mode: "explain"))
+        XCTAssertTrue(PageExplain.isCurrentStyle("Ich erkläre dir …\n\n## 1. Was ist …", mode: "explain"))
+        XCTAssertTrue(PageExplain.isCurrentStyle("Satz\n\n$$\\boxed{i}$$", mode: "steps"))
+        XCTAssertTrue(PageExplain.isCurrentStyle("- Punkt", mode: "summary"), "Zusammenfassungen bleiben")
+        let (b, _) = try await seeded([Seed(id: "f-vl1", name: "VL01 Eigenwerte.pdf", pages: twoPages)])
+        let cloud = FakeExplainCloud()
+        let ai = FakeAI("Alte flache Erklärung.")
+        b.context.ai.set(ai)
+        b.context.docIndex.configure(cloud: nil, cipher: cipher, explainCloud: cloud)
+        let old = try await tutor(b, ["file_id": "f-vl1", "page": 1, "mode": "explain"])
+        XCTAssertEqual(old["explain"]?["variant"]?.int, 1)
+        ai.reply = "## 1. Eigenwerte\n\n$$\\boxed{\\lambda = 2}$$"
+        let fresh = try await tutor(b, ["file_id": "f-vl1", "page": 1, "mode": "explain"])
+        XCTAssertEqual(ai.prompts.count, 2, "die alte Antwort zaehlt nicht: neu gefragt")
+        XCTAssertEqual(fresh["explain"]?["stored"]?.bool, false)
+        XCTAssertEqual(fresh["explain"]?["variant"]?.int, 2, "naechster Platz, nichts ueberschrieben")
+        let again = try await tutor(b, ["file_id": "f-vl1", "page": 1, "mode": "explain"])
+        XCTAssertEqual(again["explain"]?["stored"]?.bool, true)
+        XCTAssertEqual(again["answer"]?.string, "## 1. Eigenwerte\n\n$$\\boxed{\\lambda = 2}$$")
+        XCTAssertEqual(ai.prompts.count, 2)
     }
 
     /// Eigene Notizen zur Seite (`own_notes`, 05.11.2026, docs/NOTIZEN-MITSCHICKEN-2026-11-05.md) stehen im Prompt und
@@ -327,7 +352,7 @@ final class PageExplainTests: XCTestCase {
 
     func testPrewarmFullExplainsPagesAndSolvesTasksOnceForAll() async throws {
         let (b, dir) = try await seeded([Seed(id: "f-vl1", name: "VL01 Eigenwerte.pdf", pages: twoPages)])
-        let index = FakeDocIndexCloud(), explain = FakeExplainCloud(), indexAI = FakeDocIndexAI(), tutorAI = FakeAI("Erklärung [1] fertig.")
+        let index = FakeDocIndexCloud(), explain = FakeExplainCloud(), indexAI = FakeDocIndexAI(), tutorAI = FakeAI("## Erklärung [1] fertig.")
         b.context.ai.set(tutorAI)
         b.context.docIndex.configure(cloud: index, cipher: cipher, explainCloud: explain)
         // Standard: nur der Index, keine Erklaerungen
@@ -365,7 +390,7 @@ final class PageExplainTests: XCTestCase {
         XCTAssertEqual(indexAI.calls.count, 2)
         let r = try await tutor(second, ["file_id": "f-x", "page": 2, "mode": "steps"])
         XCTAssertEqual(r["explain"]?["source"]?.string, "cloud")
-        XCTAssertEqual(r["answer"]?.string, "Erklärung fertig.")
+        XCTAssertEqual(r["answer"]?.string, "## Erklärung fertig.")
         // Abbruch zwischen zwei Punkten: der Rest bleibt offen, der naechste Lauf macht weiter
         let (third, _) = try await seeded([Seed(id: "f-neu", name: "Folien Neu.pdf", pages: twoPages)])
         let ai3 = FakeAI("Erklärung.")

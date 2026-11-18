@@ -6,6 +6,7 @@
 // spricht mit POST /api/ai/tutor. Das ganze Dokument (Umfang, Schnellknoepfe) bleibt in doc-explain-logic.js / editor.js.
 import { SCOPES, CHIPS, docModeFor } from "./doc-explain-logic.js?v=1";
 import { balanceLine, available } from "./credit-packs-logic.js?v=2";
+import { withoutMarks, sourceLabel } from "./ai-answer.js?v=1";
 
 /** Reiter: Kennung, Titel, Symbol, Modi in der Reihenfolge der Knoepfe (jeder Modus ausser "ask" gehoert genau einem Reiter) */
 export const TABS = [
@@ -121,12 +122,13 @@ export function errorText(j, fallback = "") {
 }
 export const errorCode = j => j?.code || j?.detail?.code || null;
 
-/** Quellen mit Seite aus der Antwort: [n] im Text wird zum Link, darunter die Liste der genannten (oder aktuellen) */
-export function sourceLinks(html, sources, esc) {
-  const src = Array.isArray(sources) ? sources : [], known = new Set(src.map(x => String(x.n)));
-  const body = html.replace(/\[(\d{1,2})\]/g, (m, n) => known.has(n) ? `<a href="#" class="ed-src" data-src="${n}">[${n}]</a>` : m);
-  const list = src.filter(x => x.cited || x.current).map(x => `<li><a href="#" class="ed-src" data-src="${x.n}">[${x.n}] ${esc(x.title || x.name || "Datei")}${x.studip_id ? " (Stud.IP)" : `, Seite ${x.page}`}</a>${x.current ? ` <span class="muted">(diese Seite)</span>` : ""}</li>`).join("");
-  return body + (list ? `<div class="ed-ai-src"><b>Quellen</b><ul>${list}</ul></div>` : "");
+/** Quellen unter der Antwort (18.11.2026, wie ChatGPT und TutorPanel.swift): die Marken [n] verschwinden aus dem Text
+ *  (`withoutMarks` vor md()), darunter eine kleine Zeile "Quelle: Seite 1" mit Links zu den genannten Quellen */
+export function sourceLinks(html, sources, esc, fileId = null) {
+  const cited = (Array.isArray(sources) ? sources : []).filter(x => x.cited);
+  if (!cited.length) return html;
+  const links = cited.map((x, i) => `<a href="#" class="ed-src" data-src="${esc(String(x.n))}">${esc(sourceLabel(x, fileId))}</a>${i < cited.length - 1 ? "," : ""}`).join(" ");
+  return html + `<div class="ed-ai-src">${cited.length === 1 ? "Quelle:" : "Quellen:"} ${links}</div>`;
 }
 
 /** Farbe eines Modus-Knopfes: der Reiter, zu dem er gehoert (Quizfragen liegen im Reiter Test) */
@@ -261,7 +263,7 @@ export function createAiPanel(ed, deps) {
       };
     } else {
       const stored = storedLabel(m.explain);
-      wrap.innerHTML = sourceLinks(md(m.text), m.sources, esc)
+      wrap.innerHTML = sourceLinks(md(withoutMarks(m.text, m.sources)), m.sources, esc, ed.fileId)
         + `<div class="ed-ai-actions"><button type="button" class="btn sm ed-ai-insert">Als Textfeld einfügen</button></div>`
         + (stored ? `<div class="ed-ai-stored"><span class="ed-ai-storedl">${icon("check", 13)} ${esc(stored)}</span> <button type="button" class="btn ghost sm ed-ai-rebuild">${icon("refresh", 13)} Neu erklären lassen</button></div>` : "");
       $$(".ed-src", wrap).forEach(a => a.onclick = e => {

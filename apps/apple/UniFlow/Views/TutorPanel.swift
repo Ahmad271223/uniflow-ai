@@ -44,7 +44,6 @@ struct TutorPanel: View {
     @Environment(\.ufAIChatOnly) private var chatOnly
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
-    @Environment(\.openURL) private var openURL
 
     /// Alle Modi in der Reihenfolge von `ai.TUTOR_MODES`; "ask" ist das Eingabefeld, die anderen liegen in den Reitern
     static let modes: [(key: String, label: String)] = [
@@ -123,22 +122,59 @@ struct TutorPanel: View {
 
     /// Text einer KI-Antwort fuer die Zwischenablage (15.11.2026, Wunsch des Inhabers: "Kopieren" unter jeder Antwort):
     /// ohne Markdown-Zeichen (Ueberschriften-Rauten, Fett-Sterne), Aufzaehlungen als "•"; Formeln und der Rest bleiben wie sie sind
+    /// Seit 18.11.2026 (Antworten wie ChatGPT) auch sauber: Formeln als lesbarer Text ((3+4i)/(1−2i), i², Kasten weg),
+    /// Merke-Kasten ohne ">", Trennlinien weg, Tabellen als "a | b" ohne Trennzeile; Zeilen ohne Formel bleiben, wie sie sind.
     static func copyText(_ text: String) -> String {
-        text.components(separatedBy: "\n").map { line -> String in
-            var l = line
+        var out: [String] = []
+        var mathLines: [String]?                         // innerhalb einer mehrzeiligen $$-Formel
+        for raw in text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
+            var l = raw
+            if let r = l.range(of: #"^\s*>\s?"#, options: .regularExpression) { l.removeSubrange(r) }      // Zitat/Merke
+            let t = l.trimmingCharacters(in: .whitespaces)
+            if var m = mathLines {
+                if let r = t.range(of: "$$") {
+                    m.append(String(t[..<r.lowerBound]))
+                    out.append(plainFormula(m.joined(separator: " ")))
+                    mathLines = nil
+                } else { m.append(t); mathLines = m }
+                continue
+            }
+            if t.hasPrefix("$$") {
+                let rest = String(t.dropFirst(2))
+                if let r = rest.range(of: "$$") { out.append(plainFormula(String(rest[..<r.lowerBound]))) } else { mathLines = [rest] }
+                continue
+            }
+            if AIMarkdown.isRule(t) { out.append(""); continue }
+            if AIMarkdown.isTableSeparator(t), t.contains("|") { continue }
+            if t.hasPrefix("|") { l = AIMarkdown.cells(t).joined(separator: " | ") }
             if let r = l.range(of: #"^\s{0,3}#{1,6}\s+"#, options: .regularExpression) { l.removeSubrange(r) }
             if let r = l.range(of: #"^\s*[-*]\s+"#, options: .regularExpression) {
                 let indent = String(l[r].prefix { $0 == " " || $0 == "\t" })
                 l.replaceSubrange(r, with: indent + "• ")
             }
-            return l.replacingOccurrences(of: "**", with: "")
+            l = l.replacingOccurrences(of: "**", with: "")
+            if l.contains("$") || l.contains("\\") { l = MathText.plain(l) }
+            out.append(l)
         }
-        .joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        if let m = mathLines { out.append(plainFormula(m.joined(separator: " "))) }
+        // hoechstens eine Leerzeile hintereinander
+        var lines: [String] = []
+        for l in out where !(l.trimmingCharacters(in: .whitespaces).isEmpty && (lines.last?.trimmingCharacters(in: .whitespaces).isEmpty ?? true)) {
+            lines.append(l)
+        }
+        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Block-Formel als lesbare Zeile (MathLayout, sonst MathText)
+    static func plainFormula(_ tex: String) -> String {
+        let t = tex.trimmingCharacters(in: .whitespaces)
+        if let lines = MathLayout.parse(t) { return lines.map { $0.plain.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n") }
+        return MathText.plain("$" + t + "$")
     }
 
     /// Was "Kopieren" unter einer Antwort in die Zwischenablage legt: der Antworttext, bei Karteikarten Frage und Antwort je Karte
     static func copyText(for m: Message) -> String {
-        guard !m.cards.isEmpty else { return copyText(m.text) }
+        guard !m.cards.isEmpty else { return copyText(shownText(m)) }
         return m.cards.map { copyText($0.s("question") ?? "") + "\n" + copyText($0.s("answer") ?? "") }.joined(separator: "\n\n")
     }
 
@@ -464,7 +500,7 @@ struct TutorPanel: View {
                         // Lauf fuer das ganze Dokument: Bloecke mit Seiten als Knopf
                         TutorDocBlocks(text: msg.text, mode: msg.mode, explain: msg.explain) { open(fileID, $0) }
                     } else {
-                        AIMarkdownText(msg.text, size: Self.answerSize).accessibilityIdentifier("tutor.answer")
+                        AIMarkdownText(Self.shownText(msg), size: Self.answerSize).accessibilityIdentifier("tutor.answer")
                     }
                     // gespeicherte Antwort (Erklaerungsspeicher): Herkunft und der Weg zu einer frischen Antwort
                     if let stored = Self.storedLabel(msg.explain) {
@@ -519,31 +555,22 @@ struct TutorPanel: View {
         .accessibilityIdentifier("tutor.copy")
     }
 
+    /// Antworttext fuer die Anzeige: ohne die Quellenmarken [n] der genannten Quellen (18.11.2026, wie ChatGPT: die
+    /// Quelle steht klein unter der Antwort, `sourceLinks`)
+    static func shownText(_ m: Message) -> String {
+        AIMarkdown.withoutMarks(m.text, numbers: Set(m.sources.compactMap { s in s["n"]?.double.map { Int($0) } }))
+    }
+
+    /// Beschriftung einer Quelle unter der Antwort: "Seite 1" (dieses Dokument), "Skript, Seite 4", "Wiki (Stud.IP)"
+    static func sourceLabel(_ s: JSONValue, fileID: String) -> String {
+        if s.s("studip_id") != nil { return "\(s.s("title") ?? s.s("name") ?? "Stud.IP") (Stud.IP)" }
+        let p = Int(s["page"]?.double ?? 1)
+        if (s.s("file_id") ?? fileID) == fileID { return "Seite \(p)" }
+        return "\(s.s("title") ?? s.s("name") ?? "Dokument"), Seite \(p)"
+    }
+
     @ViewBuilder private func sourceLinks(_ cited: [JSONValue]) -> some View {
-        if !cited.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Quellen").ufFont(12, 700).foregroundStyle(UF.muted)
-                ForEach(cited.indices, id: \.self) { i in
-                    let s = cited[i]
-                    let p = Int(s["page"]?.double ?? 1)
-                    // Lerntext aus Stud.IP (Courseware, Wiki, Forum): ohne Seite, Antippen oeffnet Stud.IP
-                    let studip = s.s("studip_id") != nil
-                    let label = "[\(Int(s["n"]?.double ?? 0))] \(s.s("title") ?? s.s("name") ?? "")" + (studip ? " (Stud.IP)" : ", Seite \(p)")
-                    if studip {
-                        if let u = s.s("url").flatMap(UFDayExtras.safeURL) {
-                            Button { openURL(u) } label: { Text(label).ufFont(12.8).foregroundStyle(UF.accentText) }.buttonStyle(.plain)
-                        } else {
-                            Text(label).ufFont(12.8).foregroundStyle(UF.text2)
-                        }
-                    } else if (s.s("file_id") ?? fileID) == fileID {
-                        Button { open(fileID, p) } label: { Text(label).ufFont(12.8).foregroundStyle(UF.accentText) }
-                            .buttonStyle(.plain)
-                    } else {
-                        Text(label).ufFont(12.8).foregroundStyle(UF.text2)
-                    }
-                }
-            }
-        }
+        TutorSourceLine(cited: cited, fileID: fileID, open: open)
     }
 
     /// Bisheriges Gespraech fuer `history` (der Dienst nimmt die letzten Beitraege)
@@ -1073,4 +1100,41 @@ struct TutorAttachmentCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tutor.attachment")
     }
+}
+
+/// Quellen unter einer Antwort der KI-Hilfe als kleine Zeile "Quelle: Seite 1" (18.11.2026, wie ChatGPT; vorher
+/// "Quellen" mit "[1] Titel, Seite 1" und den Marken im Text); Antippen springt zur Seite bzw. oeffnet Stud.IP
+struct TutorSourceLine: View {
+    let cited: [JSONValue]
+    let fileID: String
+    let open: (_ fileID: String, _ page: Int) -> Void
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        if !cited.isEmpty {
+            UFFlexWrap(gap: 6, rowGap: 2) {
+                Text(cited.count == 1 ? "Quelle:" : "Quellen:").ufFont(12, lh: 1.35).foregroundStyle(UF.muted)
+                ForEach(cited.indices, id: \.self) { i in
+                    let s = cited[i]
+                    let p = Int(s["page"]?.double ?? 1)
+                    let label = TutorPanel.sourceLabel(s, fileID: fileID) + (i < cited.count - 1 ? "," : "")
+                    if s.s("studip_id") != nil {
+                        if let u = s.s("url").flatMap(UFDayExtras.safeURL) {
+                            Button { openURL(u) } label: { Text(label).ufFont(12, lh: 1.35).foregroundStyle(UF.accentText) }.buttonStyle(.plain)
+                        } else {
+                            Text(label).ufFont(12, lh: 1.35).foregroundStyle(UF.muted)
+                        }
+                    } else if (s.s("file_id") ?? fileID) == fileID {
+                        Button { open(fileID, p) } label: { Text(label).ufFont(12, lh: 1.35).foregroundStyle(UF.accentText) }
+                            .buttonStyle(.plain)
+                    } else {
+                        Text(label).ufFont(12, lh: 1.35).foregroundStyle(UF.muted)
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tutor.sources")
+        }
+    }
+
 }
