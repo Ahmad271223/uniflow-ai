@@ -29,7 +29,7 @@ enum ExamGenerator {
     static let close = "Schließen"
     static let working = "StudiNow erstellt deine Probeklausuren. Das dauert einige Minuten. Du kannst das Blatt schließen; fertige Probeklausuren holst du hier wieder ab."
     static let fetchAgain = "Fertige abholen"
-    static let sendNote = "Für neue Probeklausuren gehen die Seitentexte der gewählten Dateien einmal an StudiNow und die KI (Claude). Fertige Probeklausuren sind sofort da. Klappt etwas nicht, kostet es nichts."
+    static let sendNote = "Für neue Probeklausuren gehen die Seitentexte der gewählten Dateien einmal an StudiNow und die KI. Fertige Probeklausuren sind sofort da. Klappt etwas nicht, kostet es nichts."
     static let savedNote = "Fertige Probeklausuren liegen in der Bibliothek im Ordner „Probeklausuren“ dieses Moduls."
     static let allOwned = "Zu diesen Unterlagen hast du schon alle Probeklausuren."
 
