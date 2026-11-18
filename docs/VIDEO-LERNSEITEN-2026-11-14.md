@@ -306,3 +306,24 @@ App: nein – die App hat keine Hintergrund-Freigabe für Ton, und YouTube erlau
 - `UniFlowUITests/WebSideUITests`: `testYouTubeBesideDocument` (iPad) und `testYouTubeAboveReaderOnPhone` (iPhone) mit
   echtem Netz. Sie hängen an den deutschen Beschriftungen der YouTube-Seite.
 - Bilder: `~/Studora-Builds/aufraeumen-17-11/youtube/`.
+
+## 13. 18.11.2026: YouTube öffnen in 1.0.6 ausgeschaltet (Schalter)
+
+**Entscheidung des Inhabers (18.11.2026):** „YouTube öffnen“ kommt noch nicht in Version 1.0.6 („Noch nicht“). Grund:
+Sonst müssten Altersfreigabe (uneingeschränkter Webzugang), Werbe-Angabe und Datenschutztext bei Apple geändert
+werden (siehe „Was vor einer Einreichung zu klären ist“ in Abschnitt 12).
+
+Umsetzung über einen Schalter, nichts gelöscht: `YouTubeBrowse.enabled` in
+`apps/apple/UniFlow/Views/WebSide/WebSideRules.swift`, Standard `false`.
+
+- **Aus (1.0.6):** kein Knopf „YouTube öffnen“ – weder in der Auswahl der Spalte (iPad/Mac) noch im Blatt „Video oder
+  Lernseite“ am iPhone. „YouTube-Link einfügen“ ist wieder der Haupteinstieg, Text und Anordnung wie in 1.0.5. Der
+  Hinweis „YouTube ist ein Dienst von Google …“ erscheint nicht. Kein Weg führt in die Spalte mit der YouTube-Seite:
+  Ein in der Testfassung auf der YouTube-Seite angesehenes Video („Zuletzt hier“) öffnet im eingebetteten Player
+  (`WebSideItem.shown`, auch in `WebSidePaneView` geprüft); ohne gültiges Video fehlt der Eintrag.
+- **Bleibt:** eingebetteter Player per Link, Aufzeichnungen, „Auf YouTube öffnen (außerhalb der App)“, Lernseiten,
+  am iPhone der Knopf „Video oder Lernseite“ (Video per Link und Lernseiten, kein freier Browser).
+- **An (später):** `YouTubeBrowse.enabled = true` – alles wie am 17.11.2026. Für UI-Tests nur in Debug-Builds das
+  Start-Argument `-UFYouTubeBrowse YES` (wie `-UFLearnCalendar`).
+- Tests: `VideoLearningSitesAppTests.testYouTubeBrowseIsOffByDefaultAndNothingLeadsToTheYouTubePage`,
+  `IPhoneReaderTests.testPhoneReaderWithoutYouTubeBrowse`; die YouTube-Tests schalten den Schalter für ihren Fall an.

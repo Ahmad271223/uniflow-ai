@@ -7,10 +7,11 @@ final class WebSideUITests: XCTestCase {
 
     override func setUp() { continueAfterFailure = false }
 
-    private func launch() -> XCUIApplication {
+    /// `youTube`: "YouTube öffnen" fuer diesen Lauf einschalten (`YouTubeBrowse`, in 1.0.6 aus; nur Debug)
+    private func launch(youTube: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UFDemo", "YES", "-UFRoute", "#/doc/demo-blatt", "-UFDocPanel", "companion",
-                               "-uniflow.toolbarPlacement", "bottom"]
+                               "-uniflow.toolbarPlacement", "bottom"] + (youTube ? ["-UFYouTubeBrowse", "YES"] : [])
         app.launch()
         return app
     }
@@ -31,6 +32,9 @@ final class WebSideUITests: XCTestCase {
         let wiki = app.buttons["web.site.wikipedia-de"]
         for _ in 0..<8 where !(wiki.exists && wiki.isHittable) { app.swipeUp() }
         XCTAssertTrue(wiki.waitForExistence(timeout: 5), "Lernseiten unter „Daneben öffnen“")
+        // "YouTube öffnen" in 1.0.6 aus (18.11.2026): kein Knopf, der Link ist der Haupteinstieg
+        XCTAssertFalse(app.buttons["web.youtubeOpen"].exists, "kein „YouTube öffnen“ ohne Schalter")
+        XCTAssertTrue(app.textFields["web.videoLink"].exists, "„YouTube-Link einfügen“")
         shot("1-daneben-oeffnen-video-lernseite")
         wiki.tap()
         let close = app.buttons["site.close"]
@@ -116,7 +120,7 @@ final class WebSideUITests: XCTestCase {
     /// Haengt am Aufbau der YouTube-Seite (deutsche Beschriftungen); bei Aenderungen dort anpassen.
     func testYouTubeBesideDocument() throws {
         try XCTSkipIf(isPhone, "iPad: Spalte daneben")
-        let app = launch()
+        let app = launch(youTube: true)
         XCTAssertTrue(app.buttons["companion.blank.lined"].waitForExistence(timeout: 30), "„Daneben öffnen“")
         let web = openYouTube(app, prefix: "ipad-")
         XCTAssertFalse(app.textFields.matching(NSPredicate(format: "identifier BEGINSWITH 'youtube.'")).firstMatch.exists, "keine Adresszeile")
@@ -166,7 +170,7 @@ final class WebSideUITests: XCTestCase {
         app.terminate()
 
         // "Zuletzt hier": das auf YouTube angesehene Video steht in der Auswahl und oeffnet wieder in der YouTube-Spalte
-        let again = launch()
+        let again = launch(youTube: true)
         XCTAssertTrue(again.buttons["companion.blank.lined"].waitForExistence(timeout: 30))
         let last = again.buttons["web.lastVideo"]
         for _ in 0..<8 where !(last.exists && last.isHittable) { again.swipeUp() }
@@ -178,6 +182,22 @@ final class WebSideUITests: XCTestCase {
         pause(4)
         shot("ipad-10-zuletzt-hier-geoeffnet")
         again.terminate()
+
+        // ohne Schalter (Standard in 1.0.6, 18.11.2026): derselbe gespeicherte Stand oeffnet nie die YouTube-Seite,
+        // sondern das Video im eingebetteten Player; kein "YouTube öffnen", kein Hinweis
+        let off = launch()
+        XCTAssertTrue(off.buttons["companion.blank.lined"].waitForExistence(timeout: 30))
+        let lastOff = off.buttons["web.lastVideo"]
+        for _ in 0..<8 where !(lastOff.exists && lastOff.isHittable) { off.swipeUp() }
+        XCTAssertTrue(lastOff.waitForExistence(timeout: 5), "„Zuletzt hier: YouTube-Video“ bleibt")
+        XCTAssertFalse(off.buttons["web.youtubeOpen"].exists, "kein „YouTube öffnen“")
+        lastOff.tap()
+        XCTAssertTrue(off.buttons["video.close"].waitForExistence(timeout: 15), "eingebetteter Player statt YouTube-Seite")
+        XCTAssertFalse(off.buttons["youtube.close"].exists)
+        XCTAssertFalse(off.buttons["youtube.noticeOpen"].exists)
+        pause(4)
+        shot("ipad-11-ohne-schalter-zuletzt-hier-im-player")
+        off.terminate()
     }
 
     /// iPhone (Leseansicht ohne Spalte): "Video oder Lernseite" im Kopf, YouTube ueber dem Dokument, Teilung verschieben,
@@ -185,7 +205,7 @@ final class WebSideUITests: XCTestCase {
     func testYouTubeAboveReaderOnPhone() throws {
         try XCTSkipUnless(isPhone, "iPhone: über dem Dokument")
         let app = XCUIApplication()
-        app.launchArguments = ["-UFDemo", "YES", "-UFRoute", "#/doc/demo-blatt"]
+        app.launchArguments = ["-UFDemo", "YES", "-UFRoute", "#/doc/demo-blatt", "-UFYouTubeBrowse", "YES"]
         app.launch()
         let entry = app.buttons["phoneReader.web"]
         XCTAssertTrue(entry.waitForExistence(timeout: 40), "Knopf „Video oder Lernseite“ in der Leseansicht")

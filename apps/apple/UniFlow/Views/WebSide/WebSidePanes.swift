@@ -23,6 +23,14 @@ enum WebSideItem: Equatable, Identifiable {
         case .site(let s): return "site:" + s.id
         }
     }
+
+    /// Was wirklich geoeffnet wird. Mit "YouTube öffnen" aus (`YouTubeBrowse`, 18.11.2026) nie die YouTube-Seite: ein
+    /// Besuch mit gueltigem Video wird der eingebettete Player mit diesem Video, sonst nichts (nil). Alles andere bleibt.
+    static func shown(_ item: WebSideItem, youTubeBrowse: Bool = YouTubeBrowse.enabled) -> WebSideItem? {
+        guard case .youTube(let y) = item, !youTubeBrowse else { return item }
+        guard let v = y.video, VideoLink.isVideoID(v.videoID) else { return nil }
+        return .video(VideoLink(videoID: v.videoID, start: max(0, v.start)))
+    }
 }
 
 /// Spalte "Video": ein YouTube-Video im offiziellen eingebetteten Player
@@ -441,11 +449,13 @@ struct WebSidePaneView: View {
     let onClose: () -> Void
 
     var body: some View {
-        switch item {
+        // "YouTube öffnen" aus (18.11.2026): auch hier nie die YouTube-Seite, egal woher der Eintrag kommt
+        switch WebSideItem.shown(item) {
         case .video(let v): VideoSidePane(link: v, dataStore: WebSideStore.dataStore(), onClose: onClose)
         case .youTube(let y): YouTubeSidePane(visit: y, dataStore: WebSideStore.dataStore(), onClose: onClose)
         case .recording(let e): RecordingSidePane(entry: e, onClose: onClose)
         case .site(let s): LearningSitePane(site: s, dataStore: WebSideStore.dataStore(), onClose: onClose)
+        case nil: Color.clear.onAppear(perform: onClose)
         }
     }
 }
@@ -597,9 +607,11 @@ struct WebSidePickerSection: View {
     private var lastRecord: DocumentVideoRecord? { DocumentVideoLinks.record(documentID, defaults: ActiveContainer.current?.defaults) }
 
     /// "Zuletzt hier": ein auf der YouTube-Seite angesehenes Video oeffnet wieder dort, ein eingefuegter Link im
-    /// eingebetteten Player
-    static func lastItem(_ r: DocumentVideoRecord, documentID: String) -> WebSideItem {
-        r.onYouTube == true ? .youTube(YouTubeVisit(documentID: documentID, video: r.link)) : .video(r.link)
+    /// eingebetteten Player. Mit "YouTube öffnen" aus (`YouTubeBrowse`, 18.11.2026) immer der eingebettete Player;
+    /// nil (Eintrag nicht zeigen), wenn daraus kein gueltiges Video entsteht.
+    static func lastItem(_ r: DocumentVideoRecord, documentID: String, youTubeBrowse: Bool = YouTubeBrowse.enabled) -> WebSideItem? {
+        let item: WebSideItem = r.onYouTube == true ? .youTube(YouTubeVisit(documentID: documentID, video: r.link)) : .video(r.link)
+        return WebSideItem.shown(item, youTubeBrowse: youTubeBrowse)
     }
     private var sites: [LearningSite] { LearningSites.sites(for: ActiveContainer.current?.key.university) }
 
@@ -627,44 +639,77 @@ struct WebSidePickerSection: View {
             Text("Video").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
             Text(Self.videoIntro(readerOnly: UFEditorAvailability.readerOnly))
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-            UFButton("YouTube öffnen", icon: "play", kind: .primary) { onPick(.youTube(YouTubeVisit(documentID: documentID))) }
-                .accessibilityIdentifier("web.youtubeOpen")
-            let last = lastRecord
-            if last != nil || !recordings.isEmpty {
-                VStack(spacing: 0) {
-                    if let last {
-                        row(icon: "play.rectangle", title: "Zuletzt hier: YouTube-Video", sub: Self.lastSubtitle(last.link),
-                            id: "web.lastVideo") { onPick(Self.lastItem(last, documentID: documentID)) }
-                    }
-                    ForEach(Array(recordings.enumerated()), id: \.element.id) { i, e in
-                        if i > 0 || last != nil { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
-                        row(icon: "video", title: e.video.title, sub: "Aufzeichnung · \(e.label) · \(e.courseTitle)",
-                            id: "web.recording.\(i)") { onPick(.recording(e)) }
-                    }
-                }
-                .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
-            }
-            // zweiter, kleinerer Weg (bis 17.11.2026 der einzige): ein Link zu einem einzelnen Video im eingebetteten Player
-            Text("Oder einen Link einfügen – dann läuft nur dieses eine Video:")
-                .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 2)
-            HStack(spacing: 8) {
-                UFTextInput("YouTube-Link einfügen", text: $link)
-                    .accessibilityIdentifier("web.videoLink")
-                    .onSubmit(openLink)
-                UFButton("Öffnen", size: .small) { openLink() }
-                    .accessibilityIdentifier("web.videoOpen")
-            }
-            if let problem {
-                Text(problem).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("web.videoProblem")
+            if YouTubeBrowse.enabled {
+                UFButton("YouTube öffnen", icon: "play", kind: .primary) { pick(.youTube(YouTubeVisit(documentID: documentID))) }
+                    .accessibilityIdentifier("web.youtubeOpen")
+                lastAndRecordings
+                // zweiter, kleinerer Weg (bis 17.11.2026 der einzige): ein Link zu einem einzelnen Video im eingebetteten Player
+                Text("Oder einen Link einfügen – dann läuft nur dieses eine Video:")
+                    .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 2)
+                linkField(primary: false)
+            } else {
+                // "YouTube öffnen" aus (18.11.2026): der Link ist wieder der Haupteinstieg, Anordnung wie in 1.0.5
+                linkField(primary: true)
+                lastAndRecordings
             }
         }
     }
 
-    /// Einleitung des Abschnitts "Video": am iPhone wird gelesen, nicht geschrieben, und das Video steht ueber dem Dokument
-    static func videoIntro(readerOnly: Bool) -> String {
-        readerOnly
+    /// Feld "YouTube-Link einfügen" mit "Öffnen" und Hinweis bei einem Link, der kein Video ist
+    @ViewBuilder private func linkField(primary: Bool) -> some View {
+        HStack(spacing: 8) {
+            UFTextInput("YouTube-Link einfügen", text: $link)
+                .accessibilityIdentifier("web.videoLink")
+                .onSubmit(openLink)
+            if primary {
+                UFButton("Öffnen", icon: "play", kind: .primary, size: .small) { openLink() }
+                    .accessibilityIdentifier("web.videoOpen")
+            } else {
+                UFButton("Öffnen", size: .small) { openLink() }
+                    .accessibilityIdentifier("web.videoOpen")
+            }
+        }
+        if let problem {
+            Text(problem).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("web.videoProblem")
+        }
+    }
+
+    /// "Zuletzt hier: YouTube-Video" und die Aufzeichnungen der eigenen Kurse
+    @ViewBuilder private var lastAndRecordings: some View {
+        let last = lastRecord.flatMap { r in Self.lastItem(r, documentID: documentID).map { (record: r, item: $0) } }
+        if last != nil || !recordings.isEmpty {
+            VStack(spacing: 0) {
+                if let last {
+                    row(icon: "play.rectangle", title: "Zuletzt hier: YouTube-Video", sub: Self.lastSubtitle(last.record.link),
+                        id: "web.lastVideo") { pick(last.item) }
+                }
+                ForEach(Array(recordings.enumerated()), id: \.element.id) { i, e in
+                    if i > 0 || last != nil { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
+                    row(icon: "video", title: e.video.title, sub: "Aufzeichnung · \(e.label) · \(e.courseTitle)",
+                        id: "web.recording.\(i)") { pick(.recording(e)) }
+                }
+            }
+            .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
+        }
+    }
+
+    /// Auswahl weitergeben; mit "YouTube öffnen" aus nie die YouTube-Seite (`WebSideItem.shown`)
+    private func pick(_ item: WebSideItem) {
+        guard let shown = WebSideItem.shown(item) else { return }
+        onPick(shown)
+    }
+
+    /// Einleitung des Abschnitts "Video": am iPhone wird gelesen, nicht geschrieben, und das Video steht ueber dem
+    /// Dokument. Mit "YouTube öffnen" aus (18.11.2026) der Text aus 1.0.5 (nur ein eingefuegtes Video).
+    static func videoIntro(readerOnly: Bool, youTubeBrowse: Bool = YouTubeBrowse.enabled) -> String {
+        guard youTubeBrowse else {
+            return readerOnly
+                ? "Schau ein Video über dem Dokument. Es läuft nur dieses eine Video; Links daraus öffnen außerhalb der App."
+                : "Schau ein Video und schreib im Dokument mit. Es läuft nur dieses eine Video; Links daraus öffnen außerhalb der App."
+        }
+        return readerOnly
             ? "Such dein Video bei YouTube und schau es über dem Dokument. Links zu anderen Seiten öffnen außerhalb der App."
             : "Such dein Video bei YouTube und schreib im Dokument mit. Links zu anderen Seiten öffnen außerhalb der App."
     }
@@ -694,7 +739,7 @@ struct WebSidePickerSection: View {
     }
 
     private func tile(_ s: LearningSite) -> some View {
-        Button { onPick(.site(s)) } label: {
+        Button { pick(.site(s)) } label: {
             HStack(spacing: 10) {
                 Image(systemName: s.symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(UF.accent)
                     .frame(width: 34, height: 34).background(UF.accentSoft, in: RoundedRectangle(cornerRadius: 9))
@@ -734,6 +779,6 @@ struct WebSidePickerSection: View {
     private func openLink() {
         guard let v = VideoLink.parse(link) else { problem = VideoLink.rejectedText; return }
         problem = nil
-        onPick(.video(v))
+        pick(.video(v))
     }
 }

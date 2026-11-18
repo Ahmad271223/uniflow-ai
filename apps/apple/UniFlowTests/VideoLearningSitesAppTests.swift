@@ -183,7 +183,8 @@ final class VideoLearningSitesAppTests: XCTestCase {
         DocumentVideoLinks.save(v, for: "f1", defaults: d, onYouTube: true)
         let r = try XCTUnwrap(DocumentVideoLinks.record("f1", defaults: d))
         XCTAssertEqual(r.onYouTube, true)
-        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1"), .youTube(YouTubeVisit(documentID: "f1", video: v)))
+        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1", youTubeBrowse: true), .youTube(YouTubeVisit(documentID: "f1", video: v)))
+        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1"), .video(v), "Schalter aus (Standard): eingebetteter Player")
         XCTAssertEqual(YouTubeVisit(documentID: "f1", video: v).startURL.absoluteString, "https://m.youtube.com/watch?v=dQw4w9WgXcQ")
         XCTAssertEqual(YouTubeVisit(documentID: "f1").startURL, YouTubeSidePolicy.start)
         XCTAssertEqual(YouTubeSidePolicy.decide(YouTubeVisit(documentID: "f1", video: VideoLink(videoID: "dQw4w9WgXcQ", start: 90)).startURL,
@@ -245,14 +246,70 @@ final class VideoLearningSitesAppTests: XCTestCase {
     /// iPhone (Auftrag 17.11.2026 "auch iPhone und macOS"): Video bzw. Seite ueber dem Dokument; Texte sprechen dort
     /// nicht vom Schreiben und nicht von "daneben"; die Teilung laesst das Dokument nie verschwinden
     func testPhoneWordingAndSplitAboveReader() {
-        XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: false).contains("schreib im Dokument mit"))
-        XCTAssertFalse(WebSidePickerSection.videoIntro(readerOnly: true).contains("schreib"))
-        XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: true).contains("über dem Dokument"))
+        for on in [false, true] {
+            XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: false, youTubeBrowse: on).contains("schreib im Dokument mit"))
+            XCTAssertFalse(WebSidePickerSection.videoIntro(readerOnly: true, youTubeBrowse: on).contains("schreib"))
+            XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: true, youTubeBrowse: on).contains("über dem Dokument"))
+        }
         XCTAssertEqual(WebSidePickerSection.openLabel(readerOnly: false), "Daneben öffnen")
         XCTAssertEqual(WebSidePickerSection.openLabel(readerOnly: true), "Öffnen")
         XCTAssertEqual(WebSideOverReaderLayout.clamp(WebSideOverReaderLayout.start), WebSideOverReaderLayout.start)
         XCTAssertEqual(WebSideOverReaderLayout.clamp(0), 0.3)
         XCTAssertEqual(WebSideOverReaderLayout.clamp(1), 0.78)
+    }
+
+    // MARK: Schalter "YouTube öffnen" (18.11.2026)
+
+    /// Entscheidung des Inhabers 18.11.2026: "YouTube öffnen" nicht in 1.0.6. Standard aus; kein Weg fuehrt auf die
+    /// YouTube-Seite - auch kein gespeicherter Stand aus der Testfassung ("Zuletzt hier" mit `onYouTube`). Daraus wird
+    /// der eingebettete Player mit demselben Video, ohne gueltiges Video nichts. Eingefuegter Link, Aufzeichnungen und
+    /// Lernseiten bleiben unveraendert.
+    func testYouTubeBrowseIsOffByDefaultAndNothingLeadsToTheYouTubePage() throws {
+        XCTAssertFalse(YouTubeBrowse.enabled, "ausgeliefert: aus")
+        let v = VideoLink(videoID: "dQw4w9WgXcQ", start: 90)
+        XCTAssertEqual(WebSideItem.shown(.youTube(YouTubeVisit(documentID: "f1", video: v))), .video(v))
+        XCTAssertNil(WebSideItem.shown(.youTube(YouTubeVisit(documentID: "f1"))), "YouTube-Startseite: nichts")
+        XCTAssertNil(WebSideItem.shown(.youTube(YouTubeVisit(documentID: "f1", video: VideoLink(videoID: "kurz")))), "kein gültiges Video")
+        XCTAssertEqual(WebSideItem.shown(.video(v)), .video(v))
+        XCTAssertEqual(WebSideItem.shown(.site(wiki)), .site(wiki))
+        XCTAssertEqual(WebSideItem.shown(.youTube(YouTubeVisit(documentID: "f1")), youTubeBrowse: true),
+                       .youTube(YouTubeVisit(documentID: "f1")), "mit Schalter an wie am 17.11.2026")
+
+        // gespeicherter Stand aus der Testfassung: auf der YouTube-Seite angesehen
+        let suite = "uniflow.tests.youtube.aus.\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { d.removePersistentDomain(forName: suite) }
+        d.set(Data(#"{"version":1,"link":{"videoID":"dQw4w9WgXcQ","start":42},"marks":[],"onYouTube":true}"#.utf8),
+              forKey: DocumentVideoLinks.key("f1"))
+        let r = try XCTUnwrap(DocumentVideoLinks.record("f1", defaults: d))
+        XCTAssertEqual(r.onYouTube, true)
+        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1"), .video(VideoLink(videoID: "dQw4w9WgXcQ", start: 42)))
+        d.set(Data(#"{"version":1,"link":{"videoID":"x","start":0},"marks":[],"onYouTube":true}"#.utf8), forKey: DocumentVideoLinks.key("f2"))
+        XCTAssertNil(WebSidePickerSection.lastItem(try XCTUnwrap(DocumentVideoLinks.record("f2", defaults: d)), documentID: "f2"),
+                     "ohne gültiges Video kein Eintrag „Zuletzt hier“")
+
+        // Texte wie in 1.0.5: kein "Such dein Video bei YouTube"
+        for reader in [false, true] {
+            XCTAssertFalse(WebSidePickerSection.videoIntro(readerOnly: reader).contains("Such dein Video bei YouTube"))
+            XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: reader).contains("nur dieses eine Video"))
+            XCTAssertTrue(WebSidePickerSection.videoIntro(readerOnly: reader, youTubeBrowse: true).contains("Such dein Video bei YouTube"))
+        }
+        XCTAssertEqual(WebSidePickerSection.videoIntro(readerOnly: false),
+                       "Schau ein Video und schreib im Dokument mit. Es läuft nur dieses eine Video; Links daraus öffnen außerhalb der App.")
+
+        // Start-Argument nur in Debug: ohne Argument bleibt der Standard
+        let launch = try XCTUnwrap(UserDefaults(suiteName: suite + ".start"))
+        addTeardownBlock { launch.removePersistentDomain(forName: suite + ".start") }
+        defer { YouTubeBrowse.enabled = false }
+        YouTubeBrowse.applyDebugLaunch(defaults: launch)
+        XCTAssertFalse(YouTubeBrowse.enabled)
+        launch.set(true, forKey: "UFYouTubeBrowse")
+        YouTubeBrowse.applyDebugLaunch(defaults: launch)
+        #if DEBUG
+        XCTAssertTrue(YouTubeBrowse.enabled, "-UFYouTubeBrowse YES")
+        #else
+        XCTAssertFalse(YouTubeBrowse.enabled)
+        #endif
     }
 
     // MARK: Sperre Lernseite

@@ -44,6 +44,8 @@ struct UniFlowApp: App {
         // Lernplan nach dem Abgleich (auto_plan) nur, wenn der Tarif automatisch planen darf (ab Plus; Free von Hand)
         // Lernkalender aus (`LearnCalendar`, 17.11.2026): nach dem Abgleich und beim Oeffnen wird nichts geplant
         LearnCalendar.applyDebugLaunch()
+        // "YouTube öffnen" in 1.0.6 aus (`YouTubeBrowse`, 18.11.2026); nur Debug: -UFYouTubeBrowse YES fuer UI-Tests
+        YouTubeBrowse.applyDebugLaunch()
         StudyAutoPlan.allowed = { LearnCalendar.autoPlans(tariff: Entitlements.shared.allows(.autoPlan)) }
         // Lernziele (Smart Planner 2.0): automatisch umplanen wie der Lernplan erst ab Plus; Ziele, Lernzeit, Übersicht frei
         SmartGoalsEndpoints.autoAllowed = { LearnCalendar.autoPlans(tariff: Entitlements.shared.allows(.autoPlan)) }

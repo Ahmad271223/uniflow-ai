@@ -79,9 +79,10 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         return pdf.pageOverlayViewProvider?.pdfView(pdf, overlayViewFor: p) as? PageInkView
     }
 
-    private func openReader(size: CGSize = IPhoneLearnTestCase.phone, task: Int? = nil)
+    private func openReader(size: CGSize = IPhoneLearnTestCase.phone, task: Int? = nil,
+                            doc: (file: LibFile, api: APIClient, transport: AIViewsAppTests.Transport)? = nil)
         throws -> (env: HostedEnvironment, pdf: PDFView, transport: AIViewsAppTests.Transport) {
-        let d = document()
+        let d = doc ?? document()
         let env = try hostPhone(NavigationStack { PhoneDocumentReader(file: d.file, api: d.api, task: task) }, api: d.api, size: size)
         var found: PDFView?
         XCTAssertTrue(env.wait(timeout: 15) {
@@ -271,10 +272,13 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
     /// Video, YouTube oder Lernseite auch am iPhone (Auftrag 17.11.2026): Knopf in der Leseansicht, mit Plus die Auswahl
     /// mit "YouTube öffnen". Danach steht ueber dem Dokument zuerst nur der Hinweis (noch keine Web-Ansicht, nichts geht
     /// an YouTube); "Abbrechen" schliesst wieder, das Dokument bleibt dasselbe. Ohne Plus die Tarifwahl.
+    /// Seit 18.11.2026 nur mit eingeschaltetem `YouTubeBrowse` (in 1.0.6 aus); den Standard prueft
+    /// `testPhoneReaderWithoutYouTubeBrowse`.
     func testVideoOrLearningSiteAbovePhoneReader() throws {
         let before = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
-        defer { Entitlements.shared.setPlanForTesting(before) }
+        YouTubeBrowse.enabled = true
+        defer { Entitlements.shared.setPlanForTesting(before); YouTubeBrowse.enabled = false }
         YouTubeNotice.reset(defaults: YouTubeSidePane.defaults)
         let (env, pdf, _) = try openReader()
         let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
@@ -311,6 +315,69 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         XCTAssertTrue(free.wait(timeout: 5) { self.sheetOpen(free) }, "Tarifwahl")
         XCTAssertNil(element(free, id: "web.youtubeOpen"), dump(free))
         dismissSheet(free)
+    }
+
+    private struct MemorySecrets: UniversitySecretStoring {
+        final class Box: @unchecked Sendable { var values: [String: String] = [:] }
+        let box = Box()
+        func read(_ account: String) -> String? { box.values[account] }
+        func write(_ value: String, account: String) -> Bool { box.values[account] = value; return true }
+        func remove(_ account: String) { box.values[account] = nil }
+        func accounts() -> [String] { Array(box.values.keys) }
+        func removeAll() -> Bool { box.values = [:]; return true }
+    }
+
+    /// Entscheidung des Inhabers 18.11.2026: "YouTube öffnen" nicht in 1.0.6 (`YouTubeBrowse` aus, Standard). Das Blatt
+    /// "Video oder Lernseite" bleibt, aber ohne "YouTube öffnen": "YouTube-Link einfügen" ist der Haupteinstieg wie in
+    /// 1.0.5, Lernseiten stehen darunter. Ein in der Testfassung auf der YouTube-Seite angesehenes Video ("Zuletzt hier")
+    /// oeffnet im eingebetteten Player - nie die YouTube-Seite, nie der Hinweis "YouTube ist ein Dienst von Google".
+    func testPhoneReaderWithoutYouTubeBrowse() throws {
+        XCTAssertFalse(YouTubeBrowse.enabled, "Standard: aus")
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        defer { Entitlements.shared.setPlanForTesting(before) }
+        // eigener Container, darin der Stand aus der Testfassung: Video auf der YouTube-Seite angesehen
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-yt-aus-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let appSuite = "uniflow-yt-aus-app-\(UUID().uuidString)"
+        let appDefaults = try XCTUnwrap(UserDefaults(suiteName: appSuite))
+        let key = DataContainerKey(userID: "001234.erfunden-ada.\(UUID().uuidString.prefix(8))", university: .luh)
+        let container = ActiveContainer(key: key, base: base, keychain: MemorySecrets(), cookieService: "de.uniflow.ai.test.\(UUID().uuidString)",
+                                        appDefaults: appDefaults, clock: .fixed(berlin: "2026-11-18T10:00:00")!, cloud: nil)
+        let suite = container.defaultsSuite
+        let previous = ActiveContainer.current
+        ActiveContainer.current = container
+        addTeardownBlock { @MainActor in
+            ActiveContainer.current = previous
+            UserDefaults().removePersistentDomain(forName: suite)
+            UserDefaults().removePersistentDomain(forName: appSuite)
+            try? FileManager.default.removeItem(at: base)
+        }
+        let d = document()
+        DocumentVideoLinks.save(VideoLink(videoID: "dQw4w9WgXcQ", start: 42), for: d.file.id, defaults: container.defaults, onYouTube: true)
+
+        let (env, pdf, _) = try openReader(doc: d)
+        Entitlements.shared.setPlanForTesting(.plus)
+        let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
+        XCTAssertEqual(web.accessibilityLabel, "Video oder Lernseite", "Knopf bleibt")
+        XCTAssertTrue(web.accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 20) { self.element(env, id: "web.videoLink") != nil },
+                      "Auswahl mit „YouTube-Link einfügen“ (Blatt offen: \(sheetOpen(env))): \(dump(env))")
+        XCTAssertNil(element(env, id: "web.youtubeOpen"), "kein „YouTube öffnen“: \(dump(env))")
+        XCTAssertNotNil(element(env, id: "web.videoOpen"))
+        XCTAssertTrue(shows(env, WebSidePickerSection.videoIntro(readerOnly: true)), dump(env))
+        XCTAssertFalse(shows(env, "Such dein Video bei YouTube"), dump(env))
+        XCTAssertTrue(elements(env).contains { identifier($0)?.hasPrefix("web.site.") == true }, "Lernseiten bleiben: \(dump(env))")
+        let last = try XCTUnwrap(element(env, id: "web.lastVideo"), "„Zuletzt hier: YouTube-Video“: \(dump(env))")
+        shoot(env, "iphone-video-ohne-youtube-oeffnen")
+        XCTAssertTrue(last.accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 8) { self.element(env, id: "video.close") != nil && !self.sheetOpen(env) },
+                      "eingebetteter Player über dem Dokument: \(dump(env))")
+        XCTAssertFalse(elements(env).contains { identifier($0)?.hasPrefix("youtube.") == true }, "keine YouTube-Seite: \(dump(env))")
+        XCTAssertFalse(shows(env, "Dienst von Google"), "kein Hinweis vor dem Öffnen: \(dump(env))")
+        XCTAssertTrue(pdfView(in: env.window) === pdf, "das Dokument bleibt dieselbe Ansicht")
+        XCTAssertTrue(try XCTUnwrap(element(env, id: "video.close")).accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 5) { self.element(env, id: "video.close") == nil }, "schließt")
     }
 
     /// Dialog "Lösung teilen" aus der Leseansicht: die Notizen vom iPad werden gelesen (Vorschau), "Als Datei teilen"

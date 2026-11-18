@@ -6,6 +6,7 @@ import UniFlowCore
 // Entscheidung des Inhabers: nur Lernseiten, KEIN freier Browser ("Uneingeschraenkter Webzugang" bleibt nein).
 // Auftrag 17.11.2026: YouTube selbst in der Spalte oeffnen (suchen, ansehen), weiter ohne Adresszeile und nur YouTube
 // (`YouTubeSidePolicy`); der eingefuegte Link bleibt als zweiter Weg.
+// 18.11.2026: "YouTube öffnen" in 1.0.6 ausgeschaltet (Schalter `YouTubeBrowse`, Entscheidung des Inhabers).
 // Hier nur reine Regeln (ohne WebKit), damit sie sich vollstaendig testen lassen: welcher Link ein Video ist, welche
 // Navigation in der Spalte bleiben darf, welche Lernseiten es gibt.
 
@@ -165,6 +166,29 @@ enum VideoSidePolicy {
 }
 
 // MARK: - YouTube direkt (Auftrag 17.11.2026)
+
+/// "YouTube öffnen" (die YouTube-Seite selbst in der Spalte bzw. ueber dem Dokument am iPhone) ein oder aus.
+///
+/// Entscheidung des Inhabers 18.11.2026: kommt NOCH NICHT in Version 1.0.6 ("Noch nicht"), weil sonst Altersfreigabe,
+/// Werbe-Angabe und Datenschutztext bei Apple geaendert werden muessten.
+///
+/// `false` (Standard): kein Knopf "YouTube öffnen" (iPad/Mac in der Auswahl der Spalte, iPhone im Blatt "Video oder
+/// Lernseite"), kein Hinweis "YouTube ist ein Dienst von Google …", nie die Spalte mit der mobilen YouTube-Seite - auch
+/// nicht ueber "Zuletzt hier" (ein dort angesehenes Video oeffnet im eingebetteten Player) oder einen gespeicherten
+/// Stand aus der Testfassung. "YouTube-Link einfügen" ist wieder der Haupteinstieg wie in 1.0.5; Aufzeichnungen,
+/// "Auf YouTube öffnen (außerhalb)" und die Lernseiten bleiben. Der Code bleibt, damit es spaeter wieder eingeschaltet
+/// werden kann. `true`: wie am 17.11.2026 (Build 45).
+enum YouTubeBrowse {
+    static var enabled = false
+
+    /// Nur Debug-Builds: `-UFYouTubeBrowse YES` schaltet "YouTube öffnen" fuer UI-Tests ein (`UniFlowApp.init`, wie
+    /// `LearnCalendar.applyDebugLaunch`); ohne das Argument gilt der ausgelieferte Standard
+    static func applyDebugLaunch(defaults d: UserDefaults = .standard) {
+        #if DEBUG
+        if d.object(forKey: "UFYouTubeBrowse") != nil { enabled = d.bool(forKey: "UFYouTubeBrowse") }
+        #endif
+    }
+}
 
 /// Spalte "YouTube": die mobile YouTube-Seite selbst (Start, Suche, Video, Kanal), ohne Adresszeile. Im Hauptrahmen nur
 /// YouTube und dessen Einwilligungsseite; jede andere Seite oeffnet ausserhalb der App. Anmelden (Google-Konto) wird in
