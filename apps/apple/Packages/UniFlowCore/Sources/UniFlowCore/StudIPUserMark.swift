@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// Datentrennung je Stud.IP-Benutzer (12.11.2026): Der Datenbereich einer Hochschule gehoert genau einem Stud.IP-Benutzer.
@@ -14,9 +13,11 @@ public enum StudIPUserMark {
     /// 409 des Dienstes, wenn das Konto schon einen anderen Stud.IP-Benutzer abgleicht (app/sync.py)
     public static let mismatchCode = "studip_user_mismatch"
 
-    /// SHA-256 (hex, klein) der Stud.IP-Kennung mit festem Praefix
+    /// SHA-256 (hex, klein) der Stud.IP-Kennung mit festem Praefix; gleicher Wert wie `studip_user_hash` in
+    /// app/sync_client.py. Ueber `SolutionSHA256` statt CryptoKit, damit der Kern auch unter Linux baut (GitHub-Lauf
+    /// "Apple"); `LinuxHashTests` haelt den Wert fest.
     public static func hash(userID: String) -> String {
-        SHA256.hash(data: Data(("studip-user:" + userID).utf8)).map { String(format: "%02x", $0) }.joined()
+        SolutionSHA256.hex(Data(("studip-user:" + userID).utf8))
     }
 
     public static func stored(_ c: SQLiteConnection) throws -> String? {

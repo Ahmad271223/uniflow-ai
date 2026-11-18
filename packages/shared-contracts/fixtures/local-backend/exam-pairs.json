@@ -1,0 +1,1941 @@
+{
+ "generator": "tools/gen-exam-pairs-fixture.py",
+ "keys": [
+  {
+   "name": "kk3a.pdf",
+   "key": "kk3a",
+   "plain": "kk3a",
+   "numbers": [
+    3
+   ],
+   "tail": "3a"
+  },
+  {
+   "name": "sol3a.pdf",
+   "key": "3a",
+   "plain": "3a",
+   "numbers": [
+    3
+   ],
+   "tail": null
+  },
+  {
+   "name": "kk3a_sol.pdf",
+   "key": "kk3a",
+   "plain": "kk3a",
+   "numbers": [
+    3
+   ],
+   "tail": "3a"
+  },
+  {
+   "name": "sol.pdf",
+   "key": "",
+   "plain": "",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "SOL 2.PDF",
+   "key": "2",
+   "plain": "2",
+   "numbers": [
+    2
+   ],
+   "tail": null
+  },
+  {
+   "name": "sol-4.pdf",
+   "key": "4",
+   "plain": "4",
+   "numbers": [
+    4
+   ],
+   "tail": null
+  },
+  {
+   "name": "Solar_2.pdf",
+   "key": "solar2",
+   "plain": "solar2",
+   "numbers": [
+    2
+   ],
+   "tail": "2"
+  },
+  {
+   "name": "Konsole 1.pdf",
+   "key": "konsole1",
+   "plain": "konsole1",
+   "numbers": [
+    1
+   ],
+   "tail": "1"
+  },
+  {
+   "name": "Sol-Gel.pdf",
+   "key": "solgel",
+   "plain": "solgel",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "KK1.pdf",
+   "key": "kk1",
+   "plain": "kk1",
+   "numbers": [
+    1
+   ],
+   "tail": "1"
+  },
+  {
+   "name": "KK1loes.pdf",
+   "key": "kk1",
+   "plain": "kk1",
+   "numbers": [
+    1
+   ],
+   "tail": "1"
+  },
+  {
+   "name": "gk.pdf",
+   "key": "gk",
+   "plain": "gk",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "gk_lsg.pdf",
+   "key": "gk",
+   "plain": "gk",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "KK2bWS2122auf.pdf",
+   "key": "kk2bws2122auf",
+   "plain": "kk2bws2122auf",
+   "numbers": [
+    2,
+    2122
+   ],
+   "tail": "2bws2122auf"
+  },
+  {
+   "name": "KK2bWS2122lsg.pdf",
+   "key": "kk2bws2122",
+   "plain": "kk2bws2122",
+   "numbers": [
+    2,
+    2122
+   ],
+   "tail": "2bws2122"
+  },
+  {
+   "name": "kkw17_auf.pdf",
+   "key": "kkw17auf",
+   "plain": "kkw17auf",
+   "numbers": [
+    17
+   ],
+   "tail": "17auf"
+  },
+  {
+   "name": "kkw17_loes.pdf",
+   "key": "kkw17",
+   "plain": "kkw17",
+   "numbers": [
+    17
+   ],
+   "tail": "17"
+  },
+  {
+   "name": "TK.pdf",
+   "key": "tk",
+   "plain": "tk",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Lösungen zu TK.pdf",
+   "key": "tk",
+   "plain": "tk",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Loesung zur Probeklausur.pdf",
+   "key": "probeklausur",
+   "plain": "probeklausur",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Lösung zum Blatt 3.pdf",
+   "key": "blatt3",
+   "plain": "blatt3",
+   "numbers": [
+    3
+   ],
+   "tail": "3"
+  },
+  {
+   "name": "Lösung für Blatt 4.pdf",
+   "key": "blatt4",
+   "plain": "blatt4",
+   "numbers": [
+    4
+   ],
+   "tail": "4"
+  },
+  {
+   "name": "Loesung fuer Blatt 5.pdf",
+   "key": "blatt5",
+   "plain": "blatt5",
+   "numbers": [
+    5
+   ],
+   "tail": "5"
+  },
+  {
+   "name": "Lösung von Blatt 6.pdf",
+   "key": "blatt6",
+   "plain": "blatt6",
+   "numbers": [
+    6
+   ],
+   "tail": "6"
+  },
+  {
+   "name": "Zusatzaufgaben.pdf",
+   "key": "zusatzaufgaben",
+   "plain": "zusatzaufgaben",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Vonhier.pdf",
+   "key": "vonhier",
+   "plain": "vonhier",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Lösungen.pdf",
+   "key": "",
+   "plain": "",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Musterlösung.pdf",
+   "key": "",
+   "plain": "",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": "Muster-Klausuraufgaben-WS1920.pdf",
+   "key": "musterklausuraufgabenws1920",
+   "plain": "musterklausuraufgabenws1920",
+   "numbers": [
+    1920
+   ],
+   "tail": "1920"
+  },
+  {
+   "name": "A4-Loesung-Muster-Klausuraufgaben-WS1920.pdf",
+   "key": "a4musterklausuraufgabenws1920",
+   "plain": "musterklausuraufgabenws1920",
+   "numbers": [
+    4,
+    1920
+   ],
+   "tail": "4musterklausuraufgabenws1920"
+  },
+  {
+   "name": "Klausur WS1920 - A4.pdf",
+   "key": "klausurws1920a4",
+   "plain": "klausurws1920",
+   "numbers": [
+    1920,
+    4
+   ],
+   "tail": "1920a4"
+  },
+  {
+   "name": "A4.pdf",
+   "key": "a4",
+   "plain": "a4",
+   "numbers": [
+    4
+   ],
+   "tail": "4"
+  },
+  {
+   "name": "A4_lsg.pdf",
+   "key": "a4",
+   "plain": "a4",
+   "numbers": [
+    4
+   ],
+   "tail": "4"
+  },
+  {
+   "name": "A3 Lsg.pdf",
+   "key": "a3",
+   "plain": "a3",
+   "numbers": [
+    3
+   ],
+   "tail": "3"
+  },
+  {
+   "name": "A5-Blatt 2.pdf",
+   "key": "a5blatt2",
+   "plain": "blatt2",
+   "numbers": [
+    5,
+    2
+   ],
+   "tail": "5blatt2"
+  },
+  {
+   "name": "A6-Klausur-WS1920.pdf",
+   "key": "a6klausurws1920",
+   "plain": "a6klausurws1920",
+   "numbers": [
+    6,
+    1920
+   ],
+   "tail": "6klausurws1920"
+  },
+  {
+   "name": "Übung 3.pdf",
+   "key": "übung3",
+   "plain": "übung3",
+   "numbers": [
+    3
+   ],
+   "tail": "3"
+  },
+  {
+   "name": "Lösung 3.pdf",
+   "key": "3",
+   "plain": "3",
+   "numbers": [
+    3
+   ],
+   "tail": null
+  },
+  {
+   "name": "Übungsblatt 10 Lösung.pdf",
+   "key": "übungsblatt10",
+   "plain": "übungsblatt10",
+   "numbers": [
+    10
+   ],
+   "tail": "10"
+  },
+  {
+   "name": "Blatt 1.pdf",
+   "key": "blatt1",
+   "plain": "blatt1",
+   "numbers": [
+    1
+   ],
+   "tail": "1"
+  },
+  {
+   "name": "Blatt 1.2 (Lösung).pdf",
+   "key": "blatt1.2",
+   "plain": "blatt1.2",
+   "numbers": [
+    1,
+    2
+   ],
+   "tail": "1.2"
+  },
+  {
+   "name": "Lösung 7.pdf",
+   "key": "lösung7",
+   "plain": "lösung7",
+   "numbers": [
+    7
+   ],
+   "tail": null
+  },
+  {
+   "name": "Übung 7.pdf",
+   "key": "übung7",
+   "plain": "übung7",
+   "numbers": [
+    7
+   ],
+   "tail": null
+  },
+  {
+   "name": "LÖSUNG 8.PDF",
+   "key": "8",
+   "plain": "8",
+   "numbers": [
+    8
+   ],
+   "tail": null
+  },
+  {
+   "name": "blatt٣.pdf",
+   "key": "blatt٣",
+   "plain": "blatt٣",
+   "numbers": [
+    3
+   ],
+   "tail": "٣"
+  },
+  {
+   "name": "Blatt 3.tar.gz",
+   "key": "blatt3.tar",
+   "plain": "blatt3.tar",
+   "numbers": [
+    3
+   ],
+   "tail": "3.tar"
+  },
+  {
+   "name": "",
+   "key": "",
+   "plain": "",
+   "numbers": [],
+   "tail": null
+  },
+  {
+   "name": null,
+   "key": "",
+   "plain": "",
+   "numbers": [],
+   "tail": null
+  }
+ ],
+ "terms": [
+  {
+   "folder": "Alte Klausuren/WS 22/23",
+   "name": "KK1.pdf",
+   "term": [
+    4045,
+    "WS 22/23"
+   ]
+  },
+  {
+   "folder": "Alte Klausuren/WS25/26",
+   "name": "KK1.pdf",
+   "term": [
+    4051,
+    "WS 25/26"
+   ]
+  },
+  {
+   "folder": "Alte Klausuren/WS 20/21",
+   "name": "Lösungen.pdf",
+   "term": [
+    4041,
+    "WS 20/21"
+   ]
+  },
+  {
+   "folder": "Alte Klausuren",
+   "name": "KK2bWS2122lsg.pdf",
+   "term": [
+    4043,
+    "WS 21/22"
+   ]
+  },
+  {
+   "folder": "Alte Klausuren",
+   "name": "Klausur SS23.pdf",
+   "term": [
+    4046,
+    "SS 23"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur_SoSe_2021.pdf",
+   "term": [
+    4042,
+    "SS 21"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur WiSe 2022/23.pdf",
+   "term": [
+    4045,
+    "WS 22/23"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur WS 2021.pdf",
+   "term": [
+    4043,
+    "WS 21/22"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "KlausurWS2021.pdf",
+   "term": [
+    4041,
+    "WS 20/21"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur_ws1920.pdf",
+   "term": [
+    4039,
+    "WS 19/20"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur WS 98/99.pdf",
+   "term": [
+    3997,
+    "WS 98/99"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur SS 1999.pdf",
+   "term": [
+    3998,
+    "SS 99"
+   ]
+  },
+  {
+   "folder": "Klausuren/Wintersemester 2019/20",
+   "name": "Klausur.pdf",
+   "term": [
+    4039,
+    "WS 19/20"
+   ]
+  },
+  {
+   "folder": "Klausuren/Sommersemester 2018",
+   "name": "Klausur.pdf",
+   "term": [
+    4036,
+    "SS 18"
+   ]
+  },
+  {
+   "folder": "Klausuren/Sommer 17",
+   "name": "Klausur.pdf",
+   "term": [
+    4034,
+    "SS 17"
+   ]
+  },
+  {
+   "folder": "Klausuren/Winter 16",
+   "name": "Klausur.pdf",
+   "term": [
+    4033,
+    "WS 16/17"
+   ]
+  },
+  {
+   "folder": "Klausuren/2019",
+   "name": "Klausur.pdf",
+   "term": [
+    4038,
+    "2019"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur_2018-02-14.pdf",
+   "term": [
+    4036,
+    "2018"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur 2051.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klausur 12345.pdf",
+   "term": null
+  },
+  {
+   "folder": "Alte Klausuren/WS 22/23",
+   "name": "Klausur SS 21.pdf",
+   "term": [
+    4045,
+    "WS 22/23"
+   ]
+  },
+  {
+   "folder": "Klausuren SS 20/Wiederholung WS 20/21",
+   "name": "x.pdf",
+   "term": [
+    4041,
+    "WS 20/21"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "abschluss2023.pdf",
+   "term": [
+    4046,
+    "2023"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "news24.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Klasse 12.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "KLAUSURWS23.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "ISS 2023.pdf",
+   "term": [
+    4046,
+    "2023"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "kkw17_auf.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "WS 123.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "WS 2324.pdf",
+   "term": [
+    4047,
+    "WS 23/24"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "SS2324.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausuren",
+   "name": "ws'22.pdf",
+   "term": [
+    4045,
+    "WS 22/23"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "SS-19.pdf",
+   "term": [
+    4038,
+    "SS 19"
+   ]
+  },
+  {
+   "folder": "Klausuren",
+   "name": "Pruefung.ss21",
+   "term": null
+  },
+  {
+   "folder": "WiSe 2026/27",
+   "name": "Blatt.pdf",
+   "term": [
+    4053,
+    "WS 26/27"
+   ]
+  },
+  {
+   "folder": "",
+   "name": "Klausur.pdf",
+   "term": null
+  },
+  {
+   "folder": null,
+   "name": null,
+   "term": null
+  },
+  {
+   "folder": "Alte Kurzklausuren",
+   "name": "gk.pdf",
+   "term": null
+  },
+  {
+   "folder": "Klausur/WS ٢٢",
+   "name": "x.pdf",
+   "term": null
+  }
+ ],
+ "links": [
+  {
+   "case": "gleicher Ordner",
+   "files": [
+    {
+     "id": "k0",
+     "name": "kk0b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "s0",
+     "name": "sol0b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "k3",
+     "name": "kk3a.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "s3",
+     "name": "sol3a.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "k4",
+     "name": "kk4a.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "tk",
+     "name": "TK.pdf",
+     "course_id": "k2",
+     "studip_folder": "Probeklausur",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "tks",
+     "name": "Lösungen zu TK.pdf",
+     "course_id": "k2",
+     "studip_folder": "Probeklausur",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "mk",
+     "name": "Muster-Klausuraufgaben-WS1920.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausur",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "mks",
+     "name": "A4-Loesung-Muster-Klausuraufgaben-WS1920.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausur",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "a",
+     "name": "KK1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "as",
+     "name": "KK1loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "b",
+     "name": "gk.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "bs",
+     "name": "gk_lsg.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "d",
+     "name": "KK2bWS2122auf.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "ds",
+     "name": "KK2bWS2122lsg.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "e",
+     "name": "kkw17_auf.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "es",
+     "name": "kkw17_loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Kurzklausuren",
+     "doc_type": "loesung"
+    }
+   ],
+   "links": {
+    "k0": [
+     "kennung",
+     [
+      "s0"
+     ]
+    ],
+    "k3": [
+     "kennung",
+     [
+      "s3"
+     ]
+    ],
+    "tk": [
+     "name",
+     [
+      "tks"
+     ]
+    ],
+    "mk": [
+     "name",
+     [
+      "mks"
+     ]
+    ],
+    "a": [
+     "name",
+     [
+      "as"
+     ]
+    ],
+    "b": [
+     "name",
+     [
+      "bs"
+     ]
+    ],
+    "d": [
+     "name",
+     [
+      "ds"
+     ]
+    ],
+    "e": [
+     "name",
+     [
+      "es"
+     ]
+    ]
+   }
+  },
+  {
+   "case": "gleiche Namen in drei Semestern",
+   "files": [
+    {
+     "id": "k21",
+     "name": "kk1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "s21",
+     "name": "sol1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "k20",
+     "name": "kk1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "s20",
+     "name": "sol1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "k19",
+     "name": "kk1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 19/20",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "p21",
+     "name": "KK2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "q21",
+     "name": "KK2loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 21/22",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "p20",
+     "name": "KK2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "q20",
+     "name": "KK2loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "p19",
+     "name": "KK2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 19/20",
+     "doc_type": "klausur"
+    }
+   ],
+   "links": {
+    "k21": [
+     "kennung",
+     [
+      "s21"
+     ]
+    ],
+    "k20": [
+     "kennung",
+     [
+      "s20"
+     ]
+    ],
+    "p21": [
+     "name",
+     [
+      "q21"
+     ]
+    ],
+    "p20": [
+     "name",
+     [
+      "q20"
+     ]
+    ]
+   }
+  },
+  {
+   "case": "Kennung nur eindeutig",
+   "files": [
+    {
+     "id": "u3",
+     "name": "Übung 3.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l3",
+     "name": "Lösung 3.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "b1",
+     "name": "Blatt 1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Blätter",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "b10",
+     "name": "Blatt 10.pdf",
+     "course_id": "k2",
+     "studip_folder": "Blätter",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l10",
+     "name": "Lösung 10.pdf",
+     "course_id": "k2",
+     "studip_folder": "Blätter",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "g2",
+     "name": "GU 2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Gemischt",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "h2",
+     "name": "HU 2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Gemischt",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l2",
+     "name": "Lösung 2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Gemischt",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "x5",
+     "name": "Blatt 5.pdf",
+     "course_id": "k2",
+     "studip_folder": "Aufgaben",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "y5",
+     "name": "Lösung 5.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "v6",
+     "name": "Blatt 6.pdf",
+     "course_id": "k2",
+     "studip_folder": "Doppelt",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "w6",
+     "name": "Lösung 6.pdf",
+     "course_id": "k2",
+     "studip_folder": "Doppelt",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "w6b",
+     "name": "Lsg 6.pdf",
+     "course_id": "k2",
+     "studip_folder": "Doppelt",
+     "doc_type": "loesung"
+    }
+   ],
+   "links": {
+    "u3": [
+     "kennung",
+     [
+      "l3"
+     ]
+    ],
+    "b10": [
+     "kennung",
+     [
+      "l10"
+     ]
+    ]
+   }
+  },
+  {
+   "case": "Loesungen im eigenen Ordner",
+   "files": [
+    {
+     "id": "b2",
+     "name": "Blatt 2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungsblätter",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l2",
+     "name": "Lösung Blatt 2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "b7",
+     "name": "Übungsblatt 7.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungsblätter",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l7",
+     "name": "Übungsblatt 7 Musterlösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "b1",
+     "name": "Übungsblatt 1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungsblätter",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l10",
+     "name": "Übungsblatt 10 Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "b8",
+     "name": "Blatt 8.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungsblätter",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "l8a",
+     "name": "Blatt 8 Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "l8b",
+     "name": "Blatt_8_Loesung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen alt",
+     "doc_type": "loesung"
+    }
+   ],
+   "links": {
+    "b2": [
+     "modul",
+     [
+      "l2"
+     ]
+    ],
+    "b7": [
+     "modul",
+     [
+      "l7"
+     ]
+    ],
+    "b8": [
+     "modul",
+     [
+      "l8a",
+      "l8b"
+     ]
+    ]
+   }
+  },
+  {
+   "case": "Sammeldatei",
+   "files": [
+    {
+     "id": "k",
+     "name": "Klausur.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/SS 21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "ks",
+     "name": "Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/SS 21",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "m1",
+     "name": "KK1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "m2",
+     "name": "KK2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "m3",
+     "name": "KK3.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "m3s",
+     "name": "KK3loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "ms",
+     "name": "Lösungen.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "r",
+     "name": "Probeklausur.pdf",
+     "course_id": "k2",
+     "studip_folder": "",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "rs",
+     "name": "Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "n",
+     "name": "Probeklausur.pdf",
+     "course_id": "k3",
+     "studip_folder": null,
+     "doc_type": "klausur"
+    },
+    {
+     "id": "ns",
+     "name": "Lösung.pdf",
+     "course_id": "k3",
+     "studip_folder": null,
+     "doc_type": "loesung"
+    },
+    {
+     "id": "u",
+     "name": "Blatt 4.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "us",
+     "name": "Lösungen.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "z",
+     "name": "Klausur.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/SS 19",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "z1",
+     "name": "Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/SS 19",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "z2",
+     "name": "Musterlösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/SS 19",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "o",
+     "name": "Klausur.pdf",
+     "course_id": "k3",
+     "studip_folder": "Alte Klausuren/SS 21",
+     "doc_type": "klausur"
+    }
+   ],
+   "links": {
+    "k": [
+     "sammel",
+     [
+      "ks"
+     ]
+    ],
+    "m1": [
+     "sammel",
+     [
+      "ms"
+     ]
+    ],
+    "m2": [
+     "sammel",
+     [
+      "ms"
+     ]
+    ],
+    "m3": [
+     "name",
+     [
+      "m3s"
+     ]
+    ]
+   }
+  },
+  {
+   "case": "ohne Loesungen",
+   "files": [
+    {
+     "id": "k",
+     "name": "Klausur.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausur",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "u",
+     "name": "Blatt 1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "uebung"
+    }
+   ],
+   "links": {}
+  },
+  {
+   "case": "leer",
+   "files": [],
+   "links": {}
+  }
+ ],
+ "groups": [
+  {
+   "case": "Jahrgaenge wie im echten Kurs",
+   "files": [
+    {
+     "id": "a1",
+     "name": "KK1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 22/23",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "a1s",
+     "name": "KK1loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 22/23",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "a2",
+     "name": "KK2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 22/23",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "a2s",
+     "name": "KK2loes.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 22/23",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "a10",
+     "name": "KK10.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 22/23",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "b1",
+     "name": "kk1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 23/24",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "b1s",
+     "name": "sol1b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 23/24",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "b0",
+     "name": "kk0b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 23/24",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "b0s",
+     "name": "sol0b.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 23/24",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "c1",
+     "name": "KK1.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "c2",
+     "name": "KK2.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "cs",
+     "name": "Lösungen.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 20/21",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "d1",
+     "name": "KK1aWS2425auf.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS25/26",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "d1s",
+     "name": "KK1aWS2425lsg.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS25/26",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "e1",
+     "name": "Klausur SS 24.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "e1s",
+     "name": "Klausur SS 24 Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "f1",
+     "name": "gk.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Kurzklausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "f1s",
+     "name": "gk_lsg.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Kurzklausuren",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "g1",
+     "name": "Probeklausur.pdf",
+     "course_id": "k2",
+     "studip_folder": "",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "g2",
+     "name": "Lsg_unbekannt.pdf",
+     "course_id": "k2",
+     "studip_folder": "",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "h1",
+     "name": "Lösung ohne Klausur.pdf",
+     "course_id": "k2",
+     "studip_folder": "Alte Klausuren/WS 22/23",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "ub",
+     "name": "Blatt 3.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "uebung"
+    },
+    {
+     "id": "ul",
+     "name": "Lösung Blatt 3.pdf",
+     "course_id": "k2",
+     "studip_folder": "Übungen",
+     "doc_type": "loesung"
+    }
+   ],
+   "block": [
+    "a1",
+    "a1s",
+    "a2",
+    "a2s",
+    "a10",
+    "b1",
+    "b1s",
+    "b0",
+    "b0s",
+    "c1",
+    "c2",
+    "cs",
+    "d1",
+    "d1s",
+    "e1",
+    "e1s",
+    "f1",
+    "f1s",
+    "g1",
+    "g2",
+    "h1"
+   ],
+   "groups": [
+    {
+     "label": "WS 25/26",
+     "files": [
+      {
+       "id": "d1",
+       "name": "KK1aWS2425auf.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS25/26",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "d1s",
+       "name": "KK1aWS2425lsg.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS25/26",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "d1"
+      }
+     ]
+    },
+    {
+     "label": "SS 24",
+     "files": [
+      {
+       "id": "e1",
+       "name": "Klausur SS 24.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "e1s",
+       "name": "Klausur SS 24 Lösung.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "e1"
+      }
+     ]
+    },
+    {
+     "label": "WS 23/24",
+     "files": [
+      {
+       "id": "b0",
+       "name": "kk0b.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 23/24",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "b0s",
+       "name": "sol0b.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 23/24",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "b0"
+      },
+      {
+       "id": "b1",
+       "name": "kk1b.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 23/24",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "b1s",
+       "name": "sol1b.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 23/24",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "b1"
+      }
+     ]
+    },
+    {
+     "label": "WS 22/23",
+     "files": [
+      {
+       "id": "a1",
+       "name": "KK1.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 22/23",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "a1s",
+       "name": "KK1loes.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 22/23",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "a1"
+      },
+      {
+       "id": "a2",
+       "name": "KK2.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 22/23",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "a2s",
+       "name": "KK2loes.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 22/23",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "a2"
+      },
+      {
+       "id": "a10",
+       "name": "KK10.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 22/23",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "h1",
+       "name": "Lösung ohne Klausur.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 22/23",
+       "doc_type": "loesung",
+       "exam_role": "weitere_loesung",
+       "solution_of": null
+      }
+     ]
+    },
+    {
+     "label": "WS 20/21",
+     "files": [
+      {
+       "id": "c1",
+       "name": "KK1.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 20/21",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "c2",
+       "name": "KK2.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 20/21",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "cs",
+       "name": "Lösungen.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Klausuren/WS 20/21",
+       "doc_type": "loesung",
+       "exam_role": "weitere_loesung",
+       "solution_of": null
+      }
+     ]
+    },
+    {
+     "label": "Alte Kurzklausuren",
+     "files": [
+      {
+       "id": "f1",
+       "name": "gk.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Kurzklausuren",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "f1s",
+       "name": "gk_lsg.pdf",
+       "course_id": "k2",
+       "studip_folder": "Alte Kurzklausuren",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "f1"
+      }
+     ]
+    },
+    {
+     "label": "Ohne Ordner",
+     "files": [
+      {
+       "id": "g1",
+       "name": "Probeklausur.pdf",
+       "course_id": "k2",
+       "studip_folder": "",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "g2",
+       "name": "Lsg_unbekannt.pdf",
+       "course_id": "k2",
+       "studip_folder": "",
+       "doc_type": "loesung",
+       "exam_role": "weitere_loesung",
+       "solution_of": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Loesung in anderem Ordner und doppelt",
+   "files": [
+    {
+     "id": "k1",
+     "name": "Klausur WS 21/22.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "l1",
+     "name": "Klausur WS 21/22 Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "l1b",
+     "name": "Klausur_WS_21/22_Loesung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Lösungen",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "k2",
+     "name": "klausur ss 22.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "K3",
+     "name": "Klausur SS 22.pdf",
+     "course_id": "k3",
+     "studip_folder": "Klausuren",
+     "doc_type": "klausur"
+    },
+    {
+     "id": "l2",
+     "name": "klausur ss 22 lsg.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausuren",
+     "doc_type": "loesung"
+    }
+   ],
+   "block": [
+    "k1",
+    "l1",
+    "l1b",
+    "k2",
+    "K3",
+    "l2"
+   ],
+   "groups": [
+    {
+     "label": "SS 22",
+     "files": [
+      {
+       "id": "K3",
+       "name": "Klausur SS 22.pdf",
+       "course_id": "k3",
+       "studip_folder": "Klausuren",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "k2",
+       "name": "klausur ss 22.pdf",
+       "course_id": "k2",
+       "studip_folder": "Klausuren",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "l2",
+       "name": "klausur ss 22 lsg.pdf",
+       "course_id": "k2",
+       "studip_folder": "Klausuren",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "k2"
+      }
+     ]
+    },
+    {
+     "label": "WS 21/22",
+     "files": [
+      {
+       "id": "k1",
+       "name": "Klausur WS 21/22.pdf",
+       "course_id": "k2",
+       "studip_folder": "Klausuren",
+       "doc_type": "klausur",
+       "exam_role": "klausur",
+       "solution_of": null
+      },
+      {
+       "id": "l1",
+       "name": "Klausur WS 21/22 Lösung.pdf",
+       "course_id": "k2",
+       "studip_folder": "Lösungen",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "k1"
+      },
+      {
+       "id": "l1b",
+       "name": "Klausur_WS_21/22_Loesung.pdf",
+       "course_id": "k2",
+       "studip_folder": "Lösungen",
+       "doc_type": "loesung",
+       "exam_role": "loesung",
+       "solution_of": "k1"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "case": "nur Loesungen",
+   "files": [
+    {
+     "id": "s1",
+     "name": "Lösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausur 2019",
+     "doc_type": "loesung"
+    },
+    {
+     "id": "s2",
+     "name": "Musterlösung.pdf",
+     "course_id": "k2",
+     "studip_folder": "Klausur",
+     "doc_type": "loesung"
+    }
+   ],
+   "block": [
+    "s1",
+    "s2"
+   ],
+   "groups": [
+    {
+     "label": "2019",
+     "files": [
+      {
+       "id": "s1",
+       "name": "Lösung.pdf",
+       "course_id": "k2",
+       "studip_folder": "Klausur 2019",
+       "doc_type": "loesung",
+       "exam_role": "weitere_loesung",
+       "solution_of": null
+      }
+     ]
+    },
+    {
+     "label": "Klausur",
+     "files": [
+      {
+       "id": "s2",
+       "name": "Musterlösung.pdf",
+       "course_id": "k2",
+       "studip_folder": "Klausur",
+       "doc_type": "loesung",
+       "exam_role": "weitere_loesung",
+       "solution_of": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "case": "leer",
+   "files": [],
+   "block": [],
+   "groups": []
+  }
+ ]
+}

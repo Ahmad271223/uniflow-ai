@@ -730,6 +730,21 @@ EFFECTIVE_TYPE_CASES = [
     ("vl5.pdf", None, None), ("2vl3.pdf", None, None), ("Lecture 6.pdf", None, None), ("Vorlesung 02A.pdf", "Vorlesung", None),
     ("VL01.pdf", "Übungen", None), ("BLATT 3.PDF", None, None), ("datei.pdf", None, None), ("datei.pdf", None, "skript"),
     ("datei.pdf", "", "test"), ("datei.pdf", None, ""), (None, "Vorlesung", None), (None, None, None),
+    # Altklausur-Loesungen (17.11.2026): "sol" und "lsg" als eigenes Wortstueck, "Prüfung"/"Exam" statt "Klausur"
+    ("sol0b.pdf", "Alte Klausuren/WS 21/22", None), ("sol3a.pdf", "Alte Klausuren/WS 21/22", None), ("kk3a.pdf", "Alte Klausuren/WS 21/22", None),
+    ("kk3a_sol.pdf", "Kurzklausuren", None), ("sol.pdf", "Probeklausur", None), ("SOL 2.PDF", "Klausur", None), ("sol-4.pdf", None, None),
+    ("sol", "Klausur", None), ("blatt3.sol.pdf", None, None), ("Solar.pdf", "Vorlesung", None), ("Konsole.pdf", "Vorlesung", None),
+    ("Sol-Gel-Verfahren.pdf", "Vorlesung", None), ("sol gel.pdf", None, None), ("äsol1.pdf", None, None), ("ßsol_1.pdf", None, None),
+    ("1sol2.pdf", None, None), ("sols.pdf", None, None), ("Lsg_SS21.pdf", "", None), ("Lsg_SS21.pdf", "Klausuren", None),
+    ("lsg2.pdf", "Übung 2", None), ("2lsg3.pdf", None, None), ("xlsgy.pdf", None, None), ("ölsg.pdf", None, None), ("lsgü.pdf", None, None),
+    ("Loesung.pdf", "Alte Prüfungen/SS 21", None), ("Musterlösung.pdf", "Pruefung WS 20", None), ("Probeprüfung Lösung.pdf", "", None),
+    ("solution.pdf", "Exam 2021", None), ("Solutions.pdf", "Old Exams", None), ("Loesung.pdf", "Examination", None),
+    ("Lösung.pdf", "Examen", None), ("Example_solution.pdf", "Übung", None), ("Lösung.pdf", "Examples", None),
+    ("Pruefung_SS21.pdf", "Alte Prüfungen/SS 21", None), ("Aufgaben.pdf", "Prüfung", None), ("Altprüfung.pdf", None, None),
+    ("Prüfungsaufgaben.pdf", None, None), ("Prüfungsaufgabe 3.pdf", None, None), ("Prüfungsordnung.pdf", "", None),
+    ("Lösung.pdf", "Prüfungsvorleistung", None), ("Lösung Selbstüberprüfung.pdf", "Übung", None), ("Ueberpruefung.pdf", None, None),
+    ("Blatt3.pdf", "Prüfungsvorleistungen", None), ("Pru\u0308fung.pdf", None, None), ("Prüfungß.pdf", None, None), ("Prüfung2.pdf", None, None),
+    ("Lösung Blatt 3.pdf", "Übungen", None), ("Blatt3_lsg.pdf", "Übungsblätter", None),
 ]
 
 # (Dateiname, Stud.IP-Ordner) fuer study.week_hint

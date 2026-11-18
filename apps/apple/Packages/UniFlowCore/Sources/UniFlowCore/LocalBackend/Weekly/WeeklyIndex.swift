@@ -95,17 +95,14 @@ extension Weekly {
         return NrKey(a: a, b: m.group(2).flatMap { Int($0) } ?? 0, c: m.group(3) ?? "")
     }
 
-    static let solExt = PyRegex(#"\.[a-z0-9]+$"#)
-    static let solWords = PyRegex(#"musterl(ö|oe)sung(en)?|l(ö|oe)sung(en)?|l(ö|oe)s\b|lsg|solutions?|mit|und|_|-|\s|\(|\)"#)
-
+    // Schluessel fuer Aufgabe und Loesung: `ExamPairs` (eine Regel fuer Moduldetail und Aufgabenindex)
+    static let idTail = ExamPairs.idTail
     /// `_solution_key(name)`
-    static func solutionKey(_ name: String) -> String { solWords.sub(solExt.sub(PyText.lower(name))) }
-
-    static let digitRuns = PyRegex(#"\d+"#)
-
-    /// `_numbers(key)`: Nummern im Schluessel ("übungsblatt10" -> [10]); der Teilwort-Rueckfall darf "Blatt 1" nie mit
-    /// "Blatt 10" verbinden (Audit P49-06, 08.11.2026)
-    static func numbers(_ key: String) -> [Int] { digitRuns.findAll(key).compactMap { Int($0) } }
+    static func solutionKey(_ name: String) -> String { ExamPairs.solutionKey(name) }
+    /// `_plain_key(name)`
+    static func plainKey(_ name: String) -> String { ExamPairs.plainKey(name) }
+    /// `_numbers(key)`: der Teilwort-Rueckfall darf "Blatt 1" nie mit "Blatt 10" verbinden (Audit P49-06, 08.11.2026)
+    static func numbers(_ key: String) -> [Int] { ExamPairs.numbers(key) }
 
     /// `_difficulty(text, points, source)`
     static func difficulty(_ text: String, _ points: Double?, _ source: String) -> Int {
@@ -171,9 +168,12 @@ extension Weekly {
         for f in files {
             let fid = f["id"]?.string ?? ""
             let ver = "\(try docVersion(c, fid)):\(lec)"
-            if try c.scalar("SELECT version FROM doc_index WHERE file_id=?", [.text(fid)])?.string == ver { skipped += 1; continue }
-            let pages = try pageTexts(c, fid)
             let src = taskSource(f)
+            // auch bei neuer Einordnung neu lesen (17.11.2026): "sol1b.pdf" stand als Altklausur im Index und waere mit
+            // unveraenderter Datei nie zur Loesung geworden
+            let cached = try c.rows("SELECT version, role FROM doc_index WHERE file_id=?", [.text(fid)]).first
+            if cached?["version"]?.string == ver, cached?["role"]?.string == src { skipped += 1; continue }
+            let pages = try pageTexts(c, fid)
             let tm = term.search("\(f["studip_folder"]?.string ?? "") \(f["name"]?.string ?? "")")
             var old: [String: [String: JSONValue]] = [:]
             for r in try c.rows("SELECT nr, content_hash, indexed_at FROM task_index WHERE file_id=?", [.text(fid)]) { old[r["nr"]?.string ?? ""] = r }
@@ -204,35 +204,47 @@ extension Weekly {
         return (done, skipped)
     }
 
-    /// `_link_solutions(conn, module_id)`: Musterloesung je Aufgabe ueber den Dateinamen und die Nummer
+    /// `_link_solutions(conn, module_id)`: Musterloesung je Aufgabe: erst die Loesungsdatei zur Aufgabendatei
+    /// (`ExamPairs.links`: gleicher Ordner und Name, Kennung, Sammeldatei, sonst das ganze Modul; dieselbe Paarung zeigt
+    /// das Moduldetail im Block "Klausuren & Altklausuren"), dann die Aufgabe mit derselben Nummer.
+    /// Sammeldatei ("Lösungen.pdf" neben "KK1" bis "KK4"): in task_index steht je Datei jede Nummer nur einmal; haben
+    /// alle Klausuren eine "Aufgabe 1", ist nicht zu erkennen, zu welcher die "Aufgabe 1" der Sammeldatei gehoert.
+    /// Darum nur Aufgabennummern, die im Ordner in genau einer Klausur vorkommen; sonst bleibt die Aufgabe ohne
+    /// Loesung (lieber keine als eine falsche).
     static func linkSolutions(_ c: SQLiteConnection, _ moduleID: Int) throws {
         let mid = SQLiteValue.integer(Int64(moduleID))
-        let sols = try c.rows("""
-            SELECT t.file_id, t.nr, t.text, f.name FROM task_index t JOIN files f ON f.id=t.file_id
-            WHERE t.module_id=? AND t.source='loesung'
-            """, [mid])
+        let sols = try c.rows("SELECT t.file_id, t.nr, t.text FROM task_index t WHERE t.module_id=? AND t.source='loesung' ORDER BY t.id", [mid])
         if sols.isEmpty { return }
-        var keys: [String] = [], byKey: [String: [String: [String: JSONValue]]] = [:]
-        for s in sols {
-            let k = solutionKey(s["name"]?.string ?? "")
-            if byKey[k] == nil { keys.append(k) }
-            byKey[k, default: [:]][s["nr"]?.string ?? ""] = s
+        let tasks = try c.rows("SELECT t.id, t.nr, t.file_id, t.source FROM task_index t WHERE t.module_id=? AND t.source!='loesung' ORDER BY t.id", [mid])
+        let files = LocalModules.pairFiles(try LocalModules.fileRows(c, moduleID: mid).map(\.json))
+        let found = ExamPairs.links(files)
+        var folder: [String: ExamPairs.Folder] = [:]
+        for f in files { folder[f["id"]?.string ?? ""] = ExamPairs.Folder(f) }
+        struct FolderNr: Hashable {
+            var folder: ExamPairs.Folder?
+            var nr: String
         }
-        for t in try c.rows("""
-            SELECT t.id, t.nr, f.name FROM task_index t JOIN files f ON f.id=t.file_id
-            WHERE t.module_id=? AND t.source!='loesung'
-            """, [mid]) {
-            let k = solutionKey(t["name"]?.string ?? "")
-            var cand = byKey[k]
-            if cand == nil || cand!.isEmpty {
-                cand = keys.first { kk in
-                    !kk.isEmpty && !k.isEmpty && (k.contains(kk) || kk.contains(k)) && min(len(kk), len(k)) >= 4 && numbers(kk) == numbers(k)
-                }.flatMap { byKey[$0] }
+        var examNrs: [FolderNr: Set<String>] = [:]                       // (Ordner, Nummer) -> Klausuren mit dieser Aufgabennummer
+        for t in tasks where t["source"]?.string == "altklausur" {
+            let fid = t["file_id"]?.string ?? ""
+            examNrs[FolderNr(folder: folder[fid], nr: t["nr"]?.string ?? ""), default: []].insert(fid)
+        }
+        var byTaskFile: [String: [String: [String: JSONValue]]] = [:]
+        for t in tasks {
+            let fid = t["file_id"]?.string ?? ""
+            if byTaskFile[fid] == nil {
+                let link = found[fid]
+                var cand: [String: [String: JSONValue]] = [:]
+                for s in sols where link?.files.contains(s["file_id"]?.string ?? "") == true { cand[s["nr"]?.string ?? ""] = s }
+                if link?.kind == ExamPairs.whole {
+                    cand = cand.filter { examNrs[FolderNr(folder: folder[fid], nr: $0.key)]?.count == 1 }
+                }
+                byTaskFile[fid] = cand
             }
-            let s = cand?[t["nr"]?.string ?? ""]
+            let s = byTaskFile[fid]?[t["nr"]?.string ?? ""]
             try c.execute("UPDATE task_index SET solution_file_id=?, solution_text=? WHERE id=?",
-                          [s.map { v($0["file_id"]) } ?? .null, s.map { .text(String(($0["text"]?.string ?? "").unicodeScalars.prefix(5000))) } ?? .null,
-                           v(t["id"])])
+                          [s.map { v($0["file_id"]) } ?? .null,
+                           s.map { .text(String(($0["text"]?.string ?? "").unicodeScalars.prefix(5000))) } ?? .null, v(t["id"])])
         }
     }
 

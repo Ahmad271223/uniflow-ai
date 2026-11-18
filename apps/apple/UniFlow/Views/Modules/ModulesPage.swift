@@ -644,8 +644,14 @@ struct ModulePage: View {
                         Text("Noch leer – zieh Dateien hierher oder nutze bei einer Datei „Verschieben nach …“.")
                             .ufFont(12.8).foregroundStyle(UF.muted).padding(.horizontal, 8).padding(.vertical, 10)
                     }
+                    // Block "Klausuren & Altklausuren": nach Jahrgang, jede Klausur mit ihrer Loesung (17.11.2026); alle
+                    // anderen Wochen und die uebrigen Gruppen des Blocks bleiben nach Art
+                    let examGroups = ModuleExamGroups.groups(of: w)
+                    if !examGroups.isEmpty {
+                        ModuleExamGroups(moduleID: id, groups: examGroups, targets: targets) { router.go(.doc($0)) }
+                    }
                     ForEach(groupsOrder, id: \.self) { k in
-                        let fs = w.list(k)
+                        let fs = !examGroups.isEmpty && ModuleExamGroups.covered.contains(k) ? [] : w.list(k)
                         if !fs.isEmpty {
                             // Gruppen nach sub_label in Reihenfolge des ersten Auftretens
                             let labels = fs.reduce(into: [String]()) { acc, f in

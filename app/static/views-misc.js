@@ -19,6 +19,8 @@ import { masteryHtml, masteryTile } from "./mastery.js?v=2";
 import * as TR from "./test-result.js?v=2";
 // Dialog "Wochentest erstellen" mit Aufgabenzahl, Schwierigkeit und Aufgabenarten (week-test-dialog.js, wie QuizComposer.swift)
 import { openWeekTestDialog, wantsDialog } from "./week-test-dialog.js?v=1";
+// Block "Klausuren & Altklausuren" nach Jahrgang, jede Klausur mit ihrer Loesung (exam-groups.js, wie ModuleExamGroups.swift)
+import * as EG from "./exam-groups.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -75,7 +77,7 @@ async function viewModule(id, view) {
     try { await api(`/modules/${id}/done`, { method: "POST", body: { file_ids: ids, done } }); } catch (e) { toast(e.message, 4000); return; }
     const st = done ? "erledigt" : "gelesen";
     d.files.forEach(f => { if (ids.includes(f.id)) f.status = st; });
-    d.weeks.forEach(w => weekFiles(w).forEach(f => { if (ids.includes(f.id)) f.status = st; }));
+    d.weeks.forEach(w => [...weekFiles(w), ...EG.groupsOf(w).flatMap(g => g.files)].forEach(f => { if (ids.includes(f.id)) f.status = st; }));
     render(true);
   };
   const curWeek = d.weeks.filter(w => w.week >= 1).slice(-1)[0];
@@ -84,7 +86,7 @@ async function viewModule(id, view) {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
     const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div><div id="lecHost"></div>` + d.weeks.map(w => `<div class="card week-block${opened.has(w.week) ? "" : " closed"}" data-w="${w.week}"><div class="wh" role="button" tabindex="0" aria-expanded="${opened.has(w.week)}">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}${weekDone(w)}</div>
-        <div class="wb"${opened.has(w.week) ? "" : " hidden"}>${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(doneRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
+        <div class="wb"${opened.has(w.week) ? "" : " hidden"}>${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${EG.html(EG.groupsOf(w), doneRow)}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length && !(EG.groupsOf(w).length && EG.COVERED.includes(k))).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(doneRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">

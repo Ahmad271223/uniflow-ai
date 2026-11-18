@@ -303,6 +303,13 @@ public enum LocalModules {
                 }
                 block[k] = .array(sorted.map { .object($0.element.json) })
             }
+            if w == -2 {
+                // Block "Klausuren & Altklausuren" geordnet (17.11.2026): nach Jahrgang, jede Klausur mit ihrer Loesung
+                // direkt darunter; dieselbe Paarung wie im Aufgabenindex (`Weekly.linkSolutions`). Die Gruppen nach Art
+                // (klausuren, loesungen) bleiben fuer aeltere Ansichten.
+                block["exam_groups"] = .array(ExamPairs.groups((grp["klausuren"]! + grp["loesungen"]!).map(\.json),
+                                                               ExamPairs.links(pairFiles(files.map(\.json)))))
+            }
             outWeeks.append(.object(block))
         }
         let courses = try c.rows("SELECT id, title, kind, number FROM courses WHERE module_id=? ORDER BY kind, title", [moduleID])
@@ -348,6 +355,12 @@ public enum LocalModules {
             let day = StudyWeeks.isEmpty(chdate: f.chdate) ? nil : try? StudyWeeks.localDay(chdate: f.chdate)
             return (id, f.json["course_id"]?.string ?? "", day, try autoWeek(f, dates: dates), f.docType, f.json["week_hint"]?.int)
         })
+    }
+
+    /// `pair_files(files)`: Dateien eines Moduls, unter denen Aufgabe und Loesung zusammenfinden (`ExamPairs.links`):
+    /// Uebungen, Loesungen, Klausuren. Dieselbe Auswahl fuer das Moduldetail und den Aufgabenindex.
+    static func pairFiles(_ files: [[String: JSONValue]]) -> [[String: JSONValue]] {
+        files.filter { ["uebung", "loesung", "klausur"].contains($0["doc_type"]?.string ?? "") }
     }
 
     /// Block einer Datei im Moduldetail: eigene Ordnung, sonst automatisch; Unsicheres (Moodle ohne Hinweis,

@@ -7240,7 +7240,45 @@
       "key": "w:-2",
       "custom": false,
       "renamed": false,
-      "auto_label": "Klausuren & Altklausuren"
+      "auto_label": "Klausuren & Altklausuren",
+      "exam_groups": [
+       {
+        "label": "2025",
+        "files": [
+         {
+          "id": "f-ma-alt",
+          "name": "Altklausur 2025.pdf",
+          "chdate": 1789891200,
+          "status": "neu",
+          "favorite": 0,
+          "last_opened": null,
+          "size": 1014,
+          "course_id": "k-ma-vl",
+          "studip_folder": "Klausuren",
+          "content_sha256": null,
+          "course_title": "Testmathematik I",
+          "course_kind": "vorlesung",
+          "subject": "Testmathematik I",
+          "module_id": 1,
+          "doc_type": "klausur",
+          "ai_title": null,
+          "difficulty": null,
+          "est_minutes": null,
+          "topics": null,
+          "summary": null,
+          "has_notes": null,
+          "ai_doc_type": null,
+          "sub_label": "Altklausur",
+          "week_hint": null,
+          "source": "studip",
+          "section": "w:-2",
+          "placed": false,
+          "exam_role": "klausur",
+          "solution_of": null
+         }
+        ]
+       }
+      ]
      }
     ],
     "targets": [
