@@ -20,10 +20,16 @@ final class AuditRunde11PencilTests: XCTestCase {
     /// Strich wie vom Stift: Erstellzeit heute, wechselnder Druck, Neigung und Breite je Punkt
     private func pencilStroke(y: CGFloat, count: Int = 40, created: Date = Date(timeIntervalSinceReferenceDate: 800_000_000),
                               ink: PKInk = PKInk(.pen, color: .black)) -> PKStroke {
-        let pts = (0..<count).map { i in
-            PKStrokePoint(location: CGPoint(x: 40 + CGFloat(i) * 2.5, y: y + CGFloat(i % 7)), timeOffset: Double(i) * 0.0042,
-                          size: CGSize(width: 1.5 + CGFloat(i % 5) * 0.8, height: 1.5 + CGFloat(i % 5) * 0.8),
-                          opacity: 1, force: 0.2 + CGFloat(i % 9) * 0.1, azimuth: CGFloat(i % 4) * 0.3, altitude: 0.6 + CGFloat(i % 3) * 0.2)
+        // in Teilen mit Typangaben (Typpruefung mit Xcode 26 auf GitHub); gleiche Werte wie vorher
+        let pts: [PKStrokePoint] = (0..<count).map { (i: Int) -> PKStrokePoint in
+            let f = CGFloat(i)
+            let location = CGPoint(x: 40 + f * 2.5, y: y + CGFloat(i % 7))
+            let side: CGFloat = 1.5 + CGFloat(i % 5) * 0.8
+            let force: CGFloat = 0.2 + CGFloat(i % 9) * 0.1
+            let azimuth: CGFloat = CGFloat(i % 4) * 0.3
+            let altitude: CGFloat = 0.6 + CGFloat(i % 3) * 0.2
+            return PKStrokePoint(location: location, timeOffset: Double(i) * 0.0042, size: CGSize(width: side, height: side),
+                                 opacity: 1, force: force, azimuth: azimuth, altitude: altitude)
         }
         return PKStroke(ink: ink, path: PKStrokePath(controlPoints: pts, creationDate: created))
     }
