@@ -1573,8 +1573,9 @@ final class StudIPSync: ObservableObject {
         // nur im WLAN). Direkt nach dem Abgleich und nach jedem Abgleich (auch dem kurzen): am iPad A16 kam nach einem
         // Abgleich nichts an, weil der Schritt hinter Wochentests und dem Vorwaermen des Index (lang) und nur nach einem
         // vollen Abgleich lief.
+        // eigener Hintergrund-Task (niedrigste Prioritaet), der Rest wartet nicht darauf
         guard !Task.isCancelled else { return }
-        await CourseFileIntakeRunner.afterSync(host: host)
+        await CourseFileIntakeRunner.startAfterSync(host: host)
         guard weekly, !Task.isCancelled else { return }
         // automatische Wochentests ab Pro AI (UFWeeklyAutoGate); der Index unten laeuft in jedem Tarif
         if await UFWeeklyAutoGate.check(), case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {

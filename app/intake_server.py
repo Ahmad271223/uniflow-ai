@@ -40,6 +40,7 @@ import unicodedata
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 MAX_FILE_BYTES = 80 << 20
 MAX_CHECK_ITEMS = 500
@@ -56,6 +57,10 @@ NO_PROGRAM = "Ohne Studiengang"
 NO_SEMESTER = "Ohne Semester"
 
 _lock = threading.Lock()
+# Gleichzeitige Uploads (INTAKE_PARALLEL, Standard 3): darueber 503 intake_busy, die App versucht es still beim naechsten
+# Abgleich. Der Eingang ist ein kleiner Rechner; so bleibt er bei Andrang (viele erste Abgleiche um 8 Uhr) stabil.
+PARALLEL = max(1, min(32, int(os.environ.get("INTAKE_PARALLEL") or 3)))
+_running = 0
 
 
 # MARK: Ticket
@@ -304,9 +309,19 @@ async def upload(upload: UploadFile = File(...), meta: str = Form(...), authoriz
         m = clean_meta(json.loads(meta), t["u"])
     except json.JSONDecodeError:
         raise HTTPException(422, detail="meta ist kein JSON")
-    data = await upload.read(MAX_FILE_BYTES + 1)
-    if len(data) > MAX_FILE_BYTES:
-        raise HTTPException(413, detail="Datei zu gross")
+    global _running
+    if _running >= PARALLEL:
+        raise HTTPException(503, detail={"code": "intake_busy", "detail": "Gerade viel los, später nochmal."},
+                            headers={"Retry-After": "300"})
+    _running += 1
+    try:
+        return await _store(upload, m, t)
+    finally:
+        _running -= 1
+
+
+def _check_file(data: bytes, m: dict) -> int | None:
+    """Pruefen ohne den Ereignis-Faden zu blockieren (im Thread-Pool): PDF, Fingerabdruck, keine Namensliste."""
     if not data.startswith(b"%PDF-"):
         raise HTTPException(415, detail="Nur PDF")
     if hashlib.sha256(data).hexdigest() != m["sha256"]:
@@ -314,6 +329,18 @@ async def upload(upload: UploadFile = File(...), meta: str = Form(...), authoriz
     text, pages = _first_pages_text(data)
     if looks_like_name_list(text, m["file_name"]):
         raise HTTPException(422, detail={"code": "name_list", "detail": "Listen mit Namen nimmt der Eingang nicht an."})
+    return pages
+
+
+async def _store(upload: UploadFile, m: dict, t: dict) -> dict:
+    data = await upload.read(MAX_FILE_BYTES + 1)
+    if len(data) > MAX_FILE_BYTES:
+        raise HTTPException(413, detail="Datei zu gross")
+    pages = await run_in_threadpool(_check_file, data, m)
+    return await run_in_threadpool(_save, data, m, t, pages)
+
+
+def _save(data: bytes, m: dict, t: dict, pages: int | None) -> dict:
     rel = Path("dateien") / m["sha256"][:2] / f"{m['sha256']}.pdf"
     with _lock:
         c = _db()

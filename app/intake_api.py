@@ -10,8 +10,13 @@ Regeln:
 - Nur mit StudiNow-Konto (im Dienst angemeldet); welcher Tarif, ist egal ("egal wer sich einloggt").
 - Der Eingang erfaehrt nie, wer geschickt hat: der Dienst gibt nur Hochschule und Datei weiter, mit einem kurzen,
   signierten Ticket ohne Konto-ID (gemeinsames Geheimnis LERNAPP_INTAKE_SECRET).
-- Der Dienst speichert nichts: die Datei liegt nur waehrend der Weitergabe im Speicher.
-- Hoechstens FILES_PER_DAY Dateien je Konto und Tag (gezaehlt in accounts.db, ohne Bezug zu den Dateien).
+- Der Dienst speichert nichts: die Datei liegt nur waehrend der Weitergabe in der Upload-Zwischendatei von Starlette
+  und wird in Stuecken weitergereicht (`Stream`), nie ganz im Arbeitsspeicher (Inhaber 18.11.2026: "problemlos,
+  normale App-Nutzer sollen nichts mitbekommen").
+- Hoechstens PARALLEL_UPLOADS Weitergaben je Arbeitsprozess gleichzeitig; darueber 503 intake_busy, die App versucht es
+  still beim naechsten Abgleich. So bleiben KI, Abgleich und Anmeldung immer schnell.
+- Hoechstens FILES_PER_DAY Dateien je Konto und Tag (nur Schutz vor Missbrauch, normale Nutzer erreichen sie nie;
+  gezaehlt in accounts.db, ohne Bezug zu den Dateien).
 - LERNAPP_INTAKE_URL: interne Adresse des Eingangs, z. B. http://10.0.0.3:8780 (privates Netz), oder https. Ohne Adresse
   und Geheimnis (mindestens 32 Zeichen) ist der Eingang aus: 503 intake_off.
 """
@@ -32,9 +37,43 @@ from . import config, entitlements, intake_server
 
 router = APIRouter()
 
-FILES_PER_DAY = 300
-CHECKS_PER_DAY = 200
+FILES_PER_DAY = 5000
+CHECKS_PER_DAY = 2000
 TIMEOUT_S = 120
+CHUNK = 1 << 20
+
+
+def parallel_uploads() -> int:
+    """Gleichzeitige Weitergaben je Arbeitsprozess (LERNAPP_INTAKE_PARALLEL, 1-16, Standard 2)."""
+    try:
+        return max(1, min(16, int(os.environ.get("LERNAPP_INTAKE_PARALLEL") or 2)))
+    except ValueError:
+        return 2
+
+
+_uploads_running = 0   # je Arbeitsprozess; asyncio laeuft in einem Faden, ein Zaehler reicht
+
+
+class Stream:
+    """Anfrage-Koerper aus Vorspann, Datei (in Stuecken gelesen) und Abspann, mit fester Laenge fuer Content-Length."""
+
+    def __init__(self, head: bytes, file, size: int, tail: bytes):
+        self.head, self.file, self.size, self.tail = head, file, size, tail
+
+    def __len__(self) -> int:
+        return len(self.head) + self.size + len(self.tail)
+
+    def __iter__(self):
+        yield self.head
+        self.file.seek(0)
+        left = self.size
+        while left > 0:
+            chunk = self.file.read(min(CHUNK, left))
+            if not chunk:
+                break
+            left -= len(chunk)
+            yield chunk
+        yield self.tail
 
 
 def intake_url() -> str | None:
@@ -87,11 +126,13 @@ def _university(asked: object, user: dict | None) -> str:
     return uni
 
 
-def forward(url: str, path: str, body: bytes, content_type: str, university: str) -> tuple[int, dict]:
+def forward(url: str, path: str, body: bytes | Stream, content_type: str, university: str) -> tuple[int, dict]:
     """Anfrage an den Eingang (blockierend; im Thread-Pool aufrufen). Tests ersetzen diese Funktion."""
     ticket = intake_server.make_ticket(university, secret=os.environ["LERNAPP_INTAKE_SECRET"].encode())["ticket"]
-    req = urllib.request.Request(url + path, data=body, method="POST",
-                                 headers={"Authorization": f"Bearer {ticket}", "Content-Type": content_type})
+    headers = {"Authorization": f"Bearer {ticket}", "Content-Type": content_type}
+    if isinstance(body, Stream):
+        headers["Content-Length"] = str(len(body))
+    req = urllib.request.Request(url + path, data=body, method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
             return r.status, json.loads(r.read() or b"{}")
@@ -108,9 +149,10 @@ def _answer(status: int, data: dict) -> dict:
     if 200 <= status < 300:
         return data
     inner = data.get("detail") if isinstance(data.get("detail"), dict) else {"detail": data.get("detail")}
+    headers = {"Retry-After": "300"} if status in (429, 503) else None
     raise HTTPException(status if status in (409, 413, 415, 422, 429, 502, 503) else 502,
                         {"detail": inner.get("detail") or "Der Datei-Eingang hat die Datei nicht angenommen.",
-                         "code": inner.get("code") or f"intake_{status}"})
+                         "code": inner.get("code") or f"intake_{status}"}, headers=headers)
 
 
 @router.post("/api/intake/check")
@@ -129,14 +171,25 @@ async def check(request: Request) -> dict:
 
 @router.post("/api/intake/file")
 async def file(request: Request, upload: UploadFile = File(...), meta: str = Form(...), university: str = Form(default="")) -> dict:
+    global _uploads_running
+    if _uploads_running >= parallel_uploads():
+        raise HTTPException(503, {"detail": "Gerade viel los, später nochmal.", "code": "intake_busy"},
+                            headers={"Retry-After": "300"})
     url, user = await _gate(request, "file", FILES_PER_DAY)
     uni = _university(university or None, user)
-    data = await upload.read(intake_server.MAX_FILE_BYTES + 1)
-    if len(data) > intake_server.MAX_FILE_BYTES:
+    f = upload.file
+    f.seek(0, os.SEEK_END)
+    size = f.tell()
+    if size > intake_server.MAX_FILE_BYTES:
         raise HTTPException(413, {"detail": "Die Datei ist zu groß.", "code": "too_large"})
     boundary = "studinow-weiter-" + os.urandom(8).hex()
-    body = b"".join([
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"meta\"\r\n\r\n".encode(), meta.encode(), b"\r\n",
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"datei.pdf\"\r\n"
-        f"Content-Type: application/pdf\r\n\r\n".encode(), data, b"\r\n", f"--{boundary}--\r\n".encode()])
-    return _answer(*await run_in_threadpool(forward, url, "/intake/v1/file", body, f"multipart/form-data; boundary={boundary}", uni))
+    body = Stream(
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"meta\"\r\n\r\n".encode() + meta.encode() + b"\r\n"
+        + f"--{boundary}\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"datei.pdf\"\r\n"
+          f"Content-Type: application/pdf\r\n\r\n".encode(),
+        f, size, f"\r\n--{boundary}--\r\n".encode())
+    _uploads_running += 1
+    try:
+        return _answer(*await run_in_threadpool(forward, url, "/intake/v1/file", body, f"multipart/form-data; boundary={boundary}", uni))
+    finally:
+        _uploads_running -= 1

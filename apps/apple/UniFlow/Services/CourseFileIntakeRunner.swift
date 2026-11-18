@@ -94,7 +94,27 @@ enum CourseFileIntakeRunner {
         let transport = AccountCourseFileIntake(account: account, university: uni)
         let c = Conditions(offered: CourseFileIntakeSetting.isOffered, consented: CourseFileIntakeSetting.isOn(), underTest: false,
                            demo: false, onWiFi: true, signedIn: true)
-        _ = try? await send(ctx, transport: transport, when: c)
+        // alles, was fehlt, in Runden zu je `filesPerRun` (Inhaber 18.11.2026: "ohne Grenzen"); Ende, wenn eine Runde
+        // nichts mehr findet, bei einem Fehler (Netz, Eingang ausgelastet: naechster Abgleich) oder beim Abbruch
+        for _ in 0..<maxRounds {
+            guard !Task.isCancelled, await DocIndexPrewarm.onWiFi(),
+                  let r = try? await send(ctx, transport: transport, when: c),
+                  r.checked + r.skippedNameLists > 0 else { return }
+        }
+    }
+
+    /// Hoechstens so viele Runden je Abgleich (100 x 60 = 6000 Dateien); der naechste Abgleich macht weiter
+    static let maxRounds = 100
+    @MainActor private static var running: Task<Void, Never>?
+
+    /// Nach dem Abgleich starten, ohne dass der Nutzer etwas merkt: eigener Hintergrund-Task mit niedrigster
+    /// Prioritaet, der Abgleich wartet nicht darauf; laeuft schon einer, startet kein zweiter.
+    @MainActor static func startAfterSync(host: LocalBackendHost) {
+        guard CourseFileIntakeSetting.isOn(), running == nil else { return }
+        running = Task.detached(priority: .background) {
+            await afterSync(host: host)
+            await MainActor.run { running = nil }
+        }
     }
 }
 
