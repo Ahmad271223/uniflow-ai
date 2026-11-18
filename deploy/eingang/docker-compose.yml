@@ -1,0 +1,29 @@
+# Datei-Eingang auf einem EIGENEN Rechner ohne Domain (Auftrag des Inhabers 18.11.2026: "ohne Domain ... im Backend
+# Serveradresse angeben"). Der Eingang hoert NUR auf der Adresse im privaten Hetzner-Netz (EINGANG_PRIVATE_IP); von
+# aussen ist kein Port offen ausser SSH. Der StudiNow-Dienst reicht die Dateien weiter (app/intake_api.py) und braucht
+# dazu LERNAPP_INTAKE_URL=http://<EINGANG_PRIVATE_IP>:8780 und dasselbe LERNAPP_INTAKE_SECRET.
+# Start aus dem Ordner deploy/eingang/:  docker compose up -d --build
+# NICHT ohne Okay des Inhabers starten (Datenschutzerklaerung und Zustimmungstext muessen vorher stehen).
+name: studinow-eingang
+
+services:
+  eingang:
+    build:
+      context: ../..
+      dockerfile: deploy/eingang/Dockerfile
+    image: studinow-eingang:latest
+    container_name: studinow-eingang
+    restart: unless-stopped
+    environment:
+      LERNAPP_INTAKE_SECRET: "${LERNAPP_INTAKE_SECRET:?deploy/eingang/.env fehlt oder LERNAPP_INTAKE_SECRET ist leer}"
+      INTAKE_DATA_DIR: /data
+    ports:
+      # nur im privaten Netz erreichbar, nie auf der oeffentlichen Adresse
+      - "${EINGANG_PRIVATE_IP:?deploy/eingang/.env fehlt oder EINGANG_PRIVATE_IP ist leer}:8780:8780"
+    volumes:
+      - ${EINGANG_DATA:-/mnt/eingang}:/data   # Hetzner-Volume: dateien/, geordnet/, eingang.db
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

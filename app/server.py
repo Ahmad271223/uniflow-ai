@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from . import intake_api
 from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, module_layout, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
@@ -70,6 +71,7 @@ app.include_router(community_cards_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
 app.include_router(doc_index.router)
+app.include_router(intake_api.router)     # Datei-Eingang: Weitergabe an den Eingang im privaten Netz (18.11.2026)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
 from . import sync_order_api  # noqa: E402 - Stufen des Abgleichs und Module je Semester (05.11.2026)
@@ -602,6 +604,8 @@ _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES),
                   # KI-Index (app/doc_index.py bricht nach 60 MB ab - Starlette haette vorher bis 320 MB zwischengespeichert)
                   (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES),
+                  # Datei-Eingang (app/intake_api.py): eine Kurs-PDF, weitergereicht an den Eingang
+                  (re.compile(r"^/api/intake/file$"), intake_api.intake_server.MAX_FILE_BYTES + (1 << 20)),
                   # Stundenplan als PDF/Bild (nur PC; Audit P34-02: vorher ohne Grenze ganz in den Speicher)
                   (re.compile(r"^/api/timetable/import/preview$"), MAX_IMPORT_BYTES))
 # PUT mit JSON-Koerper, der ganz gelesen wird (Audit 08.11.2026, P28-01/P29-04): Notizen wie in sync/push, Seitentexte
