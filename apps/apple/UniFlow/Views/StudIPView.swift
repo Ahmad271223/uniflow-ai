@@ -554,12 +554,15 @@ enum HildesheimSilentLogin {
     /// Zaehlt die fertig geladenen Seiten der unsichtbaren Webansicht
     private final class Pages { var finished = 0 }
 
-    static func attempt(_ target: HildesheimConnection.Source, connection: HildesheimConnection, timeout: TimeInterval = 25) async -> Bool {
+    /// `background`: Hintergrundlauf (17.11.2026) - ohne Fenster, die Webansicht laeuft unsichtbar ausserhalb jeder Ansicht
+    /// (wie `UniAutoLoginWeb` im Hintergrund)
+    static func attempt(_ target: HildesheimConnection.Source, connection: HildesheimConnection, timeout: TimeInterval = 25,
+                        background: Bool = false) async -> Bool {
         await UniWebSessions.ready(connection.websiteDataStore)
         let login = HildesheimLogin(target: target, connection: connection)
         await login.prepare()
-        guard case .page(let url) = login.stage,
-              let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return false }
+        let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
+        guard case .page(let url) = login.stage, window != nil || background else { return false }
         let pages = Pages()
         let coordinator = StudIPWebView.Coordinator(onPageLoaded: { _ in pages.finished += 1 }, intercept: { login.intercept($0) })
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4),
@@ -568,7 +571,7 @@ enum HildesheimSilentLogin {
         web.alpha = 0.01
         web.isUserInteractionEnabled = false
         web.accessibilityElementsHidden = true
-        window.addSubview(web)
+        window?.addSubview(web)
         defer {
             web.stopLoading()
             web.navigationDelegate = nil

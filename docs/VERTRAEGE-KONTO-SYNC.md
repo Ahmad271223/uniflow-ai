@@ -181,6 +181,24 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 - **Endpunkte:** `POST register`, `login`, `login/{apple|google}`, `link/{apple|google}`, `logout`, `logout-all`,
   `password`, `password/reset-request`, `password/reset`, `verify-email` (öffentlich), `verify-email/resend`,
   `university`, `delete`; `GET me`, `GET export`, `GET info`, `GET providers` (öffentlich).
+- **Weck-Signal (seit 17.11.2026, Standard aus; `docs/WECK-SIGNAL-2026-11-17.md`):** Die Apple-App meldet ihr
+  APNs-Token, damit der Dienst sie zwischen 08:00 und 18:00 Uhr Ortszeit des Geräts alle 30 Minuten mit einer stillen
+  Push-Nachricht zum Abgleich wecken kann (der Dienst selbst fragt die Hochschule nie ab).
+  **`PUT /api/account/push-token`** (mit Sitzung, `Authorization: Bearer <token>`), Body `{"token": "<Hex, 64–200
+  Zeichen>", "platform": "ios|ipados|macos", "app_version": "<höchstens 40 Zeichen, optional>", "timezone":
+  "<IANA-Name, z. B. Europe/Berlin>", "environment": "production|sandbox (optional, Standard production)"}` →
+  200 `{"ok": true, "push": {platform, app_version, timezone, environment, created_at, last_seen_at}, "schedule":
+  {"from": "08:00", "to": "18:00", "every_minutes": 30, "offset_minutes": 0–29}}`; beliebig oft (frischt Zeitzone und
+  Version auf). Das Gerät ist das der Sitzung (`device_id` der Anmeldung); je Konto und Gerät ein Eintrag; ein Token
+  gehört nur einem Konto (meldet es ein anderes, wandert es um).
+  **`DELETE /api/account/push-token`**, Body `{"token"}` oder leer (Gerät dieser Sitzung) → 200 `{"ok": true,
+  "removed": n}`. Fehler: 400 `push_token_invalid`, `timezone_invalid`, `platform_invalid`, `environment_invalid`,
+  `app_version_invalid`, `invalid_input`, `push_not_applicable` (Web-Oberfläche, Windows-App); 401 `unauthenticated`; 429 `rate_limited` (60 je Stunde und Konto,
+  `LERNAPP_LIMIT_PUSH_TOKEN_USER`); 501 `not_hosted`. `logout`, `logout-all`, `DELETE sessions/{id}`, Passwort
+  ändern/zurücksetzen und `delete` entfernen die Einträge der abgemeldeten Geräte sofort. Die beiden Routen hängen
+  an einem eigenen Router (`app/wake_push_api.py`) und stehen deshalb nicht in `contract.json` → `endpoints`.
+  Betrieb: `STUDINOW_WAKE_PUSH=1`, `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` (Standard
+  `de.uniflow.ai`); Stand: `python -m app.wake_push --status`. Tests `tests/test_wake_push.py`.
 
 ### Mit Google / Apple anmelden (für die Apps und die Web-Anmeldeseite)
 

@@ -8,6 +8,7 @@
   und die Tabelle `sync_log` in der Kontodatenbank: aelter als SYNC_DAYS (90) weg; sync.log/qis.log werden
   zeilenweise gekuerzt. Dazu `sync_jobs` und `schedule_marks` in accounts.db.
 - Konto: abgelaufene oder beendete Sitzungen, verbrauchte oder abgelaufene Reset-Token, alte Fehlversuchszaehler,
+  fuer das Weck-Signal gemeldete Geraete, die sich 60 Tage nicht mehr gemeldet haben (`push_tokens`, app/wake_push.py),
   und `accounts.purge_deleted(30)` (Konten 30 Tage nach der Loeschung endgueltig weg). Anfrage-IDs der Kontingente
   (`usage_requests`) aelter als der Vormonat.
 - KI (Audit 08.11.2026, P57-10; vorher nur beim Lesen bzw. bei der naechsten Anfrage desselben Kontos beachtet):
@@ -223,6 +224,11 @@ def purge_account_db(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False
             first = now.astimezone(timezone.utc).replace(day=1)
             prev = (first - timedelta(days=1)).strftime("%Y-%m")
             rules["usage_requests"] = ("usage_requests", "period < ?", (prev,))
+        # Weck-Signal (app/wake_push.py): Geraete, die sich seit STALE_DAYS nicht mehr gemeldet haben (die App meldet
+        # bei jedem Start), bekommen kein Signal mehr und stehen nicht laenger in der Datenbank
+        if accounts._has_table(conn, "push_tokens"):
+            from . import wake_push
+            rules["push_tokens"] = ("push_tokens", "last_seen_at < ?", (accounts.iso(now - timedelta(days=wake_push.STALE_DAYS)),))
         for key, (table, where, params) in rules.items():
             n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]
             if n and not dry_run:
