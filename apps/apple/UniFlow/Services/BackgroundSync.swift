@@ -324,6 +324,10 @@ final class BackgroundSyncController: ObservableObject {
     var relogin: (ActiveContainer, String) async -> Bool
     /// Neues des letzten Laufs (Tests)
     private(set) var lastNews: BackgroundNewsDiff?
+    /// Nach dem Abgleich: neue Dateien nachlesen, Termine erkennen, Erinnerungen planen und neu erkannte Klausuren melden
+    /// (`DueReminderScheduler`). Haengt die Container selbst an (iOS startet die App auch ohne Fenster) und wartet auf
+    /// das Ende, sonst schliesst iOS die Aufgabe, bevor geplant ist (17.11.2026). Nie unter XCTest (Tests: Attrappe).
+    var dueRefresh: () async -> Void
     /// Takt am Mac, solange die App laeuft (`startMacTicker`)
     private(set) var macTicker: MacBackgroundTicker?
     /// Neuanmeldung auch im kurzen Lauf? Auf iPad/iPhone nein: der kurze Lauf hat rund 30 Sekunden, so lange kann die
@@ -364,6 +368,13 @@ final class BackgroundSyncController: ObservableObject {
         hasStoredLogin = { [weak containers] c in
             guard let containers, containers.active === c else { return false }
             return containers.hasStoredLogin
+        }
+        dueRefresh = { [weak containers] in
+            guard let containers, !StudIPSync.isUnderTest() else { return }
+            let s = DueReminderScheduler.shared
+            s.attach(containers)
+            s.schedule(recompute: true)
+            await s.settle()
         }
         relogin = { [weak containers] c, portal in
             guard let containers, containers.active === c else { return false }
@@ -666,7 +677,7 @@ final class BackgroundSyncController: ObservableObject {
         if owns(c) {
             state.record(BackgroundSyncRecord(finishedAt: now(), kind: kind, outcome: BackgroundSyncRecord.outcome(report)))
             // neue Dateien und Fristen: Abgaben-Erinnerungen gleich neu planen, nicht erst beim naechsten Oeffnen
-            if report.skipped == nil, !report.cancelled, containers.active === c { DueReminderScheduler.shared.schedule(recompute: true) }
+            if report.skipped == nil, !report.cancelled, containers.active === c { await dueRefresh() }
         }
         // nach dem Abgleich (der volle Abgleich hat selbst schon getaktet): faellige Wochentests, solange Zeit ist
         if weekly, !report.cancelled { await runWeekly(c, expired: expired) }

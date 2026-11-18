@@ -27,6 +27,20 @@ import Foundation
 /// - Bereich direkt nach "Klausuren"/"Pruefungen" ist kein Klausurtag, nach "Pruefungszeitraum" nie ein Termin; ist in
 ///   den zwei Saetzen davor von der Anmeldung die Rede (ohne eigenes Datum), ist er die Anmeldung (Ende zaehlt).
 ///
+/// Folien (17.11.2026, "Klausur stand nur in einer Folie"; Sammlung in `DueSlideCorpusTests`):
+/// - Ueberschrift mit dem Datum in der Zeile darunter ("Klausur" / "17.11.2026, 10:00 Uhr" / "Audimax"), nur Klausuren
+///   und Tests (`headingOver`); eine Tabelle mit einer Zelle je Zeile ("17.11." / "Klausur") geht vor.
+/// - Zeile einer Terminliste mit mehrdeutigem Wort hinter dem Datum: "17.11. Prüfung (Raum F102)", "November 17: Midterm".
+/// - Zusammengesetzte Woerter: Zwischen-, Teil-, Abschluss-, Modulklausur, Zwischen-, Modul-, Wiederholungspruefung.
+/// - Englisch ohne Jahr: "Nov 17", "November 17th", "17 November" (nur grossgeschrieben).
+/// - Kein Klausurtag: "Klausur bis 17.11." (Frist), "Klausur vom 17.11." (vergangen), Fragestunde, Repetitorium,
+///   Sprechstunde, Zulassung, Ruecktritt, Vorbereitung, "des letzten Jahres"; ein Datum davor, das zu etwas anderem
+///   gehoert ("Die Vorlesung am 17.11. entfällt wegen der Klausuren"). "vom 10.02. auf den 15.02. verschoben": der neue Tag.
+/// - Mit Vorbehalt (`Hit.note`, nur Klausuren und Tests, die Anzeige nennt ihn): Wochentag im Text passt nicht zum
+///   Datum (Tippfehler oder alte Folie); "KW 47" (Montag der Woche, Bezeichnung "… (KW 47, Tag offen)"); "nächste
+///   Woche Dienstag", "nächsten Dienstag" (berechnet aus dem Bezugstag: Aenderung der Datei, Tag der Ankuendigung).
+///   Steht in derselben Zeile ein echtes Datum, gilt nur das.
+///
 /// `Announcements.extractDates` (app/announcements.py) ist dafuer nur teilweise wiederverwendbar: Monatsnamen und Text
 /// aus HTML kommen von dort; die Art bestimmt es aus dem ganzen Satz, ohne Abstand zum Schluesselwort, und das Jahr nur
 /// aus dem Tag der Ankuendigung. Dessen Ergebnis (`announcements.dates`, Hinweise im Kalender) bleibt unveraendert.
@@ -70,13 +84,17 @@ public enum DueDetection {
         public var label: String
         /// Zeile bzw. Satz um den Treffer (hoechstens 160 Zeichen)
         public var snippet: String
+        /// Vorbehalt zum Tag, den der Nutzer lesen soll: Wochentag im Text passt nicht, nur die Woche ist genannt, Tag
+        /// aus "nächste Woche Dienstag" berechnet; nil ohne
+        public var note: String?
 
-        public init(date: String, time: String?, kind: Kind, label: String, snippet: String) {
+        public init(date: String, time: String?, kind: Kind, label: String, snippet: String, note: String? = nil) {
             self.date = date
             self.time = time
             self.kind = kind
             self.label = label
             self.snippet = snippet
+            self.note = note
         }
     }
 
@@ -245,6 +263,18 @@ public enum DueDetection {
         var start: Parts
         var end: Parts?
         var time: String?
+        /// Angabe ohne Kalendertag (nur mit Bezugstag bzw. Zeitraum aufzuloesen); `start` ist dann ohne Bedeutung
+        var special: Special?
+    }
+
+    /// Angaben ohne Kalendertag auf Folien: "nächste Woche Dienstag", "nächsten Dienstag", "KW 47"
+    enum Special: Equatable {
+        /// Wochentag (0 = Montag) der Woche nach dem Bezugstag
+        case nextWeek(weekday: Int, phrase: String)
+        /// naechster solcher Wochentag nach dem Bezugstag
+        case nextWeekday(weekday: Int, phrase: String)
+        /// Kalenderwoche (ISO), der Tag ist nicht genannt
+        case week(Int)
     }
 
     private static let numericRE = HText.regex(#"(?<![\p{L}\p{N}./])(\d{1,2})\.\s?(\d{1,2})\.(?:\s?(20\d{2})(?![\d])|(\d{2})(?![\d.:]))?(?![\d])"#)
@@ -265,6 +295,36 @@ public enum DueDetection {
     private static let englishDayMonthRE = HText.regex(#"(?<![\p{L}\p{N}.])(\d{1,2})(?:st|nd|rd|th)?\s+("# + englishNames + #")\.?,?\s+(20\d{2})(?![\d])"#, [.caseInsensitive])
     private static let englishMonthDayRE = HText.regex(#"(?<![\p{L}])("# + englishNames + #")\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})(?![\d])"#, [.caseInsensitive])
 
+    /// Englisch ohne Jahr ("Nov 17", "November 17th", "17 November"): nur mit grossem Anfangsbuchstaben ("may" ist
+    /// sonst ein Verb), das Jahr kommt wie bei "17.11." aus dem Zeitraum
+    private static let englishCapNames = englishMonths.map { $0.0.prefix(1).uppercased() + $0.0.dropFirst() }
+        .sorted { $0.count > $1.count }.joined(separator: "|")
+    private static let englishDayMonthNoYearRE = HText.regex(
+        #"(?<![\p{L}\p{N}.:])(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?("# + englishCapNames + #")\.?(?![\p{L}\d]|\s+\d{3})"#)
+    private static let englishMonthDayNoYearRE = HText.regex(
+        #"(?<![\p{L}])("# + englishCapNames + #")\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d|:\d|\.\d|\s*(?:%|Uhr|h\b|a\.?m\b|p\.?m\b))"#)
+    /// Wochentag in Klammern hinter dem Datum: "17.11.2026 (Di)"
+    private static let trailingWeekdayRE = HText.regex(
+        #"^\s*\((montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|Mo|Di|Mi|Do|Fr|Sa|So|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\.?\)"#,
+        [.caseInsensitive])
+    private static let weekdayNames = "montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag"
+    private static let weekdayNamesEN = "monday|tuesday|wednesday|thursday|friday|saturday|sunday"
+    /// "nächste Woche (am) Dienstag", "Dienstag (in der) nächsten Woche", "next week (on) Tuesday", "Tuesday next week"
+    private static let nextWeekRE = HText.regex(
+        #"(?<![\p{L}])(?:(?:in\s+der\s+)?(?:n(?:ä|ae)chste[nr]?|kommende[nr]?)\s+woche,?\s+(?:am\s+)?("# + weekdayNames
+        + #")|("# + weekdayNames + #")\s+(?:der\s+|in\s+der\s+)?(?:n(?:ä|ae)chste[nr]|kommende[nr])\s+woche|next\s+week,?\s+(?:on\s+)?("#
+        + weekdayNamesEN + #")|("# + weekdayNamesEN + #")\s+(?:of\s+)?next\s+week)(?![\p{L}])"#, [.caseInsensitive])
+    /// "nächsten Dienstag", "am kommenden Dienstag", "next Tuesday"
+    private static let nextWeekdayRE = HText.regex(
+        #"(?<![\p{L}])(?:(?:n(?:ä|ae)chste[nm]|kommende[nm])\s+("# + weekdayNames + #")|next\s+("# + weekdayNamesEN + #"))(?![\p{L}])"#,
+        [.caseInsensitive])
+    /// "KW 47", "Kalenderwoche 47", "CW 47", "calendar week 47"
+    private static let calendarWeekRE = HText.regex(
+        #"(?<![\p{L}\p{N}])(?:KW|Kalenderwoche|CW|calendar\s+week)\.?\s*(\d{1,2})(?![\d.:/])"#, [.caseInsensitive])
+    /// "vom 10.02. auf den 15.02. verschoben": der erste Tag gilt nicht mehr
+    private static let movedFromRE = HText.regex(#"(?<![\p{L}])vo[mn]\s*$"#, [.caseInsensitive])
+    private static let movedToRE = HText.regex(#"^\s*auf\s+(?:den\s+)?$"#, [.caseInsensitive])
+
     private static let weekdayLongRE = HText.regex(#"(?<![\p{L}])(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\.?,?\s*(?:(?:den|dem|the)\s+)?$"#, [.caseInsensitive])
     private static let weekdayShortRE = HText.regex(#"(?<![\p{L}])(Mo|Di|Mi|Do|Fr|Sa|So|Mon|Tue|Tues|Wed|Thu|Thur|Thurs|Fri|Sat|Sun|MO|DI|MI|DO|FR|SA|SO)\.?,?\s*(?:(?:den|dem|the)\s+)?$"#)
     static let weekdays: [String: Int] = [
@@ -280,7 +340,7 @@ public enum DueDetection {
         [.caseInsensitive])
     private static let rangeGapRE = HText.regex(#"^\s*(?:-|–|—|bis(?:\s+(?:zum|einschlie(?:ß|ss)lich|einschl\.))?|to|until|till)\s*$"#, [.caseInsensitive])
     private static let timeRE = HText.regex(
-        #"^\s*(?:[,(]|–|-)?\s*(?:(?:um|bis|ab|gegen|at|by|until)\s+)?(?:sp(?:ä|ae)testens\s+)?(\d{1,2})(?::(\d{2})|\.(\d{2})(?=\s*(?:Uhr|h\b))|(?=\s*(?:Uhr|h\b|[-–]\s*\d{1,2}(?:[:.]\d{2})?\s*Uhr)))\s*(?:Uhr|h\b)?\s*\)?\s*(a\.?m\.?|p\.?m\.?)?"#,
+        #"^\s*(?:[,(]|–|-)?\s*(?:(?:um|bis|ab|von|gegen|at|by|from|until)\s+)?(?:sp(?:ä|ae)testens\s+)?(\d{1,2})(?::(\d{2})|\.(\d{2})(?=\s*(?:Uhr|h\b))|(?=\s*(?:Uhr|h\b|[-–]\s*\d{1,2}(?:[:.]\d{2})?\s*Uhr)))\s*(?:Uhr|h\b)?\s*\)?\s*(a\.?m\.?|p\.?m\.?)?"#,
         [.caseInsensitive])
 
     static func valid(_ p: Parts, year: Int) -> Int? {
@@ -289,7 +349,8 @@ public enum DueDetection {
     }
 
     /// Alle Datumsangaben eines Texts, nach Position, ohne Ueberlappungen; mit Wochentag davor, Bereich und Uhrzeit
-    static func findDates(_ text: String) -> [DateToken] {
+    /// `relative`: auch Angaben ohne Kalendertag ("nächste Woche Dienstag", "KW 47"; `Special`)
+    static func findDates(_ text: String, relative: Bool = false) -> [DateToken] {
         let ns = text as NSString
         let full = NSRange(location: 0, length: ns.length)
         func group(_ m: NSTextCheckingResult, _ i: Int) -> String? {
@@ -344,6 +405,15 @@ public enum DueDetection {
             guard let mo = group(m, 1).flatMap({ english[$0.lowercased()] }), let d = group(m, 2).flatMap(Int.init) else { continue }
             found.append((m.range, Parts(day: d, month: mo, year: group(m, 3).flatMap(Int.init)), nil))
         }
+        // Englisch ohne Jahr: "Nov 17", "November 17th", "17 November"
+        for m in englishDayMonthNoYearRE.matches(in: text, range: full) {
+            guard let d = group(m, 1).flatMap(Int.init), let mo = group(m, 2).flatMap({ english[$0.lowercased()] }) else { continue }
+            found.append((m.range, Parts(day: d, month: mo, year: nil), nil))
+        }
+        for m in englishMonthDayNoYearRE.matches(in: text, range: full) {
+            guard let mo = group(m, 1).flatMap({ english[$0.lowercased()] }), let d = group(m, 2).flatMap(Int.init) else { continue }
+            found.append((m.range, Parts(day: d, month: mo, year: nil), nil))
+        }
         // Ueberlappungen: der fruehere, bei gleichem Beginn der laengere
         found.sort { $0.range.location != $1.range.location ? $0.range.location < $1.range.location : $0.range.length > $1.range.length }
         var tokens: [DateToken] = []
@@ -362,9 +432,25 @@ public enum DueDetection {
                     break
                 }
             }
+            // Wochentag in Klammern dahinter ("17.11.2026 (Di)")
+            let a = NSMaxRange(f.range), tail = ns.substring(with: NSRange(location: a, length: min(16, ns.length - a)))
+            if let w = trailingWeekdayRE.firstMatch(in: tail, options: [.anchored], range: NSRange(location: 0, length: (tail as NSString).length)),
+               let wd = weekdays[(tail as NSString).substring(with: w.range(at: 1)).lowercased()] {
+                if t.start.weekday == nil { t.start.weekday = wd }
+                t.range.length += w.range.length
+            }
             tokens.append(t)
-            lastEnd = NSMaxRange(f.range)
+            lastEnd = NSMaxRange(t.range)
         }
+        // "vom 10.02. auf den 15.02. verschoben": der alte Tag ist kein Termin mehr
+        var movedFrom = Set<Int>()
+        for i in tokens.indices.dropLast() {
+            let gs = NSMaxRange(tokens[i].range), gl = tokens[i + 1].range.location - gs
+            guard gl >= 0, gl <= 12, has(movedToRE, ns.substring(with: NSRange(location: gs, length: gl))) else { continue }
+            let lo = max(0, tokens[i].range.location - 6)
+            if has(movedFromRE, ns.substring(with: NSRange(location: lo, length: tokens[i].range.location - lo))) { movedFrom.insert(i) }
+        }
+        if !movedFrom.isEmpty { tokens = tokens.enumerated().filter { !movedFrom.contains($0.offset) }.map(\.element) }
         // Bereiche: "02.11.–06.11.", "vom 02.11. bis 06.11.2026"
         var merged: [DateToken] = []
         for t in tokens {
@@ -411,7 +497,28 @@ public enum DueDetection {
             merged[i].time = String(format: "%02d:%02d", h, mi)
             merged[i].range.length += consumed
         }
-        return merged
+        guard relative else { return merged }
+        // Angaben ohne Kalendertag; steht in derselben Zeile ein echtes Datum, gilt nur das
+        var special: [DateToken] = []
+        func add(_ r: NSRange, _ s: Special) {
+            let (ls, le) = lineBounds(ns, r.location)
+            if merged.contains(where: { $0.range.location >= ls && $0.range.location < le }) { return }
+            if special.contains(where: { NSIntersectionRange($0.range, r).length > 0 }) { return }
+            special.append(DateToken(range: r, coreStart: r.location, start: Parts(day: 1, month: 1), end: nil, time: nil, special: s))
+        }
+        for m in nextWeekRE.matches(in: text, range: full) {
+            guard let name = (1...4).compactMap({ group(m, $0) }).first, let wd = weekdays[name.lowercased()] else { continue }
+            add(m.range, .nextWeek(weekday: wd, phrase: ns.substring(with: m.range)))
+        }
+        for m in nextWeekdayRE.matches(in: text, range: full) {
+            guard let name = (1...2).compactMap({ group(m, $0) }).first, let wd = weekdays[name.lowercased()] else { continue }
+            add(m.range, .nextWeekday(weekday: wd, phrase: ns.substring(with: m.range)))
+        }
+        for m in calendarWeekRE.matches(in: text, range: full) {
+            guard let w = group(m, 1).flatMap(Int.init), (1...53).contains(w) else { continue }
+            add(m.range, .week(w))
+        }
+        return (merged + special).sorted { $0.range.location < $1.range.location }
     }
 
     // MARK: - Schluesselwoerter
@@ -459,7 +566,14 @@ public enum DueDetection {
         KeywordSpec(pattern: #"nachklausur(?:en|termin(?:e)?)?|wiederholungsklausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Nachklausur", nounAfterRestricted: false),
         KeywordSpec(pattern: #"pr(?:ü|ue)fungs(?:zeitr(?:aum|(?:ä|ae)ume)|phase)|klausur(?:en)?(?:zeitr(?:aum|(?:ä|ae)ume)|phase)"#, kind: .klausur,
                     label: "Prüfungszeitraum", nounAfterRestricted: false, direction: .dateAfter, periodOnly: true),
+        KeywordSpec(pattern: #"zwischenklausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Zwischenklausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"teilklausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Teilklausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"e-klausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "E-Klausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"(?:abschluss|modul|semester|haupt|end)klausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Klausur", nounAfterRestricted: false),
         KeywordSpec(pattern: #"klausurtermin(?:e)?|klausurdatum|klausur(?:en)?"#, kind: .klausur, label: "Klausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"zwischenpr(?:ü|ue)fung(?:en|stermin(?:e)?)?"#, kind: .klausur, label: "Zwischenprüfung", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"(?:wiederholungs|nach)pr(?:ü|ue)fung(?:en|stermin(?:e)?)?"#, kind: .klausur, label: "Wiederholungsprüfung", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"(?:modul|modulabschluss|abschluss|teil|semester|fach)pr(?:ü|ue)fung(?:en|stermin(?:e)?)?"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false),
         KeywordSpec(pattern: #"pr(?:ü|ue)fungstermin(?:e)?|pr(?:ü|ue)fungsdatum|(?:m(?:ü|ue)ndliche|schriftliche)\s+pr(?:ü|ue)fung(?:en)?"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false),
         KeywordSpec(pattern: #"pr(?:ü|ue)fung(?:en)?"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false, direction: .dateAfter),
         KeywordSpec(pattern: #"(?:final\s+|midterm\s+)?exam(?:s|ination)?|midterm"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false, direction: .dateAfter),
@@ -618,7 +732,7 @@ public enum DueDetection {
     // MARK: - Paare aus Schluesselwort und Datum
 
     private static let wordRE = HText.regex(#"[\p{L}\p{N}]+"#)
-    private static let sentenceBreakRE = HText.regex(#"[!?;]|[)"“”»]\.(?=\s)|\n[ \t]*\n"#)
+    private static let sentenceBreakRE = HText.regex(#"[!?;]|[)"“”»%]\.(?=\s)|\n[ \t]*\n"#)
     /// Wort mit Punkt danach: Satzende, wenn das Wort lang ist oder ein Grossbuchstabe folgt (ausser Abkuerzungen)
     private static let wordDotRE = HText.regex(#"(\p{L}+)\.(?=\s|$)(\s+\p{Lu})?"#)
     static let abbreviations: Set<String> = ["bzw", "ca", "vgl", "inkl", "evtl", "ggf", "usw", "etc", "nr", "no", "dr", "prof", "abs", "kap",
@@ -656,7 +770,11 @@ public enum DueDetection {
         #"(?:(?:folien?|foliensatz|vorlesung(?:en)?|skript|mitschrift|aufzeichnung|(?:(?:ü|ue)bungs)?blatt|kapitel|(?:ü|ue)bung|sitzung|stunde|tutorium)\s+(?:vom|von)|(?:stand|version|aktualisiert|erstellt|updated?|druckdatum|gedruckt|ver(?:ö|oe)ffentlicht|published)\b[^\p{L}]*(?:am|vom|on)?)\s*$"#,
         [.caseInsensitive])
     private static let examBlockRE = HText.regex(
-        #"l(?:ö|oe)sung|musterl|solution|ergebnis|\bnoten\b|bewert|korrektur|korrigiert|r(?:ü|ue)ckgabe|zur(?:ü|ue)ckgegeben|einsicht|besprechung|altklausur|alte\s+klausur|klausur\s+aus\s+(?:dem|der)"#,
+        #"l(?:ö|oe)sung|musterl|solution|ergebnis|\bnoten\b|bewert|korrektur|korrigiert|r(?:ü|ue)ckgabe|zur(?:ü|ue)ckgegeben|einsicht|besprechung|altklausur|alte\s+klausur|klausur\s+aus\s+(?:dem|der)"#
+        // rund um die Klausur, aber nicht der Klausurtag (17.11.2026; wie `Exams.notExamRE`)
+        + #"|fragestunde|repetitorium|sprechstunde|zulassung|r(?:ü|ue)cktritt|abmeld|bonuspunkt|vorbereitung|preparation|review\s+session|q\s?&\s?a"#
+        // vergangene Durchgaenge
+        + #"|letzten\s+jahres|letzten\s+semesters|letztes\s+jahr|vorjahr|vergangene[nm]\s+(?:jahr|semester)|last\s+year|previous\s+year"#,
         [.caseInsensitive])
     private static let submissionBlockRE = HText.regex(#"r(?:ü|ue)ckgabe|zur(?:ü|ue)ckgegeben|korrigiert|bewertet|besprechung"#, [.caseInsensitive])
     private static let listGapRE = HText.regex(#"^\s*(?:,|;|/|&|\+|und|sowie|bzw\.?|oder|and|or)?\s*(?:(?:und|sowie|and)\s+)?$"#, [.caseInsensitive])
@@ -685,7 +803,20 @@ public enum DueDetection {
         guard lines.count <= 2 else { return nil }
         let n = words(gap)
         let comma = has(commaRE, gap)
-        if !keywordFirst && k.direction == .dateAfter { return nil }
+        if !keywordFirst && k.direction == .dateAfter {
+            // mehrdeutige Woerter ("Prüfung", "Exam", "Test") hinter dem Datum nur als Zeile einer Terminliste:
+            // "17.11. Prüfung (Raum F102)", "Tuesday, November 17: Midterm" – Datum am Zeilenanfang, nichts dazwischen,
+            // danach Zeilenende, Klammer, Uhrzeit oder Ort ("17.11. Prüfung von Invarianten" bleibt ein Thema)
+            guard !k.weak, !k.periodOnly, lines.count == 1, n == 0, startsLine(ns, d.range.location) else { return nil }
+            let a = NSMaxRange(k.range)
+            guard has(listRowTailRE, ns.substring(with: NSRange(location: a, length: lineBounds(ns, a).end - a))) else { return nil }
+            return 1 + (comma ? 2 : 0)
+        }
+        // "Rücktritt von der Klausur bis 17.11.", "Klausur vom 17.11.": Frist bzw. vergangener Termin, kein Klausurtag
+        if keywordFirst, k.kind == .klausur, d.end == nil, has(notExamDayGapRE, ns.substring(with: NSRange(location: gs, length: d.coreStart - gs))) { return nil }
+        // "Die Vorlesung am 17.11. entfällt wegen der Klausuren", "17.11. – bitte teilnehmen, auch wenn die Klausur naht",
+        // "am 17.11., eine Woche vor der Klausur": das Datum davor gehoert zu etwas anderem
+        if !keywordFirst, k.kind == .klausur || k.kind == .test, has(otherEventGapRE, gap) { return nil }
         // "Pruefungszeitraum" nimmt nur Bereiche ("Klausur in der Pruefungsphase am 03.02." bleibt der Klausur)
         if k.periodOnly && d.end == nil { return nil }
         if k.weak, !has(weakGapRE, gap) {
@@ -701,12 +832,19 @@ public enum DueDetection {
             let after = ns.substring(with: NSRange(location: NSMaxRange(k.range), length: min(24, ns.length - NSMaxRange(k.range))))
             if has(restrictedFollowRE, after) { return nil }
         }
+        var headingPair = false
         if lines.count == 2 {
             guard n <= 3 else { return nil }
             if keywordFirst {
-                // Satz laeuft ueber die Zeile weiter ("... Zwischentest am" / "16.11.2026 im Hörsaal")
-                guard words(lines[0]) <= 3, has(connectorEndRE, ns.substring(with: NSRange(location: k.range.location, length: k.range.length)) + lines[0]),
-                      words(lines[1]) <= 1 else { return nil }
+                // Satz laeuft ueber die Zeile weiter ("... Zwischentest am" / "16.11.2026 im Hörsaal") oder das
+                // Schluesselwort ist die Ueberschrift einer Folie und das Datum steht in der Zeile darunter
+                // ("Klausur" / "17.11.2026, 10:00 Uhr" / "Audimax"); nicht "Klausur" / "Letzte Vorlesung: 17.11."
+                let continues = words(lines[0]) <= 3 && words(lines[1]) <= 1
+                    && has(connectorEndRE, ns.substring(with: NSRange(location: k.range.location, length: k.range.length)) + lines[0])
+                if !continues {
+                    guard !k.weak, !k.periodOnly, k.kind == .klausur || k.kind == .test, headingOver(ns, k, below: lines[1]) else { return nil }
+                    headingPair = true
+                }
             } else {
                 // Tabellenzelle je Zeile: Datum am Zeilenende, Schluesselwort am Anfang der naechsten
                 guard words(lines[0]) == 0, words(lines[1]) <= 1 else { return nil }
@@ -714,7 +852,107 @@ public enum DueDetection {
         }
         guard n <= 6 else { return nil }
         if keywordFirst, has(blockedBeforeDateRE, ns.substring(with: NSRange(location: gs, length: d.coreStart - gs))) { return nil }
-        return n + (comma ? 2 : 0) + (lines.count == 2 ? 2 : 0) + (keywordFirst ? 0 : 1)
+        // Ueberschrift ueber dem Datum zaehlt weniger als "Datum / Schluesselwort" einer Tabelle mit einer Zelle je Zeile
+        return n + (comma ? 2 : 0) + (lines.count == 2 ? 2 : 0) + (keywordFirst ? 0 : 1) + (headingPair ? 2 : 0)
+    }
+
+    /// nach dem Schluesselwort einer Zeile der Terminliste: Zeilenende, Klammer, Satzzeichen, Uhrzeit oder Ort
+    private static let listRowTailRE = HText.regex(
+        #"^\s*(?:$|[(,;:|/–\-]|\d|(?:im|in|um|ab|raum|h(?:ö|oe)rsaal|hs|room|at|statt)(?![\p{L}]))"#, [.caseInsensitive])
+    /// zwischen "Klausur" und Datum: "bis", "bis zum", "bis spätestens", "vom" – Frist oder vergangener Termin
+    private static let notExamDayGapRE = HText.regex(#"(?<![\p{L}])(?:bis(?:\s+(?:zum|sp(?:ä|ae)testens))?|vo[mn])\s*$"#, [.caseInsensitive])
+
+    /// zwischen Datum und "Klausur"/"Test" dahinter: das Datum gehoert zu etwas anderem
+    private static let otherEventGapRE = HText.regex(
+        #"(?<![\p{L}])(?:entf(?:ä|ae)llt|f(?:ä|ae)llt|wegen|trotz|obwohl|auch\s+wenn|bevor|(?:vor|nach)\s+(?:der|dem|den))(?![\p{L}])"#, [.caseInsensitive])
+
+    /// Steht `pos` am Anfang seiner Zeile (davor nur Leerraum, Aufzaehlungszeichen oder eine laufende Nummer)?
+    static func startsLine(_ ns: NSString, _ pos: Int) -> Bool {
+        var i = pos - 1
+        while i >= 0, ns.character(at: i) != 10 {
+            let c = ns.character(at: i)
+            if c != 32 && c != 9 && !isBullet(c) { return false }
+            i -= 1
+        }
+        return true
+    }
+
+    /// Schluesselwort als Ueberschrift: allein in seiner Zeile (davor nur Aufzaehlungszeichen, dahinter hoechstens
+    /// Nummer und ":")
+    static func isHeadingLine(_ ns: NSString, _ k: Keyword) -> Bool {
+        guard startsLine(ns, k.range.location) else { return false }
+        let a = NSMaxRange(k.range)
+        return has(headingTailRE, ns.substring(with: NSRange(location: a, length: lineBounds(ns, a).end - a)))
+    }
+
+    /// Ueberschrift einer Folie mit dem Datum in der Zeile darunter ("Klausur" / "17.11.2026, 10:00 Uhr"): vor dem Datum
+    /// steht dort nichts, "Datum:"/"Termin:" oder hoechstens zwei Woerter ohne Doppelpunkt ("Nächste Woche, 17.11.");
+    /// nicht der Nachbarpunkt mit gleichem Zeichen ("• Kurzklausur" / "• Vorlesungsbeginn: 19.10.") und kein anderes
+    /// Ereignis ("Letzte Vorlesung am 17.11.")
+    static func headingOver(_ ns: NSString, _ k: Keyword, below: String) -> Bool {
+        guard isHeadingLine(ns, k) else { return false }
+        let (ls, le) = lineBounds(ns, k.range.location)
+        let bullet = firstVisible(ns, ls, le).map { ns.character(at: $0) }.flatMap { isBullet($0) ? $0 : nil }
+        let bns = below as NSString
+        if let f = firstVisible(bns, 0, bns.length) {
+            let c = bns.character(at: f)
+            if let bullet, c == bullet { return false }
+            if bullet == nil, mainBullets.contains(c) { return false }
+        }
+        if has(otherEventRE, below) || has(blockedBeforeDateRE, below) { return false }
+        let w = words(below)
+        return w == 0 || has(dateLabelRE, below) || (w <= 2 && !below.contains(":"))
+    }
+
+    /// Montag der ISO-Kalenderwoche `week` im Jahr `year`
+    static func isoWeekMonday(year: Int, week: Int) -> Int {
+        let jan4 = BerlinClock.dayNumber(year: year, month: 1, day: 4)
+        return jan4 - BerlinClock.weekday(jan4) + (week - 1) * 7
+    }
+
+    static let weekdayWords = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
+    private static func dm(_ day: Int) -> String {
+        let c = BerlinClock.civil(day)
+        return "\(BerlinClock.pad(c.day, 2)).\(BerlinClock.pad(c.month, 2))."
+    }
+
+    /// Tag einer Angabe im Rahmen, mit Vorbehalt (`note`) und Zusatz zur Bezeichnung; nil, wenn es keinen passenden gibt.
+    /// Klausuren und Tests (`lenient`): ein Wochentag, der nicht zum Datum passt, verwirft den Termin nicht (Tippfehler
+    /// auf der Folie), er steht dann als Vorbehalt da; Angaben ohne Kalendertag (`Special`) gelten nur fuer sie.
+    static func resolveToken(_ t: DateToken, _ p: Parts, _ ctx: Context, lenient: Bool) -> (day: Int, note: String?, suffix: String?)? {
+        let w = ctx.window
+        if let special = t.special {
+            guard lenient, ctx.allowYearless else { return nil }
+            switch special {
+            case .week(let week):
+                let y0 = BerlinClock.civil(w.from).year, y1 = BerlinClock.civil(w.to).year
+                let anchor = ctx.reference ?? w.today
+                let mondays = (y0...max(y0, y1)).map { isoWeekMonday(year: $0, week: week) }
+                    .filter { w.contains($0) }
+                    .filter { m in ctx.reference.map { m >= $0 - 45 && m <= $0 + 300 } ?? true }
+                guard let monday = mondays.min(by: { abs($0 - anchor) < abs($1 - anchor) }) else { return nil }
+                return (monday, "Im Text steht nur die Woche (KW \(week), \(dm(monday))–\(dm(monday + 6))), kein Tag. Eingetragen ist der Montag.",
+                        "(KW \(week), Tag offen)")
+            case .nextWeek(let wd, let phrase):
+                guard let r = ctx.reference else { return nil }
+                let day = r - BerlinClock.weekday(r) + 7 + wd
+                guard w.contains(day) else { return nil }
+                return (day, "Tag berechnet aus „\(phrase)“ und dem Datum der Quelle (\(dm(r))).", nil)
+            case .nextWeekday(let wd, let phrase):
+                guard let r = ctx.reference else { return nil }
+                let ahead = (wd - BerlinClock.weekday(r) + 7) % 7
+                let day = r + (ahead == 0 ? 7 : ahead)
+                guard w.contains(day) else { return nil }
+                return (day, "Tag berechnet aus „\(phrase)“ und dem Datum der Quelle (\(dm(r))).", nil)
+            }
+        }
+        if let n = resolve(p, ctx) { return (n, nil, nil) }
+        guard lenient, let wd = p.weekday else { return nil }
+        var plain = p
+        plain.weekday = nil
+        guard let n = resolve(plain, ctx) else { return nil }
+        return (n, "Im Text steht \(weekdayWords[wd]), der \(dm(n)) ist aber ein \(weekdayWords[BerlinClock.weekday(n)]).", nil)
     }
 
     /// Tag eines Datums im Rahmen; nil, wenn es keinen passenden gibt
@@ -978,7 +1216,7 @@ public enum DueDetection {
         let text = prepare(raw)
         let ns = text as NSString
         // erst die Daten (schneller; die meisten Seiten haben keins), dann die Schluesselwoerter
-        let dates = findDates(text)
+        let dates = findDates(text, relative: ctx.allowYearless)
         guard !dates.isEmpty else { return [] }
         var keywords = findKeywords(text)
         guard !keywords.isEmpty else { return [] }
@@ -1065,7 +1303,8 @@ public enum DueDetection {
             if k.kind == .abgabe, has(submissionBlockRE, around) { continue }
             // Bereich: Abgaben und Anmeldungen enden am letzten Tag, Tests beginnen am ersten
             let usesEnd = t.end != nil && (k.kind == .abgabe || k.kind == .anmeldung || k.kind == .sonstiges)
-            guard let day = resolve(usesEnd ? t.end! : t.start, ctx) else { continue }
+            guard let found = resolveToken(t, usesEnd ? t.end! : t.start, ctx, lenient: k.kind == .klausur || k.kind == .test) else { continue }
+            let day = found.day
             let time = (t.end == nil || usesEnd) ? t.time : nil
             let snip = snippet(ns, from: min(k.range.location, t.range.location), to: hi)
             let head = text.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: true).prefix(2).joined(separator: "\n")
@@ -1075,13 +1314,21 @@ public enum DueDetection {
                 let c = BerlinClock.civil(last)
                 lab += " (bis \(BerlinClock.pad(c.day, 2)).\(BerlinClock.pad(c.month, 2)).)"
             }
+            if let suffix = found.suffix { lab += " " + suffix }
             let iso = BerlinClock.isoDate(day)
             if let i = hits.firstIndex(where: { $0.date == iso && $0.kind == k.kind }) {
                 if hits[i].time == nil, let time { hits[i].time = time }
-                if !hits[i].label.contains(where: \.isNumber), lab.contains(where: \.isNumber) { hits[i].label = lab }
+                if hits[i].note != nil, found.note == nil {
+                    // eine Fundstelle ohne Vorbehalt geht vor
+                    hits[i].note = nil
+                    hits[i].label = lab
+                } else if found.note == nil || hits[i].note != nil,
+                          !hits[i].label.contains(where: \.isNumber), lab.contains(where: \.isNumber) {
+                    hits[i].label = lab
+                }
                 continue
             }
-            hits.append(Hit(date: iso, time: time, kind: k.kind, label: lab, snippet: snip))
+            hits.append(Hit(date: iso, time: time, kind: k.kind, label: lab, snippet: snip, note: found.note))
         }
         return hits.sorted { a, b in
             a.date != b.date ? a.date < b.date : (a.time ?? "") != (b.time ?? "") ? (a.time ?? "") < (b.time ?? "") : a.kind.rank < b.kind.rank

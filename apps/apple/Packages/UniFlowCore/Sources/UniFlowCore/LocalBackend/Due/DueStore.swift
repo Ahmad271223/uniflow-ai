@@ -14,10 +14,17 @@ import Foundation
 /// - `due_choices`: Entscheidungen des Nutzers je Kurs, Tag und Art ("stimmt nicht", bestaetigt, eigene Uhrzeit). Sie
 ///   bleiben beim Neuberechnen stehen und gelten wieder, sobald derselbe Termin erneut erkannt wird.
 /// - `due_meta`: Stand der Erkennung (Version, Tag des letzten Laufs).
+/// - `due_seen`: jeder schon einmal gezeigte Klausur- oder Testtermin (17.11.2026). Ein Termin, der dort noch fehlt,
+///   ist neu erkannt: die Uebersicht zeigt ihn oben ("Neu erkannt"), die App meldet ihn einmal (`markSeen`). Beim
+///   ersten Lauf mit dieser Tabelle gelten die Termine der bisherigen Erkennung als bekannt.
 /// Angezeigt wird je Modul (sonst Kurs), Tag und Art ein Termin mit allen Fundstellen.
+///
+/// Seitentexte, die fehlen (17.11.2026, "Klausur stand nur in einer Folie"): `backfillCandidates` nennt PDFs, Word-
+/// und PowerPoint-Dateien ohne Seitentexte (vorher nur PDFs); `ocrCandidates` nennt Seiten ohne Textebene (Folien als
+/// Bild, Scans), die noch nicht per Texterkennung gelesen sind (POST /api/due/ocr, in kleinen Portionen).
 public enum DueStore {
     /// Stand der Erkennung; aendert sich die Erkennung, rechnet `ensureFresh` alles neu
-    static let detectorVersion = "2"
+    static let detectorVersion = "3"
 
     static let tablesSQL = """
         CREATE TABLE IF NOT EXISTS due_hits (
@@ -34,7 +41,8 @@ public enum DueStore {
             snippet TEXT,
             name TEXT,                         -- Dateiname bzw. Titel der Ankuendigung
             url TEXT,
-            detected_at TEXT
+            detected_at TEXT,
+            note TEXT                          -- Vorbehalt zum Tag (`DueDetection.Hit.note`)
         );
         CREATE INDEX IF NOT EXISTS ix_due_hits_date ON due_hits(date);
         CREATE INDEX IF NOT EXISTS ix_due_hits_file ON due_hits(file_id);
@@ -46,9 +54,23 @@ public enum DueStore {
             updated_at TEXT
         );
         CREATE TABLE IF NOT EXISTS due_meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE IF NOT EXISTS due_seen (
+            id TEXT PRIMARY KEY,               -- Kennung des angezeigten Termins (`groupID`)
+            date TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            first_seen TEXT NOT NULL,
+            notified INTEGER NOT NULL DEFAULT 0,      -- Mitteilung "Neuer Klausurtermin erkannt" entschieden
+            acknowledged INTEGER NOT NULL DEFAULT 0   -- vom Nutzer gesehen (Hinweis geschlossen, bestaetigt, ausgeblendet)
+        );
         """
 
-    static func ensureTables(_ c: SQLiteConnection) throws { try c.executeScript(tablesSQL) }
+    static func ensureTables(_ c: SQLiteConnection) throws {
+        try c.executeScript(tablesSQL)
+        // Spalte `note` kam am 17.11.2026 dazu (Tabelle aus aelteren Builds)
+        if !(try c.query("PRAGMA table_info(due_hits)").contains { $0["name"]?.string == "note" }) {
+            try c.execute("ALTER TABLE due_hits ADD COLUMN note TEXT")
+        }
+    }
 
     static func hasTables(_ c: SQLiteConnection) throws -> Bool {
         try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='due_hits'") != nil
@@ -99,15 +121,18 @@ public enum DueStore {
         return BerlinClock.local(utc: Int(s)).day
     }
 
-    /// Fundstellen einer Datei: Seiten (`pages`) und Dateiname. Nennt der Kopf ein anderes Semester, keine.
+    /// Fundstellen einer Datei: Seiten (`pages`) und Dateiname. Nennt der Kopf ein anderes Semester (Foliensatz vom
+    /// Vorjahr, Titelfolie nicht angepasst), gelten nur Daten mit Jahr im laufenden Semester ("Klausur: 17.11.2026");
+    /// Daten ohne Jahr stammen dort meist aus dem alten Durchgang. Bis 17.11.2026 fiel eine solche Datei ganz weg.
     static func scanFile(id: String, name: String, chdate: JSONValue?, courseID: String?, pages: [(Int, String)], firstPage: String?,
                          window: DueDetection.Window) -> [Row] {
+        var otherSemester = false
         if let s = DueDetection.headSemester(firstPage: firstPage, name: name), !window.semesters.isEmpty, !window.semesters.contains(s) {
-            return []
+            otherSemester = true
         }
         let old = DueDetection.has(oldExamNameRE, name)
         let ctx = DueDetection.Context(window: window, reference: day(unix: chdate), name: name, head: DueDetection.headLines(firstPage),
-                                       allowYearless: !old, allowExams: !old)
+                                       allowYearless: !old && !otherSemester, allowExams: !old)
         var out: [Row] = []
         for (page, text) in pages {
             for h in DueDetection.detect(text, context: ctx) {
@@ -187,11 +212,11 @@ public enum DueStore {
     static func insert(_ c: SQLiteConnection, _ rows: [Row], now: String) throws {
         for r in rows {
             try c.execute("""
-                INSERT INTO due_hits(source, file_id, page, announcement_id, course_id, date, time, kind, label, snippet, name, url, detected_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO due_hits(source, file_id, page, announcement_id, course_id, date, time, kind, label, snippet, name, url, detected_at, note)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, [.text(r.source), SQLiteValue(r.fileID), r.page.map { .integer(Int64($0)) } ?? .null, SQLiteValue(r.announcementID),
                       SQLiteValue(r.courseID), .text(r.hit.date), SQLiteValue(r.hit.time), .text(r.hit.kind.rawValue), .text(r.hit.label),
-                      .text(r.hit.snippet), SQLiteValue(r.name), SQLiteValue(r.url), .text(now)])
+                      .text(r.hit.snippet), SQLiteValue(r.name), SQLiteValue(r.url), .text(now), SQLiteValue(r.hit.note)])
         }
     }
 
@@ -234,6 +259,7 @@ public enum DueStore {
             return RefreshResult(hits: try c.scalar("SELECT COUNT(*) FROM due_hits")?.int ?? 0, changed: false)
         }
         let before = try signature(c)
+        try seedSeen(c, clock: clock)
         try c.execute("DELETE FROM due_hits")
         var rows: [Row] = []
         if let w = try window(c, clock: clock) {
@@ -244,27 +270,88 @@ public enum DueStore {
         try setMeta(c, "refreshed_day", clock.today)
         try setMeta(c, "refreshed_at", clock.nowISO)
         try setMeta(c, "input", stamp)
+        try trackSeen(c, clock: clock)
         return RefreshResult(hits: rows.count, changed: try signature(c) != before)
+    }
+
+    // MARK: - Neu erkannte Klausur- und Testtermine
+
+    /// Arten, deren neuer Termin gemeldet wird
+    static let announcedKinds: Set<String> = ["klausur", "test"]
+    /// so lange gilt ein noch nicht gesehener Termin als "neu erkannt"
+    static let newDays = 14
+
+    /// Erster Lauf mit `due_seen`: was die bisherige Erkennung schon zeigte, ist bekannt (sonst meldete das Update jeden
+    /// laengst gezeigten Termin als neu). Vor dem Neuberechnen aufrufen.
+    static func seedSeen(_ c: SQLiteConnection, clock: UniFlowClock) throws {
+        guard try c.scalar("SELECT value FROM due_meta WHERE key='seen_baseline'")?.string == nil else { return }
+        for g in try groups(c, from: "0000-00-00", to: "9999-99-99") where announcedKinds.contains(g.kind) {
+            try c.execute("INSERT OR IGNORE INTO due_seen(id, date, kind, first_seen, notified, acknowledged) VALUES (?,?,?,?,1,1)",
+                          [.text(g.id), .text(g.date), .text(g.kind), .text(clock.nowISO)])
+        }
+        try setMeta(c, "seen_baseline", clock.nowISO)
+    }
+
+    /// Kommende Klausur- und Testtermine, die noch nie gezeigt wurden, vormerken (neu erkannt); alte Eintraege weg
+    static func trackSeen(_ c: SQLiteConnection, clock: UniFlowClock) throws {
+        let t = LocalTimetable.today(clock)
+        for g in try groups(c, from: BerlinClock.isoDate(t), to: BerlinClock.isoDate(t + 400))
+        where announcedKinds.contains(g.kind) && !g.hidden && !g.covered {
+            try c.execute("INSERT OR IGNORE INTO due_seen(id, date, kind, first_seen, notified, acknowledged) VALUES (?,?,?,?,0,0)",
+                          [.text(g.id), .text(g.date), .text(g.kind), .text(clock.nowISO)])
+        }
+        try c.execute("DELETE FROM due_seen WHERE date < ?", [.text(BerlinClock.isoDate(t - 30))])
+    }
+
+    /// Stand je Termin: (neu erkannt und noch nicht gesehen, Mitteilung schon entschieden)
+    static func seenState(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [String: (isNew: Bool, notified: Bool)] {
+        let since = BerlinClock.isoDate(LocalTimetable.today(clock) - newDays)
+        var out: [String: (isNew: Bool, notified: Bool)] = [:]
+        for r in try c.query("SELECT id, first_seen, notified, acknowledged FROM due_seen") {
+            guard let id = r["id"]?.string else { continue }
+            let fresh = !PyText.less(PyText.slice(r["first_seen"]?.string ?? "", 0, 10), since)
+            out[id] = (fresh && (r["acknowledged"]?.int ?? 0) == 0, (r["notified"]?.int ?? 0) != 0)
+        }
+        return out
+    }
+
+    /// Termine als gemeldet (`notified`) bzw. gesehen (`seen`) merken; `ids` nil: alle
+    static func markSeen(_ c: SQLiteConnection, ids: [String]?, notified: Bool, seen: Bool) throws {
+        try ensureTables(c)
+        var sets: [String] = []
+        if notified || seen { sets.append("notified=1") }
+        if seen { sets.append("acknowledged=1") }
+        guard !sets.isEmpty else { return }
+        if let ids {
+            for id in ids { try c.execute("UPDATE due_seen SET \(sets.joined(separator: ", ")) WHERE id=?", [.text(id)]) }
+        } else {
+            try c.execute("UPDATE due_seen SET \(sets.joined(separator: ", "))")
+        }
     }
 
     /// Neu gelesene Seitentexte einer Datei (Oeffnen, Skriptsuche): nur ihre Fundstellen neu. Ohne Tabellen (noch nie
     /// gerechnet) nichts; das erledigt dann `ensureFresh` beim naechsten Lesen.
     static func refreshFile(_ c: SQLiteConnection, fileID: String, clock: UniFlowClock) throws {
         guard try hasTables(c) else { return }
+        try ensureTables(c)
+        try seedSeen(c, clock: clock)
         try c.execute("DELETE FROM due_hits WHERE file_id=?", [.text(fileID)])
         try c.execute("DELETE FROM due_meta WHERE key='input'")
         guard let w = try window(c, clock: clock) else { return }
         try insert(c, try scanFiles(c, window: w, only: fileID), now: clock.nowISO)
+        try trackSeen(c, clock: clock)
     }
 
     // MARK: - Fehlende Seitentexte
 
-    /// PDFs ohne Seitentexte der aktuellen Fassung (vor S7 geladen, nie geoeffnet), neueste zuerst; nicht lesbare
-    /// (`markUnreadable`, gleiche Aenderungszeit) fehlen
+    /// PDFs, Word- und PowerPoint-Dateien ohne Seitentexte der aktuellen Fassung (nie geoeffnet), neueste zuerst; nicht
+    /// lesbare (`markUnreadable`, gleiche Aenderungszeit) fehlen. Bis 17.11.2026 nur PDFs: Folien als .pptx wurden nie
+    /// gelesen, solange sie niemand oeffnete.
     static func backfillCandidates(_ c: SQLiteConnection, limit: Int) throws -> [String] {
         try c.query("""
             SELECT f.id FROM files f JOIN courses c ON c.id=f.course_id
-            WHERE \(fileFilter) AND COALESCE(f.local_path, '') <> '' AND lower(f.local_path) LIKE '%.pdf'
+            WHERE \(fileFilter) AND COALESCE(f.local_path, '') <> ''
+              AND (lower(f.local_path) LIKE '%.pdf' OR lower(f.local_path) LIKE '%.pptx' OR lower(f.local_path) LIKE '%.docx')
               AND NOT EXISTS (SELECT 1 FROM page_texts p WHERE p.file_id=f.id AND COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0))
               AND NOT EXISTS (SELECT 1 FROM due_meta m WHERE m.key='unreadable:' || f.id AND m.value=CAST(COALESCE(f.chdate, 0) AS TEXT))
             ORDER BY f.chdate DESC, f.id LIMIT ?
@@ -277,10 +364,54 @@ public enum DueStore {
         try setMeta(c, "unreadable:" + fileID, String(chdate))
     }
 
+    // MARK: - Seiten ohne Textebene (Folien als Bild, Scans)
+
+    /// je Datei hoechstens so viele Seiten per Texterkennung fuer die Termine (ein eingescanntes Buch haelt die Reihe
+    /// nicht auf; andere Stellen der App erkennen weitere Seiten bei Bedarf)
+    static let ocrPagesPerFile = 80
+    /// Vorauswahl in SQL: nur Seiten mit so wenig Text kommen als "ohne Textebene" in Frage (weniger als 20 Buchstaben,
+    /// `PageOCRStore.isSparse`). Ohne sie wanderte jede Seite jeder Datei durch die Abfrage (12 000 Seiten: 3,5 s je Aufruf).
+    static let ocrMaxChars = 100
+
+    /// Seiten ohne Textebene, die noch nicht erkannt wurden: je Datei (neueste zuerst) ihre Seitennummern, zusammen
+    /// hoechstens `limit` Seiten; nur lokale PDFs gewaehlter Kurse mit Seitentexten der aktuellen Fassung. Dateien,
+    /// deren Erkennung scheiterte (`markOCRFailed`), fehlen, bis eine neue Fassung kommt.
+    static func ocrCandidates(_ c: SQLiteConnection, limit: Int) throws -> [(fileID: String, pages: [Int])] {
+        let hasOCR = try PageOCRStore.hasTable(c)
+        let done = hasOCR ? "AND NOT EXISTS (SELECT 1 FROM page_ocr o WHERE o.file_id=p.file_id AND o.page=p.page AND COALESCE(o.chdate, 0)=COALESCE(f.chdate, 0))" : ""
+        var out: [(fileID: String, pages: [Int])] = []
+        var total = 0
+        for r in try c.query("""
+            SELECT p.file_id, p.page, p.text FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
+            WHERE \(fileFilter) AND COALESCE(f.local_path, '') <> '' AND lower(f.local_path) LIKE '%.pdf'
+              AND COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND p.page <= ? AND length(p.text) < \(ocrMaxChars) \(done)
+              AND NOT EXISTS (SELECT 1 FROM due_meta m WHERE m.key='ocrfail:' || f.id AND m.value=CAST(COALESCE(f.chdate, 0) AS TEXT))
+            ORDER BY f.chdate DESC, p.file_id, p.page
+            """, [.integer(Int64(ocrPagesPerFile))]) {
+            guard total < limit, let id = r["file_id"]?.string, let page = r["page"]?.int,
+                  PageOCRStore.isSparse(r["text"]?.string ?? "") else { continue }
+            if out.last?.fileID == id { out[out.count - 1].pages.append(page) } else { out.append((id, [page])) }
+            total += 1
+        }
+        return out
+    }
+
+    /// Zahl der Seiten, die `ocrCandidates` noch nennen wuerde
+    static func ocrRemaining(_ c: SQLiteConnection) throws -> Int {
+        try ocrCandidates(c, limit: 100_000).reduce(0) { $0 + $1.pages.count }
+    }
+
+    /// Texterkennung einer Datei scheiterte (Datei nicht lesbar): nicht bei jedem Lauf erneut, bis eine neue Fassung kommt
+    static func markOCRFailed(_ c: SQLiteConnection, fileID: String) throws {
+        let chdate = try c.scalar("SELECT COALESCE(chdate, 0) FROM files WHERE id=?", [.text(fileID)])?.int64 ?? 0
+        try setMeta(c, "ocrfail:" + fileID, String(chdate))
+    }
+
     /// Vor dem Lesen der Liste: noch nie gerechnet, andere Erkennung oder neuer Tag (anderes Semester moeglich) ->
     /// neu rechnen. In einer Transaktion aufrufen. true, wenn sich dabei etwas geaendert hat.
     @discardableResult
     static func ensureFresh(_ c: SQLiteConnection, clock: UniFlowClock) throws -> Bool {
+        if try hasTables(c) { try ensureTables(c) }                        // neue Spalten und Tabellen (17.11.2026)
         if try hasTables(c),
            try c.scalar("SELECT value FROM due_meta WHERE key='version'")?.string == detectorVersion,
            try c.scalar("SELECT value FROM due_meta WHERE key='refreshed_day'")?.string == clock.today { return false }
@@ -389,7 +520,10 @@ public enum DueStore {
     }
 
     /// Bezeichnung: mit Nummer vor ohne, sonst die haeufigste
-    static func title(_ hits: [[String: JSONValue]]) -> String {
+    static func title(_ all: [[String: JSONValue]]) -> String {
+        // Fundstellen ohne Vorbehalt gehen vor ("Klausur" vor "Klausur (KW 47, Tag offen)")
+        let plain = all.filter { $0["note"]?.string == nil }
+        let hits = plain.isEmpty ? all : plain
         let labels = hits.compactMap { $0["label"]?.string }
         if let numbered = labels.first(where: { $0.contains(where: \.isNumber) }) { return numbered }
         var count: [String: Int] = [:]
@@ -405,6 +539,12 @@ public enum DueStore {
         for t in times { count[t, default: 0] += 1 }
         let best = count.values.max() ?? 0
         return times.first { count[$0] == best }
+    }
+
+    /// Vorbehalt eines Termins: nur, wenn keine Fundstelle den Tag ohne Vorbehalt nennt
+    static func note(_ hits: [[String: JSONValue]]) -> String? {
+        if hits.contains(where: { $0["note"]?.string == nil }) { return nil }
+        return hits.first?["note"]?.string
     }
 
     /// Ehrlicher Text zur Herkunft: "erkannt in Blatt3.pdf, S. 2"
@@ -436,7 +576,7 @@ public enum DueStore {
         let sources: [JSONValue] = hits.prefix(8).map { h in
             ["source": h["source"] ?? .null, "file_id": h["file_id"] ?? .null, "page": h["page"] ?? .null, "name": h["name"] ?? .null,
              "announcement_id": h["announcement_id"] ?? .null, "url": h["url"] ?? .null, "snippet": h["snippet"] ?? .null,
-             "origin": .string(origin(h))]
+             "origin": .string(origin(h)), "note": h["note"] ?? .null]
         }
         let opener = hits.first { $0["file_id"]?.string != nil } ?? first
         let announcements = Array(Set(hits.compactMap { $0["announcement_id"]?.string })).sorted().map(JSONValue.string)
@@ -450,6 +590,7 @@ public enum DueStore {
             "url": opener["file_id"]?.string == nil ? (opener["url"] ?? .null) : .null,
             "announcement_ids": .array(announcements), "sources": .array(sources),
             "confirmed": .bool(g.confirmed), "hidden": .bool(g.hidden), "user_time": .bool(g.userTime != nil), "overdue": false,
+            "note": note(hits).map(JSONValue.string) ?? .null,
         ]
     }
 
@@ -517,10 +658,17 @@ public enum DueStore {
         let from = BerlinClock.isoDate(t), to = BerlinClock.isoDate(t + days)
         var items: [[String: JSONValue]] = []
         var hiddenCount = 0
+        // neu erkannte Klausur- und Testtermine (auch aus einzeln nachgelesenen Dateien, `refreshFile`)
+        try trackSeen(c, clock: clock)
+        let seen = try seenState(c, clock: clock)
         for g in try groups(c, from: from, to: to) where !g.covered {
-            let x = json(g)
+            var x = json(g)
             if let time = x["time"]?.string, PyText.less(g.date + "T" + time, now) { continue }
             if let m = moduleID, x["module_id"]?.int != m { continue }
+            if let s = seen[g.id], !g.hidden, !g.confirmed {
+                x["is_new"] = .bool(s.isNew)
+                x["notified"] = .bool(s.notified)
+            }
             if g.hidden {
                 hiddenCount += 1
                 if !includeHidden { continue }
@@ -592,6 +740,8 @@ public enum DueStore {
             }
             if let time { try c.execute("UPDATE due_choices SET time=?, updated_at=? WHERE key=?", [SQLiteValue(time), .text(clock.nowISO), .text(key)]) }
         }
+        // entschieden ("stimmt", "stimmt nicht", eigene Uhrzeit): nicht mehr "neu erkannt", keine Mitteilung mehr
+        try c.execute("UPDATE due_seen SET acknowledged=1, notified=1 WHERE id=?", [.text(id)])
         guard let fresh = try groups(c, from: g.date, to: g.date).first(where: { $0.id == id }) else { return nil }
         var x = json(fresh)
         withDays(&x, today: LocalTimetable.today(clock))
