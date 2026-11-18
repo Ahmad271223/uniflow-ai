@@ -7,12 +7,18 @@ Zweig `app/datei-eingang`; App-Teil für 1.0.6 auf Zweig `app/eingang-testbuild`
 
 ## Schalter über den Build (Entscheidung des Inhabers 18.11.2026)
 
-Derselbe Code liefert zwei Fassungen, ohne Code zu ändern:
+**Stand 18.11.2026 abends (Inhaber: „Ja, auch im Store“):** Release (App Store, TestFlight, Kabel-Fassungen) hat
+`UF_INTAKE_OFFERED=YES` in `apps/apple/project.yml`; der Eingang ist dort **von selbst an**, der Nutzer schaltet ihn
+unter **Einstellungen → Uni-Zugang & Abgleich** aus. Debug (Simulator, App-Tests) bleibt `NO`.
 
 | Fassung | Build-Einstellung | Was der Nutzer sieht |
 |---|---|---|
-| App-Store-Build 1.0.6 | `UF_INTAKE_OFFERED=NO` (Standard in `apps/apple/project.yml`, Debug und Release) | nichts; es wird nichts geschickt |
-| Test-Build für zwei Tester | `UF_INTAKE_OFFERED=YES` auf der Kommandozeile | Karte „Kursdateien teilen“ unter **Einstellungen → Uni-Zugang & Abgleich** (nur mit StudiNow-Konto, nicht in der Demo); aus, bis der Tester im Dialog zustimmt |
+| App Store / TestFlight 1.0.6 (Release) | `UF_INTAKE_OFFERED=YES` (project.yml) | Karte „Kursdateien teilen“ mit Schalter, von selbst an (nur mit StudiNow-Konto, nicht in der Demo, nur im WLAN) |
+| Debug (Simulator, Tests) | `UF_INTAKE_OFFERED=NO` | nichts; es wird nichts geschickt |
+
+**Vor dem Einreichen von 1.0.6:** Absatz in Nutzungsbedingungen (§6) und Datenschutz (§7a, §7, §1) live auf der
+Website, App-Datenschutzangabe in App Store Connect um „Nutzerinhalte“ ergänzen. Ein Release-Build ohne Eingang geht
+weiter mit `UF_INTAKE_OFFERED=NO` auf der Kommandozeile.
 
 Die Einstellung landet als `UFIntakeOffered` in der Info.plist, die App liest sie in `CourseFileIntakeSetting.isOffered`.
 Nur ein ausdrückliches `YES` schaltet ein; fehlt der Wert oder ist er leer, bleibt es aus.
@@ -27,13 +33,12 @@ xcodebuild archive -project UniFlow.xcodeproj -scheme UniFlow -configuration Rel
   UF_INTAKE_OFFERED=YES CURRENT_PROJECT_VERSION=NN -allowProvisioningUpdates
 ```
 
-- `NN` = eigene Build-Nummer, **höher als der App-Store-Build** (App Store Connect nimmt pro Version nur steigende
-  Nummern). Erst den App-Store-Build (ohne `UF_INTAKE_OFFERED`) hochladen, dann den Test-Build.
+- (bis 18.11. abends: eigener Test-Build; seit „Ja, auch im Store“ ist jeder Release-Build so gebaut.)
 - Den Test-Build in App Store Connect **nie zur Prüfung einreichen**, nur in TestFlight an die zwei Tester geben
   (interne Tester brauchen einen Zugang zu App Store Connect; externe Tester brauchen die Beta-Prüfung von Apple).
 - Prüfen, dass es wirklich der Test-Build ist:
   `/usr/libexec/PlistBuddy -c "Print :UFIntakeOffered" ~/Studora-Builds/StudiNow-Eingang-Test-NN.xcarchive/Products/Applications/UniFlow.app/Info.plist`
-  → `YES`. Beim App-Store-Archiv muss dort `NO` stehen.
+  → `YES` (seit 18.11. abends auch beim App-Store-Archiv).
 - Zum Ausprobieren im Simulator: `xcodebuild build … UF_INTAKE_OFFERED=YES` (Debug).
 
 ## Was genau gesendet wird (und was nie)

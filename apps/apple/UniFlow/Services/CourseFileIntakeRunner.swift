@@ -5,10 +5,9 @@ import UniFlowCore
 /// werden dort geordnet (`CourseFileIntake` im Kern, Server app/intake_api.py + app/intake_server.py,
 /// docs/DATEI-EINGANG-2026-11-18.md).
 ///
-/// Schalter ueber den Build, nicht ueber den Code (Entscheidung des Inhabers 18.11.2026): im App-Store-Build AUS, nur
-/// in einem eigenen Test-Build fuer zwei Tester AN. Die Build-Einstellung `UF_INTAKE_OFFERED` (project.yml, Debug und
-/// Release "NO") landet als `UFIntakeOffered` in der Info.plist; der Test-Build setzt sie beim Bauen auf YES
-/// (`xcodebuild … UF_INTAKE_OFFERED=YES`).
+/// Schalter ueber den Build, nicht ueber den Code: die Build-Einstellung `UF_INTAKE_OFFERED` (project.yml) landet als
+/// `UFIntakeOffered` in der Info.plist. Seit 18.11.2026 abends ("Ja, auch im Store"): Release (TestFlight, App Store)
+/// YES, Debug NO (Tests und Simulator schicken nie etwas).
 ///
 /// Entscheidung des Inhabers 18.11.2026 abends ("das soll direkt geschehen, wir schreiben das in die AGBs"): wo der Build
 /// den Eingang anbietet, ist er von selbst AN, ohne Zustimmungs-Dialog; Grundlage ist der Absatz in Nutzungsbedingungen und

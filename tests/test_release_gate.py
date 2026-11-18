@@ -134,3 +134,14 @@ def test_ci_runs_the_checks_that_read_apple_files():
     for name in ("python.yml", "ci.yml", "apple.yml", "android.yml", "windows.yml"):
         for job, spec in load(name)["jobs"].items():
             assert isinstance(spec.get("timeout-minutes"), int), (name, job)
+
+
+def test_file_intake_is_on_in_release_and_off_in_debug():
+    """Datei-Eingang (Inhaber 18.11.2026 abends: "Ja, auch im Store"): Release (App Store, TestFlight) bietet ihn an,
+    Debug (Simulator, App-Tests) nie - dort darf nichts an den Eingang gehen."""
+    configs = YML[YML.index("      configs:"):YML.index("    preBuildScripts:")]
+    debug = configs[configs.index("        Debug:"):configs.index("        Release:")]
+    release = configs[configs.index("        Release:"):]
+    assert 'UF_INTAKE_OFFERED: "NO"' in debug
+    assert 'UF_INTAKE_OFFERED: "YES"' in release
+    assert "UFIntakeOffered: $(UF_INTAKE_OFFERED)" in YML

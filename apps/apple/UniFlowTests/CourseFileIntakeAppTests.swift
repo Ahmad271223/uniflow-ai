@@ -124,11 +124,13 @@ final class CourseFileIntakeAppTests: XCTestCase {
         XCTAssertEqual(fake.calls, [], "nichts gesendet")
     }
 
-    /// Build-Wert YES, aber ohne Zustimmung (oder ohne WLAN, Konto, in der Demo, unter Tests): nichts gesendet
+    /// Build-Wert YES, aber vom Nutzer ausgeschaltet (oder ohne WLAN, Konto, in der Demo, unter Tests): nichts gesendet
     func testWithoutConsentOrConditionsNothingIsSent() async throws {
         let b = try await backend()
         let fake = FakeIntake()
         CourseFileIntakeSetting.isOffered = true
+        XCTAssertTrue(CourseFileIntakeSetting.isOn(defaults), "ohne Eintrag von selbst an (18.11.2026)")
+        CourseFileIntakeSetting.set(false, defaults)       // Nutzer schaltet aus (Widerspruch)
         try await assertNotRun(b, fake, conditions(consented: CourseFileIntakeSetting.isOn(defaults)))
         var all = conditions(consented: true)
         XCTAssertTrue(all.allowed)
