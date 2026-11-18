@@ -306,13 +306,41 @@ final class StudoraAccountLink: ObservableObject {
         return user.university == nil || user.university == university
     }
 
+    // Warum der Abgleich nicht laeuft (Geraetetest 18.11.2026: iPad und Mac zeigten nach "Jetzt abgleichen" weiter
+    // "Noch nicht abgeglichen", ohne Grund). Steht statt des Ergebnisses in Einstellungen → Konto.
+    nonisolated static let demoText = "Mit Beispielinhalten gleicht StudiNow nicht zwischen Geräten ab. Schalte die Beispielinhalte aus, dann geht es los."
+    nonisolated static let blockedText = "Auf diesem Gerät ist der Abgleich angehalten: StudiNow Free gilt für ein Gerät."
+    nonisolated static func otherUniversityText(account: String, here: String?) -> String {
+        func name(_ key: String?) -> String { UniversityProfile.profile(forKey: key)?.short ?? (key ?? "?") }
+        return "Dein StudiNow-Konto gehört zur Hochschule \(name(account)), dieser Bereich zu \(name(here)). Zwischen Geräten wird nur innerhalb derselben Hochschule abgeglichen."
+    }
+
+    /// Grund, warum ein angemeldetes Konto gerade nicht abgleicht; nil = es darf laufen (`canSync`, Geraete-Regel)
+    static func refusal(user: StudoraAccount.User, university: String?, demo: Bool, blocked: Bool) -> String? {
+        if blocked { return blockedText }
+        if demo { return demoText }
+        if let own = user.university, own != university { return otherUniversityText(account: own, here: university) }
+        return nil
+    }
+
+    /// Stand fuer die Konto-Einstellungen, wenn der Abgleich gar nicht erst laeuft
+    private func noteRefusal(_ text: String) {
+        var r = DeviceSyncResult()
+        r.ok = false
+        r.error = text
+        lastSync = r
+    }
+
     /// Abgleich mit dem Konto; Rueckgabe: hat er hier etwas geaendert? `force`: Knopf, sonst hoechstens alle 3 Minuten
     @discardableResult
     func syncNow(force: Bool = false) async -> Bool {
         guard !syncing, let account, let host, let id = user?.id,
-              // Geraete-Regel: ein gesperrtes zweites Geraet (Free) gleicht nicht ab; die Daten hier bleiben, wie sie sind
-              deviceGate(localPlan: entitlements.plan) != .blocked,
               force || lastSyncAt.map({ Date().timeIntervalSince($0) >= Self.autoSyncInterval }) ?? true else { return false }
+        // Geraete-Regel: ein gesperrtes zweites Geraet (Free) gleicht nicht ab; die Daten hier bleiben, wie sie sind
+        if deviceGate(localPlan: entitlements.plan) == .blocked {
+            noteRefusal(Self.blockedText)
+            return false
+        }
         // sofort belegt: zwei Anstoesse kurz nacheinander (Vordergrund, Knopf) starteten sonst zwei Laeufe, die beide
         // dieselben neuen Zeilen senden
         syncing = true
@@ -323,7 +351,12 @@ final class StudoraAccountLink: ObservableObject {
         guard let backend = try? await host.backend(), current() else { return false }
         // Demo-Inhalte gehoeren nicht ins Konto; direkt aus der Datenbank, `demoActive` kommt beim Start erst spaeter
         let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
-        guard current(), Self.canSync(user: user, university: university, blocked: demo) else { return false }
+        guard current(), let u = user else { return false }
+        guard Self.canSync(user: u, university: university, blocked: demo) else {
+            // nicht still: Einstellungen → Konto nennt den Grund (vorher blieb dort "Noch nicht abgeglichen")
+            if let why = Self.refusal(user: u, university: university, demo: demo, blocked: false) { noteRefusal(why) }
+            return false
+        }
         // Raum je Uni-Konto (14.11.2026, `UniAccountKey`): geteilt wird nur zwischen Geraeten mit demselben Uni-Konto. Ohne
         // Schluessel gleicht die App gar nicht ab; das trifft nur die LUH vor dem ersten Stud.IP-Abgleich. Hochschulen
         // ohne sichere Kennung (Hildesheim) haben immer einen Schluessel aus Konto und Hochschule: dort wie in 1.0.4
