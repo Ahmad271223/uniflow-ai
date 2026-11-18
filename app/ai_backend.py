@@ -336,14 +336,15 @@ def allowed_models() -> list[str]:
 
 
 def max_output(purpose: str) -> int:
-    """Obergrenze der Ausgabe-Tokens fuer einen Zweck (tutor:explain -> tutor)."""
+    """Obergrenze der Ausgabe-Tokens fuer einen Zweck (tutor:explain -> tutor). Ein Eintrag fuer genau den Zweck geht
+    vor (18.11.2026, z. B. LERNAPP_AI_MAX_OUTPUT="tutor:steps=3000": einzelne Modi kuerzer halten, ohne die anderen)."""
     kind = "tutor" if purpose.startswith("tutor") else purpose
     limits = dict(MAX_OUTPUT)
     for part in (os.environ.get("LERNAPP_AI_MAX_OUTPUT") or "").split(","):
         k, _, v = part.partition("=")
         if k.strip() and v.strip().isdigit() and 64 <= int(v) <= 64_000:
             limits[k.strip()] = int(v)
-    return limits.get(kind, limits["default"])
+    return limits.get(purpose, limits.get(kind, limits["default"]))
 
 
 REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")       # Werte der Responses API (reasoning.effort)

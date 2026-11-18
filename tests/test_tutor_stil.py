@@ -160,6 +160,14 @@ def test_output_limit_fits_three_subtasks_with_thinking():
     assert ai_backend.max_output("doc_index_page") == 3000, "andere Zwecke unveraendert"
 
 
+def test_output_limit_per_mode_is_one_setting(monkeypatch):
+    from app import ai_backend
+    monkeypatch.setenv("LERNAPP_AI_MAX_OUTPUT", "tutor:steps=3000")
+    assert ai_backend.max_output("tutor:steps") == 3000 and ai_backend.max_output("tutor:explain") == 6000
+    monkeypatch.setenv("LERNAPP_AI_MAX_OUTPUT", "tutor=4000,tutor:explain=8000")
+    assert ai_backend.max_output("tutor:ask") == 4000 and ai_backend.max_output("tutor:explain") == 8000
+
+
 def credits(model: str, inp: int, out: int) -> int:
     from app import ai_prices
     return ai_prices.credits_for(ai_prices.cost_microeur(model, inp, out))
