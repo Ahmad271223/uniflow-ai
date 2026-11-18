@@ -128,7 +128,7 @@ public enum ExamRegistrationAPI {
         var order: [String: Int] = [:]
         var planMessage: String?
         if let full {
-            let start = (full.plan["start_term"]?.string).flatMap(StudyPlanEngine.parseTerm) ?? term
+            let start: Int = StudyPlanEngine.parseTerm(full.plan["start_term"]?.string) ?? term
             for (i, m) in full.modules.enumerated() {
                 guard let id = m["id"]?.string, let st = full.state[id], st.term == term, suggestStatuses.contains(st.status) else { continue }
                 let exam = m["exam"]?.string

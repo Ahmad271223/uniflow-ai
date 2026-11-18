@@ -484,8 +484,16 @@ struct ShelfFlow: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = max(1, proposal.width ?? .infinity)
         let rs = rows(subviews, width: width)
-        let w = rs.map { r in r.map(\.size.width).reduce(0, +) + spacing * CGFloat(max(0, r.count - 1)) }.max() ?? 0
-        let h = rs.map { r in r.map(\.size.height).max() ?? 0 }.reduce(0, +) + rowSpacing * CGFloat(max(0, rs.count - 1))
+        // in Teilen mit Typangaben: Xcode 26 (GitHub) brach die Typpruefung des Einzeilers ab
+        var w: CGFloat = 0, h: CGFloat = 0
+        for r in rs {
+            var rowWidth: CGFloat = 0, rowHeight: CGFloat = 0
+            for item in r { rowWidth += item.size.width; rowHeight = max(rowHeight, item.size.height) }
+            rowWidth += spacing * CGFloat(max(0, r.count - 1))
+            w = max(w, rowWidth)
+            h += rowHeight
+        }
+        h += rowSpacing * CGFloat(max(0, rs.count - 1))
         return CGSize(width: min(w, width), height: h)
     }
 

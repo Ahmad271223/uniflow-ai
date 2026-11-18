@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking                               // HTTPCookie liegt unter Linux dort
+#endif
 import XCTest
 @testable import UniFlowCore
 

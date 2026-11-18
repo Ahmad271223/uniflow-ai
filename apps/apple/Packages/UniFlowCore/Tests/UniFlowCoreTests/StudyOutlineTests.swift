@@ -18,6 +18,9 @@ final class StudyOutlineTests: XCTestCase {
     }
 
     func testPDFKitReadsTheSameBookmarksAndSectionsAsPypdf() throws {
+        #if !canImport(PDFKit)
+        throw XCTSkip("PDFKit gibt es nur auf Apple-Geraeten")
+        #endif
         let fx = try fixture()
         let got = try XCTUnwrap(StudyOutline.readPDF(fixtures().appendingPathComponent("outline-sample.pdf")))
         XCTAssertEqual(got.pages, fx["pages"]?.int)

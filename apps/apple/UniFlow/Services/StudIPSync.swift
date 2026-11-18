@@ -1368,7 +1368,8 @@ final class StudIPSync: ObservableObject {
             await refreshEntries()                            // Dateien schon zeigen, waehrend Ergaenzungen laden
             if !olderOnly { stagesReady += 1 }
             /// ehrlicher Stand fuer die weiteren Schritte ("3 neue Dateien · Aufzeichnungen …")
-            let note = Self.filesNote(loaded: loaded)
+            // nicht 'note': aeltere Compiler (Xcode 26) verwechseln sonst weiter oben den Aufruf note(...) mit dieser Konstante
+            let filesText = Self.filesNote(loaded: loaded)
             // Kurse frueherer Semester mit vollstaendiger Liste und allen Dateien: der naechste Abgleich fragt sie nicht
             // erneut ab (alte Semester aendern sich kaum; "Dateien laden" holt sie wieder)
             let olderDone = scope == .full
@@ -1390,7 +1391,7 @@ final class StudIPSync: ObservableObject {
             let readyAt = clock.nowISO
             _ = try? await db.transaction { try SyncOrder.markCurrentReady($0, now: readyAt) }
             // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden, Brett, Blubber (StudIPExtrasSync)
-            phase = .running(note + " · Neuigkeiten werden geladen …")
+            phase = .running(filesText + " · Neuigkeiten werden geladen …")
             let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: contentCourses)
             try Task.checkCancellation()
             // Lehrende und Kontakte (StudIPLecturers, 06.11.2026): erst nach Stufe (a), nur im vollen Lauf, je Kurs hoechstens
