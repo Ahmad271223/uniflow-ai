@@ -68,6 +68,8 @@ app.include_router(community_cards_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
 app.include_router(doc_index.router)
+from . import exam_shop_api  # noqa: E402 - Klausur-Generator: einmal erzeugen, an alle verkaufen (18.11.2026)
+app.include_router(exam_shop_api.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
 from . import sync_order_api  # noqa: E402 - Stufen des Abgleichs und Module je Semester (05.11.2026)
@@ -600,6 +602,8 @@ _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES),
                   # KI-Index (app/doc_index.py bricht nach 60 MB ab - Starlette haette vorher bis 320 MB zwischengespeichert)
                   (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES),
+                  # Klausur-Generator: Seitentexte des ersten Kaeufers (app/exam_shop.py, hoechstens 1,2 Mio. Zeichen)
+                  (re.compile(r"^/api/exam-shop/(buy|offer)$"), 12 << 20),
                   # Stundenplan als PDF/Bild (nur PC; Audit P34-02: vorher ohne Grenze ganz in den Speicher)
                   (re.compile(r"^/api/timetable/import/preview$"), MAX_IMPORT_BYTES))
 # PUT mit JSON-Koerper, der ganz gelesen wird (Audit 08.11.2026, P28-01/P29-04): Notizen wie in sync/push, Seitentexte

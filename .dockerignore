@@ -23,6 +23,9 @@ backups
 apps
 packages
 tools
+!tools/klausur_pdf
+!tools/klausur_pdf/klausur_pdf
+!tools/klausur_pdf/klausur_pdf/*.py
 scripts
 tests
 docs/audit
