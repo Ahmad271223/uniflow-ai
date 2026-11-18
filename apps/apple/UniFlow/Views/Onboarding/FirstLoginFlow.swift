@@ -78,7 +78,8 @@ struct FirstLoginFlow: View {
             } else {
                 FirstLoginPage(step: steps[index], index: index, count: steps.count, studip: containers.studip, qis: containers.qis,
                                hildesheim: containers.hildesheim, hsh: containers.hsh, onDone: advance, onLater: later,
-                               demo: Self.offersDemo(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim, hsh: containers.hsh)
+                               demo: Self.demoLinkShown && Self.offersDemo(studip: containers.studip, qis: containers.qis,
+                                                                           hildesheim: containers.hildesheim, hsh: containers.hsh)
                                    ? (startingDemo ? .starting : .offered) : .hidden,
                                onDemo: startDemo)
                     .id(steps[index])
@@ -119,6 +120,12 @@ struct FirstLoginFlow: View {
     private func later() {
         if Self.anyConnected(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim, hsh: containers.hsh) { syncing = true } else { account.markLoginDone() }
     }
+
+    /// Textlink "Ohne Hochschulkonto ansehen (Demo)" auf der Anmeldeseite: aus (Entscheidung des Inhabers 18.11.2026,
+    /// "Demo beim Anmelden entfernen", nach dem Hinweis, dass die App-Pruefung von Apple bisher genau diesen Weg nutzt).
+    /// Die Demo selbst (`startDemo`, Demo-Leiste, "Beenden") bleibt im Code, ohne Weg dorthin in der App. Vor der
+    /// naechsten Einreichung muessen die Pruefhinweise einen anderen Zugang nennen (docs/release/APP-STORE.md).
+    static let demoLinkShown = false
 
     /// "Ohne Hochschulkonto ansehen (Demo)" nur, solange keine Quelle der Hochschule verbunden ist (wer sich angemeldet
     /// hat, braucht keine Demo, und ein laufender Abgleich soll nicht neben der Demo weiterlaufen)

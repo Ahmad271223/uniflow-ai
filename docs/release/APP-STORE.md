@@ -413,6 +413,13 @@ Einstellungen, Links zu Nutzungsbedingungen und Datenschutzerklärung, „Käufe
 
 ## Hinweise für die App-Prüfung (Review Notes)
 
+> **Achtung, Stand 18.11.2026 (Zweig `mac/lesbarkeit`):** Der Inhaber hat entschieden, den Textlink
+> „Ohne Hochschulkonto ansehen (Demo)“ von der Anmeldeseite zu entfernen (`FirstLoginFlow.demoLinkShown = false`).
+> Sobald das in einem Build ist, stimmen die Prüfhinweise unten nicht mehr: Schritt 3 beschreibt einen Link, den es
+> dann nicht gibt. Vor der nächsten Einreichung muss der Inhaber festlegen, wie Apples Prüfer ohne Hochschulkonto
+> in die App kommen (z. B. Zugangsdaten eines Test-Kontos der Hochschule im Feld „Anmeldung erforderlich“), und die
+> Hinweise müssen das beschreiben. Sonst ist eine Ablehnung nach Richtlinie 2.1 (unvollständiger Zugang) zu erwarten.
+
 Auf Englisch, damit jede Prüferin sie lesen kann; Bezeichnungen der Oberfläche stehen auf Deutsch in Anführungszeichen,
 wie sie in der App erscheinen. Anmeldedaten für ein Demo-Konto: keine (Feld „Anmeldung erforderlich“ ausschalten – die
 Demo braucht kein Hochschulkonto, „Mit Apple anmelden“ nimmt die Prüfer-Apple-ID, auch für das StudiNow-Konto).

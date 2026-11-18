@@ -120,6 +120,13 @@ Stud.IP,Learnweb,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Uni-Mail,Men
 
 ## 7. Hinweise für die App-Prüfung
 
+> **Achtung, Stand 18.11.2026 (Zweig `mac/lesbarkeit`):** Der Inhaber hat entschieden, den Textlink
+> „Ohne Hochschulkonto ansehen (Demo)“ von der Anmeldeseite zu entfernen (`FirstLoginFlow.demoLinkShown = false`).
+> Sobald das in einem Build ist, stimmen die Prüfhinweise unten nicht mehr: Schritt 3 beschreibt einen Link, den es
+> dann nicht gibt. Vor der nächsten Einreichung muss der Inhaber festlegen, wie Apples Prüfer ohne Hochschulkonto
+> in die App kommen (z. B. Zugangsdaten eines Test-Kontos der Hochschule im Feld „Anmeldung erforderlich“), und die
+> Hinweise müssen das beschreiben. Sonst ist eine Ablehnung nach Richtlinie 2.1 (unvollständiger Zugang) zu erwarten.
+
 **Wo:** Version 1.0.4 → App-Prüfungsinformationen → Hinweise (max. 4000)  
 **Länge:** 3968 Zeichen
 
