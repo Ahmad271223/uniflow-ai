@@ -222,6 +222,9 @@ targets:
       - path: ../../packages/shared-contracts/fixtures
         type: folder
         buildPhase: resources
+      # Lernseiten-Vertrag auch im Testbundle (VideoLearningSitesAppTests vergleicht ihn am Mac mit dem Grundstock der App)
+      - path: ../../packages/shared-contracts/learning-sites.json
+        buildPhase: resources
     dependencies:
       - target: UniFlow
       - package: UniFlowCore

@@ -202,7 +202,11 @@ final class BackgroundReloginAppTests: XCTestCase {
         b.now = { self.now.addingTimeInterval(9 * 3600) }        // 19:00
         await b.perform(.processing)
         XCTAssertEqual(requests.count, 0, "ausserhalb des Fensters keine Neuanmeldung")
-        // kurzer Lauf mit zu wenig Zeit (iOS): nichts
+        // kurzer Lauf mit zu wenig Zeit (iOS): nichts. Am Mac gibt es diese Zeitgrenze nicht: der Takt der laufenden App
+        // meldet sich dort auch im kurzen Lauf neu an (`reloginInShortRun`, Vorgabe `MacBackgroundTicker.isMac`; geprueft
+        // in BackgroundNewsAppTests). Hier gilt fest die Regel von iPad und iPhone, auf jedem Geraet.
+        XCTAssertEqual(b.reloginInShortRun, ProcessInfo.processInfo.isiOSAppOnMac, "nur am Mac ohne iOS-Zeitgrenze")
+        b.reloginInShortRun = false
         b.autoDue = { _, _, _, _ in BackgroundSyncAppTests.allPortals }
         b.now = { self.now }
         await b.perform(.refresh)

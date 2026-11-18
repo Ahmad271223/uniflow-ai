@@ -46,6 +46,9 @@ final class EditorObenFlachTests: XCTestCase {
         var toolbar: CGRect?
         var header: CGRect?
         var window: CGSize = .zero
+        var scale: CGFloat = 0
+        var pageWidth: CGFloat = 0
+        var margins: UIEdgeInsets = .zero
     }
 
     private func host(_ titles: [String], size: CGSize) throws -> (env: HostedEnvironment, ids: [String]) {
@@ -103,16 +106,20 @@ final class EditorObenFlachTests: XCTestCase {
         m.statusBar = env.window.safeAreaInsets.top
         m.documentTop = pdf.convert(pdf.bounds, to: env.window).minY
         let page = try XCTUnwrap(pdf.document?.page(at: 0))
-        m.pageTop = pdf.convert(pdf.convert(page.bounds(for: pdf.displayBox), from: page), to: env.window).minY
+        let pageRect = pdf.convert(pdf.convert(page.bounds(for: pdf.displayBox), from: page), to: env.window)
+        m.pageTop = pageRect.minY
+        m.pageWidth = pageRect.width
+        m.scale = pdf.scaleFactor
+        m.margins = pdf.pageBreakMargins
         m.toolbar = frame("editor.toolbar", env)
         m.header = frame("editor.header", env)
         return m
     }
 
     private func zeile(_ what: String, _ m: Messung) -> String {
-        String(format: "[Oben] %@ (%.0f x %.0f): Statuszeile %.0f pt, Dokument beginnt bei %.0f pt, erste Seite bei %.0f pt; Leisten ohne Statuszeile %.0f pt%@",
+        String(format: "[Oben] %@ (%.0f x %.0f): Statuszeile %.0f pt, Dokument beginnt bei %.0f pt, erste Seite bei %.2f pt; Leisten ohne Statuszeile %.0f pt%@; Seite %.0f pt breit, Massstab %.3f, Seitenrand oben %.2f",
                what, m.window.width, m.window.height, m.statusBar, m.documentTop, m.pageTop, m.documentTop - m.statusBar,
-               m.header.map { String(format: "; Kopfzeile %.0f pt hoch", $0.height) } ?? "")
+               m.header.map { String(format: "; Kopfzeile %.0f pt hoch", $0.height) } ?? "", m.pageWidth, m.scale, m.margins.top)
     }
 
     private func shoot(_ env: HostedEnvironment, _ name: String) throws {
@@ -131,6 +138,15 @@ final class EditorObenFlachTests: XCTestCase {
         var lines: [String] = []
         for placement in [EditorToolbarPlacement.bottom, .floating] {
             UserDefaults.standard.set(placement.rawValue, forKey: EditorToolbarPlacement.key)
+            // Am Mac gibt es "Schwebend" nicht (Apples Palette erscheint dort nicht; die Einstellung bietet nur "Oben fest"
+            // und "Unten fest"): ein gespeichertes "Schwebend" gilt dort als "Oben fest" (`EditorToolbarPlacement.resolve`).
+            // Dann stehen die Werkzeuge in der Zeile, und sie ist so hoch wie die Werkzeugleiste (44 pt Trefferflaeche,
+            // wie "Oben fest" auf dem iPad); Suchen, Finger/Stift und Ebenen stehen im Menue "Mehr" (Suchen auch mit Cmd-F,
+            // Menue "Dokument", `EditorCommands`).
+            let withTools = EditorToolbarPlacement.resolve(placement.rawValue, isMac: PDFEditorController.isMac) == .top
+            XCTAssertEqual(withTools, PDFEditorController.isMac && placement == .floating, "nur am Mac wird Schwebend zu Oben fest")
+            let rowHeight = withTools ? EditorHeaderLayout.height : EditorHeaderLayout.flatHeight
+            let barsLimit = withTools ? EditorHeaderLayout.height + 1 : Self.barsLimit
             for (lage, size) in [("quer", CGSize(width: 1180, height: 820)), ("hoch", CGSize(width: 820, height: 1180))] {
                 for count in [3, 1] {
                     let titles = Array(["SigSys_Aufgaben", "Analysis Übungsblatt 3", "Physik Protokoll"].prefix(count))
@@ -138,18 +154,38 @@ final class EditorObenFlachTests: XCTestCase {
                     open(env, ids)
                     let m = try messe(env)
                     let name = "\(placement.rawValue)-\(lage)-\(count)"
-                    let what = "\(placement.title), \(lage), \(count) Dokument(e)"
+                    let what = "\(placement.title)\(withTools ? " (am Mac: Oben fest)" : ""), \(lage), \(count) Dokument(e)"
                     lines.append(zeile(what, m))
+                    print(lines.last!)
                     let bars = m.documentTop - m.statusBar
-                    XCTAssertLessThanOrEqual(bars, Self.barsLimit, "\(what): Leisten ueber dem Dokument")
+                    XCTAssertLessThanOrEqual(bars, barsLimit, "\(what): Leisten ueber dem Dokument")
                     XCTAssertLessThanOrEqual(bars, Self.barsBefore * 2 / 3, "\(what): mindestens ein Drittel flacher als vorher")
                     let header = try XCTUnwrap(m.header, "\(what): Kopfzeile")
-                    XCTAssertEqual(header.height, EditorHeaderLayout.flatHeight, accuracy: 0.5, what)
+                    XCTAssertEqual(header.height, rowHeight, accuracy: 0.5, what)
                     XCTAssertEqual(m.documentTop, header.maxY, accuracy: 1, "\(what): unter der Zeile sofort das Dokument")
-                    XCTAssertLessThanOrEqual(m.pageTop - m.documentTop, 10, "\(what): kein leerer Streifen bis zur Seite")
+                    // bis zur ersten Seite nur PDFKits Seitenrand (Seiten-pt mal Massstab), kein leerer Streifen. Die App setzt
+                    // keinen eigenen Rand. iPad: `pageBreakMargins.top` 4,75 (quer 4,75 x 1,957 = 9,3 pt, hoch 6,5 pt). Am Mac
+                    // meldet PDFKit dieselben 4,75, zeichnet aber 5,25 (gemessen 18.11.2026 bei gleichem Massstab: quer
+                    // 10,27 pt, hoch 7,14 pt) - ein halber Seitenpunkt grauer Rand mehr, kein Fehler der App
+                    let pageGap = m.pageTop - m.documentTop
+                    let pdfKitMargin = PDFEditorController.isMac ? 5.25 : m.margins.top
+                    XCTAssertLessThanOrEqual(pageGap, pdfKitMargin * m.scale + 0.5, "\(what): kein leerer Streifen bis zur Seite")
+                    XCTAssertLessThanOrEqual(pageGap, 11, "\(what): kein leerer Streifen bis zur Seite")
                     // keine Funktion fehlt: alles, was die Navigationsleiste trug, steht einzeln in der Zeile
                     var wanted = ["doc.pages", "doc.search", "toolbar.askAI.locked", "doc.split", "doc.pencilOnly", "doc.layers", "doc.share",
                                "doc.more", "editor.header.hide", "doc.tab.\(ids[count - 1])"]       // der aktive Reiter ist in Sicht
+                    if withTools {
+                        // mit Werkzeugen in der Zeile ("Oben fest"): Suchen, Finger/Stift, Ebenen im Menue "Mehr"; schmal
+                        // (hoch) auch Seiten, Daneben, Teilen und "Leiste ausblenden" (`EditorHeaderLayout.compactActions`)
+                        let layout = EditorHeaderLayout(width: header.width, hasTools: true)
+                        XCTAssertFalse(layout.showsAllActions, what)
+                        wanted = ["toolbar.askAI.locked", "doc.more", "doc.tab.\(ids[count - 1])"]
+                        if !layout.compactActions { wanted += ["doc.pages", "doc.split", "doc.share", "editor.header.hide"] }
+                        let present = EditorToolbarTests.identifiers(in: env.view)
+                        for inMore in ["doc.search", "doc.pencilOnly", "doc.layers"] {
+                            XCTAssertFalse(present.contains(inMore), "\(what): \(inMore) steht im Menue Mehr, nicht doppelt in der Zeile")
+                        }
+                    }
                     if count > 1 { wanted.append("doc.tab.close.\(ids[count - 1])") }
                     for id in wanted {
                         let f = try XCTUnwrap(frame(id, env), "\(what): \(id) fehlt: \(EditorToolbarTests.identifiers(in: env.view).sorted())")
@@ -163,8 +199,12 @@ final class EditorObenFlachTests: XCTestCase {
                         }
                         XCTAssertGreaterThanOrEqual(f.height, EditorHeaderLayout.flatHeight - 0.5, "\(what): \(id) so hoch wie die Zeile")
                     }
-                    // die Werkzeuge bleiben, wo sie waren (unten bzw. Apples Palette), nicht in der Zeile
-                    if placement == .bottom {
+                    // die Werkzeuge bleiben, wo sie waren (unten bzw. Apples Palette), nicht in der Zeile; am Mac bei
+                    // "Schwebend" (= "Oben fest") stehen sie in der Zeile
+                    if withTools {
+                        let bar = try XCTUnwrap(m.toolbar, "\(what): Werkzeuge in der Zeile")
+                        XCTAssertEqual(bar.midY, header.midY, accuracy: 1.5, "\(what): Werkzeuge in der Zeile")
+                    } else if placement == .bottom {
                         let bar = try XCTUnwrap(m.toolbar, "\(what): Werkzeugleiste unten")
                         XCTAssertGreaterThan(bar.minY, m.window.height / 2, what)
                     }

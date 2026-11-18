@@ -284,10 +284,10 @@ final class VideoLearningSitesAppTests: XCTestCase {
 
     // MARK: Liste
 
+    /// Vertragsdatei aus dem Repo; am Mac ("Designed for iPad", Sandbox ohne Zugriff auf den Repo-Ordner) die Kopie im
+    /// Testbundle (project.yml, `ContainerTestBed.repoURL`) - nicht die der App, gegen die verglichen wird
     private func repoFile() throws -> Data {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../../packages/shared-contracts/learning-sites.json").standardized
-        return try Data(contentsOf: url)
+        try Data(contentsOf: ContainerTestBed.repoURL("packages/shared-contracts/learning-sites.json"))
     }
 
     func testBuiltInListIsTheSharedContractAndValid() throws {
