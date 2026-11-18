@@ -56,8 +56,8 @@ targets:
         # Datei-Eingang (18.11.2026, docs/DATEI-EINGANG-2026-11-18.md): im App-Store-Build AUS. Nur der Test-Build fuer
         # die Tester setzt beim Bauen `UF_INTAKE_OFFERED=YES` auf der Kommandozeile; hier nie auf YES stellen.
         Debug:
-          UF_INTAKE_OFFERED: "NO"
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"
+          UF_INTAKE_OFFERED: "NO"
           # Testlauf am Mac ("Designed for iPad", 14.11.2026, docs/MAC-TESTLAUF-EIGENER-ORDNER-2026-11-14.md): am Mac
           # waere der Testwirt sonst dieselbe App wie die installierte (gleiche Kennung = gleicher Datenordner,
           # gleicher Schluesselbund, gleiche Einstellungen) und laese und aenderte die echten Daten des Nutzers.
