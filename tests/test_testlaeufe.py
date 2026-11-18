@@ -99,18 +99,23 @@ def test_iphone_store_pictures_have_one_way():
     tests = ROOT / "apps" / "apple" / "UniFlowTests"
     old = (tests / "IPhoneStoreScreenshotTests.swift").read_text(encoding="utf-8")
     new = (tests / "IPhoneRealShotsTests.swift").read_text(encoding="utf-8")
-    # der alte Weg (Demo-Inhalte, 01-uebersicht…) schreibt nicht mehr in den Ordner der Store-Bilder
+    # der Demo-Weg (01-uebersicht…) schreibt nie selbst in einen Ordner der Store-Bilder
     assert 'environment["UF_SCREENSHOT_DIR"]' not in old and 'environment["UF_DEMO_SHOT_DIR"]' in old
     assert 'hasPrefix("appstore-screenshots")' in old and "Ueberholt als Weg zu den App-Store-Bildern" in old
-    # der eine Weg: echte Daten, genau die sieben hochgeladenen Motive in der Reihenfolge des Upload-Werkzeugs
+    # der Weg fuer 1.0.4 (14.11.2026): echte Daten, nur mit UF_REAL_DB
     assert 'env["UF_REAL_DB"]' in new and 'env["UF_SCREENSHOT_DIR"]' in new
-    shot = re.findall(r'shoot\(env, "(\d\d-[a-z-]+)"', new)
+    # 1.0.6 (18.11.2026): Store-Satz mit Demo-Inhalten aus IPhoneStoreScreenshotTests (Arbeitsordner, dann kopiert); das
+    # Upload-Werkzeug nennt genau dessen sieben Motive ohne den Lernkalender (aus) in derselben Reihenfolge
+    assert "Wieder der Weg zum Store-Satz fuer 1.0.6" in old
+    shot = [n for n in re.findall(r'shoot\(env, "(\d\d-[a-z-]+)"', old) if n != "02-lernkalender"]
+    shot = sorted(shot)
     tool = (ROOT / "tools" / "store_einreichen.py").read_text(encoding="utf-8")
     tool = tool[tool.index('"APP_IPHONE_67"'):tool.index("\n}\n", tool.index('"APP_IPHONE_67"'))]
+    assert '"appstore-screenshots-1-0-6-iphone"' in tool
     assert [f"{n}-light-portrait.png" for n in shot] == re.findall(r'"(\d\d-[a-z-]+-light-portrait\.png)"', tool) and len(shot) == 7
     doc = (ROOT / "docs" / "release" / "SCREENSHOTS.md").read_text(encoding="utf-8")
-    part = doc[doc.index('## iPhone (6,9")'):]
+    part = doc[doc.index("### Satz für 1.0.6 (Demo-Inhalte"):doc.index("### Satz vom 14.11.2026")]
     blocks = re.findall(r"```sh\n(.*?)```", part, re.S)
-    assert len(blocks) == 1 and "-only-testing:UniFlowTests/IPhoneRealShotsTests" in blocks[0], "genau ein Befehl"
-    assert "TEST_RUNNER_UF_REAL_DB=" in blocks[0] and "TEST_RUNNER_UF_SCREENSHOT_DIR=" in blocks[0]
-    assert "Der eine Weg zu diesem Satz" in part
+    assert len(blocks) == 1 and "IPhoneStoreScreenshotTests" in blocks[0], "genau ein Befehl"
+    assert "TEST_RUNNER_UF_DEMO_SHOT_DIR=" in blocks[0] and "appstore-screenshots-1-0-6-iphone" in blocks[0]
+    assert "Der eine Weg zu diesem Satz" in doc[doc.index('## iPhone (6,9")'):]

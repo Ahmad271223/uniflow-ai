@@ -1,5 +1,33 @@
 # Bildschirmfotos für den App Store (iPad und iPhone)
 
+## Satz für 1.0.6 (18.11.2026, iPad und iPhone, nicht hochgeladen)
+
+Version 1.0.6 blendet den Lernkalender aus („Heute für dich geplant“, „Diese Woche“, „Weiterlernen“, Menüpunkt
+„Lernkalender“) und hat eine neue Editor-Leiste (eine flache Zeile, Füller, Textmarker lässt den Text lesbar). Jedes
+Bild der Sätze für 1.0.4 zeigte mindestens eins davon (iPad: „Lernkalender“ in der Seitenleiste jedes Bildes,
+Übersicht mit „Heute für dich geplant“ und „Diese Woche“, Stundenplan mit „Lernblock danach“; iPhone: Startseite mit
+„Weiterlernen“ und Lernpaketen, Bild 2 „Lernkalender“). Darum sind beide Sätze neu, mit denselben Demo-Inhalten
+(„Tobi“, erfundenes Modul „Demo: Grundlagen der Informatik“, Tarif Pro AI). Neu in den Demo-Inhalten nur für diese
+Bilder: ein in den Folien erkannter Kurztest (morgen) und eine Klausur (in drei Wochen), damit oben auf der Übersicht
+die Karte „Klausuren und Tests: bald und neu erkannt“ steht (`StoreScreenshotTests.installDetectedExams`).
+
+**iPad 13"** (`StoreScreenshotFinalTests`, zehn Motive wie bisher, Simulator iPad Pro 13" als Klon):
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate -q
+UDID=$(xcrun simctl clone 5483AC27-A4C2-4704-91A5-46D1A9E1DF47 "Store 106 iPad")    # iPad Pro 13-inch (M5)
+xcodebuild build-for-testing -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-store106
+TEST_RUNNER_UF_SCREENSHOT_DIR=$HOME/Studora-Builds/store106-arbeit/ipad \
+  xcodebuild test-without-building -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-store106 -only-testing:UniFlowTests/StoreScreenshotFinalTests/test01Uebersicht ... test10Mensa
+xcrun simctl delete "$UDID"
+```
+
+Danach in `~/Studora-Builds/appstore-screenshots-1-0-6-ipad/` in der neuen Reihenfolge umbenannt (Liste in
+`docs/release/APP-STORE.md`, Abschnitt Bildschirmfotos, und `tools/store_einreichen.py` `SHOTS`).
+
 ## Endgültiger Satz mit Pro AI (neu erzeugt 13.11.2026 für 1.0.4, zum Hochladen)
 
 **Neuer Lauf 13.11.2026 (Build 39, Version 1.0.4):** Derselbe Test, dieselben zehn Motive, neuer Ordner
@@ -293,6 +321,26 @@ Kein echter Personenname, kein Hochschul-Logo; der Name einer Hochschule steht n
 StoreKit-Testkonfiguration.
 
 ## iPhone (6,9")
+
+### Satz für 1.0.6 (Demo-Inhalte, 18.11.2026, nicht hochgeladen)
+
+Sieben Motive je hell und dunkel aus `IPhoneStoreScreenshotTests` (Demo-Inhalte wie am iPad statt der Kontodaten des
+Inhabers): `01-uebersicht`, `02-stundenplan` (statt Lernkalender; Hinweise zu Kurztest und Klausur oben),
+`03-modul-erledigt`, `04-uni-mail-ki`, `05-ki-hilfe`, `06-studienverlauf`, `07-mensa`. Der Test schreibt nie selbst in
+einen Store-Ordner (`appstore-screenshots…` lehnt er ab): erst in einen Arbeitsordner, dann kopieren.
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate -q
+UDID=$(xcrun simctl create "Store 106 iPhone" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-2)
+TEST_RUNNER_UF_DEMO_SHOT_DIR=$HOME/Studora-Builds/store106-arbeit/iphone \
+  xcodebuild test-without-building -project UniFlow.xcodeproj -scheme UniFlow -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath ~/Studora-Builds/dd-store106 -only-testing:UniFlowTests/IPhoneStoreScreenshotTests
+mkdir -p ~/Studora-Builds/appstore-screenshots-1-0-6-iphone
+cp ~/Studora-Builds/store106-arbeit/iphone/0[1-7]-*.png ~/Studora-Builds/appstore-screenshots-1-0-6-iphone/
+rm ~/Studora-Builds/appstore-screenshots-1-0-6-iphone/02-lernkalender-*.png      # Lernkalender ist in 1.0.6 aus
+xcrun simctl delete "$UDID"
+```
 
 ### Satz vom 14.11.2026 (hochgeladen für 1.0.4; aufgenommen mit Build 41, unverändert für Build 42)
 

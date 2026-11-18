@@ -19,6 +19,13 @@ import XCTest
 /// einen eigenen Ordner, nie einen Store-Ordner (`appstore-screenshots…` wird abgelehnt); dann je Ansicht hell und
 /// dunkel `<nn>-<name>-{light|dark}-portrait.png`, Massstab 3 = 1320 x 2868 Pixel.
 ///
+/// **Wieder der Weg zum Store-Satz fuer 1.0.6 (18.11.2026, Demo-Inhalte statt der Kontodaten des Inhabers):** Lauf mit
+/// `UF_DEMO_SHOT_DIR` in einen Arbeitsordner, danach die 14 Bilder von Hand nach
+/// `~/Studora-Builds/appstore-screenshots-1-0-6-iphone/` kopieren (Befehl: docs/release/SCREENSHOTS.md, Abschnitt
+/// iPhone, "Satz fuer 1.0.6"). Motive fuer 1.0.6: 01-uebersicht, 02-stundenplan (statt Lernkalender, der ist aus),
+/// 03-modul-erledigt, 04-uni-mail-ki, 05-ki-hilfe, 06-studienverlauf, 07-mensa; `test02Lernkalender` bleibt als
+/// Pruefung der Ansicht mit eingeschaltetem Lernkalender, sein Bild gehoert nicht in den Satz.
+///
 /// Motive (Stand 13.11.2026, Build 39): Uebersicht, Lernkalender, Modul mit Erledigt-Haken, Uni-Mail mit
 /// "Mit KI verbessern", KI-Hilfe, Studienverlauf mit Noten, Mensa. Tobi hat den Tarif Pro AI; die KI antwortet aus einem
 /// Schein-Transport bzw. einer Schein-KI im lokalen Backend, Stud.IP und Uni-Mail aus Nachbildungen im Speicher.
@@ -56,6 +63,8 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         _ = try await manager.setDemo(true)
         XCTAssertTrue(manager.demoActive)
         try await StoreScreenshotTests.installStoreExtras(container.host)
+        try await StoreScreenshotTests.installDetectedExams(container.host)      // 1.0.6: Kurztest und Klausur aus den Folien
+        UserDefaults.standard.set(true, forKey: DueSoon.hintKey)
         Rufname.write(StoreScreenshotTests.demoName, container.defaults)
         MessagesInbox.shared.defaultsOverride = container.defaults
         await MessagesInbox.shared.refresh(api: container.api)
@@ -95,6 +104,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         UFEditorAvailability.forcedReaderOnlyForTesting = UniFlowTestsPrincipal.readerOnlyDefault
         UniMailConnection.readsDemoForScreenshots = false
         UFGreeting.hourOverride = nil
+        UserDefaults.standard.removeObject(forKey: DueSoon.hintKey)
         UFFmt.todayOverride = nil
         CommunityRoute.shared.service = nil
         Entitlements.shared.setPlanForTesting(.free)
@@ -164,6 +174,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
 
     /// Die kompakte Huelle wie am iPhone (Groessenklasse compact, `UFCompact.phoneOverride`), ohne Demo-Leiste
     private func host<V: View>(_ view: V, api: APIClient? = nil, ai: Bool = false) throws -> HostedEnvironment {
+        Entitlements.shared.setPlanForTesting(.proAI)                // wie StoreScreenshotFinalTests.host (StoreKit-Abruf unter Last)
         let root = view
             .environment(\.ufDemoActive, true)
             .environment(\.ufDemoBarHidden, true)
@@ -182,6 +193,7 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
 
     private func shoot(_ env: HostedEnvironment, _ name: String, ink: Bool = false, settle: Double = 1.0,
                        present: (() -> Void)? = nil, sheetReady: @escaping () -> Bool = { true }) {
+        if Entitlements.shared.plan != .proAI { Entitlements.shared.setPlanForTesting(.proAI); env.pump(1.0) }
         XCTAssertFalse(shows(env, DemoTexts.barTitle), "\(name): Store-Bild ohne Demo-Leiste")
         for word in ["ChatGPT", "Pro AI holen", AIConsentText.title] {
             XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
@@ -365,6 +377,10 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         expect(env, "Grundlagen der Informatik")
         expect(env, StoreScreenshotTests.demoName)
         if outDir != nil { expect(env, "Prüfungsanmeldung") }     // nur im Meldezeitraum (Bilder: 09.-22.11.2026)
+        expect(env, "Klausuren und Tests: bald und neu erkannt")         // 1.0.6: Karte oben (Kurztest morgen, Klausur neu)
+        for word in ["Heute für dich geplant", "Diese Woche", "Weiterlernen"] {
+            XCTAssertFalse(shows(env, word), "„\(word)“ im Bild (Lernkalender ist in 1.0.6 aus):\n" + dump(env))
+        }
         shoot(env, "01-uebersicht")
     }
 
@@ -378,6 +394,19 @@ final class IPhoneStoreScreenshotTests: XCTestCase {
         expect(env, "Lernkalender")
         env.pump(1.5)
         shoot(env, "02-lernkalender", settle: 1.5)
+    }
+
+    /// 2 (seit 1.0.6, statt Lernkalender) Stundenplan der Woche mit den Hinweisen oben (Abgabe, Kurztest morgen, Klausur
+    /// aus den Folien); der Lernkalender ist aus (`LearnCalendar.enabled`)
+    func test02Stundenplan() throws {
+        XCTAssertFalse(LearnCalendar.enabled, "1.0.6: Lernkalender aus")
+        let env = try host(MainView())
+        env.router.go(.timetable())
+        expect(env, "Stundenplan")
+        expect(env, "Kurztest")
+        XCTAssertFalse(shows(env, "Lernkalender"), "kein Lernkalender im Bild:\n" + dump(env))
+        env.pump(1.5)
+        shoot(env, "02-stundenplan", settle: 1.5)
     }
 
     /// 3 Modul mit Erledigt-Haken: Lehrwochen offen, abgehakte Dateien mit gruenem Haken, Fortschritt der Woche

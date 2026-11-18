@@ -33,8 +33,9 @@ def test_all_release_files_exist_and_are_marked_as_drafts():
         text = (REL / f).read_text(encoding="utf-8")
         if f in ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
             # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py); Nutzungsbedingungen
-            # 18.11.2026 (Erinnerungen ab Pro AI)
-            assert ("Stand 18.11.2026" if f == "NUTZUNGSBEDINGUNGEN.md" else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
+            # 18.11.2026 (Erinnerungen ab Pro AI), Datenschutz 18.11.2026 (YouTube neben dem Dokument, 1.0.6)
+            new = ("NUTZUNGSBEDINGUNGEN.md", "DATENSCHUTZ.md")
+            assert ("Stand 18.11.2026" if f in new else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
             continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
 
@@ -124,9 +125,14 @@ def test_review_notes_describe_the_build_honestly():
         assert "Passwort auf diesem iPad merken" in notes and "not synced to iCloud" in notes, field
         assert "never sent to our servers" in notes, field
         assert '"StudiNow-Konto" → "Mit Apple anmelden"' in notes and "https://app.studinow.app" in notes, field
-        # eigener OpenAI-Schluessel (07.11.2026): nutzbar in jedem Tarif, Einwilligung per Haken, keine Anmeldung bei ChatGPT
-        assert '"Eigenes ChatGPT", every plan' in notes and "directly from the iPad to OpenAI" in notes, field
-        assert 'ticking "Ich stimme zu …"' in notes and "no ChatGPT login" in notes, field
+        # eigener OpenAI-Schluessel (07.11.2026): nutzbar in jedem Tarif, Einwilligung per Haken, keine Anmeldung bei
+        # ChatGPT. Seit 11.11.2026 aus (OpenAIKeyLink.isOffered = false): die Fassung fuer 1.0.6 sagt das, die ueberholte
+        # Fassung nur Plus bleibt wie sie war
+        if field == "review-notes":
+            assert '"Eigenes ChatGPT", every plan' in notes and "directly from the iPad to OpenAI" in notes, field
+            assert 'ticking "Ich stimme zu …"' in notes and "no ChatGPT login" in notes, field
+        else:
+            assert "Eigenes ChatGPT" not in notes and "No own API key and no ChatGPT login in this build" in notes, field
         assert "yearly" in notes and "Monatlich" not in notes, field          # nur Jahresabos (09.11.2026)
         assert len(notes) <= 4000, (field, len(notes))
         # 1.0 nur LUH (Entscheidung 07.11.2026): HsH und Hildesheim erst mit 1.0.1 wieder nennen
@@ -139,7 +145,7 @@ def test_review_notes_describe_the_build_honestly():
     assert "not part of this submission" in f["review-notes"] and "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden." in f["review-notes"]
     assert "Pro AI folgt" not in f["review-notes"]
     text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
-    assert "ÜBERHOLT, nicht verwenden" in text and "für 1.0.4 verwenden" in text
+    assert "ÜBERHOLT, nicht verwenden" in text and "für 1.0.6 verwenden" in text and "für 1.0.4 verwenden" not in text
     pro = f["review-notes-proai"]
     assert "sandbox" in pro and "100 credits" in pro and "section 8c" in pro and "never name, e-mail or university credentials" in pro
     # 07.11.2026 abends: Probe einmal je iPad, danach Pflicht-Entscheidung mit "Bei Free bleiben" ohne Kauf (3.1.2/5.1.1);
@@ -152,18 +158,59 @@ def test_review_notes_describe_the_build_honestly():
     # in der Demo nicht sichtbar); dafuer der Stand der Abos, wie er in App Store Connect steht
     # 10.11.2026 (Einreichung 1.0.2): erste Zeile nennt das Neue statt der Geschichte von 1.0/1.0.1
     assert "monthly products are removed from sale" in pro
-    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.4:")
-    assert '"Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang"' in pro
+    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.6:")
+    # 1.0.6: Einstellungen in Bereichen (SettingsAreas.swift); die Wege im Hinweis nennen die neuen Namen
+    areas = _swift("Views/Settings/SettingsAreas.swift")
+    assert 'case .account: return "Konto & Tarif"' in areas and 'case .uni: return "Uni-Zugang & Abgleich"' in areas
+    assert '"Einstellungen" → "Uni-Zugang & Abgleich" → "Uni-Zugang"' in pro and "Zugang & Darstellung" not in pro
+    assert '"Einstellungen" → "Konto & Tarif" → "Tarif" → "Tarif wechseln"' in pro
+    assert '"Einstellungen" → "Konto & Tarif" → "Konto löschen"' in pro
     # 13.11.2026 (1.0.4): iPhone ohne Editor und "Mit KI verbessern" stehen ehrlich in den Hinweisen (Richtlinie 2.3.1)
     assert "iPhone support" in pro and "The Pencil editor stays on iPad" in pro and "documents open in a reader" in pro
     assert 'Uni-Mail "Mit KI verbessern" (Pro AI)' in pro and 'sent only with "Senden"' in pro
-    assert "flashcards from a document need Plus, weekly tests Pro AI" in pro
-    assert "Wochentests ab \\(UFPlan.proAI.name)" in _swift("Views/Settings/OpenAIKeyCard.swift")
+    # 1.0.6 (18.11.2026): Credit-Pakete (wo, wer darf), Lernkalender bewusst aus, Hintergrund-Modi, Texterkennung auf
+    # dem Geraet, "YouTube öffnen" (an, YouTubeBrowse.shipped)
+    assert "de.uniflow.credits.klein" in pro and "de.uniflow.credits.gross" in pro
+    assert "need paid Plus or Pro AI (not the trial) and the StudiNow account" in pro
+    assert '"Einstellungen" → "Konto & Tarif" → "Tarif" → "Credits kaufen"' in pro and "With Plus they pay only for questions" in pro
+    assert 'static let button = "Credits kaufen"' in _swift("Views/Settings/CreditShopSheet.swift")
+    assert "The study calendar (study packages, auto planning) is switched off on purpose" in pro
+    assert "static var enabled = false" in _swift("Design/LearnCalendarSwitch.swift")
+    assert '"fetch"' in pro and '"processing"' in pro and "between 8:00 and 18:00" in pro and '"remote-notification"' in pro
+    yml = (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")
+    assert all(f"          - {m}\n" in yml for m in ("fetch", "processing", "remote-notification", "audio"))
+    assert "on-device text recognition" in pro and "Nothing is uploaded" in pro
+    assert '"Video oder Lernseite daneben …" → "YouTube öffnen"' in pro and "Google sign-in blocked" in pro
+    assert "YouTube's ads and cookie choice unchanged, nothing downloaded" in pro
+    rules = _swift("Views/WebSide/WebSideRules.swift")
+    assert "static let shipped = true" in rules, "Texte nennen YouTube öffnen: der Schalter muss an sein"
+    assert 'UFButton("YouTube öffnen"' in _swift("Views/WebSide/WebSidePanes.swift")
+    assert 'Label(Self.lockedLabel("Video oder Lernseite daneben …"' in _swift("Views/DocumentView.swift")
     desc = f["description-proai"]
     assert "danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI" in desc and "danach gilt Free" not in desc
-    assert "mit Plus Lernplan automatisch" in desc and "Lernkalender" in desc
-    assert "eigenen API-Schlüssel" in desc
+    # 1.0.6: nur beschreiben, was es gibt (Richtlinie 2.3): kein Lernkalender, kein Lernplan, kein eigener Schluessel
+    # (OpenAIKeyLink.isOffered = false seit 11.11.2026); Erinnerungen bei Pro AI, Credits, Video auch am iPhone
+    for gone in ("Lernkalender", "Lernplan", "Lernpaket", "Lernziele", "API-Schlüssel"):
+        assert gone not in desc and gone not in f["promo"] and gone not in f["keywords"] and gone not in f["subtitle"], gone
+    assert "isOffered = false" in _swift("Services/OpenAIKeyLink.swift")
+    assert "Erinnerungen an Abgaben, Tests und Klausuren und deine Notizen auf allen Geräten" in desc
+    assert "100 oder 200 Credits einmalig nachkaufen" in desc and "KI-Chat mit gekauften Credits" in desc
+    assert "(am iPhone darüber) YouTube zum Suchen und Schauen" in desc and "Texterkennung auf dem Gerät" in desc
+    assert "keine Werbung von StudiNow" in desc
+    wn = f["whats-new-proai"]
+    assert wn.startswith("Neu in 1.0.6:\n") and wn.count("\n• ") == 10, "höchstens zehn kurze Punkte"
+    for must in ("Lernkalender, Lernpakete und automatische Lernplanung sind vorerst ausgeblendet", "Füller",
+                 "gibt es jetzt mit Pro AI", "100 oder 200 Credits", "Neu auch am iPhone", "24 Stunden",
+                 "Klausuren und Tests: bald und neu erkannt", "zwischen 8 und 18 Uhr alle 30 Minuten"):
+        assert must in wn, must
+    for gone in ("Glättung", "geglättet", "Lernziele"):
+        assert gone not in wn, gone
     assert "„iPhone- und iPad-Apps auf Apple-Silicon-Macs“ = verfügbar" in text and "macOS nicht einreichen" in text
+    # 1.0.6: Angaben bei Apple, die sich mit "YouTube öffnen" aendern muessen (nur Vorschlag, nichts bei Apple geaendert)
+    apple = text[text.index("## 1.0.6: Angaben bei Apple, die sich ändern müssen"):text.index("## Altersfreigabe")]
+    for must in ("Nur Vorschlag (18.11.2026), bei Apple ist nichts geändert", "„Uneingeschränkter Webzugang“", "| nein | **ja** |",
+                 "Altersstufe steigt voraussichtlich", "„Werbung“", "neuer Abschnitt 4a", "**nicht hochgeladen**"):
+        assert must in apple, must
 
 
 def test_no_store_text_says_the_university_password_is_never_stored():
@@ -218,48 +265,42 @@ def test_app_store_texts_match_current_build():
     for field in ("description", "description-proai", "review-notes", "review-notes-proai", "keywords", "whats-new",
                   "whats-new-proai"):
         assert f"– {len(f[field])} Zeichen" in text, field
-    # Endgueltiger Satz mit Pro AI (07.11.2026, zweiter Satz vom Nachmittag: flacher KI-Hilfe-Kopf, "Neue Mails
-    # pruefen", nur LUH): genau zehn Bilder im Hochformat, je Motiv eine Fassung hell oder dunkel, im eigenen Ordner;
-    # der Pruef-Screenshot (reserve/) liegt im frueheren Satz
+    # Saetze fuer 1.0.6 (18.11.2026): Demo-Inhalte, ohne Lernkalender, neue Editor-Leiste. iPad: genau zehn Bilder im
+    # Hochformat, je Motiv eine Fassung hell oder dunkel; iPhone: sieben Motive je hell und dunkel, hochgeladen die hellen.
+    # Die Saetze fuer 1.0.4 stehen nur noch als ueberholt da (Dateinamen ohne Backticks)
     section = text[text.index("## Bildschirmfotos"):]
-    names = re.findall(r"`(\d\d-[a-z-]+-(?:light|dark)\.png)`", section)
+    current = section[:section.index("### Satz für 1.0.4: iPad 13\" (überholt)")]
+    names = re.findall(r"`(\d\d-[a-z-]+-(?:light|dark)\.png)`", current)
     assert len(names) == 10 and len(set(names)) == 10, names
     assert [n[:2] for n in names] == [f"{i:02d}" for i in range(1, 11)], names
     assert any("-ki-" in n for n in names), "Pro AI eingereicht: der Satz zeigt die KI"
-    assert "appstore-screenshots-final-2026-11-13" in section
-    shots = Path.home() / "Studora-Builds" / "appstore-screenshots-final-2026-11-13"
-    if shots.is_dir():
-        assert sorted(p.name for p in shots.glob("*.png")) == sorted(names + ["tarif-landscape.png", "tarif-portrait.png"])
-    # 1.0.4: dazu der Pflichtsatz iPhone 6,9", sieben Motive je hell und dunkel. Seit 14.11.2026 (aufgenommen mit
-    # Build 41, unveraendert fuer die Einreichung mit Build 42 am 15.11.2026) der Satz mit
-    # den eigenen Kontodaten des Inhabers (seine Entscheidung, keine Daten Dritter); der Satz vom 13.11.2026 mit
-    # erfundenen Demo-Inhalten ("Hallo Tobi", Woche als Liste) ist ueberholt und steht nur noch einmal so da
-    phone = re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", section)
-    assert phone == ["01-start-light-portrait.png", "02-lernkalender-light-portrait.png", "03-modul-light-portrait.png",
+    assert {n.rsplit("-", 1)[1] for n in names} == {"light.png", "dark.png"}, "hell und dunkel gemischt"
+    assert "`~/Studora-Builds/appstore-screenshots-1-0-6-ipad/`" in current and "`~/Studora-Builds/appstore-screenshots-1-0-6-iphone/`" in current
+    # keine Daten Dritter, keine fremden Videos; warum die Saetze von 1.0.4 nicht mehr passen, steht dabei
+    assert "Matrikelnummern oder Daten Dritter, ohne YouTube-Inhalte" in current and "„Lernkalender“ in der Seitenleiste" in current
+    phone = re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", current)
+    assert phone == ["01-uebersicht-light-portrait.png", "02-stundenplan-light-portrait.png", "03-modul-erledigt-light-portrait.png",
                      "04-uni-mail-ki-light-portrait.png", "05-ki-hilfe-light-portrait.png",
                      "06-studienverlauf-light-portrait.png", "07-mensa-light-portrait.png"], phone
-    part = section[section.index('### iPhone 6,9"'):section.index("### Ältere Sätze")]
-    assert ("**Satz vom 14.11.2026 für 1.0.4** (aufgenommen mit dem Stand von Build 41, unverändert für die Einreichung mit\n"
-            "Build 42) unter `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`") in part
-    assert "Eigene Kontodaten des Inhabers, keine Daten Dritter" in part and "Entscheidung des Inhabers 14.11.2026" in part
-    assert "ohne Namen, ohne Matrikelnummer" in part and "1320 × 2868" in part
-    assert "Woche als Raster Mo–So" in part and "Hallo Tobi" not in part
-    assert text.count("appstore-screenshots-iphone-2026-11-13") == 1, "alter Satz nur noch einmal: als ueberholt"
-    assert part.index("Überholt sind") < part.index("appstore-screenshots-iphone-2026-11-13")
-    # Abschreib-Liste und Upload-Werkzeug nennen denselben Ordner und dieselben sieben Bilder in derselben Reihenfolge
-    sheet = (REL / "EINREICHUNG-1-0-4.md").read_text(encoding="utf-8")
-    sheet = sheet[sheet.index("## 9. Bildschirmfotos iPhone"):sheet.index("## Was gleich bleibt")]
-    assert "Ordner: `~/Studora-Builds/appstore-screenshots-iphone-2026-11-14/`" in sheet
-    assert re.findall(r"`(\d\d-[a-z-]+-light-portrait\.png)`", sheet) == phone
-    assert "Eigene Kontodaten des Inhabers, keine Daten Dritter" in sheet
+    assert "lernkalender" not in "".join(names + phone)
+    # Upload-Werkzeug: dieselben Ordner, dieselben Dateien in derselben Reihenfolge
     tool = (ROOT / "tools" / "store_einreichen.py").read_text(encoding="utf-8")
+    pad = tool[tool.index('"APP_IPAD_PRO_3GEN_129"'):tool.index('"APP_IPHONE_67"')]
+    assert '"appstore-screenshots-1-0-6-ipad"' in pad and re.findall(r'"(\d\d-[a-z-]+-(?:light|dark)\.png)"', pad) == names
     tool = tool[tool.index('"APP_IPHONE_67"'):tool.index("\n}\n", tool.index('"APP_IPHONE_67"'))]
-    assert '"appstore-screenshots-iphone-2026-11-14"' in tool
+    assert '"appstore-screenshots-1-0-6-iphone"' in tool
     assert re.findall(r'"(\d\d-[a-z-]+-light-portrait\.png)"', tool) == phone
-    phones = Path.home() / "Studora-Builds" / "appstore-screenshots-iphone-2026-11-14"
+    # die Ordner liegen nur auf dem Mac des Inhabers: dort genau diese Bilder in den Groessen, die Apple verlangt
+    pads = Path.home() / "Studora-Builds" / "appstore-screenshots-1-0-6-ipad"
+    if pads.is_dir():
+        assert sorted(p.name for p in pads.glob("*.png")) == sorted(names)
+    phones = Path.home() / "Studora-Builds" / "appstore-screenshots-1-0-6-iphone"
     if phones.is_dir():
-        want = sorted([n for n in phone] + [n.replace("-light-", "-dark-") for n in phone])
-        assert sorted(p.name for p in phones.glob("*.png")) == want
+        assert sorted(p.name for p in phones.glob("*.png")) == sorted(phone + [n.replace("-light-", "-dark-") for n in phone])
+    # Satz fuer 1.0.4 (hochgeladen 14.11.2026): steht weiter beschrieben, aber als ueberholt
+    old4 = section[section.index("### Satz für 1.0.4: iPad 13\" (überholt)"):section.index("### Ältere Sätze")]
+    assert "appstore-screenshots-final-2026-11-13" in old4 and "appstore-screenshots-iphone-2026-11-14" in old4
+    assert "02-lernkalender-light-portrait.png" in old4 and "`02-lernkalender" not in old4
     old = Path.home() / "Studora-Builds" / "appstore-screenshots"
     reserve = set(re.findall(r"`(reserve/\d\d[a-z]?-[a-z-]+-light-portrait\.png)`", text))
     assert reserve
