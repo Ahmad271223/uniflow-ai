@@ -87,7 +87,7 @@ final class AutoSyncAppTests: XCTestCase {
         XCTAssertLessThanOrEqual(ticks, stopped + 1, "nach dem Anhalten kein weiterer Takt")
     }
 
-    func testSettingsSentenceAndHonestBackgroundHint() {
+    func testTheThreeNumbersStandAtOnePlace() {
         XCTAssertEqual(AutoSyncSchedule.standard.startHour, 8)
         XCTAssertEqual(AutoSyncSchedule.standard.endHour, 18)
         XCTAssertEqual(AutoSyncSchedule.standard.interval, 30 * 60)

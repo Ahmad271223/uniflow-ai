@@ -3,7 +3,8 @@ import UniFlowCore
 
 // Karte "Im Hintergrund abgleichen" in den Einstellungen (S8, UniFlow/Services/BackgroundSync.swift): an/aus (Vorgabe
 // an), "Benachrichtigen bei neuen Dateien" (erst dieser Schalter fragt iOS nach der Erlaubnis, nie der Start der App),
-// ein ehrlicher Satz zu den Zeiten und der letzte Hintergrundlauf des offenen Containers.
+// der Satz zur Regel (8 bis 18 Uhr, alle 30 Minuten, 17.11.2026) mit ehrlichem Hinweis zu iOS und der letzte
+// Hintergrundlauf des offenen Containers.
 
 private struct BackgroundSyncKey: EnvironmentKey {
     static let defaultValue: BackgroundSyncController? = nil
@@ -24,11 +25,12 @@ struct BackgroundSyncCard: View {
         if let background { Panel(background: background) }
     }
 
-    /// Ehrlicher Satz zu den Zeiten (Wunsch 8/15/20 Uhr, iOS garantiert keine Uhrzeit)
-    static let timingText = "iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr. Ein kurzer Lauf holt neue Kurse, Dateilisten und den Stundenplan, ein längerer mit Netz lädt die neuen Dateien. Sicher ist der Abgleich beim Öffnen der App. Der längere Lauf erzeugt dabei auch fällige Wochentests, wenn die KI verbunden ist – auch bei ausgeschaltetem Abgleich."
+    /// Regel des Inhabers (17.11.2026, `AutoSyncSchedule.standard`) und ehrlicher Hinweis, dass iOS die Hintergrund-Laeufe
+    /// steuert. Der erste Satz steht immer da, der Rest hinter "Mehr dazu".
+    static let timingText = "\(timingShort) Solange StudiNow geöffnet ist, gilt das genau so. Ist die App geschlossen, versucht StudiNow es im Hintergrund – wann und wie oft das wirklich geschieht, entscheidet iOS (Akku, Nutzung der App, Netz, Stromsparmodus, Hintergrundaktualisierung); oft seltener als alle 30 Minuten, manchmal gar nicht. Wer die App im App-Umschalter wegwischt, bekommt bis zum nächsten Öffnen keinen Hintergrund-Abgleich. „Sync“ fragt immer sofort ab, zu jeder Uhrzeit. Der längere Lauf erzeugt dabei auch fällige Wochentests, wenn die KI verbunden ist – auch bei ausgeschaltetem Abgleich."
 
     /// Erste Saetze der Erklaerungen: bleiben sichtbar, der ganze Text steht hinter "Mehr dazu" (17.11.2026)
-    static let timingShort = "iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr."
+    static let timingShort = "Zwischen 8 und 18 Uhr gleicht StudiNow alle 30 Minuten ab. Außerhalb nur, wenn du auf Sync tippst."
     static func notifyShort(_ university: UniversityKey?) -> String {
         let text = notifyText(university)
         return text.range(of: "). ").map { String(text[..<$0.lowerBound]) + ")." } ?? text
@@ -58,11 +60,11 @@ struct BackgroundSyncCard: View {
     static let reloginText = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast. Er liegt nur im Schlüsselbund dieses Geräts und geht nie an einen Server von StudiNow. Gilt für Stud.IP, QIS, Uni-Mail, Learnweb, LSF, Moodle und das Campusmanagement – nur zwischen 8 und 18 Uhr und höchstens ein Versuch je Dienst in 30 Minuten; nach einem Fehlschlag erst nach einem Tag wieder. Ein abgelehntes Passwort wird gelöscht und nie erneut gesendet."
 
     /// Am Mac ("Designed for iPad"): eigener Takt, solange die App laeuft
-    static let macText = "Am Mac gleicht StudiNow zusätzlich alle 20 bis 30 Minuten ab, solange die App geöffnet ist – auch wenn sie nicht vorn ist."
+    static let macText = "Am Mac gleicht StudiNow zwischen 8 und 18 Uhr alle 30 Minuten ab, solange die App geöffnet ist – auch wenn sie nicht vorn ist."
 
     static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den \(UFDevice.textName)-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
 
-    static let refreshOffText = "Die Hintergrundaktualisierung ist in den \(UFDevice.textName)-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht StudiNow nur beim Öffnen ab."
+    static let refreshOffText = "Die Hintergrundaktualisierung ist in den \(UFDevice.textName)-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht StudiNow nur ab, solange die App geöffnet ist."
 
     /// "Letzter Hintergrundlauf: 08:14 – Listen: 3 neue Dateien"
     static func lastRunText(_ r: BackgroundSyncRecord?, now: Date) -> String {

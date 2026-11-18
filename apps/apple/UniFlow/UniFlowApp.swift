@@ -15,7 +15,7 @@ struct UniFlowApp: App {
     // P3-3); vorher sprangen zwei Fenster gemeinsam zwischen Seiten, Meldungen erschienen in beiden
     @State private var scenes: SceneRegistry
     @StateObject private var timer = StudyTimer()
-    /// Abgleich im Hintergrund (S8): Aufgaben bei iOS, Termine fruehestens 8, 15 und 20 Uhr
+    /// Abgleich im Hintergrund (S8): Aufgaben bei iOS, seit 17.11.2026 nach der Regel 8 bis 18 Uhr, alle 30 Minuten
     @StateObject private var background: BackgroundSyncController
     @AppStorage("theme") private var theme = UFThemeMode.standardRaw     // wie localStorage "theme" im Web; Vorgabe: wie das iPad
     @Environment(\.scenePhase) private var scenePhase

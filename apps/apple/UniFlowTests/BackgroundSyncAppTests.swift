@@ -1055,7 +1055,12 @@ final class BackgroundSyncAppTests: XCTestCase {
     }
 
     func testCardTextsAreHonestAndTheCardRenders() async throws {
-        XCTAssertTrue(BackgroundSyncCard.timingText.hasPrefix("iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr."))
+        // Auftrag des Inhabers 17.11.2026: der Satz zur Regel zuerst, dann ehrlich, was iOS steuert
+        XCTAssertEqual(BackgroundSyncCard.timingShort, "Zwischen 8 und 18 Uhr gleicht StudiNow alle 30 Minuten ab. Außerhalb nur, wenn du auf Sync tippst.")
+        XCTAssertTrue(BackgroundSyncCard.timingText.hasPrefix(BackgroundSyncCard.timingShort))
+        XCTAssertTrue(BackgroundSyncCard.timingText.contains("entscheidet iOS"))
+        XCTAssertTrue(BackgroundSyncCard.timingText.contains("„Sync“ fragt immer sofort ab"))
+        XCTAssertFalse(BackgroundSyncCard.timingText.contains("15 und 20"), "alte Zeiten weg")
         XCTAssertTrue(BackgroundSyncCard.timingText.contains("fällige Wochentests"))
         XCTAssertTrue(BackgroundSyncCard.notifyText(.luh).contains("„Bitte bei Stud.IP anmelden“"))
         XCTAssertTrue(BackgroundSyncCard.notifyText(.hildesheim).contains("„3 neue Dateien aus Learnweb“"))
