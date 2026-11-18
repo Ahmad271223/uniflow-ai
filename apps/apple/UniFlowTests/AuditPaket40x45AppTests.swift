@@ -333,6 +333,47 @@ final class AuditPaket40x45AppTests: XCTestCase {
         XCTAssertGreaterThan(stub.count("POST /api/sync/push"), 0, "sendet wie bisher (Einstellungen dieses Datenbereichs)")
     }
 
+    /// Geraetetest 18.11.2026: lief der Abgleich gar nicht erst (Konto einer anderen Hochschule, Beispielinhalte), stand
+    /// in Einstellungen → Konto auch nach "Jetzt abgleichen" weiter "Noch nicht abgeglichen". Jetzt steht dort der Grund;
+    /// es geht weiter keine Anfrage an den Dienst, und der naechste Anstoss versucht es wieder.
+    func testSyncThatCannotRunSaysWhy() async throws {
+        let stub = ServiceStub()
+        stub.accountUniversity = "hildesheim"
+        let l = await signedInLink(stub, host: try backendHost(), university: "luh")
+        let changed = await l.syncNow(force: true)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(stub.count("GET /api/sync/changes") + stub.count("POST /api/sync/push"), 0, "nichts abgerufen, nichts gesendet")
+        XCTAssertEqual(l.lastSync?.ok, false)
+        let text = StudoraAccountCard.syncText(l.lastSync)
+        XCTAssertNotEqual(text, "Noch nicht abgeglichen")
+        XCTAssertEqual(text, StudoraAccountLink.otherUniversityText(account: "hildesheim", here: "luh"))
+        XCTAssertTrue(text.contains("Uni Hildesheim") && text.contains("LUH"), text)
+
+        let demoHost = try backendHost()
+        try await demoHost.backend().context.database.transaction {
+            try $0.execute("INSERT OR REPLACE INTO settings(key, value) VALUES (?, '1')", [.text(DemoContent.settingKey)])
+        }
+        let stub2 = ServiceStub()
+        let d = await signedInLink(stub2, host: demoHost)
+        _ = await d.syncNow(force: true)
+        XCTAssertEqual(stub2.count("GET /api/sync/changes"), 0)
+        XCTAssertEqual(StudoraAccountCard.syncText(d.lastSync), StudoraAccountLink.demoText)
+        l.use(userScope: nil)
+        d.use(userScope: nil)
+    }
+
+    /// Reine Regel: Reihenfolge der Gruende; ohne Grund laeuft der Abgleich
+    func testRefusalReasons() {
+        let luh = StudoraAccount.User(id: "u", email: "a@beispiel.de", emailVerified: true, university: "luh", plan: "pro_ai", role: "user")
+        let open = StudoraAccount.User(id: "u", email: "a@beispiel.de", emailVerified: true, university: nil, plan: "pro_ai", role: "user")
+        XCTAssertNil(StudoraAccountLink.refusal(user: luh, university: "luh", demo: false, blocked: false))
+        XCTAssertNil(StudoraAccountLink.refusal(user: open, university: "luh", demo: false, blocked: false))
+        XCTAssertEqual(StudoraAccountLink.refusal(user: luh, university: "luh", demo: false, blocked: true), StudoraAccountLink.blockedText)
+        XCTAssertEqual(StudoraAccountLink.refusal(user: luh, university: "luh", demo: true, blocked: false), StudoraAccountLink.demoText)
+        XCTAssertEqual(StudoraAccountLink.refusal(user: luh, university: "hildesheim", demo: false, blocked: false),
+                       StudoraAccountLink.otherUniversityText(account: "luh", here: "hildesheim"))
+    }
+
     /// Lernplan (15.11.2026): vor dem Einordnen neuer Dokumente holt die App die Planung des Kontos, damit zwei Geraete
     /// dieselbe Woche nicht doppelt planen (`StudyAutoPlan.pullAccountFirst`). Mit Konto ein Abgleich, auch kurz nach
     /// dem letzten; ohne Konto keine Anfrage und kein Warten.
@@ -358,7 +399,9 @@ final class AuditPaket40x45AppTests: XCTestCase {
         let l = await signedInLink(stub, host: try backendHost(), uniAccount: false, university: "hildesheim")
         let changed = await l.syncNow(force: true)
         XCTAssertFalse(changed)
-        XCTAssertNil(l.lastSync)
+        // seit 18.11.2026 nicht mehr still: der Grund steht in Einstellungen → Konto (`testSyncThatCannotRunSaysWhy`)
+        XCTAssertEqual(l.lastSync?.ok, false)
+        XCTAssertEqual(l.lastSync?.error, StudoraAccountLink.otherUniversityText(account: "luh", here: "hildesheim"))
         XCTAssertEqual(stub.count("GET /api/sync/changes") + stub.count("POST /api/sync/push"), 0, "nichts abgerufen, nichts gesendet")
         XCTAssertNil(l.uniSyncHint)
     }
