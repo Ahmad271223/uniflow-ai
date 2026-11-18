@@ -25,7 +25,7 @@ enum CardStackEndpoints: LocalEndpointModule {
             let moduleID = Int64(req.intParam("module_id"))
             let today = ctx.clock.today
             let (module, files, existing) = try await ctx.database.withConnection { c -> (String, [WeekMaterial], JSONValue?) in
-                let m = try module(c, moduleID)
+                let m = try Self.module(c, moduleID)          // Self.: aeltere Compiler sehen sonst das Tupel-Element
                 let files = try weekFiles(c, moduleID: moduleID, week: week, kind: kind, clock: ctx.clock)
                 return (m, files, try weekStack(c, subject: m, week: week, kind: kind, today: today))
             }
@@ -41,7 +41,7 @@ enum CardStackEndpoints: LocalEndpointModule {
             let moduleID = Int64(req.intParam("module_id"))
             let today = ctx.clock.today, now = ctx.clock.nowISO
             let (module, files, existing) = try await ctx.database.withConnection { c -> (String, [WeekMaterial], JSONValue?) in
-                let m = try module(c, moduleID)
+                let m = try Self.module(c, moduleID)          // Self.: aeltere Compiler sehen sonst das Tupel-Element
                 let files = try weekFiles(c, moduleID: moduleID, week: week, kind: kind, clock: ctx.clock)
                 return (m, files, try weekStack(c, subject: m, week: week, kind: kind, today: today))
             }

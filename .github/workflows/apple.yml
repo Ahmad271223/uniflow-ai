@@ -82,7 +82,9 @@ jobs:
     # Push auf develop: nur nach gruenem Linux-Job (macOS zaehlt 10x). Manuell und auf main: auch bei rotem Linux-Job,
     # damit ein Linux-Fehler den iPad-Nachweis nicht verdeckt (P47-07)
     if: ${{ !cancelled() && (needs.core-linux.result == 'success' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
-    runs-on: macos-15
+    # macos-15 hat nur Xcode 16.4: die App braucht das iOS-26-SDK (ToolbarSpacer, sharedBackgroundVisibility) und baut
+    # damit nicht. macos-26 hat Xcode 26.6 (Stand 18.11.2026, neuestes auf GitHub; am Mac des Inhabers Xcode 27.2).
+    runs-on: macos-26
     # volle Suite lokal ~13 min (1252 Tests, Mac mit Apple-Chip); Runner langsamer, dazu Bauen: 90 min fuer den Job,
     # Schritte einzeln begrenzt, damit ein Haenger am Schritt erkennbar ist (P47-09)
     timeout-minutes: 90
@@ -93,6 +95,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Xcode und Simulatoren
         run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
           xcrun simctl list runtimes available
       - name: XcodeGen installieren

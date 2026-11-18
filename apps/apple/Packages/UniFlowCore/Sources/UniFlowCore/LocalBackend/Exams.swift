@@ -325,9 +325,10 @@ public enum Exams {
         }
         return out.enumerated().sorted { a, b in
             let x = a.element, y = b.element
-            for (p, q) in [(x["date"]?.string ?? "", y["date"]?.string ?? ""), (x["time"]?.string ?? "", y["time"]?.string ?? ""),
-                           (x["title"]?.string ?? "", y["title"]?.string ?? "")] where p != q {
-                return PyText.less(p, q)
+            // Schluessel einzeln (sonst brechen aeltere Swift-Compiler die Typpruefung ab)
+            for key in ["date", "time", "title"] {
+                let p: String = x[key]?.string ?? "", q: String = y[key]?.string ?? ""
+                if p != q { return PyText.less(p, q) }
             }
             return a.offset < b.offset
         }.map(\.element)
