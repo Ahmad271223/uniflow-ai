@@ -84,6 +84,7 @@ final class BackgroundNewsAppTests: XCTestCase {
         b.timeZone = { TimeZone(identifier: "Europe/Berlin")! }
         b.weeklyTick = { _ in .off }
         b.autoDue = { _, _, _, _ in BackgroundSyncAppTests.allPortals }   // Regel 8–18 Uhr: eigene Tests
+        b.timeLeft = { 0 }                                       // kurzer Lauf ohne Zeit fuer die Neuanmeldung
         return (b, n)
     }
 
@@ -190,14 +191,15 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertTrue(s.anyOn)
     }
 
-    func testReloginLedgerAllowsOneTryPerSixHoursAndWaitsADayAfterAFailure() {
+    /// seit 17.11.2026: nach einem gelungenen Versuch im Takt der Regel (30 Minuten statt 6 Stunden)
+    func testReloginLedgerAllowsOneTryPerThirtyMinutesAndWaitsADayAfterAFailure() {
         let d = UserDefaults(suiteName: "uniflow.tests.relogin.\(UUID().uuidString)")!
         let l = BackgroundReloginLedger(defaults: d)
         XCTAssertTrue(l.mayTry("Stud.IP", now: now))
         l.record("Stud.IP", ok: true, now: now)
-        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(5 * 3600)))
+        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(29 * 60)))
         XCTAssertTrue(l.mayTry("QIS", now: now), "je Dienst getrennt")
-        XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(6 * 3600)))
+        XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(30 * 60)))
         l.record("Stud.IP", ok: false, now: now)
         XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(23 * 3600)), "nach einem Fehlschlag einen Tag Ruhe")
         XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(24 * 3600)))
@@ -325,11 +327,11 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertEqual(tried, ["Stud.IP"])
         XCTAssertEqual(sync.runs, 1, "nach der Neuanmeldung im selben Lauf abgeglichen")
 
-        // wieder abgelaufen, eine Stunde spaeter: kein zweiter Versuch (hoechstens alle 6 Stunden)
+        // wieder abgelaufen, 20 Minuten spaeter: kein zweiter Versuch (hoechstens alle 30 Minuten, bis 17.11.2026 6 Stunden)
         b.reloginInShortRun = true
         sync.usableSources = []
         sync.loginNeededSources = ["Stud.IP"]
-        b.now = { self.now.addingTimeInterval(3600) }
+        b.now = { self.now.addingTimeInterval(20 * 60) }
         await b.perform(.refresh)
         XCTAssertEqual(tried, ["Stud.IP"])
 

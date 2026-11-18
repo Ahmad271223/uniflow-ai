@@ -345,6 +345,10 @@ final class BackgroundSyncController: ObservableObject {
     /// Neuanmeldung auch im kurzen Lauf? Auf iPad/iPhone nein: der kurze Lauf hat rund 30 Sekunden, so lange kann die
     /// unsichtbare Anmeldung allein dauern; dort nur im langen Lauf. Am Mac (Takt, ohne Zeitgrenze von iOS) ja.
     var reloginInShortRun = MacBackgroundTicker.isMac
+    /// so viel Zeit muss iOS im kurzen Lauf noch lassen, damit die stille Neuanmeldung (hoechstens 25–30 Sekunden) beginnt
+    static let reloginMinTime: TimeInterval = 25
+    /// verbleibende Hintergrundzeit (iOS; vorn unbegrenzt; Tests: fest)
+    var timeLeft: () -> TimeInterval = { UIApplication.shared.backgroundTimeRemaining }
 
     private static var registered = false
 
@@ -375,6 +379,9 @@ final class BackgroundSyncController: ObservableObject {
             if containers.studip.offersStudIP, containers.studip.loginNeededSources.contains("Stud.IP") { out.append("Stud.IP") }
             if let q = containers.qis, q.isConnected, q.state == .needsLogin { out.append("QIS") }
             if let u = containers.uniMail, u.isConnected, u.state == .needsLogin { out.append("Uni-Mail") }
+            // seit 17.11.2026 auch Learnweb und LSF (Uni Hildesheim, CAS) sowie Moodle und Campusmanagement (HsH)
+            if let h = containers.hildesheim { out += h.expiredSources.map(\.rawValue) }
+            if let hsh = containers.hsh { out += hsh.loginNeededSources }
             return out
         }
         hasStoredLogin = { [weak containers] c in
@@ -394,7 +401,10 @@ final class BackgroundSyncController: ObservableObject {
             case "Stud.IP": return await containers.studip.renewInBackground()
             case "QIS": return await containers.qis?.reloginInBackground() ?? false
             case "Uni-Mail": return await containers.uniMail?.autoLogin(background: true) ?? false
-            default: return false
+            default:
+                if let h = containers.hildesheim, let s = HildesheimConnection.Source(rawValue: portal) { return await h.reloginInBackground(s) }
+                if let hsh = containers.hsh, let s = HsHConnection.Source(rawValue: portal) { return await hsh.autoLogin(s, background: true) }
+                return false
             }
         }
     }
@@ -576,7 +586,11 @@ final class BackgroundSyncController: ObservableObject {
         if let c, !due.isEmpty, news.anyOn, runnable(c, expired: expired) { before = await snapshot(c) }
         // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher
         var tried: [String] = []
-        if let c, kind == .processing || reloginInShortRun { tried = await reloginStep(c, due: due, expired: expired) }
+        // Neuanmeldung im langen Lauf, am Mac und - seit 17.11.2026 (Weck-Signal, kurze Laeufe im Takt) - im kurzen
+        // Lauf, wenn iOS noch genug Zeit laesst (`reloginMinTime`)
+        if let c, kind == .processing || reloginInShortRun || timeLeft() >= Self.reloginMinTime {
+            tried = await reloginStep(c, due: due, expired: expired)
+        }
         let ok = await performRun(kind, due: due, at: start, expired: expired, reloginTried: tried)
         if let c, !due.isEmpty { await gradesAndNews(c, due: due, before: before, expired: expired) }
         if let c, !due.isEmpty, owns(c) { noteAutomaticResult(c, due: due, at: start) }

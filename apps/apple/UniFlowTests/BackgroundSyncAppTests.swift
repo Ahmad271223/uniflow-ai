@@ -286,6 +286,7 @@ final class BackgroundSyncAppTests: XCTestCase {
         b.graceNanos = 3_000_000_000
         // Regel 8–18 Uhr (17.11.2026): hier alle Portale faellig; eigene Tests pruefen die Regel (`AutoSyncAppTests`)
         b.autoDue = { _, _, _, _ in Self.allPortals }
+        b.timeLeft = { 0 }
         return (b, s, n)
     }
 

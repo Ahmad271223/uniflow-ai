@@ -13,7 +13,7 @@ import UniFlowCore
 //
 // Stille Neuanmeldung im Hintergrund (`BackgroundReloginLedger`): nur mit gespeichertem Uni-Zugang (Schluesselbund
 // dieses Geraets, `UniAutoLogin`; das Passwort geht nie an einen StudiNow-Server) und eigenem Schalter (Vorgabe an).
-// Je Dienst hoechstens ein Versuch in 6 Stunden, nach einem Fehlschlag erst nach 24 Stunden wieder; ein abgelehntes
+// Je Dienst hoechstens ein Versuch in 30 Minuten (bis 17.11.2026: 6 Stunden), nach einem Fehlschlag erst nach 24 Stunden wieder; ein abgelehntes
 // Passwort vergisst `UniAutoLogin` sofort (nie ein zweiter Versuch damit, Schutz vor einer Kontosperre).
 
 /// Schalter der Mitteilungen (UserDefaults der App, fuer dieses Geraet)
@@ -273,7 +273,10 @@ extension BackgroundNotice {
 /// Wann im Hintergrund still neu angemeldet werden darf (je Dienst, Stand in der Einstellungs-Suite des Containers,
 /// damit er Neustarts der App durch iOS uebersteht)
 struct BackgroundReloginLedger {
-    static let minInterval: TimeInterval = 6 * 3600
+    /// nach einem gelungenen Versuch: seit 17.11.2026 (Abgleich alle 30 Minuten, Auftrag des Inhabers) im Takt der Regel
+    /// statt 6 Stunden - wie die Uni-Mail, die sich bei jeder Anfrage still neu anmeldet. Nach einem Fehlschlag bleibt
+    /// es bei 24 Stunden; ein abgelehntes Passwort ist ohnehin vergessen (`UniAutoLogin`).
+    static let minInterval: TimeInterval = AutoSyncSchedule.standard.interval
     static let afterFailure: TimeInterval = 24 * 3600
     static let prefix = "uniflow.background.relogin."
 

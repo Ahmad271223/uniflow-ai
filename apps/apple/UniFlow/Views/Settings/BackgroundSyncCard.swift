@@ -55,7 +55,7 @@ struct BackgroundSyncCard: View {
     }
 
     /// Erklaerung unter "Im Hintergrund neu anmelden"
-    static let reloginText = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast. Er liegt nur im Schlüsselbund dieses Geräts und geht nie an einen Server von StudiNow. Höchstens ein Versuch je Dienst in 6 Stunden; ein abgelehntes Passwort wird gelöscht und nie erneut gesendet."
+    static let reloginText = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast. Er liegt nur im Schlüsselbund dieses Geräts und geht nie an einen Server von StudiNow. Gilt für Stud.IP, QIS, Uni-Mail, Learnweb, LSF, Moodle und das Campusmanagement – nur zwischen 8 und 18 Uhr und höchstens ein Versuch je Dienst in 30 Minuten; nach einem Fehlschlag erst nach einem Tag wieder. Ein abgelehntes Passwort wird gelöscht und nie erneut gesendet."
 
     /// Am Mac ("Designed for iPad"): eigener Takt, solange die App laeuft
     static let macText = "Am Mac gleicht StudiNow zusätzlich alle 20 bis 30 Minuten ab, solange die App geöffnet ist – auch wenn sie nicht vorn ist."
