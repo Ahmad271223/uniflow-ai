@@ -1,9 +1,11 @@
-#if canImport(Security) && canImport(CryptoKit)
-import CryptoKit
 import Foundation
-import Security
 import XCTest
 @testable import UniFlowCore
+// Die Anmelde-Tests brauchen Security und CryptoKit (nur auf Apple-Geraeten); ChatGPTPreferredModelTests am Ende der
+// Datei laeuft auch unter Linux und braucht deshalb die Imports oben ausserhalb des #if.
+#if canImport(Security) && canImport(CryptoKit)
+import CryptoKit
+import Security
 
 // Sign in with ChatGPT auf dem Geraet wie app/chatgpt_login.py (tests/test_chatgpt_login.py): Anmeldung mit
 // Erstregistrierung, ID-Token (Signatur, Aussteller, Empfaenger, Ablauf, Nonce), Erneuerung, Anfragen an die
