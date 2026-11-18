@@ -16,8 +16,9 @@ nötig ist oder was du eingeschaltet hast.
 - **Zum Konto** speichern wir deine Apple-Kennung bzw. E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse),
   ein Passwort nur als Hash (falls du eines setzt), deine Hochschule, Sitzungen, Tarif und Probe (Abschnitt 5). Mit der
   Anmeldung gleicht die App Module, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten ab,
-  Notizen nur mit Pro AI (Abschnitt 7). Die Dateien deiner Hochschule, deine Notizen ohne Pro AI und alles in
-  Abschnitt 3 bleiben auf dem Gerät. Die Community schaltest du selbst ein (Abschnitte 8, 8b).
+  Notizen nur mit Pro AI (Abschnitt 7). Deine Notizen ohne Pro AI und alles in Abschnitt 3 bleiben auf dem Gerät.
+  Neue Kursdateien (Vorlesungen, Übungen, Skripte, Altklausuren) schickt die App einmal ohne deinen Namen an
+  StudiNow; ausschalten kannst du das jederzeit (Abschnitt 7a). Die Community schaltest du selbst ein (Abschnitte 8, 8b).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie nur auf deinem Gerät (iPad, PC). **Auf unseren Servern speichern wir Hochschul-Passwörter nie** – auch
   nicht für die Web-Version (seit 06.11.2026; Abschnitt 6). Den Abgleich mit deiner Hochschule erledigt die iPad-App
@@ -226,7 +227,7 @@ Bitte prüfe, ob die Nutzungsregeln deiner Hochschule den Abruf durch eine App m
 ## 7. Deine Inhalte im Dienst und Abgleich zwischen Geräten
 
 Mit Konto speichert der Dienst in einem eigenen, von anderen Konten getrennten Datenbereich: die abgerufenen Kurse,
-die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – nicht die Dateien, siehe Abschnitt 6),
+die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – die Dateien selbst nur über den Datei-Eingang, siehe Abschnitt 7a),
 Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
 Geräteabgleich außerdem Module, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und Einstellungen,
 ab Pro AI auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
@@ -238,8 +239,6 @@ zu schreiben.
 Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelöscht wird mit dem Konto, spätestens
 30 Tage nach dessen Löschung. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
-<!-- ENTWURF 18.11.2026 (Datei-Eingang): erst nach Okay des Inhabers veroeffentlichen; dann auch Abschnitt 7 ("nicht die
-Dateien") und Abschnitt 1 (Kurzfassung) anpassen und in App Store Connect "Nutzerinhalte – andere" angeben -->
 ## 7a. Kursdateien an StudiNow (Datei-Eingang)
 
 Die App schickt neue PDF-Dateien aus deinen Kursen (Vorlesungen, Übungen, Lösungen, Skripte, Altklausuren) einmal an
