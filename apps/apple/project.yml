@@ -68,8 +68,8 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: $(UF_DEBUG_BUNDLE_ID)
         # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet
         Release:
-          UF_INTAKE_OFFERED: "NO"
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim"
+          UF_INTAKE_OFFERED: "NO"
     # Release fuer ein Geraet (Archiv fuer TestFlight/App Store) nur mit Team und Berechtigung "Mit Apple anmelden":
     # ohne Config/Team.xcconfig baute das Archiv still ohne die Berechtigung und die App blieb an der Begruessung haengen
     preBuildScripts:
