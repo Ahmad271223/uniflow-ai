@@ -507,7 +507,7 @@ def estimate_step_credits(step: dict, model: str | None) -> int:
     if p is None:
         return 1
     tokens_in = ai_prices.OVERHEAD_TOKENS + math.ceil(chars / ai_prices.CHARS_PER_TOKEN)
-    return max(1, ai_prices.credits_for(int(math.ceil(tokens_in * p.input_eur + out_tokens * p.output_eur))))
+    return max(1, ai_prices.credits_for(int(math.ceil(tokens_in * p.input_eur + out_tokens * p.output_eur)), model))
 
 
 def plural(n: int, one: str, many: str) -> str:

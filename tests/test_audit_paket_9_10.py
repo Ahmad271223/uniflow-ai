@@ -130,8 +130,10 @@ def test_p9_03_credits_hold_the_ceiling_pool_holds_the_fixed_reserve(hosted, tab
     rid = rid_for("tutor:ask", "openai", configured={"openai", "anthropic"})
     ai_backend.complete(u["id"], "tutor:ask", "SYS", "Frage " * 300, request_id=rid)
     out = ai_backend.max_output("tutor:ask")
-    worst = max(ai_prices.worst_case_microeur(m, "SYS", "Frage " * 300, out) for m in (MODELS["openai"], MODELS["anthropic"]))
-    assert seen["held"] == ai_prices.credits_for(worst), "Credits: Obergrenze ueber die ganze Kette"
+    # je Modell mit seinem Credit-Faktor (starke Modelle +30 %, 18.11.2026), das teuerste der Kette zaehlt
+    held = max(ai_prices.credits_for(ai_prices.worst_case_microeur(m, "SYS", "Frage " * 300, out), m)
+               for m in (MODELS["openai"], MODELS["anthropic"]))
+    assert seen["held"] == held, "Credits: Obergrenze ueber die ganze Kette"
     assert seen["pool"] == ("reserved", ai_backend.RESERVE_MICROEUR)
 
 

@@ -400,7 +400,7 @@ def settle(conn: sqlite3.Connection, user_id: str, request_id: str, cost_microeu
     (aeltester Kauf zuerst), nie mehr, als im gekauften Topf noch liegt. `purchased_microeur` haelt fest, welchen Teil der
     Kosten die gekauften Credits bezahlt haben (zaehlt nicht gegen das Monats-Budget, `purchased_share`)."""
     uid, t = str(user_id), _now(now)
-    charged = ai_prices.credits_for(cost_microeur)
+    charged = ai_prices.credits_for(cost_microeur, model)        # starke Modelle mit Aufschlag (ai_prices.credit_factor)
     conn.execute("BEGIN IMMEDIATE")
     try:
         old = conn.execute("SELECT state, period, reserved, charged, reserved_purchased FROM credit_ledger WHERE user_id=? AND request_id=?",
