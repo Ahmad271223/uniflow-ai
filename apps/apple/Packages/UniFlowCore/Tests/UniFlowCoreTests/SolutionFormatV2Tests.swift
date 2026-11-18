@@ -70,7 +70,9 @@ final class SolutionFormatV2Tests: XCTestCase {
             XCTAssertEqual(try SolutionDeflate.inflatePortable(stored, limit: data.count), data)
         }
         let packed = try SolutionDeflate.deflate(sample)
-        XCTAssertLessThan(packed.count, sample.count)
+        #if canImport(Compression)
+        XCTAssertLessThan(packed.count, sample.count)     // unter Linux packt deflate nicht (storedBlocks)
+        #endif
         for broken in [packed.prefix(packed.count / 2), Data([0xFF, 0xFF, 0xFF])] {
             assertThrows(SolutionDeflate.corrupt) { _ = try SolutionDeflate.inflate(Data(broken), limit: sample.count) }
             assertThrows(SolutionDeflate.corrupt) { _ = try SolutionDeflate.inflatePortable(Data(broken), limit: sample.count) }
@@ -82,6 +84,11 @@ final class SolutionFormatV2Tests: XCTestCase {
 
     /// Zip-Bombe: wenige KB, entpackt ueber `maxPlaintextBytes`; das Entpacken bricht an der Grenze ab.
     func testZipBombStopsAtTheLimit() throws {
+        #if !canImport(Compression)
+        // Unter Linux packt deflate nicht (storedBlocks): die "Bombe" waere 50 MB gross und keine Bombe. Auf Apple-
+        // Geraeten laeuft der Test vollstaendig, auch fuer inflatePortable (den Linux-Weg).
+        throw XCTSkip("braucht das Compression-Framework (nur Apple)")
+        #endif
         let bomb = try SolutionDeflate.deflate(Data(repeating: 0x20, count: SolutionLimits.maxPlaintextBytes + 1))
         XCTAssertLessThan(bomb.count, 200_000)
         assertThrows(.tooLarge) { _ = try SolutionDeflate.inflate(bomb, limit: 4096) }
@@ -163,7 +170,9 @@ final class SolutionFormatV2Tests: XCTestCase {
                                                                       "widths": .array(points.prefix(200).map { .number($0.double! / 50) })]])])
         let sealed = try SolutionPackage.seal(content, originalPDF: pdf, cipher: cipher)
         XCTAssertEqual(sealed.formatVersion, 2)
-        XCTAssertLessThan(try XCTUnwrap(sealed.header.compressedBytes), sealed.header.plaintextBytes)
+        #if canImport(Compression)
+        XCTAssertLessThan(try XCTUnwrap(sealed.header.compressedBytes), sealed.header.plaintextBytes)   // Linux: ungepackt
+        #endif
         let text = String(decoding: sealed.encoded(), as: UTF8.self)
         XCTAssertTrue(text.contains(#""formatVersion":2"#) && text.contains(#""compression":"deflate-raw""#))
         let opened = try SolutionPackage.decode(sealed.encoded()).open(originalPDF: pdf, cipher: cipher)
