@@ -438,6 +438,13 @@ final class StudoraAccountLink: ObservableObject {
         }
     }
 
+    /// Weck-Signal (WakePush.swift, 17.11.2026): Anschluss an `/api/account/push-token` mit dem Sitzungs-Token dieses
+    /// Kontos; nil ohne angemeldetes Konto oder ohne Dienst-Adresse
+    var wakePushClient: WakePushClient? {
+        guard user != nil, let scope, let base = Self.serviceURL else { return nil }
+        return WakePushClient(base: base, http: URLSessionServiceTransport(), tokens: StudoraAccountKeychain(userScope: scope))
+    }
+
     /// Konto-Anschluss beim Dienst fuer einen Apple-Nutzer (Sitzungs-Token im Schluesselbund je Apple-Nutzer)
     static func serviceAccount(base: String, userScope: String) -> StudoraAccount {
         StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: StudoraAccountKeychain(userScope: userScope),

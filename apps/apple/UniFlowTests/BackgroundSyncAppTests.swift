@@ -340,7 +340,8 @@ final class BackgroundSyncAppTests: XCTestCase {
         let modes = try XCTUnwrap(info["UIBackgroundModes"] as? [String])
         // "audio" seit 04.11.2026 fuer "Vorlesung aufnehmen" (docs/VORLESUNG-AUFNEHMEN.md): die Aufnahme laeuft bei
         // gesperrtem Bildschirm weiter; kein Push, keine Ortung
-        XCTAssertEqual(Set(modes), ["fetch", "processing", "audio"], "Hintergrundaktualisierung, Verarbeitung und Aufnahme, kein Push")
+        // "remote-notification" seit 17.11.2026 fuer das Weck-Signal (stille Push-Nachricht, WakePush.swift); keine Ortung
+        XCTAssertEqual(Set(modes), ["fetch", "processing", "audio", "remote-notification"], "Hintergrundaktualisierung, Verarbeitung, Aufnahme, Weck-Signal")
         XCTAssertNotNil(info["NSMicrophoneUsageDescription"] as? String, "Mikrofon-Text fuer die Aufnahme")
         XCTAssertNotNil(info["NSPhotoLibraryAddUsageDescription"] as? String, "Bild sichern im Teilen-Menue braucht den Text, sonst beendet iOS die App")
         XCTAssertNotNil(info["NSSpeechRecognitionUsageDescription"] as? String, "Spracherkennungs-Text fuer die Mitschrift")
@@ -733,6 +734,35 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(m.autoLedger(luh).isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(29 * 60), timeZone: berlin), false)
         XCTAssertEqual(m.autoLedger(luh).isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(30 * 60), timeZone: berlin), true)
         _ = s
+    }
+
+    func testWakeRunFollowsTheRuleAndEndsWithinTheTimeLimit() async throws {
+        let m = manager()
+        let (a, _) = try ready(m, .luh)
+        let (b, _, _) = controller(m, a)
+        let fake = FakeSync()
+        b.target = { _ in fake }
+        b.gradesStep = { _ in }
+        // 20:00 (echte Regel): nichts, keine Anfrage
+        b.autoDue = { c, now, tz, kind in m.autoSyncDue(now: now, timeZone: tz, continueAtOnce: kind == .processing) }
+        b.now = { Date(timeIntervalSince1970: 1_793_041_200) }   // 2026-10-26 20:00
+        let night = await b.performWake()
+        XCTAssertEqual(night, .noData)
+        XCTAssertEqual(fake.kinds, [])
+        XCTAssertEqual(b.lastRecord?.outcome, .skipped(.outsideWindow))
+        // 10:00, faellig: der kurze Lauf
+        b.autoDue = { _, _, _, _ in Self.allPortals }
+        b.now = { Date(timeIntervalSince1970: 1_793_005_200) }
+        let day = await b.performWake()
+        XCTAssertEqual(day, .newData)
+        XCTAssertEqual(fake.kinds, [.refresh])
+        // ein Lauf, der nicht endet: nach dem Zeitlimit abgebrochen
+        fake.waitsForCancel = true
+        let started = Date()
+        let slow = await b.performWake(limit: 0.5)
+        XCTAssertEqual(slow, .failed)
+        XCTAssertTrue(fake.sawCancel)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5, "endet im Zeitlimit")
     }
 
     // MARK: Kein Lauf waehrend eines Wechsels oder neben einem Abgleich

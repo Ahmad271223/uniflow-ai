@@ -1,8 +1,10 @@
 # Weck-Signal (Stand 17.11.2026)
 
-Auftrag des Inhabers vom 17.11.2026. Dieses Dokument beschreibt den Teil auf dem Server.
-Code: `app/wake_push.py` (Speicher, Zeitplan, Versand), `app/wake_push_api.py` (die zwei Adressen für die App),
-Tests: `tests/test_wake_push.py`.
+Auftrag des Inhabers vom 17.11.2026 („mach das zu 100 %“). Server und App.
+Server: `app/wake_push.py` (Speicher, Zeitplan, Versand), `app/wake_push_api.py` (die zwei Adressen für die App),
+Tests: `tests/test_wake_push.py`. App: `apps/apple/UniFlow/Services/WakePush.swift` (Registrierung, Meldung, Empfang),
+`BackgroundSyncController.performWake` (Lauf nach dem Wecken), Tests: `UniFlowTests/WakePushAppTests.swift`,
+`BackgroundSyncAppTests.testWakeRunFollowsTheRuleAndEndsWithinTheTimeLimit`.
 
 **Im Auslieferzustand ist das Weck-Signal AUS.** Der Server sendet erst, wenn es eingeschaltet ist und der Schlüssel
 von Apple hinterlegt wurde (Abschnitt 5).
@@ -90,19 +92,33 @@ Der Server sendet dann nichts mehr und schreibt einmal ins Protokoll:
 `Weck-Signal: ausgeschaltet (STUDINOW_WAKE_PUSH ist nicht 1). Es wird nichts an Apple gesendet.`
 Die gemeldeten Geräte bleiben gespeichert, damit nach dem Einschalten sofort wieder gesendet werden kann.
 
-## 5. Einschalten – was zu tun ist, sobald der Schlüssel da ist
+## 5. Einschalten – Schritt für Schritt (nur der Inhaber kann das)
 
-Der Schlüssel existiert noch nicht. Ihn kann nur der Inhaber im Apple-Developer-Konto anlegen.
+Drei Dinge bei Apple, zwei auf dem Server, eines in der App. Reihenfolge einhalten.
 
-1. **Schlüssel bei Apple anlegen:** developer.apple.com → Certificates, Identifiers & Profiles → **Keys** → „+“ →
-   Haken bei **Apple Push Notifications service (APNs)** → anlegen → Datei `AuthKey_XXXXXXXXXX.p8` herunterladen.
-   Das geht nur **einmal**. Die **Key-ID** (die zehn Zeichen im Dateinamen) notieren. Die **Team-ID** steht unter
-   Membership.
-2. **App-Kennung prüfen:** Unter Identifiers bei `de.uniflow.ai` muss **Push Notifications** angehakt sein.
-3. **Neuen Stand auf den Server bringen und neu bauen** (wie bei jedem Update, mit `--build`). Das ist nötig, weil ein
-   kleines Zusatzpaket (`h2`, siehe Abschnitt 8) installiert werden muss.
-4. **Schlüsseldatei auf den Server legen**, so dass der Container `jobs` sie lesen kann. Ohne Änderung an
-   `docker-compose.yml` geht das über den gemeinsamen Datenordner:
+**A. Bei Apple (developer.apple.com, Certificates, Identifiers & Profiles)**
+
+1. **Push in der App-ID einschalten:** Identifiers → `de.uniflow.ai` öffnen → Haken bei **Push Notifications** →
+   Save. (Stand 18.11.2026: noch aus. Die Profile auf dem Mac haben kein `aps-environment`.)
+2. **Schlüssel anlegen:** Keys → „+“ → Name z. B. „StudiNow Weck-Signal“ → Haken bei **Apple Push Notifications
+   service (APNs)** → Continue → Register → **Download**. Die Datei `AuthKey_XXXXXXXXXX.p8` gibt es nur **einmal**;
+   sicher aufbewahren, nie ins Repository, nie per Mail. Die **Key-ID** (die zehn Zeichen im Dateinamen) notieren.
+3. **Team-ID** notieren: Membership → Team ID (zehn Zeichen).
+
+**B. In der App (einmal, danach bei jedem Build automatisch)**
+
+4. In `apps/apple/Config/Team.xcconfig` die Zeile `CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlow.entitlements` ersetzen
+   durch `CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlowPush.entitlements`, dann `cd apps/apple && xcodegen generate`.
+   Diese Datei enthält zusätzlich `aps-environment`. **Erst nach Schritt 1**, sonst bricht der Build mit Kabel (das
+   Profil kennt Push nicht; geprüft am 18.11.2026 an den Profilen auf dem Mac). Xcode lädt danach ein neues Profil;
+   beim Hochladen in den App Store wird aus „development“ von selbst „production“.
+5. Neue Version bauen und hochladen wie gewohnt. Erst Geräte mit dieser Version melden ein Token.
+
+**C. Auf dem Server**
+
+6. **Neuen Stand auf den Server bringen und neu bauen** (wie bei jedem Update, mit `--build`), damit das Zusatzpaket
+   `h2` (Abschnitt 8) installiert wird.
+7. **Schlüsseldatei auf den Server legen**, so dass der Container `jobs` sie lesen kann:
 
    ```
    cd /srv/uniflow/app/deploy
@@ -112,9 +128,9 @@ Der Schlüssel existiert noch nicht. Ihn kann nur der Inhaber im Apple-Developer
    ```
 
    Hinweis: Die Datei liegt damit im Daten-Volume. Wer sie lieber getrennt halten will, hängt sie in
-   `deploy/docker-compose.yml` beim Dienst `jobs` als eigene Datei nur zum Lesen ein (das ist eine Änderung am
-   Server-Aufbau und noch nicht gemacht).
-5. **In `deploy/.env` eintragen:**
+   `deploy/docker-compose.yml` beim Dienst `jobs` als eigene Datei nur zum Lesen ein (Änderung am Server-Aufbau, noch
+   nicht gemacht).
+8. **In `deploy/.env` eintragen** (die Namen stehen schon leer in `deploy/.env.example`):
 
    ```
    STUDINOW_WAKE_PUSH=1
@@ -122,8 +138,8 @@ Der Schlüssel existiert noch nicht. Ihn kann nur der Inhaber im Apple-Developer
    APNS_KEY_ID=XXXXXXXXXX
    APNS_TEAM_ID=<Team-ID>
    ```
-6. **Neu starten:** `docker compose up -d`
-7. **Prüfen:**
+9. **Neu starten:** `docker compose up -d`
+10. **Prüfen:**
 
    ```
    docker compose exec jobs python -m app.wake_push --status
@@ -237,10 +253,37 @@ Die App muss das vor dem Abmelden nicht aufrufen: Abmelden entfernt den Eintrag 
 | 429 | `rate_limited` | mehr als 60 Meldungen je Stunde und Konto (Kopfzeile `Retry-After`) |
 | 501 | `not_hosted` | nicht im gehosteten Dienst (eigener PC) |
 
-## 10. Noch offen (nicht Teil dieses Stands)
+## 10. Die App (17./18.11.2026)
 
-- Der APNs-Schlüssel (Abschnitt 5, nur der Inhaber).
-- `deploy/.env.example` nennt die neuen Einstellungen noch nicht.
-- Datenschutzerklärung: Das Geräte-Token und die Zeitzone sollten dort genannt werden, bevor eingeschaltet wird.
+- **Registrieren:** Solange „Im Hintergrund abgleichen“ an ist und ein StudiNow-Konto angemeldet ist, meldet sich die
+  App bei Apple für Push an (stille Nachrichten brauchen keine Erlaubnis, es erscheint keine Frage) und meldet das
+  Token an `PUT /api/account/push-token` – nach der Anmeldung, bei jedem Start, bei neuem Token und bei neuer Zeitzone,
+  in einem Prozess nie zweimal dasselbe. Gemeldet werden genau fünf Angaben: Token, Plattform (`ios`, `ipados`,
+  `macos`), App-Version, Zeitzone, Umgebung (`sandbox` im Testbuild aus Xcode, sonst `production`).
+- **Aus:** „Im Hintergrund abgleichen“ aus → `DELETE /api/account/push-token` mit dem Token, Abmelden bei Apple, Token
+  auf dem Gerät vergessen. Abmelden vom StudiNow-Konto löscht den Eintrag am Server ohnehin.
+- **Empfang:** Nur eine reine Weck-Nachricht (`content-available: 1`, ohne Text, Ton, Zahl) startet etwas: einen kurzen
+  Lauf nach derselben Regel wie sonst (8 bis 18 Uhr Ortszeit, nur fällige Portale, Mitteilungen bei Neuem, stille
+  Neuanmeldung nur, wenn iOS noch mindestens 25 Sekunden lässt). Nach 25 Sekunden bricht der Lauf ab (iOS gibt rund
+  30); was bis dahin gelesen war, ist gespeichert.
+- **Ohne Push in der App-ID** (Stand heute) bekommt die App kein Token; iOS meldet einen Fehler bei der Registrierung,
+  den die App nur ins Protokoll schreibt. Sonst ändert sich nichts.
+
+## 11. Satz für die Datenschutzerklärung (Vorschlag)
+
+> **Weck-Signal für den Abgleich.** Wenn du in StudiNow mit deinem StudiNow-Konto angemeldet bist und „Im Hintergrund
+> abgleichen“ eingeschaltet hast, speichern wir für dein Gerät die Push-Adresse von Apple (Geräte-Token), die
+> Plattform (iPhone, iPad oder Mac), die App-Version und deine Zeitzone. Damit schicken wir deinem Gerät zwischen 8 und
+> 18 Uhr deiner Ortszeit höchstens alle 30 Minuten eine unsichtbare Nachricht über den Apple Push Notification service,
+> die StudiNow kurz aufweckt, damit die App selbst bei deiner Hochschule nach Neuem sieht. Die Nachricht enthält keine
+> Inhalte. Deine Uni-Zugangsdaten und Uni-Daten erhalten wir dabei nicht. Rechtsgrundlage ist die Erfüllung des
+> Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO). Die Angaben werden gelöscht, wenn du „Im Hintergrund abgleichen“
+> ausschaltest, dich abmeldest, dein Konto löschst, Apple das Gerät als ungültig meldet oder sich die App 60 Tage nicht
+> gemeldet hat.
+
+## 12. Noch offen (nicht Teil dieses Stands)
+
+- Push in der App-ID, der APNs-Schlüssel, das Umstellen auf `UniFlowPush.entitlements` (Abschnitt 5, nur der Inhaber).
+- Datenschutzerklärung: den Satz aus Abschnitt 11 einfügen, bevor eingeschaltet wird.
 - Ein echter Versand an Apple wurde nicht geprüft (kein Schlüssel, bewusst kein Test gegen Apple). Geprüft ist alles
-  bis zur Übergabe an einen nachgebauten Apple-Server.
+  bis zur Übergabe an einen nachgebauten Apple-Server und in der App bis zum Empfang einer nachgebauten Nachricht.

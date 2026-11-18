@@ -7,6 +7,8 @@ import UniFlowCore
 /// (siehe Editor/PDFEditorController.swift). Der eigene UniFlow-Server ist nur noch ein Entwicklungsmodus.
 @main
 struct UniFlowApp: App {
+    /// Empfang von Apple: Geraete-Token und stille Weck-Nachricht (WakePush.swift, 17.11.2026)
+    @UIApplicationDelegateAdaptor(StudiNowAppDelegate.self) private var appDelegate
     @StateObject private var account: AccountStore
     /// Container je (Apple-Nutzer, Hochschule) mit Datenbank, Dateien, Notizen und Anmeldungen
     @StateObject private var containers: ContainerManager
@@ -80,6 +82,11 @@ struct UniFlowApp: App {
                                         }
                                     })
         ticker.editing = { [weak registry] in registry?.routers.contains { $0.route.isDocument } ?? false }
+        // Weck-Signal: Registrierung mit dem StudiNow-Konto, Empfang startet den Lauf nach der Regel; "Im Hintergrund
+        // abgleichen" aus nimmt das Token am Server zurueck
+        WakePush.shared.attach(account: c.account)
+        WakePush.shared.onWake = { [weak b] in await b?.performWake() ?? .noData }
+        b.onEnabledChange = { _ in WakePush.shared.refresh() }
         _scenes = State(initialValue: registry)
         _autoTicker = State(initialValue: ticker)
         _account = StateObject(wrappedValue: a)
@@ -242,6 +249,7 @@ struct UniFlowApp: App {
                 if LearnCalendar.enabled, let host = containers.active?.host { Task.detached { await StudIPSync.placeNewDocumentsOnOpen(host: host) } }
                 weeklyTicker.resume()
                 if !StudIPSync.isUnderTest() { autoTicker.start() }        // alle 30 Minuten im Fenster 8–18 Uhr
+                WakePush.shared.refresh()                                  // Weck-Signal: bei jedem Start melden (Zeitzone, Version)
                 askForLoginIfDue()
                 // Geraete-Abgleich: Daten anderer Geraete in jedem Fenster zeigen (Abgleich nach Aenderungen, im Takt)
                 let routers = { [scenes] in for router in scenes.routers where !router.route.isDocument { router.reload() } }

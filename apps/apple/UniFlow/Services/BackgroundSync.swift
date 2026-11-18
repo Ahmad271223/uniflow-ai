@@ -520,10 +520,33 @@ final class BackgroundSyncController: ObservableObject {
         return decision.nextAt
     }
 
-    /// Schalter "Im Hintergrund abgleichen"
+    /// Schalter "Im Hintergrund abgleichen"; aus nimmt auch das Weck-Signal zurueck (Token am Server geloescht)
     func setEnabled(_ on: Bool) {
         settings.enabled = on
         Task { await schedule() }
+        onEnabledChange?(on)
+    }
+
+    /// Aenderung des Schalters (die App: `WakePush.refresh`; Tests: Mitschreiber)
+    var onEnabledChange: ((Bool) -> Void)?
+
+    /// Zeitlimit nach einem Weck-Signal: iOS gibt rund 30 Sekunden, der Lauf endet vorher (Rest fuer den Abschluss)
+    static let wakeLimit: TimeInterval = 25
+
+    /// Weck-Signal (WakePush.swift): ein kurzer Lauf nach der Regel 8 bis 18 Uhr - ausserhalb nichts, nur faellige
+    /// Portale, stille Neuanmeldung nur mit genug Zeit -, beendet nach `wakeLimit` (wie der Ablauf einer Aufgabe).
+    func performWake(limit: TimeInterval = BackgroundSyncController.wakeLimit) async -> UIBackgroundFetchResult {
+        let started = Date()
+        let expired: () -> Bool = { Date().timeIntervalSince(started) >= limit }
+        let run = Task { @MainActor in await self.perform(.refresh, expired: expired) }
+        let timer = Task {
+            try? await Task.sleep(nanoseconds: UInt64(max(limit, 0) * 1_000_000_000))
+            run.cancel()
+        }
+        let ok = await run.value
+        timer.cancel()
+        guard let due = lastDue, !due.isEmpty else { return .noData }
+        return ok && !expired() ? .newData : .failed
     }
 
     /// Schalter "Benachrichtigen bei neuen Dateien": erst hier fragt iOS nach der Erlaubnis. false, wenn sie fehlt

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Faehigkeiten "Sign in with Apple" (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a und 7) und iCloud/CloudKit fuer die
+  Community (docs/LOESUNGEN-TEILEN.md, Abschnitt 7; Container iCloud.de.uniflow.ai, derselbe Name wie
+  UF_CLOUDKIT_CONTAINER in Config/Team.xcconfig). Gibt es nur mit dem bezahlten Apple Developer Program. Bewusst NICHT
+  in project.yml eingetragen: aktiv nur ueber CODE_SIGN_ENTITLEMENTS, wenn ein bezahltes Team gesetzt ist, damit
+  Personal-Team- und Simulator-Builds ohne diese Berechtigungen weiter bauen.
+  Associated Domains (applinks:studinow.app): Einladungslinks https://studinow.app/i/<CODE> oeffnen die App
+  (docs/EINLADUNGEN.md; Datei site/.well-known/apple-app-site-association). Die Faehigkeit "Associated Domains" muss in
+  Apple Developer fuer die App-ID de.uniflow.ai eingeschaltet sein.
+  iCloud-Schluessel-Wert-Speicher (ubiquity-kvstore): die 7-Tage-Probe je Apple-ID (docs/ABO-SYSTEM.md 3b,
+  Purchases/LocalTrial.swift) wird dort gespiegelt, damit ein zweites iPad oder eine Neuinstallation sie nicht
+  neu startet; ohne iCloud zaehlt nur der Schluesselbund des Geraets.
+-->
+<!--
+  UniFlowPush.entitlements (17.11.2026, Weck-Signal, docs/WECK-SIGNAL-2026-11-17.md): wie UniFlow.entitlements, dazu
+  aps-environment fuer Push-Nachrichten. Bewusst NICHT der Standard: die App-ID de.uniflow.ai hat Push noch nicht
+  (Stand der Profile am 18.11.2026: kein aps-environment), und ein Entitlement, das das Profil nicht kennt, bricht den
+  Build mit Kabel bzw. das Archiv. Erst wenn Push in der App-ID eingeschaltet ist, in Config/Team.xcconfig
+  CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlowPush.entitlements setzen und xcodegen generate ausfuehren. "development" ist
+  richtig: beim Hochladen in den App Store setzt Xcode es selbst auf "production".
+-->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:studinow.app</string>
+	</array>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.de.uniflow.ai</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+</dict>
+</plist>

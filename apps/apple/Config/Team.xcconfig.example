@@ -2,5 +2,8 @@
 // bezahlten Apple Developer Program eintragen. Danach `xcodegen generate`.
 DEVELOPMENT_TEAM = ABCDE12345
 CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlow.entitlements
+// Weck-Signal (docs/WECK-SIGNAL-2026-11-17.md): erst wenn Push in der App-ID de.uniflow.ai eingeschaltet ist, statt der
+// Zeile oben diese nehmen (sonst bricht der Build mit Kabel):
+// CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlowPush.entitlements
 // Community ueber CloudKit (iCloud-Container im Developer Program anlegen, Name wie hier; UniFlow.entitlements)
 UF_CLOUDKIT_CONTAINER = iCloud.de.uniflow.ai
