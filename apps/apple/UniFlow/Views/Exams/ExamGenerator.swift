@@ -23,8 +23,40 @@ enum ExamGenerator {
     static let empty = "In diesem Modul gibt es noch keine PDFs."
     static let notLoaded = "nicht auf dem Gerät"
     static let countLabel = "Probeklausuren"
-    /// Stufe (a): der naechste Schritt ist noch nicht gebaut
-    static let nextMissing = "Auswahl passt. Kosten und Start kommen im nächsten Schritt."
+    // Kauf (18.11.2026: einmal erzeugen, an alle verkaufen, 15 Credits je Probeklausur)
+    static let buyTitle = "Probeklausuren kaufen"
+    static let back = "Zurück"
+    static let close = "Schließen"
+    static let working = "StudiNow erstellt deine Probeklausuren. Das dauert einige Minuten. Du kannst das Blatt schließen; fertige Probeklausuren holst du hier wieder ab."
+    static let fetchAgain = "Fertige abholen"
+    static let sendNote = "Für neue Probeklausuren gehen die Seitentexte der gewählten Dateien einmal an StudiNow und die KI (Claude). Fertige Probeklausuren sind sofort da. Klappt etwas nicht, kostet es nichts."
+    static let savedNote = "Fertige Probeklausuren liegen in der Bibliothek im Ordner „Probeklausuren“ dieses Moduls."
+    static let allOwned = "Zu diesen Unterlagen hast du schon alle Probeklausuren."
+
+    static func buyButton(_ credits: Int) -> String { "Für \(credits) Credits kaufen" }
+
+    /// "3 Probeklausuren × 15 Credits = 45 Credits"
+    static func priceLine(count: Int, price: Int) -> String {
+        "\(count) \(count == 1 ? "Probeklausur" : "Probeklausuren") × \(price) Credits = \(count * price) Credits"
+    }
+
+    /// "1 ist schon fertig (sofort da), 2 erstellt StudiNow neu (einige Minuten)."
+    static func splitLine(ready: Int, new: Int) -> String {
+        var parts: [String] = []
+        if ready > 0 { parts.append("\(ready) \(ready == 1 ? "ist" : "sind") schon fertig (sofort da)") }
+        if new > 0 { parts.append("\(new) erstellt StudiNow neu (einige Minuten)") }
+        return parts.joined(separator: ", ") + "."
+    }
+
+    static func statusText(_ status: String?, hasFiles: Bool) -> String {
+        if hasFiles { return "liegt im Modul" }
+        switch status {
+        case "ready": return "fertig"
+        case "pending", "running": return "wird erstellt"
+        case "failed": return "hat nicht geklappt – nichts berechnet"
+        default: return ""
+        }
+    }
 
     static func sectionTitle(_ g: ExamGeneratorSelection.Group) -> String {
         switch g {
@@ -69,7 +101,6 @@ struct ExamGeneratorCard: View {
     let moduleName: String
     @ObservedObject private var ent = Entitlements.shared
     @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
-    @EnvironmentObject private var toast: UFToastCenter
     @State private var picker = false
     @State private var plan: UFPlan?
 
@@ -92,10 +123,7 @@ struct ExamGeneratorCard: View {
             .padding(.bottom, 14.4)
             .ufPlanSheet($plan)
             .ufSheet(isPresented: $picker) {
-                ExamGeneratorPicker(moduleID: moduleID, moduleName: moduleName, close: { picker = false }) { _, _ in
-                    picker = false
-                    toast.show(ExamGenerator.nextMissing, seconds: 4)
-                }
+                ExamGeneratorFlow(moduleID: moduleID, moduleName: moduleName) { picker = false }
             }
         }
     }
@@ -307,5 +335,189 @@ struct ExamGeneratorPicker: View {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+// MARK: - Ablauf im Blatt: Auswahl -> Kosten -> Kauf -> Abholen
+
+/// Ein Blatt fuer den ganzen Ablauf: erst die Auswahl (`ExamGeneratorPicker`), dann Kosten und Kauf
+/// (`ExamGeneratorBuy`). Zurueck fuehrt zur Auswahl mit derselben Auswahl.
+struct ExamGeneratorFlow: View {
+    let moduleID: Int
+    let moduleName: String
+    let close: () -> Void
+    @State private var choice: (ids: [String], count: Int)?
+
+    var body: some View {
+        if let choice {
+            ExamGeneratorBuy(moduleID: moduleID, moduleName: moduleName, fileIDs: choice.ids, count: choice.count,
+                             back: { self.choice = nil }, close: close)
+        } else {
+            ExamGeneratorPicker(moduleID: moduleID, moduleName: moduleName, close: close) { ids, count in choice = (ids, count) }
+        }
+    }
+}
+
+/// Kosten zeigen, kaufen, fertige Probeklausuren abholen (in den Ordner „Probeklausuren“ des Moduls)
+struct ExamGeneratorBuy: View {
+    let moduleID: Int
+    let moduleName: String
+    let fileIDs: [String]
+    let count: Int
+    let back: () -> Void
+    let close: () -> Void
+
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufStudoraAccount) private var account
+    @State private var state: JSONValue?
+    @State private var error: String?
+    @State private var busy = false
+    @State private var bought = false
+    @State private var shop = false
+
+    private var request: [String: JSONValue] { ["file_ids": .array(fileIDs.map(JSONValue.string)), "count": .number(Double(count))] }
+    private var variants: [JSONValue] { state?.list("variants") ?? [] }
+    private var price: Int { state?.i("price") ?? 15 }
+    /// die naechsten `count`, die das Konto noch nicht hat (wie der Dienst waehlt)
+    private var next: [JSONValue] { Array(variants.filter { $0["owned"]?.bool != true }.prefix(count)) }
+    private var mine: [JSONValue] { variants.filter { $0["owned"]?.bool == true } }
+    private var pending: Bool { mine.contains { ["pending", "running"].contains($0.s("status") ?? "") } }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    UFIcon("flag", size: 20).foregroundStyle(UF.accentFill).accessibilityHidden(true)
+                    Text(ExamGenerator.buyTitle).ufFont(20, 700, em: -0.01).foregroundStyle(UF.text)
+                        .accessibilityAddTraits(.isHeader).accessibilityIdentifier("examgen.buy.title")
+                }
+                Text(moduleName).ufFont(14.5, 600).foregroundStyle(UF.text2)
+                if let error {
+                    Text(error).ufFont(13.6, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("examgen.buy.error")
+                }
+                if state == nil && error == nil {
+                    ProgressView().frame(maxWidth: .infinity).padding(.vertical, 24)
+                } else if !bought {
+                    offerView
+                }
+                if !mine.isEmpty { mineView }
+            }
+            .padding(20)
+            .frame(maxWidth: 640, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .background(UF.surface)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .task { await load() }
+        .task(id: bought) {
+            // nach dem Kauf: fertige abholen, solange etwas erstellt wird (alle 8 s, hoechstens 30 min)
+            guard bought else { return }
+            for _ in 0..<225 {
+                await collect()
+                if !pending || Task.isCancelled { break }
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
+            }
+        }
+        .ufCreditShop(isPresented: $shop)
+    }
+
+    @ViewBuilder private var offerView: some View {
+        if next.isEmpty {
+            Text(ExamGenerator.allOwned).ufFont(14.5).foregroundStyle(UF.text)
+        } else {
+            let ready = next.filter { $0.s("status") == "ready" }.count
+            VStack(alignment: .leading, spacing: 8) {
+                Text(ExamGenerator.priceLine(count: next.count, price: price)).ufFont(17.6, 700).foregroundStyle(UF.text)
+                    .accessibilityIdentifier("examgen.buy.price")
+                Text(ExamGenerator.splitLine(ready: ready, new: next.count - ready)).ufFont(14.5).foregroundStyle(UF.text2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let line = AICost.balanceLine(account?.credits, trial: account?.planStatus?.trialActive ?? false) {
+                    Text(line).ufFont(13.6, 600).foregroundStyle(UF.text2).accessibilityIdentifier("examgen.buy.balance")
+                }
+                Text(ExamGenerator.sendNote).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 8) {
+                UFButton(ExamGenerator.back, kind: .ghost) { back() }.accessibilityIdentifier("examgen.buy.back")
+                Spacer(minLength: 0)
+                UFButton(ExamGenerator.buyButton(next.count * price), kind: .primary) { Task { await buy() } }
+                    .disabled(busy)
+                    .accessibilityIdentifier("examgen.buy.go")
+            }
+        }
+    }
+
+    private var mineView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if pending {
+                HStack(alignment: .top, spacing: 10) {
+                    ProgressView()
+                    Text(ExamGenerator.working).ufFont(13.6).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            ForEach(Row.rows(mine, key: "key")) { row in
+                let v = row.value
+                let files = v["files"]?.object ?? [:]
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Probeklausur \(v.i("variant") ?? 0)").ufFont(14.5, 600).foregroundStyle(UF.text)
+                        Text(ExamGenerator.statusText(v.s("status"), hasFiles: !files.isEmpty)).ufFont(12.4).foregroundStyle(UF.muted)
+                    }
+                    Spacer(minLength: 8)
+                    if let a = files["aufgaben"]?.string {
+                        UFButton("Aufgaben", icon: "file", size: .small) { close(); router.go(.doc(a)) }
+                    }
+                    if let l = files["loesungen"]?.string {
+                        UFButton("Lösungen", icon: "check", kind: .ghost, size: .small) { close(); router.go(.doc(l)) }
+                    }
+                }
+                .accessibilityIdentifier("examgen.mine.\(v.i("variant") ?? 0)")
+            }
+            Text(ExamGenerator.savedNote).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                UFButton(ExamGenerator.fetchAgain, icon: "refresh", kind: .ghost, size: .small) { Task { await collect() } }
+                Spacer(minLength: 0)
+                UFButton(ExamGenerator.close) { close() }.accessibilityIdentifier("examgen.buy.close")
+            }
+        }
+        .padding(.top, 6)
+    }
+
+    private func call(_ path: String) async -> JSONValue? {
+        guard let api = session.api else { error = "Nicht mit dem Gerät verbunden."; return nil }
+        do {
+            let v = try await api.value("/api/modules/\(moduleID)/exam-generator/\(path)", method: "POST", body: .object(request))
+            error = nil
+            return v
+        } catch let e as APIError {
+            if e.code == "credits_exhausted" { shop = true }
+            error = e.localizedDescription
+        } catch {
+            self.error = error.localizedDescription
+        }
+        return nil
+    }
+
+    private func load() async {
+        if let v = await call("offer") {
+            state = v
+            if !mine.isEmpty { await collect() }
+        }
+    }
+
+    private func buy() async {
+        busy = true
+        defer { busy = false }
+        if let v = await call("buy") {
+            state = v
+            bought = true
+            await account?.refreshCredits()
+        }
+    }
+
+    private func collect() async {
+        if let v = await call("collect") { state = v }
     }
 }

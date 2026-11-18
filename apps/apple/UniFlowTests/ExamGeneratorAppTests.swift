@@ -42,4 +42,19 @@ final class ExamGeneratorAppTests: XCTestCase {
     func testSectionsNameTheThreeGroups() {
         XCTAssertEqual(ExamGeneratorSelection.Group.allCases.map(ExamGenerator.sectionTitle), ["Vorlesung und Skript", "Altklausuren", "Übungen"])
     }
+
+    func testPriceAndSplitLines() {
+        XCTAssertEqual(ExamGenerator.priceLine(count: 3, price: 15), "3 Probeklausuren × 15 Credits = 45 Credits")
+        XCTAssertEqual(ExamGenerator.priceLine(count: 1, price: 15), "1 Probeklausur × 15 Credits = 15 Credits")
+        XCTAssertEqual(ExamGenerator.splitLine(ready: 1, new: 2), "1 ist schon fertig (sofort da), 2 erstellt StudiNow neu (einige Minuten).")
+        XCTAssertEqual(ExamGenerator.splitLine(ready: 2, new: 0), "2 sind schon fertig (sofort da).")
+        XCTAssertEqual(ExamGenerator.buyButton(45), "Für 45 Credits kaufen")
+        XCTAssertTrue(ExamGenerator.sendNote.contains("kostet es nichts"))
+    }
+
+    func testStatusTexts() {
+        XCTAssertEqual(ExamGenerator.statusText("ready", hasFiles: true), "liegt im Modul")
+        XCTAssertEqual(ExamGenerator.statusText("running", hasFiles: false), "wird erstellt")
+        XCTAssertEqual(ExamGenerator.statusText("failed", hasFiles: false), "hat nicht geklappt – nichts berechnet")
+    }
 }

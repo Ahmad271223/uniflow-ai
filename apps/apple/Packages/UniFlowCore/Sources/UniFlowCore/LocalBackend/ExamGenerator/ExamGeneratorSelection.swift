@@ -225,5 +225,6 @@ public enum ExamGeneratorEndpoints: LocalEndpointModule {
             let items = ExamGeneratorSelection.withPages(rows, files: ctx.files)
             return .json(["limits": ExamGeneratorSelection.limits.json, "files": .array(items.map(\.json))])
         }
+        registerShop(on: router)
     }
 }

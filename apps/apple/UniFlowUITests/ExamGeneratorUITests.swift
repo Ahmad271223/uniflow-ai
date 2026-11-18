@@ -53,7 +53,11 @@ final class ExamGeneratorUITests: XCTestCase {
         app.buttons["examgen.all"].tap()
         XCTAssertTrue(next.isEnabled)
         next.tap()
-        XCTAssertTrue(open.waitForExistence(timeout: 10), "Blatt geschlossen, Modulseite wieder da")
+        // Kosten-Schritt: in der Demo ohne StudiNow-Konto ehrlich "über die StudiNow-KI", nichts wird gekauft
+        XCTAssertTrue(app.staticTexts["examgen.buy.title"].waitForExistence(timeout: 10), "Schritt Kosten und Kauf")
+        XCTAssertTrue(app.staticTexts["examgen.buy.error"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["examgen.buy.error"].label.contains("StudiNow-KI"))
+        shot("examgen-4-kosten-ohne-konto")
     }
 
     func testWithoutProAITheCardShowsTheLock() {
