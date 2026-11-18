@@ -226,7 +226,7 @@ final class QuizOptionsAppTests: XCTestCase {
         XCTAssertNil(generation.job)
         // "Jetzt abgleichen" ohne verbundene Hochschule: Hinweis und der Weg zu den Einstellungen
         XCTAssertTrue(tap("Jetzt abgleichen", in: env.view))
-        XCTAssertTrue(env.wait { env.router.route == .settings(tab: "account") }, "\(env.router.route)")
+        XCTAssertTrue(env.wait { env.router.route == .settings(tab: "uni") }, "\(env.router.route)")       // Bereich "Uni-Zugang & Abgleich"
     }
 
     /// Der Auftrag endet sofort mit einem Fehler (z. B. keine Unterlagen im Backend, KI nicht erreichbar): der Dialog

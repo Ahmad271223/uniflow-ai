@@ -236,7 +236,8 @@ struct ModuleCard: View {
                 HStack {                                                    // .stats
                     stat("file-text", m.i("file_count") ?? 0, "Dateien")
                     Spacer(minLength: 8)
-                    stat("tasks", m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben")
+                    // Lernaufgaben gehoeren zum Lernkalender (`LearnCalendar`, 17.11.2026): ohne ihn keine Zahl
+                    if LearnCalendar.enabled { stat("tasks", m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben") }
                     if showsTests {
                         Spacer(minLength: 8)
                         let t = m.i("test_count") ?? 0
@@ -262,7 +263,8 @@ struct ModuleCard: View {
     /// .next: Nächster Termin, sonst nächster Lernblock, sonst Hinweis
     @ViewBuilder private func next(_ mc: Color) -> some View {
         let nx = m["next_event"].flatMap { $0.isNull ? nil : $0 }
-        let np = m["next_package"].flatMap { $0.isNull ? nil : $0 }
+        // ohne Lernkalender kein "Nächster Lernblock"
+        let np = LearnCalendar.enabled ? m["next_package"].flatMap { $0.isNull ? nil : $0 } : nil
         HStack(spacing: 11.2) {
             UFIcon(nx == nil && np != nil ? "book" : "calendar", size: 20).foregroundStyle(mc)
             VStack(alignment: .leading, spacing: 0) {
@@ -440,7 +442,8 @@ struct ModulePage: View {
             .padding(.bottom, 22.4)
             // Kennzahlen als Schrift in einer Leiste, getrennt durch Haarlinien (statt drei einzelner Kacheln, die
             // auf dem iPad hochkant als 2 + 1 umbrachen)
-            let cells: [AnyView] = [
+            // ohne Lernkalender (17.11.2026) ohne die dritte Kennzahl "nächstes Lernpaket"
+            let allCells: [AnyView] = [
                 AnyView(VStack(alignment: .leading, spacing: 0) {
                     UFKPI(value: "\(progress)%", label: "Lernfortschritt")
                     UFProgress(value: Double(progress) / 100).padding(.top, 8)
@@ -463,6 +466,7 @@ struct ModulePage: View {
                     .ufFont(12.8)
                 }),
             ]
+            let cells = LearnCalendar.enabled ? allCells : Array(allCells.prefix(2))
             // Lernstand (docs/LERNSTAND-2026-11-04.md) als eigene Kachel ueber der Kennzahlenleiste: Ring mit Prozent in
             // Modulfarbe, Begruendung, ohne Lernstand grau mit dem Hinweis (`LernstandTile`)
             LernstandTile(m: d["mastery"], color: Color(hex: m.s("color"))).padding(.bottom, 14.4)
@@ -719,11 +723,12 @@ struct UFDocRow: View {
         Button(action: open) {
             HStack(spacing: 9.6) {
                 // Typ-Symbol gedimmt; Titel in Textfarbe statt Linkfarbe (eine Liste aus lauter blauen Zeilen hat
-                // keine Hierarchie), nur "Neu" traegt den Akzent
+                // keine Hierarchie), nur "Neu" traegt den Akzent. "Neu" nach der einen Regel (`UFNewFiles`: nie
+                // geoeffnet und hoechstens 24 Stunden in der App), nicht mehr am Lernstand; durchgestrichen bleibt am Lernstand
                 UFIcon(ShellState.typeIcon[f.s("doc_type") ?? ""] ?? "file", size: 17).foregroundStyle(UF.text2).frame(width: 24)
                 (Text(f.s("ai_title") ?? f.s("name") ?? "").font(.uf(size(14.5), 500)).foregroundColor(st == "erledigt" ? UF.muted : UF.text)
                     .strikethrough(st == "erledigt")
-                 + Text(st == "neu" ? "  Neu  " : "  ").font(.uf(size(11.52), 650)).foregroundColor(UF.accentText)
+                 + Text(UFNewFiles.isNew(f) ? "  Neu  " : "  ").font(.uf(size(11.52), 650)).foregroundColor(UF.accentText)
                  + Text(sub).font(.uf(size(12.48))).foregroundColor(UF.muted))
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -851,7 +856,7 @@ struct ModuleEditDialog: View {
                 UFField("Klausurtermin") { UFDateField(iso: $exam, allowEmpty: true) }
             }
             HStack(alignment: .top, spacing: 9.6) {
-                UFCheckbox("Modul aktiv (wird eingeplant)", isOn: $active).frame(maxWidth: .infinity, alignment: .leading)
+                UFCheckbox(LearnCalendar.text("Modul aktiv (wird eingeplant)", off: "Modul aktiv"), isOn: $active).frame(maxWidth: .infinity, alignment: .leading)
                 // Wochentests (KI) am eigenen Server oder ueber das ChatGPT-Abo; sonst weder anbieten noch ankuendigen
                 if session.api?.isLocal == false || aiEnabled {
                     UFCheckbox("Gemeinsamer Wochentest", isOn: $weekly).frame(maxWidth: .infinity, alignment: .leading)

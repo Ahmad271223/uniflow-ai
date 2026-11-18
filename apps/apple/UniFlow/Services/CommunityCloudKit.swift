@@ -937,6 +937,13 @@ extension CloudKitCommunityService {
         return try await writeLike(cloud, user: user, target: sid, liked: liked, author: listing.ownerRecordName, blocked: v.blockedOwners)
     }
 
+    /// Name des eigenen Like-Datensatzes zu einem Ziel: fest je Nutzer und Ziel (17.11.2026). Die Suche von CloudKit kennt
+    /// einen eben angelegten Datensatz erst nach einem Moment; mit festem Namen findet "Gefällt mir" zuruecknehmen ihn
+    /// trotzdem, und zweimal "Gefällt mir" legt keinen zweiten an. Aeltere Likes heissen "like-<UUID>" (Suche unten).
+    static func likeName(user: String, target: String) -> String {
+        "like-" + SolutionSharing.cipher.sha256Hex(Data("\(user)|\(target.lowercased())".utf8))
+    }
+
     /// Like-Datensatz zu einem Ziel (Loesung oder `postLikeTarget`) anlegen bzw. entfernen; Ergebnis ist die neue Anzahl
     private func writeLike(_ cloud: CommunityCloud, user: String, target: String, liked: Bool, author: String,
                            blocked: Set<String>) async throws -> Int {
@@ -944,15 +951,20 @@ extension CloudKitCommunityService {
                                                             limit: Self.discussionLimit))
         let mine = records.filter { Self.owner($0, me: user) == user }
         let others = records.map { Self.owner($0, me: user) }.filter { $0 != user }
+        let name = Self.likeName(user: user, target: target)
         do {
             if liked, mine.isEmpty {
-                var record = CommunityRecord(type: CommunityRecordType.like, name: "like-" + UUID().uuidString.lowercased())
+                var record = CommunityRecord(type: CommunityRecordType.like, name: name)
                 record[Field.solutionID] = .string(target)
                 record[Field.owner] = .string(user)
                 record[Field.createdAt] = .string(SolutionPackage.timestamp(Date()))
-                try await cloud.create(record, in: .publicDB)
+                do { try await cloud.create(record, in: .publicDB) } catch CommunityCloudError.changedElsewhere {
+                    // es gibt ihn schon (die Suche kannte ihn noch nicht): gemocht ist gemocht
+                }
             } else if !liked {
-                for r in mine { try await cloud.delete(name: r.name, type: CommunityRecordType.like, in: .publicDB) }
+                for r in mine where r.name != name { try await cloud.delete(name: r.name, type: CommunityRecordType.like, in: .publicDB) }
+                // der eigene mit festem Namen auch dann, wenn die Suche ihn noch nicht kennt (fehlt er, ist das kein Fehler)
+                try await cloud.delete(name: name, type: CommunityRecordType.like, in: .publicDB)
             }
         } catch {
             throw Self.serviceError(error)

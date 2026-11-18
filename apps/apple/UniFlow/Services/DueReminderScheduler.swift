@@ -12,6 +12,15 @@ import UserNotifications
 // Kennungen "de.uniflow.ai.due.<Container>.<Termin>.<Zeitpunkt>"; nur diese werden ersetzt oder zurueckgenommen, andere
 // Mitteilungen der App (z. B. "de.uniflow.ai.sync.*" vom Hintergrundabgleich) bleiben unberuehrt. Die Erlaubnis fragt
 // erst der Schalter in den Einstellungen, nie der Start der App.
+//
+// Seit 17.11.2026 ("Klausur stand nur in einer Folie"):
+// - Nachlesen auch fuer PowerPoint und Word, im Vordergrund bis 25 x 20 Dateien je Lauf (vorher 5 x 20, nur PDF)
+// - Folien als Bild: Texterkennung in Portionen (POST /api/due/ocr), nur im Vordergrund und nicht im Stromsparmodus,
+//   nach dem Planen (die Erinnerungen warten nicht darauf); findet sie etwas, wird einmal neu geplant
+// - ein neu erkannter Klausur- oder Testtermin wird einmal sofort gemeldet (`DueReminders.newNotices`), mit denselben
+//   Bedingungen wie die Erinnerungen (Schalter, Tarif, Erlaubnis von iOS); die Uebersicht zeigt ihn in jedem Fall
+// - ein Lauf ohne angehaengte Container (Start durch iOS im Hintergrund, bevor ein Fenster erscheint) nimmt nichts mehr
+//   zurueck; der Hintergrundabgleich haengt die Container selbst an und wartet auf das Planen
 
 /// Was iOS zu Mitteilungen sagt
 enum DueNotificationStatus: Equatable { case allowed, denied, notDetermined }
@@ -23,7 +32,26 @@ protocol DueNotifying: AnyObject {
     func requestPermission() async -> Bool
     func pendingIdentifiers() async -> [String]
     func schedule(_ r: DueReminders.Reminder) async
+    /// sofort zustellen ("Neuer Klausurtermin erkannt")
+    func post(_ r: DueReminders.Reminder) async
     func remove(_ identifiers: [String])
+}
+
+extension DueNotifying {
+    /// Vorgabe fuer Mitschreiber, die nichts sofort zustellen (Pruefungsanmeldung)
+    func post(_ r: DueReminders.Reminder) async {}
+}
+
+/// Warum fuer einen Termin (k)eine Erinnerung kommt (Hinweis an der Stelle, wo der Termin steht)
+enum DueReminderState: Equatable {
+    /// eingeschaltet, Tarif und iOS erlauben es
+    case on
+    /// Schalter in den Einstellungen aus (Vorgabe)
+    case off
+    /// Tarif ohne Erinnerungen (ab Pro AI seit 18.11.2026)
+    case locked
+    /// eingeschaltet, aber iOS erlaubt StudiNow keine Mitteilungen
+    case denied
 }
 
 /// UNUserNotificationCenter: Zeitpunkt als Kalendertermin in Berlin (wie alle Zeiten der App)
@@ -48,17 +76,26 @@ final class SystemDueNotifier: DueNotifying {
         await center.pendingNotificationRequests().map(\.identifier)
     }
 
-    func schedule(_ r: DueReminders.Reminder) async {
+    private func content(_ r: DueReminders.Reminder) -> UNMutableNotificationContent {
         let c = UNMutableNotificationContent()
         c.title = r.title
         c.body = r.body
         c.sound = .default
         c.threadIdentifier = Self.thread
         if let route = r.route { c.userInfo = ["route": route] }
+        return c
+    }
+
+    func schedule(_ r: DueReminders.Reminder) async {
         var comps = Fmt.calendar.dateComponents([.year, .month, .day, .hour, .minute], from: r.fireAt)
         comps.timeZone = Fmt.zone
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
-        try? await center.add(UNNotificationRequest(identifier: r.identifier, content: c, trigger: trigger))
+        try? await center.add(UNNotificationRequest(identifier: r.identifier, content: content(r), trigger: trigger))
+    }
+
+    /// ohne Ausloeser: iOS stellt sofort zu
+    func post(_ r: DueReminders.Reminder) async {
+        try? await center.add(UNNotificationRequest(identifier: r.identifier, content: content(r), trigger: nil))
     }
 
     func remove(_ identifiers: [String]) {
@@ -86,11 +123,27 @@ final class DueReminderScheduler: ObservableObject {
     let notifier: DueNotifying
     /// jetzt (Tests: feste Zeit)
     var now: () -> Date = { Date() }
-    /// Tarif erlaubt Erinnerungen (ab Plus seit 11.11.2026, `UFFeature.dueReminders`; Probe zaehlt wie Plus). Ohne:
+    /// Tarif erlaubt Erinnerungen und "Neuer Klausurtermin erkannt" (ab Pro AI seit 18.11.2026, vorher ab Plus,
+    /// `UFFeature.dueReminders`; die Probe zaehlt wie Pro AI). Ohne:
     /// nichts geplant, schon geplante werden zurueckgenommen, der Schalter bleibt gemerkt (nach dem Kauf geht es weiter)
     var allowed: () -> Bool = { Entitlements.shared.allows(.dueReminders) }
+    /// Texterkennung fuer Folien als Bild nur im Vordergrund (Vision rechnet im Hintergrund nicht verlaesslich) und
+    /// nicht im Stromsparmodus (Tests: fester Wert)
+    var ocrAllowed: () -> Bool = { !AppActivity.isInBackground() && !ProcessInfo.processInfo.isLowPowerModeEnabled }
+    /// Laeuft die App im Hintergrund? Dann nur wenige Dateien nachlesen (iOS gibt wenig Zeit)
+    var inBackground: () -> Bool = { AppActivity.isInBackground() }
+    /// Dateien je Aufruf und Aufrufe je Lauf beim Nachlesen der Seitentexte (Vordergrund / Hintergrund)
+    static let backfillChunk = 20
+    static let backfillRounds = (foreground: 25, background: 5)
+    /// Seiten je Aufruf und je Lauf fuer die Texterkennung
+    static let ocrChunk = 12
+    static let ocrPagesPerRun = 48
+    /// Mitteilungen "neu erkannt" dieses Prozesses (Tests)
+    private(set) var announced: [DueReminders.Reminder] = []
     private let defaults: UserDefaults
     private weak var containers: ContainerManager?
+    /// einmal angehaengt (`attach`); davor weiss ein Lauf nichts ueber den offenen Container und laesst alles, wie es ist
+    private var attached = false
     private var bag = Set<AnyCancellable>()
     private var running: Task<Void, Never>?
     private var again = false
@@ -109,6 +162,7 @@ final class DueReminderScheduler: ObservableObject {
     func attach(_ containers: ContainerManager) {
         guard self.containers !== containers else { return }
         self.containers = containers
+        attached = true
         bag.removeAll()
         // Tarif gewechselt (Kauf, Probe zu Ende, Abo abgelaufen): neu planen bzw. zuruecknehmen
         Entitlements.shared.$plan.removeDuplicates().dropFirst()
@@ -146,34 +200,94 @@ final class DueReminderScheduler: ObservableObject {
 
     /// Einmal planen: erkennen (nach einem Abgleich), Liste lesen, Erinnerungen ersetzen bzw. zuruecknehmen
     func refresh(recompute: Bool) async {
+        // noch nie angehaengt (Start durch iOS im Hintergrund vor dem ersten Fenster): nichts anfassen. Vorher nahm ein
+        // solcher Lauf alle geplanten Erinnerungen zurueck (17.11.2026)
+        guard attached else { return }
         guard let c = containers?.active else {
             await withdrawAll()
             return
         }
         let api = c.api
         if recompute {
-            // PDFs ohne Seitentexte (vor S7 geladen, nie geoeffnet) nachlesen, je Lauf hoechstens 5 x 20
-            for _ in 0..<5 {
-                guard containers?.active === c, let b = try? await api.value("/api/due/backfill?limit=20", method: "POST") else { break }
-                if (b["read"]?.int ?? 0) > 0 { revision += 1 }
+            // Dateien ohne Seitentexte (nie geoeffnet; PDF, PowerPoint, Word) nachlesen
+            let rounds = inBackground() ? Self.backfillRounds.background : Self.backfillRounds.foreground
+            var read = false
+            for _ in 0..<rounds {
+                guard containers?.active === c,
+                      let b = try? await api.value("/api/due/backfill?limit=\(Self.backfillChunk)", method: "POST") else { break }
+                if (b["read"]?.int ?? 0) > 0 { read = true }
                 if (b["remaining"]?.int ?? 0) == 0 { break }
+                await Task.yield()
             }
+            if read { revision += 1 }
             if let r = try? await api.value("/api/due/refresh", method: "POST"), r["changed"]?.bool == true { revision += 1 }
         }
-        guard let list = try? await api.value("/api/due") else { return }       // Fehler: die geplanten bleiben
-        if list["refreshed"]?.bool == true { revision += 1 }
-        guard containers?.active === c else { return }                          // inzwischen gewechselt: der naechste Lauf plant
-        guard enabled, allowed(), await notifier.status() == .allowed else {
-            await withdrawAll()
-            return
+        guard await plan(c) else { return }
+        // Folien als Bild: Texterkennung in Portionen; erst nach dem Planen, damit die Erinnerungen nicht darauf warten
+        if recompute, await recognizeImagePages(c) {
+            revision += 1
+            _ = await plan(c)
         }
+    }
+
+    /// Liste lesen, neu erkannte Klausuren melden, Erinnerungen ersetzen bzw. zuruecknehmen. false: Fehler oder der
+    /// Container hat inzwischen gewechselt (die geplanten bleiben, der naechste Lauf plant).
+    private func plan(_ c: ActiveContainer) async -> Bool {
+        let api = c.api
+        guard let list = try? await api.value("/api/due") else { return false }
+        if list["refreshed"]?.bool == true { revision += 1 }
+        guard containers?.active === c else { return false }
+        let items = DueReminders.items(from: list)
         let container = c.layout.identifier.uuidString
-        let plan = DueReminders.plan(DueReminders.items(from: list), container: container, now: now())
+        let permitted = enabled && allowed() ? await notifier.status() == .allowed : false
+        // neu erkannte Klausur- und Testtermine: einmal sofort melden (nur mit Schalter, Tarif und Erlaubnis), in jedem
+        // Fall als entschieden merken, damit der naechste Abgleich nicht erneut meldet; die Uebersicht zeigt sie weiter
+        let fresh = DueReminders.newItems(items)
+        if !fresh.isEmpty {
+            if permitted {
+                for n in DueReminders.newNotices(items, container: container, now: now()) {
+                    await notifier.post(n)
+                    announced.append(n)
+                }
+            }
+            _ = try? await api.value("/api/due/seen", method: "POST",
+                                     body: ["ids": .array(fresh.map { .string($0.id) }), "notified": true])
+            revision += 1
+        }
+        guard permitted else {
+            await withdrawAll()
+            return true
+        }
+        let plan = DueReminders.plan(items, container: container, now: now())
         let d = DueReminders.diff(pending: await notifier.pendingIdentifiers(), planned: plan)
         notifier.remove(d.remove)
         for r in d.add { await notifier.schedule(r) }
         scheduled = plan.count
         plannedContainer = container
+        return true
+    }
+
+    /// Seiten ohne Textebene lesen (Vision, abseits des Hauptthreads im lokalen Backend), je Lauf hoechstens
+    /// `ocrPagesPerRun`; true, wenn Seiten gelesen wurden
+    private func recognizeImagePages(_ c: ActiveContainer) async -> Bool {
+        var left = Self.ocrPagesPerRun
+        var found = false
+        while left > 0, ocrAllowed(), containers?.active === c {
+            guard let r = try? await c.api.value("/api/due/ocr?pages=\(min(Self.ocrChunk, left))", method: "POST") else { break }
+            let n = r["pages"]?.int ?? 0
+            if n > 0 { found = true }
+            left -= Self.ocrChunk
+            if n == 0 || (r["remaining"]?.int ?? 0) == 0 { break }
+            await Task.yield()
+        }
+        return found
+    }
+
+    /// Kommt fuer die Termine eine Erinnerung? (Hinweis der Uebersicht, fragt iOS nicht)
+    func reminderState() async -> DueReminderState {
+        guard allowed() else { return .locked }
+        guard enabled else { return .off }
+        return await notifier.status() == .allowed ? .on : .denied
     }
 
     /// Alle Erinnerungen an Abgaben und Pruefungen zuruecknehmen (aus, ohne Container, ohne Erlaubnis)
@@ -192,7 +306,7 @@ final class DueReminderScheduler: ObservableObject {
             await withdrawAll()
             return true
         }
-        guard allowed() else { return false }                                  // ab Plus: die Karte zeigt die Sperre
+        guard allowed() else { return false }                                  // ab Pro AI: die Karte zeigt die Sperre
         let ok: Bool
         switch await notifier.status() {
         case .allowed: ok = true

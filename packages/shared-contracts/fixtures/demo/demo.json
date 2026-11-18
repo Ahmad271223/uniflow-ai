@@ -744,7 +744,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-uebung",
@@ -761,7 +762,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-vorlesung",
@@ -778,7 +780,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -1367,7 +1370,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-uebung",
@@ -1384,7 +1388,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-vorlesung",
@@ -1401,7 +1406,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -1971,7 +1977,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [],
@@ -2141,7 +2148,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [],
@@ -2615,7 +2623,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "k-la",
@@ -2632,7 +2641,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -3021,7 +3031,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-uebung",
@@ -3038,7 +3049,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-vorlesung",
@@ -3055,7 +3067,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "k-la",
@@ -3072,7 +3085,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -3858,7 +3872,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-uebung",
@@ -3875,7 +3890,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-vorlesung",
@@ -3892,7 +3908,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "k-la",
@@ -3909,7 +3926,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -4726,7 +4744,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "k-la",
@@ -4743,7 +4762,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -5143,7 +5163,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-uebung",
@@ -5160,7 +5181,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "demo-vorlesung",
@@ -5177,7 +5199,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "k-la",
@@ -5194,7 +5217,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [
@@ -5969,7 +5993,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        },
        {
         "id": "k-la",
@@ -5986,7 +6011,8 @@
         "semester_ends_at": null,
         "active_custom": 0,
         "description": null,
-        "miscellaneous": null
+        "miscellaneous": null,
+        "first_listed_at": null
        }
       ],
       "files": [

@@ -415,8 +415,10 @@ final class QISConnection: ObservableObject {
 
     // MARK: Hintergrund (Version 1.3/1.4, docs/BENACHRICHTIGUNGEN-1-3.md)
 
-    /// Im Hintergrund hoechstens so oft den Notenspiegel abrufen (der Abruf beim Oeffnen bleibt bei 20 Stunden)
-    static let backgroundInterval: TimeInterval = 3600
+    /// Im Hintergrund hoechstens so oft den Notenspiegel abrufen. Seit 17.11.2026 entscheidet die Regel 8 bis 18 Uhr,
+    /// alle 30 Minuten (`AutoSyncLedger`, der Hintergrundlauf ruft nur, wenn QIS faellig ist); hier nur die Untergrenze
+    /// knapp darunter, damit ein Lauf von Hand kurz vorher nicht verdoppelt wird
+    static let backgroundInterval: TimeInterval = AutoSyncSchedule.standard.interval - 60
 
     /// Hintergrundlauf: abgelaufene QIS-Anmeldung still mit dem gespeicherten Uni-Zugang erneuern (nur dieses Geraet,
     /// unsichtbar ohne Fenster). Anders als `autoLogin` startet sie keinen Abruf von selbst: den macht `backgroundCheck`.

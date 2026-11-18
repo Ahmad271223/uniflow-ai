@@ -779,7 +779,7 @@
      "purchased_scope": "all",
      "available": 0,
      "can_buy": true,
-     "needed": 220
+     "needed": 544
     }
    }
   },
@@ -812,7 +812,7 @@
      "purchased_scope": "chat",
      "available": 0,
      "can_buy": true,
-     "needed": 222
+     "needed": 542
     }
    }
   },

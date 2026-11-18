@@ -438,14 +438,46 @@ final class HildesheimConnection: ObservableObject {
     }
 
     /// Automatisch anmelden am CAS (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): Einstieg des LSF, fertig, sobald das CAS
-    /// zum LSF weiterleitet (die CAS-Sitzung gilt danach auch fuer Learnweb und PLuS)
-    private func autoLoginCAS() async -> Bool {
+    /// zum LSF weiterleitet (die CAS-Sitzung gilt danach auch fuer Learnweb und PLuS). `background`: Hintergrundlauf
+    /// (Webansicht ohne Fenster, alle Regeln von `UniAutoLogin.handleExpiry` bleiben)
+    private func autoLoginCAS(background: Bool = false) async -> Bool {
         guard let entry = URL(string: HildesheimCAS.lsfLoginURL), let lsfHost = UniversityProfile.hildesheimLSF.host?.lowercased() else { return false }
         let before = signOuts
-        let d = await UniAutoLogin.handleExpiry(portal: "cas", store: websiteDataStore, entry: entry) { url, _ in
+        let d = await UniAutoLogin.handleExpiry(portal: "cas", store: websiteDataStore, entry: entry, background: background) { url, _ in
             url.host?.lowercased() == lsfHost && !HildesheimCAS.isCASPage(url.absoluteString)
         }
         return d == .retryOnce && signOuts == before && !stopped
+    }
+
+    // MARK: Stille Neuanmeldung im Hintergrund (Auftrag des Inhabers 17.11.2026, wie Stud.IP, QIS und Uni-Mail)
+
+    /// Tests: ersetzt die unsichtbare Webansicht der Dienst-Anmeldung im Hintergrund (sonst `HildesheimSilentLogin`)
+    static var backgroundServiceLogin: (@MainActor (Source, HildesheimConnection) async -> Bool)?
+
+    /// Hintergrundlauf (`BackgroundSyncController.reloginStep`): abgelaufene Learnweb- bzw. LSF-Anmeldung still erneuern,
+    /// ohne Fenster. Zuerst ohne Passwort ueber die noch gueltige CAS-Anmeldung; will das CAS das Passwort, genau ein
+    /// Versuch mit dem gespeicherten Uni-Zugang (`UniAutoLogin.handleExpiry`: nur mit Zustimmung, abgelehnt = vergessen
+    /// und nie erneut gesendet, Ruecknahme nach Fehlschlaegen), dann die Dienst-Anmeldung noch einmal. Nie nach bewusstem
+    /// Abmelden (`signOutPending`, ein Abmelden waehrend des Versuchs bricht ab), nie angehalten. Gleicht nicht selbst ab:
+    /// das macht der Hintergrundlauf danach in seinem Zeitlimit. Rueckgabe: wieder angemeldet.
+    @discardableResult
+    func reloginInBackground(_ s: Source) async -> Bool {
+        guard !stopped, isConnected(s), state(s) == .needsLogin, !defaults.bool(forKey: Keys.signOutPending),
+              UniAutoLogin.liveAllowed || Self.backgroundServiceLogin != nil else { return false }
+        let before = signOuts
+        let syncs = syncsAfterSignIn
+        syncsAfterSignIn = false
+        defer { syncsAfterSignIn = syncs }
+        if await serviceLoginInBackground(s) { return signOuts == before && !stopped && state(s) != .needsLogin }
+        guard signOuts == before, !stopped, await autoLoginCAS(background: true), signOuts == before, !stopped else { return false }
+        guard await serviceLoginInBackground(s) else { return false }
+        return signOuts == before && !stopped && state(s) != .needsLogin
+    }
+
+    private func serviceLoginInBackground(_ s: Source) async -> Bool {
+        if let o = Self.backgroundServiceLogin { return await o(s, self) }
+        guard silentLoginAllowed else { return false }
+        return await HildesheimSilentLogin.attempt(s, connection: self, background: true)
     }
 
     /// Quellen, die ein Lauf bewertet: alle verbundenen; im Hintergrund nur die ohne bekannte abgelaufene Anmeldung

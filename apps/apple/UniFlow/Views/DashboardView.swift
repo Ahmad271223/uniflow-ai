@@ -104,8 +104,9 @@ struct DashboardView: View {
                 // sonst Vorname der Apple-Anmeldung, sonst ohne Namen; `day` haelt die Tageszeit nach Mitternacht aktuell
                 // darunter die Tageszeile mit Minuten und Nachzuholendem (statt drei Kacheln, `DashboardTidy.summary`);
                 // "Tagesansicht" steht in der Karte "Heute für dich geplant"
+                // Ohne Lernkalender (`LearnCalendar`, 17.11.2026): nur Datum und Uni-Termine, kein "Weiterlernen" (Lernpaket)
                 UFPageHeadGreet(title: UFGreeting.text(name: greetingName), sub: Text(summary(today, pk: pk, evs: evs, backlog: backlog))) {
-                    if let n = nextOpen {
+                    if LearnCalendar.enabled, let n = nextOpen {
                         UFButton("Weiterlernen", icon: "play", kind: .primary) {
                             // an der zuletzt gelesenen Seite weiter (wie "Öffnen" im Lernplan)
                             if let f = n.s("file_id") {
@@ -125,6 +126,8 @@ struct DashboardView: View {
                 if let s = studoraAccount { ProAISignInBanner(link: s).padding(.bottom, 19.2) }
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
+                // Klausur oder Test heute/morgen und neu erkannte Klausurtermine ganz oben (17.11.2026, `DueSoonCard`)
+                DueSoonCard()
                 // "Nächste Klausuren" (04.11.2026, `UpcomingExamsCard`): aus allen Quellen, nur wenn es welche gibt
                 UpcomingExamsCard(api: api, token: day)
                 // "Prüfungsanmeldung" (05.11.2026, `ExamRegistrationCard`): nur im Meldezeitraum und in den 7 Tagen davor
@@ -134,12 +137,15 @@ struct DashboardView: View {
                 // (Abgaben mit 14 Eintraegen, Neuigkeiten …) und kuerzte Zeilen mit "…". Jetzt: Heute, Uni-Termine und
                 // "Abgaben & Prüfungen" in der breiten Spalte, die uebrigen Karten jeweils in die kuerzere Spalte
                 // (`DashboardFlow`); hochkant eine Spalte in dieser Reihenfolge
+                // Ohne Lernkalender (17.11.2026) entfallen "Heute für dich geplant" und "Diese Woche"; die uebrigen Karten
+                // ruecken auf (breite Spalte: Heute an der Uni, Abgaben & Prüfungen; alles andere in die kuerzere Spalte)
+                let planner = LearnCalendar.enabled
                 DashboardFlow(twoColumns: windowWidth > 1100, spacing: 8) {
-                    todayCard(pk: pk, dayLink: todayDate).ufAppear("dashboard", index: 3).dashboardSlot(.main)
+                    if planner { todayCard(pk: pk, dayLink: todayDate).ufAppear("dashboard", index: 3).dashboardSlot(.main) }
                     if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
                     DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
                     // die Woche in der breiten Spalte (sieben Tage brauchen Platz; zaehlt auch "Aufgaben erledigt")
-                    weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 6).dashboardSlot(.main)
+                    if planner { weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 6).dashboardSlot(.main) }
                     if !recent.isEmpty { RecentCard(items: recent).ufAppear("dashboard", index: 4).dashboardSlot(.flow) }
                     // "Nächste Termine" entfaellt (13.11.2026): dieselben Eintraege wie "Abgaben & Prüfungen"
                     // "Deine Module" mit Lernstand (docs/LERNSTAND-2026-11-04.md), wie modulesCard im Web
@@ -167,8 +173,10 @@ struct DashboardView: View {
 
     /// Zeile unter der Begruessung: Datum, Lernpakete, Minuten, Uni-Termine, Nachzuholendes
     private func summary(_ today: JSONValue, pk: [JSONValue], evs: [JSONValue], backlog: Int) -> AttributedString {
+        let events = evs.filter { $0.s("status") == "teilnahme" }.count
+        guard LearnCalendar.enabled else { return DashboardTidy.summary(date: UFFmt.longToday(), events: events) }
         let free = today.list("free").reduce(0.0) { $0 + ($1.n("minutes") ?? 0) }
-        return DashboardTidy.summary(date: UFFmt.longToday(), packages: pk.count, events: evs.filter { $0.s("status") == "teilnahme" }.count,
+        return DashboardTidy.summary(date: UFFmt.longToday(), packages: pk.count, events: events,
                                      minutes: today.n("minutes"), free: free, backlog: backlog)
     }
 
@@ -236,14 +244,17 @@ struct DashboardView: View {
     }
 
     /// Unterzeile der Modulzeile wie im Web: offene Aufgaben, dazu Klausur oder der naechste Termin
-    static func moduleSub(_ m: JSONValue) -> String {
-        var s = (m.i("open_tasks") ?? 0) > 0 ? "\(m.i("open_tasks") ?? 0) offen" : "nichts offen"
+    /// Ohne Lernkalender (17.11.2026) ohne die offenen Lernaufgaben: nur Klausur oder naechster Termin, sonst
+    /// "kein Termin in Sicht"
+    static func moduleSub(_ m: JSONValue, planner: Bool = LearnCalendar.enabled) -> String {
+        var parts: [String] = []
+        if planner { parts.append((m.i("open_tasks") ?? 0) > 0 ? "\(m.i("open_tasks") ?? 0) offen" : "nichts offen") }
         if let exam = m.s("exam_date"), !exam.isEmpty {
-            s += " · Klausur \(UFFmt.short(exam))"
+            parts.append("Klausur \(UFFmt.short(exam))")
         } else if let e = m["next_event"], !e.isNull {
-            s += " · \(e.s("kind") == "vorlesung" ? "Vorlesung" : "Termin") \(UFFmt.short(e.s("date"))) \(e.s("start") ?? "")"
+            parts.append("\(e.s("kind") == "vorlesung" ? "Vorlesung" : "Termin") \(UFFmt.short(e.s("date"))) \(e.s("start") ?? "")")
         }
-        return s
+        return parts.isEmpty ? "kein Termin in Sicht" : parts.joined(separator: " · ")
     }
 
     /// "Deine Module": Name, Unterzeile und rechts der Lernstand (Ring in Modulfarbe, grau "noch kein Lernstand");

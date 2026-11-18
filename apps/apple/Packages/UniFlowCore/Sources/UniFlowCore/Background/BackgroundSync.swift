@@ -87,6 +87,10 @@ public enum BackgroundSkipReason: String, Sendable, Codable, Equatable {
     case deviceLocked
     /// Demo-Inhalte aktiv (`DemoContent`): kein Abgleich mit der Hochschule, bis sie entfernt sind
     case demo
+    /// ausserhalb von 8 bis 18 Uhr Ortszeit (Auftrag des Inhabers 17.11.2026, `AutoSyncSchedule`): von selbst nichts
+    case outsideWindow
+    /// im Fenster, aber kein Portal faellig (vor weniger als 30 Minuten abgeglichen oder Pause nach "ueberlastet")
+    case notDue
 
     /// Anzeige in den Einstellungen
     public var text: String {
@@ -98,6 +102,8 @@ public enum BackgroundSkipReason: String, Sendable, Codable, Equatable {
         case .noSession: return "keine gültige Anmeldung"
         case .deviceLocked: return "iPad gesperrt"
         case .demo: return "Demo-Inhalte aktiv"
+        case .outsideWindow: return "außerhalb von 8 bis 18 Uhr"
+        case .notDue: return "vor Kurzem abgeglichen"
         }
     }
 }
@@ -116,14 +122,21 @@ public struct BackgroundSyncSituation: Sendable, Equatable {
     public var usableSession: Bool
     /// Demo-Inhalte im offenen Container aktiv: nie zur Hochschule
     public var demo: Bool
+    /// ausserhalb des Fensters 8 bis 18 Uhr (`AutoSyncSchedule`)
+    public var outsideWindow: Bool
+    /// im Fenster, aber keines der Portale dieses Abgleichs faellig
+    public var notDue: Bool
 
-    public init(enabled: Bool, hasContainer: Bool, switching: Bool, syncRunning: Bool, usableSession: Bool, demo: Bool = false) {
+    public init(enabled: Bool, hasContainer: Bool, switching: Bool, syncRunning: Bool, usableSession: Bool, demo: Bool = false,
+                outsideWindow: Bool = false, notDue: Bool = false) {
         self.enabled = enabled
         self.hasContainer = hasContainer
         self.switching = switching
         self.syncRunning = syncRunning
         self.usableSession = usableSession
         self.demo = demo
+        self.outsideWindow = outsideWindow
+        self.notDue = notDue
     }
 }
 
@@ -134,6 +147,8 @@ public enum BackgroundSyncGate {
         if !s.hasContainer { return .noContainer }
         if s.switching { return .switching }
         if s.demo { return .demo }
+        if s.outsideWindow { return .outsideWindow }
+        if s.notDue { return .notDue }
         if s.syncRunning { return .alreadyRunning }
         if !s.usableSession { return .noSession }
         return nil

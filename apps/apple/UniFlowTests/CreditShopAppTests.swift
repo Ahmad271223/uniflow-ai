@@ -430,6 +430,45 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
                        "Du hast noch 60 gekaufte Credits. Sie bleiben bei deinem Konto und sind wieder nutzbar, sobald StudiNow Plus oder Pro AI läuft.")
     }
 
+    /// Pruef-Bild fuer App Store Connect (18.11.2026, je Credit-Paket verlangt Apple ein Bildschirmfoto): die Tarif-Karte
+    /// mit der Zeile "Credits" und darueber das echte Blatt "Credits kaufen" mit beiden Paketen (Preis aus StoreKit,
+    /// Storefront DEU). Nur mit `UF_CREDIT_SHOTS=<Ordner>` (xcodebuild: `TEST_RUNNER_UF_CREDIT_SHOTS`); schreibt
+    /// `credits-kaufen-ipad.png` (iPad 11", 2x). Schein-Dienst, keine persoenlichen Daten.
+    func testReviewScreenshotOfTheShopSheet() throws {
+        guard let dir = ProcessInfo.processInfo.environment["UF_CREDIT_SHOTS"], !dir.isEmpty else {
+            throw XCTSkip("nur mit UF_CREDIT_SHOTS")
+        }
+        let service = Service()
+        service.monthLeft = 4
+        let (l, _, store) = startForViews(service)
+        XCTAssertEqual(store.products.count, 2)
+        let page = ScrollView {
+            UFCard {
+                UFCardHead("Tarif", icon: "star") { UFBadge("Pro AI", tone: .ok) }
+                StudoraCreditsRow(link: l)
+            }
+            .padding(24)
+        }
+        .background(UF.bg)
+        .ufCreditShop(isPresented: .constant(true), reason: .shop)
+        .environment(\.ufStudoraAccount, l)
+        let env = try hostWithEnvironment(page, size: CGSize(width: 834, height: 1210))
+        let price = store.products.first?.displayPrice ?? "?"
+        XCTAssertTrue(env.wait(timeout: 20) { self.button("100 Credits kaufen für \(price)", in: env.window) != nil },
+                      texts(env.window).joined(separator: "\n"))
+        env.pump(1.0)
+        let w = env.window
+        w.layoutIfNeeded()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        let img = UIGraphicsImageRenderer(bounds: w.bounds, format: format).image { _ in
+            _ = w.drawHierarchy(in: w.bounds, afterScreenUpdates: true)
+        }
+        let url = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        try XCTUnwrap(img.pngData()).write(to: url.appendingPathComponent("credits-kaufen-ipad.png"))
+    }
+
     /// KI-Hilfe: "Credits aufgebraucht" oeffnet das Blatt von selbst (statt einer Sackgasse) und bietet darunter
     /// "Credits kaufen"; am iPad und am iPhone
     func testExhaustedAnswerInTheTutorOpensTheSheet() throws {

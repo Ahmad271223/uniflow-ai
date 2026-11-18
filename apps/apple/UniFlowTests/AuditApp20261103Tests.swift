@@ -50,12 +50,16 @@ final class AuditApp20261103Tests: XCTestCase {
 
     // MARK: 5 "neu": eine Definition
 
+    /// Seit 17.11.2026 dazu: hoechstens 24 Stunden in der App (`is_new` vom Kern, Neu24StundenAppTests); ohne das
+    /// Feld (aelterer PC-Server) gilt weiter "nicht angesehen"
     func testNewFilesMeansNotSeenYet() {
         XCTAssertTrue(UFNewFiles.isNew(["seen_by_user": 0, "status": "gelesen"]))
         XCTAssertFalse(UFNewFiles.isNew(["seen_by_user": 1, "status": "neu"]), "geoeffnet/\"Gesehen\": nicht mehr neu")
         XCTAssertTrue(UFNewFiles.isNew(["status": "neu"]), "aelterer Server ohne seen_by_user: Lernstand")
         XCTAssertEqual(UFNewFiles.count([["seen_by_user": 0], ["seen_by_user": 1], ["seen_by_user": 0]]), 2)
-        XCTAssertEqual(LocalLibrary.newFileSQL, "f.seen_by_user=0")
+        XCTAssertFalse(UFNewFiles.isNew(["is_new": 0, "seen_by_user": 0, "status": "neu"]), "aelter als 24 Stunden")
+        XCTAssertEqual(LocalLibrary.newFileSQL(since: "2026-11-02T10:00:00"),
+                       "(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='2026-11-02T10:00:00' AND \(LocalLibrary.afterFirstListingSQL))")
         XCTAssertEqual(UFSourceText.newFiles(.luh, demo: true), "Neue Dateien (Demo)")
         XCTAssertEqual(UFSourceText.newFiles(.luh, demo: false), "Neu aus Stud.IP")
     }
@@ -136,9 +140,11 @@ final class AuditApp20261103Tests: XCTestCase {
     func testMoreListsRemainingAreasWithBadges() {
         let visible = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: false)
         let more = UFNavItem.more(visible: visible)
-        XCTAssertEqual(more.map(\.title), ["Stundenplan", "Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Raumfinder", "Community", "Einstellungen"])
+        // ohne Lernkalender (17.11.2026) steht der Stundenplan in der unteren Leiste, nicht mehr in "Mehr"
+        XCTAssertEqual(more.map(\.title), ["Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Raumfinder", "Community", "Einstellungen"])
         XCTAssertEqual(UFNavItem.mobile.last?.title, "Mehr")
-        XCTAssertTrue(UFMobileNav.moreActive(.timetable(), items: more))
+        XCTAssertTrue(UFMobileNav.moreActive(.studyPlan(), items: more))
+        XCTAssertFalse(UFMobileNav.moreActive(.timetable(), items: more))
         XCTAssertTrue(UFMobileNav.moreActive(.settings(), items: more))
         XCTAssertTrue(UFMobileNav.moreActive(.exams, items: more), "ohne KI fuehrt #/exams zu den Karteikarten")
         XCTAssertFalse(UFMobileNav.moreActive(.dashboard, items: more))

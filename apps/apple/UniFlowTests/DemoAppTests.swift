@@ -284,7 +284,7 @@ final class DemoAppTests: XCTestCase {
 
     // MARK: Oberflaeche (Bedienungshilfen wie StoreScreenshotTests)
 
-    /// Einstellungen: nirgends ein Weg zur Demo (Erweitert und Zugang & Darstellung), auch nicht bei aktiver Demo
+    /// Einstellungen: nirgends ein Weg zur Demo (Erweitert und Konto & Tarif), auch nicht bei aktiver Demo
     func testSettingsHaveNoDemoEntry() async throws {
         let m = bed.manager()
         let a = bed.account(.luh)
@@ -304,7 +304,9 @@ final class DemoAppTests: XCTestCase {
                 env.window.isHidden = true
             }
         }
-        XCTAssertEqual(SettingsNav.localKeys(withPlan: true, ownServer: false), ["account", "modules", "plan", "advanced"])
+        // Bereiche der Einstellungen (17.11.2026): keiner fuer die Demo; "Lernzeit" nur mit Lernkalender
+        XCTAssertEqual(SettingsArea.visible(hasData: true, learnCalendar: true).map(\.rawValue),
+                       ["account", "uni", "look", "modules", "plan", "community", "help", "advanced"])
         XCTAssertEqual(UniStubProtocol.requests.count, 0)
     }
 

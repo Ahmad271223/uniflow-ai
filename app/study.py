@@ -342,17 +342,57 @@ def week_topic(files: list[dict]) -> str:
     return ""
 
 
-# "Neu" heisst an allen Stellen dasselbe (Uebersicht "Neu aus …", Modulkarten "n neue Inhalte", Bibliothek "Neu aus …",
-# Kurse): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und "Gesehen" setzen es), aus einem aktiven Kurs. Der
-# Lernstand `status` ("neu" | "gelesen" | "erledigt") zaehlt dafuer nicht mehr (Audit der iPad-App 03.11.2026: 1 neue
-# Datei auf der Uebersicht, 3 neue Inhalte im Modul und in der Bibliothek).
-NEW_FILE_SQL = "f.seen_by_user=0"
+# "Neu" heisst an allen Stellen dasselbe (Uebersicht "Neu aus …", Modulkarten "n neue Inhalte", Bibliothek, Kurse,
+# Dateizeilen in Modulen und am Termin): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und "Gesehen" setzen es), vor
+# hoechstens NEW_FILE_HOURS Stunden eingetragen (`first_seen`; fehlt es, ist die Datei nicht neu) UND nach dem ersten
+# vollstaendigen Einlesen ihres Kurses dazugekommen (`courses.first_listed_at`, studip_sync.mark_first_listing): was
+# beim allerersten Einlesen eines Kurses schon da war, gilt gar nicht als neu - auch nicht bei einer zweiten Quelle,
+# einem spaeter belegten Kurs oder frueheren Semestern. Ohne Zeitpunkt (Liste noch nie fertig gelesen, eigene Dokumente
+# `__user__`) ist nichts neu; Demo-Dateien ("demo-") sind ausgenommen. Danach verschwindet "Neu" von selbst;
+# `seen_by_user` und der Lernstand `status` ("neu" | "gelesen" | "erledigt") bleiben, wie sie sind (Auftraege des
+# Inhabers 17.11.2026: "wenn etwas laenger als 24 Std in der App ist, automatisch nicht mehr neu", "Ja, so bauen";
+# Audit der iPad-App 03.11.2026: der Lernstand zaehlt fuer "Neu" nicht). Im iPad-Kern: LocalLibrary.newFileSQL.
+NEW_FILE_HOURS = 24
+# Bedingung "nach dem ersten Einlesen des Kurses dazugekommen" fuer `files f` (Demo-Dateien ausgenommen)
+AFTER_FIRST_LISTING_SQL = "(f.id LIKE 'demo-%' OR f.first_seen>(SELECT k.first_listed_at FROM courses k WHERE k.id=f.course_id))"
+
+
+def new_since() -> str:
+    """Grenze fuer `first_seen` (Ortszeit wie `db.now_iso()`): ab diesem Zeitpunkt eingetragene Dateien sind noch neu.
+    Wirkliche 24 Stunden, auch ueber die Zeitumstellung (wie LocalLibrary.newSince)."""
+    now = datetime.fromisoformat(db.now_iso())
+    return datetime.fromtimestamp(now.timestamp() - NEW_FILE_HOURS * 3600).replace(microsecond=0).isoformat()
+
+
+def new_file_sql(since: str | None = None) -> str:
+    """SQL-Bedingung "neu" fuer `files f`; `since` aus `new_since()` (nur Ziffern, "-", "T", ":")."""
+    return (f"(f.seen_by_user=0 AND f.first_seen IS NOT NULL AND f.first_seen>='{since or new_since()}' "
+            f"AND {AFTER_FIRST_LISTING_SQL})")
+
+
+def is_new_column(since: str | None = None) -> str:
+    """Spalte `is_new` (1/0) fuer Dateilisten mit `files f`: die Oberflaechen zeigen und zaehlen "Neu" nur danach."""
+    return f"CASE WHEN {new_file_sql(since)} THEN 1 ELSE 0 END AS is_new"
+
+
+def new_file_ids(conn, module_id: int) -> set:
+    """Kennungen der neuen Dateien eines Moduls (`new_file_sql`, aktive Kurse); ihre Zahl ist `new_count`."""
+    return {r[0] for r in conn.execute(f"SELECT f.id FROM files f JOIN courses c ON c.id=f.course_id WHERE c.active=1 AND c.module_id=? AND {new_file_sql()}",
+                                       (module_id,))}
 
 
 def new_files_count(conn, module_id: int) -> int:
-    """Neue Dateien eines Moduls (`NEW_FILE_SQL`, aktive Kurse)."""
-    return conn.execute(f"SELECT COUNT(*) FROM files f JOIN courses c ON c.id=f.course_id WHERE c.active=1 AND c.module_id=? AND {NEW_FILE_SQL}",
-                        (module_id,)).fetchone()[0]
+    """Neue Dateien eines Moduls (`new_file_sql`, aktive Kurse)."""
+    return len(new_file_ids(conn, module_id))
+
+
+def mark_new(conn, files: list[dict], module_id: int) -> set:
+    """`is_new` (1/0) je Datei nach der einen Regel fuer "Neu" (Dateizeilen im Modul und am Termin des Stundenplans).
+    Liefert die neuen Kennungen."""
+    fresh = new_file_ids(conn, module_id)
+    for f in files:
+        f["is_new"] = 1 if f.get("id") in fresh else 0
+    return fresh
 
 
 def module_detail(conn, module_id: int) -> dict:
@@ -361,6 +401,7 @@ def module_detail(conn, module_id: int) -> dict:
         return {}
     start = semester_start(conn)
     files = _file_rows(conn, module_id)
+    fresh = mark_new(conn, files, module_id)
     layout = module_layout.load(conn).get(module_id, module_layout.Layout())
     bulk = _bulk(start, files)
     weeks: dict[int, list] = defaultdict(list)
@@ -414,7 +455,7 @@ def module_detail(conn, module_id: int) -> dict:
             "targets": _targets(start, list(weeks), layout), "layout_custom": not layout.empty,
             "files": files, "progress": progress,
             "mastery": mastery.for_module(conn, module_id, m["name"]),
-            "new_count": new_files_count(conn, module_id), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
+            "new_count": len(fresh), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
             "next_package": next_pkg, "notes": [f for f in files if f["has_notes"]]}
 
 
@@ -1646,7 +1687,7 @@ def dashboard(conn) -> dict:
     mods = modules_overview(conn)
     new_files = db.rows(conn, f"""SELECT f.id, f.name, f.first_seen, f.chdate, c.subject, c.module_id, a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes
                                  FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-                                 WHERE {NEW_FILE_SQL} AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC""")
+                                 WHERE {new_file_sql()} AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC""")
     week_start = monday(t)
     week = calendar(conn, week_start, week_start + timedelta(days=6))
     wk_total = sum(d["tasks_total"] for d in week["days"])

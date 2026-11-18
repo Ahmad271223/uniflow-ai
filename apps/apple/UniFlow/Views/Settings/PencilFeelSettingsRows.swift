@@ -7,11 +7,14 @@ struct PencilFeelSettingsRows: View {
     @AppStorage(ShapeSnapSetting.key) private var shapes = true
 
     var body: some View {
-        SettingsRow(PencilSmoothing.title, icon: "pen", note: PencilSmoothing.note) {
-            UFSegmented(options: PencilSmoothing.options, selection: $smoothing)
-                .accessibilityIdentifier("settings.pencilSmoothing")
+        // Glaettung nur, solange sie etwas bewirkt (`PencilTuning.rebuildFromRawPointsAfterLift`, seit 17.11.2026 aus)
+        if PencilTuning.rebuildFromRawPointsAfterLift {
+            SettingsRow(PencilSmoothing.title, icon: "pen", note: PencilSmoothing.note) {
+                UFSegmented(options: PencilSmoothing.options, selection: $smoothing)
+                    .accessibilityIdentifier("settings.pencilSmoothing")
+            }
+            SettingsDivider()
         }
-        SettingsDivider()
         SettingsRow(ShapeSnapSetting.title, icon: "square", note: ShapeSnapSetting.note) {
             Toggle(isOn: $shapes) { Text(shapes ? "An" : "Aus").ufFont(13.12).foregroundStyle(UF.muted) }
                 .tint(UF.accent)

@@ -97,6 +97,18 @@ public enum LocalModules {
         }
     }
 
+    /// `study.mark_new(conn, files, module_id)`: `is_new` (1/0) je Datei nach der einen Regel fuer "Neu"
+    /// (`LocalLibrary.newFileSQL`: nie geoeffnet und vor hoechstens 24 Stunden eingetragen). Fuer die Dateizeilen im
+    /// Modul und am Termin des Stundenplans; die App rechnet nicht selbst mit Zeiten. Liefert die neuen Kennungen.
+    @discardableResult
+    static func markNew(_ c: SQLiteConnection, _ files: inout [FileRow], moduleID: SQLiteValue, since: String) throws -> Set<String> {
+        let fresh = try LocalLibrary.newFileIDs(c, moduleID: moduleID, since: since)
+        for i in files.indices {
+            files[i].json["is_new"] = .number(files[i].json["id"]?.string.map(fresh.contains) == true ? 1 : 0)
+        }
+        return fresh
+    }
+
     /// `week_topic(files)`: erstes Analyse-Thema einer Vorlesung (sonst Uebung, Skript), sonst der KI-Titel des
     /// ersten Dokuments damit. Ohne KI (iPad) gibt es beides nicht: "".
     static func weekTopic(_ files: [FileRow]) throws -> String {
@@ -148,9 +160,12 @@ public enum LocalModules {
         var layouts: [Int64: ModuleLayout.Layout] = [:]
         /// Seminare und Blockveranstaltungen mit wenigen Terminwochen (`SessionWeeks`): Modul -> Wochen mit Terminen
         var sessions: [Int64: SessionWeeks] = [:]
+        /// Grenze fuer "Neu" (`LocalLibrary.newSince`): ab diesem Zeitpunkt eingetragene, nie geoeffnete Dateien
+        let newSince: String
 
         init(_ c: SQLiteConnection, clock: UniFlowClock) throws {
             today = BerlinClock.parseISODate(clock.today) ?? 0
+            newSince = LocalLibrary.newSince(clock)
             term = try LectureWeeks.currentTerm(c)
             start = try term.map { $0.firstMonday } ?? StudyWeeks.semesterStart(c, today: today)
             stored = try LectureWeeks.stored(c)
@@ -161,6 +176,7 @@ public enum LocalModules {
         init(today: Int, start: Int) {
             self.today = today
             self.start = start
+            newSince = BerlinClock.isoDate(today - 1) + "T00:00:00"     // ohne Uhrzeit: seit gestern 0 Uhr
         }
 
         /// Bezeichnung einer Woche (Lehrwochen ohne Pausenwochen, wenn das Semester gemerkt ist)
@@ -236,6 +252,7 @@ public enum LocalModules {
     static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, dates: Dates) throws -> [String: JSONValue]? {
         guard let m = try c.queryOne("SELECT * FROM modules WHERE id=?", [moduleID]) else { return nil }
         var files = try fileRows(c, moduleID: moduleID)
+        let fresh = try markNew(c, &files, moduleID: moduleID, since: dates.newSince)
         let layout = layout(moduleID, dates)
         let bulk = try bulk(files, dates: dates)
         var weeks: [Int: [FileRow]] = [:]
@@ -319,7 +336,7 @@ public enum LocalModules {
                 "files": .array(files.map { .object($0.json) }), "progress": .number(Double(progress)),
                 // Lernstand (docs/LERNSTAND-2026-11-04.md): aus Wochentests, Karteikarten und Aufgaben, null ohne Signal
                 "mastery": try Mastery.forModule(c, moduleID: moduleID, name: m["name"] ?? .null),
-                "new_count": .number(Double(try LocalLibrary.newFilesCount(c, moduleID: moduleID))),
+                "new_count": .number(Double(fresh.count)),
                 "open_tasks": .number(Double(tasks.filter { open.contains($0["status"]?.string ?? "") }.count)),
                 "next_package": next.map { .object($0.json) } ?? .null,
                 "notes": .array(files.filter { truthy($0.json["has_notes"]) }.map { .object($0.json) })]

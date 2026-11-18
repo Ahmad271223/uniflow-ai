@@ -122,12 +122,23 @@ final class LayoutWidthAuditTests: XCTestCase {
 
     // MARK: - Seiten
 
+    /// Die Seiten des Lernkalenders gehoeren weiter zum Audit (er kommt wieder, Auftrag 17.11.2026): fuer sie gilt der
+    /// Schalter an; alles andere laeuft mit dem ausgelieferten Standard (aus)
+    private func withLearnCalendar<T>(_ body: () throws -> T) rethrows -> T {
+        let before = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = before }
+        return try body()
+    }
+
+    private static func isPlan(_ r: UFRoute) -> Bool { if case .plan = r { return true }; return false }
+
     func testStudium() throws {
         let env = try host(MainView())
         var report: [String] = []
         report += audit(env, "uebersicht", route: .dashboard, marker: "Grundlagen der Informatik")
         report += audit(env, "nachrichten", route: .messages, marker: nil)
-        report += audit(env, "lernkalender", route: .plan(), marker: "Übungsblatt 1")
+        report += withLearnCalendar { audit(env, "lernkalender", route: .plan(), marker: "Übungsblatt 1") }
         report += audit(env, "stundenplan", route: .timetable(), marker: "Grundlagen der Informatik")
         report += audit(env, "module", route: .modules, marker: "Grundlagen der Informatik")
         let api = container.api
@@ -170,10 +181,16 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "lehrende", route: .lecturers, marker: "Lehrende und Tutor/innen deiner Kurse")
         // Bescheinigungen (06.11.2026): noch nicht gelesen, Hinweis "Liste aktualisieren" (kein Netz)
         report += audit(env, "bescheinigungen", route: .certificates, marker: "Liste aktualisieren")
-        report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
+        // Bereiche der Einstellungen (17.11.2026); "Lernzeit" nur mit Lernkalender
+        report += audit(env, "einstellungen-start", route: .settings(), marker: "Einstellungen")
+        report += audit(env, "einstellungen-konto", route: .settings(tab: "account"), marker: "Konto & Tarif")
+        report += audit(env, "einstellungen-uni", route: .settings(tab: "uni"), marker: UniAutoLoginCard.title)
+        report += audit(env, "einstellungen-darstellung", route: .settings(tab: "look"), marker: "Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
-        report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")
-        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Erweitert")
+        if LearnCalendar.enabled { report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit") }
+        report += audit(env, "einstellungen-austausch", route: .settings(tab: "community"), marker: "Community")
+        report += audit(env, "einstellungen-hilfe", route: .settings(tab: "help"), marker: "Rechtliches & Support")
+        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Vorab einordnen")
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
@@ -187,9 +204,11 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "uebersicht", route: .dashboard, marker: "Grundlagen der Informatik", variants: v)
         report += audit(env, "nachrichten", route: .messages, marker: nil, variants: v)
         // iPhone hoch: Woche als 3 Tage ab heute, die Abgabe der Demo liegt spaeter
-        report += audit(env, "lernkalender", route: .plan(), marker: "Lernkalender", variants: v)
-        report += audit(env, "lernkalender-monat", route: .plan(view: "month"), marker: nil, variants: v)
-        report += audit(env, "lernkalender-liste", route: .plan(view: "list"), marker: nil, variants: v)
+        report += withLearnCalendar {
+            audit(env, "lernkalender", route: .plan(), marker: "Lernkalender", variants: v)
+                + audit(env, "lernkalender-monat", route: .plan(view: "month"), marker: nil, variants: v)
+                + audit(env, "lernkalender-liste", route: .plan(view: "list"), marker: nil, variants: v)
+        }
         report += audit(env, "stundenplan", route: .timetable(), marker: "Grundlagen der Informatik", variants: v)
         report += audit(env, "module", route: .modules, marker: "Grundlagen der Informatik", variants: v)
         let api = container.api
@@ -207,10 +226,38 @@ final class LayoutWidthAuditTests: XCTestCase {
         let env = try host(MainView())
         var report: [String] = []
         let v = Self.iphone
-        report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung", variants: v)
+        // iPhone (17.11.2026): Startseite als Liste der Bereiche, jeder Bereich eine Unterseite
+        report += audit(env, "einstellungen-start", route: .settings(), marker: "Hilfe & Rechtliches", variants: v)
+        report += audit(env, "einstellungen-konto", route: .settings(tab: "account"), marker: "Konto & Tarif", variants: v)
+        report += audit(env, "einstellungen-uni", route: .settings(tab: "uni"), marker: UniAutoLoginCard.title, variants: v)
+        report += audit(env, "einstellungen-darstellung", route: .settings(tab: "look"), marker: "Darstellung", variants: v)
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik", variants: v)
-        report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit", variants: v)
-        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Erweitert", variants: v)
+        if LearnCalendar.enabled { report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit", variants: v) }
+        report += audit(env, "einstellungen-austausch", route: .settings(tab: "community"), marker: "Community", variants: v)
+        report += audit(env, "einstellungen-hilfe", route: .settings(tab: "help"), marker: "Rechtliches & Support", variants: v)
+        report += audit(env, "einstellungen-erweitert", route: .settings(tab: "advanced"), marker: "Vorab einordnen", variants: v)
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
+    /// Datei-Eingang (18.11.2026, nur Test-Build `UF_INTAKE_OFFERED=YES`): Schalter und Zustimmung auf iPad und iPhone
+    /// ohne Abschneiden (die Karte selbst braucht ein angemeldetes Konto, hier Zeile und Blatt fuer sich)
+    func testDateiEingangSchalterUndZustimmung() throws {
+        let offered = CourseFileIntakeSetting.isOffered
+        CourseFileIntakeSetting.isOffered = true
+        defer { CourseFileIntakeSetting.isOffered = offered }
+        let page = ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                UFCard {
+                    UFCardHead(CourseFileIntakeSetting.cardTitle, icon: "upload")
+                    CourseFileIntakeRow()
+                }
+                CourseFileIntakeConsent(agree: {}, cancel: {})
+            }
+            .padding(16)
+        }
+        let env = try host(page)
+        var report = audit(env, "datei-eingang", route: nil, marker: CourseFileIntakeSetting.title)
+        report += audit(env, "datei-eingang", route: nil, marker: CourseFileIntakeSetting.agree, variants: Self.iphone)
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
@@ -273,7 +320,8 @@ final class LayoutWidthAuditTests: XCTestCase {
         doc.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
         doc.view.frame = doc.window.bounds
         doc.router.go(.doc("demo-skript"))
-        XCTAssertTrue(doc.wait(timeout: 25) { Self.texts(doc.window).contains { $0.hasPrefix("Seite 1 von") } },
+        // flacher Kopf (17.11.2026): Titel und Seite sind ein Knopf "Titel, Seite 1 von 3"
+        XCTAssertTrue(doc.wait(timeout: 25) { Self.texts(doc.window).contains { $0.contains("Seite 1 von") } },
                       "Leseansicht fehlt: " + Self.texts(doc.window).joined(separator: " | "))
         XCTAssertFalse(Self.texts(doc.window).contains("Teilen"), "kein Editor-Menü am iPhone")
         XCTAssertTrue(Self.texts(doc.window).contains("KI-Hilfe"))
@@ -291,7 +339,7 @@ final class LayoutWidthAuditTests: XCTestCase {
         env.hosting.traitOverrides.verticalSizeClass = .regular
         env.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
         env.view.frame = env.window.bounds
-        env.router.go(.settings(tab: "account"))
+        env.router.go(.settings(tab: "uni"))
         XCTAssertTrue(env.wait(timeout: 20) { Self.texts(env.window).contains(UniAutoLoginCard.title) },
                       "Uni-Zugang fehlt: " + Self.texts(env.window).joined(separator: " | "))
         // bis ans Ende scrollen, damit auch die unteren Karten gezeichnet sind
@@ -310,9 +358,14 @@ final class LayoutWidthAuditTests: XCTestCase {
             }
             return seen
         }
-        let texts = all()
+        var texts = all()
         XCTAssertTrue(texts.contains(UniAutoLoginCard.sameTitle), "Haken „überall gleich“")
         XCTAssertTrue(texts.contains("Abgleichen") || texts.contains("Abgleich läuft"), "Sync in der Kopfzeile")
+        // Darstellung ist seit 17.11.2026 ein eigener Bereich: auch dort keine Stift-Zeilen am iPhone
+        env.router.go(.settings(tab: "look"))
+        XCTAssertTrue(env.wait(timeout: 20) { Self.texts(env.window).contains("Darstellung") }, "Bereich Darstellung fehlt")
+        texts = all()
+        XCTAssertFalse(texts.contains { $0.contains("Darstellung & Stift") }, "am iPhone heisst der Bereich nur „Darstellung“")
         XCTAssertFalse(texts.contains("Schreibhand"), "keine Schreibhand am iPhone")
         XCTAssertFalse(texts.contains { $0.contains("Stift & Touch") || $0.contains("Nur Stift schreibt") }, "keine Stift-Zeile am iPhone")
     }
@@ -354,10 +407,12 @@ final class LayoutWidthAuditTests: XCTestCase {
             ("03b-lernkalender-monat", .plan(view: "month")), ("03c-lernkalender-liste", .plan(view: "list")),
             ("04-stundenplan", .timetable()), ("05-module", .modules),
             ("07-studienverlauf", .studyPlan()), ("08-uni-noten", .services),
-            ("09-einstellungen-zugang", .settings(tab: "account")), ("09b-einstellungen-module", .settings(tab: "modules")),
-            ("09c-einstellungen-lernzeit", .settings(tab: "plan")), ("09d-einstellungen-erweitert", .settings(tab: "advanced")),
+            ("09-einstellungen-start", .settings()), ("09a-einstellungen-konto", .settings(tab: "account")),
+            ("09b-einstellungen-module", .settings(tab: "modules")), ("09c-einstellungen-uni", .settings(tab: "uni")),
+            ("09d-einstellungen-erweitert", .settings(tab: "advanced")),
         ]
         if let moduleID { pages.insert(("06-modul", .module(moduleID)), at: 7) }
+        if !LearnCalendar.enabled { pages.removeAll { Self.isPlan($0.1) } }       // ausgeblendet: keine Bilder davon
         let size = Self.iphone[1].size
         env.hosting.traitOverrides.horizontalSizeClass = .compact
         env.hosting.traitOverrides.verticalSizeClass = .regular
@@ -444,10 +499,14 @@ final class LayoutWidthAuditTests: XCTestCase {
             ("studienverlauf", .studyPlan(), nil),
             ("dokumente", .files(), nil),
             ("uni-noten", .services, nil),
-            ("einstellungen-zugang", .settings(tab: "account"), nil),
-            ("einstellungen-lernzeit", .settings(tab: "plan"), nil),
+            ("einstellungen-start", .settings(), nil),
+            ("einstellungen-konto", .settings(tab: "account"), nil),
+            ("einstellungen-uni", .settings(tab: "uni"), nil),
         ]
+        let before = LearnCalendar.enabled
+        defer { LearnCalendar.enabled = before }
         for (name, route, marker) in pages {
+            LearnCalendar.enabled = Self.isPlan(route) || before                 // Lernkalender-Seiten mit Schalter an
             for width in [CGFloat(393), 375] {
                 env.window.frame = CGRect(origin: .zero, size: CGSize(width: width, height: width == 393 ? 852 : 812))
                 env.view.frame = env.window.bounds
@@ -471,6 +530,9 @@ final class LayoutWidthAuditTests: XCTestCase {
     /// „Novemb er 2026“ abgeschnitten, die Fortschrittskarte hoch und fast leer. Am iPhone gehören die Karten
     /// untereinander in voller Breite. Der Breiten-Audit war grün, weil nichts über den Rand ragte.
     func testIPhoneKalenderKartenUntereinander() throws {
+        let learnCalendar = LearnCalendar.enabled                                // prueft den Lernkalender: Schalter an
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let env = try host(MainView())
         UFCompact.phoneOverride = true
         defer { UFCompact.phoneOverride = UniFlowTestsPrincipal.deviceDefault }

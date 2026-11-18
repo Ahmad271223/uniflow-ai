@@ -11,6 +11,20 @@ import XCTest
 @MainActor
 final class IPhoneWeekGridTests: IPhoneLearnTestCase {
 
+    /// Diese Klasse prueft den Lernkalender selbst: Schalter an (ausgeliefert ist er aus, `LearnCalendar`, 17.11.2026)
+    private var learnCalendarBefore = false
+
+    override func setUp() async throws {
+        try await super.setUp()
+        learnCalendarBefore = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+    }
+
+    override func tearDown() async throws {
+        LearnCalendar.enabled = learnCalendarBefore
+        try await super.tearDown()
+    }
+
     private func event(_ title: String, _ start: String, _ end: String, room: String = "", kind: String = "vorlesung",
                        status: String = "teilnahme", id: Int) -> JSONValue {
         ["event_id": .number(Double(id)), "title": .string(title), "start": .string(start), "end": .string(end),

@@ -25,12 +25,14 @@ enum PenSettingsText {
         switch t {
         case .pen: return "Wird breiter, je fester du aufdrückst – wie ein Kugelschreiber."
         case .fineliner: return "Fein und immer gleich breit, egal wie fest du drückst – am besten für kleine Schrift."
-        case .marker: return "Durchscheinend zum Hervorheben, liegt unter der Schrift."
+        case .fountain: return "Sehr feiner Strich, der beim Aufdrücken kräftiger wird – wie ein Füller, für schöne Handschrift."
+        case .marker: return "Durchscheinend zum Hervorheben, der Text darunter bleibt lesbar. Für eine gerade Linie am Ende kurz halten."
         default: return ""
         }
     }
 
-    static let penAtMinimum = "Dünner geht der Stift nicht. Für feinste Schrift nimm den Fineliner: ab 0,5 und immer gleich breit."
+    static let penAtMinimum = "Dünner geht der Stift nicht. Für feine Schrift nimm den Fineliner (ab 0,25, immer gleich breit) oder den Füller (fein, mit Druck kräftiger)."
+    static let toFountain = "Zum Füller"
 
     /// "0,88", "2", "2,25"
     static func width(_ w: CGFloat) -> String {
@@ -47,7 +49,7 @@ enum PenSettingsText {
     }
 }
 
-/// Einstellungen eines Stifts (Stift, Fineliner, Textmarker)
+/// Einstellungen eines Stifts (Stift, Fineliner, Fueller, Textmarker)
 struct PenSettingsPanel: View {
     @ObservedObject var tools: EditorToolState
     let tool: EditorToolState.Tool
@@ -64,7 +66,8 @@ struct PenSettingsPanel: View {
             PenStrokePreview(style: s, tool: tool)
             widthRows(s)
             opacityRows(s)
-            smoothingRows
+            // nur, solange sie etwas bewirkt (`PencilTuning.rebuildFromRawPointsAfterLift`, seit 17.11.2026 aus)
+            if PencilTuning.rebuildFromRawPointsAfterLift { smoothingRows }
             presetRows
         }
         .padding(16)
@@ -110,9 +113,13 @@ struct PenSettingsPanel: View {
                 Image(systemName: "info.circle").foregroundStyle(UF.accent)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(PenSettingsText.penAtMinimum).ufFont(12.8).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
-                    Button(PenSettingsText.toFineliner) { tools.select(.fineliner) }
-                        .ufFont(12.8, 650).buttonStyle(.plain).foregroundStyle(UF.accentText)
-                        .accessibilityIdentifier("pen.settings.toFineliner")
+                    HStack(spacing: 16) {
+                        Button(PenSettingsText.toFineliner) { tools.select(.fineliner) }
+                            .accessibilityIdentifier("pen.settings.toFineliner")
+                        Button(PenSettingsText.toFountain) { tools.select(.fountain) }
+                            .accessibilityIdentifier("pen.settings.toFountain")
+                    }
+                    .ufFont(12.8, 650).buttonStyle(.plain).foregroundStyle(UF.accentText)
                 }
             }
             .padding(10)
@@ -205,26 +212,48 @@ struct PenSettingsPanel: View {
 }
 
 /// Probestrich in Farbe, Staerke und Deckkraft, so gross wie auf der Seite in Seitenbreite (1 Seitenpunkt = 1,38
-/// Bildschirmpunkte); der Stift wird in der Mitte etwas breiter (Druck), Fineliner bleibt gleich
+/// Bildschirmpunkte) und so dick, wie die Tinte wirklich zeichnet (`drawn`); der Stift wird in der Mitte etwas breiter
+/// (Druck), der Fueller deutlich, Fineliner bleibt gleich
 struct PenStrokePreview: View {
     let style: EditorToolState.Style
     let tool: EditorToolState.Tool
     static let pageScale: CGFloat = 1.38
 
+    /// Gezeichnete Dicke in Seitenpunkten zur eingestellten Staerke (gemessen 17.11.2026, `EditorToolState.Tool.widths`):
+    /// Fineliner das Doppelte, Fueller rund ein Drittel (Grundstrich), Stift mindestens 2,2 pt
+    static func drawn(_ width: CGFloat, tool: EditorToolState.Tool) -> CGFloat {
+        switch tool {
+        case .fineliner: return width * 2
+        case .fountain: return width * 0.32
+        case .pen: return max(2.2, width)
+        default: return width
+        }
+    }
+
+    /// Druck entlang des Probestrichs: Stift etwas, Fueller deutlich (An- und Abschwellen), sonst gleichmaessig
+    static func pressure(_ t: CGFloat, tool: EditorToolState.Tool) -> CGFloat {
+        switch tool {
+        case .pen: return 0.8 + 0.45 * sin(t * .pi)
+        case .fountain: return 0.75 + 1.5 * pow(sin(t * .pi * 3), 2) * sin(t * .pi)
+        default: return 1
+        }
+    }
+
     var body: some View {
         Canvas { ctx, size in
-            let color = Color(uiColor: UIColor(hex: style.hex) ?? .black).opacity(Double(style.alpha) * (tool == .marker ? 0.45 : 1))
+            // Textmarker: PencilKit legt ihn bei 100 % fast deckend ueber die Seite
+            let color = Color(uiColor: UIColor(hex: style.hex) ?? .black).opacity(Double(style.alpha) * (tool == .marker ? 0.85 : 1))
             let n = 60
             var last: CGPoint?
             for i in 0...n {
                 let t = CGFloat(i) / CGFloat(n)
                 let p = CGPoint(x: 12 + t * (size.width - 24), y: size.height / 2 + sin(t * .pi * 3) * size.height * 0.22)
                 if let a = last {
-                    let pressure: CGFloat = tool == .pen ? 0.8 + 0.45 * sin(t * .pi) : 1
                     var path = Path()
                     path.move(to: a)
                     path.addLine(to: p)
-                    ctx.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: max(0.5, style.width * Self.pageScale * pressure), lineCap: .round))
+                    let width = Self.drawn(style.width, tool: tool) * Self.pageScale * Self.pressure(t, tool: tool)
+                    ctx.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: max(0.4, width), lineCap: tool == .marker ? .butt : .round))
                 }
                 last = p
             }
@@ -243,10 +272,11 @@ struct PenPresetDot: View {
 
     var body: some View {
         VStack(spacing: 3) {
-            Circle().fill(Color(uiColor: UIColor(hex: preset.style.hex) ?? .black).opacity(Double(preset.style.alpha)))
+            Circle().fill(Color(uiColor: UIColor(hex: preset.style.hex) ?? .black)
+                .opacity(Double(EditorToolState.resolved(preset.style, for: preset.toolValue ?? .pen).alpha)))
                 .frame(width: 16, height: 16)
                 .overlay(Circle().stroke(UF.lineStrong, lineWidth: 1))
-            Capsule().fill(UF.text).frame(width: 14, height: min(5, max(1, preset.style.width * (preset.toolValue == .marker ? 0.2 : 0.8))))
+            Capsule().fill(UF.text).frame(width: 14, height: min(5, max(0.75, EditorToolAttributes.lineHeight(preset.style.width, tool: preset.toolValue ?? .pen) * 0.5)))
         }
     }
 }

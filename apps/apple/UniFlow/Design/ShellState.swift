@@ -205,7 +205,8 @@ final class ShellState: ObservableObject {
     /// Treffer in Aufgaben (Tagesansicht des Lernplans) und Seitentexten (Dokument an der Seite) wie globalSearch in app.js
     static func taskAndPageHits(_ r: JSONValue) -> [SearchHit] {
         var hits: [SearchHit] = []
-        for t in r["tasks"]?.array ?? [] {
+        // Aufgaben gehoeren zum Lernkalender (`LearnCalendar`, 17.11.2026): ohne ihn keine Treffer daraus
+        for t in LearnCalendar.enabled ? r["tasks"]?.array ?? [] : [] {
             guard let id = t.i("id") else { continue }
             let date = t.s("date") ?? ""
             let sub = [t.s("subject") ?? "", "Aufgabe", UFFmt.short(date)].filter { !$0.isEmpty }.joined(separator: " · ")

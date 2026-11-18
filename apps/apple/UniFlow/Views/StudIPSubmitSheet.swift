@@ -53,7 +53,7 @@ struct StudIPSubmitSheet: View {
                 .accessibilityIdentifier("submit.loading")
         case .notConnected:
             message(icon: "link.badge.plus", title: "Stud.IP ist nicht verbunden",
-                    text: "Melde dich in den Einstellungen unter Stud.IP an. Danach kannst du direkt aus dem Dokument abgeben.",
+                    text: "Melde dich in den Einstellungen unter „Uni-Zugang & Abgleich“ an. Danach kannst du direkt aus dem Dokument abgeben.",
                     id: "submit.notConnected")
         case .needsLogin:
             VStack(spacing: 16) {

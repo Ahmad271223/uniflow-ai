@@ -27,35 +27,51 @@ struct EditorToolbarMode: Equatable {
     static let hidden = EditorToolbarMode()
 }
 
-/// Werkzeugwahl des Editors: Stift, Fineliner, Textmarker (je Farbe und Staerke), Radierer (Pixel oder Objekt), Lasso,
+/// Werkzeugwahl des Editors: Stift, Fineliner, Fueller, Textmarker (je Farbe und Staerke), Radierer (Pixel oder Objekt), Lasso,
 /// Lineal und unsere Objektwerkzeuge. Jede Aenderung geht ueber `changes` an die Editoren (beide Haelften der geteilten
 /// Ansicht), die das Werkzeug ihrer Zeichenflaechen bzw. den Objektmodus setzen.
 @MainActor
 final class EditorToolState: ObservableObject {
     enum Tool: String, CaseIterable, Identifiable {
-        case pen, fineliner, marker, eraser, lasso
+        /// `fountain` (Fueller, 17.11.2026): Tinte "fountainPen" - duenner Grundstrich, der mit dem Druck anschwillt
+        case pen, fineliner, fountain, marker, eraser, lasso
         case select, text, sticky, shape, markup, area
 
         var id: String { rawValue }
 
         /// Werkzeuge der Zeichenflaeche (PencilKit) in der Reihenfolge der Leiste
-        static let canvasTools: [Tool] = [.pen, .fineliner, .marker, .eraser, .lasso]
+        static let canvasTools: [Tool] = [.pen, .fineliner, .fountain, .marker, .eraser, .lasso]
         /// Objektwerkzeuge in der Reihenfolge der Leiste ("Bereich an KI" vorn wie in der Palette, Wunsch des Inhabers)
         static let objectTools: [Tool] = [.area, .select, .text, .sticky, .shape, .markup]
 
-        var isInk: Bool { self == .pen || self == .fineliner || self == .marker }
+        var isInk: Bool { self == .pen || self == .fineliner || self == .fountain || self == .marker }
+        /// Schreibstift (ohne Textmarker): seine Farbe und Staerke gelten auch fuer Objekte (`lastPen`)
+        var isPen: Bool { self == .pen || self == .fineliner || self == .fountain }
         /// wirkt auf der Zeichenflaeche (sonst Objektmodus)
         var drawsOnCanvas: Bool { isInk || self == .eraser || self == .lasso }
         /// Farbe waehlbar (Text und Form: eigene Farbe, anfangs die des Stifts)
         var hasColor: Bool { isInk || self == .text || self == .shape }
         /// Staerken waehlbar (Seitenpunkte; bei Seitenbreite auf dem iPad hochkant 1 Seitenpunkt = 1,38 Bildschirmpunkte).
-        /// Jede Stufe liegt in den Grenzen von PencilKit (`validWidthRange`, `StiftStaerkeTests`): Stift ab 0,88,
-        /// Fineliner 0,5 bis 4, Textmarker ab 7,5. Vorher (bis 14.11.2026) Stift ab 1, Fineliner 0,8 bis 6 (6 wurde
-        /// still auf 4 begrenzt, gleich der Stufe davor), Textmarker ab 6 (still 7,5). Wunsch des Inhabers: duenner.
+        /// Jede Stufe liegt in den Grenzen, die PencilKit wirklich annimmt (`inkLimits`, `StiftStaerkeTests`): Stift ab
+        /// 0,88, Fineliner 0,18 bis 4, Fueller 1 bis 14, Textmarker ab 7,5.
+        ///
+        /// Was die Zahl bedeutet, haengt an der Tinte (gemessen 17.11.2026, gleichmaessiger Druck,
+        /// `testMessungFeinerFuellerMarker`; 1 pt = 0,353 mm auf dem Papier):
+        /// - Stift: 0,88 und 2 zeichnen beide rund 2,2 pt (0,8 mm) - duenner kann diese Tinte nicht.
+        /// - Fineliner: gezeichnet wird das Doppelte der Zahl. 0,25 -> 0,5 pt (0,18 mm), 0,35 -> 0,7 pt (0,25 mm),
+        ///   0,5 -> 1,0 pt (0,35 mm). 0,25 ist bei 100 % Zoom genau ein Bildpunkt des iPad; darunter wird der Strich
+        ///   nicht mehr duenner, nur blasser - darum ist 0,25 die feinste Stufe (der Schieber reicht bis 0,18).
+        /// - Fueller: Grundstrich etwa ein Drittel der Zahl. 1 -> 0,32 pt (0,11 mm), 1,5 -> 0,48 pt (0,17 mm),
+        ///   2,5 -> 0,8 pt (0,28 mm), 4 -> 1,3 pt (0,45 mm), 6,5 -> 2,0 pt (0,7 mm); mit Druck kraeftiger.
+        /// - Textmarker: etwa so breit wie die Zahl (15 -> 14 pt, eine Zeile mit 12-pt-Schrift), je nach Haltung des
+        ///   Stifts schmaler (Keilspitze).
+        /// Die feinen Fineliner-Stufen 0,25 und 0,35 sind seit 17.11.2026 fester Bestandteil (vorher nur als versteckte
+        /// Testvariante). Wunsch des Inhabers: "Schrift wirklich dünner und feiner".
         var widths: [CGFloat] {
             switch self {
             case .pen: return [0.88, 2, 3.5, 6, 10]
-            case .fineliner: return [0.5, 0.8, 1.5, 2.5, 4]
+            case .fineliner: return [0.25, 0.35, 0.5, 0.8, 1.5, 2.5, 4]
+            case .fountain: return [1, 1.5, 2.5, 4, 6.5]
             case .marker: return [7.5, 10, 15, 22, 30]
             case .shape: return [1, 2, 4]
             default: return []
@@ -66,6 +82,7 @@ final class EditorToolState: ObservableObject {
             switch self {
             case .pen: return .pen
             case .fineliner: return .monoline
+            case .fountain: return .fountainPen
             case .marker: return .marker
             default: return nil
             }
@@ -75,6 +92,7 @@ final class EditorToolState: ObservableObject {
             switch self {
             case .pen: return "Stift"
             case .fineliner: return "Fineliner"
+            case .fountain: return "Füller"
             case .marker: return "Textmarker"
             case .eraser: return "Radierer"
             case .lasso: return "Lasso"
@@ -91,6 +109,8 @@ final class EditorToolState: ObservableObject {
             switch self {
             case .pen: return "pencil.tip"
             case .fineliner: return "pencil"
+            // Feder im Kreis: von der Feder des Stifts zu unterscheiden (ein eigenes Fueller-Symbol hat iPadOS nicht)
+            case .fountain: return "pencil.tip.crop.circle"
             case .marker: return "highlighter"
             case .eraser: return "eraser"
             case .lasso: return "lasso"
@@ -145,10 +165,27 @@ final class EditorToolState: ObservableObject {
     struct Style: Codable, Equatable {
         var hex: String
         var width: CGFloat
-        /// Deckkraft 0,1 ... 1 (Einstellungen je Stift, 14.11.2026); nil = deckend (aeltere Einstellungen)
+        /// Deckkraft 0,1 ... 1 (Einstellungen je Stift, 14.11.2026); nil = nie eingestellt: die Vorgabe des Werkzeugs
+        /// (`defaultOpacity`: deckend, beim Textmarker durchscheinend)
         var opacity: CGFloat?
 
         var alpha: CGFloat { min(1, max(0.1, opacity ?? 1)) }
+    }
+
+    /// Deckkraft des Textmarkers, solange niemand sie eingestellt hat (17.11.2026, "Marker besser machen"). Gemessen
+    /// (`testMessungTextmarkerUeberText`, Gelb ueber schwarzem Text): Mit 100 % wird der Text darunter blass-oliv
+    /// (199, 176, 8 auf 246, 221, 37 - kaum zu lesen), weil PencilKit den Marker fast deckend ueber die Seite legt.
+    /// Mit 50 % bleibt der Text dunkel (99, 88, 4) auf hellem Gelb (251, 239, 146). 1 = wie bis 17.11.
+    static let markerDefaultOpacity: CGFloat = 0.5
+
+    static func defaultOpacity(_ t: Tool) -> CGFloat { t == .marker ? markerDefaultOpacity : 1 }
+
+    /// Stil mit der Deckkraft, die wirklich gilt (nie eingestellt: die Vorgabe des Werkzeugs)
+    static func resolved(_ s: Style, for t: Tool) -> Style {
+        guard s.opacity == nil, defaultOpacity(t) < 1 else { return s }
+        var r = s
+        r.opacity = defaultOpacity(t)
+        return r
     }
 
     /// Eigener Stift (Einstellungen je Stift, 14.11.2026): Werkzeug mit Farbe, Staerke und Deckkraft, in der Leiste
@@ -173,11 +210,31 @@ final class EditorToolState: ObservableObject {
         }
     }
 
-    /// Grenzen von PencilKit fuer die Tinte des Werkzeugs (`validWidthRange`); ohne Tinte die Stufen
+    /// duennste Breite, die der Editor vom Fineliner verlangt: gezeichnet 0,36 pt. Bei Seitenbreite (138 bis 198 %)
+    /// ist das noch ein ganzer Bildpunkt des iPad, bei 100 % wird der Strich blasser statt duenner
+    static let finelinerMinimum: CGFloat = 0.18
+    /// duennste Breite des Fuellers: Grundstrich 0,32 pt, mit Druck kraeftiger
+    static let fountainMinimum: CGFloat = 1
+
+    /// Breiten, die PencilKit fuer eine Tinte wirklich annimmt. Fineliner und Fueller nehmen weniger an, als
+    /// `validWidthRange` meldet (0,5 bzw. 1,5), und zeichnen dann duenner - schon waehrend des Strichs, nichts wird
+    /// danach ersetzt (gemessen im Simulator mit iPadOS 27.2). Stift und Textmarker bleiben an ihrer gemeldeten
+    /// Untergrenze haengen (0,88 bzw. 7,5). Nimmt ein iPadOS die duenne Breite nicht an, schreibt es mit seiner
+    /// duennsten - nie dicker als bisher.
+    static func inkLimits(_ ink: PKInkingTool.InkType) -> ClosedRange<CGFloat> {
+        let r = ink.validWidthRange
+        switch ink {
+        case .monoline: return min(r.lowerBound, finelinerMinimum)...r.upperBound
+        case .fountainPen: return min(r.lowerBound, fountainMinimum)...r.upperBound
+        default: return r
+        }
+    }
+
+    /// Grenzen fuer die Tinte des Werkzeugs (`inkLimits`); ohne Tinte die Stufen
     static func widthLimits(_ t: Tool) -> ClosedRange<CGFloat> {
         // nach innen auf zwei Stellen (PencilKit meldet z. B. 0,8782 fuer den Stift; gezeigt und gespeichert wird 0,88)
         if let ink = t.inkType {
-            let r = ink.validWidthRange
+            let r = inkLimits(ink)
             return ((r.lowerBound * 100).rounded(.up) / 100)...((r.upperBound * 100).rounded(.down) / 100)
         }
         return (t.widths.min() ?? 0)...(t.widths.max() ?? 0)
@@ -191,8 +248,8 @@ final class EditorToolState: ObservableObject {
         return (min(max(w, r.lowerBound), r.upperBound) * 100).rounded() / 100
     }
 
-    /// Feiner Schritt fuer "−"/"+": unter 2 pt 0,1, bis 6 pt 0,25, darueber 1
-    static func widthStep(_ w: CGFloat) -> CGFloat { w < 2 ? 0.1 : (w < 6 ? 0.25 : 1) }
+    /// Feiner Schritt fuer "−"/"+": unter 0,5 pt 0,05 (feine Fineliner-Stufen), unter 2 pt 0,1, bis 6 pt 0,25, darueber 1
+    static func widthStep(_ w: CGFloat) -> CGFloat { w < 0.5 ? 0.05 : (w < 2 ? 0.1 : (w < 6 ? 0.25 : 1)) }
 
     /// Naechste Staerke fuer "−" (`up` false) bzw. "+": naechster Punkt auf dem Raster des Schritts, in den Grenzen
     /// des Schiebers (0,88 -> 0,9 -> 1,0 ...; 2 -> 2,25; 6 -> 7)
@@ -223,10 +280,27 @@ final class EditorToolState: ObservableObject {
     static let menuColors = inkColors + [markerColors[0]]
     static let widthSteps = ["Fein", "Mittel", "Dick"]
 
-    static func defaultStyle(_ t: Tool) -> Style {
+    /// Womit ein neuer Nutzer beim ersten Oeffnen schreibt. Wer die App schon benutzt hat (gemerkter Stand der
+    /// Leiste), behaelt Werkzeug, Farben und Staerken - auch die nie angefassten Vorgaben von damals.
+    enum FirstStart: String {
+        /// wie bis 17.11.2026: Stift 2 (zeichnet 2,3 pt = 0,8 mm), Fineliner blau 1,5 (3 pt = 1,06 mm)
+        case classic
+        /// fein: Fineliner schwarz 0,5 (1,0 pt = 0,35 mm) als erster Stift
+        case fine
+    }
+
+    /// EINE ZEILE ZUM UMSTELLEN: Vorgabe fuer neue Nutzer. `.fine` laesst sie mit dem feinen Fineliner beginnen
+    /// (Vorschlag im Bericht vom 17.11.2026, wartet auf das Okay des Inhabers am Geraet); `.classic` = wie bisher.
+    /// (`var` nur, damit die Tests beide Faelle pruefen koennen.)
+    static var firstStart: FirstStart = .classic
+
+    static func firstTool(_ start: FirstStart) -> Tool { start == .fine ? .fineliner : .pen }
+
+    static func defaultStyle(_ t: Tool, start: FirstStart = .classic) -> Style {
         switch t {
         case .pen: return Style(hex: "#1d2130", width: 2)
-        case .fineliner: return Style(hex: "#2f7fd1", width: 1.5)
+        case .fineliner: return start == .fine ? Style(hex: "#1d2130", width: 0.5) : Style(hex: "#2f7fd1", width: 1.5)
+        case .fountain: return Style(hex: "#1d2130", width: 2.5)
         case .marker: return Style(hex: PageObjectEdit.markerColors[0], width: 15)
         case .text: return Style(hex: "#1d2130", width: 0)
         case .shape: return Style(hex: "#e5322d", width: 2)
@@ -254,6 +328,8 @@ final class EditorToolState: ObservableObject {
     let changes = PassthroughSubject<Change, Never>()
     private let defaults: UserDefaults
     private let key: String
+    /// Vorgaben dieses Geraets: beim ersten Oeffnen festgelegt und mit dem Stand der Leiste gemerkt (`FirstStart`)
+    private(set) var start: FirstStart = .classic
 
     /// - Parameter key: Speichername je Geraet (Werkzeug, Farben, Staerken, Radierer); Tests nehmen einen eigenen
     init(defaults: UserDefaults = .standard, key: String = "uniflow.toolbar") {
@@ -271,7 +347,7 @@ final class EditorToolState: ObservableObject {
             tool = t
         }
         if t.isInk { lastInk = t }
-        if t == .pen || t == .fineliner { lastPen = t }
+        if t.isPen { lastPen = t }
         if t.drawsOnCanvas { lastCanvasTool = t }
         save()
         changes.send(.tool)
@@ -317,7 +393,7 @@ final class EditorToolState: ObservableObject {
 
     // MARK: Farbe und Staerke
 
-    func style(_ t: Tool) -> Style { styles[t.rawValue] ?? Self.defaultStyle(t) }
+    func style(_ t: Tool) -> Style { Self.resolved(styles[t.rawValue] ?? Self.defaultStyle(t, start: start), for: t) }
 
     /// Werkzeug, dessen Farbe und Staerke die Leiste gerade zeigt: das gewaehlte, sonst der letzte Stift
     var styledTool: Tool { tool.hasColor ? tool : lastInk }
@@ -374,7 +450,7 @@ final class EditorToolState: ObservableObject {
     /// Eigenen Stift nehmen: sein Werkzeug waehlen und dessen Farbe, Staerke und Deckkraft setzen
     func applyPreset(_ id: String) {
         guard let p = presets.first(where: { $0.id == id }), let t = p.toolValue else { return }
-        var s = p.style
+        var s = Self.resolved(p.style, for: t)
         s.width = Self.clampedWidth(s.width, for: t)
         setStyle(s, for: t, silently: true)
         select(t)
@@ -382,7 +458,7 @@ final class EditorToolState: ObservableObject {
     }
 
     /// Ist der eigene Stift gerade eingestellt (Werkzeug gewaehlt, gleiche Farbe, Staerke, Deckkraft)?
-    func isActive(_ p: PenPreset) -> Bool { tool.rawValue == p.tool && style(tool) == p.style }
+    func isActive(_ p: PenPreset) -> Bool { tool.rawValue == p.tool && style(tool) == Self.resolved(p.style, for: tool) }
 
     /// Stufe 0 (fein), 1 (mittel), 2 (dick) des gewaehlten Werkzeugs (Menue am Mac)
     func setWidthStep(_ step: Int) {
@@ -404,7 +480,7 @@ final class EditorToolState: ObservableObject {
     func inkingTool(_ t: Tool) -> PKInkingTool? {
         guard let type = t.inkType else { return nil }
         let s = style(t)
-        let range = type.validWidthRange
+        let range = Self.inkLimits(type)
         let w = min(max(s.width, range.lowerBound), range.upperBound)
         let color = (UIColor(hex: s.hex) ?? .black).withAlphaComponent(s.alpha)
         return PKInkingTool(type, color: color, width: w)
@@ -466,10 +542,22 @@ final class EditorToolState: ObservableObject {
         var eraser: String
         var styles: [String: Style]
         var presets: [PenPreset]?
+        /// Vorgaben dieses Geraets (`FirstStart`); fehlt bei Staenden bis 17.11.2026: wie bisher
+        var start: String?
     }
 
     private func load() {
-        guard let data = defaults.data(forKey: key), let s = try? JSONDecoder().decode(Saved.self, from: data) else { return }
+        guard let data = defaults.data(forKey: key), let s = try? JSONDecoder().decode(Saved.self, from: data) else {
+            // neues Geraet: Vorgaben fuer neue Nutzer (`firstStart`), mit dem ersten Sichern gemerkt
+            start = Self.firstStart
+            let first = Self.firstTool(start)
+            tool = first
+            lastInk = first
+            lastPen = first
+            lastCanvasTool = first
+            return
+        }
+        start = s.start.flatMap(FirstStart.init(rawValue:)) ?? .classic
         // Staerken, die PencilKit nicht kann (aeltere Stufen: Fineliner 6, Textmarker 6), auf die naechste gueltige
         var loaded = s.styles
         for (k, var v) in loaded {
@@ -480,7 +568,7 @@ final class EditorToolState: ObservableObject {
         presets = (s.presets ?? []).filter { $0.toolValue != nil }.prefix(Self.presetLimit).map { var p = $0; p.style.width = Self.clampedWidth(p.style.width, for: p.toolValue!); return p }
         eraserKind = EraserKind(rawValue: s.eraser) ?? .object
         if let i = Tool(rawValue: s.lastInk), i.isInk { lastInk = i }
-        if let p = s.lastPen.flatMap(Tool.init(rawValue:)), p == .pen || p == .fineliner { lastPen = p }
+        if let p = s.lastPen.flatMap(Tool.init(rawValue:)), p.isPen { lastPen = p }
         // beim Oeffnen nie ein Objektwerkzeug (wie frueher die Palette): sonst der letzte Stift
         let t = Tool(rawValue: s.tool).flatMap { $0.drawsOnCanvas ? $0 : nil } ?? lastInk
         tool = t
@@ -489,7 +577,7 @@ final class EditorToolState: ObservableObject {
 
     private func save() {
         let s = Saved(tool: (tool.drawsOnCanvas ? tool : lastCanvasTool).rawValue, lastInk: lastInk.rawValue, lastPen: lastPen.rawValue,
-                      eraser: eraserKind.rawValue, styles: styles, presets: presets)
+                      eraser: eraserKind.rawValue, styles: styles, presets: presets, start: start.rawValue)
         if let data = try? JSONEncoder().encode(s) { defaults.set(data, forKey: key) }
     }
 }
@@ -716,7 +804,7 @@ struct EditorToolbar: View {
                 Circle().fill(color(s.hex)).frame(width: 18, height: 18)
                     .overlay(Circle().stroke(UF.lineStrong, lineWidth: 1))
                 if !t.widths.isEmpty {
-                    Capsule().fill(UF.text).frame(width: 16, height: min(8, max(1.5, s.width * (t == .marker ? 0.3 : 0.9))))
+                    Capsule().fill(UF.text).frame(width: 16, height: min(8, EditorToolAttributes.lineHeight(s.width, tool: t) * 0.8))
                 }
             }
             .frame(minWidth: Self.hitSide, minHeight: Self.hitSide)
@@ -952,7 +1040,7 @@ struct EditorToolAttributes: View {
                 }
             }
             if !tool.widths.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: tool.widths.count > 5 ? 4 : 8) {
                     ForEach(tool.widths, id: \.self) { w in
                         Button { tools.setWidth(w, for: tool) } label: {
                             Capsule().fill(UF.text).frame(width: 26, height: Self.lineHeight(w, tool: tool))
@@ -961,7 +1049,7 @@ struct EditorToolAttributes: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Stärke \(tool.widths.firstIndex(of: w).map { $0 + 1 } ?? 0) von \(tool.widths.count)")
-                        .accessibilityAddTraits(s.width == w ? .isSelected : [])
+                        .accessibilityAddTraits(abs(s.width - w) < 0.005 ? .isSelected : [])
                         .accessibilityIdentifier("toolbar.width.\(tool.widths.firstIndex(of: w) ?? 0)")
                     }
                 }
@@ -989,9 +1077,15 @@ struct EditorToolAttributes: View {
         .presentationCompactAdaptation(.popover)
     }
 
-    /// Hoehe des Strichs in der Auswahl (Textmarker breiter gezeichnet, dafuer gedaempft)
+    /// Hoehe des Strichs in der Auswahl: etwa so, wie die Tinte zeichnet (Fineliner das Doppelte der Zahl, Fueller ein
+    /// Drittel; Textmarker gedaempft), damit sich auch die feinen Stufen unterscheiden
     static func lineHeight(_ w: CGFloat, tool: EditorToolState.Tool) -> CGFloat {
-        min(14, max(1.5, tool == .marker ? w * 0.45 : w * 1.1))
+        switch tool {
+        case .marker: return min(14, max(1.5, w * 0.45))
+        case .fineliner: return min(14, max(0.75, w * 2.8))
+        case .fountain: return min(14, max(0.75, w * 0.9))
+        default: return min(14, max(1.5, w * 1.1))
+        }
     }
 }
 

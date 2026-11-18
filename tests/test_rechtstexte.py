@@ -23,6 +23,15 @@ LEGAL = ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOES
 TODAY = dt.date.today().strftime("%d.%m.%Y")
 OPEN_KEYS = ("telefon",)  # Hosting seit 08.11.2026 eingetragen (Hetzner, Nürnberg)       # in angaben.json noch leer
 COMPANY = "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)"
+# Stand je Rechtstext: 14.11.2026 vom Inhaber fertig gegeben; Nutzungsbedingungen 18.11.2026 (Erinnerungen an Abgaben
+# und Klausuren ab Pro AI, Entscheidung des Inhabers "Alles ab Pro AI"; Entwurf im Repo, noch nicht veroeffentlicht);
+# Datenschutz 18.11.2026 (Abschnitt 4a: YouTube oeffnen, Video per Link und Lernseiten neben dem Dokument, 1.0.6;
+# Entwurf im Repo, noch nicht veroeffentlicht)
+STAND = {"NUTZUNGSBEDINGUNGEN.md": "18.11.2026", "DATENSCHUTZ.md": "18.11.2026"}
+
+
+def stand(name: str) -> str:
+    return f"Stand {STAND.get(name, '14.11.2026')}"
 
 
 def run(*args):
@@ -95,7 +104,7 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
         text = (REL / name).read_text(encoding="utf-8")
         # 14.11.2026 (Inhaber: "mach Impressum, Datenschutz und AGB fertig"): kein Entwurfsvermerk mehr auf den
         # veroeffentlichten Seiten, neue Anschrift Vahrenwalder Straße 30, 30165 Hannover
-        assert "support@studinow.app" in text and "Stand 14.11.2026" in text, name
+        assert "support@studinow.app" in text and stand(name) in text, name
         assert "anwaltlich prüfen" not in text and "Entwurf, Stand" not in text, name
         assert "[[Name]]" not in text and "[[E-Mail]]" not in text and "[[Domain]]" not in text and "[[Datum]]" not in text, name
     ds = (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
@@ -118,14 +127,23 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # Hash der Stud.IP-Benutzerkennung im Geraeteabgleich (app/apple_signin.py, app/sync.py check_studip_user)
     # 13.11.2026: Konto loeschen auch im Web und unter Windows; ein Stripe-Abo endet mit der Loeschung (Bedingungen 5, 10;
     # Datenschutz 9, 15), keine anteilige Erstattung (anwaltlich pruefen)
-    assert "**Stand 14.11.2026.**" in ds and "**Stand 14.11.2026.**" in nb
+    assert "**Stand 18.11.2026.**" in ds and "**Stand 18.11.2026.**" in nb
+    # 18.11.2026 (1.0.6, "YouTube öffnen" an, YouTubeBrowse.shipped): YouTube als eigener Verantwortlicher, Werbung von
+    # YouTube auf dessen Seite, eigener Speicher auf dem Geraet, nichts an unseren Dienst
+    for must in ("## 4a. Video, YouTube und Lernseiten neben einem Dokument (Plus)", "Google Ireland Limited",
+                 "`youtube-nocookie.com`", "zeigt eigene Werbung", "„YouTube-Daten löschen“", "an unseren Dienst geht dabei nichts",
+                 "- **Google (YouTube)** erhält Daten nur, wenn du neben einem Dokument YouTube öffnest"):
+        assert must in ds, must
+    # 18.11.2026: Erinnerungen an Abgaben, Tests und Klausuren nur noch in Pro AI (Tabelle Abschnitt 2)
+    assert "Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen" in nb
+    assert "neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |" in nb
     assert "beenden wir mit der Löschung sofort" in nb and "beenden wir mit der Löschung sofort" in ds
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
     assert "Jede Nutzung hat ein StudiNow-Konto" in ds and "iPad-App ohne StudiNow-Konto" not in ds
     assert "zugleich bei Apple" in ds and "Stud.IP-Benutzerkennung" in ds and "dieselbe apple-id" in ds.lower()
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
-    assert "Stand 14.11.2026." in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site
+    assert "Stand 18.11.2026." in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site and "Google Ireland Limited" in site
     assert "Mit KI verbessern" in ds and "50 E-Mails je Kalendermonat" in nb
     assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb and "verlängert sich automatisch um ein Jahr" in nb
     assert "pro Monat" not in nb.split("## 5a.")[0].split("## 5.")[-1], "kein Monatsabo in Abschnitt 5"
@@ -162,7 +180,7 @@ def test_fill_into_out_dir_leaves_sources_untouched_and_no_placeholders(filled):
         for word in ("TODO", "TBD", "XXX"):
             assert word not in text, (name, word)
         if name in LEGAL:
-            assert "Stand 14.11.2026" in text and "Entwurf, Stand" not in text, name
+            assert stand(name) in text and "Entwurf, Stand" not in text, name
         else:
             assert "Entwurf" in text and "26.10.2026" in text, "Vorbehalt der Vorlage bleibt (tests/test_release_texts.py)"
     # Quelle unveraendert: dort stehen die offenen Platzhalter noch

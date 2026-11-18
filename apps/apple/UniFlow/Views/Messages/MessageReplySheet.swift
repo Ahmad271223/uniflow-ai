@@ -87,7 +87,7 @@ struct MessageReplySheet: View {
                 .accessibilityIdentifier("reply.loading")
         case .notConnected:
             message(icon: "link.badge.plus", title: "Stud.IP ist nicht verbunden",
-                    text: "Melde dich in den Einstellungen unter Stud.IP an. Danach kannst du hier antworten.", id: "reply.notConnected")
+                    text: "Melde dich in den Einstellungen unter „Uni-Zugang & Abgleich“ an. Danach kannst du hier antworten.", id: "reply.notConnected")
         case .needsLogin:
             VStack(spacing: 16) {
                 message(icon: "person.badge.key", title: "Bitte bei Stud.IP anmelden",

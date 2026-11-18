@@ -51,7 +51,9 @@ enum DemoTexts {
     static let barEnd = "Beenden"
     static let firstStart = "Ohne Hochschulkonto ansehen (Demo)"
     static let firstStartRunning = "Demo wird angelegt …"
-    static let confirmEnd = "Demo beenden? Das Demo-Modul mit PDFs, Terminen, Lernpaketen und Notizen dazu verschwindet, danach kommt wieder die Anmeldeseite der Hochschule."
+    static var confirmEnd: String {
+        "Demo beenden? Das Demo-Modul mit PDFs, Terminen\(LearnCalendar.text(", Lernpaketen", off: "")) und Notizen dazu verschwindet, danach kommt wieder die Anmeldeseite der Hochschule."
+    }
     static let ended = "Demo beendet"
     static let syncBlocked = "Demo-Inhalte aktiv: StudiNow gleicht nicht mit der Hochschule ab. Zum Anmelden die Demo oben mit „Beenden“ verlassen."
 }

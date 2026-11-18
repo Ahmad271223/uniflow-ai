@@ -90,12 +90,13 @@ final class DueRemindersAppTests: XCTestCase {
         return a
     }
 
-    /// `plus`: Tarif erlaubt Erinnerungen (ab Plus seit 11.11.2026); die bisherigen Faelle laufen mit Plus
-    private func scheduler(_ fake: FakeNotifier, plus: Bool = true) -> DueReminderScheduler {
+    /// `allowed`: Tarif erlaubt Erinnerungen (ab Pro AI seit 18.11.2026, vorher ab Plus); die bisherigen Faelle laufen
+    /// mit erlaubtem Tarif
+    private func scheduler(_ fake: FakeNotifier, allowed: Bool = true) -> DueReminderScheduler {
         let s = DueReminderScheduler(notifier: fake, defaults: defaults)
         let fixed = now
         s.now = { fixed }
-        s.allowed = { plus }
+        s.allowed = { allowed }
         return s
     }
 
@@ -144,8 +145,8 @@ final class DueRemindersAppTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: DueReminderScheduler.enabledKey))
         let prefix = "de.uniflow.ai.due.\(c.layout.identifier.uuidString)."
         XCTAssertTrue(ids(fake).allSatisfy { $0.hasPrefix(prefix) })
-        XCTAssertEqual(fake.pending.count, 7, "Abgabe mit Uhrzeit: 4, Kurzklausur ohne: 3")
-        XCTAssertEqual(s.scheduled, 7)
+        XCTAssertEqual(fake.pending.count, 8, "Abgabe mit Uhrzeit: 4, Kurzklausur ohne: 4 (seit 17.11.2026 auch 7 Tage vorher)")
+        XCTAssertEqual(s.scheduled, 8)
         let h2 = try XCTUnwrap(fake.pending.values.first { $0.identifier.hasSuffix(".h2") })
         XCTAssertEqual(h2.title, "In 2 Stunden: Abgabe Blatt 3")
         XCTAssertEqual(h2.route, "#/doc/f-b3")
@@ -155,47 +156,74 @@ final class DueRemindersAppTests: XCTestCase {
         XCTAssertEqual(fake.requests, 1)
     }
 
-    /// Entscheidung des Inhabers 11.11.2026: Erinnerungen erst ab Plus. Free: der Schalter fragt iOS nicht, nichts wird
-    /// geplant, schon geplante (z. B. aus der Probe) werden zurueckgenommen; mit Plus plant derselbe Schalter wieder.
-    /// Tarifregeln: `UFFeature.dueReminders` ab Plus, im Vertrag `can_use_due_reminders` (plans.json).
-    func testRemindersNeedPlus() async throws {
-        XCTAssertEqual(UFFeature.dueReminders.minimumPlan, .plus)
-        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .free), .locked(.plus))
-        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .plus), .allowed)
+    /// Entscheidung des Inhabers 18.11.2026 ("Alles ab Pro AI"; 11.-17.11.2026 ab Plus): Erinnerungen an Abgaben, Tests
+    /// und Klausuren samt "Neuer Klausurtermin erkannt" erst ab Pro AI. Free und Plus: der Schalter fragt iOS nicht,
+    /// nichts wird geplant. Bestehender Plus-Nutzer mit eingeschalteten Erinnerungen nach dem Update: die geplanten werden
+    /// zurueckgenommen, der Schalter bleibt gemerkt, die Einstellungen zeigen die Sperrkarte "ab Pro AI"; mit Pro AI
+    /// plant derselbe Schalter wieder. Tarifregeln: `UFFeature.dueReminders` ab Pro AI, im Vertrag
+    /// `can_use_due_reminders` (plans.json). Der Tarif kommt hier ueber `Entitlements.allows` wie in der App.
+    func testRemindersNeedProAI() async throws {
+        XCTAssertEqual(UFFeature.dueReminders.minimumPlan, .proAI)
+        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .free), .locked(.proAI))
+        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .plus), .locked(.proAI))
         XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: .proAI), .allowed)
-        XCTAssertEqual(UFEntitlement.canUseDueReminders.from, .plus)
-        XCTAssertTrue(UFPlanCard.included(.plus).contains { $0.title == "Erinnerungen an Abgaben und Klausuren" })
+        XCTAssertEqual(UFFeatureMatrix.access(.dueReminders, plan: UFLocalTrial.plan), .allowed, "Probe wie Pro AI")
+        XCTAssertEqual(UFEntitlement.canUseDueReminders.from, .proAI)
+        XCTAssertFalse(UFEntitlement.canUseDueReminders.included(in: .plus))
+        XCTAssertTrue(UFPlanCard.included(.proAI).contains { $0.title == "Erinnerungen an Abgaben und Klausuren" })
+        XCTAssertFalse(UFPlanCard.included(.plus).contains { $0.title == "Erinnerungen an Abgaben und Klausuren" })
         XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title == "Erinnerungen an Abgaben und Klausuren" })
+        // Sperrkarte in den Einstellungen (DueReminderCard) und Hinweis der Karte "Klausuren und Tests" nennen Pro AI
+        let lock = UFLockedCard.message(.dueReminders, access: UFFeatureMatrix.access(.dueReminders, plan: .plus))
+        XCTAssertTrue(lock.contains("Enthalten ab StudiNow Pro AI"), lock)
+        XCTAssertTrue(lock.contains("neu erkannten Klausurterminen"), lock)
+        XCTAssertTrue(try XCTUnwrap(DueSoon.hint(.locked)).contains("gehören zu StudiNow Pro AI"))
+        XCTAssertFalse(try XCTUnwrap(DueSoon.hint(.locked)).contains("Plus"))
 
         let m = manager()
         m.sync(account: account(.luh))
         let c = try XCTUnwrap(m.active)
         stores.append(c.websiteDataStoreID)
         try await seedLUH(c)
+        // Plus-Nutzer, der die Erinnerungen vor dem Update (ab Plus) eingeschaltet hat
         let fake = FakeNotifier()
-        var plus = true
+        defaults.set(true, forKey: DueReminderScheduler.enabledKey)       // Schalter von frueher
+        fake.state = .allowed
+        var ent = Entitlements(observe: false, plan: .plus)
         let s = scheduler(fake)
-        s.allowed = { plus }
+        s.allowed = { ent.allows(.dueReminders) }
+        XCTAssertTrue(s.enabled, "Schalter von frueher gelesen")
+        let left = DueReminders.Reminder(identifier: "\(DueReminders.prefix)\(c.layout.identifier.uuidString).alt.d1",
+                                         fireAt: now.addingTimeInterval(86_400), title: "Morgen: Blatt 2", body: "", route: nil, itemID: "alt")
+        await fake.schedule(left)                                          // aus der Zeit mit Plus noch geplant
         s.attach(m)
         await s.settle()
-        _ = await s.setEnabled(true)
-        XCTAssertEqual(fake.pending.count, 7, "mit Plus geplant")
-
-        plus = false                                    // Probe bzw. Abo zu Ende
-        await s.refresh(recompute: false)
-        XCTAssertEqual(fake.pending.count, 0, "Free: geplante zurueckgenommen")
+        XCTAssertEqual(fake.pending.count, 0, "Plus nach dem Update: geplante zurueckgenommen")
         XCTAssertEqual(s.scheduled, 0)
+        XCTAssertTrue(defaults.bool(forKey: DueReminderScheduler.enabledKey), "Schalter bleibt gemerkt")
+        let lockedState = await s.reminderState()
+        XCTAssertEqual(lockedState, .locked)
+        let again = await s.setEnabled(true)
+        XCTAssertFalse(again, "Plus: Schalter geht nicht an")
+        XCTAssertEqual(fake.requests, 0, "Plus: iOS wird nicht gefragt")
+        XCTAssertEqual(fake.pending.count, 0)
+
+        ent = Entitlements(observe: false, plan: .proAI)                     // Wechsel zu Pro AI
+        await s.refresh(recompute: false)
+        XCTAssertEqual(fake.pending.count, 8, "Pro AI: derselbe Schalter plant wieder")
+        let onState = await s.reminderState()
+        XCTAssertEqual(onState, .on)
+
+        ent = Entitlements(observe: false, plan: .plus)                      // zurueck zu Plus (z. B. Pro AI gekuendigt)
+        await s.refresh(recompute: false)
+        XCTAssertEqual(fake.pending.count, 0, "wieder Plus: zurueckgenommen")
 
         let fresh = FakeNotifier()
-        let free = scheduler(fresh, plus: false)
+        let free = scheduler(fresh, allowed: Entitlements(observe: false, plan: .free).allows(.dueReminders))
         let ok = await free.setEnabled(true)
         XCTAssertFalse(ok, "Free: Schalter geht nicht an")
         XCTAssertEqual(fresh.requests, 0, "Free: iOS wird nicht gefragt")
         XCTAssertEqual(fresh.pending.count, 0)
-
-        plus = true                                     // wieder Plus: derselbe Schalter plant wieder
-        await s.refresh(recompute: false)
-        XCTAssertEqual(fake.pending.count, 7)
     }
 
     func testDeniedStaysOffAndSchedulesNothing() async throws {
@@ -238,7 +266,7 @@ final class DueRemindersAppTests: XCTestCase {
         _ = try await c.api.value("/api/due/\(kk)", method: "PATCH", body: ["hidden": true])
         await s.refresh(recompute: false)
         XCTAssertFalse(ids(fake).contains { $0.contains(".\(kk).") })
-        XCTAssertEqual(fake.removed.filter { $0.contains(".\(kk).") }.count, 3)
+        XCTAssertEqual(fake.removed.filter { $0.contains(".\(kk).") }.count, 4)
         // Uhrzeit der Abgabe geaendert: gleiche Kennung, neuer Zeitpunkt
         let before = try XCTUnwrap(fake.pending.values.first { $0.identifier.hasSuffix("\(abgabe).h2") }?.fireAt)
         _ = try await c.api.value("/api/due/\(abgabe)", method: "PATCH", body: ["time": "12:00"])
@@ -263,7 +291,7 @@ final class DueRemindersAppTests: XCTestCase {
         let s = scheduler(fake)
         s.attach(m)
         _ = await s.setEnabled(true)
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
         _ = await s.setEnabled(false)
         XCTAssertEqual(fake.pending.count, 0)
         XCTAssertEqual(fake.foreign.count, 1, "Mitteilung des Hintergrundabgleichs bleibt")
@@ -286,7 +314,7 @@ final class DueRemindersAppTests: XCTestCase {
         _ = await s.setEnabled(true)
         await s.settle()
         let luhPrefix = "de.uniflow.ai.due.\(luh.layout.identifier.uuidString)."
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
 
         // Wechsel zur Uni Hildesheim: Learnweb-Frist dort
         a.chooseUniversity(.hildesheim)
@@ -306,7 +334,7 @@ final class DueRemindersAppTests: XCTestCase {
         let hiPrefix = "de.uniflow.ai.due.\(hi.layout.identifier.uuidString)."
         XCTAssertTrue(ids(fake).allSatisfy { $0.hasPrefix(hiPrefix) }, "nur Erinnerungen des offenen Containers")
         XCTAssertEqual(fake.pending.count, 4)
-        XCTAssertEqual(fake.removed.filter { $0.hasPrefix(luhPrefix) }.count, 7)
+        XCTAssertEqual(fake.removed.filter { $0.hasPrefix(luhPrefix) }.count, 8)
         XCTAssertEqual(fake.pending.values.first { $0.identifier.hasSuffix(".h2") }?.route, "https://learnweb.example.test/a")
 
         // zurueck zur LUH: deren Erinnerungen wieder, Hildesheim zurueckgenommen
@@ -315,7 +343,7 @@ final class DueRemindersAppTests: XCTestCase {
         await s.settle()
         await s.refresh(recompute: false)
         XCTAssertTrue(ids(fake).allSatisfy { $0.hasPrefix(luhPrefix) })
-        XCTAssertEqual(fake.pending.count, 7)
+        XCTAssertEqual(fake.pending.count, 8)
     }
 
     func testAtMostSixtyAndNothingWithoutContainer() async throws {

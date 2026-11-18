@@ -106,7 +106,7 @@
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-ma-vl",
     "Testmathematik I",
@@ -115,11 +115,12 @@
     "vorlesung",
     1,
     1,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-ma-ue",
     "Übung zu Testmathematik I",
@@ -128,11 +129,12 @@
     "uebung",
     1,
     1,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-ph",
     "Testphysik für Ingenieure",
@@ -141,11 +143,12 @@
     "vorlesung",
     1,
     2,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-pg",
     "Gruppenübung Programmierkurs Beispiel",
@@ -154,11 +157,12 @@
     "gruppenuebung",
     1,
     3,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-alt",
     "Altkurs Beispiel",
@@ -167,11 +171,12 @@
     "vorlesung",
     1,
     4,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-ch",
     "Testchemie",
@@ -180,11 +185,12 @@
     "vorlesung",
     1,
     null,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "k-inaktiv",
     "Inaktiver Testkurs",
@@ -193,7 +199,8 @@
     "vorlesung",
     0,
     1,
-    "2026-10-01T09:00:00"
+    "2026-10-01T09:00:00",
+    "2026-10-22T08:00:00"
    ]
   },
   {
@@ -1579,7 +1586,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 8,
-      "new_count": 6,
+      "new_count": 0,
       "open_tasks": 2,
       "progress": 17,
       "mastery": {
@@ -1638,7 +1645,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 3,
-      "new_count": 2,
+      "new_count": 0,
       "open_tasks": 1,
       "progress": 33,
       "mastery": {
@@ -1694,7 +1701,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 50,
       "mastery": {
@@ -1748,7 +1755,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 1,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -1778,7 +1785,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 1,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -1791,141 +1798,8 @@
       "weeks": 1
      }
     ],
-    "new_files": [
-     {
-      "id": "f-ph-u2",
-      "name": "Übungsblatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792888200,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-pg-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792877400,
-      "subject": "Programmierkurs Beispiel",
-      "module_id": 3,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-s",
-      "name": "Skript Testmathematik.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792569600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-l1",
-      "name": "Lösung Blatt 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792512000,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792479600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-v2",
-      "name": "VL02.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792396800,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": "vorlesung",
-      "ai_title": "Grenzwerte und Stetigkeit",
-      "difficulty": null,
-      "est_minutes": 150
-     },
-     {
-      "id": "f-ch-v1",
-      "name": "Vorlesung 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792130400,
-      "subject": "Testchemie",
-      "module_id": 5,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ph-v1",
-      "name": "Folien Einführung.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791972000,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": "vorlesung",
-      "ai_title": "Einführung Physik",
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-alt-v1",
-      "name": "VL01.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791784800,
-      "subject": "Altmodul",
-      "module_id": 4,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-vk",
-      "name": "Vorkurs Folien.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791187200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-alt",
-      "name": "Altklausur 2025.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1789891200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     }
-    ],
-    "new_total": 11,
+    "new_files": [],
+    "new_total": 0,
     "announcements": [],
     "week": {
      "start": "2026-10-19",
@@ -6383,7 +6257,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 8,
-      "new_count": 5,
+      "new_count": 0,
       "open_tasks": 6,
       "progress": 17,
       "mastery": {
@@ -6442,7 +6316,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 3,
-      "new_count": 2,
+      "new_count": 0,
       "open_tasks": 4,
       "progress": 33,
       "mastery": {
@@ -6501,7 +6375,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 50,
       "mastery": {
@@ -6555,7 +6429,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 1,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -6585,7 +6459,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 1,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -6598,129 +6472,8 @@
       "weeks": 1
      }
     ],
-    "new_files": [
-     {
-      "id": "f-ph-u2",
-      "name": "Übungsblatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792888200,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-pg-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792877400,
-      "subject": "Programmierkurs Beispiel",
-      "module_id": 3,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-s",
-      "name": "Skript Testmathematik.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792569600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-l1",
-      "name": "Lösung Blatt 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792512000,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792479600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ch-v1",
-      "name": "Vorlesung 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792130400,
-      "subject": "Testchemie",
-      "module_id": 5,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ph-v1",
-      "name": "Folien Einführung.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791972000,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": "vorlesung",
-      "ai_title": "Einführung Physik",
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-alt-v1",
-      "name": "VL01.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791784800,
-      "subject": "Altmodul",
-      "module_id": 4,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-vk",
-      "name": "Vorkurs Folien.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791187200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-alt",
-      "name": "Altklausur 2025.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1789891200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     }
-    ],
-    "new_total": 10,
+    "new_files": [],
+    "new_total": 0,
     "announcements": [],
     "week": {
      "start": "2026-10-19",
@@ -6917,7 +6670,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 8,
-     "new_count": 5,
+     "new_count": 0,
      "open_tasks": 6,
      "progress": 17,
      "mastery": {
@@ -6976,7 +6729,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 3,
-     "new_count": 2,
+     "new_count": 0,
      "open_tasks": 4,
      "progress": 33,
      "mastery": {
@@ -7035,7 +6788,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 2,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 50,
      "mastery": {
@@ -7089,7 +6842,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -7119,7 +6872,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -7209,6 +6962,7 @@
         "sub_label": "Vorlesung",
         "week_hint": null,
         "source": "studip",
+        "is_new": 0,
         "section": "w:0",
         "placed": false
        }
@@ -7255,6 +7009,7 @@
         "sub_label": "Vorlesung",
         "week_hint": 1,
         "source": "studip",
+        "is_new": 0,
         "section": "w:1",
         "placed": false
        }
@@ -7286,6 +7041,7 @@
         "sub_label": "Übung",
         "week_hint": 1,
         "source": "studip",
+        "is_new": 0,
         "section": "w:1",
         "placed": false
        }
@@ -7317,6 +7073,7 @@
         "sub_label": "Lösung",
         "week_hint": 1,
         "source": "studip",
+        "is_new": 0,
         "section": "w:1",
         "placed": false
        }
@@ -7361,6 +7118,7 @@
         "sub_label": "Vorlesung",
         "week_hint": 2,
         "source": "studip",
+        "is_new": 0,
         "section": "w:2",
         "placed": false
        }
@@ -7392,6 +7150,7 @@
         "sub_label": "Übung",
         "week_hint": 2,
         "source": "studip",
+        "is_new": 0,
         "section": "w:2",
         "placed": false
        }
@@ -7424,6 +7183,7 @@
         "sub_label": "Skript",
         "week_hint": null,
         "source": "studip",
+        "is_new": 0,
         "section": "w:2",
         "placed": false
        }
@@ -7471,6 +7231,7 @@
         "sub_label": "Altklausur",
         "week_hint": null,
         "source": "studip",
+        "is_new": 0,
         "section": "w:-2",
         "placed": false
        }
@@ -7513,7 +7274,8 @@
           "section": "w:-2",
           "placed": false,
           "exam_role": "klausur",
-          "solution_of": null
+          "solution_of": null,
+          "is_new": 0
          }
         ]
        }
@@ -7640,6 +7402,7 @@
       "sub_label": "Altklausur",
       "week_hint": null,
       "source": "studip",
+      "is_new": 0,
       "section": "w:-2",
       "placed": false
      },
@@ -7669,6 +7432,7 @@
       "sub_label": "Vorlesung",
       "week_hint": null,
       "source": "studip",
+      "is_new": 0,
       "section": "w:0",
       "placed": false
      },
@@ -7698,6 +7462,7 @@
       "sub_label": "Vorlesung",
       "week_hint": 1,
       "source": "studip",
+      "is_new": 0,
       "section": "w:1",
       "placed": false
      },
@@ -7727,6 +7492,7 @@
       "sub_label": "Übung",
       "week_hint": 1,
       "source": "studip",
+      "is_new": 0,
       "section": "w:1",
       "placed": false
      },
@@ -7756,6 +7522,7 @@
       "sub_label": "Vorlesung",
       "week_hint": 2,
       "source": "studip",
+      "is_new": 0,
       "section": "w:2",
       "placed": false
      },
@@ -7785,6 +7552,7 @@
       "sub_label": "Übung",
       "week_hint": 2,
       "source": "studip",
+      "is_new": 0,
       "section": "w:2",
       "placed": false
      },
@@ -7814,6 +7582,7 @@
       "sub_label": "Lösung",
       "week_hint": 1,
       "source": "studip",
+      "is_new": 0,
       "section": "w:1",
       "placed": false
      },
@@ -7843,6 +7612,7 @@
       "sub_label": "Skript",
       "week_hint": null,
       "source": "studip",
+      "is_new": 0,
       "section": "w:2",
       "placed": false
      }
@@ -7856,7 +7626,7 @@
      "tasks_done": 1,
      "tasks_total": 7
     },
-    "new_count": 5,
+    "new_count": 0,
     "open_tasks": 6,
     "next_package": {
      "date": "2026-10-23",
@@ -9104,7 +8874,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 10,
-      "new_count": 7,
+      "new_count": 2,
       "open_tasks": 6,
       "progress": 12,
       "mastery": {
@@ -9164,7 +8934,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 4,
-      "new_count": 3,
+      "new_count": 1,
       "open_tasks": 4,
       "progress": 25,
       "mastery": {
@@ -9223,7 +8993,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 50,
       "mastery": {
@@ -9277,7 +9047,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 1,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -9307,7 +9077,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 2,
+      "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -9368,129 +9138,9 @@
       "ai_title": null,
       "difficulty": null,
       "est_minutes": null
-     },
-     {
-      "id": "f-ph-u2",
-      "name": "Übungsblatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792888200,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-pg-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792877400,
-      "subject": "Programmierkurs Beispiel",
-      "module_id": 3,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-s",
-      "name": "Skript Testmathematik.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792569600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-l1",
-      "name": "Lösung Blatt 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792512000,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792479600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ch-v1",
-      "name": "Vorlesung 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792130400,
-      "subject": "Testchemie",
-      "module_id": 5,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ph-v1",
-      "name": "Folien Einführung.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791972000,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": "vorlesung",
-      "ai_title": "Einführung Physik",
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-alt-v1",
-      "name": "VL01.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791784800,
-      "subject": "Altmodul",
-      "module_id": 4,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-vk",
-      "name": "Vorkurs Folien.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791187200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-alt",
-      "name": "Altklausur 2025.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1789891200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
      }
     ],
-    "new_total": 14,
+    "new_total": 4,
     "announcements": [],
     "week": {
      "start": "2026-10-26",
@@ -11660,7 +11310,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 10,
-      "new_count": 7,
+      "new_count": 2,
       "open_tasks": 8,
       "progress": 12,
       "mastery": {
@@ -11720,7 +11370,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 4,
-      "new_count": 3,
+      "new_count": 1,
       "open_tasks": 6,
       "progress": 25,
       "mastery": {
@@ -11779,7 +11429,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 50,
       "mastery": {
@@ -11833,7 +11483,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 1,
-      "new_count": 1,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -11863,7 +11513,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 2,
+      "new_count": 1,
       "open_tasks": 2,
       "progress": 0,
       "mastery": {
@@ -11934,129 +11584,9 @@
       "ai_title": null,
       "difficulty": null,
       "est_minutes": null
-     },
-     {
-      "id": "f-ph-u2",
-      "name": "Übungsblatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792888200,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-pg-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792877400,
-      "subject": "Programmierkurs Beispiel",
-      "module_id": 3,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-s",
-      "name": "Skript Testmathematik.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792569600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-l1",
-      "name": "Lösung Blatt 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792512000,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-u2",
-      "name": "Blatt 2.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792479600,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ch-v1",
-      "name": "Vorlesung 1.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1792130400,
-      "subject": "Testchemie",
-      "module_id": 5,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ph-v1",
-      "name": "Folien Einführung.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791972000,
-      "subject": "Testphysik",
-      "module_id": 2,
-      "doc_type": "vorlesung",
-      "ai_title": "Einführung Physik",
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-alt-v1",
-      "name": "VL01.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791784800,
-      "subject": "Altmodul",
-      "module_id": 4,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-vk",
-      "name": "Vorkurs Folien.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1791187200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
-     },
-     {
-      "id": "f-ma-alt",
-      "name": "Altklausur 2025.pdf",
-      "first_seen": "2026-10-22T08:00:00",
-      "chdate": 1789891200,
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "doc_type": null,
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null
      }
     ],
-    "new_total": 14,
+    "new_total": 4,
     "announcements": [],
     "week": {
      "start": "2026-10-26",
@@ -12247,7 +11777,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 10,
-     "new_count": 7,
+     "new_count": 2,
      "open_tasks": 8,
      "progress": 12,
      "mastery": {
@@ -12307,7 +11837,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 4,
-     "new_count": 3,
+     "new_count": 1,
      "open_tasks": 6,
      "progress": 25,
      "mastery": {
@@ -12366,7 +11896,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 2,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 50,
      "mastery": {
@@ -12420,7 +11950,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 1,
-     "new_count": 1,
+     "new_count": 0,
      "open_tasks": 0,
      "progress": 0,
      "mastery": null,
@@ -12450,7 +11980,7 @@
      "expected_materials": null,
      "exam_reuse": "paraphrase",
      "file_count": 2,
-     "new_count": 2,
+     "new_count": 1,
      "open_tasks": 2,
      "progress": 0,
      "mastery": {
@@ -16243,7 +15773,7 @@
         "expected_materials": null,
         "exam_reuse": "paraphrase",
         "file_count": 10,
-        "new_count": 7,
+        "new_count": 1,
         "open_tasks": 3,
         "progress": 25,
         "mastery": {
@@ -16303,7 +15833,7 @@
         "expected_materials": null,
         "exam_reuse": "paraphrase",
         "file_count": 4,
-        "new_count": 3,
+        "new_count": 1,
         "open_tasks": 3,
         "progress": 25,
         "mastery": {
@@ -16362,7 +15892,7 @@
         "expected_materials": null,
         "exam_reuse": "paraphrase",
         "file_count": 2,
-        "new_count": 1,
+        "new_count": 0,
         "open_tasks": 0,
         "progress": 50,
         "mastery": {
@@ -16416,7 +15946,7 @@
         "expected_materials": null,
         "exam_reuse": "paraphrase",
         "file_count": 1,
-        "new_count": 1,
+        "new_count": 0,
         "open_tasks": 0,
         "progress": 0,
         "mastery": null,
@@ -16446,7 +15976,7 @@
         "expected_materials": null,
         "exam_reuse": "paraphrase",
         "file_count": 2,
-        "new_count": 2,
+        "new_count": 1,
         "open_tasks": 1,
         "progress": 0,
         "mastery": {
@@ -16505,141 +16035,9 @@
         "ai_title": null,
         "difficulty": null,
         "est_minutes": null
-       },
-       {
-        "id": "f-ph-u2",
-        "name": "Übungsblatt 2.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792888200,
-        "subject": "Testphysik",
-        "module_id": 2,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-pg-u2",
-        "name": "Blatt 2.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792877400,
-        "subject": "Programmierkurs Beispiel",
-        "module_id": 3,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ma-s",
-        "name": "Skript Testmathematik.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792569600,
-        "subject": "Testmathematik I",
-        "module_id": 1,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ma-l1",
-        "name": "Lösung Blatt 1.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792512000,
-        "subject": "Testmathematik I",
-        "module_id": 1,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ma-u2",
-        "name": "Blatt 2.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792479600,
-        "subject": "Testmathematik I",
-        "module_id": 1,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ma-v2",
-        "name": "VL02.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792396800,
-        "subject": "Testmathematik I",
-        "module_id": 1,
-        "doc_type": "vorlesung",
-        "ai_title": "Grenzwerte und Stetigkeit",
-        "difficulty": null,
-        "est_minutes": 150
-       },
-       {
-        "id": "f-ch-v1",
-        "name": "Vorlesung 1.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1792130400,
-        "subject": "Testchemie",
-        "module_id": 5,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ph-v1",
-        "name": "Folien Einführung.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1791972000,
-        "subject": "Testphysik",
-        "module_id": 2,
-        "doc_type": "vorlesung",
-        "ai_title": "Einführung Physik",
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-alt-v1",
-        "name": "VL01.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1791784800,
-        "subject": "Altmodul",
-        "module_id": 4,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ma-vk",
-        "name": "Vorkurs Folien.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1791187200,
-        "subject": "Testmathematik I",
-        "module_id": 1,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
-       },
-       {
-        "id": "f-ma-alt",
-        "name": "Altklausur 2025.pdf",
-        "first_seen": "2026-10-22T08:00:00",
-        "chdate": 1789891200,
-        "subject": "Testmathematik I",
-        "module_id": 1,
-        "doc_type": null,
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null
        }
       ],
-      "new_total": 14,
+      "new_total": 3,
       "announcements": [],
       "week": {
        "start": "2026-10-26",

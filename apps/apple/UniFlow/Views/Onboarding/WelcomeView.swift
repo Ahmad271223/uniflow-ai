@@ -14,7 +14,7 @@ struct WelcomeView: View {
     static let reasons: [(String, String, String)] = [
         ("graduation", "Hochschul-Zuordnung", "Deine Hochschule, ihre Verbindungen (z. B. Stud.IP) und deine Kurse werden deinem Konto zugeordnet – getrennt je Hochschule."),
         ("user", "Getrennte Daten", UFDevice.adapt("Dateien, Notizen und Uni-Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Hochschul-Passwörter und Dateien aus Stud.IP gehen nie an StudiNow.")),
-        ("sync", "StudiNow-Konto", "Dieselbe Anmeldung meldet dich beim StudiNow-Dienst an: für die StudiNow-KI mit Credits, deinen Tarif auf allen Geräten und den Abgleich von Modulen, Stundenplan, Lernplan und Karteikarten zwischen deinen Geräten (Notizen mit Pro AI). StudiNow Free gilt für ein Gerät."),
+        ("sync", "StudiNow-Konto", "Dieselbe Anmeldung meldet dich beim StudiNow-Dienst an: für die StudiNow-KI mit Credits, deinen Tarif auf allen Geräten und den Abgleich von Modulen, Stundenplan\(LearnCalendar.text(", Lernplan", off: "")) und Karteikarten zwischen deinen Geräten (Notizen mit Pro AI). StudiNow Free gilt für ein Gerät."),
         ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store. Mit derselben Apple-ID hast du auf jedem Gerät dasselbe StudiNow-Konto und dasselbe Abo."),
     ]
 
@@ -26,8 +26,8 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 0) {
                 UFLogoMark()
                 Text("Willkommen bei StudiNow").ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 22.4)
-                Text(UFDevice.isPhone ? "Stud.IP-Dateien, Lernplan, KI-Hilfe und deine Notizen vom iPad – dein Studium an einem Ort."
-                     : UFDevice.adapt("Stud.IP-Dateien, Lernplan und Notizen mit dem Apple Pencil – dein Studium an einem Ort."))
+                Text(UFDevice.isPhone ? "Stud.IP-Dateien, \(LearnCalendar.text("Lernplan", off: "Stundenplan")), KI-Hilfe und deine Notizen vom iPad – dein Studium an einem Ort."
+                     : UFDevice.adapt("Stud.IP-Dateien, \(LearnCalendar.text("Lernplan", off: "Stundenplan")) und Notizen mit dem Apple Pencil – dein Studium an einem Ort."))
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
 

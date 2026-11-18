@@ -35,6 +35,12 @@ struct UFHint: Identifiable {
     let courseID: String?
     let moduleID: Int?
     let raw: JSONValue
+    /// Klausur-Pin einer nur in einem Dokument erkannten Klausur: der erkannte Termin (GET /api/due) fuer "Quelle öffnen",
+    /// "Stimmt" und "Stimmt nicht" (17.11.2026); sonst nil
+    var due: JSONValue? = nil
+
+    /// Erkannter Termin hinter diesem Hinweis (Chip "erkannt" oder Klausur-Pin einer nur erkannten Klausur)
+    var detectedItem: JSONValue? { category == .detected ? raw : due }
 
     // MARK: Aufbau aus den Feldern eines Kalendertags
 
@@ -48,20 +54,27 @@ struct UFHint: Identifiable {
         func covered(_ x: JSONValue) -> Bool {
             (x.i("module_id").map(modules.contains) ?? false) || (x.s("course_id").map(courses.contains) ?? false)
         }
-        return exams.map { exam($0, date: date) }
+        let deadlines = dd.list("deadlines")
+        return exams.map { e in
+                let due = e["detected_only"]?.bool == true ? deadlines.first { $0.s("id") == e.s("due_id") && e.s("due_id") != nil } : nil
+                return exam(e, date: date, due: due)
+            }
             + UFDayExtras.marks(dd).map { mark($0, date: date) }
             + dd.list("deadlines").filter { !($0["detected"]?.bool == true && $0.s("kind") == "klausur" && covered($0)) }.map { deadline($0, date: date) }
             + dd.list("notices").filter { !($0.s("kind") == "pruefung" && covered($0)) }.map { notice($0, date: date) }
     }
 
     /// Klausur aus GET /api/exams/upcoming: Titel mit Modul, Uhrzeit, Raum, Quelle(n)
-    static func exam(_ x: JSONValue, date: String) -> UFHint {
+    /// `due`: der erkannte Termin, wenn die Klausur nur in einem Dokument erkannt ist (Satz der Fundstelle statt Raum)
+    static func exam(_ x: JSONValue, date: String, due: JSONValue? = nil) -> UFHint {
         let room = x.s("room").flatMap { $0.isEmpty ? nil : "Raum: \($0)" }
+        let found = due?.s("snippet").flatMap { $0.isEmpty ? nil : "„\($0)“" }
         return UFHint(id: "exam|\(x.s("id") ?? date)", category: .exam, kind: "klausur", kindText: x.s("kind_label") ?? "Klausur",
                       icon: UFExam.icon, tone: .bad, title: x.s("title") ?? "Klausur", date: date,
                       time: x.s("time").flatMap { $0.isEmpty ? nil : $0 }, course: x.s("course_title") ?? x.s("module_name"),
-                      snippet: room, source: x.s("source_label") ?? "Klausurtermin", url: UFExam.sourceURL(x),
-                      announcementID: nil, courseID: x.s("course_id"), moduleID: x.i("module_id"), raw: x)
+                      snippet: found ?? room,
+                      source: (x.s("source_label") ?? "Klausurtermin") + (due == nil ? "" : " (automatisch erkannt)"), url: UFExam.sourceURL(x),
+                      announcementID: nil, courseID: x.s("course_id"), moduleID: x.i("module_id"), raw: x, due: due)
     }
 
     static func mark(_ m: JSONValue, date: String) -> UFHint {
@@ -206,6 +219,27 @@ struct UFHintDialog: View {
                 Text("Quelle: \(hint.source)").ufFont(13.12).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("hint.source")
+                // erkannter Termin (17.11.2026): Vorbehalt der Erkennung und "Stimmt" / "Stimmt nicht" gleich hier
+                if let due = hint.detectedItem {
+                    if let note = due.s("note"), !note.isEmpty {
+                        Text(note).ufFont(13.12, 600).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("hint.note")
+                    }
+                    if due["confirmed"]?.bool == true {
+                        Text("Von dir bestätigt.").ufFont(13.12).foregroundStyle(UF.okText)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Automatisch erkannt, nicht sicher – bitte prüfen.").ufFont(13.12).foregroundStyle(UF.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 8) {
+                                UFButton("Stimmt", icon: "check", size: .small) { Task { await judge(["confirmed": true], "Bestätigt") } }
+                                    .accessibilityIdentifier("hint.confirm")
+                                UFButton("Stimmt nicht", kind: .ghost, size: .small) { Task { await judge(["hidden": true], DueTexts.hiddenToast) } }
+                                    .accessibilityIdentifier("hint.reject")
+                            }
+                        }
+                    }
+                }
                 if hint.isCancellation, let e = event { cancelState(e) }
             }
         } foot: {
@@ -217,11 +251,12 @@ struct UFHintDialog: View {
                     }
                     .accessibilityIdentifier("hint.toEvent")
                 }
-                if hint.category == .detected, DueOpen.route(hint.raw) != nil {
-                    UFButton("Quelle öffnen", icon: "arrow-right", size: .small) {
+                if let due = hint.detectedItem, DueOpen.route(due) != nil {
+                    UFButton(due.s("file_id") != nil ? "Zur Fundstelle" : "Quelle öffnen", icon: "arrow-right", size: .small) {
                         close()
-                        DueOpen.open(hint.raw, router: router, openURL: openURL)
+                        DueOpen.open(due, router: router, openURL: openURL)
                     }
+                    .accessibilityIdentifier("hint.openDetected")
                 } else if let u = hint.url {
                     UFButton("Quelle öffnen", icon: "arrow-right", size: .small) { openURL(u) }
                         .accessibilityIdentifier("hint.openSource")
@@ -270,6 +305,17 @@ struct UFHintDialog: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.warnSoft))
+        }
+    }
+
+    /// Erkannten Termin bestaetigen oder ausblenden (PATCH /api/due/{id}), danach Kalender und Erinnerungen neu
+    private func judge(_ body: JSONValue, _ done: String) async {
+        guard let api = session.api, let id = hint.detectedItem?.s("id") else { return }
+        if await toast.attempt("Speichern", { _ = try await api.value("/api/due/\(id)", method: "PATCH", body: body) }) {
+            toast.show(done, seconds: 4)
+            close()
+            router.reload()
+            DueReminderScheduler.shared.schedule(recompute: false)
         }
     }
 

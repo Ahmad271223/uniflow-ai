@@ -82,8 +82,10 @@ public enum SyncPending {
         try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", [.text(name)]) != nil
     }
 
-    /// Dateiliste dieses Kurses ist gelesen und gespeichert
+    /// Dateiliste dieses Kurses ist vollstaendig gelesen und gespeichert. Beim ersten Mal merkt sich der Kurs den
+    /// Zeitpunkt (`UniStore.markFirstListing`): "Neu" ist nur, was danach dazukommt.
     public static func markListed(_ c: SQLiteConnection, courseID: String, now: String) throws {
+        try UniStore.markFirstListing(c, courseID: courseID, now: now)
         try c.executeScript(table)
         try c.execute("""
             INSERT INTO course_file_lists(course_id, listed_at) VALUES (?,?)

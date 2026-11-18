@@ -94,12 +94,14 @@ test("Fehlertexte vom Dienst: Text oder {detail, code}", () => {
   assert.equal(errorCode({ code: "credits_exhausted" }), "credits_exhausted"); assert.equal(errorCode({ detail: { code: "x" } }), "x"); assert.equal(errorCode(null), null);
 });
 
-test("Quellen: [n] wird zum Link, darunter die genannten", () => {
-  const html = sourceLinks("<p>Siehe [1] und [7].</p>", [{ n: 1, cited: true, title: "Folien <b>", page: 4 }, { n: 2, cited: false, current: true, name: "Blatt", page: 2 }], esc);
-  assert.match(html, /<a href="#" class="ed-src" data-src="1">\[1\]<\/a>/);
-  assert.ok(html.includes("[7]") && !html.includes('data-src="7"'), "unbekannte Marke bleibt Text");
-  assert.ok(html.includes("Folien &lt;b&gt;, Seite 4") && html.includes("(diese Seite)"));
+test("Quellen: kleine Zeile unter der Antwort mit den genannten Quellen (wie ChatGPT, 18.11.2026)", () => {
+  const src = [{ n: 1, cited: true, title: "Folien <b>", page: 4, file_id: "f2" }, { n: 2, cited: false, current: true, name: "Blatt", page: 2, file_id: "f1" },
+    { n: 3, cited: true, page: 1, file_id: "f1" }];
+  const html = sourceLinks("<p>Siehe.</p>", src, esc, "f1");
+  assert.equal(html, '<p>Siehe.</p><div class="ed-ai-src">Quellen: <a href="#" class="ed-src" data-src="1">Folien &lt;b&gt;, Seite 4</a>, <a href="#" class="ed-src" data-src="3">Seite 1</a></div>');
+  assert.equal(sourceLinks("<p>x</p>", [src[2]], esc, "f1"), '<p>x</p><div class="ed-ai-src">Quelle: <a href="#" class="ed-src" data-src="3">Seite 1</a></div>');
   assert.equal(sourceLinks("<p>x</p>", [], esc), "<p>x</p>");
+  assert.equal(sourceLinks("<p>x</p>", [src[1]], esc), "<p>x</p>", "nur genannte Quellen");
 });
 
 test("Leiste: Reiter mit Rollen, Knoepfe aller Modi, KI-Start, Wochentest, Eingabe unten", () => {

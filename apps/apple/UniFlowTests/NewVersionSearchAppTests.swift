@@ -505,7 +505,10 @@ final class NewVersionSearchAppTests: XCTestCase {
         XCTAssertEqual(hit.route, .doc("d1", page: 2))
         XCTAssertEqual(stud.downloads.count, before, "Suche ohne Netz")
 
-        // Aufgabe des Lernplans: in der Suche mit Weg zur Tagesansicht
+        // Aufgabe des Lernplans: in der Suche mit Weg zur Tagesansicht (nur mit Lernkalender, `LearnCalendar`)
+        let learnCalendar = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         _ = try await dev.api.value("/api/packages", method: "POST",
                                     body: ["date": "2026-10-27", "title": "Lernen", "tasks": [["type": "frei", "title": "Quantenchromodynamik wiederholen", "est_minutes": 30]]])
         shell.search("Quantenchromo")
@@ -519,6 +522,10 @@ final class NewVersionSearchAppTests: XCTestCase {
     func testHeaderSearchEncodesPlusAmpersandAndFindsCapitalUmlauts() async throws {
         XCTAssertEqual(APIClient.queryValue("C++ & a=b #1/ü"), "C%2B%2B%20%26%20a%3Db%20%231%2F%C3%BC")
         XCTAssertEqual(APIClient.queryValue("A-z_0.9~!*'()"), "A-z_0.9~!*'()")
+        // die Treffer sind Aufgaben des Lernplans: mit Lernkalender (ausgeliefert aus, dann keine Aufgaben-Treffer)
+        let learnCalendar = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let dev = try device()
         _ = try await dev.api.value("/api/packages", method: "POST", body: ["date": "2026-10-27", "title": "Lernen", "tasks": [
             ["type": "frei", "title": "C++ Zeiger wiederholen", "est_minutes": 30],

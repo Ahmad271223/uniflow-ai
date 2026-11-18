@@ -1,0 +1,1 @@
+Die Normaldarstellung schreibt eine komplexe Zahl als $x+yi$, also mit Realteil $x$ und Imaginärteil $y$. Bei einem Bruch multiplizierst du Zähler und Nenner mit dem konjugierten Nenner, damit der Nenner reell wird. Zum Beispiel: $\frac{3+4i}{1-2i} =\frac{(3+4i)(1+2i)}{(1-2i)(1+2i)} =\frac{-5+10i}{5} =-1+2i$. Hier wird der Nenner 5, weil $(1-2i)(1+2i)=1+4=5$ und $i^2=-1$. [1]

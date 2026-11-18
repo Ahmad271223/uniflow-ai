@@ -81,7 +81,7 @@
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
     "can_use_flashcards": true,
-    "can_use_due_reminders": true,
+    "can_use_due_reminders": false,
     "can_use_ai_chat": true,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
@@ -223,7 +223,7 @@
    "status": "available"
   },
   "can_use_due_reminders": {
-   "from": "plus",
+   "from": "pro_ai",
    "label": "Erinnerungen an Abgaben und Klausuren",
    "status": "available"
   },

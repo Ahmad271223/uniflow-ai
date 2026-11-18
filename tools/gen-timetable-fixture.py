@@ -56,8 +56,10 @@ for cid, title, kind, module, active in [
     ("k-sonst", "Begrüßung der Erstsemester", "sonstiges", None, 1),
     ("k-alt", "Altkurs Inaktiv", "vorlesung", None, 0),
 ]:
-    SEED.append(("INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                 [cid, title, None, "WiSe 2026/27", None, kind, active, module, "2026-10-01T09:00:00"]))
+    # first_listed_at: Dateiliste zum ersten Mal eingelesen am 24.10. um 8 Uhr (wie first_seen der meisten Dateien: sie
+    # waren "schon da"); neu ist nur, was danach kam (FIRST_SEEN, study.new_file_sql)
+    SEED.append(("INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                 [cid, title, None, "WiSe 2026/27", None, kind, active, module, "2026-10-01T09:00:00", "2026-10-24T08:00:00"]))
 EVENT_COLS = "module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at"
 for ev in [
     [1, "k-ma-vl", "Testmathematik I", "vorlesung", 0, "10:00", "11:30", "Raum A", "Prof. Beispiel", "weekly", None, None, 1, "studip", None],
@@ -134,11 +136,18 @@ SEED_FILES = [
 ]
 
 
+# Eingetragen (`first_seen`) fuer "Neu" (study.new_file_sql: nie geoeffnet und vor hoechstens 24 Stunden eingetragen).
+# Die Uhr steht am Tag der Zeitumstellung (25.10.2026, 14:30:05 Winterzeit): die Grenze sind wirkliche 24 Stunden,
+# also 24.10. 15:30:05 Sommerzeit - genau dann ist eine Datei noch neu, eine Sekunde frueher nicht mehr. Alle anderen
+# kamen am 24.10. um 8 Uhr und sind nicht mehr neu.
+FIRST_SEEN = {"tf-ma-3": "2026-10-25T08:00:00", "tf-ue-2": "2026-10-24T15:30:05", "tf-ma-2": "2026-10-24T15:30:04"}
+
+
 def _files_seed() -> list[tuple[str, list]]:
     """INSERT der Dateien (Unix-Zeiten erst hier: TZ=Europe/Berlin ist dann gesetzt)"""
     return [("INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
              [fid, course, name, 1000 + i, "application/pdf", int(datetime.fromisoformat(when).timestamp()), folder,
-              "gelesen" if i % 3 == 0 else "neu", "2026-10-24T08:00:00"])
+              "gelesen" if i % 3 == 0 else "neu", FIRST_SEEN.get(fid, "2026-10-24T08:00:00")])
             for i, (fid, course, name, folder, when) in enumerate(SEED_FILES)]
 
 

@@ -174,6 +174,10 @@ final class StartseiteBilderAppTests: XCTestCase {
     /// Demo-Inhalte, Free, keine Probe: aufgeraeumte Uebersicht (13.11.2026, `DashboardTidy`); nichts verschwindet
     /// ersatzlos
     func test01DemoFree() throws {
+        // mit Lernkalender (ausgeliefert ist er aus: test03OhneLernkalender)
+        let learnCalendar = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         // Mensa hat am Wochenende zu Recht keine Gerichte (keine Karte): dann gilt der naechste Montag als "heute",
         // sonst schlug der Test samstags und sonntags fehl (14.11.2026); werktags bleibt heute heute
         UFFmt.todayOverride = StoreScreenshotV11Tests.nextServiceDay()
@@ -188,7 +192,9 @@ final class StartseiteBilderAppTests: XCTestCase {
         XCTAssertTrue(t.contains { $0.contains("Diese Woche") }, "Aufgaben erledigt steht in Diese Woche")
         // Die Tageszeile nennt die geplanten Minuten; "nachzuholen" steht nur da, wenn in dieser Woche schon ein Tag
         // vorbei ist - montags gibt es nichts nachzuholen (16.11.2026: der Test war an einem echten Montag rot)
-        XCTAssertTrue(t.contains { $0.contains("Lernpaket") && $0.contains("geplant") }, "Minuten in der Tageszeile:\n" + t.joined(separator: "\n"))
+        // an Tagen ohne Lernpaket der Demo (17.11.2026, ein Dienstag: der Test war rot) steht "heute ist nichts geplant"
+        XCTAssertTrue(t.contains { $0.contains("geplant") && ($0.contains("Lernpaket") || $0.contains("heute ist nichts geplant")) },
+                      "Lernpakete bzw. Minuten in der Tageszeile:\n" + t.joined(separator: "\n"))
         let today = UFFmt.todayOverride.flatMap { Fmt.date($0) } ?? Date()
         if Calendar(identifier: .gregorian).component(.weekday, from: today) != 2 {     // 2 = Montag
             XCTAssertTrue(t.contains { $0.contains("nachzuholen") && $0.contains("geplant") }, "Nachzuholendes in der Tageszeile:\n" + t.joined(separator: "\n"))
@@ -197,6 +203,32 @@ final class StartseiteBilderAppTests: XCTestCase {
         XCTAssertTrue(t.contains { $0.contains("Heute in der Mensa") }, "Mensa bleibt (unten)")
         if let outDir {
             try? t.joined(separator: "\n").write(to: outDir.appendingPathComponent("a-demo-free-texte.txt"), atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// Ausgelieferter Stand ohne Lernkalender (Auftrag des Inhabers 17.11.2026: "den Punkt 'Heute für dich geplant'
+    /// und den Punkt 'Diese Woche' ... rausnehmen"): keine der beiden Karten, die Tageszeile nennt nur das Datum und
+    /// die Uni-Termine, nichts von Lernpaketen; alles Uebrige bleibt
+    func test03OhneLernkalender() throws {
+        XCTAssertFalse(LearnCalendar.enabled, "ausgeliefert ohne Lernkalender")
+        UFFmt.todayOverride = StoreScreenshotV11Tests.nextServiceDay()
+        try pumping { try await self.openDemo() }
+        let env = try host()
+        XCTAssertTrue(env.wait(timeout: 20) { self.texts(env).contains { $0.contains("Hallo Ada") } }, "Uebersicht erscheint")
+        env.pump(2)
+        photograph(env, prefix: "d-ohne-lernkalender")
+        let t = texts(env)
+        let all = t.joined(separator: "\n")
+        for gone in ["Heute für dich geplant", "Diese Woche", "Tagesansicht", "Lernplan erstellen", "Lernkalender", "Lernpaket",
+                     "nachzuholen", "neu planen", "geplant", "Weiterlernen"] {
+            XCTAssertFalse(t.contains { $0.contains(gone) }, "„\(gone)“ steht noch auf der Uebersicht:\n" + all)
+        }
+        XCTAssertTrue(t.contains { $0.contains("Abgaben & Prüfungen") }, all)
+        XCTAssertTrue(t.contains { $0.contains("Deine Module") }, all)
+        XCTAssertTrue(t.contains { $0.contains("Heute in der Mensa") }, "Mensa bleibt (unten)")
+        XCTAssertFalse(t.contains { $0.contains(" offen") }, "keine offenen Lernaufgaben an den Modulen:\n" + all)
+        if let outDir {
+            try? all.write(to: outDir.appendingPathComponent("d-ohne-lernkalender-texte.txt"), atomically: true, encoding: .utf8)
         }
     }
 

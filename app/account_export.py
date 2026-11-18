@@ -70,6 +70,8 @@ def _account(user: dict) -> dict:
         }
     from . import device_limit
     out["hauptgeraet"] = device_limit.primary(uid)          # Geraete-Regel (14.11.2026): das eine Geraet eines Free-Kontos
+    from . import wake_push
+    out["weck_signal_geraete"] = wake_push.devices(uid)     # Weck-Signal (17.11.2026): fuer stille Push-Nachrichten gemeldete Geraete
     creds = {}
     for name, value in sorted(vault.env_for(uid).items()):
         creds[name] = value if name.endswith("_USER") else SECRET_HINT
@@ -186,7 +188,8 @@ Konto: {email}
 
 konto.json            Konto, angemeldete Geräte, Anmeldewege (Apple/Google), Tarife und Käufe, Nutzungszähler,
                       KI-Nutzung, Abgleich-Aufträge, gespeicherte Hochschul-Zugangsdaten (Passwörter, Schlüssel und
-                      Cookies nur als „gespeichert“).
+                      Cookies nur als „gespeichert“), für das Weck-Signal gemeldete Geräte (Push-Kennung, Plattform,
+                      App-Version, Zeitzone, Zeitpunkte).
 daten/                Deine Daten je Hochschule. lernapp.db ist eine SQLite-Datenbank (öffnen z. B. mit „DB Browser
                       for SQLite“): Kurse, Module, Notizen (Tabelle annotations), Stundenplan, Lernpakete, Aufgaben,
                       Karteikarten mit ihren Stapeln (flashcards, flashcard_stacks), Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule

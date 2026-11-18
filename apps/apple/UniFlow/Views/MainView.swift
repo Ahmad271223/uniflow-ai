@@ -22,7 +22,13 @@ struct MainView: View {
                 // Stud.IP-Nachrichten (nur lokal); ohne Nachrichten zeigt die Seite selbst "Keine Nachrichten"
                 MessagesPage().id(session.api?.base)
             case .plan(let v, let d, let m):
-                UFServerGate(.plan) { PlanView(params: (v, d, m)) }                           // 1:1
+                // Lernkalender aus (`LearnCalendar`, 17.11.2026): der Router leitet schon um; sollte die Route dennoch
+                // ankommen, zeigt sie den Stundenplan, nie die Lernkalender-Seite
+                if LearnCalendar.enabled {
+                    UFServerGate(.plan) { PlanView(params: (v, d, m)) }                       // 1:1
+                } else {
+                    UFServerGate(.timetable) { TimetableView(date: d) }
+                }
             case .modules:
                 UFServerGate(.modules) { ModulesPage() }                                      // 1:1
             case .module(let id):
@@ -87,7 +93,7 @@ struct MainView: View {
         .modifier(UniMailBadgeHost())                                        // "Uni-Mail": Zahl der ungelesenen
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
-        .modifier(StudIPQuestionsHost())                                     // einmal: Studiengruppen, Fächer im Lernkalender
+        .modifier(StudIPQuestionsHost())                                     // einmal: Studiengruppen, Fächer im Lernkalender (nur mit Lernkalender)
         .modifier(OlderSemesterLoaderHost())                                 // fruehere Semester im Hintergrund (SyncOrder, Stufe d)
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
         // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle

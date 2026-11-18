@@ -414,7 +414,7 @@ struct LibraryPage: View {
                 // leeren Schnellzugriffs (Audit 03.11.2026)
                 if b.items.isEmpty && lib.list("files").isEmpty && (older?["semesters"]?.array ?? []).isEmpty {
                     LibraryEmptyCard(connected: universityConnected, source: studip.university.profile.filesSource,
-                                     connect: { router.go(.settings(tab: "account")) },
+                                     connect: { router.go(.settings(tab: "uni")) },
                                      new: { overlay.learnModal(sheets) { LibraryNewDialog(lib: lib, path: "", current: b.crumbs.last ?? ("", "")) } })
                 }
                 let own = b.items.filter { $0.kind == .doc }

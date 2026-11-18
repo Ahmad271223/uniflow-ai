@@ -516,6 +516,9 @@ final class IPhoneRealShotsTests: XCTestCase {
     /// `iphone/wochenraster`, kommt mit Build 41). Der Test bricht ab, solange „Woche“ noch die Tagesliste zeigt:
     /// genau das hat der Inhaber am 14.11.2026 beanstandet, so ein Bild darf nicht in den Store.
     func test02Lernkalender() throws {
+        let learnCalendar = LearnCalendar.enabled                                // prueft den Lernkalender: Schalter an
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let env = try host(MainView())
         // nächste Woche: dort stehen die wiederkehrenden Vorlesungen und die frisch geplanten Lernblöcke
         env.router.go(.plan(view: "week", date: Self.naechsterMontag))

@@ -198,7 +198,11 @@ final class EditorStepEFHKTests: XCTestCase {
         let ink = PKInk(.marker, color: .systemGreen)
         let original = stroke(along([CGPoint(x: 100, y: 100), CGPoint(x: 300, y: 100), CGPoint(x: 300, y: 200), CGPoint(x: 100, y: 200)],
                                     closed: true), hold: 0.6, ink: ink)
-        let ideal = try XCTUnwrap(ShapeRecognizer.replacement(for: original))
+        // Seit 17.11.2026 macht der Textmarker selbst nur noch die Linie zur Form (`ShapeRecognizer.lineOnly`): Der Rahmen
+        // wird nicht mehr ersetzt. Dass die ideale Form die Tinte des Originals behaelt, wird darum direkt geprueft.
+        XCTAssertNil(ShapeRecognizer.replacement(for: original), "Rahmen mit dem Textmarker bleibt, wie gezogen")
+        let points = original.path.interpolatedPoints(by: .distance(2)).map(\.location)
+        let ideal = ShapeRecognizer.idealStroke(try XCTUnwrap(ShapeRecognizer.recognize(points)), like: original)
         XCTAssertEqual(ideal.ink.inkType, .marker)
         XCTAssertEqual(ideal.ink.color.uniflowRGBA.hex, ink.color.uniflowRGBA.hex)
         XCTAssertEqual(ideal.path.creationDate, original.path.creationDate)
@@ -328,6 +332,67 @@ final class EditorStepEFHKTests: XCTestCase {
         editor.canvasViewDrawingDidChange(overlay.canvas)
         editor.canvasViewDidEndUsingTool(overlay.canvas)
         XCTAssertEqual(overlay.canvas.drawing.strokes.last?.path.count, marker.path.count, "mit dem Textmarker keine Form")
+    }
+
+    /// Datensicherheit vor Formerkennung (18.11.2026): Ein schnell gezogenes Rechteck, OHNE Halten (die Zeitstempel des
+    /// Stifts zeigen es), dessen Absetzen der Editor aber spaet erfaehrt (iPad war beschaeftigt: volle Seite sichern,
+    /// Abgleich). Aus PencilKit allein (`heldStill` mit `endedAt`) saehe das aus wie gehalten - bis 18.11. wurde der
+    /// Strich dann ersetzt und die Zeichnung neu gesetzt (das kann den naechsten Strich kosten). Jetzt entscheiden die
+    /// Rohpunkte: Der Strich bleibt, wie er ist, in beiden Reihenfolgen der Meldungen.
+    func testQuickStrokeStaysWhenTheLiftIsReportedLate() async throws {
+        UserDefaults.standard.removeObject(forKey: ShapeSnapSetting.key)
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        XCTAssertTrue(editor.shapeSnapEnabled)
+        let overlay = try XCTUnwrap(editor.overlayForTesting(at: 0))
+        try await wait("Seite geladen") { overlay.loaded }
+        let corners = DeviceStroke.rectangle(100, 150, 220, 140)
+        let samples = DeviceStroke.samples(corners, closed: true, seed: 5, hold: 0)
+        let held = try XCTUnwrap(RawStroke.heldDuration(samples, radius: ShapeRecognizer.holdRadius))
+        XCTAssertLessThan(held, 0.1, "Stift nicht gehalten")
+        // vor 3 s begonnen, rund 1,7 s gezogen: Das Absetzen "jetzt" liegt fuer PencilKit gut eine Sekunde nach der
+        // letzten Bewegung
+        let quick = DeviceStroke.stroke(corners, closed: true, seed: 5, hold: 0, created: Date().addingTimeInterval(-3))
+        XCTAssertTrue(ShapeRecognizer.heldStill(quick.path, endedAt: Date()), "Voraussetzung: aus PencilKit allein sieht es gehalten aus")
+        XCTAssertNotNil(ShapeRecognizer.recognize(quick.path.interpolatedPoints(by: .distance(2)).map(\.location)), "Voraussetzung: als Form erkennbar")
+
+        for lateReport in [false, true] {
+            let label = lateReport ? "Strich erst nach dem Absetzen gemeldet" : "Strich vor dem Absetzen gemeldet"
+            let replaced0 = PageInkView.replacementsMade
+            let n0 = overlay.canvas.drawing.strokes.count
+            overlay.canvas.tool = PKInkingTool(.pen, color: .black, width: 3)
+            editor.canvasViewDidBeginUsingTool(overlay.canvas)
+            overlay.rawRecorder.setSamplesForTesting(samples)
+            var d = overlay.canvas.drawing
+            d.strokes.append(quick)
+            if lateReport {
+                editor.canvasViewDidEndUsingTool(overlay.canvas)
+                overlay.canvas.drawing = d
+                editor.canvasViewDrawingDidChange(overlay.canvas)
+            } else {
+                overlay.canvas.drawing = d
+                editor.canvasViewDrawingDidChange(overlay.canvas)
+                editor.canvasViewDidEndUsingTool(overlay.canvas)
+            }
+            XCTAssertEqual(overlay.canvas.drawing.strokes.count, n0 + 1, label)
+            XCTAssertEqual(overlay.canvas.drawing.strokes.last?.path.count, quick.path.count, "nicht ersetzt (\(label))")
+            XCTAssertEqual(PageInkView.replacementsMade, replaced0, "Zeichnung nicht neu gesetzt (\(label))")
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        // Gegenprobe: dieselbe Lage, aber wirklich gehalten (Rohpunkte mit 0,6 s Ruhe) - wird die Form
+        let heldSamples = DeviceStroke.samples(corners, closed: true, seed: 5, hold: 0.6)
+        let n0 = overlay.canvas.drawing.strokes.count
+        editor.canvasViewDidBeginUsingTool(overlay.canvas)
+        overlay.rawRecorder.setSamplesForTesting(heldSamples)
+        var d = overlay.canvas.drawing
+        d.strokes.append(DeviceStroke.stroke(corners, closed: true, seed: 5, hold: 0.6, created: Date()))
+        overlay.canvas.drawing = d
+        editor.canvasViewDrawingDidChange(overlay.canvas)
+        editor.canvasViewDidEndUsingTool(overlay.canvas)
+        XCTAssertEqual(overlay.canvas.drawing.strokes.count, n0 + 1)
+        let shaped = try XCTUnwrap(overlay.canvas.drawing.strokes.last)
+        XCTAssertEqual(ShapeRecognizer.recognize(shaped.path.interpolatedPoints(by: .distance(2)).map(\.location))?.name, "rectangle", "gehalten: Rechteck")
     }
 
     func testShapeSnapCanBeSwitchedOff() async throws {

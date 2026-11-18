@@ -383,7 +383,9 @@ def materials_for_event(conn, event: dict, d: date) -> list[dict]:
     same = [f for f in files if study.file_week(start, f) == w and f.get("doc_type") in study.LECTURE_WEEK_TYPES]
     if not same:
         same = [f for f in files if f.get("doc_type") in ("vorlesung", "uebung")][-4:]
-    return same[:8]
+    same = same[:8]
+    study.mark_new(conn, same, event["module_id"])      # "Neu" in der Zeile: eine Regel (study.new_file_sql)
+    return same
 
 
 # ----------------------------------------------------------------------------

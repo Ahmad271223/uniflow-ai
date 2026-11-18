@@ -183,7 +183,8 @@ final class EditorVerbesserungTests: XCTestCase {
     // MARK: Werkzeuge per Menue und Tastatur
 
     func testToolShortcutsAreCommandDigitsOneToEight() {
-        XCTAssertEqual(EditorTool.allCases.map { String($0.shortcut.character) }, ["1", "2", "3", "4", "5", "6", "7", "8"])
+        XCTAssertEqual(EditorTool.allCases.map { String($0.shortcut.character) }, ["1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        XCTAssertEqual(EditorTool.allCases.last, .fountain, "Fueller am Ende (Cmd-9): die Kuerzel davor bleiben")
         XCTAssertEqual(Set(EditorTool.allCases.map(\.title)).count, EditorTool.allCases.count)
     }
 

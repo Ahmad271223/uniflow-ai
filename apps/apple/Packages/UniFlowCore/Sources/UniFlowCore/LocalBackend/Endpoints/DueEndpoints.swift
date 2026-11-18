@@ -7,6 +7,12 @@ import Foundation
 /// - `POST /api/due/refresh`: alles neu erkennen (die App nach jedem Abgleich); `{hits, changed}`
 /// - `POST /api/due/backfill?limit=20`: Seitentexte fehlender PDFs lesen (vor S7 geladen, nie geoeffnet; PDFKit) und
 ///   gleich pruefen; `{read, remaining}`. Die App ruft es nach einem Abgleich, bis nichts mehr fehlt.
+/// - `POST /api/due/ocr?pages=24`: Seiten ohne Textebene (Folien als Bild, Scans) per Texterkennung des Geraets lesen
+///   und gleich pruefen, hoechstens `pages` Seiten je Aufruf (`DueStore.ocrCandidates`); `{pages, remaining}`. Ohne
+///   Texterkennung (Kern ohne Vision) `{pages: 0, remaining: 0}`.
+/// - `POST /api/due/seen`: `{"ids": [...], "notified": true}` (Mitteilung "Neuer Klausurtermin erkannt" entschieden)
+///   bzw. `{"ids": [...], "seen": true}` (Hinweis geschlossen); ohne `ids` alle. Termine in GET /api/due tragen
+///   `is_new` und `notified`.
 /// - `PATCH /api/due/{id}`: `{"hidden": true}` ("stimmt nicht"), `{"hidden": false}`, `{"confirmed": true}`,
 ///   `{"time": "14:00"}` bzw. `{"time": null}` (eigene Uhrzeit weg); 404 fuer unbekannte und nicht erkannte Termine.
 /// Kalender und Uebersicht zeigen die erkannten in `deadlines` bzw. `upcoming` (Holidays.calendarExtras,
@@ -58,6 +64,43 @@ public enum DueEndpoints: LocalEndpointModule {
             }
             let remaining = try await ctx.database.withConnection { try DueStore.backfillCandidates($0, limit: 10_000).count }
             return .json(["read": .number(Double(read)), "remaining": .number(Double(remaining))])
+        }
+
+        router.post("/api/due/ocr") { req, ctx in
+            let limit = min(max(Int(req.query("pages") ?? "") ?? 24, 1), 200)
+            guard let files = ctx.files, let ocr = ctx.ocr.provider else { return .json(["pages": 0, "remaining": 0]) }
+            let todo = try await ctx.database.transaction { c -> [(fileID: String, pages: [Int])] in
+                try DueStore.ensureTables(c)
+                return try DueStore.ocrCandidates(c, limit: limit)
+            }
+            var done = 0
+            for item in todo {
+                try Task.checkCancellation()
+                let texts = try await ctx.database.withConnection { c -> [String] in
+                    try c.query("SELECT text FROM page_texts WHERE file_id=? ORDER BY page", [.text(item.fileID)]).map { $0["text"]?.string ?? "" }
+                }
+                // erkennt, speichert und prueft die Seiten (`PageOCRStore.fill` -> `DueStore.refreshFile`)
+                _ = try await PageOCRStore.fill(fileID: item.fileID, pages: texts, scope: .pages(Set(item.pages)), ocr: ocr,
+                                                database: ctx.database, files: files, clock: ctx.clock)
+                let recorded = try await ctx.database.transaction { c -> Int in
+                    let n = try PageOCRStore.hasTable(c) ? Set(try c.query("SELECT page FROM page_ocr WHERE file_id=?", [.text(item.fileID)])
+                        .compactMap { $0["page"]?.int }).intersection(item.pages).count : 0
+                    // nichts gespeichert (Datei nicht lesbar, Erkennung scheiterte): nicht bei jedem Lauf erneut
+                    if n == 0 { try DueStore.markOCRFailed(c, fileID: item.fileID) }
+                    return n
+                }
+                done += recorded
+            }
+            let remaining = try await ctx.database.withConnection { try DueStore.ocrRemaining($0) }
+            return .json(["pages": .number(Double(done)), "remaining": .number(Double(remaining))])
+        }
+
+        router.post("/api/due/seen") { req, ctx in
+            let body = (try? req.objectBody()) ?? [:]
+            let ids = body["ids"]?.array?.compactMap(\.string)
+            let notified = body["notified"]?.bool == true, seen = body["seen"]?.bool == true
+            try await ctx.database.transaction { try DueStore.markSeen($0, ids: ids, notified: notified, seen: seen) }
+            return .json(["ok": true])
         }
 
         router.patch("/api/due/{id}") { req, ctx in

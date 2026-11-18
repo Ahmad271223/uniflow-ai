@@ -83,6 +83,8 @@ final class BackgroundNewsAppTests: XCTestCase {
         b.now = { self.now }
         b.timeZone = { TimeZone(identifier: "Europe/Berlin")! }
         b.weeklyTick = { _ in .off }
+        b.autoDue = { _, _, _, _ in BackgroundSyncAppTests.allPortals }   // Regel 8–18 Uhr: eigene Tests
+        b.timeLeft = { 0 }                                       // kurzer Lauf ohne Zeit fuer die Neuanmeldung
         return (b, n)
     }
 
@@ -158,10 +160,10 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertTrue(BackgroundNews.diff(before: after, after: after, now: now).isEmpty)
     }
 
-    func testNoticeTextsNameTheModuleAndTheValueOnlyWithItsSwitch() {
-        XCTAssertEqual(BackgroundNotice.newGrade(module: "Numerik B", value: nil),
-                       BackgroundNotice.Content(title: "Neue Note", body: "Neue Note in Numerik B eingetragen"))
-        XCTAssertEqual(BackgroundNotice.newGrade(module: "Numerik B", value: "1,7").body, "Neue Note in Numerik B eingetragen: 1,7")
+    /// seit 17.11.2026: neue Noten nur "Neue Note eingetragen" - nie Note, nie Modul (Sperrbildschirm)
+    func testNoticeTextsNeverNameGradeOrModule() {
+        XCTAssertEqual(BackgroundNotice.newGrade, BackgroundNotice.Content(title: "Neue Note eingetragen", body: "Öffne StudiNow, um sie zu sehen."))
+        XCTAssertEqual(BackgroundNotice.newGrades(1), BackgroundNotice.newGrade)
         XCTAssertEqual(BackgroundNotice.newGrades(5)?.body, "5 neue Noten eingetragen. Öffne StudiNow, um sie zu sehen.")
         XCTAssertNil(BackgroundNotice.newGrades(0))
         XCTAssertEqual(BackgroundNotice.newStudIPMessages(1)?.body, "1 neue Nachricht in Stud.IP")
@@ -180,7 +182,7 @@ final class BackgroundNewsAppTests: XCTestCase {
     func testSettingsDefaults() {
         let s = BackgroundNewsSettings(defaults: bed.defaults)
         XCTAssertFalse(s.grades, "Mitteilungen erst nach dem Einschalten (fragt dann iOS)")
-        XCTAssertFalse(s.gradeValue, "Notenwert nur mit eigenem Schalter")
+        XCTAssertFalse(s.schedule, "Ausfall und Raumänderung erst nach dem Einschalten")
         XCTAssertFalse(s.messages)
         XCTAssertFalse(s.announcements)
         XCTAssertTrue(s.relogin, "Neuanmeldung im Hintergrund an, wirkt aber nur mit gespeichertem Uni-Zugang")
@@ -189,14 +191,15 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertTrue(s.anyOn)
     }
 
-    func testReloginLedgerAllowsOneTryPerSixHoursAndWaitsADayAfterAFailure() {
+    /// seit 17.11.2026: nach einem gelungenen Versuch im Takt der Regel (30 Minuten statt 6 Stunden)
+    func testReloginLedgerAllowsOneTryPerThirtyMinutesAndWaitsADayAfterAFailure() {
         let d = UserDefaults(suiteName: "uniflow.tests.relogin.\(UUID().uuidString)")!
         let l = BackgroundReloginLedger(defaults: d)
         XCTAssertTrue(l.mayTry("Stud.IP", now: now))
         l.record("Stud.IP", ok: true, now: now)
-        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(5 * 3600)))
+        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(29 * 60)))
         XCTAssertTrue(l.mayTry("QIS", now: now), "je Dienst getrennt")
-        XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(6 * 3600)))
+        XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(30 * 60)))
         l.record("Stud.IP", ok: false, now: now)
         XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(23 * 3600)), "nach einem Fehlschlag einen Tag Ruhe")
         XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(24 * 3600)))
@@ -239,19 +242,22 @@ final class BackgroundNewsAppTests: XCTestCase {
         s.announcements = true
         await b.perform(.refresh)
         let bodies = n.posts.map(\.content.body)
-        XCTAssertEqual(Set(bodies), ["Neue Note in Numerik B eingetragen", "1 neue Nachricht in Stud.IP", "Raumänderung"])
-        XCTAssertFalse(bodies.joined().contains("1,7"), "ohne Schalter kein Notenwert")
+        XCTAssertEqual(Set(bodies), ["Öffne StudiNow, um sie zu sehen.", "1 neue Nachricht in Stud.IP", "Raumänderung"])
+        XCTAssertTrue(n.posts.contains { $0.content.title == "Neue Note eingetragen" })
+        XCTAssertFalse(n.posts.map { $0.content.title + $0.content.body }.joined().contains("1,7"), "nie der Notenwert")
+        let gradePost = n.posts.first { $0.content.title == "Neue Note eingetragen" }
+        XCTAssertFalse((gradePost.map { $0.content.title + $0.content.body } ?? "").contains("Numerik"), "nie das Modul")
         XCTAssertFalse(bodies.joined().contains("Geheimer Betreff"), "nie der Betreff einer Nachricht")
         XCTAssertTrue(n.posts.allSatisfy { $0.thread == "de.uniflow.ai.sync." + c.layout.identifier.uuidString })
         XCTAssertTrue(n.posts.allSatisfy { $0.id.hasPrefix("de.uniflow.ai.sync.") })
         XCTAssertEqual(n.permissionRequests, 0, "nie von selbst nach der Erlaubnis fragen")
 
-        // mit Notenwert; ein zweiter Lauf ohne Neues meldet nichts
+        // auch mit dem frueheren Schalter "Notenwert zeigen" nie der Wert; ein zweiter Lauf ohne Neues meldet nichts
         try await grade(c, nr: "200", text: "Numerik B", note: nil, status: "angemeldet")
         s.gradeValue = true
         let count = n.posts.count
         await b.perform(.refresh)
-        XCTAssertEqual(n.posts.dropFirst(count).map(\.content.body), ["Neue Note in Numerik B eingetragen: 1,7"])
+        XCTAssertEqual(n.posts.dropFirst(count).map(\.content), [BackgroundNotice.newGrade])
         let count2 = n.posts.count
         sync.write = nil
         b.gradesStep = { _ in }
@@ -264,6 +270,61 @@ final class BackgroundNewsAppTests: XCTestCase {
         n.allowed = false
         await b.perform(.refresh)
         XCTAssertEqual(n.posts.count, count2)
+    }
+
+    /// Ausfall, Raumänderung, Verlegung heute/morgen (17.11.2026): nur nach dem Abgleich von selbst, nie doppelt, nie fuer
+    /// eine Aenderung, die schon ein Tipp auf "Sync" geholt hat
+    func testScheduleChangeNotifiesOnceAndNotForWhatAManualSyncFetched() async throws {
+        let (m, a, c) = try ready()
+        let (b, n) = controller(m, a)
+        try await exec(c, """
+            INSERT INTO course_events(title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, attend, source, created_at)
+            VALUES ('Analysis A (erfunden)', 'vorlesung', 2, '10:00', '11:30', 'A 101', 'weekly', '2026-10-12', '2027-02-05', 1, 'lsf', 'x'),
+                   ('Numerik B (erfunden)', 'vorlesung', 3, '08:15', '09:45', 'B 202', 'weekly', '2026-10-12', '2027-02-05', 1, 'lsf', 'x')
+            """)
+        let sync = WritingSync()
+        b.target = { _ in sync }
+        b.gradesStep = { _ in }
+        sync.write = { try await self.exec(c, "INSERT INTO event_exceptions(event_id, date, type) VALUES (1, '2026-11-11', 'cancelled')") }
+        // Schalter aus: nichts
+        await b.perform(.refresh)
+        XCTAssertTrue(n.posts.isEmpty)
+        try await exec(c, "DELETE FROM event_exceptions")
+        BackgroundNewsSettings(defaults: bed.defaults).schedule = true
+        await b.perform(.refresh)
+        XCTAssertEqual(n.posts.map(\.content), [BackgroundNotice.Content(title: "Ausfall heute", body: "Analysis A (erfunden) um 10:00 Uhr fällt aus.")])
+        // derselbe Stand noch einmal: nichts doppelt
+        sync.write = nil
+        await b.perform(.refresh)
+        XCTAssertEqual(n.posts.count, 1)
+        // ein Tipp auf "Sync" hat die Raumaenderung schon geholt: der naechste Lauf meldet sie nicht
+        try await exec(c, "UPDATE course_events SET room='B 302' WHERE id=2")
+        await b.perform(.refresh)
+        XCTAssertEqual(n.posts.count, 1, "nicht bei manuellem Sync")
+        // Raumaenderung im Abgleich von selbst: "Raumänderung morgen"
+        sync.write = { try await self.exec(c, "UPDATE course_events SET room='C 1' WHERE id=2") }
+        await b.perform(.refresh)
+        XCTAssertEqual(n.posts.last?.content, BackgroundNotice.Content(title: "Raumänderung morgen", body: "Numerik B (erfunden) um 08:15 Uhr: jetzt in C 1."))
+        XCTAssertEqual(BackgroundNotice.scheduleChanges(4)?.body, "4 Termine heute oder morgen haben sich geändert.")
+    }
+
+    /// Anknuepfungspunkt fuer "Neuer Klausurtermin erkannt" (anderer Zweig): bekommt Stand vorher/nachher, Mitteilungen
+    /// laufen ueber dieselbe Schicht
+    func testExamHookIsCalledAfterAnAutomaticRun() async throws {
+        let (m, a, c) = try ready()
+        let (b, n) = controller(m, a)
+        b.target = { _ in WritingSync() }
+        b.gradesStep = { _ in }
+        var calls = 0
+        BackgroundNews.extraNotices = { _, _, container in
+            calls += 1
+            return [(id: "exam.\(container).1", content: BackgroundNotice.Content(title: "Neuer Klausurtermin erkannt", body: "Test"))]
+        }
+        defer { BackgroundNews.extraNotices = nil }
+        await b.perform(.refresh)
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(n.posts.map(\.content.title), ["Neuer Klausurtermin erkannt"])
+        XCTAssertEqual(n.posts.first?.id, "de.uniflow.ai.sync.exam.\(c.layout.identifier.uuidString).1")
     }
 
     func testGradesAreCheckedEvenWhenStudIPHasNoSessionButNeverWithBackgroundSyncOff() async throws {
@@ -324,11 +385,11 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertEqual(tried, ["Stud.IP"])
         XCTAssertEqual(sync.runs, 1, "nach der Neuanmeldung im selben Lauf abgeglichen")
 
-        // wieder abgelaufen, eine Stunde spaeter: kein zweiter Versuch (hoechstens alle 6 Stunden)
+        // wieder abgelaufen, 20 Minuten spaeter: kein zweiter Versuch (hoechstens alle 30 Minuten, bis 17.11.2026 6 Stunden)
         b.reloginInShortRun = true
         sync.usableSources = []
         sync.loginNeededSources = ["Stud.IP"]
-        b.now = { self.now.addingTimeInterval(3600) }
+        b.now = { self.now.addingTimeInterval(20 * 60) }
         await b.perform(.refresh)
         XCTAssertEqual(tried, ["Stud.IP"])
 

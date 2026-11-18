@@ -8,7 +8,26 @@ import UniFlowCore
 @MainActor
 final class IntroAppTests: XCTestCase {
 
-    private func model() -> IntroSetupModel { IntroShotsAppTests.sampleSetup(step: .name) }
+    /// Die Fragen samt der Frage nach den Faechern fuer den Lernkalender (`planSubjects`; ausgeliefert ist sie aus,
+    /// 17.11.2026: `testWithoutLearnCalendarOnlyNameAndExams`)
+    private func model() -> IntroSetupModel {
+        var m = IntroShotsAppTests.sampleSetup(step: .name)
+        m.planSubjects = true
+        return m
+    }
+
+    /// Ohne Lernkalender: keine Fächer-Frage, die Begrüßung steht an der Termin-Frage, nichts von "Lernplan"
+    func testWithoutLearnCalendarOnlyNameAndExams() {
+        var m = IntroShotsAppTests.sampleSetup(step: .name)
+        m.planSubjects = false
+        XCTAssertEqual(m.shownSteps, [.name, .exams])
+        XCTAssertEqual(m.next(after: .name), .exams)
+        XCTAssertTrue(m.question(.exams).hasPrefix("Hallo Ahmad! "), m.question(.exams))
+        XCTAssertNil(m.answer(.modules))
+        XCTAssertEqual(m.question(.ready), "Alles klar, Ahmad! Ich richte alles ein …")
+        for i in m.modules.indices { m.modules[i].planned = false }
+        XCTAssertEqual(m.next(after: .name), .ready)
+    }
 
     func testQuestionsGreetWithNameAndCountQISDates() {
         var m = model()

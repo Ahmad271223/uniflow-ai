@@ -103,12 +103,12 @@ def test_dry_run_writes_everything(tmp_path):
 def test_budget_cap_stops_provider(tmp_path):
     tasks = kv.load_tasks()
     out = tmp_path / "lauf"
-    kv.run(tasks, ["bedrock"], {}, out, dry=True, caps={"bedrock": 0.06}, seed=1, log=lambda *_: None)
+    kv.run(tasks, ["bedrock"], {}, out, dry=True, caps={"bedrock": 0.1}, seed=1, log=lambda *_: None)
     lines = [json.loads(x) for x in (out / "results.jsonl").read_text().splitlines()]
     done = [r for r in lines if r["skipped"] is None]
     skipped = [r for r in lines if r["skipped"]]
     assert done and skipped
-    assert sum(r["cost_usd"] for r in done) <= 0.06
+    assert sum(r["cost_usd"] for r in done) <= 0.1
     assert "Budget" in skipped[0]["skipped"]
     assert "Budgetgrenze erreicht" in (out / "summary.md").read_text()
 

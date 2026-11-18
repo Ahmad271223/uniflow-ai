@@ -93,6 +93,42 @@ final class StoreScreenshotTests: XCTestCase {
         try await backend.context.database.transaction { try DemoContent.installStoreExtras($0, clock: clock) }
     }
 
+    /// Bilder fuer 1.0.6 (18.11.2026): ein in den Folien erkannter Kurztest (morgen) und eine Klausur (in drei Wochen)
+    /// fuer die Karte "Klausuren und Tests: bald und neu erkannt" oben auf der Uebersicht und die Hinweise im
+    /// Stundenplan. Erst rechnet die Erkennung den Ausgangsstand (der gilt als gesehen), dann bekommt Seite 1 der
+    /// Demo-Folien zwei erfundene Saetze, und die Erkennung laeuft noch einmal: beide Termine gelten als neu erkannt.
+    /// Nur die Seitentexte in der Datenbank des Containers, das Demo-PDF selbst bleibt.
+    static func installDetectedExams(_ host: LocalBackendHost) async throws {
+        let backend = try await host.backend()
+        let clock = backend.context.clock
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let parse = DateFormatter()
+        parse.calendar = cal
+        parse.timeZone = cal.timeZone
+        parse.dateFormat = "yyyy-MM-dd"
+        let today = try XCTUnwrap(parse.date(from: clock.today))
+        let show = DateFormatter()
+        show.calendar = cal
+        show.timeZone = cal.timeZone
+        show.dateFormat = "dd.MM.yyyy"
+        let test = show.string(from: try XCTUnwrap(cal.date(byAdding: .day, value: 1, to: today)))
+        let exam = show.string(from: try XCTUnwrap(cal.date(byAdding: .day, value: 21, to: today)))
+        let text = """
+            Grundlagen der Informatik
+            Willkommen zur Demo-Vorlesung.
+            Organisatorisches: Der erste Kurztest am \(test) findet in der Übung statt.
+            Die Klausur am \(exam) um 10:00 Uhr schreiben wir im Hörsaal A.
+            """
+        try await backend.context.database.transaction { c in
+            _ = try DueStore.refreshAll(c, clock: clock, force: true)
+            let chdate = try c.scalar("SELECT COALESCE(chdate, 0) FROM files WHERE id='demo-folien'") ?? .integer(0)
+            _ = try c.execute("INSERT OR REPLACE INTO page_texts(file_id, page, text, chdate, search) VALUES ('demo-folien', 1, ?, ?, ?)",
+                              [.text(text), chdate, .text(ScriptSearch.searchForm(text))])
+            _ = try DueStore.refreshAll(c, clock: clock, force: true)
+        }
+    }
+
     // MARK: - Schein-Dienste
 
     /// Leere Wolke im Speicher: die Community gilt als verbunden (Communities aus den Demo-Kursen), ohne iCloud
@@ -756,6 +792,9 @@ final class StoreScreenshotTests: XCTestCase {
     }
 
     func test09Lernkalender() throws {
+        let learnCalendar = LearnCalendar.enabled                                // prueft den Lernkalender: Schalter an
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = learnCalendar }
         let env = try host(MainView())
         env.router.go(.plan())
         expect(env, "Lernkalender")
@@ -839,7 +878,7 @@ final class StoreScreenshotTests: XCTestCase {
     func test14Einstellungen() throws {
         let env = try host(MainView())
         env.router.go(.settings(tab: "account"))
-        expect(env, "Zugang & Darstellung")
+        expect(env, "Konto & Tarif")
         shoot(env, "14-einstellungen", reserve: true)
     }
 

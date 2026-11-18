@@ -11,11 +11,12 @@ import XCTest
 final class IPhoneBackArrowTests: IPhoneLearnTestCase {
 
     func testCompactRules() {
-        for r in [UFRoute.dashboard, .plan(), .plan(view: "month"), .modules, .files(), .files(section: "shelf")] {
+        // ohne Lernkalender (17.11.2026) ist der Stundenplan die zweite Wurzel der Leiste
+        for r in [UFRoute.dashboard, .timetable(), .timetable(date: "2026-11-23"), .modules, .files(), .files(section: "shelf")] {
             XCTAssertFalse(UFRouter.showsCompactBackArrow(on: r, local: false), "Wurzel der Leiste: \(r)")
             XCTAssertTrue(UFRouter.showsCompactBackArrow(on: r, local: true), "mit Offenem in der Seite: \(r)")
         }
-        for r in [UFRoute.rooms, .uniMail, .mensa, .messages, .settings(), .module(3), .communitySpace("k"), .exam(1), .services, .timetable(),
+        for r in [UFRoute.rooms, .uniMail, .mensa, .messages, .settings(), .module(3), .communitySpace("k"), .exam(1), .services,
                   .lecturers, .certificates] {
             XCTAssertTrue(UFRouter.showsCompactBackArrow(on: r, local: false), "\(r)")
         }
@@ -37,16 +38,16 @@ final class IPhoneBackArrowTests: IPhoneLearnTestCase {
         env.hosting.traitOverrides.verticalSizeClass = .regular
         XCTAssertTrue(env.wait { self.shows(env, "Seite dashboard") }, dump(env))
         XCTAssertEqual(arrows(env).count, 0, "Start ohne Pfeil")
-        env.router.go(.plan())
-        XCTAssertTrue(env.wait { self.shows(env, "Seite plan") })
-        XCTAssertEqual(arrows(env).count, 0, "Kalender (Leiste) ohne Pfeil")
+        env.router.go(.timetable())
+        XCTAssertTrue(env.wait { self.shows(env, "Seite timetable") })
+        XCTAssertEqual(arrows(env).count, 0, "Stundenplan (Leiste) ohne Pfeil")
         env.router.go(.rooms)
         XCTAssertTrue(env.wait { self.arrows(env).count == 1 }, "Raumfinder (aus Mehr): genau ein Pfeil: \(dump(env))")
         let arrow = frame(arrows(env).first), home = frame(element(env, id: "header.home"))
         XCTAssertLessThan(arrow.maxX, home.minX + 1, "Pfeil vor dem Logo")
         assertFits(env, "Kopfzeile mit Pfeil")
         XCTAssertTrue(arrows(env).first?.accessibilityActivate() == true)
-        XCTAssertTrue(env.wait { env.router.route == .plan() }, "zurueck zur vorigen Seite: \(env.router.route)")
+        XCTAssertTrue(env.wait { env.router.route == .timetable() }, "zurueck zur vorigen Seite: \(env.router.route)")
         XCTAssertTrue(env.wait { self.arrows(env).count == 0 })
         // Wurzel mit Offenem in der Seite: Pfeil erscheint und schliesst zuerst das
         var closed = 0

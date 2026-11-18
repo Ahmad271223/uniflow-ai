@@ -123,7 +123,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -140,7 +141,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -157,7 +159,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -174,7 +177,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -191,7 +195,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -489,7 +494,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -506,7 +512,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -523,7 +530,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -540,7 +548,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -557,7 +566,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -839,7 +849,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -856,7 +867,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -873,7 +885,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -890,7 +903,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -907,7 +921,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -1191,7 +1206,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -1208,7 +1224,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -1225,7 +1242,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -1242,7 +1260,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -1259,7 +1278,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -1552,7 +1572,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -1569,7 +1590,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -1586,7 +1608,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -1603,7 +1626,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -1620,7 +1644,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -1888,7 +1913,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": null
      },
      {
       "id": "c1",
@@ -1905,7 +1931,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c2",
@@ -1922,7 +1949,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c3",
@@ -1939,7 +1967,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      },
      {
       "id": "c4",
@@ -1956,7 +1985,8 @@
       "semester_ends_at": null,
       "active_custom": 0,
       "description": null,
-      "miscellaneous": null
+      "miscellaneous": null,
+      "first_listed_at": "2026-10-20T08:00:00"
      }
     ],
     "files": [
@@ -2450,7 +2480,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": null
       },
       {
        "id": "b1",
@@ -2467,7 +2498,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "b2",
@@ -2484,7 +2516,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "e1",
@@ -2501,7 +2534,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m1",
@@ -2518,7 +2552,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m2",
@@ -2535,7 +2570,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m3",
@@ -2552,7 +2588,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       },
       {
        "id": "m4",
@@ -2569,7 +2606,8 @@
        "semester_ends_at": null,
        "active_custom": 0,
        "description": null,
-       "miscellaneous": null
+       "miscellaneous": null,
+       "first_listed_at": "2026-10-24T08:00:00"
       }
      ],
      "files": [
@@ -3005,6 +3043,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/h1/content",
        "content_sha256": "e4dc1889e03f62211c9c4e2fe46e0d73d304b9dc383c351b3cee55c1af03f64e",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "hoersaaluebung",
@@ -3036,6 +3075,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u4/content",
        "content_sha256": null,
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -3067,6 +3107,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u3/content",
        "content_sha256": "cd21df839f33ce36d1fb279215e0ff456cd326522b61dca1881d507305505683",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -3098,6 +3139,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u2/content",
        "content_sha256": "7da385a8fd78480e61ce3d217eceacb45046eb6e50534169073698d909ded65e",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -3129,6 +3171,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v3/content",
        "content_sha256": "6cb7c60198dcb106bdcbd4b18bf27e0fdf9f193ff49bad23ed9340bf7a53f424",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3160,6 +3203,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v2/content",
        "content_sha256": "8d3530cd6c5191b4a10ba64053b82165db3b268728de1c28e36eca31eb1133e9",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3191,6 +3235,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v5/content",
        "content_sha256": "109397d15c040428925f589b414cc93080611d5f9206619204f037b1f4839706",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3222,6 +3267,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/g1/content",
        "content_sha256": "550127afe3962e33674ed4478b08ab3a0b1a3748a9e99b8d8d79912887676d43",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "gruppenuebung",
@@ -3253,6 +3299,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/t2/content",
        "content_sha256": "db6af403b7716aded12649432f89909db8993ff5fcbd2638f7cac80190b16851",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 2,
        "subject": "Grundlagen der Beispieltechnik",
        "course_kind": "uebung",
@@ -3284,6 +3331,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u1/content",
        "content_sha256": "6638291408ef3884d77d81f42d2183c486cb02fb15a530b3ad35341c72d0f67e",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -3315,6 +3363,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v1/content",
        "content_sha256": "ec7a6620fb50a9fbef05f40aa8cf9e3f5365361eaf0c04186cbb6731e90ec35d",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3346,6 +3395,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/t1/content",
        "content_sha256": "078477f8faa5451ef090abd87837f9e4ef94ef72e0a146999c54c1d19e4d6a7c",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 2,
        "subject": "Grundlagen der Beispieltechnik",
        "course_kind": "vorlesung",
@@ -3377,6 +3427,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/w1/content",
        "content_sha256": "6b1912d8c9dcfd542dc2d724842a237ecde9f63e794023f79e259e75cf5afebe",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": null,
        "subject": "Begrüßung der Testsemester",
        "course_kind": "sonstiges",
@@ -3408,6 +3459,7 @@
        "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v4/content",
        "content_sha256": "ddb68c3a7a24786dac2060f5a48292e1bc4c39c745455a3ae8ba17b96cadb161",
        "seen_by_user": 0,
+       "is_new": 0,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3460,7 +3512,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 11,
-      "new_count": 11,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -3490,7 +3542,7 @@
       "expected_materials": null,
       "exam_reuse": "paraphrase",
       "file_count": 2,
-      "new_count": 2,
+      "new_count": 0,
       "open_tasks": 0,
       "progress": 0,
       "mastery": null,
@@ -3589,6 +3641,7 @@
          "sub_label": "Skript",
          "week_hint": null,
          "source": "studip",
+         "is_new": 0,
          "section": "w:0",
          "placed": false
         }
@@ -3632,6 +3685,7 @@
          "sub_label": "Vorlesung",
          "week_hint": 1,
          "source": "studip",
+         "is_new": 0,
          "section": "w:1",
          "placed": false
         }
@@ -3663,6 +3717,7 @@
          "sub_label": "Gruppenübung",
          "week_hint": 1,
          "source": "studip",
+         "is_new": 0,
          "section": "w:1",
          "placed": false
         },
@@ -3692,6 +3747,7 @@
          "sub_label": "Übung",
          "week_hint": 1,
          "source": "studip",
+         "is_new": 0,
          "section": "w:1",
          "placed": false
         }
@@ -3723,6 +3779,7 @@
          "sub_label": "Lösung",
          "week_hint": 1,
          "source": "studip",
+         "is_new": 0,
          "section": "w:1",
          "placed": false
         }
@@ -3767,6 +3824,7 @@
          "sub_label": "Vorlesung",
          "week_hint": null,
          "source": "studip",
+         "is_new": 0,
          "section": "w:2",
          "placed": false
         },
@@ -3796,6 +3854,7 @@
          "sub_label": "Vorlesung",
          "week_hint": 2,
          "source": "studip",
+         "is_new": 0,
          "section": "w:2",
          "placed": false
         }
@@ -3827,6 +3886,7 @@
          "sub_label": "Hörsaalübung",
          "week_hint": 2,
          "source": "studip",
+         "is_new": 0,
          "section": "w:2",
          "placed": false
         },
@@ -3856,6 +3916,7 @@
          "sub_label": "Übung",
          "week_hint": 2,
          "source": "studip",
+         "is_new": 0,
          "section": "w:2",
          "placed": false
         },
@@ -3885,6 +3946,7 @@
          "sub_label": "Übung",
          "week_hint": null,
          "source": "studip",
+         "is_new": 0,
          "section": "w:2",
          "placed": false
         }
@@ -3934,6 +3996,7 @@
          "sub_label": "Altklausur",
          "week_hint": null,
          "source": "studip",
+         "is_new": 0,
          "section": "w:-2",
          "placed": false
         }
@@ -3976,7 +4039,8 @@
            "section": "w:-2",
            "placed": false,
            "exam_role": "klausur",
-           "solution_of": null
+           "solution_of": null,
+           "is_new": 0
           }
          ]
         }
@@ -4010,6 +4074,7 @@
        "sub_label": "Skript",
        "week_hint": null,
        "source": "studip",
+       "is_new": 0,
        "section": "w:0",
        "placed": false
       },
@@ -4039,6 +4104,7 @@
        "sub_label": "Vorlesung",
        "week_hint": 1,
        "source": "studip",
+       "is_new": 0,
        "section": "w:1",
        "placed": false
       },
@@ -4068,6 +4134,7 @@
        "sub_label": "Übung",
        "week_hint": 1,
        "source": "studip",
+       "is_new": 0,
        "section": "w:1",
        "placed": false
       },
@@ -4097,6 +4164,7 @@
        "sub_label": "Gruppenübung",
        "week_hint": 1,
        "source": "studip",
+       "is_new": 0,
        "section": "w:1",
        "placed": false
       },
@@ -4126,6 +4194,7 @@
        "sub_label": "Altklausur",
        "week_hint": null,
        "source": "studip",
+       "is_new": 0,
        "section": "w:-2",
        "placed": false
       },
@@ -4155,6 +4224,7 @@
        "sub_label": "Vorlesung",
        "week_hint": 2,
        "source": "studip",
+       "is_new": 0,
        "section": "w:2",
        "placed": false
       },
@@ -4184,6 +4254,7 @@
        "sub_label": "Vorlesung",
        "week_hint": null,
        "source": "studip",
+       "is_new": 0,
        "section": "w:2",
        "placed": false
       },
@@ -4213,6 +4284,7 @@
        "sub_label": "Übung",
        "week_hint": 2,
        "source": "studip",
+       "is_new": 0,
        "section": "w:2",
        "placed": false
       },
@@ -4242,6 +4314,7 @@
        "sub_label": "Lösung",
        "week_hint": 1,
        "source": "studip",
+       "is_new": 0,
        "section": "w:1",
        "placed": false
       },
@@ -4271,6 +4344,7 @@
        "sub_label": "Übung",
        "week_hint": null,
        "source": "studip",
+       "is_new": 0,
        "section": "w:2",
        "placed": false
       },
@@ -4300,13 +4374,14 @@
        "sub_label": "Hörsaalübung",
        "week_hint": 2,
        "source": "studip",
+       "is_new": 0,
        "section": "w:2",
        "placed": false
       }
      ],
      "progress": 0,
      "mastery": null,
-     "new_count": 11,
+     "new_count": 0,
      "open_tasks": 0,
      "next_package": null,
      "notes": [],
@@ -4475,6 +4550,7 @@
          "sub_label": "Vorlesung",
          "week_hint": 1,
          "source": "studip",
+         "is_new": 0,
          "section": "w:1",
          "placed": false
         }
@@ -4506,6 +4582,7 @@
          "sub_label": "Übung",
          "week_hint": 1,
          "source": "studip",
+         "is_new": 0,
          "section": "w:1",
          "placed": false
         }
@@ -4547,6 +4624,7 @@
        "sub_label": "Vorlesung",
        "week_hint": 1,
        "source": "studip",
+       "is_new": 0,
        "section": "w:1",
        "placed": false
       },
@@ -4576,13 +4654,14 @@
        "sub_label": "Übung",
        "week_hint": 1,
        "source": "studip",
+       "is_new": 0,
        "section": "w:1",
        "placed": false
       }
      ],
      "progress": 0,
      "mastery": null,
-     "new_count": 2,
+     "new_count": 0,
      "open_tasks": 0,
      "next_package": null,
      "notes": [],
@@ -4692,6 +4771,7 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": null,
       "file_count": 0,
       "new_count": 0
      },
@@ -4711,8 +4791,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
-      "new_count": 1
+      "new_count": 0
      },
      {
       "id": "b2",
@@ -4730,8 +4811,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
-      "new_count": 1
+      "new_count": 0
      },
      {
       "id": "b1",
@@ -4749,8 +4831,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
-      "new_count": 1
+      "new_count": 0
      },
      {
       "id": "m3",
@@ -4768,8 +4851,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
-      "new_count": 1
+      "new_count": 0
      },
      {
       "id": "m4",
@@ -4787,8 +4871,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 1,
-      "new_count": 1
+      "new_count": 0
      },
      {
       "id": "m2",
@@ -4806,8 +4891,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 4,
-      "new_count": 4
+      "new_count": 0
      },
      {
       "id": "m1",
@@ -4825,8 +4911,9 @@
       "active_custom": 0,
       "description": null,
       "miscellaneous": null,
+      "first_listed_at": "2026-10-24T08:00:00",
       "file_count": 5,
-      "new_count": 5
+      "new_count": 0
      }
     ]
    }
@@ -4848,7 +4935,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": null
     },
     {
      "id": "b1",
@@ -4865,7 +4953,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "b2",
@@ -4882,7 +4971,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "e1",
@@ -4899,7 +4989,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m1",
@@ -4916,7 +5007,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m2",
@@ -4933,7 +5025,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m3",
@@ -4950,7 +5043,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     },
     {
      "id": "m4",
@@ -4967,7 +5061,8 @@
      "semester_ends_at": null,
      "active_custom": 0,
      "description": null,
-     "miscellaneous": null
+     "miscellaneous": null,
+     "first_listed_at": "2026-10-24T08:00:00"
     }
    ],
    "modules": [

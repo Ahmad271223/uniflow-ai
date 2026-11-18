@@ -105,8 +105,13 @@ final class StudoraAccountLink: ObservableObject {
     /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
         didSet {
+            // Geschenkter Tarif (18.11.2026, `UFServiceGift`): jede Antwort des Dienstes ersetzt den Merker; ohne Antwort
+            // (Start ohne Netz, Dienst nicht erreichbar) gilt der zuletzt bestaetigte Stand weiter (`UFGiftMemory`)
+            let now = Date()
+            if let planStatus, let scope { giftMemory.save(UFServiceGift(status: planStatus), scope: scope, now: now) }
+            let gift = planStatus != nil ? UFServiceGift(status: planStatus) : scope.flatMap { giftMemory.load(scope: $0, now: now) }
             // Probe des Kontos: Freischaltung und Anzeige (Resttage, Ende) aus demselben Stand (Entscheidung 09.11.2026)
-            Entitlements.shared.useServiceStatus(planStatus)
+            Entitlements.shared.useServiceStatus(planStatus, gift: gift)
             updateAccountToken()
             updateAI()
             // Geraete-Regel: jede Antwort des Dienstes zum Tarif ist eine ausdrueckliche Auskunft (ohne Feld: nichts gesperrt)
@@ -124,6 +129,13 @@ final class StudoraAccountLink: ObservableObject {
     @Published private(set) var plusHintSeen = true
     /// Merker je Apple-Nutzer (Tests geben einen eigenen)
     var deviceMemory = DeviceRuleMemory()
+    /// zuletzt bestaetigtes Geschenk je Apple-Nutzer (`UFGiftMemory`; Tests geben einen eigenen)
+    var giftMemory = UFGiftMemory()
+
+    /// Abgemeldet, Sitzung beendet, Konto geloescht: das gemerkte Geschenk gilt nicht mehr
+    private func forgetGift() {
+        if let scope { giftMemory.forget(scope: scope) }
+    }
 
     /// Was dieses Geraet zeigt: Auskunft des Dienstes und der Tarif auf dem Geraet (Kauf, Probe). Nach einem Kauf von
     /// Pro AI sofort `ok`, auch bevor der Dienst den Kauf kennt; mit Plus nie gesperrt.
@@ -306,13 +318,41 @@ final class StudoraAccountLink: ObservableObject {
         return user.university == nil || user.university == university
     }
 
+    // Warum der Abgleich nicht laeuft (Geraetetest 18.11.2026: iPad und Mac zeigten nach "Jetzt abgleichen" weiter
+    // "Noch nicht abgeglichen", ohne Grund). Steht statt des Ergebnisses in Einstellungen → Konto.
+    nonisolated static let demoText = "Mit Beispielinhalten gleicht StudiNow nicht zwischen Geräten ab. Schalte die Beispielinhalte aus, dann geht es los."
+    nonisolated static let blockedText = "Auf diesem Gerät ist der Abgleich angehalten: StudiNow Free gilt für ein Gerät."
+    nonisolated static func otherUniversityText(account: String, here: String?) -> String {
+        func name(_ key: String?) -> String { UniversityProfile.profile(forKey: key)?.short ?? (key ?? "?") }
+        return "Dein StudiNow-Konto gehört zur Hochschule \(name(account)), dieser Bereich zu \(name(here)). Zwischen Geräten wird nur innerhalb derselben Hochschule abgeglichen."
+    }
+
+    /// Grund, warum ein angemeldetes Konto gerade nicht abgleicht; nil = es darf laufen (`canSync`, Geraete-Regel)
+    static func refusal(user: StudoraAccount.User, university: String?, demo: Bool, blocked: Bool) -> String? {
+        if blocked { return blockedText }
+        if demo { return demoText }
+        if let own = user.university, own != university { return otherUniversityText(account: own, here: university) }
+        return nil
+    }
+
+    /// Stand fuer die Konto-Einstellungen, wenn der Abgleich gar nicht erst laeuft
+    private func noteRefusal(_ text: String) {
+        var r = DeviceSyncResult()
+        r.ok = false
+        r.error = text
+        lastSync = r
+    }
+
     /// Abgleich mit dem Konto; Rueckgabe: hat er hier etwas geaendert? `force`: Knopf, sonst hoechstens alle 3 Minuten
     @discardableResult
     func syncNow(force: Bool = false) async -> Bool {
         guard !syncing, let account, let host, let id = user?.id,
-              // Geraete-Regel: ein gesperrtes zweites Geraet (Free) gleicht nicht ab; die Daten hier bleiben, wie sie sind
-              deviceGate(localPlan: entitlements.plan) != .blocked,
               force || lastSyncAt.map({ Date().timeIntervalSince($0) >= Self.autoSyncInterval }) ?? true else { return false }
+        // Geraete-Regel: ein gesperrtes zweites Geraet (Free) gleicht nicht ab; die Daten hier bleiben, wie sie sind
+        if deviceGate(localPlan: entitlements.plan) == .blocked {
+            noteRefusal(Self.blockedText)
+            return false
+        }
         // sofort belegt: zwei Anstoesse kurz nacheinander (Vordergrund, Knopf) starteten sonst zwei Laeufe, die beide
         // dieselben neuen Zeilen senden
         syncing = true
@@ -323,7 +363,12 @@ final class StudoraAccountLink: ObservableObject {
         guard let backend = try? await host.backend(), current() else { return false }
         // Demo-Inhalte gehoeren nicht ins Konto; direkt aus der Datenbank, `demoActive` kommt beim Start erst spaeter
         let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
-        guard current(), Self.canSync(user: user, university: university, blocked: demo) else { return false }
+        guard current(), let u = user else { return false }
+        guard Self.canSync(user: u, university: university, blocked: demo) else {
+            // nicht still: Einstellungen → Konto nennt den Grund (vorher blieb dort "Noch nicht abgeglichen")
+            if let why = Self.refusal(user: u, university: university, demo: demo, blocked: false) { noteRefusal(why) }
+            return false
+        }
         // Raum je Uni-Konto (14.11.2026, `UniAccountKey`): geteilt wird nur zwischen Geraeten mit demselben Uni-Konto. Ohne
         // Schluessel gleicht die App gar nicht ab; das trifft nur die LUH vor dem ersten Stud.IP-Abgleich. Hochschulen
         // ohne sichere Kennung (Hildesheim) haben immer einen Schluessel aus Konto und Hochschule: dort wie in 1.0.4
@@ -436,6 +481,13 @@ final class StudoraAccountLink: ObservableObject {
         } else {
             Task { await refresh() }
         }
+    }
+
+    /// Weck-Signal (WakePush.swift, 17.11.2026): Anschluss an `/api/account/push-token` mit dem Sitzungs-Token dieses
+    /// Kontos; nil ohne angemeldetes Konto oder ohne Dienst-Adresse
+    var wakePushClient: WakePushClient? {
+        guard user != nil, let scope, let base = Self.serviceURL else { return nil }
+        return WakePushClient(base: base, http: URLSessionServiceTransport(), tokens: StudoraAccountKeychain(userScope: scope))
     }
 
     /// Konto-Anschluss beim Dienst fuer einen Apple-Nutzer (Sitzungs-Token im Schluesselbund je Apple-Nutzer)
@@ -573,6 +625,7 @@ final class StudoraAccountLink: ObservableObject {
     private func signedOutByService() {
         user = nil
         sessions = []
+        forgetGift()
         planStatus = nil
         clearDevice()
         clearCredits()
@@ -688,7 +741,7 @@ final class StudoraAccountLink: ObservableObject {
             message = e.userMessage
             lastErrorCode = e.code
             messageAction = e.action
-            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil }
+            if e.code == "unauthenticated" { forgetGift(); user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil }
         } catch {
             guard stillCurrent(account, epoch) else { return }
             message = error.localizedDescription
@@ -707,7 +760,7 @@ final class StudoraAccountLink: ObservableObject {
         guard stillCurrent(account, epoch) else { return }
         guard signedIn else {
             // ohne Sitzung beim Dienst gibt es nichts zu zaehlen: kein Hinweis, Merker weg
-            user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
+            forgetGift(); user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
         }
         await run { a in
             let me = try await a.me()
@@ -802,6 +855,10 @@ final class StudoraAccountLink: ObservableObject {
         self.scope = scope
         self.account = account
     }
+
+    /// nur Tests: wie beim Anschliessen eines Kontos noch ohne Antwort des Dienstes (Start ohne Netz) - Stand leer, das
+    /// gemerkte Geschenk gilt (`UFGiftMemory`)
+    func clearPlanStatusForTesting() { planStatus = nil }
     #endif
 
     // MARK: Mit Apple anmelden
@@ -918,6 +975,7 @@ final class StudoraAccountLink: ObservableObject {
         lastSyncAt = nil
         user = nil
         sessions = []
+        forgetGift()
         planStatus = nil
         clearDevice()
         clearCredits()
@@ -965,6 +1023,7 @@ final class StudoraAccountLink: ObservableObject {
         guard ok, let a0, stillCurrent(a0, epoch) else { return ok }
         accountEpoch += 1
         if let scope { deviceMemory.forget(scope: scope) }
+        forgetGift()
         user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI()
         return ok
     }

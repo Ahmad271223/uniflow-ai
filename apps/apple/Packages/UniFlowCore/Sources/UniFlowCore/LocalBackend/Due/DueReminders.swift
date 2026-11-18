@@ -2,7 +2,9 @@ import Foundation
 
 /// Erinnerungsplan fuer Abgaben, Tests und Pruefungen (lokale Benachrichtigungen der App, reine Funktion): je Termin
 /// 3 Tage vorher, 1 Tag vorher und am Morgen des Tages jeweils um 8:00 (Berlin), mit Uhrzeit zusaetzlich 2 Stunden
-/// vorher. Nur kuenftige Zeitpunkte, die fruehesten zuerst, hoechstens 60 (iOS behaelt 64 je App; der Rest bleibt
+/// vorher; Klausuren und Pruefungen (Art "klausur", auch Kurz- und Probeklausuren) zusaetzlich 7 Tage vorher
+/// (17.11.2026). Ein neu erkannter Klausur- oder Testtermin wird einmal sofort gemeldet (`newNotices`): das ist die
+/// einzige Mitteilung, wenn alle Zeitpunkte schon vorbei sind (Termin erst am Tag selbst erkannt). Nur kuenftige Zeitpunkte, die fruehesten zuerst, hoechstens 60 (iOS behaelt 64 je App; der Rest bleibt
 /// frei fuer andere Mitteilungen). Kennungen "de.uniflow.ai.due.<Container>.<Termin>.<Zeitpunkt>": eindeutig je
 /// Container, sodass ein Wechsel der Hochschule oder des Kontos nichts vermischt (`diff` nimmt alle anderen zurueck).
 /// Die App plant (`UniFlow/Services/DueReminders.swift`) und fragt die Erlaubnis erst beim Einschalten.
@@ -26,8 +28,15 @@ public enum DueReminders {
         public var origin: String?
         /// Ziel beim Antippen: Hash-Route ("#/doc/<id>?page=2") oder http(s)-Adresse
         public var route: String?
+        /// Art (abgabe | test | klausur | anmeldung | sonstiges), nil unbekannt
+        public var kind: String?
+        /// neu erkannt und vom Nutzer noch nicht gesehen (`DueStore.seenState`)
+        public var isNew: Bool
+        /// Mitteilung "neu erkannt" schon entschieden
+        public var notified: Bool
 
-        public init(id: String, title: String, date: String, time: String? = nil, course: String? = nil, origin: String? = nil, route: String? = nil) {
+        public init(id: String, title: String, date: String, time: String? = nil, course: String? = nil, origin: String? = nil, route: String? = nil,
+                    kind: String? = nil, isNew: Bool = false, notified: Bool = false) {
             self.id = id
             self.title = title
             self.date = date
@@ -35,6 +44,9 @@ public enum DueReminders {
             self.course = course
             self.origin = origin
             self.route = route
+            self.kind = kind
+            self.isNew = isNew
+            self.notified = notified
         }
     }
 
@@ -46,6 +58,15 @@ public enum DueReminders {
         public var body: String
         public var route: String?
         public var itemID: String
+
+        public init(identifier: String, fireAt: Date, title: String, body: String, route: String?, itemID: String) {
+            self.identifier = identifier
+            self.fireAt = fireAt
+            self.title = title
+            self.body = body
+            self.route = route
+            self.itemID = itemID
+        }
     }
 
     /// Kennungen dieses Containers beginnen so
@@ -66,7 +87,8 @@ public enum DueReminders {
             }
             let time = x["time"]?.string.flatMap { $0.isEmpty ? nil : $0 }
             return Item(id: id, title: x["title"]?.string ?? x["kind_label"]?.string ?? "Termin", date: date, time: time,
-                        course: x["course_title"]?.string ?? x["module_name"]?.string, origin: x["origin"]?.string, route: route)
+                        course: x["course_title"]?.string ?? x["module_name"]?.string, origin: x["origin"]?.string, route: route,
+                        kind: x["kind"]?.string, isNew: x["is_new"]?.bool == true, notified: x["notified"]?.bool == true)
         }
     }
 
@@ -101,6 +123,8 @@ public enum DueReminders {
                 ("d3", date(day: day - 3, minutes: morning), "In 3 Tagen: \(item.title)"),
                 ("d1", date(day: day - 1, minutes: morning), "Morgen: \(item.title)"),
             ]
+            // Klausuren und Pruefungen: eine Woche vorher (Zeit zum Lernen)
+            if item.kind == "klausur" { slots.insert(("d7", date(day: day - 7, minutes: morning), "In 7 Tagen: \(item.title)"), at: 0) }
             if let due {
                 // am Morgen nur, wenn "2 Stunden vorher" spaeter kommt; "2 Stunden vorher" nicht in der Nacht (vor 6:00)
                 let before = due - 120
@@ -117,6 +141,46 @@ public enum DueReminders {
         out = out.filter { seen.insert($0.identifier).inserted }
         out.sort { $0.fireAt != $1.fireAt ? $0.fireAt < $1.fireAt : $0.identifier < $1.identifier }
         return Array(out.prefix(limit))
+    }
+
+    // MARK: Neu erkannt
+
+    /// mehr einzelne Mitteilungen "neu erkannt" gibt es je Lauf nicht (sonst eine Zusammenfassung)
+    public static let maxNewSingle = 3
+
+    /// Kennung einer Mitteilung "neu erkannt" (nicht Teil des Plans: `diff` nimmt sie nicht zurueck, sie ist sofort zugestellt)
+    public static func newIdentifier(container: String, _ id: String) -> String { prefix(container: container) + "new." + id }
+
+    /// Termine, die einmal sofort gemeldet werden: neu erkannte Klausuren und Tests, noch nicht gemeldet
+    public static func newItems(_ items: [Item]) -> [Item] {
+        items.filter { $0.isNew && !$0.notified && ($0.kind == "klausur" || $0.kind == "test") }
+    }
+
+    /// Mitteilungen "Neuer Klausurtermin erkannt: … am …" (sofort). Mehr als `maxNewSingle`: eine Zusammenfassung mit dem
+    /// naechsten Termin. Nichts Erkanntes gilt als sicher: der Text nennt die Quelle und bittet ums Pruefen.
+    public static func newNotices(_ items: [Item], container: String, now: Date) -> [Reminder] {
+        let fresh = newItems(items).sorted { $0.date != $1.date ? $0.date < $1.date : $0.id < $1.id }
+        guard let first = fresh.first else { return [] }
+        let today = BerlinClock.local(utc: Int(now.timeIntervalSince1970)).day
+        func whenText(_ item: Item) -> String {
+            guard let day = BerlinClock.parseISODate(item.date) else { return item.date }
+            let n = day - today
+            let w = when(day, item.time)
+            return n == 0 ? "heute (\(w))" : n == 1 ? "morgen (\(w))" : "am \(w)"
+        }
+        func body(_ item: Item) -> String {
+            ([item.course, item.origin].compactMap { $0?.isEmpty == false ? $0 : nil } + ["Bitte prüfen."]).joined(separator: " · ")
+        }
+        if fresh.count > maxNewSingle {
+            return [Reminder(identifier: newIdentifier(container: container, "summary"), fireAt: now,
+                             title: "\(fresh.count) neue Klausur- und Testtermine erkannt",
+                             body: "Der nächste: \(first.title) \(whenText(first)). " + body(first), route: first.route, itemID: first.id)]
+        }
+        return fresh.map { item in
+            Reminder(identifier: newIdentifier(container: container, item.id), fireAt: now,
+                     title: (item.kind == "test" ? "Neuer Testtermin erkannt: " : "Neuer Klausurtermin erkannt: ") + "\(item.title) \(whenText(item))",
+                     body: body(item), route: item.route, itemID: item.id)
+        }
     }
 
     /// Abgleich mit den geplanten Mitteilungen: alle eigenen Kennungen (`prefix`, auch anderer Container), die nicht

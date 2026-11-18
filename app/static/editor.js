@@ -23,7 +23,8 @@ import { SCOPES, CHIPS, scopeBody, docModeFor, progressText, storedNote, needsCo
 // Formerkennung nach Halten (05.11.2026, wie ShapeRecognizer.swift): Linie, Rechteck, Ellipse, Dreieck, Pfeil
 import { holdNote, heldStill, snapStroke, snapEnabled, setSnapEnabled } from "./editor-shapes.js?v=1";
 // KI-Hilfe als Gespraech mit drei farbigen Reitern (05.11.2026, wie TutorPanel.swift) und "Als Karteikarte" aus markiertem Text
-import { createAiPanel } from "./ai-panel.js?v=4";
+import { createAiPanel } from "./ai-panel.js?v=5";
+import { answerHtml } from "./ai-answer.js?v=1";
 import { openCardDialog } from "./editor-card.js?v=1";
 import { attachFreeze } from "./editor-freeze.js?v=1";   // Ansicht fixieren / Zum Abpausen einfrieren
 export { IDB };
@@ -1200,12 +1201,7 @@ function distSeg(px, py, x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1; con
 function pointInPoly(x, y, poly) { let inside = false; for (let i = 0, j = poly.length - 2; i < poly.length; j = i, i += 2) { const xi = poly[i], yi = poly[i + 1], xj = poly[j], yj = poly[j + 1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; }
 function safePrompt(msg, def) { try { return window.prompt(msg, def); } catch { return def; } }
 function parseRange(s, n) { const out = new Set(); s.split(",").forEach(part => { const m = part.trim().match(/^(\d+)(?:-(\d+))?$/); if (!m) return; const a = +m[1], b = m[2] ? +m[2] : a; for (let i = Math.min(a, b); i <= Math.max(a, b); i++) if (i >= 1 && i <= n) out.add(i - 1); }); return [...out].sort((a, b) => a - b); }
+/** Markdown einer KI-Antwort als HTML (18.11.2026: Formeln als MathML, Merke-Kasten, Tabellen; app/static/ai-answer.js) */
 export function md(s) {
-  let h = esc(s || "");
-  h = h.replace(/```([\s\S]*?)```/g, (_, c) => `<pre>${c}</pre>`).replace(/`([^`]+)`/g, "<code>$1</code>");
-  h = h.replace(/^### (.*)$/gm, "<h4>$1</h4>").replace(/^## (.*)$/gm, "<h3>$1</h3>").replace(/^# (.*)$/gm, "<h3>$1</h3>");
-  h = h.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\s)\*(?!\s)(.+?)\*(?=\s|$|[.,;:])/g, "$1<i>$2</i>");
-  h = h.replace(/^(?:\s*[-*•] .*(?:\n|$))+/gm, b => `<ul>${b.trim().split(/\n/).map(l => `<li>${l.replace(/^\s*[-*•] /, "")}</li>`).join("")}</ul>`);
-  h = h.replace(/^(?:\s*\d+[.)] .*(?:\n|$))+/gm, b => `<ol>${b.trim().split(/\n/).map(l => `<li>${l.replace(/^\s*\d+[.)] /, "")}</li>`).join("")}</ol>`);
-  return h.split(/\n{2,}/).map(p => /^<(h\d|ul|ol|pre)/.test(p.trim()) ? p : `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+  return answerHtml(s);
 }

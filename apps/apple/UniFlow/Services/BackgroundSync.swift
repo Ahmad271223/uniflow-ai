@@ -10,8 +10,11 @@ import UserNotifications
 //   Stundenplan), keine Downloads
 // - BGProcessingTask `de.uniflow.ai.sync.files` mit Netz: der volle Abgleich wie beim Oeffnen, also auch die neuen
 //   Dateien laden
-// Beide fruehestens zum naechsten Zeitpunkt 8:00, 15:00 oder 20:00 Ortszeit (`BackgroundSchedule`); wann genau,
-// entscheidet iOS (Nutzung, Akku, Netz, Energiesparmodus, Hintergrundaktualisierung). Neu geplant beim Start, beim
+// Seit 17.11.2026 (Auftrag des Inhabers, docs/ABGLEICH-8-BIS-18-2026-11-17.md) nach derselben Regel wie bei offener
+// App: Wunschtermin ist der naechste faellige Abgleich im Fenster 8 bis 18 Uhr Ortszeit (je Portal alle 30 Minuten,
+// `ContainerManager.nextAutomaticSync`); ausserhalb des Fensters fragt ein Lauf keine Hochschule (`.outsideWindow`), im
+// Fenster nur die faelligen Portale (`duePortals`, sonst `.notDue`). Wann genau, entscheidet iOS (Nutzung, Akku, Netz,
+// Energiesparmodus, Hintergrundaktualisierung); vorher galten die Zeitpunkte 8, 15 und 20 Uhr (`BackgroundSchedule`). Neu geplant beim Start, beim
 // Wechsel in den Hintergrund und nach jedem Lauf; ein schon bestellter, nicht spaeterer Termin bleibt dabei stehen
 // (`BackgroundSchedule.keepsPending`), sonst schoebe jeder kurze Lauf den langen nach hinten. Sicher bleibt der Abgleich
 // beim Oeffnen (`runIfDue`).
@@ -202,11 +205,15 @@ protocol BackgroundSyncable: AnyObject {
     var lastSignIn: Date? { get }
     /// Quellen, deren Anmeldung abgelaufen ist und sich nicht still erneuern liess (nur dann bittet `LoginReminder`)
     var loginNeededSources: [String] { get }
+    /// Namen der Portale dieses Abgleichs in der Regel 8 bis 18 Uhr (`AutoSyncLedger`): "Stud.IP"; "Learnweb", "LSF";
+    /// "Moodle", "Campusmanagement"
+    var autoPortals: [String] { get }
 }
 
 extension BackgroundSyncable {
     var lastSignIn: Date? { nil }
     var loginNeededSources: [String] { [] }
+    var autoPortals: [String] { [fileSource] }
 }
 
 extension StudIPSync: BackgroundSyncable {
@@ -245,6 +252,8 @@ extension StudIPSync: BackgroundSyncable {
 
 extension HildesheimConnection: BackgroundSyncable {
     var fileSource: String { "Learnweb" }
+
+    var autoPortals: [String] { Source.allCases.map(\.rawValue) }
 
     var usableSources: [String] { sources(background: true).sorted { $0.rawValue < $1.rawValue }.map(\.rawValue) }
 
@@ -324,11 +333,26 @@ final class BackgroundSyncController: ObservableObject {
     var relogin: (ActiveContainer, String) async -> Bool
     /// Neues des letzten Laufs (Tests)
     private(set) var lastNews: BackgroundNewsDiff?
+    /// Nach dem Abgleich: neue Dateien nachlesen, Termine erkennen, Erinnerungen planen und neu erkannte Klausuren melden
+    /// (`DueReminderScheduler`). Haengt die Container selbst an (iOS startet die App auch ohne Fenster) und wartet auf
+    /// das Ende, sonst schliesst iOS die Aufgabe, bevor geplant ist (17.11.2026). Nie unter XCTest (Tests: Attrappe).
+    var dueRefresh: () async -> Void
     /// Takt am Mac, solange die App laeuft (`startMacTicker`)
     private(set) var macTicker: MacBackgroundTicker?
+    /// Faellige Portale nach der Regel 8 bis 18 Uhr, je Portal alle 30 Minuten (`ContainerManager.autoSyncDue`; Tests:
+    /// feste Menge). Parameter: Container, Zeitpunkt, Ortszeit, Aufgabe (der lange Lauf setzt wartende Arbeit gleich fort).
+    var autoDue: (ActiveContainer, Date, TimeZone, BackgroundSyncKind) -> Set<String>
+    /// Naechster Abgleich von selbst nach der Regel: Wunschtermin an iOS (`ContainerManager.nextAutomaticSync`)
+    var nextAutomatic: (Date, TimeZone) -> Date
+    /// Faellige Portale des letzten Laufs (Tests)
+    private(set) var lastDue: Set<String>?
     /// Neuanmeldung auch im kurzen Lauf? Auf iPad/iPhone nein: der kurze Lauf hat rund 30 Sekunden, so lange kann die
     /// unsichtbare Anmeldung allein dauern; dort nur im langen Lauf. Am Mac (Takt, ohne Zeitgrenze von iOS) ja.
     var reloginInShortRun = MacBackgroundTicker.isMac
+    /// so viel Zeit muss iOS im kurzen Lauf noch lassen, damit die stille Neuanmeldung (hoechstens 25–30 Sekunden) beginnt
+    static let reloginMinTime: TimeInterval = 25
+    /// verbleibende Hintergrundzeit (iOS; vorn unbegrenzt; Tests: fest)
+    var timeLeft: () -> TimeInterval = { UIApplication.shared.backgroundTimeRemaining }
 
     private static var registered = false
 
@@ -359,11 +383,28 @@ final class BackgroundSyncController: ObservableObject {
             if containers.studip.offersStudIP, containers.studip.loginNeededSources.contains("Stud.IP") { out.append("Stud.IP") }
             if let q = containers.qis, q.isConnected, q.state == .needsLogin { out.append("QIS") }
             if let u = containers.uniMail, u.isConnected, u.state == .needsLogin { out.append("Uni-Mail") }
+            // seit 17.11.2026 auch Learnweb und LSF (Uni Hildesheim, CAS) sowie Moodle und Campusmanagement (HsH)
+            if let h = containers.hildesheim { out += h.expiredSources.map(\.rawValue) }
+            if let hsh = containers.hsh { out += hsh.loginNeededSources }
             return out
         }
         hasStoredLogin = { [weak containers] c in
             guard let containers, containers.active === c else { return false }
             return containers.hasStoredLogin
+        }
+        dueRefresh = { [weak containers] in
+            guard let containers, !StudIPSync.isUnderTest() else { return }
+            let s = DueReminderScheduler.shared
+            s.attach(containers)
+            s.schedule(recompute: true)
+            await s.settle()
+        }
+        autoDue = { [weak containers] c, now, tz, kind in
+            guard let containers, containers.active === c else { return [] }
+            return containers.autoSyncDue(now: now, timeZone: tz, continueAtOnce: kind == .processing)
+        }
+        nextAutomatic = { [weak containers] now, tz in
+            containers?.nextAutomaticSync(now: now, timeZone: tz) ?? AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz)
         }
         relogin = { [weak containers] c, portal in
             guard let containers, containers.active === c else { return false }
@@ -371,7 +412,10 @@ final class BackgroundSyncController: ObservableObject {
             case "Stud.IP": return await containers.studip.renewInBackground()
             case "QIS": return await containers.qis?.reloginInBackground() ?? false
             case "Uni-Mail": return await containers.uniMail?.autoLogin(background: true) ?? false
-            default: return false
+            default:
+                if let h = containers.hildesheim, let s = HildesheimConnection.Source(rawValue: portal) { return await h.reloginInBackground(s) }
+                if let hsh = containers.hsh, let s = HsHConnection.Source(rawValue: portal) { return await hsh.autoLogin(s, background: true) }
+                return false
             }
         }
     }
@@ -395,7 +439,8 @@ final class BackgroundSyncController: ObservableObject {
         }
     }
 
-    /// Beide Aufgaben auf den naechsten Zeitpunkt 8, 15 oder 20 Uhr Ortszeit legen; ein bestellter, nicht spaeterer
+    /// Beide Aufgaben auf den naechsten faelligen Abgleich nach der Regel legen (im Fenster 8 bis 18 Uhr, je Portal
+    /// alle 30 Minuten; vorher 8, 15 oder 20 Uhr); ein bestellter, nicht spaeterer
     /// Termin bleibt (`keepsPending`), `ran` (die eben gestartete Aufgabe) bestellt immer neu. Ausgeschaltet: beide
     /// abbestellen; nur der lange Lauf bleibt bestellt, wenn ein Wochentest einen Termin braucht (`next_at` aus
     /// `WeeklyBackground.decision`, Berliner Zeit); mit Schalter ist sein fruehester Beginn der fruehere der beiden
@@ -411,7 +456,8 @@ final class BackgroundSyncController: ObservableObject {
             nextPlanned = nil
             return [:]
         }
-        let at = BackgroundSchedule.next(after: now(), timeZone: timeZone())
+        // naechster faelliger Abgleich im Fenster 8–18 Uhr (nie vor jetzt); iOS nimmt ihn nur als "fruehestens"
+        let at = max(nextAutomatic(now(), timeZone()), now())
         let pending = await scheduler.pending()
         // inzwischen ausgeschaltet (Schalter waehrend der Abfrage): nur noch der Termin der Wochentests
         let enabled = settings.enabled
@@ -485,10 +531,33 @@ final class BackgroundSyncController: ObservableObject {
         return decision.nextAt
     }
 
-    /// Schalter "Im Hintergrund abgleichen"
+    /// Schalter "Im Hintergrund abgleichen"; aus nimmt auch das Weck-Signal zurueck (Token am Server geloescht)
     func setEnabled(_ on: Bool) {
         settings.enabled = on
         Task { await schedule() }
+        onEnabledChange?(on)
+    }
+
+    /// Aenderung des Schalters (die App: `WakePush.refresh`; Tests: Mitschreiber)
+    var onEnabledChange: ((Bool) -> Void)?
+
+    /// Zeitlimit nach einem Weck-Signal: iOS gibt rund 30 Sekunden, der Lauf endet vorher (Rest fuer den Abschluss)
+    static let wakeLimit: TimeInterval = 25
+
+    /// Weck-Signal (WakePush.swift): ein kurzer Lauf nach der Regel 8 bis 18 Uhr - ausserhalb nichts, nur faellige
+    /// Portale, stille Neuanmeldung nur mit genug Zeit -, beendet nach `wakeLimit` (wie der Ablauf einer Aufgabe).
+    func performWake(limit: TimeInterval = BackgroundSyncController.wakeLimit) async -> UIBackgroundFetchResult {
+        let started = Date()
+        let expired: () -> Bool = { Date().timeIntervalSince(started) >= limit }
+        let run = Task { @MainActor in await self.perform(.refresh, expired: expired) }
+        let timer = Task {
+            try? await Task.sleep(nanoseconds: UInt64(max(limit, 0) * 1_000_000_000))
+            run.cancel()
+        }
+        let ok = await run.value
+        timer.cancel()
+        guard let due = lastDue, !due.isEmpty else { return .noData }
+        return ok && !expired() ? .newData : .failed
     }
 
     /// Schalter "Benachrichtigen bei neuen Dateien": erst hier fragt iOS nach der Erlaubnis. false, wenn sie fehlt
@@ -533,19 +602,40 @@ final class BackgroundSyncController: ObservableObject {
     }
 
     /// Ein Hintergrundlauf auf dem offenen Container. Rueckgabe: Erfolg fuer `setTaskCompleted`.
+    /// Regel (17.11.2026): nur die nach `autoDue` faelligen Portale; ausserhalb von 8 bis 18 Uhr keine Anfrage an eine
+    /// Hochschule (die Wochentests des langen Laufs fragen keine Hochschule und bleiben). Der Versuch wird vermerkt, bevor
+    /// er beginnt (`AutoSyncLedger`): auch ein abgebrochener Lauf wartet 30 Minuten.
     @discardableResult
     func perform(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool = { false }) async -> Bool {
         let c = containers.active
+        let start = now()
+        let due: Set<String> = c.map { runnable($0, expired: expired) ? autoDue($0, start, timeZone(), kind) : [] } ?? []
+        lastDue = due
+        if let c, !due.isEmpty {
+            let ledger = containers.autoLedger(c)
+            for p in due { ledger.recordAttempt(p, at: start) }
+        }
         // Stand vor dem Lauf (nur mit einem Schalter fuer Noten, Nachrichten oder Ankuendigungen)
         var before: BackgroundNewsSnapshot?
-        if let c, news.anyOn, runnable(c, expired: expired) { before = await snapshot(c) }
+        if let c, !due.isEmpty, news.anyOn || BackgroundNews.extraNotices != nil, runnable(c, expired: expired) { before = await snapshot(c) }
         // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher
         var tried: [String] = []
-        if let c, kind == .processing || reloginInShortRun { tried = await reloginStep(c, expired: expired) }
-        let ok = await performRun(kind, expired: expired, reloginTried: tried)
-        if let c { await gradesAndNews(c, before: before, expired: expired) }
+        // Neuanmeldung im langen Lauf, am Mac und - seit 17.11.2026 (Weck-Signal, kurze Laeufe im Takt) - im kurzen
+        // Lauf, wenn iOS noch genug Zeit laesst (`reloginMinTime`)
+        if let c, kind == .processing || reloginInShortRun || timeLeft() >= Self.reloginMinTime {
+            tried = await reloginStep(c, due: due, expired: expired)
+        }
+        let ok = await performRun(kind, due: due, at: start, expired: expired, reloginTried: tried)
+        if let c, !due.isEmpty { await gradesAndNews(c, due: due, before: before, expired: expired) }
+        if let c, !due.isEmpty, owns(c) { noteAutomaticResult(c, due: due, at: start) }
         await schedule()                                         // nach jedem Lauf neu planen
         return ok
+    }
+
+    /// "ueberlastet" (429/503) eines Portals: der Abgleich von selbst ruht dafuer 2 Stunden (wie bei offener App)
+    private func noteAutomaticResult(_ c: ActiveContainer, due: Set<String>, at start: Date) {
+        guard containers.active === c else { return }
+        containers.noteAutomaticResult(c, portals: due, now: start)
     }
 
     /// Am Mac (`MacBackgroundTicker`): derselbe kurze Lauf, wenn der letzte mindestens 15 Minuten zurueckliegt
@@ -572,16 +662,17 @@ final class BackgroundSyncController: ObservableObject {
 
     private func snapshot(_ c: ActiveContainer) async -> BackgroundNewsSnapshot? {
         guard let backend = try? await c.host.backend() else { return nil }
-        return await BackgroundNewsSnapshot.read(backend.context.database)
+        return await BackgroundNewsSnapshot.read(backend.context.database, clock: news.schedule ? backend.context.clock : nil)
     }
 
     /// Stille Neuanmeldung im Hintergrund: nur mit Schalter, "Automatisch anmelden" und gespeichertem Uni-Zugang, je
     /// Dienst nach `BackgroundReloginLedger`. Rueckgabe: versuchte Dienste.
-    private func reloginStep(_ c: ActiveContainer, expired: () -> Bool) async -> [String] {
-        guard runnable(c, expired: expired), news.relogin, UniAutoLogin.isEnabled(c.defaults), hasStoredLogin(c) else { return [] }
+    private func reloginStep(_ c: ActiveContainer, due: Set<String>, expired: () -> Bool) async -> [String] {
+        guard !due.isEmpty, runnable(c, expired: expired), news.relogin, UniAutoLogin.isEnabled(c.defaults), hasStoredLogin(c) else { return [] }
         let ledger = BackgroundReloginLedger(defaults: c.defaults)
         var tried: [String] = []
-        for p in expiredPortals(c) where ledger.mayTry(p, now: now()) {
+        // nur Portale, die nach der Regel jetzt abgeglichen werden (ausserhalb 8–18 Uhr nie)
+        for p in expiredPortals(c) where due.contains(p) && ledger.mayTry(p, now: now()) {
             guard !expired(), containers.active === c else { break }
             let ok = await relogin(c, p)
             guard owns(c) else { break }
@@ -592,15 +683,17 @@ final class BackgroundSyncController: ObservableObject {
     }
 
     /// Notenspiegel abrufen und, mit den Schaltern, Neues melden (Vergleich mit dem Stand vor dem Lauf)
-    private func gradesAndNews(_ c: ActiveContainer, before: BackgroundNewsSnapshot?, expired: () -> Bool) async {
+    private func gradesAndNews(_ c: ActiveContainer, due: Set<String>, before: BackgroundNewsSnapshot?, expired: () -> Bool) async {
         guard runnable(c, expired: expired) else { return }
-        await gradesStep(c)
+        if due.contains(OpenSync.qis) { await gradesStep(c) }    // Noten aus QIS nur, wenn QIS nach der Regel dran ist
         guard let before, owns(c), containers.active === c, let after = await snapshot(c) else { return }
         let d = BackgroundNews.diff(before: before, after: after, now: now())
         lastNews = d
-        guard !d.isEmpty, owns(c), containers.active === c, await notifier.isAllowed() else { return }
+        guard !d.isEmpty || BackgroundNews.extraNotices != nil, owns(c), containers.active === c, await notifier.isAllowed() else { return }
         let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
-        for n in BackgroundNews.notices(d, settings: news, container: container, platform: c.key.university == .hildesheim ? "Learnweb" : "Stud.IP") {
+        var all = BackgroundNews.notices(d, settings: news, container: container, platform: c.key.university == .hildesheim ? "Learnweb" : "Stud.IP")
+        if let extra = BackgroundNews.extraNotices { all += await extra(before, after, container) }   // z. B. Klausurtermine
+        for n in all {
             await notifier.post(n.content, id: prefix + n.id, thread: prefix + container)
         }
     }
@@ -617,18 +710,23 @@ final class BackgroundSyncController: ObservableObject {
         return ok
     }
 
-    private func performRun(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool, reloginTried: [String] = []) async -> Bool {
+    private func performRun(_ kind: BackgroundSyncKind, due: Set<String>, at start: Date, expired: @escaping () -> Bool,
+                            reloginTried: [String] = []) async -> Bool {
         let c = containers.active
-        // Uni-Mail zuerst (docs/SYNC-REIHENFOLGE-2026-11-05.md: erste Seite des Posteingangs vor allem anderen)
-        if let c { await runUniMail(c, kind: kind, expired: expired) }
+        // Uni-Mail zuerst (docs/SYNC-REIHENFOLGE-2026-11-05.md: erste Seite des Posteingangs vor allem anderen), nur wenn
+        // sie nach der Regel dran ist
+        if let c, due.contains(OpenSync.uniMail) { await runUniMail(c, kind: kind, expired: expired) }
         let target = c.flatMap { self.target($0) }
+        let inWindow = AutoSync.schedule.isInWindow(start, timeZone: timeZone())
         let situation = BackgroundSyncSituation(
             enabled: allowed() && settings.enabled,
             hasContainer: c != nil && containers.problem == nil && target != nil,
             switching: c?.key != account.containerKey || account.stage != .ready,
             syncRunning: (c.map { containers.isSyncing($0.key) } ?? false) || (target?.isRunning ?? false),
             usableSession: !(target?.usableSources.isEmpty ?? true),
-            demo: containers.demoActive)
+            demo: containers.demoActive,
+            outsideWindow: !inWindow,
+            notDue: !(target?.autoPortals.contains(where: due.contains) ?? false))
         let reason = BackgroundSyncGate.skipReason(situation)
         // Wochentests nur im langen Lauf, unabhaengig vom Gate des Abgleichs (auch mit abgelaufener Sitzung oder
         // ausgeschaltetem Abgleich), aber nur im passenden Container und nie neben einem laufenden Abgleich
@@ -666,7 +764,7 @@ final class BackgroundSyncController: ObservableObject {
         if owns(c) {
             state.record(BackgroundSyncRecord(finishedAt: now(), kind: kind, outcome: BackgroundSyncRecord.outcome(report)))
             // neue Dateien und Fristen: Abgaben-Erinnerungen gleich neu planen, nicht erst beim naechsten Oeffnen
-            if report.skipped == nil, !report.cancelled, containers.active === c { DueReminderScheduler.shared.schedule(recompute: true) }
+            if report.skipped == nil, !report.cancelled, containers.active === c { await dueRefresh() }
         }
         // nach dem Abgleich (der volle Abgleich hat selbst schon getaktet): faellige Wochentests, solange Zeit ist
         if weekly, !report.cancelled { await runWeekly(c, expired: expired) }

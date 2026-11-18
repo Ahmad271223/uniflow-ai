@@ -1,8 +1,8 @@
 """Version im App Store anlegen und fuellen (14.11.2026). Aufruf im Projektordner:
-    .venv/bin/python tools/store_einreichen.py texte   1.0.4          # Version anlegen, Texte und Pruefhinweise aus APP-STORE.md
-    .venv/bin/python tools/store_einreichen.py bilder  1.0.4          # Bildschirmfotos iPad 13" und iPhone 6,9" ersetzen
-    .venv/bin/python tools/store_einreichen.py build   1.0.4 42       # Build waehlen
-    .venv/bin/python tools/store_einreichen.py senden  1.0.4          # zur Pruefung einreichen (nur mit Okay des Inhabers)
+    .venv/bin/python tools/store_einreichen.py texte   1.0.6          # Version anlegen, Texte und Pruefhinweise aus APP-STORE.md
+    .venv/bin/python tools/store_einreichen.py bilder  1.0.6          # Bildschirmfotos iPad 13" und iPhone 6,9" ersetzen
+    .venv/bin/python tools/store_einreichen.py build   1.0.6 45       # Build waehlen
+    .venv/bin/python tools/store_einreichen.py senden  1.0.6          # zur Pruefung einreichen (nur mit Okay des Inhabers)
 Texte kommen aus den Bloecken `description-proai`, `whats-new-proai`, `keywords`, `promo`, `review-notes-proai` in
 docs/release/APP-STORE.md (von tests/test_release_texts.py geprueft). Freigabe nach der Pruefung von Hand (MANUAL)."""
 import hashlib, pathlib, re, sys, time, urllib.error, urllib.request
@@ -13,12 +13,15 @@ APP = "6830632088"
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BUILDS = pathlib.Path.home() / "Studora-Builds"
 SHOTS = {
-    "APP_IPAD_PRO_3GEN_129": (BUILDS / "appstore-screenshots-final-2026-11-13", [
-        "01-uebersicht-light.png", "02-ki-frage-dark.png", "03-ki-karteikarten-light.png", "04-community-diskussion-dark.png",
-        "05-uni-mail-light.png", "06-stundenplan-termin-light.png", "07-skript-uebung-stift-dark.png", "08-wochentest-ki-dark.png",
+    # 1.0.6 (18.11.2026): neue Saetze mit Demo-Inhalten ohne Lernkalender, neue Editor-Leiste, Karte "Klausuren und Tests"
+    # (docs/release/APP-STORE.md, Abschnitt Bildschirmfotos); 1.0.4 nutzte appstore-screenshots-final-2026-11-13 und
+    # appstore-screenshots-iphone-2026-11-14
+    "APP_IPAD_PRO_3GEN_129": (BUILDS / "appstore-screenshots-1-0-6-ipad", [
+        "01-uebersicht-light.png", "02-ki-frage-dark.png", "03-stundenplan-termin-light.png", "04-skript-uebung-stift-dark.png",
+        "05-ki-karteikarten-light.png", "06-community-diskussion-dark.png", "07-uni-mail-light.png", "08-wochentest-ki-dark.png",
         "09-raumfinder-light.png", "10-mensa-light.png"]),
-    "APP_IPHONE_67": (BUILDS / "appstore-screenshots-iphone-2026-11-14", [
-        "01-start-light-portrait.png", "02-lernkalender-light-portrait.png", "03-modul-light-portrait.png",
+    "APP_IPHONE_67": (BUILDS / "appstore-screenshots-1-0-6-iphone", [
+        "01-uebersicht-light-portrait.png", "02-stundenplan-light-portrait.png", "03-modul-erledigt-light-portrait.png",
         "04-uni-mail-ki-light-portrait.png", "05-ki-hilfe-light-portrait.png", "06-studienverlauf-light-portrait.png",
         "07-mensa-light-portrait.png"]),
 }

@@ -36,10 +36,10 @@ final class BackArrowAppTests: XCTestCase {
 
     func testBackKeepsParametersOfPreviousPage() {
         let r = UFRouter()
-        r.go(.plan(view: "day", date: "2026-11-06"))
+        r.go(.timetable(date: "2026-11-06"))
         r.go(.doc("d1", page: 3))
         r.goBack()
-        XCTAssertEqual(r.route, .plan(view: "day", date: "2026-11-06"), "Dokument schliesst dorthin, wo es geoeffnet wurde")
+        XCTAssertEqual(r.route, .timetable(date: "2026-11-06"), "Dokument schliesst dorthin, wo es geoeffnet wurde")
     }
 
     func testNoHistoryGoesHome() {

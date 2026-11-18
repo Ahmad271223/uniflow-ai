@@ -192,7 +192,6 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 <li>Schreiben mit dem Apple Pencil</li>
 <li>Übung und Skript nebeneinander</li>
 <li>Eigene Karteikarten mit Stapeln</li>
-<li>Erinnerungen an Abgaben und Klausuren</li>
 <li>Wochentests</li>
 <li>Community deines Kurses: lesen, fragen, Lösungen teilen</li>
 <li>Karteikarten-Stapel von StudiNow übernehmen (4 im Monat)</li>
@@ -208,6 +207,7 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 <li>Karteikarten aus deinen Unterlagen erstellen lassen</li>
 <li>20 neue KI-Tests im Monat, Testbibliothek und Karteikarten-Stapel ohne Monatsgrenze</li>
 <li>Notizen auf allen deinen Geräten</li>
+<li>Erinnerungen an Abgaben und Klausuren</li>
 </ul>
 </article>
 </div>
