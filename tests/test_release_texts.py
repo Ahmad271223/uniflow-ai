@@ -176,9 +176,9 @@ def test_review_notes_describe_the_build_honestly():
     assert 'static let button = "Credits kaufen"' in _swift("Views/Settings/CreditShopSheet.swift")
     assert "The study calendar (study packages, auto planning) is switched off on purpose" in pro
     assert "static var enabled = false" in _swift("Design/LearnCalendarSwitch.swift")
-    assert '"fetch"' in pro and '"processing"' in pro and "between 8:00 and 18:00" in pro and '"remote-notification"' in pro
+    assert '"fetch"' in pro and '"processing"' in pro and "between 8:00 and 18:00" in pro and "remote-notification" not in pro
     yml = (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")
-    assert all(f"          - {m}\n" in yml for m in ("fetch", "processing", "remote-notification", "audio"))
+    assert all(f"          - {m}\n" in yml for m in ("fetch", "processing", "audio")) and "          - remote-notification\n" not in yml
     assert "on-device text recognition" in pro and "Nothing is uploaded" in pro
     assert '"Video oder Lernseite daneben …" → "YouTube öffnen"' in pro and "Google sign-in blocked" in pro
     assert "YouTube's ads and cookie choice unchanged, nothing downloaded" in pro

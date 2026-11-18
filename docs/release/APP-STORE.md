@@ -523,11 +523,11 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3908 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3806 Zeichen (max. 4000)
 
 **1.0.6:** Wege in den Einstellungen nach der neuen Gliederung („Konto & Tarif“, „Uni-Zugang & Abgleich“), dazu
 Credit-Pakete (wo, wer darf), Lernkalender bewusst aus, Hintergrund-Modi (`fetch`/`processing` für den Abgleich 8–18 Uhr,
-`remote-notification` für das noch ausgeschaltete Weck-Signal, `audio` für die Vorlesungsaufnahme), Texterkennung auf
+`audio` für die Vorlesungsaufnahme), Texterkennung auf
 dem Gerät, „YouTube öffnen“. Gestrichen gegenüber 1.0.4: der eigene OpenAI-Schlüssel (seit 11.11.2026 nicht im Build),
 die Geräte-Regel im Einzelnen. Die Fassung von 1.0.4 steht in `EINREICHUNG-1-0-4.md`.
 
@@ -545,7 +545,7 @@ iPhone support: The Pencil editor stays on iPad; documents open in a reader.
 
 University password: "Passwort auf diesem iPad merken" keeps it only in this device's Keychain (not synced to iCloud); it is never sent to our servers. "Einstellungen" → "Uni-Zugang & Abgleich" → "Uni-Zugang".
 
-Background modes: "fetch" (lists) and "processing" (new files) sync due portals between 8:00 and 18:00 local time, every 30 minutes at most; iOS decides when. Otherwise only "Sync". Only the saved session or the login saved on the device is used. "remote-notification" is prepared for a silent wake-up push (no content), switched off on our server.
+Background modes: "fetch" (lists) and "processing" (new files) sync due portals between 8:00 and 18:00 local time, every 30 minutes at most; iOS decides when. Otherwise only "Sync". Only the saved session or the login saved on the device is used.
 
 Text recognition: exam dates are also read from slides (PDF, PowerPoint, Word); image-only slides use Apple's on-device text recognition. Nothing is uploaded; found dates say "bitte prüfen".
 

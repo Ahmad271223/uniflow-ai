@@ -340,8 +340,8 @@ final class BackgroundSyncAppTests: XCTestCase {
         let modes = try XCTUnwrap(info["UIBackgroundModes"] as? [String])
         // "audio" seit 04.11.2026 fuer "Vorlesung aufnehmen" (docs/VORLESUNG-AUFNEHMEN.md): die Aufnahme laeuft bei
         // gesperrtem Bildschirm weiter; kein Push, keine Ortung
-        // "remote-notification" seit 17.11.2026 fuer das Weck-Signal (stille Push-Nachricht, WakePush.swift); keine Ortung
-        XCTAssertEqual(Set(modes), ["fetch", "processing", "audio", "remote-notification"], "Hintergrundaktualisierung, Verarbeitung, Aufnahme, Weck-Signal")
+        // "remote-notification" (Weck-Signal, WakePush.swift) erst, wenn Push in der App-ID an ist - 1.0.6 ohne
+        XCTAssertEqual(Set(modes), ["fetch", "processing", "audio"], "Hintergrundaktualisierung, Verarbeitung, Aufnahme")
         XCTAssertNotNil(info["NSMicrophoneUsageDescription"] as? String, "Mikrofon-Text fuer die Aufnahme")
         XCTAssertNotNil(info["NSPhotoLibraryAddUsageDescription"] as? String, "Bild sichern im Teilen-Menue braucht den Text, sonst beendet iOS die App")
         XCTAssertNotNil(info["NSSpeechRecognitionUsageDescription"] as? String, "Spracherkennungs-Text fuer die Mitschrift")

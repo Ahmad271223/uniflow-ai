@@ -61,9 +61,10 @@ final class WakePushAppTests: XCTestCase {
         try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(r.body)) as? [String: Any])
     }
 
-    func testInfoPlistHasRemoteNotificationBackgroundMode() throws {
+    /// 1.0.6: kein "remote-notification", solange Push in der App-ID aus ist (Weck-Signal kommt mit einem spaeteren Update)
+    func testInfoPlistHasNoRemoteNotificationBackgroundModeYet() throws {
         let modes = try XCTUnwrap(Bundle.main.infoDictionary?["UIBackgroundModes"] as? [String])
-        XCTAssertTrue(modes.contains("remote-notification"))
+        XCTAssertFalse(modes.contains("remote-notification"))
     }
 
     func testOnlyAPureWakeMessageStartsARun() async {
