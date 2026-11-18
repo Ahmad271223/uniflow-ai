@@ -583,7 +583,7 @@ final class BackgroundSyncController: ObservableObject {
         }
         // Stand vor dem Lauf (nur mit einem Schalter fuer Noten, Nachrichten oder Ankuendigungen)
         var before: BackgroundNewsSnapshot?
-        if let c, !due.isEmpty, news.anyOn, runnable(c, expired: expired) { before = await snapshot(c) }
+        if let c, !due.isEmpty, news.anyOn || BackgroundNews.extraNotices != nil, runnable(c, expired: expired) { before = await snapshot(c) }
         // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher
         var tried: [String] = []
         // Neuanmeldung im langen Lauf, am Mac und - seit 17.11.2026 (Weck-Signal, kurze Laeufe im Takt) - im kurzen
@@ -628,7 +628,7 @@ final class BackgroundSyncController: ObservableObject {
 
     private func snapshot(_ c: ActiveContainer) async -> BackgroundNewsSnapshot? {
         guard let backend = try? await c.host.backend() else { return nil }
-        return await BackgroundNewsSnapshot.read(backend.context.database)
+        return await BackgroundNewsSnapshot.read(backend.context.database, clock: news.schedule ? backend.context.clock : nil)
     }
 
     /// Stille Neuanmeldung im Hintergrund: nur mit Schalter, "Automatisch anmelden" und gespeichertem Uni-Zugang, je
@@ -655,9 +655,11 @@ final class BackgroundSyncController: ObservableObject {
         guard let before, owns(c), containers.active === c, let after = await snapshot(c) else { return }
         let d = BackgroundNews.diff(before: before, after: after, now: now())
         lastNews = d
-        guard !d.isEmpty, owns(c), containers.active === c, await notifier.isAllowed() else { return }
+        guard !d.isEmpty || BackgroundNews.extraNotices != nil, owns(c), containers.active === c, await notifier.isAllowed() else { return }
         let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
-        for n in BackgroundNews.notices(d, settings: news, container: container, platform: c.key.university == .hildesheim ? "Learnweb" : "Stud.IP") {
+        var all = BackgroundNews.notices(d, settings: news, container: container, platform: c.key.university == .hildesheim ? "Learnweb" : "Stud.IP")
+        if let extra = BackgroundNews.extraNotices { all += await extra(before, after, container) }   // z. B. Klausurtermine
+        for n in all {
             await notifier.post(n.content, id: prefix + n.id, thread: prefix + container)
         }
     }

@@ -8,6 +8,10 @@ import UniFlowCore
 //   "Neue Note in <Modul> eingetragen"; den Notenwert nur mit dem eigenen Schalter. Nie beim ersten Notenspiegel.
 // - Stud.IP-Nachrichten: nur die Zahl, nie Absender oder Betreff (wie bei der Uni-Mail)
 // - Ankuendigungen (Stud.IP-News, Learnweb-Ankuendigungen): Kurs und Ueberschrift
+// - seit 17.11.2026 (Auftrag des Inhabers, Abgleich 8 bis 18 Uhr): Ausfall, Raumaenderung oder Verlegung eines besuchten
+//   Termins von heute oder morgen (`ScheduleSnapshot` im Kern); neue Noten nur noch "Neue Note eingetragen" - ohne Note
+//   und ohne Modul (Sperrbildschirm). Anknuepfungspunkt fuer "Neuer Klausurtermin erkannt": `BackgroundNews.extraNotices`
+//   (macht ein anderer Zweig, nur ab Pro AI).
 // Jede Art hat einen eigenen Schalter (Vorgabe aus; erst der Schalter fragt iOS nach der Erlaubnis). Nachrichten und
 // Ankuendigungen zaehlen nur, wenn sie juenger als 14 Tage sind (ein neu gewaehlter Kurs bringt keine Flut alter Beitraege).
 //
@@ -22,6 +26,7 @@ struct BackgroundNewsSettings {
     static let gradeValueKey = "uniflow.background.notify.gradeValue"
     static let messagesKey = "uniflow.background.notify.messages"
     static let announcementsKey = "uniflow.background.notify.announcements"
+    static let scheduleKey = "uniflow.background.notify.schedule"
     static let reloginKey = "uniflow.background.relogin"
 
     let defaults: UserDefaults
@@ -32,7 +37,7 @@ struct BackgroundNewsSettings {
         nonmutating set { defaults.set(newValue, forKey: Self.gradesKey) }
     }
 
-    /// "Notenwert in der Mitteilung zeigen" (Vorgabe aus: sonst stuende die Note auf dem Sperrbildschirm)
+    /// frueher "Notenwert in der Mitteilung zeigen"; seit 17.11.2026 ohne Wirkung (die Mitteilung nennt nie Note oder Modul)
     var gradeValue: Bool {
         get { defaults.bool(forKey: Self.gradeValueKey) }
         nonmutating set { defaults.set(newValue, forKey: Self.gradeValueKey) }
@@ -50,19 +55,26 @@ struct BackgroundNewsSettings {
         nonmutating set { defaults.set(newValue, forKey: Self.announcementsKey) }
     }
 
+    /// "Ausfall und Raumänderung" heute und morgen (Vorgabe aus)
+    var schedule: Bool {
+        get { defaults.bool(forKey: Self.scheduleKey) }
+        nonmutating set { defaults.set(newValue, forKey: Self.scheduleKey) }
+    }
+
     /// "Im Hintergrund neu anmelden" (Vorgabe an; wirkt nur mit gespeichertem Uni-Zugang und "Automatisch anmelden")
     var relogin: Bool {
         get { defaults.object(forKey: Self.reloginKey) as? Bool ?? true }
         nonmutating set { defaults.set(newValue, forKey: Self.reloginKey) }
     }
 
-    var anyOn: Bool { grades || messages || announcements }
+    var anyOn: Bool { grades || messages || announcements || schedule }
 
     func isOn(_ kind: BackgroundNewsKind) -> Bool {
         switch kind {
         case .grades: return grades
         case .messages: return messages
         case .announcements: return announcements
+        case .schedule: return schedule
         }
     }
 
@@ -71,13 +83,14 @@ struct BackgroundNewsSettings {
         case .grades: grades = on
         case .messages: messages = on
         case .announcements: announcements = on
+        case .schedule: schedule = on
         }
     }
 }
 
 /// Arten der Mitteilungen mit eigenem Schalter
 enum BackgroundNewsKind: CaseIterable {
-    case grades, messages, announcements
+    case schedule, grades, messages, announcements
 }
 
 /// Eine Zeile des Notenspiegels
@@ -117,11 +130,15 @@ struct BackgroundNewsSnapshot: Equatable, Sendable {
     /// Stud.IP-Nachrichten: Kennung -> gesendet
     var messages: [String: Date?] = [:]
     var announcements: [NewsAnnouncement] = []
+    /// besuchte Termine von heute und morgen (nil: nicht gelesen)
+    var schedule: ScheduleSnapshot?
 
-    /// Liest den Ausschnitt; fehlende Tabellen (noch nie Nachrichten gelesen) sind leer
-    static func read(_ db: SQLiteDatabase) async -> BackgroundNewsSnapshot {
+    /// Liest den Ausschnitt; fehlende Tabellen (noch nie Nachrichten gelesen) sind leer. `clock`: heute und morgen fuer
+    /// die Termine (nil: ohne Termine)
+    static func read(_ db: SQLiteDatabase, clock: UniFlowClock? = nil) async -> BackgroundNewsSnapshot {
         (try? await db.withConnection { conn -> BackgroundNewsSnapshot in
             var s = BackgroundNewsSnapshot()
+            if let clock { s.schedule = ScheduleSnapshot.read(conn, clock: clock) }
             let rows = (try? conn.query("SELECT pruefungsnr, text, semester, versuch, note, status FROM grades")) ?? []
             s.grades = rows.map { r in
                 let key = ["pruefungsnr", "text", "semester", "versuch"].map { r[$0]?.string ?? "" }.joined(separator: "\u{1}")
@@ -153,8 +170,9 @@ struct BackgroundNewsDiff: Equatable, Sendable {
     var newGrades: [GradeEntry] = []
     var newMessages = 0
     var newAnnouncements: [NewsAnnouncement] = []
+    var scheduleChanges: [ScheduleChange] = []
 
-    var isEmpty: Bool { newGrades.isEmpty && newMessages == 0 && newAnnouncements.isEmpty }
+    var isEmpty: Bool { newGrades.isEmpty && newMessages == 0 && newAnnouncements.isEmpty && scheduleChanges.isEmpty }
 }
 
 enum BackgroundNews {
@@ -163,8 +181,14 @@ enum BackgroundNews {
     /// Mehr Einzelmitteilungen je Art und Lauf gibt es nicht (sonst eine Zusammenfassung)
     static let maxSingle = 3
 
+    /// Anknuepfungspunkt fuer weitere Arten (z. B. "Neuer Klausurtermin erkannt", anderer Zweig, nur ab Pro AI): bekommt
+    /// den Stand vor und nach dem Lauf und die Kennung des Containers, liefert Mitteilungen (Kennung ohne Praefix,
+    /// Inhalt). Die App ruft ihn nur im Hintergrundlauf nach einem Abgleich von selbst; den Tarif prueft der Anbieter.
+    @MainActor static var extraNotices: ((BackgroundNewsSnapshot, BackgroundNewsSnapshot, String) async -> [(id: String, content: BackgroundNotice.Content)])?
+
     static func diff(before: BackgroundNewsSnapshot, after: BackgroundNewsSnapshot, now: Date) -> BackgroundNewsDiff {
         var d = BackgroundNewsDiff()
+        d.scheduleChanges = ScheduleSnapshot.changes(before: before.schedule, after: after.schedule)
         if before.gradesKnown {
             let had = Set(before.grades.filter(\.hasResult).map(\.key))
             // bekannt ohne Nummer (vor 12.11.2026 gespeichert), jetzt mit Nummer: nicht neu
@@ -186,15 +210,18 @@ enum BackgroundNews {
     static func notices(_ d: BackgroundNewsDiff, settings: BackgroundNewsSettings, container: String,
                         platform: String = "Stud.IP") -> [(id: String, content: BackgroundNotice.Content)] {
         var out: [(String, BackgroundNotice.Content)] = []
-        if settings.grades, !d.newGrades.isEmpty {
-            if d.newGrades.count > maxSingle, let n = BackgroundNotice.newGrades(d.newGrades.count) {
-                out.append(("grades.\(container)", n))
+        // Ausfall, Raumaenderung, Verlegung (heute, morgen): einzeln bis drei, sonst eine Zusammenfassung
+        if settings.schedule, !d.scheduleChanges.isEmpty {
+            if d.scheduleChanges.count > maxSingle, let n = BackgroundNotice.scheduleChanges(d.scheduleChanges.count) {
+                out.append(("schedule.\(container).\(stableID(d.scheduleChanges.map(\.id).joined(separator: ",")))", n))
             } else {
-                for g in d.newGrades {
-                    let value = settings.gradeValue ? g.note.trimmingCharacters(in: .whitespacesAndNewlines) : ""
-                    out.append(("grade.\(container).\(stableID(g.key))", BackgroundNotice.newGrade(module: g.module, value: value.isEmpty ? nil : value)))
-                }
+                for c in d.scheduleChanges { out.append(("schedule.\(container).\(stableID(c.id))", BackgroundNotice.scheduleChange(c))) }
             }
+        }
+        // neue Noten: nie Note, nie Modul (Sperrbildschirm, Auftrag 17.11.2026); eine Mitteilung je Lauf
+        if settings.grades, !d.newGrades.isEmpty {
+            let id = "grades.\(container).\(stableID(d.newGrades.map(\.key).sorted().joined(separator: ",")))"
+            if d.newGrades.count == 1 { out.append((id, BackgroundNotice.newGrade)) } else if let n = BackgroundNotice.newGrades(d.newGrades.count) { out.append((id, n)) }
         }
         if settings.messages, let n = BackgroundNotice.newStudIPMessages(d.newMessages, platform: platform) {
             out.append(("messages.\(container)", n))
@@ -235,16 +262,42 @@ enum BackgroundNews {
 }
 
 extension BackgroundNotice {
-    /// "Neue Note in <Modul> eingetragen" (mit `value` nur, wenn der Schalter "Notenwert zeigen" an ist)
-    static func newGrade(module: String, value: String?) -> Content {
-        let base = "Neue Note in \(module) eingetragen"
-        return Content(title: "Neue Note", body: value.map { "\(base): \($0)" } ?? base)
-    }
+    /// Eine neue Note: nur "Neue Note eingetragen" - ohne Note und ohne Modul (Sperrbildschirm, Auftrag 17.11.2026)
+    static let newGrade = Content(title: "Neue Note eingetragen", body: "Öffne StudiNow, um sie zu sehen.")
 
-    /// Mehr als drei neue Noten in einem Lauf: eine Zusammenfassung ohne Module
+    /// Mehrere neue Noten in einem Lauf: nur die Zahl
     static func newGrades(_ count: Int) -> Content? {
         guard count > 0 else { return nil }
-        return Content(title: "Neue Noten", body: "\(count) neue Noten eingetragen. Öffne StudiNow, um sie zu sehen.")
+        guard count > 1 else { return newGrade }
+        return Content(title: "Neue Noten eingetragen", body: "\(count) neue Noten eingetragen. Öffne StudiNow, um sie zu sehen.")
+    }
+
+    /// Ausfall, Raumaenderung oder Verlegung eines besuchten Termins heute oder morgen
+    static func scheduleChange(_ c: ScheduleChange) -> Content {
+        let day = c.today ? "heute" : "morgen"
+        let title = c.entry.title.isEmpty ? "Termin" : c.entry.title
+        let time = c.entry.start.isEmpty ? "" : " um \(c.entry.start.prefix(5)) Uhr"
+        switch c.kind {
+        case .cancelled:
+            return Content(title: "Ausfall \(day)", body: "\(title)\(time) fällt aus.")
+        case .room:
+            return Content(title: "Raumänderung \(day)", body: "\(title)\(time): jetzt in \(c.entry.room).")
+        case .moved:
+            if !c.entry.movedTo.isEmpty, let d = BackgroundNews.date(c.entry.movedTo) {
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "de_DE")
+                f.timeZone = TimeZone(identifier: "Europe/Berlin")
+                f.dateFormat = "EEEE, d.M."
+                return Content(title: "Verlegung \(day)", body: "\(title) ist verlegt auf \(f.string(from: d)).")
+            }
+            return Content(title: "Verlegung \(day)", body: "\(title) beginnt jetzt\(time).")
+        }
+    }
+
+    /// Mehr als drei Aenderungen in einem Lauf: nur die Zahl
+    static func scheduleChanges(_ count: Int) -> Content? {
+        guard count > 0 else { return nil }
+        return Content(title: "Änderungen im Stundenplan", body: "\(count) Termine heute oder morgen haben sich geändert.")
     }
 
     /// Nur die Zahl, nie Absender oder Betreff

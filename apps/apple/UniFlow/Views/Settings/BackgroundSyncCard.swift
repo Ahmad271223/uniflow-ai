@@ -36,6 +36,8 @@ struct BackgroundSyncCard: View {
         return text.range(of: "). ").map { String(text[..<$0.lowerBound]) + ")." } ?? text
     }
     static let newsShort = "Jede Art hat einen eigenen Schalter."
+    /// Titel der kleinen Karte (Auftrag des Inhabers 17.11.2026)
+    static let notificationsTitle = "Mitteilungen"
     static let reloginShort = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast."
 
     /// Erklaerung unter "Benachrichtigen" mit der Quelle der Hochschule
@@ -46,10 +48,11 @@ struct BackgroundSyncCard: View {
     }
 
     /// Erklaerung unter den Mitteilungen zu Noten, Nachrichten und Ankuendigungen (Version 1.3/1.4)
-    static let newsText = "Jede Art hat einen eigenen Schalter. Stud.IP-Nachrichten nennen nur die Zahl, nie Absender oder Betreff. Neue Noten nennen das Modul; den Notenwert nur, wenn du es unten erlaubst – sonst stünde er auf dem Sperrbildschirm."
+    static let newsText = "Jede Art hat einen eigenen Schalter. Mitteilungen kommen nur nach einem Abgleich von selbst (zwischen 8 und 18 Uhr), nie nach einem Tipp auf „Sync“, und nie zweimal für dasselbe. Neue Noten stehen nur als „Neue Note eingetragen“ da – ohne Note und ohne Modul, weil Mitteilungen auf dem Sperrbildschirm erscheinen. Nachrichten und Uni-Mails nennen nur die Zahl, nie Absender oder Betreff. Ausfall und Raumänderung gelten für deine Termine von heute und morgen."
 
     static func label(_ kind: BackgroundNewsKind, university: UniversityKey? = nil) -> String {
         switch kind {
+        case .schedule: return "Ausfall und Raumänderung (heute, morgen)"
         case .grades: return "Neue Noten"
         case .messages: return university == .hildesheim ? "Learnweb-Nachrichten" : "Stud.IP-Nachrichten"
         case .announcements: return "Ankündigungen"
@@ -75,11 +78,6 @@ struct BackgroundSyncCard: View {
     private struct Panel: View {
         @ObservedObject var background: BackgroundSyncController
         @State private var enabled = true
-        @State private var notify = false
-        @State private var asking = false
-        @State private var hint: String?
-        @State private var newsOn: [BackgroundNewsKind: Bool] = [:]
-        @State private var gradeValue = false
         @State private var relogin = true
 
         var body: some View {
@@ -104,26 +102,7 @@ struct BackgroundSyncCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 4)
                 }
-                // Linien trennen die beiden Schalter und den Stand des letzten Laufs (vorher nur Abstand)
-                SettingsDivider().padding(.vertical, 12)
-                Toggle(isOn: Binding(get: { notify }, set: { v in setNotify(v) })) {
-                    Text("Benachrichtigen bei neuen Dateien").ufFont(14.5, 550).foregroundStyle(UF.text)
-                }
-                .tint(UF.accent)
-                .disabled(!enabled || asking)
-                .accessibilityIdentifier("background.notify")
-                SettingsMore(summary: BackgroundSyncCard.notifyShort(background.containers.key?.university),
-                             text: BackgroundSyncCard.notifyText(background.containers.key?.university), identifier: "background.notifyText")
-                    .padding(.top, 4)
-                if let hint {
-                    Text(hint)
-                        .ufFont(12.8, 600).foregroundStyle(UF.warn)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 4)
-                        .accessibilityIdentifier("background.hint")
-                }
-                SettingsDivider().padding(.vertical, 12)
-                newsSection
+                // Mitteilungen stehen seit 17.11.2026 in der eigenen kleinen Karte darunter (`SyncNotificationsCard`)
                 SettingsDivider().padding(.vertical, 12)
                 Toggle(isOn: Binding(get: { relogin }, set: { v in
                     relogin = v
@@ -164,10 +143,73 @@ struct BackgroundSyncCard: View {
             }
             .onAppear {
                 enabled = background.settings.enabled
-                notify = background.settings.notify
-                for k in BackgroundNewsKind.allCases { newsOn[k] = background.news.isOn(k) }
-                gradeValue = background.news.gradeValue
                 relogin = background.news.relogin
+            }
+        }
+    }
+}
+
+/// Kleine Karte "Mitteilungen" (Auftrag des Inhabers 17.11.2026): jede Art einzeln, Vorgabe aus, erst das Einschalten
+/// einer Art fragt iOS nach der Erlaubnis. Neue Dateien (gebuendelt), Stud.IP- bzw. Learnweb-Nachrichten, Uni-Mail,
+/// Ausfall und Raumaenderung heute/morgen, neue Noten (nur "Neue Note eingetragen"), Ankuendigungen. Kennungen wie vorher
+/// in der Karte "Im Hintergrund abgleichen" (`background.notify`, `background.news.*`).
+struct SyncNotificationsCard: View {
+    @Environment(\.backgroundSync) private var background
+
+    var body: some View {
+        if let background { Panel(background: background) }
+    }
+
+    private struct Panel: View {
+        @ObservedObject var background: BackgroundSyncController
+        @State private var notify = false
+        @State private var mail = false
+        @State private var asking = false
+        @State private var hint: String?
+        @State private var newsOn: [BackgroundNewsKind: Bool] = [:]
+
+        var body: some View {
+            UFCard {
+                UFCardHead(BackgroundSyncCard.notificationsTitle, icon: "bell")
+                Toggle(isOn: Binding(get: { notify }, set: { v in setNotify(v) })) {
+                    Text("Neue Dateien").ufFont(14.5, 550).foregroundStyle(UF.text)
+                }
+                .tint(UF.accent)
+                .disabled(asking)
+                .accessibilityIdentifier("background.notify")
+                SettingsMore(summary: BackgroundSyncCard.notifyShort(background.containers.key?.university),
+                             text: BackgroundSyncCard.notifyText(background.containers.key?.university), identifier: "background.notifyText")
+                    .padding(.top, 4)
+                ForEach(kinds, id: \.self) { kind in
+                    Toggle(isOn: Binding(get: { newsOn[kind] ?? false }, set: { v in setNews(kind, v) })) {
+                        Text(BackgroundSyncCard.label(kind, university: background.containers.key?.university)).ufFont(14.5, 550).foregroundStyle(UF.text)
+                    }
+                    .tint(UF.accent)
+                    .disabled(asking)
+                    .accessibilityIdentifier("background.news.\(kind)")
+                    if kind == .messages, background.containers.uniMail != nil {
+                        Toggle(isOn: Binding(get: { mail }, set: { v in setMail(v) })) {
+                            Text("Neue Uni-Mails").ufFont(14.5, 550).foregroundStyle(UF.text)
+                        }
+                        .tint(UF.accent)
+                        .disabled(asking)
+                        .accessibilityIdentifier("background.news.unimail")
+                    }
+                }
+                SettingsMore(summary: BackgroundSyncCard.newsShort, text: BackgroundSyncCard.newsText, identifier: "background.newsText")
+                    .padding(.top, 4)
+                if let hint {
+                    Text(hint)
+                        .ufFont(12.8, 600).foregroundStyle(UF.warn)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                        .accessibilityIdentifier("background.hint")
+                }
+            }
+            .onAppear {
+                notify = background.settings.notify
+                mail = background.containers.uniMail?.notify ?? false
+                for k in BackgroundNewsKind.allCases { newsOn[k] = background.news.isOn(k) }
             }
         }
 
@@ -176,33 +218,6 @@ struct BackgroundSyncCard: View {
             let u = background.containers.key?.university
             let messages = u?.profile.studipBase != nil || u == .hildesheim
             return BackgroundNewsKind.allCases.filter { $0 != .messages || messages }
-        }
-
-        @ViewBuilder private var newsSection: some View {
-            Text("Mitteilungen").ufFont(13.12, 650).foregroundStyle(UF.text2)
-                .padding(.bottom, 4)
-            ForEach(kinds, id: \.self) { kind in
-                Toggle(isOn: Binding(get: { newsOn[kind] ?? false }, set: { v in setNews(kind, v) })) {
-                    Text(BackgroundSyncCard.label(kind, university: background.containers.key?.university)).ufFont(14.5, 550).foregroundStyle(UF.text)
-                }
-                .tint(UF.accent)
-                .disabled(!enabled || asking)
-                .accessibilityIdentifier("background.news.\(kind)")
-                if kind == .grades {
-                    Toggle(isOn: Binding(get: { gradeValue }, set: { v in
-                        gradeValue = v
-                        background.news.gradeValue = v
-                    })) {
-                        Text("Notenwert in der Mitteilung zeigen").ufFont(13.5, 500).foregroundStyle(UF.text2)
-                    }
-                    .tint(UF.accent)
-                    .padding(.leading, 16)
-                    .disabled(!enabled || !(newsOn[.grades] ?? false))
-                    .accessibilityIdentifier("background.news.gradeValue")
-                }
-            }
-            SettingsMore(summary: BackgroundSyncCard.newsShort, text: BackgroundSyncCard.newsText, identifier: "background.newsText")
-                .padding(.top, 4)
         }
 
         /// Einschalten fragt iOS (einmal; abgelehnt: Hinweis, Schalter bleibt aus)
@@ -232,6 +247,21 @@ struct BackgroundSyncCard: View {
                     notify = false
                     hint = BackgroundSyncCard.deniedText
                 }
+            }
+        }
+
+        /// Uni-Mail: derselbe Schalter wie in der Karte der Uni-Mail (`UniMailConnection.notify`)
+        private func setMail(_ v: Bool) {
+            hint = nil
+            mail = v
+            asking = v
+            Task {
+                let ok = await background.setMailNotify(v)
+                asking = false
+                let on = v && ok
+                mail = on
+                background.containers.uniMail?.notify = on
+                if v, !ok { hint = BackgroundSyncCard.deniedText }
             }
         }
     }
