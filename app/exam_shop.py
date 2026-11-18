@@ -454,6 +454,7 @@ def _earlier_titles(set_key: str, variant: int) -> list[str]:
 
 SYSTEM = ("Du bist der Klausur-Generator von StudiNow. Du erstellst Probeklausuren für Studierende aus deren Kursmaterial. "
           "Sprache: Deutsch. Mathematische Zeichen als Unicode (√, π, ℝ, ², ·, ≤), nie roher LaTeX-Code. Nichts mit „…“ abkürzen. "
+          "Summen und Grenzwerte ohne ^ schreiben, z. B. „Σ von k = 1 bis ∞ von 1/k²“ oder „lim (n → ∞)“. "
           "Jede Zahl vorher nachrechnen. Antworte nur mit dem verlangten JSON. " + UNTRUSTED)
 
 
@@ -531,7 +532,9 @@ def make_exam(analysis: dict, material: dict, variant: int, earlier: list[str], 
     avoid = []
     for e in earlier[-6:]:
         try:
-            avoid += [a.get("text", "")[:160] for a in json.loads(e).get("aufgaben", [])]
+            for a in json.loads(e).get("aufgaben", []):
+                teile = "; ".join(t.get("text", "") for t in a.get("teile") or [])
+                avoid.append((a.get("text", "") + (" " + teile if teile else ""))[:400])
         except ValueError:
             pass
     prompt = (f"Erstelle Probeklausur Nummer {variant} im exakten Format der echten Klausur (Analyse unten): gleiche Zahl der "
@@ -574,9 +577,19 @@ def _klausur_pdf():
     return model, render
 
 
+def _model():
+    """Nur das Datenmodell des PDF-Programms (ohne reportlab): zum Pruefen einer Probeklausur reicht es"""
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "tools" / "klausur_pdf" / "klausur_pdf" / "model.py"
+    spec = importlib.util.spec_from_file_location("klausur_pdf_model", path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("klausur_pdf_model", mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def validate(exam: dict) -> dict:
-    model, _ = _klausur_pdf()
-    model.aus_dict(exam)                      # wirft EingabeFehler bei fehlenden Teilen
+    _model().aus_dict(exam)                   # wirft EingabeFehler bei fehlenden Teilen
     if not exam.get("aufgaben") or not exam.get("loesungen"):
         raise ValueError("Probeklausur ohne Aufgaben oder Lösungen.")
     return exam

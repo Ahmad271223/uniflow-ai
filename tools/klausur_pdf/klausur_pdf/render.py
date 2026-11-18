@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -68,9 +69,34 @@ def fett(markup: str) -> str:
     return "".join(aus)
 
 
+def hoch_tief(text: str) -> str:
+    """Hoch- und tiefgestellte Unicode-Zeichen, die der Grundschrift fehlen (ₙ ₖ ᵏ ⁺ …, die die KI gern schreibt),
+    als reportlab-Markup <sub>/<super> mit dem normalen Zeichen. Sonst stünde im PDF ein leeres Kästchen.
+    Zeichen, die die Schrift kann (₀ ₁ ₂ ² ³), bleiben, wie sie sind."""
+    vorrat = pdfmetrics.getFont(registriere().normal).face.charToGlyph
+    aus: list[str] = []
+    art_offen: str | None = None
+    for z in text:
+        art, basis = None, z
+        if ord(z) not in vorrat:
+            zerlegt = unicodedata.decomposition(z).split()
+            if len(zerlegt) == 2 and zerlegt[0] in ("<sub>", "<super>"):
+                art, basis = ("sub" if zerlegt[0] == "<sub>" else "super"), chr(int(zerlegt[1], 16))
+        if art != art_offen:
+            if art_offen:
+                aus.append(f"</{art_offen}>")
+            if art:
+                aus.append(f"<{art}>")
+            art_offen = art
+        aus.append(escape(basis) if art else z)
+    if art_offen:
+        aus.append(f"</{art_offen}>")
+    return "".join(aus)
+
+
 def inline(text: str) -> str:
     """Einfaches Markdown (**fett**, `code`) → reportlab-Markup, Rest escapen."""
-    t = escape(text.replace("`", ""))
+    t = hoch_tief(escape(text.replace("`", "")))
     t = re.sub(r"\*\*(.+?)\*\*", lambda m: fett(m.group(1)), t)
     return t.replace("\n", "<br/>")
 
