@@ -4039,7 +4039,8 @@
            "section": "w:-2",
            "placed": false,
            "exam_role": "klausur",
-           "solution_of": null
+           "solution_of": null,
+           "is_new": 0
           }
          ]
         }

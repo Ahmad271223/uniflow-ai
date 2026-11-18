@@ -82,8 +82,10 @@ def test_background_tasks_and_audio_match_the_code():
                     ("UniFlow/Views/Recordings/LectureRecorderViews.swift", "playback"),
                     ("UniFlow/Views/Recordings/RecordingsViews.swift", "playback")}, cats
     assert not any("AVAudioPlayer" in t and "numberOfLoops = -1" in t for t in CODE.values())
-    # keine feste Uhrzeit versprochen
-    assert 'timingText = "iOS entscheidet, wann genau; frühestens' in CODE["UniFlow/Views/Settings/BackgroundSyncCard.swift"]
+    # bei geschlossener App keine feste Uhrzeit versprochen (seit 17.11.2026: 8-18 Uhr alle 30 Minuten bei offener App,
+    # im Hintergrund entscheidet iOS)
+    card = CODE["UniFlow/Views/Settings/BackgroundSyncCard.swift"]
+    assert "Solange StudiNow geöffnet ist, gilt das genau so." in card and "entscheidet iOS" in card
 
 
 def test_entitlements_match_team_template_and_website():
