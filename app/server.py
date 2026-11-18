@@ -602,6 +602,8 @@ _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES),
                   # KI-Index (app/doc_index.py bricht nach 60 MB ab - Starlette haette vorher bis 320 MB zwischengespeichert)
                   (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES),
+                  # Datei-Eingang (app/intake_api.py): eine Kurs-PDF, weitergereicht an den Eingang
+                  (re.compile(r"^/api/intake/file$"), intake_api.intake_server.MAX_FILE_BYTES + (1 << 20)),
                   # Stundenplan als PDF/Bild (nur PC; Audit P34-02: vorher ohne Grenze ganz in den Speicher)
                   (re.compile(r"^/api/timetable/import/preview$"), MAX_IMPORT_BYTES))
 # PUT mit JSON-Koerper, der ganz gelesen wird (Audit 08.11.2026, P28-01/P29-04): Notizen wie in sync/push, Seitentexte

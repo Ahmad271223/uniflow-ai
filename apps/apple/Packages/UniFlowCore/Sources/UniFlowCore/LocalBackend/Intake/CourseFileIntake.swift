@@ -1,8 +1,8 @@
 import Foundation
 
 /// Datei-Eingang (Auftrag des Inhabers vom 18.11.2026): neue Kurs-PDFs gehen einmal an einen eigenen Server und werden
-/// dort nach Hochschule, Studiengang, Semester und Modul geordnet, noch ohne KI. Gegenstueck: app/intake_server.py,
-/// Ticket vom Dienst: app/intake_api.py.
+/// dort nach Hochschule, Studiengang, Semester und Modul geordnet, noch ohne KI. Gegenstueck: app/intake_server.py;
+/// die App schickt an den StudiNow-Dienst (app/intake_api.py), der ueber das private Netz weiterreicht.
 ///
 /// Regeln (hier an EINER Stelle):
 /// - nur PDFs aus aktiven Kursen, die auf dem Geraet liegen, und nur Vorlesung, Uebung, Loesung, Skript, Klausur
@@ -10,7 +10,7 @@ import Foundation
 /// - nie eine Liste mit Namen oder Matrikelnummern (`looksLikeNameList`, gleiche Regel wie der Server)
 /// - jede Datei je Platz (Studiengang, Semester, Modul) einmal: gemerkt in `intake_sent`; der Server sagt ausserdem,
 ///   welche Dateien er schon hat, die gehen nicht noch einmal hoch
-/// - keine Konto-ID: das Ticket des Dienstes traegt nur die Hochschule
+/// - keine Konto-ID: der Dienst reicht nur Hochschule und Datei an den Eingang weiter
 ///
 /// Ob ueberhaupt geschickt wird (Zustimmung, WLAN, Anmeldung), entscheidet die App (`CourseFileIntakeRunner`).
 public enum CourseFileIntake {
@@ -132,7 +132,7 @@ public enum CourseFileIntake {
 
     // MARK: Lauf
 
-    /// Verbindung zum Eingang (App: Ticket vom Dienst + URLSession; Tests: Attrappe)
+    /// Verbindung zum Eingang (App: ueber den StudiNow-Dienst, `AccountCourseFileIntake`; Tests: Attrappe)
     public protocol Transport: Sendable {
         /// noch fehlende Fingerabdruecke; legt beim Eingang die Plaetze aller Karteikarten an
         func check(_ metas: [Meta]) async throws -> [String]
@@ -157,7 +157,7 @@ public enum CourseFileIntake {
     }
 
     /// Ein Lauf: Kandidaten bestimmen, Fingerabdruck nachholen, Namenslisten aussortieren, beim Eingang pruefen,
-    /// fehlende Dateien hochladen, alles merken. Bricht beim ersten Netz- oder Ticketfehler ab (naechster Lauf).
+    /// fehlende Dateien hochladen, alles merken. Bricht beim ersten Netz- oder Grenzfehler ab (naechster Lauf).
     public static func run(_ ctx: LocalContext, transport: Transport, limit: Int = filesPerRun,
                            shouldStop: @Sendable () -> Bool = { false }) async throws -> Report {
         var report = Report()
@@ -240,45 +240,31 @@ public enum CourseFileIntake {
     }
 }
 
-// MARK: - HTTP
+// MARK: - Ueber den StudiNow-Dienst
 
-/// Eingang ueber HTTP: Ticket vom StudiNow-Dienst (eine Stunde gueltig), dann Anfragen an die Adresse aus dem Ticket
-public final class HTTPCourseFileIntake: CourseFileIntake.Transport, @unchecked Sendable {
-    public struct Ticket: Sendable { public var token: String; public var url: String; public var expires: Date }
+/// Eingang ueber den StudiNow-Dienst (Umbau "ohne Domain", 18.11.2026): `POST /api/intake/check` und
+/// `POST /api/intake/file` mit der Anmeldung des Kontos; der Dienst reicht ueber das private Netz an den Eingang weiter.
+public struct AccountCourseFileIntake: CourseFileIntake.Transport {
+    let account: StudoraAccount
+    let university: String?
 
-    private let http: ServiceHTTPTransport
-    private let ticketSource: @Sendable () async throws -> Ticket
-    private let lock = NSLock()
-    private var ticket: Ticket?
-
-    public init(http: ServiceHTTPTransport, ticket: @escaping @Sendable () async throws -> Ticket) {
-        self.http = http
-        self.ticketSource = ticket
+    public init(account: StudoraAccount, university: String?) {
+        self.account = account
+        self.university = university
     }
 
-    private func current() async throws -> Ticket {
-        if let t = lock.withLock({ ticket }), t.expires.timeIntervalSinceNow > 120 { return t }
-        let t = try await ticketSource()
-        lock.withLock { ticket = t }
-        return t
-    }
-
-    private func send(_ path: String, body: Data, contentType: String) async throws -> JSONValue {
-        let t = try await current()
-        let r = try await http.send(AIHTTPRequest(method: "POST", url: t.url + path,
-                                                  headers: ["Authorization": "Bearer \(t.token)", "Content-Type": contentType,
-                                                            "Accept": "application/json"], body: body))
-        let j = (try? JSONValue.parse(r.body)) ?? .null
-        guard (200..<300).contains(r.status) else {
-            let inner = j["detail"]?.object != nil ? j["detail"] : j
-            throw CourseFileIntake.IntakeError(status: r.status, code: inner?["code"]?.string ?? "http_\(r.status)")
+    private func call(_ path: String, body: Data, contentType: String) async throws -> JSONValue {
+        do {
+            let r = try await account.request("POST", path, raw: body, contentType: contentType)
+            return (try? JSONValue.parse(r.body)) ?? .null
+        } catch let e as AccountError {
+            throw CourseFileIntake.IntakeError(status: e.status, code: e.code)
         }
-        return j
     }
 
     public func check(_ metas: [CourseFileIntake.Meta]) async throws -> [String] {
-        let body: JSONValue = ["files": .array(metas.map(\.json))]
-        return try await send("/intake/v1/check", body: body.serialized(), contentType: "application/json")["missing"]?.array?
+        let body: JSONValue = ["university": university.map(JSONValue.string) ?? .null, "files": .array(metas.map(\.json))]
+        return try await call("/api/intake/check", body: body.serialized(), contentType: "application/json")["missing"]?.array?
             .compactMap(\.string) ?? []
     }
 
@@ -289,26 +275,17 @@ public final class HTTPCourseFileIntake: CourseFileIntake.Transport, @unchecked 
         func add(_ s: String) { body.append(Data(s.utf8)) }
         add("--\(boundary)\r\nContent-Disposition: form-data; name=\"meta\"\r\n\r\n")
         body.append(meta.json.serialized())
+        if let university {
+            add("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"university\"\r\n\r\n\(university)")
+        }
         add("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"datei.pdf\"\r\nContent-Type: application/pdf\r\n\r\n")
         body.append(data)
         add("\r\n--\(boundary)--\r\n")
-        return try await send("/intake/v1/file", body: body, contentType: "multipart/form-data; boundary=\(boundary)")["status"]?.string ?? "stored"
-    }
-}
-
-extension StudoraAccount {
-    /// Ticket fuer den Datei-Eingang (`POST /api/intake/ticket`); 503 `intake_off`, wenn der Dienst keinen Eingang hat
-    public func intakeTicket(university: String?) async throws -> HTTPCourseFileIntake.Ticket {
-        let body: JSONValue = ["university": university.map(JSONValue.string) ?? .null]
-        let j = (try? JSONValue.parse(try await request("POST", "/api/intake/ticket", body: body).body)) ?? .null
-        guard let token = j["ticket"]?.string, let url = j["url"]?.string, let exp = j["expires"]?.double else {
-            throw AccountError(status: 0, code: "bad_response", message: "Die Antwort des Dienstes ist unvollständig.", retryAfter: nil)
-        }
-        return .init(token: token, url: url, expires: Date(timeIntervalSince1970: exp))
+        return try await call("/api/intake/file", body: body, contentType: "multipart/form-data; boundary=\(boundary)")["status"]?.string ?? "stored"
     }
 }
 
 extension CourseFileIntake {
-    /// Hochschule dieses Datenbereichs (fuer das Ticket)
+    /// Hochschule dieses Datenbereichs (fuer die Ordnung beim Eingang)
     public static func university(_ c: SQLiteConnection) throws -> String { try StudyPlanAPI.university(c) }
 }

@@ -4,13 +4,14 @@ Wortlaut: "nur an anderen server schicken erstmal ohne erklaeren bitte aber geor
 das auf einem eigenen Rechner laufen kann (oder als eigener Container neben dem Dienst): es kennt keine Konten, keine
 Datenbank des Dienstes und keine KI.
 
-Ablauf:
-1. Die App holt beim StudiNow-Dienst ein Ticket (`POST /api/intake/ticket`, app/intake_api.py). Das Ticket traegt nur
-   Hochschule, Ablaufzeit und eine Zufallszahl, keine Konto-ID; signiert mit LERNAPP_INTAKE_SECRET (beide Seiten).
-2. `POST /intake/v1/check` mit den Karteikarten der neuen Dateien (Fingerabdruck SHA-256, Studiengang, Semester, Modul,
+Ablauf (seit dem Umbau "ohne Domain", 18.11.2026): Der Eingang hat keine Domain und keinen oeffentlichen Port. Die
+App schickt an den StudiNow-Dienst (app/intake_api.py), der Dienst reicht ueber das private Hetzner-Netz weiter und
+legt jeder Anfrage ein kurzes Ticket bei (Hochschule, Ablaufzeit, Zufallszahl, keine Konto-ID; signiert mit
+LERNAPP_INTAKE_SECRET, das nur Dienst und Eingang kennen).
+1. `POST /intake/v1/check` mit den Karteikarten der neuen Dateien (Fingerabdruck SHA-256, Studiengang, Semester, Modul,
    Art, Name, Seiten). Bekannte Dateien bekommen nur einen weiteren Platz in der Ordnung; zurueck kommt, welche Dateien
    noch fehlen.
-3. `POST /intake/v1/file` laedt eine fehlende Datei hoch (PDF, hoechstens MAX_FILE_BYTES). Der Eingang prueft, dass der
+2. `POST /intake/v1/file` laedt eine fehlende Datei hoch (PDF, hoechstens MAX_FILE_BYTES). Der Eingang prueft, dass der
    Inhalt zum Fingerabdruck passt, dass es eine PDF ist und dass sie nicht wie eine Liste mit Namen aussieht.
 
 Ablage (INTAKE_DATA_DIR):
@@ -20,7 +21,8 @@ Ablage (INTAKE_DATA_DIR):
 - `eingang.db` (SQLite): Tabelle `files` (je Datei) und `places` (je Platz in der Ordnung). Keine Konto-ID, keine
   IP-Adresse.
 
-Start: `INTAKE_DATA_DIR=/data/eingang LERNAPP_INTAKE_SECRET=... uvicorn app.intake_server:app --no-access-log`
+Start: deploy/eingang/ (nur auf der Adresse im privaten Netz); lokal:
+`INTAKE_DATA_DIR=./eingang LERNAPP_INTAKE_SECRET=... uvicorn app.intake_server:app --no-access-log`
 """
 from __future__ import annotations
 

@@ -210,40 +210,88 @@ def test_ticket_limits(intake, monkeypatch):
         assert st == (200 if i == 0 else 429), d
 
 
-# ---------------------------------------------------------------- Ticket im Dienst
-
-@pytest.fixture
-def svc(hosted, monkeypatch):
-    monkeypatch.setenv("LERNAPP_INTAKE_SECRET", SECRET)
-    monkeypatch.setenv("LERNAPP_INTAKE_URL", "https://eingang.example")
-    return hosted
-
+# ---------------------------------------------------------------- Weiterleitung im Dienst (ohne Domain)
 
 from test_subscriptions import hosted, user  # noqa: E402,F401
 
 
-def test_service_issues_ticket_without_account_id(svc, monkeypatch):
-    from app import intake_api, intake_server
-    st, _, b = asgi_call(svc, "POST", "/api/intake/ticket", body="{}")
-    assert st == 401
+@pytest.fixture
+def svc(hosted, intake, monkeypatch):
+    """Dienst mit Eingang im privaten Netz; die Weiterleitung geht hier direkt in das Programm des Eingangs"""
+    from app import intake_api
+    monkeypatch.setenv("LERNAPP_INTAKE_URL", "http://10.0.0.3:8780")
+    sent = []
+
+    def fake_forward(url, path, body, content_type, university):
+        t = intake.make_ticket(university)["ticket"]
+        st, _, b = asgi_call(intake.app, "POST", path, body=body, headers={"Authorization": f"Bearer {t}"}, content_type=content_type)
+        sent.append((url, path, university, body))
+        return st, (json.loads(b) if b else {})
+    monkeypatch.setattr(intake_api, "forward", fake_forward)
+    hosted.sent = sent
+    return hosted
+
+
+def svc_call(app, path, headers, body, content_type="application/json"):
+    st, _, b = asgi_call(app, "POST", path, body=body, headers=headers, content_type=content_type)
+    return st, (json.loads(b) if b else None)
+
+
+def test_service_forwards_without_account(svc, intake):
+    st, d = svc_call(svc, "/api/intake/check", {}, json.dumps({"files": []}))
+    assert st == 401, "nur mit Konto"
     u, h = user(svc, "eingang@example.com", plan="free", uni="hildesheim")
-    st, _, b = asgi_call(svc, "POST", "/api/intake/ticket", body="{}", headers=h)
-    d = json.loads(b)
-    assert st == 200, d
-    assert d["url"] == "https://eingang.example"
-    body = json.loads(intake_server._unb64(d["ticket"].split(".")[0]))
-    assert body["u"] == "hildesheim" and u["id"] not in d["ticket"] and u["id"] not in json.dumps(body)
-    monkeypatch.setenv("INTAKE_DATA_DIR", "/tmp/egal")
-    assert intake_server.read_ticket("Bearer " + d["ticket"])["u"] == "hildesheim"
+    data = pdf("Folgen und Reihen")
+    m = meta(data)
+    st, d = svc_call(svc, "/api/intake/check", h, json.dumps({"files": [m]}))
+    assert st == 200 and d == {"missing": [m["sha256"]]}, d
 
-    monkeypatch.setattr(intake_api, "TICKETS_PER_DAY", 2)
-    codes = [asgi_call(svc, "POST", "/api/intake/ticket", body="{}", headers=h)[0] for _ in range(2)]
-    assert codes == [200, 429]
+    body, ct = multipart(data, m)
+    st, d = svc_call(svc, "/api/intake/file", h, body, ct)
+    assert st == 200 and d == {"status": "stored"}, d
+    stored = intake.data_dir() / "geordnet" / "Universitaet Hildesheim" / "Informatik (B.Sc.)" / "WS 2026-27" / "Analysis I" / "Vorlesungen" / "VL01 Folgen.pdf"
+    assert stored.read_bytes() == data, "Hochschule kommt aus dem Konto"
+
+    # nichts, was das Konto verraet, geht an den Eingang
+    for url, path, uni, b in svc.sent:
+        assert url == "http://10.0.0.3:8780" and uni == "hildesheim"
+        assert u["id"].encode() not in b and u["email"].encode() not in b
 
 
-def test_service_ticket_off_without_https(hosted, monkeypatch):
+def test_service_passes_rejections_on(svc, intake):
+    u, h = user(svc, "liste@example.com")
+    names = pdf("1234567 2345678 3456789 4567890 5678901")
+    body, ct = multipart(names, meta(names, doc_type="uebung", file_name="Blatt.pdf"))
+    st, d = svc_call(svc, "/api/intake/file", h, body, ct)
+    assert st == 422 and d["code"] == "name_list"
+
+
+def test_service_daily_limit(svc, monkeypatch):
+    from app import intake_api
+    monkeypatch.setattr(intake_api, "CHECKS_PER_DAY", 2)
+    u, h = user(svc, "viel@example.com")
+    codes = [svc_call(svc, "/api/intake/check", h, json.dumps({"files": []}))[0] for _ in range(3)]
+    assert codes == [200, 200, 429]
+
+
+def test_service_off_without_private_address(hosted, monkeypatch):
+    from app import intake_api
     monkeypatch.setenv("LERNAPP_INTAKE_SECRET", SECRET)
-    monkeypatch.setenv("LERNAPP_INTAKE_URL", "http://eingang.example")
     u, h = user(hosted, "aus@example.com")
-    st, _, b = asgi_call(hosted, "POST", "/api/intake/ticket", body="{}", headers=h)
-    assert st == 503 and json.loads(b)["code"] == "intake_off"
+    for url in ["", "http://eingang.example", "http://8.8.8.8:8780", "ftp://10.0.0.3"]:
+        monkeypatch.setenv("LERNAPP_INTAKE_URL", url)
+        assert intake_api.intake_url() is None, url
+        st, d = svc_call(hosted, "/api/intake/check", h, json.dumps({"files": []}))
+        assert st == 503 and d["code"] == "intake_off"
+    for url in ["http://10.0.0.3:8780", "http://172.16.0.2:8780", "http://127.0.0.1:8780", "https://x.example"]:
+        monkeypatch.setenv("LERNAPP_INTAKE_URL", url)
+        assert intake_api.intake_url() == url
+
+
+def test_unreachable_intake_is_502(hosted, monkeypatch):
+    from app import intake_api
+    monkeypatch.setenv("LERNAPP_INTAKE_SECRET", SECRET)
+    monkeypatch.setenv("LERNAPP_INTAKE_URL", "http://127.0.0.1:9")
+    u, h = user(hosted, "weg@example.com")
+    st, d = svc_call(hosted, "/api/intake/check", h, json.dumps({"files": []}))
+    assert st == 502 and d["code"] == "intake_unreachable"

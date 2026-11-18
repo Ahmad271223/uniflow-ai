@@ -48,9 +48,8 @@ enum CourseFileIntakeRunner {
               let account = await MainActor.run(body: { link?.account }), await account.isSignedIn else { return }
         let ctx = backend.context
         let uni = try? await ctx.database.withConnection { try CourseFileIntake.university($0) }
-        let transport = HTTPCourseFileIntake(http: URLSessionServiceTransport(timeout: 300)) {
-            try await account.intakeTicket(university: uni)
-        }
+        // an den StudiNow-Dienst; der reicht ueber das private Netz an den Eingang weiter (keine eigene Domain)
+        let transport = AccountCourseFileIntake(account: account, university: uni)
         _ = try? await CourseFileIntake.run(ctx, transport: transport, shouldStop: { Task.isCancelled })
     }
 }

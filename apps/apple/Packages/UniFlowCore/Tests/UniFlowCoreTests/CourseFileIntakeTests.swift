@@ -167,24 +167,32 @@ final class CourseFileIntakeTests: XCTestCase {
         XCTAssertEqual(again.uploaded, 0)
     }
 
-    func testHTTPTransportSendsTicketAndMultipart() async throws {
+    func testSendsThroughTheServiceWithTheAccount() async throws {
         final class Recorder: ServiceHTTPTransport, @unchecked Sendable {
             var requests: [AIHTTPRequest] = []
             func send(_ request: AIHTTPRequest) async throws -> ServiceHTTPResponse {
                 requests.append(request)
-                if request.url.hasSuffix("/check") { return .init(status: 200, body: Data(#"{"missing": ["abc"]}"#.utf8)) }
-                if request.url.hasSuffix("/file") { return .init(status: 422, body: Data(#"{"detail": {"code": "name_list", "detail": "x"}}"#.utf8)) }
+                if request.url.hasSuffix("/api/intake/check") { return .init(status: 200, body: Data(#"{"missing": ["abc"]}"#.utf8)) }
+                if request.url.hasSuffix("/api/intake/file") { return .init(status: 422, body: Data(#"{"detail": "Listen mit Namen nimmt der Eingang nicht an.", "code": "name_list"}"#.utf8)) }
                 return .init(status: 500, body: Data())
             }
         }
+        struct Tokens: AccountTokenStore {
+            func load() -> String? { "sitzung" }
+            func save(_ token: String?) throws {}
+        }
         let rec = Recorder()
-        let intake = HTTPCourseFileIntake(http: rec) { .init(token: "tok", url: "https://eingang.example", expires: Date().addingTimeInterval(3600)) }
+        let account = StudoraAccount(base: "https://app.example", http: rec, tokens: Tokens(), deviceID: "d", deviceName: "iPad")
+        let intake = AccountCourseFileIntake(account: account, university: "hildesheim")
         let meta = CourseFileIntake.Meta(sha256: "abc", program: "Informatik", semester: "WS", module: "M", docType: "skript",
                                          fileName: "S.pdf", courseTitle: nil, courseNumber: nil, week: nil, pages: 3)
         let missing = try await intake.check([meta])
         XCTAssertEqual(missing, ["abc"])
-        XCTAssertEqual(rec.requests[0].url, "https://eingang.example/intake/v1/check")
-        XCTAssertEqual(rec.requests[0].headers["Authorization"], "Bearer tok")
+        XCTAssertEqual(rec.requests[0].url, "https://app.example/api/intake/check", "an den StudiNow-Dienst, nicht an den Eingang")
+        XCTAssertEqual(rec.requests[0].headers["Authorization"], "Bearer sitzung")
+        let sent = try JSONValue.parse(rec.requests[0].body ?? Data())
+        XCTAssertEqual(sent["university"]?.string, "hildesheim")
+        XCTAssertEqual(sent["files"]?.array?.first?["sha256"]?.string, "abc")
         let file = dir.appendingPathComponent("s.pdf")
         try Data("%PDF-1.4".utf8).write(to: file)
         do {
@@ -193,8 +201,9 @@ final class CourseFileIntakeTests: XCTestCase {
         } catch let e as CourseFileIntake.IntakeError {
             XCTAssertEqual(e, .init(status: 422, code: "name_list"))
         }
+        XCTAssertEqual(rec.requests[1].url, "https://app.example/api/intake/file")
         let body = String(decoding: rec.requests[1].body ?? Data(), as: UTF8.self)
-        XCTAssertTrue(body.contains("name=\"meta\"") && body.contains("name=\"upload\"") && body.contains("%PDF-1.4"))
+        XCTAssertTrue(body.contains("name=\"meta\"") && body.contains("name=\"university\"") && body.contains("name=\"upload\"") && body.contains("%PDF-1.4"))
         XCTAssertTrue(rec.requests[1].headers["Content-Type"]?.hasPrefix("multipart/form-data; boundary=") == true)
     }
 }

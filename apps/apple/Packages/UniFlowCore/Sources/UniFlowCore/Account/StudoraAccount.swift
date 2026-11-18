@@ -118,17 +118,22 @@ public actor StudoraAccount {
     // MARK: Anfragen
 
     func request(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true) async throws -> ServiceHTTPResponse {
+        try await request(method, path, raw: body?.serialized(), contentType: body == nil ? nil : "application/json", auth: auth)
+    }
+
+    /// Anfrage mit fertigem Koerper (z. B. multipart fuer den Datei-Eingang); Fehler wie bei JSON
+    func request(_ method: String, _ path: String, raw: Data?, contentType: String?, auth: Bool = true) async throws -> ServiceHTTPResponse {
         // Faehigkeiten dieser App: nur damit schickt der Dienst die Geraete-Regel (`device`) und nennt im Abgleich, was
         // einem anderen Uni-Konto gehoert; aeltere Apps ohne die Kopfzeile bekommen die Antworten wie bisher
         var headers = ["Accept": "application/json", DeviceRule.capabilityHeader: Self.capabilities]
-        if body != nil { headers["Content-Type"] = "application/json" }
+        if let contentType { headers["Content-Type"] = contentType }
         if auth {
             guard let t = tokens.load() else { throw AccountError(status: 401, code: "unauthenticated", message: "Anmeldung erforderlich.", retryAfter: nil) }
             headers["Authorization"] = "Bearer \(t)"
         }
         let r: ServiceHTTPResponse
         do {
-            r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: body?.serialized()))
+            r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: raw))
         } catch {
             throw AccountError(status: 0, code: "service_unreachable", message: "Der StudiNow-Dienst ist nicht erreichbar.", retryAfter: nil)
         }

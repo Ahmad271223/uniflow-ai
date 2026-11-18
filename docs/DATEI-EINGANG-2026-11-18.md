@@ -1,48 +1,50 @@
-# Datei-Eingang langer Zufallsname unter `studinow.app` (18.11.2026: „über 50 Buchstaben … damit ihn niemand findet“; der Name
-steht nicht im Repo, nur in `~/Studora-Builds/private_keys/eingang-adresse.txt`)
+# Datei-Eingang ohne Domain (18.11.2026)
 
-Auftrag des Inhabers: „nur an anderen server schicken erstmal ohne erklären bitte aber geordnet unbedingt“; Adresse
-langer Zufallsname unter `studinow.app` (18.11.2026: „über 50 Buchstaben … damit ihn niemand findet“; der Name
-steht nicht im Repo, nur in `~/Studora-Builds/private_keys/eingang-adresse.txt`). Gebaut auf Zweig `app/datei-eingang`. **Nichts davon ist gestartet.**
+Auftrag des Inhabers: „nur an anderen server schicken erstmal ohne erklären bitte aber geordnet unbedingt“, dann
+„ohne … Domain-Name … einfach auf Server schicken, im Backend Serveradresse angeben“ (Umbau 18.11.2026). Gebaut auf
+Zweig `app/datei-eingang`. **Nichts davon ist gestartet.**
 
 ## Was es tut
 
-Neue Kurs-PDFs (Vorlesung, Übung, Lösung, Skript, Altklausur) gehen nach dem Abgleich einmal an den Eingang und
-liegen dort geordnet unter `geordnet/<Hochschule>/<Studiengang>/<Semester>/<Modul>/<Art>/`. Jede Datei liegt nur einmal
-auf der Platte (`dateien/`), die Ordnung besteht aus harten Links. Keine KI, keine Konto-ID, keine IP-Adressen.
-Technik: `app/intake_server.py`, Ticket `app/intake_api.py`, Gerät `CourseFileIntake` / `CourseFileIntakeRunner`.
+```text
+App  →  StudiNow-Dienst (app.studinow.app)  →  privates Hetzner-Netz  →  Eingang (eigener Server, keine Domain)
+```
 
-## Einrichten (erst nach Okay des Inhabers)
+Neue Kurs-PDFs (Vorlesung, Übung, Lösung, Skript, Altklausur) gehen nach dem Abgleich an den Dienst
+(`POST /api/intake/check`, `POST /api/intake/file`, app/intake_api.py). Der Dienst speichert nichts und reicht sie
+über das private Netz an den Eingang weiter (app/intake_server.py). Der Eingang legt jede Datei einmal ab (`dateien/`)
+und ordnet sie als harte Links unter `geordnet/<Hochschule>/<Studiengang>/<Semester>/<Modul>/<Art>/`.
 
-1. **Rechner mieten** (Inhaber, Hetzner-Konsole): ein eigener Cloud-Server, z. B. CX23, Ubuntu, Standort Nürnberg oder
-   Falkenstein, dazu ein **Volume** für die Dateien (Größe siehe unten). IPv4-Adresse notieren.
-2. **DNS** (Inhaber, dort wo `A app` für `studinow.app` liegt): `A <langer Name>` → IPv4 des neuen Rechners.
-3. **Starten** (Sitzung, nur mit Okay): Repo-Stand auf den Rechner, `deploy/eingang/.env` aus `.env.example`,
-   `LERNAPP_INTAKE_SECRET=$(openssl rand -hex 32)`, dann in `deploy/eingang/`: `docker compose up -d --build`.
-   Prüfen: `curl https://<langer Name>.studinow.app/intake/v1/health` → `{"ok": true}`.
-4. **Dienst verbinden** (Server-Deploy, nur mit Okay): in `deploy/.env` von `app.studinow.app`
-   `LERNAPP_INTAKE_URL=https://<langer Name>.studinow.app` und dasselbe `LERNAPP_INTAKE_SECRET`, Dienst neu starten.
-5. **App** (nur mit Okay): Zustimmungstext und Datenschutzerklärung freigeben, dann mit dem nächsten Build ausliefern.
+- Der Eingang hat keine Domain, kein Zertifikat und keinen öffentlichen Port (nur SSH). Er hört nur auf seiner
+  Adresse im privaten Netz.
+- Der Eingang erfährt nicht, wer geschickt hat (keine Konto-ID, keine IP-Adresse).
+- Gerät: `CourseFileIntake` (Kern), `AccountCourseFileIntake` (über das Konto), `CourseFileIntakeRunner` (App).
 
-## Platz auf der Platte (Schätzung, nicht gemessen)
+## Einrichten
+
+1. **Server mieten** (Inhaber, Hetzner-Konsole): CX23, Ubuntu, **im selben Gebiet wie der Dienst** (Nürnberg oder
+   Falkenstein), SSH-Schlüssel `studinow_server`, dazu ein **Volume** (300 GB zum Start).
+2. **Privates Netz** (Inhaber, Hetzner-Konsole → Netzwerke): „Netzwerk erstellen“ (Name z. B. `studinow-intern`,
+   Zone eu-central, Bereich 10.0.0.0/16) → beide Server hinzufügen (der heutige Dienst und der neue Eingang). Die
+   Konsole zeigt dann je Server eine Adresse wie `10.0.0.2` und `10.0.0.3`.
+3. **Firewall** (Inhaber oder Sitzung, Hetzner-Konsole → Firewalls): für den Eingang nur SSH (22) von außen erlauben.
+   Das private Netz ist davon nicht betroffen.
+4. **Eingang starten** (Sitzung, nur mit Okay): Repo-Stand auf den Server, `deploy/eingang/.env` aus `.env.example`
+   (`EINGANG_PRIVATE_IP`, `EINGANG_DATA` = Einhängepunkt des Volumes, `LERNAPP_INTAKE_SECRET=$(openssl rand -hex 32)`),
+   dann in `deploy/eingang/`: `docker compose up -d --build`. Prüfen vom Dienst aus:
+   `curl http://10.0.0.3:8780/intake/v1/health` → `{"ok": true}`; von außen darf nichts antworten.
+5. **Dienst verbinden** (Server-Update, nur mit Okay): in `deploy/.env` des Dienstes
+   `LERNAPP_INTAKE_URL=http://10.0.0.3:8780` und dasselbe `LERNAPP_INTAKE_SECRET`, Dienst neu starten.
+6. **App** (nur mit Okay): Zustimmungstext und Datenschutzerklärung freigeben, dann mit dem nächsten Build ausliefern.
+
+## Platz und Last (Schätzung, nicht gemessen)
 
 Annahme 10.000 Studierende, etwa 1.500 verschiedene Kurse, je Kurs etwa 3 neue PDFs pro Woche, im Mittel etwa 3 MB:
-rund 650 Dateien bzw. 2 GB am Tag, rund 250 bis 300 GB je Semester. Mit 300 bis 500 GB Volume anfangen und
-beobachten (`du -sh /var/lib/docker/volumes/*eingang-data*`).
+rund 650 Dateien bzw. 2 GB am Tag durch den Dienst, rund 250 bis 300 GB je Semester auf dem Eingang. Je Konto höchstens
+300 Dateien am Tag (`FILES_PER_DAY`). Mit 300 GB Volume anfangen und beobachten.
 
 ## Offen
 
 - Datenschutzerklärung: neuer Absatz zum Datei-Eingang (Entwurf folgt, nur mit Okay).
 - Rechtliche Prüfung: dauerhaftes Sammeln von Lehrmaterial.
 - Beim Zusammenführen: eine Zeile in `StudoraAccountCard.swift` (Einstellungen werden in `app/aufraeumen-17-11` umgebaut).
-
-## Wie versteckt der lange Name ist
-
-- Erraten kann ihn niemand (56 Zeichen Zufall). Die App kennt ihn nicht fest: sie bekommt die Adresse mit jedem
-  Ticket vom Dienst.
-- Aber: Jedes HTTPS-Zertifikat steht in öffentlichen Zertifikats-Listen (Certificate Transparency, z. B. crt.sh).
-  Wer dort nach `studinow.app` sucht, sieht auch den langen Namen. Ganz unsichtbar wäre er nur mit einem
-  Sammel-Zertifikat (`*.studinow.app`), dafür braucht Caddy Zugriff auf die DNS-Verwaltung (bei STRATO nicht per
-  Schnittstelle möglich).
-- Der eigentliche Schutz: Ohne Ticket des Dienstes nimmt der Eingang nichts an, und es gibt gar keinen Weg, Dateien
-  herunterzuladen. Wer den Namen findet, sieht nur „404“.

@@ -14,5 +14,5 @@ VOLUME ["/data"]
 EXPOSE 8780
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import sys, urllib.request; r = urllib.request.urlopen('http://127.0.0.1:8780/intake/v1/health', timeout=4); sys.exit(0 if r.status == 200 else 1)"
-# --no-access-log: keine IP-Adressen im Protokoll
+# --no-access-log: keine IP-Adressen im Protokoll; erreichbar nur ueber das private Netz (docker-compose.yml)
 CMD ["uvicorn", "intake_server:app", "--host", "0.0.0.0", "--port", "8780", "--no-access-log", "--proxy-headers"]
