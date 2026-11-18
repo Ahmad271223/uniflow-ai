@@ -76,9 +76,33 @@ extension ContainerManager {
     /// verbinden". Demo prueft der Aufrufer. Nie zwei Laeufe zugleich (`isRunning`).
     /// LUH (10.11.2026): alle Portale - Stud.IP, QIS (mit Bescheinigungen, nur lesend) und Uni-Mail -, mit gespeichertem
     /// Uni-Zugang vorher verbinden; `finished` bekommt am Ende das Ergebnis fuer die Leiste (nur LUH).
+    /// "Sync" immer sofort (Auftrag des Inhabers 17.11.2026): zu jeder Uhrzeit, ohne Fenster und ohne Abstand. Laeuft
+    /// gerade ein Abgleich von selbst (oft nur die faelligen Portale), wartet der Tipp darauf und gleicht danach ALLE
+    /// Portale als Handlung des Menschen ab - nie zwei Laeufe zugleich, ein zweiter Tipp sagt "läuft bereits".
     @discardableResult
     func startUniversitySync(forceGrades: Bool = true,
                              finished: (@MainActor (UniversitySyncReport) -> Void)? = nil) -> UniversitySyncStart {
+        if hsh == nil, let c = active, OpenSync.running.contains(c.key), let auto = AutoSync.automatic[c.key] {
+            let key = c.key
+            if AutoSync.userQueued.contains(key) { return .alreadyRunning }
+            let names: [String]
+            if let hildesheim {
+                let stored = hasStoredLogin
+                names = HildesheimConnection.Source.allCases.filter { stored || hildesheim.isConnected($0) }.map(\.rawValue)
+                    + ((uniMail.map { stored || $0.isConnected } ?? false) ? [OpenSync.uniMail] : [])
+            } else {
+                names = hasStoredLogin ? portalNames : connectedPortals
+            }
+            guard !names.isEmpty else { return .alreadyRunning }
+            AutoSync.userQueued.insert(key)
+            Task { @MainActor in
+                await auto.value
+                AutoSync.userQueued.remove(key)
+                guard self.active === c else { return }
+                _ = self.startUniversitySync(forceGrades: forceGrades, finished: finished)
+            }
+            return .started(UniversitySyncStart.startedText(names))
+        }
         if let hsh {
             let names = HsHConnection.Source.allCases.filter { hsh.isConnected($0) }.map(\.rawValue)
             guard !names.isEmpty else { return .notConnected(UniversitySyncStart.connectHint(.hsh)) }

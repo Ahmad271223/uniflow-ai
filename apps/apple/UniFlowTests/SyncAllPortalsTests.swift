@@ -41,6 +41,8 @@ final class SyncAllPortalsTests: XCTestCase {
         OpenSync.last = [:]
         OpenSync.running = []
         AutoSync.timeZone = { TimeZone.current }
+        AutoSync.automatic = [:]
+        AutoSync.userQueued = []
         UniAutoLogin.runnerOverride = nil
         UniAutoLogin.appActiveOverride = nil
         for s in services { SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: s] as CFDictionary) }
@@ -186,6 +188,38 @@ final class SyncAllPortalsTests: XCTestCase {
         try await bed.waitUntil("zweiter Abgleich", timeout: 30) { again != nil }
         XCTAssertEqual(inboxReads, 2)
         XCTAssertEqual(again?.synced, ["QIS", "Uni-Mail"])
+    }
+
+    /// "Sync" immer sofort (17.11.2026): auch ausserhalb von 8 bis 18 Uhr; laeuft ein Abgleich von selbst (nur die
+    /// faelligen Portale), wartet der Tipp darauf und gleicht danach alle ab - nie zwei Laeufe zugleich
+    func testSyncButtonAnyTimeAndAfterARunningAutomaticSyncAllPortals() async throws {
+        let (m, c, _, _) = try await luh()
+        try install()
+        OpenSync.allowed = { true }
+        // 22:00: von selbst nichts, der Knopf sofort
+        let night = bed.clock.now.addingTimeInterval(12 * 3600)
+        XCTAssertTrue(m.runAutomaticSync(now: night).isEmpty, "nach 18 Uhr nichts von selbst")
+        var late: UniversitySyncReport?
+        XCTAssertEqual(m.startUniversitySync { late = $0 }, .started("QIS und Uni-Mail werden abgeglichen …"))
+        try await bed.waitUntil("Sync um 22 Uhr", timeout: 30) { late != nil }
+        XCTAssertEqual(late?.synced, ["QIS", "Uni-Mail"])
+        let readsAfterNight = inboxReads
+        // 10:31: nur QIS faellig (Uni-Mail eben abgeglichen) - der Abgleich von selbst laeuft ...
+        let ledger = m.autoLedger(c)
+        ledger.recordAttempt(OpenSync.uniMail, at: bed.clock.now.addingTimeInterval(30 * 60))
+        let t = bed.clock.now.addingTimeInterval(31 * 60)
+        XCTAssertEqual(m.runAutomaticSync(now: t), [OpenSync.qis])
+        XCTAssertNotNil(AutoSync.automatic[c.key])
+        // ... der Tipp wartet darauf und gleicht danach alle Portale ab (auch die Uni-Mail)
+        var result: UniversitySyncReport?
+        XCTAssertEqual(m.startUniversitySync { result = $0 }, .started("QIS und Uni-Mail werden abgeglichen …"))
+        XCTAssertEqual(m.startUniversitySync(), .alreadyRunning, "zweiter Tipp: nicht doppelt")
+        try await bed.waitUntil("Sync nach dem Abgleich von selbst", timeout: 30) { result != nil }
+        XCTAssertEqual(result?.synced, ["QIS", "Uni-Mail"])
+        XCTAssertEqual(inboxReads, readsAfterNight + 1, "Posteingang vom Knopf neu gelesen, nicht vom Abgleich von selbst")
+        XCTAssertTrue(AutoSync.userQueued.isEmpty)
+        try await bed.waitUntil("alles fertig", timeout: 30) { OpenSync.running.isEmpty }
+        assertOnlyReading()
     }
 
     /// 11.11.2026: der Posteingang haelt Stud.IP und QIS nicht mehr auf (vorher wartete alles auf Uni-Mail)

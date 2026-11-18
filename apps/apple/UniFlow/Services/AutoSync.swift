@@ -31,6 +31,10 @@ enum AutoSync {
     static var willRun: (@MainActor (ActiveContainer, Set<String>) async -> Void)?
     /// Nach einem Abgleich von selbst mit den abgeglichenen Portalen (Mitteilungen ueber Neues; Tests)
     static var didRun: (@MainActor (ActiveContainer, Set<String>) async -> Void)?
+    /// Laufender Abgleich von selbst je Container (der Knopf "Sync" wartet darauf und gleicht danach alles ab)
+    static var automatic: [DataContainerKey: Task<Void, Never>] = [:]
+    /// Container, bei denen ein Tipp auf "Sync" auf das Ende des Abgleichs von selbst wartet (nie zwei)
+    static var userQueued: Set<DataContainerKey> = []
 }
 
 /// Ein Portal, das am Abgleich von selbst teilnimmt
@@ -128,7 +132,8 @@ extension ContainerManager {
         OpenSync.last[c.key] = now
         let key = c.key
         OpenSync.running.insert(key)
-        Task { @MainActor in
+        AutoSync.automatic[key] = Task { @MainActor in
+            defer { AutoSync.automatic[key] = nil }
             await AutoSync.willRun?(c, due)
             if let hsh = self.hsh {
                 // eine abgelaufene Quelle meldet sich nach dem Lauf selbst still neu an (`HsHConnection.run`)
