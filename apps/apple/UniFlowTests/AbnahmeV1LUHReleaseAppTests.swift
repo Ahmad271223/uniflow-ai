@@ -438,15 +438,17 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         XCTAssertTrue(env.wait(timeout: 20) { self.manager.active != nil }, "Container der LUH geoeffnet: \(manager.problem ?? "")")
         container = manager.active
 
-        // Anmeldeseite Stud.IP (Nachbildung), unten "Später anmelden" und der Demo-Link
+        // Anmeldeseite Stud.IP (Nachbildung), unten "Später anmelden"; kein Demo-Link mehr (18.11.2026)
         expect(env, "Schritt 1 von 2: " + FirstLoginStep.studip.title)
         XCTAssertTrue(env.wait(timeout: 20) { self.webView(env)?.url?.lastPathComponent == "studip.html" }, "Nachbildung der Anmeldeseite geladen")
         env.pump(1.0)
         station(env, "04-anmeldung-studip", back: false,
-                markers: ["Schritt 1 von 2: " + FirstLoginStep.studip.title, "Später anmelden", DemoTexts.firstStart, UniversityLoginHint.more])
+                markers: ["Schritt 1 von 2: " + FirstLoginStep.studip.title, "Später anmelden", UniversityLoginHint.more])
+        XCTAssertFalse(shows(env, DemoTexts.firstStart), "kein Demo-Link auf der Anmeldeseite (Entscheidung 18.11.2026)")
 
-        // Demo ohne Konto: der kleine Textlink ganz unten
-        XCTAssertTrue(tap(DemoTexts.firstStart, in: env), "Demo-Link:\n" + dump(env))
+        // Demo ohne Konto (fuer den Rest des Rundgangs; in der App ohne sichtbaren Weg)
+        let manager = self.manager!, account = self.account!
+        Task { @MainActor in try? await FirstLoginFlow.startDemo(containers: manager, account: account) }
         XCTAssertTrue(env.wait(timeout: 30) { self.manager.demoActive && self.account.stage == .setup }, "Demo angelegt, dann die Fragen")
         // Fragen im Gespraech: Rufname vorbelegt mit dem Vornamen aus der Apple-Anmeldung, "Später" ueberspringt alle
         expect(env, IntroSetupModel().question(.name))

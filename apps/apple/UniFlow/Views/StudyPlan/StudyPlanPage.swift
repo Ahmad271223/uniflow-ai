@@ -89,7 +89,7 @@ struct StudyPlanPage: View {
                     }
                     .padding(EdgeInsets(top: 22.4, leading: pad, bottom: compactOverview ? 12 : 48, trailing: pad))
                     .coordinateSpace(.named("studyplan.content"))
-                    .frame(maxWidth: 1480, alignment: .leading)
+                    .frame(maxWidth: UFDevice.pageWidth(1480), alignment: .leading)    // am Mac breiter
                     .frame(maxWidth: .infinity)
                 }
                 .background(UF.bg)

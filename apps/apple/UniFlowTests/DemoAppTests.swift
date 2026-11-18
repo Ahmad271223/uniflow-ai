@@ -312,6 +312,11 @@ final class DemoAppTests: XCTestCase {
 
     /// Anmeldeseite: ganz unten der kleine Textlink (kein Knopf mit Symbol), unter "Später anmelden"; antippen startet
     /// die Demo; ohne Angebot (schon angemeldet) fehlt er
+    /// Entscheidung des Inhabers 18.11.2026: die Anmeldeseite zeigt den Link nicht mehr (die Leiste kann es weiter)
+    func testLoginFlowNoLongerOffersTheDemoLink() {
+        XCTAssertFalse(FirstLoginFlow.demoLinkShown)
+    }
+
     func testLoginPageHasTheDemoLinkAtTheBottom() async throws {
         XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { HostedEnvironment.accessibilityAutomation(false) }

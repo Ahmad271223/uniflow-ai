@@ -64,7 +64,8 @@ final class AccessibilityHitAreaAppTests: XCTestCase {
         ]
         for (name, view, maxVisual) in cases {
             let visual = layoutSize(view)
-            XCTAssertLessThanOrEqual(visual.height, maxVisual, "\(name): Layout unveraendert klein (\(visual))")
+            // am Mac ist die Schrift `UFDevice.textScale` groesser, Knoepfe mit Text entsprechend hoeher
+            XCTAssertLessThanOrEqual(visual.height, maxVisual * UFDevice.textScale, "\(name): Layout unveraendert klein (\(visual))")
             let hit = try hitBox(view)
             XCTAssertGreaterThanOrEqual(hit.width, 43.5, "\(name): Trefferbreite \(hit)")
             XCTAssertGreaterThanOrEqual(hit.height, 43.5, "\(name): Trefferhoehe \(hit)")

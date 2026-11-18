@@ -6,6 +6,19 @@ import Foundation
 enum UFDevice {
     static var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac }
 
+    /// Mac ("Designed for iPad", Wunsch des Inhabers 18.11.2026: Schrift etwas groesser und leserlicher, Seiten breiter
+    /// und voller): Am Mac sitzt man weiter vom Bildschirm weg als vor dem iPad, die Punktgroessen des iPads wirken dort
+    /// klein. Faktor fuer alle Schriften der App (`UFTypeface.font`), dazu die Breite der Seitenleiste. iPad und
+    /// iPhone: 1, unveraendert.
+    static let textScale: CGFloat = ProcessInfo.processInfo.isiOSAppOnMac ? macTextScale : 1
+    static let macTextScale: CGFloat = 1.12
+
+    /// Hoechstbreite einer Seite (`UFContent`, Seiten mit eigenem Rahmen): am Mac breiter, damit grosse Fenster nicht
+    /// halb leer bleiben (Raster wie Mensa und Community bekommen dort mehr Spalten). iPad und iPhone: unveraendert.
+    static func pageWidth(_ width: CGFloat) -> CGFloat { pageWidth(width, mac: isMac) }
+    static func pageWidth(_ width: CGFloat, mac: Bool) -> CGFloat { mac ? (width * macPageScale).rounded() : width }
+    static let macPageScale: CGFloat = 1.35
+
     /// iPhone aus der Modellkennung, ohne UIKit (darf in jedem Kontext gelesen werden); im Simulator die Kennung des
     /// simulierten Geraets
     static let isPhone: Bool = {
