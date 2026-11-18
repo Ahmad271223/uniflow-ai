@@ -193,6 +193,40 @@ def looks_math(text: str | None) -> bool:
     return marks >= 6 and marks * 1000 / max(1, len(t)) > 15
 
 
+# Rechenseiten (18.11.2026, Antwortstil wie ChatGPT): "Erklären" zu einer ganzen Seite hat keine Markierung und keine
+# Frage, `looks_math` sieht also nichts und die Seite geht an das guenstige Modell. Mit LERNAPP_AI_MATH_PAGES (eine
+# Zeile in deploy/.env, Standard AUS, Entscheidung des Inhabers) gehen Seiten mit Rechnungen an ein staerkeres Modell:
+#   LERNAPP_AI_MATH_PAGES=1                               -> der schwere Weg (Standard: Claude Sonnet 5.5)
+#   LERNAPP_AI_MATH_PAGES=openai/gpt-6.1-terra:100        -> genau dieser Weg (Form wie in LERNAPP_AI_ROUTES)
+MATH_PAGES_ENV = "LERNAPP_AI_MATH_PAGES"
+_ON = ("1", "on", "ja", "true", "yes", "an")
+# Rechenausdruck mit Ziffer: 3+4i, (1-2i), x = 2, 2^3, 8·i (Bindestriche zwischen Woertern zaehlen nicht)
+_EXPR = re.compile(r"\d\s*[+\-−·*/=^]\s*[\da-zA-Z(]|[a-zA-Z)]\s*[+−·*/=^]\s*[\d(]")
+MATH_PAGE_MIN_EXPR = 4            # so viele Ausdruecke mindestens ...
+MATH_PAGE_EXPR_PER_1000 = 3       # ... und so dicht (je 1000 Zeichen)
+
+
+def looks_math_page(text: str | None) -> bool:
+    """Seite mit Rechnungen (feste Regel ohne KI): wie `looks_math` oder genug Rechenausdruecke mit Ziffern."""
+    t = text or ""
+    if not t.strip():
+        return False
+    if looks_math(t):
+        return True
+    n = len(_EXPR.findall(t))
+    return n >= MATH_PAGE_MIN_EXPR and n * 1000 / max(1, len(t)) >= MATH_PAGE_EXPR_PER_1000
+
+
+def math_page_route(cfg: dict | None = None) -> list[tuple[Choice, float]] | None:
+    """Weg fuer Rechenseiten aus LERNAPP_AI_MATH_PAGES; None = aus (Standard)."""
+    raw = (os.environ.get(MATH_PAGES_ENV) or "").strip()
+    if not raw or raw.lower() in ("0", "off", "aus", "nein", "false", "no", "none"):
+        return None
+    if raw.lower() in _ON:
+        return (cfg or config())["hard"]
+    return parse_route(raw) or None
+
+
 def is_hard(purpose: str, route_text: str | None = None, hint: str | None = None, cfg: dict | None = None) -> bool:
     cfg = cfg or config()
     if (hint or "") in HARD_HINTS:
@@ -229,16 +263,21 @@ def pick(weighted: list[tuple[Choice, float]], seed: str) -> Choice:
 
 
 def chain(purpose: str, request_id: str, *, configured: set[str], route_text: str | None = None, hint: str | None = None,
-          needs_vision: bool = False, vision_ok=None) -> tuple[list[Choice], bool]:
+          needs_vision: bool = False, vision_ok=None, page_text: str | None = None) -> tuple[list[Choice], bool]:
     """Reihenfolge der Anbieter fuer eine Anfrage: [gewaehlt, Ersatz ...] und ob der schwere Weg galt. `configured`:
-    eingerichtete Anbieter; `vision_ok(choice) -> bool` prueft bei Bildern das Modell. Leer = keiner verfuegbar."""
+    eingerichtete Anbieter; `vision_ok(choice) -> bool` prueft bei Bildern das Modell. Leer = keiner verfuegbar.
+    `page_text`: Prompt bzw. Seite; nur mit LERNAPP_AI_MATH_PAGES zaehlt eine Rechenseite (`math_page_route`)."""
     cfg = config()
     hard = is_hard(purpose, route_text, hint, cfg)
     usable = configured - disabled()
 
     def ok(c: Choice) -> bool:
         return c.provider in usable and (not needs_vision or vision_ok is None or vision_ok(c))
-    route = [(c, w) for c, w in (cfg["hard"] if hard else route_for(purpose, cfg)) if ok(c)]
+    base = cfg["hard"] if hard else route_for(purpose, cfg)
+    if not hard and purpose in MATH_PURPOSES and page_text and (mp := math_page_route(cfg)) and looks_math_page(page_text):
+        if any(ok(c) for c, _w in mp):
+            base, hard = mp, True
+    route = [(c, w) for c, w in base if ok(c)]
     if not route and hard:                               # schwerer Weg nicht verfuegbar: normaler Weg des Zwecks
         route = [(c, w) for c, w in route_for(purpose, cfg) if ok(c)]
     out: list[Choice] = []

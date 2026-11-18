@@ -15,7 +15,8 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
                                braucht einen Preis in app/ai_prices.py
     LERNAPP_AI_PRICE_IN_EUR    aeltere Angabe: Preis je 1 Mio. Eingabe-Tokens in EUR fuer alle Modelle (sonst die Tabelle
     LERNAPP_AI_PRICE_OUT_EUR   in app/ai_prices.py); nur wirksam, wenn beide > 0
-    LERNAPP_AI_MAX_OUTPUT      Obergrenze der Ausgabe-Tokens je Zweck, z. B. "tutor=2000,flashcards=3000" (MAX_OUTPUT)
+    LERNAPP_AI_MAX_OUTPUT      Obergrenze der Ausgabe-Tokens je Zweck, z. B. "tutor=6000,flashcards=8000" (MAX_OUTPUT)
+    LERNAPP_AI_MATH_PAGES      Rechenseiten der KI-Hilfe an ein staerkeres Modell (app/ai_router.py, Standard aus)
     LERNAPP_AI_REASONING_EFFORT Denkaufwand fuer Denkmodelle (REASONING_EFFORTS, Standard low; leer/none = nicht senden)
     LERNAPP_AI_BUDGET_EUR      Gesamtbudget je Monat fuer alle Konten (Standard 50); erreicht -> Sperre
     LERNAPP_AI_USER_BUDGET_EUR Budget je Konto und Monat (Standard 2; die eigentliche Grenze je Konto sind die Credits,
@@ -164,7 +165,9 @@ CACHE_DAYS = 30
 
 # Obergrenze der Ausgabe-Tokens je Zweck (Denk-Tokens zaehlen mit); ueberschreibbar mit LERNAPP_AI_MAX_OUTPUT.
 # flashcards 8000 statt 3000 (13.11.2026): ein KI-Auftrag hat bis 50 Karten (je rund 90 Tokens mit kind/page) plus Denk-Tokens.
-MAX_OUTPUT = {"tutor": 2000, "flashcards": 8000, "doc_index_page": 3000, "week_test": 9000, "test_generation": 8000,
+# tutor 6000 statt 2000 (18.11.2026, Antwortstil wie ChatGPT): drei Teilaufgaben mit allen Schritten, Kaesten, Merke und
+# Tabelle sind etwa 1.500-2.500 Tokens, dazu die Denk-Tokens des Modells; mit 2000 waere die Antwort abgeschnitten.
+MAX_OUTPUT = {"tutor": 6000, "flashcards": 8000, "doc_index_page": 3000, "week_test": 9000, "test_generation": 8000,
               "weekly_test": 9000, "study_plan": 4000, "default": 2000}
 # Zwecke, die das Konto Credits kosten (app/credits.py); alles mit "tutor:" am Anfang auch
 CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan")
@@ -946,9 +949,10 @@ def provider(model_name: str | None = None):
 
 
 def route(purpose: str, request_id: str, *, model_name: str | None = None, image: bytes | None = None,
-          route_text: str | None = None, route_hint: str | None = None) -> list:
+          route_text: str | None = None, route_hint: str | None = None, page_text: str | None = None) -> list:
     """Anbieter-Kette einer Anfrage (app/ai_router.py): [gewaehlt, Ersatz ...]. Mit `model_name` genau dieses Modell
-    (beim Anbieter laut app/ai_prices.py). Tests: set_provider ersetzt alles durch eine Attrappe."""
+    (beim Anbieter laut app/ai_prices.py). `page_text` (Prompt): Rechenseiten nur mit LERNAPP_AI_MATH_PAGES.
+    Tests: set_provider ersetzt alles durch eine Attrappe."""
     from . import ai_router
     if model_name and model_name not in allowed_models():
         raise AIUnavailable("model_not_allowed", "Dieses Modell ist für die StudiNow-KI nicht freigegeben.", 400)
@@ -971,7 +975,7 @@ def route(purpose: str, request_id: str, *, model_name: str | None = None, image
         p = ai_prices.price(c.model or _default_model(c.provider))
         return p is not None and p.vision
     choices, _hard = ai_router.chain(purpose, request_id, configured=configured, route_text=route_text, hint=route_hint,
-                                     needs_vision=bool(image), vision_ok=vision_ok)
+                                     needs_vision=bool(image), vision_ok=vision_ok, page_text=page_text)
     out = []
     for c in choices:
         try:
@@ -1418,7 +1422,8 @@ class _Call:
         self.budget_reserve, self.library, self.rate_limit, self.fresh = budget_reserve, library, rate_limit, fresh
         self.rid = request_id or ("auto:" + uuid.uuid4().hex)
         # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
-        self.chain = route(purpose, self.rid, model_name=model_name, image=image, route_text=route_text, route_hint=route_hint)
+        self.chain = route(purpose, self.rid, model_name=model_name, image=image, route_text=route_text, route_hint=route_hint,
+                           page_text=prompt if purpose.startswith("tutor:") else None)
         self.models = [model_name or getattr(p, "model", None) or model() for p in self.chain]
         self.hosted = config.is_hosted()
         if self.hosted:
