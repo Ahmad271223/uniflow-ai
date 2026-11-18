@@ -48,7 +48,7 @@ enum DueReminderState: Equatable {
     case on
     /// Schalter in den Einstellungen aus (Vorgabe)
     case off
-    /// Tarif ohne Erinnerungen (ab Plus)
+    /// Tarif ohne Erinnerungen (ab Pro AI seit 18.11.2026)
     case locked
     /// eingeschaltet, aber iOS erlaubt StudiNow keine Mitteilungen
     case denied
@@ -123,7 +123,8 @@ final class DueReminderScheduler: ObservableObject {
     let notifier: DueNotifying
     /// jetzt (Tests: feste Zeit)
     var now: () -> Date = { Date() }
-    /// Tarif erlaubt Erinnerungen (ab Plus seit 11.11.2026, `UFFeature.dueReminders`; Probe zaehlt wie Plus). Ohne:
+    /// Tarif erlaubt Erinnerungen und "Neuer Klausurtermin erkannt" (ab Pro AI seit 18.11.2026, vorher ab Plus,
+    /// `UFFeature.dueReminders`; die Probe zaehlt wie Pro AI). Ohne:
     /// nichts geplant, schon geplante werden zurueckgenommen, der Schalter bleibt gemerkt (nach dem Kauf geht es weiter)
     var allowed: () -> Bool = { Entitlements.shared.allows(.dueReminders) }
     /// Texterkennung fuer Folien als Bild nur im Vordergrund (Vision rechnet im Hintergrund nicht verlaesslich) und
@@ -305,7 +306,7 @@ final class DueReminderScheduler: ObservableObject {
             await withdrawAll()
             return true
         }
-        guard allowed() else { return false }                                  // ab Plus: die Karte zeigt die Sperre
+        guard allowed() else { return false }                                  // ab Pro AI: die Karte zeigt die Sperre
         let ok: Bool
         switch await notifier.status() {
         case .allowed: ok = true

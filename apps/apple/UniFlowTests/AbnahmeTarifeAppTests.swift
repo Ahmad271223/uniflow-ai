@@ -376,8 +376,9 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         let expected: [UFFeature: UFPlan] = [
             .studipSync: .free, .readDocuments: .free, .modulesTimetable: .free, .studyCalendar: .free, .studyPlanning: .free,
             .timer: .free, .viewNotes: .free, .uniGrades: .free, .ownChatGPT: .free,
-            .pencilWriting: .plus, .communityRead: .plus, .shareSolutions: .plus, .splitView: .plus, .flashcards: .plus, .dueReminders: .plus, .autoPlan: .plus, .aiChat: .plus,
+            .pencilWriting: .plus, .communityRead: .plus, .shareSolutions: .plus, .splitView: .plus, .flashcards: .plus, .autoPlan: .plus, .aiChat: .plus,
             .aiHelp: .proAI, .aiFlashcards: .proAI, .weeklyTests: .proAI, .deviceSync: .proAI,
+            .dueReminders: .proAI,                        // Erinnerungen ab Pro AI (Inhaber 18.11.2026 "Alles ab Pro AI")
         ]
         var table = ["Funktion | Free | Plus | Pro AI | Probe läuft | Probe vorbei"]
         let running = UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: UFLocalTrial.state(startedAt: Date(), now: Date()))

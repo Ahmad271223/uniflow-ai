@@ -145,7 +145,7 @@ final class EinstellungenKlarAppTests: XCTestCase {
                      "background.news.grades", "background.last",
                      // "Hochschule wechseln" bzw. der Hinweis, wenn der Build nur eine Hochschule anbietet
                      UniversitySettingsCard.offersSwitch(current: .luh) ? "settings.university.switch" : "settings.university.more"],
-             // Erinnerungen: der Schalter (ab Plus) oder die Sperrkarte, beide beginnen so
+             // Erinnerungen: der Schalter (ab Pro AI seit 18.11.2026) oder die Sperrkarte, beide beginnen so
              [UniAutoLoginCard.title, "Stud.IP & QIS", "Uni-Kalender", "Im Hintergrund abgleichen", "Semester", "Erinnerungen an Abgaben",
               "Hochschule", "Daten dieser Hochschule löschen"]),
             // "Glättung" gibt es nur, solange sie etwas bewirkt (seit 17.11.2026 aus: kostete Striche, `PencilTuning`)

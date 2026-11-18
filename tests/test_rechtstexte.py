@@ -23,6 +23,13 @@ LEGAL = ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOES
 TODAY = dt.date.today().strftime("%d.%m.%Y")
 OPEN_KEYS = ("telefon",)  # Hosting seit 08.11.2026 eingetragen (Hetzner, Nürnberg)       # in angaben.json noch leer
 COMPANY = "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)"
+# Stand je Rechtstext: 14.11.2026 vom Inhaber fertig gegeben; Nutzungsbedingungen 18.11.2026 (Erinnerungen an Abgaben
+# und Klausuren ab Pro AI, Entscheidung des Inhabers "Alles ab Pro AI"; Entwurf im Repo, noch nicht veroeffentlicht)
+STAND = {"NUTZUNGSBEDINGUNGEN.md": "18.11.2026"}
+
+
+def stand(name: str) -> str:
+    return f"Stand {STAND.get(name, '14.11.2026')}"
 
 
 def run(*args):
@@ -95,7 +102,7 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
         text = (REL / name).read_text(encoding="utf-8")
         # 14.11.2026 (Inhaber: "mach Impressum, Datenschutz und AGB fertig"): kein Entwurfsvermerk mehr auf den
         # veroeffentlichten Seiten, neue Anschrift Vahrenwalder Straße 30, 30165 Hannover
-        assert "support@studinow.app" in text and "Stand 14.11.2026" in text, name
+        assert "support@studinow.app" in text and stand(name) in text, name
         assert "anwaltlich prüfen" not in text and "Entwurf, Stand" not in text, name
         assert "[[Name]]" not in text and "[[E-Mail]]" not in text and "[[Domain]]" not in text and "[[Datum]]" not in text, name
     ds = (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
@@ -118,7 +125,10 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # Hash der Stud.IP-Benutzerkennung im Geraeteabgleich (app/apple_signin.py, app/sync.py check_studip_user)
     # 13.11.2026: Konto loeschen auch im Web und unter Windows; ein Stripe-Abo endet mit der Loeschung (Bedingungen 5, 10;
     # Datenschutz 9, 15), keine anteilige Erstattung (anwaltlich pruefen)
-    assert "**Stand 14.11.2026.**" in ds and "**Stand 14.11.2026.**" in nb
+    assert "**Stand 14.11.2026.**" in ds and "**Stand 18.11.2026.**" in nb
+    # 18.11.2026: Erinnerungen an Abgaben, Tests und Klausuren nur noch in Pro AI (Tabelle Abschnitt 2)
+    assert "Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen" in nb
+    assert "neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |" in nb
     assert "beenden wir mit der Löschung sofort" in nb and "beenden wir mit der Löschung sofort" in ds
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
@@ -162,7 +172,7 @@ def test_fill_into_out_dir_leaves_sources_untouched_and_no_placeholders(filled):
         for word in ("TODO", "TBD", "XXX"):
             assert word not in text, (name, word)
         if name in LEGAL:
-            assert "Stand 14.11.2026" in text and "Entwurf, Stand" not in text, name
+            assert stand(name) in text and "Entwurf, Stand" not in text, name
         else:
             assert "Entwurf" in text and "26.10.2026" in text, "Vorbehalt der Vorlage bleibt (tests/test_release_texts.py)"
     # Quelle unveraendert: dort stehen die offenen Platzhalter noch

@@ -147,6 +147,12 @@ StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. 
 
 ### Fassung mit Pro AI – für 1.0.4 verwenden (Stand 13.11.2026: erster Satz „Lernmanagementsystem für Hochschulen in ganz Deutschland“, dazu der Abschnitt „AUF IPHONE UND IPAD“; nur Jahresabos) – 3995 Zeichen
 
+**Für die nächste Version (Entwurf 18.11.2026, nicht hochgeladen):** Erinnerungen an Abgaben und Klausuren gehören ab
+der nächsten Version zu Pro AI statt zu Plus (Entscheidung des Inhabers 18.11.2026, „Alles ab Pro AI“). Darum stehen sie
+unten nicht mehr bei „Mit Plus“, sondern im Absatz zu Pro AI (gleiche Länge, 3995 Zeichen). Im Store steht bis zum
+nächsten Hochladen noch der Text von 1.0.4 (`EINREICHUNG-1-0-4.md`); erst mit der App-Version hochladen, die die
+Erinnerungen an Pro AI bindet, und erst nach Freigabe durch den Inhaber.
+
 Dieselben Aussagen wie oben, dazu der Abschnitt „KI-HILFE MIT STUDINOW PRO AI“ und die Tarife mit Pro AI. Um unter
 4000 Zeichen zu bleiben, sind Übersicht/Lernkalender und Dokumente/Lernen zusammengefasst. Keine fremden Marken
 (ChatGPT, OpenAI) im öffentlichen Text.
@@ -172,7 +178,7 @@ DEINE UNI AN EINEM ORT
 LESEN, SCHREIBEN, LERNEN
 • Bibliothek nach Modulen; PDFs lesen, durchsuchen, abhaken
 • Mit Plus: Schreiben mit dem Apple Pencil – Stift, Marker, Radierer, Lasso, Lineal und Formen; Notizen als PDF exportieren
-• Mit Plus: Übung und Skript nebeneinander, eigene Karteikarten, Erinnerungen an Abgaben und Klausuren und die Community deines Kurses – unter Pseudonym, mit Melden und Sperren
+• Mit Plus: Übung und Skript nebeneinander, eigene Karteikarten und die Community deines Kurses – unter Pseudonym, mit Melden und Sperren
 
 KI-HILFE MIT STUDINOW PRO AI
 • Frag zur Seite, zu einer Markierung oder einem eingekreisten Bereich: erklären, zusammenfassen, Aufgabe lösen
@@ -185,7 +191,7 @@ DEINE DATEN
 • Dein Hochschul-Passwort gibst du auf der Anmeldeseite deiner Hochschule oder einmal unter „Uni-Zugang“ ein. Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses Geräts (nicht in iCloud). An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
-StudiNow Free ist dauerhaft kostenlos (ein Gerät): Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos (ein Gerät): Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Lernkalender, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lernplan, Community. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat, Erinnerungen an Abgaben und Klausuren und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz

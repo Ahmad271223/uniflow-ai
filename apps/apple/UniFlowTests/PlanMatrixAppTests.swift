@@ -169,8 +169,8 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertEqual(UFFlashcardAccess.readOnlyHint, "Mit Plus übst und bearbeitest du deine Karten wieder.")
         XCTAssertEqual(UFFeature.allCases.map(\.rawValue),
                        ["studipSync", "readDocuments", "modulesTimetable", "studyCalendar", "studyPlanning", "timer", "viewNotes", "uniGrades",
-                        "ownChatGPT", "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "dueReminders", "autoPlan", "aiChat",
-                        "aiHelp", "aiFlashcards", "weeklyTests", "deviceSync", "uniflowEditor"],
+                        "ownChatGPT", "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "autoPlan", "aiChat",
+                        "aiHelp", "aiFlashcards", "weeklyTests", "deviceSync", "dueReminders", "uniflowEditor"],
                        "keine Funktion fuer Testlauf oder Lernstand: auf dem Geraet ohne Schloss")
         for e: UFEntitlement in [.canAccessSharedTests, .canGenerateStudoraAITests, .canUseAdvancedAnalytics, .canUseExtendedTestHistory,
                                  .canUsePreparedWeekSets] {
@@ -185,7 +185,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertFalse(UFPlanCard.included(.plus).contains { $0.title == "Wochentests erstellen" })
         XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title),
                        ["KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
-                        "Notizen auf allen deinen Geräten"])
+                        "Notizen auf allen deinen Geräten", "Erinnerungen an Abgaben und Klausuren"])   // ab Pro AI seit 18.11.2026
         XCTAssertEqual(UFFeature.weeklyTests.detail, "Aus deinen Unterlagen, mit der StudiNow-KI")
         XCTAssertTrue(UFLockedCard.message(.weeklyTests, access: .locked(.proAI)).contains("Enthalten ab StudiNow Pro AI."))
         // Tarifwahl: Pro AI nur mit Produkt aus dem Store, sonst der Satz ohne Preis

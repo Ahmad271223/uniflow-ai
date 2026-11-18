@@ -309,8 +309,10 @@ final class PlanContractTests: XCTestCase {
             XCTAssertEqual(f.minimumPlan, .plus, f.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
-        let pro: [UFFeature] = [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync]
+        // dazu die Erinnerungen an Abgaben und Klausuren (Inhaber 18.11.2026 "Alles ab Pro AI"), auf dem Geraet ohne Konto
+        let pro: [UFFeature] = [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders]
         XCTAssertEqual(UFFeature.allCases.filter { $0.minimumPlan == .proAI }, pro)
+        XCTAssertEqual(UFEntitlement.canUseDueReminders.onDevice, .onDevice([.dueReminders]))
         for f in pro {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), .allowed, f.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .locked(.proAI), f.rawValue)
@@ -333,7 +335,7 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
                         "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
-                        "Erinnerungen an Abgaben und Klausuren", "KI-Chat mit gekauften Credits"]
+                        "KI-Chat mit gekauften Credits"]
                            .map { UFDevice.adapt($0) })
         LearnCalendar.enabled = true
         defer { LearnCalendar.enabled = false }
@@ -343,7 +345,7 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
                         "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
-                        "Erinnerungen an Abgaben und Klausuren", "Lernplan automatisch erstellen", "KI-Chat mit gekauften Credits"]
+                        "Lernplan automatisch erstellen", "KI-Chat mit gekauften Credits"]
                            .map { UFDevice.adapt($0) })   // am Mac „Schreiben mit Maus oder Trackpad“
         // Free (07.11.2026): Lernkalender von Hand, der automatische Lernplan gehoert zu Plus
         XCTAssertFalse((UFPlanCard.included(.free).map { $0.title + " " + ($0.detail ?? "") }).joined().contains("automatisch"))
@@ -353,7 +355,7 @@ final class PlanContractTests: XCTestCase {
                        "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI")
         XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title),
                        ["KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
-                        "Notizen auf allen deinen Geräten"])
+                        "Notizen auf allen deinen Geräten", "Erinnerungen an Abgaben und Klausuren"])   // ab Pro AI seit 18.11.2026
         let help = try? XCTUnwrap(UFPlanCard.included(.proAI).first)
         XCTAssertTrue(help?.detail?.contains("„Ganze Vorlesung erklären“") == true)
         XCTAssertTrue(help?.detail?.contains("„Alle Aufgaben erklären“") == true)

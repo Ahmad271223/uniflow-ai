@@ -57,7 +57,8 @@ enum DueSoon {
         case .denied:
             return UFDevice.adapt("An diese Termine kann StudiNow dich nicht erinnern: Mitteilungen für StudiNow sind in den iPad-Einstellungen ausgeschaltet.")
         case .locked:
-            return "An diese Termine erinnert dich StudiNow nicht: Erinnerungen an Abgaben und Prüfungen gehören zu StudiNow Plus. Die Termine stehen hier und im Stundenplan."
+            // ab Pro AI (Entscheidung des Inhabers 18.11.2026 "Alles ab Pro AI"; der Tarif kommt aus der Matrix)
+            return "An diese Termine erinnert dich StudiNow nicht: Erinnerungen an Abgaben und Prüfungen gehören zu \(UFFeature.dueReminders.minimumPlan.name). Die Termine stehen hier und im Stundenplan."
         }
     }
 

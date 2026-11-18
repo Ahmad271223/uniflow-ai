@@ -102,12 +102,12 @@ final class KlausurAusFolienAppTests: XCTestCase {
         return (m, c)
     }
 
-    private func scheduler(_ n: Notifier, enabled: Bool = true, plus: Bool = true) -> DueReminderScheduler {
+    private func scheduler(_ n: Notifier, enabled: Bool = true, allowed: Bool = true) -> DueReminderScheduler {
         defaults.set(enabled, forKey: DueReminderScheduler.enabledKey)
         let s = DueReminderScheduler(notifier: n, defaults: defaults)
         let fixed = clock.now
         s.now = { fixed }
-        s.allowed = { plus }
+        s.allowed = { allowed }
         s.ocrAllowed = { true }
         s.inBackground = { false }
         return s
@@ -193,6 +193,37 @@ final class KlausurAusFolienAppTests: XCTestCase {
         XCTAssertEqual(DueOpen.route(rows[0]), "#/doc/f5?page=2")
     }
 
+    /// Entscheidung des Inhabers 18.11.2026 ("Alles ab Pro AI"): auch "Neuer Klausurtermin erkannt" erst ab Pro AI. Mit
+    /// Plus (Schalter an, iOS erlaubt) keine Mitteilung und keine Erinnerung; die Karte "Klausuren und Tests" zeigt den
+    /// Termin trotzdem als neu erkannt und sagt "gehören zu StudiNow Pro AI". Mit Pro AI kommt die Mitteilung.
+    func testNewExamNoticeNeedsProAI() async throws {
+        let (m, c) = try container()
+        let d = try await seedCourse(c)
+        let n = Notifier()
+        var ent = Entitlements(observe: false, plan: .plus)
+        let s = scheduler(n)
+        s.allowed = { ent.allows(.dueReminders) }
+        s.attach(m)
+        await s.settle()
+        try await addFile(d, id: "f5", name: "VL05_Schaetzer.pdf", pages: ["Statistik I", "Organisatorisches\nKlausur\n17.11.2026, 10:00 Uhr\nAudimax"])
+        await s.refresh(recompute: true)
+        XCTAssertEqual(n.posted.count, 0, "Plus: keine Mitteilung „Neuer Klausurtermin erkannt“")
+        XCTAssertEqual(n.pending.count, 0, "Plus: keine Erinnerungen")
+        let rows = DueSoon.rows(try await c.api.value("/api/due").list("items"))
+        XCTAssertEqual(rows.map { $0.s("title") }, ["Klausur"], "die Karte bleibt in jedem Tarif")
+        XCTAssertEqual(rows.first?["is_new"], true)
+        let state = await s.reminderState()
+        XCTAssertEqual(state, .locked)
+        XCTAssertTrue(try XCTUnwrap(DueSoon.hint(state)).contains("gehören zu StudiNow Pro AI"))
+
+        ent = Entitlements(observe: false, plan: .proAI)
+        try await addFile(d, id: "f6", name: "VL06.pdf", pages: ["Klausurtermin: 16.02.2027"])
+        await s.refresh(recompute: true)
+        XCTAssertEqual(n.posted.count, 1, "Pro AI: der danach erkannte Termin wird gemeldet (der unter Plus erkannte nicht nachtraeglich)")
+        XCTAssertTrue(n.posted.first?.title.hasPrefix("Neuer Klausurtermin erkannt: ") == true, n.posted.first?.title ?? "")
+        XCTAssertFalse(n.pending.isEmpty, "Pro AI: Erinnerungen geplant")
+    }
+
     /// Klausur in mehr als 7 Tagen: auch "In 7 Tagen" ist geplant, nichts doppelt
     func testSevenDayReminderForExams() async throws {
         let (m, c) = try container()
@@ -244,7 +275,7 @@ final class KlausurAusFolienAppTests: XCTestCase {
         XCTAssertEqual(rows.first?["is_new"], true)
         XCTAssertTrue(try XCTUnwrap(DueSoon.hint(.off)).contains("ausgeschaltet"))
         // Tarif ohne Erinnerungen und iOS-Erlaubnis fehlt
-        let free = await scheduler(Notifier(), plus: false).reminderState()
+        let free = await scheduler(Notifier(), allowed: false).reminderState()
         XCTAssertEqual(free, .locked)
         let denied = Notifier()
         denied.state = .denied
@@ -252,7 +283,7 @@ final class KlausurAusFolienAppTests: XCTestCase {
         XCTAssertEqual(off, .denied)
         XCTAssertNil(DueSoon.hint(.on))
         XCTAssertTrue(try XCTUnwrap(DueSoon.hint(.denied)).contains("Mitteilungen"))
-        XCTAssertTrue(try XCTUnwrap(DueSoon.hint(.locked)).contains("StudiNow Plus"))
+        XCTAssertTrue(try XCTUnwrap(DueSoon.hint(.locked)).contains("StudiNow Pro AI"), "ab Pro AI seit 18.11.2026")
     }
 
     // MARK: 1. Folien als Bild

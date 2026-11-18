@@ -24,9 +24,15 @@ Server nicht nachgeprüft). Seitdem im Dienst-Code (`app/`, ohne Merges):
 | Smart Planner 2.0 | Lernziele (`/api/goals`, `/api/sessions`), im Web und unter Windows mit eigener Ansicht |
 | Module | eigene Wochen je Modul |
 | QIS, Studienverlauf | Noten nur aus QIS, echter LUH-Notenspiegel, angemeldete Prüfungen, Bescheinigungen, Studienverlauf höhere Semester |
-| Erinnerungen | an Abgaben und Klausuren erst ab Plus |
+| Erinnerungen | an Abgaben und Klausuren erst ab Plus (Nachtrag 18.11.2026: künftig erst ab Pro AI, siehe unten) |
 | Dokumente | Import in jeden Ordner |
 | KI-Hinweis | kurz, Knopf „Okay, los“ |
+
+**Nachtrag 18.11.2026 (nicht ausgerollt):** Entscheidung des Inhabers „Alles ab Pro AI“: das Recht
+`can_use_due_reminders` (Erinnerungen an Abgaben, Tests und Klausuren, auch „Neuer Klausurtermin erkannt“) gilt im
+Vertrag (`app/plans.py`, `plans.json`) ab Pro AI statt ab Plus. Im Dienst prüft nur das Web bzw. die Windows-App den
+Knopf „Erinnern“ (`app/static/due-reminders.js`, Text „Erinnern ab Pro AI“); das kommt erst mit dem nächsten
+Dienst-Update auf den Server, bis dahin gilt dort weiter „ab Plus“. Ausrollen nur mit Freigabe des Inhabers.
 
 Datenbanken: nur ergänzende Änderungen (neue Tabellen und Spalten legt der Dienst beim Start selbst an), nichts wird
 gelöscht oder umgebaut.

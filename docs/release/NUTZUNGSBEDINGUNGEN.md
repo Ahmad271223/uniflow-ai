@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Stand 14.11.2026.**
+**Stand 18.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
@@ -29,7 +29,7 @@ und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält z
 | Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
 | Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
-| Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung (die Fristen selbst siehst du in jedem Tarif) | – | ✓ | ✓ |
+| Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |
 | Wochentests aus deinen Unterlagen erstellen (über dein eigenes ChatGPT oder den StudiNow-Dienst, Abschnitt 5a) | – | ✓ | ✓ |
 | Community deines Kurses: lesen, beitreten, Fragen stellen, Lösungen und Karteikarten-Stapel teilen und vergleichen | – | ✓ | ✓ |
 | Abgleich zwischen eigenen Geräten über den StudiNow-Dienst (sobald verfügbar) | – | ✓ | ✓ |

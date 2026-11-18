@@ -40,8 +40,6 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
-    case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen; can_use_due_reminders, ab Plus
-                             // seit 11.11.2026, vorher Free). Die Fristen-Liste bleibt in jedem Tarif
     case autoPlan            // Lernplan automatisch erstellen (GeneratePlanDialog, POST /api/calendar/generate, auch
                              // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
                              // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
@@ -58,6 +56,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // iPad die StudiNow-KI, darum Pro AI (07.11.2026; vorher Plus mit dem eigenen ChatGPT, das aus
                              // ist). Wird das eigene ChatGPT freigegeben, hier neu entscheiden.
     case deviceSync          // Notizen auf allen Geraeten (DeviceSync G2 mit StudiNow-Konto, can_sync_annotations)
+    case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren samt "Neuer Klausurtermin erkannt" (Mitteilungen;
+                             // can_use_due_reminders): ab Pro AI seit 18.11.2026 (Inhaber woertlich "Alles ab Pro AI"),
+                             // 11.-17.11.2026 ab Plus, vorher Free. Geht ohne StudiNow-Konto (auf dem Geraet). Fristen- und
+                             // Terminlisten und die Karte "Klausuren und Tests: bald und neu erkannt" bleiben in jedem Tarif
     // ab V2
     case uniflowEditor
 
@@ -71,9 +73,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
              .uniGrades, .ownChatGPT:
             return .free
         case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor,
-             .dueReminders, .aiChat:
+             .aiChat:
             return .plus
-        case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync:
+        case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders:
             return .proAI
         }
     }
@@ -128,7 +130,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
-        case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren"
+        case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren und bei neu erkannten Klausurterminen"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
         case .aiChat: return "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI"
         case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit 100 Credits im Monat, weitere Credits zum Nachkaufen"

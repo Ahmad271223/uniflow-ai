@@ -32,8 +32,9 @@ def test_all_release_files_exist_and_are_marked_as_drafts():
     for f in FILES:
         text = (REL / f).read_text(encoding="utf-8")
         if f in ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
-            # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py)
-            assert "Stand 14.11.2026" in text and "Entwurf, Stand" not in text, f
+            # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py); Nutzungsbedingungen
+            # 18.11.2026 (Erinnerungen ab Pro AI)
+            assert ("Stand 18.11.2026" if f == "NUTZUNGSBEDINGUNGEN.md" else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
             continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
 
