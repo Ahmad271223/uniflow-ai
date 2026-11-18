@@ -53,7 +53,8 @@ struct TrialBanner: View {
     /// Einstellungen); sonst der Hinweis nach der Probe aus dem Stand des Kontos (`service`) bzw. der iPad-Probe
     @MainActor
     static func content(ent: Entitlements, service: StudoraAccount.PlanStatus?) -> UFTrialBannerContent? {
-        UFTrialBannerContent.make(shown: ent.shownTrial, service: service, local: ent.localTrial, purchased: ent.purchasedPlan,
+        // gekauft oder geschenkt (`ownedPlan`): ein Geschenk beendet den Hinweis nach der iPad-Probe wie ein Kauf
+        UFTrialBannerContent.make(shown: ent.shownTrial, service: service, local: ent.localTrial, purchased: ent.ownedPlan,
                                   choiceMade: ent.localTrialChoiceMade)
     }
 }

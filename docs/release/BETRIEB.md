@@ -153,7 +153,10 @@ docker compose exec app python -m app.tarif_schenken --email tester@beispiel.de 
 
 `--email` geht mehrfach. Unbekannte oder gelöschte Konten werden genannt und übersprungen. Die Zeilen je Konto zeigen
 die Adresse nur gekürzt, die volle Adresse steht nur in der Bestätigung am Ende. Die Person muss sich in der App mit
-demselben StudiNow-Konto anmelden.
+demselben StudiNow-Konto anmelden. Die Apple-App (iPad, iPhone, Mac) übernimmt nur einen **geschenkten** Tarif vom
+Dienst (Feld `gift` in `GET /api/entitlements`), kein Stripe-/Web-Abo; sie zeigt „StudiNow Pro AI“ (befristet „… bis
+TT.MM.JJJJ“), keine Probe und keinen Kaufknopf für den geschenkten Tarif. Ohne Netz gilt der zuletzt bestätigte Stand
+bis zu 30 Tage weiter; Zurücknehmen wirkt beim nächsten Kontakt der App mit dem Dienst.
 
 Den Reset-Token gibt man dem Nutzer als Link `https://app.example.de/login?reset=<TOKEN>` (gültig wie in
 `accounts.RESET_MINUTES`).

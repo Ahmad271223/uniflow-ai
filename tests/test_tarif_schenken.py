@@ -54,6 +54,7 @@ def test_gift_gives_pro_ai_without_end_with_pro_ai_credits(hosted):
     e = ent(hosted, h)
     assert e["plan"] == "pro_ai" and e["plan_name"] == "StudiNow Pro AI"
     assert e["source"] == "gift" and e["expires_at"] is None and e["will_renew"] is False and e["pending_plan"] is None
+    assert e["gift"] == {"active": True, "plan": "pro_ai", "ends_at": None}, "Feld fuer die Apple-App"
     assert e["paid_plan"] == "pro_ai", "zaehlt fuer die Apps wie ein bezahlter Tarif (keine Probe-Anzeige)"
     assert e["subscriptions"] == {"app_store": False, "stripe": False}, "kein Abo, also nichts zu verwalten"
     assert e["entitlements"] == {**plans.entitlements("pro_ai"), "chatgpt_connection_premium": e["entitlements"]["chatgpt_connection_premium"]}
@@ -107,7 +108,7 @@ def test_revoke_ends_the_gift_and_only_the_gift(hosted):
     assert code == 0 and rows[0]["ergebnis"] == "Geschenk zurueckgenommen" and rows[0]["tarif_jetzt"] == "free"
     assert "Geschenk zurueckgenommen fuer 1" in summary
     e = ent(hosted, h)
-    assert e["plan"] == "free" and e["source"] is None and e["credits"]["allowance"] == 0
+    assert e["plan"] == "free" and e["source"] is None and e["credits"]["allowance"] == 0 and e["gift"] is None
     conn = _conn()
     try:
         info = billing.gift_info(conn, u["id"])
@@ -146,6 +147,7 @@ def test_paid_subscription_and_gift_the_highest_plan_wins(hosted):
     assert _run(["--email", "zahlt-plus@beispiel.de", "--plan", "pro_ai", "--unbefristet", "--ausfuehren"])[0] == 0
     ea, eb = ent(hosted, ha), ent(hosted, hb)
     assert ea["plan"] == "pro_ai" and ea["source"] == "app_store" and ea["will_renew"] is True
+    assert ea["gift"] == {"active": True, "plan": "plus", "ends_at": None}, "das Geschenk steht auch unter einem hoeheren Abo"
     assert eb["plan"] == "pro_ai" and eb["source"] == "gift" and eb["subscriptions"]["app_store"] is True
     assert eb["credits"]["allowance"] == 100
 

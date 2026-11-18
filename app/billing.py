@@ -536,7 +536,15 @@ def _status(conn: sqlite3.Connection, user: dict, t: datetime) -> dict:
         "paid_plan": _paid_plan(rows, legacy, t),
         "subscriptions": {s: any(r["source"] == s and normalize_plan(r["plan"]) and _row_active(r["status"], r["expires_at"], t.isoformat())
                                  for r in rows) for s in ("app_store", "stripe")},
+        # geschenkter Tarif (18.11.2026, grant_gift): die Apple-App uebernimmt ihn wie die Probe des Dienstes, auch wenn
+        # ein anderer Eintrag den Tarif traegt (z. B. geschenktes Plus neben Stripe-Pro-AI); null ohne geltendes Geschenk
+        "gift": _gift_field(conn, user["id"], t),
     }
+
+
+def _gift_field(conn: sqlite3.Connection, user_id, t: datetime) -> dict | None:
+    g = gift_info(conn, user_id, t)
+    return {"active": True, "plan": g["plan"], "ends_at": g["ends_at"]} if g["active"] and g["plan"] else None
 
 
 class read_snapshot:

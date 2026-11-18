@@ -79,10 +79,15 @@ public actor StudoraAccount {
         public var paidPlan: String?
         /// Geraete-Regel (`device`, DeviceRule.swift): Auskunft zu diesem Geraet; nil, wenn der Dienst sie nicht schickt
         public var device: DeviceRule.Status?
+        /// geschenkter Tarif des Kontos (Quelle `gift`, app/tarif_schenken.py, 18.11.2026), solange er gilt: `plus` oder
+        /// `pro_ai`; nil ohne Geschenk. Anders als ein Stripe-Abo uebernimmt die App ihn wie die Probe des Dienstes.
+        public var giftPlan: String?
+        /// Ende des Geschenks; nil = unbefristet (bzw. kein Geschenk)
+        public var giftEndsAt: Date?
 
         public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, trialEndsAt: Date? = nil,
                     needsPlanChoice: Bool = false, appleAccountToken: String? = nil, paidPlan: String? = nil,
-                    device: DeviceRule.Status? = nil) {
+                    device: DeviceRule.Status? = nil, giftPlan: String? = nil, giftEndsAt: Date? = nil) {
             self.plan = plan
             self.trialActive = trialActive
             self.trialDaysLeft = trialDaysLeft
@@ -92,6 +97,24 @@ public actor StudoraAccount {
             self.appleAccountToken = appleAccountToken
             self.paidPlan = paidPlan
             self.device = device
+            self.giftPlan = giftPlan
+            self.giftEndsAt = giftEndsAt
+        }
+
+        /// Geschenk aus `GET /api/entitlements`: das Feld `gift` ({active, plan, ends_at}; `null` = keines). Ein Dienst
+        /// ohne dieses Feld meldet ein Geschenk nur, wenn es den Tarif traegt (`source` "gift", `plan`, `expires_at`).
+        /// Nur `plus` und `pro_ai` (alt `pro_connect`) zaehlen; alles andere ist kein Geschenk.
+        public static func gift(from j: JSONValue) -> (plan: String, endsAt: Date?)? {
+            let plan: String?, ends: String?
+            if let g = j["gift"] {
+                guard g["active"]?.bool == true else { return nil }
+                (plan, ends) = (g["plan"]?.string, g["ends_at"]?.string)
+            } else {
+                guard j["source"]?.string == "gift" else { return nil }
+                (plan, ends) = (j["plan"]?.string, j["expires_at"]?.string)
+            }
+            guard let plan, ["plus", "pro_ai", "pro_connect"].contains(plan) else { return nil }
+            return (plan, StudoraAccount.serviceDate(ends))
         }
     }
 
@@ -226,7 +249,8 @@ public actor StudoraAccount {
         return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
                           trialPlan: active ? t?["plan"]?.string : nil, trialEndsAt: active ? Self.serviceDate(t?["ends_at"]?.string) : nil,
                           needsPlanChoice: j["needs_plan_choice"]?.bool ?? false, appleAccountToken: j["apple_account_token"]?.string,
-                          paidPlan: j["paid_plan"]?.string, device: DeviceRule.Status.parse(j["device"]))
+                          paidPlan: j["paid_plan"]?.string, device: DeviceRule.Status.parse(j["device"]),
+                          giftPlan: PlanStatus.gift(from: j)?.plan, giftEndsAt: PlanStatus.gift(from: j)?.endsAt)
     }
 
     /// Geraete-Regel: "Dieses Gerät stattdessen nutzen" (`POST /api/account/device/primary`). Danach ist dieses Geraet

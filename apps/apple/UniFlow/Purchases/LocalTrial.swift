@@ -285,11 +285,15 @@ final class UFMemoryTrialRecords: UFTrialRecording {
 
 // MARK: - Vorrang der Quellen
 
-/// Woher der Tarif der App kommt: Dienst (laufende Probe des StudiNow-Kontos) > App Store (gekaufter Tarif aus
-/// Transaction.currentEntitlements) > Probe auf dem iPad > Free. Wer Plus kauft, hat Plus; wer Pro AI kauft, Pro AI.
+/// Woher der Tarif der App kommt: Dienst (laufende Probe des StudiNow-Kontos, geschenkter Tarif des Kontos) > App Store
+/// (gekaufter Tarif aus Transaction.currentEntitlements) > Probe auf dem iPad > Free. Wer Plus kauft, hat Plus; wer Pro AI
+/// kauft, Pro AI. Geschenk (18.11.2026, `UFServiceGift`): dieselbe Stufe wie die Probe des Dienstes, der hoechste Tarif
+/// aus Dienst und Kauf gilt (geschenktes Plus neben gekauftem Pro AI: Pro AI). Andere Tarife des Dienstes (Stripe, Web)
+/// uebernimmt die App bewusst nicht (eigene Entscheidung wegen der App-Store-Regeln).
 enum UFPlanPrecedence {
-    static func effective(service: UFPlan?, purchased: UFPlan, localTrial: UFLocalTrial.State?) -> UFPlan {
-        if let service, service != .free { return service }
+    static func effective(service: UFPlan?, gift: UFPlan? = nil, purchased: UFPlan, localTrial: UFLocalTrial.State?) -> UFPlan {
+        let fromService = max(service ?? .free, gift ?? .free)
+        if fromService != .free { return max(fromService, purchased) }
         if purchased != .free { return purchased }
         if let localTrial, localTrial.isActive { return UFLocalTrial.plan }
         return .free
@@ -350,8 +354,9 @@ enum UFTrialBannerContent: Equatable {
 /// die App blieb vorher im Vordergrund im alten Tarif, bis zum naechsten Wechsel in den Vordergrund bzw. Neustart.
 enum UFPlanExpiry {
     /// naechster Zeitpunkt nach `now`, nil = keiner
-    static func next(localTrial: UFLocalTrial.State?, rightsEnd: Date?, now: Date) -> Date? {
+    static func next(localTrial: UFLocalTrial.State?, rightsEnd: Date?, giftEnd: Date? = nil, now: Date) -> Date? {
         var at: [Date] = []
+        if let giftEnd { at.append(giftEnd) }                      // Ende eines befristeten Geschenks (`UFServiceGift`)
         if let t = localTrial, t.isActive, !t.deviceUsed {
             at.append(t.endsAt.addingTimeInterval(-Double(t.daysLeft - 1) * 86_400))
         }

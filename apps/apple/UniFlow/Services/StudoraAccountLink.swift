@@ -105,8 +105,13 @@ final class StudoraAccountLink: ObservableObject {
     /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
         didSet {
+            // Geschenkter Tarif (18.11.2026, `UFServiceGift`): jede Antwort des Dienstes ersetzt den Merker; ohne Antwort
+            // (Start ohne Netz, Dienst nicht erreichbar) gilt der zuletzt bestaetigte Stand weiter (`UFGiftMemory`)
+            let now = Date()
+            if let planStatus, let scope { giftMemory.save(UFServiceGift(status: planStatus), scope: scope, now: now) }
+            let gift = planStatus != nil ? UFServiceGift(status: planStatus) : scope.flatMap { giftMemory.load(scope: $0, now: now) }
             // Probe des Kontos: Freischaltung und Anzeige (Resttage, Ende) aus demselben Stand (Entscheidung 09.11.2026)
-            Entitlements.shared.useServiceStatus(planStatus)
+            Entitlements.shared.useServiceStatus(planStatus, gift: gift)
             updateAccountToken()
             updateAI()
             // Geraete-Regel: jede Antwort des Dienstes zum Tarif ist eine ausdrueckliche Auskunft (ohne Feld: nichts gesperrt)
@@ -124,6 +129,13 @@ final class StudoraAccountLink: ObservableObject {
     @Published private(set) var plusHintSeen = true
     /// Merker je Apple-Nutzer (Tests geben einen eigenen)
     var deviceMemory = DeviceRuleMemory()
+    /// zuletzt bestaetigtes Geschenk je Apple-Nutzer (`UFGiftMemory`; Tests geben einen eigenen)
+    var giftMemory = UFGiftMemory()
+
+    /// Abgemeldet, Sitzung beendet, Konto geloescht: das gemerkte Geschenk gilt nicht mehr
+    private func forgetGift() {
+        if let scope { giftMemory.forget(scope: scope) }
+    }
 
     /// Was dieses Geraet zeigt: Auskunft des Dienstes und der Tarif auf dem Geraet (Kauf, Probe). Nach einem Kauf von
     /// Pro AI sofort `ok`, auch bevor der Dienst den Kauf kennt; mit Plus nie gesperrt.
@@ -613,6 +625,7 @@ final class StudoraAccountLink: ObservableObject {
     private func signedOutByService() {
         user = nil
         sessions = []
+        forgetGift()
         planStatus = nil
         clearDevice()
         clearCredits()
@@ -728,7 +741,7 @@ final class StudoraAccountLink: ObservableObject {
             message = e.userMessage
             lastErrorCode = e.code
             messageAction = e.action
-            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil }
+            if e.code == "unauthenticated" { forgetGift(); user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil }
         } catch {
             guard stillCurrent(account, epoch) else { return }
             message = error.localizedDescription
@@ -747,7 +760,7 @@ final class StudoraAccountLink: ObservableObject {
         guard stillCurrent(account, epoch) else { return }
         guard signedIn else {
             // ohne Sitzung beim Dienst gibt es nichts zu zaehlen: kein Hinweis, Merker weg
-            user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
+            forgetGift(); user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
         }
         await run { a in
             let me = try await a.me()
@@ -842,6 +855,10 @@ final class StudoraAccountLink: ObservableObject {
         self.scope = scope
         self.account = account
     }
+
+    /// nur Tests: wie beim Anschliessen eines Kontos noch ohne Antwort des Dienstes (Start ohne Netz) - Stand leer, das
+    /// gemerkte Geschenk gilt (`UFGiftMemory`)
+    func clearPlanStatusForTesting() { planStatus = nil }
     #endif
 
     // MARK: Mit Apple anmelden
@@ -958,6 +975,7 @@ final class StudoraAccountLink: ObservableObject {
         lastSyncAt = nil
         user = nil
         sessions = []
+        forgetGift()
         planStatus = nil
         clearDevice()
         clearCredits()
@@ -1005,6 +1023,7 @@ final class StudoraAccountLink: ObservableObject {
         guard ok, let a0, stillCurrent(a0, epoch) else { return ok }
         accountEpoch += 1
         if let scope { deviceMemory.forget(scope: scope) }
+        forgetGift()
         user = nil; sessions = []; planStatus = nil; clearDevice(); clearCredits(); entitlements.verifyOnServer = nil; updateAI()
         return ok
     }

@@ -10,6 +10,9 @@ import SwiftUI
 // sie laeuft, steht oben "Probe aktiv: alle Funktionen von StudiNow Pro AI bis … (noch n Tage)", keine Karte traegt
 // "Aktueller Tarif" (auch Free nicht, 07.11.2026), die Pro-AI-Karte traegt "Probe". Sonst richtet sich "Aktueller Tarif"
 // nach dem Kauf (`purchasedPlan`). Wechsel zwischen Abo-Tarifen regelt Apple in der Gruppe.
+// Geschenkter Tarif (18.11.2026, `UFServiceGift`): oben "Geschenkt: alle Funktionen von StudiNow Pro AI, unbefristet"
+// (bzw. "bis …"), seine Karte traegt "Aktueller Tarif" ohne "Abo verwalten", er und die Tarife darunter haben keinen
+// Kaufknopf ("Im Geschenk enthalten"); ein hoeherer Tarif bleibt kaufbar.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
 // Zahlweise (Entscheidung des Inhabers vom 09.11.2026, ersetzt "monatlich oder jaehrlich" vom 07.11.2026): nur noch das
@@ -65,16 +68,17 @@ struct PlanPickerView: View {
             UFPageHead(Self.title(context), sub: subtitle)
             if context == .trialOver { infoCard(UFTrialTexts.overText).padding(.bottom, 16) }
             if let t = ent.runningTrial { trialCard(t).padding(.bottom, 16) }
-            if !ent.loading, ent.purchasedPlan == .free, ent.localTrial?.deviceUsed == true {
+            if !ent.loading, let g = ent.carryingGift { giftCard(g).padding(.bottom, 16) }
+            if !ent.loading, ent.ownedPlan == .free, ent.localTrial?.deviceUsed == true {
                 infoCard(UFTrialTexts.usedOnDeviceTitle + ".").padding(.bottom, 16)
             }
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
-                ForEach(UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs)) { planCard($0) }
+                ForEach(UFPlanCatalog.cards(current: ent.ownedPlan, loaded: store.loadedProductIDs)) { planCard($0) }
             }
             .environment(\.ufFillsCell, true)
-            if Self.showsProAIMissingNote(loaded: store.loadedProductIDs, loading: store.loadingProducts, current: ent.purchasedPlan) {
+            if Self.showsProAIMissingNote(loaded: store.loadedProductIDs, loading: store.loadingProducts, current: ent.ownedPlan) {
                 // nur ein Hinweis: kein Preis, kein Knopf, nichts zum Antippen
                 Text(UFPlanCatalog.proAIMissingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
                     .accessibilityAddTraits(.isStaticText)
@@ -170,6 +174,34 @@ struct PlanPickerView: View {
         return (title, note)
     }
 
+    /// Text der Geschenk-Karte oben: Titel und Zeile darunter, ohne Kauf-Druck
+    static func giftStatus(_ g: UFServiceGift) -> (title: String, note: String) {
+        let title = "Geschenkt: alle Funktionen von \(g.plan.name)" + (g.untilText.map { " " + $0 } ?? ", unbefristet")
+        return (title, "Ohne Abo und ohne Zahlung – du musst hier nichts abschließen. Deine Notizen bleiben in jedem Fall erhalten.")
+    }
+
+    /// Deckt das Geschenk diesen Tarif ab (geschenkter Tarif oder darunter, ueber dem Kauf)? Dann kein Kaufknopf.
+    static func coveredByGift(_ plan: UFPlan, gift: UFServiceGift?) -> Bool {
+        guard let gift, plan != .free else { return false }
+        return plan <= gift.plan
+    }
+
+    private func giftCard(_ g: UFServiceGift) -> some View {
+        let s = Self.giftStatus(g)
+        return UFCard(flat: true) {
+            HStack(alignment: .top, spacing: 12) {
+                UFIcon("star", size: 18).foregroundStyle(UF.ok).padding(.top, 1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(s.title).ufFont(14.5, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                    Text(s.note).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("plans.gift")
+    }
+
     private func trialCard(_ t: UFShownTrial) -> some View {
         let s = Self.trialStatus(t, proAI: proAIOffered, after: ent.purchasedPlan)
         return UFCard(flat: true) {
@@ -192,7 +224,8 @@ struct PlanPickerView: View {
         // "Aktueller Tarif" ist der gekaufte (bzw. Free ohne Kauf); waehrend der Probe ohne Kauf keiner, die Karte des
         // Probe-Tarifs (Pro AI) traegt "Probe"
         let trial = ent.runningTrial != nil
-        let current = Self.isCurrent(plan, purchased: ent.purchasedPlan, loading: ent.loading, trial: trial)
+        // "Aktueller Tarif": gekauft oder geschenkt, der hoehere (`ownedPlan`)
+        let current = Self.isCurrent(plan, purchased: ent.ownedPlan, loading: ent.loading, trial: trial)
         let showCurrent = current && context != .onboarding && context != .trialOver
         let included = UFPlanCard.included(plan)
         return PlanCardFrame(highlight: showCurrent) {
@@ -294,7 +327,10 @@ struct PlanPickerView: View {
     @ViewBuilder
     private func actionButton(_ plan: UFPlan, current: Bool, trial: Bool) -> some View {
         if plan == .free {
-            if context == .settings && trial {
+            if context == .settings && ent.carryingGift != nil && ent.purchasedPlan == .free {
+                // geschenkter Tarif ohne Kauf: nichts zu kuendigen
+                fullButton("Im Geschenk enthalten", kind: .normal, enabled: false) {}
+            } else if context == .settings && trial {
                 // Probe ohne Kauf: nichts zu kuendigen, Free gilt nach der Probe von selbst
                 fullButton("Gilt nach der Probe", kind: .normal, enabled: false) {}
             } else if context == .settings && !current {
@@ -306,6 +342,13 @@ struct PlanPickerView: View {
                 fullButton(UFTrialTexts.stayFree, kind: .normal) { onDone() }
             } else {
                 fullButton("\(UFPlan.free.name) nutzen", kind: .normal) { onDone() }
+            }
+        } else if Self.coveredByGift(plan, gift: ent.carryingGift) {
+            // geschenkter Tarif bzw. darunter: kein Kauf, nichts zu verwalten
+            if current && context != .settings {
+                fullButton("Weiter mit \(plan.name)", kind: .primary) { onDone() }
+            } else {
+                fullButton(current ? "Aktueller Tarif" : "Im Geschenk enthalten", kind: .normal, enabled: false) {}
             }
         } else if current, onOldBilling, let p = store.product(for: plan) {
             // laufender Tarif mit frueherem Monatsabo (nur Sandbox/Test): Wechsel zum Jahresabo (Apple: ab der naechsten
@@ -335,6 +378,7 @@ struct PlanPickerView: View {
     /// kleine Zeile unter dem Knopf: Kuendigung, vorgemerkter Wechsel, wann ein Wechsel gilt
     private func buttonNote(_ plan: UFPlan, current: Bool) -> String? {
         guard plan != .free, !ent.loading else { return nil }
+        if Self.coveredByGift(plan, gift: ent.carryingGift) { return nil }      // Geschenk: keine Kuendigung, kein Wechsel
         if current {
             if onOldBilling, store.product(for: plan) != nil { return UFOfferText.billingSwitchNote }
             if let next = ent.pendingPlan { return UFOfferText.pendingNote(next, at: ent.expiresAt) }
