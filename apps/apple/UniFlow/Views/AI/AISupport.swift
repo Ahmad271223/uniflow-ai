@@ -259,7 +259,9 @@ enum AIFollowUps {
 // MARK: - Markdown-Antworten
 
 /// Absaetze einer Markdown-Antwort der KI (Ueberschriften, Aufzaehlungen, nummerierte Listen, Codebloecke, Absaetze);
-/// Fett, Kursiv und Code innerhalb einer Zeile uebernimmt `AttributedString(markdown:)`
+/// Fett, Kursiv und Code innerhalb einer Zeile uebernimmt `AttributedString(markdown:)`. Seit 18.11.2026 (Antwortstil wie
+/// ChatGPT) auch Block-Formeln (`$$…$$`, `\[…\]`, ein Absatz nur aus `$…$`), Trennlinien (`---`), Zitate als Kasten
+/// (`> **Merke: …**`) und Tabellen (`| a | b |` mit Trennzeile).
 enum AIMarkdown {
     enum Block: Equatable {
         case heading(level: Int, text: String)
@@ -267,28 +269,94 @@ enum AIMarkdown {
         case numbered([String])
         case code(String)
         case paragraph(String)
+        /// Block-Formel (LaTeX ohne `$$`), gesetzt mit `MathFormulaView`
+        case math(String)
+        /// Trennlinie zwischen Abschnitten
+        case rule
+        /// Zitat bzw. Merke-Kasten mit eigenen Bloecken
+        case quote([Block])
+        /// Tabelle: Kopfzeile und Zeilen (Zellen als Markdown einer Zeile)
+        case table(header: [String], rows: [[String]])
+    }
+
+    /// Zwischenspeicher: dieselbe Antwort wird beim Scrollen und Tippen oft neu gezeichnet
+    private static let cache = NSCache<NSString, BlocksBox>()
+    private final class BlocksBox { let blocks: [Block]; init(_ b: [Block]) { blocks = b } }
+
+    static func cachedBlocks(_ text: String) -> [Block] {
+        if let hit = cache.object(forKey: text as NSString) { return hit.blocks }
+        let b = blocks(text)
+        cache.setObject(BlocksBox(b), forKey: text as NSString)
+        return b
     }
 
     static func blocks(_ text: String) -> [Block] {
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var out: [Block] = []
         var paragraph: [String] = []
         var bullets: [String] = []
         var numbered: [String] = []
         var code: [String]?
         func flush() {
-            if !paragraph.isEmpty { out.append(.paragraph(paragraph.joined(separator: " "))); paragraph = [] }
+            if !paragraph.isEmpty {
+                let p = paragraph.joined(separator: " ")
+                if let tex = soloFormula(p) { out.append(.math(tex)) } else { out.append(.paragraph(p)) }
+                paragraph = []
+            }
             if !bullets.isEmpty { out.append(.bullets(bullets)); bullets = [] }
             if !numbered.isEmpty { out.append(.numbered(numbered)); numbered = [] }
         }
-        for raw in text.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = String(raw)
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
             let trimmed = line.trimmingCharacters(in: .whitespaces)
+            i += 1
             if var c = code {
                 if trimmed.hasPrefix("```") { out.append(.code(c.joined(separator: "\n"))); code = nil } else { c.append(line); code = c }
                 continue
             }
             if trimmed.hasPrefix("```") { flush(); code = []; continue }
             if trimmed.isEmpty { flush(); continue }
+            if trimmed.hasPrefix("$$") || trimmed.hasPrefix("\\[") {
+                flush()
+                let (tex, next) = displayMath(lines, from: i - 1)
+                if !tex.isEmpty { out.append(.math(tex)) }
+                i = next
+                continue
+            }
+            if trimmed.hasPrefix(">") {
+                flush()
+                var inner: [String] = []
+                var k = i - 1
+                while k < lines.count {
+                    let t = lines[k].trimmingCharacters(in: .whitespaces)
+                    guard t.hasPrefix(">") else { break }
+                    var rest = t.dropFirst()
+                    if rest.first == " " { rest = rest.dropFirst() }
+                    inner.append(String(rest))
+                    k += 1
+                }
+                i = k
+                let content = blocks(inner.joined(separator: "\n"))
+                if !content.isEmpty { out.append(.quote(content)) }
+                continue
+            }
+            if isRule(trimmed) { flush(); out.append(.rule); continue }
+            if trimmed.hasPrefix("|"), i < lines.count, isTableSeparator(lines[i]) {
+                flush()
+                let header = cells(trimmed)
+                var rows: [[String]] = []
+                var k = i + 1
+                while k < lines.count {
+                    let t = lines[k].trimmingCharacters(in: .whitespaces)
+                    guard t.hasPrefix("|") else { break }
+                    rows.append(cells(t))
+                    k += 1
+                }
+                i = k
+                out.append(.table(header: header, rows: rows))
+                continue
+            }
             if let h = heading(trimmed) { flush(); out.append(.heading(level: h.level, text: h.text)); continue }
             if let b = bullet(trimmed) {
                 if !paragraph.isEmpty || !numbered.isEmpty { flush() }
@@ -308,6 +376,65 @@ enum AIMarkdown {
         }
         if let c = code { out.append(.code(c.joined(separator: "\n"))) }
         flush()
+        return out
+    }
+
+    /// Block-Formel ab Zeile `start` (`$$…$$` in einer Zeile oder ueber mehrere, ebenso `\[…\]`): LaTeX und naechste Zeile
+    static func displayMath(_ lines: [String], from start: Int) -> (String, Int) {
+        let first = lines[start].trimmingCharacters(in: .whitespaces)
+        let (open, close) = first.hasPrefix("$$") ? ("$$", "$$") : ("\\[", "\\]")
+        let rest = String(first.dropFirst(open.count))
+        if let r = rest.range(of: close) { return (String(rest[..<r.lowerBound]).trimmingCharacters(in: .whitespaces), start + 1) }
+        var body = rest.isEmpty ? [] : [rest]
+        var k = start + 1
+        while k < lines.count {
+            let l = lines[k]
+            if let r = l.range(of: close) {
+                let before = String(l[..<r.lowerBound])
+                if !before.trimmingCharacters(in: .whitespaces).isEmpty { body.append(before) }
+                return (body.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), k + 1)
+            }
+            body.append(l)
+            k += 1
+        }
+        // ohne Ende (Antwort abgeschnitten): bis zum Schluss als Formel
+        return (body.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), k)
+    }
+
+    /// Absatz, der nur aus einer Formel `$…$` besteht -> Block-Formel
+    static func soloFormula(_ p: String) -> String? {
+        let t = p.trimmingCharacters(in: .whitespaces)
+        guard t.count > 2, t.hasPrefix("$"), t.hasSuffix("$"), !t.hasPrefix("$$") else { return nil }
+        let inner = t.dropFirst().dropLast()
+        guard !inner.contains("$"), !inner.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return String(inner).trimmingCharacters(in: .whitespaces)
+    }
+
+    static func isRule(_ s: String) -> Bool {
+        let t = s.replacingOccurrences(of: " ", with: "")
+        guard t.count >= 3, let c = t.first, "-*_".contains(c) else { return false }
+        return t.allSatisfy { $0 == c }
+    }
+
+    static func isTableSeparator(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard t.hasPrefix("|") || t.hasPrefix(":") || t.hasPrefix("-"), t.contains("-") else { return false }
+        return t.allSatisfy { "|-: ".contains($0) }
+    }
+
+    /// Zellen einer Tabellenzeile; `|` innerhalb von `$…$` (Betrag) trennt nicht
+    static func cells(_ line: String) -> [String] {
+        var t = line.trimmingCharacters(in: .whitespaces)
+        if t.hasPrefix("|") { t.removeFirst() }
+        if t.hasSuffix("|"), !t.hasSuffix("\\|") { t.removeLast() }
+        var out: [String] = []
+        var cur = ""
+        var inMath = false
+        for c in t {
+            if c == "$" { inMath.toggle() }
+            if c == "|", !inMath { out.append(cur.trimmingCharacters(in: .whitespaces)); cur = "" } else { cur.append(c) }
+        }
+        out.append(cur.trimmingCharacters(in: .whitespaces))
         return out
     }
 
@@ -359,17 +486,31 @@ enum AIMarkdown {
         }
         return FormulaText.scripted(a, size: size)
     }
+
+    /// Quellenmarken [n] der genannten Quellen aus dem Text (die Quelle steht klein unter der Antwort, 18.11.2026)
+    static func withoutMarks(_ text: String, numbers: Set<Int>) -> String {
+        guard !numbers.isEmpty, text.contains("["), let re = try? NSRegularExpression(pattern: #"[ \t]?\[(\d{1,2})\]"#) else { return text }
+        let ns = text as NSString
+        var out = ""
+        var last = 0
+        for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            guard let n = Int(ns.substring(with: m.range(at: 1))), numbers.contains(n) else { continue }
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            last = m.range.location + m.range.length
+        }
+        return out + ns.substring(from: last)
+    }
 }
 
 /// Markdown-Antwort in den Schriften des Designsystems (Neugestaltung 04.11.2026 nach Vorbild-Vergleich): grosse
 /// Abschnittstitel (## = h2, ### = h3, tiefer = h4 der UF-Schriften), Aufzaehlungen mit Punkt, nummerierte Listen mit
 /// Zahl, Codebloecke in Festbreite auf --surface-2, Absaetze als Lesetext mit mehr Zeilenabstand (1.6) und Luft
 /// zwischen den Bloecken. Alles auswaehlbar. `size` ist die Lesegroesse; Titel werden nie kleiner als der Text.
+/// Seit 18.11.2026 (wie ChatGPT): gesetzte Block-Formeln zentriert (`MathFormulaView`), Ergebnisse im Kasten,
+/// Trennlinien, Merke-Kasten (Zitat) und Tabellen.
 struct AIMarkdownText: View {
     let text: String
     var size: CGFloat = 13.76
-
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(_ text: String, size: CGFloat = 13.76) {
         self.text = text
@@ -383,15 +524,29 @@ struct AIMarkdownText: View {
         return max(token, body + (level <= 2 ? 2 : level == 3 ? 1 : 0))
     }
 
+    /// Groesse der Block-Formeln: etwas groesser als der Lesetext (wie gedruckt)
+    static func formulaSize(body: CGFloat) -> CGFloat { (body * 1.12).rounded() }
+
     var body: some View {
-        let blocks = AIMarkdown.blocks(text)
+        AIMarkdownBlocks(blocks: AIMarkdown.cachedBlocks(text), size: size)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)
+    }
+}
+
+/// Bloecke einer Antwort (auch im Merke-Kasten, darum eigener Baustein)
+struct AIMarkdownBlocks: View {
+    let blocks: [AIMarkdown.Block]
+    let size: CGFloat
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
         VStack(alignment: .leading, spacing: size * 0.75) {
             ForEach(blocks.indices, id: \.self) { i in
                 block(blocks[i]).padding(.top, i > 0 && Self.isHeading(blocks[i]) ? size * 0.5 : 0)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .textSelection(.enabled)
     }
 
     /// Zeile mit Fett und Code in der skalierten Groesse (Dynamic Type wie `ufFont`)
@@ -407,7 +562,8 @@ struct AIMarkdownText: View {
     @ViewBuilder private func block(_ b: AIMarkdown.Block) -> some View {
         switch b {
         case .heading(let level, let t):
-            Text(rich(t, Self.headingSize(level: level, body: size))).ufFont(Self.headingSize(level: level, body: size), level <= 2 ? 700 : 650, lh: 1.3, em: -0.01)
+            Text(rich(t, AIMarkdownText.headingSize(level: level, body: size)))
+                .ufFont(AIMarkdownText.headingSize(level: level, body: size), level <= 2 ? 700 : 650, lh: 1.3, em: -0.01)
                 .foregroundStyle(UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
@@ -438,7 +594,73 @@ struct AIMarkdownText: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
                 .fixedSize(horizontal: false, vertical: true)
+        case .math(let tex):
+            MathFormulaView(latex: tex, size: AIMarkdownText.formulaSize(body: size))
+        case .rule:
+            Rectangle().fill(UF.line).frame(height: 1).frame(maxWidth: .infinity).padding(.vertical, size * 0.35)
+                .accessibilityHidden(true)
+        case .quote(let inner):
+            // Merke-Kasten (wie ChatGPT): weiche Akzentflaeche mit Rand, darin die Bloecke
+            AIMarkdownBlocks(blocks: inner, size: size)
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.accentSoft))
+                .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.accent.opacity(0.35), lineWidth: 1))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai.quote")
+        case .table(let header, let rows):
+            AIMarkdownTable(header: header, rows: rows, size: size)
         }
+    }
+}
+
+/// Tabelle einer Antwort (z. B. "Alle drei Ergebnisse"): Kopfzeile fett auf --surface-2, Linien zwischen den Zeilen,
+/// Zellen aus nur einer Formel gesetzt (`MathNodeView`); zu breit -> seitlich wischen
+struct AIMarkdownTable: View {
+    let header: [String]
+    let rows: [[String]]
+    let size: CGFloat
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var columns: Int { max(header.count, rows.map(\.count).max() ?? 0) }
+
+    var body: some View {
+        let grid = Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+            GridRow {
+                ForEach(0..<columns, id: \.self) { c in cell(c < header.count ? header[c] : "", bold: true) }
+            }
+            .background(UF.surface2)
+            ForEach(rows.indices, id: \.self) { r in
+                Rectangle().fill(UF.line).frame(height: 1).gridCellUnsizedAxes(.horizontal)
+                GridRow {
+                    ForEach(0..<columns, id: \.self) { c in cell(c < rows[r].count ? rows[r][c] : "", bold: false) }
+                }
+            }
+        }
+        .fixedSize(horizontal: true, vertical: true)
+        .clipShape(RoundedRectangle(cornerRadius: UF.rSm))
+        .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.line, lineWidth: 1))
+        ViewThatFits(in: .horizontal) {
+            grid
+            ScrollView(.horizontal, showsIndicators: false) { grid }
+        }
+        .accessibilityIdentifier("ai.table")
+    }
+
+    @ViewBuilder private func cell(_ s: String, bold: Bool) -> some View {
+        let scaled = UFScaledFont.scaled(size, typeSize)
+        Group {
+            if let tex = AIMarkdown.soloFormula(s), let lines = MathLayout.cachedParse(tex), lines.count == 1 {
+                MathNodeView(node: lines[0], size: scaled).foregroundStyle(UF.text)
+                    .accessibilityElement(children: .ignore).accessibilityLabel(lines[0].plain)
+            } else {
+                Text(AIMarkdown.styled(bold ? "**\(s)**" : s, size: scaled)).ufFont(size, bold ? 700 : 400, lh: 1.45)
+                    .foregroundStyle(UF.text)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .frame(minWidth: 72, alignment: .leading)
     }
 }
 

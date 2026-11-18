@@ -61,7 +61,9 @@ public enum PageExplainBuilder {
     /// Nachsehen ohne KI: erst der eigene Zwischenspeicher, dann der Dienst (niedrigste lesbare Variante, wird lokal
     /// uebernommen). nil = nichts da, live fragen.
     public static func stored(key: Key, mode: String, ctx: LocalContext, cloud: PageExplainCloud?, cipher: SolutionCipher?) async -> Stored? {
-        let local = (try? await ctx.database.withConnection { try PageExplainStore.rows($0, fileSHA: key.fileSHA, page: key.page, mode: mode) }) ?? []
+        // nur Antworten im aktuellen Stil (18.11.2026, PageExplain.isCurrentStyle); alte flache werden neu erklaert
+        let local = ((try? await ctx.database.withConnection { try PageExplainStore.rows($0, fileSHA: key.fileSHA, page: key.page, mode: mode) }) ?? [])
+            .filter { PageExplain.isCurrentStyle($0.text, mode: mode) }
         if case .local(let i) = PageExplain.choose(local: local.map(\.entry), cloud: []) {
             let r = local[i]
             return Stored(text: r.text, source: r.source == "cloud" ? "cloud" : "local", variant: r.variant, createdAt: r.createdAt)
@@ -69,7 +71,8 @@ public enum PageExplainBuilder {
         guard let cloud, let cipher, let records = try? await cloud.records(fileKey: key.fileKey, page: key.page, mode: mode) else { return nil }
         for r in records.sorted(by: { $0.variant < $1.variant }) where r.version == PageExplain.version {
             guard let content = try? PageExplainCrypto.open(r.payload, fileSHA: key.fileSHA, pageHash: key.pageHash, fileKey: key.fileKey, page: key.page,
-                                                            mode: mode, variant: r.variant, cipher: cipher) else { continue }
+                                                            mode: mode, variant: r.variant, cipher: cipher),
+                  PageExplain.isCurrentStyle(content.text, mode: mode) else { continue }
             let now = ctx.clock.nowISO
             try? await ctx.database.transaction {
                 try PageExplainStore.store($0, fileSHA: key.fileSHA, page: key.page, mode: mode, variant: r.variant, text: content.text, source: "cloud",
