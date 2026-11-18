@@ -1577,6 +1577,10 @@ final class StudIPSync: ObservableObject {
         // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden
         guard !Task.isCancelled else { return }
         await DocIndexPrewarm.run(backend.context)
+        // Datei-Eingang (18.11.2026): neue Kurs-PDFs einmal an StudiNow, nur im Test-Build (UF_INTAKE_OFFERED=YES),
+        // nur mit Zustimmung und im WLAN
+        guard !Task.isCancelled else { return }
+        await CourseFileIntakeRunner.afterSync(host: host)
     }
 
     /// Beim Oeffnen der App: Dokumente, die ein Hintergrundabgleich gebracht hat, in den bestehenden Lernplan

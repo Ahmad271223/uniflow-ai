@@ -239,6 +239,28 @@ final class LayoutWidthAuditTests: XCTestCase {
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
+    /// Datei-Eingang (18.11.2026, nur Test-Build `UF_INTAKE_OFFERED=YES`): Schalter und Zustimmung auf iPad und iPhone
+    /// ohne Abschneiden (die Karte selbst braucht ein angemeldetes Konto, hier Zeile und Blatt fuer sich)
+    func testDateiEingangSchalterUndZustimmung() throws {
+        let offered = CourseFileIntakeSetting.isOffered
+        CourseFileIntakeSetting.isOffered = true
+        defer { CourseFileIntakeSetting.isOffered = offered }
+        let page = ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                UFCard {
+                    UFCardHead(CourseFileIntakeSetting.cardTitle, icon: "upload")
+                    CourseFileIntakeRow()
+                }
+                CourseFileIntakeConsent(agree: {}, cancel: {})
+            }
+            .padding(16)
+        }
+        let env = try host(page)
+        var report = audit(env, "datei-eingang", route: nil, marker: CourseFileIntakeSetting.title)
+        report += audit(env, "datei-eingang", route: nil, marker: CourseFileIntakeSetting.agree, variants: Self.iphone)
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
     /// Mensa (05.11.2026) auf den drei iPhones hoch und quer: Mensa-Wahl, Tage, Filterknopf, Gerichte in einer Spalte,
     /// Oeffnungszeiten darunter (erfundener Plan ohne Netz, `MensaDemoHTTP` unter XCTest)
     func testIPhoneMensa() throws {

@@ -1080,6 +1080,7 @@ private struct LocalUniArea: View {
             }
             BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)
             SyncNotificationsCard()                                  // Mitteilungen bei Neuem (17.11.2026)
+            CourseFileIntakeCard()                                   // Datei-Eingang: nur Test-Build (UF_INTAKE_OFFERED), mit Konto
             if let term { UFCard { SemesterFields(term: term, reload: reload) } }
             if !studip.offersStudIP && hildesheim != nil {
                 StudyProgramSettingsCard(university: "Universität Hildesheim")   // Studiengang (14.11.2026)
