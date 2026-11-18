@@ -37,6 +37,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import config
+from .math_style import MATH_STYLE_JSON
 
 PRICE = {"probeklausur": 15}
 KIND = "probeklausur"
@@ -453,8 +454,8 @@ def _earlier_titles(set_key: str, variant: int) -> list[str]:
 # ---------------------------------------------------------------- KI
 
 SYSTEM = ("Du bist der Klausur-Generator von StudiNow. Du erstellst Probeklausuren für Studierende aus deren Kursmaterial. "
-          "Sprache: Deutsch. Mathematische Zeichen als Unicode (√, π, ℝ, ², ·, ≤), nie roher LaTeX-Code. Nichts mit „…“ abkürzen. "
-          "Summen und Grenzwerte ohne ^ schreiben, z. B. „Σ von k = 1 bis ∞ von 1/k²“ oder „lim (n → ∞)“. "
+          "Sprache: Deutsch. " + MATH_STYLE_JSON + " Nichts mit „…“ abkürzen. "
+          "Summen und Grenzwerte mit Pfeil statt ^, z. B. „Σ (k = 1 → ∞) 1/k²“ oder „lim (n → ∞) aₙ“. "
           "Jede Zahl vorher nachrechnen. Antworte nur mit dem verlangten JSON. " + UNTRUSTED)
 
 
