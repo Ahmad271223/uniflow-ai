@@ -604,12 +604,21 @@ final class RiesentestSynthTests: XCTestCase {
         result["locked"] = 0
     }
 
+    /// Belegter Arbeitsspeicher des Testprozesses in MB (nur fuer das Protokoll `max_rss_mb`, keine Pruefung)
     static func residentMB() -> Double {
+        #if canImport(Darwin)
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
         let kr = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count) }
         }
         return kr == KERN_SUCCESS ? Double(info.resident_size) / 1_048_576 : 0
+        #else
+        // Linux (GitHub-Lauf "Apple"): die mach-Funktionen gibt es dort nicht; Zeile "VmRSS: <n> kB" aus /proc
+        guard let s = try? String(contentsOfFile: "/proc/self/status", encoding: .utf8),
+              let line = s.split(separator: "\n").first(where: { $0.hasPrefix("VmRSS:") }),
+              let kb = line.split(separator: " ").compactMap({ Double($0) }).first else { return 0 }
+        return kb / 1024
+        #endif
     }
 }
