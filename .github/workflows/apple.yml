@@ -24,6 +24,11 @@ on:
       - "app/static/formats.js"
       - ".github/workflows/apple.yml"
   workflow_dispatch:
+    inputs:
+      alle_app_tests:
+        description: "Alle iPad-App-Tests im Simulator laufen lassen (dauert Stunden; sonst nur bauen)"
+        type: boolean
+        default: false
 
 concurrency:
   group: apple-${{ github.ref }}
@@ -85,7 +90,9 @@ jobs:
     # macos-15 hat nur Xcode 16.4: die App braucht das iOS-26-SDK (ToolbarSpacer, sharedBackgroundVisibility) und baut
     # damit nicht. macos-26 hat Xcode 26.6 (Stand 18.11.2026, neuestes auf GitHub; am Mac des Inhabers Xcode 27.2).
     runs-on: macos-26
-    # volle Suite lokal ~13 min (1252 Tests, Mac mit Apple-Chip); Runner langsamer, dazu Bauen: 90 min fuer den Job,
+    # Entscheidung des Inhabers 18.11.2026 ("nur bauen"): bei Push nur App und Tests BAUEN. Die iPad-App-Tests laufen
+    # vor jedem Build auf dem Mac (Xcode 27); auf GitHub (Xcode 26.6, iOS 26.5, langsamer Rechner) schafften sie in
+    # 60 Minuten nur 67 Tests, 11 davon rot wegen Zeit und iOS-Version. Alle Tests: von Hand mit alle_app_tests.
     # Schritte einzeln begrenzt, damit ein Haenger am Schritt erkennbar ist (P47-09)
     timeout-minutes: 90
     defaults:
@@ -126,18 +133,23 @@ jobs:
           test -n "$UDID" || { echo "kein iPad-Simulator gefunden"; exit 1; }
           xcrun simctl list devices | grep "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-      - name: Bauen und testen
+      - name: Bauen (und von Hand auch testen)
         timeout-minutes: 60
         working-directory: apps/apple
+        env:
+          ALLE: ${{ inputs.alle_app_tests }}
         run: |
           set -o pipefail
-          xcodebuild test \
+          if [ "$ALLE" = "true" ]; then ACTION=test; OK="** TEST SUCCEEDED **"; else ACTION=build-for-testing; OK="** TEST BUILD SUCCEEDED **"; fi
+          echo "xcodebuild $ACTION"
+          xcodebuild $ACTION \
             -project UniFlow.xcodeproj -scheme UniFlow \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath TestResults.xcresult \
+            -IDEBuildingContinueBuildingAfterErrors=YES \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*(deprecated|unused)|Test Case|Executed|BUILD|\*\*" || true
-          grep -q "\*\* TEST SUCCEEDED \*\*" xcodebuild.log
+          grep -qF "$OK" xcodebuild.log
       - name: Zusammenfassung
         if: always()
         working-directory: apps/apple
@@ -152,7 +164,7 @@ jobs:
             echo '```'
             echo "Kern macOS: $(grep -E 'Executed [0-9]+ tests' Packages/UniFlowCore/swift-test-macos.log 2>/dev/null | tail -n 1 | sed -E 's/^[[:space:]]+//')"
             echo "UniFlowTests: $(grep -E 'Executed [0-9]+ tests' xcodebuild.log 2>/dev/null | tail -n 1 | sed -E 's/^[[:space:]]+//')"
-            grep -E "\*\* TEST (SUCCEEDED|FAILED) \*\*" xcodebuild.log 2>/dev/null | tail -n 1 || echo "kein Testergebnis im Protokoll"
+            grep -E "\*\* TEST (BUILD )?(SUCCEEDED|FAILED) \*\*" xcodebuild.log 2>/dev/null | tail -n 1 || echo "kein Ergebnis im Protokoll"
             grep -E "error:|: failed \(" xcodebuild.log 2>/dev/null | head -20 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

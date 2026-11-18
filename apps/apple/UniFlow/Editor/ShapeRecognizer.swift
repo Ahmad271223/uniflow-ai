@@ -681,7 +681,13 @@ enum ShapeRecognizer {
 
     static func pathLength(_ pts: [CGPoint]) -> CGFloat {
         guard pts.count > 1 else { return 0 }
-        return (1..<pts.count).reduce(0) { $0 + hypot(pts[$1].x - pts[$1 - 1].x, pts[$1].y - pts[$1 - 1].y) }
+        // Schleife statt reduce (gleiche Summe, gleiche Reihenfolge): Xcode 26 (GitHub) brach die Typpruefung ab
+        var total: CGFloat = 0
+        for i in 1..<pts.count {
+            let dx: CGFloat = pts[i].x - pts[i - 1].x, dy: CGFloat = pts[i].y - pts[i - 1].y
+            total += hypot(dx, dy)
+        }
+        return total
     }
 
     static func bounds(_ pts: [CGPoint]) -> CGRect {
@@ -694,7 +700,10 @@ enum ShapeRecognizer {
         let dx = b.x - a.x, dy = b.y - a.y
         let len = hypot(dx, dy)
         guard len > 0 else { return hypot(p.x - a.x, p.y - a.y) }
-        return abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len
+        // in Teilen, gleiche Rechenreihenfolge wie der fruehere Einzeiler (Typpruefung mit Xcode 26)
+        let cross: CGFloat = dy * p.x - dx * p.y
+        let shifted: CGFloat = cross + b.x * a.y
+        return abs(shifted - b.y * a.x) / len
     }
 
     /// Winkel zwischen zwei Richtungen in Grad (0 ... 180)

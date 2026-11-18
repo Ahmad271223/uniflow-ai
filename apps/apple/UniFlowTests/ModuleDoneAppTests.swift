@@ -77,6 +77,12 @@ final class ModuleDoneAppTests: XCTestCase {
         return Dictionary(uniqueKeysWithValues: d.list("files").compactMap { f in f.s("id").map { ($0, f.s("status") ?? "") } })
     }
 
+    /// f1 und f2 haben beide diesen Stand (eigene Funktion: Xcode 26 brach die Typpruefung des Einzeilers ab)
+    private func both(_ api: APIClient, _ value: String) -> Bool {
+        guard let s = try? status(api) else { return false }
+        return s["f1"] == value && s["f2"] == value
+    }
+
     private func taskStatus(_ api: APIClient) throws -> String? {
         let d = try pumping { try await api.value("/api/packages/1") }
         return d.list("tasks").first?.s("status")
@@ -113,11 +119,11 @@ final class ModuleDoneAppTests: XCTestCase {
         // "Woche erledigt" (erste Woche): beide Dateien abgehakt, zweiter Tipp nimmt alle Haken weg
         XCTAssertTrue(env.wait { !env.labels().contains("1/3 erledigt") })
         XCTAssertTrue(env.activate("Woche erledigt"))
-        XCTAssertTrue(env.wait { (try? self.status(api)).map { $0["f1"] == "erledigt" && $0["f2"] == "erledigt" } == true })
+        XCTAssertTrue(env.wait { self.both(api, "erledigt") })
         XCTAssertEqual(try status(api)["f3"], "gelesen", "andere Wochen bleiben")
         XCTAssertTrue(env.wait { env.labels().contains("2/2 erledigt") }, env.labels().joined(separator: "\n"))
         XCTAssertTrue(env.activate("Woche erledigt"))
-        XCTAssertTrue(env.wait { (try? self.status(api)).map { $0["f1"] == "gelesen" && $0["f2"] == "gelesen" } == true })
+        XCTAssertTrue(env.wait { self.both(api, "gelesen") })
     }
 
     // MARK: Bilder

@@ -1074,6 +1074,29 @@ struct PlanSideCard<Trailing: View, Content: View>: View {
 }
 
 /// miniCal(d, monthCal, selected): Monat mit ‹ ›, 42 Tage, bis zu 3 Farbpunkte
+/// Hinweistext eines Tages im Mini-Kalender: Markierungen, Fristen, Hinweise, Klausuren. Als eigene Funktion in
+/// Schritten, weil Xcode 26 (GitHub) die Typpruefung des frueheren Einzeilers abbrach; gleicher Text wie vorher.
+extension PlanMiniCal {
+    static func dayTip(_ day: JSONValue?) -> String {
+        var parts: [String] = []
+        let marks: [JSONValue] = day.map(UFDayExtras.marks) ?? []
+        parts += marks.compactMap { $0.s("label") }
+        let deadlines: [JSONValue] = day?.list("deadlines") ?? []
+        for d in deadlines {
+            let kind: String = d.s("kind_label") ?? "", time: String = d.s("time") ?? "", title: String = d.s("title") ?? ""
+            parts.append("\(kind) \(time): \(title)")
+        }
+        let notices: [JSONValue] = day?.list("notices") ?? []
+        for n in notices {
+            let kind: String = n.s("kind_label") ?? "", title: String = n.s("title") ?? ""
+            parts.append("\(kind): \(title)")
+        }
+        let exams: [JSONValue] = day?.list("exams") ?? []
+        parts += exams.map { $0.s("title") ?? "Klausur" }
+        return parts.joined(separator: " · ")
+    }
+}
+
 struct PlanMiniCal: View {
     let d: PlanData
     let selected: String
@@ -1116,10 +1139,7 @@ struct PlanMiniCal: View {
                         // Klausur (`UFExam`): eigener Punkt zuerst, nie verdraengt
                         let _ = { if !(byDate[k]?.list("exams") ?? []).isEmpty { colors.insert("exam", at: 0) } }()
                         let hol = byDate[k].map(UFDayExtras.tint) ?? .none
-                        let tip = ((byDate[k].map(UFDayExtras.marks) ?? []).compactMap { $0.s("label") }
-                                   + (byDate[k]?.list("deadlines") ?? []).map { "\($0.s("kind_label") ?? "") \($0.s("time") ?? ""): \($0.s("title") ?? "")" }
-                                   + (byDate[k]?.list("notices") ?? []).map { "\($0.s("kind_label") ?? ""): \($0.s("title") ?? "")" }
-                                   + (byDate[k]?.list("exams") ?? []).map { $0.s("title") ?? "Klausur" }).joined(separator: " · ")
+                        let tip = Self.dayTip(byDate[k])
                         Button { router.go(.plan(view: "day", date: k)) } label: {
                             VStack(spacing: 2) {
                                 Text("\(c.component(.day, from: dt))").font(.uf(12.48, isToday ? 700 : 400))
