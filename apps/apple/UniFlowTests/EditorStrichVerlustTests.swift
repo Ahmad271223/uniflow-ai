@@ -21,10 +21,15 @@ extension EditorStrichBleibtTests {
         var neuGesetzt = 0
         var verschoben = 0
         var zaehlerFehlt = 0
+        /// Formen bzw. Neubau: wie oft der eben gezeichnete Strich vom Programm ersetzt wurde
+        var ersetzt = 0
+        /// Striche, die schon vor dem Lauf auf der Seite waren (oberer Bereich), nach dem Lauf noch da
+        var vorhanden = 0
+        var vorhandenDanach = 0
         /// zu jedem fehlenden Strich: was um sein Absetzen herum geschah
         var hergang: [String] = []
         var text: String {
-            (hergang.isEmpty ? "" : hergang.map { "   >> " + $0 }.joined(separator: "\n") + "\n  ") + "\(name): geschrieben \(geschrieben); in der Zeichenflaeche \(inDerFlaeche), es fehlen \(fehlenInDerFlaeche); gespeichert \(gespeichert), es fehlen \(fehlenGespeichert); vom Programm neu gesetzt \(neuGesetzt) Mal; Laden auf einen Strich gewartet \(verschoben) Mal; Zaehler \"fehltNachAbsetzen\" +\(zaehlerFehlt)"
+            (hergang.isEmpty ? "" : hergang.map { "   >> " + $0 }.joined(separator: "\n") + "\n  ") + "\(name): geschrieben \(geschrieben); in der Zeichenflaeche \(inDerFlaeche), es fehlen \(fehlenInDerFlaeche); gespeichert \(gespeichert), es fehlen \(fehlenGespeichert); vom Programm neu gesetzt \(neuGesetzt) Mal; Laden auf einen Strich gewartet \(verschoben) Mal; Zaehler \"fehltNachAbsetzen\" +\(zaehlerFehlt); Strich ersetzt \(ersetzt) Mal; vorhandene Striche \(vorhandenDanach) von \(vorhanden)"
         }
     }
 
@@ -48,19 +53,21 @@ extension EditorStrichBleibtTests {
             pruefeVerlust(r)
         }
         // Gegenprobe "wie bis 17.11.2026": Glaettung baut jeden Strich neu, ein gemerktes Absetzen, Laden sofort (nur
-        // Messwerte, ohne Pruefung), je zweimal
+        // Messwerte, ohne Pruefung), je zweimal. Hier GEHEN Striche verloren - das ist der Zweck der Gegenprobe; darum
+        // prueft `verlustLauf` mit `gegenprobe` nichts (bis 18.11.2026 prueften diese Laeufe noch die Gesamtzahl der
+        // Striche und waren je nach Zufall rot: "Formen an, 400 Striche vorhanden: vorhandene und neue Striche zusammen").
         PencilTuning.rebuildFromRawPointsAfterLift = true
         PencilTuning.liftBelongsToItsStroke = false
         var before: [String] = []
         for (smoothing, vorhanden) in [(PencilSmoothing.off, 400), (.light, 400), (.off, 400), (.light, 400)] {
-            let r = try await verlustLauf(smoothing: smoothing, shapes: true, vorhanden: vorhanden, sofort: false)
+            let r = try await verlustLauf(smoothing: smoothing, shapes: true, vorhanden: vorhanden, sofort: false, gegenprobe: "wie bis 17.11.")
             before.append(r.text)
         }
         // Neubau an, aber mit den Sicherungen vom 17.11. (Absetzen gehoert zu seinem Strich, nicht wenn der Stift aufliegt)
         PencilTuning.liftBelongsToItsStroke = true
         var guarded: [String] = []
         for (smoothing, vorhanden) in [(PencilSmoothing.off, 400), (.light, 400), (.off, 400), (.light, 400)] {
-            let r = try await verlustLauf(smoothing: smoothing, shapes: true, vorhanden: vorhanden, sofort: false)
+            let r = try await verlustLauf(smoothing: smoothing, shapes: true, vorhanden: vorhanden, sofort: false, gegenprobe: "Neubau mit Sicherungen")
             guarded.append(r.text)
         }
         PencilTuning.rebuildFromRawPointsAfterLift = false
@@ -75,14 +82,20 @@ extension EditorStrichBleibtTests {
         XCTAssertEqual(r.fehlenGespeichert, 0, "\(r.name): Striche fehlen im gespeicherten Stand", file: file, line: line)
         XCTAssertEqual(r.gespeichert, r.geschrieben, "\(r.name): Zahl der gespeicherten Striche", file: file, line: line)
         XCTAssertEqual(r.zaehlerFehlt, 0, "\(r.name): der Zaehler auf dem Geraet haette einen Verlust gemeldet", file: file, line: line)
+        XCTAssertEqual(r.vorhandenDanach, r.vorhanden, "\(r.name): Striche, die schon auf der Seite waren", file: file, line: line)
+        // Der Waechter haelt nie am Ende und die Glaettung baut nichts mehr neu: Kein Strich darf ersetzt werden
+        // (Formerkennung ersetzt nur nach Halten, `PDFEditorController.snapShape`)
+        XCTAssertEqual(r.ersetzt, 0, "\(r.name): ohne Halten vom Programm ersetzt", file: file, line: line)
     }
 
     /// Ein Lauf: 40 Striche in den freien Bereich der Seite (Seitenpunkte y 280 bis 420)
-    private func verlustLauf(smoothing: PencilSmoothing, shapes: Bool, vorhanden: Int, sofort: Bool) async throws -> VerlustErgebnis {
+    /// - Parameter gegenprobe: Name einer Gegenprobe (nur Messwerte, keine Pruefung), nil fuer einen geprueften Lauf
+    private func verlustLauf(smoothing: PencilSmoothing, shapes: Bool, vorhanden: Int, sofort: Bool,
+                             gegenprobe: String? = nil) async throws -> VerlustErgebnis {
         UserDefaults.standard.set(smoothing.rawValue, forKey: PencilSmoothing.key)
         UserDefaults.standard.set(shapes, forKey: ShapeSnapSetting.key)
         var r = VerlustErgebnis()
-        r.name = "Glaettung \(smoothing.rawValue), Formen \(shapes ? "an" : "aus"), \(vorhanden) Striche vorhanden\(sofort ? ", sofort nach dem Oeffnen" : "")"
+        r.name = (gegenprobe.map { "Gegenprobe \($0): " } ?? "") + "Glaettung \(smoothing.rawValue), Formen \(shapes ? "an" : "aus"), \(vorhanden) Striche vorhanden\(sofort ? ", sofort nach dem Oeffnen" : "")"
         let fx = try await makeFixture(pages: 2)
         var store = try await openStore(fx)
         if vorhanden > 0 {
@@ -111,6 +124,9 @@ extension EditorStrichBleibtTests {
         let log0 = ZeichnungSpion.log.count
         let deferred0 = editor.reloadsDeferredForLift
         let lost0 = StiftZaehler.value(.fehltNachAbsetzen)
+        let replaced0 = PageInkView.replacementsMade
+        var trace: [(at: Double, text: String)] = []
+        editor.inkTrace = { trace.append((Uhr.now(), $0)) }
 
         // Im Hintergrund: laufend "Seite neu laden", dazu ab und zu eine fremde Aenderung (ein Strich mehr im Speicher,
         // wie nach einer Zusammenfuehrung mit einem anderen Geraet)
@@ -178,7 +194,10 @@ extension EditorStrichBleibtTests {
         let loadedBy = Uhr.now() + 30
         while Uhr.now() < loadedBy, !overlay.loaded { try await Task.sleep(nanoseconds: 50_000_000) }
         XCTAssertTrue(overlay.loaded, "\(r.name): Seite geladen")
-        if vorhanden > 0 { XCTAssertGreaterThanOrEqual(canvas.drawing.strokes.count, vorhanden + count, "\(r.name): vorhandene und neue Striche zusammen") }
+        // Striche, die schon da waren (`volleSeite`, 10 Zeilen: Mitte y 33 bis 245), werden einzeln gezaehlt - die
+        // Gesamtzahl taugt nicht: fremde Aenderungen (y 470) kommen dazu oder werden vom eigenen Sichern ueberschrieben
+        r.vorhanden = vorhanden
+        r.vorhandenDanach = canvas.drawing.strokes.filter { $0.renderBounds.midY < 260 }.count
         func eigene(_ d: PKDrawing) -> [CGPoint] {
             d.strokes.map { s -> CGPoint in
                 let b = s.renderBounds
@@ -198,9 +217,15 @@ extension EditorStrichBleibtTests {
                 .map { String(format: "%+.0f ms: %d -> %d%@", ($0.at - t) * 1000, $0.before, $0.after, $0.own ? " (Test)" : "") }
             let next = i + 1 < lifted.count ? String(format: "%.0f ms", (lifted[i + 1] - t) * 1000) : "-"
             let reports = (i + 1 < reportsSeen.count ? reportsSeen[i + 1] : StiftZaehler.value(.gemeldet)) - reportsSeen[i]
-            r.hergang.append("Strich \(i + 1) (Art \(i % 5)) fehlt; getroffen: \(hits[i]); PencilKit meldete Absetzen \(liftsSeen[i]) Mal, bis zum naechsten Strich Zeichnung geaendert \(reports) Mal; naechster Strich abgesetzt nach \(next); Zeichnung neu gesetzt um sein Absetzen: \(near.isEmpty ? "nie" : near.joined(separator: ", "))")
+            let around = trace.filter { $0.at - t > -0.6 && $0.at - t < 0.4 }
+                .map { String(format: "%+.0f ms %@", ($0.at - t) * 1000, $0.text) }.joined(separator: "; ")
+            r.hergang.append("Strich \(i + 1) (Art \(i % 5)) fehlt; getroffen: \(hits[i]); PencilKit meldete Absetzen \(liftsSeen[i]) Mal, bis zum naechsten Strich Zeichnung geaendert \(reports) Mal; naechster Strich abgesetzt nach \(next); Zeichnung neu gesetzt um sein Absetzen: \(near.isEmpty ? "nie" : near.joined(separator: ", ")); Ablauf: \(around)")
         }
         r.verschoben = editor.reloadsDeferredForLift - deferred0
+        r.ersetzt = PageInkView.replacementsMade - replaced0
+        let formen = trace.filter { $0.text.hasPrefix("Form ") }.map(\.text)
+        if !formen.isEmpty { r.hergang.append("Formen ersetzt: " + formen.joined(separator: " | ")) }
+        editor.inkTrace = nil
         r.zaehlerFehlt = StiftZaehler.value(.fehltNachAbsetzen) - lost0
         await store.flush()
         await store.close()
