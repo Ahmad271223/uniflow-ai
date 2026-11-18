@@ -55,9 +55,19 @@ final class CourseFileIntakeAppTests: XCTestCase {
         XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults))
     }
 
-    func testOffUntilConsent() {
+    /// Entscheidung 18.11.2026 abends: ohne Eintrag AN (Grundlage in den Nutzungsbedingungen), Ausschalten wird gemerkt
+    func testOnByDefaultAndOffIsRemembered() {
         CourseFileIntakeSetting.isOffered = true
-        XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults), "ohne Zustimmung aus")
+        XCTAssertTrue(CourseFileIntakeSetting.isOn(defaults), "ohne Eintrag an")
+        CourseFileIntakeSetting.set(false, defaults)
+        XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults), "ausgeschaltet bleibt aus")
+        CourseFileIntakeSetting.isOffered = false
+        defaults.removeObject(forKey: CourseFileIntakeSetting.key)
+        XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults), "Store-Build (nicht angeboten): nie an")
+    }
+
+    func testSwitchRemembersTime() {
+        CourseFileIntakeSetting.isOffered = true
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         CourseFileIntakeSetting.set(true, defaults, now: now)
         XCTAssertTrue(CourseFileIntakeSetting.isOn(defaults))

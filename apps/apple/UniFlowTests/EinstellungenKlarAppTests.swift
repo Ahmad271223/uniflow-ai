@@ -426,28 +426,15 @@ final class EinstellungenKlarAppTests: XCTestCase {
         XCTAssertTrue(on.wait(timeout: 12) { self.ids(on).contains("intake.toggle") }, "Test-Build: Schalter da\n" + texts(on).joined(separator: "\n"))
         XCTAssertTrue(shows(on, CourseFileIntakeSetting.cardTitle))
         XCTAssertTrue(shows(on, CourseFileIntakeSetting.title))
-        XCTAssertFalse(CourseFileIntakeSetting.isOn(), "aus bis zur Zustimmung")
-        XCTAssertTrue(tap(id: "intake.toggle", on))
-        XCTAssertTrue(on.wait(timeout: 8) { self.ids(on).contains("intake.consent.cancel") }, "Einschalten fragt erst")
-        XCTAssertTrue(shows(on, CourseFileIntakeSetting.consentTitle))
-        for p in CourseFileIntakeSetting.consentPoints {
-            XCTAssertTrue(shows(on, String(p.prefix(40))), "Zustimmung nennt: \(p)")
-        }
-        XCTAssertFalse(CourseFileIntakeSetting.isOn(), "Dialog offen: noch aus")
-        XCTAssertTrue(tap(id: "intake.consent.cancel", on))
-        XCTAssertTrue(on.wait(timeout: 8) { !self.ids(on).contains("intake.consent.cancel") }, "Dialog zu")
-        XCTAssertFalse(CourseFileIntakeSetting.isOn(), "„Nicht jetzt“: bleibt aus")
-        // zustimmen: eingeschaltet, Schalter steht auf an; geschickt wird erst nach einem Abgleich (unter Tests nie)
-        XCTAssertTrue(tap(id: "intake.toggle", on))
-        XCTAssertTrue(on.wait(timeout: 8) { self.ids(on).contains("intake.consent.agree") })
-        XCTAssertTrue(tap(id: "intake.consent.agree", on))
-        XCTAssertTrue(on.wait(timeout: 8) { !self.ids(on).contains("intake.consent.agree") }, "Dialog zu")
-        XCTAssertTrue(CourseFileIntakeSetting.isOn(), "nach Zustimmung an")
+        // Standard an (18.11.2026 abends, ohne Dialog); Ausschalten und wieder Einschalten ohne Rueckfrage
+        XCTAssertTrue(CourseFileIntakeSetting.isOn(), "ohne Eintrag an")
         XCTAssertTrue(on.wait(timeout: 5) { (LockVisibilityAppTests.element("intake.toggle", in: on.window) as? NSObject)?.accessibilityValue == "1" })
-        // ausschalten geht ohne Rueckfrage
         XCTAssertTrue(tap(id: "intake.toggle", on))
         XCTAssertTrue(on.wait(timeout: 5) { !CourseFileIntakeSetting.isOn() }, "aus")
-        XCTAssertFalse(ids(on).contains("intake.consent.agree"))
+        XCTAssertFalse(ids(on).contains("intake.consent.agree"), "kein Dialog")
+        XCTAssertTrue(tap(id: "intake.toggle", on))
+        XCTAssertTrue(on.wait(timeout: 5) { CourseFileIntakeSetting.isOn() }, "wieder an, ohne Dialog")
+        XCTAssertFalse(ids(on).contains("intake.consent.agree"), "kein Dialog")
         on.window.isHidden = true
 
         // Test-Build, aber Demo: keine Karte

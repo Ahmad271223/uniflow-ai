@@ -238,6 +238,23 @@ zu schreiben.
 Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelöscht wird mit dem Konto, spätestens
 30 Tage nach dessen Löschung. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
+<!-- ENTWURF 18.11.2026 (Datei-Eingang): erst nach Okay des Inhabers veroeffentlichen; dann auch Abschnitt 7 ("nicht die
+Dateien") und Abschnitt 1 (Kurzfassung) anpassen und in App Store Connect "Nutzerinhalte – andere" angeben -->
+## 7a. Kursdateien an StudiNow (Datei-Eingang)
+
+Die App schickt neue PDF-Dateien aus deinen Kursen (Vorlesungen, Übungen, Lösungen, Skripte, Altklausuren) einmal an
+den StudiNow-Dienst. Dazu gehen nur Angaben zum Kurs mit: Hochschule, Studiengang (falls gewählt), Semester, Modul,
+Kursname und -nummer, Dateiname, Art der Datei, Woche und Seitenzahl. Nicht gesendet werden dein Name, deine Notizen
+und Markierungen, eigene Dokumente und Organisatorisches. Listen mit Namen, Matrikelnummern oder Noten erkennt die App
+am Dateinamen und an den ersten Seiten und schickt sie nicht; bei eingescannten Listen gelingt das nicht immer.
+Dein StudiNow-Konto wird nur beim Annehmen geprüft (höchstens 300 Dateien am Tag); gespeichert werden die Dateien
+ohne Angabe, wer sie geschickt hat, geordnet nach Hochschule, Studiengang, Semester und Modul, auf einem eigenen
+Server bei Hetzner in Deutschland. Jede Datei wird nur einmal angenommen. Das geschieht nur im WLAN und nur mit
+StudiNow-Konto. **Widerspruch:** Du kannst es jederzeit in den Einstellungen unter „Uni-Zugang & Abgleich“ →
+„Neue Kursdateien an StudiNow schicken“ ausschalten; danach schickt die App nichts mehr.
+Zweck: Lernhilfen zu den Kursen anbieten. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
+geordneten Kursunterlagen für Lernhilfen); dein Widerspruch nach Art. 21 DSGVO ist über den Schalter jederzeit möglich.
+
 ## 8. Community (Plus)
 
 In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei und teilst deine Lösung zu einem

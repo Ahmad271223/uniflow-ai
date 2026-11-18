@@ -10,8 +10,10 @@ import UniFlowCore
 /// Release "NO") landet als `UFIntakeOffered` in der Info.plist; der Test-Build setzt sie beim Bauen auf YES
 /// (`xcodebuild … UF_INTAKE_OFFERED=YES`).
 ///
-/// Auch im Test-Build nur mit Zustimmung (Schalter, aus bis zur Zustimmung), nur mit StudiNow-Konto, nur im WLAN, nie in
-/// der Demo und nie unter XCTest. Die Texte sind ein Entwurf: vor einer Veroeffentlichung im App Store mit dem Inhaber
+/// Entscheidung des Inhabers 18.11.2026 abends ("das soll direkt geschehen, wir schreiben das in die AGBs"): wo der Build
+/// den Eingang anbietet, ist er von selbst AN, ohne Zustimmungs-Dialog; Grundlage ist der Absatz in Nutzungsbedingungen und
+/// Datenschutzerklaerung, der Schalter in den Einstellungen schaltet ihn jederzeit AUS (Widerspruch). Weiter nur mit
+/// StudiNow-Konto, nur im WLAN, nie in der Demo und nie unter XCTest. Die Texte sind ein Entwurf: vor einer Veroeffentlichung im App Store mit dem Inhaber
 /// abstimmen (auch die Datenschutzerklaerung braucht dann einen Absatz).
 enum CourseFileIntakeSetting {
     /// Schluessel in der Info.plist (aus der Build-Einstellung `UF_INTAKE_OFFERED`)
@@ -31,8 +33,8 @@ enum CourseFileIntakeSetting {
     static let key = "studinow.courseFileIntake.v1"
     static let consentKey = "studinow.courseFileIntake.v1.consentAt"
 
-    /// Eingeschaltet = Build bietet es an UND der Nutzer hat zugestimmt
-    static func isOn(_ d: UserDefaults = .standard) -> Bool { isOffered && d.bool(forKey: key) }
+    /// Eingeschaltet = Build bietet es an UND der Nutzer hat es nicht ausgeschaltet (ohne Eintrag: an, 18.11.2026)
+    static func isOn(_ d: UserDefaults = .standard) -> Bool { isOffered && ((d.object(forKey: key) as? Bool) ?? true) }
 
     static func set(_ on: Bool, _ d: UserDefaults = .standard, now: Date = Date()) {
         d.set(on, forKey: key)
@@ -41,7 +43,7 @@ enum CourseFileIntakeSetting {
 
     static let cardTitle = "Kursdateien teilen"
     static let title = "Neue Kursdateien an StudiNow schicken"
-    static let short = "Neue Vorlesungen, Übungen, Skripte und Altklausuren gehen einmal an StudiNow und werden dort nach Hochschule, Studiengang, Semester und Modul geordnet."
+    static let short = "Neue Vorlesungen, Übungen, Skripte und Altklausuren gehen einmal an StudiNow und werden dort nach Hochschule, Studiengang, Semester und Modul geordnet. Ohne deinen Namen, nur im WLAN. Ausschalten geht jederzeit hier."
     static let consentTitle = "Kursdateien an StudiNow schicken?"
     /// Abgeglichen mit dem, was wirklich geht (`CourseFileIntake.Meta`, `AccountCourseFileIntake`, app/intake_api.py)
     static let consentPoints = [
@@ -133,13 +135,10 @@ struct CourseFileIntakeRow: View {
     var body: some View {
         if CourseFileIntakeSetting.isOffered {
             VStack(alignment: .leading, spacing: 6) {
+                // an ohne Rueckfrage (Standard ist an, 18.11.2026); aus = Widerspruch, gemerkt
                 Toggle(isOn: Binding(get: { on }, set: { want in
-                    if want {
-                        overlay.modal { CourseFileIntakeConsentDialog { on = CourseFileIntakeSetting.isOn() } }
-                    } else {
-                        CourseFileIntakeSetting.set(false)
-                        on = false
-                    }
+                    CourseFileIntakeSetting.set(want)
+                    on = CourseFileIntakeSetting.isOn()
                 })) {
                     Text(CourseFileIntakeSetting.title).ufFont(14.5, 600).foregroundStyle(UF.text)
                         .fixedSize(horizontal: false, vertical: true)
