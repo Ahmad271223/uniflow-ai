@@ -464,7 +464,9 @@ class _Meter:
 
     def ask(self, purpose: str, prompt: str, max_output: int) -> dict:
         from . import ai, ai_backend
-        c = ai_backend.complete(None, purpose, SYSTEM, prompt, None, library=True, route_hint="hard",
+        # Modell: das guenstige der normalen Mischung (Entscheidung des Inhabers 18.11.2026 nach dem Probelauf:
+        # „Günstiges reicht“) - kein route_hint "hard", also nie absichtlich Claude
+        c = ai_backend.complete(None, purpose, SYSTEM, prompt, None, library=True,
                                 max_output_tokens=max_output, rate_limit=False)
         self.calls += 1
         self.cost += ai_backend.cost_microeur(c.input_tokens, c.output_tokens, c.model, c.cached_tokens)
