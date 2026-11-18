@@ -1111,7 +1111,7 @@ private struct LocalLookArea: View {
             if UFEditorAvailability.available {
                 UFCard {
                     SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen",
-                        note: EditorPointer.settingsNote(isMac: PDFEditorController.isMac)) {
+                                note: EditorPointer.settingsNote(isMac: PDFEditorController.isMac)) {
                         UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                                  selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
                     }
