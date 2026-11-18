@@ -755,7 +755,8 @@ private struct AccountTab: View {
 
     @ViewBuilder private var penRows: some View {
             SettingsDivider()
-            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen",
+                        note: EditorPointer.settingsNote(isMac: PDFEditorController.isMac)) {
                 UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                          selection: Binding(get: { pen }, set: { v in
                              pen = v
@@ -1121,7 +1122,8 @@ private struct LocalAccountTab: View {
                         .padding(.bottom, UFEditorAvailability.available ? 0 : -12)
                         if UFEditorAvailability.available {
                             SettingsDivider()
-                            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+                            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen",
+                                        note: EditorPointer.settingsNote(isMac: PDFEditorController.isMac)) {
                                 UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                                          selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
                             }

@@ -47,6 +47,18 @@ struct MessageReplySheet: View {
                             .disabled(model.phase == .sending)
                             .accessibilityIdentifier("reply.close")
                     }
+                    // iPad und Mac: "Senden" auch oben rechts. Am Mac ist das Blatt niedrig, der Knopf unten im Formular
+                    // lag unter dem Rand und war erst nach dem Rollen zu sehen (Bild des Inhabers, 18.11.2026)
+                    if !compact, model.phase == .ready || model.phase == .sending {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(model.phase == .sending ? "Wird gesendet …" : "Senden") {
+                                Task { await model.send() }
+                            }
+                            .bold()
+                            .disabled(!model.canSend)
+                            .accessibilityIdentifier("reply.sendTop")
+                        }
+                    }
                 }
         }
         .modifier(CompactSheet(compact: compact, detent: $detent))

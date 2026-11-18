@@ -49,11 +49,16 @@ enum EditorPointer {
     /// Einstellungen ("Stift & Touch"): Titel der Zeile und Wahl, am Mac fuer Maus und Trackpad
     static func settingsTitle(isMac: Bool) -> String { isMac ? "Maus & Trackpad" : "Stift & Touch" }
 
+    /// Erklaerung unter der Zeile (nur Mac)
+    static func settingsNote(isMac: Bool) -> String? {
+        isMac ? "„Maus schreibt“: Ziehen mit der Maus schreibt, blättern mit Trackpad, Mausrad oder Pfeiltasten. "
+            + "„Maus blättert“: Ziehen verschiebt das Dokument; zum Schreiben im Dokument auf „Maus blättert“ tippen." : nil
+    }
+
     static func settingsOptions(isMac: Bool) -> [(String, String)] {
-        if isMac {
-            return [("all", "Maus schreibt (Blättern mit Trackpad, Mausrad oder Pfeiltasten)"),
-                    ("pen_only", "Maus blättert, Schreiben über „Maus schreibt“ im Dokument")]
-        }
+        // Mac: kurze Namen wie der Knopf im Dokument, die Erklaerung steht unter der Zeile (`settingsNote`); die langen
+        // Saetze waren in der Auswahl abgeschnitten (18.11.2026)
+        if isMac { return [("all", "Maus schreibt"), ("pen_only", "Maus blättert")] }
         return [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")]
     }
 }

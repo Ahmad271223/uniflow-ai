@@ -156,7 +156,7 @@ struct DashboardView: View {
                     MensaTodayCard(api: api, token: day).dashboardSlot(.flow)
                 }
             }
-            .frame(maxWidth: 1120, alignment: .leading)
+            .frame(maxWidth: UFDevice.pageWidth(1120), alignment: .leading)        // am Mac breiter
             .environment(\.openURL, OpenURLAction { url in
                 guard url == DashboardTidy.rescueURL else { return .systemAction }
                 Task { await rescue() }

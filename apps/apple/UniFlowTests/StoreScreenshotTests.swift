@@ -28,6 +28,8 @@ final class StoreScreenshotTests: XCTestCase {
     /// iPad Pro 13" in Punkten (x2 = 2064 x 2752 bzw. 2752 x 2064 Pixel)
     private static let portrait = CGSize(width: 1032, height: 1376)
     private static let landscape = CGSize(width: 1376, height: 1032)
+    /// Fenster am Mac (MacBook Pro 14", Vollbild ohne Dock)
+    private static let macWindow = CGSize(width: 1512, height: 920)
     /// erfundener Rufname der Begruessung
     static let demoName = "Tobi"
 
@@ -320,7 +322,9 @@ final class StoreScreenshotTests: XCTestCase {
                        sheet: SheetSwitch? = nil, sheetReady: @escaping () -> Bool = { true }) {
         guard let outDir else { return }
         let folder = reserve ? outDir.appendingPathComponent("reserve", isDirectory: true) : outDir
-        Self.shoot(env, name, folder: folder, sizes: [(Self.portrait, "portrait"), (Self.landscape, "landscape")], scale: 2, ink: ink,
+        // Mac ("Designed for iPad"): ein Mac-Fenster statt iPad hoch/quer (Pruefbilder, nicht fuer den Store)
+        let sizes = ProcessInfo.processInfo.isiOSAppOnMac ? [(Self.macWindow, "mac")] : [(Self.portrait, "portrait"), (Self.landscape, "landscape")]
+        Self.shoot(env, name, folder: folder, sizes: sizes, scale: 2, ink: ink,
                    settle: settle, present: sheet.map { s in { s.shown = true } }, sheetReady: sheetReady)
     }
 

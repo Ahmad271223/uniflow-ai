@@ -833,7 +833,7 @@ struct UFWordWrapText: View {
     var body: some View {
         let base = UFScaledFont.scaled(size, typeSize)
         let fit = Self.fit(text, base: base, weight: weight, em: em, width: width, minScale: minScale)
-        let extra = max(0, fit.size * lh - UFTypeface.font(fit.size, weight).lineHeight)
+        let extra = max(0, fit.size * UFDevice.textScale * lh - UFTypeface.font(fit.size, weight).lineHeight)
         Text(fit.text)
             .font(.uf(fit.size, weight))
             .tracking(em * fit.size)
