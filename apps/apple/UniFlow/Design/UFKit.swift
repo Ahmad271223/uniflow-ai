@@ -491,7 +491,8 @@ struct UFSheetLayer: View {
             .scrollBounceBehavior(.basedOnSize)
             .ufSheetPresentation(wide: l.wide)
             .ufSheet(item: Self.binding(overlay, index: index + 1, active: true)) { _ in
-                UFSheetLayer(overlay: overlay, index: index + 1)
+                // AnyView: der Typ enthielte sich sonst selbst (tools/pruefe-rekursive-ansichten.py, Absturz 18.11.2026)
+                AnyView(UFSheetLayer(overlay: overlay, index: index + 1))
             }
         }
     }
